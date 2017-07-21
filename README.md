@@ -70,7 +70,7 @@ ucoind
 |  5   | Mutual Close以外のclose手段を実装していない。 |
 |  6   | not |
 |  7   | \*2 |
-|  8   | yet |
+|  8   | supported |
 |  9   | `initial_routing_sync` = 0 のみ |
 
 * 全体としてエラーに対応しておらず、不整合が発生したらabortする。
