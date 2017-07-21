@@ -1,0 +1,24 @@
+[submodule "libs/jansson"]
+	path = libs/jansson
+	url = https://github.com/akheron/jansson.git
+[submodule "libs/curl"]
+	path = libs/curl
+	url = https://github.com/curl/curl.git
+[submodule "ucoin"]
+	path = ucoin
+	url = git@bitbucket.org:nayuta_co/ucoin.git
+[submodule "ucoin/libs/mbedtls"]
+	path = ucoin/libs/mbedtls
+	url = https://github.com/ARMmbed/mbedtls.git
+[submodule "ucoin/libs/libbase58"]
+	path = ucoin/libs/libbase58
+	url = https://github.com/luke-jr/libbase58.git
+[submodule "ucoin/libs/libsodium"]
+	path = ucoin/libs/libsodium
+	url = https://github.com/jedisct1/libsodium.git
+[submodule "ucoin/libs/lmdb"]
+	path = ucoin/libs/lmdb
+	url = https://github.com/LMDB/lmdb.git
+[submodule "ucoin/libs/bech32"]
+	path = ucoin/libs/bech32
+	url = https://github.com/nayutaco/bech32.git

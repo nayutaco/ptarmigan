@@ -1,0 +1,15 @@
+_build/
+*.log
+ucoind/ucoind
+ucoincli/ucoincli
+.Depend
+ucoind/dbchannel/
+conf/
+ucoind/dbucoin/
+ucoind/showdb
+ucoind/node_*/
+/libs/libucoin.a
+/*.txt
+/libs/install/
+/showdb/showdb
+/install/
