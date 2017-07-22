@@ -98,3 +98,6 @@ Thunderbirdではない。
 * channelができている場合、init交換後に `node_announcement` を交換する。
 * announcement系メッセージはチャネル間で送信するだけで、他への定期送信は行っていない。
 * `channel_update` は未対応。
+
+# 主な使い方
+[install/README.md](install/README.md)参照
