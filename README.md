@@ -1,5 +1,10 @@
-ucoind
+ptarmigan
 ====
+
+ptarmiganは「雷鳥」。  
+Lightning→雷→雷鳥、という流れ。  
+Thunderbirdではない。
+
 
 # 構成
 * Ubuntu 16.04.2で動作確認中
@@ -11,13 +16,12 @@ ucoind
 
 ## libraries
 
-* [lmdb](https://symas.com/lightning-memory-mapped-database/)([github](https://github.com/LMDB/lmdb))
 * [jansson](http://www.digip.org/jansson/)([github](https://github.com/akheron/jansson))
 * [curl](https://curl.haxx.se/)([github](https://github.com/curl/curl))
-* ucoin
-    * [mbedTLS](https://tls.mbed.org/)([github](https://github.com/ARMmbed/mbedtls))
-    * [libbase58 github](https://github.com/luke-jr/libbase58)
-    * [libsodium](https://download.libsodium.org/doc/)([github](https://github.com/jedisct1/libsodium))
+* [mbedTLS](https://tls.mbed.org/)([github](https://github.com/ARMmbed/mbedtls))
+* [libbase58 github](https://github.com/luke-jr/libbase58)
+* [libsodium](https://download.libsodium.org/doc/)([github](https://github.com/jedisct1/libsodium))
+* [lmdb](https://symas.com/lightning-memory-mapped-database/)([github](https://github.com/LMDB/lmdb))
 
 
 ## application
@@ -35,7 +39,7 @@ ucoind
         * `gettxout`
         * `getblock`
         * `getnewaddress`
-        * `dumpprivkey`
+        * `dumpprivkey` (open_channelで使用している)
 
 
 # build
@@ -72,6 +76,7 @@ ucoind
 |  7   | \*2 |
 |  8   | supported |
 |  9   | `initial_routing_sync` = 0 のみ |
+|  11  | yet |
 
 * 全体としてエラーに対応しておらず、不整合が発生したらabortする。
 
