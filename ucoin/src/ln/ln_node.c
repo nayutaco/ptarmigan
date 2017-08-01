@@ -158,14 +158,14 @@ void ln_print_node(const ln_node_t *node)
  * HIDDEN
  ********************************************************************/
 
-bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
 {
     DBG_PRINTF("\n");
     return true;
 }
 
 
-bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
 {
     bool ret;
     ln_node_announce_t ann;
@@ -175,7 +175,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, c
     //通知されたノード情報を、追加 or 更新する
     ann.p_node_id = node_pub;
     ann.p_alias = node_alias;
-    ret = ln_msg_node_announce_read(&ann, pData, pLen);
+    ret = ln_msg_node_announce_read(&ann, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
         return false;
@@ -195,7 +195,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, c
 }
 
 
-bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
 {
     DBG_PRINTF("\n");
     DBG_PRINTF2("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
@@ -203,7 +203,7 @@ bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, cons
 }
 
 
-bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
 {
     bool ret;
     ln_announce_signs_t anno_signs;
@@ -222,7 +222,7 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
     //  ここら辺が紛らわしくなってくる理由だろう。
 
     //short_channel_idで検索
-    uint64_t short_channel_id = ln_msg_announce_signs_read_short_cnl_id(pData, *pLen, self->channel_id);
+    uint64_t short_channel_id = ln_msg_announce_signs_read_short_cnl_id(pData, Len, self->channel_id);
     if (short_channel_id == 0) {
         DBG_PRINTF("fail: invalid packet\n");
         return false;
@@ -270,7 +270,7 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
     anno_signs.p_channel_id = channel_id;
     anno_signs.p_node_signature = p_sig_node;
     anno_signs.p_btc_signature = p_sig_btc;
-    ret = ln_msg_announce_signs_read(&anno_signs, pData, pLen);
+    ret = ln_msg_announce_signs_read(&anno_signs, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
         return false;
@@ -290,8 +290,7 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
     DBG_PRINTF("+++ ln_msg_cnl_announce_print[%" PRIx64 "] +++\n", self->short_channel_id);
     ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
     ln_cnl_announce_t ca;
-    uint16_t Len = self->cnl_anno.len;
-    ret = ln_msg_cnl_announce_read(&ca, self->cnl_anno.buf, &Len);
+    ret = ln_msg_cnl_announce_read(&ca, self->cnl_anno.buf, self->cnl_anno.len);
     DBG_PRINTF("+++ ln_msg_cnl_announce_read() : %d\n", ret);
     if (ret) {
         DBG_PRINTF2("short_channel_id = %" PRIx64 "\n", ca.short_channel_id);

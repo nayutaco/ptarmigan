@@ -26,7 +26,7 @@
  *      - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
  */
 #include "ln_local.h"
-
+#define M_DBG_PRINT
 
 /**************************************************************************
  * prototypes
@@ -62,6 +62,14 @@ bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
     mbedtls_mpi_read_binary(&bp, base, sizeof(base));
     ret = ucoin_util_ecp_muladd(pPubKey, pBasePoint, &bp);
     mbedtls_mpi_free(&bp);
+
+#ifdef M_DBG_PRINT
+    DBG_PRINTF2("SHA256(");
+    DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2(" || ");
+    DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
+    DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+#endif
 
     return ret == 0;
 }

@@ -80,7 +80,7 @@ bool ucoin_init(uint8_t net, bool bSegNative)
     mPref[UCOIN_PREF] = net;
     switch (net) {
     case UCOIN_TESTNET:
-        DBG_PRINTF("[testnet]\n");
+        //DBG_PRINTF("[testnet]\n");
         mPref[UCOIN_PREF_WIF] = 0xef;
         mPref[UCOIN_PREF_P2PKH] = 0x6f;
         mPref[UCOIN_PREF_P2SH] = 0xc4;
@@ -98,6 +98,7 @@ bool ucoin_init(uint8_t net, bool bSegNative)
         ret = true;
         break;
     default:
+        DBG_PRINTF("unknown net\n");
         assert(0);
     }
 
@@ -116,16 +117,16 @@ bool ucoin_init(uint8_t net, bool bSegNative)
     }
 #endif
 
-#ifdef UCOIN_DEBUG
-    char mbedver[18];
-    mbedtls_version_get_string_full(mbedver);
-    DBG_PRINTF("%s\n", mbedver);
+//#ifdef UCOIN_DEBUG
+//    char mbedver[18];
+//    mbedtls_version_get_string_full(mbedver);
+//    DBG_PRINTF("%s\n", mbedver);
 
-    //TODO: テスト用
-    if (!ret) {
-        abort();
-    }
-#endif  //UCOIN_DEBUG
+//    //TODO: テスト用
+//    if (!ret) {
+//        abort();
+//    }
+//#endif  //UCOIN_DEBUG
 
     return ret;
 }
@@ -134,5 +135,5 @@ bool ucoin_init(uint8_t net, bool bSegNative)
 void ucoin_term(void)
 {
     mPref[UCOIN_PREF_WIF] = 0;
-    DBG_PRINTF("\n");
+    //DBG_PRINTF("\n");
 }

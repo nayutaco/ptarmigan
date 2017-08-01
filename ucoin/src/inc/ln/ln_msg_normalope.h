@@ -46,10 +46,10 @@ bool HIDDEN ln_msg_update_add_htlc_create(ucoin_buf_t *pBuf, const ln_update_add
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** update_fulfill_htlc生成
@@ -65,10 +65,10 @@ bool HIDDEN ln_msg_update_fulfill_htlc_create(ucoin_buf_t *pBuf, const ln_update
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** update_fail_htlc生成
@@ -84,10 +84,10 @@ bool HIDDEN ln_msg_update_fail_htlc_create(ucoin_buf_t *pBuf, const ln_update_fa
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** commit_signed生成
@@ -103,10 +103,10 @@ bool HIDDEN ln_msg_commit_signed_create(ucoin_buf_t *pBuf, const ln_commit_signe
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** revoke_and_ack生成
@@ -122,10 +122,10 @@ bool HIDDEN ln_msg_revoke_and_ack_create(ucoin_buf_t *pBuf, const ln_revoke_and_
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** update_fee生成
@@ -141,10 +141,10 @@ bool HIDDEN ln_msg_update_fee_create(ucoin_buf_t *pBuf, const ln_update_fee_t *p
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** update_fail_malformed_htlc生成
@@ -160,9 +160,9 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_create(ucoin_buf_t *pBuf, const ln
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 #endif /* LN_MSG_NORMALOPE_H__ */

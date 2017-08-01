@@ -49,10 +49,10 @@ bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, uint8_t **ppSigNode, u
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** [デバッグ]channel_announcementデバッグ出力
@@ -74,10 +74,10 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** channel_update生成
@@ -93,10 +93,10 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** announcement_signatures生成
@@ -121,9 +121,9 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * @retval  true    成功
  */
-bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 #endif /* LN_MSG_ANNO_H__ */

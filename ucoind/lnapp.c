@@ -68,7 +68,7 @@
 //#define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
 //#define M_CHANNEL_RESERVE_SAT           (700)
 //#define M_HTLC_MINIMUM_MSAT             (9000)
-#define M_FEERATE_PER_KW                (1500)
+//#define M_FEERATE_PER_KW                (1500)
 //#define M_TO_SELF_DELAY                 (90)
 //#define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
 #define M_MIN_DEPTH                     (1)
@@ -129,8 +129,14 @@ typedef struct {
     uint8_t         fwd_proc_wpnt;  //fwd_procの書込み位置
     struct {
         enum {
+            //外部用
             FWD_PROC_NONE,
             FWD_PROC_ADD,
+
+            //内部用
+            INNER_SEND_ANNO_SIGNS,
+
+            //
             FWD_PROC_FULFILL
         } cmd;
         uint16_t    len;
@@ -474,6 +480,30 @@ bool lnapp_fulfill_backward(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_rec
     p_work->fwd_proc[p_work->fwd_proc_wpnt].cmd = FWD_PROC_FULFILL;
     p_work->fwd_proc[p_work->fwd_proc_wpnt].len = sizeof(fwd_proc_fulfill_t);
     p_work->fwd_proc[p_work->fwd_proc_wpnt].p_data = p_fwd_fulfill;
+    p_work->fwd_proc_wpnt = next_wpnt;
+
+    DBGTRACE_END
+
+    return true;
+}
+
+
+//受信スレッド経由で関数呼び出しされる
+static bool req_send_anno_signs(work_t *p_work)
+{
+    DBGTRACE_BEGIN
+
+    //追い越しチェック
+    uint8_t next_wpnt = (p_work->fwd_proc_wpnt + 1) % M_FWD_PROC_MAX;
+    if (p_work->fwd_proc_rpnt == next_wpnt) {
+        //NG
+        SYSLOG_ERR("%s(): process buffer full", __func__);
+        assert(0);
+    }
+
+    p_work->fwd_proc[p_work->fwd_proc_wpnt].cmd = INNER_SEND_ANNO_SIGNS;
+    p_work->fwd_proc[p_work->fwd_proc_wpnt].len = 0;
+    p_work->fwd_proc[p_work->fwd_proc_wpnt].p_data = NULL;
     p_work->fwd_proc_wpnt = next_wpnt;
 
     DBGTRACE_END
@@ -958,19 +988,17 @@ static void *thread_recv_start(void *pArg)
         }
 
         ucoin_buf_alloc(&buf_recv, len);
-        uint16_t len_after = recv_peer(p_conf, buf_recv.buf, len);
-        if (len_after == 0) {
+        uint16_t len_msg = recv_peer(p_conf, buf_recv.buf, len);
+        if (len_msg == 0) {
             //peerから切断された
             DBG_PRINTF("DISC: loop end\n");
             stop_threads(p_work);
             break;
         }
-        assert(len_after == len);
-        if (len_after == len) {
+        if (len_msg == len) {
             buf_recv.len = len;
             bool ret = ln_noise_dec_msg(p_work->p_self, &buf_recv);
             assert(ret);
-            len_after = buf_recv.len;
         } else {
             break;
         }
@@ -978,10 +1006,9 @@ static void *thread_recv_start(void *pArg)
         DBG_PRINTF("mux_proc: prev : %02x%02x\n", buf_recv.buf[0], buf_recv.buf[1]);
         pthread_mutex_lock(&p_work->mux_proc);
         DBG_PRINTF("mux_proc: after\n");
-        bool ret = ln_recv(p_work->p_self, &buf_bolt, buf_recv.buf, &len_after);
-        DBG_PRINTF("ln_recv()=%d, len_after=%d\n", ret, len_after);
+        bool ret = ln_recv(p_work->p_self, &buf_bolt, buf_recv.buf, buf_recv.len);
+        DBG_PRINTF("ln_recv() result=%d\n", ret);
         assert(ret);
-        assert(len_after == 0);
         DBG_PRINTF("mux_proc: end\n");
         pthread_mutex_unlock(&p_work->mux_proc);
 
@@ -1005,11 +1032,12 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
 {
     ssize_t n = 0;
     struct pollfd fds;
+    uint16_t len = 0;
 
     DBG_PRINTF("sock=%d\n", p_conf->sock);
 
     work_t *p_work = (work_t *)p_conf->p_work;
-    while (p_work->loop && (n <= 0)) {
+    while (p_work->loop && (Len > 0)) {
         fds.fd = p_conf->sock;
         fds.events = POLLIN;
         int polr = poll(&fds, 1, 100);
@@ -1018,7 +1046,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
             break;
         } else if (polr == 0) {
             //timeout
-            //  他スレッドからの処理要求があれば受け付ける
+            //  処理要求があれば受け付ける
             if (p_work->fwd_proc_rpnt != p_work->fwd_proc_wpnt) {
                 bool ret = false;
                 switch (p_work->fwd_proc[p_work->fwd_proc_rpnt].cmd) {
@@ -1027,6 +1055,16 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
                     break;
                 case FWD_PROC_FULFILL:
                     ret = fwd_fulfill_backward(p_conf);
+                    break;
+                case INNER_SEND_ANNO_SIGNS:
+                    {
+                        ucoin_buf_t buf_bolt;
+
+                        ucoin_buf_init(&buf_bolt);
+                        ret = ln_create_announce_signs(p_work->p_self, &buf_bolt);
+                        send_peer_noise(p_conf, &buf_bolt);
+                        ucoin_buf_free(&buf_bolt);
+                    }
                     break;
                 default:
                     break;
@@ -1044,13 +1082,16 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
                 n = read(p_conf->sock, pBuf, Len);
                 if (n == 0) {
                     SYSLOG_WARN("peer disconnected\n");
+                    len = 0;
                     break;
                 }
+                Len -= n;
+                len += n;
             }
         }
     }
 
-    return (uint16_t)n;
+    return len;
 }
 
 
@@ -1274,7 +1315,7 @@ static void cb_error_recv(ln_self_t *self, work_t *p_work, lnapp_conf_t *p_conf,
 static void cb_init_recv(ln_self_t *self, work_t *p_work, lnapp_conf_t *p_conf, void *p_param)
 {
     //init受信時に初期化
-    p_work->first = true;            //初期化チェック用
+    p_work->first = false;
     p_work->shutdown_sent = false;
 
     //待ち合わせ解除(*1)
@@ -1311,8 +1352,7 @@ static void cb_funding_tx_wait(ln_self_t *self, work_t *p_work, lnapp_conf_t *p_
 
     const ln_cb_funding_t *p_funding = (const ln_cb_funding_t *)p_param;
 
-    if (p_conf->initiator) {
-        //open_channelした方がfunding_txを公開する
+    if (p_funding->b_send) {
         uint8_t txid[UCOIN_SZ_TXID];
         ucoin_buf_t buf_tx;
 
@@ -1361,17 +1401,8 @@ static void cb_established(ln_self_t *self, work_t *p_work, lnapp_conf_t *p_conf
         p_conf->p_funding = NULL;
     }
 
-    if (p_conf->initiator) {
-        //open_channelした方がannouncement_signaturesを投げる
-        ucoin_buf_t buf_bolt;
-
-        ucoin_buf_init(&buf_bolt);
-        bool ret = ln_create_announce_signs(self, &buf_bolt);
-        assert(ret);
-
-        send_peer_noise(p_conf, &buf_bolt);
-        ucoin_buf_free(&buf_bolt);
-    }
+    //annotation_signatures送信要求
+    req_send_anno_signs(p_work);
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, self->short_channel_id, self->our_msat, self->their_msat);
 
@@ -1395,6 +1426,7 @@ static void cb_node_anno_recv(ln_self_t *self, work_t *p_work, lnapp_conf_t *p_c
     DBG_PRINTF("    want node_id:");
     DUMPBIN(p_conf->node_id, UCOIN_SZ_PUBKEY);
 
+#if 1
     if (p_work->first) {
         DBG_PRINTF("init後の初回node_announcement受信\n");
 
@@ -1417,6 +1449,7 @@ static void cb_node_anno_recv(ln_self_t *self, work_t *p_work, lnapp_conf_t *p_c
     } else {
         //TODO:
     }
+#endif
 
     //ノードDB更新
     lmdb_save_node(NULL);
@@ -1489,20 +1522,20 @@ static void cb_anno_signs_recv(ln_self_t *self, work_t *p_work, lnapp_conf_t *p_
     assert(ret);
     lmdb_save_node(NULL);
 
-    if (!p_conf->initiator) {
-        //announcement_signaturesを投げ返す
-        DBG_PRINTF("announcement_signatures返信\n");
-        ucoin_buf_t buf_bolt;
+    //if (!p_conf->initiator) {
+    //    //announcement_signaturesを投げ返す
+    //    DBG_PRINTF("announcement_signatures返信\n");
+    //    ucoin_buf_t buf_bolt;
 
-        ucoin_buf_init(&buf_bolt);
-        ret = ln_create_announce_signs(self, &buf_bolt);
-        assert(ret);
+    //    ucoin_buf_init(&buf_bolt);
+    //    ret = ln_create_announce_signs(self, &buf_bolt);
+    //    assert(ret);
 
-        send_peer_noise(p_conf, &buf_bolt);
-        ucoin_buf_free(&buf_bolt);
+    //    send_peer_noise(p_conf, &buf_bolt);
+    //    ucoin_buf_free(&buf_bolt);
 
-        //TODO: 投げ返し合戦にならないようにチェックが必要
-    }
+    //    //TODO: 投げ返し合戦にならないようにチェックが必要
+    //}
 
     DBGTRACE_END
 }
@@ -1888,12 +1921,7 @@ static void lmdb_load_node(const node_conf_t *pNodeConf)
     ucoin_util_keys_t keys;
     ucoin_util_wif2keys(&keys, pNodeConf->wif);
     char name[UCOIN_SZ_PUBKEY * 2 + 1];
-    name[0] = '\0';
-    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        char str[3];
-        sprintf(str, "%02x", keys.pub[lp]);
-        strcat(name, str);
-    }
+    misc_bin2str(name, keys.pub, UCOIN_SZ_PUBKEY);
     retval = mdb_dbi_open(txn, name, 0, &dbi);
     if (retval == 0) {
         //DBに情報あり
@@ -1935,12 +1963,7 @@ static void lmdb_save_node(MDB_txn *txn)
     }
 
     char name[UCOIN_SZ_PUBKEY * 2 + 1];
-    name[0] = '\0';
-    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        char str[3];
-        sprintf(str, "%02x", mNode.keys.pub[lp]);
-        strcat(name, str);
-    }
+    misc_bin2str(name, mNode.keys.pub, UCOIN_SZ_PUBKEY);
     DBG_PRINTF("save node info to DB [%s].\n", name);
     retval = mdb_dbi_open(txn, name, MDB_CREATE, &dbi);
     assert(retval == 0);

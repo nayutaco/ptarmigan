@@ -50,6 +50,8 @@ extern "C" {
 #define LN_SZ_ONION_ROUTE               (1366)      ///< サイズ:onion-routing-packet
 #define LN_SZ_ALIAS                     (32)        ///< サイズ:alias長
 #define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< サイズ:noiseパケットヘッダ
+#define LN_SZ_GFLEN_MAX                 (4)         ///< init.gflen最大
+#define LN_SZ_LFLEN_MAX                 (4)         ///< init.lflen最大
 
 #define LN_FUNDIDX_MAX                  (5)         ///< 管理用
 #define LN_SCRIPTIDX_MAX                (3)         ///< 管理用
@@ -92,8 +94,6 @@ extern "C" {
 
 /** @def    LN_MSAT2SATOSHI(obs)
  *  @brief  msat(milli-satoshi)をsatoshi変換
- *  @note
- *      - LNプロトコル仕様により、32bitまでの箇所があるので注意すること
  */
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
 
@@ -242,6 +242,7 @@ typedef struct {
                                                     ///< 33: [2]payment-basepoint
                                                     ///< 33: [3]delayed-payment-basepoint
                                                     ///< 33: [4]first-per-commitment-point
+    uint8_t     channel_flags;                      ///< 1 : [1]channel_flags
 } ln_open_channel_t;
 
 
@@ -472,8 +473,10 @@ typedef struct {
  *  @brief      init
  */
 typedef struct {
-    //uint8_t     globalfeatures;                     ///< 1: globalfeatures
-    uint8_t     localfeatures;                      ///< 1: localfeatures
+    uint8_t     gflen;
+    uint8_t     lflen;
+    uint8_t     globalfeatures[LN_SZ_GFLEN_MAX];    ///< gflen: globalfeatures
+    uint8_t     localfeatures[LN_SZ_LFLEN_MAX];     ///< lflen: localfeatures
 } ln_init_t;
 
 
@@ -617,9 +620,11 @@ typedef struct {
  *  @brief  funding_tx安定待ち要求(#LN_CB_FUNDINGTX_WAIT) / Establish完了通知(#LN_CB_ESTABLISHED)
  */
 typedef struct {
-    const ucoin_tx_t        *p_tx_funding;              ///< funding_tx(open_channel送信側のみ)
+    const ucoin_tx_t        *p_tx_funding;              ///< funding_tx
     const uint8_t           *p_txid;                    ///< funding txid
     uint32_t                min_depth;                  ///< minimum_depth
+    bool                    b_send;                     ///< true:funding_txを送信する
+    bool                    annosigs;                   ///< true:announce_signaturesを送信する
 } ln_cb_funding_t;
 
 
@@ -806,6 +811,7 @@ struct ln_self_t {
     ucoin_buf_t                 redeem_fund;                    ///< 2-of-2のredeemScript
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
+    uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
 
     //closing
     ucoin_tx_t                  tx_closing;                     ///< closing_tx
@@ -819,7 +825,7 @@ struct ln_self_t {
     //msg:establish
     ln_establish_t              *p_est;                         ///< Establish時ワーク領域
     //msg:close
-    uint8_t                     shutdown_flag;                  ///< shutdownフラグ(SHUTDOWN_FLAG_xxx)。 b1:受信済み b0:送信済み
+    uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)。 b1:受信済み b0:送信済み
     uint64_t                    close_fee_sat;                  ///< closing_txのFEE
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< mutual close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
@@ -972,14 +978,14 @@ bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf);
  * @param[in,out]       self        channel情報
  * @param[out]          pBuf        処理成功時に送信するメッセージ
  * @param[in]           pData       受信データ
- * @param[in,out]       pLen        [in]pDataサイズ, [out]処理後の残りサイズ
+ * @param[in]           Len         pData長
  * @retval      true    解析成功
  * @note
  *      - accept_channel受信時、funding_txを展開し、安定するまで待ち時間が生じる。<br/>
  *          安定した後は #ln_funding_tx_stabled() を呼び出してシーケンスを継続すること。
  *
  */
-bool ln_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen);
+bool ln_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 
 
 /** initメッセージ作成

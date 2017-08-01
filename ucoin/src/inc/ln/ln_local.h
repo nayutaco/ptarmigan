@@ -75,20 +75,15 @@
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
 
 
-/*
- * ln_self_t.shutdown_flag
- */
-#define SHUTDOWN_FLAG_SEND                  (0x01)          ///< 1:shutdown送信あり
-#define SHUTDOWN_FLAG_RECV                  (0x02)          ///< 1:shutdown受信あり
-
-
 #define NODE_NOT_FOUND                      (-1)            ///< ノード不明
 #define NODE_NO_UPDATE                      (-2)            ///< ノード更新不要
 #define NODE_MYSELF                         (-3)            ///< 自ノード
 #define CHANNEL_NOT_FOUND                   (-1)            ///< チャネル不明
 
 
-#define NODE_LF_INIT                (0xfb)          ///< init未受信の判定および不要ビットマスク
+#define NODE_LF_INIT                (0x55)          ///< init未受信の判定および不要ビットマスク
+                                                    //      [0]xx_00_00_00
+                                                    //         ^^
 #define NODE_LF_INIT_ROUTE_SYNC     (4)
 #define NODE_LOCALFEATURES          (0)             ///< TODO:init.localfeaturesのデフォルト値
 
@@ -250,9 +245,10 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
  * @param[out]      pTx         TX情報
  * @param[out]      pSig        local署名
  * @param[in]       pCmt        Commitment Transaction情報
+ * @param[in]       Local       true:LocalがFEEを払う
  * @return      true:成功
  */
-bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt);
+bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local);
 
 
 /** P2WSH署名 - LN:HTLC-success/timeoutトランザクション更新

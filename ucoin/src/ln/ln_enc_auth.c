@@ -36,14 +36,6 @@
 #include "sodium/crypto_aead_chacha20poly1305.h"
 
 
-//Noise_XK(s, rs):
-//   <- s
-//   ...
-//   -> e, es
-//   <- e, ee
-//   -> s, se
-
-
 /********************************************************************
  * macros
  ********************************************************************/
@@ -58,6 +50,9 @@
  * typedefs
  **************************************************************************/
 
+/** @enum   state_t
+ *  @brief  noise handshake state
+ */
 enum state_t {
     INIT,
 
@@ -73,6 +68,9 @@ enum state_t {
 } state;
 
 
+/** @struct bolt8
+ *  @brief  noise handshake data
+ */
 struct bolt8 {
     ucoin_util_keys_t   *keys;              //ノードの秘密鍵と公開鍵(node_id) ?
     ucoin_util_keys_t   e;                  //ephemeral key
@@ -88,7 +86,7 @@ struct bolt8 {
  * prototypes
  **************************************************************************/
 
-static bool hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint8_t *pIkm);
+static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint8_t *pIkm);
 static bool actone_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRS);
 static bool actone_receiver(ln_self_t *self, ucoin_buf_t *pBuf);
 static bool acttwo_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRE);
@@ -267,7 +265,7 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBuf)
     if (self->noise.sn == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        hkdf(self->noise.ck, self->noise.sk, self->noise.ck, self->noise.sk);
+        noise_hkdf(self->noise.ck, self->noise.sk, self->noise.ck, self->noise.sk);
         self->noise.sn = 0;
     }
 
@@ -351,7 +349,7 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf)
     if (self->noise.rn == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        hkdf(self->noise.ck, self->noise.rk, self->noise.ck, self->noise.rk);
+        noise_hkdf(self->noise.ck, self->noise.rk, self->noise.ck, self->noise.rk);
         self->noise.rn = 0;
     }
 
@@ -371,49 +369,36 @@ LABEL_EXIT:
  * private functions
  ********************************************************************/
 
-//ccan参照
-//  https://github.com/rustyrussell/ccan/blob/master/ccan/crypto/hkdf_sha256/hkdf_sha256.c
-static bool hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint8_t *pIkm)
+//ccanの実装を参考にしていたが、noise protocolでは回数が決まっているので、独自実装になった
+static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint8_t *pIkm)
 {
     bool ret;
-    uint8_t c = 1;
     uint8_t prk[UCOIN_SZ_SHA256];
-    uint8_t t[UCOIN_SZ_SHA256];
-    uint8_t *p[2] = { ck, k };
     mbedtls_md_context_t ctx;
 
     uint8_t ikm_len = (pIkm) ? UCOIN_SZ_SHA256 : 0;
     ret = ucoin_util_calc_mac(prk, pSalt, UCOIN_SZ_SHA256, pIkm, ikm_len);
     if (!ret) {
         DBG_PRINTF("fail: calc_mac\n");
-        goto LABEL_EXIT;
+        assert(0);
+        return false;
     }
-    //DBG_PRINTF2("  prk=");
-    //DUMPBIN(prk, UCOIN_SZ_SHA256);
 
     mbedtls_md_init(&ctx);
     mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1);
 
+    uint8_t c = 1;
     mbedtls_md_hmac_starts(&ctx, prk, UCOIN_SZ_SHA256);
     mbedtls_md_hmac_update(&ctx, &c, 1);
-    mbedtls_md_hmac_finish(&ctx, t);
-    //DBG_PRINTF2("  t0=");
-    //DUMPBIN(t, UCOIN_SZ_SHA256);
-
-    for (int lp = 0; lp < 2; lp++) {
-        memcpy(p[lp], t, sizeof(t));
-
-        c++;
-        mbedtls_md_hmac_reset(&ctx);
-        mbedtls_md_hmac_update(&ctx, t, sizeof(t));
-        mbedtls_md_hmac_update(&ctx, &c, 1);
-        mbedtls_md_hmac_finish(&ctx, t);
-    }
-
+    mbedtls_md_hmac_finish(&ctx, ck);
+    c++;
+    mbedtls_md_hmac_reset(&ctx);
+    mbedtls_md_hmac_update(&ctx, ck, UCOIN_SZ_SHA256);
+    mbedtls_md_hmac_update(&ctx, &c, 1);
+    mbedtls_md_hmac_finish(&ctx, k);
     mbedtls_md_free(&ctx);
 
-LABEL_EXIT:
-    return ret;
+    return true;
 }
 
 
@@ -434,7 +419,7 @@ static bool actone_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRS
     ucoin_util_generate_shared_secret(ss, pRS, pBolt->e.priv);
 
     // ck, temp_k1 = HKDF(ck, ss)
-    hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
+    noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
 
     // c = encryptWithAD(temp_k1, 0, h, zero)
     memset(nonce, 0, sizeof(nonce));
@@ -491,7 +476,7 @@ static bool actone_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     ucoin_util_generate_shared_secret(ss, re, pBolt->keys->priv);
 
     // ck, temp_k1 = HKDF(ck, ss)
-    hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
+    noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
 
     // p = decryptWithAD(temp_k1, 0, h, c)
     memset(nonce, 0, sizeof(nonce));
@@ -533,7 +518,7 @@ static bool acttwo_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRE
     ucoin_util_generate_shared_secret(ss, pRE, pBolt->e.priv);
 
     // ck, temp_k2 = HKDF(ck, ss)
-    hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
+    noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
 
     // c = encryptWithAD(temp_k2, 0, h, zero)
     memset(nonce, 0, sizeof(nonce));
@@ -590,7 +575,7 @@ static bool acttwo_receiver(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *p
     ucoin_util_generate_shared_secret(ss, re, pBolt->e.priv);
 
     // ck, temp_k2 = HKDF(ck, ss)
-    hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
+    noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
 
     // p = decryptWithAD(temp_k2, 0, h, c)
     memset(nonce, 0, sizeof(nonce));
@@ -648,7 +633,7 @@ static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *p
     ucoin_util_generate_shared_secret(ss, pRE, pBolt->keys->priv);
 
     // ck, temp_k3 = HKDF(ck, ss)
-    hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
+    noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
 
     // t = encryptWithAD(temp_k3, 0, h, zero)
     memset(nonce, 0, sizeof(nonce));
@@ -664,7 +649,7 @@ static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *p
     }
 
     // sk, rk = HKDF(ck, zero)
-    hkdf(self->noise.sk, self->noise.rk, pBolt->ck, NULL);
+    noise_hkdf(self->noise.sk, self->noise.rk, pBolt->ck, NULL);
 
     // SEND: m = 0 || c || t   over the network buffer.
     ucoin_buf_free(pBuf);
@@ -721,7 +706,7 @@ static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     ucoin_util_generate_shared_secret(ss, rs, pBolt->e.priv);
 
     // ck, temp_k3 = HKDF(ck, ss)
-    hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
+    noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
 
     // p = decryptWithAD(temp_k3, 0, h, t)
     nonce[4] = 0x00;
@@ -737,7 +722,7 @@ static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     }
 
     // rk, sk = HKDF(ck, zero)
-    hkdf(self->noise.rk, self->noise.sk, pBolt->ck, NULL);
+    noise_hkdf(self->noise.rk, self->noise.sk, pBolt->ck, NULL);
 
     ucoin_buf_free(pBuf);
     ret = true;

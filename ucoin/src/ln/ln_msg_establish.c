@@ -39,7 +39,7 @@
  * macros
  ********************************************************************/
 
-//#define DBG_PRINT_CREATE
+#define DBG_PRINT_CREATE
 #define DBG_PRINT_READ
 
 
@@ -47,20 +47,21 @@
  * const variables
  ********************************************************************/
 
-///< 32: chain-hash
-static const uint8_t M_CHAIN_HASH_MAINNET[] = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
-    0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
-    0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
-    0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
-};
-
-//static const uint8_t M_CHAIN_HASH_TESTNET[] = {
-//    0x00, 0x00, 0x00, 0x00, 0x09, 0x33, 0xea, 0x01,
-//    0xad, 0x0e, 0xe9, 0x84, 0x20, 0x97, 0x79, 0xba,
-//    0xae, 0xc3, 0xce, 0xd9, 0x0f, 0xa3, 0xf4, 0x08,
-//    0x71, 0x95, 0x26, 0xf8, 0xd7, 0x7f, 0x49, 0x43,
+///< 32: chain-hash : bitcoin mainnet
+//static const uint8_t M_CHAIN_HASH_BITCOIN[] = {
+//    0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
+//    0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
+//    0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
+//    0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
 //};
+
+//< 32: chain-hash : bitcoin testnet
+static const uint8_t M_CHAIN_HASH_BITCOIN[] = {
+    0x00, 0x00, 0x00, 0x00, 0x09, 0x33, 0xea, 0x01,
+    0xad, 0x0e, 0xe9, 0x84, 0x20, 0x97, 0x79, 0xba,
+    0xae, 0xc3, 0xce, 0xd9, 0x0f, 0xa3, 0xf4, 0x08,
+    0x71, 0x95, 0x26, 0xf8, 0xd7, 0x7f, 0x49, 0x43,
+};
 
 
 /**************************************************************************
@@ -119,7 +120,7 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
     ln_misc_push16be(&proto, MSGTYPE_OPEN_CHANNEL);
 
     //    [32:chain-hash]
-    ucoin_push_data(&proto, M_CHAIN_HASH_MAINNET, sizeof(M_CHAIN_HASH_MAINNET));
+    ucoin_push_data(&proto, M_CHAIN_HASH_BITCOIN, sizeof(M_CHAIN_HASH_BITCOIN));
 
     //    [32:temporary-channel-id]
     ucoin_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
@@ -163,8 +164,9 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
         }
         ucoin_push_data(&proto, pMsg->p_pubkeys[lp], UCOIN_SZ_PUBKEY);
     }
+
     //        [1:channel_flags]
-    ln_misc_push8(&proto, CHANNEL_FLAGS);
+    ln_misc_push8(&proto, pMsg->channel_flags);
 
     assert(sizeof(uint16_t) + 286 == pBuf->len);
 
@@ -174,10 +176,8 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
 }
 
 
-bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 286) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -186,20 +186,18 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_OPEN_CHANNEL) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
     int pos = sizeof(uint16_t);
 
     //    [32:chain-hash]
-    int cmp = memcmp(M_CHAIN_HASH_MAINNET, pData + pos, sizeof(M_CHAIN_HASH_MAINNET));
+    int cmp = memcmp(M_CHAIN_HASH_BITCOIN, pData + pos, sizeof(M_CHAIN_HASH_BITCOIN));
     if (cmp != 0) {
         DBG_PRINTF("fail: chain-hash mismatch\n");
-        *pLen = 0;      //error
         return false;
     }
-    pos += sizeof(M_CHAIN_HASH_MAINNET);
+    pos += sizeof(M_CHAIN_HASH_BITCOIN);
 
     //    [32:temporary-channel-id]
     memcpy(pMsg->p_temp_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
@@ -213,7 +211,6 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     pMsg->push_msat = ln_misc_get64be(pData + pos);
     if (LN_SATOSHI2MSAT(pMsg->funding_sat) < pMsg->push_msat) {
         DBG_PRINTF("fail: invalid funding-satoshis (%" PRIu64 " < %" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_sat), pMsg->push_msat);
-        *pLen = 0;      //error
         return false;
     }
     pos += sizeof(uint64_t);
@@ -246,7 +243,6 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     pMsg->max_accepted_htlcs = ln_misc_get16be(pData + pos);
     if (pMsg->max_accepted_htlcs > 483) {
         DBG_PRINTF("fail: invalid max-accepted-htlcs\n");
-        *pLen = 0;      //error
         return false;
     }
     pos += sizeof(uint16_t);
@@ -260,7 +256,6 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
         if (!ucoin_keys_chkpub(pData + pos)) {
             DBG_PRINTF("fail: check pubkey: %d\n", lp);
             DUMPBIN(pData + pos, UCOIN_SZ_PUBKEY);
-            *pLen = 0;      //error
             return false;
         }
         memcpy(pMsg->p_pubkeys[lp], pData + pos, UCOIN_SZ_PUBKEY);
@@ -268,20 +263,18 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     }
 
     //        [1:channel_flags]
-    uint8_t channel_flags = *(pData + pos);
-    if (((channel_flags & CHANNEL_FLAGS_MASK) != 0) || (channel_flags != CHANNEL_FLAGS)) {
+    pMsg->channel_flags = *(pData + pos);
+    if ((pMsg->channel_flags & CHANNEL_FLAGS_MASK) != 0) {
         DBG_PRINTF("fail: channel_flags.announce_channel mismatch\n");
-        *pLen = 0;      //error
         return false;
     }
     pos++;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     open_channel_print(pMsg);
-    DBG_PRINTF2("channel_flags : %d\n", channel_flags);
 #endif  //DBG_PRINT_READ
 
     return true;
@@ -313,6 +306,7 @@ static void open_channel_print(const ln_open_channel_t *pMsg)
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED_PAYMENT], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_first_per_commitpt    : ");
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2("channel_flags           : %02x\n", pMsg->channel_flags);
     DBG_PRINTF2("--------------------------------\n\n\n");
 #endif  //UCOIN_DEBUG
 }
@@ -397,10 +391,8 @@ bool HIDDEN ln_msg_accept_channel_create(ucoin_buf_t *pBuf, const ln_accept_chan
 }
 
 
-bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 237) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -409,7 +401,6 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_ACCEPT_CHANNEL) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -455,14 +446,13 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
         //    [33:first-per-commitment-point]
         if (!ucoin_keys_chkpub(pData + pos)) {
             DBG_PRINTF("fail: check pubkey\n");
-            *pLen = 0;      //error
             return false;
         }
         memcpy(pMsg->p_pubkeys[lp], pData + pos, UCOIN_SZ_PUBKEY);
         pos += UCOIN_SZ_PUBKEY;
     }
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -531,11 +521,16 @@ bool HIDDEN ln_msg_funding_created_create(ucoin_buf_t *pBuf, const ln_funding_cr
 
     //        [32:funding-txid]
     // BE変換
+#if 0
     uint8_t txid[UCOIN_SZ_TXID];
     for (int lp = 0; lp < UCOIN_SZ_TXID; lp++) {
         txid[lp] = pMsg->p_funding_txid[UCOIN_SZ_TXID - lp - 1];
     }
     ucoin_push_data(&proto, txid, UCOIN_SZ_TXID);
+#else
+    //そのまま
+    ucoin_push_data(&proto, pMsg->p_funding_txid, UCOIN_SZ_TXID);
+#endif
 
     //        [2:funding-output-index]
     ln_misc_push16be(&proto, pMsg->funding_output_idx);
@@ -551,10 +546,8 @@ bool HIDDEN ln_msg_funding_created_create(ucoin_buf_t *pBuf, const ln_funding_cr
 }
 
 
-bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 130) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -563,7 +556,6 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_FUNDING_CREATED) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -574,10 +566,15 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
     pos += LN_SZ_CHANNEL_ID;
 
     //        [32:funding-txid]
+#if 0
     // LE変換
     for (int lp = 0; lp < UCOIN_SZ_TXID; lp++) {
         pMsg->p_funding_txid[lp] = *(pData + pos + UCOIN_SZ_TXID - lp - 1);
     }
+#else
+    //そのまま
+    memcpy(pMsg->p_funding_txid, pData + pos, UCOIN_SZ_TXID);
+#endif
     pos += UCOIN_SZ_TXID;
 
     //        [2:funding-output-index]
@@ -588,7 +585,7 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
     memcpy(pMsg->p_signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -652,10 +649,8 @@ bool HIDDEN ln_msg_funding_signed_create(ucoin_buf_t *pBuf, const ln_funding_sig
 }
 
 
-bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 96) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -664,7 +659,6 @@ bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_FUNDING_SIGNED) {
         DBG_PRINTF("fail: invalid parameter\n");
-        *pLen = 0;      //error
         return false;
     }
 
@@ -678,7 +672,7 @@ bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t 
     memcpy(pMsg->p_signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -739,10 +733,8 @@ bool HIDDEN ln_msg_funding_locked_create(ucoin_buf_t *pBuf, const ln_funding_loc
 }
 
 
-bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 65) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -751,7 +743,6 @@ bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_FUNDING_LOCKED) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -765,7 +756,7 @@ bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t 
     memcpy(pMsg->p_per_commitpt, pData + pos, UCOIN_SZ_PUBKEY);
     pos += UCOIN_SZ_PUBKEY;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);

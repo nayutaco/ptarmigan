@@ -46,10 +46,20 @@ bool HIDDEN ln_msg_init_create(ucoin_buf_t *pBuf, const ln_init_t *pMsg);
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** error読込み
+ *
+ * @param[out]      pMsg    読込み結果
+ * @param[in]       pData   対象データ
+ * @param[in]       Len     pData長
+ * retval   true    成功
+ */
+bool HIDDEN ln_msg_error_read(void *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** ping生成
@@ -65,10 +75,10 @@ bool HIDDEN ln_msg_ping_create(ucoin_buf_t *pBuf, const ln_ping_t *pMsg);
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** pong生成
@@ -84,9 +94,9 @@ bool HIDDEN ln_msg_pong_create(ucoin_buf_t *pBuf, const ln_pong_t *pMsg);
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 #endif /* LN_MSG_SETUPCTL_H__ */

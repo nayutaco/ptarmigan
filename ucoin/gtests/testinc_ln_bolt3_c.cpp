@@ -690,7 +690,7 @@ TEST_F(ln_bolt3_c, committx7min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1414,7 +1414,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -2136,7 +2136,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -2797,7 +2797,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -3458,7 +3458,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -4055,7 +4055,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -4652,7 +4652,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -5188,7 +5188,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -5724,7 +5724,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -6199,7 +6199,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -6675,7 +6675,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -6972,7 +6972,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -7270,7 +7270,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -7561,7 +7561,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit);
+    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
