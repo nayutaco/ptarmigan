@@ -1392,6 +1392,11 @@ static void cb_established(ln_self_t *self, work_t *p_work, lnapp_conf_t *p_conf
         p_work->p_establish = NULL;
     }
 
+    //チャネルDB保存
+    bool ret = lmdb_save_channel(self, p_work->cnl_name);
+    assert(ret);
+    lmdb_save_node(NULL);
+
     if (p_conf->p_funding != NULL) {
         DBG_PRINTF("*** free input memory ***\n");
         if (p_conf->cmd == DCMD_CREATE) {

@@ -43,8 +43,10 @@
 
 
 /**************************************************************************
- * typedefs
+ * prototypes
  **************************************************************************/
+
+static int add_cnl(ln_node_t *node, uint64_t short_channel_id, int8_t node1, int8_t node2);
 
 
 /**************************************************************************
@@ -82,33 +84,6 @@ void ln_node_term(ln_node_t *node)
 {
     node->node_num = 0;
     node->channel_num = 0;
-}
-
-
-uint8_t ln_node_search_nodeid(ln_node_t *node, const uint8_t *pNodeId)
-{
-    uint8_t lp;
-    for (lp = 0; lp < LN_NODE_MAX; lp++) {
-        if (memcmp(node->node_info[lp].node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
-            break;
-        }
-    }
-
-    return lp;
-}
-
-
-uint64_t ln_node_search_idx(ln_node_t *node, int8_t node_idx)
-{
-    const ln_channel_info_t *cinfo = node->channel_info;
-
-    for (int lp = 0; lp < LN_CHANNEL_MAX; lp++) {
-        if ((cinfo[lp].node1 == NODE_MYSELF) && (cinfo[lp].node2 == node_idx)) {
-            return cinfo[lp].short_channel_id;
-        }
-    }
-
-    return 0;
 }
 
 
@@ -232,7 +207,7 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
         return false;
     }
     bool b_add;
-    int idx = ln_node_search_cnl_anno(node, &b_add, short_channel_id, self->node_idx, NODE_MYSELF);
+    int idx = ln_node_search_add_cnl(node, &b_add, short_channel_id, self->node_idx, NODE_MYSELF);
     if (idx == CHANNEL_NOT_FOUND) {
         DBG_PRINTF("fail: channel search\n");
         return false;
@@ -347,7 +322,7 @@ int HIDDEN ln_node_update_node_anno(ln_node_t *node, const ln_node_announce_t *p
 }
 
 
-int HIDDEN ln_node_search_cnl_anno(ln_node_t *node, bool *pAdd, uint64_t short_channel_id, int8_t node1, int8_t node2)
+int HIDDEN ln_node_search_add_cnl(ln_node_t *node, bool *pAdd, uint64_t short_channel_id, int8_t node1, int8_t node2)
 {
     int idx;
     for (idx = 0; idx < node->channel_num; idx++) {
@@ -368,15 +343,59 @@ int HIDDEN ln_node_search_cnl_anno(ln_node_t *node, bool *pAdd, uint64_t short_c
             node1 = node2;
             node2 = tmp;
         }
-        idx = node->channel_num;
-        node->channel_info[idx].node1 = node1;
-        node->channel_info[idx].node2 = node2;
-        node->channel_info[idx].short_channel_id = short_channel_id;
-        node->channel_num++;
+        idx = add_cnl(node, short_channel_id, node1, node2);
         *pAdd = true;
     } else {
         *pAdd = false;
     }
+
+    return idx;
+}
+
+
+uint8_t HIDDEN ln_node_search_nodeid(ln_node_t *node, const uint8_t *pNodeId)
+{
+    DBG_PRINTF("search id:");
+    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+
+    uint8_t lp;
+    for (lp = 0; lp < LN_NODE_MAX; lp++) {
+        if (memcmp(node->node_info[lp].node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
+            DBG_PRINTF("node found\n");
+            break;
+        }
+    }
+
+    return lp;
+}
+
+
+uint64_t HIDDEN ln_node_search_idx(ln_node_t *node, int8_t node_idx)
+{
+    const ln_channel_info_t *cinfo = node->channel_info;
+
+    for (int lp = 0; lp < LN_CHANNEL_MAX; lp++) {
+        if ((cinfo[lp].node1 == NODE_MYSELF) && (cinfo[lp].node2 == node_idx)) {
+            DBG_PRINTF("short_channel_id found: %" PRIx64 "\n", cinfo[lp].short_channel_id);
+            return cinfo[lp].short_channel_id;
+        }
+    }
+
+    return 0;
+}
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+static int add_cnl(ln_node_t *node, uint64_t short_channel_id, int8_t node1, int8_t node2)
+{
+    int idx = node->channel_num;
+    node->channel_info[idx].node1 = node1;
+    node->channel_info[idx].node2 = node2;
+    node->channel_info[idx].short_channel_id = short_channel_id;
+    node->channel_num++;
 
     return idx;
 }

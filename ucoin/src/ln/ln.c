@@ -515,6 +515,15 @@ bool ln_funding_tx_stabled(ln_self_t *self, ucoin_buf_t *pFundingLocked)
     if (self->flck_flag == (M_FLCK_FLAG_SEND | M_FLCK_FLAG_RECV)) {
         //funding_locked送受信済み
 
+        //チャネル情報追加
+        bool b_add;
+        int idx = ln_node_search_add_cnl(self->p_node, &b_add, self->short_channel_id, self->node_idx, NODE_MYSELF);
+        if ((!b_add) || (idx == CHANNEL_NOT_FOUND)) {
+            DBG_PRINTF("fail: channel add : %d\n", b_add);
+            assert(0);
+            return false;
+        }
+
         //Establish完了通知
         DBG_PRINTF("Establish完了通知");
         ln_cb_funding_t funding;
@@ -554,30 +563,24 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
     bool b_add;
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
-    int idx = ln_node_search_cnl_anno(self->p_node, &b_add, self->short_channel_id, self->node_idx, NODE_MYSELF);
+    int idx = ln_node_search_add_cnl(self->p_node, &b_add, self->short_channel_id, self->node_idx, NODE_MYSELF);
     if (idx == CHANNEL_NOT_FOUND) {
         DBG_PRINTF("fail: channel search\n");
         return false;
     }
 
-    if (b_add) {
-        //追加
-        ln_cnl_announce_t anno;
+    ln_cnl_announce_t anno;
 
-        anno.short_channel_id = self->short_channel_id;
-        anno.p_my_node = &self->p_node->keys;
-        anno.p_peer_node_pub = self->p_node->node_info[self->node_idx].node_id;
-        anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
-        anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
-        anno.sort = self->p_node->node_info[self->node_idx].sort;
+    anno.short_channel_id = self->short_channel_id;
+    anno.p_my_node = &self->p_node->keys;
+    anno.p_peer_node_pub = self->p_node->node_info[self->node_idx].node_id;
+    anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
+    anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
+    anno.sort = self->p_node->node_info[self->node_idx].sort;
 
-        ucoin_buf_free(&self->cnl_anno);
-        ret = ln_msg_cnl_announce_create(&self->cnl_anno,
-                    (uint8_t **)&p_sig_node, (uint8_t **)&p_sig_btc, &anno);
-    } else {
-        //更新
-        ret = true;
-    }
+    ucoin_buf_free(&self->cnl_anno);
+    ret = ln_msg_cnl_announce_create(&self->cnl_anno,
+                (uint8_t **)&p_sig_node, (uint8_t **)&p_sig_btc, &anno);
 
     //TODO: メッセージ構成に深入りしすぎてよくないが、暫定でこうする
     if (self->p_node->node_info[self->node_idx].sort == UCOIN_KEYS_SORT_ASC) {
@@ -1479,6 +1482,15 @@ static bool recv_funding_locked(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_
     self->flck_flag |= M_FLCK_FLAG_RECV;
     if (self->flck_flag == (M_FLCK_FLAG_SEND | M_FLCK_FLAG_RECV)) {
         //funding_locked送受信済み
+
+        //チャネル情報追加
+        bool b_add;
+        int idx = ln_node_search_add_cnl(self->p_node, &b_add, self->short_channel_id, self->node_idx, NODE_MYSELF);
+        if ((!b_add) || (idx == CHANNEL_NOT_FOUND)) {
+            DBG_PRINTF("fail: channel add : %d\n", b_add);
+            assert(0);
+            return false;
+        }
 
         //Establish完了通知
         DBG_PRINTF("Establish完了通知");
