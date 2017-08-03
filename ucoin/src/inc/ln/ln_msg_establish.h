@@ -46,10 +46,10 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** accept_channel生成
@@ -65,10 +65,10 @@ bool HIDDEN ln_msg_accept_channel_create(ucoin_buf_t *pBuf, const ln_accept_chan
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** funding_created生成
@@ -84,10 +84,10 @@ bool HIDDEN ln_msg_funding_created_create(ucoin_buf_t *pBuf, const ln_funding_cr
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** funding_signed生成
@@ -103,10 +103,10 @@ bool HIDDEN ln_msg_funding_signed_create(ucoin_buf_t *pBuf, const ln_funding_sig
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** funding_locked生成
@@ -122,10 +122,28 @@ bool HIDDEN ln_msg_funding_locked_create(ucoin_buf_t *pBuf, const ln_funding_loc
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t *pData, uint16_t Len);
 
+
+/** channel_reestablish生成
+ *
+ * @param[out]      pBuf    生成データ
+ * @param[in]       pMsg    元データ
+ * retval   true    成功
+ */
+bool HIDDEN ln_msg_channel_reestablish_create(ucoin_buf_t *pBuf, const ln_channel_reestablish_t *pMsg);
+
+
+/** channel_reestablish読込み
+ *
+ * @param[out]      pMsg    読込み結果
+ * @param[in]       pData   対象データ
+ * @param[in]       Len     pData長
+ * retval   true    成功
+ */
+bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 #endif /* LN_MSG_ESTABLISH_H__ */

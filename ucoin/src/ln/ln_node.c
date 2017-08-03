@@ -43,8 +43,10 @@
 
 
 /**************************************************************************
- * typedefs
+ * prototypes
  **************************************************************************/
+
+static int add_cnl(ln_node_t *node, uint64_t short_channel_id, int8_t node1, int8_t node2);
 
 
 /**************************************************************************
@@ -82,33 +84,6 @@ void ln_node_term(ln_node_t *node)
 {
     node->node_num = 0;
     node->channel_num = 0;
-}
-
-
-uint8_t ln_node_search_nodeid(ln_node_t *node, const uint8_t *pNodeId)
-{
-    uint8_t lp;
-    for (lp = 0; lp < LN_NODE_MAX; lp++) {
-        if (memcmp(node->node_info[lp].node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
-            break;
-        }
-    }
-
-    return lp;
-}
-
-
-uint64_t ln_node_search_idx(ln_node_t *node, int8_t node_idx)
-{
-    const ln_channel_info_t *cinfo = node->channel_info;
-
-    for (int lp = 0; lp < LN_CHANNEL_MAX; lp++) {
-        if ((cinfo[lp].node1 == NODE_MYSELF) && (cinfo[lp].node2 == node_idx)) {
-            return cinfo[lp].short_channel_id;
-        }
-    }
-
-    return 0;
 }
 
 
@@ -158,14 +133,14 @@ void ln_print_node(const ln_node_t *node)
  * HIDDEN
  ********************************************************************/
 
-bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
 {
     DBG_PRINTF("\n");
     return true;
 }
 
 
-bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
 {
     bool ret;
     ln_node_announce_t ann;
@@ -175,7 +150,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, c
     //通知されたノード情報を、追加 or 更新する
     ann.p_node_id = node_pub;
     ann.p_alias = node_alias;
-    ret = ln_msg_node_announce_read(&ann, pData, pLen);
+    ret = ln_msg_node_announce_read(&ann, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
         return false;
@@ -195,7 +170,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, c
 }
 
 
-bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
 {
     DBG_PRINTF("\n");
     DBG_PRINTF2("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
@@ -203,7 +178,7 @@ bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, cons
 }
 
 
-bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
 {
     bool ret;
     ln_announce_signs_t anno_signs;
@@ -211,6 +186,8 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
     ln_node_t *node = self->p_node;
+
+    DBG_PRINTF("node=%p\n", node);
 
     //announcement_signaturesを受信したときの状態として、以下が考えられる。
     //      - 相手から初めて受け取り、まだ自分からは送信していない
@@ -222,7 +199,7 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
     //  ここら辺が紛らわしくなってくる理由だろう。
 
     //short_channel_idで検索
-    uint64_t short_channel_id = ln_msg_announce_signs_read_short_cnl_id(pData, *pLen, self->channel_id);
+    uint64_t short_channel_id = ln_msg_announce_signs_read_short_cnl_id(pData, Len, self->channel_id);
     if (short_channel_id == 0) {
         DBG_PRINTF("fail: invalid packet\n");
         return false;
@@ -232,31 +209,26 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
         return false;
     }
     bool b_add;
-    int idx = ln_node_search_cnl_anno(node, &b_add, short_channel_id, self->node_idx, NODE_MYSELF);
+    int idx = ln_node_search_add_cnl(node, &b_add, short_channel_id, self->node_idx, NODE_MYSELF);
     if (idx == CHANNEL_NOT_FOUND) {
         DBG_PRINTF("fail: channel search\n");
         return false;
     }
 
-    if (b_add) {
-        ucoin_buf_free(&self->cnl_anno);
+    ucoin_buf_free(&self->cnl_anno);
 
-        ln_cnl_announce_t anno;
-
-        anno.short_channel_id = short_channel_id;
-        anno.p_my_node = &node->keys;
-        anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
-        anno.p_peer_node_pub = node->node_info[self->node_idx].node_id;
-        anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
-        anno.sort = node->node_info[self->node_idx].sort;
-
-        //追加
-        ret = ln_msg_cnl_announce_create(&self->cnl_anno,
-                (uint8_t **)&p_sig_node, (uint8_t **)&p_sig_btc, &anno);
-        if (!ret) {
-            DBG_PRINTF("fail: ln_msg_cnl_announce_create\n");
-            return false;
-        }
+    ln_cnl_announce_t anno;
+    anno.short_channel_id = short_channel_id;
+    anno.p_my_node = &node->keys;
+    anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
+    anno.p_peer_node_pub = node->node_info[self->node_idx].node_id;
+    anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
+    anno.sort = node->node_info[self->node_idx].sort;
+    ret = ln_msg_cnl_announce_create(&self->cnl_anno,
+            (uint8_t **)&p_sig_node, (uint8_t **)&p_sig_btc, &anno);
+    if (!ret) {
+        DBG_PRINTF("fail: ln_msg_cnl_announce_create\n");
+        return false;
     }
 
     //TODO: メッセージ構成に深入りしすぎてよくないが、暫定でこうする
@@ -270,7 +242,7 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
     anno_signs.p_channel_id = channel_id;
     anno_signs.p_node_signature = p_sig_node;
     anno_signs.p_btc_signature = p_sig_btc;
-    ret = ln_msg_announce_signs_read(&anno_signs, pData, pLen);
+    ret = ln_msg_announce_signs_read(&anno_signs, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
         return false;
@@ -290,8 +262,7 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
     DBG_PRINTF("+++ ln_msg_cnl_announce_print[%" PRIx64 "] +++\n", self->short_channel_id);
     ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
     ln_cnl_announce_t ca;
-    uint16_t Len = self->cnl_anno.len;
-    ret = ln_msg_cnl_announce_read(&ca, self->cnl_anno.buf, &Len);
+    ret = ln_msg_cnl_announce_read(&ca, self->cnl_anno.buf, self->cnl_anno.len);
     DBG_PRINTF("+++ ln_msg_cnl_announce_read() : %d\n", ret);
     if (ret) {
         DBG_PRINTF2("short_channel_id = %" PRIx64 "\n", ca.short_channel_id);
@@ -348,7 +319,7 @@ int HIDDEN ln_node_update_node_anno(ln_node_t *node, const ln_node_announce_t *p
 }
 
 
-int HIDDEN ln_node_search_cnl_anno(ln_node_t *node, bool *pAdd, uint64_t short_channel_id, int8_t node1, int8_t node2)
+int HIDDEN ln_node_search_add_cnl(ln_node_t *node, bool *pAdd, uint64_t short_channel_id, int8_t node1, int8_t node2)
 {
     int idx;
     for (idx = 0; idx < node->channel_num; idx++) {
@@ -369,15 +340,59 @@ int HIDDEN ln_node_search_cnl_anno(ln_node_t *node, bool *pAdd, uint64_t short_c
             node1 = node2;
             node2 = tmp;
         }
-        idx = node->channel_num;
-        node->channel_info[idx].node1 = node1;
-        node->channel_info[idx].node2 = node2;
-        node->channel_info[idx].short_channel_id = short_channel_id;
-        node->channel_num++;
+        idx = add_cnl(node, short_channel_id, node1, node2);
         *pAdd = true;
     } else {
         *pAdd = false;
     }
+
+    return idx;
+}
+
+
+uint8_t HIDDEN ln_node_search_nodeid(ln_node_t *node, const uint8_t *pNodeId)
+{
+    DBG_PRINTF("search id:");
+    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+
+    uint8_t lp;
+    for (lp = 0; lp < LN_NODE_MAX; lp++) {
+        if (memcmp(node->node_info[lp].node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
+            DBG_PRINTF("node found\n");
+            break;
+        }
+    }
+
+    return lp;
+}
+
+
+uint64_t HIDDEN ln_node_search_idx(ln_node_t *node, int8_t node_idx)
+{
+    const ln_channel_info_t *cinfo = node->channel_info;
+
+    for (int lp = 0; lp < LN_CHANNEL_MAX; lp++) {
+        if ((cinfo[lp].node1 == NODE_MYSELF) && (cinfo[lp].node2 == node_idx)) {
+            DBG_PRINTF("short_channel_id found: %" PRIx64 "\n", cinfo[lp].short_channel_id);
+            return cinfo[lp].short_channel_id;
+        }
+    }
+
+    return 0;
+}
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+static int add_cnl(ln_node_t *node, uint64_t short_channel_id, int8_t node1, int8_t node2)
+{
+    int idx = node->channel_num;
+    node->channel_info[idx].node1 = node1;
+    node->channel_info[idx].node2 = node2;
+    node->channel_info[idx].short_channel_id = short_channel_id;
+    node->channel_num++;
 
     return idx;
 }

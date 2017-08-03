@@ -50,6 +50,8 @@ extern "C" {
 #define LN_SZ_ONION_ROUTE               (1366)      ///< サイズ:onion-routing-packet
 #define LN_SZ_ALIAS                     (32)        ///< サイズ:alias長
 #define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< サイズ:noiseパケットヘッダ
+#define LN_SZ_GFLEN_MAX                 (4)         ///< init.gflen最大
+#define LN_SZ_LFLEN_MAX                 (4)         ///< init.lflen最大
 
 #define LN_FUNDIDX_MAX                  (5)         ///< 管理用
 #define LN_SCRIPTIDX_MAX                (3)         ///< 管理用
@@ -92,8 +94,6 @@ extern "C" {
 
 /** @def    LN_MSAT2SATOSHI(obs)
  *  @brief  msat(milli-satoshi)をsatoshi変換
- *  @note
- *      - LNプロトコル仕様により、32bitまでの箇所があるので注意すること
  */
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
 
@@ -113,6 +113,7 @@ typedef struct ln_self_t ln_self_t;
 typedef enum {
     LN_CB_ERROR,                ///< エラー通知
     LN_CB_INIT_RECV,            ///< init受信通知
+    LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
     LN_CB_FINDINGWIF_REQ,       ///< funding鍵設定要求
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
     LN_CB_ESTABLISHED,          ///< Establish完了通知
@@ -242,6 +243,7 @@ typedef struct {
                                                     ///< 33: [2]payment-basepoint
                                                     ///< 33: [3]delayed-payment-basepoint
                                                     ///< 33: [4]first-per-commitment-point
+    uint8_t     channel_flags;                      ///< 1 : [1]channel_flags
 } ln_open_channel_t;
 
 
@@ -458,6 +460,16 @@ typedef struct {
     uint16_t    failure_code;                       ///< 2:  failure-code
 } ln_update_fail_malformed_htlc_t;
 
+
+/** @struct     ln_channel_reestablish_t
+ *  @brief      channel_reestablish
+ */
+typedef struct {
+    uint8_t     *p_channel_id;                      ///< 32: channel-id
+    uint64_t    next_local_commitment_number;       ///< 8:  next_local_commitment_number
+    uint64_t    next_remote_revocation_number;      ///< 8:  next_remote_revocation_number
+} ln_channel_reestablish_t;
+
 /// @}
 
 
@@ -472,8 +484,10 @@ typedef struct {
  *  @brief      init
  */
 typedef struct {
-    //uint8_t     globalfeatures;                     ///< 1: globalfeatures
-    uint8_t     localfeatures;                      ///< 1: localfeatures
+    uint8_t     gflen;
+    uint8_t     lflen;
+    uint8_t     globalfeatures[LN_SZ_GFLEN_MAX];    ///< gflen: globalfeatures
+    uint8_t     localfeatures[LN_SZ_LFLEN_MAX];     ///< lflen: localfeatures
 } ln_init_t;
 
 
@@ -617,9 +631,11 @@ typedef struct {
  *  @brief  funding_tx安定待ち要求(#LN_CB_FUNDINGTX_WAIT) / Establish完了通知(#LN_CB_ESTABLISHED)
  */
 typedef struct {
-    const ucoin_tx_t        *p_tx_funding;              ///< funding_tx(open_channel送信側のみ)
+    const ucoin_tx_t        *p_tx_funding;              ///< funding_tx
     const uint8_t           *p_txid;                    ///< funding txid
     uint32_t                min_depth;                  ///< minimum_depth
+    bool                    b_send;                     ///< true:funding_txを送信する
+    bool                    annosigs;                   ///< true:announce_signaturesを送信する
 } ln_cb_funding_t;
 
 
@@ -800,12 +816,14 @@ struct ln_self_t {
     uint64_t                    peer_storage_index;             ///< 現在のindex(peer)
 
     //funding
+    uint8_t                     fund_flag;                      ///< none/funder/fundee
     ln_funding_local_data_t     funding_local;                  ///< funding情報:local
     ln_funding_remote_data_t    funding_remote;                 ///< funding情報:remote
     uint64_t                    obscured;                       ///< commitment numberをXORするとobscured commitment numberになる値。
     ucoin_buf_t                 redeem_fund;                    ///< 2-of-2のredeemScript
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
+    uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
 
     //closing
     ucoin_tx_t                  tx_closing;                     ///< closing_tx
@@ -814,12 +832,12 @@ struct ln_self_t {
     ln_callback_t               p_callback;                     ///< 通知コールバック
 
     //msg:init
-    bool                        init_sent;                      ///< true:initメッセージ送信済み
+    uint8_t                     init_flag;                      ///< INIT_FLAG_xxx
     uint8_t                     lfeature_remote;                ///< initで取得したlocalfeature
     //msg:establish
     ln_establish_t              *p_est;                         ///< Establish時ワーク領域
     //msg:close
-    uint8_t                     shutdown_flag;                  ///< shutdownフラグ(SHUTDOWN_FLAG_xxx)。 b1:受信済み b0:送信済み
+    uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)。 b1:受信済み b0:送信済み
     uint64_t                    close_fee_sat;                  ///< closing_txのFEE
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< mutual close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
@@ -831,7 +849,10 @@ struct ln_self_t {
                                                                 //      受信した場合、そのままcommitment_signedを送信し、revoke_and_ack送信で完了する
                                                                 //      送信した場合、commitment_signed受信によってcommitment_signedを送信し、revoke_and_ack受信で完了
     uint16_t                    htlc_num;                       ///< HTLC数
-    uint64_t                    commit_num;                     ///< commitment txを作るたびにインクリメントする48bitカウンタ(0～)
+    uint64_t                    commit_num;                     ///< commitment_signed送信後にインクリメントする48bitカウンタ(0～)
+    uint64_t                    revoke_num;                     ///< revoke_and_ack送信後にインクリメントする48bitカウンタ(0～)
+    uint64_t                    remote_commit_num;              ///< commitment_signed受信時にインクリメントする48bitカウンタ(0～)
+    uint64_t                    remote_revoke_num;              ///< revoke_and_ack受信時にインクリメントする48bitカウンタ(0～)
     uint64_t                    htlc_id_num;                    ///< update_add_htlcで使うidの管理
     uint64_t                    our_msat;                       ///< 自分の持ち分
     uint64_t                    their_msat;                     ///< 相手の持ち分
@@ -960,10 +981,36 @@ bool ln_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pNode
 bool ln_handshake_recv(ln_self_t *self, bool *pCont, ucoin_buf_t *pBuf, const uint8_t *pNodeId);
 
 
+/** noise protocol encode
+ *
+ * @param[in,out]       self        channel情報
+ * @param[in,out]       pBuf        [in]変換前データ(平BOLT), [out]エンコード後データ
+ * @retval      true    成功
+ */
 bool ln_noise_enc(ln_self_t *self, ucoin_buf_t *pBuf);
 
+
+/** noise protocol decode(length)
+ *
+ * @param[in,out]       self        channel情報
+ * @param[in]           pData       変換前データ(Length部)
+ * @param[in]           Len         pData長
+ * @retval      非0 次に受信すべきデータ長
+ * @retval      0   失敗
+ * @note
+ *      - 平BOLT==>noise protocolエンコード==>送信 - - - 受信→noise protocolデコード==>平BOLT
+ *      - noise protocolでエンコードされたデータはMACが付いているため、実データより16byte大きくなっている
+ *      - 戻り値のデータ長分を受信し、受信したデータを #ln_noise_dec_msg() に渡してデコードする。
+ */
 uint16_t ln_noise_dec_len(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
+
+/** noise protocol decode(message)
+ *
+ * @param[in,out]       self        channel情報
+ * @param[in,out]       pBuf        [in]変換前データ, [out]デコード後データ(平BOLT)
+ * @retval      true    成功
+ */
 bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf);
 
 
@@ -972,14 +1019,14 @@ bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf);
  * @param[in,out]       self        channel情報
  * @param[out]          pBuf        処理成功時に送信するメッセージ
  * @param[in]           pData       受信データ
- * @param[in,out]       pLen        [in]pDataサイズ, [out]処理後の残りサイズ
+ * @param[in]           Len         pData長
  * @retval      true    解析成功
  * @note
  *      - accept_channel受信時、funding_txを展開し、安定するまで待ち時間が生じる。<br/>
  *          安定した後は #ln_funding_tx_stabled() を呼び出してシーケンスを継続すること。
  *
  */
-bool ln_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen);
+bool ln_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 
 
 /** initメッセージ作成

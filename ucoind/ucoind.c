@@ -43,6 +43,13 @@
 
 
 /********************************************************************
+ * static variables
+ ********************************************************************/
+
+static node_conf_t mNodeConf;
+
+
+/********************************************************************
  * prototypes
  ********************************************************************/
 
@@ -82,16 +89,15 @@ int main(int argc, char *argv[])
     //syslog
     openlog("ucoind", LOG_CONS, LOG_USER);
 
-    node_conf_t node_conf;
     rpc_conf_t rpc_conf;
-    bool bret = load_node_conf(argv[1], &node_conf, &rpc_conf);
+    bool bret = load_node_conf(argv[1], &mNodeConf, &rpc_conf);
     if (!bret) {
         goto LABEL_EXIT;
     }
 
     if ((argc == 3) && (strcmp(argv[2], "id") == 0)) {
         ucoin_util_keys_t keys;
-        ucoin_util_wif2keys(&keys, node_conf.wif);
+        ucoin_util_wif2keys(&keys, mNodeConf.wif);
         for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
             printf("%02x", keys.pub[lp]);
         }
@@ -110,20 +116,20 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    lnapp_init(&node_conf);
+    lnapp_init(&mNodeConf);
 
     //接続待ち受け用
     pthread_t th_svr;
-    pthread_create(&th_svr, NULL, &p2p_svr_start, &node_conf.port);
+    pthread_create(&th_svr, NULL, &p2p_svr_start, &mNodeConf.port);
 
     ////funding_tx監視用
     //pthread_t th_fu;
-    //pthread_create(&th_fu, NULL, &poll_fundtx_start, &node_conf.port);
+    //pthread_create(&th_fu, NULL, &poll_fundtx_start, &mNodeConf.port);
 
     SYSLOG_INFO("start");
 
     //ucoincli受信用
-    msg_recv(node_conf.port);
+    msg_recv(mNodeConf.port);
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
@@ -406,6 +412,13 @@ static int exec_cmd_daemon(const msg_daemon_t *pDaemon, char *pResMsg)
         }
         break;
     case DCMD_SHOW_LIST:
+        {
+            strcpy(pResMsg, "node_id: ");
+            ucoin_util_keys_t keys;
+            ucoin_util_wif2keys(&keys, mNodeConf.wif);
+            misc_bin2str(pResMsg + 9, keys.pub, UCOIN_SZ_PUBKEY);
+            strcat(pResMsg, "\n\n");
+        }
         fprintf(PRINTOUT, "<connected channel list>\n");
         p2p_svr_show_self(pResMsg);
         p2p_cli_show_self(pResMsg);

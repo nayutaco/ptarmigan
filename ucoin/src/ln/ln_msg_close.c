@@ -37,7 +37,7 @@
  * macros
  ********************************************************************/
 
-//#define DBG_PRINT_CREATE
+#define DBG_PRINT_CREATE
 #define DBG_PRINT_READ
 
 
@@ -90,10 +90,8 @@ bool HIDDEN ln_msg_shutdown_create(ucoin_buf_t *pBuf, const ln_shutdown_t *pMsg)
 }
 
 
-bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 34) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -102,7 +100,6 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_SHUTDOWN) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -117,7 +114,6 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
     pos += sizeof(uint16_t);
     if (Len - pos < len) {
         DBG_PRINTF("fail: invalid scriptpubkey length: %d\n", Len);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -125,7 +121,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
     ucoin_buf_alloccopy(pMsg->p_scriptpk, pData + pos, len);
     pos += len;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -191,10 +187,8 @@ bool HIDDEN ln_msg_closing_signed_create(ucoin_buf_t *pBuf, const ln_closing_sig
 }
 
 
-bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 104) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -203,7 +197,6 @@ bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_CLOSING_SIGNED) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -221,7 +214,7 @@ bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t 
     memcpy(pMsg->p_signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);

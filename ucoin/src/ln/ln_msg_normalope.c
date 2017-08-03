@@ -114,10 +114,8 @@ bool HIDDEN ln_msg_update_add_htlc_create(ucoin_buf_t *pBuf, const ln_update_add
 }
 
 
-bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 1450) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -126,7 +124,6 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_ADD_HTLC) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -158,7 +155,7 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
     memcpy(pMsg->p_onion_route, pData + pos, LN_SZ_ONION_ROUTE);
     pos += LN_SZ_ONION_ROUTE;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -228,10 +225,8 @@ bool HIDDEN ln_msg_update_fulfill_htlc_create(ucoin_buf_t *pBuf, const ln_update
 }
 
 
-bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 72) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -240,7 +235,6 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_FULFILL_HTLC) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -258,7 +252,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
     memcpy(pMsg->p_payment_preimage, pData + pos, UCOIN_SZ_PRIVKEY);
     pos += UCOIN_SZ_PRIVKEY;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -332,10 +326,8 @@ bool HIDDEN ln_msg_update_fail_htlc_create(ucoin_buf_t *pBuf, const ln_update_fa
 }
 
 
-bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 42) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -344,7 +336,6 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_FAIL_HTLC) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -363,7 +354,6 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
     pos += sizeof(uint16_t);
     if (Len - pos < len) {
         DBG_PRINTF("fail: invalid reason length: %d\n", Len);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -371,7 +361,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
     ucoin_buf_alloccopy(pMsg->p_reason, pData + pos, len);
     pos += len;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -442,10 +432,8 @@ bool HIDDEN ln_msg_commit_signed_create(ucoin_buf_t *pBuf, const ln_commit_signe
 }
 
 
-bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 98) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -454,7 +442,6 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_COMMITMENT_SIGNED) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -478,7 +465,7 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
     memcpy(pMsg->p_htlc_signature, pData + pos, pMsg->num_htlcs * LN_SZ_SIGNATURE);
     pos += pMsg->num_htlcs * LN_SZ_SIGNATURE;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -548,10 +535,8 @@ bool HIDDEN ln_msg_revoke_and_ack_create(ucoin_buf_t *pBuf, const ln_revoke_and_
 }
 
 
-bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 97) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -560,7 +545,6 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_REVOKE_AND_ACK) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -578,7 +562,7 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
     memcpy(pMsg->p_per_commitpt, pData + pos, UCOIN_SZ_PUBKEY);
     pos += UCOIN_SZ_PUBKEY;
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -641,10 +625,8 @@ bool HIDDEN ln_msg_update_fee_create(ucoin_buf_t *pBuf, const ln_update_fee_t *p
 }
 
 
-bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 36) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -653,7 +635,6 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_FEE) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -667,7 +648,7 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
     pMsg->feerate_per_kw = ln_misc_get32be(pData + pos);
     pos += sizeof(uint32_t);
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -735,10 +716,8 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_create(ucoin_buf_t *pBuf, const ln
 }
 
 
-bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc_t *pMsg, const uint8_t *pData, uint16_t *pLen)
+bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    uint16_t Len = *pLen;
-
     if (Len < sizeof(uint16_t) + 74) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -747,7 +726,6 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC) {
         DBG_PRINTF("fail: type not match: %04x\n", type);
-        *pLen = 0;      //error
         return false;
     }
 
@@ -769,7 +747,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
     pMsg->failure_code = ln_misc_get16be(pData + pos);
     pos += sizeof(uint16_t);
 
-    *pLen -= pos;
+    assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);

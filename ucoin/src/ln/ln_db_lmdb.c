@@ -59,9 +59,9 @@ typedef struct {
 // ln_self_tのバックアップ
 typedef struct {
     int8_t                      node_idx;                       ///<  1:接続先ノード(p_node->nodes[node_idx])
-    //uint8_t                     init_sent;                      ///<  2:true:initメッセージ送信済み
+                                                                ///<  2
     uint8_t                     lfeature_remote;                ///<  3:initで取得したlocalfeature
-    //ln_derkey_storage           storage;                        ///<  4:key storage
+                                                                ///<  4
     uint64_t                    storage_index;                  ///<  5:現在のindex
     uint8_t                     storage_seed[UCOIN_SZ_PRIVKEY]; ///<  6:ユーザから指定されたseed
     ln_funding_local_data_t     funding_local;                  ///<  7:funding情報:local
@@ -69,7 +69,7 @@ typedef struct {
     uint64_t                    obscured;                       ///<  9:commitment numberをXORするとobscured commitment numberになる値。
     ucoin_keys_sort_t           key_fund_sort;                  ///< 10:2-of-2のソート順(local, remoteを正順とした場合)
     uint16_t                    htlc_num;                       ///< 11:HTLC数
-    uint64_t                    commit_num;                     ///< 12:commitment txを作るたびにインクリメントする48bitカウンタ(0～)
+    uint64_t                    commit_num;                     ///< 12:commitment_signed送信後にインクリメントする48bitカウンタ(0～)
     uint64_t                    htlc_id_num;                    ///< 13:update_add_htlcで使うidの管理
     uint64_t                    our_msat;                       ///< 14:自分の持ち分
     uint64_t                    their_msat;                     ///< 15:相手の持ち分
@@ -82,6 +82,10 @@ typedef struct {
     uint32_t                    feerate_per_kw;                 ///< 22:feerate_per_kw
     ln_derkey_storage           peer_storage;                   ///< 23:key storage(peer)
     uint64_t                    peer_storage_index;             ///< 24:現在のindex(peer)
+    uint64_t                    remote_commit_num;              ///< 25:commitment_signed受信時にインクリメントする
+    uint64_t                    revoke_num;                     ///< 26:revoke_and_ack送信後にインクリメントする
+    uint64_t                    remote_revoke_num;              ///< 27:revoke_and_ack受信時にインクリメントする
+    uint8_t                     fund_flag;                      ///< 28:none/funder/fundee
 } backup_self_t;
 
 
@@ -158,9 +162,7 @@ bool ln_db_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         const backup_self_t *p_bk = (const backup_self_t *)data.mv_data;
 
         self->node_idx = p_bk->node_idx;       //1
-        //self->init_sent = (bool)p_bk->init_sent;      //2
         self->lfeature_remote = p_bk->lfeature_remote;     //3
-        //self->storage = p_bk->storage;     //4
         self->storage_index = p_bk->storage_index;     //5
         memcpy(self->storage_seed, p_bk->storage_seed, UCOIN_SZ_PRIVKEY);      //6
         self->funding_local = p_bk->funding_local;     //7
@@ -185,6 +187,10 @@ bool ln_db_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         self->feerate_per_kw = p_bk->feerate_per_kw;       //22
         self->peer_storage = p_bk->peer_storage;     //23
         self->peer_storage_index = p_bk->peer_storage_index;     //24
+        self->remote_commit_num = p_bk->remote_commit_num;  //25
+        self->revoke_num = p_bk->revoke_num;  //26
+        self->remote_revoke_num = p_bk->remote_revoke_num;  //27
+        self->fund_flag = p_bk->fund_flag;  //28
 
         //次読込み
         key.mv_size = 6;
@@ -231,9 +237,7 @@ bool ln_db_save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 
     memset(&bk, 0, sizeof(bk));
     bk.node_idx = self->node_idx;       //1
-    //bk.init_sent = (uint8_t)self->init_sent;      //2
     bk.lfeature_remote = self->lfeature_remote;     //3
-    //bk.storage = self->storage;     //4
     bk.storage_index = self->storage_index;     //5
     memcpy(bk.storage_seed, self->storage_seed, UCOIN_SZ_PRIVKEY);      //6
     bk.funding_local = self->funding_local;     //7
@@ -256,6 +260,10 @@ bool ln_db_save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     bk.feerate_per_kw = self->feerate_per_kw;       //22
     bk.peer_storage = self->peer_storage;     //23
     bk.peer_storage_index = self->peer_storage_index;     //24
+    bk.remote_commit_num = self->remote_commit_num;       //25
+    bk.revoke_num = self->revoke_num;       //26
+    bk.remote_revoke_num = self->remote_revoke_num;       //27
+    bk.fund_flag = self->fund_flag;       //28
 
     key.mv_size = 6;
     key.mv_data = "self1";

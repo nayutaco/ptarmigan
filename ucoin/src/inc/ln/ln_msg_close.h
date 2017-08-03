@@ -46,10 +46,10 @@ bool HIDDEN ln_msg_shutdown_create(ucoin_buf_t *pBuf, const ln_shutdown_t *pMsg)
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** closing_signed生成
@@ -65,9 +65,9 @@ bool HIDDEN ln_msg_closing_signed_create(ucoin_buf_t *pBuf, const ln_closing_sig
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
- * @param[in,out]   pLen    IN:pData長, OUT:処理後のデータ長(データ長が不足の場合は変化させない)
+ * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 #endif /* LN_MSG_CLOSE_H__ */

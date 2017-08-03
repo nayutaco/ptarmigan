@@ -68,18 +68,12 @@
 #define MSGTYPE_REVOKE_AND_ACK              ((uint16_t)0x0085)
 #define MSGTYPE_UPDATE_FEE                  ((uint16_t)0x0086)
 #define MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC  ((uint16_t)0x0087)
+#define MSGTYPE_CHANNEL_REESTABLISH         ((uint16_t)0x0088)
 
 #define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
 #define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
 #define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
-
-
-/*
- * ln_self_t.shutdown_flag
- */
-#define SHUTDOWN_FLAG_SEND                  (0x01)          ///< 1:shutdown送信あり
-#define SHUTDOWN_FLAG_RECV                  (0x02)          ///< 1:shutdown受信あり
 
 
 #define NODE_NOT_FOUND                      (-1)            ///< ノード不明
@@ -88,7 +82,18 @@
 #define CHANNEL_NOT_FOUND                   (-1)            ///< チャネル不明
 
 
-#define NODE_LF_INIT                (0xfb)          ///< init未受信の判定および不要ビットマスク
+// self.init_flag
+#define INIT_FLAG_SEND              (0x01)
+#define INIT_FLAG_RECV              (0x02)
+#define INIT_FLAG_INITED(flag)      (flag & (INIT_FLAG_SEND | INIT_FLAG_RECV))
+#define INIT_FLAG_REEST_SEND        (0x04)
+#define INIT_FLAG_REEST_RECV        (0x08)
+#define INIT_FLAG_REESTED(flag)     (flag & (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV))
+#define INIT_FLAG_ALL               (INIT_FLAG_INITED | INIT_FLAG_REESTED)
+
+#define NODE_LF_INIT                (0x55)          ///< init未受信の判定および不要ビットマスク
+                                                    //      [0]xx_00_00_00
+                                                    //         ^^
 #define NODE_LF_INIT_ROUTE_SYNC     (4)
 #define NODE_LOCALFEATURES          (0)             ///< TODO:init.localfeaturesのデフォルト値
 
@@ -250,9 +255,10 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
  * @param[out]      pTx         TX情報
  * @param[out]      pSig        local署名
  * @param[in]       pCmt        Commitment Transaction情報
+ * @param[in]       Local       true:LocalがFEEを払う
  * @return      true:成功
  */
-bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt);
+bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local);
 
 
 /** P2WSH署名 - LN:HTLC-success/timeoutトランザクション更新

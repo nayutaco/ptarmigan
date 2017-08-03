@@ -93,6 +93,7 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
     ucoin_push_data(&wscript, pLocalDelayedKey, UCOIN_SZ_PUBKEY);
     ucoin_push_data(&wscript, UCOIN_OP_ENDIF UCOIN_OP_CHECKSIG, 2);
     ucoin_push_trim(&wscript);
+ucoin_print_script(pBuf->buf, pBuf->len);
 }
 
 
@@ -329,24 +330,34 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
 }
 
 
-bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt)
+bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local)
 {
+    uint64_t fee_local;
+    uint64_t fee_remote;
+    if (Local) {
+        fee_local = pCmt->p_feeinfo->commit;
+        fee_remote = 0;
+    } else {
+        fee_local = 0;
+        fee_remote = pCmt->p_feeinfo->commit;
+    }
+
     //output
     //  P2WPKH - remote
-    if (pCmt->remote.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi) {
-        DBG_PRINTF("  add remote: %" PRIu64 " sat\n", pCmt->remote.satoshi);
-        ucoin_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi, pCmt->remote.pubkey);
+    if (pCmt->remote.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_remote) {
+        DBG_PRINTF("  add remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCmt->remote.satoshi, fee_remote);
+        ucoin_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
         pTx->vout[pTx->vout_cnt - 1].opt = VOUT_OPT_NONE;
     } else {
-        DBG_PRINTF("  output P2WPKH dust: %" PRIu64 " < %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi);
+        DBG_PRINTF("  output P2WPKH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
     }
     //  P2WSH - local(commitment txのFEEはlocalが払う)
-    if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + pCmt->p_feeinfo->commit) {
-        DBG_PRINTF("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, pCmt->p_feeinfo->commit);
-        ucoin_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - pCmt->p_feeinfo->commit, pCmt->local.p_script);
+    if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
+        DBG_PRINTF("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
+        ucoin_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
         pTx->vout[pTx->vout_cnt - 1].opt = VOUT_OPT_NONE;
     } else {
-        DBG_PRINTF("  output P2WSH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, pCmt->p_feeinfo->commit);
+        DBG_PRINTF("  output P2WSH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
     }
     //  HTLCs
     for (int lp = 0; lp < pCmt->htlcinfo_num; lp++) {

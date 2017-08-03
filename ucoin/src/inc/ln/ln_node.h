@@ -33,10 +33,10 @@
  * prototypes
  ********************************************************************/
 
-bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen);
-bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen);
-bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen);
-bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t *pLen);
+bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 
 
 /** node_announcment情報追加
@@ -59,9 +59,9 @@ int HIDDEN ln_node_update_node_anno(ln_node_t *node, const ln_node_announce_t *p
  * @retval  CHANNEL_NOT_FOUND以外   検索 or 追加成功
  * @retval  CHANNEL_NOT_FOUND       失敗
  * @note
- *      - announcement_signaturesのデータに対して用いるため、片方は必ず自ノードになる
+ *      - 見つからなかった場合は追加する
  */
-int HIDDEN ln_node_search_cnl_anno(ln_node_t *node, bool *pAdd, uint64_t short_channel_id, int8_t node1, int8_t node2);
+int HIDDEN ln_node_search_add_cnl(ln_node_t *node, bool *pAdd, uint64_t short_channel_id, int8_t node1, int8_t node2);
 
 
 /** node_idからnode_idx検索
