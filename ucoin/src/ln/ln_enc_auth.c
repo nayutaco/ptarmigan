@@ -698,6 +698,8 @@ static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
         DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
+    DBG_PRINTF("rs=");
+    DUMPBIN(rs, sizeof(rs));
 
     // h = SHA-256(h || c)
     ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, sizeof(c));
@@ -724,7 +726,10 @@ static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     // rk, sk = HKDF(ck, zero)
     noise_hkdf(self->noise.rk, self->noise.sk, pBolt->ck, NULL);
 
+    //Act Treeでは相手のnode_idを返す
     ucoin_buf_free(pBuf);
+    ucoin_buf_alloccopy(pBuf, rs, sizeof(rs));
+
     ret = true;
 
 LABEL_EXIT:

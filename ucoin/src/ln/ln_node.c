@@ -187,6 +187,8 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
     uint8_t *p_sig_btc;
     ln_node_t *node = self->p_node;
 
+    DBG_PRINTF("node=%p\n", node);
+
     //announcement_signaturesを受信したときの状態として、以下が考えられる。
     //      - 相手から初めて受け取り、まだ自分からは送信していない
     //      - 自分から送信していて、相手から初めて受け取った
@@ -213,25 +215,20 @@ bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *p
         return false;
     }
 
-    if (b_add) {
-        ucoin_buf_free(&self->cnl_anno);
+    ucoin_buf_free(&self->cnl_anno);
 
-        ln_cnl_announce_t anno;
-
-        anno.short_channel_id = short_channel_id;
-        anno.p_my_node = &node->keys;
-        anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
-        anno.p_peer_node_pub = node->node_info[self->node_idx].node_id;
-        anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
-        anno.sort = node->node_info[self->node_idx].sort;
-
-        //追加
-        ret = ln_msg_cnl_announce_create(&self->cnl_anno,
-                (uint8_t **)&p_sig_node, (uint8_t **)&p_sig_btc, &anno);
-        if (!ret) {
-            DBG_PRINTF("fail: ln_msg_cnl_announce_create\n");
-            return false;
-        }
+    ln_cnl_announce_t anno;
+    anno.short_channel_id = short_channel_id;
+    anno.p_my_node = &node->keys;
+    anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
+    anno.p_peer_node_pub = node->node_info[self->node_idx].node_id;
+    anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
+    anno.sort = node->node_info[self->node_idx].sort;
+    ret = ln_msg_cnl_announce_create(&self->cnl_anno,
+            (uint8_t **)&p_sig_node, (uint8_t **)&p_sig_btc, &anno);
+    if (!ret) {
+        DBG_PRINTF("fail: ln_msg_cnl_announce_create\n");
+        return false;
     }
 
     //TODO: メッセージ構成に深入りしすぎてよくないが、暫定でこうする

@@ -72,7 +72,11 @@
 
 
 
-#define M_PONG_MISSING                          (5)         ///< pongが返ってこないエラー上限
+#define M_PONG_MISSING                      (5)             ///< pongが返ってこないエラー上限
+
+#define M_FUND_NONE                         (0)             ///< fund無し
+#define M_FUND_FUNDER                       (1)             ///< funder
+#define M_FUND_FUNDEE                       (2)             ///< fundee
 
 
 /**************************************************************************
@@ -84,7 +88,7 @@
  *  @note
  *      - Establish時しか使用しない
  */
-#define M_IS_OPENSIDE(self)     ((self->p_est != NULL) && (self->p_est->p_fundin != NULL))
+#define M_IS_OPENSIDE(self)     (self->fund_flag == M_FUND_FUNDER)
 
 
 /**************************************************************************
@@ -109,6 +113,8 @@ static bool recv_accept_channel(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_
 static bool recv_funding_created(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 static bool recv_funding_signed(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 static bool recv_funding_locked(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
+static bool recv_funding_locked_first(ln_self_t *self, ucoin_buf_t *pBuf);
+static bool recv_funding_locked_reestablish(ln_self_t *self, ucoin_buf_t *pBuf);
 static bool recv_shutdown(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 static bool recv_closing_signed(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 static bool recv_update_add_htlc(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
@@ -118,6 +124,7 @@ static bool recv_commitment_signed(ln_self_t *self, ucoin_buf_t *pBuf, const uin
 static bool recv_revoke_and_ack(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 static bool recv_update_fee(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 static bool recv_update_fail_malformed_htlc(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
+static bool recv_channel_reestablish(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
 
 static bool create_funding_tx(ln_self_t *self);
 static bool create_to_local(ln_self_t *self,
@@ -164,6 +171,7 @@ static const struct {
     { MSGTYPE_REVOKE_AND_ACK,               recv_revoke_and_ack },
     { MSGTYPE_UPDATE_FEE,                   recv_update_fee },
     { MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC,   recv_update_fail_malformed_htlc },
+    { MSGTYPE_CHANNEL_REESTABLISH,          recv_channel_reestablish },
     { MSGTYPE_CHANNEL_ANNOUNCEMENT,         ln_node_recv_channel_announcement },
     { MSGTYPE_NODE_ANNOUNCEMENT,            ln_node_recv_node_announcement },
     { MSGTYPE_CHANNEL_UPDATE,               ln_node_recv_channel_update },
@@ -363,7 +371,7 @@ bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf)
  * BOLTのメッセージはデータ長が載っていない。
  * socket通信はwrite()した回数とrecv()の数は一致せず、ストリームになっているため、
  * 今回のように「受信したパケットを全部解析する」というやり方は合わない。
- *
+ * そう思っていたが、Noise Protocolによって全パケット受信してから解析するため、問題ない。
  */
 bool ln_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
 {
@@ -371,7 +379,7 @@ bool ln_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t 
     uint16_t type = ln_misc_get16be(pData);
 
     DBG_PRINTF("channel= %" PRIx64 "\n", self->short_channel_id);
-    if ((type != MSGTYPE_INIT) && (self->lfeature_remote == NODE_LF_INIT)) {
+    if ((type != MSGTYPE_INIT) && (!INIT_FLAG_INITED(self->init_flag))) {
         DBG_PRINTF("fail: no init received : %04x\n", type);
         return false;
     }
@@ -395,7 +403,7 @@ bool ln_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t 
 //init作成
 bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
 {
-    if (self->init_sent) {
+    if (self->init_flag & INIT_FLAG_SEND) {
         DBG_PRINTF("fail: init already sent.\n");
         return false;
     }
@@ -405,9 +413,34 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
     msg.lflen = 0;
     //msg.localfeatures[0] = NODE_LOCALFEATURES;
 
-    //TODO: 本当は送信したタイミングがよいのだが、まだ作ってない
-    self->init_sent = ln_msg_init_create(pInit, &msg);
-    return self->init_sent;
+    //TODO: 本当は送信したタイミングがよい
+    bool ret = ln_msg_init_create(pInit, &msg);
+    if (ret) {
+        self->init_flag |= INIT_FLAG_SEND;
+    }
+    return ret;
+}
+
+
+//channel_reestablish作成
+bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
+{
+    if (self->init_flag & INIT_FLAG_REEST_SEND) {
+        DBG_PRINTF("fail: channel_reestablish already sent.\n");
+        return false;
+    }
+
+    ln_channel_reestablish_t msg;
+    msg.p_channel_id = self->channel_id;
+    msg.next_local_commitment_number = self->commit_num;
+    msg.next_remote_revocation_number = self->remote_revoke_num;
+
+    //TODO: 本当は送信したタイミングがよい
+    bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
+    if (ret) {
+        self->init_flag |= INIT_FLAG_REEST_SEND;
+    }
+    return ret;
 }
 
 
@@ -415,7 +448,7 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
 bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
             const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat)
 {
-    if ((self->lfeature_remote == NODE_LF_INIT) || (!self->init_sent)) {
+    if (!INIT_FLAG_INITED(self->init_flag)) {
         DBG_PRINTF("fail: no init finished\n");
         return false;
     }
@@ -478,6 +511,8 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     self->funding_sat = open_ch->funding_sat;
     self->feerate_per_kw = open_ch->feerate_per_kw;
 
+    self->fund_flag = M_FUND_FUNDER;
+
     return true;
 }
 
@@ -493,7 +528,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
  */
 bool ln_funding_tx_stabled(ln_self_t *self, ucoin_buf_t *pFundingLocked)
 {
-    if ((self->lfeature_remote == NODE_LF_INIT) || (!self->init_sent)) {
+    if (!INIT_FLAG_INITED(self->init_flag)) {
         DBG_PRINTF("fail: no init finished\n");
         return false;
     }
@@ -523,6 +558,9 @@ bool ln_funding_tx_stabled(ln_self_t *self, ucoin_buf_t *pFundingLocked)
             assert(0);
             return false;
         }
+
+        //channel_reestablish済みと同じ状態にしておく
+        self->init_flag |= INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV;
 
         //Establish完了通知
         DBG_PRINTF("Establish完了通知");
@@ -615,7 +653,7 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown)
 {
     DBG_PRINTF("BEGIN\n");
 
-    if ((self->lfeature_remote == NODE_LF_INIT) || (!self->init_sent)) {
+    if (!INIT_FLAG_INITED(self->init_flag)) {
         DBG_PRINTF("fail: no init finished\n");
         return false;
     }
@@ -654,7 +692,7 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
 {
     DBG_PRINTF("BEGIN\n");
 
-    if ((self->lfeature_remote == NODE_LF_INIT) || (!self->init_sent)) {
+    if (!INIT_FLAG_INITED(self->init_flag)) {
         DBG_PRINTF("fail: no init finished\n");
         return false;
     }
@@ -735,7 +773,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
 {
     DBG_PRINTF("BEGIN\n");
 
-    if ((self->lfeature_remote == NODE_LF_INIT) || (!self->init_sent)) {
+    if (!INIT_FLAG_INITED(self->init_flag)) {
         DBG_PRINTF("fail: no init finished\n");
         return false;
     }
@@ -798,7 +836,7 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
 
     bool ret;
 
-    if ((self->lfeature_remote == NODE_LF_INIT) || (!self->init_sent)) {
+    if (!INIT_FLAG_INITED(self->init_flag)) {
         DBG_PRINTF("fail: no init finished\n");
         return false;
     }
@@ -822,6 +860,9 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
     commsig.p_htlc_signature = p_htlc_sigs;
     ret = ln_msg_commit_signed_create(pCommSig, &commsig);
     M_FREE(p_htlc_sigs);
+
+    //自分のcommitment_numberをインクリメント(channel_reestablish用)
+    self->commit_num++;
 
     DBG_PRINTF("END\n");
     return ret;
@@ -919,7 +960,7 @@ void ln_print_self(const ln_self_t *self)
     fprintf(PRINTOUT, "tx_closing:\n");
     ucoin_print_tx(&self->tx_closing);
     fprintf(PRINTOUT, "p_callback= %p\n", self->p_callback);
-    fprintf(PRINTOUT, "init_sent= %d\n", self->init_sent);
+    fprintf(PRINTOUT, "init_flag= %02x\n", self->init_flag);
     fprintf(PRINTOUT, "lfeature_remote = %02x\n", self->lfeature_remote);
     fprintf(PRINTOUT, "p_est=%p\n", self->p_est);
     fprintf(PRINTOUT, "shutdown_flag= %02x\n", self->shutdown_flag);
@@ -1026,7 +1067,7 @@ static bool recv_init(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, 
 {
     bool ret;
 
-    if (self->lfeature_remote != NODE_LF_INIT) {
+    if (self->init_flag & INIT_FLAG_RECV) {
         //TODO: 2回init受信した場合はどうする？
         DBG_PRINTF("???: multiple init received.\n");
     }
@@ -1042,7 +1083,14 @@ static bool recv_init(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, 
             );
     }
     if (ret) {
+        self->init_flag |= INIT_FLAG_RECV;
         self->lfeature_remote = msg.localfeatures[0];
+
+        if (INIT_FLAG_INITED(self->init_flag) && ((self->init_flag & INIT_FLAG_REEST_SEND) == 0)) {
+            //init送受信済みでchannel_reestablish未送信ならば、channel_reestablishを送信
+        } else if ((self->init_flag & INIT_FLAG_SEND) == 0) {
+            //init未送信の場合は、
+        }
 
         //init受信通知
         assert(self->p_callback);
@@ -1218,6 +1266,8 @@ static bool recv_open_channel(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t 
                 self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub, self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
     self->htlc_num = 0;
+
+    self->fund_flag = M_FUND_FUNDEE;
 
     DBG_PRINTF("END\n");
     return true;
@@ -1471,10 +1521,30 @@ static bool recv_funding_locked(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_
         return false;
     }
 
+    if (INIT_FLAG_REESTED(self->init_flag)) {
+        ret = recv_funding_locked_reestablish(self, pBuf);
+    } else {
+        //Establish直後
+        ret = recv_funding_locked_first(self, pBuf);
+    }
+
+    DBG_PRINTF("END\n");
+    return ret;
+}
+
+
+static bool recv_funding_locked_first(ln_self_t *self, ucoin_buf_t *pBuf)
+{
     //commitment numberは0から始まる
     //  BOLT#0
     //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/00-introduction.md#glossary-and-terminology-guide
-    self->commit_num = 0;
+    //が、opening時を1回とカウントするので、Normal Operationでは1から始まる
+    //  BOLT#2
+    //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
+    self->commit_num = 1;
+    self->remote_commit_num = 1;
+    self->revoke_num = 0;
+    self->remote_revoke_num = 0;
     //update_add_htlcのidも0から始まる(インクリメントするタイミングはcommitment numberと異なる)
     self->htlc_id_num = 0;
     self->htlc_changed = M_HTLCCHG_NONE;
@@ -1494,17 +1564,14 @@ static bool recv_funding_locked(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_
 
         //Establish完了通知
         DBG_PRINTF("Establish完了通知");
-        ln_cb_t result;
         ln_cb_funding_t funding;
+
         funding.p_tx_funding = &self->tx_funding;
         funding.b_send = false;
         funding.annosigs = self->p_est->cnl_open.channel_flags;
-        if (ret) {
-            result = LN_CB_ESTABLISHED;
-        } else {
-            result = LN_CB_ERROR;
-        }
-        (*self->p_callback)(self, result, &funding);
+        //channel_reestablish済みと同じ状態にしておく
+        self->init_flag |= INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV;
+        (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
 
         //Normal Operation可能
         self->p_est = NULL;
@@ -1516,16 +1583,58 @@ static bool recv_funding_locked(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_
         //funding_tx安定待ち(シーケンスの再開はアプリ指示)
         self->short_channel_id = 0;
         ln_cb_funding_t funding;
+
         funding.p_tx_funding = &self->tx_funding;
         funding.p_txid = self->funding_local.funding_txid;
         funding.min_depth = self->p_est->cnl_accept.min_depth;
         funding.b_send = false;
         (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
-        DBG_PRINTF("funding wait後 ret=%d\n", ret);
+        DBG_PRINTF("funding wait後\n");
     }
 
-    DBG_PRINTF("END\n");
+    return true;
+}
+
+
+static bool recv_funding_locked_reestablish(ln_self_t *self, ucoin_buf_t *pBuf)
+{
+    bool ret;
+
+    self->flck_flag |= M_FLCK_FLAG_RECV;
+    if (self->flck_flag == (M_FLCK_FLAG_SEND | M_FLCK_FLAG_RECV)) {
+        //funding_locked送受信済み
+
+        //チャネル情報検索
+        bool b_add;
+        int idx = ln_node_search_add_cnl(self->p_node, &b_add, self->short_channel_id, self->node_idx, NODE_MYSELF);
+        if ((b_add) || (idx == CHANNEL_NOT_FOUND)) {
+            DBG_PRINTF("fail: channel search : %d\n", b_add);
+            assert(0);
+            return false;
+        }
+
+        //Establish完了通知
+        DBG_PRINTF("Re-Establish完了通知");
+        ln_cb_funding_t funding;
+
+        funding.p_tx_funding = &self->tx_funding;
+        funding.b_send = false;
+        funding.annosigs = self->p_est->cnl_open.channel_flags;
+        //channel_reestablish済みと同じ状態にしておく
+        self->init_flag |= INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV;
+        (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
+
+        //Normal Operation可能
+        self->p_est = NULL;
+        ret = true;
+
+        DBG_PRINTF("Normal Operation可能\n");
+    } else {
+        //funding_locked未送信
+        ret = ln_funding_tx_stabled(self, pBuf);
+    }
+
     return ret;
 }
 
@@ -1934,6 +2043,9 @@ static bool recv_commitment_signed(ln_self_t *self, ucoin_buf_t *pBuf, const uin
         goto LABEL_EXIT;
     }
 
+    //相手のcommitment_numberをインクリメント(channel_reestablish用)
+    self->remote_commit_num++;
+
     uint8_t prev_secret[UCOIN_SZ_PRIVKEY];
     get_prev_percommit_secret(self, prev_secret);
 
@@ -1951,6 +2063,9 @@ static bool recv_commitment_signed(ln_self_t *self, ucoin_buf_t *pBuf, const uin
     revack.p_per_commitpt = self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub;
     ret = ln_msg_revoke_and_ack_create(&buf_revack, &revack);
     if (ret) {
+        //自分のrevoke_numberをインクリメント(channel_reestablish用)
+        self->revoke_num++;
+
         (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_revack);
     }
     ucoin_buf_free(&buf_revack);
@@ -2028,6 +2143,9 @@ static bool recv_revoke_and_ack(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_
         goto LABEL_EXIT;
     }
 
+    //相手のrevoke_numberをインクリメント(channel_reestablish用)
+    self->remote_revoke_num++;
+
     //prev_secret保存
     ret = store_peer_percommit_secret(self, prev_secret);
     if (!ret) {
@@ -2064,6 +2182,59 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, ucoin_buf_t *pBuf, 
 {
     DBG_PRINTF("BEGIN\n");
     return false;
+}
+
+
+static bool recv_channel_reestablish(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
+{
+    bool ret;
+
+    DBG_PRINTF("BEGIN\n");
+
+    if (self->init_flag & INIT_FLAG_REEST_RECV) {
+        //TODO: 2回channel_reestablish受信した場合はどうする？
+        DBG_PRINTF("???: multiple channel_reestablish received.\n");
+    }
+
+    ln_channel_reestablish_t reest;
+    uint8_t channel_id[LN_SZ_CHANNEL_ID];
+
+    reest.p_channel_id = channel_id;
+    ret = ln_msg_channel_reestablish_read(&reest, pData, Len);
+    if (!ret) {
+        DBG_PRINTF("fail: read message\n");
+        return false;
+    }
+
+    //channel-idチェック
+    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
+    if (!ret) {
+        DBG_PRINTF("channel-id mismatch\n");
+        return false;
+    }
+
+    if ( (self->remote_commit_num != reest.next_local_commitment_number) ||
+         (self->revoke_num != reest.next_remote_revocation_number) ) {
+        DBG_PRINTF("number mismatch\n");
+        DBG_PRINTF("  %" PRIu64 " .. %" PRIu64 "\n", self->remote_commit_num, reest.next_local_commitment_number);
+        DBG_PRINTF("  %" PRIu64 " .. %" PRIu64 "\n", self->revoke_num, reest.next_remote_revocation_number);
+        return false;
+    }
+
+
+    //init受信通知
+    assert(self->p_callback);
+    (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
+
+
+    if ((self->init_flag & INIT_FLAG_REEST_SEND) == 0) {
+        //返送
+        reest.next_local_commitment_number = self->commit_num;
+        reest.next_remote_revocation_number = self->remote_revoke_num;
+        ret = ln_msg_channel_reestablish_create(pBuf, &reest);
+    }
+
+    return ret;
 }
 
 
@@ -2246,14 +2417,12 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->their_msat + remote_add);
     lntx_commit.remote.pubkey = self->funding_local.scriptkeys[MSG_SCRIPTIDX_KEY].pub;
-DBG_PRINTF("remote.pubkey\n");
-DUMPBIN(lntx_commit.remote.pubkey, UCOIN_SZ_PUBKEY);
     lntx_commit.obscured = self->obscured;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    ret = ln_cmt_create(&tx_local, &buf_sig, &lntx_commit, true);
+    ret = ln_cmt_create(&tx_local, &buf_sig, &lntx_commit, M_IS_OPENSIDE(self));
     if (!ret) {
         DBG_PRINTF("fail: ln_cmt_create\n");
     }
@@ -2506,7 +2675,7 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    bool ret = ln_cmt_create(&tx_remote, &buf_sig, &lntx_commit, false);
+    bool ret = ln_cmt_create(&tx_remote, &buf_sig, &lntx_commit, !M_IS_OPENSIDE(self));
     if (!ret) {
         DBG_PRINTF("fail: ln_cmt_create(Remote)\n");
     }
@@ -2641,33 +2810,35 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
     DBG_PRINTF("BEGIN\n");
 
     bool ret;
-    uint64_t fee;
+    uint64_t fee_local;
+    uint64_t fee_remote;
     ucoin_vout_t *vout;
     ucoin_buf_t buf_sig;
 
     ucoin_buf_init(&buf_sig);
-    ucoin_tx_free(pTx);     //TODO: これでよいのか？
+    ucoin_tx_free(pTx);
     ucoin_tx_init(pTx);
+
+    if (M_IS_OPENSIDE(self)) {
+        fee_local = self->cnl_closing_signed.fee_sat;
+        fee_remote = 0;
+    } else {
+        fee_local = 0;
+        fee_remote = self->cnl_closing_signed.fee_sat;
+    }
 
     //vout
     //vout#0 - local
-    fee = self->cnl_closing_signed.fee_sat / 2;     //TODO:暫定
-    bool vout_local = (LN_MSAT2SATOSHI(self->our_msat) > fee + self->commit_local.dust_limit_sat);
-    bool vout_remote = (LN_MSAT2SATOSHI(self->their_msat) > fee + self->commit_local.dust_limit_sat);
-    if (!vout_local || !vout_remote) {
-        //片方のvoutがない場合は、片方がFEEを全部払う       //TODO:暫定
-        fee = self->cnl_closing_signed.fee_sat;
-
-        //feeが増えることで両方のvoutがなくなる、という現象は発生しないはず
-    }
+    bool vout_local = (LN_MSAT2SATOSHI(self->our_msat) > fee_local + self->commit_local.dust_limit_sat);
+    bool vout_remote = (LN_MSAT2SATOSHI(self->their_msat) > fee_remote + self->commit_local.dust_limit_sat);
 
     if (vout_local) {
-        vout = ucoin_tx_add_vout(pTx, LN_MSAT2SATOSHI(self->our_msat) - fee);
+        vout = ucoin_tx_add_vout(pTx, LN_MSAT2SATOSHI(self->our_msat) - fee_local);
         ucoin_buf_alloccopy(&vout->script, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
     }
     //vout#1 - remote
     if (vout_remote) {
-        vout = ucoin_tx_add_vout(pTx, LN_MSAT2SATOSHI(self->their_msat) - fee);
+        vout = ucoin_tx_add_vout(pTx, LN_MSAT2SATOSHI(self->their_msat) - fee_remote);
         ucoin_buf_alloccopy(&vout->script, self->shutdown_scriptpk_remote.buf, self->shutdown_scriptpk_remote.len);
     }
 

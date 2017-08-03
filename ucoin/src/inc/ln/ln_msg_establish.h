@@ -128,4 +128,22 @@ bool HIDDEN ln_msg_funding_locked_create(ucoin_buf_t *pBuf, const ln_funding_loc
 bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
+/** channel_reestablish生成
+ *
+ * @param[out]      pBuf    生成データ
+ * @param[in]       pMsg    元データ
+ * retval   true    成功
+ */
+bool HIDDEN ln_msg_channel_reestablish_create(ucoin_buf_t *pBuf, const ln_channel_reestablish_t *pMsg);
+
+
+/** channel_reestablish読込み
+ *
+ * @param[out]      pMsg    読込み結果
+ * @param[in]       pData   対象データ
+ * @param[in]       Len     pData長
+ * retval   true    成功
+ */
+bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, const uint8_t *pData, uint16_t Len);
+
 #endif /* LN_MSG_ESTABLISH_H__ */

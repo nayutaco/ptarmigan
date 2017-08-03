@@ -113,6 +113,7 @@ typedef struct ln_self_t ln_self_t;
 typedef enum {
     LN_CB_ERROR,                ///< エラー通知
     LN_CB_INIT_RECV,            ///< init受信通知
+    LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
     LN_CB_FINDINGWIF_REQ,       ///< funding鍵設定要求
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
     LN_CB_ESTABLISHED,          ///< Establish完了通知
@@ -458,6 +459,16 @@ typedef struct {
     uint8_t     *p_sha256_onion;                    ///< 32: sha256-of-onion
     uint16_t    failure_code;                       ///< 2:  failure-code
 } ln_update_fail_malformed_htlc_t;
+
+
+/** @struct     ln_channel_reestablish_t
+ *  @brief      channel_reestablish
+ */
+typedef struct {
+    uint8_t     *p_channel_id;                      ///< 32: channel-id
+    uint64_t    next_local_commitment_number;       ///< 8:  next_local_commitment_number
+    uint64_t    next_remote_revocation_number;      ///< 8:  next_remote_revocation_number
+} ln_channel_reestablish_t;
 
 /// @}
 
@@ -805,6 +816,7 @@ struct ln_self_t {
     uint64_t                    peer_storage_index;             ///< 現在のindex(peer)
 
     //funding
+    uint8_t                     fund_flag;                      ///< none/funder/fundee
     ln_funding_local_data_t     funding_local;                  ///< funding情報:local
     ln_funding_remote_data_t    funding_remote;                 ///< funding情報:remote
     uint64_t                    obscured;                       ///< commitment numberをXORするとobscured commitment numberになる値。
@@ -820,7 +832,7 @@ struct ln_self_t {
     ln_callback_t               p_callback;                     ///< 通知コールバック
 
     //msg:init
-    bool                        init_sent;                      ///< true:initメッセージ送信済み
+    uint8_t                     init_flag;                      ///< INIT_FLAG_xxx
     uint8_t                     lfeature_remote;                ///< initで取得したlocalfeature
     //msg:establish
     ln_establish_t              *p_est;                         ///< Establish時ワーク領域
@@ -837,7 +849,10 @@ struct ln_self_t {
                                                                 //      受信した場合、そのままcommitment_signedを送信し、revoke_and_ack送信で完了する
                                                                 //      送信した場合、commitment_signed受信によってcommitment_signedを送信し、revoke_and_ack受信で完了
     uint16_t                    htlc_num;                       ///< HTLC数
-    uint64_t                    commit_num;                     ///< commitment txを作るたびにインクリメントする48bitカウンタ(0～)
+    uint64_t                    commit_num;                     ///< commitment_signed送信後にインクリメントする48bitカウンタ(0～)
+    uint64_t                    revoke_num;                     ///< revoke_and_ack送信後にインクリメントする48bitカウンタ(0～)
+    uint64_t                    remote_commit_num;              ///< commitment_signed受信時にインクリメントする48bitカウンタ(0～)
+    uint64_t                    remote_revoke_num;              ///< revoke_and_ack受信時にインクリメントする48bitカウンタ(0～)
     uint64_t                    htlc_id_num;                    ///< update_add_htlcで使うidの管理
     uint64_t                    our_msat;                       ///< 自分の持ち分
     uint64_t                    their_msat;                     ///< 相手の持ち分
@@ -966,10 +981,36 @@ bool ln_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pNode
 bool ln_handshake_recv(ln_self_t *self, bool *pCont, ucoin_buf_t *pBuf, const uint8_t *pNodeId);
 
 
+/** noise protocol encode
+ *
+ * @param[in,out]       self        channel情報
+ * @param[in,out]       pBuf        [in]変換前データ(平BOLT), [out]エンコード後データ
+ * @retval      true    成功
+ */
 bool ln_noise_enc(ln_self_t *self, ucoin_buf_t *pBuf);
 
+
+/** noise protocol decode(length)
+ *
+ * @param[in,out]       self        channel情報
+ * @param[in]           pData       変換前データ(Length部)
+ * @param[in]           Len         pData長
+ * @retval      非0 次に受信すべきデータ長
+ * @retval      0   失敗
+ * @note
+ *      - 平BOLT==>noise protocolエンコード==>送信 - - - 受信→noise protocolデコード==>平BOLT
+ *      - noise protocolでエンコードされたデータはMACが付いているため、実データより16byte大きくなっている
+ *      - 戻り値のデータ長分を受信し、受信したデータを #ln_noise_dec_msg() に渡してデコードする。
+ */
 uint16_t ln_noise_dec_len(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
+
+/** noise protocol decode(message)
+ *
+ * @param[in,out]       self        channel情報
+ * @param[in,out]       pBuf        [in]変換前データ, [out]デコード後データ(平BOLT)
+ * @retval      true    成功
+ */
 bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf);
 
 

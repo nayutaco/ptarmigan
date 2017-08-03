@@ -61,7 +61,7 @@ Thunderbirdではない。
 
 | BOLT | status |
 |------|-------|
-|  1   | `error` 未サポート  |
+|  1   | can receive `error` |
 |  2   | \*1 |
 |  3   | 実装はしているが、BOLT#2と連携できていない箇所あり。 |
 |  4   | エラー対応していない。 |
@@ -72,7 +72,7 @@ Thunderbirdではない。
 |  9   | `initial_routing_sync` = 0 のみ |
 |  11  | yet |
 
-* 全体としてエラーに対応しておらず、不整合が発生したらabortする。
+* 全体としてエラーに対応しておらず、不整合が発生したら `error` を送信せずにabortする。
 
 
 ## BOLT#2 (\*1)
@@ -99,5 +99,21 @@ Thunderbirdではない。
 * announcement系メッセージはチャネル間で送信するだけで、他への定期送信は行っていない。
 * `channel_update` は未対応。
 
+
 # 主な使い方
 [install/README.md](install/README.md)参照
+
+
+# 他との接続状況
+* [c-lightning](https://github.com/ElementsProject/lightning)
+    * ptarmigan ==> c-lightning
+        * Noise HandShake : OK
+        * init : OK
+        * Establish : OK? (c-lightning uses remote payment_basepoint at localkey)
+    * c-lightning ==> ptarmigan
+        * Mutual Close: OK?
+
+* [lnd](https://github.com/lightningnetwork/lnd)
+    * ptarmigan ==> c-lightning
+        * Noise HandShake : OK
+        * init : NG (lnd sends unknown globalfeature.)

@@ -73,6 +73,7 @@ static void accept_channel_print(const ln_accept_channel_t *pMsg);
 static void funding_created_print(const ln_funding_created_t *pMsg);
 static void funding_signed_print(const ln_funding_signed_t *pMsg);
 static void funding_locked_print(const ln_funding_locked_t *pMsg);
+static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg);
 
 
 /********************************************************************
@@ -775,6 +776,98 @@ static void funding_locked_print(const ln_funding_locked_t *pMsg)
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("p_per_commitpt: ");
     DUMPBIN(pMsg->p_per_commitpt, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2("--------------------------------\n\n\n");
+#endif  //UCOIN_DEBUG
+}
+
+
+/********************************************************************
+ * channel_reestablish
+ ********************************************************************/
+
+bool HIDDEN ln_msg_channel_reestablish_create(ucoin_buf_t *pBuf, const ln_channel_reestablish_t *pMsg)
+{
+    //    type: 136 (channel_reestablish)
+    //    data:
+    //        [32:channel_id]
+    //        [8:next_local_commitment_number]
+    //        [8:next_remote_revocation_number]
+
+    ucoin_push_t    proto;
+
+#ifdef DBG_PRINT_CREATE
+    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    channel_reestablish_print(pMsg);
+#endif  //DBG_PRINT_CREATE
+
+    ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 48);
+
+    //    type: 136 (channel_reestablish)
+    ln_misc_push16be(&proto, MSGTYPE_CHANNEL_REESTABLISH);
+
+    //        [32:channel-id]
+    ucoin_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+
+    //        [8:next_local_commitment_number]
+    ln_misc_push64be(&proto, pMsg->next_local_commitment_number);
+
+    //        [8:next_remote_revocation_number]
+    ln_misc_push64be(&proto, pMsg->next_remote_revocation_number);
+
+    assert(sizeof(uint16_t) + 48 == pBuf->len);
+
+    ucoin_push_trim(&proto);
+
+    return true;
+}
+
+
+bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, const uint8_t *pData, uint16_t Len)
+{
+    if (Len < sizeof(uint16_t) + 48) {
+        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        return false;
+    }
+
+    uint16_t type = ln_misc_get16be(pData);
+    if (type != MSGTYPE_CHANNEL_REESTABLISH) {
+        DBG_PRINTF("fail: type not match: %04x\n", type);
+        return false;
+    }
+
+    int pos = sizeof(uint16_t);
+
+    //        [32:channel-id]
+    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
+    pos += LN_SZ_CHANNEL_ID;
+
+    //        [8:next_local_commitment_number]
+    pMsg->next_local_commitment_number = ln_misc_get64be(pData + pos);
+    pos += sizeof(uint64_t);
+
+    //        [8:next_remote_revocation_number]
+    pMsg->next_remote_revocation_number = ln_misc_get64be(pData + pos);
+    pos += sizeof(uint64_t);
+
+    assert(Len == pos);
+
+#ifdef DBG_PRINT_READ
+    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    channel_reestablish_print(pMsg);
+#endif  //DBG_PRINT_READ
+
+    return true;
+}
+
+
+static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg)
+{
+#ifdef UCOIN_DEBUG
+    DBG_PRINTF2("-[channel_reestablish]-------------------------------\n\n");
+    DBG_PRINTF2("channel-id: ");
+    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    DBG_PRINTF2("next_local_commitment_number: %" PRIu64 "\n", pMsg->next_local_commitment_number);
+    DBG_PRINTF2("next_remote_revocation_number: %" PRIu64 "\n", pMsg->next_remote_revocation_number);
     DBG_PRINTF2("--------------------------------\n\n\n");
 #endif  //UCOIN_DEBUG
 }

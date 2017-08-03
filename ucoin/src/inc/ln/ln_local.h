@@ -68,6 +68,7 @@
 #define MSGTYPE_REVOKE_AND_ACK              ((uint16_t)0x0085)
 #define MSGTYPE_UPDATE_FEE                  ((uint16_t)0x0086)
 #define MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC  ((uint16_t)0x0087)
+#define MSGTYPE_CHANNEL_REESTABLISH         ((uint16_t)0x0088)
 
 #define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
 #define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
@@ -80,6 +81,15 @@
 #define NODE_MYSELF                         (-3)            ///< 自ノード
 #define CHANNEL_NOT_FOUND                   (-1)            ///< チャネル不明
 
+
+// self.init_flag
+#define INIT_FLAG_SEND              (0x01)
+#define INIT_FLAG_RECV              (0x02)
+#define INIT_FLAG_INITED(flag)      (flag & (INIT_FLAG_SEND | INIT_FLAG_RECV))
+#define INIT_FLAG_REEST_SEND        (0x04)
+#define INIT_FLAG_REEST_RECV        (0x08)
+#define INIT_FLAG_REESTED(flag)     (flag & (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV))
+#define INIT_FLAG_ALL               (INIT_FLAG_INITED | INIT_FLAG_REESTED)
 
 #define NODE_LF_INIT                (0x55)          ///< init未受信の判定および不要ビットマスク
                                                     //      [0]xx_00_00_00
