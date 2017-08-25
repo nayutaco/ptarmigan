@@ -76,12 +76,6 @@
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
 
 
-#define NODE_NOT_FOUND                      (-1)            ///< ノード不明
-#define NODE_NO_UPDATE                      (-2)            ///< ノード更新不要
-#define NODE_MYSELF                         (-3)            ///< 自ノード
-#define CHANNEL_NOT_FOUND                   (-1)            ///< チャネル不明
-
-
 // self.init_flag
 #define INIT_FLAG_SEND              (0x01)
 #define INIT_FLAG_RECV              (0x02)
@@ -102,6 +96,13 @@
                                                     // 今のところ announce_channelのみで、1を期待
 
 #define VOUT_OPT_NONE               (0xff)
+
+
+/**************************************************************************
+ * const variables
+ **************************************************************************/
+
+extern const uint8_t HIDDEN CHAIN_HASH_BITCOIN[32];
 
 
 /**************************************************************************
@@ -404,5 +405,12 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const u
  * @return      true    成功
  */
 bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_storage *pStorage, uint64_t Index);
+
+
+/** DB初期化
+ *
+ *
+ */
+void HIDDEN ln_db_init(void);
 
 #endif /* LN_LOCAL_H__ */

@@ -68,7 +68,7 @@ void p2p_cli_init(void)
 }
 
 
-void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, char *pResMsg)
+void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, const uint8_t *pNodeId, char *pResMsg)
 {
     int ret;
     struct sockaddr_in sv_addr;
@@ -78,9 +78,10 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
         strcpy(pResMsg, "error: invalid node_id");
         return;
     }
-    bool haveCnl = lnapp_have_channel(pConn->node_id);
+    bool haveCnl = (ln_node_search_short_cnl_id(pNodeId, pConn->node_id) != 0);
     if (((pParam == NULL) && !haveCnl) || ((pParam != NULL) && haveCnl)) {
         //接続しようとしてチャネルを開いていないか、開設しようとしてチャネルが開いている
+        DBG_PRINTF("pParam=%p, haveCnl=%d\n", pParam, haveCnl);
         if (pParam == NULL) {
             SYSLOG_ERR("%s(): channel not open", __func__);
             strcpy(pResMsg, "error: channel not open");
@@ -160,7 +161,7 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId)
     lnapp_conf_t *p_appconf = NULL;
     int lp;
     for (lp = 0; lp < M_SOCK_MAX; lp++) {
-        if (memcmp(pNodeId, mAppConf[lp].node_id, UCOIN_SZ_PUBKEY) == 0) {
+        if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, UCOIN_SZ_PUBKEY) == 0)) {
             DBG_PRINTF("found: client %d\n", lp);
             p_appconf = &mAppConf[lp];
             break;
@@ -175,7 +176,7 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
 {
     lnapp_conf_t *p_appconf = NULL;
     for (int lp = 0; lp < M_SOCK_MAX; lp++) {
-        if (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id)) {
+        if (mAppConf[lp].loop && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
             DBG_PRINTF("found: client[%" PRIx64 "] %d\n", short_channel_id, lp);
             p_appconf = &mAppConf[lp];
             break;

@@ -146,6 +146,15 @@ void HIDDEN ln_misc_calc_channel_id(uint8_t *pChannelId, const uint8_t *pTxid, u
 uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, uint32_t VIndex);
 
 
+/** short_channel_idパラメータ取得
+ *
+ * @param[out]      pHeight         ブロック高
+ * @param[out]      pBIndex         ブロック中でのindex
+ * @param[out]      pVIndex         funding-txの2-of-2 vout index
+ */
+void HIDDEN ln_misc_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_t *pVIndex, uint64_t short_channel_id);
+
+
 /** [デバッグ用]鍵情報出力
  *
  * @param[in]   fp

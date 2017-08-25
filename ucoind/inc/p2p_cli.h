@@ -11,7 +11,7 @@
  ********************************************************************/
 
 void p2p_cli_init(void);
-void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, char *pResMsg);
+void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, const uint8_t *pNodeId, char *pResMsg);
 void p2p_cli_stop_all(void);
 lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId);
 lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id);

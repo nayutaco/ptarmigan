@@ -67,7 +67,7 @@ Thunderbirdではない。
 |  4   | エラー対応していない。 |
 |  5   | Mutual Close以外のclose手段を実装していない。 |
 |  6   | not |
-|  7   | \*2 |
+|  7   | 動作確認中 |
 |  8   | supported |
 |  9   | `initial_routing_sync` = 0 のみ |
 |  11  | yet |
@@ -90,30 +90,8 @@ Thunderbirdではない。
 
 
 ### Message Retransmission
-* 未確認
-
-
-## BOLT#7 (\*2)
-* channel作成時に `announcement_signatures` を交換後、`channel_announcement` を交換する。
-* channelができている場合、init交換後に `node_announcement` を交換する。
-* announcement系メッセージはチャネル間で送信するだけで、他への定期送信は行っていない。
-* `channel_update` は未対応。
+* reestablish未対応
 
 
 # 主な使い方
 [install/README.md](install/README.md)参照
-
-
-# 他との接続状況
-* [c-lightning](https://github.com/ElementsProject/lightning)
-    * ptarmigan ==> c-lightning
-        * Noise HandShake : OK
-        * init : OK
-        * Establish : OK? (c-lightning uses remote payment_basepoint at localkey)
-    * c-lightning ==> ptarmigan
-        * Mutual Close: OK?
-
-* [lnd](https://github.com/lightningnetwork/lnd)
-    * ptarmigan ==> c-lightning
-        * Noise HandShake : OK
-        * init : NG (lnd sends unknown globalfeature.)

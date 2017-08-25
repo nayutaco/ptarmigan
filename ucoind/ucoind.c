@@ -33,6 +33,7 @@
 #include <pthread.h>
 #include <assert.h>
 
+#define UCOIN_USE_PRINTFUNC
 #include "ucoind.h"
 #include "p2p_svr.h"
 #include "p2p_cli.h"
@@ -46,7 +47,7 @@
  * static variables
  ********************************************************************/
 
-static node_conf_t mNodeConf;
+static ln_node_t    mNode;
 
 
 /********************************************************************
@@ -90,14 +91,15 @@ int main(int argc, char *argv[])
     openlog("ucoind", LOG_CONS, LOG_USER);
 
     rpc_conf_t rpc_conf;
-    bool bret = load_node_conf(argv[1], &mNodeConf, &rpc_conf);
+    node_conf_t node_conf;
+    bool bret = load_node_conf(argv[1], &node_conf, &rpc_conf);
     if (!bret) {
         goto LABEL_EXIT;
     }
 
     if ((argc == 3) && (strcmp(argv[2], "id") == 0)) {
         ucoin_util_keys_t keys;
-        ucoin_util_wif2keys(&keys, mNodeConf.wif);
+        ucoin_util_wif2keys(&keys, node_conf.wif);
         for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
             printf("%02x", keys.pub[lp]);
         }
@@ -110,26 +112,26 @@ int main(int argc, char *argv[])
     p2p_cli_init();
     jsonrpc_init(&rpc_conf);
 
+    //bitcoind起動確認
     int count = jsonrpc_getblockcount();
     if (count == -1) {
         DBG_PRINTF("fail: bitcoin getblockcount(maybe cannot connect bitcoind)\n");
         return -1;
     }
 
-    lnapp_init(&mNodeConf);
+    //node情報読込み
+    ln_node_init(&mNode, node_conf.wif, node_conf.name, 0);
+    ln_print_node(&mNode);
+    lnapp_init(&mNode);
 
     //接続待ち受け用
     pthread_t th_svr;
-    pthread_create(&th_svr, NULL, &p2p_svr_start, &mNodeConf.port);
-
-    ////funding_tx監視用
-    //pthread_t th_fu;
-    //pthread_create(&th_fu, NULL, &poll_fundtx_start, &mNodeConf.port);
+    pthread_create(&th_svr, NULL, &p2p_svr_start, &node_conf.port);
 
     SYSLOG_INFO("start");
 
     //ucoincli受信用
-    msg_recv(mNodeConf.port);
+    msg_recv(node_conf.port);
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
@@ -310,7 +312,7 @@ static int exec_cmd_daemon(const msg_daemon_t *pDaemon, char *pResMsg)
             //socketが開いているか検索
             lnapp_conf_t *p_appconf = search_connected_lnapp(p_conn->node_id);
             if (p_appconf == NULL) {
-                p2p_cli_start(pDaemon->cmd, p_conn, NULL, pResMsg);
+                p2p_cli_start(pDaemon->cmd, p_conn, NULL, ln_node_id(&mNode), pResMsg);
             } else {
                 SYSLOG_ERR("already connected");
                 strcpy(pResMsg, "error: already connected");
@@ -327,7 +329,7 @@ static int exec_cmd_daemon(const msg_daemon_t *pDaemon, char *pResMsg)
             fprintf(PRINTOUT, "<create>\n");
             SYSLOG_INFO("create");
 
-            p2p_cli_start(pDaemon->cmd, &pDaemon->params.funding.conn, p_fund, pResMsg);
+            p2p_cli_start(pDaemon->cmd, &pDaemon->params.funding.conn, p_fund, ln_node_id(&mNode), pResMsg);
             retval = 0;
         }
         break;
@@ -414,9 +416,7 @@ static int exec_cmd_daemon(const msg_daemon_t *pDaemon, char *pResMsg)
     case DCMD_SHOW_LIST:
         {
             strcpy(pResMsg, "node_id: ");
-            ucoin_util_keys_t keys;
-            ucoin_util_wif2keys(&keys, mNodeConf.wif);
-            misc_bin2str(pResMsg + 9, keys.pub, UCOIN_SZ_PUBKEY);
+            misc_bin2str(pResMsg + 9, ln_node_id(&mNode), UCOIN_SZ_PUBKEY);
             strcat(pResMsg, "\n\n");
         }
         fprintf(PRINTOUT, "<connected channel list>\n");

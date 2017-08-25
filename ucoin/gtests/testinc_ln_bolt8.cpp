@@ -1564,10 +1564,11 @@ TEST_F(bolt8test, responder_act3_bad_mac)
 }
 
 
-TEST_F(bolt8test, enc)
+TEST_F(bolt8test, enc_dec)
 {
     bool ret;
     ln_self_t   self;
+    ln_self_t   self_dec;
 
     const uint8_t SK[] = {
         0x96, 0x9a, 0xb3, 0x1b, 0x4d, 0x28, 0x8c, 0xed,
@@ -1593,12 +1594,22 @@ TEST_F(bolt8test, enc)
     self.noise.sn = 0;
     self.noise.rn = 0;
 
+    memcpy(self_dec.noise.sk, RK, sizeof(RK));
+    memcpy(self_dec.noise.rk, SK, sizeof(SK));
+    memcpy(self_dec.noise.ck, CK, sizeof(CK));
+    self_dec.noise.sn = 0;
+    self_dec.noise.rn = 0;
+
+    ucoin_buf_t bufin;
     ucoin_buf_t buf;
+    ucoin_buf_t buf_dec;
+    uint16_t len;
+
+    ucoin_buf_alloccopy(&bufin, (const uint8_t *)"hello", 5);
+    ucoin_buf_init(&buf);
 
     // 0
-    ucoin_buf_alloccopy(&buf, (const uint8_t *)"hello", 5);
-
-    ret = ln_enc_auth_enc(&self, &buf);
+    ret = ln_enc_auth_enc(&self, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT0[] = {
@@ -1610,14 +1621,23 @@ TEST_F(bolt8test, enc)
     };
     ASSERT_EQ(sizeof(OUTPUT0), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT0, buf.buf, sizeof(OUTPUT0)));
-
     ucoin_buf_free(&buf);
+
+    //dec
+    len = ln_enc_auth_dec_len(&self_dec, OUTPUT0, LN_SZ_NOISE_HEADER);
+    ASSERT_EQ(5 + 16, len);
+    ucoin_buf_alloccopy(&buf_dec, OUTPUT0 + LN_SZ_NOISE_HEADER, len);
+    ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(5, buf_dec.len);
+    ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
+    ucoin_buf_free(&buf_dec);
+
+
     int count = 0;
 
     // 1
-    ucoin_buf_alloccopy(&buf, (const uint8_t *)"hello", 5);
-
-    ret = ln_enc_auth_enc(&self, &buf);
+    ret = ln_enc_auth_enc(&self, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT1[] = {
@@ -1629,17 +1649,35 @@ TEST_F(bolt8test, enc)
     };
     ASSERT_EQ(sizeof(OUTPUT1), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT1, buf.buf, sizeof(OUTPUT1)));
-
     ucoin_buf_free(&buf);
+
+    //dec
+    len = ln_enc_auth_dec_len(&self_dec, OUTPUT1, LN_SZ_NOISE_HEADER);
+    ASSERT_EQ(5 + 16, len);
+    ucoin_buf_alloccopy(&buf_dec, OUTPUT1 + LN_SZ_NOISE_HEADER, len);
+    ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(5, buf_dec.len);
+    ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
+    ucoin_buf_free(&buf_dec);
+
     count++;
     ASSERT_EQ(1, count);
 
     // 2-499
     for (int lp = 2; lp <= 499; lp++) {
-        ucoin_buf_alloccopy(&buf, (const uint8_t *)"hello", 5);
-
-        ret = ln_enc_auth_enc(&self, &buf);
+        ret = ln_enc_auth_enc(&self, &buf, &bufin);
         ASSERT_TRUE(ret);
+
+        //dec
+        len = ln_enc_auth_dec_len(&self_dec, buf.buf, LN_SZ_NOISE_HEADER);
+        ASSERT_EQ(5 + 16, len);
+        ucoin_buf_alloccopy(&buf_dec, buf.buf + LN_SZ_NOISE_HEADER, len);
+        ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
+        ASSERT_TRUE(ret);
+        ASSERT_EQ(5, buf_dec.len);
+        ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
+        ucoin_buf_free(&buf_dec);
 
         ucoin_buf_free(&buf);
         count++;
@@ -1653,9 +1691,7 @@ TEST_F(bolt8test, enc)
     // k' = 0x3fbdc101abd1132ca3a0ae34a669d8d9ba69a587e0bb4ddd59524541cf4813d8
 
     // 500
-    ucoin_buf_alloccopy(&buf, (const uint8_t *)"hello", 5);
-
-    ret = ln_enc_auth_enc(&self, &buf);
+    ret = ln_enc_auth_enc(&self, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT500[] = {
@@ -1667,15 +1703,23 @@ TEST_F(bolt8test, enc)
     };
     ASSERT_EQ(sizeof(OUTPUT500), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT500, buf.buf, sizeof(OUTPUT500)));
-
     ucoin_buf_free(&buf);
+
+    //dec
+    len = ln_enc_auth_dec_len(&self_dec, OUTPUT500, LN_SZ_NOISE_HEADER);
+    ASSERT_EQ(5 + 16, len);
+    ucoin_buf_alloccopy(&buf_dec, OUTPUT500 + LN_SZ_NOISE_HEADER, len);
+    ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(5, buf_dec.len);
+    ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
+    ucoin_buf_free(&buf_dec);
+
     count++;
     ASSERT_EQ(500, count);
 
     // 501
-    ucoin_buf_alloccopy(&buf, (const uint8_t *)"hello", 5);
-
-    ret = ln_enc_auth_enc(&self, &buf);
+    ret = ln_enc_auth_enc(&self, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT501[] = {
@@ -1686,18 +1730,36 @@ TEST_F(bolt8test, enc)
         0x10, 0x4b, 0x56, 0xb6, 0x0e, 0x45, 0xbd,
     };
     ASSERT_EQ(sizeof(OUTPUT501), buf.len);
-    ASSERT_EQ(0, memcmp(OUTPUT501, buf.buf, sizeof(OUTPUT500)));
-
+    ASSERT_EQ(0, memcmp(OUTPUT501, buf.buf, sizeof(OUTPUT501)));
     ucoin_buf_free(&buf);
+
+    //dec
+    len = ln_enc_auth_dec_len(&self_dec, OUTPUT501, LN_SZ_NOISE_HEADER);
+    ASSERT_EQ(5 + 16, len);
+    ucoin_buf_alloccopy(&buf_dec, OUTPUT501 + LN_SZ_NOISE_HEADER, len);
+    ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(5, buf_dec.len);
+    ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
+    ucoin_buf_free(&buf_dec);
+
     count++;
     ASSERT_EQ(501, count);
 
     // 502-999
     for (int lp = 502; lp <= 999; lp++) {
-        ucoin_buf_alloccopy(&buf, (const uint8_t *)"hello", 5);
-
-        ret = ln_enc_auth_enc(&self, &buf);
+        ret = ln_enc_auth_enc(&self, &buf, &bufin);
         ASSERT_TRUE(ret);
+
+        //dec
+        len = ln_enc_auth_dec_len(&self_dec, buf.buf, LN_SZ_NOISE_HEADER);
+        ASSERT_EQ(5 + 16, len);
+        ucoin_buf_alloccopy(&buf_dec, buf.buf + LN_SZ_NOISE_HEADER, len);
+        ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
+        ASSERT_TRUE(ret);
+        ASSERT_EQ(5, buf_dec.len);
+        ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
+        ucoin_buf_free(&buf_dec);
 
         ucoin_buf_free(&buf);
         count++;
@@ -1709,9 +1771,7 @@ TEST_F(bolt8test, enc)
     // k' =0x9e0477f9850dca41e42db0e4d154e3a098e5a000d995e421849fcd5df27882bd
 
     // 1000
-    ucoin_buf_alloccopy(&buf, (const uint8_t *)"hello", 5);
-
-    ret = ln_enc_auth_enc(&self, &buf);
+    ret = ln_enc_auth_enc(&self, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT1000[] = {
@@ -1723,15 +1783,23 @@ TEST_F(bolt8test, enc)
     };
     ASSERT_EQ(sizeof(OUTPUT1000), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT1000, buf.buf, sizeof(OUTPUT1000)));
-
     ucoin_buf_free(&buf);
+
+    //dec
+    len = ln_enc_auth_dec_len(&self_dec, OUTPUT1000, LN_SZ_NOISE_HEADER);
+    ASSERT_EQ(5 + 16, len);
+    ucoin_buf_alloccopy(&buf_dec, OUTPUT1000 + LN_SZ_NOISE_HEADER, len);
+    ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(5, buf_dec.len);
+    ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
+    ucoin_buf_free(&buf_dec);
+
     count++;
     ASSERT_EQ(1000, count);
 
     // 1001
-    ucoin_buf_alloccopy(&buf, (const uint8_t *)"hello", 5);
-
-    ret = ln_enc_auth_enc(&self, &buf);
+    ret = ln_enc_auth_enc(&self, &buf, &bufin);
     ASSERT_TRUE(ret);
 
     const uint8_t OUTPUT1001[] = {
@@ -1743,1258 +1811,21 @@ TEST_F(bolt8test, enc)
     };
     ASSERT_EQ(sizeof(OUTPUT1001), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT1001, buf.buf, sizeof(OUTPUT1001)));
-
     ucoin_buf_free(&buf);
+
+    //dec
+    len = ln_enc_auth_dec_len(&self_dec, OUTPUT1001, LN_SZ_NOISE_HEADER);
+    ASSERT_EQ(5 + 16, len);
+    ucoin_buf_alloccopy(&buf_dec, OUTPUT1001 + LN_SZ_NOISE_HEADER, len);
+    ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(5, buf_dec.len);
+    ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
+    ucoin_buf_free(&buf_dec);
+
     count++;
     ASSERT_EQ(1001, count);
+
+    ucoin_buf_free(&bufin);
 }
 
-
-#if 0
-//
-// Handshake Exchange
-//
-
-static void actone_sender(uint8_t *pResult, struct bolt8 *pBolt, const uint8_t *pRS)
-{
-    // h = SHA-256(h || e.pub.serializeCompressed())
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, pBolt->e.pub, UCOIN_SZ_PUBKEY);
-    //fprintf(stderr, "h=");
-    //DUMPBIN(pBolt->h, UCOIN_SZ_SHA256);
-
-    // h=0x9e0e7de8bb75554f21db034633de04be41a2b8a18da7a319a03c803bf02b396c
-    const uint8_t H0[] = {
-        0x9e, 0x0e, 0x7d, 0xe8, 0xbb, 0x75, 0x55, 0x4f,
-        0x21, 0xdb, 0x03, 0x46, 0x33, 0xde, 0x04, 0xbe,
-        0x41, 0xa2, 0xb8, 0xa1, 0x8d, 0xa7, 0xa3, 0x19,
-        0xa0, 0x3c, 0x80, 0x3b, 0xf0, 0x2b, 0x39, 0x6c,
-    };
-    assert(memcmp(H0, pBolt->h, sizeof(H0)) == 0);
-
-
-    // ss = ECDH(rs, e.priv)
-    //  秘密鍵: a, b
-    //  公開鍵: aG, bG
-    //  共有鍵: a * bG = b * aG = abG
-    //      rsが相手の公開鍵(node_id ?)、e.privが秘密鍵
-    //      ss は shared secretの略か？
-    //      であれば、単に自分の秘密鍵を相手の公開鍵で乗算するだけだ
-    uint8_t ss[UCOIN_SZ_PRIVKEY];
-    ucoin_util_generate_shared_secret(ss, pRS, pBolt->e.priv);
-    //fprintf(stderr, "ss=");
-    //DUMPBIN(ss, UCOIN_SZ_SHA256);
-
-    // ss=0x1e2fb3c8fe8fb9f262f649f64d26ecf0f2c0a805a767cf02dc2d77a6ef1fdcc3
-    const uint8_t SS[] = {
-        0x1e, 0x2f, 0xb3, 0xc8, 0xfe, 0x8f, 0xb9, 0xf2,
-        0x62, 0xf6, 0x49, 0xf6, 0x4d, 0x26, 0xec, 0xf0,
-        0xf2, 0xc0, 0xa8, 0x05, 0xa7, 0x67, 0xcf, 0x02,
-        0xdc, 0x2d, 0x77, 0xa6, 0xef, 0x1f, 0xdc, 0xc3,
-    };
-    assert(memcmp(SS, ss, UCOIN_SZ_SHA256) == 0);
-
-
-    // ck, temp_k1 = HKDF(ck, ss)
-    // HKDF(ck=0x2640f52eebcd9e882958951c794250eedb28002c05d7dc2ea0f195406042caf1,
-    //      ss=0x1e2fb3c8fe8fb9f262f649f64d26ecf0f2c0a805a767cf02dc2d77a6ef1fdcc3)
-    const uint8_t CK0[] = {
-        0x26, 0x40, 0xf5, 0x2e, 0xeb, 0xcd, 0x9e, 0x88,
-        0x29, 0x58, 0x95, 0x1c, 0x79, 0x42, 0x50, 0xee,
-        0xdb, 0x28, 0x00, 0x2c, 0x05, 0xd7, 0xdc, 0x2e,
-        0xa0, 0xf1, 0x95, 0x40, 0x60, 0x42, 0xca, 0xf1,
-    };
-    assert(memcmp(CK0, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-
-    uint8_t okm[64];
-    hkdf(okm, pBolt->ck, ss);
-    memcpy(pBolt->ck, okm, UCOIN_SZ_SHA256);
-    memcpy(pBolt->temp_k, okm + UCOIN_SZ_SHA256, UCOIN_SZ_SHA256);
-    //fprintf(stderr, "okm=");
-    //DUMPBIN(okm, 64);
-
-    // ck     =0xb61ec1191326fa240decc9564369dbb3ae2b34341d1e11ad64ed89f89180582f
-    // temp_k1=0xe68f69b7f096d7917245f5e5cf8ae1595febe4d4644333c99f9c4a1282031c9f
-    const uint8_t CK1[] = {
-        0xb6, 0x1e, 0xc1, 0x19, 0x13, 0x26, 0xfa, 0x24,
-        0x0d, 0xec, 0xc9, 0x56, 0x43, 0x69, 0xdb, 0xb3,
-        0xae, 0x2b, 0x34, 0x34, 0x1d, 0x1e, 0x11, 0xad,
-        0x64, 0xed, 0x89, 0xf8, 0x91, 0x80, 0x58, 0x2f,
-    };
-    const uint8_t TEMP_K1[] = {
-        0xe6, 0x8f, 0x69, 0xb7, 0xf0, 0x96, 0xd7, 0x91,
-        0x72, 0x45, 0xf5, 0xe5, 0xcf, 0x8a, 0xe1, 0x59,
-        0x5f, 0xeb, 0xe4, 0xd4, 0x64, 0x43, 0x33, 0xc9,
-        0x9f, 0x9c, 0x4a, 0x12, 0x82, 0x03, 0x1c, 0x9f,
-    };
-    assert(memcmp(CK1, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-    assert(memcmp(TEMP_K1, pBolt->temp_k, UCOIN_SZ_SHA256) == 0);
-
-    // c = encryptWithAD(temp_k1, 0, h, zero)
-    //  encryptWithAD(k, n, ad, plaintext)
-    //      k  : key... temp_k1
-    //      nonce: [0-11]00
-    //      ad : associated data... pBolt->h
-    //      plaintext: zero length data
-    uint8_t c[crypto_aead_chacha20poly1305_IETF_ABYTES];
-    unsigned long long clen;
-    uint8_t nonce[12];
-
-    memset(nonce, 0, sizeof(nonce));
-
-    // encryptWithAD(
-    //      k=temp_k1= 0xe68f69b7f096d7917245f5e5cf8ae1595febe4d4644333c99f9c4a1282031c9f,
-    //      n=nonce=   0x000000000000000000000000
-    //      ad=        0x9e0e7de8bb75554f21db034633de04be41a2b8a18da7a319a03c803bf02b396c,
-    //      plaintext= <empty>)
-    const uint8_t NONCE[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-    };
-    const uint8_t AD[] = {
-        0x9e, 0x0e, 0x7d, 0xe8, 0xbb, 0x75, 0x55, 0x4f,
-        0x21, 0xdb, 0x03, 0x46, 0x33, 0xde, 0x04, 0xbe,
-        0x41, 0xa2, 0xb8, 0xa1, 0x8d, 0xa7, 0xa3, 0x19,
-        0xa0, 0x3c, 0x80, 0x3b, 0xf0, 0x2b, 0x39, 0x6c,
-    };
-    assert(memcmp(NONCE, nonce, sizeof(NONCE)) == 0);
-    assert(memcmp(AD, pBolt->h, sizeof(AD)) == 0);
-
-    int rc = crypto_aead_chacha20poly1305_ietf_encrypt(
-                    c, &clen,
-                    NULL, 0,                    //zero length data
-                    pBolt->h, UCOIN_SZ_SHA256,  //additional data
-                    NULL,                       //combined modeではNULL
-                    nonce, pBolt->temp_k);      //nonce, key
-    assert(rc == 0);
-
-    // c=0df6086551151f58b8afe6c195782c6a
-    const uint8_t C[] = {
-        0x0d, 0xf6, 0x08, 0x65, 0x51, 0x15, 0x1f, 0x58,
-        0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78, 0x2c, 0x6a,
-    };
-    assert(memcmp(C, c, sizeof(C)) == 0);
-    assert(clen == sizeof(C));
-
-    // h = SHA-256(h || c)
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, clen);
-
-    // h=0x9d1ffbb639e7e20021d9259491dc7b160aab270fb1339ef135053f6f2cebe9ce
-    const uint8_t H1[] = {
-        0x9d, 0x1f, 0xfb, 0xb6, 0x39, 0xe7, 0xe2, 0x00,
-        0x21, 0xd9, 0x25, 0x94, 0x91, 0xdc, 0x7b, 0x16,
-        0x0a, 0xab, 0x27, 0x0f, 0xb1, 0x33, 0x9e, 0xf1,
-        0x35, 0x05, 0x3f, 0x6f, 0x2c, 0xeb, 0xe9, 0xce,
-    };
-    assert(memcmp(H1, pBolt->h, sizeof(H1)) == 0);
-
-    // SEND: m = 0 || e.pub.serializeCompressed() || c to the responder over the network buffer.
-    pResult[0] = 0x00;       //m=0
-    memcpy(pResult + 1, pBolt->e.pub, UCOIN_SZ_PUBKEY);
-    memcpy(pResult + 1 + UCOIN_SZ_PUBKEY, c, clen);
-    assert(1 + UCOIN_SZ_PUBKEY + clen == 50);
-}
-
-static void acttwo_sender(uint8_t *pResult, struct bolt8 *pBolt, const uint8_t *pRE);
-
-static void actone_receiver(uint8_t *pResult, struct bolt8 *pBolt)
-{
-    uint8_t v;
-    uint8_t re[UCOIN_SZ_PUBKEY];
-    uint8_t c[crypto_aead_chacha20poly1305_IETF_ABYTES];
-
-    v = pResult[0];
-    assert(v == 0x00);
-    memcpy(re, pResult + 1, sizeof(re));
-    memcpy(c, pResult + 1 + sizeof(re), sizeof(c));
-
-    // re=0x036360e856310ce5d294e8be33fc807077dc56ac80d95d9cd4ddbd21325eff73f7
-    const uint8_t RE[] = {
-        0x03, 0x63, 0x60, 0xe8, 0x56, 0x31, 0x0c, 0xe5,
-        0xd2, 0x94, 0xe8, 0xbe, 0x33, 0xfc, 0x80, 0x70,
-        0x77, 0xdc, 0x56, 0xac, 0x80, 0xd9, 0x5d, 0x9c,
-        0xd4, 0xdd, 0xbd, 0x21, 0x32, 0x5e, 0xff, 0x73,
-        0xf7,
-    };
-    assert(memcmp(RE, re, sizeof(RE)) == 0);
-
-
-    // h = SHA-256(h || re.serializeCompressed())
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, re, UCOIN_SZ_PUBKEY);
-    //fprintf(stderr, "h=");
-    //DUMPBIN(pBolt->h, UCOIN_SZ_SHA256);
-
-    // h=0x9e0e7de8bb75554f21db034633de04be41a2b8a18da7a319a03c803bf02b396c
-    const uint8_t H0[] = {
-        0x9e, 0x0e, 0x7d, 0xe8, 0xbb, 0x75, 0x55, 0x4f,
-        0x21, 0xdb, 0x03, 0x46, 0x33, 0xde, 0x04, 0xbe,
-        0x41, 0xa2, 0xb8, 0xa1, 0x8d, 0xa7, 0xa3, 0x19,
-        0xa0, 0x3c, 0x80, 0x3b, 0xf0, 0x2b, 0x39, 0x6c,
-    };
-    // h=0xdffc8a99551d36b8cf858efc2b0638be0929bba4be49073a3a73aefd166afe05
-    //const uint8_t H0[] = {
-    //    0xdf, 0xfc, 0x8a, 0x99, 0x55, 0x1d, 0x36, 0xb8,
-    //    0xcf, 0x85, 0x8e, 0xfc, 0x2b, 0x06, 0x38, 0xbe,
-    //    0x09, 0x29, 0xbb, 0xa4, 0xbe, 0x49, 0x07, 0x3a,
-    //    0x3a, 0x73, 0xae, 0xfd, 0x16, 0x6a, 0xfe, 0x05,
-    //};
-    assert(memcmp(H0, pBolt->h, sizeof(H0)) == 0);
-
-
-    // ss = ECDH(re, s.priv)
-    uint8_t ss[UCOIN_SZ_PRIVKEY];
-    ucoin_util_generate_shared_secret(ss, re, pBolt->keys->priv);
-    // ss=0x1e2fb3c8fe8fb9f262f649f64d26ecf0f2c0a805a767cf02dc2d77a6ef1fdcc3
-    const uint8_t SS[] = {
-        0x1e, 0x2f, 0xb3, 0xc8, 0xfe, 0x8f, 0xb9, 0xf2,
-        0x62, 0xf6, 0x49, 0xf6, 0x4d, 0x26, 0xec, 0xf0,
-        0xf2, 0xc0, 0xa8, 0x05, 0xa7, 0x67, 0xcf, 0x02,
-        0xdc, 0x2d, 0x77, 0xa6, 0xef, 0x1f, 0xdc, 0xc3,
-    };
-    assert(memcmp(SS, ss, sizeof(SS)) == 0);
-
-
-    // ck, temp_k1 = HKDF(ck, ss)
-    // HKDF(ck=0x2640f52eebcd9e882958951c794250eedb28002c05d7dc2ea0f195406042caf1,
-    //      ss=0x1e2fb3c8fe8fb9f262f649f64d26ecf0f2c0a805a767cf02dc2d77a6ef1fdcc3)
-    const uint8_t CK0[] = {
-        0x26, 0x40, 0xf5, 0x2e, 0xeb, 0xcd, 0x9e, 0x88,
-        0x29, 0x58, 0x95, 0x1c, 0x79, 0x42, 0x50, 0xee,
-        0xdb, 0x28, 0x00, 0x2c, 0x05, 0xd7, 0xdc, 0x2e,
-        0xa0, 0xf1, 0x95, 0x40, 0x60, 0x42, 0xca, 0xf1,
-    };
-    assert(memcmp(CK0, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-
-    uint8_t okm[64];
-    hkdf(okm, pBolt->ck, ss);
-    memcpy(pBolt->ck, okm, UCOIN_SZ_SHA256);
-    memcpy(pBolt->temp_k, okm + UCOIN_SZ_SHA256, UCOIN_SZ_SHA256);
-    //fprintf(stderr, "okm=");
-    //DUMPBIN(okm, 64);
-
-    // ck     =0xb61ec1191326fa240decc9564369dbb3ae2b34341d1e11ad64ed89f89180582f
-    // temp_k1=0xe68f69b7f096d7917245f5e5cf8ae1595febe4d4644333c99f9c4a1282031c9f
-    const uint8_t CK1[] = {
-        0xb6, 0x1e, 0xc1, 0x19, 0x13, 0x26, 0xfa, 0x24,
-        0x0d, 0xec, 0xc9, 0x56, 0x43, 0x69, 0xdb, 0xb3,
-        0xae, 0x2b, 0x34, 0x34, 0x1d, 0x1e, 0x11, 0xad,
-        0x64, 0xed, 0x89, 0xf8, 0x91, 0x80, 0x58, 0x2f,
-    };
-    const uint8_t TEMP_K1[] = {
-        0xe6, 0x8f, 0x69, 0xb7, 0xf0, 0x96, 0xd7, 0x91,
-        0x72, 0x45, 0xf5, 0xe5, 0xcf, 0x8a, 0xe1, 0x59,
-        0x5f, 0xeb, 0xe4, 0xd4, 0x64, 0x43, 0x33, 0xc9,
-        0x9f, 0x9c, 0x4a, 0x12, 0x82, 0x03, 0x1c, 0x9f,
-    };
-    assert(memcmp(CK1, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-    assert(memcmp(TEMP_K1, pBolt->temp_k, UCOIN_SZ_SHA256) == 0);
-
-    // p = decryptWithAD(temp_k1, 0, h, c)
-    //  decryptWithAD(k, n, ad, ciphertext)
-    //      k  : key... temp_k1
-    //      n  : nonce
-    //      ad : associated data... pBolt->h
-    //      ciphertext: c
-    //      nonce: [0-3]00 [4-11]nonce
-    uint8_t p[UCOIN_SZ_SHA256 + crypto_aead_chacha20poly1305_IETF_ABYTES];
-    unsigned long long plen;
-    uint8_t nonce[12];
-
-    memset(nonce, 0, sizeof(nonce));
-
-    // decryptWithAD(
-    //      k=temp_k1= 0xe68f69b7f096d7917245f5e5cf8ae1595febe4d4644333c99f9c4a1282031c9f,
-    //      n=nonce=   0x000000000000000000000000,
-    //      ad=        0x9e0e7de8bb75554f21db034633de04be41a2b8a18da7a319a03c803bf02b396c,
-    //      ciphertext=0x0df6086551151f58b8afe6c195782c6a)
-    const uint8_t NONCE[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-    };
-    const uint8_t AD[] = {
-        0x9e, 0x0e, 0x7d, 0xe8, 0xbb, 0x75, 0x55, 0x4f,
-        0x21, 0xdb, 0x03, 0x46, 0x33, 0xde, 0x04, 0xbe,
-        0x41, 0xa2, 0xb8, 0xa1, 0x8d, 0xa7, 0xa3, 0x19,
-        0xa0, 0x3c, 0x80, 0x3b, 0xf0, 0x2b, 0x39, 0x6c,
-    };
-    const uint8_t CIPHERTEXT[] = {
-        0x0d, 0xf6, 0x08, 0x65, 0x51, 0x15, 0x1f, 0x58,
-        0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78, 0x2c, 0x6a,
-    };
-    assert(memcmp(NONCE, nonce, sizeof(NONCE)) == 0);
-    assert(memcmp(AD, pBolt->h, sizeof(AD)) == 0);
-    assert(memcmp(CIPHERTEXT, c, sizeof(CIPHERTEXT)) == 0);
-
-    int rc = crypto_aead_chacha20poly1305_ietf_decrypt(
-                    p, &plen,
-                    NULL,                       //combined modeではNULL
-                    c, sizeof(c),               //ciphertext
-                    pBolt->h, UCOIN_SZ_SHA256,  //additional data
-                    nonce, pBolt->temp_k);      //nonce, key
-    assert(rc == 0);
-    assert(plen == 0);
-    //DBG_PRINTF2("p=");
-    //DUMPBIN(p, plen);
-
-    // h = SHA-256(h || c)
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, sizeof(c));
-
-    // h=0x9d1ffbb639e7e20021d9259491dc7b160aab270fb1339ef135053f6f2cebe9ce
-    const uint8_t H1[] = {
-        0x9d, 0x1f, 0xfb, 0xb6, 0x39, 0xe7, 0xe2, 0x00,
-        0x21, 0xd9, 0x25, 0x94, 0x91, 0xdc, 0x7b, 0x16,
-        0x0a, 0xab, 0x27, 0x0f, 0xb1, 0x33, 0x9e, 0xf1,
-        0x35, 0x05, 0x3f, 0x6f, 0x2c, 0xeb, 0xe9, 0xce,
-    };
-    assert(memcmp(H1, pBolt->h, sizeof(H1)) == 0);
-
-
-    acttwo_sender(pResult, pBolt, re);
-}
-
-
-static void acttwo_sender(uint8_t *pResult, struct bolt8 *pBolt, const uint8_t *pRE)
-{
-    // h = SHA-256(h || e.pub.serializeCompressed())
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, pBolt->e.pub, UCOIN_SZ_PUBKEY);
-    //fprintf(stderr, "h=");
-    //DUMPBIN(pBolt->h, UCOIN_SZ_SHA256);
-
-    // h=0x38122f669819f906000621a14071802f93f2ef97df100097bcac3ae76c6dc0bf
-    const uint8_t H0[] = {
-        0x38, 0x12, 0x2f, 0x66, 0x98, 0x19, 0xf9, 0x06,
-        0x00, 0x06, 0x21, 0xa1, 0x40, 0x71, 0x80, 0x2f,
-        0x93, 0xf2, 0xef, 0x97, 0xdf, 0x10, 0x00, 0x97,
-        0xbc, 0xac, 0x3a, 0xe7, 0x6c, 0x6d, 0xc0, 0xbf,
-    };
-    assert(memcmp(H0, pBolt->h, sizeof(H0)) == 0);
-
-    // ss = ECDH(re, e.priv)
-    uint8_t ss[UCOIN_SZ_PRIVKEY];
-    ucoin_util_generate_shared_secret(ss, pRE, pBolt->e.priv);
-    //fprintf(stderr, "ss=");
-    //DUMPBIN(ss, UCOIN_SZ_SHA256);
-
-    // ss=0xc06363d6cc549bcb7913dbb9ac1c33fc1158680c89e972000ecd06b36c472e47
-    const uint8_t SS[] = {
-        0xc0, 0x63, 0x63, 0xd6, 0xcc, 0x54, 0x9b, 0xcb,
-        0x79, 0x13, 0xdb, 0xb9, 0xac, 0x1c, 0x33, 0xfc,
-        0x11, 0x58, 0x68, 0x0c, 0x89, 0xe9, 0x72, 0x00,
-        0x0e, 0xcd, 0x06, 0xb3, 0x6c, 0x47, 0x2e, 0x47,
-    };
-    assert(memcmp(SS, ss, UCOIN_SZ_SHA256) == 0);
-
-
-    // ck, temp_k2 = HKDF(ck, ss)
-    // HKDF(ck=0xb61ec1191326fa240decc9564369dbb3ae2b34341d1e11ad64ed89f89180582f
-    //      ss=0xc06363d6cc549bcb7913dbb9ac1c33fc1158680c89e972000ecd06b36c472e47
-    const uint8_t CK0[] = {
-        0xb6, 0x1e, 0xc1, 0x19, 0x13, 0x26, 0xfa, 0x24,
-        0x0d, 0xec, 0xc9, 0x56, 0x43, 0x69, 0xdb, 0xb3,
-        0xae, 0x2b, 0x34, 0x34, 0x1d, 0x1e, 0x11, 0xad,
-        0x64, 0xed, 0x89, 0xf8, 0x91, 0x80, 0x58, 0x2f,
-    };
-    assert(memcmp(CK0, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-
-    uint8_t okm[64];
-    hkdf(okm, pBolt->ck, ss);
-    memcpy(pBolt->ck, okm, UCOIN_SZ_SHA256);
-    memcpy(pBolt->temp_k, okm + UCOIN_SZ_SHA256, UCOIN_SZ_SHA256);
-    //fprintf(stderr, "okm=");
-    //DUMPBIN(okm, 64);
-
-    // ck     =0xe89d31033a1b6bf68c07d22e08ea4d7884646c4b60a9528598ccb4ee2c8f56ba
-    // temp_k2=0x908b166535c01a935cf1e130a5fe895ab4e6f3ef8855d87e9b7581c4ab663ddc
-    const uint8_t CK1[] = {
-        0xe8, 0x9d, 0x31, 0x03, 0x3a, 0x1b, 0x6b, 0xf6,
-        0x8c, 0x07, 0xd2, 0x2e, 0x08, 0xea, 0x4d, 0x78,
-        0x84, 0x64, 0x6c, 0x4b, 0x60, 0xa9, 0x52, 0x85,
-        0x98, 0xcc, 0xb4, 0xee, 0x2c, 0x8f, 0x56, 0xba,
-    };
-    const uint8_t TEMP_K2[] = {
-        0x90, 0x8b, 0x16, 0x65, 0x35, 0xc0, 0x1a, 0x93,
-        0x5c, 0xf1, 0xe1, 0x30, 0xa5, 0xfe, 0x89, 0x5a,
-        0xb4, 0xe6, 0xf3, 0xef, 0x88, 0x55, 0xd8, 0x7e,
-        0x9b, 0x75, 0x81, 0xc4, 0xab, 0x66, 0x3d, 0xdc,
-    };
-    assert(memcmp(CK1, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-    assert(memcmp(TEMP_K2, pBolt->temp_k, UCOIN_SZ_SHA256) == 0);
-
-    // c = encryptWithAD(temp_k2, 0, h, zero)
-    //  encryptWithAD(k, n, ad, plaintext)
-    //      k  : key... temp_k1
-    //      nonce: [0-11]00
-    //      ad : associated data... pBolt->h
-    //      plaintext: zero length data
-    uint8_t c[crypto_aead_chacha20poly1305_IETF_ABYTES];
-    unsigned long long clen;
-    uint8_t nonce[12];
-
-    memset(nonce, 0, sizeof(nonce));
-
-    // encryptWithAD(
-    //      k=temp_k2=  0x908b166535c01a935cf1e130a5fe895ab4e6f3ef8855d87e9b7581c4ab663ddc,
-    //      n=nonce=    0x000000000000000000000000,
-    //      ad=         0x38122f669819f906000621a14071802f93f2ef97df100097bcac3ae76c6dc0bf,
-    //      plaintext=  <empty>)
-    const uint8_t NONCE[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-    };
-    const uint8_t AD[] = {
-        0x38, 0x12, 0x2f, 0x66, 0x98, 0x19, 0xf9, 0x06,
-        0x00, 0x06, 0x21, 0xa1, 0x40, 0x71, 0x80, 0x2f,
-        0x93, 0xf2, 0xef, 0x97, 0xdf, 0x10, 0x00, 0x97,
-        0xbc, 0xac, 0x3a, 0xe7, 0x6c, 0x6d, 0xc0, 0xbf,
-    };
-    assert(memcmp(NONCE, nonce, sizeof(NONCE)) == 0);
-    assert(memcmp(AD, pBolt->h, sizeof(AD)) == 0);
-
-    int rc = crypto_aead_chacha20poly1305_ietf_encrypt(
-                    c, &clen,
-                    NULL, 0,                    //zero length data
-                    pBolt->h, UCOIN_SZ_SHA256,  //additional data
-                    NULL,                       //combined modeではNULL
-                    nonce, pBolt->temp_k);      //nonce, key
-    assert(rc == 0);
-
-    // c=0x6e2470b93aac583c9ef6eafca3f730ae
-    const uint8_t C[] = {
-        0x6e, 0x24, 0x70, 0xb9, 0x3a, 0xac, 0x58, 0x3c,
-        0x9e, 0xf6, 0xea, 0xfc, 0xa3, 0xf7, 0x30, 0xae,
-    };
-    assert(memcmp(C, c, sizeof(C)) == 0);
-    assert(clen == sizeof(C));
-
-    // h = SHA-256(h || c)
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, clen);
-
-    // h=0x90578e247e98674e661013da3c5c1ca6a8c8f48c90b485c0dfa1494e23d56d72
-    const uint8_t H1[] = {
-        0x90, 0x57, 0x8e, 0x24, 0x7e, 0x98, 0x67, 0x4e,
-        0x66, 0x10, 0x13, 0xda, 0x3c, 0x5c, 0x1c, 0xa6,
-        0xa8, 0xc8, 0xf4, 0x8c, 0x90, 0xb4, 0x85, 0xc0,
-        0xdf, 0xa1, 0x49, 0x4e, 0x23, 0xd5, 0x6d, 0x72,
-    };
-    assert(memcmp(H1, pBolt->h, sizeof(H1)) == 0);
-
-    // SEND: m = 0 || e.pub.serializeCompressed() || c to the responder over the network buffer.
-    pResult[0] = 0x00;       //m=0
-    memcpy(pResult + 1, pBolt->e.pub, UCOIN_SZ_PUBKEY);
-    memcpy(pResult + 1 + UCOIN_SZ_PUBKEY, c, clen);
-    assert(1 + UCOIN_SZ_PUBKEY + clen == 50);
-}
-
-
-void actthree_sender(uint8_t *pResult, struct bolt8 *pBolt, const uint8_t *pRS);
-
-void acttwo_receiver(uint8_t *pResult, struct bolt8 *pBolt, const uint8_t *pRS)
-{
-    uint8_t v;
-    uint8_t re[UCOIN_SZ_PUBKEY];
-    uint8_t c[crypto_aead_chacha20poly1305_IETF_ABYTES];
-
-    v = pResult[0];
-    assert(v == 0x00);
-    memcpy(re, pResult + 1, sizeof(re));
-    memcpy(c, pResult + 1 + sizeof(re), sizeof(c));
-
-    // re=0x02466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27
-    const uint8_t RE[] = {
-        0x02, 0x46, 0x6d, 0x7f, 0xca, 0xe5, 0x63, 0xe5,
-        0xcb, 0x09, 0xa0, 0xd1, 0x87, 0x0b, 0xb5, 0x80,
-        0x34, 0x48, 0x04, 0x61, 0x78, 0x79, 0xa1, 0x49,
-        0x49, 0xcf, 0x22, 0x28, 0x5f, 0x1b, 0xae, 0x3f,
-        0x27,
-    };
-    assert(memcmp(RE, re, sizeof(RE)) == 0);
-
-
-    // h = SHA-256(h || re.serializeCompressed())
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, re, UCOIN_SZ_PUBKEY);
-    //fprintf(stderr, "h=");
-    //DUMPBIN(pBolt->h, UCOIN_SZ_SHA256);
-
-    // h=0x38122f669819f906000621a14071802f93f2ef97df100097bcac3ae76c6dc0bf
-    const uint8_t H0[] = {
-        0x38, 0x12, 0x2f, 0x66, 0x98, 0x19, 0xf9, 0x06,
-        0x00, 0x06, 0x21, 0xa1, 0x40, 0x71, 0x80, 0x2f,
-        0x93, 0xf2, 0xef, 0x97, 0xdf, 0x10, 0x00, 0x97,
-        0xbc, 0xac, 0x3a, 0xe7, 0x6c, 0x6d, 0xc0, 0xbf,
-    };
-    assert(memcmp(H0, pBolt->h, sizeof(H0)) == 0);
-
-
-    // ss = ECDH(re, e.priv)
-    uint8_t ss[UCOIN_SZ_PRIVKEY];
-    ucoin_util_generate_shared_secret(ss, re, pBolt->e.priv);
-    // ss=0xc06363d6cc549bcb7913dbb9ac1c33fc1158680c89e972000ecd06b36c472e47
-    const uint8_t SS[] = {
-        0xc0, 0x63, 0x63, 0xd6, 0xcc, 0x54, 0x9b, 0xcb,
-        0x79, 0x13, 0xdb, 0xb9, 0xac, 0x1c, 0x33, 0xfc,
-        0x11, 0x58, 0x68, 0x0c, 0x89, 0xe9, 0x72, 0x00,
-        0x0e, 0xcd, 0x06, 0xb3, 0x6c, 0x47, 0x2e, 0x47,
-    };
-    assert(memcmp(SS, ss, sizeof(SS)) == 0);
-
-
-    // ck, temp_k2 = HKDF(ck, ss)
-    // HKDF(ck=0xb61ec1191326fa240decc9564369dbb3ae2b34341d1e11ad64ed89f89180582f
-    //      ss=0xc06363d6cc549bcb7913dbb9ac1c33fc1158680c89e972000ecd06b36c472e47
-    const uint8_t CK0[] = {
-        0xb6, 0x1e, 0xc1, 0x19, 0x13, 0x26, 0xfa, 0x24,
-        0x0d, 0xec, 0xc9, 0x56, 0x43, 0x69, 0xdb, 0xb3,
-        0xae, 0x2b, 0x34, 0x34, 0x1d, 0x1e, 0x11, 0xad,
-        0x64, 0xed, 0x89, 0xf8, 0x91, 0x80, 0x58, 0x2f,
-    };
-    assert(memcmp(CK0, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-
-    uint8_t okm[64];
-    hkdf(okm, pBolt->ck, ss);
-    memcpy(pBolt->ck, okm, UCOIN_SZ_SHA256);
-    memcpy(pBolt->temp_k, okm + UCOIN_SZ_SHA256, UCOIN_SZ_SHA256);
-    //fprintf(stderr, "okm=");
-    //DUMPBIN(okm, 64);
-
-    // ck     =0xe89d31033a1b6bf68c07d22e08ea4d7884646c4b60a9528598ccb4ee2c8f56ba
-    // temp_k2=0x908b166535c01a935cf1e130a5fe895ab4e6f3ef8855d87e9b7581c4ab663ddc
-    const uint8_t CK1[] = {
-        0xe8, 0x9d, 0x31, 0x03, 0x3a, 0x1b, 0x6b, 0xf6,
-        0x8c, 0x07, 0xd2, 0x2e, 0x08, 0xea, 0x4d, 0x78,
-        0x84, 0x64, 0x6c, 0x4b, 0x60, 0xa9, 0x52, 0x85,
-        0x98, 0xcc, 0xb4, 0xee, 0x2c, 0x8f, 0x56, 0xba,
-    };
-    const uint8_t TEMP_K2[] = {
-        0x90, 0x8b, 0x16, 0x65, 0x35, 0xc0, 0x1a, 0x93,
-        0x5c, 0xf1, 0xe1, 0x30, 0xa5, 0xfe, 0x89, 0x5a,
-        0xb4, 0xe6, 0xf3, 0xef, 0x88, 0x55, 0xd8, 0x7e,
-        0x9b, 0x75, 0x81, 0xc4, 0xab, 0x66, 0x3d, 0xdc,
-    };
-    assert(memcmp(CK1, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-    assert(memcmp(TEMP_K2, pBolt->temp_k, UCOIN_SZ_SHA256) == 0);
-
-    // p = decryptWithAD(temp_k2, 0, h, c)
-    //  decryptWithAD(k, n, ad, ciphertext)
-    //      k  : key... temp_k2
-    //      n  : nonce
-    //      ad : associated data... pBolt->h
-    //      ciphertext: c
-    //      nonce: [0-3]00 [4-11]nonce
-    uint8_t p[UCOIN_SZ_SHA256 + crypto_aead_chacha20poly1305_IETF_ABYTES];
-    unsigned long long plen;
-    uint8_t nonce[12];
-
-    memset(nonce, 0, sizeof(nonce));
-
-    // decryptWithAD(
-    //      k=temp_k2=  0x908b166535c01a935cf1e130a5fe895ab4e6f3ef8855d87e9b7581c4ab663ddc,
-    //      n=nonce=    0x000000000000000000000000,
-    //      ad=         0x38122f669819f906000621a14071802f93f2ef97df100097bcac3ae76c6dc0bf,
-    //      ciphertext= 0x6e2470b93aac583c9ef6eafca3f730ae)
-    const uint8_t NONCE[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-    };
-    const uint8_t AD[] = {
-        0x38, 0x12, 0x2f, 0x66, 0x98, 0x19, 0xf9, 0x06,
-        0x00, 0x06, 0x21, 0xa1, 0x40, 0x71, 0x80, 0x2f,
-        0x93, 0xf2, 0xef, 0x97, 0xdf, 0x10, 0x00, 0x97,
-        0xbc, 0xac, 0x3a, 0xe7, 0x6c, 0x6d, 0xc0, 0xbf,
-    };
-    const uint8_t CIPHERTEXT[] = {
-        0x6e, 0x24, 0x70, 0xb9, 0x3a, 0xac, 0x58, 0x3c,
-        0x9e, 0xf6, 0xea, 0xfc, 0xa3, 0xf7, 0x30, 0xae,
-    };
-    assert(memcmp(NONCE, nonce, sizeof(NONCE)) == 0);
-    assert(memcmp(AD, pBolt->h, sizeof(AD)) == 0);
-    assert(memcmp(CIPHERTEXT, c, sizeof(CIPHERTEXT)) == 0);
-
-    int rc = crypto_aead_chacha20poly1305_ietf_decrypt(
-                    p, &plen,
-                    NULL,                       //combined modeではNULL
-                    c, sizeof(c),               //ciphertext
-                    pBolt->h, UCOIN_SZ_SHA256,  //additional data
-                    nonce, pBolt->temp_k);      //nonce, key
-    assert(rc == 0);
-    assert(plen == 0);
-    //DBG_PRINTF2("p=");
-    //DUMPBIN(p, plen);
-
-    // h = SHA-256(h || c)
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, sizeof(c));
-
-    // h=0x90578e247e98674e661013da3c5c1ca6a8c8f48c90b485c0dfa1494e23d56d72
-    const uint8_t H1[] = {
-        0x90, 0x57, 0x8e, 0x24, 0x7e, 0x98, 0x67, 0x4e,
-        0x66, 0x10, 0x13, 0xda, 0x3c, 0x5c, 0x1c, 0xa6,
-        0xa8, 0xc8, 0xf4, 0x8c, 0x90, 0xb4, 0x85, 0xc0,
-        0xdf, 0xa1, 0x49, 0x4e, 0x23, 0xd5, 0x6d, 0x72,
-    };
-    assert(memcmp(H1, pBolt->h, sizeof(H1)) == 0);
-
-
-    actthree_sender(pResult, pBolt, re);
-}
-
-void actthree_sender(uint8_t *pResult, struct bolt8 *pBolt, const uint8_t *pRE)
-{
-    // encryptWithAD(
-    //      k=temp_k2=  0x908b166535c01a935cf1e130a5fe895ab4e6f3ef8855d87e9b7581c4ab663ddc,
-    //      n=nonce=    0x000000000100000000000000,
-    //      ad=         0x90578e247e98674e661013da3c5c1ca6a8c8f48c90b485c0dfa1494e23d56d72,
-    //      plaintext=  0x034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa)
-    uint8_t c[UCOIN_SZ_PUBKEY + crypto_aead_chacha20poly1305_IETF_ABYTES];
-    unsigned long long clen;
-    uint8_t nonce[12];
-
-    memset(nonce, 0, sizeof(nonce));
-    nonce[4] = 0x01;
-
-    const uint8_t TEMP_K2[] = {
-        0x90, 0x8b, 0x16, 0x65, 0x35, 0xc0, 0x1a, 0x93,
-        0x5c, 0xf1, 0xe1, 0x30, 0xa5, 0xfe, 0x89, 0x5a,
-        0xb4, 0xe6, 0xf3, 0xef, 0x88, 0x55, 0xd8, 0x7e,
-        0x9b, 0x75, 0x81, 0xc4, 0xab, 0x66, 0x3d, 0xdc,
-    };
-    const uint8_t NONCE[] = {
-        0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-    };
-    const uint8_t AD[] = {
-        0x90, 0x57, 0x8e, 0x24, 0x7e, 0x98, 0x67, 0x4e,
-        0x66, 0x10, 0x13, 0xda, 0x3c, 0x5c, 0x1c, 0xa6,
-        0xa8, 0xc8, 0xf4, 0x8c, 0x90, 0xb4, 0x85, 0xc0,
-        0xdf, 0xa1, 0x49, 0x4e, 0x23, 0xd5, 0x6d, 0x72,
-    };
-    const uint8_t PLAINTEXT[] = {
-        0x03, 0x4f, 0x35, 0x5b, 0xdc, 0xb7, 0xcc, 0x0a,
-        0xf7, 0x28, 0xef, 0x3c, 0xce, 0xb9, 0x61, 0x5d,
-        0x90, 0x68, 0x4b, 0xb5, 0xb2, 0xca, 0x5f, 0x85,
-        0x9a, 0xb0, 0xf0, 0xb7, 0x04, 0x07, 0x58, 0x71,
-        0xaa,
-    };
-    assert(memcmp(TEMP_K2, pBolt->temp_k, sizeof(TEMP_K2)) == 0);
-    assert(memcmp(NONCE, nonce, sizeof(NONCE)) == 0);
-    assert(memcmp(AD, pBolt->h, sizeof(AD)) == 0);
-    assert(memcmp(PLAINTEXT, pBolt->keys->pub, sizeof(PLAINTEXT)) == 0);
-
-    // c = encryptWithAD(temp_k2, 1, h, s.pub.serializeCompressed())
-    //  encryptWithAD(k, n, ad, plaintext)
-    //      k  : key... temp_k2
-    //      nonce: [0-3]00 [4]01 [5-11]nonce
-    //      ad : associated data... pBolt->h
-    //      plaintext: s.pub.serializeCompressed()
-    int rc = crypto_aead_chacha20poly1305_ietf_encrypt(
-                    c, &clen,
-                    pBolt->keys->pub, UCOIN_SZ_PUBKEY,   //s.pub.serializeCompressed()
-                    pBolt->h, UCOIN_SZ_SHA256,  //additional data
-                    NULL,                       //combined modeではNULL
-                    nonce, pBolt->temp_k);      //nonce, key
-    assert(rc == 0);
-
-    // c=0xb9e3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa22355361aa02e55a8fc28fef5bd6d71ad0c3822
-    const uint8_t C0[] = {
-        0xb9, 0xe3, 0xa7, 0x02, 0xe9, 0x3e, 0x3a, 0x99,
-        0x48, 0xc2, 0xed, 0x6e, 0x5f, 0xd7, 0x59, 0x0a,
-        0x6e, 0x1c, 0x3a, 0x03, 0x44, 0xcf, 0xc9, 0xd5,
-        0xb5, 0x73, 0x57, 0x04, 0x9a, 0xa2, 0x23, 0x55,
-        0x36, 0x1a, 0xa0, 0x2e, 0x55, 0xa8, 0xfc, 0x28,
-        0xfe, 0xf5, 0xbd, 0x6d, 0x71, 0xad, 0x0c, 0x38,
-        0x22,
-    };
-    assert(memcmp(C0, c, sizeof(C0)) == 0);
-    assert(sizeof(C0) == clen);
-
-
-    // h = SHA-256(h || c)
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, sizeof(c));
-
-    // h=0x5dcb5ea9b4ccc755e0e3456af3990641276e1d5dc9afd82f974d90a47c918660
-    const uint8_t H0[] = {
-        0x5d, 0xcb, 0x5e, 0xa9, 0xb4, 0xcc, 0xc7, 0x55,
-        0xe0, 0xe3, 0x45, 0x6a, 0xf3, 0x99, 0x06, 0x41,
-        0x27, 0x6e, 0x1d, 0x5d, 0xc9, 0xaf, 0xd8, 0x2f,
-        0x97, 0x4d, 0x90, 0xa4, 0x7c, 0x91, 0x86, 0x60,
-    };
-    assert(memcmp(H0, pBolt->h, sizeof(H0)) == 0);
-
-    // ss = ECDH(re, s.priv)
-    uint8_t ss[UCOIN_SZ_PRIVKEY];
-    ucoin_util_generate_shared_secret(ss, pRE, pBolt->keys->priv);
-    //fprintf(stderr, "ss=");
-    //DUMPBIN(ss, UCOIN_SZ_SHA256);
-
-    // ss=0xb36b6d195982c5be874d6d542dc268234379e1ae4ff1709402135b7de5cf0766
-    const uint8_t SS[] = {
-        0xb3, 0x6b, 0x6d, 0x19, 0x59, 0x82, 0xc5, 0xbe,
-        0x87, 0x4d, 0x6d, 0x54, 0x2d, 0xc2, 0x68, 0x23,
-        0x43, 0x79, 0xe1, 0xae, 0x4f, 0xf1, 0x70, 0x94,
-        0x02, 0x13, 0x5b, 0x7d, 0xe5, 0xcf, 0x07, 0x66,
-    };
-    assert(memcmp(SS, ss, UCOIN_SZ_SHA256) == 0);
-
-
-    // ck, temp_k3 = HKDF(ck, ss)
-    // HKDF(ck=0xe89d31033a1b6bf68c07d22e08ea4d7884646c4b60a9528598ccb4ee2c8f56ba
-    //      ss=0xb36b6d195982c5be874d6d542dc268234379e1ae4ff1709402135b7de5cf0766
-    const uint8_t CK0[] = {
-        0xe8, 0x9d, 0x31, 0x03, 0x3a, 0x1b, 0x6b, 0xf6,
-        0x8c, 0x07, 0xd2, 0x2e, 0x08, 0xea, 0x4d, 0x78,
-        0x84, 0x64, 0x6c, 0x4b, 0x60, 0xa9, 0x52, 0x85,
-        0x98, 0xcc, 0xb4, 0xee, 0x2c, 0x8f, 0x56, 0xba,
-    };
-    assert(memcmp(CK0, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-
-    uint8_t okm[64];
-    hkdf(okm, pBolt->ck, ss);
-    memcpy(pBolt->ck, okm, UCOIN_SZ_SHA256);
-    memcpy(pBolt->temp_k, okm + UCOIN_SZ_SHA256, UCOIN_SZ_SHA256);
-    //fprintf(stderr, "okm=");
-    //DUMPBIN(okm, 64);
-
-    // ck=      0x919219dbb2920afa8db80f9a51787a840bcf111ed8d588caf9ab4be716e42b01
-    // temp_k3= 0x981a46c820fb7a241bc8184ba4bb1f01bcdfafb00dde80098cb8c38db9141520
-    const uint8_t CK1[] = {
-        0x91, 0x92, 0x19, 0xdb, 0xb2, 0x92, 0x0a, 0xfa,
-        0x8d, 0xb8, 0x0f, 0x9a, 0x51, 0x78, 0x7a, 0x84,
-        0x0b, 0xcf, 0x11, 0x1e, 0xd8, 0xd5, 0x88, 0xca,
-        0xf9, 0xab, 0x4b, 0xe7, 0x16, 0xe4, 0x2b, 0x01,
-    };
-    const uint8_t TEMP_K3[] = {
-        0x98, 0x1a, 0x46, 0xc8, 0x20, 0xfb, 0x7a, 0x24,
-        0x1b, 0xc8, 0x18, 0x4b, 0xa4, 0xbb, 0x1f, 0x01,
-        0xbc, 0xdf, 0xaf, 0xb0, 0x0d, 0xde, 0x80, 0x09,
-        0x8c, 0xb8, 0xc3, 0x8d, 0xb9, 0x14, 0x15, 0x20,
-    };
-    assert(memcmp(CK1, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-    assert(memcmp(TEMP_K3, pBolt->temp_k, UCOIN_SZ_SHA256) == 0);
-
-
-    // t = encryptWithAD(temp_k3, 0, h, zero)
-    //  encryptWithAD(k, n, ad, plaintext)
-    //      k  : key... temp_k3
-    //      nonce: [0-11]00
-    //      ad : associated data... pBolt->h
-    //      plaintext: zero length data
-    uint8_t t[crypto_aead_chacha20poly1305_IETF_ABYTES];
-    unsigned long long tlen;
-
-    memset(nonce, 0, sizeof(nonce));
-
-    // encryptWithAD(
-    //      k=temp_k3=  0x981a46c820fb7a241bc8184ba4bb1f01bcdfafb00dde80098cb8c38db9141520,
-    //      n=nonce=    0x000000000000000000000000,
-    //      ad=         0x5dcb5ea9b4ccc755e0e3456af3990641276e1d5dc9afd82f974d90a47c918660,
-    //      plaintext=  <empty>)
-    const uint8_t NONCE1[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-    };
-    const uint8_t AD1[] = {
-        0x5d, 0xcb, 0x5e, 0xa9, 0xb4, 0xcc, 0xc7, 0x55,
-        0xe0, 0xe3, 0x45, 0x6a, 0xf3, 0x99, 0x06, 0x41,
-        0x27, 0x6e, 0x1d, 0x5d, 0xc9, 0xaf, 0xd8, 0x2f,
-        0x97, 0x4d, 0x90, 0xa4, 0x7c, 0x91, 0x86, 0x60,
-    };
-    assert(memcmp(NONCE1, nonce, sizeof(NONCE1)) == 0);
-    assert(memcmp(AD1, pBolt->h, sizeof(AD1)) == 0);
-
-
-    rc = crypto_aead_chacha20poly1305_ietf_encrypt(
-                    t, &tlen,
-                    NULL, 0,                    //zero length data
-                    pBolt->h, UCOIN_SZ_SHA256,  //additional data
-                    NULL,                       //combined modeではNULL
-                    nonce, pBolt->temp_k);      //nonce, key
-    assert(rc == 0);
-
-    // t=0x8dc68b1c466263b47fdf31e560e139ba
-    const uint8_t C1[] = {
-        0x8d, 0xc6, 0x8b, 0x1c, 0x46, 0x62, 0x63, 0xb4,
-        0x7f, 0xdf, 0x31, 0xe5, 0x60, 0xe1, 0x39, 0xba,
-    };
-    assert(memcmp(C1, t, sizeof(C1)) == 0);
-    assert(tlen == sizeof(C1));
-
-
-    // sk, rk = HKDF(ck, zero)
-    uint8_t sk[UCOIN_SZ_SHA256];
-    uint8_t rk[UCOIN_SZ_SHA256];
-    hkdf(okm, pBolt->ck, NULL);
-    memcpy(sk, okm, UCOIN_SZ_SHA256);
-    memcpy(rk, okm + UCOIN_SZ_SHA256, UCOIN_SZ_SHA256);
-
-    const uint8_t SK[] = {
-        0x96, 0x9a, 0xb3, 0x1b, 0x4d, 0x28, 0x8c, 0xed,
-        0xf6, 0x21, 0x88, 0x39, 0xb2, 0x7a, 0x3e, 0x21,
-        0x40, 0x82, 0x70, 0x47, 0xf2, 0xc0, 0xf0, 0x1b,
-        0xf5, 0xc0, 0x44, 0x35, 0xd4, 0x35, 0x11, 0xa9,
-    };
-    const uint8_t RK[] = {
-        0xbb, 0x90, 0x20, 0xb8, 0x96, 0x5f, 0x4d, 0xf0,
-        0x47, 0xe0, 0x7f, 0x95, 0x5f, 0x3c, 0x4b, 0x88,
-        0x41, 0x89, 0x84, 0xaa, 0xdc, 0x5c, 0xdb, 0x35,
-        0x09, 0x6b, 0x9e, 0xa8, 0xfa, 0x5c, 0x34, 0x42,
-    };
-    assert(memcmp(SK, sk, sizeof(SK)) == 0);
-    assert(memcmp(RK, rk, sizeof(RK)) == 0);
-
-
-    // SEND: m = 0 || c || t   over the network buffer.
-    pResult[0] = 0x00;       //m=0
-    memcpy(pResult + 1, c, clen);
-    memcpy(pResult + 1 + clen, t, tlen);
-    assert(1 + clen + tlen == 66);
-}
-
-
-void actthree_receiver(uint8_t *pResult, struct bolt8 *pBolt)
-{
-    uint8_t v;
-    uint8_t c[UCOIN_SZ_PUBKEY + crypto_aead_chacha20poly1305_IETF_ABYTES];
-    uint8_t t[crypto_aead_chacha20poly1305_IETF_ABYTES];
-
-    v = pResult[0];
-    assert(v == 0x00);
-    memcpy(c, pResult + 1, sizeof(c));
-    memcpy(t, pResult + 1 + sizeof(c), sizeof(t));
-
-
-    // decryptWithAD(
-    //      k=temp_k2=  0x908b166535c01a935cf1e130a5fe895ab4e6f3ef8855d87e9b7581c4ab663ddc,
-    //      n=nonce=    0x000000000100000000000000,
-    //      ad=         0x90578e247e98674e661013da3c5c1ca6a8c8f48c90b485c0dfa1494e23d56d72,
-    //      ciphertext= 0xb9e3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa22355361aa02e55a8fc28fef5bd6d71ad0c3822)
-    uint8_t rs[UCOIN_SZ_PUBKEY];
-    unsigned long long rslen;
-    uint8_t nonce[12];
-
-    memset(nonce, 0, sizeof(nonce));
-    nonce[4] = 0x01;
-
-    const uint8_t NONCE[] = {
-        0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-    };
-    const uint8_t AD[] = {
-        0x90, 0x57, 0x8e, 0x24, 0x7e, 0x98, 0x67, 0x4e,
-        0x66, 0x10, 0x13, 0xda, 0x3c, 0x5c, 0x1c, 0xa6,
-        0xa8, 0xc8, 0xf4, 0x8c, 0x90, 0xb4, 0x85, 0xc0,
-        0xdf, 0xa1, 0x49, 0x4e, 0x23, 0xd5, 0x6d, 0x72,
-    };
-    const uint8_t CIPHERTEXT[] = {
-        0xb9, 0xe3, 0xa7, 0x02, 0xe9, 0x3e, 0x3a, 0x99,
-        0x48, 0xc2, 0xed, 0x6e, 0x5f, 0xd7, 0x59, 0x0a,
-        0x6e, 0x1c, 0x3a, 0x03, 0x44, 0xcf, 0xc9, 0xd5,
-        0xb5, 0x73, 0x57, 0x04, 0x9a, 0xa2, 0x23, 0x55,
-        0x36, 0x1a, 0xa0, 0x2e, 0x55, 0xa8, 0xfc, 0x28,
-        0xfe, 0xf5, 0xbd, 0x6d, 0x71, 0xad, 0x0c, 0x38,
-        0x22,
-    };
-    assert(memcmp(NONCE, nonce, sizeof(NONCE)) == 0);
-    assert(memcmp(AD, pBolt->h, sizeof(AD)) == 0);
-    assert(memcmp(CIPHERTEXT, c, sizeof(CIPHERTEXT)) == 0);
-
-    int rc = crypto_aead_chacha20poly1305_ietf_decrypt(
-                    rs, &rslen,
-                    NULL,                       //combined modeではNULL
-                    c, sizeof(c),               //ciphertext
-                    pBolt->h, UCOIN_SZ_SHA256,  //additional data
-                    nonce, pBolt->temp_k);      //nonce, key
-    assert(rc == 0);
-    //DBG_PRINTF2("p=");
-    //DUMPBIN(p, plen);
-
-    // rs=0x034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa
-    const uint8_t RS[] = {
-        0x03, 0x4f, 0x35, 0x5b, 0xdc, 0xb7, 0xcc, 0x0a,
-        0xf7, 0x28, 0xef, 0x3c, 0xce, 0xb9, 0x61, 0x5d,
-        0x90, 0x68, 0x4b, 0xb5, 0xb2, 0xca, 0x5f, 0x85,
-        0x9a, 0xb0, 0xf0, 0xb7, 0x04, 0x07, 0x58, 0x71,
-        0xaa,
-    };
-    assert(memcmp(RS, rs, sizeof(RS)) == 0);
-    assert(sizeof(RS) == rslen);
-
-
-    // h = SHA-256(h || c)
-    ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, sizeof(c));
-    // h=0x5dcb5ea9b4ccc755e0e3456af3990641276e1d5dc9afd82f974d90a47c918660
-    const uint8_t H0[] = {
-        0x5d, 0xcb, 0x5e, 0xa9, 0xb4, 0xcc, 0xc7, 0x55,
-        0xe0, 0xe3, 0x45, 0x6a, 0xf3, 0x99, 0x06, 0x41,
-        0x27, 0x6e, 0x1d, 0x5d, 0xc9, 0xaf, 0xd8, 0x2f,
-        0x97, 0x4d, 0x90, 0xa4, 0x7c, 0x91, 0x86, 0x60,
-    };
-    assert(memcmp(H0, pBolt->h, sizeof(H0)) == 0);
-
-
-    // ss = ECDH(rs, e.priv)
-    uint8_t ss[UCOIN_SZ_PRIVKEY];
-    ucoin_util_generate_shared_secret(ss, rs, pBolt->e.priv);
-    // ss=0xb36b6d195982c5be874d6d542dc268234379e1ae4ff1709402135b7de5cf0766
-    const uint8_t SS[] = {
-        0xb3, 0x6b, 0x6d, 0x19, 0x59, 0x82, 0xc5, 0xbe,
-        0x87, 0x4d, 0x6d, 0x54, 0x2d, 0xc2, 0x68, 0x23,
-        0x43, 0x79, 0xe1, 0xae, 0x4f, 0xf1, 0x70, 0x94,
-        0x02, 0x13, 0x5b, 0x7d, 0xe5, 0xcf, 0x07, 0x66,
-    };
-    assert(memcmp(SS, ss, sizeof(SS)) == 0);
-
-
-    // ck, temp_k3 = HKDF(ck, ss)
-    // HKDF(ck=0xe89d31033a1b6bf68c07d22e08ea4d7884646c4b60a9528598ccb4ee2c8f56ba,
-    //      ss=0xb36b6d195982c5be874d6d542dc268234379e1ae4ff1709402135b7de5cf0766)
-    const uint8_t CK0[] = {
-        0xe8, 0x9d, 0x31, 0x03, 0x3a, 0x1b, 0x6b, 0xf6,
-        0x8c, 0x07, 0xd2, 0x2e, 0x08, 0xea, 0x4d, 0x78,
-        0x84, 0x64, 0x6c, 0x4b, 0x60, 0xa9, 0x52, 0x85,
-        0x98, 0xcc, 0xb4, 0xee, 0x2c, 0x8f, 0x56, 0xba,
-    };
-    assert(memcmp(CK0, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-
-    uint8_t okm[64];
-    hkdf(okm, pBolt->ck, ss);
-    memcpy(pBolt->ck, okm, UCOIN_SZ_SHA256);
-    memcpy(pBolt->temp_k, okm + UCOIN_SZ_SHA256, UCOIN_SZ_SHA256);
-    //fprintf(stderr, "okm=");
-    //DUMPBIN(okm, 64);
-
-    // ck=      0x919219dbb2920afa8db80f9a51787a840bcf111ed8d588caf9ab4be716e42b01
-    // temp_k3= 0x981a46c820fb7a241bc8184ba4bb1f01bcdfafb00dde80098cb8c38db9141520
-    const uint8_t CK1[] = {
-        0x91, 0x92, 0x19, 0xdb, 0xb2, 0x92, 0x0a, 0xfa,
-        0x8d, 0xb8, 0x0f, 0x9a, 0x51, 0x78, 0x7a, 0x84,
-        0x0b, 0xcf, 0x11, 0x1e, 0xd8, 0xd5, 0x88, 0xca,
-        0xf9, 0xab, 0x4b, 0xe7, 0x16, 0xe4, 0x2b, 0x01,
-    };
-    const uint8_t TEMP_K3[] = {
-        0x98, 0x1a, 0x46, 0xc8, 0x20, 0xfb, 0x7a, 0x24,
-        0x1b, 0xc8, 0x18, 0x4b, 0xa4, 0xbb, 0x1f, 0x01,
-        0xbc, 0xdf, 0xaf, 0xb0, 0x0d, 0xde, 0x80, 0x09,
-        0x8c, 0xb8, 0xc3, 0x8d, 0xb9, 0x14, 0x15, 0x20,
-    };
-    assert(memcmp(CK1, pBolt->ck, UCOIN_SZ_SHA256) == 0);
-    assert(memcmp(TEMP_K3, pBolt->temp_k, UCOIN_SZ_SHA256) == 0);
-
-    // decryptWithAD(
-    //      k=tmep_k3=  0x981a46c820fb7a241bc8184ba4bb1f01bcdfafb00dde80098cb8c38db9141520,
-    //      n=nonce=    0x000000000000000000000000,
-    //      ad=         0x5dcb5ea9b4ccc755e0e3456af3990641276e1d5dc9afd82f974d90a47c918660,
-    //      ciphertext= 0x8dc68b1c466263b47fdf31e560e139ba)
-    uint8_t p[UCOIN_SZ_SHA256 + crypto_aead_chacha20poly1305_IETF_ABYTES];
-    unsigned long long plen;
-
-    nonce[4] = 0x00;
-
-    const uint8_t NONCE1[] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-    };
-    const uint8_t AD1[] = {
-        0x5d, 0xcb, 0x5e, 0xa9, 0xb4, 0xcc, 0xc7, 0x55,
-        0xe0, 0xe3, 0x45, 0x6a, 0xf3, 0x99, 0x06, 0x41,
-        0x27, 0x6e, 0x1d, 0x5d, 0xc9, 0xaf, 0xd8, 0x2f,
-        0x97, 0x4d, 0x90, 0xa4, 0x7c, 0x91, 0x86, 0x60,
-    };
-    const uint8_t CIPHERTEXT1[] = {
-        0x8d, 0xc6, 0x8b, 0x1c, 0x46, 0x62, 0x63, 0xb4,
-        0x7f, 0xdf, 0x31, 0xe5, 0x60, 0xe1, 0x39, 0xba,
-    };
-    assert(memcmp(NONCE1, nonce, sizeof(NONCE1)) == 0);
-    assert(memcmp(AD1, pBolt->h, sizeof(AD1)) == 0);
-    assert(memcmp(CIPHERTEXT1, t, sizeof(CIPHERTEXT1)) == 0);
-
-    rc = crypto_aead_chacha20poly1305_ietf_decrypt(
-                    p, &plen,
-                    NULL,                       //combined modeではNULL
-                    t, sizeof(t),               //ciphertext
-                    pBolt->h, UCOIN_SZ_SHA256,  //additional data
-                    nonce, pBolt->temp_k);      //nonce, key
-    assert(rc == 0);
-    assert(plen == 0);
-    //DBG_PRINTF2("p=");
-    //DUMPBIN(p, plen);
-
-
-    // rk, sk = HKDF(ck, zero)
-    const uint8_t CK2[] = {
-        0x91, 0x92, 0x19, 0xdb, 0xb2, 0x92, 0x0a, 0xfa,
-        0x8d, 0xb8, 0x0f, 0x9a, 0x51, 0x78, 0x7a, 0x84,
-        0x0b, 0xcf, 0x11, 0x1e, 0xd8, 0xd5, 0x88, 0xca,
-        0xf9, 0xab, 0x4b, 0xe7, 0x16, 0xe4, 0x2b, 0x01,
-    };
-    assert(memcmp(CK2, pBolt->ck, sizeof(CK2)) == 0);
-
-    uint8_t rk[UCOIN_SZ_SHA256];
-    uint8_t sk[UCOIN_SZ_SHA256];
-    hkdf(okm, pBolt->ck, NULL);
-    memcpy(rk, okm, UCOIN_SZ_SHA256);
-    memcpy(sk, okm + UCOIN_SZ_SHA256, UCOIN_SZ_SHA256);
-
-    const uint8_t RK[] = {
-        0x96, 0x9a, 0xb3, 0x1b, 0x4d, 0x28, 0x8c, 0xed,
-        0xf6, 0x21, 0x88, 0x39, 0xb2, 0x7a, 0x3e, 0x21,
-        0x40, 0x82, 0x70, 0x47, 0xf2, 0xc0, 0xf0, 0x1b,
-        0xf5, 0xc0, 0x44, 0x35, 0xd4, 0x35, 0x11, 0xa9,
-    };
-    const uint8_t SK[] = {
-        0xbb, 0x90, 0x20, 0xb8, 0x96, 0x5f, 0x4d, 0xf0,
-        0x47, 0xe0, 0x7f, 0x95, 0x5f, 0x3c, 0x4b, 0x88,
-        0x41, 0x89, 0x84, 0xaa, 0xdc, 0x5c, 0xdb, 0x35,
-        0x09, 0x6b, 0x9e, 0xa8, 0xfa, 0x5c, 0x34, 0x42,
-    };
-    assert(memcmp(RK, rk, sizeof(RK)) == 0);
-    assert(memcmp(SK, sk, sizeof(SK)) == 0);
-}
-
-
-//rs.pub: 0x028d7500dd4c12685d1f568b4c2b5048e8534b873319f3a8daa612b469132ec7f7
-//ls.priv: 0x1111111111111111111111111111111111111111111111111111111111111111
-//ls.pub: 0x034f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa
-void ln_enc_auth_test_initiator(void)
-{
-    struct bolt8    a;
-
-    DBG_PRINTF2("**********************\n");
-    DBG_PRINTF2("* INITIATOR TEST     *\n");
-    DBG_PRINTF2("**********************\n");
-
-    init(&a);
-
-    //vector
-    const uint8_t LS_PRIV[] = {
-        0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-        0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-        0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-        0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-    };
-    const uint8_t LS_PUB[] = {
-        0x03, 0x4f, 0x35, 0x5b, 0xdc, 0xb7, 0xcc, 0x0a,
-        0xf7, 0x28, 0xef, 0x3c, 0xce, 0xb9, 0x61, 0x5d,
-        0x90, 0x68, 0x4b, 0xb5, 0xb2, 0xca, 0x5f, 0x85,
-        0x9a, 0xb0, 0xf0, 0xb7, 0x04, 0x07, 0x58, 0x71,
-        0xaa,
-    };
-    //const uint8_t RS_PRIV[] = {
-    //    0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21,
-    //    0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21,
-    //    0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21,
-    //    0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21,
-    //};
-    const uint8_t RS_PUB[] = {
-        0x02, 0x8d, 0x75, 0x00, 0xdd, 0x4c, 0x12, 0x68,
-        0x5d, 0x1f, 0x56, 0x8b, 0x4c, 0x2b, 0x50, 0x48,
-        0xe8, 0x53, 0x4b, 0x87, 0x33, 0x19, 0xf3, 0xa8,
-        0xda, 0xa6, 0x12, 0xb4, 0x69, 0x13, 0x2e, 0xc7,
-        0xf7,
-    };
-    memcpy(a.keys.priv, LS_PRIV, UCOIN_SZ_PRIVKEY);
-    memcpy(a.keys.pub, LS_PUB, UCOIN_SZ_PUBKEY);
-
-    //
-    // Handshake State Initialization
-    //      h = SHA-256(h || rs.pub.serializeCompressed())
-    //                       ^^^^^^
-    //
-    handshake_init(&a, RS_PUB);
-
-    //
-    // Handshake Exchange
-    //
-
-    uint8_t output[66];
-
-
-    //test vector
-    const uint8_t EPRIV[] = {
-        0x12, 0x12, 0x12, 0x12, 0x12, 0x12, 0x12, 0x12,
-        0x12, 0x12, 0x12, 0x12, 0x12, 0x12, 0x12, 0x12,
-        0x12, 0x12, 0x12, 0x12, 0x12, 0x12, 0x12, 0x12,
-        0x12, 0x12, 0x12, 0x12, 0x12, 0x12, 0x12, 0x12,
-    };
-    const uint8_t EPUB[] = {
-        0x03, 0x63, 0x60, 0xe8, 0x56, 0x31, 0x0c, 0xe5,
-        0xd2, 0x94, 0xe8, 0xbe, 0x33, 0xfc, 0x80, 0x70,
-        0x77, 0xdc, 0x56, 0xac, 0x80, 0xd9, 0x5d, 0x9c,
-        0xd4, 0xdd, 0xbd, 0x21, 0x32, 0x5e, 0xff, 0x73,
-        0xf7,
-    };
-    memcpy(a.e.priv, EPRIV, UCOIN_SZ_PRIVKEY);
-    memcpy(a.e.pub, EPUB, UCOIN_SZ_PUBKEY);
-
-
-    //Act One send
-    actone_sender(output, &a, RS_PUB);
-    //output: 0x00036360e856310ce5d294e8be33fc807077dc56ac80d95d9cd4ddbd21325eff73f70df6086551151f58b8afe6c195782c6a
-    const uint8_t OUTPUT_1S[50] = {
-        0x00, 0x03, 0x63, 0x60, 0xe8, 0x56, 0x31, 0x0c,
-        0xe5, 0xd2, 0x94, 0xe8, 0xbe, 0x33, 0xfc, 0x80,
-        0x70, 0x77, 0xdc, 0x56, 0xac, 0x80, 0xd9, 0x5d,
-        0x9c, 0xd4, 0xdd, 0xbd, 0x21, 0x32, 0x5e, 0xff,
-        0x73, 0xf7, 0x0d, 0xf6, 0x08, 0x65, 0x51, 0x15,
-        0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
-        0x2c, 0x6a,
-    };
-    assert(memcmp(OUTPUT_1S, output, sizeof(OUTPUT_1S)) == 0);
-
-
-    //Act Two Receivce and Act Three Send
-    //input: 0x0002466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276e2470b93aac583c9ef6eafca3f730ae
-    const uint8_t INPUT_2S[50] = {
-        0x00, 0x02, 0x46, 0x6d, 0x7f, 0xca, 0xe5, 0x63,
-        0xe5, 0xcb, 0x09, 0xa0, 0xd1, 0x87, 0x0b, 0xb5,
-        0x80, 0x34, 0x48, 0x04, 0x61, 0x78, 0x79, 0xa1,
-        0x49, 0x49, 0xcf, 0x22, 0x28, 0x5f, 0x1b, 0xae,
-        0x3f, 0x27, 0x6e, 0x24, 0x70, 0xb9, 0x3a, 0xac,
-        0x58, 0x3c, 0x9e, 0xf6, 0xea, 0xfc, 0xa3, 0xf7,
-        0x30, 0xae,
-    };
-    memcpy(output, INPUT_2S, sizeof(INPUT_2S));
-    acttwo_receiver(output, &a, RS_PUB);
-    //output: 0x00b9e3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa22355361aa02e55a8fc28fef5bd6d71ad0c38228dc68b1c466263b47fdf31e560e139ba
-    const uint8_t OUTPUT_2S[66] = {
-        0x00, 0xb9, 0xe3, 0xa7, 0x02, 0xe9, 0x3e, 0x3a,
-        0x99, 0x48, 0xc2, 0xed, 0x6e, 0x5f, 0xd7, 0x59,
-        0x0a, 0x6e, 0x1c, 0x3a, 0x03, 0x44, 0xcf, 0xc9,
-        0xd5, 0xb5, 0x73, 0x57, 0x04, 0x9a, 0xa2, 0x23,
-        0x55, 0x36, 0x1a, 0xa0, 0x2e, 0x55, 0xa8, 0xfc,
-        0x28, 0xfe, 0xf5, 0xbd, 0x6d, 0x71, 0xad, 0x0c,
-        0x38, 0x22, 0x8d, 0xc6, 0x8b, 0x1c, 0x46, 0x62,
-        0x63, 0xb4, 0x7f, 0xdf, 0x31, 0xe5, 0x60, 0xe1,
-        0x39, 0xba,
-    };
-    assert(memcmp(OUTPUT_2S, output, sizeof(OUTPUT_2S)) == 0);
-
-    DBG_PRINTF2("* INITIATOR TEST END *\n");
-}
-
-
-//ls.priv=2121212121212121212121212121212121212121212121212121212121212121
-//ls.pub=028d7500dd4c12685d1f568b4c2b5048e8534b873319f3a8daa612b469132ec7f7
-void ln_enc_auth_test_receiver(void)
-{
-    struct bolt8    a;
-
-    DBG_PRINTF2("**********************\n");
-    DBG_PRINTF2("* RECEIVER TEST      *\n");
-    DBG_PRINTF2("**********************\n");
-
-    init(&a);
-
-    //vector
-    const uint8_t LS_PRIV[] = {
-        0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21,
-        0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21,
-        0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21,
-        0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21,
-    };
-    const uint8_t LS_PUB[] = {
-        0x02, 0x8d, 0x75, 0x00, 0xdd, 0x4c, 0x12, 0x68,
-        0x5d, 0x1f, 0x56, 0x8b, 0x4c, 0x2b, 0x50, 0x48,
-        0xe8, 0x53, 0x4b, 0x87, 0x33, 0x19, 0xf3, 0xa8,
-        0xda, 0xa6, 0x12, 0xb4, 0x69, 0x13, 0x2e, 0xc7,
-        0xf7,
-    };
-    //const uint8_t RS_PRIV[] = {
-    //    0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-    //    0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-    //    0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-    //    0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
-    //};
-    //const uint8_t RS_PUB[] = {
-    //    0x02, 0x8d, 0x75, 0x00, 0xdd, 0x4c, 0x12, 0x68,
-    //    0x5d, 0x1f, 0x56, 0x8b, 0x4c, 0x2b, 0x50, 0x48,
-    //    0xe8, 0x53, 0x4b, 0x87, 0x33, 0x19, 0xf3, 0xa8,
-    //    0xda, 0xa6, 0x12, 0xb4, 0x69, 0x13, 0x2e, 0xc7,
-    //    0xf7,
-    //};
-    memcpy(a.keys.priv, LS_PRIV, UCOIN_SZ_PRIVKEY);
-    memcpy(a.keys.pub, LS_PUB, UCOIN_SZ_PUBKEY);
-
-    //
-    // Handshake State Initialization
-    //      h = SHA-256(h || ls.pub.serializeCompressed())
-    //                       ^^^^^^
-    //  responderは相手のnode_idがわからないので、rs_pub
-    //
-    handshake_init(&a, LS_PUB);
-
-    //
-    // Handshake Exchange
-    //
-
-    uint8_t output[66];
-
-    //test vector
-    const uint8_t EPRIV[] = {
-        0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
-        0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
-        0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
-        0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
-    };
-    const uint8_t EPUB[] = {
-        0x02, 0x46, 0x6d, 0x7f, 0xca, 0xe5, 0x63, 0xe5,
-        0xcb, 0x09, 0xa0, 0xd1, 0x87, 0x0b, 0xb5, 0x80,
-        0x34, 0x48, 0x04, 0x61, 0x78, 0x79, 0xa1, 0x49,
-        0x49, 0xcf, 0x22, 0x28, 0x5f, 0x1b, 0xae, 0x3f,
-        0x27,
-    };
-    memcpy(a.e.priv, EPRIV, UCOIN_SZ_PRIVKEY);
-    memcpy(a.e.pub, EPUB, UCOIN_SZ_PUBKEY);
-
-
-    //Act One Receive and Act Two Send
-    //input: 0x00036360e856310ce5d294e8be33fc807077dc56ac80d95d9cd4ddbd21325eff73f70df6086551151f58b8afe6c195782c6a
-    const uint8_t INPUT_1R[50] = {
-        0x00, 0x03, 0x63, 0x60, 0xe8, 0x56, 0x31, 0x0c,
-        0xe5, 0xd2, 0x94, 0xe8, 0xbe, 0x33, 0xfc, 0x80,
-        0x70, 0x77, 0xdc, 0x56, 0xac, 0x80, 0xd9, 0x5d,
-        0x9c, 0xd4, 0xdd, 0xbd, 0x21, 0x32, 0x5e, 0xff,
-        0x73, 0xf7, 0x0d, 0xf6, 0x08, 0x65, 0x51, 0x15,
-        0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
-        0x2c, 0x6a,
-    };
-    memcpy(output, INPUT_1R, sizeof(INPUT_1R));
-    actone_receiver(output, &a);
-    //output: 0x0002466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276e2470b93aac583c9ef6eafca3f730ae
-    const uint8_t OUTPUT_1R[50] = {
-        0x00, 0x02, 0x46, 0x6d, 0x7f, 0xca, 0xe5, 0x63,
-        0xe5, 0xcb, 0x09, 0xa0, 0xd1, 0x87, 0x0b, 0xb5,
-        0x80, 0x34, 0x48, 0x04, 0x61, 0x78, 0x79, 0xa1,
-        0x49, 0x49, 0xcf, 0x22, 0x28, 0x5f, 0x1b, 0xae,
-        0x3f, 0x27, 0x6e, 0x24, 0x70, 0xb9, 0x3a, 0xac,
-        0x58, 0x3c, 0x9e, 0xf6, 0xea, 0xfc, 0xa3, 0xf7,
-        0x30, 0xae,
-    };
-    assert(memcmp(OUTPUT_1R, output, sizeof(OUTPUT_1R)) == 0);
-
-
-    //Act Three Receive
-    //input: 0x00b9e3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa22355361aa02e55a8fc28fef5bd6d71ad0c38228dc68b1c466263b47fdf31e560e139ba
-    const uint8_t INPUT_3R[66] = {
-        0x00, 0xb9, 0xe3, 0xa7, 0x02, 0xe9, 0x3e, 0x3a,
-        0x99, 0x48, 0xc2, 0xed, 0x6e, 0x5f, 0xd7, 0x59,
-        0x0a, 0x6e, 0x1c, 0x3a, 0x03, 0x44, 0xcf, 0xc9,
-        0xd5, 0xb5, 0x73, 0x57, 0x04, 0x9a, 0xa2, 0x23,
-        0x55, 0x36, 0x1a, 0xa0, 0x2e, 0x55, 0xa8, 0xfc,
-        0x28, 0xfe, 0xf5, 0xbd, 0x6d, 0x71, 0xad, 0x0c,
-        0x38, 0x22, 0x8d, 0xc6, 0x8b, 0x1c, 0x46, 0x62,
-        0x63, 0xb4, 0x7f, 0xdf, 0x31, 0xe5, 0x60, 0xe1,
-        0x39, 0xba,
-    };
-    memcpy(output, INPUT_3R, sizeof(INPUT_3R));
-    actthree_receiver(output, &a);
-
-    DBG_PRINTF2("* RECEIVER TEST END  *\n");
-}
-
-int main(void)
-{
-    ucoin_init(UCOIN_TESTNET, true);
-
-    ln_enc_auth_test_initiator();
-    ln_enc_auth_test_receiver();
-
-    ucoin_term();
-}
-#endif

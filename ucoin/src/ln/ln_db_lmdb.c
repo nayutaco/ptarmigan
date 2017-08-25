@@ -25,40 +25,42 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
 #include <assert.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "ln/ln_local.h"
+#include "ln/ln_msg_anno.h"
 
+#include "ln_db.h"
 #include "ln_db_lmdb.h"
+
+
+/********************************************************************
+ * macros
+ ********************************************************************/
+
+#define M_LMDB_MAXDBS           (2 * 10)        ///< 同時オープンできるDB数
+                                                //  channel
+                                                //  channel_anno
+
+#define M_LMDB_ENV              "./dbucoin"     ///< LMDB名
+#define M_CHANNEL_NAME          "%016" PRIx64   ///< チャネル名
+#define M_DB_ANNO_CNL           "channel_anno"
+#define M_DB_ANNO_NODE          "node_anno"
 
 
 /**************************************************************************
  * typedefs
  **************************************************************************/
 
-// ln_node_tのバックアップ
-//      gapを減らそうと思って位置を移動させたが、ln_node_tと同じにしてmemcpyさせた方がよかったかも
-typedef struct {
-    uint8_t                     features;                       ///< localfeatures
-    uint8_t                     node_num;                       ///< 保持しているnodes数
-    uint8_t                     channel_num;
-    uint32_t                    timestamp[LN_NODE_MAX];
-
-    ucoin_util_keys_t           keys;                           ///< node鍵
-    char                        alias[LN_SZ_ALIAS];             ///< ノード名(\0 terminate)
-    uint8_t                     node_id[LN_NODE_MAX][UCOIN_SZ_PUBKEY];
-    char                        node_alias[LN_NODE_MAX][LN_SZ_ALIAS];
-    ucoin_keys_sort_t           sort[LN_NODE_MAX];
-    ln_node_info_t              node_info[LN_NODE_MAX];
-    ln_channel_info_t           channel_info[LN_CHANNEL_MAX];
-} backup_node_t;
-
-
 // ln_self_tのバックアップ
 typedef struct {
-    int8_t                      node_idx;                       ///<  1:接続先ノード(p_node->nodes[node_idx])
+                                                                ///<  1
                                                                 ///<  2
     uint8_t                     lfeature_remote;                ///<  3:initで取得したlocalfeature
                                                                 ///<  4
@@ -89,58 +91,64 @@ typedef struct {
 } backup_self_t;
 
 
+typedef struct {
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_cursor  *cursor;
+} lmdb_cursor_t;
+
+
+/********************************************************************
+ * static variables
+ ********************************************************************/
+
+//LMDB
+static MDB_env      *mpDbEnv = NULL;
+
+
+/********************************************************************
+ * prototypes
+ ********************************************************************/
+
+static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+
+static int load_anno_channel(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pCnlAnno, uint64_t short_channel_id);
+static int save_anno_channel(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pCnlAnno, uint64_t CnlSci);
+static bool open_anno_channel_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
+static void close_anno_channel_cursor(lmdb_cursor_t *pCur);
+//static bool search_anno_channel(lmdb_cursor_t *pCur, uint64_t short_channel_id, ucoin_buf_t *pBuf, char Type);
+
+static int load_anno_channel_upd(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir);
+static int save_anno_channel_upd(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir);
+
+static int load_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_channel_id, ln_db_channel_sinfo *p_sinfo);
+static int save_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_channel_id, ln_db_channel_sinfo *p_sinfo);
+
+static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId);
+static int save_anno_node(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId);
+static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
+
+
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-/*
- * ノード
- */
-
-bool ln_db_load_node(ln_node_t *node, MDB_txn *txn, MDB_dbi *pdbi)
+void HIDDEN ln_db_init(void)
 {
-    MDB_val     key, data;
+    //lmdbのopenは複数呼ばないでenvを共有する
+    if (mpDbEnv == NULL) {
+        int ret;
 
-    key.mv_size = 5;
-    key.mv_data = "node";
-    int retval = mdb_get(txn, *pdbi, &key, &data);
-    if (retval == 0) {
-        const backup_node_t *p_bk = (const backup_node_t *)data.mv_data;
+        ret = mdb_env_create(&mpDbEnv);
+        assert(ret == 0);
 
-        node->features = p_bk->features;
-        node->node_num = p_bk->node_num;
-        node->channel_num = p_bk->channel_num;
-        node->keys = p_bk->keys;
-        strcpy(node->alias, p_bk->alias);
-        memcpy(node->node_info, p_bk->node_info, sizeof(ln_node_info_t) * LN_NODE_MAX);
-        memcpy(node->channel_info, p_bk->channel_info, sizeof(ln_channel_info_t) * LN_CHANNEL_MAX);
+        ret = mdb_env_set_maxdbs(mpDbEnv, M_LMDB_MAXDBS);
+        assert(ret == 0);
+
+        mkdir(M_LMDB_ENV, 0755);
+        ret = mdb_env_open(mpDbEnv, M_LMDB_ENV, MDB_FIXEDMAP, 0664);
+        assert(ret == 0);
     }
-
-    return retval == 0;
-}
-
-
-bool ln_db_save_node(const ln_node_t *node, MDB_txn *txn, MDB_dbi *pdbi)
-{
-    MDB_val     key, data;
-    backup_node_t bk;
-
-    memset(&bk, 0, sizeof(bk));
-    bk.features = node->features;
-    bk.node_num = node->node_num;
-    bk.channel_num = node->channel_num;
-    bk.keys = node->keys;
-    strcpy(bk.alias, node->alias);
-    memcpy(bk.node_info, node->node_info, sizeof(ln_node_info_t) * LN_NODE_MAX);
-    memcpy(bk.channel_info, node->channel_info, sizeof(ln_channel_info_t) * LN_CHANNEL_MAX);
-
-    key.mv_size = 5;
-    key.mv_data = "node";
-    data.mv_size = sizeof(bk);
-    data.mv_data = &bk;
-    int retval = mdb_put(txn, *pdbi, &key, &data, 0);
-
-    return retval == 0;
 }
 
 
@@ -148,7 +156,42 @@ bool ln_db_save_node(const ln_node_t *node, MDB_txn *txn, MDB_dbi *pdbi)
  * チャネル
  */
 
-bool ln_db_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
+bool ln_db_load_channel(ln_self_t *self, uint64_t short_channel_id)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    char        cnl_name[17];
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        assert(retval == 0);
+    }
+
+    sprintf(cnl_name, M_CHANNEL_NAME, short_channel_id);
+    retval = mdb_dbi_open(txn, cnl_name, 0, &dbi);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        assert(retval == 0);
+        mdb_txn_abort(txn);
+    }
+
+
+    retval = ln_lmdb_load_channel(self, txn, &dbi);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        assert(retval == 0);
+    }
+
+    //mdb_dbi_close(mpDbEnv, dbi);
+    mdb_txn_abort(txn);
+
+    return retval == 0;
+}
+
+
+int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 {
     MDB_val     key, data;
 
@@ -161,7 +204,6 @@ bool ln_db_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         //リストア
         const backup_self_t *p_bk = (const backup_self_t *)data.mv_data;
 
-        self->node_idx = p_bk->node_idx;       //1
         self->lfeature_remote = p_bk->lfeature_remote;     //3
         self->storage_index = p_bk->storage_index;     //5
         memcpy(self->storage_seed, p_bk->storage_seed, UCOIN_SZ_PRIVKEY);      //6
@@ -224,11 +266,515 @@ bool ln_db_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         ucoin_tx_read(&self->tx_funding, data.mv_data + pos, len);
     }
 
+    return retval;
+}
+
+
+bool ln_db_save_channel(const ln_self_t *self)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    char        cnl_name[17];
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return false;
+    }
+    sprintf(cnl_name, M_CHANNEL_NAME, ln_short_channel_id(self));
+    retval = mdb_dbi_open(txn, cnl_name, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(txn);
+        return false;
+    }
+
+    retval = save_channel(self, txn, &dbi);
+
+    //mdb_dbi_close(mpDbEnv, dbi);
+    mdb_txn_commit(txn);
+
     return retval == 0;
 }
 
 
-bool ln_db_save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
+bool ln_db_del_channel(const ln_self_t *self)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi_anno;
+    MDB_dbi     dbi_cnl;
+    MDB_cursor  *cursor;
+    MDB_val     key, data;
+    char        cnl_name[17];
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        assert(retval == 0);
+    }
+
+    //announcement削除
+    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, MDB_CREATE, &dbi_anno);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(txn);
+        return retval;
+    }
+    retval = mdb_cursor_open(txn, dbi_anno, &cursor);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+
+    while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+        if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
+            uint64_t load_sci;
+            memcpy(&load_sci, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
+            DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", load_sci);
+            if (load_sci == ln_short_channel_id(self)) {
+                retval = mdb_del(txn, dbi_anno, &key, NULL);
+                DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+                assert(retval == 0);
+            }
+        }
+    }
+    assert(retval == MDB_NOTFOUND);
+    retval = 0;
+    mdb_cursor_close(cursor);
+
+
+    //channel削除
+    sprintf(cnl_name, M_CHANNEL_NAME, ln_short_channel_id(self));
+    retval = mdb_dbi_open(txn, cnl_name, MDB_CREATE, &dbi_cnl);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        assert(retval == 0);
+        mdb_txn_abort(txn);
+    }
+    retval = mdb_drop(txn, dbi_cnl, 1);
+
+    mdb_txn_commit(txn);
+
+    return retval == 0;
+}
+
+
+/********************************************************************
+ * channel_announcement / channel_update
+ ********************************************************************/
+
+bool ln_db_load_anno_channel(ucoin_buf_t *pCnlAnno, uint64_t short_channel_id)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return false;
+    }
+    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(txn);
+        return false;
+    }
+
+    retval = load_anno_channel(txn, &dbi, pCnlAnno, short_channel_id);
+
+    //mdb_dbi_close(mpDbEnv, dbi);
+    mdb_txn_abort(txn);
+
+    return retval == 0;
+}
+
+
+bool ln_db_save_anno_channel(const ucoin_buf_t *pCnlAnno, uint64_t CnlSci, const uint8_t *pNodeId)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return false;
+    }
+    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(txn);
+        return false;
+    }
+
+    ln_db_channel_sinfo sinfo;
+    retval = load_anno_channel_sinfo(txn, &dbi, CnlSci, &sinfo);
+    if (retval == 0) {
+        //既存あり
+        ucoin_buf_t buf_ann;
+
+        ucoin_buf_init(&buf_ann);
+        retval = load_anno_channel(txn, &dbi, &buf_ann, CnlSci);
+        if (retval == 0) {
+            if (ucoin_buf_cmp(&buf_ann, pCnlAnno)) {
+                DBG_PRINTF("same channel_announcement\n");
+            } else {
+                DBG_PRINTF("err: channel_announcement mismatch !\n");
+                assert(0);
+                retval = -1;
+            }
+        }
+    } else {
+        //新規
+        retval = save_anno_channel(txn, &dbi, pCnlAnno, CnlSci);
+        if (retval == 0) {
+            sinfo.channel_anno = (uint32_t)time(NULL);
+            sinfo.channel_upd[0] = 0;
+            sinfo.channel_upd[1] = 0;
+            memcpy(sinfo.send_nodeid, pNodeId, UCOIN_SZ_PUBKEY);
+            retval = save_anno_channel_sinfo(txn, &dbi, CnlSci, &sinfo);
+        }
+    }
+
+    //mdb_dbi_close(mpDbEnv, dbi);
+    mdb_txn_commit(txn);
+
+    return retval == 0;
+}
+
+
+bool ln_db_load_anno_channel_upd(ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return false;
+    }
+    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(txn);
+        return false;
+    }
+
+    retval = load_anno_channel_upd(txn, &dbi, pCnlUpd, short_channel_id, Dir);
+
+    //mdb_dbi_close(mpDbEnv, dbi);
+    mdb_txn_abort(txn);
+
+    return retval == 0;
+}
+
+
+bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return false;
+    }
+    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(txn);
+        return false;
+    }
+
+    ln_db_channel_sinfo sinfo;
+    retval = load_anno_channel_sinfo(txn, &dbi, short_channel_id, &sinfo);
+    if (retval == 0) {
+        if (sinfo.channel_upd[Dir] != 0) {
+            //既存
+            ucoin_buf_t buf_upd;
+
+            ucoin_buf_init(&buf_upd);
+            retval = load_anno_channel_upd(txn, &dbi, &buf_upd, short_channel_id, Dir);
+            if (retval == 0) {
+                if (ucoin_buf_cmp(&buf_upd, pCnlUpd)) {
+                    DBG_PRINTF("same channel_update: %d\n", Dir);
+                } else {
+                    DBG_PRINTF("err: channel_update %d mismatch !\n", Dir);
+                    assert(0);
+                    retval = -1;
+                }
+            }
+        } else {
+            //新規
+            retval = save_anno_channel_upd(txn, &dbi, pCnlUpd, short_channel_id, Dir);
+            if (retval == 0) {
+                //受信した時刻と最後にannouncementを送信した時刻を比較する
+                sinfo.channel_upd[Dir] = (uint32_t)time(NULL);
+                retval = save_anno_channel_sinfo(txn, &dbi, short_channel_id, &sinfo);
+            }
+        }
+    } else {
+        //channel_updateはchannel_announcementの後で配信される
+        DBG_PRINTF("err: no channel_announcement\n");
+        assert(0);
+    }
+
+
+    retval = save_anno_channel_upd(txn, &dbi, pCnlUpd, short_channel_id, Dir);
+    if (retval == 0) {
+        //sinfo更新
+    }
+
+    //mdb_dbi_close(mpDbEnv, dbi);
+    mdb_txn_commit(txn);
+
+    return retval == 0;
+}
+
+
+uint64_t ln_db_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2)
+{
+    bool ret;
+    int retval;
+    lmdb_cursor_t cur;
+    MDB_val key, data;
+    uint64_t short_channel_id = 0;
+
+    ret = open_anno_channel_cursor(&cur, MDB_RDONLY);
+    if (!ret) {
+        DBG_PRINTF("err: cursor open\n");
+        return 0;
+    }
+
+    while ((retval = mdb_cursor_get(cur.cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
+        if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
+            if (*(char *)(key.mv_data + LN_SZ_SHORT_CHANNEL_ID) == LN_DB_CNLANNO_ANNO) {
+                ln_cnl_announce_read_t ann;
+
+                ret = ln_msg_cnl_announce_read(&ann, data.mv_data, data.mv_size);
+                if (ret && (
+                            (memcmp(ann.node_id1, pNodeId1, UCOIN_SZ_PUBKEY) == 0) &&
+                            (memcmp(ann.node_id2, pNodeId2, UCOIN_SZ_PUBKEY) == 0)
+                           ) ) {
+                    memcpy(&short_channel_id, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
+                    break;
+                }
+            }
+        }
+    }
+
+    close_anno_channel_cursor(&cur);
+    return short_channel_id;
+}
+
+
+bool ln_db_cursor_anno_channel_open(void **ppCur)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)malloc(sizeof(lmdb_cursor_t));
+
+    bool ret = open_anno_channel_cursor(p_cur, 0);
+    if (ret) {
+        *ppCur = p_cur;
+    } else {
+        DBG_PRINTF("err: cursor open\n");
+        free(p_cur);
+        *ppCur = NULL;
+    }
+
+    return ret;
+}
+
+
+void ln_db_cursor_anno_channel_close(void *pCur)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+
+    mdb_cursor_close(p_cur->cursor);
+    mdb_txn_commit(p_cur->txn);
+    free(p_cur);
+}
+
+
+bool ln_db_cursor_anno_channel_get(void *pCur, uint64_t *p_short_channel_id, char *p_type, ucoin_buf_t *pBuf)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+
+    int retval = ln_lmdb_load_anno_channel_cursor(p_cur->cursor, p_short_channel_id, p_type, pBuf);
+
+    return retval == 0;
+}
+
+
+int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *p_short_channel_id, char *p_type, ucoin_buf_t *pBuf)
+{
+    MDB_val key, data;
+
+    int retval = mdb_cursor_get(cur, &key, &data, MDB_NEXT_NODUP);
+    if (retval == 0) {
+        if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
+            memcpy(p_short_channel_id, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
+            *p_type = *(char *)(key.mv_data + LN_SZ_SHORT_CHANNEL_ID);
+            switch (*p_type) {
+            case LN_DB_CNLANNO_SINFO:   //sendinfo
+            case LN_DB_CNLANNO_ANNO:    //channel_announcement
+            case LN_DB_CNLANNO_UPD1:    //channel_update(node_1)
+            case LN_DB_CNLANNO_UPD2:    //channel_update(node_2)
+                ucoin_buf_alloccopy(pBuf, data.mv_data, data.mv_size);
+                break;
+            default:
+                DBG_PRINTF("fail: unknown name: %c\n", *p_type);
+                retval = -1;
+            }
+        } else {
+            DBG_PRINTF("fail: invalid key length: %d\n", (int)key.mv_size);
+            DUMPBIN(key.mv_data, key.mv_size);
+            retval = -1;
+        }
+    } else {
+        if (retval != MDB_NOTFOUND) {
+            DBG_PRINTF("fail: mdb_cursor_get(): %s\n", mdb_strerror(retval));
+        }
+    }
+
+    return retval;
+}
+
+
+/********************************************************************
+ * node_announcement
+ ********************************************************************/
+
+bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return false;
+    }
+    retval = mdb_dbi_open(txn, M_DB_ANNO_NODE, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(txn);
+        return false;
+    }
+
+    retval = load_anno_node(txn, &dbi, pNodeAnno, pTimeStamp, pSendId, pNodeId);
+
+    //mdb_dbi_close(mpDbEnv, dbi);
+    mdb_txn_abort(txn);
+
+    return retval == 0;
+}
+
+
+bool ln_db_save_anno_node(const ucoin_buf_t *pNodeAnno, const uint8_t *pSendId, const uint8_t *pNodeId)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return false;
+    }
+    retval = mdb_dbi_open(txn, M_DB_ANNO_NODE, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(txn);
+        return false;
+    }
+
+    uint32_t now = (uint32_t)time(NULL);
+    retval = save_anno_node(txn, &dbi, pNodeAnno, now, pSendId, pNodeId);
+
+    //mdb_dbi_close(mpDbEnv, dbi);
+    mdb_txn_commit(txn);
+
+    return retval == 0;
+}
+
+
+bool ln_db_cursor_anno_node_open(void **ppCur)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)malloc(sizeof(lmdb_cursor_t));
+
+    bool ret = open_anno_node_cursor(p_cur, 0);
+    if (ret) {
+        *ppCur = p_cur;
+    } else {
+        DBG_PRINTF("err: cursor open\n");
+        free(p_cur);
+        *ppCur = NULL;
+    }
+
+    return ret;
+}
+
+
+void ln_db_cursor_anno_node_close(void *pCur)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+
+    mdb_cursor_close(p_cur->cursor);
+    mdb_txn_commit(p_cur->txn);
+    free(p_cur);
+}
+
+
+bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+
+    int retval = ln_lmdb_load_anno_node_cursor(p_cur->cursor, pBuf, pTimeStamp, pSendId, pNodeId);
+
+    return retval == 0;
+}
+
+
+int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId)
+{
+    MDB_val key, data;
+
+    int retval = mdb_cursor_get(cur, &key, &data, MDB_NEXT_NODUP);
+    if (retval == 0) {
+        if (pNodeId) {
+            memcpy(pNodeId, key.mv_data, key.mv_size);
+        }
+        memcpy(pTimeStamp, data.mv_data, sizeof(uint32_t));
+        memcpy(pSendId, (uint8_t *)data.mv_data + sizeof(uint32_t), UCOIN_SZ_PUBKEY);
+        ucoin_buf_alloccopy(pBuf, data.mv_data + sizeof(uint32_t) + UCOIN_SZ_PUBKEY,
+                                data.mv_size - sizeof(uint32_t) - UCOIN_SZ_PUBKEY);
+    } else {
+        if (retval != MDB_NOTFOUND) {
+            DBG_PRINTF("fail: mdb_cursor_get(): %d\n", retval);
+        }
+    }
+
+    return retval;
+}
+
+/********************************************************************
+ * private functions
+ ********************************************************************/
+
+/** channel情報書き込み
+ *
+ * @param[in]       self
+ * @param[in,out]   txn
+ * @param[in,out]   pdbi
+ * @retval      true    成功
+ */
+static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 {
     MDB_val key, data;
 
@@ -236,7 +782,6 @@ bool ln_db_save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     backup_self_t bk;
 
     memset(&bk, 0, sizeof(bk));
-    bk.node_idx = self->node_idx;       //1
     bk.lfeature_remote = self->lfeature_remote;     //3
     bk.storage_index = self->storage_index;     //5
     memcpy(bk.storage_seed, self->storage_seed, UCOIN_SZ_PRIVKEY);      //6
@@ -310,7 +855,315 @@ bool ln_db_save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 
         ucoin_buf_free(&buf_bk);
     }
+    if (retval != 0) {
+        DBG_PRINTF("retval=%d\n", retval);
+    }
 
-    return retval == 0;
+    return retval;
 }
 
+
+/** channel_announcement読込み
+ *
+ * @param[in]       txn
+ * @param[in]       pdbi
+ * @param[out]      pCnlAnno
+ * @param[in]       short_channel_id
+ * @retval      true    成功
+ */
+static int load_anno_channel(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pCnlAnno, uint64_t short_channel_id)
+{
+    DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", short_channel_id);
+
+    MDB_val key, data;
+    uint8_t keydata[sizeof(short_channel_id) + 1];
+
+    memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_ANNO;
+    key.mv_size = sizeof(keydata);
+    key.mv_data = keydata;
+    int retval = mdb_get(txn, *pdbi, &key, &data);
+    if (retval == 0) {
+        ucoin_buf_alloccopy(pCnlAnno, data.mv_data, data.mv_size);
+    } else {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    return retval;
+}
+
+
+/** channel_announcement書込み
+ *
+ * @param[in]       txn
+ * @param[in]       pdbi
+ * @param[in]       pCnlAnno
+ * @param[in]       short_channel_id
+ * @retval      true    成功
+ */
+static int save_anno_channel(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pCnlAnno, uint64_t short_channel_id)
+{
+    DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", short_channel_id);
+
+    MDB_val key, data;
+    uint8_t keydata[sizeof(short_channel_id) + 1];
+
+    memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_ANNO;
+    key.mv_size = sizeof(keydata);
+    key.mv_data = keydata;
+    data.mv_size = pCnlAnno->len;
+    data.mv_data = pCnlAnno->buf;
+    int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+
+    return retval;
+}
+
+
+/** lmdb cursorオープン(channel_announcement系)
+ *
+ */
+static bool open_anno_channel_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
+{
+    int retval;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, DbFlags, &pCur->txn);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        assert(retval == 0);
+    }
+
+    retval = mdb_dbi_open(pCur->txn, M_DB_ANNO_CNL, 0, &pCur->dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(pCur->txn);
+        return false;
+    }
+
+    retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(pCur->txn);
+        assert(retval == 0);
+    }
+
+    return true;
+}
+
+
+/** lmdb cursorクローズ(channel_announcement系)
+ *
+ */
+static void close_anno_channel_cursor(lmdb_cursor_t *pCur)
+{
+    mdb_cursor_close(pCur->cursor);
+    mdb_close(mpDbEnv, pCur->dbi);
+    mdb_txn_abort(pCur->txn);
+}
+
+
+#if 0
+/** lmdb channel_announcement系検索
+ *
+ */
+static bool search_anno_channel(lmdb_cursor_t *pCur, uint64_t short_channel_id, ucoin_buf_t *pBuf, char Type)
+{
+    int retval;
+    MDB_val key, data;
+
+    ucoin_buf_init(pBuf);
+    while ((retval = mdb_cursor_get(pCur->cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
+        if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
+            uint64_t load_sci;
+            memcpy(&load_sci, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
+            if ((load_sci == short_channel_id) && (*(char *)(key.mv_data + LN_SZ_SHORT_CHANNEL_ID) == Type)) {
+                ucoin_buf_alloccopy(pBuf, data.mv_data, data.mv_size);
+                break;
+            }
+        }
+    }
+
+    return pBuf->len != 0;
+}
+#endif
+
+
+/** channel_update読込み
+ *
+ * @param[in]       txn
+ * @param[in]       pdbi
+ * @param[out]      pCnlAnno
+ * @param[in]       short_channel_id
+ * @param[in]       Dir                 0:node_1, 1:node_2
+ * @retval      true    成功
+ */
+static int load_anno_channel_upd(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir)
+{
+    DBG_PRINTF("short_channel_id=%016" PRIx64 ", dir=%d\n", short_channel_id, Dir);
+
+    MDB_val key, data;
+    uint8_t keydata[sizeof(short_channel_id) + 1];
+
+    memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
+    keydata[sizeof(short_channel_id)] = (Dir) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1;
+    key.mv_size = sizeof(keydata);
+    key.mv_data = keydata;
+    int retval = mdb_get(txn, *pdbi, &key, &data);
+    if (retval == 0) {
+        ucoin_buf_alloccopy(pCnlUpd, data.mv_data, data.mv_size);
+    } else {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    return retval;
+}
+
+
+/** channel_update書込み
+ *
+ * @param[in]       txn
+ * @param[in]       pdbi
+ * @param[in]       pCnlAnno
+ * @param[in]       short_channel_id
+ * @param[in]       Dir                 0:node_1, 1:node_2
+ * @retval      true    成功
+ */
+static int save_anno_channel_upd(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir)
+{
+    DBG_PRINTF("short_channel_id=%016" PRIx64 ", dir=%d\n", short_channel_id, Dir);
+
+    MDB_val key, data;
+    uint8_t keydata[sizeof(short_channel_id) + 1];
+
+    memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
+    keydata[sizeof(short_channel_id)] = (Dir) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1;
+    key.mv_size = sizeof(keydata);
+    key.mv_data = keydata;
+    data.mv_size = pCnlUpd->len;
+    data.mv_data = pCnlUpd->buf;
+    int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+
+    return retval;
+}
+
+
+static int load_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_channel_id, ln_db_channel_sinfo *p_sinfo)
+{
+    MDB_val key, data;
+    uint8_t keydata[sizeof(short_channel_id) + 1];
+
+    memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_SINFO;
+    key.mv_size = sizeof(keydata);
+    key.mv_data = keydata;
+    int retval = mdb_get(txn, *pdbi, &key, &data);
+    if (retval == 0) {
+        memcpy(p_sinfo, data.mv_data, data.mv_size);
+        DBG_PRINTF("sinfo: channel_announcement : %" PRIu32 "\n", p_sinfo->channel_anno);
+        DBG_PRINTF("sinfo: channel_update(1)    : %" PRIu32 "\n", p_sinfo->channel_upd[0]);
+        DBG_PRINTF("sinfo: channel_update(2)    : %" PRIu32 "\n", p_sinfo->channel_upd[1]);
+        DBG_PRINTF("sinfo: send_nodeid : ");
+        DUMPBIN(p_sinfo->send_nodeid, UCOIN_SZ_PUBKEY);
+    }
+
+    return retval;
+}
+
+
+static int save_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_channel_id, ln_db_channel_sinfo *p_sinfo)
+{
+    MDB_val key, data;
+    uint8_t keydata[sizeof(short_channel_id) + 1];
+
+    memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_SINFO;
+    key.mv_size = sizeof(keydata);
+    key.mv_data = keydata;
+    data.mv_size = sizeof(ln_db_channel_sinfo);
+    data.mv_data = p_sinfo;
+    int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+
+    return retval;
+}
+
+
+static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId)
+{
+    MDB_val key, data;
+
+    key.mv_size = UCOIN_SZ_PUBKEY;
+    key.mv_data = (CONST_CAST uint8_t *)pNodeId;
+    int retval = mdb_get(txn, *pdbi, &key, &data);
+    if (retval == 0) {
+        if (pNodeAnno != NULL) {
+            if (pTimeStamp != NULL) {
+                *pTimeStamp = *(uint32_t *)data.mv_data;
+            }
+            if (pSendId != NULL) {
+                memcpy(pSendId, (uint8_t *)data.mv_data + sizeof(uint32_t), UCOIN_SZ_PUBKEY);
+            }
+            ucoin_buf_alloccopy(pNodeAnno, (uint8_t *)data.mv_data + sizeof(uint32_t) + UCOIN_SZ_PUBKEY, data.mv_size - sizeof(uint32_t) - UCOIN_SZ_PUBKEY);
+        }
+    } else {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    return retval;
+}
+
+
+static int save_anno_node(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId)
+{
+    MDB_val key, data;
+    ucoin_buf_t buf;
+
+    ucoin_buf_alloc(&buf, sizeof(uint32_t) + UCOIN_SZ_PUBKEY + pNodeAnno->len);
+    memcpy(buf.buf, &TimeStamp, sizeof(uint32_t));
+    memcpy(buf.buf + sizeof(uint32_t), pSendId, UCOIN_SZ_PUBKEY);
+    memcpy(buf.buf + sizeof(uint32_t) + UCOIN_SZ_PUBKEY, pNodeAnno->buf, pNodeAnno->len);
+
+    key.mv_size = UCOIN_SZ_PUBKEY;
+    key.mv_data = (CONST_CAST uint8_t *)pNodeId;
+    data.mv_size = buf.len;
+    data.mv_data = buf.buf;
+    int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+    ucoin_buf_free(&buf);
+
+    return retval;
+}
+
+
+
+
+/** lmdb cursorオープン(node_announcement系)
+ *
+ */
+static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
+{
+    int retval;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, DbFlags, &pCur->txn);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        assert(retval == 0);
+    }
+
+    retval = mdb_dbi_open(pCur->txn, M_DB_ANNO_NODE, 0, &pCur->dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(pCur->txn);
+        return false;
+    }
+
+    retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
+    if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(pCur->txn);
+        assert(retval == 0);
+    }
+
+    return true;
+}

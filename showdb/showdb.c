@@ -35,16 +35,33 @@
 
 #define UCOIN_USE_PRINTFUNC
 #include "ucoind.h"
+#include "ln_db.h"
 #include "ln_db_lmdb.h"
 
 
 #define M_LMDB_ENV              "./dbucoin"
 
+#define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
+#define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
+#define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
+#define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
+
+
+
+void ln_print_announce(const uint8_t *pData, uint16_t Len);
+
+
 static MDB_env      *mpDbEnv = NULL;
-static uint8_t my_node_id[UCOIN_SZ_PUBKEY];
-static char my_alias[LN_SZ_ALIAS];
-static uint8_t node_ids[LN_NODE_MAX][UCOIN_SZ_PUBKEY];
-static char alias[LN_NODE_MAX][LN_SZ_ALIAS];
+
+#define SHOW_SELF               0x01
+#define SHOW_WALLET             0x02
+#define SHOW_CNLANNO            0x04
+#define SHOW_CNLANNO_SCI        0x08
+#define SHOW_NODEANNO           0x10
+#define SHOW_NODEANNO_NODE      0x20
+
+#define SHOW_DEFAULT        (SHOW_SELF)
+static uint8_t      showflag = SHOW_DEFAULT;
 
 
 static void dumpbin(const uint8_t *pData, uint16_t Len)
@@ -59,14 +76,10 @@ static void dumpbin(const uint8_t *pData, uint16_t Len)
 static void print_wallet(const ln_self_t *self)
 {
     printf("===========================\n");
-    printf("my node_id(%s): ", my_alias);
-    dumpbin(my_node_id, UCOIN_SZ_PUBKEY);
-    printf("peer node_id(%s): ", alias[self->node_idx]);
-    dumpbin(node_ids[self->node_idx], UCOIN_SZ_PUBKEY);
-    printf("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
-    printf("===========================\n");
-    printf("our_msat  = %16" PRIu64 "\n", self->our_msat);
-    printf("their_msat= %16" PRIu64 "\n", self->their_msat);
+    printf("short_channel_id= %016" PRIx64 "\n", self->short_channel_id);
+    printf("----------------\n");
+    printf("our_msat  = %-10" PRIu64 "\n", self->our_msat);
+    printf("their_msat= %-10" PRIu64 "\n", self->their_msat);
     printf("channel_id= ");
     dumpbin(self->channel_id, LN_SZ_CHANNEL_ID);
     printf("htlc_num= %d\n", self->htlc_num);
@@ -74,8 +87,10 @@ static void print_wallet(const ln_self_t *self)
 }
 
 
+
+
 /* Dump in BDB-compatible format */
-static int dumpit(MDB_txn *txn, MDB_dbi dbi, const char *name, bool full)
+static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
 {
     MDB_stat ms;
     MDB_envinfo info;
@@ -87,6 +102,8 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const char *name, bool full)
         return rc;
     }
 
+    const char *name = (const char *)p_key->mv_data;
+
     rc = mdb_stat(txn, dbi, &ms);
     if (rc) {
         return rc;
@@ -97,48 +114,139 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const char *name, bool full)
         return rc;
     }
 
-    bool channel;
-    if (name) {
-        channel = (memcmp(name, "cnl_", 4) == 0);
-        if (full) {
-            printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
-            printf("database: [%s]\n", name);
-            printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\n");
-        }
+    int dbtype = -1;
+    //printf("[[%s]](%d)\n", name, p_key->mv_size);
+    if (strcmp(name, "channel_anno") == 0) {
+        //channel_announcement
+        dbtype = 1;
+    } else if (strcmp(name, "node_anno") == 0) {
+        //node_announcement
+        dbtype = 2;
+    } else if (p_key->mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
+        //channel
+        dbtype = 0;
     } else {
-        channel = false;
+        //
     }
 
-    if (channel) {
+    ln_self_t self;
+    switch (dbtype) {
+    case 0:
         //self
-        ln_self_t self;
         memset(&self, 0, sizeof(self));
 
-        ln_db_load_channel(&self, txn, &dbi);
-        if (full) {
+        ln_lmdb_load_channel(&self, txn, &dbi);
+        if (showflag & SHOW_SELF) {
             ln_print_self(&self);
-        } else {
+        }
+        if (showflag & SHOW_WALLET) {
             print_wallet(&self);
         }
         ln_term(&self);
-    } else {
-        //node
-        ln_node_t node;
-        memset(&node, 0, sizeof(node));
+        break;
 
-        ln_db_load_node(&node, txn, &dbi);
+    case 1:
+        if (showflag & SHOW_CNLANNO) {
+            printf("channel announcement list\n");
 
-        if (full) {
-            ln_print_node(&node);
+            MDB_dbi     dbi;
+            MDB_cursor  *cursor;
+
+            //ここでdbi, txnを使ってcursorを取得
+            int retval = mdb_dbi_open(txn, name, 0, &dbi);
+            assert(retval == 0);
+            retval = mdb_cursor_open(txn, dbi, &cursor);
+            assert(retval == 0);
+            int ret;
+
+            do {
+                uint64_t short_channel_id;
+                char type;
+                ucoin_buf_t buf;
+
+                ucoin_buf_init(&buf);
+                ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
+                if (ret == 0) {
+                    switch (type) {
+                    case LN_DB_CNLANNO_SINFO:
+                        printf("----------------------------------\n");
+                        printf("[[channel send info]]");
+                        break;
+                    case LN_DB_CNLANNO_ANNO:
+                        printf("[[channel_announcement]]");
+                        break;
+                    case LN_DB_CNLANNO_UPD1:
+                        printf("[[channel_update node1]]");
+                        break;
+                    case LN_DB_CNLANNO_UPD2:
+                        printf("[[channel_update node2]]");
+                        break;
+                    default:
+                        assert(0);
+                    }
+                    printf("  short_channel_id=%016" PRIx64 "\n", short_channel_id);
+                    if (type != LN_DB_CNLANNO_SINFO) {
+                        if (!(showflag & SHOW_CNLANNO_SCI)) {
+                            ln_print_announce(buf.buf, buf.len);
+                        }
+                    } else {
+                        ln_db_channel_sinfo *p_sinfo = (ln_db_channel_sinfo *)buf.buf;
+                        if (!(showflag & SHOW_CNLANNO_SCI)) {
+                            printf("    sinfo: channel_announcement : %" PRIu32 "\n", p_sinfo->channel_anno);
+                            printf("    sinfo: channel_update(1)    : %" PRIu32 "\n", p_sinfo->channel_upd[0]);
+                            printf("    sinfo: channel_update(2)    : %" PRIu32 "\n", p_sinfo->channel_upd[1]);
+                        }
+                        printf("    sinfo: send_nodeid: ");
+                        dumpbin(p_sinfo->send_nodeid, UCOIN_SZ_PUBKEY);
+                    }
+                } else {
+                    //printf("end of announce\n");
+                }
+            } while (ret == 0);
+            mdb_cursor_close(cursor);
+            mdb_close(mpDbEnv, dbi);
         }
-        memcpy(my_node_id, node.keys.pub, UCOIN_SZ_PUBKEY);
-        strcpy(my_alias, node.alias);
-        //dumpbin(my_node_id, UCOIN_SZ_PUBKEY);
-        for (int lp = 0; lp < LN_NODE_MAX; lp++) {
-            memcpy(node_ids[lp], node.node_info[lp].node_id, UCOIN_SZ_PUBKEY);
-            strcpy(alias[lp], node.node_info[lp].alias);
+        break;
+    case 2:
+        if (showflag & SHOW_NODEANNO) {
+            printf("node announcement list\n");
+            printf("----------------------------------\n");
+
+            MDB_dbi     dbi;
+            MDB_cursor  *cursor;
+
+            //ここでdbi, txnを使ってcursorを取得
+            int retval = mdb_dbi_open(txn, name, 0, &dbi);
+            assert(retval == 0);
+            retval = mdb_cursor_open(txn, dbi, &cursor);
+            assert(retval == 0);
+            int ret;
+
+            do {
+                ucoin_buf_t buf;
+                uint32_t timestamp;
+                uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
+                uint8_t nodeid[UCOIN_SZ_PUBKEY];
+
+                ucoin_buf_init(&buf);
+                ret = ln_lmdb_load_anno_node_cursor(cursor, &buf, &timestamp, send_nodeid, nodeid);
+                if (ret == 0) {
+                    if (!(showflag & SHOW_NODEANNO_NODE)) {
+                        ln_print_announce(buf.buf, buf.len);
+                    } else {
+                        printf("[%lu]", (unsigned long)timestamp);
+                        dumpbin(nodeid, UCOIN_SZ_PUBKEY);
+                    }
+                } else {
+                    //printf("end of announce\n");
+                }
+            } while (ret == 0);
+            mdb_cursor_close(cursor);
+            mdb_close(mpDbEnv, dbi);
         }
-        ln_node_term(&node);
+        break;
+    default:
+        printf("dbtype=%d\n", dbtype);
     }
 
     return 0;
@@ -152,19 +260,42 @@ int main(int argc, char *argv[])
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
-    bool full;
+    char        dbpath[50];
 
-    if (argc == 2) {
-        full = false;
-    } else {
-        full = true;
+    strcpy(dbpath, M_LMDB_ENV);
+
+    if (argc >= 2) {
+        switch (argv[1][0]) {
+        case '0':
+            showflag = SHOW_SELF;
+            break;
+        case '1':
+            showflag = SHOW_WALLET;
+            break;
+        case '2':
+            showflag = SHOW_CNLANNO;
+            break;
+        case '3':
+            showflag = SHOW_CNLANNO | SHOW_CNLANNO_SCI;
+            break;
+        case '4':
+            showflag = SHOW_NODEANNO;
+            break;
+        case '5':
+            showflag = SHOW_NODEANNO | SHOW_NODEANNO_NODE;
+            break;
+        }
+
+        if (argc >= 3) {
+            strcpy(dbpath, argv[2]);
+        }
     }
 
     ret = mdb_env_create(&mpDbEnv);
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(mpDbEnv, 2);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbEnv, M_LMDB_ENV, MDB_RDONLY, 0664);
+    ret = mdb_env_open(mpDbEnv, dbpath, MDB_RDONLY, 0664);
     assert(ret == 0);
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
@@ -181,13 +312,14 @@ int main(int argc, char *argv[])
         if (memchr(key.mv_data, '\0', key.mv_size)) {
             continue;
         }
+        //printf("[%s]\n", (char *)key.mv_data);
         ret = mdb_open(txn, key.mv_data, 0, &db2);
         if (ret == 0) {
             if (list) {
-                printf("[%s]\n", (const char *)key.mv_data);
+                //printf("[%s]\n", (const char *)key.mv_data);
                 list++;
             } else {
-                ret = dumpit(txn, db2, key.mv_data, full);
+                ret = dumpit(txn, db2, &key);
                 if (ret) {
                     break;
                 }

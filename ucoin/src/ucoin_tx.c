@@ -670,6 +670,9 @@ LABEL_EXIT:
     mbedtls_mpi_free( &r );
     mbedtls_mpi_free( &s );
 
+    if (ret) {
+        DBG_PRINTF("fail\n");
+    }
     return ret == 0;
 }
 

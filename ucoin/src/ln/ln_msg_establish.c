@@ -47,22 +47,6 @@
  * const variables
  ********************************************************************/
 
-///< 32: chain-hash : bitcoin mainnet
-//static const uint8_t M_CHAIN_HASH_BITCOIN[] = {
-//    0x00, 0x00, 0x00, 0x00, 0x00, 0x19, 0xd6, 0x68,
-//    0x9c, 0x08, 0x5a, 0xe1, 0x65, 0x83, 0x1e, 0x93,
-//    0x4f, 0xf7, 0x63, 0xae, 0x46, 0xa2, 0xa6, 0xc1,
-//    0x72, 0xb3, 0xf1, 0xb6, 0x0a, 0x8c, 0xe2, 0x6f,
-//};
-
-//< 32: chain-hash : bitcoin testnet
-static const uint8_t M_CHAIN_HASH_BITCOIN[] = {
-    0x00, 0x00, 0x00, 0x00, 0x09, 0x33, 0xea, 0x01,
-    0xad, 0x0e, 0xe9, 0x84, 0x20, 0x97, 0x79, 0xba,
-    0xae, 0xc3, 0xce, 0xd9, 0x0f, 0xa3, 0xf4, 0x08,
-    0x71, 0x95, 0x26, 0xf8, 0xd7, 0x7f, 0x49, 0x43,
-};
-
 
 /**************************************************************************
  * prototypes
@@ -121,7 +105,7 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
     ln_misc_push16be(&proto, MSGTYPE_OPEN_CHANNEL);
 
     //    [32:chain-hash]
-    ucoin_push_data(&proto, M_CHAIN_HASH_BITCOIN, sizeof(M_CHAIN_HASH_BITCOIN));
+    ucoin_push_data(&proto, CHAIN_HASH_BITCOIN, sizeof(CHAIN_HASH_BITCOIN));
 
     //    [32:temporary-channel-id]
     ucoin_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
@@ -193,12 +177,12 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     int pos = sizeof(uint16_t);
 
     //    [32:chain-hash]
-    int cmp = memcmp(M_CHAIN_HASH_BITCOIN, pData + pos, sizeof(M_CHAIN_HASH_BITCOIN));
+    int cmp = memcmp(CHAIN_HASH_BITCOIN, pData + pos, sizeof(CHAIN_HASH_BITCOIN));
     if (cmp != 0) {
         DBG_PRINTF("fail: chain-hash mismatch\n");
         return false;
     }
-    pos += sizeof(M_CHAIN_HASH_BITCOIN);
+    pos += sizeof(CHAIN_HASH_BITCOIN);
 
     //    [32:temporary-channel-id]
     memcpy(pMsg->p_temp_channel_id, pData + pos, LN_SZ_CHANNEL_ID);

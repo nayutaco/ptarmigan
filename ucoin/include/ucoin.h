@@ -229,7 +229,7 @@ typedef struct {
  *  @brief  鍵ソート結果
  */
 typedef enum {
-    UCOIN_KEYS_SORT_ASC,            ///< 引数の順番が昇順
+    UCOIN_KEYS_SORT_ASC,            ///< 順番が昇順
     UCOIN_KEYS_SORT_OTHER           ///< それ以外
 } ucoin_keys_sort_t;
 
@@ -442,6 +442,15 @@ void ucoin_buf_alloc(ucoin_buf_t *pBuf, uint16_t Size);
  *      - #ucoin_buf_init()の代わりに使用できるが、元の領域は解放しない
  */
 void ucoin_buf_alloccopy(ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
+
+
+/** #ucoin_buf_t の比較
+ *
+ * @param[in]       pBuf1       比較対象1
+ * @param[in]       pBuf2       比較対象2
+ * @retval      true        一致
+ */
+bool ucoin_buf_cmp(const ucoin_buf_t *pBuf1, const ucoin_buf_t *pBuf2);
 
 
 //////////////////////

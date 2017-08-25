@@ -33,58 +33,33 @@
  * prototypes
  ********************************************************************/
 
-bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
-bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
-
-
-/** node_announcment情報追加
+/** channel_announcement受信
  *
- * @param[in,out]   node
- * @param[in]       pAnno
- * @retval  NODE_NOT_FOUND以外  追加成功
- * @retval  NODE_NOT_FOUND      追加失敗
+ * @param[in,out]       self            channel情報
+ * @param[in]           pData           受信データ
+ * @param[in]           Len             pData長
+ * @retval      true    解析成功
  */
-int HIDDEN ln_node_update_node_anno(ln_node_t *node, const ln_node_announce_t *pAnno);
+bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 
-/** channel_announcement検索
+/** node_announcement受信
  *
- * @param[in,out]   node
- * @param[out]      pAdd                    true:追加  false:既存
- * @param[in]       short_channel_id        検索するshort_channel_id
- * @param[in]       node1                   node1のnode_idx
- * @param[in]       node2                   node2のnode_idx
- * @retval  CHANNEL_NOT_FOUND以外   検索 or 追加成功
- * @retval  CHANNEL_NOT_FOUND       失敗
- * @note
- *      - 見つからなかった場合は追加する
+ * @param[in,out]       self            channel情報
+ * @param[in]           pData           受信データ
+ * @param[in]           Len             pData長
+ * @retval      true    解析成功
  */
-int HIDDEN ln_node_search_add_cnl(ln_node_t *node, bool *pAdd, uint64_t short_channel_id, int8_t node1, int8_t node2);
+bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 
-/** node_idからnode_idx検索
+/** channel_update受信
  *
- * node_idから、保持しているノード情報へのインデックスを返す。
- *
- * @param[in,out]   node            ノード情報
- * @param[in]       pNodeId         node_id(node_idxではない)
- * @retval      LN_NODE_MAX以外     検索したshort_channel_id
- * @retval      LN_NODE_MAX         検索失敗
+ * @param[in,out]       self            channel情報
+ * @param[in]           pData           受信データ
+ * @param[in]           Len             pData長
+ * @retval      true    解析成功
  */
-uint8_t HIDDEN ln_node_search_nodeid(ln_node_t *node, const uint8_t *pNodeId);
-
-
-/** node_idxから接続しているshort_channel_id検索
- *
- * 自ノードと接続しているnode_idxを検索し、short_channel_idを返す。
- *
- * @param[in,out]   node            ノード情報
- * @param[in]       node_idx        ln_node_t.node_info[node_idx]
- * @retval      0以外   検索したshort_channel_id
- * @retval      0       検索失敗
- */
-uint64_t HIDDEN ln_node_search_idx(ln_node_t *node, int8_t node_idx);
+bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 #endif /* LN_NODE_H__ */

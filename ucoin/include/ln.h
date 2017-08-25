@@ -117,15 +117,15 @@ typedef enum {
     LN_CB_FINDINGWIF_REQ,       ///< funding鍵設定要求
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
     LN_CB_ESTABLISHED,          ///< Establish完了通知
-    LN_CB_NODE_ANNO_RECV,       ///< node_announcement受信通知
-    LN_CB_ANNO_SIGNS_RECV,      ///< announcement_signatures受信通知
+    LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信通知
+    LN_CB_ANNO_SIGSED,          ///< announcement_signatures完了通知
     LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
     LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
     LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
+    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_CLOSED,               ///< closing_signed受信通知
     LN_CB_SEND_REQ,             ///< peerへの送信要求
-    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_MAX,
 } ln_cb_t;
 
@@ -541,7 +541,16 @@ typedef struct {
     uint8_t                 *p_peer_node_sign;
     uint8_t                 *p_peer_btc_sign;
     ucoin_keys_sort_t       sort;                   ///< peerのln_node_announce_t.sort
-} ln_cnl_announce_t;
+} ln_cnl_announce_create_t;
+
+
+typedef struct {
+    uint64_t    short_channel_id;                   ///< 8:  short_channel_id
+    uint8_t     node_id1[UCOIN_SZ_PUBKEY];          ///< 33: node_id_1
+    uint8_t     node_id2[UCOIN_SZ_PUBKEY];          ///< 33: node_id_2
+    uint8_t     btc_key1[UCOIN_SZ_PUBKEY];          ///< 33: bitcoin_key_1
+    uint8_t     btc_key2[UCOIN_SZ_PUBKEY];          ///< 33: bitcoin_key_2
+} ln_cnl_announce_read_t;
 
 
 /** @struct     ln_node_announce_t
@@ -568,7 +577,7 @@ typedef struct {
  *  @brief      channel_update
  */
 typedef struct {
-    uint8_t     *p_signature;                       ///< 64: signature
+    //uint8_t     signature[LN_SZ_SIGNATURE];         ///< 64: signature
     uint64_t    short_channel_id;                   ///< 8:  short_channel_id
     uint32_t    timestamp;                          ///< 4:  timestamp
     uint16_t    flags;                              ///< 2:  flags
@@ -576,6 +585,9 @@ typedef struct {
     uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
     uint32_t    fee_base_msat;                      ///< 4:  fee_base_msat
     uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
+
+    const uint8_t           *p_key;                 ///< priv:sign / pub:verify
+    ucoin_keys_sort_t       sort;                   ///< ln_node_announce_t.sort
 } ln_cnl_update_t;
 
 
@@ -685,18 +697,26 @@ typedef struct {
  *  @brief  Mutual Close完了通知(#LN_CB_CLOSED)
  */
 typedef struct {
-    ucoin_buf_t             *p_buf_bolt;            ///< peerに送信するメッセージ
-    ucoin_buf_t             *p_tx_closing;          ///< ブロックチェーンに公開するtx
+    const ucoin_buf_t       *p_buf_bolt;            ///< peerに送信するメッセージ
+    const ucoin_buf_t       *p_tx_closing;          ///< ブロックチェーンに公開するtx
 } ln_cb_closed_t;
 
 
-/** @struct ln_cb_node_anno_recv_t
- *  @brief  node_announcement受信通知(#LN_CB_NODE_ANNO_RECV)
+/** @struct ln_cb_anno_sigs_t
+ *  @brief  announcement_signatures
  */
 typedef struct {
-    const uint8_t           *p_node_id;             ///< 通知元node_id
-    uint64_t                short_channel_id;       ///< 自分とのshort_channel_id(無ければ0)
-} ln_cb_node_anno_recv_t;
+    const ucoin_buf_t       *p_buf_bolt;            ///< 受信したannouncement_signatures
+    uint8_t                 sort;
+} ln_cb_anno_sigs_t;
+
+
+/** @struct ln_cb_channel_anno_recv_t
+ *  @brief  channel_announcement受信通知(#LN_CB_CHANNEL_ANNO_RECV)
+ */
+typedef struct {
+    uint64_t                short_channel_id;
+} ln_cb_channel_anno_recv_t;
 
 
 /**************************************************************************
@@ -706,19 +726,6 @@ typedef struct {
 /// @addtogroup channel_mng
 /// @{
 
-
-/** @struct ln_channel_info_t
- *  @brief  announceチャネル情報
- *  @todo
- *      - channel_announcementに耐えられるようにすべきだが、まだ至っていない
- */
-typedef struct {
-    int8_t                  node1;                              ///< (自ノード:NODE_MYSELF)
-    int8_t                  node2;                              ///< (自ノード:NODE_MYSELF)
-    uint64_t                short_channel_id;                   ///< short_channel_id
-} ln_channel_info_t;
-
-
 /** @struct ln_node_info_t
  *  @brief  announceノード情報
  *  @todo
@@ -727,8 +734,9 @@ typedef struct {
 typedef struct {
     uint8_t                 node_id[UCOIN_SZ_PUBKEY];           ///< ノードID
     char                    alias[LN_SZ_ALIAS];                 ///< 名前
-    uint32_t                timestamp;                          ///< 前回受信したtimestamp
-    ucoin_keys_sort_t       sort;                               ///< 自ノードとのソート
+    ucoin_keys_sort_t       sort;                               ///< 自ノードの順番
+                                                                // #UCOIN_KEYS_SORT_ASC : 自ノードが先
+                                                                // #UCOIN_KEYS_SORT_OTHER : 他ノードが先
 } ln_node_info_t;
 
 
@@ -739,12 +747,6 @@ typedef struct {
     ucoin_util_keys_t           keys;                           ///< node鍵
     uint8_t                     features;                       ///< localfeatures
     char                        alias[LN_SZ_ALIAS];             ///< ノード名(\0 terminate)
-
-    uint8_t                     node_num;                       ///< 保持しているnodes数
-    ln_node_info_t              node_info[LN_NODE_MAX];
-
-    uint8_t                     channel_num;
-    ln_channel_info_t           channel_info[LN_CHANNEL_MAX];
 } ln_node_t;
 
 
@@ -807,7 +809,7 @@ typedef struct {
  */
 struct ln_self_t {
     ln_node_t                   *p_node;                        ///< 属しているnode情報
-    int8_t                      node_idx;                       ///< 接続先ノード(p_node->nodes[node_idx])
+    ln_node_info_t              peer_node;                      ///< 接続先ノード
     ucoin_buf_t                 cnl_anno;                       ///< 自channel_announcement
 
     uint64_t                    storage_index;                  ///< 現在のindex
@@ -824,6 +826,8 @@ struct ln_self_t {
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
     uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
+
+    uint8_t                     anno_flag;                      ///< announcement_signaturesなど
 
     //closing
     ucoin_tx_t                  tx_closing;                     ///< closing_tx
@@ -926,7 +930,7 @@ bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t
 bool ln_set_funding_wif(ln_self_t *self, const char *pWif);
 
 
-/** funding_tx情報設定
+/** short_channel_id情報設定
  *
  * @param[in,out]       self        channel情報
  * @param[in]           Height      funding_txが入ったブロック height
@@ -934,7 +938,16 @@ bool ln_set_funding_wif(ln_self_t *self, const char *pWif);
  * @note
  *      - #LN_CB_FUNDINGTX_WAIT でコールバックされた後、安定後に呼び出すこと
  */
-void ln_set_funding_info(ln_self_t *self, uint32_t Height, uint32_t Index);
+void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index);
+
+
+/** short_channel_id情報取得
+ *
+ * @param[out]          pHeight     funding_txが入ったブロック height
+ * @param[out]          pIndex      funding_txのTXIDが入っているindex
+ * @param[out]          pVIndex     funding_txとして使用するvout index
+ */
+void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t short_channel_id);
 
 
 /** shutdown時の出力先設定(pubkey)
@@ -984,10 +997,11 @@ bool ln_handshake_recv(ln_self_t *self, bool *pCont, ucoin_buf_t *pBuf, const ui
 /** noise protocol encode
  *
  * @param[in,out]       self        channel情報
- * @param[in,out]       pBuf        [in]変換前データ(平BOLT), [out]エンコード後データ
+ * @param[out]          pBufEnc     エンコード後データ
+ * @param[in]           pBufIn      変換前データ(平BOLT)
  * @retval      true    成功
  */
-bool ln_noise_enc(ln_self_t *self, ucoin_buf_t *pBuf);
+bool ln_noise_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_buf_t *pBufIn);
 
 
 /** noise protocol decode(length)
@@ -1017,7 +1031,6 @@ bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf);
 /** Lightningメッセージ受信処理
  *
  * @param[in,out]       self        channel情報
- * @param[out]          pBuf        処理成功時に送信するメッセージ
  * @param[in]           pData       受信データ
  * @param[in]           Len         pData長
  * @retval      true    解析成功
@@ -1026,7 +1039,15 @@ bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf);
  *          安定した後は #ln_funding_tx_stabled() を呼び出してシーケンスを継続すること。
  *
  */
-bool ln_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
+bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+
+
+/** フラグ処理
+ *      フラグだけ立てておいた処理を時間差で行う
+ *
+ * @param[in,out]       self        channel情報
+ */
+void ln_flag_proc(ln_self_t *self);
 
 
 /** initメッセージ作成
@@ -1036,6 +1057,15 @@ bool ln_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t 
  * retval       true    成功
  */
 bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit);
+
+
+/** channel_reestablishメッセージ作成
+ *
+ * @param[in,out]       self            channel情報
+ * @param[out]          pReEst          channel_reestablishメッセージ
+ * retval       true    成功
+ */
+bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst);
 
 
 /** open_channelメッセージ作成
@@ -1054,24 +1084,11 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
 /** funding_tx安定後の処理継続
  *
  * @param[in,out]       self                channel情報
- * @param[out]          pFundingLocked      送信データ(funding_locked)
  * @retval      ture    成功
  * @note
  *      - funding_txを展開して、confirmationがaccept_channel.min-depth以上経過したら呼び出す。
  */
-bool ln_funding_tx_stabled(ln_self_t *self, ucoin_buf_t *pFundingLocked);
-
-
-/** node_announcement作成
- *
- * @param[out]          node            ノード情報
- * @param[out]          pBuf            生成したnode_announcementメッセージ
- * @param[in]           TimeStamp       タイムスタンプ
- * @retval      ture    成功
- * @note
- *      - TimeStampは、相手のノードが特定できないのでUTCか？
- */
-bool ln_create_node_announce(ln_node_t *node, ucoin_buf_t *pBuf, uint32_t TimeStamp);
+bool ln_funding_tx_stabled(ln_self_t *self);
 
 
 /** announcement_signatures作成およびchannel_announcementの一部(peer署名無し)生成
@@ -1084,6 +1101,13 @@ bool ln_create_node_announce(ln_node_t *node, ucoin_buf_t *pBuf, uint32_t TimeSt
  *      - Establish完了以降に呼び出すこと。
  */
 bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns);
+
+
+/** channel_update作成
+ *
+ *
+ */
+bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp);
 
 
 /** closing transactionのFEE設定
@@ -1173,6 +1197,97 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
+/** short_channel_id取得
+ *
+ * @param[in]           self            channel情報
+ * @return      short_channel_id
+ */
+static inline uint64_t ln_short_channel_id(const ln_self_t *self) {
+    return self->short_channel_id;
+}
+
+
+/** short_channel_idクリア
+ *
+ * short_channel_idを0にする.
+ *
+ * @param[in,out]       self            channel情報
+ */
+static inline void ln_short_channel_id_clr(ln_self_t *self) {
+    self->short_channel_id = 0;
+}
+
+
+/** アプリ用パラメータポインタ取得
+ *
+ * @param[in,out]       self            channel情報
+ */
+static inline void *ln_get_param(ln_self_t *self) {
+    return self->p_param;
+}
+
+
+/** our_msat取得
+ *
+ * @param[in]           self            channel情報
+ * @return      自channelのmilli satoshi
+ */
+static inline uint64_t ln_our_msat(const ln_self_t *self) {
+    return self->our_msat;
+}
+
+
+/** their_msat取得
+ *
+ * @param[in]           self            channel情報
+ * @return      他channelのmilli satoshi
+ */
+static inline uint64_t ln_their_msat(const ln_self_t *self) {
+    return self->their_msat;
+}
+
+
+/** funding_txのTXID取得
+ *
+ * @param[in]           self            channel情報
+ * @return      funding_txのTXID
+ */
+static inline const uint8_t *ln_funding_txid(const ln_self_t *self) {
+    return self->funding_local.funding_txid;
+}
+
+
+/** funding_txのTXINDEX取得
+ *
+ * @param[in]           self            channel情報
+ * @return      funding_txのTXINDEX
+ */
+static inline uint32_t ln_funding_txindex(const ln_self_t *self) {
+    return self->funding_local.funding_txindex;
+}
+
+
+/** 自ノードID取得
+ *
+ */
+static inline const uint8_t *ln_our_node_id(const ln_self_t *self) {
+    return self->p_node->keys.pub;
+}
+
+
+/** 他ノードID取得
+ *
+ */
+static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
+    return self->peer_node.node_id;
+}
+
+
+static inline const uint8_t *ln_node_id(const ln_node_t *node) {
+    return node->keys.pub;
+}
+
+
 /********************************************************************
  * NODE
  ********************************************************************/
@@ -1184,7 +1299,7 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
  * @param[in]       pNodeName       ノード名
  * @param[in]       Features        ?
  */
-void ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint8_t Features);
+bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint8_t Features);
 
 
 /** ノード情報終了
@@ -1194,14 +1309,32 @@ void ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 void ln_node_term(ln_node_t *node);
 
 
+/** node_announcement作成
+ *
+ * @param[out]          node            ノード情報
+ * @param[out]          pBuf            生成したnode_announcementメッセージ
+ * @param[in]           TimeStamp       タイムスタンプ
+ * @retval      ture    成功
+ * @note
+ *      - TimeStampは、相手のノードが特定できないのでUTCか？
+ */
+bool ln_node_create_node_announce(ln_node_t *node, ucoin_buf_t *pBuf, uint32_t TimeStamp);
+
+
+/** channel_announcement読込み
+ *
+ */
+bool ln_node_read_channel_announce(ln_cnl_announce_read_t *pAnno, const ucoin_buf_t *pBuf);
+
+
 /** short_channel_id検索
  *
- * @param[in,out]   node            ノード情報
- * @param[in]       p_node_id       検索するnode_id
+ * @param[in]       pNodeId1    検索するnode_id1
+ * @param[in]       pNodeId2    検索するnode_id2
  * @retval          0以外       検索したshort_channel_id
  * @retval          0           検索失敗
  */
-uint64_t ln_node_search_short_cnl_id(ln_node_t *node, const uint8_t *p_node_id);
+uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
 
 
 /********************************************************************

@@ -20,7 +20,7 @@
  *  under the License.
  */
 /** @file   ln_db_lmdb.h
- *  @brief  Lightning DB保存・復元
+ *  @brief  showdb用
  *  @author ueno@nayuta.co
  */
 #ifndef LN_DB_LMDB_H__
@@ -34,26 +34,6 @@
  * LMDB
  ********************************************************************/
 
-/** node情報読込み
- *
- * @param[out]      node
- * @param[in]       txn
- * @param[in]       pdbi
- * @retval      true    成功
- */
-bool ln_db_load_node(ln_node_t *node, MDB_txn *txn, MDB_dbi *pdbi);
-
-
-/** node情報書込み
- *
- * @param[in]       node
- * @param[in,out]   txn
- * @param[in,out]   pdbi
- * @retval      true    成功
- */
-bool ln_db_save_node(const ln_node_t *node, MDB_txn *txn, MDB_dbi *pdbi);
-
-
 /** channel情報読込み
  *
  * @param[out]      self
@@ -64,17 +44,19 @@ bool ln_db_save_node(const ln_node_t *node, MDB_txn *txn, MDB_dbi *pdbi);
  *      -
  *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
  */
-bool ln_db_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
 
 
-/** channel情報書き込み
+/**
  *
- * @param[in]       self
- * @param[in,out]   txn
- * @param[in,out]   pdbi
- * @retval      true    成功
  */
-bool ln_db_save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *p_short_channel_id, char *p_type, ucoin_buf_t *pBuf);
 
+
+/**
+ *
+ *
+ */
+int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId);
 
 #endif /* LN_DB_LMDB_H__ */

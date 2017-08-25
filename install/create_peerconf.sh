@@ -2,6 +2,6 @@
 set -eu
 
 echo ipaddr=127.0.0.1
-echo port=$1
-NODE=`./ucoind $2 id`
+echo `cat $1 | sed -n "1,1p"`
+NODE=`./ucoind $1 id`
 echo node_id=$NODE

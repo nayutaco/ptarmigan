@@ -77,7 +77,7 @@ bool ln_enc_auth_handshake_state(ln_self_t *self);
 /**
  *
  */
-bool ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBuf);
+bool ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_buf_t *pBufIn);
 
 
 /**

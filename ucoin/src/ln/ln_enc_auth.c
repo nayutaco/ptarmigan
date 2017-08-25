@@ -220,13 +220,13 @@ bool ln_enc_auth_handshake_state(ln_self_t *self)
 }
 
 
-bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBuf)
+bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_buf_t *pBufIn)
 {
     bool ret = false;
     uint8_t nonce[12];
-    uint16_t l = (pBuf->len >> 8) | (pBuf->len << 8);
+    uint16_t l = (pBufIn->len >> 8) | (pBufIn->len << 8);
     uint8_t *cl = (uint8_t *)M_MALLOC(sizeof(l) + crypto_aead_chacha20poly1305_IETF_ABYTES);
-    uint8_t *cm = (uint8_t *)M_MALLOC(pBuf->len + crypto_aead_chacha20poly1305_IETF_ABYTES);
+    uint8_t *cm = (uint8_t *)M_MALLOC(pBufIn->len + crypto_aead_chacha20poly1305_IETF_ABYTES);
     unsigned long long cllen;
     unsigned long long cmlen;
     int rc;
@@ -253,11 +253,11 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBuf)
 
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
                     cm, &cmlen,
-                    pBuf->buf, pBuf->len,       //message length
+                    pBufIn->buf, pBufIn->len,       //message length
                     NULL, 0,                    //additional data
                     NULL,                       //combined modeではNULL
                     nonce, self->noise.sk);     //nonce, key
-    if ((rc != 0) || (cmlen != pBuf->len + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
+    if ((rc != 0) || (cmlen != pBufIn->len + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
         DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
@@ -269,10 +269,9 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBuf)
         self->noise.sn = 0;
     }
 
-    ucoin_buf_free(pBuf);
-    ucoin_buf_alloc(pBuf, cllen + cmlen);
-    memcpy(pBuf->buf, cl, cllen);
-    memcpy(pBuf->buf + cllen, cm, cmlen);
+    ucoin_buf_alloc(pBufEnc, cllen + cmlen);
+    memcpy(pBufEnc->buf, cl, cllen);
+    memcpy(pBufEnc->buf + cllen, cm, cmlen);
     ret = true;
 
 LABEL_EXIT:
@@ -304,7 +303,8 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
                     NULL, 0,  //additional data
                     nonce, self->noise.rk);      //nonce, key
     if ((rc != 0) || (pllen != sizeof(uint16_t))) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        DBG_PRINTF("sn=%" PRIu64 ", rn=%" PRIu64 "\n", self->noise.sn, self->noise.rn);
         goto LABEL_EXIT;
     }
     self->noise.rn++;

@@ -32,10 +32,10 @@ N3_NID=`./ucoind node_3333/node.conf id`
 N4_NID=`./ucoind node_4444/node.conf id`
 N5_NID=`./ucoind node_5555/node.conf id`
 
-# (node_4444)1行目だけ取り出して、3列目(short_channel_id)を取り出す
+# (node_4444)3行目だけ取り出して、3列目(short_channel_id)を取り出す
 N4_SCID=`cat node_4444.cnl | sed -n "3,3p" | cut -d, -f 3`
 
-# (node_5555)1行目だけ取り出して、3列目(short_channel_id)を取り出す
+# (node_5555)3行目だけ取り出して、3列目(short_channel_id)を取り出す
 N3_SCID=`cat node_5555.cnl | sed -n "3,3p" | cut -d, -f 3`
 
 # pay設定ファイル出力

@@ -61,11 +61,21 @@ int jsonrpc_get_confirmation(const uint8_t *pTxid);
 /** [bitcoin rpc]short_channel_idの計算に使用するパラメータ取得
  *
  * @param[out]  pBHeight    block height
- * @param[out]  pBIndex     block index
- * @param[in]   pTxid
+ * @param[out]  pBIndex     block index(pTxidの位置)
+ * @param[in]   pTxid       検索するTXID
  * @retval  true        取得成功
  */
 bool jsonrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid);
+
+
+/** [bitcoin rpc]short_channel_idパラメータから得たTXIDのunspent状態取得
+ *
+ * @param[in]   BHeight     block height
+ * @param[in]   BIndex      block index
+ * @retval  true        unspent状態
+ * @retval  false       spent状態
+ */
+bool jsonrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex);
 
 
 /** [bitcoin rpc]sendrawtransaction
@@ -105,6 +115,15 @@ bool jsonrpc_getxout(uint64_t *pSat, const uint8_t *pTxid, int Txidx);
  * @retval  true        取得成功
  */
 bool jsonrpc_getnewaddress(char *pAddr);
+
+
+/** [bitcoin rpc]estimatefee
+ *
+ * @param[out]  pFeeSatoshi estimated fee-per-kilobytes[satoshi]
+ * @param[in]   予想するブロック数
+ * @retval  true        取得成功
+ */
+bool jsonrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
 
 
 /** [bitcoin rpc]dumpprivkey

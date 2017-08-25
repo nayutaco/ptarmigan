@@ -27,74 +27,110 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <assert.h>
 
+#include "ln_db.h"
 #include "ln/ln_misc.h"
 #include "ln/ln_msg_anno.h"
 #include "ln/ln_node.h"
 
 
 /**************************************************************************
- * macros
- **************************************************************************/
-
-//TODO:暫定
-//#define M_DFL_EXPIRY                            (90)
-
-
-/**************************************************************************
  * prototypes
  **************************************************************************/
 
-static int add_cnl(ln_node_t *node, uint64_t short_channel_id, int8_t node1, int8_t node2);
+static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-void ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint8_t Features)
+bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint8_t Features)
 {
+    ucoin_buf_t buf_node;
+    ucoin_buf_init(&buf_node);
+
     bool ret = ucoin_util_wif2keys(&node->keys, pWif);
     assert(ret);
     if (!ret) {
-        return;
+        goto LABEL_EXIT;
     }
     strcpy(node->alias, pNodeName);
     node->features = Features;
 
-    node->node_num = 0;
-    for (int lp = 0; lp < LN_NODE_MAX; lp++) {
-        memset(node->node_info[lp].node_id, 0, UCOIN_SZ_PUBKEY);
-        node->node_info[lp].alias[0] = '\0';
-        node->node_info[lp].timestamp = 0;
-        node->node_info[lp].sort = UCOIN_KEYS_SORT_OTHER;
+    ln_db_init();
+
+    ret = ln_db_load_anno_node(&buf_node, NULL, NULL, ln_node_id(node));
+    if (!ret) {
+        //自buf_nodeuncement無し
+        uint32_t now = (uint32_t)time(NULL);
+        ret = ln_node_create_node_announce(node, &buf_node, now);
+        if (!ret) {
+            goto LABEL_EXIT;
+        }
+        ret = ln_db_save_anno_node(&buf_node, ln_node_id(node), ln_node_id(node));
     }
 
-    node->channel_num = 0;
-    for (int lp = 0; lp < LN_CHANNEL_MAX; lp++) {
-        node->channel_info[lp].node1 = NODE_MYSELF;
-        node->channel_info[lp].node2 = NODE_MYSELF;
-        node->channel_info[lp].short_channel_id = 0;
-    }
+LABEL_EXIT:
+    ucoin_buf_free(&buf_node);
+    assert(ret);
+    return ret;
 }
 
 
 void ln_node_term(ln_node_t *node)
 {
-    node->node_num = 0;
-    node->channel_num = 0;
+    memset(node, 0, sizeof(ln_node_t));
 }
 
 
-uint64_t ln_node_search_short_cnl_id(ln_node_t *node, const uint8_t *p_node_id)
+bool ln_node_create_node_announce(ln_node_t *node, ucoin_buf_t *pBuf, uint32_t TimeStamp)
 {
-    uint64_t short_channel_id = 0;
+    bool ret;
+    ln_node_announce_t anno;
 
-    uint8_t idx = ln_node_search_nodeid(node, p_node_id);
-    if (idx != LN_NODE_MAX) {
-        short_channel_id = ln_node_search_idx(node, idx);
+    anno.timestamp = TimeStamp;
+    anno.p_my_node = &node->keys;
+    anno.p_alias = node->alias;
+    ret = ln_msg_node_announce_create(pBuf, &anno);
+
+    return ret;
+}
+
+
+bool ln_node_read_channel_announce(ln_cnl_announce_read_t *pAnno, const ucoin_buf_t *pBuf)
+{
+    return ln_msg_cnl_announce_read(pAnno, pBuf->buf, pBuf->len);
+}
+
+
+uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2)
+{
+    const uint8_t *p_node_id1;
+    const uint8_t *p_node_id2;
+
+    int lp;
+    for (lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
+        if (pNodeId1[lp] != pNodeId2[lp]) {
+            break;
+        }
     }
+    if (pNodeId1[lp] < pNodeId2[lp]) {
+        p_node_id1 = pNodeId1;
+        p_node_id2 = pNodeId2;
+    } else {
+        p_node_id1 = pNodeId2;
+        p_node_id2 = pNodeId1;
+    }
+    uint64_t short_channel_id = ln_db_search_channel_short_channel_id(p_node_id1, p_node_id2);
+
+    DBG_PRINTF("search id1:");
+    DUMPBIN(p_node_id1, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("       id2:");
+    DUMPBIN(p_node_id2, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("  --> %016" PRIx64 "\n", short_channel_id);
 
     return short_channel_id;
 }
@@ -103,28 +139,14 @@ uint64_t ln_node_search_short_cnl_id(ln_node_t *node, const uint8_t *p_node_id)
 #ifdef UCOIN_USE_PRINTFUNC
 void ln_print_node(const ln_node_t *node)
 {
-    printf("=NODE=======================================================================\n");
+    printf("=NODE=============================================\n");
     printf("   keyv: ");
     ucoin_util_dumpbin(PRINTOUT, node->keys.priv, UCOIN_SZ_PRIVKEY);
     printf("   keyp: ");
     ucoin_util_dumpbin(PRINTOUT, node->keys.pub, UCOIN_SZ_PUBKEY);
     printf("features= %02x\n", node->features);
     printf("alias= %s\n", node->alias);
-    printf("node_num= %d\n", node->node_num);
-    for (int lp = 0; lp < LN_NODE_MAX; lp++) {
-        printf("node[%d]:\n", lp);
-        printf("   node_id: ");
-        ucoin_util_dumpbin(PRINTOUT, node->node_info[lp].node_id, UCOIN_SZ_PUBKEY);
-        printf("   alias= %s\n", node->node_info[lp].alias);
-        printf("   sort= %s\n\n", (node->node_info[lp].sort == UCOIN_KEYS_SORT_ASC) ? "asc" : "other");
-    }
-    printf("channel_num= %d\n", node->channel_num);
-    for (int lp = 0; lp < LN_CHANNEL_MAX; lp++) {
-        printf("  node1=%d\n", node->channel_info[lp].node1);
-        printf("  node2=%d\n", node->channel_info[lp].node2);
-        printf("  short_channel_id= %" PRIx64 "\n\n", node->channel_info[lp].short_channel_id);
-    }
-    printf("========================================================================\n\n\n");
+    printf("=============================================\n\n\n");
 }
 #endif
 
@@ -133,19 +155,63 @@ void ln_print_node(const ln_node_t *node)
  * HIDDEN
  ********************************************************************/
 
-bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     DBG_PRINTF("\n");
-    return true;
+
+    ln_cnl_announce_read_t ann;
+
+    bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
+    if (ret) {
+        ln_cb_channel_anno_recv_t param;
+
+        param.short_channel_id = ann.short_channel_id;
+        (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
+    } else {
+        DBG_PRINTF("err\n");
+    }
+
+    ucoin_buf_t buf;
+    buf.buf = (CONST_CAST uint8_t *)pData;
+    buf.len = Len;
+
+    //DB読込み
+    ucoin_buf_t buf_bolt;
+    ret = ln_db_load_anno_channel(&buf_bolt, ann.short_channel_id);
+    if (ret) {
+        // BOLT#7
+        //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements-1
+        //
+        // If it has previously received a valid channel_announcement
+        // for the same transaction in the same block, but different node_id_1 or node_id_2,
+        // it SHOULD blacklist the previous message's node_id_1 and node_id_2 as well as
+        // this node_id_1 and node_id_2 and forget channels connected to them,
+        // otherwise it SHOULD store this channel_announcement.
+        if (ucoin_buf_cmp(&buf_bolt, &buf)) {
+            DBG_PRINTF("同じものが送られてきたので、スルー\n");
+        } else {
+            DBG_PRINTF("不一致のためblacklist入りする予定\n");
+            assert(0);
+        }
+    }
+
+    //DB保存
+    ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
+    assert(ret);
+
+    return ret;
 }
 
 
-bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
+    DBG_PRINTF("\n");
+
     bool ret;
     ln_node_announce_t ann;
     uint8_t node_pub[UCOIN_SZ_PUBKEY];
     char node_alias[LN_SZ_ALIAS + 1];
+    ucoin_buf_t buf_old;
 
     //通知されたノード情報を、追加 or 更新する
     ann.p_node_id = node_pub;
@@ -155,230 +221,85 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, ucoin_buf_t *pBuf, c
         DBG_PRINTF("fail: read message\n");
         return false;
     }
-    int idx = ln_node_update_node_anno(self->p_node, &ann);
-    if ((idx != NODE_NOT_FOUND) && (idx != NODE_NO_UPDATE)) {
-        self->node_idx = idx;
 
-        //node_announcement受信通知
-        ln_cb_node_anno_recv_t param;
-        param.p_node_id = self->p_node->node_info[idx].node_id;
-        param.short_channel_id = ln_node_search_idx(self->p_node, idx);
-        (*self->p_callback)(self, LN_CB_NODE_ANNO_RECV, &param);
+    DBG_PRINTF("node_id:");
+    DUMPBIN(node_pub, sizeof(node_pub));
+    ucoin_buf_init(&buf_old);
+    ret = ln_db_load_anno_node(&buf_old, NULL, NULL, node_pub);
+    bool update = false;
+    if (ret) {
+        //保存データあり
+        ln_node_announce_t ann_old;
+        uint8_t node_pub_old[UCOIN_SZ_PUBKEY];
+        char node_alias_old[LN_SZ_ALIAS + 1];
+
+        ann_old.p_node_id = node_pub_old;
+        ann_old.p_alias = node_alias_old;
+        ret = ln_msg_node_announce_read(&ann_old, buf_old.buf, buf_old.len);
+        if (ret) {
+            if (ann.timestamp > ann_old.timestamp) {
+                DBG_PRINTF("更新\n");
+                update = true;
+            } else if (ann.timestamp == ann_old.timestamp) {
+                DBG_PRINTF("更新不要\n");
+            } else {
+                DBG_PRINTF("古いデータ\n");
+            }
+        } else {
+            DBG_PRINTF("fail: read message\n");
+        }
+    } else {
+        update = true;
     }
+    if (update) {
+        //新規 or 更新
+        DBG_PRINTF("保存\n");
+        ucoin_buf_t buf_ann;
+        buf_ann.buf = (CONST_CAST uint8_t *)pData;
+        buf_ann.len = Len;
+        ret = ln_db_save_anno_node(&buf_ann, ln_their_node_id(self), node_pub);
+    }
+    ucoin_buf_free(&buf_old);
 
-    return idx != NODE_NOT_FOUND;       //上限で保持できない場合はfalseにしておくが、意味は無い
+    return ret;
 }
 
 
-bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     DBG_PRINTF("\n");
-    DBG_PRINTF2("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
-    return true;
-}
 
+    ln_cnl_update_t upd;
 
-bool HIDDEN ln_node_recv_announcement_signatures(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
-{
-    bool ret;
-    ln_announce_signs_t anno_signs;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    uint8_t *p_sig_node;
-    uint8_t *p_sig_btc;
-    ln_node_t *node = self->p_node;
+    //verify
+    upd.p_key = self->peer_node.node_id;
+    bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
+    DBG_PRINTF("ret=%d\n", ret);
 
-    DBG_PRINTF("node=%p\n", node);
-
-    //announcement_signaturesを受信したときの状態として、以下が考えられる。
-    //      - 相手から初めて受け取り、まだ自分からは送信していない
-    //      - 自分から送信していて、相手から初めて受け取った
-    //      - 持っているけど、また受け取った
-    //
-    //  また、announcement_signatures はチャネル間メッセージだが、
-    //  channel_announcment はノードとして管理する情報になる。
-    //  ここら辺が紛らわしくなってくる理由だろう。
-
-    //short_channel_idで検索
-    uint64_t short_channel_id = ln_msg_announce_signs_read_short_cnl_id(pData, Len, self->channel_id);
-    if (short_channel_id == 0) {
-        DBG_PRINTF("fail: invalid packet\n");
-        return false;
-    }
-    if (short_channel_id != self->short_channel_id) {
-        DBG_PRINTF("fail: short_channel_id mismatch\n");
-        return false;
-    }
-    bool b_add;
-    int idx = ln_node_search_add_cnl(node, &b_add, short_channel_id, self->node_idx, NODE_MYSELF);
-    if (idx == CHANNEL_NOT_FOUND) {
-        DBG_PRINTF("fail: channel search\n");
-        return false;
-    }
-
-    ucoin_buf_free(&self->cnl_anno);
-
-    ln_cnl_announce_t anno;
-    anno.short_channel_id = short_channel_id;
-    anno.p_my_node = &node->keys;
-    anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
-    anno.p_peer_node_pub = node->node_info[self->node_idx].node_id;
-    anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
-    anno.sort = node->node_info[self->node_idx].sort;
-    ret = ln_msg_cnl_announce_create(&self->cnl_anno,
-            (uint8_t **)&p_sig_node, (uint8_t **)&p_sig_btc, &anno);
-    if (!ret) {
-        DBG_PRINTF("fail: ln_msg_cnl_announce_create\n");
-        return false;
-    }
-
-    //TODO: メッセージ構成に深入りしすぎてよくないが、暫定でこうする
-    if (node->node_info[self->node_idx].sort == UCOIN_KEYS_SORT_ASC) {
-        p_sig_node = self->cnl_anno.buf + sizeof(uint16_t) + LN_SZ_SIGNATURE;
-    } else {
-        p_sig_node = self->cnl_anno.buf + sizeof(uint16_t);
-    }
-    p_sig_btc = p_sig_node + LN_SZ_SIGNATURE * 2;
-
-    anno_signs.p_channel_id = channel_id;
-    anno_signs.p_node_signature = p_sig_node;
-    anno_signs.p_btc_signature = p_sig_btc;
-    ret = ln_msg_announce_signs_read(&anno_signs, pData, Len);
-    if (!ret) {
-        DBG_PRINTF("fail: read message\n");
-        return false;
-    }
-
-    //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
-        DBG_PRINTF("channel-id mismatch\n");
-        return false;
-    }
-
-    //announcement_signatures受信通知
-    (*self->p_callback)(self, LN_CB_ANNO_SIGNS_RECV, NULL);
-
-#warning デバッグ表示
-    DBG_PRINTF("+++ ln_msg_cnl_announce_print[%" PRIx64 "] +++\n", self->short_channel_id);
-    ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
-    ln_cnl_announce_t ca;
-    ret = ln_msg_cnl_announce_read(&ca, self->cnl_anno.buf, self->cnl_anno.len);
-    DBG_PRINTF("+++ ln_msg_cnl_announce_read() : %d\n", ret);
     if (ret) {
-        DBG_PRINTF2("short_channel_id = %" PRIx64 "\n", ca.short_channel_id);
-    }
+        //short_channel_id と dir から node_id を取得する
+        uint8_t node_id[UCOIN_SZ_PUBKEY];
 
-    return true;
-}
-
-
-int HIDDEN ln_node_update_node_anno(ln_node_t *node, const ln_node_announce_t *pAnno)
-{
-    bool update = false;
-    int idx;
-
-    for (idx = 0; idx < node->node_num; idx++) {
-        if (memcmp(node->node_info[idx].node_id, pAnno->p_node_id, UCOIN_SZ_PUBKEY) == 0) {
-            if (node->node_info[idx].timestamp < pAnno->timestamp) {
-                //更新可能
-                update = true;
-            } else {
-                //更新不要
-                idx = NODE_NO_UPDATE;
-            }
-            break;
+        ret = get_nodeid(node_id, upd.short_channel_id, upd.flags & 0x0001);
+        if (ret && ucoin_keys_chkpub(node_id)) {
+            ret = ln_msg_cnl_update_verify(node_id, pData, Len);
+        } else {
+            DBG_PRINTF("err\n");
         }
     }
-    if (!update && (idx == NODE_NO_UPDATE)) {
-        DBG_PRINTF("update unnecessary\n");
-        return NODE_NO_UPDATE;
-    }
 
-    if (!update) {
-        if (node->node_num >= LN_NODE_MAX - 1) {
-            //ノード数が上限で記憶できない
-            DBG_PRINTF("fail: node maximum\n");
-            return NODE_NOT_FOUND;
-        }
-        idx = node->node_num;
-        node->node_num++;
-    }
-
-    memcpy(node->node_info[idx].node_id, pAnno->p_node_id, UCOIN_SZ_PUBKEY);
-    strcpy(node->node_info[idx].alias, pAnno->p_alias);
-    node->node_info[idx].timestamp = pAnno->timestamp;
-    int cmp = memcmp(node->keys.pub, node->node_info[idx].node_id, UCOIN_SZ_PUBKEY);
-    if (cmp < 0) {
-        //自ノードが先
-        node->node_info[idx].sort = UCOIN_KEYS_SORT_ASC;
+    if (ret) {
+        //DB保存
+        ucoin_buf_t buf;
+        buf.buf = (CONST_CAST uint8_t *)pData;
+        buf.len = Len;
+        ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & 0x0001);
+        assert(ret);
     } else {
-        node->node_info[idx].sort = UCOIN_KEYS_SORT_OTHER;
+        DBG_PRINTF("err\n");
     }
 
-    return idx;
-}
-
-
-int HIDDEN ln_node_search_add_cnl(ln_node_t *node, bool *pAdd, uint64_t short_channel_id, int8_t node1, int8_t node2)
-{
-    int idx;
-    for (idx = 0; idx < node->channel_num; idx++) {
-        if (node->channel_info[idx].short_channel_id == short_channel_id) {
-            break;
-        }
-    }
-    if (idx == node->channel_num) {
-        //追加
-        if (idx >= LN_CHANNEL_MAX - 1) {
-            //ノード数が上限で記憶できない
-            DBG_PRINTF("fail: channel maximum\n");
-            return CHANNEL_NOT_FOUND;
-        }
-        if (node1 > node2) {
-            //検索しやすいように昇順にしておく
-            int8_t tmp = node1;
-            node1 = node2;
-            node2 = tmp;
-        }
-        idx = add_cnl(node, short_channel_id, node1, node2);
-        *pAdd = true;
-    } else {
-        *pAdd = false;
-    }
-
-    return idx;
-}
-
-
-uint8_t HIDDEN ln_node_search_nodeid(ln_node_t *node, const uint8_t *pNodeId)
-{
-    DBG_PRINTF("search id:");
-    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-
-    uint8_t lp;
-    for (lp = 0; lp < LN_NODE_MAX; lp++) {
-        if (memcmp(node->node_info[lp].node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
-            DBG_PRINTF("node found\n");
-            break;
-        }
-    }
-
-    return lp;
-}
-
-
-uint64_t HIDDEN ln_node_search_idx(ln_node_t *node, int8_t node_idx)
-{
-    const ln_channel_info_t *cinfo = node->channel_info;
-
-    for (int lp = 0; lp < LN_CHANNEL_MAX; lp++) {
-        if ((cinfo[lp].node1 == NODE_MYSELF) && (cinfo[lp].node2 == node_idx)) {
-            DBG_PRINTF("short_channel_id found: %" PRIx64 "\n", cinfo[lp].short_channel_id);
-            return cinfo[lp].short_channel_id;
-        }
-    }
-
-    return 0;
+    return ret;
 }
 
 
@@ -386,13 +307,36 @@ uint64_t HIDDEN ln_node_search_idx(ln_node_t *node, int8_t node_idx)
  * private functions
  **************************************************************************/
 
-static int add_cnl(ln_node_t *node, uint64_t short_channel_id, int8_t node1, int8_t node2)
+//node_id取得
+static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
 {
-    int idx = node->channel_num;
-    node->channel_info[idx].node1 = node1;
-    node->channel_info[idx].node2 = node2;
-    node->channel_info[idx].short_channel_id = short_channel_id;
-    node->channel_num++;
+    bool ret;
 
-    return idx;
+    pNodeId[0] = 0x00;
+
+    ucoin_buf_t buf_cnl_anno;
+    ucoin_buf_init(&buf_cnl_anno);
+    ret = ln_db_load_anno_channel(&buf_cnl_anno, short_channel_id);
+    if (ret) {
+        ln_cnl_announce_read_t ann;
+
+        ret = ln_node_read_channel_announce(&ann, &buf_cnl_anno);
+        DBG_PRINTF("ret=%d\n", ret);
+        if (ret) {
+            const uint8_t *p_node_id;
+            if (Dir == 0) {
+                p_node_id = ann.node_id1;
+            } else {
+                p_node_id = ann.node_id2;
+            }
+            memcpy(pNodeId, p_node_id, UCOIN_SZ_PUBKEY);
+        } else {
+            DBG_PRINTF("ret=%d\n", ret);
+        }
+    } else {
+        DBG_PRINTF("ret=%d\n", ret);
+    }
+    ucoin_buf_free(&buf_cnl_anno);
+
+    return ret;
 }

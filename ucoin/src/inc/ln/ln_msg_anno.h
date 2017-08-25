@@ -37,28 +37,35 @@
  *
  * @param[out]      pBuf        生成データ
  * @param[out]      pOffset     他署名アドレスへのオフセット
- * @param[out]      ppSigNode   自node署名
- * @param[out]      ppSigBtc    自funding署名
  * @param[in]       pMsg        元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, uint8_t **ppSigNode, uint8_t **ppSigBtc, const ln_cnl_announce_t *pMsg);
+bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg);
 
 
-/** channel_announcement読込み
+/** channel_announcement読込み(verify無し)
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_read(ln_cnl_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** channel_announcement署名verify
+ *
+ * @param[in]       pData   対象データ
+ * @param[in]       Len     pData長
+ * retval   true    成功
+ */
+bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len);
 
 
 /** [デバッグ]channel_announcementデバッグ出力
  *
  */
-void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
+void ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
 
 
 /** node_announcement生成
@@ -89,7 +96,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *pMsg);
 
 
-/** channel_update読込み
+/** channel_update読込み(verify無し)
  *
  * @param[out]      pMsg    読込み結果
  * @param[in]       pData   対象データ
@@ -97,6 +104,16 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
  * retval   true    成功
  */
 bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** channel_update署名verify
+ *
+ * @param[in]       pPubkey 公開鍵(node_id)
+ * @param[in]       pData   対象データ
+ * @param[in]       Len     pData長
+ * retval   true    成功
+ */
+bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pData, uint16_t Len);
 
 
 /** announcement_signatures生成
@@ -125,5 +142,11 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
  * @retval  true    成功
  */
 bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t *pData, uint16_t Len);
+
+
+/** announcement_signaturesの署名アドレス取得
+ *
+ */
+void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal);
 
 #endif /* LN_MSG_ANNO_H__ */

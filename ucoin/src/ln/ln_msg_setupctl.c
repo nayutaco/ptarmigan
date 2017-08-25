@@ -232,8 +232,6 @@ bool HIDDEN ln_msg_ping_create(ucoin_buf_t *pBuf, const ln_ping_t *pMsg)
 
     ucoin_push_t    proto;
 
-DBG_PRINTF("pMsg->num_pong_bytes=%d\n", pMsg->num_pong_bytes);
-
     if (pMsg->num_pong_bytes >= 65532) {
         DBG_PRINTF("fail: num_pong_bytes: %d\n", pMsg->num_pong_bytes);
         return false;

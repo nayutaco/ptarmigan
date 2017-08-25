@@ -305,6 +305,13 @@ uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, 
 }
 
 
+void HIDDEN ln_misc_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_t *pVIndex, uint64_t short_channel_id)
+{
+    *pHeight = short_channel_id >> 40;
+    *pBIndex = (short_channel_id >> 16) & 0xffffff;
+    *pVIndex = short_channel_id & 0xffff;
+}
+
 /**************************************************************************
  * for Debug
  **************************************************************************/
