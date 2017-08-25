@@ -83,7 +83,7 @@
 //#define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
 #define M_MIN_DEPTH                     (1)
 
-#define M_ANNOSIGS_CONFIRM      (6)         ///< announcement_signaturesを送信するconfirmation
+#define M_ANNOSIGS_CONFIRM      (1)         ///< announcement_signaturesを送信するconfirmation
                                             //      BOLT仕様は6
 
 //#define M_TEST_PAYHASH          // fulfill送信時にpayment_hashをクリアしない(連続テスト用)
@@ -1869,12 +1869,12 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
                 //sinfo
                 memcpy(&sinfo, buf_cnl.buf, buf_cnl.len);
                 target_sci = short_channel_id;
-                DBG_PRINTF("  target sci= %016" PRIx64 "\n", target_sci);
-                DBG_PRINTF("  send_nodeid= ");
-                DUMPBIN(sinfo.send_nodeid, UCOIN_SZ_PUBKEY);
-                DBG_PRINTF("  peer nodeid= ");
-                DUMPBIN(ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
-                DBG_PRINTF("  last_cnl_anno_sent : %" PRIu32 "\n", p_conf->last_cnl_anno_sent);
+                //DBG_PRINTF("  target sci= %016" PRIx64 "\n", target_sci);
+                //DBG_PRINTF("  send_nodeid= ");
+                //DUMPBIN(sinfo.send_nodeid, UCOIN_SZ_PUBKEY);
+                //DBG_PRINTF("  peer nodeid= ");
+                //DUMPBIN(ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+                //DBG_PRINTF("  last_cnl_anno_sent : %" PRIu32 "\n", p_conf->last_cnl_anno_sent);
                 //if ( ( (memcmp(sinfo.send_nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ||
                 //       (target_sci == ln_short_channel_id(p_conf->p_self)) ) ) {
                 //    //送信元と同じshort_channel_idの情報であれば、配信不要

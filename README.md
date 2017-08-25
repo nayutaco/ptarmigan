@@ -1,6 +1,14 @@
 ptarmigan
 ====
 
+# 注意
+
+DBの構造を変更しているため、以前のDB(dbucoin)は使用できません。  
+ディレクトリごと削除してください(必要であれば、-xでクローズすること)。
+
+
+# 名前の由来
+
 ptarmiganは「雷鳥」(Lightning Network→雷→雷鳥)。  
 Thunderbirdではない。
 
@@ -39,6 +47,7 @@ Thunderbirdではない。
         * `getblock`
         * `getnewaddress`
         * `dumpprivkey` (open_channelで使用)
+        * `estimatefee` (今後使用する予定)
 
 
 # build

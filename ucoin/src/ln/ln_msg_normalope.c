@@ -67,8 +67,8 @@ bool HIDDEN ln_msg_update_add_htlc_create(ucoin_buf_t *pBuf, const ln_update_add
     //        [32:channel-id]
     //        [8:id]
     //        [8:amount-msat]
-    //        [4:cltv-expiry]
     //        [32:payment-hash]
+    //        [4:cltv-expiry]
     //        [1366:onion-routing-packet]
 
     ucoin_push_t    proto;
