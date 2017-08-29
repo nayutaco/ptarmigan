@@ -1,10 +1,12 @@
 ptarmigan
 ====
 
-# 注意
+# バージョンアップにおける注意
 
-DBの構造を変更しているため、以前のDB(dbucoin)は使用できません。  
-ディレクトリごと削除してください(必要であれば、-xでクローズすること)。
+* DBの構造を変更しているため、以前のDB(dbucoin)は使用できません。  
+  ディレクトリごと削除してください(必要であれば、-xでクローズすること)。
+  
+* 一部で [boost](http://www.boost.org/) を使用するようになりました。
 
 
 # 名前の由来
@@ -29,6 +31,7 @@ Thunderbirdではない。
 * [libbase58 github](https://github.com/luke-jr/libbase58)
 * [libsodium](https://download.libsodium.org/doc/)([github](https://github.com/jedisct1/libsodium))
 * [lmdb](https://symas.com/lightning-memory-mapped-database/)([github](https://github.com/LMDB/lmdb))
+* [boost](http://www.boost.org/)
 
 
 ## application
@@ -63,7 +66,7 @@ Thunderbirdではない。
 * その他
     * libs で submodule を使っているため、取得には注意 (make fullで取得するようにしている)
     * ビルドに失敗する場合は、 `libtool` や `autoconf` のインストール状況を確認すること
-        * sudo apt install build-essential libtool autoconf
+        * sudo apt install build-essential libtool autoconf libboost-all-dev
 
 
 # implement status
