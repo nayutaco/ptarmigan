@@ -65,8 +65,12 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
     ret = ln_db_load_anno_node(&buf_node, NULL, NULL, ln_node_id(node));
     if (!ret) {
         //自buf_nodeuncement無し
-        uint32_t now = (uint32_t)time(NULL);
-        ret = ln_node_create_node_announce(node, &buf_node, now);
+        ln_node_announce_t anno;
+
+        anno.timestamp = (uint32_t)time(NULL);
+        anno.p_my_node = &node->keys;
+        anno.p_alias = node->alias;
+        ret = ln_msg_node_announce_create(&buf_node, &anno);
         if (!ret) {
             goto LABEL_EXIT;
         }
@@ -83,26 +87,6 @@ LABEL_EXIT:
 void ln_node_term(ln_node_t *node)
 {
     memset(node, 0, sizeof(ln_node_t));
-}
-
-
-bool ln_node_create_node_announce(ln_node_t *node, ucoin_buf_t *pBuf, uint32_t TimeStamp)
-{
-    bool ret;
-    ln_node_announce_t anno;
-
-    anno.timestamp = TimeStamp;
-    anno.p_my_node = &node->keys;
-    anno.p_alias = node->alias;
-    ret = ln_msg_node_announce_create(pBuf, &anno);
-
-    return ret;
-}
-
-
-bool ln_node_read_channel_announce(ln_cnl_announce_read_t *pAnno, const ucoin_buf_t *pBuf)
-{
-    return ln_msg_cnl_announce_read(pAnno, pBuf->buf, pBuf->len);
 }
 
 
@@ -320,7 +304,7 @@ static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
     if (ret) {
         ln_cnl_announce_read_t ann;
 
-        ret = ln_node_read_channel_announce(&ann, &buf_cnl_anno);
+        ret = ln_msg_cnl_announce_read(&ann, buf_cnl_anno.buf, buf_cnl_anno.len);
         DBG_PRINTF("ret=%d\n", ret);
         if (ret) {
             const uint8_t *p_node_id;

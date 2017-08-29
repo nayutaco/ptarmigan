@@ -29,6 +29,10 @@
 #include "ln.h"
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif  //__cplusplus
+
 /********************************************************************
  * macros
  ********************************************************************/
@@ -195,5 +199,10 @@ void ln_db_cursor_anno_node_close(void *pCur);
  *
  */
 bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId);
+
+
+#ifdef __cplusplus
+}
+#endif  //__cplusplus
 
 #endif /* LN_DB_H__ */

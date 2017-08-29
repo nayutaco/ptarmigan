@@ -92,27 +92,7 @@ static void print_wallet(const ln_self_t *self)
 /* Dump in BDB-compatible format */
 static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
 {
-    MDB_stat ms;
-    MDB_envinfo info;
-    unsigned int flags;
-    int rc;
-
-    rc = mdb_dbi_flags(txn, dbi, &flags);
-    if (rc) {
-        return rc;
-    }
-
     const char *name = (const char *)p_key->mv_data;
-
-    rc = mdb_stat(txn, dbi, &ms);
-    if (rc) {
-        return rc;
-    }
-
-    rc = mdb_env_info(mdb_txn_env(txn), &info);
-    if (rc) {
-        return rc;
-    }
 
     int dbtype = -1;
     //printf("[[%s]](%d)\n", name, p_key->mv_size);
@@ -123,7 +103,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         //node_announcement
         dbtype = 2;
     } else if (p_key->mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
-        //channel
+        //self
         dbtype = 0;
     } else {
         //
@@ -308,23 +288,21 @@ int main(int argc, char *argv[])
 
     int list = 0;
     while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
-        MDB_dbi db2;
+        MDB_dbi dbi2;
         if (memchr(key.mv_data, '\0', key.mv_size)) {
             continue;
         }
-        //printf("[%s]\n", (char *)key.mv_data);
-        ret = mdb_open(txn, key.mv_data, 0, &db2);
+        ret = mdb_open(txn, key.mv_data, 0, &dbi2);
         if (ret == 0) {
             if (list) {
-                //printf("[%s]\n", (const char *)key.mv_data);
                 list++;
             } else {
-                ret = dumpit(txn, db2, &key);
+                ret = dumpit(txn, dbi2, &key);
                 if (ret) {
                     break;
                 }
             }
-            mdb_close(mpDbEnv, db2);
+            mdb_close(mpDbEnv, dbi2);
         }
     }
     mdb_cursor_close(cursor);

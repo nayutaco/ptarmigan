@@ -41,6 +41,8 @@
 # node_4444からnode_3333へチャネルを開く。
 ./ucoincli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4444
 
+sleep 1
+
 # node_5555からnode_3333へチャネルを開く。
 ./ucoincli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5555
 

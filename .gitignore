@@ -13,3 +13,5 @@ ucoind/node_*/
 /libs/install/
 /showdb/showdb
 /install/
+.vscode/c_cpp_properties.json
+routing/routing

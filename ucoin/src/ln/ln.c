@@ -934,6 +934,30 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 }
 
 
+/** [routing用]channel_announcementデータ解析
+ *
+ * @param[out]  p_short_channel_id
+ * @param[out]  pNodeId1
+ * @param[out]  pNodeId2
+ * @param[in]   pData
+ * @param[in]   Len
+ * @retval  true        解析成功
+ */
+bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len)
+{
+    ln_cnl_announce_read_t ann;
+
+    bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
+    if (ret) {
+        *p_short_channel_id = ann.short_channel_id;
+        memcpy(pNodeId1, ann.node_id1, UCOIN_SZ_PUBKEY);
+        memcpy(pNodeId2, ann.node_id2, UCOIN_SZ_PUBKEY);
+    }
+
+    return ret;
+}
+
+
 #ifdef UCOIN_USE_PRINTFUNC
 void ln_print_self(const ln_self_t *self)
 {
@@ -3069,7 +3093,7 @@ static void proc_established(ln_self_t *self)
         funding.p_txid = self->funding_local.funding_txid;
         funding.min_depth = 0;
         funding.b_send = false;
-        funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : NULL;
+        funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : false;
         (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
 
         //Normal Operation可能

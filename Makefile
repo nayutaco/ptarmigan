@@ -1,26 +1,28 @@
 INSTALL_DIR = $(CURDIR)/install
 
-all: default
-
 default:
 	make -C ucoin
 	make -C ucoind
 	make -C ucoincli
 	make -C showdb
+	make -C routing
 	mkdir -p $(INSTALL_DIR)
 	-@rm -rf $(INSTALL_DIR)/ucoind $(INSTALL_DIR)/ucoincli $(INSTALL_DIR)/showdb
 	cp ucoind/ucoind $(INSTALL_DIR)/
 	cp ucoincli/ucoincli $(INSTALL_DIR)/
 	cp showdb/showdb $(INSTALL_DIR)/
+	cp routing/routing $(INSTALL_DIR)/
+
+all: lib default
 
 clean:
 	make -C ucoind clean
 	make -C ucoincli clean
-	-@rm -rf $(INSTALL_DIR)/ucoind $(INSTALL_DIR)/ucoincli $(INSTALL_DIR)/showdb
+	-@rm -rf $(INSTALL_DIR)/ucoind $(INSTALL_DIR)/ucoincli $(INSTALL_DIR)/showdb $(INSTALL_DIR)/routing
 
 full: git_subs lib default
 
-distclean: lib_clean clean
+distclean: lib_clean clean example_clean
 
 update:
 	make -C ucoin clean

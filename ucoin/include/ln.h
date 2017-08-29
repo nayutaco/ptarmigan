@@ -1309,24 +1309,6 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 void ln_node_term(ln_node_t *node);
 
 
-/** node_announcement作成
- *
- * @param[out]          node            ノード情報
- * @param[out]          pBuf            生成したnode_announcementメッセージ
- * @param[in]           TimeStamp       タイムスタンプ
- * @retval      ture    成功
- * @note
- *      - TimeStampは、相手のノードが特定できないのでUTCか？
- */
-bool ln_node_create_node_announce(ln_node_t *node, ucoin_buf_t *pBuf, uint32_t TimeStamp);
-
-
-/** channel_announcement読込み
- *
- */
-bool ln_node_read_channel_announce(ln_cnl_announce_read_t *pAnno, const ucoin_buf_t *pBuf);
-
-
 /** short_channel_id検索
  *
  * @param[in]       pNodeId1    検索するnode_id1
