@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 
     int opt;
     uint8_t options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "hqlc:f:imp:x")) != -1) {
+    while ((opt = getopt(argc, argv, "hqlc:f:i:mp:x")) != -1) {
         switch (opt) {
         case 'h':
             options = 0;
@@ -128,9 +128,17 @@ int main(int argc, char *argv[])
         case 'i':
             //payment_preimage作成
             if (options == 200) {
-                buf.payload.type = MSG_DAEMON;
-                p_daemon->cmd = DCMD_PREIMAGE;
-                options = 3;
+                daemon_invoice_t *p_inv = &p_daemon->params.invoice;
+                errno = 0;
+                p_inv->amount = (uint64_t)strtoull(optarg, NULL, 10);
+                if (errno == 0) {
+                    buf.payload.type = MSG_DAEMON;
+                    p_daemon->cmd = DCMD_PREIMAGE;
+                    options = 3;
+                } else {
+                    printf("fail: funding configuration file\n");
+                    options = 0;
+                }
             }
             break;
         case 'm':

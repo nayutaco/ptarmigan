@@ -65,6 +65,13 @@ int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *p_short_channel_
 int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId);
 
 
+/**
+ *
+ *
+ */
+int ln_lmdb_check_version(MDB_txn *txn);
+
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus

@@ -26,6 +26,7 @@
  */
 typedef struct {
     bool            use;                            ///< true:使用中
+    uint64_t        amount;                         ///< invoiceで要求した額[msat]
     uint8_t         preimage[LN_SZ_PREIMAGE];       ///< preimage
 } preimage_t;
 
@@ -99,7 +100,7 @@ typedef struct {
 void lnapp_init(ln_node_t *pNode);
 void lnapp_start(lnapp_conf_t *pAppConf);
 void lnapp_stop(lnapp_conf_t *pAppConf);
-void lnapp_add_preimage(lnapp_conf_t *pAppConf, char *pResMsg);
+void lnapp_add_preimage(lnapp_conf_t *pAppConf, uint64_t Amount, char *pResMsg);
 void lnapp_show_payment_hash(lnapp_conf_t *pAppConf);
 bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 bool lnapp_payment_forward(lnapp_conf_t *pAppConf, const ln_cb_add_htlc_recv_t *pAdd, uint64_t prev_short_channel_id);

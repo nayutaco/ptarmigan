@@ -65,8 +65,14 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len);
 /** [デバッグ]channel_announcementデバッグ出力
  *
  */
-void ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
+void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
 
+
+/** [デバッグ]channel_updateデバッグ出力
+ *
+ */
+ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg);
+ 
 
 /** node_announcement生成
  *

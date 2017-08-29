@@ -16,7 +16,7 @@
 #   |            |  0.5mBTC    |           |
 #   +------------+             +-----------+
 
-./routing node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000 30
+./routing node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000
 if [ $? -ne 0 ]; then
 	echo no routing
 	return
@@ -29,8 +29,8 @@ fi
 #		4: (node_3333 ID),(node_3333--node_5555間short_channel_id),0.5mBTC(msat),CLTV
 #		5: (node_5555 ID),0,0.5mBTC(msat),CLTV
 # (最終行のmsatとCLTVは、その前と同じ値にしておく)。最終行のshort_channel_idは使っていない。
-echo `./ucoincli -c conf/peer3333.conf -i 5555` > pay4444_3333_5555.conf
-./routing node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000 30 >> pay4444_3333_5555.conf
+echo `./ucoincli -c conf/peer3333.conf -i 50000000 5555` > pay4444_3333_5555.conf
+./routing node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000 >> pay4444_3333_5555.conf
 
 # 送金実施
 ./ucoincli -c conf/peer3333.conf -p pay4444_3333_5555.conf 4444

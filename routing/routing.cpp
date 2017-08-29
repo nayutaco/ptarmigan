@@ -1,5 +1,28 @@
-// http://www.boost.org/doc/libs/1_65_0/libs/graph/example/dijkstra-example.cpp
-
+/*
+ *  Copyright (C) 2017, Nayuta, Inc. All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed to the Apache Software Foundation (ASF) under one
+ *  or more contributor license agreements.  See the NOTICE file
+ *  distributed with this work for additional information
+ *  regarding copyright ownership.  The ASF licenses this file
+ *  to you under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
+ */
+/** @file   routing.cpp
+ *  @brief  routing計算
+ *  @author ueno@nayuta.co
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +43,6 @@
 #include "ucoind.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
-#include "nodemng.h"
 #include "conf.h"
 
 #include <iostream>
@@ -54,7 +76,42 @@ using namespace boost;
 extern "C" {
     void ln_print_announce(const uint8_t *pData, uint16_t Len);
     bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
+    bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBaseMsat, uint32_t *pPropMil, const uint8_t *pData, uint16_t Len);
 }
+
+typedef struct {
+    uint8_t     node_id[UCOIN_SZ_PUBKEY];
+    uint16_t    cltv_expiry_delta;
+    uint64_t    htlc_minimum_msat;
+    uint32_t    fee_base_msat;
+    uint32_t    fee_prop_millionths;
+} nodeinfo_t;
+
+
+struct Node {
+    //std::string name;
+    const uint8_t*  p_node;
+};
+
+
+struct Fee {
+    //std::string name;
+    uint64_t    short_channel_id;
+    uint32_t    fee_base_msat;
+    uint32_t    fee_prop_millionths;
+    uint16_t    cltv_expiry_delta;
+};
+
+
+typedef adjacency_list <
+                listS,
+                vecS,
+                bidirectionalS,
+                Node,
+                Fee
+        > graph_t;
+typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
+typedef graph_traits < graph_t >::vertex_iterator vertex_iterator;
 
 
 /********************************************************************
@@ -63,23 +120,30 @@ extern "C" {
 
 static MDB_env      *mpDbEnv = NULL;
 static struct nodes_t {
-    uint64_t short_channel_id;
-    uint8_t node_id1[UCOIN_SZ_PUBKEY];
-    uint8_t node_id2[UCOIN_SZ_PUBKEY];
+    uint64_t    short_channel_id;
+    nodeinfo_t  ninfo[2];
 } *mpNodes = NULL;
 static int mNodeNum = 0;
+static uint8_t mMyNodeId[UCOIN_SZ_PUBKEY];
+static uint8_t mTgtNodeId[UCOIN_SZ_PUBKEY];
 
 
 /********************************************************************
  * misc
  ********************************************************************/
 
-#ifndef M_NO_GRAPH
-static const uint8_t* name(const nodemng_t* pNodeMng, int Edge)
+//#ifndef M_NO_GRAPH
+//static const uint8_t* name(const nodemng_t* pNodeMng, int Edge)
+//{
+//    return node_get(pNodeMng, Edge);
+//}
+//#endif
+
+
+static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_prop_millionths)
 {
-    return node_get(pNodeMng, Edge);
+    return (uint64_t)fee_base_msat + (uint64_t)((amtmsat * fee_prop_millionths) / 1000000);
 }
-#endif
 
 
 static void loadconf(const char* pConfFile, uint8_t* pPubKey)
@@ -99,12 +163,12 @@ static void loadconf(const char* pConfFile, uint8_t* pPubKey)
 
 
 #ifdef M_DEBUG
-static void dumpbin(const uint8_t *pData, uint16_t Len)
+static void dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len)
 {
     for (uint16_t lp = 0; lp < Len; lp++) {
-        printf("%02x", pData[lp]);
+        fprintf(fp, "%02x", pData[lp]);
     }
-    printf("\n");
+    fprintf(fp, "\n");
 }
 #endif
 
@@ -128,27 +192,61 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         do {
             uint64_t short_channel_id;
             char type;
+            int idx;
             ucoin_buf_t buf;
+            bool bret;
 
             ucoin_buf_init(&buf);
             ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
             if (ret == 0) {
-                if (type == LN_DB_CNLANNO_ANNO) {
+                switch (type) {
+                case LN_DB_CNLANNO_ANNO:
                     mNodeNum++;
                     mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
 
-                    bool bret = ln_getids_cnl_anno(
+                    bret = ln_getids_cnl_anno(
                                         &mpNodes[mNodeNum - 1].short_channel_id,
-                                        mpNodes[mNodeNum - 1].node_id1,
-                                        mpNodes[mNodeNum - 1].node_id2,
+                                        mpNodes[mNodeNum - 1].ninfo[0].node_id,
+                                        mpNodes[mNodeNum - 1].ninfo[1].node_id,
                                         buf.buf, buf.len);
                     assert(bret);
+#ifdef M_DEBUG
+                    fprintf(stderr, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
+                    ln_print_announce(buf.buf, buf.len);
+#endif
+                    break;
+                case LN_DB_CNLANNO_UPD1:
+                case LN_DB_CNLANNO_UPD2:
+                    idx = type - LN_DB_CNLANNO_UPD1;
+                    bret = ln_getparams_cnl_upd(
+                                        &mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta,
+                                        &mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat,
+                                        &mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat,
+                                        &mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths,
+                                        buf.buf, buf.len);
+                    assert(bret);
+#ifdef M_DEBUG
+                    fprintf(stderr, "channel update : %c\n", type);
+                    ln_print_announce(buf.buf, buf.len);
+#endif
+                    break;
+                default:
+                    break;
                 }
             }
             ucoin_buf_free(&buf);
         } while (ret == 0);
         mdb_cursor_close(cursor);
         mdb_close(mpDbEnv, dbi);
+    } else if (p_key->mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
+        //version check
+        ln_self_t self;
+        memset(&self, 0, sizeof(self));
+
+        int retval = ln_lmdb_load_channel(&self, txn, &dbi);
+        assert(retval == 0);
+
+        ln_term(&self);
     }
 
     return 0;
@@ -171,6 +269,8 @@ static void loaddb(const char *pDbPath)
     assert(ret == 0);
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
+    assert(ret == 0);
+    ret = ln_lmdb_check_version(txn);
     assert(ret == 0);
     ret = mdb_dbi_open(txn, NULL, 0, &dbi);
     assert(ret == 0);
@@ -206,6 +306,41 @@ static void loaddb(const char *pDbPath)
 }
 
 
+static int direction(const uint8_t *pNode1, const uint8_t *pNode2)
+{
+    int lp2;
+    for (lp2 = 0; lp2 < UCOIN_SZ_PUBKEY; lp2++) {
+        if (pNode1[lp2] != pNode2[lp2]) {
+            break;
+        }
+    }
+    return (pNode1[lp2] < pNode2[lp2]) ? 0 : 1;
+}
+
+
+//true:含む
+static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
+{
+    graph_t::vertex_descriptor v;
+    bool ret = false;
+
+    std::pair<graph_t::vertex_iterator, graph_t::vertex_iterator> ver_its = vertices(g);
+    for (graph_t::vertex_iterator st = ver_its.first, et = ver_its.second; st != et; st++) {
+        if (memcmp(g[*st].p_node, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
+            ret = true;
+            v = *st;
+            break;
+        }
+    }
+    if (!ret) {
+        v = add_vertex(g);
+        g[v].p_node = pNodeId;
+    }
+
+    return v;
+}
+
+
 /********************************************************************
  *
  ********************************************************************/
@@ -213,113 +348,101 @@ static void loaddb(const char *pDbPath)
 int main(int argc, char* argv[])
 {
     bool ret;
-    uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
-    uint8_t tgt_nodeid[UCOIN_SZ_PUBKEY];
-    uint64_t amount;
-    uint32_t cltv_expiry;
+    uint64_t amtmsat;
 
-    if (argc != 6) {
+    if (argc != 5) {
         printf("usage:");
-        printf("\t%s [db path] [node conf] [target node_id] [amount] [cltv_expiry]\n", argv[0]);
+        printf("\t%s [db path] [node conf] [target node_id] [amount_msat]\n", argv[0]);
         return -1;
     }
 
     loaddb(argv[1]);
 
-    loadconf(argv[2], my_nodeid);
+    loadconf(argv[2], mMyNodeId);
 
-    ret = misc_str2bin(tgt_nodeid, sizeof(tgt_nodeid), argv[3]);
+    ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), argv[3]);
     assert(ret);
 
-    amount = (uint64_t)strtoull(argv[4], NULL, 10);
-
-    cltv_expiry = (uint32_t)strtoul(argv[5], NULL, 10);
+    amtmsat = (uint64_t)strtoull(argv[4], NULL, 10);
 
 #ifdef M_DEBUG
-    printf("wif: %s\n", nconf.wif);
-    printf("my nodeid    : ");
-    dumpbin(my_nodeid, UCOIN_SZ_PUBKEY);
-    printf("target nodeid: ");
-    dumpbin(tgt_nodeid, UCOIN_SZ_PUBKEY);
+    fprintf(stderr, "my nodeid    : ");
+    dumpbin(stderr, mMyNodeId, UCOIN_SZ_PUBKEY);
+    fprintf(stderr, "target nodeid: ");
+    dumpbin(stderr, mTgtNodeId, UCOIN_SZ_PUBKEY);
 #endif
 
-    typedef adjacency_list <
-                    listS,
-                    vecS,
-                    bidirectionalS,
-                    no_property,
-                    property < edge_weight_t, int >
-            > graph_t;
-    typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
-    typedef std::pair<int, int> Edge;
+    graph_t g;
 
-
-    nodemng_t nodemng = {0};
-    std::vector<Edge> edge_array;
-    std::vector<int> weights;
-    int my_idx = -1;
-    int tgt_idx = -1;
+    bool set_start = false;
+    bool set_goal = false;
+    graph_t::vertex_descriptor pnt_start;
+    graph_t::vertex_descriptor pnt_goal;
 
 
     //Edge追加
-    edge_array.resize(mNodeNum);
-    weights.resize(mNodeNum);
     for (int lp = 0; lp < mNodeNum; lp++) {
 #ifdef M_DEBUG
-        printf("  short_channel_id=%016" PRIx64 "\n", mpNodes[lp].short_channel_id);
-        printf("    [1]");
-        dumpbin(mpNodes[lp].node_id1, UCOIN_SZ_PUBKEY);
-        printf("    [2]");
-        dumpbin(mpNodes[lp].node_id2, UCOIN_SZ_PUBKEY);
-        printf("\n");
+        fprintf(stderr, "  short_channel_id=%016" PRIx64 "\n", mpNodes[lp].short_channel_id);
+        fprintf(stderr, "    [1]");
+        dumpbin(stderr, mpNodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY);
+        fprintf(stderr, "    [2]");
+        dumpbin(stderr, mpNodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY);
+        fprintf(stderr, "\n");
 #endif
 
-        int idx1 = node_add(&nodemng, mpNodes[lp].node_id1);
-        int idx2 = node_add(&nodemng, mpNodes[lp].node_id2);
-        if (my_idx == -1) {
-            if (memcmp(mpNodes[lp].node_id1, my_nodeid, UCOIN_SZ_PUBKEY) == 0) {
-                my_idx = idx1;
-            } else if (memcmp(mpNodes[lp].node_id2, my_nodeid, UCOIN_SZ_PUBKEY) == 0) {
-                my_idx = idx2;
+        graph_t::vertex_descriptor node1 = ver_add(g, mpNodes[lp].ninfo[0].node_id);
+        graph_t::vertex_descriptor node2 = ver_add(g, mpNodes[lp].ninfo[1].node_id);
+        if (!set_start) {
+            if (memcmp(mpNodes[lp].ninfo[0].node_id, mMyNodeId, UCOIN_SZ_PUBKEY) == 0) {
+                pnt_start = node1;
+                set_start = true;
+            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, mMyNodeId, UCOIN_SZ_PUBKEY) == 0) {
+                pnt_start = node2;
+                set_start = true;
             }
         }
-        if (tgt_idx == -1) {
-            if (memcmp(mpNodes[lp].node_id1, tgt_nodeid, UCOIN_SZ_PUBKEY) == 0) {
-                tgt_idx = idx1;
-            } else if (memcmp(mpNodes[lp].node_id2, tgt_nodeid, UCOIN_SZ_PUBKEY) == 0) {
-                tgt_idx = idx2;
+        if (!set_goal) {
+            if (memcmp(mpNodes[lp].ninfo[0].node_id, mTgtNodeId, UCOIN_SZ_PUBKEY) == 0) {
+                pnt_goal = node1;
+                set_goal = true;
+            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, mTgtNodeId, UCOIN_SZ_PUBKEY) == 0) {
+                pnt_goal = node2;
+                set_goal = true;
             }
         }
 
-        if (idx1 != idx2) {
-            edge_array.push_back(Edge(idx1, idx2));
-            weights.push_back(1);
-            edge_array.push_back(Edge(idx2, idx1));
-            weights.push_back(1);
+        if (node1 != node2) {
+            bool inserted = false;
+            graph_t::edge_descriptor e1, e2;
+
+            boost::tie(e1, inserted) = add_edge(node1, node2, g);
+            g[e1].short_channel_id = mpNodes[lp].short_channel_id;
+            g[e1].fee_base_msat = mpNodes[lp].ninfo[1].fee_base_msat;
+            g[e1].fee_prop_millionths = mpNodes[lp].ninfo[1].fee_prop_millionths;
+            g[e1].cltv_expiry_delta = mpNodes[lp].ninfo[1].cltv_expiry_delta;
+            boost::tie(e2, inserted) = add_edge(node2, node1, g);
+            g[e2].short_channel_id = mpNodes[lp].short_channel_id;
+            g[e2].fee_base_msat = mpNodes[lp].ninfo[0].fee_base_msat;
+            g[e2].fee_prop_millionths = mpNodes[lp].ninfo[0].fee_prop_millionths;
+            g[e2].cltv_expiry_delta = mpNodes[lp].ninfo[0].cltv_expiry_delta;
         }
     }
-    int num_nodes = node_max(&nodemng);
 
 #ifdef M_DEBUG
-    printf("my_idx=%d, tgt_idx=%d\n", my_idx, tgt_idx);
+    fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", pnt_start, pnt_goal);
 #endif
-    if ((my_idx == -1) || (tgt_idx == -1)) {
+    if (!set_start || !set_goal) {
         std::cout << "no start/goal node" << std::endl;
         return -1;
     }
 
-    graph_t g(edge_array.begin(), edge_array.end(), weights.begin(), num_nodes);
-
-    //start/goal point
-    vertex_descriptor pnt_start = vertex(my_idx, g);
-    vertex_descriptor pnt_goal = vertex(tgt_idx, g);
-
-    property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
     std::vector<vertex_descriptor> p(num_vertices(g));      //parent
     std::vector<int> d(num_vertices(g));
     dijkstra_shortest_paths(g, pnt_start,
-            predecessor_map(boost::make_iterator_property_map(p.begin(), get(boost::vertex_index, g))).
-                distance_map(boost::make_iterator_property_map(d.begin(), get(boost::vertex_index, g))));
+                        weight_map(boost::get(&Fee::fee_base_msat, g)).
+                        predecessor_map(&p[0]).
+                        distance_map(&d[0]));
 
     if (p[pnt_goal] == pnt_goal) {
         std::cout << "no route" << std::endl;
@@ -328,59 +451,76 @@ int main(int argc, char* argv[])
 
     //逆順に入っているので、並べ直す
     std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
+    std::deque<uint64_t> msat;
+    std::deque<uint32_t> cltv;
+    uint32_t cltv_expiry = 0;
     for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
         route.push_front(v);
+
+        bool found;
+        graph_t::edge_descriptor e;
+        boost::tie(e, found) = edge(v, p[v], g);
+        if (!found) {
+            printf("not foooooooooound\n");
+            abort();
+        }
+
+        msat.push_front(amtmsat);
+        amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
+
+        if (cltv_expiry == 0) {
+            cltv.push_front(g[e].cltv_expiry_delta);
+        }
+        cltv_expiry += g[e].cltv_expiry_delta;
+        cltv.push_front(cltv_expiry);
     }
     route.push_front(pnt_start);
+    msat.push_front(amtmsat);
 
+    //std::cout << "distance: " << d[pnt_goal] << std::endl;
 
     //pay.conf形式の出力
     int hop = (int)route.size();
     const uint8_t *p_next;
+    nodeinfo_t ninfo = {0};
     printf("hop_num=%d\n", hop);
     for (int lp = 0; lp < hop - 1; lp++) {
-        const uint8_t *p_now  = node_get(&nodemng, route[lp]);
-        p_next = node_get(&nodemng, route[lp + 1]);
-        if (lp != 0) {
-#warning CLTVは暫定で-1していく。amountは同じにしている。
-            cltv_expiry--;
-        }
+        const uint8_t *p_now  = g[route[lp]].p_node;
+        p_next = g[route[lp + 1]].p_node;
 
-        int lp2;
-        for (lp2 = 0; lp2 < UCOIN_SZ_PUBKEY; lp2++) {
-            if (p_now[lp2] != p_next[lp2]) {
-                break;
-            }
-        }
         const uint8_t *p_node_id1;
         const uint8_t *p_node_id2;
-        if (p_now[lp2] < p_next[lp2]) {
+        int dir = direction(p_now, p_next);
+        if (dir == 0) {
             p_node_id1 = p_now;
             p_node_id2 = p_next;
+            dir = 0;
         } else {
             p_node_id1 = p_next;
             p_node_id2 = p_now;
+            dir = 1;
         }
         uint64_t sci = 0;
-        for (int lp2 = 0; lp2 < mNodeNum; lp2++) {
-            if ( (memcmp(p_node_id1, mpNodes[lp2].node_id1, UCOIN_SZ_PUBKEY) == 0) &&
-                 (memcmp(p_node_id2, mpNodes[lp2].node_id2, UCOIN_SZ_PUBKEY) == 0) ) {
-                sci = mpNodes[lp2].short_channel_id;
+        for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
+            if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
+                 (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
+                sci = mpNodes[lp3].short_channel_id;
+                ninfo = mpNodes[lp3].ninfo[dir];
                 break;
             }
         }
 
-        for (int lp2 = 0; lp2 < UCOIN_SZ_PUBKEY; lp2++) {
-            printf("%02x", p_now[lp2]);
+        for (int lp3 = 0; lp3 < UCOIN_SZ_PUBKEY; lp3++) {
+            printf("%02x", p_now[lp3]);
         }
-        printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n", sci, amount, cltv_expiry);
+        printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n", sci, msat[lp], cltv[lp]);
     }
 
     //最後
-    for (int lp2 = 0; lp2 < UCOIN_SZ_PUBKEY; lp2++) {
-        printf("%02x", p_next[lp2]);
+    for (int lp3 = 0; lp3 < UCOIN_SZ_PUBKEY; lp3++) {
+        printf("%02x", p_next[lp3]);
     }
-    printf(",0,%" PRIu64 ",%" PRIu32 "\n", amount, cltv_expiry);
+    printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
 
 
 #ifndef M_NO_GRAPH
@@ -389,7 +529,7 @@ int main(int argc, char* argv[])
 
     dot_file << "digraph D {\n"
              << "  rankdir=LR\n"
-             << "  size=\"4,3\"\n"
+//             << "  size=\"4,3\"\n"
              << "  ratio=\"fill\"\n"
              << "  edge[style=\"bold\"]\n" << "  node[shape=\"circle\"]\n";
 
@@ -405,8 +545,8 @@ int main(int argc, char* argv[])
             node1[1] = '\0';
             node2[0] = (char)('A' + v);
             node2[1] = '\0';
-            const uint8_t *p_node1 = name(&nodemng, u);
-            const uint8_t *p_node2 = name(&nodemng, v);
+            const uint8_t *p_node1 = g[u].p_node;
+            const uint8_t *p_node2 = g[v].p_node;
             for (int lp = 0; lp < 3; lp++) {
                 char s[3];
                 sprintf(s, "%02x", p_node1[lp]);
@@ -414,20 +554,19 @@ int main(int argc, char* argv[])
                 sprintf(s, "%02x", p_node2[lp]);
                 strcat(node2, s);
             }
-            dot_file << node1 << " -> " << node2 << "[label=\"" << get(weightmap, e) << "\"";
-            if (p[v] == u) {
-                dot_file << ", color=\"black\"";
-            } else {
-                dot_file << ", color=\"grey\"";
-            }
+            dot_file << node1 << " -> " << node2
+                        << "[label=\""
+                        << std::hex << g[e].short_channel_id << std::dec << ","
+                        << g[e].fee_base_msat << ","
+                        << g[e].fee_prop_millionths << ","
+                        << g[e].cltv_expiry_delta << "\"";
+            dot_file << ", color=\"black\"";
             dot_file << "]" << std::endl;
         }
     }
     dot_file << "}";
     //////////////////////////////////////////////////////////////
 #endif
-
-    node_free(&nodemng);
 
     return 0;
 }

@@ -19,6 +19,10 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+/** @file   sohwdb.c
+ *  @brief  DB閲覧
+ *  @author ueno@nayuta.co
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +53,7 @@
 
 
 void ln_print_announce(const uint8_t *pData, uint16_t Len);
+void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
 
 
 static MDB_env      *mpDbEnv = NULL;
@@ -93,6 +98,7 @@ static void print_wallet(const ln_self_t *self)
 static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
 {
     const char *name = (const char *)p_key->mv_data;
+    int retval;
 
     int dbtype = -1;
     //printf("[[%s]](%d)\n", name, p_key->mv_size);
@@ -115,7 +121,8 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         //self
         memset(&self, 0, sizeof(self));
 
-        ln_lmdb_load_channel(&self, txn, &dbi);
+        retval = ln_lmdb_load_channel(&self, txn, &dbi);
+        assert(retval == 0);
         if (showflag & SHOW_SELF) {
             ln_print_self(&self);
         }
@@ -133,7 +140,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
             MDB_cursor  *cursor;
 
             //ここでdbi, txnを使ってcursorを取得
-            int retval = mdb_dbi_open(txn, name, 0, &dbi);
+            retval = mdb_dbi_open(txn, name, 0, &dbi);
             assert(retval == 0);
             retval = mdb_cursor_open(txn, dbi, &cursor);
             assert(retval == 0);
@@ -168,6 +175,8 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                     if (type != LN_DB_CNLANNO_SINFO) {
                         if (!(showflag & SHOW_CNLANNO_SCI)) {
                             ln_print_announce(buf.buf, buf.len);
+                        } else {
+                            ln_print_announce_short(buf.buf, buf.len);
                         }
                     } else {
                         ln_db_channel_sinfo *p_sinfo = (ln_db_channel_sinfo *)buf.buf;
@@ -196,7 +205,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
             MDB_cursor  *cursor;
 
             //ここでdbi, txnを使ってcursorを取得
-            int retval = mdb_dbi_open(txn, name, 0, &dbi);
+            retval = mdb_dbi_open(txn, name, 0, &dbi);
             assert(retval == 0);
             retval = mdb_cursor_open(txn, dbi, &cursor);
             assert(retval == 0);
@@ -279,6 +288,8 @@ int main(int argc, char *argv[])
     assert(ret == 0);
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
+    assert(ret == 0);
+    ret = ln_lmdb_check_version(txn);
     assert(ret == 0);
     ret = mdb_dbi_open(txn, NULL, 0, &dbi);
     assert(ret == 0);

@@ -1,10 +1,11 @@
 ptarmigan
 ====
 
-# 注意
+# バージョンアップにおける注意
 
-DBの構造を変更しているため、以前のDB(dbucoin)は使用できません。  
-ディレクトリごと削除してください(必要であれば、-xでクローズすること)。
+* 遅ればせながら、DBにバージョンを付けるようにしました。  
+  DBの構造を変更しているため、以前のDB(dbucoin)は使用できません。  
+  ディレクトリごと削除してください(必要であれば、事前に-xでクローズすること)。
 
 
 # 名前の由来
@@ -14,6 +15,8 @@ Thunderbirdではない。
 
 
 # 構成
+
+* bitcoin testnet専用
 * Ubuntu 16.04.2で動作確認中
 * `ucoin` がライブラリ部、 `ucoind` が通信を含めたアプリ部
 * 全体としてエラーに対応しておらず、不整合が発生したらabortする。
@@ -29,6 +32,7 @@ Thunderbirdではない。
 * [libbase58 github](https://github.com/luke-jr/libbase58)
 * [libsodium](https://download.libsodium.org/doc/)([github](https://github.com/jedisct1/libsodium))
 * [lmdb](https://symas.com/lightning-memory-mapped-database/)([github](https://github.com/LMDB/lmdb))
+* [boost](http://www.boost.org/)
 
 
 ## application
@@ -63,7 +67,7 @@ Thunderbirdではない。
 * その他
     * libs で submodule を使っているため、取得には注意 (make fullで取得するようにしている)
     * ビルドに失敗する場合は、 `libtool` や `autoconf` のインストール状況を確認すること
-        * sudo apt install build-essential libtool autoconf
+        * sudo apt install build-essential libtool autoconf libboost-all-dev
 
 
 # implement status

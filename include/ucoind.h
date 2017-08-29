@@ -181,6 +181,11 @@ typedef struct {
 
 typedef struct {
     daemon_connect_t    conn;       //必ず1番目に置くこと
+    uint64_t            amount;
+} daemon_invoice_t;
+
+typedef struct {
+    daemon_connect_t    conn;       //必ず1番目に置くこと
     payment_conf_t      payment;
 } daemon_payment_t;
 
@@ -191,6 +196,7 @@ typedef struct {
     union {
         daemon_connect_t    connect;
         daemon_funding_t    funding;
+        daemon_invoice_t    invoice;
         daemon_payment_t    payment;
     } params;
 } msg_daemon_t;

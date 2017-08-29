@@ -210,7 +210,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 }
 
 
-void lnapp_add_preimage(lnapp_conf_t *pAppConf, char *pResMsg)
+void lnapp_add_preimage(lnapp_conf_t *pAppConf, uint64_t Amount, char *pResMsg)
 {
     DBGTRACE_BEGIN
 
@@ -223,6 +223,7 @@ void lnapp_add_preimage(lnapp_conf_t *pAppConf, char *pResMsg)
     for (lp = 0; lp < APP_PREIMAGE_NUM; lp++) {
         if (!pAppConf->preimage[lp].use) {
             pAppConf->preimage[lp].use = true;
+            pAppConf->preimage[lp].amount = Amount;
             ucoin_util_random(pAppConf->preimage[lp].preimage, LN_SZ_PREIMAGE);
             break;
         }
@@ -1564,6 +1565,8 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF2("  amount_msat: %" PRIu64 "\n", p_add->amount_msat);
     DBG_PRINTF2("  cltv_expiry: %d\n", p_add->cltv_expiry);
 
+    DBG_PRINTF("my fee : %" PRIu64 "\n", (uint64_t)(p_add->amount_msat - p_add->p_hop->amt_to_forward));
+
     if (p_add->p_hop->b_exit) {
         //自分宛
         DBG_PRINTF("自分宛\n");
@@ -1587,8 +1590,10 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         if (lp < APP_PREIMAGE_NUM) {
             //last nodeチェック
             // https://github.com/nayuta-ueno/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
-            if ( (p_add->p_hop->amt_to_forward == p_add->amount_msat) &&
-                 (p_add->p_hop->outgoing_cltv_value == p_add->cltv_expiry) ) {
+            //    * outgoing_cltv_value is set to the final expiry specified by the recipient
+            //    * amt_to_forward is set to the final amount specified by the recipient
+            if ( (p_add->p_hop->amt_to_forward == p_conf->preimage[lp].amount) &&
+                 (p_add->p_hop->outgoing_cltv_value == ln_cltv_expily_delta(p_conf->p_self)) ) {
                 DBG_PRINTF("last node OK\n");
             } else {
                 SYSLOG_ERR("%s(): last node check", __func__);
@@ -1929,13 +1934,13 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
             }
             ucoin_buf_free(&buf_cnl);
         }
+        p_conf->last_cnl_anno_sent = (uint32_t)time(NULL);
     } else {
         DBG_PRINTF("no channel_announce DB\n");
     }
     if (p_cur) {
         ln_db_cursor_anno_channel_close(p_cur);
     }
-    p_conf->last_cnl_anno_sent = (uint32_t)time(NULL);
 }
 
 
@@ -1973,13 +1978,13 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
             ucoin_buf_free(&buf_node);
             force = forcebak;
         }
+        p_conf->last_node_anno_sent = (uint32_t)time(NULL);
     } else {
         DBG_PRINTF("no node_announce DB\n");
     }
     if (p_cur) {
         ln_db_cursor_anno_node_close(p_cur);
     }
-    p_conf->last_node_anno_sent = (uint32_t)time(NULL);
 }
 
 

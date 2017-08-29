@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# 0.01BTC(10mBTC)をP2WPKHアドレスに送金している。
+# fund.txt は、そのうち 9.0mBTC でチャネルを開き、5.0mBTCを相手に渡している。
+# なぜ 10mBTCで開かないかというと、P2WPKHアドレスからさらに funding_txに送金するため、
+# その分の FEEが必要になるからである(1mBTCもいらないとは思うが)。
+
 # チャネルを開く場合、segwitのP2WPKHアドレスから送金する必要があるのだが、
 # bitcoindにsegwitのアドレスを探すのが大変なので、fund-in.sh の中で、
 #       1. getnewaddressでP2PKHのアドレスを作る
@@ -39,11 +44,13 @@
 #   +------------+             +-----------+
 
 # node_4444からnode_3333へチャネルを開く。
+./fund-in.sh 0.01 fund.txt > node_4444/fund4444_3333.conf
 ./ucoincli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4444
 
-sleep 1
+sleep 3
 
 # node_5555からnode_3333へチャネルを開く。
+./fund-in.sh 0.01 fund.txt > node_5555/fund5555_3333.conf
 ./ucoincli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5555
 
 

@@ -1036,20 +1036,14 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
     uint8_t txid[UCOIN_SZ_TXID];
     ucoin_tx_txid(txid, pTx);
     fprintf(fp, "txid= ");
-    for (int lp = 0; lp < sizeof(txid); lp++) {
-        fprintf(fp, "%02x", txid[sizeof(txid) - lp - 1]);
-    }
-    printf("\n");
+    ucoin_util_dumptxid(fp, txid);
     fprintf(fp, "======================================\n");
     fprintf(fp, " version:%d\n\n", pTx->version);
     fprintf(fp, " txin_cnt=%d\n", pTx->vin_cnt);
     for(int lp = 0; lp < pTx->vin_cnt; lp++) {
         fprintf(fp, " [vin #%d]\n", lp);
         fprintf(fp, "  txid= ");
-        for (int lp2 = 0; lp2 < UCOIN_SZ_TXID; lp2++) {
-            fprintf(fp, "%02x", pTx->vin[lp].txid[UCOIN_SZ_TXID - lp2 - 1]);
-        }
-        fprintf(fp, "\n");
+        ucoin_util_dumptxid(fp, pTx->vin[lp].txid);
         fprintf(fp, "       LE: ");
         ucoin_util_dumpbin(fp, pTx->vin[lp].txid, UCOIN_SZ_TXID);
         fprintf(fp, "  index= %d\n", pTx->vin[lp].index);

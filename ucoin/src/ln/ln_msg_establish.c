@@ -588,7 +588,7 @@ static void funding_created_print(const ln_funding_created_t *pMsg)
     DBG_PRINTF2("temporary-channel-id: ");
     DUMPBIN(pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("p_funding_txid: ");
-    DUMPBIN(pMsg->p_funding_txid, UCOIN_SZ_TXID);
+    ucoin_util_dumptxid(DEBUGOUT, pMsg->p_funding_txid);
     DBG_PRINTF2("funding_output_idx= %lu\n", (unsigned long)pMsg->funding_output_idx);
     DBG_PRINTF2("signature: ");
     DUMPBIN(pMsg->p_signature, LN_SZ_SIGNATURE);

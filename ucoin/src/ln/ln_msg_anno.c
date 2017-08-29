@@ -69,7 +69,6 @@ typedef struct {
 
 static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len);
 static void node_announce_print(const ln_node_announce_t *pMsg);
-static void cnl_update_print(const ln_cnl_update_t *pMsg);
 static void announce_signs_print(const ln_announce_signs_t *pMsg);
 
 
@@ -478,7 +477,7 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
 }
 
 
-void ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
+void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
 {
 #ifdef UCOIN_DEBUG
     DBG_PRINTF2("-[channel_announcement]-------------------------------\n\n");
@@ -821,7 +820,7 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
 
 #ifdef DBG_PRINT_CREATE
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-    cnl_update_print(pMsg);
+    ln_msg_cnl_update_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 128);
@@ -940,16 +939,10 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
     pos += sizeof(uint32_t);
 
     //        [4:fee_proportional_millionths]
-    pMsg->fee_prop_millionths = ln_misc_get16be(pData + pos);
+    pMsg->fee_prop_millionths = ln_misc_get32be(pData + pos);
     pos += sizeof(uint32_t);
 
     assert(Len == pos);
-
-
-#ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-    cnl_update_print(pMsg);
-#endif  //DBG_PRINT_READ
 
     return true;
 }
@@ -979,7 +972,7 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
 }
 
 
-static void cnl_update_print(const ln_cnl_update_t *pMsg)
+void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
     DBG_PRINTF2("-[channel_update]-------------------------------\n\n");

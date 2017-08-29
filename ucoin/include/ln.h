@@ -828,6 +828,10 @@ struct ln_self_t {
     uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
 
     uint8_t                     anno_flag;                      ///< announcement_signaturesなど
+    uint16_t                    cltv_expiry_delta;              ///< 2:  cltv_expiry_delta
+    uint64_t                    htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
+    uint32_t                    fee_base_msat;                  ///< 4:  fee_base_msat
+    uint32_t                    fee_prop_millionths;            ///< 4:  fee_proportional_millionths
 
     //closing
     ucoin_tx_t                  tx_closing;                     ///< closing_tx
@@ -1283,8 +1287,19 @@ static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
 }
 
 
+/**
+ *
+ */
 static inline const uint8_t *ln_node_id(const ln_node_t *node) {
     return node->keys.pub;
+}
+
+
+/**
+ *
+ */
+static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
+    return self->cltv_expiry_delta;
 }
 
 

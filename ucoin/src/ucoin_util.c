@@ -908,6 +908,20 @@ void HIDDEN ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len)
     }
     fprintf(fp, "\n");
 }
+
+
+/** uint8[]の内容をFILE*出力
+ *
+ * @param[in]       fp          出力先
+ * @param[in]       pTxid
+ */
+void HIDDEN ucoin_util_dumptxid(FILE *fp, const uint8_t *pTxid)
+{
+    for (uint16_t lp = 0; lp < UCOIN_SZ_TXID; lp++) {
+        fprintf(fp, "%02x", pTxid[UCOIN_SZ_TXID - lp - 1]);
+    }
+    fprintf(fp, "\n");
+}
 #endif  //UCOIN_USE_PRINTFUNC || UCOIN_DEBUG
 
 
