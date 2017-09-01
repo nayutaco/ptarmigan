@@ -44,14 +44,5 @@ lib_clean:
 git_subs:
 	git submodule update --init --recursive
 
-git_pulls:
-	pushd libs/curl ; git pull; popd
-	pushd libs/jansson ; git pull ; popd
-	pushd ucoin/libs/bech32 ; git pull ; popd
-	pushd ucoin/libs/libbase58 ; git pull ; popd
-	pushd ucoin/libs/libsodium ; git pull ; popd
-	pushd ucoin/libs/lmdb ; git pull ; popd
-	pushd ucoin/libs/mbedtls ; git pull ; popd
-
 example_clean:
-	-@rm -rf $(INSTALL_DIR)/*.cnl $(INSTALL_DIR)/node_3333 $(INSTALL_DIR)/node_4444 $(INSTALL_DIR)/node_5555 $(INSTALL_DIR)/conf $(INSTALL_DIR)/pay4444_3333_5555.conf
+	-@rm -rf $(INSTALL_DIR)/*.cnl $(INSTALL_DIR)/node_3333 $(INSTALL_DIR)/node_4444 $(INSTALL_DIR)/node_5555 $(INSTALL_DIR)/conf $(INSTALL_DIR)/pay4444_3333_5555.conf $(INSTALL_DIR)/routing.dot $(INSTALL_DIR)/routing.png $(INSTALL_DIR)/core
