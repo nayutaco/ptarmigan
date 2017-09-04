@@ -53,6 +53,9 @@
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 
+#define M_DB_VERSION            "version"
+#define M_DB_VERSION_VAL        (-1)            ///< DBバージョン
+
 
 /**************************************************************************
  * typedefs
@@ -128,6 +131,9 @@ static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, u
 static int save_anno_node(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId);
 static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
 
+static int write_version(MDB_txn *txn);
+static int check_version(MDB_txn *txn, MDB_dbi *pdbi);
+
 
 /**************************************************************************
  * public functions
@@ -135,19 +141,46 @@ static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
 
 void HIDDEN ln_db_init(void)
 {
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
     //lmdbのopenは複数呼ばないでenvを共有する
     if (mpDbEnv == NULL) {
-        int ret;
+        retval = mdb_env_create(&mpDbEnv);
+        assert(retval == 0);
 
-        ret = mdb_env_create(&mpDbEnv);
-        assert(ret == 0);
-
-        ret = mdb_env_set_maxdbs(mpDbEnv, M_LMDB_MAXDBS);
-        assert(ret == 0);
+        retval = mdb_env_set_maxdbs(mpDbEnv, M_LMDB_MAXDBS);
+        assert(retval == 0);
 
         mkdir(M_LMDB_ENV, 0755);
-        ret = mdb_env_open(mpDbEnv, M_LMDB_ENV, MDB_FIXEDMAP, 0664);
-        assert(ret == 0);
+        retval = mdb_env_open(mpDbEnv, M_LMDB_ENV, MDB_FIXEDMAP, 0664);
+        assert(retval == 0);
+    }
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        abort();
+    }
+    retval = mdb_dbi_open(txn, M_DB_VERSION, 0, &dbi);
+    if (retval != 0) {
+        retval = write_version(txn);
+        if (retval == 0) {
+            DBG_PRINTF("create version db\n");
+            mdb_txn_commit(txn);
+        } else {
+            DBG_PRINTF("FAIL: create version db\n");
+            mdb_txn_abort(txn);
+            abort();
+        }
+    } else {
+        retval = check_version(txn, &dbi);
+        mdb_txn_abort(txn);
+        if (retval != 0) {
+            DBG_PRINTF("FAIL: check version db\n");
+            abort();
+        }
     }
 }
 
@@ -763,6 +796,23 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
     return retval;
 }
 
+
+int ln_lmdb_check_version(MDB_txn *txn)
+{
+    int         retval;
+    MDB_dbi     dbi;
+
+    retval = mdb_dbi_open(txn, M_DB_VERSION, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+    retval = check_version(txn, &dbi);
+
+    return retval;
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/
@@ -1166,4 +1216,52 @@ static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
     }
 
     return true;
+}
+
+
+static int write_version(MDB_txn *txn)
+{
+    int         retval;
+    MDB_dbi     dbi;
+    MDB_val     key, data;
+    int         version = M_DB_VERSION_VAL;
+
+    retval = mdb_dbi_open(txn, M_DB_VERSION, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        return retval;
+    }
+
+    //version
+    key.mv_size = 3;
+    key.mv_data = "ver";
+    data.mv_size = sizeof(int);
+    data.mv_data = &version;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+
+    return retval;
+}
+
+
+static int check_version(MDB_txn *txn, MDB_dbi *pdbi)
+{
+    int         retval;
+    MDB_val key, data;
+
+    //version
+    key.mv_size = 3;
+    key.mv_data = "ver";
+    retval = mdb_get(txn, *pdbi, &key, &data);
+    if (retval == 0) {
+        int version = *(int *)data.mv_data;
+        if (version != M_DB_VERSION_VAL) {
+            DBG_PRINTF("FAIL: version mismatch : %d\n", version);
+            retval = -1;
+        }
+    }
+    if (retval) {
+        DBG_PRINTF("*** version check: %d ***\n", retval);
+    }
+
+    return retval;
 }

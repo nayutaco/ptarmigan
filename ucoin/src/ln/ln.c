@@ -57,6 +57,11 @@
 #define M_DFL_MAX_ACCEPTED_HTLC                 (LN_HTLC_MAX)
 #define M_DFL_MIN_DEPTH                         (5)
 
+#define M_DFL_CLTV_EXPILY_DELTA                 (10)
+#define M_DFL_HTLC_MINIMUM_MSAT                 M_DFL_HTLC_MIN_MSAT
+#define M_DFL_FEE_BASE_MSAT                     (10000)
+#define M_DFL_FEE_PROP_MILLIONTHS               (5000)
+
 #define M_HTLCCHG_NONE                          (0)
 #define M_HTLCCHG_FF_SEND                       (1)
 #define M_HTLCCHG_FF_RECV                       (2)
@@ -135,6 +140,8 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool create_funding_tx(ln_self_t *self);
 static bool create_to_local(ln_self_t *self,
                     const uint8_t *p_htlc_sigs,
@@ -155,6 +162,7 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
 static void proc_established(ln_self_t *self);
 static void proc_announce_sigsed(ln_self_t *self);
 static bool chk_peer_node(ln_self_t *self);
+static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 
 
 /**************************************************************************
@@ -184,9 +192,9 @@ static const struct {
     { MSGTYPE_UPDATE_FEE,                   recv_update_fee },
     { MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC,   recv_update_fail_malformed_htlc },
     { MSGTYPE_CHANNEL_REESTABLISH,          recv_channel_reestablish },
-    { MSGTYPE_CHANNEL_ANNOUNCEMENT,         ln_node_recv_channel_announcement },
+    { MSGTYPE_CHANNEL_ANNOUNCEMENT,         recv_channel_announcement },
     { MSGTYPE_NODE_ANNOUNCEMENT,            ln_node_recv_node_announcement },
-    { MSGTYPE_CHANNEL_UPDATE,               ln_node_recv_channel_update },
+    { MSGTYPE_CHANNEL_UPDATE,               recv_channel_update },
     { MSGTYPE_ANNOUNCEMENT_SIGNATURES,      recv_announcement_signatures }
 };
 
@@ -248,6 +256,10 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback
     //初期値
     self->p_node = node;
     self->p_callback = pFunc;
+    self->cltv_expiry_delta = M_DFL_CLTV_EXPILY_DELTA;
+    self->htlc_minimum_msat = M_DFL_HTLC_MINIMUM_MSAT;
+    self->fee_base_msat = M_DFL_FEE_BASE_MSAT;
+    self->fee_prop_millionths = M_DFL_FEE_PROP_MILLIONTHS;
 
     //seed
     self->storage_index = M_SECINDEX_INIT;
@@ -653,11 +665,11 @@ bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd, uint32_t Ti
 
     upd.short_channel_id = self->short_channel_id;
     upd.timestamp = TimeStamp;
-#warning 実装中
-    upd.cltv_expiry_delta = 10;
-    upd.htlc_minimum_msat = 100;
-    upd.fee_base_msat = 100;
-    upd.fee_prop_millionths = 100;
+
+    upd.cltv_expiry_delta = self->cltv_expiry_delta;
+    upd.htlc_minimum_msat = self->htlc_minimum_msat;
+    upd.fee_base_msat = self->fee_base_msat;
+    upd.fee_prop_millionths = self->fee_prop_millionths;
     //署名
     upd.p_key = self->p_node->keys.priv;
     upd.sort = self->peer_node.sort;
@@ -934,6 +946,56 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 }
 
 
+/** [routing用]channel_announcementデータ解析
+ *
+ * @param[out]  p_short_channel_id
+ * @param[out]  pNodeId1
+ * @param[out]  pNodeId2
+ * @param[in]   pData
+ * @param[in]   Len
+ * @retval  true        解析成功
+ */
+bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len)
+{
+    ln_cnl_announce_read_t ann;
+
+    bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
+    if (ret) {
+        *p_short_channel_id = ann.short_channel_id;
+        memcpy(pNodeId1, ann.node_id1, UCOIN_SZ_PUBKEY);
+        memcpy(pNodeId2, ann.node_id2, UCOIN_SZ_PUBKEY);
+    }
+
+    return ret;
+}
+
+
+/** [routing用]channel_updateデータ解析
+ *
+ * @param[out]  pDelta
+ * @param[out]  pMiniMsat
+ * @param[out]  pBaseMsat
+ * @param[out]  pPropMil
+ * @param[in]   pData
+ * @param[in]   Len
+ * @retval  true        解析成功
+ */
+bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBaseMsat, uint32_t *pPropMil, const uint8_t *pData, uint16_t Len)
+{
+    ln_cnl_update_t upd;
+
+    bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
+    if (ret) {
+        *pDelta = upd.cltv_expiry_delta;
+        *pMiniMsat = upd.htlc_minimum_msat;
+        *pBaseMsat = upd.fee_base_msat;
+        *pPropMil = upd.fee_prop_millionths;
+    }
+
+    return ret;
+}
+
+
 #ifdef UCOIN_USE_PRINTFUNC
 void ln_print_self(const ln_self_t *self)
 {
@@ -949,7 +1011,7 @@ void ln_print_self(const ln_self_t *self)
     ucoin_util_dumpbin(PRINTOUT, self->storage_seed, UCOIN_SZ_PRIVKEY);
     fprintf(PRINTOUT, "funding_local:\n");
     fprintf(PRINTOUT, "  funding_txid: ");
-    ucoin_util_dumpbin(PRINTOUT, self->funding_local.funding_txid, UCOIN_SZ_TXID);
+    ucoin_util_dumptxid(PRINTOUT, self->funding_local.funding_txid);
     fprintf(PRINTOUT, "  funding_txindex: %d\n", self->funding_local.funding_txindex);
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         fprintf(PRINTOUT, "   keyv[%d] ", lp);
@@ -1059,6 +1121,55 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
             ln_cnl_update_t msg;
             msg.p_key = NULL;
             ln_msg_cnl_update_read(&msg, pData, Len);
+            ln_msg_cnl_update_print(&msg);
+        }
+        break;
+    }
+}
+
+
+void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
+{
+    uint16_t type = ln_misc_get16be(pData);
+
+    switch (type) {
+    case MSGTYPE_CHANNEL_ANNOUNCEMENT:
+        {
+            ln_cnl_announce_read_t ann;
+
+            bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
+            if (ret) {
+                DBG_PRINTF2("  short_channel_id= %016" PRIx64 "\n", ann.short_channel_id);
+                DBG_PRINTF2("    node1:");
+                DUMPBIN(ann.node_id1, UCOIN_SZ_PUBKEY);
+                DBG_PRINTF2("    node2:");
+                DUMPBIN(ann.node_id2, UCOIN_SZ_PUBKEY);
+            }
+        }
+        break;
+    case MSGTYPE_NODE_ANNOUNCEMENT:
+        {
+            ln_node_announce_t msg;
+            uint8_t node_pub[UCOIN_SZ_PUBKEY];
+            char node_alias[LN_SZ_ALIAS + 1];
+            msg.p_node_id = node_pub;
+            msg.p_alias = node_alias;
+            ln_msg_node_announce_read(&msg, pData, Len);
+        }
+        break;
+    case MSGTYPE_CHANNEL_UPDATE:
+        {
+            ln_cnl_update_t ann;
+            ann.p_key = NULL;
+            bool ret = ln_msg_cnl_update_read(&ann, pData, Len);
+            if (ret) {
+                DBG_PRINTF2("  short_channel_id= %016" PRIx64 "\n", ann.short_channel_id);
+                DBG_PRINTF2("  Dir: %d\n", ann.flags & 1);
+                DBG_PRINTF2("    cltv_expiry_delta= %d\n", ann.cltv_expiry_delta);
+                DBG_PRINTF2("    htlc_minimum_msat= %" PRIu64 "\n", ann.htlc_minimum_msat);
+                DBG_PRINTF2("    fee_base_msat= %" PRIu32 "\n", ann.fee_base_msat);
+                DBG_PRINTF2("    fee_prop_millionths= %" PRIu32 "\n", ann.fee_prop_millionths);
+            }
         }
         break;
     }
@@ -2304,6 +2415,105 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 }
 
 
+/** channel_announcement受信
+ *
+ * @param[in,out]       self            channel情報
+ * @param[in]           pData           受信データ
+ * @param[in]           Len             pData長
+ * @retval      true    解析成功
+ */
+static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+{
+    DBG_PRINTF("\n");
+
+    ln_cnl_announce_read_t ann;
+
+    bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
+    if (ret) {
+        ln_cb_channel_anno_recv_t param;
+
+        param.short_channel_id = ann.short_channel_id;
+        (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
+    } else {
+        DBG_PRINTF("err\n");
+    }
+
+    ucoin_buf_t buf;
+    buf.buf = (CONST_CAST uint8_t *)pData;
+    buf.len = Len;
+
+    //DB読込み
+    ucoin_buf_t buf_bolt;
+    ret = ln_db_load_anno_channel(&buf_bolt, ann.short_channel_id);
+    if (ret) {
+        // BOLT#7
+        //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements-1
+        //
+        // If it has previously received a valid channel_announcement
+        // for the same transaction in the same block, but different node_id_1 or node_id_2,
+        // it SHOULD blacklist the previous message's node_id_1 and node_id_2 as well as
+        // this node_id_1 and node_id_2 and forget channels connected to them,
+        // otherwise it SHOULD store this channel_announcement.
+        if (ucoin_buf_cmp(&buf_bolt, &buf)) {
+            DBG_PRINTF("同じものが送られてきたので、スルー\n");
+        } else {
+            DBG_PRINTF("不一致のためblacklist入りする予定\n");
+            assert(0);
+        }
+    }
+
+    //DB保存
+    ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
+    assert(ret);
+
+    return ret;
+}
+
+
+/** channel_update受信
+ *
+ * @param[in,out]       self            channel情報
+ * @param[in]           pData           受信データ
+ * @param[in]           Len             pData長
+ * @retval      true    解析成功
+ */
+static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+{
+    DBG_PRINTF("\n");
+
+    ln_cnl_update_t upd;
+
+    //verify
+    bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
+    DBG_PRINTF("ret=%d\n", ret);
+
+    if (ret) {
+        //short_channel_id と dir から node_id を取得する
+        uint8_t node_id[UCOIN_SZ_PUBKEY];
+
+        ret = get_nodeid(node_id, upd.short_channel_id, upd.flags & 0x0001);
+        if (ret && ucoin_keys_chkpub(node_id)) {
+            ret = ln_msg_cnl_update_verify(node_id, pData, Len);
+        } else {
+            DBG_PRINTF("err\n");
+        }
+    }
+
+    if (ret) {
+        //DB保存
+        ucoin_buf_t buf;
+        buf.buf = (CONST_CAST uint8_t *)pData;
+        buf.len = Len;
+        ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & 0x0001);
+        assert(ret);
+    } else {
+        DBG_PRINTF("err\n");
+    }
+
+    return ret;
+}
+
+
 /********************************************************************
  * Transaction作成
  ********************************************************************/
@@ -3069,7 +3279,7 @@ static void proc_established(ln_self_t *self)
         funding.p_txid = self->funding_local.funding_txid;
         funding.min_depth = 0;
         funding.b_send = false;
-        funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : NULL;
+        funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : false;
         (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
 
         //Normal Operation可能
@@ -3100,4 +3310,39 @@ static void proc_announce_sigsed(ln_self_t *self)
 static bool chk_peer_node(ln_self_t *self)
 {
     return self->peer_node.node_id[0];      //先頭が0の場合は不正
+}
+
+
+//node_id取得
+static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
+{
+    bool ret;
+
+    pNodeId[0] = 0x00;
+
+    ucoin_buf_t buf_cnl_anno;
+    ucoin_buf_init(&buf_cnl_anno);
+    ret = ln_db_load_anno_channel(&buf_cnl_anno, short_channel_id);
+    if (ret) {
+        ln_cnl_announce_read_t ann;
+
+        ret = ln_msg_cnl_announce_read(&ann, buf_cnl_anno.buf, buf_cnl_anno.len);
+        DBG_PRINTF("ret=%d\n", ret);
+        if (ret) {
+            const uint8_t *p_node_id;
+            if (Dir == 0) {
+                p_node_id = ann.node_id1;
+            } else {
+                p_node_id = ann.node_id2;
+            }
+            memcpy(pNodeId, p_node_id, UCOIN_SZ_PUBKEY);
+        } else {
+            DBG_PRINTF("ret=%d\n", ret);
+        }
+    } else {
+        DBG_PRINTF("ret=%d\n", ret);
+    }
+    ucoin_buf_free(&buf_cnl_anno);
+
+    return ret;
 }

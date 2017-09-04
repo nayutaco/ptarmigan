@@ -218,6 +218,7 @@ int ucoin_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint16_t Len,
 
 #if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
 void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len);
+void ucoin_util_dumptxid(FILE *fp, const uint8_t *pTxid);
 #endif  //UCOIN_USE_PRINTFUNC
 
 #ifdef UCOIN_DEBUG_MEM

@@ -359,14 +359,15 @@ static int exec_cmd_daemon(const msg_daemon_t *pDaemon, char *pResMsg)
         break;
     case DCMD_PREIMAGE:
         {
-            const daemon_connect_t *p_conn = &pDaemon->params.connect;
+            const daemon_invoice_t *p_inv = &pDaemon->params.invoice;
+            const daemon_connect_t *p_conn = &p_inv->conn;
 
             fprintf(PRINTOUT, "<preimage>\n");
             SYSLOG_INFO("preimage");
 
             lnapp_conf_t *p_appconf = search_connected_lnapp(p_conn->node_id);
             if (p_appconf != NULL) {
-                lnapp_add_preimage(p_appconf, pResMsg);
+                lnapp_add_preimage(p_appconf, p_inv->amount, pResMsg);
             }
             retval = 0;
         }

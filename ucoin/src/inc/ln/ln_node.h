@@ -33,16 +33,6 @@
  * prototypes
  ********************************************************************/
 
-/** channel_announcement受信
- *
- * @param[in,out]       self            channel情報
- * @param[in]           pData           受信データ
- * @param[in]           Len             pData長
- * @retval      true    解析成功
- */
-bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-
-
 /** node_announcement受信
  *
  * @param[in,out]       self            channel情報
@@ -51,15 +41,5 @@ bool HIDDEN ln_node_recv_channel_announcement(ln_self_t *self, const uint8_t *pD
  * @retval      true    解析成功
  */
 bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-
-
-/** channel_update受信
- *
- * @param[in,out]       self            channel情報
- * @param[in]           pData           受信データ
- * @param[in]           Len             pData長
- * @retval      true    解析成功
- */
-bool HIDDEN ln_node_recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 #endif /* LN_NODE_H__ */

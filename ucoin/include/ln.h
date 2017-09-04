@@ -828,6 +828,10 @@ struct ln_self_t {
     uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
 
     uint8_t                     anno_flag;                      ///< announcement_signaturesなど
+    uint16_t                    cltv_expiry_delta;              ///< 2:  cltv_expiry_delta
+    uint64_t                    htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
+    uint32_t                    fee_base_msat;                  ///< 4:  fee_base_msat
+    uint32_t                    fee_prop_millionths;            ///< 4:  fee_proportional_millionths
 
     //closing
     ucoin_tx_t                  tx_closing;                     ///< closing_tx
@@ -1283,8 +1287,19 @@ static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
 }
 
 
+/**
+ *
+ */
 static inline const uint8_t *ln_node_id(const ln_node_t *node) {
     return node->keys.pub;
+}
+
+
+/**
+ *
+ */
+static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
+    return self->cltv_expiry_delta;
 }
 
 
@@ -1307,24 +1322,6 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
  * @param[in,out]   node            ノード情報
  */
 void ln_node_term(ln_node_t *node);
-
-
-/** node_announcement作成
- *
- * @param[out]          node            ノード情報
- * @param[out]          pBuf            生成したnode_announcementメッセージ
- * @param[in]           TimeStamp       タイムスタンプ
- * @retval      ture    成功
- * @note
- *      - TimeStampは、相手のノードが特定できないのでUTCか？
- */
-bool ln_node_create_node_announce(ln_node_t *node, ucoin_buf_t *pBuf, uint32_t TimeStamp);
-
-
-/** channel_announcement読込み
- *
- */
-bool ln_node_read_channel_announce(ln_cnl_announce_read_t *pAnno, const ucoin_buf_t *pBuf);
 
 
 /** short_channel_id検索

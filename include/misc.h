@@ -30,6 +30,10 @@
 #include <syslog.h>
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif  //__cplusplus
+
 /**************************************************************************
  * macros
  **************************************************************************/
@@ -44,7 +48,7 @@
  **************************************************************************/
 
 static inline void misc_msleep(unsigned long slp) {
-    struct timespec req = { 0, slp * 1000000UL };
+    struct timespec req = { 0, (long)(slp * 1000000UL) };
     nanosleep(&req, NULL);
 }
 
@@ -54,5 +58,9 @@ bool misc_str2bin(uint8_t *pBin, uint16_t BinLen, const char *pStr);
 bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr);
 void misc_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len);
 void misc_print_txid(const uint8_t *pTxid);
+
+#ifdef __cplusplus
+}
+#endif  //__cplusplus
 
 #endif /* MISC_H__ */

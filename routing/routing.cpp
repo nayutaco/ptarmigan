@@ -1,0 +1,572 @@
+/*
+ *  Copyright (C) 2017, Nayuta, Inc. All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed to the Apache Software Foundation (ASF) under one
+ *  or more contributor license agreements.  See the NOTICE file
+ *  distributed with this work for additional information
+ *  regarding copyright ownership.  The ASF licenses this file
+ *  to you under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
+ */
+/** @file   routing.cpp
+ *  @brief  routing計算
+ *  @author ueno@nayuta.co
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <time.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <poll.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <assert.h>
+
+//#define M_DEBUG
+//#define M_NO_GRAPH
+
+#define UCOIN_USE_PRINTFUNC
+#include "ucoind.h"
+#include "ln_db.h"
+#include "ln_db_lmdb.h"
+#include "conf.h"
+
+#include <iostream>
+#include <fstream>
+#include <deque>
+#include <vector>
+
+#include <boost/config.hpp>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/dijkstra_shortest_paths.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/property_map/property_map.hpp>
+
+
+using namespace boost;
+
+/**************************************************************************
+ * macros
+ **************************************************************************/
+
+#define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
+#define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
+#define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
+#define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
+
+
+/**************************************************************************
+ * prototypes
+ **************************************************************************/
+
+extern "C" {
+    void ln_print_announce(const uint8_t *pData, uint16_t Len);
+    bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
+    bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBaseMsat, uint32_t *pPropMil, const uint8_t *pData, uint16_t Len);
+}
+
+typedef struct {
+    uint8_t     node_id[UCOIN_SZ_PUBKEY];
+    uint16_t    cltv_expiry_delta;
+    uint64_t    htlc_minimum_msat;
+    uint32_t    fee_base_msat;
+    uint32_t    fee_prop_millionths;
+} nodeinfo_t;
+
+
+struct Node {
+    //std::string name;
+    const uint8_t*  p_node;
+};
+
+
+struct Fee {
+    //std::string name;
+    uint64_t    short_channel_id;
+    uint32_t    fee_base_msat;
+    uint32_t    fee_prop_millionths;
+    uint16_t    cltv_expiry_delta;
+};
+
+
+typedef adjacency_list <
+                listS,
+                vecS,
+                bidirectionalS,
+                Node,
+                Fee
+        > graph_t;
+typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
+typedef graph_traits < graph_t >::vertex_iterator vertex_iterator;
+
+
+/********************************************************************
+ * static variables
+ ********************************************************************/
+
+static MDB_env      *mpDbEnv = NULL;
+static struct nodes_t {
+    uint64_t    short_channel_id;
+    nodeinfo_t  ninfo[2];
+} *mpNodes = NULL;
+static int mNodeNum = 0;
+static uint8_t mMyNodeId[UCOIN_SZ_PUBKEY];
+static uint8_t mTgtNodeId[UCOIN_SZ_PUBKEY];
+
+
+/********************************************************************
+ * misc
+ ********************************************************************/
+
+//#ifndef M_NO_GRAPH
+//static const uint8_t* name(const nodemng_t* pNodeMng, int Edge)
+//{
+//    return node_get(pNodeMng, Edge);
+//}
+//#endif
+
+
+static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_prop_millionths)
+{
+    return (uint64_t)fee_base_msat + (uint64_t)((amtmsat * fee_prop_millionths) / 1000000);
+}
+
+
+static void loadconf(const char* pConfFile, uint8_t* pPubKey)
+{
+    node_conf_t nconf;
+    rpc_conf_t rconf;
+    bool bret = load_node_conf(pConfFile, &nconf, &rconf);
+    assert(bret);
+
+    ucoin_init(UCOIN_TESTNET, true);
+    ucoin_util_keys_t mykeys;
+    bret = ucoin_util_wif2keys(&mykeys, nconf.wif);
+    assert(bret);
+    memcpy(pPubKey, mykeys.pub, UCOIN_SZ_PUBKEY);
+    ucoin_term();
+}
+
+
+#ifdef M_DEBUG
+static void dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len)
+{
+    for (uint16_t lp = 0; lp < Len; lp++) {
+        fprintf(fp, "%02x", pData[lp]);
+    }
+    fprintf(fp, "\n");
+}
+#endif
+
+
+/* Dump in BDB-compatible format */
+static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
+{
+    const char *name = (const char *)p_key->mv_data;
+
+    if (strcmp(name, "channel_anno") == 0) {
+        MDB_dbi     dbi;
+        MDB_cursor  *cursor;
+
+        //ここでdbi, txnを使ってcursorを取得
+        int retval = mdb_dbi_open(txn, name, 0, &dbi);
+        assert(retval == 0);
+        retval = mdb_cursor_open(txn, dbi, &cursor);
+        assert(retval == 0);
+        int ret;
+
+        do {
+            uint64_t short_channel_id;
+            char type;
+            int idx;
+            ucoin_buf_t buf;
+            bool bret;
+
+            ucoin_buf_init(&buf);
+            ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
+            if (ret == 0) {
+                switch (type) {
+                case LN_DB_CNLANNO_ANNO:
+                    mNodeNum++;
+                    mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
+
+                    bret = ln_getids_cnl_anno(
+                                        &mpNodes[mNodeNum - 1].short_channel_id,
+                                        mpNodes[mNodeNum - 1].ninfo[0].node_id,
+                                        mpNodes[mNodeNum - 1].ninfo[1].node_id,
+                                        buf.buf, buf.len);
+                    assert(bret);
+#ifdef M_DEBUG
+                    fprintf(stderr, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
+                    ln_print_announce(buf.buf, buf.len);
+#endif
+                    break;
+                case LN_DB_CNLANNO_UPD1:
+                case LN_DB_CNLANNO_UPD2:
+                    idx = type - LN_DB_CNLANNO_UPD1;
+                    bret = ln_getparams_cnl_upd(
+                                        &mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta,
+                                        &mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat,
+                                        &mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat,
+                                        &mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths,
+                                        buf.buf, buf.len);
+                    assert(bret);
+#ifdef M_DEBUG
+                    fprintf(stderr, "channel update : %c\n", type);
+                    ln_print_announce(buf.buf, buf.len);
+#endif
+                    break;
+                default:
+                    break;
+                }
+            }
+            ucoin_buf_free(&buf);
+        } while (ret == 0);
+        mdb_cursor_close(cursor);
+        mdb_close(mpDbEnv, dbi);
+    } else if (p_key->mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
+        //version check
+        ln_self_t self;
+        memset(&self, 0, sizeof(self));
+
+        int retval = ln_lmdb_load_channel(&self, txn, &dbi);
+        assert(retval == 0);
+
+        ln_term(&self);
+    }
+
+    return 0;
+}
+
+
+static void loaddb(const char *pDbPath)
+{
+    int ret;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_val     key;
+    MDB_cursor  *cursor;
+
+    ret = mdb_env_create(&mpDbEnv);
+    assert(ret == 0);
+    ret = mdb_env_set_maxdbs(mpDbEnv, 2);
+    assert(ret == 0);
+    ret = mdb_env_open(mpDbEnv, pDbPath, MDB_RDONLY, 0664);
+    assert(ret == 0);
+
+    ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
+    assert(ret == 0);
+    ret = ln_lmdb_check_version(txn);
+    assert(ret == 0);
+    ret = mdb_dbi_open(txn, NULL, 0, &dbi);
+    assert(ret == 0);
+
+    ret = mdb_cursor_open(txn, dbi, &cursor);
+    assert(ret == 0);
+
+    int list = 0;
+    while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
+        MDB_dbi dbi2;
+        if (memchr(key.mv_data, '\0', key.mv_size)) {
+            continue;
+        }
+        ret = mdb_dbi_open(txn, (const char *)key.mv_data, 0, &dbi2);
+        if (ret == 0) {
+            if (list) {
+                list++;
+            } else {
+                ret = dumpit(txn, dbi2, &key);
+                if (ret) {
+                    break;
+                }
+            }
+            mdb_close(mpDbEnv, dbi2);
+        } else {
+            printf("???\n");
+        }
+    }
+    mdb_cursor_close(cursor);
+    mdb_close(mpDbEnv, dbi);
+    mdb_txn_abort(txn);
+    mdb_env_close(mpDbEnv);
+}
+
+
+static int direction(const uint8_t *pNode1, const uint8_t *pNode2)
+{
+    int lp2;
+    for (lp2 = 0; lp2 < UCOIN_SZ_PUBKEY; lp2++) {
+        if (pNode1[lp2] != pNode2[lp2]) {
+            break;
+        }
+    }
+    return (pNode1[lp2] < pNode2[lp2]) ? 0 : 1;
+}
+
+
+//true:含む
+static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
+{
+    graph_t::vertex_descriptor v;
+    bool ret = false;
+
+    std::pair<graph_t::vertex_iterator, graph_t::vertex_iterator> ver_its = vertices(g);
+    for (graph_t::vertex_iterator st = ver_its.first, et = ver_its.second; st != et; st++) {
+        if (memcmp(g[*st].p_node, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
+            ret = true;
+            v = *st;
+            break;
+        }
+    }
+    if (!ret) {
+        v = add_vertex(g);
+        g[v].p_node = pNodeId;
+    }
+
+    return v;
+}
+
+
+/********************************************************************
+ *
+ ********************************************************************/
+
+int main(int argc, char* argv[])
+{
+    bool ret;
+    uint64_t amtmsat;
+
+    if (argc != 5) {
+        printf("usage:");
+        printf("\t%s [db path] [node conf] [target node_id] [amount_msat]\n", argv[0]);
+        return -1;
+    }
+
+    loaddb(argv[1]);
+
+    loadconf(argv[2], mMyNodeId);
+
+    ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), argv[3]);
+    assert(ret);
+
+    amtmsat = (uint64_t)strtoull(argv[4], NULL, 10);
+
+#ifdef M_DEBUG
+    fprintf(stderr, "my nodeid    : ");
+    dumpbin(stderr, mMyNodeId, UCOIN_SZ_PUBKEY);
+    fprintf(stderr, "target nodeid: ");
+    dumpbin(stderr, mTgtNodeId, UCOIN_SZ_PUBKEY);
+#endif
+
+    graph_t g;
+
+    bool set_start = false;
+    bool set_goal = false;
+    graph_t::vertex_descriptor pnt_start;
+    graph_t::vertex_descriptor pnt_goal;
+
+
+    //Edge追加
+    for (int lp = 0; lp < mNodeNum; lp++) {
+#ifdef M_DEBUG
+        fprintf(stderr, "  short_channel_id=%016" PRIx64 "\n", mpNodes[lp].short_channel_id);
+        fprintf(stderr, "    [1]");
+        dumpbin(stderr, mpNodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY);
+        fprintf(stderr, "    [2]");
+        dumpbin(stderr, mpNodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY);
+        fprintf(stderr, "\n");
+#endif
+
+        graph_t::vertex_descriptor node1 = ver_add(g, mpNodes[lp].ninfo[0].node_id);
+        graph_t::vertex_descriptor node2 = ver_add(g, mpNodes[lp].ninfo[1].node_id);
+        if (!set_start) {
+            if (memcmp(mpNodes[lp].ninfo[0].node_id, mMyNodeId, UCOIN_SZ_PUBKEY) == 0) {
+                pnt_start = node1;
+                set_start = true;
+            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, mMyNodeId, UCOIN_SZ_PUBKEY) == 0) {
+                pnt_start = node2;
+                set_start = true;
+            }
+        }
+        if (!set_goal) {
+            if (memcmp(mpNodes[lp].ninfo[0].node_id, mTgtNodeId, UCOIN_SZ_PUBKEY) == 0) {
+                pnt_goal = node1;
+                set_goal = true;
+            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, mTgtNodeId, UCOIN_SZ_PUBKEY) == 0) {
+                pnt_goal = node2;
+                set_goal = true;
+            }
+        }
+
+        if (node1 != node2) {
+            bool inserted = false;
+            graph_t::edge_descriptor e1, e2;
+
+            boost::tie(e1, inserted) = add_edge(node1, node2, g);
+            g[e1].short_channel_id = mpNodes[lp].short_channel_id;
+            g[e1].fee_base_msat = mpNodes[lp].ninfo[1].fee_base_msat;
+            g[e1].fee_prop_millionths = mpNodes[lp].ninfo[1].fee_prop_millionths;
+            g[e1].cltv_expiry_delta = mpNodes[lp].ninfo[1].cltv_expiry_delta;
+            boost::tie(e2, inserted) = add_edge(node2, node1, g);
+            g[e2].short_channel_id = mpNodes[lp].short_channel_id;
+            g[e2].fee_base_msat = mpNodes[lp].ninfo[0].fee_base_msat;
+            g[e2].fee_prop_millionths = mpNodes[lp].ninfo[0].fee_prop_millionths;
+            g[e2].cltv_expiry_delta = mpNodes[lp].ninfo[0].cltv_expiry_delta;
+        }
+    }
+
+#ifdef M_DEBUG
+    fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", pnt_start, pnt_goal);
+#endif
+    if (!set_start || !set_goal) {
+        std::cout << "no start/goal node" << std::endl;
+        return -1;
+    }
+
+    std::vector<vertex_descriptor> p(num_vertices(g));      //parent
+    std::vector<int> d(num_vertices(g));
+    dijkstra_shortest_paths(g, pnt_start,
+                        weight_map(boost::get(&Fee::fee_base_msat, g)).
+                        predecessor_map(&p[0]).
+                        distance_map(&d[0]));
+
+    if (p[pnt_goal] == pnt_goal) {
+        std::cout << "no route" << std::endl;
+        return -1;
+    }
+
+    //逆順に入っているので、並べ直す
+    std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
+    std::deque<uint64_t> msat;
+    std::deque<uint32_t> cltv;
+    uint32_t cltv_expiry = 0;
+    for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
+        route.push_front(v);
+
+        bool found;
+        graph_t::edge_descriptor e;
+        boost::tie(e, found) = edge(v, p[v], g);
+        if (!found) {
+            printf("not foooooooooound\n");
+            abort();
+        }
+
+        msat.push_front(amtmsat);
+        amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
+
+        if (cltv_expiry == 0) {
+            cltv.push_front(g[e].cltv_expiry_delta);
+        }
+        cltv_expiry += g[e].cltv_expiry_delta;
+        cltv.push_front(cltv_expiry);
+    }
+    route.push_front(pnt_start);
+    msat.push_front(amtmsat);
+
+    //std::cout << "distance: " << d[pnt_goal] << std::endl;
+
+    //pay.conf形式の出力
+    int hop = (int)route.size();
+    const uint8_t *p_next;
+    nodeinfo_t ninfo = {0};
+    printf("hop_num=%d\n", hop);
+    for (int lp = 0; lp < hop - 1; lp++) {
+        const uint8_t *p_now  = g[route[lp]].p_node;
+        p_next = g[route[lp + 1]].p_node;
+
+        const uint8_t *p_node_id1;
+        const uint8_t *p_node_id2;
+        int dir = direction(p_now, p_next);
+        if (dir == 0) {
+            p_node_id1 = p_now;
+            p_node_id2 = p_next;
+            dir = 0;
+        } else {
+            p_node_id1 = p_next;
+            p_node_id2 = p_now;
+            dir = 1;
+        }
+        uint64_t sci = 0;
+        for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
+            if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
+                 (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
+                sci = mpNodes[lp3].short_channel_id;
+                ninfo = mpNodes[lp3].ninfo[dir];
+                break;
+            }
+        }
+
+        for (int lp3 = 0; lp3 < UCOIN_SZ_PUBKEY; lp3++) {
+            printf("%02x", p_now[lp3]);
+        }
+        printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n", sci, msat[lp], cltv[lp]);
+    }
+
+    //最後
+    for (int lp3 = 0; lp3 < UCOIN_SZ_PUBKEY; lp3++) {
+        printf("%02x", p_next[lp3]);
+    }
+    printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
+
+
+#ifndef M_NO_GRAPH
+    //////////////////////////////////////////////////////////////
+    std::ofstream dot_file("routing.dot");
+
+    dot_file << "digraph D {\n"
+             << "  rankdir=LR\n"
+//             << "  size=\"4,3\"\n"
+             << "  ratio=\"fill\"\n"
+             << "  edge[style=\"bold\"]\n" << "  node[shape=\"circle\"]\n";
+
+    graph_traits < graph_t >::edge_iterator ei, ei_end;
+    for (boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
+        graph_traits < graph_t >::edge_descriptor e = *ei;
+        graph_traits < graph_t >::vertex_descriptor u = source(e, g);
+        graph_traits < graph_t >::vertex_descriptor v = target(e, g);
+        if (u != v) {
+            char node1[68];
+            char node2[68];
+            node1[0] = (char)('A' + u);
+            node1[1] = '\0';
+            node2[0] = (char)('A' + v);
+            node2[1] = '\0';
+            const uint8_t *p_node1 = g[u].p_node;
+            const uint8_t *p_node2 = g[v].p_node;
+            for (int lp = 0; lp < 3; lp++) {
+                char s[3];
+                sprintf(s, "%02x", p_node1[lp]);
+                strcat(node1, s);
+                sprintf(s, "%02x", p_node2[lp]);
+                strcat(node2, s);
+            }
+            dot_file << node1 << " -> " << node2
+                        << "[label=\""
+                        << std::hex << g[e].short_channel_id << std::dec << ","
+                        << g[e].fee_base_msat << ","
+                        << g[e].fee_prop_millionths << ","
+                        << g[e].cltv_expiry_delta << "\"";
+            dot_file << ", color=\"black\"";
+            dot_file << "]" << std::endl;
+        }
+    }
+    dot_file << "}";
+    //////////////////////////////////////////////////////////////
+#endif
+
+    return 0;
+}

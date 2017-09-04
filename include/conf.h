@@ -25,6 +25,10 @@
 #include <stdbool.h>
 #include "ucoind.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif  //__cplusplus
+
 
 bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *pRpcConf);
 void print_node_conf(const node_conf_t *pNodeConf, const rpc_conf_t *pRpcConf);
@@ -37,5 +41,9 @@ void print_funding_conf(const funding_conf_t *pFundConf);
 
 bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf);
 void print_payment_conf(const payment_conf_t *pPayConf);
+
+#ifdef __cplusplus
+}
+#endif  //__cplusplus
 
 #endif /* CONF_H__ */

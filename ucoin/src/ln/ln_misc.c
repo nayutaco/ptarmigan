@@ -321,7 +321,7 @@ void HIDDEN ln_misc_printkeys(FILE *fp, const ln_funding_local_data_t *pLocal, c
 #ifdef UCOIN_DEBUG
     fprintf(fp, "-[local]-------------------------------\n");
     fprintf(fp, "funding_txid: ");
-    ucoin_util_dumpbin(fp, pLocal->funding_txid, UCOIN_SZ_TXID);
+    ucoin_util_dumptxid(fp, pLocal->funding_txid);
     fprintf(fp, "\n");
     const char *KEYS_STR[] = {
         "FUNDING", "REVOCATION", "PAYMENT", "DELAYED", "PER_COMMIT"
