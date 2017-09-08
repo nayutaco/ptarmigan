@@ -2,6 +2,6 @@
 
 # ノードの停止
 #
-./ucoincli -q 3333
-./ucoincli -q 4444
-./ucoincli -q 5555
+./ucoincli -q 3334
+./ucoincli -q 4445
+./ucoincli -q 5556

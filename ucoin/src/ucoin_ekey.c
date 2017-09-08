@@ -350,18 +350,18 @@ void ucoin_print_extendedkey(const ucoin_ekey_t *pEKey)
     fprintf(fp, "fingerprint: %08x\n", pEKey->fingerprint);
     fprintf(fp, "child number: %08x\n", pEKey->child_number);
     fprintf(fp, "chain code: ");
-    ucoin_util_dumpbin(fp, pEKey->chain_code, 32);
+    ucoin_util_dumpbin(fp, pEKey->chain_code, 32, true);
     if (pEKey->type == UCOIN_EKEY_PUB) {
         fprintf(fp, "pubkey: ");
-        ucoin_util_dumpbin(fp, pEKey->key, 33);
+        ucoin_util_dumpbin(fp, pEKey->key, 33, true);
     } else {
         fprintf(fp, "privkey: ");
-        ucoin_util_dumpbin(fp, pEKey->key, 32);
+        ucoin_util_dumpbin(fp, pEKey->key, 32, true);
 
         uint8_t pubkey[UCOIN_SZ_PUBKEY];
         ucoin_keys_priv2pub(pubkey, pEKey->key);
         fprintf(fp, "pubkey: ");
-        ucoin_util_dumpbin(fp, pubkey, sizeof(pubkey));
+        ucoin_util_dumpbin(fp, pubkey, sizeof(pubkey), true);
     }
     fprintf(fp, "------------------------\n");
 }

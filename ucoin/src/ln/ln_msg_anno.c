@@ -740,11 +740,11 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 
     //        [addrlen:addresses]
     if (addrlen > 0) {
-        DBG_PRINTF("addresses(%d)=", addrlen);
-        DUMPBIN(pData + pos, addrlen);
+        //DBG_PRINTF("addresses(%d)=", addrlen);
+        //DUMPBIN(pData + pos, addrlen);
 
         //uint8_t add = *(pData + pos);
-        DUMPBIN(pData + pos, addrlen);
+        //DUMPBIN(pData + pos, addrlen);
 
         pos += addrlen;
     }
@@ -769,10 +769,10 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     ucoin_buf_free(&buf_sig);
 
 
-#ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-    node_announce_print(pMsg);
-#endif  //DBG_PRINT_READ
+//#ifdef DBG_PRINT_READ
+//    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+//    node_announce_print(pMsg);
+//#endif  //DBG_PRINT_READ
 
     return ret;
 }

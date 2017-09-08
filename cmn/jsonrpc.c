@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <float.h>
 #include <curl/curl.h>
 #include "jansson.h"
 
@@ -653,6 +654,11 @@ bool jsonrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     bool retval;
     char *p_json;
 
+    if (nBlocks < 2) {
+        DBG_PRINTF("fail: nBlock < 2\n");
+        return false;
+    }
+
     p_json = (char *)malloc(BUFFER_SIZE);
     retval = estimatefee_rpc(p_json, nBlocks);
     if (retval) {
@@ -674,12 +680,16 @@ bool jsonrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
         }
         if (json_is_real(p_result)) {
             *pFeeSatoshi = UCOIN_BTC2SATOSHI(json_real_value(p_result));
-            ret = true;
+            //-1のときは失敗と見なす
+            ret = (*pFeeSatoshi + 1.0) > DBL_EPSILON;
+            if (!ret) {
+                DBG_PRINTF("fail: Unable to estimate fee\n");
+            }
         }
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: dumpprivkey_rpc()\n");
+        DBG_PRINTF("fail: estimatefee_rpc()\n");
     }
 
 LABEL_EXIT:
@@ -1049,7 +1059,14 @@ int main(int argc, char *argv[])
         0x00, 0x00, 0x00,
     };
 
+#ifndef NETKIND
+#error not define NETKIND
+#endif
+#if NETKIND==0
+    ucoin_init(UCOIN_MAINNET, true);
+#elif NETKIND==1
     ucoin_init(UCOIN_TESTNET, true);
+#endif
 
     rpc_conf_t rpc_conf;
 

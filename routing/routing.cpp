@@ -39,7 +39,6 @@
 //#define M_DEBUG
 //#define M_NO_GRAPH
 
-#define UCOIN_USE_PRINTFUNC
 #include "ucoind.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
@@ -162,17 +161,6 @@ static void loadconf(const char* pConfFile, uint8_t* pPubKey)
 }
 
 
-#ifdef M_DEBUG
-static void dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len)
-{
-    for (uint16_t lp = 0; lp < Len; lp++) {
-        fprintf(fp, "%02x", pData[lp]);
-    }
-    fprintf(fp, "\n");
-}
-#endif
-
-
 /* Dump in BDB-compatible format */
 static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
 {
@@ -194,7 +182,6 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
             char type;
             int idx;
             ucoin_buf_t buf;
-            bool bret;
 
             ucoin_buf_init(&buf);
             ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
@@ -204,12 +191,11 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                     mNodeNum++;
                     mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
 
-                    bret = ln_getids_cnl_anno(
+                    ln_getids_cnl_anno(
                                         &mpNodes[mNodeNum - 1].short_channel_id,
                                         mpNodes[mNodeNum - 1].ninfo[0].node_id,
                                         mpNodes[mNodeNum - 1].ninfo[1].node_id,
                                         buf.buf, buf.len);
-                    assert(bret);
 #ifdef M_DEBUG
                     fprintf(stderr, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
                     ln_print_announce(buf.buf, buf.len);
@@ -218,13 +204,12 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                 case LN_DB_CNLANNO_UPD1:
                 case LN_DB_CNLANNO_UPD2:
                     idx = type - LN_DB_CNLANNO_UPD1;
-                    bret = ln_getparams_cnl_upd(
+                    ln_getparams_cnl_upd(
                                         &mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta,
                                         &mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat,
                                         &mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat,
                                         &mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths,
                                         buf.buf, buf.len);
-                    assert(bret);
 #ifdef M_DEBUG
                     fprintf(stderr, "channel update : %c\n", type);
                     ln_print_announce(buf.buf, buf.len);
@@ -367,9 +352,9 @@ int main(int argc, char* argv[])
 
 #ifdef M_DEBUG
     fprintf(stderr, "my nodeid    : ");
-    dumpbin(stderr, mMyNodeId, UCOIN_SZ_PUBKEY);
+    ucoin_util_dumpbin(stderr, mMyNodeId, UCOIN_SZ_PUBKEY, true);
     fprintf(stderr, "target nodeid: ");
-    dumpbin(stderr, mTgtNodeId, UCOIN_SZ_PUBKEY);
+    ucoin_util_dumpbin(stderr, mTgtNodeId, UCOIN_SZ_PUBKEY, true);
 #endif
 
     graph_t g;
@@ -385,9 +370,9 @@ int main(int argc, char* argv[])
 #ifdef M_DEBUG
         fprintf(stderr, "  short_channel_id=%016" PRIx64 "\n", mpNodes[lp].short_channel_id);
         fprintf(stderr, "    [1]");
-        dumpbin(stderr, mpNodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY);
+        ucoin_util_dumpbin(stderr, mpNodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
         fprintf(stderr, "    [2]");
-        dumpbin(stderr, mpNodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY);
+        ucoin_util_dumpbin(stderr, mpNodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
         fprintf(stderr, "\n");
 #endif
 
@@ -510,16 +495,14 @@ int main(int argc, char* argv[])
             }
         }
 
-        for (int lp3 = 0; lp3 < UCOIN_SZ_PUBKEY; lp3++) {
-            printf("%02x", p_now[lp3]);
-        }
+        printf("route%d=", lp);
+        ucoin_util_dumpbin(stdout, p_now, UCOIN_SZ_PUBKEY, false);
         printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n", sci, msat[lp], cltv[lp]);
     }
 
     //最後
-    for (int lp3 = 0; lp3 < UCOIN_SZ_PUBKEY; lp3++) {
-        printf("%02x", p_next[lp3]);
-    }
+    printf("route%d=", hop - 1);
+    ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
     printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
 
 

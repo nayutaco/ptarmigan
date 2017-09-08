@@ -109,16 +109,13 @@ static inline int tid() {
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
 #define DBG_PRINTF(format, ...) {fprintf(DEBUGOUT, "%ld (%d)[%s:%d]", (unsigned long)time(NULL), tid(), __func__, __LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
 #define DBG_PRINTF2(format, ...) {fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
+/// @def    DUMPBIN(dt,ln)
+/// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
+#define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
+#define DUMPTXID(dt)        ucoin_util_dumptxid(DEBUGOUT, dt)
 #else //UCOIN_DEBUG
 #define DBG_PRINTF(...)     //none
 #define DBG_PRINTF2(...)     //none
-#endif //UCOIN_DEBUG
-
-#ifdef UCOIN_DEBUG
-/// @def    DUMPBIN(dt,ln)
-/// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
-#define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln)
-#else //UCOIN_DEBUG
 #define DUMPBIN(...)
 #endif //UCOIN_DEBUG
 
@@ -215,11 +212,6 @@ void ucoin_util_add_vout_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPu
 void ucoin_util_add_vout_pkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
 int ucoin_util_get_varint_len(int Len);
 int ucoin_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint16_t Len, bool isScript);
-
-#if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
-void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len);
-void ucoin_util_dumptxid(FILE *fp, const uint8_t *pTxid);
-#endif  //UCOIN_USE_PRINTFUNC
 
 #ifdef UCOIN_DEBUG_MEM
 void* ucoin_dbg_malloc(size_t);

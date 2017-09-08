@@ -324,7 +324,6 @@ typedef struct {
     uint64_t    max_htlc_value_in_flight_msat;      ///< 8 : max-htlc-value-in-flight-msat
     uint64_t    channel_reserve_sat;                ///< 8 : channel-reserve-satoshis
     uint64_t    htlc_minimum_msat;                  ///< 8 : htlc-minimum-msat
-    uint32_t    feerate_per_kw;                     ///< 4 : feerate-per-kw
     uint16_t    to_self_delay;                      ///< 2 : to-self-delay
     uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
@@ -1079,10 +1078,11 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst);
  * @param[in]           pFundin         fund-in情報
  * @param[in]           FundingSat      fundingするamount[satoshi]
  * @param[in]           PushSat         push_msatするamount[satoshi]
+ * @param[in]           FeeRate         feerate_per_kw
  * retval       true    成功
  */
 bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
-            const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat);
+            const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate);
 
 
 /** funding_tx安定後の処理継続
@@ -1303,6 +1303,14 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
 }
 
 
+/**
+ *
+ */
+static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
+    return (uint64_t)self->fee_base_msat + (amount * (uint64_t)self->fee_prop_millionths / (uint64_t)1000000);
+}
+
+
 /********************************************************************
  * NODE
  ********************************************************************/
@@ -1362,8 +1370,16 @@ bool ln_onion_create_packet(ln_self_t *self,
  ********************************************************************/
 
 #ifdef UCOIN_USE_PRINTFUNC
-void ln_print_self(const ln_self_t *self);
 void ln_print_node(const ln_node_t *node);
+
+
+/** [デバッグ用]鍵情報出力
+ *
+ * @param[in]   fp
+ * @param[in]   pLocal
+ * @param[in]   pRemote
+ */
+void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote);
 #endif
 
 #ifdef __cplusplus

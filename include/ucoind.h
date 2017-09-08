@@ -58,6 +58,31 @@ static inline int tid() {
 #define FNAME_DIR           "amount"
 #define FNAME_AMOUNT_FMT    FNAME_DIR "/amount.%" PRIx64
 
+#define RPCERR_PARSE        (-10000)
+#define RPCERR_PARSE_STR    "parse param"
+#define RPCERR_NOCONN       (-10001)
+#define RPCERR_NOCONN_STR   "not connected"
+#define RPCERR_ALCONN       (-10002)
+#define RPCERR_ALCONN_STR   "already connected"
+
+#define RPCERR_NODEID       (-20000)
+#define RPCERR_NODEID_STR   "invalid node_id"
+#define RPCERR_NOOPEN       (-20001)
+#define RPCERR_NOOPEN_STR   "channel not open"
+#define RPCERR_ALOPEN       (-20002)
+#define RPCERR_ALOPEN_STR   "channel already opened"
+#define RPCERR_FULLCLI      (-20003)
+#define RPCERR_FULLCLI_STR  "client full"
+#define RPCERR_SOCK         (-20004)
+#define RPCERR_SOCK_STR     "socket"
+#define RPCERR_CONNECT      (-20005)
+#define RPCERR_CONNECT_STR  "connect"
+
+#define RPCERR_CLOSE_HTLC       (-25000)
+#define RPCERR_CLOSE_HTLC_STR   "remain HTLC"
+#define RPCERR_PAY_STOP         (-26000)
+#define RPCERR_PAY_STOP_STR     "stop payment"
+
 
 /********************************************************************
  * macros functions
@@ -91,8 +116,8 @@ static inline int tid() {
 
 /// @def    DUMPBIN(dt,ln)
 /// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
-#define DUMPBIN(dt,ln)      misc_dumpbin(DEBUGOUT, dt, ln)
-
+#define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
+#define DUMPTXID(dt)        ucoin_util_dumptxid(DEBUGOUT, dt)
 #ifdef DEBUGTRACE
 #define DBGTRACE_BEGIN      {fprintf(stderr, "[%d]%s[%s:%d]BEGIN\n", tid(), __func__, __FILE__, __LINE__);}
 #define DBGTRACE_END        {fprintf(stderr, "[%d]%s[%s:%d]END\n", tid(), __func__, __FILE__, __LINE__);}
@@ -163,7 +188,7 @@ typedef struct {
     char            signaddr[UCOIN_SZ_ADDR_MAX];
     uint64_t        funding_sat;
     uint64_t        push_sat;
-    opening_t       *p_opening;
+    opening_t       *p_opening;         //establish時にmalloc()して使用する
 } funding_conf_t;
 
 
@@ -237,6 +262,7 @@ typedef struct {
     char            rpcuser[SZ_RPC_USER];
     char            rpcpasswd[SZ_RPC_PASSWD];
     char            rpcurl[SZ_RPC_URL];
+    uint16_t        rpcport;
 } rpc_conf_t;
 
 

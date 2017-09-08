@@ -3,9 +3,8 @@ ptarmigan
 
 # バージョンアップにおける注意
 
-* 遅ればせながら、DBにバージョンを付けるようにしました。  
-  DBの構造を変更しているため、以前のDB(dbucoin)は使用できません。  
-  ディレクトリごと削除してください(必要であれば、事前に-xでクローズすること)。
+* DBにバージョンが不一致の場合、起動できないようにしている。  
+  その場合はディレクトリごと削除して新たに作りなおすこと(必要であれば、事前に-xでクローズすること)。
 
 
 # 名前の由来
@@ -26,13 +25,21 @@ Thunderbirdではない。
 
 ## libraries
 
-* [jansson](http://www.digip.org/jansson/)([github](https://github.com/akheron/jansson))
-* [curl](https://curl.haxx.se/)([github](https://github.com/curl/curl))
-* [mbedTLS](https://tls.mbed.org/)([github](https://github.com/ARMmbed/mbedtls))
-* [libbase58 github](https://github.com/luke-jr/libbase58)
-* [libsodium](https://download.libsodium.org/doc/)([github](https://github.com/jedisct1/libsodium))
-* [lmdb](https://symas.com/lightning-memory-mapped-database/)([github](https://github.com/LMDB/lmdb))
-* [boost](http://www.boost.org/)
+* git clone
+    * [jansson](http://www.digip.org/jansson/)([github](https://github.com/akheron/jansson))
+    * [curl](https://curl.haxx.se/)([github](https://github.com/curl/curl))
+    * [jsonrpc-c(github)](https://github.com/hmng/jsonrpc-c)
+    * [inih(github)](https://github.com/benhoyt/inih)
+    * [mbedTLS](https://tls.mbed.org/)([github](https://github.com/ARMmbed/mbedtls))
+    * [libbase58 github](https://github.com/luke-jr/libbase58)
+    * [libsodium](https://download.libsodium.org/doc/)([github](https://github.com/jedisct1/libsodium))
+    * [lmdb](https://symas.com/lightning-memory-mapped-database/)([github](https://github.com/LMDB/lmdb))
+
+* install
+    * [libev](http://software.schmorp.de/pkg/libev.html)
+        * `sudo apt install libev-dev`
+    * [boost](http://www.boost.org/)
+        * `sudo apt install libboost-all-dev`
 
 
 ## application
@@ -67,7 +74,7 @@ Thunderbirdではない。
 * その他
     * libs で submodule を使っているため、取得には注意 (make fullで取得するようにしている)
     * ビルドに失敗する場合は、 `libtool` や `autoconf` のインストール状況を確認すること
-        * sudo apt install build-essential libtool autoconf libboost-all-dev
+        * `sudo apt install build-essential libtool autoconf`
 
 
 # implement status

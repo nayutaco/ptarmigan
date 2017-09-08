@@ -154,13 +154,4 @@ uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, 
  */
 void HIDDEN ln_misc_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_t *pVIndex, uint64_t short_channel_id);
 
-
-/** [デバッグ用]鍵情報出力
- *
- * @param[in]   fp
- * @param[in]   pLocal
- * @param[in]   pRemote
- */
-void ln_misc_printkeys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote);
-
 #endif /* LN_MISC_H__ */

@@ -18,7 +18,7 @@
 # を記載する。
 #
 # 今のBOLT仕様(2017/07/06)では、チャネルを開こうとする方だけが amountを出すようになっていて、
-# そのうちいくらかを相手に渡す(push_msat)ことになっている(本来はmili satoshiだが、ここではsatoshiにしている)。
+# そのうちいくらかを相手に渡す(push_msat)ことになっている(本来はmilli satoshiだが、ここではsatoshiにしている)。
 # 相手に渡さなくてもよいが、その場合は他ノードから送金してもらうための amountがないため、
 # 送金専用になってしまう。
 # 自分の持ち分を渡して送金してもらっても嬉しくないが、そこをどう解決するのかはBOLTに書かれていない。
@@ -45,13 +45,13 @@
 
 # node_4444からnode_3333へチャネルを開く。
 ./fund-in.sh 0.01 fund.txt > node_4444/fund4444_3333.conf
-./ucoincli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4444
+./ucoincli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4445
 
 sleep 3
 
 # node_5555からnode_3333へチャネルを開く。
 ./fund-in.sh 0.01 fund.txt > node_5555/fund5555_3333.conf
-./ucoincli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5555
+./ucoincli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5556
 
 
 # まだ動作が不安定なので、DBのバックアップを残しておく。
