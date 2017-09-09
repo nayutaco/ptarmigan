@@ -1,10 +1,18 @@
 #!/bin/sh
 
-pushd node_3333 ; ../ucoind node.conf ; popd
-pushd node_4444 ; ../ucoind node.conf ; popd
-pushd node_5555 ; ../ucoind node.conf ; popd
+cd node_3333
+../ucoind node.conf&
+cd .. 
+cd node_4444
+../ucoind node.conf&
+cd ..
+cd node_5555
+../ucoind node.conf&
+cd ..
+
+sleep 1
 
 # ノード接続
 #
-./ucoincli -c conf/peer4444.conf 3333
-./ucoincli -c conf/peer5555.conf 3333
+./ucoincli -c conf/peer4444.conf 3334
+./ucoincli -c conf/peer5555.conf 3334

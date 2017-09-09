@@ -44,6 +44,9 @@ extern "C" {
  * macros
  **************************************************************************/
 
+#define UCOIN_USE_PRINTFUNC     //出力有効
+
+
 #define UCOIN_SZ_RIPEMD160      (20)            ///< サイズ:RIPEMD160
 #define UCOIN_SZ_HASH160        (20)            ///< サイズ:HASH160
 #define UCOIN_SZ_SHA256         (32)            ///< サイズ:SHA256
@@ -1213,6 +1216,12 @@ bool ucoin_util_sign_p2wsh_3_2of2(ucoin_tx_t *pTx, int Index, ucoin_keys_sort_t 
  * @param[in,out]   pTx     処理対象のトランザクション
  */
 void ucoin_util_sort_bip69(ucoin_tx_t *pTx);
+
+
+#if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
+void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len, bool bLf);
+void ucoin_util_dumptxid(FILE *fp, const uint8_t *pTxid);
+#endif  //UCOIN_USE_PRINTFUNC
 
 
 #ifdef UCOIN_USE_PRINTFUNC

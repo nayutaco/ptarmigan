@@ -29,7 +29,9 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <unistd.h>
-
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "ucoind.h"
 #include "conf.h"
@@ -37,13 +39,45 @@
 
 
 #define M_OPTIONS_INIT  (0xff)
+#define BUFFER_SIZE     (256 * 1024)
+
+#define M_NEXT              ","
+#define M_QQ(str)           "\"" str "\""
+#define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
+#define M_VAL(item,value)   M_QQ(item) ":" value
+
+
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+typedef struct {
+    char    *p_data;
+    int     pos;
+} write_result_t;
+
+
+static uint8_t      mCmd = DCMD_NONE;
+static char         mPeerAddr[INET6_ADDRSTRLEN];
+static uint16_t     mPeerPort;
+static char         mPeerNodeId[UCOIN_SZ_PUBKEY * 2 + 1];
+static char         mBuf[BUFFER_SIZE];
 
 
 /********************************************************************
  * prototypes
  ********************************************************************/
 
-static int msg_send(const msgbuf_t *pMsg, uint16_t Port);
+static void stop_rpc(char *pJson);
+static void getinfo_rpc(char *pJson);
+static void connect_rpc(char *pJson);
+static void fund_rpc(char *pJson, const funding_conf_t *pFund);
+static void invoice_rpc(char *pJson, uint64_t Amount);
+static void listinvoice_rpc(char *pJson);
+static void payment_rpc(char *pJson, const payment_conf_t *pPay);
+static void close_rpc(char *pJson);
+
+static int msg_send(char *pMsg, uint16_t Port);
 
 
 /********************************************************************
@@ -52,13 +86,14 @@ static int msg_send(const msgbuf_t *pMsg, uint16_t Port);
 
 int main(int argc, char *argv[])
 {
-    msgbuf_t buf;
-    //msg_bolt_t *p_bolt = &buf.payload.cmd.bolt;
-    msg_daemon_t *p_daemon = &buf.payload.cmd.daemon;
-
+#ifndef NETKIND
+#error not define NETKIND
+#endif
+#if NETKIND==0
+    ucoin_init(UCOIN_MAINNET, true);
+#elif NETKIND==1
     ucoin_init(UCOIN_TESTNET, true);
-
-    buf.mtype = MTYPE_CLI2D;
+#endif
 
     int opt;
     uint8_t options = M_OPTIONS_INIT;
@@ -70,35 +105,28 @@ int main(int argc, char *argv[])
         case 'q':
             //ucoind停止
             if (options > 1) {
-                buf.payload.type = MSG_DAEMON;
-                p_daemon->cmd = DCMD_STOP;
+                stop_rpc(mBuf);
                 options = 1;
-                //printf("<stop>\n");
             }
             break;
         case 'l':
             //channel一覧
             if (options == M_OPTIONS_INIT) {
-                buf.payload.type = MSG_DAEMON;
-                p_daemon->cmd = DCMD_SHOW_LIST;
+                getinfo_rpc(mBuf);
                 options = 5;
             }
             break;
         case 'c':
             //接続先(c,f,p共通)
-            //      peer.conf
             if (options > 200) {
-                daemon_connect_t *p_conn = &p_daemon->params.connect;
                 peer_conf_t peer;
                 bool bret = load_peer_conf(optarg, &peer);
                 if (bret) {
                     //peer.conf
-                    strcpy(p_conn->ipaddr, peer.ipaddr);
-                    p_conn->port = peer.port;
-                    memcpy(p_conn->node_id, peer.node_id, UCOIN_SZ_PUBKEY);
-
-                    buf.payload.type = MSG_DAEMON;
-                    p_daemon->cmd = DCMD_CONNECT;
+                    mCmd = DCMD_CONNECT;
+                    strcpy(mPeerAddr, peer.ipaddr);
+                    mPeerPort = peer.port;
+                    misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
                     options = 200;
                 } else {
                     printf("fail: peer configuration file\n");
@@ -108,13 +136,12 @@ int main(int argc, char *argv[])
             break;
         case 'f':
             //funding情報
-            //      funding.conf
             if (options == 200) {
-                daemon_funding_t *p_fund = &p_daemon->params.funding;
-                bool bret = load_funding_conf(optarg, &p_fund->funding);
+                funding_conf_t fundconf;
+                bool bret = load_funding_conf(optarg, &fundconf);
                 if (bret) {
-                    buf.payload.type = MSG_DAEMON;
-                    p_daemon->cmd = DCMD_CREATE;
+                    mCmd = DCMD_CREATE;
+                    fund_rpc(mBuf, &fundconf);
                     options = 2;
                 } else {
                     printf("fail: funding configuration file\n");
@@ -128,12 +155,11 @@ int main(int argc, char *argv[])
         case 'i':
             //payment_preimage作成
             if (options == 200) {
-                daemon_invoice_t *p_inv = &p_daemon->params.invoice;
                 errno = 0;
-                p_inv->amount = (uint64_t)strtoull(optarg, NULL, 10);
+                uint64_t amount = (uint64_t)strtoull(optarg, NULL, 10);
                 if (errno == 0) {
-                    buf.payload.type = MSG_DAEMON;
-                    p_daemon->cmd = DCMD_PREIMAGE;
+                    mCmd = DCMD_PREIMAGE;
+                    invoice_rpc(mBuf, amount);
                     options = 3;
                 } else {
                     printf("fail: funding configuration file\n");
@@ -144,20 +170,19 @@ int main(int argc, char *argv[])
         case 'm':
             //payment-hash表示
             if (options == 200) {
-                buf.payload.type = MSG_DAEMON;
-                p_daemon->cmd = DCMD_PAYMENT_HASH;
+                mCmd = DCMD_PAYMENT_HASH;
+                listinvoice_rpc(mBuf);
                 options = 3;
             }
             break;
         case 'p':
             //payment
-            //      payment.conf
             if (options == 200) {
-                daemon_payment_t *p_pay = &p_daemon->params.payment;
-                bool bret = load_payment_conf(optarg, &p_pay->payment);
+                payment_conf_t payconf;
+                bool bret = load_payment_conf(optarg, &payconf);
                 if (bret) {
-                    buf.payload.type = MSG_DAEMON;
-                    p_daemon->cmd = DCMD_PAYMENT;
+                    mCmd = DCMD_PAYMENT;
+                    payment_rpc(mBuf, &payconf);
                     options = 3;
                 } else {
                     printf("fail: payment configuration file\n");
@@ -171,8 +196,8 @@ int main(int argc, char *argv[])
         case 'x':
             //mutual close
             if (options == 200) {
-                buf.payload.type = MSG_DAEMON;
-                p_daemon->cmd = DCMD_CLOSE;
+                mCmd = DCMD_CLOSE;
+                close_rpc(mBuf);
                 options = 4;
             } else {
                 printf("-x need -c option before\n");
@@ -207,9 +232,13 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    if (mCmd == DCMD_CONNECT) {
+        connect_rpc(mBuf);
+    }
+
     uint16_t port = (uint16_t)atoi(argv[optind]);
 
-    msg_send(&buf, port);
+    msg_send(mBuf, port);
 
     ucoin_term();
 
@@ -221,42 +250,170 @@ int main(int argc, char *argv[])
  * private functions
  ********************************************************************/
 
-static int msg_send(const msgbuf_t *pMsg, uint16_t Port)
+static void stop_rpc(char *pJson)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "stop") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
+}
+
+
+static void getinfo_rpc(char *pJson)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "getinfo") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
+}
+
+
+static void connect_rpc(char *pJson)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "connect") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d"
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort);
+}
+
+
+static void fund_rpc(char *pJson, const funding_conf_t *pFund)
+{
+    char txid[UCOIN_SZ_TXID * 2 + 1];
+
+    misc_bin2str_rev(txid, pFund->txid, UCOIN_SZ_TXID);
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "fund") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d,"
+                //txid, txindex, signaddr, funding_sat, push_sat
+                M_QQ("%s") ",%d," M_QQ("%s") ",%" PRIu64 ",%" PRIu64
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort,
+            txid, pFund->txindex, pFund->signaddr, pFund->funding_sat, pFund->push_sat);
+}
+
+
+static void invoice_rpc(char *pJson, uint64_t Amount)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "invoice") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d,"
+                //invoice
+                "%" PRIu64
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort,
+            Amount);
+}
+
+
+static void listinvoice_rpc(char *pJson)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "listinvoice") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d"
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort);
+}
+
+
+static void payment_rpc(char *pJson, const payment_conf_t *pPay)
+{
+    char payhash[LN_SZ_HASH * 2 + 1];
+    //node_id(33*2),short_channel_id(8*2),amount(21),cltv(5)
+    char forward[UCOIN_SZ_PUBKEY*2 + sizeof(uint64_t)*2 + 21 + 5 + 50];
+
+    misc_bin2str(payhash, pPay->payment_hash, LN_SZ_HASH);
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "pay") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d,"
+                //payment_hash, hop_num
+                M_QQ("%s") ",%d, [\n",
+            mPeerNodeId, mPeerAddr, mPeerPort,
+            payhash, pPay->hop_num);
+
+    for (int lp = 0; lp < pPay->hop_num; lp++) {
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+
+        misc_bin2str(node_id, pPay->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
+        snprintf(forward, sizeof(forward), "[" M_QQ("%s") "," M_QQ("%" PRIx64) ",%" PRIu64 ",%d]",
+                node_id,
+                pPay->hop_datain[lp].short_channel_id,
+                pPay->hop_datain[lp].amt_to_forward,
+                pPay->hop_datain[lp].outgoing_cltv_value
+        );
+        strcat(pJson, forward);
+        if (lp != pPay->hop_num - 1) {
+            strcat(pJson, ",");
+        }
+    }
+    strcat(pJson, "] ]}");
+}
+
+
+static void close_rpc(char *pJson)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "close") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d"
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort);
+}
+
+
+static int msg_send(char *pMsg, uint16_t Port)
 {
     int retval = -1;
-    int msqid;
-    key_t key;
-    char wkdir[50];
-    char fname[50];
-    msgres_t res;
+    struct sockaddr_in sv_addr;
 
-    sprintf(wkdir, "%s/%s", getenv("HOME"), UCOINDDIR);
-    sprintf(fname, "%s/%s%d.dat", wkdir, FTOK_FNAME, Port);
-    //printf("msg: %s\n", fname);
-    if ((key = ftok(fname, FTOK_CHAR)) == -1) {
-        perror("ftok");
-        goto LABEL_EXIT;
+    int sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        return retval;
     }
-
-    if ((msqid = msgget(key, 0644)) == -1) {
-        perror("msgget");
-        goto LABEL_EXIT;
+    memset(&sv_addr, 0, sizeof(sv_addr));
+    sv_addr.sin_family = AF_INET;
+    sv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    sv_addr.sin_port = htons(Port);
+    retval = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+    if (retval < 0) {
+        close(sock);
+        return retval;
     }
-
-    if (msgsnd(msqid, pMsg, sizeof(payload_t), 0) == -1) {
-        perror("msgsnd");
+    fprintf(stderr, "------------------------\n");
+    fprintf(stderr, "%s\n", pMsg);
+    fprintf(stderr, "------------------------\n");
+    write(sock, pMsg, strlen(pMsg));
+    ssize_t len = read(sock, pMsg, BUFFER_SIZE);
+    if (len > 0) {
+        pMsg[len] = '\0';
+        printf("%s\n", pMsg);
     }
+    close(sock);
 
-    if (msgrcv(msqid, &res, sizeof(res.mtext), MTYPE_D2CLI, 0) == -1) {
-        perror("msgrcv");
-        goto LABEL_EXIT;
-    }
-    if (strlen(res.mtext) > 0) {
-        printf("%s\n", res.mtext);
-    }
-
-    retval = 0;
-
-LABEL_EXIT:
     return retval;
 }

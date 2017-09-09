@@ -19,7 +19,7 @@
 ./routing node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000
 if [ $? -ne 0 ]; then
 	echo no routing
-	return
+	exit -1
 fi
 
 # pay設定ファイル出力
@@ -29,16 +29,16 @@ fi
 #		4: (node_3333 ID),(node_3333--node_5555間short_channel_id),0.5mBTC(msat),CLTV
 #		5: (node_5555 ID),0,0.5mBTC(msat),CLTV
 #   ※実際にはFEEを含んだamountを使用すること
-echo `./ucoincli -c conf/peer3333.conf -i 50000000 5555` > pay4444_3333_5555.conf
+echo -n hash= > pay4444_3333_5555.conf
+echo `./ucoincli -c conf/peer3333.conf -i 50000000 5556` | jq '.result.hash' | sed -e 's/\"//g' >> pay4444_3333_5555.conf
 ./routing node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000 >> pay4444_3333_5555.conf
 
 # 送金実施
-./ucoincli -c conf/peer3333.conf -p pay4444_3333_5555.conf 4444
+./ucoincli -c conf/peer3333.conf -p pay4444_3333_5555.conf 4445
 
-# 3秒以内には終わるはず
-sleep 3
+sleep 1
 
 # 結果
-./ucoincli -l 3333 > node_3333_after.cnl
-./ucoincli -l 4444 > node_4444_after.cnl
-./ucoincli -l 5555 > node_5555_after.cnl
+./ucoincli -l 3334 > node_3333_after.cnl
+./ucoincli -l 4445 > node_4444_after.cnl
+./ucoincli -l 5556 > node_5555_after.cnl

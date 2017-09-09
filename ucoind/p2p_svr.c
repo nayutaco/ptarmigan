@@ -34,6 +34,8 @@
 #include <poll.h>
 #include <assert.h>
 
+#include "cJSON.h"
+
 #include "ucoind.h"
 #include "p2p_svr.h"
 #include "lnapp.h"
@@ -206,10 +208,10 @@ lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id)
 }
 
 
-void p2p_svr_show_self(char *pResMsg)
+void p2p_svr_show_self(cJSON *pResult)
 {
     for (int lp = 0; lp < M_SOCK_MAX; lp++) {
-        lnapp_show_self(&mAppConf[lp], pResMsg);
+        lnapp_show_self(&mAppConf[lp], pResult);
     }
 }
 

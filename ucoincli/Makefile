@@ -60,6 +60,7 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 
 # others
 CFLAGS += $(INC_PATHS)
+CFLAGS += -DNETKIND=$(NETKIND)
 
 
 ######################################
@@ -79,7 +80,7 @@ LDFLAGS += -pthread
 #LDFLAGS += --specs=nano.specs -lc -lnosys
 
 #Link Library
-LIBS += -L$(COMMON_PATH)/libs/install/lib -ljansson -lcurl
+LIBS += -L$(COMMON_PATH)/libs/install/lib -ljansson -lcurl -linih
 LIBS += -L$(COMMON_PATH)/ucoin -lucoin
 LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium
 

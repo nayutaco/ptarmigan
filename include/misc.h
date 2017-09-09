@@ -23,6 +23,7 @@
 #define MISC_H__
 
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <time.h>
 #include <errno.h>
@@ -56,8 +57,6 @@ void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 bool misc_str2bin(uint8_t *pBin, uint16_t BinLen, const char *pStr);
 bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr);
-void misc_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len);
-void misc_print_txid(const uint8_t *pTxid);
 
 #ifdef __cplusplus
 }

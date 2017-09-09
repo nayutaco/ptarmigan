@@ -102,21 +102,3 @@ bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr)
 
     return ret;
 }
-
-
-void misc_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len)
-{
-    for (uint16_t lp = 0; lp < Len; lp++) {
-        fprintf(fp, "%02x", pData[lp]);
-    }
-    fprintf(fp, "\n");
-}
-
-
-void misc_print_txid(const uint8_t *pTxid)
-{
-    for (uint16_t lp = 0; lp < UCOIN_SZ_TXID; lp++) {
-        fprintf(PRINTOUT, "%02x", pTxid[UCOIN_SZ_TXID - lp - 1]);
-    }
-    fprintf(PRINTOUT, "\n");
-}

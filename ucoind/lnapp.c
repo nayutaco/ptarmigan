@@ -49,13 +49,12 @@
 #include <sys/types.h>
 #include <assert.h>
 
+#include "cJSON.h"
 
-#define UCOIN_USE_PRINTFUNC
 #include "ucoind.h"
 #include "lnapp.h"
 #include "conf.h"
 #include "jsonrpc.h"
-
 #include "ln_db.h"
 
 
@@ -78,13 +77,15 @@
 //#define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
 //#define M_CHANNEL_RESERVE_SAT           (700)
 //#define M_HTLC_MINIMUM_MSAT             (9000)
-//#define M_FEERATE_PER_KW                (1500)
+#define M_FEERATE_PER_KW                (60000)
 //#define M_TO_SELF_DELAY                 (90)
 //#define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
 #define M_MIN_DEPTH                     (1)
 
 #define M_ANNOSIGS_CONFIRM      (1)         ///< announcement_signaturesを送信するconfirmation
                                             //      BOLT仕様は6
+
+#define M_BLK_FEEESTIMATE       (6)         ///< estimatefeeのブロック数(2以上)
 
 //#define M_TEST_PAYHASH          // fulfill送信時にpayment_hashをクリアしない(連続テスト用)
 
@@ -210,7 +211,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 }
 
 
-void lnapp_add_preimage(lnapp_conf_t *pAppConf, uint64_t Amount, char *pResMsg)
+void lnapp_add_preimage(lnapp_conf_t *pAppConf, uint64_t Amount, cJSON *pResult)
 {
     DBGTRACE_BEGIN
 
@@ -232,16 +233,11 @@ void lnapp_add_preimage(lnapp_conf_t *pAppConf, uint64_t Amount, char *pResMsg)
     if (lp < APP_PREIMAGE_NUM) {
         uint8_t preimage_hash[LN_SZ_HASH];
         ln_calc_preimage_hash(preimage_hash, pAppConf->preimage[lp].preimage);
-        fprintf(PRINTOUT, "payment_preimage= ");
-        misc_dumpbin(PRINTOUT, pAppConf->preimage[lp].preimage, LN_SZ_PREIMAGE);
-        fprintf(PRINTOUT, "payment_hash[%d]= ", lp);
-        misc_dumpbin(PRINTOUT, preimage_hash, sizeof(preimage_hash));
-        char str[3];
-        strcpy(pResMsg, "hash=");
-        for (int lp2 = 0; lp2 < LN_SZ_PREIMAGE; lp2++) {
-            sprintf(str, "%02x", preimage_hash[lp2]);
-            strcat(pResMsg, str);
-        }
+
+        char str_hash[LN_SZ_HASH * 2 + 1];
+        misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+        cJSON_AddItemToObject(pResult, "hash", cJSON_CreateString(str_hash));
+        cJSON_AddItemToObject(pResult, "amount", cJSON_CreateNumber64(pAppConf->preimage[lp].amount));
     } else {
         SYSLOG_ERR("%s(): no empty place", __func__);
         fprintf(PRINTOUT, "fail: no empty place\n");
@@ -251,7 +247,7 @@ void lnapp_add_preimage(lnapp_conf_t *pAppConf, uint64_t Amount, char *pResMsg)
 }
 
 
-void lnapp_show_payment_hash(lnapp_conf_t *pAppConf)
+void lnapp_show_payment_hash(lnapp_conf_t *pAppConf, cJSON *pResult)
 {
     uint8_t preimage_hash[LN_SZ_HASH];
 
@@ -260,12 +256,23 @@ void lnapp_show_payment_hash(lnapp_conf_t *pAppConf)
         return;
     }
 
+    bool badd = false;
+    cJSON *array = cJSON_CreateArray();
     for (int lp = 0; lp < APP_PREIMAGE_NUM; lp++) {
         if (pAppConf->preimage[lp].use) {
             ln_calc_preimage_hash(preimage_hash, pAppConf->preimage[lp].preimage);
-            fprintf(PRINTOUT, "[%2d] ", lp);
-            misc_dumpbin(PRINTOUT, preimage_hash, sizeof(preimage_hash));
+            cJSON *json = cJSON_CreateArray();
+
+            char str_hash[LN_SZ_HASH * 2 + 1];
+            misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+            cJSON_AddItemToArray(json, cJSON_CreateString(str_hash));
+            cJSON_AddItemToArray(json, cJSON_CreateNumber64(pAppConf->preimage[lp].amount));
+            cJSON_AddItemToArray(array, json);
+            badd = true;
         }
+    }
+    if (badd) {
+        cJSON_AddItemToArray(pResult, array);
     }
 }
 
@@ -285,7 +292,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         SYSLOG_ERR("%s(): stop payment...[%x]", __func__, mMuxTiming);
         pthread_mutex_unlock(&mMuxSeq);
         pthread_mutex_unlock(&pAppConf->mux_proc);
-        return true;
+        return false;
     }
     mMuxTiming |= MUX_PAYMENT;
     DBG_PRINTF("mMuxTiming after: %x\n", mMuxTiming);
@@ -310,20 +317,23 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
 
     //amount, CLTVチェック(最後の値はチェックしない)
     for (int lp = 1; lp < pPay->hop_num - 1; lp++) {
-#warning 各ノードの転送FEEは計算に含めていない
-        if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward) {
-            SYSLOG_ERR("%s(): [%d]amt_to_forward larger than previous (%" PRIu64 " < %" PRIu64 ")",
+        //要求するFEEを満たしていない
+        uint64_t fee = ln_forward_fee(p_self, pPay->hop_datain[lp].amt_to_forward);
+        if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward + fee) {
+            SYSLOG_ERR("%s(): [%d]amt_to_forward larger than previous (%" PRIu64 " < %" PRIu64 " + %" PRIu64 ")",
                     __func__, lp,
                     pPay->hop_datain[lp - 1].amt_to_forward,
-                    pPay->hop_datain[lp].amt_to_forward);
+                    pPay->hop_datain[lp].amt_to_forward,
+                    fee);
             goto LABEL_EXIT;
         }
-#warning BOLT#7のcltv_expiry_delta未対応(同じ値は認めない)
-        if (pPay->hop_datain[lp - 1].outgoing_cltv_value <= pPay->hop_datain[lp].outgoing_cltv_value) {
-            SYSLOG_ERR("%s(): [%d]outgoing_cltv_value larger than previous (%" PRIu32 " < %" PRIu32 ")",
+        if ( (pPay->hop_datain[lp - 1].outgoing_cltv_value <= pPay->hop_datain[lp].outgoing_cltv_value) ||
+             (pPay->hop_datain[lp - 1].outgoing_cltv_value - pPay->hop_datain[lp].outgoing_cltv_value < ln_cltv_expily_delta(p_self)) ) {
+            SYSLOG_ERR("%s(): [%d]outgoing_cltv_value larger than previous (%" PRIu32 " < %" PRIu32 " + %" PRIu32 ")",
                     __func__, lp,
                     pPay->hop_datain[lp - 1].outgoing_cltv_value,
-                    pPay->hop_datain[lp].outgoing_cltv_value);
+                    pPay->hop_datain[lp].outgoing_cltv_value,
+                    ln_cltv_expily_delta(p_self));
             goto LABEL_EXIT;
         }
     }
@@ -343,7 +353,10 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
                         pPay->hop_datain[0].outgoing_cltv_value,
                         pPay->payment_hash,
                         0);
-    assert(ret);
+    if (!ret) {
+        ucoin_buf_free(&buf_bolt);
+        goto LABEL_EXIT;
+    }
 
     send_peer_noise(pAppConf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
@@ -461,7 +474,7 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 }
 
 
-void lnapp_show_self(const lnapp_conf_t *pAppConf, char *pResMsg)
+void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 {
     if (!pAppConf->loop) {
         //DBG_PRINTF("This AppConf not working\n");
@@ -473,36 +486,22 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, char *pResMsg)
     if (p_self && ln_short_channel_id(p_self)) {
         show_self_param(p_self, PRINTOUT, __LINE__);
 
-        //次の更新でバッファを超えそうであれば終了する
-        //ルーティングが自動生成できるようになれば、このコマンド自体不要だろう
-        if (strlen(pResMsg) > SZ_RESBUF - 200) {
-            SYSLOG_ERR("%s(): low buffer", __func__);
-            assert(0);
-        }
-
-        //ucoincli用メッセージ
+        cJSON *result = cJSON_CreateObject();
         char str[256];
 
-        //my node_id
-        for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-            sprintf(str, "%02x", p_self->p_node->keys.pub[lp]);
-            strcat(pResMsg, str);
-        }
-        strcat(pResMsg, ",");
         //peer node_id
-        for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-            sprintf(str, "%02x", p_self->peer_node.node_id[lp]);
-            strcat(pResMsg, str);
-        }
+        misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
+        cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+
         //short_channel_id
-        sprintf(str, ",%" PRIx64, ln_short_channel_id(p_self));
-        strcat(pResMsg, str);
+        sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
+        cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
         //our_msat
-        sprintf(str, ",%" PRIu64, ln_our_msat(p_self));
-        strcat(pResMsg, str);
+        cJSON_AddItemToObject(result, "out_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
         //their_msat
-        sprintf(str, ",%" PRIu64 "\n", ln_their_msat(p_self));
-        strcat(pResMsg, str);
+        cJSON_AddItemToObject(result, "their_msat", cJSON_CreateNumber64(ln_their_msat(p_self)));
+
+        cJSON_AddItemToArray(pResult, result);
     }
 }
 
@@ -580,7 +579,10 @@ static void *thread_main_start(void *pArg)
     p_conf->loop = true;
 
     //noise protocol handshake
-    noise_handshake(p_conf);
+    ret = noise_handshake(p_conf);
+    if (!ret) {
+        goto LABEL_SHUTDOWN;
+    }
 
     /////////////////////////
     // handshake完了
@@ -595,15 +597,18 @@ static void *thread_main_start(void *pArg)
                 DBG_PRINTF("    チャネルDB読込み: %" PRIx64 "\n", short_channel_id);
                 ln_init(&my_self, mpNode, NULL, notify_cb);
                 ret = ln_db_load_channel(&my_self, short_channel_id);
-                assert(ret);
-
-                //peer node_id
-                ln_set_establish(&my_self, NULL, p_conf->node_id);
+                if (ret) {
+                    //peer node_id
+                    ln_set_establish(&my_self, NULL, p_conf->node_id);
+                }
             }
         } else {
             DBG_PRINTF("    新規\n");
             DUMPBIN(p_conf->node_id, UCOIN_SZ_PUBKEY);
         }
+    }
+    if (!ret) {
+        goto LABEL_SHUTDOWN;
     }
 
     //
@@ -625,7 +630,9 @@ static void *thread_main_start(void *pArg)
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
         ret = ln_create_init(&my_self, &buf_bolt);
-        assert(ret);
+        if (!ret) {
+            goto LABEL_JOIN;
+        }
         send_peer_noise(p_conf, &buf_bolt);
         ucoin_buf_free(&buf_bolt);
     }
@@ -666,10 +673,13 @@ static void *thread_main_start(void *pArg)
         pthread_mutex_unlock(&p_conf->mux);
     }
 
+LABEL_JOIN:
+    stop_threads(p_conf);
     pthread_join(th_peer, NULL);
     pthread_join(th_poll, NULL);
     DBG_PRINTF("loop end\n");
 
+LABEL_SHUTDOWN:
     retval = shutdown(p_conf->sock, SHUT_RDWR);
     if (retval < 0) {
         SYSLOG_ERR("%s(): shutdown: %s", __func__, strerror(errno));
@@ -826,6 +836,22 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         SYSLOG_ERR("%s(): jsonrpc_getnewaddress", __func__);
     }
     if (ret) {
+        //estimate fee
+        uint64_t feerate;
+        bool ret = jsonrpc_estimatefee(&feerate, M_BLK_FEEESTIMATE);
+        if (ret) {
+            DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
+
+            //BOLT#2
+            //  feerate_per_kw indicates the initial fee rate by 1000-weight
+            //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
+            //  which this side will pay for commitment and HTLC transactions
+            //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
+            feerate = (uint32_t)(feerate * 4);
+        } else {
+            feerate = M_FEERATE_PER_KW;
+        }
+
         ucoin_util_wif2keys(&p_conf->p_funding->p_opening->fundin_keys, wif);
         //TODO: データ構造に無駄が多い
         //      スタックに置けないものを詰めていったせいだが、整理したいところだ。
@@ -843,8 +869,11 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
-        ret = ln_create_open_channel(p_conf->p_self, &buf_bolt, &p_conf->p_funding->p_opening->fundin,
-                        p_conf->p_funding->funding_sat, p_conf->p_funding->push_sat);
+        ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
+                        &p_conf->p_funding->p_opening->fundin,
+                        p_conf->p_funding->funding_sat,
+                        p_conf->p_funding->push_sat,
+                        (uint32_t)feerate);
         assert(ret);
 
         DBG_PRINTF("SEND: oepn_channel\n");
@@ -852,7 +881,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         ucoin_buf_free(&buf_bolt);
     } else {
         SYSLOG_WARN("fail through: jsonrpc_getxout");
-        misc_print_txid(p_conf->p_funding->txid);
+        DUMPTXID(p_conf->p_funding->txid);
     }
 
     return ret;
@@ -959,7 +988,7 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
     case INNER_SEND_ANNOUNCEMENT:
         DBG_PRINTF("INNER_SEND_ANNOUNCEMENT\n");
         send_channel_anno(p_conf, true);
-        send_node_anno(p_conf, true);
+        //send_node_anno(p_conf, true);
         ret = true;
         break;
     default:
@@ -1030,7 +1059,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
 static void *thread_poll_start(void *pArg)
 {
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
-    int counter = 0;
+    int counter = M_WAIT_ANNO_SEC / M_WAIT_POLL_SEC;
 
     while (p_conf->loop) {
         //ループ解除まで時間が長くなるので、短くチェックする
@@ -1392,7 +1421,8 @@ static void cb_find_index_wif_req(lnapp_conf_t *p_conf, void *p_param)
     ret = jsonrpc_dumpprivkey(wif, funding_addr);
     assert(ret);
 
-    ln_set_funding_wif(p_conf->p_self, wif);
+    ret = ln_set_funding_wif(p_conf->p_self, wif);
+    assert(ret);
     memset(wif, 0, sizeof(wif));
 
     DBGTRACE_END
@@ -1424,7 +1454,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
     //fundingの監視は thread_poll_start()に任せる
     DBG_PRINTF("funding_tx監視開始\n");
-    misc_print_txid(ln_funding_txid(p_conf->p_self));
+    DUMPTXID(ln_funding_txid(p_conf->p_self));
     p_conf->funding_min_depth = p->min_depth;
     p_conf->funding_waiting = true;
 
@@ -1558,19 +1588,20 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
     DBG_PRINTF2("  b_exit: %d\n", p_add->p_hop->b_exit);
     DBG_PRINTF2("  id=%" PRIu64 "\n", p_add->id);
-    DBG_PRINTF2("  short_channel_id: %" PRIx64 "\n", p_add->p_hop->short_channel_id);
-    DBG_PRINTF2("  amt_to_forward: %" PRIu64 "\n", p_add->p_hop->amt_to_forward);
-    DBG_PRINTF2("  outgoing_cltv_value: %d\n", p_add->p_hop->outgoing_cltv_value);
+    //転送先
+    DBG_PRINTF2("  FWD: short_channel_id: %" PRIx64 "\n", p_add->p_hop->short_channel_id);
+    DBG_PRINTF2("  FWD: amt_to_forward: %" PRIu64 "\n", p_add->p_hop->amt_to_forward);
+    DBG_PRINTF2("  FWD: outgoing_cltv_value: %d\n", p_add->p_hop->outgoing_cltv_value);
     DBG_PRINTF2("  -------\n");
+    //自分への通知
     DBG_PRINTF2("  amount_msat: %" PRIu64 "\n", p_add->amount_msat);
     DBG_PRINTF2("  cltv_expiry: %d\n", p_add->cltv_expiry);
-
-    DBG_PRINTF("my fee : %" PRIu64 "\n", (uint64_t)(p_add->amount_msat - p_add->p_hop->amt_to_forward));
+    DBG_PRINTF2("  my fee : %" PRIu64 "\n", (uint64_t)(p_add->amount_msat - p_add->p_hop->amt_to_forward));
+    DBG_PRINTF2("  cltv_delta : %" PRIu32 " - %" PRIu32" = %d\n", p_add->cltv_expiry, p_add->p_hop->outgoing_cltv_value, p_add->cltv_expiry - p_add->p_hop->outgoing_cltv_value);
 
     if (p_add->p_hop->b_exit) {
         //自分宛
         DBG_PRINTF("自分宛\n");
-        p_add->ok = false;
 
         SYSLOG_INFO("arrive: %" PRIx64 "(%" PRIu64 " msat)", ln_short_channel_id(p_conf->p_self), p_add->amount_msat);
 
@@ -1769,7 +1800,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
     }
 
     DBG_PRINTF("closing_txid: ");
-    misc_print_txid(txid);
+    DUMPTXID(txid);
 
 #warning 現在はMutual Closeしかないため、DBから削除する
     db_del_channel(p_conf->p_self, true);
@@ -2047,9 +2078,6 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
 #ifdef M_HTLC_MINIMUM_MSAT
     p_conf->p_establish->defval.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT;
 #endif
-#ifdef M_FEERATE_PER_KW
-    p_conf->p_establish->defval.feerate_per_kw = M_FEERATE_PER_KW;
-#endif
 #ifdef M_TO_SELF_DELAY
     p_conf->p_establish->defval.to_self_delay = M_TO_SELF_DELAY;
 #endif
@@ -2085,12 +2113,12 @@ static void show_self_param(const ln_self_t *self, FILE *fp, int line)
         fprintf(fp, "short_channel_id: %0" PRIx64 "\n", ln_short_channel_id(self));
         fprintf(fp, "my node_id:   ");
         if (self->p_node) {
-            misc_dumpbin(fp, self->p_node->keys.pub, UCOIN_SZ_PUBKEY);
+            ucoin_util_dumpbin(fp, self->p_node->keys.pub, UCOIN_SZ_PUBKEY, true);
         } else {
             fprintf(fp, "(none)\n");
         }
         fprintf(fp, "peer node_id: ");
-        misc_dumpbin(fp, self->peer_node.node_id, UCOIN_SZ_PUBKEY);
+        ucoin_util_dumpbin(fp, self->peer_node.node_id, UCOIN_SZ_PUBKEY, true);
         fprintf(fp, "our_msat:   %" PRIu64 "\n", ln_our_msat(self));
         fprintf(fp, "their_msat: %" PRIu64 "\n", ln_their_msat(self));
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {

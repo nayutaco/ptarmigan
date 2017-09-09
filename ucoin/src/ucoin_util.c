@@ -116,14 +116,6 @@ bool ucoin_util_sign_p2pkh(ucoin_tx_t *pTx, int Index, const ucoin_util_keys_t *
 
     uint8_t txhash[UCOIN_SZ_SIGHASH];
     bool ret = ucoin_tx_sighash(txhash, pTx, (const ucoin_buf_t **)scrpks, 1);
-    //#ifdef UCOIN_DEBUG
-    //    DBG_PRINTF("--------------------------\n");
-    //    for (int lp = 0; lp < sizeof(txhash); lp++) {
-    //        fprintf(stderr, "%02x", txhash[lp]);
-    //    }
-    //    fprintf(stderr, "\n");
-    //    DBG_PRINTF("--------------------------\n\n");
-    //#endif  //UCOIN_DEBUG
     assert(ret);
     ret = ucoin_tx_sign_p2pkh(pTx, Index, txhash, pKeys->priv, pKeys->pub);
     assert(ret);
@@ -145,14 +137,6 @@ bool ucoin_util_verify_p2pkh(ucoin_tx_t *pTx, int Index, const char *pAddrVout)
 
     uint8_t txhash[UCOIN_SZ_SIGHASH];
     bool ret = ucoin_tx_sighash(txhash, pTx, (const ucoin_buf_t **)scrpks, 1);
-    //#ifdef UCOIN_DEBUG
-    //    DBG_PRINTF("--------------------------\n");
-    //    for (int lp = 0; lp < sizeof(txhash); lp++) {
-    //        fprintf(stderr, "%02x", txhash[lp]);
-    //    }
-    //    fprintf(stderr, "\n");
-    //    DBG_PRINTF("--------------------------\n\n");
-    //#endif  //UCOIN_DEBUG
     assert(ret);
     ret = ucoin_tx_verify_p2pkh_addr(pTx, Index, txhash, pAddrVout);
     assert(ret);
@@ -318,6 +302,38 @@ void ucoin_util_sort_bip69(ucoin_tx_t *pTx)
         }
     }
 }
+
+
+#if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
+/** uint8[]の内容をFILE*出力
+ *
+ * @param[in]       fp          出力先
+ * @param[in]       pData       対象データ
+ * @param[in]       Len         pData長
+ */
+void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len, bool bLf)
+{
+    for (uint16_t lp = 0; lp < Len; lp++) {
+        fprintf(fp, "%02x", pData[lp]);
+    }
+    if (bLf) {
+        fprintf(fp, "\n");
+    }
+}
+
+
+/** uint8[]の内容をFILE*出力
+ *
+ * @param[in]       fp          出力先
+ * @param[in]       pTxid
+ */
+void ucoin_util_dumptxid(FILE *fp, const uint8_t *pTxid)
+{
+    for (uint16_t lp = 0; lp < UCOIN_SZ_TXID; lp++) {
+        fprintf(fp, "%02x", pTxid[UCOIN_SZ_TXID - lp - 1]);
+    }
+}
+#endif  //UCOIN_USE_PRINTFUNC || UCOIN_DEBUG
 
 
 #ifdef UCOIN_DEBUG_MEM
@@ -892,37 +908,6 @@ int HIDDEN ucoin_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint16
 
     return retval;
 }
-
-
-#if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
-/** uint8[]の内容をFILE*出力
- *
- * @param[in]       fp          出力先
- * @param[in]       pData       対象データ
- * @param[in]       Len         pData長
- */
-void HIDDEN ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len)
-{
-    for (uint16_t lp = 0; lp < Len; lp++) {
-        fprintf(fp, "%02x", pData[lp]);
-    }
-    fprintf(fp, "\n");
-}
-
-
-/** uint8[]の内容をFILE*出力
- *
- * @param[in]       fp          出力先
- * @param[in]       pTxid
- */
-void HIDDEN ucoin_util_dumptxid(FILE *fp, const uint8_t *pTxid)
-{
-    for (uint16_t lp = 0; lp < UCOIN_SZ_TXID; lp++) {
-        fprintf(fp, "%02x", pTxid[UCOIN_SZ_TXID - lp - 1]);
-    }
-    fprintf(fp, "\n");
-}
-#endif  //UCOIN_USE_PRINTFUNC || UCOIN_DEBUG
 
 
 #ifdef UCOIN_DEBUG_MEM

@@ -113,21 +113,6 @@ uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNo
 }
 
 
-#ifdef UCOIN_USE_PRINTFUNC
-void ln_print_node(const ln_node_t *node)
-{
-    printf("=NODE=============================================\n");
-    printf("   keyv: ");
-    ucoin_util_dumpbin(PRINTOUT, node->keys.priv, UCOIN_SZ_PRIVKEY);
-    printf("   keyp: ");
-    ucoin_util_dumpbin(PRINTOUT, node->keys.pub, UCOIN_SZ_PUBKEY);
-    printf("features= %02x\n", node->features);
-    printf("alias= %s\n", node->alias);
-    printf("=============================================\n\n\n");
-}
-#endif
-
-
 /********************************************************************
  * HIDDEN
  ********************************************************************/

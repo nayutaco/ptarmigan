@@ -7,6 +7,7 @@ OUTPUT_FILENAME := $(PROJECT_NAME)
 ######################################
 #CFLAGS_USER
 CFLAGS_USER = -DUCOIN_USE_RNG
+CFLAGS_USER += -DNETKIND=$(NETKIND)
 ######################################
 
 
@@ -57,6 +58,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_misc.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_onion.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_db_lmdb.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_enc_auth.c
+C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_print.c
 
 #includes common to all targets
 INC_PATHS += -Iinclude -Isrc/inc -Isrc/inc/ln
@@ -129,7 +131,7 @@ OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 lib:
 	make -C libs
 
-debug: CFLAGS += -DDEBUG -DUCOIN_DEBUG -DUCOIN_USE_PRINTFUNC -DUCOIN_DEBUG_MEM
+debug: CFLAGS += -DDEBUG -DUCOIN_DEBUG -DUCOIN_DEBUG_MEM
 debug: CFLAGS += -ggdb3 -O0
 debug: LDFLAGS += -ggdb3 -O0
 debug: $(BUILD_DIRECTORIES) $(OBJECTS)
@@ -141,7 +143,7 @@ debug: $(BUILD_DIRECTORIES) $(OBJECTS)
 	$(NO_ECHO)$(RM) ucoin_tmp.o ucoin_lib.o
 
 #release: CFLAGS += -DNDEBUG
-release: CFLAGS += -O3  -DUCOIN_USE_PRINTFUNC
+release: CFLAGS += -O3
 #release: CFLAGS +=-Werror
 release: LDFLAGS += -O3
 release: $(BUILD_DIRECTORIES) $(OBJECTS)
@@ -180,7 +182,7 @@ clean:
 
 ################################
 
-#.Depend:
-#	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
+.Depend:
+	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
 
-#-include .Depend
+-include .Depend

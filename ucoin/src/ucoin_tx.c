@@ -1037,6 +1037,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
     ucoin_tx_txid(txid, pTx);
     fprintf(fp, "txid= ");
     ucoin_util_dumptxid(fp, txid);
+    fprintf(fp, "\n");
     fprintf(fp, "======================================\n");
     fprintf(fp, " version:%d\n\n", pTx->version);
     fprintf(fp, " txin_cnt=%d\n", pTx->vin_cnt);
@@ -1044,11 +1045,12 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         fprintf(fp, " [vin #%d]\n", lp);
         fprintf(fp, "  txid= ");
         ucoin_util_dumptxid(fp, pTx->vin[lp].txid);
+        fprintf(fp, "\n");
         fprintf(fp, "       LE: ");
-        ucoin_util_dumpbin(fp, pTx->vin[lp].txid, UCOIN_SZ_TXID);
+        ucoin_util_dumpbin(fp, pTx->vin[lp].txid, UCOIN_SZ_TXID, true);
         fprintf(fp, "  index= %d\n", pTx->vin[lp].index);
         fprintf(fp, "  scriptSig[%d]= ", pTx->vin[lp].script.len);
-        ucoin_util_dumpbin(fp, pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
+        ucoin_util_dumpbin(fp, pTx->vin[lp].script.buf, pTx->vin[lp].script.len, true);
         ucoin_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         //bool p2wsh = (pTx->vin[lp].script.len == 35) &&
         //             (pTx->vin[lp].script.buf[1] == 0x00) && (pTx->vin[lp].script.buf[2] == 0x20);
@@ -1057,7 +1059,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         for(uint8_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
             fprintf(fp, "  witness[%d][%d]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
-                ucoin_util_dumpbin(fp, pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
+                ucoin_util_dumpbin(fp, pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len, true);
                 if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
                     //P2WSHの最後はwitnessScript
                     //nativeのP2WSHでも表示させたかったが、識別する方法が思いつかない
@@ -1072,14 +1074,12 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
     for(int lp = 0; lp < pTx->vout_cnt; lp++) {
         fprintf(fp, " [vout #%d]\n", lp);
         fprintf(fp, "  value= %llu  ( ", (unsigned long long)pTx->vout[lp].value);
-        for (int lp2 = 0; lp2 < sizeof(pTx->vout[lp].value); lp2++) {
-            fprintf(fp, "%02x", ((const uint8_t *)&pTx->vout[lp].value)[lp2]);
-        }
+        ucoin_util_dumpbin(fp, ((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value), false);
         fprintf(fp, " )\n");
         fprintf(fp, "    %f mBTC, %f BTC\n", UCOIN_SATOSHI2MBTC(pTx->vout[lp].value), UCOIN_SATOSHI2BTC(pTx->vout[lp].value));
         ucoin_buf_t *buf = &(pTx->vout[lp].script);
         fprintf(fp, "  scriptPubKey[%d]= ", buf->len);
-        ucoin_util_dumpbin(fp, buf->buf, buf->len);
+        ucoin_util_dumpbin(fp, buf->buf, buf->len, true);
         ucoin_print_script(buf->buf, buf->len);
         if ( (buf->len == 25) && (buf->buf[0] == 0x76) && (buf->buf[1] == 0xa9) &&
              (buf->buf[2] == 0x14) && (buf->buf[23] == 0x88) && (buf->buf[24] == 0xac) ) {
@@ -1154,11 +1154,8 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
             int len = *pData;
             fprintf(fp, "%s%02x ", INDENT, len);
             pData++;
-            for (int lp = 0; lp < len; lp++) {
-                fprintf(fp, "%02x", *pData);
-                pData++;
-            }
-            fprintf(fp, "\n");
+            ucoin_util_dumpbin(fp, pData, len, true);
+            pData += len;
         } else if ((OP_1 <= *pData) && (*pData <= OP_16)) {
             //OP_x
             fprintf(fp, "%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_x);
@@ -1174,11 +1171,8 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
                 pData += 3;
             }
             fprintf(fp, "%sOP_PUSHDATAx %02x ", INDENT, len);
-            for (int lp = 0; lp < len; lp++) {
-                fprintf(fp, "%02x", *pData);
-                pData++;
-            }
-            fprintf(fp, "\n");
+            ucoin_util_dumpbin(fp, pData, len, true);
+            pData += len;
         } else {
             int op;
             for (op = 0; op < ARRAY_SIZE(OP_DIC); op++) {

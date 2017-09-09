@@ -1,11 +1,14 @@
 INSTALL_DIR = $(CURDIR)/install
 
+# 0:mainnet, 1:testnet
+NETKIND=1
+
 default:
-	make -C ucoin
-	make -C ucoind
-	make -C ucoincli
-	make -C showdb
-	make -C routing
+	make -C ucoin NETKIND=$(NETKIND)
+	make -C ucoind NETKIND=$(NETKIND)
+	make -C ucoincli NETKIND=$(NETKIND)
+	make -C showdb NETKIND=$(NETKIND)
+	make -C routing NETKIND=$(NETKIND)
 	mkdir -p $(INSTALL_DIR)
 	-@rm -rf $(INSTALL_DIR)/ucoind $(INSTALL_DIR)/ucoincli $(INSTALL_DIR)/showdb
 	cp ucoind/ucoind $(INSTALL_DIR)/
@@ -16,6 +19,7 @@ default:
 all: lib default
 
 clean:
+	make -C ucoin clean
 	make -C ucoind clean
 	make -C ucoincli clean
 	make -C showdb clean
@@ -34,7 +38,7 @@ update:
 lib:
 	make -C ucoin/libs
 	make -C libs
-	make -C ucoin
+	make -C ucoin NETKIND=$(NETKIND)
 
 lib_clean:
 	make -C ucoin/libs clean
@@ -45,4 +49,7 @@ git_subs:
 	git submodule update --init --recursive
 
 example_clean:
-	-@rm -rf $(INSTALL_DIR)/*.cnl $(INSTALL_DIR)/node_3333 $(INSTALL_DIR)/node_4444 $(INSTALL_DIR)/node_5555 $(INSTALL_DIR)/conf $(INSTALL_DIR)/pay4444_3333_5555.conf $(INSTALL_DIR)/routing.dot $(INSTALL_DIR)/routing.png $(INSTALL_DIR)/core
+	-@rm -rf $(INSTALL_DIR)/*.cnl $(INSTALL_DIR)/node_3333 $(INSTALL_DIR)/node_4444 $(INSTALL_DIR)/node_5555 $(INSTALL_DIR)/conf $(INSTALL_DIR)/pay4444_3333_5555.conf $(INSTALL_DIR)/routing.dot
+
+test_jsonrpc:
+	gcc -o tst -Iinclude -Ilibs/install/include -Iucoin/include -DJSONRPC_TEST cmn/misc.c cmn/jsonrpc.c -Llibs/install/lib -lcurl -ljansson -Lucoin -lucoin -Lucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium -llmdb -pthread

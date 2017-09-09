@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "inih/ini.h"
+
 #include "conf.h"
 #include "misc.h"
 #include "ln.h"
@@ -36,39 +38,52 @@
     }
 
 
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+struct node_confs_t {
+    node_conf_t     *p_node_conf;
+    rpc_conf_t      *p_rpc_conf;
+};
+
+
+/**************************************************************************
+ * prototypes
+ **************************************************************************/
+
+static int handler_node_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_peer_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_fund_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_pay_conf(void* user, const char* section, const char* name, const char* value);
+
+
+/**************************************************************************
+ * public functions
+ **************************************************************************/
+
+/********************
+ * node.conf
+ ********************/
+
 bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *pRpcConf)
 {
-    FILE *fp = fopen(pConfFile, "r");
-    if (fp == NULL) {
-        SYSLOG_ERR("fail open: node conf[%s]", pConfFile);
+    struct node_confs_t node_confs = { pNodeConf, pRpcConf };
+    memset(pNodeConf, 0, sizeof(node_conf_t));
+    memset(pRpcConf, 0, sizeof(rpc_conf_t));
+
+    if (ini_parse(pConfFile, handler_node_conf, &node_confs) < 0) {
+        SYSLOG_ERR("fail node parse[%s]", pConfFile);
         return false;
     }
-
-    int results;
-    results = fscanf(fp, "port=%" SCNd16 "\n", &pNodeConf->port);
-    M_CHK_RET(results);
-    results = fscanf(fp, "name=%32s\n", pNodeConf->name);
-    M_CHK_RET(results);
-    results = fscanf(fp, "wif=%55s\n", pNodeConf->wif);
-    M_CHK_RET(results);
-    results = fscanf(fp, "rpcuser=%64s\n", pRpcConf->rpcuser);
-    M_CHK_RET(results);
-    results = fscanf(fp, "rpcpasswd=%64s\n", pRpcConf->rpcpasswd);
-    M_CHK_RET(results);
-    results = fscanf(fp, "rpcurl=%256s\n", pRpcConf->rpcurl);
-    M_CHK_RET(results);
 
 #ifdef M_DEBUG
     fprintf(PRINTOUT, "\n--- node: %s ---\n", pConfFile);
     print_node_conf(pNodeConf, pRpcConf);
 #endif
 
-LABEL_EXIT:
-    fclose(fp);
-    if (results != 1) {
-        SYSLOG_ERR("fail node parse[%s]", pConfFile);
-    }
-    return results == 1;
+    return true;
 }
 
 
@@ -84,46 +99,30 @@ void print_node_conf(const node_conf_t *pNodeConf, const rpc_conf_t *pRpcConf)
     ucoin_util_keys_t keys;
     ucoin_util_wif2keys(&keys, pNodeConf->wif);
     fprintf(PRINTOUT, "node_id=");
-    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        fprintf(PRINTOUT, "%02x", keys.pub[lp]);
-    }
+    ucoin_util_dumpbin(PRINTOUT, keys.pub, UCOIN_SZ_PUBKEY, true);
     fprintf(PRINTOUT, "\n\n");
 }
 
 
+/********************
+ * peer.conf
+ ********************/
+
 bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
 {
-    FILE *fp = fopen(pConfFile, "r");
-    if (fp == NULL) {
-        SYSLOG_ERR("fail open: peer conf[%s]", pConfFile);
+    memset(pPeerConf, 0, sizeof(peer_conf_t));
+
+    if (ini_parse(pConfFile, handler_peer_conf, pPeerConf) < 0) {
+        SYSLOG_ERR("fail peer parse[%s]", pConfFile);
         return false;
     }
 
-    char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    bool ret = false;
-    int results;
-
-    results = fscanf(fp, "ipaddr=%16s\n", pPeerConf->ipaddr);
-    M_CHK_RET(results);
-    results = fscanf(fp, "port=%" SCNd16 "\n", &pPeerConf->port);
-    M_CHK_RET(results);
-    results = fscanf(fp, "node_id=%66s\n", node_id);
-    M_CHK_RET(results);
-    ret = misc_str2bin(pPeerConf->node_id, UCOIN_SZ_PUBKEY, node_id);
-
 #ifdef M_DEBUG
     fprintf(PRINTOUT, "\n--- [%s] ---\n", pConfFile);
-    if (ret) {
-        print_peer_conf(pPeerConf);
-    }
+    print_peer_conf(pPeerConf);
 #endif
 
-LABEL_EXIT:
-    fclose(fp);
-    if (!ret) {
-        SYSLOG_ERR("fail peer parse[%s]", pConfFile);
-    }
-    return ret;
+    return true;
 }
 
 
@@ -133,57 +132,29 @@ void print_peer_conf(const peer_conf_t *pPeerConf)
     fprintf(PRINTOUT, "ipaddr=%s\n", pPeerConf->ipaddr);
     fprintf(PRINTOUT, "port=%d\n", pPeerConf->port);
     fprintf(PRINTOUT, "node_id=");
-    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        fprintf(PRINTOUT, "%02x", pPeerConf->node_id[lp]);
-    }
-    fprintf(PRINTOUT, "\n\n");
+    ucoin_util_dumpbin(PRINTOUT, pPeerConf->node_id, UCOIN_SZ_PUBKEY, true);
 }
 
 
+/********************
+ * fund.conf
+ ********************/
+
 bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
 {
-    FILE *fp = fopen(pConfFile, "r");
-    if (fp == NULL) {
-        SYSLOG_ERR("fail open: fund conf[%s]", pConfFile);
+    memset(pFundConf, 0, sizeof(funding_conf_t));
+
+    if (ini_parse(pConfFile, handler_fund_conf, pFundConf) < 0) {
+        SYSLOG_ERR("fail fund parse[%s]", pConfFile);
         return false;
-    }
-
-    char txid[UCOIN_SZ_TXID * 2 + 1];
-    bool ret = false;
-    int results;
-    txid[0] = '\0';
-
-    results = fscanf(fp, "txid=%64s\n", txid);
-    M_CHK_RET(results);
-    ret = misc_str2bin_rev(pFundConf->txid, UCOIN_SZ_TXID, txid);
-    if (ret) {
-        ret = false;
-        results = fscanf(fp, "txindex=%d\n", &pFundConf->txindex);
-        M_CHK_RET(results);
-        results = fscanf(fp, "signaddr=%35s\n", pFundConf->signaddr);
-        M_CHK_RET(results);
-        results = fscanf(fp, "funding_sat=%" SCNu64 "\n", &pFundConf->funding_sat);
-        M_CHK_RET(results);
-        results = fscanf(fp, "push_sat=%" SCNu64 "\n", &pFundConf->push_sat);
-        M_CHK_RET(results);
-        ret = true;
-    } else {
-        perror("misc_str2bin_rev");
     }
 
 #ifdef M_DEBUG
     fprintf(PRINTOUT, "\n--- [%s] ---\n", pConfFile);
-    if (ret) {
-        print_funding_conf(pFundConf);
-    }
+    print_funding_conf(pFundConf);
 #endif
 
-LABEL_EXIT:
-    fclose(fp);
-    if (!ret) {
-        SYSLOG_ERR("fail fund parse[%s]", pConfFile);
-    }
-    return ret;
+    return true;
 }
 
 
@@ -191,7 +162,8 @@ void print_funding_conf(const funding_conf_t *pFundConf)
 {
     fprintf(PRINTOUT, "\n--- funding ---\n");
     fprintf(PRINTOUT, "txid=");
-    misc_print_txid(pFundConf->txid);
+    ucoin_util_dumptxid(PRINTOUT, pFundConf->txid);
+    fprintf(PRINTOUT, "\n");
     fprintf(PRINTOUT, "txindex=%d\n", pFundConf->txindex);
     fprintf(PRINTOUT, "signaddr=%s\n", pFundConf->signaddr);
     fprintf(PRINTOUT, "funding_sat=%" PRIu64 "\n", pFundConf->funding_sat);
@@ -199,66 +171,75 @@ void print_funding_conf(const funding_conf_t *pFundConf)
 }
 
 
-bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
+/********************
+ * bitcoin.conf
+ ********************/
+
+bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
-    FILE *fp = fopen(pConfFile, "r");
-    if (fp == NULL) {
-        SYSLOG_ERR("fail open: pay conf[%s]", pConfFile);
+    memset(pRpcConf, 0, sizeof(rpc_conf_t));
+
+    if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) < 0) {
+        SYSLOG_ERR("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
     }
 
-    char payment_hash[LN_SZ_HASH * 2 + 1];
-    int results;
-    bool ret = false;
-
-    payment_hash[0] = '\0';
-    results = fscanf(fp, "hash=%64s\n", payment_hash);
-    M_CHK_RET(results);
-    ret = misc_str2bin(pPayConf->payment_hash, LN_SZ_HASH, payment_hash);
-    if (ret) {
-        results = fscanf(fp, "hop_num=%" SCNu8 "\n", &pPayConf->hop_num);
-        if (results < 1) {
-            ret = false;
-            goto LABEL_EXIT;
-        }
-        // hop_numは2以上
-        //      hop_datain[0]: 自ノード
-        //      hop_datain[1]: 送金先...
-        ret &= (2 <= pPayConf->hop_num) && (pPayConf->hop_num <= LN_HOP_MAX);
+    if ((strlen(pRpcConf->rpcuser) == 0) || (strlen(pRpcConf->rpcpasswd) == 0)) {
+        SYSLOG_ERR("fail: no rpcuser or rpcpassword[%s]", pConfFile);
+        return false;
     }
-    if (ret) {
-        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        //hop_numという名前だが、先頭はONIONに入れない(add_htlcのパラメータ)
-        for (int lp = 0; lp < pPayConf->hop_num; lp++) {
-            results = fscanf(fp, "%66s,%" SCNx64 ",%" SCNu64 ",%u\n",
-                node_id,
-                &pPayConf->hop_datain[lp].short_channel_id,
-                &pPayConf->hop_datain[lp].amt_to_forward,
-                &pPayConf->hop_datain[lp].outgoing_cltv_value);
-            if (results != 4) {
-                ret = false;
-                goto LABEL_EXIT;
-            }
-            ret = misc_str2bin(pPayConf->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, node_id);
-            if (!ret) {
-                break;
-            }
-        }
+
+    if (strlen(pRpcConf->rpcurl) == 0) {
+        strcpy(pRpcConf->rpcurl, "127.0.0.1");
+    }
+    if (pRpcConf->rpcport == 0) {
+#if NETKIND==0
+        pRpcConf->rpcport = 8332;
+#elif NETKIND==1
+        pRpcConf->rpcport = 18332;
+#endif
+    }
+    char tmp[SZ_RPC_URL];
+    sprintf(tmp, "http://%s:%d/", pRpcConf->rpcurl, pRpcConf->rpcport);
+    strcpy(pRpcConf->rpcurl, tmp);
+
+#ifdef M_DEBUG
+    fprintf(PRINTOUT, "rpcuser=%s\n", pRpcConf->rpcuser);
+    fprintf(PRINTOUT, "rpcport=%d\n", pRpcConf->rpcport);
+    fprintf(PRINTOUT, "rpcurl=%s\n", pRpcConf->rpcurl);
+#endif
+
+    return true;
+}
+
+
+bool load_btcrpc_default_conf(rpc_conf_t *pRpcConf)
+{
+    char path[512];
+    sprintf(path, "%s/.bitcoin/bitcoin.conf", getenv("HOME"));
+    return load_btcrpc_conf(path, pRpcConf);
+}
+
+
+/********************
+ * pay.conf
+ ********************/
+
+bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
+{
+    memset(pPayConf, 0, sizeof(payment_conf_t));
+
+    if (ini_parse(pConfFile, handler_pay_conf, pPayConf) < 0) {
+        SYSLOG_ERR("fail pay parse[%s]", pConfFile);
+        return false;
     }
 
 #ifdef M_DEBUG
-    fprintf(PRINTOUT, "\n--- payment: %s ---\n", pConfFile);
-    if (ret) {
-        print_payment_conf(pPayConf);
-    }
+    fprintf(PRINTOUT, "\n--- [%s] ---\n", pConfFile);
+    print_payment_conf(pPayConf);
 #endif
 
-LABEL_EXIT:
-    fclose(fp);
-    if (!ret) {
-        SYSLOG_ERR("fail pay parse[%s]", pConfFile);
-    }
-    return ret;
+    return true;
 }
 
 
@@ -266,14 +247,144 @@ void print_payment_conf(const payment_conf_t *pPayConf)
 {
     fprintf(PRINTOUT, "\n--- payment ---\n");
     fprintf(PRINTOUT, "payment_hash=");
-    misc_dumpbin(PRINTOUT, pPayConf->payment_hash, LN_SZ_HASH);
+    ucoin_util_dumpbin(PRINTOUT, pPayConf->payment_hash, LN_SZ_HASH, true);
     fprintf(PRINTOUT, "hop_num=%d\n", pPayConf->hop_num);
     for (int lp = 0; lp < pPayConf->hop_num; lp++) {
         fprintf(PRINTOUT, " [%d]:\n", lp);
         fprintf(PRINTOUT, "  node_id= ");
-        misc_dumpbin(PRINTOUT, pPayConf->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
+        ucoin_util_dumpbin(PRINTOUT, pPayConf->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, true);
         fprintf(PRINTOUT, "  short_channel_id= %" PRIx64 "\n", pPayConf->hop_datain[lp].short_channel_id);
         fprintf(PRINTOUT, "  amount_msat= %" PRIu64 "\n", pPayConf->hop_datain[lp].amt_to_forward);
         fprintf(PRINTOUT, "  cltv_expiry: %d\n", pPayConf->hop_datain[lp].outgoing_cltv_value);
     }
+}
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+static int handler_node_conf(void* user, const char* section, const char* name, const char* value)
+{
+    struct node_confs_t* pconfig = (struct node_confs_t *)user;
+
+    if (strcmp(name, "port") == 0) {
+        pconfig->p_node_conf->port = (uint16_t)atoi(value);
+    } else if (strcmp(name, "name") == 0) {
+        strcpy(pconfig->p_node_conf->name, value);
+    } else if (strcmp(name, "wif") == 0) {
+        strcpy(pconfig->p_node_conf->wif, value);
+    } else if (strcmp(name, "rpcuser") == 0) {
+        strcpy(pconfig->p_rpc_conf->rpcuser, value);
+    } else if (strcmp(name, "rpcpasswd") == 0) {
+        strcpy(pconfig->p_rpc_conf->rpcpasswd, value);
+    } else if (strcmp(name, "rpcurl") == 0) {
+        strcpy(pconfig->p_rpc_conf->rpcurl, value);
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    return 1;
+}
+
+
+static int handler_peer_conf(void* user, const char* section, const char* name, const char* value)
+{
+    peer_conf_t* pconfig = (peer_conf_t *)user;
+
+    if (strcmp(name, "ipaddr") == 0) {
+        strcpy(pconfig->ipaddr, value);
+    } else if (strcmp(name, "port") == 0) {
+        pconfig->port = (uint16_t)atoi(value);
+    } else if (strcmp(name, "name") == 0) {
+        strcpy(pconfig->name, value);
+    } else if (strcmp(name, "node_id") == 0) {
+        misc_str2bin(pconfig->node_id, UCOIN_SZ_PUBKEY, value);
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    return 1;
+}
+
+
+static int handler_fund_conf(void* user, const char* section, const char* name, const char* value)
+{
+    funding_conf_t* pconfig = (funding_conf_t *)user;
+
+    if (strcmp(name, "txid") == 0) {
+        misc_str2bin_rev(pconfig->txid, UCOIN_SZ_TXID, value);
+    } else if (strcmp(name, "txindex") == 0) {
+        pconfig->txindex = atoi(value);
+    } else if (strcmp(name, "signaddr") == 0) {
+        strcpy(pconfig->signaddr, value);
+    } else if (strcmp(name, "funding_sat") == 0) {
+        pconfig->funding_sat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "push_sat") == 0) {
+        pconfig->push_sat = strtoull(value, NULL, 10);
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    return 1;
+}
+
+
+static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value)
+{
+    rpc_conf_t* pconfig = (rpc_conf_t *)user;
+
+    if (strcmp(name, "rpcuser") == 0) {
+        strcpy(pconfig->rpcuser, value);
+    } else if (strcmp(name, "rpcpassword") == 0) {
+        strcpy(pconfig->rpcpasswd, value);
+    } else if (strcmp(name, "rpcconnect") == 0) {
+        strcpy(pconfig->rpcurl, value);
+    } else if (strcmp(name, "rpcport") == 0) {
+        pconfig->rpcport = atoi(value);
+    } else {
+        //return 0;  /* unknown section/name, error */
+    }
+    return 1;
+}
+
+
+static bool pay_root(ln_hop_datain_t *pHop, const char *Value)
+{
+    bool ret;
+    char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+
+    int results = sscanf(Value, "%66s,%" SCNx64 ",%" SCNu64 ",%u\n",
+        node_id,
+        &pHop->short_channel_id,
+        &pHop->amt_to_forward,
+        &pHop->outgoing_cltv_value);
+    if (results != 4) {
+        ret = false;
+        goto LABEL_EXIT;
+    }
+    ret = misc_str2bin(pHop->pubkey, UCOIN_SZ_PUBKEY, node_id);
+
+LABEL_EXIT:
+    return ret;
+}
+
+
+static int handler_pay_conf(void* user, const char* section, const char* name, const char* value)
+{
+    bool ret;
+    payment_conf_t* pconfig = (payment_conf_t *)user;
+
+    if (strcmp(name, "hash") == 0) {
+        ret = misc_str2bin(pconfig->payment_hash, LN_SZ_HASH, value);
+    } else if (strcmp(name, "hop_num") == 0) {
+        pconfig->hop_num = atoi(value);
+        ret = (2 <= pconfig->hop_num) && (pconfig->hop_num <= LN_HOP_MAX + 1);
+    } else if (strncmp(name, "route", 5) == 0) {
+        int num = atoi(&name[5]);
+        ret = (0 <= num) && (num <= LN_HOP_MAX);
+        if (ret) {
+            ret = pay_root(&pconfig->hop_datain[num], value);
+        }
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    return (ret) ? 1 : 0;
 }

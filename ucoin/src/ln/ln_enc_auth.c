@@ -27,9 +27,8 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
-//#include "ln_enc_auth.h"
+#include "ln_enc_auth.h"
 #include "ln_misc.h"
 
 #include "mbedtls/md.h"
@@ -246,7 +245,6 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_b
     self->noise.sn++;
     if (self->noise.sn == 1000) {
         DBG_PRINTF("???: This root shall not in.\n");
-        assert(0);
         goto LABEL_EXIT;
     }
     memcpy(nonce + 4, &self->noise.sn, sizeof(uint64_t));
@@ -312,7 +310,6 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
         //key rotation
         //ck', k' = HKDF(ck, k)
         DBG_PRINTF("???: This root shall not in.\n");
-        assert(0);
         goto LABEL_EXIT;
     }
 
@@ -380,7 +377,6 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
     ret = ucoin_util_calc_mac(prk, pSalt, UCOIN_SZ_SHA256, pIkm, ikm_len);
     if (!ret) {
         DBG_PRINTF("fail: calc_mac\n");
-        assert(0);
         return false;
     }
 

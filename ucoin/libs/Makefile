@@ -32,9 +32,9 @@ mk_mbedtls:
 	cp -ra mbedtls/include/* $(INSTALL_DIR)/include/
 
 clean:
-	@make -C bech32/ref/c clean
-	@make -C libbase58 clean
-	@make -C libsodium clean
-	@make -C lmdb/libraries/liblmdb clean
-	@make -C mbedtls clean
-	@rm -rf $(INSTALL_DIR)
+	-make -C bech32/ref/c clean
+	-make -C libbase58 clean
+	-make -C libsodium clean
+	-make -C lmdb/libraries/liblmdb clean
+	-make -C mbedtls clean
+	-rm -rf $(INSTALL_DIR)

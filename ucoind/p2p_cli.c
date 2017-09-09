@@ -32,6 +32,8 @@
 #include <arpa/inet.h>
 #include <assert.h>
 
+#include "cJSON.h"
+
 #include "ucoind.h"
 #include "p2p_cli.h"
 #include "lnapp.h"
@@ -68,14 +70,15 @@ void p2p_cli_init(void)
 }
 
 
-void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, const uint8_t *pNodeId, char *pResMsg)
+void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, const uint8_t *pNodeId, jrpc_context *ctx)
 {
     int ret;
     struct sockaddr_in sv_addr;
 
     if (!ucoin_keys_chkpub(pConn->node_id)) {
         SYSLOG_ERR("%s(): invalid node_id", __func__);
-        strcpy(pResMsg, "error: invalid node_id");
+        ctx->error_code = RPCERR_NODEID;
+        ctx->error_message = strdup(RPCERR_NODEID_STR);
         return;
     }
     bool haveCnl = (ln_node_search_short_cnl_id(pNodeId, pConn->node_id) != 0);
@@ -84,10 +87,12 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
         DBG_PRINTF("pParam=%p, haveCnl=%d\n", pParam, haveCnl);
         if (pParam == NULL) {
             SYSLOG_ERR("%s(): channel not open", __func__);
-            strcpy(pResMsg, "error: channel not open");
+            ctx->error_code = RPCERR_NOOPEN;
+            ctx->error_message = strdup(RPCERR_NOOPEN_STR);
         } else {
             SYSLOG_ERR("%s(): channel already opened", __func__);
-            strcpy(pResMsg, "error: channel already opened");
+            ctx->error_code = RPCERR_ALOPEN;
+            ctx->error_message = strdup(RPCERR_ALOPEN_STR);
         }
         return;
     }
@@ -100,22 +105,20 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
     }
     if (idx >= ARRAY_SIZE(mAppConf)) {
         SYSLOG_ERR("%s(): client full", __func__);
-        strcpy(pResMsg, "error: client full");
+        ctx->error_code = RPCERR_FULLCLI;
+        ctx->error_message = strdup(RPCERR_FULLCLI_STR);
         return;
     }
 
     fprintf(PRINTOUT, "connect: %s:%d\n", pConn->ipaddr, pConn->port);
     fprintf(PRINTOUT, "node_id=");
-    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        fprintf(PRINTOUT, "%02x", pConn->node_id[lp]);
-    }
-    fprintf(PRINTOUT, "\n");
+    ucoin_util_dumpbin(PRINTOUT, pConn->node_id, UCOIN_SZ_PUBKEY, true);
 
     mAppConf[idx].sock = socket(PF_INET, SOCK_STREAM, 0);
     if (mAppConf[idx].sock < 0) {
         SYSLOG_ERR("%s(): socket", __func__);
-        strcpy(pResMsg, "error: socket: ");
-        strcpy(pResMsg, strerror(errno));
+        ctx->error_code = RPCERR_SOCK;
+        ctx->error_message = strdup(RPCERR_SOCK_STR);
         goto LABEL_EXIT;
     }
 
@@ -126,8 +129,8 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
     ret = connect(mAppConf[idx].sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if (ret < 0) {
         SYSLOG_ERR("%s(): connect", __func__);
-        strcpy(pResMsg, "error: connect: ");
-        strcpy(pResMsg, strerror(errno));
+        ctx->error_code = RPCERR_CONNECT;
+        ctx->error_message = strdup(RPCERR_CONNECT_STR);
         goto LABEL_EXIT;
     }
     DBG_PRINTF("connected: sock=%d\n", mAppConf[idx].sock);
@@ -139,7 +142,6 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
     mAppConf[idx].p_funding = (funding_conf_t *)pParam;
 
     lnapp_start(&mAppConf[idx]);
-    strcpy(pResMsg, "progressing...");
 
 LABEL_EXIT:
     ;
@@ -188,10 +190,10 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
 }
 
 
-void p2p_cli_show_self(char *pResMsg)
+void p2p_cli_show_self(cJSON *pResult)
 {
     for (int lp = 0; lp < M_SOCK_MAX; lp++) {
-        lnapp_show_self(&mAppConf[lp], pResMsg);
+        lnapp_show_self(&mAppConf[lp], pResult);
     }
 }
 

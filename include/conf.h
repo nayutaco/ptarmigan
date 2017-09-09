@@ -39,6 +39,9 @@ void print_peer_conf(const peer_conf_t *pPeerConf);
 bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf);
 void print_funding_conf(const funding_conf_t *pFundConf);
 
+bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf);
+bool load_btcrpc_default_conf(rpc_conf_t *pRpcConf);
+
 bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf);
 void print_payment_conf(const payment_conf_t *pPayConf);
 

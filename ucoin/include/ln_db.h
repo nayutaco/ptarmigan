@@ -58,6 +58,12 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
+/** db終了
+ *
+ */
+void ln_db_term(void);
+
+
 /** channel情報読込み
  *
  * @param[out]      self

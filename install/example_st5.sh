@@ -1,10 +1,10 @@
 #!/bin/sh
 
-# �`���l�����N���[�Y����B
-# ���̂Ƃ���AMutual Close�̂ݎ������Ă���B
-# P2PKH�A�h���X�ɑ������Ă��邽�߁Abitcoind�Ō��o�\�Ȃ͂��ł���B
+# チャネルをクローズする。
+# 今のところ、Mutual Closeのみ実装している。
+# P2PKHアドレスに送金しているため、bitcoindで検出可能なはずである。
 #
-# �`���l������Ă��m�[�h�Ƃ��ċ@�\���邽�߁Aucoind�͋N�������܂܂ɂȂ�B
-# DB����̃`���l�����폜�́Agettxout �ɂ���� funding_tx�� unspent�ł͂Ȃ��Ȃ������Ƃ��m�F���Ă���s���Ă���B
-./ucoincli -c conf/peer3333.conf -x 4444
-./ucoincli -c conf/peer3333.conf -x 5555
+# チャネルを閉じてもノードとして機能するため、ucoindは起動したままになる。
+# DBからのチャネル情報削除は、gettxout によって funding_txが unspentではなくなったことを確認してから行っている。
+./ucoincli -c conf/peer3333.conf -x 4445
+./ucoincli -c conf/peer3333.conf -x 5556

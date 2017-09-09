@@ -8,10 +8,11 @@ conf/
 ucoind/dbucoin/
 ucoind/showdb
 ucoind/node_*/
-/libs/libucoin.a
+/libs/
+/ucoin/libs/
 /*.txt
-/libs/install/
 /showdb/showdb
 /install/
 .vscode/c_cpp_properties.json
 routing/routing
+.vscode/settings.json

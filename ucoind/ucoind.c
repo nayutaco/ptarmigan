@@ -33,7 +33,8 @@
 #include <pthread.h>
 #include <assert.h>
 
-#define UCOIN_USE_PRINTFUNC
+#include "jsonrpc-c.h"
+
 #include "ucoind.h"
 #include "p2p_svr.h"
 #include "p2p_cli.h"
@@ -41,6 +42,7 @@
 #include "jsonrpc.h"
 #include "conf.h"
 #include "misc.h"
+#include "ln_db.h"
 
 
 /********************************************************************
@@ -48,6 +50,7 @@
  ********************************************************************/
 
 static ln_node_t    mNode;
+static struct jrpc_server   mJrpc;
 
 
 /********************************************************************
@@ -55,9 +58,14 @@ static ln_node_t    mNode;
  ********************************************************************/
 
 static int msg_recv(uint16_t Port);
-static int exec_cmd(const msgbuf_t *pMsg, char *pResMsg);
-static int exec_cmd_bolt(const msg_bolt_t *pBolt, char *pResMsg);
-static int exec_cmd_daemon(const msg_daemon_t *pDaemon, char *pResMsg);
+static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
 static lnapp_conf_t *search_connected_lnapp(const uint8_t *p_node_id);
 
 
@@ -71,7 +79,14 @@ int main(int argc, char *argv[])
         goto LABEL_EXIT;
     }
 
+#ifndef NETKIND
+#error not define NETKIND
+#endif
+#if NETKIND==0
+    ucoin_init(UCOIN_MAINNET, true);
+#elif NETKIND==1
     ucoin_init(UCOIN_TESTNET, true);
+#endif
 
     if ((argc == 2) && (strcmp(argv[1], "wif") == 0)) {
         uint8_t priv[UCOIN_SZ_PRIVKEY];
@@ -96,14 +111,18 @@ int main(int argc, char *argv[])
     if (!bret) {
         goto LABEL_EXIT;
     }
+    if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
+        //bitcoin.confから読込む
+        bret = load_btcrpc_default_conf(&rpc_conf);
+        if (!bret) {
+            goto LABEL_EXIT;
+        }
+    }
 
     if ((argc == 3) && (strcmp(argv[2], "id") == 0)) {
         ucoin_util_keys_t keys;
         ucoin_util_wif2keys(&keys, node_conf.wif);
-        for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-            printf("%02x", keys.pub[lp]);
-        }
-        printf("\n");
+        ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
 
         ucoin_term();
         return 0;
@@ -128,10 +147,14 @@ int main(int argc, char *argv[])
     pthread_t th_svr;
     pthread_create(&th_svr, NULL, &p2p_svr_start, &node_conf.port);
 
-    SYSLOG_INFO("start");
+#if NETKIND==0
+    SYSLOG_INFO("start bitcoin mainnet");
+#elif NETKIND==1
+    SYSLOG_INFO("start bitcoin testnet");
+#endif
 
     //ucoincli受信用
-    msg_recv(node_conf.port);
+    msg_recv(node_conf.port + 1);
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
@@ -139,6 +162,8 @@ int main(int argc, char *argv[])
     DBG_PRINTF("%s exit\n", argv[0]);
 
     SYSLOG_INFO("end");
+
+    ln_db_term();
 
     return 0;
 
@@ -200,242 +225,459 @@ bool fulfill_backward(const ln_cb_fulfill_htlc_recv_t *pFulFill)
 
 static int msg_recv(uint16_t Port)
 {
-    int retval = -1;
-    int ret;
-    msgbuf_t buf;
-    msgres_t res;
-    int msqid;
-    key_t key;
-    char wkdir[50];
-    char fname[50];
+    jrpc_server_init(&mJrpc, Port);
+    jrpc_register_procedure(&mJrpc, cmd_fund,        "fund", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_connect,     "connect", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_close,       "close", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_listinvoice, "listinvoice", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_pay,         "pay", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
+    jrpc_server_run(&mJrpc);
+    jrpc_server_destroy(&mJrpc);
+
+    return 0;
+}
 
 
-    sprintf(wkdir, "%s/%s", getenv("HOME"), UCOINDDIR);
-    ret = mkdir(wkdir, 0755);
-    if (!ret) {
-        DBG_PRINTF("create dir: %s\n", wkdir);
-    }
+static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
+{
+    cJSON *json;
 
-    sprintf(fname, "%s/%s%d.dat", wkdir, FTOK_FNAME, Port);
-    //fprintf(PRINTOUT, "resmsg: %s\n", fname);
-    unlink(fname);
-    int fd = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0644);
-    if (fd < 0) {
-        SYSLOG_ERR("msg open: %s", strerror(errno));
+    //peer_nodeid, peer_addr, peer_port
+    json = cJSON_GetArrayItem(params, Index++);
+    if (json && (json->type == cJSON_String)) {
+        misc_str2bin(pConn->node_id, UCOIN_SZ_PUBKEY, json->valuestring);
+        DBG_PRINTF("pConn->node_id=%s\n", json->valuestring);
+    } else {
+        Index = -1;
         goto LABEL_EXIT;
     }
-
-    if ((key = ftok(fname, FTOK_CHAR)) == -1) {
-        SYSLOG_ERR("msg ftok: %s", strerror(errno));
+    json = cJSON_GetArrayItem(params, Index++);
+    if (json && (json->type == cJSON_String)) {
+        strcpy(pConn->ipaddr, json->valuestring);
+        DBG_PRINTF("pConn->ipaddr=%s\n", json->valuestring);
+    } else {
+        Index = -1;
         goto LABEL_EXIT;
     }
-
-    if ((msqid = msgget(key, 0644 | IPC_CREAT)) == -1) {
-        SYSLOG_ERR("msgget: %s", strerror(errno));
-        goto LABEL_EXIT;
+    json = cJSON_GetArrayItem(params, Index++);
+    if (json && (json->type == cJSON_Number)) {
+        pConn->port = json->valueint;
+        DBG_PRINTF("pConn->port=%d\n", json->valueint);
+    } else {
+        Index = -1;
     }
-
-    fprintf(PRINTOUT, "ucoind started.\n");
-    while (p2p_svr_is_looping() || p2p_cli_is_looping()) {
-        if (msgrcv(msqid, &buf, sizeof(payload_t), MTYPE_CLI2D, 0) == -1) {
-            SYSLOG_ERR("msgrcv: %s", strerror(errno));
-            goto LABEL_EXIT;
-        }
-
-        res.mtype = MTYPE_D2CLI;
-        res.mtext[0] = '\0';
-        ret = exec_cmd(&buf, res.mtext);
-        if (msgsnd(msqid, &res, sizeof(res.mtext), 0) == -1) {
-            SYSLOG_ERR("msgsnd: %s", strerror(errno));
-            exit(-1);
-        }
-        if (ret != 0) {
-            DBG_PRINTF("ret=%d\n", ret);
-            break;
-        }
-    }
-
-    fprintf(PRINTOUT, "ucoind end.\n");
-    if (msgctl(msqid, IPC_RMID, NULL) == -1) {
-        SYSLOG_ERR("msgctl: %s", strerror(errno));
-        goto LABEL_EXIT;
-    }
-
-    unlink(fname);
-    retval = 0;
 
 LABEL_EXIT:
-    return retval;
+    return Index;
 }
 
 
-static int exec_cmd(const msgbuf_t *pMsg, char *pResMsg)
+static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    int retval = -1;
+    cJSON *json;
+    daemon_connect_t conn;
+    funding_conf_t *p_fundconf = (funding_conf_t *)malloc(sizeof(funding_conf_t));
+    cJSON *result = NULL;
+    int index = 0;
 
-    switch (pMsg->payload.type) {
-    case MSG_BOLT:
-        retval = exec_cmd_bolt(&pMsg->payload.cmd.bolt, pResMsg);
-        break;
-    case MSG_DAEMON:
-        retval = exec_cmd_daemon(&pMsg->payload.cmd.daemon, pResMsg);
-        break;
-    default:
-        SYSLOG_ERR("unknown type[%d]\n", pMsg->payload.type);
-        break;
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
     }
 
-    return retval;
-}
-
-
-static int exec_cmd_bolt(const msg_bolt_t *pBolt, char *pResMsg)
-{
-    fprintf(PRINTOUT, "exec_cmd_bolt\n");
-    return -1;
-}
-
-
-static int exec_cmd_daemon(const msg_daemon_t *pDaemon, char *pResMsg)
-{
-    int retval = -1;
-
-    fprintf(PRINTOUT, "\n\n-----------------------------------------------------\n");
-    switch (pDaemon->cmd) {
-    case DCMD_CONNECT:
-        {
-            const daemon_connect_t *p_conn = &pDaemon->params.connect;
-
-            fprintf(PRINTOUT, "<connect>\n");
-            SYSLOG_INFO("connect");
-
-            //socketが開いているか検索
-            lnapp_conf_t *p_appconf = search_connected_lnapp(p_conn->node_id);
-            if (p_appconf == NULL) {
-                p2p_cli_start(pDaemon->cmd, p_conn, NULL, ln_node_id(&mNode), pResMsg);
-            } else {
-                SYSLOG_ERR("already connected");
-                strcpy(pResMsg, "error: already connected");
-            }
-            retval = 0;
-        }
-        break;
-    case DCMD_CREATE:
-        {
-            funding_conf_t *p_fund = (funding_conf_t *)malloc(sizeof(funding_conf_t));
-            memcpy(p_fund, &pDaemon->params.funding.funding, sizeof(funding_conf_t));
-            print_funding_conf(p_fund);
-
-            fprintf(PRINTOUT, "<create>\n");
-            SYSLOG_INFO("create");
-
-            p2p_cli_start(pDaemon->cmd, &pDaemon->params.funding.conn, p_fund, ln_node_id(&mNode), pResMsg);
-            retval = 0;
-        }
-        break;
-    case DCMD_CLOSE:
-        {
-            bool ret;
-            const daemon_connect_t *p_conn = &pDaemon->params.connect;
-
-            fprintf(PRINTOUT, "<close>\n");
-            SYSLOG_INFO("close");
-
-            //socketが開いているか検索
-            lnapp_conf_t *p_appconf = search_connected_lnapp(p_conn->node_id);
-            if (p_appconf != NULL) {
-                ret = lnapp_close_channel(p_appconf);
-            } else {
-                //どちらでも開いていない
-                SYSLOG_ERR("no socket: DCMD_CLOSE");
-                strcpy(pResMsg, "error: not connected");
-               ret = false;
-            }
-            if (!ret) {
-                SYSLOG_ERR("DCMD_CLOSE");
-            }
-            retval = 0;
-        }
-        break;
-    case DCMD_PREIMAGE:
-        {
-            const daemon_invoice_t *p_inv = &pDaemon->params.invoice;
-            const daemon_connect_t *p_conn = &p_inv->conn;
-
-            fprintf(PRINTOUT, "<preimage>\n");
-            SYSLOG_INFO("preimage");
-
-            lnapp_conf_t *p_appconf = search_connected_lnapp(p_conn->node_id);
-            if (p_appconf != NULL) {
-                lnapp_add_preimage(p_appconf, p_inv->amount, pResMsg);
-            }
-            retval = 0;
-        }
-        break;
-    case DCMD_PAYMENT_HASH:
-        {
-            const daemon_connect_t *p_conn = &pDaemon->params.connect;
-
-            fprintf(PRINTOUT, "<payment_hash>\n");
-            SYSLOG_INFO("payment_hash");
-
-            lnapp_conf_t *p_appconf = search_connected_lnapp(p_conn->node_id);
-            if (p_appconf != NULL) {
-                lnapp_show_payment_hash(p_appconf);
-            } else {
-                strcpy(pResMsg, "error: not connected");
-            }
-            retval = 0;
-        }
-        break;
-    case DCMD_PAYMENT:
-        {
-            bool ret;
-            const payment_conf_t *p_pay = &pDaemon->params.payment.payment;
-            print_payment_conf(p_pay);
-
-            fprintf(PRINTOUT, "<payment>\n");
-            SYSLOG_INFO("payment");
-
-            //socketが開いているか検索
-            lnapp_conf_t *p_appconf = search_connected_lnapp(p_pay->hop_datain[1].pubkey);
-            if (p_appconf != NULL) {
-                ret = lnapp_payment(p_appconf, p_pay);
-            } else {
-                //どちらでも開いていない
-                SYSLOG_ERR("no socket: DCMD_PAYMENT");
-                strcpy(pResMsg, "error: not connected");
-                //p2p_cli_start(pDaemon->cmd, &pDaemon->params.payment.conn, p_pay, pResMsg);
-                ret = false;
-            }
-            if (!ret) {
-                SYSLOG_ERR("fail: DCMD_PAYMENT");
-            }
-            retval = 0;
-        }
-        break;
-    case DCMD_SHOW_LIST:
-        {
-            strcpy(pResMsg, "node_id: ");
-            misc_bin2str(pResMsg + 9, ln_node_id(&mNode), UCOIN_SZ_PUBKEY);
-            strcat(pResMsg, "\n\n");
-        }
-        fprintf(PRINTOUT, "<connected channel list>\n");
-        p2p_svr_show_self(pResMsg);
-        p2p_cli_show_self(pResMsg);
-        retval = 0;
-        break;
-    case DCMD_STOP:
-    default:
-        fprintf(PRINTOUT, "<stop>\n");
-        SYSLOG_INFO("stop");
-        p2p_svr_stop_all();
-        p2p_cli_stop_all();
-        break;
+    //connect parameter
+    index = json_connect(params, index, &conn);
+    if (index < 0) {
+        goto LABEL_EXIT;
     }
-    fprintf(PRINTOUT, "-----------------------------------------------------\n\n");
 
-    return retval;
+    //txid, txindex, signaddr, funding_sat, push_sat
+
+    //txid
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_String)) {
+        misc_str2bin_rev(p_fundconf->txid, UCOIN_SZ_TXID, json->valuestring);
+        DBG_PRINTF("txid=%s\n", json->valuestring);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    //txindex
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        p_fundconf->txindex = json->valueint;
+        DBG_PRINTF("txindex=%d\n", json->valueint);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    //signaddr
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_String)) {
+        strcpy(p_fundconf->signaddr, json->valuestring);
+        DBG_PRINTF("signaddr=%s\n", json->valuestring);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    //funding_sat
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        p_fundconf->funding_sat = json->valueu64;
+        DBG_PRINTF("funding_sat=%" PRIu64 "\n", p_fundconf->funding_sat);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    //push_sat
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        p_fundconf->push_sat = json->valueu64;
+        DBG_PRINTF("push_sat=%" PRIu64 "\n", p_fundconf->push_sat);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    print_funding_conf(p_fundconf);
+
+    SYSLOG_INFO("fund");
+
+    p2p_cli_start(DCMD_CREATE, &conn, p_fundconf, ln_node_id(&mNode), ctx);
+    if (ctx->error_code == 0) {
+        result = cJSON_CreateString("OK");
+    }
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    daemon_connect_t conn;
+    cJSON *result = NULL;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //connect parameter
+    index = json_connect(params, 0, &conn);
+    if (index < 0) {
+        goto LABEL_EXIT;
+    }
+
+    SYSLOG_INFO("connect");
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp(conn.node_id);
+    if (p_appconf == NULL) {
+        p2p_cli_start(DCMD_CONNECT, &conn, NULL, ln_node_id(&mNode), ctx);
+        if (ctx->error_code == 0) {
+            result = cJSON_CreateString("OK");
+        }
+    } else {
+        ctx->error_code = RPCERR_ALCONN;
+        ctx->error_message = strdup(RPCERR_ALCONN_STR);
+    }
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    daemon_connect_t conn;
+    cJSON *result = NULL;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //connect parameter
+    index = json_connect(params, index, &conn);
+    if (index < 0) {
+        goto LABEL_EXIT;
+    }
+
+    SYSLOG_INFO("close");
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp(conn.node_id);
+    if (p_appconf != NULL) {
+        bool ret = lnapp_close_channel(p_appconf);
+        if (ret) {
+            result = cJSON_CreateString("OK");
+        } else {
+            ctx->error_code = RPCERR_CLOSE_HTLC;
+            ctx->error_message = strdup(RPCERR_CLOSE_HTLC_STR);
+        }
+    } else {
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+    }
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    cJSON *json;
+    daemon_connect_t conn;
+    uint64_t amount;
+    cJSON *result = NULL;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //connect parameter
+    index = json_connect(params, index, &conn);
+    if (index < 0) {
+        goto LABEL_EXIT;
+    }
+
+    //amount
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        amount = json->valueu64;
+        DBG_PRINTF("amount=%" PRIu64 "\n", amount);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    SYSLOG_INFO("invoice");
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp(conn.node_id);
+    if (p_appconf != NULL) {
+        result = cJSON_CreateObject();
+        lnapp_add_preimage(p_appconf, amount, result);
+    } else {
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+    }
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    daemon_connect_t conn;
+    cJSON *result = NULL;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //connect parameter
+    index = json_connect(params, index, &conn);
+    if (index < 0) {
+        goto LABEL_EXIT;
+    }
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp(conn.node_id);
+    if (p_appconf != NULL) {
+        result = cJSON_CreateArray();
+        lnapp_show_payment_hash(p_appconf, result);
+    } else {
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+    }
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    cJSON *json;
+    daemon_connect_t conn;
+    payment_conf_t payconf;
+    cJSON *result = NULL;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //connect parameter
+    index = json_connect(params, index, &conn);
+    if (index < 0) {
+        goto LABEL_EXIT;
+    }
+
+    //payment_hash, hop_num
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_String)) {
+        misc_str2bin(payconf.payment_hash, LN_SZ_HASH, json->valuestring);
+        DBG_PRINTF("payment_hash=%s\n", json->valuestring);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        payconf.hop_num = json->valueint;
+        DBG_PRINTF("hop_num=%d\n", json->valueint);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    //array
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Array)) {
+        DBG_PRINTF("trace array\n");
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    //[ [...], [...], ..., [...] ]
+    for (int lp = 0; lp < payconf.hop_num; lp++) {
+        ln_hop_datain_t *p = &payconf.hop_datain[lp];
+
+        DBG_PRINTF("loop=%d\n", lp);
+        cJSON *jarray = cJSON_GetArrayItem(json, lp);
+        if (jarray && (jarray->type == cJSON_Array)) {
+            //[node_id, short_channel_id, amt_to_forward, outgoing_cltv_value]
+
+            //node_id
+            cJSON *jprm = cJSON_GetArrayItem(jarray, 0);
+            DBG_PRINTF("jprm=%p\n", jprm);
+            if (jprm && (jprm->type == cJSON_String)) {
+                misc_str2bin(p->pubkey, UCOIN_SZ_PUBKEY, jprm->valuestring);
+                DBG_PRINTF("  node_id=");
+                DUMPBIN(p->pubkey, UCOIN_SZ_PUBKEY);
+            } else {
+                DBG_PRINTF("fail: p=%p\n", jprm);
+                index = -1;
+                goto LABEL_EXIT;
+            }
+            //short_channel_id
+            jprm = cJSON_GetArrayItem(jarray, 1);
+            if (jprm && (jprm->type == cJSON_String)) {
+                p->short_channel_id = strtoull(jprm->valuestring, NULL, 16);
+                DBG_PRINTF("  short_channel_id=%016" PRIx64 "\n", p->short_channel_id);
+            } else {
+                DBG_PRINTF("fail: p=%p\n", jprm);
+                index = -1;
+                goto LABEL_EXIT;
+            }
+            //amt_to_forward
+            jprm = cJSON_GetArrayItem(jarray, 2);
+            if (jprm && (jprm->type == cJSON_Number)) {
+                p->amt_to_forward = jprm->valueu64;
+                DBG_PRINTF("  amt_to_forward=%" PRIu64 "\n", p->amt_to_forward);
+            } else {
+                DBG_PRINTF("fail: p=%p\n", jprm);
+                index = -1;
+                goto LABEL_EXIT;
+            }
+            //outgoing_cltv_value
+            jprm = cJSON_GetArrayItem(jarray, 3);
+            if (jprm && (jprm->type == cJSON_Number)) {
+                p->outgoing_cltv_value = jprm->valueint;
+                DBG_PRINTF("  outgoing_cltv_value=%d\n", p->outgoing_cltv_value);
+            } else {
+                DBG_PRINTF("fail: p=%p\n", jprm);
+                index = -1;
+                goto LABEL_EXIT;
+            }
+        } else {
+            DBG_PRINTF("fail: p=%p\n", jarray);
+            index = -1;
+            goto LABEL_EXIT;
+        }
+    }
+
+    SYSLOG_INFO("payment");
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp(payconf.hop_datain[1].pubkey);
+    if (p_appconf != NULL) {
+        bool ret = lnapp_payment(p_appconf, &payconf);
+        if (ret) {
+            result = cJSON_CreateString("OK");
+        } else {
+            ctx->error_code = RPCERR_PAY_STOP;
+            ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
+        }
+    } else {
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+    }
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    cJSON *result = cJSON_CreateObject();
+    cJSON *result_svr = cJSON_CreateArray();
+    cJSON *result_cli = cJSON_CreateArray();
+
+    char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+    misc_bin2str(node_id, ln_node_id(&mNode), UCOIN_SZ_PUBKEY);
+    cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
+    p2p_svr_show_self(result_svr);
+    cJSON_AddItemToObject(result, "server", result_svr);
+    p2p_cli_show_self(result_cli);
+    cJSON_AddItemToObject(result, "client", result_cli);
+
+    return result;
+}
+
+
+static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    SYSLOG_INFO("stop");
+    p2p_svr_stop_all();
+    p2p_cli_stop_all();
+    jrpc_server_stop(&mJrpc);
+
+    return cJSON_CreateString("OK");
 }
 
 
