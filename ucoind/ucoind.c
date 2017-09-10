@@ -49,8 +49,10 @@
  * static variables
  ********************************************************************/
 
-static ln_node_t    mNode;
+static ln_node_t            mNode;
 static struct jrpc_server   mJrpc;
+static preimage_t           mPreimage[PREIMAGE_NUM];
+static pthread_mutex_t      mMuxPreimage;
 
 
 /********************************************************************
@@ -143,6 +145,11 @@ int main(int argc, char *argv[])
     ln_print_node(&mNode);
     lnapp_init(&mNode);
 
+    for (int lp = 0; lp < PREIMAGE_NUM; lp++) {
+        mPreimage[lp].use = false;
+    }
+    pthread_mutex_init(&mMuxPreimage, NULL);
+
     //接続待ち受け用
     pthread_t th_svr;
     pthread_create(&th_svr, NULL, &p2p_svr_start, &node_conf.port);
@@ -216,6 +223,31 @@ bool fulfill_backward(const ln_cb_fulfill_htlc_recv_t *pFulFill)
     }
 
     return ret;
+}
+
+
+void lock_preimage(void)
+{
+    pthread_mutex_lock(&mMuxPreimage);
+}
+
+
+void unlock_preimage(void)
+{
+    pthread_mutex_unlock(&mMuxPreimage);
+}
+
+
+const preimage_t *get_preimage(int index)
+{
+    return &mPreimage[index];
+}
+
+
+void clear_preiamge(int index)
+{
+    mPreimage[index].use = false;
+    memset(mPreimage[index].preimage, 0, LN_SZ_PREIMAGE);
 }
 
 
@@ -444,19 +476,12 @@ LABEL_EXIT:
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     cJSON *json;
-    daemon_connect_t conn;
     uint64_t amount;
     cJSON *result = NULL;
     int index = 0;
 
     if (params == NULL) {
         index = -1;
-        goto LABEL_EXIT;
-    }
-
-    //connect parameter
-    index = json_connect(params, index, &conn);
-    if (index < 0) {
         goto LABEL_EXIT;
     }
 
@@ -472,14 +497,33 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("invoice");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp(conn.node_id);
-    if (p_appconf != NULL) {
-        result = cJSON_CreateObject();
-        lnapp_add_preimage(p_appconf, amount, result);
-    } else {
-        ctx->error_code = RPCERR_NOCONN;
-        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+    result = cJSON_CreateObject();
+    pthread_mutex_lock(&mMuxPreimage);
+
+    int lp;
+    for (lp = 0; lp < PREIMAGE_NUM; lp++) {
+        if (!mPreimage[lp].use) {
+            mPreimage[lp].use = true;
+            mPreimage[lp].amount = amount;
+            ucoin_util_random(mPreimage[lp].preimage, LN_SZ_PREIMAGE);
+            break;
+        }
     }
+
+    if (lp < PREIMAGE_NUM) {
+        uint8_t preimage_hash[LN_SZ_HASH];
+        ln_calc_preimage_hash(preimage_hash, mPreimage[lp].preimage);
+
+        char str_hash[LN_SZ_HASH * 2 + 1];
+        misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+        cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
+        cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(mPreimage[lp].amount));
+    } else {
+        SYSLOG_ERR("%s(): no empty place", __func__);
+        fprintf(PRINTOUT, "fail: no empty place\n");
+    }
+    pthread_mutex_unlock(&mMuxPreimage);
+
 
 LABEL_EXIT:
     if (index < 0) {
@@ -492,29 +536,37 @@ LABEL_EXIT:
 
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    daemon_connect_t conn;
     cJSON *result = NULL;
     int index = 0;
+    uint8_t preimage_hash[LN_SZ_HASH];
+    bool badd = false;
+    cJSON *array;
 
     if (params == NULL) {
         index = -1;
         goto LABEL_EXIT;
     }
 
-    //connect parameter
-    index = json_connect(params, index, &conn);
-    if (index < 0) {
-        goto LABEL_EXIT;
+    result = cJSON_CreateArray();
+
+    array = cJSON_CreateArray();
+    for (int lp = 0; lp < PREIMAGE_NUM; lp++) {
+        if (mPreimage[lp].use) {
+            ln_calc_preimage_hash(preimage_hash, mPreimage[lp].preimage);
+            cJSON *json = cJSON_CreateArray();
+
+            char str_hash[LN_SZ_HASH * 2 + 1];
+            misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+            cJSON_AddItemToArray(json, cJSON_CreateString(str_hash));
+            cJSON_AddItemToArray(json, cJSON_CreateNumber64(mPreimage[lp].amount));
+            cJSON_AddItemToArray(array, json);
+            badd = true;
+        }
+    }
+    if (badd) {
+        cJSON_AddItemToArray(result, array);
     }
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp(conn.node_id);
-    if (p_appconf != NULL) {
-        result = cJSON_CreateArray();
-        lnapp_show_payment_hash(p_appconf, result);
-    } else {
-        ctx->error_code = RPCERR_NOCONN;
-        ctx->error_message = strdup(RPCERR_NOCONN_STR);
-    }
 
 LABEL_EXIT:
     if (index < 0) {

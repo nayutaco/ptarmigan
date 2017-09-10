@@ -39,6 +39,10 @@
 
 
 #define M_OPTIONS_INIT  (0xff)
+#define M_OPTIONS_CONN  (0xf0)
+#define M_OPTIONS_EXEC  (2)
+#define M_OPTIONS_STOP  (1)
+#define M_OPTIONS_HELP  (0)
 #define BUFFER_SIZE     (256 * 1024)
 
 #define M_NEXT              ","
@@ -100,25 +104,65 @@ int main(int argc, char *argv[])
     while ((opt = getopt(argc, argv, "hqlc:f:i:mp:x")) != -1) {
         switch (opt) {
         case 'h':
-            options = 0;
+            options = M_OPTIONS_HELP;
             break;
+
+        //
+        // -c不要
+        //
         case 'q':
             //ucoind停止
-            if (options > 1) {
+            if (options > M_OPTIONS_STOP) {
                 stop_rpc(mBuf);
-                options = 1;
+                options = M_OPTIONS_STOP;
+            } else {
+                printf("fail: too many options\n");
+                options = M_OPTIONS_HELP;
             }
             break;
         case 'l':
             //channel一覧
             if (options == M_OPTIONS_INIT) {
                 getinfo_rpc(mBuf);
-                options = 5;
+                options = M_OPTIONS_EXEC;
             }
             break;
+        case 'i':
+            //payment_preimage作成
+            if (options == M_OPTIONS_INIT) {
+                errno = 0;
+                uint64_t amount = (uint64_t)strtoull(optarg, NULL, 10);
+                if (errno == 0) {
+                    mCmd = DCMD_PREIMAGE;
+                    invoice_rpc(mBuf, amount);
+                    options = M_OPTIONS_EXEC;
+                } else {
+                    printf("fail: funding configuration file\n");
+                    options = M_OPTIONS_HELP;
+                }
+            } else {
+                printf("fail: too many options\n");
+                options = M_OPTIONS_HELP;
+            }
+            break;
+        case 'm':
+            //payment-hash表示
+            if (options == M_OPTIONS_INIT) {
+                mCmd = DCMD_PAYMENT_HASH;
+                listinvoice_rpc(mBuf);
+                options = M_OPTIONS_EXEC;
+            } else {
+                printf("fail: too many options\n");
+                options = M_OPTIONS_HELP;
+            }
+            break;
+
+        //
+        // -c必要
+        //
         case 'c':
             //接続先(c,f,p共通)
-            if (options > 200) {
+            if (options > M_OPTIONS_CONN) {
                 peer_conf_t peer;
                 bool bret = load_peer_conf(optarg, &peer);
                 if (bret) {
@@ -127,106 +171,90 @@ int main(int argc, char *argv[])
                     strcpy(mPeerAddr, peer.ipaddr);
                     mPeerPort = peer.port;
                     misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
-                    options = 200;
+                    options = M_OPTIONS_CONN;
                 } else {
                     printf("fail: peer configuration file\n");
-                    options = 0;
+                    options = M_OPTIONS_HELP;
                 }
+            } else {
+                printf("fail: too many options\n");
+                options = M_OPTIONS_HELP;
             }
             break;
         case 'f':
             //funding情報
-            if (options == 200) {
+            if (options == M_OPTIONS_CONN) {
                 funding_conf_t fundconf;
                 bool bret = load_funding_conf(optarg, &fundconf);
                 if (bret) {
                     mCmd = DCMD_CREATE;
                     fund_rpc(mBuf, &fundconf);
-                    options = 2;
+                    options = M_OPTIONS_EXEC;
                 } else {
                     printf("fail: funding configuration file\n");
-                    options = 0;
+                    options = M_OPTIONS_HELP;
                 }
             } else {
                 printf("-f need -c option before\n");
-                options = 0;
-            }
-            break;
-        case 'i':
-            //payment_preimage作成
-            if (options == 200) {
-                errno = 0;
-                uint64_t amount = (uint64_t)strtoull(optarg, NULL, 10);
-                if (errno == 0) {
-                    mCmd = DCMD_PREIMAGE;
-                    invoice_rpc(mBuf, amount);
-                    options = 3;
-                } else {
-                    printf("fail: funding configuration file\n");
-                    options = 0;
-                }
-            }
-            break;
-        case 'm':
-            //payment-hash表示
-            if (options == 200) {
-                mCmd = DCMD_PAYMENT_HASH;
-                listinvoice_rpc(mBuf);
-                options = 3;
+                options = M_OPTIONS_HELP;
             }
             break;
         case 'p':
             //payment
-            if (options == 200) {
+            if (options == M_OPTIONS_CONN) {
                 payment_conf_t payconf;
                 bool bret = load_payment_conf(optarg, &payconf);
                 if (bret) {
                     mCmd = DCMD_PAYMENT;
                     payment_rpc(mBuf, &payconf);
-                    options = 3;
+                    options = M_OPTIONS_EXEC;
                 } else {
                     printf("fail: payment configuration file\n");
-                    options = 0;
+                    options = M_OPTIONS_HELP;
                 }
             } else {
                 printf("-f need -c option before\n");
-                options = 0;
+                options = M_OPTIONS_HELP;
             }
             break;
         case 'x':
             //mutual close
-            if (options == 200) {
+            if (options == M_OPTIONS_CONN) {
                 mCmd = DCMD_CLOSE;
                 close_rpc(mBuf);
-                options = 4;
+                options = M_OPTIONS_EXEC;
             } else {
                 printf("-x need -c option before\n");
-                options = 0;
+                options = M_OPTIONS_HELP;
             }
             break;
+
+        //
+        // other
+        //
         case ':':
             printf("need value: %c\n", optopt);
-            options = 1;
+            options = M_OPTIONS_HELP;
             break;
         case '?':
             printf("unknown option: %c\n", optopt);
             /* THROUGH FALL */
         default:
-            options = 0;
+            options = M_OPTIONS_HELP;
             break;
         }
     }
 
-    if ((options == M_OPTIONS_INIT) || (options == 0) || (optind >= argc)) {
+    if ((options == M_OPTIONS_INIT) || (options == M_OPTIONS_HELP) || (optind >= argc)) {
         printf("[usage]\n");
         printf("\t%s <options> <port>\n", argv[0]);
         printf("\t\t-h : help\n");
         printf("\t\t-q : quit ucoind\n");
         printf("\t\t-l : list channels\n");
+        printf("\t\t-i : add preimage, and show payment_hash\n");
+        printf("\t\t-m : show payment_hashs\n");
         printf("\t\t-c <node.conf> : connect node\n");
         printf("\t\t-f <fund.conf> : funding(need -c)\n");
-        printf("\t\t-i : add preimage, and show payment_hash(need -c)\n");
-        printf("\t\t-m : show payment_hashs(need -c)\n");
         printf("\t\t-p <payment.conf> : payment(need -c)\n");
         printf("\t\t-x : mutual close(need -c)\n");
         return -1;
@@ -310,13 +338,10 @@ static void invoice_rpc(char *pJson, uint64_t Amount)
         "{"
             M_STR("method", "invoice") M_NEXT
             M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d,"
                 //invoice
                 "%" PRIu64
             " ]"
         "}",
-            mPeerNodeId, mPeerAddr, mPeerPort,
             Amount);
 }
 
@@ -326,12 +351,8 @@ static void listinvoice_rpc(char *pJson)
     snprintf(pJson, BUFFER_SIZE,
         "{"
             M_STR("method", "listinvoice") M_NEXT
-            M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d"
-            " ]"
-        "}",
-            mPeerNodeId, mPeerAddr, mPeerPort);
+            M_QQ("params") ":[]"
+        "}");
 }
 
 
