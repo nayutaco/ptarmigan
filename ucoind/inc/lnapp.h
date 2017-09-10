@@ -11,8 +11,6 @@
  * macros
  **************************************************************************/
 
-#define APP_PREIMAGE_NUM        (10)        ///< 保持できるpreimage数
-
 #define APP_FWD_PROC_MAX        (5)         ///< 他スレッドからの処理要求キュー数
                                             ///< TODO: オーバーフローチェックはしていない
 
@@ -22,16 +20,6 @@
  ********************************************************************/
 
 typedef struct cJSON cJSON;
-
-
-/** @struct preimage_t
- *  @brief  preimage情報
- */
-typedef struct {
-    bool            use;                            ///< true:使用中
-    uint64_t        amount;                         ///< invoiceで要求した額[msat]
-    uint8_t         preimage[LN_SZ_PREIMAGE];       ///< preimage
-} preimage_t;
 
 
 /** @enum   recv_proc_t
@@ -78,8 +66,6 @@ typedef struct {
     int32_t         funding_confirm;        ///< funding_txのconfirmation数
     uint32_t        funding_min_depth;
 
-    preimage_t      preimage[APP_PREIMAGE_NUM]; ///< preimage
-
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
     pthread_mutex_t mux_proc;       ///< 処理中のmutex
@@ -103,8 +89,6 @@ typedef struct {
 void lnapp_init(ln_node_t *pNode);
 void lnapp_start(lnapp_conf_t *pAppConf);
 void lnapp_stop(lnapp_conf_t *pAppConf);
-void lnapp_add_preimage(lnapp_conf_t *pAppConf, uint64_t Amount, cJSON *pResult);
-void lnapp_show_payment_hash(lnapp_conf_t *pAppConf, cJSON *pResult);
 bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 bool lnapp_payment_forward(lnapp_conf_t *pAppConf, const ln_cb_add_htlc_recv_t *pAdd, uint64_t prev_short_channel_id);
 bool lnapp_fulfill_backward(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);

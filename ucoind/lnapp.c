@@ -211,72 +211,6 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 }
 
 
-void lnapp_add_preimage(lnapp_conf_t *pAppConf, uint64_t Amount, cJSON *pResult)
-{
-    DBGTRACE_BEGIN
-
-    if (!pAppConf->loop) {
-        //DBG_PRINTF("This AppConf not working\n");
-        return;
-    }
-
-    int lp;
-    for (lp = 0; lp < APP_PREIMAGE_NUM; lp++) {
-        if (!pAppConf->preimage[lp].use) {
-            pAppConf->preimage[lp].use = true;
-            pAppConf->preimage[lp].amount = Amount;
-            ucoin_util_random(pAppConf->preimage[lp].preimage, LN_SZ_PREIMAGE);
-            break;
-        }
-    }
-
-    if (lp < APP_PREIMAGE_NUM) {
-        uint8_t preimage_hash[LN_SZ_HASH];
-        ln_calc_preimage_hash(preimage_hash, pAppConf->preimage[lp].preimage);
-
-        char str_hash[LN_SZ_HASH * 2 + 1];
-        misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
-        cJSON_AddItemToObject(pResult, "hash", cJSON_CreateString(str_hash));
-        cJSON_AddItemToObject(pResult, "amount", cJSON_CreateNumber64(pAppConf->preimage[lp].amount));
-    } else {
-        SYSLOG_ERR("%s(): no empty place", __func__);
-        fprintf(PRINTOUT, "fail: no empty place\n");
-    }
-
-    DBGTRACE_END
-}
-
-
-void lnapp_show_payment_hash(lnapp_conf_t *pAppConf, cJSON *pResult)
-{
-    uint8_t preimage_hash[LN_SZ_HASH];
-
-    if (!pAppConf->loop) {
-        //DBG_PRINTF("This AppConf not working\n");
-        return;
-    }
-
-    bool badd = false;
-    cJSON *array = cJSON_CreateArray();
-    for (int lp = 0; lp < APP_PREIMAGE_NUM; lp++) {
-        if (pAppConf->preimage[lp].use) {
-            ln_calc_preimage_hash(preimage_hash, pAppConf->preimage[lp].preimage);
-            cJSON *json = cJSON_CreateArray();
-
-            char str_hash[LN_SZ_HASH * 2 + 1];
-            misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
-            cJSON_AddItemToArray(json, cJSON_CreateString(str_hash));
-            cJSON_AddItemToArray(json, cJSON_CreateNumber64(pAppConf->preimage[lp].amount));
-            cJSON_AddItemToArray(array, json);
-            badd = true;
-        }
-    }
-    if (badd) {
-        cJSON_AddItemToArray(pResult, array);
-    }
-}
-
-
 //初回ONIONパケット作成
 bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
 {
@@ -566,9 +500,6 @@ static void *thread_main_start(void *pArg)
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = -1;
 
-    for (int lp = 0; lp < APP_PREIMAGE_NUM; lp++) {
-        p_conf->preimage[lp].use = false;
-    }
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
     pthread_mutex_init(&p_conf->mux_proc, NULL);
@@ -1599,6 +1530,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF2("  my fee : %" PRIu64 "\n", (uint64_t)(p_add->amount_msat - p_add->p_hop->amt_to_forward));
     DBG_PRINTF2("  cltv_delta : %" PRIu32 " - %" PRIu32" = %d\n", p_add->cltv_expiry, p_add->p_hop->outgoing_cltv_value, p_add->cltv_expiry - p_add->p_hop->outgoing_cltv_value);
 
+    lock_preimage();
     if (p_add->p_hop->b_exit) {
         //自分宛
         DBG_PRINTF("自分宛\n");
@@ -1607,37 +1539,39 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
         //preimage-hashチェック
         uint8_t preimage_hash[LN_SZ_HASH];
+        const preimage_t *p_preimage;
 
         int lp;
-        for (lp = 0; lp < APP_PREIMAGE_NUM; lp++) {
-            if (p_conf->preimage[lp].use) {
-                ln_calc_preimage_hash(preimage_hash, p_conf->preimage[lp].preimage);
+        for (lp = 0; lp < PREIMAGE_NUM; lp++) {
+            p_preimage = get_preimage(lp);
+            if (p_preimage->use) {
+                ln_calc_preimage_hash(preimage_hash, p_preimage->preimage);
                 if (memcmp(preimage_hash, p_add->p_payment_hash, LN_SZ_HASH) == 0) {
                     //一致
                     break;
                 }
             }
         }
-        if (lp < APP_PREIMAGE_NUM) {
+        if (lp < PREIMAGE_NUM) {
             //last nodeチェック
             // https://github.com/nayuta-ueno/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
             //    * outgoing_cltv_value is set to the final expiry specified by the recipient
             //    * amt_to_forward is set to the final amount specified by the recipient
-            if ( (p_add->p_hop->amt_to_forward == p_conf->preimage[lp].amount) &&
+            if ( (p_add->p_hop->amt_to_forward == p_preimage->amount) &&
                  (p_add->p_hop->outgoing_cltv_value == ln_cltv_expily_delta(p_conf->p_self)) ) {
                 DBG_PRINTF("last node OK\n");
             } else {
                 SYSLOG_ERR("%s(): last node check", __func__);
-                lp = APP_PREIMAGE_NUM;
+                lp = PREIMAGE_NUM;
             }
         } else {
             DBG_PRINTF("fail: preimage mismatch\n");
         }
-        if (lp < APP_PREIMAGE_NUM) {
+        if (lp < PREIMAGE_NUM) {
             //fulfillを返す
             ucoin_buf_t     buf_bolt;
             ucoin_buf_init(&buf_bolt);
-            ret = ln_create_fulfill_htlc(p_conf->p_self, &buf_bolt, p_add->id, p_conf->preimage[lp].preimage);
+            ret = ln_create_fulfill_htlc(p_conf->p_self, &buf_bolt, p_add->id, p_preimage->preimage);
             assert(ret);
 
             pthread_mutex_lock(&mMuxSeq);
@@ -1650,8 +1584,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
             //preimageを使い終わったら消す
 #ifndef M_TEST_PAYHASH
-            p_conf->preimage[lp].use = false;
-            memset(p_conf->preimage[lp].preimage, 0, LN_SZ_PREIMAGE);
+            clear_preiamge(lp);
 #else
 #warning M_TEST_PAYHASH:preimageを消していない
 #endif  //M_TEST_PAYHASH
@@ -1671,6 +1604,8 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         }
         p_add->ok = ret;
     }
+    unlock_preimage();
+
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
     DBGTRACE_END

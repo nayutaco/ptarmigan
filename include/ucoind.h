@@ -40,16 +40,6 @@ static inline int tid() {
  * macros
  ********************************************************************/
 
-#define DEFAULT_PORT    (54321)
-#define UCOINDDIR       ".ucoind"
-#define FTOK_FNAME      "msgq"
-#define FTOK_CHAR       'b'
-#define SZ_BUF          (2000)
-#define SZ_RESBUF       (2000)  //TODO: "uconcli -l"で返すレスポンスサイズを考慮すること
-                                //  1行180byte程度で接続ノード数分返す
-#define MTYPE_CLI2D     (1)     //ucoincli --> ucoind
-#define MTYPE_D2CLI     (2)     //ucoind   --> ucoincli
-
 #define SZ_RPC_USER     (64)
 #define SZ_RPC_PASSWD   (64)
 #define SZ_RPC_URL      (256)
@@ -83,25 +73,14 @@ static inline int tid() {
 #define RPCERR_PAY_STOP         (-26000)
 #define RPCERR_PAY_STOP_STR     "stop payment"
 
+#define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数
+
 
 /********************************************************************
  * macros functions
  ********************************************************************/
 
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))
-
-
-#ifdef __ORDER_LITTLE_ENDIAN__
-//little endian!
-#define CHG_ENDIAN2(to,from)    { (to) = (((from) & 0xff) << 8)  | ((from) >> 8); }
-#define CHG_ENDIAN4(to,from)    { (to) = (((from) & 0xff) << 24) | (((from) & 0xff00) <<  8) | (((from) & 0xff0000) >>  8) | (((from) & 0xff000000) >> 24); }
-#define CHG_ENDIAN8(to,from)    { (to) = (uint64_t)((((uint64_t)(from) & 0xff) << 56) | (((uint64_t)(from) & 0xff00) << 40) | (((uint64_t)(from) & 0xff0000) << 24) | (((uint64_t)(from) & 0xff000000) <<  8) | (((uint64_t)(from) & 0xff00000000) >> 8) | (((uint64_t)(from) & 0xff0000000000) >> 24) | (((uint64_t)(from) & 0xff000000000000) >> 40) | (((uint64_t)(from) & 0xff00000000000000) >> 56)); }
-#else
-//big endian...
-#define CHG_ENDIAN2(to,from)    { (to) = (from); }
-#define CHG_ENDIAN4(to,from)    { (to) = (from); }
-#define CHG_ENDIAN8(to,from)    { (to) = (from); }
-#endif
 
 #define PRINTOUT        stderr
 
@@ -141,13 +120,6 @@ static inline int tid() {
  * typedefs
  ********************************************************************/
 
-//メッセージ種別
-typedef enum {
-    MSG_BOLT,       //直接BOLTのメッセージとして送信する
-    MSG_DAEMON,     //daemonへの指示
-} my_msgtype_t;
-
-
 //daemonへの指示
 typedef enum {
     DCMD_NONE,
@@ -160,11 +132,6 @@ typedef enum {
     DCMD_SHOW_LIST,     ///< channel一覧
     DCMD_STOP,          ///< ucoind停止
 } my_daemoncmd_t;
-
-typedef struct {
-    uint16_t        len;
-    uint8_t         msg[SZ_BUF];
-} msg_bolt_t;
 
 
 typedef struct {
@@ -199,58 +166,7 @@ typedef struct {
 } payment_conf_t;
 
 
-typedef struct {
-    daemon_connect_t    conn;       //必ず1番目に置くこと
-    funding_conf_t      funding;
-} daemon_funding_t;
-
-typedef struct {
-    daemon_connect_t    conn;       //必ず1番目に置くこと
-    uint64_t            amount;
-} daemon_invoice_t;
-
-typedef struct {
-    daemon_connect_t    conn;       //必ず1番目に置くこと
-    payment_conf_t      payment;
-} daemon_payment_t;
-
-
-typedef struct {
-    my_daemoncmd_t cmd;
-
-    union {
-        daemon_connect_t    connect;
-        daemon_funding_t    funding;
-        daemon_invoice_t    invoice;
-        daemon_payment_t    payment;
-    } params;
-} msg_daemon_t;
-
-
-typedef struct {
-    my_msgtype_t    type;
-    union {
-        //MSG_BOLT用
-        msg_bolt_t bolt;
-
-        //MSG_DAEMON用
-        msg_daemon_t daemon;
-    } cmd;
-} payload_t;
-
-
-//message queue用
-typedef struct {
-    long        mtype;
-    payload_t   payload;
-} msgbuf_t;
-
-typedef struct {
-    long        mtype;
-    char        mtext[SZ_RESBUF];
-} msgres_t;
-
-
+// config file
 typedef struct {
     uint16_t        port;
     char            name[32];
@@ -274,11 +190,25 @@ typedef struct {
 } peer_conf_t;
 
 
+/** @struct preimage_t
+ *  @brief  preimage情報
+ */
+typedef struct {
+    bool            use;                            ///< true:使用中
+    uint64_t        amount;                         ///< invoiceで要求した額[msat]
+    uint8_t         preimage[LN_SZ_PREIMAGE];       ///< preimage
+} preimage_t;
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
 
 bool pay_forward(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_channel_id);
 bool fulfill_backward(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
+void lock_preimage(void);
+void unlock_preimage(void);
+const preimage_t *get_preimage(int index);
+void clear_preiamge(int index);
 
 #endif /* UCOIND_H__ */
