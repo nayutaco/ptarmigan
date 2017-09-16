@@ -1,6 +1,11 @@
 CHANGELOG
 ====
 
+# 2017/09/16
+
+* use `regtest`
+
+
 # 2017/09/11
 
 * `node_announcement` の `addresses` 対応
