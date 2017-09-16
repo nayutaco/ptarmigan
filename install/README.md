@@ -6,7 +6,7 @@ Examples
 1. bitcoindを動かしておく。
 
         例:
-        testnet=3
+        regtest=1
         server=1
         txindex=1
         rpcuser=bitcoinuser
@@ -24,7 +24,8 @@ Examples
         |           |         |           |         |           |
         +-----------+         +-----------+         +-----------+
 
-1. ビルド直後の状態とする。
+1. ビルド直後の状態とする。  
+    `bitcoin-cli generate 432` などとしてsegwitが使用できるところまでマイニングしておく
 
 2. ディレクトリ移動
 
@@ -40,6 +41,7 @@ Examples
 
 5. チャネルを開く  
         confirmationに時間がかかるが、"get confirmation" のログが止まるまで待つ。  
+        `regtest` では自動でマイニングされないので、 `bitcoin-cli generate 2` など行う。  
         funding_tx の TXIDは、node_4444/fund4444_3333.conf や node_5555/fund5555_3333.conf の txidからたどることになる。
 
         $ ./example_st3.sh
