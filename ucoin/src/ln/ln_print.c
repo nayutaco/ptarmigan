@@ -279,7 +279,17 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 fprintf(PRINTOUT, M_QQ("node") ": \"");
                 ucoin_util_dumpbin(PRINTOUT, node_pub, UCOIN_SZ_PUBKEY, false);
                 fprintf(PRINTOUT, "\",\n");
-                fprintf(PRINTOUT, M_QQ("alias") ": " M_QQ("%s") "\n", node_alias);
+                fprintf(PRINTOUT, M_QQ("alias") ": " M_QQ("%s") ",\n", node_alias);
+                if (msg.addr.type == LN_NODEDESC_IPV4) {
+                    fprintf(PRINTOUT, M_QQ("addr") ": " M_QQ("%d.%d.%d.%d:%d") "\n",
+                            msg.addr.addrinfo.ipv4.addr[0],
+                            msg.addr.addrinfo.ipv4.addr[1],
+                            msg.addr.addrinfo.ipv4.addr[2],
+                            msg.addr.addrinfo.ipv4.addr[3],
+                            msg.addr.port);
+                } else {
+                    fprintf(PRINTOUT, M_QQ("addrtype") ": %d\n", msg.addr.type);
+                }
                 fprintf(PRINTOUT, "}");
             }
         }
@@ -309,6 +319,36 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
 }
 
 
+void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
+{
+    uint16_t type = ln_misc_get16be(pData);
+
+    if (type == MSGTYPE_NODE_ANNOUNCEMENT) {
+        ln_node_announce_t msg;
+        uint8_t node_pub[UCOIN_SZ_PUBKEY];
+        char node_alias[LN_SZ_ALIAS + 1];
+        msg.p_node_id = node_pub;
+        msg.p_alias = node_alias;
+        bool ret = ln_msg_node_announce_read(&msg, pData, Len);
+        if (ret) {
+            if (msg.addr.type == LN_NODEDESC_IPV4) {
+                fprintf(fp, "ipaddr=%d.%d.%d.%d\n",
+                        msg.addr.addrinfo.ipv4.addr[0],
+                        msg.addr.addrinfo.ipv4.addr[1],
+                        msg.addr.addrinfo.ipv4.addr[2],
+                        msg.addr.addrinfo.ipv4.addr[3]);
+            } else {
+                fprintf(fp, "ipaddr=127.0.0.1\n");
+            }
+            fprintf(fp, "port=%d\n", msg.addr.port);
+            fprintf(fp, "node_id=");
+            ucoin_util_dumpbin(fp, node_pub, UCOIN_SZ_PUBKEY, true);
+        }
+    }
+
+}
+
+
 void ln_print_node(const ln_node_t *node)
 {
     printf("=NODE=============================================\n");
@@ -318,6 +358,15 @@ void ln_print_node(const ln_node_t *node)
     ucoin_util_dumpbin(PRINTOUT, node->keys.pub, UCOIN_SZ_PUBKEY, true);
     printf("features= %02x\n", node->features);
     printf("alias= %s\n", node->alias);
+    printf("addr.type=%d\n", node->addr.type);
+    if (node->addr.type == LN_NODEDESC_IPV4) {
+        fprintf(PRINTOUT, "ipv4=%d.%d.%d.%d:%d\n",
+                node->addr.addrinfo.ipv4.addr[0],
+                node->addr.addrinfo.ipv4.addr[1],
+                node->addr.addrinfo.ipv4.addr[2],
+                node->addr.addrinfo.ipv4.addr[3],
+                node->addr.port);
+    }
     printf("=============================================\n\n\n");
 }
 

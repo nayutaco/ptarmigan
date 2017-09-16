@@ -102,7 +102,7 @@
  * const variables
  **************************************************************************/
 
-extern const uint8_t HIDDEN CHAIN_HASH_BITCOIN[32];
+extern uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
 
 
 /**************************************************************************

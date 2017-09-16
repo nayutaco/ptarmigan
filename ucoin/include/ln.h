@@ -69,6 +69,15 @@ extern "C" {
 #define LN_HTLC_FLAG_SEND               (0x00)                      ///< Offered HTLC(add_htlcを送信した)
 #define LN_HTLC_FLAG_RECV               (0x01)                      ///< Received HTLC(add_htlcを受信した)
 
+// node_announcement address descriptor
+#define LN_NODEDESC_NONE                (0)         ///< padding. data = none (length 0)
+#define LN_NODEDESC_IPV4                (1)         ///< ipv4. data = [4:ipv4_addr][2:port] (length 6)
+#define LN_NODEDESC_IPV6                (2)         ///< ipv6. data = [16:ipv6_addr][2:port] (length 18)
+#define LN_NODEDESC_ONIONV2             (3)         ///< tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
+#define LN_NODEDESC_ONIONV3             (4)         ///< tor v3 onion service. data [35:onion_addr][2:port] (length 37)
+#define LN_NODEDESC_MAX                 LN_NODEDESC_ONIONV3
+#define LN_NODEDESC_NULL                (255)
+
 
 /**************************************************************************
  * macro functions
@@ -118,10 +127,12 @@ typedef enum {
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
     LN_CB_ESTABLISHED,          ///< Establish完了通知
     LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信通知
+    LN_CB_NODE_ANNO_RECV,       ///< node_announcement受信通知
     LN_CB_ANNO_SIGSED,          ///< announcement_signatures完了通知
     LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
     LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
+    LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
     LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_CLOSED,               ///< closing_signed受信通知
@@ -552,6 +563,34 @@ typedef struct {
 } ln_cnl_announce_read_t;
 
 
+/** @struct     ln_nodeaddr_t
+ *  @brief      node_announcementのアドレス情報
+ */
+typedef struct {
+    uint8_t         type;                       ///< 1:address descriptor
+    uint16_t        port;
+    union {
+        uint8_t     addr[1];
+
+        struct {
+            uint8_t     addr[4];
+        } ipv4;
+
+        struct {
+            uint8_t     addr[16];
+        } ipv6;
+
+        struct {
+            uint8_t     addr[10];
+        } onionv2;
+
+        struct {
+            uint8_t     addr[35];
+        } onionv3;
+    }               addrinfo;
+} ln_nodeaddr_t;
+
+
 /** @struct     ln_node_announce_t
  *  @brief      node_announcement
  */
@@ -560,9 +599,9 @@ typedef struct {
     uint32_t            timestamp;                  ///< 4:  timestamp
     uint8_t             *p_node_id;                 ///< 33: node_id
     char                *p_alias;                   ///< 32: alias
+    uint8_t             rgbcolor[3];                ///< 3:  rgbcolor
 //    uint8_t     features;                           ///< 1:  features
-//    uint8_t     ipaddr[4];                          ///< TODO: IPv4
-//    uint16_t    port;                               ///< TODO: port
+    ln_nodeaddr_t       addr;
 
     //create
     const ucoin_util_keys_t *p_my_node;
@@ -746,6 +785,7 @@ typedef struct {
     ucoin_util_keys_t           keys;                           ///< node鍵
     uint8_t                     features;                       ///< localfeatures
     char                        alias[LN_SZ_ALIAS];             ///< ノード名(\0 terminate)
+    ln_nodeaddr_t               addr;                           ///< ノードアドレス
 } ln_node_t;
 
 
@@ -908,6 +948,17 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback
  * @param[in,out]       self            channel情報
  */
 void ln_term(ln_self_t *self);
+
+
+/** Genesis Block Hash設定
+ *
+ * @param[in]       pHash               Genesis Block Hash
+ * @attention
+ *      - JSON-RPCのgetblockhashで取得した値はエンディアンが逆転しているため、
+ *          設定する場合にはエンディアンを逆にして pHashに与えること。
+ *          https://github.com/lightningnetwork/lightning-rfc/issues/237
+ */
+void ln_set_genesishash(const uint8_t *pHash);
 
 
 /** Channel Establish設定
@@ -1290,6 +1341,14 @@ static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
 /**
  *
  */
+static inline ln_nodeaddr_t *ln_node_addr(ln_node_t *node) {
+    return &node->addr;
+}
+
+
+/**
+ *
+ */
 static inline const uint8_t *ln_node_id(const ln_node_t *node) {
     return node->keys.pub;
 }
@@ -1320,6 +1379,7 @@ static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
  * @param[out]      node            ノード情報
  * @param[in]       pWif            ノード秘密鍵
  * @param[in]       pNodeName       ノード名
+ * @param[in]       pAddr           アドレス情報
  * @param[in]       Features        ?
  */
 bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint8_t Features);

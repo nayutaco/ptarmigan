@@ -45,6 +45,7 @@
 struct node_confs_t {
     node_conf_t     *p_node_conf;
     rpc_conf_t      *p_rpc_conf;
+    ln_nodeaddr_t   *p_addr;
 };
 
 
@@ -67,16 +68,19 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
  * node.conf
  ********************/
 
-bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *pRpcConf)
+bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *pRpcConf, ln_nodeaddr_t *pAddr)
 {
-    struct node_confs_t node_confs = { pNodeConf, pRpcConf };
+    struct node_confs_t node_confs = { pNodeConf, pRpcConf, pAddr };
     memset(pNodeConf, 0, sizeof(node_conf_t));
     memset(pRpcConf, 0, sizeof(rpc_conf_t));
+    memset(pAddr, 0, sizeof(ln_nodeaddr_t));
 
     if (ini_parse(pConfFile, handler_node_conf, &node_confs) < 0) {
         SYSLOG_ERR("fail node parse[%s]", pConfFile);
         return false;
     }
+
+    pAddr->port = pNodeConf->port;
 
 #ifdef M_DEBUG
     fprintf(PRINTOUT, "\n--- node: %s ---\n", pConfFile);
@@ -280,6 +284,11 @@ static int handler_node_conf(void* user, const char* section, const char* name, 
         strcpy(pconfig->p_rpc_conf->rpcpasswd, value);
     } else if (strcmp(name, "rpcurl") == 0) {
         strcpy(pconfig->p_rpc_conf->rpcurl, value);
+    } else if (strcmp(name, "ipv4") == 0) {
+        pconfig->p_addr->type = LN_NODEDESC_IPV4;
+        uint8_t *p = pconfig->p_addr->addrinfo.addr;
+        sscanf(value, "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8,
+                &p[0], &p[1], &p[2], &p[3]);
     } else {
         return 0;  /* unknown section/name, error */
     }

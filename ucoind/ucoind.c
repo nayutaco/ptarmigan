@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 
     rpc_conf_t rpc_conf;
     node_conf_t node_conf;
-    bool bret = load_node_conf(argv[1], &node_conf, &rpc_conf);
+    bool bret = load_node_conf(argv[1], &node_conf, &rpc_conf, ln_node_addr(&mNode));
     if (!bret) {
         goto LABEL_EXIT;
     }
@@ -121,10 +121,29 @@ int main(int argc, char *argv[])
         }
     }
 
-    if ((argc == 3) && (strcmp(argv[2], "id") == 0)) {
+    if (argc == 3) {
         ucoin_util_keys_t keys;
         ucoin_util_wif2keys(&keys, node_conf.wif);
-        ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
+
+        if (strcmp(argv[2], "id") == 0) {
+            //node_id出力
+            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
+        } else if (strcmp(argv[2], "peer") == 0) {
+            //peer config出力
+            const ln_nodeaddr_t *p_addr = ln_node_addr(&mNode);
+            if (p_addr->type == LN_NODEDESC_IPV4) {
+                printf("ipaddr=%d.%d.%d.%d\n",
+                            p_addr->addrinfo.ipv4.addr[0],
+                            p_addr->addrinfo.ipv4.addr[1],
+                            p_addr->addrinfo.ipv4.addr[2],
+                            p_addr->addrinfo.ipv4.addr[3]);
+            } else {
+                printf("ipaddr=127.0.0.1\n");
+            }
+            printf("port=%d\n", p_addr->port);
+            printf("node_id=");
+            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
+        }
 
         ucoin_term();
         return 0;
@@ -134,11 +153,20 @@ int main(int argc, char *argv[])
     jsonrpc_init(&rpc_conf);
 
     //bitcoind起動確認
-    int count = jsonrpc_getblockcount();
-    if (count == -1) {
-        DBG_PRINTF("fail: bitcoin getblockcount(maybe cannot connect bitcoind)\n");
+    uint8_t genesis[LN_SZ_HASH];
+    bret = jsonrpc_getblockhash(genesis, 0);
+    if (!bret) {
+        DBG_PRINTF("fail: bitcoin getblockhash(check bitcoind)\n");
         return -1;
     }
+
+    // https://github.com/lightningnetwork/lightning-rfc/issues/237
+    for (int lp = 0; lp < LN_SZ_HASH / 2; lp++) {
+        uint8_t tmp = genesis[lp];
+        genesis[lp] = genesis[LN_SZ_HASH - lp - 1];
+        genesis[LN_SZ_HASH - lp - 1] = tmp;
+    }
+    ln_set_genesishash(genesis);
 
     //node情報読込み
     ln_node_init(&mNode, node_conf.wif, node_conf.name, 0);

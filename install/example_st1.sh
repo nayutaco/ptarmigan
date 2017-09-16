@@ -22,6 +22,6 @@ mkdir -p node_5555
 # このファイルを接続したい相手に渡す。
 # 相手ノードは、「ucoincli -c <ピア設定ファイル>」の形で接続相手を指定する。
 mkdir -p conf
-./create_peerconf.sh node_3333/node.conf > conf/peer3333.conf
-./create_peerconf.sh node_4444/node.conf > conf/peer4444.conf
-./create_peerconf.sh node_5555/node.conf > conf/peer5555.conf
+./ucoind node_3333/node.conf peer > conf/peer3333.conf
+./ucoind node_4444/node.conf peer > conf/peer4444.conf
+./ucoind node_5555/node.conf peer > conf/peer5555.conf

@@ -105,7 +105,7 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
     ln_misc_push16be(&proto, MSGTYPE_OPEN_CHANNEL);
 
     //    [32:chain-hash]
-    ucoin_push_data(&proto, CHAIN_HASH_BITCOIN, sizeof(CHAIN_HASH_BITCOIN));
+    ucoin_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
 
     //    [32:temporary-channel-id]
     ucoin_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
@@ -177,12 +177,12 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     int pos = sizeof(uint16_t);
 
     //    [32:chain-hash]
-    int cmp = memcmp(CHAIN_HASH_BITCOIN, pData + pos, sizeof(CHAIN_HASH_BITCOIN));
+    int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
     if (cmp != 0) {
         DBG_PRINTF("fail: chain-hash mismatch\n");
         return false;
     }
-    pos += sizeof(CHAIN_HASH_BITCOIN);
+    pos += sizeof(gGenesisChainHash);
 
     //    [32:temporary-channel-id]
     memcpy(pMsg->p_temp_channel_id, pData + pos, LN_SZ_CHANNEL_ID);

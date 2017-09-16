@@ -41,12 +41,23 @@ void jsonrpc_init(const rpc_conf_t *pRpcConf);
 void jsonrpc_term(void);
 
 
+#if 0
 /** [bitcoin rpc]getblockcount
  *
  * @retval      -1以外      現在のblock count
  * @retval      -1          取得失敗
  */
 int jsonrpc_getblockcount(void);
+#endif
+
+
+/** [bitcoin rpc]blockhash取得
+ *
+ * @param[out]  pHash       取得したBlockHash
+ * @param[in]   Height      取得するBlock Height
+ * @retval  true        取得成功
+ */
+bool jsonrpc_getblockhash(uint8_t *pHash, int Height);
 
 
 /** [bitcoin rpc]confirmation数取得

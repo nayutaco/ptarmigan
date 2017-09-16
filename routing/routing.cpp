@@ -127,6 +127,33 @@ static uint8_t mMyNodeId[UCOIN_SZ_PUBKEY];
 static uint8_t mTgtNodeId[UCOIN_SZ_PUBKEY];
 
 
+// https://github.com/lightningnetwork/lightning-rfc/issues/237
+static const uint8_t M_BTC_GENESIS_MAIN[] = {
+    // bitcoin mainnet
+    //  https://blockexplorer.com/block/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
+    0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
+    0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
+    0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c,
+    0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const uint8_t M_BTC_GENESIS_TEST[] = {
+    // bitcoin testnet
+    //  https://testnet.blockexplorer.com/block/000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943
+    0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
+    0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
+    0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
+    0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const uint8_t M_BTC_GENESIS_REGTEST[] = {
+    0x0f, 0x91, 0x88, 0xf1, 0x3c, 0xb7, 0xb2, 0xc7,
+    0x1f, 0x2a, 0x33, 0x5e, 0x3a, 0x4f, 0xc3, 0x28,
+    0xbf, 0x5b, 0xeb, 0x43, 0x60, 0x12, 0xaf, 0xca,
+    0x59, 0x0b, 0x1a, 0x11, 0x46, 0x6e, 0x22, 0x06,
+};
+
+
 /********************************************************************
  * misc
  ********************************************************************/
@@ -149,7 +176,8 @@ static void loadconf(const char* pConfFile, uint8_t* pPubKey)
 {
     node_conf_t nconf;
     rpc_conf_t rconf;
-    bool bret = load_node_conf(pConfFile, &nconf, &rconf);
+    ln_node_t node;
+    bool bret = load_node_conf(pConfFile, &nconf, &rconf, ln_node_addr(&node));
     assert(bret);
 
     ucoin_init(UCOIN_TESTNET, true);
@@ -335,35 +363,77 @@ int main(int argc, char* argv[])
     bool ret;
     uint64_t amtmsat;
 
-    if (argc != 5) {
+    const char *nettype;
+    const char *dbdir;
+    const char *nodeconf;
+    const char *tgt_node;
+    const char *amount;
+
+    if (argc == 3) {
+        nettype = argv[1];
+        dbdir = argv[2];
+        nodeconf = NULL;
+        tgt_node = NULL;
+        amount = NULL;
+    } else if (argc == 6) {
+        nettype = argv[1];
+        dbdir = argv[2];
+        nodeconf = argv[3];
+        tgt_node = argv[4];
+        amount = argv[5];
+    } else {
         printf("usage:");
-        printf("\t%s [db path] [node conf] [target node_id] [amount_msat]\n", argv[0]);
+        //           1                 2
+        printf("\t%s [mainnet/testnet] [db dir]\n", argv[0]);
+        //           1                 2        3           4                5
+        printf("\t%s [mainnet/testnet] [db dir] [node conf] [target node_id] [amount_msat]\n", argv[0]);
         return -1;
     }
 
-    loaddb(argv[1]);
 
-    loadconf(argv[2], mMyNodeId);
+    if (strcmp(nettype, "mainnet") == 0) {
+        ln_set_genesishash(M_BTC_GENESIS_MAIN);
+    } else if (strcmp(nettype, "testnet") == 0) {
+        ln_set_genesishash(M_BTC_GENESIS_TEST);
+    } else if (strcmp(nettype, "regtest") == 0) {
+        ln_set_genesishash(M_BTC_GENESIS_REGTEST);
+    } else {
+        printf("mainnet or testnet only[%s]\n", nettype);
+        return -1;
+    }
 
-    ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), argv[3]);
-    assert(ret);
+    loaddb(dbdir);
 
-    amtmsat = (uint64_t)strtoull(argv[4], NULL, 10);
+    if (argc == 6) {
+        loadconf(nodeconf, mMyNodeId);
+
+        ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), tgt_node);
+        assert(ret);
+
+        amtmsat = (uint64_t)strtoull(amount, NULL, 10);
 
 #ifdef M_DEBUG
-    fprintf(stderr, "my nodeid    : ");
-    ucoin_util_dumpbin(stderr, mMyNodeId, UCOIN_SZ_PUBKEY, true);
-    fprintf(stderr, "target nodeid: ");
-    ucoin_util_dumpbin(stderr, mTgtNodeId, UCOIN_SZ_PUBKEY, true);
+        fprintf(stderr, "my nodeid    : ");
+        ucoin_util_dumpbin(stderr, mMyNodeId, UCOIN_SZ_PUBKEY, true);
+        fprintf(stderr, "target nodeid: ");
+        ucoin_util_dumpbin(stderr, mTgtNodeId, UCOIN_SZ_PUBKEY, true);
 #endif
+    }
 
     graph_t g;
 
-    bool set_start = false;
-    bool set_goal = false;
+    bool set_start;
+    bool set_goal;
     graph_t::vertex_descriptor pnt_start;
     graph_t::vertex_descriptor pnt_goal;
 
+    if (argc == 3) {
+        set_start = true;
+        set_goal = true;
+    } else {
+        set_start = false;
+        set_goal = false;
+    }
 
     //Edge追加
     for (int lp = 0; lp < mNodeNum; lp++) {
@@ -378,6 +448,7 @@ int main(int argc, char* argv[])
 
         graph_t::vertex_descriptor node1 = ver_add(g, mpNodes[lp].ninfo[0].node_id);
         graph_t::vertex_descriptor node2 = ver_add(g, mpNodes[lp].ninfo[1].node_id);
+
         if (!set_start) {
             if (memcmp(mpNodes[lp].ninfo[0].node_id, mMyNodeId, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_start = node1;
@@ -414,96 +485,98 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (argc == 6) {
 #ifdef M_DEBUG
-    fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", pnt_start, pnt_goal);
+        fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", pnt_start, pnt_goal);
 #endif
-    if (!set_start || !set_goal) {
-        std::cout << "no start/goal node" << std::endl;
-        return -1;
-    }
-
-    std::vector<vertex_descriptor> p(num_vertices(g));      //parent
-    std::vector<int> d(num_vertices(g));
-    dijkstra_shortest_paths(g, pnt_start,
-                        weight_map(boost::get(&Fee::fee_base_msat, g)).
-                        predecessor_map(&p[0]).
-                        distance_map(&d[0]));
-
-    if (p[pnt_goal] == pnt_goal) {
-        std::cout << "no route" << std::endl;
-        return -1;
-    }
-
-    //逆順に入っているので、並べ直す
-    std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
-    std::deque<uint64_t> msat;
-    std::deque<uint32_t> cltv;
-    uint32_t cltv_expiry = 0;
-    for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
-        route.push_front(v);
-
-        bool found;
-        graph_t::edge_descriptor e;
-        boost::tie(e, found) = edge(v, p[v], g);
-        if (!found) {
-            printf("not foooooooooound\n");
-            abort();
+        if (!set_start || !set_goal) {
+            std::cout << "no start/goal node" << std::endl;
+            return -1;
         }
 
-        msat.push_front(amtmsat);
-        amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
+        std::vector<vertex_descriptor> p(num_vertices(g));      //parent
+        std::vector<int> d(num_vertices(g));
+        dijkstra_shortest_paths(g, pnt_start,
+                            weight_map(boost::get(&Fee::fee_base_msat, g)).
+                            predecessor_map(&p[0]).
+                            distance_map(&d[0]));
 
-        if (cltv_expiry == 0) {
-            cltv.push_front(g[e].cltv_expiry_delta);
+        if (p[pnt_goal] == pnt_goal) {
+            std::cout << "no route" << std::endl;
+            return -1;
         }
-        cltv_expiry += g[e].cltv_expiry_delta;
-        cltv.push_front(cltv_expiry);
-    }
-    route.push_front(pnt_start);
-    msat.push_front(amtmsat);
 
-    //std::cout << "distance: " << d[pnt_goal] << std::endl;
+        //逆順に入っているので、並べ直す
+        std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
+        std::deque<uint64_t> msat;
+        std::deque<uint32_t> cltv;
+        uint32_t cltv_expiry = 0;
+        for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
+            route.push_front(v);
 
-    //pay.conf形式の出力
-    int hop = (int)route.size();
-    const uint8_t *p_next;
-    nodeinfo_t ninfo = {0};
-    printf("hop_num=%d\n", hop);
-    for (int lp = 0; lp < hop - 1; lp++) {
-        const uint8_t *p_now  = g[route[lp]].p_node;
-        p_next = g[route[lp + 1]].p_node;
-
-        const uint8_t *p_node_id1;
-        const uint8_t *p_node_id2;
-        int dir = direction(p_now, p_next);
-        if (dir == 0) {
-            p_node_id1 = p_now;
-            p_node_id2 = p_next;
-            dir = 0;
-        } else {
-            p_node_id1 = p_next;
-            p_node_id2 = p_now;
-            dir = 1;
-        }
-        uint64_t sci = 0;
-        for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
-            if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
-                 (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
-                sci = mpNodes[lp3].short_channel_id;
-                ninfo = mpNodes[lp3].ninfo[dir];
-                break;
+            bool found;
+            graph_t::edge_descriptor e;
+            boost::tie(e, found) = edge(v, p[v], g);
+            if (!found) {
+                printf("not foooooooooound\n");
+                abort();
             }
+
+            msat.push_front(amtmsat);
+            amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
+
+            if (cltv_expiry == 0) {
+                cltv.push_front(g[e].cltv_expiry_delta);
+            }
+            cltv_expiry += g[e].cltv_expiry_delta;
+            cltv.push_front(cltv_expiry);
+        }
+        route.push_front(pnt_start);
+        msat.push_front(amtmsat);
+
+        //std::cout << "distance: " << d[pnt_goal] << std::endl;
+
+        //pay.conf形式の出力
+        int hop = (int)route.size();
+        const uint8_t *p_next;
+        nodeinfo_t ninfo = {0};
+        printf("hop_num=%d\n", hop);
+        for (int lp = 0; lp < hop - 1; lp++) {
+            const uint8_t *p_now  = g[route[lp]].p_node;
+            p_next = g[route[lp + 1]].p_node;
+
+            const uint8_t *p_node_id1;
+            const uint8_t *p_node_id2;
+            int dir = direction(p_now, p_next);
+            if (dir == 0) {
+                p_node_id1 = p_now;
+                p_node_id2 = p_next;
+                dir = 0;
+            } else {
+                p_node_id1 = p_next;
+                p_node_id2 = p_now;
+                dir = 1;
+            }
+            uint64_t sci = 0;
+            for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
+                if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
+                     (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
+                    sci = mpNodes[lp3].short_channel_id;
+                    ninfo = mpNodes[lp3].ninfo[dir];
+                    break;
+                }
+            }
+
+            printf("route%d=", lp);
+            ucoin_util_dumpbin(stdout, p_now, UCOIN_SZ_PUBKEY, false);
+            printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n", sci, msat[lp], cltv[lp]);
         }
 
-        printf("route%d=", lp);
-        ucoin_util_dumpbin(stdout, p_now, UCOIN_SZ_PUBKEY, false);
-        printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n", sci, msat[lp], cltv[lp]);
+        //最後
+        printf("route%d=", hop - 1);
+        ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
+        printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
     }
-
-    //最後
-    printf("route%d=", hop - 1);
-    ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
-    printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
 
 
 #ifndef M_NO_GRAPH
@@ -512,7 +585,6 @@ int main(int argc, char* argv[])
 
     dot_file << "digraph D {\n"
              << "  rankdir=LR\n"
-//             << "  size=\"4,3\"\n"
              << "  ratio=\"fill\"\n"
              << "  edge[style=\"bold\"]\n" << "  node[shape=\"circle\"]\n";
 
@@ -524,10 +596,14 @@ int main(int argc, char* argv[])
         if (u != v) {
             char node1[68];
             char node2[68];
-            node1[0] = (char)('A' + u);
-            node1[1] = '\0';
-            node2[0] = (char)('A' + v);
-            node2[1] = '\0';
+            node1[0] = '\"';
+            node1[1] = (char)('A' + u);
+            node1[2] = ':';
+            node1[3] = '\0';
+            node2[0] = '\"';
+            node2[1] = (char)('A' + v);
+            node2[2] = ':';
+            node2[3] = '\0';
             const uint8_t *p_node1 = g[u].p_node;
             const uint8_t *p_node2 = g[v].p_node;
             for (int lp = 0; lp < 3; lp++) {
@@ -537,6 +613,8 @@ int main(int argc, char* argv[])
                 sprintf(s, "%02x", p_node2[lp]);
                 strcat(node2, s);
             }
+            strcat(node1, "\"");
+            strcat(node2, "\"");
             dot_file << node1 << " -> " << node2
                         << "[label=\""
                         << std::hex << g[e].short_channel_id << std::dec << ","

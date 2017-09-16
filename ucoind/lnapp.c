@@ -160,10 +160,12 @@ static void cb_find_index_wif_req(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param);
 static void cb_established(lnapp_conf_t *p_conf, void *p_param);
 static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
@@ -1270,10 +1272,12 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
         //    LN_CB_ESTABLISHED,          ///< Establish完了通知
         //    LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信
+        //    LN_CB_NODE_ANNO_RECV,       ///< node_announcement受信通知
         //    LN_CB_ANNO_SIGSED,          ///< announcement_signatures完了通知
         //    LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
         //    LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
         //    LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
+        //    LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
         //    LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
         //    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
         //    LN_CB_CLOSED,               ///< closing_signed受信通知
@@ -1286,10 +1290,12 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_FUNDINGTX_WAIT: funding_tx confirmation待ち要求", cb_funding_tx_wait },
         { "  LN_CB_ESTABLISHED: Establish完了", cb_established },
         { "  LN_CB_CHANNEL_ANNO_RECV: channel_announcement受信", cb_channel_anno_recv },
+        { "  LN_CB_NODE_ANNO_RECV: node_announcement受信通知", cb_node_anno_recv },
         { "  LN_CB_ANNO_SIGSED: announcement_signatures完了", cb_anno_signsed },
         { "  LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc処理前", cb_add_htlc_recv_prev },
         { "  LN_CB_ADD_HTLC_RECV: update_add_htlc受信", cb_add_htlc_recv },
         { "  LN_CB_FULFILL_HTLC_RECV: update_fulfill_htlc受信", cb_fulfill_htlc_recv },
+        { "  LN_CB_FAIL_HTLC_RECV: update_fail_htlc受信", cb_fail_htlc_recv },
         { "  LN_CB_HTLC_CHANGED: HTLC変化", cb_htlc_changed },
         { "  LN_CB_COMMIT_SIG_RECV: commitment_signed受信通知", cb_commit_sig_recv },
         { "  LN_CB_CLOSED: closing_signed受信", cb_closed },
@@ -1454,6 +1460,24 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
         DBG_PRINTF("fail: already spent : %016" PRIx64 "\n", p->short_channel_id);
         return;
     }
+}
+
+
+//LN_CB_NODE_ANNO_RECV: node_announcement受信
+static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param)
+{
+    //const ln_node_announce_t *p_nodeanno = (const ln_node_announce_t *)p_param;
+
+    ////peer config file
+    //char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+
+    //misc_bin2str(node_id, p_nodeanno->p_node_id, UCOIN_SZ_PUBKEY);
+
+    //FILE *fp = fopen(node_id, "w");
+    //if (fp) {
+
+    //    fclose(fp);
+    //}
 }
 
 
@@ -1647,6 +1671,14 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
     DBGTRACE_END
+}
+
+
+//LN_CB_FAIL_HTLC_RECV: update_fail_htlc受信
+static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
+{
+    const ucoin_buf_t *p_result = (const ucoin_buf_t *)p_param;
+
 }
 
 

@@ -75,7 +75,7 @@ static bool sendrawtransaction_rpc(char *pJson, const char *pTransaction);
 static bool gettxout_rpc(char *pJson, const char *pTxid, int idx);
 static bool getblock_rpc(char *pJson, const char *pBlock);
 static bool getblockhash_rpc(char *pJson, int BHeight);
-static bool getblockcount_rpc(char *pJson);
+//static bool getblockcount_rpc(char *pJson);
 static bool getnewaddress_rpc(char *pJson);
 static bool estimatefee_rpc(char *pJson, int nBlock);
 static bool dumpprivkey_rpc(char *pJson, const char *pAddr);
@@ -107,6 +107,7 @@ void jsonrpc_term(void)
 }
 
 
+#if 0
 int jsonrpc_getblockcount(void)
 {
     bool retval;
@@ -147,6 +148,49 @@ LABEL_EXIT:
     free(p_json);
 
     return blocks;
+}
+#endif
+
+
+bool jsonrpc_getblockhash(uint8_t *pHash, int Height)
+{
+    bool ret = false;
+    bool retval;
+    char *p_json;
+
+    p_json = (char *)malloc(BUFFER_SIZE);
+
+    retval = getblockhash_rpc(p_json, Height);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF;
+        }
+        if (json_is_string(p_result)) {
+            ret = misc_str2bin(pHash, LN_SZ_HASH, (const char *)json_string_value(p_result));
+        }
+LABEL_DECREF:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: getblockhash_rpc\n");
+    }
+
+LABEL_EXIT:
+    free(p_json);
+
+    return ret;
 }
 
 
@@ -866,6 +910,7 @@ static bool getblockhash_rpc(char *pJson, int BHeight)
 }
 
 
+#if 0
 /** [cURL]getblockcount
  *
  */
@@ -892,6 +937,7 @@ static bool getblockcount_rpc(char *pJson)
 
     return retval == 0;
 }
+#endif
 
 
 /** [cURL]getnewaddress

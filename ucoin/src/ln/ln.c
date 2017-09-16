@@ -199,26 +199,7 @@ static const struct {
 
 
 //< 32: chain-hash
-const uint8_t HIDDEN CHAIN_HASH_BITCOIN[] = {
-#ifndef NETKIND
-#error not define NETKIND
-#endif
-#if NETKIND==0
-    // bitcoin mainnet
-    //  https://blockexplorer.com/block/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
-    0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
-    0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
-    0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c,
-    0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
-#elif NETKIND==1
-    // bitcoin testnet
-    //  https://testnet.blockexplorer.com/block/000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943
-    0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
-    0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
-    0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
-    0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
-#endif
-};
+uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
 
 
 /**************************************************************************
@@ -288,6 +269,14 @@ void ln_term(ln_self_t *self)
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         self->cnl_add_htlc[idx].p_onion_route = NULL;
     }
+}
+
+
+void ln_set_genesishash(const uint8_t *pHash)
+{
+    memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
+    DBG_PRINTF("genesis=");
+    DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
 }
 
 
@@ -1956,7 +1945,47 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
 
 static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("\n");
+    DBG_PRINTF("BEGIN\n");
+
+    if (self->short_channel_id == 0) {
+        DBG_PRINTF("already closed\n");
+        return true;
+    }
+
+    bool ret;
+    ln_update_fail_htlc_t    fail_htlc;
+
+    uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    fail_htlc.p_channel_id = channel_id;
+    fail_htlc.p_reason = NULL;
+    ret = ln_msg_update_fail_htlc_read(&fail_htlc, pData, Len);
+    if (!ret) {
+        DBG_PRINTF("fail: read message\n");
+        return false;
+    }
+
+    //channel-idチェック
+    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
+    if (!ret) {
+        DBG_PRINTF("channel-id mismatch\n");
+        ucoin_buf_free(fail_htlc.p_reason);
+        return false;
+    }
+
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        //受信したfail_htlcは、Offered HTLCについてチェックする
+        if (!LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) && (self->cnl_add_htlc[idx].id == fail_htlc.id)) {
+            //id一致
+            self->our_msat += self->cnl_add_htlc[idx].amount_msat;
+            self->htlc_num--;
+            memset(&self->cnl_add_htlc[idx], 0, sizeof(ln_update_add_htlc_t));
+            (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, fail_htlc.p_reason);
+            break;
+        }
+    }
+
+    ucoin_buf_free(fail_htlc.p_reason);
+
     return false;
 }
 
@@ -2116,7 +2145,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     DBG_PRINTF("  htlc_chg.unlocked=%d(%d)\n", htlc_chg.unlocked, self->htlc_changed);
     self->htlc_changed &= ~M_HTLCCHG_FF_SEND;
     (*self->p_callback)(self, LN_CB_HTLC_CHANGED, &htlc_chg);
-        DBG_PRINTF("  self->htlc_changed(flag off)=%d\n", self->htlc_changed);
+    DBG_PRINTF("  self->htlc_changed(flag off)=%d\n", self->htlc_changed);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");

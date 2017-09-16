@@ -36,7 +36,6 @@
 #include <sys/types.h>
 #include <assert.h>
 
-
 #include "ucoind.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
@@ -59,6 +58,7 @@ void ln_print_wallet(const ln_self_t *self);
 void ln_print_self(const ln_self_t *self);
 void ln_print_announce(const uint8_t *pData, uint16_t Len);
 void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
+void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
 
 
 
@@ -68,6 +68,7 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
 #define SHOW_CNLANNO_SCI        0x08
 #define SHOW_NODEANNO           0x10
 #define SHOW_NODEANNO_NODE      0x20
+#define SHOW_NODEANNO_PEER      0x40
 #define SHOW_VERSION            0x80
 
 #define SHOW_DEFAULT        (SHOW_SELF)
@@ -80,7 +81,31 @@ static int          cnt3;
 static MDB_env      *mpDbEnv = NULL;
 
 
+// https://github.com/lightningnetwork/lightning-rfc/issues/237
+static const uint8_t M_BTC_GENESIS_MAIN[] = {
+    // bitcoin mainnet
+    //  https://blockexplorer.com/block/000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
+    0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
+    0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
+    0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c,
+    0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
 
+static const uint8_t M_BTC_GENESIS_TEST[] = {
+    // bitcoin testnet
+    //  https://testnet.blockexplorer.com/block/000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943
+    0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
+    0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
+    0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
+    0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const uint8_t M_BTC_GENESIS_REGTEST[] = {
+    0x0f, 0x91, 0x88, 0xf1, 0x3c, 0xb7, 0xb2, 0xc7,
+    0x1f, 0x2a, 0x33, 0x5e, 0x3a, 0x4f, 0xc3, 0x28,
+    0xbf, 0x5b, 0xeb, 0x43, 0x60, 0x12, 0xaf, 0xca,
+    0x59, 0x0b, 0x1a, 0x11, 0x46, 0x6e, 0x22, 0x06,
+};
 
 
 /* Dump in BDB-compatible format */
@@ -215,10 +240,12 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
 
     case 2:
         if (showflag & SHOW_NODEANNO) {
-            if (cnt2) {
-                printf(",");
-            } else {
-                printf(M_QQ("node_announcement_list") ": [");
+            if (!(showflag & SHOW_NODEANNO_PEER)) {
+                if (cnt2) {
+                    printf(",");
+                } else {
+                    printf(M_QQ("node_announcement_list") ": [");
+                }
             }
 
             MDB_dbi     dbi;
@@ -240,13 +267,23 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                 ucoin_buf_init(&buf);
                 ret = ln_lmdb_load_anno_node_cursor(cursor, &buf, &timestamp, send_nodeid, nodeid);
                 if (ret == 0) {
-                    if (cnt2) {
-                        printf(",\n");
+                    if (!(showflag & SHOW_NODEANNO_PEER)) {
+                        if (cnt2) {
+                            printf(",\n");
+                        }
                     }
-                    if (!(showflag & SHOW_NODEANNO_NODE)) {
-                        ln_print_announce(buf.buf, buf.len);
-                    } else {
+                    if (showflag & SHOW_NODEANNO_PEER) {
+                        char fname[100];
+                        strcpy(fname, "peer_");
+                        misc_bin2str(fname + 5, nodeid, sizeof(nodeid));
+                        strcat(fname, ".conf");
+                        FILE *fp = fopen(fname, "w");
+                        ln_print_peerconf(fp, buf.buf, buf.len);
+                        fclose(fp);
+                    } else if (showflag & SHOW_NODEANNO_NODE) {
                         ln_print_announce_short(buf.buf, buf.len);
+                    } else {
+                        ln_print_announce(buf.buf, buf.len);
                     }
                     cnt2++;
                 } else {
@@ -301,8 +338,8 @@ int main(int argc, char *argv[])
 
     strcpy(dbpath, M_LMDB_ENV);
 
-    if (argc >= 2) {
-        switch (argv[1][0]) {
+    if (argc >= 3) {
+        switch (argv[2][0]) {
         case 's':
             showflag = SHOW_SELF;
             break;
@@ -315,8 +352,11 @@ int main(int argc, char *argv[])
         case 'n':
             showflag = SHOW_NODEANNO | SHOW_NODEANNO_NODE;
             break;
+        case 'p':
+            showflag = SHOW_NODEANNO | SHOW_NODEANNO_PEER;
+            break;
         case '9':
-            switch (argv[1][1]) {
+            switch (argv[2][1]) {
             case '1':
                 showflag = SHOW_CNLANNO;
             case '2':
@@ -326,16 +366,27 @@ int main(int argc, char *argv[])
             break;
         }
 
-        if (argc >= 3) {
-            strcpy(dbpath, argv[2]);
+        if (argc >= 4) {
+            strcpy(dbpath, argv[3]);
         }
     } else {
         printf("usage:\n");
-        printf("\t%s [option] [db dir]\n", argv[0]);
+        printf("\t%s [mainnet/testnet] [option] [db dir]\n", argv[0]);
         printf("\t\twallet  : show wallet info\n");
         printf("\t\tself    : show self info\n");
         printf("\t\tchannel : show channel info\n");
         printf("\t\tnode    : show node info\n");
+        return -1;
+    }
+
+    if (strcmp(argv[1], "mainnet") == 0) {
+        ln_set_genesishash(M_BTC_GENESIS_MAIN);
+    } else if (strcmp(argv[1], "testnet") == 0) {
+        ln_set_genesishash(M_BTC_GENESIS_TEST);
+    } else if (strcmp(argv[1], "regtest") == 0) {
+        ln_set_genesishash(M_BTC_GENESIS_REGTEST);
+    } else {
+        printf("mainnet or testnet only[%s]\n", argv[1]);
         return -1;
     }
 
@@ -356,7 +407,9 @@ int main(int argc, char *argv[])
     ret = mdb_cursor_open(txn, dbi, &cursor);
     assert(ret == 0);
 
-    printf("{\n");
+    if (!(showflag & SHOW_NODEANNO_PEER)) {
+        printf("{\n");
+    }
     int list = 0;
     while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
         MDB_dbi dbi2;
@@ -376,10 +429,12 @@ int main(int argc, char *argv[])
             mdb_close(mpDbEnv, dbi2);
         }
     }
-    if (cnt0 || cnt1 || cnt2 || cnt3) {
-        printf("]");
+    if (!(showflag & SHOW_NODEANNO_PEER)) {
+        if (cnt0 || cnt1 || cnt2 || cnt3) {
+            printf("]");
+        }
+        printf("}\n");
     }
-    printf("}\n");
     mdb_cursor_close(cursor);
     mdb_close(mpDbEnv, dbi);
     mdb_txn_abort(txn);

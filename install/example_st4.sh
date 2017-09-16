@@ -16,7 +16,7 @@
 #   |            |  0.5mBTC    |           |
 #   +------------+             +-----------+
 
-./routing node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000
+./routing testnet node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
@@ -31,7 +31,7 @@ fi
 #   ※実際にはFEEを含んだamountを使用すること
 echo -n hash= > pay4444_3333_5555.conf
 echo `./ucoincli -i 50000000 5556` | jq '.result.hash' | sed -e 's/\"//g' >> pay4444_3333_5555.conf
-./routing node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000 >> pay4444_3333_5555.conf
+./routing testnet node_4444/dbucoin node_4444/node.conf `./ucoind ./node_5555/node.conf id` 50000000 >> pay4444_3333_5555.conf
 
 # 送金実施
 ./ucoincli -c conf/peer3333.conf -p pay4444_3333_5555.conf 4445
