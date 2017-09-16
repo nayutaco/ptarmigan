@@ -15,7 +15,7 @@ Thunderbirdではない。
 
 # 構成
 
-* bitcoin testnet専用
+* bitcoin testnet/regtest用
 * Ubuntu 16.04.2で動作確認中
 * `ucoin` がライブラリ部、 `ucoind` が通信を含めたアプリ部
 * 全体としてエラーに対応しておらず、不整合が発生したらabortする。
