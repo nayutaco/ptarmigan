@@ -97,8 +97,12 @@ void jsonrpc_init(const rpc_conf_t *pRpcConf)
 {
     curl_global_init(CURL_GLOBAL_ALL);
 
-    strcpy(rpc_url, pRpcConf->rpcurl);
+    sprintf(rpc_url, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
     sprintf(rpc_userpwd, "%s:%s", pRpcConf->rpcuser, pRpcConf->rpcpasswd);
+#ifdef M_DBG_SHOWRPC
+    DBG_PRINTF("rpcuser=%s\n", rpc_userpwd);
+    DBG_PRINTF("URL=%s\n", rpc_url);
+#endif //M_DBG_SHOWRPC
 }
 
 void jsonrpc_term(void)
@@ -1055,6 +1059,10 @@ static int rpc_proc(CURL *curl, char *pJson, char *pData)
 
 
 #ifdef JSONRPC_TEST
+/**************************************************************************
+	gcc -o tst -I.. -I../include -I../libs/install/include -I../ucoin/include -DNETKIND=1 -DJSONRPC_TEST misc.c jsonrpc.c -L../libs/install/lib -lcurl -ljansson -L../ucoin -lucoin -L../ucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium -llmdb -pthread
+ **************************************************************************/
+
 #include <inttypes.h>
 
 int main(int argc, char *argv[])
@@ -1204,7 +1212,11 @@ int main(int argc, char *argv[])
     {
         uint64_t feeperrate;
         bool ret = jsonrpc_estimatefee(&feeperrate, 3);
-        printf("ret=%d, feeperate=%"PRIu64"\n", ret, feeperrate);
+        if (ret) {
+            printf("feeperate=%"PRIu64"\n", feeperrate);
+        } else {
+            printf("feeperate=failure\n");
+        }
     }
 
     fprintf(PRINTOUT, "--------------------------\n");

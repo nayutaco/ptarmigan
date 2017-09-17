@@ -1,15 +1,21 @@
 CHANGELOG
 ====
 
+# 2017/09/17
+
+* regtestの起動を含め動作確認用スクリプトに記載する
+* `update_fail_htlc` テスト中
+
+
 # 2017/09/16
 
-* use `regtest`
+* 動作確認用スクリプトのbitcoin networkをregtestにする
 
 
 # 2017/09/11
 
 * `node_announcement` の `addresses` 対応
-   * `node.conf` に `ipv4` 追加(オプション)
+    * `node.conf` に `ipv4` 追加(オプション)
 
 * chainhash を bitcoindから取得
     * `showdb`, `routing` に nettype(mainnet/testnet/regtest)オプション追加

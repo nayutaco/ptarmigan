@@ -31,6 +31,7 @@ typedef enum {
 
     FWD_PROC_ADD,                   ///< update_add_htlc転送
     FWD_PROC_FULFILL,               ///< update_fulfill_htlc転送
+    FWD_PROC_FAIL,                  ///< update_fail_htlc転送
 
     //内部用
     INNER_SEND_ANNO_SIGNS,          ///< announcement_signatures送信要求
@@ -90,8 +91,9 @@ void lnapp_init(ln_node_t *pNode);
 void lnapp_start(lnapp_conf_t *pAppConf);
 void lnapp_stop(lnapp_conf_t *pAppConf);
 bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
-bool lnapp_payment_forward(lnapp_conf_t *pAppConf, const ln_cb_add_htlc_recv_t *pAdd, uint64_t prev_short_channel_id);
-bool lnapp_fulfill_backward(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
+bool lnapp_forward_payment(lnapp_conf_t *pAppConf, const ln_cb_add_htlc_recv_t *pAdd, uint64_t prev_short_channel_id);
+bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
+bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail);
 bool lnapp_close_channel(lnapp_conf_t *pAppConf);
 bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_channel_id);
 void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult);

@@ -66,6 +66,7 @@
 static const uint8_t RHO[] = { 'r', 'h', 'o' };
 static const uint8_t MU[] = { 'm', 'u' };
 static const uint8_t UM[] = { 'u', 'm' };
+static const uint8_t AMMAG[] = { 'a', 'm', 'm', 'a', 'g' };
 
 
 /**************************************************************************
@@ -77,7 +78,7 @@ static bool blind_group_element(uint8_t *pResult, const uint8_t *pPubKey, const 
 static void compute_blinding_factor(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pSharedSecret);
 static int generate_header_padding(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, int NumHops, const uint8_t *pSharedSecrets);
 static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, const uint8_t *pSharedSecret);
-static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey);
+static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Len);
 static void right_shift(uint8_t *pData);
 static void xor_bytes(uint8_t *pResult, const uint8_t *pSrc1, const uint8_t *pSrc2, int Len);
 
@@ -86,8 +87,8 @@ static void xor_bytes(uint8_t *pResult, const uint8_t *pSrc1, const uint8_t *pSr
  * public functions
  **************************************************************************/
 
-bool ln_onion_create_packet(ln_self_t *self,
-            uint8_t *pPacket,
+bool ln_onion_create_packet(uint8_t *pPacket,
+            ucoin_buf_t *pSecrets,
             const ln_hop_datain_t *pHopData,
             int NumHops,
             const uint8_t *pSessionKey,
@@ -97,8 +98,6 @@ bool ln_onion_create_packet(ln_self_t *self,
         DBG_PRINTF("hops over\n");
         return false;
     }
-
-    DBG_PRINTF("BEGIN\n");
 
     int filler_len;
     uint8_t next_hmac[M_SZ_HMAC];
@@ -147,6 +146,20 @@ bool ln_onion_create_packet(ln_self_t *self,
     }
 
     filler_len = generate_header_padding(filler, RHO, sizeof(RHO), NumHops, shd_secrets);
+#ifdef UNITTEST
+    extern uint8_t *spEphPubkey;
+    extern uint8_t *spShdSecret;
+    extern uint8_t *spBlindFactor;
+    spEphPubkey = (uint8_t *)M_MALLOC(UCOIN_SZ_PUBKEY * NumHops);
+    spShdSecret = (uint8_t *)M_MALLOC(M_SZ_SHARED_SECRET * NumHops);
+    spBlindFactor = (uint8_t *)M_MALLOC(M_SZ_BLINDING_FACT * NumHops);
+    memcpy(spEphPubkey, eph_pubkeys, UCOIN_SZ_PUBKEY * NumHops);
+    memcpy(spShdSecret, shd_secrets, M_SZ_SHARED_SECRET * NumHops);
+    memcpy(spBlindFactor, blind_factors, M_SZ_BLINDING_FACT * NumHops);
+
+    extern ucoin_buf_t sOnionBuffer;
+    ucoin_buf_alloccopy(&sOnionBuffer, filler, filler_len);
+#endif  //UNITTEST
 
     memset(next_hmac, 0, sizeof(next_hmac));
 
@@ -155,7 +168,7 @@ bool ln_onion_create_packet(ln_self_t *self,
         generate_key(rho_key, RHO, sizeof(RHO), shd_secrets + M_SZ_SHARED_SECRET * lp);
         generate_key(mu_key, MU, sizeof(MU), shd_secrets + M_SZ_SHARED_SECRET * lp);
 
-        generate_cipher_stream(stream_bytes, rho_key);
+        generate_cipher_stream(stream_bytes, rho_key, M_SZ_STREAM_BYTES);
 
         right_shift(mix_header);
         //[ 0] realm
@@ -196,6 +209,10 @@ bool ln_onion_create_packet(ln_self_t *self,
     memcpy(pPacket + 1 + UCOIN_SZ_PUBKEY, mix_header, M_SZ_ROUTING_INFO);
     memcpy(pPacket + 1 + UCOIN_SZ_PUBKEY + M_SZ_ROUTING_INFO, next_hmac, M_SZ_HMAC);
 
+    if (pSecrets) {
+        ucoin_buf_alloccopy(pSecrets, shd_secrets, M_SZ_SHARED_SECRET * NumHops);
+    }
+
     //メモリ解放
     M_FREE(stream_bytes);
     M_FREE(mix_header);
@@ -204,12 +221,12 @@ bool ln_onion_create_packet(ln_self_t *self,
     M_FREE(shd_secrets);
     M_FREE(eph_pubkeys);
 
-    DBG_PRINTF("END\n");
     return true;
 }
 
 
 bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
+            ucoin_buf_t *pSharedSecret,
             const uint8_t *pPacket,
             const uint8_t *pOnionPrivKey,
             const uint8_t *pAssocData, int AssocLen)
@@ -220,8 +237,6 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
         DBG_PRINTF("fail: invalid version\n");
         return false;
     }
-
-    DBG_PRINTF("BEGIN\n");
 
     const uint8_t *p_dhkey = pPacket + 1;
     const uint8_t *p_route = p_dhkey + UCOIN_SZ_PUBKEY;
@@ -257,7 +272,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     uint8_t *stream_bytes = (uint8_t *)M_CALLOC(1, M_SZ_STREAM_BYTES);
 
     generate_key(rho_key, RHO, sizeof(RHO), shared_secret);
-    generate_cipher_stream(stream_bytes, rho_key);
+    generate_cipher_stream(stream_bytes, rho_key, M_SZ_STREAM_BYTES);
     memset(p_msg + M_SZ_ROUTING_INFO, 0, M_SZ_HOP_DATA);
     xor_bytes(stream_bytes, p_msg, stream_bytes, M_SZ_ROUTING_INFO);
 
@@ -303,8 +318,144 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
         }
     }
 
-    DBG_PRINTF("END\n");
+    if (pSharedSecret) {
+        //BOLT#4
+        //  Intermediate hops store the shared secret from the forward path
+        //      and reuse it to obfuscate the error packet on each hop.
+        ucoin_buf_alloccopy(pSharedSecret, shared_secret, sizeof(shared_secret));
+    }
+
     return true;
+}
+
+
+void ln_onion_failure_create(ucoin_buf_t *pNextPacket,
+            const ucoin_buf_t *pSharedSecret,
+            const ucoin_buf_t *pFailureMsg)
+{
+    //data:
+
+    //    [32:hmac]
+    //    [2:failure_len]
+    //    [failure_len:failuremsg]
+    //    [2:pad_len]
+    //    [pad_len:pad]
+    uint8_t um_key[M_SZ_KEYLEN];
+    const int DATALEN = 256;
+
+    ucoin_buf_t     buf_fail;
+    ucoin_push_t    proto;
+
+    generate_key(um_key, UM, sizeof(UM), pSharedSecret->buf);
+
+    ucoin_push_init(&proto, &buf_fail, M_SZ_HMAC + 2 + 2 + DATALEN);
+
+    //    [32:hmac]
+    proto.pos = M_SZ_HMAC;
+
+    //    [2:failure_len]
+    ln_misc_push16be(&proto, pFailureMsg->len);
+
+    //    [failure_len:failuremsg]
+    ucoin_push_data(&proto, pFailureMsg->buf, pFailureMsg->len);
+
+    //    [2:pad_len]
+    ln_misc_push16be(&proto, DATALEN - pFailureMsg->len);
+
+    //    [pad_len:pad]
+    memset(buf_fail.buf + proto.pos, 0, DATALEN - pFailureMsg->len);
+    proto.pos += DATALEN - pFailureMsg->len;
+
+    //HMAC
+    ucoin_util_calc_mac(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
+
+    ln_onion_failure_forward(pNextPacket, pSharedSecret, &buf_fail);
+    ucoin_buf_free(&buf_fail);
+}
+
+
+void ln_onion_failure_forward(ucoin_buf_t *pNextPacket,
+            const ucoin_buf_t *pSharedSecret,
+            const ucoin_buf_t *pPacket)
+{
+    uint8_t ammag_key[M_SZ_KEYLEN];
+    uint8_t *stream_bytes = (uint8_t *)M_CALLOC(1, pPacket->len);
+
+    generate_key(ammag_key, AMMAG, sizeof(AMMAG), pSharedSecret->buf);
+    ucoin_buf_alloc(pNextPacket, pPacket->len);
+    generate_cipher_stream(stream_bytes, ammag_key, pPacket->len);
+    xor_bytes(pNextPacket->buf, pPacket->buf, stream_bytes, pPacket->len);
+    M_FREE(stream_bytes);
+}
+
+
+bool ln_onion_failure_read(ucoin_buf_t *pReason,
+            const ucoin_buf_t *pSharedSecrets,
+            const ucoin_buf_t *pPacket)
+{
+    const int DATALEN = 256;
+
+    int NumHops = pSharedSecrets->len / UCOIN_SZ_PRIVKEY;
+
+    ucoin_buf_t buf1;
+    ucoin_buf_t buf2;
+    ucoin_buf_t reason;
+
+    ucoin_buf_alloccopy(&buf1, pPacket->buf, pPacket->len);
+    ucoin_buf_init(&buf2);
+    const ucoin_buf_t *p_in = &buf1;
+    ucoin_buf_t *p_out = &buf2;
+    bool bend = false;
+    for (int lp = 0; lp < NumHops; lp++) {
+        const ucoin_buf_t sharedsecret = { pSharedSecrets->buf + UCOIN_SZ_PRIVKEY * lp, UCOIN_SZ_PRIVKEY };
+        ln_onion_failure_forward(p_out, &sharedsecret, p_in);
+        reason.buf = p_out->buf + M_SZ_HMAC + 2;
+        reason.len = ln_misc_get16be(p_out->buf + M_SZ_HMAC);
+        if (reason.len < DATALEN) {
+            uint16_t pad_len = ln_misc_get16be(p_out->buf + M_SZ_HMAC + 2 + reason.len);
+            if (reason.len + pad_len == DATALEN) {
+                int lp2;
+                for (lp2 = 0; lp2 < pad_len; lp2++) {
+                    if (p_out->buf[M_SZ_HMAC + 2 + reason.len + 2 + lp2] != 0) {
+                        break;
+                    }
+                }
+                if (lp2 == pad_len) {
+                    //padも全部0で HMACが一致すればOK
+                    uint8_t um_key[M_SZ_KEYLEN];
+                    generate_key(um_key, UM, sizeof(UM), pSharedSecrets->buf);
+
+                    uint8_t hmac[M_SZ_HMAC];
+                    ucoin_util_calc_mac(hmac, um_key, M_SZ_KEYLEN,
+                                    p_out->buf + M_SZ_HMAC, p_out->len - M_SZ_HMAC);
+                    bend = memcmp(p_out->buf, hmac, M_SZ_HMAC) == 0;
+                    if (bend) {
+                        ucoin_buf_alloccopy(pReason, reason.buf, reason.len);
+                    } else {
+                        DBG_PRINTF("fail: HMAC not match!\n");
+                    }
+                    break;
+                }
+            }
+        }
+        if (p_in == &buf1) {
+            p_in  = &buf2;
+            p_out = &buf1;
+        } else {
+            p_in  = &buf1;
+            p_out = &buf2;
+        }
+        ucoin_buf_free(p_out);
+    }
+
+    if (bend) {
+        DBG_PRINTF("fail reason\n");
+    }
+
+    ucoin_buf_free(&buf1);
+    ucoin_buf_free(&buf2);
+
+    return bend;
 }
 
 
@@ -368,7 +519,7 @@ static int generate_header_padding(uint8_t *pResult, const uint8_t *pKeyStr, int
         generate_key(streamKey, pKeyStr, StrLen, pSharedSecrets + M_SZ_SHARED_SECRET * (lp - 1));
 
         //chacha20
-        generate_cipher_stream(streamBytes, streamKey);
+        generate_cipher_stream(streamBytes, streamKey, M_SZ_STREAM_BYTES);
 
         //filler:      M_SZ_HOP_DATA * (NumHops - 1)
         //streamBytes: M_SZ_HOP_DATA * lp
@@ -392,15 +543,16 @@ static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, c
 
 
 /**
- *
- * @param[out]      pResult     M_SZ_STREAM_BYTES
+ * @param[out]      pResult     Lenバイトの乱数
+ * @param[in]       pKey        Key
+ * @param[in]       Len         乱数長
  * @note
  *      - よくわからないので、lightningdをまねる
  */
-static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey)
+static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Len)
 {
     uint8_t nonce[8] = {0};
-    crypto_stream_chacha20(pResult, M_SZ_STREAM_BYTES, nonce, pKey);
+    crypto_stream_chacha20(pResult, Len, nonce, pKey);
 }
 
 

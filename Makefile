@@ -47,9 +47,3 @@ lib_clean:
 
 git_subs:
 	git submodule update --init --recursive
-
-example_clean:
-	-@rm -rf $(INSTALL_DIR)/*.cnl $(INSTALL_DIR)/node_3333 $(INSTALL_DIR)/node_4444 $(INSTALL_DIR)/node_5555 $(INSTALL_DIR)/conf $(INSTALL_DIR)/pay4444_3333_5555.conf $(INSTALL_DIR)/routing.dot
-
-test_jsonrpc:
-	gcc -o tst -Iinclude -Ilibs/install/include -Iucoin/include -DJSONRPC_TEST cmn/misc.c cmn/jsonrpc.c -Llibs/install/lib -lcurl -ljansson -Lucoin -lucoin -Lucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium -llmdb -pthread

@@ -37,9 +37,9 @@ Thunderbirdではない。
 
 * install
     * [libev](http://software.schmorp.de/pkg/libev.html)
-        * `sudo apt install libev-dev`
     * [boost](http://www.boost.org/)
-        * `sudo apt install libboost-all-dev`
+
+    `sudo apt install autoconf pkg-config libev-dev libboost-all-dev`
 
 
 ## application
@@ -58,7 +58,7 @@ Thunderbirdではない。
         * `getblock`
         * `getnewaddress`
         * `dumpprivkey` (open_channelで使用)
-        * `estimatefee` (今後使用する予定)
+        * `estimatefee`
 
 
 # build

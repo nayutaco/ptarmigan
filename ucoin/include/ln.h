@@ -407,6 +407,8 @@ typedef struct {
     //fulfillで戻す
     uint8_t     signature[LN_SZ_SIGNATURE];         ///< HTLC署名
     uint64_t    prev_short_channel_id;              ///< 転送元short_channel_id
+    //failで戻す
+    ucoin_buf_t shared_secret;                      ///< failuremsg暗号化用
 } ln_update_add_htlc_t;
 
 
@@ -426,7 +428,7 @@ typedef struct {
 typedef struct {
     uint8_t     *p_channel_id;                      ///< 32: channel-id
     uint64_t    id;                                 ///< 8:  id
-    ucoin_buf_t *p_reason;                          ///< len: reason
+    ucoin_buf_t *p_reason;                          ///< onion failure packet
 } ln_update_fail_htlc_t;
 
 
@@ -711,6 +713,17 @@ typedef struct {
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
     uint64_t                id;                     ///< HTLC id
 } ln_cb_fulfill_htlc_recv_t;
+
+
+/** @struct ln_cb_fail_htlc_recv_t
+ *  @brief  update_fail_htlc受信通知(#LN_CB_FAIL_HTLC_RECV)
+ */
+typedef struct {
+    uint64_t                prev_short_channel_id;  ///< 転送元
+    const ucoin_buf_t       *p_reason;              ///< reason
+    const ucoin_buf_t       *p_shared_secret;       ///< shared secret
+    uint64_t                id;                     ///< HTLC id
+} ln_cb_fail_htlc_recv_t;
 
 
 /** @struct ln_cb_commsig_recv_t
@@ -1193,6 +1206,7 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
  * @param[in]           cltv_value      CLTV値
  * @param[in]           pPaymentHash    PaymentHash(SHA256:32byte)
  * @param[in]           prev_short_channel_id   転送元short_channel_id(ない場合は0)
+ * @param[in]           pSharedSecrets  保存する共有秘密鍵集(NULL:未保存)
  * @retval      true    成功
  * @note
  *      - prev_short_channel_id はfullfillの通知先として使用する
@@ -1202,7 +1216,8 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
             uint64_t amount_msat,
             uint32_t cltv_value,
             const uint8_t *pPaymentHash,
-            uint64_t prev_short_channel_id);
+            uint64_t prev_short_channel_id,
+            const ucoin_buf_t *pSharedSecrets);
 
 
 /** update_fulfill_htlcメッセージ作成
@@ -1214,6 +1229,17 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
  * @retval      true    成功
  */
 bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id, const uint8_t *pPreImage);
+
+
+/** update_fail_htlcメッセージ作成
+ *
+ * @param[in,out]       self            channel情報
+ * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
+ * @param[in]           id              HTLC id
+ * @param[in]           pReason         失敗理由
+ * @retval      true    成功
+ */
+bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t id, const ucoin_buf_t *pReason);
 
 
 /** commitment_signature作成
@@ -1408,7 +1434,6 @@ uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNo
 
 /** ONIONパケット生成
  *
- * @param[in,out]   self                channel情報
  * @param[out]      pPacket             ONIONパケット[LN_SZ_ONION_ROUTE]
  * @param[in]       pHopData            HOPデータ
  * @param[in]       NumHops             pHopData数
@@ -1417,12 +1442,27 @@ uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNo
  * @param[in]       AssocLen            pAssocData長
  * @retval      true    成功
  */
-bool ln_onion_create_packet(ln_self_t *self,
-            uint8_t *pPacket,
+bool ln_onion_create_packet(uint8_t *pPacket,
+            ucoin_buf_t *pSecrets,
             const ln_hop_datain_t *pHopData,
             int NumHops,
             const uint8_t *pSessionKey,
             const uint8_t *pAssocData, int AssocLen);
+
+
+void ln_onion_failure_create(ucoin_buf_t *pNextPacket,
+            const ucoin_buf_t *pSharedSecret,
+            const ucoin_buf_t *pFailureMsg);
+
+
+void ln_onion_failure_forward(ucoin_buf_t *pNextPacket,
+            const ucoin_buf_t *pSharedSecret,
+            const ucoin_buf_t *pPacket);
+
+
+bool ln_onion_failure_read(ucoin_buf_t *pReason,
+            const ucoin_buf_t *pSharedSecrets,
+            const ucoin_buf_t *pPacket);
 
 
 /********************************************************************

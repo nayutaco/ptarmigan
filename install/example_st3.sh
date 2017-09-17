@@ -1,4 +1,5 @@
 #!/bin/sh
+NETTYPE=regtest
 
 # 0.01BTC(10mBTC)をP2WPKHアドレスに送金している。
 # fund.txt は、そのうち 9.0mBTC でチャネルを開き、5.0mBTCを相手に渡している。
@@ -53,9 +54,32 @@ sleep 3
 ./fund-in.sh 0.01 fund.txt > node_5555/fund5555_3333.conf
 ./ucoincli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5556
 
+# 少し待つ
+echo wait...
+sleep 10
 
-# まだ動作が不安定なので、DBのバックアップを残しておく。
-# うまく動作しなかったり、元に戻したいときは展開して上書きすればよい。
-tar zcf node_3333/dbbak.tgz -C node_3333 dbucoin
-tar zcf node_4444/dbbak.tgz -C node_4444 dbucoin
-tar zcf node_5555/dbbak.tgz -C node_5555 dbucoin
+# mining
+bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 2
+
+# 少し待つ
+echo wait............
+while :
+do
+    ./showdb $NETTYPE c node_3333/dbucoin/ | jq '.' > n3.txt
+    ./showdb $NETTYPE c node_4444/dbucoin/ | jq '.' > n4.txt
+    ./showdb $NETTYPE c node_5555/dbucoin/ | jq '.' > n5.txt
+    cmp n3.txt n4.txt
+    RES1=$?
+    cmp n3.txt n5.txt
+    RES2=$?
+    if [ $RES1 -eq 0 ] && [ $RES2 -eq 0 ]; then
+        break
+    fi
+    sleep 10
+done
+
+rm n3.txt n4.txt n5.txt
+
+echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+echo @ channel established
+echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

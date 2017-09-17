@@ -380,7 +380,7 @@ static void update_fail_htlc_print(const ln_update_fail_htlc_t *pMsg)
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("id: %" PRIx64 "\n", pMsg->id);
     DBG_PRINTF2("len= %lu\n", (unsigned long)pMsg->p_reason->len);
-    DBG_PRINTF2("p_reason: ");
+    DBG_PRINTF2("reason: ");
     DUMPBIN(pMsg->p_reason->buf, pMsg->p_reason->len);
     DBG_PRINTF2("--------------------------------\n\n\n");
 #endif  //UCOIN_DEBUG

@@ -162,6 +162,7 @@ static bool proc_established(ln_self_t *self);
 static void proc_announce_sigsed(ln_self_t *self);
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
+static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add, uint8_t chg_flag);
 
 
 /**************************************************************************
@@ -230,13 +231,10 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         self->cnl_add_htlc[idx].p_onion_route = NULL;
+        ucoin_buf_init(&self->cnl_add_htlc[idx].shared_secret);
     }
 
     //クリア
-    //memset(&self->peer_node, 0, sizeof(ln_node_info_t));
-    //for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-    //    self->cnl_add_htlc[idx].p_onion_route = NULL;
-    //}
     self->lfeature_remote = NODE_LF_INIT;
 
     //初期値
@@ -268,6 +266,7 @@ void ln_term(ln_self_t *self)
     memset(self->storage_seed, 0, UCOIN_SZ_PRIVKEY);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         self->cnl_add_htlc[idx].p_onion_route = NULL;
+        ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
     }
 }
 
@@ -722,7 +721,8 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
             uint64_t amount_msat,
             uint32_t cltv_value,
             const uint8_t *pPaymentHash,
-            uint64_t prev_short_channel_id)
+            uint64_t prev_short_channel_id,
+            const ucoin_buf_t *pSharedSecrets)
 {
     DBG_PRINTF("BEGIN\n");
 
@@ -790,6 +790,11 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
     memcpy(self->cnl_add_htlc[idx].payment_sha256, pPaymentHash, LN_SZ_HASH);
     self->cnl_add_htlc[idx].p_onion_route = (CONST_CAST uint8_t *)pPacket;
     self->cnl_add_htlc[idx].prev_short_channel_id = prev_short_channel_id;
+    ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
+    if (pSharedSecrets) {
+        self->cnl_add_htlc[idx].shared_secret.buf = pSharedSecrets->buf;
+        self->cnl_add_htlc[idx].shared_secret.len = pSharedSecrets->len;
+    }
     ret = ln_msg_update_add_htlc_create(pAdd, &self->cnl_add_htlc[idx]);
 
     //TODO: commit前に戻せるようにしておかなくてはならない
@@ -848,18 +853,60 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
     fulfill_htlc.id = p_add->id;
     fulfill_htlc.p_payment_preimage = (CONST_CAST uint8_t *)pPreImage;
     ret = ln_msg_update_fulfill_htlc_create(pFulfill, &fulfill_htlc);
-
-    //TODO: commit前に戻せるようにしておかなくてはならない
     if (ret) {
         //反映
         self->our_msat += p_add->amount_msat;
         //self->their_msat -= p_add->amount_msat;   //add_htlc受信時に引いているので、ここでは不要
 
-        //HTLC削除
-        DBG_PRINTF("HTLC remove : htlc_num=%d amount_msat=%" PRIu64 ", out_msat=%" PRIu64 "\n", self->htlc_num - 1, p_add->amount_msat, self->our_msat);
-        memset(p_add, 0, sizeof(ln_update_add_htlc_t));
-        self->htlc_num--;
-        self->htlc_changed |= M_HTLCCHG_FF_SEND;
+        clear_htlc(self, p_add, M_HTLCCHG_FF_SEND);
+    }
+
+    DBG_PRINTF("END\n");
+    return ret;
+}
+
+
+bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t id, const ucoin_buf_t *pReason)
+{
+    DBG_PRINTF("BEGIN\n");
+
+    if (!INIT_FLAG_INITED(self->init_flag)) {
+        DBG_PRINTF("fail: no init finished\n");
+        return false;
+    }
+    ln_update_add_htlc_t *p_add = NULL;
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        //fulfill送信はReceived Outputに対して行う
+        if (self->cnl_add_htlc[idx].amount_msat > 0) {
+            DBG_PRINTF("id=%" PRIx64 ", htlc_id=%" PRIu64 "\n", id, self->cnl_add_htlc[idx].id);
+            if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
+                 (id == self->cnl_add_htlc[idx].id) ) {
+                p_add = &self->cnl_add_htlc[idx];
+                break;
+            }
+        }
+    }
+    if (p_add == NULL) {
+        DBG_PRINTF("fail: id not mismatch\n");
+        return false;
+    }
+    if (p_add->amount_msat == 0) {
+        DBG_PRINTF("fail: invalid id\n");
+        return false;
+    }
+
+    bool ret;
+    ln_update_fail_htlc_t fail_htlc;
+
+    fail_htlc.p_channel_id = self->channel_id;
+    fail_htlc.id = p_add->id;
+    fail_htlc.p_reason = (CONST_CAST ucoin_buf_t *)pReason;
+    ret = ln_msg_update_fail_htlc_create(pFail, &fail_htlc);
+    if (ret) {
+        //反映
+        self->their_msat += p_add->amount_msat;   //add_htlc受信時に引いた分を戻す
+
+        clear_htlc(self, p_add, M_HTLCCHG_FF_SEND);
     }
 
     DBG_PRINTF("END\n");
@@ -1029,6 +1076,7 @@ static void channel_clear(ln_self_t *self)
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         self->cnl_add_htlc[idx].p_onion_route = NULL;
+        ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
     }
 
     memset(&self->peer_node, 0, sizeof(ln_node_info_t));
@@ -1800,6 +1848,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
 
     ln_hop_dataout_t hop_dataout;   // update_add_htlc受信後のONION解析結果
     ret = ln_onion_read_packet(self->cnl_add_htlc[idx].p_onion_route, &hop_dataout,
+                    &self->cnl_add_htlc[idx].shared_secret,
                     self->cnl_add_htlc[idx].p_onion_route, self->p_node->keys.priv, NULL, 0);
     if (!ret) {
         DBG_PRINTF("fail: onion-read\n");
@@ -1847,16 +1896,30 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         self->their_msat = bak_msat;
         self->htlc_num = bak_num;
         self->htlc_changed = bak_changed;
+        goto LABEL_ERR;
     }
 
     DBG_PRINTF("END\n");
-    return add_htlc.ok;
+    return true;
 
 LABEL_ERR:
-    DBG_PRINTF("fail restore\n");
-    //amount_msatが0の場合は空き扱い
-    self->cnl_add_htlc[idx].amount_msat = 0;
-    return false;
+    DBG_PRINTF("fail restore[%d]=%d\n", idx, self->cnl_add_htlc[idx].shared_secret.len);
+
+    ln_cb_fail_htlc_recv_t fail_recv;
+    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_reason;
+
+#warning reasonダミー
+    const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
+    const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
+
+    ln_onion_failure_create(&buf_reason, &self->cnl_add_htlc[idx].shared_secret, &dummy_reason);
+    ret = ln_create_fail_htlc(self, &buf_bolt, self->cnl_add_htlc[idx].id, &buf_reason);
+    assert(ret);
+    (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+    ucoin_buf_free(&buf_reason);
+    ucoin_buf_free(&buf_bolt);
+    return true;
 }
 
 
@@ -1916,11 +1979,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         uint64_t prev_short_channel_id = p_add->prev_short_channel_id; //CB用
         uint64_t prev_id = fulfill_htlc.id;  //CB用
 
-        //HTLC削除
-        DBG_PRINTF("HTLC remove : htlc_num=%d amount_msat=%" PRIu64 ", their_msat=%" PRIu64 "\n", self->htlc_num - 1, p_add->amount_msat, self->their_msat);
-        memset(p_add, 0, sizeof(ln_update_add_htlc_t));
-        self->htlc_num--;
-        self->htlc_changed |= M_HTLCCHG_FF_RECV;
+        clear_htlc(self, p_add, M_HTLCCHG_FF_RECV);
 
         //update_fulfill_htlc受信通知
         ln_cb_fulfill_htlc_recv_t fulfill;
@@ -1956,8 +2015,11 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
     ln_update_fail_htlc_t    fail_htlc;
 
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    ucoin_buf_t             reason;
+
     fail_htlc.p_channel_id = channel_id;
-    fail_htlc.p_reason = NULL;
+    ucoin_buf_init(&reason);
+    fail_htlc.p_reason = &reason;
     ret = ln_msg_update_fail_htlc_read(&fail_htlc, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
@@ -1968,7 +2030,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
     ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
     if (!ret) {
         DBG_PRINTF("channel-id mismatch\n");
-        ucoin_buf_free(fail_htlc.p_reason);
+        ucoin_buf_free(&reason);
         return false;
     }
 
@@ -1977,16 +2039,22 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
         if (!LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) && (self->cnl_add_htlc[idx].id == fail_htlc.id)) {
             //id一致
             self->our_msat += self->cnl_add_htlc[idx].amount_msat;
-            self->htlc_num--;
-            memset(&self->cnl_add_htlc[idx], 0, sizeof(ln_update_add_htlc_t));
-            (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, fail_htlc.p_reason);
+
+            ln_cb_fail_htlc_recv_t fail_recv;
+            fail_recv.prev_short_channel_id = self->cnl_add_htlc[idx].prev_short_channel_id;
+            fail_recv.p_reason = &reason;
+            fail_recv.p_shared_secret = &self->cnl_add_htlc[idx].shared_secret;
+            fail_recv.id = self->cnl_add_htlc[idx].id;
+            (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
+
+            clear_htlc(self, &self->cnl_add_htlc[idx], M_HTLCCHG_FF_RECV);
             break;
         }
     }
 
-    ucoin_buf_free(fail_htlc.p_reason);
+    ucoin_buf_free(&reason);
 
-    return false;
+    return true;
 }
 
 
@@ -3268,4 +3336,16 @@ static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
     ucoin_buf_free(&buf_cnl_anno);
 
     return ret;
+}
+
+
+//HTLC削除
+static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add, uint8_t chg_flag)
+{
+    DBG_PRINTF("HTLC remove prev: htlc_num=%d, htlc_changed=%02x\n", self->htlc_num, self->htlc_changed);
+    ucoin_buf_free(&p_add->shared_secret);
+    memset(p_add, 0, sizeof(ln_update_add_htlc_t));
+    self->htlc_num--;
+    self->htlc_changed |= chg_flag;
+    DBG_PRINTF("   --> htlc_num=%d, htlc_changed=%02x\n", self->htlc_num, self->htlc_changed);
 }

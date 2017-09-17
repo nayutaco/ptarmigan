@@ -284,6 +284,8 @@ static int handler_node_conf(void* user, const char* section, const char* name, 
         strcpy(pconfig->p_rpc_conf->rpcpasswd, value);
     } else if (strcmp(name, "rpcurl") == 0) {
         strcpy(pconfig->p_rpc_conf->rpcurl, value);
+    } else if (strcmp(name, "rpcport") == 0) {
+        pconfig->p_rpc_conf->rpcport = atoi(value);
     } else if (strcmp(name, "ipv4") == 0) {
         pconfig->p_addr->type = LN_NODEDESC_IPV4;
         uint8_t *p = pconfig->p_addr->addrinfo.addr;

@@ -204,11 +204,12 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
-bool pay_forward(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_channel_id);
-bool fulfill_backward(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
-void lock_preimage(void);
-void unlock_preimage(void);
-const preimage_t *get_preimage(int index);
-void clear_preiamge(int index);
+bool forward_payment(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_channel_id);
+bool backward_fulfill(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
+bool backward_fail(const ln_cb_fail_htlc_recv_t *pFail);
+void preimage_lock(void);
+void preimage_unlock(void);
+const preimage_t *preimage_get(int index);
+void preimage_clear(int index);
 
 #endif /* UCOIND_H__ */

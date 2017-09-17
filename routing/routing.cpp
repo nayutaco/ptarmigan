@@ -487,7 +487,7 @@ int main(int argc, char* argv[])
 
     if (argc == 6) {
 #ifdef M_DEBUG
-        fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", pnt_start, pnt_goal);
+        fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
 #endif
         if (!set_start || !set_goal) {
             std::cout << "no start/goal node" << std::endl;

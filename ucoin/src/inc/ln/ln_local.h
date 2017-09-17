@@ -307,6 +307,7 @@ bool HIDDEN ln_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_
  *
  * @param[out]      pNextPacket         次に送るONIONパケット[LN_SZ_ONION_ROUTE]
  * @param[out]      pNextData           復元情報
+ * @param[out]      pSharedSecret       共有秘密鍵
  * @param[in]       pPacket             解析するONIONパケット
  * @param[in]       pOnionPrivKey       自ノード秘密鍵?
  * @param[in]       pAssocData          Associated Data
@@ -317,6 +318,7 @@ bool HIDDEN ln_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_
  *      - pNextPacketとpPacketに同じアドレスを指定できる
  */
 bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
+            ucoin_buf_t *pSharedSecret,
             const uint8_t *pPacket,
             const uint8_t *pOnionPrivKey,
             const uint8_t *pAssocData, int AssocLen);

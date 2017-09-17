@@ -208,7 +208,7 @@ LABEL_EXIT:
 }
 
 
-bool pay_forward(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_channel_id)
+bool forward_payment(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_channel_id)
 {
     bool ret = false;
     lnapp_conf_t *p_appconf;
@@ -222,7 +222,7 @@ bool pay_forward(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_channel
     }
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_payment_forward(p_appconf, p_add, prev_short_channel_id);
+        ret = lnapp_forward_payment(p_appconf, p_add, prev_short_channel_id);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }
@@ -231,7 +231,7 @@ bool pay_forward(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_channel
 }
 
 
-bool fulfill_backward(const ln_cb_fulfill_htlc_recv_t *pFulFill)
+bool backward_fulfill(const ln_cb_fulfill_htlc_recv_t *pFulFill)
 {
     bool ret = false;
     lnapp_conf_t *p_appconf;
@@ -245,7 +245,7 @@ bool fulfill_backward(const ln_cb_fulfill_htlc_recv_t *pFulFill)
     }
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_fulfill_backward(p_appconf, pFulFill);
+        ret = lnapp_backward_fulfill(p_appconf, pFulFill);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }
@@ -254,25 +254,48 @@ bool fulfill_backward(const ln_cb_fulfill_htlc_recv_t *pFulFill)
 }
 
 
-void lock_preimage(void)
+bool backward_fail(const ln_cb_fail_htlc_recv_t *pFail)
+{
+    bool ret = false;
+    lnapp_conf_t *p_appconf;
+
+    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pFail->prev_short_channel_id);
+
+    //socketが開いているか検索
+    p_appconf = p2p_cli_search_short_channel_id(pFail->prev_short_channel_id);
+    if (p_appconf == NULL) {
+        p_appconf = p2p_svr_search_short_channel_id(pFail->prev_short_channel_id);
+    }
+    if (p_appconf != NULL) {
+        DBG_PRINTF("AppConf found\n");
+        ret = lnapp_backward_fail(p_appconf, pFail);
+    } else {
+        DBG_PRINTF("AppConf not found...\n");
+    }
+
+    return ret;
+}
+
+
+void preimage_lock(void)
 {
     pthread_mutex_lock(&mMuxPreimage);
 }
 
 
-void unlock_preimage(void)
+void preimage_unlock(void)
 {
     pthread_mutex_unlock(&mMuxPreimage);
 }
 
 
-const preimage_t *get_preimage(int index)
+const preimage_t *preimage_get(int index)
 {
     return &mPreimage[index];
 }
 
 
-void clear_preiamge(int index)
+void preimage_clear(int index)
 {
     mPreimage[index].use = false;
     memset(mPreimage[index].preimage, 0, LN_SZ_PREIMAGE);

@@ -320,7 +320,8 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         break;
 
     default:
-        printf("dbtype=%d\n", dbtype);
+        //printf("dbtype=%d\n", dbtype);
+        break;
     }
 
     return 0;

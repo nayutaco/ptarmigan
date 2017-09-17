@@ -170,6 +170,7 @@ void ln_print_self(const ln_self_t *self)
             ucoin_util_dumpbin(PRINTOUT, self->cnl_add_htlc[idx].payment_sha256, UCOIN_SZ_SHA256, false);
             fprintf(PRINTOUT, "\",\n");
             fprintf(PRINTOUT, M_QQ("flag") ": \"%02x\",\n", self->cnl_add_htlc[idx].flag);
+            fprintf(PRINTOUT, M_QQ("shared_secret_len") ": %d,\n", self->cnl_add_htlc[idx].shared_secret.len);
             fprintf(PRINTOUT, M_QQ("prev_short_channel_id") ": \"%016" PRIx64 "\",\n", self->cnl_add_htlc[idx].prev_short_channel_id);
             if (idx != LN_HTLC_MAX - 1) {
                 fprintf(PRINTOUT, "\"},\n");

@@ -30,6 +30,7 @@ Start ucoin lightning daemon.
     _rpcuser=[JSON-RPC username]_  
     _rpcpasswd=[JSON-RPC password]_  
     _rpcurl=[JSON-RPC URL]_  
+    _rpcport=[JSON-RPC port number]_  
 
 if not exist ipv4, `address descriptor` in `node_announcement` is 0.  
 if not exist rpcxxx, read from `~/.bitcoin/bitcoin.conf`.

@@ -50,11 +50,16 @@
 
 #define M_LMDB_ENV              "./dbucoin"     ///< LMDB名
 #define M_CHANNEL_NAME          "%016" PRIx64   ///< チャネル名
+#define M_SHAREDSECRET_NAME     "SS%016" PRIx64 ///< shared secret
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-1)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-2)            ///< DBバージョン
+/*
+    -1 : first
+    -2 : ln_update_add_htlc_t変更
+ */
 
 
 /**************************************************************************
@@ -113,7 +118,10 @@ static MDB_env      *mpDbEnv = NULL;
  * prototypes
  ********************************************************************/
 
- static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+static int load_shared_secret(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+static int save_shared_secret(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+
+static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
 
 static int load_anno_channel(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pCnlAnno, uint64_t short_channel_id);
 static int save_anno_channel(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pCnlAnno, uint64_t CnlSci);
@@ -155,7 +163,10 @@ void HIDDEN ln_db_init(void)
 
         mkdir(M_LMDB_ENV, 0755);
         retval = mdb_env_open(mpDbEnv, M_LMDB_ENV, MDB_FIXEDMAP, 0664);
-        assert(retval == 0);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            abort();
+        }
     }
 
     retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
@@ -199,32 +210,42 @@ void ln_db_term(void)
 bool ln_db_load_channel(ln_self_t *self, uint64_t short_channel_id)
 {
     int         retval;
-    MDB_txn     *txn;
+    MDB_txn     *txn = NULL;
     MDB_dbi     dbi;
-    char        cnl_name[17];
+    char        dbname[17];
 
     retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
-    if (retval) {
+    if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT2;
     }
 
-    sprintf(cnl_name, M_CHANNEL_NAME, short_channel_id);
-    retval = mdb_dbi_open(txn, cnl_name, 0, &dbi);
-    if (retval) {
+    sprintf(dbname, M_CHANNEL_NAME, short_channel_id);
+    retval = mdb_dbi_open(txn, dbname, 0, &dbi);
+    if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        mdb_txn_abort(txn);
         goto LABEL_EXIT;
     }
-
     retval = ln_lmdb_load_channel(self, txn, &dbi);
-    if (retval) {
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    sprintf(dbname, M_SHAREDSECRET_NAME, short_channel_id);
+    retval = mdb_dbi_open(txn, dbname, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = load_shared_secret(self, txn, &dbi);
+    if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
 LABEL_EXIT:
-    //mdb_dbi_close(mpDbEnv, dbi);
-    mdb_txn_abort(txn);
+    if (txn) {
+        mdb_txn_abort(txn);
+    }
 
 LABEL_EXIT2:
     return retval == 0;
@@ -260,6 +281,8 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
             self->cnl_add_htlc[idx] = p_bk->cnl_add_htlc[idx];       //16
             self->cnl_add_htlc[idx].p_channel_id = NULL;     //送受信前に決定する
             self->cnl_add_htlc[idx].p_onion_route = NULL;
+            //shared secretは別DB
+            ucoin_buf_init(&self->cnl_add_htlc[idx].shared_secret);
         }
         memcpy(self->channel_id, p_bk->channel_id, LN_SZ_CHANNEL_ID);      //17
         self->short_channel_id = p_bk->short_channel_id;       //18
@@ -313,29 +336,48 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 bool ln_db_save_channel(const ln_self_t *self)
 {
     int         retval;
-    MDB_txn     *txn;
+    MDB_txn     *txn = NULL;
     MDB_dbi     dbi;
-    char        cnl_name[17];
+    char        dbname[17];
 
     retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    sprintf(cnl_name, M_CHANNEL_NAME, ln_short_channel_id(self));
-    retval = mdb_dbi_open(txn, cnl_name, MDB_CREATE, &dbi);
+
+    sprintf(dbname, M_CHANNEL_NAME, ln_short_channel_id(self));
+    retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        mdb_txn_abort(txn);
+        goto LABEL_EXIT;
+    }
+    retval = save_channel(self, txn, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
 
-    retval = save_channel(self, txn, &dbi);
+    sprintf(dbname, M_SHAREDSECRET_NAME, ln_short_channel_id(self));
+    retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = save_shared_secret(self, txn, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
 
     //mdb_dbi_close(mpDbEnv, dbi);
     mdb_txn_commit(txn);
+    txn = NULL;
 
 LABEL_EXIT:
+    if (txn) {
+        mdb_txn_abort(txn);
+    }
     return retval == 0;
 }
 
@@ -343,7 +385,7 @@ LABEL_EXIT:
 bool ln_db_del_channel(const ln_self_t *self)
 {
     int         retval;
-    MDB_txn     *txn;
+    MDB_txn     *txn = NULL;
     MDB_dbi     dbi_anno;
     MDB_dbi     dbi_cnl;
     MDB_cursor  *cursor;
@@ -351,19 +393,19 @@ bool ln_db_del_channel(const ln_self_t *self)
     char        cnl_name[17];
 
     retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
-    if (retval) {
+    if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
     retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, MDB_CREATE, &dbi_anno);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_ABORT;
+        goto LABEL_EXIT;
     }
     retval = mdb_cursor_open(txn, dbi_anno, &cursor);
-    if (retval) {
+    if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_ABORT;
+        goto LABEL_EXIT;
     }
 
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
@@ -373,17 +415,12 @@ bool ln_db_del_channel(const ln_self_t *self)
             DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", load_sci);
             if (load_sci == ln_short_channel_id(self)) {
                 retval = mdb_del(txn, dbi_anno, &key, NULL);
-                if (retval) {
+                if (retval != 0) {
                     DBG_PRINTF("err: %s\n", mdb_strerror(retval));
                 }
             }
         }
     }
-    //assert(retval == MDB_NOTFOUND);
-    //if (retval) {
-    //    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-    //    goto LABEL_ABORT;
-    //}
     mdb_cursor_close(cursor);
 
 
@@ -393,17 +430,16 @@ bool ln_db_del_channel(const ln_self_t *self)
     if (retval == 0) {
         retval = mdb_drop(txn, dbi_cnl, 1);
         mdb_txn_commit(txn);
+        txn = NULL;
     } else {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_ABORT;
     }
 
 LABEL_EXIT:
+    if (txn) {
+        mdb_txn_abort(txn);
+    }
     return retval == 0;
-
-LABEL_ABORT:
-    mdb_txn_abort(txn);
-    return false;
 }
 
 
@@ -868,6 +904,59 @@ LABEL_EXIT:
  * private functions
  ********************************************************************/
 
+/** channel_announcement読込み
+ *
+ * @param[out]      self
+ * @param[in]       txn
+ * @param[in]       pdbi
+ * @retval      true    成功
+ */
+static int load_shared_secret(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
+{
+    int retval = 0;
+    MDB_val key, data;
+
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        key.mv_size = sizeof(int);
+        key.mv_data = &lp;
+        retval = mdb_get(txn, *pdbi, &key, &data);
+        if (retval != 0) {
+            break;
+        }
+        ucoin_buf_alloccopy(&self->cnl_add_htlc[lp].shared_secret, data.mv_data, data.mv_size);
+    }
+
+    return retval;
+}
+
+
+/** channel: HTLC shared secret書込み
+ *
+ * @param[in]       self
+ * @param[in]       txn
+ * @param[in]       pdbi
+ * @retval      true    成功
+ */
+static int save_shared_secret(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
+{
+    int retval = 0;
+    MDB_val key, data;
+
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        key.mv_size = sizeof(int);
+        key.mv_data = &lp;
+        data.mv_size = self->cnl_add_htlc[lp].shared_secret.len;
+        data.mv_data = self->cnl_add_htlc[lp].shared_secret.buf;
+        retval = mdb_put(txn, *pdbi, &key, &data, 0);
+        if (retval != 0) {
+            break;
+        }
+    }
+
+    return retval;
+}
+
+
 /** channel情報書き込み
  *
  * @param[in]       self
@@ -1029,7 +1118,7 @@ static bool open_anno_channel_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
     int retval;
 
     retval = mdb_txn_begin(mpDbEnv, NULL, DbFlags, &pCur->txn);
-    if (retval) {
+    if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
@@ -1042,7 +1131,7 @@ static bool open_anno_channel_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
     }
 
     retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
-    if (retval) {
+    if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         mdb_txn_abort(pCur->txn);
     }
@@ -1247,7 +1336,7 @@ static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
     int retval;
 
     retval = mdb_txn_begin(mpDbEnv, NULL, DbFlags, &pCur->txn);
-    if (retval) {
+    if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
@@ -1260,7 +1349,7 @@ static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
     }
 
     retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
-    if (retval) {
+    if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         mdb_txn_abort(pCur->txn);
     }
@@ -1311,7 +1400,7 @@ static int check_version(MDB_txn *txn, MDB_dbi *pdbi)
             retval = -1;
         }
     }
-    if (retval) {
+    if (retval != 0) {
         DBG_PRINTF("*** version check: %d ***\n", retval);
     }
 

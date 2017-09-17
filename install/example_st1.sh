@@ -1,5 +1,13 @@
 #!/bin/sh
 
+mkdir regtest
+if [ $? -ne 0 ]; then
+	exit -1
+fi
+bitcoind -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest -daemon
+sleep 3
+bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest generate 432
+
 # 1台のPCで複数ノードを立ち上げるので、ディレクトリをそれぞれ作る。
 # 起動したディレクトリに関連ファイルを作成するためだ。
 mkdir -p node_3333
