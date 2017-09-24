@@ -211,14 +211,17 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback
 {
     DBG_PRINTF("BEGIN : pSeed=%p\n", pSeed);
 
-    ln_noise_t noise_bak;
+    ln_noise_t noise_sbak;
+    ln_noise_t noise_rbak;
     void *ptr_bak;
 
     //noise protocol handshake済みの場合があるため、初期値かどうかに関係なく残す
-    memcpy(&noise_bak, &self->noise, sizeof(noise_bak));
+    memcpy(&noise_sbak, &self->noise_send, sizeof(noise_sbak));
+    memcpy(&noise_rbak, &self->noise_recv, sizeof(noise_rbak));
     ptr_bak = self->p_param;
     memset(self, 0, sizeof(ln_self_t));
-    memcpy(&self->noise, &noise_bak, sizeof(noise_bak));
+    memcpy(&self->noise_recv, &noise_rbak, sizeof(noise_rbak));
+    memcpy(&self->noise_send, &noise_sbak, sizeof(noise_sbak));
     self->p_param = ptr_bak;
 
     ucoin_buf_init(&self->shutdown_scriptpk_local);
@@ -802,7 +805,6 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
         self->our_msat -= amount_msat;
         self->htlc_id_num++;        //offer時にインクリメント
         self->htlc_num++;
-        self->htlc_changed |= M_HTLCCHG_FF_RECV;        //add_htlc送信はfulfill_htlc受信
         DBG_PRINTF("HTLC add : htlc_num=%d\n", self->htlc_num);
     }
 
@@ -922,10 +924,6 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
 
     if (!INIT_FLAG_INITED(self->init_flag)) {
         DBG_PRINTF("fail: no init finished\n");
-        return false;
-    }
-    if (!self->htlc_changed) {
-        DBG_PRINTF("fail: HTLC not changed\n");
         return false;
     }
 
@@ -1570,7 +1568,6 @@ static bool recv_funding_locked_first(ln_self_t *self)
     self->remote_revoke_num = 0;
     //update_add_htlcのidも0から始まる(インクリメントするタイミングはcommitment numberと異なる)
     self->htlc_id_num = 0;
-    self->htlc_changed = M_HTLCCHG_NONE;
 
     self->flck_flag |= M_FLCK_FLAG_RECV;
     bool ret = proc_established(self);
@@ -1812,13 +1809,12 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //破壊するようなidを送ってきたら、チャネルを失敗させる。
 
     uint64_t in_flight_msat = 0;
-    uint64_t bak_msat = self->their_msat;
-    uint16_t bak_num = self->htlc_num;
-    uint8_t bak_changed = self->htlc_changed;
+    //uint64_t bak_msat = self->their_msat;
+    //uint16_t bak_num = self->htlc_num;
 
     //追加した結果が自分のmax_accepted_htlcsより多くなるなら、チャネルを失敗させる。
     if (self->commit_local.accept_htlcs <= self->htlc_num) {
-        DBG_PRINTF("fail: over max_accepted_htlcs\n");
+        DBG_PRINTF("fail: over max_accepted_htlcs : %d\n", self->htlc_num);
         goto LABEL_ERR;
     }
 
@@ -1878,7 +1874,6 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //相手からの受信は無条件でHTLC追加
     self->their_msat -= self->cnl_add_htlc[idx].amount_msat;
     self->htlc_num++;
-    self->htlc_changed |= M_HTLCCHG_FF_SEND; //add_htlc受信はfulfill_htlc送信
     DBG_PRINTF("HTLC add : htlc_num=%d, id=%" PRIx64 ", amount_msat=%" PRIu64 "\n", self->htlc_num, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].amount_msat);
 
     //update_add_htlc受信通知
@@ -1890,12 +1885,12 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     add_htlc.amount_msat = self->cnl_add_htlc[idx].amount_msat;
     add_htlc.cltv_expiry = self->cnl_add_htlc[idx].cltv_expiry;
     add_htlc.p_onion_route = self->cnl_add_htlc[idx].p_onion_route;
+    add_htlc.p_shared_secret = &self->cnl_add_htlc[idx].shared_secret;
     (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV, &add_htlc);
     if (!add_htlc.ok) {
         DBG_PRINTF("fail: application\n");
-        self->their_msat = bak_msat;
-        self->htlc_num = bak_num;
-        self->htlc_changed = bak_changed;
+        //self->their_msat = bak_msat;  //ln_create_fail_htlc()でtheir_msatを戻す
+        //self->htlc_num = bak_num;    //ln_create_fail_htlc()でhtlc_numを減らす
         goto LABEL_ERR;
     }
 
@@ -1905,7 +1900,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
 LABEL_ERR:
     DBG_PRINTF("fail restore[%d]=%d\n", idx, self->cnl_add_htlc[idx].shared_secret.len);
 
-    ln_cb_fail_htlc_recv_t fail_recv;
+    //ln_cb_fail_htlc_recv_t fail_recv;
     ucoin_buf_t buf_bolt;
     ucoin_buf_t buf_reason;
 
@@ -1987,12 +1982,6 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         fulfill.p_preimage = preimage;
         fulfill.id = prev_id;
         (*self->p_callback)(self, LN_CB_FULFILL_HTLC_RECV, &fulfill);
-
-        //commitment_signed送信
-        ucoin_buf_t buf_bolt;
-        ret = ln_create_commit_signed(self, &buf_bolt);
-        (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
-        ucoin_buf_free(&buf_bolt);
     } else {
         DBG_PRINTF("fail: fulfill\n");
     }
@@ -2123,21 +2112,8 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
     if (ret) {
         //commitment_signed受信通知
-        if (self->htlc_changed & M_HTLCCHG_FF_SEND) {
-            //fulfill_htlcを送信した方はcommitment_signed受信で折り返す
-            ucoin_buf_t buf_comm;
-
-            ucoin_buf_init(&buf_comm);
-            ret = ln_create_commit_signed(self, &buf_comm);
-            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_comm);
-            ucoin_buf_free(&buf_comm);
-        }
-        ln_cb_commsig_recv_t commsig;
-        commsig.unlocked = (self->htlc_changed & M_HTLCCHG_FF_RECV);    //fulfill受信はrevoke送信でおしまい
-        DBG_PRINTF("  commsig.unlocked=%d(%d)\n", commsig.unlocked, self->htlc_changed);
-        self->htlc_changed &= ~M_HTLCCHG_FF_RECV;
-        (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, &commsig);
-        DBG_PRINTF("  self->htlc_changed(flag off)=%d\n", self->htlc_changed);
+        //ln_cb_commsig_recv_t commsig;
+        (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, NULL);
     }
 
 LABEL_EXIT:
@@ -2208,12 +2184,8 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], new_commitpt, UCOIN_SZ_PUBKEY);
 
     //HTLC変化通知
-    ln_cb_htlc_changed_t htlc_chg;
-    htlc_chg.unlocked = (self->htlc_changed & M_HTLCCHG_FF_SEND);   //fulfill送信はrevoke受信でおしまい
-    DBG_PRINTF("  htlc_chg.unlocked=%d(%d)\n", htlc_chg.unlocked, self->htlc_changed);
-    self->htlc_changed &= ~M_HTLCCHG_FF_SEND;
-    (*self->p_callback)(self, LN_CB_HTLC_CHANGED, &htlc_chg);
-    DBG_PRINTF("  self->htlc_changed(flag off)=%d\n", self->htlc_changed);
+    //ln_cb_htlc_changed_t htlc_chg;
+    (*self->p_callback)(self, LN_CB_HTLC_CHANGED, NULL);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");
@@ -2224,7 +2196,6 @@ LABEL_EXIT:
 static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     DBG_PRINTF("BEGIN\n");
-    //self->htlc_changed = true;
     return false;
 }
 
@@ -3342,10 +3313,11 @@ static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
 //HTLC削除
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add, uint8_t chg_flag)
 {
-    DBG_PRINTF("HTLC remove prev: htlc_num=%d, htlc_changed=%02x\n", self->htlc_num, self->htlc_changed);
+    DBG_PRINTF("HTLC remove prev: htlc_num=%d\n", self->htlc_num);
+    assert(self->htlc_num > 0);
+
     ucoin_buf_free(&p_add->shared_secret);
     memset(p_add, 0, sizeof(ln_update_add_htlc_t));
     self->htlc_num--;
-    self->htlc_changed |= chg_flag;
-    DBG_PRINTF("   --> htlc_num=%d, htlc_changed=%02x\n", self->htlc_num, self->htlc_changed);
+    DBG_PRINTF("   --> htlc_num=%d\n", self->htlc_num);
 }

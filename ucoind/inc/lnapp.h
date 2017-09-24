@@ -66,6 +66,7 @@ typedef struct {
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     int32_t         funding_confirm;        ///< funding_txのconfirmation数
     uint32_t        funding_min_depth;
+    uint8_t         flag_ack;               ///< commitment_signed/revoke_and_ackフラグ
 
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex

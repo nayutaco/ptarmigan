@@ -10,9 +10,7 @@ bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest generate 432
 
 # 1台のPCで複数ノードを立ち上げるので、ディレクトリをそれぞれ作る。
 # 起動したディレクトリに関連ファイルを作成するためだ。
-mkdir -p node_3333
-mkdir -p node_4444
-mkdir -p node_5555
+mkdir -p node_3333 node_4444 node_5555 node_6666
 
 # ノード設定ファイルを作成する。
 # 引数はポート番号で、そのポート番号で相手を待ち受ける。
@@ -22,6 +20,7 @@ mkdir -p node_5555
 ./create_nodeconf.sh 3333 > node_3333/node.conf
 ./create_nodeconf.sh 4444 > node_4444/node.conf
 ./create_nodeconf.sh 5555 > node_5555/node.conf
+./create_nodeconf.sh 6666 > node_6666/node.conf
 
 # ピア設定ファイルを作成する。
 # 自ノードが相手のノードと接続するための設定が書かれている。
@@ -33,3 +32,4 @@ mkdir -p conf
 ./ucoind node_3333/node.conf peer > conf/peer3333.conf
 ./ucoind node_4444/node.conf peer > conf/peer4444.conf
 ./ucoind node_5555/node.conf peer > conf/peer5555.conf
+./ucoind node_6666/node.conf peer > conf/peer6666.conf

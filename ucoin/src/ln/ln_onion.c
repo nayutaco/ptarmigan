@@ -37,7 +37,7 @@
  * macros
  **************************************************************************/
 
-#define M_VERSION               ((uint8_t)0x01)
+#define M_VERSION               ((uint8_t)0x00)
 #define M_REALM_VAL             (0x00)
 
 #define M_SZ_BLINDING_FACT      (32)
@@ -52,6 +52,8 @@
 #define M_SZ_ROUTING_INFO       (LN_HOP_MAX * M_SZ_HOP_DATA)
 #define M_SZ_STREAM_BYTES       (M_SZ_ROUTING_INFO + M_SZ_HOP_DATA)
 #define M_SZ_KEYLEN             (32)
+
+//#define M_DBG_FAIL
 
 
 /**************************************************************************
@@ -331,9 +333,14 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
 
 void ln_onion_failure_create(ucoin_buf_t *pNextPacket,
             const ucoin_buf_t *pSharedSecret,
-            const ucoin_buf_t *pFailureMsg)
+            const ucoin_buf_t *pReason)
 {
     //data:
+
+#ifdef M_DBG_FAIL
+    DBG_PRINTF("ONI_shared_secrets=");
+    DUMPBIN(pSharedSecret->buf, pSharedSecret->len);
+#endif  //M_DBG_FAIL
 
     //    [32:hmac]
     //    [2:failure_len]
@@ -354,20 +361,27 @@ void ln_onion_failure_create(ucoin_buf_t *pNextPacket,
     proto.pos = M_SZ_HMAC;
 
     //    [2:failure_len]
-    ln_misc_push16be(&proto, pFailureMsg->len);
+    ln_misc_push16be(&proto, pReason->len);
 
     //    [failure_len:failuremsg]
-    ucoin_push_data(&proto, pFailureMsg->buf, pFailureMsg->len);
+    ucoin_push_data(&proto, pReason->buf, pReason->len);
 
     //    [2:pad_len]
-    ln_misc_push16be(&proto, DATALEN - pFailureMsg->len);
+    ln_misc_push16be(&proto, DATALEN - pReason->len);
 
     //    [pad_len:pad]
-    memset(buf_fail.buf + proto.pos, 0, DATALEN - pFailureMsg->len);
-    proto.pos += DATALEN - pFailureMsg->len;
+    memset(buf_fail.buf + proto.pos, 0, DATALEN - pReason->len);
+    proto.pos += DATALEN - pReason->len;
 
     //HMAC
     ucoin_util_calc_mac(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
+
+#ifdef M_DBG_FAIL
+    DBG_PRINTF("um_key=");
+    DUMPBIN(um_key, sizeof(um_key));
+    DBG_PRINTF("buf_fail=");
+    DUMPBIN(buf_fail.buf, buf_fail.len);
+#endif  //M_DBG_FAIL
 
     ln_onion_failure_forward(pNextPacket, pSharedSecret, &buf_fail);
     ucoin_buf_free(&buf_fail);
@@ -381,11 +395,21 @@ void ln_onion_failure_forward(ucoin_buf_t *pNextPacket,
     uint8_t ammag_key[M_SZ_KEYLEN];
     uint8_t *stream_bytes = (uint8_t *)M_CALLOC(1, pPacket->len);
 
+#ifdef M_DBG_FAIL
+    DBG_PRINTF("oni_shared_secret=");
+    DUMPBIN(pSharedSecret->buf, pSharedSecret->len);
+#endif  //M_DBG_FAIL
+
     generate_key(ammag_key, AMMAG, sizeof(AMMAG), pSharedSecret->buf);
     ucoin_buf_alloc(pNextPacket, pPacket->len);
     generate_cipher_stream(stream_bytes, ammag_key, pPacket->len);
     xor_bytes(pNextPacket->buf, pPacket->buf, stream_bytes, pPacket->len);
     M_FREE(stream_bytes);
+
+#ifdef M_DBG_FAIL
+    DBG_PRINTF("pNextPacket=");
+    DUMPBIN(pNextPacket->buf, pNextPacket->len);
+#endif  //M_DBG_FAIL
 }
 
 
@@ -396,6 +420,12 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
     const int DATALEN = 256;
 
     int NumHops = pSharedSecrets->len / UCOIN_SZ_PRIVKEY;
+
+#ifdef M_DBG_FAIL
+    DBG_PRINTF("NumHops=%d\n", NumHops);
+    DBG_PRINTF("oni_shared_secrets=");
+    DUMPBIN(pSharedSecrets->buf, pSharedSecrets->len);
+#endif  //M_DBG_FAIL
 
     ucoin_buf_t buf1;
     ucoin_buf_t buf2;
@@ -423,16 +453,28 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
                 if (lp2 == pad_len) {
                     //padも全部0で HMACが一致すればOK
                     uint8_t um_key[M_SZ_KEYLEN];
-                    generate_key(um_key, UM, sizeof(UM), pSharedSecrets->buf);
+                    generate_key(um_key, UM, sizeof(UM), sharedsecret.buf);
 
                     uint8_t hmac[M_SZ_HMAC];
                     ucoin_util_calc_mac(hmac, um_key, M_SZ_KEYLEN,
                                     p_out->buf + M_SZ_HMAC, p_out->len - M_SZ_HMAC);
+
+#ifdef M_DBG_FAIL
+                    DBG_PRINTF("um_key=");
+                    DUMPBIN(um_key, sizeof(um_key));
+                    DBG_PRINTF("p_out=");
+                    DUMPBIN(p_out->buf, p_out->len);
+#endif //M_DBG_FAIL
+
                     bend = memcmp(p_out->buf, hmac, M_SZ_HMAC) == 0;
                     if (bend) {
                         ucoin_buf_alloccopy(pReason, reason.buf, reason.len);
                     } else {
                         DBG_PRINTF("fail: HMAC not match!\n");
+#ifdef M_DBG_FAIL
+                        DUMPBIN(p_out->buf, M_SZ_HMAC);
+                        DUMPBIN(hmac, M_SZ_HMAC);
+#endif //M_DBG_FAIL
                     }
                     break;
                 }
@@ -448,7 +490,7 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
         ucoin_buf_free(p_out);
     }
 
-    if (bend) {
+    if (!bend) {
         DBG_PRINTF("fail reason\n");
     }
 

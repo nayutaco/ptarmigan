@@ -34,15 +34,20 @@ NETTYPE=regtest
 # confirmation数を確認するだけであれば、後から確認してもよいだろうが、まだそこまで実装できていない。
 #
 #
-#   +------------+             +-----------+
-#   | node_4444  +-------------| node_3333 |
-#   |  4.0mBTC   |             |  5.0mBTC  |
-#   +------------+             |           |
-#                              |-----------|
-#   +------------+             | node_3333 |
-#   | node_5555  +-------------|  5.0mBTC  |
-#   |  4.0mBTC   |             |           |
-#   +------------+             +-----------+
+#  +-----------+             +-----------+
+#  | node_4444 +-------------+ node_3333 |
+#  |    FUNDER |             |           |
+#  +-----------+             |    fundee |
+#                            +-----------+
+#  +-----------+             | node_3333 |
+#  | node_5555 +-------------+           |
+#  |           |             |    fundee |
+#  |    FUNDER |             +-----------+
+#  +-----------+
+#  | node_5555 |             +-----------+
+#  |           |             | node_6666 |
+#  |    fundee +-------------+    FUNDER |
+#  +-----------+             +-----------+
 
 # node_4444からnode_3333へチャネルを開く。
 ./fund-in.sh 0.01 fund.txt > node_4444/fund4444_3333.conf
@@ -54,9 +59,15 @@ sleep 3
 ./fund-in.sh 0.01 fund.txt > node_5555/fund5555_3333.conf
 ./ucoincli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5556
 
+sleep 3
+
+# node_6666からnode_5555へチャネルを開く。
+./fund-in.sh 0.01 fund.txt > node_6666/fund6666_3333.conf
+./ucoincli -c conf/peer3333.conf -f node_6666/fund6666_3333.conf 6667
+
 # 少し待つ
 echo wait...
-sleep 10
+sleep 30
 
 # mining
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 2
@@ -68,17 +79,31 @@ do
     ./showdb $NETTYPE c node_3333/dbucoin/ | jq '.' > n3.txt
     ./showdb $NETTYPE c node_4444/dbucoin/ | jq '.' > n4.txt
     ./showdb $NETTYPE c node_5555/dbucoin/ | jq '.' > n5.txt
+    ./showdb $NETTYPE c node_6666/dbucoin/ | jq '.' > n6.txt
     cmp n3.txt n4.txt
     RES1=$?
     cmp n3.txt n5.txt
     RES2=$?
-    if [ $RES1 -eq 0 ] && [ $RES2 -eq 0 ]; then
+    cmp n3.txt n6.txt
+    RES3=$?
+
+    LEN3=`cat n3.txt | jq length`
+    LEN4=`cat n4.txt | jq length`
+    LEN5=`cat n5.txt | jq length`
+    LEN6=`cat n6.txt | jq length`
+
+    if [ $LEN3 -ne 0 ] && [ $LEN4 -ne 0 ] && [ $LEN5 -ne 0 ] && [ $LEN6 -ne 0 ] && [ $RES1 -eq 0 ] && [ $RES2 -eq 0 ] && [ $RES3 -eq 0 ]; then
         break
     fi
     sleep 10
 done
 
-rm n3.txt n4.txt n5.txt
+rm n3.txt n4.txt n5.txt n6.txt
+
+tar zcf node_3333/bak.tgz -C node_3333 dbucoin
+tar zcf node_4444/bak.tgz -C node_4444 dbucoin
+tar zcf node_5555/bak.tgz -C node_5555 dbucoin
+tar zcf node_6666/bak.tgz -C node_6666 dbucoin
 
 echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo @ channel established

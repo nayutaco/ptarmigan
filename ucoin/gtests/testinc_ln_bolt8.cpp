@@ -70,7 +70,7 @@ TEST_F(bolt8test, initiator)
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
     ASSERT_TRUE(ln_enc_auth_handshake_state(&self));
 
@@ -90,16 +90,16 @@ TEST_F(bolt8test, initiator)
     };
     memcpy(pBolt->e.priv, EPRIV, sizeof(EPRIV));
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
-    self.noise.sn = 10;
-    self.noise.rn = 10;
+    self.noise_send.nonce = 10;
+    self.noise_recv.nonce = 10;
 
     //Act One send
     ucoin_buf_t buf;
     ucoin_buf_init(&buf);
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(10, self.noise.sn);
-    ASSERT_EQ(10, self.noise.rn);
+    ASSERT_EQ(10, self.noise_send.nonce);
+    ASSERT_EQ(10, self.noise_recv.nonce);
     ASSERT_TRUE(ln_enc_auth_handshake_state(&self));
 
     const uint8_t OUTPUT_1S[50] = {
@@ -161,11 +161,11 @@ TEST_F(bolt8test, initiator)
         0x41, 0x89, 0x84, 0xaa, 0xdc, 0x5c, 0xdb, 0x35,
         0x09, 0x6b, 0x9e, 0xa8, 0xfa, 0x5c, 0x34, 0x42,
     };
-    ASSERT_EQ(0, memcmp(SK, self.noise.sk, sizeof(SK)));
-    ASSERT_EQ(0, memcmp(RK, self.noise.rk, sizeof(RK)));
-    ASSERT_EQ(0, self.noise.sn);
-    ASSERT_EQ(0, self.noise.rn);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, memcmp(SK, self.noise_send.key, sizeof(SK)));
+    ASSERT_EQ(0, memcmp(RK, self.noise_recv.key, sizeof(RK)));
+    ASSERT_EQ(0, self.noise_send.nonce);
+    ASSERT_EQ(0, self.noise_recv.nonce);
+    ASSERT_EQ(0, self.p_handshake);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
     ASSERT_FALSE(ret);
@@ -214,7 +214,7 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
 
     //ephemeralの差し替え
@@ -269,7 +269,7 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
     ucoin_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
     ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -321,7 +321,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
 
     //ephemeralの差し替え
@@ -376,7 +376,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
     ucoin_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
     ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -428,7 +428,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
 
     //ephemeralの差し替え
@@ -483,7 +483,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
     ucoin_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
     ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -535,7 +535,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(START_INITIATOR, pBolt->state);
 
     //ephemeralの差し替え
@@ -590,7 +590,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
     ucoin_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
     ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -628,7 +628,7 @@ TEST_F(bolt8test, responder)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
     ASSERT_TRUE(ln_enc_auth_handshake_state(&self));
 
@@ -648,8 +648,8 @@ TEST_F(bolt8test, responder)
     };
     memcpy(pBolt->e.priv, EPRIV, sizeof(EPRIV));
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
-    self.noise.sn = 10;
-    self.noise.rn = 10;
+    self.noise_send.nonce = 10;
+    self.noise_recv.nonce = 10;
 
     //Act One Receive and Act Two Send
     //input: 0x00036360e856310ce5d294e8be33fc807077dc56ac80d95d9cd4ddbd21325eff73f70df6086551151f58b8afe6c195782c6a
@@ -667,8 +667,8 @@ TEST_F(bolt8test, responder)
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
-    ASSERT_EQ(10, self.noise.sn);
-    ASSERT_EQ(10, self.noise.rn);
+    ASSERT_EQ(10, self.noise_send.nonce);
+    ASSERT_EQ(10, self.noise_recv.nonce);
     ASSERT_TRUE(ln_enc_auth_handshake_state(&self));
 
     //output: 0x0002466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276e2470b93aac583c9ef6eafca3f730ae
@@ -716,11 +716,11 @@ TEST_F(bolt8test, responder)
         0x41, 0x89, 0x84, 0xaa, 0xdc, 0x5c, 0xdb, 0x35,
         0x09, 0x6b, 0x9e, 0xa8, 0xfa, 0x5c, 0x34, 0x42,
     };
-    ASSERT_EQ(0, memcmp(RK, self.noise.rk, sizeof(RK)));
-    ASSERT_EQ(0, memcmp(SK, self.noise.sk, sizeof(SK)));
-    ASSERT_EQ(0, self.noise.sn);
-    ASSERT_EQ(0, self.noise.rn);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, memcmp(RK, self.noise_recv.key, sizeof(RK)));
+    ASSERT_EQ(0, memcmp(SK, self.noise_send.key, sizeof(SK)));
+    ASSERT_EQ(0, self.noise_send.nonce);
+    ASSERT_EQ(0, self.noise_recv.nonce);
+    ASSERT_EQ(0, self.p_handshake);
 
     ucoin_buf_free(&buf);
 
@@ -758,7 +758,7 @@ TEST_F(bolt8test, responder_act1_short_read)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -793,7 +793,7 @@ TEST_F(bolt8test, responder_act1_short_read)
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
 
     ucoin_buf_free(&buf);
 
@@ -831,7 +831,7 @@ TEST_F(bolt8test, responder_act1_bad_version)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -866,7 +866,7 @@ TEST_F(bolt8test, responder_act1_bad_version)
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -905,7 +905,7 @@ TEST_F(bolt8test, responder_act1_bad_key_serialization)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -940,7 +940,7 @@ TEST_F(bolt8test, responder_act1_bad_key_serialization)
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -979,7 +979,7 @@ TEST_F(bolt8test, responder_act1_bad_mac)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1014,7 +1014,7 @@ TEST_F(bolt8test, responder_act1_bad_mac)
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -1053,7 +1053,7 @@ TEST_F(bolt8test, responder_act3_bad_version)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1122,7 +1122,7 @@ TEST_F(bolt8test, responder_act3_bad_version)
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -1161,7 +1161,7 @@ TEST_F(bolt8test, responder_act3_short_read)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1230,7 +1230,7 @@ TEST_F(bolt8test, responder_act3_short_read)
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -1269,7 +1269,7 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1338,7 +1338,7 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -1377,7 +1377,7 @@ TEST_F(bolt8test, responder_act3_bad_rs)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1446,7 +1446,7 @@ TEST_F(bolt8test, responder_act3_bad_rs)
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -1485,7 +1485,7 @@ TEST_F(bolt8test, responder_act3_bad_mac)
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
-    struct bolt8 *pBolt = (struct bolt8 *)self.noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self.p_handshake;
     ASSERT_EQ(WAIT_ACT_ONE, pBolt->state);
 
     //ephemeralの差し替え
@@ -1554,7 +1554,7 @@ TEST_F(bolt8test, responder_act3_bad_mac)
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
     ASSERT_FALSE(ret);
-    ASSERT_EQ(0, self.noise.p_handshake);
+    ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
@@ -1588,17 +1588,19 @@ TEST_F(bolt8test, enc_dec)
         0x0b, 0xcf, 0x11, 0x1e, 0xd8, 0xd5, 0x88, 0xca,
         0xf9, 0xab, 0x4b, 0xe7, 0x16, 0xe4, 0x2b, 0x01,
     };
-    memcpy(self.noise.sk, SK, sizeof(SK));
-    memcpy(self.noise.rk, RK, sizeof(RK));
-    memcpy(self.noise.ck, CK, sizeof(CK));
-    self.noise.sn = 0;
-    self.noise.rn = 0;
+    memcpy(self.noise_send.key, SK, sizeof(SK));
+    memcpy(self.noise_recv.key, RK, sizeof(RK));
+    memcpy(self.noise_send.ck, CK, sizeof(CK));
+    memcpy(self.noise_recv.ck, CK, sizeof(CK));
+    self.noise_send.nonce = 0;
+    self.noise_recv.nonce = 0;
 
-    memcpy(self_dec.noise.sk, RK, sizeof(RK));
-    memcpy(self_dec.noise.rk, SK, sizeof(SK));
-    memcpy(self_dec.noise.ck, CK, sizeof(CK));
-    self_dec.noise.sn = 0;
-    self_dec.noise.rn = 0;
+    memcpy(self_dec.noise_send.key, RK, sizeof(RK));
+    memcpy(self_dec.noise_recv.key, SK, sizeof(SK));
+    memcpy(self_dec.noise_send.ck, CK, sizeof(CK));
+    memcpy(self_dec.noise_recv.ck, CK, sizeof(CK));
+    self_dec.noise_send.nonce = 0;
+    self_dec.noise_recv.nonce = 0;
 
     ucoin_buf_t bufin;
     ucoin_buf_t buf;

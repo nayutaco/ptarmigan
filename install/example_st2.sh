@@ -10,4 +10,6 @@ cd ../node_4444
 ../ucoind node.conf &
 cd ../node_5555
 ../ucoind node.conf &
+cd ../node_6666
+../ucoind node.conf &
 cd ..

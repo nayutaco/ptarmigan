@@ -1,0 +1,6 @@
+#!/bin/sh
+PAY_BEGIN=4444
+PAY_END=5555
+AMOUNT=100000
+
+./example_st4r.sh $PAY_BEGIN $PAY_END $AMOUNT $1
