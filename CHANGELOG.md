@@ -1,10 +1,15 @@
 CHANGELOG
 ====
 
-# 2017/--/00
+# 2017/09/25
 
 * `ucoincli` の `-p` で `-c` を不要にする
     `-c` による事前の接続操作は必要
+
+* BOLT#4 の onion version修正(0x01 --> 0x00)  
+    [BOLT04: Correct the sphinx packet version in the implementation](https://github.com/lightningnetwork/lightning-rfc/commit/0310e40eda71e735f5d679d5fab2ded40956ef1a#diff-9198bb316a3387cc67fd543b03339b35)
+
+* BOLT#8 の Key Rotation修正
 
 
 # 2017/09/16
