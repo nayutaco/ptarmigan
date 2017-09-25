@@ -103,8 +103,8 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     bool ret;
 
     //handshake完了後にFREEする
-    self->noise.p_handshake = M_MALLOC(sizeof(struct bolt8));
-    struct bolt8 *pBolt = (struct bolt8 *)self->noise.p_handshake;
+    self->p_handshake = M_MALLOC(sizeof(struct bolt8));
+    struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
 
     //自ノード情報
     pBolt->keys = &self->p_node->keys;
@@ -142,7 +142,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
 
 bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pNodeId)
 {
-    struct bolt8 *pBolt = (struct bolt8 *)self->noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
 
     if ((pBolt == NULL) || (pBolt->state != START_INITIATOR)) {
         DBG_PRINTF("fail: not initiator\n");
@@ -154,8 +154,8 @@ bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, cons
         pBolt->state = WAIT_ACT_TWO;
     } else {
         //失敗したら最初からやり直す
-        M_FREE(self->noise.p_handshake);
-        self->noise.p_handshake = NULL;
+        M_FREE(self->p_handshake);
+        self->p_handshake = NULL;
     }
 
     return ret;
@@ -164,7 +164,7 @@ bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, cons
 
 bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pNodeId)
 {
-    struct bolt8 *pBolt = (struct bolt8 *)self->noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
     bool ret;
 
     if (pBolt == NULL) {
@@ -177,11 +177,12 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf, const
     case WAIT_ACT_TWO:
         //
         ret = acttwo_receiver(self, pBuf, pNodeId);
-        memcpy(self->noise.ck, pBolt->ck, UCOIN_SZ_SHA256);
-        M_FREE(self->noise.p_handshake);
-        self->noise.p_handshake = NULL;
-        self->noise.sn = 0;
-        self->noise.rn = 0;
+        memcpy(self->noise_send.ck, pBolt->ck, UCOIN_SZ_SHA256);
+        memcpy(self->noise_recv.ck, pBolt->ck, UCOIN_SZ_SHA256);
+        M_FREE(self->p_handshake);
+        self->p_handshake = NULL;
+        self->noise_send.nonce = 0;
+        self->noise_recv.nonce = 0;
         break;
 
     //responder
@@ -193,11 +194,12 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf, const
     case WAIT_ACT_THREE:
         //
         ret = actthree_receiver(self, pBuf);
-        memcpy(self->noise.ck, pBolt->ck, UCOIN_SZ_SHA256);
-        M_FREE(self->noise.p_handshake);
-        self->noise.p_handshake = NULL;
-        self->noise.sn = 0;
-        self->noise.rn = 0;
+        memcpy(self->noise_send.ck, pBolt->ck, UCOIN_SZ_SHA256);
+        memcpy(self->noise_recv.ck, pBolt->ck, UCOIN_SZ_SHA256);
+        M_FREE(self->p_handshake);
+        self->p_handshake = NULL;
+        self->noise_send.nonce = 0;
+        self->noise_recv.nonce = 0;
         break;
     default:
         ret = false;
@@ -205,8 +207,8 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf, const
     }
     if (!ret) {
         //失敗したら最初からやり直す
-        M_FREE(self->noise.p_handshake);
-        self->noise.p_handshake = NULL;
+        M_FREE(self->p_handshake);
+        self->p_handshake = NULL;
     }
 
     return ret;
@@ -215,7 +217,7 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf, const
 
 bool ln_enc_auth_handshake_state(ln_self_t *self)
 {
-    return self->noise.p_handshake != NULL;
+    return self->p_handshake != NULL;
 }
 
 
@@ -231,40 +233,40 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_b
     int rc;
 
     memset(nonce, 0, 4);
-    memcpy(nonce + 4, &self->noise.sn, sizeof(uint64_t));
+    memcpy(nonce + 4, &self->noise_send.nonce, sizeof(uint64_t));
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
                     cl, &cllen,
                     (uint8_t *)&l, sizeof(l),   //message length
                     NULL, 0,                    //additional data
                     NULL,                       //combined modeではNULL
-                    nonce, self->noise.sk);     //nonce, key
+                    nonce, self->noise_send.key);     //nonce, key
     if ((rc != 0) || (cllen != sizeof(l) + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
         DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
-    self->noise.sn++;
-    if (self->noise.sn == 1000) {
+    self->noise_send.nonce++;
+    if (self->noise_send.nonce == 1000) {
         DBG_PRINTF("???: This root shall not in.\n");
         goto LABEL_EXIT;
     }
-    memcpy(nonce + 4, &self->noise.sn, sizeof(uint64_t));
+    memcpy(nonce + 4, &self->noise_send.nonce, sizeof(uint64_t));
 
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
                     cm, &cmlen,
                     pBufIn->buf, pBufIn->len,       //message length
                     NULL, 0,                    //additional data
                     NULL,                       //combined modeではNULL
-                    nonce, self->noise.sk);     //nonce, key
+                    nonce, self->noise_send.key);     //nonce, key
     if ((rc != 0) || (cmlen != pBufIn->len + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
         DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
-    self->noise.sn++;
-    if (self->noise.sn == 1000) {
+    self->noise_send.nonce++;
+    if (self->noise_send.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        noise_hkdf(self->noise.ck, self->noise.sk, self->noise.ck, self->noise.sk);
-        self->noise.sn = 0;
+        noise_hkdf(self->noise_send.ck, self->noise_send.key, self->noise_send.ck, self->noise_send.key);
+        self->noise_send.nonce = 0;
     }
 
     ucoin_buf_alloc(pBufEnc, cllen + cmlen);
@@ -293,20 +295,20 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
     }
 
     memset(nonce, 0, 4);
-    memcpy(nonce + 4, &self->noise.rn, sizeof(uint64_t));
+    memcpy(nonce + 4, &self->noise_recv.nonce, sizeof(uint64_t));
     rc = crypto_aead_chacha20poly1305_ietf_decrypt(
                     pl, &pllen,
                     NULL,                       //combined modeではNULL
                     pData, LN_SZ_NOISE_HEADER,
                     NULL, 0,  //additional data
-                    nonce, self->noise.rk);      //nonce, key
+                    nonce, self->noise_recv.key);      //nonce, key
     if ((rc != 0) || (pllen != sizeof(uint16_t))) {
         DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
-        DBG_PRINTF("sn=%" PRIu64 ", rn=%" PRIu64 "\n", self->noise.sn, self->noise.rn);
+        DBG_PRINTF("sn=%" PRIu64 ", rn=%" PRIu64 "\n", self->noise_send.nonce, self->noise_recv.nonce);
         goto LABEL_EXIT;
     }
-    self->noise.rn++;
-    if (self->noise.rn == 1000) {
+    self->noise_recv.nonce++;
+    if (self->noise_recv.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
         DBG_PRINTF("???: This root shall not in.\n");
@@ -331,23 +333,23 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf)
     int rc;
 
     memset(nonce, 0, 4);
-    memcpy(nonce + 4, &self->noise.rn, sizeof(uint64_t));
+    memcpy(nonce + 4, &self->noise_recv.nonce, sizeof(uint64_t));
     rc = crypto_aead_chacha20poly1305_ietf_decrypt(
                     pm, &pmlen,
                     NULL,                       //combined modeではNULL
                     pBuf->buf, pBuf->len,
                     NULL, 0,  //additional data
-                    nonce, self->noise.rk);      //nonce, key
+                    nonce, self->noise_recv.key);      //nonce, key
     if ((rc != 0) || (pmlen != l)) {
         DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
-    self->noise.rn++;
-    if (self->noise.rn == 1000) {
+    self->noise_recv.nonce++;
+    if (self->noise_recv.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        noise_hkdf(self->noise.ck, self->noise.rk, self->noise.ck, self->noise.rk);
-        self->noise.rn = 0;
+        noise_hkdf(self->noise_recv.ck, self->noise_recv.key, self->noise_recv.ck, self->noise_recv.key);
+        self->noise_recv.nonce = 0;
     }
 
     ucoin_buf_free(pBuf);
@@ -401,7 +403,7 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
 static bool actone_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRS)
 {
     bool ret = false;
-    struct bolt8 *pBolt = (struct bolt8 *)self->noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
     uint8_t ss[UCOIN_SZ_PRIVKEY];
     uint8_t c[crypto_aead_chacha20poly1305_IETF_ABYTES];
     uint8_t nonce[12];
@@ -449,7 +451,7 @@ LABEL_EXIT:
 static bool actone_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
 {
     bool ret = false;
-    struct bolt8 *pBolt = (struct bolt8 *)self->noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
     uint8_t re[UCOIN_SZ_PUBKEY];
     uint8_t c[crypto_aead_chacha20poly1305_IETF_ABYTES];
     uint8_t ss[UCOIN_SZ_PRIVKEY];
@@ -500,7 +502,7 @@ LABEL_EXIT:
 static bool acttwo_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRE)
 {
     bool ret = false;
-    struct bolt8 *pBolt = (struct bolt8 *)self->noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
     uint8_t ss[UCOIN_SZ_PRIVKEY];
     uint8_t c[crypto_aead_chacha20poly1305_IETF_ABYTES];
     uint8_t nonce[12];
@@ -548,7 +550,7 @@ LABEL_EXIT:
 static bool acttwo_receiver(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRS)
 {
     bool ret = false;
-    struct bolt8 *pBolt = (struct bolt8 *)self->noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
     uint8_t re[UCOIN_SZ_PUBKEY];
     uint8_t c[crypto_aead_chacha20poly1305_IETF_ABYTES];
     uint8_t ss[UCOIN_SZ_PRIVKEY];
@@ -599,7 +601,7 @@ LABEL_EXIT:
 static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRE)
 {
     bool ret = false;
-    struct bolt8 *pBolt = (struct bolt8 *)self->noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
     uint8_t c[UCOIN_SZ_PUBKEY + crypto_aead_chacha20poly1305_IETF_ABYTES];
     uint8_t nonce[12];
     uint8_t ss[UCOIN_SZ_PRIVKEY];
@@ -645,7 +647,7 @@ static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *p
     }
 
     // sk, rk = HKDF(ck, zero)
-    noise_hkdf(self->noise.sk, self->noise.rk, pBolt->ck, NULL);
+    noise_hkdf(self->noise_send.key, self->noise_recv.key, pBolt->ck, NULL);
 
     // SEND: m = 0 || c || t   over the network buffer.
     ucoin_buf_free(pBuf);
@@ -663,7 +665,7 @@ LABEL_EXIT:
 static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
 {
     bool ret = false;
-    struct bolt8 *pBolt = (struct bolt8 *)self->noise.p_handshake;
+    struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
     uint8_t c[UCOIN_SZ_PUBKEY + crypto_aead_chacha20poly1305_IETF_ABYTES];
     uint8_t t[crypto_aead_chacha20poly1305_IETF_ABYTES];
     uint8_t rs[UCOIN_SZ_PUBKEY];
@@ -720,7 +722,7 @@ static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     }
 
     // rk, sk = HKDF(ck, zero)
-    noise_hkdf(self->noise.rk, self->noise.sk, pBolt->ck, NULL);
+    noise_hkdf(self->noise_recv.key, self->noise_send.key, pBolt->ck, NULL);
 
     //Act Treeでは相手のnode_idを返す
     ucoin_buf_free(pBuf);

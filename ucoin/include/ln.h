@@ -133,8 +133,8 @@ typedef enum {
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
     LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
     LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
-    LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
+    LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
     LN_CB_CLOSED,               ///< closing_signed受信通知
     LN_CB_SEND_REQ,             ///< peerへの送信要求
     LN_CB_MAX,
@@ -702,6 +702,7 @@ typedef struct {
     uint64_t                    amount_msat;            ///< self->cnl_add_htlc[idx].amount_msat
     uint32_t                    cltv_expiry;            ///< self->cnl_add_htlc[idx].cltv_expiry
     uint8_t                     *p_onion_route;         ///< 変換後onionパケット(self->cnl_add_htlc[idx].p_onion_route)
+    const ucoin_buf_t           *p_shared_secret;       ///< onion shared secret
 } ln_cb_add_htlc_recv_t;
 
 
@@ -726,22 +727,22 @@ typedef struct {
 } ln_cb_fail_htlc_recv_t;
 
 
-/** @struct ln_cb_commsig_recv_t
- *  @brief  commitment_signed受信通知(#LN_CB_COMMIT_SIG_RECV)
- *  @todo
- *      - アプリ側も似たような情報を持っているので、まとめたいが方法が見つかっていない
- */
-typedef struct {
-    bool                    unlocked;               ///< true:送金処理完了
-} ln_cb_commsig_recv_t;
+///** @struct ln_cb_commsig_recv_t
+// *  @brief  commitment_signed受信通知(#LN_CB_COMMIT_SIG_RECV)
+// *  @todo
+// *      - アプリ側も似たような情報を持っているので、まとめたいが方法が見つかっていない
+// */
+//typedef struct {
+//    bool                    unlocked;               ///< true:送金処理完了
+//} ln_cb_commsig_recv_t;
 
 
-/** @struct ln_cb_htlc_changed_t
- *  @brief  revoke_and_ack受信通知(#LN_CB_HTLC_CHANGED)
- */
-typedef struct {
-    bool                    unlocked;               ///< true:着金処理完了
-} ln_cb_htlc_changed_t;
+///** @struct ln_cb_htlc_changed_t
+// *  @brief  revoke_and_ack受信通知(#LN_CB_HTLC_CHANGED)
+// */
+//typedef struct {
+//    bool                    unlocked;               ///< true:着金処理完了
+//} ln_cb_htlc_changed_t;
 
 
 /** @struct ln_cb_closed_t
@@ -846,13 +847,9 @@ typedef struct {
  *  @brief  BOLT#8 protocol
  */
 typedef struct {
-    uint8_t             sk[UCOIN_SZ_PRIVKEY];           ///< send key
-    uint64_t            sn;                             ///< send nonce
-    uint8_t             rk[UCOIN_SZ_PRIVKEY];           ///< receive key
-    uint64_t            rn;                             ///< receive nonce
-    uint8_t             ck[UCOIN_SZ_SHA256];            ///< ck
-
-    void                *p_handshake;
+    uint8_t         key[UCOIN_SZ_PRIVKEY];          ///< key
+    uint64_t        nonce;                          ///< nonce
+    uint8_t         ck[UCOIN_SZ_SHA256];            ///< chainkey
 } ln_noise_t;
 
 
@@ -904,10 +901,6 @@ struct ln_self_t {
     ln_shutdown_t               cnl_shutdown;                   ///< 受信したshutdown
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
     //msg:normal operation
-    uint8_t                     htlc_changed;                   ///< HTLC変化フラグ
-                                                                //      fulfill_updateの送受信でフラグを分ける
-                                                                //      受信した場合、そのままcommitment_signedを送信し、revoke_and_ack送信で完了する
-                                                                //      送信した場合、commitment_signed受信によってcommitment_signedを送信し、revoke_and_ack受信で完了
     uint16_t                    htlc_num;                       ///< HTLC数
     uint64_t                    commit_num;                     ///< commitment_signed送信後にインクリメントする48bitカウンタ(0～)
     uint64_t                    revoke_num;                     ///< revoke_and_ack送信後にインクリメントする48bitカウンタ(0～)
@@ -930,7 +923,9 @@ struct ln_self_t {
     uint64_t                    funding_sat;                    ///< funding_msat
     uint32_t                    feerate_per_kw;                 ///< feerate_per_kw
 
-    ln_noise_t                  noise;                          ///< noise protocol
+    ln_noise_t                  noise_send;                     ///< noise protocol
+    ln_noise_t                  noise_recv;                     ///< noise protocol
+    void                        *p_handshake;
 
     //param
     void                        *p_param;                       ///< ユーザ用
@@ -1278,6 +1273,30 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
+/********************************************************************
+ * inline展開用
+ ********************************************************************/
+
+/** ノードアドレス取得
+ *
+ * @param[in]           node            node情報
+ * @return      ノードアドレス(非const)
+ */
+static inline ln_nodeaddr_t *ln_node_addr(ln_node_t *node) {
+    return &node->addr;
+}
+
+
+/** ノードID取得
+ *
+ * @param[in]           node            node情報
+ * @return      node_id
+ */
+static inline const uint8_t *ln_node_id(const ln_node_t *node) {
+    return node->keys.pub;
+}
+
+
 /** short_channel_id取得
  *
  * @param[in]           self            channel情報
@@ -1302,6 +1321,7 @@ static inline void ln_short_channel_id_clr(ln_self_t *self) {
 /** アプリ用パラメータポインタ取得
  *
  * @param[in,out]       self            channel情報
+ * @return      アプリ用パラメータ(非const)
  */
 static inline void *ln_get_param(ln_self_t *self) {
     return self->p_param;
@@ -1350,46 +1370,39 @@ static inline uint32_t ln_funding_txindex(const ln_self_t *self) {
 
 /** 自ノードID取得
  *
+ * @param[in]           self            channel情報
+ * @return      自channelの自node_id
  */
 static inline const uint8_t *ln_our_node_id(const ln_self_t *self) {
-    return self->p_node->keys.pub;
+    return ln_node_id(self->p_node);
 }
 
 
 /** 他ノードID取得
  *
+ * @param[in]           self            channel情報
+ * @return      自channelの他node_id
  */
 static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
     return self->peer_node.node_id;
 }
 
 
-/**
+/** cltv_expiry_delta取得
  *
- */
-static inline ln_nodeaddr_t *ln_node_addr(ln_node_t *node) {
-    return &node->addr;
-}
-
-
-/**
- *
- */
-static inline const uint8_t *ln_node_id(const ln_node_t *node) {
-    return node->keys.pub;
-}
-
-
-/**
- *
+ * @param[in]           self            channel情報
+ * @return      cltv_expiry_delta
  */
 static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
     return self->cltv_expiry_delta;
 }
 
 
-/**
+/** 転送FEE計算
  *
+ * @param[in]           self            channel情報
+ * @param[in]           amount          転送amount_msat
+ * @return      転送FEE(msat)
  */
 static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
     return (uint64_t)self->fee_base_msat + (amount * (uint64_t)self->fee_prop_millionths / (uint64_t)1000000);
@@ -1435,6 +1448,7 @@ uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNo
 /** ONIONパケット生成
  *
  * @param[out]      pPacket             ONIONパケット[LN_SZ_ONION_ROUTE]
+ * @param[out]      pSecrets            全shared secret(#ln_onion_failure_read()用)
  * @param[in]       pHopData            HOPデータ
  * @param[in]       NumHops             pHopData数
  * @param[in]       pSessionKey         セッション鍵[UCOIN_SZ_PRIVKEY]
@@ -1450,16 +1464,37 @@ bool ln_onion_create_packet(uint8_t *pPacket,
             const uint8_t *pAssocData, int AssocLen);
 
 
+/** ONION failureパケット生成
+ *
+ * @param[out]      pNextPacket         ONION failureパケット
+ * @param[in]       pSharedSecret       shared secret
+ * @param[in]       pReason             Failure Message(BOLT#4)
+ *
+ * @note
+ *      - https://github.com/nayuta-ueno/lightning-rfc/blob/master/04-onion-routing.md#failure-messages
+ */
 void ln_onion_failure_create(ucoin_buf_t *pNextPacket,
             const ucoin_buf_t *pSharedSecret,
-            const ucoin_buf_t *pFailureMsg);
+            const ucoin_buf_t *pReason);
 
 
+/** ONION failure転送パケット生成
+ *
+ * @param[out]      pNextPacket         ONION failure転送パケット
+ * @param[in]       pSharedSecret       shared secret
+ * @param[in]       pPacket             受信したONION failureパケット
+ */
 void ln_onion_failure_forward(ucoin_buf_t *pNextPacket,
             const ucoin_buf_t *pSharedSecret,
             const ucoin_buf_t *pPacket);
 
 
+/** ONION failureパケット解析
+ *
+ * @param[out]      pReason             Failure Message
+ * @param[in]       pSharedSecrets      ONIONパケット生成自の全shared secret(#ln_onion_create_packet())
+ * @param[in]       pPacket             受信したONION failureパケット
+ */
 bool ln_onion_failure_read(ucoin_buf_t *pReason,
             const ucoin_buf_t *pSharedSecrets,
             const ucoin_buf_t *pPacket);

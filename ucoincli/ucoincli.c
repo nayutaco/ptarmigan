@@ -32,6 +32,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "jansson.h"
 
 #include "ucoind.h"
 #include "conf.h"
@@ -160,12 +161,30 @@ int main(int argc, char *argv[])
                 options = M_OPTIONS_HELP;
             }
             break;
+        case 'p':
+            //payment
+            if (options == M_OPTIONS_INIT) {
+                payment_conf_t payconf;
+                bool bret = load_payment_conf(optarg, &payconf);
+                if (bret) {
+                    mCmd = DCMD_PAYMENT;
+                    payment_rpc(mBuf, &payconf);
+                    options = M_OPTIONS_EXEC;
+                } else {
+                    printf("fail: payment configuration file\n");
+                    options = M_OPTIONS_HELP;
+                }
+            } else {
+                printf("-f need -c option before\n");
+                options = M_OPTIONS_HELP;
+            }
+            break;
 
         //
         // -c必要
         //
         case 'c':
-            //接続先(c,f,p共通)
+            //接続先(c,f共通)
             if (options > M_OPTIONS_CONN) {
                 peer_conf_t peer;
                 bool bret = load_peer_conf(optarg, &peer);
@@ -196,24 +215,6 @@ int main(int argc, char *argv[])
                     options = M_OPTIONS_EXEC;
                 } else {
                     printf("fail: funding configuration file\n");
-                    options = M_OPTIONS_HELP;
-                }
-            } else {
-                printf("-f need -c option before\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'p':
-            //payment
-            if (options == M_OPTIONS_CONN) {
-                payment_conf_t payconf;
-                bool bret = load_payment_conf(optarg, &payconf);
-                if (bret) {
-                    mCmd = DCMD_PAYMENT;
-                    payment_rpc(mBuf, &payconf);
-                    options = M_OPTIONS_EXEC;
-                } else {
-                    printf("fail: payment configuration file\n");
                     options = M_OPTIONS_HELP;
                 }
             } else {
@@ -253,6 +254,7 @@ int main(int argc, char *argv[])
         printf("[usage]\n");
         printf("\t%s <options> <port>\n", argv[0]);
         printf("\t\t-h : help\n");
+        printf("\t\t-t : test(not send)\n");
         printf("\t\t-q : quit ucoind\n");
         printf("\t\t-l : list channels\n");
         printf("\t\t-i : add preimage, and show payment_hash\n");
@@ -270,11 +272,11 @@ int main(int argc, char *argv[])
 
     uint16_t port = (uint16_t)atoi(argv[optind]);
 
-    msg_send(mBuf, port, b_send);
+    int ret = msg_send(mBuf, port, b_send);
 
     ucoin_term();
 
-    return 0;
+    return ret;
 }
 
 
@@ -371,11 +373,8 @@ static void payment_rpc(char *pJson, const payment_conf_t *pPay)
         "{"
             M_STR("method", "pay") M_NEXT
             M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d,"
                 //payment_hash, hop_num
                 M_QQ("%s") ",%d, [\n",
-            mPeerNodeId, mPeerAddr, mPeerPort,
             payhash, pPay->hop_num);
 
     for (int lp = 0; lp < pPay->hop_num; lp++) {
@@ -435,8 +434,21 @@ static int msg_send(char *pMsg, uint16_t Port, bool bSend)
         write(sock, pMsg, strlen(pMsg));
         ssize_t len = read(sock, pMsg, BUFFER_SIZE);
         if (len > 0) {
+            retval = -1;
             pMsg[len] = '\0';
             printf("%s\n", pMsg);
+
+            json_t *p_root;
+            json_error_t error;
+            p_root = json_loads(pMsg, 0, &error);
+            if (p_root) {
+                json_t *p_result;
+                p_result = json_object_get(p_root, "result");
+                if (p_result) {
+                    //戻り値正常
+                    retval = 0;
+                }
+            }
         }
         close(sock);
     } else {

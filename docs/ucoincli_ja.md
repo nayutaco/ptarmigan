@@ -18,9 +18,9 @@ ucoincli
 `-l` : list channels  
 `-i [amount]` : add invoice  
 `-m` : list invoices  
+`-p [pay config file]`  : payment(need connected)  
 `-c [peer config file]` : connect another node  
 `-f [fund config file]` : open channel(need `-c` option)  
-`-p [pay config file]`  : payment(need `-c` option)  
 `-x` : close channel(need `-c` option)
 
 

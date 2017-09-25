@@ -581,12 +581,16 @@ int main(int argc, char* argv[])
 
 #ifndef M_NO_GRAPH
     //////////////////////////////////////////////////////////////
+    // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp
     std::ofstream dot_file("routing.dot");
 
     dot_file << "digraph D {\n"
-             << "  rankdir=LR\n"
-             << "  ratio=\"fill\"\n"
-             << "  edge[style=\"bold\"]\n" << "  node[shape=\"circle\"]\n";
+             //<< "  rankdir=LR\n"
+             //<< "  ratio=\"fill\"\n"
+             << "  graph[layout=circo];\n"
+             //<< "  edge[style=\"bold\"];\n"
+             << "  node[style=\"solid,filled\", fillcolor=\"#8080ff\"];\n"
+             ;
 
     graph_traits < graph_t >::edge_iterator ei, ei_end;
     for (boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
@@ -615,14 +619,24 @@ int main(int argc, char* argv[])
             }
             strcat(node1, "\"");
             strcat(node2, "\"");
-            dot_file << node1 << " -> " << node2
-                        << "[label=\""
-                        << std::hex << g[e].short_channel_id << std::dec << ","
-                        << g[e].fee_base_msat << ","
-                        << g[e].fee_prop_millionths << ","
-                        << g[e].cltv_expiry_delta << "\"";
-            dot_file << ", color=\"black\"";
-            dot_file << "]" << std::endl;
+            int col = memcmp(p_node1, p_node2, UCOIN_SZ_PUBKEY);
+            if (col > 0) {
+                dot_file << node1 << " -> " << node2
+                        << "["
+                        << "label=\""
+                        << std::hex << g[e].short_channel_id << std::dec
+                        //<< ","
+                        //<< g[e].fee_base_msat
+                        //<< ","
+                        //<< g[e].fee_prop_millionths
+                        //<< ","
+                        //<< g[e].cltv_expiry_delta
+                        << "\""
+                        << ", color=\"black\""
+                        << ", fontcolor=\"#804040\""
+                        << ", arrowhead=\"none\""
+                        << "]" << std::endl;
+            }
         }
     }
     dot_file << "}";

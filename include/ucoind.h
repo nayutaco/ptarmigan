@@ -68,6 +68,9 @@ static inline int tid() {
 #define RPCERR_CONNECT      (-20005)
 #define RPCERR_CONNECT_STR  "connect"
 
+#define RPCERR_INVOICE_FULL     (-21000)
+#define RPCERR_INVOICE_FULL_STR "invoice full"
+
 #define RPCERR_CLOSE_HTLC       (-25000)
 #define RPCERR_CLOSE_HTLC_STR   "remain HTLC"
 #define RPCERR_PAY_STOP         (-26000)

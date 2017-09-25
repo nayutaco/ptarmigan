@@ -567,11 +567,16 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
         char str_hash[LN_SZ_HASH * 2 + 1];
         misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+        DBG_PRINTF("preimage[%d]=", lp)
+        DUMPBIN(mPreimage[lp].preimage, LN_SZ_PREIMAGE);
+        DBG_PRINTF("hash=")
+        DUMPBIN(preimage_hash, LN_SZ_HASH);
         cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
         cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(mPreimage[lp].amount));
     } else {
         SYSLOG_ERR("%s(): no empty place", __func__);
-        fprintf(PRINTOUT, "fail: no empty place\n");
+        ctx->error_code = RPCERR_INVOICE_FULL;
+        ctx->error_message = strdup(RPCERR_INVOICE_FULL_STR);
     }
     pthread_mutex_unlock(&mMuxPreimage);
 
@@ -631,19 +636,12 @@ LABEL_EXIT:
 static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     cJSON *json;
-    daemon_connect_t conn;
     payment_conf_t payconf;
     cJSON *result = NULL;
     int index = 0;
 
     if (params == NULL) {
         index = -1;
-        goto LABEL_EXIT;
-    }
-
-    //connect parameter
-    index = json_connect(params, index, &conn);
-    if (index < 0) {
         goto LABEL_EXIT;
     }
 
@@ -734,7 +732,15 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     lnapp_conf_t *p_appconf = search_connected_lnapp(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
-        bool ret = lnapp_payment(p_appconf, &payconf);
+        bool ret;
+        for (int lp = 0; lp < 5; lp++) {
+            ret = lnapp_payment(p_appconf, &payconf);
+            if (ret) {
+                break;
+            }
+            DBG_PRINTF("retry[%d]...\n", lp);
+            sleep(1);
+        }
         if (ret) {
             result = cJSON_CreateString("OK");
         } else {
