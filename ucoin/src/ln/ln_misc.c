@@ -282,6 +282,8 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
     //  remote revocation_basepoint と local per_commitment_point
     ln_derkey_revocationkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 pRemote->pubkeys[MSG_FUNDIDX_REVOCATION], pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
+
+    ln_print_keys(PRINTOUT, pLocal, pRemote);
 }
 
 

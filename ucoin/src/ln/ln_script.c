@@ -389,6 +389,8 @@ bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t 
         }
     }
 
+    DBG_PRINTF("pCmt->obscured=%" PRIx64 "\n", pCmt->obscured);
+
     //input
     ucoin_vin_t *vin = ucoin_tx_add_vin(pTx, pCmt->fund.txid, pCmt->fund.txid_index);
     vin->sequence = LN_SEQUENCE(pCmt->obscured);

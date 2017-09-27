@@ -39,6 +39,13 @@ typedef enum {
 } recv_proc_t;
 
 
+typedef struct queue_fulfill_t {
+    uint64_t        id;
+    uint8_t         preimage[LN_SZ_PREIMAGE];
+    struct queue_fulfill_t  *p_next;
+} queue_fulfill_t;
+
+
 /** @struct lnapp_conf_t
  *  @brief  アプリ側のチャネル管理情報
  */
@@ -66,12 +73,13 @@ typedef struct {
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     int32_t         funding_confirm;        ///< funding_txのconfirmation数
     uint32_t        funding_min_depth;
-    uint8_t         flag_ack;               ///< commitment_signed/revoke_and_ackフラグ
+    uint8_t         flag_ope;               ///< normal operation中フラグ
 
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
     pthread_mutex_t mux_proc;       ///< 処理中のmutex
     pthread_mutex_t mux_send;       ///< socket送信中のmutex
+    pthread_mutex_t mux_fulque;     ///< update_fulfill_htlcキュー用mutex
 
     //他スレッドからの転送処理要求
     uint8_t         fwd_proc_rpnt;  ///< fwd_procの読込み位置
@@ -81,6 +89,10 @@ typedef struct {
         uint16_t    len;            ///< p_data長
         void        *p_data;        ///< mallocで確保
     } fwd_proc[APP_FWD_PROC_MAX];
+
+    //fulfillキュー
+    queue_fulfill_t     *p_fulfill_queue;
+
 } lnapp_conf_t;
 
 

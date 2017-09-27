@@ -1055,7 +1055,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         //bool p2wsh = (pTx->vin[lp].script.len == 35) &&
         //             (pTx->vin[lp].script.buf[1] == 0x00) && (pTx->vin[lp].script.buf[2] == 0x20);
         bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
-        fprintf(fp, "  sequence= %08x\n\n", pTx->vin[lp].sequence);
+        fprintf(fp, "  sequence= 0x%08x\n\n", pTx->vin[lp].sequence);
         for(uint8_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
             fprintf(fp, "  witness[%d][%d]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
@@ -1092,7 +1092,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
             fprintf(fp, "    (%s)\n", addr);
         }
     }
-    fprintf(fp, "\n locktime= %08x : ", pTx->locktime);
+    fprintf(fp, "\n locktime= 0x%08x : ", pTx->locktime);
     if (pTx->locktime < 500000000L) {
         //ブロック高
         fprintf(fp, "block height\n");
@@ -1170,7 +1170,7 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
                 len = *(pData + 1) | (*(pData + 2) << 8);
                 pData += 3;
             }
-            fprintf(fp, "%sOP_PUSHDATAx %02x ", INDENT, len);
+            fprintf(fp, "%sOP_PUSHDATAx 0x%02x ", INDENT, len);
             ucoin_util_dumpbin(fp, pData, len, true);
             pData += len;
         } else {

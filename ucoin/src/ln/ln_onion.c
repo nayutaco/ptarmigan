@@ -236,7 +236,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     bool ret;
 
     if (*pPacket != M_VERSION) {
-        DBG_PRINTF("fail: invalid version\n");
+        DBG_PRINTF("fail: invalid version : %02x\n", *pPacket);
         return false;
     }
 

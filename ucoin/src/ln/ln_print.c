@@ -380,11 +380,15 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
     ucoin_util_dumptxid(fp, pLocal->funding_txid);
     fprintf(fp, "\n");
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+        fprintf(fp, "%s pri: ", KEYS_STR[lp]);
+        ucoin_util_dumpbin(fp, pLocal->keys[lp].priv, UCOIN_SZ_PRIVKEY, true);
         fprintf(fp, "%s pub: ", KEYS_STR[lp]);
         ucoin_util_dumpbin(fp, pLocal->keys[lp].pub, UCOIN_SZ_PUBKEY, true);
     }
     fprintf(fp, "\n");
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
+        fprintf(fp, "%s pri: ", SCR_STR[lp]);
+        ucoin_util_dumpbin(fp, pLocal->scriptkeys[lp].priv, UCOIN_SZ_PRIVKEY, true);
         fprintf(fp, "%s pub: ", SCR_STR[lp]);
         ucoin_util_dumpbin(fp, pLocal->scriptkeys[lp].pub, UCOIN_SZ_PUBKEY, true);
     }
