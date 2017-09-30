@@ -96,9 +96,6 @@ Thunderbirdではない。
 
 
 ## BOLT#2 (\*1)
-### Channel Establishment
-* ほぼ実装できているつもり。
-
 
 ### Channel Close
 * FEEは相手と同じ値を即座に返している(実際は、FEEの認識が合うまで通信し合うようになっている)。

@@ -55,11 +55,12 @@
 #define M_DB_ANNO_NODE          "node_anno"
 
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-3)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-4)            ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
     -3 : ln_funding_remote_data_t変更
+    -4 : ln_funding_local_data_t, ln_funding_remote_data_t変更
  */
 
 

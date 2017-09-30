@@ -82,7 +82,7 @@
 //#define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
 #define M_MIN_DEPTH                     (1)
 
-#define M_ANNOSIGS_CONFIRM      (1)         ///< announcement_signaturesを送信するconfirmation
+#define M_ANNOSIGS_CONFIRM      (6)         ///< announcement_signaturesを送信するconfirmation
                                             //      BOLT仕様は6
 
 #define M_BLK_FEEESTIMATE       (6)         ///< estimatefeeのブロック数(2以上)

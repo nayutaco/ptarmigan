@@ -64,11 +64,13 @@ bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
     mbedtls_mpi_free(&bp);
 
 #ifdef M_DBG_PRINT
-    DBG_PRINTF2("SHA256(");
+    DBG_PRINTF("SHA256(per_commitment_point |+ basepoint)\n=> SHA256(");
     DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2(" || ");
+    DBG_PRINTF2(" |+ ");
     DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2(" ==> ");
     DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2("\n\n");
 #endif
 
     return ret == 0;
@@ -113,6 +115,16 @@ bool HIDDEN ln_derkey_privkey(uint8_t *pPrivKey,
     if (ret) {
         goto LABEL_EXIT;
     }
+
+#ifdef M_DBG_PRINT
+    DBG_PRINTF("(priv)SHA256(per_commitment_point |+ basepoint)\n=> SHA256(");
+    DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2(" |+ ");
+    DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2(" ==> (priv)");
+    DUMPBIN(pBaseSecret, UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF2("\n\n");
+#endif
 
 LABEL_EXIT:
     mbedtls_ecp_keypair_free(&keypair);
@@ -181,6 +193,16 @@ bool HIDDEN ln_derkey_revocationkey(uint8_t *pRevPubKey,
         goto LABEL_EXIT;
     }
     ret = mbedtls_ecp_point_write_binary(&keypair.grp, &S, MBEDTLS_ECP_PF_COMPRESSED, &sz, pRevPubKey, UCOIN_SZ_PUBKEY);
+
+#ifdef M_DBG_PRINT
+    DBG_PRINTF("SHA256(revocation_basepoint |x per_commitment_point)\n=> SHA256(");
+    DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2(" |x ");
+    DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2(" ==> ");
+    DUMPBIN(pRevPubKey, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2("\n\n");
+#endif
 
 LABEL_EXIT:
     mbedtls_ecp_keypair_free(&keypair);
@@ -256,6 +278,18 @@ bool HIDDEN ln_derkey_revocationprivkey(uint8_t *pRevPrivKey,
     if (ret) {
         goto LABEL_EXIT;
     }
+
+#ifdef M_DBG_PRINT
+    DBG_PRINTF("(priv)SHA256(revocation_basepoint |x per_commitment_point) x per_commitment_secret\n=>SHA256(");
+    DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2(" x ");
+    DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2(" x ");
+    DUMPBIN(pPerCommitSecret, UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF2(" ==> (priv)");
+    DUMPBIN(pRevPrivKey, UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF2("\n\n");
+#endif
 
 LABEL_EXIT:
     mbedtls_ecp_keypair_free(&keypair);

@@ -40,6 +40,25 @@
 #define M_OBSCURED_TX_LEN           (6)
 
 
+/********************************************************************
+ * prototypes
+ ********************************************************************/
+
+static void create_script_offered(ucoin_buf_t *pBuf,
+    const uint8_t *pLocalKey,
+    const uint8_t *pLocalRevoKey,
+    const uint8_t *pLocalPreImageHash160,
+    const uint8_t *pRemoteKey);
+
+
+static void create_script_received(ucoin_buf_t *pBuf,
+    const uint8_t *pLocalKey,
+    const uint8_t *pLocalRevoKey,
+    const uint8_t *pRemoteKey,
+    const uint8_t *pRemotePreImageHash160,
+    uint32_t RemoteExpiry);
+
+
 /**************************************************************************
  * public functions
  **************************************************************************/
@@ -93,93 +112,9 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
     ucoin_push_data(&wscript, pLocalDelayedKey, UCOIN_SZ_PUBKEY);
     ucoin_push_data(&wscript, UCOIN_OP_ENDIF UCOIN_OP_CHECKSIG, 2);
     ucoin_push_trim(&wscript);
-ucoin_print_script(pBuf->buf, pBuf->len);
-}
 
-
-void HIDDEN ln_create_script_offered(ucoin_buf_t *pBuf,
-                    const uint8_t *pLocalKey,
-                    const uint8_t *pLocalRevoKey,
-                    const uint8_t *pLocalPreImageHash160,
-                    const uint8_t *pRemoteKey)
-{
-    ucoin_push_t wscript;
-    uint8_t h160[UCOIN_SZ_HASH160];
-
-    //offered HTLC script
-    //    OP_DUP OP_HASH160 <HASH160(remote revocationkey)> OP_EQUAL
-    //    OP_IF
-    //        OP_CHECKSIG
-    //    OP_ELSE
-    //        <remotekey> OP_SWAP OP_SIZE 32 OP_EQUAL
-    //        OP_NOTIF
-    //            # To me via HTLC-timeout transaction (timelocked).
-    //            OP_DROP 2 OP_SWAP <localkey> 2 OP_CHECKMULTISIG
-    //        OP_ELSE
-    //            # To you with preimage.
-    //            OP_HASH160 <RIPEMD160(payment-hash)> OP_EQUALVERIFY
-    //            OP_CHECKSIG
-    //        OP_ENDIF
-    //    OP_ENDIF
-    //
-    // payment-hash: payment-preimageをSHA256
-    ucoin_push_init(&wscript, pBuf, 133);
-    ucoin_push_data(&wscript, UCOIN_OP_DUP UCOIN_OP_HASH160 UCOIN_OP_SZ20, 3);
-    ucoin_util_hash160(h160, pLocalRevoKey, UCOIN_SZ_PUBKEY);
-    ucoin_push_data(&wscript, h160, UCOIN_SZ_HASH160);
-    ucoin_push_data(&wscript, UCOIN_OP_EQUAL UCOIN_OP_IF UCOIN_OP_CHECKSIG UCOIN_OP_ELSE UCOIN_OP_SZ_PUBKEY, 5);
-    ucoin_push_data(&wscript, pRemoteKey, UCOIN_SZ_PUBKEY);
-    ucoin_push_data(&wscript, UCOIN_OP_SWAP UCOIN_OP_SIZE UCOIN_OP_SZ1 UCOIN_OP_SZ32 UCOIN_OP_EQUAL UCOIN_OP_NOTIF UCOIN_OP_DROP UCOIN_OP_2 UCOIN_OP_SWAP UCOIN_OP_SZ_PUBKEY, 10);
-    ucoin_push_data(&wscript, pLocalKey, UCOIN_SZ_PUBKEY);
-    ucoin_push_data(&wscript, UCOIN_OP_2 UCOIN_OP_CHECKMULTISIG UCOIN_OP_ELSE UCOIN_OP_HASH160 UCOIN_OP_SZ20, 5);
-    ucoin_push_data(&wscript, pLocalPreImageHash160, UCOIN_SZ_HASH160);
-    ucoin_push_data(&wscript, UCOIN_OP_EQUALVERIFY UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 4);
-    ucoin_push_trim(&wscript);
-}
-
-
-void HIDDEN ln_create_script_received(ucoin_buf_t *pBuf,
-                    const uint8_t *pLocalKey,
-                    const uint8_t *pLocalRevoKey,
-                    const uint8_t *pRemoteKey,
-                    const uint8_t *pRemotePreImageHash160,
-                    uint32_t RemoteExpiry)
-{
-    ucoin_push_t wscript;
-    uint8_t h160[UCOIN_SZ_HASH160];
-
-    //received HTLC script
-    //    OP_DUP OP_HASH160 <HASH160(revocationkey)> OP_EQUAL
-    //    OP_IF
-    //        OP_CHECKSIG
-    //    OP_ELSE
-    //        <remotekey> OP_SWAP OP_SIZE 32 OP_EQUAL
-    //        OP_IF
-    //            # To me via HTLC-success transaction.
-    //            OP_HASH160 <RIPEMD160(payment-hash)> OP_EQUALVERIFY
-    //            2 OP_SWAP <localkey> 2 OP_CHECKMULTISIG
-    //        OP_ELSE
-    //            # To you after timeout.
-    //            OP_DROP <cltv_expiry> OP_CHECKLOCKTIMEVERIFY OP_DROP
-    //            OP_CHECKSIG
-    //        OP_ENDIF
-    //    OP_ENDIF
-    //
-    // payment-hash: payment-preimageをSHA256
-    ucoin_push_init(&wscript, pBuf, 138);
-    ucoin_push_data(&wscript, UCOIN_OP_DUP UCOIN_OP_HASH160 UCOIN_OP_SZ20, 3);
-    ucoin_util_hash160(h160, pLocalRevoKey, UCOIN_SZ_PUBKEY);
-    ucoin_push_data(&wscript, h160, UCOIN_SZ_HASH160);
-    ucoin_push_data(&wscript, UCOIN_OP_EQUAL UCOIN_OP_IF UCOIN_OP_CHECKSIG UCOIN_OP_ELSE UCOIN_OP_SZ_PUBKEY, 5);
-    ucoin_push_data(&wscript, pRemoteKey, UCOIN_SZ_PUBKEY);
-    ucoin_push_data(&wscript, UCOIN_OP_SWAP UCOIN_OP_SIZE UCOIN_OP_SZ1 UCOIN_OP_SZ32 UCOIN_OP_EQUAL UCOIN_OP_IF UCOIN_OP_HASH160 UCOIN_OP_SZ20, 8);
-    ucoin_push_data(&wscript, pRemotePreImageHash160, UCOIN_SZ_HASH160);
-    ucoin_push_data(&wscript, UCOIN_OP_EQUALVERIFY UCOIN_OP_2 UCOIN_OP_SWAP UCOIN_OP_SZ_PUBKEY, 4);
-    ucoin_push_data(&wscript, pLocalKey, UCOIN_SZ_PUBKEY);
-    ucoin_push_data(&wscript, UCOIN_OP_2 UCOIN_OP_CHECKMULTISIG UCOIN_OP_ELSE UCOIN_OP_DROP, 4);
-    ucoin_push_value(&wscript, RemoteExpiry);
-    ucoin_push_data(&wscript, UCOIN_OP_CLTV UCOIN_OP_DROP UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 5);
-    ucoin_push_trim(&wscript);
+    DBG_PRINTF("script:\n");
+    ucoin_print_script(pBuf->buf, pBuf->len);
 }
 
 
@@ -274,7 +209,7 @@ void HIDDEN ln_create_htlcinfo(ln_htlcinfo_t **ppHtlcInfo, int Num,
         switch (ppHtlcInfo[lp]->type) {
         case LN_HTLCTYPE_OFFERED:
             //offered
-            ln_create_script_offered(&ppHtlcInfo[lp]->script,
+            create_script_offered(&ppHtlcInfo[lp]->script,
                         pLocalKey,
                         pLocalRevoKey,
                         hash160,
@@ -282,7 +217,7 @@ void HIDDEN ln_create_htlcinfo(ln_htlcinfo_t **ppHtlcInfo, int Num,
             break;
         case LN_HTLCTYPE_RECEIVED:
             //received
-            ln_create_script_received(&ppHtlcInfo[lp]->script,
+            create_script_received(&ppHtlcInfo[lp]->script,
                         pLocalKey,
                         pLocalRevoKey,
                         pRemoteKey,
@@ -345,7 +280,9 @@ bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t 
     //output
     //  P2WPKH - remote
     if (pCmt->remote.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_remote) {
-        DBG_PRINTF("  add remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCmt->remote.satoshi, fee_remote);
+        DBG_PRINTF("  add P2WPKH remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCmt->remote.satoshi, fee_remote);
+        DBG_PRINTF2("    remote.pubkey: ");
+        DUMPBIN(pCmt->remote.pubkey, UCOIN_SZ_PUBKEY);
         ucoin_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
         pTx->vout[pTx->vout_cnt - 1].opt = VOUT_OPT_NONE;
     } else {
@@ -447,8 +384,14 @@ bool HIDDEN ln_sign_p2wsh_success_timeout(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSi
 
     //vinは1つしかないので、Indexは0固定
     ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
+
     DBG_PRINTF("sighash: ");
     DUMPBIN(sighash, UCOIN_SZ_SIGHASH);
+    DBG_PRINTF("pubkey: ");
+    DUMPBIN(pKeys->pub, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("wscript: ");
+    DUMPBIN(pWitScript->buf, pWitScript->len);
+
     ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
     if (ret) {
         // 0
@@ -518,11 +461,139 @@ bool HIDDEN ln_verify_p2wsh_success_timeout(ucoin_tx_t *pTx,
     if (pLocalPubKey && pLocalSig) {
         ret = ucoin_tx_verify(pLocalSig, sighash, pLocalPubKey);
         DBG_PRINTF("ucoin_tx_verify(local)=%d\n", ret);
+        DBG_PRINTF("localkey: ");
+        DUMPBIN(pLocalPubKey, UCOIN_SZ_PUBKEY);
     }
     if (ret) {
         ret = ucoin_tx_verify(pRemoteSig, sighash, pRemotePubKey);
         DBG_PRINTF("ucoin_tx_verify(remote)=%d\n", ret);
+        DBG_PRINTF("remotekey: ");
+        DUMPBIN(pRemotePubKey, UCOIN_SZ_PUBKEY);
     }
 
+    DBG_PRINTF("wscript: ");
+    DUMPBIN(pWitScript->buf, pWitScript->len);
+
     return ret;
+}
+
+
+/********************************************************************
+ * private functions
+ ********************************************************************/
+
+/** Offered HTLCスクリプト作成
+ *
+ * @param[out]      pBuf                    生成したスクリプト
+ * @param[in]       pLocalKey               LocalKey[33]
+ * @param[in]       pLocalRevoKey           Local RevocationKey[33]
+ * @param[in]       pLocalPreImageHash160   Local payment-preimage-hash[20]
+ * @param[in]       pRemoteKey              RemoteKey[33]
+ *
+ * @note
+ *      - 相手署名計算時は、LocalとRemoteを入れ替える
+ */
+static void create_script_offered(ucoin_buf_t *pBuf,
+                    const uint8_t *pLocalKey,
+                    const uint8_t *pLocalRevoKey,
+                    const uint8_t *pLocalPreImageHash160,
+                    const uint8_t *pRemoteKey)
+{
+    ucoin_push_t wscript;
+    uint8_t h160[UCOIN_SZ_HASH160];
+
+    //offered HTLC script
+    //    OP_DUP OP_HASH160 <HASH160(remote revocationkey)> OP_EQUAL
+    //    OP_IF
+    //        OP_CHECKSIG
+    //    OP_ELSE
+    //        <remotekey> OP_SWAP OP_SIZE 32 OP_EQUAL
+    //        OP_NOTIF
+    //            # To me via HTLC-timeout transaction (timelocked).
+    //            OP_DROP 2 OP_SWAP <localkey> 2 OP_CHECKMULTISIG
+    //        OP_ELSE
+    //            # To you with preimage.
+    //            OP_HASH160 <RIPEMD160(payment-hash)> OP_EQUALVERIFY
+    //            OP_CHECKSIG
+    //        OP_ENDIF
+    //    OP_ENDIF
+    //
+    // payment-hash: payment-preimageをSHA256
+    ucoin_push_init(&wscript, pBuf, 133);
+    ucoin_push_data(&wscript, UCOIN_OP_DUP UCOIN_OP_HASH160 UCOIN_OP_SZ20, 3);
+    ucoin_util_hash160(h160, pLocalRevoKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, h160, UCOIN_SZ_HASH160);
+    ucoin_push_data(&wscript, UCOIN_OP_EQUAL UCOIN_OP_IF UCOIN_OP_CHECKSIG UCOIN_OP_ELSE UCOIN_OP_SZ_PUBKEY, 5);
+    ucoin_push_data(&wscript, pRemoteKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, UCOIN_OP_SWAP UCOIN_OP_SIZE UCOIN_OP_SZ1 UCOIN_OP_SZ32 UCOIN_OP_EQUAL UCOIN_OP_NOTIF UCOIN_OP_DROP UCOIN_OP_2 UCOIN_OP_SWAP UCOIN_OP_SZ_PUBKEY, 10);
+    ucoin_push_data(&wscript, pLocalKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, UCOIN_OP_2 UCOIN_OP_CHECKMULTISIG UCOIN_OP_ELSE UCOIN_OP_HASH160 UCOIN_OP_SZ20, 5);
+    ucoin_push_data(&wscript, pLocalPreImageHash160, UCOIN_SZ_HASH160);
+    ucoin_push_data(&wscript, UCOIN_OP_EQUALVERIFY UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 4);
+    ucoin_push_trim(&wscript);
+
+    DBG_PRINTF("script:\n");
+    ucoin_print_script(pBuf->buf, pBuf->len);
+}
+
+
+/** Received HTLCスクリプト作成
+ *
+ * @param[out]      pBuf                    生成したスクリプト
+ * @param[in]       pLocalKey               LocalKey[33]
+ * @param[in]       pLocalRevoKey           Local RevocationKey[33]
+ * @param[in]       pRemoteKey              RemoteKey[33]
+ * @param[in]       pRemotePreImageHash160  Remote payment-preimage-hash[20]
+ * @param[in]       RemoteExpiry            Expiry
+ *
+ * @note
+ *      - 相手署名計算時は、LocalとRemoteを入れ替える
+ */
+static void create_script_received(ucoin_buf_t *pBuf,
+                    const uint8_t *pLocalKey,
+                    const uint8_t *pLocalRevoKey,
+                    const uint8_t *pRemoteKey,
+                    const uint8_t *pRemotePreImageHash160,
+                    uint32_t RemoteExpiry)
+{
+    ucoin_push_t wscript;
+    uint8_t h160[UCOIN_SZ_HASH160];
+
+    //received HTLC script
+    //    OP_DUP OP_HASH160 <HASH160(revocationkey)> OP_EQUAL
+    //    OP_IF
+    //        OP_CHECKSIG
+    //    OP_ELSE
+    //        <remotekey> OP_SWAP OP_SIZE 32 OP_EQUAL
+    //        OP_IF
+    //            # To me via HTLC-success transaction.
+    //            OP_HASH160 <RIPEMD160(payment-hash)> OP_EQUALVERIFY
+    //            2 OP_SWAP <localkey> 2 OP_CHECKMULTISIG
+    //        OP_ELSE
+    //            # To you after timeout.
+    //            OP_DROP <cltv_expiry> OP_CHECKLOCKTIMEVERIFY OP_DROP
+    //            OP_CHECKSIG
+    //        OP_ENDIF
+    //    OP_ENDIF
+    //
+    // payment-hash: payment-preimageをSHA256
+    ucoin_push_init(&wscript, pBuf, 138);
+    ucoin_push_data(&wscript, UCOIN_OP_DUP UCOIN_OP_HASH160 UCOIN_OP_SZ20, 3);
+    ucoin_util_hash160(h160, pLocalRevoKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, h160, UCOIN_SZ_HASH160);
+    ucoin_push_data(&wscript, UCOIN_OP_EQUAL UCOIN_OP_IF UCOIN_OP_CHECKSIG UCOIN_OP_ELSE UCOIN_OP_SZ_PUBKEY, 5);
+    ucoin_push_data(&wscript, pRemoteKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, UCOIN_OP_SWAP UCOIN_OP_SIZE UCOIN_OP_SZ1 UCOIN_OP_SZ32 UCOIN_OP_EQUAL UCOIN_OP_IF UCOIN_OP_HASH160 UCOIN_OP_SZ20, 8);
+    ucoin_push_data(&wscript, pRemotePreImageHash160, UCOIN_SZ_HASH160);
+    ucoin_push_data(&wscript, UCOIN_OP_EQUALVERIFY UCOIN_OP_2 UCOIN_OP_SWAP UCOIN_OP_SZ_PUBKEY, 4);
+    ucoin_push_data(&wscript, pLocalKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, UCOIN_OP_2 UCOIN_OP_CHECKMULTISIG UCOIN_OP_ELSE UCOIN_OP_DROP, 4);
+    ucoin_push_value(&wscript, RemoteExpiry);
+    ucoin_push_data(&wscript, UCOIN_OP_CLTV UCOIN_OP_DROP UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 5);
+    ucoin_push_trim(&wscript);
+
+    DBG_PRINTF("script:\n");
+    ucoin_print_script(pBuf->buf, pBuf->len);
+    DBG_PRINTF("revocation=");
+    DUMPBIN(pLocalRevoKey, UCOIN_SZ_PUBKEY);
 }

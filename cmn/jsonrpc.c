@@ -75,7 +75,7 @@ static bool sendrawtransaction_rpc(char *pJson, const char *pTransaction);
 static bool gettxout_rpc(char *pJson, const char *pTxid, int idx);
 static bool getblock_rpc(char *pJson, const char *pBlock);
 static bool getblockhash_rpc(char *pJson, int BHeight);
-//static bool getblockcount_rpc(char *pJson);
+static bool getblockcount_rpc(char *pJson);
 static bool getnewaddress_rpc(char *pJson);
 static bool estimatefee_rpc(char *pJson, int nBlock);
 static bool dumpprivkey_rpc(char *pJson, const char *pAddr);
@@ -111,7 +111,6 @@ void jsonrpc_term(void)
 }
 
 
-#if 0
 int jsonrpc_getblockcount(void)
 {
     bool retval;
@@ -153,7 +152,6 @@ LABEL_EXIT:
 
     return blocks;
 }
-#endif
 
 
 bool jsonrpc_getblockhash(uint8_t *pHash, int Height)
@@ -914,7 +912,6 @@ static bool getblockhash_rpc(char *pJson, int BHeight)
 }
 
 
-#if 0
 /** [cURL]getblockcount
  *
  */
@@ -941,7 +938,6 @@ static bool getblockcount_rpc(char *pJson)
 
     return retval == 0;
 }
-#endif
 
 
 /** [cURL]getnewaddress

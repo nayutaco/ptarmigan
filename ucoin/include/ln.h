@@ -55,7 +55,7 @@ extern "C" {
 #define LN_SZ_LFLEN_MAX                 (4)         ///< init.lflen最大
 
 #define LN_FUNDIDX_MAX                  (5)         ///< 管理用
-#define LN_SCRIPTIDX_MAX                (3)         ///< 管理用
+#define LN_SCRIPTIDX_MAX                (4)         ///< 管理用
 #define LN_HTLC_MAX                     (6)         ///< 自分のHTLC数   TODO:暫定
                                                     //      max_accepted_htlcsとして使用する
                                                     //      相手の分も同じ分しか用意していない
@@ -815,7 +815,7 @@ typedef struct {
     //MSG_FUNDIDX_xxx
     ucoin_util_keys_t   keys[LN_FUNDIDX_MAX];
     //MSG_SCRIPTIDX_xxx
-    ucoin_util_keys_t   scriptkeys[LN_SCRIPTIDX_MAX];
+    uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][UCOIN_SZ_PUBKEY];   ///< script用PubKey
 } ln_funding_local_data_t;
 
 
@@ -827,7 +827,7 @@ typedef struct {
     uint8_t             pubkeys[LN_FUNDIDX_MAX][UCOIN_SZ_PUBKEY];   ///< 相手から受信した公開鍵
     uint8_t             prev_percommit[UCOIN_SZ_PUBKEY];            ///< 1つ前のper_commit_point
     //MSG_SCRIPTIDX_xxx
-    uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][UCOIN_SZ_PUBKEY];   ///< scriptPubKey
+    uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][UCOIN_SZ_PUBKEY];   ///< script用PubKey
 } ln_funding_remote_data_t;
 
 

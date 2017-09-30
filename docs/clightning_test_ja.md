@@ -46,15 +46,15 @@ c-lightning test
 ```
     $ ./ucoincli -c peer.conf -f node/fund.conf 8889
 ```
-10. [btc]block生成
+10. [btc]block生成1(bug:修正により不要となる)
 ```
     $ bitcoin-cli generate 1
+    (10秒ほど待つ)
 ```
 11. [btc]block生成2
 ```
-    (10秒ほど待つ)
     $ bitcoin-cli generate 6
-    (1分ほど待つ)
+    (channel_announcementが展開されるまで30秒ほど待つ)
 ```
 12. [cln]invoice作成
 ```

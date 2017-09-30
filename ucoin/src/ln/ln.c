@@ -56,7 +56,7 @@
 #define M_DFL_MAX_ACCEPTED_HTLC                 (LN_HTLC_MAX)
 #define M_DFL_MIN_DEPTH                         (5)
 
-#define M_DFL_CLTV_EXPILY_DELTA                 (1500)
+#define M_DFL_CLTV_EXPILY_DELTA                 (10)
 #define M_DFL_HTLC_MINIMUM_MSAT                 M_DFL_HTLC_MIN_MSAT
 #define M_DFL_FEE_BASE_MSAT                     (10000)
 #define M_DFL_FEE_PROP_MILLIONTHS               (5000)
@@ -2632,7 +2632,7 @@ static bool create_to_local(ln_self_t *self,
     //To-Local
     ln_create_script_local(&buf_ws,
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                self->funding_local.scriptkeys[MSG_SCRIPTIDX_DELAYED].pub,
+                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 to_self_delay);
 
     //HTLC
@@ -2679,9 +2679,9 @@ static bool create_to_local(ln_self_t *self,
 
     //scriptPubKey作成
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
-                            self->funding_local.scriptkeys[MSG_SCRIPTIDX_KEY].pub,
-                            self->funding_local.scriptkeys[MSG_SCRIPTIDX_REVOCATION].pub,
-                            self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED]);
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],    //localkey
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],   //revocationkey
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_KEY]);          //remotekey
 
     //commitment transaction
     lntx_commit.fund.txid = self->funding_local.funding_txid;
@@ -2692,7 +2692,7 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(self->our_msat + local_add);
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->their_msat + remote_add);
-    lntx_commit.remote.pubkey = self->funding_local.scriptkeys[MSG_SCRIPTIDX_KEY].pub;
+    lntx_commit.remote.pubkey = self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_KEY];
     lntx_commit.obscured = self->obscured ^ self->commit_num;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
@@ -2715,7 +2715,7 @@ static bool create_to_local(ln_self_t *self,
         ucoin_tx_t tx;
         ucoin_buf_t buf_sig;
 
-        ucoin_buf_free(&buf_ws);
+        //ucoin_buf_free(&buf_ws);
         ucoin_buf_init(&buf_remotesig);
         ucoin_buf_init(&buf_sig);
         ucoin_tx_init(&tx);
@@ -2732,15 +2732,15 @@ static bool create_to_local(ln_self_t *self,
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_local.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
                     //スクリプトはHTLC-TimeoutもSuccessも同じ(To-Localも)
-                    ln_create_script_timeout(&buf_ws,
-                                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
-                                    self->funding_local.keys[MSG_FUNDIDX_DELAYED_PAYMENT].pub,
-                                    pp_htlcinfo[htlc_idx]->expiry);
+                    //ln_create_script_timeout(&buf_ws,
+                    //                self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
+                    //                self->funding_local.keys[MSG_FUNDIDX_DELAYED].pub,
+                    //                to_self_delay);
 
-#ifdef UCOIN_USE_PRINTFUNC
-                    DBG_PRINTF("HTLC script:\n");
-                    ucoin_print_script(buf_ws.buf, buf_ws.len);
-#endif  //UCOIN_USE_PRINTFUNC
+//#ifdef UCOIN_USE_PRINTFUNC
+//                    DBG_PRINTF("HTLC script:\n");
+//                    ucoin_print_script(buf_ws.buf, buf_ws.len);
+//#endif  //UCOIN_USE_PRINTFUNC
 
                     //vout
                     ret = ucoin_sw_add_vout_p2wsh(&tx,
@@ -2749,28 +2749,26 @@ static bool create_to_local(ln_self_t *self,
                         DBG_PRINTF("fail: ucoin_sw_add_vout_p2wsh\n");
                         break;
                     }
-
-                    //ln_sign_p2wsh_success_timeout()用
                     tx.vout[tx.vout_cnt - 1].opt = pp_htlcinfo[htlc_idx]->type;
 
                     //vin
-                    ucoin_tx_add_vin(&tx, txid, vout_idx);
-
-#ifdef UCOIN_USE_PRINTFUNC
-                    DBG_PRINTF("\n++++++++++++++ HTLC検証: vout[%d]\n", vout_idx);
-                    ucoin_print_tx(&tx);
-#endif  //UCOIN_USE_PRINTFUNC
+                    ucoin_vin_t *vin = ucoin_tx_add_vin(&tx, txid, vout_idx);
+                    vin->sequence = 0;
 
                     //署名チェック
                     ln_misc_sigexpand(&buf_sig, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE);
                     ret = ln_verify_p2wsh_success_timeout(&tx,
                                 tx_local.vout[vout_idx].value,
                                 NULL,
-                                self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING],
+                                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_KEY],
                                 NULL,
                                 &buf_sig,
                                 pp_htlcinfo[htlc_idx]->expiry,
                                 &pp_htlcinfo[htlc_idx]->script);
+#ifdef UCOIN_USE_PRINTFUNC
+                    DBG_PRINTF("\n++++++++++++++ HTLC検証: vout[%d]\n", vout_idx);
+                    ucoin_print_tx(&tx);
+#endif  //UCOIN_USE_PRINTFUNC
                     if (!ret) {
                         DBG_PRINTF("fail: ln_verify_p2wsh_success_timeout\n");
                         break;
@@ -2785,7 +2783,7 @@ static bool create_to_local(ln_self_t *self,
 #endif  //UCOIN_USE_PRINTFUNC
 
                     ucoin_buf_free(&buf_sig);
-                    ucoin_buf_free(&buf_ws);
+                    //ucoin_buf_free(&buf_ws);
                     ucoin_tx_free(&tx);
                     htlc_num++;
 
@@ -2894,7 +2892,7 @@ static bool create_to_remote(ln_self_t *self,
 
     //To-Local(Remote)
     ln_create_script_local(&buf_ws,
-                self->funding_local.scriptkeys[MSG_SCRIPTIDX_REVOCATION].pub,
+                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 to_self_delay);
 
@@ -2938,9 +2936,9 @@ static bool create_to_remote(ln_self_t *self,
 
     //scriptPubKey作成(Remote)
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_KEY],
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                        self->funding_local.scriptkeys[MSG_SCRIPTIDX_DELAYED].pub);
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],   //localkey
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],    //revocationkey
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_KEY]);         //remotekey
 
     //commitment transaction(Remote)
     lntx_commit.fund.txid = self->funding_local.funding_txid;
@@ -2978,7 +2976,7 @@ static bool create_to_remote(ln_self_t *self,
         ucoin_tx_t tx;
         ucoin_buf_t buf_sig;
 
-        ucoin_buf_free(&buf_ws);
+        //ucoin_buf_free(&buf_ws);
         ucoin_buf_init(&buf_remotesig);
         ucoin_buf_init(&buf_sig);
         ucoin_tx_init(&tx);
@@ -2988,6 +2986,15 @@ static bool create_to_remote(ln_self_t *self,
             return false;
         }
         ln_misc_sigexpand(&buf_remotesig, self->commit_remote.signature);
+
+        //署名用鍵
+        //  remoteでは、other_remotekey(= other payment_basetpoint & local per_commitment_point)でverifyしているので、
+        //  それに対応する秘密鍵(= local payment_secret & other per_commitment_point)を作成する
+        ucoin_util_keys_t remotekey;
+        ln_derkey_privkey(remotekey.priv,
+                    self->funding_local.keys[MSG_FUNDIDX_PAYMENT].pub, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+                    self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
+        ucoin_keys_priv2pub(remotekey.pub, remotekey.priv);
 
         int htlc_num = 0;
         for (int vout_idx = 0; vout_idx < tx_remote.vout_cnt; vout_idx++) {
@@ -2999,14 +3006,14 @@ static bool create_to_remote(ln_self_t *self,
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_remote.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
                     //スクリプトはHTLC-TimeoutもSuccessも同じ(To-Localも)
-                    ln_create_script_timeout(&buf_ws,
-                                    self->funding_remote.pubkeys[MSG_FUNDIDX_REVOCATION],
-                                    self->funding_remote.pubkeys[MSG_FUNDIDX_DELAYED_PAYMENT],
-                                    pp_htlcinfo[htlc_idx]->expiry);
-#ifdef UCOIN_USE_PRINTFUNC
-                    DBG_PRINTF("HTLC script:\n");
-                    ucoin_print_script(buf_ws.buf, buf_ws.len);
-#endif  //UCOIN_USE_PRINTFUNC
+                    //ln_create_script_timeout(&buf_ws,
+                    //                self->funding_remote.pubkeys[MSG_FUNDIDX_REVOCATION],
+                    //                self->funding_remote.pubkeys[MSG_FUNDIDX_DELAYED],
+                    //                pp_htlcinfo[htlc_idx]->expiry);
+//#ifdef UCOIN_USE_PRINTFUNC
+//                    DBG_PRINTF("HTLC script:\n");
+//                    ucoin_print_script(buf_ws.buf, buf_ws.len);
+//#endif  //UCOIN_USE_PRINTFUNC
 
                     //vout
                     ret = ucoin_sw_add_vout_p2wsh(&tx,
@@ -3015,8 +3022,6 @@ static bool create_to_remote(ln_self_t *self,
                         DBG_PRINTF("fail: ucoin_sw_add_vout_p2wsh\n");
                         break;
                     }
-
-                    //ln_sign_p2wsh_success_timeout()用
                     tx.vout[tx.vout_cnt - 1].opt = pp_htlcinfo[htlc_idx]->type;
 
                     //vin
@@ -3025,7 +3030,7 @@ static bool create_to_remote(ln_self_t *self,
                     //署名
                     ret = ln_sign_p2wsh_success_timeout(&tx, &buf_sig,
                                 tx_remote.vout[vout_idx].value,
-                                &self->funding_local.keys[MSG_FUNDIDX_FUNDING],
+                                &remotekey,
                                 &buf_remotesig,
                                 NULL,
                                 pp_htlcinfo[htlc_idx]->expiry,
@@ -3045,7 +3050,7 @@ static bool create_to_remote(ln_self_t *self,
                     DUMPBIN(buf_sig.buf, buf_sig.len);
 
                     ucoin_buf_free(&buf_sig);
-                    ucoin_buf_free(&buf_ws);
+                    //ucoin_buf_free(&buf_ws);
                     ucoin_tx_free(&tx);
 
                     htlc_num++;
@@ -3194,7 +3199,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
 static bool create_channelkeys(ln_self_t *self)
 {
     //鍵生成
-    //  open_channel/accept_channelの鍵は保持しなくてよいため、ln_derkeyは使わない
+    //  open_channel/accept_channelの鍵は update_percommit_secret()で生成
     for (int lp = MSG_FUNDIDX_REVOCATION; lp < LN_FUNDIDX_MAX; lp++) {
         if (lp != MSG_FUNDIDX_PER_COMMIT) {
             do {
@@ -3203,6 +3208,8 @@ static bool create_channelkeys(ln_self_t *self)
             ucoin_keys_priv2pub(self->funding_local.keys[lp].pub, self->funding_local.keys[lp].priv);
         }
     }
+    ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+
     update_percommit_secret(self);
 
     return true;

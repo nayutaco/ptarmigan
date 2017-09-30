@@ -238,50 +238,46 @@ void HIDDEN ln_misc_sigexpand(ucoin_buf_t *pSig, const uint8_t *pBuf)
 void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_remote_data_t *pRemote)
 {
     //localkey
-    //ln_derkey_privkey(pLocal->scriptkeys[MSG_SCRIPTIDX_KEY].priv,
-    //            pLocal->keys[MSG_FUNDIDX_PAYMENT].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub,
-    //            pLocal->keys[MSG_FUNDIDX_PAYMENT].priv);
-    //ucoin_keys_priv2pub(pLocal->scriptkeys[MSG_SCRIPTIDX_KEY].pub, pLocal->scriptkeys[MSG_SCRIPTIDX_KEY].priv);
-    memset(pLocal->scriptkeys[MSG_SCRIPTIDX_KEY].priv, 0, UCOIN_SZ_PRIVKEY);
-    //  remote payment と local per_commitment_point
-    ln_derkey_pubkey(pLocal->scriptkeys[MSG_SCRIPTIDX_KEY].pub,
+    DBG_PRINTF2("[other_localkey]local per_commitment_point & remote payment\n");
+    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_KEY],
                 pRemote->pubkeys[MSG_FUNDIDX_PAYMENT], pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
     //local delayedkey
-    //ln_derkey_privkey(pLocal->scriptkeys[MSG_SCRIPTIDX_DELAYED].priv,
-    //            pLocal->keys[MSG_FUNDIDX_DELAYED_PAYMENT].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub,
-    //            pLocal->keys[MSG_FUNDIDX_DELAYED_PAYMENT].priv);
-    //ucoin_keys_priv2pub(pLocal->scriptkeys[MSG_SCRIPTIDX_DELAYED].pub, pLocal->scriptkeys[MSG_SCRIPTIDX_DELAYED].priv);
-    memset(pLocal->scriptkeys[MSG_SCRIPTIDX_DELAYED].priv, 0, UCOIN_SZ_PRIVKEY);
-    //  local delayed_payment と local per_commitment_point
-    ln_derkey_pubkey(pLocal->scriptkeys[MSG_SCRIPTIDX_DELAYED].pub,
-                pLocal->keys[MSG_FUNDIDX_DELAYED_PAYMENT].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
+    DBG_PRINTF2("[local delayedkey]local per_commitment_point & local delayed_payment\n");
+    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
+                pLocal->keys[MSG_FUNDIDX_DELAYED].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
     //local revocationkey
-    //ln_derkey_revocationprivkey(pLocal->scriptkeys[MSG_SCRIPTIDX_REVOCATION].priv,
-    //            pLocal->keys[MSG_FUNDIDX_REVOCATION].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub,
-    //            pLocal->keys[MSG_FUNDIDX_REVOCATION].priv, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    //ucoin_keys_priv2pub(pLocal->scriptkeys[MSG_SCRIPTIDX_REVOCATION].pub, pLocal->scriptkeys[MSG_SCRIPTIDX_REVOCATION].priv);
-    memset(pLocal->scriptkeys[MSG_SCRIPTIDX_REVOCATION].priv, 0, UCOIN_SZ_PRIVKEY);
-    //  local revocation_basepoint と remote per_commitment_point
-    ln_derkey_revocationkey(pLocal->scriptkeys[MSG_SCRIPTIDX_REVOCATION].pub,
+    //  BOLT#3:
+    //      when a node wishes to create a new commitment for a remote node,
+    //          it uses its own revocation_basepoint and the remote node's per_commitment_point
+    DBG_PRINTF2("[local revocationkey]remote per_commitment_point & local revocation_basepoint\n");
+    ln_derkey_revocationkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 pLocal->keys[MSG_FUNDIDX_REVOCATION].pub, pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+
+    DBG_PRINTF2("[localkey]local per_commitment_point & local payment\n");
+    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],
+                pLocal->keys[MSG_FUNDIDX_PAYMENT].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
 
     //remotekey
-    //  local payment と remote per_commitment_point
+    DBG_PRINTF2("[other_remotekey]remote per_commitment_point & local payment\n");
     ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_KEY],
                 pLocal->keys[MSG_FUNDIDX_PAYMENT].pub, pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //remote delayedkey
-    //  remote delayed_payment と remote per_commitment_point
+    DBG_PRINTF2("[remote delayedkey]remote per_commitment_point & remote delayed_payment\n");
     ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
-                pRemote->pubkeys[MSG_FUNDIDX_DELAYED_PAYMENT], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+                pRemote->pubkeys[MSG_FUNDIDX_DELAYED], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //remote revocationkey
-    //  remote revocation_basepoint と local per_commitment_point
+    DBG_PRINTF2("[remote revocationkey]local per_commitment_point & remote revocation_basepoint\n");
     ln_derkey_revocationkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 pRemote->pubkeys[MSG_FUNDIDX_REVOCATION], pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
+
+    DBG_PRINTF2("[remotekey]remote per_commitment_point & remote payment\n");
+    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],
+                pRemote->pubkeys[MSG_FUNDIDX_PAYMENT], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     ln_print_keys(PRINTOUT, pLocal, pRemote);
 }

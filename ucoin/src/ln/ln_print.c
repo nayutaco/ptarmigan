@@ -46,11 +46,11 @@
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
 
-static const char *KEYS_STR[] = {
+static const char *KEYS_STR[LN_FUNDIDX_MAX] = {
     "key_funding", "key_revocation", "key_payment", "key_delayed", "key_per_commit"
 };
-static const char *SCR_STR[] = {
-    "script_key", "script_delayed", "script_revocation"
+static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
+    "script_otherkey", "script_delayed", "script_revocation", "script_key"
 };
 
 
@@ -104,11 +104,8 @@ void ln_print_self(const ln_self_t *self)
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
         fprintf(PRINTOUT, M_QQ("%s") ": ", SCR_STR[lp]);
         fprintf(PRINTOUT, "{");
-        fprintf(PRINTOUT, M_QQ("priv") ": \"");
-        ucoin_util_dumpbin(PRINTOUT, self->funding_local.scriptkeys[lp].priv, UCOIN_SZ_PRIVKEY, false);
-        fprintf(PRINTOUT, "\",");
         fprintf(PRINTOUT, M_QQ("pub") ": \"");
-        ucoin_util_dumpbin(PRINTOUT, self->funding_local.scriptkeys[lp].pub, UCOIN_SZ_PUBKEY, false);
+        ucoin_util_dumpbin(PRINTOUT, self->funding_local.scriptpubkeys[lp], UCOIN_SZ_PUBKEY, false);
         if (lp != LN_SCRIPTIDX_MAX - 1) {
             fprintf(PRINTOUT, "\"},\n");
         } else {
@@ -387,10 +384,8 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
     }
     fprintf(fp, "\n");
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
-        fprintf(fp, "%s pri: ", SCR_STR[lp]);
-        ucoin_util_dumpbin(fp, pLocal->scriptkeys[lp].priv, UCOIN_SZ_PRIVKEY, true);
         fprintf(fp, "%s pub: ", SCR_STR[lp]);
-        ucoin_util_dumpbin(fp, pLocal->scriptkeys[lp].pub, UCOIN_SZ_PUBKEY, true);
+        ucoin_util_dumpbin(fp, pLocal->scriptpubkeys[lp], UCOIN_SZ_PUBKEY, true);
     }
 
     fprintf(fp, "\n-[remote]---------------------------------------\n");
