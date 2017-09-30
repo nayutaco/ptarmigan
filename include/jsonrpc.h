@@ -41,14 +41,12 @@ void jsonrpc_init(const rpc_conf_t *pRpcConf);
 void jsonrpc_term(void);
 
 
-#if 0
 /** [bitcoin rpc]getblockcount
  *
  * @retval      -1以外      現在のblock count
  * @retval      -1          取得失敗
  */
 int jsonrpc_getblockcount(void);
-#endif
 
 
 /** [bitcoin rpc]blockhash取得

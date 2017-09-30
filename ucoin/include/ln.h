@@ -32,6 +32,7 @@
 #include <stdbool.h>
 
 #include "ucoin.h"
+#include "ln_err.h"
 
 
 #ifdef __cplusplus
@@ -54,7 +55,7 @@ extern "C" {
 #define LN_SZ_LFLEN_MAX                 (4)         ///< init.lflen最大
 
 #define LN_FUNDIDX_MAX                  (5)         ///< 管理用
-#define LN_SCRIPTIDX_MAX                (3)         ///< 管理用
+#define LN_SCRIPTIDX_MAX                (4)         ///< 管理用
 #define LN_HTLC_MAX                     (6)         ///< 自分のHTLC数   TODO:暫定
                                                     //      max_accepted_htlcsとして使用する
                                                     //      相手の分も同じ分しか用意していない
@@ -133,6 +134,7 @@ typedef enum {
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
     LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
     LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
+    LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
     LN_CB_CLOSED,               ///< closing_signed受信通知
@@ -813,7 +815,7 @@ typedef struct {
     //MSG_FUNDIDX_xxx
     ucoin_util_keys_t   keys[LN_FUNDIDX_MAX];
     //MSG_SCRIPTIDX_xxx
-    ucoin_util_keys_t   scriptkeys[LN_SCRIPTIDX_MAX];
+    uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][UCOIN_SZ_PUBKEY];   ///< script用PubKey
 } ln_funding_local_data_t;
 
 
@@ -823,8 +825,9 @@ typedef struct {
 typedef struct {
     //MSG_FUNDIDX_xxx
     uint8_t             pubkeys[LN_FUNDIDX_MAX][UCOIN_SZ_PUBKEY];   ///< 相手から受信した公開鍵
+    uint8_t             prev_percommit[UCOIN_SZ_PUBKEY];            ///< 1つ前のper_commit_point
     //MSG_SCRIPTIDX_xxx
-    uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][UCOIN_SZ_PUBKEY];   ///< scriptPubKey
+    uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][UCOIN_SZ_PUBKEY];   ///< script用PubKey
 } ln_funding_remote_data_t;
 
 
@@ -913,6 +916,7 @@ struct ln_self_t {
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< channel_id
     uint64_t                    short_channel_id;               ///< short_channel_id
 
+    //ping pong
     uint16_t                    missing_pong_cnt;               ///< ping送信に対してpongを受信しなかった回数
     uint16_t                    last_num_pong_bytes;            ///< 最後にping送信したlast_num_pong_bytes
 
@@ -923,9 +927,13 @@ struct ln_self_t {
     uint64_t                    funding_sat;                    ///< funding_msat
     uint32_t                    feerate_per_kw;                 ///< feerate_per_kw
 
+    //noise protocol
     ln_noise_t                  noise_send;                     ///< noise protocol
     ln_noise_t                  noise_recv;                     ///< noise protocol
     void                        *p_handshake;
+
+    //last error
+    int                         err;                            ///< error code(ln_err.h)
 
     //param
     void                        *p_param;                       ///< ユーザ用

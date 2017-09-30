@@ -37,12 +37,21 @@
 #define MSG_FUNDIDX_FUNDING             (0)         ///< commitment tx署名用
 #define MSG_FUNDIDX_REVOCATION          (1)         ///< revocation-basepoint生成用
 #define MSG_FUNDIDX_PAYMENT             (2)         ///< payment-basepoint生成用
-#define MSG_FUNDIDX_DELAYED_PAYMENT     (3)         ///< delayed-payment-basepoint生成用
+#define MSG_FUNDIDX_DELAYED             (3)         ///< delayed-payment-basepoint生成用
 #define MSG_FUNDIDX_PER_COMMIT          (4)         ///< per-commitment-point
+#define MSG_FUNDIDX_MAX                 (MSG_FUNDIDX_PER_COMMIT+1)
+#if LN_FUNDIDX_MAX != MSG_FUNDIDX_MAX
+#error LN_FUNDIDX_MAX != MSG_FUNDIDX_MAX
+#endif
 
 #define MSG_SCRIPTIDX_KEY               (0)         ///< [To-Remote]のP2WPKH
 #define MSG_SCRIPTIDX_DELAYED           (1)         ///< [To-Local]delayedkey
 #define MSG_SCRIPTIDX_REVOCATION        (2)         ///< [To-Local]revocation
+#define MSG_SCRIPTIDX_PAYMENTKEY        (3)         ///< Offered/Received HTLC
+#define MSG_SCRIPTIDX_MAX               (MSG_SCRIPTIDX_PAYMENTKEY+1)
+#if LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
+#error LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
+#endif
 
 
 /*
@@ -146,44 +155,6 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
  *  @note       #ln_create_script_local()と同じ
  */
 #define ln_create_script_timeout  ln_create_script_local
-
-
-/** Offered HTLCスクリプト作成
- *
- * @param[out]      pBuf                    生成したスクリプト
- * @param[in]       pLocalKey               LocalKey[33]
- * @param[in]       pLocalRevoKey           Local RevocationKey[33]
- * @param[in]       pLocalPreImageHash160   Local payment-preimage-hash[20]
- * @param[in]       pRemoteKey              RemoteKey[33]
- *
- * @note
- *      - 相手署名計算時は、LocalとRemoteを入れ替える
- */
-void HIDDEN ln_create_script_offered(ucoin_buf_t *pBuf,
-                    const uint8_t *pLocalKey,
-                    const uint8_t *pLocalRevoKey,
-                    const uint8_t *pLocalPreImageHash160,
-                    const uint8_t *pRemoteKey);
-
-
-/** Received HTLCスクリプト作成
- *
- * @param[out]      pBuf                    生成したスクリプト
- * @param[in]       pLocalKey               LocalKey[33]
- * @param[in]       pLocalRevoKey           Local RevocationKey[33]
- * @param[in]       pRemoteKey              RemoteKey[33]
- * @param[in]       pRemotePreImageHash160  Remote payment-preimage-hash[20]
- * @param[in]       RemoteExpiry            Expiry
- *
- * @note
- *      - 相手署名計算時は、LocalとRemoteを入れ替える
- */
-void HIDDEN ln_create_script_received(ucoin_buf_t *pBuf,
-                    const uint8_t *pLocalKey,
-                    const uint8_t *pLocalRevoKey,
-                    const uint8_t *pRemoteKey,
-                    const uint8_t *pRemotePreImageHash160,
-                    uint32_t RemoteExpiry);
 
 
 /** 公開鍵からscriptPubKeyを生成

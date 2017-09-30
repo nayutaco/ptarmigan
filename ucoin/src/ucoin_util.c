@@ -349,7 +349,7 @@ int ucoin_dbg_malloc_cnt(void)
  * package functions
  **************************************************************************/
 
-void HIDDEN ucoin_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
+void ucoin_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
 {
     uint8_t buf_sha256[UCOIN_SZ_SHA256];
 

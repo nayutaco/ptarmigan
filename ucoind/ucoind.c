@@ -645,6 +645,13 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    //blockcount
+    int blockcnt = jsonrpc_getblockcount();
+    if (blockcnt < 0) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
     //payment_hash, hop_num
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
@@ -714,7 +721,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
             //outgoing_cltv_value
             jprm = cJSON_GetArrayItem(jarray, 3);
             if (jprm && (jprm->type == cJSON_Number)) {
-                p->outgoing_cltv_value = jprm->valueint;
+                p->outgoing_cltv_value = jprm->valueint + blockcnt;
                 DBG_PRINTF("  outgoing_cltv_value=%d\n", p->outgoing_cltv_value);
             } else {
                 DBG_PRINTF("fail: p=%p\n", jprm);

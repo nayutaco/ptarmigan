@@ -288,7 +288,7 @@ static void open_channel_print(const ln_open_channel_t *pMsg)
     DBG_PRINTF2("p_payment_basept        : ");
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_PAYMENT], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_delayed_payment_basept: ");
-    DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED_PAYMENT], UCOIN_SZ_PUBKEY);
+    DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_first_per_commitpt    : ");
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("channel_flags           : %02x\n", pMsg->channel_flags);
@@ -468,7 +468,7 @@ static void accept_channel_print(const ln_accept_channel_t *pMsg)
     DBG_PRINTF2("p_payment_basept        : ");
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_PAYMENT], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_delayed_payment_basept: ");
-    DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED_PAYMENT], UCOIN_SZ_PUBKEY);
+    DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_first_per_commitpt    : ");
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("--------------------------------\n\n\n");

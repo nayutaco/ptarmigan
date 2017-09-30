@@ -55,10 +55,12 @@
 #define M_DB_ANNO_NODE          "node_anno"
 
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-2)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-4)            ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
+    -3 : ln_funding_remote_data_t変更
+    -4 : ln_funding_local_data_t, ln_funding_remote_data_t変更
  */
 
 
@@ -178,7 +180,6 @@ void HIDDEN ln_db_init(void)
     if (retval != 0) {
         retval = write_version(txn);
         if (retval == 0) {
-            DBG_PRINTF("create version db\n");
             mdb_txn_commit(txn);
         } else {
             DBG_PRINTF("FAIL: create version db\n");

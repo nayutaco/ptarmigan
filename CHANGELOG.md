@@ -1,6 +1,11 @@
 CHANGELOG
 ====
 
+# 2017/09/30
+
+* 対面(no hop)でのc-lightningとの送受金
+
+
 # 2017/09/25
 
 * `ucoincli` の `-p` で `-c` を不要にする

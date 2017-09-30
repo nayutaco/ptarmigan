@@ -523,7 +523,13 @@ int main(int argc, char* argv[])
             }
 
             msat.push_front(amtmsat);
-            amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
+            if (v != pnt_goal) {
+                //BOLT#4
+                //  Where fee is calculated according to
+                //      the receiving node's advertised fee schema as described in BOLT 7,
+                //      or 0 if this node is the final hop.
+                amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
+            }
 
             if (cltv_expiry == 0) {
                 cltv.push_front(g[e].cltv_expiry_delta);
