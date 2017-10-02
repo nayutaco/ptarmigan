@@ -516,7 +516,7 @@ int main(int argc, char* argv[])
 
             bool found;
             graph_t::edge_descriptor e;
-            boost::tie(e, found) = edge(v, p[v], g);
+            boost::tie(e, found) = edge(p[v], v, g);
             if (!found) {
                 printf("not foooooooooound\n");
                 abort();
