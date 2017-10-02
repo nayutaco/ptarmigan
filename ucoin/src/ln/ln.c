@@ -2631,7 +2631,7 @@ static bool create_to_local(ln_self_t *self,
 
     //To-Local
     ln_create_script_local(&buf_ws,
-                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 to_self_delay);
 
@@ -2680,7 +2680,7 @@ static bool create_to_local(ln_self_t *self,
     //scriptPubKey作成
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],    //localkey
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],   //revocationkey
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],    //revocationkey
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_KEY]);          //remotekey
 
     //commitment transaction
@@ -2892,7 +2892,7 @@ static bool create_to_remote(ln_self_t *self,
 
     //To-Local(Remote)
     ln_create_script_local(&buf_ws,
-                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 to_self_delay);
 
@@ -2937,7 +2937,7 @@ static bool create_to_remote(ln_self_t *self,
     //scriptPubKey作成(Remote)
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],   //localkey
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],    //revocationkey
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],   //revocationkey
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_KEY]);         //remotekey
 
     //commitment transaction(Remote)
