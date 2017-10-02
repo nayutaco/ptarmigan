@@ -1,9 +1,18 @@
 CHANGELOG
 ====
 
+# 2017/10/02
+
+* c-lightningとの中継送受金(1パターン)
+    * ptarmigan --> c-lightning --> c-lightning
+    * ptarmigan <-- c-lightning <-- c-lightning
+
+
 # 2017/09/30
 
-* 対面(no hop)でのc-lightningとの送受金
+* c-lightningとの対面(no hop)送受金
+    * ptarmigan --> c-lightning
+    * ptarmigan <-- c-lightning
 
 
 # 2017/09/25
