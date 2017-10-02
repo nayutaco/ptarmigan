@@ -148,19 +148,23 @@ void ln_print_self(const ln_self_t *self)
 
     fprintf(PRINTOUT, M_QQ("htlc_num") ": %d,\n", self->htlc_num);
 
-    fprintf(PRINTOUT, M_QQ("commit_num") ": %" PRIx64 ",\n", self->commit_num);
+    fprintf(PRINTOUT, M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_num);
 
-    fprintf(PRINTOUT, M_QQ("htlc_id_num") ": %" PRIx64 ",\n", self->htlc_id_num);
+    fprintf(PRINTOUT, M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);
 
     fprintf(PRINTOUT, M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
 
     fprintf(PRINTOUT, M_QQ("their_msat") ": %" PRIu64 ",\n", self->their_msat);
 
     fprintf(PRINTOUT, M_QQ("htlc") ": [");
+    bool cont = false;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
+            if (cont) {
+                fprintf(PRINTOUT, ",\n");
+            }
             fprintf(PRINTOUT, "{");
-            fprintf(PRINTOUT, M_QQ("id") ": %" PRIx64 ",\n", self->cnl_add_htlc[idx].id);
+            fprintf(PRINTOUT, M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[idx].id);
             fprintf(PRINTOUT, M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[idx].amount_msat);
             fprintf(PRINTOUT, M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[idx].cltv_expiry);
             fprintf(PRINTOUT, M_QQ("payment-hash") ": \"");
@@ -168,12 +172,9 @@ void ln_print_self(const ln_self_t *self)
             fprintf(PRINTOUT, "\",\n");
             fprintf(PRINTOUT, M_QQ("flag") ": \"%02x\",\n", self->cnl_add_htlc[idx].flag);
             fprintf(PRINTOUT, M_QQ("shared_secret_len") ": %d,\n", self->cnl_add_htlc[idx].shared_secret.len);
-            fprintf(PRINTOUT, M_QQ("prev_short_channel_id") ": \"%016" PRIx64 "\",\n", self->cnl_add_htlc[idx].prev_short_channel_id);
-            if (idx != LN_HTLC_MAX - 1) {
-                fprintf(PRINTOUT, "\"},\n");
-            } else {
-                fprintf(PRINTOUT, "\"}\n");
-            }
+            fprintf(PRINTOUT, M_QQ("prev_short_channel_id") ": \"%016" PRIx64 "\"\n", self->cnl_add_htlc[idx].prev_short_channel_id);
+            fprintf(PRINTOUT, "}\n");
+            cont = true;
         }
     }
     fprintf(PRINTOUT, "],\n");

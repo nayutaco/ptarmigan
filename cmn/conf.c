@@ -243,7 +243,16 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
     print_payment_conf(pPayConf);
 #endif
 
-    return true;
+    bool ret = false;
+    for (int lp = 0; lp < LN_SZ_HASH; lp++) {
+        if (pPayConf->payment_hash[lp] != 0) {
+            ret = true;
+            break;
+        }
+    }
+    ret &= (pPayConf->hop_num >= 2);
+
+    return ret;
 }
 
 
