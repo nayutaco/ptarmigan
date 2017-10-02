@@ -269,23 +269,18 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
 
     //amount, CLTVチェック(最後の値はチェックしない)
     for (int lp = 1; lp < pPay->hop_num - 1; lp++) {
-        //要求するFEEを満たしていない
-        uint64_t fee = ln_forward_fee(p_self, pPay->hop_datain[lp].amt_to_forward);
-        if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward + fee) {
-            SYSLOG_ERR("%s(): [%d]amt_to_forward larger than previous (%" PRIu64 " < %" PRIu64 " + %" PRIu64 ")",
+        if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward) {
+            SYSLOG_ERR("%s(): [%d]amt_to_forward larger than previous (%" PRIu64 " < %" PRIu64 ")",
                     __func__, lp,
                     pPay->hop_datain[lp - 1].amt_to_forward,
-                    pPay->hop_datain[lp].amt_to_forward,
-                    fee);
+                    pPay->hop_datain[lp].amt_to_forward);
             goto LABEL_EXIT;
         }
-        if ( (pPay->hop_datain[lp - 1].outgoing_cltv_value <= pPay->hop_datain[lp].outgoing_cltv_value) ||
-             (pPay->hop_datain[lp - 1].outgoing_cltv_value - pPay->hop_datain[lp].outgoing_cltv_value < ln_cltv_expily_delta(p_self)) ) {
-            SYSLOG_ERR("%s(): [%d]outgoing_cltv_value larger than previous (%" PRIu32 " < %" PRIu32 " + %" PRIu32 ")",
+        if (pPay->hop_datain[lp - 1].outgoing_cltv_value <= pPay->hop_datain[lp].outgoing_cltv_value) {
+            SYSLOG_ERR("%s(): [%d]outgoing_cltv_value larger than previous (%" PRIu32 " < %" PRIu32 ")",
                     __func__, lp,
                     pPay->hop_datain[lp - 1].outgoing_cltv_value,
-                    pPay->hop_datain[lp].outgoing_cltv_value,
-                    ln_cltv_expily_delta(p_self));
+                    pPay->hop_datain[lp].outgoing_cltv_value);
             goto LABEL_EXIT;
         }
     }
