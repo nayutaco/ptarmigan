@@ -58,6 +58,7 @@ static int handler_peer_conf(void* user, const char* section, const char* name, 
 static int handler_fund_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_pay_conf(void* user, const char* section, const char* name, const char* value);
+static bool chk_nonzero(const uint8_t *pData, int Len);
 
 
 /**************************************************************************
@@ -126,7 +127,7 @@ bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
     print_peer_conf(pPeerConf);
 #endif
 
-    return true;
+    return ucoin_keys_chkpub(pPeerConf->node_id);
 }
 
 
@@ -158,7 +159,7 @@ bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
     print_funding_conf(pFundConf);
 #endif
 
-    return true;
+    return chk_nonzero(pFundConf->txid, UCOIN_SZ_TXID);
 }
 
 
@@ -243,13 +244,7 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
     print_payment_conf(pPayConf);
 #endif
 
-    bool ret = false;
-    for (int lp = 0; lp < LN_SZ_HASH; lp++) {
-        if (pPayConf->payment_hash[lp] != 0) {
-            ret = true;
-            break;
-        }
-    }
+    bool ret = chk_nonzero(pPayConf->payment_hash, LN_SZ_HASH);
     ret &= (pPayConf->hop_num >= 2);
 
     return ret;
@@ -407,4 +402,18 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
         return 0;  /* unknown section/name, error */
     }
     return (ret) ? 1 : 0;
+}
+
+
+static bool chk_nonzero(const uint8_t *pData, int Len)
+{
+    bool ret = false;
+    for (int lp = 0; lp < Len; lp++) {
+        if (*pData) {
+            ret = true;
+            break;
+        }
+        pData++;
+    }
+    return ret;
 }

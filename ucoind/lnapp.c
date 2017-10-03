@@ -321,7 +321,7 @@ LABEL_EXIT:
         show_self_param(p_self, PRINTOUT, __LINE__);
     } else {
         DBG_PRINTF("fail\n");
-        mMuxTiming &= ~MUX_PAYMENT;
+        mMuxTiming = 0;
     }
 
     DBG_PRINTF("mux_proc: end\n");
