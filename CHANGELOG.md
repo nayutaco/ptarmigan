@@ -5,7 +5,6 @@ CHANGELOG
 
 * c-lightningとの中継送受金(1パターン)
     * ptarmigan --> c-lightning --> c-lightning
-    * ptarmigan <-- c-lightning <-- c-lightning
 
 
 # 2017/09/30
