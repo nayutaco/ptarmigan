@@ -1178,6 +1178,9 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 #warning Mutual Closeしか用意していないため、このルートは現在通らない
         //gettxoutはunspentを返すので、取得失敗→closing_txとして使用されたとみなす
         SYSLOG_WARN("POLL: fail gettxout for funding_tx !!!!!\n");
+        DBG_PRINTF("txid: ");
+        DUMPBIN(ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
+        DBG_PRINTF("txindex: %d\n", ln_funding_txindex(p_conf->p_self));
 
         if (p_conf->funding_confirm > 0) {
             //正常:gettransactionもOKなので、削除可能
