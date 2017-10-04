@@ -346,6 +346,13 @@ static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
         misc_str2bin(pConn->node_id, UCOIN_SZ_PUBKEY, json->valuestring);
         DBG_PRINTF("pConn->node_id=%s\n", json->valuestring);
     } else {
+        DBG_PRINTF("fail: node_id\n");
+        Index = -1;
+        goto LABEL_EXIT;
+    }
+    if (memcmp(ln_node_id(&mNode), pConn->node_id, UCOIN_SZ_PUBKEY) == 0) {
+        //node_idが自分と同じ
+        DBG_PRINTF("fail: same own node_id\n");
         Index = -1;
         goto LABEL_EXIT;
     }
@@ -354,6 +361,7 @@ static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
         strcpy(pConn->ipaddr, json->valuestring);
         DBG_PRINTF("pConn->ipaddr=%s\n", json->valuestring);
     } else {
+        DBG_PRINTF("fail: ipaddr\n");
         Index = -1;
         goto LABEL_EXIT;
     }
@@ -362,6 +370,7 @@ static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
         pConn->port = json->valueint;
         DBG_PRINTF("pConn->port=%d\n", json->valueint);
     } else {
+        DBG_PRINTF("fail: port\n");
         Index = -1;
     }
 
