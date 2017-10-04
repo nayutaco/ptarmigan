@@ -100,6 +100,14 @@ int main(int argc, char *argv[])
         ucoin_keys_priv2wif(wif, priv);
         printf("wif=%s\n", wif);
 
+        uint8_t pub[UCOIN_SZ_PUBKEY];
+        ucoin_keys_priv2pub(pub, priv);
+        fprintf(stderr, "pubkey= ");
+        for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
+            fprintf(stderr, "%02x", pub[lp]);
+        }
+        fprintf(stderr, "\n");
+
         ucoin_term();
         return 0;
     }
@@ -203,7 +211,11 @@ int main(int argc, char *argv[])
     return 0;
 
 LABEL_EXIT:
-    fprintf(PRINTOUT, "[usage]\n\t%s <node.conf>\n\n", argv[0]);
+    fprintf(PRINTOUT, "[usage]\n");
+    fprintf(PRINTOUT, "\t%s wif\tcreate new node_id\n", argv[0]);
+    fprintf(PRINTOUT, "\t%s <node.conf>\tstart node\n", argv[0]);
+    fprintf(PRINTOUT, "\t%s <node.conf> id\tget node_id\n", argv[0]);
+    fprintf(PRINTOUT, "\t%s <node.conf> peer\toutput peer config\n", argv[0]);
     return -1;
 }
 

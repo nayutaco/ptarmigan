@@ -182,7 +182,7 @@ void print_funding_conf(const funding_conf_t *pFundConf)
 
 bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
-    memset(pRpcConf, 0, sizeof(rpc_conf_t));
+    //memset(pRpcConf, 0, sizeof(rpc_conf_t));
 
     if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) < 0) {
         SYSLOG_ERR("fail bitcoin.conf parse[%s]", pConfFile);
@@ -204,9 +204,6 @@ bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
         pRpcConf->rpcport = 18332;
 #endif
     }
-    char tmp[SZ_RPC_URL];
-    sprintf(tmp, "http://%s:%d/", pRpcConf->rpcurl, pRpcConf->rpcport);
-    strcpy(pRpcConf->rpcurl, tmp);
 
 #ifdef M_DEBUG
     fprintf(PRINTOUT, "rpcuser=%s\n", pRpcConf->rpcuser);
@@ -350,8 +347,6 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
         strcpy(pconfig->rpcuser, value);
     } else if (strcmp(name, "rpcpassword") == 0) {
         strcpy(pconfig->rpcpasswd, value);
-    } else if (strcmp(name, "rpcconnect") == 0) {
-        strcpy(pconfig->rpcurl, value);
     } else if (strcmp(name, "rpcport") == 0) {
         pconfig->rpcport = atoi(value);
     } else {
