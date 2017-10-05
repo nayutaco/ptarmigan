@@ -1,15 +1,12 @@
-ucoincli
-====
+# ucoincli
 
-# NAME
+## NAME
 
 `ucoincli` - control ucoin daemon
 
-
-# SYNOPSIS
+## SYNOPSIS
 
     ucoincli [options] [JSON-RPC port number]
-
 
 ## options :
 
@@ -18,17 +15,15 @@ ucoincli
 `-l` : list channels  
 `-i [amount]` : add invoice  
 `-m` : list invoices  
-`-p [pay config file]`  : payment(need connected)  
+`-p [pay config file[,payment_hash]]`  : payment(need connected). if use `payment_hash`, `hash` is ignored in config file.  
 `-c [peer config file]` : connect another node  
 `-f [fund config file]` : open channel(need `-c` option)  
 `-x` : close channel(need `-c` option)
 
-
-# DESCRIPTION
+## DESCRIPTION
 
 Control `ucoind`.  
 `ucoincli` and `ucoind` are connect with TCP JSON-RPC(not HTTP).
-
 
 * peer config file format
 
@@ -52,9 +47,8 @@ Control `ucoind`.
     route1=[next `node_id`,next `short_channel_id`,`msat`,`cltv_expiry`]  
     ...
 
-# SEE ALSO
+## SEE ALSO
 
+## AUTHOR
 
-# AUTHOR
-    Nayuta Inc.
-
+Nayuta Inc.

@@ -241,8 +241,8 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
     print_payment_conf(pPayConf);
 #endif
 
-    bool ret = chk_nonzero(pPayConf->payment_hash, LN_SZ_HASH);
-    ret &= (pPayConf->hop_num >= 2);
+    //payment_hashはconfファイルになくても許可する
+    bool ret = (pPayConf->hop_num >= 2);
 
     return ret;
 }

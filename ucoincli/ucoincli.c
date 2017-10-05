@@ -165,7 +165,12 @@ int main(int argc, char *argv[])
             //payment
             if (options == M_OPTIONS_INIT) {
                 payment_conf_t payconf;
-                bool bret = load_payment_conf(optarg, &payconf);
+                const char *path = strtok(optarg, ",");
+                const char *hash = strtok(NULL, ",");
+                bool bret = load_payment_conf(path, &payconf);
+                if (hash) {
+                    bret &= misc_str2bin(payconf.payment_hash, LN_SZ_HASH, hash);
+                }
                 if (bret) {
                     mCmd = DCMD_PAYMENT;
                     payment_rpc(mBuf, &payconf);
