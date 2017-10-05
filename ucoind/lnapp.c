@@ -479,7 +479,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
         cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
         //our_msat
-        cJSON_AddItemToObject(result, "out_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
+        cJSON_AddItemToObject(result, "our_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
         //their_msat
         cJSON_AddItemToObject(result, "their_msat", cJSON_CreateNumber64(ln_their_msat(p_self)));
 
@@ -1706,7 +1706,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 } else {
                     SYSLOG_ERR("%s(): last node check", __func__);
                     DBG_PRINTF("%" PRIu64 " != %" PRIu64 "\n", p_add->p_hop->amt_to_forward, p_preimage->amount);
-                    DBG_PRINTF("%" PRIu32 " != %" PRIu32 "\n", p_add->p_hop->outgoing_cltv_value, ln_cltv_expily_delta(p_conf->p_self));
+                    //DBG_PRINTF("%" PRIu32 " != %" PRIu32 "\n", p_add->p_hop->outgoing_cltv_value, ln_cltv_expily_delta(p_conf->p_self));
                     lp = PREIMAGE_NUM;
                 }
             } else {
