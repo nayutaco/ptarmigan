@@ -82,7 +82,7 @@ static void listinvoice_rpc(char *pJson);
 static void payment_rpc(char *pJson, const payment_conf_t *pPay);
 static void close_rpc(char *pJson);
 
-static int msg_send(char *pMsg, uint16_t Port, bool bSend);
+static int msg_send(char *pMsg, const char *pAddr, uint16_t Port, bool bSend);
 
 
 /********************************************************************
@@ -100,16 +100,22 @@ int main(int argc, char *argv[])
     ucoin_init(UCOIN_TESTNET, true);
 #endif
 
+    const char *p_addr = NULL;
+    char addr[256];
     bool b_send = true;
     int opt;
     uint8_t options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "htqlc:f:i:mp:x")) != -1) {
+    while ((opt = getopt(argc, argv, "htqlc:f:i:mp:xa:")) != -1) {
         switch (opt) {
         case 'h':
             options = M_OPTIONS_HELP;
             break;
         case 't':
             b_send = false;
+            break;
+        case 'a':
+            strcpy(addr, optarg);
+            p_addr = addr;
             break;
 
         //
@@ -277,7 +283,7 @@ int main(int argc, char *argv[])
 
     uint16_t port = (uint16_t)atoi(argv[optind]);
 
-    int ret = msg_send(mBuf, port, b_send);
+    int ret = msg_send(mBuf, p_addr, port, b_send);
 
     ucoin_term();
 
@@ -415,7 +421,7 @@ static void close_rpc(char *pJson)
 }
 
 
-static int msg_send(char *pMsg, uint16_t Port, bool bSend)
+static int msg_send(char *pMsg, const char *pAddr, uint16_t Port, bool bSend)
 {
     int retval = -1;
 
@@ -429,7 +435,11 @@ static int msg_send(char *pMsg, uint16_t Port, bool bSend)
         }
         memset(&sv_addr, 0, sizeof(sv_addr));
         sv_addr.sin_family = AF_INET;
-        sv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        if (pAddr == NULL) {
+            sv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        } else {
+            sv_addr.sin_addr.s_addr = inet_addr(pAddr);
+        }
         sv_addr.sin_port = htons(Port);
         retval = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
         if (retval < 0) {
