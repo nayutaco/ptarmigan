@@ -2319,6 +2319,20 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         ucoin_buf_free(&buf_bolt);
     }
 
+    if (ret) {
+        //channel_update
+        ucoin_buf_t buf_upd;
+        ucoin_buf_init(&buf_upd);
+        uint32_t now = (uint32_t)time(NULL);
+        ret = ln_create_channel_update(self, &buf_upd, now);
+        if (ret) {
+            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_upd);
+        } else {
+            DBG_PRINTF("fail: ln_create_channel_update\n");
+        }
+        ucoin_buf_free(&buf_upd);
+    }
+
     return ret;
 }
 
