@@ -410,7 +410,6 @@ LABEL_DECREF:
         json_array_foreach(p_tx, index, p_value) {
             if (index == BIndex) {
                 strcpy(txid, (const char *)json_string_value(p_value));
-printf("txid=%s\n", txid);
                 break;
             }
         }
