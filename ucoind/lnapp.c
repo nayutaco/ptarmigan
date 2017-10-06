@@ -703,7 +703,10 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
         //send: act one
         ret = ln_handshake_start(p_conf->p_self, &buf, p_conf->node_id);
-        assert(ret);
+        if (!ret) {
+            DBG_PRINTF("fail: ln_handshake_start\n");
+            goto LABEL_FAIL;
+        }
         DBG_PRINTF("** SEND act one **\n");
         send_peer_raw(p_conf, &buf);
 
@@ -714,8 +717,10 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 50);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf, p_conf->node_id);
-        assert(ret);
-        assert(!b_cont);
+        if (!ret || b_cont) {
+            DBG_PRINTF("fail: ln_handshake_recv1\n");
+            goto LABEL_FAIL;
+        }
         //send: act three
         DBG_PRINTF("** SEND act three **\n");
         send_peer_raw(p_conf, &buf);
@@ -725,14 +730,19 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
         //recv: act one
         ret = ln_handshake_start(p_conf->p_self, &buf, NULL);
-        assert(ret);
+        if (!ret) {
+            DBG_PRINTF("fail: ln_handshake_start\n");
+            goto LABEL_FAIL;
+        }
         DBG_PRINTF("** RECV act one... **\n");
         recv_peer(p_conf, rbuf, 50);
         DBG_PRINTF("** RECV act one ! **\n");
         ucoin_buf_alloccopy(&buf, rbuf, 50);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf, NULL);
-        assert(ret);
-        assert(b_cont);
+        if (!ret || !b_cont) {
+            DBG_PRINTF("fail: ln_handshake_recv1\n");
+            goto LABEL_FAIL;
+        }
         //send: act two
         DBG_PRINTF("** SEND act two **\n");
         send_peer_raw(p_conf, &buf);
@@ -744,8 +754,10 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 66);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf, NULL);
-        assert(ret);
-        assert(!b_cont);
+        if (!ret || b_cont) {
+            DBG_PRINTF("fail: ln_handshake_recv2\n");
+            goto LABEL_FAIL;
+        }
 
         //bufには相手のnode_idが返ってくる
         assert(buf.len == UCOIN_SZ_PUBKEY);
@@ -756,6 +768,10 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
     DBG_PRINTF("noise handshaked\n");
     return true;
+
+LABEL_FAIL:
+    DBG_PRINTF("fail: noise handshaked\n");
+    return false;
 }
 
 
