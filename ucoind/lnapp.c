@@ -635,7 +635,8 @@ static void *thread_main_start(void *pArg)
     } else {
         if (ln_short_channel_id(p_conf->p_self) != 0) {
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
-            //send_reestablish(p_conf);
+            send_reestablish(p_conf);
+            DBG_PRINTF("reestablish交換完了\n\n");
         } else {
             DBG_PRINTF("Establish待ち\n");
             set_establish_default(p_conf, p_conf->node_id);

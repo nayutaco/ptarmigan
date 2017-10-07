@@ -486,7 +486,6 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
     msg.lflen = 0;
     //msg.localfeatures[0] = NODE_LOCALFEATURES;
 
-    //TODO: 本当は送信したタイミングがよい
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {
         self->init_flag |= INIT_FLAG_SEND;
@@ -519,7 +518,6 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
     msg.next_local_commitment_number = self->commit_num;
     msg.next_remote_revocation_number = self->remote_revoke_num;
 
-    //TODO: 本当は送信したタイミングがよい
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
     if (ret) {
         self->init_flag |= INIT_FLAG_REEST_SEND;
