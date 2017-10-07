@@ -635,6 +635,7 @@ bool ln_funding_tx_stabled(ln_self_t *self)
         update_percommit_secret(self);
     } else {
         DBG_PRINTF("reestablished\n");
+        ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     }
 
     //funding_locked
