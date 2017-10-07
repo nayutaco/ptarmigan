@@ -1598,16 +1598,19 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
             DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
         }
         ret = recv_funding_locked_reestablish(self);
+        if (ret) {
+            ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+        }
     } else {
         //Establish直後
         memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
         memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
         ret = recv_funding_locked_first(self);
+        if (ret) {
+            ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+        }
     }
 
-    if (ret) {
-        ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    }
 
     DBG_PRINTF("END\n");
     return ret;
