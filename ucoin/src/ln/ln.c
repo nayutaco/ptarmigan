@@ -630,7 +630,7 @@ bool ln_funding_tx_stabled(ln_self_t *self)
         return false;
     }
 
-    if (!INIT_FLAG_REESTED(self->init_flag) {
+    if (!INIT_FLAG_REESTED(self->init_flag)) {
         //per-commit-secret更新
         update_percommit_secret(self);
     } else {
