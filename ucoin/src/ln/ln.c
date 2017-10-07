@@ -1587,13 +1587,21 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
-
     if (INIT_FLAG_REESTED(self->init_flag)) {
+        if (memcmp(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY) == 0) {
+            DBG_PRINTF("OK: same current per_commitment_point\n");
+        } else {
+            DBG_PRINTF("fail?: mismatch current per_commitment_point\n");
+            DBG_PRINTF("current: ");
+            DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+            DBG_PRINTF("received: ");
+            DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
+        }
         ret = recv_funding_locked_reestablish(self);
     } else {
         //Establish直後
+        memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+        memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
         ret = recv_funding_locked_first(self);
     }
 
@@ -2317,20 +2325,6 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         }
         (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
         ucoin_buf_free(&buf_bolt);
-    }
-
-    if (ret) {
-        //channel_update
-        ucoin_buf_t buf_upd;
-        ucoin_buf_init(&buf_upd);
-        uint32_t now = (uint32_t)time(NULL);
-        ret = ln_create_channel_update(self, &buf_upd, now);
-        if (ret) {
-            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_upd);
-        } else {
-            DBG_PRINTF("fail: ln_create_channel_update\n");
-        }
-        ucoin_buf_free(&buf_upd);
     }
 
     return ret;
