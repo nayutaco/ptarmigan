@@ -522,6 +522,10 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
     if (ret) {
         self->init_flag |= INIT_FLAG_REEST_SEND;
     }
+    if ( ret && INIT_FLAG_REESTED(self->init_flag) &&
+        (self->commit_num == 1) && (self->remote_commit_num == 1) ) {
+        ret = ln_funding_tx_stabled(self);
+    }
     return ret;
 }
 
@@ -1146,12 +1150,6 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             self->init_flag |= INIT_FLAG_RECV;
             self->lfeature_remote = msg.localfeatures[0];
 
-            //if (INIT_FLAG_INITED(self->init_flag) && ((self->init_flag & INIT_FLAG_REEST_SEND) == 0)) {
-            //    //init送受信済みでchannel_reestablish未送信ならば、channel_reestablishを送信
-            //} else if ((self->init_flag & INIT_FLAG_SEND) == 0) {
-            //    //init未送信の場合
-            //}
-
             //init受信通知
             (*self->p_callback)(self, LN_CB_INIT_RECV, NULL);
         } else {
@@ -1665,12 +1663,6 @@ static bool recv_funding_locked_reestablish(ln_self_t *self)
 
     self->flck_flag |= M_FLCK_FLAG_RECV;
     ret = proc_established(self);
-    if (ret && (self->flck_flag != (M_FLCK_FLAG_SEND | M_FLCK_FLAG_RECV))) {
-        //funding_locked未送信
-        ret = ln_funding_tx_stabled(self);
-    } else {
-        DBG_PRINTF("fail: proc_established\n");
-    }
 
     return ret;
 }
@@ -2313,19 +2305,9 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     //reestablish受信通知
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
 
-
-    if ((self->init_flag & INIT_FLAG_REEST_SEND) == 0) {
-        //返送
-        reest.next_local_commitment_number = self->commit_num;
-        reest.next_remote_revocation_number = self->remote_revoke_num;
-
-        ucoin_buf_t buf_bolt;
-        ret = ln_msg_channel_reestablish_create(&buf_bolt, &reest);
-        if (ret) {
-            self->init_flag |= INIT_FLAG_REEST_SEND;
-        }
-        (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
-        ucoin_buf_free(&buf_bolt);
+    if (INIT_FLAG_REESTED(self->init_flag) &&
+       (self->commit_num == 1) && (self->remote_commit_num == 1)) {
+        ret = ln_funding_tx_stabled(self);
     }
 
     return ret;
