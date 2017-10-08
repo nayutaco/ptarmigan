@@ -13,7 +13,7 @@ PAYEE_PORT=$(( ${PAY_END} + 1 ))
 echo invoiceのAMOUNTが異なるため、payeeノードで失敗する
 
 
-./routing $NETTYPE $PAYER/dbucoin $PAYER/node.conf `./ucoind ./$PAYEE/node.conf id` $AMOUNT
+./routing $NETTYPE $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
@@ -28,7 +28,7 @@ fi
 
 echo -n hash= > $ROUTECONF
 echo $INVOICE | jq '.result.hash' | sed -e 's/\"//g' >> $ROUTECONF
-./routing $NETTYPE $PAYER/dbucoin $PAYER/node.conf `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
+./routing $NETTYPE $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
 
 # 送金実施
 ./ucoincli -p $ROUTECONF $PAYER_PORT

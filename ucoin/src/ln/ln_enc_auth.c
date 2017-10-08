@@ -461,7 +461,8 @@ static bool actone_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     int rc;
 
     if ((pBuf->len != 50) || (pBuf->buf[0] != 0x00)) {
-        DBG_PRINTF("fail: invalid length\n");
+        DBG_PRINTF("fail: invalid length=%d\n", pBuf->len);
+        DUMPBIN(pBuf->buf, pBuf->len);
         goto LABEL_EXIT;
     }
     memcpy(re, pBuf->buf + 1, sizeof(re));

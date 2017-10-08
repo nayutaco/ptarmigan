@@ -486,7 +486,6 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
     msg.lflen = 0;
     //msg.localfeatures[0] = NODE_LOCALFEATURES;
 
-    //TODO: 本当は送信したタイミングがよい
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {
         self->init_flag |= INIT_FLAG_SEND;
@@ -519,10 +518,13 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
     msg.next_local_commitment_number = self->commit_num;
     msg.next_remote_revocation_number = self->remote_revoke_num;
 
-    //TODO: 本当は送信したタイミングがよい
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
     if (ret) {
         self->init_flag |= INIT_FLAG_REEST_SEND;
+    }
+    if ( ret && INIT_FLAG_REESTED(self->init_flag) &&
+        (self->commit_num == 1) && (self->remote_commit_num == 1) ) {
+        ret = ln_funding_tx_stabled(self);
     }
     return ret;
 }
@@ -628,8 +630,13 @@ bool ln_funding_tx_stabled(ln_self_t *self)
         return false;
     }
 
-    //per-commit-secret更新
-    update_percommit_secret(self);
+    if (!INIT_FLAG_REESTED(self->init_flag)) {
+        //per-commit-secret更新
+        update_percommit_secret(self);
+    } else {
+        DBG_PRINTF("reestablished\n");
+        ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    }
 
     //funding_locked
     ucoin_buf_t buf;
@@ -1148,12 +1155,6 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             self->init_flag |= INIT_FLAG_RECV;
             self->lfeature_remote = msg.localfeatures[0];
 
-            //if (INIT_FLAG_INITED(self->init_flag) && ((self->init_flag & INIT_FLAG_REEST_SEND) == 0)) {
-            //    //init送受信済みでchannel_reestablish未送信ならば、channel_reestablishを送信
-            //} else if ((self->init_flag & INIT_FLAG_SEND) == 0) {
-            //    //init未送信の場合
-            //}
-
             //init受信通知
             (*self->p_callback)(self, LN_CB_INIT_RECV, NULL);
         } else {
@@ -1587,19 +1588,30 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
-
     if (INIT_FLAG_REESTED(self->init_flag)) {
+        if (memcmp(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY) == 0) {
+            DBG_PRINTF("OK: same current per_commitment_point\n");
+        } else {
+            DBG_PRINTF("fail?: mismatch current per_commitment_point\n");
+            DBG_PRINTF("current: ");
+            DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+            DBG_PRINTF("received: ");
+            DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
+        }
         ret = recv_funding_locked_reestablish(self);
+        if (ret) {
+            ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+        }
     } else {
         //Establish直後
+        memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+        memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
         ret = recv_funding_locked_first(self);
+        if (ret) {
+            ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+        }
     }
 
-    if (ret) {
-        ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    }
 
     DBG_PRINTF("END\n");
     return ret;
@@ -1656,12 +1668,6 @@ static bool recv_funding_locked_reestablish(ln_self_t *self)
 
     self->flck_flag |= M_FLCK_FLAG_RECV;
     ret = proc_established(self);
-    if (ret && (self->flck_flag != (M_FLCK_FLAG_SEND | M_FLCK_FLAG_RECV))) {
-        //funding_locked未送信
-        ret = ln_funding_tx_stabled(self);
-    } else {
-        DBG_PRINTF("fail: proc_established\n");
-    }
 
     return ret;
 }
@@ -2304,19 +2310,9 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     //reestablish受信通知
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
 
-
-    if ((self->init_flag & INIT_FLAG_REEST_SEND) == 0) {
-        //返送
-        reest.next_local_commitment_number = self->commit_num;
-        reest.next_remote_revocation_number = self->remote_revoke_num;
-
-        ucoin_buf_t buf_bolt;
-        ret = ln_msg_channel_reestablish_create(&buf_bolt, &reest);
-        if (ret) {
-            self->init_flag |= INIT_FLAG_REEST_SEND;
-        }
-        (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
-        ucoin_buf_free(&buf_bolt);
+    if (INIT_FLAG_REESTED(self->init_flag) &&
+       (self->commit_num == 1) && (self->remote_commit_num == 1)) {
+        ret = ln_funding_tx_stabled(self);
     }
 
     return ret;
@@ -2631,7 +2627,7 @@ static bool create_to_local(ln_self_t *self,
 
     //To-Local
     ln_create_script_local(&buf_ws,
-                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 to_self_delay);
 
@@ -2680,7 +2676,7 @@ static bool create_to_local(ln_self_t *self,
     //scriptPubKey作成
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],    //localkey
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],   //revocationkey
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],    //revocationkey
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_KEY]);          //remotekey
 
     //commitment transaction
@@ -2892,7 +2888,7 @@ static bool create_to_remote(ln_self_t *self,
 
     //To-Local(Remote)
     ln_create_script_local(&buf_ws,
-                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 to_self_delay);
 
@@ -2937,7 +2933,7 @@ static bool create_to_remote(ln_self_t *self,
     //scriptPubKey作成(Remote)
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],   //localkey
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],    //revocationkey
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],   //revocationkey
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_KEY]);         //remotekey
 
     //commitment transaction(Remote)

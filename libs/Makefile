@@ -18,7 +18,7 @@ mk_jansson:
 	cd jansson; autoreconf -i ; ./configure --prefix=$(INSTALL_DIR) --disable-shared ; make ; make install ; cd ..
 
 mk_jsonrpc_c:
-	cd jsonrpc-c; autoreconf -i ; ./configure --prefix=$(INSTALL_DIR) --disable-shared ; make CFLAGS=-DCHECK_LOCALHOST LDFLAGS=-lm ; make install ; cd ..
+	cd jsonrpc-c; autoreconf -i ; ./configure --prefix=$(INSTALL_DIR) --disable-shared ; make CFLAGS=-DNO_CHECK_LOCALHOST LDFLAGS=-lm ; make install ; cd ..
 
 mk_inih:
 	cd inih/extra ; CCFLAGS="-g -O2 -DINI_INLINE_COMMENT_PREFIXES=\"\#\" -DINI_STOP_ON_FIRST_ERROR=1" make -f Makefile.static ; cd ../..

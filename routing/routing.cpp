@@ -172,23 +172,6 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-static void loadconf(const char* pConfFile, uint8_t* pPubKey)
-{
-    node_conf_t nconf;
-    rpc_conf_t rconf;
-    ln_node_t node;
-    bool bret = load_node_conf(pConfFile, &nconf, &rconf, ln_node_addr(&node));
-    assert(bret);
-
-    ucoin_init(UCOIN_TESTNET, true);
-    ucoin_util_keys_t mykeys;
-    bret = ucoin_util_wif2keys(&mykeys, nconf.wif);
-    assert(bret);
-    memcpy(pPubKey, mykeys.pub, UCOIN_SZ_PUBKEY);
-    ucoin_term();
-}
-
-
 /* Dump in BDB-compatible format */
 static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
 {
@@ -365,20 +348,20 @@ int main(int argc, char* argv[])
 
     const char *nettype;
     const char *dbdir;
-    const char *nodeconf;
+    const char *my_node;
     const char *tgt_node;
     const char *amount;
 
     if (argc == 3) {
         nettype = argv[1];
         dbdir = argv[2];
-        nodeconf = NULL;
+        my_node = NULL;
         tgt_node = NULL;
         amount = NULL;
     } else if (argc == 6) {
         nettype = argv[1];
         dbdir = argv[2];
-        nodeconf = argv[3];
+        my_node = argv[3];
         tgt_node = argv[4];
         amount = argv[5];
     } else {
@@ -386,7 +369,7 @@ int main(int argc, char* argv[])
         //           1                 2
         printf("\t%s [mainnet/testnet] [db dir]\n", argv[0]);
         //           1                 2        3           4                5
-        printf("\t%s [mainnet/testnet] [db dir] [node conf] [target node_id] [amount_msat]\n", argv[0]);
+        printf("\t%s [mainnet/testnet] [db dir] [payer node_id] [payee node_id] [amount_msat]\n", argv[0]);
         return -1;
     }
 
@@ -405,8 +388,8 @@ int main(int argc, char* argv[])
     loaddb(dbdir);
 
     if (argc == 6) {
-        loadconf(nodeconf, mMyNodeId);
-
+        ret = misc_str2bin(mMyNodeId, sizeof(mMyNodeId), my_node);
+        
         ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), tgt_node);
         assert(ret);
 
@@ -516,7 +499,7 @@ int main(int argc, char* argv[])
 
             bool found;
             graph_t::edge_descriptor e;
-            boost::tie(e, found) = edge(v, p[v], g);
+            boost::tie(e, found) = edge(p[v], v, g);
             if (!found) {
                 printf("not foooooooooound\n");
                 abort();

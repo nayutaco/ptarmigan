@@ -58,6 +58,7 @@ static int handler_peer_conf(void* user, const char* section, const char* name, 
 static int handler_fund_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_pay_conf(void* user, const char* section, const char* name, const char* value);
+static bool chk_nonzero(const uint8_t *pData, int Len);
 
 
 /**************************************************************************
@@ -126,7 +127,7 @@ bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
     print_peer_conf(pPeerConf);
 #endif
 
-    return true;
+    return ucoin_keys_chkpub(pPeerConf->node_id);
 }
 
 
@@ -158,7 +159,7 @@ bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
     print_funding_conf(pFundConf);
 #endif
 
-    return true;
+    return chk_nonzero(pFundConf->txid, UCOIN_SZ_TXID);
 }
 
 
@@ -181,7 +182,7 @@ void print_funding_conf(const funding_conf_t *pFundConf)
 
 bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
-    memset(pRpcConf, 0, sizeof(rpc_conf_t));
+    //memset(pRpcConf, 0, sizeof(rpc_conf_t));
 
     if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) < 0) {
         SYSLOG_ERR("fail bitcoin.conf parse[%s]", pConfFile);
@@ -203,9 +204,6 @@ bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
         pRpcConf->rpcport = 18332;
 #endif
     }
-    char tmp[SZ_RPC_URL];
-    sprintf(tmp, "http://%s:%d/", pRpcConf->rpcurl, pRpcConf->rpcport);
-    strcpy(pRpcConf->rpcurl, tmp);
 
 #ifdef M_DEBUG
     fprintf(PRINTOUT, "rpcuser=%s\n", pRpcConf->rpcuser);
@@ -243,7 +241,10 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
     print_payment_conf(pPayConf);
 #endif
 
-    return true;
+    //payment_hashはconfファイルになくても許可する
+    bool ret = (pPayConf->hop_num >= 2);
+
+    return ret;
 }
 
 
@@ -346,8 +347,6 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
         strcpy(pconfig->rpcuser, value);
     } else if (strcmp(name, "rpcpassword") == 0) {
         strcpy(pconfig->rpcpasswd, value);
-    } else if (strcmp(name, "rpcconnect") == 0) {
-        strcpy(pconfig->rpcurl, value);
     } else if (strcmp(name, "rpcport") == 0) {
         pconfig->rpcport = atoi(value);
     } else {
@@ -398,4 +397,18 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
         return 0;  /* unknown section/name, error */
     }
     return (ret) ? 1 : 0;
+}
+
+
+static bool chk_nonzero(const uint8_t *pData, int Len)
+{
+    bool ret = false;
+    for (int lp = 0; lp < Len; lp++) {
+        if (*pData) {
+            ret = true;
+            break;
+        }
+        pData++;
+    }
+    return ret;
 }

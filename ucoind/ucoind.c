@@ -100,6 +100,14 @@ int main(int argc, char *argv[])
         ucoin_keys_priv2wif(wif, priv);
         printf("wif=%s\n", wif);
 
+        uint8_t pub[UCOIN_SZ_PUBKEY];
+        ucoin_keys_priv2pub(pub, priv);
+        fprintf(stderr, "pubkey= ");
+        for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
+            fprintf(stderr, "%02x", pub[lp]);
+        }
+        fprintf(stderr, "\n");
+
         ucoin_term();
         return 0;
     }
@@ -203,7 +211,11 @@ int main(int argc, char *argv[])
     return 0;
 
 LABEL_EXIT:
-    fprintf(PRINTOUT, "[usage]\n\t%s <node.conf>\n\n", argv[0]);
+    fprintf(PRINTOUT, "[usage]\n");
+    fprintf(PRINTOUT, "\t%s wif\tcreate new node_id\n", argv[0]);
+    fprintf(PRINTOUT, "\t%s <node.conf>\tstart node\n", argv[0]);
+    fprintf(PRINTOUT, "\t%s <node.conf> id\tget node_id\n", argv[0]);
+    fprintf(PRINTOUT, "\t%s <node.conf> peer\toutput peer config\n", argv[0]);
     return -1;
 }
 
@@ -334,6 +346,13 @@ static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
         misc_str2bin(pConn->node_id, UCOIN_SZ_PUBKEY, json->valuestring);
         DBG_PRINTF("pConn->node_id=%s\n", json->valuestring);
     } else {
+        DBG_PRINTF("fail: node_id\n");
+        Index = -1;
+        goto LABEL_EXIT;
+    }
+    if (memcmp(ln_node_id(&mNode), pConn->node_id, UCOIN_SZ_PUBKEY) == 0) {
+        //node_idが自分と同じ
+        DBG_PRINTF("fail: same own node_id\n");
         Index = -1;
         goto LABEL_EXIT;
     }
@@ -342,6 +361,7 @@ static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
         strcpy(pConn->ipaddr, json->valuestring);
         DBG_PRINTF("pConn->ipaddr=%s\n", json->valuestring);
     } else {
+        DBG_PRINTF("fail: ipaddr\n");
         Index = -1;
         goto LABEL_EXIT;
     }
@@ -350,6 +370,7 @@ static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
         pConn->port = json->valueint;
         DBG_PRINTF("pConn->port=%d\n", json->valueint);
     } else {
+        DBG_PRINTF("fail: port\n");
         Index = -1;
     }
 
@@ -740,6 +761,9 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
     lnapp_conf_t *p_appconf = search_connected_lnapp(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
         bool ret;
+#if 1
+        ret = lnapp_payment(p_appconf, &payconf);
+#else
         for (int lp = 0; lp < 5; lp++) {
             ret = lnapp_payment(p_appconf, &payconf);
             if (ret) {
@@ -748,6 +772,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
             DBG_PRINTF("retry[%d]...\n", lp);
             sleep(1);
         }
+#endif
         if (ret) {
             result = cJSON_CreateString("OK");
         } else {

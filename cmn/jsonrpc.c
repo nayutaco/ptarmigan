@@ -99,9 +99,9 @@ void jsonrpc_init(const rpc_conf_t *pRpcConf)
 
     sprintf(rpc_url, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
     sprintf(rpc_userpwd, "%s:%s", pRpcConf->rpcuser, pRpcConf->rpcpasswd);
-#ifdef M_DBG_SHOWRPC
-    DBG_PRINTF("rpcuser=%s\n", rpc_userpwd);
     DBG_PRINTF("URL=%s\n", rpc_url);
+    #ifdef M_DBG_SHOWRPC
+    DBG_PRINTF("rpcuser=%s\n", rpc_userpwd);
 #endif //M_DBG_SHOWRPC
 }
 
@@ -410,7 +410,6 @@ LABEL_DECREF:
         json_array_foreach(p_tx, index, p_value) {
             if (index == BIndex) {
                 strcpy(txid, (const char *)json_string_value(p_value));
-printf("txid=%s\n", txid);
                 break;
             }
         }
@@ -1122,7 +1121,7 @@ int main(int argc, char *argv[])
 
     strcpy(rpc_conf.rpcuser, "bitcoinuser");
     strcpy(rpc_conf.rpcpasswd, "bitcoinpassword");
-    strcpy(rpc_conf.rpcurl, "http://127.0.0.1:18332/");
+    strcpy(rpc_conf.rpcurl, "127.0.0.1");
     jsonrpc_init(&rpc_conf);
 
     bool ret;
