@@ -302,6 +302,7 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 fprintf(PRINTOUT, M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (ann.flags & 1) ? "2" : "1");
                 fprintf(PRINTOUT, M_QQ("short_channel_id") ": \"%016" PRIx64 "\",\n", ann.short_channel_id);
                 //fprintf(PRINTOUT, M_QQ("node_sort") ": " M_QQ("%s") ",\n", (ann.flags & 1) ? "second" : "first");
+                fprintf(PRINTOUT, M_QQ("flags") ": " M_QQ("%04x") ",\n", ann.flags);
                 fprintf(PRINTOUT, M_QQ("cltv_expiry_delta") ": %d,\n", ann.cltv_expiry_delta);
                 fprintf(PRINTOUT, M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", ann.htlc_minimum_msat);
                 fprintf(PRINTOUT, M_QQ("fee_base_msat") ": %" PRIu32 ",\n", ann.fee_base_msat);

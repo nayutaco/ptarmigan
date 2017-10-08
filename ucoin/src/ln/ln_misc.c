@@ -237,6 +237,8 @@ void HIDDEN ln_misc_sigexpand(ucoin_buf_t *pSig, const uint8_t *pBuf)
 
 void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_remote_data_t *pRemote)
 {
+    DBG_PRINTF("BEGIN\n");
+
     //localkey
     DBG_PRINTF2("[other_localkey]local per_commitment_point & remote payment\n");
     ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_KEY],

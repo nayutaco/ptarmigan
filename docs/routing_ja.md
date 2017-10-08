@@ -15,7 +15,7 @@ routing [mainnet/testnet] [db dir]
 
 * create payment route
 ```
-routing [mainnet/testnet] [db dir] [node config file] [target node_id] [amount msat]
+routing [mainnet/testnet] [db dir] [payer node_id] [payee node_id] [amount msat]
 ```
 
 

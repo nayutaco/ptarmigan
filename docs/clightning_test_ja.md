@@ -62,7 +62,7 @@ c-lightning test
 ```
 13. [ptarm]送金ルート準備
 ```
-    $ ./routing regtest node/dbucoin node/node.conf [c-lightning node_id] 10000 > node/pay.conf
+    $ ./routing regtest node/dbucoin `./ucoind node/node.conf id` [c-lightning node_id] 10000 > node/pay.conf
 ```
 14. [ptarm]送金ルート設定ファイルにinvoiceの `rhash` を追加.  
 １行目に「 `hash=[c-lightning rhash]` 」を追加

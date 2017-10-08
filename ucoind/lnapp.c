@@ -321,7 +321,7 @@ LABEL_EXIT:
         show_self_param(p_self, PRINTOUT, __LINE__);
     } else {
         DBG_PRINTF("fail\n");
-        mMuxTiming &= ~MUX_PAYMENT;
+        mMuxTiming = 0;
     }
 
     DBG_PRINTF("mux_proc: end\n");
@@ -479,7 +479,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
         cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
         //our_msat
-        cJSON_AddItemToObject(result, "out_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
+        cJSON_AddItemToObject(result, "our_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
         //their_msat
         cJSON_AddItemToObject(result, "their_msat", cJSON_CreateNumber64(ln_their_msat(p_self)));
 
@@ -635,7 +635,8 @@ static void *thread_main_start(void *pArg)
     } else {
         if (ln_short_channel_id(p_conf->p_self) != 0) {
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
-            //send_reestablish(p_conf);
+            send_reestablish(p_conf);
+            DBG_PRINTF("reestablish交換完了\n\n");
         } else {
             DBG_PRINTF("Establish待ち\n");
             set_establish_default(p_conf, p_conf->node_id);
@@ -703,7 +704,10 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
         //send: act one
         ret = ln_handshake_start(p_conf->p_self, &buf, p_conf->node_id);
-        assert(ret);
+        if (!ret) {
+            DBG_PRINTF("fail: ln_handshake_start\n");
+            goto LABEL_FAIL;
+        }
         DBG_PRINTF("** SEND act one **\n");
         send_peer_raw(p_conf, &buf);
 
@@ -714,8 +718,10 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 50);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf, p_conf->node_id);
-        assert(ret);
-        assert(!b_cont);
+        if (!ret || b_cont) {
+            DBG_PRINTF("fail: ln_handshake_recv1\n");
+            goto LABEL_FAIL;
+        }
         //send: act three
         DBG_PRINTF("** SEND act three **\n");
         send_peer_raw(p_conf, &buf);
@@ -725,14 +731,19 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
         //recv: act one
         ret = ln_handshake_start(p_conf->p_self, &buf, NULL);
-        assert(ret);
+        if (!ret) {
+            DBG_PRINTF("fail: ln_handshake_start\n");
+            goto LABEL_FAIL;
+        }
         DBG_PRINTF("** RECV act one... **\n");
         recv_peer(p_conf, rbuf, 50);
         DBG_PRINTF("** RECV act one ! **\n");
         ucoin_buf_alloccopy(&buf, rbuf, 50);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf, NULL);
-        assert(ret);
-        assert(b_cont);
+        if (!ret || !b_cont) {
+            DBG_PRINTF("fail: ln_handshake_recv1\n");
+            goto LABEL_FAIL;
+        }
         //send: act two
         DBG_PRINTF("** SEND act two **\n");
         send_peer_raw(p_conf, &buf);
@@ -744,8 +755,10 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 66);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf, NULL);
-        assert(ret);
-        assert(!b_cont);
+        if (!ret || b_cont) {
+            DBG_PRINTF("fail: ln_handshake_recv2\n");
+            goto LABEL_FAIL;
+        }
 
         //bufには相手のnode_idが返ってくる
         assert(buf.len == UCOIN_SZ_PUBKEY);
@@ -756,6 +769,10 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
     DBG_PRINTF("noise handshaked\n");
     return true;
+
+LABEL_FAIL:
+    DBG_PRINTF("fail: noise handshaked\n");
+    return false;
 }
 
 
@@ -1178,6 +1195,9 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 #warning Mutual Closeしか用意していないため、このルートは現在通らない
         //gettxoutはunspentを返すので、取得失敗→closing_txとして使用されたとみなす
         SYSLOG_WARN("POLL: fail gettxout for funding_tx !!!!!\n");
+        DBG_PRINTF("txid: ");
+        DUMPBIN(ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
+        DBG_PRINTF("txindex: %d\n", ln_funding_txindex(p_conf->p_self));
 
         if (p_conf->funding_confirm > 0) {
             //正常:gettransactionもOKなので、削除可能
@@ -1703,7 +1723,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 } else {
                     SYSLOG_ERR("%s(): last node check", __func__);
                     DBG_PRINTF("%" PRIu64 " != %" PRIu64 "\n", p_add->p_hop->amt_to_forward, p_preimage->amount);
-                    DBG_PRINTF("%" PRIu32 " != %" PRIu32 "\n", p_add->p_hop->outgoing_cltv_value, ln_cltv_expily_delta(p_conf->p_self));
+                    //DBG_PRINTF("%" PRIu32 " != %" PRIu32 "\n", p_add->p_hop->outgoing_cltv_value, ln_cltv_expily_delta(p_conf->p_self));
                     lp = PREIMAGE_NUM;
                 }
             } else {

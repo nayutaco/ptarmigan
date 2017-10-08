@@ -88,11 +88,10 @@
 // self.init_flag
 #define INIT_FLAG_SEND              (0x01)
 #define INIT_FLAG_RECV              (0x02)
-#define INIT_FLAG_INITED(flag)      (flag & (INIT_FLAG_SEND | INIT_FLAG_RECV))
+#define INIT_FLAG_INITED(flag)      ((flag & (INIT_FLAG_SEND | INIT_FLAG_RECV)) == (INIT_FLAG_SEND | INIT_FLAG_RECV))
 #define INIT_FLAG_REEST_SEND        (0x04)
 #define INIT_FLAG_REEST_RECV        (0x08)
-#define INIT_FLAG_REESTED(flag)     (flag & (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV))
-#define INIT_FLAG_ALL               (INIT_FLAG_INITED | INIT_FLAG_REESTED)
+#define INIT_FLAG_REESTED(flag)     ((flag & (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV)) == (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV))
 
 #define NODE_LF_INIT                (0x55)          ///< init未受信の判定および不要ビットマスク
                                                     //      [0]xx_00_00_00
