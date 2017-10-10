@@ -58,6 +58,8 @@ static int handler_peer_conf(void* user, const char* section, const char* name, 
 static int handler_fund_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_pay_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_anno_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_establish_conf(void* user, const char* section, const char* name, const char* value);
 static bool chk_nonzero(const uint8_t *pData, int Len);
 
 
@@ -76,7 +78,7 @@ bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *p
     memset(pRpcConf, 0, sizeof(rpc_conf_t));
     memset(pAddr, 0, sizeof(ln_nodeaddr_t));
 
-    if (ini_parse(pConfFile, handler_node_conf, &node_confs) < 0) {
+    if (ini_parse(pConfFile, handler_node_conf, &node_confs) != 0) {
         SYSLOG_ERR("fail node parse[%s]", pConfFile);
         return false;
     }
@@ -117,7 +119,7 @@ bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
 {
     memset(pPeerConf, 0, sizeof(peer_conf_t));
 
-    if (ini_parse(pConfFile, handler_peer_conf, pPeerConf) < 0) {
+    if (ini_parse(pConfFile, handler_peer_conf, pPeerConf) != 0) {
         SYSLOG_ERR("fail peer parse[%s]", pConfFile);
         return false;
     }
@@ -149,7 +151,7 @@ bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
 {
     memset(pFundConf, 0, sizeof(funding_conf_t));
 
-    if (ini_parse(pConfFile, handler_fund_conf, pFundConf) < 0) {
+    if (ini_parse(pConfFile, handler_fund_conf, pFundConf) != 0) {
         SYSLOG_ERR("fail fund parse[%s]", pConfFile);
         return false;
     }
@@ -184,7 +186,7 @@ bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
     //memset(pRpcConf, 0, sizeof(rpc_conf_t));
 
-    if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) < 0) {
+    if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
         SYSLOG_ERR("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
     }
@@ -231,7 +233,7 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
 {
     memset(pPayConf, 0, sizeof(payment_conf_t));
 
-    if (ini_parse(pConfFile, handler_pay_conf, pPayConf) < 0) {
+    if (ini_parse(pConfFile, handler_pay_conf, pPayConf) != 0) {
         SYSLOG_ERR("fail pay parse[%s]", pConfFile);
         return false;
     }
@@ -262,6 +264,32 @@ void print_payment_conf(const payment_conf_t *pPayConf)
         fprintf(PRINTOUT, "  amount_msat= %" PRIu64 "\n", pPayConf->hop_datain[lp].amt_to_forward);
         fprintf(PRINTOUT, "  cltv_expiry: %d\n", pPayConf->hop_datain[lp].outgoing_cltv_value);
     }
+}
+
+
+bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf)
+{
+    memset(pAnnoConf, 0, sizeof(anno_conf_t));
+
+    if (ini_parse(pConfFile, handler_anno_conf, pAnnoConf) != 0) {
+        SYSLOG_ERR("fail anno parse[%s]", pConfFile);
+        return false;
+    }
+
+    return true;
+}
+
+
+bool load_establish_conf(const char *pConfFile, establish_conf_t *pEstConf)
+{
+    memset(pEstConf, 0, sizeof(establish_conf_t));
+
+    if (ini_parse(pConfFile, handler_establish_conf, pEstConf) != 0) {
+        SYSLOG_ERR("fail establish parse[%s]", pConfFile);
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -395,6 +423,66 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
         }
     } else {
         return 0;  /* unknown section/name, error */
+    }
+    if (!ret) {
+        DBG_PRINTF("fail: %s\n", name);
+    }
+    return (ret) ? 1 : 0;
+}
+
+
+static int handler_anno_conf(void* user, const char* section, const char* name, const char* value)
+{
+    bool ret = true;
+    anno_conf_t* pconfig = (anno_conf_t *)user;
+
+    if (strcmp(name, "cltv_expiry_delta") == 0) {
+        pconfig->cltv_expiry_delta = atoi(value);
+        ret = (pconfig->cltv_expiry_delta > 0);
+    } else if (strcmp(name, "htlc_minimum_msat") == 0) {
+        pconfig->htlc_minimum_msat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "fee_base_msat") == 0) {
+        pconfig->fee_base_msat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "fee_prop_millionths") == 0) {
+        pconfig->fee_prop_millionths = strtoull(value, NULL, 10);
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    if (!ret) {
+        DBG_PRINTF("fail: %s\n", name);
+    }
+    return (ret) ? 1 : 0;
+}
+
+
+static int handler_establish_conf(void* user, const char* section, const char* name, const char* value)
+{
+    bool ret = true;
+    establish_conf_t* pconfig = (establish_conf_t *)user;
+
+    if (strcmp(name, "dust_limit_sat") == 0) {
+        pconfig->dust_limit_sat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "max_htlc_value_in_flight_msat") == 0) {
+        pconfig->max_htlc_value_in_flight_msat = strtoull(value, NULL, 10);
+        ret = (pconfig->max_htlc_value_in_flight_msat > 0);
+    } else if (strcmp(name, "channel_reserve_sat") == 0) {
+        pconfig->channel_reserve_sat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "htlc_minimum_msat") == 0) {
+        pconfig->htlc_minimum_msat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "to_self_delay") == 0) {
+        pconfig->to_self_delay = atoi(value);
+        ret = (pconfig->to_self_delay > 0);
+    } else if (strcmp(name, "max_accepted_htlcs") == 0) {
+        pconfig->max_accepted_htlcs = atoi(value);
+        ret = (pconfig->max_accepted_htlcs > 0);
+    } else if (strcmp(name, "min_depth") == 0) {
+        pconfig->min_depth = strtoul(value, NULL, 10);
+        ret = (pconfig->min_depth > 0);
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    if (!ret) {
+        DBG_PRINTF("fail: %s\n", name);
     }
     return (ret) ? 1 : 0;
 }

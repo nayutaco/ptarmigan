@@ -68,7 +68,8 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
-static lnapp_conf_t *search_connected_lnapp(const uint8_t *p_node_id);
+static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
+static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
 
 
 /********************************************************************
@@ -228,10 +229,7 @@ bool forward_payment(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_cha
     DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", p_add->p_hop->short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = p2p_cli_search_short_channel_id(p_add->p_hop->short_channel_id);
-    if (p_appconf == NULL) {
-        p_appconf = p2p_svr_search_short_channel_id(p_add->p_hop->short_channel_id);
-    }
+    p_appconf = search_connected_lnapp_cnl(p_add->p_hop->short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
         ret = lnapp_forward_payment(p_appconf, p_add, prev_short_channel_id);
@@ -251,10 +249,7 @@ bool backward_fulfill(const ln_cb_fulfill_htlc_recv_t *pFulFill)
     DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pFulFill->prev_short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = p2p_cli_search_short_channel_id(pFulFill->prev_short_channel_id);
-    if (p_appconf == NULL) {
-        p_appconf = p2p_svr_search_short_channel_id(pFulFill->prev_short_channel_id);
-    }
+    p_appconf = search_connected_lnapp_cnl(pFulFill->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
         ret = lnapp_backward_fulfill(p_appconf, pFulFill);
@@ -274,10 +269,7 @@ bool backward_fail(const ln_cb_fail_htlc_recv_t *pFail)
     DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pFail->prev_short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = p2p_cli_search_short_channel_id(pFail->prev_short_channel_id);
-    if (p_appconf == NULL) {
-        p_appconf = p2p_svr_search_short_channel_id(pFail->prev_short_channel_id);
-    }
+    p_appconf = search_connected_lnapp_cnl(pFail->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
         ret = lnapp_backward_fail(p_appconf, pFail);
@@ -483,7 +475,7 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("connect");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp(conn.node_id);
+    lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf == NULL) {
         p2p_cli_start(DCMD_CONNECT, &conn, NULL, ln_node_id(&mNode), ctx);
         if (ctx->error_code == 0) {
@@ -522,7 +514,7 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("close");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp(conn.node_id);
+    lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
         bool ret = lnapp_close_channel(p_appconf);
         if (ret) {
@@ -758,7 +750,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("payment");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp(payconf.hop_datain[1].pubkey);
+    lnapp_conf_t *p_appconf = search_connected_lnapp_node(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
         bool ret;
 #if 1
@@ -822,13 +814,25 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
 }
 
 
-static lnapp_conf_t *search_connected_lnapp(const uint8_t *p_node_id)
+static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id)
 {
     lnapp_conf_t *p_appconf;
 
     p_appconf = p2p_cli_search_node(p_node_id);
     if (p_appconf == NULL) {
         p_appconf = p2p_svr_search_node(p_node_id);
+    }
+    return p_appconf;
+}
+
+
+static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id)
+{
+    lnapp_conf_t *p_appconf;
+
+    p_appconf = p2p_cli_search_short_channel_id(short_channel_id);
+    if (p_appconf == NULL) {
+        p_appconf = p2p_svr_search_short_channel_id(short_channel_id);
     }
     return p_appconf;
 }

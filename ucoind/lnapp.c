@@ -72,14 +72,20 @@
 
 #define M_SHUTDOWN_FEE          UCOIN_MBTC2SATOSHI(0.1)     ///< shutdown時のFEE
 
-//デフォルト値変更
-#define M_DUST_LIMIT_SAT                (0)
-//#define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
-//#define M_CHANNEL_RESERVE_SAT           (700)
-//#define M_HTLC_MINIMUM_MSAT             (9000)
+//デフォルト値
+//  announcement
+#define M_CLTV_EXPIRY_DELTA             (36)
+#define M_HTLC_MINIMUM_MSAT_ANNO        (0)
+#define M_FEE_BASE_MSAT                 (10)
+#define M_FEE_PROP_MILLIONTHS           (100)
+//  establish
+#define M_DUST_LIMIT_SAT                (546)
+#define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
+#define M_CHANNEL_RESERVE_SAT           (700)
+#define M_HTLC_MINIMUM_MSAT_EST         (0)
 #define M_FEERATE_PER_KW                (60000)
-//#define M_TO_SELF_DELAY                 (90)
-//#define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
+#define M_TO_SELF_DELAY                 (40)
+#define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
 #define M_MIN_DEPTH                     (1)
 
 #define M_ANNOSIGS_CONFIRM      (6)         ///< announcement_signaturesを送信するconfirmation
@@ -124,9 +130,10 @@ typedef struct {
  * static variables
  ********************************************************************/
 
-static volatile bool    mLoop;               //true:チャネル有効
+static volatile bool    mLoop;              //true:チャネル有効
 
 static ln_node_t        *mpNode;
+static ln_anno_default_t    mAnnoDef;       ///< announcementデフォルト値
 
 //シーケンスのmutex
 static pthread_mutexattr_t mMuxAttr;
@@ -517,6 +524,20 @@ static void *thread_main_start(void *pArg)
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
     ln_self_t my_self;
 
+    //announcementデフォルト値
+    anno_conf_t aconf;
+    ret = load_anno_conf("anno.conf", &aconf);
+    if (ret) {
+        mAnnoDef.cltv_expiry_delta = aconf.cltv_expiry_delta;
+        mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
+        mAnnoDef.fee_base_msat = aconf.fee_base_msat;
+        mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
+    } else {
+        mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
+        mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
+        mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
+        mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
+    }
 
     //スレッド
     pthread_t   th_peer;        //peer受信
@@ -530,9 +551,9 @@ static void *thread_main_start(void *pArg)
         do {
             ucoin_util_random(seed, UCOIN_SZ_PRIVKEY);
         } while (!ucoin_keys_chkpriv(seed));
-        ln_init(&my_self, mpNode, seed, notify_cb);
+        ln_init(&my_self, mpNode, seed, &mAnnoDef, notify_cb);
     } else {
-        ln_init(&my_self, mpNode, NULL, notify_cb);
+        ln_init(&my_self, mpNode, NULL, &mAnnoDef, notify_cb);
     }
 
     //コールバック・受信スレッド用
@@ -575,11 +596,11 @@ static void *thread_main_start(void *pArg)
         if (short_channel_id != 0) {
             if (short_channel_id != 0) {
                 DBG_PRINTF("    チャネルDB読込み: %" PRIx64 "\n", short_channel_id);
-                ln_init(&my_self, mpNode, NULL, notify_cb);
+                ln_init(&my_self, mpNode, NULL, &mAnnoDef, notify_cb);
                 ret = ln_db_load_channel(&my_self, short_channel_id);
                 if (ret) {
                     //peer node_id
-                    ln_set_establish(&my_self, NULL, p_conf->node_id);
+                    ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
                 }
             }
         } else {
@@ -2232,31 +2253,32 @@ static bool db_del_channel(ln_self_t *self, bool bRemove)
  */
 static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
 {
-    p_conf->p_establish = (ln_establish_t *)malloc(sizeof(ln_establish_t));     //free: cb_established()
-    bool ret = ln_set_establish(p_conf->p_self, p_conf->p_establish, pNodeId);
-    assert(ret);
+    bool ret;
+    establish_conf_t econf;
+    ln_est_default_t defval;
 
-#ifdef M_DUST_LIMIT_SAT
-    p_conf->p_establish->defval.dust_limit_sat = M_DUST_LIMIT_SAT;
-#endif
-#ifdef M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT
-    p_conf->p_establish->defval.max_htlc_value_in_flight_msat = M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT;
-#endif
-#ifdef M_CHANNEL_RESERVE_SAT
-    p_conf->p_establish->defval.channel_reserve_sat = M_CHANNEL_RESERVE_SAT;
-#endif
-#ifdef M_HTLC_MINIMUM_MSAT
-    p_conf->p_establish->defval.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT;
-#endif
-#ifdef M_TO_SELF_DELAY
-    p_conf->p_establish->defval.to_self_delay = M_TO_SELF_DELAY;
-#endif
-#ifdef M_MAX_ACCEPTED_HTLCS
-    p_conf->p_establish->defval.max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
-#endif
-#ifdef M_MIN_DEPTH
-    p_conf->p_establish->defval.min_depth = M_MIN_DEPTH;
-#endif
+    ret = load_establish_conf("establish.conf", &econf);
+    if (ret) {
+        defval.dust_limit_sat = econf.dust_limit_sat;
+        defval.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;
+        defval.channel_reserve_sat = econf.channel_reserve_sat;
+        defval.htlc_minimum_msat = econf.htlc_minimum_msat;
+        defval.to_self_delay = econf.to_self_delay;
+        defval.max_accepted_htlcs = econf.max_accepted_htlcs;
+        defval.min_depth = econf.min_depth;
+    } else {
+        defval.dust_limit_sat = M_DUST_LIMIT_SAT;
+        defval.max_htlc_value_in_flight_msat = M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT;
+        defval.channel_reserve_sat = M_CHANNEL_RESERVE_SAT;
+        defval.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_EST;
+        defval.to_self_delay = M_TO_SELF_DELAY;
+        defval.max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
+        defval.min_depth = M_MIN_DEPTH;
+    }
+
+    p_conf->p_establish = (ln_establish_t *)malloc(sizeof(ln_establish_t));     //free: cb_established()
+    ret = ln_set_establish(p_conf->p_self, p_conf->p_establish, pNodeId, &defval);
+    assert(ret);
 }
 
 

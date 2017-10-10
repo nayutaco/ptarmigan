@@ -21,7 +21,7 @@ mk_jsonrpc_c:
 	cd jsonrpc-c; autoreconf -i ; ./configure --prefix=$(INSTALL_DIR) --disable-shared ; make CFLAGS=-DNO_CHECK_LOCALHOST LDFLAGS=-lm ; make install ; cd ..
 
 mk_inih:
-	cd inih/extra ; CCFLAGS="-g -O2 -DINI_INLINE_COMMENT_PREFIXES=\"\#\" -DINI_STOP_ON_FIRST_ERROR=1" make -f Makefile.static ; cd ../..
+	cd inih/extra ; EXTRACCFLAGS="-g -O2 -D'INI_INLINE_COMMENT_PREFIXES=\"#\"' -DINI_STOP_ON_FIRST_ERROR=1" make -f Makefile.static ; cd ../..
 	@cp inih/extra/libinih.a $(INSTALL_DIR)/lib
 	@mkdir -p $(INSTALL_DIR)/include/inih
 	@cp inih/ini.h $(INSTALL_DIR)/include/inih/
