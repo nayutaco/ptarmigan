@@ -280,13 +280,13 @@ bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t
     if (pEstablish && pEstDef) {
         self->p_est->p_fundin = NULL;       //open_channel送信側が設定する
         memcpy(&self->p_est->defval, pEstDef, sizeof(ln_est_default_t));
-        DBG_PRINTF("dust_limit_sat= %" PRIu64 "\n", pEstDef->dust_limit_sat);
-        DBG_PRINTF("max_htlc_value_in_flight_msat= %" PRIu64 "\n", pEstDef->max_htlc_value_in_flight_msat);
-        DBG_PRINTF("channel_reserve_sat= %" PRIu64 "\n", pEstDef->channel_reserve_sat);
-        DBG_PRINTF("htlc_minimum_msat= %" PRIu64 "\n", pEstDef->htlc_minimum_msat);
-        DBG_PRINTF("to_self_delay= %" PRIu16 "\n", pEstDef->to_self_delay);
-        DBG_PRINTF("max_accepted_htlcs= %" PRIu16 "\n", pEstDef->max_accepted_htlcs);
-        DBG_PRINTF("min_depth= %" PRIu16 "\n", pEstDef->min_depth);
+        DBG_PRINTF("dust_limit_sat= %" PRIu64 "\n", self->p_est->defval.dust_limit_sat);
+        DBG_PRINTF("max_htlc_value_in_flight_msat= %" PRIu64 "\n", self->p_est->defval.max_htlc_value_in_flight_msat);
+        DBG_PRINTF("channel_reserve_sat= %" PRIu64 "\n", self->p_est->defval.channel_reserve_sat);
+        DBG_PRINTF("htlc_minimum_msat= %" PRIu64 "\n", self->p_est->defval.htlc_minimum_msat);
+        DBG_PRINTF("to_self_delay= %" PRIu16 "\n", self->p_est->defval.to_self_delay);
+        DBG_PRINTF("max_accepted_htlcs= %" PRIu16 "\n", self->p_est->defval.max_accepted_htlcs);
+        DBG_PRINTF("min_depth= %" PRIu16 "\n", self->p_est->defval.min_depth);
     }
 
     if ((pNodeId != NULL) && !ucoin_keys_chkpub(pNodeId)) {
@@ -1451,10 +1451,10 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //署名チェック
     // initial commit tx(自分が持つTo-Local)
-    //      to-self-delayは相手の値(open_channel)を使う
+    //      to-self-delayは自分の値(open_channel)を使う
     //      HTLCは存在しない
     ret = create_to_local(self, NULL, 0,
-                self->p_est->cnl_accept.to_self_delay, self->p_est->cnl_accept.dust_limit_sat);
+                self->p_est->cnl_open.to_self_delay, self->p_est->cnl_accept.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
         return false;
@@ -1464,7 +1464,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
     ret = create_to_remote(self, NULL, NULL,
-                self->p_est->cnl_open.to_self_delay, self->p_est->cnl_open.dust_limit_sat);
+                self->p_est->cnl_accept.to_self_delay, self->p_est->cnl_open.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_remote\n");
         return false;

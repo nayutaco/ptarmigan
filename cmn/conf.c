@@ -78,7 +78,7 @@ bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *p
     memset(pRpcConf, 0, sizeof(rpc_conf_t));
     memset(pAddr, 0, sizeof(ln_nodeaddr_t));
 
-    if (ini_parse(pConfFile, handler_node_conf, &node_confs) < 0) {
+    if (ini_parse(pConfFile, handler_node_conf, &node_confs) != 0) {
         SYSLOG_ERR("fail node parse[%s]", pConfFile);
         return false;
     }
@@ -119,7 +119,7 @@ bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
 {
     memset(pPeerConf, 0, sizeof(peer_conf_t));
 
-    if (ini_parse(pConfFile, handler_peer_conf, pPeerConf) < 0) {
+    if (ini_parse(pConfFile, handler_peer_conf, pPeerConf) != 0) {
         SYSLOG_ERR("fail peer parse[%s]", pConfFile);
         return false;
     }
@@ -151,7 +151,7 @@ bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
 {
     memset(pFundConf, 0, sizeof(funding_conf_t));
 
-    if (ini_parse(pConfFile, handler_fund_conf, pFundConf) < 0) {
+    if (ini_parse(pConfFile, handler_fund_conf, pFundConf) != 0) {
         SYSLOG_ERR("fail fund parse[%s]", pConfFile);
         return false;
     }
@@ -186,7 +186,7 @@ bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
     //memset(pRpcConf, 0, sizeof(rpc_conf_t));
 
-    if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) < 0) {
+    if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
         SYSLOG_ERR("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
     }
@@ -233,7 +233,7 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
 {
     memset(pPayConf, 0, sizeof(payment_conf_t));
 
-    if (ini_parse(pConfFile, handler_pay_conf, pPayConf) < 0) {
+    if (ini_parse(pConfFile, handler_pay_conf, pPayConf) != 0) {
         SYSLOG_ERR("fail pay parse[%s]", pConfFile);
         return false;
     }
@@ -271,7 +271,7 @@ bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf)
 {
     memset(pAnnoConf, 0, sizeof(anno_conf_t));
 
-    if (ini_parse(pConfFile, handler_anno_conf, pAnnoConf) < 0) {
+    if (ini_parse(pConfFile, handler_anno_conf, pAnnoConf) != 0) {
         SYSLOG_ERR("fail anno parse[%s]", pConfFile);
         return false;
     }
@@ -284,7 +284,7 @@ bool load_establish_conf(const char *pConfFile, establish_conf_t *pEstConf)
 {
     memset(pEstConf, 0, sizeof(establish_conf_t));
 
-    if (ini_parse(pConfFile, handler_establish_conf, pEstConf) < 0) {
+    if (ini_parse(pConfFile, handler_establish_conf, pEstConf) != 0) {
         SYSLOG_ERR("fail establish parse[%s]", pConfFile);
         return false;
     }
@@ -424,6 +424,9 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
     } else {
         return 0;  /* unknown section/name, error */
     }
+    if (!ret) {
+        DBG_PRINTF("fail: %s\n", name);
+    }
     return (ret) ? 1 : 0;
 }
 
@@ -444,6 +447,9 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
         pconfig->fee_prop_millionths = strtoull(value, NULL, 10);
     } else {
         return 0;  /* unknown section/name, error */
+    }
+    if (!ret) {
+        DBG_PRINTF("fail: %s\n", name);
     }
     return (ret) ? 1 : 0;
 }
@@ -474,6 +480,9 @@ static int handler_establish_conf(void* user, const char* section, const char* n
         ret = (pconfig->min_depth > 0);
     } else {
         return 0;  /* unknown section/name, error */
+    }
+    if (!ret) {
+        DBG_PRINTF("fail: %s\n", name);
     }
     return (ret) ? 1 : 0;
 }
