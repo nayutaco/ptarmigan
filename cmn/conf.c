@@ -58,6 +58,7 @@ static int handler_peer_conf(void* user, const char* section, const char* name, 
 static int handler_fund_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_pay_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_anno_conf(void* user, const char* section, const char* name, const char* value);
 static bool chk_nonzero(const uint8_t *pData, int Len);
 
 
@@ -265,6 +266,19 @@ void print_payment_conf(const payment_conf_t *pPayConf)
 }
 
 
+bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf)
+{
+    memset(pAnnoConf, 0, sizeof(anno_conf_t));
+
+    if (ini_parse(pConfFile, handler_anno_conf, pAnnoConf) < 0) {
+        SYSLOG_ERR("fail anno parse[%s]", pConfFile);
+        return false;
+    }
+
+    return true;
+}
+
+
 /**************************************************************************
  * private functions
  **************************************************************************/
@@ -393,6 +407,27 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
         if (ret) {
             ret = pay_root(&pconfig->hop_datain[num], value);
         }
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    return (ret) ? 1 : 0;
+}
+
+
+static int handler_anno_conf(void* user, const char* section, const char* name, const char* value)
+{
+    bool ret = true;
+    anno_conf_t* pconfig = (anno_conf_t *)user;
+
+    if (strcmp(name, "cltv_expiry_delta") == 0) {
+        pconfig->cltv_expiry_delta = atoi(value);
+        ret = (pconfig->cltv_expiry_delta > 0);
+    } else if (strcmp(name, "htlc_minimum_msat") == 0) {
+        pconfig->htlc_minimum_msat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "fee_base_msat") == 0) {
+        pconfig->fee_base_msat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "fee_prop_millionths") == 0) {
+        pconfig->fee_prop_millionths = strtoull(value, NULL, 10);
     } else {
         return 0;  /* unknown section/name, error */
     }

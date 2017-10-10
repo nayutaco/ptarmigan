@@ -519,11 +519,19 @@ static void *thread_main_start(void *pArg)
     ln_self_t my_self;
 
     //announcementデフォルト値
-    memset(&mAnnoDef, 0, sizeof(mAnnoDef));
-    mAnnoDef.cltv_expiry_delta = 36;
-    mAnnoDef.htlc_minimum_msat = 0;
-    mAnnoDef.fee_base_msat = 10;
-    mAnnoDef.fee_prop_millionths = 100;
+    anno_conf_t aconf;
+    ret = load_anno_conf("anno.conf", &aconf);
+    if (ret) {
+        mAnnoDef.cltv_expiry_delta = aconf.cltv_expiry_delta;
+        mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
+        mAnnoDef.fee_base_msat = aconf.fee_base_msat;
+        mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
+    } else {
+        mAnnoDef.cltv_expiry_delta = 36;
+        mAnnoDef.htlc_minimum_msat = 0;
+        mAnnoDef.fee_base_msat = 10;
+        mAnnoDef.fee_prop_millionths = 100;
+    }
 
     //スレッド
     pthread_t   th_peer;        //peer受信

@@ -45,6 +45,8 @@ bool load_btcrpc_default_conf(rpc_conf_t *pRpcConf);
 bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf);
 void print_payment_conf(const payment_conf_t *pPayConf);
 
+bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf);
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus

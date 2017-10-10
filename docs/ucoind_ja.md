@@ -1,23 +1,20 @@
 ucoind
 ====
 
-# NAME
+## NAME
 
 `ucoind` - ucoin daemon
 
-
-# SYNOPSIS
+## SYNOPSIS
 
     ucoind [node config file] [options]
 
-
-## options :
+### options
 
     `id`  : show own node_id(only read config file)
     `wif` : create WIF format string(random 32byte)
 
-
-# DESCRIPTION
+## DESCRIPTION
 
 Start ucoin lightning daemon.
 
@@ -35,10 +32,21 @@ Start ucoin lightning daemon.
 if not exist ipv4, `address descriptor` in `node_announcement` is 0.  
 if not exist rpcxxx, read from `~/.bitcoin/bitcoin.conf`.
 
+### other config file
 
-# SEE ALSO
+If `anno.conf` is exist same folder, 
+
+* announcement config file format
+
+    cltv_expiry_delta=[_(channel_update)_ cltv_expiry_delta]  
+    htlc_minimum_msat=[_(channel_update)_ htlc_minimum_msat]  
+    fee_base_msat=[_(channel_update)_ fee_base_msat]  
+    fee_prop_millionths=[_(channel_update)_ fee_prop_millionths]  
 
 
-# AUTHOR
+
+## SEE ALSO
+
+## AUTHOR
     Nayuta Inc.
 

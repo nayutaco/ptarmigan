@@ -193,6 +193,13 @@ typedef struct {
 } peer_conf_t;
 
 
+typedef struct {
+    uint16_t        cltv_expiry_delta;              ///< 2:  cltv_expiry_delta
+    uint64_t        htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
+    uint32_t        fee_base_msat;                  ///< 4:  fee_base_msat
+    uint32_t        fee_prop_millionths;            ///< 4:  fee_proportional_millionths
+} anno_conf_t;
+
 /** @struct preimage_t
  *  @brief  preimage情報
  */

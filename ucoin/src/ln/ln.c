@@ -244,17 +244,10 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     self->p_callback = pFunc;
 
     //初期値
-    if (pAnnoDef) {
-        self->cltv_expiry_delta = pAnnoDef->cltv_expiry_delta;
-        self->htlc_minimum_msat = pAnnoDef->htlc_minimum_msat;
-        self->fee_base_msat = pAnnoDef->fee_base_msat;
-        self->fee_prop_millionths = pAnnoDef->fee_prop_millionths;
-    } else {
-        self->cltv_expiry_delta = M_DFL_CLTV_EXPILY_DELTA;
-        self->htlc_minimum_msat = M_DFL_HTLC_MINIMUM_MSAT;
-        self->fee_base_msat = M_DFL_FEE_BASE_MSAT;
-        self->fee_prop_millionths = M_DFL_FEE_PROP_MILLIONTHS;
-    }
+    self->cltv_expiry_delta = pAnnoDef->cltv_expiry_delta;
+    self->htlc_minimum_msat = pAnnoDef->htlc_minimum_msat;
+    self->fee_base_msat = pAnnoDef->fee_base_msat;
+    self->fee_prop_millionths = pAnnoDef->fee_prop_millionths;
     DBG_PRINTF("cltv_expiry_delta=%" PRIu16 "\n", self->cltv_expiry_delta);
     DBG_PRINTF("htlc_minimum_msat=%" PRIu64 "\n", self->htlc_minimum_msat);
     DBG_PRINTF("fee_base_msat=%" PRIu32 "\n", self->fee_base_msat);
