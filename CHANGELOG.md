@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2017/10/10
+
+* announcement config file(`anno.conf`)およびestablish config file(`establish.conf`)追加
+* `to_self_delay 修正`
+* update libraries
+
 ## 2017/10/08
 
 * c-lightningとの送受金テスト(2)

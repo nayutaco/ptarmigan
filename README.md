@@ -10,15 +10,12 @@ ptarmigan
 # 名前の由来
 
 ptarmiganは「雷鳥」(Lightning Network→雷→雷鳥)。  
-Thunderbirdではない。
 
 
 # 構成
 
 * bitcoin testnet/regtest用
 * Ubuntu 16.04.2で動作確認中
-* `ucoin` がライブラリ部、 `ucoind` が通信を含めたアプリ部
-* 全体としてエラーに対応しておらず、不整合が発生したらabortする。
 
 
 # dependency
@@ -81,18 +78,19 @@ Thunderbirdではない。
 
 | BOLT | status |
 |------|-------|
-|  1   | can receive `error` |
+|  1   |  |
 |  2   | \*1 |
-|  3   | 実装はしているが、BOLT#2と連携できていない箇所あり。 |
+|  3   |  |
 |  4   | エラー対応していない。 |
 |  5   | Mutual Close以外のclose手段を実装していない。 |
 |  6   | not |
-|  7   | 動作確認中 |
+|  7   |  |
 |  8   | supported |
 |  9   | `initial_routing_sync` = 0 のみ |
+|  10  | yet |
 |  11  | yet |
 
-* 全体としてエラーに対応しておらず、不整合が発生したら `error` を送信せずにabortする。
+* エラー・不整合が発生したら `error` を送信せずにabortする場合が多い。
 
 
 ## BOLT#2 (\*1)
@@ -107,7 +105,7 @@ Thunderbirdではない。
 
 
 ### Message Retransmission
-* reestablish未対応
+* reestablish簡易対応
 
 
 # 主な使い方

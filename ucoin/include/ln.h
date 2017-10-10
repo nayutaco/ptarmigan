@@ -327,7 +327,7 @@ typedef struct {
 } ln_fundin_t;
 
 
-/** @struct ln_default_t
+/** @struct ln_est_default_t
  *  @brief  Establish関連のデフォルト値
  *  @note
  *      - #ln_set_establish()で初期化する
@@ -340,7 +340,7 @@ typedef struct {
     uint16_t    to_self_delay;                      ///< 2 : to-self-delay
     uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
-} ln_default_t;
+} ln_est_default_t;
 
 
 /** @struct ln_establish_t
@@ -353,7 +353,7 @@ typedef struct {
     ln_funding_signed_t         cnl_funding_signed;             ///< 送信 or 受信したfunding_signed
 
     const ln_fundin_t           *p_fundin;                      ///< 非NULL:open_channel側
-    ln_default_t                defval;                         ///< デフォルト値
+    ln_est_default_t            defval;                         ///< デフォルト値
 } ln_establish_t;
 
 /// @}
@@ -643,6 +643,18 @@ typedef struct {
     uint8_t     *p_btc_signature;                   ///< 64: bitcoin_signature
 } ln_announce_signs_t;
 
+
+/** @struct     ln_anno_default_t
+ *  @brief      announce関連のデフォルト値
+ */
+typedef struct {
+    //channel_update
+    uint16_t    cltv_expiry_delta;                  ///< 2 : cltv_expiry_delta
+    uint64_t    htlc_minimum_msat;                  ///< 8 : htlc_minimum_msat
+    uint32_t    fee_base_msat;                      ///< 4 : fee_base_msat
+    uint32_t    fee_prop_millionths;                ///< 4 : fee_proportional_millionths
+} ln_anno_default_t;
+
 /// @}
 
 
@@ -862,8 +874,8 @@ typedef struct {
 struct ln_self_t {
     ln_node_t                   *p_node;                        ///< 属しているnode情報
     ln_node_info_t              peer_node;                      ///< 接続先ノード
-    ucoin_buf_t                 cnl_anno;                       ///< 自channel_announcement
 
+    //key storage
     uint64_t                    storage_index;                  ///< 現在のindex
     uint8_t                     storage_seed[UCOIN_SZ_PRIVKEY]; ///< ユーザから指定されたseed
     ln_derkey_storage           peer_storage;                   ///< key storage(peer)
@@ -878,31 +890,26 @@ struct ln_self_t {
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
     uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
+    ln_establish_t              *p_est;                         ///< Establish時ワーク領域
 
+    //announce
     uint8_t                     anno_flag;                      ///< announcement_signaturesなど
-    uint16_t                    cltv_expiry_delta;              ///< 2:  cltv_expiry_delta
-    uint64_t                    htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
-    uint32_t                    fee_base_msat;                  ///< 4:  fee_base_msat
-    uint32_t                    fee_prop_millionths;            ///< 4:  fee_proportional_millionths
-
-    //closing
-    ucoin_tx_t                  tx_closing;                     ///< closing_tx
-
-    //
-    ln_callback_t               p_callback;                     ///< 通知コールバック
+    ln_anno_default_t           anno_default;
+    ucoin_buf_t                 cnl_anno;                       ///< 自channel_announcement
 
     //msg:init
     uint8_t                     init_flag;                      ///< INIT_FLAG_xxx
     uint8_t                     lfeature_remote;                ///< initで取得したlocalfeature
-    //msg:establish
-    ln_establish_t              *p_est;                         ///< Establish時ワーク領域
+
     //msg:close
+    ucoin_tx_t                  tx_closing;                     ///< closing_tx
     uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)。 b1:受信済み b0:送信済み
     uint64_t                    close_fee_sat;                  ///< closing_txのFEE
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< mutual close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
     ln_shutdown_t               cnl_shutdown;                   ///< 受信したshutdown
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
+
     //msg:normal operation
     uint16_t                    htlc_num;                       ///< HTLC数
     uint64_t                    commit_num;                     ///< commitment_signed送信後にインクリメントする48bitカウンタ(0～)
@@ -912,9 +919,9 @@ struct ln_self_t {
     uint64_t                    htlc_id_num;                    ///< update_add_htlcで使うidの管理
     uint64_t                    our_msat;                       ///< 自分の持ち分
     uint64_t                    their_msat;                     ///< 相手の持ち分
-    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< 追加したHTLC
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< channel_id
     uint64_t                    short_channel_id;               ///< short_channel_id
+    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< 追加したHTLC
 
     //ping pong
     uint16_t                    missing_pong_cnt;               ///< ping送信に対してpongを受信しなかった回数
@@ -924,7 +931,7 @@ struct ln_self_t {
     ln_commit_data_t            commit_local;                   ///< local commit_tx用
     ln_commit_data_t            commit_remote;                  ///< remote commit_tx用
     //commitment transaction情報(固有)
-    uint64_t                    funding_sat;                    ///< funding_msat
+    uint64_t                    funding_sat;                    ///< funding_satoshis
     uint32_t                    feerate_per_kw;                 ///< feerate_per_kw
 
     //noise protocol
@@ -935,7 +942,8 @@ struct ln_self_t {
     //last error
     int                         err;                            ///< error code(ln_err.h)
 
-    //param
+    //for app
+    ln_callback_t               p_callback;                     ///< 通知コールバック
     void                        *p_param;                       ///< ユーザ用
 };
 
@@ -953,10 +961,11 @@ struct ln_self_t {
  * @param[in,out]       self            channel情報
  * @param[in]           node            関連付けるnode
  * @param[in]           pSeed           per-commit-secret生成用
+ * @param[in]           pAnnoDef        announcement値(NULLの場合、デフォルト値を使用する)
  * @param[in]           pFunc           通知用コールバック関数
  * @retval      true    成功
  */
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback_t pFunc);
+bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_default_t *pAnnoDef, ln_callback_t pFunc);
 
 
 /** 終了
@@ -982,11 +991,12 @@ void ln_set_genesishash(const uint8_t *pHash);
  * @param[in,out]       self            channel情報
  * @param[out]          pEstablish      ワーク領域
  * @param[in]           pNodeId         Establish先(NULL可)
+ * @param[in]           pEstDef         Establishデフォルト値
  * @retval      true    成功
  * @note
  *      - pEstablishは接続完了まで保持すること
  */
-bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId);
+bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId, const ln_est_default_t *pEstDef);
 
 
 /** funding鍵設定
@@ -1112,8 +1122,11 @@ bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf);
 bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 
-/** フラグ処理
- *      フラグだけ立てておいた処理を時間差で行う
+/** 定期フラグ回収処理
+ * どこかのタイミングで行う必要があるが、即時行うようなタイミングがないかもしれない処理。
+ * 将来的には ln.c で吸収すべきと考えている。
+ *      - funding_locked交換
+ *      - announcement_signatures交換
  *
  * @param[in,out]       self        channel情報
  */
@@ -1402,7 +1415,7 @@ static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
  * @return      cltv_expiry_delta
  */
 static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
-    return self->cltv_expiry_delta;
+    return self->anno_default.cltv_expiry_delta;
 }
 
 
@@ -1413,7 +1426,7 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
  * @return      転送FEE(msat)
  */
 static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
-    return (uint64_t)self->fee_base_msat + (amount * (uint64_t)self->fee_prop_millionths / (uint64_t)1000000);
+    return (uint64_t)self->anno_default.fee_base_msat + (amount * (uint64_t)self->anno_default.fee_prop_millionths / (uint64_t)1000000);
 }
 
 

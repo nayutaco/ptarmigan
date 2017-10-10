@@ -47,20 +47,6 @@
 
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
-//TODO:暫定
-#define M_DFL_DUST_LMIT_SAT                     (546)
-#define M_DFL_MAX_HTLC_VALUE_IN_FLIGHT_MSAT     (UINT64_MAX)
-#define M_DFL_CHANNEL_RESERVE_SAT               (700)
-#define M_DFL_HTLC_MIN_MSAT                     (9000)
-#define M_DFL_TO_SELF_DELAY                     (90)
-#define M_DFL_MAX_ACCEPTED_HTLC                 (LN_HTLC_MAX)
-#define M_DFL_MIN_DEPTH                         (5)
-
-#define M_DFL_CLTV_EXPILY_DELTA                 (10)
-#define M_DFL_HTLC_MINIMUM_MSAT                 M_DFL_HTLC_MIN_MSAT
-#define M_DFL_FEE_BASE_MSAT                     (10000)
-#define M_DFL_FEE_PROP_MILLIONTHS               (5000)
-
 #define M_HTLCCHG_NONE                          (0)
 #define M_HTLCCHG_FF_SEND                       (1)
 #define M_HTLCCHG_FF_RECV                       (2)
@@ -207,7 +193,7 @@ uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
  * public functions
  **************************************************************************/
 
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback_t pFunc)
+bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_default_t *pAnnoDef, ln_callback_t pFunc)
 {
     DBG_PRINTF("BEGIN : pSeed=%p\n", pSeed);
 
@@ -240,13 +226,15 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback
     //クリア
     self->lfeature_remote = NODE_LF_INIT;
 
-    //初期値
     self->p_node = node;
     self->p_callback = pFunc;
-    self->cltv_expiry_delta = M_DFL_CLTV_EXPILY_DELTA;
-    self->htlc_minimum_msat = M_DFL_HTLC_MINIMUM_MSAT;
-    self->fee_base_msat = M_DFL_FEE_BASE_MSAT;
-    self->fee_prop_millionths = M_DFL_FEE_PROP_MILLIONTHS;
+
+    //初期値
+    memcpy(&self->anno_default, pAnnoDef, sizeof(ln_anno_default_t));
+    DBG_PRINTF("cltv_expiry_delta=%" PRIu16 "\n", self->anno_default.cltv_expiry_delta);
+    DBG_PRINTF("htlc_minimum_msat=%" PRIu64 "\n", self->anno_default.htlc_minimum_msat);
+    DBG_PRINTF("fee_base_msat=%" PRIu32 "\n", self->anno_default.fee_base_msat);
+    DBG_PRINTF("fee_prop_millionths=%" PRIu32 "\n", self->anno_default.fee_prop_millionths);
 
     //seed
     self->storage_index = M_SECINDEX_INIT;
@@ -282,23 +270,23 @@ void ln_set_genesishash(const uint8_t *pHash)
 }
 
 
-bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId)
+bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId, const ln_est_default_t *pEstDef)
 {
     DBG_PRINTF("BEGIN\n");
 
     self->p_est = pEstablish;
 
     //デフォルト値
-    if (pEstablish) {
+    if (pEstablish && pEstDef) {
         self->p_est->p_fundin = NULL;       //open_channel送信側が設定する
-
-        self->p_est->defval.dust_limit_sat = M_DFL_DUST_LMIT_SAT;
-        self->p_est->defval.max_htlc_value_in_flight_msat = M_DFL_MAX_HTLC_VALUE_IN_FLIGHT_MSAT;
-        self->p_est->defval.channel_reserve_sat = M_DFL_CHANNEL_RESERVE_SAT;
-        self->p_est->defval.htlc_minimum_msat = M_DFL_HTLC_MIN_MSAT;
-        self->p_est->defval.to_self_delay = M_DFL_TO_SELF_DELAY;
-        self->p_est->defval.max_accepted_htlcs = M_DFL_MAX_ACCEPTED_HTLC;
-        self->p_est->defval.min_depth = M_DFL_MIN_DEPTH;
+        memcpy(&self->p_est->defval, pEstDef, sizeof(ln_est_default_t));
+        DBG_PRINTF("dust_limit_sat= %" PRIu64 "\n", self->p_est->defval.dust_limit_sat);
+        DBG_PRINTF("max_htlc_value_in_flight_msat= %" PRIu64 "\n", self->p_est->defval.max_htlc_value_in_flight_msat);
+        DBG_PRINTF("channel_reserve_sat= %" PRIu64 "\n", self->p_est->defval.channel_reserve_sat);
+        DBG_PRINTF("htlc_minimum_msat= %" PRIu64 "\n", self->p_est->defval.htlc_minimum_msat);
+        DBG_PRINTF("to_self_delay= %" PRIu16 "\n", self->p_est->defval.to_self_delay);
+        DBG_PRINTF("max_accepted_htlcs= %" PRIu16 "\n", self->p_est->defval.max_accepted_htlcs);
+        DBG_PRINTF("min_depth= %" PRIu16 "\n", self->p_est->defval.min_depth);
     }
 
     if ((pNodeId != NULL) && !ucoin_keys_chkpub(pNodeId)) {
@@ -688,11 +676,11 @@ bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd, uint32_t Ti
 
     upd.short_channel_id = self->short_channel_id;
     upd.timestamp = TimeStamp;
-
-    upd.cltv_expiry_delta = self->cltv_expiry_delta;
-    upd.htlc_minimum_msat = self->htlc_minimum_msat;
-    upd.fee_base_msat = self->fee_base_msat;
-    upd.fee_prop_millionths = self->fee_prop_millionths;
+    //announce
+    upd.cltv_expiry_delta = self->anno_default.cltv_expiry_delta;
+    upd.htlc_minimum_msat = self->anno_default.htlc_minimum_msat;
+    upd.fee_base_msat = self->anno_default.fee_base_msat;
+    upd.fee_prop_millionths = self->anno_default.fee_prop_millionths;
     //署名
     upd.p_key = self->p_node->keys.priv;
     upd.sort = self->peer_node.sort;
@@ -1463,10 +1451,10 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //署名チェック
     // initial commit tx(自分が持つTo-Local)
-    //      to-self-delayは相手の値(open_channel)を使う
+    //      to-self-delayは自分の値(open_channel)を使う
     //      HTLCは存在しない
     ret = create_to_local(self, NULL, 0,
-                self->p_est->cnl_accept.to_self_delay, self->p_est->cnl_accept.dust_limit_sat);
+                self->p_est->cnl_open.to_self_delay, self->p_est->cnl_accept.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
         return false;
@@ -1476,7 +1464,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
     ret = create_to_remote(self, NULL, NULL,
-                self->p_est->cnl_open.to_self_delay, self->p_est->cnl_open.dust_limit_sat);
+                self->p_est->cnl_accept.to_self_delay, self->p_est->cnl_open.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_remote\n");
         return false;
@@ -3291,6 +3279,10 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
 }
 
 
+/** funding_locked交換完了のチェックおよび処理実行
+ *
+ * funding_lockedの送受信処理に移動させてもよいかもしれない
+ */
 static bool proc_established(ln_self_t *self)
 {
     bool ret = true;
@@ -3328,6 +3320,10 @@ static bool proc_established(ln_self_t *self)
 }
 
 
+/** announcement_signatures交換完了のチェックおよび処理実行
+ *
+ * announcement_signaturesの送受信処理に移動させてもよいかもしれない
+ */
 static void proc_announce_sigsed(ln_self_t *self)
 {
     if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
