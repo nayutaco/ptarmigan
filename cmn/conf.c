@@ -59,6 +59,7 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_pay_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_anno_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_establish_conf(void* user, const char* section, const char* name, const char* value);
 static bool chk_nonzero(const uint8_t *pData, int Len);
 
 
@@ -279,6 +280,19 @@ bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf)
 }
 
 
+bool load_establish_conf(const char *pConfFile, establish_conf_t *pEstConf)
+{
+    memset(pEstConf, 0, sizeof(establish_conf_t));
+
+    if (ini_parse(pConfFile, handler_establish_conf, pEstConf) < 0) {
+        SYSLOG_ERR("fail establish parse[%s]", pConfFile);
+        return false;
+    }
+
+    return true;
+}
+
+
 /**************************************************************************
  * private functions
  **************************************************************************/
@@ -428,6 +442,36 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
         pconfig->fee_base_msat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "fee_prop_millionths") == 0) {
         pconfig->fee_prop_millionths = strtoull(value, NULL, 10);
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    return (ret) ? 1 : 0;
+}
+
+
+static int handler_establish_conf(void* user, const char* section, const char* name, const char* value)
+{
+    bool ret = true;
+    establish_conf_t* pconfig = (establish_conf_t *)user;
+
+    if (strcmp(name, "dust_limit_sat") == 0) {
+        pconfig->dust_limit_sat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "max_htlc_value_in_flight_msat") == 0) {
+        pconfig->max_htlc_value_in_flight_msat = strtoull(value, NULL, 10);
+        ret = (pconfig->max_htlc_value_in_flight_msat > 0);
+    } else if (strcmp(name, "channel_reserve_sat") == 0) {
+        pconfig->channel_reserve_sat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "htlc_minimum_msat") == 0) {
+        pconfig->htlc_minimum_msat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "to_self_delay") == 0) {
+        pconfig->to_self_delay = atoi(value);
+        ret = (pconfig->to_self_delay > 0);
+    } else if (strcmp(name, "max_accepted_htlcs") == 0) {
+        pconfig->max_accepted_htlcs = atoi(value);
+        ret = (pconfig->max_accepted_htlcs > 0);
+    } else if (strcmp(name, "min_depth") == 0) {
+        pconfig->min_depth = strtoul(value, NULL, 10);
+        ret = (pconfig->min_depth > 0);
     } else {
         return 0;  /* unknown section/name, error */
     }

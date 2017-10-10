@@ -29,12 +29,13 @@ Start ucoin lightning daemon.
     _rpcurl=[JSON-RPC URL]_  
     _rpcport=[JSON-RPC port number]_  
 
-if not exist ipv4, `address descriptor` in `node_announcement` is 0.  
-if not exist rpcxxx, read from `~/.bitcoin/bitcoin.conf`.
+If not exist ipv4, `address descriptor` in `node_announcement` is 0.  
+If not exist rpcxxx, read from `~/.bitcoin/bitcoin.conf`.
 
 ### other config file
 
-If `anno.conf` is exist same folder, 
+If `anno.conf` exists same folder, use it for announcement parameter.  
+If `establish.conf` exists same folder, use it for establish parameter.  
 
 * announcement config file format
 
@@ -43,7 +44,15 @@ If `anno.conf` is exist same folder,
     fee_base_msat=[_(channel_update)_ fee_base_msat]  
     fee_prop_millionths=[_(channel_update)_ fee_prop_millionths]  
 
+* establish config file format
 
+    dust_limit_sat=[dust_lmit_satoshis]  
+    max_htlc_value_in_flight_msat=[max_htlc_value_in_flight_msat]  
+    channel_reserve_sat=[channel_reserve_satothis]  
+    htlc_minimum_msat=[htlc_minimum_msat]  
+    to_self_delay=[to_self_delay]  
+    max_accepted_htlcs=[max_accepted_htlcs]  
+    min_depth=[minimum_depth]  
 
 ## SEE ALSO
 

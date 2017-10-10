@@ -47,20 +47,6 @@
 
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
-//TODO:暫定
-#define M_DFL_DUST_LMIT_SAT                     (546)
-#define M_DFL_MAX_HTLC_VALUE_IN_FLIGHT_MSAT     (UINT64_MAX)
-#define M_DFL_CHANNEL_RESERVE_SAT               (700)
-#define M_DFL_HTLC_MIN_MSAT                     (9000)
-#define M_DFL_TO_SELF_DELAY                     (90)
-#define M_DFL_MAX_ACCEPTED_HTLC                 (LN_HTLC_MAX)
-#define M_DFL_MIN_DEPTH                         (5)
-
-#define M_DFL_CLTV_EXPILY_DELTA                 (10)
-#define M_DFL_HTLC_MINIMUM_MSAT                 M_DFL_HTLC_MIN_MSAT
-#define M_DFL_FEE_BASE_MSAT                     (10000)
-#define M_DFL_FEE_PROP_MILLIONTHS               (5000)
-
 #define M_HTLCCHG_NONE                          (0)
 #define M_HTLCCHG_FF_SEND                       (1)
 #define M_HTLCCHG_FF_RECV                       (2)
@@ -244,14 +230,11 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     self->p_callback = pFunc;
 
     //初期値
-    self->cltv_expiry_delta = pAnnoDef->cltv_expiry_delta;
-    self->htlc_minimum_msat = pAnnoDef->htlc_minimum_msat;
-    self->fee_base_msat = pAnnoDef->fee_base_msat;
-    self->fee_prop_millionths = pAnnoDef->fee_prop_millionths;
-    DBG_PRINTF("cltv_expiry_delta=%" PRIu16 "\n", self->cltv_expiry_delta);
-    DBG_PRINTF("htlc_minimum_msat=%" PRIu64 "\n", self->htlc_minimum_msat);
-    DBG_PRINTF("fee_base_msat=%" PRIu32 "\n", self->fee_base_msat);
-    DBG_PRINTF("fee_prop_millionths=%" PRIu32 "\n", self->fee_prop_millionths);
+    memcpy(&self->anno_default, pAnnoDef, sizeof(ln_anno_default_t));
+    DBG_PRINTF("cltv_expiry_delta=%" PRIu16 "\n", self->anno_default.cltv_expiry_delta);
+    DBG_PRINTF("htlc_minimum_msat=%" PRIu64 "\n", self->anno_default.htlc_minimum_msat);
+    DBG_PRINTF("fee_base_msat=%" PRIu32 "\n", self->anno_default.fee_base_msat);
+    DBG_PRINTF("fee_prop_millionths=%" PRIu32 "\n", self->anno_default.fee_prop_millionths);
 
     //seed
     self->storage_index = M_SECINDEX_INIT;
@@ -287,23 +270,23 @@ void ln_set_genesishash(const uint8_t *pHash)
 }
 
 
-bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId)
+bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId, const ln_est_default_t *pEstDef)
 {
     DBG_PRINTF("BEGIN\n");
 
     self->p_est = pEstablish;
 
     //デフォルト値
-    if (pEstablish) {
+    if (pEstablish && pEstDef) {
         self->p_est->p_fundin = NULL;       //open_channel送信側が設定する
-
-        self->p_est->defval.dust_limit_sat = M_DFL_DUST_LMIT_SAT;
-        self->p_est->defval.max_htlc_value_in_flight_msat = M_DFL_MAX_HTLC_VALUE_IN_FLIGHT_MSAT;
-        self->p_est->defval.channel_reserve_sat = M_DFL_CHANNEL_RESERVE_SAT;
-        self->p_est->defval.htlc_minimum_msat = M_DFL_HTLC_MIN_MSAT;
-        self->p_est->defval.to_self_delay = M_DFL_TO_SELF_DELAY;
-        self->p_est->defval.max_accepted_htlcs = M_DFL_MAX_ACCEPTED_HTLC;
-        self->p_est->defval.min_depth = M_DFL_MIN_DEPTH;
+        memcpy(&self->p_est->defval, pEstDef, sizeof(ln_est_default_t));
+        DBG_PRINTF("dust_limit_sat= %" PRIu64 "\n", pEstDef->dust_limit_sat);
+        DBG_PRINTF("max_htlc_value_in_flight_msat= %" PRIu64 "\n", pEstDef->max_htlc_value_in_flight_msat);
+        DBG_PRINTF("channel_reserve_sat= %" PRIu64 "\n", pEstDef->channel_reserve_sat);
+        DBG_PRINTF("htlc_minimum_msat= %" PRIu64 "\n", pEstDef->htlc_minimum_msat);
+        DBG_PRINTF("to_self_delay= %" PRIu16 "\n", pEstDef->to_self_delay);
+        DBG_PRINTF("max_accepted_htlcs= %" PRIu16 "\n", pEstDef->max_accepted_htlcs);
+        DBG_PRINTF("min_depth= %" PRIu16 "\n", pEstDef->min_depth);
     }
 
     if ((pNodeId != NULL) && !ucoin_keys_chkpub(pNodeId)) {
@@ -693,11 +676,11 @@ bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd, uint32_t Ti
 
     upd.short_channel_id = self->short_channel_id;
     upd.timestamp = TimeStamp;
-
-    upd.cltv_expiry_delta = self->cltv_expiry_delta;
-    upd.htlc_minimum_msat = self->htlc_minimum_msat;
-    upd.fee_base_msat = self->fee_base_msat;
-    upd.fee_prop_millionths = self->fee_prop_millionths;
+    //announce
+    upd.cltv_expiry_delta = self->anno_default.cltv_expiry_delta;
+    upd.htlc_minimum_msat = self->anno_default.htlc_minimum_msat;
+    upd.fee_base_msat = self->anno_default.fee_base_msat;
+    upd.fee_prop_millionths = self->anno_default.fee_prop_millionths;
     //署名
     upd.p_key = self->p_node->keys.priv;
     upd.sort = self->peer_node.sort;

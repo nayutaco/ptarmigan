@@ -200,6 +200,18 @@ typedef struct {
     uint32_t        fee_prop_millionths;            ///< 4:  fee_proportional_millionths
 } anno_conf_t;
 
+
+typedef struct {
+    uint64_t    dust_limit_sat;                     ///< 8 : dust-limit-satoshis
+    uint64_t    max_htlc_value_in_flight_msat;      ///< 8 : max-htlc-value-in-flight-msat
+    uint64_t    channel_reserve_sat;                ///< 8 : channel-reserve-satoshis
+    uint64_t    htlc_minimum_msat;                  ///< 8 : htlc-minimum-msat
+    uint16_t    to_self_delay;                      ///< 2 : to-self-delay
+    uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
+    uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
+} establish_conf_t;
+
+
 /** @struct preimage_t
  *  @brief  preimage情報
  */

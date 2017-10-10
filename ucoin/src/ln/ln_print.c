@@ -149,10 +149,10 @@ void ln_print_self(const ln_self_t *self)
 
     //announce
     fprintf(PRINTOUT, M_QQ("anno_flag") ": " M_QQ("%02x") ",\n", self->anno_flag);
-    fprintf(PRINTOUT, M_QQ("cltv_expiry_delta") ": %" PRIu16 ",\n", self->cltv_expiry_delta);
-    fprintf(PRINTOUT, M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->htlc_minimum_msat);
-    fprintf(PRINTOUT, M_QQ("fee_base_msat") ": %" PRIu32 ",\n", self->fee_base_msat);
-    fprintf(PRINTOUT, M_QQ("fee_prop_millionths") ": %" PRIu32 ",\n", self->fee_prop_millionths);
+    fprintf(PRINTOUT, M_QQ("cltv_expiry_delta") ": %" PRIu16 ",\n", self->anno_default.cltv_expiry_delta);
+    fprintf(PRINTOUT, M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->anno_default.htlc_minimum_msat);
+    fprintf(PRINTOUT, M_QQ("fee_base_msat") ": %" PRIu32 ",\n", self->anno_default.fee_base_msat);
+    fprintf(PRINTOUT, M_QQ("fee_prop_millionths") ": %" PRIu32 ",\n", self->anno_default.fee_prop_millionths);
 
     //init
     fprintf(PRINTOUT, M_QQ("init_flag") ": " M_QQ("%02x") ",\n", self->init_flag);

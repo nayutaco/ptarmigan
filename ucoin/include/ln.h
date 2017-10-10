@@ -894,10 +894,7 @@ struct ln_self_t {
 
     //announce
     uint8_t                     anno_flag;                      ///< announcement_signaturesなど
-    uint16_t                    cltv_expiry_delta;              ///< 2:  cltv_expiry_delta
-    uint64_t                    htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
-    uint32_t                    fee_base_msat;                  ///< 4:  fee_base_msat
-    uint32_t                    fee_prop_millionths;            ///< 4:  fee_proportional_millionths
+    ln_anno_default_t           anno_default;
     ucoin_buf_t                 cnl_anno;                       ///< 自channel_announcement
 
     //msg:init
@@ -994,11 +991,12 @@ void ln_set_genesishash(const uint8_t *pHash);
  * @param[in,out]       self            channel情報
  * @param[out]          pEstablish      ワーク領域
  * @param[in]           pNodeId         Establish先(NULL可)
+ * @param[in]           pEstDef         Establishデフォルト値
  * @retval      true    成功
  * @note
  *      - pEstablishは接続完了まで保持すること
  */
-bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId);
+bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId, const ln_est_default_t *pEstDef);
 
 
 /** funding鍵設定
@@ -1417,7 +1415,7 @@ static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
  * @return      cltv_expiry_delta
  */
 static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
-    return self->cltv_expiry_delta;
+    return self->anno_default.cltv_expiry_delta;
 }
 
 
@@ -1428,7 +1426,7 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
  * @return      転送FEE(msat)
  */
 static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
-    return (uint64_t)self->fee_base_msat + (amount * (uint64_t)self->fee_prop_millionths / (uint64_t)1000000);
+    return (uint64_t)self->anno_default.fee_base_msat + (amount * (uint64_t)self->anno_default.fee_prop_millionths / (uint64_t)1000000);
 }
 
 
