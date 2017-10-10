@@ -874,8 +874,8 @@ typedef struct {
 struct ln_self_t {
     ln_node_t                   *p_node;                        ///< 属しているnode情報
     ln_node_info_t              peer_node;                      ///< 接続先ノード
-    ucoin_buf_t                 cnl_anno;                       ///< 自channel_announcement
 
+    //key storage
     uint64_t                    storage_index;                  ///< 現在のindex
     uint8_t                     storage_seed[UCOIN_SZ_PRIVKEY]; ///< ユーザから指定されたseed
     ln_derkey_storage           peer_storage;                   ///< key storage(peer)
@@ -890,31 +890,29 @@ struct ln_self_t {
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
     uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
+    ln_establish_t              *p_est;                         ///< Establish時ワーク領域
 
+    //announce
     uint8_t                     anno_flag;                      ///< announcement_signaturesなど
     uint16_t                    cltv_expiry_delta;              ///< 2:  cltv_expiry_delta
     uint64_t                    htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
     uint32_t                    fee_base_msat;                  ///< 4:  fee_base_msat
     uint32_t                    fee_prop_millionths;            ///< 4:  fee_proportional_millionths
-
-    //closing
-    ucoin_tx_t                  tx_closing;                     ///< closing_tx
-
-    //
-    ln_callback_t               p_callback;                     ///< 通知コールバック
+    ucoin_buf_t                 cnl_anno;                       ///< 自channel_announcement
 
     //msg:init
     uint8_t                     init_flag;                      ///< INIT_FLAG_xxx
     uint8_t                     lfeature_remote;                ///< initで取得したlocalfeature
-    //msg:establish
-    ln_establish_t              *p_est;                         ///< Establish時ワーク領域
+
     //msg:close
+    ucoin_tx_t                  tx_closing;                     ///< closing_tx
     uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)。 b1:受信済み b0:送信済み
     uint64_t                    close_fee_sat;                  ///< closing_txのFEE
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< mutual close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
     ln_shutdown_t               cnl_shutdown;                   ///< 受信したshutdown
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
+
     //msg:normal operation
     uint16_t                    htlc_num;                       ///< HTLC数
     uint64_t                    commit_num;                     ///< commitment_signed送信後にインクリメントする48bitカウンタ(0～)
@@ -924,9 +922,9 @@ struct ln_self_t {
     uint64_t                    htlc_id_num;                    ///< update_add_htlcで使うidの管理
     uint64_t                    our_msat;                       ///< 自分の持ち分
     uint64_t                    their_msat;                     ///< 相手の持ち分
-    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< 追加したHTLC
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< channel_id
     uint64_t                    short_channel_id;               ///< short_channel_id
+    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< 追加したHTLC
 
     //ping pong
     uint16_t                    missing_pong_cnt;               ///< ping送信に対してpongを受信しなかった回数
@@ -936,7 +934,7 @@ struct ln_self_t {
     ln_commit_data_t            commit_local;                   ///< local commit_tx用
     ln_commit_data_t            commit_remote;                  ///< remote commit_tx用
     //commitment transaction情報(固有)
-    uint64_t                    funding_sat;                    ///< funding_msat
+    uint64_t                    funding_sat;                    ///< funding_satoshis
     uint32_t                    feerate_per_kw;                 ///< feerate_per_kw
 
     //noise protocol
@@ -947,7 +945,8 @@ struct ln_self_t {
     //last error
     int                         err;                            ///< error code(ln_err.h)
 
-    //param
+    //for app
+    ln_callback_t               p_callback;                     ///< 通知コールバック
     void                        *p_param;                       ///< ユーザ用
 };
 

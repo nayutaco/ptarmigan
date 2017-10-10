@@ -63,7 +63,7 @@ static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
 void ln_print_wallet(const ln_self_t *self)
 {
     fprintf(PRINTOUT, "{\n");
-    fprintf(PRINTOUT, M_QQ("short_channel_id") ": \"%016" PRIx64 "\",\n", self->short_channel_id);
+    fprintf(PRINTOUT, M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", self->short_channel_id);
     fprintf(PRINTOUT, M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
     fprintf(PRINTOUT, M_QQ("their_msat") ": %" PRIu64 ",\n", self->their_msat);
     fprintf(PRINTOUT, M_QQ("channel_id") ": \"");
@@ -78,14 +78,21 @@ void ln_print_self(const ln_self_t *self)
 {
     fprintf(PRINTOUT, "{\n");
 
-    fprintf(PRINTOUT, M_QQ("short_channel_id") ": \"%016" PRIx64 "\",\n", self->short_channel_id);
+    //peer_node
+    fprintf(PRINTOUT, M_QQ("node_id") ": \"");
+    ucoin_util_dumpbin(PRINTOUT, self->peer_node.node_id, UCOIN_SZ_PUBKEY, false);
+    fprintf(PRINTOUT, "\",");
+    fprintf(PRINTOUT, M_QQ("alias") ": " M_QQ("%s") ",", self->peer_node.alias);
 
-    fprintf(PRINTOUT, M_QQ("storage_index") ": \"%016" PRIx64 "\",\n", self->storage_index);
-
+    //key storage
+    fprintf(PRINTOUT, M_QQ("storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->storage_index);
     fprintf(PRINTOUT, M_QQ("storage_seed") ": \"");
     ucoin_util_dumpbin(PRINTOUT, self->storage_seed, UCOIN_SZ_PRIVKEY, false);
     fprintf(PRINTOUT, "\",\n");
+    fprintf(PRINTOUT, M_QQ("peer_storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->peer_storage_index);
 
+    //funding
+    fprintf(PRINTOUT, M_QQ("fund_flag") ": " M_QQ("%02x") ",", self->fund_flag);
     fprintf(PRINTOUT, M_QQ("funding_local") ": {\n");
     fprintf(PRINTOUT, M_QQ("funding_txid") ": \"");
     ucoin_util_dumptxid(PRINTOUT, self->funding_local.funding_txid);
@@ -113,7 +120,6 @@ void ln_print_self(const ln_self_t *self)
         }
     }
     fprintf(PRINTOUT, "},\n");
-
     fprintf(PRINTOUT, M_QQ("funding_remote") ": {\n");
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         fprintf(PRINTOUT, M_QQ("%s") ": ", KEYS_STR[lp]);
@@ -122,7 +128,6 @@ void ln_print_self(const ln_self_t *self)
         ucoin_util_dumpbin(PRINTOUT, self->funding_remote.pubkeys[lp], UCOIN_SZ_PUBKEY, false);
         fprintf(PRINTOUT, "\"},\n");
     }
-
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
         fprintf(PRINTOUT, M_QQ("%s") ": ", SCR_STR[lp]);
         fprintf(PRINTOUT, "{");
@@ -135,26 +140,43 @@ void ln_print_self(const ln_self_t *self)
         }
     }
     fprintf(PRINTOUT, "},\n");
-
-    fprintf(PRINTOUT, M_QQ("obscured") ": \"%016" PRIx64 "\",\n", self->obscured);
-
+    fprintf(PRINTOUT, M_QQ("obscured") ": " M_QQ("%016" PRIx64) ",\n", self->obscured);
     fprintf(PRINTOUT, M_QQ("redeem_fund") ": \"");
     ucoin_util_dumpbin(PRINTOUT, self->redeem_fund.buf, self->redeem_fund.len, false);
     fprintf(PRINTOUT, "\",\n");
-
     fprintf(PRINTOUT, M_QQ("key_fund_sort") ": " M_QQ("%s") ",\n", (self->key_fund_sort == UCOIN_KEYS_SORT_ASC) ? "first" : "second");
+    fprintf(PRINTOUT, M_QQ("flck_flag") ": " M_QQ("%02x") ",\n", self->flck_flag);
 
+    //announce
+    fprintf(PRINTOUT, M_QQ("anno_flag") ": " M_QQ("%02x") ",\n", self->anno_flag);
+    fprintf(PRINTOUT, M_QQ("cltv_expiry_delta") ": %" PRIu16 ",\n", self->cltv_expiry_delta);
+    fprintf(PRINTOUT, M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->htlc_minimum_msat);
+    fprintf(PRINTOUT, M_QQ("fee_base_msat") ": %" PRIu32 ",\n", self->fee_base_msat);
+    fprintf(PRINTOUT, M_QQ("fee_prop_millionths") ": %" PRIu32 ",\n", self->fee_prop_millionths);
+
+    //init
+    fprintf(PRINTOUT, M_QQ("init_flag") ": " M_QQ("%02x") ",\n", self->init_flag);
+    fprintf(PRINTOUT, M_QQ("lfeature_remote") ": " M_QQ("%02x") ",\n", self->lfeature_remote);
+
+    //close
     fprintf(PRINTOUT, M_QQ("close_fee_sat") ": %" PRIu64 ",\n", self->close_fee_sat);
 
+    //normal operation
     fprintf(PRINTOUT, M_QQ("htlc_num") ": %d,\n", self->htlc_num);
-
     fprintf(PRINTOUT, M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_num);
-
+    fprintf(PRINTOUT, M_QQ("revoke_num") ": %" PRIu64 ",\n", self->revoke_num);
+    fprintf(PRINTOUT, M_QQ("remote_commit_num") ": %" PRIu64 ",\n", self->remote_commit_num);
+    fprintf(PRINTOUT, M_QQ("remote_revoke_num") ": %" PRIu64 ",\n", self->remote_revoke_num);
     fprintf(PRINTOUT, M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);
-
     fprintf(PRINTOUT, M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
-
     fprintf(PRINTOUT, M_QQ("their_msat") ": %" PRIu64 ",\n", self->their_msat);
+    fprintf(PRINTOUT, M_QQ("channel_id") ": \"");
+    ucoin_util_dumpbin(PRINTOUT, self->channel_id, LN_SZ_CHANNEL_ID, false);
+    fprintf(PRINTOUT, "\",\n");
+    fprintf(PRINTOUT, M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", self->short_channel_id);
+
+    //ping pong
+    fprintf(PRINTOUT, M_QQ("missing_pong_cnt") ": %d,\n", self->missing_pong_cnt);
 
     fprintf(PRINTOUT, M_QQ("htlc") ": [");
     bool cont = false;
@@ -170,18 +192,14 @@ void ln_print_self(const ln_self_t *self)
             fprintf(PRINTOUT, M_QQ("payment-hash") ": \"");
             ucoin_util_dumpbin(PRINTOUT, self->cnl_add_htlc[idx].payment_sha256, UCOIN_SZ_SHA256, false);
             fprintf(PRINTOUT, "\",\n");
-            fprintf(PRINTOUT, M_QQ("flag") ": \"%02x\",\n", self->cnl_add_htlc[idx].flag);
+            fprintf(PRINTOUT, M_QQ("flag") ": " M_QQ("%02x") ",\n", self->cnl_add_htlc[idx].flag);
             fprintf(PRINTOUT, M_QQ("shared_secret_len") ": %d,\n", self->cnl_add_htlc[idx].shared_secret.len);
-            fprintf(PRINTOUT, M_QQ("prev_short_channel_id") ": \"%016" PRIx64 "\"\n", self->cnl_add_htlc[idx].prev_short_channel_id);
+            fprintf(PRINTOUT, M_QQ("prev_short_channel_id") ": " M_QQ("%016" PRIx64) "\n", self->cnl_add_htlc[idx].prev_short_channel_id);
             fprintf(PRINTOUT, "}\n");
             cont = true;
         }
     }
     fprintf(PRINTOUT, "],\n");
-
-    fprintf(PRINTOUT, M_QQ("channel_id") ": \"");
-    ucoin_util_dumpbin(PRINTOUT, self->channel_id, LN_SZ_CHANNEL_ID, false);
-    fprintf(PRINTOUT, "\",\n");
 
     fprintf(PRINTOUT, M_QQ("commit_local") ": {\n");
     fprintf(PRINTOUT, M_QQ("accept_htlcs") ": %" PRIu32 ",\n", self->commit_local.accept_htlcs);
@@ -200,7 +218,10 @@ void ln_print_self(const ln_self_t *self)
     fprintf(PRINTOUT, "},\n");
 
     fprintf(PRINTOUT, M_QQ("funding_sat") ": %" PRIu64 ",\n", self->funding_sat);
-    fprintf(PRINTOUT, M_QQ("feerate_per_kw") ": %" PRIu32 "\n", self->feerate_per_kw);
+    fprintf(PRINTOUT, M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", self->feerate_per_kw);
+
+    fprintf(PRINTOUT, M_QQ("err") ": %d\n", self->err);
+
     fprintf(PRINTOUT, "}\n");
 }
 
@@ -256,7 +277,7 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
             bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
             if (ret) {
                 fprintf(PRINTOUT, M_QQ("type") ": " M_QQ("channel_announcement") ",\n");
-                fprintf(PRINTOUT, M_QQ("short_channel_id") ": \"%016" PRIx64 "\",\n", ann.short_channel_id);
+                fprintf(PRINTOUT, M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", ann.short_channel_id);
                 fprintf(PRINTOUT, M_QQ("node1") ": \"");
                 ucoin_util_dumpbin(PRINTOUT, ann.node_id1, UCOIN_SZ_PUBKEY, false);
                 fprintf(PRINTOUT, "\",\n");
@@ -300,7 +321,7 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
             bool ret = ln_msg_cnl_update_read(&ann, pData, Len);
             if (ret) {
                 fprintf(PRINTOUT, M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (ann.flags & 1) ? "2" : "1");
-                fprintf(PRINTOUT, M_QQ("short_channel_id") ": \"%016" PRIx64 "\",\n", ann.short_channel_id);
+                fprintf(PRINTOUT, M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", ann.short_channel_id);
                 //fprintf(PRINTOUT, M_QQ("node_sort") ": " M_QQ("%s") ",\n", (ann.flags & 1) ? "second" : "first");
                 fprintf(PRINTOUT, M_QQ("flags") ": " M_QQ("%04x") ",\n", ann.flags);
                 fprintf(PRINTOUT, M_QQ("cltv_expiry_delta") ": %d,\n", ann.cltv_expiry_delta);
