@@ -124,9 +124,10 @@ typedef struct {
  * static variables
  ********************************************************************/
 
-static volatile bool    mLoop;               //true:チャネル有効
+static volatile bool    mLoop;              //true:チャネル有効
 
 static ln_node_t        *mpNode;
+static ln_anno_default_t    mAnnoDef;       ///< announcementデフォルト値
 
 //シーケンスのmutex
 static pthread_mutexattr_t mMuxAttr;
@@ -517,6 +518,12 @@ static void *thread_main_start(void *pArg)
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
     ln_self_t my_self;
 
+    //announcementデフォルト値
+    memset(&mAnnoDef, 0, sizeof(mAnnoDef));
+    mAnnoDef.cltv_expiry_delta = 36;
+    mAnnoDef.htlc_minimum_msat = 0;
+    mAnnoDef.fee_base_msat = 10;
+    mAnnoDef.fee_prop_millionths = 100;
 
     //スレッド
     pthread_t   th_peer;        //peer受信
@@ -530,9 +537,9 @@ static void *thread_main_start(void *pArg)
         do {
             ucoin_util_random(seed, UCOIN_SZ_PRIVKEY);
         } while (!ucoin_keys_chkpriv(seed));
-        ln_init(&my_self, mpNode, seed, notify_cb);
+        ln_init(&my_self, mpNode, seed, NULL, notify_cb);
     } else {
-        ln_init(&my_self, mpNode, NULL, notify_cb);
+        ln_init(&my_self, mpNode, NULL, NULL, notify_cb);
     }
 
     //コールバック・受信スレッド用
@@ -575,7 +582,7 @@ static void *thread_main_start(void *pArg)
         if (short_channel_id != 0) {
             if (short_channel_id != 0) {
                 DBG_PRINTF("    チャネルDB読込み: %" PRIx64 "\n", short_channel_id);
-                ln_init(&my_self, mpNode, NULL, notify_cb);
+                ln_init(&my_self, mpNode, NULL, NULL, notify_cb);
                 ret = ln_db_load_channel(&my_self, short_channel_id);
                 if (ret) {
                     //peer node_id

@@ -207,7 +207,7 @@ uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
  * public functions
  **************************************************************************/
 
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback_t pFunc)
+bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_default_t *pAnnoDef, ln_callback_t pFunc)
 {
     DBG_PRINTF("BEGIN : pSeed=%p\n", pSeed);
 
@@ -240,13 +240,25 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback
     //クリア
     self->lfeature_remote = NODE_LF_INIT;
 
-    //初期値
     self->p_node = node;
     self->p_callback = pFunc;
-    self->cltv_expiry_delta = M_DFL_CLTV_EXPILY_DELTA;
-    self->htlc_minimum_msat = M_DFL_HTLC_MINIMUM_MSAT;
-    self->fee_base_msat = M_DFL_FEE_BASE_MSAT;
-    self->fee_prop_millionths = M_DFL_FEE_PROP_MILLIONTHS;
+
+    //初期値
+    if (pAnnoDef) {
+        self->cltv_expiry_delta = pAnnoDef->cltv_expiry_delta;
+        self->htlc_minimum_msat = pAnnoDef->htlc_minimum_msat;
+        self->fee_base_msat = pAnnoDef->fee_base_msat;
+        self->fee_prop_millionths = pAnnoDef->fee_prop_millionths;
+    } else {
+        self->cltv_expiry_delta = M_DFL_CLTV_EXPILY_DELTA;
+        self->htlc_minimum_msat = M_DFL_HTLC_MINIMUM_MSAT;
+        self->fee_base_msat = M_DFL_FEE_BASE_MSAT;
+        self->fee_prop_millionths = M_DFL_FEE_PROP_MILLIONTHS;
+    }
+    DBG_PRINTF("cltv_expiry_delta=%" PRIu16 "\n", self->cltv_expiry_delta);
+    DBG_PRINTF("htlc_minimum_msat=%" PRIu64 "\n", self->htlc_minimum_msat);
+    DBG_PRINTF("fee_base_msat=%" PRIu32 "\n", self->fee_base_msat);
+    DBG_PRINTF("fee_prop_millionths=%" PRIu32 "\n", self->fee_prop_millionths);
 
     //seed
     self->storage_index = M_SECINDEX_INIT;
@@ -3291,6 +3303,10 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
 }
 
 
+/** funding_locked交換完了のチェックおよび処理実行
+ *
+ * funding_lockedの送受信処理に移動させてもよいかもしれない
+ */
 static bool proc_established(ln_self_t *self)
 {
     bool ret = true;
@@ -3328,6 +3344,10 @@ static bool proc_established(ln_self_t *self)
 }
 
 
+/** announcement_signatures交換完了のチェックおよび処理実行
+ *
+ * announcement_signaturesの送受信処理に移動させてもよいかもしれない
+ */
 static void proc_announce_sigsed(ln_self_t *self)
 {
     if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {

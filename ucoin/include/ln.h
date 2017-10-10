@@ -327,7 +327,7 @@ typedef struct {
 } ln_fundin_t;
 
 
-/** @struct ln_default_t
+/** @struct ln_est_default_t
  *  @brief  Establish関連のデフォルト値
  *  @note
  *      - #ln_set_establish()で初期化する
@@ -340,7 +340,7 @@ typedef struct {
     uint16_t    to_self_delay;                      ///< 2 : to-self-delay
     uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
-} ln_default_t;
+} ln_est_default_t;
 
 
 /** @struct ln_establish_t
@@ -353,7 +353,7 @@ typedef struct {
     ln_funding_signed_t         cnl_funding_signed;             ///< 送信 or 受信したfunding_signed
 
     const ln_fundin_t           *p_fundin;                      ///< 非NULL:open_channel側
-    ln_default_t                defval;                         ///< デフォルト値
+    ln_est_default_t            defval;                         ///< デフォルト値
 } ln_establish_t;
 
 /// @}
@@ -642,6 +642,18 @@ typedef struct {
     uint8_t     *p_node_signature;                  ///< 64: node_signature
     uint8_t     *p_btc_signature;                   ///< 64: bitcoin_signature
 } ln_announce_signs_t;
+
+
+/** @struct     ln_anno_default_t
+ *  @brief      announce関連のデフォルト値
+ */
+typedef struct {
+    //channel_update
+    uint16_t    cltv_expiry_delta;                  ///< 2 : cltv_expiry_delta
+    uint64_t    htlc_minimum_msat;                  ///< 8 : htlc_minimum_msat
+    uint32_t    fee_base_msat;                      ///< 4 : fee_base_msat
+    uint32_t    fee_prop_millionths;                ///< 4 : fee_proportional_millionths
+} ln_anno_default_t;
 
 /// @}
 
@@ -953,10 +965,11 @@ struct ln_self_t {
  * @param[in,out]       self            channel情報
  * @param[in]           node            関連付けるnode
  * @param[in]           pSeed           per-commit-secret生成用
+ * @param[in]           pAnnoDef        announcement値(NULLの場合、デフォルト値を使用する)
  * @param[in]           pFunc           通知用コールバック関数
  * @retval      true    成功
  */
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, ln_callback_t pFunc);
+bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_default_t *pAnnoDef, ln_callback_t pFunc);
 
 
 /** 終了
@@ -1112,8 +1125,11 @@ bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf);
 bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 
-/** フラグ処理
- *      フラグだけ立てておいた処理を時間差で行う
+/** 定期フラグ回収処理
+ * どこかのタイミングで行う必要があるが、即時行うようなタイミングがないかもしれない処理。
+ * 将来的には ln.c で吸収すべきと考えている。
+ *      - funding_locked交換
+ *      - announcement_signatures交換
  *
  * @param[in,out]       self        channel情報
  */
