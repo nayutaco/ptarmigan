@@ -537,9 +537,9 @@ static void *thread_main_start(void *pArg)
         do {
             ucoin_util_random(seed, UCOIN_SZ_PRIVKEY);
         } while (!ucoin_keys_chkpriv(seed));
-        ln_init(&my_self, mpNode, seed, NULL, notify_cb);
+        ln_init(&my_self, mpNode, seed, &mAnnoDef, notify_cb);
     } else {
-        ln_init(&my_self, mpNode, NULL, NULL, notify_cb);
+        ln_init(&my_self, mpNode, NULL, &mAnnoDef, notify_cb);
     }
 
     //コールバック・受信スレッド用
@@ -582,7 +582,7 @@ static void *thread_main_start(void *pArg)
         if (short_channel_id != 0) {
             if (short_channel_id != 0) {
                 DBG_PRINTF("    チャネルDB読込み: %" PRIx64 "\n", short_channel_id);
-                ln_init(&my_self, mpNode, NULL, NULL, notify_cb);
+                ln_init(&my_self, mpNode, NULL, &mAnnoDef, notify_cb);
                 ret = ln_db_load_channel(&my_self, short_channel_id);
                 if (ret) {
                     //peer node_id
