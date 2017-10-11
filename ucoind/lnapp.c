@@ -1656,10 +1656,17 @@ static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 //announcement_signatures受信時に short_channel_idが取得できていなかった場合
 static void cb_short_channel_id_upd(lnapp_conf_t *p_conf, void *p_param)
 {
-    //self->short_chennel_id更新
-    p_conf->funding_confirm = jsonrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
-    DBG_PRINTF("* CONFIRMATION: %d\n", p_conf->funding_confirm);
+    DBGTRACE_BEGIN
+    
+        //self->short_chennel_id更新
+    while (p_conf->funding_confirm == 0) {
+        p_conf->funding_confirm = jsonrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
+        DBG_PRINTF("* CONFIRMATION: %d\n", p_conf->funding_confirm);
+        sleep(M_WAIT_POLL_SEC);
+    }
     poll_funding_wait(p_conf);
+
+    DBGTRACE_END
 }
 
 
