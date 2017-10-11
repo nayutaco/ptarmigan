@@ -1189,9 +1189,22 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns);
 
 /** channel_update作成
  *
- *
+ * @param[in,out]       self            channel情報
+ * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
+ * @param[in]           TimeStamp       EPOCH
+ * @retval      ture    成功
  */
 bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp);
+
+
+/** channel_update更新
+ * 送信済みのchannel_updateと現在のパラメータを比較し、相違があれば送信する
+ *
+ * @param[in,out]       self            channel情報
+ * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
+ * @retval      ture    更新あり
+ */
+bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd);
 
 
 /** closing transactionのFEE設定

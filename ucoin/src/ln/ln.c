@@ -690,6 +690,48 @@ bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd, uint32_t Ti
 }
 
 
+//送信済みのchannel_updateと現在のパラメータを比較し、相違があれば送信する
+bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
+{
+    bool ret;
+    ucoin_buf_t buf_upd;
+    ln_cnl_update_t upd;
+
+    ucoin_buf_init(&buf_upd);
+
+    ret = ln_db_load_anno_channel_upd(&buf_upd, ln_short_channel_id(self), self->peer_node.sort);
+    if (ret) {
+        ret = ln_msg_cnl_update_read(&upd, buf_upd.buf, buf_upd.len);
+    }
+    if (ret) {
+        ln_msg_cnl_update_print(&upd);
+
+        if ( (upd.cltv_expiry_delta != self->anno_default.cltv_expiry_delta) ||
+             (upd.htlc_minimum_msat != self->anno_default.htlc_minimum_msat) ||
+             (upd.fee_base_msat != self->anno_default.fee_base_msat) ||
+             (upd.fee_prop_millionths != self->anno_default.fee_prop_millionths) ) {
+            DBG_PRINTF("update channel_update\n");
+
+            uint32_t now = (uint32_t)time(NULL);
+            ret = ln_create_channel_update(self, pCnlUpd, now);
+
+            //DB保存
+            bool dbret = ln_db_save_anno_channel_upd(pCnlUpd, ln_short_channel_id(self), self->peer_node.sort);
+            assert(dbret);
+        } else {
+            DBG_PRINTF("same channel_update\n");
+            ret = false;
+        }
+    } else {
+        DBG_PRINTF("err\n");
+    }
+
+    ucoin_buf_free(&buf_upd);
+
+    return ret;
+}
+
+
 void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee)
 {
     self->close_fee_sat = Fee;
