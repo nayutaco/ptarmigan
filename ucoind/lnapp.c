@@ -1488,6 +1488,8 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_INIT_RECV: init受信
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    DBGTRACE_BEGIN
+
     //init受信時に初期化
     p_conf->first = false;
     p_conf->shutdown_sent = false;
@@ -1500,8 +1502,10 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_REESTABLISH_RECV: channel_reestablish受信
 static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    DBGTRACE_BEGIN
+
     //待ち合わせ解除(*3)
-    p_conf->first = true;
+    p_conf->first = false;
     pthread_cond_signal(&p_conf->cond);
 }
 
