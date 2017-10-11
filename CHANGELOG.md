@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2017/10/11
+
+* チャネル再接続時、前回と `channel_update` が異なる場合には、作りなおして送信する。
+* `channel_reestablish` 後の処理修正
+
 ## 2017/10/10
 
 * announcement config file(`anno.conf`)およびestablish config file(`establish.conf`)追加
