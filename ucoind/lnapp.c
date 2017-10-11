@@ -182,6 +182,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param);
 static void cb_established(lnapp_conf_t *p_conf, void *p_param);
 static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cb_short_channel_id_upd(lnapp_conf_t *p_conf, void *p_param);
 static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -1201,14 +1202,14 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         bool ret = jsonrpc_get_short_channel_param(&bheight, &bindex, ln_funding_txid(p_conf->p_self));
         if (ret) {
             fprintf(PRINTOUT, "bindex=%d, bheight=%d\n", bindex, bheight);
+            ln_set_short_channel_id_param(self, bheight, bindex);
+
+            //安定後
+            ret = ln_funding_tx_stabled(self);
+            assert(ret);
         } else {
             DBG_PRINTF("fail: jsonrpc_get_short_channel_param()\n");
         }
-        ln_set_short_channel_id_param(self, bheight, bindex);
-
-        //安定後
-        bool bret = ln_funding_tx_stabled(self);
-        assert(bret);
     }
 
     //DBGTRACE_END
@@ -1435,6 +1436,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_ESTABLISHED,          ///< Establish完了通知
         //    LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信
         //    LN_CB_NODE_ANNO_RECV,       ///< node_announcement受信通知
+        //    LN_CB_SHT_CNL_ID_UPDATE,    ///< short_chennel_id更新
         //    LN_CB_ANNO_SIGSED,          ///< announcement_signatures完了通知
         //    LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
         //    LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
@@ -1454,6 +1456,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_ESTABLISHED: Establish完了", cb_established },
         { "  LN_CB_CHANNEL_ANNO_RECV: channel_announcement受信", cb_channel_anno_recv },
         { "  LN_CB_NODE_ANNO_RECV: node_announcement受信通知", cb_node_anno_recv },
+        { "  LN_CB_SHT_CNL_ID_UPDATE: short_chennel_id更新", cb_short_channel_id_upd },
         { "  LN_CB_ANNO_SIGSED: announcement_signatures完了", cb_anno_signsed },
         { "  LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc処理前", cb_add_htlc_recv_prev },
         { "  LN_CB_ADD_HTLC_RECV: update_add_htlc受信", cb_add_htlc_recv },
@@ -1647,6 +1650,16 @@ static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 
     //    fclose(fp);
     //}
+}
+
+
+//announcement_signatures受信時に short_channel_idが取得できていなかった場合
+static void cb_short_channel_id_upd(lnapp_conf_t *p_conf, void *p_param)
+{
+    //self->short_chennel_id更新
+    p_conf->funding_confirm = jsonrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
+    DBG_PRINTF("* CONFIRMATION: %d\n", p_conf->funding_confirm);
+    poll_funding_wait(p_conf);
 }
 
 
