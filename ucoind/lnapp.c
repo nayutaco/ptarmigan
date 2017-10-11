@@ -1659,7 +1659,7 @@ static void cb_short_channel_id_upd(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
     
         //self->short_chennel_id更新
-    while (p_conf->funding_confirm == 0) {
+    while (p_conf->funding_confirm < p_conf->funding_min_depth) {
         p_conf->funding_confirm = jsonrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
         DBG_PRINTF("* CONFIRMATION: %d\n", p_conf->funding_confirm);
         sleep(M_WAIT_POLL_SEC);
