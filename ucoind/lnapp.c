@@ -524,6 +524,8 @@ static void *thread_main_start(void *pArg)
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
     ln_self_t my_self;
 
+    my_self.p_param = p_conf;
+
     //announcementデフォルト値
     anno_conf_t aconf;
     ret = load_anno_conf("anno.conf", &aconf);
@@ -555,9 +557,6 @@ static void *thread_main_start(void *pArg)
     } else {
         ln_init(&my_self, mpNode, NULL, &mAnnoDef, notify_cb);
     }
-
-    //コールバック・受信スレッド用
-    my_self.p_param = p_conf;
 
     p_conf->p_self = &my_self;
     p_conf->p_establish = NULL;
@@ -658,6 +657,15 @@ static void *thread_main_start(void *pArg)
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
             send_reestablish(p_conf);
             DBG_PRINTF("reestablish交換完了\n\n");
+
+            //channel_update更新
+            ucoin_buf_t buf_upd;
+            ucoin_buf_init(&buf_upd);
+            ret = ln_update_channel_update(p_conf->p_self, &buf_upd);
+            if (ret) {
+                send_peer_noise(p_conf, &buf_upd);
+            }
+            ucoin_buf_free(&buf_upd);
         } else {
             DBG_PRINTF("Establish待ち\n");
             set_establish_default(p_conf, p_conf->node_id);
@@ -807,13 +815,16 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
     bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt);
     assert(ret);
 
+    //待ち合わせ解除(*3)用
+    p_conf->first = true;
+
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
     //コールバックでのchannel_reestablish受信通知待ち
     DBG_PRINTF("channel_reestablish受信\n");
     pthread_mutex_lock(&p_conf->mux);
-    while (p_conf->loop) {
+    while (p_conf->loop && p_conf->first) {
         //channel_reestablish受信待ち合わせ(*3)
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
     }
@@ -1490,6 +1501,7 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     //待ち合わせ解除(*3)
+    p_conf->first = true;
     pthread_cond_signal(&p_conf->cond);
 }
 
