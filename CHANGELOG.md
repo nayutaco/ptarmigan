@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2017/10/12
+
+* [issue#7]establish後に `minimum_depth` を待っている間に `announcement_signatures` を受信すると失敗する
+
 ## 2017/10/11
 
 * チャネル再接続時、前回と `channel_update` が異なる場合には、作りなおして送信する。
