@@ -71,7 +71,7 @@ typedef struct {
     bool            first;                  ///< false:node_announcement受信済み
     bool            shutdown_sent;          ///< true:shutdownを最初に送信した側
     bool            funding_waiting;        ///< true:funding_txの安定待ち
-    int32_t         funding_confirm;        ///< funding_txのconfirmation数
+    uint32_t        funding_confirm;        ///< funding_txのconfirmation数
     uint32_t        funding_min_depth;
     uint8_t         flag_ope;               ///< normal operation中フラグ
 

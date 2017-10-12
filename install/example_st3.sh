@@ -70,8 +70,6 @@ echo wait...
 sleep 30
 
 # mining
-bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 1
-sleep 10
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 6
 
 # 少し待つ

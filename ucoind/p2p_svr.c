@@ -73,7 +73,7 @@ void *p2p_svr_start(void *pArg)
     int sock;
     struct sockaddr_in sv_addr, cl_addr;
 
-    for (int lp = 0; lp < ARRAY_SIZE(mAppConf); lp++) {
+    for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         mAppConf[lp].sock = -1;
     }
 
@@ -129,12 +129,12 @@ void *p2p_svr_start(void *pArg)
         }
 
         int idx;
-        for (idx = 0; idx < ARRAY_SIZE(mAppConf); idx++) {
+        for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
             if (mAppConf[idx].sock == -1) {
                 break;
             }
         }
-        if (idx < ARRAY_SIZE(mAppConf)) {
+        if (idx < (int)ARRAY_SIZE(mAppConf)) {
             socklen_t cl_len = sizeof(cl_addr);
             fprintf(PRINTOUT, "accept...\n");
             mAppConf[idx].sock = accept(sock, (struct sockaddr *)&cl_addr, &cl_len);
