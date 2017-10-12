@@ -1067,6 +1067,17 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 }
 
 
+uint64_t ln_calc_default_closing_fee(ln_self_t *self)
+{
+    ln_feeinfo_t feeinfo;
+
+    feeinfo.feerate_per_kw = self->feerate_per_kw;
+    feeinfo.dust_limit_satoshi = self->commit_local.dust_limit_sat;
+    ln_fee_calc(&feeinfo, NULL, 0);
+    return feeinfo.commit;
+}
+
+
 /** [routing用]channel_announcementデータ解析
  *
  * @param[out]  p_short_channel_id
