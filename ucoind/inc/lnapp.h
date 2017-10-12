@@ -40,7 +40,6 @@ typedef enum {
 
 
 typedef struct queue_fulfill_t {
-    uint32_t        result;
     uint64_t        id;
     uint8_t         preimage[LN_SZ_PREIMAGE];
     struct queue_fulfill_t  *p_next;
