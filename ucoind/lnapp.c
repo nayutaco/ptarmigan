@@ -877,7 +877,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
             //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
             //  which this side will pay for commitment and HTLC transactions
             //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
-            feerate = (uint32_t)(feerate * 4);
+            feerate = (uint32_t)(feerate / 4);
         } else {
             feerate = M_FEERATE_PER_KW;
         }
