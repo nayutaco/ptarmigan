@@ -2374,10 +2374,13 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         DBG_PRINTF("fail: invalid packet\n");
         return false;
     }
+    if (self->short_channel_id == 0) {
+        (*self->p_callback)(self, LN_CB_SHT_CNL_ID_UPDATE, NULL);
+    }
     DBG_PRINTF("short_channel_id = %" PRIx64 "\n", short_channel_id);
     if (short_channel_id != self->short_channel_id) {
         self->err = LNERR_INV_SHORT_CHANNEL;
-        DBG_PRINTF("fail: short_channel_id mismatch\n");
+        DBG_PRINTF("fail: short_channel_id mismatch: %016" PRIx64 "\n", self->short_channel_id);
         return false;
     }
 

@@ -196,10 +196,10 @@ LABEL_EXIT:
 }
 
 
-int jsonrpc_get_confirmation(const uint8_t *pTxid)
+uint32_t jsonrpc_get_confirmation(const uint8_t *pTxid)
 {
     bool retval;
-    int confirmation = -1;
+    int64_t confirmation = 0;
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1];
 
@@ -228,7 +228,7 @@ int jsonrpc_get_confirmation(const uint8_t *pTxid)
         }
         p_confirm = json_object_get(p_result, M_CONFIRMATION);
         if (json_is_integer(p_confirm)) {
-            confirmation = (int)json_integer_value(p_confirm);
+            confirmation = (int64_t)json_integer_value(p_confirm);
         }
 LABEL_DECREF:
         json_decref(p_root);
@@ -239,7 +239,7 @@ LABEL_DECREF:
 LABEL_EXIT:
     free(p_json);
 
-    return confirmation;
+    return (uint32_t)confirmation;
 }
 
 
@@ -312,11 +312,11 @@ LABEL_DECREF:
             *pBHeight = (int)json_integer_value(p_height);
         }
         p_tx = json_object_get(p_result, M_TX);
-        int index;
+        size_t index;
         json_t *p_value;
         json_array_foreach(p_tx, index, p_value) {
             if (strcmp(txid, (const char *)json_string_value(p_value)) == 0) {
-                *pBIndex = index;
+                *pBIndex = (int)index;
                 break;
             }
         }
@@ -405,10 +405,10 @@ LABEL_DECREF:
             }
         }
         p_tx = json_object_get(p_result, M_TX);
-        int index;
+        size_t index;
         json_t *p_value;
         json_array_foreach(p_tx, index, p_value) {
-            if (index == BIndex) {
+            if ((int)index == BIndex) {
                 strcpy(txid, (const char *)json_string_value(p_value));
                 break;
             }
