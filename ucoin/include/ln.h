@@ -1308,6 +1308,13 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
+/** 初期closing_tx FEE取得
+ *
+ * @param[in,out]       self            channel情報
+ */
+uint64_t ln_calc_default_closing_fee(ln_self_t *self);
+
+
 /********************************************************************
  * inline展開用
  ********************************************************************/

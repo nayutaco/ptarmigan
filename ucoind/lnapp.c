@@ -431,6 +431,11 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 
     show_self_param(p_self, PRINTOUT, __LINE__);
 
+    //fee
+    //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
+    uint64_t commit_fee = ln_calc_default_closing_fee(p_self);
+    ln_update_shutdown_fee(p_self, commit_fee);
+
     ucoin_buf_init(&buf_bolt);
     ret = ln_create_shutdown(p_self, &buf_bolt);
     assert(ret);
@@ -1119,6 +1124,8 @@ static void *thread_poll_start(void *pArg)
         if (bak_conf != p_conf->funding_confirm) {
             DBG_PRINTF2("\n***********************************\n");
             DBG_PRINTF2("* CONFIRMATION: %d\n", p_conf->funding_confirm);
+            DBG_PRINTF2("*    funding_txid: ");
+            DUMPBIN(ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
             DBG_PRINTF2("***********************************\n\n");
         }
 
