@@ -64,7 +64,7 @@ static lnapp_conf_t     mAppConf[M_SOCK_MAX];
 
 void p2p_cli_init(void)
 {
-    for (int lp = 0; lp < ARRAY_SIZE(mAppConf); lp++) {
+    for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         mAppConf[lp].sock = -1;
     }
 }
@@ -98,12 +98,12 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
     }
 
     int idx;
-    for (idx = 0; idx < ARRAY_SIZE(mAppConf); idx++) {
+    for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
         if (mAppConf[idx].sock == -1) {
             break;
         }
     }
-    if (idx >= ARRAY_SIZE(mAppConf)) {
+    if (idx >= (int)ARRAY_SIZE(mAppConf)) {
         SYSLOG_ERR("%s(): client full", __func__);
         ctx->error_code = RPCERR_FULLCLI;
         ctx->error_message = strdup(RPCERR_FULLCLI_STR);

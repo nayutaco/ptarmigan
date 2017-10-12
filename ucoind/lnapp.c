@@ -567,7 +567,7 @@ static void *thread_main_start(void *pArg)
     p_conf->first = true;
     p_conf->shutdown_sent = false;
     p_conf->funding_waiting = false;
-    p_conf->funding_confirm = -1;
+    p_conf->funding_confirm = 0;
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -1114,7 +1114,7 @@ static void *thread_poll_start(void *pArg)
 
         poll_ping(p_conf);
 
-        int32_t bak_conf = p_conf->funding_confirm;
+        uint32_t bak_conf = p_conf->funding_confirm;
         p_conf->funding_confirm = jsonrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
         if (bak_conf != p_conf->funding_confirm) {
             DBG_PRINTF2("\n***********************************\n");
@@ -1181,9 +1181,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
 
     ln_self_t *self = p_conf->p_self;
 
-    if (p_conf->funding_confirm < 0) {
-        DBG_PRINTF("fail: get confirmation\n");
-    } else if (p_conf->funding_confirm >= p_conf->funding_min_depth) {
+    if (p_conf->funding_confirm >= p_conf->funding_min_depth) {
         DBG_PRINTF("confirmation OK: %d\n", p_conf->funding_confirm);
         p_conf->funding_waiting = false;    //funding_tx確定
     } else {
@@ -1657,12 +1655,14 @@ static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 static void cb_short_channel_id_upd(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
-    
-        //self->short_chennel_id更新
+
+    //self->short_chennel_id更新
     while (p_conf->funding_confirm < p_conf->funding_min_depth) {
         p_conf->funding_confirm = jsonrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
-        DBG_PRINTF("* CONFIRMATION: %d\n", p_conf->funding_confirm);
-        sleep(M_WAIT_POLL_SEC);
+        DBG_PRINTF("confimation=%d / %d\n", p_conf->funding_confirm, p_conf->funding_min_depth);
+        if (p_conf->funding_confirm < p_conf->funding_min_depth) {
+            sleep(M_WAIT_POLL_SEC);
+        }
     }
     poll_funding_wait(p_conf);
 

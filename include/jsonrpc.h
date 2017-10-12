@@ -61,10 +61,11 @@ bool jsonrpc_getblockhash(uint8_t *pHash, int Height);
 /** [bitcoin rpc]confirmation数取得
  *
  * @param[in]   pTxid
- * @retval      -1以外      confirmation数
- * @retval      -1          取得失敗
+ * @return      confirmation数
+ * @note
+ *      - 取得自体が失敗した場合でも0を返す
  */
-int jsonrpc_get_confirmation(const uint8_t *pTxid);
+uint32_t jsonrpc_get_confirmation(const uint8_t *pTxid);
 
 
 /** [bitcoin rpc]short_channel_idの計算に使用するパラメータ取得
