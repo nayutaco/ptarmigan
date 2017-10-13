@@ -322,6 +322,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     send_peer_noise(pAppConf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
+    //add送信する場合はcommitment_signedも送信する
     ret = ln_create_commit_signed(p_self, &buf_bolt);
     if (!ret) {
         goto LABEL_EXIT;
@@ -1327,6 +1328,7 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf)
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
+    //add送信する場合はcommitment_signedも送信する
     ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
     if (!ret) {
         goto LABEL_EXIT;
@@ -1413,6 +1415,13 @@ static bool fwd_fail_backward(lnapp_conf_t *p_conf)
     ucoin_buf_free(&p_fwd_fail->reason);
     ucoin_buf_free(&p_fwd_fail->shared_secret);
     //free(p_fwd_fail);       //malloc: lnapp_backward_fail()-->recv_node_proc()で解放
+
+    //fail送信する場合はcommitment_signedも送信する
+    ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
+    assert(ret);
+    send_peer_noise(p_conf, &buf_bolt);
+    ucoin_buf_free(&buf_bolt);
+    p_conf->flag_ope |= OPE_COMSIG_SEND;
 
     if (ret) {
         show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
@@ -2010,6 +2019,13 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 send_peer_noise(p_conf, &buf_bolt);
                 ucoin_buf_free(&buf_reason);
                 ucoin_buf_free(&buf_bolt);
+
+                //fail送信する場合はcommitment_signedも送信する
+                ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
+                assert(ret);
+                send_peer_noise(p_conf, &buf_bolt);
+                ucoin_buf_free(&buf_bolt);
+                p_conf->flag_ope |= OPE_COMSIG_SEND;
             }
             ucoin_buf_free(&p->buf);
             free(p);
