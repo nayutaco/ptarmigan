@@ -150,4 +150,6 @@ lcov:
 .Depend:
 	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) -MM -MT $(SRC:$(PRJ_PATH)%.c=$(OBJECT_DIRECTORY)/%.o) $(SRC) >> .Depend;)
 
+ifneq ($(MAKECMDGOALS),clean)
 -include .Depend
+endif

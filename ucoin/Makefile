@@ -185,4 +185,6 @@ clean:
 .Depend:
 	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
 
+ifneq ($(MAKECMDGOALS),clean)
 -include .Depend
+endif
