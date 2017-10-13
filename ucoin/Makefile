@@ -76,7 +76,7 @@ BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
 #CFLAGS += -mfloat-abi=soft
 
 CFLAGS += --std=c99
-CFLAGS += -Wall -Wno-error=unused-function -fno-common
+CFLAGS += -W -Wno-error=unused-function -fno-common
 
 # keep every function in separate section. This will allow linker to dump unused functions
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
@@ -185,4 +185,6 @@ clean:
 .Depend:
 	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
 
+ifneq ($(MAKECMDGOALS),clean)
 -include .Depend
+endif

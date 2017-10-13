@@ -52,7 +52,7 @@ BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
 #CFLAGS += -mfloat-abi=soft
 
 CFLAGS += -std=gnu99
-CFLAGS += -Wall
+CFLAGS += -W
 
 # keep every function in separate section. This will allow linker to dump unused functions
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
@@ -150,4 +150,6 @@ lcov:
 .Depend:
 	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) -MM -MT $(SRC:$(PRJ_PATH)%.c=$(OBJECT_DIRECTORY)/%.o) $(SRC) >> .Depend;)
 
+ifneq ($(MAKECMDGOALS),clean)
 -include .Depend
+endif
