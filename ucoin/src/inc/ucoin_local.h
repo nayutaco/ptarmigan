@@ -112,7 +112,7 @@ static inline int tid() {
 /// @def    DUMPBIN(dt,ln)
 /// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
 #define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
-#define DUMPTXID(dt)        ucoin_util_dumptxid(DEBUGOUT, dt)
+#define DUMPTXID(dt)        {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
 #else //UCOIN_DEBUG
 #define DBG_PRINTF(...)     //none
 #define DBG_PRINTF2(...)     //none

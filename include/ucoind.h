@@ -99,7 +99,7 @@ static inline int tid() {
 /// @def    DUMPBIN(dt,ln)
 /// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
 #define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
-#define DUMPTXID(dt)        ucoin_util_dumptxid(DEBUGOUT, dt)
+#define DUMPTXID(dt)        {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
 #ifdef DEBUGTRACE
 #define DBGTRACE_BEGIN      {fprintf(stderr, "[%d]%s[%s:%d]BEGIN\n", tid(), __func__, __FILE__, __LINE__);}
 #define DBGTRACE_END        {fprintf(stderr, "[%d]%s[%s:%d]END\n", tid(), __func__, __FILE__, __LINE__);}

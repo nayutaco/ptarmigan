@@ -62,8 +62,8 @@ sleep 3
 sleep 3
 
 # node_6666からnode_5555へチャネルを開く。
-./fund-in.sh 0.01 fund.txt > node_6666/fund6666_3333.conf
-./ucoincli -c conf/peer3333.conf -f node_6666/fund6666_3333.conf 6667
+./fund-in.sh 0.01 fund.txt > node_6666/fund6666_5555.conf
+./ucoincli -c conf/peer5555.conf -f node_6666/fund6666_5555.conf 6667
 
 # 少し待つ
 echo wait...

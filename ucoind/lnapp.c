@@ -96,8 +96,6 @@
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
 
-//#define M_TEST_PAYHASH          // fulfill送信時にpayment_hashをクリアしない(連続テスト用)
-
 
 /********************************************************************
  * typedefs
@@ -1125,7 +1123,7 @@ static void *thread_poll_start(void *pArg)
             DBG_PRINTF2("\n***********************************\n");
             DBG_PRINTF2("* CONFIRMATION: %d\n", p_conf->funding_confirm);
             DBG_PRINTF2("*    funding_txid: ");
-            DUMPBIN(ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
+            DUMPTXID(ln_funding_txid(p_conf->p_self));
             DBG_PRINTF2("***********************************\n\n");
         }
 
@@ -1723,6 +1721,7 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_ADD_HTLC_RECV: update_add_htlc受信(後処理)
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    //p_add->okはfalseになっている
     DBGTRACE_BEGIN
 
     ln_cb_add_htlc_recv_t *p_add = (ln_cb_add_htlc_recv_t *)p_param;
@@ -1795,21 +1794,28 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 DUMPBIN(p_add->p_payment_hash, LN_SZ_HASH);
             }
             if (lp < PREIMAGE_NUM) {
-                //fulfillキューにためる
+                //キューにためる(fulfill)
                 queue_fulfill_t *fulfill = (queue_fulfill_t *)malloc(sizeof(queue_fulfill_t));
+                fulfill->result = 0;
                 fulfill->id = p_add->id;
                 memcpy(fulfill->preimage, p_preimage->preimage, LN_SZ_PREIMAGE);
                 push_queue(p_conf, fulfill);
 
                 //preimageを使い終わったら消す
-#ifndef M_TEST_PAYHASH
                 preimage_clear(lp);
-#else
-#warning M_TEST_PAYHASH:preimageを消していない
-#endif  //M_TEST_PAYHASH
+
+                //アプリ判定はOK
                 p_add->ok = true;
             } else {
                 SYSLOG_ERR("%s(): payment stop", __func__);
+
+                //キューにためる(fail)
+#warning reasonダミー
+                queue_fulfill_t *fulfill = (queue_fulfill_t *)malloc(sizeof(queue_fulfill_t));
+                fulfill->result = 1;
+                fulfill->id = p_add->id;
+                memcpy(fulfill->preimage, p_add->p_shared_secret, UCOIN_SZ_PRIVKEY);
+                push_queue(p_conf, fulfill);
             }
         } else {
             //転送
@@ -1974,11 +1980,30 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
         //fulfill要求があれば送信要求する
         queue_fulfill_t *p = pop_queue(p_conf);
         if (p != NULL) {
-            ln_cb_fulfill_htlc_recv_t fulfill;
+            if (p->result == 0) {
+                ln_cb_fulfill_htlc_recv_t fulfill;
 
-            fulfill.id = p->id;
-            fulfill.p_preimage = p->preimage;
-            lnapp_backward_fulfill(p_conf, &fulfill);
+                DBG_PRINTF("  --> backward fulfill\n");
+                fulfill.id = p->id;
+                fulfill.p_preimage = p->preimage;
+                lnapp_backward_fulfill(p_conf, &fulfill);
+            } else {
+#warning reasonダミー
+                ucoin_buf_t buf_bolt;
+                ucoin_buf_t buf_reason;
+
+                const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
+                const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
+                const ucoin_buf_t shared_secret = { p->preimage, UCOIN_SZ_PRIVKEY };
+
+                DBG_PRINTF("  --> fail_htlc\n");
+                ln_onion_failure_create(&buf_reason, &shared_secret, &dummy_reason);
+                bool ret = ln_create_fail_htlc(p_conf->p_self, &buf_bolt, p->id, &buf_reason);
+                assert(ret);
+                send_peer_noise(p_conf, &buf_bolt);
+                ucoin_buf_free(&buf_reason);
+                ucoin_buf_free(&buf_bolt);
+            }
             free(p);
         }
     }
