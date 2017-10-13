@@ -447,7 +447,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    for (int lp = 0; lp < ARRAY_SIZE(RECV_FUNC); lp++) {
+    for (int lp = 0; lp < (int)ARRAY_SIZE(RECV_FUNC); lp++) {
         if (type == RECV_FUNC[lp].type) {
             DBG_PRINTF("type=%04x: Len=%d\n", type, Len);
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);

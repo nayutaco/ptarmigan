@@ -896,7 +896,7 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
     DBG_PRINTF2("-[channel_update]-------------------------------\n\n");
     //DBG_PRINTF2("p_node_signature: ");
     //DUMPBIN(pMsg->signature, LN_SZ_SIGNATURE);
-    DBG_PRINTF2("short_channel_id: %016lx\n", pMsg->short_channel_id);
+    DBG_PRINTF2("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
     time_t t = (time_t)pMsg->timestamp;
     DBG_PRINTF2("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
     DBG_PRINTF2("flags= 0x%04x\n", pMsg->flags);
@@ -1032,7 +1032,7 @@ static void announce_signs_print(const ln_announce_signs_t *pMsg)
     DBG_PRINTF2("-[announcement_signatures]-------------------------------\n\n");
     DBG_PRINTF2("channel_id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("short_channel_id: %016lx\n", pMsg->short_channel_id);
+    DBG_PRINTF2("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
     DBG_PRINTF2("p_node_signature: ");
     DUMPBIN(pMsg->p_node_signature, LN_SZ_SIGNATURE);
     DBG_PRINTF2("p_btc_signature: ");
