@@ -124,6 +124,14 @@ typedef struct {
 } fwd_proc_fail_t;
 
 
+typedef struct queue_fulfill_t {
+    uint32_t        result;
+    uint64_t        id;
+    ucoin_buf_t     buf;
+    struct queue_fulfill_t  *p_next;
+} queue_fulfill_t;
+
+
 /********************************************************************
  * static variables
  ********************************************************************/
@@ -1798,7 +1806,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 queue_fulfill_t *fulfill = (queue_fulfill_t *)malloc(sizeof(queue_fulfill_t));
                 fulfill->result = 0;
                 fulfill->id = p_add->id;
-                memcpy(fulfill->preimage, p_preimage->preimage, LN_SZ_PREIMAGE);
+                ucoin_buf_alloccopy(&fulfill->buf, p_preimage->preimage, LN_SZ_PREIMAGE);
                 push_queue(p_conf, fulfill);
 
                 //preimageを使い終わったら消す
@@ -1814,7 +1822,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 queue_fulfill_t *fulfill = (queue_fulfill_t *)malloc(sizeof(queue_fulfill_t));
                 fulfill->result = 1;
                 fulfill->id = p_add->id;
-                memcpy(fulfill->preimage, p_add->p_shared_secret, UCOIN_SZ_PRIVKEY);
+                ucoin_buf_alloccopy(&fulfill->buf, p_add->p_shared_secret->buf, p_add->p_shared_secret->len);
                 push_queue(p_conf, fulfill);
             }
         } else {
@@ -1985,7 +1993,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 
                 DBG_PRINTF("  --> backward fulfill\n");
                 fulfill.id = p->id;
-                fulfill.p_preimage = p->preimage;
+                fulfill.p_preimage = p->buf.buf;
                 lnapp_backward_fulfill(p_conf, &fulfill);
             } else {
 #warning reasonダミー
@@ -1994,16 +2002,16 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 
                 const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
                 const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
-                const ucoin_buf_t shared_secret = { p->preimage, UCOIN_SZ_PRIVKEY };
 
                 DBG_PRINTF("  --> fail_htlc\n");
-                ln_onion_failure_create(&buf_reason, &shared_secret, &dummy_reason);
+                ln_onion_failure_create(&buf_reason, &p->buf, &dummy_reason);
                 bool ret = ln_create_fail_htlc(p_conf->p_self, &buf_bolt, p->id, &buf_reason);
                 assert(ret);
                 send_peer_noise(p_conf, &buf_bolt);
                 ucoin_buf_free(&buf_reason);
                 ucoin_buf_free(&buf_bolt);
             }
+            ucoin_buf_free(&p->buf);
             free(p);
         }
     }
