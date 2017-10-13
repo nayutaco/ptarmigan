@@ -20,6 +20,7 @@
  ********************************************************************/
 
 typedef struct cJSON cJSON;
+typedef struct queue_fulfill_t queue_fulfill_t;
 
 
 /** @enum   recv_proc_t
@@ -37,14 +38,6 @@ typedef enum {
     INNER_SEND_ANNO_SIGNS,          ///< announcement_signatures送信要求
     INNER_SEND_ANNOUNCEMENT,        ///< announcement送信要求
 } recv_proc_t;
-
-
-typedef struct queue_fulfill_t {
-    uint32_t        result;
-    uint64_t        id;
-    uint8_t         preimage[LN_SZ_PREIMAGE];
-    struct queue_fulfill_t  *p_next;
-} queue_fulfill_t;
 
 
 /** @struct lnapp_conf_t
