@@ -1123,7 +1123,7 @@ static void *thread_poll_start(void *pArg)
             DBG_PRINTF2("\n***********************************\n");
             DBG_PRINTF2("* CONFIRMATION: %d\n", p_conf->funding_confirm);
             DBG_PRINTF2("*    funding_txid: ");
-            DUMPBIN(ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
+            DUMPTXID(ln_funding_txid(p_conf->p_self));
             DBG_PRINTF2("***********************************\n\n");
         }
 
