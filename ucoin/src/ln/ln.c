@@ -3114,6 +3114,8 @@ static bool create_to_remote(ln_self_t *self,
         ucoin_buf_free(&buf_remotesig);
 
         *p_htlc_sigs_num = htlc_num;
+    } else {
+        *p_htlc_sigs_num = 0;
     }
 
     //送信用署名
