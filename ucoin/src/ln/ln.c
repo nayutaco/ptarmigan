@@ -447,7 +447,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    for (int lp = 0; lp < ARRAY_SIZE(RECV_FUNC); lp++) {
+    for (int lp = 0; lp < (int)ARRAY_SIZE(RECV_FUNC); lp++) {
         if (type == RECV_FUNC[lp].type) {
             DBG_PRINTF("type=%04x: Len=%d\n", type, Len);
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);
@@ -1064,6 +1064,17 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes)
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 {
     ucoin_util_sha256(pHash, pPreImage, LN_SZ_PREIMAGE);
+}
+
+
+uint64_t ln_calc_default_closing_fee(ln_self_t *self)
+{
+    ln_feeinfo_t feeinfo;
+
+    feeinfo.feerate_per_kw = self->feerate_per_kw;
+    feeinfo.dust_limit_satoshi = self->commit_local.dust_limit_sat;
+    ln_fee_calc(&feeinfo, NULL, 0);
+    return feeinfo.commit;
 }
 
 
@@ -1892,6 +1903,9 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     uint64_t in_flight_msat = 0;
     //uint64_t bak_msat = self->their_msat;
     //uint16_t bak_num = self->htlc_num;
+    ln_hop_dataout_t hop_dataout;   // update_add_htlc受信後のONION解析結果
+    ln_cb_add_htlc_recv_t add_htlc;
+    add_htlc.ok = true;     //LABEL_ERR時、trueならチェックでNG、falseならアプリでNG
 
     //追加した結果が自分のmax_accepted_htlcsより多くなるなら、チャネルを失敗させる。
     if (self->commit_local.accept_htlcs <= self->htlc_num) {
@@ -1927,7 +1941,6 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         goto LABEL_ERR;
     }
 
-    ln_hop_dataout_t hop_dataout;   // update_add_htlc受信後のONION解析結果
     ret = ln_onion_read_packet(self->cnl_add_htlc[idx].p_onion_route, &hop_dataout,
                     &self->cnl_add_htlc[idx].shared_secret,
                     self->cnl_add_htlc[idx].p_onion_route, self->p_node->keys.priv,
@@ -1966,7 +1979,6 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     DBG_PRINTF("HTLC add : htlc_num=%d, id=%" PRIx64 ", amount_msat=%" PRIu64 "\n", self->htlc_num, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].amount_msat);
 
     //update_add_htlc受信通知
-    ln_cb_add_htlc_recv_t add_htlc;
     add_htlc.ok = false;
     add_htlc.id = self->cnl_add_htlc[idx].id;
     add_htlc.p_payment_hash = self->cnl_add_htlc[idx].payment_sha256;
@@ -1987,24 +1999,30 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     return true;
 
 LABEL_ERR:
-    self->err = LNERR_ADDHTLC_APP;
-    DBG_PRINTF("fail restore[%d]=%d\n", idx, self->cnl_add_htlc[idx].shared_secret.len);
-
-    //ln_cb_fail_htlc_recv_t fail_recv;
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_t buf_reason;
+    if (add_htlc.ok) {
+        //チェックでNG
+        //      これ以上継続できない
+        ucoin_buf_t buf_bolt;
+        ucoin_buf_t buf_reason;
 
 #warning lnapp.cのMUX_ADD_HTLC要解除
 #warning reasonダミー
-    const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
-    const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
+        const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
+        const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
 
-    ln_onion_failure_create(&buf_reason, &self->cnl_add_htlc[idx].shared_secret, &dummy_reason);
-    ret = ln_create_fail_htlc(self, &buf_bolt, self->cnl_add_htlc[idx].id, &buf_reason);
-    assert(ret);
-    (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
-    ucoin_buf_free(&buf_reason);
-    ucoin_buf_free(&buf_bolt);
+        ln_onion_failure_create(&buf_reason, &self->cnl_add_htlc[idx].shared_secret, &dummy_reason);
+        ret = ln_create_fail_htlc(self, &buf_bolt, self->cnl_add_htlc[idx].id, &buf_reason);
+        assert(ret);
+        (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+        ucoin_buf_free(&buf_reason);
+        ucoin_buf_free(&buf_bolt);
+    } else {
+        //アプリでNG
+        //      ここでfail_htlcを送信するのは早すぎる。
+        //      commitment_signed/revoke_and_ack交換後まで待つ必要あり。
+        self->err = LNERR_ADDHTLC_APP;
+    }
+
     return true;
 }
 
@@ -2896,8 +2914,8 @@ static bool create_to_local(ln_self_t *self,
  * 署名を、To-Localはself->commit_local.signatureに、HTLCはself->cnl_add_htlc[].signature 代入する
  *
  * @param[in,out]       self
- * @param[out]          pp_htlc_sigs        commitment_signed送信用署名
- * @param[out]          p_htlc_sigs_num     pp_htlc_sigsに格納した署名数
+ * @param[out]          pp_htlc_sigs        commitment_signed送信用署名(NULLの場合は代入しない)
+ * @param[out]          p_htlc_sigs_num     pp_htlc_sigsに格納した署名数(NULLの場合は代入しない)
  * @param[in]           to_self_delay
  * @param[in]           dust_limit_sat
  */
@@ -2994,6 +3012,7 @@ static bool create_to_remote(ln_self_t *self,
     ucoin_print_tx(&tx_remote);
 #endif  //UCOIN_USE_PRINTFUNC
 
+    uint8_t htlc_num = 0;
     if ((cnt > 0) && (pp_htlc_sigs != NULL)) {
         //各HTLCの署名(commitment_signed用)(Remote)
         DBG_PRINTF("HTLC-Timeout/Success sign(Remote): %d\n", cnt);
@@ -3025,7 +3044,6 @@ static bool create_to_remote(ln_self_t *self,
                     self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
         ucoin_keys_priv2pub(remotekey.pub, remotekey.priv);
 
-        int htlc_num = 0;
         for (int vout_idx = 0; vout_idx < tx_remote.vout_cnt; vout_idx++) {
             //各HTLCのHTLC Timeout/Success Transactionを作って署名するために、
             //BIP69ソート後のtx_remote.voutからpp_htlcinfo[]のindexを取得する
@@ -3094,7 +3112,8 @@ static bool create_to_remote(ln_self_t *self,
         ucoin_buf_free(&buf_ws);
         ucoin_tx_free(&tx);
         ucoin_buf_free(&buf_remotesig);
-
+    }
+    if (p_htlc_sigs_num != NULL) {
         *p_htlc_sigs_num = htlc_num;
     }
 

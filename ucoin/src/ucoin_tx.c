@@ -1175,7 +1175,7 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
             pData += len;
         } else {
             int op;
-            for (op = 0; op < ARRAY_SIZE(OP_DIC); op++) {
+            for (op = 0; op < (int)ARRAY_SIZE(OP_DIC); op++) {
                 if (*pData == OP_DIC[op].op) {
                     break;
                 }

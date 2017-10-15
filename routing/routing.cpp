@@ -528,7 +528,9 @@ int main(int argc, char* argv[])
         //pay.conf形式の出力
         int hop = (int)route.size();
         const uint8_t *p_next;
-        nodeinfo_t ninfo = {0};
+        nodeinfo_t ninfo;
+
+        memset(&ninfo, 0, sizeof(ninfo));
         printf("hop_num=%d\n", hop);
         for (int lp = 0; lp < hop - 1; lp++) {
             const uint8_t *p_now  = g[route[lp]].p_node;

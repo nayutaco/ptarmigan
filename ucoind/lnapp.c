@@ -96,7 +96,7 @@
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
 
-//#define M_TEST_PAYHASH          // fulfill送信時にpayment_hashをクリアしない(連続テスト用)
+#define M_SCRIPT_DIR            "./script/"
 
 
 /********************************************************************
@@ -123,7 +123,26 @@ typedef struct {
     uint64_t    id;
     ucoin_buf_t reason;
     ucoin_buf_t shared_secret;
+    bool        b_first;            ///< fail発生元
 } fwd_proc_fail_t;
+
+
+typedef struct queue_fulfill_t {
+    uint32_t        result;
+    uint64_t        id;
+    ucoin_buf_t     buf;
+    struct queue_fulfill_t  *p_next;
+} queue_fulfill_t;
+
+
+//event
+typedef enum {
+    M_EVT_PAYMENT,
+    M_EVT_FORWARD,
+    M_EVT_FULFILL,
+    M_EVT_FAIL,
+    M_EVT_HTLCCHANGED,
+} event_t;
 
 
 /********************************************************************
@@ -146,6 +165,20 @@ static volatile enum {
     //MUX_SEND_FULFILL_HTLC=0x40,     ///< fulfill_htlc送信済み
     //MUX_RECV_FULFILL_HTLC=0x80,     ///< fulfill_htlc受信済み
 } mMuxTiming;
+
+
+static const char *M_SCRIPT[] = {
+    //M_EVT_PAYMENT,
+    M_SCRIPT_DIR "payment.sh",
+    //M_EVT_FORWARD,
+    M_SCRIPT_DIR "forward.sh",
+    //M_EVT_FULFILL,
+    M_SCRIPT_DIR "fulfill.sh",
+    //M_EVT_FAIL,
+    M_SCRIPT_DIR "fail.sh",
+    //M_EVT_HTLCCHANGED,
+    M_SCRIPT_DIR "htlcchanged.sh"
+};
 
 
 /********************************************************************
@@ -208,6 +241,7 @@ static void wait_mutex_lock(uint8_t Flag);
 static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
 static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf);
+static void call_script(lnapp_conf_t *p_conf, event_t event);
 static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
 
@@ -316,6 +350,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     send_peer_noise(pAppConf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
+    //add送信する場合はcommitment_signedも送信する
     ret = ln_create_commit_signed(p_self, &buf_bolt);
     if (!ret) {
         goto LABEL_EXIT;
@@ -327,6 +362,7 @@ LABEL_EXIT:
     ucoin_buf_free(&buf_bolt);
     if (ret) {
         show_self_param(p_self, PRINTOUT, __LINE__);
+        call_script(pAppConf, M_EVT_PAYMENT);
     } else {
         DBG_PRINTF("fail\n");
         mMuxTiming = 0;
@@ -383,7 +419,7 @@ bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_rec
 }
 
 
-bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail)
+bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail, bool bFirst)
 {
     DBGTRACE_BEGIN
 
@@ -396,12 +432,14 @@ bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *p
     DUMPBIN(pFail->p_reason->buf, pFail->p_reason->len);
     DBG_PRINTF("shared secret= ");
     DUMPBIN(pFail->p_shared_secret->buf, pFail->p_shared_secret->len);
+    DBG_PRINTF("first= %s\n", (bFirst) ? "true" : "false");
 
     fwd_proc_fail_t *p_fwd_fail = (fwd_proc_fail_t *)malloc(sizeof(fwd_proc_fail_t));   //free: fwd_fail_backward()
     p_fwd_fail->id = pFail->id;
     ucoin_buf_alloccopy(&p_fwd_fail->reason, pFail->p_reason->buf, pFail->p_reason->len);
     ucoin_buf_alloccopy(&p_fwd_fail->shared_secret,
                             pFail->p_shared_secret->buf, pFail->p_shared_secret->len);
+    p_fwd_fail->b_first = bFirst;
 
     return set_request_recvproc(pAppConf, FWD_PROC_FAIL, (uint16_t)sizeof(fwd_proc_fail_t), p_fwd_fail);
 }
@@ -430,6 +468,11 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     }
 
     show_self_param(p_self, PRINTOUT, __LINE__);
+
+    //fee
+    //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
+    uint64_t commit_fee = ln_calc_default_closing_fee(p_self);
+    ln_update_shutdown_fee(p_self, commit_fee);
 
     ucoin_buf_init(&buf_bolt);
     ret = ln_create_shutdown(p_self, &buf_bolt);
@@ -877,7 +920,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
             //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
             //  which this side will pay for commitment and HTLC transactions
             //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
-            feerate = (uint32_t)(feerate * 4);
+            feerate = (uint32_t)(feerate / 4);
         } else {
             feerate = M_FEERATE_PER_KW;
         }
@@ -1119,6 +1162,8 @@ static void *thread_poll_start(void *pArg)
         if (bak_conf != p_conf->funding_confirm) {
             DBG_PRINTF2("\n***********************************\n");
             DBG_PRINTF2("* CONFIRMATION: %d\n", p_conf->funding_confirm);
+            DBG_PRINTF2("*    funding_txid: ");
+            DUMPTXID(ln_funding_txid(p_conf->p_self));
             DBG_PRINTF2("***********************************\n\n");
         }
 
@@ -1314,6 +1359,7 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf)
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
+    //add送信する場合はcommitment_signedも送信する
     ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
     if (!ret) {
         goto LABEL_EXIT;
@@ -1325,6 +1371,10 @@ LABEL_EXIT:
     ucoin_buf_free(&buf_bolt);
 
     //free(p_fwd_add);    //malloc: lnapp_forward_payment()-->recv_node_proc()で解放
+
+    if (ret) {
+        call_script(p_conf, M_EVT_FORWARD);
+    }
 
     DBGTRACE_END
 
@@ -1364,6 +1414,7 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf)
 
     if (ret) {
         show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
+        call_script(p_conf, M_EVT_FULFILL);
     }
 
     DBGTRACE_END
@@ -1389,9 +1440,14 @@ static bool fwd_fail_backward(lnapp_conf_t *p_conf)
     DUMPBIN(p_fwd_fail->reason.buf, p_fwd_fail->reason.len);
     DBG_PRINTF("shared secret= ");
     DUMPBIN(p_fwd_fail->shared_secret.buf, p_fwd_fail->shared_secret.len);
+    DBG_PRINTF("first= %s\n", (p_fwd_fail->b_first) ? "true" : "false");
 
     ucoin_buf_t buf_reason;
-    ln_onion_failure_forward(&buf_reason, &p_fwd_fail->shared_secret, &p_fwd_fail->reason);
+    if (p_fwd_fail->b_first) {
+        ln_onion_failure_create(&buf_reason, &p_fwd_fail->shared_secret, &p_fwd_fail->reason);
+    } else {
+        ln_onion_failure_forward(&buf_reason, &p_fwd_fail->shared_secret, &p_fwd_fail->reason);
+    }
     ret = ln_create_fail_htlc(p_conf->p_self, &buf_bolt, p_fwd_fail->id, &buf_reason);
     assert(ret);
 
@@ -1401,8 +1457,16 @@ static bool fwd_fail_backward(lnapp_conf_t *p_conf)
     ucoin_buf_free(&p_fwd_fail->shared_secret);
     //free(p_fwd_fail);       //malloc: lnapp_backward_fail()-->recv_node_proc()で解放
 
+    //fail送信する場合はcommitment_signedも送信する
+    ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
+    assert(ret);
+    send_peer_noise(p_conf, &buf_bolt);
+    ucoin_buf_free(&buf_bolt);
+    p_conf->flag_ope |= OPE_COMSIG_SEND;
+
     if (ret) {
         show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
+        call_script(p_conf, M_EVT_FAIL);
     }
 
     DBGTRACE_END
@@ -1716,6 +1780,7 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_ADD_HTLC_RECV: update_add_htlc受信(後処理)
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    //p_add->okはfalseになっている
     DBGTRACE_BEGIN
 
     ln_cb_add_htlc_recv_t *p_add = (ln_cb_add_htlc_recv_t *)p_param;
@@ -1788,21 +1853,28 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 DUMPBIN(p_add->p_payment_hash, LN_SZ_HASH);
             }
             if (lp < PREIMAGE_NUM) {
-                //fulfillキューにためる
+                //キューにためる(fulfill)
                 queue_fulfill_t *fulfill = (queue_fulfill_t *)malloc(sizeof(queue_fulfill_t));
+                fulfill->result = 0;
                 fulfill->id = p_add->id;
-                memcpy(fulfill->preimage, p_preimage->preimage, LN_SZ_PREIMAGE);
+                ucoin_buf_alloccopy(&fulfill->buf, p_preimage->preimage, LN_SZ_PREIMAGE);
                 push_queue(p_conf, fulfill);
 
                 //preimageを使い終わったら消す
-#ifndef M_TEST_PAYHASH
                 preimage_clear(lp);
-#else
-#warning M_TEST_PAYHASH:preimageを消していない
-#endif  //M_TEST_PAYHASH
+
+                //アプリ判定はOK
                 p_add->ok = true;
             } else {
                 SYSLOG_ERR("%s(): payment stop", __func__);
+
+                //キューにためる(fail)
+#warning reasonダミー
+                queue_fulfill_t *fulfill = (queue_fulfill_t *)malloc(sizeof(queue_fulfill_t));
+                fulfill->result = 1;
+                fulfill->id = p_add->id;
+                ucoin_buf_alloccopy(&fulfill->buf, p_add->p_shared_secret->buf, p_add->p_shared_secret->len);
+                push_queue(p_conf, fulfill);
             }
         } else {
             //転送
@@ -1967,11 +2039,26 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
         //fulfill要求があれば送信要求する
         queue_fulfill_t *p = pop_queue(p_conf);
         if (p != NULL) {
-            ln_cb_fulfill_htlc_recv_t fulfill;
+            if (p->result == 0) {
+                ln_cb_fulfill_htlc_recv_t fulfill;
 
-            fulfill.id = p->id;
-            fulfill.p_preimage = p->preimage;
-            lnapp_backward_fulfill(p_conf, &fulfill);
+                DBG_PRINTF("  --> backward fulfill\n");
+                fulfill.id = p->id;
+                fulfill.p_preimage = p->buf.buf;
+                lnapp_backward_fulfill(p_conf, &fulfill);
+            } else {
+                ln_cb_fail_htlc_recv_t fail;
+#warning reasonダミー
+                const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
+                const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
+
+                DBG_PRINTF("  --> fail_htlc\n");
+                fail.id = p->id;
+                fail.p_reason = &dummy_reason;
+                fail.p_shared_secret = &p->buf;
+                lnapp_backward_fail(p_conf, &fail, true);
+            }
+            ucoin_buf_free(&p->buf);
             free(p);
         }
     }
@@ -1988,6 +2075,8 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 
     pthread_mutex_unlock(&mMuxSeq);
     DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
+
+    call_script(p_conf, M_EVT_HTLCCHANGED);
 
     DBGTRACE_END
 }
@@ -2393,6 +2482,23 @@ static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf)
 
     pthread_mutex_unlock(&p_conf->mux_fulque);
     return p;
+}
+
+
+static void call_script(lnapp_conf_t *p_conf, event_t event)
+{
+    DBG_PRINTF("event=0x%02x\n", (int)event);
+
+    struct stat buf;
+    int ret = stat(M_SCRIPT[event], &buf);
+    if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
+        char cmdline[256];
+
+        sprintf(cmdline, "%s %" PRIu64 " %" PRIu64,
+                    M_SCRIPT[event], ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self));
+        DBG_PRINTF("cmdline: %s\n", cmdline);
+        system(cmdline);
+    }
 }
 
 

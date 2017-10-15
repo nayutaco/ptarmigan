@@ -20,6 +20,7 @@
  ********************************************************************/
 
 typedef struct cJSON cJSON;
+typedef struct queue_fulfill_t queue_fulfill_t;
 
 
 /** @enum   recv_proc_t
@@ -37,13 +38,6 @@ typedef enum {
     INNER_SEND_ANNO_SIGNS,          ///< announcement_signatures送信要求
     INNER_SEND_ANNOUNCEMENT,        ///< announcement送信要求
 } recv_proc_t;
-
-
-typedef struct queue_fulfill_t {
-    uint64_t        id;
-    uint8_t         preimage[LN_SZ_PREIMAGE];
-    struct queue_fulfill_t  *p_next;
-} queue_fulfill_t;
 
 
 /** @struct lnapp_conf_t
@@ -106,7 +100,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf);
 bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 bool lnapp_forward_payment(lnapp_conf_t *pAppConf, const ln_cb_add_htlc_recv_t *pAdd, uint64_t prev_short_channel_id);
 bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
-bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail);
+bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
 bool lnapp_close_channel(lnapp_conf_t *pAppConf);
 bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_channel_id);
 void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult);
