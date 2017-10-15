@@ -2914,8 +2914,8 @@ static bool create_to_local(ln_self_t *self,
  * 署名を、To-Localはself->commit_local.signatureに、HTLCはself->cnl_add_htlc[].signature 代入する
  *
  * @param[in,out]       self
- * @param[out]          pp_htlc_sigs        commitment_signed送信用署名
- * @param[out]          p_htlc_sigs_num     pp_htlc_sigsに格納した署名数
+ * @param[out]          pp_htlc_sigs        commitment_signed送信用署名(NULLの場合は代入しない)
+ * @param[out]          p_htlc_sigs_num     pp_htlc_sigsに格納した署名数(NULLの場合は代入しない)
  * @param[in]           to_self_delay
  * @param[in]           dust_limit_sat
  */
@@ -3012,6 +3012,7 @@ static bool create_to_remote(ln_self_t *self,
     ucoin_print_tx(&tx_remote);
 #endif  //UCOIN_USE_PRINTFUNC
 
+    uint8_t htlc_num = 0;
     if ((cnt > 0) && (pp_htlc_sigs != NULL)) {
         //各HTLCの署名(commitment_signed用)(Remote)
         DBG_PRINTF("HTLC-Timeout/Success sign(Remote): %d\n", cnt);
@@ -3043,7 +3044,6 @@ static bool create_to_remote(ln_self_t *self,
                     self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
         ucoin_keys_priv2pub(remotekey.pub, remotekey.priv);
 
-        int htlc_num = 0;
         for (int vout_idx = 0; vout_idx < tx_remote.vout_cnt; vout_idx++) {
             //各HTLCのHTLC Timeout/Success Transactionを作って署名するために、
             //BIP69ソート後のtx_remote.voutからpp_htlcinfo[]のindexを取得する
@@ -3112,7 +3112,8 @@ static bool create_to_remote(ln_self_t *self,
         ucoin_buf_free(&buf_ws);
         ucoin_tx_free(&tx);
         ucoin_buf_free(&buf_remotesig);
-
+    }
+    if (p_htlc_sigs_num != NULL) {
         *p_htlc_sigs_num = htlc_num;
     }
 

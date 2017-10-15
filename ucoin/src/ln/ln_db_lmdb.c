@@ -164,7 +164,7 @@ void HIDDEN ln_db_init(void)
         assert(retval == 0);
 
         mkdir(M_LMDB_ENV, 0755);
-        retval = mdb_env_open(mpDbEnv, M_LMDB_ENV, MDB_FIXEDMAP, 0664);
+        retval = mdb_env_open(mpDbEnv, M_LMDB_ENV, 0, 0644);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             abort();
