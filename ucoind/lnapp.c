@@ -96,12 +96,7 @@
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
 
-//event
-#define M_EVT_PAYMENT           (0x10)
-#define M_EVT_FORWARD           (0x11)
-#define M_EVT_FULFILL           (0x12)
-#define M_EVT_FAIL              (0x13)
-#define M_EVT_HTLCCHANGED       (0x14)
+#define M_SCRIPT_DIR            "./script/"
 
 
 /********************************************************************
@@ -140,6 +135,16 @@ typedef struct queue_fulfill_t {
 } queue_fulfill_t;
 
 
+//event
+typedef enum {
+    M_EVT_PAYMENT,
+    M_EVT_FORWARD,
+    M_EVT_FULFILL,
+    M_EVT_FAIL,
+    M_EVT_HTLCCHANGED,
+} event_t;
+
+
 /********************************************************************
  * static variables
  ********************************************************************/
@@ -160,6 +165,20 @@ static volatile enum {
     //MUX_SEND_FULFILL_HTLC=0x40,     ///< fulfill_htlc送信済み
     //MUX_RECV_FULFILL_HTLC=0x80,     ///< fulfill_htlc受信済み
 } mMuxTiming;
+
+
+static const char *M_SCRIPT[] = {
+    //M_EVT_PAYMENT,
+    M_SCRIPT_DIR "payment.sh",
+    //M_EVT_FORWARD,
+    M_SCRIPT_DIR "forward.sh",
+    //M_EVT_FULFILL,
+    M_SCRIPT_DIR "fulfill.sh",
+    //M_EVT_FAIL,
+    M_SCRIPT_DIR "fail.sh",
+    //M_EVT_HTLCCHANGED,
+    M_SCRIPT_DIR "htlcchanged.sh"
+};
 
 
 /********************************************************************
@@ -222,7 +241,7 @@ static void wait_mutex_lock(uint8_t Flag);
 static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
 static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf);
-static void call_script(lnapp_conf_t *p_conf, uint8_t event);
+static void call_script(lnapp_conf_t *p_conf, event_t event);
 static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
 
@@ -2466,9 +2485,20 @@ static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf)
 }
 
 
-static void call_script(lnapp_conf_t *p_conf, uint8_t event)
+static void call_script(lnapp_conf_t *p_conf, event_t event)
 {
-    DBG_PRINTF("event=0x%02x\n", event);
+    DBG_PRINTF("event=0x%02x\n", (int)event);
+
+    struct stat buf;
+    int ret = stat(M_SCRIPT[event], &buf);
+    if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
+        char cmdline[256];
+
+        sprintf(cmdline, "%s %" PRIu64 " %" PRIu64,
+                    M_SCRIPT[event], ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self));
+        DBG_PRINTF("cmdline: %s\n", cmdline);
+        system(cmdline);
+    }
 }
 
 
