@@ -37,6 +37,24 @@
 
 
 /**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+typedef struct {
+    const uint8_t *p_node_id1;
+    const uint8_t *p_node_id2;
+    uint64_t *p_short_channel_id;
+} comp_param_t;
+
+
+/**************************************************************************
+ * prototypes
+ **************************************************************************/
+
+static bool comp_func(ln_self_t *self, void *p_param);
+
+
+/**************************************************************************
  * public functions
  **************************************************************************/
 
@@ -106,6 +124,14 @@ uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNo
         p_node_id2 = pNodeId1;
     }
     uint64_t short_channel_id = ln_db_search_channel_short_channel_id(p_node_id1, p_node_id2);
+    if (short_channel_id == 0) {
+        comp_param_t prm;
+
+        prm.p_node_id1 = p_node_id1;
+        prm.p_node_id2 = p_node_id2;
+        prm.p_short_channel_id = &short_channel_id;
+        ln_db_search_channel(comp_func, &prm);
+    }
 
     DBG_PRINTF("search id1:");
     DUMPBIN(p_node_id1, UCOIN_SZ_PUBKEY);
@@ -184,4 +210,33 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     ucoin_buf_free(&buf_old);
 
     return ret;
+}
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+static bool comp_func(ln_self_t *self, void *p_param)
+{
+    comp_param_t *p = (comp_param_t *)p_param;
+
+    if (self->p_node) {
+        printf("0\n");
+        DUMPBIN(self->p_node->keys.pub, UCOIN_SZ_PUBKEY);
+    }
+    if (p->p_node_id1) {
+        printf("1\n");
+        DUMPBIN(p->p_node_id1, UCOIN_SZ_PUBKEY);
+    }
+    if (p->p_node_id2) {
+        printf("2\n");
+        DUMPBIN(p->p_node_id2, UCOIN_SZ_PUBKEY);
+    }
+
+    return (self->p_node != NULL) &&
+           ( ((memcmp(self->p_node->keys.pub, p->p_node_id1, UCOIN_SZ_PUBKEY) == 0) &&
+              (memcmp(self->peer_node.node_id, p->p_node_id2, UCOIN_SZ_PUBKEY) == 0)) ||
+             ((memcmp(self->p_node->keys.pub, p->p_node_id2, UCOIN_SZ_PUBKEY) == 0) &&
+              (memcmp(self->peer_node.node_id, p->p_node_id1, UCOIN_SZ_PUBKEY) == 0)) );
 }
