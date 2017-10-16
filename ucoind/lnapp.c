@@ -1623,6 +1623,9 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
         DBG_PRINTF("チャネルアナウンス無し\n");
     }
 
+    //DB保存
+    ln_db_save_channel(p_conf->p_self);
+
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 
     char fname[FNAME_LEN];
