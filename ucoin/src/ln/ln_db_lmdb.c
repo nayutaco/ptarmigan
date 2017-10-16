@@ -444,6 +444,72 @@ LABEL_EXIT:
 }
 
 
+bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
+{
+    bool result = false;
+    int retval;
+    lmdb_cursor_t cur;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &cur.txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_dbi_open(cur.txn, NULL, 0, &cur.dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(cur.txn);
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_cursor_open(cur.txn, cur.dbi, &cur.cursor);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(cur.txn);
+        goto LABEL_EXIT;
+    }
+
+    bool ret;
+    int list = 0;
+    MDB_val     key;
+    while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
+        MDB_dbi dbi2;
+
+        if (memchr(key.mv_data, '\0', key.mv_size)) {
+            continue;
+        }
+        ret = mdb_open(cur.txn, key.mv_data, 0, &dbi2);
+        if (ret == 0) {
+            if (list) {
+                list++;
+            } else if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
+                ln_self_t self;
+                memset(&self, 0, sizeof(self));
+
+                retval = ln_lmdb_load_channel(&self, cur.txn, &dbi2);
+                if (retval == 0) {
+                    result = (*pFunc)(&self, pFuncParam);
+                    if (result) {
+                        DBG_PRINTF("match !\n");
+                        break;
+                    }
+                } else {
+                    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+                }
+            }
+            mdb_close(mpDbEnv, dbi2);
+        }
+    }
+    mdb_cursor_close(cur.cursor);
+    mdb_close(mpDbEnv, cur.dbi);
+    mdb_txn_abort(cur.txn);
+
+LABEL_EXIT:
+    return result;
+}
+
+
 /********************************************************************
  * channel_announcement / channel_update
  ********************************************************************/

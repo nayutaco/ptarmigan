@@ -54,6 +54,15 @@ typedef struct {
 } ln_db_channel_sinfo;
 
 
+/** 比較関数 #ln_db_search_channel()
+ *
+ * @param[in]       self
+ * @param[in]       p_param
+ * @retval  true    比較終了(戻り値もtrue)
+ */
+typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_param);
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
@@ -91,6 +100,17 @@ bool ln_db_save_channel(const ln_self_t *self);
  *
  */
 bool ln_db_del_channel(const ln_self_t *self);
+
+
+/** channel情報検索
+ *      比較関数を使用してchannel情報を検索する
+ *
+ * @param[in]       pFunc       検索関数
+ * @param[in,out]   pFuncParam  検索関数に渡す引数
+ * @retval      true    検索関数がtrueを戻した
+ * @retval      false   検索関数が最後までtrueを返さなかった
+ */
+bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
 /** channel_announcement読込み
