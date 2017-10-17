@@ -79,6 +79,10 @@ extern "C" {
 #define LN_NODEDESC_MAX                 LN_NODEDESC_ONIONV3
 #define LN_NODEDESC_NULL                (255)
 
+// self->fund_flag
+#define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
+#define LN_FUNDFLAG_ANNO_CH             (0x02)      ///< open_channel.channel_flags.announce_channel
+
 
 /**************************************************************************
  * macro functions
@@ -1407,6 +1411,40 @@ static inline const uint8_t *ln_funding_txid(const ln_self_t *self) {
  */
 static inline uint32_t ln_funding_txindex(const ln_self_t *self) {
     return self->funding_local.funding_txindex;
+}
+
+
+/** funderかどうか
+ *
+ * @param[in]           self            channel情報
+ * @retval      true    funder
+ * @retval      false   fundee
+ */
+static inline bool ln_is_funder(const ln_self_t *self) {
+    return (self->fund_flag & LN_FUNDFLAG_FUNDER);
+}
+
+
+/** open_channelのchannel_flags.announce_channel
+ *
+ * @param[in]           self            channel情報
+ * @return      open_channelのchannel_flags.announce_channel
+ * @note
+ *      - This indicates whether the initiator of the funding flow
+ *          wishes to advertise this channel publicly to the network
+ *          as detailed within BOLT #7.
+ */
+static inline bool ln_open_announce_channel(const ln_self_t *self) {
+    return (self->fund_flag & LN_FUNDFLAG_ANNO_CH);
+}
+
+
+/** open_channelのchannel_flags.announce_channelのクリア
+ *
+ * @param[in]           self            channel情報
+ */
+static inline void ln_open_announce_channel_clr(ln_self_t *self) {
+    self->fund_flag &= ~LN_FUNDFLAG_ANNO_CH;
 }
 
 

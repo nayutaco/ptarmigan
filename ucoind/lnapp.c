@@ -1022,10 +1022,7 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
         ret = fwd_fail_backward(p_conf);
         break;
     case INNER_SEND_ANNO_SIGNS:
-        if ( (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
-             (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
-            // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
-            //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements
+        {
             ucoin_buf_t buf_bolt;
 
             DBG_PRINTF("INNER_SEND_ANNO_SIGNS\n");
@@ -1140,6 +1137,16 @@ static void *thread_poll_start(void *pArg)
             DBG_PRINTF2("*    funding_txid: ");
             DUMPTXID(ln_funding_txid(p_conf->p_self));
             DBG_PRINTF2("***********************************\n\n");
+
+            if ( ln_open_announce_channel(p_conf->p_self) &&
+                 (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
+                 (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
+                // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
+                //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements
+                set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
+                ln_open_announce_channel_clr(p_conf->p_self);
+                ln_db_save_channel(p_conf->p_self);
+            }
         }
 
         //funding_tx
@@ -1620,13 +1627,6 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
         }
         free(p_conf->p_funding);
         p_conf->p_funding = NULL;
-    }
-
-    if (p->annosigs) {
-        //annotation_signatures送信要求
-        req_send_anno_signs(p_conf);
-    } else {
-        DBG_PRINTF("チャネルアナウンス無し\n");
     }
 
     //DB保存
