@@ -55,12 +55,13 @@
 #define M_DB_ANNO_NODE          "node_anno"
 
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-4)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-5)            ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
     -3 : ln_funding_remote_data_t変更
     -4 : ln_funding_local_data_t, ln_funding_remote_data_t変更
+    -5 : backup_self_tにln_node_info_t追加
  */
 
 
@@ -98,6 +99,7 @@ typedef struct {
     uint64_t                    revoke_num;                     ///< 26:revoke_and_ack送信後にインクリメントする
     uint64_t                    remote_revoke_num;              ///< 27:revoke_and_ack受信時にインクリメントする
     uint8_t                     fund_flag;                      ///< 28:none/funder/fundee
+    ln_node_info_t              peer_node;                      ///< 29:peer_node情報
 } backup_self_t;
 
 
@@ -297,6 +299,7 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         self->revoke_num = p_bk->revoke_num;  //26
         self->remote_revoke_num = p_bk->remote_revoke_num;  //27
         self->fund_flag = p_bk->fund_flag;  //28
+        memcpy(&self->peer_node, &p_bk->peer_node, sizeof(ln_node_info_t));   //29
 
         //次読込み
         key.mv_size = 6;
@@ -441,6 +444,72 @@ LABEL_EXIT:
         mdb_txn_abort(txn);
     }
     return retval == 0;
+}
+
+
+bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
+{
+    bool result = false;
+    int retval;
+    lmdb_cursor_t cur;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &cur.txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_dbi_open(cur.txn, NULL, 0, &cur.dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(cur.txn);
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_cursor_open(cur.txn, cur.dbi, &cur.cursor);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(cur.txn);
+        goto LABEL_EXIT;
+    }
+
+    bool ret;
+    int list = 0;
+    MDB_val     key;
+    while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
+        MDB_dbi dbi2;
+
+        if (memchr(key.mv_data, '\0', key.mv_size)) {
+            continue;
+        }
+        ret = mdb_open(cur.txn, key.mv_data, 0, &dbi2);
+        if (ret == 0) {
+            if (list) {
+                list++;
+            } else if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
+                ln_self_t self;
+                memset(&self, 0, sizeof(self));
+
+                retval = ln_lmdb_load_channel(&self, cur.txn, &dbi2);
+                if (retval == 0) {
+                    result = (*pFunc)(&self, pFuncParam);
+                    if (result) {
+                        DBG_PRINTF("match !\n");
+                        break;
+                    }
+                } else {
+                    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+                }
+            }
+            mdb_close(mpDbEnv, dbi2);
+        }
+    }
+    mdb_cursor_close(cur.cursor);
+    mdb_close(mpDbEnv, cur.dbi);
+    mdb_txn_abort(cur.txn);
+
+LABEL_EXIT:
+    return result;
 }
 
 
@@ -1000,6 +1069,7 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     bk.revoke_num = self->revoke_num;       //26
     bk.remote_revoke_num = self->remote_revoke_num;       //27
     bk.fund_flag = self->fund_flag;       //28
+    memcpy(&bk.peer_node, &self->peer_node, sizeof(ln_node_info_t));    //29
 
     key.mv_size = 6;
     key.mv_data = "self1";

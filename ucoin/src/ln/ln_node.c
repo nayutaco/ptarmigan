@@ -37,6 +37,23 @@
 
 
 /**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+typedef struct {
+    const uint8_t *p_node_id;
+    uint64_t *p_short_channel_id;
+} comp_param_t;
+
+
+/**************************************************************************
+ * prototypes
+ **************************************************************************/
+
+static bool comp_func(ln_self_t *self, void *p_param);
+
+
+/**************************************************************************
  * public functions
  **************************************************************************/
 
@@ -117,6 +134,23 @@ uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNo
 }
 
 
+uint64_t ln_node_search_peer_node_short_cnl_id(const uint8_t *pNodeId)
+{
+    uint64_t short_channel_id = 0;
+    comp_param_t prm;
+
+    prm.p_node_id = pNodeId;
+    prm.p_short_channel_id = &short_channel_id;
+    ln_db_search_channel(comp_func, &prm);
+
+    DBG_PRINTF("search id:");
+    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("  --> %016" PRIx64 "\n", short_channel_id);
+
+    return short_channel_id;
+}
+
+
 /********************************************************************
  * HIDDEN
  ********************************************************************/
@@ -183,5 +217,21 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     }
     ucoin_buf_free(&buf_old);
 
+    return ret;
+}
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+static bool comp_func(ln_self_t *self, void *p_param)
+{
+    comp_param_t *p = (comp_param_t *)p_param;
+
+    bool ret = (memcmp(self->peer_node.node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
+    if (ret) {
+        *p->p_short_channel_id = ln_short_channel_id(self);
+    }
     return ret;
 }

@@ -79,6 +79,10 @@ extern "C" {
 #define LN_NODEDESC_MAX                 LN_NODEDESC_ONIONV3
 #define LN_NODEDESC_NULL                (255)
 
+// self->fund_flag
+#define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
+#define LN_FUNDFLAG_ANNO_CH             (0x02)      ///< open_channel.channel_flags.announce_channel
+
 
 /**************************************************************************
  * macro functions
@@ -1410,6 +1414,40 @@ static inline uint32_t ln_funding_txindex(const ln_self_t *self) {
 }
 
 
+/** funderかどうか
+ *
+ * @param[in]           self            channel情報
+ * @retval      true    funder
+ * @retval      false   fundee
+ */
+static inline bool ln_is_funder(const ln_self_t *self) {
+    return (self->fund_flag & LN_FUNDFLAG_FUNDER);
+}
+
+
+/** open_channelのchannel_flags.announce_channel
+ *
+ * @param[in]           self            channel情報
+ * @return      open_channelのchannel_flags.announce_channel
+ * @note
+ *      - This indicates whether the initiator of the funding flow
+ *          wishes to advertise this channel publicly to the network
+ *          as detailed within BOLT #7.
+ */
+static inline bool ln_open_announce_channel(const ln_self_t *self) {
+    return (self->fund_flag & LN_FUNDFLAG_ANNO_CH);
+}
+
+
+/** open_channelのchannel_flags.announce_channelのクリア
+ *
+ * @param[in]           self            channel情報
+ */
+static inline void ln_open_announce_channel_clr(ln_self_t *self) {
+    self->fund_flag &= ~LN_FUNDFLAG_ANNO_CH;
+}
+
+
 /** 自ノードID取得
  *
  * @param[in]           self            channel情報
@@ -1473,7 +1511,10 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 void ln_node_term(ln_node_t *node);
 
 
-/** short_channel_id検索
+/** short_channel_id検索(channel_announcement DBから)
+ *
+ *      channel_announcement DBから一致するnode_id対を検索し、short_channel_idを返す。
+ *      funding_locked直後は channel_announcementされていないことがあり、その場合は失敗する。
  *
  * @param[in]       pNodeId1    検索するnode_id1
  * @param[in]       pNodeId2    検索するnode_id2
@@ -1481,6 +1522,18 @@ void ln_node_term(ln_node_t *node);
  * @retval          0           検索失敗
  */
 uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
+
+
+/** short_channel_id検索(self DBから)
+ *
+ *      self DBから一致するnode_idを検索し、short_channel_idを返す。
+ *      funding_locked直後で #ln_node_search_short_cnl_id()に失敗した場合のために用意した。
+ *
+ * @param[in]       pNodeId1    検索するnode_id
+ * @retval          0以外       検索したshort_channel_id
+ * @retval          0           検索失敗
+ */
+uint64_t ln_node_search_peer_node_short_cnl_id(const uint8_t *pNodeId);
 
 
 /********************************************************************

@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2017/10/17
+
+* [issue#23] `funding_locked`後にDB保存する
+
 ## 2017/10/15
 
 * [issue#12]fail_htlcをcommitment_signed後にする

@@ -72,23 +72,7 @@
 
 #define M_PONG_MISSING                      (5)             ///< pongが返ってこないエラー上限
 
-#define M_FUND_NONE                         (0)             ///< fund無し
-#define M_FUND_FUNDER                       (1)             ///< funder
-#define M_FUND_FUNDEE                       (2)             ///< fundee
-
 #define M_FUNDING_INDEX                     (0)             ///< funding_txのvout
-
-
-/**************************************************************************
- * macro functions
- **************************************************************************/
-
-/** @def    M_IS_OPENSIDE()
- *  @brief  true: open_channelを送信した側
- *  @note
- *      - Establish時しか使用しない
- */
-#define M_IS_OPENSIDE(self)     (self->fund_flag == M_FUND_FUNDER)
 
 
 /**************************************************************************
@@ -265,8 +249,8 @@ void ln_term(ln_self_t *self)
 void ln_set_genesishash(const uint8_t *pHash)
 {
     memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
-    DBG_PRINTF("genesis=");
-    DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
+    //DBG_PRINTF("genesis=");
+    //DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
 }
 
 
@@ -297,6 +281,7 @@ bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t
     }
 
     if (pNodeId) {
+        DBG_PRINTF("set peer_node info\n");
         memcpy(self->peer_node.node_id, pNodeId, UCOIN_SZ_PUBKEY);
         int lp;
         for (lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
@@ -588,7 +573,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     self->funding_sat = open_ch->funding_sat;
     self->feerate_per_kw = open_ch->feerate_per_kw;
 
-    self->fund_flag = M_FUND_FUNDER;
+    self->fund_flag = LN_FUNDFLAG_FUNDER | ((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0);
 
     return true;
 }
@@ -1273,7 +1258,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
 
     bool ret;
 
-    if (M_IS_OPENSIDE(self)) {
+    if (ln_is_funder(self)) {
         //open_channel受信側ではない
         self->err = LNERR_INV_SIDE;
         DBG_PRINTF("fail: invalid receiver\n");
@@ -1366,7 +1351,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
                 self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub, self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
         self->htlc_num = 0;
-        self->fund_flag = M_FUND_FUNDEE;
+        self->fund_flag = (open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0;
     } else {
         self->err = LNERR_CREATE_2OF2;
     }
@@ -1382,7 +1367,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     bool ret;
 
-    if (!M_IS_OPENSIDE(self)) {
+    if (!ln_is_funder(self)) {
         //open_channel送信側ではない
         self->err = LNERR_INV_SIDE;
         DBG_PRINTF("fail: invalid receiver\n");
@@ -1465,7 +1450,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
 
     bool ret;
 
-    if (M_IS_OPENSIDE(self)) {
+    if (ln_is_funder(self)) {
         //open_channel受信側ではない
         self->err = LNERR_INV_SIDE;
         DBG_PRINTF("fail: invalid receiver\n");
@@ -1546,7 +1531,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     bool ret;
 
-    if (!M_IS_OPENSIDE(self)) {
+    if (!ln_is_funder(self)) {
         //open_channel送信側ではない
         self->err = LNERR_INV_SIDE;
         DBG_PRINTF("fail: invalid receiver\n");
@@ -2746,7 +2731,7 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.htlcinfo_num = cnt;
 
     DBG_PRINTF("self->commit_num=%" PRIx64 "\n", self->commit_num);
-    ret = ln_cmt_create(&tx_local, &buf_sig, &lntx_commit, M_IS_OPENSIDE(self));
+    ret = ln_cmt_create(&tx_local, &buf_sig, &lntx_commit, ln_is_funder(self));
     if (!ret) {
         DBG_PRINTF("fail: ln_cmt_create\n");
         return false;
@@ -3003,7 +2988,7 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.htlcinfo_num = cnt;
 
     DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num);
-    bool ret = ln_cmt_create(&tx_remote, &buf_sig, &lntx_commit, !M_IS_OPENSIDE(self));
+    bool ret = ln_cmt_create(&tx_remote, &buf_sig, &lntx_commit, !ln_is_funder(self));
     if (!ret) {
         DBG_PRINTF("fail: ln_cmt_create(Remote)\n");
     }
@@ -3166,7 +3151,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
     pTx->version = 1;       //BOLT#3
 
     //BOLT#3: feeはfundedの方から引く
-    if (M_IS_OPENSIDE(self)) {
+    if (ln_is_funder(self)) {
         fee_local = self->cnl_closing_signed.fee_sat;
         fee_remote = 0;
     } else {

@@ -636,6 +636,9 @@ static void *thread_main_start(void *pArg)
     if (p_conf->cmd != DCMD_CREATE) {
         //既存チャネル接続の可能性あり
         uint64_t short_channel_id = ln_node_search_short_cnl_id(ln_node_id(mpNode), p_conf->node_id);
+        if (short_channel_id == 0) {
+            short_channel_id = ln_node_search_peer_node_short_cnl_id(p_conf->node_id);
+        }
         if (short_channel_id != 0) {
             if (short_channel_id != 0) {
                 DBG_PRINTF("    チャネルDB読込み: %" PRIx64 "\n", short_channel_id);
@@ -643,7 +646,10 @@ static void *thread_main_start(void *pArg)
                 ret = ln_db_load_channel(&my_self, short_channel_id);
                 if (ret) {
                     //peer node_id
-                    ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
+                    if (memcmp(my_self.peer_node.node_id, p_conf->node_id, UCOIN_SZ_PUBKEY) != 0) {
+                        assert(false);
+                        ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
+                    }
                 }
             }
         } else {
@@ -1047,10 +1053,7 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
         ret = fwd_fail_backward(p_conf);
         break;
     case INNER_SEND_ANNO_SIGNS:
-        if ( (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
-             (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
-            // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
-            //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements
+        {
             ucoin_buf_t buf_bolt;
 
             DBG_PRINTF("INNER_SEND_ANNO_SIGNS\n");
@@ -1165,6 +1168,16 @@ static void *thread_poll_start(void *pArg)
             DBG_PRINTF2("*    funding_txid: ");
             DUMPTXID(ln_funding_txid(p_conf->p_self));
             DBG_PRINTF2("***********************************\n\n");
+
+            if ( ln_open_announce_channel(p_conf->p_self) &&
+                 (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
+                 (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
+                // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
+                //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements
+                set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
+                ln_open_announce_channel_clr(p_conf->p_self);
+                ln_db_save_channel(p_conf->p_self);
+            }
         }
 
         //funding_tx
@@ -1658,12 +1671,8 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
         p_conf->p_funding = NULL;
     }
 
-    if (p->annosigs) {
-        //annotation_signatures送信要求
-        req_send_anno_signs(p_conf);
-    } else {
-        DBG_PRINTF("チャネルアナウンス無し\n");
-    }
+    //DB保存
+    ln_db_save_channel(p_conf->p_self);
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 
