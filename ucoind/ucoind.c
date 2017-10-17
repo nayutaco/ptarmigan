@@ -272,7 +272,7 @@ bool backward_fail(const ln_cb_fail_htlc_recv_t *pFail)
     p_appconf = search_connected_lnapp_cnl(pFail->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_backward_fail(p_appconf, pFail);
+        ret = lnapp_backward_fail(p_appconf, pFail, false);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }

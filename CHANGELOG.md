@@ -4,6 +4,16 @@
 
 * [issue#23] `funding_locked`後にDB保存する
 
+## 2017/10/15
+
+* [issue#12]fail_htlcをcommitment_signed後にする
+* イベントのタイミングでスクリプトを呼び出す
+    * `./script/payment.sh` : 送金開始
+    * `./script/forward.sh` : 送金を転送するとき
+    * `./script/fulfaill.sh` : `update_fulfill_htlc` 送信時
+    * `./script/fail.sh` : `update_fail_htlc` 送信時
+    * `./script/htlcchanged.sh` : `revoke_and_ack` 後
+
 ## 2017/10/12
 
 * [issue#7]establish後に `minimum_depth` を待っている間に `announcement_signatures` を受信すると失敗する

@@ -100,7 +100,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf);
 bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 bool lnapp_forward_payment(lnapp_conf_t *pAppConf, const ln_cb_add_htlc_recv_t *pAdd, uint64_t prev_short_channel_id);
 bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
-bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail);
+bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
 bool lnapp_close_channel(lnapp_conf_t *pAppConf);
 bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_channel_id);
 void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult);
