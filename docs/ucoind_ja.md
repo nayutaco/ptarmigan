@@ -1,5 +1,4 @@
-ucoind
-====
+# ucoind
 
 ## NAME
 
@@ -57,5 +56,5 @@ If `establish.conf` exists same folder, use it for establish parameter.
 ## SEE ALSO
 
 ## AUTHOR
-    Nayuta Inc.
 
+Nayuta Inc.

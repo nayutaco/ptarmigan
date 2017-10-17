@@ -1,5 +1,4 @@
-showdb
-====
+# showdb
 
 ## NAME
 
@@ -24,4 +23,5 @@ Show information in `ucoind` database.
 ## SEE ALSO
 
 ## AUTHOR
-    Nayuta Inc.
+
+Nayuta Inc.

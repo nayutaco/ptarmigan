@@ -1,5 +1,4 @@
-routing
-====
+# routing
 
 ## NAME
 
@@ -8,12 +7,14 @@ routing
 ## SYNOPSIS
 
 * create node graph
-```
+
+```bash
 routing [mainnet/testnet/regtest] [db dir]
 ```
 
 * create payment route
-```
+
+```bash
 routing [mainnet/testnet/regtest] [db dir] [payer node_id] [payee node_id] [amount msat]
 ```
 
@@ -25,4 +26,5 @@ This output is same as pay config file format(`ucoincli -p`).
 ## SEE ALSO
 
 ## AUTHOR
-    Nayuta Inc.
+
+Nayuta Inc.
