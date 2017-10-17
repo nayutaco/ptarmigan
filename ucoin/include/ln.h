@@ -224,7 +224,7 @@ typedef struct {
 
 /** @struct ln_derkey_storage
  *  @brief  per-commitment secret storage
- *      https://github.com/nayuta-ueno/lightning-rfc/blob/master/03-transactions.md#efficient-per-commitment-secret-storage
+ *      https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#efficient-per-commitment-secret-storage
  */
 typedef struct {
     struct {
@@ -1566,7 +1566,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
  * @param[in]       pReason             Failure Message(BOLT#4)
  *
  * @note
- *      - https://github.com/nayuta-ueno/lightning-rfc/blob/master/04-onion-routing.md#failure-messages
+ *      - https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md#failure-messages
  */
 void ln_onion_failure_create(ucoin_buf_t *pNextPacket,
             const ucoin_buf_t *pSharedSecret,

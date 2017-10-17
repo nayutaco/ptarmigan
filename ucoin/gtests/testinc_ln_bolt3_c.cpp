@@ -4,7 +4,6 @@
         を適当に見て回る。
 
     https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#appendix-c-commitment-and-htlc-transaction-test-vectors
-    https://github.com/nayuta-ueno/lightning-rfc/blob/master/03-transactions.md#appendix-c-commitment-and-htlc-transaction-test-vectors
 
     simple commitment tx with no HTLCs
         committx2

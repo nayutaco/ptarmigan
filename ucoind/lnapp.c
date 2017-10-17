@@ -1025,7 +1025,7 @@ static void *thread_recv_start(void *pArg)
         pthread_mutex_unlock(&p_conf->mux_proc);
 
         ucoin_buf_free(&buf_recv);
-    }
+    }https://github.com/lightningnetwork/lightning-rfc
 
     SYSLOG_WARN("[exit]recv thread\n");
 
@@ -1799,7 +1799,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     if (p_add->amount_msat) {
         //
-        //転送
+        //転送https://github.com/lightningnetwork/lightning-rfc
         //
 
         DBG_PRINTF2("  b_exit: %d\n", p_add->p_hop->b_exit);

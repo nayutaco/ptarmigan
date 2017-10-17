@@ -22,7 +22,7 @@
 /** @file   ln_msg_anno.c
  *  @brief  [LN]Announcement関連
  *  @author ueno@nayuta.co
- *  @sa     https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md
+ *  @sa     https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md
  */
 #include <stdio.h>
 #include <inttypes.h>
