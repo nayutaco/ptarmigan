@@ -605,6 +605,9 @@ static void *thread_main_start(void *pArg)
     if (p_conf->cmd != DCMD_CREATE) {
         //既存チャネル接続の可能性あり
         uint64_t short_channel_id = ln_node_search_short_cnl_id(ln_node_id(mpNode), p_conf->node_id);
+        if (short_channel_id == 0) {
+            short_channel_id = ln_node_search_peer_node_short_cnl_id(p_conf->node_id);
+        }
         if (short_channel_id != 0) {
             if (short_channel_id != 0) {
                 DBG_PRINTF("    チャネルDB読込み: %" PRIx64 "\n", short_channel_id);
@@ -612,7 +615,10 @@ static void *thread_main_start(void *pArg)
                 ret = ln_db_load_channel(&my_self, short_channel_id);
                 if (ret) {
                     //peer node_id
-                    ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
+                    if (memcmp(my_self.peer_node.node_id, p_conf->node_id, UCOIN_SZ_PUBKEY) != 0) {
+                        assert(false);
+                        ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
+                    }
                 }
             }
         } else {

@@ -55,12 +55,13 @@
 #define M_DB_ANNO_NODE          "node_anno"
 
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-4)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-5)            ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
     -3 : ln_funding_remote_data_t変更
     -4 : ln_funding_local_data_t, ln_funding_remote_data_t変更
+    -5 : backup_self_tにln_node_info_t追加
  */
 
 
@@ -98,6 +99,7 @@ typedef struct {
     uint64_t                    revoke_num;                     ///< 26:revoke_and_ack送信後にインクリメントする
     uint64_t                    remote_revoke_num;              ///< 27:revoke_and_ack受信時にインクリメントする
     uint8_t                     fund_flag;                      ///< 28:none/funder/fundee
+    ln_node_info_t              peer_node;                      ///< 29:peer_node情報
 } backup_self_t;
 
 
@@ -297,6 +299,7 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         self->revoke_num = p_bk->revoke_num;  //26
         self->remote_revoke_num = p_bk->remote_revoke_num;  //27
         self->fund_flag = p_bk->fund_flag;  //28
+        memcpy(&self->peer_node, &p_bk->peer_node, sizeof(ln_node_info_t));   //29
 
         //次読込み
         key.mv_size = 6;
@@ -1066,6 +1069,7 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     bk.revoke_num = self->revoke_num;       //26
     bk.remote_revoke_num = self->remote_revoke_num;       //27
     bk.fund_flag = self->fund_flag;       //28
+    memcpy(&bk.peer_node, &self->peer_node, sizeof(ln_node_info_t));    //29
 
     key.mv_size = 6;
     key.mv_data = "self1";

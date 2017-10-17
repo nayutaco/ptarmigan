@@ -297,6 +297,7 @@ bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t
     }
 
     if (pNodeId) {
+        DBG_PRINTF("set peer_node info\n");
         memcpy(self->peer_node.node_id, pNodeId, UCOIN_SZ_PUBKEY);
         int lp;
         for (lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
