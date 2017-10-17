@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2017/10/17
+
+* [issue#23] `funding_locked`後にDB保存する
+
 ## 2017/10/12
 
 * [issue#7]establish後に `minimum_depth` を待っている間に `announcement_signatures` を受信すると失敗する
