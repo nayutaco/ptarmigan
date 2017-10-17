@@ -1,6 +1,6 @@
 /*
     Appendix D: Per-commitment Secret Generation Test Vectors
-        https://github.com/nayuta-ueno/lightning-rfc/blob/master/03-transactions.md#appendix-d-per-commitment-secret-generation-test-vectors
+        https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#appendix-d-per-commitment-secret-generation-test-vectors
 */
 
 ////////////////////////////////////////////////////////////////////////
@@ -41,7 +41,7 @@ ln_derkey_storage ln_bolt3_d::storage;
 
 //
 // Generate Test
-//      https://github.com/nayuta-ueno/lightning-rfc/blob/master/03-transactions.md#generation-tests
+//      https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#generation-tests
 //
 
 //name: generate_from_seed 0 final node
@@ -193,7 +193,7 @@ TEST_F(ln_bolt3_d, where)
 
 //
 // Storage Test
-//      https://github.com/nayuta-ueno/lightning-rfc/blob/master/03-transactions.md#storage-tests
+//      https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#storage-tests
 //
 
 

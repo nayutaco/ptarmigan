@@ -52,7 +52,7 @@
 #define M_HTLCCHG_FF_RECV                       (2)
 
 #define M_SECINDEX_INIT     ((uint64_t)0xffffffffffff)      ///< per-commitment secret生成用indexの初期値
-                                                            ///< https://github.com/nayuta-ueno/lightning-rfc/blob/master/03-transactions.md#per-commitment-secret-requirements
+                                                            ///< https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#per-commitment-secret-requirements
 
 // ln_self_t.flck_flag
 #define M_FLCK_FLAG_SEND                    (0x01)          ///< 1:funding_locked送信あり
@@ -1665,10 +1665,10 @@ static bool recv_funding_locked_first(ln_self_t *self)
 
     //commitment numberは0から始まる
     //  BOLT#0
-    //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/00-introduction.md#glossary-and-terminology-guide
+    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/00-introduction.md#glossary-and-terminology-guide
     //が、opening時を1回とカウントするので、Normal Operationでは1から始まる
     //  BOLT#2
-    //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
+    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
     self->commit_num = 1;
     self->remote_commit_num = 1;
     self->revoke_num = 0;
@@ -2491,7 +2491,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     ret = ln_db_load_anno_channel(&buf_bolt, ann.short_channel_id);
     if (ret) {
         // BOLT#7
-        //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements-1
+        //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements-1
         //
         // If it has previously received a valid channel_announcement
         // for the same transaction in the same block, but different node_id_1 or node_id_2,

@@ -1,4 +1,4 @@
-// https://github.com/nayuta-ueno/lightning-rfc/blob/master/04-onion-routing.md#test-vector
+// https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md#test-vector
 
 ////////////////////////////////////////////////////////////////////////
 //FAKE関数
