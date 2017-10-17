@@ -1,17 +1,15 @@
 showdb
 ====
 
-# NAME
+## NAME
 
 `showdb` - show database using `ucoind`
 
+## SYNOPSIS
 
-# SYNOPSIS
+    swhodb [mainnet/testnet/regtest] [options] [(db dir)]
 
-    swhodb [options] [(db dir)]
-
-
-## options :
+### options :
 
     `w` : show wallet info  
     `s` : show self info  
@@ -19,15 +17,11 @@ showdb
     `n` : show node info
     'p' : create peer config files
 
-
-# DESCRIPTION
+## DESCRIPTION
 
 Show information in `ucoind` database.
 
+## SEE ALSO
 
-# SEE ALSO
-
-
-# AUTHOR
+## AUTHOR
     Nayuta Inc.
-
