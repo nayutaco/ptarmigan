@@ -262,7 +262,7 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_b
         goto LABEL_EXIT;
     }
     self->noise_send.nonce++;
-    DBG_PRINTF("self->noise_send.nonce = %" PRIu64 "\n", self->noise_send.nonce);
+    DBG_PRINTF("self->noise_send.nonce = %d\n", (int)self->noise_send.nonce);
     if (self->noise_send.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
@@ -350,11 +350,9 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf)
         DUMPBIN(pBuf->buf, pBuf->len);
         DBG_PRINTF("recv key= ");
         DUMPBIN(self->noise_recv.key, UCOIN_SZ_PRIVKEY);
-        DBG_PRINTF("self->noise_recv.nonce = %" PRIu64 "\n", self->noise_recv.nonce);
         goto LABEL_EXIT;
     }
     self->noise_recv.nonce++;
-    DBG_PRINTF("self->noise_recv.nonce = %" PRIu64 "\n", self->noise_recv.nonce);
     if (self->noise_recv.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
