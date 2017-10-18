@@ -262,11 +262,9 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_b
         goto LABEL_EXIT;
     }
     self->noise_send.nonce++;
-    DBG_PRINTF("self->noise_send.nonce = %d\n", (int)self->noise_send.nonce);
     if (self->noise_send.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        DBG_PRINTF("key rotation(send)\n");
         noise_hkdf(self->noise_send.ck, self->noise_send.key, self->noise_send.ck, self->noise_send.key);
         self->noise_send.nonce = 0;
     }
@@ -344,19 +342,12 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf)
                     nonce, self->noise_recv.key);      //nonce, key
     if ((rc != 0) || (pmlen != l)) {
         DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
-        DBG_PRINTF("enc msg(%d)= ", (int)pBuf->len);
-        DBG_PRINTF("nonce= ");
-        DUMPBIN(nonce, sizeof(nonce));
-        DUMPBIN(pBuf->buf, pBuf->len);
-        DBG_PRINTF("recv key= ");
-        DUMPBIN(self->noise_recv.key, UCOIN_SZ_PRIVKEY);
         goto LABEL_EXIT;
     }
     self->noise_recv.nonce++;
     if (self->noise_recv.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        DBG_PRINTF("key rotation(recv)\n");
         noise_hkdf(self->noise_recv.ck, self->noise_recv.key, self->noise_recv.ck, self->noise_recv.key);
         self->noise_recv.nonce = 0;
     }
