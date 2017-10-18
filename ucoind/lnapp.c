@@ -1129,6 +1129,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
                 }
                 Len -= n;
                 len += n;
+                pBuf += n;
             }
         }
     }
