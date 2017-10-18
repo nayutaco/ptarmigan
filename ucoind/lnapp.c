@@ -70,14 +70,13 @@
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
 
-#define M_SHUTDOWN_FEE          UCOIN_MBTC2SATOSHI(0.1)     ///< shutdown時のFEE
-
 //デフォルト値
 //  announcement
 #define M_CLTV_EXPIRY_DELTA             (36)
 #define M_HTLC_MINIMUM_MSAT_ANNO        (0)
 #define M_FEE_BASE_MSAT                 (10)
 #define M_FEE_PROP_MILLIONTHS           (100)
+
 //  establish
 #define M_DUST_LIMIT_SAT                (546)
 #define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
