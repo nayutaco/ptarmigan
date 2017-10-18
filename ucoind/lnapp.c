@@ -1167,16 +1167,6 @@ static void *thread_poll_start(void *pArg)
             DBG_PRINTF2("*    funding_txid: ");
             DUMPTXID(ln_funding_txid(p_conf->p_self));
             DBG_PRINTF2("***********************************\n\n");
-
-            if ( ln_open_announce_channel(p_conf->p_self) &&
-                 (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
-                 (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
-                // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
-                //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements
-                set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
-                ln_open_announce_channel_clr(p_conf->p_self);
-                ln_db_save_channel(p_conf->p_self);
-            }
         }
 
         //funding_tx
@@ -1186,6 +1176,19 @@ static void *thread_poll_start(void *pArg)
         } else {
             //Normal Operation中
             poll_normal_operating(p_conf);
+        }
+
+        //announcement_signatures
+        //  監視周期によっては funding_confirmが minimum_depth と M_ANNOSIGS_CONFIRMの
+        //  両方を満たす可能性があるため、先に poll_funding_wait()を行って self->cnl_anno の準備を済ませる。
+        if ( ln_open_announce_channel(p_conf->p_self) &&
+             (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
+             (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
+            // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
+            //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements
+            set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
+            ln_open_announce_channel_clr(p_conf->p_self);
+            ln_db_save_channel(p_conf->p_self);
         }
 
         counter++;
