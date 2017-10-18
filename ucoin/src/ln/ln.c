@@ -636,6 +636,11 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
 
+    if (self->cnl_anno.buf == NULL) {
+        DBG_PRINTF("fail: no funding_locked\n");
+        return false;
+    }
+
     //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
     //  localのsignature
     ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true);
@@ -2487,6 +2492,10 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
             DBG_PRINTF("同じものが送られてきたので、スルー\n");
         } else {
             DBG_PRINTF("不一致のためblacklist入りする予定\n");
+            DBG_PRINTF("buf_bolt: ");
+            DUMPBIN(buf_bolt.buf, buf_bolt.len);
+            DBG_PRINTF("buf: ");
+            DUMPBIN(buf.buf, buf.len);
             assert(0);
         }
     }

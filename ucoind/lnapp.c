@@ -236,7 +236,7 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force);
 static bool db_del_channel(ln_self_t *self, bool bRemove);
 
 static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId);
-static void set_changeaddr(ln_self_t *self);
+static void set_changeaddr(ln_self_t *self, uint64_t commit_fee);
 static void wait_mutex_lock(uint8_t Flag);
 static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
@@ -472,7 +472,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     //fee
     //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
     uint64_t commit_fee = ln_calc_default_closing_fee(p_self);
-    ln_update_shutdown_fee(p_self, commit_fee);
+    set_changeaddr(p_self, commit_fee);
 
     ucoin_buf_init(&buf_bolt);
     ret = ln_create_shutdown(p_self, &buf_bolt);
@@ -664,9 +664,6 @@ static void *thread_main_start(void *pArg)
     //
     //my_selfへの設定はこれ以降に行う
     //
-
-    //close時のお釣り先
-    set_changeaddr(&my_self);
 
     //peer受信スレッド
     pthread_create(&th_peer, NULL, &thread_recv_start, p_conf);
@@ -1059,10 +1056,12 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
             DBG_PRINTF("INNER_SEND_ANNO_SIGNS\n");
             ucoin_buf_init(&buf_bolt);
             ret = ln_create_announce_signs(p_conf->p_self, &buf_bolt);
-            send_peer_noise(p_conf, &buf_bolt);
-            ucoin_buf_free(&buf_bolt);
+            if (ret) {
+                send_peer_noise(p_conf, &buf_bolt);
+                ucoin_buf_free(&buf_bolt);
 
-            set_request_recvproc(p_conf, INNER_SEND_ANNOUNCEMENT, 0, NULL);
+                set_request_recvproc(p_conf, INNER_SEND_ANNOUNCEMENT, 0, NULL);
+            }
         }
         break;
     case INNER_SEND_ANNOUNCEMENT:
@@ -2418,14 +2417,15 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
 
 /** お釣りアドレス設定
  *
+ * bitcoindにアドレスを作成する
  */
-static void set_changeaddr(ln_self_t *self)
+static void set_changeaddr(ln_self_t *self, uint64_t commit_fee)
 {
     char changeaddr[UCOIN_SZ_ADDR_MAX];
     jsonrpc_getnewaddress(changeaddr);
     DBG_PRINTF("closing change addr : %s\n", changeaddr);
     ln_set_shutdown_vout_addr(self, changeaddr);
-    ln_update_shutdown_fee(self, M_SHUTDOWN_FEE);
+    ln_update_shutdown_fee(self, commit_fee);
 }
 
 
