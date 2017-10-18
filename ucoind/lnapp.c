@@ -976,6 +976,8 @@ static void *thread_recv_start(void *pArg)
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
 
     while (p_conf->loop) {
+        bool ret = true;
+
         //noise packet データ長
         uint8_t head[LN_SZ_NOISE_HEADER];
         uint16_t len = recv_peer(p_conf, head, LN_SZ_NOISE_HEADER);
@@ -1002,8 +1004,11 @@ static void *thread_recv_start(void *pArg)
         }
         if (len_msg == len) {
             buf_recv.len = len;
-            bool ret = ln_noise_dec_msg(p_conf->p_self, &buf_recv);
-            assert(ret);
+            ret = ln_noise_dec_msg(p_conf->p_self, &buf_recv);
+            if (!ret) {
+                DBG_PRINTF("DECODE: loop end\n");
+                stop_threads(p_conf);
+            }
 
             //ping送信待ちカウンタ
             p_conf->ping_counter = 0;
@@ -1011,16 +1016,17 @@ static void *thread_recv_start(void *pArg)
             break;
         }
 
-        DBG_PRINTF("type=%02x%02x\n", buf_recv.buf[0], buf_recv.buf[1]);
-        pthread_mutex_lock(&p_conf->mux_proc);
-        bool ret = ln_recv(p_conf->p_self, buf_recv.buf, buf_recv.len);
-        DBG_PRINTF("ln_recv() result=%d\n", ret);
-        assert(ret);
-        DBG_PRINTF("mux_proc: end\n");
-        pthread_mutex_unlock(&p_conf->mux_proc);
-
+        if (ret) {
+            DBG_PRINTF("type=%02x%02x\n", buf_recv.buf[0], buf_recv.buf[1]);
+            pthread_mutex_lock(&p_conf->mux_proc);
+            ret = ln_recv(p_conf->p_self, buf_recv.buf, buf_recv.len);
+            DBG_PRINTF("ln_recv() result=%d\n", ret);
+            assert(ret);
+            DBG_PRINTF("mux_proc: end\n");
+            pthread_mutex_unlock(&p_conf->mux_proc);
+        }
         ucoin_buf_free(&buf_recv);
-    }https://github.com/lightningnetwork/lightning-rfc
+    }
 
     SYSLOG_WARN("[exit]recv thread\n");
 
@@ -1117,6 +1123,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
                 }
                 Len -= n;
                 len += n;
+                pBuf += n;
             }
         }
     }

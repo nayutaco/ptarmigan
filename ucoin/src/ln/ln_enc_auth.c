@@ -341,7 +341,7 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf)
                     NULL, 0,  //additional data
                     nonce, self->noise_recv.key);      //nonce, key
     if ((rc != 0) || (pmlen != l)) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
     self->noise_recv.nonce++;
