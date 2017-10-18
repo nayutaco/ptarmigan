@@ -993,8 +993,6 @@ static void *thread_recv_start(void *pArg)
         } else {
             break;
         }
-        DBG_PRINTF("ENC RECV1= ");
-        DUMPBIN(head, sizeof(head));
 
         ucoin_buf_alloc(&buf_recv, len);
         uint16_t len_msg = recv_peer(p_conf, buf_recv.buf, len);
@@ -1006,10 +1004,6 @@ static void *thread_recv_start(void *pArg)
         }
         if (len_msg == len) {
             buf_recv.len = len;
-
-            DBG_PRINTF("ENC RECV2(%d)= ", (int)buf_recv.len);
-            DUMPBIN(buf_recv.buf, buf_recv.len);
-
             ret = ln_noise_dec_msg(p_conf->p_self, &buf_recv);
             if (!ret) {
                 DBG_PRINTF("DECODE: loop end\n");
@@ -2213,9 +2207,6 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
     bool ret = ln_noise_enc(p_conf->p_self, &buf_enc, pBuf);
     pthread_mutex_unlock(&p_conf->mux_send);
     assert(ret);
-
-    DBG_PRINTF("ENC SEND(%d)= ", (int)buf_enc.len);
-    DUMPBIN(buf_enc.buf, buf_enc.len);
 
     ssize_t sz = write(p_conf->sock, buf_enc.buf, buf_enc.len);
     if (sz != buf_enc.len) {
