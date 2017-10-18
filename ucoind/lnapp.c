@@ -224,6 +224,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param);
+static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
 
@@ -467,12 +468,10 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
         return false;
     }
 
-    show_self_param(p_self, PRINTOUT, __LINE__);
+    //feeと送金先
+    cb_shutdown_recv(pAppConf, NULL);
 
-    //fee
-    //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
-    uint64_t commit_fee = ln_calc_default_closing_fee(p_self);
-    set_changeaddr(p_self, commit_fee);
+    show_self_param(p_self, PRINTOUT, __LINE__);
 
     ucoin_buf_init(&buf_bolt);
     ret = ln_create_shutdown(p_self, &buf_bolt);
@@ -1522,6 +1521,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
         //    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
         //    LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
+        //    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
         //    LN_CB_CLOSED,               ///< closing_signed受信通知
         //    LN_CB_SEND_REQ,             ///< peerへの送信要求
 
@@ -1542,6 +1542,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed処理前", cb_commit_sig_recv_prev },
         { "  LN_CB_COMMIT_SIG_RECV: commitment_signed受信通知", cb_commit_sig_recv },
         { "  LN_CB_HTLC_CHANGED: HTLC変化", cb_htlc_changed },
+        { "  LN_CB_SHUTDOWN_RECV: shutdown受信", cb_shutdown_recv },
         { "  LN_CB_CLOSED: closing_signed受信", cb_closed },
         { "  LN_CB_SEND_REQ: 送信要求", cb_send_req },
     };
@@ -2090,6 +2091,18 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
     call_script(p_conf, M_EVT_HTLCCHANGED);
 
     DBGTRACE_END
+}
+
+
+//LN_CB_SHUTDOWN_RECV: shutdown受信
+static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
+{
+    DBGTRACE_BEGIN
+
+    //fee and addr
+    //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
+    uint64_t commit_fee = ln_calc_default_closing_fee(p_conf->p_self);
+    set_changeaddr(p_conf->p_self, commit_fee);
 }
 
 

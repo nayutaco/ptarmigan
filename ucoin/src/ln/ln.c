@@ -1747,6 +1747,10 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ucoin_buf_init(&buf_bolt);
     if (!(self->shutdown_flag & M_SHDN_FLAG_SEND)) {
         //shutdown未送信の場合 == shutdownを要求された方
+
+        //feeと送金先
+        (*self->p_callback)(self, LN_CB_SHUTDOWN_RECV, NULL);
+
         ret = ln_create_shutdown(self, &buf_bolt);
         if (ret) {
             self->shutdown_flag |= M_SHDN_FLAG_SEND;
