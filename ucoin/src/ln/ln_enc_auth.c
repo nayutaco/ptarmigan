@@ -274,8 +274,6 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_b
     ucoin_buf_alloc(pBufEnc, cllen + cmlen);
     memcpy(pBufEnc->buf, cl, cllen);
     memcpy(pBufEnc->buf + cllen, cm, cmlen);
-    DBG_PRINTF("ENC(%d)= ", (int)pBufEnc->len);
-    DUMPBIN(pBufEnc->buf, pBufEnc->len);
     ret = true;
 
 LABEL_EXIT:

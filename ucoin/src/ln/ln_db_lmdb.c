@@ -660,7 +660,7 @@ bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, uint64_t short_chan
         retval = load_anno_channel_upd(txn, &dbi, &buf_upd, short_channel_id, Dir);
         if (retval == 0) {
             if (ucoin_buf_cmp(&buf_upd, pCnlUpd)) {
-                DBG_PRINTF("same channel_update: dir=%d\n", Dir);
+                DBG_PRINTF("same channel_update: %d\n", Dir);
             } else {
                 //不一致
                 ln_cnl_update_t upd_db;
