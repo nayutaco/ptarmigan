@@ -142,6 +142,7 @@ typedef enum {
     LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
+    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
     LN_CB_CLOSED,               ///< closing_signed受信通知
     LN_CB_SEND_REQ,             ///< peerへの送信要求
     LN_CB_MAX,

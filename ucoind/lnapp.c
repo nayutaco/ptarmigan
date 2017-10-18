@@ -70,14 +70,13 @@
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
 
-#define M_SHUTDOWN_FEE          UCOIN_MBTC2SATOSHI(0.1)     ///< shutdown時のFEE
-
 //デフォルト値
 //  announcement
 #define M_CLTV_EXPIRY_DELTA             (36)
 #define M_HTLC_MINIMUM_MSAT_ANNO        (0)
 #define M_FEE_BASE_MSAT                 (10)
 #define M_FEE_PROP_MILLIONTHS           (100)
+
 //  establish
 #define M_DUST_LIMIT_SAT                (546)
 #define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
@@ -224,6 +223,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param);
+static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
 
@@ -236,7 +236,7 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force);
 static bool db_del_channel(ln_self_t *self, bool bRemove);
 
 static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId);
-static void set_changeaddr(ln_self_t *self);
+static void set_changeaddr(ln_self_t *self, uint64_t commit_fee);
 static void wait_mutex_lock(uint8_t Flag);
 static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
@@ -467,12 +467,10 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
         return false;
     }
 
-    show_self_param(p_self, PRINTOUT, __LINE__);
+    //feeと送金先
+    cb_shutdown_recv(pAppConf, NULL);
 
-    //fee
-    //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
-    uint64_t commit_fee = ln_calc_default_closing_fee(p_self);
-    ln_update_shutdown_fee(p_self, commit_fee);
+    show_self_param(p_self, PRINTOUT, __LINE__);
 
     ucoin_buf_init(&buf_bolt);
     ret = ln_create_shutdown(p_self, &buf_bolt);
@@ -664,9 +662,6 @@ static void *thread_main_start(void *pArg)
     //
     //my_selfへの設定はこれ以降に行う
     //
-
-    //close時のお釣り先
-    set_changeaddr(&my_self);
 
     //peer受信スレッド
     pthread_create(&th_peer, NULL, &thread_recv_start, p_conf);
@@ -1059,10 +1054,12 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
             DBG_PRINTF("INNER_SEND_ANNO_SIGNS\n");
             ucoin_buf_init(&buf_bolt);
             ret = ln_create_announce_signs(p_conf->p_self, &buf_bolt);
-            send_peer_noise(p_conf, &buf_bolt);
-            ucoin_buf_free(&buf_bolt);
+            if (ret) {
+                send_peer_noise(p_conf, &buf_bolt);
+                ucoin_buf_free(&buf_bolt);
 
-            set_request_recvproc(p_conf, INNER_SEND_ANNOUNCEMENT, 0, NULL);
+                set_request_recvproc(p_conf, INNER_SEND_ANNOUNCEMENT, 0, NULL);
+            }
         }
         break;
     case INNER_SEND_ANNOUNCEMENT:
@@ -1168,16 +1165,6 @@ static void *thread_poll_start(void *pArg)
             DBG_PRINTF2("*    funding_txid: ");
             DUMPTXID(ln_funding_txid(p_conf->p_self));
             DBG_PRINTF2("***********************************\n\n");
-
-            if ( ln_open_announce_channel(p_conf->p_self) &&
-                 (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
-                 (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
-                // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
-                //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements
-                set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
-                ln_open_announce_channel_clr(p_conf->p_self);
-                ln_db_save_channel(p_conf->p_self);
-            }
         }
 
         //funding_tx
@@ -1187,6 +1174,19 @@ static void *thread_poll_start(void *pArg)
         } else {
             //Normal Operation中
             poll_normal_operating(p_conf);
+        }
+
+        //announcement_signatures
+        //  監視周期によっては funding_confirmが minimum_depth と M_ANNOSIGS_CONFIRMの
+        //  両方を満たす可能性があるため、先に poll_funding_wait()を行って self->cnl_anno の準備を済ませる。
+        if ( ln_open_announce_channel(p_conf->p_self) &&
+             (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
+             (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
+            // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
+            //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements
+            set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
+            ln_open_announce_channel_clr(p_conf->p_self);
+            ln_db_save_channel(p_conf->p_self);
         }
 
         counter++;
@@ -1520,6 +1520,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
         //    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
         //    LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
+        //    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
         //    LN_CB_CLOSED,               ///< closing_signed受信通知
         //    LN_CB_SEND_REQ,             ///< peerへの送信要求
 
@@ -1540,6 +1541,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed処理前", cb_commit_sig_recv_prev },
         { "  LN_CB_COMMIT_SIG_RECV: commitment_signed受信通知", cb_commit_sig_recv },
         { "  LN_CB_HTLC_CHANGED: HTLC変化", cb_htlc_changed },
+        { "  LN_CB_SHUTDOWN_RECV: shutdown受信", cb_shutdown_recv },
         { "  LN_CB_CLOSED: closing_signed受信", cb_closed },
         { "  LN_CB_SEND_REQ: 送信要求", cb_send_req },
     };
@@ -2091,6 +2093,18 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
+//LN_CB_SHUTDOWN_RECV: shutdown受信
+static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
+{
+    DBGTRACE_BEGIN
+
+    //fee and addr
+    //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
+    uint64_t commit_fee = ln_calc_default_closing_fee(p_conf->p_self);
+    set_changeaddr(p_conf->p_self, commit_fee);
+}
+
+
 //LN_CB_CLOSED: closing_singed受信
 //  コールバック後、selfはクリアされる
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
@@ -2418,14 +2432,15 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
 
 /** お釣りアドレス設定
  *
+ * bitcoindにアドレスを作成する
  */
-static void set_changeaddr(ln_self_t *self)
+static void set_changeaddr(ln_self_t *self, uint64_t commit_fee)
 {
     char changeaddr[UCOIN_SZ_ADDR_MAX];
     jsonrpc_getnewaddress(changeaddr);
     DBG_PRINTF("closing change addr : %s\n", changeaddr);
     ln_set_shutdown_vout_addr(self, changeaddr);
-    ln_update_shutdown_fee(self, M_SHUTDOWN_FEE);
+    ln_update_shutdown_fee(self, commit_fee);
 }
 
 
