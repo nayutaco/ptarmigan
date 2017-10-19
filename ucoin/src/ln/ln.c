@@ -878,11 +878,15 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
     }
     uint8_t sha256[LN_SZ_HASH];
     ucoin_util_sha256(sha256, pPreImage, LN_SZ_PREIMAGE);
+    DBG_PRINTF("id= %" PRIu64 "\n", id);
+    DBG_PRINTF("recv payment_sha256= ");
+    DUMPBIN(sha256, LN_SZ_PREIMAGE);
     ln_update_add_htlc_t *p_add = NULL;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //fulfill送信はReceived Outputに対して行う
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            DBG_PRINTF("id=%" PRIx64 ", htlc_id=%" PRIu64 "\n", id, self->cnl_add_htlc[idx].id);
+            DBG_PRINTF("LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)=%d\n", LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag));
+            DBG_PRINTF("htlc_id=%" PRIu64 "\n", self->cnl_add_htlc[idx].id);
             DBG_PRINTF("payment_sha256= ");
             DUMPBIN(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_PREIMAGE);
             if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&

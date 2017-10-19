@@ -222,11 +222,22 @@ typedef struct {
 } preimage_t;
 
 
+typedef struct {
+    uint8_t     onion_route[LN_SZ_ONION_ROUTE];
+    uint64_t    amt_to_forward;
+    uint32_t    outgoing_cltv_value;
+    uint8_t     payment_hash[LN_SZ_HASH];
+    uint64_t    next_short_channel_id;
+    uint64_t    prev_short_channel_id;
+    ucoin_buf_t shared_secret;
+} fwd_proc_add_t;
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
 
-bool forward_payment(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_channel_id);
+bool forward_payment(fwd_proc_add_t *p_add);
 bool backward_fulfill(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
 bool backward_fail(const ln_cb_fail_htlc_recv_t *pFail);
 void preimage_lock(void);

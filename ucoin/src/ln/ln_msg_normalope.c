@@ -177,8 +177,8 @@ static void update_add_htlc_print(const ln_update_add_htlc_t *pMsg)
     DBG_PRINTF2("cltv_expiry: %u\n", pMsg->cltv_expiry);
     DBG_PRINTF2("payment_sha256: ");
     DUMPBIN(pMsg->payment_sha256, LN_SZ_HASH);
-//    DBG_PRINTF2("p_onion_route: ");
-//    DUMPBIN(pMsg->p_onion_route, LN_SZ_ONION_ROUTE);
+    DBG_PRINTF2("p_onion_route: ");
+    DUMPBIN(pMsg->p_onion_route, 30);
     DBG_PRINTF2("--------------------------------\n\n\n");
 #endif  //UCOIN_DEBUG
 }
