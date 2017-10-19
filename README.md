@@ -34,24 +34,23 @@ ptarmiganは「雷鳥」(Lightning Network→雷→雷鳥)。
 
   `sudo apt install autoconf pkg-config libev-dev libboost-all-dev`
 
-
 ## application
 
 * [bitcoind](https://github.com/bitcoin/bitcoin)
   * bitcoin-cli(スクリプトでのfund-inトランザクションの送信)
-        * `getnewaddress`
-        * `addwitnessaddress`
-        * `sendtoaddress`
-        * `gettxout`
+    * `getnewaddress`
+    * `addwitnessaddress`
+    * `sendtoaddress`
+    * `gettxout`
   * JSON-RPC
-        * `getblockcount`
-        * `getrawtransaction`
-        * `sendrawtransaction`
-        * `gettxout`
-        * `getblock`
-        * `getnewaddress`
-        * `dumpprivkey` (open_channelで使用)
-        * `estimatefee`
+    * `getblockcount`
+    * `getrawtransaction`
+    * `sendrawtransaction`
+    * `gettxout`
+    * `getblock`
+    * `getnewaddress`
+    * `dumpprivkey` (open_channelで使用)
+    * `estimatefee`
 
 ## build
 
