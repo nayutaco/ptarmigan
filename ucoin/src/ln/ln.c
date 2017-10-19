@@ -1525,6 +1525,15 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
+    //funding_tx安定待ち(シーケンスの再開はアプリ指示)
+    self->short_channel_id = 0;
+    ln_cb_funding_t funding;
+    funding.p_tx_funding = NULL;
+    funding.p_txid = self->funding_local.funding_txid;
+    funding.min_depth = self->p_est->cnl_accept.min_depth;
+    funding.b_send = false; //sendrawtransactionしない
+    (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
+
     DBG_PRINTF("END\n");
     return true;
 }
@@ -1670,24 +1679,9 @@ static bool recv_funding_locked_first(ln_self_t *self)
     bool ret = proc_established(self);
     if (!ret) {
         DBG_PRINTF("fail: proc_established\n");
-        return false;
     }
 
-    if (self->flck_flag == M_FLCK_FLAG_RECV) {
-        //funding_locked未送信
-
-        //funding_tx安定待ち(シーケンスの再開はアプリ指示)
-        self->short_channel_id = 0;
-        ln_cb_funding_t funding;
-
-        funding.p_tx_funding = &self->tx_funding;
-        funding.p_txid = self->funding_local.funding_txid;
-        funding.min_depth = self->p_est->cnl_accept.min_depth;
-        funding.b_send = false;
-        (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
-    }
-
-    return true;
+    return ret;
 }
 
 

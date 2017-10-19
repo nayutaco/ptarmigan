@@ -635,7 +635,8 @@ static void *thread_main_start(void *pArg)
         //既存チャネル接続の可能性あり
         uint64_t short_channel_id = ln_node_search_short_cnl_id(ln_node_id(mpNode), p_conf->node_id);
         if (short_channel_id == 0) {
-            short_channel_id = ln_node_search_peer_node_short_cnl_id(p_conf->node_id);
+            bool detect;
+            short_channel_id = ln_node_search_peer_node_short_cnl_id(&detect, p_conf->node_id);
         }
         if (short_channel_id != 0) {
             if (short_channel_id != 0) {
@@ -1644,6 +1645,9 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         }
         ucoin_buf_free(&buf_tx);
     }
+
+    //DB保存
+    ln_db_save_channel(p_conf->p_self);
 
     //fundingの監視は thread_poll_start()に任せる
     DBG_PRINTF("funding_tx監視開始\n");

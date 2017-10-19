@@ -81,8 +81,9 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
         ctx->error_message = strdup(RPCERR_NODEID_STR);
         return;
     }
+    bool detect;
     bool haveCnl = ( (ln_node_search_short_cnl_id(pNodeId, pConn->node_id) != 0) ||
-                     (ln_node_search_peer_node_short_cnl_id(pConn->node_id) != 0) );
+                     (ln_node_search_peer_node_short_cnl_id(&detect, pConn->node_id) != 0) );
     if (((pParam == NULL) && !haveCnl) || ((pParam != NULL) && haveCnl)) {
         //接続しようとしてチャネルを開いていないか、開設しようとしてチャネルが開いている
         DBG_PRINTF("pParam=%p, haveCnl=%d\n", pParam, haveCnl);
