@@ -1530,11 +1530,11 @@ uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNo
  *      self DBから一致するnode_idを検索し、short_channel_idを返す。
  *      funding_locked直後で #ln_node_search_short_cnl_id()に失敗した場合のために用意した。
  *
- * @param[in]       pNodeId1    検索するnode_id
- * @retval          0以外       検索したshort_channel_id
- * @retval          0           検索失敗
+ * @param[out]      pDetect             検索結果
+ * @param[in]       pNodeId             検索するnode_id
+ * @return          一致したshort_channel_id(不一致の場合は0)
  */
-uint64_t ln_node_search_peer_node_short_cnl_id(const uint8_t *pNodeId);
+uint64_t ln_node_search_peer_node_short_cnl_id(bool *pDetect, const uint8_t *pNodeId);
 
 
 /********************************************************************

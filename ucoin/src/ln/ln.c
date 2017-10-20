@@ -878,11 +878,15 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
     }
     uint8_t sha256[LN_SZ_HASH];
     ucoin_util_sha256(sha256, pPreImage, LN_SZ_PREIMAGE);
+    DBG_PRINTF("id= %" PRIu64 "\n", id);
+    DBG_PRINTF("recv payment_sha256= ");
+    DUMPBIN(sha256, LN_SZ_PREIMAGE);
     ln_update_add_htlc_t *p_add = NULL;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //fulfill送信はReceived Outputに対して行う
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            DBG_PRINTF("id=%" PRIx64 ", htlc_id=%" PRIu64 "\n", id, self->cnl_add_htlc[idx].id);
+            DBG_PRINTF("LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)=%d\n", LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag));
+            DBG_PRINTF("htlc_id=%" PRIu64 "\n", self->cnl_add_htlc[idx].id);
             DBG_PRINTF("payment_sha256= ");
             DUMPBIN(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_PREIMAGE);
             if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
@@ -1525,6 +1529,15 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
+    //funding_tx安定待ち(シーケンスの再開はアプリ指示)
+    self->short_channel_id = 0;
+    ln_cb_funding_t funding;
+    funding.p_tx_funding = NULL;
+    funding.p_txid = self->funding_local.funding_txid;
+    funding.min_depth = self->p_est->cnl_accept.min_depth;
+    funding.b_send = false; //sendrawtransactionしない
+    (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
+
     DBG_PRINTF("END\n");
     return true;
 }
@@ -1670,24 +1683,9 @@ static bool recv_funding_locked_first(ln_self_t *self)
     bool ret = proc_established(self);
     if (!ret) {
         DBG_PRINTF("fail: proc_established\n");
-        return false;
     }
 
-    if (self->flck_flag == M_FLCK_FLAG_RECV) {
-        //funding_locked未送信
-
-        //funding_tx安定待ち(シーケンスの再開はアプリ指示)
-        self->short_channel_id = 0;
-        ln_cb_funding_t funding;
-
-        funding.p_tx_funding = &self->tx_funding;
-        funding.p_txid = self->funding_local.funding_txid;
-        funding.min_depth = self->p_est->cnl_accept.min_depth;
-        funding.b_send = false;
-        (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
-    }
-
-    return true;
+    return ret;
 }
 
 

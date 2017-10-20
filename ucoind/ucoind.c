@@ -221,18 +221,18 @@ LABEL_EXIT:
 }
 
 
-bool forward_payment(const ln_cb_add_htlc_recv_t *p_add, uint64_t prev_short_channel_id)
+bool forward_payment(fwd_proc_add_t *p_add)
 {
     bool ret = false;
     lnapp_conf_t *p_appconf;
 
-    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", p_add->p_hop->short_channel_id);
+    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", p_add->next_short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = search_connected_lnapp_cnl(p_add->p_hop->short_channel_id);
+    p_appconf = search_connected_lnapp_cnl(p_add->next_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_forward_payment(p_appconf, p_add, prev_short_channel_id);
+        ret = lnapp_forward_payment(p_appconf, p_add);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }
@@ -375,7 +375,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     cJSON *json;
     daemon_connect_t conn;
-    funding_conf_t *p_fundconf = (funding_conf_t *)malloc(sizeof(funding_conf_t));
+    funding_conf_t *p_fundconf = (funding_conf_t *)malloc(sizeof(funding_conf_t));  //lnapp.c cb_established()で解放
     cJSON *result = NULL;
     int index = 0;
 

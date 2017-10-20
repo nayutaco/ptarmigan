@@ -67,7 +67,7 @@ sleep 3
 
 # 少し待つ
 echo wait...
-sleep 30
+sleep 20
 
 # mining
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 6
@@ -99,11 +99,6 @@ do
 done
 
 rm n3.txt n4.txt n5.txt n6.txt
-
-tar zcf node_3333/bak.tgz -C node_3333 dbucoin
-tar zcf node_4444/bak.tgz -C node_4444 dbucoin
-tar zcf node_5555/bak.tgz -C node_5555 dbucoin
-tar zcf node_6666/bak.tgz -C node_6666 dbucoin
 
 echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo @ channel established

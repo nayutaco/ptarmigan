@@ -251,6 +251,7 @@ LABEL_EXIT:
     }
 
 LABEL_EXIT2:
+    DBG_PRINTF("retval=%d\n", retval);
     return retval == 0;
 }
 
@@ -382,6 +383,7 @@ LABEL_EXIT:
     if (txn) {
         mdb_txn_abort(txn);
     }
+    DBG_PRINTF("retval=%d\n", retval);
     return retval == 0;
 }
 

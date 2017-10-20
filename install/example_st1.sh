@@ -17,10 +17,12 @@ mkdir -p node_3333 node_4444 node_5555 node_6666
 # このファイルにはノードの秘密鍵が書かれているので、人には渡さない。
 #
 # 作成したノード設定ファイルは、ucoindの引数に与える。
-./create_nodeconf.sh 3333 > node_3333/node.conf
-./create_nodeconf.sh 4444 > node_4444/node.conf
-./create_nodeconf.sh 5555 > node_5555/node.conf
-./create_nodeconf.sh 6666 > node_6666/node.conf
+#./create_nodeconf.sh 3333 > node_3333/node.conf
+#./create_nodeconf.sh 4444 > node_4444/node.conf
+#./create_nodeconf.sh 5555 > node_5555/node.conf
+#./create_nodeconf.sh 6666 > node_6666/node.conf
+# 結果が同じになるように固定する
+tar zxf nodes.tgz
 
 # ピア設定ファイルを作成する。
 # 自ノードが相手のノードと接続するための設定が書かれている。
