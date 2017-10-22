@@ -705,7 +705,6 @@ typedef struct {
 typedef struct {
     const ucoin_tx_t        *p_tx_funding;              ///< funding_tx
     const uint8_t           *p_txid;                    ///< funding txid
-    uint32_t                min_depth;                  ///< minimum_depth
     bool                    b_send;                     ///< true:funding_txを送信する
     bool                    annosigs;                   ///< true:announce_signaturesを送信する
 } ln_cb_funding_t;
@@ -897,6 +896,7 @@ struct ln_self_t {
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
     uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
     ln_establish_t              *p_est;                         ///< Establish時ワーク領域
+    uint32_t                    min_depth;                      ///< minimum_depth
 
     //announce
     uint8_t                     anno_flag;                      ///< announcement_signaturesなど
@@ -1412,6 +1412,16 @@ static inline const uint8_t *ln_funding_txid(const ln_self_t *self) {
  */
 static inline uint32_t ln_funding_txindex(const ln_self_t *self) {
     return self->funding_local.funding_txindex;
+}
+
+
+/** minimum_depth
+ *
+ * @param[in]           self            channel情報
+ * @return      accept_channelで受信したminimum_depth
+ */
+static inline uint32_t ln_minimum_depth(const ln_self_t *self) {
+    return self->min_depth;
 }
 
 

@@ -748,6 +748,11 @@ static void *thread_main_start(void *pArg)
         } else {
             DBG_PRINTF("Establish待ち\n");
             set_establish_default(p_conf, p_conf->node_id);
+
+            DBG_PRINTF("funding_tx監視開始\n");
+            DUMPTXID(ln_funding_txid(p_conf->p_self));
+            p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
+            p_conf->funding_waiting = true;
         }
     }
 
@@ -1702,7 +1707,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
     //fundingの監視は thread_poll_start()に任せる
     DBG_PRINTF("funding_tx監視開始\n");
     DUMPTXID(ln_funding_txid(p_conf->p_self));
-    p_conf->funding_min_depth = p->min_depth;
+    p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
     p_conf->funding_waiting = true;
 
     DBGTRACE_END
