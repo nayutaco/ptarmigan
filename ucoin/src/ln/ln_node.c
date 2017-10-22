@@ -43,7 +43,6 @@
 typedef struct {
     const uint8_t *p_node_id;
     uint64_t *p_short_channel_id;
-    ln_self_t *p_self;
 } comp_param_t;
 
 
@@ -142,12 +141,11 @@ uint64_t ln_node_search_peer_node_short_cnl_id(bool *pDetect, ln_self_t *pSelf, 
 
     prm.p_node_id = pNodeId;
     prm.p_short_channel_id = &short_channel_id;
-    prm.p_self = pSelf;
-    *pDetect = ln_db_search_channel(comp_func, &prm);
+    *pDetect = ln_db_search_channel(comp_func, pSelf, &prm);
 
     DBG_PRINTF("search id:");
     DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("  --> %016" PRIx64 "\n", short_channel_id);
+    DBG_PRINTF("  --> %016" PRIx64 "(detect=%d)\n", short_channel_id, *pDetect);
 
     return short_channel_id;
 }
@@ -234,9 +232,6 @@ static bool comp_func(ln_self_t *self, void *p_param)
     bool ret = (memcmp(self->peer_node.node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
     if (ret) {
         *p->p_short_channel_id = ln_short_channel_id(self);
-        if (p->p_self) {
-            memcpy(p->p_self, self, sizeof(ln_self_t));
-        }
     }
     return ret;
 }

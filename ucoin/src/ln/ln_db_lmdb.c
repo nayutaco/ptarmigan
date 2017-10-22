@@ -449,7 +449,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
+bool ln_db_search_channel(ln_db_func_cmp_t pFunc, ln_self_t *pSelf, void *pFuncParam)
 {
     bool result = false;
     int retval;
@@ -489,12 +489,9 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
             if (list) {
                 list++;
             } else if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
-                ln_self_t self;
-                memset(&self, 0, sizeof(self));
-
-                retval = ln_lmdb_load_channel(&self, cur.txn, &dbi2);
+                retval = ln_lmdb_load_channel(pSelf, cur.txn, &dbi2);
                 if (retval == 0) {
-                    result = (*pFunc)(&self, pFuncParam);
+                    result = (*pFunc)(pSelf, pFuncParam);
                     if (result) {
                         DBG_PRINTF("match !\n");
                         break;
