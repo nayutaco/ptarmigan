@@ -132,7 +132,7 @@ static bool proc_established(ln_self_t *self);
 static void proc_announce_sigsed(ln_self_t *self);
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
-static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add, uint8_t chg_flag);
+static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
 
 
 /**************************************************************************
@@ -382,11 +382,11 @@ bool ln_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pNode
 }
 
 
-bool ln_handshake_recv(ln_self_t *self, bool *pCont, ucoin_buf_t *pBuf, const uint8_t *pNodeId)
+bool ln_handshake_recv(ln_self_t *self, bool *pCont, ucoin_buf_t *pBuf)
 {
     bool ret;
 
-    ret = ln_enc_auth_handshake_recv(self, pBuf, pNodeId);
+    ret = ln_enc_auth_handshake_recv(self, pBuf);
     if (ret) {
         //次も受信を続けるかどうか
         *pCont = ln_enc_auth_handshake_state(self);
@@ -921,7 +921,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
         self->our_msat += p_add->amount_msat;
         //self->their_msat -= p_add->amount_msat;   //add_htlc受信時に引いているので、ここでは不要
 
-        clear_htlc(self, p_add, M_HTLCCHG_FF_SEND);
+        clear_htlc(self, p_add);
     }
 
     DBG_PRINTF("END\n");
@@ -972,7 +972,7 @@ bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t id, const
         //反映
         self->their_msat += p_add->amount_msat;   //add_htlc受信時に引いた分を戻す
 
-        clear_htlc(self, p_add, M_HTLCCHG_FF_SEND);
+        clear_htlc(self, p_add);
     }
 
     DBG_PRINTF("END\n");
@@ -1046,6 +1046,8 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 
 bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes)
 {
+    (void)self;
+
     ln_pong_t pong;
 
     pong.byteslen = NumPongBytes;
@@ -2064,7 +2066,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         uint64_t prev_short_channel_id = p_add->prev_short_channel_id; //CB用
         uint64_t prev_id = fulfill_htlc.id;  //CB用
 
-        clear_htlc(self, p_add, M_HTLCCHG_FF_RECV);
+        clear_htlc(self, p_add);
 
         //update_fulfill_htlc受信通知
         ln_cb_fulfill_htlc_recv_t fulfill;
@@ -2123,7 +2125,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
             fail_recv.id = self->cnl_add_htlc[idx].id;
             (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
 
-            clear_htlc(self, &self->cnl_add_htlc[idx], M_HTLCCHG_FF_RECV);
+            clear_htlc(self, &self->cnl_add_htlc[idx]);
             break;
         }
     }
@@ -2290,6 +2292,7 @@ LABEL_EXIT:
 
 static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
+    (void)self; (void)pData; (void)Len;
     DBG_PRINTF("BEGIN\n");
     return false;
 }
@@ -2297,6 +2300,7 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
 static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
+    (void)self; (void)pData; (void)Len;
     DBG_PRINTF("BEGIN\n");
     return false;
 }
@@ -2512,6 +2516,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
  */
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
+    (void)self;
     DBG_PRINTF("\n");
 
     ln_cnl_update_t upd;
@@ -3435,7 +3440,7 @@ static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
 
 
 //HTLC削除
-static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add, uint8_t chg_flag)
+static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add)
 {
     DBG_PRINTF("HTLC remove prev: htlc_num=%d\n", self->htlc_num);
     assert(self->htlc_num > 0);

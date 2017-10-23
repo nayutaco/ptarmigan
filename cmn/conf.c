@@ -299,6 +299,8 @@ bool load_establish_conf(const char *pConfFile, establish_conf_t *pEstConf)
 
 static int handler_node_conf(void* user, const char* section, const char* name, const char* value)
 {
+    (void)section;
+
     struct node_confs_t* pconfig = (struct node_confs_t *)user;
 
     if (strcmp(name, "port") == 0) {
@@ -329,6 +331,8 @@ static int handler_node_conf(void* user, const char* section, const char* name, 
 
 static int handler_peer_conf(void* user, const char* section, const char* name, const char* value)
 {
+    (void)section;
+
     peer_conf_t* pconfig = (peer_conf_t *)user;
 
     if (strcmp(name, "ipaddr") == 0) {
@@ -348,6 +352,8 @@ static int handler_peer_conf(void* user, const char* section, const char* name, 
 
 static int handler_fund_conf(void* user, const char* section, const char* name, const char* value)
 {
+    (void)section;
+
     funding_conf_t* pconfig = (funding_conf_t *)user;
 
     if (strcmp(name, "txid") == 0) {
@@ -369,6 +375,8 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
 
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value)
 {
+    (void)section;
+
     rpc_conf_t* pconfig = (rpc_conf_t *)user;
 
     if (strcmp(name, "rpcuser") == 0) {
@@ -407,6 +415,8 @@ LABEL_EXIT:
 
 static int handler_pay_conf(void* user, const char* section, const char* name, const char* value)
 {
+    (void)section;
+
     bool ret;
     payment_conf_t* pconfig = (payment_conf_t *)user;
 
@@ -433,6 +443,8 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
 
 static int handler_anno_conf(void* user, const char* section, const char* name, const char* value)
 {
+    (void)section;
+
     bool ret = true;
     anno_conf_t* pconfig = (anno_conf_t *)user;
 
@@ -457,6 +469,8 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
 
 static int handler_establish_conf(void* user, const char* section, const char* name, const char* value)
 {
+    (void)section;
+
     bool ret = true;
     establish_conf_t* pconfig = (establish_conf_t *)user;
 

@@ -89,7 +89,7 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
 static bool actone_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRS);
 static bool actone_receiver(ln_self_t *self, ucoin_buf_t *pBuf);
 static bool acttwo_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRE);
-static bool acttwo_receiver(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRS);
+static bool acttwo_receiver(ln_self_t *self, ucoin_buf_t *pBuf);
 static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRE);
 static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf);
 
@@ -162,7 +162,7 @@ bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, cons
 }
 
 
-bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pNodeId)
+bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf)
 {
     struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
     bool ret;
@@ -176,7 +176,7 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf, const
     //initiator
     case WAIT_ACT_TWO:
         //
-        ret = acttwo_receiver(self, pBuf, pNodeId);
+        ret = acttwo_receiver(self, pBuf);
         memcpy(self->noise_send.ck, pBolt->ck, UCOIN_SZ_SHA256);
         memcpy(self->noise_recv.ck, pBolt->ck, UCOIN_SZ_SHA256);
         M_FREE(self->p_handshake);
@@ -548,7 +548,7 @@ LABEL_EXIT:
 }
 
 
-static bool acttwo_receiver(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRS)
+static bool acttwo_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
 {
     bool ret = false;
     struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;

@@ -186,6 +186,8 @@ static void init_print(const ln_init_t *pMsg)
 
 bool HIDDEN ln_msg_error_read(void *pMsg, const uint8_t *pData, uint16_t Len)
 {
+    (void)pMsg;
+
     if (Len < sizeof(uint16_t) + 4) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;

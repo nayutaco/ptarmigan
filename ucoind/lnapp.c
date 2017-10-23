@@ -224,7 +224,6 @@ static void poll_ping(lnapp_conf_t *p_conf);
 static void poll_funding_wait(lnapp_conf_t *p_conf);
 static void poll_normal_operating(lnapp_conf_t *p_conf);
 
-static bool req_send_anno_signs(lnapp_conf_t *p_conf);
 static bool set_request_recvproc(lnapp_conf_t *p_conf, recv_proc_t cmd, uint16_t Len, void *pData);
 
 static bool fwd_payment_forward(lnapp_conf_t *pAppConf);
@@ -830,7 +829,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         DBG_PRINTF("** RECV act two ! **\n");
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 50);
-        ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf, p_conf->node_id);
+        ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
         if (!ret || b_cont) {
             DBG_PRINTF("fail: ln_handshake_recv1\n");
             goto LABEL_FAIL;
@@ -852,7 +851,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         recv_peer(p_conf, rbuf, 50);
         DBG_PRINTF("** RECV act one ! **\n");
         ucoin_buf_alloccopy(&buf, rbuf, 50);
-        ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf, NULL);
+        ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
         if (!ret || !b_cont) {
             DBG_PRINTF("fail: ln_handshake_recv1\n");
             goto LABEL_FAIL;
@@ -867,7 +866,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         DBG_PRINTF("** RECV act three ! **\n");
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 66);
-        ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf, NULL);
+        ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
         if (!ret || b_cont) {
             DBG_PRINTF("fail: ln_handshake_recv2\n");
             goto LABEL_FAIL;
@@ -1358,16 +1357,6 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
  * 受信スレッドへの処理実行要求
  **************************************************************************/
 
-//[内部]announcement_signatures送信要求
-//  チャネル開設直後
-//  実際にannouncement_signaturesを送信するのは 6confirmation経過後
-static bool req_send_anno_signs(lnapp_conf_t *p_conf)
-{
-    DBGTRACE_BEGIN
-    return set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
-}
-
-
 /** 処理要求キュー処理
  *
  */
@@ -1623,6 +1612,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
 //LN_CB_ERROR: error受信
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_conf; (void)p_param;
     DBG_PRINTF("no implemented\n");
     assert(0);
 }
@@ -1631,6 +1621,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_INIT_RECV: init受信
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_param;
     DBGTRACE_BEGIN
 
     //init受信時に初期化
@@ -1645,6 +1636,7 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_REESTABLISH_RECV: channel_reestablish受信
 static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_param;
     DBGTRACE_BEGIN
 
     //待ち合わせ解除(*3)
@@ -1656,6 +1648,7 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_FINDINGWIF_REQ: WIF要求
 static void cb_find_index_wif_req(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_param;
     DBGTRACE_BEGIN
 
     bool ret;
@@ -1717,9 +1710,8 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_ESTABLISHED: funding_locked送受信済み
 static void cb_established(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_param;
     DBGTRACE_BEGIN
-
-    const ln_cb_funding_t *p = (const ln_cb_funding_t *)p_param;
 
     if (p_conf->p_establish != NULL) {
         DBG_PRINTF("free establish buffer\n");
@@ -1757,6 +1749,7 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_CHANNEL_ANNO_RECV: channel_announcement受信
 static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_conf;
     DBGTRACE_BEGIN
 
     ln_cb_channel_anno_recv_t *p = (ln_cb_channel_anno_recv_t *)p_param;
@@ -1777,6 +1770,7 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_NODE_ANNO_RECV: node_announcement受信
 static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_conf; (void)p_param;
     //const ln_node_announce_t *p_nodeanno = (const ln_node_announce_t *)p_param;
 
     ////peer config file
@@ -1795,6 +1789,7 @@ static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 //announcement_signatures受信時に short_channel_idが取得できていなかった場合
 static void cb_short_channel_id_upd(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_param;
     DBGTRACE_BEGIN
 
     //self->short_chennel_id更新
@@ -1848,6 +1843,7 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc受信(前処理)
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_conf; (void)p_param;
     DBGTRACE_BEGIN
     wait_mutex_lock(MUX_CHG_HTLC);
     DBGTRACE_END
@@ -1993,6 +1989,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_FULFILL_HTLC_RECV: update_fulfill_htlc受信
 static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_conf;
     DBGTRACE_BEGIN
 
     const ln_cb_fulfill_htlc_recv_t *p_fulfill = (const ln_cb_fulfill_htlc_recv_t *)p_param;
@@ -2028,6 +2025,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_FAIL_HTLC_RECV: update_fail_htlc受信
 static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_conf;
     DBGTRACE_BEGIN
 
     const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
@@ -2069,6 +2067,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed受信(前処理)
 static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_conf; (void)p_param;
     DBGTRACE_BEGIN
     wait_mutex_lock(MUX_COMSIG);
     DBGTRACE_END
@@ -2078,7 +2077,7 @@ static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_COMMIT_SIG_RECV: commitment_signed受信
 static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
 {
-    //const ln_cb_commsig_recv_t *p_commsig = (const ln_cb_commsig_recv_t *)p_param;
+    (void)p_param;
 
     pthread_mutex_lock(&mMuxSeq);
     DBG_PRINTF("mMuxTiming: %d\n", mMuxTiming);
@@ -2118,6 +2117,7 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_HTLC_CHANGED: revoke_and_ack受信
 static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_param;
     DBGTRACE_BEGIN
 
     SYSLOG_INFO("HTLC[%" PRIx64 "]: our msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
@@ -2207,6 +2207,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_SHUTDOWN_RECV: shutdown受信
 static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_param;
     DBGTRACE_BEGIN
 
     //fee and addr

@@ -373,6 +373,8 @@ LABEL_EXIT:
 
 static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    (void)id;
+
     cJSON *json;
     daemon_connect_t conn;
     funding_conf_t *p_fundconf = (funding_conf_t *)malloc(sizeof(funding_conf_t));  //lnapp.c cb_established()で解放
@@ -458,6 +460,8 @@ LABEL_EXIT:
 
 static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    (void)id;
+
     daemon_connect_t conn;
     cJSON *result = NULL;
     int index = 0;
@@ -497,6 +501,8 @@ LABEL_EXIT:
 
 static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    (void)id;
+
     daemon_connect_t conn;
     cJSON *result = NULL;
     int index = 0;
@@ -539,6 +545,8 @@ LABEL_EXIT:
 
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    (void)id;
+
     cJSON *json;
     uint64_t amount;
     cJSON *result = NULL;
@@ -605,6 +613,8 @@ LABEL_EXIT:
 
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    (void)id;
+
     cJSON *result = NULL;
     int index = 0;
     uint8_t preimage_hash[LN_SZ_HASH];
@@ -648,6 +658,8 @@ LABEL_EXIT:
 
 static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    (void)id;
+
     cJSON *json;
     payment_conf_t payconf;
     cJSON *result = NULL;
@@ -787,6 +799,8 @@ LABEL_EXIT:
 
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    (void)ctx; (void)params; (void)id;
+
     cJSON *result = cJSON_CreateObject();
     cJSON *result_svr = cJSON_CreateArray();
     cJSON *result_cli = cJSON_CreateArray();
@@ -805,6 +819,8 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    (void)ctx; (void)params; (void)id;
+
     SYSLOG_INFO("stop");
     p2p_svr_stop_all();
     p2p_cli_stop_all();
