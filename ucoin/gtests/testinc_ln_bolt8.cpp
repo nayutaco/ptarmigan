@@ -129,7 +129,7 @@ TEST_F(bolt8test, initiator)
         0x30, 0xae,
     };
     ucoin_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
@@ -167,7 +167,7 @@ TEST_F(bolt8test, initiator)
     ASSERT_EQ(0, self.noise_recv.nonce);
     ASSERT_EQ(0, self.p_handshake);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -267,14 +267,14 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
         0x30,
     };
     ucoin_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -374,14 +374,14 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
         0x30, 0xae,
     };
     ucoin_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -481,14 +481,14 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
         0x30, 0xae,
     };
     ucoin_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -588,14 +588,14 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
         0x30, 0xaf,
     };
     ucoin_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, RS_PUB);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -664,7 +664,7 @@ TEST_F(bolt8test, responder)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
     ASSERT_EQ(10, self.noise_send.nonce);
@@ -700,7 +700,7 @@ TEST_F(bolt8test, responder)
         0x39, 0xba,
     };
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
@@ -724,7 +724,7 @@ TEST_F(bolt8test, responder)
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -791,13 +791,13 @@ TEST_F(bolt8test, responder_act1_short_read)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -864,14 +864,14 @@ TEST_F(bolt8test, responder_act1_bad_version)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -938,14 +938,14 @@ TEST_F(bolt8test, responder_act1_bad_key_serialization)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1012,14 +1012,14 @@ TEST_F(bolt8test, responder_act1_bad_mac)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1086,7 +1086,7 @@ TEST_F(bolt8test, responder_act3_bad_version)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
     ASSERT_TRUE(ln_enc_auth_handshake_state(&self));
@@ -1120,14 +1120,14 @@ TEST_F(bolt8test, responder_act3_bad_version)
        0x39, 0xba,
     };
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1194,7 +1194,7 @@ TEST_F(bolt8test, responder_act3_short_read)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
     ASSERT_TRUE(ln_enc_auth_handshake_state(&self));
@@ -1228,14 +1228,14 @@ TEST_F(bolt8test, responder_act3_short_read)
        0x39,
     };
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1302,7 +1302,7 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
     ASSERT_TRUE(ln_enc_auth_handshake_state(&self));
@@ -1336,14 +1336,14 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
        0x39, 0xba,
     };
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1410,7 +1410,7 @@ TEST_F(bolt8test, responder_act3_bad_rs)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
 
@@ -1444,14 +1444,14 @@ TEST_F(bolt8test, responder_act3_bad_rs)
        0xe7, 0x3c,
     };
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
@@ -1518,7 +1518,7 @@ TEST_F(bolt8test, responder_act3_bad_mac)
     };
     ucoin_buf_t buf;
     ucoin_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
     ASSERT_TRUE(ln_enc_auth_handshake_state(&self));
@@ -1552,14 +1552,14 @@ TEST_F(bolt8test, responder_act3_bad_mac)
        0x39, 0xbb,
     };
     ucoin_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
     ucoin_buf_free(&buf);
 
-    ret = ln_enc_auth_handshake_recv(&self, &buf, NULL);
+    ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
 }
 
