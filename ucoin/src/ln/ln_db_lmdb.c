@@ -444,8 +444,6 @@ bool ln_db_del_channel(const ln_self_t *self)
     retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi_cnl);
     if (retval == 0) {
         retval = mdb_drop(txn, dbi_cnl, 1);
-        mdb_txn_commit(txn);
-        txn = NULL;
     }
     DBG_PRINTF("err: %s\n", mdb_strerror(retval));
 
@@ -453,10 +451,11 @@ bool ln_db_del_channel(const ln_self_t *self)
     retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
     if (retval == 0) {
         retval = mdb_drop(txn, dbi_cnl, 1);
-        mdb_txn_commit(txn);
-        txn = NULL;
     }
     DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+
+    mdb_txn_commit(txn);
+    txn = NULL;
 
 LABEL_EXIT:
     if (txn) {
