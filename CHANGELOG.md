@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2017/10/23
+
+* [issue#15] reestablish
+* DBバージョン更新
+
 ## 2017/10/17
 
 * [issue#23] `funding_locked`後にDB保存する
