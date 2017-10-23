@@ -2753,12 +2753,10 @@ static bool create_to_local(ln_self_t *self,
 
         int htlc_num = 0;
         uint8_t txid[UCOIN_SZ_TXID];
-        ucoin_buf_t buf_remotesig;
         ucoin_tx_t tx;
         ucoin_buf_t buf_sig;
 
         //ucoin_buf_free(&buf_ws);
-        ucoin_buf_init(&buf_remotesig);
         ucoin_buf_init(&buf_sig);
         ucoin_tx_init(&tx);
         ret = ucoin_tx_txid(txid, &tx_local);
@@ -2766,7 +2764,6 @@ static bool create_to_local(ln_self_t *self,
             DBG_PRINTF("fail: ucoin_tx_txid\n");
             return false;
         }
-        ln_misc_sigexpand(&buf_remotesig, self->commit_remote.signature);
 
         for (int vout_idx = 0; vout_idx < tx_local.vout_cnt; vout_idx++) {
             uint8_t htlc_idx = tx_local.vout[vout_idx].opt;
@@ -2841,7 +2838,6 @@ static bool create_to_local(ln_self_t *self,
         ucoin_buf_free(&buf_sig);
         ucoin_buf_free(&buf_ws);
         ucoin_tx_free(&tx);
-        ucoin_buf_free(&buf_remotesig);
 
         if (htlc_num != htlc_sigs_num) {
             DBG_PRINTF("署名数不一致: %d, %d\n", htlc_num, htlc_sigs_num);

@@ -662,31 +662,13 @@ static void *thread_main_start(void *pArg)
     bool detect = false;
     if (p_conf->cmd != DCMD_CREATE) {
         //既存チャネル接続の可能性あり
-        uint64_t short_channel_id = ln_node_search_short_cnl_id(ln_node_id(mpNode), p_conf->node_id);
-        if (short_channel_id == 0) {
-            short_channel_id = ln_node_search_peer_node_short_cnl_id(&detect, &my_self, p_conf->node_id);
-        }
-        if (short_channel_id != 0) {
-            DBG_PRINTF("    チャネルDB読込み: %" PRIx64 "\n", short_channel_id);
-            ret = ln_db_load_channel(&my_self, short_channel_id);
-            if (ret) {
-                //peer node_id
-                if (memcmp(my_self.peer_node.node_id, p_conf->node_id, UCOIN_SZ_PUBKEY) != 0) {
-                    assert(false);
-                    ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
-                }
-            }
-        } else if (detect) {
-            //Establishはできていないが、funding_tx確認中
-            //peer node_id
-            if (memcmp(my_self.peer_node.node_id, p_conf->node_id, UCOIN_SZ_PUBKEY) != 0) {
-                assert(false);
-                ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
-            }
+        detect = ln_node_search_channel_id(&my_self, p_conf->node_id);
+        if (detect) {
+            DBG_PRINTF("    チャネルDB読込み\n");
         } else {
             DBG_PRINTF("    新規\n");
-            DUMPBIN(p_conf->node_id, UCOIN_SZ_PUBKEY);
         }
+        DUMPBIN(p_conf->node_id, UCOIN_SZ_PUBKEY);
     }
     if (!ret) {
         goto LABEL_SHUTDOWN;
@@ -731,29 +713,34 @@ static void *thread_main_start(void *pArg)
         set_establish_default(p_conf, p_conf->node_id);
         send_open_channel(p_conf);
     } else {
-        if (ln_short_channel_id(p_conf->p_self) != 0) {
-            DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
-            send_reestablish(p_conf);
-            DBG_PRINTF("reestablish交換完了\n\n");
+        if (detect) {
+            if (ln_short_channel_id(p_conf->p_self) != 0) {
+                DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
+                send_reestablish(p_conf);
+                DBG_PRINTF("reestablish交換完了\n\n");
 
-            //channel_update更新
-            ucoin_buf_t buf_upd;
-            ucoin_buf_init(&buf_upd);
-            ret = ln_update_channel_update(p_conf->p_self, &buf_upd);
-            if (ret) {
-                send_peer_noise(p_conf, &buf_upd);
-            }
-            ucoin_buf_free(&buf_upd);
-        } else {
-            DBG_PRINTF("Establish待ち\n");
-            set_establish_default(p_conf, p_conf->node_id);
-
-            if (detect) {
+                //channel_update更新
+                ucoin_buf_t buf_upd;
+                ucoin_buf_init(&buf_upd);
+                ret = ln_update_channel_update(p_conf->p_self, &buf_upd);
+                if (ret) {
+                    send_peer_noise(p_conf, &buf_upd);
+                } else {
+                    DBG_PRINTF("channel_announcement再送\n");
+                    send_channel_anno(p_conf, true);
+                }
+                ucoin_buf_free(&buf_upd);
+            } else {
                 DBG_PRINTF("funding_tx監視開始\n");
                 DUMPTXID(ln_funding_txid(p_conf->p_self));
+
+                set_establish_default(p_conf, p_conf->node_id);
                 p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
                 p_conf->funding_waiting = true;
             }
+        } else {
+            DBG_PRINTF("Establish待ち\n");
+            set_establish_default(p_conf, p_conf->node_id);
         }
     }
 

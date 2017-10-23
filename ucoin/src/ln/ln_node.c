@@ -42,16 +42,15 @@
 
 typedef struct {
     const uint8_t *p_node_id;
-    uint64_t *p_short_channel_id;
     ln_self_t *p_self;
-} comp_param_t;
+} comp_param_cnl_t;
 
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
 
-static bool comp_func(ln_self_t *self, void *p_param);
+static bool comp_func_cnl(ln_self_t *self, void *p_param);
 
 
 /**************************************************************************
@@ -105,51 +104,19 @@ void ln_node_term(ln_node_t *node)
 }
 
 
-uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2)
+bool ln_node_search_channel_id(ln_self_t *pSelf, const uint8_t *pNodeId)
 {
-    const uint8_t *p_node_id1;
-    const uint8_t *p_node_id2;
-
-    int lp;
-    for (lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        if (pNodeId1[lp] != pNodeId2[lp]) {
-            break;
-        }
-    }
-    if (pNodeId1[lp] < pNodeId2[lp]) {
-        p_node_id1 = pNodeId1;
-        p_node_id2 = pNodeId2;
-    } else {
-        p_node_id1 = pNodeId2;
-        p_node_id2 = pNodeId1;
-    }
-    uint64_t short_channel_id = ln_db_search_channel_short_channel_id(p_node_id1, p_node_id2);
-
-    DBG_PRINTF("search id1:");
-    DUMPBIN(p_node_id1, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("       id2:");
-    DUMPBIN(p_node_id2, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("  --> %016" PRIx64 "\n", short_channel_id);
-
-    return short_channel_id;
-}
-
-
-uint64_t ln_node_search_peer_node_short_cnl_id(bool *pDetect, ln_self_t *pSelf, const uint8_t *pNodeId)
-{
-    uint64_t short_channel_id = 0;
-    comp_param_t prm;
+    comp_param_cnl_t prm;
 
     prm.p_node_id = pNodeId;
-    prm.p_short_channel_id = &short_channel_id;
     prm.p_self = pSelf;
-    *pDetect = ln_db_search_channel(comp_func, &prm);
+    bool detect = ln_db_search_channel(comp_func_cnl, &prm);
 
     DBG_PRINTF("search id:");
     DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("  --> %016" PRIx64 "(detect=%d)\n", short_channel_id, *pDetect);
+    DBG_PRINTF("  --> detect=%d\n", detect);
 
-    return short_channel_id;
+    return detect;
 }
 
 
@@ -227,15 +194,17 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
  * private functions
  **************************************************************************/
 
-static bool comp_func(ln_self_t *self, void *p_param)
+static bool comp_func_cnl(ln_self_t *self, void *p_param)
 {
-    comp_param_t *p = (comp_param_t *)p_param;
+    comp_param_cnl_t *p = (comp_param_cnl_t *)p_param;
 
     bool ret = (memcmp(self->peer_node.node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
     if (ret) {
-        *p->p_short_channel_id = ln_short_channel_id(self);
         if (p->p_self) {
             ln_db_copy_channel(p->p_self, self);
+        } else {
+            //true時は予備元では解放しないので、ここで解放する
+            ln_term(self);
         }
     }
     return ret;

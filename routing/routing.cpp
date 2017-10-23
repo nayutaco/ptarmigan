@@ -173,7 +173,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 
 
 /* Dump in BDB-compatible format */
-static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
+static int dumpit(MDB_txn *txn, const MDB_val *p_key)
 {
     const char *name = (const char *)p_key->mv_data;
 
@@ -234,15 +234,6 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         } while (ret == 0);
         mdb_cursor_close(cursor);
         mdb_close(mpDbEnv, dbi);
-    } else if (p_key->mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
-        //version check
-        ln_self_t self;
-        memset(&self, 0, sizeof(self));
-
-        int retval = ln_lmdb_load_channel(&self, txn, &dbi);
-        assert(retval == 0);
-
-        ln_term(&self);
     }
 
     return 0;
@@ -285,7 +276,7 @@ static void loaddb(const char *pDbPath)
             if (list) {
                 list++;
             } else {
-                ret = dumpit(txn, dbi2, &key);
+                ret = dumpit(txn, &key);
                 if (ret) {
                     break;
                 }
@@ -389,7 +380,7 @@ int main(int argc, char* argv[])
 
     if (argc == 6) {
         ret = misc_str2bin(mMyNodeId, sizeof(mMyNodeId), my_node);
-        
+
         ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), tgt_node);
         assert(ret);
 

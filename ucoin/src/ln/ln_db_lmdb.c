@@ -49,8 +49,9 @@
                                                 //  channel_anno
 
 #define M_LMDB_ENV              "./dbucoin"     ///< LMDB名
-#define M_CHANNEL_NAME          "%016" PRIx64   ///< チャネル名
-#define M_SHAREDSECRET_NAME     "SS%016" PRIx64 ///< shared secret
+#define M_PREFIX_LEN            (2)
+#define M_CHANNEL_NAME          "CN"            ///< channel
+#define M_SHAREDSECRET_NAME     "SS"            ///< shared secret
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 
@@ -148,6 +149,8 @@ static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
 static int write_version(MDB_txn *txn);
 static int check_version(MDB_txn *txn, MDB_dbi *pdbi);
 
+static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
+
 
 /**************************************************************************
  * public functions
@@ -212,12 +215,12 @@ void ln_db_term(void)
  * self
  ********************************************************************/
 
-bool ln_db_load_channel(ln_self_t *self, uint64_t short_channel_id)
+bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId)
 {
     int         retval;
     MDB_txn     *txn = NULL;
     MDB_dbi     dbi;
-    char        dbname[17];
+    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
 
     retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
     if (retval != 0) {
@@ -225,7 +228,8 @@ bool ln_db_load_channel(ln_self_t *self, uint64_t short_channel_id)
         goto LABEL_EXIT2;
     }
 
-    sprintf(dbname, M_CHANNEL_NAME, short_channel_id);
+    strcpy(dbname, M_CHANNEL_NAME);
+    misc_bin2str(dbname + M_PREFIX_LEN, pChannelId, LN_SZ_CHANNEL_ID);
     retval = mdb_dbi_open(txn, dbname, 0, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -236,7 +240,7 @@ bool ln_db_load_channel(ln_self_t *self, uint64_t short_channel_id)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
-    sprintf(dbname, M_SHAREDSECRET_NAME, short_channel_id);
+    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
     retval = mdb_dbi_open(txn, dbname, 0, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -346,7 +350,7 @@ bool ln_db_save_channel(const ln_self_t *self)
     int         retval;
     MDB_txn     *txn = NULL;
     MDB_dbi     dbi;
-    char        dbname[17];
+    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
 
     retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
     if (retval != 0) {
@@ -354,7 +358,8 @@ bool ln_db_save_channel(const ln_self_t *self)
         goto LABEL_EXIT;
     }
 
-    sprintf(dbname, M_CHANNEL_NAME, ln_short_channel_id(self));
+    strcpy(dbname, M_CHANNEL_NAME);
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -366,7 +371,7 @@ bool ln_db_save_channel(const ln_self_t *self)
         goto LABEL_EXIT;
     }
 
-    sprintf(dbname, M_SHAREDSECRET_NAME, ln_short_channel_id(self));
+    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
     retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -399,7 +404,7 @@ bool ln_db_del_channel(const ln_self_t *self)
     MDB_dbi     dbi_cnl;
     MDB_cursor  *cursor;
     MDB_val     key, data;
-    char        cnl_name[17];
+    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
 
     retval = mdb_txn_begin(mpDbEnv, NULL, 0, &txn);
     if (retval != 0) {
@@ -434,15 +439,24 @@ bool ln_db_del_channel(const ln_self_t *self)
 
 
     //channel削除
-    sprintf(cnl_name, M_CHANNEL_NAME, ln_short_channel_id(self));
-    retval = mdb_dbi_open(txn, cnl_name, MDB_CREATE, &dbi_cnl);
+    strcpy(dbname, M_CHANNEL_NAME);
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi_cnl);
     if (retval == 0) {
         retval = mdb_drop(txn, dbi_cnl, 1);
         mdb_txn_commit(txn);
         txn = NULL;
-    } else {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
+    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+
+    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
+    retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
+    if (retval == 0) {
+        retval = mdb_drop(txn, dbi_cnl, 1);
+        mdb_txn_commit(txn);
+        txn = NULL;
+    }
+    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
 
 LABEL_EXIT:
     if (txn) {
@@ -491,18 +505,18 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
         if (ret == 0) {
             if (list) {
                 list++;
-            } else if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
+            } else if ((key.mv_size > M_PREFIX_LEN) && (memcmp(key.mv_data, M_CHANNEL_NAME, M_PREFIX_LEN) == 0)) {
                 ln_self_t self;
 
                 memset(&self, 0, sizeof(self));
                 retval = ln_lmdb_load_channel(&self, cur.txn, &dbi2);
                 if (retval == 0) {
                     result = (*pFunc)(&self, pFuncParam);
-                    ln_term(&self);
                     if (result) {
                         DBG_PRINTF("match !\n");
                         break;
                     }
+                    ln_term(&self);     //falseのみ解放
                 } else {
                     DBG_PRINTF("err: %s\n", mdb_strerror(retval));
                 }
@@ -1534,4 +1548,15 @@ static int check_version(MDB_txn *txn, MDB_dbi *pdbi)
     }
 
     return retval;
+}
+
+
+static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen)
+{
+    *pStr = '\0';
+    for (int lp = 0; lp < BinLen; lp++) {
+        char str[3];
+        sprintf(str, "%02x", pBin[lp]);
+        strcat(pStr, str);
+    }
 }

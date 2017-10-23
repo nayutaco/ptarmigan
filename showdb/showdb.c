@@ -122,9 +122,10 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
     } else if (strcmp(name, "node_anno") == 0) {
         //node_announcement
         dbtype = 2;
-    } else if (p_key->mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
+    } else if ((p_key->mv_size > 2) && (strncmp(name, "CN", 2) == 0)) {
         //self
         dbtype = 0;
+        //fprintf(stderr, "dbname=%s\n", name);
     } else if (strcmp(name, "version") == 0) {
         //version
         dbtype = 3;
