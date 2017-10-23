@@ -385,4 +385,11 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
  */
 void HIDDEN ln_db_init(void);
 
+
+/** DBから取得したデータのみをコピー(self)
+ *
+ *
+ */
+void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf);
+
 #endif /* LN_LOCAL_H__ */

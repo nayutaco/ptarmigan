@@ -748,10 +748,12 @@ static void *thread_main_start(void *pArg)
             DBG_PRINTF("Establish待ち\n");
             set_establish_default(p_conf, p_conf->node_id);
 
-            DBG_PRINTF("funding_tx監視開始\n");
-            DUMPTXID(ln_funding_txid(p_conf->p_self));
-            p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
-            p_conf->funding_waiting = true;
+            if (detect) {
+                DBG_PRINTF("funding_tx監視開始\n");
+                DUMPTXID(ln_funding_txid(p_conf->p_self));
+                p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
+                p_conf->funding_waiting = true;
+            }
         }
     }
 
