@@ -660,25 +660,29 @@ static void *thread_main_start(void *pArg)
     //      server動作時、p_conf->node_idに相手node_idが入っている
     /////////////////////////
 
+    bool detect = false;
     if (p_conf->cmd != DCMD_CREATE) {
         //既存チャネル接続の可能性あり
         uint64_t short_channel_id = ln_node_search_short_cnl_id(ln_node_id(mpNode), p_conf->node_id);
         if (short_channel_id == 0) {
-            bool detect;
-            short_channel_id = ln_node_search_peer_node_short_cnl_id(&detect, p_conf->node_id);
+            short_channel_id = ln_node_search_peer_node_short_cnl_id(&detect, &my_self, p_conf->node_id);
         }
         if (short_channel_id != 0) {
-            if (short_channel_id != 0) {
-                DBG_PRINTF("    チャネルDB読込み: %" PRIx64 "\n", short_channel_id);
-                ln_init(&my_self, mpNode, NULL, &mAnnoDef, notify_cb);
-                ret = ln_db_load_channel(&my_self, short_channel_id);
-                if (ret) {
-                    //peer node_id
-                    if (memcmp(my_self.peer_node.node_id, p_conf->node_id, UCOIN_SZ_PUBKEY) != 0) {
-                        assert(false);
-                        ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
-                    }
+            DBG_PRINTF("    チャネルDB読込み: %" PRIx64 "\n", short_channel_id);
+            ret = ln_db_load_channel(&my_self, short_channel_id);
+            if (ret) {
+                //peer node_id
+                if (memcmp(my_self.peer_node.node_id, p_conf->node_id, UCOIN_SZ_PUBKEY) != 0) {
+                    assert(false);
+                    ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
                 }
+            }
+        } else if (detect) {
+            //Establishはできていないが、funding_tx確認中
+            //peer node_id
+            if (memcmp(my_self.peer_node.node_id, p_conf->node_id, UCOIN_SZ_PUBKEY) != 0) {
+                assert(false);
+                ln_set_establish(&my_self, NULL, p_conf->node_id, NULL);
             }
         } else {
             DBG_PRINTF("    新規\n");
@@ -744,6 +748,11 @@ static void *thread_main_start(void *pArg)
         } else {
             DBG_PRINTF("Establish待ち\n");
             set_establish_default(p_conf, p_conf->node_id);
+
+            DBG_PRINTF("funding_tx監視開始\n");
+            DUMPTXID(ln_funding_txid(p_conf->p_self));
+            p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
+            p_conf->funding_waiting = true;
         }
     }
 
@@ -1698,7 +1707,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
     //fundingの監視は thread_poll_start()に任せる
     DBG_PRINTF("funding_tx監視開始\n");
     DUMPTXID(ln_funding_txid(p_conf->p_self));
-    p_conf->funding_min_depth = p->min_depth;
+    p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
     p_conf->funding_waiting = true;
 
     DBGTRACE_END

@@ -55,13 +55,14 @@
 #define M_DB_ANNO_NODE          "node_anno"
 
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-5)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-6)            ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
     -3 : ln_funding_remote_data_t変更
     -4 : ln_funding_local_data_t, ln_funding_remote_data_t変更
     -5 : backup_self_tにln_node_info_t追加
+    -6 : self.min_depth追加
  */
 
 
@@ -100,6 +101,7 @@ typedef struct {
     uint64_t                    remote_revoke_num;              ///< 27:revoke_and_ack受信時にインクリメントする
     uint8_t                     fund_flag;                      ///< 28:none/funder/fundee
     ln_node_info_t              peer_node;                      ///< 29:peer_node情報
+    uint32_t                    min_depth;                      ///< 30:minimum_depth
 } backup_self_t;
 
 
@@ -206,9 +208,9 @@ void ln_db_term(void)
 }
 
 
-/*
- * チャネル
- */
+/********************************************************************
+ * self
+ ********************************************************************/
 
 bool ln_db_load_channel(ln_self_t *self, uint64_t short_channel_id)
 {
@@ -301,6 +303,7 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         self->remote_revoke_num = p_bk->remote_revoke_num;  //27
         self->fund_flag = p_bk->fund_flag;  //28
         memcpy(&self->peer_node, &p_bk->peer_node, sizeof(ln_node_info_t));   //29
+        self->min_depth = p_bk->min_depth;  //30
 
         //次読込み
         key.mv_size = 6;
@@ -449,7 +452,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
+bool ln_db_search_channel(ln_db_func_cmp_t pFunc, ln_self_t *pSelf, void *pFuncParam)
 {
     bool result = false;
     int retval;
@@ -489,12 +492,9 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
             if (list) {
                 list++;
             } else if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID * 2) {
-                ln_self_t self;
-                memset(&self, 0, sizeof(self));
-
-                retval = ln_lmdb_load_channel(&self, cur.txn, &dbi2);
+                retval = ln_lmdb_load_channel(pSelf, cur.txn, &dbi2);
                 if (retval == 0) {
-                    result = (*pFunc)(&self, pFuncParam);
+                    result = (*pFunc)(pSelf, pFuncParam);
                     if (result) {
                         DBG_PRINTF("match !\n");
                         break;
@@ -1072,6 +1072,7 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     bk.remote_revoke_num = self->remote_revoke_num;       //27
     bk.fund_flag = self->fund_flag;       //28
     memcpy(&bk.peer_node, &self->peer_node, sizeof(ln_node_info_t));    //29
+    bk.min_depth = self->min_depth; //30
 
     key.mv_size = 6;
     key.mv_data = "self1";

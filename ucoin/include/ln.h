@@ -705,7 +705,6 @@ typedef struct {
 typedef struct {
     const ucoin_tx_t        *p_tx_funding;              ///< funding_tx
     const uint8_t           *p_txid;                    ///< funding txid
-    uint32_t                min_depth;                  ///< minimum_depth
     bool                    b_send;                     ///< true:funding_txを送信する
     bool                    annosigs;                   ///< true:announce_signaturesを送信する
 } ln_cb_funding_t;
@@ -897,6 +896,7 @@ struct ln_self_t {
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
     uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
     ln_establish_t              *p_est;                         ///< Establish時ワーク領域
+    uint32_t                    min_depth;                      ///< minimum_depth
 
     //announce
     uint8_t                     anno_flag;                      ///< announcement_signaturesなど
@@ -1415,6 +1415,16 @@ static inline uint32_t ln_funding_txindex(const ln_self_t *self) {
 }
 
 
+/** minimum_depth
+ *
+ * @param[in]           self            channel情報
+ * @return      accept_channelで受信したminimum_depth
+ */
+static inline uint32_t ln_minimum_depth(const ln_self_t *self) {
+    return self->min_depth;
+}
+
+
 /** funderかどうか
  *
  * @param[in]           self            channel情報
@@ -1531,10 +1541,11 @@ uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNo
  *      funding_locked直後で #ln_node_search_short_cnl_id()に失敗した場合のために用意した。
  *
  * @param[out]      pDetect             検索結果
+ * @param[out]      pSelf               pDetectがtrue時、pSelfが非NULLであればコピーする
  * @param[in]       pNodeId             検索するnode_id
  * @return          一致したshort_channel_id(不一致の場合は0)
  */
-uint64_t ln_node_search_peer_node_short_cnl_id(bool *pDetect, const uint8_t *pNodeId);
+uint64_t ln_node_search_peer_node_short_cnl_id(bool *pDetect, ln_self_t *pSelf, const uint8_t *pNodeId);
 
 
 /********************************************************************

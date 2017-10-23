@@ -1286,12 +1286,6 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         return false;
     }
 
-    if (self->p_est->defval.min_depth < 1) {
-        //minimum_depthが1より小さいと、ブロックに入らないため short_channel_idが計算できない
-        DBG_PRINTF("*** minimum_depth < 1(%d) ***\n", self->p_est->defval.min_depth);
-        self->p_est->defval.min_depth = 1;
-    }
-
     self->commit_remote.accept_htlcs = open_ch->max_accepted_htlcs;
     self->commit_remote.minimum_msat = open_ch->htlc_minimum_msat;
     self->commit_remote.in_flight_msat = open_ch->max_htlc_value_in_flight_msat;
@@ -1341,6 +1335,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
+    self->min_depth = acc_ch->min_depth;
     self->commit_local.accept_htlcs = acc_ch->max_accepted_htlcs;
     self->commit_local.minimum_msat = acc_ch->htlc_minimum_msat;
     self->commit_local.in_flight_msat = acc_ch->max_htlc_value_in_flight_msat;
@@ -1402,6 +1397,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
+    self->min_depth = acc_ch->min_depth;
     self->commit_remote.accept_htlcs = acc_ch->max_accepted_htlcs;
     self->commit_remote.minimum_msat = acc_ch->htlc_minimum_msat;
     self->commit_remote.in_flight_msat = acc_ch->max_htlc_value_in_flight_msat;
@@ -1534,7 +1530,6 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     ln_cb_funding_t funding;
     funding.p_tx_funding = NULL;
     funding.p_txid = self->funding_local.funding_txid;
-    funding.min_depth = self->p_est->cnl_accept.min_depth;
     funding.b_send = false; //sendrawtransactionしない
     (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
@@ -1591,7 +1586,6 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     ln_cb_funding_t funding;
     funding.p_tx_funding = &self->tx_funding;
     funding.p_txid = self->funding_local.funding_txid;
-    funding.min_depth = self->p_est->cnl_accept.min_depth;
     funding.b_send = true;  //sendrawtransactionする
     (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
@@ -3363,7 +3357,6 @@ static bool proc_established(ln_self_t *self)
 
             funding.p_tx_funding = &self->tx_funding;
             funding.p_txid = self->funding_local.funding_txid;
-            funding.min_depth = 0;
             funding.b_send = false;
             funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : false;
             (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);

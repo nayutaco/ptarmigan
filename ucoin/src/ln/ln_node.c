@@ -134,18 +134,18 @@ uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNo
 }
 
 
-uint64_t ln_node_search_peer_node_short_cnl_id(bool *pDetect, const uint8_t *pNodeId)
+uint64_t ln_node_search_peer_node_short_cnl_id(bool *pDetect, ln_self_t *pSelf, const uint8_t *pNodeId)
 {
     uint64_t short_channel_id = 0;
     comp_param_t prm;
 
     prm.p_node_id = pNodeId;
     prm.p_short_channel_id = &short_channel_id;
-    *pDetect = ln_db_search_channel(comp_func, &prm);
+    *pDetect = ln_db_search_channel(comp_func, pSelf, &prm);
 
     DBG_PRINTF("search id:");
     DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("  --> %016" PRIx64 "\n", short_channel_id);
+    DBG_PRINTF("  --> %016" PRIx64 "(detect=%d)\n", short_channel_id, *pDetect);
 
     return short_channel_id;
 }
