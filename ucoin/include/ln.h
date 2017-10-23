@@ -1074,10 +1074,9 @@ bool ln_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pNode
  * @param[in,out]       self        channel情報
  * @param[out]          pCont       true:次も受信を継続する(戻り値がtrue時のみ有効)
  * @param[in,out]       pBuf        in:受信データ, out:送信データ
- * @param[in]           pNodeId     送信側:接続先ノードID, 受信側:NULL
  * @retval      true    成功
  */
-bool ln_handshake_recv(ln_self_t *self, bool *pCont, ucoin_buf_t *pBuf, const uint8_t *pNodeId);
+bool ln_handshake_recv(ln_self_t *self, bool *pCont, ucoin_buf_t *pBuf);
 
 
 /** noise protocol encode

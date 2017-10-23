@@ -57,10 +57,10 @@ bool ln_enc_auth_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, const uint8
 /** noise handshake受信
  *
  * @param[in,out]       self        channel情報
- * @param[in,out]       pNodeId     送信側:接続先ノードID, 受信側:NULL
+ * @param[out]          pBuf        送信データ(Act Two/Three)
  * @retval      true    成功
  */
-bool ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pNodeId);
+bool ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf);
 
 
 /** noise handshake状態取得
