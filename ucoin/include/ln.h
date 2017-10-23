@@ -1521,30 +1521,15 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 void ln_node_term(ln_node_t *node);
 
 
-/** short_channel_id検索(channel_announcement DBから)
+/** node_id検索(self DBから)
  *
- *      channel_announcement DBから一致するnode_id対を検索し、short_channel_idを返す。
- *      funding_locked直後は channel_announcementされていないことがあり、その場合は失敗する。
+ *      self DBから一致するnode_idを検索する。
  *
- * @param[in]       pNodeId1    検索するnode_id1
- * @param[in]       pNodeId2    検索するnode_id2
- * @retval          0以外       検索したshort_channel_id
- * @retval          0           検索失敗
- */
-uint64_t ln_node_search_short_cnl_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
-
-
-/** short_channel_id検索(self DBから)
- *
- *      self DBから一致するnode_idを検索し、short_channel_idを返す。
- *      funding_locked直後で #ln_node_search_short_cnl_id()に失敗した場合のために用意した。
- *
- * @param[out]      pDetect             検索結果
- * @param[out]      pSelf               pDetectがtrue時、pSelfが非NULLであればコピーする
+ * @param[out]      pSelf               検索成功時、pSelfが非NULLであればコピーする
  * @param[in]       pNodeId             検索するnode_id
- * @return          一致したshort_channel_id(不一致の場合は0)
+ * @retval      true        検索成功
  */
-uint64_t ln_node_search_peer_node_short_cnl_id(bool *pDetect, ln_self_t *pSelf, const uint8_t *pNodeId);
+bool ln_node_search_channel_id(ln_self_t *pSelf, const uint8_t *pNodeId);
 
 
 /********************************************************************

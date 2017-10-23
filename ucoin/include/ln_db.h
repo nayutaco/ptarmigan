@@ -76,21 +76,18 @@ void ln_db_term(void);
 /** channel情報読込み
  *
  * @param[out]      self
- * @param[in]       txn
- * @param[in]       pdbi
+ * @param[in]       pChannelId
  * @retval      true    成功
  * @attention
  *      -
  *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
  */
-bool ln_db_load_channel(ln_self_t *self, uint64_t short_channel_id);
+bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId);
 
 
 /** channel情報書き込み
  *
  * @param[in]       self
- * @param[in,out]   txn
- * @param[in,out]   pdbi
  * @retval      true    成功
  */
 bool ln_db_save_channel(const ln_self_t *self);
@@ -98,6 +95,8 @@ bool ln_db_save_channel(const ln_self_t *self);
 
 /** channel削除
  *
+ * @param[in]       self
+ * @retval      true    成功
  */
 bool ln_db_del_channel(const ln_self_t *self);
 
@@ -106,14 +105,11 @@ bool ln_db_del_channel(const ln_self_t *self);
  *      比較関数を使用してchannel情報を検索する
  *
  * @param[in]       pFunc       検索関数
- * @param[out]      pSelf       ワーク用
  * @param[in,out]   pFuncParam  検索関数に渡す引数
  * @retval      true    検索関数がtrueを戻した
  * @retval      false   検索関数が最後までtrueを返さなかった
- * @note
- *      - true時、pSelfには最後にDBから取得した値を代入している
  */
-bool ln_db_search_channel(ln_db_func_cmp_t pFunc, ln_self_t *pSelf, void *pFuncParam);
+bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
 /** channel_announcement読込み
