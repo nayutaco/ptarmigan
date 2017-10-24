@@ -65,7 +65,7 @@
 * その他
   * libs で submodule を使っているため、取得には注意 (make fullで取得するようにしている)
   * ビルドに失敗する場合は、 `libtool` や `autoconf` のインストール状況を確認すること
-        * `sudo apt install build-essential libtool autoconf`
+    * `sudo apt install build-essential libtool autoconf`
 
 ## implement status
 
