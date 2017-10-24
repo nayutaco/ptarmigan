@@ -70,7 +70,7 @@ void p2p_cli_init(void)
 }
 
 
-void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, const uint8_t *pNodeId, jrpc_context *ctx)
+void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx)
 {
     int ret;
     struct sockaddr_in sv_addr;

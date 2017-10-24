@@ -54,7 +54,6 @@
 #define M_SHAREDSECRET_NAME     "SS"            ///< shared secret
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
-
 #define M_DB_VERSION            "version"
 #define M_DB_VERSION_VAL        (-6)            ///< DBバージョン
 /*
@@ -1040,6 +1039,33 @@ LABEL_EXIT:
 }
 
 
+ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
+{
+    ln_lmdb_dbtype_t dbtype;
+
+    if (strncmp(pDbName, M_CHANNEL_NAME, M_PREFIX_LEN) == 0) {
+        //self
+        dbtype = LN_LMDB_DBTYPE_SELF;
+    } else if (strncmp(pDbName, M_SHAREDSECRET_NAME, M_PREFIX_LEN) == 0) {
+        //shared secret
+        dbtype = LN_LMDB_DBTYPE_SHARED_SECRET;
+    } else if (strcmp(pDbName, M_DB_ANNO_CNL) == 0) {
+        //channel_announcement
+        dbtype = LN_LMDB_DBTYPE_CHANNEL_ANNO;
+    } else if (strcmp(pDbName, M_DB_ANNO_NODE) == 0) {
+        //node_announcement
+        dbtype = LN_LMDB_DBTYPE_NODE_ANNO;
+    } else if (strcmp(pDbName, M_DB_VERSION) == 0) {
+        //version
+        dbtype = LN_LMDB_DBTYPE_VERSION;
+    } else {
+        dbtype = LN_LMDB_DBTYPE_UNKNOWN;
+    }
+
+    return dbtype;
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/
@@ -1109,44 +1135,45 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     MDB_val key, data;
 
     //構造体部分
-    backup_self_t bk;
+    backup_self_t *bk = (backup_self_t *)malloc(sizeof(backup_self_t));
 
-    memset(&bk, 0, sizeof(bk));
-    bk.lfeature_remote = self->lfeature_remote;     //3
-    bk.storage_index = self->storage_index;     //5
-    memcpy(bk.storage_seed, self->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-    bk.funding_local = self->funding_local;     //7
-    bk.funding_remote = self->funding_remote;       //8
-    bk.obscured = self->obscured;       //9
-    bk.key_fund_sort = self->key_fund_sort;     //10
-    bk.htlc_num = self->htlc_num;       //11
-    bk.commit_num = self->commit_num;       //12
-    bk.htlc_id_num = self->htlc_id_num;     //13
-    bk.our_msat = self->our_msat;       //14
-    bk.their_msat = self->their_msat;       //15
+    memset(bk, 0, sizeof(backup_self_t));
+    bk->lfeature_remote = self->lfeature_remote;     //3
+    bk->storage_index = self->storage_index;     //5
+    memcpy(bk->storage_seed, self->storage_seed, UCOIN_SZ_PRIVKEY);      //6
+    bk->funding_local = self->funding_local;     //7
+    bk->funding_remote = self->funding_remote;       //8
+    bk->obscured = self->obscured;       //9
+    bk->key_fund_sort = self->key_fund_sort;     //10
+    bk->htlc_num = self->htlc_num;       //11
+    bk->commit_num = self->commit_num;       //12
+    bk->htlc_id_num = self->htlc_id_num;     //13
+    bk->our_msat = self->our_msat;       //14
+    bk->their_msat = self->their_msat;       //15
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        bk.cnl_add_htlc[idx] = self->cnl_add_htlc[idx];       //16
+        bk->cnl_add_htlc[idx] = self->cnl_add_htlc[idx];       //16
     }
-    memcpy(bk.channel_id, self->channel_id, LN_SZ_CHANNEL_ID);      //17
-    bk.short_channel_id = self->short_channel_id;       //18
-    bk.commit_local = self->commit_local;       //19
-    bk.commit_remote = self->commit_remote;     //20
-    bk.funding_sat = self->funding_sat;     //21
-    bk.feerate_per_kw = self->feerate_per_kw;       //22
-    bk.peer_storage = self->peer_storage;     //23
-    bk.peer_storage_index = self->peer_storage_index;     //24
-    bk.remote_commit_num = self->remote_commit_num;       //25
-    bk.revoke_num = self->revoke_num;       //26
-    bk.remote_revoke_num = self->remote_revoke_num;       //27
-    bk.fund_flag = self->fund_flag;       //28
-    memcpy(&bk.peer_node, &self->peer_node, sizeof(ln_node_info_t));    //29
-    bk.min_depth = self->min_depth; //30
+    memcpy(bk->channel_id, self->channel_id, LN_SZ_CHANNEL_ID);      //17
+    bk->short_channel_id = self->short_channel_id;       //18
+    bk->commit_local = self->commit_local;       //19
+    bk->commit_remote = self->commit_remote;     //20
+    bk->funding_sat = self->funding_sat;     //21
+    bk->feerate_per_kw = self->feerate_per_kw;       //22
+    bk->peer_storage = self->peer_storage;     //23
+    bk->peer_storage_index = self->peer_storage_index;     //24
+    bk->remote_commit_num = self->remote_commit_num;       //25
+    bk->revoke_num = self->revoke_num;       //26
+    bk->remote_revoke_num = self->remote_revoke_num;       //27
+    bk->fund_flag = self->fund_flag;       //28
+    memcpy(&bk->peer_node, &self->peer_node, sizeof(ln_node_info_t));    //29
+    bk->min_depth = self->min_depth; //30
 
     key.mv_size = 6;
     key.mv_data = "self1";
-    data.mv_size = sizeof(bk);
-    data.mv_data = &bk;
+    data.mv_size = sizeof(backup_self_t);
+    data.mv_data = bk;
     int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+    free(bk);
 
     //スクリプト部分
     if (retval == 0) {

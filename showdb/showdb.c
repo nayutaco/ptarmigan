@@ -114,28 +114,11 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
     const char *name = (const char *)p_key->mv_data;
     int retval;
 
-    int dbtype = -1;
-    //printf("[[%s]](%d)\n", name, p_key->mv_size);
-    if (strcmp(name, "channel_anno") == 0) {
-        //channel_announcement
-        dbtype = 1;
-    } else if (strcmp(name, "node_anno") == 0) {
-        //node_announcement
-        dbtype = 2;
-    } else if ((p_key->mv_size > 2) && (strncmp(name, "CN", 2) == 0)) {
-        //self
-        dbtype = 0;
-        //fprintf(stderr, "dbname=%s\n", name);
-    } else if (strcmp(name, "version") == 0) {
-        //version
-        dbtype = 3;
-    } else {
-        //
-    }
+    ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
 
     ln_self_t self;
     switch (dbtype) {
-    case 0:
+    case LN_LMDB_DBTYPE_SELF:
         //self
         if (showflag & (SHOW_SELF | SHOW_WALLET)) {
             if (cnt0) {
@@ -159,7 +142,27 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         }
         break;
 
-    case 1:
+    case LN_LMDB_DBTYPE_SHARED_SECRET:
+        //shared secret
+        if (showflag & (SHOW_SELF | SHOW_WALLET)) {
+            retval = mdb_dbi_open(txn, name, 0, &dbi);
+            assert(retval == 0);
+
+            MDB_val key, data;
+
+            for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+                key.mv_size = sizeof(int);
+                key.mv_data = &lp;
+                retval = mdb_get(txn, dbi, &key, &data);
+                if (retval != 0) {
+                    break;
+                }
+                fprintf(stderr, "[%d] %lu\n", lp, data.mv_size);
+            }
+        }
+        break;
+
+    case LN_LMDB_DBTYPE_CHANNEL_ANNO:
         if (showflag & SHOW_CNLANNO) {
             if (cnt1) {
                 printf(",");
@@ -239,7 +242,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         }
         break;
 
-    case 2:
+    case LN_LMDB_DBTYPE_NODE_ANNO:
         if (showflag & SHOW_NODEANNO) {
             if (!(showflag & SHOW_NODEANNO_PEER)) {
                 if (cnt2) {
@@ -296,7 +299,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         }
         break;
 
-    case 3:
+    case LN_LMDB_DBTYPE_VERSION:
         //version
         if (showflag == SHOW_VERSION) {
             if (cnt3) {
@@ -321,7 +324,6 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         break;
 
     default:
-        //printf("dbtype=%d\n", dbtype);
         break;
     }
 

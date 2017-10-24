@@ -444,7 +444,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("fund");
 
-    p2p_cli_start(DCMD_CREATE, &conn, p_fundconf, ln_node_id(&mNode), ctx);
+    p2p_cli_start(DCMD_CREATE, &conn, p_fundconf, ctx);
     if (ctx->error_code == 0) {
         result = cJSON_CreateString("OK");
     }
@@ -481,7 +481,7 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf == NULL) {
-        p2p_cli_start(DCMD_CONNECT, &conn, NULL, ln_node_id(&mNode), ctx);
+        p2p_cli_start(DCMD_CONNECT, &conn, NULL, ctx);
         if (ctx->error_code == 0) {
             result = cJSON_CreateString("OK");
         }
