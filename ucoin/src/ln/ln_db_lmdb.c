@@ -1137,7 +1137,7 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     //構造体部分
     backup_self_t *bk = (backup_self_t *)malloc(sizeof(backup_self_t));
 
-    memset(&bk, 0, sizeof(bk));
+    memset(bk, 0, sizeof(backup_self_t));
     bk->lfeature_remote = self->lfeature_remote;     //3
     bk->storage_index = self->storage_index;     //5
     memcpy(bk->storage_seed, self->storage_seed, UCOIN_SZ_PRIVKEY);      //6
