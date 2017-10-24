@@ -13,3 +13,7 @@ cd ../node_5555
 cd ../node_6666
 ../ucoind node.conf &
 cd ..
+cp -ra script node_3333/
+cp -ra script node_4444/
+cp -ra script node_5555/
+cp -ra script node_6666/
