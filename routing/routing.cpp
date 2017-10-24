@@ -177,7 +177,9 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key)
 {
     const char *name = (const char *)p_key->mv_data;
 
-    if (strcmp(name, "channel_anno") == 0) {
+    ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
+
+    if (dbtype == LN_LMDB_DBTYPE_CHANNEL_ANNO) {
         MDB_dbi     dbi;
         MDB_cursor  *cursor;
 

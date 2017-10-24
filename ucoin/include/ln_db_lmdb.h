@@ -39,6 +39,25 @@ extern "C" {
  * LMDB
  ********************************************************************/
 
+
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+typedef enum {
+    LN_LMDB_DBTYPE_UNKNOWN,
+    LN_LMDB_DBTYPE_SELF,
+    LN_LMDB_DBTYPE_SHARED_SECRET,
+    LN_LMDB_DBTYPE_CHANNEL_ANNO,
+    LN_LMDB_DBTYPE_NODE_ANNO,
+    LN_LMDB_DBTYPE_VERSION,
+} ln_lmdb_dbtype_t;
+
+
+/**************************************************************************
+ * public functions
+ **************************************************************************/
+
 /** channel情報読込み
  *
  * @param[out]      self
@@ -70,6 +89,9 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
  *
  */
 int ln_lmdb_check_version(MDB_txn *txn);
+
+
+ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);
 
 
 #ifdef __cplusplus
