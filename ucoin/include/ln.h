@@ -1394,6 +1394,16 @@ static inline uint64_t ln_their_msat(const ln_self_t *self) {
 }
 
 
+/** HTLC数取得
+ *
+ * @param[in]           self            channel情報
+ * @return      HTLC数
+ */
+static inline uint16_t ln_htlc_num(const ln_self_t *self) {
+    return self->htlc_num;
+}
+
+
 /** funding_txのTXID取得
  *
  * @param[in]           self            channel情報

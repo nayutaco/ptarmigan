@@ -162,11 +162,13 @@ typedef struct queue_fulfill_t {
 
 //event
 typedef enum {
+    M_EVT_ESTABLISHED,
     M_EVT_PAYMENT,
     M_EVT_FORWARD,
     M_EVT_FULFILL,
     M_EVT_FAIL,
     M_EVT_HTLCCHANGED,
+    M_EVT_CLOSED
 } event_t;
 
 
@@ -193,6 +195,8 @@ static volatile enum {
 
 
 static const char *M_SCRIPT[] = {
+    //M_EVT_ESTABLISHED
+    M_SCRIPT_DIR "established.sh",
     //M_EVT_PAYMENT,
     M_SCRIPT_DIR "payment.sh",
     //M_EVT_FORWARD,
@@ -202,7 +206,9 @@ static const char *M_SCRIPT[] = {
     //M_EVT_FAIL,
     M_SCRIPT_DIR "fail.sh",
     //M_EVT_HTLCCHANGED,
-    M_SCRIPT_DIR "htlcchanged.sh"
+    M_SCRIPT_DIR "htlcchanged.sh",
+    //M_EVT_CLOSED
+    M_SCRIPT_DIR "closed.sh"
 };
 
 
@@ -266,7 +272,7 @@ static void wait_mutex_lock(uint8_t Flag);
 static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
 static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf);
-static void call_script(lnapp_conf_t *p_conf, event_t event);
+static void call_script(event_t event, const char *param);
 static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
 
@@ -387,7 +393,19 @@ LABEL_EXIT:
     ucoin_buf_free(&buf_bolt);
     if (ret) {
         show_self_param(p_self, PRINTOUT, __LINE__);
-        call_script(pAppConf, M_EVT_PAYMENT);
+
+        // method: payment
+        // $1: short_channel_id
+        // $2: amt_to_forward
+        // $3: outgoing_cltv_value
+        // $4: payment_hash
+        char param[256];
+        sprintf(param, "%" PRIu64 " %" PRIu64 " %" PRIu32 " ",
+                    ln_short_channel_id(pAppConf->p_self),
+                    pPay->hop_datain[0].amt_to_forward,
+                    pPay->hop_datain[0].outgoing_cltv_value);
+        misc_bin2str(param + strlen(param), pPay->payment_hash, LN_SZ_HASH);
+        call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
         mMuxTiming = 0;
@@ -1427,7 +1445,18 @@ LABEL_EXIT:
     //free(p_fwd_add);    //malloc: lnapp_forward_payment()-->recv_node_proc()で解放
 
     if (ret) {
-        call_script(p_conf, M_EVT_FORWARD);
+        // method: forward
+        // $1: short_channel_id
+        // $2: amt_to_forward
+        // $3: outgoing_cltv_value
+        // $4: payment_hash
+        char param[256];
+        sprintf(param, "%" PRIu64 " %" PRIu64 " %" PRIu32 " ",
+                    ln_short_channel_id(p_conf->p_self),
+                    p_fwd_add->amt_to_forward,
+                    p_fwd_add->outgoing_cltv_value);
+        misc_bin2str(param + strlen(param), p_fwd_add->payment_hash, LN_SZ_HASH);
+        call_script(M_EVT_FORWARD, param);
     }
 
     DBGTRACE_END
@@ -1468,7 +1497,21 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf)
 
     if (ret) {
         show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
-        call_script(p_conf, M_EVT_FULFILL);
+
+        // method: fulfill
+        // $1: short_channel_id
+        // $2: payment_preimage
+        // $3: payment_hash
+        char param[256];
+        sprintf(param, "%" PRIu64 " ",
+                    ln_short_channel_id(p_conf->p_self));
+        misc_bin2str(param + strlen(param), p_fwd_fulfill->preimage, LN_SZ_PREIMAGE);
+
+        uint8_t payment_hash[LN_SZ_HASH];
+        ln_calc_preimage_hash(payment_hash, p_fwd_fulfill->preimage);
+        strcat(param, " ");
+        misc_bin2str(param + strlen(param), payment_hash, LN_SZ_HASH);
+        call_script(M_EVT_FULFILL, param);
     }
 
     DBGTRACE_END
@@ -1520,7 +1563,13 @@ static bool fwd_fail_backward(lnapp_conf_t *p_conf)
 
     if (ret) {
         show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
-        call_script(p_conf, M_EVT_FAIL);
+
+        // method: fail
+        // $1: short_channel_id
+        char param[256];
+        sprintf(param, "%" PRIu64,
+                    ln_short_channel_id(p_conf->p_self));
+        call_script(M_EVT_FAIL, param);
     }
 
     DBGTRACE_END
@@ -1730,6 +1779,17 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     FILE *fp = fopen(fname, "w");
     show_self_param(p_conf->p_self, fp, 0);
     fclose(fp);
+
+    // method: established
+    // $1: short_channel_id
+    // $2: our_msat
+    // $3: funding_txid
+    char param[256];
+    sprintf(param, "%" PRIu64 " %" PRIu64 " ",
+                ln_short_channel_id(p_conf->p_self),
+                ln_our_msat(p_conf->p_self));
+    misc_bin2str_rev(param + strlen(param), ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
+    call_script(M_EVT_ESTABLISHED, param);
 
     DBGTRACE_END
 }
@@ -2187,7 +2247,16 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
     pthread_mutex_unlock(&mMuxSeq);
     DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
 
-    call_script(p_conf, M_EVT_HTLCCHANGED);
+    // method: htlc_changed
+    // $1: short_channel_id
+    // $2: our_msat
+    // $3: htlc_num
+    char param[256];
+    sprintf(param, "%" PRIu64 " %" PRIu64 " %d",
+                ln_short_channel_id(p_conf->p_self),
+                ln_our_msat(p_conf->p_self),
+                ln_htlc_num(p_conf->p_self));
+    call_script(M_EVT_HTLCCHANGED, param);
 
     DBGTRACE_END
 }
@@ -2241,6 +2310,15 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 
     DBG_PRINTF("closing_txid: ");
     DUMPTXID(txid);
+
+    // method: closed
+    // $1: short_channel_id
+    // $2: closing_txid
+    char param[256];
+    sprintf(param, "%" PRIu64 " ",
+                ln_short_channel_id(p_conf->p_self));
+    misc_bin2str_rev(param + strlen(param), txid, UCOIN_SZ_TXID);
+    call_script(M_EVT_CLOSED, param);
 
 #warning 現在はMutual Closeしかないため、DBから削除する
     db_del_channel(p_conf->p_self, true);
@@ -2610,17 +2688,16 @@ static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf)
 }
 
 
-static void call_script(lnapp_conf_t *p_conf, event_t event)
+static void call_script(event_t event, const char *param)
 {
     DBG_PRINTF("event=0x%02x\n", (int)event);
 
     struct stat buf;
     int ret = stat(M_SCRIPT[event], &buf);
     if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
-        char cmdline[256];
+        char cmdline[512];
 
-        sprintf(cmdline, "%s %" PRIu64 " %" PRIu64,
-                    M_SCRIPT[event], ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self));
+        sprintf(cmdline, "%s %s", M_SCRIPT[event], param);
         DBG_PRINTF("cmdline: %s\n", cmdline);
         system(cmdline);
     }
