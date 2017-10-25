@@ -504,10 +504,8 @@ typedef struct {
  *  @brief      init
  */
 typedef struct {
-    uint8_t     gflen;
-    uint8_t     lflen;
-    uint8_t     globalfeatures[LN_SZ_GFLEN_MAX];    ///< gflen: globalfeatures
-    uint8_t     localfeatures[LN_SZ_LFLEN_MAX];     ///< lflen: localfeatures
+    ucoin_buf_t globalfeatures;                     ///< gflen: globalfeatures
+    ucoin_buf_t localfeatures;                      ///< lflen: localfeatures
 } ln_init_t;
 
 
