@@ -157,7 +157,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                 if (retval != 0) {
                     break;
                 }
-                fprintf(stderr, "[%d] %lu\n", lp, data.mv_size);
+                //fprintf(stderr, "[%d] %lu\n", lp, data.mv_size);
             }
         }
         break;

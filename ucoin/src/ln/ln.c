@@ -1183,11 +1183,15 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ret = ln_msg_init_read(&msg, pData, Len);
     if (ret) {
         //有効なfeature以外のビットが立っていないこと
+#warning issue#45
+// https://github.com/nayutaco/ptarmigan/issues/45
+#if 0
         ret = (msg.gflen == 0) &&
             (
                 (msg.lflen == 0) ||
                 ((msg.lflen == 1) && ((msg.localfeatures[0] & NODE_LF_INIT) == 0))
             );
+#endif
         if (ret) {
             self->init_flag |= INIT_FLAG_RECV;
             self->lfeature_remote = msg.localfeatures[0];

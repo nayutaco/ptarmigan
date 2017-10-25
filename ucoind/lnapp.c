@@ -82,7 +82,7 @@
 #define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
 #define M_CHANNEL_RESERVE_SAT           (700)
 #define M_HTLC_MINIMUM_MSAT_EST         (0)
-#define M_FEERATE_PER_KW                (60000)
+#define M_FEERATE_PER_KW                (7500)
 #define M_TO_SELF_DELAY                 (40)
 #define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
 #define M_MIN_DEPTH                     (1)
@@ -958,18 +958,19 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         //estimate fee
         uint64_t feerate;
         bool ret = jsonrpc_estimatefee(&feerate, M_BLK_FEEESTIMATE);
-        if (ret) {
-            DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
-
-            //BOLT#2
-            //  feerate_per_kw indicates the initial fee rate by 1000-weight
-            //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
-            //  which this side will pay for commitment and HTLC transactions
-            //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
-            feerate = (uint32_t)(feerate / 4);
-        } else {
+        //BOLT#2
+        //  feerate_per_kw indicates the initial fee rate by 1000-weight
+        //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
+        //  which this side will pay for commitment and HTLC transactions
+        //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
+        feerate = (uint32_t)(feerate / 4);
+#warning issue#46
+        if (!ret || (feerate < M_FEERATE_PER_KW)) {
+            // https://github.com/nayutaco/ptarmigan/issues/46
+            DBG_PRINTF("fee_per_rate is too low? :%lu\n", feerate);
             feerate = M_FEERATE_PER_KW;
         }
+        DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
 
         ucoin_util_wif2keys(&p_conf->p_funding->p_opening->fundin_keys, wif);
         //TODO: データ構造に無駄が多い

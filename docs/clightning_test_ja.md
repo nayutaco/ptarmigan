@@ -11,15 +11,15 @@
      regtest=1
 ```
 
-1. [btc]bitcoind起動
+2. [btc]bitcoind起動
 
-1. [btc] (初めてのregtestの場合)  
+3. [btc] (初めてのregtestの場合)  
 
 ```bash
 bitcoin-cli generate 432
 ```
 
-1. [ptarm node]ucoind起動
+4. [ptarm node]ucoind起動
 
 ```bash
 cd install
@@ -29,122 +29,107 @@ cd node
 ../ucoind node.conf
 ```
 
-1. [cln]c-lightning起動 ([commit e418f2a7fe5c2751706fd8ac37aa50a86656b4c2](https://github.com/ElementsProject/lightning/commit/e418f2a7fe5c2751706fd8ac37aa50a86656b4c2))
+5. [cln]c-lightning起動 ([commit ebdecebb1a89f7dcd8daa53c57ec58af32f7c40d](https://github.com/ElementsProject/lightning/tree/ebdecebb1a89f7dcd8daa53c57ec58af32f7c40d))
 
 ```bash
 cd "to/clightning/dir"
 ./lightningd/lightningd --network=regtest --log-level=debug
 ```
 
-1. [cln]c-lightning node_id取得
+6. [cln]c-lightning node_id取得
 
 ```bash
 ./cli/lightning-cli getinfo
 ```
 
-1. [ptarm]接続先CONFファイル作成
+7. [ptarm]接続先CONFファイル作成
 
 ```bash
 cd install
 ./create_knownpeer.sh 9735 [c-lightning node_id] > peer.conf
 ```
 
-1. [ptarm]fund-in transaction作成
+8. [ptarm]fund-in transaction作成
 
 ```bash
 ./fund-in2.sh 0.01 fund.txt > node/fund.conf
 ```
 
-1. [ptarm]Establish開始
+9. [ptarm]Establish開始
 
 ```bash
 ./ucoincli -c peer.conf -f node/fund.conf 8889
 ```
 
-1. [btc]block生成1(bug:修正により不要となる)
-
-```bash
-bitcoin-cli generate 1
-    (10秒ほど待つ)
-```
-
-1. [btc]block生成2
+10. [btc]block生成
 
 ```bash
 bitcoin-cli generate 6
     (channel_announcementが展開されるまで30秒ほど待つ)
 ```
 
-1. [cln]invoice作成
+11. [cln]invoice作成(rhash取得)
 
 ```bash
 ./cli/lightning-cli invoice 10000 abc
 ```
 
-1. [ptarm]送金ルート準備
+12. [ptarm]送金ルート準備
 
 ```bash
 ./routing regtest node/dbucoin `./ucoind node/node.conf id` [c-lightning node_id] 10000 > node/pay.conf
 ```
 
-1. [ptarm]送金ルート設定ファイルにinvoiceの `rhash` を追加.  
-
-１行目に「 `hash=[c-lightning rhash]` 」を追加
-
-```bash
-vi node/pay.conf (viでなくてもよい)
-```
-
-1. [ptarm]現在のamountを確認
+13. [ptarm]現在のamountを確認
 
 ```bash
 ./showdb regtest w node/dbucoin
 ```
 
-1. [ptarm]送金
+14. [ptarm]送金
 
 ```bash
-./ucoincli -p node/pay.conf 8889
+./ucoincli -p node/pay.conf,[c-lightning rhash] 8889
 ```
 
-1. [ptarm]実施後のamountを確認
+15. [ptarm]実施後のamountを確認
 
 ```bash
 ./showdb regtest w node/dbucoin
 ```
 
-1. [ptarm]ptarmigan node_id取得
+16. [ptarm]ptarmigan node_id取得
 
 ```bash
 ./ucoincli -l 8889
 ```
 
-1. [ptarm]invoice作成
+17. [ptarm]invoice作成
 
 ```bash
 ./ucoincli -i 20000 8889
 ```
 
-1. [cln]送金ルート準備
+18. [cln]送金ルート準備
 
 ```bash
 route=$(cli/lightning-cli getroute [ptarmigan node_id] 20000 1 | jq --raw-output .route -)
 echo $route
 ```
 
-1. [cln]現在のamountを確認
+19. [cln]現在のamountを確認
 
 ```bash
 ./cli/lightning-cli getpeers
 ```
 
-1. [cln]送金
+20. [cln]送金
 
 ```bash
 ./cli/lightning-cli sendpay "$route" [ptarmigan hash]
 ```
 
-1. [cln]実施後のamountを確認
+21. [cln]実施後のamountを確認
 
 ```bash
 ./cli/lightning-cli getpeers
