@@ -1684,8 +1684,14 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_INIT_RECV: init受信
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_param;
     DBGTRACE_BEGIN
+
+    const ln_init_t *p = (const ln_init_t *)p_param;
+
+    DBG_PRINTF("globalfeatures: ");
+    DUMPBIN(p->globalfeatures.buf, p->globalfeatures.len);
+    DBG_PRINTF("localfeatures: ");
+    DUMPBIN(p->localfeatures.buf, p->localfeatures.len);
 
     //init受信時に初期化
     p_conf->first = false;

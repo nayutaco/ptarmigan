@@ -455,14 +455,19 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
     }
 
     ln_init_t msg;
-    msg.gflen = 0;
-    msg.localfeatures[0] = INIT_LF_VALUE;
-    msg.lflen = (msg.localfeatures[0]) ? 1 : 0;
+
+    //TODO: globalfeatures と localfeatures
+    ucoin_buf_init(&msg.globalfeatures);
+    ucoin_buf_alloc(&msg.localfeatures, 1);
+    msg.localfeatures.buf[0] = INIT_LF_VALUE;
 
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {
         self->init_flag |= INIT_FLAG_SEND;
     }
+    ucoin_buf_free(&msg.localfeatures);
+    ucoin_buf_free(&msg.globalfeatures);
+
     return ret;
 }
 
@@ -1180,29 +1185,46 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     ln_init_t msg;
+    ucoin_buf_init(&msg.globalfeatures);
+    ucoin_buf_init(&msg.localfeatures);
     ret = ln_msg_init_read(&msg, pData, Len);
+#warning issue#45
     if (ret) {
         //有効なfeature以外のビットが立っていないこと
-#warning issue#45
-// https://github.com/nayutaco/ptarmigan/issues/45
-#if 0
-        ret = (msg.gflen == 0) &&
-            (
-                (msg.lflen == 0) ||
-                ((msg.lflen == 1) && ((msg.localfeatures[0] & ~INIT_LF_MASK) == 0))
-            );
-#endif
-        if (ret) {
-            self->init_flag |= INIT_FLAG_RECV;
-            self->lfeature_remote = msg.localfeatures[0];
-
-            //init受信通知
-            (*self->p_callback)(self, LN_CB_INIT_RECV, NULL);
-        } else {
-            self->err = LNERR_INV_FEATURE;
-            DBG_PRINTF("init error\n");
+        for (int lp = 0; lp < msg.globalfeatures.len; lp++) {
+            //奇数ビットは無視できる
+            //偶数ビット: 定義ビット無し
+            ret &= ((msg.globalfeatures.buf[lp] & 0x55) == 0);
+            if (!ret) {
+                break;
+            }
         }
     }
+
+    if (ret)
+        for (int lp = 0; lp < msg.localfeatures.len; lp++) {
+            //奇数ビットは無視できる
+            uint8_t flg = (msg.localfeatures.buf[lp] & 0x55);
+            bool b = (flg == 0);
+            if (!b) {
+                //偶数ビット: [0]b3のみ
+                if ((lp != 0) || ((flg & ~INIT_LF_ROUTE_SYNC) != 0)) {
+                ret = false;
+                break;
+            }
+        }
+    }
+    if (ret) {
+        self->init_flag |= INIT_FLAG_RECV;
+
+        //init受信通知
+        (*self->p_callback)(self, LN_CB_INIT_RECV, &msg);
+    } else {
+        self->err = LNERR_INV_FEATURE;
+        DBG_PRINTF("init error\n");
+    }
+    ucoin_buf_free(&msg.localfeatures);
+    ucoin_buf_free(&msg.globalfeatures);
 
     return ret;
 }

@@ -94,7 +94,6 @@
 #define INIT_FLAG_REESTED(flag)     ((flag & (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV)) == (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV))
 
 #define INIT_LF_ROUTE_SYNC          (1 << 3)
-#define INIT_LF_MASK                INIT_LF_ROUTE_SYNC      ///< localfeatures:BOLT定義あり
 #define INIT_LF_VALUE               INIT_LF_ROUTE_SYNC      ///< TODO:init.localfeatures
 
 #define CHANNEL_FLAGS_ANNOCNL       (1 << 0)

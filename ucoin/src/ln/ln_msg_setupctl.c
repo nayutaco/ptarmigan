@@ -70,28 +70,28 @@ bool HIDDEN ln_msg_init_create(ucoin_buf_t *pBuf, const ln_init_t *pMsg)
 #endif  //DBG_PRINT_CREATE
 
     //gflen=0, lflen=0
-    ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->gflen + pMsg->lflen);
+    ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->globalfeatures.len + pMsg->localfeatures.len);
 
     //    type: 16 (init)
     ln_misc_push16be(&proto, MSGTYPE_INIT);
 
     //        [2:gflen]
-    ln_misc_push16be(&proto, pMsg->gflen);
+    ln_misc_push16be(&proto, pMsg->globalfeatures.len);
 
     //        [gflen:globalfeatures]
-    if (pMsg->gflen > 0) {
-        ucoin_push_data(&proto, pMsg->globalfeatures, pMsg->gflen);
+    if (pMsg->globalfeatures.len > 0) {
+        ucoin_push_data(&proto, pMsg->globalfeatures.buf, pMsg->globalfeatures.len);
     }
 
     //        [2:lflen]
-    ln_misc_push16be(&proto, pMsg->lflen);
+    ln_misc_push16be(&proto, pMsg->localfeatures.len);
 
     //        [lflen:localfeatures]
-    if (pMsg->lflen > 0) {
-        ucoin_push_data(&proto, pMsg->localfeatures, pMsg->lflen);
+    if (pMsg->localfeatures.len > 0) {
+        ucoin_push_data(&proto, pMsg->localfeatures.buf, pMsg->localfeatures.len);
     }
 
-    assert(sizeof(uint16_t) + 4 + pMsg->gflen + pMsg->lflen == pBuf->len);
+    assert(sizeof(uint16_t) + 4 + pMsg->globalfeatures.len + pMsg->localfeatures.len == pBuf->len);
 
     ucoin_push_trim(&proto);
 
@@ -123,12 +123,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
     pos += sizeof(uint16_t);
 
     //        [gflen:globalfeatures]
-    if (gflen <= LN_SZ_GFLEN_MAX) {
-        pMsg->gflen = gflen;
-        memcpy(pMsg->globalfeatures, pData + pos, gflen);
-    } else {
-        pMsg->gflen = 0xff;
-    }
+    ucoin_buf_alloccopy(&pMsg->globalfeatures, pData + pos, gflen);
     pos += gflen;
 
     //        [2:lflen]
@@ -140,12 +135,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
     pos += sizeof(uint16_t);
 
     //        [lflen:localfeatures]
-    if (lflen <= LN_SZ_LFLEN_MAX) {
-        pMsg->lflen = lflen;
-        memcpy(pMsg->localfeatures, pData + pos, lflen);
-    } else {
-        pMsg->lflen = 0xff;
-    }
+    ucoin_buf_alloccopy(&pMsg->localfeatures, pData + pos, lflen);
     pos += lflen;
 
     assert(Len == pos);
@@ -163,18 +153,10 @@ static void init_print(const ln_init_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
     DBG_PRINTF2("-[init]-------------------------------\n\n");
-    DBG_PRINTF2("globalfeatures(%d)= ", pMsg->gflen);
-    if (pMsg->gflen <= LN_SZ_GFLEN_MAX) {
-        DUMPBIN(pMsg->globalfeatures, pMsg->gflen);
-    } else {
-        DBG_PRINTF2("--\n");
-    }
-    DBG_PRINTF2("localfeatures(%d)= ", pMsg->lflen);
-    if (pMsg->lflen <= LN_SZ_GFLEN_MAX) {
-        DUMPBIN(pMsg->localfeatures, pMsg->lflen);
-    } else {
-        DBG_PRINTF2("--\n");
-    }
+    DBG_PRINTF2("globalfeatures(%d)= ", pMsg->globalfeatures.len);
+    DUMPBIN(pMsg->globalfeatures.buf, pMsg->globalfeatures.len);
+    DBG_PRINTF2("localfeatures(%d)= ", pMsg->localfeatures.len);
+    DUMPBIN(pMsg->localfeatures.buf, pMsg->localfeatures.len);
     DBG_PRINTF2("--------------------------------\n\n\n");
 #endif  //UCOIN_DEBUG
 }
