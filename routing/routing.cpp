@@ -285,7 +285,7 @@ static void loaddb(const char *pDbPath)
             }
             mdb_close(mpDbEnv, dbi2);
         } else {
-            printf("???\n");
+            fprintf(stderr, "???\n");
         }
     }
     mdb_cursor_close(cursor);
@@ -358,11 +358,11 @@ int main(int argc, char* argv[])
         tgt_node = argv[4];
         amount = argv[5];
     } else {
-        printf("usage:");
+        fprintf(stderr, "usage:");
         //           1                 2
-        printf("\t%s [mainnet/testnet] [db dir]\n", argv[0]);
+        fprintf(stderr, "\t%s [mainnet/testnet] [db dir]\n", argv[0]);
         //           1                 2        3           4                5
-        printf("\t%s [mainnet/testnet] [db dir] [payer node_id] [payee node_id] [amount_msat]\n", argv[0]);
+        fprintf(stderr, "\t%s [mainnet/testnet] [db dir] [payer node_id] [payee node_id] [amount_msat]\n", argv[0]);
         return -1;
     }
 
@@ -374,7 +374,7 @@ int main(int argc, char* argv[])
     } else if (strcmp(nettype, "regtest") == 0) {
         ln_set_genesishash(M_BTC_GENESIS_REGTEST);
     } else {
-        printf("mainnet or testnet only[%s]\n", nettype);
+        fprintf(stderr, "mainnet or testnet only[%s]\n", nettype);
         return -1;
     }
 
@@ -466,7 +466,7 @@ int main(int argc, char* argv[])
         fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
 #endif
         if (!set_start || !set_goal) {
-            std::cout << "no start/goal node" << std::endl;
+            std::cerr << "no start/goal node" << std::endl;
             return -1;
         }
 
@@ -478,7 +478,7 @@ int main(int argc, char* argv[])
                             distance_map(&d[0]));
 
         if (p[pnt_goal] == pnt_goal) {
-            std::cout << "no route" << std::endl;
+            std::cerr << "no route" << std::endl;
             return -1;
         }
 
@@ -494,7 +494,7 @@ int main(int argc, char* argv[])
             graph_t::edge_descriptor e;
             boost::tie(e, found) = edge(p[v], v, g);
             if (!found) {
-                printf("not foooooooooound\n");
+                fprintf(stderr, "not foooooooooound\n");
                 abort();
             }
 

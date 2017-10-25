@@ -560,11 +560,14 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 
     ln_self_t *p_self = pAppConf->p_self;
 
+    cJSON *result = cJSON_CreateObject();
+
     if (p_self && ln_short_channel_id(p_self)) {
         show_self_param(p_self, PRINTOUT, __LINE__);
 
-        cJSON *result = cJSON_CreateObject();
         char str[256];
+
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString("established"));
 
         //peer node_id
         misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
@@ -577,9 +580,22 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "our_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
         //their_msat
         cJSON_AddItemToObject(result, "their_msat", cJSON_CreateNumber64(ln_their_msat(p_self)));
+    } else if (pAppConf->funding_waiting) {
+        char str[256];
 
-        cJSON_AddItemToArray(pResult, result);
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));
+
+        //peer node_id
+        misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
+        cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+
+        //funding_tx
+        misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
+        cJSON_AddItemToObject(result, "fundindg_tx", cJSON_CreateString(str));
+    } else {
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
     }
+    cJSON_AddItemToArray(pResult, result);
 }
 
 
