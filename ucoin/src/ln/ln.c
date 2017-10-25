@@ -208,7 +208,7 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     }
 
     //クリア
-    self->lfeature_remote = NODE_LF_INIT;
+    self->lfeature_remote = 0;
 
     self->p_node = node;
     self->p_callback = pFunc;
@@ -456,8 +456,8 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
 
     ln_init_t msg;
     msg.gflen = 0;
-    msg.lflen = 0;
-    //msg.localfeatures[0] = NODE_LOCALFEATURES;
+    msg.localfeatures[0] = INIT_LF_VALUE;
+    msg.lflen = (msg.localfeatures[0]) ? 1 : 0;
 
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {
@@ -560,7 +560,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         open_ch->p_pubkeys[lp] = self->funding_local.keys[lp].pub;
     }
-    open_ch->channel_flags = CHANNEL_FLAGS;
+    open_ch->channel_flags = CHANNEL_FLAGS_VALUE;
     ln_msg_open_channel_create(pOpen, open_ch);
 
     self->commit_local.accept_htlcs = open_ch->max_accepted_htlcs;
@@ -1189,7 +1189,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         ret = (msg.gflen == 0) &&
             (
                 (msg.lflen == 0) ||
-                ((msg.lflen == 1) && ((msg.localfeatures[0] & NODE_LF_INIT) == 0))
+                ((msg.lflen == 1) && ((msg.localfeatures[0] & ~INIT_LF_MASK) == 0))
             );
 #endif
         if (ret) {

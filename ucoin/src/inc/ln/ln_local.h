@@ -93,15 +93,13 @@
 #define INIT_FLAG_REEST_RECV        (0x08)
 #define INIT_FLAG_REESTED(flag)     ((flag & (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV)) == (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV))
 
-#define NODE_LF_INIT                (0x55)          ///< init未受信の判定および不要ビットマスク
-                                                    //      [0]xx_00_00_00
-                                                    //         ^^
-#define NODE_LF_INIT_ROUTE_SYNC     (4)
-#define NODE_LOCALFEATURES          (0)             ///< TODO:init.localfeaturesのデフォルト値
+#define INIT_LF_ROUTE_SYNC          (1 << 3)
+#define INIT_LF_MASK                INIT_LF_ROUTE_SYNC      ///< localfeatures:BOLT定義あり
+#define INIT_LF_VALUE               INIT_LF_ROUTE_SYNC      ///< TODO:init.localfeatures
 
-#define CHANNEL_FLAGS_MASK          (0xfe)          ///< open_channel.channel_flagsのマスク
-#define CHANNEL_FLAGS               (1)             ///< TODO:open_channel.channel_flagsのデフォルト値
-                                                    // 今のところ announce_channelのみで、1を期待
+#define CHANNEL_FLAGS_ANNOCNL       (1 << 0)
+#define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり
+#define CHANNEL_FLAGS_VALUE         CHANNEL_FLAGS_ANNOCNL   ///< TODO:open_channel.channel_flags
 
 #define VOUT_OPT_NONE               (0xff)
 
