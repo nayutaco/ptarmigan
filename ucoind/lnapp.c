@@ -572,6 +572,12 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //peer node_id
         misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+        //funding_tx
+        misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
+        cJSON_AddItemToObject(result, "fundindg_tx", cJSON_CreateString(str));
+        //confirmation
+        uint32_t confirm = jsonrpc_get_confirmation(ln_funding_txid(pAppConf->p_self));
+        cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
 
         //short_channel_id
         sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
@@ -588,10 +594,12 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //peer node_id
         misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
-
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
         cJSON_AddItemToObject(result, "fundindg_tx", cJSON_CreateString(str));
+        //confirmation
+        uint32_t confirm = jsonrpc_get_confirmation(ln_funding_txid(pAppConf->p_self));
+        cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
     } else {
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
     }
