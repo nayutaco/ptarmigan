@@ -249,8 +249,8 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
 
     //        [1:channel_flags]
     pMsg->channel_flags = *(pData + pos);
-    if ((pMsg->channel_flags & CHANNEL_FLAGS_MASK) != 0) {
-        DBG_PRINTF("fail: channel_flags.announce_channel mismatch\n");
+    if ((pMsg->channel_flags & ~CHANNEL_FLAGS_MASK) != 0) {
+        DBG_PRINTF("fail: unknown channel_flags: %02x\n", pMsg->channel_flags);
         return false;
     }
     pos++;
