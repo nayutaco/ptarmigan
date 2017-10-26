@@ -198,6 +198,7 @@ typedef struct {
     uint64_t        htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
     uint32_t        fee_base_msat;                  ///< 4:  fee_base_msat
     uint32_t        fee_prop_millionths;            ///< 4:  fee_proportional_millionths
+    uint32_t        min_final_cltv_expiry;          ///< min_final_cltv_expiry
 } anno_conf_t;
 
 

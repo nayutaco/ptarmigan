@@ -765,18 +765,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
         bool ret;
-#if 1
         ret = lnapp_payment(p_appconf, &payconf);
-#else
-        for (int lp = 0; lp < 5; lp++) {
-            ret = lnapp_payment(p_appconf, &payconf);
-            if (ret) {
-                break;
-            }
-            DBG_PRINTF("retry[%d]...\n", lp);
-            sleep(1);
-        }
-#endif
         if (ret) {
             result = cJSON_CreateString("OK");
         } else {

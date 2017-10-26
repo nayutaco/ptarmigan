@@ -306,7 +306,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 
 
 //初回ONIONパケット作成
-bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
+bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
 {
     if (!pAppConf->loop) {
         //DBG_PRINTF("This AppConf not working\n");
@@ -338,6 +338,13 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         fprintf(PRINTOUT, "    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         fprintf(PRINTOUT, "    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
         goto LABEL_EXIT;
+    }
+
+    //min_final_cltv_expiryオフセット
+    DBG_PRINTF("pAppConf->min_final_cltv_expiry=%d\n", (int)pAppConf->min_final_cltv_expiry);
+    for (int lp = 0; lp < pPay->hop_num; lp++) {
+        pPay->hop_datain[lp].outgoing_cltv_value += pAppConf->min_final_cltv_expiry;
+        DBG_PRINTF2("[%d]%016" PRIx64 ": %" PRIu64 ", %" PRIu32 "\n", lp, pPay->hop_datain[lp].short_channel_id, pPay->hop_datain[lp].amt_to_forward, pPay->hop_datain[lp].outgoing_cltv_value);
     }
 
     //amount, CLTVチェック(最後の値はチェックしない)
@@ -646,11 +653,15 @@ static void *thread_main_start(void *pArg)
         mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
         mAnnoDef.fee_base_msat = aconf.fee_base_msat;
         mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
+        //
+        p_conf->min_final_cltv_expiry = aconf.min_final_cltv_expiry;
     } else {
         mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
         mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
         mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
         mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
+        //
+        p_conf->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     }
 
     //スレッド
