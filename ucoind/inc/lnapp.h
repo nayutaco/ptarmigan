@@ -68,6 +68,7 @@ typedef struct {
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
     uint32_t        funding_min_depth;
     uint8_t         flag_ope;               ///< normal operation中フラグ
+    uint32_t        min_final_cltv_expiry;  ///< min_final_cltv_expiry
 
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
@@ -97,7 +98,7 @@ typedef struct {
 void lnapp_init(ln_node_t *pNode);
 void lnapp_start(lnapp_conf_t *pAppConf);
 void lnapp_stop(lnapp_conf_t *pAppConf);
-bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
+bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay);
 bool lnapp_forward_payment(lnapp_conf_t *pAppConf, fwd_proc_add_t *pAdd);
 bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
 bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
