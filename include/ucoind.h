@@ -230,6 +230,7 @@ typedef struct {
     uint8_t     payment_hash[LN_SZ_HASH];
     uint64_t    next_short_channel_id;
     uint64_t    prev_short_channel_id;
+    uint64_t    prev_id;
     ucoin_buf_t shared_secret;
 } fwd_proc_add_t;
 

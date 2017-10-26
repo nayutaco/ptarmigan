@@ -419,6 +419,7 @@ typedef struct {
     //fulfillで戻す
     uint8_t     signature[LN_SZ_SIGNATURE];         ///< HTLC署名
     uint64_t    prev_short_channel_id;              ///< 転送元short_channel_id
+    uint64_t    prev_id;                            ///< 転送元id
     //failで戻す
     ucoin_buf_t shared_secret;                      ///< failuremsg暗号化用
 } ln_update_add_htlc_t;
@@ -731,7 +732,8 @@ typedef struct {
  *  @brief  update_fulfill_htlc受信通知(#LN_CB_FULFILL_HTLC_RECV)
  */
 typedef struct {
-    uint64_t                prev_short_channel_id;  ///< 転送元
+    uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
+    uint64_t                prev_id;                ///< 転送元id
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
     uint64_t                id;                     ///< HTLC id
 } ln_cb_fulfill_htlc_recv_t;
@@ -741,7 +743,8 @@ typedef struct {
  *  @brief  update_fail_htlc受信通知(#LN_CB_FAIL_HTLC_RECV)
  */
 typedef struct {
-    uint64_t                prev_short_channel_id;  ///< 転送元
+    uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
+    uint64_t                prev_id;                ///< 転送元id
     const ucoin_buf_t       *p_reason;              ///< reason
     const ucoin_buf_t       *p_shared_secret;       ///< shared secret
     uint64_t                id;                     ///< HTLC id
@@ -1242,6 +1245,7 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
  * @param[in]           cltv_value      CLTV値
  * @param[in]           pPaymentHash    PaymentHash(SHA256:32byte)
  * @param[in]           prev_short_channel_id   転送元short_channel_id(ない場合は0)
+ * @param[in]           prev_id                 転送元id
  * @param[in]           pSharedSecrets  保存する共有秘密鍵集(NULL:未保存)
  * @retval      true    成功
  * @note
@@ -1253,6 +1257,7 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
             uint32_t cltv_value,
             const uint8_t *pPaymentHash,
             uint64_t prev_short_channel_id,
+            uint64_t prev_id,
             const ucoin_buf_t *pSharedSecrets);
 
 

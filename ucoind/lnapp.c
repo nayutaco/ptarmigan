@@ -381,6 +381,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
                         pPay->hop_datain[0].outgoing_cltv_value,
                         pPay->payment_hash,
                         0,
+                        0,
                         &secrets);  //secretsはln.cで管理するので、ここでは解放しない
     if (!ret) {
         goto LABEL_EXIT;
@@ -1457,6 +1458,7 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf)
                         p_fwd_add->outgoing_cltv_value,
                         p_fwd_add->payment_hash,
                         p_fwd_add->prev_short_channel_id,
+                        p_fwd_add->prev_id,
                         &p_fwd_add->shared_secret);
     //ucoin_buf_free(&p_fwd_add->shared_secret);  //ln.cで管理するため、freeさせない
     if (!ret) {
@@ -2055,6 +2057,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             p_fwd_add->outgoing_cltv_value = p_add->p_hop->outgoing_cltv_value;
             p_fwd_add->next_short_channel_id = p_add->p_hop->short_channel_id;
             p_fwd_add->prev_short_channel_id = ln_short_channel_id(p_conf->p_self);
+            p_fwd_add->prev_id = p_add->id;
             memcpy(p_fwd_add->payment_hash, p_add->p_payment_hash, LN_SZ_HASH);
             ucoin_buf_alloccopy(&p_fwd_add->shared_secret, p_add->p_shared_secret->buf, p_add->p_shared_secret->len);
 
@@ -2100,7 +2103,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //mMuxTiming |= MUX_RECV_FULFILL_HTLC | MUX_SEND_FULFILL_HTLC;
 
         //フラグを立てて、相手の受信スレッドで処理してもらう
-        DBG_PRINTF("戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->id);
+        DBG_PRINTF("戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->prev_id);
         backward_fulfill(p_fulfill);
     } else {
         //mMuxTiming |= MUX_RECV_FULFILL_HTLC;
@@ -2134,7 +2137,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     if (p_fail->prev_short_channel_id != 0) {
         //フラグを立てて、相手の受信スレッドで処理してもらう
-        DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->id);
+        DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->prev_id);
         backward_fail(p_fail);
     } else {
         DBG_PRINTF("ここまで\n");
@@ -2772,7 +2775,7 @@ static void show_self_param(const ln_self_t *self, FILE *fp, int line)
                 fprintf(fp, "      id= %" PRIx64 "\n", p_add->id);
                 fprintf(fp, "    amount_msat= %" PRIu64 "\n", p_add->amount_msat);
                 if (p_add->prev_short_channel_id) {
-                    fprintf(fp, "    from:        %" PRIx64 "\n", p_add->prev_short_channel_id);
+                    fprintf(fp, "    from:        %" PRIx64 ": %" PRIu64 "\n", p_add->prev_short_channel_id, p_add->prev_id);
                 }
             }
         }
