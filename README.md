@@ -29,8 +29,8 @@
   * [lmdb](https://symas.com/lightning-memory-mapped-database/)([github](https://github.com/LMDB/lmdb))
 
 * install
-  * [libev](http://software.schmorp.de/pkg/libev.html)
-  * [boost](http://www.boost.org/)
+  * [libev](http://software.schmorp.de/pkg/libev.html) (for `jsonrpc-c`)
+  * [boost](http://www.boost.org/) (for dijkstra shortest paths)
 
   `sudo apt install autoconf pkg-config libev-dev libboost-all-dev`
 
