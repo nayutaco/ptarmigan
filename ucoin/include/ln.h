@@ -426,6 +426,8 @@ typedef struct {
 
 /** @struct     ln_update_fulfill_htlc_t
  *  @brief      update_fulfill_htlc
+ *  @note
+ *      - "id"はreadのみ使用する。create時はpayment_hashを検索する。
  */
 typedef struct {
     uint8_t     *p_channel_id;                      ///< 32: channel-id
@@ -1260,11 +1262,10 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pFulfill        生成したupdate_fulfill_htlcメッセージ
- * @param[in]           id              HTLC id
  * @param[in]           pPreImage       反映するHTLCのpayment-preimage
  * @retval      true    成功
  */
-bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id, const uint8_t *pPreImage);
+bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, const uint8_t *pPreImage);
 
 
 /** update_fail_htlcメッセージ作成
