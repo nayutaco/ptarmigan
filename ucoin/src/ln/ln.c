@@ -777,7 +777,6 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
             uint32_t cltv_value,
             const uint8_t *pPaymentHash,
             uint64_t prev_short_channel_id,
-            uint64_t prev_id,
             const ucoin_buf_t *pSharedSecrets)
 {
     DBG_PRINTF("BEGIN\n");
@@ -854,7 +853,6 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
     memcpy(self->cnl_add_htlc[idx].payment_sha256, pPaymentHash, LN_SZ_HASH);
     self->cnl_add_htlc[idx].p_onion_route = (CONST_CAST uint8_t *)pPacket;
     self->cnl_add_htlc[idx].prev_short_channel_id = prev_short_channel_id;
-    self->cnl_add_htlc[idx].prev_id = prev_id;
     ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
     if (pSharedSecrets) {
         self->cnl_add_htlc[idx].shared_secret.buf = pSharedSecrets->buf;
@@ -2092,16 +2090,15 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         self->their_msat += p_add->amount_msat;
 
         uint64_t prev_short_channel_id = p_add->prev_short_channel_id; //CB用
-        uint64_t prev_id = p_add->prev_id;  //CB用
+        uint64_t prev_id = fulfill_htlc.id;  //CB用
 
         clear_htlc(self, p_add);
 
         //update_fulfill_htlc受信通知
         ln_cb_fulfill_htlc_recv_t fulfill;
         fulfill.prev_short_channel_id = prev_short_channel_id;
-        fulfill.prev_id = prev_id;
         fulfill.p_preimage = preimage;
-        //fulfill.id = fulfill_htlc.id;
+        fulfill.id = prev_id;
         (*self->p_callback)(self, LN_CB_FULFILL_HTLC_RECV, &fulfill);
     } else {
         self->err = LNERR_INV_ID;
@@ -2149,7 +2146,6 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
 
             ln_cb_fail_htlc_recv_t fail_recv;
             fail_recv.prev_short_channel_id = self->cnl_add_htlc[idx].prev_short_channel_id;
-            fail_recv.prev_id = self->cnl_add_htlc[idx].prev_id;
             fail_recv.p_reason = &reason;
             fail_recv.p_shared_secret = &self->cnl_add_htlc[idx].shared_secret;
             fail_recv.id = self->cnl_add_htlc[idx].id;
