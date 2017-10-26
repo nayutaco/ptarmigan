@@ -134,7 +134,6 @@ void ucoin_dbg_free(void *ptr, int line)
  ********************************************************************/
 
 typedef struct {
-    uint64_t    id;
     uint8_t     preimage[LN_SZ_PREIMAGE];
 } fwd_proc_fulfill_t;
 
@@ -458,7 +457,6 @@ bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_rec
     }
 
     fwd_proc_fulfill_t *p_fwd_fulfill = (fwd_proc_fulfill_t *)MM_MALLOC(sizeof(fwd_proc_fulfill_t));   //free: fwd_fulfill_backward()
-    p_fwd_fulfill->id = pFulFill->id;
     memcpy(p_fwd_fulfill->preimage, pFulFill->p_preimage, LN_SZ_PREIMAGE);
 
     return set_request_recvproc(pAppConf, FWD_PROC_FULFILL, (uint16_t)sizeof(fwd_proc_fulfill_t), p_fwd_fulfill);
@@ -1502,12 +1500,10 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf)
 
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
-    DBG_PRINTF("id= %" PRIx64 "\n", p_fwd_fulfill->id);
     DBG_PRINTF("preimage= ");
     DUMPBIN(p_fwd_fulfill->preimage, LN_SZ_PREIMAGE);
 
-    ret = ln_create_fulfill_htlc(p_conf->p_self, &buf_bolt,
-                            p_fwd_fulfill->id, p_fwd_fulfill->preimage);
+    ret = ln_create_fulfill_htlc(p_conf->p_self, &buf_bolt, p_fwd_fulfill->preimage);
     assert(ret);
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);

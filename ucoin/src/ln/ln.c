@@ -872,7 +872,7 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
 }
 
 
-bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id, const uint8_t *pPreImage)
+bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, const uint8_t *pPreImage)
 {
     DBG_PRINTF("BEGIN\n");
 
@@ -883,7 +883,6 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
     }
     uint8_t sha256[LN_SZ_HASH];
     ucoin_util_sha256(sha256, pPreImage, LN_SZ_PREIMAGE);
-    DBG_PRINTF("id= %" PRIu64 "\n", id);
     DBG_PRINTF("recv payment_sha256= ");
     DUMPBIN(sha256, LN_SZ_PREIMAGE);
     ln_update_add_htlc_t *p_add = NULL;
@@ -891,11 +890,9 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
         //fulfill送信はReceived Outputに対して行う
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
             DBG_PRINTF("LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)=%d\n", LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag));
-            DBG_PRINTF("htlc_id=%" PRIu64 "\n", self->cnl_add_htlc[idx].id);
             DBG_PRINTF("payment_sha256= ");
             DUMPBIN(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_PREIMAGE);
             if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
-                 (id == self->cnl_add_htlc[idx].id) &&
                  (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) ) {
                 //
                 p_add = &self->cnl_add_htlc[idx];
@@ -910,7 +907,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
     }
     if (p_add->amount_msat == 0) {
         self->err = LNERR_INV_ID;
-        DBG_PRINTF("fail: invalid id\n");
+        DBG_PRINTF("fail: cannot found HTLC\n");
         return false;
     }
 
