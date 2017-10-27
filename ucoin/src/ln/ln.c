@@ -2099,9 +2099,8 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         //update_fulfill_htlc受信通知
         ln_cb_fulfill_htlc_recv_t fulfill;
         fulfill.prev_short_channel_id = prev_short_channel_id;
-        fulfill.prev_id = prev_id;
         fulfill.p_preimage = preimage;
-        //fulfill.id = fulfill_htlc.id;
+        fulfill.id = prev_id;
         (*self->p_callback)(self, LN_CB_FULFILL_HTLC_RECV, &fulfill);
     } else {
         self->err = LNERR_INV_ID;
@@ -2149,10 +2148,9 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
 
             ln_cb_fail_htlc_recv_t fail_recv;
             fail_recv.prev_short_channel_id = self->cnl_add_htlc[idx].prev_short_channel_id;
-            fail_recv.prev_id = self->cnl_add_htlc[idx].prev_id;
             fail_recv.p_reason = &reason;
             fail_recv.p_shared_secret = &self->cnl_add_htlc[idx].shared_secret;
-            fail_recv.id = self->cnl_add_htlc[idx].id;
+            fail_recv.id = self->cnl_add_htlc[idx].prev_id;
             (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
 
             clear_htlc(self, &self->cnl_add_htlc[idx]);

@@ -733,7 +733,6 @@ typedef struct {
  */
 typedef struct {
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
-    uint64_t                prev_id;                ///< 転送元id
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
     uint64_t                id;                     ///< HTLC id
 } ln_cb_fulfill_htlc_recv_t;
@@ -744,7 +743,6 @@ typedef struct {
  */
 typedef struct {
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
-    uint64_t                prev_id;                ///< 転送元id
     const ucoin_buf_t       *p_reason;              ///< reason
     const ucoin_buf_t       *p_shared_secret;       ///< shared secret
     uint64_t                id;                     ///< HTLC id

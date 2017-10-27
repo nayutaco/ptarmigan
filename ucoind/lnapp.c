@@ -1509,7 +1509,7 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf, fwd_proc_fulfill_t *p_fwd
 
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
-    DBG_PRINTF("id= %" PRIx64 "\n", p_fwd_fulfill->id);
+    DBG_PRINTF("id= %" PRIu64 "\n", p_fwd_fulfill->id);
     DBG_PRINTF("preimage= ");
     DUMPBIN(p_fwd_fulfill->preimage, LN_SZ_PREIMAGE);
 
@@ -2083,7 +2083,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //mMuxTiming |= MUX_RECV_FULFILL_HTLC | MUX_SEND_FULFILL_HTLC;
 
         //フラグを立てて、相手の受信スレッドで処理してもらう
-        DBG_PRINTF("戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->prev_id);
+        DBG_PRINTF("戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->id);
         backward_fulfill(p_fulfill);
     } else {
         //mMuxTiming |= MUX_RECV_FULFILL_HTLC;
@@ -2117,7 +2117,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     if (p_fail->prev_short_channel_id != 0) {
         //フラグを立てて、相手の受信スレッドで処理してもらう
-        DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->prev_id);
+        DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->id);
         backward_fail(p_fail);
     } else {
         DBG_PRINTF("ここまで\n");
