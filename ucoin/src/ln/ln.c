@@ -777,6 +777,7 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
             uint32_t cltv_value,
             const uint8_t *pPaymentHash,
             uint64_t prev_short_channel_id,
+            uint64_t prev_id,
             const ucoin_buf_t *pSharedSecrets)
 {
     DBG_PRINTF("BEGIN\n");
@@ -853,6 +854,7 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
     memcpy(self->cnl_add_htlc[idx].payment_sha256, pPaymentHash, LN_SZ_HASH);
     self->cnl_add_htlc[idx].p_onion_route = (CONST_CAST uint8_t *)pPacket;
     self->cnl_add_htlc[idx].prev_short_channel_id = prev_short_channel_id;
+    self->cnl_add_htlc[idx].prev_id = prev_id;
     ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
     if (pSharedSecrets) {
         self->cnl_add_htlc[idx].shared_secret.buf = pSharedSecrets->buf;
@@ -872,7 +874,7 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
 }
 
 
-bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, const uint8_t *pPreImage)
+bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id, const uint8_t *pPreImage)
 {
     DBG_PRINTF("BEGIN\n");
 
@@ -883,6 +885,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, const uint8_
     }
     uint8_t sha256[LN_SZ_HASH];
     ucoin_util_sha256(sha256, pPreImage, LN_SZ_PREIMAGE);
+    DBG_PRINTF("id= %" PRIu64 "\n", id);
     DBG_PRINTF("recv payment_sha256= ");
     DUMPBIN(sha256, LN_SZ_PREIMAGE);
     ln_update_add_htlc_t *p_add = NULL;
@@ -890,9 +893,11 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, const uint8_
         //fulfill送信はReceived Outputに対して行う
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
             DBG_PRINTF("LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)=%d\n", LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag));
+            DBG_PRINTF("htlc_id=%" PRIu64 "\n", self->cnl_add_htlc[idx].id);
             DBG_PRINTF("payment_sha256= ");
             DUMPBIN(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_PREIMAGE);
             if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
+                 (id == self->cnl_add_htlc[idx].id) &&
                  (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) ) {
                 //
                 p_add = &self->cnl_add_htlc[idx];
@@ -907,7 +912,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, const uint8_
     }
     if (p_add->amount_msat == 0) {
         self->err = LNERR_INV_ID;
-        DBG_PRINTF("fail: cannot found HTLC\n");
+        DBG_PRINTF("fail: invalid id\n");
         return false;
     }
 
@@ -2087,7 +2092,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         self->their_msat += p_add->amount_msat;
 
         uint64_t prev_short_channel_id = p_add->prev_short_channel_id; //CB用
-        uint64_t prev_id = fulfill_htlc.id;  //CB用
+        uint64_t prev_id = p_add->prev_id;  //CB用
 
         clear_htlc(self, p_add);
 
@@ -2145,7 +2150,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
             fail_recv.prev_short_channel_id = self->cnl_add_htlc[idx].prev_short_channel_id;
             fail_recv.p_reason = &reason;
             fail_recv.p_shared_secret = &self->cnl_add_htlc[idx].shared_secret;
-            fail_recv.id = self->cnl_add_htlc[idx].id;
+            fail_recv.id = self->cnl_add_htlc[idx].prev_id;
             (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
 
             clear_htlc(self, &self->cnl_add_htlc[idx]);
