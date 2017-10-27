@@ -70,7 +70,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
     strcpy(node->alias, pNodeName);
     node->features = Features;
 
-    ln_db_init();
+    ln_db_init(ln_node_id(node));
 
     ret = ln_db_load_anno_node(&buf_node, NULL, NULL, ln_node_id(node));
     if (!ret) {

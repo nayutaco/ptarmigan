@@ -88,7 +88,7 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
  *
  *
  */
-int ln_lmdb_check_version(MDB_txn *txn);
+int ln_lmdb_check_version(MDB_txn *txn, uint8_t *pMyNodeId);
 
 
 ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);
