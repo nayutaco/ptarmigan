@@ -193,9 +193,18 @@ void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
             abort();
         }
     } else {
-        retval = check_version(txn, &dbi, NULL);
+        uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
+        retval = check_version(txn, &dbi, my_nodeid);
         mdb_txn_abort(txn);
-        if (retval != 0) {
+        if (retval == 0) {
+            if (memcmp(pMyNodeId, my_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+                DBG_PRINTF("ok\n");
+            } else {
+                DBG_PRINTF("FAIL: node_id mismatch\n");
+#warning そのうちabortさせる
+                //abort();
+            }
+        } else {
             DBG_PRINTF("FAIL: check version db\n");
             abort();
         }
@@ -1562,6 +1571,13 @@ LABEL_EXIT:
 }
 
 
+/** DBバージョンチェック
+ *
+ * @param[in]   txn
+ * @param[in]   pdbi
+ * @param[out]  pMyNodeId   [NULL]無視 / [非NULL]自nodeid
+ * @retval  0   DBバージョン一致
+ */
 static int check_version(MDB_txn *txn, MDB_dbi *pdbi, uint8_t *pMyNodeId)
 {
     int         retval;
@@ -1585,6 +1601,8 @@ static int check_version(MDB_txn *txn, MDB_dbi *pdbi, uint8_t *pMyNodeId)
             retval = mdb_get(txn, *pdbi, &key, &data);
             if ((retval == 0) && (data.mv_size == UCOIN_SZ_PUBKEY)) {
                 memcpy(pMyNodeId, data.mv_data, UCOIN_SZ_PUBKEY);
+            } else {
+                memset(pMyNodeId, 0, UCOIN_SZ_PUBKEY);
             }
         }
     } else {
