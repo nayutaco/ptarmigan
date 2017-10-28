@@ -173,7 +173,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 
 
 /* Dump in BDB-compatible format */
-static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const uint8_t *p2)
+static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *pMyNodeId)
 {
     MDB_dbi     dbi;
     MDB_cursor  *cursor;
@@ -234,7 +234,7 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
         } while (ret == 0);
         mdb_cursor_close(cursor);
         mdb_close(mpDbEnv, dbi);
-    } else if ((dbtype == LN_LMDB_DBTYPE_SELF) && p1 && p2) {
+    } else if ((dbtype == LN_LMDB_DBTYPE_SELF) && pMyNodeId) {
         int retval = mdb_dbi_open(txn, name, 0, &dbi);
         assert(retval == 0);
         retval = mdb_cursor_open(txn, dbi, &cursor);
@@ -244,15 +244,12 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
         ln_self_t   self;
         memset(&self, 0, sizeof(self));
         ret = ln_lmdb_load_channel(&self, txn, &dbi);
-        if (ret == 0) {
-            if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
-                //
-                mNodeNum++;
-                mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
-                mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
-                memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
-                memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
-            }
+        if ((ret == 0) && (self.short_channel_id != 0)) {
+            mNodeNum++;
+            mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
+            mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
+            memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, pMyNodeId, UCOIN_SZ_PUBKEY);
+            memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, self.peer_node.node_id, UCOIN_SZ_PUBKEY);
         }
         ln_term(&self);
         mdb_close(mpDbEnv, dbi);
@@ -264,7 +261,7 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
 }
 
 
-static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
+static void loaddb(const char *pDbPath, const uint8_t *pMyNodeId)
 {
     int ret;
     MDB_txn     *txn;
@@ -284,8 +281,8 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
     ret = ln_lmdb_check_version(txn, my_nodeid);
     assert(ret == 0);
-    if (p1 && (memcmp(my_nodeid, p1, UCOIN_SZ_PUBKEY) != 0)) {
-        p1 = NULL;
+    if (pMyNodeId && (memcmp(my_nodeid, pMyNodeId, UCOIN_SZ_PUBKEY) != 0)) {
+        pMyNodeId = NULL;
     }
     ret = mdb_dbi_open(txn, NULL, 0, &dbi);
     assert(ret == 0);
@@ -304,7 +301,7 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
             if (list) {
                 list++;
             } else {
-                ret = dumpit(txn, &key, p1, p2);
+                ret = dumpit(txn, &key, pMyNodeId);
                 if (ret) {
                     break;
                 }
@@ -410,7 +407,7 @@ int main(int argc, char* argv[])
         ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), tgt_node);
         assert(ret);
 
-        loaddb(dbdir, mMyNodeId, mTgtNodeId);
+        loaddb(dbdir, mMyNodeId);
 
         amtmsat = (uint64_t)strtoull(amount, NULL, 10);
 
@@ -421,7 +418,7 @@ int main(int argc, char* argv[])
         ucoin_util_dumpbin(stderr, mTgtNodeId, UCOIN_SZ_PUBKEY, true);
 #endif
     } else {
-        loaddb(dbdir, NULL, NULL);
+        loaddb(dbdir, NULL);
     }
 
     graph_t g;
