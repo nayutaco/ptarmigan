@@ -378,9 +378,9 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
 
 /** DB初期化
  *
- *
+ * @param[in]       pMyNodeId       非NULL時、DB保存するnode_id
  */
-void HIDDEN ln_db_init(void);
+void HIDDEN ln_db_init(const uint8_t *pMyNodeId);
 
 
 /** DBから取得したデータのみをコピー(self)

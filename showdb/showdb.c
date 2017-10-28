@@ -316,7 +316,19 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                 retval = mdb_get(txn, dbi, &key, &data);
                 if (retval == 0) {
                     int version = *(int *)data.mv_data;
-                    printf("db version=%d\n", version);
+                    printf(M_QQ("version") ": [ %d\n", version);
+                }
+
+                key.mv_size = 8;
+                key.mv_data = "mynodeid";
+                retval = mdb_get(txn, dbi, &key, &data);
+                if ((retval == 0) && (data.mv_size == UCOIN_SZ_PUBKEY)) {
+                    const uint8_t *p = (const uint8_t *)data.mv_data;
+                    printf(", \"");
+                    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
+                        printf("%02x", p[lp]);
+                    }
+                    printf("\"");
                 }
             }
             cnt3++;
@@ -359,6 +371,9 @@ int main(int argc, char *argv[])
         case 'p':
             showflag = SHOW_NODEANNO | SHOW_NODEANNO_PEER;
             break;
+        case 'v':
+            showflag = SHOW_VERSION;
+            break;
         case '9':
             switch (argv[2][1]) {
             case '1':
@@ -380,6 +395,7 @@ int main(int argc, char *argv[])
         printf("\t\tself    : show self info\n");
         printf("\t\tchannel : show channel info\n");
         printf("\t\tnode    : show node info\n");
+        printf("\t\tversion : version\n");
         return -1;
     }
 
@@ -403,7 +419,7 @@ int main(int argc, char *argv[])
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
-    ret = ln_lmdb_check_version(txn);
+    ret = ln_lmdb_check_version(txn, NULL);
     assert(ret == 0);
     ret = mdb_dbi_open(txn, NULL, 0, &dbi);
     assert(ret == 0);

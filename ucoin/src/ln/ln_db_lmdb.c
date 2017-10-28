@@ -145,8 +145,8 @@ static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, u
 static int save_anno_node(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId);
 static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
 
-static int write_version(MDB_txn *txn);
-static int check_version(MDB_txn *txn, MDB_dbi *pdbi);
+static int write_version(MDB_txn *txn, const uint8_t *pMyNodeId);
+static int check_version(MDB_txn *txn, MDB_dbi *pdbi, uint8_t *pMyNodeId);
 
 static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 
@@ -155,7 +155,7 @@ static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
  * public functions
  **************************************************************************/
 
-void HIDDEN ln_db_init(void)
+void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
 {
     int         retval;
     MDB_txn     *txn;
@@ -184,7 +184,7 @@ void HIDDEN ln_db_init(void)
     }
     retval = mdb_dbi_open(txn, M_DB_VERSION, 0, &dbi);
     if (retval != 0) {
-        retval = write_version(txn);
+        retval = write_version(txn, pMyNodeId);
         if (retval == 0) {
             mdb_txn_commit(txn);
         } else {
@@ -193,9 +193,18 @@ void HIDDEN ln_db_init(void)
             abort();
         }
     } else {
-        retval = check_version(txn, &dbi);
+        uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
+        retval = check_version(txn, &dbi, my_nodeid);
         mdb_txn_abort(txn);
-        if (retval != 0) {
+        if (retval == 0) {
+            if (memcmp(pMyNodeId, my_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+                DBG_PRINTF("ok\n");
+            } else {
+                DBG_PRINTF("FAIL: node_id mismatch\n");
+#warning そのうちabortさせる
+                //abort();
+            }
+        } else {
             DBG_PRINTF("FAIL: check version db\n");
             abort();
         }
@@ -1022,7 +1031,7 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
 }
 
 
-int ln_lmdb_check_version(MDB_txn *txn)
+int ln_lmdb_check_version(MDB_txn *txn, uint8_t *pMyNodeId)
 {
     int         retval;
     MDB_dbi     dbi;
@@ -1032,7 +1041,7 @@ int ln_lmdb_check_version(MDB_txn *txn)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = check_version(txn, &dbi);
+    retval = check_version(txn, &dbi, pMyNodeId);
 
 LABEL_EXIT:
     return retval;
@@ -1528,7 +1537,7 @@ LABEL_EXIT:
 }
 
 
-static int write_version(MDB_txn *txn)
+static int write_version(MDB_txn *txn, const uint8_t *pMyNodeId)
 {
     int         retval;
     MDB_dbi     dbi;
@@ -1548,12 +1557,28 @@ static int write_version(MDB_txn *txn)
     data.mv_data = &version;
     retval = mdb_put(txn, dbi, &key, &data, 0);
 
+    //my node_id
+    if ((retval == 0) && pMyNodeId) {
+        key.mv_size = 8;
+        key.mv_data = "mynodeid";
+        data.mv_size = UCOIN_SZ_PUBKEY;
+        data.mv_data = (void *)pMyNodeId;
+        retval = mdb_put(txn, dbi, &key, &data, 0);
+    }
+
 LABEL_EXIT:
     return retval;
 }
 
 
-static int check_version(MDB_txn *txn, MDB_dbi *pdbi)
+/** DBバージョンチェック
+ *
+ * @param[in]   txn
+ * @param[in]   pdbi
+ * @param[out]  pMyNodeId   [NULL]無視 / [非NULL]自nodeid
+ * @retval  0   DBバージョン一致
+ */
+static int check_version(MDB_txn *txn, MDB_dbi *pdbi, uint8_t *pMyNodeId)
 {
     int         retval;
     MDB_val key, data;
@@ -1569,7 +1594,18 @@ static int check_version(MDB_txn *txn, MDB_dbi *pdbi)
             retval = -1;
         }
     }
-    if (retval != 0) {
+    if (retval == 0) {
+        if (pMyNodeId) {
+            key.mv_size = 8;
+            key.mv_data = "mynodeid";
+            retval = mdb_get(txn, *pdbi, &key, &data);
+            if ((retval == 0) && (data.mv_size == UCOIN_SZ_PUBKEY)) {
+                memcpy(pMyNodeId, data.mv_data, UCOIN_SZ_PUBKEY);
+            } else {
+                memset(pMyNodeId, 0, UCOIN_SZ_PUBKEY);
+            }
+        }
+    } else {
         DBG_PRINTF("*** version check: %d ***\n", retval);
     }
 
