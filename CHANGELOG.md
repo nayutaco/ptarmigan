@@ -1,17 +1,21 @@
 # CHANGELOG
 
+## 2017/10/28
+
+* issue #35: establish後、channel_announcement前でも、short_channel_idが存在するならば送金可能にする
+
 ## 2017/10/23
 
-* [issue#15] reestablish
+* issue #15: reestablish
 * DBバージョン更新
 
 ## 2017/10/17
 
-* [issue#23] `funding_locked`後にDB保存する
+* issue #23: `funding_locked`後にDB保存する
 
 ## 2017/10/15
 
-* [issue#12]fail_htlcをcommitment_signed後にする
+* issue#12: fail_htlcをcommitment_signed後にする
 * イベントのタイミングでスクリプトを呼び出す
     * `./script/payment.sh` : 送金開始
     * `./script/forward.sh` : 送金を転送するとき
@@ -21,7 +25,7 @@
 
 ## 2017/10/12
 
-* [issue#7]establish後に `minimum_depth` を待っている間に `announcement_signatures` を受信すると失敗する
+* issue#7: establish後に `minimum_depth` を待っている間に `announcement_signatures` を受信すると失敗する
 
 ## 2017/10/11
 
