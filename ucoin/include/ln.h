@@ -580,7 +580,7 @@ typedef struct {
  *  @brief      node_announcementのアドレス情報
  */
 typedef struct {
-    uint8_t         type;                       ///< 1:address descriptor
+    uint8_t         type;                       ///< 1:address descriptor(LN_NODEDESC_xxx)
     uint16_t        port;
     union {
         uint8_t     addr[1];
