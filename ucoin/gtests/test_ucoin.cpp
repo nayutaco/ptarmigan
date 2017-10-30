@@ -94,6 +94,7 @@ TEST_F(ucoin, ucoin_setnet_mainnet)
 #include "testinc_ln.cpp"
 #include "testinc_ln_bolt3_b.cpp"
 #include "testinc_ln_bolt3_c.cpp"
+#include "testinc_ln_bolt3_c2.cpp"
 #include "testinc_ln_bolt3_d.cpp"
 #include "testinc_ln_bolt3_e.cpp"
 #include "testinc_ln_bolt4.cpp"

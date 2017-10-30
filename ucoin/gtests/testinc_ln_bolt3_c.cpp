@@ -503,7 +503,7 @@ TEST_F(ln_bolt3_c, committx2)
 
 // name: commitment tx with all 5 htlcs untrimmed (minimum feerate)
 //      Commitment Transaction
-TEST_F(ln_bolt3_c, committx7min_commit)
+TEST_F(ln_bolt3_c, committx5untrim_commit)
 {
     ucoin_tx_init(&tx);
 
@@ -817,7 +817,7 @@ TEST_F(ln_bolt3_c, committx7min_commit)
 
 // name: commitment tx with all 5 htlcs untrimmed (minimum feerate)
 //      HTLC-success Transaction
-TEST_F(ln_bolt3_c, committx7min_success_to)
+TEST_F(ln_bolt3_c, committx5untrim_success_to)
 {
     ///////////////////////////////////////////////////////////
     const uint8_t REMOTE_SIG0[] = {
