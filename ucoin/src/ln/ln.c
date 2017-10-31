@@ -2749,9 +2749,9 @@ static bool create_to_local(ln_self_t *self,
 
     //scriptPubKey作成
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],    //localkey
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],    //revocationkey
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_KEY]);          //remotekey
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY]);
 
     //commitment transaction
     lntx_commit.fund.txid = self->funding_local.funding_txid;
@@ -2762,7 +2762,7 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(self->our_msat + local_add);
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->their_msat + remote_add);
-    lntx_commit.remote.pubkey = self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_KEY];
+    lntx_commit.remote.pubkey = self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
     lntx_commit.obscured = self->obscured ^ self->commit_num;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
@@ -2816,7 +2816,7 @@ static bool create_to_local(ln_self_t *self,
                     ret = ln_verify_p2wsh_success_timeout(&tx,
                                 tx_local.vout[vout_idx].value,
                                 NULL,
-                                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_KEY],
+                                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
                                 NULL,
                                 &buf_sig,
                                 pp_htlcinfo[htlc_idx]->expiry,
@@ -2991,9 +2991,9 @@ static bool create_to_remote(ln_self_t *self,
 
     //scriptPubKey作成(Remote)
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],   //localkey
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],   //revocationkey
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_KEY]);         //remotekey
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY]);
 
     //commitment transaction(Remote)
     lntx_commit.fund.txid = self->funding_local.funding_txid;
@@ -3004,7 +3004,7 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(self->their_msat + remote_add);
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->our_msat + local_add);
-    lntx_commit.remote.pubkey = self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_KEY];
+    lntx_commit.remote.pubkey = self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
     lntx_commit.obscured = self->obscured ^ self->remote_commit_num;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;

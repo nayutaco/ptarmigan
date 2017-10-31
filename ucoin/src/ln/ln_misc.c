@@ -241,7 +241,7 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
 
     //localkey
     DBG_PRINTF2("[other_localkey]local per_commitment_point & remote payment\n");
-    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_KEY],
+    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
                 pRemote->pubkeys[MSG_FUNDIDX_PAYMENT], pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
     //local delayedkey
@@ -257,14 +257,15 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
     ln_derkey_revocationkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 pRemote->pubkeys[MSG_FUNDIDX_REVOCATION], pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
+    //localkey
     DBG_PRINTF2("[localkey]local per_commitment_point & local payment\n");
-    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],
+    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
                 pLocal->keys[MSG_FUNDIDX_PAYMENT].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
 
     //remotekey
     DBG_PRINTF2("[other_remotekey]remote per_commitment_point & local payment\n");
-    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_KEY],
+    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
                 pLocal->keys[MSG_FUNDIDX_PAYMENT].pub, pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //remote delayedkey
@@ -277,8 +278,9 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
     ln_derkey_revocationkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 pLocal->keys[MSG_FUNDIDX_REVOCATION].pub, pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
+    //localkey
     DBG_PRINTF2("[remotekey]remote per_commitment_point & remote payment\n");
-    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY],
+    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
                 pRemote->pubkeys[MSG_FUNDIDX_PAYMENT], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     ln_print_keys(PRINTOUT, pLocal, pRemote);

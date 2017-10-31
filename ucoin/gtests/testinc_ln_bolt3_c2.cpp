@@ -613,9 +613,9 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
 
     //local_secretkey
     //localkey
-    memcpy(self.funding_local.scriptpubkeys[MSG_SCRIPTIDX_PAYMENTKEY], LOCAL_KEY, UCOIN_SZ_PUBKEY);
+    memcpy(self.funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY], LOCAL_KEY, UCOIN_SZ_PUBKEY);
     //remotekey
-    memcpy(self.funding_local.scriptpubkeys[MSG_SCRIPTIDX_KEY], REMOTE_KEY, UCOIN_SZ_PUBKEY);
+    memcpy(self.funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], REMOTE_KEY, UCOIN_SZ_PUBKEY);
     //local_delayedkey
     memcpy(self.funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], LOCAL_DELAYED_KEY, UCOIN_SZ_PUBKEY);
     //local_revocation_key
