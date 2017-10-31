@@ -2674,8 +2674,8 @@ static bool create_funding_tx(ln_self_t *self)
  * self->commit_remote.signatureを相手からの署名として追加し、verifyを行う
  *
  * @param[in,out]       self
- * @param[in]           p_htlc_sigs         commitment_signedの署名
- * @param[in]           htlc_sigs_num       commitment_signedの署名数
+ * @param[in]           p_htlc_sigs         commitment_signedで受信したHTLCの署名
+ * @param[in]           htlc_sigs_num       p_htlc_sigsの署名数
  * @param[in]           to_self_delay
  * @param[in]           dust_limit_sat
  * @retval      true    成功
@@ -2798,17 +2798,6 @@ static bool create_to_local(ln_self_t *self,
             if (htlc_idx != VOUT_OPT_NONE) {
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_local.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
-                    //スクリプトはHTLC-TimeoutもSuccessも同じ(To-Localも)
-                    //ln_create_script_timeout(&buf_ws,
-                    //                self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
-                    //                self->funding_local.keys[MSG_FUNDIDX_DELAYED].pub,
-                    //                to_self_delay);
-
-//#ifdef UCOIN_USE_PRINTFUNC
-//                    DBG_PRINTF("HTLC script:\n");
-//                    ucoin_print_script(buf_ws.buf, buf_ws.len);
-//#endif  //UCOIN_USE_PRINTFUNC
-
                     //vout
                     ret = ucoin_sw_add_vout_p2wsh(&tx,
                                     tx_local.vout[vout_idx].value - fee, &buf_ws);
@@ -3071,16 +3060,6 @@ static bool create_to_remote(ln_self_t *self,
             if (htlc_idx != VOUT_OPT_NONE) {
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_remote.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
-                    //スクリプトはHTLC-TimeoutもSuccessも同じ(To-Localも)
-                    //ln_create_script_timeout(&buf_ws,
-                    //                self->funding_remote.pubkeys[MSG_FUNDIDX_REVOCATION],
-                    //                self->funding_remote.pubkeys[MSG_FUNDIDX_DELAYED],
-                    //                pp_htlcinfo[htlc_idx]->expiry);
-//#ifdef UCOIN_USE_PRINTFUNC
-//                    DBG_PRINTF("HTLC script:\n");
-//                    ucoin_print_script(buf_ws.buf, buf_ws.len);
-//#endif  //UCOIN_USE_PRINTFUNC
-
                     //vout
                     ret = ucoin_sw_add_vout_p2wsh(&tx,
                                     tx_remote.vout[vout_idx].value - fee, &buf_ws);

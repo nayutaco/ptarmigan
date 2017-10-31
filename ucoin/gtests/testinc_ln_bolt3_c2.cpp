@@ -667,8 +667,25 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
     ln_misc_sigtrim(self.commit_remote.signature, REMOTE_SIGNATURE);
     //
     ucoin_util_create2of2(&self.redeem_fund, &self.key_fund_sort, LOCAL_FUNDING_PUBKEY, REMOTE_FUNDING_PUBKEY);
+    self.tx_funding.vout[self.funding_local.funding_txindex].script
+
+    //ln_fundin_t fundin;
+    //memset(&fundin, 0, sizeof(fundin));
+    //fundin.p_txid =
+    //fundin.index = 0;
+    //fundin.amount = ;
+    //fundin.p_change_pubkey = ;
+    //fundin.p_change_addr = ;
+    //fundin.p_keys = ;
+    //fundin.b_native = ;
+
     //ln_establish_t est;
+    //memset(&est, 0, sizeof(est));
     //est.cnl_open.funding_sat = SATOSHI_FUNDING;
+    //est.cnl_open.feerate_per_kw
+    //est.p_fundin = &fundin;
+    //est.defval = ;
+
     //self.p_est = &est;
     //create_funding_tx(&self);
 
