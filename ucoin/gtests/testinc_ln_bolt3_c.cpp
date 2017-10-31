@@ -1204,7 +1204,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
-            //ucoin_print_tx(&tx2);
+            ucoin_print_tx(&tx2);
             //ucoin_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);

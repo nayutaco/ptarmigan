@@ -533,7 +533,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
     };
     ///////////////////////////////////////
 
-#if 0
+#if 1
     ///////////////////////////////////////////////////////////
     const uint8_t REMOTE_SIG0[] = {
         0x30, 0x44, 0x02, 0x20, 0x6a, 0x6e, 0x59, 0xf1,
@@ -597,6 +597,9 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
     uint8_t sigs[LN_SZ_SIGNATURE * 5];
 
     memset(&self, 0, sizeof(self));
+
+    self.our_msat = MSAT_LOCAL;
+    self.their_msat = MSAT_REMOTE;
 
     memcpy(self.funding_local.funding_txid, TXID_FUND, UCOIN_SZ_TXID);
     self.funding_local.funding_txindex = TXID_FUND_INDEX;
@@ -753,6 +756,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
 //      HTLC-success Transaction
 TEST_F(ln_bolt3_c2, committx5untrim_success_to)
 {
+#if 0
     ///////////////////////////////////////////////////////////
     const uint8_t REMOTE_SIG0[] = {
         0x30, 0x44, 0x02, 0x20, 0x6a, 0x6e, 0x59, 0xf1,
@@ -1153,6 +1157,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_success_to)
     }
     ucoin_buf_free(&ws_buf);
     ucoin_tx_free(&tx2);
+#endif
 
     ucoin_tx_free(&tx);
 }
