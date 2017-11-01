@@ -2195,6 +2195,12 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
         goto LABEL_EXIT;
     }
 
+    if (commsig.num_htlcs != self->htlc_num) {
+        self->err = LNERR_HTLC_NUM;
+        DBG_PRINTF("fail: htlc_num not same: %d != %d\n", commsig.num_htlcs, self->htlc_num);
+        goto LABEL_EXIT;
+    }
+
     //署名チェック＋保存: To-Local
     ret = create_to_local(self, commsig.p_htlc_signature, commsig.num_htlcs,
                 self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
@@ -2669,7 +2675,7 @@ static bool create_funding_tx(ln_self_t *self)
 // こちらはlocktimeはないが、OP_CLTVがある。
 // もし
 
-/** 自分用To-Local
+/** 自分用commitment transaction作成
  *
  * self->commit_remote.signatureを相手からの署名として追加し、verifyを行う
  *
@@ -2677,7 +2683,7 @@ static bool create_funding_tx(ln_self_t *self)
  * @param[in]           p_htlc_sigs         commitment_signedで受信したHTLCの署名
  * @param[in]           htlc_sigs_num       p_htlc_sigsの署名数
  * @param[in]           to_self_delay       remoteのto_self_delay
- * @param[in]           dust_limit_sat      localのdust_limit_sat ?
+ * @param[in]           dust_limit_sat      localのdust_limit_sat
  * @retval      true    成功
  */
 static bool create_to_local(ln_self_t *self,
@@ -2917,7 +2923,7 @@ static bool create_to_local(ln_self_t *self,
 }
 
 
-/** 相手用To-Local
+/** 相手用 commitment transaction作成
  *
  * 署名を、To-Localはself->commit_local.signatureに、HTLCはself->cnl_add_htlc[].signature 代入する
  *
@@ -3020,6 +3026,11 @@ static bool create_to_remote(ln_self_t *self,
     ucoin_print_tx(&tx_remote);
 #endif  //UCOIN_USE_PRINTFUNC
 
+    //送信用 commitment_signed.signature
+    ln_misc_sigtrim(self->commit_local.signature, buf_sig.buf);
+    ucoin_buf_free(&buf_sig);
+
+    //送信用 commitment_signed.htlc_signature
     uint8_t htlc_num = 0;
     if ((cnt > 0) && (pp_htlc_sigs != NULL)) {
         //各HTLCの署名(commitment_signed用)(Remote)
@@ -3114,10 +3125,6 @@ static bool create_to_remote(ln_self_t *self,
     if (p_htlc_sigs_num != NULL) {
         *p_htlc_sigs_num = htlc_num;
     }
-
-    //送信用署名
-    ln_misc_sigtrim(self->commit_local.signature, buf_sig.buf);
-    ucoin_buf_free(&buf_sig);
 
     DBG_PRINTF("free\n");
     ucoin_tx_free(&tx_remote);
