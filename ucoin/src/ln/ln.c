@@ -2676,8 +2676,8 @@ static bool create_funding_tx(ln_self_t *self)
  * @param[in,out]       self
  * @param[in]           p_htlc_sigs         commitment_signedで受信したHTLCの署名
  * @param[in]           htlc_sigs_num       p_htlc_sigsの署名数
- * @param[in]           to_self_delay
- * @param[in]           dust_limit_sat
+ * @param[in]           to_self_delay       remoteのto_self_delay
+ * @param[in]           dust_limit_sat      localのdust_limit_sat ?
  * @retval      true    成功
  */
 static bool create_to_local(ln_self_t *self,
@@ -2924,8 +2924,8 @@ static bool create_to_local(ln_self_t *self,
  * @param[in,out]       self
  * @param[out]          pp_htlc_sigs        commitment_signed送信用署名(NULLの場合は代入しない)
  * @param[out]          p_htlc_sigs_num     pp_htlc_sigsに格納した署名数(NULLの場合は代入しない)
- * @param[in]           to_self_delay
- * @param[in]           dust_limit_sat
+ * @param[in]           to_self_delay       localのto_self_delay
+ * @param[in]           dust_limit_sat      remoteのdust_limit_sat
  */
 static bool create_to_remote(ln_self_t *self,
                     uint8_t **pp_htlc_sigs,
