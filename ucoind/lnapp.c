@@ -544,6 +544,52 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 }
 
 
+bool lnapp_close_channel_force(const uint8_t *pNodeId)
+{
+    bool ret;
+    ln_self_t my_self;
+
+    memset(&my_self, 0, sizeof(my_self));
+
+    //announcementデフォルト値
+    anno_conf_t aconf;
+    ret = load_anno_conf("anno.conf", &aconf);
+    if (ret) {
+        mAnnoDef.cltv_expiry_delta = aconf.cltv_expiry_delta;
+        mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
+        mAnnoDef.fee_base_msat = aconf.fee_base_msat;
+        mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
+    } else {
+        mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
+        mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
+        mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
+        mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
+    }
+    ln_init(&my_self, mpNode, NULL, &mAnnoDef, NULL);
+
+    ret = ln_node_search_channel_id(&my_self, pNodeId);
+    if (!ret) {
+        return false;
+    }
+
+    //自分が unilateral closeするパターン
+    //  commit_tx
+    //    |
+    //    +-- to_local: 次vout必要
+    //    +-- to_remote: -
+    //    +-- HTLC outputs: 次vout必要
+    //
+    // dust_limit_satoshisを考慮することになるため、最終的にいくつtransactionを
+    // 送信することになるかは、計算後にならないとわからない(最大、1 + HTLC数)。
+    ln_close_force_t close_dat;
+    ret = ln_create_close_force_tx(&my_self, &close_dat);
+    if (ret) {
+        ln_free_close_force_tx(&close_dat);
+    }
+    return true;
+}
+
+
 bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_channel_id)
 {
     if (!pAppConf->loop) {

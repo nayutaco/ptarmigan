@@ -537,6 +537,8 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
         bool haveCnl = ln_node_search_channel_id(NULL, conn.node_id);
         if (haveCnl) {
             //チャネルあり
+            DBG_PRINTF("チャネルはあるが接続していない\n");
+            bool ret = lnapp_close_channel_force(conn.node_id);
         } else {
             //チャネルなし
             ctx->error_code = RPCERR_NOCHANN;

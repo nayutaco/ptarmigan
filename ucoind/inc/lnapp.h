@@ -102,6 +102,7 @@ bool lnapp_forward_payment(lnapp_conf_t *pAppConf, fwd_proc_add_t *pAdd);
 bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
 bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
 bool lnapp_close_channel(lnapp_conf_t *pAppConf);
+bool lnapp_close_channel_force(const uint8_t *pNodeId);
 bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_channel_id);
 void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult);
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf);

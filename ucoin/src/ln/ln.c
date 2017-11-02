@@ -771,6 +771,27 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown)
 }
 
 
+bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
+{
+    DBG_PRINTF("BEGIN\n");
+
+    ln_print_self(self);
+
+    pClose->num = 0;
+    pClose->pp_buf = NULL;
+    return true;
+}
+
+
+void ln_free_close_force_tx(ln_close_force_t *pClose)
+{
+    for (int lp = 0; lp < pClose->num; lp++) {
+        free(pClose->pp_buf[lp]);
+    }
+    free(pClose->pp_buf);
+}
+
+
 bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
             const uint8_t *pPacket,
             uint64_t amount_msat,

@@ -393,6 +393,15 @@ typedef struct {
     uint8_t     *p_signature;                       ///< 64: signature
 } ln_closing_signed_t;
 
+
+/** @struct ln_close_force_t
+ *  @brief  [Close]Unilateral Close / Revoked Transaction Close用
+ */
+typedef struct {
+    int             num;                            ///< pp_bufのtransaction数
+    ucoin_buf_t     **pp_buf;                       ///<
+} ln_close_force_t;
+
 /// @}
 
 
@@ -1231,6 +1240,23 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee);
  *      - scriptPubKeyは #ln_init()で指定したアドレスを使用する
  */
 bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
+
+
+/** unilateral close / revoked transaction close用トランザクション作成
+ *
+ * @param[in]           self        channel情報
+ * @param[out]          pClose      生成したトランザクション
+ * @retval      ture    成功
+ * @note
+ *      - pCloseは @ln_free_close_force_tx()で解放すること
+ */
+bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose);
+
+
+/** ln_close_force_tのメモリ解放
+ *
+ */
+void ln_free_close_force_tx(ln_close_force_t *pClose);
 
 
 /** update_add_htlcメッセージ作成
