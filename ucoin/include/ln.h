@@ -193,7 +193,6 @@ typedef struct {
     ln_htlctype_t           type;                   ///< HTLC種別
     uint32_t                expiry;                 ///< Expiry
     uint64_t                amount_msat;            ///< amount_msat
-    const uint8_t           *preimage;              ///< preimage(Offeredか、相手から取得できた場合)
     const uint8_t           *preimage_hash;         ///< preimageをHASH160したデータ
     ucoin_buf_t             script;                 ///< スクリプト
 } ln_htlcinfo_t;

@@ -47,10 +47,10 @@
 
 
 static const char *KEYS_STR[LN_FUNDIDX_MAX] = {
-    "key_funding", "key_revocation", "key_payment", "key_delayed", "key_per_commit"
+    "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_per_commit"
 };
 static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
-    "script_otherkey", "script_delayed", "script_revocation", "script_key"
+    "remotekey", "delayedkey", "revocationkey", "localkey"
 };
 
 

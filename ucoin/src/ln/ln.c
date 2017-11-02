@@ -2195,12 +2195,6 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
         goto LABEL_EXIT;
     }
 
-    if (commsig.num_htlcs != self->htlc_num) {
-        self->err = LNERR_HTLC_NUM;
-        DBG_PRINTF("fail: htlc_num not same: %d != %d\n", commsig.num_htlcs, self->htlc_num);
-        goto LABEL_EXIT;
-    }
-
     //署名チェック＋保存: To-Local
     ret = create_to_local(self, commsig.p_htlc_signature, commsig.num_htlcs,
                 self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
@@ -2728,7 +2722,6 @@ static bool create_to_local(ln_self_t *self,
             }
             pp_htlcinfo[cnt]->expiry = self->cnl_add_htlc[idx].cltv_expiry;
             pp_htlcinfo[cnt]->amount_msat = self->cnl_add_htlc[idx].amount_msat;
-            pp_htlcinfo[cnt]->preimage = NULL;
             pp_htlcinfo[cnt]->preimage_hash = self->cnl_add_htlc[idx].payment_sha256;
             DBG_PRINTF(" [%d][id=%" PRIx64 "](%p)\n", idx, self->cnl_add_htlc[idx].id, self);
             cnt++;
@@ -2975,7 +2968,6 @@ static bool create_to_remote(ln_self_t *self,
             }
             pp_htlcinfo[cnt]->expiry = self->cnl_add_htlc[idx].cltv_expiry;
             pp_htlcinfo[cnt]->amount_msat = self->cnl_add_htlc[idx].amount_msat;
-            pp_htlcinfo[cnt]->preimage = NULL;
             pp_htlcinfo[cnt]->preimage_hash = self->cnl_add_htlc[idx].payment_sha256;
             DBG_PRINTF(" [%d][id=%" PRIx64 "](%p)\n", idx, self->cnl_add_htlc[idx].id, self);
             cnt++;

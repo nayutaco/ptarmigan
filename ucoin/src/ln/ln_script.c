@@ -182,7 +182,6 @@ void HIDDEN ln_htlcinfo_init(ln_htlcinfo_t *pHtlcInfo)
     pHtlcInfo->type = LN_HTLCTYPE_NONE;
     pHtlcInfo->expiry = 0;
     pHtlcInfo->amount_msat = 0;
-    pHtlcInfo->preimage = NULL;
     pHtlcInfo->preimage_hash = NULL;
     ucoin_buf_init(&pHtlcInfo->script);
 }
