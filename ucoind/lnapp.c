@@ -193,6 +193,7 @@ static volatile enum {
     //MUX_RECV_FULFILL_HTLC=0x80,     ///< fulfill_htlc受信済み
 } mMuxTiming;
 
+static unsigned long mDebug;
 
 static const char *M_SCRIPT[] = {
     //M_EVT_ESTABLISHED
@@ -618,6 +619,12 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf)
 {
     return pAppConf->loop;
+}
+
+
+void lnapp_set_debug(unsigned long debug)
+{
+    mDebug = debug;
 }
 
 

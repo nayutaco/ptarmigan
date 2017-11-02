@@ -68,6 +68,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
 
@@ -321,6 +322,7 @@ static int msg_recv(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_pay,         "pay", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_debug,       "debug", NULL);
     jrpc_server_run(&mJrpc);
     jrpc_server_destroy(&mJrpc);
 
@@ -816,6 +818,27 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
     jrpc_server_stop(&mJrpc);
 
     return cJSON_CreateString("OK");
+}
+
+
+static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)ctx; (void)id;
+
+    const char *ret;
+    char str[10];
+    cJSON *json;
+
+    json = cJSON_GetArrayItem(params, 0);
+    if (json && (json->type == cJSON_Number)) {
+        lnapp_set_debug(json->valueint);
+        sprintf(str, "%d", json->valueint);
+        ret = str;
+    } else {
+        ret = "NG";
+    }
+
+    return cJSON_CreateString(ret);
 }
 
 
