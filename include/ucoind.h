@@ -54,6 +54,8 @@ static inline int tid() {
 #define RPCERR_NOCONN_STR   "not connected"
 #define RPCERR_ALCONN       (-10002)
 #define RPCERR_ALCONN_STR   "already connected"
+#define RPCERR_NOCHANN      (-10003)
+#define RPCERR_NOCHANN_STR  "no channel"
 
 #define RPCERR_NODEID       (-20000)
 #define RPCERR_NODEID_STR   "invalid node_id"

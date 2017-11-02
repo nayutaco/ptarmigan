@@ -138,7 +138,6 @@ static void shutdown_print(const ln_shutdown_t *pMsg)
     DBG_PRINTF2("-[shutdown]-------------------------------\n\n");
     DBG_PRINTF2("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("len= %lu\n", (unsigned long)pMsg->p_scriptpk->len);
     DBG_PRINTF2("p_scriptpk: ");
     DUMPBIN(pMsg->p_scriptpk->buf, pMsg->p_scriptpk->len);
     DBG_PRINTF2("--------------------------------\n\n\n");

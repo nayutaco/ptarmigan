@@ -63,7 +63,6 @@ typedef struct {
     uint32_t        last_node_anno_sent;    ///< 最後に送信したnode_announcementのEPOCH TIME
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
     bool            first;                  ///< false:node_announcement受信済み
-    bool            shutdown_sent;          ///< true:shutdownを最初に送信した側
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
     uint32_t        funding_min_depth;

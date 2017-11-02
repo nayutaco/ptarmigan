@@ -1738,9 +1738,10 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    self->cnl_shutdown.p_channel_id = channel_id;
-    self->cnl_shutdown.p_scriptpk = &self->shutdown_scriptpk_remote;
-    ret = ln_msg_shutdown_read(&self->cnl_shutdown, pData, Len);
+    ln_shutdown_t cnl_shutdown;
+    cnl_shutdown.p_channel_id = channel_id;
+    cnl_shutdown.p_scriptpk = &self->shutdown_scriptpk_remote;
+    ret = ln_msg_shutdown_read(&cnl_shutdown, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
         return false;
@@ -1749,7 +1750,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     //channel-idチェック
     if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
+        DBG_PRINTF("fail: channel-id mismatch\n");
         return false;
     }
 
@@ -1757,27 +1758,34 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ret = ln_check_scriptpkh(&self->shutdown_scriptpk_remote);
     if (!ret) {
         self->err = LNERR_INV_PRIVKEY;
-        DBG_PRINTF("unknown scriptPubKey type\n");
+        DBG_PRINTF("fail: unknown scriptPubKey type\n");
         return false;
     }
 
-    //TODO:HTLCが残っていたらfalse
+    //HTLCが残っていたらfalse
+    if (self->htlc_num != 0) {
+        DBG_PRINTF("fail: HTLC not 0\n");
+        return false;
+    }
+
     //  相手がshutdownを送ってきたということは、HTLCは持っていないはず。
-    //  相手は持っていなくて自分は持っているという状況は発生しないと思っている。
+    //  相手は持っていなくて自分は持っているという状況は発生しない。
+
+    self->close_last_fee_sat = 0;
 
     ucoin_buf_t buf_bolt;
     ucoin_buf_init(&buf_bolt);
     if (!(self->shutdown_flag & M_SHDN_FLAG_SEND)) {
         //shutdown未送信の場合 == shutdownを要求された方
 
-        //feeと送金先
+        //feeと送金先を設定してもらう
         (*self->p_callback)(self, LN_CB_SHUTDOWN_RECV, NULL);
 
         ret = ln_create_shutdown(self, &buf_bolt);
         if (ret) {
             self->shutdown_flag |= M_SHDN_FLAG_SEND;
         }
-    } else if (!(self->shutdown_flag & M_SHDN_FLAG_RECV)) {
+    } else {
         //shutdown未受信の場合 == shutdownを要求した方
         DBG_PRINTF("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
         self->cnl_closing_signed.p_channel_id = self->channel_id;
@@ -1790,6 +1798,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         if (ret) {
             ret = ln_msg_closing_signed_create(&buf_bolt, &self->cnl_closing_signed);
         }
+        self->close_last_fee_sat = self->close_fee_sat;
     }
 
     if (buf_bolt.len > 0) {
@@ -1835,30 +1844,33 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->cnl_closing_signed.p_channel_id = self->channel_id;
     self->cnl_closing_signed.p_signature = self->commit_local.signature;
 
-    //TODO: 今回は受信したfeeでclosing_tx生成し、署名する
+    ucoin_buf_t buf_bolt;
+    ucoin_buf_init(&buf_bolt);
+    ucoin_buf_t txbuf;
+    ucoin_buf_init(&txbuf);
+
+    //closing_tx作成(署名とverifyも行う)
     ucoin_tx_free(&self->tx_closing);
     ret = create_closing_tx(self, &self->tx_closing, true);
 
-    //ノード情報からチャネル削除
-    //ln_node_del_channel(self->p_node, self->short_channel_id);
-
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
-    if (ret) {
+    if (self->close_last_fee_sat == self->close_fee_sat) {
+        //closing_txを展開してもらう
+        DBG_PRINTF("same fee!\n");
+        ucoin_tx_create(&txbuf, &self->tx_closing);
+    } else {
+        //closing_singnedを送信する
+        DBG_PRINTF("different fee!\n");
         ret = ln_msg_closing_signed_create(&buf_bolt, &self->cnl_closing_signed);
+        self->close_last_fee_sat = self->close_fee_sat;
     }
 
     if (ret) {
-        ucoin_buf_t txbuf;
-        ucoin_buf_init(&txbuf);
-        ucoin_tx_create(&txbuf, &self->tx_closing);
-
         ln_cb_closed_t closed;
         closed.p_buf_bolt = &buf_bolt;
         closed.p_tx_closing = &txbuf;
         (*self->p_callback)(self, LN_CB_CLOSED, &closed);
-        ucoin_buf_free(&txbuf);
     }
+    ucoin_buf_free(&txbuf);
     ucoin_buf_free(&buf_bolt);
 
     //ここでクリアすると、shutdown_flagもクリアされるので、2回受信しても送信はしなくなる。

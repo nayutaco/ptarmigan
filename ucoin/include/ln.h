@@ -913,9 +913,9 @@ struct ln_self_t {
     ucoin_tx_t                  tx_closing;                     ///< closing_tx
     uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)。 b1:受信済み b0:送信済み
     uint64_t                    close_fee_sat;                  ///< closing_txのFEE
+    uint64_t                    close_last_fee_sat;             ///< 最後に送信したclosing_txのFEE
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< mutual close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
-    ln_shutdown_t               cnl_shutdown;                   ///< 受信したshutdown
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
 
     //msg:normal operation

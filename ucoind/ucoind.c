@@ -524,6 +524,7 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
+        //接続中
         bool ret = lnapp_close_channel(p_appconf);
         if (ret) {
             result = cJSON_CreateString("OK");
@@ -532,8 +533,15 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
             ctx->error_message = strdup(RPCERR_CLOSE_HTLC_STR);
         }
     } else {
-        ctx->error_code = RPCERR_NOCONN;
-        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+        //未接続
+        bool haveCnl = ln_node_search_channel_id(NULL, conn.node_id);
+        if (haveCnl) {
+            //チャネルあり
+        } else {
+            //チャネルなし
+            ctx->error_code = RPCERR_NOCHANN;
+            ctx->error_message = strdup(RPCERR_NOCHANN_STR);
+        }
     }
 
 LABEL_EXIT:
