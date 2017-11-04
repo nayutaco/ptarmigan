@@ -55,7 +55,7 @@
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-6)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-7)            ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -63,6 +63,7 @@
     -4 : ln_funding_local_data_t, ln_funding_remote_data_t変更
     -5 : backup_self_tにln_node_info_t追加
     -6 : self.min_depth追加
+    -7 : ln_commit_data_tにtxid追加
  */
 
 
@@ -201,8 +202,7 @@ void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
                 DBG_PRINTF("ok\n");
             } else {
                 DBG_PRINTF("FAIL: node_id mismatch\n");
-#warning そのうちabortさせる
-                //abort();
+                abort();
             }
         } else {
             DBG_PRINTF("FAIL: check version db\n");

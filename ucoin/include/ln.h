@@ -425,7 +425,8 @@ typedef struct {
     //inner
     uint8_t     flag;                               ///< LN_HTLC_FLAG_xxx
     //fulfillで戻す
-    uint8_t     signature[LN_SZ_SIGNATURE];         ///< HTLC署名
+    uint8_t     signature[LN_SZ_SIGNATURE];         ///< 受信した最新のHTLC署名
+                                                    //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
     uint64_t    prev_short_channel_id;              ///< 転送元short_channel_id
     uint64_t    prev_id;                            ///< 転送元id
     //failで戻す
@@ -871,6 +872,7 @@ typedef struct {
     uint8_t             signature[LN_SZ_SIGNATURE];     ///< 署名
                                                         // localには相手に送信する署名
                                                         // remoteには相手から受信した署名
+    uint8_t             txid[UCOIN_SZ_TXID];            ///< txid
 } ln_commit_data_t;
 
 

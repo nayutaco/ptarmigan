@@ -775,10 +775,12 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
 
-    ln_print_self(self);
-
     pClose->num = 0;
     pClose->pp_buf = NULL;
+
+    //commit_tx
+    //pClose->num++;
+
     return true;
 }
 
@@ -786,9 +788,9 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 void ln_free_close_force_tx(ln_close_force_t *pClose)
 {
     for (int lp = 0; lp < pClose->num; lp++) {
-        free(pClose->pp_buf[lp]);
+        ucoin_buf_free(pClose->pp_buf[lp]);
     }
-    free(pClose->pp_buf);
+    M_FREE(pClose->pp_buf);
 }
 
 
@@ -2807,23 +2809,22 @@ static bool create_to_local(ln_self_t *self,
         return false;
     }
 
+    ret = ucoin_tx_txid(self->commit_local.txid, &tx_local);
+    if (!ret) {
+        DBG_PRINTF("fail: ucoin_tx_txid\n");
+    }
+
     if (cnt > 0) {
         //各HTLCの署名(commitment_signed用)
         DBG_PRINTF("HTLC-Timeout/Success sign\n");
 
         int htlc_num = 0;
-        uint8_t txid[UCOIN_SZ_TXID];
         ucoin_tx_t tx;
         ucoin_buf_t buf_sig;
 
         //ucoin_buf_free(&buf_ws);
         ucoin_buf_init(&buf_sig);
         ucoin_tx_init(&tx);
-        ret = ucoin_tx_txid(txid, &tx_local);
-        if (!ret) {
-            DBG_PRINTF("fail: ucoin_tx_txid\n");
-            return false;
-        }
 
         for (int vout_idx = 0; vout_idx < tx_local.vout_cnt; vout_idx++) {
             uint8_t htlc_idx = tx_local.vout[vout_idx].opt;
@@ -2840,7 +2841,7 @@ static bool create_to_local(ln_self_t *self,
                     tx.vout[tx.vout_cnt - 1].opt = pp_htlcinfo[htlc_idx]->type;
 
                     //vin
-                    ucoin_vin_t *vin = ucoin_tx_add_vin(&tx, txid, vout_idx);
+                    ucoin_vin_t *vin = ucoin_tx_add_vin(&tx, self->commit_local.txid, vout_idx);
                     vin->sequence = 0;
 
                     //署名チェック
@@ -2863,6 +2864,7 @@ static bool create_to_local(ln_self_t *self,
                     }
 
                     //OKなら各HTLCに保持
+                    //  相手がunilateral closeした後に送信しなかったら、この署名を使う
                     memcpy(self->cnl_add_htlc[htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
 
 #ifdef UCOIN_USE_PRINTFUNC
@@ -3051,6 +3053,11 @@ static bool create_to_remote(ln_self_t *self,
     ucoin_print_tx(&tx_remote);
 #endif  //UCOIN_USE_PRINTFUNC
 
+    ret = ucoin_tx_txid(self->commit_remote.txid, &tx_remote);
+    if (!ret) {
+        DBG_PRINTF("fail: ucoin_tx_txid\n");
+    }
+
     //送信用 commitment_signed.signature
     ln_misc_sigtrim(self->commit_local.signature, buf_sig.buf);
     ucoin_buf_free(&buf_sig);
@@ -3063,7 +3070,6 @@ static bool create_to_remote(ln_self_t *self,
 
         *pp_htlc_sigs = (uint8_t *)M_MALLOC(LN_SZ_SIGNATURE * cnt);
 
-        uint8_t txid[UCOIN_SZ_TXID];
         ucoin_buf_t buf_remotesig;
         ucoin_tx_t tx;
         ucoin_buf_t buf_sig;
@@ -3072,11 +3078,6 @@ static bool create_to_remote(ln_self_t *self,
         ucoin_buf_init(&buf_remotesig);
         ucoin_buf_init(&buf_sig);
         ucoin_tx_init(&tx);
-        ret = ucoin_tx_txid(txid, &tx_remote);
-        if (!ret) {
-            DBG_PRINTF("fail: ucoin_tx_txid\n");
-            return false;
-        }
         ln_misc_sigexpand(&buf_remotesig, self->commit_remote.signature);
 
         //署名用鍵
@@ -3106,7 +3107,7 @@ static bool create_to_remote(ln_self_t *self,
                     tx.vout[tx.vout_cnt - 1].opt = pp_htlcinfo[htlc_idx]->type;
 
                     //vin
-                    ucoin_tx_add_vin(&tx, txid, vout_idx);
+                    ucoin_tx_add_vin(&tx, self->commit_remote.txid, vout_idx);
 
                     //署名
                     ret = ln_sign_p2wsh_success_timeout(&tx, &buf_sig,
