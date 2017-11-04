@@ -277,7 +277,10 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     ret = mdb_env_set_maxdbs(mpDbEnv, 2);
     assert(ret == 0);
     ret = mdb_env_open(mpDbEnv, pDbPath, MDB_RDONLY, 0664);
-    assert(ret == 0);
+    if (ret) {
+        fprintf(stderr, "fail: cannot open[%s]\n", pDbPath);
+        assert(ret == 0);
+    }
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
