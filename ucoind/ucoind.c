@@ -537,6 +537,9 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
         bool haveCnl = ln_node_search_channel_id(NULL, conn.node_id);
         if (haveCnl) {
             //チャネルあり
+            //  相手とのチャネルがあるので、接続自体は可能かもしれない。
+            //  closeの仕方については、仕様や運用とも関係が深いので、後で変更することになるだろう。
+            //  今は、未接続の場合は mutual close以外で閉じることにする。
             DBG_PRINTF("チャネルはあるが接続していない\n");
             bool ret = lnapp_close_channel_force(conn.node_id);
         } else {
