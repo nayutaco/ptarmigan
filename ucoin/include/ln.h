@@ -147,7 +147,8 @@ typedef enum {
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
     LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
-    LN_CB_CLOSED,               ///< closing_signed受信通知
+    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
+    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
     LN_CB_SEND_REQ,             ///< peerへの送信要求
     LN_CB_MAX,
 } ln_cb_t;
@@ -776,11 +777,18 @@ typedef struct {
 //} ln_cb_htlc_changed_t;
 
 
+/** @struct ln_cb_closed_fee_t
+ *  @brief  FEE不一致なおclosing_signed受信(#LN_CB_CLOSED_FEE)
+ */
+typedef struct {
+    uint64_t                fee_sat;                ///< 受信したfee
+} ln_cb_closed_fee_t;
+
+
 /** @struct ln_cb_closed_t
  *  @brief  Mutual Close完了通知(#LN_CB_CLOSED)
  */
 typedef struct {
-    const ucoin_buf_t       *p_buf_bolt;            ///< peerに送信するメッセージ
     const ucoin_buf_t       *p_tx_closing;          ///< ブロックチェーンに公開するtx
 } ln_cb_closed_t;
 

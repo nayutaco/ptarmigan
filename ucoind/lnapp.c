@@ -259,6 +259,7 @@ static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
 
@@ -597,6 +598,9 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         }
         ln_free_close_force_tx(&close_dat);
     }
+
+    ln_db_del_channel(&my_self);
+
     return true;
 }
 
@@ -1700,7 +1704,8 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
         //    LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
         //    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
-        //    LN_CB_CLOSED,               ///< closing_signed受信通知
+        //    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
+        //    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
         //    LN_CB_SEND_REQ,             ///< peerへの送信要求
 
         { "  LN_CB_ERROR: エラー有り", cb_error_recv },
@@ -1721,7 +1726,8 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_COMMIT_SIG_RECV: commitment_signed受信通知", cb_commit_sig_recv },
         { "  LN_CB_HTLC_CHANGED: HTLC変化", cb_htlc_changed },
         { "  LN_CB_SHUTDOWN_RECV: shutdown受信", cb_shutdown_recv },
-        { "  LN_CB_CLOSED: closing_signed受信", cb_closed },
+        { "  LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)", cb_closed_fee },
+        { "  LN_CB_CLOSED: closing_signed受信(FEE一致)", cb_closed },
         { "  LN_CB_SEND_REQ: 送信要求", cb_send_req },
     };
 
@@ -2363,7 +2369,20 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_CLOSED: closing_singed受信
+//LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)
+static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param)
+{
+    DBGTRACE_BEGIN
+
+    const ln_cb_closed_fee_t *p_closed_fee = (const ln_cb_closed_fee_t *)p_param;
+    DBG_PRINTF("received fee: %" PRIu64 "\n", p_closed_fee->fee_sat);
+
+#warning FEEの決め方
+    ln_update_shutdown_fee(p_conf->p_self, p_closed_fee->fee_sat);
+}
+
+
+//LN_CB_CLOSED: closing_singed受信(FEE一致)
 //  コールバック後、selfはクリアされる
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 {
@@ -2371,39 +2390,32 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 
     const ln_cb_closed_t *p_closed = (const ln_cb_closed_t *)p_param;
 
-    if (p_closed->p_tx_closing->len > 0) {
-        //closing_txを展開
-        DBG_PRINTF("send closing tx\n");
+    //closing_txを展開
+    DBG_PRINTF("send closing tx\n");
 
-        uint8_t txid[UCOIN_SZ_TXID];
-        bool ret = jsonrpc_sendraw_tx(txid, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
-        if (!ret) {
-            SYSLOG_ERR("%s(): jsonrpc_sendraw_tx", __func__);
-            assert(0);
-        }
-        DUMPTXID(txid);
-
-        // method: closed
-        // $1: short_channel_id
-        // $2: closing_txid
-        char param[256];
-        sprintf(param, "%" PRIu64 " ",
-                    ln_short_channel_id(p_conf->p_self));
-        misc_bin2str_rev(param + strlen(param), txid, UCOIN_SZ_TXID);
-        call_script(M_EVT_CLOSED, param);
-
-#warning 現在はMutual Closeしかないため、DBから削除する
-        db_del_channel(p_conf->p_self, true);
-
-        //これ以上やることは無いので、channelスレッドは終了する
-        stop_threads(p_conf);
-    } else {
-        //closing_singedを送信
-        DBG_PRINTF("send closing_signed\n");
-        send_peer_noise(p_conf, p_closed->p_buf_bolt);
+    uint8_t txid[UCOIN_SZ_TXID];
+    bool ret = jsonrpc_sendraw_tx(txid, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
+    if (!ret) {
+        SYSLOG_ERR("%s(): jsonrpc_sendraw_tx", __func__);
+        assert(0);
     }
-
     DBG_PRINTF("closing_txid: ");
+    DUMPTXID(txid);
+
+    // method: closed
+    // $1: short_channel_id
+    // $2: closing_txid
+    char param[256];
+    sprintf(param, "%" PRIu64 " ",
+                ln_short_channel_id(p_conf->p_self));
+    misc_bin2str_rev(param + strlen(param), txid, UCOIN_SZ_TXID);
+    call_script(M_EVT_CLOSED, param);
+
+    //closing_txをブロックチェーンに展開したので、削除してOK
+    db_del_channel(p_conf->p_self, true);
+
+    //これ以上やることは無いので、channelスレッドは終了する
+    stop_threads(p_conf);
 
     DBGTRACE_END
 }

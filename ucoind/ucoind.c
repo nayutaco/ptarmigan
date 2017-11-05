@@ -542,6 +542,11 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
             //  今は、未接続の場合は mutual close以外で閉じることにする。
             DBG_PRINTF("チャネルはあるが接続していない\n");
             bool ret = lnapp_close_channel_force(conn.node_id);
+            if (ret) {
+                DBG_PRINTF("force closed\n");
+            } else {
+                DBG_PRINTF("fail: force close\n");
+            }
         } else {
             //チャネルなし
             ctx->error_code = RPCERR_NOCHANN;

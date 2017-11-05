@@ -1867,37 +1867,51 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->cnl_closing_signed.p_channel_id = self->channel_id;
     self->cnl_closing_signed.p_signature = self->commit_local.signature;
 
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
-    ucoin_buf_t txbuf;
-    ucoin_buf_init(&txbuf);
+    bool need_closetx = self->close_last_fee_sat == self->cnl_closing_signed.fee_sat;
+
+    if (!need_closetx) {
+        //不一致なので、feeを設定してもらう
+        ln_cb_closed_fee_t closed_fee;
+        closed_fee.fee_sat = self->cnl_closing_signed.fee_sat;
+        (*self->p_callback)(self, LN_CB_CLOSED_FEE, &closed_fee);
+    }
 
     //closing_tx作成(署名とverifyも行う)
     ucoin_tx_free(&self->tx_closing);
     ret = create_closing_tx(self, &self->tx_closing, true);
 
-    if (self->close_last_fee_sat == self->close_fee_sat) {
+    if (need_closetx) {
         //closing_txを展開してもらう
         DBG_PRINTF("same fee!\n");
-        ucoin_tx_create(&txbuf, &self->tx_closing);
+        ucoin_buf_t txbuf;
+        ucoin_buf_init(&txbuf);
+        ret = ucoin_tx_create(&txbuf, &self->tx_closing);
+        if (ret) {
+            ln_cb_closed_t closed;
+
+            closed.p_tx_closing = &txbuf;
+            (*self->p_callback)(self, LN_CB_CLOSED, &closed);
+            channel_clear(self);
+        } else {
+            DBG_PRINTF("fail: create closeing_tx\n");
+            assert(0);
+        }
+        ucoin_buf_free(&txbuf);
     } else {
         //closing_singnedを送信する
         DBG_PRINTF("different fee!\n");
+        ucoin_buf_t buf_bolt;
+        ucoin_buf_init(&buf_bolt);
         ret = ln_msg_closing_signed_create(&buf_bolt, &self->cnl_closing_signed);
-        self->close_last_fee_sat = self->close_fee_sat;
+        if (ret) {
+            self->close_last_fee_sat = self->close_fee_sat;
+            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+        } else {
+            DBG_PRINTF("fail: create closeing_signed\n");
+            assert(0);
+        }
+        ucoin_buf_free(&buf_bolt);
     }
-
-    if (ret) {
-        ln_cb_closed_t closed;
-        closed.p_buf_bolt = &buf_bolt;
-        closed.p_tx_closing = &txbuf;
-        (*self->p_callback)(self, LN_CB_CLOSED, &closed);
-    }
-    ucoin_buf_free(&txbuf);
-    ucoin_buf_free(&buf_bolt);
-
-    //ここでクリアすると、shutdown_flagもクリアされるので、2回受信しても送信はしなくなる。
-    channel_clear(self);
 
     DBG_PRINTF("END\n");
     return ret;

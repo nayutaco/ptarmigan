@@ -711,7 +711,9 @@ bool ucoin_tx_verify(const ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint
 LABEL_EXIT:
     mbedtls_ecp_keypair_free(&keypair);
 
-    if (ret != 0) {
+    if (ret == 0) {
+        DBG_PRINTF("ok: verify\n");
+    } else {
         DBG_PRINTF("fail ret=%d\n", ret);
         DBG_PRINTF("pSig: ");
         DUMPBIN(pSig->buf, pSig->len);
