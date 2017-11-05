@@ -1864,6 +1864,13 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
+    //相手が要求するFEEでverify
+    ucoin_tx_free(&self->tx_closing);
+    ret = create_closing_tx(self, &self->tx_closing, true);
+    if (!ret) {
+        DBG_PRINTF("fail: verify\n");
+    }
+
     self->cnl_closing_signed.p_channel_id = self->channel_id;
     self->cnl_closing_signed.p_signature = self->commit_local.signature;
 
@@ -1876,9 +1883,10 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         (*self->p_callback)(self, LN_CB_CLOSED_FEE, &closed_fee);
     }
 
-    //closing_tx作成(署名とverifyも行う)
+    //closing_tx作成
     ucoin_tx_free(&self->tx_closing);
-    ret = create_closing_tx(self, &self->tx_closing, true);
+    ret = create_closing_tx(self, &self->tx_closing, need_closetx);
+    assert(ret);
 
     if (need_closetx) {
         //closing_txを展開してもらう
@@ -3197,7 +3205,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
         return false;
     }
 
-    DBG_PRINTF("BEGIN\n");
+    DBG_PRINTF("BEGIN: verify:%d\n", bVerify);
 
     bool ret;
     uint64_t fee_local;
