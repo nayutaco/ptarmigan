@@ -1437,24 +1437,9 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     uint64_t sat;
     bool ret = jsonrpc_getxout(&sat, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
     if (!ret) {
-#warning Mutual Closeしか用意していないため、このルートは現在通らない
-        //gettxoutはunspentを返すので、取得失敗→closing_txとして使用されたとみなす
-        SYSLOG_WARN("POLL: fail gettxout for funding_tx !!!!!\n");
-        DBG_PRINTF("txid: ");
-        DUMPBIN(ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
-        DBG_PRINTF("txindex: %d\n", ln_funding_txindex(p_conf->p_self));
-
-        if (p_conf->funding_confirm > 0) {
-            //正常:gettransactionもOKなので、削除可能
-            db_del_channel(p_conf->p_self, false);
-        } else {
-            //異常:gettransactionできないので、outpointが存在しない？
-            SYSLOG_ERR("%s(): POLL gettransaction ????", __func__);
-        }
-
         //ループ解除
+        DBG_PRINTF("funding_tx is spent.\n");
         stop_threads(p_conf);
-        return;
     }
 
     //DBGTRACE_END

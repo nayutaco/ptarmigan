@@ -81,6 +81,7 @@ static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
 
 static void *thread_monitor_start(void *pArg);
+static bool monfunc(ln_self_t *self, void *p_param);
 
 
 /********************************************************************
@@ -917,8 +918,37 @@ static void *thread_monitor_start(void *pArg)
                 break;
             }
         }
+
+        ln_db_search_channel(monfunc, NULL);
     }
     DBG_PRINTF("stop\n");
 
     return NULL;
+}
+
+
+static bool monfunc(ln_self_t *self, void *p_param)
+{
+    (void)p_param;
+
+    DBG_PRINTF("funding_txid[%d]: ", self->funding_local.txindex);
+    DUMPTXID(self->funding_local.txid);
+
+    uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
+    if (confm > 0) {
+        uint64_t sat;
+        bool ret = jsonrpc_getxout(&sat, ln_funding_txid(self), ln_funding_txindex(self));
+        if (!ret) {
+            //gettxoutはunspentを返すので、取得失敗→unilateral close/revoked transaction closeとみなす
+            SYSLOG_WARN("closed channel\n");
+
+            //このtxidをINPUTとするtxidを取得
+
+            //最後にDBからチャネルを削除
+            bool ret = ln_db_del_channel(self);
+            assert(ret);
+        }
+    }
+
+    return false;
 }
