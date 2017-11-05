@@ -45,6 +45,13 @@
 #include "ln_db.h"
 
 
+/**************************************************************************
+ * macro
+ **************************************************************************/
+
+#define M_WAIT_MON_SEC                  (600)       ///< 監視周期[sec]
+
+
 /********************************************************************
  * static variables
  ********************************************************************/
@@ -53,6 +60,7 @@ static ln_node_t            mNode;
 static struct jrpc_server   mJrpc;
 static preimage_t           mPreimage[PREIMAGE_NUM];
 static pthread_mutex_t      mMuxPreimage;
+static volatile bool        mMonitoring;
 
 
 /********************************************************************
@@ -71,6 +79,8 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
+
+static void *thread_monitor_start(void *pArg);
 
 
 /********************************************************************
@@ -192,6 +202,11 @@ int main(int argc, char *argv[])
     pthread_t th_svr;
     pthread_create(&th_svr, NULL, &p2p_svr_start, &node_conf.port);
 
+    //チャネル監視用
+    pthread_t th_poll;
+    mMonitoring = true;
+    pthread_create(&th_poll, NULL, &thread_monitor_start, NULL);
+
 #if NETKIND==0
     SYSLOG_INFO("start bitcoin mainnet");
 #elif NETKIND==1
@@ -203,7 +218,7 @@ int main(int argc, char *argv[])
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
-    //pthread_join(th_fu, NULL);
+    pthread_join(th_poll, NULL);
     DBG_PRINTF("%s exit\n", argv[0]);
 
     SYSLOG_INFO("end");
@@ -308,7 +323,7 @@ void preimage_clear(int index)
 
 
 /********************************************************************
- * private functions
+ * private functions: JSON-RPC server
  ********************************************************************/
 
 static int msg_recv(uint16_t Port)
@@ -835,6 +850,8 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
     p2p_cli_stop_all();
     jrpc_server_stop(&mJrpc);
 
+    mMonitoring = false;
+
     return cJSON_CreateString("OK");
 }
 
@@ -881,4 +898,27 @@ static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id)
         p_appconf = p2p_svr_search_short_channel_id(short_channel_id);
     }
     return p_appconf;
+}
+
+
+/**************************************************************************
+ * private functions: monitoring all channels
+ **************************************************************************/
+
+static void *thread_monitor_start(void *pArg)
+{
+    (void)pArg;
+
+    while (mMonitoring) {
+        //ループ解除まで時間が長くなるので、短くチェックする
+        for (int lp = 0; lp < M_WAIT_MON_SEC; lp++) {
+            sleep(1);
+            if (!mMonitoring) {
+                break;
+            }
+        }
+    }
+    DBG_PRINTF("stop\n");
+
+    return NULL;
 }
