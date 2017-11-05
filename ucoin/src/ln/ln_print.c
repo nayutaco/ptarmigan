@@ -103,9 +103,9 @@ void ln_print_self(const ln_self_t *self)
     fprintf(PRINTOUT, M_QQ("fund_flag") ": " M_QQ("%02x") ",", self->fund_flag);
     fprintf(PRINTOUT, M_QQ("funding_local") ": {\n");
     fprintf(PRINTOUT, M_QQ("funding_txid") ": \"");
-    ucoin_util_dumptxid(PRINTOUT, self->funding_local.funding_txid);
+    ucoin_util_dumptxid(PRINTOUT, self->funding_local.txid);
     fprintf(PRINTOUT, "\",\n");
-    fprintf(PRINTOUT, M_QQ("funding_txindex") ": %d,\n", self->funding_local.funding_txindex);
+    fprintf(PRINTOUT, M_QQ("funding_txindex") ": %d,\n", self->funding_local.txindex);
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         fprintf(PRINTOUT, M_QQ("%s") ": ", KEYS_STR[lp]);
         fprintf(PRINTOUT, "{");
@@ -405,7 +405,7 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
 #ifdef UCOIN_DEBUG
     fprintf(fp, "-[local]-------------------------------\n");
     fprintf(fp, "funding_txid: ");
-    ucoin_util_dumptxid(fp, pLocal->funding_txid);
+    ucoin_util_dumptxid(fp, pLocal->txid);
     fprintf(fp, "\n");
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         fprintf(fp, "%s pri: ", KEYS_STR[lp]);

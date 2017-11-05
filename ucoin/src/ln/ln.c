@@ -1487,8 +1487,8 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
         //funding_created
         ln_funding_created_t *fundc = &self->p_est->cnl_funding_created;
         fundc->p_temp_channel_id = self->channel_id;
-        fundc->funding_output_idx = self->funding_local.funding_txindex;
-        fundc->p_funding_txid = self->funding_local.funding_txid;
+        fundc->funding_output_idx = self->funding_local.txindex;
+        fundc->p_funding_txid = self->funding_local.txid;
         fundc->p_signature = self->commit_local.signature;
 
         ucoin_buf_t buf_bolt;
@@ -1518,7 +1518,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
     ln_funding_created_t *fundc = &self->p_est->cnl_funding_created;
     fundc->p_temp_channel_id = channel_id;
-    fundc->p_funding_txid = self->funding_local.funding_txid;
+    fundc->p_funding_txid = self->funding_local.txid;
     fundc->p_signature = self->commit_remote.signature;
     ret = ln_msg_funding_created_read(&self->p_est->cnl_funding_created, pData, Len);
     if (!ret) {
@@ -1533,17 +1533,17 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
         return false;
     }
 
-    self->funding_local.funding_txindex = fundc->funding_output_idx;
+    self->funding_local.txindex = fundc->funding_output_idx;
 
     //署名チェック用
     ucoin_tx_free(&self->tx_funding);
-    for (int lp = 0; lp < self->funding_local.funding_txindex; lp++) {
+    for (int lp = 0; lp < self->funding_local.txindex; lp++) {
         //処理の都合上、voutの位置を調整している
         ucoin_tx_add_vout(&self->tx_funding, 0);
     }
     ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_est->cnl_open.funding_sat, &self->redeem_fund);
     //TODO: 実装上、vinが0、voutが1だった場合にsegwitと誤認してしまう
-    ucoin_tx_add_vin(&self->tx_funding, self->funding_local.funding_txid, 0);
+    ucoin_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
 
     //署名チェック
     // initial commit tx(自分が持つTo-Local)
@@ -1567,7 +1567,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     }
 
     //正式チャネルID
-    ln_misc_calc_channel_id(self->channel_id, self->funding_local.funding_txid, self->funding_local.funding_txindex);
+    ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     //funding_signed
     self->p_est->cnl_funding_signed.p_channel_id = self->channel_id;
@@ -1582,7 +1582,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     self->short_channel_id = 0;
     ln_cb_funding_t funding;
     funding.p_tx_funding = NULL;
-    funding.p_txid = self->funding_local.funding_txid;
+    funding.p_txid = self->funding_local.txid;
     funding.b_send = false; //sendrawtransactionしない
     (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
@@ -1614,7 +1614,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-id生成
-    ln_misc_calc_channel_id(self->channel_id, self->funding_local.funding_txid, self->funding_local.funding_txindex);
+    ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     //channel-idチェック
     if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
@@ -1638,7 +1638,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->short_channel_id = 0;
     ln_cb_funding_t funding;
     funding.p_tx_funding = &self->tx_funding;
-    funding.p_txid = self->funding_local.funding_txid;
+    funding.p_txid = self->funding_local.txid;
     funding.b_send = true;  //sendrawtransactionする
     (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
@@ -2689,10 +2689,10 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_buf_free(&txbuf);
 
     //署名
-    self->funding_local.funding_txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
-    ucoin_util_sign_p2wpkh_native(&self->tx_funding, self->funding_local.funding_txindex,
+    self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
+    ucoin_util_sign_p2wpkh_native(&self->tx_funding, self->funding_local.txindex,
                         self->p_est->p_fundin->amount, self->p_est->p_fundin->p_keys, self->p_est->p_fundin->b_native);
-    ucoin_tx_txid(self->funding_local.funding_txid, &self->tx_funding);
+    ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
 
     return true;
 }
@@ -2810,8 +2810,8 @@ static bool create_to_local(ln_self_t *self,
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY]);
 
     //commitment transaction
-    lntx_commit.fund.txid = self->funding_local.funding_txid;
-    lntx_commit.fund.txid_index = self->funding_local.funding_txindex;
+    lntx_commit.fund.txid = self->funding_local.txid;
+    lntx_commit.fund.txid_index = self->funding_local.txindex;
     lntx_commit.fund.satoshi = self->funding_sat;
     lntx_commit.fund.p_script = &self->redeem_fund;
     lntx_commit.fund.p_keys = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
@@ -2954,7 +2954,7 @@ static bool create_to_local(ln_self_t *self,
         ucoin_sw_scriptcode_p2wsh(&script_code, &self->redeem_fund);
         ucoin_sw_sighash(sighash, &tx_local, 0, self->funding_sat, &script_code);
         ret = ucoin_sw_verify_2of2(&tx_local, 0, sighash,
-                    &self->tx_funding.vout[self->funding_local.funding_txindex].script);
+                    &self->tx_funding.vout[self->funding_local.txindex].script);
         if (ret) {
             DBG_PRINTF("verify OK\n");
         } else {
@@ -3051,8 +3051,8 @@ static bool create_to_remote(ln_self_t *self,
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY]);
 
     //commitment transaction(Remote)
-    lntx_commit.fund.txid = self->funding_local.funding_txid;
-    lntx_commit.fund.txid_index = self->funding_local.funding_txindex;
+    lntx_commit.fund.txid = self->funding_local.txid;
+    lntx_commit.fund.txid_index = self->funding_local.txindex;
     lntx_commit.fund.satoshi = self->funding_sat;
     lntx_commit.fund.p_script = &self->redeem_fund;
     lntx_commit.fund.p_keys = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
@@ -3243,7 +3243,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
     }
 
     //vin
-    ucoin_tx_add_vin(pTx, self->funding_local.funding_txid, self->funding_local.funding_txindex);
+    ucoin_tx_add_vin(pTx, self->funding_local.txid, self->funding_local.txindex);
 
     //BIP69
     ucoin_util_sort_bip69(pTx);
@@ -3276,7 +3276,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
         // 署名verify
         //
         ret = ucoin_sw_verify_2of2(pTx, 0, sighash,
-                        &self->tx_funding.vout[self->funding_local.funding_txindex].script);
+                        &self->tx_funding.vout[self->funding_local.txindex].script);
     }
     ucoin_buf_free(&buf_sig);
 
@@ -3419,7 +3419,7 @@ static bool proc_established(ln_self_t *self)
             ln_cb_funding_t funding;
 
             funding.p_tx_funding = &self->tx_funding;
-            funding.p_txid = self->funding_local.funding_txid;
+            funding.p_txid = self->funding_local.txid;
             funding.b_send = false;
             funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : false;
             (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);

@@ -601,8 +601,8 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
     self.our_msat = MSAT_LOCAL;
     self.their_msat = MSAT_REMOTE;
 
-    memcpy(self.funding_local.funding_txid, TXID_FUND, UCOIN_SZ_TXID);
-    self.funding_local.funding_txindex = TXID_FUND_INDEX;
+    memcpy(self.funding_local.txid, TXID_FUND, UCOIN_SZ_TXID);
+    self.funding_local.txindex = TXID_FUND_INDEX;
 
     //local_funding_privkey
     memcpy(self.funding_local.keys[MSG_FUNDIDX_FUNDING].priv, LOCAL_FUNDING_PRIVKEY, UCOIN_SZ_PRIVKEY);
@@ -667,7 +667,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
     ln_misc_sigtrim(self.commit_remote.signature, REMOTE_SIGNATURE);
     //
     ucoin_util_create2of2(&self.redeem_fund, &self.key_fund_sort, LOCAL_FUNDING_PUBKEY, REMOTE_FUNDING_PUBKEY);
-    self.tx_funding.vout[self.funding_local.funding_txindex].script
+    self.tx_funding.vout[self.funding_local.txindex].script
 
     //ln_fundin_t fundin;
     //memset(&fundin, 0, sizeof(fundin));

@@ -846,8 +846,8 @@ typedef struct {
  *  @brief  自ノードfunding情報
  */
 typedef struct {
-    uint8_t             funding_txid[UCOIN_SZ_TXID];            ///< funding-tx TXID
-    uint16_t            funding_txindex;                        ///< funding-tx index
+    uint8_t             txid[UCOIN_SZ_TXID];                    ///< funding-tx TXID
+    uint16_t            txindex;                                ///< funding-tx index
 
     //MSG_FUNDIDX_xxx
     ucoin_util_keys_t   keys[LN_FUNDIDX_MAX];
@@ -1450,7 +1450,7 @@ static inline uint16_t ln_htlc_num(const ln_self_t *self) {
  * @return      funding_txのTXID
  */
 static inline const uint8_t *ln_funding_txid(const ln_self_t *self) {
-    return self->funding_local.funding_txid;
+    return self->funding_local.txid;
 }
 
 
@@ -1460,7 +1460,7 @@ static inline const uint8_t *ln_funding_txid(const ln_self_t *self) {
  * @return      funding_txのTXINDEX
  */
 static inline uint32_t ln_funding_txindex(const ln_self_t *self) {
-    return self->funding_local.funding_txindex;
+    return self->funding_local.txindex;
 }
 
 
