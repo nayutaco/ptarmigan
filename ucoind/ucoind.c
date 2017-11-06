@@ -936,17 +936,33 @@ static bool monfunc(ln_self_t *self, void *p_param)
 
     uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
     if (confm > 0) {
+        bool del = false;
         uint64_t sat;
         bool ret = jsonrpc_getxout(&sat, ln_funding_txid(self), ln_funding_txindex(self));
         if (!ret) {
             //gettxoutはunspentを返すので、取得失敗→unilateral close/revoked transaction closeとみなす
             SYSLOG_WARN("closed channel\n");
 
-            //このtxidをINPUTとするtxidを取得
+            //
+            uint8_t txid_closing[UCOIN_SZ_TXID];
+            ret = ucoin_tx_txid(txid_closing, &self->tx_closing);
+            if ( ret && (self->tx_closing.vin_cnt == 1) &&
+                 (memcmp(self->tx_closing.vin[0].txid, txid_closing, UCOIN_SZ_TXID) == 0) ) {
+                //
+                ret = jsonrpc_getraw_tx(NULL, txid_closing);
+                if (ret) {
+                    DBG_PRINTF("OK: closing_tx is published\n");
+                    del = true;
+                } else {
+                    DBG_PRINTF("not closing_tx\n");
+                }
+            }
 
-            //最後にDBからチャネルを削除
-            bool ret = ln_db_del_channel(self);
-            assert(ret);
+            if (del) {
+                //最後にDBからチャネルを削除
+                ret = ln_db_del_channel(self);
+                assert(ret);
+            }
         }
     }
 

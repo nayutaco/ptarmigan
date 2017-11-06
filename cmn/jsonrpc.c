@@ -502,7 +502,6 @@ LABEL_EXIT:
 }
 
 
-#if 0
 bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
 {
     bool ret = false;
@@ -544,11 +543,13 @@ bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
             DBG_PRINTF("error: len\n");
             goto LABEL_DECREF;
         }
-        len >>= 1;
-        p_hex = (uint8_t *)malloc(len);
-        misc_str2bin(p_hex, len, str_hex);
-        ucoin_tx_read(pTx, p_hex, len);
-        free(p_hex);
+        if (pTx) {
+            len >>= 1;
+            p_hex = (uint8_t *)malloc(len);
+            misc_str2bin(p_hex, len, str_hex);
+            ucoin_tx_read(pTx, p_hex, len);
+            free(p_hex);
+        }
         ret = true;
 LABEL_DECREF:
         json_decref(p_root);
@@ -558,7 +559,6 @@ LABEL_EXIT:
 
     return ret;
 }
-#endif
 
 
 bool jsonrpc_getxout(uint64_t *pSat, const uint8_t *pTxid, int Txidx)
