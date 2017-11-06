@@ -729,6 +729,18 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
 
 void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee)
 {
+    //BOLT#3
+    //  A sending node MUST set fee_satoshis lower than or equal to the base fee
+    //      of the final commitment transaction as calculated in BOLT #3.
+    ln_feeinfo_t feeinfo;
+    feeinfo.feerate_per_kw = self->feerate_per_kw;
+    feeinfo.dust_limit_satoshi = self->commit_local.dust_limit_sat;
+    ln_fee_calc(&feeinfo, NULL, 0);     //HTLC無し
+    if (Fee > feeinfo.commit) {
+        DBG_PRINTF("closing fee limit(%" PRIu64 " > %" PRIu64 ")\n", Fee, feeinfo.commit);
+        Fee = feeinfo.commit;
+    }
+
     self->close_fee_sat = Fee;
     DBG_PRINTF("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
 }
@@ -1864,6 +1876,18 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
+    //BOLT#3
+    //  A sending node MUST set fee_satoshis lower than or equal to the base fee
+    //      of the final commitment transaction as calculated in BOLT #3.
+    ln_feeinfo_t feeinfo;
+    feeinfo.feerate_per_kw = self->feerate_per_kw;
+    feeinfo.dust_limit_satoshi = self->commit_local.dust_limit_sat;
+    ln_fee_calc(&feeinfo, NULL, 0);     //HTLC無し
+    if (self->cnl_closing_signed.fee_sat > feeinfo.commit) {
+        DBG_PRINTF("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", self->cnl_closing_signed.fee_sat, feeinfo.commit);
+        return false;
+    }
+
     //相手が要求するFEEでverify
     ucoin_tx_free(&self->tx_closing);
     ret = create_closing_tx(self, &self->tx_closing, true);
@@ -1874,7 +1898,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->cnl_closing_signed.p_channel_id = self->channel_id;
     self->cnl_closing_signed.p_signature = self->commit_local.signature;
 
-    bool need_closetx = self->close_last_fee_sat == self->cnl_closing_signed.fee_sat;
+    bool need_closetx = (self->close_last_fee_sat == self->cnl_closing_signed.fee_sat);
 
     if (!need_closetx) {
         //不一致なので、feeを設定してもらう
