@@ -2349,7 +2349,7 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
 
     //fee and addr
     //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
-    uint64_t commit_fee = ln_calc_default_closing_fee(p_conf->p_self);
+    uint64_t commit_fee = ln_calc_max_closing_fee(p_conf->p_self);
     set_changeaddr(p_conf->p_self, commit_fee);
 }
 

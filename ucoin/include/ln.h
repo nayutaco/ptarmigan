@@ -65,6 +65,8 @@ extern "C" {
 #define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
 #define LN_HOP_MAX                      (20)        ///< onion hop数
 
+#define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
+
 // ln_update_add_htlc_t.flag用
 #define LN_HTLC_FLAG_IS_RECV(f)         ((f) & LN_HTLC_FLAG_RECV)   ///< true:Received HTLC / false:Offered HTLC
 #define LN_HTLC_FLAG_SEND               (0x00)                      ///< Offered HTLC(add_htlcを送信した)
@@ -1352,13 +1354,6 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
-/** 初期closing_tx FEE取得
- *
- * @param[in,out]       self            channel情報
- */
-uint64_t ln_calc_default_closing_fee(ln_self_t *self);
-
-
 /********************************************************************
  * inline展開用
  ********************************************************************/
@@ -1482,6 +1477,15 @@ static inline uint32_t ln_minimum_depth(const ln_self_t *self) {
  */
 static inline bool ln_is_funder(const ln_self_t *self) {
     return (self->fund_flag & LN_FUNDFLAG_FUNDER);
+}
+
+
+/** 初期closing_tx FEE取得
+ *
+ * @param[in,out]       self            channel情報
+ */
+static inline uint64_t ln_calc_max_closing_fee(ln_self_t *self) {
+    return (LN_FEE_COMMIT_BASE * self->feerate_per_kw / 1000);
 }
 
 

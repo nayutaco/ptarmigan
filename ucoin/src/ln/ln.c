@@ -732,13 +732,10 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee)
     //BOLT#3
     //  A sending node MUST set fee_satoshis lower than or equal to the base fee
     //      of the final commitment transaction as calculated in BOLT #3.
-    ln_feeinfo_t feeinfo;
-    feeinfo.feerate_per_kw = self->feerate_per_kw;
-    feeinfo.dust_limit_satoshi = self->commit_local.dust_limit_sat;
-    ln_fee_calc(&feeinfo, NULL, 0);     //HTLC無し
-    if (Fee > feeinfo.commit) {
-        DBG_PRINTF("closing fee limit(%" PRIu64 " > %" PRIu64 ")\n", Fee, feeinfo.commit);
-        Fee = feeinfo.commit;
+    uint64_t feemax = ln_calc_max_closing_fee(self);
+    if (Fee > feemax) {
+        DBG_PRINTF("closing fee limit(%" PRIu64 " > %" PRIu64 ")\n", Fee, feemax);
+        Fee = feemax;
     }
 
     self->close_fee_sat = Fee;
@@ -1102,17 +1099,6 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes)
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 {
     ucoin_util_sha256(pHash, pPreImage, LN_SZ_PREIMAGE);
-}
-
-
-uint64_t ln_calc_default_closing_fee(ln_self_t *self)
-{
-    ln_feeinfo_t feeinfo;
-
-    feeinfo.feerate_per_kw = self->feerate_per_kw;
-    feeinfo.dust_limit_satoshi = self->commit_local.dust_limit_sat;
-    ln_fee_calc(&feeinfo, NULL, 0);
-    return feeinfo.commit;
 }
 
 
@@ -1879,12 +1865,9 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     //BOLT#3
     //  A sending node MUST set fee_satoshis lower than or equal to the base fee
     //      of the final commitment transaction as calculated in BOLT #3.
-    ln_feeinfo_t feeinfo;
-    feeinfo.feerate_per_kw = self->feerate_per_kw;
-    feeinfo.dust_limit_satoshi = self->commit_local.dust_limit_sat;
-    ln_fee_calc(&feeinfo, NULL, 0);     //HTLC無し
-    if (self->cnl_closing_signed.fee_sat > feeinfo.commit) {
-        DBG_PRINTF("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", self->cnl_closing_signed.fee_sat, feeinfo.commit);
+    uint64_t feemax = ln_calc_max_closing_fee(self);
+    if (self->cnl_closing_signed.fee_sat > feemax) {
+        DBG_PRINTF("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", self->cnl_closing_signed.fee_sat, feemax);
         return false;
     }
 
@@ -3240,7 +3223,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
     ucoin_buf_init(&buf_sig);
     ucoin_tx_free(pTx);
     ucoin_tx_init(pTx);
-    pTx->version = 1;       //BOLT#3
+    pTx->version = 1;       // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#closing-transaction
 
     //BOLT#3: feeはfundedの方から引く
     if (ln_is_funder(self)) {
