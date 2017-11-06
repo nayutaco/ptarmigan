@@ -67,8 +67,10 @@
 // ln_self_t.shutdown_flag
 #define M_SHDN_FLAG_SEND                    (0x01)          ///< 1:shutdown送信あり
 #define M_SHDN_FLAG_RECV                    (0x02)          ///< 1:shutdown受信あり
-#define M_SHDN_FLAG_END                     (0x80)
-
+#define M_SHDN_FLAG_END                     (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)
+#define M_CLSN_FLAG_SEND                    (0x04)          ///< 1:closing_singed送信あり
+#define M_CLSN_FLAG_RECV                    (0x08)          ///< 1:closing_singed受信あり
+#define M_CLSN_FLAG_END                     (M_CLSN_FLAG_SEND | M_CLSN_FLAG_RECV)
 
 #define M_PONG_MISSING                      (5)             ///< pongが返ってこないエラー上限
 
@@ -1165,7 +1167,7 @@ bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBase
 static void channel_clear(ln_self_t *self)
 {
     //DBG_PRINTF2("***************************************************\n");
-    //DBG_PRINTF("\n");
+    DBG_PRINTF("\n");
     //DBG_PRINTF2("***************************************************\n");
 
     ucoin_buf_free(&self->shutdown_scriptpk_local);
@@ -1819,7 +1821,12 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         if (ret) {
             ret = ln_msg_closing_signed_create(&buf_bolt, &self->cnl_closing_signed);
         }
-        self->close_last_fee_sat = self->close_fee_sat;
+        if (ret) {
+            self->close_last_fee_sat = self->close_fee_sat;
+
+            //closing_singed送信あり
+            self->shutdown_flag |= M_CLSN_FLAG_SEND;
+        }
     }
 
     if (buf_bolt.len > 0) {
@@ -1839,7 +1846,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (self->shutdown_flag != (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)) {
+    if ((self->shutdown_flag & M_SHDN_FLAG_END) != M_SHDN_FLAG_END) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("bad status : %02x\n", self->shutdown_flag);
         return false;
@@ -1881,6 +1888,9 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->cnl_closing_signed.p_channel_id = self->channel_id;
     self->cnl_closing_signed.p_signature = self->commit_local.signature;
 
+    //closing_singed受信あり
+    self->shutdown_flag |= M_CLSN_FLAG_RECV;
+
     bool need_closetx = (self->close_last_fee_sat == self->cnl_closing_signed.fee_sat);
 
     if (!need_closetx) {
@@ -1906,7 +1916,9 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
             closed.p_tx_closing = &txbuf;
             (*self->p_callback)(self, LN_CB_CLOSED, &closed);
-            channel_clear(self);
+
+            //clearはDB削除に任せる
+            //channel_clear(self);
         } else {
             DBG_PRINTF("fail: create closeing_tx\n");
             assert(0);
@@ -1921,6 +1933,9 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+
+            //closing_singed送信あり
+            self->shutdown_flag |= M_CLSN_FLAG_SEND;
         } else {
             DBG_PRINTF("fail: create closeing_signed\n");
             assert(0);
@@ -1928,7 +1943,15 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         ucoin_buf_free(&buf_bolt);
     }
 
-    DBG_PRINTF("END\n");
+    //closing_signedの交換を1度でも行っていたら、obscuredを0にしてしまう(フラグ代わり)
+    if ( !ln_is_closing_signed_recvd(self) &&
+         ((self->shutdown_flag & M_CLSN_FLAG_END) == M_CLSN_FLAG_END) ) {
+        DBG_PRINTF("closing_signed exchanged\n");
+        self->obscured = 0;
+        ln_db_save_channel(self);
+    }
+
+    DBG_PRINTF("END: %02x : %" PRIu64 "\n", self->shutdown_flag, self->obscured);
     return ret;
 }
 

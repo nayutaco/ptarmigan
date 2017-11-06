@@ -455,14 +455,18 @@ bool ln_db_del_channel(const ln_self_t *self)
     if (retval == 0) {
         retval = mdb_drop(txn, dbi_cnl, 1);
     }
-    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
     retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
     if (retval == 0) {
         retval = mdb_drop(txn, dbi_cnl, 1);
     }
-    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     mdb_txn_commit(txn);
     txn = NULL;

@@ -129,8 +129,6 @@ void ucoin_dbg_free(void *ptr, int line)
 }
 #endif
 
-#define M_DBG_FULFILL() ((mDebug & 0x01) == 0)
-
 
 /********************************************************************
  * typedefs
@@ -179,14 +177,14 @@ typedef enum {
  * static variables
  ********************************************************************/
 
-static volatile bool    mLoop;              //true:チャネル有効
+static volatile bool        mLoop;          //true:チャネル有効
 
-static ln_node_t        *mpNode;
+static ln_node_t            *mpNode;
 static ln_anno_default_t    mAnnoDef;       ///< announcementデフォルト値
 
 //シーケンスのmutex
-static pthread_mutexattr_t mMuxAttr;
-static pthread_mutex_t mMuxSeq;
+static pthread_mutexattr_t  mMuxAttr;
+static pthread_mutex_t      mMuxSeq;
 static volatile enum {
     MUX_NONE,
     MUX_PAYMENT=0x01,               ///< 送金開始
@@ -197,6 +195,11 @@ static volatile enum {
 } mMuxTiming;
 
 static unsigned long mDebug;
+// 1: update_fulfill_htlcを返さない
+#define M_DBG_FULFILL() ((mDebug & 0x01) == 0)
+// 2: closeでclosing_txを展開しない
+#define M_DBG_CLOSING_TX() ((mDebug & 0x02) == 0)
+
 
 static const char *M_SCRIPT[] = {
     //M_EVT_ESTABLISHED
@@ -2058,7 +2061,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 ucoin_buf_alloccopy(&fulfill->buf, p_preimage->preimage, LN_SZ_PREIMAGE);
                 push_queue(p_conf, fulfill);
             } else {
-                DBG_PRINTF("DBG: no fulfil mode\n");
+                DBG_PRINTF("DBG: no fulfill mode\n");
             }
 
             //preimageを使い終わったら消す
@@ -2375,32 +2378,30 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 
     const ln_cb_closed_t *p_closed = (const ln_cb_closed_t *)p_param;
 
-    //closing_txを展開
-    DBG_PRINTF("send closing tx\n");
+    if (M_DBG_CLOSING_TX()) {
+        //closing_txを展開
+        DBG_PRINTF("send closing tx\n");
 
-    uint8_t txid[UCOIN_SZ_TXID];
-    bool ret = jsonrpc_sendraw_tx(txid, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
-    if (!ret) {
-        SYSLOG_ERR("%s(): jsonrpc_sendraw_tx", __func__);
-        assert(0);
+        uint8_t txid[UCOIN_SZ_TXID];
+        bool ret = jsonrpc_sendraw_tx(txid, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
+        if (!ret) {
+            SYSLOG_ERR("%s(): jsonrpc_sendraw_tx", __func__);
+            assert(0);
+        }
+        DBG_PRINTF("closing_txid: ");
+        DUMPTXID(txid);
+
+        // method: closed
+        // $1: short_channel_id
+        // $2: closing_txid
+        char param[256];
+        sprintf(param, "%" PRIu64 " ",
+                    ln_short_channel_id(p_conf->p_self));
+        misc_bin2str_rev(param + strlen(param), txid, UCOIN_SZ_TXID);
+        call_script(M_EVT_CLOSED, param);
+    } else {
+        DBG_PRINTF("DBG: no send closing_tx mode\n");
     }
-    DBG_PRINTF("closing_txid: ");
-    DUMPTXID(txid);
-
-    // method: closed
-    // $1: short_channel_id
-    // $2: closing_txid
-    char param[256];
-    sprintf(param, "%" PRIu64 " ",
-                ln_short_channel_id(p_conf->p_self));
-    misc_bin2str_rev(param + strlen(param), txid, UCOIN_SZ_TXID);
-    call_script(M_EVT_CLOSED, param);
-
-    //closing_txをブロックチェーンに展開したので、削除してOK
-    db_del_channel(p_conf->p_self, true);
-
-    //これ以上やることは無いので、channelスレッドは終了する
-    stop_threads(p_conf);
 
     DBGTRACE_END
 }

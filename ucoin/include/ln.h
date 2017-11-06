@@ -914,6 +914,7 @@ struct ln_self_t {
     ln_funding_local_data_t     funding_local;                  ///< funding情報:local
     ln_funding_remote_data_t    funding_remote;                 ///< funding情報:remote
     uint64_t                    obscured;                       ///< commitment numberをXORするとobscured commitment numberになる値。
+                                                                // 0の場合、1回でもclosing_signed受信した
     ucoin_buf_t                 redeem_fund;                    ///< 2-of-2のredeemScript
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
@@ -1484,8 +1485,18 @@ static inline bool ln_is_funder(const ln_self_t *self) {
  *
  * @param[in,out]       self            channel情報
  */
-static inline uint64_t ln_calc_max_closing_fee(ln_self_t *self) {
+static inline uint64_t ln_calc_max_closing_fee(const ln_self_t *self) {
     return (LN_FEE_COMMIT_BASE * self->feerate_per_kw / 1000);
+}
+
+
+/** closing_signed受信歴取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      true    closing_signedを受信したことがある
+ */
+static inline bool ln_is_closing_signed_recvd(const ln_self_t *self) {
+    return (self->obscured == 0);
 }
 
 
