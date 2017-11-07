@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2017/11/07
+
+* 全channelのfunding_tx UTXO監視(`gettxout`)
+* funding_txが使用されている場合、 `closing_signed` 受信後であればチャネル情報削除
+* DBバージョン更新
+
 ## 2017/10/28
 
 * issue #35: establish後、channel_announcement前でも、short_channel_idが存在するならば送金可能にする
