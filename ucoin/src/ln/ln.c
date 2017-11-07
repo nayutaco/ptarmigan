@@ -430,6 +430,11 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         DBG_PRINTF("fail: no init received : %04x\n", type);
         return false;
     }
+    if ((type != MSGTYPE_CLOSING_SIGNED) && ((self->shutdown_flag & M_SHDN_FLAG_END) == M_SHDN_FLAG_END)) {
+        self->err = LNERR_INV_STATE;
+        DBG_PRINTF("fail: not closing_signed received : %04x\n", type);
+        return false;
+    }
 
     for (int lp = 0; lp < (int)ARRAY_SIZE(RECV_FUNC); lp++) {
         if (type == RECV_FUNC[lp].type) {
@@ -1788,7 +1793,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     //HTLCが残っていたらfalse
     if (self->htlc_num != 0) {
-        DBG_PRINTF("fail: HTLC not 0\n");
+        DBG_PRINTF("fail: HTLC num : %d\n", self->htlc_num);
         return false;
     }
 
