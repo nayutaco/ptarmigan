@@ -81,6 +81,7 @@ static void invoice_rpc(char *pJson, uint64_t Amount);
 static void listinvoice_rpc(char *pJson);
 static void payment_rpc(char *pJson, const payment_conf_t *pPay);
 static void close_rpc(char *pJson);
+static void debug_rpc(char *pJson, int debug);
 
 static int msg_send(char *pMsg, const char *pAddr, uint16_t Port, bool bSend);
 
@@ -105,17 +106,24 @@ int main(int argc, char *argv[])
     bool b_send = true;
     int opt;
     uint8_t options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "htqlc:f:i:mp:xa:")) != -1) {
+    while ((opt = getopt(argc, argv, "htqlc:f:i:mp:xa:d:")) != -1) {
         switch (opt) {
         case 'h':
             options = M_OPTIONS_HELP;
             break;
         case 't':
+            //JSONデータを表示させるのみで送信しない
             b_send = false;
             break;
         case 'a':
+            //指示するucoindのIPアドレス指定
             strcpy(addr, optarg);
             p_addr = addr;
+            break;
+        case 'd':
+            //デバッグ
+            debug_rpc(mBuf, (int)strtol(optarg, NULL, 10));
+            options = M_OPTIONS_EXEC;
             break;
 
         //
@@ -418,6 +426,16 @@ static void close_rpc(char *pJson)
             " ]"
         "}",
             mPeerNodeId, mPeerAddr, mPeerPort);
+}
+
+
+static void debug_rpc(char *pJson, int debug)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "debug") M_NEXT
+            M_QQ("params") ":[ %d ]"
+        "}", debug);
 }
 
 

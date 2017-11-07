@@ -389,13 +389,13 @@ int main(int argc, char *argv[])
             strcpy(dbpath, argv[3]);
         }
     } else {
-        printf("usage:\n");
-        printf("\t%s [mainnet/testnet] [option] [db dir]\n", argv[0]);
-        printf("\t\twallet  : show wallet info\n");
-        printf("\t\tself    : show self info\n");
-        printf("\t\tchannel : show channel info\n");
-        printf("\t\tnode    : show node info\n");
-        printf("\t\tversion : version\n");
+        fprintf(stderr, "usage:\n");
+        fprintf(stderr, "\t%s [mainnet/testnet] [option] [db dir]\n", argv[0]);
+        fprintf(stderr, "\t\twallet  : show wallet info\n");
+        fprintf(stderr, "\t\tself    : show self info\n");
+        fprintf(stderr, "\t\tchannel : show channel info\n");
+        fprintf(stderr, "\t\tnode    : show node info\n");
+        fprintf(stderr, "\t\tversion : version\n");
         return -1;
     }
 
@@ -406,7 +406,7 @@ int main(int argc, char *argv[])
     } else if (strcmp(argv[1], "regtest") == 0) {
         ln_set_genesishash(M_BTC_GENESIS_REGTEST);
     } else {
-        printf("mainnet or testnet only[%s]\n", argv[1]);
+        fprintf(stderr, "mainnet or testnet only[%s]\n", argv[1]);
         return -1;
     }
 
@@ -415,7 +415,10 @@ int main(int argc, char *argv[])
     ret = mdb_env_set_maxdbs(mpDbEnv, 2);
     assert(ret == 0);
     ret = mdb_env_open(mpDbEnv, dbpath, MDB_RDONLY, 0664);
-    assert(ret == 0);
+    if (ret) {
+        fprintf(stderr, "fail: cannot open[%s]\n", dbpath);
+        return -1;
+    }
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);

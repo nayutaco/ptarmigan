@@ -129,6 +129,7 @@ void ucoin_dbg_free(void *ptr, int line)
 }
 #endif
 
+
 /********************************************************************
  * typedefs
  ********************************************************************/
@@ -176,14 +177,14 @@ typedef enum {
  * static variables
  ********************************************************************/
 
-static volatile bool    mLoop;              //true:チャネル有効
+static volatile bool        mLoop;          //true:チャネル有効
 
-static ln_node_t        *mpNode;
+static ln_node_t            *mpNode;
 static ln_anno_default_t    mAnnoDef;       ///< announcementデフォルト値
 
 //シーケンスのmutex
-static pthread_mutexattr_t mMuxAttr;
-static pthread_mutex_t mMuxSeq;
+static pthread_mutexattr_t  mMuxAttr;
+static pthread_mutex_t      mMuxSeq;
 static volatile enum {
     MUX_NONE,
     MUX_PAYMENT=0x01,               ///< 送金開始
@@ -192,6 +193,12 @@ static volatile enum {
     //MUX_SEND_FULFILL_HTLC=0x40,     ///< fulfill_htlc送信済み
     //MUX_RECV_FULFILL_HTLC=0x80,     ///< fulfill_htlc受信済み
 } mMuxTiming;
+
+static unsigned long mDebug;
+// 1: update_fulfill_htlcを返さない
+#define M_DBG_FULFILL() ((mDebug & 0x01) == 0)
+// 2: closeでclosing_txを展開しない
+#define M_DBG_CLOSING_TX() ((mDebug & 0x02) == 0)
 
 
 static const char *M_SCRIPT[] = {
@@ -255,6 +262,7 @@ static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
 
@@ -264,7 +272,7 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static void send_channel_anno(lnapp_conf_t *p_conf, bool force);
 static void send_node_anno(lnapp_conf_t *p_conf, bool force);
 
-static bool db_del_channel(ln_self_t *self, bool bRemove);
+//static bool db_del_channel(ln_self_t *self, bool bRemove);
 
 static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId);
 static void set_changeaddr(ln_self_t *self, uint64_t commit_fee);
@@ -516,11 +524,6 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     ucoin_buf_t buf_bolt;
     ln_self_t *p_self = pAppConf->p_self;
 
-    if (p_self->htlc_num != 0) {
-        SYSLOG_ERR("%s(): you have some HTLCs", __func__);
-        return false;
-    }
-
     //feeと送金先
     cb_shutdown_recv(pAppConf, NULL);
 
@@ -528,16 +531,13 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 
     ucoin_buf_init(&buf_bolt);
     ret = ln_create_shutdown(p_self, &buf_bolt);
-    assert(ret);
-
-    send_peer_noise(pAppConf, &buf_bolt);
-    ucoin_buf_free(&buf_bolt);
-
-    //TODO: shutdownを送信した方がclosing transactionを公開する
-    pAppConf->shutdown_sent = true;
-
     if (ret) {
-        show_self_param(p_self, PRINTOUT, __LINE__);
+        send_peer_noise(pAppConf, &buf_bolt);
+        ucoin_buf_free(&buf_bolt);
+
+        if (ret) {
+            show_self_param(p_self, PRINTOUT, __LINE__);
+        }
     }
 
     DBG_PRINTF("mux_proc: end\n");
@@ -545,6 +545,66 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     DBGTRACE_END
 
     return ret;
+}
+
+
+bool lnapp_close_channel_force(const uint8_t *pNodeId)
+{
+    bool ret;
+    ln_self_t my_self;
+
+    memset(&my_self, 0, sizeof(my_self));
+
+    //announcementデフォルト値
+    anno_conf_t aconf;
+    ret = load_anno_conf("anno.conf", &aconf);
+    if (ret) {
+        mAnnoDef.cltv_expiry_delta = aconf.cltv_expiry_delta;
+        mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
+        mAnnoDef.fee_base_msat = aconf.fee_base_msat;
+        mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
+    } else {
+        mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
+        mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
+        mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
+        mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
+    }
+    ln_init(&my_self, mpNode, NULL, &mAnnoDef, NULL);
+
+    ret = ln_node_search_channel_id(&my_self, pNodeId);
+    if (!ret) {
+        return false;
+    }
+
+    //自分が unilateral closeするパターン
+    //  commit_tx
+    //    |
+    //    +-- to_local: 次vout必要
+    //    +-- to_remote: -
+    //    +-- HTLC outputs: 次vout必要
+    //
+    // dust_limit_satoshisを考慮することになるため、最終的にいくつtransactionを
+    // 送信することになるかは、計算後にならないとわからない(最大、1 + HTLC数)。
+    ln_close_force_t close_dat;
+    ret = ln_create_close_force_tx(&my_self, &close_dat);
+    if (ret) {
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            //sendrawtransaction
+            uint8_t txid[UCOIN_SZ_TXID];
+            ret = jsonrpc_sendraw_tx(txid, close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
+            if (ret) {
+                DBG_PRINTF("txid[%d]: ", lp);
+                DUMPBIN(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
+            } else {
+                DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+            }
+        }
+        ln_free_close_force_tx(&close_dat);
+    }
+
+    ln_db_del_channel(&my_self);
+
+    return true;
 }
 
 
@@ -580,6 +640,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //peer node_id
         misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+        //node alias
+        cJSON_AddItemToObject(result, "node_alias", cJSON_CreateString(p_self->peer_node.alias));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
         cJSON_AddItemToObject(result, "fundindg_tx", cJSON_CreateString(str));
@@ -618,6 +680,12 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf)
 {
     return pAppConf->loop;
+}
+
+
+void lnapp_set_debug(unsigned long debug)
+{
+    mDebug = debug;
 }
 
 
@@ -688,7 +756,6 @@ static void *thread_main_start(void *pArg)
     p_conf->last_node_anno_sent = 0;
     p_conf->ping_counter = 0;
     p_conf->first = true;
-    p_conf->shutdown_sent = false;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
 
@@ -1373,24 +1440,9 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     uint64_t sat;
     bool ret = jsonrpc_getxout(&sat, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
     if (!ret) {
-#warning Mutual Closeしか用意していないため、このルートは現在通らない
-        //gettxoutはunspentを返すので、取得失敗→closing_txとして使用されたとみなす
-        SYSLOG_WARN("POLL: fail gettxout for funding_tx !!!!!\n");
-        DBG_PRINTF("txid: ");
-        DUMPBIN(ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
-        DBG_PRINTF("txindex: %d\n", ln_funding_txindex(p_conf->p_self));
-
-        if (p_conf->funding_confirm > 0) {
-            //正常:gettransactionもOKなので、削除可能
-            db_del_channel(p_conf->p_self, false);
-        } else {
-            //異常:gettransactionできないので、outpointが存在しない？
-            SYSLOG_ERR("%s(): POLL gettransaction ????", __func__);
-        }
-
         //ループ解除
+        DBG_PRINTF("funding_tx is spent.\n");
         stop_threads(p_conf);
-        return;
     }
 
     //DBGTRACE_END
@@ -1640,7 +1692,8 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
         //    LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
         //    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
-        //    LN_CB_CLOSED,               ///< closing_signed受信通知
+        //    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
+        //    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
         //    LN_CB_SEND_REQ,             ///< peerへの送信要求
 
         { "  LN_CB_ERROR: エラー有り", cb_error_recv },
@@ -1661,7 +1714,8 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_COMMIT_SIG_RECV: commitment_signed受信通知", cb_commit_sig_recv },
         { "  LN_CB_HTLC_CHANGED: HTLC変化", cb_htlc_changed },
         { "  LN_CB_SHUTDOWN_RECV: shutdown受信", cb_shutdown_recv },
-        { "  LN_CB_CLOSED: closing_signed受信", cb_closed },
+        { "  LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)", cb_closed_fee },
+        { "  LN_CB_CLOSED: closing_signed受信(FEE一致)", cb_closed },
         { "  LN_CB_SEND_REQ: 送信要求", cb_send_req },
     };
 
@@ -1699,7 +1753,6 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 
     //init受信時に初期化
     p_conf->first = false;
-    p_conf->shutdown_sent = false;
 
     //待ち合わせ解除(*1)
     pthread_cond_signal(&p_conf->cond);
@@ -2000,12 +2053,16 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DUMPBIN(p_add->p_payment_hash, LN_SZ_HASH);
         }
         if (lp < PREIMAGE_NUM) {
-            //キューにためる(fulfill)
-            queue_fulfill_t *fulfill = (queue_fulfill_t *)MM_MALLOC(sizeof(queue_fulfill_t));
-            fulfill->type = QTYPE_BWD_FULFILL_HTLC;
-            fulfill->id = p_add->id;
-            ucoin_buf_alloccopy(&fulfill->buf, p_preimage->preimage, LN_SZ_PREIMAGE);
-            push_queue(p_conf, fulfill);
+            if (M_DBG_FULFILL()) {
+                //キューにためる(fulfill)
+                queue_fulfill_t *fulfill = (queue_fulfill_t *)MM_MALLOC(sizeof(queue_fulfill_t));
+                fulfill->type = QTYPE_BWD_FULFILL_HTLC;
+                fulfill->id = p_add->id;
+                ucoin_buf_alloccopy(&fulfill->buf, p_preimage->preimage, LN_SZ_PREIMAGE);
+                push_queue(p_conf, fulfill);
+            } else {
+                DBG_PRINTF("DBG: no fulfill mode\n");
+            }
 
             //preimageを使い終わったら消す
             preimage_clear(lp);
@@ -2295,61 +2352,56 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
 
     //fee and addr
     //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
-    uint64_t commit_fee = ln_calc_default_closing_fee(p_conf->p_self);
+    uint64_t commit_fee = ln_calc_max_closing_fee(p_conf->p_self);
     set_changeaddr(p_conf->p_self, commit_fee);
 }
 
 
-//LN_CB_CLOSED: closing_singed受信
+//LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)
+static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param)
+{
+    DBGTRACE_BEGIN
+
+    const ln_cb_closed_fee_t *p_closed_fee = (const ln_cb_closed_fee_t *)p_param;
+    DBG_PRINTF("received fee: %" PRIu64 "\n", p_closed_fee->fee_sat);
+
+#warning FEEの決め方
+    ln_update_shutdown_fee(p_conf->p_self, p_closed_fee->fee_sat);
+}
+
+
+//LN_CB_CLOSED: closing_singed受信(FEE一致)
 //  コールバック後、selfはクリアされる
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
 
     const ln_cb_closed_t *p_closed = (const ln_cb_closed_t *)p_param;
-    uint8_t txid[UCOIN_SZ_TXID];
 
-    if (p_conf->shutdown_sent) {
-        //TODO: shutdownを送信した方がclosing transactionを公開する
+    if (M_DBG_CLOSING_TX()) {
+        //closing_txを展開
         DBG_PRINTF("send closing tx\n");
-        p_conf->shutdown_sent = false;
 
+        uint8_t txid[UCOIN_SZ_TXID];
         bool ret = jsonrpc_sendraw_tx(txid, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
-        if (ret) {
-            DBG_PRINTF("OK\n");
-        } else {
+        if (!ret) {
             SYSLOG_ERR("%s(): jsonrpc_sendraw_tx", __func__);
             assert(0);
         }
+        DBG_PRINTF("closing_txid: ");
+        DUMPTXID(txid);
+
+        // method: closed
+        // $1: short_channel_id
+        // $2: closing_txid
+        char param[256];
+        sprintf(param, "%" PRIu64 " ",
+                    ln_short_channel_id(p_conf->p_self));
+        misc_bin2str_rev(param + strlen(param), txid, UCOIN_SZ_TXID);
+        call_script(M_EVT_CLOSED, param);
     } else {
-        //処理の都合上、shutdownを受信した方はここでclosing_signedを送信する
-        send_peer_noise(p_conf, p_closed->p_buf_bolt);
-
-        DBG_PRINTF("wait closing tx\n");
-        ucoin_tx_t tx;
-        ucoin_tx_init(&tx);
-        ucoin_tx_read(&tx, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
-        ucoin_tx_txid(txid, &tx);
-        ucoin_tx_free(&tx);
+        DBG_PRINTF("DBG: no send closing_tx mode\n");
     }
-
-    DBG_PRINTF("closing_txid: ");
-    DUMPTXID(txid);
-
-    // method: closed
-    // $1: short_channel_id
-    // $2: closing_txid
-    char param[256];
-    sprintf(param, "%" PRIu64 " ",
-                ln_short_channel_id(p_conf->p_self));
-    misc_bin2str_rev(param + strlen(param), txid, UCOIN_SZ_TXID);
-    call_script(M_EVT_CLOSED, param);
-
-#warning 現在はMutual Closeしかないため、DBから削除する
-    db_del_channel(p_conf->p_self, true);
-
-    //これ以上やることは無いので、channelスレッドは終了する
-    stop_threads(p_conf);
 
     DBGTRACE_END
 }
@@ -2573,25 +2625,25 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
  * @note
  *      - ノード情報からの削除は、closing_signed受信時に行っている(LN_CB_CLOSEDコールバック)
  */
-static bool db_del_channel(ln_self_t *self, bool bRemove)
-{
-    DBGTRACE_BEGIN
+//static bool db_del_channel(ln_self_t *self, bool bRemove)
+//{
+//    DBGTRACE_BEGIN
 
-    bool ret;
+//    bool ret;
 
-    if (bRemove) {
-        ret = ln_db_del_channel(self);
-        assert(ret);
-    } else {
-        ln_short_channel_id_clr(self);      //削除フラグ代わり
-        ln_db_save_channel(self);
-        ret = true;
-    }
+//    if (bRemove) {
+//        ret = ln_db_del_channel(self);
+//        assert(ret);
+//    } else {
+//        ln_short_channel_id_clr(self);      //削除フラグ代わり
+//        ln_db_save_channel(self);
+//        ret = true;
+//    }
 
-    DBGTRACE_END
+//    DBGTRACE_END
 
-    return ret;
-}
+//    return ret;
+//}
 
 
 /********************************************************************

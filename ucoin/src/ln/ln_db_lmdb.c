@@ -55,7 +55,7 @@
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-6)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-7)            ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -63,6 +63,7 @@
     -4 : ln_funding_local_data_t, ln_funding_remote_data_t変更
     -5 : backup_self_tにln_node_info_t追加
     -6 : self.min_depth追加
+    -7 : ln_commit_data_tにtxid追加
  */
 
 
@@ -201,8 +202,7 @@ void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
                 DBG_PRINTF("ok\n");
             } else {
                 DBG_PRINTF("FAIL: node_id mismatch\n");
-#warning そのうちabortさせる
-                //abort();
+                abort();
             }
         } else {
             DBG_PRINTF("FAIL: check version db\n");
@@ -419,6 +419,8 @@ bool ln_db_del_channel(const ln_self_t *self)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
+
+    //channel_announcementから自分のshort_channel_idを含むデータを削除
     retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, MDB_CREATE, &dbi_anno);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -434,9 +436,9 @@ bool ln_db_del_channel(const ln_self_t *self)
         if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
             uint64_t load_sci;
             memcpy(&load_sci, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
-            DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", load_sci);
             if (load_sci == ln_short_channel_id(self)) {
-                retval = mdb_del(txn, dbi_anno, &key, NULL);
+                DBG_PRINTF("delete short_channel_id=%016" PRIx64 "[%c]\n", load_sci, ((const char *)key.mv_data)[LN_SZ_SHORT_CHANNEL_ID]);
+                retval = mdb_cursor_del(cursor, 0);
                 if (retval != 0) {
                     DBG_PRINTF("err: %s\n", mdb_strerror(retval));
                 }
@@ -453,14 +455,18 @@ bool ln_db_del_channel(const ln_self_t *self)
     if (retval == 0) {
         retval = mdb_drop(txn, dbi_cnl, 1);
     }
-    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
     retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
     if (retval == 0) {
         retval = mdb_drop(txn, dbi_cnl, 1);
     }
-    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     mdb_txn_commit(txn);
     txn = NULL;
@@ -1247,7 +1253,7 @@ static int load_anno_channel(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pCnlAnno,
     uint8_t keydata[sizeof(short_channel_id) + 1];
 
     memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
-    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_ANNO;
+    keydata[sizeof(short_channel_id)] = LN_DB_CNLANNO_ANNO;
     key.mv_size = sizeof(keydata);
     key.mv_data = keydata;
     int retval = mdb_get(txn, *pdbi, &key, &data);

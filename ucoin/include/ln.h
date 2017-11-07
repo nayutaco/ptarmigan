@@ -65,6 +65,8 @@ extern "C" {
 #define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
 #define LN_HOP_MAX                      (20)        ///< onion hop数
 
+#define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
+
 // ln_update_add_htlc_t.flag用
 #define LN_HTLC_FLAG_IS_RECV(f)         ((f) & LN_HTLC_FLAG_RECV)   ///< true:Received HTLC / false:Offered HTLC
 #define LN_HTLC_FLAG_SEND               (0x00)                      ///< Offered HTLC(add_htlcを送信した)
@@ -147,7 +149,8 @@ typedef enum {
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
     LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
-    LN_CB_CLOSED,               ///< closing_signed受信通知
+    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
+    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
     LN_CB_SEND_REQ,             ///< peerへの送信要求
     LN_CB_MAX,
 } ln_cb_t;
@@ -193,7 +196,6 @@ typedef struct {
     ln_htlctype_t           type;                   ///< HTLC種別
     uint32_t                expiry;                 ///< Expiry
     uint64_t                amount_msat;            ///< amount_msat
-    const uint8_t           *preimage;              ///< preimage(Offeredか、相手から取得できた場合)
     const uint8_t           *preimage_hash;         ///< preimageをHASH160したデータ
     ucoin_buf_t             script;                 ///< スクリプト
 } ln_htlcinfo_t;
@@ -394,6 +396,15 @@ typedef struct {
     uint8_t     *p_signature;                       ///< 64: signature
 } ln_closing_signed_t;
 
+
+/** @struct ln_close_force_t
+ *  @brief  [Close]Unilateral Close / Revoked Transaction Close用
+ */
+typedef struct {
+    int             num;                            ///< pp_bufのtransaction数
+    ucoin_buf_t     **pp_buf;                       ///<
+} ln_close_force_t;
+
 /// @}
 
 
@@ -417,7 +428,8 @@ typedef struct {
     //inner
     uint8_t     flag;                               ///< LN_HTLC_FLAG_xxx
     //fulfillで戻す
-    uint8_t     signature[LN_SZ_SIGNATURE];         ///< HTLC署名
+    uint8_t     signature[LN_SZ_SIGNATURE];         ///< 受信した最新のHTLC署名
+                                                    //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
     uint64_t    prev_short_channel_id;              ///< 転送元short_channel_id
     uint64_t    prev_id;                            ///< 転送元id
     //failで戻す
@@ -580,7 +592,7 @@ typedef struct {
  *  @brief      node_announcementのアドレス情報
  */
 typedef struct {
-    uint8_t         type;                       ///< 1:address descriptor
+    uint8_t         type;                       ///< 1:address descriptor(LN_NODEDESC_xxx)
     uint16_t        port;
     union {
         uint8_t     addr[1];
@@ -767,11 +779,18 @@ typedef struct {
 //} ln_cb_htlc_changed_t;
 
 
+/** @struct ln_cb_closed_fee_t
+ *  @brief  FEE不一致なおclosing_signed受信(#LN_CB_CLOSED_FEE)
+ */
+typedef struct {
+    uint64_t                fee_sat;                ///< 受信したfee
+} ln_cb_closed_fee_t;
+
+
 /** @struct ln_cb_closed_t
  *  @brief  Mutual Close完了通知(#LN_CB_CLOSED)
  */
 typedef struct {
-    const ucoin_buf_t       *p_buf_bolt;            ///< peerに送信するメッセージ
     const ucoin_buf_t       *p_tx_closing;          ///< ブロックチェーンに公開するtx
 } ln_cb_closed_t;
 
@@ -829,8 +848,8 @@ typedef struct {
  *  @brief  自ノードfunding情報
  */
 typedef struct {
-    uint8_t             funding_txid[UCOIN_SZ_TXID];            ///< funding-tx TXID
-    uint16_t            funding_txindex;                        ///< funding-tx index
+    uint8_t             txid[UCOIN_SZ_TXID];                    ///< funding-tx TXID
+    uint16_t            txindex;                                ///< funding-tx index
 
     //MSG_FUNDIDX_xxx
     ucoin_util_keys_t   keys[LN_FUNDIDX_MAX];
@@ -863,6 +882,7 @@ typedef struct {
     uint8_t             signature[LN_SZ_SIGNATURE];     ///< 署名
                                                         // localには相手に送信する署名
                                                         // remoteには相手から受信した署名
+    uint8_t             txid[UCOIN_SZ_TXID];            ///< txid
 } ln_commit_data_t;
 
 
@@ -894,6 +914,7 @@ struct ln_self_t {
     ln_funding_local_data_t     funding_local;                  ///< funding情報:local
     ln_funding_remote_data_t    funding_remote;                 ///< funding情報:remote
     uint64_t                    obscured;                       ///< commitment numberをXORするとobscured commitment numberになる値。
+                                                                // 0の場合、1回でもclosing_signed受信した
     ucoin_buf_t                 redeem_fund;                    ///< 2-of-2のredeemScript
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
@@ -914,9 +935,9 @@ struct ln_self_t {
     ucoin_tx_t                  tx_closing;                     ///< closing_tx
     uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)。 b1:受信済み b0:送信済み
     uint64_t                    close_fee_sat;                  ///< closing_txのFEE
+    uint64_t                    close_last_fee_sat;             ///< 最後に送信したclosing_txのFEE
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< mutual close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
-    ln_shutdown_t               cnl_shutdown;                   ///< 受信したshutdown
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
 
     //msg:normal operation
@@ -1234,6 +1255,23 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee);
 bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
 
 
+/** unilateral close / revoked transaction close用トランザクション作成
+ *
+ * @param[in]           self        channel情報
+ * @param[out]          pClose      生成したトランザクション
+ * @retval      ture    成功
+ * @note
+ *      - pCloseは @ln_free_close_force_tx()で解放すること
+ */
+bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose);
+
+
+/** ln_close_force_tのメモリ解放
+ *
+ */
+void ln_free_close_force_tx(ln_close_force_t *pClose);
+
+
 /** update_add_htlcメッセージ作成
  *
  * @param[in,out]       self            channel情報
@@ -1315,13 +1353,6 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
  * @param[in]       pPreImage           計算元(LN_SZ_PREIMAGE)
  */
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
-
-
-/** 初期closing_tx FEE取得
- *
- * @param[in,out]       self            channel情報
- */
-uint64_t ln_calc_default_closing_fee(ln_self_t *self);
 
 
 /********************************************************************
@@ -1415,7 +1446,7 @@ static inline uint16_t ln_htlc_num(const ln_self_t *self) {
  * @return      funding_txのTXID
  */
 static inline const uint8_t *ln_funding_txid(const ln_self_t *self) {
-    return self->funding_local.funding_txid;
+    return self->funding_local.txid;
 }
 
 
@@ -1425,7 +1456,7 @@ static inline const uint8_t *ln_funding_txid(const ln_self_t *self) {
  * @return      funding_txのTXINDEX
  */
 static inline uint32_t ln_funding_txindex(const ln_self_t *self) {
-    return self->funding_local.funding_txindex;
+    return self->funding_local.txindex;
 }
 
 
@@ -1447,6 +1478,25 @@ static inline uint32_t ln_minimum_depth(const ln_self_t *self) {
  */
 static inline bool ln_is_funder(const ln_self_t *self) {
     return (self->fund_flag & LN_FUNDFLAG_FUNDER);
+}
+
+
+/** 初期closing_tx FEE取得
+ *
+ * @param[in,out]       self            channel情報
+ */
+static inline uint64_t ln_calc_max_closing_fee(const ln_self_t *self) {
+    return (LN_FEE_COMMIT_BASE * self->feerate_per_kw / 1000);
+}
+
+
+/** closing_signed受信歴取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      true    closing_signedを受信したことがある
+ */
+static inline bool ln_is_closing_signed_recvd(const ln_self_t *self) {
+    return (self->obscured == 0);
 }
 
 

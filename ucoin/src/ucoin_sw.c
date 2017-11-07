@@ -408,13 +408,13 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
 
     //署名
     const ucoin_buf_t *sig1 = &wits[1];
-    if (sig1->buf[sig1->len - 1] != SIGHASH_ALL) {
+    if ((sig1->len == 0) || (sig1->buf[sig1->len - 1] != SIGHASH_ALL)) {
         //SIGHASH_ALLではない
         DBG_PRINTF("SIG1: not SIGHASH_ALL\n");
         return false;
     }
     const ucoin_buf_t *sig2 = &wits[2];
-    if (sig2->buf[sig2->len - 1] != SIGHASH_ALL) {
+    if ((sig2->len == 0) || (sig2->buf[sig2->len - 1] != SIGHASH_ALL)) {
         //SIGHASH_ALLではない
         DBG_PRINTF("SIG2: not SIGHASH_ALL\n");
         return false;

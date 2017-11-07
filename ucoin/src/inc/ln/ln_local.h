@@ -44,11 +44,11 @@
 #error LN_FUNDIDX_MAX != MSG_FUNDIDX_MAX
 #endif
 
-#define MSG_SCRIPTIDX_KEY               (0)         ///< [To-Remote]のP2WPKH
-#define MSG_SCRIPTIDX_DELAYED           (1)         ///< [To-Local]delayedkey
-#define MSG_SCRIPTIDX_REVOCATION        (2)         ///< [To-Local]revocation
-#define MSG_SCRIPTIDX_PAYMENTKEY        (3)         ///< Offered/Received HTLC
-#define MSG_SCRIPTIDX_MAX               (MSG_SCRIPTIDX_PAYMENTKEY+1)
+#define MSG_SCRIPTIDX_REMOTEKEY         (0)         ///< remotekey
+#define MSG_SCRIPTIDX_DELAYED           (1)         ///< delayedkey
+#define MSG_SCRIPTIDX_REVOCATION        (2)         ///< revocationkey
+#define MSG_SCRIPTIDX_LOCALKEY          (3)         ///< localkey
+#define MSG_SCRIPTIDX_MAX               (MSG_SCRIPTIDX_LOCALKEY+1)
 #if LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
 #error LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
 #endif

@@ -32,10 +32,9 @@
  * macros
  **************************************************************************/
 
-#define UCOIN_LN_FEE_HTLCSUCCESS    (703ULL)
-#define UCOIN_LN_FEE_HTLCTIMEOUT    (663ULL)
-#define UCOIN_LN_FEE_COMMIT_BASE    (724ULL)
-#define UCOIN_LN_FEE_COMMIT_HTLC    (172ULL)
+#define M_FEE_HTLCSUCCESS           (703ULL)
+#define M_FEE_HTLCTIMEOUT           (663ULL)
+#define M_FEE_COMMIT_HTLC           (172ULL)
 
 #define M_OBSCURED_TX_LEN           (6)
 
@@ -182,7 +181,6 @@ void HIDDEN ln_htlcinfo_init(ln_htlcinfo_t *pHtlcInfo)
     pHtlcInfo->type = LN_HTLCTYPE_NONE;
     pHtlcInfo->expiry = 0;
     pHtlcInfo->amount_msat = 0;
-    pHtlcInfo->preimage = NULL;
     pHtlcInfo->preimage_hash = NULL;
     ucoin_buf_init(&pHtlcInfo->script);
 }
@@ -233,23 +231,23 @@ void HIDDEN ln_create_htlcinfo(ln_htlcinfo_t **ppHtlcInfo, int Num,
 
 uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlcInfo, int Num)
 {
-    pFeeInfo->htlc_success = UCOIN_LN_FEE_HTLCSUCCESS * pFeeInfo->feerate_per_kw / 1000;
-    pFeeInfo->htlc_timeout = UCOIN_LN_FEE_HTLCTIMEOUT * pFeeInfo->feerate_per_kw / 1000;
-    pFeeInfo->commit = UCOIN_LN_FEE_COMMIT_BASE;
+    pFeeInfo->htlc_success = M_FEE_HTLCSUCCESS * pFeeInfo->feerate_per_kw / 1000;
+    pFeeInfo->htlc_timeout = M_FEE_HTLCTIMEOUT * pFeeInfo->feerate_per_kw / 1000;
+    pFeeInfo->commit = LN_FEE_COMMIT_BASE;
     uint64_t dusts = 0;
 
     for (int lp = 0; lp < Num; lp++) {
         switch (ppHtlcInfo[lp]->type) {
         case LN_HTLCTYPE_OFFERED:
             if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pFeeInfo->dust_limit_satoshi + pFeeInfo->htlc_timeout) {
-                pFeeInfo->commit += UCOIN_LN_FEE_COMMIT_HTLC;
+                pFeeInfo->commit += M_FEE_COMMIT_HTLC;
             } else {
                 dusts += LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat);
             }
             break;
         case LN_HTLCTYPE_RECEIVED:
             if (LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat) >= pFeeInfo->dust_limit_satoshi + pFeeInfo->htlc_success) {
-                pFeeInfo->commit += UCOIN_LN_FEE_COMMIT_HTLC;
+                pFeeInfo->commit += M_FEE_COMMIT_HTLC;
             } else {
                 dusts += LN_MSAT2SATOSHI(ppHtlcInfo[lp]->amount_msat);
             }

@@ -45,6 +45,13 @@
 #include "ln_db.h"
 
 
+/**************************************************************************
+ * macro
+ **************************************************************************/
+
+#define M_WAIT_MON_SEC                  (60)        ///< 監視周期[sec]
+
+
 /********************************************************************
  * static variables
  ********************************************************************/
@@ -53,6 +60,7 @@ static ln_node_t            mNode;
 static struct jrpc_server   mJrpc;
 static preimage_t           mPreimage[PREIMAGE_NUM];
 static pthread_mutex_t      mMuxPreimage;
+static volatile bool        mMonitoring;
 
 
 /********************************************************************
@@ -68,8 +76,12 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
+
+static void *thread_monitor_start(void *pArg);
+static bool monfunc(ln_self_t *self, void *p_param);
 
 
 /********************************************************************
@@ -191,6 +203,11 @@ int main(int argc, char *argv[])
     pthread_t th_svr;
     pthread_create(&th_svr, NULL, &p2p_svr_start, &node_conf.port);
 
+    //チャネル監視用
+    pthread_t th_poll;
+    mMonitoring = true;
+    pthread_create(&th_poll, NULL, &thread_monitor_start, NULL);
+
 #if NETKIND==0
     SYSLOG_INFO("start bitcoin mainnet");
 #elif NETKIND==1
@@ -202,7 +219,7 @@ int main(int argc, char *argv[])
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
-    //pthread_join(th_fu, NULL);
+    pthread_join(th_poll, NULL);
     DBG_PRINTF("%s exit\n", argv[0]);
 
     SYSLOG_INFO("end");
@@ -307,7 +324,7 @@ void preimage_clear(int index)
 
 
 /********************************************************************
- * private functions
+ * private functions: JSON-RPC server
  ********************************************************************/
 
 static int msg_recv(uint16_t Port)
@@ -321,6 +338,7 @@ static int msg_recv(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_pay,         "pay", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_debug,       "debug", NULL);
     jrpc_server_run(&mJrpc);
     jrpc_server_destroy(&mJrpc);
 
@@ -522,6 +540,7 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
+        //接続中
         bool ret = lnapp_close_channel(p_appconf);
         if (ret) {
             result = cJSON_CreateString("OK");
@@ -530,8 +549,25 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
             ctx->error_message = strdup(RPCERR_CLOSE_HTLC_STR);
         }
     } else {
-        ctx->error_code = RPCERR_NOCONN;
-        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+        //未接続
+        bool haveCnl = ln_node_search_channel_id(NULL, conn.node_id);
+        if (haveCnl) {
+            //チャネルあり
+            //  相手とのチャネルがあるので、接続自体は可能かもしれない。
+            //  closeの仕方については、仕様や運用とも関係が深いので、後で変更することになるだろう。
+            //  今は、未接続の場合は mutual close以外で閉じることにする。
+            DBG_PRINTF("チャネルはあるが接続していない\n");
+            bool ret = lnapp_close_channel_force(conn.node_id);
+            if (ret) {
+                DBG_PRINTF("force closed\n");
+            } else {
+                DBG_PRINTF("fail: force close\n");
+            }
+        } else {
+            //チャネルなし
+            ctx->error_code = RPCERR_NOCHANN;
+            ctx->error_message = strdup(RPCERR_NOCHANN_STR);
+        }
     }
 
 LABEL_EXIT:
@@ -815,7 +851,30 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
     p2p_cli_stop_all();
     jrpc_server_stop(&mJrpc);
 
+    mMonitoring = false;
+
     return cJSON_CreateString("OK");
+}
+
+
+static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)ctx; (void)id;
+
+    const char *ret;
+    char str[10];
+    cJSON *json;
+
+    json = cJSON_GetArrayItem(params, 0);
+    if (json && (json->type == cJSON_Number)) {
+        lnapp_set_debug(json->valueint);
+        sprintf(str, "%d", json->valueint);
+        ret = str;
+    } else {
+        ret = "NG";
+    }
+
+    return cJSON_CreateString(ret);
 }
 
 
@@ -840,4 +899,67 @@ static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id)
         p_appconf = p2p_svr_search_short_channel_id(short_channel_id);
     }
     return p_appconf;
+}
+
+
+/**************************************************************************
+ * private functions: monitoring all channels
+ **************************************************************************/
+
+static void *thread_monitor_start(void *pArg)
+{
+    (void)pArg;
+
+    ln_db_search_channel(monfunc, NULL);
+
+    while (mMonitoring) {
+        //ループ解除まで時間が長くなるので、短くチェックする
+        for (int lp = 0; lp < M_WAIT_MON_SEC; lp++) {
+            sleep(1);
+            if (!mMonitoring) {
+                break;
+            }
+        }
+
+        ln_db_search_channel(monfunc, NULL);
+    }
+    DBG_PRINTF("stop\n");
+
+    return NULL;
+}
+
+
+static bool monfunc(ln_self_t *self, void *p_param)
+{
+    (void)p_param;
+
+
+    uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
+    if (confm > 0) {
+        DBG_PRINTF("funding_txid[conf=%u, idx=%d]: ", confm, self->funding_local.txindex);
+        DUMPTXID(self->funding_local.txid);
+
+        bool del = false;
+        uint64_t sat;
+        bool ret = jsonrpc_getxout(&sat, ln_funding_txid(self), ln_funding_txindex(self));
+        if (!ret) {
+            //gettxoutはunspentを返すので、取得失敗→unilateral close/revoked transaction closeとみなす
+            if (ln_is_closing_signed_recvd(self)) {
+                //BOLT#5
+                //  Otherwise, if the node has received a valid closing_signed message with high enough fee level, it SHOULD use that to perform a mutual close.
+                //  https://github.com/lightningnetwork/lightning-rfc/blob/master/05-onchain.md#requirements-1
+                DBG_PRINTF("close after closing_signed\n");
+                del = true;
+            } else {
+                SYSLOG_WARN("closed: bad way or ugly way\n");
+            }
+        }
+        if (del) {
+            //最後にDBからチャネルを削除
+            ret = ln_db_del_channel(self);
+            assert(ret);
+        }
+   }
+
+    return false;
 }

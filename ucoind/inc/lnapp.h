@@ -63,7 +63,6 @@ typedef struct {
     uint32_t        last_node_anno_sent;    ///< 最後に送信したnode_announcementのEPOCH TIME
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
     bool            first;                  ///< false:node_announcement受信済み
-    bool            shutdown_sent;          ///< true:shutdownを最初に送信した側
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
     uint32_t        funding_min_depth;
@@ -103,8 +102,10 @@ bool lnapp_forward_payment(lnapp_conf_t *pAppConf, fwd_proc_add_t *pAdd);
 bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
 bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
 bool lnapp_close_channel(lnapp_conf_t *pAppConf);
+bool lnapp_close_channel_force(const uint8_t *pNodeId);
 bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_channel_id);
 void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult);
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
+void lnapp_set_debug(unsigned long debug);
 
 #endif /* LNAPP_H__ */
