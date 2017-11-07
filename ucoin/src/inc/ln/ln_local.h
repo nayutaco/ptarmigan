@@ -35,10 +35,10 @@
  **************************************************************************/
 
 #define MSG_FUNDIDX_FUNDING             (0)         ///< commitment tx署名用
-#define MSG_FUNDIDX_REVOCATION          (1)         ///< revocation-basepoint生成用
-#define MSG_FUNDIDX_PAYMENT             (2)         ///< payment-basepoint生成用
-#define MSG_FUNDIDX_DELAYED             (3)         ///< delayed-payment-basepoint生成用
-#define MSG_FUNDIDX_PER_COMMIT          (4)         ///< per-commitment-point
+#define MSG_FUNDIDX_REVOCATION          (1)         ///< revocation_basepoint
+#define MSG_FUNDIDX_PAYMENT             (2)         ///< payment_basepoint
+#define MSG_FUNDIDX_DELAYED             (3)         ///< delayed_payment_basepoint
+#define MSG_FUNDIDX_PER_COMMIT          (4)         ///< per_commitment_point
 #define MSG_FUNDIDX_MAX                 (MSG_FUNDIDX_PER_COMMIT+1)
 #if LN_FUNDIDX_MAX != MSG_FUNDIDX_MAX
 #error LN_FUNDIDX_MAX != MSG_FUNDIDX_MAX
