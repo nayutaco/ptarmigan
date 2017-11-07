@@ -787,6 +787,10 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     pClose->pp_buf = NULL;
 
     //commit_tx
+    //  ここはunilateral closeのルート。
+    //  最新のcommit_txを作る
+    DBG_PRINTF("HTLC num: %d\n", self->htlc_num);
+
     //pClose->num++;
 
     return true;
