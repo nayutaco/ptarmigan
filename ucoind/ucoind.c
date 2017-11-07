@@ -945,6 +945,9 @@ static bool monfunc(ln_self_t *self, void *p_param)
         if (!ret) {
             //gettxoutはunspentを返すので、取得失敗→unilateral close/revoked transaction closeとみなす
             if (ln_is_closing_signed_recvd(self)) {
+                //BOLT#5
+                //  Otherwise, if the node has received a valid closing_signed message with high enough fee level, it SHOULD use that to perform a mutual close.
+                //  https://github.com/lightningnetwork/lightning-rfc/blob/master/05-onchain.md#requirements-1
                 DBG_PRINTF("close after closing_signed\n");
                 del = true;
             } else {

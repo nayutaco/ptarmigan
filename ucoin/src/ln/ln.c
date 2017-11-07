@@ -68,9 +68,6 @@
 #define M_SHDN_FLAG_SEND                    (0x01)          ///< 1:shutdown送信あり
 #define M_SHDN_FLAG_RECV                    (0x02)          ///< 1:shutdown受信あり
 #define M_SHDN_FLAG_END                     (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)
-#define M_CLSN_FLAG_SEND                    (0x04)          ///< 1:closing_singed送信あり
-#define M_CLSN_FLAG_RECV                    (0x08)          ///< 1:closing_singed受信あり
-#define M_CLSN_FLAG_END                     (M_CLSN_FLAG_SEND | M_CLSN_FLAG_RECV)
 
 #define M_PONG_MISSING                      (5)             ///< pongが返ってこないエラー上限
 
@@ -1823,9 +1820,6 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         }
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
-
-            //closing_singed送信あり
-            self->shutdown_flag |= M_CLSN_FLAG_SEND;
         }
     }
 
@@ -1888,9 +1882,6 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->cnl_closing_signed.p_channel_id = self->channel_id;
     self->cnl_closing_signed.p_signature = self->commit_local.signature;
 
-    //closing_singed受信あり
-    self->shutdown_flag |= M_CLSN_FLAG_RECV;
-
     bool need_closetx = (self->close_last_fee_sat == self->cnl_closing_signed.fee_sat);
 
     if (!need_closetx) {
@@ -1933,9 +1924,6 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
-
-            //closing_singed送信あり
-            self->shutdown_flag |= M_CLSN_FLAG_SEND;
         } else {
             DBG_PRINTF("fail: create closeing_signed\n");
             assert(0);
@@ -1944,14 +1932,13 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //closing_signedの交換を1度でも行っていたら、obscuredを0にしてしまう(フラグ代わり)
-    if ( !ln_is_closing_signed_recvd(self) &&
-         ((self->shutdown_flag & M_CLSN_FLAG_END) == M_CLSN_FLAG_END) ) {
+    if (!ln_is_closing_signed_recvd(self)) {
         DBG_PRINTF("closing_signed exchanged\n");
         self->obscured = 0;
         ln_db_save_channel(self);
     }
 
-    DBG_PRINTF("END: %02x : %" PRIu64 "\n", self->shutdown_flag, self->obscured);
+    DBG_PRINTF("END\n");
     return ret;
 }
 
@@ -2108,7 +2095,6 @@ LABEL_ERR:
         ucoin_buf_t buf_bolt;
         ucoin_buf_t buf_reason;
 
-#warning lnapp.cのMUX_ADD_HTLC要解除
 #warning reasonダミー
         const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
         const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };

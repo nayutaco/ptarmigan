@@ -272,7 +272,7 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static void send_channel_anno(lnapp_conf_t *p_conf, bool force);
 static void send_node_anno(lnapp_conf_t *p_conf, bool force);
 
-static bool db_del_channel(ln_self_t *self, bool bRemove);
+//static bool db_del_channel(ln_self_t *self, bool bRemove);
 
 static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId);
 static void set_changeaddr(ln_self_t *self, uint64_t commit_fee);
@@ -2625,25 +2625,25 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
  * @note
  *      - ノード情報からの削除は、closing_signed受信時に行っている(LN_CB_CLOSEDコールバック)
  */
-static bool db_del_channel(ln_self_t *self, bool bRemove)
-{
-    DBGTRACE_BEGIN
+//static bool db_del_channel(ln_self_t *self, bool bRemove)
+//{
+//    DBGTRACE_BEGIN
 
-    bool ret;
+//    bool ret;
 
-    if (bRemove) {
-        ret = ln_db_del_channel(self);
-        assert(ret);
-    } else {
-        ln_short_channel_id_clr(self);      //削除フラグ代わり
-        ln_db_save_channel(self);
-        ret = true;
-    }
+//    if (bRemove) {
+//        ret = ln_db_del_channel(self);
+//        assert(ret);
+//    } else {
+//        ln_short_channel_id_clr(self);      //削除フラグ代わり
+//        ln_db_save_channel(self);
+//        ret = true;
+//    }
 
-    DBGTRACE_END
+//    DBGTRACE_END
 
-    return ret;
-}
+//    return ret;
+//}
 
 
 /********************************************************************
