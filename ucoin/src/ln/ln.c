@@ -797,6 +797,38 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //  最新のcommit_txを作る
     DBG_PRINTF("HTLC num: %d\n", self->htlc_num);
 
+    //1つ前のcommit_txを復元する
+    //  storage_index+2: 保存してデクリメントするので、1つ前は+2
+    //  commit_num-1: commitment_signedでインクリメント
+
+    //local
+    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 2);
+    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+    //remote
+    ln_derkey_storage_get_secret(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], &self->peer_storage, self->peer_storage_index + 2);
+    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    //commitment number
+    self->commit_num--;
+
+    //local commit_tx
+    ucoin_tx_t tx_local;
+    bool ret = create_to_local(self, &tx_local, NULL, 0,
+                self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
+    if (ret) {
+        pClose->num = 1;
+        pClose->pp_buf = (ucoin_buf_t **)M_MALLOC(sizeof(ucoin_buf_t*) * pClose->num);
+
+        pClose->pp_buf[0] = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t));
+        ucoin_buf_t *pBuf = pClose->pp_buf[0];
+        ucoin_buf_init(pBuf);
+        ucoin_tx_create(pBuf, &tx_local);
+    } else {
+        DBG_PRINTF("fail: create_to_local\n");
+        pClose->num = 0;
+    }
+    ucoin_print_tx(&tx_local);
+    ucoin_tx_free(&tx_local);
+
     //pClose->num++;
 
     return true;
@@ -807,6 +839,7 @@ void ln_free_close_force_tx(ln_close_force_t *pClose)
 {
     for (int lp = 0; lp < pClose->num; lp++) {
         ucoin_buf_free(pClose->pp_buf[lp]);
+        M_FREE(pClose->pp_buf[lp]);
     }
     M_FREE(pClose->pp_buf);
 }
@@ -2820,10 +2853,10 @@ static bool create_to_local(ln_self_t *self,
     }
     DBG_PRINTF("-------\n");
 
-    if ((cnt > 0) && (p_htlc_sigs == NULL)) {
-        DBG_PRINTF("fail: HTLCがあるのに署名は無いと考えている\n");
-        return false;
-    }
+    //if ((cnt > 0) && (p_htlc_sigs == NULL)) {
+    //    DBG_PRINTF("fail: HTLCがあるのに署名は無いと考えている\n");
+    //    return false;
+    //}
 
     //FEE
     feeinfo.feerate_per_kw = self->feerate_per_kw;
@@ -2863,7 +2896,7 @@ static bool create_to_local(ln_self_t *self,
         DBG_PRINTF("fail: ucoin_tx_txid\n");
     }
 
-    if (cnt > 0) {
+    if ((cnt > 0) && (p_htlc_sigs != NULL)) {
         //各HTLCの署名(commitment_signed用)
         DBG_PRINTF("HTLC-Timeout/Success sign\n");
 

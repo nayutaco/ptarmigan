@@ -951,7 +951,15 @@ static bool monfunc(ln_self_t *self, void *p_param)
                 DBG_PRINTF("close after closing_signed\n");
                 del = true;
             } else {
-                SYSLOG_WARN("closed: bad way or ugly way\n");
+                //展開されているのが最新のcommit_txか
+                ret = jsonrpc_getxout(&sat, self->commit_local.txid, 0);
+                if (!ret) {
+                    //最新のcommit_tx --> unilateral close
+                    SYSLOG_WARN("closed: bad way\n");
+                } else {
+                    //最新ではないcommit_tx --> revoked transaction close
+                    SYSLOG_WARN("closed: ugly way\n");
+                }
             }
         }
         if (del) {

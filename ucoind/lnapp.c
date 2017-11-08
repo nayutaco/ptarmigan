@@ -593,8 +593,10 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
             uint8_t txid[UCOIN_SZ_TXID];
             ret = jsonrpc_sendraw_tx(txid, close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
             if (ret) {
-                DBG_PRINTF("txid[%d]: ", lp);
+                DBG_PRINTF("latest commit_tx: ");
                 DUMPBIN(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
+                DBG_PRINTF("txid[%d]: ", lp);
+                DUMPTXID(txid);
             } else {
                 DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
             }
@@ -602,7 +604,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         ln_free_close_force_tx(&close_dat);
     }
 
-    ln_db_del_channel(&my_self);
+    //ln_db_del_channel(&my_self);
 
     return true;
 }
