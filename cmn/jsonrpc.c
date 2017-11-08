@@ -70,7 +70,7 @@ typedef struct {
  **************************************************************************/
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
-static bool getrawtransaction_rpc(char *pJson, const char *pTxid);
+static bool getrawtransaction_rpc(char *pJson, const char *pTxid, bool detail);
 static bool sendrawtransaction_rpc(char *pJson, const char *pTransaction);
 static bool gettxout_rpc(char *pJson, const char *pTxid, int idx);
 static bool getblock_rpc(char *pJson, const char *pBlock);
@@ -207,7 +207,7 @@ uint32_t jsonrpc_get_confirmation(const uint8_t *pTxid)
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     p_json = (char *)malloc(BUFFER_SIZE);
-    retval = getrawtransaction_rpc(p_json, txid);
+    retval = getrawtransaction_rpc(p_json, txid, true);
     if (retval) {
         json_t *p_root;
         json_t *p_result;
@@ -257,7 +257,7 @@ bool jsonrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t 
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     p_json = (char *)malloc(BUFFER_SIZE);
-    retval = getrawtransaction_rpc(p_json, txid);
+    retval = getrawtransaction_rpc(p_json, txid, true);
     if (retval) {
         json_t *p_root;
         json_t *p_result;
@@ -513,7 +513,7 @@ bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     p_json = (char *)malloc(BUFFER_SIZE);
-    retval = getrawtransaction_rpc(p_json, txid);
+    retval = getrawtransaction_rpc(p_json, txid, false);
     if (retval) {
         json_t *p_root;
         json_t *p_result;
@@ -762,6 +762,9 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
         DBG_PRINTF("error: too small buffer\n");
         return 0;
     }
+#ifdef M_DBG_SHOWREPLY
+    int pos = result->pos;
+#endif //M_DBG_SHOWREPLY
 
     memcpy(result->p_data + result->pos, ptr, size * nmemb);
     result->pos += size * nmemb;
@@ -771,7 +774,7 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
     *(result->p_data + result->pos) = 0;       //\0
 
 #ifdef M_DBG_SHOWREPLY
-    DBG_PRINTF2("\n\n@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, result->p_data + result->pos);
+    DBG_PRINTF2("\n\n@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, result->p_data + pos);
 #endif //M_DBG_SHOWREPLY
 
     return size * nmemb;
@@ -781,7 +784,7 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
 /** [cURL]getrawtransaction
  *
  */
-static bool getrawtransaction_rpc(char *pJson, const char *pTxid)
+static bool getrawtransaction_rpc(char *pJson, const char *pTxid, bool detail)
 {
     int retval = -1;
     CURL *curl = curl_easy_init();
@@ -796,8 +799,8 @@ static bool getrawtransaction_rpc(char *pJson, const char *pTxid)
 
                 ///////////////////////////////////////////
                 M_1("method", "getrawtransaction") M_NEXT
-                M_QQ("params") ":[" M_QQ("%s") ", true]"
-            "}", pTxid);
+                M_QQ("params") ":[" M_QQ("%s") ", %s]"
+            "}", pTxid, (detail) ? "true" : "false");
 
         retval = rpc_proc(curl, pJson, data);
         free(data);

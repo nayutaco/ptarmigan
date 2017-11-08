@@ -952,14 +952,20 @@ static bool monfunc(ln_self_t *self, void *p_param)
                 del = true;
             } else {
                 //展開されているのが最新のcommit_txか
-                ret = jsonrpc_getxout(&sat, self->commit_local.txid, 0);
-                if (!ret) {
+                DBG_PRINTF("remote commit_tx: ");
+                DUMPTXID(self->commit_remote.txid);
+                ucoin_tx_t tx_commit;
+                ucoin_tx_init(&tx_commit);
+                ret = jsonrpc_getraw_tx(&tx_commit, self->commit_remote.txid);
+                if (ret) {
                     //最新のcommit_tx --> unilateral close
                     SYSLOG_WARN("closed: bad way\n");
+                    ucoin_print_tx(&tx_commit);
                 } else {
                     //最新ではないcommit_tx --> revoked transaction close
                     SYSLOG_WARN("closed: ugly way\n");
                 }
+                ucoin_tx_free(&tx_commit);
             }
         }
         if (del) {
