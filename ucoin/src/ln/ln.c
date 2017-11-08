@@ -112,6 +112,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool create_funding_tx(ln_self_t *self);
 static bool create_to_local(ln_self_t *self,
+                    ucoin_tx_t *pTxLocal,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
                     uint32_t to_self_delay,
@@ -1555,7 +1556,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     // initial commit tx(自分が持つTo-Local)
     //      to-self-delayは自分の値(open_channel)を使う
     //      HTLCは存在しない
-    ret = create_to_local(self, NULL, 0,
+    ret = create_to_local(self, NULL, NULL, 0,
                 self->p_est->cnl_open.to_self_delay, self->p_est->cnl_accept.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
@@ -1633,7 +1634,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     // initial commit tx(自分が持つTo-Local)
     //      to-self-delayは相手の値(accept_channel)を使う
     //      HTLCは存在しない
-    ret = create_to_local(self, NULL, 0,
+    ret = create_to_local(self, NULL, NULL, 0,
                 self->p_est->cnl_accept.to_self_delay, self->p_est->cnl_open.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
@@ -2278,7 +2279,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     }
 
     //署名チェック＋保存: To-Local
-    ret = create_to_local(self, commsig.p_htlc_signature, commsig.num_htlcs,
+    ret = create_to_local(self, NULL, commsig.p_htlc_signature, commsig.num_htlcs,
                 self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
     M_FREE(commsig.p_htlc_signature);
     if (!ret) {
@@ -2763,6 +2764,7 @@ static bool create_funding_tx(ln_self_t *self)
  * @retval      true    成功
  */
 static bool create_to_local(ln_self_t *self,
+                    ucoin_tx_t *pTxLocal,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
                     uint32_t to_self_delay,
@@ -2992,7 +2994,11 @@ static bool create_to_local(ln_self_t *self,
         DBG_PRINTF("fail\n");
     }
     ucoin_buf_free(&buf_sig);
-    ucoin_tx_free(&tx_local);
+    if (pTxLocal != NULL) {
+        memcpy(pTxLocal, &tx_local, sizeof(ucoin_tx_t));
+    } else {
+        ucoin_tx_free(&tx_local);
+    }
 
     return ret;
 }
