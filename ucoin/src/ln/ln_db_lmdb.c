@@ -55,7 +55,7 @@
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-7)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-8)            ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -64,6 +64,7 @@
     -5 : backup_self_tにln_node_info_t追加
     -6 : self.min_depth追加
     -7 : ln_commit_data_tにtxid追加
+    -8 : ln_commit_data_tにhtlc_num追加
  */
 
 

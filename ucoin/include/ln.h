@@ -883,6 +883,7 @@ typedef struct {
                                                         // localには相手に送信する署名
                                                         // remoteには相手から受信した署名
     uint8_t             txid[UCOIN_SZ_TXID];            ///< txid
+    uint16_t            htlc_num;                       ///< commit_tx中のHTLC数
 } ln_commit_data_t;
 
 
@@ -1255,7 +1256,7 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee);
 bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
 
 
-/** unilateral close / revoked transaction close用トランザクション作成
+/** 送信用unilateral closeトランザクション作成
  *
  * @param[in]           self        channel情報
  * @param[out]          pClose      生成したトランザクション
@@ -1270,6 +1271,12 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose);
  *
  */
 void ln_free_close_force_tx(ln_close_force_t *pClose);
+
+
+/** 相手からcloseされたcommit_txを復元
+ *
+ */
+bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose);
 
 
 /** update_add_htlcメッセージ作成
