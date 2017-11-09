@@ -960,25 +960,27 @@ static bool monfunc(ln_self_t *self, void *p_param)
                 if (ret) {
                     //最新のcommit_tx --> unilateral close
                     SYSLOG_WARN("closed: bad way: htlc=%d\n", self->commit_remote.htlc_num);
-                    ucoin_print_tx(&tx_commit);
+                    //ucoin_print_tx(&tx_commit);
 
                     ln_close_force_t close_dat;
                     ret = ln_create_closed_tx(self, &close_dat);
                     if (ret) {
                         for (int lp = 0; lp < close_dat.num; lp++) {
-                            DBG_PRINTF("latest commit_tx: ");
-                            DUMPBIN(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
-
                             uint8_t txid[UCOIN_SZ_TXID];
                             ucoin_tx_txid_raw(txid, close_dat.pp_buf[lp]);
-                            DBG_PRINTF("txid[%d]: ", lp);
                             DUMPTXID(txid);
-                            ucoin_print_rawtx(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
+                            if (memcmp(txid, self->commit_remote.txid, UCOIN_SZ_TXID) == 0) {
+                                DBG_PRINTF("latest commit_tx[%d]: ", lp);
+                            } else {
+                                DBG_PRINTF("HTLC[%d]\n", lp);
+                                ucoin_print_rawtx(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
+                            }
                         }
                         ln_free_close_force_tx(&close_dat);
                     }
 
                     if (self->commit_remote.htlc_num == 0) {
+                        DBG_PRINTF("no HTLC --> delete from DB\n");
                         del = true;
                     }
                 } else {
@@ -988,10 +990,10 @@ static bool monfunc(ln_self_t *self, void *p_param)
                 ucoin_tx_free(&tx_commit);
             }
         }
-        //if (del) {
-        //    ret = ln_db_del_channel(self);
-        //    assert(ret);
-        //}
+        if (del) {
+            ret = ln_db_del_channel(self);
+            assert(ret);
+        }
    }
 
     return false;

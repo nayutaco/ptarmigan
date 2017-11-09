@@ -888,52 +888,20 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     DBG_PRINTF("HTLC num: %d\n", self->htlc_num);
 
     //1つ前のcommit_txを復元する
-    //  storage_index+2: 保存してデクリメントするので、1つ前は+2
+    //  storage_index+3: 保存してデクリメントするので、1つ前は+2のはずだが、やってみると+3になった
     //  remote_commit_num-1: commitment_signedでインクリメント
 
     DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
     DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
-//    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     //local
-    //DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    //ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 1);
-    //ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    //DBG_PRINTF("I+1: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
-
-    //ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 2);
-    //ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
-
+#warning Index+3?
     ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 3);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
     DBG_PRINTF("I+3: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
 
     //remote
-    DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
-    DBG_PRINTF("RI: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-
-    uint8_t remote_per_commit_sec[UCOIN_SZ_PRIVKEY];
-
-for (int lp = 0; lp < 5; lp++) {
-    bool ret = ln_derkey_storage_get_secret(remote_per_commit_sec, &self->peer_storage, 0xffffffffffffffffULL - lp);
-    assert(ret);
-    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], remote_per_commit_sec);
-    DBG_PRINTF("RI+%" PRIx64 ": ", 0xffffffffffffffffULL - lp); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-}
-
-    //
-    ln_derkey_storage_get_secret(remote_per_commit_sec, &self->peer_storage, self->peer_storage_index);
-    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], remote_per_commit_sec);
-    DBG_PRINTF("RI+0: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-    //
-    ln_derkey_storage_get_secret(remote_per_commit_sec, &self->peer_storage, self->peer_storage_index + 1);
-    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], remote_per_commit_sec);
-    DBG_PRINTF("RI+1: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-    //
-    ln_derkey_storage_get_secret(remote_per_commit_sec, &self->peer_storage, self->peer_storage_index + 2);
-    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], remote_per_commit_sec);
-    DBG_PRINTF("RI+2: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -3097,6 +3065,7 @@ static bool create_to_local(ln_self_t *self,
             DBG_PRINTF("署名数不一致: %d, %d\n", htlc_num, htlc_sigs_num);
             ret = false;
         }
+        self->commit_local.htlc_num = htlc_num;
     }
 
     DBG_PRINTF("free\n");
@@ -3265,7 +3234,6 @@ static bool create_to_remote(ln_self_t *self,
     if (!ret) {
         DBG_PRINTF("fail: ucoin_tx_txid\n");
     }
-    self->commit_remote.htlc_num = cnt;
 
     //送信用 commitment_signed.signature
     ln_misc_sigtrim(self->commit_local.signature, buf_sig.buf);
@@ -3360,6 +3328,7 @@ static bool create_to_remote(ln_self_t *self,
     if (p_htlc_sigs_num != NULL) {
         *p_htlc_sigs_num = htlc_num;
     }
+    self->commit_remote.htlc_num = htlc_num;
 
     DBG_PRINTF("free\n");
     if (pTxRemote != NULL) {
@@ -3578,10 +3547,28 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
 {
     DBG_PRINTF("I=%" PRIx64 "\n", self->peer_storage_index);
     DUMPBIN(p_prev_secret, UCOIN_SZ_PRIVKEY);
+    uint8_t pub[UCOIN_SZ_PUBKEY];
+    ucoin_keys_priv2pub(pub, p_prev_secret);
+    DUMPBIN(pub, UCOIN_SZ_PUBKEY);
     bool ret = ln_derkey_storage_insert_secret(&self->peer_storage, p_prev_secret, self->peer_storage_index);
     if (ret) {
         self->peer_storage_index--;
-        DBG_PRINTF("I=%" PRIx64 "\n", self->peer_storage_index);
+        ln_db_save_channel(self);
+
+        for (uint64_t idx = M_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
+            DBG_PRINTF("I=%" PRIx64 "\n", idx);
+            DBG_PRINTF2("  ");
+            uint8_t sec[UCOIN_SZ_PRIVKEY];
+            ret = ln_derkey_storage_get_secret(sec, &self->peer_storage, idx);
+            assert(ret);
+            DBG_PRINTF2("  pri:");
+            DUMPBIN(sec, UCOIN_SZ_PRIVKEY);
+            DBG_PRINTF2("  pub:");
+            ucoin_keys_priv2pub(pub, sec);
+            DUMPBIN(pub, UCOIN_SZ_PUBKEY);
+        }
+    } else {
+        assert(0);
     }
     return ret;
 }
