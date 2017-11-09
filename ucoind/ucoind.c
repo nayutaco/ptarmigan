@@ -936,8 +936,8 @@ static bool monfunc(ln_self_t *self, void *p_param)
 
     uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
     if (confm > 0) {
-        DBG_PRINTF("funding_txid[conf=%u, idx=%d]: ", confm, self->funding_local.txindex);
-        DUMPTXID(self->funding_local.txid);
+        DBG_PRINTF("funding_txid[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
+        DUMPTXID(ln_funding_txid(self));
 
         bool del = false;
         uint64_t sat;
@@ -953,13 +953,13 @@ static bool monfunc(ln_self_t *self, void *p_param)
             } else {
                 //展開されているのが最新のcommit_txか
                 DBG_PRINTF("remote commit_tx: ");
-                DUMPTXID(self->commit_remote.txid);
+                DUMPTXID(ln_commit_remote(self)->txid);
                 ucoin_tx_t tx_commit;
                 ucoin_tx_init(&tx_commit);
-                ret = jsonrpc_getraw_tx(&tx_commit, self->commit_remote.txid);
+                ret = jsonrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid);
                 if (ret) {
                     //最新のcommit_tx --> unilateral close
-                    SYSLOG_WARN("closed: bad way: htlc=%d\n", self->commit_remote.htlc_num);
+                    SYSLOG_WARN("closed: bad way: htlc=%d\n", ln_commit_remote(self)->htlc_num);
                     //ucoin_print_tx(&tx_commit);
 
                     ln_close_force_t close_dat;
@@ -969,7 +969,7 @@ static bool monfunc(ln_self_t *self, void *p_param)
                             uint8_t txid[UCOIN_SZ_TXID];
                             ucoin_tx_txid_raw(txid, close_dat.pp_buf[lp]);
                             DUMPTXID(txid);
-                            if (memcmp(txid, self->commit_remote.txid, UCOIN_SZ_TXID) == 0) {
+                            if (memcmp(txid, ln_commit_remote(self)->txid, UCOIN_SZ_TXID) == 0) {
                                 DBG_PRINTF("latest commit_tx[%d]: ", lp);
                             } else {
                                 DBG_PRINTF("HTLC[%d]\n", lp);
@@ -979,7 +979,7 @@ static bool monfunc(ln_self_t *self, void *p_param)
                         ln_free_close_force_tx(&close_dat);
                     }
 
-                    if (self->commit_remote.htlc_num == 0) {
+                    if (ln_commit_remote(self)->htlc_num == 0) {
                         DBG_PRINTF("no HTLC --> delete from DB\n");
                         del = true;
                     }

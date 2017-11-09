@@ -1267,16 +1267,22 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
 bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose);
 
 
-/** ln_close_force_tのメモリ解放
- *
- */
-void ln_free_close_force_tx(ln_close_force_t *pClose);
-
-
 /** 相手からcloseされたcommit_txを復元
  *
+ * @param[in]           self        channel情報
+ * @param[out]          pClose      生成したトランザクション
+ * @retval      ture    成功
+ * @note
+ *      - pCloseは @ln_free_close_force_tx()で解放すること
  */
 bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose);
+
+
+/** ln_close_force_tのメモリ解放
+ *
+ * @param[out]          pClose      ln_create_close_force_tx()やln_create_closed_tx()で生成したデータ
+ */
+void ln_free_close_force_tx(ln_close_force_t *pClose);
 
 
 /** update_add_htlcメッセージ作成
@@ -1506,6 +1512,25 @@ static inline bool ln_is_closing_signed_recvd(const ln_self_t *self) {
     return (self->obscured == 0);
 }
 
+
+/** commit_local取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      commit_local情報
+ */
+static inline const ln_commit_data_t *ln_commit_local(const ln_self_t *self) {
+    return &self->commit_local;
+}
+
+
+/** commit_remote取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      commit_remote情報
+ */
+static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
+    return &self->commit_remote;
+}
 
 /** open_channelのchannel_flags.announce_channel
  *

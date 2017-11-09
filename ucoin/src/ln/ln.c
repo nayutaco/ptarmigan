@@ -514,6 +514,10 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 }
 
 
+/********************************************************************
+ * Establish関係
+ ********************************************************************/
+
 //open_channel生成
 bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
             const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate)
@@ -733,6 +737,10 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
 }
 
 
+/********************************************************************
+ * Close関係
+ ********************************************************************/
+
 void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee)
 {
     //BOLT#3
@@ -865,16 +873,6 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 }
 
 
-void ln_free_close_force_tx(ln_close_force_t *pClose)
-{
-    for (int lp = 0; lp < pClose->num; lp++) {
-        ucoin_buf_free(pClose->pp_buf[lp]);
-        M_FREE(pClose->pp_buf[lp]);
-    }
-    M_FREE(pClose->pp_buf);
-}
-
-
 bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
@@ -932,6 +930,20 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     return true;
 }
 
+
+void ln_free_close_force_tx(ln_close_force_t *pClose)
+{
+    for (int lp = 0; lp < pClose->num; lp++) {
+        ucoin_buf_free(pClose->pp_buf[lp]);
+        M_FREE(pClose->pp_buf[lp]);
+    }
+    M_FREE(pClose->pp_buf);
+}
+
+
+/********************************************************************
+ * Normal Operation関係
+ ********************************************************************/
 
 bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
             const uint8_t *pPacket,
@@ -1188,6 +1200,10 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
     return ret;
 }
 
+
+/********************************************************************
+ * その他
+ ********************************************************************/
 
 bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 {
