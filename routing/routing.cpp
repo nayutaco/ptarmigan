@@ -250,6 +250,11 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                 mNodeNum++;
                 mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
                 mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
+                if (memcmp(p1, p2, UCOIN_SZ_PUBKEY) > 0) {
+                    const uint8_t *p = p1;
+                    p1 = p2;
+                    p2 = p;
+                }
                 memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
                 memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
             }
@@ -580,6 +585,10 @@ int main(int argc, char* argv[])
                     ninfo = mpNodes[lp3].ninfo[dir];
                     break;
                 }
+            }
+            if (sci == 0) {
+                fprintf(stderr, "not match!\n");
+                abort();
             }
 
             printf("route%d=", lp);
