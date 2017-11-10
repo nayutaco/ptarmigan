@@ -3031,6 +3031,11 @@ static bool create_to_local(ln_self_t *self,
                     ucoin_vin_t *vin = ucoin_tx_add_vin(&tx, self->commit_local.txid, vout_idx);
                     vin->sequence = 0;
 
+#ifdef UCOIN_USE_PRINTFUNC
+                    DBG_PRINTF("\n++++++++++++++ 自分のHTLC: vout[%d]\n", vout_idx);
+                    ucoin_print_tx(&tx);
+#endif  //UCOIN_USE_PRINTFUNC
+
                     //署名チェック
                     ln_misc_sigexpand(&buf_sig, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE);
                     ret = ln_verify_p2wsh_success_timeout(&tx,
@@ -3041,23 +3046,14 @@ static bool create_to_local(ln_self_t *self,
                                 &buf_sig,
                                 pp_htlcinfo[htlc_idx]->expiry,
                                 &pp_htlcinfo[htlc_idx]->script);
-#ifdef UCOIN_USE_PRINTFUNC
-                    DBG_PRINTF("\n++++++++++++++ HTLC検証: vout[%d]\n", vout_idx);
-                    ucoin_print_tx(&tx);
-#endif  //UCOIN_USE_PRINTFUNC
                     if (!ret) {
-                        DBG_PRINTF("fail: ln_verify_p2wsh_success_timeout\n");
+                        DBG_PRINTF("fail: ln_verify_p2wsh_success_timeout: vout[%d]\n", vout_idx);
                         break;
                     }
 
                     //OKなら各HTLCに保持
                     //  相手がunilateral closeした後に送信しなかったら、この署名を使う
                     memcpy(self->cnl_add_htlc[htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
-
-#ifdef UCOIN_USE_PRINTFUNC
-                    DBG_PRINTF("\n++++++++++++++ 自分のHTLC verify: vout[%d]\n", vout_idx);
-                    ucoin_print_tx(&tx);
-#endif  //UCOIN_USE_PRINTFUNC
 
                     ucoin_buf_free(&buf_sig);
                     //ucoin_buf_free(&buf_ws);
@@ -3302,6 +3298,11 @@ static bool create_to_remote(ln_self_t *self,
                     //vin
                     ucoin_tx_add_vin(&tx, self->commit_remote.txid, vout_idx);
 
+#ifdef UCOIN_USE_PRINTFUNC
+                    DBG_PRINTF("\n++++++++++++++ 相手のHTLC: vout[%d]\n", vout_idx);
+                    ucoin_print_tx(&tx);
+#endif  //UCOIN_USE_PRINTFUNC
+
                     //署名
                     ret = ln_sign_p2wsh_success_timeout(&tx, &buf_sig,
                                 tx_remote.vout[vout_idx].value,
@@ -3311,16 +3312,12 @@ static bool create_to_remote(ln_self_t *self,
                                 pp_htlcinfo[htlc_idx]->expiry,
                                 &pp_htlcinfo[htlc_idx]->script);
                     if (!ret) {
-                        DBG_PRINTF("fail: ln_sign_p2wsh_success_timeout\n");
+                        DBG_PRINTF("fail: ln_sign_p2wsh_success_timeout: vout[%d]\n", vout_idx);
                         break;
                     }
                     //RAW変換
                     ln_misc_sigtrim(*pp_htlc_sigs + LN_SZ_SIGNATURE * htlc_num, buf_sig.buf);
 
-#ifdef UCOIN_USE_PRINTFUNC
-                    DBG_PRINTF("\n++++++++++++++ 相手のHTLCに署名: vout[%d]\n", vout_idx);
-                    ucoin_print_tx(&tx);
-#endif  //UCOIN_USE_PRINTFUNC
                     DBG_PRINTF("signature: ");
                     DUMPBIN(buf_sig.buf, buf_sig.len);
 
