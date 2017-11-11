@@ -743,7 +743,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
     ASSERT_EQ(0, memcmp(LOCAL_SIGNATURE, buf_sig_local.buf, sizeof(LOCAL_SIGNATURE)));
@@ -1156,7 +1156,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
             printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,

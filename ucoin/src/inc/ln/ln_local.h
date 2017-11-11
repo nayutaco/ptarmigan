@@ -226,10 +226,18 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
  * @param[in]       Local       true:LocalがFEEを払う
  * @return      true:成功
  */
-bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local);
+bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local);
 
 
-/** P2WSH署名 - LN:HTLC-success/timeoutトランザクション更新
+/** Offered/Receveid HTLC Transaction作成
+ *
+ *
+ */
+bool HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
+                const uint8_t *pTxid, uint8_t Type, uint32_t CltvExpiry, int Index);
+
+
+/** Offered/Receveid HTLC Transaction署名
  *
  * @param[in,out]   pTx
  * @param[out]      pLocalSig       署名
@@ -237,26 +245,34 @@ bool HIDDEN ln_cmt_create(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t 
  * @param[in]       pKeys           CommitTxのlocal署名用
  * @param[in]       pRemoteSig      commit_tx相手からの署名
  * @param[in]       pPreImage       非NULL:payment_preimageでHTLC-Successとして署名, NULL:HTLC-Timeoutとして署名
- * @param[in]       CltvExpiry
- * @param[in]       pWitScript
+ * @param[in]       pWitScript      voutとなるスクリプト
  * @return      true:成功
  */
-bool HIDDEN ln_sign_p2wsh_success_timeout(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
+bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
                     uint64_t Value,
                     const ucoin_util_keys_t *pKeys,
                     const ucoin_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
-                    uint32_t CltvExpiry,
                     const ucoin_buf_t *pWitScript);
 
 
-bool HIDDEN ln_verify_p2wsh_success_timeout(ucoin_tx_t *pTx,
+/** Offered/Receveid HTLC Transaction署名verify
+ *
+ * @param[in]       pTx
+ * @param[in]       Value           INPUTのamount
+ * @param[in]       pLocalPubKey
+ * @param[in]       pRemotePubKey
+ * @param[in]       pLocalSig
+ * @param[in]       pRemoteSig      commit_tx相手からの署名
+ * @param[in]       pWitScript      voutとなるスクリプト
+ * @return      true:成功
+ */
+bool HIDDEN ln_verify_htlc_tx(const ucoin_tx_t *pTx,
                     uint64_t Value,
                     const uint8_t *pLocalPubKey,
                     const uint8_t *pRemotePubKey,
                     const ucoin_buf_t *pLocalSig,
                     const ucoin_buf_t *pRemoteSig,
-                    uint32_t CltvExpiry,
                     const ucoin_buf_t *pWitScript);
 
 

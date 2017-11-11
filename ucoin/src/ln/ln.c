@@ -2956,9 +2956,9 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.htlcinfo_num = cnt;
 
     DBG_PRINTF("self->commit_num=%" PRIx64 "\n", self->commit_num);
-    ret = ln_cmt_create(&tx_local, &buf_sig, &lntx_commit, ln_is_funder(self));
+    ret = ln_create_commit_tx(&tx_local, &buf_sig, &lntx_commit, ln_is_funder(self));
     if (!ret) {
-        DBG_PRINTF("fail: ln_cmt_create\n");
+        DBG_PRINTF("fail: ln_create_commit_tx\n");
         return false;
     }
 
@@ -2984,36 +2984,26 @@ static bool create_to_local(ln_self_t *self,
             if (htlc_idx != VOUT_OPT_NONE) {
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_local.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
-                    //vout
-                    ret = ucoin_sw_add_vout_p2wsh(&tx,
-                                    tx_local.vout[vout_idx].value - fee, &buf_ws);
-                    if (!ret) {
-                        DBG_PRINTF("fail: ucoin_sw_add_vout_p2wsh\n");
-                        break;
-                    }
-                    tx.vout[tx.vout_cnt - 1].opt = pp_htlcinfo[htlc_idx]->type;
-
-                    //vin
-                    ucoin_vin_t *vin = ucoin_tx_add_vin(&tx, self->commit_local.txid, vout_idx);
-                    vin->sequence = 0;
+                    ret = ln_create_htlc_tx(&tx, tx_local.vout[vout_idx].value - fee, &buf_ws,
+                                self->commit_local.txid, pp_htlcinfo[htlc_idx]->type,
+                                pp_htlcinfo[htlc_idx]->expiry, vout_idx);
 
 #ifdef UCOIN_USE_PRINTFUNC
-                    DBG_PRINTF("\n++++++++++++++ 自分のHTLC: vout[%d]\n", vout_idx);
+                    DBG_PRINTF("\n++++++++++++++ HTLC %s: vout[%d]\n", (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received", vout_idx);
                     ucoin_print_tx(&tx);
 #endif  //UCOIN_USE_PRINTFUNC
 
                     //署名チェック
                     ln_misc_sigexpand(&buf_sig, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE);
-                    ret = ln_verify_p2wsh_success_timeout(&tx,
+                    ret = ln_verify_htlc_tx(&tx,
                                 tx_local.vout[vout_idx].value,
                                 NULL,
                                 self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
                                 NULL,
                                 &buf_sig,
-                                pp_htlcinfo[htlc_idx]->expiry,
                                 &pp_htlcinfo[htlc_idx]->script);
                     if (!ret) {
-                        DBG_PRINTF("fail: ln_verify_p2wsh_success_timeout: vout[%d]\n", vout_idx);
+                        DBG_PRINTF("fail: ln_verify_htlc_tx: vout[%d]\n", vout_idx);
                         break;
                     }
 
@@ -3197,9 +3187,9 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.htlcinfo_num = cnt;
 
     DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num);
-    bool ret = ln_cmt_create(&tx_remote, &buf_sig, &lntx_commit, !ln_is_funder(self));
+    bool ret = ln_create_commit_tx(&tx_remote, &buf_sig, &lntx_commit, !ln_is_funder(self));
     if (!ret) {
-        DBG_PRINTF("fail: ln_cmt_create(Remote)\n");
+        DBG_PRINTF("fail: ln_create_commit_tx(Remote)\n");
     }
 #ifdef UCOIN_USE_PRINTFUNC
     DBG_PRINTF("++++++++++++++ 相手のcommit txに署名: tx_remote[%" PRIx64 "]\n", self->short_channel_id);
@@ -3249,33 +3239,24 @@ static bool create_to_remote(ln_self_t *self,
             if (htlc_idx != VOUT_OPT_NONE) {
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_remote.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
-                    //vout
-                    ret = ucoin_sw_add_vout_p2wsh(&tx,
-                                    tx_remote.vout[vout_idx].value - fee, &buf_ws);
-                    if (!ret) {
-                        DBG_PRINTF("fail: ucoin_sw_add_vout_p2wsh\n");
-                        break;
-                    }
-                    tx.vout[tx.vout_cnt - 1].opt = pp_htlcinfo[htlc_idx]->type;
-
-                    //vin
-                    ucoin_tx_add_vin(&tx, self->commit_remote.txid, vout_idx);
+                    ret = ln_create_htlc_tx(&tx, tx_remote.vout[vout_idx].value - fee, &buf_ws,
+                                self->commit_remote.txid, pp_htlcinfo[htlc_idx]->type,
+                                pp_htlcinfo[htlc_idx]->expiry, vout_idx);
 
 #ifdef UCOIN_USE_PRINTFUNC
-                    DBG_PRINTF("\n++++++++++++++ 相手のHTLC: vout[%d]\n", vout_idx);
+                    DBG_PRINTF("\n++++++++++++++ HTLC %s: vout[%d]\n", (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received", vout_idx);
                     ucoin_print_tx(&tx);
 #endif  //UCOIN_USE_PRINTFUNC
 
                     //署名
-                    ret = ln_sign_p2wsh_success_timeout(&tx, &buf_sig,
+                    ret = ln_sign_htlc_tx(&tx, &buf_sig,
                                 tx_remote.vout[vout_idx].value,
                                 &remotekey,
                                 &buf_remotesig,
                                 NULL,
-                                pp_htlcinfo[htlc_idx]->expiry,
                                 &pp_htlcinfo[htlc_idx]->script);
                     if (!ret) {
-                        DBG_PRINTF("fail: ln_sign_p2wsh_success_timeout: vout[%d]\n", vout_idx);
+                        DBG_PRINTF("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
                         break;
                     }
                     ln_misc_sigtrim(*pp_htlc_sigs + LN_SZ_SIGNATURE * htlc_num, buf_sig.buf);
