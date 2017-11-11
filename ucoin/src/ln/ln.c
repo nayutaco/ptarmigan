@@ -728,7 +728,7 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
             ret = false;
         }
     } else {
-        DBG_PRINTF("err\n");
+        DBG_PRINTF("fail\n");
     }
 
     ucoin_buf_free(&buf_upd);
@@ -1390,7 +1390,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         (*self->p_callback)(self, LN_CB_INIT_RECV, &msg);
     } else {
         self->err = LNERR_INV_FEATURE;
-        DBG_PRINTF("init error\n");
+        DBG_PRINTF("fail: init error\n");
     }
     ucoin_buf_free(&msg.localfeatures);
     ucoin_buf_free(&msg.globalfeatures);
@@ -2717,7 +2717,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         param.short_channel_id = ann.short_channel_id;
         (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
     } else {
-        DBG_PRINTF("err\n");
+        DBG_PRINTF("fail\n");
     }
 
     ucoin_buf_t buf;
@@ -2781,7 +2781,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
         } else {
-            DBG_PRINTF("err\n");
+            DBG_PRINTF("fail\n");
         }
     }
 
@@ -2792,7 +2792,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.len = Len;
         ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & 0x0001);
     } else {
-        DBG_PRINTF("err\n");
+        DBG_PRINTF("fail\n");
     }
 
     return ret;
@@ -2860,34 +2860,6 @@ static bool create_funding_tx(ln_self_t *self)
     return true;
 }
 
-
-//    INPUT      OUTPUT             INPUT        OUTPUT
-//    +---------+-----------+       +-----------+--------------+
-//    |Alice    | To-Local  +------>| To-Local  | any...       |
-//    |[P2WPKH] | [script]  |       | [script]  |              |
-//    |         |-----------+       +-----------+--------------+
-//    |         | To-Remote |
-//    |         | [direct]  |         INPUT               OUTPUT               INPUT          OUTPUT
-//    |.........|-----------+         +------------------+--------------+     +--------------+---------+
-//    |Bob      | Offered   +-------->| Offered/Received | HTLC-Timeout +---->| HTLC-Timeout | any..   |
-//    |[P2WPKH] | [script]  |         | [script]         | [script]     |     | [script]     |         |
-//    |         |-----------+         +------------------+--------------+     +--------------+---------+
-//    |         | Received  +-----+
-//    |         | [script]  |     |   INPUT               OUTPUT               INPUT          OUTPUT
-//    +---------+-----------+     |   +------------------+--------------+     +--------------+---------+
-//                                +-->| Offered/Received | HTLC-Success +---->| HTLC-Success | any..   |
-//                                    |    +             | [script]     |     | [script]     |         |
-//                                    | preimage         |              |     +--------------+---------+
-//                                    | [script]         |              |
-//                                    +------------------+--------------+
-//
-// Offeredは、取りあえずHTLC-Timeout Transactionを公開する。
-// ただ、locktimeが設定してあるため、すぐにはマイニングされない。
-// 相手はそれまでの間にpreimageが入手できれば、locktime以内に「<remotesig> <payment_preimage>」で取り戻せる。
-//
-// Receivedは、HTLC-Success Transactionを公開する。
-// こちらはlocktimeはないが、OP_CLTVがある。
-// もし
 
 /** 自分用commitment transaction作成
  *
@@ -2957,11 +2929,6 @@ static bool create_to_local(ln_self_t *self,
     }
     DBG_PRINTF("-------\n");
 
-    //if ((cnt > 0) && (p_htlc_sigs == NULL)) {
-    //    DBG_PRINTF("fail: HTLCがあるのに署名は無いと考えている\n");
-    //    return false;
-    //}
-
     //FEE
     feeinfo.feerate_per_kw = self->feerate_per_kw;
     feeinfo.dust_limit_satoshi = dust_limit_sat;
@@ -3009,7 +2976,6 @@ static bool create_to_local(ln_self_t *self,
         ucoin_tx_t tx;
         ucoin_buf_t buf_sig;
 
-        //ucoin_buf_free(&buf_ws);
         ucoin_buf_init(&buf_sig);
         ucoin_tx_init(&tx);
 
@@ -3056,7 +3022,6 @@ static bool create_to_local(ln_self_t *self,
                     memcpy(self->cnl_add_htlc[htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
 
                     ucoin_buf_free(&buf_sig);
-                    //ucoin_buf_free(&buf_ws);
                     ucoin_tx_free(&tx);
                     htlc_num++;
 
@@ -3070,7 +3035,6 @@ static bool create_to_local(ln_self_t *self,
         }
 
         ucoin_buf_free(&buf_sig);
-        ucoin_buf_free(&buf_ws);
         ucoin_tx_free(&tx);
 
         if (htlc_num != htlc_sigs_num) {
@@ -3263,7 +3227,6 @@ static bool create_to_remote(ln_self_t *self,
         ucoin_tx_t tx;
         ucoin_buf_t buf_sig;
 
-        //ucoin_buf_free(&buf_ws);
         ucoin_buf_init(&buf_remotesig);
         ucoin_buf_init(&buf_sig);
         ucoin_tx_init(&tx);
@@ -3315,14 +3278,11 @@ static bool create_to_remote(ln_self_t *self,
                         DBG_PRINTF("fail: ln_sign_p2wsh_success_timeout: vout[%d]\n", vout_idx);
                         break;
                     }
-                    //RAW変換
                     ln_misc_sigtrim(*pp_htlc_sigs + LN_SZ_SIGNATURE * htlc_num, buf_sig.buf);
-
-                    DBG_PRINTF("signature: ");
-                    DUMPBIN(buf_sig.buf, buf_sig.len);
+                    //DBG_PRINTF("signature: ");
+                    //DUMPBIN(buf_sig.buf, buf_sig.len);
 
                     ucoin_buf_free(&buf_sig);
-                    //ucoin_buf_free(&buf_ws);
                     ucoin_tx_free(&tx);
 
                     htlc_num++;
@@ -3334,7 +3294,6 @@ static bool create_to_remote(ln_self_t *self,
             }
         }
         ucoin_buf_free(&buf_sig);
-        ucoin_buf_free(&buf_ws);
         ucoin_tx_free(&tx);
         ucoin_buf_free(&buf_remotesig);
     }
