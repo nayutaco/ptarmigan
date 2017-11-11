@@ -3498,28 +3498,28 @@ static void get_prev_percommit_secret(ln_self_t *self, uint8_t *p_prev_secret)
  */
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret)
 {
-    DBG_PRINTF("I=%" PRIx64 "\n", self->peer_storage_index);
-    DUMPBIN(p_prev_secret, UCOIN_SZ_PRIVKEY);
+    //DBG_PRINTF("I=%" PRIx64 "\n", self->peer_storage_index);
+    //DUMPBIN(p_prev_secret, UCOIN_SZ_PRIVKEY);
     uint8_t pub[UCOIN_SZ_PUBKEY];
     ucoin_keys_priv2pub(pub, p_prev_secret);
-    DUMPBIN(pub, UCOIN_SZ_PUBKEY);
+    //DUMPBIN(pub, UCOIN_SZ_PUBKEY);
     bool ret = ln_derkey_storage_insert_secret(&self->peer_storage, p_prev_secret, self->peer_storage_index);
     if (ret) {
         self->peer_storage_index--;
         ln_db_save_channel(self);
 
-        for (uint64_t idx = M_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
-            DBG_PRINTF("I=%" PRIx64 "\n", idx);
-            DBG_PRINTF2("  ");
-            uint8_t sec[UCOIN_SZ_PRIVKEY];
-            ret = ln_derkey_storage_get_secret(sec, &self->peer_storage, idx);
-            assert(ret);
-            DBG_PRINTF2("  pri:");
-            DUMPBIN(sec, UCOIN_SZ_PRIVKEY);
-            DBG_PRINTF2("  pub:");
-            ucoin_keys_priv2pub(pub, sec);
-            DUMPBIN(pub, UCOIN_SZ_PUBKEY);
-        }
+        //for (uint64_t idx = M_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
+        //    DBG_PRINTF("I=%" PRIx64 "\n", idx);
+        //    DBG_PRINTF2("  ");
+        //    uint8_t sec[UCOIN_SZ_PRIVKEY];
+        //    ret = ln_derkey_storage_get_secret(sec, &self->peer_storage, idx);
+        //    assert(ret);
+        //    DBG_PRINTF2("  pri:");
+        //    DUMPBIN(sec, UCOIN_SZ_PRIVKEY);
+        //    DBG_PRINTF2("  pub:");
+        //    ucoin_keys_priv2pub(pub, sec);
+        //    DUMPBIN(pub, UCOIN_SZ_PUBKEY);
+        //}
     } else {
         assert(0);
     }
