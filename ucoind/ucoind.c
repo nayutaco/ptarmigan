@@ -949,7 +949,6 @@ static bool monfunc(ln_self_t *self, void *p_param)
                 //  Otherwise, if the node has received a valid closing_signed message with high enough fee level, it SHOULD use that to perform a mutual close.
                 //  https://github.com/lightningnetwork/lightning-rfc/blob/master/05-onchain.md#requirements-1
                 DBG_PRINTF("close after closing_signed\n");
-                del = true;
             } else {
                 //展開されているのが最新のcommit_txか
                 DBG_PRINTF("remote commit_tx: ");
@@ -965,23 +964,32 @@ static bool monfunc(ln_self_t *self, void *p_param)
                     ln_close_force_t close_dat;
                     ret = ln_create_closed_tx(self, &close_dat);
                     if (ret) {
+                        del = true;
                         for (int lp = 0; lp < close_dat.num; lp++) {
                             uint8_t txid[UCOIN_SZ_TXID];
-                            ucoin_tx_txid_raw(txid, close_dat.pp_buf[lp]);
+                            ucoin_tx_txid_raw(txid, &close_dat.p_buf[lp]);
                             DUMPTXID(txid);
                             if (memcmp(txid, ln_commit_remote(self)->txid, UCOIN_SZ_TXID) == 0) {
                                 DBG_PRINTF("latest commit_tx[%d]\n", lp);
                             } else {
-                                DBG_PRINTF("HTLC[%d]\n", lp);
-                                ucoin_print_rawtx(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
+                                if (close_dat.p_buf[lp].len > 0) {
+                                    DBG_PRINTF("HTLC[%d]\n", lp);
+                                    //ucoin_print_rawtx(close_dat.p_buf[lp].buf, close_dat.p_buf[lp].len);
+                                    ret = jsonrpc_sendraw_tx(txid, close_dat.p_buf[lp].buf, close_dat.p_buf[lp].len);
+                                    if (ret) {
+                                        DBG_PRINTF("broadcast txid[%d]: ", lp);
+                                        DUMPTXID(txid);
+                                    } else {
+                                        del = false;
+                                        DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                                    }
+                                } else {
+                                    DBG_PRINTF("skip HTLC[%d]\n", lp);
+                                    del = false;
+                                }
                             }
                         }
                         ln_free_close_force_tx(&close_dat);
-                    }
-
-                    if (ln_commit_remote(self)->htlc_num == 0) {
-                        DBG_PRINTF("no HTLC --> delete from DB\n");
-                        del = true;
                     }
                 } else {
                     //最新ではないcommit_tx --> revoked transaction close
@@ -991,6 +999,7 @@ static bool monfunc(ln_self_t *self, void *p_param)
             }
         }
         if (del) {
+            DBG_PRINTF("delete from DB\n");
             ret = ln_db_del_channel(self);
             assert(ret);
         }

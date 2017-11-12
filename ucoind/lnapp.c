@@ -590,17 +590,20 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     bool del = true;
     if (ret) {
         for (int lp = 0; lp < close_dat.num; lp++) {
-            //sendrawtransaction
-            uint8_t txid[UCOIN_SZ_TXID];
-            ret = jsonrpc_sendraw_tx(txid, close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
-            if (ret) {
-                //DBG_PRINTF("latest commit_tx: ");
-                //DUMPBIN(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
-                DBG_PRINTF("txid[%d]: ", lp);
-                DUMPTXID(txid);
+            if (close_dat.p_buf[lp].len > 0) {
+                //sendrawtransaction
+                uint8_t txid[UCOIN_SZ_TXID];
+                ret = jsonrpc_sendraw_tx(txid, close_dat.p_buf[lp].buf, close_dat.p_buf[lp].len);
+                if (ret) {
+                    DBG_PRINTF("broadcast txid[%d]: ", lp);
+                    DUMPTXID(txid);
+                } else {
+                    del = false;
+                    DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                }
             } else {
+                DBG_PRINTF("skip HTLC[%d]\n", lp);
                 del = false;
-                DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
             }
         }
         ln_free_close_force_tx(&close_dat);

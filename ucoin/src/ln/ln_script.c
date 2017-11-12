@@ -530,8 +530,8 @@ static void create_script_offered(ucoin_buf_t *pBuf,
     ucoin_push_data(&wscript, UCOIN_OP_EQUALVERIFY UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 4);
     ucoin_push_trim(&wscript);
 
-    //DBG_PRINTF("script:\n");
-    //ucoin_print_script(pBuf->buf, pBuf->len);
+    DBG_PRINTF("script:\n");
+    ucoin_print_script(pBuf->buf, pBuf->len);
 }
 
 
@@ -590,8 +590,8 @@ static void create_script_received(ucoin_buf_t *pBuf,
     ucoin_push_data(&wscript, UCOIN_OP_CLTV UCOIN_OP_DROP UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 5);
     ucoin_push_trim(&wscript);
 
-    //DBG_PRINTF("script:\n");
-    //ucoin_print_script(pBuf->buf, pBuf->len);
+    DBG_PRINTF("script:\n");
+    ucoin_print_script(pBuf->buf, pBuf->len);
     //DBG_PRINTF("revocation=");
     //DUMPBIN(pLocalRevoKey, UCOIN_SZ_PUBKEY);
 }

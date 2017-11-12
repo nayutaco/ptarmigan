@@ -401,8 +401,8 @@ typedef struct {
  *  @brief  [Close]Unilateral Close / Revoked Transaction Close用
  */
 typedef struct {
-    int             num;                            ///< pp_bufのtransaction数
-    ucoin_buf_t     **pp_buf;                       ///<
+    int             num;                            ///< p_bufのtransaction数
+    ucoin_buf_t     *p_buf;                         ///<
 } ln_close_force_t;
 
 /// @}
