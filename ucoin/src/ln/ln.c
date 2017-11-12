@@ -797,51 +797,25 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown)
 bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
+    DBG_PRINTF("HTLC num: %d\n", self->htlc_num);
 
     pClose->num = 0;
     pClose->pp_buf = NULL;
 
     //commit_tx
-    //  ここはunilateral closeのルート。
-    //  最新のcommit_txを作る
-    DBG_PRINTF("HTLC num: %d\n", self->htlc_num);
-
-    //1つ前のcommit_txを復元する
-    //  storage_index+2: 保存してデクリメントするので、1つ前は+2
-    //  commit_num-1: commitment_signedでインクリメント
 
     //local
+    //  storage_seedは、次回送信するnext_per_commitment_secret用の値が入っている。
+    //  現在のnext_per_commitment_secret用の値は storage_seed+1。
+    //  現在のper_commitment_secret用の値は、storage_seed+2 となる。
     DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
-
-    ////
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index);
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
-    //
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index+1);
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index+1);
-    DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
-    //
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index+2);
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index+2);
-    DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
-    //
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index+3);
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index+3);
-    DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
-    ////
-
     ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 2);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+    DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
     //remote
-    uint8_t remote_per_commit_sec[UCOIN_SZ_PRIVKEY];
-    ln_derkey_storage_get_secret(remote_per_commit_sec, &self->peer_storage, self->peer_storage_index + 1);
-    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], remote_per_commit_sec);
+    DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("prev: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -864,42 +838,38 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
         DBG_PRINTF("fail: create_to_local\n");
         pClose->num = 0;
     }
-    ucoin_print_tx(&tx_local);
+    //ucoin_print_tx(&tx_local);
     ucoin_tx_free(&tx_local);
 
     //pClose->num++;
 
-    return true;
+    return ret;
 }
 
 
 bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
+    DBG_PRINTF("HTLC num: %d\n", self->htlc_num);
 
     pClose->num = 0;
     pClose->pp_buf = NULL;
 
     //commit_tx
-    //  ここはunilateral closeのルート。
-    //  最新のcommit_txを作る
-    DBG_PRINTF("HTLC num: %d\n", self->htlc_num);
-
-    //1つ前のcommit_txを復元する
-    //  storage_index+3: 保存してデクリメントするので、1つ前は+2のはずだが、やってみると+3になった
-    //  remote_commit_num-1: commitment_signedでインクリメント
-
-    DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
+    //  最新のcommit_txは ln_commit_remote(self)->txid に txidがあり、
+    //  相手が送信している前提でこの関数が呼ばれているため復元する意味はほとんどない。
+    //  単なる確認用。
 
     //local
-#warning Index+3?
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 3);
+    DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
+    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 2);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    DBG_PRINTF("I+3: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
 
     //remote
+    DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("prev: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -922,12 +892,12 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
         DBG_PRINTF("fail: create_to_local\n");
         pClose->num = 0;
     }
-    ucoin_print_tx(&tx_remote);
+    //ucoin_print_tx(&tx_remote);
     ucoin_tx_free(&tx_remote);
 
     //pClose->num++;
 
-    return true;
+    return ret;
 }
 
 
@@ -3192,7 +3162,7 @@ static bool create_to_remote(ln_self_t *self,
         DBG_PRINTF("fail: ln_create_commit_tx(Remote)\n");
     }
 #ifdef UCOIN_USE_PRINTFUNC
-    DBG_PRINTF("++++++++++++++ 相手のcommit txに署名: tx_remote[%" PRIx64 "]\n", self->short_channel_id);
+    DBG_PRINTF("++++++++++++++ 相手のcommit tx: tx_remote[%" PRIx64 "]\n", self->short_channel_id);
     ucoin_print_tx(&tx_remote);
 #endif  //UCOIN_USE_PRINTFUNC
 
@@ -3474,13 +3444,9 @@ static void update_percommit_secret(ln_self_t *self)
  */
 static void get_prev_percommit_secret(ln_self_t *self, uint8_t *p_prev_secret)
 {
-    // storage_indexの値
-    //      FF...FF : first per_commitment_point(open_channel/accept_channel)
-    //      FF...FE : next per_commitment_point(funding_locked)
-    //      FF...FD : 初回のrevoke_and_ackのnext per_commitment_point
-    //
-    //  初回のrevoke_and_ackで返すper_commitment_secretは、first per_commitment_pointのものになる。
-    //  そのため、+2している。
+    //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
+    //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
+    //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
     ln_derkey_create_secret(p_prev_secret, self->storage_seed, self->storage_index + 2);
 
     DBG_PRINTF("prev self->storage_index = %" PRIx64 "\n", self->storage_index + 2);
@@ -3507,6 +3473,7 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
     if (ret) {
         self->peer_storage_index--;
         ln_db_save_channel(self);
+        DBG_PRINTF("I=%" PRIx64 " --> %" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
 
         //for (uint64_t idx = M_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
         //    DBG_PRINTF("I=%" PRIx64 "\n", idx);

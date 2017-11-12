@@ -970,7 +970,7 @@ static bool monfunc(ln_self_t *self, void *p_param)
                             ucoin_tx_txid_raw(txid, close_dat.pp_buf[lp]);
                             DUMPTXID(txid);
                             if (memcmp(txid, ln_commit_remote(self)->txid, UCOIN_SZ_TXID) == 0) {
-                                DBG_PRINTF("latest commit_tx[%d]: ", lp);
+                                DBG_PRINTF("latest commit_tx[%d]\n", lp);
                             } else {
                                 DBG_PRINTF("HTLC[%d]\n", lp);
                                 ucoin_print_rawtx(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);

@@ -594,8 +594,8 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
             uint8_t txid[UCOIN_SZ_TXID];
             ret = jsonrpc_sendraw_tx(txid, close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
             if (ret) {
-                DBG_PRINTF("latest commit_tx: ");
-                DUMPBIN(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
+                //DBG_PRINTF("latest commit_tx: ");
+                //DUMPBIN(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
                 DBG_PRINTF("txid[%d]: ", lp);
                 DUMPTXID(txid);
             } else {
