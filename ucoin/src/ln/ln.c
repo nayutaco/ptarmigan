@@ -2945,11 +2945,11 @@ static bool create_to_local(ln_self_t *self,
         ucoin_util_keys_t localkey;
         if (pHtlcTxBuf != NULL) {
             ln_derkey_privkey(localkey.priv,
-                        self->funding_local.keys[MSG_FUNDIDX_PAYMENT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
+                        self->funding_local.keys[MSG_FUNDIDX_PAYMENT].pub,
+                        self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
                         self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
             ucoin_keys_priv2pub(localkey.pub, localkey.priv);
             assert(memcmp(localkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY], UCOIN_SZ_PUBKEY) == 0);
-            DBG_PRINTF("match localkey\n");
         }
 
         for (int vout_idx = 0; vout_idx < tx_local.vout_cnt; vout_idx++) {
@@ -3016,9 +3016,11 @@ static bool create_to_local(ln_self_t *self,
 
                         //このタイミングではOffered HTLC Transactionしか完成できない
                         if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) {
+                            DBG_PRINTF("sign HTLC[%d]\n", htlc_num);
                             ucoin_print_tx(&tx);
                             ucoin_tx_create(&pHtlcTxBuf[htlc_num], &tx);
                         } else {
+                            DBG_PRINTF("skip create HTLC[%d]\n", htlc_num);
                             ucoin_buf_init(&pHtlcTxBuf[htlc_num]);
                         }
                     }
@@ -3242,7 +3244,8 @@ static bool create_to_remote(ln_self_t *self,
         //  それに対応する秘密鍵(= local payment_secret & other per_commitment_point)を作成する
         ucoin_util_keys_t remotekey;
         ln_derkey_privkey(remotekey.priv,
-                    self->funding_local.keys[MSG_FUNDIDX_PAYMENT].pub, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+                    self->funding_local.keys[MSG_FUNDIDX_PAYMENT].pub,
+                    self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
                     self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
         ucoin_keys_priv2pub(remotekey.pub, remotekey.priv);
 
@@ -3278,12 +3281,13 @@ static bool create_to_remote(ln_self_t *self,
                         ln_misc_sigtrim(*pp_htlc_sigs + LN_SZ_SIGNATURE * htlc_num, buf_sig.buf);
                     }
                     if (pHtlcTxBuf != NULL) {
-                        DBG_PRINTF("HTLC署名: %d\n", htlc_num);
                         //このタイミングではReceived HTLC Transactionしか完成できない
                         if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) {
+                            DBG_PRINTF("sign HTLC[%d]\n", htlc_num);
                             ucoin_print_tx(&tx);
                             ucoin_tx_create(&pHtlcTxBuf[htlc_num], &tx);
                         } else {
+                            DBG_PRINTF("skip create HTLC[%d]\n", htlc_num);
                             ucoin_buf_init(&pHtlcTxBuf[htlc_num]);
                         }
                     }
