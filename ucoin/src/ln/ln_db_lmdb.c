@@ -262,6 +262,7 @@ bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId)
 
 LABEL_EXIT:
     if (txn) {
+        DBG_PRINTF("abort\n");
         mdb_txn_abort(txn);
     }
 
@@ -398,6 +399,7 @@ bool ln_db_save_channel(const ln_self_t *self)
 
 LABEL_EXIT:
     if (txn) {
+        DBG_PRINTF("abort\n");
         mdb_txn_abort(txn);
     }
     DBG_PRINTF("retval=%d\n", retval);
@@ -422,10 +424,15 @@ bool ln_db_del_channel(const ln_self_t *self)
     }
 
     //channel_announcementから自分のshort_channel_idを含むデータを削除
-    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, MDB_CREATE, &dbi_anno);
+    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, 0, &dbi_anno);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
+        if (retval == MDB_NOTFOUND) {
+            DBG_PRINTF("fall through\n");
+            goto LABEL_DEL_SS;
+        } else {
+            goto LABEL_EXIT;
+        }
     }
     retval = mdb_cursor_open(txn, dbi_anno, &cursor);
     if (retval != 0) {
@@ -448,21 +455,36 @@ bool ln_db_del_channel(const ln_self_t *self)
     }
     mdb_cursor_close(cursor);
 
+    //shared secret
+LABEL_DEL_SS:
+    mdb_dbi_close(mpDbEnv, dbi_anno);
 
-    //channel削除
-    strcpy(dbname, M_CHANNEL_NAME);
+    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi_cnl);
-    if (retval == 0) {
-        retval = mdb_drop(txn, dbi_cnl, 1);
+    retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        if (retval == MDB_NOTFOUND) {
+            DBG_PRINTF("fall through: %s\n", dbname);
+            goto LABEL_DEL_CNL;
+        } else {
+            goto LABEL_EXIT;
+        }
     }
+    DBG_PRINTF("drop: %s\n", dbname);
+    retval = mdb_drop(txn, dbi_cnl, 1);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
-    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
+    //channel削除
+LABEL_DEL_CNL:
+    mdb_dbi_close(mpDbEnv, dbi_cnl);
+
+    memcpy(dbname, M_CHANNEL_NAME, M_PREFIX_LEN);
     retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
     if (retval == 0) {
+        DBG_PRINTF("drop: %s\n", dbname);
         retval = mdb_drop(txn, dbi_cnl, 1);
     }
     if (retval != 0) {
@@ -474,6 +496,7 @@ bool ln_db_del_channel(const ln_self_t *self)
 
 LABEL_EXIT:
     if (txn) {
+        DBG_PRINTF("abort\n");
         mdb_txn_abort(txn);
     }
     return retval == 0;
