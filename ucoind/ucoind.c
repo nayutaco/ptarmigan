@@ -83,6 +83,10 @@ static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
 static void *thread_monitor_start(void *pArg);
 static bool monfunc(ln_self_t *self, void *p_param);
 
+static bool close_unilateral_local(ln_self_t *self);
+static bool close_unilateral_remote(ln_self_t *self);
+static bool close_revoked(ln_self_t *self);
+
 
 /********************************************************************
  * public functions
@@ -906,6 +910,9 @@ static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id)
  * private functions: monitoring all channels
  **************************************************************************/
 
+/** チャネル閉鎖監視スレッド
+ *
+ */
 static void *thread_monitor_start(void *pArg)
 {
     (void)pArg;
@@ -929,10 +936,12 @@ static void *thread_monitor_start(void *pArg)
 }
 
 
+/** 監視処理
+ *
+ */
 static bool monfunc(ln_self_t *self, void *p_param)
 {
     (void)p_param;
-
 
     uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
     if (confm > 0) {
@@ -943,6 +952,8 @@ static bool monfunc(ln_self_t *self, void *p_param)
         uint64_t sat;
         bool ret = jsonrpc_getxout(&sat, ln_funding_txid(self), ln_funding_txindex(self));
         if (!ret) {
+            //funding_tx使用済み
+
             //gettxoutはunspentを返すので、取得失敗→unilateral close/revoked transaction closeとみなす
             if (ln_is_closing_signed_recvd(self)) {
                 //BOLT#5
@@ -953,61 +964,144 @@ static bool monfunc(ln_self_t *self, void *p_param)
                 //展開されているのが最新のcommit_txか
                 DBG_PRINTF("remote commit_tx: ");
                 DUMPTXID(ln_commit_remote(self)->txid);
+
                 ucoin_tx_t tx_commit;
                 ucoin_tx_init(&tx_commit);
-                ret = jsonrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid);
-                if (ret) {
-                    //最新のcommit_tx --> unilateral close
-                    SYSLOG_WARN("closed: bad way: htlc=%d\n", ln_commit_remote(self)->htlc_num);
-                    //ucoin_print_tx(&tx_commit);
-
-                    ln_close_force_t close_dat;
-                    ret = ln_create_closed_tx(self, &close_dat);
-                    if (ret) {
-                        del = true;
-                        for (int lp = 0; lp < close_dat.num; lp++) {
-                            uint8_t txid[UCOIN_SZ_TXID];
-
-                            ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
-                            DUMPTXID(txid);
-                            if (memcmp(txid, ln_commit_remote(self)->txid, UCOIN_SZ_TXID) == 0) {
-                                DBG_PRINTF("latest commit_tx[%d]\n", lp);
-                            } else {
-                                if (close_dat.p_tx[lp].vin_cnt > 0) {
-                                    DBG_PRINTF("HTLC[%d]\n", lp);
-
-                                    ucoin_buf_t buf;
-                                    ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
-                                    ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
-                                    ucoin_buf_free(&buf);
-                                    if (ret) {
-                                        DBG_PRINTF("broadcast txid[%d]: ", lp);
-                                        DUMPTXID(txid);
-                                    } else {
-                                        del = false;
-                                        DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
-                                    }
-                                } else {
-                                    DBG_PRINTF("skip HTLC[%d]\n", lp);
-                                    del = false;
-                                }
-                            }
-                        }
-                        ln_free_close_force_tx(&close_dat);
-                    }
+                if (jsonrpc_getraw_tx(&tx_commit, ln_commit_local(self)->txid)) {
+                    //最新のlocal commit_tx --> unilateral close(local)
+                    del = close_unilateral_local(self);
+                } else if (jsonrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid)) {
+                    //最新のremote commit_tx --> unilateral close(remote)
+                    del = close_unilateral_remote(self);
                 } else {
                     //最新ではないcommit_tx --> revoked transaction close
-                    SYSLOG_WARN("closed: ugly way\n");
+                    del = close_revoked(self);
                 }
                 ucoin_tx_free(&tx_commit);
             }
         }
-        if (del) {
-            DBG_PRINTF("delete from DB\n");
-            ret = ln_db_del_channel(self);
-            assert(ret);
-        }
+        //if (del) {
+        //    DBG_PRINTF("delete from DB\n");
+        //    ret = ln_db_del_channel(self);
+        //    assert(ret);
+        //}
    }
 
+    return false;
+}
+
+
+/** unilateral closeを自分が行っていた場合の処理(localのcommit_txを展開)
+ *
+ */
+static bool close_unilateral_local(ln_self_t *self)
+{
+    bool del;
+
+    SYSLOG_WARN("closed: bad way(local): htlc=%d\n", ln_commit_local(self)->htlc_num);
+    //ucoin_print_tx(&tx_commit);
+
+    ln_close_force_t close_dat;
+    bool ret = ln_create_close_force_tx(self, &close_dat);
+    if (ret) {
+        del = true;
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            uint8_t txid[UCOIN_SZ_TXID];
+
+            ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+            DUMPTXID(txid);
+            if (memcmp(txid, ln_commit_local(self)->txid, UCOIN_SZ_TXID) == 0) {
+                DBG_PRINTF("commit_tx[%d]: broadcasted\n", lp);
+            } else {
+                if (close_dat.p_tx[lp].vin_cnt > 0) {
+                    //展開済みチェック
+                    ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                    ret = jsonrpc_getraw_tx(NULL, txid);
+                    if (ret) {
+                        DBG_PRINTF("already broadcasted[%d]: ", lp);
+                        DUMPTXID(txid);
+                        continue;
+                    }
+
+                    ucoin_buf_t buf;
+                    ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                    ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                    ucoin_buf_free(&buf);
+                    if (ret) {
+                        DBG_PRINTF("broadcast txid[%d]: ", lp);
+                        DUMPTXID(txid);
+                    } else {
+                        del = false;
+                        DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                    }
+                } else {
+                    DBG_PRINTF("skip HTLC[%d]\n", lp);
+                    del = false;
+                }
+            }
+        }
+        ln_free_close_force_tx(&close_dat);
+    } else {
+        del = false;
+    }
+
+    return del;
+}
+
+
+/** unilateral closeを相手が行っていた場合の処理(remoteのcommit_txを展開)
+ *
+ */
+static bool close_unilateral_remote(ln_self_t *self)
+{
+    bool del;
+
+    SYSLOG_WARN("closed: bad way(remote): htlc=%d\n", ln_commit_remote(self)->htlc_num);
+    //ucoin_print_tx(&tx_commit);
+
+    ln_close_force_t close_dat;
+    bool ret = ln_create_closed_tx(self, &close_dat);
+    if (ret) {
+        del = true;
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            uint8_t txid[UCOIN_SZ_TXID];
+
+            ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+            DUMPTXID(txid);
+            if (memcmp(txid, ln_commit_remote(self)->txid, UCOIN_SZ_TXID) == 0) {
+                DBG_PRINTF("commit_tx[%d]: broadcasted\n", lp);
+            } else {
+                if (close_dat.p_tx[lp].vin_cnt > 0) {
+                    DBG_PRINTF("HTLC[%d]\n", lp);
+
+                    ucoin_buf_t buf;
+                    ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                    ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                    ucoin_buf_free(&buf);
+                    if (ret) {
+                        DBG_PRINTF("broadcast txid[%d]: ", lp);
+                        DUMPTXID(txid);
+                    } else {
+                        del = false;
+                        DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                    }
+                } else {
+                    DBG_PRINTF("skip HTLC[%d]\n", lp);
+                    del = false;
+                }
+            }
+        }
+        ln_free_close_force_tx(&close_dat);
+    } else {
+        del = false;
+    }
+
+    return del;
+}
+
+
+static bool close_revoked(ln_self_t *self)
+{
+    SYSLOG_WARN("closed: ugly way\n");
     return false;
 }

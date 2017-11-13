@@ -597,7 +597,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 ret = jsonrpc_getraw_tx(NULL, txid);
                 if (ret) {
-                    DBG_PRINTF("already broadcasted: ");
+                    DBG_PRINTF("already broadcasted[%d]: ", lp);
                     DUMPTXID(txid);
                     continue;
                 }
@@ -625,10 +625,10 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         DBG_PRINTF("fail: create_close_tx\n");
     }
 
-    if (del) {
-        DBG_PRINTF("delete from DB\n");
-        ln_db_del_channel(&my_self);
-    }
+    //if (del) {
+    //    DBG_PRINTF("delete from DB\n");
+    //    ln_db_del_channel(&my_self);
+    //}
 
     return true;
 }
