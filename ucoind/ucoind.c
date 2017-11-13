@@ -954,17 +954,14 @@ static bool monfunc(ln_self_t *self, void *p_param)
         if (!ret) {
             //funding_tx使用済み
 
-            //gettxoutはunspentを返すので、取得失敗→unilateral close/revoked transaction closeとみなす
             if (ln_is_closing_signed_recvd(self)) {
-                //BOLT#5
-                //  Otherwise, if the node has received a valid closing_signed message with high enough fee level, it SHOULD use that to perform a mutual close.
-                //  https://github.com/lightningnetwork/lightning-rfc/blob/master/05-onchain.md#requirements-1
+                //closing_signed受信あり
+                //  funding_txが使用済みでclosing_signed受信済みであれば、
+                //  相手がclosing_txを展開したことになるので、DBから消して良い
                 DBG_PRINTF("close after closing_signed\n");
+                del = true;
             } else {
                 //展開されているのが最新のcommit_txか
-                DBG_PRINTF("remote commit_tx: ");
-                DUMPTXID(ln_commit_remote(self)->txid);
-
                 ucoin_tx_t tx_commit;
                 ucoin_tx_init(&tx_commit);
                 if (jsonrpc_getraw_tx(&tx_commit, ln_commit_local(self)->txid)) {
