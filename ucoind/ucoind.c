@@ -967,15 +967,19 @@ static bool monfunc(ln_self_t *self, void *p_param)
                         del = true;
                         for (int lp = 0; lp < close_dat.num; lp++) {
                             uint8_t txid[UCOIN_SZ_TXID];
-                            ucoin_tx_txid_raw(txid, &close_dat.p_buf[lp]);
+
+                            ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                             DUMPTXID(txid);
                             if (memcmp(txid, ln_commit_remote(self)->txid, UCOIN_SZ_TXID) == 0) {
                                 DBG_PRINTF("latest commit_tx[%d]\n", lp);
                             } else {
-                                if (close_dat.p_buf[lp].len > 0) {
+                                if (close_dat.p_tx[lp].vin_cnt > 0) {
                                     DBG_PRINTF("HTLC[%d]\n", lp);
-                                    //ucoin_print_rawtx(close_dat.p_buf[lp].buf, close_dat.p_buf[lp].len);
-                                    ret = jsonrpc_sendraw_tx(txid, close_dat.p_buf[lp].buf, close_dat.p_buf[lp].len);
+
+                                    ucoin_buf_t buf;
+                                    ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                                    ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                                    ucoin_buf_free(&buf);
                                     if (ret) {
                                         DBG_PRINTF("broadcast txid[%d]: ", lp);
                                         DUMPTXID(txid);

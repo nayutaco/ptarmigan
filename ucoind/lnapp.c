@@ -590,11 +590,24 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     bool del = true;
     if (ret) {
         for (int lp = 0; lp < close_dat.num; lp++) {
-            if (close_dat.p_buf[lp].len > 0) {
-                //sendrawtransaction
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
                 uint8_t txid[UCOIN_SZ_TXID];
-                ret = jsonrpc_sendraw_tx(txid, close_dat.p_buf[lp].buf, close_dat.p_buf[lp].len);
+
+                //展開済みチェック
+                ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                ret = jsonrpc_getraw_tx(NULL, txid);
                 if (ret) {
+                    DBG_PRINTF("already broadcasted: ");
+                    DUMPTXID(txid);
+                    continue;
+                }
+
+                //sendrawtransaction
+                ucoin_buf_t buf;
+                ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                if (ret) {
+                    ucoin_buf_free(&buf);
                     DBG_PRINTF("broadcast txid[%d]: ", lp);
                     DUMPTXID(txid);
                 } else {

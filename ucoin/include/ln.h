@@ -402,7 +402,7 @@ typedef struct {
  */
 typedef struct {
     int             num;                            ///< p_bufのtransaction数
-    ucoin_buf_t     *p_buf;                         ///<
+    ucoin_tx_t      *p_tx;                          ///<
 } ln_close_force_t;
 
 /// @}
