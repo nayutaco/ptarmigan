@@ -100,7 +100,8 @@
 #define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり
 #define CHANNEL_FLAGS_VALUE         CHANNEL_FLAGS_ANNOCNL   ///< TODO:open_channel.channel_flags
 
-#define VOUT_OPT_NONE               (0xff)
+#define VOUT_OPT_TOLOCAL            (0xfe)                  ///< vout=to_local
+#define VOUT_OPT_TOREMOTE           (0xff)                  ///< vout=to_remote
 
 
 /**************************************************************************

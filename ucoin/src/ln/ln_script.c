@@ -117,6 +117,83 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
 }
 
 
+#if 0
+/*  to_self_delay後(sequence=to_self_delay)
+ *      <local_delayedsig> 0
+ *
+ *  revoked transaction
+ *      <revocation_sig> 1
+ *
+ */
+bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
+                const uint8_t *pTxid, int Index)
+{
+    //vout
+    bool ret = ucoin_sw_add_vout_p2wsh(pTx, Value, pScript);
+    if (!ret) {
+        DBG_PRINTF("fail: ucoin_sw_add_vout_p2wsh\n");
+        goto LABEL_EXIT;
+    }
+
+    //vin
+    ucoin_tx_add_vin(pTx, pTxid, Index);
+
+LABEL_EXIT:
+    return ret;
+}
+
+
+bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
+                    uint64_t Value,
+                    const ucoin_util_keys_t *pKeys,
+                    const ucoin_buf_t *pRemoteSig,
+                    const uint8_t *pPreImage,
+                    const ucoin_buf_t *pWitScript)
+{
+    // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
+
+    if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
+        DBG_PRINTF("fail: invalid vin/vout\n");
+        return false;
+    }
+
+    bool ret = false;
+    uint8_t sighash[UCOIN_SZ_SIGHASH];
+
+    //vinは1つしかないので、Indexは0固定
+    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
+
+    //DBG_PRINTF("sighash: ");
+    //DUMPBIN(sighash, UCOIN_SZ_SIGHASH);
+    //DBG_PRINTF("pubkey: ");
+    //DUMPBIN(pKeys->pub, UCOIN_SZ_PUBKEY);
+    //DBG_PRINTF("wscript: ");
+    //DUMPBIN(pWitScript->buf, pWitScript->len);
+
+    ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
+    if (ret) {
+        // 0
+        // <remotesig>
+        // <localsig>
+        // <payment-preimage> or 0
+        // <script>
+        const ucoin_buf_t wit0 = { NULL, 0 };
+        const ucoin_buf_t preimage = { (CONST_CAST uint8_t *)pPreImage, (uint16_t)((pPreImage) ? UCOIN_SZ_HASH256 : 0) };
+        const ucoin_buf_t *wits[] = {
+            &wit0,
+            pRemoteSig,
+            pLocalSig,
+            &preimage,
+            pWitScript
+        };
+
+        ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
+    }
+
+    return ret;
+}
+#endif
+
 bool HIDDEN ln_create_scriptpkh(ucoin_buf_t *pBuf, const ucoin_buf_t *pPub, int Prefix)
 {
     bool ret = true;
@@ -282,7 +359,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
         DBG_PRINTF2("    remote.pubkey: ");
         DUMPBIN(pCmt->remote.pubkey, UCOIN_SZ_PUBKEY);
         ucoin_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
-        pTx->vout[pTx->vout_cnt - 1].opt = VOUT_OPT_NONE;
+        pTx->vout[pTx->vout_cnt - 1].opt = VOUT_OPT_TOREMOTE;
     } else {
         DBG_PRINTF("  output P2WPKH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
     }
@@ -290,7 +367,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
     if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
         DBG_PRINTF("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
         ucoin_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
-        pTx->vout[pTx->vout_cnt - 1].opt = VOUT_OPT_NONE;
+        pTx->vout[pTx->vout_cnt - 1].opt = VOUT_OPT_TOLOCAL;
     } else {
         DBG_PRINTF("  output P2WSH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
     }
