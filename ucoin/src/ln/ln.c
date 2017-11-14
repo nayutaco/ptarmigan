@@ -2945,6 +2945,12 @@ static bool create_to_local(ln_self_t *self,
             uint8_t htlc_idx = tx_local.vout[vout_idx].opt;
             if (htlc_idx == VOUT_OPT_TOLOCAL) {
                 DBG_PRINTF("+++[%d]to_local\n", vout_idx);
+                //if (pTxHtlcs != NULL) {
+                //    ret = ln_create_tolocal_tx(&tx, tx_local.vout[vout_idx].value - fee, &buf_ws,
+                //            self->commit_local.txid, vout_idx);
+                //    assert(ret);
+                //    ucoin_tx_free(&tx);
+                //}
             } else if (htlc_idx == VOUT_OPT_TOREMOTE) {
                 DBG_PRINTF("+++[%d]to_remote\n", vout_idx);
             } else {
@@ -2954,6 +2960,7 @@ static bool create_to_local(ln_self_t *self,
                     ret = ln_create_htlc_tx(&tx, tx_local.vout[vout_idx].value - fee, &buf_ws,
                                 self->commit_local.txid, pp_htlcinfo[htlc_idx]->type,
                                 pp_htlcinfo[htlc_idx]->expiry, vout_idx);
+                    assert(ret);
 
 #ifdef UCOIN_USE_PRINTFUNC
                     ucoin_print_tx(&tx);
@@ -3257,6 +3264,7 @@ static bool create_to_remote(ln_self_t *self,
                     ret = ln_create_htlc_tx(&tx, tx_remote.vout[vout_idx].value - fee, &buf_ws,
                                 self->commit_remote.txid, pp_htlcinfo[htlc_idx]->type,
                                 pp_htlcinfo[htlc_idx]->expiry, vout_idx);
+                    assert(ret);
 
 #ifdef UCOIN_USE_PRINTFUNC
                     ucoin_print_tx(&tx);
