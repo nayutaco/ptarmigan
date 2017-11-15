@@ -489,13 +489,15 @@ bool jsonrpc_sendraw_tx(uint8_t *pTxid, const uint8_t *pData, uint16_t Len)
             misc_str2bin_rev(pTxid, UCOIN_SZ_TXID, (const char *)json_string_value(p_result));
             ret = true;
         } else {
-            DBG_PRINTF("fail: json_is_string\n");
+            json_t *p_msg = NULL;
             json_t *p_err = json_object_get(p_root, M_ERROR);
             if (p_err) {
-                json_t *p_msg = json_object_get(p_err, M_MESSAGE);
-                if (p_msg) {
-                    DBG_PRINTF("[%s]\n", (const char *)json_string_value(p_msg));
-                }
+                p_msg = json_object_get(p_err, M_MESSAGE);
+            }
+            if (p_msg) {
+                DBG_PRINTF("[%s]\n", (const char *)json_string_value(p_msg));
+            } else {
+                DBG_PRINTF("fail: json_is_string\n");
             }
         }
 LABEL_DECREF:
@@ -544,13 +546,15 @@ bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
         }
         str_hex = (const char *)json_string_value(p_result);
         if (!str_hex) {
-            DBG_PRINTF("error: hex[%s]\n", txid);
+            json_t *p_msg = NULL;
             json_t *p_err = json_object_get(p_root, M_ERROR);
             if (p_err) {
-                json_t *p_msg = json_object_get(p_err, M_MESSAGE);
-                if (p_msg) {
-                    DBG_PRINTF("[%s]\n", (const char *)json_string_value(p_msg));
-                }
+                p_msg = json_object_get(p_err, M_MESSAGE);
+            }
+            if (p_msg) {
+                DBG_PRINTF("[%s]\n", (const char *)json_string_value(p_msg));
+            } else {
+                DBG_PRINTF("error: hex[%s]\n", txid);
             }
             goto LABEL_DECREF;
         }
