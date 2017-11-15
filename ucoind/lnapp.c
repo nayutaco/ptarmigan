@@ -583,10 +583,12 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
     my_self.feerate_per_kw = (uint32_t)feerate;
 
-    char changeaddr[UCOIN_SZ_ADDR_MAX];
-    jsonrpc_getnewaddress(changeaddr);
-    DBG_PRINTF("to_local send addr : %s\n", changeaddr);
-    ln_set_shutdown_vout_addr(&my_self, changeaddr);
+    if (my_self.shutdown_scriptpk_local.len == 0) {
+        //to_localの送金先
+        char payaddr[UCOIN_SZ_ADDR_MAX];
+        jsonrpc_getnewaddress(payaddr);
+        ln_set_shutdown_vout_addr(&my_self, payaddr);
+    }
 
     //自分が unilateral closeするパターン
     //  commit_tx
@@ -865,6 +867,10 @@ static void *thread_main_start(void *pArg)
     pthread_mutex_unlock(&p_conf->mux);
     DBG_PRINTF("init交換完了\n\n");
 
+    //送金先
+    char payaddr[UCOIN_SZ_ADDR_MAX];
+    jsonrpc_getnewaddress(payaddr);
+    ln_set_shutdown_vout_addr(&my_self, payaddr);
 
     // Establishチェック
     if ((p_conf->initiator) && (p_conf->cmd == DCMD_CREATE)) {
@@ -2730,10 +2736,6 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
  */
 static void set_changeaddr(ln_self_t *self, uint64_t commit_fee)
 {
-    char changeaddr[UCOIN_SZ_ADDR_MAX];
-    jsonrpc_getnewaddress(changeaddr);
-    DBG_PRINTF("closing change addr : %s\n", changeaddr);
-    ln_set_shutdown_vout_addr(self, changeaddr);
     ln_update_shutdown_fee(self, commit_fee);
 }
 

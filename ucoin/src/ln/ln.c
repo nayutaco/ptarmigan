@@ -802,6 +802,9 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     DBG_PRINTF("BEGIN\n");
     DBG_PRINTF("HTLC num: %d(%d)\n", self->htlc_num, self->commit_local.htlc_num);
 
+    //to_local送金先設定確認
+    assert(self->shutdown_scriptpk_local.len > 0);
+
     //commit_tx
 
     //local
@@ -2950,8 +2953,6 @@ static bool create_to_local(ln_self_t *self,
                 DBG_PRINTF("+++[%d]to_local\n", vout_idx);
                 if (pTxHtlcs != NULL) {
                     //to_localのFEE
-                    assert(self->shutdown_scriptpk_local.len > 0);
-
                     uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX * self->feerate_per_kw / 1000;
                     ret = ln_create_tolocal_tx(&tx, tx_local.vout[vout_idx].value - fee_tolocal,
                             &self->shutdown_scriptpk_local, to_self_delay,

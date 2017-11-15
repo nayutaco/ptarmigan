@@ -1007,12 +1007,14 @@ static bool close_unilateral_local(ln_self_t *self)
     if (!ret || (feerate < LN_FEERATE_PER_KW)) {
         feerate = LN_FEERATE_PER_KW;
     }
-    self->feerate_per_kw = (uint32_t)feerate;
+    ln_set_feerate(self, (uint32_t)feerate);
 
-    char changeaddr[UCOIN_SZ_ADDR_MAX];
-    jsonrpc_getnewaddress(changeaddr);
-    DBG_PRINTF("to_local send addr : %s\n", changeaddr);
-    ln_set_shutdown_vout_addr(self, changeaddr);
+    if (self->shutdown_scriptpk_local.len == 0) {
+        //to_localの送金先
+        char payaddr[UCOIN_SZ_ADDR_MAX];
+        jsonrpc_getnewaddress(payaddr);
+        ln_set_shutdown_vout_addr(self, payaddr);
+    }
 
     ln_close_force_t close_dat;
     ret = ln_create_close_force_tx(self, &close_dat);

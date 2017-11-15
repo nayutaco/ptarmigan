@@ -1496,6 +1496,16 @@ static inline bool ln_is_funder(const ln_self_t *self) {
 }
 
 
+/** feerate_per_kw設定
+ *
+ * @param[out]          self            channel情報
+ * @param[in]           feerate         設定値
+ */
+static inline void ln_set_feerate(ln_self_t *self, uint32_t feerate) {
+    self->feerate_per_kw = feerate;
+}
+
+
 /** 初期closing_tx FEE取得
  *
  * @param[in,out]       self            channel情報
