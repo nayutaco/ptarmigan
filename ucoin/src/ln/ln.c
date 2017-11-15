@@ -47,7 +47,21 @@
 
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
-#define M_SZ_TO_LOCAL_TX                        (77)        ///< to_local transaction長[byte]
+#define M_SZ_TO_LOCAL_TX(len)                   (213+len)   ///< to_local transaction長[byte]
+                                                            // <version> 4
+                                                            // <flag><marker> 2
+                                                            // vin_cnt 1
+                                                            //      outpoint 36
+                                                            //      scriptSig 1
+                                                            //      sequence 4
+                                                            // witness 1
+                                                            //      sig 73
+                                                            //      1
+                                                            //      script 77
+                                                            // vout_cnt 1
+                                                            //      amount 8
+                                                            //      scriptpk 1+len
+                                                            // locktime 4
 
 #define M_HTLCCHG_NONE                          (0)
 #define M_HTLCCHG_FF_SEND                       (1)
@@ -2953,7 +2967,7 @@ static bool create_to_local(ln_self_t *self,
                 DBG_PRINTF("+++[%d]to_local\n", vout_idx);
                 if (pTxHtlcs != NULL) {
                     //to_localのFEE
-                    uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX * self->feerate_per_kw / 1000;
+                    uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
                     ret = ln_create_tolocal_tx(&tx, tx_local.vout[vout_idx].value - fee_tolocal,
                             &self->shutdown_scriptpk_local, to_self_delay,
                             self->commit_local.txid, vout_idx);
@@ -2978,8 +2992,6 @@ static bool create_to_local(ln_self_t *self,
                     ucoin_print_tx(&tx);
                     memcpy(&pTxHtlcs[0], &tx, sizeof(tx));
                     ucoin_tx_init(&tx);     //txはfreeさせない
-
-                    ucoin_tx_free(&tx);
                 }
             } else if (htlc_idx == VOUT_OPT_TOREMOTE) {
                 DBG_PRINTF("+++[%d]to_remote\n", vout_idx);
