@@ -140,15 +140,13 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
                     uint32_t LocalDelay);
 
 
-bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
-                const uint8_t *pTxid, int Index);
+bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
+                uint64_t Value, const char *pAddr, const uint8_t *pTxid, int Index);
 
 
-bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
+bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
                     uint64_t Value,
                     const ucoin_util_keys_t *pKeys,
-                    const ucoin_buf_t *pRemoteSig,
-                    const uint8_t *pPreImage,
                     const ucoin_buf_t *pWitScript);
 
 

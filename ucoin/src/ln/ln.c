@@ -47,6 +47,8 @@
 
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
+#define M_SZ_TO_LOCAL_TX                        (77)        ///< to_local transaction長[byte]
+
 #define M_HTLCCHG_NONE                          (0)
 #define M_HTLCCHG_FF_SEND                       (1)
 #define M_HTLCCHG_FF_RECV                       (2)
@@ -820,8 +822,10 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //commitment number
     self->commit_num--;
 
-    pClose->num = 1 + self->commit_local.htlc_num;
+    //[0]commit_tx, [1]to_local, [2...]HTLC
+    pClose->num = 1 + 1 + self->commit_local.htlc_num;
     pClose->p_tx = (ucoin_tx_t *)M_MALLOC(sizeof(ucoin_tx_t) * pClose->num);
+    ucoin_tx_init(&pClose->p_tx[1]);
 
     //local commit_tx
     bool ret = create_to_local(self, &pClose->p_tx[0], &pClose->p_tx[1], NULL, 0,
@@ -861,8 +865,10 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     //commitment number
     self->remote_commit_num--;
 
-    pClose->num = 1 + self->commit_local.htlc_num;
+    //[0]commit_tx, [1]to_local, [2...]HTLC
+    pClose->num = 1 + 1 + self->commit_local.htlc_num;
     pClose->p_tx = (ucoin_tx_t *)M_MALLOC(sizeof(ucoin_tx_t) * pClose->num);
+    ucoin_tx_init(&pClose->p_tx[1]);
 
     //remote commit_tx
     bool ret = create_to_remote(self, &pClose->p_tx[0], &pClose->p_tx[1], NULL,
@@ -2945,8 +2951,26 @@ static bool create_to_local(ln_self_t *self,
                 if (pTxHtlcs != NULL) {
                     //to_localのFEE
 #warning FEEは適当
-                    ret = ln_create_tolocal_tx(&tx, tx_local.vout[vout_idx].value - 10000, &buf_ws,
+                    uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX * self->feerate_per_kw / 1000;
+                    ret = ln_create_tolocal_tx(&tx, tx_local.vout[vout_idx].value - fee_tolocal,
+                            "ms3jPeQL4eZebQXK6xp6B5jctn9G3DGJWh",
                             self->commit_local.txid, vout_idx);
+                    assert(ret);
+
+                    //<delayed_secretkey>
+                    ucoin_util_keys_t delayedkey;
+                    ln_derkey_privkey(delayedkey.priv,
+                                self->funding_local.keys[MSG_FUNDIDX_DELAYED].pub,
+                                self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
+                                self->funding_local.keys[MSG_FUNDIDX_DELAYED].priv);
+                    ucoin_keys_priv2pub(delayedkey.pub, delayedkey.priv);
+                    assert(memcmp(delayedkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
+
+                    ucoin_buf_t sig_delayed;
+                    ucoin_buf_init(&sig_delayed);
+                    ret = ln_sign_tolocal_tx(&tx, &sig_delayed, tx_local.vout[vout_idx].value,
+                            &delayedkey,
+                            &buf_ws);
                     assert(ret);
 
                     ucoin_print_tx(&tx);

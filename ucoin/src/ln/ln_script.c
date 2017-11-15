@@ -124,11 +124,11 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
  *      <revocation_sig> 1
  *
  */
-bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx, uint64_t Value, const ,
-                const uint8_t *pTxid, int Index)
+bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
+                uint64_t Value, const char *pAddr, const uint8_t *pTxid, int Index)
 {
     //vout
-    ucoin_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? UCOIN_PREF_NATIVE : UCOIN_PREF_P2SH);
+    bool ret = ucoin_tx_add_vout_p2pkh_addr(pTx, Value, pAddr);
 
     //vin
     ucoin_tx_add_vin(pTx, pTxid, Index);
@@ -137,8 +137,7 @@ bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx, uint64_t Value, const ,
 }
 
 
-#if 0
-bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
+bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
                     uint64_t Value,
                     const ucoin_util_keys_t *pKeys,
                     const ucoin_buf_t *pWitScript)
@@ -156,27 +155,15 @@ bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
     //vinは1つしかないので、Indexは0固定
     ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
 
-    //DBG_PRINTF("sighash: ");
-    //DUMPBIN(sighash, UCOIN_SZ_SIGHASH);
-    //DBG_PRINTF("pubkey: ");
-    //DUMPBIN(pKeys->pub, UCOIN_SZ_PUBKEY);
-    //DBG_PRINTF("wscript: ");
-    //DUMPBIN(pWitScript->buf, pWitScript->len);
-
-    ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
+    ret = ucoin_util_sign_p2wsh_2(pDelayedSig, sighash, pKeys);
     if (ret) {
+        // <delayedsig>
         // 0
-        // <remotesig>
-        // <localsig>
-        // <payment-preimage> or 0
         // <script>
         const ucoin_buf_t wit0 = { NULL, 0 };
-        const ucoin_buf_t preimage = { (CONST_CAST uint8_t *)pPreImage, (uint16_t)((pPreImage) ? UCOIN_SZ_HASH256 : 0) };
         const ucoin_buf_t *wits[] = {
+            pDelayedSig,
             &wit0,
-            pRemoteSig,
-            pLocalSig,
-            &preimage,
             pWitScript
         };
 
@@ -185,7 +172,7 @@ bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
 
     return ret;
 }
-#endif
+
 
 bool HIDDEN ln_create_scriptpkh(ucoin_buf_t *pBuf, const ucoin_buf_t *pPub, int Prefix)
 {

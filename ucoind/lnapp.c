@@ -597,7 +597,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         if (!ret || (feerate < M_FEERATE_PER_KW)) {
             feerate = M_FEERATE_PER_KW;
         }
-        self->feerate_per_kw = (uint32_t)feerate;
+        my_self.feerate_per_kw = (uint32_t)feerate;
 
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vin_cnt > 0) {

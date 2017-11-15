@@ -1007,34 +1007,30 @@ static bool close_unilateral_local(ln_self_t *self)
 
             ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
             DUMPTXID(txid);
-            if (memcmp(txid, ln_commit_local(self)->txid, UCOIN_SZ_TXID) == 0) {
-                DBG_PRINTF("commit_tx[%d]: broadcasted\n", lp);
-            } else {
-                if (close_dat.p_tx[lp].vin_cnt > 0) {
-                    //展開済みチェック
-                    ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
-                    ret = jsonrpc_getraw_tx(NULL, txid);
-                    if (ret) {
-                        DBG_PRINTF("already broadcasted[%d]: ", lp);
-                        DUMPTXID(txid);
-                        continue;
-                    }
-
-                    ucoin_buf_t buf;
-                    ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
-                    ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
-                    ucoin_buf_free(&buf);
-                    if (ret) {
-                        DBG_PRINTF("broadcast txid[%d]: ", lp);
-                        DUMPTXID(txid);
-                    } else {
-                        del = false;
-                        DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
-                    }
-                } else {
-                    DBG_PRINTF("skip HTLC[%d]\n", lp);
-                    del = false;
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
+                //展開済みチェック
+                ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                ret = jsonrpc_getraw_tx(NULL, txid);
+                if (ret) {
+                    DBG_PRINTF("already broadcasted[%d]: ", lp);
+                    DUMPTXID(txid);
+                    continue;
                 }
+
+                ucoin_buf_t buf;
+                ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                ucoin_buf_free(&buf);
+                if (ret) {
+                    DBG_PRINTF("broadcast txid[%d]: ", lp);
+                    DUMPTXID(txid);
+                } else {
+                    del = false;
+                    DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                }
+            } else {
+                DBG_PRINTF("skip HTLC[%d]\n", lp);
+                del = false;
             }
         }
         ln_free_close_force_tx(&close_dat);
@@ -1065,27 +1061,23 @@ static bool close_unilateral_remote(ln_self_t *self)
 
             ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
             DUMPTXID(txid);
-            if (memcmp(txid, ln_commit_remote(self)->txid, UCOIN_SZ_TXID) == 0) {
-                DBG_PRINTF("commit_tx[%d]: broadcasted\n", lp);
-            } else {
-                if (close_dat.p_tx[lp].vin_cnt > 0) {
-                    DBG_PRINTF("HTLC[%d]\n", lp);
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
+                DBG_PRINTF("HTLC[%d]\n", lp);
 
-                    ucoin_buf_t buf;
-                    ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
-                    ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
-                    ucoin_buf_free(&buf);
-                    if (ret) {
-                        DBG_PRINTF("broadcast txid[%d]: ", lp);
-                        DUMPTXID(txid);
-                    } else {
-                        del = false;
-                        DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
-                    }
+                ucoin_buf_t buf;
+                ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                ucoin_buf_free(&buf);
+                if (ret) {
+                    DBG_PRINTF("broadcast txid[%d]: ", lp);
+                    DUMPTXID(txid);
                 } else {
-                    DBG_PRINTF("skip HTLC[%d]\n", lp);
                     del = false;
+                    DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
                 }
+            } else {
+                DBG_PRINTF("skip HTLC[%d]\n", lp);
+                del = false;
             }
         }
         ln_free_close_force_tx(&close_dat);

@@ -1532,6 +1532,7 @@ static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
     return &self->commit_remote;
 }
 
+
 /** open_channelのchannel_flags.announce_channel
  *
  * @param[in]           self            channel情報
