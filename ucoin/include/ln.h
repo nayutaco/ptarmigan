@@ -64,6 +64,8 @@ extern "C" {
 #define LN_NODE_MAX                     (5)         ///< 保持するノード情報数   TODO:暫定
 #define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
 #define LN_HOP_MAX                      (20)        ///< onion hop数
+#define LN_FEERATE_PER_KW               (7500)      ///< feerate_per_kwの下限
+#define LN_BLK_FEEESTIMATE              (6)         ///< estimatefeeのブロック数(2以上)
 
 #define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
 

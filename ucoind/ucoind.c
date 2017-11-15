@@ -994,17 +994,34 @@ static bool monfunc(ln_self_t *self, void *p_param)
 static bool close_unilateral_local(ln_self_t *self)
 {
     bool del;
+    bool ret;
 
     SYSLOG_WARN("closed: bad way(local): htlc=%d\n", ln_commit_local(self)->htlc_num);
     //ucoin_print_tx(&tx_commit);
 
+    //BOLTに載っていないtxについてはestimatefeeからfee計算する
+    uint64_t feerate;
+    ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
+    feerate = (uint32_t)(feerate / 4);
+#warning issue#46
+    if (!ret || (feerate < LN_FEERATE_PER_KW)) {
+        feerate = LN_FEERATE_PER_KW;
+    }
+    self->feerate_per_kw = (uint32_t)feerate;
+
+    char changeaddr[UCOIN_SZ_ADDR_MAX];
+    jsonrpc_getnewaddress(changeaddr);
+    DBG_PRINTF("to_local send addr : %s\n", changeaddr);
+    ln_set_shutdown_vout_addr(self, changeaddr);
+
     ln_close_force_t close_dat;
-    bool ret = ln_create_close_force_tx(self, &close_dat);
+    ret = ln_create_close_force_tx(self, &close_dat);
     if (ret) {
         del = true;
         for (int lp = 0; lp < close_dat.num; lp++) {
             uint8_t txid[UCOIN_SZ_TXID];
 
+            DBG_PRINTF("txid[%d]= ", lp);
             ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
             DUMPTXID(txid);
             if (close_dat.p_tx[lp].vin_cnt > 0) {
@@ -1012,8 +1029,7 @@ static bool close_unilateral_local(ln_self_t *self)
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 ret = jsonrpc_getraw_tx(NULL, txid);
                 if (ret) {
-                    DBG_PRINTF("already broadcasted[%d]: ", lp);
-                    DUMPTXID(txid);
+                    DBG_PRINTF("already broadcasted[%d]\n", lp);
                     continue;
                 }
 
@@ -1022,8 +1038,7 @@ static bool close_unilateral_local(ln_self_t *self)
                 ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
                 ucoin_buf_free(&buf);
                 if (ret) {
-                    DBG_PRINTF("broadcast txid[%d]: ", lp);
-                    DUMPTXID(txid);
+                    DBG_PRINTF("broadcast txid[%d]\n", lp);
                 } else {
                     del = false;
                     DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);

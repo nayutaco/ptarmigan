@@ -82,15 +82,12 @@
 #define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
 #define M_CHANNEL_RESERVE_SAT           (700)
 #define M_HTLC_MINIMUM_MSAT_EST         (0)
-#define M_FEERATE_PER_KW                (7500)
 #define M_TO_SELF_DELAY                 (40)
 #define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
 #define M_MIN_DEPTH                     (1)
 
 #define M_ANNOSIGS_CONFIRM      (6)         ///< announcement_signaturesを送信するconfirmation
                                             //      BOLT仕様は6
-
-#define M_BLK_FEEESTIMATE       (6)         ///< estimatefeeのブロック数(2以上)
 
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
@@ -576,6 +573,21 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         return false;
     }
 
+    //BOLTに載っていないtxについてはestimatefeeからfee計算する
+    uint64_t feerate;
+    ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
+    feerate = (uint32_t)(feerate / 4);
+#warning issue#46
+    if (!ret || (feerate < LN_FEERATE_PER_KW)) {
+        feerate = LN_FEERATE_PER_KW;
+    }
+    my_self.feerate_per_kw = (uint32_t)feerate;
+
+    char changeaddr[UCOIN_SZ_ADDR_MAX];
+    jsonrpc_getnewaddress(changeaddr);
+    DBG_PRINTF("to_local send addr : %s\n", changeaddr);
+    ln_set_shutdown_vout_addr(&my_self, changeaddr);
+
     //自分が unilateral closeするパターン
     //  commit_tx
     //    |
@@ -589,16 +601,6 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     ret = ln_create_close_force_tx(&my_self, &close_dat);
     bool del = true;
     if (ret) {
-        //BOLTに載っていないtxについてはestimatefeeからfee計算する
-        uint64_t feerate;
-        ret = jsonrpc_estimatefee(&feerate, M_BLK_FEEESTIMATE);
-        feerate = (uint32_t)(feerate / 4);
-#warning issue#46
-        if (!ret || (feerate < M_FEERATE_PER_KW)) {
-            feerate = M_FEERATE_PER_KW;
-        }
-        my_self.feerate_per_kw = (uint32_t)feerate;
-
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 uint8_t txid[UCOIN_SZ_TXID];
@@ -1096,7 +1098,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
     if (ret) {
         //estimate fee
         uint64_t feerate;
-        bool ret = jsonrpc_estimatefee(&feerate, M_BLK_FEEESTIMATE);
+        bool ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
         //BOLT#2
         //  feerate_per_kw indicates the initial fee rate by 1000-weight
         //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
@@ -1104,10 +1106,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
         feerate = (uint32_t)(feerate / 4);
 #warning issue#46
-        if (!ret || (feerate < M_FEERATE_PER_KW)) {
+        if (!ret || (feerate < LN_FEERATE_PER_KW)) {
             // https://github.com/nayutaco/ptarmigan/issues/46
             DBG_PRINTF("fee_per_rate is too low? :%lu\n", feerate);
-            feerate = M_FEERATE_PER_KW;
+            feerate = LN_FEERATE_PER_KW;
         }
         DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
 

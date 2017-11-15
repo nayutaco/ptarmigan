@@ -2950,10 +2950,11 @@ static bool create_to_local(ln_self_t *self,
                 DBG_PRINTF("+++[%d]to_local\n", vout_idx);
                 if (pTxHtlcs != NULL) {
                     //to_localのFEE
-#warning FEEは適当
+                    assert(self->shutdown_scriptpk_local.len > 0);
+
                     uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX * self->feerate_per_kw / 1000;
                     ret = ln_create_tolocal_tx(&tx, tx_local.vout[vout_idx].value - fee_tolocal,
-                            "ms3jPeQL4eZebQXK6xp6B5jctn9G3DGJWh",
+                            &self->shutdown_scriptpk_local, to_self_delay,
                             self->commit_local.txid, vout_idx);
                     assert(ret);
 
