@@ -589,6 +589,16 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     ret = ln_create_close_force_tx(&my_self, &close_dat);
     bool del = true;
     if (ret) {
+        //BOLTに載っていないtxについてはestimatefeeからfee計算する
+        uint64_t feerate;
+        ret = jsonrpc_estimatefee(&feerate, M_BLK_FEEESTIMATE);
+        feerate = (uint32_t)(feerate / 4);
+#warning issue#46
+        if (!ret || (feerate < M_FEERATE_PER_KW)) {
+            feerate = M_FEERATE_PER_KW;
+        }
+        self->feerate_per_kw = (uint32_t)feerate;
+
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 uint8_t txid[UCOIN_SZ_TXID];

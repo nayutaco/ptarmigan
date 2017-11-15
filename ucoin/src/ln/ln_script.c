@@ -117,7 +117,6 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
 }
 
 
-#if 0
 /*  to_self_delay後(sequence=to_self_delay)
  *      <local_delayedsig> 0
  *
@@ -125,29 +124,23 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
  *      <revocation_sig> 1
  *
  */
-bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
+bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx, uint64_t Value, const ,
                 const uint8_t *pTxid, int Index)
 {
     //vout
-    bool ret = ucoin_sw_add_vout_p2wsh(pTx, Value, pScript);
-    if (!ret) {
-        DBG_PRINTF("fail: ucoin_sw_add_vout_p2wsh\n");
-        goto LABEL_EXIT;
-    }
+    ucoin_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? UCOIN_PREF_NATIVE : UCOIN_PREF_P2SH);
 
     //vin
     ucoin_tx_add_vin(pTx, pTxid, Index);
 
-LABEL_EXIT:
     return ret;
 }
 
 
+#if 0
 bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
                     uint64_t Value,
                     const ucoin_util_keys_t *pKeys,
-                    const ucoin_buf_t *pRemoteSig,
-                    const uint8_t *pPreImage,
                     const ucoin_buf_t *pWitScript)
 {
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
