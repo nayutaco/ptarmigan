@@ -55,7 +55,7 @@
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-8)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-9)            ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -65,6 +65,7 @@
     -6 : self.min_depth追加
     -7 : ln_commit_data_tにtxid追加
     -8 : ln_commit_data_tにhtlc_num追加
+    -9 : self.shutdown_scriptpk_localを対象に追加
  */
 
 
@@ -336,12 +337,19 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         ucoin_buf_free(&self->cnl_anno);
         ucoin_buf_alloccopy(&self->cnl_anno, data.mv_data + pos, len);
         pos += len;
-        //redeem_fund
 
+        //redeem_fund
         len = *(const uint16_t *)(data.mv_data + pos);
         pos += sizeof(uint16_t);
         ucoin_buf_free(&self->redeem_fund);
         ucoin_buf_alloccopy(&self->redeem_fund, data.mv_data + pos, len);
+        pos += len;
+
+        //shutdown_scriptpk_local
+        len = *(const uint16_t *)(data.mv_data + pos);
+        pos += sizeof(uint16_t);
+        ucoin_buf_free(&self->shutdown_scriptpk_local);
+        ucoin_buf_alloccopy(&self->shutdown_scriptpk_local, data.mv_data + pos, len);
         pos += len;
 
         //tx_funding
@@ -612,12 +620,17 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     ucoin_buf_free(&pOutSelf->cnl_anno);
     memcpy(&pOutSelf->cnl_anno, &pInSelf->cnl_anno, sizeof(ucoin_buf_t));
 
+    //redeem_fund
     ucoin_buf_free(&pOutSelf->redeem_fund);
     memcpy(&pOutSelf->redeem_fund, &pInSelf->redeem_fund, sizeof(ucoin_buf_t));
 
     //tx_funding
     ucoin_tx_free(&pOutSelf->tx_funding);
     memcpy(&pOutSelf->tx_funding, &pInSelf->tx_funding, sizeof(ucoin_tx_t));
+
+    //shutdown_scriptpk_local
+    ucoin_buf_free(&pOutSelf->shutdown_scriptpk_local);
+    memcpy(&pOutSelf->shutdown_scriptpk_local, &pInSelf->shutdown_scriptpk_local, sizeof(ucoin_buf_t));
 }
 
 
@@ -1225,6 +1238,7 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 
         size_t sz = sizeof(uint16_t) + self->cnl_anno.len +
                         sizeof(uint16_t) + self->redeem_fund.len +
+                        sizeof(uint16_t) + self->shutdown_scriptpk_local.len +
                         sizeof(uint16_t) + buf_funding.len;
         uint16_t len;
         ucoin_push_t ps;
@@ -1238,11 +1252,15 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         len = self->redeem_fund.len;
         ucoin_push_data(&ps, &len, sizeof(len));
         ucoin_push_data(&ps, self->redeem_fund.buf, len);
+        //shutdown_scriptpk_local
+        len = self->shutdown_scriptpk_local.len;
+        ucoin_push_data(&ps, &len, sizeof(len));
+        ucoin_push_data(&ps, self->shutdown_scriptpk_local.buf, len);
+
         //buf_funding
         len = buf_funding.len;
         ucoin_push_data(&ps, &len, sizeof(len));
         ucoin_push_data(&ps, buf_funding.buf, len);
-
         ucoin_buf_free(&buf_funding);
 
         key.mv_size = 6;

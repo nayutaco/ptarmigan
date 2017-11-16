@@ -583,13 +583,6 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
     my_self.feerate_per_kw = (uint32_t)feerate;
 
-    if (my_self.shutdown_scriptpk_local.len == 0) {
-        //to_localの送金先
-        char payaddr[UCOIN_SZ_ADDR_MAX];
-        jsonrpc_getnewaddress(payaddr);
-        ln_set_shutdown_vout_addr(&my_self, payaddr);
-    }
-
     //自分が unilateral closeするパターン
     //  commit_tx
     //    |
