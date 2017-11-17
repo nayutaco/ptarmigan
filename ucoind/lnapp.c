@@ -2055,56 +2055,58 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         SYSLOG_INFO("arrive: %" PRIx64 "(%" PRIu64 " msat)", ln_short_channel_id(p_conf->p_self), p_add->amount_msat);
 
         //preimage-hashチェック
+        uint8_t preimage[LN_SZ_PREIMAGE];
+        uint64_t amount;
         uint8_t preimage_hash[LN_SZ_HASH];
-        const preimage_t *p_preimage;
 
-        int lp;
-        for (lp = 0; lp < PREIMAGE_NUM; lp++) {
-            p_preimage = preimage_get(lp);
-            if (p_preimage->use) {
-                ln_calc_preimage_hash(preimage_hash, p_preimage->preimage);
+        void *p_cur;
+        bool ret = ln_db_cursor_preimage_open(&p_cur);
+        while (ret) {
+            ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
+            if (ret) {
+                ln_calc_preimage_hash(preimage_hash, preimage);
                 if (memcmp(preimage_hash, p_add->p_payment_hash, LN_SZ_HASH) == 0) {
                     //一致
                     break;
                 }
             }
         }
-        if (lp < PREIMAGE_NUM) {
+        ln_db_cursor_preimage_close(p_cur);
+
+        if (ret) {
             //last nodeチェック
             // https://github.com/nayuta-ueno/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
             //    * outgoing_cltv_value is set to the final expiry specified by the recipient
             //    * amt_to_forward is set to the final amount specified by the recipient
-            if ( (p_add->p_hop->amt_to_forward == p_preimage->amount) &&
+            if ( (p_add->p_hop->amt_to_forward == amount) &&
                  (p_add->p_hop->amt_to_forward == p_add->amount_msat) &&
                  //(p_add->p_hop->outgoing_cltv_value == ln_cltv_expily_delta(p_conf->p_self)) &&
                  (p_add->p_hop->outgoing_cltv_value == p_add->cltv_expiry)  ) {
                 DBG_PRINTF("last node OK\n");
             } else {
                 SYSLOG_ERR("%s(): last node check", __func__);
-                DBG_PRINTF("%" PRIu64 " != %" PRIu64 "\n", p_add->p_hop->amt_to_forward, p_preimage->amount);
+                DBG_PRINTF("%" PRIu64 " != %" PRIu64 "\n", p_add->p_hop->amt_to_forward, amount);
                 //DBG_PRINTF("%" PRIu32 " != %" PRIu32 "\n", p_add->p_hop->outgoing_cltv_value, ln_cltv_expily_delta(p_conf->p_self));
-                lp = PREIMAGE_NUM;
+                ret = false;
             }
         } else {
             DBG_PRINTF("fail: preimage mismatch\n");
             DUMPBIN(p_add->p_payment_hash, LN_SZ_HASH);
         }
-        if (lp < PREIMAGE_NUM) {
+        if (ret) {
             if (M_DBG_FULFILL()) {
                 //キューにためる(fulfill)
                 queue_fulfill_t *fulfill = (queue_fulfill_t *)MM_MALLOC(sizeof(queue_fulfill_t));
                 fulfill->type = QTYPE_BWD_FULFILL_HTLC;
                 fulfill->id = p_add->id;
-                ucoin_buf_alloccopy(&fulfill->buf, p_preimage->preimage, LN_SZ_PREIMAGE);
+                ucoin_buf_alloccopy(&fulfill->buf, preimage, LN_SZ_PREIMAGE);
                 push_queue(p_conf, fulfill);
             } else {
                 DBG_PRINTF("DBG: no fulfill mode\n");
             }
 
             //preimageを使い終わったら消す
-            preimage_lock();
-            preimage_clear(lp);
-            preimage_unlock();
+            ln_db_del_preimage(preimage);
 
             //アプリ判定はOK
             p_add->ok = true;

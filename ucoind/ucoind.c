@@ -58,7 +58,6 @@
 
 static ln_node_t            mNode;
 static struct jrpc_server   mJrpc;
-static preimage_t           mPreimage[PREIMAGE_NUM];
 static pthread_mutex_t      mMuxPreimage;
 static volatile bool        mMonitoring;
 
@@ -198,26 +197,6 @@ int main(int argc, char *argv[])
     ln_print_node(&mNode);
     lnapp_init(&mNode);
 
-    //preimage読込み
-    for (int lp = 0; lp < PREIMAGE_NUM; lp++) {
-        mPreimage[lp].use = false;
-    }
-    void *p_cur;
-    bret = ln_db_cursor_preimage_open(&p_cur);
-    int preimg_num = 0;
-    while (bret) {
-        bret = ln_db_cursor_preimage_get(p_cur,
-                        mPreimage[preimg_num].preimage, &mPreimage[preimg_num].amount);
-        if (bret) {
-            DBG_PRINTF("[%d]amount=%" PRIu64", ", preimg_num, mPreimage[preimg_num].amount);
-            DUMPBIN(mPreimage[preimg_num].preimage, LN_SZ_PREIMAGE);
-            mPreimage[preimg_num].use = true;
-            preimg_num++;
-        }
-    }
-    ln_db_cursor_preimage_close(p_cur);
-
-
     pthread_mutex_init(&mMuxPreimage, NULL);
 
     //接続待ち受け用
@@ -328,20 +307,6 @@ void preimage_lock(void)
 void preimage_unlock(void)
 {
     pthread_mutex_unlock(&mMuxPreimage);
-}
-
-
-const preimage_t *preimage_get(int index)
-{
-    return &mPreimage[index];
-}
-
-
-void preimage_clear(int index)
-{
-    ln_db_del_preimage(mPreimage[index].preimage);
-    mPreimage[index].use = false;
-    memset(mPreimage[index].preimage, 0, LN_SZ_PREIMAGE);
 }
 
 
@@ -630,36 +595,22 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     result = cJSON_CreateObject();
     pthread_mutex_lock(&mMuxPreimage);
 
-    int lp;
-    for (lp = 0; lp < PREIMAGE_NUM; lp++) {
-        if (!mPreimage[lp].use) {
-            mPreimage[lp].use = true;
-            mPreimage[lp].amount = amount;
-            ucoin_util_random(mPreimage[lp].preimage, LN_SZ_PREIMAGE);
-            ln_db_save_preimage(mPreimage[lp].preimage, amount);
-            break;
-        }
-    }
+    uint8_t preimage[LN_SZ_PREIMAGE];
+    uint8_t preimage_hash[LN_SZ_HASH];
+    char str_hash[LN_SZ_HASH * 2 + 1];
 
-    if (lp < PREIMAGE_NUM) {
-        uint8_t preimage_hash[LN_SZ_HASH];
-        ln_calc_preimage_hash(preimage_hash, mPreimage[lp].preimage);
+    ucoin_util_random(preimage, LN_SZ_PREIMAGE);
+    ln_db_save_preimage(preimage, amount);
+    ln_calc_preimage_hash(preimage_hash, preimage);
 
-        char str_hash[LN_SZ_HASH * 2 + 1];
-        misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
-        DBG_PRINTF("preimage[%d]=", lp)
-        DUMPBIN(mPreimage[lp].preimage, LN_SZ_PREIMAGE);
-        DBG_PRINTF("hash=")
-        DUMPBIN(preimage_hash, LN_SZ_HASH);
-        cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
-        cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(mPreimage[lp].amount));
-    } else {
-        SYSLOG_ERR("%s(): no empty place", __func__);
-        ctx->error_code = RPCERR_INVOICE_FULL;
-        ctx->error_message = strdup(RPCERR_INVOICE_FULL_STR);
-    }
+    misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+    DBG_PRINTF("preimage=")
+    DUMPBIN(preimage, LN_SZ_PREIMAGE);
+    DBG_PRINTF("hash=")
+    DUMPBIN(preimage_hash, LN_SZ_HASH);
+    cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
+    cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
     pthread_mutex_unlock(&mMuxPreimage);
-
 
 LABEL_EXIT:
     if (index < 0) {
@@ -676,9 +627,11 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     cJSON *result = NULL;
     int index = 0;
+    uint8_t preimage[LN_SZ_PREIMAGE];
     uint8_t preimage_hash[LN_SZ_HASH];
-    bool badd = false;
-    cJSON *array;
+    uint64_t amount;
+    void *p_cur;
+    bool ret;
 
     if (params == NULL) {
         index = -1;
@@ -686,25 +639,21 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     result = cJSON_CreateArray();
-
-    array = cJSON_CreateArray();
-    for (int lp = 0; lp < PREIMAGE_NUM; lp++) {
-        if (mPreimage[lp].use) {
-            ln_calc_preimage_hash(preimage_hash, mPreimage[lp].preimage);
+    ret = ln_db_cursor_preimage_open(&p_cur);
+    while (ret) {
+        ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
+        if (ret) {
+            ln_calc_preimage_hash(preimage_hash, preimage);
             cJSON *json = cJSON_CreateArray();
 
             char str_hash[LN_SZ_HASH * 2 + 1];
             misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
             cJSON_AddItemToArray(json, cJSON_CreateString(str_hash));
-            cJSON_AddItemToArray(json, cJSON_CreateNumber64(mPreimage[lp].amount));
-            cJSON_AddItemToArray(array, json);
-            badd = true;
+            cJSON_AddItemToArray(json, cJSON_CreateNumber64(amount));
+            cJSON_AddItemToArray(result, json);
         }
     }
-    if (badd) {
-        cJSON_AddItemToArray(result, array);
-    }
-
+    ln_db_cursor_preimage_close(p_cur);
 
 LABEL_EXIT:
     if (index < 0) {

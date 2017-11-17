@@ -215,16 +215,6 @@ typedef struct {
 } establish_conf_t;
 
 
-/** @struct preimage_t
- *  @brief  preimage情報
- */
-typedef struct {
-    bool            use;                            ///< true:使用中
-    uint64_t        amount;                         ///< invoiceで要求した額[msat]
-    uint8_t         preimage[LN_SZ_PREIMAGE];       ///< preimage
-} preimage_t;
-
-
 typedef struct {
     uint8_t     onion_route[LN_SZ_ONION_ROUTE];
     uint64_t    amt_to_forward;
@@ -246,7 +236,5 @@ bool backward_fulfill(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
 bool backward_fail(const ln_cb_fail_htlc_recv_t *pFail);
 void preimage_lock(void);
 void preimage_unlock(void);
-const preimage_t *preimage_get(int index);
-void preimage_clear(int index);
 
 #endif /* UCOIND_H__ */
