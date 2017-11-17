@@ -198,9 +198,26 @@ int main(int argc, char *argv[])
     ln_print_node(&mNode);
     lnapp_init(&mNode);
 
+    //preimage読込み
     for (int lp = 0; lp < PREIMAGE_NUM; lp++) {
         mPreimage[lp].use = false;
     }
+    void *p_cur;
+    bret = ln_db_cursor_preimage_open(&p_cur);
+    int preimg_num = 0;
+    while (bret) {
+        bret = ln_db_cursor_preimage_get(p_cur,
+                        mPreimage[preimg_num].preimage, &mPreimage[preimg_num].amount);
+        if (bret) {
+            DBG_PRINTF("[%d]amount=%" PRIu64", ", preimg_num, mPreimage[preimg_num].amount);
+            DUMPBIN(mPreimage[preimg_num].preimage, LN_SZ_PREIMAGE);
+            mPreimage[preimg_num].use = true;
+            preimg_num++;
+        }
+    }
+    ln_db_cursor_preimage_close(p_cur);
+
+
     pthread_mutex_init(&mMuxPreimage, NULL);
 
     //接続待ち受け用
@@ -322,6 +339,7 @@ const preimage_t *preimage_get(int index)
 
 void preimage_clear(int index)
 {
+    ln_db_del_preimage(mPreimage[index].preimage);
     mPreimage[index].use = false;
     memset(mPreimage[index].preimage, 0, LN_SZ_PREIMAGE);
 }
@@ -618,6 +636,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             mPreimage[lp].use = true;
             mPreimage[lp].amount = amount;
             ucoin_util_random(mPreimage[lp].preimage, LN_SZ_PREIMAGE);
+            ln_db_save_preimage(mPreimage[lp].preimage, amount);
             break;
         }
     }

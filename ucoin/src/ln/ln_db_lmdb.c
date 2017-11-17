@@ -54,6 +54,7 @@
 #define M_SHAREDSECRET_NAME     "SS"            ///< shared secret
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
+#define M_DB_PREIMAGE           "preimage"
 #define M_DB_VERSION            "version"
 #define M_DB_VERSION_VAL        (-9)            ///< DBバージョン
 /*
@@ -115,6 +116,12 @@ typedef struct {
 } lmdb_cursor_t;
 
 
+typedef struct {
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+} lmdb_db_t;
+
+
 /********************************************************************
  * static variables
  ********************************************************************/
@@ -147,6 +154,9 @@ static int save_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_c
 static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId);
 static int save_anno_node(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId);
 static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
+
+static bool save_preimage_open(lmdb_db_t *p_db);
+static void save_preimage_close(lmdb_db_t *p_db);
 
 static int write_version(MDB_txn *txn, const uint8_t *pMyNodeId);
 static int check_version(MDB_txn *txn, MDB_dbi *pdbi, uint8_t *pMyNodeId);
@@ -883,14 +893,14 @@ LABEL_EXIT:
 
 bool ln_db_cursor_anno_channel_open(void **ppCur)
 {
-    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)malloc(sizeof(lmdb_cursor_t));
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
 
     bool ret = open_anno_channel_cursor(p_cur, 0);
     if (ret) {
         *ppCur = p_cur;
     } else {
         DBG_PRINTF("err: cursor open\n");
-        free(p_cur);
+        M_FREE(p_cur);
         *ppCur = NULL;
     }
 
@@ -904,7 +914,7 @@ void ln_db_cursor_anno_channel_close(void *pCur)
 
     mdb_cursor_close(p_cur->cursor);
     mdb_txn_commit(p_cur->txn);
-    free(p_cur);
+    M_FREE(p_cur);
 }
 
 
@@ -1016,14 +1026,14 @@ LABEL_EXIT:
 
 bool ln_db_cursor_anno_node_open(void **ppCur)
 {
-    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)malloc(sizeof(lmdb_cursor_t));
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
 
     bool ret = open_anno_node_cursor(p_cur, 0);
     if (ret) {
         *ppCur = p_cur;
     } else {
         DBG_PRINTF("err: cursor open\n");
-        free(p_cur);
+        M_FREE(p_cur);
         *ppCur = NULL;
     }
 
@@ -1037,7 +1047,7 @@ void ln_db_cursor_anno_node_close(void *pCur)
 
     mdb_cursor_close(p_cur->cursor);
     mdb_txn_commit(p_cur->txn);
-    free(p_cur);
+    M_FREE(p_cur);
 }
 
 
@@ -1074,6 +1084,115 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
 }
 
 
+/**************************************************************************
+ * payment preimage
+ **************************************************************************/
+
+bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount)
+{
+    lmdb_db_t db;
+    MDB_val key, data;
+
+    save_preimage_open(&db);
+
+    key.mv_size = LN_SZ_PREIMAGE;
+    key.mv_data = (CONST_CAST uint8_t *)pPreImage;
+    data.mv_size = sizeof(uint64_t);
+    data.mv_data = &Amount;
+    int retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    save_preimage_close(&db);
+
+    return retval == 0;
+}
+
+
+bool ln_db_del_preimage(const uint8_t *pPreImage)
+{
+    lmdb_db_t db;
+    MDB_val key;
+
+    save_preimage_open(&db);
+
+    key.mv_size = LN_SZ_PREIMAGE;
+    key.mv_data = (CONST_CAST uint8_t *)pPreImage;
+    int retval = mdb_del(db.txn, db.dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    save_preimage_close(&db);
+
+    return retval == 0;
+}
+
+
+bool ln_db_cursor_preimage_open(void **ppCur)
+{
+    int         retval;
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &p_cur->txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(p_cur->txn, M_DB_PREIMAGE, 0, &p_cur->dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(p_cur->txn);
+        goto LABEL_EXIT;
+    }
+    retval = mdb_cursor_open(p_cur->txn, p_cur->dbi, &p_cur->cursor);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(p_cur->txn);
+    }
+
+LABEL_EXIT:
+    if (retval == 0) {
+        *ppCur = p_cur;
+    } else {
+        M_FREE(p_cur);
+        *ppCur = NULL;
+    }
+    return retval == 0;
+}
+
+
+void ln_db_cursor_preimage_close(void *pCur)
+{
+    if (pCur != NULL) {
+        lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+        mdb_cursor_close(p_cur->cursor);
+        mdb_close(mpDbEnv, p_cur->dbi);
+        mdb_txn_abort(p_cur->txn);
+    }
+}
+
+
+bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+    int retval;
+    MDB_val key, data;
+
+    if ((retval = mdb_cursor_get(p_cur->cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
+        memcpy(pPreImage, key.mv_data, key.mv_size);
+        *pAmount = *(uint64_t *)data.mv_data;
+    }
+
+    return retval == 0;
+}
+
+
+/**************************************************************************
+ * version
+ **************************************************************************/
+
 int ln_lmdb_check_version(MDB_txn *txn, uint8_t *pMyNodeId)
 {
     int         retval;
@@ -1107,6 +1226,9 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     } else if (strcmp(pDbName, M_DB_ANNO_NODE) == 0) {
         //node_announcement
         dbtype = LN_LMDB_DBTYPE_NODE_ANNO;
+    } else if (strcmp(pDbName, M_DB_PREIMAGE) == 0) {
+        //preimage
+        dbtype = LN_LMDB_DBTYPE_PREIMAGE;
     } else if (strcmp(pDbName, M_DB_VERSION) == 0) {
         //version
         dbtype = LN_LMDB_DBTYPE_VERSION;
@@ -1115,6 +1237,12 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     }
 
     return dbtype;
+}
+
+
+void ln_lmdb_setenv(MDB_env *p_env)
+{
+    mpDbEnv = p_env;
 }
 
 
@@ -1187,7 +1315,7 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     MDB_val key, data;
 
     //構造体部分
-    backup_self_t *bk = (backup_self_t *)malloc(sizeof(backup_self_t));
+    backup_self_t *bk = (backup_self_t *)M_MALLOC(sizeof(backup_self_t));
 
     memset(bk, 0, sizeof(backup_self_t));
     bk->lfeature_remote = self->lfeature_remote;     //3
@@ -1225,7 +1353,7 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     data.mv_size = sizeof(backup_self_t);
     data.mv_data = bk;
     int retval = mdb_put(txn, *pdbi, &key, &data, 0);
-    free(bk);
+    M_FREE(bk);
 
     //スクリプト部分
     if (retval == 0) {
@@ -1582,6 +1710,32 @@ static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
 
 LABEL_EXIT:
     return retval == 0;
+}
+
+static bool save_preimage_open(lmdb_db_t *p_db)
+{
+    int         retval;
+
+    retval = mdb_txn_begin(mpDbEnv, NULL, 0, &p_db->txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(p_db->txn, M_DB_PREIMAGE, MDB_CREATE, &p_db->dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        mdb_txn_abort(p_db->txn);
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+static void save_preimage_close(lmdb_db_t *p_db)
+{
+    mdb_txn_commit(p_db->txn);
 }
 
 

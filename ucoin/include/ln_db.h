@@ -73,6 +73,10 @@ typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_param);
 void ln_db_term(void);
 
 
+////////////////////
+// self
+////////////////////
+
 /** channel情報読込み
  *
  * @param[out]      self
@@ -111,6 +115,10 @@ bool ln_db_del_channel(const ln_self_t *self);
  */
 bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
+
+////////////////////
+// channel_announcement
+////////////////////
 
 /** channel_announcement読込み
  *
@@ -185,6 +193,10 @@ bool ln_db_cursor_anno_channel_get(void *pCur, uint64_t *p_short_channel_id, cha
 void ln_db_cursor_anno_sinfo(void *pCur, uint64_t short_channel_id, ln_db_channel_sinfo *pSInfo);
 
 
+////////////////////
+// node_announcement
+////////////////////
+
 /** node_announcement読込み
  *
  * @param[out]      pNodeAnno
@@ -224,6 +236,17 @@ void ln_db_cursor_anno_node_close(void *pCur);
  *
  */
 bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId);
+
+
+////////////////////
+// preimage
+////////////////////
+
+bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount);
+bool ln_db_del_preimage(const uint8_t *pPreImage);
+bool ln_db_cursor_preimage_open(void **ppCur);
+void ln_db_cursor_preimage_close(void *pCur);
+bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
 
 
 #ifdef __cplusplus

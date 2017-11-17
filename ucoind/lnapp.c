@@ -2102,7 +2102,9 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             }
 
             //preimageを使い終わったら消す
+            preimage_lock();
             preimage_clear(lp);
+            preimage_unlock();
 
             //アプリ判定はOK
             p_add->ok = true;

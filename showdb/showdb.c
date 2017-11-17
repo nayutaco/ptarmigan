@@ -59,25 +59,28 @@ void ln_print_self(const ln_self_t *self);
 void ln_print_announce(const uint8_t *pData, uint16_t Len);
 void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
 void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
+void ln_lmdb_setenv(MDB_env *p_env);
 
 
 
-#define SHOW_SELF               0x01
-#define SHOW_WALLET             0x02
-#define SHOW_CNLANNO            0x04
-#define SHOW_CNLANNO_SCI        0x08
-#define SHOW_NODEANNO           0x10
-#define SHOW_NODEANNO_NODE      0x20
-#define SHOW_NODEANNO_PEER      0x40
-#define SHOW_VERSION            0x80
+#define SHOW_SELF               (0x0001)
+#define SHOW_WALLET             (0x0002)
+#define SHOW_CNLANNO            (0x0004)
+#define SHOW_CNLANNO_SCI        (0x0008)
+#define SHOW_NODEANNO           (0x0010)
+#define SHOW_NODEANNO_NODE      (0x0020)
+#define SHOW_NODEANNO_PEER      (0x0040)
+#define SHOW_VERSION            (0x0080)
+#define SHOW_PREIMAGE           (0x0100)
 
 #define SHOW_DEFAULT        (SHOW_SELF)
 
-static uint8_t      showflag = SHOW_DEFAULT;
+static uint16_t     showflag = SHOW_DEFAULT;
 static int          cnt0;
 static int          cnt1;
 static int          cnt2;
 static int          cnt3;
+static int          cnt4;
 static MDB_env      *mpDbEnv = NULL;
 
 
@@ -299,6 +302,43 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         }
         break;
 
+    case LN_LMDB_DBTYPE_PREIMAGE:
+        if (showflag == SHOW_PREIMAGE) {
+            printf(M_QQ("preimage") ": [");
+
+            struct {
+                MDB_txn     *txn;
+                MDB_dbi     dbi;
+                MDB_cursor  *cursor;
+            } cur;
+
+            retval = mdb_cursor_open(txn, dbi, &cur.cursor);
+            if (retval != 0) {
+                DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+                mdb_txn_abort(txn);
+            }
+
+            bool ret = true;
+            while (ret) {
+                uint8_t preimage[LN_SZ_PREIMAGE];
+                uint64_t amount;
+                ret = ln_db_cursor_preimage_get(&cur, preimage, &amount);
+                if (ret) {
+                    if (cnt4) {
+                        printf(",");
+                    }
+                    printf("[\"");
+                    for (int lp = 0; lp < LN_SZ_PREIMAGE; lp++) {
+                        printf("%02x", preimage[lp]);
+                    }
+                    printf("\", %" PRIu64 "]", amount);
+                    cnt4++;
+                }
+            }
+            mdb_cursor_close(cur.cursor);
+        }
+        break;
+
     case LN_LMDB_DBTYPE_VERSION:
         //version
         if (showflag == SHOW_VERSION) {
@@ -378,8 +418,12 @@ int main(int argc, char *argv[])
             switch (argv[2][1]) {
             case '1':
                 showflag = SHOW_CNLANNO;
+                break;
             case '2':
                 showflag = SHOW_NODEANNO;
+                break;
+            case '3':
+                showflag = SHOW_PREIMAGE;
                 break;
             }
             break;
@@ -412,6 +456,7 @@ int main(int argc, char *argv[])
 
     ret = mdb_env_create(&mpDbEnv);
     assert(ret == 0);
+    ln_lmdb_setenv(mpDbEnv);
     ret = mdb_env_set_maxdbs(mpDbEnv, 2);
     assert(ret == 0);
     ret = mdb_env_open(mpDbEnv, dbpath, MDB_RDONLY, 0664);
@@ -453,7 +498,7 @@ int main(int argc, char *argv[])
         }
     }
     if (!(showflag & SHOW_NODEANNO_PEER)) {
-        if (cnt0 || cnt1 || cnt2 || cnt3) {
+        if (cnt0 || cnt1 || cnt2 || cnt3 || cnt4) {
             printf("]");
         }
         printf("}\n");

@@ -1282,7 +1282,7 @@ bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBase
 static void channel_clear(ln_self_t *self)
 {
     //DBG_PRINTF2("***************************************************\n");
-    DBG_PRINTF("\n");
+    //DBG_PRINTF("\n");
     //DBG_PRINTF2("***************************************************\n");
 
     ucoin_buf_free(&self->shutdown_scriptpk_local);
