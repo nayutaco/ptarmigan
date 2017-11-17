@@ -811,6 +811,11 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown)
 }
 
 
+/*
+ * 自分がunilateral closeを行いたい場合に呼び出す。
+ * または、funding_txがspentで、local commit_txのtxidがgetrawtransactionできる状態で呼ばれる。
+ * (local commit_txが展開＝自分でunilateral closeした)
+ */
 bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
@@ -857,6 +862,10 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 }
 
 
+/*
+ * funding_txがspentで、remote commit_txのtxidがgetrawtransactionできる状態で呼ばれる。
+ * (remote commit_txが展開＝相手がunilateral closeした)
+ */
 bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
@@ -894,6 +903,8 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
         DBG_PRINTF("fail: create_to_remote\n");
         ln_free_close_force_tx(pClose);
     }
+
+    //Received HTLCがあって preimageを自分が持っている場合は、HTLC Success tx送信
 
     self->remote_commit_num++;
 
@@ -3033,42 +3044,85 @@ static bool create_to_local(ln_self_t *self,
                     }
                     if (pTxHtlcs != NULL) {
                         ln_misc_sigexpand(&buf_sig, self->cnl_add_htlc[htlc_idx].signature);
-                        //署名
-                        //      0
-                        //      <remotesig>
-                        //      <localsig>
-                        //      0
-                        ucoin_buf_t buf_local_sig;
-                        ret = ln_sign_htlc_tx(&tx,
-                                    &buf_local_sig,                 //<localsig>
-                                    tx_local.vout[vout_idx].value,
-                                    &localkey,
-                                    &buf_sig,                       //<remotesig>
-                                    NULL,
-                                    &pp_htlcinfo[htlc_idx]->script);
-                        DBG_PRINTF("HTLC署名: %d\n", ret);
-                        assert(ret);
-
-                        ////署名チェック
-                        //ret = ln_verify_htlc_tx(&tx,
-                        //            tx_local.vout[vout_idx].value,
-                        //            self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
-                        //            self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
-                        //            &buf_local_sig,
-                        //            &buf_sig,
-                        //            &pp_htlcinfo[htlc_idx]->script);
-                        //assert(ret);
-                        ucoin_buf_free(&buf_local_sig);
-
-                        //このタイミングではOffered HTLC Transactionしか完成できない
                         if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) {
+                            //署名:HTLC Timeout Transaction
+                            //      0
+                            //      <remotesig>
+                            //      <localsig>
+                            //      0
+                            ucoin_buf_t buf_local_sig;
+                            ret = ln_sign_htlc_tx(&tx,
+                                        &buf_local_sig,                 //<localsig>
+                                        tx_local.vout[vout_idx].value,
+                                        &localkey,
+                                        &buf_sig,                       //<remotesig>
+                                        NULL,
+                                        &pp_htlcinfo[htlc_idx]->script);
+                            DBG_PRINTF("HTLC署名: %d\n", ret);
+                            assert(ret);
+
+                            ////署名チェック
+                            //ret = ln_verify_htlc_tx(&tx,
+                            //            tx_local.vout[vout_idx].value,
+                            //            self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
+                            //            self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
+                            //            &buf_local_sig,
+                            //            &buf_sig,
+                            //            &pp_htlcinfo[htlc_idx]->script);
+                            //assert(ret);
+                            ucoin_buf_free(&buf_local_sig);
+
+                            //HTLC Timeout txは送信可能な形で作成可能(locktime<=cltv_expiryを満たしていない可能性はある)
                             DBG_PRINTF("sign HTLC[%d]\n", htlc_num);
                             ucoin_print_tx(&tx);
                             memcpy(&pTxHtlcs[1 + htlc_num], &tx, sizeof(tx));
                             ucoin_tx_init(&tx);     //txはfreeさせない
                         } else {
-                            DBG_PRINTF("skip create HTLC[%d]\n", htlc_num);
-                            ucoin_tx_init(&pTxHtlcs[1 + htlc_num]);
+                            //HTLC Success txは、preimageを持っていれば送信可能な形で作成可能
+                            uint8_t preimage[LN_SZ_PREIMAGE];
+                            uint64_t amount;
+                            uint8_t preimage_hash[LN_SZ_HASH];
+                            void *p_cur;
+                            bool ret = ln_db_cursor_preimage_open(&p_cur);
+                            while (ret) {
+                                ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
+                                if (ret) {
+                                    ln_calc_preimage_hash(preimage_hash, preimage);
+                                    if (memcmp(preimage_hash, self->cnl_add_htlc[htlc_idx].payment_sha256, LN_SZ_HASH) == 0) {
+                                        //一致
+                                        break;
+                                    }
+                                }
+                            }
+                            ln_db_cursor_preimage_close(p_cur);
+
+                            if (ret) {
+                                //payment_hash一致
+                                //署名:HTLC Success Transaction
+                                //      0
+                                //      <remotesig>
+                                //      <localsig>
+                                //      <payment_preimage>
+                                ucoin_buf_t buf_local_sig;
+                                ret = ln_sign_htlc_tx(&tx,
+                                            &buf_local_sig,                 //<localsig>
+                                            tx_local.vout[vout_idx].value,
+                                            &localkey,
+                                            &buf_sig,                       //<remotesig>
+                                            preimage,                       //<payment_preimage>
+                                            &pp_htlcinfo[htlc_idx]->script);
+                                DBG_PRINTF("HTLC署名: %d\n", ret);
+                                assert(ret);
+                                ucoin_buf_free(&buf_local_sig);
+
+                                DBG_PRINTF("sign HTLC[%d]\n", htlc_num);
+                                ucoin_print_tx(&tx);
+                                memcpy(&pTxHtlcs[1 + htlc_num], &tx, sizeof(tx));
+                                ucoin_tx_init(&tx);     //txはfreeさせない
+                            } else {
+                                DBG_PRINTF("skip create HTLC[%d]\n", htlc_num);
+                                ucoin_tx_init(&pTxHtlcs[1 + htlc_num]);
+                            }
                         }
                     }
 
@@ -3318,7 +3372,9 @@ static bool create_to_remote(ln_self_t *self,
                     ucoin_print_tx(&tx);
 #endif  //UCOIN_USE_PRINTFUNC
 
-                    //署名
+                    //署名:HTLC Success Transaction
+                    //      <remotesig>
+                    //      0
                     ret = ln_sign_htlc_tx(&tx, &buf_sig,
                                 tx_remote.vout[vout_idx].value,
                                 &remotekey,
