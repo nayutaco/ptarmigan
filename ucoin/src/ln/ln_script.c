@@ -472,7 +472,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
         // 0
         // <remotesig>
         // <localsig>
-        // <payment-preimage> or 0
+        // <payment-preimage>(HTLC Success) or 0(HTLC Timeout)
         // <script>
         const ucoin_buf_t wit0 = { NULL, 0 };
         const ucoin_buf_t preimage = { (CONST_CAST uint8_t *)pPreImage, (uint16_t)((pPreImage) ? UCOIN_SZ_HASH256 : 0) };

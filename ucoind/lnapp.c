@@ -594,7 +594,6 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     // 送信することになるかは、計算後にならないとわからない(最大、1 + HTLC数)。
     ln_close_force_t close_dat;
     ret = ln_create_close_force_tx(&my_self, &close_dat);
-    bool del = true;
     if (ret) {
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vin_cnt > 0) {
@@ -618,24 +617,16 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
                     DBG_PRINTF("broadcast txid[%d]: ", lp);
                     DUMPTXID(txid);
                 } else {
-                    del = false;
                     DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
                 }
             } else {
                 DBG_PRINTF("skip HTLC[%d]\n", lp);
-                del = false;
             }
         }
         ln_free_close_force_tx(&close_dat);
     } else {
-        del = false;
         DBG_PRINTF("fail: create_close_tx\n");
     }
-
-    //if (del) {
-    //    DBG_PRINTF("delete from DB\n");
-    //    ln_db_del_channel(&my_self);
-    //}
 
     return true;
 }

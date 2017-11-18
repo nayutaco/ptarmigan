@@ -943,13 +943,16 @@ static bool monfunc(ln_self_t *self, void *p_param)
                     del = close_revoked(self);
                 }
                 ucoin_tx_free(&tx_commit);
+
+#warning テスト中のため削除しない
+                del = false;
             }
         }
-        //if (del) {
-        //    DBG_PRINTF("delete from DB\n");
-        //    ret = ln_db_del_channel(self);
-        //    assert(ret);
-        //}
+        if (del) {
+            DBG_PRINTF("delete from DB\n");
+            ret = ln_db_del_channel(self);
+            assert(ret);
+        }
    }
 
     return false;
