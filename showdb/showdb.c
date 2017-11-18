@@ -124,16 +124,19 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
     case LN_LMDB_DBTYPE_SELF:
         //self
         if (showflag & (SHOW_SELF | SHOW_WALLET)) {
+            memset(&self, 0, sizeof(self));
+
+            retval = ln_lmdb_load_channel(&self, txn, &dbi);
+            if (retval != 0) {
+                break;
+            }
+
             if (cnt0) {
                 printf(",");
             } else {
                 printf(M_QQ("channel_info") ": [");
             }
 
-            memset(&self, 0, sizeof(self));
-
-            retval = ln_lmdb_load_channel(&self, txn, &dbi);
-            assert(retval == 0);
             if (showflag & SHOW_SELF) {
                 ln_print_self(&self);
             }

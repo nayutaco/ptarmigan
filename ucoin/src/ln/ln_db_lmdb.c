@@ -411,7 +411,6 @@ bool ln_db_save_channel(const ln_self_t *self)
         goto LABEL_EXIT;
     }
 
-    //mdb_dbi_close(mpDbEnv, dbi);
     mdb_txn_commit(txn);
     txn = NULL;
 
@@ -475,8 +474,6 @@ bool ln_db_del_channel(const ln_self_t *self)
 
     //shared secret
 LABEL_DEL_SS:
-    mdb_dbi_close(mpDbEnv, dbi_anno);
-
     memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
@@ -489,21 +486,19 @@ LABEL_DEL_SS:
             goto LABEL_EXIT;
         }
     }
-    DBG_PRINTF("drop: %s\n", dbname);
     retval = mdb_drop(txn, dbi_cnl, 1);
+    DBG_PRINTF("drop: %s(%d)\n", dbname, retval);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
     //channel削除
 LABEL_DEL_CNL:
-    mdb_dbi_close(mpDbEnv, dbi_cnl);
-
     memcpy(dbname, M_CHANNEL_NAME, M_PREFIX_LEN);
     retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
     if (retval == 0) {
-        DBG_PRINTF("drop: %s\n", dbname);
         retval = mdb_drop(txn, dbi_cnl, 1);
+        DBG_PRINTF("drop: %s(%d)\n", dbname, retval);
     }
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -573,7 +568,7 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
                     }
                     ln_term(&self);     //falseのみ解放
                 } else {
-                    DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+                    //DBG_PRINTF("err: %s\n", mdb_strerror(retval));
                 }
             }
             mdb_close(mpDbEnv, dbi2);
@@ -668,7 +663,6 @@ bool ln_db_load_anno_channel(ucoin_buf_t *pCnlAnno, uint64_t short_channel_id)
 
     retval = load_anno_channel(txn, &dbi, pCnlAnno, short_channel_id);
 
-    //mdb_dbi_close(mpDbEnv, dbi);
     mdb_txn_abort(txn);
 
 LABEL_EXIT:
@@ -722,7 +716,6 @@ bool ln_db_save_anno_channel(const ucoin_buf_t *pCnlAnno, uint64_t CnlSci, const
         }
     }
 
-    //mdb_dbi_close(mpDbEnv, dbi);
     mdb_txn_commit(txn);
 
 LABEL_EXIT:
@@ -750,7 +743,6 @@ bool ln_db_load_anno_channel_upd(ucoin_buf_t *pCnlUpd, uint64_t short_channel_id
 
     retval = load_anno_channel_upd(txn, &dbi, pCnlUpd, short_channel_id, Dir);
 
-    //mdb_dbi_close(mpDbEnv, dbi);
     mdb_txn_abort(txn);
 
 LABEL_EXIT:
@@ -840,7 +832,6 @@ bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, uint64_t short_chan
         }
     }
 
-    //mdb_dbi_close(mpDbEnv, dbi);
     mdb_txn_commit(txn);
 
 LABEL_EXIT:
@@ -987,7 +978,6 @@ bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t 
 
     retval = load_anno_node(txn, &dbi, pNodeAnno, pTimeStamp, pSendId, pNodeId);
 
-    //mdb_dbi_close(mpDbEnv, dbi);
     mdb_txn_abort(txn);
 
 LABEL_EXIT:
@@ -1016,7 +1006,6 @@ bool ln_db_save_anno_node(const ucoin_buf_t *pNodeAnno, const uint8_t *pSendId, 
     uint32_t now = (uint32_t)time(NULL);
     retval = save_anno_node(txn, &dbi, pNodeAnno, now, pSendId, pNodeId);
 
-    //mdb_dbi_close(mpDbEnv, dbi);
     mdb_txn_commit(txn);
 
 LABEL_EXIT:
