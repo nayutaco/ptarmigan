@@ -4,6 +4,14 @@ mkdir regtest
 if [ $? -ne 0 ]; then
 	exit -1
 fi
+
+ln -s ../ucoincli ucoincli
+ln -s ../ucoind ucoind
+ln -s ../showdb showdb
+ln -s ../routing routing
+ln -s ../fund-in.sh fund-in.sh
+ln -s ../regtest.conf regtest.conf
+
 bitcoind -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest -daemon
 sleep 3
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest generate 432
@@ -22,7 +30,7 @@ mkdir -p node_3333 node_4444 node_5555 node_6666
 #./create_nodeconf.sh 5555 > node_5555/node.conf
 #./create_nodeconf.sh 6666 > node_6666/node.conf
 # 結果が同じになるように固定する
-tar zxf nodes.tgz
+tar zxf ../nodes.tgz
 
 # ピア設定ファイルを作成する。
 # 自ノードが相手のノードと接続するための設定が書かれている。
