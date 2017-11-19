@@ -146,7 +146,7 @@ static bool create_local_channel_announcement(ln_self_t *self);
 static void update_percommit_secret(ln_self_t *self);
 static void get_prev_percommit_secret(ln_self_t *self, uint8_t *p_prev_secret);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
-static bool proc_established(ln_self_t *self);
+static void proc_established(ln_self_t *self);
 static void proc_announce_sigsed(ln_self_t *self);
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
@@ -498,10 +498,7 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
 
 void ln_flag_proc(ln_self_t *self)
 {
-    bool ret = proc_established(self);
-    if (!ret) {
-        DBG_PRINTF("fail: proc_established\n");
-    }
+    proc_established(self);
     proc_announce_sigsed(self);
 }
 
@@ -831,14 +828,14 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //  storage_seedは、次回送信するnext_per_commitment_secret用の値が入っている。
     //  現在のnext_per_commitment_secret用の値は storage_seed+1。
     //  現在のper_commitment_secret用の値は、storage_seed+2 となる。
-    DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
+    //DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
     ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 2);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
+    //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
     //remote
-    DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
+    //DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("prev: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    //DBG_PRINTF("prev: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -878,15 +875,15 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     //  単なる確認用。
 
     //local
-    DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
+    //DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
     ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 2);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
+    //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
 
     //remote
-    DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
+    //DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("prev: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    //DBG_PRINTF("prev: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -1825,11 +1822,11 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
         memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
         memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
         ret = recv_funding_locked_first(self);
-        if (ret) {
-            ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-        }
+        ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     }
-
+    if (ret) {
+        ln_db_save_channel(self);
+    }
 
     DBG_PRINTF("END\n");
     return ret;
@@ -1854,12 +1851,9 @@ static bool recv_funding_locked_first(ln_self_t *self)
     self->htlc_id_num = 0;
 
     self->flck_flag |= M_FLCK_FLAG_RECV;
-    bool ret = proc_established(self);
-    if (!ret) {
-        DBG_PRINTF("fail: proc_established\n");
-    }
+    proc_established(self);
 
-    return ret;
+    return true;
 }
 
 
@@ -1867,12 +1861,10 @@ static bool recv_funding_locked_reestablish(ln_self_t *self)
 {
     DBG_PRINTF("\n");
 
-    bool ret;
-
     self->flck_flag |= M_FLCK_FLAG_RECV;
-    ret = proc_established(self);
+    proc_established(self);
 
-    return ret;
+    return true;
 }
 
 
@@ -3560,9 +3552,12 @@ static void update_percommit_secret(ln_self_t *self)
 {
     ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+    DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
+    DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, UCOIN_SZ_PRIVKEY);
+
     self->storage_index--;
 
-    DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
+    //DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 }
 
@@ -3628,10 +3623,8 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
  *
  * funding_lockedの送受信処理に移動させてもよいかもしれない
  */
-static bool proc_established(ln_self_t *self)
+static void proc_established(ln_self_t *self)
 {
-    bool ret = true;
-
     if (self->flck_flag == (M_FLCK_FLAG_SEND | M_FLCK_FLAG_RECV)) {
         //funding_locked送受信済み
         DBG_PRINTF("funding_locked sent and recv\n");
@@ -3639,28 +3632,22 @@ static bool proc_established(ln_self_t *self)
         //channel_reestablish済みと同じ状態にしておく
         self->init_flag |= INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV;
 
-        //チャネルDB保存
-        ret = ln_db_save_channel(self);
-        if (ret) {
-            //Establish完了通知
-            DBG_PRINTF("Establish完了通知");
-            ln_cb_funding_t funding;
+        //Establish完了通知
+        DBG_PRINTF("Establish完了通知");
+        ln_cb_funding_t funding;
 
-            funding.p_tx_funding = &self->tx_funding;
-            funding.p_txid = self->funding_local.txid;
-            funding.b_send = false;
-            funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : false;
-            (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
+        funding.p_tx_funding = &self->tx_funding;
+        funding.p_txid = self->funding_local.txid;
+        funding.b_send = false;
+        funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : false;
+        (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
 
-            //Normal Operation可能
-            self->p_est = NULL;
+        //Normal Operation可能
+        self->p_est = NULL;
 
-            DBG_PRINTF("Normal Operation可能\n");
-            self->flck_flag |= M_FLCK_FLAG_END;
-        }
+        DBG_PRINTF("Normal Operation可能\n");
+        self->flck_flag |= M_FLCK_FLAG_END;
     }
-
-    return ret;
 }
 
 
