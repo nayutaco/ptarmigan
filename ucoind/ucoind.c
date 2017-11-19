@@ -986,14 +986,14 @@ static bool close_unilateral_local(ln_self_t *self)
     if (ret) {
         del = true;
         for (int lp = 0; lp < close_dat.num; lp++) {
-            uint8_t txid[UCOIN_SZ_TXID];
 
-            ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
-            DUMPTXID(txid);
             if (close_dat.p_tx[lp].vin_cnt > 0) {
-                DBG_PRINTF("txid[%d]= ", lp);
                 //展開済みチェック
+                uint8_t txid[UCOIN_SZ_TXID];
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                DBG_PRINTF("txid[%d]= ", lp);
+                DUMPTXID(txid);
+
                 ret = jsonrpc_getraw_tx(NULL, txid);
                 if (ret) {
                     DBG_PRINTF("already broadcasted[%d]\n", lp);
@@ -1045,14 +1045,13 @@ static bool close_unilateral_remote(ln_self_t *self)
     if (ret) {
         del = true;
         for (int lp = 0; lp < close_dat.num; lp++) {
-            uint8_t txid[UCOIN_SZ_TXID];
-
-            ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
-            DUMPTXID(txid);
             if (close_dat.p_tx[lp].vin_cnt > 0) {
-                DBG_PRINTF("HTLC[%d]\n", lp);
                 //展開済みチェック
+                uint8_t txid[UCOIN_SZ_TXID];
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                DBG_PRINTF("txid[%d]= ", lp);
+                DUMPTXID(txid);
+
                 ret = jsonrpc_getraw_tx(NULL, txid);
                 if (ret) {
                     DBG_PRINTF("already broadcasted[%d]\n", lp);
