@@ -988,6 +988,14 @@ static bool close_unilateral_local(ln_self_t *self)
         for (int lp = 0; lp < close_dat.num; lp++) {
 
             if (close_dat.p_tx[lp].vin_cnt > 0) {
+                //vin使用済みチェック
+                uint64_t sat;
+                ret = jsonrpc_getxout(&sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                if (!ret) {
+                    DBG_PRINTF("vin already spent[%d]\n", lp);
+                    continue;
+                }
+
                 //展開済みチェック
                 uint8_t txid[UCOIN_SZ_TXID];
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
@@ -1019,11 +1027,11 @@ static bool close_unilateral_local(ln_self_t *self)
         del = false;
     }
 
-#warning テスト中のため削除しない
-    if (del && (ln_commit_local(self)->htlc_num > 0)) {
-        DBG_PRINTF("TEST: skip drop DB\n");
-        del = false;
-    }
+//#warning テスト中のため削除しない
+//    if (del && (ln_commit_local(self)->htlc_num > 0)) {
+//        DBG_PRINTF("TEST: skip drop DB\n");
+//        del = false;
+//    }
     DBG_PRINTF("del=%d\n", del);
 
     return del;
@@ -1046,6 +1054,14 @@ static bool close_unilateral_remote(ln_self_t *self)
         del = true;
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vin_cnt > 0) {
+                //vin使用済みチェック
+                uint64_t sat;
+                ret = jsonrpc_getxout(&sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                if (!ret) {
+                    DBG_PRINTF("vin already spent[%d]\n", lp);
+                    continue;
+                }
+
                 //展開済みチェック
                 uint8_t txid[UCOIN_SZ_TXID];
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
@@ -1078,11 +1094,11 @@ static bool close_unilateral_remote(ln_self_t *self)
         del = false;
     }
 
-#warning テスト中のため削除しない
-    if (del && (ln_commit_remote(self)->htlc_num > 0)) {
-        DBG_PRINTF("TEST: skip drop DB\n");
-        del = false;
-    }
+//#warning テスト中のため削除しない
+//    if (del && (ln_commit_remote(self)->htlc_num > 0)) {
+//        DBG_PRINTF("TEST: skip drop DB\n");
+//        del = false;
+//    }
     DBG_PRINTF("del=%d\n", del);
 
     return del;
