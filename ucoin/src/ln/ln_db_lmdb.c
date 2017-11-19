@@ -69,11 +69,17 @@
     -9 : self.shutdown_scriptpk_localを対象に追加
  */
 
-static int g_cnt = 0;
 
+#if 1
+#define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d)
+#define MDB_TXN_ABORT(a)            mdb_txn_abort(a)
+#define MDB_TXN_COMMIT(a)           mdb_txn_commit(a)
+#else
+static int g_cnt = 0;
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d); g_cnt++; DBG_PRINTF("mdb_txn_begin:%d\n", g_cnt)
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a); g_cnt--; DBG_PRINTF("mdb_txn_abort:%d\n", g_cnt)
 #define MDB_TXN_COMMIT(a)           mdb_txn_commit(a); g_cnt--; DBG_PRINTF("mdb_txn_commit:%d\n", g_cnt)
+#endif
 
 
 /**************************************************************************
