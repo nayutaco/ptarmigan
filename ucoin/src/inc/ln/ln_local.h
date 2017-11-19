@@ -103,6 +103,10 @@
 #define VOUT_OPT_TOLOCAL            (0xfe)                  ///< vout=to_local
 #define VOUT_OPT_TOREMOTE           (0xff)                  ///< vout=to_remote
 
+#define HTLCSIGN_TIMEOUT            (1)                     ///<
+#define HTLCSIGN_SUCCESS            (2)                     ///<
+#define HTLCSIGN_OF_PREIMG          (3)                     ///<
+
 
 /**************************************************************************
  * const variables
@@ -264,6 +268,7 @@ bool HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t
  * @param[in]       pRemoteSig      commit_tx相手からの署名
  * @param[in]       pPreImage       非NULL:payment_preimageでHTLC-Successとして署名, NULL:HTLC-Timeoutとして署名
  * @param[in]       pWitScript      voutとなるスクリプト
+ * @param[in]       Type            HTLCSIGN_xxx
  * @return      true:成功
  */
 bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
@@ -271,7 +276,8 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
                     const ucoin_util_keys_t *pKeys,
                     const ucoin_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
-                    const ucoin_buf_t *pWitScript);
+                    const ucoin_buf_t *pWitScript,
+                    int Type);
 
 
 /** Offered/Receveid HTLC Transaction署名verify

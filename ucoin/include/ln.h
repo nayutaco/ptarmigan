@@ -978,6 +978,7 @@ struct ln_self_t {
     //for app
     ln_callback_t               p_callback;                     ///< 通知コールバック
     void                        *p_param;                       ///< ユーザ用
+    void                        *p_db_param;
 };
 
 /// @}

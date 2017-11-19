@@ -50,7 +50,7 @@ typedef struct {
  * prototypes
  **************************************************************************/
 
-static bool comp_func_cnl(ln_self_t *self, void *p_param);
+static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 
 
 /**************************************************************************
@@ -194,8 +194,9 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
  * private functions
  **************************************************************************/
 
-static bool comp_func_cnl(ln_self_t *self, void *p_param)
+static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 {
+    (void)p_db_param;
     comp_param_cnl_t *p = (comp_param_cnl_t *)p_param;
 
     bool ret = (memcmp(self->peer_node.node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);

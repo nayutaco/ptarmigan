@@ -80,7 +80,7 @@ static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
 
 static void *thread_monitor_start(void *pArg);
-static bool monfunc(ln_self_t *self, void *p_param);
+static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 
 static bool close_unilateral_local(ln_self_t *self);
 static bool close_unilateral_remote(ln_self_t *self);
@@ -639,7 +639,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     result = cJSON_CreateArray();
-    ret = ln_db_cursor_preimage_open(&p_cur);
+    ret = ln_db_cursor_preimage_open(&p_cur, NULL);
     while (ret) {
         ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
         if (ret) {
@@ -653,7 +653,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON_AddItemToArray(result, json);
         }
     }
-    ln_db_cursor_preimage_close(p_cur);
+    ln_db_cursor_preimage_close(p_cur, NULL);
 
 LABEL_EXIT:
     if (index < 0) {
@@ -907,9 +907,11 @@ static void *thread_monitor_start(void *pArg)
 /** 監視処理
  *
  */
-static bool monfunc(ln_self_t *self, void *p_param)
+static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     (void)p_param;
+
+    self->p_db_param = p_db_param;
 
     uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
     if (confm > 0) {
@@ -943,9 +945,6 @@ static bool monfunc(ln_self_t *self, void *p_param)
                     del = close_revoked(self);
                 }
                 ucoin_tx_free(&tx_commit);
-
-#warning テスト中のため削除しない
-                del = false;
             }
         }
         if (del) {
@@ -954,6 +953,8 @@ static bool monfunc(ln_self_t *self, void *p_param)
             assert(ret);
         }
    }
+
+    self->p_db_param = NULL;
 
     return false;
 }
@@ -987,10 +988,10 @@ static bool close_unilateral_local(ln_self_t *self)
         for (int lp = 0; lp < close_dat.num; lp++) {
             uint8_t txid[UCOIN_SZ_TXID];
 
-            DBG_PRINTF("txid[%d]= ", lp);
             ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
             DUMPTXID(txid);
             if (close_dat.p_tx[lp].vin_cnt > 0) {
+                DBG_PRINTF("txid[%d]= ", lp);
                 //展開済みチェック
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 ret = jsonrpc_getraw_tx(NULL, txid);
@@ -1011,13 +1012,19 @@ static bool close_unilateral_local(ln_self_t *self)
                 }
             } else {
                 DBG_PRINTF("skip HTLC[%d]\n", lp);
-                del = false;
             }
         }
         ln_free_close_force_tx(&close_dat);
     } else {
         del = false;
     }
+
+#warning テスト中のため削除しない
+    if (del && (ln_commit_local(self)->htlc_num > 0)) {
+        DBG_PRINTF("TEST: skip drop DB\n");
+        del = false;
+    }
+    DBG_PRINTF("del=%d\n", del);
 
     return del;
 }
@@ -1044,6 +1051,13 @@ static bool close_unilateral_remote(ln_self_t *self)
             DUMPTXID(txid);
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 DBG_PRINTF("HTLC[%d]\n", lp);
+                //展開済みチェック
+                ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                ret = jsonrpc_getraw_tx(NULL, txid);
+                if (ret) {
+                    DBG_PRINTF("already broadcasted[%d]\n", lp);
+                    continue;
+                }
 
                 ucoin_buf_t buf;
                 ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
@@ -1058,13 +1072,19 @@ static bool close_unilateral_remote(ln_self_t *self)
                 }
             } else {
                 DBG_PRINTF("skip HTLC[%d]\n", lp);
-                del = false;
             }
         }
         ln_free_close_force_tx(&close_dat);
     } else {
         del = false;
     }
+
+#warning テスト中のため削除しない
+    if (del && (ln_commit_remote(self)->htlc_num > 0)) {
+        DBG_PRINTF("TEST: skip drop DB\n");
+        del = false;
+    }
+    DBG_PRINTF("del=%d\n", del);
 
     return del;
 }

@@ -2048,7 +2048,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         uint8_t preimage_hash[LN_SZ_HASH];
 
         void *p_cur;
-        bool ret = ln_db_cursor_preimage_open(&p_cur);
+        bool ret = ln_db_cursor_preimage_open(&p_cur, NULL);
         while (ret) {
             ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
             if (ret) {
@@ -2059,7 +2059,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 }
             }
         }
-        ln_db_cursor_preimage_close(p_cur);
+        ln_db_cursor_preimage_close(p_cur, NULL);
 
         if (ret) {
             //last nodeチェック
@@ -2089,12 +2089,12 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 fulfill->id = p_add->id;
                 ucoin_buf_alloccopy(&fulfill->buf, preimage, LN_SZ_PREIMAGE);
                 push_queue(p_conf, fulfill);
+
+                //preimageを使い終わったら消す
+                ln_db_del_preimage(preimage);
             } else {
                 DBG_PRINTF("DBG: no fulfill mode\n");
             }
-
-            //preimageを使い終わったら消す
-            ln_db_del_preimage(preimage);
 
             //アプリ判定はOK
             p_add->ok = true;

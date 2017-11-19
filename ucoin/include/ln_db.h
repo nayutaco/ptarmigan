@@ -57,10 +57,11 @@ typedef struct {
 /** 比較関数 #ln_db_search_channel()
  *
  * @param[in]       self
+ * @param[in]       p_db_param      db
  * @param[in]       p_param
  * @retval  true    比較終了(戻り値もtrue)
  */
-typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_param);
+typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_param);
 
 
 /********************************************************************
@@ -244,8 +245,8 @@ bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeSt
 
 bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount);
 bool ln_db_del_preimage(const uint8_t *pPreImage);
-bool ln_db_cursor_preimage_open(void **ppCur);
-void ln_db_cursor_preimage_close(void *pCur);
+bool ln_db_cursor_preimage_open(void **ppCur, void *p_db_param);
+void ln_db_cursor_preimage_close(void *pCur, void *p_db_param);
 bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
 
 

@@ -264,6 +264,11 @@ void HIDDEN ln_create_htlcinfo(ln_htlcinfo_t **ppHtlcInfo, int Num,
         //RIPEMD160(SHA256(payment_preimage))なので、HASH160(payment_preimage)と同じ
         ucoin_util_ripemd160(hash160, ppHtlcInfo[lp]->preimage_hash, UCOIN_SZ_SHA256);
 
+        //DBG_PRINTF("sha256(preimg)=");
+        //DUMPBIN(ppHtlcInfo[lp]->preimage_hash, UCOIN_SZ_SHA256);
+        //DBG_PRINTF("h160(sha256(preimg))=");
+        //DUMPBIN(hash160, UCOIN_SZ_RIPEMD160);
+
         switch (ppHtlcInfo[lp]->type) {
         case LN_HTLCTYPE_OFFERED:
             //offered
@@ -445,7 +450,8 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
                     const ucoin_util_keys_t *pKeys,
                     const ucoin_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
-                    const ucoin_buf_t *pWitScript)
+                    const ucoin_buf_t *pWitScript,
+                    int Type)
 {
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
 
@@ -457,8 +463,6 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
     bool ret = false;
     uint8_t sighash[UCOIN_SZ_SIGHASH];
 
-    //vinは1つしかないので、Indexは0固定
-    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
 
     //DBG_PRINTF("sighash: ");
     //DUMPBIN(sighash, UCOIN_SZ_SIGHASH);
@@ -467,24 +471,81 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
     //DBG_PRINTF("wscript: ");
     //DUMPBIN(pWitScript->buf, pWitScript->len);
 
-    ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
-    if (ret) {
-        // 0
-        // <remotesig>
-        // <localsig>
-        // <payment-preimage>(HTLC Success) or 0(HTLC Timeout)
-        // <script>
-        const ucoin_buf_t wit0 = { NULL, 0 };
-        const ucoin_buf_t preimage = { (CONST_CAST uint8_t *)pPreImage, (uint16_t)((pPreImage) ? UCOIN_SZ_HASH256 : 0) };
-        const ucoin_buf_t *wits[] = {
-            &wit0,
-            pRemoteSig,
-            pLocalSig,
-            &preimage,
-            pWitScript
-        };
+    const ucoin_buf_t wit0 = { NULL, 0 };
+    switch (Type) {
+    case HTLCSIGN_TIMEOUT:
+    case HTLCSIGN_SUCCESS:
+        DBG_PRINTF("HTLC Timeout/Success Tx sign\n");
+        ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
+        ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
+        {
+            // 0
+            // <remotesig>
+            // <localsig>
+            // <payment-preimage>(HTLC Success) or 0(HTLC Timeout)
+            // <script>
+            ucoin_buf_t preimage;
+            if (pPreImage != NULL) {
+                preimage.buf = (CONST_CAST uint8_t *)pPreImage;
+                preimage.len = LN_SZ_PREIMAGE;
+                if (pTx->vout[0].opt == LN_HTLCTYPE_OFFERED) {
+                    pTx->locktime = 0;
+                }
+            } else {
+                ucoin_buf_init(&preimage);
+            }
+            const ucoin_buf_t *wits[] = {
+                &wit0,
+                pRemoteSig,
+                pLocalSig,
+                &preimage,
+                pWitScript
+            };
+            ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
+        }
+        break;
 
-        ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
+    case HTLCSIGN_OF_PREIMG:
+        DBG_PRINTF("Offered HTLC + preimage sign\n");
+        {
+            //uint8_t h256[UCOIN_SZ_HASH256];
+            //uint8_t h160[UCOIN_SZ_HASH160];
+            //ln_calc_preimage_hash(h256, pPreImage);
+            //DBG_PRINTF("hash=");
+            //DUMPBIN(h256, UCOIN_SZ_HASH256);
+            //ucoin_util_ripemd160(h160, h256, sizeof(h256));
+            //DBG_PRINTF("h160=");
+            //DUMPBIN(h160, sizeof(h160));
+
+            // <remotesig>
+            // <payment-preimage>
+            // <script>
+            ucoin_buf_t preimage;
+            if (pPreImage != NULL) {
+                preimage.buf = (CONST_CAST uint8_t *)pPreImage;
+                preimage.len = LN_SZ_PREIMAGE;
+                if (pTx->vout[0].opt == LN_HTLCTYPE_OFFERED) {
+                    //相手がcommit_txを展開し、offered HTLCが自分のpreimageである
+                    pTx->locktime = 0;
+                }
+            } else {
+                assert(0);
+            }
+
+            ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
+            ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
+            const ucoin_buf_t *wits[] = {
+                pLocalSig,
+                &preimage,
+                pWitScript
+            };
+            ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
+        }
+        break;
+    default:
+        DBG_PRINTF("type=%d\n", Type);
+        assert(0);
+        break;
     }
 
     return ret;
