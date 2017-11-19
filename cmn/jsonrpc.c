@@ -52,6 +52,7 @@
 #define M_TX                "tx"
 #define M_ERROR             "error"
 #define M_MESSAGE           "message"
+#define M_CODE              "code"
 
 //#define M_DBG_SHOWRPC       //RPCの命令
 //#define M_DBG_SHOWREPLY     //RPCの応答
@@ -82,6 +83,8 @@ static bool getnewaddress_rpc(char *pJson);
 static bool estimatefee_rpc(char *pJson, int nBlock);
 static bool dumpprivkey_rpc(char *pJson, const char *pAddr);
 static int rpc_proc(CURL *curl, char *pJson, char *pData);
+static int error_result(json_t *p_root);
+
 
 /**************************************************************************
  * prototypes
@@ -489,16 +492,7 @@ bool jsonrpc_sendraw_tx(uint8_t *pTxid, const uint8_t *pData, uint16_t Len)
             misc_str2bin_rev(pTxid, UCOIN_SZ_TXID, (const char *)json_string_value(p_result));
             ret = true;
         } else {
-            json_t *p_msg = NULL;
-            json_t *p_err = json_object_get(p_root, M_ERROR);
-            if (p_err) {
-                p_msg = json_object_get(p_err, M_MESSAGE);
-            }
-            if (p_msg) {
-                DBG_PRINTF("[%s]\n", (const char *)json_string_value(p_msg));
-            } else {
-                DBG_PRINTF("fail: json_is_string\n");
-            }
+            error_result(p_root);
         }
 LABEL_DECREF:
         json_decref(p_root);
@@ -546,16 +540,7 @@ bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
         }
         str_hex = (const char *)json_string_value(p_result);
         if (!str_hex) {
-            json_t *p_msg = NULL;
-            json_t *p_err = json_object_get(p_root, M_ERROR);
-            if (p_err) {
-                p_msg = json_object_get(p_err, M_MESSAGE);
-            }
-            if (p_msg) {
-                DBG_PRINTF("[%s]\n", (const char *)json_string_value(p_msg));
-            } else {
-                DBG_PRINTF("error: hex[%s]\n", txid);
-            }
+            error_result(p_root);
             goto LABEL_DECREF;
         }
         len = strlen(str_hex);
@@ -1073,6 +1058,31 @@ static int rpc_proc(CURL *curl, char *pJson, char *pData)
     curl_easy_cleanup(curl);
 
     return retval;
+}
+
+
+static int error_result(json_t *p_root)
+{
+    int err = -1;
+    json_t *p_msg = NULL;
+    json_t *p_code = NULL;
+    json_t *p_err = json_object_get(p_root, M_ERROR);
+    if (p_err) {
+        p_msg = json_object_get(p_err, M_MESSAGE);
+        p_code = json_object_get(p_err, M_CODE);
+    }
+    if (p_msg) {
+        DBG_PRINTF("message=[%s]\n", (const char *)json_string_value(p_msg));
+    }
+    if (p_code) {
+        DBG_PRINTF("code=%" JSON_INTEGER_FORMAT "\n", json_integer_value(p_code));
+        err = (int)json_integer_value(p_msg);
+    }
+    if (!p_msg && !p_code) {
+        DBG_PRINTF("fail: json_is_string\n");
+    }
+
+    return err;
 }
 
 
