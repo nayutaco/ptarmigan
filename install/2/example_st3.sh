@@ -35,7 +35,7 @@ do
     if [ $LEN3 -ne 0 ] && [ $LEN4 -ne 0 ] && [ $RES1 -eq 0 ]; then
         break
     fi
-    sleep 10
+    sleep 3
 done
 
 rm n3.txt n4.txt

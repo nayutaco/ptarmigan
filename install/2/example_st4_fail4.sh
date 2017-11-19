@@ -1,7 +1,7 @@
 #!/bin/sh
 NETTYPE=regtest
 ROUTECONF=pay_route.conf
-AMOUNT=100000
+AMOUNT=10000000
 PAY_BEGIN=4444
 PAY_END=3333
 
@@ -21,8 +21,17 @@ if [ $? -ne 0 ]; then
 	echo fail get invoice
 	exit -1
 fi
+HASH=`echo $INVOICE | jq '.result.hash' | sed -e 's/\"//g'`
 
 ./routing $NETTYPE $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT > $ROUTECONF
 
+# fulfillしない
+./ucoincli -d 1 $PAYEE_PORT
+
 # 送金実施
-./ucoincli -p $ROUTECONF,$INVOICE $PAYER_PORT
+./ucoincli -p $ROUTECONF,$HASH $PAYER_PORT
+
+sleep 2
+
+# 戻す
+./ucoincli -d 0 $PAYEE_PORT
