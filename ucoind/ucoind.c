@@ -546,9 +546,12 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
             DBG_PRINTF("チャネルはあるが接続していない\n");
             bool ret = lnapp_close_channel_force(conn.node_id);
             if (ret) {
+                result = cJSON_CreateString("unilateral close");
                 DBG_PRINTF("force closed\n");
             } else {
                 DBG_PRINTF("fail: force close\n");
+                ctx->error_code = RPCERR_CLOSE_FAIL;
+                ctx->error_message = strdup(RPCERR_CLOSE_FAIL_STR);
             }
         } else {
             //チャネルなし

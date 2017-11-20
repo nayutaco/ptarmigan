@@ -75,8 +75,12 @@ static inline int tid() {
 
 #define RPCERR_CLOSE_HTLC       (-25000)
 #define RPCERR_CLOSE_HTLC_STR   "remain HTLC"
+#define RPCERR_CLOSE_FAIL       (-25001)
+#define RPCERR_CLOSE_FAIL_STR   "fail unilateral close"
+
 #define RPCERR_PAY_STOP         (-26000)
 #define RPCERR_PAY_STOP_STR     "stop payment"
+
 
 #define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数
 
