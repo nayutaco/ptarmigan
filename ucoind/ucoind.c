@@ -986,7 +986,13 @@ static bool close_unilateral_local(ln_self_t *self)
     if (ret) {
         del = true;
         for (int lp = 0; lp < close_dat.num; lp++) {
-
+            if (lp == 0) {
+                DBG_PRINTF("\n$$$ commit_tx\n");
+            } else if (lp == 1) {
+                DBG_PRINTF("\n$$$ to_local tx\n");
+            } else {
+                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - 2);
+            }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //vin使用済みチェック
                 uint64_t sat;
@@ -1019,7 +1025,7 @@ static bool close_unilateral_local(ln_self_t *self)
                     DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
                 }
             } else {
-                DBG_PRINTF("skip HTLC[%d]\n", lp);
+                DBG_PRINTF("skip tx[%d]\n", lp);
             }
         }
         ln_free_close_force_tx(&close_dat);
@@ -1053,6 +1059,13 @@ static bool close_unilateral_remote(ln_self_t *self)
     if (ret) {
         del = true;
         for (int lp = 0; lp < close_dat.num; lp++) {
+            if (lp == 0) {
+                DBG_PRINTF("\n$$$ commit_tx\n");
+            } else if (lp == 1) {
+                DBG_PRINTF("\n$$$ to_local tx\n");
+            } else {
+                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - 2);
+            }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //vin使用済みチェック
                 uint64_t sat;
@@ -1086,7 +1099,7 @@ static bool close_unilateral_remote(ln_self_t *self)
                     DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
                 }
             } else {
-                DBG_PRINTF("skip HTLC[%d]\n", lp);
+                DBG_PRINTF("skip tx[%d]\n", lp);
             }
         }
         ln_free_close_force_tx(&close_dat);
