@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2017/11/20
+
+* 2ノード間でのunilateral close
+  * `payment_preimage` を持つトランザクションの監視機能は無い
+* [`htlckey`](https://github.com/lightningnetwork/lightning-rfc/commit/4f91f0bb2a9c176dda019f9c0618c10f9fa0acfd) 未対応
+
 ## 2017/11/07
 
 * 全channelのfunding_tx UTXO監視(`gettxout`)
