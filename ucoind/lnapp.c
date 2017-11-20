@@ -191,12 +191,6 @@ static volatile enum {
     //MUX_RECV_FULFILL_HTLC=0x80,     ///< fulfill_htlc受信済み
 } mMuxTiming;
 
-static unsigned long mDebug;
-// 1: update_fulfill_htlcを返さない
-#define M_DBG_FULFILL() ((mDebug & 0x01) == 0)
-// 2: closeでclosing_txを展開しない
-#define M_DBG_CLOSING_TX() ((mDebug & 0x02) == 0)
-
 
 static const char *M_SCRIPT[] = {
     //M_EVT_ESTABLISHED
@@ -704,12 +698,6 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf)
 {
     return pAppConf->loop;
-}
-
-
-void lnapp_set_debug(unsigned long debug)
-{
-    mDebug = debug;
 }
 
 
@@ -2082,7 +2070,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DUMPBIN(p_add->p_payment_hash, LN_SZ_HASH);
         }
         if (ret) {
-            if (M_DBG_FULFILL()) {
+            if (LN_DBG_FULFILL()) {
                 //キューにためる(fulfill)
                 queue_fulfill_t *fulfill = (queue_fulfill_t *)MM_MALLOC(sizeof(queue_fulfill_t));
                 fulfill->type = QTYPE_BWD_FULFILL_HTLC;
@@ -2407,7 +2395,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 
     const ln_cb_closed_t *p_closed = (const ln_cb_closed_t *)p_param;
 
-    if (M_DBG_CLOSING_TX()) {
+    if (LN_DBG_CLOSING_TX()) {
         //closing_txを展開
         DBG_PRINTF("send closing tx\n");
 

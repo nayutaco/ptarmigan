@@ -192,6 +192,9 @@ static const struct {
 uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
 
 
+static unsigned long mDebug;
+
+
 /**************************************************************************
  * public functions
  **************************************************************************/
@@ -1275,6 +1278,23 @@ bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBase
     }
 
     return ret;
+}
+
+
+void ln_set_debug(unsigned long debug)
+{
+    mDebug = debug;
+    DBG_PRINTF("debug flag: 0x%lx\n", mDebug);
+    if (!mDebug) DBG_PRINTF("normal mode\n");
+    if (!LN_DBG_FULFILL()) DBG_PRINTF("no fulfill\n");
+    if (!LN_DBG_CLOSING_TX()) DBG_PRINTF("no send closing_tx\n");
+    if (!LN_DBG_MATCH_PREIMAGE()) DBG_PRINTF("HTLC preimage mismatch\n");
+}
+
+
+unsigned long ln_get_debug(void)
+{
+    return mDebug;
 }
 
 
@@ -3731,6 +3751,11 @@ static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add)
 
 static bool search_preimage(ln_self_t *self, uint8_t *pPreImage, const uint8_t *pHtlcHash)
 {
+    if (!LN_DBG_MATCH_PREIMAGE()) {
+        DBG_PRINTF("DBG: HTLC preimage mismatch\n");
+        return false;
+    }
+
     uint64_t amount;
     uint8_t preimage_hash[LN_SZ_HASH];
     void *p_cur;

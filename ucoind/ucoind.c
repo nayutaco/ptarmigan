@@ -839,7 +839,7 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_Number)) {
-        lnapp_set_debug(json->valueint);
+        ln_set_debug(json->valueint);
         sprintf(str, "%d", json->valueint);
         ret = str;
     } else {

@@ -120,6 +120,14 @@ extern "C" {
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
 
 
+// 1: update_fulfill_htlcを返さない
+#define LN_DBG_FULFILL()        ((ln_get_debug() & 0x01) == 0)
+// 2: closeでclosing_txを展開しない
+#define LN_DBG_CLOSING_TX()     ((ln_get_debug() & 0x02) == 0)
+// 4: HTLC scriptでpreimageが一致しても不一致とみなす
+#define LN_DBG_MATCH_PREIMAGE() ((ln_get_debug() & 0x04) == 0)
+
+
 /********************************************************************
  * typedefs
  ********************************************************************/
@@ -1705,6 +1713,10 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
 /********************************************************************
  * デバッグ
  ********************************************************************/
+
+void ln_set_debug(unsigned long debug);
+unsigned long ln_get_debug(void);
+
 
 #ifdef UCOIN_USE_PRINTFUNC
 void ln_print_node(const ln_node_t *node);
