@@ -1,5 +1,9 @@
 # ptarmigan
 
+## 現状の注意
+
+* [`htlckey`](https://github.com/lightningnetwork/lightning-rfc/commit/4f91f0bb2a9c176dda019f9c0618c10f9fa0acfd) 未対応のため、最新の `c-lightning` との互換性は無い。
+
 ## バージョンアップにおける注意
 
 * DBにバージョンが不一致の場合、起動できないようにしている。  
