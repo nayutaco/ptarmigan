@@ -214,7 +214,12 @@ void ln_print_self(const ln_self_t *self)
     fprintf(PRINTOUT, M_QQ("to_self_delay") ": %" PRIu32 ",\n", self->commit_local.to_self_delay);
     fprintf(PRINTOUT, M_QQ("minimum_msat") ": %" PRIu64 ",\n", self->commit_local.minimum_msat);
     fprintf(PRINTOUT, M_QQ("in_flight_msat") ": %" PRIu64 ",\n", self->commit_local.in_flight_msat);
-    fprintf(PRINTOUT, M_QQ("dust_limit_sat") ": %" PRIu64 "\n", self->commit_local.dust_limit_sat);
+    fprintf(PRINTOUT, M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_local.dust_limit_sat);
+    fprintf(PRINTOUT, M_QQ("commit_txid") ": \"");
+    ucoin_util_dumptxid(PRINTOUT, self->commit_local.txid);
+    fprintf(PRINTOUT, "\",\n");
+    fprintf(PRINTOUT, M_QQ("htlc_num") ": %" PRIu32 "\n", self->commit_local.htlc_num);
+
     fprintf(PRINTOUT, "},\n");
 
     fprintf(PRINTOUT, M_QQ("commit_remote") ": {\n");
@@ -222,7 +227,11 @@ void ln_print_self(const ln_self_t *self)
     fprintf(PRINTOUT, M_QQ("to_self_delay") ": %" PRIu32 ",\n", self->commit_remote.to_self_delay);
     fprintf(PRINTOUT, M_QQ("minimum_msat")  ":%" PRIu64 ",\n", self->commit_remote.minimum_msat);
     fprintf(PRINTOUT, M_QQ("in_flight_msat") ": %" PRIu64 ",\n", self->commit_remote.in_flight_msat);
-    fprintf(PRINTOUT, M_QQ("dust_limit_sat") ": %" PRIu64 "\n", self->commit_remote.dust_limit_sat);
+    fprintf(PRINTOUT, M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_remote.dust_limit_sat);
+    fprintf(PRINTOUT, M_QQ("commit_txid") ": \"");
+    ucoin_util_dumptxid(PRINTOUT, self->commit_remote.txid);
+    fprintf(PRINTOUT, "\",\n");
+    fprintf(PRINTOUT, M_QQ("htlc_num") ": %" PRIu32 "\n", self->commit_remote.htlc_num);
     fprintf(PRINTOUT, "},\n");
 
     fprintf(PRINTOUT, M_QQ("funding_sat") ": %" PRIu64 ",\n", self->funding_sat);

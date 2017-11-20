@@ -82,15 +82,12 @@
 #define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
 #define M_CHANNEL_RESERVE_SAT           (700)
 #define M_HTLC_MINIMUM_MSAT_EST         (0)
-#define M_FEERATE_PER_KW                (7500)
 #define M_TO_SELF_DELAY                 (40)
 #define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
 #define M_MIN_DEPTH                     (1)
 
 #define M_ANNOSIGS_CONFIRM      (6)         ///< announcement_signaturesを送信するconfirmation
                                             //      BOLT仕様は6
-
-#define M_BLK_FEEESTIMATE       (6)         ///< estimatefeeのブロック数(2以上)
 
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
@@ -193,12 +190,6 @@ static volatile enum {
     //MUX_SEND_FULFILL_HTLC=0x40,     ///< fulfill_htlc送信済み
     //MUX_RECV_FULFILL_HTLC=0x80,     ///< fulfill_htlc受信済み
 } mMuxTiming;
-
-static unsigned long mDebug;
-// 1: update_fulfill_htlcを返さない
-#define M_DBG_FULFILL() ((mDebug & 0x01) == 0)
-// 2: closeでclosing_txを展開しない
-#define M_DBG_CLOSING_TX() ((mDebug & 0x02) == 0)
 
 
 static const char *M_SCRIPT[] = {
@@ -576,6 +567,16 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         return false;
     }
 
+    //BOLTに載っていないtxについてはestimatefeeからfee計算する
+    uint64_t feerate;
+    ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
+    feerate = (uint32_t)(feerate / 4);
+#warning issue#46
+    if (!ret || (feerate < LN_FEERATE_PER_KW)) {
+        feerate = LN_FEERATE_PER_KW;
+    }
+    my_self.feerate_per_kw = (uint32_t)feerate;
+
     //自分が unilateral closeするパターン
     //  commit_tx
     //    |
@@ -589,20 +590,37 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     ret = ln_create_close_force_tx(&my_self, &close_dat);
     if (ret) {
         for (int lp = 0; lp < close_dat.num; lp++) {
-            //sendrawtransaction
-            uint8_t txid[UCOIN_SZ_TXID];
-            ret = jsonrpc_sendraw_tx(txid, close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
-            if (ret) {
-                DBG_PRINTF("txid[%d]: ", lp);
-                DUMPBIN(close_dat.pp_buf[lp]->buf, close_dat.pp_buf[lp]->len);
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
+                uint8_t txid[UCOIN_SZ_TXID];
+
+                //展開済みチェック
+                ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                ret = jsonrpc_getraw_tx(NULL, txid);
+                if (ret) {
+                    DBG_PRINTF("already broadcasted[%d]: ", lp);
+                    DUMPTXID(txid);
+                    continue;
+                }
+
+                //sendrawtransaction
+                ucoin_buf_t buf;
+                ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                if (ret) {
+                    ucoin_buf_free(&buf);
+                    DBG_PRINTF("broadcast txid[%d]: ", lp);
+                } else {
+                    DBG_PRINTF("fail[%d]: sendrawtransaction: ", lp);
+                }
+                DUMPTXID(txid);
             } else {
-                DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                DBG_PRINTF("skip HTLC[%d]\n", lp);
             }
         }
         ln_free_close_force_tx(&close_dat);
+    } else {
+        DBG_PRINTF("fail: create_close_tx\n");
     }
-
-    ln_db_del_channel(&my_self);
 
     return true;
 }
@@ -680,12 +698,6 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf)
 {
     return pAppConf->loop;
-}
-
-
-void lnapp_set_debug(unsigned long debug)
-{
-    mDebug = debug;
 }
 
 
@@ -827,6 +839,10 @@ static void *thread_main_start(void *pArg)
     pthread_mutex_unlock(&p_conf->mux);
     DBG_PRINTF("init交換完了\n\n");
 
+    //送金先
+    char payaddr[UCOIN_SZ_ADDR_MAX];
+    jsonrpc_getnewaddress(payaddr);
+    ln_set_shutdown_vout_addr(&my_self, payaddr);
 
     // Establishチェック
     if ((p_conf->initiator) && (p_conf->cmd == DCMD_CREATE)) {
@@ -1060,7 +1076,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
     if (ret) {
         //estimate fee
         uint64_t feerate;
-        bool ret = jsonrpc_estimatefee(&feerate, M_BLK_FEEESTIMATE);
+        bool ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
         //BOLT#2
         //  feerate_per_kw indicates the initial fee rate by 1000-weight
         //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
@@ -1068,10 +1084,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
         feerate = (uint32_t)(feerate / 4);
 #warning issue#46
-        if (!ret || (feerate < M_FEERATE_PER_KW)) {
+        if (!ret || (feerate < LN_FEERATE_PER_KW)) {
             // https://github.com/nayutaco/ptarmigan/issues/46
             DBG_PRINTF("fee_per_rate is too low? :%lu\n", feerate);
-            feerate = M_FEERATE_PER_KW;
+            feerate = LN_FEERATE_PER_KW;
         }
         DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
 
@@ -1857,9 +1873,6 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
         p_conf->p_funding = NULL;
     }
 
-    //DB保存
-    ln_db_save_channel(p_conf->p_self);
-
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 
     char fname[FNAME_LEN];
@@ -2018,54 +2031,58 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         SYSLOG_INFO("arrive: %" PRIx64 "(%" PRIu64 " msat)", ln_short_channel_id(p_conf->p_self), p_add->amount_msat);
 
         //preimage-hashチェック
+        uint8_t preimage[LN_SZ_PREIMAGE];
+        uint64_t amount;
         uint8_t preimage_hash[LN_SZ_HASH];
-        const preimage_t *p_preimage;
 
-        int lp;
-        for (lp = 0; lp < PREIMAGE_NUM; lp++) {
-            p_preimage = preimage_get(lp);
-            if (p_preimage->use) {
-                ln_calc_preimage_hash(preimage_hash, p_preimage->preimage);
+        void *p_cur;
+        bool ret = ln_db_cursor_preimage_open(&p_cur, NULL);
+        while (ret) {
+            ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
+            if (ret) {
+                ln_calc_preimage_hash(preimage_hash, preimage);
                 if (memcmp(preimage_hash, p_add->p_payment_hash, LN_SZ_HASH) == 0) {
                     //一致
                     break;
                 }
             }
         }
-        if (lp < PREIMAGE_NUM) {
+        ln_db_cursor_preimage_close(p_cur, NULL);
+
+        if (ret) {
             //last nodeチェック
             // https://github.com/nayuta-ueno/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
             //    * outgoing_cltv_value is set to the final expiry specified by the recipient
             //    * amt_to_forward is set to the final amount specified by the recipient
-            if ( (p_add->p_hop->amt_to_forward == p_preimage->amount) &&
+            if ( (p_add->p_hop->amt_to_forward == amount) &&
                  (p_add->p_hop->amt_to_forward == p_add->amount_msat) &&
                  //(p_add->p_hop->outgoing_cltv_value == ln_cltv_expily_delta(p_conf->p_self)) &&
                  (p_add->p_hop->outgoing_cltv_value == p_add->cltv_expiry)  ) {
                 DBG_PRINTF("last node OK\n");
             } else {
                 SYSLOG_ERR("%s(): last node check", __func__);
-                DBG_PRINTF("%" PRIu64 " != %" PRIu64 "\n", p_add->p_hop->amt_to_forward, p_preimage->amount);
+                DBG_PRINTF("%" PRIu64 " != %" PRIu64 "\n", p_add->p_hop->amt_to_forward, amount);
                 //DBG_PRINTF("%" PRIu32 " != %" PRIu32 "\n", p_add->p_hop->outgoing_cltv_value, ln_cltv_expily_delta(p_conf->p_self));
-                lp = PREIMAGE_NUM;
+                ret = false;
             }
         } else {
             DBG_PRINTF("fail: preimage mismatch\n");
             DUMPBIN(p_add->p_payment_hash, LN_SZ_HASH);
         }
-        if (lp < PREIMAGE_NUM) {
-            if (M_DBG_FULFILL()) {
+        if (ret) {
+            if (LN_DBG_FULFILL()) {
                 //キューにためる(fulfill)
                 queue_fulfill_t *fulfill = (queue_fulfill_t *)MM_MALLOC(sizeof(queue_fulfill_t));
                 fulfill->type = QTYPE_BWD_FULFILL_HTLC;
                 fulfill->id = p_add->id;
-                ucoin_buf_alloccopy(&fulfill->buf, p_preimage->preimage, LN_SZ_PREIMAGE);
+                ucoin_buf_alloccopy(&fulfill->buf, preimage, LN_SZ_PREIMAGE);
                 push_queue(p_conf, fulfill);
+
+                //preimageを使い終わったら消す
+                ln_db_del_preimage(preimage);
             } else {
                 DBG_PRINTF("DBG: no fulfill mode\n");
             }
-
-            //preimageを使い終わったら消す
-            preimage_clear(lp);
 
             //アプリ判定はOK
             p_add->ok = true;
@@ -2378,7 +2395,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 
     const ln_cb_closed_t *p_closed = (const ln_cb_closed_t *)p_param;
 
-    if (M_DBG_CLOSING_TX()) {
+    if (LN_DBG_CLOSING_TX()) {
         //closing_txを展開
         DBG_PRINTF("send closing tx\n");
 
@@ -2692,10 +2709,6 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
  */
 static void set_changeaddr(ln_self_t *self, uint64_t commit_fee)
 {
-    char changeaddr[UCOIN_SZ_ADDR_MAX];
-    jsonrpc_getnewaddress(changeaddr);
-    DBG_PRINTF("closing change addr : %s\n", changeaddr);
-    ln_set_shutdown_vout_addr(self, changeaddr);
     ln_update_shutdown_fee(self, commit_fee);
 }
 

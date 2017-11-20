@@ -200,6 +200,14 @@ static uint8_t preimage_hash_htlc1[UCOIN_SZ_HASH256];
 static uint8_t preimage_hash_htlc2[UCOIN_SZ_HASH256];
 static uint8_t preimage_hash_htlc3[UCOIN_SZ_HASH256];
 static uint8_t preimage_hash_htlc4[UCOIN_SZ_HASH256];
+
+static const uint8_t *PREIMAGES[] = {
+    PREIMAGE_HTLC0,
+    PREIMAGE_HTLC1,
+    NULL,       //PREIMAGE_HTLC2,
+    NULL,       //PREIMAGE_HTLC3,
+    PREIMAGE_HTLC4,
+};
 }
 ////////////////////////////////////////////////////////////////////////
 
@@ -297,31 +305,26 @@ TEST_F(ln_bolt3_c, committx1)
     htlcinfos[0].type = LN_HTLCTYPE_RECEIVED;
     htlcinfos[0].expiry = EXPIRY0;
     htlcinfos[0].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC0);
-    htlcinfos[0].preimage = PREIMAGE_HTLC0;
     htlcinfos[0].preimage_hash = preimage_hash_htlc0;
     //
     htlcinfos[1].type = LN_HTLCTYPE_RECEIVED;
     htlcinfos[1].expiry = EXPIRY1;
     htlcinfos[1].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC1);
-    htlcinfos[1].preimage = PREIMAGE_HTLC1;
     htlcinfos[1].preimage_hash = preimage_hash_htlc1;
     //
     htlcinfos[2].type = LN_HTLCTYPE_OFFERED;
     htlcinfos[2].expiry = EXPIRY2;
     htlcinfos[2].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC2);
-    htlcinfos[2].preimage = NULL;
     htlcinfos[2].preimage_hash = preimage_hash_htlc2;
     //
     htlcinfos[3].type = LN_HTLCTYPE_OFFERED;
     htlcinfos[3].expiry = EXPIRY3;
     htlcinfos[3].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC3);
-    htlcinfos[3].preimage = NULL;
     htlcinfos[3].preimage_hash = preimage_hash_htlc3;
     //
     htlcinfos[4].type = LN_HTLCTYPE_RECEIVED;
     htlcinfos[4].expiry = EXPIRY4;
     htlcinfos[4].amount_msat = LN_SATOSHI2MSAT(SATOSHI_HTLC4);
-    htlcinfos[4].preimage = PREIMAGE_HTLC4;
     htlcinfos[4].preimage_hash = preimage_hash_htlc4;
 
     pp_htlcinfos = (ln_htlcinfo_t **)malloc(sizeof(ln_htlcinfo_t*) * 5);
@@ -689,7 +692,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1193,12 +1196,12 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -1413,7 +1416,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1915,12 +1918,12 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -2135,7 +2138,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -2576,12 +2579,12 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -2796,7 +2799,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -3237,12 +3240,12 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -3457,7 +3460,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -3834,12 +3837,12 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -4054,7 +4057,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -4431,12 +4434,12 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -4651,7 +4654,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -4967,12 +4970,12 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -5187,7 +5190,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -5503,12 +5506,12 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -5723,7 +5726,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -5979,12 +5982,12 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -6198,7 +6201,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -6454,12 +6457,12 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-            ret = ln_sign_p2wsh_success_timeout(&tx2,
+            ret = ln_sign_htlc_tx(&tx2,
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
                         &remote_sig,
-                        htlcinfos[lp].preimage,
+                        PREIMAGES[lp],
                         htlcinfos[lp].expiry,
                         &htlcinfos[lp].script);
             ASSERT_TRUE(ret);
@@ -6674,7 +6677,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -6971,7 +6974,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -7269,7 +7272,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 
@@ -7560,7 +7563,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_cmt_create(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
     ASSERT_TRUE(ret);
 
 

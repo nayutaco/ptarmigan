@@ -50,6 +50,9 @@
 #define M_HEIGHT            "height"
 #define M_VALUE             "value"
 #define M_TX                "tx"
+#define M_ERROR             "error"
+#define M_MESSAGE           "message"
+#define M_CODE              "code"
 
 //#define M_DBG_SHOWRPC       //RPCの命令
 //#define M_DBG_SHOWREPLY     //RPCの応答
@@ -70,7 +73,7 @@ typedef struct {
  **************************************************************************/
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
-static bool getrawtransaction_rpc(char *pJson, const char *pTxid);
+static bool getrawtransaction_rpc(char *pJson, const char *pTxid, bool detail);
 static bool sendrawtransaction_rpc(char *pJson, const char *pTransaction);
 static bool gettxout_rpc(char *pJson, const char *pTxid, int idx);
 static bool getblock_rpc(char *pJson, const char *pBlock);
@@ -80,6 +83,8 @@ static bool getnewaddress_rpc(char *pJson);
 static bool estimatefee_rpc(char *pJson, int nBlock);
 static bool dumpprivkey_rpc(char *pJson, const char *pAddr);
 static int rpc_proc(CURL *curl, char *pJson, char *pData);
+static int error_result(json_t *p_root);
+
 
 /**************************************************************************
  * prototypes
@@ -207,7 +212,7 @@ uint32_t jsonrpc_get_confirmation(const uint8_t *pTxid)
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     p_json = (char *)malloc(BUFFER_SIZE);
-    retval = getrawtransaction_rpc(p_json, txid);
+    retval = getrawtransaction_rpc(p_json, txid, true);
     if (retval) {
         json_t *p_root;
         json_t *p_result;
@@ -257,7 +262,7 @@ bool jsonrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t 
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     p_json = (char *)malloc(BUFFER_SIZE);
-    retval = getrawtransaction_rpc(p_json, txid);
+    retval = getrawtransaction_rpc(p_json, txid, true);
     if (retval) {
         json_t *p_root;
         json_t *p_result;
@@ -487,7 +492,7 @@ bool jsonrpc_sendraw_tx(uint8_t *pTxid, const uint8_t *pData, uint16_t Len)
             misc_str2bin_rev(pTxid, UCOIN_SZ_TXID, (const char *)json_string_value(p_result));
             ret = true;
         } else {
-            DBG_PRINTF("fail: json_is_string\n");
+            error_result(p_root);
         }
 LABEL_DECREF:
         json_decref(p_root);
@@ -513,7 +518,7 @@ bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     p_json = (char *)malloc(BUFFER_SIZE);
-    retval = getrawtransaction_rpc(p_json, txid);
+    retval = getrawtransaction_rpc(p_json, txid, false);
     if (retval) {
         json_t *p_root;
         json_t *p_result;
@@ -535,7 +540,7 @@ bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
         }
         str_hex = (const char *)json_string_value(p_result);
         if (!str_hex) {
-            DBG_PRINTF("error: hex\n");
+            error_result(p_root);
             goto LABEL_DECREF;
         }
         len = strlen(str_hex);
@@ -762,6 +767,9 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
         DBG_PRINTF("error: too small buffer\n");
         return 0;
     }
+#ifdef M_DBG_SHOWREPLY
+    int pos = result->pos;
+#endif //M_DBG_SHOWREPLY
 
     memcpy(result->p_data + result->pos, ptr, size * nmemb);
     result->pos += size * nmemb;
@@ -771,7 +779,7 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
     *(result->p_data + result->pos) = 0;       //\0
 
 #ifdef M_DBG_SHOWREPLY
-    DBG_PRINTF2("\n\n@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, result->p_data + result->pos);
+    DBG_PRINTF2("\n\n@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, result->p_data + pos);
 #endif //M_DBG_SHOWREPLY
 
     return size * nmemb;
@@ -781,7 +789,7 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
 /** [cURL]getrawtransaction
  *
  */
-static bool getrawtransaction_rpc(char *pJson, const char *pTxid)
+static bool getrawtransaction_rpc(char *pJson, const char *pTxid, bool detail)
 {
     int retval = -1;
     CURL *curl = curl_easy_init();
@@ -796,8 +804,8 @@ static bool getrawtransaction_rpc(char *pJson, const char *pTxid)
 
                 ///////////////////////////////////////////
                 M_1("method", "getrawtransaction") M_NEXT
-                M_QQ("params") ":[" M_QQ("%s") ", true]"
-            "}", pTxid);
+                M_QQ("params") ":[" M_QQ("%s") ", %s]"
+            "}", pTxid, (detail) ? "true" : "false");
 
         retval = rpc_proc(curl, pJson, data);
         free(data);
@@ -1050,6 +1058,31 @@ static int rpc_proc(CURL *curl, char *pJson, char *pData)
     curl_easy_cleanup(curl);
 
     return retval;
+}
+
+
+static int error_result(json_t *p_root)
+{
+    int err = -1;
+    json_t *p_msg = NULL;
+    json_t *p_code = NULL;
+    json_t *p_err = json_object_get(p_root, M_ERROR);
+    if (p_err) {
+        p_msg = json_object_get(p_err, M_MESSAGE);
+        p_code = json_object_get(p_err, M_CODE);
+    }
+    if (p_msg) {
+        DBG_PRINTF("message=[%s]\n", (const char *)json_string_value(p_msg));
+    }
+    if (p_code) {
+        DBG_PRINTF("code=%" JSON_INTEGER_FORMAT "\n", json_integer_value(p_code));
+        err = (int)json_integer_value(p_msg);
+    }
+    if (!p_msg && !p_code) {
+        DBG_PRINTF("fail: json_is_string\n");
+    }
+
+    return err;
 }
 
 

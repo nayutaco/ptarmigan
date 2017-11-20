@@ -58,7 +58,6 @@
 
 static ln_node_t            mNode;
 static struct jrpc_server   mJrpc;
-static preimage_t           mPreimage[PREIMAGE_NUM];
 static pthread_mutex_t      mMuxPreimage;
 static volatile bool        mMonitoring;
 
@@ -81,7 +80,11 @@ static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
 
 static void *thread_monitor_start(void *pArg);
-static bool monfunc(ln_self_t *self, void *p_param);
+static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
+
+static bool close_unilateral_local(ln_self_t *self);
+static bool close_unilateral_remote(ln_self_t *self);
+static bool close_revoked(ln_self_t *self);
 
 
 /********************************************************************
@@ -194,9 +197,6 @@ int main(int argc, char *argv[])
     ln_print_node(&mNode);
     lnapp_init(&mNode);
 
-    for (int lp = 0; lp < PREIMAGE_NUM; lp++) {
-        mPreimage[lp].use = false;
-    }
     pthread_mutex_init(&mMuxPreimage, NULL);
 
     //接続待ち受け用
@@ -307,19 +307,6 @@ void preimage_lock(void)
 void preimage_unlock(void)
 {
     pthread_mutex_unlock(&mMuxPreimage);
-}
-
-
-const preimage_t *preimage_get(int index)
-{
-    return &mPreimage[index];
-}
-
-
-void preimage_clear(int index)
-{
-    mPreimage[index].use = false;
-    memset(mPreimage[index].preimage, 0, LN_SZ_PREIMAGE);
 }
 
 
@@ -559,9 +546,12 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
             DBG_PRINTF("チャネルはあるが接続していない\n");
             bool ret = lnapp_close_channel_force(conn.node_id);
             if (ret) {
+                result = cJSON_CreateString("unilateral close");
                 DBG_PRINTF("force closed\n");
             } else {
                 DBG_PRINTF("fail: force close\n");
+                ctx->error_code = RPCERR_CLOSE_FAIL;
+                ctx->error_message = strdup(RPCERR_CLOSE_FAIL_STR);
             }
         } else {
             //チャネルなし
@@ -608,35 +598,22 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     result = cJSON_CreateObject();
     pthread_mutex_lock(&mMuxPreimage);
 
-    int lp;
-    for (lp = 0; lp < PREIMAGE_NUM; lp++) {
-        if (!mPreimage[lp].use) {
-            mPreimage[lp].use = true;
-            mPreimage[lp].amount = amount;
-            ucoin_util_random(mPreimage[lp].preimage, LN_SZ_PREIMAGE);
-            break;
-        }
-    }
+    uint8_t preimage[LN_SZ_PREIMAGE];
+    uint8_t preimage_hash[LN_SZ_HASH];
+    char str_hash[LN_SZ_HASH * 2 + 1];
 
-    if (lp < PREIMAGE_NUM) {
-        uint8_t preimage_hash[LN_SZ_HASH];
-        ln_calc_preimage_hash(preimage_hash, mPreimage[lp].preimage);
+    ucoin_util_random(preimage, LN_SZ_PREIMAGE);
+    ln_db_save_preimage(preimage, amount);
+    ln_calc_preimage_hash(preimage_hash, preimage);
 
-        char str_hash[LN_SZ_HASH * 2 + 1];
-        misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
-        DBG_PRINTF("preimage[%d]=", lp)
-        DUMPBIN(mPreimage[lp].preimage, LN_SZ_PREIMAGE);
-        DBG_PRINTF("hash=")
-        DUMPBIN(preimage_hash, LN_SZ_HASH);
-        cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
-        cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(mPreimage[lp].amount));
-    } else {
-        SYSLOG_ERR("%s(): no empty place", __func__);
-        ctx->error_code = RPCERR_INVOICE_FULL;
-        ctx->error_message = strdup(RPCERR_INVOICE_FULL_STR);
-    }
+    misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+    DBG_PRINTF("preimage=")
+    DUMPBIN(preimage, LN_SZ_PREIMAGE);
+    DBG_PRINTF("hash=")
+    DUMPBIN(preimage_hash, LN_SZ_HASH);
+    cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
+    cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
     pthread_mutex_unlock(&mMuxPreimage);
-
 
 LABEL_EXIT:
     if (index < 0) {
@@ -653,9 +630,11 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     cJSON *result = NULL;
     int index = 0;
+    uint8_t preimage[LN_SZ_PREIMAGE];
     uint8_t preimage_hash[LN_SZ_HASH];
-    bool badd = false;
-    cJSON *array;
+    uint64_t amount;
+    void *p_cur;
+    bool ret;
 
     if (params == NULL) {
         index = -1;
@@ -663,25 +642,21 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     result = cJSON_CreateArray();
-
-    array = cJSON_CreateArray();
-    for (int lp = 0; lp < PREIMAGE_NUM; lp++) {
-        if (mPreimage[lp].use) {
-            ln_calc_preimage_hash(preimage_hash, mPreimage[lp].preimage);
+    ret = ln_db_cursor_preimage_open(&p_cur, NULL);
+    while (ret) {
+        ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
+        if (ret) {
+            ln_calc_preimage_hash(preimage_hash, preimage);
             cJSON *json = cJSON_CreateArray();
 
             char str_hash[LN_SZ_HASH * 2 + 1];
             misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
             cJSON_AddItemToArray(json, cJSON_CreateString(str_hash));
-            cJSON_AddItemToArray(json, cJSON_CreateNumber64(mPreimage[lp].amount));
-            cJSON_AddItemToArray(array, json);
-            badd = true;
+            cJSON_AddItemToArray(json, cJSON_CreateNumber64(amount));
+            cJSON_AddItemToArray(result, json);
         }
     }
-    if (badd) {
-        cJSON_AddItemToArray(result, array);
-    }
-
+    ln_db_cursor_preimage_close(p_cur, NULL);
 
 LABEL_EXIT:
     if (index < 0) {
@@ -867,7 +842,7 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_Number)) {
-        lnapp_set_debug(json->valueint);
+        ln_set_debug(json->valueint);
         sprintf(str, "%d", json->valueint);
         ret = str;
     } else {
@@ -906,6 +881,9 @@ static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id)
  * private functions: monitoring all channels
  **************************************************************************/
 
+/** チャネル閉鎖監視スレッド
+ *
+ */
 static void *thread_monitor_start(void *pArg)
 {
     (void)pArg;
@@ -929,37 +907,222 @@ static void *thread_monitor_start(void *pArg)
 }
 
 
-static bool monfunc(ln_self_t *self, void *p_param)
+/** 監視処理
+ *
+ */
+static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     (void)p_param;
 
+    self->p_db_param = p_db_param;
 
     uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
     if (confm > 0) {
-        DBG_PRINTF("funding_txid[conf=%u, idx=%d]: ", confm, self->funding_local.txindex);
-        DUMPTXID(self->funding_local.txid);
+        DBG_PRINTF("funding_txid[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
+        DUMPTXID(ln_funding_txid(self));
 
         bool del = false;
         uint64_t sat;
         bool ret = jsonrpc_getxout(&sat, ln_funding_txid(self), ln_funding_txindex(self));
         if (!ret) {
-            //gettxoutはunspentを返すので、取得失敗→unilateral close/revoked transaction closeとみなす
+            //funding_tx使用済み
+
             if (ln_is_closing_signed_recvd(self)) {
-                //BOLT#5
-                //  Otherwise, if the node has received a valid closing_signed message with high enough fee level, it SHOULD use that to perform a mutual close.
-                //  https://github.com/lightningnetwork/lightning-rfc/blob/master/05-onchain.md#requirements-1
+                //closing_signed受信あり
+                //  funding_txが使用済みでclosing_signed受信済みであれば、
+                //  相手がclosing_txを展開したことになるので、DBから消して良い
                 DBG_PRINTF("close after closing_signed\n");
                 del = true;
             } else {
-                SYSLOG_WARN("closed: bad way or ugly way\n");
+                //展開されているのが最新のcommit_txか
+                ucoin_tx_t tx_commit;
+                ucoin_tx_init(&tx_commit);
+                if (jsonrpc_getraw_tx(&tx_commit, ln_commit_local(self)->txid)) {
+                    //最新のlocal commit_tx --> unilateral close(local)
+                    del = close_unilateral_local(self);
+                } else if (jsonrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid)) {
+                    //最新のremote commit_tx --> unilateral close(remote)
+                    del = close_unilateral_remote(self);
+                } else {
+                    //最新ではないcommit_tx --> revoked transaction close
+                    del = close_revoked(self);
+                }
+                ucoin_tx_free(&tx_commit);
             }
         }
         if (del) {
-            //最後にDBからチャネルを削除
+            DBG_PRINTF("delete from DB\n");
             ret = ln_db_del_channel(self);
             assert(ret);
         }
    }
 
+    self->p_db_param = NULL;
+
+    return false;
+}
+
+
+/** unilateral closeを自分が行っていた場合の処理(localのcommit_txを展開)
+ *
+ */
+static bool close_unilateral_local(ln_self_t *self)
+{
+    bool del;
+    bool ret;
+
+    SYSLOG_WARN("closed: bad way(local): htlc=%d\n", ln_commit_local(self)->htlc_num);
+    //ucoin_print_tx(&tx_commit);
+
+    //BOLTに載っていないtxについてはestimatefeeからfee計算する
+    uint64_t feerate;
+    ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
+    feerate = (uint32_t)(feerate / 4);
+#warning issue#46
+    if (!ret || (feerate < LN_FEERATE_PER_KW)) {
+        feerate = LN_FEERATE_PER_KW;
+    }
+    ln_set_feerate(self, (uint32_t)feerate);
+
+    ln_close_force_t close_dat;
+    ret = ln_create_close_force_tx(self, &close_dat);
+    if (ret) {
+        del = true;
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            if (lp == 0) {
+                DBG_PRINTF("\n$$$ commit_tx\n");
+            } else if (lp == 1) {
+                DBG_PRINTF("\n$$$ to_local tx\n");
+            } else {
+                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - 2);
+            }
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
+                //vin使用済みチェック
+                uint64_t sat;
+                ret = jsonrpc_getxout(&sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                if (!ret) {
+                    DBG_PRINTF("vin already spent[%d]\n", lp);
+                    continue;
+                }
+
+                //展開済みチェック
+                uint8_t txid[UCOIN_SZ_TXID];
+                ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                DBG_PRINTF("txid[%d]= ", lp);
+                DUMPTXID(txid);
+
+                ret = jsonrpc_getraw_tx(NULL, txid);
+                if (ret) {
+                    DBG_PRINTF("already broadcasted[%d]\n", lp);
+                    continue;
+                }
+
+                ucoin_buf_t buf;
+                ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                ucoin_buf_free(&buf);
+                if (ret) {
+                    DBG_PRINTF("broadcast txid[%d]\n", lp);
+                } else {
+                    del = false;
+                    DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                }
+            } else {
+                DBG_PRINTF("skip tx[%d]\n", lp);
+            }
+        }
+        ln_free_close_force_tx(&close_dat);
+    } else {
+        del = false;
+    }
+
+//#warning テスト中のため削除しない
+//    if (del && (ln_commit_local(self)->htlc_num > 0)) {
+//        DBG_PRINTF("TEST: skip drop DB\n");
+//        del = false;
+//    }
+    DBG_PRINTF("del=%d\n", del);
+
+    return del;
+}
+
+
+/** unilateral closeを相手が行っていた場合の処理(remoteのcommit_txを展開)
+ *
+ */
+static bool close_unilateral_remote(ln_self_t *self)
+{
+    bool del;
+
+    SYSLOG_WARN("closed: bad way(remote): htlc=%d\n", ln_commit_remote(self)->htlc_num);
+    //ucoin_print_tx(&tx_commit);
+
+    ln_close_force_t close_dat;
+    bool ret = ln_create_closed_tx(self, &close_dat);
+    if (ret) {
+        del = true;
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            if (lp == 0) {
+                DBG_PRINTF("\n$$$ commit_tx\n");
+            } else if (lp == 1) {
+                DBG_PRINTF("\n$$$ to_local tx\n");
+            } else {
+                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - 2);
+            }
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
+                //vin使用済みチェック
+                uint64_t sat;
+                ret = jsonrpc_getxout(&sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                if (!ret) {
+                    DBG_PRINTF("vin already spent[%d]\n", lp);
+                    continue;
+                }
+
+                //展開済みチェック
+                uint8_t txid[UCOIN_SZ_TXID];
+                ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                DBG_PRINTF("txid[%d]= ", lp);
+                DUMPTXID(txid);
+
+                ret = jsonrpc_getraw_tx(NULL, txid);
+                if (ret) {
+                    DBG_PRINTF("already broadcasted[%d]\n", lp);
+                    continue;
+                }
+
+                ucoin_buf_t buf;
+                ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                ucoin_buf_free(&buf);
+                if (ret) {
+                    DBG_PRINTF("broadcast txid[%d]: ", lp);
+                    DUMPTXID(txid);
+                } else {
+                    del = false;
+                    DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                }
+            } else {
+                DBG_PRINTF("skip tx[%d]\n", lp);
+            }
+        }
+        ln_free_close_force_tx(&close_dat);
+    } else {
+        del = false;
+    }
+
+//#warning テスト中のため削除しない
+//    if (del && (ln_commit_remote(self)->htlc_num > 0)) {
+//        DBG_PRINTF("TEST: skip drop DB\n");
+//        del = false;
+//    }
+    DBG_PRINTF("del=%d\n", del);
+
+    return del;
+}
+
+
+static bool close_revoked(ln_self_t *self)
+{
+    SYSLOG_WARN("closed: ugly way\n");
     return false;
 }

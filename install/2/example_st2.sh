@@ -8,12 +8,6 @@ cd node_3333
 ../ucoind node.conf &
 cd ../node_4444
 ../ucoind node.conf &
-cd ../node_5555
-../ucoind node.conf &
-cd ../node_6666
-../ucoind node.conf &
 cd ..
-cp -ra script node_3333/
-cp -ra script node_4444/
-cp -ra script node_5555/
-cp -ra script node_6666/
+cp -ra ../script node_3333/
+cp -ra ../script node_4444/

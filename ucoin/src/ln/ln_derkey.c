@@ -306,6 +306,8 @@ LABEL_EXIT:
 //      https://github.com/rustyrussell/ccan/tree/master/ccan/crypto/shachain
 void HIDDEN ln_derkey_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uint64_t Index)
 {
+    DBG_PRINTF("index=%" PRIx64 "\n", Index);
+
     derive_secret(pPrivKey, pSeed, 47, Index);
 }
 
@@ -343,6 +345,7 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const u
         if (memcmp(output, pStorage->storage[lp].secret, UCOIN_SZ_PRIVKEY) != 0) {
             //error
             DBG_PRINTF("fail: secret mismatch(I=%" PRIx64 "), bit=%d\n", Index, bit);
+            assert(0);
             return false;
         }
     }
@@ -355,6 +358,8 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const u
 
 bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_storage *pStorage, uint64_t Index)
 {
+    DBG_PRINTF("index=%" PRIx64 "\n", Index);
+
     //derive_old_secret(I):
     //    for b in 0 to len(secrets):
     //        # Mask off the non-zero prefix of the index.
@@ -376,6 +381,7 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
             break;
         }
     }
+    assert(ret);
     return ret;
 }
 

@@ -64,6 +64,8 @@ extern "C" {
 #define LN_NODE_MAX                     (5)         ///< 保持するノード情報数   TODO:暫定
 #define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
 #define LN_HOP_MAX                      (20)        ///< onion hop数
+#define LN_FEERATE_PER_KW               (7500)      ///< feerate_per_kwの下限
+#define LN_BLK_FEEESTIMATE              (6)         ///< estimatefeeのブロック数(2以上)
 
 #define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
 
@@ -116,6 +118,14 @@ extern "C" {
  *  @brief  msat(milli-satoshi)をsatoshi変換
  */
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
+
+
+// 1: update_fulfill_htlcを返さない
+#define LN_DBG_FULFILL()        ((ln_get_debug() & 0x01) == 0)
+// 2: closeでclosing_txを展開しない
+#define LN_DBG_CLOSING_TX()     ((ln_get_debug() & 0x02) == 0)
+// 4: HTLC scriptでpreimageが一致しても不一致とみなす
+#define LN_DBG_MATCH_PREIMAGE() ((ln_get_debug() & 0x04) == 0)
 
 
 /********************************************************************
@@ -401,8 +411,8 @@ typedef struct {
  *  @brief  [Close]Unilateral Close / Revoked Transaction Close用
  */
 typedef struct {
-    int             num;                            ///< pp_bufのtransaction数
-    ucoin_buf_t     **pp_buf;                       ///<
+    int             num;                            ///< p_bufのtransaction数
+    ucoin_tx_t      *p_tx;                          ///<
 } ln_close_force_t;
 
 /// @}
@@ -883,6 +893,7 @@ typedef struct {
                                                         // localには相手に送信する署名
                                                         // remoteには相手から受信した署名
     uint8_t             txid[UCOIN_SZ_TXID];            ///< txid
+    uint16_t            htlc_num;                       ///< commit_tx中のHTLC数
 } ln_commit_data_t;
 
 
@@ -936,7 +947,7 @@ struct ln_self_t {
     uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)。 b1:受信済み b0:送信済み
     uint64_t                    close_fee_sat;                  ///< closing_txのFEE
     uint64_t                    close_last_fee_sat;             ///< 最後に送信したclosing_txのFEE
-    ucoin_buf_t                 shutdown_scriptpk_local;        ///< mutual close時の送金先(local)
+    ucoin_buf_t                 shutdown_scriptpk_local;        ///< close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
 
@@ -975,6 +986,7 @@ struct ln_self_t {
     //for app
     ln_callback_t               p_callback;                     ///< 通知コールバック
     void                        *p_param;                       ///< ユーザ用
+    void                        *p_db_param;
 };
 
 /// @}
@@ -1255,7 +1267,7 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee);
 bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
 
 
-/** unilateral close / revoked transaction close用トランザクション作成
+/** 送信用unilateral closeトランザクション作成
  *
  * @param[in]           self        channel情報
  * @param[out]          pClose      生成したトランザクション
@@ -1266,8 +1278,20 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
 bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose);
 
 
+/** 相手からcloseされたcommit_txを復元
+ *
+ * @param[in]           self        channel情報
+ * @param[out]          pClose      生成したトランザクション
+ * @retval      ture    成功
+ * @note
+ *      - pCloseは @ln_free_close_force_tx()で解放すること
+ */
+bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose);
+
+
 /** ln_close_force_tのメモリ解放
  *
+ * @param[out]          pClose      ln_create_close_force_tx()やln_create_closed_tx()で生成したデータ
  */
 void ln_free_close_force_tx(ln_close_force_t *pClose);
 
@@ -1481,6 +1505,16 @@ static inline bool ln_is_funder(const ln_self_t *self) {
 }
 
 
+/** feerate_per_kw設定
+ *
+ * @param[out]          self            channel情報
+ * @param[in]           feerate         設定値
+ */
+static inline void ln_set_feerate(ln_self_t *self, uint32_t feerate) {
+    self->feerate_per_kw = feerate;
+}
+
+
 /** 初期closing_tx FEE取得
  *
  * @param[in,out]       self            channel情報
@@ -1497,6 +1531,26 @@ static inline uint64_t ln_calc_max_closing_fee(const ln_self_t *self) {
  */
 static inline bool ln_is_closing_signed_recvd(const ln_self_t *self) {
     return (self->obscured == 0);
+}
+
+
+/** commit_local取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      commit_local情報
+ */
+static inline const ln_commit_data_t *ln_commit_local(const ln_self_t *self) {
+    return &self->commit_local;
+}
+
+
+/** commit_remote取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      commit_remote情報
+ */
+static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
+    return &self->commit_remote;
 }
 
 
@@ -1659,6 +1713,10 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
 /********************************************************************
  * デバッグ
  ********************************************************************/
+
+void ln_set_debug(unsigned long debug);
+unsigned long ln_get_debug(void);
+
 
 #ifdef UCOIN_USE_PRINTFUNC
 void ln_print_node(const ln_node_t *node);
