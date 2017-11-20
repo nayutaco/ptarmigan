@@ -3075,7 +3075,7 @@ static bool create_to_local(ln_self_t *self,
                                     &buf_sig,                       //<remotesig>
                                     (ret_img) ? preimage : NULL,
                                     &pp_htlcinfo[htlc_idx]->script,
-                                    HTLCSIGN_TIMEOUT);
+                                    HTLCSIGN_TO_SUCCESS);
                         DBG_PRINTF("署名: %d(HTLC %s)\n", ret, (ret_img) ? "Success" : "Timeout");
                         assert(ret);
 
@@ -3339,23 +3339,32 @@ static bool create_to_remote(ln_self_t *self,
 
                     uint8_t preimage[LN_SZ_PREIMAGE];
                     bool ret_img;
-                    int type = HTLCSIGN_TIMEOUT;
+                    int type = HTLCSIGN_TO_SUCCESS;
                     if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) {
                         //remoteのoffered=localのreceivedなのでpreimageを所持している可能性がある
                         ret_img = search_preimage(self, preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
                         DBG_PRINTF("[offered]%d\n", ret_img);
                         if (ret_img && (pTxHtlcs != NULL)) {
                             //offeredかつpreimageがあるので、即時使用可能
-                            //pTxHtlcsがNULLの場合はcommigment_signedなので、強制でHTLC Success Tx
                             ucoin_buf_free(&tx.vout[0].script);      //HTLC Success Txを止める
                             //close時の出力先に変更
                             ucoin_buf_alloccopy(&tx.vout[0].script,
                                     self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
+                            tx.locktime = 0;
                             type = HTLCSIGN_OF_PREIMG;
                         }
                     } else {
                         ret_img = false;
                         DBG_PRINTF("[received]%d\n", ret_img);
+                        if (pTxHtlcs != NULL) {
+                            //タイムアウト待ち
+                            ucoin_buf_free(&tx.vout[0].script);      //HTLC Success Txを止める
+                            //close時の出力先に変更
+                            ucoin_buf_alloccopy(&tx.vout[0].script,
+                                    self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
+                            tx.locktime = pp_htlcinfo[htlc_idx]->expiry;
+                            type = HTLCSIGN_RV_TIMEOUT;
+                        }
                     }
 
                     //署名

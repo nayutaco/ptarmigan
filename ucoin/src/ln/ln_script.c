@@ -424,10 +424,12 @@ bool HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t
     switch (pTx->vout[0].opt) {
     case LN_HTLCTYPE_RECEIVED:
         //HTLC-success
+        DBG_PRINTF("HTLC Success\n");
         pTx->locktime = 0;
         break;
     case LN_HTLCTYPE_OFFERED:
         //HTLC-timeout
+        DBG_PRINTF("HTLC Timeout\n");
         pTx->locktime = CltvExpiry;
         break;
     default:
@@ -463,18 +465,9 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
     bool ret = false;
     uint8_t sighash[UCOIN_SZ_SIGHASH];
 
-
-    //DBG_PRINTF("sighash: ");
-    //DUMPBIN(sighash, UCOIN_SZ_SIGHASH);
-    //DBG_PRINTF("pubkey: ");
-    //DUMPBIN(pKeys->pub, UCOIN_SZ_PUBKEY);
-    //DBG_PRINTF("wscript: ");
-    //DUMPBIN(pWitScript->buf, pWitScript->len);
-
     const ucoin_buf_t wit0 = { NULL, 0 };
     switch (Type) {
-    case HTLCSIGN_TIMEOUT:
-    case HTLCSIGN_SUCCESS:
+    case HTLCSIGN_TO_SUCCESS:
         DBG_PRINTF("HTLC Timeout/Success Tx sign\n");
         ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
         ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
@@ -488,9 +481,6 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
             if (pPreImage != NULL) {
                 preimage.buf = (CONST_CAST uint8_t *)pPreImage;
                 preimage.len = LN_SZ_PREIMAGE;
-                if (pTx->vout[0].opt == LN_HTLCTYPE_OFFERED) {
-                    pTx->locktime = 0;
-                }
             } else {
                 ucoin_buf_init(&preimage);
             }
@@ -508,15 +498,6 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
     case HTLCSIGN_OF_PREIMG:
         DBG_PRINTF("Offered HTLC + preimage sign\n");
         {
-            //uint8_t h256[UCOIN_SZ_HASH256];
-            //uint8_t h160[UCOIN_SZ_HASH160];
-            //ln_calc_preimage_hash(h256, pPreImage);
-            //DBG_PRINTF("hash=");
-            //DUMPBIN(h256, UCOIN_SZ_HASH256);
-            //ucoin_util_ripemd160(h160, h256, sizeof(h256));
-            //DBG_PRINTF("h160=");
-            //DUMPBIN(h160, sizeof(h160));
-
             // <remotesig>
             // <payment-preimage>
             // <script>
@@ -524,10 +505,6 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
             if (pPreImage != NULL) {
                 preimage.buf = (CONST_CAST uint8_t *)pPreImage;
                 preimage.len = LN_SZ_PREIMAGE;
-                if (pTx->vout[0].opt == LN_HTLCTYPE_OFFERED) {
-                    //相手がcommit_txを展開し、offered HTLCが自分のpreimageである
-                    pTx->locktime = 0;
-                }
             } else {
                 assert(0);
             }
@@ -542,6 +519,24 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
             ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
         }
         break;
+
+    case HTLCSIGN_RV_TIMEOUT:
+        DBG_PRINTF("Received HTLC sign\n");
+        {
+            // <remotesig>
+            // 0
+            // <script>
+            ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
+            ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
+            const ucoin_buf_t *wits[] = {
+                pLocalSig,
+                &wit0,
+                pWitScript
+            };
+            ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
+        }
+        break;
+
     default:
         DBG_PRINTF("type=%d\n", Type);
         assert(0);

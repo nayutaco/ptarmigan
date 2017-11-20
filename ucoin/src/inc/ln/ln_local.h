@@ -103,9 +103,9 @@
 #define VOUT_OPT_TOLOCAL            (0xfe)                  ///< vout=to_local
 #define VOUT_OPT_TOREMOTE           (0xff)                  ///< vout=to_remote
 
-#define HTLCSIGN_TIMEOUT            (1)                     ///<
-#define HTLCSIGN_SUCCESS            (2)                     ///<
-#define HTLCSIGN_OF_PREIMG          (3)                     ///<
+#define HTLCSIGN_TO_SUCCESS         (1)                     ///<
+#define HTLCSIGN_OF_PREIMG          (2)                     ///< 相手が送信したcommit_txのOffered HTLC
+#define HTLCSIGN_RV_TIMEOUT         (3)                     ///< 相手が送信したcommit_txのReceived HTLC
 
 
 /**************************************************************************

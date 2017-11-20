@@ -609,10 +609,10 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
                 if (ret) {
                     ucoin_buf_free(&buf);
                     DBG_PRINTF("broadcast txid[%d]: ", lp);
-                    DUMPTXID(txid);
                 } else {
-                    DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                    DBG_PRINTF("fail[%d]: sendrawtransaction: ", lp);
                 }
+                DUMPTXID(txid);
             } else {
                 DBG_PRINTF("skip HTLC[%d]\n", lp);
             }
