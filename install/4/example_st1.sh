@@ -11,6 +11,7 @@ ln -s ../showdb showdb
 ln -s ../routing routing
 ln -s ../fund-in.sh fund-in.sh
 ln -s ../regtest.conf regtest.conf
+ln -s ../generate.sh generate.sh
 
 bitcoind -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest -daemon
 sleep 3
