@@ -78,6 +78,13 @@ bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *p
     memset(pRpcConf, 0, sizeof(rpc_conf_t));
     memset(pAddr, 0, sizeof(ln_nodeaddr_t));
 
+    strcpy(pRpcConf->rpcurl, "127.0.0.1");
+#if NETKIND==0
+    pRpcConf->rpcport = 8332;
+#elif NETKIND==1
+    pRpcConf->rpcport = 18332;
+#endif
+
     if (ini_parse(pConfFile, handler_node_conf, &node_confs) != 0) {
         SYSLOG_ERR("fail node parse[%s]", pConfFile);
         return false;
@@ -194,17 +201,6 @@ bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
     if ((strlen(pRpcConf->rpcuser) == 0) || (strlen(pRpcConf->rpcpasswd) == 0)) {
         SYSLOG_ERR("fail: no rpcuser or rpcpassword[%s]", pConfFile);
         return false;
-    }
-
-    if (strlen(pRpcConf->rpcurl) == 0) {
-        strcpy(pRpcConf->rpcurl, "127.0.0.1");
-    }
-    if (pRpcConf->rpcport == 0) {
-#if NETKIND==0
-        pRpcConf->rpcport = 8332;
-#elif NETKIND==1
-        pRpcConf->rpcport = 18332;
-#endif
     }
 
 #ifdef M_DEBUG

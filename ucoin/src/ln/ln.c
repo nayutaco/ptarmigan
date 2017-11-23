@@ -657,6 +657,8 @@ bool ln_funding_tx_stabled(ln_self_t *self)
 
     self->flck_flag |= M_FLCK_FLAG_SEND;
 
+    ln_db_save_channel(self);
+
     return true;
 }
 
@@ -2934,9 +2936,9 @@ static bool create_to_local(ln_self_t *self,
 
     //scriptPubKey作成
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY]);
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY]);
 
     //commitment transaction
     lntx_commit.fund.txid = self->funding_local.txid;
@@ -2974,15 +2976,15 @@ static bool create_to_local(ln_self_t *self,
         ucoin_tx_init(&tx);
 
         //HTLC署名用鍵
-        //      secretkey = basepoint_secret + SHA256(per_commitment_point || basepoint)
-        ucoin_util_keys_t localkey;
+        //      secrethtlckey = basepoint_secret + SHA256(per_commitment_point || basepoint)
+        ucoin_util_keys_t htlckey;
         if (pTxHtlcs != NULL) {
-            ln_derkey_privkey(localkey.priv,
-                        self->funding_local.keys[MSG_FUNDIDX_PAYMENT].pub,
+            ln_derkey_privkey(htlckey.priv,
+                        self->funding_local.keys[MSG_FUNDIDX_HTLC].pub,
                         self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
-                        self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
-            ucoin_keys_priv2pub(localkey.pub, localkey.priv);
-            assert(memcmp(localkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY], UCOIN_SZ_PUBKEY) == 0);
+                        self->funding_local.keys[MSG_FUNDIDX_HTLC].priv);
+            ucoin_keys_priv2pub(htlckey.pub, htlckey.priv);
+            assert(memcmp(htlckey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY], UCOIN_SZ_PUBKEY) == 0);
         }
 
         for (int vout_idx = 0; vout_idx < tx_local.vout_cnt; vout_idx++) {
@@ -3036,7 +3038,7 @@ static bool create_to_local(ln_self_t *self,
                         ret = ln_verify_htlc_tx(&tx,
                                     tx_local.vout[vout_idx].value,
                                     NULL,
-                                    self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
+                                    self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                                     NULL,
                                     &buf_sig,
                                     &pp_htlcinfo[htlc_idx]->script);
@@ -3071,7 +3073,7 @@ static bool create_to_local(ln_self_t *self,
                         ret = ln_sign_htlc_tx(&tx,
                                     &buf_local_sig,                 //<localsig>
                                     tx_local.vout[vout_idx].value,
-                                    &localkey,
+                                    &htlckey,
                                     &buf_sig,                       //<remotesig>
                                     (ret_img) ? preimage : NULL,
                                     &pp_htlcinfo[htlc_idx]->script,
@@ -3254,9 +3256,9 @@ static bool create_to_remote(ln_self_t *self,
 
     //scriptPubKey作成(Remote)
     ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY]);
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY]);
 
     //commitment transaction(Remote)
     lntx_commit.fund.txid = self->funding_local.txid;
@@ -3307,14 +3309,14 @@ static bool create_to_remote(ln_self_t *self,
         ln_misc_sigexpand(&buf_remotesig, self->commit_remote.signature);
 
         //署名用鍵
-        //  remoteでは、other_remotekey(= other payment_basetpoint & local per_commitment_point)でverifyしているので、
-        //  それに対応する秘密鍵(= local payment_secret & other per_commitment_point)を作成する
-        ucoin_util_keys_t remotekey;
-        ln_derkey_privkey(remotekey.priv,
-                    self->funding_local.keys[MSG_FUNDIDX_PAYMENT].pub,
+        //  remoteでは、other_remotekey(= other htlc_basetpoint & local per_commitment_point)でverifyしているので、
+        //  それに対応する秘密鍵(= local htlcsecret & other per_commitment_point)を作成する
+        ucoin_util_keys_t htlckey;
+        ln_derkey_privkey(htlckey.priv,
+                    self->funding_local.keys[MSG_FUNDIDX_HTLC].pub,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
-                    self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
-        ucoin_keys_priv2pub(remotekey.pub, remotekey.priv);
+                    self->funding_local.keys[MSG_FUNDIDX_HTLC].priv);
+        ucoin_keys_priv2pub(htlckey.pub, htlckey.priv);
 
         for (int vout_idx = 0; vout_idx < tx_remote.vout_cnt; vout_idx++) {
             //各HTLCのHTLC Timeout/Success Transactionを作って署名するために、
@@ -3371,7 +3373,7 @@ static bool create_to_remote(ln_self_t *self,
                     ucoin_buf_t buf_sig;
                     ret = ln_sign_htlc_tx(&tx, &buf_sig,
                                 tx_remote.vout[vout_idx].value,
-                                &remotekey,
+                                &htlckey,
                                 &buf_remotesig,
                                 (ret_img) ? preimage : NULL,
                                 &pp_htlcinfo[htlc_idx]->script,
