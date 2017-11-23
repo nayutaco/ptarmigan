@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2017/11/23
+
+* [`htlckey`](https://github.com/lightningnetwork/lightning-rfc/commit/4f91f0bb2a9c176dda019f9c0618c10f9fa0acfd) support
+
 ## 2017/11/20
 
 * 2ノード間でのunilateral close
