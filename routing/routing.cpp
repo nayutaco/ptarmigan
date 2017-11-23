@@ -158,12 +158,15 @@ static const uint8_t M_BTC_GENESIS_REGTEST[] = {
  * misc
  ********************************************************************/
 
-//#ifndef M_NO_GRAPH
-//static const uint8_t* name(const nodemng_t* pNodeMng, int Edge)
-//{
-//    return node_get(pNodeMng, Edge);
-//}
-//#endif
+#ifdef M_DEBUG
+static void dumpbin(const uint8_t *pData, int Len)
+{
+    for (int lp = 0; lp < Len; lp++) {
+        fprintf(stderr, "%02x", pData[lp]);
+    }
+    fprintf(stderr, "\n");
+}
+#endif
 
 
 static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_prop_millionths)
@@ -245,6 +248,11 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
         memset(&self, 0, sizeof(self));
         ret = ln_lmdb_load_channel(&self, txn, &dbi);
         if (ret == 0) {
+#ifdef M_DEBUG
+            fprintf(stderr, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
+            dumpbin(p1, 33);
+            dumpbin(p2, 33);
+#endif
             if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
                 //
                 mNodeNum++;
@@ -276,6 +284,12 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
+
+#ifdef M_DEBUG
+    fprintf(stderr, "pDbPath: %s\n", pDbPath);
+    fprintf(stderr, "p1: %p\n", p1);
+    fprintf(stderr, "p2: %p\n", p2);
+#endif
 
     ret = mdb_env_create(&mpDbEnv);
     assert(ret == 0);
@@ -423,9 +437,9 @@ int main(int argc, char* argv[])
         amtmsat = (uint64_t)strtoull(amount, NULL, 10);
 
 #ifdef M_DEBUG
-        fprintf(stderr, "my nodeid    : ");
+        fprintf(stderr, "start nodeid : ");
         ucoin_util_dumpbin(stderr, mMyNodeId, UCOIN_SZ_PUBKEY, true);
-        fprintf(stderr, "target nodeid: ");
+        fprintf(stderr, "end nodeid   : ");
         ucoin_util_dumpbin(stderr, mTgtNodeId, UCOIN_SZ_PUBKEY, true);
 #endif
     } else {
