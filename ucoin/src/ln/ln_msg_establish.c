@@ -68,22 +68,23 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
 {
     //    type: 32 (open_channel)
     //    data:
-    //        [32:chain-hash]
-    //        [32:temporary-channel-id]
-    //        [8:funding-satoshis]
-    //        [8:push-msat]
-    //        [8:dust-limit-satoshis]
-    //        [8:max-htlc-value-in-flight-msat]
-    //        [8:channel-reserve-satoshis]
-    //        [8:htlc-minimum-msat]
-    //        [4:feerate-per-kw]
-    //        [2:to-self-delay]
-    //        [2:max-accepted-htlcs]
-    //        [33:funding-pubkey]
-    //        [33:revocation-basepoint]
-    //        [33:payment-basepoint]
-    //        [33:delayed-payment-basepoint]
-    //        [33:first-per-commitment-point]
+    //        [32:chain_hash]
+    //        [32:temporary_channel_id]
+    //        [8:funding_satoshis]
+    //        [8:push_msat]
+    //        [8:dust_limit_satoshis]
+    //        [8:max_htlc_value_in_flight_msat]
+    //        [8:channel_reserve_satoshis]
+    //        [8:htlc_minimum_msat]
+    //        [4:feerate_per_kw]
+    //        [2:to_self_delay]
+    //        [2:max_accepted_htlcs]
+    //        [33:funding_pubkey]
+    //        [33:revocation_basepoint]
+    //        [33:payment_basepoint]
+    //        [33:delayed_payment_basepoint]
+    //        [33:htlc_basepoint]
+    //        [33:first_per_commitment_point]
     //        [1:channel_flags]
 
     ucoin_push_t    proto;
@@ -99,50 +100,51 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
         return false;
     }
 
-    ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 286);
+    ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 319);
 
     //type: 0x20 (open_channel)
     ln_misc_push16be(&proto, MSGTYPE_OPEN_CHANNEL);
 
-    //    [32:chain-hash]
+    //        [32:chain_hash]
     ucoin_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
 
-    //    [32:temporary-channel-id]
+    //        [32:temporary_channel_id]
     ucoin_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
 
-    //    [8:funding-satoshis]
+    //        [8:funding_satoshis]
     ln_misc_push64be(&proto, pMsg->funding_sat);
 
-    //    [8:push-msat]
+    //        [8:push_msat]
     ln_misc_push64be(&proto, pMsg->push_msat);
 
-    //    [8:dust-limit-satoshis]
+    //        [8:push_msat]
     ln_misc_push64be(&proto, pMsg->dust_limit_sat);
 
-    //    [8:max-htlc-value-in-flight-msat]
+    //        [8:max_htlc_value_in_flight_msat]
     ln_misc_push64be(&proto, pMsg->max_htlc_value_in_flight_msat);
 
-    //    [8:channel-reserve-satoshis]
+    //        [8:channel_reserve_satoshis]
     ln_misc_push64be(&proto, pMsg->channel_reserve_sat);
 
-    //        [8:htlc-minimum-msat]
+    //        [8:htlc_minimum_msat]
     ln_misc_push64be(&proto, pMsg->htlc_minimum_msat);
 
-    //    [4:feerate-per-kw]
+    //        [4:feerate_per_kw]
     ln_misc_push32be(&proto, pMsg->feerate_per_kw);
 
-    //    [2:to-self-delay]
+    //        [2:to_self_delay]
     ln_misc_push16be(&proto, pMsg->to_self_delay);
 
-    //    [2:max-accepted-htlcs]
+    //        [2:max_accepted_htlcs]
     ln_misc_push16be(&proto, pMsg->max_accepted_htlcs);
 
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        //    [33:funding-pubkey]
-        //    [33:revocation-basepoint]
-        //    [33:payment-basepoint]
-        //    [33:delayed-payment-basepoint]
-        //    [33:first-per-commitment-point]
+        //        [33:funding_pubkey]
+        //        [33:revocation_basepoint]
+        //        [33:payment_basepoint]
+        //        [33:delayed_payment_basepoint]
+        //        [33:htlc_basepoint]
+        //        [33:first_per_commitment_point]
         if (!ucoin_keys_chkpub(pMsg->p_pubkeys[lp])) {
             DBG_PRINTF("fail: check pubkey\n");
             return false;
@@ -153,7 +155,7 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
     //        [1:channel_flags]
     ln_misc_push8(&proto, pMsg->channel_flags);
 
-    assert(sizeof(uint16_t) + 286 == pBuf->len);
+    assert(sizeof(uint16_t) + 319 == pBuf->len);
 
     ucoin_push_trim(&proto);
 
@@ -163,7 +165,7 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
 
 bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 286) {
+    if (Len < sizeof(uint16_t) + 319) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
     }
@@ -176,7 +178,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
 
     int pos = sizeof(uint16_t);
 
-    //    [32:chain-hash]
+    //        [32:chain_hash]
     int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
     if (cmp != 0) {
         DBG_PRINTF("fail: chain-hash mismatch\n");
@@ -184,15 +186,15 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     }
     pos += sizeof(gGenesisChainHash);
 
-    //    [32:temporary-channel-id]
+    //        [32:temporary_channel_id]
     memcpy(pMsg->p_temp_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
     pos += LN_SZ_CHANNEL_ID;
 
-    //    [8:funding-satoshis]
+    //        [8:funding_satoshis]
     pMsg->funding_sat = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //    [8:push-msat]
+    //        [8:push_msat]
     pMsg->push_msat = ln_misc_get64be(pData + pos);
     if (LN_SATOSHI2MSAT(pMsg->funding_sat) < pMsg->push_msat) {
         DBG_PRINTF("fail: invalid funding-satoshis (%" PRIu64 " < %" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_sat), pMsg->push_msat);
@@ -200,31 +202,31 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     }
     pos += sizeof(uint64_t);
 
-    //    [8:dust-limit-satoshis]
+    //        [8:dust_limit_satoshis]
     pMsg->dust_limit_sat = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //    [8:max-htlc-value-in-flight-msat]
+    //        [8:max_htlc_value_in_flight_msat]
     pMsg->max_htlc_value_in_flight_msat = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //    [8:channel-reserve-satoshis]
+    //        [8:channel_reserve_satoshis]
     pMsg->channel_reserve_sat = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //    [8:htlc-minimum-msat]
+    //        [8:htlc_minimum_msat]
     pMsg->htlc_minimum_msat = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //    [4:feerate-per-kw]
+    //        [4:feerate_per_kw]
     pMsg->feerate_per_kw = ln_misc_get32be(pData + pos);
     pos += sizeof(uint32_t);
 
-    //    [2:to-self-delay]
+    //        [2:to_self_delay]
     pMsg->to_self_delay = ln_misc_get16be(pData + pos);
     pos += sizeof(uint16_t);
 
-    //    [2:max-accepted-htlcs]
+    //        [2:max_accepted_htlcs]
     pMsg->max_accepted_htlcs = ln_misc_get16be(pData + pos);
     if (pMsg->max_accepted_htlcs > 483) {
         DBG_PRINTF("fail: invalid max-accepted-htlcs\n");
@@ -233,11 +235,12 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     pos += sizeof(uint16_t);
 
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        //    [33:funding-pubkey]
-        //    [33:revocation-basepoint]
-        //    [33:payment-basepoint]
-        //    [33:delayed-payment-basepoint]
-        //    [33:first-per-commitment-point]
+        //        [33:funding_pubkey]
+        //        [33:revocation_basepoint]
+        //        [33:payment_basepoint]
+        //        [33:delayed_payment_basepoint]
+        //        [33:htlc_basepoint]
+        //        [33:first_per_commitment_point]
         if (!ucoin_keys_chkpub(pData + pos)) {
             DBG_PRINTF("fail: check pubkey: %d\n", lp);
             DUMPBIN(pData + pos, UCOIN_SZ_PUBKEY);
@@ -270,7 +273,7 @@ static void open_channel_print(const ln_open_channel_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
     DBG_PRINTF2("-[open_channel]-------------------------------\n\n");
-    DBG_PRINTF2("temporary-channel-id: ");
+    DBG_PRINTF2("temporary_channel_id: ");
     DUMPBIN(pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("funding_sat= %" PRIu64 "\n", pMsg->funding_sat);
     DBG_PRINTF2("push_msat= %" PRIu64 "\n", pMsg->push_msat);
@@ -289,6 +292,8 @@ static void open_channel_print(const ln_open_channel_t *pMsg)
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_PAYMENT], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_delayed_payment_basept: ");
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED], UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2("p_htlc_basept           : ");
+    DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_HTLC], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_first_per_commitpt    : ");
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("channel_flags           : %02x\n", pMsg->channel_flags);
@@ -305,62 +310,65 @@ bool HIDDEN ln_msg_accept_channel_create(ucoin_buf_t *pBuf, const ln_accept_chan
 {
     //    type: 33 (accept_channel)
     //    data:
-    //        [32:temporary-channel-id]
-    //        [8:dust-limit-satoshis]
-    //        [8:max-htlc-value-in-flight-msat]
-    //        [8:channel-reserve-satoshis]
-    //        [8:htlc-minimum-msat]
-    //        [4:minimum-depth]
-    //        [2:to-self-delay]
-    //        [2:max-accepted-htlcs]
-    //        [33:funding-pubkey]
-    //        [33:revocation-basepoint]
-    //        [33:payment-basepoint]
-    //        [33:delayed-payment-basepoint]
-    //        [33:first-per-commitment-point]
+    //        [32:temporary_channel_id]
+    //        [8:dust_limit_satoshis]
+    //        [8:max_htlc_value_in_flight_msat]
+    //        [8:channel_reserve_satoshis]
+    //        [8:htlc_minimum_msat]
+    //        [4:minimum_depth]
+    //        [2:to_self_delay]
+    //        [2:max_accepted_htlcs]
+    //        [33:funding_pubkey]
+    //        [33:revocation_basepoint]
+    //        [33:payment_basepoint]
+    //        [33:delayed_payment_basepoint]
+    //        [33:htlc_basepoint]
+    //        [33:first_per_commitment_point]
 
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     accept_channel_print(pMsg);
+    DUMPBIN(pBuf->buf, pBuf->len);
 #endif  //DBG_PRINT_CREATE
 
-    ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 237);
+    ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 270);
 
     //type: 0x21 (accept_channel)
     ln_misc_push16be(&proto, MSGTYPE_ACCEPT_CHANNEL);
 
-    //    [32:temporary-channel-id]
+    //        [32:temporary_channel_id]
     ucoin_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
 
-    //    [8:dust-limit-satoshis]
+    //        [8:dust_limit_satoshis]
     ln_misc_push64be(&proto, pMsg->dust_limit_sat);
 
-    //    [8:max-htlc-value-in-flight-msat]
+    //        [8:max_htlc_value_in_flight_msat]
     ln_misc_push64be(&proto, pMsg->max_htlc_value_in_flight_msat);
 
-    //    [8:channel-reserve-satoshis]
+    //        [8:channel_reserve_satoshis]
     ln_misc_push64be(&proto, pMsg->channel_reserve_sat);
 
-    //    [8:htlc-minimum-msat]
+    //        [8:htlc_minimum_msat]
     ln_misc_push64be(&proto, pMsg->htlc_minimum_msat);
 
-    //    [4:minimum-depth]
+    //        [4:minimum_depth]
     ln_misc_push32be(&proto, pMsg->min_depth);
 
-    //    [2:to-self-delay]
+    //        [2:to_self_delay]
     ln_misc_push16be(&proto, pMsg->to_self_delay);
 
-    //    [2:max-accepted-htlcs]
+    //        [2:max_accepted_htlcs]
     ln_misc_push16be(&proto, pMsg->max_accepted_htlcs);
 
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        //    [33:funding-pubkey]
-        //    [33:revocation-basepoint]
-        //    [33:payment-basepoint]
-        //    [33:delayed-payment-basepoint]
-        //    [33:first-per-commitment-point]
+        //        [33:funding_pubkey]
+        //        [33:revocation_basepoint]
+        //        [33:payment_basepoint]
+        //        [33:delayed_payment_basepoint]
+        //        [33:htlc_basepoint]
+        //        [33:first_per_commitment_point]
         if (!ucoin_keys_chkpub(pMsg->p_pubkeys[lp])) {
             DBG_PRINTF("fail: check pubkey\n");
             return false;
@@ -368,7 +376,7 @@ bool HIDDEN ln_msg_accept_channel_create(ucoin_buf_t *pBuf, const ln_accept_chan
         ucoin_push_data(&proto, pMsg->p_pubkeys[lp], UCOIN_SZ_PUBKEY);
     }
 
-    assert(sizeof(uint16_t) + 237 == pBuf->len);
+    assert(sizeof(uint16_t) + 270 == pBuf->len);
 
     ucoin_push_trim(&proto);
 
@@ -378,7 +386,7 @@ bool HIDDEN ln_msg_accept_channel_create(ucoin_buf_t *pBuf, const ln_accept_chan
 
 bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    if (Len < sizeof(uint16_t) + 237) {
+    if (Len < sizeof(uint16_t) + 270) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
     }
@@ -391,44 +399,45 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
 
     int pos = sizeof(uint16_t);
 
-    //    [32:temporary-channel-id]
+    //        [32:temporary_channel_id]
     memcpy(pMsg->p_temp_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
     pos += LN_SZ_CHANNEL_ID;
 
-    //    [8:dust-limit-satoshis]
+    //        [8:dust_limit_satoshis]
     pMsg->dust_limit_sat = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //    [8:max-htlc-value-in-flight-msat]
+    //        [8:max_htlc_value_in_flight_msat]
     pMsg->max_htlc_value_in_flight_msat = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //    [8:channel-reserve-satoshis]
+    //        [8:channel_reserve_satoshis]
     pMsg->channel_reserve_sat = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //    [8:htlc-minimum-msat]
+    //        [8:htlc_minimum_msat]
     pMsg->htlc_minimum_msat = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //    [4:minimum-depth]
+    //        [4:minimum_depth]
     pMsg->min_depth = ln_misc_get32be(pData + pos);
     pos += sizeof(uint32_t);
 
-    //    [2:to-self-delay]
+    //        [2:to_self_delay]
     pMsg->to_self_delay = ln_misc_get16be(pData + pos);
     pos += sizeof(uint16_t);
 
-    //    [2:max-accepted-htlcs]
+    //        [2:max_accepted_htlcs]
     pMsg->max_accepted_htlcs = ln_misc_get16be(pData + pos);
     pos += sizeof(uint16_t);
 
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        //    [33:funding-pubkey]
-        //    [33:revocation-basepoint]
-        //    [33:payment-basepoint]
-        //    [33:delayed-payment-basepoint]
-        //    [33:first-per-commitment-point]
+        //        [33:funding_pubkey]
+        //        [33:revocation_basepoint]
+        //        [33:payment_basepoint]
+        //        [33:delayed_payment_basepoint]
+        //        [33:htlc_basepoint]
+        //        [33:first_per_commitment_point]
         if (!ucoin_keys_chkpub(pData + pos)) {
             DBG_PRINTF("fail: check pubkey\n");
             return false;
@@ -452,7 +461,7 @@ static void accept_channel_print(const ln_accept_channel_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
     DBG_PRINTF2("-[accept_channel]-------------------------------\n\n");
-    DBG_PRINTF2("temporary-channel-id: ");
+    DBG_PRINTF2("temporary_channel_id: ");
     DUMPBIN(pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("dust_limit_sat= %" PRIu64 "\n", pMsg->dust_limit_sat);
     DBG_PRINTF2("max_htlc_value_in_flight_msat= %" PRIu64 "\n", pMsg->max_htlc_value_in_flight_msat);
@@ -469,6 +478,8 @@ static void accept_channel_print(const ln_accept_channel_t *pMsg)
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_PAYMENT], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_delayed_payment_basept: ");
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED], UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2("p_htlc_basept           : ");
+    DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_HTLC], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_first_per_commitpt    : ");
     DUMPBIN(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("--------------------------------\n\n\n");
@@ -484,9 +495,9 @@ bool HIDDEN ln_msg_funding_created_create(ucoin_buf_t *pBuf, const ln_funding_cr
 {
     //    type: 34 (funding_created)
     //    data:
-    //        [32:temporary-channel-id]
-    //        [32:funding-txid]
-    //        [2:funding-output-index]
+    //        [32:temporary_channel_id]
+    //        [32:funding_txid]
+    //        [2:funding_output_index]
     //        [64:signature]
 
     ucoin_push_t    proto;
@@ -501,10 +512,10 @@ bool HIDDEN ln_msg_funding_created_create(ucoin_buf_t *pBuf, const ln_funding_cr
     //    type: 0x22 (funding_created)
     ln_misc_push16be(&proto, MSGTYPE_FUNDING_CREATED);
 
-    //        [32:temporary-channel-id]
+    //        [32:temporary_channel_id]
     ucoin_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
 
-    //        [32:funding-txid]
+    //        [32:funding_txid]
     // BE変換
 #if 0
     uint8_t txid[UCOIN_SZ_TXID];
@@ -517,7 +528,7 @@ bool HIDDEN ln_msg_funding_created_create(ucoin_buf_t *pBuf, const ln_funding_cr
     ucoin_push_data(&proto, pMsg->p_funding_txid, UCOIN_SZ_TXID);
 #endif
 
-    //        [2:funding-output-index]
+    //        [2:funding_output_index]
     ln_misc_push16be(&proto, pMsg->funding_output_idx);
 
     //        [64:signature]
@@ -546,11 +557,11 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
 
     int pos = sizeof(uint16_t);
 
-    //        [32:temporary-channel-id]
+    //        [32:temporary_channel_id]
     memcpy(pMsg->p_temp_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
     pos += LN_SZ_CHANNEL_ID;
 
-    //        [32:funding-txid]
+    //        [32:funding_txid]
 #if 0
     // LE変換
     for (int lp = 0; lp < UCOIN_SZ_TXID; lp++) {
@@ -562,7 +573,7 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
 #endif
     pos += UCOIN_SZ_TXID;
 
-    //        [2:funding-output-index]
+    //        [2:funding_output_index]
     pMsg->funding_output_idx = ln_misc_get16be(pData + pos);
     pos += sizeof(uint16_t);
 
@@ -585,7 +596,7 @@ static void funding_created_print(const ln_funding_created_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
     DBG_PRINTF2("-[funding_created]-------------------------------\n\n");
-    DBG_PRINTF2("temporary-channel-id: ");
+    DBG_PRINTF2("temporary_channel_id: ");
     DUMPBIN(pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("p_funding_txid: ");
     DUMPTXID(pMsg->p_funding_txid);
@@ -605,7 +616,7 @@ bool HIDDEN ln_msg_funding_signed_create(ucoin_buf_t *pBuf, const ln_funding_sig
 {
     //    type: 35 (funding_signed)
     //    data:
-    //        [32:channel-id]
+    //        [32:channel_id]
     //        [64:signature]
 
     ucoin_push_t    proto;
@@ -620,7 +631,7 @@ bool HIDDEN ln_msg_funding_signed_create(ucoin_buf_t *pBuf, const ln_funding_sig
     //    type: 0x23 (funding_signed)
     ln_misc_push16be(&proto, MSGTYPE_FUNDING_SIGNED);
 
-    //        [32:channel-id]
+    //        [32:channel_id]
     ucoin_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [64:signature]
@@ -649,7 +660,7 @@ bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t 
 
     int pos = sizeof(uint16_t);
 
-    //        [32:channel-id]
+    //        [32:channel_id]
     memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
     pos += LN_SZ_CHANNEL_ID;
 
@@ -672,7 +683,7 @@ static void funding_signed_print(const ln_funding_signed_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
     DBG_PRINTF2("-[funding_signed]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF2("channel_id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("signature: ");
     DUMPBIN(pMsg->p_signature, LN_SZ_SIGNATURE);
@@ -689,8 +700,8 @@ bool HIDDEN ln_msg_funding_locked_create(ucoin_buf_t *pBuf, const ln_funding_loc
 {
     //    type: 36 (funding_locked)
     //    data:
-    //        [32:channel-id]
-    //        [33:next-per-commitment-point]
+    //        [32:channel_id]
+    //        [33:next_per_commitment_point]
 
     ucoin_push_t    proto;
 
@@ -704,10 +715,10 @@ bool HIDDEN ln_msg_funding_locked_create(ucoin_buf_t *pBuf, const ln_funding_loc
     //    type: 0x24 (funding_locked)
     ln_misc_push16be(&proto, MSGTYPE_FUNDING_LOCKED);
 
-    //        [32:channel-id]
+    //        [32:channel_id]
     ucoin_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
-    //        [33:next-per-commitment-point]
+    //        [33:next_per_commitment_point]
     ucoin_push_data(&proto, pMsg->p_per_commitpt, UCOIN_SZ_PUBKEY);
 
     assert(sizeof(uint16_t) + 65 == pBuf->len);
@@ -733,11 +744,11 @@ bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t 
 
     int pos = sizeof(uint16_t);
 
-    //        [32:channel-id]
+    //        [32:channel_id]
     memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
     pos += LN_SZ_CHANNEL_ID;
 
-    //        [33:next-per-commitment-point]
+    //        [33:next_per_commitment_point]
     memcpy(pMsg->p_per_commitpt, pData + pos, UCOIN_SZ_PUBKEY);
     pos += UCOIN_SZ_PUBKEY;
 
@@ -756,7 +767,7 @@ static void funding_locked_print(const ln_funding_locked_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
     DBG_PRINTF2("-[funding_locked]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF2("channel_id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("p_per_commitpt: ");
     DUMPBIN(pMsg->p_per_commitpt, UCOIN_SZ_PUBKEY);
@@ -789,7 +800,7 @@ bool HIDDEN ln_msg_channel_reestablish_create(ucoin_buf_t *pBuf, const ln_channe
     //    type: 136 (channel_reestablish)
     ln_misc_push16be(&proto, MSGTYPE_CHANNEL_REESTABLISH);
 
-    //        [32:channel-id]
+    //        [32:channel_id]
     ucoin_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [8:next_local_commitment_number]
@@ -821,7 +832,7 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, cons
 
     int pos = sizeof(uint16_t);
 
-    //        [32:channel-id]
+    //        [32:channel_id]
     memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
     pos += LN_SZ_CHANNEL_ID;
 
@@ -848,7 +859,7 @@ static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
     DBG_PRINTF2("-[channel_reestablish]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF2("channel_id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("next_local_commitment_number: %" PRIu64 "\n", pMsg->next_local_commitment_number);
     DBG_PRINTF2("next_remote_revocation_number: %" PRIu64 "\n", pMsg->next_remote_revocation_number);

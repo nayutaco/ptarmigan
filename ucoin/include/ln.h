@@ -54,8 +54,8 @@ extern "C" {
 #define LN_SZ_GFLEN_MAX                 (4)         ///< init.gflen最大
 #define LN_SZ_LFLEN_MAX                 (4)         ///< init.lflen最大
 
-#define LN_FUNDIDX_MAX                  (5)         ///< 管理用
-#define LN_SCRIPTIDX_MAX                (4)         ///< 管理用
+#define LN_FUNDIDX_MAX                  (6)         ///< 管理用
+#define LN_SCRIPTIDX_MAX                (6)         ///< 管理用
 #define LN_HTLC_MAX                     (6)         ///< 自分のHTLC数   TODO:暫定
                                                     //      max_accepted_htlcsとして使用する
                                                     //      相手の分も同じ分しか用意していない

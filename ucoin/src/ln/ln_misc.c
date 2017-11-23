@@ -269,6 +269,16 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
     ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
                 pLocal->keys[MSG_FUNDIDX_PAYMENT].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
+    //local_htlckey = local per_commitment_point & local htlc_basepoint
+    DBG_PRINTF("local: local_htlckey\n");
+    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
+                pLocal->keys[MSG_FUNDIDX_HTLC].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
+
+    //remote_htlckey = local per_commitment_point & remote htlc_basepoint
+    DBG_PRINTF("local: remote_htlckey\n");
+    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
+                pRemote->pubkeys[MSG_FUNDIDX_HTLC], pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
+
 
     //
     //remote
@@ -293,6 +303,16 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
     DBG_PRINTF("remote: localkey\n");
     ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
                 pRemote->pubkeys[MSG_FUNDIDX_PAYMENT], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+
+    //local_htlckey = remote per_commitment_point & remote htlc_basepoint
+    DBG_PRINTF("remote: local_htlckey\n");
+    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
+                pRemote->pubkeys[MSG_FUNDIDX_HTLC], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+
+    //remote_htlckey = remote per_commitment_point & local htlc_basepoint
+    DBG_PRINTF("remote: remote_htlckey\n");
+    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
+                pLocal->keys[MSG_FUNDIDX_HTLC].pub, pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
 
     ln_print_keys(PRINTOUT, pLocal, pRemote);

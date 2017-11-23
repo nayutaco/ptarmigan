@@ -56,7 +56,7 @@
 #define M_DB_ANNO_NODE          "node_anno"
 #define M_DB_PREIMAGE           "preimage"
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-9)            ///< DBバージョン
+#define M_DB_VERSION_VAL        (-10)           ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -67,6 +67,7 @@
     -7 : ln_commit_data_tにtxid追加
     -8 : ln_commit_data_tにhtlc_num追加
     -9 : self.shutdown_scriptpk_localを対象に追加
+    -10: htlckey対応
  */
 
 

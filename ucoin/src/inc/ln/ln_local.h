@@ -34,11 +34,14 @@
  * macros
  **************************************************************************/
 
+//0～5は、open_channel/accept_channelのfunding_pubkey～first_per_commitment_pointの順にすること
+//プロトコルで違いが生じた場合は、ソースを変更すること(ln_msg_establish.c)
 #define MSG_FUNDIDX_FUNDING             (0)         ///< commitment tx署名用
 #define MSG_FUNDIDX_REVOCATION          (1)         ///< revocation_basepoint
 #define MSG_FUNDIDX_PAYMENT             (2)         ///< payment_basepoint
 #define MSG_FUNDIDX_DELAYED             (3)         ///< delayed_payment_basepoint
-#define MSG_FUNDIDX_PER_COMMIT          (4)         ///< per_commitment_point
+#define MSG_FUNDIDX_HTLC                (4)         ///< htlc_basepoint
+#define MSG_FUNDIDX_PER_COMMIT          (5)         ///< per_commitment_point
 #define MSG_FUNDIDX_MAX                 (MSG_FUNDIDX_PER_COMMIT+1)
 #if LN_FUNDIDX_MAX != MSG_FUNDIDX_MAX
 #error LN_FUNDIDX_MAX != MSG_FUNDIDX_MAX
@@ -48,7 +51,9 @@
 #define MSG_SCRIPTIDX_DELAYED           (1)         ///< delayedkey
 #define MSG_SCRIPTIDX_REVOCATION        (2)         ///< revocationkey
 #define MSG_SCRIPTIDX_LOCALKEY          (3)         ///< localkey
-#define MSG_SCRIPTIDX_MAX               (MSG_SCRIPTIDX_LOCALKEY+1)
+#define MSG_SCRIPTIDX_LOCALHTLCKEY      (4)         ///< local_htlckey
+#define MSG_SCRIPTIDX_REMOTEHTLCKEY     (5)         ///< remote_htlckey
+#define MSG_SCRIPTIDX_MAX               (MSG_SCRIPTIDX_REMOTEHTLCKEY+1)
 #if LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
 #error LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
 #endif
@@ -212,17 +217,17 @@ void HIDDEN ln_htlcinfo_free(ln_htlcinfo_t *pHtlcInfo);
  *
  * @param[in]       ppHtlcInfo  HTLC情報ポインタ配列
  * @param[in]       Num         HTLC数
- * @param[in]       pLocalKey           LocalKey[33]
+ * @param[in]       pLocalHtlcKey       Local htlckey[33]
  * @param[in]       pLocalRevoKey       Local RevocationKey[33]
- * @param[in]       pRemoteKey          RemoteKey[33]
+ * @param[in]       pRemoteHtlcKey      Remote htlckey[33]
  *
  * @note
  *      - pHtlcInfoにtype, preimage_hash, expiryを代入しておくこと
  */
 void HIDDEN ln_create_htlcinfo(ln_htlcinfo_t **ppHtlcInfo, int Num,
-                    const uint8_t *pLocalKey,
+                    const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
-                    const uint8_t *pRemoteKey);
+                    const uint8_t *pRemoteHtlcKey);
 
 
 /** FEE計算

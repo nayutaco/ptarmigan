@@ -44,16 +44,16 @@
  ********************************************************************/
 
 static void create_script_offered(ucoin_buf_t *pBuf,
-    const uint8_t *pLocalKey,
+    const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pLocalPreImageHash160,
-    const uint8_t *pRemoteKey);
+    const uint8_t *pRemoteHtlcKey);
 
 
 static void create_script_received(ucoin_buf_t *pBuf,
-    const uint8_t *pLocalKey,
+    const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
-    const uint8_t *pRemoteKey,
+    const uint8_t *pRemoteHtlcKey,
     const uint8_t *pRemotePreImageHash160,
     uint32_t RemoteExpiry);
 
@@ -253,9 +253,9 @@ void HIDDEN ln_htlcinfo_free(ln_htlcinfo_t *pHtlcInfo)
 
 
 void HIDDEN ln_create_htlcinfo(ln_htlcinfo_t **ppHtlcInfo, int Num,
-                    const uint8_t *pLocalKey,
+                    const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
-                    const uint8_t *pRemoteKey)
+                    const uint8_t *pRemoteHtlcKey)
 {
     for (int lp = 0; lp < Num; lp++) {
         uint8_t hash160[UCOIN_SZ_HASH160];
@@ -273,17 +273,17 @@ void HIDDEN ln_create_htlcinfo(ln_htlcinfo_t **ppHtlcInfo, int Num,
         case LN_HTLCTYPE_OFFERED:
             //offered
             create_script_offered(&ppHtlcInfo[lp]->script,
-                        pLocalKey,
+                        pLocalHtlcKey,
                         pLocalRevoKey,
                         hash160,
-                        pRemoteKey);
+                        pRemoteHtlcKey);
             break;
         case LN_HTLCTYPE_RECEIVED:
             //received
             create_script_received(&ppHtlcInfo[lp]->script,
-                        pLocalKey,
+                        pLocalHtlcKey,
                         pLocalRevoKey,
-                        pRemoteKey,
+                        pRemoteHtlcKey,
                         hash160,
                         ppHtlcInfo[lp]->expiry);
             break;
@@ -599,19 +599,19 @@ bool HIDDEN ln_verify_htlc_tx(const ucoin_tx_t *pTx,
 /** Offered HTLCスクリプト作成
  *
  * @param[out]      pBuf                    生成したスクリプト
- * @param[in]       pLocalKey               LocalKey[33]
+ * @param[in]       pLocalHtlcKey           Local htlcey[33]
  * @param[in]       pLocalRevoKey           Local RevocationKey[33]
  * @param[in]       pLocalPreImageHash160   Local payment-preimage-hash[20]
- * @param[in]       pRemoteKey              RemoteKey[33]
+ * @param[in]       pRemoteHtlcKey          Remote htlckey[33]
  *
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
 static void create_script_offered(ucoin_buf_t *pBuf,
-                    const uint8_t *pLocalKey,
+                    const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalPreImageHash160,
-                    const uint8_t *pRemoteKey)
+                    const uint8_t *pRemoteHtlcKey)
 {
     ucoin_push_t wscript;
     uint8_t h160[UCOIN_SZ_HASH160];
@@ -638,9 +638,9 @@ static void create_script_offered(ucoin_buf_t *pBuf,
     ucoin_util_hash160(h160, pLocalRevoKey, UCOIN_SZ_PUBKEY);
     ucoin_push_data(&wscript, h160, UCOIN_SZ_HASH160);
     ucoin_push_data(&wscript, UCOIN_OP_EQUAL UCOIN_OP_IF UCOIN_OP_CHECKSIG UCOIN_OP_ELSE UCOIN_OP_SZ_PUBKEY, 5);
-    ucoin_push_data(&wscript, pRemoteKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, pRemoteHtlcKey, UCOIN_SZ_PUBKEY);
     ucoin_push_data(&wscript, UCOIN_OP_SWAP UCOIN_OP_SIZE UCOIN_OP_SZ1 UCOIN_OP_SZ32 UCOIN_OP_EQUAL UCOIN_OP_NOTIF UCOIN_OP_DROP UCOIN_OP_2 UCOIN_OP_SWAP UCOIN_OP_SZ_PUBKEY, 10);
-    ucoin_push_data(&wscript, pLocalKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, pLocalHtlcKey, UCOIN_SZ_PUBKEY);
     ucoin_push_data(&wscript, UCOIN_OP_2 UCOIN_OP_CHECKMULTISIG UCOIN_OP_ELSE UCOIN_OP_HASH160 UCOIN_OP_SZ20, 5);
     ucoin_push_data(&wscript, pLocalPreImageHash160, UCOIN_SZ_HASH160);
     ucoin_push_data(&wscript, UCOIN_OP_EQUALVERIFY UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 4);
@@ -654,9 +654,9 @@ static void create_script_offered(ucoin_buf_t *pBuf,
 /** Received HTLCスクリプト作成
  *
  * @param[out]      pBuf                    生成したスクリプト
- * @param[in]       pLocalKey               LocalKey[33]
+ * @param[in]       pLocalHtlcKey           Local htlckey[33]
  * @param[in]       pLocalRevoKey           Local RevocationKey[33]
- * @param[in]       pRemoteKey              RemoteKey[33]
+ * @param[in]       pRemoteHtlcKey          Remote htlckey[33]
  * @param[in]       pRemotePreImageHash160  Remote payment-preimage-hash[20]
  * @param[in]       RemoteExpiry            Expiry
  *
@@ -664,9 +664,9 @@ static void create_script_offered(ucoin_buf_t *pBuf,
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
 static void create_script_received(ucoin_buf_t *pBuf,
-                    const uint8_t *pLocalKey,
+                    const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
-                    const uint8_t *pRemoteKey,
+                    const uint8_t *pRemoteHtlcKey,
                     const uint8_t *pRemotePreImageHash160,
                     uint32_t RemoteExpiry)
 {
@@ -696,11 +696,11 @@ static void create_script_received(ucoin_buf_t *pBuf,
     ucoin_util_hash160(h160, pLocalRevoKey, UCOIN_SZ_PUBKEY);
     ucoin_push_data(&wscript, h160, UCOIN_SZ_HASH160);
     ucoin_push_data(&wscript, UCOIN_OP_EQUAL UCOIN_OP_IF UCOIN_OP_CHECKSIG UCOIN_OP_ELSE UCOIN_OP_SZ_PUBKEY, 5);
-    ucoin_push_data(&wscript, pRemoteKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, pRemoteHtlcKey, UCOIN_SZ_PUBKEY);
     ucoin_push_data(&wscript, UCOIN_OP_SWAP UCOIN_OP_SIZE UCOIN_OP_SZ1 UCOIN_OP_SZ32 UCOIN_OP_EQUAL UCOIN_OP_IF UCOIN_OP_HASH160 UCOIN_OP_SZ20, 8);
     ucoin_push_data(&wscript, pRemotePreImageHash160, UCOIN_SZ_HASH160);
     ucoin_push_data(&wscript, UCOIN_OP_EQUALVERIFY UCOIN_OP_2 UCOIN_OP_SWAP UCOIN_OP_SZ_PUBKEY, 4);
-    ucoin_push_data(&wscript, pLocalKey, UCOIN_SZ_PUBKEY);
+    ucoin_push_data(&wscript, pLocalHtlcKey, UCOIN_SZ_PUBKEY);
     ucoin_push_data(&wscript, UCOIN_OP_2 UCOIN_OP_CHECKMULTISIG UCOIN_OP_ELSE UCOIN_OP_DROP, 4);
     ucoin_push_value(&wscript, RemoteExpiry);
     ucoin_push_data(&wscript, UCOIN_OP_CLTV UCOIN_OP_DROP UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 5);
