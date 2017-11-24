@@ -240,5 +240,6 @@ bool backward_fulfill(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
 bool backward_fail(const ln_cb_fail_htlc_recv_t *pFail);
 void preimage_lock(void);
 void preimage_unlock(void);
+bool close_unilateral_local(ln_self_t *self);
 
 #endif /* UCOIND_H__ */

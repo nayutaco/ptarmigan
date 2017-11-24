@@ -457,6 +457,116 @@ LABEL_EXIT:
 }
 
 
+bool jsonrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex)
+{
+    bool ret = false;
+    bool retval;
+    char *p_json;
+    char txid[UCOIN_SZ_TXID * 2 + 1] = "";
+    char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
+
+    p_json = (char *)malloc(BUFFER_SIZE);
+
+    //ブロック高→ブロックハッシュ
+    retval = getblockhash_rpc(p_json, BHeight);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF;
+        }
+        if (json_is_string(p_result)) {
+            strcpy(blockhash, (const char *)json_string_value(p_result));
+        }
+LABEL_DECREF:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: getblockhash_rpc\n");
+        goto LABEL_EXIT;
+    }
+
+    //ブロックハッシュ→TXIDs
+    retval = getblock_rpc(p_json, blockhash);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_t *p_height;
+        json_t *p_tx;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF2;
+        }
+        p_height = json_object_get(p_result, M_HEIGHT);
+        if (json_is_integer(p_height)) {
+            if ((int)json_integer_value(p_height) != BHeight) {
+                DBG_PRINTF("error: M_HEIGHT\n");
+                goto LABEL_DECREF2;
+            }
+        }
+        //検索
+        p_tx = json_object_get(p_result, M_TX);
+        size_t index;
+        json_t *p_value;
+        json_array_foreach(p_tx, index, p_value) {
+            strcpy(txid, (const char *)json_string_value(p_value));
+            ucoin_tx_t tx;
+
+            ucoin_tx_init(&tx);
+            ret = jsonrpc_getraw_txstr(&tx, txid);
+            if ( ret &&
+                 (tx.vin_cnt == 1) &&
+                 (memcmp(tx.vin[0].txid, pTxid, UCOIN_SZ_TXID) == 0) &&
+                 (tx.vin[0].index == VIndex) ) {
+                //一致
+                memcpy(pTx, &tx, sizeof(ucoin_tx_t));
+                ucoin_tx_init(&tx);     //freeさせない
+                break;
+            } else {
+                ret = false;
+            }
+            ucoin_tx_free(&tx);
+        }
+        if (ret) {
+            DBG_PRINTF("match!\n");
+            ucoin_print_tx(pTx);
+        } else {
+            DBG_PRINTF("not match\n");
+        }
+LABEL_DECREF2:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: getblock_rpc\n");
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    free(p_json);
+
+    return ret;
+}
+
+
 bool jsonrpc_sendraw_tx(uint8_t *pTxid, const uint8_t *pData, uint16_t Len)
 {
     bool ret = false;
@@ -509,13 +619,20 @@ LABEL_EXIT:
 
 bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
 {
-    bool ret = false;
-    bool retval;
-    char *p_json = NULL;
     char txid[UCOIN_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
+
+    return jsonrpc_getraw_txstr(pTx, txid);
+}
+
+
+bool jsonrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
+{
+    bool ret = false;
+    bool retval;
+    char *p_json = NULL;
 
     p_json = (char *)malloc(BUFFER_SIZE);
     retval = getrawtransaction_rpc(p_json, txid, false);

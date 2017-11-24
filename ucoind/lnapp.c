@@ -567,60 +567,8 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         return false;
     }
 
-    //BOLTに載っていないtxについてはestimatefeeからfee計算する
-    uint64_t feerate;
-    ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
-    feerate = (uint32_t)(feerate / 4);
-#warning issue#46
-    if (!ret || (feerate < LN_FEERATE_PER_KW)) {
-        feerate = LN_FEERATE_PER_KW;
-    }
-    my_self.feerate_per_kw = (uint32_t)feerate;
-
-    //自分が unilateral closeするパターン
-    //  commit_tx
-    //    |
-    //    +-- to_local: 次vout必要
-    //    +-- to_remote: -
-    //    +-- HTLC outputs: 次vout必要
-    //
-    // dust_limit_satoshisを考慮することになるため、最終的にいくつtransactionを
-    // 送信することになるかは、計算後にならないとわからない(最大、1 + HTLC数)。
-    ln_close_force_t close_dat;
-    ret = ln_create_close_force_tx(&my_self, &close_dat);
-    if (ret) {
-        for (int lp = 0; lp < close_dat.num; lp++) {
-            if (close_dat.p_tx[lp].vin_cnt > 0) {
-                uint8_t txid[UCOIN_SZ_TXID];
-
-                //展開済みチェック
-                ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
-                ret = jsonrpc_getraw_tx(NULL, txid);
-                if (ret) {
-                    DBG_PRINTF("already broadcasted[%d]: ", lp);
-                    DUMPTXID(txid);
-                    continue;
-                }
-
-                //sendrawtransaction
-                ucoin_buf_t buf;
-                ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
-                ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
-                if (ret) {
-                    ucoin_buf_free(&buf);
-                    DBG_PRINTF("broadcast txid[%d]: ", lp);
-                } else {
-                    DBG_PRINTF("fail[%d]: sendrawtransaction: ", lp);
-                }
-                DUMPTXID(txid);
-            } else {
-                DBG_PRINTF("skip HTLC[%d]\n", lp);
-            }
-        }
-        ln_free_close_force_tx(&close_dat);
-    } else {
-        DBG_PRINTF("fail: create_close_tx\n");
-    }
+    SYSLOG_WARN("close: bad way(local): htlc=%d\n", ln_commit_local(&my_self)->htlc_num);
+    (void)close_unilateral_local(&my_self);
 
     return true;
 }
