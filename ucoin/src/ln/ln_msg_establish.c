@@ -330,7 +330,6 @@ bool HIDDEN ln_msg_accept_channel_create(ucoin_buf_t *pBuf, const ln_accept_chan
 #ifdef DBG_PRINT_CREATE
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     accept_channel_print(pMsg);
-    DUMPBIN(pBuf->buf, pBuf->len);
 #endif  //DBG_PRINT_CREATE
 
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 270);
