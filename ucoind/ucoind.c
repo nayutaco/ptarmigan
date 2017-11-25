@@ -318,16 +318,6 @@ bool close_unilateral_local(ln_self_t *self)
     bool del;
     bool ret;
 
-    //BOLTに載っていないtxについてはestimatefeeからfee計算する
-    uint64_t feerate;
-    ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
-    feerate = (uint32_t)(feerate / 4);
-#warning issue#46
-    if (!ret || (feerate < LN_FEERATE_PER_KW)) {
-        feerate = LN_FEERATE_PER_KW;
-    }
-    ln_set_feerate(self, (uint32_t)feerate);
-
     ln_close_force_t close_dat;
     ret = ln_create_close_force_tx(self, &close_dat);
     if (ret) {
@@ -335,7 +325,12 @@ bool close_unilateral_local(ln_self_t *self)
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == 0) {
                 DBG_PRINTF("\n$$$ commit_tx\n");
-
+            } else if (lp == 1) {
+                DBG_PRINTF("\n$$$ to_local tx\n");
+            } else {
+                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - 2);
+            }
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //vin使用済みチェック
                 uint64_t sat;
                 ret = jsonrpc_getxout(&sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
@@ -343,12 +338,7 @@ bool close_unilateral_local(ln_self_t *self)
                     DBG_PRINTF("vin already spent[%d]\n", lp);
                     continue;
                 }
-            } else if (lp == 1) {
-                DBG_PRINTF("\n$$$ to_local tx\n");
-            } else {
-                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - 2);
-            }
-            if (close_dat.p_tx[lp].vin_cnt > 0) {
+
                 //展開済みチェック
                 uint8_t txid[UCOIN_SZ_TXID];
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
@@ -1081,7 +1071,12 @@ static bool close_unilateral_remote(ln_self_t *self)
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == 0) {
                 DBG_PRINTF("\n$$$ commit_tx\n");
-
+            } else if (lp == 1) {
+                DBG_PRINTF("\n$$$ to_local tx\n");
+            } else {
+                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - 2);
+            }
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //vin使用済みチェック
                 uint64_t sat;
                 ret = jsonrpc_getxout(&sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
@@ -1089,12 +1084,7 @@ static bool close_unilateral_remote(ln_self_t *self)
                     DBG_PRINTF("vin already spent[%d]\n", lp);
                     continue;
                 }
-            } else if (lp == 1) {
-                DBG_PRINTF("\n$$$ to_local tx\n");
-            } else {
-                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - 2);
-            }
-            if (close_dat.p_tx[lp].vin_cnt > 0) {
+
                 //展開済みチェック
                 uint8_t txid[UCOIN_SZ_TXID];
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);

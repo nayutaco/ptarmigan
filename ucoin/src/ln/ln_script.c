@@ -322,7 +322,7 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
         }
     }
     pFeeInfo->commit = pFeeInfo->commit * pFeeInfo->feerate_per_kw / 1000;
-    DBG_PRINTF("pFeeInfo->commit= %" PRIu64 "\n", pFeeInfo->commit);
+    DBG_PRINTF("pFeeInfo->commit= %" PRIu64 "(%" PRIu32 ")\n", pFeeInfo->commit, pFeeInfo->feerate_per_kw);
 
     return pFeeInfo->commit + dusts;
 }
