@@ -547,12 +547,12 @@ LABEL_DECREF:
             }
             ucoin_tx_free(&tx);
         }
-        if (ret) {
-            DBG_PRINTF("match!\n");
-            ucoin_print_tx(pTx);
-        } else {
-            DBG_PRINTF("not match\n");
-        }
+        //if (ret) {
+        //    DBG_PRINTF("match!\n");
+        //    ucoin_print_tx(pTx);
+        //} else {
+        //    DBG_PRINTF("not match\n");
+        //}
 LABEL_DECREF2:
         json_decref(p_root);
     } else {
@@ -657,7 +657,7 @@ bool jsonrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
         }
         str_hex = (const char *)json_string_value(p_result);
         if (!str_hex) {
-            error_result(p_root);
+            //error_result(p_root);
             goto LABEL_DECREF;
         }
         len = strlen(str_hex);

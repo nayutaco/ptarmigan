@@ -96,6 +96,8 @@ bool jsonrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex);
  * @param[in]   pTxid       検索するするTXID(バイト列)
  * @param@in]   VIndex      vout index
  * @retval  true        検索成功
+ * @note
+ *      - 検索するvinはvin_cnt==1のみ
  */
 bool jsonrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
 
