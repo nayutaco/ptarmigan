@@ -50,9 +50,8 @@
 #define MSG_SCRIPTIDX_REMOTEKEY         (0)         ///< remotekey
 #define MSG_SCRIPTIDX_DELAYED           (1)         ///< delayedkey
 #define MSG_SCRIPTIDX_REVOCATION        (2)         ///< revocationkey
-#define MSG_SCRIPTIDX_LOCALKEY          (3)         ///< localkey
-#define MSG_SCRIPTIDX_LOCALHTLCKEY      (4)         ///< local_htlckey
-#define MSG_SCRIPTIDX_REMOTEHTLCKEY     (5)         ///< remote_htlckey
+#define MSG_SCRIPTIDX_LOCALHTLCKEY      (3)         ///< local_htlckey
+#define MSG_SCRIPTIDX_REMOTEHTLCKEY     (4)         ///< remote_htlckey
 #define MSG_SCRIPTIDX_MAX               (MSG_SCRIPTIDX_REMOTEHTLCKEY+1)
 #if LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
 #error LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
@@ -427,12 +426,5 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
  * @param[in]       pMyNodeId       非NULL時、DB保存するnode_id
  */
 void HIDDEN ln_db_init(const uint8_t *pMyNodeId);
-
-
-/** DBから取得したデータのみをコピー(self)
- *
- *
- */
-void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf);
 
 #endif /* LN_LOCAL_H__ */

@@ -47,10 +47,10 @@
 
 
 static const char *KEYS_STR[LN_FUNDIDX_MAX] = {
-    "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_per_commit", "bp_htlc"
+    "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_htlc", "bp_per_commit"
 };
 static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
-    "remotekey", "delayedkey", "revocationkey", "localkey", "local_htlckey", "remote_htlckey"
+    "remotekey", "delayedkey", "revocationkey", "local_htlckey", "remote_htlckey"
 };
 
 
@@ -438,6 +438,8 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
         fprintf(fp, "%s pub: ", SCR_STR[lp]);
         ucoin_util_dumpbin(fp, pRemote->scriptpubkeys[lp], UCOIN_SZ_PUBKEY, true);
     }
+    fprintf(fp, "prev_percommit: ");
+    ucoin_util_dumpbin(fp, pRemote->prev_percommit, UCOIN_SZ_PUBKEY, true);
     fprintf(fp, "----------------------------------------\n");
 #endif
 }

@@ -264,11 +264,6 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
     ln_derkey_revocationkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 pRemote->pubkeys[MSG_FUNDIDX_REVOCATION], pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
-    //localkey = local per_commitment_point & local payment
-    DBG_PRINTF("local: localkey\n");
-    ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
-                pLocal->keys[MSG_FUNDIDX_PAYMENT].pub, pLocal->keys[MSG_FUNDIDX_PER_COMMIT].pub);
-
     //local_htlckey = local per_commitment_point & local htlc_basepoint
     DBG_PRINTF("local: local_htlckey\n");
     ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
@@ -298,11 +293,6 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
     DBG_PRINTF("remote: revocationkey\n");
     ln_derkey_revocationkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 pLocal->keys[MSG_FUNDIDX_REVOCATION].pub, pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    //localkey = remote per_commitment_point & remote payment
-    DBG_PRINTF("remote: localkey\n");
-    ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
-                pRemote->pubkeys[MSG_FUNDIDX_PAYMENT], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //local_htlckey = remote per_commitment_point & remote htlc_basepoint
     DBG_PRINTF("remote: local_htlckey\n");

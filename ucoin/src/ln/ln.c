@@ -1840,8 +1840,13 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
             ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
         }
     } else {
-        //Establish直後
-        memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+        //Establish直後 or Establish直後のreestablish
+        DBG_PRINTF("after Established\n");
+        const uint8_t ZERO[UCOIN_SZ_PUBKEY] = {0};
+        if (memcmp(ZERO, self->funding_remote.prev_percommit, sizeof(ZERO)) == 0) {
+            //reestablishの場合、prev_percommitは設定済み
+            memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+        }
         memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
         ret = recv_funding_locked_first(self);
         ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -3084,8 +3089,8 @@ static bool create_to_local(ln_self_t *self,
                         ////署名チェック
                         //ret = ln_verify_htlc_tx(&tx,
                         //            tx_local.vout[vout_idx].value,
-                        //            self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALKEY],
-                        //            self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
+                        //            self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
+                        //            self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                         //            &buf_local_sig,
                         //            &buf_sig,
                         //            &pp_htlcinfo[htlc_idx]->script);

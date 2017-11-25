@@ -67,8 +67,7 @@
     -7 : ln_commit_data_tにtxid追加
     -8 : ln_commit_data_tにhtlc_num追加
     -9 : self.shutdown_scriptpk_localを対象に追加
-    -10: htlckey対応
-    -11: self.shutdown_scriptpk_remoteを対象に追加
+    -10: htlckey対応, self.shutdown_scriptpk_remoteを対象に追加, LOCALKEY削除, funding_local/remote整理
  */
 
 
@@ -96,8 +95,16 @@ typedef struct {
                                                                 ///<  4
     uint64_t                    storage_index;                  ///<  5:現在のindex
     uint8_t                     storage_seed[UCOIN_SZ_PRIVKEY]; ///<  6:ユーザから指定されたseed
-    ln_funding_local_data_t     funding_local;                  ///<  7:funding情報:local
-    ln_funding_remote_data_t    funding_remote;                 ///<  8:funding情報:remote
+
+    //ln_funding_local_data_t     funding_local;                  ///<  7:funding情報:local
+    uint8_t                     funding_local_txid[UCOIN_SZ_TXID];  ///< 7.1:funding情報:local:funding_tx txid
+    uint16_t                    funding_local_txindex;          ///<  7.2:funding情報:local:txindex
+    uint8_t                     funding_local_privkey[LN_FUNDIDX_MAX][UCOIN_SZ_PRIVKEY];    ///< 7.3:funding情報:local:privkey
+
+    //ln_funding_remote_data_t    funding_remote;                 ///<  8:funding情報:remote
+    uint8_t                     funding_remote_pubkey[LN_FUNDIDX_MAX][UCOIN_SZ_PUBKEY];     ///< 8.1:funding情報:remote:pubkey
+    uint8_t                     funding_remote_prev_percommit[UCOIN_SZ_PUBKEY];     ///< 8.2:funding情報:remote:1つ前のper_commit_point
+
     uint64_t                    obscured;                       ///<  9:commitment numberをXORするとobscured commitment numberになる値。
     ucoin_keys_sort_t           key_fund_sort;                  ///< 10:2-of-2のソート順(local, remoteを正順とした場合)
     uint16_t                    htlc_num;                       ///< 11:HTLC数
@@ -313,8 +320,21 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         self->lfeature_remote = p_bk->lfeature_remote;     //3
         self->storage_index = p_bk->storage_index;     //5
         memcpy(self->storage_seed, p_bk->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-        self->funding_local = p_bk->funding_local;     //7
-        self->funding_remote = p_bk->funding_remote;       //8
+
+        //self->funding_local = p_bk->funding_local;     //7
+        memcpy(self->funding_local.txid, p_bk->funding_local_txid, UCOIN_SZ_TXID);      //7.1
+        self->funding_local.txindex = p_bk->funding_local_txindex;      //7.2
+        for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+            memcpy(self->funding_local.keys[lp].priv, p_bk->funding_local_privkey[lp], UCOIN_SZ_PRIVKEY);   //7.3
+            ucoin_keys_priv2pub(self->funding_local.keys[lp].pub, self->funding_local.keys[lp].priv);
+        }
+
+        //self->funding_remote = p_bk->funding_remote;       //8
+        for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+            memcpy(self->funding_remote.pubkeys[lp], p_bk->funding_remote_pubkey[lp], UCOIN_SZ_PUBKEY);     //8.1
+        }
+        memcpy(self->funding_remote.prev_percommit, p_bk->funding_remote_prev_percommit, UCOIN_SZ_PUBKEY);  //8.2
+
         self->obscured = p_bk->obscured;       //9
         self->key_fund_sort = p_bk->key_fund_sort;     //10
         self->htlc_num = p_bk->htlc_num;       //11
@@ -586,66 +606,6 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
 
 LABEL_EXIT:
     return result;
-}
-
-
-void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
-{
-    pOutSelf->lfeature_remote = pInSelf->lfeature_remote;     //3
-    pOutSelf->storage_index = pInSelf->storage_index;     //5
-    memcpy(pOutSelf->storage_seed, pInSelf->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-    pOutSelf->funding_local = pInSelf->funding_local;     //7
-    pOutSelf->funding_remote = pInSelf->funding_remote;       //8
-    pOutSelf->obscured = pInSelf->obscured;       //9
-    pOutSelf->key_fund_sort = pInSelf->key_fund_sort;     //10
-    pOutSelf->htlc_num = pInSelf->htlc_num;       //11
-    pOutSelf->commit_num = pInSelf->commit_num;       //12
-    pOutSelf->htlc_id_num = pInSelf->htlc_id_num;     //13
-    pOutSelf->our_msat = pInSelf->our_msat;       //14
-    pOutSelf->their_msat = pInSelf->their_msat;       //15
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        pOutSelf->cnl_add_htlc[idx] = pInSelf->cnl_add_htlc[idx];       //16
-        pOutSelf->cnl_add_htlc[idx].p_channel_id = NULL;     //送受信前に決定する
-        pOutSelf->cnl_add_htlc[idx].p_onion_route = NULL;
-        //shared secretは別DB
-        ucoin_buf_init(&pOutSelf->cnl_add_htlc[idx].shared_secret);
-    }
-    memcpy(pOutSelf->channel_id, pInSelf->channel_id, LN_SZ_CHANNEL_ID);      //17
-    pOutSelf->short_channel_id = pInSelf->short_channel_id;       //18
-    pOutSelf->commit_local = pInSelf->commit_local;       //19
-    pOutSelf->commit_remote = pInSelf->commit_remote;     //20
-    pOutSelf->funding_sat = pInSelf->funding_sat;     //21
-    pOutSelf->feerate_per_kw = pInSelf->feerate_per_kw;       //22
-    pOutSelf->peer_storage = pInSelf->peer_storage;     //23
-    pOutSelf->peer_storage_index = pInSelf->peer_storage_index;     //24
-    pOutSelf->remote_commit_num = pInSelf->remote_commit_num;  //25
-    pOutSelf->revoke_num = pInSelf->revoke_num;  //26
-    pOutSelf->remote_revoke_num = pInSelf->remote_revoke_num;  //27
-    pOutSelf->fund_flag = pInSelf->fund_flag;  //28
-    memcpy(&pOutSelf->peer_node, &pInSelf->peer_node, sizeof(ln_node_info_t));   //29
-    pOutSelf->min_depth = pInSelf->min_depth;  //30
-
-    //スクリプト部分(shallow copy)
-
-    //cnl_anno
-    ucoin_buf_free(&pOutSelf->cnl_anno);
-    memcpy(&pOutSelf->cnl_anno, &pInSelf->cnl_anno, sizeof(ucoin_buf_t));
-
-    //redeem_fund
-    ucoin_buf_free(&pOutSelf->redeem_fund);
-    memcpy(&pOutSelf->redeem_fund, &pInSelf->redeem_fund, sizeof(ucoin_buf_t));
-
-    //shutdown_scriptpk_local
-    ucoin_buf_free(&pOutSelf->shutdown_scriptpk_local);
-    memcpy(&pOutSelf->shutdown_scriptpk_local, &pInSelf->shutdown_scriptpk_local, sizeof(ucoin_buf_t));
-
-    //shutdown_scriptpk_remote
-    ucoin_buf_free(&pOutSelf->shutdown_scriptpk_remote);
-    memcpy(&pOutSelf->shutdown_scriptpk_remote, &pInSelf->shutdown_scriptpk_remote, sizeof(ucoin_buf_t));
-
-    //tx_funding
-    ucoin_tx_free(&pOutSelf->tx_funding);
-    memcpy(&pOutSelf->tx_funding, &pInSelf->tx_funding, sizeof(ucoin_tx_t));
 }
 
 
@@ -1327,8 +1287,20 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     bk->lfeature_remote = self->lfeature_remote;     //3
     bk->storage_index = self->storage_index;     //5
     memcpy(bk->storage_seed, self->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-    bk->funding_local = self->funding_local;     //7
-    bk->funding_remote = self->funding_remote;       //8
+
+    //bk->funding_local = self->funding_local;     //7
+    memcpy(bk->funding_local_txid, self->funding_local.txid, UCOIN_SZ_TXID);    //7.1
+    bk->funding_local_txindex = self->funding_local.txindex;        //7.2
+    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+        memcpy(bk->funding_local_privkey[lp], self->funding_local.keys[lp].priv, UCOIN_SZ_PRIVKEY);     //7.3
+    }
+
+    //bk->funding_remote = self->funding_remote;       //8
+    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+        memcpy(bk->funding_remote_pubkey[lp], self->funding_remote.pubkeys[lp], UCOIN_SZ_PUBKEY);       //8.1
+    }
+    memcpy(bk->funding_remote_prev_percommit, self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);    //8.2
+
     bk->obscured = self->obscured;       //9
     bk->key_fund_sort = self->key_fund_sort;     //10
     bk->htlc_num = self->htlc_num;       //11
