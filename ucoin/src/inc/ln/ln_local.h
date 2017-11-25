@@ -88,6 +88,7 @@
 #define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
 #define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
+#define MSGTYPE_IS_ANNOUNCE(type)           ((MSGTYPE_CHANNEL_ANNOUNCEMENT <= (type)) && ((type) <= MSGTYPE_CHANNEL_UPDATE))
 
 
 // self.init_flag
