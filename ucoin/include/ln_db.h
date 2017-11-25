@@ -101,9 +101,10 @@ bool ln_db_save_channel(const ln_self_t *self);
 /** channel削除
  *
  * @param[in]       self
+ * @param[in,out]   p_db_param      呼び出されたコールバック関数のパラメータ
  * @retval      true    成功
  */
-bool ln_db_del_channel(const ln_self_t *self);
+bool ln_db_del_channel(const ln_self_t *self, void *p_db_param);
 
 
 /** channel情報検索
@@ -245,8 +246,8 @@ bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeSt
 
 bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount);
 bool ln_db_del_preimage(const uint8_t *pPreImage);
-bool ln_db_cursor_preimage_open(void **ppCur, void *p_db_param);
-void ln_db_cursor_preimage_close(void *pCur, void *p_db_param);
+bool ln_db_cursor_preimage_open(void **ppCur);
+void ln_db_cursor_preimage_close(void *pCur);
 bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
 
 

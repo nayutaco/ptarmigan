@@ -1984,7 +1984,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         uint8_t preimage_hash[LN_SZ_HASH];
 
         void *p_cur;
-        bool ret = ln_db_cursor_preimage_open(&p_cur, NULL);
+        bool ret = ln_db_cursor_preimage_open(&p_cur);
         while (ret) {
             ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
             if (ret) {
@@ -1995,7 +1995,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 }
             }
         }
-        ln_db_cursor_preimage_close(p_cur, NULL);
+        ln_db_cursor_preimage_close(p_cur);
 
         if (ret) {
             //last nodeチェック
@@ -2577,38 +2577,6 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
         ln_db_cursor_anno_node_close(p_cur);
     }
 }
-
-
-/**************************************************************************
- * DB関連
- **************************************************************************/
-
-/** DB削除
- *
- * @param[in]   self
- * @param[in]   bRemove     true: DB削除 / false: 削除フラグのみ
- * @note
- *      - ノード情報からの削除は、closing_signed受信時に行っている(LN_CB_CLOSEDコールバック)
- */
-//static bool db_del_channel(ln_self_t *self, bool bRemove)
-//{
-//    DBGTRACE_BEGIN
-
-//    bool ret;
-
-//    if (bRemove) {
-//        ret = ln_db_del_channel(self);
-//        assert(ret);
-//    } else {
-//        ln_short_channel_id_clr(self);      //削除フラグ代わり
-//        ln_db_save_channel(self);
-//        ret = true;
-//    }
-
-//    DBGTRACE_END
-
-//    return ret;
-//}
 
 
 /********************************************************************

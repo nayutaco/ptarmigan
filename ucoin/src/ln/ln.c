@@ -151,7 +151,7 @@ static void proc_announce_sigsed(ln_self_t *self);
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
-static bool search_preimage(ln_self_t *self, uint8_t *pPreImage, const uint8_t *pHtlcHash);
+static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
 
 
 /**************************************************************************
@@ -453,7 +453,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         DBG_PRINTF("fail: no init received : %04x\n", type);
         return false;
     }
-    if ((type != MSGTYPE_CLOSING_SIGNED) && ((self->shutdown_flag & M_SHDN_FLAG_END) == M_SHDN_FLAG_END)) {
+    if ((type != MSGTYPE_CLOSING_SIGNED) && !MSGTYPE_IS_ANNOUNCE(type) && ((self->shutdown_flag & M_SHDN_FLAG_END) == M_SHDN_FLAG_END)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: not closing_signed received : %04x\n", type);
         return false;
@@ -3061,7 +3061,7 @@ static bool create_to_local(ln_self_t *self,
                         bool ret_img;
                         if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) {
                             //Receivedであればpreimageを所持している可能性がある
-                            ret_img = search_preimage(self, preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
+                            ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
                             DBG_PRINTF("[received]%d\n", ret_img);
                         } else {
                             ret_img = false;
@@ -3344,7 +3344,7 @@ static bool create_to_remote(ln_self_t *self,
                     int type = HTLCSIGN_TO_SUCCESS;
                     if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) {
                         //remoteのoffered=localのreceivedなのでpreimageを所持している可能性がある
-                        ret_img = search_preimage(self, preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
+                        ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
                         DBG_PRINTF("[offered]%d\n", ret_img);
                         if (ret_img && (pTxHtlcs != NULL)) {
                             //offeredかつpreimageがあるので、即時使用可能
@@ -3760,7 +3760,7 @@ static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add)
 }
 
 
-static bool search_preimage(ln_self_t *self, uint8_t *pPreImage, const uint8_t *pHtlcHash)
+static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
 {
     if (!LN_DBG_MATCH_PREIMAGE()) {
         DBG_PRINTF("DBG: HTLC preimage mismatch\n");
@@ -3770,7 +3770,7 @@ static bool search_preimage(ln_self_t *self, uint8_t *pPreImage, const uint8_t *
     uint64_t amount;
     uint8_t preimage_hash[LN_SZ_HASH];
     void *p_cur;
-    bool ret = ln_db_cursor_preimage_open(&p_cur, self->p_db_param);
+    bool ret = ln_db_cursor_preimage_open(&p_cur);
     while (ret) {
         DBG_PRINTF("ret=%d\n", ret);
         ret = ln_db_cursor_preimage_get(p_cur, pPreImage, &amount);
@@ -3786,7 +3786,7 @@ static bool search_preimage(ln_self_t *self, uint8_t *pPreImage, const uint8_t *
             }
         }
     }
-    ln_db_cursor_preimage_close(p_cur, self->p_db_param);
+    ln_db_cursor_preimage_close(p_cur);
 
     return ret;
 }
