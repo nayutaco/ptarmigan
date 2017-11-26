@@ -415,7 +415,7 @@ typedef struct {
 typedef struct {
     int             num;                            ///< p_bufのtransaction数
     ucoin_tx_t      *p_tx;                          ///< [0]commit_tx [1]to_local [2-]HTLC
-    uint64_t        *p_prev_id;                     ///< [0,1]ignore [2-]HTLCの転送元id
+    uint8_t        *p_htlc_idx;                     ///< [0,1]ignore [2-]self->cnl_add_htlc[]のhtlc_idx
 } ln_close_force_t;
 
 /// @}
@@ -1553,6 +1553,11 @@ static inline const ln_commit_data_t *ln_commit_local(const ln_self_t *self) {
  */
 static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
     return &self->commit_remote;
+}
+
+
+static inline const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, int htlc_idx) {
+    return &self->cnl_add_htlc[htlc_idx];
 }
 
 
