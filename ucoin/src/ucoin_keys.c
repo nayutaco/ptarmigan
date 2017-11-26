@@ -50,9 +50,9 @@ bool ucoin_keys_wif2priv(uint8_t *pPrivKey, const char *pWifPriv)
     if (ret) {
         //checksum
         uint8_t buf_sha256[UCOIN_SZ_HASH256];
-        int opt = (sz_priv == sizeof(b58dec)) ? 1 : 0;
-        ucoin_util_hash256(buf_sha256, b58dec, 1 + UCOIN_SZ_PRIVKEY + opt);
-        ret = (memcmp(buf_sha256, b58dec + 1 + UCOIN_SZ_PRIVKEY + opt, 4) == 0);
+        int tail = (sz_priv == sizeof(b58dec)) ? 1 : 0;
+        ucoin_util_hash256(buf_sha256, b58dec, 1 + UCOIN_SZ_PRIVKEY + tail);
+        ret = (memcmp(buf_sha256, b58dec + 1 + UCOIN_SZ_PRIVKEY + tail, 4) == 0);
     } else {
         ret = false;
         assert(0);

@@ -2994,7 +2994,7 @@ static bool create_to_local(ln_self_t *self,
 
         for (int vout_idx = 0; vout_idx < tx_local.vout_cnt; vout_idx++) {
             uint8_t htlc_idx = tx_local.vout[vout_idx].opt;
-            if (htlc_idx == VOUT_OPT_TOLOCAL) {
+            if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
                 DBG_PRINTF("+++[%d]to_local\n", vout_idx);
                 if (pTxHtlcs != NULL) {
                     //to_localのFEE
@@ -3024,16 +3024,15 @@ static bool create_to_local(ln_self_t *self,
                     memcpy(&pTxHtlcs[0], &tx, sizeof(tx));
                     ucoin_tx_init(&tx);     //txはfreeさせない
                 }
-            } else if (htlc_idx == VOUT_OPT_TOREMOTE) {
+            } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
                 DBG_PRINTF("+++[%d]to_remote\n", vout_idx);
             } else {
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_local.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
                     DBG_PRINTF("+++[%d]%s HTLC\n", vout_idx, (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-                    ret = ln_create_htlc_tx(&tx, tx_local.vout[vout_idx].value - fee, &buf_ws,
-                                self->commit_local.txid, pp_htlcinfo[htlc_idx]->type,
-                                pp_htlcinfo[htlc_idx]->expiry, vout_idx);
-                    assert(ret);
+                    ln_create_htlc_tx(&tx, tx_local.vout[vout_idx].value - fee, &buf_ws,
+                                pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry,
+                                self->commit_local.txid, vout_idx);
                     ucoin_print_tx(&tx);
 
                     if (p_htlc_sigs != NULL) {
@@ -3327,21 +3326,20 @@ static bool create_to_remote(ln_self_t *self,
             //各HTLCのHTLC Timeout/Success Transactionを作って署名するために、
             //BIP69ソート後のtx_remote.voutからpp_htlcinfo[]のindexを取得する
             uint8_t htlc_idx = tx_remote.vout[vout_idx].opt;
-            if (htlc_idx == VOUT_OPT_TOLOCAL) {
+            if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
                 DBG_PRINTF("---[%d]to_local\n", vout_idx);
                 if (pTxHtlcs != NULL) {
                     ucoin_tx_init(&pTxHtlcs[0]);    //remoteにto_local要素はない
                 }
-            } else if (htlc_idx == VOUT_OPT_TOREMOTE) {
+            } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
                 DBG_PRINTF("---[%d]to_remote\n", vout_idx);
             } else {
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_remote.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
                     DBG_PRINTF("---[%d]%s HTLC\n", vout_idx, (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-                    ret = ln_create_htlc_tx(&tx, tx_remote.vout[vout_idx].value - fee, &buf_ws,
-                                self->commit_remote.txid, pp_htlcinfo[htlc_idx]->type,
-                                pp_htlcinfo[htlc_idx]->expiry, vout_idx);
-                    assert(ret);
+                    ln_create_htlc_tx(&tx, tx_remote.vout[vout_idx].value - fee, &buf_ws,
+                                pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry,
+                                self->commit_remote.txid, vout_idx);
                     ucoin_print_tx(&tx);
 
                     uint8_t preimage[LN_SZ_PREIMAGE];

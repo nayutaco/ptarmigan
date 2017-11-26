@@ -347,7 +347,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
         DBG_PRINTF2("    remote.pubkey: ");
         DUMPBIN(pCmt->remote.pubkey, UCOIN_SZ_PUBKEY);
         ucoin_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
-        pTx->vout[pTx->vout_cnt - 1].opt = VOUT_OPT_TOREMOTE;
+        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOREMOTE;
     } else {
         DBG_PRINTF("  output P2WPKH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
     }
@@ -355,7 +355,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
     if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
         DBG_PRINTF("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
         ucoin_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
-        pTx->vout[pTx->vout_cnt - 1].opt = VOUT_OPT_TOLOCAL;
+        pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOLOCAL;
     } else {
         DBG_PRINTF("  output P2WSH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
     }
@@ -411,17 +411,13 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
 }
 
 
-bool HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
-                const uint8_t *pTxid, uint8_t Type, uint32_t CltvExpiry, int Index)
+void HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
+                ln_htlctype_t Type, uint32_t CltvExpiry, const uint8_t *pTxid, int Index)
 {
     //vout
-    bool ret = ucoin_sw_add_vout_p2wsh(pTx, Value, pScript);
-    if (!ret) {
-        DBG_PRINTF("fail: ucoin_sw_add_vout_p2wsh\n");
-        goto LABEL_EXIT;
-    }
-    pTx->vout[0].opt = Type;
-    switch (pTx->vout[0].opt) {
+    ucoin_sw_add_vout_p2wsh(pTx, Value, pScript);
+    pTx->vout[0].opt = (uint8_t)Type;
+    switch (Type) {
     case LN_HTLCTYPE_RECEIVED:
         //HTLC-success
         DBG_PRINTF("HTLC Success\n");
@@ -441,9 +437,6 @@ bool HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t
     //vin
     ucoin_tx_add_vin(pTx, pTxid, Index);
     pTx->vin[0].sequence = 0;
-
-LABEL_EXIT:
-    return ret;
 }
 
 

@@ -105,9 +105,6 @@
 #define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり
 #define CHANNEL_FLAGS_VALUE         CHANNEL_FLAGS_ANNOCNL   ///< TODO:open_channel.channel_flags
 
-#define VOUT_OPT_TOLOCAL            (0xfe)                  ///< vout=to_local
-#define VOUT_OPT_TOREMOTE           (0xff)                  ///< vout=to_remote
-
 #define HTLCSIGN_TO_SUCCESS         (1)                     ///<
 #define HTLCSIGN_OF_PREIMG          (2)                     ///< 相手が送信したcommit_txのOffered HTLC
 #define HTLCSIGN_RV_TIMEOUT         (3)                     ///< 相手が送信したcommit_txのReceived HTLC
@@ -258,10 +255,16 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
 
 /** Offered/Receveid HTLC Transaction作成
  *
- *
+ * @param[out]      pTx         TX情報
+ * @param[in]       Value       vout amount
+ * @param[in]       pScript     vout P2WSHスクリプト
+ * @param[in]       Type        pScriptタイプ(LN_HTLCTYPE_xxx)
+ * @param[in]       CltvExpiry  locktime(TypeがOffered HTLCの場合のみ)
+ * @param[in]       pTxid       vin TXID
+ * @param[in]       Index       vin index
  */
-bool HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
-                const uint8_t *pTxid, uint8_t Type, uint32_t CltvExpiry, int Index);
+void HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
+                ln_htlctype_t Type, uint32_t CltvExpiry, const uint8_t *pTxid, int Index);
 
 
 /** Offered/Receveid HTLC Transaction署名

@@ -183,6 +183,8 @@ typedef enum {
     LN_HTLCTYPE_NONE,                               ///< 未設定
     LN_HTLCTYPE_OFFERED,                            ///< Offered HTLC
     LN_HTLCTYPE_RECEIVED,                           ///< Received HTLC
+    LN_HTLCTYPE_TOLOCAL     = 0xfe,                 ///< vout=to_local
+    LN_HTLCTYPE_TOREMOTE    = 0xff                  ///< vout=to_remote
 } ln_htlctype_t;
 
 
