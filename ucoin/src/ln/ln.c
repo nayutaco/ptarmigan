@@ -847,6 +847,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //[0]commit_tx, [1]to_local, [2...]HTLC
     pClose->num = 1 + 1 + self->commit_local.htlc_num;
     pClose->p_tx = (ucoin_tx_t *)M_MALLOC(sizeof(ucoin_tx_t) * pClose->num);
+    pClose->p_prev_id = (uint64_t *)M_MALLOC(sizeof(uint64_t) * pClose->num);
     DBG_PRINTF("TX num: %d\n", pClose->num);
 
     //local commit_tx
@@ -895,6 +896,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     //[0]commit_tx, [1]to_local, [2...]HTLC
     pClose->num = 1 + 1 + self->commit_remote.htlc_num;
     pClose->p_tx = (ucoin_tx_t *)M_MALLOC(sizeof(ucoin_tx_t) * pClose->num);
+    pClose->p_prev_id = (uint64_t *)M_MALLOC(sizeof(uint64_t) * pClose->num);
     DBG_PRINTF("TX num: %d\n", pClose->num);
 
     //remote commit_tx
@@ -922,6 +924,8 @@ void ln_free_close_force_tx(ln_close_force_t *pClose)
     pClose->num = 0;
     M_FREE(pClose->p_tx);
     pClose->p_tx = NULL;
+    M_FREE(pClose->p_prev_id);
+    pClose->p_prev_id = NULL;
 }
 
 
@@ -3074,6 +3078,7 @@ static bool create_to_local(ln_self_t *self,
                             ret_img = false;
                             DBG_PRINTF("[offered]%d\n", ret_img);
                         }
+                        pClose->p_prev_id[1 + htlc_num] = self->cnl_add_htlc[htlc_idx].prev_id;
 
                         //署名:HTLC Success/Timeout Transaction
                         ucoin_buf_t buf_local_sig;
@@ -3408,6 +3413,7 @@ static bool create_to_remote(ln_self_t *self,
                             DBG_PRINTF("skip create HTLC tx[%d]\n", htlc_num);
                             ucoin_tx_init(&pTxHtlcs[1 + htlc_num]);
                         }
+                        pClose->p_prev_id[1 + htlc_num] = self->cnl_add_htlc[htlc_idx].prev_id;
                     }
 
                     ucoin_tx_free(&tx);

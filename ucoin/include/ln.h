@@ -414,7 +414,8 @@ typedef struct {
  */
 typedef struct {
     int             num;                            ///< p_bufのtransaction数
-    ucoin_tx_t      *p_tx;                          ///<
+    ucoin_tx_t      *p_tx;                          ///< [0]commit_tx [1]to_local [2-]HTLC
+    uint64_t        *p_prev_id;                     ///< [0,1]ignore [2-]HTLCの転送元id
 } ln_close_force_t;
 
 /// @}
