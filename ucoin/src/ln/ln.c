@@ -128,15 +128,13 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool create_funding_tx(ln_self_t *self);
 static bool create_to_local(ln_self_t *self,
-                    ucoin_tx_t *pTxLocal,
-                    ucoin_tx_t *pTxHtlcs,
+                    ln_close_force_t *pClose,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat);
 static bool create_to_remote(ln_self_t *self,
-                    ucoin_tx_t *pTxRemote,
-                    ucoin_tx_t *pTxHtlcs,
+                    ln_close_force_t *pClose,
                     uint8_t **pp_htlc_sigs,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat);
@@ -852,7 +850,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     DBG_PRINTF("TX num: %d\n", pClose->num);
 
     //local commit_tx
-    bool ret = create_to_local(self, &pClose->p_tx[0], &pClose->p_tx[1], NULL, 0,
+    bool ret = create_to_local(self, pClose, NULL, 0,
                 self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
@@ -900,7 +898,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     DBG_PRINTF("TX num: %d\n", pClose->num);
 
     //remote commit_tx
-    bool ret = create_to_remote(self, &pClose->p_tx[0], &pClose->p_tx[1], NULL,
+    bool ret = create_to_remote(self, pClose, NULL,
                 self->commit_local.to_self_delay, self->commit_remote.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_remote\n");
@@ -1161,7 +1159,7 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
 
     //相手に送る署名を作成
     uint8_t *p_htlc_sigs = NULL;    //必要があればcreate_to_remote()でMALLOC()する
-    ret = create_to_remote(self, NULL, NULL, &p_htlc_sigs,
+    ret = create_to_remote(self, NULL, &p_htlc_sigs,
                 self->commit_local.to_self_delay, self->commit_remote.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create remote sign");
@@ -1627,7 +1625,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     // initial commit tx(Remoteが持つTo-Local)
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
-    ret = create_to_remote(self, NULL, NULL, NULL,
+    ret = create_to_remote(self, NULL, NULL,
                 self->p_est->cnl_open.to_self_delay, acc_ch->dust_limit_sat);
     if (ret) {
         //funding_created
@@ -1695,7 +1693,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     // initial commit tx(自分が持つTo-Local)
     //      to-self-delayは自分の値(open_channel)を使う
     //      HTLCは存在しない
-    ret = create_to_local(self, NULL, NULL, NULL, 0,
+    ret = create_to_local(self, NULL, NULL, 0,
                 self->p_est->cnl_open.to_self_delay, self->p_est->cnl_accept.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
@@ -1705,7 +1703,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     // initial commit tx(Remoteが持つTo-Local)
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
-    ret = create_to_remote(self, NULL, NULL, NULL,
+    ret = create_to_remote(self, NULL, NULL,
                 self->p_est->cnl_accept.to_self_delay, self->p_est->cnl_open.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_remote\n");
@@ -1773,7 +1771,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     // initial commit tx(自分が持つTo-Local)
     //      to-self-delayは相手の値(accept_channel)を使う
     //      HTLCは存在しない
-    ret = create_to_local(self, NULL, NULL, NULL, 0,
+    ret = create_to_local(self, NULL, NULL, 0,
                 self->p_est->cnl_accept.to_self_delay, self->p_est->cnl_open.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
@@ -2418,7 +2416,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     }
 
     //署名チェック＋保存: To-Local
-    ret = create_to_local(self, NULL, NULL, commsig.p_htlc_signature, commsig.num_htlcs,
+    ret = create_to_local(self, NULL, commsig.p_htlc_signature, commsig.num_htlcs,
                 self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
     M_FREE(commsig.p_htlc_signature);
     if (!ret) {
@@ -2868,8 +2866,7 @@ static bool create_funding_tx(ln_self_t *self)
  * self->commit_remote.signatureを相手からの署名として追加し、verifyを行う
  *
  * @param[in,out]       self
- * @param[out]          pTxLocal
- * @param[out]          pTxHtlcs
+ * @param[out]          pClose
  * @param[in]           p_htlc_sigs         commitment_signedで受信したHTLCの署名
  * @param[in]           htlc_sigs_num       p_htlc_sigsの署名数
  * @param[in]           to_self_delay       remoteのto_self_delay
@@ -2877,8 +2874,7 @@ static bool create_funding_tx(ln_self_t *self)
  * @retval      true    成功
  */
 static bool create_to_local(ln_self_t *self,
-                    ucoin_tx_t *pTxLocal,
-                    ucoin_tx_t *pTxHtlcs,
+                    ln_close_force_t *pClose,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
                     uint32_t to_self_delay,
@@ -2892,10 +2888,17 @@ static bool create_to_local(ln_self_t *self,
     ln_feeinfo_t feeinfo;
     ln_tx_cmt_t lntx_commit;
     ucoin_tx_t tx_local;
+    ucoin_tx_t *pTxLocal = NULL;
+    ucoin_tx_t *pTxHtlcs = NULL;
 
     ucoin_tx_init(&tx_local);
     ucoin_buf_init(&buf_sig);
     ucoin_buf_init(&buf_ws);
+
+    if (pClose != NULL) {
+        pTxLocal = &pClose->p_tx[0];
+        pTxHtlcs = &pClose->p_tx[1];
+    }
 
     //To-Local
     ln_create_script_local(&buf_ws,
@@ -3190,15 +3193,13 @@ static bool create_to_local(ln_self_t *self,
  * 署名を、To-Localはself->commit_local.signatureに、HTLCはself->cnl_add_htlc[].signature 代入する
  *
  * @param[in,out]       self
- * @param[out]          pTxRemote
- * @param[out]          pTxHtlcs
+ * @param[out]          pClose
  * @param[out]          pp_htlc_sigs        commitment_signed送信用署名(NULLの場合は代入しない)
  * @param[in]           to_self_delay       localのto_self_delay
  * @param[in]           dust_limit_sat      remoteのdust_limit_sat
  */
 static bool create_to_remote(ln_self_t *self,
-                    ucoin_tx_t *pTxRemote,
-                    ucoin_tx_t *pTxHtlcs,
+                    ln_close_force_t *pClose,
                     uint8_t **pp_htlc_sigs,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat)
@@ -3210,10 +3211,17 @@ static bool create_to_remote(ln_self_t *self,
     ucoin_buf_t buf_ws;
     ln_feeinfo_t feeinfo;
     ln_tx_cmt_t lntx_commit;
+    ucoin_tx_t *pTxRemote = NULL;
+    ucoin_tx_t *pTxHtlcs = NULL;
 
     ucoin_tx_init(&tx_remote);
     ucoin_buf_init(&buf_sig);
     ucoin_buf_init(&buf_ws);
+
+    if (pClose != NULL) {
+        pTxRemote = &pClose->p_tx[0];
+        pTxHtlcs = &pClose->p_tx[1];
+    }
 
     //To-Local(Remote)
     ln_create_script_local(&buf_ws,
