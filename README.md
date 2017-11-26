@@ -31,8 +31,9 @@
 * install
   * [libev](http://software.schmorp.de/pkg/libev.html) (for `jsonrpc-c`)
   * [boost](http://www.boost.org/) (for dijkstra shortest paths)
+  * [jq](https://stedolan.github.io/jq/) (for test scripts)
 
-  `sudo apt install autoconf pkg-config libev-dev libboost-all-dev`
+  `sudo apt install autoconf pkg-config libev-dev libboost-all-dev build-essential libtool autoconf jq`
 
 ## application
 
@@ -65,7 +66,6 @@
 * その他
   * libs で submodule を使っているため、取得には注意 (make fullで取得するようにしている)
   * ビルドに失敗する場合は、 `libtool` や `autoconf` のインストール状況を確認すること
-    * `sudo apt install build-essential libtool autoconf`
 
 ## implement status
 
