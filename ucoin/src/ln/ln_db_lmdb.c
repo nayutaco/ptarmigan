@@ -176,8 +176,8 @@ static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, u
 static int save_anno_node(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId);
 static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
 
-static bool save_preimage_open(lmdb_db_t *p_db);
-static void save_preimage_close(lmdb_db_t *p_db);
+static bool save_preimage_open(lmdb_db_t *p_db, MDB_txn *txn);
+static void save_preimage_close(lmdb_db_t *p_db, MDB_txn *txn);
 
 static int write_version(MDB_txn *txn, const uint8_t *pMyNodeId);
 static int check_version(MDB_txn *txn, MDB_dbi *pdbi, uint8_t *pMyNodeId);
@@ -1047,12 +1047,16 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
  * payment preimage
  **************************************************************************/
 
-bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount)
+bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam)
 {
     lmdb_db_t db;
     MDB_val key, data;
+    MDB_txn *txn = NULL;
 
-    save_preimage_open(&db);
+    if (pDbParam != NULL) {
+        txn = ((lmdb_db_t *)pDbParam)->txn;
+    }
+    save_preimage_open(&db, txn);
 
     key.mv_size = LN_SZ_PREIMAGE;
     key.mv_data = (CONST_CAST uint8_t *)pPreImage;
@@ -1065,7 +1069,7 @@ bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
-    save_preimage_close(&db);
+    save_preimage_close(&db, txn);
 
     return retval == 0;
 }
@@ -1076,7 +1080,7 @@ bool ln_db_del_preimage(const uint8_t *pPreImage)
     lmdb_db_t db;
     MDB_val key;
 
-    save_preimage_open(&db);
+    save_preimage_open(&db, NULL);
 
     key.mv_size = LN_SZ_PREIMAGE;
     key.mv_data = (CONST_CAST uint8_t *)pPreImage;
@@ -1087,7 +1091,7 @@ bool ln_db_del_preimage(const uint8_t *pPreImage)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
-    save_preimage_close(&db);
+    save_preimage_close(&db, NULL);
 
     return retval == 0;
 }
@@ -1694,14 +1698,18 @@ LABEL_EXIT:
     return retval == 0;
 }
 
-static bool save_preimage_open(lmdb_db_t *p_db)
+static bool save_preimage_open(lmdb_db_t *p_db, MDB_txn *txn)
 {
     int         retval;
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &p_db->txn);
-    if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
+    if (txn == NULL) {
+        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &p_db->txn);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+    } else {
+        p_db->txn = txn;
     }
     retval = mdb_dbi_open(p_db->txn, M_DB_PREIMAGE, MDB_CREATE, &p_db->dbi);
     if (retval != 0) {
@@ -1715,9 +1723,11 @@ LABEL_EXIT:
 }
 
 
-static void save_preimage_close(lmdb_db_t *p_db)
+static void save_preimage_close(lmdb_db_t *p_db, MDB_txn *txn)
 {
-    MDB_TXN_COMMIT(p_db->txn);
+    if (txn == NULL) {
+        MDB_TXN_COMMIT(p_db->txn);
+    }
 }
 
 

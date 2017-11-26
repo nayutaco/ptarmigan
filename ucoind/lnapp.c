@@ -568,7 +568,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
 
     SYSLOG_WARN("close: bad way(local): htlc=%d\n", ln_commit_local(&my_self)->htlc_num);
-    (void)close_unilateral_local(&my_self);
+    (void)close_unilateral_local(&my_self, NULL);
 
     return true;
 }

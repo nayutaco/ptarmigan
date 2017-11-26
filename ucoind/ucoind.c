@@ -83,7 +83,7 @@ static void *thread_monitor_start(void *pArg);
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
-static bool close_unilateral_remote(ln_self_t *self);
+static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
 static bool close_revoked(ln_self_t *self);
 
 
@@ -313,7 +313,7 @@ void preimage_unlock(void)
 /** unilateral closeを自分が行っていた場合の処理(localのcommit_txを展開)
  *
  */
-bool close_unilateral_local(ln_self_t *self)
+bool close_unilateral_local(ln_self_t *self, void *pDbParam)
 {
     bool del;
     bool ret;
@@ -325,9 +325,9 @@ bool close_unilateral_local(ln_self_t *self)
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == 0) {
                 DBG_PRINTF2("\n$$$ commit_tx\n");
-                for (int lp2 = 0; lp2 < close_dat.p_tx[lp].vout_cnt; lp2++) {
-                    DBG_PRINTF("vout[%d]=%x\n", lp2, close_dat.p_tx[lp].vout[lp2].opt);
-                }
+                //for (int lp2 = 0; lp2 < close_dat.p_tx[lp].vout_cnt; lp2++) {
+                //    DBG_PRINTF("vout[%d]=%x\n", lp2, close_dat.p_tx[lp].vout[lp2].opt);
+                //}
             } else if (lp == 1) {
                 DBG_PRINTF2("\n$$$ to_local tx\n");
             } else {
@@ -362,6 +362,28 @@ bool close_unilateral_local(ln_self_t *self)
                         if (p_htlc->prev_short_channel_id != 0) {
                             //転送元がある場合、preimageを抽出する
                             DBG_PRINTF("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, close_dat.p_htlc_idx[lp]);
+                            ucoin_tx_t tx;
+                            ucoin_tx_init(&tx);
+                            uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
+                            uint8_t txid[UCOIN_SZ_TXID];
+                            ucoin_tx_txid(txid, &close_dat.p_tx[0]);
+                            ret = search_spent_tx(&tx, confm, txid, close_dat.p_htlc_idx[lp]);
+                            if (ret) {
+                                //preimageを登録(自分が持っているのと同じ状態にする)
+                                const ucoin_buf_t *p_buf = ln_preimage_remote(&tx);
+                                if (p_buf != NULL) {
+                                    DBG_PRINTF("backward preimage: ");
+                                    DUMPBIN(p_buf->buf, p_buf->len);
+                                    ln_db_save_preimage(p_buf->buf, 0, pDbParam);
+                                } else {
+                                    assert(0);
+                                }
+                            } else {
+                                DBG_PRINTF("not found txid: ");
+                                DUMPTXID(txid);
+                                DBG_PRINTF("index=%d\n", close_dat.p_htlc_idx[lp]);
+                                del = false;
+                            }
                         }
                     } else {
                         //タイムアウト用Txを展開(non-BIP68-finalの可能性あり)
@@ -706,7 +728,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     char str_hash[LN_SZ_HASH * 2 + 1];
 
     ucoin_util_random(preimage, LN_SZ_PREIMAGE);
-    ln_db_save_preimage(preimage, amount);
+    ln_db_save_preimage(preimage, amount, NULL);
     ln_calc_preimage_hash(preimage_hash, preimage);
 
     misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
@@ -1035,10 +1057,10 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             ucoin_tx_init(&tx_commit);
             if (jsonrpc_getraw_tx(&tx_commit, ln_commit_local(self)->txid)) {
                 //最新のlocal commit_tx --> unilateral close(local)
-                del = close_unilateral_local(self);
+                del = close_unilateral_local(self, p_db_param);
             } else if (jsonrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid)) {
                 //最新のremote commit_tx --> unilateral close(remote)
-                del = close_unilateral_remote(self);
+                del = close_unilateral_remote(self, p_db_param);
             } else {
                 //最新ではないcommit_tx --> mutual close or revoked transaction close
                 ucoin_tx_t tx;
@@ -1097,7 +1119,7 @@ static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxi
 /** unilateral closeを相手が行っていた場合の処理(remoteのcommit_txを展開)
  *
  */
-static bool close_unilateral_remote(ln_self_t *self)
+static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 {
     bool del = true;
 
@@ -1111,9 +1133,9 @@ static bool close_unilateral_remote(ln_self_t *self)
             for (int lp = 0; lp < close_dat.num; lp++) {
                 if (lp == 0) {
                     DBG_PRINTF2("\n$$$ commit_tx\n");
-                    for (int lp2 = 0; lp2 < close_dat.p_tx[lp].vout_cnt; lp2++) {
-                        DBG_PRINTF("vout[%d]=%x\n", lp2, close_dat.p_tx[lp].vout[lp2].opt);
-                    }
+                    //for (int lp2 = 0; lp2 < close_dat.p_tx[lp].vout_cnt; lp2++) {
+                    //    DBG_PRINTF("vout[%d]=%x\n", lp2, close_dat.p_tx[lp].vout[lp2].opt);
+                    //}
                     continue;
                 } else if (lp == 1) {
                     DBG_PRINTF2("\n$$$ to_local tx\n");
@@ -1167,10 +1189,12 @@ static bool close_unilateral_remote(ln_self_t *self)
                                 ucoin_tx_txid(txid, &close_dat.p_tx[0]);
                                 ret = search_spent_tx(&tx, confm, txid, close_dat.p_htlc_idx[lp]);
                                 if (ret) {
-                                    //転送元チャネルに通知
-                                    if (tx.vin[0].wit_cnt == 5) {
+                                    //preimageを登録(自分が持っているのと同じ状態にする)
+                                    const ucoin_buf_t *p_buf = ln_preimage_remote(&tx);
+                                    if (p_buf != NULL) {
                                         DBG_PRINTF("backward preimage: ");
-                                        DUMPBIN(tx.vin[0].witness[3].buf, tx.vin[0].witness[3].len);
+                                        DUMPBIN(p_buf->buf, p_buf->len);
+                                        ln_db_save_preimage(p_buf->buf, 0, pDbParam);
                                     } else {
                                         assert(0);
                                     }

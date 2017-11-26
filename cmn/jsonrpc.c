@@ -534,6 +534,7 @@ LABEL_DECREF:
 
             ucoin_tx_init(&tx);
             ret = jsonrpc_getraw_txstr(&tx, txid);
+            //DBG_PRINTF("txid=%s\n", txid);
             if ( ret &&
                  (tx.vin_cnt == 1) &&
                  (memcmp(tx.vin[0].txid, pTxid, UCOIN_SZ_TXID) == 0) &&

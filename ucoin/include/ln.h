@@ -1556,8 +1556,75 @@ static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
 }
 
 
+/**
+ *
+ *
+ */
 static inline const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, int htlc_idx) {
     return &self->cnl_add_htlc[htlc_idx];
+}
+
+
+/**
+ *
+ * @note
+ *      - HTLC Success Txではない時のUnlockになる
+ *            -----------------------------------------------------
+ *            <remote_htlcsig>
+ *            <payment_preimage> ★
+ *            -----------------------------------------------------
+ *            # To you with revocation key
+ *            OP_DUP OP_HASH160 <RIPEMD160(SHA256(revocationkey))> OP_EQUAL
+ *            OP_IF
+ *                OP_CHECKSIG
+ *            OP_ELSE
+ *                <remote_htlckey> OP_SWAP OP_SIZE 32 OP_EQUAL
+ *                OP_NOTIF
+ *                    # To me via HTLC-timeout transaction (timelocked).
+ *                    OP_DROP 2 OP_SWAP <local_htlckey> 2 OP_CHECKMULTISIG
+ *                OP_ELSE
+ *                    # To you with preimage.
+ *                    OP_HASH160 <RIPEMD160(payment_hash)> OP_EQUALVERIFY
+ *                    OP_CHECKSIG
+ *                OP_ENDIF
+ *            OP_ENDIF
+ *            -----------------------------------------------------
+ */
+static inline const ucoin_buf_t *ln_preimage_local(const ucoin_tx_t *pTx) {
+    return (pTx->vin[0].wit_cnt == 3) ? &pTx->vin[0].witness[1] : NULL;
+}
+
+
+/**
+ *
+ * @note
+ *      - HTLC Success Tx時のUnlockになる
+ *            -----------------------------------------------------
+ *            0
+ *            <remote_htlcsig>
+ *            <local_htlcsig>
+ *            <payment_preimage> ★
+ *            -----------------------------------------------------
+ *            # To you with revocation key
+ *            OP_DUP OP_HASH160 <RIPEMD160(SHA256(revocationkey))> OP_EQUAL
+ *            OP_IF
+ *                OP_CHECKSIG
+ *            OP_ELSE
+ *                <remote_htlckey> OP_SWAP OP_SIZE 32 OP_EQUAL
+ *                OP_IF
+ *                    # To me via HTLC-success transaction.
+ *                    OP_HASH160 <RIPEMD160(payment_hash)> OP_EQUALVERIFY
+ *                    2 OP_SWAP <local_htlckey> 2 OP_CHECKMULTISIG
+ *                OP_ELSE
+ *                    # To you after timeout.
+ *                    OP_DROP <locktime> OP_CHECKLOCKTIMEVERIFY OP_DROP
+ *                    OP_CHECKSIG
+ *                OP_ENDIF
+ *            OP_ENDIF
+ *            -----------------------------------------------------
+ */
+static inline const ucoin_buf_t *ln_preimage_remote(const ucoin_tx_t *pTx) {
+    return (pTx->vin[0].wit_cnt == 5) ? &pTx->vin[0].witness[3] : NULL;
 }
 
 
