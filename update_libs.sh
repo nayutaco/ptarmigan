@@ -13,8 +13,8 @@ func_upd() {
 
 ######################################################
 cd libs
-func_upd curl https://github.com/curl/curl.git master
-func_upd jansson https://github.com/akheron/jansson.git master
+#func_upd curl https://github.com/curl/curl.git master
+#func_upd jansson https://github.com/akheron/jansson.git master
 func_upd jsonrpc-c https://github.com/nayutaco/jsonrpc-c.git localonly
 func_upd inih https://github.com/benhoyt/inih.git master
 
