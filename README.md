@@ -19,8 +19,6 @@
 ### libraries
 
 * git clone
-  * [jansson](http://www.digip.org/jansson/)([github](https://github.com/akheron/jansson))
-  * [curl](https://curl.haxx.se/)([github](https://github.com/curl/curl))
   * [jsonrpc-c(github)](https://github.com/hmng/jsonrpc-c)
   * [inih(github)](https://github.com/benhoyt/inih)
   * [mbedTLS](https://tls.mbed.org/)([github](https://github.com/ARMmbed/mbedtls))
@@ -29,11 +27,13 @@
   * [lmdb](https://symas.com/lightning-memory-mapped-database/)([github](https://github.com/LMDB/lmdb))
 
 * install
+  * [curl](https://curl.haxx.se/)
+  * [jansson](http://www.digip.org/jansson/)
   * [libev](http://software.schmorp.de/pkg/libev.html) (for `jsonrpc-c`)
   * [boost](http://www.boost.org/) (for dijkstra shortest paths)
   * [jq](https://stedolan.github.io/jq/) (for test scripts)
 
-  `sudo apt install autoconf pkg-config libev-dev libboost-all-dev build-essential libtool autoconf jq`
+  `sudo apt install autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool autoconf jq`
 
 ## application
 
