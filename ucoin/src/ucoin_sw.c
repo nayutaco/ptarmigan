@@ -37,21 +37,19 @@ static void keys_wit2prog_p2wsh(uint8_t *pWitProg, const ucoin_buf_t *pWitScript
  * public functions
  **************************************************************************/
 
-bool ucoin_sw_add_vout_p2wpkh_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
+void ucoin_sw_add_vout_p2wpkh_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
     ucoin_util_add_vout_pub(pTx, Value, pPubKey, (mNativeSegwit) ? UCOIN_PREF_NATIVE : UCOIN_PREF_P2SH);
-    return true;
 }
 
 
-bool ucoin_sw_add_vout_p2wpkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
+void ucoin_sw_add_vout_p2wpkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
     ucoin_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? UCOIN_PREF_NATIVE : UCOIN_PREF_P2SH);
-    return true;
 }
 
 
-bool ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pWitScript)
+void ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pWitScript)
 {
     uint8_t wit_prog[M_SZ_WITPROG_WSH];
 
@@ -65,7 +63,6 @@ bool ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t 
         ucoin_util_hash160(pkh, wit_prog, sizeof(wit_prog));
         ucoin_tx_add_vout_p2sh(pTx, Value, pkh);
     }
-    return true;
 }
 
 

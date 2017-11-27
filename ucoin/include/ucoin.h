@@ -208,7 +208,9 @@ typedef struct {
 typedef struct {
     uint64_t        value;                  ///< value[単位:satoshi]
     ucoin_buf_t     script;                 ///< scriptPubKey
-    uint8_t         opt;                    ///< 付加情報
+    uint8_t         opt;                    ///< 付加情報(ln用)
+                                            //      ln_create_htlc_tx()でln_htlctype_tに設定
+                                            //      ln_create_commit_tx()でln_tx_cmt_t.pp_htlcinfo[]のindex値(or LN_HTLCTYPE_TOLOCAL/REMOTE)に設定
 } ucoin_vout_t;
 
 
@@ -839,20 +841,20 @@ bool ucoin_tx_txid_raw(uint8_t *pTxId, const ucoin_buf_t *pTxRaw);
 /** P2WPKHのvout追加
  *
  */
-bool ucoin_sw_add_vout_p2wpkh_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey);
+void ucoin_sw_add_vout_p2wpkh_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey);
 
 
 /** P2WPKHのvout追加
  *
  */
-bool ucoin_sw_add_vout_p2wpkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
+void ucoin_sw_add_vout_p2wpkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
 
 
 /** P2WSHのvout追加(witnessScript)
  *
  *
  */
-bool ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pWitScript);
+void ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pWitScript);
 
 
 /** P2WPKH署名計算で使用するScript Code取得

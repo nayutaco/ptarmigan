@@ -95,7 +95,7 @@ do
     if [ $LEN3 -ne 0 ] && [ $LEN4 -ne 0 ] && [ $LEN5 -ne 0 ] && [ $LEN6 -ne 0 ] && [ $RES1 -eq 0 ] && [ $RES2 -eq 0 ] && [ $RES3 -eq 0 ]; then
         break
     fi
-    sleep 10
+    sleep 3
 done
 
 rm n3.txt n4.txt n5.txt n6.txt

@@ -55,7 +55,7 @@ extern "C" {
 #define LN_SZ_LFLEN_MAX                 (4)         ///< init.lflen最大
 
 #define LN_FUNDIDX_MAX                  (6)         ///< 管理用
-#define LN_SCRIPTIDX_MAX                (6)         ///< 管理用
+#define LN_SCRIPTIDX_MAX                (5)         ///< 管理用
 #define LN_HTLC_MAX                     (6)         ///< 自分のHTLC数   TODO:暫定
                                                     //      max_accepted_htlcsとして使用する
                                                     //      相手の分も同じ分しか用意していない
@@ -183,6 +183,8 @@ typedef enum {
     LN_HTLCTYPE_NONE,                               ///< 未設定
     LN_HTLCTYPE_OFFERED,                            ///< Offered HTLC
     LN_HTLCTYPE_RECEIVED,                           ///< Received HTLC
+    LN_HTLCTYPE_TOLOCAL     = 0xfe,                 ///< vout=to_local
+    LN_HTLCTYPE_TOREMOTE    = 0xff                  ///< vout=to_remote
 } ln_htlctype_t;
 
 
@@ -412,7 +414,8 @@ typedef struct {
  */
 typedef struct {
     int             num;                            ///< p_bufのtransaction数
-    ucoin_tx_t      *p_tx;                          ///<
+    ucoin_tx_t      *p_tx;                          ///< [0]commit_tx [1]to_local [2-]HTLC
+    uint8_t        *p_htlc_idx;                     ///< [0,1]ignore [2-]self->cnl_add_htlc[]のhtlc_idx
 } ln_close_force_t;
 
 /// @}
@@ -986,7 +989,6 @@ struct ln_self_t {
     //for app
     ln_callback_t               p_callback;                     ///< 通知コールバック
     void                        *p_param;                       ///< ユーザ用
-    void                        *p_db_param;
 };
 
 /// @}
@@ -1551,6 +1553,78 @@ static inline const ln_commit_data_t *ln_commit_local(const ln_self_t *self) {
  */
 static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
     return &self->commit_remote;
+}
+
+
+/**
+ *
+ *
+ */
+static inline const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, int htlc_idx) {
+    return &self->cnl_add_htlc[htlc_idx];
+}
+
+
+/**
+ *
+ * @note
+ *      - HTLC Success Txではない時のUnlockになる
+ *            -----------------------------------------------------
+ *            <remote_htlcsig>
+ *            <payment_preimage> ★
+ *            -----------------------------------------------------
+ *            # To you with revocation key
+ *            OP_DUP OP_HASH160 <RIPEMD160(SHA256(revocationkey))> OP_EQUAL
+ *            OP_IF
+ *                OP_CHECKSIG
+ *            OP_ELSE
+ *                <remote_htlckey> OP_SWAP OP_SIZE 32 OP_EQUAL
+ *                OP_NOTIF
+ *                    # To me via HTLC-timeout transaction (timelocked).
+ *                    OP_DROP 2 OP_SWAP <local_htlckey> 2 OP_CHECKMULTISIG
+ *                OP_ELSE
+ *                    # To you with preimage.
+ *                    OP_HASH160 <RIPEMD160(payment_hash)> OP_EQUALVERIFY
+ *                    OP_CHECKSIG
+ *                OP_ENDIF
+ *            OP_ENDIF
+ *            -----------------------------------------------------
+ */
+static inline const ucoin_buf_t *ln_preimage_local(const ucoin_tx_t *pTx) {
+    return (pTx->vin[0].wit_cnt == 3) ? &pTx->vin[0].witness[1] : NULL;
+}
+
+
+/**
+ *
+ * @note
+ *      - HTLC Success Tx時のUnlockになる
+ *            -----------------------------------------------------
+ *            0
+ *            <remote_htlcsig>
+ *            <local_htlcsig>
+ *            <payment_preimage> ★
+ *            -----------------------------------------------------
+ *            # To you with revocation key
+ *            OP_DUP OP_HASH160 <RIPEMD160(SHA256(revocationkey))> OP_EQUAL
+ *            OP_IF
+ *                OP_CHECKSIG
+ *            OP_ELSE
+ *                <remote_htlckey> OP_SWAP OP_SIZE 32 OP_EQUAL
+ *                OP_IF
+ *                    # To me via HTLC-success transaction.
+ *                    OP_HASH160 <RIPEMD160(payment_hash)> OP_EQUALVERIFY
+ *                    2 OP_SWAP <local_htlckey> 2 OP_CHECKMULTISIG
+ *                OP_ELSE
+ *                    # To you after timeout.
+ *                    OP_DROP <locktime> OP_CHECKLOCKTIMEVERIFY OP_DROP
+ *                    OP_CHECKSIG
+ *                OP_ENDIF
+ *            OP_ENDIF
+ *            -----------------------------------------------------
+ */
+static inline const ucoin_buf_t *ln_preimage_remote(const ucoin_tx_t *pTx) {
+    return (pTx->vin[0].wit_cnt == 5) ? &pTx->vin[0].witness[3] : NULL;
 }
 
 

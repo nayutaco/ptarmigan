@@ -51,6 +51,7 @@ typedef struct {
  **************************************************************************/
 
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
+static void copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf);
 
 
 /**************************************************************************
@@ -202,11 +203,73 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     bool ret = (memcmp(self->peer_node.node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
     if (ret) {
         if (p->p_self) {
-            ln_db_copy_channel(p->p_self, self);
+            copy_channel(p->p_self, self);
         } else {
             //true時は予備元では解放しないので、ここで解放する
             ln_term(self);
         }
     }
     return ret;
+}
+
+
+static void copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
+{
+    pOutSelf->lfeature_remote = pInSelf->lfeature_remote;     //3
+    pOutSelf->storage_index = pInSelf->storage_index;     //5
+    memcpy(pOutSelf->storage_seed, pInSelf->storage_seed, UCOIN_SZ_PRIVKEY);      //6
+
+    pOutSelf->funding_local = pInSelf->funding_local;     //7
+    pOutSelf->funding_remote = pInSelf->funding_remote;       //8
+
+    pOutSelf->obscured = pInSelf->obscured;       //9
+    pOutSelf->key_fund_sort = pInSelf->key_fund_sort;     //10
+    pOutSelf->htlc_num = pInSelf->htlc_num;       //11
+    pOutSelf->commit_num = pInSelf->commit_num;       //12
+    pOutSelf->htlc_id_num = pInSelf->htlc_id_num;     //13
+    pOutSelf->our_msat = pInSelf->our_msat;       //14
+    pOutSelf->their_msat = pInSelf->their_msat;       //15
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        pOutSelf->cnl_add_htlc[idx] = pInSelf->cnl_add_htlc[idx];       //16
+        pOutSelf->cnl_add_htlc[idx].p_channel_id = NULL;     //送受信前に決定する
+        pOutSelf->cnl_add_htlc[idx].p_onion_route = NULL;
+        //shared secretは別DB
+        ucoin_buf_init(&pOutSelf->cnl_add_htlc[idx].shared_secret);
+    }
+    memcpy(pOutSelf->channel_id, pInSelf->channel_id, LN_SZ_CHANNEL_ID);      //17
+    pOutSelf->short_channel_id = pInSelf->short_channel_id;       //18
+    pOutSelf->commit_local = pInSelf->commit_local;       //19
+    pOutSelf->commit_remote = pInSelf->commit_remote;     //20
+    pOutSelf->funding_sat = pInSelf->funding_sat;     //21
+    pOutSelf->feerate_per_kw = pInSelf->feerate_per_kw;       //22
+    pOutSelf->peer_storage = pInSelf->peer_storage;     //23
+    pOutSelf->peer_storage_index = pInSelf->peer_storage_index;     //24
+    pOutSelf->remote_commit_num = pInSelf->remote_commit_num;  //25
+    pOutSelf->revoke_num = pInSelf->revoke_num;  //26
+    pOutSelf->remote_revoke_num = pInSelf->remote_revoke_num;  //27
+    pOutSelf->fund_flag = pInSelf->fund_flag;  //28
+    memcpy(&pOutSelf->peer_node, &pInSelf->peer_node, sizeof(ln_node_info_t));   //29
+    pOutSelf->min_depth = pInSelf->min_depth;  //30
+
+    //スクリプト部分(shallow copy)
+
+    //cnl_anno
+    ucoin_buf_free(&pOutSelf->cnl_anno);
+    memcpy(&pOutSelf->cnl_anno, &pInSelf->cnl_anno, sizeof(ucoin_buf_t));
+
+    //redeem_fund
+    ucoin_buf_free(&pOutSelf->redeem_fund);
+    memcpy(&pOutSelf->redeem_fund, &pInSelf->redeem_fund, sizeof(ucoin_buf_t));
+
+    //shutdown_scriptpk_local
+    ucoin_buf_free(&pOutSelf->shutdown_scriptpk_local);
+    memcpy(&pOutSelf->shutdown_scriptpk_local, &pInSelf->shutdown_scriptpk_local, sizeof(ucoin_buf_t));
+
+    //shutdown_scriptpk_remote
+    ucoin_buf_free(&pOutSelf->shutdown_scriptpk_remote);
+    memcpy(&pOutSelf->shutdown_scriptpk_remote, &pInSelf->shutdown_scriptpk_remote, sizeof(ucoin_buf_t));
+
+    //tx_funding
+    ucoin_tx_free(&pOutSelf->tx_funding);
+    memcpy(&pOutSelf->tx_funding, &pInSelf->tx_funding, sizeof(ucoin_tx_t));
 }

@@ -67,7 +67,7 @@
     -7 : ln_commit_data_tにtxid追加
     -8 : ln_commit_data_tにhtlc_num追加
     -9 : self.shutdown_scriptpk_localを対象に追加
-    -10: htlckey対応
+    -10: htlckey対応, self.shutdown_scriptpk_remoteを対象に追加, LOCALKEY削除, funding_local/remote整理
  */
 
 
@@ -77,7 +77,7 @@
 #define MDB_TXN_COMMIT(a)           mdb_txn_commit(a)
 #else
 static int g_cnt = 0;
-#define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d); g_cnt++; DBG_PRINTF("mdb_txn_begin:%d\n", g_cnt)
+#define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d); g_cnt++; DBG_PRINTF("mdb_txn_begin:%d(%d)\n", g_cnt, (int)c)
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a); g_cnt--; DBG_PRINTF("mdb_txn_abort:%d\n", g_cnt)
 #define MDB_TXN_COMMIT(a)           mdb_txn_commit(a); g_cnt--; DBG_PRINTF("mdb_txn_commit:%d\n", g_cnt)
 #endif
@@ -95,8 +95,16 @@ typedef struct {
                                                                 ///<  4
     uint64_t                    storage_index;                  ///<  5:現在のindex
     uint8_t                     storage_seed[UCOIN_SZ_PRIVKEY]; ///<  6:ユーザから指定されたseed
-    ln_funding_local_data_t     funding_local;                  ///<  7:funding情報:local
-    ln_funding_remote_data_t    funding_remote;                 ///<  8:funding情報:remote
+
+    //ln_funding_local_data_t     funding_local;                  ///<  7:funding情報:local
+    uint8_t                     funding_local_txid[UCOIN_SZ_TXID];  ///< 7.1:funding情報:local:funding_tx txid
+    uint16_t                    funding_local_txindex;          ///<  7.2:funding情報:local:txindex
+    uint8_t                     funding_local_privkey[LN_FUNDIDX_MAX][UCOIN_SZ_PRIVKEY];    ///< 7.3:funding情報:local:privkey
+
+    //ln_funding_remote_data_t    funding_remote;                 ///<  8:funding情報:remote
+    uint8_t                     funding_remote_pubkey[LN_FUNDIDX_MAX][UCOIN_SZ_PUBKEY];     ///< 8.1:funding情報:remote:pubkey
+    uint8_t                     funding_remote_prev_percommit[UCOIN_SZ_PUBKEY];     ///< 8.2:funding情報:remote:1つ前のper_commit_point
+
     uint64_t                    obscured;                       ///<  9:commitment numberをXORするとobscured commitment numberになる値。
     ucoin_keys_sort_t           key_fund_sort;                  ///< 10:2-of-2のソート順(local, remoteを正順とした場合)
     uint16_t                    htlc_num;                       ///< 11:HTLC数
@@ -168,8 +176,8 @@ static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, u
 static int save_anno_node(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId);
 static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
 
-static bool save_preimage_open(lmdb_db_t *p_db);
-static void save_preimage_close(lmdb_db_t *p_db);
+static bool save_preimage_open(lmdb_db_t *p_db, MDB_txn *txn);
+static void save_preimage_close(lmdb_db_t *p_db, MDB_txn *txn);
 
 static int write_version(MDB_txn *txn, const uint8_t *pMyNodeId);
 static int check_version(MDB_txn *txn, MDB_dbi *pdbi, uint8_t *pMyNodeId);
@@ -312,8 +320,21 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         self->lfeature_remote = p_bk->lfeature_remote;     //3
         self->storage_index = p_bk->storage_index;     //5
         memcpy(self->storage_seed, p_bk->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-        self->funding_local = p_bk->funding_local;     //7
-        self->funding_remote = p_bk->funding_remote;       //8
+
+        //self->funding_local = p_bk->funding_local;     //7
+        memcpy(self->funding_local.txid, p_bk->funding_local_txid, UCOIN_SZ_TXID);      //7.1
+        self->funding_local.txindex = p_bk->funding_local_txindex;      //7.2
+        for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+            memcpy(self->funding_local.keys[lp].priv, p_bk->funding_local_privkey[lp], UCOIN_SZ_PRIVKEY);   //7.3
+            ucoin_keys_priv2pub(self->funding_local.keys[lp].pub, self->funding_local.keys[lp].priv);
+        }
+
+        //self->funding_remote = p_bk->funding_remote;       //8
+        for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+            memcpy(self->funding_remote.pubkeys[lp], p_bk->funding_remote_pubkey[lp], UCOIN_SZ_PUBKEY);     //8.1
+        }
+        memcpy(self->funding_remote.prev_percommit, p_bk->funding_remote_prev_percommit, UCOIN_SZ_PUBKEY);  //8.2
+
         self->obscured = p_bk->obscured;       //9
         self->key_fund_sort = p_bk->key_fund_sort;     //10
         self->htlc_num = p_bk->htlc_num;       //11
@@ -373,6 +394,13 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         pos += sizeof(uint16_t);
         ucoin_buf_free(&self->shutdown_scriptpk_local);
         ucoin_buf_alloccopy(&self->shutdown_scriptpk_local, data.mv_data + pos, len);
+        pos += len;
+
+        //shutdown_scriptpk_remote
+        len = *(const uint16_t *)(data.mv_data + pos);
+        pos += sizeof(uint16_t);
+        ucoin_buf_free(&self->shutdown_scriptpk_remote);
+        ucoin_buf_alloccopy(&self->shutdown_scriptpk_remote, data.mv_data + pos, len);
         pos += len;
 
         //tx_funding
@@ -437,24 +465,18 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_del_channel(const ln_self_t *self)
+bool ln_db_del_channel(const ln_self_t *self, void *p_db_param)
 {
     int         retval;
-    MDB_txn     *txn = NULL;
     MDB_dbi     dbi_anno;
     MDB_dbi     dbi_cnl;
     MDB_cursor  *cursor;
     MDB_val     key, data;
     char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
-
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
-    if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
 
     //channel_announcementから自分のshort_channel_idを含むデータを削除
-    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, 0, &dbi_anno);
+    retval = mdb_dbi_open(p_cur->txn, M_DB_ANNO_CNL, 0, &dbi_anno);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         if (retval == MDB_NOTFOUND) {
@@ -464,7 +486,7 @@ bool ln_db_del_channel(const ln_self_t *self)
             goto LABEL_EXIT;
         }
     }
-    retval = mdb_cursor_open(txn, dbi_anno, &cursor);
+    retval = mdb_cursor_open(p_cur->txn, dbi_anno, &cursor);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -489,7 +511,7 @@ bool ln_db_del_channel(const ln_self_t *self)
 LABEL_DEL_SS:
     memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
+    retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi_cnl);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         if (retval == MDB_NOTFOUND) {
@@ -499,7 +521,7 @@ LABEL_DEL_SS:
             goto LABEL_EXIT;
         }
     }
-    retval = mdb_drop(txn, dbi_cnl, 1);
+    retval = mdb_drop(p_cur->txn, dbi_cnl, 1);
     DBG_PRINTF("drop: %s(%d)\n", dbname, retval);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -508,22 +530,15 @@ LABEL_DEL_SS:
     //channel削除
 LABEL_DEL_CNL:
     memcpy(dbname, M_CHANNEL_NAME, M_PREFIX_LEN);
-    retval = mdb_dbi_open(txn, dbname, 0, &dbi_cnl);
+    retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi_cnl);
     if (retval == 0) {
-        retval = mdb_drop(txn, dbi_cnl, 1);
+        retval = mdb_drop(p_cur->txn, dbi_cnl, 1);
         DBG_PRINTF("drop: %s(%d)\n", dbname, retval);
     }
-    if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-    }
-
-    MDB_TXN_COMMIT(txn);
-    txn = NULL;
 
 LABEL_EXIT:
-    if (txn) {
-        DBG_PRINTF("abort\n");
-        MDB_TXN_ABORT(txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
     return retval == 0;
 }
@@ -535,7 +550,7 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
     int retval;
     lmdb_cursor_t cur;
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, MDB_RDONLY, &cur.txn);
+    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &cur.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -574,7 +589,7 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
                 memset(&self, 0, sizeof(self));
                 retval = ln_lmdb_load_channel(&self, cur.txn, &dbi2);
                 if (retval == 0) {
-                    result = (*pFunc)(&self, (void *)cur.txn, pFuncParam);
+                    result = (*pFunc)(&self, (void *)&cur, pFuncParam);
                     if (result) {
                         DBG_PRINTF("match !\n");
                         break;
@@ -584,71 +599,13 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
                     //DBG_PRINTF("err: %s\n", mdb_strerror(retval));
                 }
             }
-            mdb_close(mpDbEnv, dbi2);
         }
     }
     mdb_cursor_close(cur.cursor);
-    mdb_close(mpDbEnv, cur.dbi);
-    MDB_TXN_ABORT(cur.txn);
+    MDB_TXN_COMMIT(cur.txn);
 
 LABEL_EXIT:
     return result;
-}
-
-
-void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
-{
-    pOutSelf->lfeature_remote = pInSelf->lfeature_remote;     //3
-    pOutSelf->storage_index = pInSelf->storage_index;     //5
-    memcpy(pOutSelf->storage_seed, pInSelf->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-    pOutSelf->funding_local = pInSelf->funding_local;     //7
-    pOutSelf->funding_remote = pInSelf->funding_remote;       //8
-    pOutSelf->obscured = pInSelf->obscured;       //9
-    pOutSelf->key_fund_sort = pInSelf->key_fund_sort;     //10
-    pOutSelf->htlc_num = pInSelf->htlc_num;       //11
-    pOutSelf->commit_num = pInSelf->commit_num;       //12
-    pOutSelf->htlc_id_num = pInSelf->htlc_id_num;     //13
-    pOutSelf->our_msat = pInSelf->our_msat;       //14
-    pOutSelf->their_msat = pInSelf->their_msat;       //15
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        pOutSelf->cnl_add_htlc[idx] = pInSelf->cnl_add_htlc[idx];       //16
-        pOutSelf->cnl_add_htlc[idx].p_channel_id = NULL;     //送受信前に決定する
-        pOutSelf->cnl_add_htlc[idx].p_onion_route = NULL;
-        //shared secretは別DB
-        ucoin_buf_init(&pOutSelf->cnl_add_htlc[idx].shared_secret);
-    }
-    memcpy(pOutSelf->channel_id, pInSelf->channel_id, LN_SZ_CHANNEL_ID);      //17
-    pOutSelf->short_channel_id = pInSelf->short_channel_id;       //18
-    pOutSelf->commit_local = pInSelf->commit_local;       //19
-    pOutSelf->commit_remote = pInSelf->commit_remote;     //20
-    pOutSelf->funding_sat = pInSelf->funding_sat;     //21
-    pOutSelf->feerate_per_kw = pInSelf->feerate_per_kw;       //22
-    pOutSelf->peer_storage = pInSelf->peer_storage;     //23
-    pOutSelf->peer_storage_index = pInSelf->peer_storage_index;     //24
-    pOutSelf->remote_commit_num = pInSelf->remote_commit_num;  //25
-    pOutSelf->revoke_num = pInSelf->revoke_num;  //26
-    pOutSelf->remote_revoke_num = pInSelf->remote_revoke_num;  //27
-    pOutSelf->fund_flag = pInSelf->fund_flag;  //28
-    memcpy(&pOutSelf->peer_node, &pInSelf->peer_node, sizeof(ln_node_info_t));   //29
-    pOutSelf->min_depth = pInSelf->min_depth;  //30
-
-    //スクリプト部分(shallow copy)
-
-    //cnl_anno
-    ucoin_buf_free(&pOutSelf->cnl_anno);
-    memcpy(&pOutSelf->cnl_anno, &pInSelf->cnl_anno, sizeof(ucoin_buf_t));
-
-    //redeem_fund
-    ucoin_buf_free(&pOutSelf->redeem_fund);
-    memcpy(&pOutSelf->redeem_fund, &pInSelf->redeem_fund, sizeof(ucoin_buf_t));
-
-    //tx_funding
-    ucoin_tx_free(&pOutSelf->tx_funding);
-    memcpy(&pOutSelf->tx_funding, &pInSelf->tx_funding, sizeof(ucoin_tx_t));
-
-    //shutdown_scriptpk_local
-    ucoin_buf_free(&pOutSelf->shutdown_scriptpk_local);
-    memcpy(&pOutSelf->shutdown_scriptpk_local, &pInSelf->shutdown_scriptpk_local, sizeof(ucoin_buf_t));
 }
 
 
@@ -1090,12 +1047,16 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
  * payment preimage
  **************************************************************************/
 
-bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount)
+bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam)
 {
     lmdb_db_t db;
     MDB_val key, data;
+    MDB_txn *txn = NULL;
 
-    save_preimage_open(&db);
+    if (pDbParam != NULL) {
+        txn = ((lmdb_db_t *)pDbParam)->txn;
+    }
+    save_preimage_open(&db, txn);
 
     key.mv_size = LN_SZ_PREIMAGE;
     key.mv_data = (CONST_CAST uint8_t *)pPreImage;
@@ -1108,7 +1069,7 @@ bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
-    save_preimage_close(&db);
+    save_preimage_close(&db, txn);
 
     return retval == 0;
 }
@@ -1119,7 +1080,7 @@ bool ln_db_del_preimage(const uint8_t *pPreImage)
     lmdb_db_t db;
     MDB_val key;
 
-    save_preimage_open(&db);
+    save_preimage_open(&db, NULL);
 
     key.mv_size = LN_SZ_PREIMAGE;
     key.mv_data = (CONST_CAST uint8_t *)pPreImage;
@@ -1130,26 +1091,22 @@ bool ln_db_del_preimage(const uint8_t *pPreImage)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
-    save_preimage_close(&db);
+    save_preimage_close(&db, NULL);
 
     return retval == 0;
 }
 
 
-bool ln_db_cursor_preimage_open(void **ppCur, void *p_db_param)
+bool ln_db_cursor_preimage_open(void **ppCur)
 {
     int         retval;
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
 
-    if (p_db_param != NULL) {
-        p_cur->txn = (MDB_txn *)p_db_param;
-    } else {
-        p_cur->txn = NULL;
-        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, MDB_RDONLY, &p_cur->txn);
-        if (retval != 0) {
-            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
+    p_cur->txn = NULL;
+    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, MDB_RDONLY, &p_cur->txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
     }
     retval = mdb_dbi_open(p_cur->txn, M_DB_PREIMAGE, 0, &p_cur->dbi);
     if (retval != 0) {
@@ -1165,24 +1122,22 @@ LABEL_EXIT:
     if (retval == 0) {
         *ppCur = p_cur;
     } else {
-        if ((p_cur->txn != NULL) && (p_db_param == NULL)) {
+        if (p_cur->txn != NULL) {
             MDB_TXN_ABORT(p_cur->txn);
         }
         M_FREE(p_cur);
         *ppCur = NULL;
-        DBG_PRINTF("fail: %p\n", p_db_param);
     }
     return retval == 0;
 }
 
 
-void ln_db_cursor_preimage_close(void *pCur, void *p_db_param)
+void ln_db_cursor_preimage_close(void *pCur)
 {
     if (pCur != NULL) {
         lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
         mdb_cursor_close(p_cur->cursor);
-        mdb_close(mpDbEnv, p_cur->dbi);
-        if (p_db_param == NULL) {
+        if (p_cur->txn != NULL) {
             MDB_TXN_ABORT(p_cur->txn);
         }
     }
@@ -1336,8 +1291,20 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
     bk->lfeature_remote = self->lfeature_remote;     //3
     bk->storage_index = self->storage_index;     //5
     memcpy(bk->storage_seed, self->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-    bk->funding_local = self->funding_local;     //7
-    bk->funding_remote = self->funding_remote;       //8
+
+    //bk->funding_local = self->funding_local;     //7
+    memcpy(bk->funding_local_txid, self->funding_local.txid, UCOIN_SZ_TXID);    //7.1
+    bk->funding_local_txindex = self->funding_local.txindex;        //7.2
+    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+        memcpy(bk->funding_local_privkey[lp], self->funding_local.keys[lp].priv, UCOIN_SZ_PRIVKEY);     //7.3
+    }
+
+    //bk->funding_remote = self->funding_remote;       //8
+    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+        memcpy(bk->funding_remote_pubkey[lp], self->funding_remote.pubkeys[lp], UCOIN_SZ_PUBKEY);       //8.1
+    }
+    memcpy(bk->funding_remote_prev_percommit, self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);    //8.2
+
     bk->obscured = self->obscured;       //9
     bk->key_fund_sort = self->key_fund_sort;     //10
     bk->htlc_num = self->htlc_num;       //11
@@ -1382,6 +1349,7 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         size_t sz = sizeof(uint16_t) + self->cnl_anno.len +
                         sizeof(uint16_t) + self->redeem_fund.len +
                         sizeof(uint16_t) + self->shutdown_scriptpk_local.len +
+                        sizeof(uint16_t) + self->shutdown_scriptpk_remote.len +
                         sizeof(uint16_t) + buf_funding.len;
         uint16_t len;
         ucoin_push_t ps;
@@ -1399,6 +1367,10 @@ static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         len = self->shutdown_scriptpk_local.len;
         ucoin_push_data(&ps, &len, sizeof(len));
         ucoin_push_data(&ps, self->shutdown_scriptpk_local.buf, len);
+        //shutdown_scriptpk_remote
+        len = self->shutdown_scriptpk_remote.len;
+        ucoin_push_data(&ps, &len, sizeof(len));
+        ucoin_push_data(&ps, self->shutdown_scriptpk_remote.buf, len);
 
         //buf_funding
         len = buf_funding.len;
@@ -1516,7 +1488,6 @@ LABEL_EXIT:
 static void close_anno_channel_cursor(lmdb_cursor_t *pCur)
 {
     mdb_cursor_close(pCur->cursor);
-    mdb_close(mpDbEnv, pCur->dbi);
     MDB_TXN_ABORT(pCur->txn);
 }
 
@@ -1727,14 +1698,18 @@ LABEL_EXIT:
     return retval == 0;
 }
 
-static bool save_preimage_open(lmdb_db_t *p_db)
+static bool save_preimage_open(lmdb_db_t *p_db, MDB_txn *txn)
 {
     int         retval;
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &p_db->txn);
-    if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
+    if (txn == NULL) {
+        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &p_db->txn);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+    } else {
+        p_db->txn = txn;
     }
     retval = mdb_dbi_open(p_db->txn, M_DB_PREIMAGE, MDB_CREATE, &p_db->dbi);
     if (retval != 0) {
@@ -1748,9 +1723,11 @@ LABEL_EXIT:
 }
 
 
-static void save_preimage_close(lmdb_db_t *p_db)
+static void save_preimage_close(lmdb_db_t *p_db, MDB_txn *txn)
 {
-    MDB_TXN_COMMIT(p_db->txn);
+    if (txn == NULL) {
+        MDB_TXN_COMMIT(p_db->txn);
+    }
 }
 
 

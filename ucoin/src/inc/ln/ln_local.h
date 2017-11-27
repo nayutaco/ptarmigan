@@ -50,9 +50,8 @@
 #define MSG_SCRIPTIDX_REMOTEKEY         (0)         ///< remotekey
 #define MSG_SCRIPTIDX_DELAYED           (1)         ///< delayedkey
 #define MSG_SCRIPTIDX_REVOCATION        (2)         ///< revocationkey
-#define MSG_SCRIPTIDX_LOCALKEY          (3)         ///< localkey
-#define MSG_SCRIPTIDX_LOCALHTLCKEY      (4)         ///< local_htlckey
-#define MSG_SCRIPTIDX_REMOTEHTLCKEY     (5)         ///< remote_htlckey
+#define MSG_SCRIPTIDX_LOCALHTLCKEY      (3)         ///< local_htlckey
+#define MSG_SCRIPTIDX_REMOTEHTLCKEY     (4)         ///< remote_htlckey
 #define MSG_SCRIPTIDX_MAX               (MSG_SCRIPTIDX_REMOTEHTLCKEY+1)
 #if LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
 #error LN_SCRIPTIDX_MAX != MSG_SCRIPTIDX_MAX
@@ -88,6 +87,7 @@
 #define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
 #define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
+#define MSGTYPE_IS_ANNOUNCE(type)           ((MSGTYPE_CHANNEL_ANNOUNCEMENT <= (type)) && ((type) <= MSGTYPE_CHANNEL_UPDATE))
 
 
 // self.init_flag
@@ -104,9 +104,6 @@
 #define CHANNEL_FLAGS_ANNOCNL       (1 << 0)
 #define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり
 #define CHANNEL_FLAGS_VALUE         CHANNEL_FLAGS_ANNOCNL   ///< TODO:open_channel.channel_flags
-
-#define VOUT_OPT_TOLOCAL            (0xfe)                  ///< vout=to_local
-#define VOUT_OPT_TOREMOTE           (0xff)                  ///< vout=to_remote
 
 #define HTLCSIGN_TO_SUCCESS         (1)                     ///<
 #define HTLCSIGN_OF_PREIMG          (2)                     ///< 相手が送信したcommit_txのOffered HTLC
@@ -258,10 +255,16 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
 
 /** Offered/Receveid HTLC Transaction作成
  *
- *
+ * @param[out]      pTx         TX情報
+ * @param[in]       Value       vout amount
+ * @param[in]       pScript     vout P2WSHスクリプト
+ * @param[in]       Type        pScriptタイプ(LN_HTLCTYPE_xxx)
+ * @param[in]       CltvExpiry  locktime(TypeがOffered HTLCの場合のみ)
+ * @param[in]       pTxid       vin TXID
+ * @param[in]       Index       vin index
  */
-bool HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
-                const uint8_t *pTxid, uint8_t Type, uint32_t CltvExpiry, int Index);
+void HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScript,
+                ln_htlctype_t Type, uint32_t CltvExpiry, const uint8_t *pTxid, int Index);
 
 
 /** Offered/Receveid HTLC Transaction署名
@@ -426,12 +429,5 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
  * @param[in]       pMyNodeId       非NULL時、DB保存するnode_id
  */
 void HIDDEN ln_db_init(const uint8_t *pMyNodeId);
-
-
-/** DBから取得したデータのみをコピー(self)
- *
- *
- */
-void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf);
 
 #endif /* LN_LOCAL_H__ */

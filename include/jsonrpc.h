@@ -82,10 +82,24 @@ bool jsonrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t 
  *
  * @param[in]   BHeight     block height
  * @param[in]   BIndex      block index
+ * @param@in]   VIndex      vout index
  * @retval  true        unspent状態
  * @retval  false       spent状態
  */
 bool jsonrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex);
+
+
+/** [bitcoin rpc]blockからvin[0]が一致するtransactionを検索
+ *
+ * @param[out]  pTx         トランザクション情報
+ * @param[in]   BHeight     block height
+ * @param[in]   pTxid       検索するするTXID(バイト列)
+ * @param@in]   VIndex      vout index
+ * @retval  true        検索成功
+ * @note
+ *      - 検索するvinはvin_cnt==1のみ
+ */
+bool jsonrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
 
 
 /** [bitcoin rpc]sendrawtransaction
@@ -101,10 +115,19 @@ bool jsonrpc_sendraw_tx(uint8_t *pTxid, const uint8_t *pData, uint16_t Len);
 /** [bitcoin rpc]getrawtransaction
  *
  * @param[out]  pTx         トランザクション情報
- * @param[in]   pTxid       取得するTXID
+ * @param[in]   pTxid       取得するTXID(バイト列)
  * @retval  true        取得成功
  */
 bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid);
+
+
+/** [bitcoin rpc]getrawtransaction
+ *
+ * @param[out]  pTx         トランザクション情報
+ * @param[in]   txid        取得するTXID(文字列)
+ * @retval  true        取得成功
+ */
+bool jsonrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid);
 
 
 /** [bitcoin rpc]gettxout
