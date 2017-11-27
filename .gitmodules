@@ -1,9 +1,3 @@
-[submodule "libs/jansson"]
-	path = libs/jansson
-	url = https://github.com/akheron/jansson.git
-[submodule "libs/curl"]
-	path = libs/curl
-	url = https://github.com/curl/curl.git
 [submodule "ucoin"]
 	path = ucoin
 	url = git@bitbucket.org:nayuta_co/ucoin.git
