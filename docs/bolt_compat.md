@@ -10,10 +10,10 @@
 ## BOLT#2
 
 * Channel Close
-  * FEEは相手と同じ値を即座に返している(実際は、FEEの認識が合うまで通信し合うようになっている)。
+  * FEEは `estimatefee` の結果を使用している
 
 * Normal Operation
-  * エラーメッセージに対応していない(abortする)。
+  * エラーメッセージに対応していない(箇所によってはabortする)。
   * `commitment_signed` がなかった場合の取消にまだ対応できておらず、受信メッセージをすぐに反映させている。
 
 * Message Retransmission
@@ -23,7 +23,6 @@
 
 * Commitment Transaction
   * HTLCは1つまでしか動作確認していない
-  * CLTV, CSVのタイムアウトは監視していない
 
 ## BOLT#4
 
@@ -31,7 +30,9 @@
 
 ## BOLT#5
 
-* Mutual Close以外は確認していない
+* Mutual Closeの完了チェック(`closing_tx` の展開チェック)を `getblock` でのTXID監視に変更
+ * よって、1ブロック以上マイニングされないと完了しない
+* Unilateral Closeのpreimage取得実装中
 
 ## BOLT#7
 
