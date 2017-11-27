@@ -1,8 +1,15 @@
 # CHANGELOG
 
+## 2017/11/27
+
+* unilateral closeでのpreimage監視追加(動作確認中)
+* mutual closeでの`closing_tx`展開チェックを`getblock`式に変更
+* DBバージョン更新
+
 ## 2017/11/23
 
 * [`htlckey`](https://github.com/lightningnetwork/lightning-rfc/commit/4f91f0bb2a9c176dda019f9c0618c10f9fa0acfd) support
+* DBバージョン更新
 
 ## 2017/11/20
 
