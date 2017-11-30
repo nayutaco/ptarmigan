@@ -2979,7 +2979,7 @@ static bool create_to_local(ln_self_t *self,
     }
 
     int htlc_num = 0;
-    if (cnt > 0) {
+    if (tx_local.vout_cnt > 0) {
         //各HTLCの署名
         DBG_PRINTF("HTLC sign\n");
 
