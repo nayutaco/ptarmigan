@@ -105,7 +105,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf);
 bool lnapp_close_channel_force(const uint8_t *pNodeId);
 bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_channel_id);
 void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult);
+bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult);
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
-void lnapp_set_debug(unsigned long debug);
 
 #endif /* LNAPP_H__ */
