@@ -1004,6 +1004,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
         //接続中
+        result = cJSON_CreateObject();
         bool ret = lnapp_get_committx(p_appconf, result);
         if (!ret) {
             ctx->error_code = RPCERR_ERROR;

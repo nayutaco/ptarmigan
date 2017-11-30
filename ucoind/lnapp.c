@@ -656,11 +656,11 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
         ucoin_buf_t buf;
         ucoin_tx_create(&buf, &close_dat.p_tx[0]);
 
-        char *transaction;
-        transaction = (char *)malloc(buf.len * 2 + 1);
+        char *transaction = (char *)malloc(buf.len * 2 + 1);
         misc_bin2str(transaction, buf.buf, buf.len);
         cJSON_AddItemToObject(pResult, "tx", cJSON_CreateString(transaction));
         ln_free_close_force_tx(&close_dat);
+        free(transaction);
     }
 
     return ret;
