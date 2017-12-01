@@ -85,7 +85,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
-static bool close_revoked(ln_self_t *self);
+static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
 
 
 /********************************************************************
@@ -1086,8 +1086,6 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     (void)p_param;
 
-    //self->p_db_param = p_db_param;
-
     uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
     if (confm > 0) {
         DBG_PRINTF("funding_txid[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
@@ -1110,24 +1108,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                 del = close_unilateral_remote(self, p_db_param);
             } else {
                 //最新ではないcommit_tx --> mutual close or revoked transaction close
-                ucoin_tx_t tx;
-                ucoin_tx_init(&tx);
-                bool ret = search_spent_tx(&tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
-                if (ret) {
-                    DBG_PRINTF("find!\n");
-                    ucoin_print_tx(&tx);
-                    if (tx.vout_cnt <= 2) {
-                        ucoin_buf_t *p_buf_pk = &tx.vout[0].script;
-                        if ( ucoin_buf_cmp(p_buf_pk, &self->shutdown_scriptpk_local) ||
-                             ucoin_buf_cmp(p_buf_pk, &self->shutdown_scriptpk_remote) ) {
-                            //voutのどちらかがshutdown時のscriptPubkeyと一致すればclosing_txと見なす
-                            DBG_PRINTF("This is closing_tx\n");
-                            del = true;
-                        } else {
-                            del = close_revoked(self);
-                        }
-                    }
-                }
+                del = close_others(self, confm, p_db_param);
             }
             ucoin_tx_free(&tx_commit);
         }
@@ -1137,8 +1118,6 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             assert(ret);
         }
     }
-
-    //self->p_db_param = NULL;
 
     return false;
 }
@@ -1293,8 +1272,36 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 }
 
 
-static bool close_revoked(ln_self_t *self)
+static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
-    SYSLOG_WARN("closed: ugly way\n");
-    return false;
+    (void)pDbParam;
+    bool del = false;
+
+    ucoin_tx_t tx;
+    ucoin_tx_init(&tx);
+    bool ret = search_spent_tx(&tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
+    if (ret) {
+        DBG_PRINTF("find!\n");
+        ucoin_print_tx(&tx);
+        if (tx.vout_cnt <= 2) {
+            ucoin_buf_t *p_buf_pk = &tx.vout[0].script;
+            if ( ucoin_buf_cmp(p_buf_pk, &self->shutdown_scriptpk_local) ||
+                 ucoin_buf_cmp(p_buf_pk, &self->shutdown_scriptpk_remote) ) {
+                //voutのどちらかがshutdown時のscriptPubkeyと一致すればclosing_txと見なす
+                DBG_PRINTF("This is closing_tx\n");
+                del = true;
+            } else {
+                //revoked transaction close
+                SYSLOG_WARN("closed: ugly way\n");
+                ln_close_force_t close_dat;
+                bool ret = ln_close_ugly(self, &close_dat, &tx);
+                if (ret) {
+                    ln_free_close_force_tx(&close_dat);
+                }
+            }
+        }
+    }
+    ucoin_tx_free(&tx);
+
+    return del;
 }

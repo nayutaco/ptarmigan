@@ -824,6 +824,10 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
 
+    ucoin_util_keys_t bak_key = self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT];
+    uint8_t bak_pubkey[UCOIN_SZ_PUBKEY];
+    memcpy(bak_pubkey, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], sizeof(bak_pubkey));
+
     //commit_tx
 
     //local
@@ -859,6 +863,11 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     }
 
     self->commit_num++;
+
+    self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT] = bak_key;
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_pubkey, sizeof(bak_pubkey));
+    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     return ret;
 }
@@ -907,11 +916,68 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
         ln_free_close_force_tx(pClose);
     }
 
-    //Received HTLCがあって preimageを自分が持っている場合は、HTLC Success tx送信
-
-    self->remote_commit_num++;
-
     DBG_PRINTF("END\n");
+    return ret;
+}
+
+
+bool ln_close_ugly(ln_self_t *self, ln_close_force_t *pClose, const ucoin_tx_t *pTx)
+{
+    pClose->num = 0;
+    pClose->p_tx = NULL;
+    pClose->p_htlc_idx = NULL;
+
+    //相手がrevoked_txを展開した前提で、to_localを再現
+
+    uint64_t commit_num = ((uint64_t)(pTx->vin[0].sequence & 0xffffff)) << 24;
+    commit_num |= (uint64_t)(pTx->locktime & 0xffffff);
+    commit_num ^= self->obscured;
+    DBG_PRINTF("commit_num=%" PRIx64 "\n", commit_num);
+
+    uint8_t per_commit_sec[UCOIN_SZ_PRIVKEY];
+    bool ret = ln_derkey_storage_get_secret(per_commit_sec, &self->peer_storage, (uint64_t)(M_SECINDEX_INIT - commit_num));
+    assert(ret);
+    DBG_PRINTF2("  pri:");
+    DUMPBIN(per_commit_sec, UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF2("  pub:");
+    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commit_sec);
+    DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+
+    //local
+    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, (uint64_t)(M_SECINDEX_INIT - commit_num));
+    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+
+    //update keys
+    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    //commitment number(for obscured commitment number)
+    self->remote_commit_num = commit_num;
+
+    ucoin_buf_t buf_ws;
+    ucoin_buf_init(&buf_ws);
+    ln_create_script_local(&buf_ws,
+                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
+                self->commit_local.to_self_delay);
+
+    uint8_t to_local_output[UCOIN_SZ_SHA256];
+    ucoin_util_sha256(to_local_output, buf_ws.buf, buf_ws.len);
+    DBG_PRINTF("### to_local output: ");
+    DUMPBIN(to_local_output, sizeof(to_local_output));
+
+    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
+        const ucoin_buf_t *p_vout = &pTx->vout[lp].script;
+        if ( (p_vout->len == 2 + sizeof(to_local_output)) &&
+             (p_vout->buf[0] == 0x00) &&
+             (p_vout->buf[1] == (uint8_t)sizeof(to_local_output)) &&
+             (memcmp(&p_vout->buf[2], to_local_output, sizeof(to_local_output)) == 0) ) {
+            DBG_PRINTF("[%d]to_local !\n", lp);
+        }
+    }
+
+    if (!ret) {
+        ln_free_close_force_tx(pClose);
+    }
+
     return ret;
 }
 

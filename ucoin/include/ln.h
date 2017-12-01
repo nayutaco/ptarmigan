@@ -1291,6 +1291,18 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose);
 bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose);
 
 
+/** revoked transaction close(ugly way)の対処
+ *
+ * @param[in]           self        channel情報
+ * @param[out]          pClose      生成したトランザクション
+ * @param[in]           pTx         revoked transaction
+ * @retval      ture    成功
+ * @note
+ *      - pCloseは @ln_free_close_force_tx()で解放すること
+ */
+bool ln_close_ugly(ln_self_t *self, ln_close_force_t *pClose, const ucoin_tx_t *pTx);
+
+
 /** ln_close_force_tのメモリ解放
  *
  * @param[out]          pClose      ln_create_close_force_tx()やln_create_closed_tx()で生成したデータ
