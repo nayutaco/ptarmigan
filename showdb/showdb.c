@@ -172,8 +172,6 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
         if (showflag & SHOW_CNLANNO) {
             if (cnt1) {
                 printf(",");
-            } else {
-                printf(M_QQ("channel_announcement_list") ": [");
             }
 
             MDB_dbi     dbi;
@@ -198,6 +196,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                         if (cnt1) {
                             printf(",\n[\n");
                         } else {
+                            printf(M_QQ("channel_announcement_list") ": [");
                             printf("[\n");
                         }
                     }

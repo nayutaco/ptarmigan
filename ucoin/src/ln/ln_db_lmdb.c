@@ -1242,7 +1242,7 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    self->revoked_num = *(uint16_t *)data.mv_data;
+    self->revoked_cnt = *(uint16_t *)data.mv_data;
 
     key.mv_data = "rvc";
     retval = mdb_get(txn, dbi, &key, &data);
@@ -1257,7 +1257,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_save_revoked(const ln_self_t *self, void *pDbParam)
+bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam)
 {
     MDB_val key, data;
     MDB_txn     *txn;
@@ -1303,8 +1303,8 @@ bool ln_db_save_revoked(const ln_self_t *self, void *pDbParam)
     }
 
     key.mv_data = "rvn";
-    data.mv_size = sizeof(self->revoke_num);
-    data.mv_data = (CONST_CAST uint16_t *)&self->revoke_num;
+    data.mv_size = sizeof(self->revoked_cnt);
+    data.mv_data = (CONST_CAST uint16_t *)&self->revoked_cnt;
     retval = mdb_put(txn, dbi, &key, &data, 0);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1320,6 +1320,20 @@ bool ln_db_save_revoked(const ln_self_t *self, void *pDbParam)
         goto LABEL_EXIT;
     }
 
+    if (bUpdate) {
+        memcpy(dbname, M_CHANNEL_NAME, M_PREFIX_LEN);
+        retval = mdb_dbi_open(txn, dbname, 0, &dbi);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+        retval = save_channel(self, txn, &dbi);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+
+    }
 LABEL_EXIT:
     DBG_PRINTF("retval=%d\n", retval);
     return retval == 0;

@@ -636,6 +636,8 @@ LABEL_DECREF:
         }
         //検索
         p_tx = json_object_get(p_result, M_TX);
+        ucoin_push_t push;
+        ucoin_push_init(&push, pTxBuf, 0);
         size_t index;
         json_t *p_value;
         json_array_foreach(p_tx, index, p_value) {
@@ -645,14 +647,22 @@ LABEL_DECREF:
             ucoin_tx_init(&tx);
             bool bret = jsonrpc_getraw_txstr(&tx, txid);
             if (!bret) {
-                continue;
+                int cnt = pTxBuf->len / sizeof(ucoin_tx_t);
+                ucoin_tx_t *p_tx = (ucoin_tx_t *)pTxBuf->buf;
+                for (int lp = 0; lp < cnt; lp++) {
+                    ucoin_tx_free(&p_tx[lp]);
+                }
+                ucoin_buf_free(pTxBuf);
+                ucoin_tx_free(&tx);
+                ret = false;
+                break;
             }
-            ucoin_push_t push;
-            ucoin_push_init(&push, pTxBuf, 0);
             for (int lp = 0; lp < tx.vout_cnt; lp++) {
                 if (ucoin_buf_cmp(&tx.vout[0].script, pVout)) {
                     //一致
+                    DBG_PRINTF("match: %s\n", txid);
                     ucoin_push_data(&push, &tx, sizeof(ucoin_tx_t));
+                    DBG_PRINTF("len=%d\n", pTxBuf->len);
                     ucoin_tx_init(&tx);     //freeさせない
                     ret = true;
                     break;

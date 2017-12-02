@@ -973,14 +973,14 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
     ucoin_sw_wit2prog_p2wsh(self->revoked_vout.buf, &self->revoked_wit);
 
     //取り戻す必要があるvout数
-    self->revoked_num = 0;
+    self->revoked_cnt = 0;
     for (int lp = 0; lp < pTx->vout_cnt; lp++) {
         if (pTx->vout[lp].script.len != 2 + UCOIN_SZ_HASH160) {
             //to_remote output以外は取り戻す
-            self->revoked_num++;
+            self->revoked_cnt++;
         }
     }
-    DBG_PRINTF("revoked_num=%d\n", self->revoked_num);
+    DBG_PRINTF("revoked_cnt=%d\n", self->revoked_cnt);
 
     return ret;
 }
@@ -1309,8 +1309,11 @@ void ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, u
                     self->funding_local.keys[MSG_FUNDIDX_REVOCATION].priv,
                     self->revoked_sec.buf);
         ucoin_keys_priv2pub(signkey.pub, signkey.priv);
-        assert(memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION], UCOIN_SZ_PUBKEY) == 0);
     }
+    DBG_PRINTF("key-priv: ");
+    DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF("key-pub : ");
+    DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
     ucoin_buf_t sig_delayed;
     ucoin_buf_init(&sig_delayed);
