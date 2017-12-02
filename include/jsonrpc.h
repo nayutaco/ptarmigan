@@ -102,6 +102,15 @@ bool jsonrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex);
 bool jsonrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
 
 
+/** [bitcoin rpc]blockからvoutが一致するtransactionを検索
+ * @param[out]  pTxBuf      トランザクション情報(ucoin_tx_tの配列を保存する)
+ * @param[in]   BHeight     block height
+ * @param@in]   pVout       vout
+ * @retval  true        検索成功
+ */
+bool jsonrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout);
+
+
 /** [bitcoin rpc]sendrawtransaction
  *
  * @param[out]  pTxid       取得したTXID(戻り値がtrue時)

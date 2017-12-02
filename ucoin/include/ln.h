@@ -1677,6 +1677,24 @@ static inline uint32_t ln_revoked_confm(const ln_self_t *self) {
 }
 
 
+/** revoked vout
+ * @param[in]           self            channel情報
+ * @return      revoked transaction後に監視するvoutスクリプト
+ */
+static inline const ucoin_buf_t* ln_revoked_vout(const ln_self_t *self) {
+    return &self->revoked_vout;
+}
+
+
+/** revoked witness script
+ * @param[in]           self            channel情報
+ * @return      revoked transaction後に取り戻す際のunlocking witness script
+ */
+static inline const ucoin_buf_t* ln_revoked_wit(const ln_self_t *self) {
+    return &self->revoked_wit;
+}
+
+
 /** open_channelのchannel_flags.announce_channel
  *
  * @param[in]           self            channel情報

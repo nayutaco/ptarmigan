@@ -86,6 +86,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
+static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout);
 
 
 /********************************************************************
@@ -1319,16 +1320,24 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
     if (confm != ln_revoked_confm(self)) {
-        DBG_PRINTF("confm=%d, self->revoked_chk=%d\n", confm, ln_revoked_confm(self));
-        DBG_PRINTF("vout: ");
-        DUMPBIN(self->revoked_vout.buf, self->revoked_vout.len);
-        DBG_PRINTF("wit:\n");
-        ucoin_print_script(self->revoked_wit.buf, self->revoked_wit.len);
-        // for (int lp = 0; lp < tx.vout_cnt; lp++) {
-        //     if (ucoin_buf_cmp(&tx.vout[lp].script, &vout)) {
-        //         DBG_PRINTF("[%d]to_local !\n", lp);
-        //     }
-        // }
+        // DBG_PRINTF("confm=%d, self->revoked_chk=%d\n", confm, ln_revoked_confm(self));
+        // DBG_PRINTF("vout: ");
+        // DUMPBIN(self->revoked_vout.buf, self->revoked_vout.len);
+        // DBG_PRINTF("wit:\n");
+        // ucoin_print_script(self->revoked_wit.buf, self->revoked_wit.len);
+
+        ucoin_buf_t txbuf;
+        bool ret = search_vout(&txbuf, confm - ln_revoked_confm(self), ln_revoked_vout(self));
+        if (ret) {
+            int num = txbuf.len / sizeof(ucoin_tx_t);
+            DBG_PRINTF("find! %d\n", num);
+            ucoin_tx_t *pTx = (ucoin_tx_t *)txbuf.buf;
+            for (int lp = 0; lp < num; lp++) {
+                DBG_PRINTF2("-------- %d ----------\n", lp);
+                ucoin_print_tx(&pTx[lp]);
+            }
+            ucoin_buf_free(&txbuf);
+        }
         ln_set_revoked_confm(self, confm);
         ln_db_save_revoked(self, pDbParam);
     } else {
@@ -1348,6 +1357,25 @@ static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxi
     if (height > 0) {
         for (uint32_t lp = 0; lp < confm; lp++) {
             ret = jsonrpc_search_txid_block(pTx, height - lp, pTxid, Index);
+            if (ret) {
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+
+static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout)
+{
+    bool ret = false;
+    int height = jsonrpc_getblockcount();
+
+    //現在からconfmの間に使用したtransactionがある
+    if (height > 0) {
+        for (uint32_t lp = 0; lp < confm; lp++) {
+            ret = jsonrpc_search_vout_block(pTxBuf, height - lp, pVout);
             if (ret) {
                 break;
             }
