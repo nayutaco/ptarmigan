@@ -82,11 +82,10 @@ static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
 
 static void *thread_monitor_start(void *pArg);
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
-
-static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam);
+static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 
 
 /********************************************************************
@@ -1130,25 +1129,6 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 }
 
 
-static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index)
-{
-    bool ret = false;
-    int height = jsonrpc_getblockcount();
-
-    //現在からconfmの間に使用したtransactionがある
-    if (height > 0) {
-        for (uint32_t lp = 0; lp < confm; lp++) {
-            ret = jsonrpc_search_txid_block(pTx, height - lp, pTxid, Index);
-            if (ret) {
-                break;
-            }
-        }
-    }
-
-    return ret;
-}
-
-
 /** unilateral closeを相手が行っていた場合の処理(remoteのcommit_txを展開)
  *
  */
@@ -1356,4 +1336,23 @@ static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam)
     }
 
     return false;
+}
+
+
+static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index)
+{
+    bool ret = false;
+    int height = jsonrpc_getblockcount();
+
+    //現在からconfmの間に使用したtransactionがある
+    if (height > 0) {
+        for (uint32_t lp = 0; lp < confm; lp++) {
+            ret = jsonrpc_search_txid_block(pTx, height - lp, pTxid, Index);
+            if (ret) {
+                break;
+            }
+        }
+    }
+
+    return ret;
 }
