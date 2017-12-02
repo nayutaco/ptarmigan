@@ -975,7 +975,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
     //取り戻す必要があるvout数
     self->revoked_num = 0;
     for (int lp = 0; lp < pTx->vout_cnt; lp++) {
-        if (pTx->vout[lp].script.len != UCOIN_SZ_HASH160) {
+        if (pTx->vout[lp].script.len != 2 + UCOIN_SZ_HASH160) {
             //to_remote output以外は取り戻す
             self->revoked_num++;
         }
