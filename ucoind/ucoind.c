@@ -1321,7 +1321,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
                         ucoin_buf_free(&buf);
                         if (ret) {
                             del = ln_revoked_num_dec(self);
-                            ln_revoked_confm(self, confm);
+                            ln_set_revoked_confm(self, confm);
                             ln_db_save_revoked(self, pDbParam);
                         }
                         break;
@@ -1338,8 +1338,8 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 
 static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
-    if (confm != self->revoked_chk) {
-        DBG_PRINTF("confm=%d, self->revoked_chk=%d\n", confm, self->revoked_chk);
+    if (confm != ln_revoked_confm(self)) {
+        DBG_PRINTF("confm=%d, self->revoked_chk=%d\n", confm, ln_revoked_confm(self));
         DBG_PRINTF("vout: ");
         DUMPBIN(self->revoked_vout.buf, self->revoked_vout.len);
         DBG_PRINTF("wit:\n");
@@ -1349,7 +1349,7 @@ static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam)
         //         DBG_PRINTF("[%d]to_local !\n", lp);
         //     }
         // }
-        ln_revoked_confm(self, confm);
+        ln_set_revoked_confm(self, confm);
         ln_db_save_revoked(self, pDbParam);
     } else {
         DBG_PRINTF("same block\n");

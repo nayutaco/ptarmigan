@@ -1662,8 +1662,18 @@ static inline bool ln_revoked_num_dec(ln_self_t *self) {
  * @param[out]          self            channel情報
  * @param[in]           confm           confirmation数
  */
-static inline void ln_revoked_confm(ln_self_t *self, uint32_t confm) {
+static inline void ln_set_revoked_confm(ln_self_t *self, uint32_t confm) {
     self->revoked_chk = confm;
+}
+
+
+/** ln_revoked_confm()で保存した値の取得
+ * 
+ * @param[in]           self            channel情報
+ * @return      ln_revoked_confm()で保存したconfirmation数
+ */
+static inline uint32_t ln_revoked_confm(const ln_self_t *self) {
+    return self->revoked_chk;
 }
 
 
