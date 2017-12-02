@@ -218,6 +218,8 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     ucoin_buf_init(&self->shutdown_scriptpk_remote);
     ucoin_buf_init(&self->redeem_fund);
     ucoin_buf_init(&self->cnl_anno);
+    ucoin_buf_init(&self->revoked_vout);
+    ucoin_buf_init(&self->revoked_wit);
 
     ucoin_tx_init(&self->tx_funding);
     ucoin_tx_init(&self->tx_closing);
@@ -921,12 +923,21 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 }
 
 
-bool ln_close_ugly(ln_self_t *self, ln_close_force_t *pClose, const ucoin_tx_t *pTx)
+void ln_free_close_force_tx(ln_close_force_t *pClose)
 {
+    for (int lp = 0; lp < pClose->num; lp++) {
+        ucoin_tx_free(&pClose->p_tx[lp]);
+    }
     pClose->num = 0;
+    M_FREE(pClose->p_tx);
     pClose->p_tx = NULL;
+    M_FREE(pClose->p_htlc_idx);
     pClose->p_htlc_idx = NULL;
+}
 
+
+bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
+{
     //相手がrevoked_txを展開した前提で、to_localを再現
 
     uint64_t commit_num = ((uint64_t)(pTx->vin[0].sequence & 0xffffff)) << 24;
@@ -952,46 +963,15 @@ bool ln_close_ugly(ln_self_t *self, ln_close_force_t *pClose, const ucoin_tx_t *
     //commitment number(for obscured commitment number)
     self->remote_commit_num = commit_num;
 
-    ucoin_buf_t buf_ws;
-    ucoin_buf_init(&buf_ws);
-    ln_create_script_local(&buf_ws,
+    ln_create_script_local(&self->revoked_wit,
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 self->commit_local.to_self_delay);
 
-    uint8_t to_local_output[UCOIN_SZ_SHA256];
-    ucoin_util_sha256(to_local_output, buf_ws.buf, buf_ws.len);
-    DBG_PRINTF("### to_local output: ");
-    DUMPBIN(to_local_output, sizeof(to_local_output));
-
-    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
-        const ucoin_buf_t *p_vout = &pTx->vout[lp].script;
-        if ( (p_vout->len == 2 + sizeof(to_local_output)) &&
-             (p_vout->buf[0] == 0x00) &&
-             (p_vout->buf[1] == (uint8_t)sizeof(to_local_output)) &&
-             (memcmp(&p_vout->buf[2], to_local_output, sizeof(to_local_output)) == 0) ) {
-            DBG_PRINTF("[%d]to_local !\n", lp);
-        }
-    }
-
-    if (!ret) {
-        ln_free_close_force_tx(pClose);
-    }
+    ucoin_buf_alloc(&self->revoked_vout, 2 + UCOIN_SZ_SHA256);
+    ucoin_sw_wit2prog_p2wsh(self->revoked_vout.buf, &self->revoked_wit);
 
     return ret;
-}
-
-
-void ln_free_close_force_tx(ln_close_force_t *pClose)
-{
-    for (int lp = 0; lp < pClose->num; lp++) {
-        ucoin_tx_free(&pClose->p_tx[lp]);
-    }
-    pClose->num = 0;
-    M_FREE(pClose->p_tx);
-    pClose->p_tx = NULL;
-    M_FREE(pClose->p_htlc_idx);
-    pClose->p_htlc_idx = NULL;
 }
 
 
@@ -1294,6 +1274,32 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes)
 }
 
 
+void ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
+                const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index)
+{
+    //to_localのFEE
+    uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
+    bool ret = ln_create_tolocal_tx(pTx, Value - fee_tolocal,
+            &self->shutdown_scriptpk_local, to_self_delay, pTxid, Index);
+    assert(ret);
+
+    //<delayed_secretkey>
+    ucoin_util_keys_t delayedkey;
+    ln_derkey_privkey(delayedkey.priv,
+                self->funding_local.keys[MSG_FUNDIDX_DELAYED].pub,
+                self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
+                self->funding_local.keys[MSG_FUNDIDX_DELAYED].priv);
+    ucoin_keys_priv2pub(delayedkey.pub, delayedkey.priv);
+    assert(memcmp(delayedkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
+
+    ucoin_buf_t sig_delayed;
+    ucoin_buf_init(&sig_delayed);
+    ret = ln_sign_tolocal_tx(pTx, &sig_delayed, Value, &delayedkey, pScript);
+    assert(ret);
+    ucoin_buf_free(&sig_delayed);
+}
+
+
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 {
     ucoin_util_sha256(pHash, pPreImage, LN_SZ_PREIMAGE);
@@ -1387,6 +1393,8 @@ static void channel_clear(ln_self_t *self)
     ucoin_buf_free(&self->shutdown_scriptpk_remote);
     ucoin_buf_free(&self->redeem_fund);
     ucoin_buf_free(&self->cnl_anno);
+    ucoin_buf_free(&self->revoked_vout);
+    ucoin_buf_free(&self->revoked_wit);
 
     ucoin_tx_free(&self->tx_funding);
     ucoin_tx_free(&self->tx_closing);
@@ -3069,6 +3077,10 @@ static bool create_to_local(ln_self_t *self,
             if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
                 DBG_PRINTF("+++[%d]to_local\n", vout_idx);
                 if (pTxHtlcs != NULL) {
+#if 1
+                    ln_create_tolocal_spent(self, &tx, tx_local.vout[vout_idx].value, to_self_delay,
+                            &buf_ws, self->commit_local.txid, vout_idx);
+#else
                     //to_localのFEE
                     uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
                     ret = ln_create_tolocal_tx(&tx, tx_local.vout[vout_idx].value - fee_tolocal,
@@ -3091,6 +3103,8 @@ static bool create_to_local(ln_self_t *self,
                             &delayedkey,
                             &buf_ws);
                     assert(ret);
+                    ucoin_buf_free(&sig_delayed);
+#endif
 
                     ucoin_print_tx(&tx);
                     memcpy(&pTxHtlcs[0], &tx, sizeof(tx));

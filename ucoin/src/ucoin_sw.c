@@ -27,13 +27,6 @@
 
 
 /**************************************************************************
- * prototypes
- **************************************************************************/
-
-static void keys_wit2prog_p2wsh(uint8_t *pWitProg, const ucoin_buf_t *pWitScript);
-
-
-/**************************************************************************
  * public functions
  **************************************************************************/
 
@@ -53,7 +46,7 @@ void ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t 
 {
     uint8_t wit_prog[M_SZ_WITPROG_WSH];
 
-    keys_wit2prog_p2wsh(wit_prog, pWitScript);
+    ucoin_sw_wit2prog_p2wsh(wit_prog, pWitScript);
     if (mNativeSegwit) {
         ucoin_vout_t *vout = ucoin_tx_add_vout(pTx, Value);
         ucoin_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog));
@@ -537,15 +530,7 @@ bool ucoin_sw_is_segwit(const ucoin_tx_t *pTx)
 #endif
 
 
-/**************************************************************************
- * private functions
- **************************************************************************/
-
-/** witnessScriptをPubKeyHash(P2SH)変換
- *
- *
- */
-static void keys_wit2prog_p2wsh(uint8_t *pWitProg, const ucoin_buf_t *pWitScript)
+void ucoin_sw_wit2prog_p2wsh(uint8_t *pWitProg, const ucoin_buf_t *pWitScript)
 {
     pWitProg[0] = 0x00;
     pWitProg[1] = UCOIN_SZ_SHA256;

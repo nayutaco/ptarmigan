@@ -978,6 +978,13 @@ bool ucoin_sw_is_segwit(const ucoin_tx_t *pTx);
 #endif  //0
 
 
+/** witnessScriptをPubKeyHash(P2SH)変換
+ *
+ *
+ */
+void ucoin_sw_wit2prog_p2wsh(uint8_t *pWitProg, const ucoin_buf_t *pWitScript);
+
+
 //////////////////////
 //PUSH
 //////////////////////

@@ -953,6 +953,8 @@ struct ln_self_t {
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
+    ucoin_buf_t                 revoked_vout;                   ///< revoked transaction close時に検索するvoutスクリプト
+    ucoin_buf_t                 revoked_wit;                    ///< revoked transaction close時のwitnessスクリプト
 
     //msg:normal operation
     uint16_t                    htlc_num;                       ///< HTLC数
@@ -1291,23 +1293,20 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose);
 bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose);
 
 
-/** revoked transaction close(ugly way)の対処
- *
- * @param[in]           self        channel情報
- * @param[out]          pClose      生成したトランザクション
- * @param[in]           pTx         revoked transaction
- * @retval      ture    成功
- * @note
- *      - pCloseは @ln_free_close_force_tx()で解放すること
- */
-bool ln_close_ugly(ln_self_t *self, ln_close_force_t *pClose, const ucoin_tx_t *pTx);
-
-
 /** ln_close_force_tのメモリ解放
  *
  * @param[out]          pClose      ln_create_close_force_tx()やln_create_closed_tx()で生成したデータ
  */
 void ln_free_close_force_tx(ln_close_force_t *pClose);
+
+
+/** revoked transaction close(ugly way)の対処
+ *
+ * @param[in]           self        channel情報
+ * @param[in]           pTx         revoked transaction
+ * @retval      ture    成功
+ */
+bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx);
 
 
 /** update_add_htlcメッセージ作成
@@ -1383,6 +1382,10 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing);
  * @retval      true    成功
  */
 bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
+
+
+void ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
+                const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index);
 
 
 /** PreImageハッシュ計算

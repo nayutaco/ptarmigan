@@ -86,6 +86,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
+static bool close_revoked(ln_self_t *self);
 
 
 /********************************************************************
@@ -1097,20 +1098,26 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         if (!ret) {
             //funding_tx使用済み
 
-            //展開されているのが最新のcommit_txか
-            ucoin_tx_t tx_commit;
-            ucoin_tx_init(&tx_commit);
-            if (jsonrpc_getraw_tx(&tx_commit, ln_commit_local(self)->txid)) {
-                //最新のlocal commit_tx --> unilateral close(local)
-                del = close_unilateral_local(self, p_db_param);
-            } else if (jsonrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid)) {
-                //最新のremote commit_tx --> unilateral close(remote)
-                del = close_unilateral_remote(self, p_db_param);
+            ln_db_load_revoked(self, p_db_param);
+            if (self->revoked_vout.len == 0) {
+                //展開されているのが最新のcommit_txか
+                ucoin_tx_t tx_commit;
+                ucoin_tx_init(&tx_commit);
+                if (jsonrpc_getraw_tx(&tx_commit, ln_commit_local(self)->txid)) {
+                    //最新のlocal commit_tx --> unilateral close(local)
+                    del = close_unilateral_local(self, p_db_param);
+                } else if (jsonrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid)) {
+                    //最新のremote commit_tx --> unilateral close(remote)
+                    del = close_unilateral_remote(self, p_db_param);
+                } else {
+                    //最新ではないcommit_tx --> mutual close or revoked transaction close
+                    del = close_others(self, confm, p_db_param);
+                }
+                ucoin_tx_free(&tx_commit);
             } else {
-                //最新ではないcommit_tx --> mutual close or revoked transaction close
-                del = close_others(self, confm, p_db_param);
+                // revoked transaction close
+                del = close_revoked(self);
             }
-            ucoin_tx_free(&tx_commit);
         }
         if (del) {
             DBG_PRINTF("delete from DB\n");
@@ -1293,10 +1300,12 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
             } else {
                 //revoked transaction close
                 SYSLOG_WARN("closed: ugly way\n");
-                ln_close_force_t close_dat;
-                bool ret = ln_close_ugly(self, &close_dat, &tx);
-                if (ret) {
-                    ln_free_close_force_tx(&close_dat);
+                ln_close_ugly(self, &tx);
+                ln_db_save_revoked(self, pDbParam);
+                for (int lp = 0; lp < tx.vout_cnt; lp++) {
+                    if (ucoin_buf_cmp(&tx.vout[lp].script, &self->revoked_vout)) {
+                        DBG_PRINTF("[%d]to_local !\n", lp);
+                    }
                 }
             }
         }
@@ -1304,4 +1313,20 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
     ucoin_tx_free(&tx);
 
     return del;
+}
+
+
+static bool close_revoked(ln_self_t *self)
+{
+    DBG_PRINTF("vout: ");
+    DUMPBIN(self->revoked_vout.buf, self->revoked_vout.len);
+    DBG_PRINTF("wit:\n");
+    ucoin_print_script(self->revoked_wit.buf, self->revoked_wit.len);
+    // for (int lp = 0; lp < tx.vout_cnt; lp++) {
+    //     if (ucoin_buf_cmp(&tx.vout[lp].script, &vout)) {
+    //         DBG_PRINTF("[%d]to_local !\n", lp);
+    //     }
+    // }
+
+    return false;
 }
