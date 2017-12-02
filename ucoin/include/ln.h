@@ -955,6 +955,7 @@ struct ln_self_t {
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
     ucoin_buf_t                 revoked_vout;                   ///< revoked transaction close時に検索するvoutスクリプト
     ucoin_buf_t                 revoked_wit;                    ///< revoked transaction close時のwitnessスクリプト
+    ucoin_buf_t                 revoked_sec;                    ///< revoked transaction close時のremote per_commit_sec
 
     //msg:normal operation
     uint16_t                    htlc_num;                       ///< HTLC数
@@ -1385,7 +1386,7 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 
 
 void ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
-                const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index);
+                const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
 /** PreImageハッシュ計算

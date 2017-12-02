@@ -1227,6 +1227,15 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
     ucoin_buf_free(&self->revoked_wit);
     ucoin_buf_alloccopy(&self->revoked_wit, data.mv_data, data.mv_size);
 
+    key.mv_data = "rvs";
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    ucoin_buf_free(&self->revoked_sec);
+    ucoin_buf_alloccopy(&self->revoked_sec, data.mv_data, data.mv_size);
+
 LABEL_EXIT:
     return retval == 0;
 }
@@ -1262,6 +1271,15 @@ bool ln_db_save_revoked(const ln_self_t *self, void *pDbParam)
     key.mv_data = "rvw";
     data.mv_size = self->revoked_wit.len;
     data.mv_data = self->revoked_wit.buf;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_data = "rvs";
+    data.mv_size = self->revoked_sec.len;
+    data.mv_data = self->revoked_sec.buf;
     retval = mdb_put(txn, dbi, &key, &data, 0);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1899,7 +1917,7 @@ static int check_version(MDB_txn *txn, MDB_dbi *pdbi, uint8_t *pMyNodeId)
     if (retval == 0) {
         int version = *(int *)data.mv_data;
         if (version != M_DB_VERSION_VAL) {
-            DBG_PRINTF("FAIL: version mismatch : %d\n", version);
+            DBG_PRINTF("FAIL: version mismatch : %d(%d)\n", version, M_DB_VERSION_VAL);
             retval = -1;
         }
     }

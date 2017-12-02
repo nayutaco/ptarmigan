@@ -1305,6 +1305,22 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
                 for (int lp = 0; lp < tx.vout_cnt; lp++) {
                     if (ucoin_buf_cmp(&tx.vout[lp].script, &self->revoked_vout)) {
                         DBG_PRINTF("[%d]to_local !\n", lp);
+
+                        uint8_t txid[UCOIN_SZ_TXID];
+                        ucoin_tx_txid(txid, &tx);
+                        ucoin_tx_t tx_local;
+                        ucoin_tx_init(&tx_local);
+                        ln_create_tolocal_spent(self, &tx_local, tx.vout[lp].value,
+                                    self->commit_local.to_self_delay,
+                                    &self->revoked_wit, txid, 0, true);
+                        ucoin_print_tx(&tx_local);
+                        ucoin_buf_t buf;
+                        ucoin_tx_create(&buf, &tx_local);
+                        ucoin_tx_free(&tx_local);
+                        bool ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+                        ucoin_buf_free(&buf);
+                        DBG_PRINTF("ret=%d\n", ret);
+                        break;
                     }
                 }
             }

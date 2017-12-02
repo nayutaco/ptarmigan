@@ -220,6 +220,7 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     ucoin_buf_init(&self->cnl_anno);
     ucoin_buf_init(&self->revoked_vout);
     ucoin_buf_init(&self->revoked_wit);
+    ucoin_buf_init(&self->revoked_sec);
 
     ucoin_tx_init(&self->tx_funding);
     ucoin_tx_init(&self->tx_closing);
@@ -945,13 +946,13 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
     commit_num ^= self->obscured;
     DBG_PRINTF("commit_num=%" PRIx64 "\n", commit_num);
 
-    uint8_t per_commit_sec[UCOIN_SZ_PRIVKEY];
-    bool ret = ln_derkey_storage_get_secret(per_commit_sec, &self->peer_storage, (uint64_t)(M_SECINDEX_INIT - commit_num));
+    ucoin_buf_alloc(&self->revoked_sec, UCOIN_SZ_PRIVKEY);
+    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(M_SECINDEX_INIT - commit_num));
     assert(ret);
     DBG_PRINTF2("  pri:");
-    DUMPBIN(per_commit_sec, UCOIN_SZ_PRIVKEY);
+    DUMPBIN(self->revoked_sec.buf, UCOIN_SZ_PRIVKEY);
     DBG_PRINTF2("  pub:");
-    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commit_sec);
+    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
     DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //local
@@ -1275,26 +1276,35 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes)
 
 
 void ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
-                const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index)
+                const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked)
 {
     //to_localのFEE
     uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
     bool ret = ln_create_tolocal_tx(pTx, Value - fee_tolocal,
-            &self->shutdown_scriptpk_local, to_self_delay, pTxid, Index);
+            &self->shutdown_scriptpk_local, to_self_delay, pTxid, Index, bRevoked);
     assert(ret);
-
-    //<delayed_secretkey>
-    ucoin_util_keys_t delayedkey;
-    ln_derkey_privkey(delayedkey.priv,
-                self->funding_local.keys[MSG_FUNDIDX_DELAYED].pub,
-                self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
-                self->funding_local.keys[MSG_FUNDIDX_DELAYED].priv);
-    ucoin_keys_priv2pub(delayedkey.pub, delayedkey.priv);
-    assert(memcmp(delayedkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
+    ucoin_util_keys_t signkey;
+    if (!bRevoked) {
+        //<delayed_secretkey>
+        ln_derkey_privkey(signkey.priv,
+                    self->funding_local.keys[MSG_FUNDIDX_DELAYED].pub,
+                    self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
+                    self->funding_local.keys[MSG_FUNDIDX_DELAYED].priv);
+        ucoin_keys_priv2pub(signkey.pub, signkey.priv);
+        assert(memcmp(signkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
+    } else {
+        ln_derkey_revocationprivkey(signkey.priv,
+                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
+                    self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].priv,
+                    self->revoked_sec.buf);
+        ucoin_keys_priv2pub(signkey.pub, signkey.priv);
+        assert(memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION], UCOIN_SZ_PUBKEY) == 0);
+    }
 
     ucoin_buf_t sig_delayed;
     ucoin_buf_init(&sig_delayed);
-    ret = ln_sign_tolocal_tx(pTx, &sig_delayed, Value, &delayedkey, pScript);
+    ret = ln_sign_tolocal_tx(pTx, &sig_delayed, Value, &signkey, pScript, bRevoked);
     assert(ret);
     ucoin_buf_free(&sig_delayed);
 }
@@ -1395,6 +1405,7 @@ static void channel_clear(ln_self_t *self)
     ucoin_buf_free(&self->cnl_anno);
     ucoin_buf_free(&self->revoked_vout);
     ucoin_buf_free(&self->revoked_wit);
+    ucoin_buf_free(&self->revoked_sec);
 
     ucoin_tx_free(&self->tx_funding);
     ucoin_tx_free(&self->tx_closing);
@@ -3079,13 +3090,13 @@ static bool create_to_local(ln_self_t *self,
                 if (pTxHtlcs != NULL) {
 #if 1
                     ln_create_tolocal_spent(self, &tx, tx_local.vout[vout_idx].value, to_self_delay,
-                            &buf_ws, self->commit_local.txid, vout_idx);
+                            &buf_ws, self->commit_local.txid, vout_idx, false);
 #else
                     //to_localのFEE
                     uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
                     ret = ln_create_tolocal_tx(&tx, tx_local.vout[vout_idx].value - fee_tolocal,
                             &self->shutdown_scriptpk_local, to_self_delay,
-                            self->commit_local.txid, vout_idx);
+                            self->commit_local.txid, vout_idx, false);
                     assert(ret);
 
                     //<delayed_secretkey>
@@ -3101,7 +3112,7 @@ static bool create_to_local(ln_self_t *self,
                     ucoin_buf_init(&sig_delayed);
                     ret = ln_sign_tolocal_tx(&tx, &sig_delayed, tx_local.vout[vout_idx].value,
                             &delayedkey,
-                            &buf_ws);
+                            &buf_ws, false);
                     assert(ret);
                     ucoin_buf_free(&sig_delayed);
 #endif
