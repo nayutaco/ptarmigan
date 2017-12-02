@@ -980,6 +980,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
             self->revoked_num++;
         }
     }
+    DBG_PRINTF("revoked_num=%d\n", self->revoked_num);
 
     return ret;
 }

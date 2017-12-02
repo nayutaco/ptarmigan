@@ -1204,7 +1204,7 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     int retval = mdb_dbi_open(txn, dbname, 0, &dbi);
     if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        //DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
 
@@ -1243,6 +1243,14 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
         goto LABEL_EXIT;
     }
     self->revoked_num = *(uint16_t *)data.mv_data;
+
+    key.mv_data = "rvc";
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    self->revoked_chk = *(uint32_t *)data.mv_data;
 
 LABEL_EXIT:
     return retval == 0;
@@ -1297,6 +1305,15 @@ bool ln_db_save_revoked(const ln_self_t *self, void *pDbParam)
     key.mv_data = "rvn";
     data.mv_size = sizeof(self->revoke_num);
     data.mv_data = (CONST_CAST uint16_t *)&self->revoke_num;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_data = "rvc";
+    data.mv_size = sizeof(self->revoked_chk);
+    data.mv_data = (CONST_CAST uint32_t *)&self->revoked_chk;
     retval = mdb_put(txn, dbi, &key, &data, 0);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));

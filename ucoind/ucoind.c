@@ -86,7 +86,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
-static bool close_revoked(ln_self_t *self);
+static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam);
 
 
 /********************************************************************
@@ -1116,7 +1116,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                 ucoin_tx_free(&tx_commit);
             } else {
                 // revoked transaction close
-                del = close_revoked(self);
+                del = close_revoked(self, confm, p_db_param);
             }
         }
         if (del) {
@@ -1321,6 +1321,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
                         ucoin_buf_free(&buf);
                         if (ret) {
                             del = ln_revoked_num_dec(self);
+                            ln_revoked_confm(self, confm);
                             ln_db_save_revoked(self, pDbParam);
                         }
                         break;
@@ -1335,17 +1336,24 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 }
 
 
-static bool close_revoked(ln_self_t *self)
+static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
-    DBG_PRINTF("vout: ");
-    DUMPBIN(self->revoked_vout.buf, self->revoked_vout.len);
-    DBG_PRINTF("wit:\n");
-    ucoin_print_script(self->revoked_wit.buf, self->revoked_wit.len);
-    // for (int lp = 0; lp < tx.vout_cnt; lp++) {
-    //     if (ucoin_buf_cmp(&tx.vout[lp].script, &vout)) {
-    //         DBG_PRINTF("[%d]to_local !\n", lp);
-    //     }
-    // }
+    if (confm != self->revoked_chk) {
+        DBG_PRINTF("confm=%d, self->revoked_chk=%d\n", confm, self->revoked_chk);
+        DBG_PRINTF("vout: ");
+        DUMPBIN(self->revoked_vout.buf, self->revoked_vout.len);
+        DBG_PRINTF("wit:\n");
+        ucoin_print_script(self->revoked_wit.buf, self->revoked_wit.len);
+        // for (int lp = 0; lp < tx.vout_cnt; lp++) {
+        //     if (ucoin_buf_cmp(&tx.vout[lp].script, &vout)) {
+        //         DBG_PRINTF("[%d]to_local !\n", lp);
+        //     }
+        // }
+        ln_revoked_confm(self, confm);
+        ln_db_save_revoked(self, pDbParam);
+    } else {
+        DBG_PRINTF("same block\n");
+    }
 
     return false;
 }
