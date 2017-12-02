@@ -972,6 +972,15 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
     ucoin_buf_alloc(&self->revoked_vout, 2 + UCOIN_SZ_SHA256);
     ucoin_sw_wit2prog_p2wsh(self->revoked_vout.buf, &self->revoked_wit);
 
+    //取り戻す必要があるvout数
+    self->revoked_num = 0;
+    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
+        if (pTx->vout[lp].script.len != UCOIN_SZ_HASH160) {
+            //to_remote output以外は取り戻す
+            self->revoked_num++;
+        }
+    }
+
     return ret;
 }
 

@@ -1319,7 +1319,10 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
                         ucoin_tx_free(&tx_local);
                         bool ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
                         ucoin_buf_free(&buf);
-                        DBG_PRINTF("ret=%d\n", ret);
+                        if (ret) {
+                            del = ln_revoked_num_dec(self);
+                            ln_db_save_revoked(self, pDbParam);
+                        }
                         break;
                     }
                 }

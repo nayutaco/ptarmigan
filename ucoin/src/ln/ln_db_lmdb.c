@@ -1236,6 +1236,14 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
     ucoin_buf_free(&self->revoked_sec);
     ucoin_buf_alloccopy(&self->revoked_sec, data.mv_data, data.mv_size);
 
+    key.mv_data = "rvn";
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    self->revoked_num = *(uint16_t *)data.mv_data;
+
 LABEL_EXIT:
     return retval == 0;
 }
@@ -1280,6 +1288,15 @@ bool ln_db_save_revoked(const ln_self_t *self, void *pDbParam)
     key.mv_data = "rvs";
     data.mv_size = self->revoked_sec.len;
     data.mv_data = self->revoked_sec.buf;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_data = "rvn";
+    data.mv_size = sizeof(self->revoke_num);
+    data.mv_data = (CONST_CAST uint16_t *)&self->revoke_num;
     retval = mdb_put(txn, dbi, &key, &data, 0);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
