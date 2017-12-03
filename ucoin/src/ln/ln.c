@@ -855,6 +855,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     pClose->num = 1 + 1 + self->commit_local.htlc_num;
     pClose->p_tx = (ucoin_tx_t *)M_MALLOC(sizeof(ucoin_tx_t) * pClose->num);
     pClose->p_htlc_idx = (uint8_t *)M_MALLOC(sizeof(uint8_t) * pClose->num);
+    ucoin_buf_init(&pClose->tx_buf);
     DBG_PRINTF("TX num: %d\n", pClose->num);
 
     //local commit_tx
@@ -909,6 +910,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     pClose->num = 1 + 1 + self->commit_remote.htlc_num;
     pClose->p_tx = (ucoin_tx_t *)M_MALLOC(sizeof(ucoin_tx_t) * pClose->num);
     pClose->p_htlc_idx = (uint8_t *)M_MALLOC(sizeof(uint8_t) * pClose->num);
+    ucoin_buf_init(&pClose->tx_buf);
     DBG_PRINTF("TX num: %d\n", pClose->num);
 
     //remote commit_tx
@@ -934,6 +936,13 @@ void ln_free_close_force_tx(ln_close_force_t *pClose)
     pClose->p_tx = NULL;
     M_FREE(pClose->p_htlc_idx);
     pClose->p_htlc_idx = NULL;
+
+    int num = pClose->tx_buf.len / sizeof(ucoin_tx_t);
+    ucoin_tx_t *p_tx = (ucoin_tx_t *)pClose->tx_buf.buf;
+    for (int lp = 0; lp < num; lp++) {
+        ucoin_tx_free(&p_tx[lp]);
+    }
+    ucoin_buf_free(&pClose->tx_buf);
 }
 
 
@@ -2998,6 +3007,7 @@ static bool create_to_local(ln_self_t *self,
     ucoin_tx_t tx_local;
     ucoin_tx_t *pTxLocal = NULL;
     ucoin_tx_t *pTxHtlcs = NULL;
+    ucoin_push_t push;
 
     ucoin_tx_init(&tx_local);
     ucoin_buf_init(&buf_sig);
@@ -3006,6 +3016,7 @@ static bool create_to_local(ln_self_t *self,
     if (pClose != NULL) {
         pTxLocal = &pClose->p_tx[0];
         pTxHtlcs = &pClose->p_tx[1];
+        ucoin_push_init(&push, &pClose->tx_buf, 0);
     }
 
     //To-Local
@@ -3221,6 +3232,22 @@ static bool create_to_local(ln_self_t *self,
                             DBG_PRINTF("create HTLC tx[%d]\n", htlc_num);
                             ucoin_print_tx(&tx);
                             memcpy(&pTxHtlcs[1 + htlc_num], &tx, sizeof(tx));
+
+                            // HTLC Timeout/Success Txを作った場合はそれを取り戻すトランザクションも作る
+                            ucoin_tx_t tx2;
+                            ucoin_tx_init(&tx2);
+                            uint8_t txid[UCOIN_SZ_TXID];
+                            ucoin_tx_txid(txid, &tx);
+                            ret = ln_create_tolocal_spent(self, &tx2, tx.vout[0].value, to_self_delay,
+                                        &buf_ws, txid, 0, false);
+                            if (ret) {
+                                DBG_PRINTF("*** HTLC out Tx ***\n");
+                                ucoin_print_tx(&tx2);
+                                ucoin_push_data(&push, &tx2, sizeof(ucoin_tx_t));
+                            } else {
+                                ucoin_tx_free(&tx2);
+                            }
+
                             ucoin_tx_init(&tx);     //txはfreeさせない
                         } else {
                             DBG_PRINTF("skip create HTLC tx[%d]\n", htlc_num);

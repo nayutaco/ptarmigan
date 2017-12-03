@@ -679,6 +679,19 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
                 free(transaction);
             }
         }
+
+        int num = close_dat.tx_buf.len / sizeof(ucoin_tx_t);
+        ucoin_tx_t *p_tx = (ucoin_tx_t *)close_dat.tx_buf.buf;
+        for (int lp = 0; lp < num; lp++) {
+            ucoin_tx_create(&buf, &p_tx[lp]);
+            char *transaction = (char *)malloc(buf.len * 2 + 1);
+            misc_bin2str(transaction, buf.buf, buf.len);
+            ucoin_buf_free(&buf);
+
+            cJSON_AddItemToObject(pResult, "htlc_out", cJSON_CreateString(transaction));
+            free(transaction);
+        }
+
         ln_free_close_force_tx(&close_dat);
     }
 

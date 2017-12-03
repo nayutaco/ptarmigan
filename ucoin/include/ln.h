@@ -415,7 +415,8 @@ typedef struct {
 typedef struct {
     int             num;                            ///< p_bufのtransaction数
     ucoin_tx_t      *p_tx;                          ///< [0]commit_tx [1]to_local [2-]HTLC
-    uint8_t        *p_htlc_idx;                     ///< [0,1]ignore [2-]self->cnl_add_htlc[]のhtlc_idx
+    uint8_t         *p_htlc_idx;                    ///< [0,1]ignore [2-]self->cnl_add_htlc[]のhtlc_idx
+    ucoin_buf_t     tx_buf;                         ///< HTLC Timeout/Successから取り戻すTX
 } ln_close_force_t;
 
 /// @}

@@ -386,6 +386,7 @@ bool close_unilateral_local(ln_self_t *self, void *pDbParam)
                                 DBG_PRINTF("index=%d\n", close_dat.p_htlc_idx[lp]);
                                 del = false;
                             }
+                            ucoin_tx_free(&tx);
                         }
                     } else {
                         //タイムアウト用Txを展開(non-BIP68-finalの可能性あり)
