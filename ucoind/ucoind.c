@@ -324,6 +324,7 @@ bool close_unilateral_local(ln_self_t *self, void *pDbParam)
     ret = ln_create_close_force_tx(self, &close_dat);
     if (ret) {
         del = true;
+        uint8_t txid[UCOIN_SZ_TXID];
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == 0) {
                 DBG_PRINTF2("\n$$$ commit_tx\n");
@@ -337,7 +338,6 @@ bool close_unilateral_local(ln_self_t *self, void *pDbParam)
             }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //自分のtxを展開済みかチェック
-                uint8_t txid[UCOIN_SZ_TXID];
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 DBG_PRINTF("txid[%d]= ", lp);
                 DUMPTXID(txid);
@@ -367,7 +367,6 @@ bool close_unilateral_local(ln_self_t *self, void *pDbParam)
                             ucoin_tx_t tx;
                             ucoin_tx_init(&tx);
                             uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
-                            uint8_t txid[UCOIN_SZ_TXID];
                             ucoin_tx_txid(txid, &close_dat.p_tx[0]);
                             ret = search_spent_tx(&tx, confm, txid, close_dat.p_htlc_idx[lp]);
                             if (ret) {
@@ -425,6 +424,23 @@ bool close_unilateral_local(ln_self_t *self, void *pDbParam)
             } else {
                 DBG_PRINTF("skip tx[%d]\n", lp);
                 del = false;
+            }
+        }
+
+        //自分が展開した場合には、HTLC Timeout/Success Txからの出力も行う
+        ucoin_tx_t *p_tx = (ucoin_tx_t *)close_dat.tx_buf.buf;
+        int num = close_dat.tx_buf.len / sizeof(ucoin_tx_t);
+        for (int lp = 0; lp < num; lp++) {
+            ucoin_buf_t buf;
+            ucoin_tx_create(&buf, &p_tx[lp]);
+            ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+            ucoin_buf_free(&buf);
+            if (ret) {
+                DBG_PRINTF("broadcast after tx[%d]\n", lp);
+                DBG_PRINTF("-->OK\n");
+            } else {
+                del = false;
+                DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
             }
         }
         ln_free_close_force_tx(&close_dat);
