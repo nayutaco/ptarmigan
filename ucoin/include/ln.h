@@ -1387,7 +1387,7 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing);
 bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 
 
-void ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
+bool ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
                 const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 

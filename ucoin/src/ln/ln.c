@@ -1285,14 +1285,19 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes)
 }
 
 
-void ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
+bool ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
                 const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked)
 {
     //to_localのFEE
     uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
+    if (Value < self->commit_local.dust_limit_sat + fee_tolocal) {
+        goto LABEL_EXIT;
+    }
     bool ret = ln_create_tolocal_tx(pTx, Value - fee_tolocal,
             &self->shutdown_scriptpk_local, to_self_delay, pTxid, Index, bRevoked);
-    assert(ret);
+    if (!ret) {
+        goto LABEL_EXIT;
+    }
     ucoin_util_keys_t signkey;
     if (!bRevoked) {
         //<delayed_secretkey>
@@ -1318,8 +1323,10 @@ void ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, u
     ucoin_buf_t sig_delayed;
     ucoin_buf_init(&sig_delayed);
     ret = ln_sign_tolocal_tx(pTx, &sig_delayed, Value, &signkey, pScript, bRevoked);
-    assert(ret);
     ucoin_buf_free(&sig_delayed);
+
+LABEL_EXIT:
+    return ret;
 }
 
 
@@ -3102,7 +3109,7 @@ static bool create_to_local(ln_self_t *self,
                 DBG_PRINTF("+++[%d]to_local\n", vout_idx);
                 if (pTxHtlcs != NULL) {
 #if 1
-                    ln_create_tolocal_spent(self, &tx, tx_local.vout[vout_idx].value, to_self_delay,
+                    ret = ln_create_tolocal_spent(self, &tx, tx_local.vout[vout_idx].value, to_self_delay,
                             &buf_ws, self->commit_local.txid, vout_idx, false);
 #else
                     //to_localのFEE
@@ -3129,8 +3136,9 @@ static bool create_to_local(ln_self_t *self,
                     assert(ret);
                     ucoin_buf_free(&sig_delayed);
 #endif
-
-                    ucoin_print_tx(&tx);
+                    if (ret) {
+                        ucoin_print_tx(&tx);
+                    }
                     memcpy(&pTxHtlcs[0], &tx, sizeof(tx));
                     ucoin_tx_init(&tx);     //txはfreeさせない
                 }
