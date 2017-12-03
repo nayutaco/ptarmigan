@@ -204,6 +204,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     if (ret) {
         if (p->p_self) {
             copy_channel(p->p_self, self);
+            ln_misc_update_scriptkeys(&p->p_self->funding_local, &p->p_self->funding_remote);
         } else {
             //true時は予備元では解放しないので、ここで解放する
             ln_term(self);

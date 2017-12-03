@@ -151,7 +151,7 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
  */
 bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
                 uint64_t Value, const ucoin_buf_t *pScriptPk, uint32_t LockTime,
-                const uint8_t *pTxid, int Index);
+                const uint8_t *pTxid, int Index, bool bRevoked);
 
 
 /**
@@ -160,7 +160,7 @@ bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
 bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
                     uint64_t Value,
                     const ucoin_util_keys_t *pKeys,
-                    const ucoin_buf_t *pWitScript);
+                    const ucoin_buf_t *pWitScript, bool bRevoked);
 
 
 /** @def        ln_create_script_success

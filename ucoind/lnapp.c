@@ -406,12 +406,17 @@ LABEL_EXIT:
         // $2: amt_to_forward
         // $3: outgoing_cltv_value
         // $4: payment_hash
+        // $5: node_id
+        char hashstr[LN_SZ_HASH * 2 + 1];
+        misc_bin2str(hashstr, pPay->payment_hash, LN_SZ_HASH);
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(node_id, ln_our_node_id(p_self), UCOIN_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIu64 " %" PRIu64 " %" PRIu32 " ",
+        sprintf(param, "%" PRIx64 " %" PRIu64 " %" PRIu32 " %s %s",
                     ln_short_channel_id(pAppConf->p_self),
                     pPay->hop_datain[0].amt_to_forward,
-                    pPay->hop_datain[0].outgoing_cltv_value);
-        misc_bin2str(param + strlen(param), pPay->payment_hash, LN_SZ_HASH);
+                    pPay->hop_datain[0].outgoing_cltv_value,
+                    hashstr, node_id);
         call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
@@ -640,6 +645,57 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
     }
     cJSON_AddItemToArray(pResult, result);
+}
+
+
+bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
+{
+    if (!pAppConf->loop) {
+        //DBG_PRINTF("This AppConf not working\n");
+        return false;
+    }
+
+    ln_close_force_t close_dat;
+    bool ret = ln_create_close_force_tx(pAppConf->p_self, &close_dat);
+    if (ret) {
+        ucoin_buf_t buf;
+
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            if (close_dat.p_tx[lp].vout_cnt > 0) {
+                ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                char *transaction = (char *)malloc(buf.len * 2 + 1);
+                misc_bin2str(transaction, buf.buf, buf.len);
+                ucoin_buf_free(&buf);
+
+                char title[10];
+                if (lp == 0) {
+                    strcpy(title, "committx");
+                } else if (lp == 1) {
+                    strcpy(title, "to_local");
+                } else {
+                    sprintf(title, "htlc%d", lp - 1);
+                }
+                cJSON_AddItemToObject(pResult, title, cJSON_CreateString(transaction));
+                free(transaction);
+            }
+        }
+
+        int num = close_dat.tx_buf.len / sizeof(ucoin_tx_t);
+        ucoin_tx_t *p_tx = (ucoin_tx_t *)close_dat.tx_buf.buf;
+        for (int lp = 0; lp < num; lp++) {
+            ucoin_tx_create(&buf, &p_tx[lp]);
+            char *transaction = (char *)malloc(buf.len * 2 + 1);
+            misc_bin2str(transaction, buf.buf, buf.len);
+            ucoin_buf_free(&buf);
+
+            cJSON_AddItemToObject(pResult, "htlc_out", cJSON_CreateString(transaction));
+            free(transaction);
+        }
+
+        ln_free_close_force_tx(&close_dat);
+    }
+
+    return ret;
 }
 
 
@@ -1499,12 +1555,17 @@ LABEL_EXIT:
         // $2: amt_to_forward
         // $3: outgoing_cltv_value
         // $4: payment_hash
+        // $5: node_id
+        char hashstr[LN_SZ_HASH * 2 + 1];
+        misc_bin2str(hashstr, p_fwd_add->payment_hash, LN_SZ_HASH);
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIu64 " %" PRIu64 " %" PRIu32 " ",
+        sprintf(param, "%" PRIx64 " %" PRIu64 " %" PRIu32 " %s %s",
                     ln_short_channel_id(p_conf->p_self),
                     p_fwd_add->amt_to_forward,
-                    p_fwd_add->outgoing_cltv_value);
-        misc_bin2str(param + strlen(param), p_fwd_add->payment_hash, LN_SZ_HASH);
+                    p_fwd_add->outgoing_cltv_value,
+                    hashstr, node_id);
         call_script(M_EVT_FORWARD, param);
     }
 
@@ -1549,15 +1610,19 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf, fwd_proc_fulfill_t *p_fwd
         // $1: short_channel_id
         // $2: payment_preimage
         // $3: payment_hash
-        char param[256];
-        sprintf(param, "%" PRIu64 " ",
-                    ln_short_channel_id(p_conf->p_self));
-        misc_bin2str(param + strlen(param), p_fwd_fulfill->preimage, LN_SZ_PREIMAGE);
-
+        // $4: node_id
+        char hashstr[LN_SZ_HASH * 2 + 1];
         uint8_t payment_hash[LN_SZ_HASH];
         ln_calc_preimage_hash(payment_hash, p_fwd_fulfill->preimage);
-        strcat(param, " ");
-        misc_bin2str(param + strlen(param), payment_hash, LN_SZ_HASH);
+        misc_bin2str(hashstr, payment_hash, LN_SZ_HASH);
+        char imgstr[LN_SZ_PREIMAGE * 2 + 1];
+        misc_bin2str(imgstr, p_fwd_fulfill->preimage, LN_SZ_PREIMAGE);
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        char param[256];
+        sprintf(param, "%" PRIx64 " %s %s %s",
+                    ln_short_channel_id(p_conf->p_self),
+                    hashstr, imgstr, node_id);
         call_script(M_EVT_FULFILL, param);
     }
 
@@ -1611,9 +1676,13 @@ static bool fwd_fail_backward(lnapp_conf_t *p_conf, fwd_proc_fail_t *p_fwd_fail)
 
         // method: fail
         // $1: short_channel_id
+        // $2: node_id
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIu64,
-                    ln_short_channel_id(p_conf->p_self));
+        sprintf(param, "%" PRIx64 " %s",
+                    ln_short_channel_id(p_conf->p_self),
+                    node_id);
         call_script(M_EVT_FAIL, param);
     }
 
@@ -1833,11 +1902,16 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     // $1: short_channel_id
     // $2: our_msat
     // $3: funding_txid
+    // $4: node_id
+    char txidstr[UCOIN_SZ_TXID * 2 + 1];
+    misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
+    char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+    misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
     char param[256];
-    sprintf(param, "%" PRIu64 " %" PRIu64 " ",
+    sprintf(param, "%" PRIx64 " %" PRIu64 " %s %s",
                 ln_short_channel_id(p_conf->p_self),
-                ln_our_msat(p_conf->p_self));
-    misc_bin2str_rev(param + strlen(param), ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
+                ln_our_msat(p_conf->p_self),
+                txidstr, node_id);
     call_script(M_EVT_ESTABLISHED, param);
 
     DBGTRACE_END
@@ -2298,11 +2372,15 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
     // $1: short_channel_id
     // $2: our_msat
     // $3: htlc_num
+    // $4: node_id
     char param[256];
-    sprintf(param, "%" PRIu64 " %" PRIu64 " %d",
+    char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+    misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+    sprintf(param, "%" PRIx64 " %" PRIu64 " %d %s",
                 ln_short_channel_id(p_conf->p_self),
                 ln_our_msat(p_conf->p_self),
-                ln_htlc_num(p_conf->p_self));
+                ln_htlc_num(p_conf->p_self),
+                node_id);
     call_script(M_EVT_HTLCCHANGED, param);
 
     DBGTRACE_END
@@ -2359,10 +2437,14 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         // method: closed
         // $1: short_channel_id
         // $2: closing_txid
+        // $3: node_id
         char param[256];
-        sprintf(param, "%" PRIu64 " ",
-                    ln_short_channel_id(p_conf->p_self));
-        misc_bin2str_rev(param + strlen(param), txid, UCOIN_SZ_TXID);
+        char txidstr[UCOIN_SZ_TXID * 2 + 1];
+        misc_bin2str_rev(txidstr, txid, UCOIN_SZ_TXID);
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        sprintf(param, "%" PRIx64 " %s %s",
+                    ln_short_channel_id(p_conf->p_self), txidstr, node_id);
         call_script(M_EVT_CLOSED, param);
     } else {
         DBG_PRINTF("DBG: no send closing_tx mode\n");

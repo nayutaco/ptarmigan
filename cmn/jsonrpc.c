@@ -533,18 +533,17 @@ LABEL_DECREF:
             ucoin_tx_t tx;
 
             ucoin_tx_init(&tx);
-            ret = jsonrpc_getraw_txstr(&tx, txid);
+            bool bret = jsonrpc_getraw_txstr(&tx, txid);
             //DBG_PRINTF("txid=%s\n", txid);
-            if ( ret &&
+            if ( bret &&
                  (tx.vin_cnt == 1) &&
                  (memcmp(tx.vin[0].txid, pTxid, UCOIN_SZ_TXID) == 0) &&
                  (tx.vin[0].index == VIndex) ) {
                 //一致
                 memcpy(pTx, &tx, sizeof(ucoin_tx_t));
                 ucoin_tx_init(&tx);     //freeさせない
+                ret = true;
                 break;
-            } else {
-                ret = false;
             }
             ucoin_tx_free(&tx);
         }
@@ -554,6 +553,123 @@ LABEL_DECREF:
         //} else {
         //    DBG_PRINTF("not match\n");
         //}
+LABEL_DECREF2:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: getblock_rpc\n");
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    free(p_json);
+
+    return ret;
+}
+
+
+bool jsonrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout)
+{
+    bool ret = false;
+    bool retval;
+    char *p_json;
+    char txid[UCOIN_SZ_TXID * 2 + 1] = "";
+    char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
+
+    p_json = (char *)malloc(BUFFER_SIZE);
+
+    //ブロック高→ブロックハッシュ
+    retval = getblockhash_rpc(p_json, BHeight);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF;
+        }
+        if (json_is_string(p_result)) {
+            strcpy(blockhash, (const char *)json_string_value(p_result));
+        }
+LABEL_DECREF:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: getblockhash_rpc\n");
+        goto LABEL_EXIT;
+    }
+
+    //ブロックハッシュ→TXIDs
+    retval = getblock_rpc(p_json, blockhash);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_t *p_height;
+        json_t *p_tx;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF2;
+        }
+        p_height = json_object_get(p_result, M_HEIGHT);
+        if (json_is_integer(p_height)) {
+            if ((int)json_integer_value(p_height) != BHeight) {
+                DBG_PRINTF("error: M_HEIGHT\n");
+                goto LABEL_DECREF2;
+            }
+        }
+        //検索
+        p_tx = json_object_get(p_result, M_TX);
+        ucoin_push_t push;
+        ucoin_push_init(&push, pTxBuf, 0);
+        size_t index;
+        json_t *p_value;
+        json_array_foreach(p_tx, index, p_value) {
+            strcpy(txid, (const char *)json_string_value(p_value));
+            ucoin_tx_t tx;
+
+            ucoin_tx_init(&tx);
+            bool bret = jsonrpc_getraw_txstr(&tx, txid);
+            if (!bret) {
+                int cnt = pTxBuf->len / sizeof(ucoin_tx_t);
+                ucoin_tx_t *p_tx = (ucoin_tx_t *)pTxBuf->buf;
+                for (int lp = 0; lp < cnt; lp++) {
+                    ucoin_tx_free(&p_tx[lp]);
+                }
+                ucoin_buf_free(pTxBuf);
+                ucoin_tx_free(&tx);
+                ret = false;
+                break;
+            }
+            for (int lp = 0; lp < tx.vout_cnt; lp++) {
+                if (ucoin_buf_cmp(&tx.vout[0].script, pVout)) {
+                    //一致
+                    DBG_PRINTF("match: %s\n", txid);
+                    ucoin_push_data(&push, &tx, sizeof(ucoin_tx_t));
+                    DBG_PRINTF("len=%d\n", pTxBuf->len);
+                    ucoin_tx_init(&tx);     //freeさせない
+                    ret = true;
+                    break;
+                }
+            }
+            ucoin_tx_free(&tx);
+        }
 LABEL_DECREF2:
         json_decref(p_root);
     } else {

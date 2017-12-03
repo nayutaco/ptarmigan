@@ -415,7 +415,8 @@ typedef struct {
 typedef struct {
     int             num;                            ///< p_bufのtransaction数
     ucoin_tx_t      *p_tx;                          ///< [0]commit_tx [1]to_local [2-]HTLC
-    uint8_t        *p_htlc_idx;                     ///< [0,1]ignore [2-]self->cnl_add_htlc[]のhtlc_idx
+    uint8_t         *p_htlc_idx;                    ///< [0,1]ignore [2-]self->cnl_add_htlc[]のhtlc_idx
+    ucoin_buf_t     tx_buf;                         ///< HTLC Timeout/Successから取り戻すTX
 } ln_close_force_t;
 
 /// @}
@@ -953,6 +954,11 @@ struct ln_self_t {
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
+    ucoin_buf_t                 revoked_vout;                   ///< revoked transaction close時に検索するvoutスクリプト
+    ucoin_buf_t                 revoked_wit;                    ///< revoked transaction close時のwitnessスクリプト
+    ucoin_buf_t                 revoked_sec;                    ///< revoked transaction close時のremote per_commit_sec
+    uint16_t                    revoked_cnt;                    ///< 取り戻す必要があるvout数
+    uint32_t                    revoked_chk;                    ///< 最後にチェックしたfunding_txのconfirmation数
 
     //msg:normal operation
     uint16_t                    htlc_num;                       ///< HTLC数
@@ -1298,6 +1304,15 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose);
 void ln_free_close_force_tx(ln_close_force_t *pClose);
 
 
+/** revoked transaction close(ugly way)の対処
+ *
+ * @param[in]           self        channel情報
+ * @param[in]           pTx         revoked transaction
+ * @retval      ture    成功
+ */
+bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx);
+
+
 /** update_add_htlcメッセージ作成
  *
  * @param[in,out]       self            channel情報
@@ -1371,6 +1386,10 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing);
  * @retval      true    成功
  */
 bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
+
+
+bool ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
+                const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
 /** PreImageハッシュ計算
@@ -1625,6 +1644,55 @@ static inline const ucoin_buf_t *ln_preimage_local(const ucoin_tx_t *pTx) {
  */
 static inline const ucoin_buf_t *ln_preimage_remote(const ucoin_tx_t *pTx) {
     return (pTx->vin[0].wit_cnt == 5) ? &pTx->vin[0].witness[3] : NULL;
+}
+
+
+/** revoked transaction closeされた後の残取り戻しチェック
+ *
+ * @param[in,out]       self            channel情報
+ * @retval      true        取り戻し完了
+ */
+static inline bool ln_revoked_cnt_dec(ln_self_t *self) {
+    self->revoked_cnt--;
+    return self->revoked_cnt == 0;
+}
+
+
+/** revoked transaction closeされた後のfunding_tx confirmation数更新
+ * 
+ * @param[out]          self            channel情報
+ * @param[in]           confm           confirmation数
+ */
+static inline void ln_set_revoked_confm(ln_self_t *self, uint32_t confm) {
+    self->revoked_chk = confm;
+}
+
+
+/** ln_revoked_confm()で保存した値の取得
+ * 
+ * @param[in]           self            channel情報
+ * @return      ln_revoked_confm()で保存したconfirmation数
+ */
+static inline uint32_t ln_revoked_confm(const ln_self_t *self) {
+    return self->revoked_chk;
+}
+
+
+/** revoked vout
+ * @param[in]           self            channel情報
+ * @return      revoked transaction後に監視するvoutスクリプト
+ */
+static inline const ucoin_buf_t* ln_revoked_vout(const ln_self_t *self) {
+    return &self->revoked_vout;
+}
+
+
+/** revoked witness script
+ * @param[in]           self            channel情報
+ * @return      revoked transaction後に取り戻す際のunlocking witness script
+ */
+static inline const ucoin_buf_t* ln_revoked_wit(const ln_self_t *self) {
+    return &self->revoked_wit;
 }
 
 

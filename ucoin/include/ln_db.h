@@ -251,6 +251,9 @@ void ln_db_cursor_preimage_close(void *pCur);
 bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
 
 
+bool ln_db_load_revoked(ln_self_t *self, void *pDbParam);
+bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam);
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus

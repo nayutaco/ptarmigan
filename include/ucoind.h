@@ -48,14 +48,16 @@ static inline int tid() {
 #define FNAME_DIR           "amount"
 #define FNAME_AMOUNT_FMT    FNAME_DIR "/amount.%" PRIx64
 
-#define RPCERR_PARSE        (-10000)
-#define RPCERR_PARSE_STR    "parse param"
+#define RPCERR_ERROR        (-10000)
+#define RPCERR_ERROR_STR    "error"
 #define RPCERR_NOCONN       (-10001)
 #define RPCERR_NOCONN_STR   "not connected"
 #define RPCERR_ALCONN       (-10002)
 #define RPCERR_ALCONN_STR   "already connected"
 #define RPCERR_NOCHANN      (-10003)
 #define RPCERR_NOCHANN_STR  "no channel"
+#define RPCERR_PARSE        (-10004)
+#define RPCERR_PARSE_STR    "parse param"
 
 #define RPCERR_NODEID       (-20000)
 #define RPCERR_NODEID_STR   "invalid node_id"

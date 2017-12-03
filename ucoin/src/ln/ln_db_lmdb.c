@@ -52,6 +52,7 @@
 #define M_PREFIX_LEN            (2)
 #define M_CHANNEL_NAME          "CN"            ///< channel
 #define M_SHAREDSECRET_NAME     "SS"            ///< shared secret
+#define M_REVOKED_NAME          "RV"            ///< revoked transaction用
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 #define M_DB_PREIMAGE           "preimage"
@@ -293,9 +294,15 @@ bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
+    memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
+    retval = mdb_dbi_open(txn, dbname, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
 LABEL_EXIT:
     if (txn) {
-        DBG_PRINTF("abort\n");
         MDB_TXN_ABORT(txn);
     }
 
@@ -511,6 +518,26 @@ bool ln_db_del_channel(const ln_self_t *self, void *p_db_param)
     //shared secret
 LABEL_DEL_SS:
     memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi_cnl);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        if (retval == MDB_NOTFOUND) {
+            DBG_PRINTF("fall through: %s\n", dbname);
+            goto LABEL_DEL_RV;
+        } else {
+            goto LABEL_EXIT;
+        }
+    }
+    retval = mdb_drop(p_cur->txn, dbi_cnl, 1);
+    DBG_PRINTF("drop: %s(%d)\n", dbname, retval);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    //revoked transaction用データ
+LABEL_DEL_RV:
+    memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi_cnl);
     if (retval != 0) {
@@ -1161,6 +1188,159 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
 
 
 /**************************************************************************
+ * revoked transaction用データ
+ **************************************************************************/
+
+bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
+{
+    MDB_val key, data;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+
+    txn = ((lmdb_db_t *)pDbParam)->txn;
+
+    strcpy(dbname, M_REVOKED_NAME);
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    int retval = mdb_dbi_open(txn, dbname, 0, &dbi);
+    if (retval != 0) {
+        //DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_size = 3;
+    key.mv_data = "rvv";
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    ucoin_buf_free(&self->revoked_vout);
+    ucoin_buf_alloccopy(&self->revoked_vout, data.mv_data, data.mv_size);
+
+    key.mv_data = "rvw";
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    ucoin_buf_free(&self->revoked_wit);
+    ucoin_buf_alloccopy(&self->revoked_wit, data.mv_data, data.mv_size);
+
+    key.mv_data = "rvs";
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    ucoin_buf_free(&self->revoked_sec);
+    ucoin_buf_alloccopy(&self->revoked_sec, data.mv_data, data.mv_size);
+
+    key.mv_data = "rvn";
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    self->revoked_cnt = *(uint16_t *)data.mv_data;
+
+    key.mv_data = "rvc";
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    self->revoked_chk = *(uint32_t *)data.mv_data;
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam)
+{
+    MDB_val key, data;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+
+    txn = ((lmdb_db_t *)pDbParam)->txn;
+
+    strcpy(dbname, M_REVOKED_NAME);
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    int retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_size = 3;
+    key.mv_data = "rvv";
+    data.mv_size = self->revoked_vout.len;
+    data.mv_data = self->revoked_vout.buf;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_data = "rvw";
+    data.mv_size = self->revoked_wit.len;
+    data.mv_data = self->revoked_wit.buf;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_data = "rvs";
+    data.mv_size = self->revoked_sec.len;
+    data.mv_data = self->revoked_sec.buf;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_data = "rvn";
+    data.mv_size = sizeof(self->revoked_cnt);
+    data.mv_data = (CONST_CAST uint16_t *)&self->revoked_cnt;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_data = "rvc";
+    data.mv_size = sizeof(self->revoked_chk);
+    data.mv_data = (CONST_CAST uint32_t *)&self->revoked_chk;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    if (bUpdate) {
+        memcpy(dbname, M_CHANNEL_NAME, M_PREFIX_LEN);
+        retval = mdb_dbi_open(txn, dbname, 0, &dbi);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+        retval = save_channel(self, txn, &dbi);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+
+    }
+LABEL_EXIT:
+    DBG_PRINTF("retval=%d\n", retval);
+    return retval == 0;
+}
+
+
+/**************************************************************************
  * version
  **************************************************************************/
 
@@ -1785,7 +1965,7 @@ static int check_version(MDB_txn *txn, MDB_dbi *pdbi, uint8_t *pMyNodeId)
     if (retval == 0) {
         int version = *(int *)data.mv_data;
         if (version != M_DB_VERSION_VAL) {
-            DBG_PRINTF("FAIL: version mismatch : %d\n", version);
+            DBG_PRINTF("FAIL: version mismatch : %d(%d)\n", version, M_DB_VERSION_VAL);
             retval = -1;
         }
     }

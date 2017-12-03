@@ -62,7 +62,6 @@ typedef struct {
 } write_result_t;
 
 
-static uint8_t      mCmd = DCMD_NONE;
 static char         mPeerAddr[INET6_ADDRSTRLEN];
 static uint16_t     mPeerPort;
 static char         mPeerNodeId[UCOIN_SZ_PUBKEY * 2 + 1];
@@ -82,6 +81,7 @@ static void listinvoice_rpc(char *pJson);
 static void payment_rpc(char *pJson, const payment_conf_t *pPay);
 static void close_rpc(char *pJson);
 static void debug_rpc(char *pJson, int debug);
+static void getcommittx_rpc(char *pJson);
 
 static int msg_send(char *pMsg, const char *pAddr, uint16_t Port, bool bSend);
 
@@ -101,12 +101,13 @@ int main(int argc, char *argv[])
     ucoin_init(UCOIN_TESTNET, true);
 #endif
 
+    bool conn = false;
     const char *p_addr = NULL;
     char addr[256];
     bool b_send = true;
     int opt;
     uint8_t options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "htqlc:f:i:mp:xa:d:")) != -1) {
+    while ((opt = getopt(argc, argv, "htqlc:f:i:mp:xga:d:")) != -1) {
         switch (opt) {
         case 'h':
             options = M_OPTIONS_HELP;
@@ -152,7 +153,6 @@ int main(int argc, char *argv[])
                 errno = 0;
                 uint64_t amount = (uint64_t)strtoull(optarg, NULL, 10);
                 if (errno == 0) {
-                    mCmd = DCMD_PREIMAGE;
                     invoice_rpc(mBuf, amount);
                     options = M_OPTIONS_EXEC;
                 } else {
@@ -167,7 +167,6 @@ int main(int argc, char *argv[])
         case 'm':
             //payment-hash表示
             if (options == M_OPTIONS_INIT) {
-                mCmd = DCMD_PAYMENT_HASH;
                 listinvoice_rpc(mBuf);
                 options = M_OPTIONS_EXEC;
             } else {
@@ -186,7 +185,6 @@ int main(int argc, char *argv[])
                     bret &= misc_str2bin(payconf.payment_hash, LN_SZ_HASH, hash);
                 }
                 if (bret) {
-                    mCmd = DCMD_PAYMENT;
                     payment_rpc(mBuf, &payconf);
                     options = M_OPTIONS_EXEC;
                 } else {
@@ -209,7 +207,7 @@ int main(int argc, char *argv[])
                 bool bret = load_peer_conf(optarg, &peer);
                 if (bret) {
                     //peer.conf
-                    mCmd = DCMD_CONNECT;
+                    conn = true;
                     strcpy(mPeerAddr, peer.ipaddr);
                     mPeerPort = peer.port;
                     misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
@@ -229,7 +227,7 @@ int main(int argc, char *argv[])
                 funding_conf_t fundconf;
                 bool bret = load_funding_conf(optarg, &fundconf);
                 if (bret) {
-                    mCmd = DCMD_CREATE;
+                    conn = false;
                     fund_rpc(mBuf, &fundconf);
                     options = M_OPTIONS_EXEC;
                 } else {
@@ -244,11 +242,22 @@ int main(int argc, char *argv[])
         case 'x':
             //mutual close
             if (options == M_OPTIONS_CONN) {
-                mCmd = DCMD_CLOSE;
+                conn = false;
                 close_rpc(mBuf);
                 options = M_OPTIONS_EXEC;
             } else {
                 printf("-x need -c option before\n");
+                options = M_OPTIONS_HELP;
+            }
+            break;
+        case 'g':
+            //getcommittx
+            if (options == M_OPTIONS_CONN) {
+                conn = false;
+                getcommittx_rpc(mBuf);
+                options = M_OPTIONS_EXEC;
+            } else {
+                printf("-g need -c option before\n");
                 options = M_OPTIONS_HELP;
             }
             break;
@@ -282,10 +291,12 @@ int main(int argc, char *argv[])
         printf("\t\t-f <fund.conf> : funding(need -c)\n");
         printf("\t\t-p <payment.conf> : payment(need -c)\n");
         printf("\t\t-x : mutual close(need -c)\n");
+        printf("\t\t-d : [debug]debug option\n");
+        printf("\t\t-g : [debug]get commitment transaction(need -c)\n");
         return -1;
     }
 
-    if (mCmd == DCMD_CONNECT) {
+    if (conn) {
         connect_rpc(mBuf);
     }
 
@@ -436,6 +447,20 @@ static void debug_rpc(char *pJson, int debug)
             M_STR("method", "debug") M_NEXT
             M_QQ("params") ":[ %d ]"
         "}", debug);
+}
+
+
+static void getcommittx_rpc(char *pJson)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "getcommittx") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d"
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort);
 }
 
 

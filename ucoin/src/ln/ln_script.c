@@ -126,7 +126,7 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
  */
 bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
                 uint64_t Value, const ucoin_buf_t *pScriptPk, uint32_t LockTime,
-                const uint8_t *pTxid, int Index)
+                const uint8_t *pTxid, int Index, bool bRevoked)
 {
     //vout
     ucoin_vout_t* vout = ucoin_tx_add_vout(pTx, Value);
@@ -134,7 +134,9 @@ bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
 
     //vin
     ucoin_tx_add_vin(pTx, pTxid, Index);
-    pTx->vin[0].sequence = LockTime;
+    if (!bRevoked) {
+        pTx->vin[0].sequence = LockTime;
+    }
 
     return true;
 }
@@ -143,7 +145,7 @@ bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
 bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
                     uint64_t Value,
                     const ucoin_util_keys_t *pKeys,
-                    const ucoin_buf_t *pWitScript)
+                    const ucoin_buf_t *pWitScript, bool bRevoked)
 {
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
 
@@ -163,12 +165,15 @@ bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
         // <delayedsig>
         // 0
         // <script>
+        const uint8_t WIT1 = 0x01;
         const ucoin_buf_t wit0 = { NULL, 0 };
+        const ucoin_buf_t wit1 = { (CONST_CAST uint8_t *)&WIT1, 1 };
         const ucoin_buf_t *wits[] = {
             pDelayedSig,
-            &wit0,
+            NULL,
             pWitScript
         };
+        wits[1] = (bRevoked) ? &wit1 : &wit0;
 
         ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
     }
