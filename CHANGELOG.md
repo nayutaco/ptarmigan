@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2017/12/03
+
+* revoked transaction closeでの監視(動作確認中)
+
 ## 2017/11/27
 
 * unilateral closeでのpreimage監視追加(動作確認中)
