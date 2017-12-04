@@ -92,6 +92,9 @@ extern "C" {
                                                     // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#tagged-fields
 
 
+#define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
+
+
 /**************************************************************************
  * macro functions
  **************************************************************************/
@@ -1659,7 +1662,7 @@ static inline bool ln_revoked_cnt_dec(ln_self_t *self) {
 
 
 /** revoked transaction closeされた後のfunding_tx confirmation数更新
- * 
+ *
  * @param[out]          self            channel情報
  * @param[in]           confm           confirmation数
  */
@@ -1669,7 +1672,7 @@ static inline void ln_set_revoked_confm(ln_self_t *self, uint32_t confm) {
 
 
 /** ln_revoked_confm()で保存した値の取得
- * 
+ *
  * @param[in]           self            channel情報
  * @return      ln_revoked_confm()で保存したconfirmation数
  */

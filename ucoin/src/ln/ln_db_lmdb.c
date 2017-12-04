@@ -56,6 +56,7 @@
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 #define M_DB_PREIMAGE           "preimage"
+#define M_DB_PAYHASH            "payhash"
 #define M_DB_VERSION            "version"
 #define M_DB_VERSION_VAL        (-11)           ///< DBバージョン
 /*
@@ -1187,6 +1188,107 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
 }
 
 
+#ifdef LN_UGLY_NORMAL
+/********************************************************************
+ * payment_hash
+ ********************************************************************/
+
+bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, void *pDbParam)
+{
+    int         retval;
+    MDB_txn     *txn = NULL;
+    MDB_dbi     dbi;
+    MDB_val     key, data;
+
+    if (pDbParam != NULL) {
+        txn = ((lmdb_db_t *)pDbParam)->txn;
+    } else {
+        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+    }
+    retval = mdb_dbi_open(txn, M_DB_PAYHASH, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_size = M_SZ_WITPROG_WSH;
+    key.mv_data = (CONST_CAST uint8_t *)pVout;
+    data.mv_size = LN_SZ_HASH;
+    data.mv_data = (CONST_CAST uint8_t *)pPayHash;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval == 0) {
+        DBG_PRINTF("\n");
+    } else {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+LABEL_EXIT:
+    if ((pDbParam == NULL) && (txn != NULL)) {
+        if (retval == 0) {
+            MDB_TXN_COMMIT(txn);
+        } else {
+            MDB_TXN_ABORT(txn);
+        }
+    }
+
+    return retval == 0;
+}
+
+
+bool ln_db_search_payhash(uint8_t *pPayHash, const uint8_t *pVout, void *pDbParam)
+{
+    int         retval;
+    MDB_txn     *txn = NULL;
+    MDB_dbi     dbi;
+    MDB_cursor  *cursor;
+    MDB_val     key, data;
+    bool found = false;
+
+    if (pDbParam != NULL) {
+        txn = ((lmdb_db_t *)pDbParam)->txn;
+    } else {
+        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, MDB_RDONLY, &txn);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+    }
+    retval = mdb_dbi_open(txn, M_DB_PAYHASH, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_cursor_open(txn, dbi, &cursor);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+        if ( (key.mv_size == M_SZ_WITPROG_WSH) &&
+             (memcmp(key.mv_data, pVout, M_SZ_WITPROG_WSH) == 0) ) {
+            memcpy(pPayHash, data.mv_data, LN_SZ_HASH);
+            found = true;
+            break;
+        }
+    }
+    mdb_cursor_close(cursor);
+
+LABEL_EXIT:
+    if ((pDbParam == NULL) && (txn != NULL)) {
+        MDB_TXN_ABORT(txn);
+    }
+
+    return found;
+}
+
+#endif  //LN_UGLY_NORMAL
+
+
 /**************************************************************************
  * revoked transaction用データ
  **************************************************************************/
@@ -1380,6 +1482,11 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     } else if (strcmp(pDbName, M_DB_PREIMAGE) == 0) {
         //preimage
         dbtype = LN_LMDB_DBTYPE_PREIMAGE;
+#ifdef LN_UGLY_NORMAL
+    } else if (strcmp(pDbName, M_DB_PAYHASH) == 0) {
+        //preimage
+        dbtype = LN_LMDB_DBTYPE_PAYHASH;
+#endif //LN_UGLY_NORMAL
     } else if (strcmp(pDbName, M_DB_VERSION) == 0) {
         //version
         dbtype = LN_LMDB_DBTYPE_VERSION;
@@ -1878,6 +1985,7 @@ static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
 LABEL_EXIT:
     return retval == 0;
 }
+
 
 static bool save_preimage_open(lmdb_db_t *p_db, MDB_txn *txn)
 {

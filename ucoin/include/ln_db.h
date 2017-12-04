@@ -241,7 +241,7 @@ bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeSt
 
 
 ////////////////////
-// preimage
+// payment_preimage
 ////////////////////
 
 bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam);
@@ -250,6 +250,21 @@ bool ln_db_cursor_preimage_open(void **ppCur);
 void ln_db_cursor_preimage_close(void *pCur);
 bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
 
+
+#ifdef LN_UGLY_NORMAL
+////////////////////
+// payment_hash
+////////////////////
+
+bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, void *pDbParam);
+bool ln_db_search_payhash(uint8_t *pPayHash, const uint8_t *pVout, void *pDbParam);
+
+#endif  //LN_UGLY_NORMAL
+
+
+////////////////////
+// revoked transaction close
+////////////////////
 
 bool ln_db_load_revoked(ln_self_t *self, void *pDbParam);
 bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam);

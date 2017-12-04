@@ -978,13 +978,13 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 self->commit_local.to_self_delay);
 
-    ucoin_buf_alloc(&self->revoked_vout, 2 + UCOIN_SZ_SHA256);
+    ucoin_buf_alloc(&self->revoked_vout, M_SZ_WITPROG_WSH);
     ucoin_sw_wit2prog_p2wsh(self->revoked_vout.buf, &self->revoked_wit);
 
     //取り戻す必要があるvout数
     self->revoked_cnt = 0;
     for (int lp = 0; lp < pTx->vout_cnt; lp++) {
-        if (pTx->vout[lp].script.len != 2 + UCOIN_SZ_HASH160) {
+        if (pTx->vout[lp].script.len != M_SZ_WITPROG_WPKH) {
             //to_remote output以外は取り戻す
             self->revoked_cnt++;
         }
@@ -3185,6 +3185,13 @@ static bool create_to_local(ln_self_t *self,
                         //OKなら各HTLCに保持
                         //  相手がunilateral closeした後に送信しなかったら、この署名を使う
                         memcpy(self->cnl_add_htlc[htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
+
+#ifdef LN_UGLY_NORMAL
+                        //payment_hash保存
+                        uint8_t vout[M_SZ_WITPROG_WSH];
+                        ucoin_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[htlc_idx]->script);
+                        ln_db_save_payhash(pp_htlcinfo[htlc_idx]->preimage_hash, vout, NULL);
+#endif  //LN_UGLY_NORMAL
                     }
                     if (pTxHtlcs != NULL) {
                         ucoin_buf_t buf_sig;
