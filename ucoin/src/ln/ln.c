@@ -3613,7 +3613,6 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
     ucoin_buf_init(&buf_sig);
     ucoin_tx_free(pTx);
     ucoin_tx_init(pTx);
-    pTx->version = 1;       // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#closing-transaction
 
     //BOLT#3: feeはfundedの方から引く
     if (ln_is_funder(self)) {
