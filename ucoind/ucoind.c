@@ -82,12 +82,18 @@ static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
 
 static void *thread_monitor_start(void *pArg);
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
+
+static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
+static bool close_unilateral_local_received(bool spent);
+
 static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
 static bool close_unilateral_remote_offered(bool spent);
 static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
+
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex);
+
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout);
 
@@ -361,49 +367,10 @@ bool close_unilateral_local(ln_self_t *self, void *pDbParam)
                 //ln_create_htlc_tx()後だから、OFFERED/RECEIVEDがわかる
                 switch (close_dat.p_tx[lp].vout[0].opt) {
                 case LN_HTLCTYPE_OFFERED:
-                    DBG_PRINTF("offered HTLC output\n");
-                    if (spent) {
-                        const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, close_dat.p_htlc_idx[lp]);
-                        if (p_htlc->prev_short_channel_id != 0) {
-                            //転送元がある場合、preimageを抽出する
-                            DBG_PRINTF("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, close_dat.p_htlc_idx[lp]);
-                            ucoin_tx_t tx;
-                            ucoin_tx_init(&tx);
-                            uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
-                            ucoin_tx_txid(txid, &close_dat.p_tx[0]);
-                            ret = search_spent_tx(&tx, confm, txid, close_dat.p_htlc_idx[lp]);
-                            if (ret) {
-                                //preimageを登録(自分が持っているのと同じ状態にする)
-                                const ucoin_buf_t *p_buf = ln_preimage_remote(&tx);
-                                if (p_buf != NULL) {
-                                    DBG_PRINTF("backward preimage: ");
-                                    DUMPBIN(p_buf->buf, p_buf->len);
-                                    ln_db_save_preimage(p_buf->buf, 0, pDbParam);
-                                } else {
-                                    assert(0);
-                                }
-                            } else {
-                                DBG_PRINTF("not found txid: ");
-                                DUMPTXID(txid);
-                                DBG_PRINTF("index=%d\n", close_dat.p_htlc_idx[lp]);
-                                del = false;
-                            }
-                            ucoin_tx_free(&tx);
-                        }
-                    } else {
-                        //タイムアウト用Txを展開(non-BIP68-finalの可能性あり)
-                        send_req = true;
-                    }
+                    send_req = close_unilateral_local_offered(self, &del, spent, &close_dat, lp, pDbParam);
                     break;
                 case LN_HTLCTYPE_RECEIVED:
-                    DBG_PRINTF("received HTLC output\n");
-                    if (!spent) {
-                        //展開(preimageがなければsendrawtransactionに失敗する)
-                        send_req = true;
-                    } else {
-                        //展開済みならOK
-                        DBG_PRINTF("-->OK\n");
-                    }
+                    send_req = close_unilateral_local_received(spent);
                     break;
                 default:
                     DBG_PRINTF("opt=%x\n", close_dat.p_tx[lp].vout[0].opt);
@@ -452,6 +419,7 @@ bool close_unilateral_local(ln_self_t *self, void *pDbParam)
                 DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
             }
         }
+
         ln_free_close_force_tx(&close_dat);
     } else {
         del = false;
@@ -1156,6 +1124,66 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 }
 
 
+static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
+{
+    bool send_req = false;
+
+    DBG_PRINTF("offered HTLC output\n");
+    if (spent) {
+        const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, pCloseDat->p_htlc_idx[lp]);
+        if (p_htlc->prev_short_channel_id != 0) {
+            //転送元がある場合、preimageを抽出する
+            DBG_PRINTF("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
+            ucoin_tx_t tx;
+            ucoin_tx_init(&tx);
+            uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
+            uint8_t txid[UCOIN_SZ_TXID];
+            ucoin_tx_txid(txid, &pCloseDat->p_tx[0]);
+            bool ret = search_spent_tx(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
+            if (ret) {
+                //preimageを登録(自分が持っているのと同じ状態にする)
+                const ucoin_buf_t *p_buf = ln_preimage_remote(&tx);
+                if (p_buf != NULL) {
+                    DBG_PRINTF("backward preimage: ");
+                    DUMPBIN(p_buf->buf, p_buf->len);
+                    ln_db_save_preimage(p_buf->buf, 0, pDbParam);
+                } else {
+                    assert(0);
+                }
+            } else {
+                DBG_PRINTF("not found txid: ");
+                DUMPTXID(txid);
+                DBG_PRINTF("index=%d\n", pCloseDat->p_htlc_idx[lp]);
+                *pDel = false;
+            }
+            ucoin_tx_free(&tx);
+        }
+    } else {
+        //タイムアウト用Txを展開(non-BIP68-finalの可能性あり)
+        send_req = true;
+    }
+
+    return send_req;
+}
+
+
+static bool close_unilateral_local_received(bool spent)
+{
+    bool send_req;
+
+    DBG_PRINTF("received HTLC output\n");
+    if (!spent) {
+        //展開(preimageがなければsendrawtransactionに失敗する)
+        send_req = true;
+    } else {
+        //展開済みならOK
+        DBG_PRINTF("-->OK\n");
+    }
+
+    return send_req;
+}
+
+
 /** unilateral closeを相手が行っていた場合の処理(remoteのcommit_txを展開)
  *
  */
@@ -1170,6 +1198,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
         bool ret = ln_create_closed_tx(self, &close_dat);
         if (ret) {
             del = true;
+            uint8_t txid[UCOIN_SZ_TXID];
             for (int lp = 0; lp < close_dat.num; lp++) {
                 if (lp == 0) {
                     DBG_PRINTF2("\n$$$ commit_tx\n");
@@ -1182,7 +1211,6 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 }
                 if (close_dat.p_tx[lp].vin_cnt > 0) {
                     //自分のtxを展開済みかチェック
-                    uint8_t txid[UCOIN_SZ_TXID];
                     ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                     DBG_PRINTF("txid[%d]= ", lp);
                     DUMPTXID(txid);
