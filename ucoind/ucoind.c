@@ -1381,17 +1381,13 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 }
 
 
+// HTLC Timeout/Success Tx後から取り戻す
 static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
     bool del = false;
 
     if (confm != ln_revoked_confm(self)) {
-        // DBG_PRINTF("confm=%d, self->revoked_chk=%d\n", confm, ln_revoked_confm(self));
-        // DBG_PRINTF("vout: ");
-        // DUMPBIN(self->revoked_vout.buf, self->revoked_vout.len);
-        // DBG_PRINTF("wit:\n");
-        // ucoin_print_script(self->revoked_wit.buf, self->revoked_wit.len);
-
+        //HTLC Timeout/Success Txのvoutと一致するトランザクションを検索
         ucoin_buf_t txbuf;
         bool ret = search_vout(&txbuf, confm - ln_revoked_confm(self), ln_revoked_vout(self));
         if (ret) {
@@ -1436,6 +1432,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
 }
 
 
+//revoked HTLC Timeout/Success Txの送金先になって取り戻す
 static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex)
 {
     uint8_t txid[UCOIN_SZ_TXID];
