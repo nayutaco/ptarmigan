@@ -84,7 +84,8 @@ static void *thread_monitor_start(void *pArg);
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
-static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam);
+static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam);
+static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex);
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout);
 
@@ -1133,7 +1134,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                 ucoin_tx_free(&tx_commit);
             } else {
                 // revoked transaction close
-                del = close_revoked(self, confm, p_db_param);
+                del = close_revoked_after(self, confm, p_db_param);
             }
         }
         if (del) {
@@ -1305,19 +1306,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
                 if (ucoin_buf_cmp(&tx.vout[lp].script, &self->revoked_vout)) {
                     DBG_PRINTF("[%d]to_local !\n", lp);
 
-                    uint8_t txid[UCOIN_SZ_TXID];
-                    ucoin_tx_txid(txid, &tx);
-                    ucoin_tx_t tx_local;
-                    ucoin_tx_init(&tx_local);
-                    ln_create_tolocal_spent(self, &tx_local, tx.vout[lp].value,
-                                self->commit_local.to_self_delay,
-                                &self->revoked_wit, txid, lp, true);
-                    ucoin_print_tx(&tx_local);
-                    ucoin_buf_t buf;
-                    ucoin_tx_create(&buf, &tx_local);
-                    ucoin_tx_free(&tx_local);
-                    bool ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
-                    ucoin_buf_free(&buf);
+                    ret = close_revoked_vout(self, &tx, lp);
                     if (ret) {
                         del = ln_revoked_cnt_dec(self);
                         ln_set_revoked_confm(self, confm);
@@ -1338,7 +1327,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 }
 
 
-static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam)
+static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
     bool del = false;
 
@@ -1360,20 +1349,8 @@ static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam)
                 DBG_PRINTF2("-------- %d ----------\n", lp);
                 ucoin_print_tx(&pTx[lp]);
 
-                uint8_t txid[UCOIN_SZ_TXID];
-                ucoin_tx_txid(txid, &pTx[lp]);
-
-                ucoin_tx_t tx_htlc;
-                ucoin_tx_init(&tx_htlc);
-                ln_create_tolocal_spent(self, &tx_htlc, pTx[lp].vout[0].value,
-                            self->commit_local.to_self_delay,
-                            ln_revoked_wit(self), txid, 0, true);
-                ucoin_print_tx(&tx_htlc);
-                ucoin_buf_t buf;
-                ucoin_tx_create(&buf, &tx_htlc);
+                ret = close_revoked_vout(self, &pTx[lp], 0);
                 ucoin_tx_free(&pTx[lp]);
-                ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
-                ucoin_buf_free(&buf);
                 if (ret) {
                     del = ln_revoked_cnt_dec(self);
                     DBG_PRINTF("del=%d, revoked_cnt=%d\n", del, self->revoked_cnt);
@@ -1402,6 +1379,27 @@ static bool close_revoked(ln_self_t *self, uint32_t confm, void *pDbParam)
     }
 
     return del;
+}
+
+
+static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex)
+{
+    uint8_t txid[UCOIN_SZ_TXID];
+    ucoin_tx_txid(txid, pTx);
+
+    ucoin_tx_t tx;
+    ucoin_tx_init(&tx);
+    ln_create_tolocal_spent(self, &tx, pTx->vout[VIndex].value,
+                self->commit_local.to_self_delay,
+                ln_revoked_wit(self), txid, VIndex, true);
+    ucoin_print_tx(&tx);
+    ucoin_buf_t buf;
+    ucoin_tx_create(&buf, &tx);
+    ucoin_tx_free(&tx);
+    bool ret = jsonrpc_sendraw_tx(txid, buf.buf, buf.len);
+    ucoin_buf_free(&buf);
+
+    return ret;
 }
 
 
