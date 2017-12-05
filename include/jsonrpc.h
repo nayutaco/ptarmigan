@@ -114,11 +114,12 @@ bool jsonrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf
 /** [bitcoin rpc]sendrawtransaction
  *
  * @param[out]  pTxid       取得したTXID(戻り値がtrue時)
+ * @param[out]  pCode       結果コード
  * @param[in]   pData       送信データ
  * @param[in]   Len         pData長
  * @retval  true        送信成功
  */
-bool jsonrpc_sendraw_tx(uint8_t *pTxid, const uint8_t *pData, uint16_t Len);
+bool jsonrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint16_t Len);
 
 
 /** [bitcoin rpc]getrawtransaction

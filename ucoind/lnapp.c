@@ -1843,7 +1843,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
         ucoin_buf_init(&buf_tx);
         ucoin_tx_create(&buf_tx, p->p_tx_funding);
-        bool ret = jsonrpc_sendraw_tx(txid, buf_tx.buf, buf_tx.len);
+        bool ret = jsonrpc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
         if (ret) {
             DBG_PRINTF("OK\n");
         } else {
@@ -2426,7 +2426,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         DBG_PRINTF("send closing tx\n");
 
         uint8_t txid[UCOIN_SZ_TXID];
-        bool ret = jsonrpc_sendraw_tx(txid, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
+        bool ret = jsonrpc_sendraw_tx(txid, NULL, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
         if (!ret) {
             SYSLOG_ERR("%s(): jsonrpc_sendraw_tx", __func__);
             assert(0);

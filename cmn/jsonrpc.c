@@ -684,7 +684,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_sendraw_tx(uint8_t *pTxid, const uint8_t *pData, uint16_t Len)
+bool jsonrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint16_t Len)
 {
     bool ret = false;
     bool retval;
@@ -719,7 +719,10 @@ bool jsonrpc_sendraw_tx(uint8_t *pTxid, const uint8_t *pData, uint16_t Len)
             misc_str2bin_rev(pTxid, UCOIN_SZ_TXID, (const char *)json_string_value(p_result));
             ret = true;
         } else {
-            error_result(p_root);
+            int code = error_result(p_root);
+            if (pCode) {
+                *pCode = code;
+            }
         }
 LABEL_DECREF:
         json_decref(p_root);
@@ -1309,8 +1312,8 @@ static int error_result(json_t *p_root)
         DBG_PRINTF("message=[%s]\n", (const char *)json_string_value(p_msg));
     }
     if (p_code) {
-        DBG_PRINTF("code=%" JSON_INTEGER_FORMAT "\n", json_integer_value(p_code));
-        err = (int)json_integer_value(p_msg);
+        err = (int)json_integer_value(p_code);
+        DBG_PRINTF("code=%d\n", err);
     }
     if (!p_msg && !p_code) {
         DBG_PRINTF("fail: json_is_string\n");
@@ -1443,7 +1446,7 @@ int main(int argc, char *argv[])
 
 //    fprintf(PRINTOUT, "--------------------------\n");
 //    uint8_t txid[UCOIN_SZ_TXID];
-//    bool ret = jsonrpc_sendraw_tx(txid, TX, sizeof(TX));
+//    bool ret = jsonrpc_sendraw_tx(txid, NULL, TX, sizeof(TX));
 //    if (ret) {
 //        for (int lp = 0; lp < sizeof(txid); lp++) {
 //            fprintf(PRINTOUT, "%02x", txid[lp]);

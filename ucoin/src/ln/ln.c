@@ -3207,7 +3207,7 @@ static bool create_to_local(ln_self_t *self,
                             ret_img = false;
                             DBG_PRINTF("[offered]%d\n", ret_img);
                         }
-                        pClose->p_htlc_idx[1 + htlc_num] = htlc_idx;
+                        pClose->p_htlc_idx[2 + htlc_num] = htlc_idx;
 
                         //署名:HTLC Success/Timeout Transaction
                         ucoin_buf_t buf_local_sig;
@@ -3558,7 +3558,7 @@ static bool create_to_remote(ln_self_t *self,
                             DBG_PRINTF("skip create HTLC tx[%d]\n", htlc_num);
                             ucoin_tx_init(&pTxHtlcs[1 + htlc_num]);
                         }
-                        pClose->p_htlc_idx[1 + htlc_num] = htlc_idx;
+                        pClose->p_htlc_idx[2 + htlc_num] = htlc_idx;
                     }
 
                     ucoin_tx_free(&tx);
