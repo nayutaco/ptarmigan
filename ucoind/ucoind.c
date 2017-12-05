@@ -412,7 +412,7 @@ bool close_unilateral_local(ln_self_t *self, void *pDbParam)
             if (ret) {
                 DBG_PRINTF("broadcast after tx[%d]\n", lp);
                 DBG_PRINTF("-->OK\n");
-            } else if (code == -25) {
+            } else if ((code == JSONRPC_ERR_MISSING_INPUT) || (code == JSONRPC_ERR_ALREADY_BLOCK)) {
                 DBG_PRINTF("through[%d]: already spent vin\n", lp);
             } else {
                 del = false;
