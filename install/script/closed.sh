@@ -4,4 +4,4 @@
 #	$2: closing_txid
 #	$3: node_id
 DATE=`date +"%c %N"`
-echo { \"method\": \"debug\", \"kind\": \"closed\", \"short_channel_id\": \"$1\", \"closing_txid\": \"$2\", \"node_id\": \"$3\", \"date\": \"$DATE\" } | jq .
+echo { \"method\": \"closed\", \"short_channel_id\": \"$1\", \"closing_txid\": \"$2\", \"node_id\": \"$3\", \"date\": \"$DATE\" } | jq .
