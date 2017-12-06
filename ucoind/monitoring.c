@@ -79,9 +79,6 @@ static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *
  * public functions
  **************************************************************************/
 
-/** チャネル閉鎖監視スレッド
- *
- */
 void *monitor_thread_start(void *pArg)
 {
     (void)pArg;
@@ -112,7 +109,7 @@ void monitor_stop(void)
 }
 
 
-/** unilateral closeを自分が行っていた場合の処理(localのcommit_txを展開)
+/* unilateral closeを自分が行っていた場合の処理(localのcommit_txを展開)
  *
  */
 bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
@@ -276,6 +273,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 }
 
 
+// Unilateral Close(自分がcommit_tx展開): Offered HTLC output
 static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
 {
     bool send_req = false;
@@ -319,6 +317,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
 }
 
 
+// Unilateral Close(自分がcommit_tx展開): Received HTLC output
 static bool close_unilateral_local_received(bool spent)
 {
     bool send_req;
@@ -424,6 +423,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 }
 
 
+// Unilateral Close(相手がcommit_tx展開): Offered HTLC output
 static bool close_unilateral_remote_offered(bool spent)
 {
     bool send_req;
@@ -442,6 +442,7 @@ static bool close_unilateral_remote_offered(bool spent)
 }
 
 
+// Unilateral Close(相手がcommit_tx展開): Received HTLC output
 static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
 {
     bool send_req = false;
@@ -484,6 +485,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
 }
 
 
+// Mutual Close or Revoked Transaction Close
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
     (void)pDbParam;
@@ -507,6 +509,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
             SYSLOG_WARN("closed: ugly way\n");
             ln_close_ugly(self, &tx);
 
+            //即座に取り戻せるもの
             bool save = true;
             for (int lp = 0; lp < tx.vout_cnt; lp++) {
                 if (ucoin_buf_cmp(&tx.vout[lp].script, &self->revoked_vout)) {
@@ -606,6 +609,7 @@ static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int
 }
 
 
+//該当するoutpointをvinに持つトランザクションを検索
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index)
 {
     bool ret = false;
@@ -625,6 +629,7 @@ static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxi
 }
 
 
+//該当するscriptPubKeyを vout[0]に持つトランザクション検索
 static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout)
 {
     bool ret = false;

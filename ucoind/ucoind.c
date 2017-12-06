@@ -294,6 +294,7 @@ void ucoind_preimage_unlock(void)
  * private functions
  **************************************************************************/
 
+//short_channel_idから現在開いているlnappを検索
 static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id)
 {
     lnapp_conf_t *p_appconf;

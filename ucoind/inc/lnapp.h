@@ -118,18 +118,81 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
+/** [lnapp]初期化
+ *
+ */
 void lnapp_init(ln_node_t *pNode);
+
+
+/** [lnapp]開始
+ *
+ */
 void lnapp_start(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]停止
+ *
+ */
 void lnapp_stop(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]送金開始
+ *
+ */
 bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay);
+
+
+/** [lnapp]送金転送
+ *
+ */
 bool lnapp_forward_payment(lnapp_conf_t *pAppConf, fwd_proc_add_t *pAdd);
+
+
+/** [lnapp]送金反映
+ *
+ */
 bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
+
+
+/** [lnapp]送金エラー
+ *
+ */
 bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
+
+
+/** [lnapp]チャネル閉鎖
+ *
+ */
 bool lnapp_close_channel(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]チャネル閉鎖(強制)
+ *
+ */
 bool lnapp_close_channel_force(const uint8_t *pNodeId);
+
+
+/** [lnapp]short_channel_idに対応するlnappか
+ *
+ */
 bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_channel_id);
+
+
+/** [lnapp]lnapp出力
+ *
+ */
 void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult);
+
+
+/** [lnapp]現在のcommit_tx出力
+ *
+ */
 bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult);
+
+
+/** [lnapp]ループ状態取得
+ *
+ */
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
 
 #endif /* LNAPP_H__ */

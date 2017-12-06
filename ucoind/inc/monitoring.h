@@ -34,8 +34,25 @@ typedef struct ln_self_t ln_self_t;
  * prototypes
  ********************************************************************/
 
+/** チャネル閉鎖監視スレッド開始
+ *
+ * @param[in]   pArg        未使用
+ * @retval      未使用
+ */
 void *monitor_thread_start(void *pArg);
+
+
+/** モニタループ停止
+ *
+ */
 void monitor_stop(void);
+
+
+/** Unilateral Close(自分が展開)
+ *
+ * @param[in,out]       self        チャネル情報
+ * @param[in,out]       pDbParam    DB情報
+ */
 bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam);
 
-#endif	//MONITORING_H__
+#endif  //MONITORING_H__
