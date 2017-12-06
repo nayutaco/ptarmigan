@@ -1309,9 +1309,12 @@ void ln_free_close_force_tx(ln_close_force_t *pClose);
 
 /** revoked transaction close(ugly way)の対処
  *
- * @param[in]           self        channel情報
+ * @param[in,out]       self        channel情報
  * @param[in]           pTx         revoked transaction
  * @retval      ture    成功
+ * @note
+ *      - self->vout にto_localのscriptPubKeyを設定する(HTLC Timeout/Successの取り戻しにも使用する)
+ *      - self->wit にto_localのwitnessProgramを設定する
  */
 bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx);
 
@@ -1578,6 +1581,26 @@ static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
 }
 
 
+/** shutdown時のlocal scriptPubKey取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      local scriptPubKey
+ */
+static inline const ucoin_buf_t *ln_shutdown_scriptpk_local(const ln_self_t *self) {
+    return &self->shutdown_scriptpk_local;
+}
+
+
+/** shutdown時のremote scriptPubKey取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      remote scriptPubKey
+ */
+static inline const ucoin_buf_t *ln_shutdown_scriptpk_remote(const ln_self_t *self) {
+    return &self->shutdown_scriptpk_remote;
+}
+
+
 /**
  *
  *
@@ -1647,6 +1670,16 @@ static inline const ucoin_buf_t *ln_preimage_local(const ucoin_tx_t *pTx) {
  */
 static inline const ucoin_buf_t *ln_preimage_remote(const ucoin_tx_t *pTx) {
     return (pTx->vin[0].wit_cnt == 5) ? &pTx->vin[0].witness[3] : NULL;
+}
+
+
+/** revoked transaction closeされた後の残取り戻し数
+ *
+ * @param[in]           self            channel情報
+ * @retval      残取り戻し数
+ */
+static inline uint16_t ln_revoked_cnt(const ln_self_t *self) {
+    return self->revoked_cnt;
 }
 
 

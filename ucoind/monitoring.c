@@ -242,7 +242,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             //funding_tx使用済み
 
             ln_db_load_revoked(self, p_db_param);
-            if (self->revoked_vout.len == 0) {
+            if (ln_revoked_vout(self)->len == 0) {
                 //展開されているのが最新のcommit_txか
                 ucoin_tx_t tx_commit;
                 ucoin_tx_init(&tx_commit);
@@ -499,8 +499,8 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
         ucoin_print_tx(&tx);
         ucoin_buf_t *p_buf_pk = &tx.vout[0].script;
         if ( (tx.vout_cnt <= 2) &&
-             (ucoin_buf_cmp(p_buf_pk, &self->shutdown_scriptpk_local) ||
-              ucoin_buf_cmp(p_buf_pk, &self->shutdown_scriptpk_remote)) ) {
+             (ucoin_buf_cmp(p_buf_pk, ln_shutdown_scriptpk_local(self)) ||
+              ucoin_buf_cmp(p_buf_pk, ln_shutdown_scriptpk_remote(self))) ) {
             //voutのどちらかがshutdown時のscriptPubkeyと一致すればclosing_txと見なす
             DBG_PRINTF("This is closing_tx\n");
             del = true;
@@ -512,7 +512,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
             //即座に取り戻せるもの
             bool save = true;
             for (int lp = 0; lp < tx.vout_cnt; lp++) {
-                if (ucoin_buf_cmp(&tx.vout[lp].script, &self->revoked_vout)) {
+                if (ucoin_buf_cmp(&tx.vout[lp].script, ln_revoked_vout(self))) {
                     DBG_PRINTF("[%d]to_local !\n", lp);
 
                     ret = close_revoked_vout(self, &tx, lp);
@@ -522,7 +522,6 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
                     } else {
                         save = false;
                     }
-                    break;
                 }
             }
             if (save) {
@@ -558,7 +557,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
                 ucoin_tx_free(&pTx[lp]);
                 if (ret) {
                     del = ln_revoked_cnt_dec(self);
-                    DBG_PRINTF("del=%d, revoked_cnt=%d\n", del, self->revoked_cnt);
+                    DBG_PRINTF("del=%d, revoked_cnt=%d\n", del, ln_revoked_cnt(self));
                 } else {
                     sendret = false;
                     break;
@@ -569,7 +568,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
             if (sendret) {
                 ln_set_revoked_confm(self, confm);
                 ln_db_save_revoked(self, false, pDbParam);
-                DBG_PRINTF("del=%d, revoked_cnt=%d\n", del, self->revoked_cnt);
+                DBG_PRINTF("del=%d, revoked_cnt=%d\n", del, ln_revoked_cnt(self));
             } else {
                 //送信エラーがあった場合には、次回やり直す
                 DBG_PRINTF("sendtx error\n");
@@ -577,10 +576,10 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
         } else {
             ln_set_revoked_confm(self, confm);
             ln_db_save_revoked(self, false, pDbParam);
-            DBG_PRINTF("no target txid: %d, revoked_cnt=%d\n", confm, self->revoked_cnt);
+            DBG_PRINTF("no target txid: %d, revoked_cnt=%d\n", confm, ln_revoked_cnt(self));
         }
     } else {
-        DBG_PRINTF("same block: %d, revoked_cnt=%d\n", confm, self->revoked_cnt);
+        DBG_PRINTF("same block: %d, revoked_cnt=%d\n", confm, ln_revoked_cnt(self));
     }
 
     return del;
@@ -596,7 +595,7 @@ static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int
     ucoin_tx_t tx;
     ucoin_tx_init(&tx);
     ln_create_tolocal_spent(self, &tx, pTx->vout[VIndex].value,
-                self->commit_local.to_self_delay,
+                ln_commit_local(self)->to_self_delay,
                 ln_revoked_wit(self), txid, VIndex, true);
     ucoin_print_tx(&tx);
     ucoin_buf_t buf;

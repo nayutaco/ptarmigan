@@ -948,39 +948,6 @@ void ln_free_close_force_tx(ln_close_force_t *pClose)
 
 bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
 {
-    //相手がrevoked_txを展開した前提で、to_localを再現
-
-    uint64_t commit_num = ((uint64_t)(pTx->vin[0].sequence & 0xffffff)) << 24;
-    commit_num |= (uint64_t)(pTx->locktime & 0xffffff);
-    commit_num ^= self->obscured;
-    DBG_PRINTF("commit_num=%" PRIx64 "\n", commit_num);
-
-    ucoin_buf_alloc(&self->revoked_sec, UCOIN_SZ_PRIVKEY);
-    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(M_SECINDEX_INIT - commit_num));
-    assert(ret);
-    DBG_PRINTF2("  pri:");
-    DUMPBIN(self->revoked_sec.buf, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF2("  pub:");
-    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
-    DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-
-    //local
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, (uint64_t)(M_SECINDEX_INIT - commit_num));
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-
-    //update keys
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    //commitment number(for obscured commitment number)
-    self->remote_commit_num = commit_num;
-
-    ln_create_script_local(&self->revoked_wit,
-                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
-                self->commit_local.to_self_delay);
-
-    ucoin_buf_alloc(&self->revoked_vout, M_SZ_WITPROG_WSH);
-    ucoin_sw_wit2prog_p2wsh(self->revoked_vout.buf, &self->revoked_wit);
-
     //取り戻す必要があるvout数
     self->revoked_cnt = 0;
     for (int lp = 0; lp < pTx->vout_cnt; lp++) {
@@ -990,6 +957,44 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
         }
     }
     DBG_PRINTF("revoked_cnt=%d\n", self->revoked_cnt);
+
+    //
+    //相手がrevoked_txを展開した前提で、to_localを再現
+    //
+
+    //commitment numberの復元
+    uint64_t commit_num = ((uint64_t)(pTx->vin[0].sequence & 0xffffff)) << 24;
+    commit_num |= (uint64_t)(pTx->locktime & 0xffffff);
+    commit_num ^= self->obscured;
+    DBG_PRINTF("commit_num=%" PRIx64 "\n", commit_num);
+
+    //remote per_commitment_secretの復元
+    ucoin_buf_alloc(&self->revoked_sec, UCOIN_SZ_PRIVKEY);
+    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(M_SECINDEX_INIT - commit_num));
+    assert(ret);
+    DBG_PRINTF2("  pri:");
+    DUMPBIN(self->revoked_sec.buf, UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF2("  pub:");
+    ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
+    DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+
+    //local per_commitment_secretの復元
+    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, (uint64_t)(M_SECINDEX_INIT - commit_num));
+    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+
+    //鍵の復元
+    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    //commitment number(for obscured commitment number)
+    self->remote_commit_num = commit_num;
+
+    //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_localだけ作っておく。
+    //revoked_voutにはscriptPubKey、revoked_witにはwitnessProgramを作る。
+    ln_create_script_local(&self->revoked_wit,
+                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
+                self->commit_local.to_self_delay);
+    ucoin_buf_alloc(&self->revoked_vout, M_SZ_WITPROG_WSH);
+    ucoin_sw_wit2prog_p2wsh(self->revoked_vout.buf, &self->revoked_wit);
 
     return ret;
 }
