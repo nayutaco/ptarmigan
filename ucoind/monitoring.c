@@ -68,6 +68,7 @@ static bool close_unilateral_remote_offered(bool spent);
 static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
+static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm, void *pDbParam);
 static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex);
 
@@ -507,25 +508,16 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
         } else {
             //revoked transaction close
             SYSLOG_WARN("closed: ugly way\n");
-            ln_close_ugly(self, &tx);
-
-            //即座に取り戻せるもの
-            bool save = true;
-            for (int lp = 0; lp < tx.vout_cnt; lp++) {
-                if (ucoin_buf_cmp(&tx.vout[lp].script, ln_revoked_vout(self))) {
-                    DBG_PRINTF("[%d]to_local !\n", lp);
-
-                    ret = close_revoked_vout(self, &tx, lp);
-                    if (ret) {
-                        del = ln_revoked_cnt_dec(self);
-                        ln_set_revoked_confm(self, confm);
-                    } else {
-                        save = false;
-                    }
+            ret = ln_close_ugly(self, &tx);
+            if (ret) {
+                if (ln_revoked_cnt(self) > 0) {
+                    del = close_revoked_first(self, &tx, confm, pDbParam);
+                } else {
+                    DBG_PRINTF("all revoked transaction vout is already solved.\n");
+                    del = true;
                 }
-            }
-            if (save) {
-                ln_db_save_revoked(self, true, pDbParam);
+            } else {
+                DBG_PRINTF("fail: ln_close_ugly\n");
             }
         }
     }
@@ -535,7 +527,45 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 }
 
 
-// HTLC Timeout/Success Tx後から取り戻す
+/** revoked transactionから即座に取り戻す
+ *
+ * @param[in,out]   self
+ * @param[in]       pTx         revoked transaction
+ * @param[in]       confm       confirmation
+ * @param[in]       pDbParam    DB parameter
+ */
+static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm, void *pDbParam)
+{
+    bool del = false;
+    bool save = true;
+
+    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
+        if (ucoin_buf_cmp(&pTx->vout[lp].script, ln_revoked_vout(self))) {
+            DBG_PRINTF("[%d]to_local !\n", lp);
+
+            bool ret = close_revoked_vout(self, pTx, lp);
+            if (ret) {
+                del = ln_revoked_cnt_dec(self);
+                ln_set_revoked_confm(self, confm);
+            } else {
+                save = false;
+            }
+        }
+    }
+    if (save) {
+        ln_db_save_revoked(self, true, pDbParam);
+    }
+
+    return del;
+}
+
+
+/** HTLC Timeout/Success Tx後から取り戻す
+ *
+ * @param[in,out]   self
+ * @param[in]       confm       confirmation
+ * @param[in]       pDbParam    DB parameter
+ */
 static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
     bool del = false;
