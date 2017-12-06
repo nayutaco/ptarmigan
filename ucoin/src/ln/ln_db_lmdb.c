@@ -1312,6 +1312,8 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
 
     ln_free_revoked_buf(self);
 
+    key.mv_size = 3;
+
     key.mv_data = "rvn";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
@@ -1323,7 +1325,6 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
     self->revoked_num = p[1];
     ln_alloc_revoked_buf(self);
 
-    key.mv_size = 3;
     key.mv_data = "rvv";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
@@ -1395,6 +1396,7 @@ bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam)
     }
 
     key.mv_size = 3;
+
     key.mv_data = "rvv";
     ucoin_push_init(&push, &buf, 0);
     for (int lp = 0; lp < self->revoked_num; lp++) {
