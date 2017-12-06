@@ -19,6 +19,9 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+/** @file   ucoind.h
+ *  @brief  ucoind daemon header
+ */
 #ifndef UCOIND_H__
 #define UCOIND_H__
 
@@ -239,16 +242,11 @@ typedef struct {
 
 const uint8_t *ucoind_nodeid(void);
 
-bool forward_payment(fwd_proc_add_t *p_add);
-bool backward_fulfill(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
-bool backward_fail(const ln_cb_fail_htlc_recv_t *pFail);
+bool ucoind_forward_payment(fwd_proc_add_t *p_add);
+bool ucoind_backward_fulfill(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
+bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail);
 
-void preimage_lock(void);
-void preimage_unlock(void);
-
-bool monitering_get(void);
-void monitering_stop(void);
-
-bool close_unilateral_local(ln_self_t *self, void *pDbParam);
+void ucoind_preimage_lock(void);
+void ucoind_preimage_unlock(void);
 
 #endif /* UCOIND_H__ */

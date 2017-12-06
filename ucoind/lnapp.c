@@ -57,6 +57,8 @@
 #include "jsonrpc.h"
 #include "ln_db.h"
 
+#include "monitoring.h"
+
 
 /**************************************************************************
  * macros
@@ -573,7 +575,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
 
     SYSLOG_WARN("close: bad way(local): htlc=%d\n", ln_commit_local(&my_self)->htlc_num);
-    (void)close_unilateral_local(&my_self, NULL);
+    (void)monitor_close_unilateral_local(&my_self, NULL);
 
     return true;
 }
@@ -2045,7 +2047,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF2("  my fee : %" PRIu64 "\n", (uint64_t)(p_add->amount_msat - p_add->p_hop->amt_to_forward));
     DBG_PRINTF2("  cltv_delta : %" PRIu32 " - %" PRIu32" = %d\n", p_add->cltv_expiry, p_add->p_hop->outgoing_cltv_value, p_add->cltv_expiry - p_add->p_hop->outgoing_cltv_value);
 
-    preimage_lock();
+    ucoind_preimage_lock();
     if (p_add->p_hop->b_exit) {
         //自分宛
         DBG_PRINTF("自分宛\n");
@@ -2148,7 +2150,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));         //current
         //DBG_PRINTF("------------------------------\n");
     }
-    preimage_unlock();
+    ucoind_preimage_unlock();
 
     wait_mutex_unlock(MUX_CHG_HTLC);
 
@@ -2180,7 +2182,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
         //フラグを立てて、相手の受信スレッドで処理してもらう
         DBG_PRINTF("戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->id);
-        backward_fulfill(p_fulfill);
+        ucoind_backward_fulfill(p_fulfill);
     } else {
         //mMuxTiming |= MUX_RECV_FULFILL_HTLC;
         DBG_PRINTF("ここまで\n");
@@ -2214,7 +2216,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     if (p_fail->prev_short_channel_id != 0) {
         //フラグを立てて、相手の受信スレッドで処理してもらう
         DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->id);
-        backward_fail(p_fail);
+        ucoind_backward_fail(p_fail);
     } else {
         DBG_PRINTF("ここまで\n");
         mMuxTiming &= ~MUX_PAYMENT;
@@ -2314,7 +2316,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                     //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));         //prev
                     //DBG_PRINTF("------------------------------\n");
                     DBG_PRINTF("  --> forward add(sci=%" PRIx64 ")\n", p_add->next_short_channel_id);
-                    bool ret = forward_payment(p_add);
+                    bool ret = ucoind_forward_payment(p_add);
                     if (ret) {
                         DBG_PRINTF("転送した\n");
                     } else {

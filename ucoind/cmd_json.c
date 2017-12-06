@@ -1,3 +1,27 @@
+/*
+ *  Copyright (C) 2017, Nayuta, Inc. All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed to the Apache Software Foundation (ASF) under one
+ *  or more contributor license agreements.  See the NOTICE file
+ *  distributed with this work for additional information
+ *  regarding copyright ownership.  The ASF licenses this file
+ *  to you under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
+ */
+/** @file   cmd_json.c
+ *  @brief  ucoind JSON-RPC process
+ */
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>
@@ -7,11 +31,13 @@
 
 #include "jsonrpc-c.h"
 
+#include "ln_db.h"
+#include "jsonrpc.h"
+
 #include "p2p_svr.h"
 #include "p2p_cli.h"
 #include "lnapp.h"
-#include "ln_db.h"
-#include "jsonrpc.h"
+#include "monitoring.h"
 
 
 /********************************************************************
@@ -327,7 +353,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     SYSLOG_INFO("invoice");
 
     result = cJSON_CreateObject();
-    preimage_lock();
+    ucoind_preimage_lock();
 
     uint8_t preimage[LN_SZ_PREIMAGE];
     uint8_t preimage_hash[LN_SZ_HASH];
@@ -344,7 +370,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     DUMPBIN(preimage_hash, LN_SZ_HASH);
     cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
     cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
-    preimage_unlock();
+    ucoind_preimage_unlock();
 
 LABEL_EXIT:
     if (index < 0) {
@@ -557,7 +583,7 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
     p2p_cli_stop_all();
     jrpc_server_stop(&mJrpc);
 
-    monitering_stop();
+    monitor_stop();
 
     return cJSON_CreateString("OK");
 }
