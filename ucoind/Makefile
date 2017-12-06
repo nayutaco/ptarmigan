@@ -34,6 +34,7 @@ C_SOURCE_FILES += $(PRJ_PATH)ucoind.c
 C_SOURCE_FILES += $(PRJ_PATH)p2p_svr.c
 C_SOURCE_FILES += $(PRJ_PATH)p2p_cli.c
 C_SOURCE_FILES += $(PRJ_PATH)lnapp.c
+C_SOURCE_FILES += $(PRJ_PATH)cmd_json.c
 C_SOURCE_FILES += $(COMMON_PATH)cmn/conf.c
 C_SOURCE_FILES += $(COMMON_PATH)cmn/misc.c
 C_SOURCE_FILES += $(COMMON_PATH)cmn/jsonrpc.c
