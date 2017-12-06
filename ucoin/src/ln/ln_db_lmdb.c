@@ -1310,6 +1310,19 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
         goto LABEL_EXIT;
     }
 
+    ln_free_revoked_buf(self);
+
+    key.mv_data = "rvn";
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    uint16_t *p = (uint16_t *)data.mv_data;
+    self->revoked_cnt = p[0];
+    self->revoked_num = p[1];
+    ln_alloc_revoked_buf(self);
+
     key.mv_size = 3;
     key.mv_data = "rvv";
     retval = mdb_get(txn, dbi, &key, &data);
@@ -1317,8 +1330,13 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    ucoin_buf_free(&self->revoked_vout);
-    ucoin_buf_alloccopy(&self->revoked_vout, data.mv_data, data.mv_size);
+    uint8_t *p_scr = (uint8_t *)data.mv_data;
+    for (int lp = 0; lp < self->revoked_num; lp++) {
+        uint16_t len = *(uint16_t *)p_scr;
+        p_scr += sizeof(uint16_t);
+        ucoin_buf_alloccopy(&self->p_revoked_vout[lp], p_scr, len);
+        p_scr += len;
+    }
 
     key.mv_data = "rvw";
     retval = mdb_get(txn, dbi, &key, &data);
@@ -1326,8 +1344,13 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    ucoin_buf_free(&self->revoked_wit);
-    ucoin_buf_alloccopy(&self->revoked_wit, data.mv_data, data.mv_size);
+    p_scr = (uint8_t *)data.mv_data;
+    for (int lp = 0; lp < self->revoked_num; lp++) {
+        uint16_t len = *(uint16_t *)p_scr;
+        p_scr += sizeof(uint16_t);
+        ucoin_buf_alloccopy(&self->p_revoked_wit[lp], p_scr, len);
+        p_scr += len;
+    }
 
     key.mv_data = "rvs";
     retval = mdb_get(txn, dbi, &key, &data);
@@ -1337,14 +1360,6 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
     }
     ucoin_buf_free(&self->revoked_sec);
     ucoin_buf_alloccopy(&self->revoked_sec, data.mv_data, data.mv_size);
-
-    key.mv_data = "rvn";
-    retval = mdb_get(txn, dbi, &key, &data);
-    if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    self->revoked_cnt = *(uint16_t *)data.mv_data;
 
     key.mv_data = "rvc";
     retval = mdb_get(txn, dbi, &key, &data);
@@ -1365,7 +1380,10 @@ bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam)
     MDB_txn     *txn;
     MDB_dbi     dbi;
     char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+    ucoin_buf_t buf;
+    ucoin_push_t push;
 
+    ucoin_buf_init(&buf);
     txn = ((lmdb_db_t *)pDbParam)->txn;
 
     strcpy(dbname, M_REVOKED_NAME);
@@ -1378,22 +1396,34 @@ bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam)
 
     key.mv_size = 3;
     key.mv_data = "rvv";
-    data.mv_size = self->revoked_vout.len;
-    data.mv_data = self->revoked_vout.buf;
+    ucoin_push_init(&push, &buf, 0);
+    for (int lp = 0; lp < self->revoked_num; lp++) {
+        ucoin_push_data(&push, &self->p_revoked_vout[lp].len, sizeof(uint16_t));
+        ucoin_push_data(&push, self->p_revoked_vout[lp].buf, self->p_revoked_vout[lp].len);
+    }
+    data.mv_size = buf.len;
+    data.mv_data = buf.buf;
     retval = mdb_put(txn, dbi, &key, &data, 0);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
+    ucoin_buf_free(&buf);
 
     key.mv_data = "rvw";
-    data.mv_size = self->revoked_wit.len;
-    data.mv_data = self->revoked_wit.buf;
+    ucoin_push_init(&push, &buf, 0);
+    for (int lp = 0; lp < self->revoked_num; lp++) {
+        ucoin_push_data(&push, &self->p_revoked_wit[lp].len, sizeof(uint16_t));
+        ucoin_push_data(&push, self->p_revoked_wit[lp].buf, self->p_revoked_wit[lp].len);
+    }
+    data.mv_size = buf.len;
+    data.mv_data = buf.buf;
     retval = mdb_put(txn, dbi, &key, &data, 0);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
+    ucoin_buf_free(&buf);
 
     key.mv_data = "rvs";
     data.mv_size = self->revoked_sec.len;
@@ -1405,8 +1435,11 @@ bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam)
     }
 
     key.mv_data = "rvn";
-    data.mv_size = sizeof(self->revoked_cnt);
-    data.mv_data = (CONST_CAST uint16_t *)&self->revoked_cnt;
+    data.mv_size = sizeof(uint16_t) * 2;
+    uint16_t p[2];
+    p[0] = self->revoked_cnt;
+    p[1] = self->revoked_num;
+    data.mv_data = p;
     retval = mdb_put(txn, dbi, &key, &data, 0);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));

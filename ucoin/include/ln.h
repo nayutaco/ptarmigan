@@ -957,9 +957,10 @@ struct ln_self_t {
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
-    ucoin_buf_t                 revoked_vout;                   ///< revoked transaction close時に検索するvoutスクリプト
-    ucoin_buf_t                 revoked_wit;                    ///< revoked transaction close時のwitnessスクリプト
+    ucoin_buf_t                 *p_revoked_vout;                ///< revoked transaction close時に検索するvoutスクリプト
+    ucoin_buf_t                 *p_revoked_wit;                 ///< revoked transaction close時のwitnessスクリプト
     ucoin_buf_t                 revoked_sec;                    ///< revoked transaction close時のremote per_commit_sec
+    uint16_t                    revoked_num;                    ///< p_revoked_vout, p_revoked_witのmalloc数
     uint16_t                    revoked_cnt;                    ///< 取り戻す必要があるvout数
     uint32_t                    revoked_chk;                    ///< 最後にチェックしたfunding_txのconfirmation数
 
@@ -1719,7 +1720,7 @@ static inline uint32_t ln_revoked_confm(const ln_self_t *self) {
  * @return      revoked transaction後に監視するvoutスクリプト
  */
 static inline const ucoin_buf_t* ln_revoked_vout(const ln_self_t *self) {
-    return &self->revoked_vout;
+    return self->p_revoked_vout;
 }
 
 
@@ -1728,7 +1729,7 @@ static inline const ucoin_buf_t* ln_revoked_vout(const ln_self_t *self) {
  * @return      revoked transaction後に取り戻す際のunlocking witness script
  */
 static inline const ucoin_buf_t* ln_revoked_wit(const ln_self_t *self) {
-    return &self->revoked_wit;
+    return self->p_revoked_wit;
 }
 
 

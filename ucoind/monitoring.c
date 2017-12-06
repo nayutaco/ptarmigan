@@ -243,7 +243,8 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             //funding_tx使用済み
 
             ln_db_load_revoked(self, p_db_param);
-            if (ln_revoked_vout(self)->len == 0) {
+            const ucoin_buf_t *p_vout = ln_revoked_vout(self);
+            if (p_vout == NULL) {
                 //展開されているのが最新のcommit_txか
                 ucoin_tx_t tx_commit;
                 ucoin_tx_init(&tx_commit);
@@ -540,7 +541,8 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
     bool save = true;
 
     for (int lp = 0; lp < pTx->vout_cnt; lp++) {
-        if (ucoin_buf_cmp(&pTx->vout[lp].script, ln_revoked_vout(self))) {
+        const ucoin_buf_t *p_vout = ln_revoked_vout(self);
+        if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[0])) {
             DBG_PRINTF("[%d]to_local !\n", lp);
 
             bool ret = close_revoked_vout(self, pTx, lp);
@@ -573,7 +575,8 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
     if (confm != ln_revoked_confm(self)) {
         //HTLC Timeout/Success Txのvoutと一致するトランザクションを検索
         ucoin_buf_t txbuf;
-        bool ret = search_vout(&txbuf, confm - ln_revoked_confm(self), ln_revoked_vout(self));
+        const ucoin_buf_t *p_vout = ln_revoked_vout(self);
+        bool ret = search_vout(&txbuf, confm - ln_revoked_confm(self), &p_vout[0]);
         if (ret) {
             bool sendret = true;
             int num = txbuf.len / sizeof(ucoin_tx_t);
@@ -624,9 +627,10 @@ static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int
 
     ucoin_tx_t tx;
     ucoin_tx_init(&tx);
+    const ucoin_buf_t *p_wit = ln_revoked_wit(self);
     ln_create_tolocal_spent(self, &tx, pTx->vout[VIndex].value,
                 ln_commit_local(self)->to_self_delay,
-                ln_revoked_wit(self), txid, VIndex, true);
+                &p_wit[0], txid, VIndex, true);
     ucoin_print_tx(&tx);
     ucoin_buf_t buf;
     ucoin_tx_create(&buf, &tx);

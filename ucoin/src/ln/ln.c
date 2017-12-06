@@ -218,9 +218,9 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     ucoin_buf_init(&self->shutdown_scriptpk_remote);
     ucoin_buf_init(&self->redeem_fund);
     ucoin_buf_init(&self->cnl_anno);
-    ucoin_buf_init(&self->revoked_vout);
-    ucoin_buf_init(&self->revoked_wit);
     ucoin_buf_init(&self->revoked_sec);
+    self->p_revoked_vout = NULL;
+    self->p_revoked_wit = NULL;
 
     ucoin_tx_init(&self->tx_funding);
     ucoin_tx_init(&self->tx_closing);
@@ -957,6 +957,8 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
         }
     }
     DBG_PRINTF("revoked_cnt=%d\n", self->revoked_cnt);
+    self->revoked_num = self->revoked_cnt;
+    ln_alloc_revoked_buf(self);
 
     //
     //相手がrevoked_txを展開した前提で、to_localを再現
@@ -988,13 +990,13 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
     self->remote_commit_num = commit_num;
 
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_localだけ作っておく。
-    //revoked_voutにはscriptPubKey、revoked_witにはwitnessProgramを作る。
-    ln_create_script_local(&self->revoked_wit,
+    //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
+    ln_create_script_local(&self->p_revoked_wit[0],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 self->commit_local.to_self_delay);
-    ucoin_buf_alloc(&self->revoked_vout, M_SZ_WITPROG_WSH);
-    ucoin_sw_wit2prog_p2wsh(self->revoked_vout.buf, &self->revoked_wit);
+    ucoin_buf_alloc(&self->p_revoked_vout[0], M_SZ_WITPROG_WSH);
+    ucoin_sw_wit2prog_p2wsh(self->p_revoked_vout[0].buf, &self->p_revoked_wit[0]);
 
     return ret;
 }
@@ -1418,6 +1420,42 @@ unsigned long ln_get_debug(void)
 
 
 /********************************************************************
+ * package functions
+ ********************************************************************/
+
+void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
+{
+    DBG_PRINTF("BEGIN self->revoked_num=%d\n", self->revoked_num);
+
+    self->p_revoked_vout = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
+    self->p_revoked_wit = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
+    for (int lp = 0; lp < self->revoked_num; lp++) {
+        ucoin_buf_init(&self->p_revoked_vout[lp]);
+        ucoin_buf_init(&self->p_revoked_wit[lp]);
+    }
+
+    DBG_PRINTF("END\n");
+}
+
+
+void HIDDEN ln_free_revoked_buf(ln_self_t *self)
+{
+    DBG_PRINTF("BEGIN self->revoked_num=%d\n", self->revoked_num);
+
+    for (int lp = 0; lp < self->revoked_num; lp++) {
+        ucoin_buf_free(&self->p_revoked_vout[lp]);
+        ucoin_buf_free(&self->p_revoked_wit[lp]);
+    }
+    M_FREE(self->p_revoked_vout);
+    M_FREE(self->p_revoked_wit);
+    self->revoked_num = 0;
+    self->revoked_cnt = 0;
+
+    DBG_PRINTF("END\n");
+}
+
+
+/********************************************************************
  * private functions
  ********************************************************************/
 
@@ -1437,9 +1475,8 @@ static void channel_clear(ln_self_t *self)
     ucoin_buf_free(&self->shutdown_scriptpk_remote);
     ucoin_buf_free(&self->redeem_fund);
     ucoin_buf_free(&self->cnl_anno);
-    ucoin_buf_free(&self->revoked_vout);
-    ucoin_buf_free(&self->revoked_wit);
     ucoin_buf_free(&self->revoked_sec);
+    ln_free_revoked_buf(self);
 
     ucoin_tx_free(&self->tx_funding);
     ucoin_tx_free(&self->tx_closing);

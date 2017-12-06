@@ -121,6 +121,18 @@ extern uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
  * prototypes
  **************************************************************************/
 
+/** revoked transaction close用のスクリプトバッファ確保
+ *
+ */
+void HIDDEN ln_alloc_revoked_buf(ln_self_t *self);
+
+
+/** revoked transaction close用のスクリプトバッファ解放
+ *
+ */
+void HIDDEN ln_free_revoked_buf(ln_self_t *self);
+
+
 /** Obscured Commitment Number計算
  *
  * @param[in]       pLocalBasePt
