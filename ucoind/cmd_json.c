@@ -400,6 +400,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     result = cJSON_CreateArray();
     ret = ln_db_cursor_preimage_open(&p_cur);
+    assert(ret);
     while (ret) {
         ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
         if (ret) {

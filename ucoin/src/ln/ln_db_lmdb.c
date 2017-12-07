@@ -851,7 +851,7 @@ uint64_t ln_db_search_channel_short_channel_id(const uint8_t *pNodeId1, const ui
     MDB_val key, data;
     uint64_t short_channel_id = 0;
 
-    ret = open_anno_channel_cursor(&cur, MDB_RDONLY);
+    ret = open_anno_channel_cursor(&cur, 0);
     if (!ret) {
         DBG_PRINTF("err: cursor open\n");
         goto LABEL_EXIT;
@@ -1132,7 +1132,7 @@ bool ln_db_cursor_preimage_open(void **ppCur)
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
 
     p_cur->txn = NULL;
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, MDB_RDONLY, &p_cur->txn);
+    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &p_cur->txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1251,7 +1251,7 @@ bool ln_db_search_payhash(uint8_t *pPayHash, const uint8_t *pVout, void *pDbPara
     if (pDbParam != NULL) {
         txn = ((lmdb_db_t *)pDbParam)->txn;
     } else {
-        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, MDB_RDONLY, &txn);
+        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;

@@ -233,15 +233,11 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 
     uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
     if (confm > 0) {
-        DBG_PRINTF("funding_txid[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
-        DUMPTXID(ln_funding_txid(self));
-
         bool del = false;
         uint64_t sat;
         bool ret = jsonrpc_getxout(&sat, ln_funding_txid(self), ln_funding_txindex(self));
         if (!ret) {
             //funding_tx使用済み
-
             ln_db_load_revoked(self, p_db_param);
             const ucoin_buf_t *p_vout = ln_revoked_vout(self);
             if (p_vout == NULL) {
@@ -263,6 +259,10 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                 // revoked transaction close
                 del = close_revoked_after(self, confm, p_db_param);
             }
+        } else {
+            //funding_tx未使用
+            DBG_PRINTF("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
+            DUMPTXID(ln_funding_txid(self));
         }
         if (del) {
             DBG_PRINTF("delete from DB\n");
@@ -521,6 +521,8 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
                 DBG_PRINTF("fail: ln_close_ugly\n");
             }
         }
+    } else {
+        DBG_PRINTF("just closed: wait mining...\n");
     }
     ucoin_tx_free(&tx);
 

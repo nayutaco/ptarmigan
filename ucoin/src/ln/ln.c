@@ -1425,7 +1425,7 @@ unsigned long ln_get_debug(void)
 
 void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
 {
-    DBG_PRINTF("BEGIN self->revoked_num=%d\n", self->revoked_num);
+    //DBG_PRINTF("alloc(%d)\n", self->revoked_num);
 
     self->p_revoked_vout = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
     self->p_revoked_wit = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
@@ -1433,14 +1433,14 @@ void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
         ucoin_buf_init(&self->p_revoked_vout[lp]);
         ucoin_buf_init(&self->p_revoked_wit[lp]);
     }
-
-    DBG_PRINTF("END\n");
 }
 
 
 void HIDDEN ln_free_revoked_buf(ln_self_t *self)
 {
-    DBG_PRINTF("BEGIN self->revoked_num=%d\n", self->revoked_num);
+    if (self->revoked_num == 0) {
+        return;
+    }
 
     for (int lp = 0; lp < self->revoked_num; lp++) {
         ucoin_buf_free(&self->p_revoked_vout[lp]);
@@ -1451,7 +1451,7 @@ void HIDDEN ln_free_revoked_buf(ln_self_t *self)
     self->revoked_num = 0;
     self->revoked_cnt = 0;
 
-    DBG_PRINTF("END\n");
+    //DBG_PRINTF("free\n");
 }
 
 
@@ -3975,6 +3975,7 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
     uint8_t preimage_hash[LN_SZ_HASH];
     void *p_cur;
     bool ret = ln_db_cursor_preimage_open(&p_cur);
+    assert(ret);
     while (ret) {
         DBG_PRINTF("ret=%d\n", ret);
         ret = ln_db_cursor_preimage_get(p_cur, pPreImage, &amount);

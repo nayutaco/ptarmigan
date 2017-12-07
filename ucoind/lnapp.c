@@ -2061,6 +2061,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
         void *p_cur;
         bool ret = ln_db_cursor_preimage_open(&p_cur);
+        assert(ret);
         while (ret) {
             ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
             if (ret) {
