@@ -96,6 +96,7 @@ void *monitor_thread_start(void *pArg)
             }
         }
 
+        DBG_PRINTF("ucoin_dbg_malloc_cnt=%d / misc_dbg_malloc_cnt=%d\n", ucoin_dbg_malloc_cnt(), misc_dbg_malloc_cnt());
         ln_db_search_channel(monfunc, NULL);
     }
     DBG_PRINTF("stop\n");

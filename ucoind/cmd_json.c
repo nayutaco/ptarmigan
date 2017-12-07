@@ -139,7 +139,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     cJSON *json;
     daemon_connect_t conn;
-    funding_conf_t *p_fundconf = (funding_conf_t *)malloc(sizeof(funding_conf_t));  //lnapp.c cb_established()で解放
+    funding_conf_t *p_fundconf = (funding_conf_t *)APP_MALLOC(sizeof(funding_conf_t));  //lnapp.c cb_established()で解放
     cJSON *result = NULL;
     int index = 0;
 

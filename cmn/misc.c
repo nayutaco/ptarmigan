@@ -27,6 +27,19 @@
 #include "ucoind.h"
 
 
+/**************************************************************************
+ * private variables
+ **************************************************************************/
+
+#ifdef APP_DEBUG_MEM
+static int mcount = 0;
+#endif  //APP_DEBUG_MEM
+
+
+/**************************************************************************
+ * public functions
+ **************************************************************************/
+
 void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen)
 {
     *pStr = '\0';
@@ -102,3 +115,53 @@ bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr)
 
     return ret;
 }
+
+
+#ifdef APP_DEBUG_MEM
+
+void *misc_dbg_malloc(size_t size)
+{
+    void *p = malloc(size);
+    if (p) {
+        mcount++;
+    }
+    return p;
+}
+
+
+//void *misc_dbg_realloc(void *ptr, size_t size)
+//{
+//    void *p = realloc(ptr, size);
+//    if ((ptr == NULL) && p) {
+//        mcount++;
+//    }
+//    return p;
+//}
+
+
+//void *misc_dbg_calloc(size_t blk, size_t size)
+//{
+//    void *p = calloc(blk, size);
+//    if (p) {
+//        mcount++;
+//    }
+//    return p;
+//}
+
+
+void misc_dbg_free(void *ptr)
+{
+    //NULL代入してfree()だけするパターンもあるため、NULLチェックする
+    if (ptr) {
+        mcount--;
+    }
+    free(ptr);
+}
+
+
+int misc_dbg_malloc_cnt(void)
+{
+    return mcount;
+}
+
+#endif

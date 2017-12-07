@@ -119,6 +119,7 @@ vpath %.c $(C_PATHS)
 
 OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 
+debug: CFLAGS += -DAPP_DEBUG_MEM
 debug: CFLAGS += -ggdb3 -O0 --coverage
 debug: LDFLAGS += -ggdb3 -O0 --coverage
 debug: $(BUILD_DIRECTORIES) .Depend $(OBJECTS)
