@@ -946,12 +946,12 @@ void ln_free_close_force_tx(ln_close_force_t *pClose)
 }
 
 
-bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
+bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam)
 {
     //取り戻す必要があるvout数
     self->revoked_cnt = 0;
-    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
-        if (pTx->vout[lp].script.len != M_SZ_WITPROG_WPKH) {
+    for (int lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
+        if (pRevokedTx->vout[lp].script.len != M_SZ_WITPROG_WPKH) {
             //to_remote output以外は取り戻す
             self->revoked_cnt++;
         }
@@ -961,12 +961,12 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
     ln_alloc_revoked_buf(self);
 
     //
-    //相手がrevoked_txを展開した前提で、to_localを再現
+    //相手がrevoked_txを展開した前提で、スクリプトを再現
     //
 
     //commitment numberの復元
-    uint64_t commit_num = ((uint64_t)(pTx->vin[0].sequence & 0xffffff)) << 24;
-    commit_num |= (uint64_t)(pTx->locktime & 0xffffff);
+    uint64_t commit_num = ((uint64_t)(pRevokedTx->vin[0].sequence & 0xffffff)) << 24;
+    commit_num |= (uint64_t)(pRevokedTx->locktime & 0xffffff);
     commit_num ^= self->obscured;
     DBG_PRINTF("commit_num=%" PRIx64 "\n", commit_num);
 
@@ -997,6 +997,30 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx)
                 self->commit_local.to_self_delay);
     ucoin_buf_alloc(&self->p_revoked_vout[0], M_SZ_WITPROG_WSH);
     ucoin_sw_wit2prog_p2wsh(self->p_revoked_vout[0].buf, &self->p_revoked_wit[0]);
+    DBG_PRINTF("calc to_local vout: ");
+    DUMPBIN(self->p_revoked_vout[0].buf, self->p_revoked_vout[0].len);
+
+    for (int lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
+        DBG_PRINTF("vout[%d]: ", lp);
+        DUMPBIN(pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
+        if (pRevokedTx->vout[lp].script.len == M_SZ_WITPROG_WPKH) {
+            //to_remote output
+            DBG_PRINTF("[%d]to_remote_output\n", lp);
+        } else if (ucoin_buf_cmp(&pRevokedTx->vout[lp].script, &self->p_revoked_vout[0])) {
+            //to_local output
+            DBG_PRINTF("[%d]to_local_output\n", lp);
+        } else {
+            //HTLC Tx
+            uint8_t payhash[LN_SZ_HASH];
+            bool srch = ln_db_search_payhash(payhash, pRevokedTx->vout[lp].script.buf, pDbParam);
+            if (srch) {
+                DBG_PRINTF("[%d]detect!\n", lp);
+            } else {
+                DBG_PRINTF("[%d]not detect\n", lp);
+            }
+        }
+    }
+
 
     return ret;
 }

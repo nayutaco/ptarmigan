@@ -1311,13 +1311,14 @@ void ln_free_close_force_tx(ln_close_force_t *pClose);
 /** revoked transaction close(ugly way)の対処
  *
  * @param[in,out]       self        channel情報
- * @param[in]           pTx         revoked transaction
+ * @param[in]           pRevokedTx  revoked transaction
+ * @param[in,out]       pDbParam    DBパラメータ
  * @retval      ture    成功
  * @note
  *      - self->vout にto_localのscriptPubKeyを設定する(HTLC Timeout/Successの取り戻しにも使用する)
  *      - self->wit にto_localのwitnessProgramを設定する
  */
-bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx);
+bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam);
 
 
 /** update_add_htlcメッセージ作成
