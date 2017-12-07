@@ -1041,13 +1041,15 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
     }
     assert(ret);
 
+    bool unspent = true;
     if (ret) {
         //TODO: unspentしか成功しないので、再開にうまく利用できないものか
-        ret = jsonrpc_getxout(&fundin_sat, p_conf->p_funding->txid, p_conf->p_funding->txindex);
+        ret = jsonrpc_getxout(&unspent, &fundin_sat, p_conf->p_funding->txid, p_conf->p_funding->txindex);
+        DBG_PRINTF("ret=%d, unspent=%d\n", ret, unspent);
     } else {
         SYSLOG_ERR("%s(): jsonrpc_getnewaddress", __func__);
     }
-    if (ret) {
+    if (ret && unspent) {
         //estimate fee
         uint64_t feerate;
         bool ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
@@ -1427,9 +1429,10 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     //DBGTRACE_BEGIN
 
     //funding_tx使用チェック
+    bool unspent;
     uint64_t sat;
-    bool ret = jsonrpc_getxout(&sat, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
-    if (!ret) {
+    bool ret = jsonrpc_getxout(&unspent, &sat, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
+    if (ret && !unspent) {
         //ループ解除
         DBG_PRINTF("funding_tx is spent.\n");
         stop_threads(p_conf);

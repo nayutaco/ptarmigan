@@ -150,14 +150,15 @@ bool jsonrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid);
 
 /** [bitcoin rpc]gettxout
  *
- * @param[out]  *pSat           UINT64_MAX以外:取得したamount[satoshi], UINT64_MAX:取得失敗
+ * @param[out]  pUnspent        true:未使用
+ * @param[out]  pSat            UINT64_MAX以外:取得したamount[satoshi], UINT64_MAX:取得失敗
  * @param[in]   pTxid
  * @param[in]   Txidx
  * @retval  true        取得成功
  * @note
  *      - gettxoutはunspentであるvoutのみ使用可能
  */
-bool jsonrpc_getxout(uint64_t *pSat, const uint8_t *pTxid, int Txidx);
+bool jsonrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx);
 
 
 /** [bitcoin rpc]getnewaddress

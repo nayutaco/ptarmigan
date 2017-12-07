@@ -30,6 +30,7 @@
 #include <pthread.h>
 #include <assert.h>
 
+#define UCOIN_DEBUG_MEM
 #include "ucoind.h"
 #include "p2p_svr.h"
 #include "p2p_cli.h"
@@ -150,17 +151,21 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                 bool send_req = false;
 
                 //展開済みチェック
+                bool unspent;
                 uint64_t sat;
-                bool spent = !jsonrpc_getxout(&sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
-                DBG_PRINTF("vin spent[%d]=%d\n", lp, spent);
+                bool ret = jsonrpc_getxout(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                if (!ret) {
+                    goto LABEL_EXIT;
+                }
+                DBG_PRINTF("vin unspent[%d]=%d\n", lp, unspent);
 
                 //ln_create_htlc_tx()後だから、OFFERED/RECEIVEDがわかる
                 switch (close_dat.p_tx[lp].vout[0].opt) {
                 case LN_HTLCTYPE_OFFERED:
-                    send_req = close_unilateral_local_offered(self, &del, spent, &close_dat, lp, pDbParam);
+                    send_req = close_unilateral_local_offered(self, &del, !unspent, &close_dat, lp, pDbParam);
                     break;
                 case LN_HTLCTYPE_RECEIVED:
-                    send_req = close_unilateral_local_received(spent);
+                    send_req = close_unilateral_local_received(!unspent);
                     break;
                 default:
                     DBG_PRINTF("opt=%x\n", close_dat.p_tx[lp].vout[0].opt);
@@ -210,6 +215,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
             }
         }
 
+LABEL_EXIT:
         ln_free_close_force_tx(&close_dat);
     } else {
         del = false;
@@ -235,9 +241,10 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
     uint32_t confm = jsonrpc_get_confirmation(ln_funding_txid(self));
     if (confm > 0) {
         bool del = false;
+        bool unspent;
         uint64_t sat;
-        bool ret = jsonrpc_getxout(&sat, ln_funding_txid(self), ln_funding_txindex(self));
-        if (!ret) {
+        bool ret = jsonrpc_getxout(&unspent, &sat, ln_funding_txid(self), ln_funding_txindex(self));
+        if (ret && !unspent) {
             //funding_tx使用済み
             ln_db_load_revoked(self, p_db_param);
             const ucoin_buf_t *p_vout = ln_revoked_vout(self);
@@ -378,17 +385,21 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                     bool send_req = false;
 
                     //展開済みチェック
+                    bool unspent;
                     uint64_t sat;
-                    bool spent = !jsonrpc_getxout(&sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
-                    DBG_PRINTF("vin spent[%d]=%d\n", lp, spent);
+                    bool ret = jsonrpc_getxout(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                    if (!ret) {
+                        goto LABEL_EXIT;
+                    }
+                    DBG_PRINTF("vin unspent[%d]=%d\n", lp, unspent);
 
                     //ln_create_htlc_tx()後だから、OFFERED/RECEIVEDがわかる
                     switch (close_dat.p_tx[lp].vout[0].opt) {
                     case LN_HTLCTYPE_OFFERED:
-                        send_req = close_unilateral_remote_offered(spent);
+                        send_req = close_unilateral_remote_offered(!unspent);
                         break;
                     case LN_HTLCTYPE_RECEIVED:
-                        send_req = close_unilateral_remote_received(self, &del, spent, &close_dat, lp, pDbParam);
+                        send_req = close_unilateral_remote_received(self, &del, !unspent, &close_dat, lp, pDbParam);
                         break;
                     default:
                         DBG_PRINTF("opt=%x\n", close_dat.p_tx[lp].vout[0].opt);
@@ -414,6 +425,8 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                     del = false;
                 }
             }
+
+LABEL_EXIT:
             ln_free_close_force_tx(&close_dat);
         } else {
             del = false;
@@ -510,7 +523,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
         } else {
             //revoked transaction close
             SYSLOG_WARN("closed: ugly way\n");
-            ret = ln_close_ugly(self, &tx);
+            ret = ln_close_ugly(self, &tx, pDbParam);
             if (ret) {
                 if (ln_revoked_cnt(self) > 0) {
                     del = close_revoked_first(self, &tx, confm, pDbParam);

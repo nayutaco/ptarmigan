@@ -803,12 +803,12 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_getxout(uint64_t *pSat, const uint8_t *pTxid, int Txidx)
+bool jsonrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx)
 {
-    bool ret = false;
     bool retval;
     char *p_json = NULL;
     char txid[UCOIN_SZ_TXID * 2 + 1];
+    *pUnspent = false;
 
     //TXIDはBE/LE変換
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
@@ -836,7 +836,7 @@ bool jsonrpc_getxout(uint64_t *pSat, const uint8_t *pTxid, int Txidx)
         if (json_is_real(p_value)) {
             double dval = json_real_value(p_value);
             *pSat = UCOIN_BTC2SATOSHI(dval);
-            ret = true;
+            *pUnspent = true;
         }
 LABEL_DECREF:
         json_decref(p_root);
@@ -847,7 +847,7 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    return ret;
+    return retval;
 }
 
 
@@ -1429,9 +1429,10 @@ int main(int argc, char *argv[])
 //    }
 
     //fprintf(PRINTOUT, "-gettxout-------------------------\n");
+    //bool unspent;
     //uint64_t value;
-    //ret = jsonrpc_getxout(&value, TXID, 1);
-    //if (ret) {
+    //ret = jsonrpc_getxout(&unspent, &value, TXID, 1);
+    //if (ret && unspent) {
     //    fprintf(PRINTOUT, "value=%" PRIu64 "\n", value);
     //}
 
