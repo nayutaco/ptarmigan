@@ -256,8 +256,24 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
 // payment_hash
 ////////////////////
 
-bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, void *pDbParam);
-bool ln_db_search_payhash(uint8_t *pPayHash, const uint8_t *pVout, void *pDbParam);
+/** payment_hash保存
+ *
+ * @param[in]       pPayHash        保存するpayment_hash
+ * @param[in]       pVout           pPayHashを含むvout
+ * @param[in]       Type            pVout先のHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
+ * @param[in,out]   pDbParam        DBパラメータ
+ */
+bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, uint8_t Type, void *pDbParam);
+
+
+/** payment_hash検索
+ *
+ * @param[out]      pPayHash        保存するpayment_hash
+ * @param[out]      pType           pVoutのHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
+ * @param[in]       pVout           検索するvout
+ * @param[in,out]   pDbParam        DBパラメータ
+ */
+bool ln_db_search_payhash(uint8_t *pPayHash, uint8_t *pType, const uint8_t *pVout, void *pDbParam);
 
 #endif  //LN_UGLY_NORMAL
 

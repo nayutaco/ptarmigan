@@ -1011,10 +1011,21 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
             DBG_PRINTF("[%d]to_local_output\n", lp);
         } else {
             //HTLC Tx
+            //  DBには、vout(SHA256後)をkeyにして、payment_hashを保存している。
+            uint8_t type;
             uint8_t payhash[LN_SZ_HASH];
-            bool srch = ln_db_search_payhash(payhash, pRevokedTx->vout[lp].script.buf, pDbParam);
+            bool srch = ln_db_search_payhash(payhash, &type, pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
                 DBG_PRINTF("[%d]detect!\n", lp);
+                switch (type) {
+                case LN_HTLCTYPE_OFFERED:
+                    break;
+                case LN_HTLCTYPE_RECEIVED:
+                    break;
+                default:
+                    assert(0);
+                    break;
+                }
             } else {
                 DBG_PRINTF("[%d]not detect\n", lp);
             }
@@ -3256,7 +3267,7 @@ static bool create_to_local(ln_self_t *self,
                         //payment_hash保存
                         uint8_t vout[M_SZ_WITPROG_WSH];
                         ucoin_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[htlc_idx]->script);
-                        ln_db_save_payhash(pp_htlcinfo[htlc_idx]->preimage_hash, vout, NULL);
+                        ln_db_save_payhash(pp_htlcinfo[htlc_idx]->preimage_hash, vout, pp_htlcinfo[htlc_idx]->type, NULL);
 #endif  //LN_UGLY_NORMAL
                     }
                     if (pTxHtlcs != NULL) {
