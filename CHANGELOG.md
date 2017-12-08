@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2017/12/08
+
+* revoked transactionから直接取り戻す(動作確認中)
+  * 以前は、revoked transaction closeした相手が送金するまで取り戻すことができなかった
+
 ## 2017/12/03
 
 * revoked transaction closeでの監視(動作確認中)
