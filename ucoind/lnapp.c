@@ -1581,8 +1581,8 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf, fwd_proc_fulfill_t *p_fwd
 
         // method: fulfill
         // $1: short_channel_id
-        // $2: payment_preimage
-        // $3: payment_hash
+        // $2: payment_hash
+        // $3: payment_preimage
         // $4: node_id
         char hashstr[LN_SZ_HASH * 2 + 1];
         uint8_t payment_hash[LN_SZ_HASH];

@@ -20,6 +20,8 @@ bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest generate 432
 # 1台のPCで複数ノードを立ち上げるので、ディレクトリをそれぞれ作る。
 # 起動したディレクトリに関連ファイルを作成するためだ。
 mkdir -p node_3333 node_4444
+ln -s ../../script node_3333/script
+ln -s ../../script node_4444/script
 
 # ノード設定ファイルを作成する。
 # 結果が同じになるように固定する
