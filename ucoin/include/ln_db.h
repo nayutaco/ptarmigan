@@ -275,7 +275,7 @@ bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, uint8_t T
  * @param[in]       pVout           検索するvout
  * @param[in,out]   pDbParam        DBパラメータ
  */
-bool ln_db_search_payhash(uint8_t *pPayHash, uint8_t *pType, const uint8_t *pVout, void *pDbParam);
+bool ln_db_search_payhash(uint8_t *pPayHash, uint8_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
 
 #endif  //LN_UGLY_NORMAL
 

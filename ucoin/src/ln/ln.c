@@ -989,7 +989,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     //commitment number(for obscured commitment number)
     self->remote_commit_num = commit_num;
 
-    //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_localだけ作っておく。
+    //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
     ln_create_script_local(&self->p_revoked_wit[0],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
@@ -1014,18 +1014,19 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
             //  DBには、vout(SHA256後)をkeyにして、payment_hashを保存している。
             uint8_t type;
             uint8_t payhash[LN_SZ_HASH];
-            bool srch = ln_db_search_payhash(payhash, &type, pRevokedTx->vout[lp].script.buf, pDbParam);
+            uint32_t expiry;
+            bool srch = ln_db_search_payhash(payhash, &type, &expiry,
+                            pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
                 DBG_PRINTF("[%d]detect!\n", lp);
-                switch (type) {
-                case LN_HTLCTYPE_OFFERED:
-                    break;
-                case LN_HTLCTYPE_RECEIVED:
-                    break;
-                default:
-                    assert(0);
-                    break;
-                }
+
+                ln_create_htlcinfo(&self->p_revoked_vout[lp + 1],
+                        type,
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
+                        payhash,
+                        expiry);
             } else {
                 DBG_PRINTF("[%d]not detect\n", lp);
             }
@@ -3139,10 +3140,15 @@ static bool create_to_local(ln_self_t *self,
     ln_fee_calc(&feeinfo, (const ln_htlcinfo_t **)pp_htlcinfo, cnt);
 
     //scriptPubKey作成
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
+    for (int lp = 0; lp < cnt; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfo[lp]->script,
+                        pp_htlcinfo[lp]->type,
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY]);
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
+                        pp_htlcinfo[lp]->preimage_hash,
+                        pp_htlcinfo[lp]->expiry);
+    }
 
     //commitment transaction
     lntx_commit.fund.txid = self->funding_local.txid;
@@ -3262,14 +3268,6 @@ static bool create_to_local(ln_self_t *self,
                         //OKなら各HTLCに保持
                         //  相手がunilateral closeした後に送信しなかったら、この署名を使う
                         memcpy(self->cnl_add_htlc[htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
-
-#ifdef LN_UGLY_NORMAL
-                        //payment_hash, type, expiry保存
-                        uint8_t vout[M_SZ_WITPROG_WSH];
-                        ucoin_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[htlc_idx]->script);
-                        ln_db_save_payhash(pp_htlcinfo[htlc_idx]->preimage_hash, vout,
-                                    pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry, NULL);
-#endif  //LN_UGLY_NORMAL
                     }
                     if (pTxHtlcs != NULL) {
                         ucoin_buf_t buf_sig;
@@ -3495,10 +3493,26 @@ static bool create_to_remote(ln_self_t *self,
     ln_fee_calc(&feeinfo, (const ln_htlcinfo_t **)pp_htlcinfo, cnt);
 
     //scriptPubKey作成(Remote)
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfo, cnt,
+    for (int lp = 0; lp < cnt; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfo[lp]->script,
+                        pp_htlcinfo[lp]->type,
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY]);
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
+                        pp_htlcinfo[lp]->preimage_hash,
+                        pp_htlcinfo[lp]->expiry);
+
+#ifdef LN_UGLY_NORMAL
+        //payment_hash, type, expiry保存
+        uint8_t vout[M_SZ_WITPROG_WSH];
+        ucoin_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[lp]->script);
+        ln_db_save_payhash(pp_htlcinfo[lp]->preimage_hash,
+                        vout,
+                        pp_htlcinfo[lp]->type,
+                        pp_htlcinfo[lp]->expiry,
+                        NULL);
+#endif  //LN_UGLY_NORMAL
+    }
 
     //commitment transaction(Remote)
     lntx_commit.fund.txid = self->funding_local.txid;

@@ -114,6 +114,10 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
 
     DBG_PRINTF("script:\n");
     ucoin_print_script(pBuf->buf, pBuf->len);
+    uint8_t prog[M_SZ_WITPROG_WSH];
+    ucoin_sw_wit2prog_p2wsh(prog, pBuf);
+    DBG_PRINTF("vout: ");
+    DUMPBIN(prog, M_SZ_WITPROG_WSH);
 }
 
 
@@ -257,44 +261,36 @@ void HIDDEN ln_htlcinfo_free(ln_htlcinfo_t *pHtlcInfo)
 }
 
 
-void HIDDEN ln_create_htlcinfo(ln_htlcinfo_t **ppHtlcInfo, int Num,
+void HIDDEN ln_create_htlcinfo(ucoin_buf_t *pScript, ln_htlctype_t Type,
                     const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
-                    const uint8_t *pRemoteHtlcKey)
+                    const uint8_t *pRemoteHtlcKey,
+                    const uint8_t *pPaymentHash,
+                    uint32_t Expiry)
 {
-    for (int lp = 0; lp < Num; lp++) {
-        uint8_t hash160[UCOIN_SZ_HASH160];
+    uint8_t hash160[UCOIN_SZ_HASH160];
+    ucoin_util_ripemd160(hash160, pPaymentHash, UCOIN_SZ_SHA256);
 
-        //update_add_htlcのpreimage-hashをRIPEMD160した値
-        //RIPEMD160(SHA256(payment_preimage))なので、HASH160(payment_preimage)と同じ
-        ucoin_util_ripemd160(hash160, ppHtlcInfo[lp]->preimage_hash, UCOIN_SZ_SHA256);
-
-        //DBG_PRINTF("sha256(preimg)=");
-        //DUMPBIN(ppHtlcInfo[lp]->preimage_hash, UCOIN_SZ_SHA256);
-        //DBG_PRINTF("h160(sha256(preimg))=");
-        //DUMPBIN(hash160, UCOIN_SZ_RIPEMD160);
-
-        switch (ppHtlcInfo[lp]->type) {
-        case LN_HTLCTYPE_OFFERED:
-            //offered
-            create_script_offered(&ppHtlcInfo[lp]->script,
-                        pLocalHtlcKey,
-                        pLocalRevoKey,
-                        hash160,
-                        pRemoteHtlcKey);
-            break;
-        case LN_HTLCTYPE_RECEIVED:
-            //received
-            create_script_received(&ppHtlcInfo[lp]->script,
-                        pLocalHtlcKey,
-                        pLocalRevoKey,
-                        pRemoteHtlcKey,
-                        hash160,
-                        ppHtlcInfo[lp]->expiry);
-            break;
-        default:
-            break;
-        }
+    switch (Type) {
+    case LN_HTLCTYPE_OFFERED:
+        //offered
+        create_script_offered(pScript,
+                    pLocalHtlcKey,
+                    pLocalRevoKey,
+                    hash160,
+                    pRemoteHtlcKey);
+        break;
+    case LN_HTLCTYPE_RECEIVED:
+        //received
+        create_script_received(pScript,
+                    pLocalHtlcKey,
+                    pLocalRevoKey,
+                    pRemoteHtlcKey,
+                    hash160,
+                    Expiry);
+        break;
+    default:
+        break;
     }
 }
 
