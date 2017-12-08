@@ -3264,10 +3264,11 @@ static bool create_to_local(ln_self_t *self,
                         memcpy(self->cnl_add_htlc[htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
 
 #ifdef LN_UGLY_NORMAL
-                        //payment_hash保存
+                        //payment_hash, type, expiry保存
                         uint8_t vout[M_SZ_WITPROG_WSH];
                         ucoin_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[htlc_idx]->script);
-                        ln_db_save_payhash(pp_htlcinfo[htlc_idx]->preimage_hash, vout, pp_htlcinfo[htlc_idx]->type, NULL);
+                        ln_db_save_payhash(pp_htlcinfo[htlc_idx]->preimage_hash, vout,
+                                    pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry, NULL);
 #endif  //LN_UGLY_NORMAL
                     }
                     if (pTxHtlcs != NULL) {

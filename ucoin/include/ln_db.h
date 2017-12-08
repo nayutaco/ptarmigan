@@ -261,15 +261,17 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
  * @param[in]       pPayHash        保存するpayment_hash
  * @param[in]       pVout           pPayHashを含むvout
  * @param[in]       Type            pVout先のHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
+ * @param[in]       Expiry          Expiry
  * @param[in,out]   pDbParam        DBパラメータ
  */
-bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, uint8_t Type, void *pDbParam);
+bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, uint8_t Type, uint32_t Expiry, void *pDbParam);
 
 
 /** payment_hash検索
  *
  * @param[out]      pPayHash        保存するpayment_hash
  * @param[out]      pType           pVoutのHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
+ * @param[out]      pExpiry         Expiry
  * @param[in]       pVout           検索するvout
  * @param[in,out]   pDbParam        DBパラメータ
  */
