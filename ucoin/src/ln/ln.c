@@ -1006,6 +1006,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     DUMPBIN(self->p_revoked_vout[0].buf, self->p_revoked_vout[0].len);
 
     for (int lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
+DBG_PRINTF("self->p_revoked_type = %p\n", self->p_revoked_type);
         DBG_PRINTF("vout[%d]: ", lp);
         DUMPBIN(pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
         if (pRevokedTx->vout[lp].script.len == M_SZ_WITPROG_WPKH) {
@@ -1027,9 +1028,9 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
 
                 ln_create_htlcinfo(&self->p_revoked_wit[1 + lp],
                         type,
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                        self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                         payhash,
                         expiry);
                 ucoin_buf_alloc(&self->p_revoked_vout[1 + lp], M_SZ_WITPROG_WSH);
@@ -1041,7 +1042,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
         }
     }
 
-
+    DBG_PRINTF("ret=%d\n", ret);
     return ret;
 }
 
@@ -1394,8 +1395,10 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
                 int WitIndex, const uint8_t *pTxid, int Index)
 {
     ln_feeinfo_t feeinfo;
+    feeinfo.feerate_per_kw = self->feerate_per_kw;
     ln_fee_calc(&feeinfo, NULL, 0);
     uint64_t fee = (self->p_revoked_type[WitIndex] == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+    DBG_PRINTF("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
     ln_create_htlc_tx(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
 
@@ -1412,13 +1415,26 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
     DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
     ucoin_buf_t buf_sig;
-    bool ret = ln_sign_htlc_tx(pTx, &buf_sig,
+    ln_htlcsign_t htlcsign;
+    switch (self->p_revoked_type[WitIndex]) {
+    case LN_HTLCTYPE_OFFERED:
+        htlcsign = HTLCSIGN_RV_OFFERED;
+        break;
+    case LN_HTLCTYPE_RECEIVED:
+        htlcsign = HTLCSIGN_RV_RECEIVED;
+        break;
+    default:
+        DBG_PRINTF("index=%d, %d\n", WitIndex, self->p_revoked_type[WitIndex]);
+        assert(0);
+    }
+    bool ret = ln_sign_htlc_tx(pTx,
+                &buf_sig,
                 Value,
                 &signkey,
                 NULL,
                 NULL,
                 &self->p_revoked_wit[WitIndex],
-                self->p_revoked_type[WitIndex]);
+                htlcsign);
     ucoin_buf_free(&buf_sig);
 
     return ret;
@@ -1504,7 +1520,7 @@ unsigned long ln_get_debug(void)
 
 void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
 {
-    //DBG_PRINTF("alloc(%d)\n", self->revoked_num);
+    DBG_PRINTF("alloc(%d)\n", self->revoked_num);
 
     self->p_revoked_vout = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
     self->p_revoked_wit = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
@@ -1512,8 +1528,9 @@ void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
     for (int lp = 0; lp < self->revoked_num; lp++) {
         ucoin_buf_init(&self->p_revoked_vout[lp]);
         ucoin_buf_init(&self->p_revoked_wit[lp]);
-        self->p_revoked_type = LN_HTLCTYPE_NONE;
+        self->p_revoked_type[lp] = LN_HTLCTYPE_NONE;
     }
+DBG_PRINTF("self->p_revoked_type = %p\n", self->p_revoked_type);
 }
 
 
@@ -1533,7 +1550,7 @@ void HIDDEN ln_free_revoked_buf(ln_self_t *self)
     self->revoked_num = 0;
     self->revoked_cnt = 0;
 
-    //DBG_PRINTF("free\n");
+    DBG_PRINTF("free\n");
 }
 
 
@@ -3640,7 +3657,7 @@ static bool create_to_remote(ln_self_t *self,
 
                     uint8_t preimage[LN_SZ_PREIMAGE];
                     bool ret_img;
-                    int type = HTLCSIGN_TO_SUCCESS;
+                    int htlcsign = HTLCSIGN_TO_SUCCESS;
                     if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) {
                         //remoteのoffered=localのreceivedなのでpreimageを所持している可能性がある
                         ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
@@ -3652,7 +3669,7 @@ static bool create_to_remote(ln_self_t *self,
                             ucoin_buf_alloccopy(&tx.vout[0].script,
                                     self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
                             tx.locktime = 0;
-                            type = HTLCSIGN_OF_PREIMG;
+                            htlcsign = HTLCSIGN_OF_PREIMG;
                         }
                     } else {
                         ret_img = false;
@@ -3664,7 +3681,7 @@ static bool create_to_remote(ln_self_t *self,
                             ucoin_buf_alloccopy(&tx.vout[0].script,
                                     self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
                             tx.locktime = pp_htlcinfo[htlc_idx]->expiry;
-                            type = HTLCSIGN_RV_TIMEOUT;
+                            htlcsign = HTLCSIGN_RV_TIMEOUT;
                         }
                     }
 
@@ -3676,7 +3693,7 @@ static bool create_to_remote(ln_self_t *self,
                                 &buf_remotesig,
                                 (ret_img) ? preimage : NULL,
                                 &pp_htlcinfo[htlc_idx]->script,
-                                type);
+                                htlcsign);
                     if (!ret) {
                         DBG_PRINTF("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
                         break;

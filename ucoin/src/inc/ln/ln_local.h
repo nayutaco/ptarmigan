@@ -105,9 +105,18 @@
 #define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり
 #define CHANNEL_FLAGS_VALUE         CHANNEL_FLAGS_ANNOCNL   ///< TODO:open_channel.channel_flags
 
-#define HTLCSIGN_TO_SUCCESS         (1)                     ///<
-#define HTLCSIGN_OF_PREIMG          (2)                     ///< 相手が送信したcommit_txのOffered HTLC
-#define HTLCSIGN_RV_TIMEOUT         (3)                     ///< 相手が送信したcommit_txのReceived HTLC
+
+/**************************************************************************
+ * const variables
+ **************************************************************************/
+
+typedef enum {
+    HTLCSIGN_TO_SUCCESS,        ///< HTLC Success
+    HTLCSIGN_OF_PREIMG,         ///< 相手が送信したcommit_txのOffered HTLC
+    HTLCSIGN_RV_TIMEOUT,        ///< 相手が送信したcommit_txのReceived HTLC
+    HTLCSIGN_RV_RECEIVED,       ///< revoked transactionのreceived HTLC output
+    HTLCSIGN_RV_OFFERED,        ///< revoked transactionのoffered HTLC output
+} ln_htlcsign_t;
 
 
 /**************************************************************************
@@ -313,7 +322,7 @@ void HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t
  * @param[in]       pRemoteSig      commit_tx相手からの署名
  * @param[in]       pPreImage       非NULL:payment_preimageでHTLC-Successとして署名, NULL:HTLC-Timeoutとして署名
  * @param[in]       pWitScript      voutとなるスクリプト
- * @param[in]       Type            HTLCSIGN_xxx
+ * @param[in]       HtlcSign        HTLCSIGN_xxx
  * @return      true:成功
  */
 bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
@@ -322,7 +331,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
                     const ucoin_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
                     const ucoin_buf_t *pWitScript,
-                    int Type);
+                    ln_htlcsign_t HtlcSign);
 
 
 /** Offered/Receveid HTLC Transaction署名verify

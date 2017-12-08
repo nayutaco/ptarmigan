@@ -1331,7 +1331,7 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
     self->revoked_cnt = p[0];
     self->revoked_num = p[1];
     ln_alloc_revoked_buf(self);
-
+DBG_PRINTF("self->p_revoked_type = %p\n", self->p_revoked_type);
     key.mv_data = "rvv";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {

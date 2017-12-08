@@ -447,7 +447,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
                     const ucoin_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
                     const ucoin_buf_t *pWitScript,
-                    int Type)
+                    ln_htlcsign_t HtlcSign)
 {
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
 
@@ -458,14 +458,15 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
 
     bool ret = false;
     uint8_t sighash[UCOIN_SZ_SIGHASH];
+    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
+    ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
 
     const ucoin_buf_t wit0 = { NULL, 0 };
-    switch (Type) {
+    const ucoin_buf_t **pp_wits = NULL;
+    int wits_num = 0;
+    switch (HtlcSign) {
     case HTLCSIGN_TO_SUCCESS:
-        DBG_PRINTF("HTLC Timeout/Success Tx sign\n");
-        ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
-        ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
-        {
+        if (pRemoteSig != NULL) {
             // 0
             // <remotesig>
             // <localsig>
@@ -485,12 +486,13 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
                 &preimage,
                 pWitScript
             };
-            ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
+            pp_wits = (const ucoin_buf_t **)wits;
+            wits_num = ARRAY_SIZE(wits);
         }
+        DBG_PRINTF("HTLC Timeout/Success Tx sign: wits_num=%d\n", wits_num);
         break;
 
     case HTLCSIGN_OF_PREIMG:
-        DBG_PRINTF("Offered HTLC + preimage sign\n");
         {
             // <remotesig>
             // <payment-preimage>
@@ -502,40 +504,56 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
             } else {
                 assert(0);
             }
-
-            ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
-            ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
             const ucoin_buf_t *wits[] = {
                 pLocalSig,
                 &preimage,
                 pWitScript
             };
-            ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
+            pp_wits = (const ucoin_buf_t **)wits;
+            wits_num = ARRAY_SIZE(wits);
         }
+        DBG_PRINTF("Offered HTLC + preimage sign: wits_num=%d\n", wits_num);
         break;
 
     case HTLCSIGN_RV_TIMEOUT:
-        DBG_PRINTF("Received HTLC sign\n");
         {
             // <remotesig>
             // 0
             // <script>
-            ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
-            ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
             const ucoin_buf_t *wits[] = {
                 pLocalSig,
                 &wit0,
                 pWitScript
             };
-            ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
+            pp_wits = (const ucoin_buf_t **)wits;
+            wits_num = ARRAY_SIZE(wits);
         }
+        DBG_PRINTF("Received HTLC sign: wits_num=%d\n", wits_num);
+        break;
+
+    case HTLCSIGN_RV_RECEIVED:
+    case HTLCSIGN_RV_OFFERED:
+        {
+            // <revocation_sig>
+            // <revocationkey>
+            const ucoin_buf_t revokey = { (CONST_CAST uint8_t *)pKeys->pub, UCOIN_SZ_PUBKEY };
+            const ucoin_buf_t *wits[] = {
+                pLocalSig,
+                &revokey,
+                pWitScript
+            };
+            pp_wits = (const ucoin_buf_t **)wits;
+            wits_num = ARRAY_SIZE(wits);
+        }
+        DBG_PRINTF("revoked HTLC sign: wits_num=%d\n", wits_num);
         break;
 
     default:
-        DBG_PRINTF("type=%d\n", Type);
+        DBG_PRINTF("HtlcSign=%d\n", (int)HtlcSign);
         assert(0);
         break;
     }
+    ret = ucoin_sw_set_vin_p2wsh(pTx, 0, pp_wits, wits_num);
 
     return ret;
 }

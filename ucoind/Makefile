@@ -4,7 +4,10 @@ COMMON_PATH = ../
 OBJECT_DIRECTORY = _build
 OUTPUT_BINARY_DIRECTORY = .
 
-#GNU_PREFIX := arm-none-eabi-
+######################################
+#CFLAGS_USER
+#CFLAGS_USER += -DAPP_DEBUG_MEM
+######################################
 
 
 #echo suspend
@@ -119,7 +122,7 @@ vpath %.c $(C_PATHS)
 
 OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 
-debug: CFLAGS += -DAPP_DEBUG_MEM
+debug: CFLAGS += $(CFLAGS_USER)
 debug: CFLAGS += -ggdb3 -O0 --coverage
 debug: LDFLAGS += -ggdb3 -O0 --coverage
 debug: $(BUILD_DIRECTORIES) .Depend $(OBJECTS)
@@ -127,6 +130,7 @@ debug: $(BUILD_DIRECTORIES) .Depend $(OBJECTS)
 	@echo [DEBUG]CFLAGS=$(CFLAGS)
 	$(NO_ECHO)$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME)
 
+release: CFLAGS += $(CFLAGS_USER)
 release: CFLAGS += -DNDEBUG -O3
 release: LDFLAGS += -O3
 release: $(BUILD_DIRECTORIES) .Depend $(OBJECTS)
