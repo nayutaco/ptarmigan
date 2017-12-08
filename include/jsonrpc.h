@@ -26,6 +26,14 @@
 
 
 /********************************************************************
+ * macros
+ ********************************************************************/
+
+#define JSONRPC_ERR_MISSING_INPUT           (-25)
+#define JSONRPC_ERR_ALREADY_BLOCK           (-27)
+
+
+/********************************************************************
  * prototypes
  ********************************************************************/
 
@@ -114,11 +122,12 @@ bool jsonrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf
 /** [bitcoin rpc]sendrawtransaction
  *
  * @param[out]  pTxid       取得したTXID(戻り値がtrue時)
+ * @param[out]  pCode       結果コード
  * @param[in]   pData       送信データ
  * @param[in]   Len         pData長
  * @retval  true        送信成功
  */
-bool jsonrpc_sendraw_tx(uint8_t *pTxid, const uint8_t *pData, uint16_t Len);
+bool jsonrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint16_t Len);
 
 
 /** [bitcoin rpc]getrawtransaction
@@ -141,14 +150,15 @@ bool jsonrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid);
 
 /** [bitcoin rpc]gettxout
  *
- * @param[out]  *pSat           UINT64_MAX以外:取得したamount[satoshi], UINT64_MAX:取得失敗
+ * @param[out]  pUnspent        true:未使用
+ * @param[out]  pSat            UINT64_MAX以外:取得したamount[satoshi], UINT64_MAX:取得失敗
  * @param[in]   pTxid
  * @param[in]   Txidx
  * @retval  true        取得成功
  * @note
  *      - gettxoutはunspentであるvoutのみ使用可能
  */
-bool jsonrpc_getxout(uint64_t *pSat, const uint8_t *pTxid, int Txidx);
+bool jsonrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx);
 
 
 /** [bitcoin rpc]getnewaddress

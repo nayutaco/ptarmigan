@@ -121,10 +121,10 @@ static inline int tid() {
 
 
 #ifdef UCOIN_DEBUG_MEM
-#define M_MALLOC            ucoin_dbg_malloc      ///< malloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
-#define M_REALLOC           ucoin_dbg_realloc     ///< realloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
-#define M_CALLOC            ucoin_dbg_calloc     ///< realloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
-#define M_FREE(ptr)         { ucoin_dbg_free(ptr); ptr = NULL; }        ///< free(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
+#define M_MALLOC(a)         ucoin_dbg_malloc(a); DBG_PRINTF("M_MALLOC:%d\n", ucoin_dbg_malloc_cnt());       ///< malloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
+#define M_REALLOC(a,b)      ucoin_dbg_realloc(a,b); DBG_PRINTF("M_REALLOC:%d\n", ucoin_dbg_malloc_cnt());   ///< realloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
+#define M_CALLOC(a,b)       ucoin_dbg_calloc(a,b); DBG_PRINTF("M_CALLOC:%d\n", ucoin_dbg_malloc_cnt());       ///< realloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
+#define M_FREE(ptr)         { ucoin_dbg_free(ptr); ptr = NULL; DBG_PRINTF("M_FREE:%d\n", ucoin_dbg_malloc_cnt()); }     ///< free(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
 #else   //UCOIN_DEBUG_MEM
 #define M_MALLOC            malloc
 #define M_REALLOC           realloc

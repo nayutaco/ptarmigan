@@ -241,7 +241,7 @@ bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeSt
 
 
 ////////////////////
-// preimage
+// payment_preimage
 ////////////////////
 
 bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam);
@@ -250,6 +250,39 @@ bool ln_db_cursor_preimage_open(void **ppCur);
 void ln_db_cursor_preimage_close(void *pCur);
 bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
 
+
+#ifdef LN_UGLY_NORMAL
+////////////////////
+// payment_hash
+////////////////////
+
+/** payment_hash保存
+ *
+ * @param[in]       pPayHash        保存するpayment_hash
+ * @param[in]       pVout           pPayHashを含むvout
+ * @param[in]       Type            pVout先のHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
+ * @param[in]       Expiry          Expiry
+ * @param[in,out]   pDbParam        DBパラメータ
+ */
+bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, uint8_t Type, uint32_t Expiry, void *pDbParam);
+
+
+/** payment_hash検索
+ *
+ * @param[out]      pPayHash        保存するpayment_hash
+ * @param[out]      pType           pVoutのHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
+ * @param[out]      pExpiry         Expiry
+ * @param[in]       pVout           検索するvout
+ * @param[in,out]   pDbParam        DBパラメータ
+ */
+bool ln_db_search_payhash(uint8_t *pPayHash, uint8_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
+
+#endif  //LN_UGLY_NORMAL
+
+
+////////////////////
+// revoked transaction close
+////////////////////
 
 bool ln_db_load_revoked(ln_self_t *self, void *pDbParam);
 bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam);

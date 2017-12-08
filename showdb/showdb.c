@@ -237,6 +237,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                     if (type == LN_DB_CNLANNO_UPD2) {
                         printf("]");
                     }
+                    ucoin_buf_free(&buf);
                     cnt1++;
                 } else {
                     //printf("end of announce\n");
@@ -294,6 +295,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                     } else {
                         ln_print_announce(buf.buf, buf.len);
                     }
+                    ucoin_buf_free(&buf);
                     cnt2++;
                 } else {
                     //printf("end of announce\n");

@@ -19,62 +19,40 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   p2p_cli.h
- *  @brief  ucoind client動作 header
+/** @file   monitoring.h
+ *  @brief  monitoring header
  */
-#ifndef P2P_CLI_H__
-#define P2P_CLI_H__
+#ifndef MONITORING_H__
+#define MONITORING_H__
 
-#include <stdint.h>
-
-#include "jsonrpc-c.h"
-
-#include "lnapp.h"
+//forward definition
+struct ln_self_t;
+typedef struct ln_self_t ln_self_t;
 
 
 /********************************************************************
  * prototypes
  ********************************************************************/
 
-/** [p2p_cli]初期化
+/** チャネル閉鎖監視スレッド開始
+ *
+ * @param[in]   pArg        未使用
+ * @retval      未使用
+ */
+void *monitor_thread_start(void *pArg);
+
+
+/** モニタループ停止
  *
  */
-void p2p_cli_init(void);
+void monitor_stop(void);
 
 
-/** [p2p_cli]開始
+/** Unilateral Close(自分が展開)
  *
+ * @param[in,out]       self        チャネル情報
+ * @param[in,out]       pDbParam    DB情報
  */
-void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx);
+bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam);
 
-
-/** [p2p_cli]全停止
- *
- */
-void p2p_cli_stop_all(void);
-
-
-/** [p2p_cli]node_idによる検索
- *
- */
-lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId);
-
-
-/** [p2p_cli]short_channel_idによる検索
- *
- */
-lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id);
-
-
-/** [p2p_cli]動作中lnapp全出力
- *
- */
-void p2p_cli_show_self(cJSON *pResult);
-
-
-/** [p2p_cli]ループ状態取得
- *
- */
-bool p2p_cli_is_looping(void);
-
-#endif /* P2P_CLI_H__ */
+#endif  //MONITORING_H__

@@ -1,3 +1,27 @@
+/*
+ *  Copyright (C) 2017, Nayuta, Inc. All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Licensed to the Apache Software Foundation (ASF) under one
+ *  or more contributor license agreements.  See the NOTICE file
+ *  distributed with this work for additional information
+ *  regarding copyright ownership.  The ASF licenses this file
+ *  to you under the Apache License, Version 2.0 (the
+ *  "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing,
+ *  software distributed under the License is distributed on an
+ *  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ *  KIND, either express or implied.  See the License for the
+ *  specific language governing permissions and limitations
+ *  under the License.
+ */
+/** @file   lnapp.h
+ *  @brief  lnapp header
+ */
 #ifndef LNAPP_H__
 #define LNAPP_H__
 
@@ -94,18 +118,81 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
+/** [lnapp]初期化
+ *
+ */
 void lnapp_init(ln_node_t *pNode);
+
+
+/** [lnapp]開始
+ *
+ */
 void lnapp_start(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]停止
+ *
+ */
 void lnapp_stop(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]送金開始
+ *
+ */
 bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay);
+
+
+/** [lnapp]送金転送
+ *
+ */
 bool lnapp_forward_payment(lnapp_conf_t *pAppConf, fwd_proc_add_t *pAdd);
+
+
+/** [lnapp]送金反映
+ *
+ */
 bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
+
+
+/** [lnapp]送金エラー
+ *
+ */
 bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
+
+
+/** [lnapp]チャネル閉鎖
+ *
+ */
 bool lnapp_close_channel(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]チャネル閉鎖(強制)
+ *
+ */
 bool lnapp_close_channel_force(const uint8_t *pNodeId);
+
+
+/** [lnapp]short_channel_idに対応するlnappか
+ *
+ */
 bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_channel_id);
+
+
+/** [lnapp]lnapp出力
+ *
+ */
 void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult);
+
+
+/** [lnapp]現在のcommit_tx出力
+ *
+ */
 bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult);
+
+
+/** [lnapp]ループ状態取得
+ *
+ */
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
 
 #endif /* LNAPP_H__ */

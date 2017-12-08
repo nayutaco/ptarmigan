@@ -92,6 +92,9 @@ extern "C" {
                                                     // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#tagged-fields
 
 
+#define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
+
+
 /**************************************************************************
  * macro functions
  **************************************************************************/
@@ -954,9 +957,11 @@ struct ln_self_t {
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
-    ucoin_buf_t                 revoked_vout;                   ///< revoked transaction close時に検索するvoutスクリプト
-    ucoin_buf_t                 revoked_wit;                    ///< revoked transaction close時のwitnessスクリプト
+    ucoin_buf_t                 *p_revoked_vout;                ///< revoked transaction close時に検索するvoutスクリプト([0]は必ずto_local系)
+    ucoin_buf_t                 *p_revoked_wit;                 ///< revoked transaction close時のwitnessスクリプト
+    ln_htlctype_t               *p_revoked_type;                ///< p_revoked_vout/p_revoked_witに対応するtype
     ucoin_buf_t                 revoked_sec;                    ///< revoked transaction close時のremote per_commit_sec
+    uint16_t                    revoked_num;                    ///< revoked_cntの初期値+1([0]にto_local系を入れるため)
     uint16_t                    revoked_cnt;                    ///< 取り戻す必要があるvout数
     uint32_t                    revoked_chk;                    ///< 最後にチェックしたfunding_txのconfirmation数
 
@@ -1306,11 +1311,15 @@ void ln_free_close_force_tx(ln_close_force_t *pClose);
 
 /** revoked transaction close(ugly way)の対処
  *
- * @param[in]           self        channel情報
- * @param[in]           pTx         revoked transaction
+ * @param[in,out]       self        channel情報
+ * @param[in]           pRevokedTx  revoked transaction
+ * @param[in,out]       pDbParam    DBパラメータ
  * @retval      ture    成功
+ * @note
+ *      - self->vout にto_localのscriptPubKeyを設定する(HTLC Timeout/Successの取り戻しにも使用する)
+ *      - self->wit にto_localのwitnessProgramを設定する
  */
-bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pTx);
+bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam);
 
 
 /** update_add_htlcメッセージ作成
@@ -1388,8 +1397,20 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing);
 bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 
 
-bool ln_create_tolocal_spent(ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
+/** to_local用トランザクション作成
+ *
+ *
+ */
+bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
                 const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
+
+
+/** revoked HTLC Txから取り戻すトランザクション作成
+ *
+ *
+ */
+bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value,
+                int WitIndex, const uint8_t *pTxid, int Index);
 
 
 /** PreImageハッシュ計算
@@ -1575,6 +1596,26 @@ static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
 }
 
 
+/** shutdown時のlocal scriptPubKey取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      local scriptPubKey
+ */
+static inline const ucoin_buf_t *ln_shutdown_scriptpk_local(const ln_self_t *self) {
+    return &self->shutdown_scriptpk_local;
+}
+
+
+/** shutdown時のremote scriptPubKey取得
+ *
+ * @param[in]           self            channel情報
+ * @retval      remote scriptPubKey
+ */
+static inline const ucoin_buf_t *ln_shutdown_scriptpk_remote(const ln_self_t *self) {
+    return &self->shutdown_scriptpk_remote;
+}
+
+
 /**
  *
  *
@@ -1647,6 +1688,16 @@ static inline const ucoin_buf_t *ln_preimage_remote(const ucoin_tx_t *pTx) {
 }
 
 
+/** revoked transaction closeされた後の残取り戻し数
+ *
+ * @param[in]           self            channel情報
+ * @retval      残取り戻し数
+ */
+static inline uint16_t ln_revoked_cnt(const ln_self_t *self) {
+    return self->revoked_cnt;
+}
+
+
 /** revoked transaction closeされた後の残取り戻しチェック
  *
  * @param[in,out]       self            channel情報
@@ -1659,7 +1710,7 @@ static inline bool ln_revoked_cnt_dec(ln_self_t *self) {
 
 
 /** revoked transaction closeされた後のfunding_tx confirmation数更新
- * 
+ *
  * @param[out]          self            channel情報
  * @param[in]           confm           confirmation数
  */
@@ -1669,7 +1720,7 @@ static inline void ln_set_revoked_confm(ln_self_t *self, uint32_t confm) {
 
 
 /** ln_revoked_confm()で保存した値の取得
- * 
+ *
  * @param[in]           self            channel情報
  * @return      ln_revoked_confm()で保存したconfirmation数
  */
@@ -1683,7 +1734,7 @@ static inline uint32_t ln_revoked_confm(const ln_self_t *self) {
  * @return      revoked transaction後に監視するvoutスクリプト
  */
 static inline const ucoin_buf_t* ln_revoked_vout(const ln_self_t *self) {
-    return &self->revoked_vout;
+    return self->p_revoked_vout;
 }
 
 
@@ -1692,7 +1743,7 @@ static inline const ucoin_buf_t* ln_revoked_vout(const ln_self_t *self) {
  * @return      revoked transaction後に取り戻す際のunlocking witness script
  */
 static inline const ucoin_buf_t* ln_revoked_wit(const ln_self_t *self) {
-    return &self->revoked_wit;
+    return self->p_revoked_wit;
 }
 
 

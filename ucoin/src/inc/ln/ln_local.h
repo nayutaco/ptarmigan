@@ -105,9 +105,18 @@
 #define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり
 #define CHANNEL_FLAGS_VALUE         CHANNEL_FLAGS_ANNOCNL   ///< TODO:open_channel.channel_flags
 
-#define HTLCSIGN_TO_SUCCESS         (1)                     ///<
-#define HTLCSIGN_OF_PREIMG          (2)                     ///< 相手が送信したcommit_txのOffered HTLC
-#define HTLCSIGN_RV_TIMEOUT         (3)                     ///< 相手が送信したcommit_txのReceived HTLC
+
+/**************************************************************************
+ * const variables
+ **************************************************************************/
+
+typedef enum {
+    HTLCSIGN_TO_SUCCESS,        ///< HTLC Success
+    HTLCSIGN_OF_PREIMG,         ///< 相手が送信したcommit_txのOffered HTLC
+    HTLCSIGN_RV_TIMEOUT,        ///< 相手が送信したcommit_txのReceived HTLC
+    HTLCSIGN_RV_RECEIVED,       ///< revoked transactionのreceived HTLC output
+    HTLCSIGN_RV_OFFERED,        ///< revoked transactionのoffered HTLC output
+} ln_htlcsign_t;
 
 
 /**************************************************************************
@@ -120,6 +129,18 @@ extern uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
 /**************************************************************************
  * prototypes
  **************************************************************************/
+
+/** revoked transaction close用のスクリプトバッファ確保
+ *
+ */
+void HIDDEN ln_alloc_revoked_buf(ln_self_t *self);
+
+
+/** revoked transaction close用のスクリプトバッファ解放
+ *
+ */
+void HIDDEN ln_free_revoked_buf(ln_self_t *self);
+
 
 /** Obscured Commitment Number計算
  *
@@ -163,18 +184,38 @@ bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
                     const ucoin_buf_t *pWitScript, bool bRevoked);
 
 
-/** @def        ln_create_script_success
- *  @brief      HTLC-Success Transactionスクリプト作成
- *  @note       #ln_create_script_local()と同じ
+/** HTLC-Timeout Txの出力先スクリプト作成
+ *
+ * @param[out]      pBuf                生成したスクリプト
+ * @param[in]       pLocalRevoKey       Local RevocationKey[33]
+ * @param[in]       pLocalDelayedKey    Local Delayed Key[33]
+ * @param[in]       LocalDelay          Local Delay(OP_CSV)
+ * @note
+ *      - ln_create_script_local()と同じ
  */
-#define ln_create_script_success  ln_create_script_local
+static inline void ln_create_script_success(ucoin_buf_t *pBuf,
+                    const uint8_t *pLocalRevoKey,
+                    const uint8_t *pLocalDelayedKey,
+                    uint32_t LocalDelay) {
+    ln_create_script_local(pBuf, pLocalRevoKey, pLocalDelayedKey, LocalDelay);
+}
 
 
-/** @def        ln_create_script_timeout
- *  @brief      HTLC-Timeout Transactionスクリプト作成
- *  @note       #ln_create_script_local()と同じ
+/** HTLC-Success Txの出力先スクリプト作成
+ *
+ * @param[out]      pBuf                生成したスクリプト
+ * @param[in]       pLocalRevoKey       Local RevocationKey[33]
+ * @param[in]       pLocalDelayedKey    Local Delayed Key[33]
+ * @param[in]       LocalDelay          Local Delay(OP_CSV)
+ * @note
+ *      - ln_create_script_local()と同じ
  */
-#define ln_create_script_timeout  ln_create_script_local
+static inline void ln_create_script_timeout(ucoin_buf_t *pBuf,
+                    const uint8_t *pLocalRevoKey,
+                    const uint8_t *pLocalDelayedKey,
+                    uint32_t LocalDelay) {
+    ln_create_script_local(pBuf, pLocalRevoKey, pLocalDelayedKey, LocalDelay);
+}
 
 
 /** 公開鍵からscriptPubKeyを生成
@@ -207,24 +248,29 @@ bool HIDDEN ln_check_scriptpkh(const ucoin_buf_t *pBuf);
 void HIDDEN ln_htlcinfo_init(ln_htlcinfo_t *pHtlcInfo);
 
 
+/** HTLC情報初期化
+ *
+ *
+ */
 void HIDDEN ln_htlcinfo_free(ln_htlcinfo_t *pHtlcInfo);
 
 
-/** HTLC情報作成
+/** HTLC Txスクリプト生成
  *
- * @param[in]       ppHtlcInfo  HTLC情報ポインタ配列
- * @param[in]       Num         HTLC数
+ * @param[out]      pScript             生成したスクリプト
+ * @param[in]       Type                HTLC種別
  * @param[in]       pLocalHtlcKey       Local htlckey[33]
  * @param[in]       pLocalRevoKey       Local RevocationKey[33]
  * @param[in]       pRemoteHtlcKey      Remote htlckey[33]
- *
- * @note
- *      - pHtlcInfoにtype, preimage_hash, expiryを代入しておくこと
+ * @param[in]       pPaymentHash        payment_hash[32]
+ * @param[in]       Expiry              expiry(HTLC-Success用)
  */
-void HIDDEN ln_create_htlcinfo(ln_htlcinfo_t **ppHtlcInfo, int Num,
+void HIDDEN ln_create_htlcinfo(ucoin_buf_t *pScript, ln_htlctype_t Type,
                     const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
-                    const uint8_t *pRemoteHtlcKey);
+                    const uint8_t *pRemoteHtlcKey,
+                    const uint8_t *pPaymentHash,
+                    uint32_t Expiry);
 
 
 /** FEE計算
@@ -276,7 +322,7 @@ void HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t
  * @param[in]       pRemoteSig      commit_tx相手からの署名
  * @param[in]       pPreImage       非NULL:payment_preimageでHTLC-Successとして署名, NULL:HTLC-Timeoutとして署名
  * @param[in]       pWitScript      voutとなるスクリプト
- * @param[in]       Type            HTLCSIGN_xxx
+ * @param[in]       HtlcSign        HTLCSIGN_xxx
  * @return      true:成功
  */
 bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
@@ -285,7 +331,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
                     const ucoin_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
                     const ucoin_buf_t *pWitScript,
-                    int Type);
+                    ln_htlcsign_t HtlcSign);
 
 
 /** Offered/Receveid HTLC Transaction署名verify

@@ -1,4 +1,4 @@
-/*
+﻿/*
  *  Copyright (C) 2017, Nayuta, Inc. All Rights Reserved
  *  SPDX-License-Identifier: Apache-2.0
  *
@@ -19,56 +19,18 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   p2p_svr.h
- *  @brief  ucoind server動作 header
+/** @file   cmd_json.h
+ *  @brief  ucoind JSON-RPC header
  */
-#ifndef P2P_SVR_H__
-#define P2P_SVR_H__
+#ifndef CMD_JSON_H__
+#define CMD_JSON_H__
 
-#include <stdint.h>
+#include <inttypes.h>
 
-#include "jsonrpc-c.h"
-
-#include "lnapp.h"
-
-
-/********************************************************************
- * prototypes
- ********************************************************************/
-
-/** [p2p_svr]開始
+/** ucoind JSON-RPC動作開始
  *
+ * @param[in]   Port        監視ポート
  */
-void *p2p_svr_start(void *pArg);
+void cmd_json_start(uint16_t Port);
 
-
-/** [p2p_svr]全停止
- *
- */
-void p2p_svr_stop_all(void);
-
-
-/** [p2p_svr]node_idによる検索
- *
- */
-lnapp_conf_t *p2p_svr_search_node(const uint8_t *pNodeId);
-
-
-/** [p2p_svr]short_channel_idによる検索
- *
- */
-lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id);
-
-
-/** [p2p_svr]動作中lnapp全出力
- *
- */
-void p2p_svr_show_self(cJSON *pResult);
-
-
-/** [p2p_svr]ループ状態取得
- *
- */
-bool p2p_svr_is_looping(void);
-
-#endif /* P2P_SVR_H__ */
+#endif  //CMD_JSON_H__
