@@ -58,7 +58,7 @@
 #define M_DB_PREIMAGE           "preimage"
 #define M_DB_PAYHASH            "payhash"
 #define M_DB_VERSION            "version"
-#define M_DB_VERSION_VAL        (-11)           ///< DBバージョン
+#define M_DB_VERSION_VAL        (-12)           ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -71,6 +71,7 @@
     -9 : self.shutdown_scriptpk_localを対象に追加
     -10: htlckey対応
     -11: self.shutdown_scriptpk_remoteを対象に追加, LOCALKEY削除, funding_local/remote整理
+    -12: revoked transaction用データ追加
  */
 
 
