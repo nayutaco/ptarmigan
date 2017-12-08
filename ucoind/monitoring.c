@@ -71,7 +71,8 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm, void *pDbParam);
 static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam);
-static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex);
+static bool close_revoked_tolocal(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex);
+static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex, int WitIndex);
 
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout);
@@ -558,15 +559,34 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
 
     for (int lp = 0; lp < pTx->vout_cnt; lp++) {
         const ucoin_buf_t *p_vout = ln_revoked_vout(self);
+
+        DBG_PRINTF("vout[%d]=", lp);
+        DUMPBIN(pTx->vout[lp].script.buf, pTx->vout[lp].script.len);
         if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[0])) {
             DBG_PRINTF("[%d]to_local !\n", lp);
 
-            bool ret = close_revoked_vout(self, pTx, lp);
+            bool ret = close_revoked_tolocal(self, pTx, lp);
             if (ret) {
                 del = ln_revoked_cnt_dec(self);
                 ln_set_revoked_confm(self, confm);
             } else {
                 save = false;
+            }
+        } else {
+            for (int lp2 = 1; lp2 < self->revoked_num; lp2++) {
+                DBG_PRINTF("p_vout[%d]=", lp2);
+                DUMPBIN(p_vout[lp2].buf, p_vout[lp2].len);
+                if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[lp2])) {
+                    DBG_PRINTF("[%d]HTLC vout[%d] !\n", lp, lp2);
+
+                    bool ret = close_revoked_htlc(self, pTx, lp, lp2);
+                    if (ret) {
+                        del = ln_revoked_cnt_dec(self);
+                        ln_set_revoked_confm(self, confm);
+                    }
+                } else {
+                    DBG_PRINTF(" --> not match\n");
+                }
             }
         }
     }
@@ -602,7 +622,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
                 DBG_PRINTF2("-------- %d ----------\n", lp);
                 ucoin_print_tx(&pTx[lp]);
 
-                ret = close_revoked_vout(self, &pTx[lp], 0);
+                ret = close_revoked_tolocal(self, &pTx[lp], 0);
                 ucoin_tx_free(&pTx[lp]);
                 if (ret) {
                     del = ln_revoked_cnt_dec(self);
@@ -635,8 +655,8 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
 }
 
 
-//revoked HTLC Timeout/Success Txの送金先になって取り戻す
-static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex)
+//revoked to_local output/HTLC Timeout/Success Txを取り戻す
+static bool close_revoked_tolocal(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex)
 {
     uint8_t txid[UCOIN_SZ_TXID];
     ucoin_tx_txid(txid, pTx);
@@ -644,9 +664,31 @@ static bool close_revoked_vout(const ln_self_t *self, const ucoin_tx_t *pTx, int
     ucoin_tx_t tx;
     ucoin_tx_init(&tx);
     const ucoin_buf_t *p_wit = ln_revoked_wit(self);
+
     ln_create_tolocal_spent(self, &tx, pTx->vout[VIndex].value,
                 ln_commit_local(self)->to_self_delay,
                 &p_wit[0], txid, VIndex, true);
+    ucoin_print_tx(&tx);
+    ucoin_buf_t buf;
+    ucoin_tx_create(&buf, &tx);
+    ucoin_tx_free(&tx);
+    bool ret = jsonrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
+    ucoin_buf_free(&buf);
+
+    return ret;
+}
+
+
+//Offered/Recieved HTLCを取り戻す
+static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex, int WitIndex)
+{
+    uint8_t txid[UCOIN_SZ_TXID];
+    ucoin_tx_txid(txid, pTx);
+
+    ucoin_tx_t tx;
+    ucoin_tx_init(&tx);
+
+    ln_create_revokedhtlc_spent(self, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
     ucoin_print_tx(&tx);
     ucoin_buf_t buf;
     ucoin_tx_create(&buf, &tx);

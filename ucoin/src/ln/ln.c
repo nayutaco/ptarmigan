@@ -62,6 +62,10 @@
                                                             //      amount 8
                                                             //      scriptpk 1+len
                                                             // locktime 4
+#define M_SZ_TO_LOCAL_PENALTY                   (324)
+#define M_SZ_OFFERED_PENALTY                    (407)
+#define M_SZ_RECEIVED_PENALTY                   (413)
+
 
 #define M_HTLCCHG_NONE                          (0)
 #define M_HTLCCHG_FF_SEND                       (1)
@@ -221,6 +225,7 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     ucoin_buf_init(&self->revoked_sec);
     self->p_revoked_vout = NULL;
     self->p_revoked_wit = NULL;
+    self->p_revoked_type = NULL;
 
     ucoin_tx_init(&self->tx_funding);
     ucoin_tx_init(&self->tx_closing);
@@ -957,7 +962,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
         }
     }
     DBG_PRINTF("revoked_cnt=%d\n", self->revoked_cnt);
-    self->revoked_num = self->revoked_cnt;
+    self->revoked_num = 1 + self->revoked_cnt;  //[0]にto_local系を入れるため+1する
     ln_alloc_revoked_buf(self);
 
     //
@@ -1020,13 +1025,16 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
             if (srch) {
                 DBG_PRINTF("[%d]detect!\n", lp);
 
-                ln_create_htlcinfo(&self->p_revoked_vout[lp + 1],
+                ln_create_htlcinfo(&self->p_revoked_wit[1 + lp],
                         type,
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                         self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                         payhash,
                         expiry);
+                ucoin_buf_alloc(&self->p_revoked_vout[1 + lp], M_SZ_WITPROG_WSH);
+                ucoin_sw_wit2prog_p2wsh(self->p_revoked_vout[1 + lp].buf, &self->p_revoked_wit[1 + lp]);
+                self->p_revoked_type[1 + lp] = type;
             } else {
                 DBG_PRINTF("[%d]not detect\n", lp);
             }
@@ -1382,6 +1390,41 @@ LABEL_EXIT:
 }
 
 
+bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value,
+                int WitIndex, const uint8_t *pTxid, int Index)
+{
+    ln_feeinfo_t feeinfo;
+    ln_fee_calc(&feeinfo, NULL, 0);
+    uint64_t fee = (self->p_revoked_type[WitIndex] == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
+
+    ln_create_htlc_tx(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
+
+    ucoin_util_keys_t signkey;
+    ln_derkey_revocationprivkey(signkey.priv,
+                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
+                    self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].priv,
+                    self->revoked_sec.buf);
+    ucoin_keys_priv2pub(signkey.pub, signkey.priv);
+    DBG_PRINTF("key-priv: ");
+    DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF("key-pub : ");
+    DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
+
+    ucoin_buf_t buf_sig;
+    bool ret = ln_sign_htlc_tx(pTx, &buf_sig,
+                Value,
+                &signkey,
+                NULL,
+                NULL,
+                &self->p_revoked_wit[WitIndex],
+                self->p_revoked_type[WitIndex]);
+    ucoin_buf_free(&buf_sig);
+
+    return ret;
+}
+
+
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 {
     ucoin_util_sha256(pHash, pPreImage, LN_SZ_PREIMAGE);
@@ -1465,9 +1508,11 @@ void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
 
     self->p_revoked_vout = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
     self->p_revoked_wit = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
+    self->p_revoked_type = (ln_htlctype_t *)M_MALLOC(sizeof(ln_htlctype_t) * self->revoked_num);
     for (int lp = 0; lp < self->revoked_num; lp++) {
         ucoin_buf_init(&self->p_revoked_vout[lp]);
         ucoin_buf_init(&self->p_revoked_wit[lp]);
+        self->p_revoked_type = LN_HTLCTYPE_NONE;
     }
 }
 
@@ -1484,6 +1529,7 @@ void HIDDEN ln_free_revoked_buf(ln_self_t *self)
     }
     M_FREE(self->p_revoked_vout);
     M_FREE(self->p_revoked_wit);
+    M_FREE(self->p_revoked_type);
     self->revoked_num = 0;
     self->revoked_cnt = 0;
 

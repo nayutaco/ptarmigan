@@ -957,10 +957,11 @@ struct ln_self_t {
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
     ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
-    ucoin_buf_t                 *p_revoked_vout;                ///< revoked transaction close時に検索するvoutスクリプト
+    ucoin_buf_t                 *p_revoked_vout;                ///< revoked transaction close時に検索するvoutスクリプト([0]は必ずto_local系)
     ucoin_buf_t                 *p_revoked_wit;                 ///< revoked transaction close時のwitnessスクリプト
+    ln_htlctype_t               *p_revoked_type;                ///< p_revoked_vout/p_revoked_witに対応するtype
     ucoin_buf_t                 revoked_sec;                    ///< revoked transaction close時のremote per_commit_sec
-    uint16_t                    revoked_num;                    ///< p_revoked_vout, p_revoked_witのmalloc数
+    uint16_t                    revoked_num;                    ///< revoked_cntの初期値+1([0]にto_local系を入れるため)
     uint16_t                    revoked_cnt;                    ///< 取り戻す必要があるvout数
     uint32_t                    revoked_chk;                    ///< 最後にチェックしたfunding_txのconfirmation数
 
@@ -1396,8 +1397,20 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing);
 bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 
 
+/** to_local用トランザクション作成
+ *
+ *
+ */
 bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
                 const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
+
+
+/** revoked HTLC Txから取り戻すトランザクション作成
+ *
+ *
+ */
+bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value,
+                int WitIndex, const uint8_t *pTxid, int Index);
 
 
 /** PreImageハッシュ計算
