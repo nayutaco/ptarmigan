@@ -24,6 +24,7 @@
 #include <string.h>
 #include <float.h>
 #include <curl/curl.h>
+#include <pthread.h>
 #include "jansson.h"
 
 #include "jsonrpc.h"
@@ -73,6 +74,7 @@ typedef struct {
  **************************************************************************/
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
+static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid);
 static bool getrawtransaction_rpc(char *pJson, const char *pTxid, bool detail);
 static bool sendrawtransaction_rpc(char *pJson, const char *pTransaction);
 static bool gettxout_rpc(char *pJson, const char *pTxid, int idx);
@@ -87,11 +89,12 @@ static int error_result(json_t *p_root);
 
 
 /**************************************************************************
- * prototypes
+ * static variables
  **************************************************************************/
 
 static char     rpc_url[SZ_RPC_URL];
 static char     rpc_userpwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD];
+static pthread_mutex_t      mMux;
 
 
 /**************************************************************************
@@ -100,6 +103,7 @@ static char     rpc_userpwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD];
 
 void jsonrpc_init(const rpc_conf_t *pRpcConf)
 {
+    pthread_mutex_init(&mMux, NULL);
     curl_global_init(CURL_GLOBAL_ALL);
 
     sprintf(rpc_url, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
@@ -121,6 +125,8 @@ int jsonrpc_getblockcount(void)
     bool retval;
     int blocks = -1;
     char *p_json;
+
+    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = getblockcount_rpc(p_json);
@@ -155,6 +161,8 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
+    pthread_mutex_unlock(&mMux);
+
     return blocks;
 }
 
@@ -164,6 +172,8 @@ bool jsonrpc_getblockhash(uint8_t *pHash, int Height)
     bool ret = false;
     bool retval;
     char *p_json;
+
+    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
 
@@ -197,6 +207,8 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
+    pthread_mutex_unlock(&mMux);
+
     return ret;
 }
 
@@ -207,6 +219,8 @@ uint32_t jsonrpc_get_confirmation(const uint8_t *pTxid)
     int64_t confirmation = 0;
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1];
+
+    pthread_mutex_lock(&mMux);
 
     //TXIDはBE/LE変換
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
@@ -244,6 +258,8 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
+    pthread_mutex_unlock(&mMux);
+
     return (uint32_t)confirmation;
 }
 
@@ -254,6 +270,8 @@ bool jsonrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t 
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1];
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
+
+    pthread_mutex_lock(&mMux);
 
     *pBHeight = -1;
     *pBIndex = -1;
@@ -338,6 +356,8 @@ LABEL_EXIT:
         retval = false;
     }
 
+    pthread_mutex_unlock(&mMux);
+
     return retval;
 }
 
@@ -349,6 +369,8 @@ bool jsonrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1] = "";
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
+
+    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
 
@@ -453,6 +475,8 @@ LABEL_DECREF3:
 LABEL_EXIT:
     APP_FREE(p_json);
 
+    pthread_mutex_unlock(&mMux);
+
     return ret;
 }
 
@@ -464,6 +488,8 @@ bool jsonrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxi
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1] = "";
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
+
+    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
 
@@ -563,6 +589,8 @@ LABEL_DECREF2:
 LABEL_EXIT:
     APP_FREE(p_json);
 
+    pthread_mutex_unlock(&mMux);
+
     return ret;
 }
 
@@ -574,6 +602,8 @@ bool jsonrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1] = "";
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
+
+    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
 
@@ -645,7 +675,7 @@ LABEL_DECREF:
             ucoin_tx_t tx;
 
             ucoin_tx_init(&tx);
-            bool bret = jsonrpc_getraw_txstr(&tx, txid);
+            bool bret = getraw_txstr(&tx, txid);
             if (!bret) {
                 int cnt = pTxBuf->len / sizeof(ucoin_tx_t);
                 ucoin_tx_t *p_tx = (ucoin_tx_t *)pTxBuf->buf;
@@ -680,6 +710,8 @@ LABEL_DECREF2:
 LABEL_EXIT:
     APP_FREE(p_json);
 
+    pthread_mutex_unlock(&mMux);
+
     return ret;
 }
 
@@ -690,6 +722,8 @@ bool jsonrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint16
     bool retval;
     char *p_json;
     char *transaction;
+
+    pthread_mutex_lock(&mMux);
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
     misc_bin2str(transaction, pData, Len);
@@ -733,6 +767,8 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
+    pthread_mutex_unlock(&mMux);
+
     return ret;
 }
 
@@ -749,6 +785,256 @@ bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
 
 
 bool jsonrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
+{
+    bool ret;
+
+    pthread_mutex_lock(&mMux);
+
+    ret = getraw_txstr(pTx, txid);
+
+    pthread_mutex_unlock(&mMux);
+
+    return ret;
+}
+
+
+bool jsonrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx)
+{
+    bool retval;
+    char *p_json = NULL;
+    char txid[UCOIN_SZ_TXID * 2 + 1];
+    *pUnspent = false;
+
+    pthread_mutex_lock(&mMux);
+
+    //TXIDはBE/LE変換
+    misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
+
+    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
+    retval = gettxout_rpc(p_json, txid, Txidx);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_t *p_value;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF;
+        }
+        p_value = json_object_get(p_result, M_VALUE);
+        if (json_is_real(p_value)) {
+            double dval = json_real_value(p_value);
+            *pSat = UCOIN_BTC2SATOSHI(dval);
+            *pUnspent = true;
+        }
+LABEL_DECREF:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: gettxout_rpc()\n");
+    }
+
+LABEL_EXIT:
+    APP_FREE(p_json);
+
+    pthread_mutex_unlock(&mMux);
+
+    return retval;
+}
+
+
+bool jsonrpc_getnewaddress(char *pAddr)
+{
+    bool ret = false;
+    bool retval;
+    char *p_json;
+
+    pthread_mutex_lock(&mMux);
+
+    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
+    retval = getnewaddress_rpc(p_json);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF;
+        }
+        if (json_is_string(p_result)) {
+            strcpy(pAddr,  (const char *)json_string_value(p_result));
+            ret = true;
+        }
+LABEL_DECREF:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: getnewaddress_rpc()\n");
+    }
+
+LABEL_EXIT:
+    APP_FREE(p_json);
+
+    pthread_mutex_unlock(&mMux);
+
+    return ret;
+}
+
+
+bool jsonrpc_dumpprivkey(char *pWif, const char *pAddr)
+{
+    bool ret = false;
+    bool retval;
+    char *p_json;
+
+    pthread_mutex_lock(&mMux);
+
+    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
+    retval = dumpprivkey_rpc(p_json, pAddr);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF;
+        }
+        if (json_is_string(p_result)) {
+            strcpy(pWif,  (const char *)json_string_value(p_result));
+            ret = true;
+        }
+LABEL_DECREF:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: dumpprivkey_rpc()\n");
+    }
+
+LABEL_EXIT:
+    APP_FREE(p_json);
+
+    pthread_mutex_unlock(&mMux);
+
+    return ret;
+}
+
+
+bool jsonrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
+{
+    bool ret = false;
+    bool retval;
+    char *p_json;
+
+    if (nBlocks < 2) {
+        DBG_PRINTF("fail: nBlock < 2\n");
+        return false;
+    }
+
+    pthread_mutex_lock(&mMux);
+
+    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
+    retval = estimatefee_rpc(p_json, nBlocks);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF;
+        }
+        if (json_is_real(p_result)) {
+            *pFeeSatoshi = UCOIN_BTC2SATOSHI(json_real_value(p_result));
+            //-1のときは失敗と見なす
+            ret = (*pFeeSatoshi + 1.0) > DBL_EPSILON;
+            if (!ret) {
+                DBG_PRINTF("fail: Unable to estimate fee\n");
+            }
+        }
+LABEL_DECREF:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: estimatefee_rpc()\n");
+    }
+
+LABEL_EXIT:
+    APP_FREE(p_json);
+
+    pthread_mutex_unlock(&mMux);
+
+    return ret;
+}
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+/** [cURL]受信結果保存
+ *
+ * @note
+ *      - `The data passed to this function will not be zero terminated!`
+ *          https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
+ */
+static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
+{
+    write_result_t *result = (write_result_t *)stream;
+
+    if (result->pos + size * nmemb >= BUFFER_SIZE - 1) {
+        DBG_PRINTF("error: too small buffer\n");
+        return 0;
+    }
+#ifdef M_DBG_SHOWREPLY
+    int pos = result->pos;
+#endif //M_DBG_SHOWREPLY
+
+    memcpy(result->p_data + result->pos, ptr, size * nmemb);
+    result->pos += size * nmemb;
+
+    // \0は付与されないので、毎回つける
+    // バッファが足りなくなることは無いだろう
+    *(result->p_data + result->pos) = 0;       //\0
+
+#ifdef M_DBG_SHOWREPLY
+    DBG_PRINTF2("\n\n@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, result->p_data + pos);
+#endif //M_DBG_SHOWREPLY
+
+    return size * nmemb;
+}
+
+
+static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid)
 {
     bool ret = false;
     bool retval;
@@ -800,226 +1086,6 @@ LABEL_EXIT:
     APP_FREE(p_json);
 
     return ret;
-}
-
-
-bool jsonrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx)
-{
-    bool retval;
-    char *p_json = NULL;
-    char txid[UCOIN_SZ_TXID * 2 + 1];
-    *pUnspent = false;
-
-    //TXIDはBE/LE変換
-    misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
-
-    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
-    retval = gettxout_rpc(p_json, txid, Txidx);
-    if (retval) {
-        json_t *p_root;
-        json_t *p_result;
-        json_t *p_value;
-        json_error_t error;
-
-        p_root = json_loads(p_json, 0, &error);
-        if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
-            goto LABEL_EXIT;
-        }
-        //これ以降は終了時に json_decref()で参照を減らすこと
-        p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
-            goto LABEL_DECREF;
-        }
-        p_value = json_object_get(p_result, M_VALUE);
-        if (json_is_real(p_value)) {
-            double dval = json_real_value(p_value);
-            *pSat = UCOIN_BTC2SATOSHI(dval);
-            *pUnspent = true;
-        }
-LABEL_DECREF:
-        json_decref(p_root);
-    } else {
-        DBG_PRINTF("fail: gettxout_rpc()\n");
-    }
-
-LABEL_EXIT:
-    APP_FREE(p_json);
-
-    return retval;
-}
-
-
-bool jsonrpc_getnewaddress(char *pAddr)
-{
-    bool ret = false;
-    bool retval;
-    char *p_json;
-
-    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
-    retval = getnewaddress_rpc(p_json);
-    if (retval) {
-        json_t *p_root;
-        json_t *p_result;
-        json_error_t error;
-
-        p_root = json_loads(p_json, 0, &error);
-        if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
-            goto LABEL_EXIT;
-        }
-
-        //これ以降は終了時に json_decref()で参照を減らすこと
-        p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
-            goto LABEL_DECREF;
-        }
-        if (json_is_string(p_result)) {
-            strcpy(pAddr,  (const char *)json_string_value(p_result));
-            ret = true;
-        }
-LABEL_DECREF:
-        json_decref(p_root);
-    } else {
-        DBG_PRINTF("fail: getnewaddress_rpc()\n");
-    }
-
-LABEL_EXIT:
-    APP_FREE(p_json);
-
-    return ret;
-}
-
-
-bool jsonrpc_dumpprivkey(char *pWif, const char *pAddr)
-{
-    bool ret = false;
-    bool retval;
-    char *p_json;
-
-    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
-    retval = dumpprivkey_rpc(p_json, pAddr);
-    if (retval) {
-        json_t *p_root;
-        json_t *p_result;
-        json_error_t error;
-
-        p_root = json_loads(p_json, 0, &error);
-        if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
-            goto LABEL_EXIT;
-        }
-
-        //これ以降は終了時に json_decref()で参照を減らすこと
-        p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
-            goto LABEL_DECREF;
-        }
-        if (json_is_string(p_result)) {
-            strcpy(pWif,  (const char *)json_string_value(p_result));
-            ret = true;
-        }
-LABEL_DECREF:
-        json_decref(p_root);
-    } else {
-        DBG_PRINTF("fail: dumpprivkey_rpc()\n");
-    }
-
-LABEL_EXIT:
-    APP_FREE(p_json);
-
-    return ret;
-}
-
-
-bool jsonrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
-{
-    bool ret = false;
-    bool retval;
-    char *p_json;
-
-    if (nBlocks < 2) {
-        DBG_PRINTF("fail: nBlock < 2\n");
-        return false;
-    }
-
-    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
-    retval = estimatefee_rpc(p_json, nBlocks);
-    if (retval) {
-        json_t *p_root;
-        json_t *p_result;
-        json_error_t error;
-
-        p_root = json_loads(p_json, 0, &error);
-        if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
-            goto LABEL_EXIT;
-        }
-
-        //これ以降は終了時に json_decref()で参照を減らすこと
-        p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
-            goto LABEL_DECREF;
-        }
-        if (json_is_real(p_result)) {
-            *pFeeSatoshi = UCOIN_BTC2SATOSHI(json_real_value(p_result));
-            //-1のときは失敗と見なす
-            ret = (*pFeeSatoshi + 1.0) > DBL_EPSILON;
-            if (!ret) {
-                DBG_PRINTF("fail: Unable to estimate fee\n");
-            }
-        }
-LABEL_DECREF:
-        json_decref(p_root);
-    } else {
-        DBG_PRINTF("fail: estimatefee_rpc()\n");
-    }
-
-LABEL_EXIT:
-    APP_FREE(p_json);
-
-    return ret;
-}
-
-
-/**************************************************************************
- * private functions
- **************************************************************************/
-
-/** [cURL]受信結果保存
- *
- * @note
- *      - `The data passed to this function will not be zero terminated!`
- *          https://curl.haxx.se/libcurl/c/CURLOPT_WRITEFUNCTION.html
- */
-static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
-{
-    write_result_t *result = (write_result_t *)stream;
-
-    if (result->pos + size * nmemb >= BUFFER_SIZE - 1) {
-        DBG_PRINTF("error: too small buffer\n");
-        return 0;
-    }
-#ifdef M_DBG_SHOWREPLY
-    int pos = result->pos;
-#endif //M_DBG_SHOWREPLY
-
-    memcpy(result->p_data + result->pos, ptr, size * nmemb);
-    result->pos += size * nmemb;
-
-    // \0は付与されないので、毎回つける
-    // バッファが足りなくなることは無いだろう
-    *(result->p_data + result->pos) = 0;       //\0
-
-#ifdef M_DBG_SHOWREPLY
-    DBG_PRINTF2("\n\n@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, result->p_data + pos);
-#endif //M_DBG_SHOWREPLY
-
-    return size * nmemb;
 }
 
 
