@@ -810,6 +810,13 @@ bool jsonrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int T
     //TXIDはBE/LE変換
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
+    //まずtxの存在確認を行う
+    retval = getraw_txstr(NULL, txid);
+    if (!retval) {
+        DBG_PRINTF("fail: maybe not broadcasted\n");
+        goto LABEL_EXIT;
+    }
+
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = gettxout_rpc(p_json, txid, Txidx);
     if (retval) {
