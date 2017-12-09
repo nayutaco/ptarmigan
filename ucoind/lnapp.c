@@ -1091,7 +1091,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
                         (uint32_t)feerate);
         assert(ret);
 
-        DBG_PRINTF("SEND: oepn_channel\n");
+        DBG_PRINTF("SEND: open_channel\n");
         send_peer_noise(p_conf, &buf_bolt);
         ucoin_buf_free(&buf_bolt);
     } else {

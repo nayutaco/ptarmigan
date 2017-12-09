@@ -258,7 +258,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     }
     pos++;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -445,7 +445,7 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
         pos += UCOIN_SZ_PUBKEY;
     }
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -580,7 +580,7 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
     memcpy(pMsg->p_signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -667,7 +667,7 @@ bool HIDDEN ln_msg_funding_signed_read(ln_funding_signed_t *pMsg, const uint8_t 
     memcpy(pMsg->p_signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -751,7 +751,7 @@ bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t 
     memcpy(pMsg->p_per_commitpt, pData + pos, UCOIN_SZ_PUBKEY);
     pos += UCOIN_SZ_PUBKEY;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
