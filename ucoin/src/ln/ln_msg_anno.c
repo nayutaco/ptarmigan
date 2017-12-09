@@ -76,7 +76,7 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
  **************************************************************************/
 
 static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len);
-//static void node_announce_print(const ln_node_announce_t *pMsg);
+static void node_announce_print(const ln_node_announce_t *pMsg);
 static void announce_signs_print(const ln_announce_signs_t *pMsg);
 
 
@@ -656,7 +656,11 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
         pMsg->addr.type = LN_NODEDESC_NULL;
     }
 
-    assert(Len == pos);
+    //assert(Len == pos);
+    if (Len != pos) {
+        DBG_PRINTF("Len=%d, pos=%d\n", Len, pos);
+        node_announce_print(pMsg);
+    }
 
 //#ifdef DBG_PRINT_READ
 //    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
@@ -686,7 +690,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 }
 
 
-#if 0
+#if 1
 static void node_announce_print(const ln_node_announce_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
