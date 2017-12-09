@@ -843,7 +843,21 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, cons
     pMsg->next_remote_revocation_number = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    assert(Len == pos);
+    //[32:your_last_per_commitment_secret] (option-data-loss-protect)
+    if (Len >= pos + 32) {
+        DBG_PRINTF("your_last_per_commitment_secret: ");
+        DUMPBIN(pData + pos, 32);
+        pos += 32;
+    }
+
+    //[33:my_current_per_commitment_point] (option-data-loss-protect)
+    if (Len >= pos + 33) {
+        DBG_PRINTF("my_current_per_commitment_point: ");
+        DUMPBIN(pData + pos, 33);
+        pos += 33;
+    }
+
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
