@@ -75,7 +75,7 @@
  */
 
 
-#if 1
+#if 0
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d)
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a)
 #define MDB_TXN_COMMIT(a)           mdb_txn_commit(a)
@@ -1777,6 +1777,9 @@ static int save_anno_channel(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pCn
     data.mv_size = pCnlAnno->len;
     data.mv_data = pCnlAnno->buf;
     int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     return retval;
 }
@@ -1903,6 +1906,9 @@ static int save_anno_channel_upd(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t 
     data.mv_size = pCnlUpd->len;
     data.mv_data = pCnlUpd->buf;
     int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     return retval;
 }
@@ -1925,6 +1931,8 @@ static int load_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_c
         DBG_PRINTF("sinfo: channel_update(2)    : %" PRIu32 "\n", p_sinfo->channel_upd[1]);
         DBG_PRINTF("sinfo: send_nodeid : ");
         DUMPBIN(p_sinfo->send_nodeid, UCOIN_SZ_PUBKEY);
+    } else {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
     return retval;
@@ -1943,6 +1951,9 @@ static int save_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_c
     data.mv_size = sizeof(ln_db_channel_sinfo);
     data.mv_data = p_sinfo;
     int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     return retval;
 }
@@ -2090,6 +2101,8 @@ static int write_version(MDB_txn *txn, const uint8_t *pMyNodeId)
         data.mv_size = UCOIN_SZ_PUBKEY;
         data.mv_data = (void *)pMyNodeId;
         retval = mdb_put(txn, dbi, &key, &data, 0);
+    } else if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
 LABEL_EXIT:
