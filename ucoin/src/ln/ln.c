@@ -453,7 +453,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     bool ret = false;
     uint16_t type = ln_misc_get16be(pData);
 
-    DBG_PRINTF("channel= %" PRIx64 "\n", self->short_channel_id);
+    DBG_PRINTF("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
     if ((type != MSGTYPE_INIT) && (!INIT_FLAG_INITED(self->init_flag))) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init received : %04x\n", type);

@@ -1091,7 +1091,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
                         (uint32_t)feerate);
         assert(ret);
 
-        DBG_PRINTF("SEND: oepn_channel\n");
+        DBG_PRINTF("SEND: open_channel\n");
         send_peer_noise(p_conf, &buf_bolt);
         ucoin_buf_free(&buf_bolt);
     } else {
@@ -1907,8 +1907,9 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
     bool unspent = jsonrpc_is_short_channel_unspent(bheight, bindex, vindex);
     if (!unspent) {
         DBG_PRINTF("fail: already spent : %016" PRIx64 "\n", p->short_channel_id);
-        return;
     }
+
+    DBGTRACE_END
 }
 
 
@@ -2481,7 +2482,8 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
     ssize_t sz = write(p_conf->sock, buf_enc.buf, buf_enc.len);
     if (sz != buf_enc.len) {
         SYSLOG_ERR("%s(): send_peer_noise: %s", __func__, strerror(errno));
-        assert(0);
+#warning 不一致になることがある
+        //assert(0);
     }
     ucoin_buf_free(&buf_enc);
 

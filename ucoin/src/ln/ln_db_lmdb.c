@@ -47,6 +47,8 @@
 #define M_LMDB_MAXDBS           (2 * 10)        ///< 同時オープンできるDB数
                                                 //  channel
                                                 //  channel_anno
+#define M_LMDB_MAPSIZE          ((uint64_t)4294967296)      //DB最大長[byte]
+                                                // mdb_txn_commit()でMDB_MAP_FULLになったため拡張
 
 #define M_LMDB_ENV              "./dbucoin"     ///< LMDB名
 #define M_PREFIX_LEN            (2)
@@ -78,12 +80,12 @@
 #if 1
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d)
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a)
-#define MDB_TXN_COMMIT(a)           mdb_txn_commit(a)
+#define MDB_TXN_COMMIT(a)           int txn_retval = mdb_txn_commit(a); if (txn_retval) DBG_PRINTF("err: %s\n", mdb_strerror(txn_retval))
 #else
 static int g_cnt = 0;
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d); g_cnt++; DBG_PRINTF("mdb_txn_begin:%d(%d)\n", g_cnt, (int)c)
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a); g_cnt--; DBG_PRINTF("mdb_txn_abort:%d\n", g_cnt)
-#define MDB_TXN_COMMIT(a)           mdb_txn_commit(a); g_cnt--; DBG_PRINTF("mdb_txn_commit:%d\n", g_cnt)
+#define MDB_TXN_COMMIT(a)           int txn_retval = mdb_txn_commit(a); g_cnt--; DBG_PRINTF("mdb_txn_commit:%d\n", g_cnt); if (txn_retval) DBG_PRINTF("err: %s\n", mdb_strerror(txn_retval))
 #endif
 
 
@@ -205,6 +207,9 @@ void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
         assert(retval == 0);
 
         retval = mdb_env_set_maxdbs(mpDbEnv, M_LMDB_MAXDBS);
+        assert(retval == 0);
+
+        retval = mdb_env_set_mapsize(mpDbEnv, M_LMDB_MAPSIZE);
         assert(retval == 0);
 
         mkdir(M_LMDB_ENV, 0755);
@@ -1332,7 +1337,6 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
     self->revoked_cnt = p[0];
     self->revoked_num = p[1];
     ln_alloc_revoked_buf(self);
-DBG_PRINTF("self->p_revoked_type = %p\n", self->p_revoked_type);
     key.mv_data = "rvv";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
@@ -1777,6 +1781,9 @@ static int save_anno_channel(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pCn
     data.mv_size = pCnlAnno->len;
     data.mv_data = pCnlAnno->buf;
     int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     return retval;
 }
@@ -1903,6 +1910,9 @@ static int save_anno_channel_upd(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t 
     data.mv_size = pCnlUpd->len;
     data.mv_data = pCnlUpd->buf;
     int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     return retval;
 }
@@ -1925,6 +1935,8 @@ static int load_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_c
         DBG_PRINTF("sinfo: channel_update(2)    : %" PRIu32 "\n", p_sinfo->channel_upd[1]);
         DBG_PRINTF("sinfo: send_nodeid : ");
         DUMPBIN(p_sinfo->send_nodeid, UCOIN_SZ_PUBKEY);
+    } else {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
     return retval;
@@ -1937,12 +1949,15 @@ static int save_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_c
     uint8_t keydata[sizeof(short_channel_id) + 1];
 
     memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
-    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_SINFO;
+    keydata[sizeof(short_channel_id)] = LN_DB_CNLANNO_SINFO;
     key.mv_size = sizeof(keydata);
     key.mv_data = keydata;
     data.mv_size = sizeof(ln_db_channel_sinfo);
     data.mv_data = p_sinfo;
     int retval = mdb_put(txn, *pdbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
 
     return retval;
 }
@@ -2090,6 +2105,8 @@ static int write_version(MDB_txn *txn, const uint8_t *pMyNodeId)
         data.mv_size = UCOIN_SZ_PUBKEY;
         data.mv_data = (void *)pMyNodeId;
         retval = mdb_put(txn, dbi, &key, &data, 0);
+    } else if (retval) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
 LABEL_EXIT:
