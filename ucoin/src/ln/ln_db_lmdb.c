@@ -83,7 +83,7 @@
 static int g_cnt = 0;
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d); g_cnt++; DBG_PRINTF("mdb_txn_begin:%d(%d)\n", g_cnt, (int)c)
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a); g_cnt--; DBG_PRINTF("mdb_txn_abort:%d\n", g_cnt)
-#define MDB_TXN_COMMIT(a)           mdb_txn_commit(a); g_cnt--; DBG_PRINTF("mdb_txn_commit:%d\n", g_cnt)
+#define MDB_TXN_COMMIT(a)           int txn_retval = mdb_txn_commit(a); g_cnt--; DBG_PRINTF("mdb_txn_commit:%d\n", g_cnt); if (txn_retval) DBG_PRINTF("err: %s\n", mdb_strerror(txn_retval))
 #endif
 
 
@@ -1332,7 +1332,6 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
     self->revoked_cnt = p[0];
     self->revoked_num = p[1];
     ln_alloc_revoked_buf(self);
-DBG_PRINTF("self->p_revoked_type = %p\n", self->p_revoked_type);
     key.mv_data = "rvv";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
@@ -1945,7 +1944,7 @@ static int save_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_c
     uint8_t keydata[sizeof(short_channel_id) + 1];
 
     memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
-    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_SINFO;
+    keydata[sizeof(short_channel_id)] = LN_DB_CNLANNO_SINFO;
     key.mv_size = sizeof(keydata);
     key.mv_data = keydata;
     data.mv_size = sizeof(ln_db_channel_sinfo);
