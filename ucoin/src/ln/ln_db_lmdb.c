@@ -47,6 +47,8 @@
 #define M_LMDB_MAXDBS           (2 * 10)        ///< 同時オープンできるDB数
                                                 //  channel
                                                 //  channel_anno
+#define M_LMDB_MAPSIZE          ((uint64_t)4294967296)      //DB最大長[byte]
+                                                // mdb_txn_commit()でMDB_MAP_FULLになったため拡張
 
 #define M_LMDB_ENV              "./dbucoin"     ///< LMDB名
 #define M_PREFIX_LEN            (2)
@@ -205,6 +207,9 @@ void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
         assert(retval == 0);
 
         retval = mdb_env_set_maxdbs(mpDbEnv, M_LMDB_MAXDBS);
+        assert(retval == 0);
+
+        retval = mdb_env_set_mapsize(mpDbEnv, M_LMDB_MAPSIZE);
         assert(retval == 0);
 
         mkdir(M_LMDB_ENV, 0755);
