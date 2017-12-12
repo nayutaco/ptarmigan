@@ -1334,7 +1334,7 @@ static void *thread_poll_start(void *pArg)
              (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
              (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
             // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
-            //  https://github.com/nayuta-ueno/lightning-rfc/blob/master/07-routing-gossip.md#requirements
+            //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
             set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
             ln_open_announce_channel_clr(p_conf->p_self);
             ln_db_save_channel(p_conf->p_self);
@@ -2048,18 +2048,17 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
         if (ret) {
             //last nodeチェック
-            // https://github.com/nayuta-ueno/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
+            // https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
             //    * outgoing_cltv_value is set to the final expiry specified by the recipient
             //    * amt_to_forward is set to the final amount specified by the recipient
-            if ( (p_add->p_hop->amt_to_forward == amount) &&
-                 (p_add->p_hop->amt_to_forward == p_add->amount_msat) &&
+            if ( (p_add->p_hop->amt_to_forward == p_add->amount_msat) &&
                  //(p_add->p_hop->outgoing_cltv_value == ln_cltv_expily_delta(p_conf->p_self)) &&
                  (p_add->p_hop->outgoing_cltv_value == p_add->cltv_expiry)  ) {
                 DBG_PRINTF("last node OK\n");
             } else {
                 SYSLOG_ERR("%s(): last node check", __func__);
-                DBG_PRINTF("%" PRIu64 " != %" PRIu64 "\n", p_add->p_hop->amt_to_forward, amount);
-                //DBG_PRINTF("%" PRIu32 " != %" PRIu32 "\n", p_add->p_hop->outgoing_cltv_value, ln_cltv_expily_delta(p_conf->p_self));
+                DBG_PRINTF("%" PRIu64 " --- %" PRIu64 "\n", p_add->p_hop->amt_to_forward, p_add->amount_msat);
+                DBG_PRINTF("%" PRIu32 " --- %" PRIu32 "\n", p_add->p_hop->outgoing_cltv_value, ln_cltv_expily_delta(p_conf->p_self));
                 ret = false;
             }
         } else {
