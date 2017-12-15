@@ -61,6 +61,7 @@ extern "C" {
 #define UCOIN_SZ_WSHADDR        (53 + 1)        ///< サイズ:Bitcoin native segwitアドレス(53)
 #define UCOIN_SZ_TXID           (32)            ///< サイズ:TXID
 #define UCOIN_SZ_SIGHASH        (32)            ///< サイズ:Signature計算用のトランザクションHASH
+#define UCOIN_SZ_SIGN_RS        (64)            ///< サイズ:RS形式の署名
 #define UCOIN_SZ_EKEY           (82)            ///< サイズ:拡張鍵
 #define UCOIN_SZ_CHAINCODE      (32)            ///< サイズ:拡張鍵chaincode
 #define UCOIN_SZ_EKEY_ADDR_MAX  (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
