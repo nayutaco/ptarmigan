@@ -696,9 +696,19 @@ bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScr
  * @note
  *      - pSigは、成功かどうかにかかわらず#ucoin_buf_init()される
  *      - 成功時、pSigは #ucoin_buf_alloccopy() でメモリ確保するので、使用後は #ucoin_buf_free()で解放すること
- *      - BIP66の処理は行っていない
  */
 bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+
+
+/** 署名計算(r/s)
+ *
+ * @param[out]      pR          署名結果r[32]
+ * @param[out]      pS          署名結果s[32]
+ * @param[in]       pTxHash     トランザクションハッシュ
+ * @param[in]       pPrivKey    秘密鍵
+ * @return          true        成功
+ */
+bool ucoin_tx_sign_rs(uint8_t *pR, uint8_t *pS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名チェック
