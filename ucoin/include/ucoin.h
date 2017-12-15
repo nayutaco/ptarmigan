@@ -724,6 +724,17 @@ bool ucoin_tx_sign_rs(uint8_t *pR, uint8_t *pS, const uint8_t *pTxHash, const ui
 bool ucoin_tx_verify(const ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey);
 
 
+/** 署名チェック(r/s)
+ *
+ * @param[in]       pR          署名r[32]
+ * @param[in]       pS          署名s[32]
+ * @param[in]       pTxHash     トランザクションハッシュ
+ * @param[in]       pPubKey     公開鍵
+ * @return          true:チェックOK
+ */
+bool ucoin_tx_verify_rs(const uint8_t *pR, const uint8_t *pS, const uint8_t *pTxHash, const uint8_t *pPubKey);
+
+
 /** P2PKH署名書込み
  *
  * @param[in,out]   pTx             署名書込み先トランザクション

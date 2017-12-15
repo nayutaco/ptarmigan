@@ -740,6 +740,51 @@ LABEL_EXIT:
 }
 
 
+bool ucoin_tx_verify_rs(const uint8_t *pR, const uint8_t *pS, const uint8_t *pTxHash, const uint8_t *pPubKey)
+{
+    int ret;
+    mbedtls_mpi r, s;
+    mbedtls_ecp_keypair keypair;
+    mbedtls_ecp_keypair_init(&keypair);
+    mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
+
+    mbedtls_mpi_init(&r);
+    mbedtls_mpi_init(&s);
+    ret = mbedtls_mpi_read_binary(&r, pR, 32);
+    if (ret) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+    ret = mbedtls_mpi_read_binary(&s, pS, 32);
+    if (ret) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+    ret = ucoin_util_set_keypair(&keypair, pPubKey);
+    if (!ret) {
+        ret = mbedtls_ecdsa_verify(&keypair.grp, pTxHash, UCOIN_SZ_HASH256, &keypair.Q, &r, &s);
+    } else {
+        DBG_PRINTF("fail keypair\n");
+    }
+
+LABEL_EXIT:
+    mbedtls_ecp_keypair_free(&keypair);
+    mbedtls_mpi_free( &r );
+    mbedtls_mpi_free( &s );
+
+    if (ret == 0) {
+        DBG_PRINTF("ok: verify\n");
+    } else {
+        DBG_PRINTF("fail ret=%d\n", ret);
+        DBG_PRINTF("txhash: ");
+        DUMPBIN(pTxHash, UCOIN_SZ_SIGHASH);
+        DBG_PRINTF("pub: ");
+        DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+    }
+    return ret == 0;
+}
+
+
 bool ucoin_tx_sign_p2pkh(ucoin_tx_t *pTx, int Index,
                 const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
 {
