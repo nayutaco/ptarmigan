@@ -702,13 +702,12 @@ bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPr
 
 /** 署名計算(r/s)
  *
- * @param[out]      pR          署名結果r[32]
- * @param[out]      pS          署名結果s[32]
+ * @param[out]      pRS         署名結果rs[64]
  * @param[in]       pTxHash     トランザクションハッシュ
  * @param[in]       pPrivKey    秘密鍵
  * @return          true        成功
  */
-bool ucoin_tx_sign_rs(uint8_t *pR, uint8_t *pS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+bool ucoin_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名チェック
@@ -726,13 +725,12 @@ bool ucoin_tx_verify(const ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint
 
 /** 署名チェック(r/s)
  *
- * @param[in]       pR          署名r[32]
- * @param[in]       pS          署名s[32]
+ * @param[in]       pRS         署名rs[64]
  * @param[in]       pTxHash     トランザクションハッシュ
  * @param[in]       pPubKey     公開鍵
  * @return          true:チェックOK
  */
-bool ucoin_tx_verify_rs(const uint8_t *pR, const uint8_t *pS, const uint8_t *pTxHash, const uint8_t *pPubKey);
+bool ucoin_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey);
 
 
 /** P2PKH署名書込み
@@ -1218,6 +1216,16 @@ void ucoin_util_sign_p2wsh_1(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index,
  * @return      true:成功
  */
 bool ucoin_util_sign_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
+
+
+/** P2WSH署名 - Phase2: 署名作成(R/S)
+ *
+ * @param[out]      pRS
+ * @param[in]       pTxHash
+ * @param[in]       pKeys
+ * @return      true:成功
+ */
+bool ucoin_util_sign_p2wsh_rs_2(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
 
 
 /** P2WSH署名 - Phase3: 2-of-2 トランザクション更新

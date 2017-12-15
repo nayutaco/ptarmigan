@@ -658,7 +658,7 @@ LABEL_EXIT:
 }
 
 
-bool ucoin_tx_sign_rs(uint8_t *pR, uint8_t *pS, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+bool ucoin_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey)
 {
     int ret;
     mbedtls_mpi r, s;
@@ -669,12 +669,12 @@ bool ucoin_tx_sign_rs(uint8_t *pR, uint8_t *pS, const uint8_t *pTxHash, const ui
         goto LABEL_EXIT;
     }
 
-    ret = mbedtls_mpi_write_binary(&r, pR, 32);
+    ret = mbedtls_mpi_write_binary(&r, pRS, 32);
     if (ret) {
         assert(0);
         goto LABEL_EXIT;
     }
-    ret = mbedtls_mpi_write_binary(&s, pS, 32);
+    ret = mbedtls_mpi_write_binary(&s, pRS + 32, 32);
     if (ret) {
         assert(0);
         goto LABEL_EXIT;
@@ -740,7 +740,7 @@ LABEL_EXIT:
 }
 
 
-bool ucoin_tx_verify_rs(const uint8_t *pR, const uint8_t *pS, const uint8_t *pTxHash, const uint8_t *pPubKey)
+bool ucoin_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey)
 {
     int ret;
     mbedtls_mpi r, s;
@@ -750,12 +750,12 @@ bool ucoin_tx_verify_rs(const uint8_t *pR, const uint8_t *pS, const uint8_t *pTx
 
     mbedtls_mpi_init(&r);
     mbedtls_mpi_init(&s);
-    ret = mbedtls_mpi_read_binary(&r, pR, 32);
+    ret = mbedtls_mpi_read_binary(&r, pRS, 32);
     if (ret) {
         assert(0);
         goto LABEL_EXIT;
     }
-    ret = mbedtls_mpi_read_binary(&s, pS, 32);
+    ret = mbedtls_mpi_read_binary(&s, pRS + 32, 32);
     if (ret) {
         assert(0);
         goto LABEL_EXIT;
