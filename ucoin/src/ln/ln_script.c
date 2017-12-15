@@ -94,15 +94,15 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
     //local script
     //    OP_IF
     //        # Penalty transaction
-    //        <revocation-pubkey>
+    //        <revocationkey>
     //    OP_ELSE
-    //        `to-self-delay`
+    //        `to_self_delay`
     //        OP_CSV
     //        OP_DROP
-    //        <local-delayedkey>
+    //        <local_delayedkey>
     //    OP_ENDIF
     //    OP_CHECKSIG
-    ucoin_push_init(&wscript, pBuf, 77);
+    ucoin_push_init(&wscript, pBuf, 77);        //to_self_delayが2byteの場合
     ucoin_push_data(&wscript, UCOIN_OP_IF UCOIN_OP_SZ_PUBKEY, 2);
     ucoin_push_data(&wscript, pLocalRevoKey, UCOIN_SZ_PUBKEY);
     ucoin_push_data(&wscript, UCOIN_OP_ELSE, 1);
