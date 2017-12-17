@@ -38,3 +38,13 @@
 * Initial Syncは行っていない
 * Rebroadcastingは動作未確認
 * Routingは `boost` の `dijkstra_shortest_paths()` を使用
+
+## BOLT#11
+
+* mbedTLSに、ecdsa signature recovery用APIがないため、実装中断
+* 当面は[lightning-payencode](https://github.com/rustyrussell/lightning-payencode)で代用しておく
+
+```bash
+sudo apt install python3-pip bc
+sudo python3 -m pip install bitstring base58 secp256k1
+```
