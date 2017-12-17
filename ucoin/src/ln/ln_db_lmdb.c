@@ -1184,7 +1184,7 @@ void ln_db_cursor_preimage_close(void *pCur)
         lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
         mdb_cursor_close(p_cur->cursor);
         if (p_cur->txn != NULL) {
-            MDB_TXN_ABORT(p_cur->txn);
+            MDB_TXN_COMMIT(p_cur->txn);
         }
     }
 }
