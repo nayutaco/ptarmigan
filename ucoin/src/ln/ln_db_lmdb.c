@@ -1199,13 +1199,17 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
 
     if ((retval = mdb_cursor_get(p_cur->cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
         preimage_info_t *p_info = (preimage_info_t *)data.mv_data;
-        if (p_info->creation - now <= M_PREIMAGE_EXPIRY) {
+        DBG_PRINTF("amount: %" PRIu64"\n", p_info->amount);
+        DBG_PRINTF("time: %lu\n", p_info->creation);
+        if (now - p_info->creation <= M_PREIMAGE_EXPIRY) {
             memcpy(pPreImage, key.mv_data, key.mv_size);
             *pAmount = p_info->amount;
         } else {
-            DBG_PRINTF("del: ");
+            //期限切れ
+            DBG_PRINTF("invoice timeout del: ");
             DUMPBIN(key.mv_data, key.mv_size);
             mdb_cursor_del(p_cur->cursor, 0);
+            retval = MDB_NOTFOUND;  //見つからなかったことにする
         }
     }
 
