@@ -94,7 +94,8 @@ bool HIDDEN ln_msg_open_channel_create(ucoin_buf_t *pBuf, const ln_open_channel_
     open_channel_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    if ( (LN_SATOSHI2MSAT(pMsg->funding_sat) < pMsg->push_msat) ||
+    if ( (pMsg->funding_sat >= (uint64_t)16777216) ||
+         (LN_SATOSHI2MSAT(pMsg->funding_sat) < pMsg->push_msat) ||
          (pMsg->max_accepted_htlcs > 483) ) {
         DBG_PRINTF("fail: invalid parameter(%" PRIu64 ", %" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_sat), pMsg->push_msat);
         return false;
@@ -192,6 +193,10 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
 
     //        [8:funding_satoshis]
     pMsg->funding_sat = ln_misc_get64be(pData + pos);
+    if (pMsg->funding_sat >= (uint64_t)16777216) {
+        DBG_PRINTF("fail: large funding-satoshis (%" PRIu64 ")\n", LN_SATOSHI2MSAT(pMsg->funding_sat));
+        return false;
+    }
     pos += sizeof(uint64_t);
 
     //        [8:push_msat]
