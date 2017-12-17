@@ -4,6 +4,8 @@
 
 * BOLT11対応しようとして中断
   * mbedTLSに[署名から公開鍵を復元させるためのAPI](https://github.com/rustyrussell/lightning-payencode/blob/0bbbb3d00c2493a5eaaf2c13b11c4f4f7748a76c/lnaddr.py#L365)がないため
+* payment_preimageの期限を1時間にする(preimage用DB変更)
+  * BOLT11では、デフォルトで1時間と規定されているため
 
 ## 2017/12/08
 
