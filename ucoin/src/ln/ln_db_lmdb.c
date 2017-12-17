@@ -76,6 +76,8 @@
     -12: revoked transaction用データ追加
  */
 
+#define M_PREIMAGE_EXPIRY           (60 * 60)       ///< preimageのexpiry[秒]
+
 
 #if 1
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d)
@@ -147,6 +149,12 @@ typedef struct {
     MDB_txn     *txn;
     MDB_dbi     dbi;
 } lmdb_db_t;
+
+
+typedef struct {
+    uint64_t amount;
+    time_t creation;
+} preimage_info_t;
 
 
 /********************************************************************
@@ -1087,6 +1095,7 @@ bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbPar
     lmdb_db_t db;
     MDB_val key, data;
     MDB_txn *txn = NULL;
+    preimage_info_t info;
 
     if (pDbParam != NULL) {
         txn = ((lmdb_db_t *)pDbParam)->txn;
@@ -1095,8 +1104,10 @@ bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbPar
 
     key.mv_size = LN_SZ_PREIMAGE;
     key.mv_data = (CONST_CAST uint8_t *)pPreImage;
-    data.mv_size = sizeof(uint64_t);
-    data.mv_data = &Amount;
+    data.mv_size = sizeof(info);
+    info.amount = Amount;
+    info.creation = time(NULL);
+    data.mv_data = &info;
     int retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
     if (retval == 0) {
         DBG_PRINTF("\n");
@@ -1184,10 +1195,18 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     int retval;
     MDB_val key, data;
+    time_t now = time(NULL);
 
     if ((retval = mdb_cursor_get(p_cur->cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-        memcpy(pPreImage, key.mv_data, key.mv_size);
-        *pAmount = *(uint64_t *)data.mv_data;
+        preimage_info_t *p_info = (preimage_info_t *)data.mv_data;
+        if (p_info->creation - now <= M_PREIMAGE_EXPIRY) {
+            memcpy(pPreImage, key.mv_data, key.mv_size);
+            *pAmount = p_info->amount;
+        } else {
+            DBG_PRINTF("del: ");
+            DUMPBIN(key.mv_data, key.mv_size);
+            mdb_cursor_del(p_cur->cursor, 0);
+        }
     }
 
     return retval == 0;

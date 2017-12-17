@@ -3,7 +3,7 @@
 ## BOLT#1
 
 * Setup Messages
-  * `init` : `initial_routing_sync` = 0 のみ送信。受信したfeaturesは無視。
+  * `init` : `initial_routing_sync` = 1 のみ送信。受信したfeaturesは無視。
   * `error` : 受信結果をログに出す
   * `ping` and `pong` : 無通信状態が60秒継続すると、 `ping` を送信する
 
@@ -32,7 +32,6 @@
 
 * Mutual Closeの完了チェック(`closing_tx` の展開チェック)を `getblock` でのTXID監視に変更
  * よって、1ブロック以上マイニングされないと完了しない
-* Unilateral Closeのpreimage取得実装中
 
 ## BOLT#7
 
