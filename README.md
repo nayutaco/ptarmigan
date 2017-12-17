@@ -75,7 +75,7 @@
 |  2   | implementing |
 |  3   | implementing |
 |  4   | implementing |
-|  5   | implementing |
+|  5   | supported |
 |  6   | (removed from BOLT) |
 |  7   | almost implemated |
 |  8   | supported |

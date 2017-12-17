@@ -38,6 +38,7 @@
  **************************************************************************/
 
 static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size);
+static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 static int ecdsa_signature_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s,
                                     unsigned char *sig, size_t *slen );
 static int get_varint(uint16_t *pLen, const uint8_t *pData);
@@ -620,34 +621,15 @@ bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPr
     mbedtls_mpi r, s;
     unsigned char sig[MBEDTLS_ECDSA_MAX_LEN + 1];   //141 + 1 byte
     size_t slen = 0;
-    mbedtls_ecp_keypair keypair;
 
     ucoin_buf_init(pSig);
-    mbedtls_mpi_init(&r);
-    mbedtls_mpi_init(&s);
-    mbedtls_ecp_keypair_init(&keypair);
-    mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
-    ret = mbedtls_mpi_read_binary(&keypair.d, pPrivKey, UCOIN_SZ_PRIVKEY);
+
+    ret = sign_rs(&r, &s, pTxHash, pPrivKey);
     if (ret) {
         assert(0);
         goto LABEL_EXIT;
     }
 
-    //canonizeするため、ecdsa.cのmbedtls_ecdsa_write_signature()をまねる
-    ret = mbedtls_ecdsa_sign_det(&keypair.grp, &r, &s, &keypair.d,
-                    pTxHash, UCOIN_SZ_HASH256, MBEDTLS_MD_SHA256);
-    if (ret) {
-        assert(0);
-        goto LABEL_EXIT;
-    }
-    mbedtls_mpi half_n;
-    mbedtls_mpi_init(&half_n);
-    mbedtls_mpi_copy(&half_n, &keypair.grp.N);
-    mbedtls_mpi_shift_r(&half_n, 1);
-    if (mbedtls_mpi_cmp_mpi(&s, &half_n) == 1) {
-        mbedtls_mpi_sub_mpi(&s, &keypair.grp.N, &s);
-    }
-    mbedtls_mpi_free(&half_n);
     ret = ecdsa_signature_to_asn1(&r, &s, sig, &slen);
     if (ret) {
         assert(0);
@@ -666,7 +648,39 @@ bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPr
     ucoin_buf_alloccopy(pSig, sig, slen);
 
 LABEL_EXIT:
-    mbedtls_ecp_keypair_free(&keypair);
+    mbedtls_mpi_free( &r );
+    mbedtls_mpi_free( &s );
+
+    if (ret) {
+        DBG_PRINTF("fail\n");
+    }
+    return ret == 0;
+}
+
+
+bool ucoin_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+{
+    int ret;
+    mbedtls_mpi r, s;
+
+    ret = sign_rs(&r, &s, pTxHash, pPrivKey);
+    if (ret) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+
+    ret = mbedtls_mpi_write_binary(&r, pRS, 32);
+    if (ret) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+    ret = mbedtls_mpi_write_binary(&s, pRS + 32, 32);
+    if (ret) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
     mbedtls_mpi_free( &r );
     mbedtls_mpi_free( &s );
 
@@ -717,6 +731,51 @@ LABEL_EXIT:
         DBG_PRINTF("fail ret=%d\n", ret);
         DBG_PRINTF("pSig: ");
         DUMPBIN(pSig->buf, pSig->len);
+        DBG_PRINTF("txhash: ");
+        DUMPBIN(pTxHash, UCOIN_SZ_SIGHASH);
+        DBG_PRINTF("pub: ");
+        DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+    }
+    return ret == 0;
+}
+
+
+bool ucoin_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey)
+{
+    int ret;
+    mbedtls_mpi r, s;
+    mbedtls_ecp_keypair keypair;
+    mbedtls_ecp_keypair_init(&keypair);
+    mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
+
+    mbedtls_mpi_init(&r);
+    mbedtls_mpi_init(&s);
+    ret = mbedtls_mpi_read_binary(&r, pRS, 32);
+    if (ret) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+    ret = mbedtls_mpi_read_binary(&s, pRS + 32, 32);
+    if (ret) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+    ret = ucoin_util_set_keypair(&keypair, pPubKey);
+    if (!ret) {
+        ret = mbedtls_ecdsa_verify(&keypair.grp, pTxHash, UCOIN_SZ_HASH256, &keypair.Q, &r, &s);
+    } else {
+        DBG_PRINTF("fail keypair\n");
+    }
+
+LABEL_EXIT:
+    mbedtls_ecp_keypair_free(&keypair);
+    mbedtls_mpi_free( &r );
+    mbedtls_mpi_free( &s );
+
+    if (ret == 0) {
+        DBG_PRINTF("ok: verify\n");
+    } else {
+        DBG_PRINTF("fail ret=%d\n", ret);
         DBG_PRINTF("txhash: ");
         DUMPBIN(pTxHash, UCOIN_SZ_SIGHASH);
         DBG_PRINTF("pub: ");
@@ -1315,6 +1374,47 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size)
     }
 
     return true;
+}
+
+
+/** 署名r/s
+ *
+ */
+static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+{
+    int ret;
+    mbedtls_ecp_keypair keypair;
+
+    mbedtls_mpi_init(p_r);
+    mbedtls_mpi_init(p_s);
+    mbedtls_ecp_keypair_init(&keypair);
+    mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
+    ret = mbedtls_mpi_read_binary(&keypair.d, pPrivKey, UCOIN_SZ_PRIVKEY);
+    if (ret) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+
+    //canonizeするため、ecdsa.cのmbedtls_ecdsa_write_signature()をまねる
+    ret = mbedtls_ecdsa_sign_det(&keypair.grp, p_r, p_s, &keypair.d,
+                    pTxHash, UCOIN_SZ_HASH256, MBEDTLS_MD_SHA256);
+    if (ret) {
+        assert(0);
+        goto LABEL_EXIT;
+    }
+    mbedtls_mpi half_n;
+    mbedtls_mpi_init(&half_n);
+    mbedtls_mpi_copy(&half_n, &keypair.grp.N);
+    mbedtls_mpi_shift_r(&half_n, 1);
+    if (mbedtls_mpi_cmp_mpi(p_s, &half_n) == 1) {
+        mbedtls_mpi_sub_mpi(p_s, &keypair.grp.N, p_s);
+    }
+    mbedtls_mpi_free(&half_n);
+
+LABEL_EXIT:
+    mbedtls_ecp_keypair_free(&keypair);
+
+    return ret;
 }
 
 

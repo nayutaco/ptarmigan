@@ -45,7 +45,7 @@ extern "C" {
 
 #define LN_SZ_CHANNEL_ID                (32)        ///< サイズ:channel_id
 #define LN_SZ_SHORT_CHANNEL_ID          (8)         ///< サイズ:short_channel_id
-#define LN_SZ_SIGNATURE                 (64)        ///< サイズ:署名
+#define LN_SZ_SIGNATURE                 UCOIN_SZ_SIGN_RS    ///< サイズ:署名
 #define LN_SZ_HASH                      (32)        ///< サイズ:xxx-hash
 #define LN_SZ_PREIMAGE                  (32)        ///< サイズ:preimage
 #define LN_SZ_ONION_ROUTE               (1366)      ///< サイズ:onion-routing-packet

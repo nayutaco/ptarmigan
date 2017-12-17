@@ -180,34 +180,29 @@ bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, const ln_cnl_announce_
 
     //署名-node
     uint8_t hash[UCOIN_SZ_HASH256];
-    ucoin_buf_t buf_sig;
     bool ret;
 
-    ucoin_buf_init(&buf_sig);
     ucoin_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
                                 pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
     //DBG_PRINTF("hash=");
     //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    ret = ucoin_tx_sign(&buf_sig, hash, pMsg->p_my_node->priv);
-    if (ret) {
-        uint8_t *p = pBuf->buf + sizeof(uint16_t) + offset_sig;
-        ret = ln_misc_sigtrim(p, buf_sig.buf);
+    ret = ucoin_tx_sign_rs(pBuf->buf + sizeof(uint16_t) + offset_sig,
+                    hash, pMsg->p_my_node->priv);
+    if (!ret) {
+        DBG_PRINTF("fail: sign node\n");
+        goto LABEL_EXIT;
     }
-    DBG_PRINTF("ret=%d\n", ret);
-    ucoin_buf_free(&buf_sig);
 
     //署名-btc
-    if (ret) {
-        ret = ucoin_tx_sign(&buf_sig, hash, pMsg->p_my_funding->priv);
-        if (ret) {
-            uint8_t *p = pBuf->buf + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2;
-            ret = ln_misc_sigtrim(p, buf_sig.buf);
-        }
-        ucoin_buf_free(&buf_sig);
+    ret = ucoin_tx_sign_rs(pBuf->buf + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
+                    hash, pMsg->p_my_funding->priv);
+    if (!ret) {
+        DBG_PRINTF("fail: sign btc\n");
+        goto LABEL_EXIT;
     }
-    DBG_PRINTF("ret=%d\n", ret);
 
+LABEL_EXIT:
 #ifdef DBG_PRINT_CREATE
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     if (ret) {
@@ -253,7 +248,6 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len)
 {
     //署名verify
     uint8_t hash[UCOIN_SZ_HASH256];
-    ucoin_buf_t buf_sig;
     bool ret;
 
     cnl_announce_ptr_t ptr;
@@ -267,29 +261,20 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len)
     DBG_PRINTF("hash=");
     DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    ucoin_buf_init(&buf_sig);
-    ln_misc_sigexpand(&buf_sig, ptr.p_node_signature1);
-    ret = ucoin_tx_verify(&buf_sig, hash, ptr.p_node_id1);
+    ret = ucoin_tx_verify_rs(ptr.p_node_signature1, hash, ptr.p_node_id1);
     assert(ret);
-    ucoin_buf_free(&buf_sig);
 
     if (ret) {
-        ln_misc_sigexpand(&buf_sig, ptr.p_node_signature2);
-        ret = ucoin_tx_verify(&buf_sig, hash, ptr.p_node_id2);
+        ret = ucoin_tx_verify_rs(ptr.p_node_signature2, hash, ptr.p_node_id2);
         assert(ret);
-        ucoin_buf_free(&buf_sig);
     }
     if (ret) {
-        ln_misc_sigexpand(&buf_sig, ptr.p_btc_signature1);
-        ret = ucoin_tx_verify(&buf_sig, hash, ptr.p_btc_key1);
+        ret = ucoin_tx_verify_rs(ptr.p_btc_signature1, hash, ptr.p_btc_key1);
         assert(ret);
-        ucoin_buf_free(&buf_sig);
     }
     if (ret) {
-        ln_misc_sigexpand(&buf_sig, ptr.p_btc_signature2);
-        ret = ucoin_tx_verify(&buf_sig, hash, ptr.p_btc_key2);
+        ret = ucoin_tx_verify_rs(ptr.p_btc_signature2, hash, ptr.p_btc_key2);
         assert(ret);
-        ucoin_buf_free(&buf_sig);
     }
 
     return ret;
@@ -559,9 +544,7 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
 
     //署名
     uint8_t hash[UCOIN_SZ_HASH256];
-    ucoin_buf_t buf_sig;
 
-    ucoin_buf_init(&buf_sig);
     ucoin_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                 pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
     //DBG_PRINTF("data=");
@@ -569,11 +552,7 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
     //DBG_PRINTF("hash=");
     //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    bool ret = ucoin_tx_sign(&buf_sig, hash, pMsg->p_my_node->priv);
-    if (ret) {
-        ret = ln_misc_sigtrim(pBuf->buf + sizeof(uint16_t), buf_sig.buf);
-    }
-    ucoin_buf_free(&buf_sig);
+    bool ret = ucoin_tx_sign_rs(pBuf->buf + sizeof(uint16_t), hash, pMsg->p_my_node->priv);
 
     return ret;
 }
@@ -670,10 +649,6 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 
     //署名verify
     uint8_t hash[UCOIN_SZ_HASH256];
-    ucoin_buf_t buf_sig;
-
-    ucoin_buf_init(&buf_sig);
-    ln_misc_sigexpand(&buf_sig, p_signature);
 
     ucoin_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                 Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
@@ -682,13 +657,12 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     //DBG_PRINTF("hash=");
     //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    bool ret = ucoin_tx_verify(&buf_sig, hash, pMsg->p_node_id);
+    bool ret = ucoin_tx_verify_rs(p_signature, hash, pMsg->p_node_id);
 #warning ときどきverifyに失敗する
     if (!ret) {
         DBG_PRINTF("fail: verify... but through\n");
         ret = true;
     }
-    ucoin_buf_free(&buf_sig);
 
     return ret;
 }
@@ -788,25 +762,21 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
 
     //署名
     uint8_t hash[UCOIN_SZ_HASH256];
-    ucoin_buf_t buf_sig;
     bool ret;
 
-    ucoin_buf_init(&buf_sig);
     ucoin_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                 pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
     DBG_PRINTF("hash=");
     DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    ret = ucoin_tx_sign(&buf_sig, hash, pMsg->p_key);
+    ret = ucoin_tx_sign_rs(pBuf->buf + sizeof(uint16_t), hash, pMsg->p_key);
     if (ret) {
-        ret = ln_misc_sigtrim(pBuf->buf + sizeof(uint16_t), buf_sig.buf);
+        ucoin_push_trim(&proto);
+    } else {
+        DBG_PRINTF("fail: sign\n");
     }
-    DBG_PRINTF("ret=%d\n", ret);
-    ucoin_buf_free(&buf_sig);
 
-    ucoin_push_trim(&proto);
-
-    return true;
+    return ret;
 }
 
 
@@ -879,10 +849,6 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
     //署名verify
     bool ret;
     uint8_t hash[UCOIN_SZ_HASH256];
-    ucoin_buf_t buf_sig;
-
-    ucoin_buf_init(&buf_sig);
-    ln_misc_sigexpand(&buf_sig, pData + sizeof(uint16_t));
 
     // channel_updateからsignatureを除いたサイズ
     ucoin_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
@@ -890,9 +856,8 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
     //DBG_PRINTF("hash=");
     //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    ret = ucoin_tx_verify(&buf_sig, hash, pPubkey);
+    ret = ucoin_tx_verify_rs(pData + sizeof(uint16_t), hash, pPubkey);
     assert(ret);
-    ucoin_buf_free(&buf_sig);
 
     return ret;
 }

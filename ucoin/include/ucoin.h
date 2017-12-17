@@ -61,6 +61,7 @@ extern "C" {
 #define UCOIN_SZ_WSHADDR        (53 + 1)        ///< サイズ:Bitcoin native segwitアドレス(53)
 #define UCOIN_SZ_TXID           (32)            ///< サイズ:TXID
 #define UCOIN_SZ_SIGHASH        (32)            ///< サイズ:Signature計算用のトランザクションHASH
+#define UCOIN_SZ_SIGN_RS        (64)            ///< サイズ:RS形式の署名
 #define UCOIN_SZ_EKEY           (82)            ///< サイズ:拡張鍵
 #define UCOIN_SZ_CHAINCODE      (32)            ///< サイズ:拡張鍵chaincode
 #define UCOIN_SZ_EKEY_ADDR_MAX  (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
@@ -696,9 +697,18 @@ bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScr
  * @note
  *      - pSigは、成功かどうかにかかわらず#ucoin_buf_init()される
  *      - 成功時、pSigは #ucoin_buf_alloccopy() でメモリ確保するので、使用後は #ucoin_buf_free()で解放すること
- *      - BIP66の処理は行っていない
  */
 bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+
+
+/** 署名計算(r/s)
+ *
+ * @param[out]      pRS         署名結果rs[64]
+ * @param[in]       pTxHash     トランザクションハッシュ
+ * @param[in]       pPrivKey    秘密鍵
+ * @return          true        成功
+ */
+bool ucoin_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名チェック
@@ -712,6 +722,16 @@ bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPr
  *      - pSigの末尾にハッシュタイプが入っていること
  */
 bool ucoin_tx_verify(const ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey);
+
+
+/** 署名チェック(r/s)
+ *
+ * @param[in]       pRS         署名rs[64]
+ * @param[in]       pTxHash     トランザクションハッシュ
+ * @param[in]       pPubKey     公開鍵
+ * @return          true:チェックOK
+ */
+bool ucoin_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey);
 
 
 /** P2PKH署名書込み
@@ -1197,6 +1217,16 @@ void ucoin_util_sign_p2wsh_1(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index,
  * @return      true:成功
  */
 bool ucoin_util_sign_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
+
+
+/** P2WSH署名 - Phase2: 署名作成(R/S)
+ *
+ * @param[out]      pRS
+ * @param[in]       pTxHash
+ * @param[in]       pKeys
+ * @return      true:成功
+ */
+bool ucoin_util_sign_p2wsh_rs_2(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
 
 
 /** P2WSH署名 - Phase3: 2-of-2 トランザクション更新

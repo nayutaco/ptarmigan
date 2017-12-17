@@ -203,6 +203,12 @@ bool ucoin_util_sign_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uc
 }
 
 
+bool ucoin_util_sign_p2wsh_rs_2(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
+{
+    return ucoin_tx_sign_rs(pRS, pTxHash, pKeys->priv);
+}
+
+
 bool ucoin_util_sign_p2wsh_3_2of2(ucoin_tx_t *pTx, int Index, ucoin_keys_sort_t Sort,
                     const ucoin_buf_t *pSig1,
                     const ucoin_buf_t *pSig2,
