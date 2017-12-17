@@ -388,7 +388,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (self) {
         char privkey[UCOIN_SZ_PRIVKEY * 2 + 1];
         misc_bin2str(privkey, self->p_node->keys.priv, UCOIN_SZ_PRIVKEY);
-        DBG_PRINTF("lightning-address.py encode --description \"something to say\" %lf %s %s", (double)amount / 100000000000.0, str_hash, privkey);
+        DBG_PRINTF("lightning-address.py encode --description \"something to say\" %lf %s %s\n", (double)amount / 100000000000.0, str_hash, privkey);
     }
 
 LABEL_EXIT:
