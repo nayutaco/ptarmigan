@@ -334,10 +334,23 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     uint64_t amount;
     cJSON *result = NULL;
     int index = 0;
+    ln_self_t *self = NULL;
 
     if (params == NULL) {
         index = -1;
         goto LABEL_EXIT;
+    }
+
+    //connect parameter
+    daemon_connect_t conn;
+    index = json_connect(params, index, &conn);
+    if (index >= 0) {
+        lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
+        if (p_appconf != NULL) {
+            //接続中
+            DBG_PRINTF("connecting\n");
+            self = p_appconf->p_self;
+        }
     }
 
     //amount
@@ -371,6 +384,12 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
     cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
     ucoind_preimage_unlock();
+
+    if (self) {
+        char privkey[UCOIN_SZ_PRIVKEY * 2 + 1];
+        misc_bin2str(privkey, self->p_node->keys.priv, UCOIN_SZ_PRIVKEY);
+        DBG_PRINTF("lightning-address.py encode --description \"something to say\" %lf %s %s", (double)amount / 100000000000.0, str_hash, privkey);
+    }
 
 LABEL_EXIT:
     if (index < 0) {

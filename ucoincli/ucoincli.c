@@ -76,7 +76,7 @@ static void stop_rpc(char *pJson);
 static void getinfo_rpc(char *pJson);
 static void connect_rpc(char *pJson);
 static void fund_rpc(char *pJson, const funding_conf_t *pFund);
-static void invoice_rpc(char *pJson, uint64_t Amount);
+static void invoice_rpc(char *pJson, uint64_t Amount, bool conn);
 static void listinvoice_rpc(char *pJson);
 static void payment_rpc(char *pJson, const payment_conf_t *pPay);
 static void close_rpc(char *pJson);
@@ -149,18 +149,14 @@ int main(int argc, char *argv[])
             break;
         case 'i':
             //payment_preimage作成
-            if (options == M_OPTIONS_INIT) {
-                errno = 0;
-                uint64_t amount = (uint64_t)strtoull(optarg, NULL, 10);
-                if (errno == 0) {
-                    invoice_rpc(mBuf, amount);
-                    options = M_OPTIONS_EXEC;
-                } else {
-                    printf("fail: funding configuration file\n");
-                    options = M_OPTIONS_HELP;
-                }
+            errno = 0;
+            uint64_t amount = (uint64_t)strtoull(optarg, NULL, 10);
+            if (errno == 0) {
+                invoice_rpc(mBuf, amount, conn);
+                conn = false;
+                options = M_OPTIONS_EXEC;
             } else {
-                printf("fail: too many options\n");
+                printf("fail: funding configuration file\n");
                 options = M_OPTIONS_HELP;
             }
             break;
@@ -368,17 +364,31 @@ static void fund_rpc(char *pJson, const funding_conf_t *pFund)
 }
 
 
-static void invoice_rpc(char *pJson, uint64_t Amount)
+static void invoice_rpc(char *pJson, uint64_t Amount, bool conn)
 {
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "invoice") M_NEXT
-            M_QQ("params") ":[ "
-                //invoice
-                "%" PRIu64
-            " ]"
-        "}",
-            Amount);
+    if (conn) {
+        snprintf(pJson, BUFFER_SIZE,
+            "{"
+                M_STR("method", "invoice") M_NEXT
+                M_QQ("params") ":[ "
+                    //peer_nodeid, peer_addr, peer_port
+                    M_QQ("%s") "," M_QQ("%s") ",%d,"
+                    //invoice
+                    "%" PRIu64
+                " ]"
+            "}",
+                mPeerNodeId, mPeerAddr, mPeerPort, Amount);
+    } else {
+        snprintf(pJson, BUFFER_SIZE,
+            "{"
+                M_STR("method", "invoice") M_NEXT
+                M_QQ("params") ":[ "
+                    //invoice
+                    "%" PRIu64
+                " ]"
+            "}",
+                Amount);
+    }
 }
 
 
