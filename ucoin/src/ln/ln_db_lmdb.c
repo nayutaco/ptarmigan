@@ -1222,7 +1222,7 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
  * payment_hash
  ********************************************************************/
 
-bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, uint8_t Type, uint32_t Expiry, void *pDbParam)
+bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry, void *pDbParam)
 {
     int         retval;
     MDB_txn     *txn = NULL;
@@ -1247,7 +1247,7 @@ bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, uint8_t T
     key.mv_size = M_SZ_WITPROG_WSH;
     key.mv_data = (CONST_CAST uint8_t *)pVout;
     uint8_t hash[1 + sizeof(uint32_t) + LN_SZ_HASH];
-    hash[0] = Type;
+    hash[0] = (uint8_t)Type;
     memcpy(hash + 1, &Expiry, sizeof(uint32_t));
     memcpy(hash + 1 + sizeof(uint32_t), pPayHash, LN_SZ_HASH);
     data.mv_size = sizeof(hash);
@@ -1272,7 +1272,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_search_payhash(uint8_t *pPayHash, uint8_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam)
+bool ln_db_search_payhash(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam)
 {
     int         retval;
     MDB_txn     *txn = NULL;
@@ -1305,7 +1305,7 @@ bool ln_db_search_payhash(uint8_t *pPayHash, uint8_t *pType, uint32_t *pExpiry, 
         if ( (key.mv_size == M_SZ_WITPROG_WSH) &&
              (memcmp(key.mv_data, pVout, M_SZ_WITPROG_WSH) == 0) ) {
             uint8_t *p = (uint8_t *)data.mv_data;
-            *pType = *p;
+            *pType = (ln_htlctype_t)*p;
             *pExpiry = *(uint32_t *)(p + 1);
             memcpy(pPayHash, p + 1 + sizeof(uint32_t), LN_SZ_HASH);
             found = true;

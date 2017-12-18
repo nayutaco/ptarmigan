@@ -1148,8 +1148,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_success_to)
             ucoin_tx_init(&tx2);
 
             //vout
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
+            ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
             tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
             //vin
             ucoin_tx_add_vin(&tx2, txid_commit, index);
@@ -1197,7 +1196,7 @@ TEST_F(ln_bolt3_c2, fin)
     for (int lp = 0; lp < 5; lp++) {
         ln_htlcinfo_free(&htlcinfos[lp]);
     }
-printf("★★ %d[%d]\n", ucoin_dbg_malloc_cnt(), __LINE__);
+    printf("★★ %d[%d]\n", ucoin_dbg_malloc_cnt(), __LINE__);
 
     ASSERT_EQ(0, ucoin_dbg_malloc_cnt());
 }

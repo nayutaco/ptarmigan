@@ -1027,7 +1027,7 @@ void HIDDEN *ucoin_dbg_calloc(size_t blk, size_t size)
             }
         }
     }
-printf("%s(%u, %u)[%d] = %p\n", __func__, blk, size, mcount, p);
+    printf("%s(%u, %u)[%d] = %p\n", __func__, blk, size, mcount, p);
     return p;
 }
 

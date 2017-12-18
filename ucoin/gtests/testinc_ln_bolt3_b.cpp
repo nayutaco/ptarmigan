@@ -141,12 +141,11 @@ TEST_F(ln_bolt3_b, fuding3)
 
     //output
     //vout#0
-    ret = ucoin_sw_add_vout_p2wsh(&tx, FUND_SATOSHI, &redeem_fund);
-    ASSERT_TRUE(ret);
+    ucoin_sw_add_vout_p2wsh(&tx, FUND_SATOSHI, &redeem_fund);
+
     //vout#1
     //      feeを計算した後で額を決定する
-    ret = ucoin_sw_add_vout_p2wpkh_pub(&tx, 0, keys.pub);
-    ASSERT_TRUE(ret);
+    ucoin_sw_add_vout_p2wpkh_pub(&tx, 0, keys.pub);
 
     //input
     //vin#0

@@ -111,6 +111,7 @@
  **************************************************************************/
 
 typedef enum {
+    HTLCSIGN_NONE,              ///< 未設定
     HTLCSIGN_TO_SUCCESS,        ///< HTLC Success
     HTLCSIGN_OF_PREIMG,         ///< 相手が送信したcommit_txのOffered HTLC
     HTLCSIGN_RV_TIMEOUT,        ///< 相手が送信したcommit_txのReceived HTLC

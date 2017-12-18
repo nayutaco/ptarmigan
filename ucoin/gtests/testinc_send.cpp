@@ -284,8 +284,8 @@ TEST_F(send, p2wsh)
     ASSERT_TRUE(ret);
     printf("wit= \n");
     send::DumpBin(wit.buf, wit.len);
-    ret = ucoin_sw_add_vout_p2wsh(&tx, UCOIN_MBTC2SATOSHI(5.8), &wit);
-    ASSERT_TRUE(ret);
+    ucoin_sw_add_vout_p2wsh(&tx, UCOIN_MBTC2SATOSHI(5.8), &wit);
+
     const char ADDR_2OF2[] = "2MuuDWRBQ5KTxJzAk1qPFZfzeheLcoSu3vy";
     char addr_2of2[UCOIN_SZ_ADDR_MAX];
     ucoin_keys_wit2waddr(addr_2of2, &wit);
