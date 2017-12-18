@@ -19,7 +19,7 @@ CPPFLAGS += -isystem -I$(GTEST_DIR) -DUNITTEST -D_GLIBCXX_USE_CXX11_ABI=1
 CPPFLAGS += -DNDEBUG
 CPPFLAGS += -DUCOIN_DEBUG
 CPPFLAGS += -DUCOIN_DEBUG_MEM
-CPPFLAGS += -DUCOIN_USE_PRINTFUNC
+#CPPFLAGS += -DUCOIN_USE_PRINTFUNC
 
 # Flags passed to the C++ compiler.
 CXXFLAGS += -g -Wall -Wextra -pthread -Wno-unused-parameter -Wno-sign-compare --coverage -fpermissive

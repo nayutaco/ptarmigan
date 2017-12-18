@@ -1006,7 +1006,6 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     DUMPBIN(self->p_revoked_vout[0].buf, self->p_revoked_vout[0].len);
 
     for (int lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
-DBG_PRINTF("self->p_revoked_type = %p\n", self->p_revoked_type);
         DBG_PRINTF("vout[%d]: ", lp);
         DUMPBIN(pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
         if (pRevokedTx->vout[lp].script.len == M_SZ_WITPROG_WPKH) {
@@ -1018,7 +1017,7 @@ DBG_PRINTF("self->p_revoked_type = %p\n", self->p_revoked_type);
         } else {
             //HTLC Tx
             //  DBには、vout(SHA256後)をkeyにして、payment_hashを保存している。
-            uint8_t type;
+            ln_htlctype_t type;
             uint8_t payhash[LN_SZ_HASH];
             uint32_t expiry;
             bool srch = ln_db_search_payhash(payhash, &type, &expiry,
@@ -1349,17 +1348,20 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes)
 bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
                 const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked)
 {
+    bool ret;
+    ucoin_util_keys_t signkey;
+    ucoin_buf_t sig_delayed;
+
     //to_localのFEE
     uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
     if (Value < self->commit_local.dust_limit_sat + fee_tolocal) {
         goto LABEL_EXIT;
     }
-    bool ret = ln_create_tolocal_tx(pTx, Value - fee_tolocal,
+    ret = ln_create_tolocal_tx(pTx, Value - fee_tolocal,
             &self->shutdown_scriptpk_local, to_self_delay, pTxid, Index, bRevoked);
     if (!ret) {
         goto LABEL_EXIT;
     }
-    ucoin_util_keys_t signkey;
     if (!bRevoked) {
         //<delayed_secretkey>
         ln_derkey_privkey(signkey.priv,
@@ -1381,7 +1383,6 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
     DBG_PRINTF("key-pub : ");
     DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
-    ucoin_buf_t sig_delayed;
     ucoin_buf_init(&sig_delayed);
     ret = ln_sign_tolocal_tx(pTx, &sig_delayed, Value, &signkey, pScript, bRevoked);
     ucoin_buf_free(&sig_delayed);
@@ -1415,7 +1416,7 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
     DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
     ucoin_buf_t buf_sig;
-    ln_htlcsign_t htlcsign;
+    ln_htlcsign_t htlcsign = HTLCSIGN_NONE;
     switch (self->p_revoked_type[WitIndex]) {
     case LN_HTLCTYPE_OFFERED:
         htlcsign = HTLCSIGN_RV_OFFERED;
@@ -1530,7 +1531,6 @@ void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
         ucoin_buf_init(&self->p_revoked_wit[lp]);
         self->p_revoked_type[lp] = LN_HTLCTYPE_NONE;
     }
-DBG_PRINTF("self->p_revoked_type = %p\n", self->p_revoked_type);
 }
 
 
@@ -3657,7 +3657,7 @@ static bool create_to_remote(ln_self_t *self,
 
                     uint8_t preimage[LN_SZ_PREIMAGE];
                     bool ret_img;
-                    int htlcsign = HTLCSIGN_TO_SUCCESS;
+                    ln_htlcsign_t htlcsign = HTLCSIGN_TO_SUCCESS;
                     if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) {
                         //remoteのoffered=localのreceivedなのでpreimageを所持している可能性がある
                         ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);

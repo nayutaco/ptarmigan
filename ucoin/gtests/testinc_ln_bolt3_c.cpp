@@ -504,7 +504,7 @@ TEST_F(ln_bolt3_c, committx2)
 }
 
 
-// name: commitment tx with all 5 htlcs untrimmed (minimum feerate)
+// name: commitment tx with five outputs untrimmed (minimum feerate)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx5untrim_commit)
 {
@@ -530,6 +530,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
 
 
     ///////////////////////////////////////
+    //HTLC 0 received amount 1000
     const uint8_t WS_HTLC0[] = {
         0x76, 0xa9, 0x14, 0x14, 0x01, 0x1f, 0x72, 0x54,
         0xd9, 0x6b, 0x81, 0x9c, 0x76, 0x98, 0x6c, 0x27,
@@ -550,6 +551,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
         0x67, 0x75, 0x02, 0xf4, 0x01, 0xb1, 0x75, 0xac,
         0x68, 0x68,
     };
+    //HTLC 1 received amount 2000
     const uint8_t WS_HTLC1[] = {
         0x76, 0xa9, 0x14, 0x14, 0x01, 0x1f, 0x72, 0x54,
         0xd9, 0x6b, 0x81, 0x9c, 0x76, 0x98, 0x6c, 0x27,
@@ -570,6 +572,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
         0x67, 0x75, 0x02, 0xf5, 0x01, 0xb1, 0x75, 0xac,
         0x68, 0x68,
     };
+    //HTLC 2 offered amount 2000
     const uint8_t WS_HTLC2[] = {
         0x76, 0xa9, 0x14, 0x14, 0x01, 0x1f, 0x72, 0x54,
         0xd9, 0x6b, 0x81, 0x9c, 0x76, 0x98, 0x6c, 0x27,
@@ -589,6 +592,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
         0xa1, 0xd2, 0x74, 0xbc, 0x63, 0xe3, 0xa9, 0xb5,
         0xd1, 0x88, 0xac, 0x68, 0x68,
     };
+    //HTLC 3 offered amount 3000
     const uint8_t WS_HTLC3[] = {
         0x76, 0xa9, 0x14, 0x14, 0x01, 0x1f, 0x72, 0x54,
         0xd9, 0x6b, 0x81, 0x9c, 0x76, 0x98, 0x6c, 0x27,
@@ -608,6 +612,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
         0x60, 0x88, 0x64, 0xd6, 0x3f, 0xef, 0xd0, 0x9d,
         0x5b, 0x88, 0xac, 0x68, 0x68,
     };
+    //HTLC 4 received amount 4000
     const uint8_t WS_HTLC4[] = {
         0x76, 0xa9, 0x14, 0x14, 0x01, 0x1f, 0x72, 0x54,
         0xd9, 0x6b, 0x81, 0x9c, 0x76, 0x98, 0x6c, 0x27,
@@ -642,9 +647,9 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -1186,13 +1191,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
             ucoin_tx_init(&tx2);
-
-            //vout
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -1202,12 +1201,12 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
-            ucoin_print_tx(&tx2);
+            //ucoin_print_tx(&tx2);
             //ucoin_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -1366,9 +1365,9 @@ TEST_F(ln_bolt3_c, committx7max_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -1909,12 +1908,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
         index = VOUTS[lp];
         if (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee) {
             ucoin_tx_init(&tx2);
-
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -1924,8 +1918,8 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
@@ -2088,9 +2082,9 @@ TEST_F(ln_bolt3_c, committx6min_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -2570,12 +2564,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
             ucoin_tx_init(&tx2);
-
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -2585,8 +2574,8 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
@@ -2749,9 +2738,9 @@ TEST_F(ln_bolt3_c, committx6max_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -3231,12 +3220,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
             ucoin_tx_init(&tx2);
-
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -3246,8 +3230,8 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
@@ -3410,9 +3394,9 @@ TEST_F(ln_bolt3_c, committx5min_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -3828,12 +3812,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
             ucoin_tx_init(&tx2);
-
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -3843,8 +3822,8 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
@@ -4007,9 +3986,9 @@ TEST_F(ln_bolt3_c, committx5max_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -4425,12 +4404,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
             ucoin_tx_init(&tx2);
-
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -4440,8 +4414,8 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
@@ -4604,9 +4578,9 @@ TEST_F(ln_bolt3_c, committx4min_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -4961,12 +4935,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
             ucoin_tx_init(&tx2);
-
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -4976,8 +4945,8 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
@@ -5140,9 +5109,9 @@ TEST_F(ln_bolt3_c, committx4max_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -5497,12 +5466,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
             ucoin_tx_init(&tx2);
-
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -5512,8 +5476,8 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
@@ -5676,9 +5640,9 @@ TEST_F(ln_bolt3_c, committx3min_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -5973,12 +5937,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
             ucoin_tx_init(&tx2);
-
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -5988,8 +5947,8 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
@@ -6152,9 +6111,9 @@ TEST_F(ln_bolt3_c, committx3max_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -6448,12 +6407,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
             ucoin_tx_init(&tx2);
-
-            ret = ucoin_sw_add_vout_p2wsh(&tx2, tx.vout[index].value - fee, &ws_buf);
-            ASSERT_TRUE(ret);
-            tx2.vout[tx2.vout_cnt - 1].opt = htlcinfos[lp].type;
-            //vin
-            ucoin_tx_add_vin(&tx2, txid_commit, index);
+            ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const ucoin_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
 //            printf("[%d]%s\n", lp, (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
@@ -6463,8 +6417,8 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
-                        htlcinfos[lp].expiry,
-                        &htlcinfos[lp].script);
+                        &htlcinfos[lp].script,
+                        HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             ucoin_buf_t hs;
             ucoin_tx_create(&hs, &tx2);
@@ -6627,9 +6581,9 @@ TEST_F(ln_bolt3_c, committx2min_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -6924,9 +6878,9 @@ TEST_F(ln_bolt3_c, committx2max_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -7222,9 +7176,9 @@ TEST_F(ln_bolt3_c, committx1min_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
@@ -7513,9 +7467,9 @@ TEST_F(ln_bolt3_c, committx_commit)
         { WS_HTLC4, sizeof(WS_HTLC4) }
     };
 
-    ln_create_htlcinfo((ln_htlcinfo_t **)pp_htlcinfos, 5, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY);
-
     for (int lp = 0; lp < 5; lp++) {
+        ln_create_htlcinfo(&pp_htlcinfos[lp]->script, pp_htlcinfos[lp]->type, LOCAL_KEY, LOCAL_REVO_KEY, REMOTE_KEY, pp_htlcinfos[lp]->preimage_hash, pp_htlcinfos[lp]->expiry);
+
         ASSERT_EQ(0, memcmp(SCRIPTS[lp].ws, htlcinfos[lp].script.buf, SCRIPTS[lp].len));
         ASSERT_EQ(SCRIPTS[lp].len, htlcinfos[lp].script.len);
     }
