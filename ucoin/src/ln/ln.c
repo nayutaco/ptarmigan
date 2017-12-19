@@ -3039,7 +3039,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
         } else {
-            DBG_PRINTF("fail\n");
+            DBG_PRINTF("fail: maybe no DB\n");
+            ln_msg_cnl_update_print(&upd);
         }
     }
 
