@@ -254,7 +254,7 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
             dumpbin(p2, 33);
 #endif
             if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
-                //
+                //チャネル接続しているが、announcement_signaturesはしていない相手
                 mNodeNum++;
                 mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
                 mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
@@ -265,6 +265,12 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                 }
                 memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
                 memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
+                for (int lp = 0; lp < 2; lp++) {
+                    mpNodes[mNodeNum - 1].ninfo[lp].cltv_expiry_delta = LN_MIN_FINAL_CLTV_EXPIRY;
+                    mpNodes[mNodeNum - 1].ninfo[lp].htlc_minimum_msat = 0;
+                    mpNodes[mNodeNum - 1].ninfo[lp].fee_base_msat = 0;
+                    mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
+                }
             }
         }
         ln_term(&self);
