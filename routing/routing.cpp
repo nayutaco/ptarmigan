@@ -265,8 +265,9 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                 }
                 memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
                 memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
+                mpNodes[mNodeNum - 1].ninfo[0].cltv_expiry_delta = LN_MIN_FINAL_CLTV_EXPIRY;
+                mpNodes[mNodeNum - 1].ninfo[1].cltv_expiry_delta = 0;
                 for (int lp = 0; lp < 2; lp++) {
-                    mpNodes[mNodeNum - 1].ninfo[lp].cltv_expiry_delta = LN_MIN_FINAL_CLTV_EXPIRY;
                     mpNodes[mNodeNum - 1].ninfo[lp].htlc_minimum_msat = 0;
                     mpNodes[mNodeNum - 1].ninfo[lp].fee_base_msat = 0;
                     mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
