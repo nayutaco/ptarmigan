@@ -1350,7 +1350,7 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
 {
     bool ret;
     ucoin_util_keys_t signkey;
-    ucoin_buf_t sig_delayed;
+    ucoin_buf_t sig;
 
     //to_localのFEE
     uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
@@ -1371,6 +1371,7 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
         ucoin_keys_priv2pub(signkey.pub, signkey.priv);
         assert(memcmp(signkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
     } else {
+        //<revocationsecretkey>
         ln_derkey_revocationprivkey(signkey.priv,
                     self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
@@ -1383,9 +1384,9 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
     DBG_PRINTF("key-pub : ");
     DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
-    ucoin_buf_init(&sig_delayed);
-    ret = ln_sign_tolocal_tx(pTx, &sig_delayed, Value, &signkey, pScript, bRevoked);
-    ucoin_buf_free(&sig_delayed);
+    ucoin_buf_init(&sig);
+    ret = ln_sign_tolocal_tx(pTx, &sig, Value, &signkey, pScript, bRevoked);
+    ucoin_buf_free(&sig);
 
 LABEL_EXIT:
     return ret;
