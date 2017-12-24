@@ -559,7 +559,7 @@ LABEL_DECREF:
             ucoin_tx_t tx;
 
             ucoin_tx_init(&tx);
-            bool bret = jsonrpc_getraw_txstr(&tx, txid);
+            bool bret = getraw_txstr(&tx, txid);
             //DBG_PRINTF("txid=%s\n", txid);
             if ( bret &&
                  (tx.vin_cnt == 1) &&

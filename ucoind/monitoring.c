@@ -20,7 +20,7 @@
  *  under the License.
  */
 /** @file   monitoring.c
- *  @brief  channel close monitor
+ *  @brief  channel monitor
  */
 #include <stdio.h>
 #include <inttypes.h>

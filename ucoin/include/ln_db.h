@@ -264,7 +264,7 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
  * @param[in]       Expiry          Expiry
  * @param[in,out]   pDbParam        DBパラメータ
  */
-bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, uint8_t Type, uint32_t Expiry, void *pDbParam);
+bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry, void *pDbParam);
 
 
 /** payment_hash検索
@@ -275,7 +275,7 @@ bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, uint8_t T
  * @param[in]       pVout           検索するvout
  * @param[in,out]   pDbParam        DBパラメータ
  */
-bool ln_db_search_payhash(uint8_t *pPayHash, uint8_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
+bool ln_db_search_payhash(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
 
 #endif  //LN_UGLY_NORMAL
 
