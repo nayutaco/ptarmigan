@@ -477,10 +477,10 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
 
     ucoin_push_t    proto;
 
-//#ifdef DBG_PRINT_CREATE
-//    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-//    node_announce_print(pMsg);
-//#endif  //DBG_PRINT_CREATE
+#ifdef DBG_PRINT_CREATE
+   DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+   node_announce_print(pMsg);
+#endif  //DBG_PRINT_CREATE
 
     //flen=0
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 141 + M_ADDRLEN2[pMsg->addr.type]);
@@ -641,10 +641,10 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
         node_announce_print(pMsg);
     }
 
-//#ifdef DBG_PRINT_READ
-//    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-//    node_announce_print(pMsg);
-//#endif  //DBG_PRINT_READ
+#ifdef DBG_PRINT_READ
+   DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+   node_announce_print(pMsg);
+#endif  //DBG_PRINT_READ
 
 
     //署名verify
@@ -874,7 +874,7 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
     DBG_PRINTF2("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
     DBG_PRINTF2("flags= 0x%04x\n", pMsg->flags);
     DBG_PRINTF2("    direction: %s\n", (pMsg->flags & 0x0001) ? "node_2" : "node_1");
-    DBG_PRINTF2("    disable  : %s\n", (pMsg->flags & 0x0002) ? "disabling" : "enable");
+    DBG_PRINTF2("    %s\n", (pMsg->flags & 0x0002) ? "disabling" : "enable");
     DBG_PRINTF2("cltv_expiry_delta= %u\n", pMsg->cltv_expiry_delta);
     DBG_PRINTF2("htlc_minimum_msat= %" PRIu64 "\n", pMsg->htlc_minimum_msat);
     DBG_PRINTF2("fee_base_msat= %u\n", pMsg->fee_base_msat);
