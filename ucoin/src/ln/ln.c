@@ -1982,6 +1982,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
     self->short_channel_id = 0;
+    self->remote_commit_num = 1;
     ln_cb_funding_t funding;
     funding.p_tx_funding = NULL;
     funding.p_txid = self->funding_local.txid;
@@ -2038,6 +2039,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
     self->short_channel_id = 0;
+    self->remote_commit_num = 1;
     ln_cb_funding_t funding;
     funding.p_tx_funding = &self->tx_funding;
     funding.p_txid = self->funding_local.txid;
@@ -3034,8 +3036,6 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //verify
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
-   DBG_PRINTF("ret=%d\n", ret);
-
     if (ret) {
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
