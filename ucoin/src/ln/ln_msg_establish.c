@@ -263,6 +263,23 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
     }
     pos++;
 
+    //        [2:shutdown_len] (option_upfront_shutdown_script)
+    uint16_t shutdown_len = 0;
+    if (Len - pos >= (int)sizeof(uint16_t)) {
+        shutdown_len = ln_misc_get16be(pData + pos);
+        pos += sizeof(uint16_t);
+        DBG_PRINTF("shutdown_len= %" PRIu16 "\n", shutdown_len);
+    }
+    //        [shutdown_len: shutdown_scriptpubkey] (option_upfront_shutdown_script)
+    if (Len - pos >= shutdown_len) {
+        DBG_PRINTF("shutdown_scriptpubkey= ");
+        for (int lp = 0; lp < shutdown_len; lp++) {
+            DBG_PRINTF2("%02x", pData[pos]);
+            pos++;
+        }
+        DBG_PRINTF2("\n");
+    }
+
     assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
@@ -448,6 +465,23 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
         }
         memcpy(pMsg->p_pubkeys[lp], pData + pos, UCOIN_SZ_PUBKEY);
         pos += UCOIN_SZ_PUBKEY;
+    }
+
+    //        [2:shutdown_len] (option_upfront_shutdown_script)
+    uint16_t shutdown_len = 0;
+    if (Len - pos >= (int)sizeof(uint16_t)) {
+        shutdown_len = ln_misc_get16be(pData + pos);
+        pos += sizeof(uint16_t);
+        DBG_PRINTF("shutdown_len= %" PRIu16 "\n", shutdown_len);
+    }
+    //        [shutdown_len: shutdown_scriptpubkey] (option_upfront_shutdown_script)
+    if (Len - pos >= shutdown_len) {
+        DBG_PRINTF("shutdown_scriptpubkey= ");
+        for (int lp = 0; lp < shutdown_len; lp++) {
+            DBG_PRINTF2("%02x", pData[pos]);
+            pos++;
+        }
+        DBG_PRINTF2("\n");
     }
 
     assert(Len >= pos);
