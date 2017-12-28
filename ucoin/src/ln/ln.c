@@ -1982,6 +1982,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
     self->short_channel_id = 0;
+    self->remote_commit_num = 1;
     ln_cb_funding_t funding;
     funding.p_tx_funding = NULL;
     funding.p_txid = self->funding_local.txid;
@@ -2038,6 +2039,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
     self->short_channel_id = 0;
+    self->remote_commit_num = 1;
     ln_cb_funding_t funding;
     funding.p_tx_funding = &self->tx_funding;
     funding.p_txid = self->funding_local.txid;
@@ -2800,7 +2802,8 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     (void)self; (void)pData; (void)Len;
     DBG_PRINTF("BEGIN\n");
-    return false;
+#warning not implemented
+    return true;
 }
 
 
@@ -2808,7 +2811,8 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
 {
     (void)self; (void)pData; (void)Len;
     DBG_PRINTF("BEGIN\n");
-    return false;
+#warning not implemented
+    return true;
 }
 
 
@@ -2938,13 +2942,14 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     ret = ln_db_save_anno_channel(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
     if (!ret) {
         DBG_PRINTF("fail: ln_db_save_anno_channel\n");
-        goto LABEL_EXIT;
+        //goto LABEL_EXIT;
     }
     ret = ln_db_save_anno_channel_upd(&buf_upd, ln_short_channel_id(self), self->peer_node.sort);
     if (!ret) {
         DBG_PRINTF("fail: ln_db_save_anno_channel_upd\n");
-        goto LABEL_EXIT;
+        //goto LABEL_EXIT;
     }
+    ret = true;
 
     self->anno_flag |= M_ANNO_FLAG_RECV;
 
@@ -3008,6 +3013,8 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 
     //DB保存
     ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
+    DBG_PRINTF("db save ret=%d\n", ret);
+    ret = true;
 
     return ret;
 }
@@ -3029,8 +3036,6 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //verify
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
-    DBG_PRINTF("ret=%d\n", ret);
-
     if (ret) {
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
@@ -3039,9 +3044,12 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
         } else {
-            DBG_PRINTF("fail: maybe no DB\n");
+            DBG_PRINTF("fail: maybe no DB...ignore\n");
             ln_msg_cnl_update_print(&upd);
+            ret = true;
         }
+    } else {
+        DBG_PRINTF("fail: verify\n");
     }
 
     if (ret) {
@@ -3050,8 +3058,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
         ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & 0x0001);
-    } else {
-        DBG_PRINTF("fail\n");
+        DBG_PRINTF("db save ret=%d\n", ret);
+        ret = true;
     }
 
     return ret;

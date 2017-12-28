@@ -1060,11 +1060,11 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
         feerate = (uint32_t)(feerate / 4);
 #warning issue#46
-        if (!ret || (feerate < LN_FEERATE_PER_KW)) {
-            // https://github.com/nayutaco/ptarmigan/issues/46
-            DBG_PRINTF("fee_per_rate is too low? :%lu\n", feerate);
-            feerate = LN_FEERATE_PER_KW;
-        }
+        //if (!ret || (feerate < LN_FEERATE_PER_KW)) {
+        //    // https://github.com/nayutaco/ptarmigan/issues/46
+        //    DBG_PRINTF("fee_per_rate is too low? :%lu\n", feerate);
+        //    feerate = LN_FEERATE_PER_KW;
+        //}
         DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
 
         ucoin_util_wif2keys(&p_conf->p_funding->p_opening->fundin_keys, wif);
@@ -2007,17 +2007,19 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
     DBG_PRINTF2("  id=%" PRIu64 "\n", p_add->id);
 
-    DBG_PRINTF2("  b_exit: %d\n", p_add->p_hop->b_exit);
+    DBG_PRINTF2("  %s\n", (p_add->p_hop->b_exit) ? "intended recipient" : "forwarding HTLCs");
     //転送先
     DBG_PRINTF2("  FWD: short_channel_id: %" PRIx64 "\n", p_add->p_hop->short_channel_id);
     DBG_PRINTF2("  FWD: amt_to_forward: %" PRIu64 "\n", p_add->p_hop->amt_to_forward);
     DBG_PRINTF2("  FWD: outgoing_cltv_value: %d\n", p_add->p_hop->outgoing_cltv_value);
     DBG_PRINTF2("  -------\n");
     //自分への通知
+    int height = jsonrpc_getblockcount();
     DBG_PRINTF2("  amount_msat: %" PRIu64 "\n", p_add->amount_msat);
     DBG_PRINTF2("  cltv_expiry: %d\n", p_add->cltv_expiry);
     DBG_PRINTF2("  my fee : %" PRIu64 "\n", (uint64_t)(p_add->amount_msat - p_add->p_hop->amt_to_forward));
-    DBG_PRINTF2("  cltv_delta : %" PRIu32 " - %" PRIu32" = %d\n", p_add->cltv_expiry, p_add->p_hop->outgoing_cltv_value, p_add->cltv_expiry - p_add->p_hop->outgoing_cltv_value);
+    DBG_PRINTF2("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",  p_add->p_hop->outgoing_cltv_value, p_add->cltv_expiry - p_add->p_hop->outgoing_cltv_value);
+    DBG_PRINTF2("  cltv_expiry - height(%d) = %d\n", height, p_add->cltv_expiry - height);
 
     ucoind_preimage_lock();
     if (p_add->p_hop->b_exit) {

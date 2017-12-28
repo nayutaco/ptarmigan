@@ -840,6 +840,11 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
 
     assert(Len == pos);
 
+#ifdef DBG_PRINT_CREATE
+    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    ln_msg_cnl_update_print(pMsg);
+#endif  //DBG_PRINT_CREATE
+
     return true;
 }
 
