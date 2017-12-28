@@ -414,8 +414,8 @@ static void payment_rpc(char *pJson, const payment_conf_t *pPay)
             M_STR("method", "pay") M_NEXT
             M_QQ("params") ":[ "
                 //payment_hash, hop_num
-                M_QQ("%s") ",%d,%" PRIu16 ", [\n",
-            payhash, pPay->min_final_cltv_expiry, pPay->hop_num);
+                M_QQ("%s") ",%d, [\n",
+            payhash, pPay->hop_num);
 
     for (int lp = 0; lp < pPay->hop_num; lp++) {
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];

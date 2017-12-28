@@ -176,7 +176,6 @@ typedef struct {
 typedef struct {
     uint8_t             payment_hash[LN_SZ_HASH];
     uint8_t             hop_num;
-    uint16_t            min_final_cltv_expiry;          //(invoiceの)min_final_cltv_expiry
     ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
 } payment_conf_t;
 
@@ -207,10 +206,10 @@ typedef struct {
 
 typedef struct {
     uint16_t        cltv_expiry_delta;              ///< 2:  cltv_expiry_delta
-    uint16_t        min_final_cltv_expiry;          ///< 2: min_final_cltv_expiry
     uint64_t        htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
     uint32_t        fee_base_msat;                  ///< 4:  fee_base_msat
     uint32_t        fee_prop_millionths;            ///< 4:  fee_proportional_millionths
+    uint32_t        min_final_cltv_expiry;          ///< min_final_cltv_expiry
 } anno_conf_t;
 
 
