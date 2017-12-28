@@ -310,9 +310,9 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     }
 
     //min_final_cltv_expiryオフセット
-    DBG_PRINTF("pAppConf->min_final_cltv_expiry=%d\n", (int)pAppConf->min_final_cltv_expiry);
+    DBG_PRINTF("min_final_cltv_expiry=%d\n", (int)pPay->min_final_cltv_expiry);
     for (int lp = 0; lp < pPay->hop_num; lp++) {
-        pPay->hop_datain[lp].outgoing_cltv_value += pAppConf->min_final_cltv_expiry;
+        pPay->hop_datain[lp].outgoing_cltv_value += pPay->min_final_cltv_expiry;
         DBG_PRINTF2("[%d]%016" PRIx64 ": %" PRIu64 ", %" PRIu32 "\n", lp, pPay->hop_datain[lp].short_channel_id, pPay->hop_datain[lp].amt_to_forward, pPay->hop_datain[lp].outgoing_cltv_value);
     }
 

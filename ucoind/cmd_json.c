@@ -465,11 +465,19 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    //payment_hash, hop_num
+    //payment_hash, min_final_expiry_delta, hop_num
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
         misc_str2bin(payconf.payment_hash, LN_SZ_HASH, json->valuestring);
         DBG_PRINTF("payment_hash=%s\n", json->valuestring);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        payconf.min_final_cltv_expiry = (uint16_t)json->valueint;
+        DBG_PRINTF("min_final_cltv_expiry=%" PRIu16 "\n", json->valueint);
     } else {
         index = -1;
         goto LABEL_EXIT;

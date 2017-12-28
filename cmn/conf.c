@@ -228,6 +228,7 @@ bool load_btcrpc_default_conf(rpc_conf_t *pRpcConf)
 bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
 {
     memset(pPayConf, 0, sizeof(payment_conf_t));
+    pPayConf->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
 
     if (ini_parse(pConfFile, handler_pay_conf, pPayConf) != 0) {
         SYSLOG_ERR("fail pay parse[%s]", pConfFile);
@@ -266,6 +267,7 @@ void print_payment_conf(const payment_conf_t *pPayConf)
 bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf)
 {
     memset(pAnnoConf, 0, sizeof(anno_conf_t));
+    pAnnoConf->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
 
     if (ini_parse(pConfFile, handler_anno_conf, pAnnoConf) != 0) {
         SYSLOG_ERR("fail anno parse[%s]", pConfFile);
@@ -421,6 +423,8 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
     } else if (strcmp(name, "hop_num") == 0) {
         pconfig->hop_num = atoi(value);
         ret = (2 <= pconfig->hop_num) && (pconfig->hop_num <= LN_HOP_MAX + 1);
+    } else if (strcmp(name, "min_final_cltv_expiry") == 0) {
+        pconfig->min_final_cltv_expiry = (uint16_t)atoi(value);
     } else if (strncmp(name, "route", 5) == 0) {
         int num = atoi(&name[5]);
         ret = (0 <= num) && (num <= LN_HOP_MAX);
@@ -445,16 +449,16 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
     anno_conf_t* pconfig = (anno_conf_t *)user;
 
     if (strcmp(name, "cltv_expiry_delta") == 0) {
-        pconfig->cltv_expiry_delta = atoi(value);
+        pconfig->cltv_expiry_delta = (uint16_t)atoi(value);
         ret = (pconfig->cltv_expiry_delta > 0);
+    } else if (strcmp(name, "min_final_cltv_expiry") == 0) {
+        pconfig->min_final_cltv_expiry = (uint16_t)atoi(value);
     } else if (strcmp(name, "htlc_minimum_msat") == 0) {
         pconfig->htlc_minimum_msat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "fee_base_msat") == 0) {
         pconfig->fee_base_msat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "fee_prop_millionths") == 0) {
         pconfig->fee_prop_millionths = strtoull(value, NULL, 10);
-    } else if (strcmp(name, "min_final_cltv_expiry") == 0) {
-        pconfig->min_final_cltv_expiry = strtoull(value, NULL, 10);
     } else {
         return 0;  /* unknown section/name, error */
     }
