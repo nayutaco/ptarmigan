@@ -309,13 +309,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
         goto LABEL_EXIT;
     }
 
-    //min_final_cltv_expiryオフセット
-    DBG_PRINTF("pAppConf->min_final_cltv_expiry=%d\n", (int)pAppConf->min_final_cltv_expiry);
-    for (int lp = 0; lp < pPay->hop_num; lp++) {
-        pPay->hop_datain[lp].outgoing_cltv_value += pAppConf->min_final_cltv_expiry;
-        DBG_PRINTF2("[%d]%016" PRIx64 ": %" PRIu64 ", %" PRIu32 "\n", lp, pPay->hop_datain[lp].short_channel_id, pPay->hop_datain[lp].amt_to_forward, pPay->hop_datain[lp].outgoing_cltv_value);
-    }
-
     //amount, CLTVチェック(最後の値はチェックしない)
     for (int lp = 1; lp < pPay->hop_num - 1; lp++) {
         if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward) {
@@ -708,15 +701,11 @@ static void *thread_main_start(void *pArg)
         mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
         mAnnoDef.fee_base_msat = aconf.fee_base_msat;
         mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
-        //
-        p_conf->min_final_cltv_expiry = aconf.min_final_cltv_expiry;
     } else {
         mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
         mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
         mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
         mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
-        //
-        p_conf->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     }
 
     //スレッド

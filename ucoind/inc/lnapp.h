@@ -91,7 +91,6 @@ typedef struct {
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
     uint32_t        funding_min_depth;
     uint8_t         flag_ope;               ///< normal operation中フラグ
-    uint32_t        min_final_cltv_expiry;  ///< min_final_cltv_expiry
 
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
