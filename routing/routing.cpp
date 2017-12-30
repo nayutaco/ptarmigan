@@ -37,7 +37,6 @@
 #include <assert.h>
 
 //#define M_DEBUG
-//#define M_NO_GRAPH
 
 #include "ucoind.h"
 #include "ln_db.h"
@@ -62,10 +61,17 @@ using namespace boost;
  * macros
  **************************************************************************/
 
+#define ARGS_GRAPH                          (3)
+#define ARGS_PAYMENT                        (6)
+#define ARGS_PAY_AND_EXPIRY                 (7)
+
 #define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
 #define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
 #define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
+
+#define M_MIN_FINAL_CLTV_EXPIRY             (9)     ///< min_final_cltv_expiryのデフォルト値
+                                                    // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#tagged-fields
 
 
 /**************************************************************************
@@ -125,6 +131,7 @@ static struct nodes_t {
 static int mNodeNum = 0;
 static uint8_t mMyNodeId[UCOIN_SZ_PUBKEY];
 static uint8_t mTgtNodeId[UCOIN_SZ_PUBKEY];
+static uint16_t mMinFinalCltvExpiry = 0;
 
 
 // https://github.com/lightningnetwork/lightning-rfc/issues/237
@@ -266,7 +273,7 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                 memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
                 memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
                 for (int lp = 0; lp < 2; lp++) {
-                    mpNodes[mNodeNum - 1].ninfo[lp].cltv_expiry_delta = LN_MIN_FINAL_CLTV_EXPIRY;
+                    mpNodes[mNodeNum - 1].ninfo[lp].cltv_expiry_delta = 0;
                     mpNodes[mNodeNum - 1].ninfo[lp].htlc_minimum_msat = 0;
                     mpNodes[mNodeNum - 1].ninfo[lp].fee_base_msat = 0;
                     mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
@@ -399,18 +406,24 @@ int main(int argc, char* argv[])
     const char *tgt_node;
     const char *amount;
 
-    if (argc == 3) {
+    if (argc == ARGS_GRAPH) {
         nettype = argv[1];
         dbdir = argv[2];
         my_node = NULL;
         tgt_node = NULL;
         amount = NULL;
-    } else if (argc == 6) {
+    } else if (argc >= ARGS_PAYMENT) {
         nettype = argv[1];
         dbdir = argv[2];
         my_node = argv[3];
         tgt_node = argv[4];
         amount = argv[5];
+        if (argc == ARGS_PAY_AND_EXPIRY) {
+            mMinFinalCltvExpiry = (uint16_t)atoi(argv[6]);
+        } else {
+            mMinFinalCltvExpiry = M_MIN_FINAL_CLTV_EXPIRY;
+        }
+        fprintf(stderr, "min_final_cltv_expiry = %" PRIu16 "\n", mMinFinalCltvExpiry);
     } else {
         fprintf(stderr, "usage:");
         //           1                 2
@@ -432,7 +445,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    if (argc == 6) {
+    if (argc >= ARGS_PAYMENT) {
         ret = misc_str2bin(mMyNodeId, sizeof(mMyNodeId), my_node);
 
         ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), tgt_node);
@@ -459,7 +472,7 @@ int main(int argc, char* argv[])
     graph_t::vertex_descriptor pnt_start;
     graph_t::vertex_descriptor pnt_goal;
 
-    if (argc == 3) {
+    if (argc == ARGS_GRAPH) {
         set_start = true;
         set_goal = true;
     } else {
@@ -517,7 +530,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (argc == 6) {
+    if (argc >= ARGS_PAYMENT) {
 #ifdef M_DEBUG
         fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
 #endif
@@ -539,6 +552,7 @@ int main(int argc, char* argv[])
         }
 
         //逆順に入っているので、並べ直す
+        //ついでに、min_final_cltv_expiryを足す
         std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
         std::deque<uint64_t> msat;
         std::deque<uint32_t> cltv;
@@ -564,9 +578,9 @@ int main(int argc, char* argv[])
             }
 
             if (cltv_expiry == 0) {
-                cltv.push_front(g[e].cltv_expiry_delta);
+                cltv.push_front(g[e].cltv_expiry_delta + mMinFinalCltvExpiry);
             }
-            cltv_expiry += g[e].cltv_expiry_delta;
+            cltv_expiry += g[e].cltv_expiry_delta + mMinFinalCltvExpiry;
             cltv.push_front(cltv_expiry);
         }
         route.push_front(pnt_start);
@@ -620,72 +634,67 @@ int main(int argc, char* argv[])
         printf("route%d=", hop - 1);
         ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
         printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
-    }
+    } else {
+        // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp
+        std::ofstream dot_file("routing.dot");
 
+        dot_file << "digraph D {\n"
+                //<< "  rankdir=LR\n"
+                //<< "  ratio=\"fill\"\n"
+                << "  graph[layout=circo];\n"
+                //<< "  edge[style=\"bold\"];\n"
+                << "  node[style=\"solid,filled\", fillcolor=\"#8080ff\"];\n"
+                ;
 
-#ifndef M_NO_GRAPH
-    //////////////////////////////////////////////////////////////
-    // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp
-    std::ofstream dot_file("routing.dot");
-
-    dot_file << "digraph D {\n"
-             //<< "  rankdir=LR\n"
-             //<< "  ratio=\"fill\"\n"
-             << "  graph[layout=circo];\n"
-             //<< "  edge[style=\"bold\"];\n"
-             << "  node[style=\"solid,filled\", fillcolor=\"#8080ff\"];\n"
-             ;
-
-    graph_traits < graph_t >::edge_iterator ei, ei_end;
-    for (boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
-        graph_traits < graph_t >::edge_descriptor e = *ei;
-        graph_traits < graph_t >::vertex_descriptor u = source(e, g);
-        graph_traits < graph_t >::vertex_descriptor v = target(e, g);
-        if (u != v) {
-            char node1[68];
-            char node2[68];
-            node1[0] = '\"';
-            node1[1] = (char)('A' + u);
-            node1[2] = ':';
-            node1[3] = '\0';
-            node2[0] = '\"';
-            node2[1] = (char)('A' + v);
-            node2[2] = ':';
-            node2[3] = '\0';
-            const uint8_t *p_node1 = g[u].p_node;
-            const uint8_t *p_node2 = g[v].p_node;
-            for (int lp = 0; lp < 3; lp++) {
-                char s[3];
-                sprintf(s, "%02x", p_node1[lp]);
-                strcat(node1, s);
-                sprintf(s, "%02x", p_node2[lp]);
-                strcat(node2, s);
-            }
-            strcat(node1, "\"");
-            strcat(node2, "\"");
-            int col = memcmp(p_node1, p_node2, UCOIN_SZ_PUBKEY);
-            if (col > 0) {
-                dot_file << node1 << " -> " << node2
-                        << "["
-                        << "label=\""
-                        << std::hex << g[e].short_channel_id << std::dec
-                        //<< ","
-                        //<< g[e].fee_base_msat
-                        //<< ","
-                        //<< g[e].fee_prop_millionths
-                        //<< ","
-                        //<< g[e].cltv_expiry_delta
-                        << "\""
-                        << ", color=\"black\""
-                        << ", fontcolor=\"#804040\""
-                        << ", arrowhead=\"none\""
-                        << "]" << std::endl;
+        graph_traits < graph_t >::edge_iterator ei, ei_end;
+        for (boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
+            graph_traits < graph_t >::edge_descriptor e = *ei;
+            graph_traits < graph_t >::vertex_descriptor u = source(e, g);
+            graph_traits < graph_t >::vertex_descriptor v = target(e, g);
+            if (u != v) {
+                char node1[68];
+                char node2[68];
+                node1[0] = '\"';
+                node1[1] = (char)('A' + u);
+                node1[2] = ':';
+                node1[3] = '\0';
+                node2[0] = '\"';
+                node2[1] = (char)('A' + v);
+                node2[2] = ':';
+                node2[3] = '\0';
+                const uint8_t *p_node1 = g[u].p_node;
+                const uint8_t *p_node2 = g[v].p_node;
+                for (int lp = 0; lp < 3; lp++) {
+                    char s[3];
+                    sprintf(s, "%02x", p_node1[lp]);
+                    strcat(node1, s);
+                    sprintf(s, "%02x", p_node2[lp]);
+                    strcat(node2, s);
+                }
+                strcat(node1, "\"");
+                strcat(node2, "\"");
+                int col = memcmp(p_node1, p_node2, UCOIN_SZ_PUBKEY);
+                if (col > 0) {
+                    dot_file << node1 << " -> " << node2
+                            << "["
+                            << "label=\""
+                            << std::hex << g[e].short_channel_id << std::dec
+                            //<< ","
+                            //<< g[e].fee_base_msat
+                            //<< ","
+                            //<< g[e].fee_prop_millionths
+                            //<< ","
+                            //<< g[e].cltv_expiry_delta
+                            << "\""
+                            << ", color=\"black\""
+                            << ", fontcolor=\"#804040\""
+                            << ", arrowhead=\"none\""
+                            << "]" << std::endl;
+                }
             }
         }
+        dot_file << "}";
     }
-    dot_file << "}";
-    //////////////////////////////////////////////////////////////
-#endif
 
     return 0;
 }
