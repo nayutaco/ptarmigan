@@ -1049,11 +1049,11 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
         feerate = (uint32_t)(feerate / 4);
 #warning issue#46
-        //if (!ret || (feerate < LN_FEERATE_PER_KW)) {
-        //    // https://github.com/nayutaco/ptarmigan/issues/46
-        //    DBG_PRINTF("fee_per_rate is too low? :%lu\n", feerate);
-        //    feerate = LN_FEERATE_PER_KW;
-        //}
+        if (!ret) {
+           // https://github.com/nayutaco/ptarmigan/issues/46
+           DBG_PRINTF("fail: estimatefee\n");
+           feerate = LN_FEERATE_PER_KW;
+        }
         DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
 
         ucoin_util_wif2keys(&p_conf->p_funding->p_opening->fundin_keys, wif);

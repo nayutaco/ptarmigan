@@ -87,12 +87,9 @@ extern "C" {
 #define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
 #define LN_FUNDFLAG_ANNO_CH             (0x02)      ///< open_channel.channel_flags.announce_channel
 
-
-#define LN_MIN_FINAL_CLTV_EXPIRY        (9)         ///< min_final_cltv_expiryのデフォルト値
-                                                    // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#tagged-fields
-
-
 #define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
+                                                    ///< コメントアウトするとDB保存しなくなるが、revoked transaction closeから取り戻すために
+                                                    ///< 相手のアクションが必要となる
 
 
 /**************************************************************************
