@@ -86,10 +86,10 @@ typedef struct {
     uint32_t        last_cnl_anno_sent;     ///< 最後に送信したchannel_announcementのEPOCH TIME
     uint32_t        last_node_anno_sent;    ///< 最後に送信したnode_announcementのEPOCH TIME
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
-    bool            first;                  ///< false:node_announcement受信済み
+    bool            init_unrecv;            ///< false:init受信済み
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
-    uint32_t        funding_min_depth;
+    uint32_t        funding_min_depth;      ///< accept_channel.min_depth
     uint8_t         flag_ope;               ///< normal operation中フラグ
 
     pthread_cond_t  cond;           ///< muxの待ち合わせ

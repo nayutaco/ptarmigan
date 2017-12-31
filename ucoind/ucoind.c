@@ -305,5 +305,3 @@ static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id)
     }
     return p_appconf;
 }
-
-

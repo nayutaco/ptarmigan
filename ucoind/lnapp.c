@@ -730,7 +730,7 @@ static void *thread_main_start(void *pArg)
     p_conf->last_cnl_anno_sent = 0;
     p_conf->last_node_anno_sent = 0;
     p_conf->ping_counter = 0;
-    p_conf->first = true;
+    p_conf->init_unrecv = true;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
 
@@ -795,7 +795,7 @@ static void *thread_main_start(void *pArg)
 
     //コールバックでのINIT受信通知待ち
     pthread_mutex_lock(&p_conf->mux);
-    while (p_conf->loop && p_conf->first) {
+    while (p_conf->loop && p_conf->init_unrecv) {
         //init受信待ち合わせ(*1)
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
     }
@@ -988,7 +988,7 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
     assert(ret);
 
     //待ち合わせ解除(*3)用
-    p_conf->first = true;
+    p_conf->init_unrecv = true;
 
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
@@ -996,7 +996,7 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
     //コールバックでのchannel_reestablish受信通知待ち
     DBG_PRINTF("channel_reestablish受信\n");
     pthread_mutex_lock(&p_conf->mux);
-    while (p_conf->loop && p_conf->first) {
+    while (p_conf->loop && p_conf->init_unrecv) {
         //channel_reestablish受信待ち合わせ(*3)
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
     }
@@ -1290,7 +1290,7 @@ static void *thread_poll_start(void *pArg)
             break;
         }
 
-        if (p_conf->first) {
+        if (p_conf->init_unrecv) {
             //まだ接続していない
             continue;
         }
@@ -1746,10 +1746,8 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF("localfeatures: ");
     DUMPBIN(p->localfeatures.buf, p->localfeatures.len);
 
-    //init受信時に初期化
-    p_conf->first = false;
-
     //待ち合わせ解除(*1)
+    p_conf->init_unrecv = false;
     pthread_cond_signal(&p_conf->cond);
 }
 
@@ -1761,7 +1759,7 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     //待ち合わせ解除(*3)
-    p_conf->first = false;
+    p_conf->init_unrecv = false;
     pthread_cond_signal(&p_conf->cond);
 }
 
