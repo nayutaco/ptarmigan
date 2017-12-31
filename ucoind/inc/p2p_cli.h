@@ -45,7 +45,7 @@ void p2p_cli_init(void);
 /** [p2p_cli]開始
  *
  */
-void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx);
+void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx);
 
 
 /** [p2p_cli]全停止

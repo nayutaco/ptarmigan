@@ -70,7 +70,7 @@ void p2p_cli_init(void)
 }
 
 
-void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx)
+void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx)
 {
     int ret;
     struct sockaddr_in sv_addr;
@@ -136,7 +136,7 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
     DBG_PRINTF("connected: sock=%d\n", mAppConf[idx].sock);
 
     //スレッド起動
-    mAppConf[idx].initiator = true;         //init送信
+    mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
     memcpy(mAppConf[idx].node_id, pConn->node_id, UCOIN_SZ_PUBKEY);
     mAppConf[idx].cmd = Cmd;
     mAppConf[idx].p_funding = (funding_conf_t *)pParam;
@@ -184,7 +184,7 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
             break;
         }
     }
-    DBG_PRINTF("p_appconf= %p\n", p_appconf);
+    //DBG_PRINTF("p_appconf= %p\n", p_appconf);
 
     return p_appconf;
 }
@@ -218,8 +218,3 @@ bool p2p_cli_is_looping(void)
 
     return ret;
 }
-
-
-/********************************************************************
- * private functions
- ********************************************************************/

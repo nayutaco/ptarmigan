@@ -34,6 +34,7 @@
 #include "ucoind.h"
 #include "p2p_svr.h"
 #include "p2p_cli.h"
+#include "lnapp.h"
 #include "jsonrpc.h"
 #include "misc.h"
 #include "ln_db.h"
@@ -271,6 +272,12 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             //funding_tx未使用
             DBG_PRINTF("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
             DUMPTXID(ln_funding_txid(self));
+
+            //socket未接続であれば、接続しに行こうとする
+            lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
+            if (p_app_conf == NULL) {
+                DBG_PRINTF("disconnecting\n");
+            }
         }
         if (del) {
             DBG_PRINTF("delete from DB\n");

@@ -808,7 +808,7 @@ static void *thread_main_start(void *pArg)
     ln_set_shutdown_vout_addr(&my_self, payaddr);
 
     // Establishチェック
-    if ((p_conf->initiator) && (p_conf->cmd == DCMD_CREATE)) {
+    if (p_conf->cmd == DCMD_CREATE) {
         DBG_PRINTF("Establish開始\n");
         set_establish_default(p_conf, p_conf->node_id);
         send_open_channel(p_conf);

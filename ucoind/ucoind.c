@@ -52,13 +52,6 @@ static pthread_mutex_t      mMuxPreimage;
 
 
 /********************************************************************
- * prototypes
- ********************************************************************/
-
-static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id);
-
-
-/********************************************************************
  * entry point
  ********************************************************************/
 
@@ -226,7 +219,7 @@ bool ucoind_forward_payment(fwd_proc_add_t *p_add)
     DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", p_add->next_short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = search_connected_lnapp_cnl(p_add->next_short_channel_id);
+    p_appconf = ucoind_search_connected_cnl(p_add->next_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
         ret = lnapp_forward_payment(p_appconf, p_add);
@@ -246,7 +239,7 @@ bool ucoind_backward_fulfill(const ln_cb_fulfill_htlc_recv_t *pFulFill)
     DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pFulFill->prev_short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = search_connected_lnapp_cnl(pFulFill->prev_short_channel_id);
+    p_appconf = ucoind_search_connected_cnl(pFulFill->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
         ret = lnapp_backward_fulfill(p_appconf, pFulFill);
@@ -266,7 +259,7 @@ bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail)
     DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pFail->prev_short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = search_connected_lnapp_cnl(pFail->prev_short_channel_id);
+    p_appconf = ucoind_search_connected_cnl(pFail->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
         ret = lnapp_backward_fail(p_appconf, pFail, false);
@@ -290,12 +283,7 @@ void ucoind_preimage_unlock(void)
 }
 
 
-/**************************************************************************
- * private functions
- **************************************************************************/
-
-//short_channel_idから現在開いているlnappを検索
-static lnapp_conf_t *search_connected_lnapp_cnl(uint64_t short_channel_id)
+lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id)
 {
     lnapp_conf_t *p_appconf;
 

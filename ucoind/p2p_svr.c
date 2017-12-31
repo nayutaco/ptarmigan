@@ -146,7 +146,7 @@ void *p2p_svr_start(void *pArg)
             fprintf(PRINTOUT, "connect from addr=%s, port=%d\n", inet_ntoa(cl_addr.sin_addr), ntohs(cl_addr.sin_port));
 
             //スレッド起動
-            mAppConf[idx].initiator = false;        //init受信
+            mAppConf[idx].initiator = false;        //Noise Protocolの Act One受信
             memset(mAppConf[idx].node_id, 0, UCOIN_SZ_PUBKEY);
             mAppConf[idx].cmd = DCMD_NONE;
             mAppConf[idx].p_funding = NULL;
@@ -202,7 +202,7 @@ lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id)
             break;
         }
     }
-    DBG_PRINTF("p_appconf= %p\n", p_appconf);
+    //DBG_PRINTF("p_appconf= %p\n", p_appconf);
 
     return p_appconf;
 }
