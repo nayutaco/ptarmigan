@@ -530,7 +530,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
     ln_init(&my_self, mpNode, NULL, &mAnnoDef, NULL);
 
-    ret = ln_node_search_channel_id(&my_self, pNodeId);
+    ret = ln_node_search_channel(&my_self, pNodeId);
     if (!ret) {
         return false;
     }
@@ -758,7 +758,7 @@ static void *thread_main_start(void *pArg)
     bool detect = false;
     if (p_conf->cmd != DCMD_CREATE) {
         //既存チャネル接続の可能性あり
-        detect = ln_node_search_channel_id(&my_self, p_conf->node_id);
+        detect = ln_node_search_channel(&my_self, p_conf->node_id);
         if (detect) {
             DBG_PRINTF("    チャネルDB読込み\n");
         } else {

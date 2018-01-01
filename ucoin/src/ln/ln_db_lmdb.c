@@ -272,7 +272,7 @@ void ln_db_term(void)
 /********************************************************************
  * self
  ********************************************************************/
-
+#if 0
 bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId)
 {
     int         retval;
@@ -325,7 +325,7 @@ LABEL_EXIT2:
     DBG_PRINTF("retval=%d\n", retval);
     return retval == 0;
 }
-
+#endif
 
 int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 {
@@ -1349,7 +1349,6 @@ bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
     ln_free_revoked_buf(self);
 
     key.mv_size = 3;
-
     key.mv_data = "rvn";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {

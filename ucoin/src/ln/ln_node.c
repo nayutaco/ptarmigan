@@ -105,7 +105,7 @@ void ln_node_term(ln_node_t *node)
 }
 
 
-bool ln_node_search_channel_id(ln_self_t *pSelf, const uint8_t *pNodeId)
+bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId)
 {
     comp_param_cnl_t prm;
 

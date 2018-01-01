@@ -87,7 +87,7 @@ void ln_db_term(void);
  *      -
  *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
  */
-bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId);
+//bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId);
 
 
 /** channel情報書き込み

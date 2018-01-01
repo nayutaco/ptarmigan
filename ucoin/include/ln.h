@@ -1838,7 +1838,7 @@ void ln_node_term(ln_node_t *node);
  * @param[in]       pNodeId             検索するnode_id
  * @retval      true        検索成功
  */
-bool ln_node_search_channel_id(ln_self_t *pSelf, const uint8_t *pNodeId);
+bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId);
 
 
 /********************************************************************
