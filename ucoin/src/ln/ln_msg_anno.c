@@ -595,7 +595,9 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     pos += sizeof(uint32_t);
 
     //        [33:node_id]
-    memcpy(pMsg->p_node_id, pData + pos, UCOIN_SZ_PUBKEY);
+    if (pMsg->p_node_id != NULL) {
+        memcpy(pMsg->p_node_id, pData + pos, UCOIN_SZ_PUBKEY);
+    }
     pos += UCOIN_SZ_PUBKEY;
 
     //        [3:rgb_color]
@@ -603,7 +605,9 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     pos += 3;
 
     //        [32:alias]
-    memcpy(pMsg->p_alias, pData + pos, LN_SZ_ALIAS);
+    if (pMsg->p_alias != NULL) {
+        memcpy(pMsg->p_alias, pData + pos, LN_SZ_ALIAS);
+    }
     pos += LN_SZ_ALIAS;
 
     //        [2:addrlen]
@@ -646,22 +650,24 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
    node_announce_print(pMsg);
 #endif  //DBG_PRINT_READ
 
+    bool ret = true;
+    if (pMsg->p_node_id != NULL) {
+        //署名verify
+        uint8_t hash[UCOIN_SZ_HASH256];
 
-    //署名verify
-    uint8_t hash[UCOIN_SZ_HASH256];
+        ucoin_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
+                                    Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
+        //DBG_PRINTF("data=");
+        //DUMPBIN(pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
+        //DBG_PRINTF("hash=");
+        //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    ucoin_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
-                                Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-    //DBG_PRINTF("data=");
-    //DUMPBIN(pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-    //DBG_PRINTF("hash=");
-    //DUMPBIN(hash, UCOIN_SZ_HASH256);
-
-    bool ret = ucoin_tx_verify_rs(p_signature, hash, pMsg->p_node_id);
+        ret = ucoin_tx_verify_rs(p_signature, hash, pMsg->p_node_id);
 #warning ときどきverifyに失敗する
-    if (!ret) {
-        DBG_PRINTF("fail: verify... but through\n");
-        ret = true;
+        if (!ret) {
+            DBG_PRINTF("fail: verify... but through\n");
+            ret = true;
+        }
     }
 
     return ret;
@@ -675,12 +681,16 @@ static void node_announce_print(const ln_node_announce_t *pMsg)
     DBG_PRINTF2("-[node_announcement]-------------------------------\n\n");
     time_t t = (time_t)pMsg->timestamp;
     DBG_PRINTF2("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
-    DBG_PRINTF2("p_node_id: ");
-    DUMPBIN(pMsg->p_node_id, UCOIN_SZ_PUBKEY);
-    char alias[LN_SZ_ALIAS + 1];
-    memset(alias, 0, sizeof(alias));
-    memcpy(alias, pMsg->p_alias, LN_SZ_ALIAS);
-    DBG_PRINTF2("alias=%s\n", alias);
+    if (pMsg->p_node_id != NULL) {
+        DBG_PRINTF2("p_node_id: ");
+        DUMPBIN(pMsg->p_node_id, UCOIN_SZ_PUBKEY);
+    }
+    if (pMsg->p_alias != NULL) {
+        char alias[LN_SZ_ALIAS + 1];
+        memset(alias, 0, sizeof(alias));
+        memcpy(alias, pMsg->p_alias, LN_SZ_ALIAS);
+        DBG_PRINTF2("alias=%s\n", alias);
+    }
 //    DBG_PRINTF2("features= %u\n", pMsg->features);
     DBG_PRINTF2("addr desc: %02x\n", pMsg->addr.type);
     if (pMsg->addr.type != LN_NODEDESC_NONE) {

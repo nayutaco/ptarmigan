@@ -276,7 +276,26 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             //socket未接続であれば、接続しに行こうとする
             lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
             if (p_app_conf == NULL) {
-                DBG_PRINTF("disconnecting\n");
+                //node_id-->node_announcement-->接続先アドレス
+                DBG_PRINTF("disconnecting: %0" PRIx64 "\n", ln_short_channel_id(self));
+                DBG_PRINTF("  peer node_id: ");
+                const uint8_t *p_node_id = ln_their_node_id(self);
+                DUMPBIN(p_node_id, UCOIN_SZ_PUBKEY);
+
+                ln_node_announce_t anno;
+                ret = ln_node_search_nodeanno(&anno, p_node_id, p_db_param);
+                if (ret) {
+                    switch (anno.addr.type) {
+                    case LN_NODEDESC_IPV4:
+                        DBG_PRINTF("addr: %d.%d.%d.%d:%d\n", anno.addr.addrinfo.ipv4.addr[0], anno.addr.addrinfo.ipv4.addr[1], anno.addr.addrinfo.ipv4.addr[2], anno.addr.addrinfo.ipv4.addr[3], anno.addr.port);
+                        break;
+                    default:
+                        DBG_PRINTF("addrtype: %d\n", anno.addr.type);
+                        break;
+                    }
+                } else {
+                    DBG_PRINTF("  not found: node_announcement\n");
+                }
             }
         }
         if (del) {

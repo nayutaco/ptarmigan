@@ -201,21 +201,23 @@ void ln_db_cursor_anno_sinfo(void *pCur, uint64_t short_channel_id, ln_db_channe
 
 /** node_announcement読込み
  *
- * @param[out]      pNodeAnno
+ * @param[out]      pNodeAnno       node_announcement(NULL時は無視)
  * @param[out]      pTimeStamp      保存時間(NULL時は無視)
  * @param[out]      pSendId         送信元ノード(NULL時は無視)
- * @param[in]       pNodeId
+ * @param[in]       pNodeId         検索するnode_id
  * @retval      true    成功
  */
-bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId);
+bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId, void *pDbParam);
 
 
 /** node_announcement書込み
  *
- * @param[in]       pNodeAnno
+ * @param[in]       pNodeAnno       node_announcement
  * @param[in]       pSendId         送信元ノード
- * @param[in]       pNodeId
+ * @param[in]       pNodeId         node_id
  * @retval      true    成功
+ * @note
+ *      - タイムスタンプは呼び出し時になる
  */
 bool ln_db_save_anno_node(const ucoin_buf_t *pNodeAnno, const uint8_t *pSendId, const uint8_t *pNodeId);
 

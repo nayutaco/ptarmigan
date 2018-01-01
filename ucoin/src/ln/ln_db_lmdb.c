@@ -971,16 +971,20 @@ int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *p_short_channel_
  * node_announcement
  ********************************************************************/
 
-bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId)
+bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId, void *pDbParam)
 {
     int         retval;
     MDB_txn     *txn;
     MDB_dbi     dbi;
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
-    if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
+    if (pDbParam == NULL) {
+        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+    } else {
+        txn = ((lmdb_db_t *)pDbParam)->txn;
     }
     retval = mdb_dbi_open(txn, M_DB_ANNO_NODE, 0, &dbi);
     if (retval != 0) {
@@ -988,10 +992,11 @@ bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t 
         MDB_TXN_ABORT(txn);
         goto LABEL_EXIT;
     }
-
     retval = load_anno_node(txn, &dbi, pNodeAnno, pTimeStamp, pSendId, pNodeId);
 
-    MDB_TXN_ABORT(txn);
+    if (pDbParam == NULL) {
+        MDB_TXN_ABORT(txn);
+    }
 
 LABEL_EXIT:
     return retval == 0;
@@ -1577,6 +1582,7 @@ void ln_lmdb_setenv(MDB_env *p_env)
  * private functions
  ********************************************************************/
 
+#if 0
 /** channel_announcement読込み
  *
  * @param[out]      self
@@ -1601,7 +1607,7 @@ static int load_shared_secret(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 
     return retval;
 }
-
+#endif
 
 /** channel: HTLC shared secret書込み
  *
@@ -1985,6 +1991,16 @@ static int save_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_c
 }
 
 
+/* node_announcement取得
+ *
+ * @param[in,out]   txn
+ * @param[in]       pdbi
+ * @param[out]      pNodeAnno       (非NULL時)取得したnode_announcement
+ * @param[out]      pTimeStamp      (非NULL時)タイムスタンプ
+ * @param[out]      pSendId         (非NULL時)node_announcementの送信元
+ * @paramin]        pNodeId         検索するnode_id
+ * @retval      true    
+ */
 static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId)
 {
     MDB_val key, data;
@@ -1993,13 +2009,13 @@ static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, u
     key.mv_data = (CONST_CAST uint8_t *)pNodeId;
     int retval = mdb_get(txn, *pdbi, &key, &data);
     if (retval == 0) {
+        if (pTimeStamp != NULL) {
+            *pTimeStamp = *(uint32_t *)data.mv_data;
+        }
+        if (pSendId != NULL) {
+            memcpy(pSendId, (uint8_t *)data.mv_data + sizeof(uint32_t), UCOIN_SZ_PUBKEY);
+        }
         if (pNodeAnno != NULL) {
-            if (pTimeStamp != NULL) {
-                *pTimeStamp = *(uint32_t *)data.mv_data;
-            }
-            if (pSendId != NULL) {
-                memcpy(pSendId, (uint8_t *)data.mv_data + sizeof(uint32_t), UCOIN_SZ_PUBKEY);
-            }
             ucoin_buf_alloccopy(pNodeAnno, (uint8_t *)data.mv_data + sizeof(uint32_t) + UCOIN_SZ_PUBKEY, data.mv_size - sizeof(uint32_t) - UCOIN_SZ_PUBKEY);
         }
     } else {
@@ -2010,6 +2026,16 @@ static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, u
 }
 
 
+/* node_announcement書込み
+ *
+ * @param[in,out]   txn
+ * @param[in]       pdbi
+ * @param[in]       pNodeAnno       node_announcement
+ * @param[in]       pTimeStamp      タイムスタンプ
+ * @param[in]       pSendId         node_announcementの送信元
+ * @paramin]        pNodeId         検索するnode_id
+ * @retval      true    
+ */
 static int save_anno_node(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId)
 {
     MDB_val key, data;
