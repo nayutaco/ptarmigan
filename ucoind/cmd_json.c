@@ -86,6 +86,12 @@ void cmd_json_start(uint16_t Port)
 }
 
 
+uint16_t cmd_json_get_port(void)
+{
+    return (uint16_t)mJrpc.port_number;
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/
