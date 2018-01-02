@@ -93,7 +93,7 @@ void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam,
             SYSLOG_ERR("%s(): channel already opened", __func__);
             ctx->error_code = RPCERR_ALOPEN;
             ctx->error_message = strdup(RPCERR_ALOPEN_STR);
-        }
+            }
         return;
     }
 
@@ -164,7 +164,7 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId)
     int lp;
     for (lp = 0; lp < M_SOCK_MAX; lp++) {
         if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, UCOIN_SZ_PUBKEY) == 0)) {
-            DBG_PRINTF("found: client %d\n", lp);
+            //DBG_PRINTF("found: client %d\n", lp);
             p_appconf = &mAppConf[lp];
             break;
         }
@@ -179,7 +179,7 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
     lnapp_conf_t *p_appconf = NULL;
     for (int lp = 0; lp < M_SOCK_MAX; lp++) {
         if (mAppConf[lp].loop && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
-            DBG_PRINTF("found: client[%" PRIx64 "] %d\n", short_channel_id, lp);
+            //DBG_PRINTF("found: client[%" PRIx64 "] %d\n", short_channel_id, lp);
             p_appconf = &mAppConf[lp];
             break;
         }
