@@ -70,7 +70,7 @@ void p2p_cli_init(void)
 }
 
 
-void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx)
+void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx)
 {
     int ret;
     struct sockaddr_in sv_addr;
@@ -81,7 +81,7 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
         ctx->error_message = strdup(RPCERR_NODEID_STR);
         return;
     }
-    bool haveCnl = ln_node_search_channel_id(NULL, pConn->node_id);
+    bool haveCnl = ln_node_search_channel(NULL, pConn->node_id);
     DBG_PRINTF("pParam=%p, haveCnl=%d\n", pParam, haveCnl);
     if (((pParam == NULL) && !haveCnl) || ((pParam != NULL) && haveCnl)) {
         //接続しようとしてチャネルを開いていないか、開設しようとしてチャネルが開いている
@@ -93,7 +93,7 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
             SYSLOG_ERR("%s(): channel already opened", __func__);
             ctx->error_code = RPCERR_ALOPEN;
             ctx->error_message = strdup(RPCERR_ALOPEN_STR);
-        }
+            }
         return;
     }
 
@@ -136,7 +136,7 @@ void p2p_cli_start(my_daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pPar
     DBG_PRINTF("connected: sock=%d\n", mAppConf[idx].sock);
 
     //スレッド起動
-    mAppConf[idx].initiator = true;         //init送信
+    mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
     memcpy(mAppConf[idx].node_id, pConn->node_id, UCOIN_SZ_PUBKEY);
     mAppConf[idx].cmd = Cmd;
     mAppConf[idx].p_funding = (funding_conf_t *)pParam;
@@ -164,7 +164,7 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId)
     int lp;
     for (lp = 0; lp < M_SOCK_MAX; lp++) {
         if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, UCOIN_SZ_PUBKEY) == 0)) {
-            DBG_PRINTF("found: client %d\n", lp);
+            //DBG_PRINTF("found: client %d\n", lp);
             p_appconf = &mAppConf[lp];
             break;
         }
@@ -179,12 +179,12 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
     lnapp_conf_t *p_appconf = NULL;
     for (int lp = 0; lp < M_SOCK_MAX; lp++) {
         if (mAppConf[lp].loop && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
-            DBG_PRINTF("found: client[%" PRIx64 "] %d\n", short_channel_id, lp);
+            //DBG_PRINTF("found: client[%" PRIx64 "] %d\n", short_channel_id, lp);
             p_appconf = &mAppConf[lp];
             break;
         }
     }
-    DBG_PRINTF("p_appconf= %p\n", p_appconf);
+    //DBG_PRINTF("p_appconf= %p\n", p_appconf);
 
     return p_appconf;
 }
@@ -218,8 +218,3 @@ bool p2p_cli_is_looping(void)
 
     return ret;
 }
-
-
-/********************************************************************
- * private functions
- ********************************************************************/

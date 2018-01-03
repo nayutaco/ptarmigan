@@ -1830,7 +1830,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 void ln_node_term(ln_node_t *node);
 
 
-/** node_id検索(self DBから)
+/** channel情報検索(node_idから)
  *
  *      self DBから一致するnode_idを検索する。
  *
@@ -1838,7 +1838,16 @@ void ln_node_term(ln_node_t *node);
  * @param[in]       pNodeId             検索するnode_id
  * @retval      true        検索成功
  */
-bool ln_node_search_channel_id(ln_self_t *pSelf, const uint8_t *pNodeId);
+bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId);
+
+
+/** node_announcement検索(node_idから)
+ * 
+ * @param[out]      pNodeAnno           取得したnode_announcement
+ * @param[in]       pNodeId             検索するnode_id
+ * @retval      true        検索成功
+ */
+bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId, void *p_db_param);
 
 
 /********************************************************************

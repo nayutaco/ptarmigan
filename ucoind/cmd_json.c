@@ -86,6 +86,12 @@ void cmd_json_start(uint16_t Port)
 }
 
 
+uint16_t cmd_json_get_port(void)
+{
+    return (uint16_t)mJrpc.port_number;
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/
@@ -294,7 +300,7 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
         }
     } else {
         //未接続
-        bool haveCnl = ln_node_search_channel_id(NULL, conn.node_id);
+        bool haveCnl = ln_node_search_channel(NULL, conn.node_id);
         if (haveCnl) {
             //チャネルあり
             //  相手とのチャネルがあるので、接続自体は可能かもしれない。

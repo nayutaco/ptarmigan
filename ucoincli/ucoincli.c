@@ -23,16 +23,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/ipc.h>
-#include <sys/msg.h>
+//#include <sys/types.h>
+//#include <sys/stat.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+//#include <netinet/in.h>
 #include <arpa/inet.h>
-#include "jansson.h"
+
+#include <jansson.h>
 
 #include "ucoind.h"
 #include "conf.h"
@@ -83,7 +81,7 @@ static void close_rpc(char *pJson);
 static void debug_rpc(char *pJson, int debug);
 static void getcommittx_rpc(char *pJson);
 
-static int msg_send(char *pMsg, const char *pAddr, uint16_t Port, bool bSend);
+static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t Port, bool bSend);
 
 
 /********************************************************************
@@ -298,7 +296,7 @@ int main(int argc, char *argv[])
 
     uint16_t port = (uint16_t)atoi(argv[optind]);
 
-    int ret = msg_send(mBuf, p_addr, port, b_send);
+    int ret = msg_send(mBuf, mBuf, p_addr, port, b_send);
 
     ucoin_term();
 
@@ -474,14 +472,14 @@ static void getcommittx_rpc(char *pJson)
 }
 
 
-static int msg_send(char *pMsg, const char *pAddr, uint16_t Port, bool bSend)
+static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t Port, bool bSend)
 {
     int retval = -1;
 
     if (bSend) {
         struct sockaddr_in sv_addr;
 
-        fprintf(stderr, "%s\n", pMsg);
+        fprintf(stderr, "%s\n", pSend);
         int sock = socket(PF_INET, SOCK_STREAM, 0);
         if (sock < 0) {
             return retval;
@@ -499,16 +497,16 @@ static int msg_send(char *pMsg, const char *pAddr, uint16_t Port, bool bSend)
             close(sock);
             return retval;
         }
-        write(sock, pMsg, strlen(pMsg));
-        ssize_t len = read(sock, pMsg, BUFFER_SIZE);
+        write(sock, pSend, strlen(pSend));
+        ssize_t len = read(sock, pRecv, BUFFER_SIZE);
         if (len > 0) {
             retval = -1;
-            pMsg[len] = '\0';
-            printf("%s\n", pMsg);
+            pRecv[len] = '\0';
+            printf("%s\n", pRecv);
 
             json_t *p_root;
             json_error_t error;
-            p_root = json_loads(pMsg, 0, &error);
+            p_root = json_loads(pRecv, 0, &error);
             if (p_root) {
                 json_t *p_result;
                 p_result = json_object_get(p_root, "result");
@@ -520,7 +518,7 @@ static int msg_send(char *pMsg, const char *pAddr, uint16_t Port, bool bSend)
         }
         close(sock);
     } else {
-        fprintf(stdout, "%s\n", pMsg);
+        fprintf(stdout, "%s\n", pSend);
         retval = 0;
     }
 
