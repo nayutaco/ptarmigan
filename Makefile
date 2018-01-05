@@ -28,7 +28,7 @@ clean:
 
 full: git_subs lib default
 
-distclean: lib_clean clean example_clean
+distclean: lib_clean clean
 
 update:
 	make -C ucoin clean
