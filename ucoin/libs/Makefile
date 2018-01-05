@@ -2,7 +2,7 @@ INSTALL_DIR = $(CURDIR)/install
 
 all: lib
 
-lib: mk_install mk_base58 mk_bech32 mk_sodium mk_lmdb mk_mbedtls
+lib: mk_install mk_base58 mk_mbedtls mk_bech32 mk_sodium mk_lmdb
 
 mk_install:
 	@mkdir -p $(INSTALL_DIR)
