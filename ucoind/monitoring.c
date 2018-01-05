@@ -28,13 +28,17 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <assert.h>
 
 #define UCOIN_DEBUG_MEM
 #include "ucoind.h"
 #include "p2p_svr.h"
 #include "p2p_cli.h"
+#include "lnapp.h"
 #include "jsonrpc.h"
+#include "cmd_json.h"
 #include "misc.h"
 #include "ln_db.h"
 
@@ -76,6 +80,8 @@ static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int
 
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout);
+
+static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 
 
 /**************************************************************************
@@ -271,6 +277,45 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             //funding_tx未使用
             DBG_PRINTF("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
             DUMPTXID(ln_funding_txid(self));
+
+            //socket未接続であれば、接続しに行こうとする
+            lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
+            if (p_app_conf == NULL) {
+                //node_id-->node_announcement-->接続先アドレス
+                DBG_PRINTF("disconnecting: %0" PRIx64 "\n", ln_short_channel_id(self));
+                DBG_PRINTF("  peer node_id: ");
+                const uint8_t *p_node_id = ln_their_node_id(self);
+                DUMPBIN(p_node_id, UCOIN_SZ_PUBKEY);
+
+                ln_node_announce_t anno;
+                ret = ln_node_search_nodeanno(&anno, p_node_id, p_db_param);
+                if (ret) {
+                    switch (anno.addr.type) {
+                    case LN_NODEDESC_IPV4:
+                        {
+                            //自分に対して「接続要求」のJSON-RPCを送信する
+                            char ipaddr[15 + 1];
+                            sprintf(ipaddr, "%d.%d.%d.%d",
+                                        anno.addr.addrinfo.ipv4.addr[0], anno.addr.addrinfo.ipv4.addr[1],
+                                        anno.addr.addrinfo.ipv4.addr[2], anno.addr.addrinfo.ipv4.addr[3]);
+
+                            char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
+                            char json[256];
+                            misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
+                            sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
+                            DBG_PRINTF("%s\n", json);
+                            int retval = send_json(json, "127.0.0.1", cmd_json_get_port());
+                            DBG_PRINTF("retval=%d\n", retval);
+                        }
+                        break;
+                    default:
+                        DBG_PRINTF("addrtype: %d\n", anno.addr.type);
+                        break;
+                    }
+                } else {
+                    DBG_PRINTF("  not found: node_announcement\n");
+                }
+            }
         }
         if (del) {
             DBG_PRINTF("delete from DB\n");
@@ -737,4 +782,35 @@ static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *
     }
 
     return ret;
+}
+
+
+/** JSON-RPC送信
+ *
+ */
+static int send_json(const char *pSend, const char *pAddr, uint16_t Port)
+{
+    int retval = -1;
+    struct sockaddr_in sv_addr;
+
+    int sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        return retval;
+    }
+    memset(&sv_addr, 0, sizeof(sv_addr));
+    sv_addr.sin_family = AF_INET;
+    sv_addr.sin_addr.s_addr = inet_addr(pAddr);
+    sv_addr.sin_port = htons(Port);
+    retval = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+    if (retval < 0) {
+        close(sock);
+        return retval;
+    }
+    write(sock, pSend, strlen(pSend));
+
+    //受信を待つとDBの都合でロックしてしまうため、すぐに閉じる
+
+    close(sock);
+
+    return 0;
 }

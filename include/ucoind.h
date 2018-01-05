@@ -145,7 +145,7 @@ typedef enum {
     DCMD_PAYMENT,       ///< payment
     DCMD_SHOW_LIST,     ///< channel一覧
     DCMD_STOP,          ///< ucoind停止
-} my_daemoncmd_t;
+} daemoncmd_t;
 
 
 typedef struct {
@@ -209,7 +209,6 @@ typedef struct {
     uint64_t        htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
     uint32_t        fee_base_msat;                  ///< 4:  fee_base_msat
     uint32_t        fee_prop_millionths;            ///< 4:  fee_proportional_millionths
-    uint32_t        min_final_cltv_expiry;          ///< min_final_cltv_expiry
 } anno_conf_t;
 
 
@@ -236,6 +235,10 @@ typedef struct {
 } fwd_proc_add_t;
 
 
+struct lnapp_conf_t;
+typedef struct lnapp_conf_t lnapp_conf_t;
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
@@ -248,5 +251,7 @@ bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail);
 
 void ucoind_preimage_lock(void);
 void ucoind_preimage_unlock(void);
+
+lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id);
 
 #endif /* UCOIND_H__ */

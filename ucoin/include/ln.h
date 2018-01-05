@@ -87,12 +87,9 @@ extern "C" {
 #define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
 #define LN_FUNDFLAG_ANNO_CH             (0x02)      ///< open_channel.channel_flags.announce_channel
 
-
-#define LN_MIN_FINAL_CLTV_EXPIRY        (9)         ///< min_final_cltv_expiryのデフォルト値
-                                                    // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#tagged-fields
-
-
 #define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
+                                                    ///< コメントアウトするとDB保存しなくなるが、revoked transaction closeから取り戻すために
+                                                    ///< 相手のアクションが必要となる
 
 
 /**************************************************************************
@@ -1833,7 +1830,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 void ln_node_term(ln_node_t *node);
 
 
-/** node_id検索(self DBから)
+/** channel情報検索(node_idから)
  *
  *      self DBから一致するnode_idを検索する。
  *
@@ -1841,7 +1838,16 @@ void ln_node_term(ln_node_t *node);
  * @param[in]       pNodeId             検索するnode_id
  * @retval      true        検索成功
  */
-bool ln_node_search_channel_id(ln_self_t *pSelf, const uint8_t *pNodeId);
+bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId);
+
+
+/** node_announcement検索(node_idから)
+ * 
+ * @param[out]      pNodeAnno           取得したnode_announcement
+ * @param[in]       pNodeId             検索するnode_id
+ * @retval      true        検索成功
+ */
+bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId, void *p_db_param);
 
 
 /********************************************************************

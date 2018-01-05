@@ -33,4 +33,10 @@
  */
 void cmd_json_start(uint16_t Port);
 
+
+/**
+ * @retval  ポート番号
+ */
+uint16_t cmd_json_get_port(void);
+
 #endif  //CMD_JSON_H__

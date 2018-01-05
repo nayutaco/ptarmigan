@@ -453,8 +453,6 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
         pconfig->fee_base_msat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "fee_prop_millionths") == 0) {
         pconfig->fee_prop_millionths = strtoull(value, NULL, 10);
-    } else if (strcmp(name, "min_final_cltv_expiry") == 0) {
-        pconfig->min_final_cltv_expiry = strtoull(value, NULL, 10);
     } else {
         return 0;  /* unknown section/name, error */
     }

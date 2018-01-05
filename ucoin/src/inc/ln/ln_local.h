@@ -179,7 +179,7 @@ bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
 /**
  *
  */
-bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
+bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig,
                     uint64_t Value,
                     const ucoin_util_keys_t *pKeys,
                     const ucoin_buf_t *pWitScript, bool bRevoked);

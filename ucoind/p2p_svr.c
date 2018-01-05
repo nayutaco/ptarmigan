@@ -146,7 +146,7 @@ void *p2p_svr_start(void *pArg)
             fprintf(PRINTOUT, "connect from addr=%s, port=%d\n", inet_ntoa(cl_addr.sin_addr), ntohs(cl_addr.sin_port));
 
             //スレッド起動
-            mAppConf[idx].initiator = false;        //init受信
+            mAppConf[idx].initiator = false;        //Noise Protocolの Act One受信
             memset(mAppConf[idx].node_id, 0, UCOIN_SZ_PUBKEY);
             mAppConf[idx].cmd = DCMD_NONE;
             mAppConf[idx].p_funding = NULL;
@@ -182,7 +182,7 @@ lnapp_conf_t *p2p_svr_search_node(const uint8_t *pNodeId)
     int lp;
     for (lp = 0; lp < M_SOCK_MAX; lp++) {
         if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, UCOIN_SZ_PUBKEY) == 0)) {
-            DBG_PRINTF("found: server %d\n", lp);
+            //DBG_PRINTF("found: server %d\n", lp);
             p_appconf = &mAppConf[lp];
             break;
         }
@@ -197,12 +197,12 @@ lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id)
     lnapp_conf_t *p_appconf = NULL;
     for (int lp = 0; lp < M_SOCK_MAX; lp++) {
         if (mAppConf[lp].loop && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
-            DBG_PRINTF("found: server[%" PRIx64 "] %d\n", short_channel_id, lp);
+            //DBG_PRINTF("found: server[%" PRIx64 "] %d\n", short_channel_id, lp);
             p_appconf = &mAppConf[lp];
             break;
         }
     }
-    DBG_PRINTF("p_appconf= %p\n", p_appconf);
+    //DBG_PRINTF("p_appconf= %p\n", p_appconf);
 
     return p_appconf;
 }

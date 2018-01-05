@@ -146,7 +146,7 @@ bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
 }
 
 
-bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
+bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig,
                     uint64_t Value,
                     const ucoin_util_keys_t *pKeys,
                     const ucoin_buf_t *pWitScript, bool bRevoked)
@@ -164,7 +164,7 @@ bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
     //vinは1つしかないので、Indexは0固定
     ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
 
-    ret = ucoin_util_sign_p2wsh_2(pDelayedSig, sighash, pKeys);
+    ret = ucoin_util_sign_p2wsh_2(pSig, sighash, pKeys);
     if (ret) {
         // <delayedsig>
         // 0
@@ -173,7 +173,7 @@ bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pDelayedSig,
         const ucoin_buf_t wit0 = { NULL, 0 };
         const ucoin_buf_t wit1 = { (CONST_CAST uint8_t *)&WIT1, 1 };
         const ucoin_buf_t *wits[] = {
-            pDelayedSig,
+            pSig,
             NULL,
             pWitScript
         };

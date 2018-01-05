@@ -309,13 +309,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
         goto LABEL_EXIT;
     }
 
-    //min_final_cltv_expiryオフセット
-    DBG_PRINTF("pAppConf->min_final_cltv_expiry=%d\n", (int)pAppConf->min_final_cltv_expiry);
-    for (int lp = 0; lp < pPay->hop_num; lp++) {
-        pPay->hop_datain[lp].outgoing_cltv_value += pAppConf->min_final_cltv_expiry;
-        DBG_PRINTF2("[%d]%016" PRIx64 ": %" PRIu64 ", %" PRIu32 "\n", lp, pPay->hop_datain[lp].short_channel_id, pPay->hop_datain[lp].amt_to_forward, pPay->hop_datain[lp].outgoing_cltv_value);
-    }
-
     //amount, CLTVチェック(最後の値はチェックしない)
     for (int lp = 1; lp < pPay->hop_num - 1; lp++) {
         if (pPay->hop_datain[lp - 1].amt_to_forward < pPay->hop_datain[lp].amt_to_forward) {
@@ -537,7 +530,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
     ln_init(&my_self, mpNode, NULL, &mAnnoDef, NULL);
 
-    ret = ln_node_search_channel_id(&my_self, pNodeId);
+    ret = ln_node_search_channel(&my_self, pNodeId);
     if (!ret) {
         return false;
     }
@@ -708,15 +701,11 @@ static void *thread_main_start(void *pArg)
         mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
         mAnnoDef.fee_base_msat = aconf.fee_base_msat;
         mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
-        //
-        p_conf->min_final_cltv_expiry = aconf.min_final_cltv_expiry;
     } else {
         mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
         mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
         mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
         mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
-        //
-        p_conf->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     }
 
     //スレッド
@@ -741,7 +730,7 @@ static void *thread_main_start(void *pArg)
     p_conf->last_cnl_anno_sent = 0;
     p_conf->last_node_anno_sent = 0;
     p_conf->ping_counter = 0;
-    p_conf->first = true;
+    p_conf->init_unrecv = true;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
 
@@ -769,7 +758,7 @@ static void *thread_main_start(void *pArg)
     bool detect = false;
     if (p_conf->cmd != DCMD_CREATE) {
         //既存チャネル接続の可能性あり
-        detect = ln_node_search_channel_id(&my_self, p_conf->node_id);
+        detect = ln_node_search_channel(&my_self, p_conf->node_id);
         if (detect) {
             DBG_PRINTF("    チャネルDB読込み\n");
         } else {
@@ -806,7 +795,7 @@ static void *thread_main_start(void *pArg)
 
     //コールバックでのINIT受信通知待ち
     pthread_mutex_lock(&p_conf->mux);
-    while (p_conf->loop && p_conf->first) {
+    while (p_conf->loop && p_conf->init_unrecv) {
         //init受信待ち合わせ(*1)
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
     }
@@ -819,7 +808,7 @@ static void *thread_main_start(void *pArg)
     ln_set_shutdown_vout_addr(&my_self, payaddr);
 
     // Establishチェック
-    if ((p_conf->initiator) && (p_conf->cmd == DCMD_CREATE)) {
+    if (p_conf->cmd == DCMD_CREATE) {
         DBG_PRINTF("Establish開始\n");
         set_establish_default(p_conf, p_conf->node_id);
         send_open_channel(p_conf);
@@ -999,7 +988,7 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
     assert(ret);
 
     //待ち合わせ解除(*3)用
-    p_conf->first = true;
+    p_conf->init_unrecv = true;
 
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
@@ -1007,7 +996,7 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
     //コールバックでのchannel_reestablish受信通知待ち
     DBG_PRINTF("channel_reestablish受信\n");
     pthread_mutex_lock(&p_conf->mux);
-    while (p_conf->loop && p_conf->first) {
+    while (p_conf->loop && p_conf->init_unrecv) {
         //channel_reestablish受信待ち合わせ(*3)
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
     }
@@ -1060,10 +1049,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
         feerate = (uint32_t)(feerate / 4);
 #warning issue#46
-        if (!ret || (feerate < LN_FEERATE_PER_KW)) {
-            // https://github.com/nayutaco/ptarmigan/issues/46
-            DBG_PRINTF("fee_per_rate is too low? :%lu\n", feerate);
-            feerate = LN_FEERATE_PER_KW;
+        if (!ret) {
+           // https://github.com/nayutaco/ptarmigan/issues/46
+           DBG_PRINTF("fail: estimatefee\n");
+           feerate = LN_FEERATE_PER_KW;
         }
         DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
 
@@ -1301,7 +1290,7 @@ static void *thread_poll_start(void *pArg)
             break;
         }
 
-        if (p_conf->first) {
+        if (p_conf->init_unrecv) {
             //まだ接続していない
             continue;
         }
@@ -1757,10 +1746,8 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF("localfeatures: ");
     DUMPBIN(p->localfeatures.buf, p->localfeatures.len);
 
-    //init受信時に初期化
-    p_conf->first = false;
-
     //待ち合わせ解除(*1)
+    p_conf->init_unrecv = false;
     pthread_cond_signal(&p_conf->cond);
 }
 
@@ -1772,7 +1759,7 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     //待ち合わせ解除(*3)
-    p_conf->first = false;
+    p_conf->init_unrecv = false;
     pthread_cond_signal(&p_conf->cond);
 }
 
@@ -2007,17 +1994,19 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
     DBG_PRINTF2("  id=%" PRIu64 "\n", p_add->id);
 
-    DBG_PRINTF2("  b_exit: %d\n", p_add->p_hop->b_exit);
+    DBG_PRINTF2("  %s\n", (p_add->p_hop->b_exit) ? "intended recipient" : "forwarding HTLCs");
     //転送先
     DBG_PRINTF2("  FWD: short_channel_id: %" PRIx64 "\n", p_add->p_hop->short_channel_id);
     DBG_PRINTF2("  FWD: amt_to_forward: %" PRIu64 "\n", p_add->p_hop->amt_to_forward);
     DBG_PRINTF2("  FWD: outgoing_cltv_value: %d\n", p_add->p_hop->outgoing_cltv_value);
     DBG_PRINTF2("  -------\n");
     //自分への通知
+    int height = jsonrpc_getblockcount();
     DBG_PRINTF2("  amount_msat: %" PRIu64 "\n", p_add->amount_msat);
     DBG_PRINTF2("  cltv_expiry: %d\n", p_add->cltv_expiry);
     DBG_PRINTF2("  my fee : %" PRIu64 "\n", (uint64_t)(p_add->amount_msat - p_add->p_hop->amt_to_forward));
-    DBG_PRINTF2("  cltv_delta : %" PRIu32 " - %" PRIu32" = %d\n", p_add->cltv_expiry, p_add->p_hop->outgoing_cltv_value, p_add->cltv_expiry - p_add->p_hop->outgoing_cltv_value);
+    DBG_PRINTF2("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",  p_add->p_hop->outgoing_cltv_value, p_add->cltv_expiry - p_add->p_hop->outgoing_cltv_value);
+    DBG_PRINTF2("  cltv_expiry - height(%d) = %d\n", height, p_add->cltv_expiry - height);
 
     ucoind_preimage_lock();
     if (p_add->p_hop->b_exit) {

@@ -1350,7 +1350,7 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
 {
     bool ret;
     ucoin_util_keys_t signkey;
-    ucoin_buf_t sig_delayed;
+    ucoin_buf_t sig;
 
     //to_localのFEE
     uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
@@ -1371,6 +1371,7 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
         ucoin_keys_priv2pub(signkey.pub, signkey.priv);
         assert(memcmp(signkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
     } else {
+        //<revocationsecretkey>
         ln_derkey_revocationprivkey(signkey.priv,
                     self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
@@ -1383,9 +1384,9 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
     DBG_PRINTF("key-pub : ");
     DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
-    ucoin_buf_init(&sig_delayed);
-    ret = ln_sign_tolocal_tx(pTx, &sig_delayed, Value, &signkey, pScript, bRevoked);
-    ucoin_buf_free(&sig_delayed);
+    ucoin_buf_init(&sig);
+    ret = ln_sign_tolocal_tx(pTx, &sig, Value, &signkey, pScript, bRevoked);
+    ucoin_buf_free(&sig);
 
 LABEL_EXIT:
     return ret;
@@ -1982,6 +1983,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
     self->short_channel_id = 0;
+    self->remote_commit_num = 1;
     ln_cb_funding_t funding;
     funding.p_tx_funding = NULL;
     funding.p_txid = self->funding_local.txid;
@@ -2038,6 +2040,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
     self->short_channel_id = 0;
+    self->remote_commit_num = 1;
     ln_cb_funding_t funding;
     funding.p_tx_funding = &self->tx_funding;
     funding.p_txid = self->funding_local.txid;
@@ -2800,7 +2803,8 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     (void)self; (void)pData; (void)Len;
     DBG_PRINTF("BEGIN\n");
-    return false;
+#warning not implemented
+    return true;
 }
 
 
@@ -2808,7 +2812,8 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
 {
     (void)self; (void)pData; (void)Len;
     DBG_PRINTF("BEGIN\n");
-    return false;
+#warning not implemented
+    return true;
 }
 
 
@@ -2938,13 +2943,14 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     ret = ln_db_save_anno_channel(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
     if (!ret) {
         DBG_PRINTF("fail: ln_db_save_anno_channel\n");
-        goto LABEL_EXIT;
+        //goto LABEL_EXIT;
     }
     ret = ln_db_save_anno_channel_upd(&buf_upd, ln_short_channel_id(self), self->peer_node.sort);
     if (!ret) {
         DBG_PRINTF("fail: ln_db_save_anno_channel_upd\n");
-        goto LABEL_EXIT;
+        //goto LABEL_EXIT;
     }
+    ret = true;
 
     self->anno_flag |= M_ANNO_FLAG_RECV;
 
@@ -3008,6 +3014,8 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 
     //DB保存
     ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
+    DBG_PRINTF("db save ret=%d\n", ret);
+    ret = true;
 
     return ret;
 }
@@ -3029,8 +3037,6 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //verify
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
-    DBG_PRINTF("ret=%d\n", ret);
-
     if (ret) {
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
@@ -3039,8 +3045,12 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
         } else {
-            DBG_PRINTF("fail\n");
+            DBG_PRINTF("fail: maybe no DB...ignore\n");
+            ln_msg_cnl_update_print(&upd);
+            ret = true;
         }
+    } else {
+        DBG_PRINTF("fail: verify\n");
     }
 
     if (ret) {
@@ -3049,8 +3059,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
         ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & 0x0001);
-    } else {
-        DBG_PRINTF("fail\n");
+        DBG_PRINTF("db save ret=%d\n", ret);
+        ret = true;
     }
 
     return ret;
@@ -3265,34 +3275,8 @@ static bool create_to_local(ln_self_t *self,
             if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
                 DBG_PRINTF("+++[%d]to_local\n", vout_idx);
                 if (pTxHtlcs != NULL) {
-#if 1
                     ret = ln_create_tolocal_spent(self, &tx, tx_local.vout[vout_idx].value, to_self_delay,
                             &buf_ws, self->commit_local.txid, vout_idx, false);
-#else
-                    //to_localのFEE
-                    uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
-                    ret = ln_create_tolocal_tx(&tx, tx_local.vout[vout_idx].value - fee_tolocal,
-                            &self->shutdown_scriptpk_local, to_self_delay,
-                            self->commit_local.txid, vout_idx, false);
-                    assert(ret);
-
-                    //<delayed_secretkey>
-                    ucoin_util_keys_t delayedkey;
-                    ln_derkey_privkey(delayedkey.priv,
-                                self->funding_local.keys[MSG_FUNDIDX_DELAYED].pub,
-                                self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
-                                self->funding_local.keys[MSG_FUNDIDX_DELAYED].priv);
-                    ucoin_keys_priv2pub(delayedkey.pub, delayedkey.priv);
-                    assert(memcmp(delayedkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
-
-                    ucoin_buf_t sig_delayed;
-                    ucoin_buf_init(&sig_delayed);
-                    ret = ln_sign_tolocal_tx(&tx, &sig_delayed, tx_local.vout[vout_idx].value,
-                            &delayedkey,
-                            &buf_ws, false);
-                    assert(ret);
-                    ucoin_buf_free(&sig_delayed);
-#endif
                     if (ret) {
                         ucoin_print_tx(&tx);
                     }
@@ -3625,9 +3609,7 @@ static bool create_to_remote(ln_self_t *self,
         ucoin_tx_init(&tx);
         ln_misc_sigexpand(&buf_remotesig, self->commit_remote.signature);
 
-        //署名用鍵
-        //  remoteでは、other_remotekey(= other htlc_basetpoint & local per_commitment_point)でverifyしているので、
-        //  それに対応する秘密鍵(= local htlcsecret & other per_commitment_point)を作成する
+        //htlc_signature用鍵
         ucoin_util_keys_t htlckey;
         ln_derkey_privkey(htlckey.priv,
                     self->funding_local.keys[MSG_FUNDIDX_HTLC].pub,
