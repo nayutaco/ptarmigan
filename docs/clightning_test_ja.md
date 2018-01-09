@@ -1,6 +1,6 @@
 # c-lightning test
 
- 1. [btc]~/bitcoin.conf
+ 1. [btc]~/.bitcoin/bitcoin.conf
 
 ```text
 rpcuser=bitcoinuser
