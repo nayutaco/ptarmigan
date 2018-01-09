@@ -3,12 +3,12 @@
  1. [btc]~/bitcoin.conf
 
 ```text
-     rpcuser=bitcoinuser
-     rpcpassword=bitcoinpassword
-     server=1
-     txindex=1
-     rpcport=18443
-     regtest=1
+rpcuser=bitcoinuser
+rpcpassword=bitcoinpassword
+server=1
+txindex=1
+rpcport=18443
+regtest=1
 ```
 
 2. [btc]bitcoind起動
