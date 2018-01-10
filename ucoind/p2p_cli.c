@@ -1,4 +1,4 @@
-﻿/*
+/*
  *  Copyright (C) 2017, Nayuta, Inc. All Rights Reserved
  *  SPDX-License-Identifier: Apache-2.0
  *
@@ -87,8 +87,8 @@ void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam,
         //接続しようとしてチャネルを開いていないか、開設しようとしてチャネルが開いている
         if (pParam == NULL) {
             SYSLOG_ERR("%s(): channel not open", __func__);
-            ctx->error_code = RPCERR_NOOPEN;
-            ctx->error_message = strdup(RPCERR_NOOPEN_STR);
+            // ctx->error_code = RPCERR_NOOPEN;
+            // ctx->error_message = strdup(RPCERR_NOOPEN_STR);
         } else {
             SYSLOG_ERR("%s(): channel already opened", __func__);
             ctx->error_code = RPCERR_ALOPEN;
