@@ -93,8 +93,8 @@ void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam,
             SYSLOG_ERR("%s(): channel already opened", __func__);
             ctx->error_code = RPCERR_ALOPEN;
             ctx->error_message = strdup(RPCERR_ALOPEN_STR);
-            }
-        return;
+            return;
+        }
     }
 
     int idx;
