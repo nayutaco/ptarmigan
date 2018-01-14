@@ -703,7 +703,7 @@ bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPr
 
 /** 署名計算(r/s)
  *
- * @param[out]      pRS         署名結果rs[64]
+ * @param[out]      pRS         署名結果rs[UCOIN_SZ_SIGN_RS=64]
  * @param[in]       pTxHash     トランザクションハッシュ
  * @param[in]       pPrivKey    秘密鍵
  * @return          true        成功
@@ -726,7 +726,7 @@ bool ucoin_tx_verify(const ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint
 
 /** 署名チェック(r/s)
  *
- * @param[in]       pRS         署名rs[64]
+ * @param[in]       pRS         署名rs[UCOIN_SZ_SIGN_RS=64]
  * @param[in]       pTxHash     トランザクションハッシュ
  * @param[in]       pPubKey     公開鍵
  * @return          true:チェックOK
