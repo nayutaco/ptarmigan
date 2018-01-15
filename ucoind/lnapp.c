@@ -846,11 +846,19 @@ static void *thread_main_start(void *pArg)
     // method: connected
     // $1: short_channel_id
     // $2: node_id
+    // $3: peer_id
+    // $4: JSON-RPC port
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
     misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+    char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
+    misc_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
     char param[256];
-    sprintf(param, "%" PRIx64 " %s",
-                ln_short_channel_id(p_conf->p_self), node_id);
+    sprintf(param, "%" PRIx64 " %s "
+                "%s "
+                "%" PRIu16,
+                ln_short_channel_id(p_conf->p_self), node_id,
+                peer_id,
+                cmd_json_get_port());
     call_script(M_EVT_CONNECTED, param);
 
     while (p_conf->loop) {
