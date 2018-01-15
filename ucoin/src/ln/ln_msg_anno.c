@@ -636,7 +636,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
             pos += addrlen;
         }
     } else {
-        pMsg->addr.type = LN_NODEDESC_NULL;
+        pMsg->addr.type = LN_NODEDESC_NONE;
     }
 
     //assert(Len == pos);

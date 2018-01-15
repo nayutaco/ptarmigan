@@ -82,7 +82,6 @@ extern "C" {
 #define LN_NODEDESC_ONIONV2             (3)         ///< tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
 #define LN_NODEDESC_ONIONV3             (4)         ///< tor v3 onion service. data [35:onion_addr][2:port] (length 37)
 #define LN_NODEDESC_MAX                 LN_NODEDESC_ONIONV3
-#define LN_NODEDESC_NULL                (255)
 
 // self->fund_flag
 #define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
