@@ -64,6 +64,7 @@ static lnapp_conf_t     mAppConf[M_SOCK_MAX];
 
 void p2p_cli_init(void)
 {
+    memset(&mAppConf, 0, sizeof(mAppConf));
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         mAppConf[lp].sock = -1;
     }
@@ -80,21 +81,6 @@ void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam,
         ctx->error_code = RPCERR_NODEID;
         ctx->error_message = strdup(RPCERR_NODEID_STR);
         return;
-    }
-    bool haveCnl = ln_node_search_channel(NULL, pConn->node_id);
-    DBG_PRINTF("pParam=%p, haveCnl=%d\n", pParam, haveCnl);
-    if (((pParam == NULL) && !haveCnl) || ((pParam != NULL) && haveCnl)) {
-        //接続しようとしてチャネルを開いていないか、開設しようとしてチャネルが開いている
-        if (pParam == NULL) {
-            SYSLOG_ERR("%s(): channel not open", __func__);
-            // ctx->error_code = RPCERR_NOOPEN;
-            // ctx->error_message = strdup(RPCERR_NOOPEN_STR);
-        } else {
-            SYSLOG_ERR("%s(): channel already opened", __func__);
-            ctx->error_code = RPCERR_ALOPEN;
-            ctx->error_message = strdup(RPCERR_ALOPEN_STR);
-            return;
-        }
     }
 
     int idx;

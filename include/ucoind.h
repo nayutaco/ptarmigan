@@ -169,7 +169,6 @@ typedef struct {
     char            signaddr[UCOIN_SZ_ADDR_MAX];
     uint64_t        funding_sat;
     uint64_t        push_sat;
-    opening_t       *p_opening;         //establish時にmalloc()して使用する
 } funding_conf_t;
 
 

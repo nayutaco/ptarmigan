@@ -212,6 +212,14 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("fund");
 
+    bool haveCnl = ln_node_search_channel(NULL, conn.node_id);
+    if (haveCnl) {
+        //開設しようとしてチャネルが開いている
+        ctx->error_code = RPCERR_ALOPEN;
+        ctx->error_message = strdup(RPCERR_ALOPEN_STR);
+        goto LABEL_EXIT;
+    }
+
     p2p_cli_start(DCMD_CREATE, &conn, p_fundconf, ctx);
     if (ctx->error_code == 0) {
         result = cJSON_CreateString("OK");

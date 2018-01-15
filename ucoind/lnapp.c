@@ -750,25 +750,13 @@ static void *thread_main_start(void *pArg)
         goto LABEL_SHUTDOWN;
     }
 
+    DBG_PRINTF("connected peer: ");
+    DUMPBIN(p_conf->node_id, UCOIN_SZ_PUBKEY);
+
     /////////////////////////
     // handshake完了
     //      server動作時、p_conf->node_idに相手node_idが入っている
     /////////////////////////
-
-    bool detect = false;
-    if (p_conf->cmd != DCMD_CREATE) {
-        //既存チャネル接続の可能性あり
-        detect = ln_node_search_channel(&my_self, p_conf->node_id);
-        if (detect) {
-            DBG_PRINTF("    チャネルDB読込み\n");
-        } else {
-            DBG_PRINTF("    新規\n");
-        }
-        DUMPBIN(p_conf->node_id, UCOIN_SZ_PUBKEY);
-    }
-    if (!ret) {
-        goto LABEL_SHUTDOWN;
-    }
 
     //
     //my_selfへの設定はこれ以降に行う
@@ -813,6 +801,7 @@ static void *thread_main_start(void *pArg)
         set_establish_default(p_conf, p_conf->node_id);
         send_open_channel(p_conf);
     } else {
+        bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
         if (detect) {
             if (ln_short_channel_id(p_conf->p_self) != 0) {
                 DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
@@ -1011,7 +1000,7 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
  */
 static bool send_open_channel(lnapp_conf_t *p_conf)
 {
-    p_conf->p_funding->p_opening = (opening_t *)APP_MALLOC(sizeof(opening_t));  //APP_FREE: cb_established()
+    p_conf->p_opening = (opening_t *)APP_MALLOC(sizeof(opening_t));  //APP_FREE: cb_established()
 
     //Establish開始
     DBG_PRINTF("  signaddr: %s\n", p_conf->p_funding->signaddr);
@@ -1024,7 +1013,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
 
     bool ret = jsonrpc_dumpprivkey(wif, p_conf->p_funding->signaddr);
     if (ret) {
-        ret = jsonrpc_getnewaddress(p_conf->p_funding->p_opening->chargeaddr);
+        ret = jsonrpc_getnewaddress(p_conf->p_opening->chargeaddr);
     } else {
         SYSLOG_ERR("%s(): jsonrpc_dumpprivkey", __func__);
     }
@@ -1056,25 +1045,25 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         }
         DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
 
-        ucoin_util_wif2keys(&p_conf->p_funding->p_opening->fundin_keys, wif);
+        ucoin_util_wif2keys(&p_conf->p_opening->fundin_keys, wif);
         //TODO: データ構造に無駄が多い
         //      スタックに置けないものを詰めていったせいだが、整理したいところだ。
         //
         //p_conf->p_funding以下のアドレスを下位層に渡しているので、
         //Establishが完了するまでメモリを解放しないこと
-        p_conf->p_funding->p_opening->fundin.p_txid = p_conf->p_funding->txid;
-        p_conf->p_funding->p_opening->fundin.index = p_conf->p_funding->txindex;
-        p_conf->p_funding->p_opening->fundin.amount = fundin_sat;
-        p_conf->p_funding->p_opening->fundin.p_change_pubkey = NULL;
-        p_conf->p_funding->p_opening->fundin.p_change_addr = p_conf->p_funding->p_opening->chargeaddr;
-        p_conf->p_funding->p_opening->fundin.p_keys = &p_conf->p_funding->p_opening->fundin_keys;
-        p_conf->p_funding->p_opening->fundin.b_native = false;        //nested in BIP16
+        p_conf->p_opening->fundin.p_txid = p_conf->p_funding->txid;
+        p_conf->p_opening->fundin.index = p_conf->p_funding->txindex;
+        p_conf->p_opening->fundin.amount = fundin_sat;
+        p_conf->p_opening->fundin.p_change_pubkey = NULL;
+        p_conf->p_opening->fundin.p_change_addr = p_conf->p_opening->chargeaddr;
+        p_conf->p_opening->fundin.p_keys = &p_conf->p_opening->fundin_keys;
+        p_conf->p_opening->fundin.b_native = false;        //nested in BIP16
 
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
-                        &p_conf->p_funding->p_opening->fundin,
+                        &p_conf->p_opening->fundin,
                         p_conf->p_funding->funding_sat,
                         p_conf->p_funding->push_sat,
                         (uint32_t)feerate);
@@ -1844,7 +1833,7 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     if (p_conf->p_funding != NULL) {
         if (p_conf->cmd == DCMD_CREATE) {
             //ucoindで DCMD_CREATE の場合に mallocしている
-            APP_FREE(p_conf->p_funding->p_opening);     //APP_MALLOC: send_open_channel()
+            APP_FREE(p_conf->p_opening);     //APP_MALLOC: send_open_channel()
         }
         APP_FREE(p_conf->p_funding);
         p_conf->p_funding = NULL;

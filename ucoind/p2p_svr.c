@@ -73,6 +73,7 @@ void *p2p_svr_start(void *pArg)
     int sock;
     struct sockaddr_in sv_addr, cl_addr;
 
+    memset(&mAppConf, 0, sizeof(mAppConf));
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         mAppConf[lp].sock = -1;
     }
