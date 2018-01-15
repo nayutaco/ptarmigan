@@ -129,7 +129,7 @@ static inline int tid() {
 #define M_MALLOC            malloc
 #define M_REALLOC           realloc
 #define M_CALLOC            calloc
-#define M_FREE              free
+#define M_FREE(ptr)         { free(ptr); ptr = NULL; }
 #endif  //UCOIN_DEBUG_MEM
 
 

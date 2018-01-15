@@ -75,8 +75,9 @@ typedef struct lnapp_conf_t {
     //制御内容通知
     bool            initiator;                  ///< true:Noise Protocolのinitiator
     uint8_t         node_id[UCOIN_SZ_PUBKEY];   ///< 接続先(initiator==true時)
-    daemoncmd_t  cmd;                        ///< ucoincliからの処理要求
+    daemoncmd_t     cmd;                        ///< ucoincliからの処理要求
     funding_conf_t  *p_funding;                 ///< ucoincliで #DCMD_CREATE 時のパラメータ
+    opening_t       *p_opening;                 ///< establish時にmalloc()して使用する
 
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中
@@ -108,7 +109,7 @@ typedef struct lnapp_conf_t {
     } fwd_proc[APP_FWD_PROC_MAX];
 
     //fulfillキュー
-    queue_fulfill_t     *p_fulfill_queue;
+    queue_fulfill_t *p_fulfill_queue;
 
 } lnapp_conf_t;
 
@@ -133,6 +134,12 @@ void lnapp_start(lnapp_conf_t *pAppConf);
  *
  */
 void lnapp_stop(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]チャネル接続開始
+ *
+ */
+bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding);
 
 
 /** [lnapp]送金開始

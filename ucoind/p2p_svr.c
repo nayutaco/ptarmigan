@@ -73,6 +73,7 @@ void *p2p_svr_start(void *pArg)
     int sock;
     struct sockaddr_in sv_addr, cl_addr;
 
+    memset(&mAppConf, 0, sizeof(mAppConf));
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         mAppConf[lp].sock = -1;
     }
@@ -149,7 +150,6 @@ void *p2p_svr_start(void *pArg)
             mAppConf[idx].initiator = false;        //Noise Protocolの Act One受信
             memset(mAppConf[idx].node_id, 0, UCOIN_SZ_PUBKEY);
             mAppConf[idx].cmd = DCMD_NONE;
-            mAppConf[idx].p_funding = NULL;
 
             lnapp_start(&mAppConf[idx]);
         } else {

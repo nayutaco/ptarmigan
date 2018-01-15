@@ -252,7 +252,7 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     self->storage_index = M_SECINDEX_INIT;
     self->peer_storage_index = M_SECINDEX_INIT;
     if (pSeed) {
-        memcpy(self->storage_seed, pSeed, UCOIN_SZ_PRIVKEY);
+        memcpy(self->storage_seed, pSeed, LN_SZ_SEED);
         ln_derkey_storage_init(&self->peer_storage);
     }
 

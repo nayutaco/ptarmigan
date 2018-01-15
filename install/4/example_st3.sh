@@ -49,6 +49,11 @@ NETTYPE=regtest
 #  |    fundee +-------------+    FUNDER |
 #  +-----------+             +-----------+
 
+# connect
+./ucoincli -c conf/peer3333.conf 4445
+./ucoincli -c conf/peer3333.conf 5556
+./ucoincli -c conf/peer5555.conf 6667
+
 # node_4444からnode_3333へチャネルを開く。
 ./fund-in.sh 0.01 ../fund.txt > node_4444/fund4444_3333.conf
 ./ucoincli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4445

@@ -160,6 +160,22 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
+    if (p_appconf == NULL) {
+        //未接続
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+        goto LABEL_EXIT;
+    }
+
+    bool haveCnl = ln_node_search_channel(NULL, conn.node_id);
+    if (haveCnl) {
+        //開設しようとしてチャネルが開いている
+        ctx->error_code = RPCERR_ALOPEN;
+        ctx->error_message = strdup(RPCERR_ALOPEN_STR);
+        goto LABEL_EXIT;
+    }
+
     //txid, txindex, signaddr, funding_sat, push_sat
 
     //txid
@@ -212,9 +228,12 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("fund");
 
-    p2p_cli_start(DCMD_CREATE, &conn, p_fundconf, ctx);
-    if (ctx->error_code == 0) {
+    bool ret = lnapp_funding(p_appconf, p_fundconf);
+    if (ret) {
         result = cJSON_CreateString("OK");
+    } else {
+        ctx->error_code = RPCERR_FUNDING;
+        ctx->error_message = strdup(RPCERR_FUNDING_STR);
     }
 
 LABEL_EXIT:
@@ -249,7 +268,7 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf == NULL) {
-        p2p_cli_start(DCMD_CONNECT, &conn, NULL, ctx);
+        p2p_cli_start(&conn, ctx);
         if (ctx->error_code == 0) {
             result = cJSON_CreateString("OK");
         }

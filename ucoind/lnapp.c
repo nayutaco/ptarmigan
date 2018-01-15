@@ -274,6 +274,22 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 }
 
 
+bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding)
+{
+    if (!pAppConf->loop) {
+        //DBG_PRINTF("This AppConf not working\n");
+        return false;
+    }
+
+    DBG_PRINTF("Establish開始\n");
+    pAppConf->p_funding = pFunding;
+    set_establish_default(pAppConf, pAppConf->node_id);
+    send_open_channel(pAppConf);
+
+    return true;
+}
+
+
 //初回ONIONパケット作成
 bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
 {
@@ -712,27 +728,21 @@ static void *thread_main_start(void *pArg)
     pthread_t   th_peer;        //peer受信
     pthread_t   th_poll;        //トランザクション監視
 
-    if ((p_conf->cmd == DCMD_NONE) || (p_conf->cmd == DCMD_CREATE)) {
-        uint8_t     seed[UCOIN_SZ_PRIVKEY];
-
-        //seed作成
-        SYSLOG_INFO("ln_self_t initialize");
-        do {
-            ucoin_util_random(seed, UCOIN_SZ_PRIVKEY);
-        } while (!ucoin_keys_chkpriv(seed));
-        ln_init(&my_self, mpNode, seed, &mAnnoDef, notify_cb);
-    } else {
-        ln_init(&my_self, mpNode, NULL, &mAnnoDef, notify_cb);
-    }
+    //seed作成(後でDB読込により上書きされる可能性あり)
+    uint8_t seed[LN_SZ_SEED];
+    DBG_PRINTF("ln_self_t initialize");
+    ucoin_util_random(seed, LN_SZ_SEED);
+    ln_init(&my_self, mpNode, seed, &mAnnoDef, notify_cb);
 
     p_conf->p_self = &my_self;
-    p_conf->p_establish = NULL;
     p_conf->last_cnl_anno_sent = 0;
     p_conf->last_node_anno_sent = 0;
     p_conf->ping_counter = 0;
     p_conf->init_unrecv = true;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
+    p_conf->fwd_proc_rpnt = 0;
+    p_conf->fwd_proc_wpnt = 0;
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -740,8 +750,6 @@ static void *thread_main_start(void *pArg)
     pthread_mutex_init(&p_conf->mux_send, NULL);
     pthread_mutex_init(&p_conf->mux_fulque, NULL);
 
-    p_conf->fwd_proc_rpnt = 0;
-    p_conf->fwd_proc_wpnt = 0;
     p_conf->loop = true;
 
     //noise protocol handshake
@@ -750,25 +758,13 @@ static void *thread_main_start(void *pArg)
         goto LABEL_SHUTDOWN;
     }
 
+    DBG_PRINTF("connected peer: ");
+    DUMPBIN(p_conf->node_id, UCOIN_SZ_PUBKEY);
+
     /////////////////////////
     // handshake完了
     //      server動作時、p_conf->node_idに相手node_idが入っている
     /////////////////////////
-
-    bool detect = false;
-    if (p_conf->cmd != DCMD_CREATE) {
-        //既存チャネル接続の可能性あり
-        detect = ln_node_search_channel(&my_self, p_conf->node_id);
-        if (detect) {
-            DBG_PRINTF("    チャネルDB読込み\n");
-        } else {
-            DBG_PRINTF("    新規\n");
-        }
-        DUMPBIN(p_conf->node_id, UCOIN_SZ_PUBKEY);
-    }
-    if (!ret) {
-        goto LABEL_SHUTDOWN;
-    }
 
     //
     //my_selfへの設定はこれ以降に行う
@@ -808,40 +804,37 @@ static void *thread_main_start(void *pArg)
     ln_set_shutdown_vout_addr(&my_self, payaddr);
 
     // Establishチェック
-    if (p_conf->cmd == DCMD_CREATE) {
-        DBG_PRINTF("Establish開始\n");
-        set_establish_default(p_conf, p_conf->node_id);
-        send_open_channel(p_conf);
-    } else {
-        if (detect) {
-            if (ln_short_channel_id(p_conf->p_self) != 0) {
-                DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
-                send_reestablish(p_conf);
-                DBG_PRINTF("reestablish交換完了\n\n");
+    bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
+    if (detect) {
+        //既にチャネルあり
+        //my_selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
+        if (ln_short_channel_id(p_conf->p_self) != 0) {
+            DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
+            send_reestablish(p_conf);
+            DBG_PRINTF("reestablish交換完了\n\n");
 
-                //channel_update更新
-                ucoin_buf_t buf_upd;
-                ucoin_buf_init(&buf_upd);
-                ret = ln_update_channel_update(p_conf->p_self, &buf_upd);
-                if (ret) {
-                    send_peer_noise(p_conf, &buf_upd);
-                } else {
-                    DBG_PRINTF("channel_announcement再送\n");
-                    send_channel_anno(p_conf, true);
-                }
-                ucoin_buf_free(&buf_upd);
+            //channel_update更新
+            ucoin_buf_t buf_upd;
+            ucoin_buf_init(&buf_upd);
+            ret = ln_update_channel_update(p_conf->p_self, &buf_upd);
+            if (ret) {
+                send_peer_noise(p_conf, &buf_upd);
             } else {
-                DBG_PRINTF("funding_tx監視開始\n");
-                DUMPTXID(ln_funding_txid(p_conf->p_self));
-
-                set_establish_default(p_conf, p_conf->node_id);
-                p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
-                p_conf->funding_waiting = true;
+                DBG_PRINTF("channel_announcement再送\n");
+                send_channel_anno(p_conf, true);
             }
+            ucoin_buf_free(&buf_upd);
         } else {
-            DBG_PRINTF("Establish待ち\n");
+            DBG_PRINTF("funding_tx監視開始\n");
+            DUMPTXID(ln_funding_txid(p_conf->p_self));
+
             set_establish_default(p_conf, p_conf->node_id);
+            p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
+            p_conf->funding_waiting = true;
         }
+    } else {
+        DBG_PRINTF("Establish待ち\n");
+        set_establish_default(p_conf, p_conf->node_id);
     }
 
     while (p_conf->loop) {
@@ -870,12 +863,9 @@ LABEL_SHUTDOWN:
     SYSLOG_WARN("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(&my_self));
 
     //クリア
-    if (p_conf->p_funding) {
-        APP_FREE(p_conf->p_funding);
-    }
-    if (p_conf->p_establish) {
-        APP_FREE(p_conf->p_establish);
-    }
+    APP_FREE(p_conf->p_opening);
+    APP_FREE(p_conf->p_funding);
+    APP_FREE(p_conf->p_establish);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
     }
@@ -979,8 +969,6 @@ LABEL_FAIL:
 
 static bool send_reestablish(lnapp_conf_t *p_conf)
 {
-    p_conf->p_establish = NULL;
-
     //channel_reestablish送信
     ucoin_buf_t buf_bolt;
     ucoin_buf_init(&buf_bolt);
@@ -1011,7 +999,7 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
  */
 static bool send_open_channel(lnapp_conf_t *p_conf)
 {
-    p_conf->p_funding->p_opening = (opening_t *)APP_MALLOC(sizeof(opening_t));  //APP_FREE: cb_established()
+    p_conf->p_opening = (opening_t *)APP_MALLOC(sizeof(opening_t));  //APP_FREE: cb_established()
 
     //Establish開始
     DBG_PRINTF("  signaddr: %s\n", p_conf->p_funding->signaddr);
@@ -1024,7 +1012,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
 
     bool ret = jsonrpc_dumpprivkey(wif, p_conf->p_funding->signaddr);
     if (ret) {
-        ret = jsonrpc_getnewaddress(p_conf->p_funding->p_opening->chargeaddr);
+        ret = jsonrpc_getnewaddress(p_conf->p_opening->chargeaddr);
     } else {
         SYSLOG_ERR("%s(): jsonrpc_dumpprivkey", __func__);
     }
@@ -1056,25 +1044,25 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         }
         DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
 
-        ucoin_util_wif2keys(&p_conf->p_funding->p_opening->fundin_keys, wif);
+        ucoin_util_wif2keys(&p_conf->p_opening->fundin_keys, wif);
         //TODO: データ構造に無駄が多い
         //      スタックに置けないものを詰めていったせいだが、整理したいところだ。
         //
         //p_conf->p_funding以下のアドレスを下位層に渡しているので、
         //Establishが完了するまでメモリを解放しないこと
-        p_conf->p_funding->p_opening->fundin.p_txid = p_conf->p_funding->txid;
-        p_conf->p_funding->p_opening->fundin.index = p_conf->p_funding->txindex;
-        p_conf->p_funding->p_opening->fundin.amount = fundin_sat;
-        p_conf->p_funding->p_opening->fundin.p_change_pubkey = NULL;
-        p_conf->p_funding->p_opening->fundin.p_change_addr = p_conf->p_funding->p_opening->chargeaddr;
-        p_conf->p_funding->p_opening->fundin.p_keys = &p_conf->p_funding->p_opening->fundin_keys;
-        p_conf->p_funding->p_opening->fundin.b_native = false;        //nested in BIP16
+        p_conf->p_opening->fundin.p_txid = p_conf->p_funding->txid;
+        p_conf->p_opening->fundin.index = p_conf->p_funding->txindex;
+        p_conf->p_opening->fundin.amount = fundin_sat;
+        p_conf->p_opening->fundin.p_change_pubkey = NULL;
+        p_conf->p_opening->fundin.p_change_addr = p_conf->p_opening->chargeaddr;
+        p_conf->p_opening->fundin.p_keys = &p_conf->p_opening->fundin_keys;
+        p_conf->p_opening->fundin.b_native = false;        //nested in BIP16
 
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
-                        &p_conf->p_funding->p_opening->fundin,
+                        &p_conf->p_opening->fundin,
                         p_conf->p_funding->funding_sat,
                         p_conf->p_funding->push_sat,
                         (uint32_t)feerate);
@@ -1832,23 +1820,9 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     (void)p_param;
     DBGTRACE_BEGIN
 
-    if (p_conf->p_establish != NULL) {
-        DBG_PRINTF("APP_FREE establish buffer\n");
-        APP_FREE(p_conf->p_establish);      //APP_MALLOC: set_establish_default()
-        p_conf->p_establish = NULL;
-    } else {
-        DBG_PRINTF("no establish buffer\n");
-    }
-
-    //下位層に渡したアドレスを解放
-    if (p_conf->p_funding != NULL) {
-        if (p_conf->cmd == DCMD_CREATE) {
-            //ucoindで DCMD_CREATE の場合に mallocしている
-            APP_FREE(p_conf->p_funding->p_opening);     //APP_MALLOC: send_open_channel()
-        }
-        APP_FREE(p_conf->p_funding);
-        p_conf->p_funding = NULL;
-    }
+    APP_FREE(p_conf->p_establish);      //APP_MALLOC: set_establish_default()
+    APP_FREE(p_conf->p_opening);        //APP_MALLOC: send_open_channel()
+    APP_FREE(p_conf->p_funding);        //
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 
