@@ -150,7 +150,6 @@ void *p2p_svr_start(void *pArg)
             mAppConf[idx].initiator = false;        //Noise Protocolの Act One受信
             memset(mAppConf[idx].node_id, 0, UCOIN_SZ_PUBKEY);
             mAppConf[idx].cmd = DCMD_NONE;
-            mAppConf[idx].p_funding = NULL;
 
             lnapp_start(&mAppConf[idx]);
         } else {

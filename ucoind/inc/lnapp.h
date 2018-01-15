@@ -136,6 +136,12 @@ void lnapp_start(lnapp_conf_t *pAppConf);
 void lnapp_stop(lnapp_conf_t *pAppConf);
 
 
+/** [lnapp]チャネル接続開始
+ *
+ */
+bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding);
+
+
 /** [lnapp]送金開始
  *
  */

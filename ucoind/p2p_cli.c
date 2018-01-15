@@ -71,7 +71,7 @@ void p2p_cli_init(void)
 }
 
 
-void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx)
+void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
 {
     int ret;
     struct sockaddr_in sv_addr;
@@ -124,8 +124,7 @@ void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam,
     //スレッド起動
     mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
     memcpy(mAppConf[idx].node_id, pConn->node_id, UCOIN_SZ_PUBKEY);
-    mAppConf[idx].cmd = Cmd;
-    mAppConf[idx].p_funding = (funding_conf_t *)pParam;
+    mAppConf[idx].cmd = DCMD_CONNECT;
 
     lnapp_start(&mAppConf[idx]);
 

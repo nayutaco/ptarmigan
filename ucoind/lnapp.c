@@ -274,6 +274,22 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 }
 
 
+bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding)
+{
+    if (!pAppConf->loop) {
+        //DBG_PRINTF("This AppConf not working\n");
+        return false;
+    }
+
+    DBG_PRINTF("Establish開始\n");
+    pAppConf->p_funding = pFunding;
+    set_establish_default(pAppConf, pAppConf->node_id);
+    send_open_channel(pAppConf);
+
+    return true;
+}
+
+
 //初回ONIONパケット作成
 bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
 {
@@ -712,18 +728,11 @@ static void *thread_main_start(void *pArg)
     pthread_t   th_peer;        //peer受信
     pthread_t   th_poll;        //トランザクション監視
 
-    if ((p_conf->cmd == DCMD_NONE) || (p_conf->cmd == DCMD_CREATE)) {
-        uint8_t     seed[UCOIN_SZ_PRIVKEY];
-
-        //seed作成
-        SYSLOG_INFO("ln_self_t initialize");
-        do {
-            ucoin_util_random(seed, UCOIN_SZ_PRIVKEY);
-        } while (!ucoin_keys_chkpriv(seed));
-        ln_init(&my_self, mpNode, seed, &mAnnoDef, notify_cb);
-    } else {
-        ln_init(&my_self, mpNode, NULL, &mAnnoDef, notify_cb);
-    }
+    //seed作成(後でDB読込により上書きされる可能性あり)
+    uint8_t seed[LN_SZ_SEED];
+    DBG_PRINTF("ln_self_t initialize");
+    ucoin_util_random(seed, LN_SZ_SEED);
+    ln_init(&my_self, mpNode, seed, &mAnnoDef, notify_cb);
 
     p_conf->p_self = &my_self;
     p_conf->last_cnl_anno_sent = 0;
@@ -732,6 +741,8 @@ static void *thread_main_start(void *pArg)
     p_conf->init_unrecv = true;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
+    p_conf->fwd_proc_rpnt = 0;
+    p_conf->fwd_proc_wpnt = 0;
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -739,8 +750,6 @@ static void *thread_main_start(void *pArg)
     pthread_mutex_init(&p_conf->mux_send, NULL);
     pthread_mutex_init(&p_conf->mux_fulque, NULL);
 
-    p_conf->fwd_proc_rpnt = 0;
-    p_conf->fwd_proc_wpnt = 0;
     p_conf->loop = true;
 
     //noise protocol handshake
@@ -795,41 +804,37 @@ static void *thread_main_start(void *pArg)
     ln_set_shutdown_vout_addr(&my_self, payaddr);
 
     // Establishチェック
-    if (p_conf->cmd == DCMD_CREATE) {
-        DBG_PRINTF("Establish開始\n");
-        set_establish_default(p_conf, p_conf->node_id);
-        send_open_channel(p_conf);
-    } else {
-        bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
-        if (detect) {
-            if (ln_short_channel_id(p_conf->p_self) != 0) {
-                DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
-                send_reestablish(p_conf);
-                DBG_PRINTF("reestablish交換完了\n\n");
+    bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
+    if (detect) {
+        //既にチャネルあり
+        //my_selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
+        if (ln_short_channel_id(p_conf->p_self) != 0) {
+            DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
+            send_reestablish(p_conf);
+            DBG_PRINTF("reestablish交換完了\n\n");
 
-                //channel_update更新
-                ucoin_buf_t buf_upd;
-                ucoin_buf_init(&buf_upd);
-                ret = ln_update_channel_update(p_conf->p_self, &buf_upd);
-                if (ret) {
-                    send_peer_noise(p_conf, &buf_upd);
-                } else {
-                    DBG_PRINTF("channel_announcement再送\n");
-                    send_channel_anno(p_conf, true);
-                }
-                ucoin_buf_free(&buf_upd);
+            //channel_update更新
+            ucoin_buf_t buf_upd;
+            ucoin_buf_init(&buf_upd);
+            ret = ln_update_channel_update(p_conf->p_self, &buf_upd);
+            if (ret) {
+                send_peer_noise(p_conf, &buf_upd);
             } else {
-                DBG_PRINTF("funding_tx監視開始\n");
-                DUMPTXID(ln_funding_txid(p_conf->p_self));
-
-                set_establish_default(p_conf, p_conf->node_id);
-                p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
-                p_conf->funding_waiting = true;
+                DBG_PRINTF("channel_announcement再送\n");
+                send_channel_anno(p_conf, true);
             }
+            ucoin_buf_free(&buf_upd);
         } else {
-            DBG_PRINTF("Establish待ち\n");
+            DBG_PRINTF("funding_tx監視開始\n");
+            DUMPTXID(ln_funding_txid(p_conf->p_self));
+
             set_establish_default(p_conf, p_conf->node_id);
+            p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
+            p_conf->funding_waiting = true;
         }
+    } else {
+        DBG_PRINTF("Establish待ち\n");
+        set_establish_default(p_conf, p_conf->node_id);
     }
 
     while (p_conf->loop) {
