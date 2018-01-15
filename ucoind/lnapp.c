@@ -71,6 +71,7 @@
 #define M_WAIT_MUTEX_MSEC       (100)       //mMuxSeqのロック解除待ち間隔[msec]
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
+#define M_WAIT_SEND_WAIT_MSEC   (10)        //socket送信で一度に送信できなかった場合の待ち時間[msec]
 
 //デフォルト値
 //  announcement
@@ -2421,11 +2422,14 @@ static void stop_threads(lnapp_conf_t *p_conf)
 //peer送信(そのまま送信)
 static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 {
-    ssize_t sz = write(p_conf->sock, pBuf->buf, pBuf->len);
-    DBG_PRINTF("Len=%d:  sent=%d\n", pBuf->len, (int)sz);
-    if (sz < 0) {
-        SYSLOG_ERR("%s(): send_peer_raw: %s", __func__, strerror(errno));
-        assert(0);
+    ssize_t len = pBuf->len;
+    while (true) {
+        ssize_t sz = write(p_conf->sock, pBuf->buf, len);
+        len -= sz;
+        if (len == 0) {
+            break;
+        }
+        misc_msleep(M_WAIT_SEND_WAIT_MSEC);
     }
 }
 
@@ -2441,11 +2445,14 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
     pthread_mutex_unlock(&p_conf->mux_send);
     assert(ret);
 
-    ssize_t sz = write(p_conf->sock, buf_enc.buf, buf_enc.len);
-    if (sz != buf_enc.len) {
-        SYSLOG_ERR("%s(): send_peer_noise: %s", __func__, strerror(errno));
-#warning 不一致になることがある
-        //assert(0);
+    ssize_t len = buf_enc.len;
+    while (true) {
+        ssize_t sz = write(p_conf->sock, buf_enc.buf, len);
+        len -= sz;
+        if (len == 0) {
+            break;
+        }
+        misc_msleep(M_WAIT_SEND_WAIT_MSEC);
     }
     ucoin_buf_free(&buf_enc);
 
