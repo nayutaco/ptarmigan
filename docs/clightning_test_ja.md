@@ -58,6 +58,7 @@ cd install
 9. [ptarm]Establish開始
 
 ```bash
+./ucoincli -c peer.conf 8889
 ./ucoincli -c peer.conf -f node/fund.conf 8889
 ```
 
