@@ -726,7 +726,6 @@ static void *thread_main_start(void *pArg)
     }
 
     p_conf->p_self = &my_self;
-    p_conf->p_establish = NULL;
     p_conf->last_cnl_anno_sent = 0;
     p_conf->last_node_anno_sent = 0;
     p_conf->ping_counter = 0;
@@ -859,12 +858,9 @@ LABEL_SHUTDOWN:
     SYSLOG_WARN("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(&my_self));
 
     //クリア
-    if (p_conf->p_funding) {
-        APP_FREE(p_conf->p_funding);
-    }
-    if (p_conf->p_establish) {
-        APP_FREE(p_conf->p_establish);
-    }
+    APP_FREE(p_conf->p_opening);
+    APP_FREE(p_conf->p_funding);
+    APP_FREE(p_conf->p_establish);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
     }
@@ -968,8 +964,6 @@ LABEL_FAIL:
 
 static bool send_reestablish(lnapp_conf_t *p_conf)
 {
-    p_conf->p_establish = NULL;
-
     //channel_reestablish送信
     ucoin_buf_t buf_bolt;
     ucoin_buf_init(&buf_bolt);
@@ -1821,23 +1815,9 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     (void)p_param;
     DBGTRACE_BEGIN
 
-    if (p_conf->p_establish != NULL) {
-        DBG_PRINTF("APP_FREE establish buffer\n");
-        APP_FREE(p_conf->p_establish);      //APP_MALLOC: set_establish_default()
-        p_conf->p_establish = NULL;
-    } else {
-        DBG_PRINTF("no establish buffer\n");
-    }
-
-    //下位層に渡したアドレスを解放
-    if (p_conf->p_funding != NULL) {
-        if (p_conf->cmd == DCMD_CREATE) {
-            //ucoindで DCMD_CREATE の場合に mallocしている
-            APP_FREE(p_conf->p_opening);     //APP_MALLOC: send_open_channel()
-        }
-        APP_FREE(p_conf->p_funding);
-        p_conf->p_funding = NULL;
-    }
+    APP_FREE(p_conf->p_establish);      //APP_MALLOC: set_establish_default()
+    APP_FREE(p_conf->p_opening);        //APP_MALLOC: send_open_channel()
+    APP_FREE(p_conf->p_funding);        //
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 

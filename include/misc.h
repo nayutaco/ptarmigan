@@ -52,7 +52,7 @@ extern "C" {
 #define APP_MALLOC          malloc
 //#define APP_REALLOC         realloc
 //#define APP_CALLOC          calloc
-#define APP_FREE            free
+#define APP_FREE(ptr)       { free(ptr); ptr = NULL; }
 #endif  //APP_DEBUG_MEM
 
 
