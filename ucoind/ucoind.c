@@ -70,6 +70,8 @@ int main(int argc, char *argv[])
     ucoin_init(UCOIN_TESTNET, true);
 #endif
 
+    signal(SIGPIPE , SIG_IGN);   //ignore SIGPIPE
+
     if ((argc == 2) && (strcmp(argv[1], "wif") == 0)) {
         uint8_t priv[UCOIN_SZ_PRIVKEY];
         do {
