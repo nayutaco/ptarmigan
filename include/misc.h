@@ -127,6 +127,12 @@ bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr);
 misc_genesis_t misc_get_genesis(const uint8_t *pGenesisHash);
 
 
+/** JSON-RPC送信
+ *
+ */
+int misc_sendjson(const char *pSend, const char *pAddr, uint16_t Port);
+
+
 #ifdef APP_DEBUG_MEM
 void *misc_dbg_malloc(size_t size);
 //void *misc_dbg_realloc(void *ptr, size_t size);
