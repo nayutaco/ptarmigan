@@ -52,6 +52,7 @@
 #include "cJSON.h"
 
 #include "ucoind.h"
+#include "cmd_json.h"
 #include "lnapp.h"
 #include "conf.h"
 #include "jsonrpc.h"
@@ -93,6 +94,10 @@
 
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
+
+//lnapp_conf_t.flag_recv
+#define RECV_MSG_INIT           (0x01)      ///< init
+#define RECV_MSG_REESTABLISH    (0x02)      ///< channel_reestablish
 
 #define M_SCRIPT_DIR            "./script/"
 
@@ -744,11 +749,11 @@ static void *thread_main_start(void *pArg)
     p_conf->last_cnl_anno_sent = 0;
     p_conf->last_node_anno_sent = 0;
     p_conf->ping_counter = 0;
-    p_conf->init_unrecv = true;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
     p_conf->fwd_proc_rpnt = 0;
     p_conf->fwd_proc_wpnt = 0;
+    p_conf->flag_recv = 0;
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -797,9 +802,11 @@ static void *thread_main_start(void *pArg)
 
     //コールバックでのINIT受信通知待ち
     pthread_mutex_lock(&p_conf->mux);
-    while (p_conf->loop && p_conf->init_unrecv) {
+    while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
         //init受信待ち合わせ(*1)
+        DBG_PRINTF("init wait...\n");
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
+        DBG_PRINTF("init received\n");
     }
     pthread_mutex_unlock(&p_conf->mux);
     DBG_PRINTF("init交換完了\n\n");
@@ -999,20 +1006,19 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
     bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt);
     assert(ret);
 
-    //待ち合わせ解除(*3)用
-    p_conf->init_unrecv = true;
-
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
     //コールバックでのchannel_reestablish受信通知待ち
-    DBG_PRINTF("channel_reestablish受信\n");
     pthread_mutex_lock(&p_conf->mux);
-    while (p_conf->loop && p_conf->init_unrecv) {
+    if (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0)) {
         //channel_reestablish受信待ち合わせ(*3)
+        DBG_PRINTF("channel_reestablish wait...\n");
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
+        DBG_PRINTF("channel_reestablish received\n");
     }
     pthread_mutex_unlock(&p_conf->mux);
+    DBG_PRINTF("channel_reestablish交換完了\n\n");
 
     return ret;
 }
@@ -1302,7 +1308,7 @@ static void *thread_poll_start(void *pArg)
             break;
         }
 
-        if (p_conf->init_unrecv) {
+        if ((p_conf->flag_recv & RECV_MSG_INIT) == 0) {
             //まだ接続していない
             continue;
         }
@@ -1764,7 +1770,7 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
     DUMPBIN(p->localfeatures.buf, p->localfeatures.len);
 
     //待ち合わせ解除(*1)
-    p_conf->init_unrecv = false;
+    p_conf->flag_recv |= RECV_MSG_INIT;
     pthread_cond_signal(&p_conf->cond);
 }
 
@@ -1776,7 +1782,7 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     //待ち合わせ解除(*3)
-    p_conf->init_unrecv = false;
+    p_conf->flag_recv |= RECV_MSG_REESTABLISH;
     pthread_cond_signal(&p_conf->cond);
 }
 
