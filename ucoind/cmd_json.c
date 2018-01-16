@@ -669,12 +669,30 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     // execute `routing` command
     char cmd[512];
-    sprintf(cmd, "%srouting %s %s %s %s %" PRIu64 "\n",
+    sprintf(cmd, "%srouting %s %s %s %s %" PRIu64 " %d %s\n",
                 ucoind_get_exec_path(),
                 BLKNAME[blktype], "./dbucoin",
-                nodeid_payer, nodeid_payee, amount_msat);
-    DBG_PRINTF("cmd=%s\n", cmd);
-    system(cmd);
+                nodeid_payer, nodeid_payee, amount_msat, 9, payment_hash);
+    //DBG_PRINTF("cmd=%s\n", cmd);
+    FILE *fp = popen(cmd, "r");
+    if (fp == NULL) {
+        DBG_PRINTF("fail: popen(%s)\n", strerror(errno));
+        ctx->error_code = RPCERR_ERROR;
+        ctx->error_message = strdup(RPCERR_ERROR_STR);
+        goto LABEL_EXIT;
+    }
+    char *p_route = (char *)APP_MALLOC(8192);
+    char *p_tmp = p_route;
+    while (!feof(fp)) {
+        fgets(p_tmp, 8192, fp);
+        p_tmp += strlen(p_tmp);
+    }
+    DBG_PRINTF("---------------\n");
+    DBG_PRINTF2("%s", p_route);
+    DBG_PRINTF("---------------\n");
+    int retval = misc_sendjson(p_route, "127.0.0.1", cmd_json_get_port());
+    DBG_PRINTF("retval=%d\n", retval);
+    APP_FREE(p_route);
 
     // lnapp_conf_t *p_appconf = search_connected_lnapp_node(payconf.hop_datain[1].pubkey);
     // if (p_appconf != NULL) {
