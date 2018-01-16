@@ -114,7 +114,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     sv_addr.sin_port = htons(pConn->port);
     ret = connect(mAppConf[idx].sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if (ret < 0) {
-        SYSLOG_ERR("%s(): connect", __func__);
+        SYSLOG_ERR("%s(): connect(%s)", __func__, strerror(errno));
         ctx->error_code = RPCERR_CONNECT;
         ctx->error_message = strdup(RPCERR_CONNECT_STR);
         goto LABEL_EXIT;

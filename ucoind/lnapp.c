@@ -52,6 +52,7 @@
 #include "cJSON.h"
 
 #include "ucoind.h"
+#include "cmd_json.h"
 #include "lnapp.h"
 #include "conf.h"
 #include "jsonrpc.h"
@@ -95,6 +96,10 @@
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
 
+//lnapp_conf_t.flag_recv
+#define RECV_MSG_INIT           (0x01)      ///< init
+#define RECV_MSG_REESTABLISH    (0x02)      ///< channel_reestablish
+
 #define M_SCRIPT_DIR            "./script/"
 
 
@@ -131,6 +136,7 @@ typedef struct queue_fulfill_t {
 
 //event
 typedef enum {
+    M_EVT_CONNECTED,
     M_EVT_ESTABLISHED,
     M_EVT_PAYMENT,
     M_EVT_FORWARD,
@@ -164,6 +170,8 @@ static volatile enum {
 
 
 static const char *M_SCRIPT[] = {
+    //M_EVT_CONNECTED
+    M_SCRIPT_DIR "connected.sh",
     //M_EVT_ESTABLISHED
     M_SCRIPT_DIR "established.sh",
     //M_EVT_PAYMENT,
@@ -383,20 +391,23 @@ LABEL_EXIT:
 
         // method: payment
         // $1: short_channel_id
-        // $2: amt_to_forward
-        // $3: outgoing_cltv_value
-        // $4: payment_hash
-        // $5: node_id
+        // $2: node_id
+        // $3: amt_to_forward
+        // $4: outgoing_cltv_value
+        // $5: payment_hash
         char hashstr[LN_SZ_HASH * 2 + 1];
         misc_bin2str(hashstr, pPay->payment_hash, LN_SZ_HASH);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(node_id, ln_our_node_id(p_self), UCOIN_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIx64 " %" PRIu64 " %" PRIu32 " %s %s",
-                    ln_short_channel_id(pAppConf->p_self),
+        sprintf(param, "%" PRIx64 " %s "
+                    "%" PRIu64 " "
+                    "%" PRIu32 " "
+                    "%s",
+                    ln_short_channel_id(pAppConf->p_self), node_id,
                     pPay->hop_datain[0].amt_to_forward,
                     pPay->hop_datain[0].outgoing_cltv_value,
-                    hashstr, node_id);
+                    hashstr);
         call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
@@ -739,11 +750,11 @@ static void *thread_main_start(void *pArg)
     p_conf->last_cnl_anno_sent = 0;
     p_conf->last_node_anno_sent = 0;
     p_conf->ping_counter = 0;
-    p_conf->init_unrecv = true;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
     p_conf->fwd_proc_rpnt = 0;
     p_conf->fwd_proc_wpnt = 0;
+    p_conf->flag_recv = 0;
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -792,9 +803,11 @@ static void *thread_main_start(void *pArg)
 
     //コールバックでのINIT受信通知待ち
     pthread_mutex_lock(&p_conf->mux);
-    while (p_conf->loop && p_conf->init_unrecv) {
+    while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
         //init受信待ち合わせ(*1)
+        DBG_PRINTF("init wait...\n");
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
+        DBG_PRINTF("init received\n");
     }
     pthread_mutex_unlock(&p_conf->mux);
     DBG_PRINTF("init交換完了\n\n");
@@ -837,6 +850,24 @@ static void *thread_main_start(void *pArg)
         DBG_PRINTF("Establish待ち\n");
         set_establish_default(p_conf, p_conf->node_id);
     }
+
+    // method: connected
+    // $1: short_channel_id
+    // $2: node_id
+    // $3: peer_id
+    // $4: JSON-RPC port
+    char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+    misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+    char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
+    misc_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
+    char param[256];
+    sprintf(param, "%" PRIx64 " %s "
+                "%s "
+                "%" PRIu16,
+                ln_short_channel_id(p_conf->p_self), node_id,
+                peer_id,
+                cmd_json_get_port());
+    call_script(M_EVT_CONNECTED, param);
 
     while (p_conf->loop) {
         DBG_PRINTF("loop...\n");
@@ -976,20 +1007,19 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
     bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt);
     assert(ret);
 
-    //待ち合わせ解除(*3)用
-    p_conf->init_unrecv = true;
-
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
     //コールバックでのchannel_reestablish受信通知待ち
-    DBG_PRINTF("channel_reestablish受信\n");
     pthread_mutex_lock(&p_conf->mux);
-    while (p_conf->loop && p_conf->init_unrecv) {
+    if (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0)) {
         //channel_reestablish受信待ち合わせ(*3)
+        DBG_PRINTF("channel_reestablish wait...\n");
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
+        DBG_PRINTF("channel_reestablish received\n");
     }
     pthread_mutex_unlock(&p_conf->mux);
+    DBG_PRINTF("channel_reestablish交換完了\n\n");
 
     return ret;
 }
@@ -1279,7 +1309,7 @@ static void *thread_poll_start(void *pArg)
             break;
         }
 
-        if (p_conf->init_unrecv) {
+        if ((p_conf->flag_recv & RECV_MSG_INIT) == 0) {
             //まだ接続していない
             continue;
         }
@@ -1503,20 +1533,23 @@ LABEL_EXIT:
     if (ret) {
         // method: forward
         // $1: short_channel_id
-        // $2: amt_to_forward
-        // $3: outgoing_cltv_value
-        // $4: payment_hash
-        // $5: node_id
+        // $2: node_id
+        // $3: amt_to_forward
+        // $4: outgoing_cltv_value
+        // $5: payment_hash
         char hashstr[LN_SZ_HASH * 2 + 1];
         misc_bin2str(hashstr, p_fwd_add->payment_hash, LN_SZ_HASH);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIx64 " %" PRIu64 " %" PRIu32 " %s %s",
-                    ln_short_channel_id(p_conf->p_self),
+        sprintf(param, "%" PRIx64 " %s "
+                    "%" PRIu64 " "
+                    "%" PRIu32 " "
+                    "%s",
+                    ln_short_channel_id(p_conf->p_self), node_id,
                     p_fwd_add->amt_to_forward,
                     p_fwd_add->outgoing_cltv_value,
-                    hashstr, node_id);
+                    hashstr);
         call_script(M_EVT_FORWARD, param);
     }
 
@@ -1559,9 +1592,9 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf, fwd_proc_fulfill_t *p_fwd
 
         // method: fulfill
         // $1: short_channel_id
-        // $2: payment_hash
-        // $3: payment_preimage
-        // $4: node_id
+        // $2: node_id
+        // $3: payment_hash
+        // $4: payment_preimage
         char hashstr[LN_SZ_HASH * 2 + 1];
         uint8_t payment_hash[LN_SZ_HASH];
         ln_calc_preimage_hash(payment_hash, p_fwd_fulfill->preimage);
@@ -1571,9 +1604,12 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf, fwd_proc_fulfill_t *p_fwd
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIx64 " %s %s %s",
-                    ln_short_channel_id(p_conf->p_self),
-                    hashstr, imgstr, node_id);
+        sprintf(param, "%" PRIx64 " %s "
+                    "%s "
+                    "%s",
+                    ln_short_channel_id(p_conf->p_self), node_id,
+                    hashstr,
+                    imgstr);
         call_script(M_EVT_FULFILL, param);
     }
 
@@ -1632,8 +1668,7 @@ static bool fwd_fail_backward(lnapp_conf_t *p_conf, fwd_proc_fail_t *p_fwd_fail)
         misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s",
-                    ln_short_channel_id(p_conf->p_self),
-                    node_id);
+                    ln_short_channel_id(p_conf->p_self), node_id);
         call_script(M_EVT_FAIL, param);
     }
 
@@ -1736,7 +1771,7 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
     DUMPBIN(p->localfeatures.buf, p->localfeatures.len);
 
     //待ち合わせ解除(*1)
-    p_conf->init_unrecv = false;
+    p_conf->flag_recv |= RECV_MSG_INIT;
     pthread_cond_signal(&p_conf->cond);
 }
 
@@ -1748,7 +1783,7 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     //待ち合わせ解除(*3)
-    p_conf->init_unrecv = false;
+    p_conf->flag_recv |= RECV_MSG_REESTABLISH;
     pthread_cond_signal(&p_conf->cond);
 }
 
@@ -1835,18 +1870,20 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
 
     // method: established
     // $1: short_channel_id
-    // $2: our_msat
-    // $3: funding_txid
-    // $4: node_id
+    // $2: node_id
+    // $3: our_msat
+    // $4: funding_txid
     char txidstr[UCOIN_SZ_TXID * 2 + 1];
     misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
     misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
     char param[256];
-    sprintf(param, "%" PRIx64 " %" PRIu64 " %s %s",
-                ln_short_channel_id(p_conf->p_self),
+    sprintf(param, "%" PRIx64 " %s "
+                "%" PRIu64 " "
+                "%s",
+                ln_short_channel_id(p_conf->p_self), node_id,
                 ln_our_msat(p_conf->p_self),
-                txidstr, node_id);
+                txidstr);
     call_script(M_EVT_ESTABLISHED, param);
 
     DBGTRACE_END
@@ -2308,17 +2345,18 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 
     // method: htlc_changed
     // $1: short_channel_id
-    // $2: our_msat
-    // $3: htlc_num
-    // $4: node_id
+    // $2: node_id
+    // $3: our_msat
+    // $4: htlc_num
     char param[256];
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
     misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
-    sprintf(param, "%" PRIx64 " %" PRIu64 " %d %s",
-                ln_short_channel_id(p_conf->p_self),
+    sprintf(param, "%" PRIx64 " %s "
+                "%" PRIu64 " "
+                "%d",
+                ln_short_channel_id(p_conf->p_self), node_id,
                 ln_our_msat(p_conf->p_self),
-                ln_htlc_num(p_conf->p_self),
-                node_id);
+                ln_htlc_num(p_conf->p_self));
     call_script(M_EVT_HTLCCHANGED, param);
 
     DBGTRACE_END
@@ -2374,15 +2412,17 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 
         // method: closed
         // $1: short_channel_id
-        // $2: closing_txid
-        // $3: node_id
+        // $2: node_id
+        // $3: closing_txid
         char param[256];
         char txidstr[UCOIN_SZ_TXID * 2 + 1];
         misc_bin2str_rev(txidstr, txid, UCOIN_SZ_TXID);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
-        sprintf(param, "%" PRIx64 " %s %s",
-                    ln_short_channel_id(p_conf->p_self), txidstr, node_id);
+        sprintf(param, "%" PRIx64 " %s "
+                    "%s",
+                    ln_short_channel_id(p_conf->p_self), node_id,
+                    txidstr);
         call_script(M_EVT_CLOSED, param);
     } else {
         DBG_PRINTF("DBG: no send closing_tx mode\n");
