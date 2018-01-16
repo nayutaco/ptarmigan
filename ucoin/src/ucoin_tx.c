@@ -1071,14 +1071,31 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
     size_t len;
 
     mbedtls_ecp_keypair keypair;
+    mbedtls_mpi me;
+    mbedtls_mpi r, s;
+    mbedtls_mpi inv_r;
+    mbedtls_mpi x;
+    mbedtls_ecp_point R;
+    mbedtls_ecp_point MR;
+    mbedtls_ecp_point pub;
+
     mbedtls_ecp_keypair_init(&keypair);
+    mbedtls_mpi_init(&me);
+    mbedtls_mpi_init(&r);
+    mbedtls_mpi_init(&s);
+    mbedtls_mpi_init(&inv_r);
+    mbedtls_mpi_init(&x);
+    mbedtls_ecp_point_init(&R);
+    mbedtls_ecp_point_init(&MR);
+    mbedtls_ecp_point_init(&pub);
+    const mbedtls_ecp_point *pR[2] = { &R, &MR };
+    int is_zero;
+
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
     // 1.5
     //      e = Hash(M)
     //      me = -e
-    mbedtls_mpi me;
-    mbedtls_mpi_init(&me);
     ret = mbedtls_mpi_read_binary(&me, pTxHash, UCOIN_SZ_SIGHASH);
     assert(ret == 0);
     mbedtls_mpi zero;
@@ -1089,9 +1106,6 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
     mbedtls_mpi_free(&zero);
     keypair.grp.modp(&me);
 
-    mbedtls_mpi r, s;
-    mbedtls_mpi_init(&r);
-    mbedtls_mpi_init(&s);
     ret = mbedtls_mpi_read_binary(&r, pRS, 32);
     assert(ret == 0);
     ret = mbedtls_mpi_read_binary(&s, pRS + 32, 32);
@@ -1103,8 +1117,6 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
     //DUMPBIN(pRS + 32, 32);
 
     //      inv_r = r^-1
-    mbedtls_mpi inv_r;
-    mbedtls_mpi_init(&inv_r);
     ret = mbedtls_mpi_inv_mod(&inv_r, &r, &keypair.grp.N);
     assert(ret == 0);
 
@@ -1112,8 +1124,6 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
     for (int j = 0; j <= keypair.grp.h; j++) {
         //bool is_y_odd = j & 0x01;
 
-        mbedtls_mpi x;
-        mbedtls_mpi_init(&x);
 
         // 1.1
         //      x = r + jn
@@ -1146,86 +1156,36 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
         pubx[0] = 0x02;
         ret = mbedtls_mpi_write_binary(&x, pubx + 1, x_len);
         assert(ret == 0);
-        //DBG_PRINTF2("pubx=");
-        //DUMPBIN(pubx, 1 + x_len);
 
-        mbedtls_ecp_point R;
-        mbedtls_ecp_point_init(&R);
         ret = ucoin_util_ecp_point_read_binary2(&R, pubx);
         assert(ret == 0);
-
         ret = mbedtls_ecp_check_pubkey(&keypair.grp, &R);
-        //free(pubx);
-        if (ret != 0) {
-            DBG_PRINTF("check pubkey=%d\n", ret);
-            goto SKIP_LOOP;
-        }
+        assert(ret == 0);
+        free(pubx);
 
-        //ret = mbedtls_mpi_write_string(&R.X, 16, buf, sizeof(buf), &len);
-        //assert(ret == 0);
-        //DBG_PRINTF2("R.x = %s\n", buf);
-        //ret = mbedtls_mpi_write_string(&R.Y, 16, buf, sizeof(buf), &len);
-        //assert(ret == 0);
-        //DBG_PRINTF2("R.y = %s\n", buf);
-
-        mbedtls_ecp_point MR;
-        mbedtls_ecp_point_init(&MR);
+        // 1.6.3
         mbedtls_ecp_copy(&MR, &R);
         ret = mbedtls_mpi_sub_mpi(&MR.Y, &keypair.grp.P, &MR.Y);
         assert(ret == 0);
         keypair.grp.modp(&MR.Y);
-
         ret = mbedtls_ecp_check_pubkey(&keypair.grp, &MR);
-        free(pubx);
-        if (ret != 0) {
-            DBG_PRINTF("check pubkey2=%d\n", ret);
-            //goto SKIP_LOOP;
-        }
-
-        //ret = mbedtls_mpi_write_string(&MR.X, 16, buf, sizeof(buf), &len);
-        //assert(ret == 0);
-        //DBG_PRINTF2("-R.x = %s\n", buf);
-        //ret = mbedtls_mpi_write_string(&MR.Y, 16, buf, sizeof(buf), &len);
-        //assert(ret == 0);
-        //DBG_PRINTF2("-R.y = %s\n", buf);
-
+        assert(ret == 0);
 
         // 1.4
         //      error if nR != 0
         mbedtls_ecp_point nR;
         mbedtls_ecp_point_init(&nR);
         ret = mbedtls_ecp_mul(&keypair.grp, &nR, &keypair.grp.N, &R, NULL, NULL);
-        int is_zero = mbedtls_ecp_is_zero(&nR);
+        is_zero = mbedtls_ecp_is_zero(&nR);
         mbedtls_ecp_point_free(&nR);
         if ((ret == 0) || !is_zero) {
             DBG_PRINTF2("[%d]1.4 error(ret=%04x)\n", j, ret);
             goto SKIP_LOOP;
         }
 
-        mbedtls_ecp_point pub;
-        mbedtls_ecp_point_init(&pub);
-        const mbedtls_ecp_point *pR[] = { &R, &MR };
         for (int k = 0; k < 2; k++) {
             // 1.6.1
             //      Q = r^-1 * (sR - eG)
-
-            //      (sR - eG)
-            ret = mbedtls_ecp_muladd(&keypair.grp, &pub, &s, pR[k], &me, &keypair.grp.G);
-            if (ret != 0) {
-                DBG_PRINTF("ret=%04x\n", -ret);
-                goto SKIP_LOOP;
-            }
-
-            //      Q = r^-1 * Q
-            ret = mbedtls_ecp_mul(&keypair.grp, &pub, &inv_r, &pub, NULL, NULL);
-            assert(ret == 0);
-
-            //ret = mbedtls_mpi_write_string(&pub.X, 16, buf, sizeof(buf), &len);
-            //assert(ret == 0);
-            //DBG_PRINTF2("Q.x = %s\n", buf);
-            //ret = mbedtls_mpi_write_string(&pub.Y, 16, buf, sizeof(buf), &len);
-            //assert(ret == 0);
-            //DBG_PRINTF2("Q.y = %s\n", buf);
 
             ret = mbedtls_mpi_write_string(&pR[k]->X, 16, buf, sizeof(buf), &len);
             assert(ret == 0);
@@ -1233,17 +1193,28 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
             ret = mbedtls_mpi_write_string(&pR[k]->Y, 16, buf, sizeof(buf), &len);
             assert(ret == 0);
             DBG_PRINTF2("R.y = %s\n", buf);
-            ret = mbedtls_ecp_check_pubkey(&keypair.grp, pR[k]);
+
+            //      (sR - eG)
+            ret = mbedtls_ecp_muladd(&keypair.grp, &pub, &s, pR[k], &me, &keypair.grp.G);
             assert(ret == 0);
+            //      Q = r^-1 * Q
+            ret = mbedtls_ecp_mul(&keypair.grp, &pub, &inv_r, &pub, NULL, NULL);
+            assert(ret == 0);
+            ret = mbedtls_ecp_check_pubkey(&keypair.grp, &pub);
+            assert(ret == 0);
+
+            ret = mbedtls_mpi_write_string(&pub.X, 16, buf, sizeof(buf), &len);
+            assert(ret == 0);
+            DBG_PRINTF2("QQ.x = %s\n", buf);
+            ret = mbedtls_mpi_write_string(&pub.Y, 16, buf, sizeof(buf), &len);
+            assert(ret == 0);
+            DBG_PRINTF2("QQ.y = %s\n", buf);
 
             size_t sz;
             ret = mbedtls_ecp_point_write_binary(
                                 &keypair.grp, &pub, MBEDTLS_ECP_PF_COMPRESSED,
                                 &sz, pPubKey, UCOIN_SZ_PUBKEY);
             assert(ret == 0);
-            if (k == 1) {
-                pPubKey[0] = 0x03;
-            }
 
             if (ret == 0) {
                 DBG_PRINTF2("recover= ");
@@ -1252,35 +1223,16 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
             } else {
                 DBG_PRINTF2("fail\n");
             }
-
-            // 1.6.3
-            //      R = -R
-            //ret = mbedtls_mpi_sub_mpi(&R.Y, &keypair.grp.P, &R.Y);
-            //assert(ret == 0);
-            //keypair.grp.modp(&R.Y);
-
-            //ret = mbedtls_mpi_write_string(&R.Y, 16, buf, sizeof(buf), &len);
-            //assert(ret == 0);
-            //DBG_PRINTF2("-R.y = %s\n", buf);
-
-            //ret = mbedtls_ecp_check_pubkey(&keypair.grp, &R);
-            //assert(ret == 0);
-
-            //ret = mbedtls_mpi_write_string(&R.X, 16, buf, sizeof(buf), &len);
-            //assert(ret == 0);
-            //DBG_PRINTF2("-R.x = %s\n", buf);
-            //ret = mbedtls_mpi_write_string(&R.Y, 16, buf, sizeof(buf), &len);
-            //assert(ret == 0);
-            //DBG_PRINTF2("-R.y = %s\n", buf);
         }
 
 SKIP_LOOP:
-        mbedtls_ecp_point_free(&pub);
-        mbedtls_ecp_point_free(&MR);
-        mbedtls_ecp_point_free(&R);
-        mbedtls_mpi_free(&x);
+        ;
     }
 
+    mbedtls_ecp_point_free(&pub);
+    mbedtls_ecp_point_free(&MR);
+    mbedtls_ecp_point_free(&R);
+    mbedtls_mpi_free(&x);
     mbedtls_mpi_free(&s);
     mbedtls_mpi_free(&r);
     mbedtls_mpi_free(&inv_r);
