@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <linux/limits.h>
 #include <assert.h>
 
 #include "jsonrpc-c.h"
@@ -57,6 +58,7 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -77,6 +79,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listinvoice, "listinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_pay,         "pay", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
     jrpc_register_procedure(&mJrpc, cmd_debug,       "debug", NULL);
@@ -589,6 +592,104 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_code = RPCERR_NOCONN;
         ctx->error_message = strdup(RPCERR_NOCONN_STR);
     }
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    cJSON *json;
+    cJSON *result = NULL;
+    int index = 0;
+    char payment_hash[2 * LN_SZ_HASH + 1];
+    char nodeid_payee[2 * UCOIN_SZ_PUBKEY + 1];
+    char nodeid_payer[2 * UCOIN_SZ_PUBKEY + 1];
+    uint64_t amount_msat;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //payment_hash, amount_msat, nodeid_payee, nodeid_payer
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_String)) {
+        //misc_str2bin(payment_hash, LN_SZ_HASH, json->valuestring);
+        strcpy(payment_hash, json->valuestring);
+        DBG_PRINTF("payment_hash=%s\n", payment_hash);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        amount_msat = json->valueu64;
+        DBG_PRINTF("  amount_msat=%" PRIu64 "\n", amount_msat);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_String)) {
+        //misc_str2bin(nodeid_payee, UCOIN_SZ_PUBKEY, json->valuestring);
+        strcpy(nodeid_payee, json->valuestring);
+        DBG_PRINTF("nodeid_payee=%s\n", nodeid_payee);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_String)) {
+        //misc_str2bin(nodeid_payer, UCOIN_SZ_PUBKEY, json->valuestring);
+        strcpy(nodeid_payer, json->valuestring);
+        DBG_PRINTF("nodeid_payer=%s\n", nodeid_payer);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    SYSLOG_INFO("route");
+
+    const uint8_t *p_gen = ln_get_genesishash();
+    misc_genesis_t blktype = misc_get_genesis(p_gen);
+    if (blktype == MISC_GENESIS_UNKNOWN) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    const char *BLKNAME[] = { NULL, "mainnet", "testnet", "regtest" };
+
+    // execute `routing` command
+    char cmd[512];
+    sprintf(cmd, "%srouting %s %s %s %s %" PRIu64 "\n",
+                ucoind_get_exec_path(),
+                BLKNAME[blktype], "./dbucoin",
+                nodeid_payer, nodeid_payee, amount_msat);
+    DBG_PRINTF("cmd=%s\n", cmd);
+    system(cmd);
+
+    // lnapp_conf_t *p_appconf = search_connected_lnapp_node(payconf.hop_datain[1].pubkey);
+    // if (p_appconf != NULL) {
+    //     bool ret;
+    //     ret = lnapp_payment(p_appconf, &payconf);
+    //     if (ret) {
+    //         result = cJSON_CreateString("OK");
+    //     } else {
+    //         ctx->error_code = RPCERR_PAY_STOP;
+    //         ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
+    //     }
+    // } else {
+    //     ctx->error_code = RPCERR_NOCONN;
+    //     ctx->error_message = strdup(RPCERR_NOCONN_STR);
+    // }
 
 LABEL_EXIT:
     if (index < 0) {

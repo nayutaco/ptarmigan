@@ -121,7 +121,7 @@ void *p2p_svr_start(void *pArg)
         int polr = poll(&fds, 1, 500);
         if (polr < 0) {
             SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
-            break;
+            continue;
         } else if (polr == 0) {
             //timeout
             continue;
