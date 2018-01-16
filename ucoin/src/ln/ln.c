@@ -282,6 +282,12 @@ void ln_set_genesishash(const uint8_t *pHash)
 }
 
 
+const uint8_t* ln_get_genesishash(void)
+{
+    return gGenesisChainHash;
+}
+
+
 bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId, const ln_est_default_t *pEstDef)
 {
     DBG_PRINTF("BEGIN\n");
