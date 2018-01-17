@@ -7,3 +7,7 @@
 # チャネルを閉じてもノードとして機能するため、ucoindは起動したままになる。
 # DBからのチャネル情報削除は、gettxout によって funding_txが unspentではなくなったことを確認してから行っている。
 ./ucoincli -c conf/peer3333.conf -x 4445
+
+# mining
+sleep 3
+./generate 1

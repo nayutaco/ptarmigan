@@ -169,7 +169,7 @@ static MDB_env      *mpDbEnv = NULL;
  * prototypes
  ********************************************************************/
 
-static int load_shared_secret(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+//static int load_shared_secret(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
 static int save_shared_secret(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
 
 static int save_channel(const ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
@@ -1209,6 +1209,11 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
         if (now - p_info->creation <= M_PREIMAGE_EXPIRY) {
             memcpy(pPreImage, key.mv_data, key.mv_size);
             *pAmount = p_info->amount;
+
+            uint8_t hash[LN_SZ_HASH];
+            ln_calc_preimage_hash(hash, pPreImage);
+            DBG_PRINTF2("    ");
+            DUMPBIN(hash, LN_SZ_HASH);
         } else {
             //期限切れ
             DBG_PRINTF("invoice timeout del: ");
@@ -1999,7 +2004,7 @@ static int save_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_c
  * @param[out]      pTimeStamp      (非NULL時)タイムスタンプ
  * @param[out]      pSendId         (非NULL時)node_announcementの送信元
  * @paramin]        pNodeId         検索するnode_id
- * @retval      true    
+ * @retval      true
  */
 static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId)
 {
@@ -2034,7 +2039,7 @@ static int load_anno_node(MDB_txn *txn, MDB_dbi *pdbi, ucoin_buf_t *pNodeAnno, u
  * @param[in]       pTimeStamp      タイムスタンプ
  * @param[in]       pSendId         node_announcementの送信元
  * @paramin]        pNodeId         検索するnode_id
- * @retval      true    
+ * @retval      true
  */
 static int save_anno_node(MDB_txn *txn, MDB_dbi *pdbi, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId)
 {

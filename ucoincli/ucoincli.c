@@ -279,13 +279,13 @@ int main(int argc, char *argv[])
         printf("\t\t-t : test(not send)\n");
         printf("\t\t-q : quit ucoind\n");
         printf("\t\t-l : list channels\n");
-        printf("\t\t-i : add preimage, and show payment_hash\n");
+        printf("\t\t-i <amount_msat> : add preimage, and show payment_hash\n");
         printf("\t\t-m : show payment_hashs\n");
         printf("\t\t-c <node.conf> : connect node\n");
         printf("\t\t-f <fund.conf> : funding(need -c)\n");
-        printf("\t\t-p <payment.conf> : payment(need -c)\n");
+        printf("\t\t-p <payment.conf>,<paymenet_hash> : payment(need -c)\n");
         printf("\t\t-x : mutual close(need -c)\n");
-        printf("\t\t-d : [debug]debug option\n");
+        printf("\t\t-d <value> : [debug]debug option\n");
         printf("\t\t-g : [debug]get commitment transaction(need -c)\n");
         return -1;
     }

@@ -48,6 +48,7 @@ extern "C" {
 #define LN_SZ_SIGNATURE                 UCOIN_SZ_SIGN_RS    ///< サイズ:署名
 #define LN_SZ_HASH                      (32)        ///< サイズ:xxx-hash
 #define LN_SZ_PREIMAGE                  (32)        ///< サイズ:preimage
+#define LN_SZ_SEED                      (32)        ///< サイズ:seed
 #define LN_SZ_ONION_ROUTE               (1366)      ///< サイズ:onion-routing-packet
 #define LN_SZ_ALIAS                     (32)        ///< サイズ:alias長
 #define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< サイズ:noiseパケットヘッダ
@@ -81,7 +82,6 @@ extern "C" {
 #define LN_NODEDESC_ONIONV2             (3)         ///< tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
 #define LN_NODEDESC_ONIONV3             (4)         ///< tor v3 onion service. data [35:onion_addr][2:port] (length 37)
 #define LN_NODEDESC_MAX                 LN_NODEDESC_ONIONV3
-#define LN_NODEDESC_NULL                (255)
 
 // self->fund_flag
 #define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
@@ -920,7 +920,7 @@ struct ln_self_t {
 
     //key storage
     uint64_t                    storage_index;                  ///< 現在のindex
-    uint8_t                     storage_seed[UCOIN_SZ_PRIVKEY]; ///< ユーザから指定されたseed
+    uint8_t                     storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
     ln_derkey_storage           peer_storage;                   ///< key storage(peer)
     uint64_t                    peer_storage_index;             ///< 現在のindex(peer)
 
@@ -1036,6 +1036,13 @@ void ln_term(ln_self_t *self);
  *          https://github.com/lightningnetwork/lightning-rfc/issues/237
  */
 void ln_set_genesishash(const uint8_t *pHash);
+
+
+/** Genesis Block Hash取得
+ * 
+ * @return      #ln_set_genesishash()で設定したGenesis Block Hash
+ */
+const uint8_t* ln_get_genesishash(void);
 
 
 /** Channel Establish設定
@@ -1842,7 +1849,7 @@ bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId);
 
 
 /** node_announcement検索(node_idから)
- * 
+ *
  * @param[out]      pNodeAnno           取得したnode_announcement
  * @param[in]       pNodeId             検索するnode_id
  * @retval      true        検索成功

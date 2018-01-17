@@ -1,4 +1,4 @@
-﻿/*
+/*
  *  Copyright (C) 2017, Nayuta, Inc. All Rights Reserved
  *  SPDX-License-Identifier: Apache-2.0
  *
@@ -64,13 +64,14 @@ static lnapp_conf_t     mAppConf[M_SOCK_MAX];
 
 void p2p_cli_init(void)
 {
+    memset(&mAppConf, 0, sizeof(mAppConf));
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         mAppConf[lp].sock = -1;
     }
 }
 
 
-void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam, jrpc_context *ctx)
+void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
 {
     int ret;
     struct sockaddr_in sv_addr;
@@ -79,21 +80,6 @@ void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam,
         SYSLOG_ERR("%s(): invalid node_id", __func__);
         ctx->error_code = RPCERR_NODEID;
         ctx->error_message = strdup(RPCERR_NODEID_STR);
-        return;
-    }
-    bool haveCnl = ln_node_search_channel(NULL, pConn->node_id);
-    DBG_PRINTF("pParam=%p, haveCnl=%d\n", pParam, haveCnl);
-    if (((pParam == NULL) && !haveCnl) || ((pParam != NULL) && haveCnl)) {
-        //接続しようとしてチャネルを開いていないか、開設しようとしてチャネルが開いている
-        if (pParam == NULL) {
-            SYSLOG_ERR("%s(): channel not open", __func__);
-            ctx->error_code = RPCERR_NOOPEN;
-            ctx->error_message = strdup(RPCERR_NOOPEN_STR);
-        } else {
-            SYSLOG_ERR("%s(): channel already opened", __func__);
-            ctx->error_code = RPCERR_ALOPEN;
-            ctx->error_message = strdup(RPCERR_ALOPEN_STR);
-            }
         return;
     }
 
@@ -128,9 +114,11 @@ void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam,
     sv_addr.sin_port = htons(pConn->port);
     ret = connect(mAppConf[idx].sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if (ret < 0) {
-        SYSLOG_ERR("%s(): connect", __func__);
+        SYSLOG_ERR("%s(): connect(%s)", __func__, strerror(errno));
         ctx->error_code = RPCERR_CONNECT;
         ctx->error_message = strdup(RPCERR_CONNECT_STR);
+        close(mAppConf[idx].sock);
+        mAppConf[idx].sock = -1;
         goto LABEL_EXIT;
     }
     DBG_PRINTF("connected: sock=%d\n", mAppConf[idx].sock);
@@ -138,8 +126,7 @@ void p2p_cli_start(daemoncmd_t Cmd, const daemon_connect_t *pConn, void *pParam,
     //スレッド起動
     mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
     memcpy(mAppConf[idx].node_id, pConn->node_id, UCOIN_SZ_PUBKEY);
-    mAppConf[idx].cmd = Cmd;
-    mAppConf[idx].p_funding = (funding_conf_t *)pParam;
+    mAppConf[idx].cmd = DCMD_CONNECT;
 
     lnapp_start(&mAppConf[idx]);
 

@@ -222,6 +222,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     bool ret = (memcmp(self->peer_node.node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
     if (ret) {
         if (p->p_self) {
+            //DBから復元
             copy_channel(p->p_self, self);
             ln_misc_update_scriptkeys(&p->p_self->funding_local, &p->p_self->funding_remote);
         } else {
@@ -233,6 +234,11 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 }
 
 
+/** DBから読込んだselfのコピー
+ *
+ * @param[out]  pOutSelf    コピー先
+ * @param[in]   pInSelf     コピー元
+ */
 static void copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 {
     pOutSelf->lfeature_remote = pInSelf->lfeature_remote;     //3

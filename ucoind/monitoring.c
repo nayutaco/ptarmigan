@@ -28,8 +28,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <assert.h>
 
 #define UCOIN_DEBUG_MEM
@@ -80,8 +78,6 @@ static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int
 
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
 static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout);
-
-static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 
 
 /**************************************************************************
@@ -304,7 +300,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                             misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
                             sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
                             DBG_PRINTF("%s\n", json);
-                            int retval = send_json(json, "127.0.0.1", cmd_json_get_port());
+                            int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
                             DBG_PRINTF("retval=%d\n", retval);
                         }
                         break;
@@ -782,35 +778,4 @@ static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *
     }
 
     return ret;
-}
-
-
-/** JSON-RPC送信
- *
- */
-static int send_json(const char *pSend, const char *pAddr, uint16_t Port)
-{
-    int retval = -1;
-    struct sockaddr_in sv_addr;
-
-    int sock = socket(PF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-        return retval;
-    }
-    memset(&sv_addr, 0, sizeof(sv_addr));
-    sv_addr.sin_family = AF_INET;
-    sv_addr.sin_addr.s_addr = inet_addr(pAddr);
-    sv_addr.sin_port = htons(Port);
-    retval = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
-    if (retval < 0) {
-        close(sock);
-        return retval;
-    }
-    write(sock, pSend, strlen(pSend));
-
-    //受信を待つとDBの都合でロックしてしまうため、すぐに閉じる
-
-    close(sock);
-
-    return 0;
 }

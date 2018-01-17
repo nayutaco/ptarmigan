@@ -154,6 +154,7 @@ static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
+static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 
 
 /**************************************************************************
@@ -252,7 +253,7 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     self->storage_index = M_SECINDEX_INIT;
     self->peer_storage_index = M_SECINDEX_INIT;
     if (pSeed) {
-        memcpy(self->storage_seed, pSeed, UCOIN_SZ_PRIVKEY);
+        memcpy(self->storage_seed, pSeed, LN_SZ_SEED);
         ln_derkey_storage_init(&self->peer_storage);
     }
 
@@ -279,6 +280,12 @@ void ln_set_genesishash(const uint8_t *pHash)
     memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
     //DBG_PRINTF("genesis=");
     //DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
+}
+
+
+const uint8_t* ln_get_genesishash(void)
+{
+    return gGenesisChainHash;
 }
 
 
@@ -1847,9 +1854,8 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //temporary-channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("temporary-channel-id mismatch\n");
         return false;
     }
 
@@ -1930,9 +1936,8 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     }
 
     //temporary-channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("temporary-channel-id mismatch\n");
         return false;
     }
 
@@ -2021,9 +2026,8 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     //channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2077,10 +2081,8 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2176,9 +2178,8 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     //channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("fail: channel-id mismatch\n");
         return false;
     }
 
@@ -2265,9 +2266,8 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2385,10 +2385,8 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2542,10 +2540,8 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2613,10 +2609,8 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         ucoin_buf_free(&reason);
         return false;
     }
@@ -2669,10 +2663,8 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         goto LABEL_EXIT;
     }
 
@@ -2751,12 +2743,11 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         goto LABEL_EXIT;
     }
+
     //prev_secretチェック
     uint8_t prev_commitpt[UCOIN_SZ_PUBKEY];
     ret = ucoin_keys_priv2pub(prev_commitpt, prev_secret);
@@ -2839,10 +2830,8 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2918,10 +2907,8 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("fail: channel-id mismatch\n");
         return false;
     }
 
@@ -4086,6 +4073,22 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
         }
     }
     ln_db_cursor_preimage_close(p_cur);
+
+    return ret;
+}
+
+
+static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id)
+{
+    bool ret = (memcmp(recv_id, mine_id, LN_SZ_CHANNEL_ID) == 0);
+    if (!ret) {
+        DBG_PRINTF("channel-id mismatch\n");
+        DBG_PRINTF2("mine:");
+        DUMPBIN(mine_id, LN_SZ_CHANNEL_ID);
+        DBG_PRINTF2("get :");
+        DUMPBIN(recv_id, LN_SZ_CHANNEL_ID);
+        return false;
+    }
 
     return ret;
 }

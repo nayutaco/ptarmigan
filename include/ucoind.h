@@ -43,48 +43,56 @@ static inline int tid() {
  * macros
  ********************************************************************/
 
-#define SZ_RPC_USER     (64)
-#define SZ_RPC_PASSWD   (64)
-#define SZ_RPC_URL      (256)
+#define SZ_RPC_USER                 (64)        ///< RPCUSER
+#define SZ_RPC_PASSWD               (64)        ///< RPCPASSWORD
+#define SZ_RPC_URL                  (256)       ///< URL
 
-#define FNAME_LEN           (50)
-#define FNAME_DIR           "amount"
-#define FNAME_AMOUNT_FMT    FNAME_DIR "/amount.%" PRIx64
+#define FNAME_LEN                   (50)
+#define FNAME_DIR                   "amount"
+#define FNAME_AMOUNT_FMT            FNAME_DIR "/amount.%" PRIx64
 
-#define RPCERR_ERROR        (-10000)
-#define RPCERR_ERROR_STR    "error"
-#define RPCERR_NOCONN       (-10001)
-#define RPCERR_NOCONN_STR   "not connected"
-#define RPCERR_ALCONN       (-10002)
-#define RPCERR_ALCONN_STR   "already connected"
-#define RPCERR_NOCHANN      (-10003)
-#define RPCERR_NOCHANN_STR  "no channel"
-#define RPCERR_PARSE        (-10004)
-#define RPCERR_PARSE_STR    "parse param"
 
-#define RPCERR_NODEID       (-20000)
-#define RPCERR_NODEID_STR   "invalid node_id"
-#define RPCERR_NOOPEN       (-20001)
-#define RPCERR_NOOPEN_STR   "channel not open"
-#define RPCERR_ALOPEN       (-20002)
-#define RPCERR_ALOPEN_STR   "channel already opened"
-#define RPCERR_FULLCLI      (-20003)
-#define RPCERR_FULLCLI_STR  "client full"
-#define RPCERR_SOCK         (-20004)
-#define RPCERR_SOCK_STR     "socket"
-#define RPCERR_CONNECT      (-20005)
-#define RPCERR_CONNECT_STR  "connect"
+// JSON-RPCエラー
 
-#define RPCERR_INVOICE_FULL     (-21000)
-#define RPCERR_INVOICE_FULL_STR "invoice full"
+#define RPCERR_ERROR                (-10000)
+#define RPCERR_ERROR_STR            "error"
+#define RPCERR_NOCONN               (-10001)
+#define RPCERR_NOCONN_STR           "not connected"
+#define RPCERR_ALCONN               (-10002)
+#define RPCERR_ALCONN_STR           "already connected"
+#define RPCERR_NOCHANN              (-10003)
+#define RPCERR_NOCHANN_STR          "no channel"
+#define RPCERR_PARSE                (-10004)
+#define RPCERR_PARSE_STR            "parse param"
+#define RPCERR_NOINIT               (-10005)
+#define RPCERR_NOINIT_STR           "no init or init not end"
 
-#define RPCERR_CLOSE_HTLC       (-25000)
-#define RPCERR_CLOSE_HTLC_STR   "remain HTLC"
-#define RPCERR_CLOSE_FAIL       (-25001)
-#define RPCERR_CLOSE_FAIL_STR   "fail unilateral close"
+#define RPCERR_NODEID               (-20000)
+#define RPCERR_NODEID_STR           "invalid node_id"
+#define RPCERR_NOOPEN               (-20001)
+#define RPCERR_NOOPEN_STR           "channel not open"
+#define RPCERR_ALOPEN               (-20002)
+#define RPCERR_ALOPEN_STR           "channel already opened"
+#define RPCERR_FULLCLI              (-20003)
+#define RPCERR_FULLCLI_STR          "client full"
+#define RPCERR_SOCK                 (-20004)
+#define RPCERR_SOCK_STR             "socket"
+#define RPCERR_CONNECT              (-20005)
+#define RPCERR_CONNECT_STR          "connect"
 
-#define RPCERR_PAY_STOP         (-26000)
-#define RPCERR_PAY_STOP_STR     "stop payment"
+#define RPCERR_FUNDING              (-21000)
+#define RPCERR_FUNDING_STR          "fail funding"
+
+#define RPCERR_INVOICE_FULL         (-22000)
+#define RPCERR_INVOICE_FULL_STR     "invoice full"
+
+#define RPCERR_CLOSE_HTLC           (-25000)
+#define RPCERR_CLOSE_HTLC_STR       "remain HTLC"
+#define RPCERR_CLOSE_FAIL           (-25001)
+#define RPCERR_CLOSE_FAIL_STR       "fail unilateral close"
+
+#define RPCERR_PAY_STOP             (-26000)
+#define RPCERR_PAY_STOP_STR         "stop payment"
 
 
 #define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数
@@ -169,7 +177,6 @@ typedef struct {
     char            signaddr[UCOIN_SZ_ADDR_MAX];
     uint64_t        funding_sat;
     uint64_t        push_sat;
-    opening_t       *p_opening;         //establish時にmalloc()して使用する
 } funding_conf_t;
 
 
@@ -253,5 +260,7 @@ void ucoind_preimage_lock(void);
 void ucoind_preimage_unlock(void);
 
 lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id);
+
+const char *ucoind_get_exec_path(void);
 
 #endif /* UCOIND_H__ */
