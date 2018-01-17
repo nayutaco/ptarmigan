@@ -785,6 +785,10 @@ static void *thread_main_start(void *pArg)
     //      server動作時、p_conf->node_idに相手node_idが入っている
     /////////////////////////
 
+    //p_conf->node_idが接続済みかどうか
+    //済んでいる場合、my_selfにDBから読み込みまで行われている。
+    bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
+
     //
     //my_selfへの設定はこれ以降に行う
     //
@@ -825,7 +829,6 @@ static void *thread_main_start(void *pArg)
     ln_set_shutdown_vout_addr(&my_self, payaddr);
 
     // Establishチェック
-    bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
     if (detect) {
         //既にチャネルあり
         //my_selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
