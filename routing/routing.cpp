@@ -255,13 +255,20 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
         memset(&self, 0, sizeof(self));
         ret = ln_lmdb_load_channel(&self, txn, &dbi);
         if (ret == 0) {
+            //p1: my node_id(送金元とmy node_idが不一致の場合はNULL), p2: target node_id
+#if 1
+            //p1が非NULL == my node_id
+            if (self.short_channel_id != 0) {
+                //チャネルは開設している
+                p2 = self.peer_node.node_id;
+
 #ifdef M_DEBUG
-            fprintf(stderr, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
-            dumpbin(p1, 33);
-            dumpbin(p2, 33);
+                fprintf(stderr, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
+                fprintf(stderr, "p1= ");
+                dumpbin(p1, 33);
+                fprintf(stderr, "p2= ");
+                dumpbin(p2, 33);
 #endif
-            if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
-                //チャネル接続しているが、announcement_signaturesはしていない相手
                 mNodeNum++;
                 mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
                 mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
@@ -279,6 +286,34 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                     mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
                 }
             }
+#else
+            if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
+                //チャネル接続しているが、announcement_signaturesはしていない相手
+#ifdef M_DEBUG
+                fprintf(stderr, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
+                fprintf(stderr, "p1= ");
+                dumpbin(p1, 33);
+                fprintf(stderr, "p2= ");
+                dumpbin(p2, 33);
+#endif
+                mNodeNum++;
+                mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
+                mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
+                if (memcmp(p1, p2, UCOIN_SZ_PUBKEY) > 0) {
+                    const uint8_t *p = p1;
+                    p1 = p2;
+                    p2 = p;
+                }
+                memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
+                memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
+                for (int lp = 0; lp < 2; lp++) {
+                    mpNodes[mNodeNum - 1].ninfo[lp].cltv_expiry_delta = 0;
+                    mpNodes[mNodeNum - 1].ninfo[lp].htlc_minimum_msat = 0;
+                    mpNodes[mNodeNum - 1].ninfo[lp].fee_base_msat = 0;
+                    mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
+                }
+            }
+#endif
         }
         ln_term(&self);
         mdb_close(mpDbEnv, dbi);
@@ -290,6 +325,11 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
 }
 
 
+/**
+ * @param[in]       p1      送金元node_id(NULLあり)
+ * @param[in]       p2      送金先node_id(NULLあり)
+ *
+ */
 static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
 {
     int ret;
@@ -297,12 +337,6 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
-
-#ifdef M_DEBUG
-    fprintf(stderr, "pDbPath: %s\n", pDbPath);
-    fprintf(stderr, "p1: %p\n", p1);
-    fprintf(stderr, "p2: %p\n", p2);
-#endif
 
     ret = mdb_env_create(&mpDbEnv);
     assert(ret == 0);
@@ -319,7 +353,12 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
     ret = ln_lmdb_check_version(txn, my_nodeid);
     assert(ret == 0);
+#ifdef M_DEBUG
+    fprintf(stderr, "my node_id: ");
+    dumpbin(my_nodeid, sizeof(my_nodeid));
+#endif
     if (p1 && (memcmp(my_nodeid, p1, UCOIN_SZ_PUBKEY) != 0)) {
+        //p1がmy node_idと不一致なら、NULL扱い
         p1 = NULL;
     }
     ret = mdb_dbi_open(txn, NULL, 0, &dbi);
