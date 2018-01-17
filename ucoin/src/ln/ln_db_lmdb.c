@@ -1209,6 +1209,11 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
         if (now - p_info->creation <= M_PREIMAGE_EXPIRY) {
             memcpy(pPreImage, key.mv_data, key.mv_size);
             *pAmount = p_info->amount;
+
+            uint8_t hash[LN_SZ_HASH];
+            ln_calc_preimage_hash(hash, pPreImage);
+            DBG_PRINTF2("    ");
+            DUMPBIN(hash, LN_SZ_HASH);
         } else {
             //期限切れ
             DBG_PRINTF("invoice timeout del: ");

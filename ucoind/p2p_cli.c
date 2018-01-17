@@ -117,6 +117,8 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         SYSLOG_ERR("%s(): connect(%s)", __func__, strerror(errno));
         ctx->error_code = RPCERR_CONNECT;
         ctx->error_message = strdup(RPCERR_CONNECT_STR);
+        close(mAppConf[idx].sock);
+        mAppConf[idx].sock = -1;
         goto LABEL_EXIT;
     }
     DBG_PRINTF("connected: sock=%d\n", mAppConf[idx].sock);

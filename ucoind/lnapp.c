@@ -583,8 +583,7 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 
 void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 {
-    if (!pAppConf->loop) {
-        //DBG_PRINTF("This AppConf not working\n");
+    if ((!pAppConf->loop) || (pAppConf->sock < 0)) {
         return;
     }
 
@@ -632,6 +631,14 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //confirmation
         uint32_t confirm = jsonrpc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
+    } else if (ucoin_keys_chkpub(pAppConf->node_id)) {
+        char str[256];
+
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString("connected"));
+
+        //peer node_id
+        misc_bin2str(str, pAppConf->node_id, UCOIN_SZ_PUBKEY);
+        cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
     } else {
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
     }
@@ -778,6 +785,10 @@ static void *thread_main_start(void *pArg)
     //      server動作時、p_conf->node_idに相手node_idが入っている
     /////////////////////////
 
+    //p_conf->node_idが接続済みかどうか
+    //済んでいる場合、my_selfにDBから読み込みまで行われている。
+    bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
+
     //
     //my_selfへの設定はこれ以降に行う
     //
@@ -818,7 +829,6 @@ static void *thread_main_start(void *pArg)
     ln_set_shutdown_vout_addr(&my_self, payaddr);
 
     // Establishチェック
-    bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
     if (detect) {
         //既にチャネルあり
         //my_selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
@@ -2034,7 +2044,6 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
         void *p_cur;
         bool ret = ln_db_cursor_preimage_open(&p_cur);
-        assert(ret);
         while (ret) {
             ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
             if (ret) {

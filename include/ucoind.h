@@ -259,4 +259,6 @@ void ucoind_preimage_unlock(void);
 
 lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id);
 
+const char *ucoind_get_exec_path(void);
+
 #endif /* UCOIND_H__ */
