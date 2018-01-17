@@ -655,7 +655,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    SYSLOG_INFO("route");
+    SYSLOG_INFO("routepay");
 
     const uint8_t *p_gen = ln_get_genesishash();
     misc_genesis_t blktype = misc_get_genesis(p_gen);
@@ -693,20 +693,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     DBG_PRINTF("retval=%d\n", retval);
     APP_FREE(p_route);
 
-    // lnapp_conf_t *p_appconf = search_connected_lnapp_node(payconf.hop_datain[1].pubkey);
-    // if (p_appconf != NULL) {
-    //     bool ret;
-    //     ret = lnapp_payment(p_appconf, &payconf);
-    //     if (ret) {
-    //         result = cJSON_CreateString("OK");
-    //     } else {
-    //         ctx->error_code = RPCERR_PAY_STOP;
-    //         ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
-    //     }
-    // } else {
-    //     ctx->error_code = RPCERR_NOCONN;
-    //     ctx->error_message = strdup(RPCERR_NOCONN_STR);
-    // }
+    result = cJSON_CreateString("OK");
 
 LABEL_EXIT:
     if (index < 0) {
