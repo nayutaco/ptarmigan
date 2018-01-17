@@ -99,6 +99,7 @@
 //lnapp_conf_t.flag_recv
 #define RECV_MSG_INIT           (0x01)      ///< init
 #define RECV_MSG_REESTABLISH    (0x02)      ///< channel_reestablish
+#define RECV_MSG_END            (0x80)      ///< 初期化完了
 
 #define M_SCRIPT_DIR            "./script/"
 
@@ -164,8 +165,6 @@ static volatile enum {
     MUX_PAYMENT=0x01,               ///< 送金開始
     MUX_CHG_HTLC=0x02,              ///< HTLC変更中
     MUX_COMSIG=0x04,                ///< Commitment Signed処理中
-    //MUX_SEND_FULFILL_HTLC=0x40,     ///< fulfill_htlc送信済み
-    //MUX_RECV_FULFILL_HTLC=0x80,     ///< fulfill_htlc受信済み
 } mMuxTiming;
 
 
@@ -241,8 +240,6 @@ static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static void send_channel_anno(lnapp_conf_t *p_conf, bool force);
 static void send_node_anno(lnapp_conf_t *p_conf, bool force);
-
-//static bool db_del_channel(ln_self_t *self, bool bRemove);
 
 static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId);
 static void set_changeaddr(ln_self_t *self, uint64_t commit_fee);
@@ -703,6 +700,12 @@ bool lnapp_is_looping(const lnapp_conf_t *pAppConf)
 }
 
 
+bool lnapp_is_inited(const lnapp_conf_t *pAppConf)
+{
+    return (pAppConf->flag_recv & RECV_MSG_END) == RECV_MSG_END;
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/
@@ -878,6 +881,10 @@ static void *thread_main_start(void *pArg)
                 peer_id,
                 cmd_json_get_port());
     call_script(M_EVT_CONNECTED, param);
+
+    //初期化完了
+    DBG_PRINTF("\n\n*** message inited ***\n\n\n");
+    p_conf->flag_recv |= RECV_MSG_END;
 
     while (p_conf->loop) {
         DBG_PRINTF("loop...\n");
@@ -2160,13 +2167,10 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     }
 
     if (p_fulfill->prev_short_channel_id != 0) {
-        //mMuxTiming |= MUX_RECV_FULFILL_HTLC | MUX_SEND_FULFILL_HTLC;
-
         //フラグを立てて、相手の受信スレッドで処理してもらう
         DBG_PRINTF("戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->id);
         ucoind_backward_fulfill(p_fulfill);
     } else {
-        //mMuxTiming |= MUX_RECV_FULFILL_HTLC;
         DBG_PRINTF("ここまで\n");
     }
     pthread_mutex_unlock(&mMuxSeq);

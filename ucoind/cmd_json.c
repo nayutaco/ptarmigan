@@ -179,6 +179,14 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    bool inited = lnapp_is_inited(p_appconf);
+    if (!inited) {
+        //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
+        ctx->error_code = RPCERR_NOINIT;
+        ctx->error_message = strdup(RPCERR_NOINIT_STR);
+        goto LABEL_EXIT;
+    }
+
     //txid, txindex, signaddr, funding_sat, push_sat
 
     //txid
@@ -579,13 +587,21 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
-        bool ret;
-        ret = lnapp_payment(p_appconf, &payconf);
-        if (ret) {
-            result = cJSON_CreateString("OK");
+
+        bool inited = lnapp_is_inited(p_appconf);
+        if (inited) {
+            bool ret;
+            ret = lnapp_payment(p_appconf, &payconf);
+            if (ret) {
+                result = cJSON_CreateString("OK");
+            } else {
+                ctx->error_code = RPCERR_PAY_STOP;
+                ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
+            }
         } else {
-            ctx->error_code = RPCERR_PAY_STOP;
-            ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
+            //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
+            ctx->error_code = RPCERR_NOINIT;
+            ctx->error_message = strdup(RPCERR_NOINIT_STR);
         }
     } else {
         ctx->error_code = RPCERR_NOCONN;

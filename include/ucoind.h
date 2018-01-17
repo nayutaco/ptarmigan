@@ -64,6 +64,8 @@ static inline int tid() {
 #define RPCERR_NOCHANN_STR          "no channel"
 #define RPCERR_PARSE                (-10004)
 #define RPCERR_PARSE_STR            "parse param"
+#define RPCERR_NOINIT               (-10005)
+#define RPCERR_NOINIT_STR           "no init or init not end"
 
 #define RPCERR_NODEID               (-20000)
 #define RPCERR_NODEID_STR           "invalid node_id"

@@ -201,4 +201,10 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult);
  */
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
 
+
+/** [lnapp]初期化済み状態取得
+ * 
+ */
+bool lnapp_is_inited(const lnapp_conf_t *pAppConf);
+
 #endif /* LNAPP_H__ */
