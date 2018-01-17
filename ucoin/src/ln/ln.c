@@ -4080,7 +4080,7 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
 
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id)
 {
-    int ret = (memcmp(recv_id, mine_id, LN_SZ_CHANNEL_ID) == 0);
+    bool ret = (memcmp(recv_id, mine_id, LN_SZ_CHANNEL_ID) == 0);
     if (!ret) {
         DBG_PRINTF("channel-id mismatch\n");
         DBG_PRINTF2("mine:");
@@ -4090,5 +4090,5 @@ static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id)
         return false;
     }
 
-    return ret == 0;
+    return ret;
 }
