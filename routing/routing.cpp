@@ -37,6 +37,7 @@
 #include <assert.h>
 
 //#define M_DEBUG
+#define M_SPOIL_STDERR
 
 #include "ucoind.h"
 #include "ln_db.h"
@@ -500,6 +501,11 @@ int main(int argc, char* argv[])
         fprintf(stderr, "mainnet or testnet only[%s]\n", nettype);
         return -1;
     }
+
+#ifdef M_SPOIL_STDERR
+    //stderrを捨てる
+    close(2);
+#endif  //M_SPOIL_STDERR
 
     if (argc >= ARGS_PAYMENT) {
         ret = misc_str2bin(mMyNodeId, sizeof(mMyNodeId), my_node);
