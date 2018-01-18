@@ -74,6 +74,8 @@ using namespace boost;
 #define M_MIN_FINAL_CLTV_EXPIRY             (9)     ///< min_final_cltv_expiryのデフォルト値
                                                     // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#tagged-fields
 
+#define M_CLTV_INIT                         ((uint16_t)0xffff)
+
 
 /**************************************************************************
  * prototypes
@@ -218,6 +220,8 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                                         mpNodes[mNodeNum - 1].ninfo[0].node_id,
                                         mpNodes[mNodeNum - 1].ninfo[1].node_id,
                                         buf.buf, buf.len);
+                    mpNodes[mNodeNum - 1].ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
+                    mpNodes[mNodeNum - 1].ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
 #ifdef M_DEBUG
                     fprintf(stderr, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
                     ln_print_announce(buf.buf, buf.len);
@@ -565,7 +569,10 @@ int main(int argc, char* argv[])
             }
         }
 
-        if (node1 != node2) {
+        if ( (node1 != node2) &&
+             (mpNodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) &&
+             (mpNodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) ) {
+            //channel_updateが両方必要
             bool inserted = false;
             graph_t::edge_descriptor e1, e2;
 
