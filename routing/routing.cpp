@@ -651,8 +651,9 @@ int main(int argc, char* argv[])
                 amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
             }
 
-            if (cltv_expiry == 0) {
-                cltv.push_front(g[e].cltv_expiry_delta);
+            if (cltv_expiry == mMinFinalCltvExpiry) {
+                //初回
+                cltv.push_front(g[e].cltv_expiry_delta + mMinFinalCltvExpiry);
             }
             cltv_expiry += g[e].cltv_expiry_delta;
             cltv.push_front(cltv_expiry);
