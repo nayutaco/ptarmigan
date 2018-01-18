@@ -421,8 +421,8 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
 
     int NumHops = pSharedSecrets->len / UCOIN_SZ_PRIVKEY;
 
-#ifdef M_DBG_FAIL
     DBG_PRINTF("NumHops=%d\n", NumHops);
+#ifdef M_DBG_FAIL
     DBG_PRINTF("oni_shared_secrets=");
     DUMPBIN(pSharedSecrets->buf, pSharedSecrets->len);
 #endif  //M_DBG_FAIL
@@ -468,7 +468,6 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
 
                     bend = memcmp(p_out->buf, hmac, M_SZ_HMAC) == 0;
                     if (bend) {
-                        DBG_PRINTF("decode loop=%d\n", lp + 1);
                         ucoin_buf_alloccopy(pReason, reason.buf, reason.len);
                     } else {
                         DBG_PRINTF("fail: HMAC not match!\n");
