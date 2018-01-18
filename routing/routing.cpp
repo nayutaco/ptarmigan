@@ -753,15 +753,12 @@ int main(int argc, char* argv[])
                 char node1[68];
                 char node2[68];
                 node1[0] = '\"';
-                node1[1] = (char)('A' + u);
-                node1[2] = ':';
-                node1[3] = '\0';
+                node1[1] = '\0';
                 node2[0] = '\"';
-                node2[1] = (char)('A' + v);
-                node2[2] = ':';
-                node2[3] = '\0';
+                node2[1] = '\0';
                 const uint8_t *p_node1 = g[u].p_node;
                 const uint8_t *p_node2 = g[v].p_node;
+                //node_id先頭の数桁だけ使う
                 for (int lp = 0; lp < 3; lp++) {
                     char s[3];
                     sprintf(s, "%02x", p_node1[lp]);
