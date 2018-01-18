@@ -731,6 +731,8 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
     misc_bin2str(node_id, ucoind_nodeid(), UCOIN_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
+    cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ucoind_nodeport()));
+    cJSON_AddItemToObject(result, "jsonrpc_port", cJSON_CreateNumber(cmd_json_get_port()));
     p2p_svr_show_self(result_svr);
     cJSON_AddItemToObject(result, "server", result_svr);
     p2p_cli_show_self(result_cli);
