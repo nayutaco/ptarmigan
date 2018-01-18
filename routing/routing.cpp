@@ -85,7 +85,7 @@ using namespace boost;
 extern "C" {
     void ln_print_announce(const uint8_t *pData, uint16_t Len);
     bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
-    bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBaseMsat, uint32_t *pPropMil, const uint8_t *pData, uint16_t Len);
+    bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 }
 
 typedef struct {
@@ -211,6 +211,9 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
             ucoin_buf_init(&buf);
             ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
             if (ret == 0) {
+                ln_cnl_update_t upd;
+                bool bret;
+
                 switch (type) {
                 case LN_DB_CNLANNO_ANNO:
                     mNodeNum++;
@@ -231,12 +234,17 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                 case LN_DB_CNLANNO_UPD1:
                 case LN_DB_CNLANNO_UPD2:
                     idx = type - LN_DB_CNLANNO_UPD1;
-                    ln_getparams_cnl_upd(
-                                        &mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta,
-                                        &mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat,
-                                        &mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat,
-                                        &mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths,
-                                        buf.buf, buf.len);
+                    bret = ln_getparams_cnl_upd(&upd, buf.buf, buf.len);
+                    if (bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0)) {
+                        //disable状態ではない
+                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
+                        mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
+                        mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat = upd.fee_base_msat;
+                        mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
+                    } else {
+                        //disableの場合は、対象外にされるよう初期値にしておく
+                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
+                    }
 #ifdef M_DEBUG
                     fprintf(stderr, "channel update : %c\n", type);
                     ln_print_announce(buf.buf, buf.len);
@@ -265,6 +273,7 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
 #if 0
             //
             // まだannounceする前でも、送金元が自分でチャネル開設が完了しているのならルートに含めるべき
+            // しかし、
             //
 
             //p1が非NULL == my node_id
@@ -621,7 +630,7 @@ int main(int argc, char* argv[])
         std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
         std::deque<uint64_t> msat;
         std::deque<uint32_t> cltv;
-        uint32_t cltv_expiry = 0;
+        uint32_t cltv_expiry = mMinFinalCltvExpiry;
         for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
             route.push_front(v);
 
@@ -643,9 +652,9 @@ int main(int argc, char* argv[])
             }
 
             if (cltv_expiry == 0) {
-                cltv.push_front(g[e].cltv_expiry_delta + mMinFinalCltvExpiry);
+                cltv.push_front(g[e].cltv_expiry_delta);
             }
-            cltv_expiry += g[e].cltv_expiry_delta + mMinFinalCltvExpiry;
+            cltv_expiry += g[e].cltv_expiry_delta;
             cltv.push_front(cltv_expiry);
         }
         route.push_front(pnt_start);

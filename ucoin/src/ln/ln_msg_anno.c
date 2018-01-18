@@ -889,7 +889,7 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
     DBG_PRINTF2("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
     DBG_PRINTF2("flags= 0x%04x\n", pMsg->flags);
     DBG_PRINTF2("    direction: %s\n", (pMsg->flags & 0x0001) ? "node_2" : "node_1");
-    DBG_PRINTF2("    %s\n", (pMsg->flags & 0x0002) ? "disabling" : "enable");
+    DBG_PRINTF2("    %s\n", (pMsg->flags & LN_CNLUPD_FLAGS_DISABLE) ? "disabling" : "enable");
     DBG_PRINTF2("cltv_expiry_delta= %u\n", pMsg->cltv_expiry_delta);
     DBG_PRINTF2("htlc_minimum_msat= %" PRIu64 "\n", pMsg->htlc_minimum_msat);
     DBG_PRINTF2("fee_base_msat= %u\n", pMsg->fee_base_msat);

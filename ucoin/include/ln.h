@@ -87,6 +87,10 @@ extern "C" {
 #define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
 #define LN_FUNDFLAG_ANNO_CH             (0x02)      ///< open_channel.channel_flags.announce_channel
 
+// channel_update.flags
+#define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
+#define LN_CNLUPD_FLAGS_DISABLE         (0x0002)    ///< b1: disable
+
 #define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
                                                     ///< コメントアウトするとDB保存しなくなるが、revoked transaction closeから取り戻すために
                                                     ///< 相手のアクションが必要となる
