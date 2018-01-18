@@ -257,7 +257,11 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
         ret = ln_lmdb_load_channel(&self, txn, &dbi);
         if (ret == 0) {
             //p1: my node_id(送金元とmy node_idが不一致の場合はNULL), p2: target node_id
-#if 1
+#if 0
+            //
+            // まだannounceする前でも、送金元が自分でチャネル開設が完了しているのならルートに含めるべき
+            //
+
             //p1が非NULL == my node_id
             if (self.short_channel_id != 0) {
                 //チャネルは開設している
@@ -288,6 +292,10 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                 }
             }
 #else
+            //
+            // まだannounceする前で、送金元が自分、送金先がpeer相手でチャネル開設が完了している場合のみルートを許可
+            //
+
             if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
                 //チャネル接続しているが、announcement_signaturesはしていない相手
 #ifdef M_DEBUG
