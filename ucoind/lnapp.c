@@ -847,8 +847,8 @@ static void *thread_main_start(void *pArg)
             if (ret) {
                 send_peer_noise(p_conf, &buf_upd);
             } else {
-                //DBG_PRINTF("channel_announcement再送\n");
-                //send_channel_anno(p_conf, true);
+                DBG_PRINTF("channel_announcement再送\n");
+                send_channel_anno(p_conf, true);
             }
             ucoin_buf_free(&buf_upd);
         } else {
