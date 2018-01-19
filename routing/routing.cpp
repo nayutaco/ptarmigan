@@ -37,6 +37,7 @@
 #include <assert.h>
 
 //#define M_DEBUG
+#define M_SPOIL_STDERR
 
 #include "ucoind.h"
 #include "ln_db.h"
@@ -74,6 +75,8 @@ using namespace boost;
 #define M_MIN_FINAL_CLTV_EXPIRY             (9)     ///< min_final_cltv_expiryのデフォルト値
                                                     // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#tagged-fields
 
+#define M_CLTV_INIT                         ((uint16_t)0xffff)
+
 
 /**************************************************************************
  * prototypes
@@ -82,7 +85,7 @@ using namespace boost;
 extern "C" {
     void ln_print_announce(const uint8_t *pData, uint16_t Len);
     bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
-    bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBaseMsat, uint32_t *pPropMil, const uint8_t *pData, uint16_t Len);
+    bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 }
 
 typedef struct {
@@ -208,6 +211,9 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
             ucoin_buf_init(&buf);
             ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
             if (ret == 0) {
+                ln_cnl_update_t upd;
+                bool bret;
+
                 switch (type) {
                 case LN_DB_CNLANNO_ANNO:
                     mNodeNum++;
@@ -218,6 +224,8 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                                         mpNodes[mNodeNum - 1].ninfo[0].node_id,
                                         mpNodes[mNodeNum - 1].ninfo[1].node_id,
                                         buf.buf, buf.len);
+                    mpNodes[mNodeNum - 1].ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
+                    mpNodes[mNodeNum - 1].ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
 #ifdef M_DEBUG
                     fprintf(stderr, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
                     ln_print_announce(buf.buf, buf.len);
@@ -226,12 +234,17 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                 case LN_DB_CNLANNO_UPD1:
                 case LN_DB_CNLANNO_UPD2:
                     idx = type - LN_DB_CNLANNO_UPD1;
-                    ln_getparams_cnl_upd(
-                                        &mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta,
-                                        &mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat,
-                                        &mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat,
-                                        &mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths,
-                                        buf.buf, buf.len);
+                    bret = ln_getparams_cnl_upd(&upd, buf.buf, buf.len);
+                    if (bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0)) {
+                        //disable状態ではない
+                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
+                        mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
+                        mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat = upd.fee_base_msat;
+                        mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
+                    } else {
+                        //disableの場合は、対象外にされるよう初期値にしておく
+                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
+                    }
 #ifdef M_DEBUG
                     fprintf(stderr, "channel update : %c\n", type);
                     ln_print_announce(buf.buf, buf.len);
@@ -256,13 +269,25 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
         memset(&self, 0, sizeof(self));
         ret = ln_lmdb_load_channel(&self, txn, &dbi);
         if (ret == 0) {
+            //p1: my node_id(送金元とmy node_idが不一致の場合はNULL), p2: target node_id
+#if 0
+            //
+            // まだannounceする前でも、送金元が自分でチャネル開設が完了しているのならルートに含めるべき
+            // しかし、相手のchannel情報を持たないため、反対側のchannel_updateデータを使用する(c-lightningの動作)
+            //
+
+            //p1が非NULL == my node_id
+            if (self.short_channel_id != 0) {
+                //チャネルは開設している
+                p2 = self.peer_node.node_id;
+
 #ifdef M_DEBUG
-            fprintf(stderr, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
-            dumpbin(p1, 33);
-            dumpbin(p2, 33);
+                fprintf(stderr, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
+                fprintf(stderr, "p1= ");
+                dumpbin(p1, 33);
+                fprintf(stderr, "p2= ");
+                dumpbin(p2, 33);
 #endif
-            if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
-                //チャネル接続しているが、announcement_signaturesはしていない相手
                 mNodeNum++;
                 mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
                 mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
@@ -280,6 +305,38 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                     mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
                 }
             }
+#else
+            //
+            // まだannounceする前で、送金元が自分、送金先がpeer相手でチャネル開設が完了している場合のみルートを許可
+            //
+
+            if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
+                //チャネル接続しているが、announcement_signaturesはしていない相手
+#ifdef M_DEBUG
+                fprintf(stderr, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
+                fprintf(stderr, "p1= ");
+                dumpbin(p1, 33);
+                fprintf(stderr, "p2= ");
+                dumpbin(p2, 33);
+#endif
+                mNodeNum++;
+                mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
+                mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
+                if (memcmp(p1, p2, UCOIN_SZ_PUBKEY) > 0) {
+                    const uint8_t *p = p1;
+                    p1 = p2;
+                    p2 = p;
+                }
+                memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
+                memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
+                for (int lp = 0; lp < 2; lp++) {
+                    mpNodes[mNodeNum - 1].ninfo[lp].cltv_expiry_delta = 0;
+                    mpNodes[mNodeNum - 1].ninfo[lp].htlc_minimum_msat = 0;
+                    mpNodes[mNodeNum - 1].ninfo[lp].fee_base_msat = 0;
+                    mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
+                }
+            }
+#endif
         }
         ln_term(&self);
         mdb_close(mpDbEnv, dbi);
@@ -291,6 +348,11 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
 }
 
 
+/**
+ * @param[in]       p1      送金元node_id(NULLあり)
+ * @param[in]       p2      送金先node_id(NULLあり)
+ *
+ */
 static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
 {
     int ret;
@@ -298,12 +360,6 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
-
-#ifdef M_DEBUG
-    fprintf(stderr, "pDbPath: %s\n", pDbPath);
-    fprintf(stderr, "p1: %p\n", p1);
-    fprintf(stderr, "p2: %p\n", p2);
-#endif
 
     ret = mdb_env_create(&mpDbEnv);
     assert(ret == 0);
@@ -320,7 +376,12 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
     ret = ln_lmdb_check_version(txn, my_nodeid);
     assert(ret == 0);
+#ifdef M_DEBUG
+    fprintf(stderr, "my node_id: ");
+    dumpbin(my_nodeid, sizeof(my_nodeid));
+#endif
     if (p1 && (memcmp(my_nodeid, p1, UCOIN_SZ_PUBKEY) != 0)) {
+        //p1がmy node_idと不一致なら、NULL扱い
         p1 = NULL;
     }
     ret = mdb_dbi_open(txn, NULL, 0, &dbi);
@@ -450,6 +511,11 @@ int main(int argc, char* argv[])
         return -1;
     }
 
+#ifdef M_SPOIL_STDERR
+    //stderrを捨てる
+    close(2);
+#endif  //M_SPOIL_STDERR
+
     if (argc >= ARGS_PAYMENT) {
         ret = misc_str2bin(mMyNodeId, sizeof(mMyNodeId), my_node);
 
@@ -518,7 +584,10 @@ int main(int argc, char* argv[])
             }
         }
 
-        if (node1 != node2) {
+        if ( (node1 != node2) &&
+             (mpNodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) &&
+             (mpNodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) ) {
+            //channel_updateが両方必要
             bool inserted = false;
             graph_t::edge_descriptor e1, e2;
 
@@ -561,7 +630,7 @@ int main(int argc, char* argv[])
         std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
         std::deque<uint64_t> msat;
         std::deque<uint32_t> cltv;
-        uint32_t cltv_expiry = 0;
+        uint32_t cltv_expiry = mMinFinalCltvExpiry;
         for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
             route.push_front(v);
 
@@ -582,10 +651,11 @@ int main(int argc, char* argv[])
                 amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
             }
 
-            if (cltv_expiry == 0) {
+            if (cltv_expiry == mMinFinalCltvExpiry) {
+                //初回
                 cltv.push_front(g[e].cltv_expiry_delta + mMinFinalCltvExpiry);
             }
-            cltv_expiry += g[e].cltv_expiry_delta + mMinFinalCltvExpiry;
+            cltv_expiry += g[e].cltv_expiry_delta;
             cltv.push_front(cltv_expiry);
         }
         route.push_front(pnt_start);
@@ -706,15 +776,12 @@ int main(int argc, char* argv[])
                 char node1[68];
                 char node2[68];
                 node1[0] = '\"';
-                node1[1] = (char)('A' + u);
-                node1[2] = ':';
-                node1[3] = '\0';
+                node1[1] = '\0';
                 node2[0] = '\"';
-                node2[1] = (char)('A' + v);
-                node2[2] = ':';
-                node2[3] = '\0';
+                node2[1] = '\0';
                 const uint8_t *p_node1 = g[u].p_node;
                 const uint8_t *p_node2 = g[v].p_node;
+                //node_id先頭の数桁だけ使う
                 for (int lp = 0; lp < 3; lp++) {
                     char s[3];
                     sprintf(s, "%02x", p_node1[lp]);

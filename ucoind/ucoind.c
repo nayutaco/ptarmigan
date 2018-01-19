@@ -49,6 +49,7 @@
  ********************************************************************/
 
 static ln_node_t            mNode;
+static uint16_t             mNodePort;
 static pthread_mutex_t      mMuxPreimage;
 static char                 mExecPath[PATH_MAX];
 
@@ -179,6 +180,7 @@ int main(int argc, char *argv[])
     //接続待ち受け用
     pthread_t th_svr;
     pthread_create(&th_svr, NULL, &p2p_svr_start, &node_conf.port);
+    mNodePort = node_conf.port;
 
     //チャネル監視用
     pthread_t th_poll;
@@ -221,6 +223,12 @@ LABEL_EXIT:
 const uint8_t *ucoind_nodeid(void)
 {
     return ln_node_id(&mNode);
+}
+
+
+uint16_t ucoind_nodeport(void)
+{
+    return mNodePort;
 }
 
 

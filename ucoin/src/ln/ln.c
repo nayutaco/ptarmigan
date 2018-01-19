@@ -1482,26 +1482,14 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
 
 /** [routing用]channel_updateデータ解析
  *
- * @param[out]  pDelta
- * @param[out]  pMiniMsat
- * @param[out]  pBaseMsat
- * @param[out]  pPropMil
+ * @param[out]  pUpd
  * @param[in]   pData
  * @param[in]   Len
  * @retval  true        解析成功
  */
-bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBaseMsat, uint32_t *pPropMil, const uint8_t *pData, uint16_t Len)
+bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len)
 {
-    ln_cnl_update_t upd;
-
-    bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
-    if (ret) {
-        *pDelta = upd.cltv_expiry_delta;
-        *pMiniMsat = upd.htlc_minimum_msat;
-        *pBaseMsat = upd.fee_base_msat;
-        *pPropMil = upd.fee_prop_millionths;
-    }
-
+    bool ret = ln_msg_cnl_update_read(pUpd, pData, Len);
     return ret;
 }
 
@@ -2838,8 +2826,8 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     if ( (self->remote_commit_num != reest.next_local_commitment_number) ||
          (self->revoke_num != reest.next_remote_revocation_number) ) {
         DBG_PRINTF("number mismatch\n");
-        DBG_PRINTF("  %" PRIu64 " .. %" PRIu64 "\n", self->remote_commit_num, reest.next_local_commitment_number);
-        DBG_PRINTF("  %" PRIu64 " .. %" PRIu64 "\n", self->revoke_num, reest.next_remote_revocation_number);
+        DBG_PRINTF("  next_local_commitment_number: %" PRIu64 "(own) .. %" PRIu64 "(recv)\n", self->remote_commit_num, reest.next_local_commitment_number);
+        DBG_PRINTF("  next_remote_revocation_number:%" PRIu64 "(own) .. %" PRIu64 "(recv)\n", self->revoke_num, reest.next_remote_revocation_number);
         return false;
     }
 
