@@ -274,19 +274,20 @@ int main(int argc, char *argv[])
 
     if ((options == M_OPTIONS_INIT) || (options == M_OPTIONS_HELP) || (optind >= argc)) {
         printf("[usage]\n");
-        printf("\t%s <options> <port>\n", argv[0]);
+        printf("\t%s <-t> <options> <JSON-RPC port(not ucoind port)>\n", argv[0]);
         printf("\t\t-h : help\n");
-        printf("\t\t-t : test(not send)\n");
+        printf("\t\t-t : test(not send command)\n");
         printf("\t\t-q : quit ucoind\n");
         printf("\t\t-l : list channels\n");
         printf("\t\t-i <amount_msat> : add preimage, and show payment_hash\n");
+        printf("\t\t-p <payment.conf>,<paymenet_hash> : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
-        printf("\t\t-c <node.conf> : connect node\n");
-        printf("\t\t-f <fund.conf> : funding(need -c)\n");
-        printf("\t\t-p <payment.conf>,<paymenet_hash> : payment(need -c)\n");
-        printf("\t\t-x : mutual close(need -c)\n");
-        printf("\t\t-d <value> : [debug]debug option\n");
-        printf("\t\t-g : [debug]get commitment transaction(need -c)\n");
+        printf("\t\t-c <peer.conf> : connect node\n");
+        printf("\t\t-c <peer.conf> -f <fund.conf> : funding\n");
+        printf("\t\t-c <peer.conf> -x : mutual close channel\n");
+        // printf("\n");
+        // printf("\t\t-d <value> : [debug]debug option\n");
+        // printf("\t\t-c <node.conf> -g : [debug]get commitment transaction\n");
         return -1;
     }
 
