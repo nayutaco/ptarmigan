@@ -16,7 +16,7 @@ TEST_TARGET_SRC += test_ucoin.cpp
 # Set Google Test's header directory as a system directory, such that
 # the compiler doesn't generate warnings in Google Test headers.
 CPPFLAGS += -isystem -I$(GTEST_DIR) -DUNITTEST -D_GLIBCXX_USE_CXX11_ABI=1
-#CPPFLAGS += -DNDEBUG
+CPPFLAGS += -DNDEBUG
 CPPFLAGS += -DUCOIN_DEBUG
 CPPFLAGS += -DUCOIN_DEBUG_MEM
 #CPPFLAGS += -DUCOIN_USE_PRINTFUNC
