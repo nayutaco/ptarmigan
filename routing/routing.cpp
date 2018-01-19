@@ -273,7 +273,7 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
 #if 0
             //
             // まだannounceする前でも、送金元が自分でチャネル開設が完了しているのならルートに含めるべき
-            // しかし、
+            // しかし、相手のchannel情報を持たないため、反対側のchannel_updateデータを使用する(c-lightningの動作)
             //
 
             //p1が非NULL == my node_id
