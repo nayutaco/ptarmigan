@@ -136,7 +136,7 @@ static int mNodeNum = 0;
 static uint8_t mMyNodeId[UCOIN_SZ_PUBKEY];
 static uint8_t mTgtNodeId[UCOIN_SZ_PUBKEY];
 static uint16_t mMinFinalCltvExpiry = 0;
-
+static FILE *fp_err = stderr;
 
 // https://github.com/lightningnetwork/lightning-rfc/issues/237
 // https://github.com/bitcoin/bips/blob/master/bip-0122.mediawiki
@@ -173,9 +173,9 @@ static const uint8_t M_BTC_GENESIS_REGTEST[] = {
 static void dumpbin(const uint8_t *pData, int Len)
 {
     for (int lp = 0; lp < Len; lp++) {
-        fprintf(stderr, "%02x", pData[lp]);
+        fprintf(fp_err, "%02x", pData[lp]);
     }
-    fprintf(stderr, "\n");
+    fprintf(fp_err, "\n");
 }
 #endif
 
@@ -227,7 +227,7 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                     mpNodes[mNodeNum - 1].ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
                     mpNodes[mNodeNum - 1].ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
 #ifdef M_DEBUG
-                    fprintf(stderr, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
+                    fprintf(fp_err, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
                     ln_print_announce(buf.buf, buf.len);
 #endif
                     break;
@@ -246,7 +246,7 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                         mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
                     }
 #ifdef M_DEBUG
-                    fprintf(stderr, "channel update : %c\n", type);
+                    fprintf(fp_err, "channel update : %c\n", type);
                     ln_print_announce(buf.buf, buf.len);
 #endif
                     break;
@@ -282,10 +282,10 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
                 p2 = self.peer_node.node_id;
 
 #ifdef M_DEBUG
-                fprintf(stderr, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
-                fprintf(stderr, "p1= ");
+                fprintf(fp_err, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
+                fprintf(fp_err, "p1= ");
                 dumpbin(p1, 33);
-                fprintf(stderr, "p2= ");
+                fprintf(fp_err, "p2= ");
                 dumpbin(p2, 33);
 #endif
                 mNodeNum++;
@@ -313,10 +313,10 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
             if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
                 //チャネル接続しているが、announcement_signaturesはしていない相手
 #ifdef M_DEBUG
-                fprintf(stderr, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
-                fprintf(stderr, "p1= ");
+                fprintf(fp_err, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
+                fprintf(fp_err, "p1= ");
                 dumpbin(p1, 33);
-                fprintf(stderr, "p2= ");
+                fprintf(fp_err, "p2= ");
                 dumpbin(p2, 33);
 #endif
                 mNodeNum++;
@@ -367,7 +367,7 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     assert(ret == 0);
     ret = mdb_env_open(mpDbEnv, pDbPath, MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", pDbPath);
+        fprintf(fp_err, "fail: cannot open[%s]\n", pDbPath);
         assert(ret == 0);
     }
 
@@ -377,7 +377,7 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     ret = ln_lmdb_check_version(txn, my_nodeid);
     assert(ret == 0);
 #ifdef M_DEBUG
-    fprintf(stderr, "my node_id: ");
+    fprintf(fp_err, "my node_id: ");
     dumpbin(my_nodeid, sizeof(my_nodeid));
 #endif
     if (p1 && (memcmp(my_nodeid, p1, UCOIN_SZ_PUBKEY) != 0)) {
@@ -408,7 +408,7 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
             }
             mdb_close(mpDbEnv, dbi2);
         } else {
-            fprintf(stderr, "???\n");
+            fprintf(fp_err, "???\n");
         }
     }
     mdb_cursor_close(cursor);
@@ -459,7 +459,6 @@ static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 
 int main(int argc, char* argv[])
 {
-    bool ret;
     uint64_t amtmsat;
 
     const char *nettype;
@@ -486,16 +485,16 @@ int main(int argc, char* argv[])
         } else {
             mMinFinalCltvExpiry = M_MIN_FINAL_CLTV_EXPIRY;
         }
-        //fprintf(stderr, "min_final_cltv_expiry = %" PRIu16 "\n", mMinFinalCltvExpiry);
+        //fprintf(fp_err, "min_final_cltv_expiry = %" PRIu16 "\n", mMinFinalCltvExpiry);
         if (argc == ARGS_ALL) {
             payment_hash = argv[7];
         }
     } else {
-        fprintf(stderr, "usage:");
+        fprintf(fp_err, "usage:");
         //                    1                 2
-        fprintf(stderr, "\t%s [mainnet/testnet] [db dir]\n", argv[0]);
+        fprintf(fp_err, "\t%s [mainnet/testnet] [db dir]\n", argv[0]);
         //                    1                 2        3               4               5             6
-        fprintf(stderr, "\t%s [mainnet/testnet] [db dir] [payer node_id] [payee node_id] [amount_msat] <[min_final_cltv_expiry]>\n", argv[0]);
+        fprintf(fp_err, "\t%s [mainnet/testnet] [db dir] [payer node_id] [payee node_id] [amount_msat] <[min_final_cltv_expiry]>\n", argv[0]);
         return -1;
     }
 
@@ -507,30 +506,43 @@ int main(int argc, char* argv[])
     } else if (strcmp(nettype, "regtest") == 0) {
         ln_set_genesishash(M_BTC_GENESIS_REGTEST);
     } else {
-        fprintf(stderr, "mainnet or testnet only[%s]\n", nettype);
+        fprintf(fp_err, "mainnet or testnet only[%s]\n", nettype);
         return -1;
+    }
+
+    if (argc >= ARGS_PAYMENT) {
+        bool ret;
+
+        ret = misc_str2bin(mMyNodeId, sizeof(mMyNodeId), my_node);
+        if (!ret) {
+            fprintf(fp_err, "invalid arg: payer node id\n");
+            return -1;
+        }
+
+        ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), tgt_node);
+        if (!ret) {
+            fprintf(fp_err, "invalid arg: payee node id\n");
+            return -1;
+        }
     }
 
 #ifdef M_SPOIL_STDERR
     //stderrを捨てる
+    int fd_err = dup(2);
+    fp_err = fdopen(fd_err, "w");
     close(2);
 #endif  //M_SPOIL_STDERR
 
     if (argc >= ARGS_PAYMENT) {
-        ret = misc_str2bin(mMyNodeId, sizeof(mMyNodeId), my_node);
-
-        ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), tgt_node);
-        assert(ret);
-
         loaddb(dbdir, mMyNodeId, mTgtNodeId);
 
         amtmsat = (uint64_t)strtoull(amount, NULL, 10);
 
 #ifdef M_DEBUG
-        fprintf(stderr, "start nodeid : ");
-        ucoin_util_dumpbin(stderr, mMyNodeId, UCOIN_SZ_PUBKEY, true);
-        fprintf(stderr, "end nodeid   : ");
-        ucoin_util_dumpbin(stderr, mTgtNodeId, UCOIN_SZ_PUBKEY, true);
+        fprintf(fp_err, "start nodeid : ");
+        ucoin_util_dumpbin(fp_err, mMyNodeId, UCOIN_SZ_PUBKEY, true);
+        fprintf(fp_err, "end nodeid   : ");
+        ucoin_util_dumpbin(fp_err, mTgtNodeId, UCOIN_SZ_PUBKEY, true);
 #endif
     } else {
         loaddb(dbdir, NULL, NULL);
@@ -540,8 +552,8 @@ int main(int argc, char* argv[])
 
     bool set_start;
     bool set_goal;
-    graph_t::vertex_descriptor pnt_start;
-    graph_t::vertex_descriptor pnt_goal;
+    graph_t::vertex_descriptor pnt_start = static_cast<graph_t::vertex_descriptor>(-1);
+    graph_t::vertex_descriptor pnt_goal = static_cast<graph_t::vertex_descriptor>(-1);
 
     if (argc == ARGS_GRAPH) {
         set_start = true;
@@ -554,12 +566,12 @@ int main(int argc, char* argv[])
     //Edge追加
     for (int lp = 0; lp < mNodeNum; lp++) {
 #ifdef M_DEBUG
-        fprintf(stderr, "  short_channel_id=%016" PRIx64 "\n", mpNodes[lp].short_channel_id);
-        fprintf(stderr, "    [1]");
-        ucoin_util_dumpbin(stderr, mpNodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
-        fprintf(stderr, "    [2]");
-        ucoin_util_dumpbin(stderr, mpNodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
-        fprintf(stderr, "\n");
+        fprintf(fp_err, "  short_channel_id=%016" PRIx64 "\n", mpNodes[lp].short_channel_id);
+        fprintf(fp_err, "    [1]");
+        ucoin_util_dumpbin(fp_err, mpNodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
+        fprintf(fp_err, "    [2]");
+        ucoin_util_dumpbin(fp_err, mpNodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
+        fprintf(fp_err, "\n");
 #endif
 
         graph_t::vertex_descriptor node1 = ver_add(g, mpNodes[lp].ninfo[0].node_id);
@@ -606,10 +618,14 @@ int main(int argc, char* argv[])
 
     if (argc >= ARGS_PAYMENT) {
 #ifdef M_DEBUG
-        fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
+        fprintf(fp_err, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
 #endif
-        if (!set_start || !set_goal) {
-            std::cerr << "no start/goal node" << std::endl;
+        if (!set_start) {
+            fprintf(fp_err, "fail: no start node\n");
+            return -1;
+        }
+        if (!set_goal) {
+            fprintf(fp_err, "fail: no goal node\n");
             return -1;
         }
 
@@ -621,7 +637,7 @@ int main(int argc, char* argv[])
                             distance_map(&d[0]));
 
         if (p[pnt_goal] == pnt_goal) {
-            std::cerr << "no route" << std::endl;
+            fprintf(fp_err, "fail: cannot find route\n");
             return -1;
         }
 
@@ -638,7 +654,7 @@ int main(int argc, char* argv[])
             graph_t::edge_descriptor e;
             boost::tie(e, found) = edge(p[v], v, g);
             if (!found) {
-                fprintf(stderr, "not foooooooooound\n");
+                fprintf(fp_err, "not foooooooooound\n");
                 abort();
             }
 
@@ -699,7 +715,7 @@ int main(int argc, char* argv[])
                     }
                 }
                 if (sci == 0) {
-                    fprintf(stderr, "not match!\n");
+                    fprintf(fp_err, "not match!\n");
                     abort();
                 }
 
@@ -741,7 +757,7 @@ int main(int argc, char* argv[])
                     }
                 }
                 if (sci == 0) {
-                    fprintf(stderr, "not match!\n");
+                    fprintf(fp_err, "not match!\n");
                     abort();
                 }
 
