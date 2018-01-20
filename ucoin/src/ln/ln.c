@@ -4044,7 +4044,6 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
     uint8_t preimage_hash[LN_SZ_HASH];
     void *p_cur;
     bool ret = ln_db_cursor_preimage_open(&p_cur);
-    assert(ret);
     while (ret) {
         DBG_PRINTF("ret=%d\n", ret);
         ret = ln_db_cursor_preimage_get(p_cur, pPreImage, &amount);
