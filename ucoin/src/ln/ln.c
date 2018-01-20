@@ -3009,8 +3009,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     DBG_PRINTF("\n");
 
     ln_cnl_update_t upd;
+    memset(&upd, 0, sizeof(upd));
 
-    //verify
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
     if (ret) {
         //short_channel_id と dir から node_id を取得する
@@ -3021,11 +3021,9 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
         } else {
             DBG_PRINTF("fail: maybe no DB...ignore\n");
-            ln_msg_cnl_update_print(&upd);
-            ret = true;
         }
     } else {
-        DBG_PRINTF("fail: verify\n");
+        DBG_PRINTF("fail: channel_update\n");
     }
 
     if (ret) {
@@ -3035,6 +3033,10 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.len = Len;
         ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & 0x0001);
         DBG_PRINTF("db save ret=%d\n", ret);
+        ret = true;
+    } else {
+        //スルーするだけにとどめる
+        ln_msg_cnl_update_print(&upd);
         ret = true;
     }
 
