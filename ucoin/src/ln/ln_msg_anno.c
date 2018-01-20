@@ -809,14 +809,13 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
     pos += LN_SZ_SIGNATURE;
 
     //    [32:chain_hash]
-    int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
-    if (cmp != 0) {
+    bool chain_match = (memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash)) == 0);
+    if (!chain_match) {
         DBG_PRINTF("fail: chain_hash mismatch\n");
         DBG_PRINTF2("node: ");
         DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
         DBG_PRINTF2("msg:  ");
         DUMPBIN(pData + pos, LN_SZ_HASH);
-        return false;
     }
     pos += sizeof(gGenesisChainHash);
 
@@ -855,7 +854,7 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
     ln_msg_cnl_update_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    return true;
+    return chain_match;
 }
 
 
@@ -872,7 +871,6 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
     //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
     ret = ucoin_tx_verify_rs(pData + sizeof(uint16_t), hash, pPubkey);
-    assert(ret);
 
     return ret;
 }
