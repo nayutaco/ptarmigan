@@ -883,17 +883,17 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, cons
     pos += sizeof(uint64_t);
 
     //[32:your_last_per_commitment_secret] (option-data-loss-protect)
-    if (Len >= pos + 32) {
+    if (Len >= pos + UCOIN_SZ_PRIVKEY) {
         DBG_PRINTF("your_last_per_commitment_secret: ");
-        DUMPBIN(pData + pos, 32);
-        pos += 32;
+        DUMPBIN(pData + pos, UCOIN_SZ_PRIVKEY);
+        pos += UCOIN_SZ_PRIVKEY;
     }
 
     //[33:my_current_per_commitment_point] (option-data-loss-protect)
-    if (Len >= pos + 33) {
+    if (Len >= pos + UCOIN_SZ_PUBKEY) {
         DBG_PRINTF("my_current_per_commitment_point: ");
-        DUMPBIN(pData + pos, 33);
-        pos += 33;
+        DUMPBIN(pData + pos, UCOIN_SZ_PUBKEY);
+        pos += UCOIN_SZ_PUBKEY;
     }
 
     assert(Len >= pos);
