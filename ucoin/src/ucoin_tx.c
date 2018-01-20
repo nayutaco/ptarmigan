@@ -1067,8 +1067,8 @@ bool ucoin_tx_verify_p2sh_addr(const ucoin_tx_t *pTx, int Index, const uint8_t *
 bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash)
 {
     int ret;
-    char buf[100];
-    size_t len;
+    //char buf[100];
+    //size_t len;
 
     mbedtls_ecp_keypair keypair;
     mbedtls_mpi me;
@@ -1093,18 +1093,33 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
 
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
+    //ret = mbedtls_mpi_write_string(&keypair.grp.P, 16, buf, sizeof(buf), &len);
+    //assert(ret == 0);
+    //DBG_PRINTF2("P = %s\n", buf);
+    //ret = mbedtls_mpi_write_string(&keypair.grp.N, 16, buf, sizeof(buf), &len);
+    //assert(ret == 0);
+    //DBG_PRINTF2("N = %s\n", buf);
+
     // 1.5
     //      e = Hash(M)
     //      me = -e
+    //DBG_PRINTF2("hash=");
+    //DUMPBIN(pTxHash, UCOIN_SZ_SIGHASH);
+
     ret = mbedtls_mpi_read_binary(&me, pTxHash, UCOIN_SZ_SIGHASH);
     assert(ret == 0);
-    mbedtls_mpi zero;
-    mbedtls_mpi_init(&zero);
-    mbedtls_mpi_lset(&zero, 0);
-    ret = mbedtls_mpi_sub_mpi(&me, &zero, &me);
+
+    //ret = mbedtls_mpi_write_string(&me, 16, buf, sizeof(buf), &len);
+    //assert(ret == 0);
+    //DBG_PRINTF2("e    = %s\n", buf);
+
+    ret = mbedtls_mpi_sub_mpi(&me, &keypair.grp.N, &me);
     assert(ret == 0);
-    mbedtls_mpi_free(&zero);
     keypair.grp.modp(&me);
+
+    //ret = mbedtls_mpi_write_string(&me, 16, buf, sizeof(buf), &len);
+    //assert(ret == 0);
+    //DBG_PRINTF2("eNeg = %s\n", buf);
 
     ret = mbedtls_mpi_read_binary(&r, pRS, 32);
     assert(ret == 0);
@@ -1119,6 +1134,11 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
     //      inv_r = r^-1
     ret = mbedtls_mpi_inv_mod(&inv_r, &r, &keypair.grp.N);
     assert(ret == 0);
+
+    //ret = mbedtls_mpi_write_string(&inv_r, 16, buf, sizeof(buf), &len);
+    //assert(ret == 0);
+    //DBG_PRINTF2("inv_r = %s\n", buf);
+
 
     //DBG_PRINTF("h=%d\n", keypair.grp.h);
     for (int j = 0; j <= keypair.grp.h; j++) {
@@ -1144,6 +1164,7 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
         ret = mbedtls_mpi_add_mpi(&x, &r, &tmpx);
         assert(ret == 0);
         mbedtls_mpi_free(&tmpx);
+        keypair.grp.modp(&x);
 #endif
         size_t x_len = mbedtls_mpi_size(&x);
 
@@ -1187,12 +1208,12 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
             // 1.6.1
             //      Q = r^-1 * (sR - eG)
 
-            ret = mbedtls_mpi_write_string(&pR[k]->X, 16, buf, sizeof(buf), &len);
-            assert(ret == 0);
-            DBG_PRINTF2("R.x = %s\n", buf);
-            ret = mbedtls_mpi_write_string(&pR[k]->Y, 16, buf, sizeof(buf), &len);
-            assert(ret == 0);
-            DBG_PRINTF2("R.y = %s\n", buf);
+            //ret = mbedtls_mpi_write_string(&pR[k]->X, 16, buf, sizeof(buf), &len);
+            //assert(ret == 0);
+            //DBG_PRINTF2("R.x = %s\n", buf);
+            //ret = mbedtls_mpi_write_string(&pR[k]->Y, 16, buf, sizeof(buf), &len);
+            //assert(ret == 0);
+            //DBG_PRINTF2("R.y = %s\n", buf);
 
             //      (sR - eG)
             ret = mbedtls_ecp_muladd(&keypair.grp, &pub, &s, pR[k], &me, &keypair.grp.G);
@@ -1203,12 +1224,12 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
             ret = mbedtls_ecp_check_pubkey(&keypair.grp, &pub);
             assert(ret == 0);
 
-            ret = mbedtls_mpi_write_string(&pub.X, 16, buf, sizeof(buf), &len);
-            assert(ret == 0);
-            DBG_PRINTF2("QQ.x = %s\n", buf);
-            ret = mbedtls_mpi_write_string(&pub.Y, 16, buf, sizeof(buf), &len);
-            assert(ret == 0);
-            DBG_PRINTF2("QQ.y = %s\n", buf);
+            //ret = mbedtls_mpi_write_string(&pub.X, 16, buf, sizeof(buf), &len);
+            //assert(ret == 0);
+            //DBG_PRINTF2("QQ.x = %s\n", buf);
+            //ret = mbedtls_mpi_write_string(&pub.Y, 16, buf, sizeof(buf), &len);
+            //assert(ret == 0);
+            //DBG_PRINTF2("QQ.y = %s\n", buf);
 
             size_t sz;
             ret = mbedtls_ecp_point_write_binary(
