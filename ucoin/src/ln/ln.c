@@ -3016,11 +3016,14 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
 
-        ret = get_nodeid(node_id, upd.short_channel_id, upd.flags & 0x0001);
+        ret = get_nodeid(node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
+            if (!ret) {
+                DBG_PRINTF("fail: verify\n");
+            }
         } else {
-            DBG_PRINTF("fail: maybe no DB...ignore\n");
+            DBG_PRINTF("fail: maybe not found channel_announcement in DB\n");
         }
     } else {
         DBG_PRINTF("fail: channel_update\n");
@@ -3031,12 +3034,11 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         ucoin_buf_t buf;
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
-        ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & 0x0001);
+        ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
         DBG_PRINTF("db save ret=%d\n", ret);
         ret = true;
     } else {
         //スルーするだけにとどめる
-        ln_msg_cnl_update_print(&upd);
         ret = true;
     }
 
