@@ -1187,7 +1187,12 @@ static void *thread_recv_start(void *pArg)
             pthread_mutex_lock(&p_conf->mux_proc);
             ret = ln_recv(p_conf->p_self, buf_recv.buf, buf_recv.len);
             DBG_PRINTF("ln_recv() result=%d\n", ret);
-            assert(ret);
+            if (!ret) {
+                DBG_PRINTF("DISC: fail recv message\n");
+                lnapp_close_channel_force(ln_their_node_id(p_conf->p_self));
+                stop_threads(p_conf);
+                break;
+            }
             DBG_PRINTF("mux_proc: end\n");
             pthread_mutex_unlock(&p_conf->mux_proc);
         }
