@@ -1113,23 +1113,28 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
     //assert(ret == 0);
     //DBG_PRINTF2("e    = %s\n", buf);
 
-    ret = mbedtls_mpi_sub_mpi(&me, &keypair.grp.N, &me);
+    mbedtls_mpi zero;
+    mbedtls_mpi_init(&zero);
+    mbedtls_mpi_lset(&zero, 0);
+    ret = mbedtls_mpi_sub_mpi(&me, &zero, &me);
     assert(ret == 0);
-    keypair.grp.modp(&me);
+    ret = mbedtls_mpi_mod_mpi(&me, &me, &keypair.grp.N);
+    assert(ret == 0);
+    mbedtls_mpi_free(&zero);
 
     //ret = mbedtls_mpi_write_string(&me, 16, buf, sizeof(buf), &len);
     //assert(ret == 0);
     //DBG_PRINTF2("eNeg = %s\n", buf);
 
-    ret = mbedtls_mpi_read_binary(&r, pRS, 32);
+    ret = mbedtls_mpi_read_binary(&r, pRS, UCOIN_SZ_FIELD);
     assert(ret == 0);
-    ret = mbedtls_mpi_read_binary(&s, pRS + 32, 32);
+    ret = mbedtls_mpi_read_binary(&s, pRS + UCOIN_SZ_FIELD, UCOIN_SZ_FIELD);
     assert(ret == 0);
 
     //DBG_PRINTF2("r=");
-    //DUMPBIN(pRS, 32);
+    //DUMPBIN(pRS, UCOIN_SZ_FIELD);
     //DBG_PRINTF2("s=");
-    //DUMPBIN(pRS + 32, 32);
+    //DUMPBIN(pRS + UCOIN_SZ_FIELD, UCOIN_SZ_FIELD);
 
     //      inv_r = r^-1
     ret = mbedtls_mpi_inv_mod(&inv_r, &r, &keypair.grp.N);
@@ -1139,23 +1144,11 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
     //assert(ret == 0);
     //DBG_PRINTF2("inv_r = %s\n", buf);
 
-
-    //DBG_PRINTF("h=%d\n", keypair.grp.h);
-    for (int j = 0; j <= keypair.grp.h; j++) {
+    for (int j = 0; j < 2; j++) {
         //bool is_y_odd = j & 0x01;
-
 
         // 1.1
         //      x = r + jn
-#if 0
-        bool is_second_key = j & 0x02;
-        if (is_second_key) {
-            ret = mbedtls_mpi_add_mpi(&x, &r, &keypair.grp.N);
-        } else {
-            ret = mbedtls_mpi_copy(&x, &r);
-        }
-        assert(ret == 0);
-#else
         mbedtls_mpi tmpx;
         mbedtls_mpi_init(&tmpx);
         ret = mbedtls_mpi_mul_int(&tmpx, &keypair.grp.N, j);
@@ -1165,30 +1158,25 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
         assert(ret == 0);
         mbedtls_mpi_free(&tmpx);
         keypair.grp.modp(&x);
-#endif
-        size_t x_len = mbedtls_mpi_size(&x);
 
         //mbedtls_mpi_write_string(&x, 16, buf, sizeof(buf), &len);
-        //DBG_PRINTF2("x[%lu] = %s\n", x_len, buf);
+        //DBG_PRINTF2("x[%lu] = %s\n", UCOIN_SZ_FIELD, buf);
 
         // 1.3
         //      R = 02 || x
-        uint8_t *pubx = (uint8_t *)malloc(1 + x_len);
+        uint8_t *pubx = (uint8_t *)malloc(UCOIN_SZ_PUBKEY);
         pubx[0] = 0x02;
-        ret = mbedtls_mpi_write_binary(&x, pubx + 1, x_len);
+        ret = mbedtls_mpi_write_binary(&x, pubx + 1, UCOIN_SZ_FIELD);
         assert(ret == 0);
-
         ret = ucoin_util_ecp_point_read_binary2(&R, pubx);
-        assert(ret == 0);
-        ret = mbedtls_ecp_check_pubkey(&keypair.grp, &R);
         assert(ret == 0);
         free(pubx);
 
         // 1.6.3
         mbedtls_ecp_copy(&MR, &R);
-        ret = mbedtls_mpi_sub_mpi(&MR.Y, &keypair.grp.P, &MR.Y);
+        ret = mbedtls_mpi_sub_mpi(&MR.Y, &keypair.grp.P, &MR.Y);        // -R.Y = P - R.Yになる(mod P不要)
         assert(ret == 0);
-        keypair.grp.modp(&MR.Y);
+
         ret = mbedtls_ecp_check_pubkey(&keypair.grp, &MR);
         assert(ret == 0);
 
@@ -1240,7 +1228,6 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t
             if (ret == 0) {
                 DBG_PRINTF2("recover= ");
                 DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
-                DBG_PRINTF2("\n\n");
             } else {
                 DBG_PRINTF2("fail\n");
             }
