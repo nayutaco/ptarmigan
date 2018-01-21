@@ -72,9 +72,6 @@ using namespace boost;
 #define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
 
-#define M_MIN_FINAL_CLTV_EXPIRY             (9)     ///< min_final_cltv_expiryのデフォルト値
-                                                    // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#tagged-fields
-
 #define M_CLTV_INIT                         ((uint16_t)0xffff)
 
 
@@ -483,7 +480,7 @@ int main(int argc, char* argv[])
         if (argc >= ARGS_PAY_AND_EXPIRY) {
             mMinFinalCltvExpiry = (uint16_t)atoi(argv[6]);
         } else {
-            mMinFinalCltvExpiry = M_MIN_FINAL_CLTV_EXPIRY;
+            mMinFinalCltvExpiry = LN_MIN_FINAL_CLTV_EXPIRY;
         }
         //fprintf(fp_err, "min_final_cltv_expiry = %" PRIu16 "\n", mMinFinalCltvExpiry);
         if (argc == ARGS_ALL) {
