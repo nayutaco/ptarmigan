@@ -46,7 +46,7 @@ extern "C" {
 
 #define UCOIN_USE_PRINTFUNC     //出力有効
 
-
+#define UCOIN_SZ_FIELD          (32)            ///< secp256k1の世界
 #define UCOIN_SZ_RIPEMD160      (20)            ///< サイズ:RIPEMD160
 #define UCOIN_SZ_HASH160        (20)            ///< サイズ:HASH160
 #define UCOIN_SZ_SHA256         (32)            ///< サイズ:SHA256

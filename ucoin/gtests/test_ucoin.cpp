@@ -99,3 +99,5 @@ TEST_F(ucoin, ucoin_setnet_mainnet)
 #include "testinc_ln_bolt4.cpp"
 #include "testinc_ln_bolt8.cpp"
 #include "testinc_ln_misc.cpp"
+
+#include "testinc_recoverpub.cpp"
