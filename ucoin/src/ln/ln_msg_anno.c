@@ -636,7 +636,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
             pos += addrlen;
         }
     } else {
-        pMsg->addr.type = LN_NODEDESC_NULL;
+        pMsg->addr.type = LN_NODEDESC_NONE;
     }
 
     //assert(Len == pos);
@@ -809,14 +809,13 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
     pos += LN_SZ_SIGNATURE;
 
     //    [32:chain_hash]
-    int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
-    if (cmp != 0) {
+    bool chain_match = (memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash)) == 0);
+    if (!chain_match) {
         DBG_PRINTF("fail: chain_hash mismatch\n");
         DBG_PRINTF2("node: ");
         DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
         DBG_PRINTF2("msg:  ");
         DUMPBIN(pData + pos, LN_SZ_HASH);
-        return false;
     }
     pos += sizeof(gGenesisChainHash);
 
@@ -855,7 +854,7 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
     ln_msg_cnl_update_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    return true;
+    return chain_match;
 }
 
 
@@ -872,7 +871,6 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
     //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
     ret = ucoin_tx_verify_rs(pData + sizeof(uint16_t), hash, pPubkey);
-    assert(ret);
 
     return ret;
 }
@@ -889,7 +887,7 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
     DBG_PRINTF2("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
     DBG_PRINTF2("flags= 0x%04x\n", pMsg->flags);
     DBG_PRINTF2("    direction: %s\n", (pMsg->flags & 0x0001) ? "node_2" : "node_1");
-    DBG_PRINTF2("    %s\n", (pMsg->flags & 0x0002) ? "disabling" : "enable");
+    DBG_PRINTF2("    %s\n", (pMsg->flags & LN_CNLUPD_FLAGS_DISABLE) ? "disabling" : "enable");
     DBG_PRINTF2("cltv_expiry_delta= %u\n", pMsg->cltv_expiry_delta);
     DBG_PRINTF2("htlc_minimum_msat= %" PRIu64 "\n", pMsg->htlc_minimum_msat);
     DBG_PRINTF2("fee_base_msat= %u\n", pMsg->fee_base_msat);

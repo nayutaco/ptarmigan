@@ -9,11 +9,7 @@
 ./ucoincli -c conf/peer3333.conf -x 4445
 ./ucoincli -c conf/peer3333.conf -x 5556
 ./ucoincli -c conf/peer5555.conf -x 6667
-# sleep 3
 
-# bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest stop
-
-# ./ucoincli -q 3334
-# ./ucoincli -q 4445
-# ./ucoincli -q 5556
-# ./ucoincli -q 6667
+# mining
+sleep 3
+./generate 1

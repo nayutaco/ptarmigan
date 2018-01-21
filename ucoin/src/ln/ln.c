@@ -154,6 +154,7 @@ static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
+static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 
 
 /**************************************************************************
@@ -252,7 +253,7 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     self->storage_index = M_SECINDEX_INIT;
     self->peer_storage_index = M_SECINDEX_INIT;
     if (pSeed) {
-        memcpy(self->storage_seed, pSeed, UCOIN_SZ_PRIVKEY);
+        memcpy(self->storage_seed, pSeed, LN_SZ_SEED);
         ln_derkey_storage_init(&self->peer_storage);
     }
 
@@ -279,6 +280,12 @@ void ln_set_genesishash(const uint8_t *pHash)
     memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
     //DBG_PRINTF("genesis=");
     //DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
+}
+
+
+const uint8_t* ln_get_genesishash(void)
+{
+    return gGenesisChainHash;
 }
 
 
@@ -1312,12 +1319,9 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 {
     ln_ping_t ping;
 
-    uint8_t rnd;
-    ucoin_util_random(&rnd, 1);     //TODO:仕様上は2byteだが、そんなにいらないだろう
-    self->last_num_pong_bytes = (uint16_t)rnd;
+    ucoin_util_random(&self->last_num_pong_bytes, 2);
     ping.num_pong_bytes = self->last_num_pong_bytes;
-    ucoin_util_random(&rnd, 1);     //TODO:仕様上は2byteだが、そんなにいらないだろう
-    ping.byteslen = (uint16_t)rnd;
+    ucoin_util_random(&ping.byteslen, 2);
     bool ret = ln_msg_ping_create(pPing, &ping);
     if (ret) {
         self->missing_pong_cnt++;
@@ -1475,26 +1479,14 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
 
 /** [routing用]channel_updateデータ解析
  *
- * @param[out]  pDelta
- * @param[out]  pMiniMsat
- * @param[out]  pBaseMsat
- * @param[out]  pPropMil
+ * @param[out]  pUpd
  * @param[in]   pData
  * @param[in]   Len
  * @retval  true        解析成功
  */
-bool ln_getparams_cnl_upd(uint16_t *pDelta, uint64_t *pMiniMsat, uint32_t *pBaseMsat, uint32_t *pPropMil, const uint8_t *pData, uint16_t Len)
+bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len)
 {
-    ln_cnl_update_t upd;
-
-    bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
-    if (ret) {
-        *pDelta = upd.cltv_expiry_delta;
-        *pMiniMsat = upd.htlc_minimum_msat;
-        *pBaseMsat = upd.fee_base_msat;
-        *pPropMil = upd.fee_prop_millionths;
-    }
-
+    bool ret = ln_msg_cnl_update_read(pUpd, pData, Len);
     return ret;
 }
 
@@ -1847,9 +1839,8 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //temporary-channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("temporary-channel-id mismatch\n");
         return false;
     }
 
@@ -1930,9 +1921,8 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     }
 
     //temporary-channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("temporary-channel-id mismatch\n");
         return false;
     }
 
@@ -2021,9 +2011,8 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     //channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2077,10 +2066,8 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2176,9 +2163,8 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     //channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("fail: channel-id mismatch\n");
         return false;
     }
 
@@ -2265,9 +2251,8 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-idチェック
-    if (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) != 0) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2385,10 +2370,8 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2542,10 +2525,8 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
@@ -2613,10 +2594,8 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         ucoin_buf_free(&reason);
         return false;
     }
@@ -2669,10 +2648,8 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         goto LABEL_EXIT;
     }
 
@@ -2751,12 +2728,11 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         goto LABEL_EXIT;
     }
+
     //prev_secretチェック
     uint8_t prev_commitpt[UCOIN_SZ_PUBKEY];
     ret = ucoin_keys_priv2pub(prev_commitpt, prev_secret);
@@ -2839,18 +2815,16 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("channel-id mismatch\n");
         return false;
     }
 
     if ( (self->remote_commit_num != reest.next_local_commitment_number) ||
          (self->revoke_num != reest.next_remote_revocation_number) ) {
         DBG_PRINTF("number mismatch\n");
-        DBG_PRINTF("  %" PRIu64 " .. %" PRIu64 "\n", self->remote_commit_num, reest.next_local_commitment_number);
-        DBG_PRINTF("  %" PRIu64 " .. %" PRIu64 "\n", self->revoke_num, reest.next_remote_revocation_number);
+        DBG_PRINTF("  next_local_commitment_number: %" PRIu64 "(own) .. %" PRIu64 "(recv)\n", self->remote_commit_num, reest.next_local_commitment_number);
+        DBG_PRINTF("  next_remote_revocation_number:%" PRIu64 "(own) .. %" PRIu64 "(recv)\n", self->revoke_num, reest.next_remote_revocation_number);
         return false;
     }
 
@@ -2918,10 +2892,8 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     }
 
     //channel-idチェック
-    ret = (memcmp(channel_id, self->channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (!ret) {
+    if (!chk_channelid(channel_id, self->channel_id)) {
         self->err = LNERR_INV_CHANNEL;
-        DBG_PRINTF("fail: channel-id mismatch\n");
         return false;
     }
 
@@ -3034,23 +3006,24 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     DBG_PRINTF("\n");
 
     ln_cnl_update_t upd;
+    memset(&upd, 0, sizeof(upd));
 
-    //verify
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
     if (ret) {
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
 
-        ret = get_nodeid(node_id, upd.short_channel_id, upd.flags & 0x0001);
+        ret = get_nodeid(node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
+            if (!ret) {
+                DBG_PRINTF("fail: verify\n");
+            }
         } else {
-            DBG_PRINTF("fail: maybe no DB...ignore\n");
-            ln_msg_cnl_update_print(&upd);
-            ret = true;
+            DBG_PRINTF("fail: maybe not found channel_announcement in DB\n");
         }
     } else {
-        DBG_PRINTF("fail: verify\n");
+        DBG_PRINTF("fail: channel_update\n");
     }
 
     if (ret) {
@@ -3058,8 +3031,11 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         ucoin_buf_t buf;
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
-        ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & 0x0001);
+        ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
         DBG_PRINTF("db save ret=%d\n", ret);
+        ret = true;
+    } else {
+        //スルーするだけにとどめる
         ret = true;
     }
 
@@ -4069,7 +4045,6 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
     uint8_t preimage_hash[LN_SZ_HASH];
     void *p_cur;
     bool ret = ln_db_cursor_preimage_open(&p_cur);
-    assert(ret);
     while (ret) {
         DBG_PRINTF("ret=%d\n", ret);
         ret = ln_db_cursor_preimage_get(p_cur, pPreImage, &amount);
@@ -4086,6 +4061,22 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
         }
     }
     ln_db_cursor_preimage_close(p_cur);
+
+    return ret;
+}
+
+
+static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id)
+{
+    bool ret = (memcmp(recv_id, mine_id, LN_SZ_CHANNEL_ID) == 0);
+    if (!ret) {
+        DBG_PRINTF("channel-id mismatch\n");
+        DBG_PRINTF2("mine:");
+        DUMPBIN(mine_id, LN_SZ_CHANNEL_ID);
+        DBG_PRINTF2("get :");
+        DUMPBIN(recv_id, LN_SZ_CHANNEL_ID);
+        return false;
+    }
 
     return ret;
 }

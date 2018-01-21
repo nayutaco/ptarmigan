@@ -75,8 +75,9 @@ typedef struct lnapp_conf_t {
     //制御内容通知
     bool            initiator;                  ///< true:Noise Protocolのinitiator
     uint8_t         node_id[UCOIN_SZ_PUBKEY];   ///< 接続先(initiator==true時)
-    daemoncmd_t  cmd;                        ///< ucoincliからの処理要求
+    daemoncmd_t     cmd;                        ///< ucoincliからの処理要求
     funding_conf_t  *p_funding;                 ///< ucoincliで #DCMD_CREATE 時のパラメータ
+    opening_t       *p_opening;                 ///< establish時にmalloc()して使用する
 
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中
@@ -86,11 +87,11 @@ typedef struct lnapp_conf_t {
     uint32_t        last_cnl_anno_sent;     ///< 最後に送信したchannel_announcementのEPOCH TIME
     uint32_t        last_node_anno_sent;    ///< 最後に送信したnode_announcementのEPOCH TIME
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
-    bool            init_unrecv;            ///< true:init未受信済み
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
     uint32_t        funding_min_depth;      ///< accept_channel.min_depth
     uint8_t         flag_ope;               ///< normal operation中フラグ
+    uint8_t         flag_recv;              ///< 受信済み
 
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
@@ -108,7 +109,7 @@ typedef struct lnapp_conf_t {
     } fwd_proc[APP_FWD_PROC_MAX];
 
     //fulfillキュー
-    queue_fulfill_t     *p_fulfill_queue;
+    queue_fulfill_t *p_fulfill_queue;
 
 } lnapp_conf_t;
 
@@ -133,6 +134,12 @@ void lnapp_start(lnapp_conf_t *pAppConf);
  *
  */
 void lnapp_stop(lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]チャネル接続開始
+ *
+ */
+bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding);
 
 
 /** [lnapp]送金開始
@@ -193,5 +200,11 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult);
  *
  */
 bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
+
+
+/** [lnapp]初期化済み状態取得
+ * 
+ */
+bool lnapp_is_inited(const lnapp_conf_t *pAppConf);
 
 #endif /* LNAPP_H__ */

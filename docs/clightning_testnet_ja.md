@@ -1,4 +1,4 @@
-# c-lightning test
+# c-lightning testnet
 
  1. [btc]~/.bitcoin/bitcoin.conf
 
@@ -7,33 +7,31 @@ rpcuser=bitcoinuser
 rpcpassword=bitcoinpassword
 server=1
 txindex=1
-rpcport=18443
-regtest=1
+testnet=1
 ```
 
 2. [btc]bitcoind起動
 
-3. [btc] (初めてのregtestの場合)  
-
-```bash
-bitcoin-cli generate 432
-```
+3. [btc] (同期待ち)  
 
 4. [ptarm node]ucoind起動
 
 ```bash
 cd install
 mkdir node
-./create_nodeconf.sh 8888 > node/node.conf
+./create_nodeconf2.sh 8888 > node/node.conf
 cd node
 ../ucoind node.conf
 ```
 
-5. [cln]c-lightning起動 ([commit ebdecebb1a89f7dcd8daa53c57ec58af32f7c40d](https://github.com/ElementsProject/lightning/tree/ebdecebb1a89f7dcd8daa53c57ec58af32f7c40d))
+create_nodeconf2.shの引数はポート番号。  
+node.confは適当に編集する。デフォルトではprivate nodeになる。
+
+5. [cln]c-lightning起動
 
 ```bash
 cd "to/clightning/dir"
-./lightningd/lightningd --network=regtest --log-level=debug
+./lightningd/lightningd --network=testnet --log-level=debug
 ```
 
 6. [cln]c-lightning node_id取得
@@ -46,7 +44,7 @@ cd "to/clightning/dir"
 
 ```bash
 cd install
-./create_knownpeer.sh 9735 [c-lightning node_id] > peer.conf
+./create_knownpeer2.sh 9735 [c-lightning node_id] [c-lightning node IP address] > peer.conf
 ```
 
 8. [ptarm]fund-in transaction作成
@@ -55,6 +53,10 @@ cd install
 ./fund-in2.sh 0.01 fund.txt > node/fund.conf
 ```
 
+0.01BTCのsegwit transactionを作成し、そこからchannelにfund.txtの配分でデポジットする。  
+`funding_sat` が 0.01BTCのうちchannelにデポジットする全satoshi。  
+`push_sat` が `funding_sat` のうち相手の持ち分とするsatoshi。
+
 9. [ptarm]Establish開始
 
 ```bash
@@ -62,29 +64,30 @@ cd install
 ./ucoincli -c peer.conf -f node/fund.conf 8889
 ```
 
-10. [btc]block生成
+10. [btc]block生成待ち
 
-```bash
-bitcoin-cli generate 6
-    (channel_announcementが展開されるまで30秒ほど待つ)
-```
+1ブロックで、チャネルは生成される。  
+6ブロックで、announcementが行われる。  
+c-lightningから送金する場合は、6ブロック待たないといけないかもしれない。
 
 11. [cln]invoice作成(rhash取得)
 
 ```bash
-./cli/lightning-cli invoice 10000 abc
+./cli/lightning-cli invoice 10000 abc def
 ```
+
+単位はmsatoshi。
 
 12. [ptarm]送金ルート準備
 
 ```bash
-./routing regtest node/dbucoin `./ucoind node/node.conf id` [c-lightning node_id] 10000 > node/pay.conf
+./routing testnet node/dbucoin `./ucoind node/node.conf id` [c-lightning node_id] 10000 > node/pay.conf
 ```
 
 13. [ptarm]現在のamountを確認
 
 ```bash
-./showdb regtest w node/dbucoin
+./showdb testnet w node/dbucoin
 ```
 
 14. [ptarm]送金
@@ -96,7 +99,7 @@ bitcoin-cli generate 6
 15. [ptarm]実施後のamountを確認
 
 ```bash
-./showdb regtest w node/dbucoin
+./showdb testnet w node/dbucoin
 ```
 
 16. [ptarm]ptarmigan node_id取得
@@ -121,7 +124,7 @@ echo $route
 19. [cln]現在のamountを確認
 
 ```bash
-./cli/lightning-cli getpeers
+./cli/lightning-cli getpeers | jq
 ```
 
 20. [cln]送金

@@ -28,6 +28,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <linux/limits.h>
 #include <assert.h>
 
 #include "jsonrpc.h"
@@ -48,7 +49,9 @@
  ********************************************************************/
 
 static ln_node_t            mNode;
+static uint16_t             mNodePort;
 static pthread_mutex_t      mMuxPreimage;
+static char                 mExecPath[PATH_MAX];
 
 
 /********************************************************************
@@ -69,6 +72,8 @@ int main(int argc, char *argv[])
 #elif NETKIND==1
     ucoin_init(UCOIN_TESTNET, true);
 #endif
+
+    signal(SIGPIPE , SIG_IGN);   //ignore SIGPIPE
 
     if ((argc == 2) && (strcmp(argv[1], "wif") == 0)) {
         uint8_t priv[UCOIN_SZ_PRIVKEY];
@@ -91,9 +96,6 @@ int main(int argc, char *argv[])
         ucoin_term();
         return 0;
     }
-
-    //syslog
-    openlog("ucoind", LOG_CONS, LOG_USER);
 
     rpc_conf_t rpc_conf;
     node_conf_t node_conf;
@@ -137,6 +139,18 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    //syslog
+    openlog("ucoind", LOG_CONS, LOG_USER);
+
+    //ucoindがあるパスを取る("routepay"用)
+    const char *p_delimit = strrchr(argv[0], '/');
+    if (p_delimit != NULL) {
+        memcpy(mExecPath, argv[0], p_delimit - argv[0] + 1);
+        mExecPath[p_delimit - argv[0] + 1] = '\0';
+    } else {
+        mExecPath[0] = '\0';
+    }
+
     p2p_cli_init();
     jsonrpc_init(&rpc_conf);
 
@@ -166,6 +180,7 @@ int main(int argc, char *argv[])
     //接続待ち受け用
     pthread_t th_svr;
     pthread_create(&th_svr, NULL, &p2p_svr_start, &node_conf.port);
+    mNodePort = node_conf.port;
 
     //チャネル監視用
     pthread_t th_poll;
@@ -208,6 +223,12 @@ LABEL_EXIT:
 const uint8_t *ucoind_nodeid(void)
 {
     return ln_node_id(&mNode);
+}
+
+
+uint16_t ucoind_nodeport(void)
+{
+    return mNodePort;
 }
 
 
@@ -295,4 +316,10 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id)
         DBG_PRINTF("not connected\n");
     }
     return p_appconf;
+}
+
+
+const char *ucoind_get_exec_path(void)
+{
+    return mExecPath;
 }
