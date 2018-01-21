@@ -352,6 +352,7 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
 
     funding_conf_t* pconfig = (funding_conf_t *)user;
 
+    errno = 0;
     if (strcmp(name, "txid") == 0) {
         misc_str2bin_rev(pconfig->txid, UCOIN_SZ_TXID, value);
     } else if (strcmp(name, "txindex") == 0) {
@@ -364,6 +365,10 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
         pconfig->push_sat = strtoull(value, NULL, 10);
     } else {
         return 0;  /* unknown section/name, error */
+    }
+    if (errno) {
+        DBG_PRINTF("errno=%s\n", strerror(errno));
+        return 0;
     }
     return 1;
 }
@@ -444,6 +449,7 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
     bool ret = true;
     anno_conf_t* pconfig = (anno_conf_t *)user;
 
+    errno = 0;
     if (strcmp(name, "cltv_expiry_delta") == 0) {
         pconfig->cltv_expiry_delta = atoi(value);
         ret = (pconfig->cltv_expiry_delta > 0);
@@ -459,6 +465,10 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
     if (!ret) {
         DBG_PRINTF("fail: %s\n", name);
     }
+    if (errno) {
+        DBG_PRINTF("errno=%s\n", strerror(errno));
+        return 0;
+    }
     return (ret) ? 1 : 0;
 }
 
@@ -470,6 +480,7 @@ static int handler_establish_conf(void* user, const char* section, const char* n
     bool ret = true;
     establish_conf_t* pconfig = (establish_conf_t *)user;
 
+    errno = 0;
     if (strcmp(name, "dust_limit_sat") == 0) {
         pconfig->dust_limit_sat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "max_htlc_value_in_flight_msat") == 0) {
@@ -493,6 +504,10 @@ static int handler_establish_conf(void* user, const char* section, const char* n
     }
     if (!ret) {
         DBG_PRINTF("fail: %s\n", name);
+    }
+    if (errno) {
+        DBG_PRINTF("errno=%s\n", strerror(errno));
+        return 0;
     }
     return (ret) ? 1 : 0;
 }

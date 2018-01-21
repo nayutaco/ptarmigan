@@ -533,7 +533,12 @@ int main(int argc, char* argv[])
     if (argc >= ARGS_PAYMENT) {
         loaddb(dbdir, mMyNodeId, mTgtNodeId);
 
+        errno = 0;
         amtmsat = (uint64_t)strtoull(amount, NULL, 10);
+        if (errno) {
+            DBG_PRINTF("errno=%s\n", strerror(errno));
+            return -1;
+        }
 
 #ifdef M_DEBUG
         fprintf(fp_err, "start nodeid : ");

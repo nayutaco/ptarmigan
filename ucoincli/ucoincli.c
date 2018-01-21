@@ -23,11 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-//#include <sys/types.h>
-//#include <sys/stat.h>
 #include <unistd.h>
 #include <sys/socket.h>
-//#include <netinet/in.h>
 #include <arpa/inet.h>
 
 #include <jansson.h>
@@ -35,13 +32,20 @@
 #include "ucoind.h"
 #include "conf.h"
 #include "misc.h"
+#include "segwit_addr.h"
 
+
+/**************************************************************************
+ * macros
+ **************************************************************************/
 
 #define M_OPTIONS_INIT  (0xff)
 #define M_OPTIONS_CONN  (0xf0)
 #define M_OPTIONS_EXEC  (2)
 #define M_OPTIONS_STOP  (1)
 #define M_OPTIONS_HELP  (0)
+#define M_OPTIONS_ERR   (-1)
+
 #define BUFFER_SIZE     (256 * 1024)
 
 #define M_NEXT              ","
@@ -60,6 +64,10 @@ typedef struct {
 } write_result_t;
 
 
+/**************************************************************************
+ * static variables
+ **************************************************************************/
+
 static char         mPeerAddr[INET6_ADDRSTRLEN];
 static uint16_t     mPeerPort;
 static char         mPeerNodeId[UCOIN_SZ_PUBKEY * 2 + 1];
@@ -77,6 +85,7 @@ static void fund_rpc(char *pJson, const funding_conf_t *pFund);
 static void invoice_rpc(char *pJson, uint64_t Amount, bool conn);
 static void listinvoice_rpc(char *pJson);
 static void payment_rpc(char *pJson, const payment_conf_t *pPay);
+static void routepay_rpc(char *pJson, const ln_invoice_t *pInvData);
 static void close_rpc(char *pJson);
 static void debug_rpc(char *pJson, int debug);
 static void getcommittx_rpc(char *pJson);
@@ -104,8 +113,8 @@ int main(int argc, char *argv[])
     char addr[256];
     bool b_send = true;
     int opt;
-    uint8_t options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "htqlc:f:i:mp:xga:d:")) != -1) {
+    int options = M_OPTIONS_INIT;
+    while ((opt = getopt(argc, argv, "htqlc:f:i:mp:r:xga:d:")) != -1) {
         switch (opt) {
         case 'h':
             options = M_OPTIONS_HELP;
@@ -154,8 +163,8 @@ int main(int argc, char *argv[])
                 conn = false;
                 options = M_OPTIONS_EXEC;
             } else {
-                printf("fail: funding configuration file\n");
-                options = M_OPTIONS_HELP;
+                printf("fail: errno=%s\n", strerror(errno));
+                options = M_OPTIONS_ERR;
             }
             break;
         case 'm':
@@ -183,11 +192,78 @@ int main(int argc, char *argv[])
                     options = M_OPTIONS_EXEC;
                 } else {
                     printf("fail: payment configuration file\n");
-                    options = M_OPTIONS_HELP;
+                    options = M_OPTIONS_ERR;
                 }
             } else {
                 printf("-f need -c option before\n");
                 options = M_OPTIONS_HELP;
+            }
+            break;
+        case 'r':
+            //routepay
+            if (options == M_OPTIONS_INIT) {
+                ln_invoice_t invoice_data;
+                const char *invoice = strtok(optarg, ",");
+                const char *amount_msat = strtok(NULL, ",");
+                bool bret = ln_invoice_decode(&invoice_data, invoice);
+                if (bret) {
+                    printf("---------------------------------\n");
+                    switch (invoice_data.hrp_type) {
+                    case LN_INVOICE_MAINNET:
+                        printf("for mainnet\n");
+                        break;
+                    case LN_INVOICE_TESTNET:
+                        printf("for testnet\n");
+                        break;
+                    default:
+                        printf("unknown hrp_type\n");
+                    }
+                    printf("amount_msat=%" PRIu64 "\n", invoice_data.amount_msat);
+                    time_t tm = (time_t)invoice_data.timestamp;
+                    printf("timestamp= %" PRIu64 " : %s", (uint64_t)invoice_data.timestamp, ctime(&tm));
+                    printf("min_final_cltv_expiry=%d\n", invoice_data.min_final_cltv_expiry);
+                    printf("payee=");
+                    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
+                        printf("%02x", invoice_data.pubkey[lp]);
+                    }
+                    printf("\n");
+                    printf("payment_hash=");
+                    for (int lp = 0; lp < UCOIN_SZ_SHA256; lp++) {
+                        printf("%02x", invoice_data.payment_hash[lp]);
+                    }
+                    printf("\n");
+                    printf("---------------------------------\n");
+                    if (amount_msat != NULL) {
+                        errno = 0;
+                        uint64_t add_msat = (uint64_t)strtoull(amount_msat, NULL, 10);
+                        if (errno == 0) {
+                            invoice_data.amount_msat += add_msat;
+                            printf("additional amount_msat=%" PRIu64 "\n", add_msat);
+                            printf("---------------------------------\n");
+                        } else {
+                            printf("fail: errno=%s\n", strerror(errno));
+                            options = M_OPTIONS_ERR;
+                        }
+                        if (invoice_data.amount_msat & 0xffffffff00000000ULL) {
+                            //BOLT#2
+                            //  MUST set the four most significant bytes of amount_msat to 0.
+                            printf("fail: amount_msat too large\n");
+                            options = M_OPTIONS_ERR;
+                        }
+                    }
+                    if (options != M_OPTIONS_ERR) {
+                        if (invoice_data.amount_msat > 0) {
+                            routepay_rpc(mBuf, &invoice_data);
+                            options = M_OPTIONS_EXEC;
+                        } else {
+                            printf("fail: pay amount_msat is 0\n");
+                            options = M_OPTIONS_ERR;
+                        }
+                    }
+                } else {
+                    printf("fail: decode BOLT#11 invoice\n");
+                    options = M_OPTIONS_ERR;
+                }
             }
             break;
 
@@ -195,7 +271,7 @@ int main(int argc, char *argv[])
         // -c必要
         //
         case 'c':
-            //接続先(c,f共通)
+            //接続先
             if (options > M_OPTIONS_CONN) {
                 peer_conf_t peer;
                 bool bret = load_peer_conf(optarg, &peer);
@@ -272,6 +348,9 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (options == M_OPTIONS_ERR) {
+        return -1;
+    }
     if ((options == M_OPTIONS_INIT) || (options == M_OPTIONS_HELP) || (optind >= argc)) {
         printf("[usage]\n");
         printf("\t%s <-t> <options> <JSON-RPC port(not ucoind port)>\n", argv[0]);
@@ -281,11 +360,13 @@ int main(int argc, char *argv[])
         printf("\t\t-l : list channels\n");
         printf("\t\t-i <amount_msat> : add preimage, and show payment_hash\n");
         printf("\t\t-p <payment.conf>,<paymenet_hash> : payment(don't put a space before or after the comma)\n");
+        printf("\t\t-r <BOLT#11 invoice>(,<additional amount_msat>) : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
         printf("\t\t-c <peer.conf> : connect node\n");
         printf("\t\t-c <peer.conf> -f <fund.conf> : funding\n");
         printf("\t\t-c <peer.conf> -x : mutual close channel\n");
         // printf("\n");
+        // printf("\t\t-a <IP address> : [debug]JSON-RPC send address\n");
         // printf("\t\t-d <value> : [debug]debug option\n");
         // printf("\t\t-c <node.conf> -g : [debug]get commitment transaction\n");
         return -1;
@@ -432,6 +513,24 @@ static void payment_rpc(char *pJson, const payment_conf_t *pPay)
         }
     }
     strcat(pJson, "] ]}");
+}
+
+
+static void routepay_rpc(char *pJson, const ln_invoice_t *pInvData)
+{
+    char payhash[LN_SZ_HASH * 2 + 1];
+    char payee[UCOIN_SZ_PUBKEY * 2 + 1];
+
+    misc_bin2str(payhash, pInvData->payment_hash, LN_SZ_HASH);
+    misc_bin2str(payee, pInvData->pubkey, UCOIN_SZ_PUBKEY);
+
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "routepay") M_NEXT
+            M_QQ("params") ":[ "
+                //payment_hash, amount_msat, payee, payer
+                M_QQ("%s") ",%" PRIu64 "," M_QQ("%s") "," M_QQ("") "]}",
+            payhash, pInvData->amount_msat, payee);
 }
 
 

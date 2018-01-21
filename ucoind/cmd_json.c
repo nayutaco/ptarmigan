@@ -654,7 +654,6 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        //misc_str2bin(nodeid_payee, UCOIN_SZ_PUBKEY, json->valuestring);
         strcpy(nodeid_payee, json->valuestring);
         DBG_PRINTF("nodeid_payee=%s\n", nodeid_payee);
     } else {
@@ -663,8 +662,12 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        //misc_str2bin(nodeid_payer, UCOIN_SZ_PUBKEY, json->valuestring);
-        strcpy(nodeid_payer, json->valuestring);
+        if (strlen(json->valuestring) > 0) {
+            strcpy(nodeid_payer, json->valuestring);
+        } else {
+            //自分をpayerにする
+            misc_bin2str(nodeid_payer, ucoind_nodeid(), UCOIN_SZ_PUBKEY);
+        }
         DBG_PRINTF("nodeid_payer=%s\n", nodeid_payer);
     } else {
         index = -1;

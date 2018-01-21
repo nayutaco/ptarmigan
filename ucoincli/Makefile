@@ -39,6 +39,7 @@ C_SOURCE_FILES += $(COMMON_PATH)cmn/jsonrpc.c
 INC_PATHS += -I$(COMMON_PATH)include
 INC_PATHS += -I$(COMMON_PATH)ucoin/include
 INC_PATHS += -I$(COMMON_PATH)libs/install/include
+INC_PATHS += -I$(COMMON_PATH)ucoin/libs/install/include
 
 # Sorting removes duplicates
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
@@ -82,7 +83,7 @@ LDFLAGS += -pthread
 #Link Library
 LIBS += -L$(COMMON_PATH)/libs/install/lib -ljansson -lcurl -linih
 LIBS += -L$(COMMON_PATH)/ucoin -lucoin
-LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium
+LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium -lbech32
 
 
 ######################################
