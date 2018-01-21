@@ -1068,6 +1068,11 @@ bool ucoin_tx_verify_p2sh_addr(const ucoin_tx_t *pTx, int Index, const uint8_t *
 
 bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash)
 {
+    if ((RecId < 0) || (3 < RecId)) {
+        DBG_PRINTF("fail: invalid recid\n");
+        return false;
+    }
+
     return recover_pubkey(pPubKey, &RecId, pRS, pTxHash);
 }
 
