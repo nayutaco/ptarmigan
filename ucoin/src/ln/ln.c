@@ -1319,9 +1319,9 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 {
     ln_ping_t ping;
 
-    ucoin_util_random(&self->last_num_pong_bytes, 2);
+    ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
     ping.num_pong_bytes = self->last_num_pong_bytes;
-    ucoin_util_random(&ping.byteslen, 2);
+    ucoin_util_random((uint8_t *)&ping.byteslen, 2);
     bool ret = ln_msg_ping_create(pPing, &ping);
     if (ret) {
         self->missing_pong_cnt++;

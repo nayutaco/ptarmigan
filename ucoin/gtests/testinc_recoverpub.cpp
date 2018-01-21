@@ -1,0 +1,112 @@
+////////////////////////////////////////////////////////////////////////
+//FAKE関数
+
+//FAKE_VALUE_FUNC(int, external_function, int);
+
+////////////////////////////////////////////////////////////////////////
+
+class recoverpub: public testing::Test {
+protected:
+    virtual void SetUp() {
+        //RESET_FAKE(external_function)
+        ucoin_init(UCOIN_TESTNET, false);
+    }
+
+    virtual void TearDown() {
+        ASSERT_EQ(0, ucoin_dbg_malloc_cnt());
+        ucoin_term();
+    }
+
+public:
+    static void DumpBin(const uint8_t *pData, uint16_t Len)
+    {
+        for (uint16_t lp = 0; lp < Len; lp++) {
+            printf("%02x", pData[lp]);
+        }
+        printf("\n");
+    }
+};
+
+////////////////////////////////////////////////////////////////////////
+
+#include <mbedtls/bignum.h>
+#include <mbedtls/ecp.h>
+
+bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
+
+TEST_F(recoverpub, pubkey)
+{
+    ucoin_tx_t tx;
+    ucoin_tx_init(&tx);
+
+    //$ bitcoin-cli createrawtransaction '[{"txid" : "4ce46b510ad0cb356e0cc32afd0ef94bb0a7b2f8a6c456d3b4b26d0b0281bfe5", "vout" : 1}]' '{"mr8wpGyZErik2DezKZtvTCFrYb6t6L69pc" : 0.001, "mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685" : 0.492}'
+    const uint8_t TX_EMPTY[] = {
+        0x01, 0x00, 0x00, 0x00, 0x01, 0xe5, 0xbf, 0x81,
+        0x02, 0x0b, 0x6d, 0xb2, 0xb4, 0xd3, 0x56, 0xc4,
+        0xa6, 0xf8, 0xb2, 0xa7, 0xb0, 0x4b, 0xf9, 0x0e,
+        0xfd, 0x2a, 0xc3, 0x0c, 0x6e, 0x35, 0xcb, 0xd0,
+        0x0a, 0x51, 0x6b, 0xe4, 0x4c, 0x01, 0x00, 0x00,
+        0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x02, 0xa0,
+        0x86, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x19,
+        0x76, 0xa9, 0x14, 0x74, 0x7f, 0xd5, 0x2a, 0x1f,
+        0x44, 0xdb, 0xe6, 0x73, 0xf4, 0x2a, 0x4f, 0x29,
+        0xd2, 0xae, 0x9c, 0x8f, 0x92, 0xc5, 0x1c, 0x88,
+        0xac, 0x80, 0xbb, 0xee, 0x02, 0x00, 0x00, 0x00,
+        0x00, 0x19, 0x76, 0xa9, 0x14, 0xad, 0x3d, 0xc2,
+        0xf5, 0x22, 0x96, 0xf9, 0x3c, 0x78, 0x98, 0xeb,
+        0x63, 0x8b, 0x0d, 0x74, 0xf2, 0x7d, 0x79, 0xef,
+        0xc3, 0x88, 0xac, 0x00, 0x00, 0x00, 0x00,
+    };
+
+    bool ret = ucoin_tx_read(&tx, TX_EMPTY, sizeof(TX_EMPTY));
+    ASSERT_TRUE(ret);
+
+    const uint8_t PREV_SCRIPTPK[] = {
+        0x76, 0xa9, 0x14, 0xad, 0x3d, 0xc2, 0xf5, 0x22,
+        0x96, 0xf9, 0x3c, 0x78, 0x98, 0xeb, 0x63, 0x8b,
+        0x0d, 0x74, 0xf2, 0x7d, 0x79, 0xef, 0xc3, 0x88,
+        0xac,
+    };
+    const ucoin_buf_t pk0 = { (uint8_t *)PREV_SCRIPTPK, sizeof(PREV_SCRIPTPK) };
+    const ucoin_buf_t *pks[] = { &pk0 };
+    const uint8_t TXHASH[] = {
+        0xb8, 0x81, 0xab, 0x3c, 0x47, 0x0b, 0x93, 0x98,
+        0xad, 0xb5, 0xea, 0x6c, 0xb3, 0x60, 0xd1, 0x45,
+        0xdf, 0x70, 0x2f, 0xa0, 0xbc, 0x0a, 0x6c, 0x01,
+        0x22, 0x19, 0xfa, 0x93, 0xe7, 0x09, 0xad, 0xad,
+    };
+    uint8_t txhash[UCOIN_SZ_HASH256];
+    ret = ucoin_tx_sighash(txhash, &tx, pks, 1);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0, memcmp(TXHASH, txhash, UCOIN_SZ_HASH256));
+    ASSERT_EQ(1, tx.vin_cnt);
+    ASSERT_EQ(NULL, tx.vin[0].script.buf);
+    ASSERT_EQ(0, tx.vin[0].script.len);
+    ucoin_tx_free(&tx);
+
+    //txid: 2ebe872b03e0a78a614ba162283dc973e56454a08d3d6ba791a617c7f6e6fa30
+    //privkey: cd77aca001fe88e8f2dcdcc7fcd86c34d2af546682cfede65f9ed848a81dfac6
+    //pubkey: 03becec41f68d77fde9e972c79aa0e6e4e818bd3046276969e79374ec0561ba459
+    const uint8_t PRIV[] = {
+        0xcd, 0x77, 0xac, 0xa0, 0x01, 0xfe, 0x88, 0xe8,
+        0xf2, 0xdc, 0xdc, 0xc7, 0xfc, 0xd8, 0x6c, 0x34,
+        0xd2, 0xaf, 0x54, 0x66, 0x82, 0xcf, 0xed, 0xe6,
+        0x5f, 0x9e, 0xd8, 0x48, 0xa8, 0x1d, 0xfa, 0xc6,
+    };
+    uint8_t sig_rs[UCOIN_SZ_SIGN_RS];
+    ret = ucoin_tx_sign_rs(sig_rs, txhash, PRIV);
+    ASSERT_TRUE(ret);
+
+    //送信可能なtxだが、使用済みTXIDなので送信確認はできない
+    uint8_t pubkey[UCOIN_SZ_PUBKEY];
+    ucoin_keys_priv2pub(pubkey, PRIV);
+    printf("pubkey= ");
+    recoverpub::DumpBin(pubkey, sizeof(pubkey));
+
+    //verify
+    ret = ucoin_tx_verify_rs(sig_rs, txhash, pubkey);
+    ASSERT_TRUE(ret);
+
+    uint8_t recov_pub[UCOIN_SZ_PUBKEY];
+    ucoin_tx_recover_pubkey(recov_pub, sig_rs, txhash);
+}
