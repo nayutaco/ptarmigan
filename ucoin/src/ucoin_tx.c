@@ -41,7 +41,7 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size);
 static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 static int ecdsa_signature_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s,
                                     unsigned char *sig, size_t *slen );
-static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash);
+static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pOrgPubKey);
 
 static int get_varint(uint16_t *pLen, const uint8_t *pData);
 //uint16_t get_le16(const uint8_t *pData);
@@ -775,7 +775,7 @@ LABEL_EXIT:
     mbedtls_mpi_free( &s );
 
     if (ret == 0) {
-        DBG_PRINTF("ok: verify\n");
+        //DBG_PRINTF("ok: verify\n");
     } else {
         DBG_PRINTF("fail ret=%d\n", ret);
         DBG_PRINTF("txhash: ");
@@ -1073,7 +1073,7 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, co
         return false;
     }
 
-    return recover_pubkey(pPubKey, &RecId, pRS, pTxHash);
+    return recover_pubkey(pPubKey, &RecId, pRS, pTxHash, NULL);
 }
 
 
@@ -1082,11 +1082,10 @@ bool ucoin_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8
     bool ret = false;
     uint8_t pub[UCOIN_SZ_PUBKEY];
 
-    DBG_PRINTF("\n");
     *pRecId = -1;       //負の数にすると自動で求める
-    ret = recover_pubkey(pub, pRecId, pRS, pTxHash);
-    if (ret) {
-        ret = (memcmp(pub, pPubKey, UCOIN_SZ_PUBKEY) == 0);
+    ret = recover_pubkey(pub, pRecId, pRS, pTxHash, pPubKey);
+    if (!ret) {
+        DBG_PRINTF("not pubkey\n");
     }
 
     return ret;
@@ -1480,7 +1479,7 @@ static int ecdsa_signature_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s,
  * @param[in]   pTxHash
  * @retval  true    成功
  */
-static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash)
+static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pOrgPubKey)
 {
     bool bret = false;
     int ret;
@@ -1602,26 +1601,31 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
 
             if (ret == 0) {
                 bret = ucoin_tx_verify_rs(pRS, pTxHash, pPubKey);
+                if (bret && pOrgPubKey) {
+                    bret = (memcmp(pOrgPubKey, pPubKey, UCOIN_SZ_PUBKEY) == 0);
+                }
                 if (bret) {
-                    // DBG_PRINTF("recover= ");
-                    // DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+                    //DBG_PRINTF("recover= ");
+                    //DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
                     if (*pRecId < 0) {
                         *pRecId = (j << 1) | k;
                     }
                     j = 2;
                     k = 2;
                     break;
+                } else {
+                    //DBG_PRINTF("not match\n");
                 }
             } else {
                 DBG_PRINTF("fail\n");
             }
-            if (*pRecId < 0) {
+            if (*pRecId >= 0) {
                 break;
             }
         }
 
 SKIP_LOOP:
-        if (*pRecId < 0) {
+        if (*pRecId >= 0) {
             break;
         }
     }
