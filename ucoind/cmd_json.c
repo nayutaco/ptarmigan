@@ -40,6 +40,8 @@
 #include "lnapp.h"
 #include "monitoring.h"
 
+#include "segwit_addr.h"
+
 
 /********************************************************************
  * static variables
@@ -370,7 +372,6 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     uint64_t amount;
     cJSON *result = NULL;
     int index = 0;
-    ln_self_t *self = NULL;
 
     if (params == NULL) {
         index = -1;
@@ -380,14 +381,6 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     //connect parameter
     daemon_connect_t conn;
     index = json_connect(params, index, &conn);
-    if (index >= 0) {
-        lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
-        if (p_appconf != NULL) {
-            //接続中
-            DBG_PRINTF("connecting\n");
-            self = p_appconf->p_self;
-        }
-    }
 
     //amount
     json = cJSON_GetArrayItem(params, index++);
@@ -421,11 +414,22 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
     ucoind_preimage_unlock();
 
-    if (self) {
-        char privkey[UCOIN_SZ_PRIVKEY * 2 + 1];
-        misc_bin2str(privkey, self->p_node->keys.priv, UCOIN_SZ_PRIVKEY);
-        DBG_PRINTF("lightning-address.py encode --description \"something to say\" %lf %s %s\n", (double)amount / 100000000000.0, str_hash, privkey);
+    const ucoin_util_keys_t *p_keys = ucoind_nodekeys();
+    ln_invoice_t invoice_data;
+#warning BOLT#11形式はTESTNETのみになっている
+    invoice_data.hrp_type = LN_INVOICE_TESTNET;
+    invoice_data.amount_msat = amount;
+    invoice_data.min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
+    memcpy(invoice_data.pubkey, p_keys->pub, UCOIN_SZ_PUBKEY);
+    memcpy(invoice_data.payment_hash, preimage_hash, LN_SZ_HASH);
+    char *p_invoice = NULL;
+    bool ret = ln_invoice_encode(&p_invoice, &invoice_data, p_keys->priv);
+    if (ret) {
+        cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
+    } else {
+        DBG_PRINTF("fail: BOLT11 format\n");
     }
+    free(p_invoice);
 
 LABEL_EXIT:
     if (index < 0) {

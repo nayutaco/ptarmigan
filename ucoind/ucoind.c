@@ -232,6 +232,12 @@ uint16_t ucoind_nodeport(void)
 }
 
 
+const ucoin_util_keys_t *ucoind_nodekeys(void)
+{
+    return &mNode.keys;
+}
+
+
 bool ucoind_forward_payment(fwd_proc_add_t *p_add)
 {
     bool ret = false;
