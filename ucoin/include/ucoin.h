@@ -830,6 +830,27 @@ bool ucoin_tx_verify_p2sh_spk(const ucoin_tx_t *pTx, int Index, const uint8_t *p
 bool ucoin_tx_verify_p2sh_addr(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
 
 
+/** 公開鍵復元
+ * 
+ * @param[out]      pPubKey
+ * @param[in]       RecId       recovery ID
+ * @param[in]       pRS
+ * @param[in]       pTxHash
+ * @retval      true    成功
+ */
+bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash);
+
+
+/** 公開鍵復元ID取得
+ * 
+ * @param[out]      pRecId      recovery ID
+ * @param[in]       pPubKey
+ * @param[in]       pRS
+ * @param[in]       pTxHash
+ * @retval      true    成功
+ */
+bool ucoin_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
+
 /** TXID計算
  *
  * @param[out]  pTxId       計算結果(Little Endian)

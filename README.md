@@ -55,13 +55,18 @@
 
 ## build
 
-* first time
+* first time or update libraries
 
-        make full
+```bash
+./update_libs.sh
+make full
+```
 
-* update `ucoind` or `ucoincli`
+* update
 
-        make
+```bash
+make
+```
 
 * その他
   * libs で submodule を使っているため、取得には注意 (make fullで取得するようにしている)

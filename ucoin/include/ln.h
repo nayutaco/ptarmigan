@@ -67,6 +67,8 @@ extern "C" {
 #define LN_HOP_MAX                      (20)        ///< onion hop数
 #define LN_FEERATE_PER_KW               (10000)     ///< feerate_per_kwの下限(c-lightningで下限が設定されているため)
 #define LN_BLK_FEEESTIMATE              (6)         ///< estimatefeeのブロック数(2以上)
+#define LN_MIN_FINAL_CLTV_EXPIRY        (9)         ///< min_final_cltv_expiryのデフォルト値
+#define LN_INVOICE_EXPIRY               (3600)      ///< invoice expiryのデフォルト値
 
 #define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
 
@@ -1043,7 +1045,7 @@ void ln_set_genesishash(const uint8_t *pHash);
 
 
 /** Genesis Block Hash取得
- * 
+ *
  * @return      #ln_set_genesishash()で設定したGenesis Block Hash
  */
 const uint8_t* ln_get_genesishash(void);

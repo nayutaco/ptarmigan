@@ -41,6 +41,8 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size);
 static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 static int ecdsa_signature_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s,
                                     unsigned char *sig, size_t *slen );
+static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pOrgPubKey);
+
 static int get_varint(uint16_t *pLen, const uint8_t *pData);
 //uint16_t get_le16(const uint8_t *pData);
 static uint32_t get_le32(const uint8_t *pData);
@@ -773,7 +775,7 @@ LABEL_EXIT:
     mbedtls_mpi_free( &s );
 
     if (ret == 0) {
-        DBG_PRINTF("ok: verify\n");
+        //DBG_PRINTF("ok: verify\n");
     } else {
         DBG_PRINTF("fail ret=%d\n", ret);
         DBG_PRINTF("txhash: ");
@@ -1064,190 +1066,29 @@ bool ucoin_tx_verify_p2sh_addr(const ucoin_tx_t *pTx, int Index, const uint8_t *
 }
 
 
-bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash)
+bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash)
 {
-    int ret;
-    //char buf[100];
-    //size_t len;
-
-    mbedtls_ecp_keypair keypair;
-    mbedtls_mpi me;
-    mbedtls_mpi r, s;
-    mbedtls_mpi inv_r;
-    mbedtls_mpi x;
-    mbedtls_ecp_point R;
-    mbedtls_ecp_point MR;
-    mbedtls_ecp_point pub;
-
-    mbedtls_ecp_keypair_init(&keypair);
-    mbedtls_mpi_init(&me);
-    mbedtls_mpi_init(&r);
-    mbedtls_mpi_init(&s);
-    mbedtls_mpi_init(&inv_r);
-    mbedtls_mpi_init(&x);
-    mbedtls_ecp_point_init(&R);
-    mbedtls_ecp_point_init(&MR);
-    mbedtls_ecp_point_init(&pub);
-    const mbedtls_ecp_point *pR[2] = { &R, &MR };
-    int is_zero;
-
-    mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
-
-    //ret = mbedtls_mpi_write_string(&keypair.grp.P, 16, buf, sizeof(buf), &len);
-    //assert(ret == 0);
-    //DBG_PRINTF2("P = %s\n", buf);
-    //ret = mbedtls_mpi_write_string(&keypair.grp.N, 16, buf, sizeof(buf), &len);
-    //assert(ret == 0);
-    //DBG_PRINTF2("N = %s\n", buf);
-
-    // 1.5
-    //      e = Hash(M)
-    //      me = -e
-    //DBG_PRINTF2("hash=");
-    //DUMPBIN(pTxHash, UCOIN_SZ_SIGHASH);
-
-    ret = mbedtls_mpi_read_binary(&me, pTxHash, UCOIN_SZ_SIGHASH);
-    assert(ret == 0);
-
-    //ret = mbedtls_mpi_write_string(&me, 16, buf, sizeof(buf), &len);
-    //assert(ret == 0);
-    //DBG_PRINTF2("e    = %s\n", buf);
-
-    mbedtls_mpi zero;
-    mbedtls_mpi_init(&zero);
-    mbedtls_mpi_lset(&zero, 0);
-    ret = mbedtls_mpi_sub_mpi(&me, &zero, &me);
-    assert(ret == 0);
-    ret = mbedtls_mpi_mod_mpi(&me, &me, &keypair.grp.N);
-    assert(ret == 0);
-    mbedtls_mpi_free(&zero);
-
-    //ret = mbedtls_mpi_write_string(&me, 16, buf, sizeof(buf), &len);
-    //assert(ret == 0);
-    //DBG_PRINTF2("eNeg = %s\n", buf);
-
-    ret = mbedtls_mpi_read_binary(&r, pRS, UCOIN_SZ_FIELD);
-    assert(ret == 0);
-    ret = mbedtls_mpi_read_binary(&s, pRS + UCOIN_SZ_FIELD, UCOIN_SZ_FIELD);
-    assert(ret == 0);
-
-    //DBG_PRINTF2("r=");
-    //DUMPBIN(pRS, UCOIN_SZ_FIELD);
-    //DBG_PRINTF2("s=");
-    //DUMPBIN(pRS + UCOIN_SZ_FIELD, UCOIN_SZ_FIELD);
-
-    //      inv_r = r^-1
-    ret = mbedtls_mpi_inv_mod(&inv_r, &r, &keypair.grp.N);
-    assert(ret == 0);
-
-    //ret = mbedtls_mpi_write_string(&inv_r, 16, buf, sizeof(buf), &len);
-    //assert(ret == 0);
-    //DBG_PRINTF2("inv_r = %s\n", buf);
-
-    for (int j = 0; j < 2; j++) {
-        //bool is_y_odd = j & 0x01;
-
-        // 1.1
-        //      x = r + jn
-        mbedtls_mpi tmpx;
-        mbedtls_mpi_init(&tmpx);
-        ret = mbedtls_mpi_mul_int(&tmpx, &keypair.grp.N, j);
-        assert(ret == 0);
-
-        ret = mbedtls_mpi_add_mpi(&x, &r, &tmpx);
-        assert(ret == 0);
-        mbedtls_mpi_free(&tmpx);
-        keypair.grp.modp(&x);
-
-        //mbedtls_mpi_write_string(&x, 16, buf, sizeof(buf), &len);
-        //DBG_PRINTF2("x[%lu] = %s\n", UCOIN_SZ_FIELD, buf);
-
-        // 1.3
-        //      R = 02 || x
-        uint8_t *pubx = (uint8_t *)malloc(UCOIN_SZ_PUBKEY);
-        pubx[0] = 0x02;
-        ret = mbedtls_mpi_write_binary(&x, pubx + 1, UCOIN_SZ_FIELD);
-        assert(ret == 0);
-        ret = ucoin_util_ecp_point_read_binary2(&R, pubx);
-        assert(ret == 0);
-        free(pubx);
-
-        // 1.6.3
-        mbedtls_ecp_copy(&MR, &R);
-        ret = mbedtls_mpi_sub_mpi(&MR.Y, &keypair.grp.P, &MR.Y);        // -R.Y = P - R.Yになる(mod P不要)
-        assert(ret == 0);
-
-        ret = mbedtls_ecp_check_pubkey(&keypair.grp, &MR);
-        assert(ret == 0);
-
-        // 1.4
-        //      error if nR != 0
-        mbedtls_ecp_point nR;
-        mbedtls_ecp_point_init(&nR);
-        ret = mbedtls_ecp_mul(&keypair.grp, &nR, &keypair.grp.N, &R, NULL, NULL);
-        is_zero = mbedtls_ecp_is_zero(&nR);
-        mbedtls_ecp_point_free(&nR);
-        if ((ret == 0) || !is_zero) {
-            DBG_PRINTF2("[%d]1.4 error(ret=%04x)\n", j, ret);
-            goto SKIP_LOOP;
-        }
-
-        for (int k = 0; k < 2; k++) {
-            // 1.6.1
-            //      Q = r^-1 * (sR - eG)
-
-            //ret = mbedtls_mpi_write_string(&pR[k]->X, 16, buf, sizeof(buf), &len);
-            //assert(ret == 0);
-            //DBG_PRINTF2("R.x = %s\n", buf);
-            //ret = mbedtls_mpi_write_string(&pR[k]->Y, 16, buf, sizeof(buf), &len);
-            //assert(ret == 0);
-            //DBG_PRINTF2("R.y = %s\n", buf);
-
-            //      (sR - eG)
-            ret = mbedtls_ecp_muladd(&keypair.grp, &pub, &s, pR[k], &me, &keypair.grp.G);
-            assert(ret == 0);
-            //      Q = r^-1 * Q
-            ret = mbedtls_ecp_mul(&keypair.grp, &pub, &inv_r, &pub, NULL, NULL);
-            assert(ret == 0);
-            ret = mbedtls_ecp_check_pubkey(&keypair.grp, &pub);
-            assert(ret == 0);
-
-            //ret = mbedtls_mpi_write_string(&pub.X, 16, buf, sizeof(buf), &len);
-            //assert(ret == 0);
-            //DBG_PRINTF2("QQ.x = %s\n", buf);
-            //ret = mbedtls_mpi_write_string(&pub.Y, 16, buf, sizeof(buf), &len);
-            //assert(ret == 0);
-            //DBG_PRINTF2("QQ.y = %s\n", buf);
-
-            size_t sz;
-            ret = mbedtls_ecp_point_write_binary(
-                                &keypair.grp, &pub, MBEDTLS_ECP_PF_COMPRESSED,
-                                &sz, pPubKey, UCOIN_SZ_PUBKEY);
-            assert(ret == 0);
-
-            if (ret == 0) {
-                DBG_PRINTF2("recover= ");
-                DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
-            } else {
-                DBG_PRINTF2("fail\n");
-            }
-        }
-
-SKIP_LOOP:
-        ;
+    if ((RecId < 0) || (3 < RecId)) {
+        DBG_PRINTF("fail: invalid recid\n");
+        return false;
     }
 
-    mbedtls_ecp_point_free(&pub);
-    mbedtls_ecp_point_free(&MR);
-    mbedtls_ecp_point_free(&R);
-    mbedtls_mpi_free(&x);
-    mbedtls_mpi_free(&s);
-    mbedtls_mpi_free(&r);
-    mbedtls_mpi_free(&inv_r);
-    mbedtls_mpi_free(&me);
-    mbedtls_ecp_keypair_free(&keypair);
+    return recover_pubkey(pPubKey, &RecId, pRS, pTxHash, NULL);
+}
 
-    return false;
+
+bool ucoin_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash)
+{
+    bool ret = false;
+    uint8_t pub[UCOIN_SZ_PUBKEY];
+
+    *pRecId = -1;       //負の数にすると自動で求める
+    ret = recover_pubkey(pub, pRecId, pRS, pTxHash, pPubKey);
+    if (!ret) {
+        DBG_PRINTF("not pubkey\n");
+    }
+
+    return ret;
 }
 
 
@@ -1628,6 +1469,178 @@ static int ecdsa_signature_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s,
     *slen = len;
 
     return( 0 );
+}
+
+
+/**
+ * @param[out]  pPubKey
+ * @param[out]  pRecId
+ * @param[in]   pRS
+ * @param[in]   pTxHash
+ * @retval  true    成功
+ */
+static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pOrgPubKey)
+{
+    bool bret = false;
+    int ret;
+
+    mbedtls_ecp_keypair keypair;
+    mbedtls_mpi me;
+    mbedtls_mpi r, s;
+    mbedtls_mpi inv_r;
+    mbedtls_mpi x;
+    mbedtls_ecp_point R;
+    mbedtls_ecp_point MR;
+    mbedtls_ecp_point pub;
+
+    mbedtls_ecp_keypair_init(&keypair);
+    mbedtls_mpi_init(&me);
+    mbedtls_mpi_init(&r);
+    mbedtls_mpi_init(&s);
+    mbedtls_mpi_init(&inv_r);
+    mbedtls_mpi_init(&x);
+    mbedtls_ecp_point_init(&R);
+    mbedtls_ecp_point_init(&MR);
+    mbedtls_ecp_point_init(&pub);
+    const mbedtls_ecp_point *pR[2] = { &R, &MR };
+    int is_zero;
+
+    mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
+
+    // 1.5
+    //      e = Hash(M)
+    //      me = -e
+    ret = mbedtls_mpi_read_binary(&me, pTxHash, UCOIN_SZ_SIGHASH);
+    assert(ret == 0);
+
+    mbedtls_mpi zero;
+    mbedtls_mpi_init(&zero);
+    mbedtls_mpi_lset(&zero, 0);
+    ret = mbedtls_mpi_sub_mpi(&me, &zero, &me);
+    assert(ret == 0);
+    ret = mbedtls_mpi_mod_mpi(&me, &me, &keypair.grp.N);
+    assert(ret == 0);
+    mbedtls_mpi_free(&zero);
+
+    ret = mbedtls_mpi_read_binary(&r, pRS, UCOIN_SZ_FIELD);
+    assert(ret == 0);
+    ret = mbedtls_mpi_read_binary(&s, pRS + UCOIN_SZ_FIELD, UCOIN_SZ_FIELD);
+    assert(ret == 0);
+
+    //      inv_r = r^-1
+    ret = mbedtls_mpi_inv_mod(&inv_r, &r, &keypair.grp.N);
+    assert(ret == 0);
+
+    int start_j;
+    int start_k;
+    if (*pRecId >= 0) {
+        start_j = (*pRecId & 0x02) >> 1;
+        start_k = *pRecId & 0x01;
+    } else {
+        start_j = 0;
+        start_k = 0;
+    }
+
+    // Iのb1
+    for (int j = start_j; j < 2; j++) {
+        // 1.1
+        //      x = r + jn
+        mbedtls_mpi tmpx;
+        mbedtls_mpi_init(&tmpx);
+        ret = mbedtls_mpi_mul_int(&tmpx, &keypair.grp.N, j);
+        assert(ret == 0);
+
+        ret = mbedtls_mpi_add_mpi(&x, &r, &tmpx);
+        assert(ret == 0);
+        mbedtls_mpi_free(&tmpx);
+        keypair.grp.modp(&x);
+
+        // 1.3
+        //      R = 02 || x
+        uint8_t pubx[UCOIN_SZ_PUBKEY];
+        pubx[0] = 0x02;
+        ret = mbedtls_mpi_write_binary(&x, pubx + 1, UCOIN_SZ_FIELD);
+        assert(ret == 0);
+        ret = ucoin_util_ecp_point_read_binary2(&R, pubx);
+        assert(ret == 0);
+
+        // 1.6.3
+        mbedtls_ecp_copy(&MR, &R);
+        ret = mbedtls_mpi_sub_mpi(&MR.Y, &keypair.grp.P, &MR.Y);        // -R.Y = P - R.Yになる(mod P不要)
+        assert(ret == 0);
+
+        // 1.4
+        //      error if nR != 0
+        mbedtls_ecp_point nR;
+        mbedtls_ecp_point_init(&nR);
+        ret = mbedtls_ecp_mul(&keypair.grp, &nR, &keypair.grp.N, &R, NULL, NULL);
+        is_zero = mbedtls_ecp_is_zero(&nR);
+        mbedtls_ecp_point_free(&nR);
+        if ((ret == 0) || !is_zero) {
+            DBG_PRINTF2("[%d]1.4 error(ret=%04x)\n", j, ret);
+            goto SKIP_LOOP;
+        }
+
+        // Iのb0
+        for (int k = start_k; k < 2; k++) {
+            // 1.6.1
+            //      Q = r^-1 * (sR - eG)
+
+            //      (sR - eG)
+            ret = mbedtls_ecp_muladd(&keypair.grp, &pub, &s, pR[k], &me, &keypair.grp.G);
+            assert(ret == 0);
+            //      Q = r^-1 * Q
+            ret = mbedtls_ecp_mul(&keypair.grp, &pub, &inv_r, &pub, NULL, NULL);
+            assert(ret == 0);
+
+            size_t sz;
+            ret = mbedtls_ecp_point_write_binary(
+                                &keypair.grp, &pub, MBEDTLS_ECP_PF_COMPRESSED,
+                                &sz, pPubKey, UCOIN_SZ_PUBKEY);
+            assert(ret == 0);
+
+            if (ret == 0) {
+                bret = ucoin_tx_verify_rs(pRS, pTxHash, pPubKey);
+                if (bret && pOrgPubKey) {
+                    bret = (memcmp(pOrgPubKey, pPubKey, UCOIN_SZ_PUBKEY) == 0);
+                }
+                if (bret) {
+                    //DBG_PRINTF("recover= ");
+                    //DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+                    if (*pRecId < 0) {
+                        *pRecId = (j << 1) | k;
+                    }
+                    j = 2;
+                    k = 2;
+                    break;
+                } else {
+                    //DBG_PRINTF("not match\n");
+                }
+            } else {
+                DBG_PRINTF("fail\n");
+            }
+            if (*pRecId >= 0) {
+                break;
+            }
+        }
+
+SKIP_LOOP:
+        if (*pRecId >= 0) {
+            break;
+        }
+    }
+
+    mbedtls_ecp_point_free(&pub);
+    mbedtls_ecp_point_free(&MR);
+    mbedtls_ecp_point_free(&R);
+    mbedtls_mpi_free(&x);
+    mbedtls_mpi_free(&s);
+    mbedtls_mpi_free(&r);
+    mbedtls_mpi_free(&inv_r);
+    mbedtls_mpi_free(&me);
+    mbedtls_ecp_keypair_free(&keypair);
+
+    return bret;
 }
 
 
