@@ -93,6 +93,8 @@ static inline int tid() {
 
 #define RPCERR_PAY_STOP             (-26000)
 #define RPCERR_PAY_STOP_STR         "stop payment"
+#define RPCERR_NOROUTE              (-26001)
+#define RPCERR_NOROUTE_STR          "fail routing"
 
 
 #define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数

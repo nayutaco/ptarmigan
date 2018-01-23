@@ -704,19 +704,25 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
     char *p_route = (char *)APP_MALLOC(8192);
+    p_route[0] = '\0';
     char *p_tmp = p_route;
     while (!feof(fp)) {
         fgets(p_tmp, 8192, fp);
         p_tmp += strlen(p_tmp);
     }
-    DBG_PRINTF("---------------\n");
-    DBG_PRINTF2("%s", p_route);
-    DBG_PRINTF("---------------\n");
-    int retval = misc_sendjson(p_route, "127.0.0.1", cmd_json_get_port());
-    DBG_PRINTF("retval=%d\n", retval);
+    pclose(fp);
+    if (strlen(p_route) > 0) {
+        DBG_PRINTF("---------------\n");
+        DBG_PRINTF2("%s", p_route);
+        DBG_PRINTF("---------------\n");
+        int retval = misc_sendjson(p_route, "127.0.0.1", cmd_json_get_port());
+        DBG_PRINTF("retval=%d\n", retval);
+        result = cJSON_CreateString("OK");
+    } else {
+        ctx->error_code = RPCERR_NOROUTE;
+        ctx->error_message = strdup(RPCERR_NOROUTE_STR);
+    }
     APP_FREE(p_route);
-
-    result = cJSON_CreateString("OK");
 
 LABEL_EXIT:
     if (index < 0) {
