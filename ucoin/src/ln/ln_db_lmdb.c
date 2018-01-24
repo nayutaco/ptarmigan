@@ -76,9 +76,6 @@
     -12: revoked transaction用データ追加
  */
 
-#define M_PREIMAGE_EXPIRY           (60 * 60)       ///< preimageのexpiry[秒]
-
-
 #if 1
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d)
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a)
@@ -1097,6 +1094,7 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
 
 bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam)
 {
+    bool ret;
     lmdb_db_t db;
     MDB_val key, data;
     MDB_txn *txn = NULL;
@@ -1105,7 +1103,8 @@ bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbPar
     if (pDbParam != NULL) {
         txn = ((lmdb_db_t *)pDbParam)->txn;
     }
-    save_preimage_open(&db, txn);
+    ret = save_preimage_open(&db, txn);
+    assert(ret);
 
     key.mv_size = LN_SZ_PREIMAGE;
     key.mv_data = (CONST_CAST uint8_t *)pPreImage;
@@ -1128,10 +1127,12 @@ bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbPar
 
 bool ln_db_del_preimage(const uint8_t *pPreImage)
 {
+    bool ret;
     lmdb_db_t db;
     MDB_val key;
 
-    save_preimage_open(&db, NULL);
+    ret = save_preimage_open(&db, NULL);
+    assert(ret);
 
     key.mv_size = LN_SZ_PREIMAGE;
     key.mv_data = (CONST_CAST uint8_t *)pPreImage;
@@ -1206,7 +1207,7 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
         preimage_info_t *p_info = (preimage_info_t *)data.mv_data;
         DBG_PRINTF("amount: %" PRIu64"\n", p_info->amount);
         DBG_PRINTF("time: %lu\n", p_info->creation);
-        if (now - p_info->creation <= M_PREIMAGE_EXPIRY) {
+        if (now <= p_info->creation + LN_INVOICE_EXPIRY) {
             memcpy(pPreImage, key.mv_data, key.mv_size);
             *pAmount = p_info->amount;
 
@@ -2100,7 +2101,7 @@ LABEL_EXIT:
 
 static bool save_preimage_open(lmdb_db_t *p_db, MDB_txn *txn)
 {
-    int         retval;
+    int retval;
 
     if (txn == NULL) {
         retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &p_db->txn);
