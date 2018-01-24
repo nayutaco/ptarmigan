@@ -8,8 +8,13 @@ DATE=`date +"%c %N"`
 echo { \"method\": \"connected\", \"short_channel_id\": \"$1\", \"node_id\": \"$2\", \"date\": \"$DATE\", \"debug\": \"peer_id=$3,peer_port=$4\" } | jq .
 
 ##自動fundingしたいnode_idを列挙
-#peer_array=("02fa13acff940371578d2ea26849468b70344b1fd622afe2217492d1647b55db44")
+#peer_array=("")
+
+## funding_txに送金する元になる額(BTC). feeを考慮して少し多めにしておく.
+## bitcoindから直接native-segwitアドレスに送金できないので、addwitnessaddressでP2SH-segwitアドレスを作って送金している。
 #FUND_BTC=0.01
+
+## FUND_BTCのうち、funding_txに送金する額(satoshi)
 #FUND_SAT=600000
 
 #if [ ! -e ./dbucoin ]; then
