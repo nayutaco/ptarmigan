@@ -13,8 +13,11 @@ if [ -f our_msat.txt ]; then
     pay=$(($3-$OUR_MSAT))
     if [ $pay -gt 0 ]; then
         echo GET: $pay msat!
+        #./script/something_get.sh $pay
     fi
     if [ $pay -lt 0 ]; then
         echo PAY: $((0-$pay)) msat!
+        #./script/something_pay.sh $pay
     fi
+    echo $3 > our_msat.txt
 fi
