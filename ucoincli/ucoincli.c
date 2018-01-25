@@ -379,7 +379,7 @@ int main(int argc, char *argv[])
         printf("\t\t-q : quit ucoind\n");
         printf("\t\t-l : list channels\n");
         printf("\t\t-i <amount_msat> : add preimage, and show payment_hash\n");
-        printf("\t\t-e (<amount_msat>) : erase payment_hash\n");
+        printf("\t\t-e <payment_hash> or ALL) : erase payment_hash(s)\n");
         printf("\t\t-p <payment.conf>,<paymenet_hash> : payment(don't put a space before or after the comma)\n");
         printf("\t\t-r <BOLT#11 invoice>(,<additional amount_msat>) : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
