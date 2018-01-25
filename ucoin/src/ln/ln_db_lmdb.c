@@ -1128,23 +1128,64 @@ bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbPar
 bool ln_db_del_preimage(const uint8_t *pPreImage)
 {
     bool ret;
+    int retval = -1;
     lmdb_db_t db;
-    MDB_val key;
 
     ret = save_preimage_open(&db, NULL);
-    assert(ret);
+    if (!ret) {
+        DBG_PRINTF("fail: open\n");
+        assert(ret);
+        goto LABEL_EXIT;
+    }
 
-    key.mv_size = LN_SZ_PREIMAGE;
-    key.mv_data = (CONST_CAST uint8_t *)pPreImage;
-    int retval = mdb_del(db.txn, db.dbi, &key, NULL);
-    if (retval == 0) {
-        DBG_PRINTF("\n");
+    if (pPreImage != NULL) {
+        MDB_val key;
+
+        DBG_PRINTF("remove: ");
+        DUMPBIN(pPreImage, LN_SZ_PREIMAGE);
+        key.mv_size = LN_SZ_PREIMAGE;
+        key.mv_data = (CONST_CAST uint8_t *)pPreImage;
+        retval = mdb_del(db.txn, db.dbi, &key, NULL);
+        if (retval == 0) {
+            DBG_PRINTF("\n");
+        } else {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        }
     } else {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        DBG_PRINTF("remove all\n");
+        retval = mdb_drop(db.txn, db.dbi, 1);
     }
 
     save_preimage_close(&db, NULL);
 
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+bool ln_db_del_preimage_hash(const uint8_t *pPreImageHash)
+{
+    int retval = -1;
+    bool ret;
+    lmdb_cursor_t *p_cur;
+    uint8_t preimage[LN_SZ_PREIMAGE];
+    uint8_t preimage_hash[LN_SZ_HASH];
+    uint64_t amount;
+
+    ret = ln_db_cursor_preimage_open(&p_cur);
+    while (ret) {
+        ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
+        if (ret) {
+            ln_calc_preimage_hash(preimage_hash, preimage);
+            if (memcmp(preimage_hash, pPreImageHash, LN_SZ_HASH) == 0) {
+                retval = mdb_cursor_del(p_cur->cursor, 0);
+                break;
+            }
+        }
+    }
+    ln_db_cursor_preimage_close(p_cur);
+
+LABEL_EXIT:
     return retval == 0;
 }
 

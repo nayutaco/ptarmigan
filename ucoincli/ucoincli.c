@@ -83,6 +83,7 @@ static void getinfo_rpc(char *pJson);
 static void connect_rpc(char *pJson);
 static void fund_rpc(char *pJson, const funding_conf_t *pFund);
 static void invoice_rpc(char *pJson, uint64_t Amount, bool conn);
+static void erase_invoice_rpc(char *pJson, const char *pPaymentHash);
 static void listinvoice_rpc(char *pJson);
 static void payment_rpc(char *pJson, const payment_conf_t *pPay);
 static void routepay_rpc(char *pJson, const ln_invoice_t *pInvData);
@@ -114,7 +115,7 @@ int main(int argc, char *argv[])
     bool b_send = true;
     int opt;
     int options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "htqlc:f:i:mp:r:xga:d:")) != -1) {
+    while ((opt = getopt(argc, argv, "htqlc:f:i:e:mp:r:xga:d:")) != -1) {
         switch (opt) {
         case 'h':
             options = M_OPTIONS_HELP;
@@ -165,6 +166,25 @@ int main(int argc, char *argv[])
             } else {
                 printf("fail: errno=%s\n", strerror(errno));
                 options = M_OPTIONS_ERR;
+            }
+            break;
+        case 'e':
+            if (options == M_OPTIONS_INIT) {
+                const char *pPaymentHash = NULL;
+                if (strcmp(optarg, "ALL") == 0) {
+                    pPaymentHash = "";
+                } else if (strlen(optarg) == LN_SZ_HASH * 2) {
+                    pPaymentHash = optarg;
+                } else {
+                    //error
+                }
+                if (pPaymentHash != NULL) {
+                    erase_invoice_rpc(mBuf, pPaymentHash);
+                    options = M_OPTIONS_EXEC;
+                } else {
+                    printf("fail: invalid param\n");
+                    options = M_OPTIONS_ERR;
+                }
             }
             break;
         case 'm':
@@ -359,6 +379,7 @@ int main(int argc, char *argv[])
         printf("\t\t-q : quit ucoind\n");
         printf("\t\t-l : list channels\n");
         printf("\t\t-i <amount_msat> : add preimage, and show payment_hash\n");
+        printf("\t\t-e (<amount_msat>) : erase payment_hash\n");
         printf("\t\t-p <payment.conf>,<paymenet_hash> : payment(don't put a space before or after the comma)\n");
         printf("\t\t-r <BOLT#11 invoice>(,<additional amount_msat>) : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
@@ -469,6 +490,19 @@ static void invoice_rpc(char *pJson, uint64_t Amount, bool conn)
             "}",
                 Amount);
     }
+}
+
+
+static void erase_invoice_rpc(char *pJson, const char *pPaymentHash)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "eraseinvoice") M_NEXT
+            M_QQ("params") ":[ "
+                M_QQ("%s")
+            " ]"
+        "}",
+            pPaymentHash);
 }
 
 
