@@ -864,6 +864,10 @@ static void *thread_main_start(void *pArg)
         set_establish_default(p_conf, p_conf->node_id);
     }
 
+    //初期化完了
+    DBG_PRINTF("\n\n*** message inited ***\n\n\n");
+    p_conf->flag_recv |= RECV_MSG_END;
+
     // method: connected
     // $1: short_channel_id
     // $2: node_id
@@ -881,10 +885,6 @@ static void *thread_main_start(void *pArg)
                 peer_id,
                 cmd_json_get_port());
     call_script(M_EVT_CONNECTED, param);
-
-    //初期化完了
-    DBG_PRINTF("\n\n*** message inited ***\n\n\n");
-    p_conf->flag_recv |= RECV_MSG_END;
 
     while (p_conf->loop) {
         DBG_PRINTF("loop...\n");
