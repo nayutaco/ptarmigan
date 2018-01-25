@@ -58,6 +58,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -79,6 +80,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_connect,     "connect", NULL);
     jrpc_register_procedure(&mJrpc, cmd_close,       "close", NULL);
     jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listinvoice, "listinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_pay,         "pay", NULL);
     jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay", NULL);
@@ -430,6 +432,50 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         DBG_PRINTF("fail: BOLT11 format\n");
     }
     free(p_invoice);
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    cJSON *json;
+    cJSON *result = NULL;
+    uint8_t *pPaymentHash = NULL;
+    uint8_t preimage_hash[LN_SZ_HASH];
+    int index = 0;
+    bool ret;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    json = cJSON_GetArrayItem(params, index++);
+    if ((json == NULL) || (json->type != cJSON_String)) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+    if (strlen(json->valuestring) > 0) {
+        DBG_PRINTF("erase hash: %s\n", json->valuestring);
+        misc_str2bin(preimage_hash, sizeof(preimage_hash), json->valuestring);
+        ret = ln_db_del_preimage_hash(preimage_hash);
+    } else {
+        ret = ln_db_del_preimage(NULL);
+    }
+    if (ret) {
+        result = cJSON_CreateString("OK");
+    } else {
+        ctx->error_code = RPCERR_INVOICE_ERASE;
+        ctx->error_message = strdup(RPCERR_INVOICE_ERASE_STR);
+    }
 
 LABEL_EXIT:
     if (index < 0) {
