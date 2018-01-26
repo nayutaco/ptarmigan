@@ -1,4 +1,4 @@
-# How to Pay starblocks/Y'alls from ptarmigan node.　（2018/01/25）
+# How to Pay starblocks/Y'alls (or Your lightning Node) from ptarmigan node.　（2018/01/25）
 
 ## 現在のptarmiganの開発状況と使い方 - 2018/01/25
 - 開発中のためエラーが起きた場合アサーションでソフトウェアが落ちるようにしています。
