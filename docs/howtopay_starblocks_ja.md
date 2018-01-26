@@ -40,9 +40,9 @@ txindex=1
 testnet=1
 ```
 
-2. bitcoindを実行する
+2. bitcoindをtestnetで実行する
 ```bash
-  bitcoid -daemon -testnet
+  bitcoid -daemon
 ```
 3. ブロックチェーンが完全に同期するまで待つ（数時間かかります）
 
@@ -55,7 +55,7 @@ testnet=1
 ```
 sudo apt-get install autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool autoconf jq
 git clone https://github.com/nayutaco/ptarmigan.git
-   cd ptarmigann
+   cd ptarmigan
    git checkout -b test refs/tags/2018-01-25
 
    make full
@@ -110,7 +110,7 @@ cd install
  ```bash
 ./ucoincli -l 8889
 ```
-でノード状態を表示させる。接続できたら、statusがwait_minimum_depthからestablishedに変わる。
+でノード状態を表示させる。チャネル開設できたら、statusがwait_minimum_depthからestablishedに変わる。
 ただし、次の支払いを実行するには、channnelが生成されてアナウンスされる必要があり、6confirmation待つ必要がある（一時間ぐらいかかる）
 
 13. Starblocks/Y'alls でinvoiceを作成する(rhash取得)
@@ -122,7 +122,7 @@ https://yalls.org/
 ```bash
 ./ucoincli -l 8889
 ```
-でノード状態を表示させ、payment channelのconfirmationの項目が6以上になっているか確認する。6以下の場合payment channelがlightning networkにアナウンスされるのに６ブロック取り込まれるまで待つ必要がある。
+でノード状態を表示させ、payment channelのconfirmationの項目が6以上になっているか確認する（約１時間待つ)。6未満の場合payment channelのアナウンスがlightning networkにまだアナウンスされていないので、6以上になるまで待つ必要がある。
 ```bash
 ./ucoincli -r [invoice番号]
 ```
