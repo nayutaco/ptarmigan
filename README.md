@@ -1,6 +1,6 @@
 # ptarmigan
 
-## 
+## setup
 
 * bitcoind v0.15
   * for bitcoin testnet/regtest (mainnet not support now)
@@ -47,9 +47,10 @@ make full
 make distclean
 ```
 
-## usage
+## usage (English version is underconstruction)
 
-[install/README.md](install/README.md)
+* [install/README.md](install/README.md) (Japanese)
+* [How to Pay starblocks/Y'alls](docs/howtopay_starblocks_ja.md) (Japanese)
 
 ## dependency
 
@@ -104,4 +105,4 @@ make distclean
 |  10  | yet |
 |  11  | partial supported |
 
-[detail](docs/bolt_compat.md)
+[detail](docs/bolt_compat_ja.md) (Japanese)
