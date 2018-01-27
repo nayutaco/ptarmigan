@@ -19,13 +19,13 @@ testnet=1
 ```bash
 cd install
 mkdir node
-./create_nodeconf2.sh 8888 > node/node.conf
+./create_nodeconf.sh 8888 > node/node.conf
 cd node
 ../ucoind node.conf
 ```
 
-create_nodeconf2.shの引数はポート番号。  
-node.confは適当に編集する。デフォルトではprivate nodeになる。
+create_nodeconf.shの引数はLightning Nodeのポート番号。  
+node.confは適当に編集する。デフォルトではprivate nodeになる(IPアドレスをannounceしない)。
 
 5. [cln]c-lightning起動
 
@@ -44,7 +44,7 @@ cd "to/clightning/dir"
 
 ```bash
 cd install
-./create_knownpeer2.sh 9735 [c-lightning node_id] [c-lightning node IP address] > peer.conf
+./create_knownpeer.sh [c-lightning node_id] [c-lightning node IP address] > peer.conf
 ```
 
 8. [ptarm]fund-in transaction作成

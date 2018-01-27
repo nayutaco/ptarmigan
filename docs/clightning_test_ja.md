@@ -24,7 +24,7 @@ bitcoin-cli generate 432
 ```bash
 cd install
 mkdir node
-./create_nodeconf.sh 8888 > node/node.conf
+./create_testnodeconf.sh 8888 > node/node.conf
 cd node
 ../ucoind node.conf
 ```
@@ -46,7 +46,7 @@ cd "to/clightning/dir"
 
 ```bash
 cd install
-./create_knownpeer.sh 9735 [c-lightning node_id] > peer.conf
+./create_knownpeer.sh [c-lightning node_id] 127.0.0.1 > peer.conf
 ```
 
 8. [ptarm]fund-in transaction作成
