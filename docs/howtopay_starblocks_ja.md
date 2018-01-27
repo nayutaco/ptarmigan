@@ -33,13 +33,13 @@
 - 接続したノードとの間にpayment channnelを張る
 - starblocks もしくは Y'allsのWebから請求書(invoice)発行
 - ptarmiganからinvoiceを使用して支払い
-- 支払いがうまくいくとWeb画面が遷移します
+- 支払いがうまくいくとWeb画面が遷移する
 
 ## 具体的な操作方法
 
 1. bitcoindをインストールして、testnet用 bitcoin.conf を準備する
 
-[vm-user]~/.bitcoin/bitcoin.conf
+~/.bitcoin/bitcoin.conf
 
 ```text
 rpcuser=bitcoinuser
@@ -55,7 +55,7 @@ testnet=1
 bitcoid -daemon
 ```
 
-3. ブロックチェーンが完全に同期するまで待つ（数時間かかります）
+3. ブロックチェーンが完全に同期するまで待つ（数時間かかる）
 
 4. bitcoindでアドレスを生成し、そのアドレスにテストネット用のビットコインを bitcoin faucet WEBサイトから入手する
 
@@ -70,7 +70,6 @@ sudo apt-get install autoconf pkg-config libcurl4-openssl-dev libjansson-dev lib
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
 git checkout -b test refs/tags/2018-01-25
-
 make full
 ```
 
@@ -102,8 +101,9 @@ cd install
 ./ucoincli -c peer.conf 8889
 ```
 
-8889はucoindのrpcポート番号
-接続に成功すると、接続先から大量のノード情報が送信されてくる。大量にログが出るのでログが止まるまで待つ
+8889はucoindのrpcポート番号。
+接続に成功すると、接続先から大量のノード情報が送信されてくる。  
+大量にログが出るのでログが止まるまで待つ。
 
 9. ucoindが接続されていることを確認する
 
@@ -136,15 +136,16 @@ cd install
 ```
 
 でノード状態を表示させる。チャネル開設できたら、statusがwait_minimum_depthからestablishedに変わる。
-ただし、次の支払いを実行するには、channnelが生成されてアナウンスされる必要があり、6confirmation待つ必要がある（一時間ぐらいかかる）
+ただし、次の支払いを実行するには、channnelが生成されてアナウンスされる必要があり、6confirmation待つ必要がある（一時間ぐらいかかる）。
 
 13. Starblocks/Y'alls でinvoiceを作成する(rhash取得)
 
 - [starblocks](https://starblocks.acinq.co/#/)
 - [Y'alls](https://yalls.org/)
 
-は代表的なlightning network testnetでの支払いをデモするためのWEB。starblocksの場合、ドリンク購入ボタンを押して、checkoutボタンを押すことによって、画面にinvoiceが表示され、支払い待ち状態になる。  
-lntb********************.....のような長い文字列がinvoice番号となる
+は代表的なlightning network testnetでの支払いをデモするためのWEB。  
+starblocksの場合、ドリンク購入ボタンを押して、checkoutボタンを押すことによって、画面にinvoiceが表示され、支払い待ち状態になる。  
+lntb********************.....のような長い文字列がinvoice番号となる。
 
 14. ptarmiganから支払い実行
 
