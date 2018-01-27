@@ -1,18 +1,55 @@
 # ptarmigan
 
-## バージョンアップにおける注意
+## 
 
-* DBにバージョンが不一致の場合、起動できないようにしている。  
-  その場合はディレクトリごと削除して新たに作りなおすこと(必要であれば、事前に-xでクローズすること)。
+* bitcoind v0.15
+  * for bitcoin testnet/regtest (mainnet not support now)
+* Ubuntu 16.04
 
-## 名前の由来
+## build
 
-`ptarmigan` は「雷鳥」(Lightning Network→雷→雷鳥)。  
+### installation
 
-## 構成
+```bash
+sudo apt install autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool autoconf jq
+git clone https://github.com/nayutaco/ptarmigan.git
+cd ptarmigan
+make full
+```
 
-* bitcoin testnet/regtest用
-* Ubuntu 16.04.2で動作確認中
+### update
+
+```bash
+cd ptarmigan
+git pull
+(make clean)
+make
+```
+
+#### NOTICE
+
+* Updating `ptarmigan` sometimes changes the version of internal DB data.  
+  In that case, delete previous `dbucoin` directory(if you need close, execute `ucoincli -x`).
+
+### update libraries
+
+```bash
+cd ptarmigan
+git submodule update
+git pull
+./update_libs.sh
+make full
+```
+
+### deep clean
+
+```bash
+make distclean
+```
+
+## usage
+
+[install/README.md](install/README.md)
 
 ## dependency
 
@@ -33,12 +70,10 @@
   * [boost](http://www.boost.org/) (for dijkstra shortest paths)
   * [jq](https://stedolan.github.io/jq/) (for test scripts)
 
-  `sudo apt install autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool autoconf jq`
-
-## application
+### application
 
 * [bitcoind](https://github.com/bitcoin/bitcoin)
-  * bitcoin-cli(スクリプトでのfund-inトランザクションの送信)
+  * bitcoin-cli
     * `getnewaddress`
     * `addwitnessaddress`
     * `sendtoaddress`
@@ -50,46 +85,23 @@
     * `gettxout`
     * `getblock`
     * `getnewaddress`
-    * `dumpprivkey` (open_channelで使用)
+    * `dumpprivkey` (for open_channel)
     * `estimatefee`
-
-## build
-
-* first time or update libraries
-
-```bash
-./update_libs.sh
-make full
-```
-
-* update
-
-```bash
-make
-```
-
-* その他
-  * libs で submodule を使っているため、取得には注意 (make fullで取得するようにしている)
-  * ビルドに失敗する場合は、 `libtool` や `autoconf` のインストール状況を確認すること
 
 ## implement status
 
 | BOLT | status |
 |------|-------|
-|  1   | implementing |
-|  2   | implementing |
-|  3   | implementing |
-|  4   | implementing |
-|  5   | supported |
+|  1   | partial supported |
+|  2   | partial supported |
+|  3   | partial supported |
+|  4   | partial supported |
+|  5   | partial supported |
 |  6   | (removed from BOLT) |
 |  7   | almost implemated |
 |  8   | supported |
 |  9   | - |
 |  10  | yet |
-|  11  | yet |
+|  11  | partial supported |
 
 [detail](docs/bolt_compat.md)
-
-## 主な使い方
-
-[install/README.md](install/README.md)参照
