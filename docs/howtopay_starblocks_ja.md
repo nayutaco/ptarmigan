@@ -1,30 +1,31 @@
-# How to Pay starblocks/Y'alls (or Your lightning Node) from ptarmigan node.　（2018/01/25）
+# How to Pay starblocks/Y'alls (or Your lightning Node) from ptarmigan node
 
-## 現在のptarmiganの開発状況と使い方 - 2018/01/25
+## 現在のptarmiganの開発状況と使い方
 
-- 開発中のためエラーが起きた場合アサーションでソフトウェアが落ちるようにしています。
-- Starblocks またはY'allsへ支払いをするためには、それぞれの支払い先ノードに対してpayment channelのパスが存在しているノード(c-lightning)に接続する必要があります。  
-  [Lightning Network Explorer(TESTNET)](https://explorer.acinq.co/#/)に現在のtestnetに建てられているノードが表示されています。  
-  この中で接続パスを持つノードのID, IP address, port番号 が必要となります(IPアドレス非公開のノードもたくさんありますので注意)。
-- P2Pネットワーク上での支払いであるためパス上のノードが全て正しく動作して初めて支払い完了します。  
-  エラーを返すノードがある場合、支払いは完了しません。  
-  またその場合のパスの再計算アルゴリズムは未実装です。（正しく支払いできるノードに接続しないと支払い実験できない)。
-- ノードソフト本体は ```ucoind```です。    起動している```ucoind```の操作は```ucoincli```を使って行います。
-- 同じVM上でテストネットに完全に同期している```bitcoind```が動作している必要があります。  
-  また、testnet上のbitcoinを持っている必要があります。
-- ```ucoincli```コマンドラインは開発容易さを優先していて、まだユーザに分かりやすい状態にはなっていません。  
-  オプションを指定するファイルとコマンドラインからのオプションを混在して指定します。  
-  使用法として、"オプション指定ファイル生成プログラムを動かす ->  ucoincliにそのファイルとコマンドを渡す"ということを繰り返すパターンが多いです。
-- ```c-lightning```を開発中のプロトコル確認の相手として使用しているため、```c-lightninng```との接続が一番安定しています。
-- 現状、チャネル数は10個までに限定されています。
-- 指定したlightning networkプロトコル用ポート番号 + 1が決め打ちでRPCのポート番号になります(変更できません)。
-- 以下の例に従って実行した場合、```ptarmigan/install/node```　がノード情報が格納されるディレクトリになり、 ```ptarmigan/install/node/dbucoin```がデータベースとなります。  
-  ```ucoinnd```ソフトウェアが終了していた場合、ここを残して ```ptarmigan/install/node```ディレクトリで```ucoind```を再実行すると同じノードとして立ち上がります。  
-  ただし再起動がうまくいかない場合は、```dbucoin```ディレクトリを削除して全く新しいノードとして実行してください。
+### 2018/01/28
+
+- プロトコル上でエラーが起きた場合、アプリケーション`ucoind`をAssertionで異常終了する場合がある。
+- 送金先ノードへ支払いをするためには、送金パスが存在する必要がある。  
+  [Lightning Network Explorer(TESTNET)](https://explorer.acinq.co/#/)に、testnet上に"見えている"ノードが表示されてる。  
+  Lightning Networkのチャネルを接続するためには、この中で動作しているノードのID, IP address, port番号 が必要となる(IPアドレス非公開や、運用を取りやめたノードも見受けられる)。
+- Lightning NetworkはP2Pネットワーク上で支払いを行うため、送金が完了するためには送金パス上が全てのノードが正しく動作する必要がある。  
+  エラーを返すノードがある場合、支払いは完了しない。  
+  またその場合のパスの再計算アルゴリズムは未実装（正しく支払いできるノードに接続しないと支払い実験できない)。
+- ノードソフト本体は `ucoind`で、起動している `ucoind` への操作は `ucoincli` を使用する。
+- `ucoind` が起動している同じlocalhost上でテストネットに完全に同期している`bitcoind`が動作している必要がある。  
+  また、testnet上のbitcoinを持っている必要がある。
+- `ucoincli`コマンドラインは、開発速度を優先してユーザには分かりづらいところがあり、改善していく予定である。  
+  オプションを指定するファイルとコマンドラインからのオプションを混在して指定する。  
+  使用法として、"オプション指定ファイル生成プログラムを動かす ->  ucoincliにそのファイルとコマンドを渡す"というパターンが多い。
+- 現状、同時接続できる数は10個(開いてからの接続10個、自分からの接続10個)までに限定されている。
+- 指定したlightning networkプロトコル用ポート番号 + 1が固定でJSON-RPCのポート番号になる(`ucoincli`もJSON-RPCのポートを使用する)。
+- 以下の手順に従って実行した場合、`ptarmigan/install/node`　がノード情報が格納されるディレクトリになり、 `ptarmigan/install/node/dbucoin`がデータベースとなる。  
+  `ucoinnd`ソフトウェアを終了した場合でも、`ptarmigan/install/node`ディレクトリで`ucoind`を再実行すると同じノードとして立ち上がる。  
+  もし再起動がうまくいかない場合、`dbucoin`ディレクトリを削除して、新しいノードとして実行すること(node.confファイルを変更しない場合、ノードIDは変更されない)。
 
 ## Starblocks または Y'allsに支払いをする全体像
 
-- Ubuntu16のVMを起動
+- Ubuntu16起動
 - bitcoindのインストール
 - bitcoindのテストネットでの起動とtestnet faucetからの入金
 - ptarmiganのインストール
@@ -49,6 +50,8 @@ txindex=1
 testnet=1
 ```
 
+`rpcuser`と`rpcpassword`は何でもよいが、内部で`bitcoind`を操作するため、設定はすること。
+
 2. bitcoindをtestnetで実行する
 
 ```bash
@@ -57,7 +60,7 @@ bitcoid -daemon
 
 3. ブロックチェーンが完全に同期するまで待つ（数時間かかる）
 
-4. bitcoindでアドレスを生成し、そのアドレスにテストネット用のビットコインを bitcoin faucet WEBサイトから入手する
+4. bitcoindでアドレスを生成し、そのアドレスにtestnet用のビットコインを bitcoin faucet WEBサイトから入手する
 
 ```bash
 bitcoin-cli getnewaddress
@@ -69,54 +72,57 @@ bitcoin-cli getnewaddress
 sudo apt-get install autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool autoconf jq
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
-git checkout -b test refs/tags/2018-01-25
+git checkout -b test refs/tags/2018-01-28
 make full
 ```
 
-上記の8888はlightning networkのポート番号。rpcのポート番号は自動的に8889になる
+上記の8888はlightning networkのポート番号。  
+`ucoincli`などで使用するJSON-RPCのポート番号は自動的に8889になる。
 
 6. Node設定を行い、ucoindを起動する
 
 ```bash
 cd install
 mkdir node
-./create_nodeconf2.sh 8888 > node/node.conf
+./create_nodeconf.sh 8888 > node/node.conf
 cd node
 ../ucoind node.conf
 ```
 
-create_nodeconf2.shの引数はポート番号。  
-node.confは適当に編集する。デフォルトではprivate nodeになる。
+create_nodeconf.shの引数はポート番号。  
+node.confは[説明](ucoind_ja.md)を見て適当に編集する(編集しなくてもよい)。  
+デフォルトではprivate nodeになり、IPアドレスをアナウンスしない。
+`ucoind`はdaemonとして起動するため、これ以降はUbuntuで別のコンソールを開き、そちらで作業する。
 
 7. ucoindの接続先CONFファイル作成
 
 ```bash
-cd install
-./create_knownpeer2.sh 9735 [c-lightning node_id] [c-lightning node IP address] > peer.conf
+cd ptarmigan/install
+./create_knownpeer.sh [c-lightning node_id] [c-lightning node IP address] [c-lightning node port] > peer.conf
 ```
 
-8. ucoindを他のノードに接続させる
+8. ucoindを他のノードに接続する
 
 ```bash
 ./ucoincli -c peer.conf 8889
 ```
 
-8889はucoindのrpcポート番号。
-接続に成功すると、接続先から大量のノード情報が送信されてくる。  
+8889はucoindのJSON-RPCポート番号。
+接続に成功すると、`ucoind`を起動しているコンソールに接続先から大量のノード情報が出力される。  
 大量にログが出るのでログが止まるまで待つ。
 
 9. ucoindが接続されていることを確認する
 
 ```bash
-./ucoincli -l 8889
+./ucoincli -l 8889 | jq
 ```
 
-現在の接続情報が出力される
+現在の接続情報が出力される。
 
-10. lightning networkで使用するために、segwit addressに送金し、同時にpayment channnelにファンディングするtransaction作成のための情報を作る。
+10. lightning networkで使用するために、segwit addressに送金し、同時にpayment channnelにファンディングするtransaction作成のための情報を作る
 
 ```bash
-./fund-in2.sh 0.01 fund.txt > node/fund.conf
+./fund-in.sh 0.01 fund.txt > node/fund.conf
 ```
 
 0.01BTCのsegwit transactionを作成し送金。そこからchannelにfund.txtの配分でデポジットするための情報をつくる。  
@@ -132,36 +138,39 @@ cd install
 12. funding transactionnがブロックチェーンのブロックに入るのを待つ
 
 ```bash
-./ucoincli -l 8889
+./ucoincli -l 8889 | jq
 ```
 
-でノード状態を表示させる。チャネル開設できたら、statusがwait_minimum_depthからestablishedに変わる。
-ただし、次の支払いを実行するには、channnelが生成されてアナウンスされる必要があり、6confirmation待つ必要がある（一時間ぐらいかかる）。
+ノード状態を表示させる。チャネル開設できたら、statusが `wait_minimum_depth` から `established` になる。
+ただし、以降の支払いを実行するには、channnelが生成されてアナウンスされる必要があり、6confirmation待つ必要がある（1時間ぐらいかかる）。
 
 13. Starblocks/Y'alls でinvoiceを作成する(rhash取得)
+
+代表的なlightning network testnetでの支払いをデモするためのWEBとして、以下がある。
 
 - [starblocks](https://starblocks.acinq.co/#/)
 - [Y'alls](https://yalls.org/)
 
-は代表的なlightning network testnetでの支払いをデモするためのWEB。  
 starblocksの場合、ドリンク購入ボタンを押して、checkoutボタンを押すことによって、画面にinvoiceが表示され、支払い待ち状態になる。  
-lntb********************.....のような長い文字列がinvoice番号となる。
+`lntb********************.....` のような長い文字列がinvoice番号となる。  
+支払後は自動的にWEBサイトが切り替わるため、表示させたままにしておく。
 
 14. ptarmiganから支払い実行
 
 ```bash
-./ucoincli -l 8889
+./ucoincli -l 8889 | jq
 ```
 
-でノード状態を表示させ、payment channelのconfirmationの項目が6以上になっているか確認する（約１時間待つ)。  
-6未満の場合payment channelのアナウンスがlightning networkにまだアナウンスされていないので、6以上になるまで待つ必要がある。
+ノード状態を表示し、payment channelのconfirmationの項目が6以上になっているか確認する（約1時間待つ)。  
+6未満の場合payment channelのアナウンスをlightning networkに行っていないので、6以上になるまで待つ必要がある。
 
 ```bash
-./ucoincli -r [invoice番号]
+./ucoincli -r [invoice番号] 8889
 ```
 
-で支払い実行。支払いができた場合、webの画面が遷移する。
+支払い実行。  
+支払いができた場合、starblocksのWEB画面が遷移する。
 
 P2Pネットワーク上での支払いであるため、ネットワークの支払いパス上にあるノードがすべて正しく動作して初めて支払いが完了する。  
-どれか一つがエラーを返した場合支払いは完了せず、ルートの再計算はまだ未実装である。  
-また、プロトコル外のエラーメッセージを返した場合、ptarmiganは最初に書いたように、abortする構造に現在はしている。
+どれか一つがエラーを返した場合、支払いは完了しない。  
+別のルートで送金することで成功する可能性があるが、`ptarmigan`のルート再計算機能はまだ未実装である。  
