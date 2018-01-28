@@ -245,7 +245,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     bool ret = lnapp_funding(p_appconf, p_fundconf);
     if (ret) {
-        result = cJSON_CreateString("OK");
+        result = cJSON_CreateString("Progressing");
     } else {
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup(RPCERR_FUNDING_STR);
@@ -327,7 +327,7 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
         //接続中
         bool ret = lnapp_close_channel(p_appconf);
         if (ret) {
-            result = cJSON_CreateString("OK");
+            result = cJSON_CreateString("Progressing");
         } else {
             ctx->error_code = RPCERR_CLOSE_HTLC;
             ctx->error_message = strdup(RPCERR_CLOSE_HTLC_STR);
@@ -643,7 +643,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
             bool ret;
             ret = lnapp_payment(p_appconf, &payconf);
             if (ret) {
-                result = cJSON_CreateString("OK");
+                result = cJSON_CreateString("Progressing");
             } else {
                 ctx->error_code = RPCERR_PAY_STOP;
                 ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
@@ -763,7 +763,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         DBG_PRINTF("---------------\n");
         int retval = misc_sendjson(p_route, "127.0.0.1", cmd_json_get_port());
         DBG_PRINTF("retval=%d\n", retval);
-        result = cJSON_CreateString("OK");
+        result = cJSON_CreateString("Progressing");
     } else {
         ctx->error_code = RPCERR_NOROUTE;
         ctx->error_message = strdup(RPCERR_NOROUTE_STR);
