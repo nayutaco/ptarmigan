@@ -111,6 +111,9 @@ typedef struct lnapp_conf_t {
     //fulfillキュー
     queue_fulfill_t *p_fulfill_queue;
 
+    int             err;            ///< last error
+    char            *p_errstr;      ///< last error string
+
 } lnapp_conf_t;
 
 

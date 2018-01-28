@@ -79,6 +79,7 @@ static inline int tid() {
 #define RPCERR_SOCK_STR             "socket"
 #define RPCERR_CONNECT              (-20005)
 #define RPCERR_CONNECT_STR          "connect"
+#define RPCERR_PEER_ERROR           (-20006)
 
 #define RPCERR_FUNDING              (-21000)
 #define RPCERR_FUNDING_STR          "fail funding"
@@ -97,6 +98,7 @@ static inline int tid() {
 #define RPCERR_PAY_STOP_STR         "stop payment"
 #define RPCERR_NOROUTE              (-26001)
 #define RPCERR_NOROUTE_STR          "fail routing"
+#define RPCERR_PAYFAIL              (-26002)
 
 
 #define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数

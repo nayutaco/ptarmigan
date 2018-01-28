@@ -564,6 +564,15 @@ typedef struct {
     uint16_t    byteslen;                           ///< 2: byteslen
 } ln_pong_t;
 
+
+/** @struct     ln_error_t
+ *  @brief      error
+ */
+typedef struct {
+    uint16_t    len;                                ///< 2: byteslen
+    const char  *p_data;                            ///< 
+} ln_error_t;
+
 /// @}
 
 

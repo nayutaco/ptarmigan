@@ -248,6 +248,7 @@ static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
 static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf);
 static void call_script(event_t event, const char *param);
+static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
 
@@ -765,6 +766,8 @@ static void *thread_main_start(void *pArg)
     p_conf->fwd_proc_rpnt = 0;
     p_conf->fwd_proc_wpnt = 0;
     p_conf->flag_recv = 0;
+    p_conf->err = 0;
+    p_conf->p_errstr = NULL;
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -1774,9 +1777,11 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
 //LN_CB_ERROR: error受信
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_conf; (void)p_param;
-    DBG_PRINTF("no implemented\n");
-    assert(0);
+    const ln_error_t *p_err = (const ln_error_t *)p_param;
+    char *str = (char *)malloc(p_err->len + 1);
+    memcpy(str, p_err->p_data, p_err->len);
+    str[p_err->len] = '\0';
+    set_lasterror(p_conf, RPCERR_PEER_ERROR, str);
 }
 
 
@@ -2188,7 +2193,6 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_FAIL_HTLC_RECV: update_fail_htlc受信
 static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_conf;
     DBGTRACE_BEGIN
 
     const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
@@ -2215,10 +2219,24 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         ucoin_buf_t reason;
         ucoin_buf_init(&reason);
         bool ret = ln_onion_failure_read(&reason, p_fail->p_shared_secret, p_fail->p_reason);
-        assert(ret);
-
-        DBG_PRINTF("  failure reason= ");
-        DUMPBIN(reason.buf, reason.len);
+        if (ret) {
+            DBG_PRINTF("  failure reason= ");
+            DUMPBIN(reason.buf, reason.len);
+            char errstr[256];
+            char reasonstr[128];
+            reasonstr[0] = '\0';
+            int loop = (reason.len < sizeof(reason)) ? reason.len : sizeof(reason);
+            for (int lp = 0; lp < loop; lp++) {
+                char bin[3];
+                sprintf(bin, "%02x", reason.buf[lp]);
+                strcat(reasonstr, bin);
+            }
+            sprintf(errstr, "fail reason:%s", reasonstr);
+            set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
+        } else {
+            //デコード失敗
+            set_lasterror(p_conf, RPCERR_PAYFAIL, "fail result cannot decode");
+        }
     }
     pthread_mutex_unlock(&mMuxSeq);
     DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
@@ -2791,6 +2809,26 @@ static void call_script(event_t event, const char *param)
         sprintf(cmdline, "%s %s", M_SCRIPT[event], param);
         DBG_PRINTF("cmdline: %s\n", cmdline);
         system(cmdline);
+    }
+}
+
+
+static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
+{
+    p_conf->err = Err;
+    if (p_conf->p_errstr != NULL) {
+        free(p_conf->p_errstr);
+        p_conf->p_errstr = NULL;
+    }
+    if ((Err != 0) && (pErrStr != NULL)) {
+        char date[50];
+        struct tm tmval;
+        time_t now = time(NULL);
+        gmtime_r(&now, &tmval);
+        strftime(date, sizeof(date), "%d %b %Y %T %z", &tmval);
+        char *str = (char *)malloc(1024);
+        sprintf(str, "[%s]%s", date, pErrStr);
+        p_conf->p_errstr = strdup(str);
     }
 }
 
