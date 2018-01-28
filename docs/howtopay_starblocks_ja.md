@@ -16,12 +16,12 @@
   また、testnet上のbitcoinを持っている必要がある。
 - `ucoincli`コマンドラインは、開発速度を優先してユーザには分かりづらいところがあり、改善していく予定である。  
   オプションを指定するファイルとコマンドラインからのオプションを混在して指定する。  
-  使用法として、"オプション指定ファイル生成プログラムを動かす ->  ucoincliにそのファイルとコマンドを渡す"というパターンが多い。
+  使用法として、"オプション指定ファイル生成プログラムを動かす ->  `ucoincli`にそのファイルとコマンドを渡す"というパターンが多い。
 - 現状、同時接続できる数は10個(開いてからの接続10個、自分からの接続10個)までに限定されている。
 - 指定したlightning networkプロトコル用ポート番号 + 1が固定でJSON-RPCのポート番号になる(`ucoincli`もJSON-RPCのポートを使用する)。
 - 以下の手順に従って実行した場合、`ptarmigan/install/node`　がノード情報が格納されるディレクトリになり、 `ptarmigan/install/node/dbucoin`がデータベースとなる。  
   `ucoinnd`ソフトウェアを終了した場合でも、`ptarmigan/install/node`ディレクトリで`ucoind`を再実行すると同じノードとして立ち上がる。  
-  もし再起動がうまくいかない場合、`dbucoin`ディレクトリを削除して、新しいノードとして実行すること(node.confファイルを変更しない場合、ノードIDは変更されない)。
+  もし再起動がうまくいかない場合、`dbucoin`ディレクトリを削除して、新しいノードとして実行すること(`node.conf`ファイルを変更しない場合、ノードIDは変更されない)。
 
 ## Starblocks または Y'allsに支払いをする全体像
 
@@ -29,8 +29,8 @@
 - bitcoindのインストール
 - bitcoindのテストネットでの起動とtestnet faucetからの入金
 - ptarmiganのインストール
-- ucoind起動
-- ucoindをテストネット上のc-lightningノードと接続する
+- `ucoind`起動
+- `ucoind`をテストネット上のc-lightningノードと接続する
 - 接続したノードとの間にpayment channnelを張る
 - starblocks もしくは Y'allsのWebから請求書(invoice)発行
 - ptarmiganからinvoiceを使用して支払い
@@ -38,9 +38,9 @@
 
 ## 具体的な操作方法
 
-1. bitcoindをインストールして、testnet用 bitcoin.conf を準備する
+1. bitcoindをインストールして、testnet用`bitcoin.conf`を準備する
 
-~/.bitcoin/bitcoin.conf
+`~/.bitcoin/bitcoin.conf`
 
 ```text
 rpcuser=bitcoinuser
@@ -66,6 +66,11 @@ bitcoid -daemon
 bitcoin-cli getnewaddress
 ```
 
+faucet WEBサイト例
+
+- https://testnet.manu.backend.hamburg/faucet
+- https://tpfaucet.appspot.com/
+
 5. ptarmigan をインストールする
 
 ```bash
@@ -79,7 +84,7 @@ make full
 上記の8888はlightning networkのポート番号。  
 `ucoincli`などで使用するJSON-RPCのポート番号は自動的に8889になる。
 
-6. Node設定を行い、ucoindを起動する
+6. ノード設定ファイルを作成し、`ucoind`を起動する
 
 ```bash
 cd install
@@ -89,29 +94,29 @@ cd node
 ../ucoind node.conf
 ```
 
-create_nodeconf.shの引数はポート番号。  
+`create_nodeconf.sh`の引数はポート番号。  
 node.confは[説明](ucoind_ja.md)を見て適当に編集する(編集しなくてもよい)。  
-デフォルトではprivate nodeになり、IPアドレスをアナウンスしない。
+デフォルトではprivate nodeになり、IPアドレスをアナウンスしない。  
 `ucoind`はdaemonとして起動するため、これ以降はUbuntuで別のコンソールを開き、そちらで作業する。
 
-7. ucoindの接続先CONFファイル作成
+7. `ucoind`の接続先設定ファイル作成
 
 ```bash
 cd ptarmigan/install
 ./create_knownpeer.sh [c-lightning node_id] [c-lightning node IP address] [c-lightning node port] > peer.conf
 ```
 
-8. ucoindを他のノードに接続する
+8. `ucoind`を他のノードに接続する
 
 ```bash
 ./ucoincli -c peer.conf 8889
 ```
 
-8889はucoindのJSON-RPCポート番号。
+8889は`ucoind`のJSON-RPCポート番号。
 接続に成功すると、`ucoind`を起動しているコンソールに接続先から大量のノード情報が出力される。  
 大量にログが出るのでログが止まるまで待つ。
 
-9. ucoindが接続されていることを確認する
+9. `ucoind`が接続されていることを確認する
 
 ```bash
 ./ucoincli -l 8889 | jq
@@ -125,9 +130,10 @@ cd ptarmigan/install
 ./fund-in.sh 0.01 fund.txt > node/fund.conf
 ```
 
-0.01BTCのsegwit transactionを作成し送金。そこからchannelにfund.txtの配分でデポジットするための情報をつくる。  
+0.01BTCのsegwit transactionを作成し送金。そこからchannelに`fund.txt`の配分でデポジットするための情報をつくる。  
 `funding_sat` が 0.01BTCのうちchannelにデポジットする全satoshi。  
 `push_sat` が `funding_sat` のうち相手の持ち分とするsatoshi。
+`fund.txt`は編集してよい。単位がsatoshiであることに注意すること。
 
 11. payment channelへのファンディングを実行する
 
@@ -151,6 +157,8 @@ cd ptarmigan/install
 - [starblocks](https://starblocks.acinq.co/#/)
 - [Y'alls](https://yalls.org/)
 
+以降、starblocksに支払いを行う場合の手順を示す。
+
 starblocksの場合、ドリンク購入ボタンを押して、checkoutボタンを押すことによって、画面にinvoiceが表示され、支払い待ち状態になる。  
 `lntb********************.....` のような長い文字列がinvoice番号となる。  
 支払後は自動的にWEBサイトが切り替わるため、表示させたままにしておく。
@@ -161,14 +169,14 @@ starblocksの場合、ドリンク購入ボタンを押して、checkoutボタ�
 ./ucoincli -l 8889 | jq
 ```
 
-ノード状態を表示し、payment channelのconfirmationの項目が6以上になっているか確認する（約1時間待つ)。  
-6未満の場合payment channelのアナウンスをlightning networkに行っていないので、6以上になるまで待つ必要がある。
+ノード状態を表示し、payment channelのconfirmationの項目が6以上になっているか確認する(約1時間待つ)。  
+6未満の場合、payment channelのアナウンスをlightning networkに行っていないので、6以上になるまで待つ必要がある。
 
 ```bash
 ./ucoincli -r [invoice番号] 8889
 ```
 
-支払い実行。  
+支払いの実行を開始する。  
 支払いができた場合、starblocksのWEB画面が遷移する。
 
 P2Pネットワーク上での支払いであるため、ネットワークの支払いパス上にあるノードがすべて正しく動作して初めて支払いが完了する。  
