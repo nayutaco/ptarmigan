@@ -5,4 +5,4 @@ sleep 1
 rm -rf *.cnl node_3333 node_4444 conf pay_*.conf routing.dot routing.png regtest *.log
 
 # remove synbolic link
-rm ucoincli ucoind showdb routing fund-in.sh regtest.conf generate.sh
+rm ucoincli ucoind showdb routing fund-test-in.sh regtest.conf generate.sh

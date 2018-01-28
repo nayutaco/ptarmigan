@@ -50,7 +50,7 @@ cd install
 8. [ptarm]fund-in transaction作成
 
 ```bash
-./fund-in2.sh 0.01 fund.txt > node/fund.conf
+./fund-in.sh 0.01 fund.txt > node/fund.conf
 ```
 
 0.01BTCのsegwit transactionを作成し、そこからchannelにfund.txtの配分でデポジットする。  

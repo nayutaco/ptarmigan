@@ -94,7 +94,7 @@ cd install
 | `example_st4b.sh` | (example用) 送金実施(node_6666 --> node_4444) |
 | `example_st4r.sh` | (example用) 送金実施スクリプト |
 | `example_st5.sh` | (example用) mutual closeおよび `bitcoind` 停止 |
-| `fund-in.sh` | (example用) funding_txの inputとなる P2WPKHトランザクションへの送金 |
+| `fund-test-in.sh` | (example用) funding_txの inputとなる P2WPKHトランザクションへの送金 |
 | `fund-in.sh` | funding_txの inputとなる P2WPKHトランザクションへの送金 |
 
 ### その他ファイル

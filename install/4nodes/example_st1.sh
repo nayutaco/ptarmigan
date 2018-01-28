@@ -9,7 +9,7 @@ ln -s ../ucoincli ucoincli
 ln -s ../ucoind ucoind
 ln -s ../showdb showdb
 ln -s ../routing routing
-ln -s ../fund-in.sh fund-in.sh
+ln -s ../fund-test-in.sh fund-test-in.sh
 ln -s ../regtest.conf regtest.conf
 ln -s ../generate.sh generate.sh
 

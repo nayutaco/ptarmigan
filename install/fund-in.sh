@@ -1,8 +1,9 @@
 #!/bin/sh
 set -eu
 
-CONF=`pwd`/regtest.conf
-DATADIR=`pwd`/regtest
+CONF=~/.bitcoin/bitcoin.conf
+DATADIR=~/.bitcoin
+
 ADDR=`bitcoin-cli -conf=$CONF -datadir=$DATADIR getnewaddress`
 SEG=`bitcoin-cli -conf=$CONF -datadir=$DATADIR addwitnessaddress $ADDR`
 TXID=`bitcoin-cli -conf=$CONF -datadir=$DATADIR sendtoaddress $SEG $1`
