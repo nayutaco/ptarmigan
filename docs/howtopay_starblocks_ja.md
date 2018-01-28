@@ -1,4 +1,4 @@
-# How to Pay starblocks/Y'alls (or Your lightning Node) from ptarmigan node
+# How to Pay starblocks/Y'alls (or Your lightning Node) from ptarmigan Node
 
 ## 現在のptarmiganの開発状況と使い方
 
@@ -12,7 +12,7 @@
   エラーを返すノードがある場合、支払いは完了しない。  
   またその場合のパスの再計算アルゴリズムは未実装（正しく支払いできるノードに接続しないと支払い実験できない)。
 - ノードソフト本体は `ucoind`で、起動している `ucoind` への操作は `ucoincli` を使用する。
-- `ucoind` が起動している同じlocalhost上でテストネットに完全に同期している`bitcoind`が動作している必要がある。  
+- `ucoind` が起動している同じlocalhost上でtestnetに完全に同期している`bitcoind`が動作している必要がある。  
   また、testnet上のbitcoinを持っている必要がある。
 - `ucoincli`コマンドラインは、開発速度を優先してユーザには分かりづらいところがあり、改善していく予定である。  
   オプションを指定するファイルとコマンドラインからのオプションを混在して指定する。  
@@ -26,15 +26,15 @@
 ## Starblocks または Y'allsに支払いをする全体像
 
 - Ubuntu16起動
-- bitcoindのインストール
-- bitcoindのテストネットでの起動とtestnet faucetからの入金
+- `bitcoind`のインストール
+- `bitcoind`のtestnetでの起動およびtestnet faucetからの入金
 - ptarmiganのインストール
 - `ucoind`起動
-- `ucoind`をテストネット上のc-lightningノードと接続する
+- `ucoind`をtestnet上のc-lightningノードと接続する
 - 接続したノードとの間にpayment channnelを張る
-- starblocks もしくは Y'allsのWebから請求書(invoice)発行
+- starblocks もしくは Y'allsのWEBから請求書(invoice)発行
 - ptarmiganからinvoiceを使用して支払い
-- 支払いがうまくいくとWeb画面が遷移する
+- 支払いがうまくいくとWEB画面が遷移する
 
 ## 具体的な操作方法
 
