@@ -2,7 +2,7 @@
 
 ## 現在のptarmiganの開発状況と使い方
 
-### 2018/01/28
+### 2018/01/29
 
 - プロトコル上でエラーが起きた場合、アプリケーション`ucoind`をAssertionで異常終了する場合がある。
 - 送金先ノードへ支払いをするためには、送金パスが存在する必要がある。  
@@ -84,7 +84,7 @@ faucet WEBサイト例
 sudo apt-get install autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool autoconf jq
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
-git checkout -b test refs/tags/2018-01-28
+git checkout -b test refs/tags/2018-01-29
 make full
 ```
 
