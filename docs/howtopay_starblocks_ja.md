@@ -1,4 +1,4 @@
-# How to Pay starblocks/Y'alls (or Your lightning Node) from ptarmigan Node
+# How to Pay starblocks/Y'alls (or Your Lightning Node) from ptarmigan Node
 
 ## 現在のptarmiganの開発状況と使い方
 
@@ -17,11 +17,11 @@
 - `ucoincli`コマンドラインは、開発速度を優先してユーザには分かりづらいところがあり、改善していく予定である。  
   オプションを指定するファイルとコマンドラインからのオプションを混在して指定する。  
   使用法として、"オプション指定ファイル生成プログラムを動かす ->  `ucoincli`にそのファイルとコマンドを渡す"というパターンが多い。
-- 現状、同時接続できる数は10個(開いてからの接続10個、自分からの接続10個)までに限定されている。
-- 指定したlightning networkプロトコル用ポート番号 + 1が固定でJSON-RPCのポート番号になる(`ucoincli`もJSON-RPCのポートを使用する)。
+- 現状、同時接続できる数は計20個(相手ノードからの接続10個、自分からの接続10個)までに限定されている。
+- 指定したLightning Networkプロトコル用ポート番号 + 1が固定でJSON-RPCのポート番号になる(`ucoincli`もJSON-RPCのポートを使用する)。
 - 以下の手順に従って実行した場合、`ptarmigan/install/node`　がノード情報が格納されるディレクトリになり、 `ptarmigan/install/node/dbucoin`がデータベースとなる。  
   `ucoinnd`ソフトウェアを終了した場合でも、`ptarmigan/install/node`ディレクトリで`ucoind`を再実行すると同じノードとして立ち上がる。  
-  もし再起動がうまくいかない場合、`dbucoin`ディレクトリを削除して、新しいノードとして実行すること(`node.conf`ファイルを変更しない場合、ノードIDは変更されない)。
+  起動がうまくいかない場合、`dbucoin`ディレクトリを削除して、新しいノードとして実行すること(`node.conf`ファイルを変更しない場合、ノードIDは変更されない)。
 
 ## Starblocks または Y'allsに支払いをする全体像
 
@@ -30,11 +30,11 @@
 - `bitcoind`のtestnetでの起動およびtestnet faucetからの入金
 - ptarmiganのインストール
 - `ucoind`起動
-- `ucoind`をtestnet上のc-lightningノードと接続する
+- `ucoind`をtestnet上のLightningノードと接続する
 - 接続したノードとの間にpayment channnelを張る
 - starblocks もしくは Y'allsのWEBから請求書(invoice)発行
 - ptarmiganからinvoiceを使用して支払い
-- 支払いがうまくいくとWEB画面が遷移する
+- 支払いが成功すると、WEB画面が遷移する
 
 ## 具体的な操作方法
 
@@ -81,7 +81,7 @@ git checkout -b test refs/tags/2018-01-28
 make full
 ```
 
-上記の8888はlightning networkのポート番号。  
+上記の8888はLightning Networkのポート番号。  
 `ucoincli`などで使用するJSON-RPCのポート番号は自動的に8889になる。
 
 6. ノード設定ファイルを作成し、`ucoind`を起動する
@@ -103,7 +103,7 @@ node.confは[説明](ucoind_ja.md)を見て適当に編集する(編集しなく
 
 ```bash
 cd ptarmigan/install
-./create_knownpeer.sh [c-lightning node_id] [c-lightning node IP address] [c-lightning node port] > peer.conf
+./create_knownpeer.sh [Lightning node_id] [Lightning node IP address] [Lightning node port] > peer.conf
 ```
 
 8. `ucoind`を他のノードに接続する
@@ -124,7 +124,7 @@ cd ptarmigan/install
 
 現在の接続情報が出力される。
 
-10. lightning networkで使用するために、segwit addressに送金し、同時にpayment channnelにファンディングするtransaction作成のための情報を作る
+10. Lightning Networkで使用するために、segwit addressに送金し、同時にpayment channnelにファンディングするtransaction作成のための情報を作る
 
 ```bash
 ./fund-in.sh 0.01 fund.txt > node/fund.conf
@@ -152,7 +152,7 @@ cd ptarmigan/install
 
 13. Starblocks/Y'alls でinvoiceを作成する(rhash取得)
 
-代表的なlightning network testnetでの支払いをデモするためのWEBとして、以下がある。
+代表的なLightning Network testnetでの支払いをデモするためのWEBとして、以下がある。
 
 - [starblocks](https://starblocks.acinq.co/#/)
 - [Y'alls](https://yalls.org/)
@@ -170,7 +170,7 @@ starblocksの場合、ドリンク購入ボタンを押して、checkoutボタ�
 ```
 
 ノード状態を表示し、payment channelのconfirmationの項目が6以上になっているか確認する(約1時間待つ)。  
-6未満の場合、payment channelのアナウンスをlightning networkに行っていないので、6以上になるまで待つ必要がある。
+6未満の場合、payment channelのアナウンスをLightning Networkに行っていないので、6以上になるまで待つ必要がある。
 
 ```bash
 ./ucoincli -r [invoice番号] 8889
