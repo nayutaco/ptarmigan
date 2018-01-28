@@ -20,7 +20,7 @@
 - 現状、同時接続できる数は計20個(相手ノードからの接続10個、自分からの接続10個)までに限定されている。
 - 指定したLightning Networkプロトコル用ポート番号 + 1が固定でJSON-RPCのポート番号になる(`ucoincli`もJSON-RPCのポートを使用する)。
 - 以下の手順に従って実行した場合、`ptarmigan/install/node`　がノード情報が格納されるディレクトリになり、 `ptarmigan/install/node/dbucoin`がデータベースとなる。  
-  `ucoinnd`ソフトウェアを終了した場合でも、`ptarmigan/install/node`ディレクトリで`ucoind`を再実行すると同じノードとして立ち上がる。  
+  `ucoind`ソフトウェアを終了した場合でも、`ptarmigan/install/node`ディレクトリで`ucoind`を再実行すると同じノードとして立ち上がる。  
   起動がうまくいかない場合、`dbucoin`ディレクトリを削除して、新しいノードとして実行すること(`node.conf`ファイルを変更しない場合、ノードIDは変更されない)。
 
 ## Starblocks または Y'allsに支払いをする全体像
@@ -38,7 +38,14 @@
 
 ## 具体的な操作方法
 
-1. bitcoindをインストールして、testnet用`bitcoin.conf`を準備する
+1. `bitcoind`をインストールして、testnet用`bitcoin.conf`を準備する
+
+```bash
+sudo add-apt-repository ppa:bitcoin/bitcoin
+sudo apt-get update
+sudo apt-get install bitcoind
+```
+
 
 `~/.bitcoin/bitcoin.conf`
 
@@ -52,15 +59,15 @@ testnet=1
 
 `rpcuser`と`rpcpassword`は何でもよいが、内部で`bitcoind`を操作するため、設定はすること。
 
-2. bitcoindをtestnetで実行する
+2. `bitcoind`の実行
 
 ```bash
 bitcoid -daemon
 ```
 
-3. ブロックチェーンが完全に同期するまで待つ（数時間かかる）
+3. ブロックチェーンが完全に同期するまで待つ(数時間かかる)
 
-4. bitcoindでアドレスを生成し、そのアドレスにtestnet用のビットコインを bitcoin faucet WEBサイトから入手する
+4. `bitcoind`でアドレスを生成し、そのアドレスにtestnet用のビットコインを bitcoin faucet WEBサイトから入手する
 
 ```bash
 bitcoin-cli getnewaddress
@@ -71,7 +78,7 @@ faucet WEBサイト例
 - https://testnet.manu.backend.hamburg/faucet
 - https://tpfaucet.appspot.com/
 
-5. ptarmigan をインストールする
+5. `ptarmigan`のインストール
 
 ```bash
 sudo apt-get install autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool autoconf jq
@@ -84,7 +91,7 @@ make full
 上記の8888はLightning Networkのポート番号。  
 `ucoincli`などで使用するJSON-RPCのポート番号は自動的に8889になる。
 
-6. ノード設定ファイルを作成し、`ucoind`を起動する
+6. ノード設定ファイルを作成し、`ucoind`を起動
 
 ```bash
 cd install
@@ -95,7 +102,7 @@ cd node
 ```
 
 `create_nodeconf.sh`の引数はポート番号。  
-node.confは[説明](ucoind_ja.md)を見て適当に編集する(編集しなくてもよい)。  
+`node.conf`は[説明](ucoind_ja.md)を見て適当に編集する(編集しなくてもよい)。  
 デフォルトではprivate nodeになり、IPアドレスをアナウンスしない。  
 `ucoind`はdaemonとして起動するため、これ以降はUbuntuで別のコンソールを開き、そちらで作業する。
 
@@ -106,7 +113,7 @@ cd ptarmigan/install
 ./create_knownpeer.sh [Lightning node_id] [Lightning node IP address] [Lightning node port] > peer.conf
 ```
 
-8. `ucoind`を他のノードに接続する
+8. `ucoind`を他のノードに接続
 
 ```bash
 ./ucoincli -c peer.conf 8889
@@ -116,7 +123,7 @@ cd ptarmigan/install
 接続に成功すると、`ucoind`を起動しているコンソールに接続先から大量のノード情報が出力される。  
 大量にログが出るのでログが止まるまで待つ。
 
-9. `ucoind`が接続されていることを確認する
+9. `ucoind`が接続されていることを確認
 
 ```bash
 ./ucoincli -l 8889 | jq
@@ -132,10 +139,10 @@ cd ptarmigan/install
 
 0.01BTCのsegwit transactionを作成し送金。そこからchannelに`fund.txt`の配分でデポジットするための情報をつくる。  
 `funding_sat` が 0.01BTCのうちchannelにデポジットする全satoshi。  
-`push_sat` が `funding_sat` のうち相手の持ち分とするsatoshi。
+`push_sat` が `funding_sat` のうち相手の持ち分とするsatoshi。  
 `fund.txt`は編集してよい。単位がsatoshiであることに注意すること。
 
-11. payment channelへのファンディングを実行する
+11. payment channelへのファンディングを実行
 
 ```bash
 ./ucoincli -c peer.conf -f node/fund.conf 8889
@@ -147,10 +154,11 @@ cd ptarmigan/install
 ./ucoincli -l 8889 | jq
 ```
 
+confirmation数は、相手ノードに依存する(デフォルトでは、`c-lightning`は1、`lnd`は3以上)。  
 ノード状態を表示させる。チャネル開設できたら、statusが `wait_minimum_depth` から `established` になる。
-ただし、以降の支払いを実行するには、channnelが生成されてアナウンスされる必要があり、6confirmation待つ必要がある（1時間ぐらいかかる）。
+ただし、以降の支払いを実行するには、channnelが生成されてアナウンスされる必要があり、6confirmation待つ必要がある(1時間ぐらいかかる)。
 
-13. Starblocks/Y'alls でinvoiceを作成する(rhash取得)
+13. Starblocks/Y'alls でinvoiceを作成
 
 代表的なLightning Network testnetでの支払いをデモするためのWEBとして、以下がある。
 
