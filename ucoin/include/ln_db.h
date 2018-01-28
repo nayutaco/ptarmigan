@@ -248,6 +248,7 @@ bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeSt
 
 bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam);
 bool ln_db_del_preimage(const uint8_t *pPreImage);
+bool ln_db_del_preimage_hash(const uint8_t *pPreImageHash);
 bool ln_db_cursor_preimage_open(void **ppCur);
 void ln_db_cursor_preimage_close(void *pCur);
 bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);

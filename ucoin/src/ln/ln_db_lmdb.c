@@ -1172,7 +1172,7 @@ bool ln_db_del_preimage_hash(const uint8_t *pPreImageHash)
     uint8_t preimage_hash[LN_SZ_HASH];
     uint64_t amount;
 
-    ret = ln_db_cursor_preimage_open(&p_cur);
+    ret = ln_db_cursor_preimage_open((void **)&p_cur);
     while (ret) {
         ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
         if (ret) {
@@ -1185,7 +1185,6 @@ bool ln_db_del_preimage_hash(const uint8_t *pPreImageHash)
     }
     ln_db_cursor_preimage_close(p_cur);
 
-LABEL_EXIT:
     return retval == 0;
 }
 

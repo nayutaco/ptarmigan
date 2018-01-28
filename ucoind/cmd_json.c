@@ -448,7 +448,6 @@ static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     cJSON *json;
     cJSON *result = NULL;
-    uint8_t *pPaymentHash = NULL;
     uint8_t preimage_hash[LN_SZ_HASH];
     int index = 0;
     bool ret;
