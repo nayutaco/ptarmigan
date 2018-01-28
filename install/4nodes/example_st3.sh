@@ -97,7 +97,7 @@ do
     LEN5=`cat n5.txt | jq length`
     LEN6=`cat n6.txt | jq length`
 
-    if [ $LEN3 -ne 0 ] && [ $LEN4 -ne 0 ] && [ $LEN5 -ne 0 ] && [ $LEN6 -ne 0 ] && [ $RES1 -eq 0 ] && [ $RES2 -eq 0 ] && [ $RES3 -eq 0 ]; then
+    if [ -n "$LEN3" ] && [ -n "$LEN4" ] && [ -n "$LEN5" ] && [ -n "$LEN6" ] && [ "$LEN3" -ne 0 ] && [ "$LEN4" -ne 0 ] && [ "$LEN5" -ne 0 ] && [ "$LEN6" -ne 0 ] && [ "$RES1" -eq 0 ] && [ "$RES2" -eq 0 ] && [ "$RES3" -eq 0 ]; then
         break
     fi
     sleep 3
