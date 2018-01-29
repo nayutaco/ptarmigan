@@ -2658,29 +2658,28 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
         uint32_t timestamp;
         uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
         uint8_t nodeid[UCOIN_SZ_PUBKEY];
-        bool forcebak = force;
 
         ucoin_buf_init(&buf_node);
         while (ln_db_cursor_anno_node_get(p_cur, &buf_node, &timestamp, send_nodeid, nodeid)) {
-            //if ( ( (memcmp(send_nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ||
-            //       (memcmp(nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ) ) {
-            //    //送信元と同じか、送信元自身であれば、配信不要
-            //    force = false;
-            //}
-            if (force || (p_conf->last_node_anno_sent <= timestamp)) {
-                DBG_PRINTF("send node_anno: ");
+            if ( ( (memcmp(send_nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ||
+                   (memcmp(nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ) ) {
+                //送信元と同じか、送信元自身であれば、配信不要
+                force = false;
+                timestamp = 0;
+            }
+            if (force || (p_conf->last_node_anno_sent < timestamp)) {
+                DBG_PRINTF("send node_anno[%d]: ", force);
                 DUMPBIN(send_nodeid, UCOIN_SZ_PUBKEY);
-                //DBG_PRINTF("  nodeid= ");
-                //DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
-                //DBG_PRINTF("  peer nodeid= ");
-                //DUMPBIN(ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
-                //DBG_PRINTF("  last_node_anno_sent : %" PRIu32 "\n", p_conf->last_node_anno_sent);
-                //DBG_PRINTF("  timestamp           : %" PRIu32 "\n", timestamp);
+                DBG_PRINTF("  nodeid= ");
+                DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
+                DBG_PRINTF("  peer nodeid= ");
+                DUMPBIN(ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+                DBG_PRINTF("  last_node_anno_sent : %" PRIu32 "\n", p_conf->last_node_anno_sent);
+                DBG_PRINTF("  timestamp           : %" PRIu32 "\n", timestamp);
 
                 send_peer_noise(p_conf, &buf_node);
             }
             ucoin_buf_free(&buf_node);
-            force = forcebak;
         }
         p_conf->last_node_anno_sent = (uint32_t)time(NULL);
     } else {
