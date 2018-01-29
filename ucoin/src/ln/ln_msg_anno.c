@@ -631,16 +631,15 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 
         //addr data
         if (pMsg->addr.type != LN_NODEDESC_NONE) {
-            memcpy(pMsg->addr.addrinfo.addr, pData + pos, M_ADDRLEN[pMsg->addr.type]);
-            pos += M_ADDRLEN[pMsg->addr.type];
-            pMsg->addr.port = ln_misc_get16be(pData + pos);
-            pos += sizeof(uint16_t);
-        } else {
-            pos += addrlen;
+            int addrpos = pos;
+            memcpy(pMsg->addr.addrinfo.addr, pData + addrpos, M_ADDRLEN[pMsg->addr.type]);
+            addrpos += M_ADDRLEN[pMsg->addr.type];
+            pMsg->addr.port = ln_misc_get16be(pData + addrpos);
         }
     } else {
         pMsg->addr.type = LN_NODEDESC_NONE;
     }
+    pos += addrlen;
 
     //assert(Len == pos);
     if (Len != pos) {
