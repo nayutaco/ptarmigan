@@ -460,7 +460,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     bool ret = false;
     uint16_t type = ln_misc_get16be(pData);
 
-    DBG_PRINTF("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
+    //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
     if ((type != MSGTYPE_INIT) && (!INIT_FLAG_INITED(self->init_flag))) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init received : %04x\n", type);
@@ -474,9 +474,11 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     for (int lp = 0; lp < (int)ARRAY_SIZE(RECV_FUNC); lp++) {
         if (type == RECV_FUNC[lp].type) {
-            DBG_PRINTF("type=%04x: Len=%d\n", type, Len);
+            //DBG_PRINTF("type=%04x: Len=%d\n", type, Len);
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);
-            DBG_PRINTF("type=%04x, ret=%d\n", type, ret);
+            if (!ret) {
+                DBG_PRINTF("fail: type=%04x\n", type);
+            }
             break;
         }
     }
@@ -2916,7 +2918,11 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     //DB保存
     ret = ln_db_save_anno_channel(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
-    if (!ret) {
+    if (ret) {
+        //これ以降はchannel DBで管理する
+        ucoin_buf_free(&self->cnl_anno);
+        ln_db_save_channel(self);
+    } else {
         DBG_PRINTF("fail: ln_db_save_anno_channel\n");
         //goto LABEL_EXIT;
     }
@@ -2985,12 +2991,12 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
             DUMPBIN(buf.buf, buf.len);
             assert(0);
         }
+    } else {
+        //DB保存
+        ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
+        DBG_PRINTF("db save ret=%d\n", ret);
+        ret = true;
     }
-
-    //DB保存
-    ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
-    DBG_PRINTF("db save ret=%d\n", ret);
-    ret = true;
 
     return ret;
 }

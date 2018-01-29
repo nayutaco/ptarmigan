@@ -2004,11 +2004,11 @@ static int load_anno_channel_sinfo(MDB_txn *txn, MDB_dbi *pdbi, uint64_t short_c
     int retval = mdb_get(txn, *pdbi, &key, &data);
     if (retval == 0) {
         memcpy(p_sinfo, data.mv_data, data.mv_size);
-        DBG_PRINTF("sinfo: channel_announcement : %" PRIu32 "\n", p_sinfo->channel_anno);
-        DBG_PRINTF("sinfo: channel_update(1)    : %" PRIu32 "\n", p_sinfo->channel_upd[0]);
-        DBG_PRINTF("sinfo: channel_update(2)    : %" PRIu32 "\n", p_sinfo->channel_upd[1]);
-        DBG_PRINTF("sinfo: send_nodeid : ");
-        DUMPBIN(p_sinfo->send_nodeid, UCOIN_SZ_PUBKEY);
+        //DBG_PRINTF("sinfo: channel_announcement : %" PRIu32 "\n", p_sinfo->channel_anno);
+        //DBG_PRINTF("sinfo: channel_update(1)    : %" PRIu32 "\n", p_sinfo->channel_upd[0]);
+        //DBG_PRINTF("sinfo: channel_update(2)    : %" PRIu32 "\n", p_sinfo->channel_upd[1]);
+        //DBG_PRINTF("sinfo: send_nodeid : ");
+        //DUMPBIN(p_sinfo->send_nodeid, UCOIN_SZ_PUBKEY);
     } else {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }

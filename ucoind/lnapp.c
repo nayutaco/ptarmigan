@@ -629,6 +629,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //confirmation
         uint32_t confirm = jsonrpc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
+        //minimum_depth
+        cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(pAppConf->funding_min_depth));
     } else if (ucoin_keys_chkpub(pAppConf->node_id)) {
         char str[256];
 
@@ -2005,7 +2007,6 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
     } else {
         DBG_PRINTF("err\n");
     }
-
     ucoin_buf_free(&buf_bolt);
 
     DBGTRACE_END
@@ -2519,7 +2520,7 @@ static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 //peer送信(Noise Protocol送信)
 static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 {
-    DBG_PRINTF("type=%02x%02x: sock=%d, Len=%d\n", pBuf->buf[0], pBuf->buf[1], p_conf->sock, pBuf->len);
+    //DBG_PRINTF("type=%02x%02x: sock=%d, Len=%d\n", pBuf->buf[0], pBuf->buf[1], p_conf->sock, pBuf->len);
 
     pthread_mutex_lock(&p_conf->mux_send);
     ucoin_buf_t buf_enc;

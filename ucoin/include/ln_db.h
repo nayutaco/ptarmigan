@@ -48,9 +48,9 @@ extern "C" {
  **************************************************************************/
 
 typedef struct {
-    uint32_t        channel_anno;
-    uint32_t        channel_upd[2];                 //0:node_1, 1:node_2
-    uint8_t         send_nodeid[UCOIN_SZ_PUBKEY];   //channel_announcement送信元node_id
+    uint32_t        channel_anno;                   ///< [timestamp] channel_announcement
+    uint32_t        channel_upd[2];                 ///< [timestamp] channel_update(0:node_1, 1:node_2)
+    uint8_t         send_nodeid[UCOIN_SZ_PUBKEY];   ///< channel_announcement送信元node_id
 } ln_db_channel_sinfo;
 
 
@@ -59,7 +59,7 @@ typedef struct {
  * @param[in]       self
  * @param[in]       p_db_param      db
  * @param[in]       p_param
- * @retval  true    比較終了(戻り値もtrue)
+ * @retval  true    比較終了(#ln_db_search_channel()の戻り値もtrue)
  */
 typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_param);
 

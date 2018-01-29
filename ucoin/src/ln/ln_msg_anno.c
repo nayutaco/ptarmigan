@@ -645,10 +645,10 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
         node_announce_print(pMsg);
     }
 
-#ifdef DBG_PRINT_READ
-   DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-   node_announce_print(pMsg);
-#endif  //DBG_PRINT_READ
+//#ifdef DBG_PRINT_READ
+//   DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+//   node_announce_print(pMsg);
+//#endif  //DBG_PRINT_READ
 
     bool ret = true;
     if (pMsg->p_node_id != NULL) {
@@ -849,10 +849,10 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
 
     assert(Len == pos);
 
-#ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-    ln_msg_cnl_update_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+//#ifdef DBG_PRINT_CREATE
+//    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+//    ln_msg_cnl_update_print(pMsg);
+//#endif  //DBG_PRINT_CREATE
 
     return chain_match;
 }

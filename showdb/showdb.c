@@ -19,7 +19,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   sohwdb.c
+/** @file   showdb.c
  *  @brief  DB閲覧
  *  @author ueno@nayuta.co
  */
@@ -40,6 +40,7 @@
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
 
+#define M_SPOIL_STDERR
 
 #define M_LMDB_ENV              "./dbucoin"
 
@@ -82,6 +83,7 @@ static int          cnt2;
 static int          cnt3;
 static int          cnt4;
 static MDB_env      *mpDbEnv = NULL;
+static FILE         *fp_err;
 
 
 // https://github.com/lightningnetwork/lightning-rfc/issues/237
@@ -184,6 +186,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
             assert(retval == 0);
             int ret;
 
+            printf(M_QQ("channel_announcement_list") ": [");
             do {
                 uint64_t short_channel_id;
                 char type;
@@ -192,57 +195,37 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                 ucoin_buf_init(&buf);
                 ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
                 if (ret == 0) {
-                    if (type == LN_DB_CNLANNO_SINFO) {
-                        if (cnt1) {
-                            printf(",\n[\n");
-                        } else {
-                            printf(M_QQ("channel_announcement_list") ": [");
-                            printf("[\n");
-                        }
-                    }
-                    //switch (type) {
-                    //case LN_DB_CNLANNO_SINFO:
-                    //    printf("----------------------------------\n");
-                    //    printf("[[channel send info]]");
-                    //    break;
-                    //case LN_DB_CNLANNO_ANNO:
-                    //    printf("[[channel_announcement]]");
-                    //    break;
-                    //case LN_DB_CNLANNO_UPD1:
-                    //    printf("[[channel_update node1]]");
-                    //    break;
-                    //case LN_DB_CNLANNO_UPD2:
-                    //    printf("[[channel_update node2]]");
-                    //    break;
-                    //default:
-                    //    assert(0);
-                    //}
-                    //printf("  short_channel_id=%016" PRIx64 "\n", short_channel_id);
                     if (type != LN_DB_CNLANNO_SINFO) {
+                        if (cnt1) {
+                            printf(",");
+                        }
                         if (!(showflag & SHOW_CNLANNO_SCI)) {
                             ln_print_announce(buf.buf, buf.len);
                         } else {
                             ln_print_announce_short(buf.buf, buf.len);
                         }
+                        cnt1++;
                     } else {
-                        //ln_db_channel_sinfo *p_sinfo = (ln_db_channel_sinfo *)buf.buf;
-                        //if (!(showflag & SHOW_CNLANNO_SCI)) {
-                        //    printf("    sinfo: channel_announcement : %" PRIu32 "\n", p_sinfo->channel_anno);
-                        //    printf("    sinfo: channel_update(1)    : %" PRIu32 "\n", p_sinfo->channel_upd[0]);
-                        //    printf("    sinfo: channel_update(2)    : %" PRIu32 "\n", p_sinfo->channel_upd[1]);
-                        //}
-                        //printf("    sinfo: send_nodeid: ");
-                        //ucoin_util_dumpbin(stdout, p_sinfo->send_nodeid, UCOIN_SZ_PUBKEY, true);
-                    }
-                    if (type == LN_DB_CNLANNO_UPD2) {
-                        printf("]");
+                        if (cnt1) {
+                            printf("],");
+                        }
+                        printf("\n[\n");
+                        cnt1 = 0;
+
+                        //channel_announcement / channel_updateの有無情報
+                        ln_db_channel_sinfo *p_sinfo = (ln_db_channel_sinfo *)buf.buf;
+                        printf("{\"info\": \"%c%c%c\"}",
+                                ((p_sinfo->channel_anno) ? '1' : '0'),
+                                ((p_sinfo->channel_upd[0]) ? '1' : '0'),
+                                ((p_sinfo->channel_upd[1]) ? '1' : '0'));
+                        cnt1 = 1;
                     }
                     ucoin_buf_free(&buf);
-                    cnt1++;
                 } else {
                     //printf("end of announce\n");
                 }
             } while (ret == 0);
+            printf("]");
             mdb_cursor_close(cursor);
             mdb_close(mpDbEnv, dbi);
         }
@@ -389,6 +372,8 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
 
 int main(int argc, char *argv[])
 {
+    fp_err = stderr;
+
     int ret;
     MDB_txn     *txn;
     MDB_dbi     dbi;
@@ -468,6 +453,13 @@ int main(int argc, char *argv[])
         fprintf(stderr, "fail: cannot open[%s]\n", dbpath);
         return -1;
     }
+
+#ifdef M_SPOIL_STDERR
+    //stderrを捨てる
+    int fd_err = dup(2);
+    fp_err = fdopen(fd_err, "w");
+    close(2);
+#endif  //M_SPOIL_STDERR
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);

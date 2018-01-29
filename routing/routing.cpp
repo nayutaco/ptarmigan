@@ -133,7 +133,7 @@ static int mNodeNum = 0;
 static uint8_t mMyNodeId[UCOIN_SZ_PUBKEY];
 static uint8_t mTgtNodeId[UCOIN_SZ_PUBKEY];
 static uint16_t mMinFinalCltvExpiry = 0;
-static FILE *fp_err = stderr;
+static FILE *fp_err;
 
 // https://github.com/lightningnetwork/lightning-rfc/issues/237
 // https://github.com/bitcoin/bips/blob/master/bip-0122.mediawiki
@@ -456,6 +456,7 @@ static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 
 int main(int argc, char* argv[])
 {
+    fp_err = stderr;
     uint64_t amtmsat;
 
     const char *nettype;
