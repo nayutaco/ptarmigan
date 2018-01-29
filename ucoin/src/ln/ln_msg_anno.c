@@ -616,6 +616,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 
     //        [addrlen:addresses]
     if (addrlen > 0) {
+        //addr type
         pMsg->addr.type = *(pData + pos);
         if (pMsg->addr.type > LN_NODEDESC_MAX) {
             DBG_PRINTF("fail: unknown address descriptor(%02x)\n", pMsg->addr.type);
@@ -627,6 +628,8 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
             return false;
         }
         pos++;
+
+        //addr data
         if (pMsg->addr.type != LN_NODEDESC_NONE) {
             memcpy(pMsg->addr.addrinfo.addr, pData + pos, M_ADDRLEN[pMsg->addr.type]);
             pos += M_ADDRLEN[pMsg->addr.type];
@@ -641,8 +644,13 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 
     //assert(Len == pos);
     if (Len != pos) {
-        DBG_PRINTF("Len=%d, pos=%d\n", Len, pos);
+        DBG_PRINTF("length not match: Len=%d, pos=%d\n", Len, pos);
+        DBG_PRINTF("addrlen=%" PRIu16 "\n", addrlen);
         node_announce_print(pMsg);
+        DBG_PRINTF("raw=");
+        DUMPBIN(pData + sizeof(uint16_t), Len - sizeof(uint16_t));
+        DBG_PRINTF("over=");
+        DUMPBIN(pData + pos, Len - pos);
     }
 
 //#ifdef DBG_PRINT_READ
@@ -656,17 +664,15 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
         uint8_t hash[UCOIN_SZ_HASH256];
 
         ucoin_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
-                                    Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
+                                    pos - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
         //DBG_PRINTF("data=");
         //DUMPBIN(pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
         //DBG_PRINTF("hash=");
         //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
         ret = ucoin_tx_verify_rs(p_signature, hash, pMsg->p_node_id);
-#warning ときどきverifyに失敗する
         if (!ret) {
-            DBG_PRINTF("fail: verify... but through\n");
-            ret = true;
+            DBG_PRINTF("fail: verify\n");
         }
     }
 
