@@ -248,6 +248,7 @@ static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
 static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf);
 static void call_script(event_t event, const char *param);
+static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
 
@@ -765,6 +766,8 @@ static void *thread_main_start(void *pArg)
     p_conf->fwd_proc_rpnt = 0;
     p_conf->fwd_proc_wpnt = 0;
     p_conf->flag_recv = 0;
+    p_conf->err = 0;
+    p_conf->p_errstr = NULL;
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -1774,9 +1777,11 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
 //LN_CB_ERROR: error受信
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_conf; (void)p_param;
-    DBG_PRINTF("no implemented\n");
-    assert(0);
+    const ln_error_t *p_err = (const ln_error_t *)p_param;
+    char *str = (char *)malloc(p_err->len + 1);
+    memcpy(str, p_err->p_data, p_err->len);
+    str[p_err->len] = '\0';
+    set_lasterror(p_conf, RPCERR_PEER_ERROR, str);
 }
 
 
@@ -2121,7 +2126,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //キューにためる(add)
         queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));
         fulfill->type = QTYPE_FWD_ADD_HTLC;
-        fulfill->id = (uint64_t)-1;     //未使用
+        fulfill->id = p_add->id;
         //forward情報
         ucoin_buf_alloc(&fulfill->buf, sizeof(fwd_proc_add_t));
         fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)fulfill->buf.buf;
@@ -2188,7 +2193,6 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_FAIL_HTLC_RECV: update_fail_htlc受信
 static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_conf;
     DBGTRACE_BEGIN
 
     const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
@@ -2215,10 +2219,24 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         ucoin_buf_t reason;
         ucoin_buf_init(&reason);
         bool ret = ln_onion_failure_read(&reason, p_fail->p_shared_secret, p_fail->p_reason);
-        assert(ret);
-
-        DBG_PRINTF("  failure reason= ");
-        DUMPBIN(reason.buf, reason.len);
+        if (ret) {
+            DBG_PRINTF("  failure reason= ");
+            DUMPBIN(reason.buf, reason.len);
+            char errstr[256];
+            char reasonstr[128];
+            reasonstr[0] = '\0';
+            int loop = (reason.len < sizeof(reason)) ? reason.len : sizeof(reason);
+            for (int lp = 0; lp < loop; lp++) {
+                char bin[3];
+                sprintf(bin, "%02x", reason.buf[lp]);
+                strcat(reasonstr, bin);
+            }
+            sprintf(errstr, "fail reason:%s", reasonstr);
+            set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
+        } else {
+            //デコード失敗
+            set_lasterror(p_conf, RPCERR_PAYFAIL, "fail result cannot decode");
+        }
     }
     pthread_mutex_unlock(&mMuxSeq);
     DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
@@ -2293,26 +2311,31 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
         //fulfill要求があれば送信要求する
         queue_fulfill_t *p = pop_queue(p_conf);
         if (p != NULL) {
+            ucoin_buf_t *p_fail_ss = NULL;
             switch (p->type) {
             case QTYPE_FWD_ADD_HTLC:
                 {
-                    fwd_proc_add_t *p_add;
+                    fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p->buf.buf;
 
-                    p_add = (fwd_proc_add_t *)p->buf.buf;
-                    //DBG_PRINTF("------------------------------: %p\n", p_add);
-                    //DBG_PRINTF("fwd_proc_add_t.amt_to_forward= %" PRIu64 "\n", p_add->amt_to_forward);
-                    //DBG_PRINTF("fwd_proc_add_t.outgoing_cltv_value= %d\n", (int)p_add->outgoing_cltv_value);
-                    //DBG_PRINTF("fwd_proc_add_t.next_short_channel_id= %" PRIx64 "\n", p_add->next_short_channel_id);      //current
-                    //DBG_PRINTF("fwd_proc_add_t.prev_short_channel_id= %" PRIx64 "\n", p_add->prev_short_channel_id);      //current
-                    //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));         //prev
-                    //DBG_PRINTF("------------------------------\n");
-                    DBG_PRINTF("  --> forward add(sci=%" PRIx64 ")\n", p_add->next_short_channel_id);
-                    bool ret = ucoind_forward_payment(p_add);
+                    // DBG_PRINTF("------------------------------: %p\n", p_fwd_add);
+                    // DBG_PRINTF("fwd_proc_add_t.amt_to_forward= %" PRIu64 "\n", p_fwd_add->amt_to_forward);
+                    // DBG_PRINTF("fwd_proc_add_t.outgoing_cltv_value= %d\n", (int)p_fwd_add->outgoing_cltv_value);
+                    // DBG_PRINTF("fwd_proc_add_t.next_short_channel_id= %" PRIx64 "\n", p_fwd_add->next_short_channel_id);      //current
+                    // DBG_PRINTF("fwd_proc_add_t.prev_short_channel_id= %" PRIx64 "\n", p_fwd_add->prev_short_channel_id);      //current
+                    // DBG_PRINTF("short_channel_id= %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));         //prev
+                    // DBG_PRINTF("shared_secret= ");
+                    // DUMPBIN(p_fwd_add->shared_secret.buf, p_fwd_add->shared_secret.len);
+                    // DBG_PRINTF("------------------------------\n");
+                    // DBG_PRINTF("  --> forward add(sci=%" PRIx64 ")\n", p_fwd_add->next_short_channel_id);
+                    bool ret = ucoind_forward_payment(p_fwd_add);
                     if (ret) {
                         DBG_PRINTF("転送した\n");
                     } else {
                         DBG_PRINTF("転送失敗\n");
                         SYSLOG_ERR("%s(): forward", __func__);
+
+                        //update_fail_htlc準備
+                        p_fail_ss = &p_fwd_add->shared_secret;
                     }
                 }
                 break;
@@ -2327,21 +2350,22 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 }
                 break;
             case QTYPE_BWD_FAIL_HTLC:
-                {
-                    ln_cb_fail_htlc_recv_t fail;
-#warning reasonダミー
-                    const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
-                    const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
-
-                    fail.id = p->id;
-                    fail.p_reason = &dummy_reason;
-                    fail.p_shared_secret = &p->buf;
-                    DBG_PRINTF("  --> fail_htlc(id=%" PRId64 ")\n", fail.id);
-                    lnapp_backward_fail(p_conf, &fail, true);
-                }
+                p_fail_ss = &p->buf;
                 break;
             default:
                 break;
+            }
+            if (p_fail_ss != NULL) {
+                ln_cb_fail_htlc_recv_t fail;
+#warning reasonダミー
+                const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
+                const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
+
+                fail.id = p->id;
+                fail.p_reason = &dummy_reason;
+                fail.p_shared_secret = p_fail_ss;
+                DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", fail.id);
+                lnapp_backward_fail(p_conf, &fail, true);
             }
             ucoin_buf_free(&p->buf);
             APP_FREE(p);
@@ -2358,9 +2382,6 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
     show_self_param(p_conf->p_self, fp, 0);
     fclose(fp);
 
-    pthread_mutex_unlock(&mMuxSeq);
-    DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
-
     // method: htlc_changed
     // $1: short_channel_id
     // $2: node_id
@@ -2376,6 +2397,9 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 ln_our_msat(p_conf->p_self),
                 ln_htlc_num(p_conf->p_self));
     call_script(M_EVT_HTLCCHANGED, param);
+
+    pthread_mutex_unlock(&mMuxSeq);
+    DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
 
     DBGTRACE_END
 }
@@ -2791,6 +2815,26 @@ static void call_script(event_t event, const char *param)
         sprintf(cmdline, "%s %s", M_SCRIPT[event], param);
         DBG_PRINTF("cmdline: %s\n", cmdline);
         system(cmdline);
+    }
+}
+
+
+static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
+{
+    p_conf->err = Err;
+    if (p_conf->p_errstr != NULL) {
+        free(p_conf->p_errstr);
+        p_conf->p_errstr = NULL;
+    }
+    if ((Err != 0) && (pErrStr != NULL)) {
+        char date[50];
+        struct tm tmval;
+        time_t now = time(NULL);
+        gmtime_r(&now, &tmval);
+        strftime(date, sizeof(date), "%d %b %Y %T %z", &tmval);
+        char *str = (char *)malloc(1024);
+        sprintf(str, "[%s]%s", date, pErrStr);
+        p_conf->p_errstr = strdup(str);
     }
 }
 

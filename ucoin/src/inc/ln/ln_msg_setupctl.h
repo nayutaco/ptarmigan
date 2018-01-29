@@ -59,7 +59,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
  * @param[in]       Len     pData長
  * retval   true    成功
  */
-bool HIDDEN ln_msg_error_read(void *pMsg, const uint8_t *pData, uint16_t Len);
+bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /** ping生成

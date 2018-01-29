@@ -88,6 +88,7 @@ static void listinvoice_rpc(char *pJson);
 static void payment_rpc(char *pJson, const payment_conf_t *pPay);
 static void routepay_rpc(char *pJson, const ln_invoice_t *pInvData);
 static void close_rpc(char *pJson);
+static void getlasterror_rpc(char *pJson);
 static void debug_rpc(char *pJson, int debug);
 static void getcommittx_rpc(char *pJson);
 
@@ -115,7 +116,7 @@ int main(int argc, char *argv[])
     bool b_send = true;
     int opt;
     int options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "htqlc:f:i:e:mp:r:xga:d:")) != -1) {
+    while ((opt = getopt(argc, argv, "htqlc:f:i:e:mp:r:xgwa:d:")) != -1) {
         switch (opt) {
         case 'h':
             options = M_OPTIONS_HELP;
@@ -340,6 +341,17 @@ int main(int argc, char *argv[])
                 options = M_OPTIONS_HELP;
             }
             break;
+        case 'w':
+            //get last error
+            if (options == M_OPTIONS_CONN) {
+                conn = false;
+                getlasterror_rpc(mBuf);
+                options = M_OPTIONS_EXEC;
+            } else {
+                printf("-g need -c option before\n");
+                options = M_OPTIONS_HELP;
+            }
+            break;
         case 'g':
             //getcommittx
             if (options == M_OPTIONS_CONN) {
@@ -386,6 +398,7 @@ int main(int argc, char *argv[])
         printf("\t\t-c <peer.conf> : connect node\n");
         printf("\t\t-c <peer.conf> -f <fund.conf> : funding\n");
         printf("\t\t-c <peer.conf> -x : mutual close channel\n");
+        printf("\t\tc <peer.conf> -w : get last error\n");
         // printf("\n");
         // printf("\t\t-a <IP address> : [debug]JSON-RPC send address\n");
         // printf("\t\t-d <value> : [debug]debug option\n");
@@ -573,6 +586,20 @@ static void close_rpc(char *pJson)
     snprintf(pJson, BUFFER_SIZE,
         "{"
             M_STR("method", "close") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d"
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort);
+}
+
+
+static void getlasterror_rpc(char *pJson)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "getlasterror") M_NEXT
             M_QQ("params") ":[ "
                 //peer_nodeid, peer_addr, peer_port
                 M_QQ("%s") "," M_QQ("%s") ",%d"

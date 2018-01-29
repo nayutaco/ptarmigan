@@ -64,6 +64,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
@@ -86,6 +87,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_getlasterror,"getlasterror", NULL);
     jrpc_register_procedure(&mJrpc, cmd_debug,       "debug", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getcommittx, "getcommittx", NULL);
     jrpc_server_run(&mJrpc);
@@ -245,7 +247,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     bool ret = lnapp_funding(p_appconf, p_fundconf);
     if (ret) {
-        result = cJSON_CreateString("OK");
+        result = cJSON_CreateString("Progressing");
     } else {
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup(RPCERR_FUNDING_STR);
@@ -327,7 +329,7 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
         //接続中
         bool ret = lnapp_close_channel(p_appconf);
         if (ret) {
-            result = cJSON_CreateString("OK");
+            result = cJSON_CreateString("Progressing");
         } else {
             ctx->error_code = RPCERR_CLOSE_HTLC;
             ctx->error_message = strdup(RPCERR_CLOSE_HTLC_STR);
@@ -643,7 +645,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
             bool ret;
             ret = lnapp_payment(p_appconf, &payconf);
             if (ret) {
-                result = cJSON_CreateString("OK");
+                result = cJSON_CreateString("Progressing");
             } else {
                 ctx->error_code = RPCERR_PAY_STOP;
                 ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
@@ -763,7 +765,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         DBG_PRINTF("---------------\n");
         int retval = misc_sendjson(p_route, "127.0.0.1", cmd_json_get_port());
         DBG_PRINTF("retval=%d\n", retval);
-        result = cJSON_CreateString("OK");
+        result = cJSON_CreateString("Progressing");
     } else {
         ctx->error_code = RPCERR_NOROUTE;
         ctx->error_message = strdup(RPCERR_NOROUTE_STR);
@@ -813,6 +815,47 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
     monitor_stop();
 
     return cJSON_CreateString("OK");
+}
+
+
+static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    daemon_connect_t conn;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //connect parameter
+    index = json_connect(params, index, &conn);
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+        goto LABEL_EXIT;
+    }
+
+    SYSLOG_INFO("getlasterror");
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
+    if (p_appconf != NULL) {
+        //接続中
+        DBG_PRINTF("error code: %d\n", p_appconf->err);
+        ctx->error_code = p_appconf->err;
+        if (p_appconf->p_errstr != NULL) {
+            DBG_PRINTF("error msg: %s\n", p_appconf->p_errstr);
+            ctx->error_message = p_appconf->p_errstr;
+        }
+    } else {
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+    }
+
+LABEL_EXIT:
+    return NULL;
 }
 
 

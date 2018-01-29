@@ -166,10 +166,8 @@ static void init_print(const ln_init_t *pMsg)
  * error
  ********************************************************************/
 
-bool HIDDEN ln_msg_error_read(void *pMsg, const uint8_t *pData, uint16_t Len)
+bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
-    (void)pMsg;
-
     if (Len < sizeof(uint16_t) + 4) {
         DBG_PRINTF("fail: invalid length: %d\n", Len);
         return false;
@@ -194,8 +192,12 @@ bool HIDDEN ln_msg_error_read(void *pMsg, const uint8_t *pData, uint16_t Len)
 
     //        [len:data]
     DBG_PRINTF("data(%d): ", len);
-    //DUMPBIN(pData + pos, len);
     DBG_PRINTF("%s\n", pData + pos);
+    if (pMsg != NULL) {
+        pMsg->len = len;
+        pMsg->p_data = (const char *)(pData + pos);
+    }
+
     pos += len;
 
     return true;

@@ -10,4 +10,4 @@
 
 # mining
 sleep 3
-./generate 1
+./generate.sh 1

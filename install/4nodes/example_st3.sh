@@ -7,7 +7,7 @@ NETTYPE=regtest
 # その分の FEEが必要になるからである(1mBTCもいらないとは思うが)。
 
 # チャネルを開く場合、segwitのP2WPKHアドレスから送金する必要があるのだが、
-# bitcoindにsegwitのアドレスを探すのが大変なので、fund-in.sh の中で、
+# bitcoindにsegwitのアドレスを探すのが大変なので、fund-test-in.sh の中で、
 #       1. getnewaddressでP2PKHのアドレスを作る
 #       2. addwitnessaddressで作ったアドレスのP2WPKHアドレスを作る
 #       3. 2で作ったP2WPKHアドレスに送金する
@@ -55,19 +55,19 @@ NETTYPE=regtest
 ./ucoincli -c conf/peer5555.conf 6667
 
 # node_4444からnode_3333へチャネルを開く。
-./fund-in.sh 0.01 ../fund.txt > node_4444/fund4444_3333.conf
+./fund-test-in.sh 0.01 ../fund.txt > node_4444/fund4444_3333.conf
 ./ucoincli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4445
 
 sleep 3
 
 # node_5555からnode_3333へチャネルを開く。
-./fund-in.sh 0.01 ../fund.txt > node_5555/fund5555_3333.conf
+./fund-test-in.sh 0.01 ../fund.txt > node_5555/fund5555_3333.conf
 ./ucoincli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5556
 
 sleep 3
 
 # node_6666からnode_5555へチャネルを開く。
-./fund-in.sh 0.01 ../fund.txt > node_6666/fund6666_5555.conf
+./fund-test-in.sh 0.01 ../fund.txt > node_6666/fund6666_5555.conf
 ./ucoincli -c conf/peer5555.conf -f node_6666/fund6666_5555.conf 6667
 
 # 少し待つ
@@ -97,7 +97,7 @@ do
     LEN5=`cat n5.txt | jq length`
     LEN6=`cat n6.txt | jq length`
 
-    if [ $LEN3 -ne 0 ] && [ $LEN4 -ne 0 ] && [ $LEN5 -ne 0 ] && [ $LEN6 -ne 0 ] && [ $RES1 -eq 0 ] && [ $RES2 -eq 0 ] && [ $RES3 -eq 0 ]; then
+    if [ -n "$LEN3" ] && [ -n "$LEN4" ] && [ -n "$LEN5" ] && [ -n "$LEN6" ] && [ "$LEN3" -ne 0 ] && [ "$LEN4" -ne 0 ] && [ "$LEN5" -ne 0 ] && [ "$LEN6" -ne 0 ] && [ "$RES1" -eq 0 ] && [ "$RES2" -eq 0 ] && [ "$RES3" -eq 0 ]; then
         break
     fi
     sleep 3
