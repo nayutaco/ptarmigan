@@ -317,9 +317,9 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 ucoin_util_dumpbin(PRINTOUT, node_pub, UCOIN_SZ_PUBKEY, false);
                 fprintf(PRINTOUT, "\",\n");
                 fprintf(PRINTOUT, M_QQ("alias") ": " M_QQ("%s") ",\n", node_alias);
-                fprintf(PRINTOUT, M_QQ("rgbcolor") ": \"#%02x%02x%02x\"\n", msg.rgbcolor[0], msg.rgbcolor[1], msg.rgbcolor[2]);
+                fprintf(PRINTOUT, M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.rgbcolor[0], msg.rgbcolor[1], msg.rgbcolor[2]);
                 if (msg.addr.type == LN_NODEDESC_IPV4) {
-                    fprintf(PRINTOUT, M_QQ("addr") ": " M_QQ("%d.%d.%d.%d:%d") "\n",
+                    fprintf(PRINTOUT, M_QQ("addr") ": " M_QQ("%d.%d.%d.%d:%d") ",\n",
                             msg.addr.addrinfo.ipv4.addr[0],
                             msg.addr.addrinfo.ipv4.addr[1],
                             msg.addr.addrinfo.ipv4.addr[2],

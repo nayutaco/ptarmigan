@@ -454,22 +454,30 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
+    assert(ret == 0);
+    ret = ln_lmdb_check_version(txn, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "fail: DB version not match.\n");
+        return -1;
+    }
+    ret = mdb_dbi_open(txn, NULL, 0, &dbi);
+    if (ret != 0) {
+        fprintf(stderr, "fail: DB cannot open.\n");
+        return -1;
+    }
+    ret = mdb_cursor_open(txn, dbi, &cursor);
+    if (ret != 0) {
+        fprintf(stderr, "fail: DB cursor cannot open.\n");
+        return -1;
+    }
+
 #ifdef M_SPOIL_STDERR
     //stderrを捨てる
     int fd_err = dup(2);
     fp_err = fdopen(fd_err, "w");
     close(2);
 #endif  //M_SPOIL_STDERR
-
-    ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
-    assert(ret == 0);
-    ret = ln_lmdb_check_version(txn, NULL);
-    assert(ret == 0);
-    ret = mdb_dbi_open(txn, NULL, 0, &dbi);
-    assert(ret == 0);
-
-    ret = mdb_cursor_open(txn, dbi, &cursor);
-    assert(ret == 0);
 
     if (!(showflag & SHOW_NODEANNO_PEER)) {
         printf("{\n");

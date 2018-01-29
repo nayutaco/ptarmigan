@@ -51,7 +51,6 @@ typedef struct {
  **************************************************************************/
 
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
-static void copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf);
 
 
 /**************************************************************************
@@ -75,7 +74,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 
     ret = ln_db_load_anno_node(&buf_node, NULL, NULL, ln_node_id(node), NULL);
     if (!ret) {
-        //自buf_nodeuncement無し
+        //自node_announcement無し
         ln_node_announce_t anno;
 
         anno.timestamp = (uint32_t)time(NULL);
@@ -146,7 +145,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 
 bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("\n");
+    //DBG_PRINTF("\n");
 
     bool ret;
     ln_node_announce_t ann;
@@ -163,8 +162,8 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
         return false;
     }
 
-    DBG_PRINTF("node_id:");
-    DUMPBIN(node_id, sizeof(node_id));
+    //DBG_PRINTF("node_id:");
+    //DUMPBIN(node_id, sizeof(node_id));
     ucoin_buf_init(&buf_old);
     ret = ln_db_load_anno_node(&buf_old, NULL, NULL, node_id, NULL);
     bool update = false;
@@ -179,10 +178,10 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
         ret = ln_msg_node_announce_read(&ann_old, buf_old.buf, buf_old.len);
         if (ret) {
             if (ann.timestamp > ann_old.timestamp) {
-                DBG_PRINTF("更新\n");
+                DBG_PRINTF("get newer date(%" PRIu32 " > %" PRIu32")\n", ann.timestamp, ann_old.timestamp);
                 update = true;
             } else if (ann.timestamp == ann_old.timestamp) {
-                DBG_PRINTF("更新不要\n");
+                //DBG_PRINTF("更新不要\n");
             } else {
                 DBG_PRINTF("古いデータ\n");
             }
@@ -190,16 +189,16 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
             DBG_PRINTF("fail: read message\n");
         }
     } else {
+        DBG_PRINTF("get new node_announcement\n");
         update = true;
     }
     if (update) {
         //新規 or 更新
-        DBG_PRINTF("保存\n");
+        //DBG_PRINTF("save node_announcement\n");
         ucoin_buf_t buf_ann;
         buf_ann.buf = (CONST_CAST uint8_t *)pData;
         buf_ann.len = Len;
         ret = ln_db_save_anno_node(&buf_ann, ln_their_node_id(self), node_id);
-
         if (ret) {
             (*self->p_callback)(self, LN_CB_NODE_ANNO_RECV, &ann);
         }
@@ -223,7 +222,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     if (ret) {
         if (p->p_self) {
             //DBから復元
-            copy_channel(p->p_self, self);
+            ln_db_copy_channel(p->p_self, self);
             ln_misc_update_scriptkeys(&p->p_self->funding_local, &p->p_self->funding_remote);
         } else {
             //true時は予備元では解放しないので、ここで解放する
@@ -231,71 +230,4 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
         }
     }
     return ret;
-}
-
-
-/** DBから読込んだselfのコピー
- *
- * @param[out]  pOutSelf    コピー先
- * @param[in]   pInSelf     コピー元
- */
-static void copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
-{
-    pOutSelf->lfeature_remote = pInSelf->lfeature_remote;     //3
-    pOutSelf->storage_index = pInSelf->storage_index;     //5
-    memcpy(pOutSelf->storage_seed, pInSelf->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-
-    pOutSelf->funding_local = pInSelf->funding_local;     //7
-    pOutSelf->funding_remote = pInSelf->funding_remote;       //8
-
-    pOutSelf->obscured = pInSelf->obscured;       //9
-    pOutSelf->key_fund_sort = pInSelf->key_fund_sort;     //10
-    pOutSelf->htlc_num = pInSelf->htlc_num;       //11
-    pOutSelf->commit_num = pInSelf->commit_num;       //12
-    pOutSelf->htlc_id_num = pInSelf->htlc_id_num;     //13
-    pOutSelf->our_msat = pInSelf->our_msat;       //14
-    pOutSelf->their_msat = pInSelf->their_msat;       //15
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        pOutSelf->cnl_add_htlc[idx] = pInSelf->cnl_add_htlc[idx];       //16
-        pOutSelf->cnl_add_htlc[idx].p_channel_id = NULL;     //送受信前に決定する
-        pOutSelf->cnl_add_htlc[idx].p_onion_route = NULL;
-        //shared secretは別DB
-        ucoin_buf_init(&pOutSelf->cnl_add_htlc[idx].shared_secret);
-    }
-    memcpy(pOutSelf->channel_id, pInSelf->channel_id, LN_SZ_CHANNEL_ID);      //17
-    pOutSelf->short_channel_id = pInSelf->short_channel_id;       //18
-    pOutSelf->commit_local = pInSelf->commit_local;       //19
-    pOutSelf->commit_remote = pInSelf->commit_remote;     //20
-    pOutSelf->funding_sat = pInSelf->funding_sat;     //21
-    pOutSelf->feerate_per_kw = pInSelf->feerate_per_kw;       //22
-    pOutSelf->peer_storage = pInSelf->peer_storage;     //23
-    pOutSelf->peer_storage_index = pInSelf->peer_storage_index;     //24
-    pOutSelf->remote_commit_num = pInSelf->remote_commit_num;  //25
-    pOutSelf->revoke_num = pInSelf->revoke_num;  //26
-    pOutSelf->remote_revoke_num = pInSelf->remote_revoke_num;  //27
-    pOutSelf->fund_flag = pInSelf->fund_flag;  //28
-    memcpy(&pOutSelf->peer_node, &pInSelf->peer_node, sizeof(ln_node_info_t));   //29
-    pOutSelf->min_depth = pInSelf->min_depth;  //30
-
-    //スクリプト部分(shallow copy)
-
-    //cnl_anno
-    ucoin_buf_free(&pOutSelf->cnl_anno);
-    memcpy(&pOutSelf->cnl_anno, &pInSelf->cnl_anno, sizeof(ucoin_buf_t));
-
-    //redeem_fund
-    ucoin_buf_free(&pOutSelf->redeem_fund);
-    memcpy(&pOutSelf->redeem_fund, &pInSelf->redeem_fund, sizeof(ucoin_buf_t));
-
-    //shutdown_scriptpk_local
-    ucoin_buf_free(&pOutSelf->shutdown_scriptpk_local);
-    memcpy(&pOutSelf->shutdown_scriptpk_local, &pInSelf->shutdown_scriptpk_local, sizeof(ucoin_buf_t));
-
-    //shutdown_scriptpk_remote
-    ucoin_buf_free(&pOutSelf->shutdown_scriptpk_remote);
-    memcpy(&pOutSelf->shutdown_scriptpk_remote, &pInSelf->shutdown_scriptpk_remote, sizeof(ucoin_buf_t));
-
-    //tx_funding
-    ucoin_tx_free(&pOutSelf->tx_funding);
-    memcpy(&pOutSelf->tx_funding, &pInSelf->tx_funding, sizeof(ucoin_tx_t));
 }

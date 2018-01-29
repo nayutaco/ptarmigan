@@ -477,4 +477,12 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
  */
 void HIDDEN ln_db_init(const uint8_t *pMyNodeId);
 
+
+/** DBで保存している対象のデータだけコピーする
+ *
+ * @param[out]  pOutSelf    コピー先
+ * @param[in]   pInSelf     コピー元
+ */
+void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf);
+
 #endif /* LN_LOCAL_H__ */
