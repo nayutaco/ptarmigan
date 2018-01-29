@@ -3024,6 +3024,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
     if (ret) {
+        DBG_PRINTF("recv channel_upd%d: : %" PRIx64 "\n", 1 + upd.flags & LN_CNLUPD_FLAGS_DIRECTION, upd.short_channel_id);
+
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
 

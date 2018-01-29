@@ -1996,6 +1996,7 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
     //channel_announcement
     ret = ln_db_load_anno_channel(&buf_bolt, ln_short_channel_id(p_conf->p_self));
     if (ret) {
+        DBG_PRINTF("send: my channel_annoucnement\n");
         send_peer_noise(p_conf, &buf_bolt);
     } else {
         DBG_PRINTF("err\n");
@@ -2005,6 +2006,7 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
     //channel_update
     ret = ln_db_load_anno_channel_upd(&buf_bolt, ln_short_channel_id(p_conf->p_self), p->sort);
     if (ret) {
+        DBG_PRINTF("send: my channel_update\n");
         send_peer_noise(p_conf, &buf_bolt);
     } else {
         DBG_PRINTF("err\n");
