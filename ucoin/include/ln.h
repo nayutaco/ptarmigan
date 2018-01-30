@@ -980,8 +980,10 @@ struct ln_self_t {
     //msg:normal operation
     uint16_t                    htlc_num;                       ///< HTLC数
     uint64_t                    commit_num;                     ///< commitment_signed送信後にインクリメントする48bitカウンタ(0～)
+                                                                ///<    next_local_commitment_numberに相当する
     uint64_t                    revoke_num;                     ///< revoke_and_ack送信後にインクリメントする48bitカウンタ(0～)
     uint64_t                    remote_commit_num;              ///< commitment_signed受信時にインクリメントする48bitカウンタ(0～)
+                                                                ///<    next_remote_revocation_numberに相当する
     uint64_t                    remote_revoke_num;              ///< revoke_and_ack受信時にインクリメントする48bitカウンタ(0～)
     uint64_t                    htlc_id_num;                    ///< update_add_htlcで使うidの管理
     uint64_t                    our_msat;                       ///< 自分の持ち分
