@@ -565,6 +565,12 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
         DBG_PRINTF("fail: no peer node_id\n");
         return false;
     }
+    if (ln_is_funding(self)) {
+        //既にfunding中
+        self->err = LNERR_ALREADY_FUNDING;
+        DBG_PRINTF("fail: already funding\n");
+        return false;
+    }
 
     //TODO: 仮チャネルID
     ucoin_util_random(self->channel_id, LN_SZ_CHANNEL_ID);
@@ -621,7 +627,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     self->funding_sat = open_ch->funding_sat;
     self->feerate_per_kw = open_ch->feerate_per_kw;
 
-    self->fund_flag = LN_FUNDFLAG_FUNDER | ((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0);
+    self->fund_flag = LN_FUNDFLAG_FUNDER | ((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING;
 
     return true;
 }
@@ -1727,6 +1733,12 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         DBG_PRINTF("fail: invalid receiver\n");
         return false;
     }
+    if (ln_is_funding(self)) {
+        //既にfunding中
+        self->err = LNERR_ALREADY_FUNDING;
+        DBG_PRINTF("fail: already funding\n");
+        return false;
+    }
 
     ln_open_channel_t *open_ch = &self->p_est->cnl_open;
 
@@ -1809,7 +1821,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
                 self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub, self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
         self->htlc_num = 0;
-        self->fund_flag = (open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0;
+        self->fund_flag = ((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING;
     } else {
         self->err = LNERR_CREATE_2OF2;
     }
@@ -2130,6 +2142,7 @@ static bool recv_funding_locked_first(ln_self_t *self)
     self->htlc_id_num = 0;
 
     self->flck_flag |= M_FLCK_FLAG_RECV;
+    self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
     proc_established(self);
 
     return true;

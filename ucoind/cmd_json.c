@@ -185,6 +185,14 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    bool is_funding = ln_is_funding(p_appconf->p_self);
+    if (is_funding) {
+        //開設しようとしてチャネルが開設中
+        ctx->error_code = RPCERR_OPENING;
+        ctx->error_message = strdup(RPCERR_OPENING_STR);
+        goto LABEL_EXIT;
+    }
+
     bool inited = lnapp_is_inited(p_appconf);
     if (!inited) {
         //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)

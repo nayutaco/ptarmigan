@@ -88,6 +88,7 @@ extern "C" {
 // self->fund_flag
 #define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
 #define LN_FUNDFLAG_ANNO_CH             (0x02)      ///< open_channel.channel_flags.announce_channel
+#define LN_FUNDFLAG_FUNDING             (0x04)      ///< 1:open_channel～funding_lockedまで
 
 // channel_update.flags
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
@@ -570,7 +571,7 @@ typedef struct {
  */
 typedef struct {
     uint16_t    len;                                ///< 2: byteslen
-    const char  *p_data;                            ///< 
+    const char  *p_data;                            ///<
 } ln_error_t;
 
 /// @}
@@ -1565,6 +1566,17 @@ static inline uint32_t ln_minimum_depth(const ln_self_t *self) {
  */
 static inline bool ln_is_funder(const ln_self_t *self) {
     return (self->fund_flag & LN_FUNDFLAG_FUNDER);
+}
+
+
+/** funding注かどうか
+ *
+ * @param[in]           self            channel情報
+ * @retval      true    fundingしている
+ * @retval      false   fundingしていない(未funding or funding済み)
+ */
+static inline bool ln_is_funding(const ln_self_t *self) {
+    return (self->fund_flag & LN_FUNDFLAG_FUNDING);
 }
 
 
