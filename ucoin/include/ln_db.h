@@ -212,24 +212,24 @@ bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t 
 
 /** node_announcement書込み
  *
- * @param[in]       pNodeAnno       node_announcement
- * @param[in]       pSendId         送信元ノード
- * @param[in]       pNodeId         node_id
+ * @param[in]       pNodeAnno       node_announcementパケット
+ * @param[in]       pSendId         node_announcementの送信元node_id
+ * @param[in]       pNodeId         node_announcementのnode_id
  * @retval      true    成功
  * @note
- *      - タイムスタンプは呼び出し時になる
+ *      - タイムスタンプはAPI呼び出し時の値が保存される
  */
 bool ln_db_save_anno_node(const ucoin_buf_t *pNodeAnno, const uint8_t *pSendId, const uint8_t *pNodeId);
 
 
-/**
+/** #ln_db_cursor_anno_node_get()用DB cursorオープン
  *
  *
  */
 bool ln_db_cursor_anno_node_open(void **ppCur);
 
 
-/**
+/** #ln_db_cursor_anno_node_get()用DB cursorクローズ
  *
  *
  */
@@ -237,7 +237,12 @@ void ln_db_cursor_anno_node_close(void *pCur);
 
 /**
  *
- *
+ * @param[in,out]   pCur            #ln_db_cursor_anno_node_open()でオープンしたDB cursor
+ * @param[out]      pBuf            node_announcementパケット
+ * @param[out]      pTimeStamp      保存時刻
+ * @param[out]      pSendId         node_announcementの送信元node_id
+ * @param[out]      pNodeId         node_announcementのnode_id
+ * @retval      true    成功
  */
 bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId);
 
