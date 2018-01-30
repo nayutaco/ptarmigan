@@ -2659,30 +2659,37 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
         uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
         uint8_t nodeid[UCOIN_SZ_PUBKEY];
 
+        uint32_t last_sent = p_conf->last_node_anno_sent;
+        p_conf->last_node_anno_sent = (uint32_t)time(NULL);
+        bool first = true;
+
         ucoin_buf_init(&buf_node);
         while (ln_db_cursor_anno_node_get(p_cur, &buf_node, &timestamp, send_nodeid, nodeid)) {
             bool send;
-            if (memcmp(nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) {
-                //node_idがpeerと同じであれば、配信不要
+            if ( (memcmp(nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ||
+                 (memcmp(send_nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ) {
+                //node_idがpeerと同じか、node_announcementの送信元がpeerと同じであれば、配信不要
                 send = false;
             } else {
-                send = force || (p_conf->last_node_anno_sent < timestamp);
+                send = force || (last_sent < timestamp);
             }
             if (send) {
-                DBG_PRINTF("send node_anno[%d]: ", force);
-                DUMPBIN(send_nodeid, UCOIN_SZ_PUBKEY);
+                if (first) {
+                    DBG_PRINTF("send node_anno[%d]: ", force);
+                    DUMPBIN(send_nodeid, UCOIN_SZ_PUBKEY);
+                    DBG_PRINTF("peer nodeid= ");
+                    DUMPBIN(ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+                    DBG_PRINTF("last_node_anno_sent : %" PRIu32 "\n", last_sent);
+                    first = false;
+                }
                 DBG_PRINTF("  nodeid= ");
                 DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
-                DBG_PRINTF("  peer nodeid= ");
-                DUMPBIN(ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
-                DBG_PRINTF("  last_node_anno_sent : %" PRIu32 "\n", p_conf->last_node_anno_sent);
                 DBG_PRINTF("  timestamp           : %" PRIu32 "\n", timestamp);
 
                 send_peer_noise(p_conf, &buf_node);
             }
             ucoin_buf_free(&buf_node);
         }
-        p_conf->last_node_anno_sent = (uint32_t)time(NULL);
     } else {
         DBG_PRINTF("no node_announce DB\n");
     }
