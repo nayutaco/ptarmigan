@@ -106,6 +106,7 @@ struct Fee {
     uint32_t    fee_base_msat;
     uint32_t    fee_prop_millionths;
     uint16_t    cltv_expiry_delta;
+    const uint8_t   *node_id;
 };
 
 
@@ -179,6 +180,7 @@ static void dumpbin(const uint8_t *pData, int Len)
 
 static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_prop_millionths)
 {
+    fprintf(fp_err, "  edgefee(amtmsat=%" PRIu64 ", fee_base_msat=%" PRIu32 ", fee_prop_millionths=%" PRIu32 "\n", amtmsat, fee_base_msat, fee_prop_millionths);
     return (uint64_t)fee_base_msat + (uint64_t)((amtmsat * fee_prop_millionths) / 1000000);
 }
 
@@ -267,10 +269,10 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
         ret = ln_lmdb_load_channel(&self, txn, &dbi);
         if (ret == 0) {
             //p1: my node_id(送金元とmy node_idが不一致の場合はNULL), p2: target node_id
-#if 0
+#if 1
             //
-            // まだannounceする前でも、送金元が自分でチャネル開設が完了しているのならルートに含めるべき
-            // しかし、相手のchannel情報を持たないため、反対側のchannel_updateデータを使用する(c-lightningの動作)
+            // チャネル開設済みのノードに対しては、routing計算に含める。
+            // fee計算にそのルートは関係がないため、パラメータは0にしておく。
             //
 
             //p1が非NULL == my node_id
@@ -599,23 +601,31 @@ int main(int argc, char* argv[])
             }
         }
 
-        if ( (node1 != node2) &&
-             (mpNodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) &&
-             (mpNodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) ) {
-            //channel_updateが両方必要
-            bool inserted = false;
-            graph_t::edge_descriptor e1, e2;
+        if (node1 != node2) {
+            if (mpNodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) {
+                //channel_update1
+                bool inserted = false;
+                graph_t::edge_descriptor e1;
 
-            boost::tie(e1, inserted) = add_edge(node1, node2, g);
-            g[e1].short_channel_id = mpNodes[lp].short_channel_id;
-            g[e1].fee_base_msat = mpNodes[lp].ninfo[1].fee_base_msat;
-            g[e1].fee_prop_millionths = mpNodes[lp].ninfo[1].fee_prop_millionths;
-            g[e1].cltv_expiry_delta = mpNodes[lp].ninfo[1].cltv_expiry_delta;
-            boost::tie(e2, inserted) = add_edge(node2, node1, g);
-            g[e2].short_channel_id = mpNodes[lp].short_channel_id;
-            g[e2].fee_base_msat = mpNodes[lp].ninfo[0].fee_base_msat;
-            g[e2].fee_prop_millionths = mpNodes[lp].ninfo[0].fee_prop_millionths;
-            g[e2].cltv_expiry_delta = mpNodes[lp].ninfo[0].cltv_expiry_delta;
+                boost::tie(e1, inserted) = add_edge(node1, node2, g);
+                g[e1].short_channel_id = mpNodes[lp].short_channel_id;
+                g[e1].fee_base_msat = mpNodes[lp].ninfo[0].fee_base_msat;
+                g[e1].fee_prop_millionths = mpNodes[lp].ninfo[0].fee_prop_millionths;
+                g[e1].cltv_expiry_delta = mpNodes[lp].ninfo[0].cltv_expiry_delta;
+                g[e1].node_id = mpNodes[lp].ninfo[0].node_id;
+            }
+            if (mpNodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) {
+                //channel_update2
+                bool inserted = false;
+                graph_t::edge_descriptor e2;
+
+                boost::tie(e2, inserted) = add_edge(node2, node1, g);
+                g[e2].short_channel_id = mpNodes[lp].short_channel_id;
+                g[e2].fee_base_msat = mpNodes[lp].ninfo[1].fee_base_msat;
+                g[e2].fee_prop_millionths = mpNodes[lp].ninfo[1].fee_prop_millionths;
+                g[e2].cltv_expiry_delta = mpNodes[lp].ninfo[1].cltv_expiry_delta;
+                g[e2].node_id = mpNodes[lp].ninfo[1].node_id;
+            }
         }
     }
 
@@ -650,8 +660,13 @@ int main(int argc, char* argv[])
         std::deque<uint64_t> msat;
         std::deque<uint32_t> cltv;
         uint32_t cltv_expiry = mMinFinalCltvExpiry;
+
+        route.push_front(pnt_goal);
+        msat.push_front(amtmsat);
+        cltv.push_front(cltv_expiry);
+
         for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
-            route.push_front(v);
+            fprintf(fp_err, "v=%d, p[v]=%d\n", (int)v, (int)p[v]);
 
             bool found;
             graph_t::edge_descriptor e;
@@ -661,24 +676,33 @@ int main(int argc, char* argv[])
                 abort();
             }
 
-            msat.push_front(amtmsat);
-            if (v != pnt_goal) {
-                //BOLT#4
-                //  Where fee is calculated according to
-                //      the receiving node's advertised fee schema as described in BOLT 7,
-                //      or 0 if this node is the final hop.
-                amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
+            fprintf(fp_err, "node_id: ");
+            for (int llp = 0; llp < UCOIN_SZ_PUBKEY; llp++) {
+                fprintf(fp_err, "%02x", g[e].node_id[llp]);
             }
+            fprintf(fp_err, "\n");
 
-            if (cltv_expiry == mMinFinalCltvExpiry) {
-                //初回
-                cltv.push_front(g[e].cltv_expiry_delta + mMinFinalCltvExpiry);
-            }
-            cltv_expiry += g[e].cltv_expiry_delta;
+            fprintf(fp_err, "amount_msat: %" PRIu64 "\n", amtmsat);
+            fprintf(fp_err, "cltv_expiry: %" PRIu32 "\n\n", cltv_expiry);
+
+            route.push_front(p[v]);
+            msat.push_front(amtmsat);
             cltv.push_front(cltv_expiry);
+
+            //if (cltv_expiry == mMinFinalCltvExpiry) {
+            //    //初回
+            //    //  BOLT#4
+            //    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
+            //    msat.push_front(amtmsat);
+            //    cltv.push_front(mMinFinalCltvExpiry);
+            //}
+
+            amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
+            cltv_expiry += g[e].cltv_expiry_delta;
         }
-        route.push_front(pnt_start);
-        msat.push_front(amtmsat);
+        //route.push_front(pnt_start);
+        //msat.push_front(amtmsat);
+        //cltv.push_front(cltv_expiry);
 
         //std::cout << "distance: " << d[pnt_goal] << std::endl;
 
