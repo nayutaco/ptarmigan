@@ -2995,7 +2995,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         }
     } else {
         //DB保存
-        DBG_PRINTF("new channel_announcement\n");
+        DBG_PRINTF("new channel_announcement: %0" PRIx64 "\n", ann.short_channel_id);
         ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
         if (!ret) {
             DBG_PRINTF("fail: db save\n");

@@ -178,7 +178,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
         ret = ln_msg_node_announce_read(&ann_old, buf_old.buf, buf_old.len);
         if (ret) {
             if (ann.timestamp > ann_old.timestamp) {
-                DBG_PRINTF("get newer date(%" PRIu32 " > %" PRIu32")\n", ann.timestamp, ann_old.timestamp);
+                DBG_PRINTF("newer node_announcement: ");
                 update = true;
             } else if (ann.timestamp == ann_old.timestamp) {
                 //DBG_PRINTF("更新不要\n");
@@ -189,12 +189,13 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
             DBG_PRINTF("fail: read message\n");
         }
     } else {
-        DBG_PRINTF("get new node_announcement\n");
+        DBG_PRINTF("new node_announcement: ");
         update = true;
     }
     if (update) {
         //新規 or 更新
-        //DBG_PRINTF("save node_announcement\n");
+        DUMPBIN(node_id, UCOIN_SZ_PUBKEY);
+
         ucoin_buf_t buf_ann;
         buf_ann.buf = (CONST_CAST uint8_t *)pData;
         buf_ann.len = Len;
