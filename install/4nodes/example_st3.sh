@@ -51,23 +51,29 @@ NETTYPE=regtest
 
 # connect
 ./ucoincli -c conf/peer3333.conf 4445
+sleep 1
 ./ucoincli -c conf/peer3333.conf 5556
+sleep 1
 ./ucoincli -c conf/peer5555.conf 6667
+sleep 1
 
 # node_4444からnode_3333へチャネルを開く。
 ./fund-test-in.sh 0.01 ../fund.txt > node_4444/fund4444_3333.conf
+sleep 1
 ./ucoincli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4445
 
 sleep 3
 
 # node_5555からnode_3333へチャネルを開く。
 ./fund-test-in.sh 0.01 ../fund.txt > node_5555/fund5555_3333.conf
+sleep 1
 ./ucoincli -c conf/peer3333.conf -f node_5555/fund5555_3333.conf 5556
 
 sleep 3
 
 # node_6666からnode_5555へチャネルを開く。
 ./fund-test-in.sh 0.01 ../fund.txt > node_6666/fund6666_5555.conf
+sleep 1
 ./ucoincli -c conf/peer5555.conf -f node_6666/fund6666_5555.conf 6667
 
 # 少し待つ

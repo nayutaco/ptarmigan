@@ -1020,6 +1020,9 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
 
     if (result->pos + size * nmemb >= BUFFER_SIZE - 1) {
         DBG_PRINTF("error: too small buffer\n");
+        DBG_PRINTF("  size: %lu\n", (unsigned long)size);
+        DBG_PRINTF("  nmemb: %lu\n", (unsigned long)nmemb);
+        DBG_PRINTF("  result->pos : %lu\n", (unsigned long)result->pos );
         return 0;
     }
 #ifdef M_DBG_SHOWREPLY

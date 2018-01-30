@@ -300,7 +300,7 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 fprintf(PRINTOUT, "\",\n");
                 fprintf(PRINTOUT, M_QQ("node2") ": \"");
                 ucoin_util_dumpbin(PRINTOUT, ann.node_id2, UCOIN_SZ_PUBKEY, false);
-                fprintf(PRINTOUT, "\"\n},\n");
+                fprintf(PRINTOUT, "\"");
             }
         }
         break;
@@ -317,17 +317,18 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 ucoin_util_dumpbin(PRINTOUT, node_pub, UCOIN_SZ_PUBKEY, false);
                 fprintf(PRINTOUT, "\",\n");
                 fprintf(PRINTOUT, M_QQ("alias") ": " M_QQ("%s") ",\n", node_alias);
+                fprintf(PRINTOUT, M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.rgbcolor[0], msg.rgbcolor[1], msg.rgbcolor[2]);
                 if (msg.addr.type == LN_NODEDESC_IPV4) {
-                    fprintf(PRINTOUT, M_QQ("addr") ": " M_QQ("%d.%d.%d.%d:%d") "\n",
+                    fprintf(PRINTOUT, M_QQ("addr") ": " M_QQ("%d.%d.%d.%d:%d") ",\n",
                             msg.addr.addrinfo.ipv4.addr[0],
                             msg.addr.addrinfo.ipv4.addr[1],
                             msg.addr.addrinfo.ipv4.addr[2],
                             msg.addr.addrinfo.ipv4.addr[3],
                             msg.addr.port);
                 } else {
-                    fprintf(PRINTOUT, M_QQ("addrtype") ": %d\n", msg.addr.type);
+                    fprintf(PRINTOUT, M_QQ("addrtype") ": %d,\n", msg.addr.type);
                 }
-                fprintf(PRINTOUT, "}");
+                fprintf(PRINTOUT, M_QQ("timestamp") ": %" PRIu32 "\n", msg.timestamp);
             }
         }
         break;
@@ -344,16 +345,13 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 fprintf(PRINTOUT, M_QQ("cltv_expiry_delta") ": %d,\n", ann.cltv_expiry_delta);
                 fprintf(PRINTOUT, M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", ann.htlc_minimum_msat);
                 fprintf(PRINTOUT, M_QQ("fee_base_msat") ": %" PRIu32 ",\n", ann.fee_base_msat);
-                fprintf(PRINTOUT, M_QQ("fee_prop_millionths") ": %" PRIu32 "\n", ann.fee_prop_millionths);
-                if (ann.flags & 1) {
-                    fprintf(PRINTOUT, "}\n");
-                } else {
-                    fprintf(PRINTOUT, "},\n");
-                }
+                fprintf(PRINTOUT, M_QQ("fee_prop_millionths") ": %" PRIu32 ",\n", ann.fee_prop_millionths);
+                fprintf(PRINTOUT, M_QQ("timestamp") ": %" PRIu32 "\n", ann.timestamp);
             }
         }
         break;
     }
+    fprintf(PRINTOUT, "}\n");
 }
 
 

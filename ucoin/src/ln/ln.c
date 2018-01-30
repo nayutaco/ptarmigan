@@ -460,7 +460,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     bool ret = false;
     uint16_t type = ln_misc_get16be(pData);
 
-    DBG_PRINTF("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
+    //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
     if ((type != MSGTYPE_INIT) && (!INIT_FLAG_INITED(self->init_flag))) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init received : %04x\n", type);
@@ -474,9 +474,11 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     for (int lp = 0; lp < (int)ARRAY_SIZE(RECV_FUNC); lp++) {
         if (type == RECV_FUNC[lp].type) {
-            DBG_PRINTF("type=%04x: Len=%d\n", type, Len);
+            //DBG_PRINTF("type=%04x: Len=%d\n", type, Len);
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);
-            DBG_PRINTF("type=%04x, ret=%d\n", type, ret);
+            if (!ret) {
+                DBG_PRINTF("fail: type=%04x\n", type);
+            }
             break;
         }
     }
@@ -702,6 +704,7 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
     ret = ln_msg_announce_signs_create(pBufAnnoSigns, &anno_signs);
     if (ret) {
         self->anno_flag |= M_ANNO_FLAG_SEND;
+        ln_db_save_channel(self);
     }
 
     return ret;
@@ -757,7 +760,7 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
             bool dbret = ln_db_save_anno_channel_upd(pCnlUpd, ln_short_channel_id(self), self->peer_node.sort);
             assert(dbret);
         } else {
-            DBG_PRINTF("same channel_update\n");
+            //DBG_PRINTF("same channel_update\n");
             ret = false;
         }
     } else {
@@ -2916,7 +2919,11 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     //DB保存
     ret = ln_db_save_anno_channel(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
-    if (!ret) {
+    if (ret) {
+        //これ以降はchannel DBで管理する
+        //ucoin_buf_free(&self->cnl_anno);
+        //ln_db_save_channel(self);
+    } else {
         DBG_PRINTF("fail: ln_db_save_anno_channel\n");
         //goto LABEL_EXIT;
     }
@@ -2928,6 +2935,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     ret = true;
 
     self->anno_flag |= M_ANNO_FLAG_RECV;
+    ln_db_save_channel(self);
 
 LABEL_EXIT:
     ucoin_buf_free(&buf_upd);
@@ -2945,7 +2953,7 @@ LABEL_EXIT:
  */
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("\n");
+    //DBG_PRINTF("\n");
 
     ln_cnl_announce_read_t ann;
 
@@ -2976,7 +2984,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         // this node_id_1 and node_id_2 and forget channels connected to them,
         // otherwise it SHOULD store this channel_announcement.
         if (ucoin_buf_cmp(&buf_bolt, &buf)) {
-            DBG_PRINTF("同じものが送られてきたので、スルー\n");
+            //DBG_PRINTF("同じものが送られてきたので、スルー\n");
         } else {
             DBG_PRINTF("不一致のためblacklist入りする予定\n");
             DBG_PRINTF("buf_bolt: ");
@@ -2985,12 +2993,15 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
             DUMPBIN(buf.buf, buf.len);
             assert(0);
         }
+    } else {
+        //DB保存
+        DBG_PRINTF("new channel_announcement\n");
+        ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
+        if (!ret) {
+            DBG_PRINTF("fail: db save\n");
+            ret = true;
+        }
     }
-
-    //DB保存
-    ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
-    DBG_PRINTF("db save ret=%d\n", ret);
-    ret = true;
 
     return ret;
 }
@@ -3006,13 +3017,15 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     (void)self;
-    DBG_PRINTF("\n");
+    //DBG_PRINTF("\n");
 
     ln_cnl_update_t upd;
     memset(&upd, 0, sizeof(upd));
 
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
     if (ret) {
+        DBG_PRINTF("recv channel_upd%d: %" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
+
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
 
@@ -3035,7 +3048,9 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
         ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
-        DBG_PRINTF("db save ret=%d\n", ret);
+        if (!ret) {
+            DBG_PRINTF("fail: db save\n");
+        }
         ret = true;
     } else {
         //スルーするだけにとどめる
@@ -3979,6 +3994,7 @@ static void proc_announce_sigsed(ln_self_t *self)
         (*self->p_callback)(self, LN_CB_ANNO_SIGSED, &anno);
 
         self->anno_flag |= M_ANNO_FLAG_END;
+        ln_db_save_channel(self);
     }
 }
 
@@ -4003,7 +4019,6 @@ static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
         ln_cnl_announce_read_t ann;
 
         ret = ln_msg_cnl_announce_read(&ann, buf_cnl_anno.buf, buf_cnl_anno.len);
-        DBG_PRINTF("ret=%d\n", ret);
         if (ret) {
             const uint8_t *p_node_id;
             if (Dir == 0) {
