@@ -857,6 +857,69 @@ LABEL_ABORT:
 }
 
 
+bool ln_db_del_anno_channel(uint64_t short_channel_id)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_val     key;
+    uint8_t     keydata[sizeof(short_channel_id) + 1];
+
+    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_ABORT;
+    }
+
+    key.mv_size = sizeof(keydata);
+    key.mv_data = keydata;
+    memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
+
+    //send info
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_SINFO;
+    retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    //channel_announcement
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_ANNO;
+    retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    //channel_update 1
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_UPD1;
+    retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    //channel_update 2
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_UPD2;
+    retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    MDB_TXN_COMMIT(txn);
+
+    return true;
+
+LABEL_ABORT:
+    MDB_TXN_ABORT(txn);
+LABEL_EXIT:
+    return false;
+}
+
+
 uint64_t ln_db_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2)
 {
     bool ret;

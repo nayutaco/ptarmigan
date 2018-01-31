@@ -793,8 +793,8 @@ static void *thread_main_start(void *pArg)
     //      server動作時、p_conf->node_idに相手node_idが入っている
     /////////////////////////
 
-    //p_conf->node_idが接続済みかどうか
-    //済んでいる場合、my_selfにDBから読み込みまで行われている。
+    //p_conf->node_idがchannel情報を持っているかどうか。
+    //持っている場合、my_selfにDBから読み込みまで行われている。
     bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
 
     //
@@ -840,7 +840,7 @@ static void *thread_main_start(void *pArg)
     if (detect) {
         //既にチャネルあり
         //my_selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
-        if (ln_short_channel_id(p_conf->p_self) != 0) {
+        if (ln_short_channel_id(&my_self) != 0) {
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
             send_reestablish(p_conf);
             DBG_PRINTF("reestablish交換完了\n\n");
@@ -848,7 +848,7 @@ static void *thread_main_start(void *pArg)
             //channel_update更新
             ucoin_buf_t buf_upd;
             ucoin_buf_init(&buf_upd);
-            ret = ln_update_channel_update(p_conf->p_self, &buf_upd);
+            ret = ln_update_channel_update(&my_self, &buf_upd);
             if (ret) {
                 send_peer_noise(p_conf, &buf_upd);
             } else {
@@ -860,10 +860,10 @@ static void *thread_main_start(void *pArg)
             ucoin_buf_free(&buf_upd);
         } else {
             DBG_PRINTF("funding_tx監視開始\n");
-            DUMPTXID(ln_funding_txid(p_conf->p_self));
+            DUMPTXID(ln_funding_txid(&my_self));
 
             set_establish_default(p_conf, p_conf->node_id);
-            p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
+            p_conf->funding_min_depth = ln_minimum_depth(&my_self);
             p_conf->funding_waiting = true;
         }
     } else {
@@ -881,14 +881,14 @@ static void *thread_main_start(void *pArg)
     // $3: peer_id
     // $4: JSON-RPC port
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+    misc_bin2str(node_id, ln_our_node_id(&my_self), UCOIN_SZ_PUBKEY);
     char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
     misc_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
     char param[256];
     sprintf(param, "%" PRIx64 " %s "
                 "%s "
                 "%" PRIu16,
-                ln_short_channel_id(p_conf->p_self), node_id,
+                ln_short_channel_id(&my_self), node_id,
                 peer_id,
                 cmd_json_get_port());
     call_script(M_EVT_CONNECTED, param);
@@ -925,7 +925,7 @@ LABEL_SHUTDOWN:
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
     }
-    ln_term(p_conf->p_self);
+    ln_term(&my_self);
     memset(p_conf, 0, sizeof(lnapp_conf_t));
     p_conf->sock = -1;
 
@@ -2568,6 +2568,9 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
 
         ucoin_buf_init(&buf_cnl);
         memset(&sinfo, 0, sizeof(sinfo));
+        uint32_t last_sent = p_conf->last_cnl_anno_sent;
+        p_conf->last_cnl_anno_sent = (uint32_t)time(NULL);
+
         while (ln_db_cursor_anno_channel_get(p_cur, &short_channel_id, &type, &buf_cnl)) {
             //DBG_PRINTF("short_channel_id= %016" PRIx64 "\n", short_channel_id);
             //DBG_PRINTF("type=%c\n", type);
@@ -2581,7 +2584,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
                 //DUMPBIN(sinfo.send_nodeid, UCOIN_SZ_PUBKEY);
                 //DBG_PRINTF("  peer nodeid= ");
                 //DUMPBIN(ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
-                //DBG_PRINTF("  last_cnl_anno_sent : %" PRIu32 "\n", p_conf->last_cnl_anno_sent);
+                //DBG_PRINTF("  last_cnl_anno_sent : %" PRIu32 "\n", last_sent);
                 //if ( ( (memcmp(sinfo.send_nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ||
                 //       (target_sci == ln_short_channel_id(p_conf->p_self)) ) ) {
                 //    //送信元と同じshort_channel_idの情報であれば、配信不要
@@ -2589,7 +2592,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
                 //}
                 break;
             case LN_DB_CNLANNO_ANNO:
-                if (force || (p_conf->last_cnl_anno_sent <= sinfo.channel_anno)) {
+                if (force || (last_sent <= sinfo.channel_anno)) {
                     if (target_sci == short_channel_id) {
                         DBG_PRINTF("send channel_anno: %016" PRIx64 "\n", target_sci);
                         send_peer_noise(p_conf, &buf_cnl);
@@ -2601,7 +2604,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
                 }
                 break;
             case LN_DB_CNLANNO_UPD1:
-                if (force || (p_conf->last_cnl_anno_sent <= sinfo.channel_upd[0])) {
+                if (force || (last_sent <= sinfo.channel_upd[0])) {
                     if (target_sci == short_channel_id) {
                         DBG_PRINTF("send channel_upd1: %016" PRIx64 "\n", target_sci);
                         send_peer_noise(p_conf, &buf_cnl);
@@ -2613,7 +2616,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
                 }
                 break;
             case LN_DB_CNLANNO_UPD2:
-                if (force || (p_conf->last_cnl_anno_sent <= sinfo.channel_upd[1])) {
+                if (force || (last_sent <= sinfo.channel_upd[1])) {
                     if (target_sci == short_channel_id) {
                         DBG_PRINTF("send channel_upd2: %016" PRIx64 "\n", target_sci);
                         send_peer_noise(p_conf, &buf_cnl);
@@ -2636,7 +2639,6 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
             }
             ucoin_buf_free(&buf_cnl);
         }
-        p_conf->last_cnl_anno_sent = (uint32_t)time(NULL);
     } else {
         DBG_PRINTF("no channel_announce DB\n");
     }

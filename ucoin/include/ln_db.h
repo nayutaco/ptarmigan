@@ -161,6 +161,14 @@ bool ln_db_load_anno_channel_upd(ucoin_buf_t *pCnlUpd, uint64_t short_channel_id
 bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir);
 
 
+/** channel_announcement削除
+ *
+ * @param[in]       short_channel_id
+ * @retval      true    成功
+ */
+bool ln_db_del_anno_channel(uint64_t short_channel_id);
+
+
 /** node_idを含むshort_channel_id検索
  *
  * @param[in]       pNodeId1
