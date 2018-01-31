@@ -73,7 +73,7 @@ using namespace boost;
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
 
 #define M_CLTV_INIT                         ((uint16_t)0xffff)
-#define M_SHADOW_ROUTE                      (145)
+#define M_SHADOW_ROUTE                      (0)
 
 
 /**************************************************************************
