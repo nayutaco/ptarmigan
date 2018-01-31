@@ -107,7 +107,8 @@
 #define INIT_LF_OPT_UPF_SHDN_OPT    (1 << 5)    ///< option_upfront_shutdown_script
 #define INIT_LF_OPT_UPF_SHDN        (INIT_LF_OPT_UPF_SHDN_REQ | INIT_LF_OPT_UPF_SHDN_OPT)
 #define INIT_LF_MASK                (INIT_LF_OPT_DATALOSS | INIT_LF_ROUTE_SYNC | INIT_LF_OPT_UPF_SHDN)
-//#define INIT_LF_VALUE               (0x00)
+#define INIT_LF_VALUE               { INIT_LF_ROUTE_SYNC }
+#define INIT_LF_SZ_VALUE            (1)
 
 #define CHANNEL_FLAGS_ANNOCNL       (1 << 0)
 #define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり

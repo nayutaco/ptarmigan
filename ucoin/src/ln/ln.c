@@ -502,11 +502,17 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
     ucoin_buf_init(&msg.globalfeatures);
 
 #ifdef INIT_LF_VALUE
+
+#if INIT_LF_SZ_VALUE > 0
+    const uint8_t INIT_VAL[] = INIT_LF_VALUE;
+    ucoin_buf_alloccopy(&msg.localfeatures, INIT_VAL, INIT_LF_SZ_VALUE);
+#else
 #error feature support
+#endif
+
 #else
     ucoin_buf_init(&msg.localfeatures);
 #endif
-    //msg.localfeatures.buf[0] = INIT_LF_VALUE;
 
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {

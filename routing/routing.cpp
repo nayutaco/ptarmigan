@@ -181,7 +181,6 @@ static void dumpbin(const uint8_t *pData, int Len)
 
 static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_prop_millionths)
 {
-    fprintf(fp_err, "  edgefee(amtmsat=%" PRIu64 ", fee_base_msat=%" PRIu32 ", fee_prop_millionths=%" PRIu32 "\n", amtmsat, fee_base_msat, fee_prop_millionths);
     return (uint64_t)fee_base_msat + (uint64_t)((amtmsat * fee_prop_millionths) / 1000000);
 }
 
@@ -668,7 +667,6 @@ int main(int argc, char* argv[])
         cltv.push_front(cltv_expiry);
 
         for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
-            fprintf(fp_err, "v=%d, p[v]=%d\n", (int)v, (int)p[v]);
 
             bool found;
             graph_t::edge_descriptor e;
@@ -678,6 +676,7 @@ int main(int argc, char* argv[])
                 abort();
             }
 
+#ifdef M_DEBUG
             fprintf(fp_err, "node_id: ");
             for (int llp = 0; llp < UCOIN_SZ_PUBKEY; llp++) {
                 fprintf(fp_err, "%02x", g[e].node_id[llp]);
@@ -686,6 +685,7 @@ int main(int argc, char* argv[])
 
             fprintf(fp_err, "amount_msat: %" PRIu64 "\n", amtmsat);
             fprintf(fp_err, "cltv_expiry: %" PRIu32 "\n\n", cltv_expiry);
+#endif
 
             route.push_front(p[v]);
             msat.push_front(amtmsat);
