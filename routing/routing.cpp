@@ -486,7 +486,7 @@ int main(int argc, char* argv[])
         } else {
             mMinFinalCltvExpiry = LN_MIN_FINAL_CLTV_EXPIRY;
         }
-        mMinFinalCltvExpiry +=  + M_SHADOW_ROUTE;
+        mMinFinalCltvExpiry += M_SHADOW_ROUTE;
         //fprintf(fp_err, "min_final_cltv_expiry = %" PRIu16 "\n", mMinFinalCltvExpiry);
         if (argc == ARGS_ALL) {
             payment_hash = argv[7];
