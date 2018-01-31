@@ -744,6 +744,9 @@ bool ln_db_save_annoinfo(const ln_self_t *self, uint32_t TimeNode, uint32_t Time
         goto LABEL_EXIT;
     }
 
+    DBG_PRINTF("node_announcement: %" PRIu32 "\n", TimeNode);
+    DBG_PRINTF("channel_announcement: %" PRIu32 "\n", TimeCnl);
+
     //最後にnode_announcment送信処理を開始した時間
     key.mv_size = 2;
     key.mv_data = "ND";

@@ -122,7 +122,7 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam);
 // announcement information
 ////////////////////
 
-/** announcement情報取得(short_channel_idごと)
+/** announcement情報取得(channelごと)
  *
  * @param[in]       self
  * @param[out]      pTimeNode   最後にnode_announcment送信開始した時刻
@@ -132,7 +132,7 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam);
 bool ln_db_load_annoinfo(const ln_self_t *self, uint32_t *pTimeNode, uint32_t *pTimeCnl);
 
 
-/** announcement情報保存(short_channel_idごと)
+/** announcement情報保存(channelごと)
  *
  * @param[in]       self
  * @param[in]       TimeNode    最後にnode_announcment送信開始した時刻
