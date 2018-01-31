@@ -839,6 +839,7 @@ typedef struct {
  */
 typedef struct {
     uint64_t                short_channel_id;
+    bool                    is_unspent;
 } ln_cb_channel_anno_recv_t;
 
 

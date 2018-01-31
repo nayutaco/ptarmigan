@@ -852,8 +852,10 @@ static void *thread_main_start(void *pArg)
             if (ret) {
                 send_peer_noise(p_conf, &buf_upd);
             } else {
-                DBG_PRINTF("channel_announcement再送\n");
-                send_channel_anno(p_conf, true);
+                if (p_conf->initial_routing_sync) {
+                    DBG_PRINTF("channel_announcement再送\n");
+                    send_channel_anno(p_conf, true);
+                }
             }
             ucoin_buf_free(&buf_upd);
         } else {
@@ -1794,12 +1796,7 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
 
-    const ln_init_t *p = (const ln_init_t *)p_param;
-
-    DBG_PRINTF("globalfeatures: ");
-    DUMPBIN(p->globalfeatures.buf, p->globalfeatures.len);
-    DBG_PRINTF("localfeatures: ");
-    DUMPBIN(p->localfeatures.buf, p->localfeatures.len);
+    p_conf->initial_routing_sync = *(bool *)p_param;
 
     //待ち合わせ解除(*1)
     p_conf->flag_recv |= RECV_MSG_INIT;
@@ -1934,8 +1931,8 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
     uint32_t vindex;
     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, p->short_channel_id);
 
-    bool unspent = jsonrpc_is_short_channel_unspent(bheight, bindex, vindex);
-    if (!unspent) {
+    p->is_unspent = jsonrpc_is_short_channel_unspent(bheight, bindex, vindex);
+    if (!p->is_unspent) {
         DBG_PRINTF("fail: already spent : %016" PRIx64 "\n", p->short_channel_id);
     }
 
@@ -2682,10 +2679,9 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
                     DBG_PRINTF("last_node_anno_sent : %" PRIu32 "\n", last_sent);
                     first = false;
                 }
-                DBG_PRINTF("  nodeid= ");
+                DBG_PRINTF("  nodeid: ");
                 DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
-                DBG_PRINTF("  timestamp           : %" PRIu32 "\n", timestamp);
-
+                DBG_PRINTF("    timestamp: %" PRIu32 "\n", timestamp);
                 send_peer_noise(p_conf, &buf_node);
             }
             ucoin_buf_free(&buf_node);

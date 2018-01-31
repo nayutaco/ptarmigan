@@ -500,8 +500,13 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
 
     //TODO: globalfeatures と localfeatures
     ucoin_buf_init(&msg.globalfeatures);
-    ucoin_buf_alloc(&msg.localfeatures, 1);
-    msg.localfeatures.buf[0] = INIT_LF_VALUE;
+
+#ifdef INIT_LF_VALUE
+#error feature support
+#else
+    ucoin_buf_init(&msg.localfeatures);
+#endif
+    //msg.localfeatures.buf[0] = INIT_LF_VALUE;
 
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {
@@ -1619,35 +1624,27 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ret = ln_msg_init_read(&msg, pData, Len);
 #warning issue#45
     if (ret) {
-        //有効なfeature以外のビットが立っていないこと
-        for (int lp = 0; lp < msg.globalfeatures.len; lp++) {
-            //奇数ビットは無視できる
-            //偶数ビット: 定義ビット無し
-            ret &= ((msg.globalfeatures.buf[lp] & 0x55) == 0);
-            if (!ret) {
-                break;
-            }
-        }
+        ret &= (msg.globalfeatures.len == 0);
     }
 
-    if (ret)
-        for (int lp = 0; lp < msg.localfeatures.len; lp++) {
-            //奇数ビットは無視できる
-            uint8_t flg = (msg.localfeatures.buf[lp] & 0x55);
-            bool b = (flg == 0);
-            if (!b) {
-                //偶数ビット: [0]b3のみ
-                if ((lp != 0) || ((flg & ~INIT_LF_ROUTE_SYNC) != 0)) {
-                ret = false;
-                break;
-            }
+    bool initial_routing_sync = false;
+    if (ret) {
+        ret &= (msg.localfeatures.len <= 1);
+        if (msg.localfeatures.len == 1) {
+            //2018/01/31(comit: 2c3466a2af8e62215b9240f9932256a509652b5d)
+            //      https://github.com/lightningnetwork/lightning-rfc/blob/2c3466a2af8e62215b9240f9932256a509652b5d/09-features.md#assigned-localfeatures-flags
+            //  bit0/1 : option-data-loss-protect
+            //  bit3   : initial_routing_sync
+            //  bit4/5 : option_upfront_shutdown_script
+            ret &= ((msg.localfeatures.buf[0] & (~INIT_LF_MASK)) == 0);
+            initial_routing_sync = (msg.localfeatures.buf[0] & INIT_LF_ROUTE_SYNC);
         }
     }
     if (ret) {
         self->init_flag |= INIT_FLAG_RECV;
 
         //init受信通知
-        (*self->p_callback)(self, LN_CB_INIT_RECV, &msg);
+        (*self->p_callback)(self, LN_CB_INIT_RECV, &initial_routing_sync);
     } else {
         self->err = LNERR_INV_FEATURE;
         DBG_PRINTF("fail: init error\n");
@@ -2969,15 +2966,16 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     //DBG_PRINTF("\n");
 
     ln_cnl_announce_read_t ann;
+    ln_cb_channel_anno_recv_t param;
 
+    param.is_unspent = true;
     bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
     if (ret) {
-        ln_cb_channel_anno_recv_t param;
-
         param.short_channel_id = ann.short_channel_id;
         (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
     } else {
-        DBG_PRINTF("fail\n");
+        DBG_PRINTF("fail: do nothing\n");
+        return true;
     }
 
     ucoin_buf_t buf;
@@ -2997,26 +2995,33 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         // this node_id_1 and node_id_2 and forget channels connected to them,
         // otherwise it SHOULD store this channel_announcement.
         if (ucoin_buf_cmp(&buf_bolt, &buf)) {
-            //DBG_PRINTF("同じものが送られてきたので、スルー\n");
+            if (param.is_unspent) {
+                //DBG_PRINTF("同じものが送られてきたので、スルー\n");
+            } else {
+                //closeされたとみなして削除
+                ret = ln_db_del_anno_channel(ann.short_channel_id);
+                DBG_PRINTF("remove db: %0" PRIx64 "(ret=%d)\n", ann.short_channel_id, ret);
+            }
         } else {
             DBG_PRINTF("不一致のためblacklist入りする予定\n");
             DBG_PRINTF("buf_bolt: ");
             DUMPBIN(buf_bolt.buf, buf_bolt.len);
             DBG_PRINTF("buf: ");
             DUMPBIN(buf.buf, buf.len);
-            assert(0);
+            //assert(0);
         }
-    } else {
+    } else if (param.is_unspent) {
         //DB保存
         DBG_PRINTF("new channel_announcement: %0" PRIx64 "\n", ann.short_channel_id);
         ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
         if (!ret) {
             DBG_PRINTF("fail: db save\n");
-            ret = true;
         }
+    } else {
+        DBG_PRINTF("do nothing: short_channel_id already closed\n");
     }
 
-    return ret;
+    return true;
 }
 
 

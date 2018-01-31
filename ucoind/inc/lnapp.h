@@ -84,6 +84,7 @@ typedef struct lnapp_conf_t {
     ln_self_t       *p_self;                ///< channelのコンテキスト
     ln_establish_t  *p_establish;           ///< Establish用のワーク領域
 
+    bool            initial_routing_sync;   ///< init.localfeaturesのinitial_routing_sync
     uint32_t        last_cnl_anno_sent;     ///< 最後に送信したchannel_announcementのEPOCH TIME
     uint32_t        last_node_anno_sent;    ///< 最後に送信したnode_announcementのEPOCH TIME
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
@@ -206,7 +207,7 @@ bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
 
 
 /** [lnapp]初期化済み状態取得
- * 
+ *
  */
 bool lnapp_is_inited(const lnapp_conf_t *pAppConf);
 
