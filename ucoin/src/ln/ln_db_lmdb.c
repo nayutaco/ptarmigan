@@ -51,10 +51,13 @@
                                                 // mdb_txn_commit()でMDB_MAP_FULLになったため拡張
 
 #define M_LMDB_ENV              "./dbucoin"     ///< LMDB名
+
 #define M_PREFIX_LEN            (2)
-#define M_CHANNEL_NAME          "CN"            ///< channel
-#define M_SHAREDSECRET_NAME     "SS"            ///< shared secret
-#define M_REVOKED_NAME          "RV"            ///< revoked transaction用
+#define M_CHANNEL_NAME          "CN"            ///< [prefix]channel
+#define M_SHAREDSECRET_NAME     "SS"            ///< [prefix]shared secret
+#define M_REVOKED_NAME          "RV"            ///< [prefix]revoked transaction用
+#define M_ANNOINFO_NAME         "AI"            ///< [prefix]announcement information
+
 #define M_DB_ANNO_CNL           "channel_anno"
 #define M_DB_ANNO_NODE          "node_anno"
 #define M_DB_PREIMAGE           "preimage"
@@ -653,6 +656,121 @@ LABEL_EXIT:
 
 
 /********************************************************************
+ * announcement information
+ ********************************************************************/
+
+bool ln_db_load_annoinfo(const ln_self_t *self, uint32_t *pTimeNode, uint32_t *pTimeCnl)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+    MDB_val     key, data;
+    void *pDbParam = NULL;
+
+    if (pDbParam == NULL) {
+        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+    } else {
+        txn = ((lmdb_db_t *)pDbParam)->txn;
+    }
+
+    strcpy(dbname, M_ANNOINFO_NAME);
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    retval = mdb_dbi_open(txn, dbname, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+
+    //最後にnode_announcment送信処理を開始した時間
+    key.mv_size = 2;
+    key.mv_data = "ND";
+    int retval1 = mdb_get(txn, dbi, &key, &data);
+    if ((retval1 == 0) && (data.mv_size == sizeof(uint32_t))) {
+        *pTimeNode = *(uint32_t *)data.mv_data;
+    } else {
+        *pTimeNode = 0;
+    }
+
+    //最後にchannel_announcment送信処理を開始した時間
+    key.mv_data = "CN";
+    int retval2 = mdb_get(txn, dbi, &key, &data);
+    if ((retval2 == 0) && (data.mv_size == sizeof(uint32_t))) {
+        *pTimeCnl = *(uint32_t *)data.mv_data;
+    } else {
+        *pTimeCnl = 0;
+    }
+
+    if (pDbParam == NULL) {
+        MDB_TXN_ABORT(txn);
+    }
+    retval = retval1 + retval2;
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+bool ln_db_save_annoinfo(const ln_self_t *self, uint32_t TimeNode, uint32_t TimeCnl)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+    MDB_val     key, data;
+    void *pDbParam = NULL;
+
+    if (pDbParam == NULL) {
+        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+    } else {
+        txn = ((lmdb_db_t *)pDbParam)->txn;
+    }
+
+    strcpy(dbname, M_ANNOINFO_NAME);
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    retval = mdb_dbi_open(txn, dbname, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+
+    //最後にnode_announcment送信処理を開始した時間
+    key.mv_size = 2;
+    key.mv_data = "ND";
+    data.mv_size = sizeof(uint32_t);
+    data.mv_data =&TimeNode;
+    int retval1 = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval1 != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    //最後にchannel_announcment送信処理を開始した時間
+    key.mv_data = "CN";
+    data.mv_data =&TimeCnl;
+    int retval2 = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval1 != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+    retval = retval1 + retval2;
+
+    MDB_TXN_COMMIT(txn);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+/********************************************************************
  * channel_announcement / channel_update
  ********************************************************************/
 
@@ -853,6 +971,69 @@ LABEL_EXIT:
 LABEL_ABORT:
     MDB_TXN_ABORT(txn);
     ucoin_buf_free(&buf_upd);
+    return false;
+}
+
+
+bool ln_db_del_anno_channel(uint64_t short_channel_id)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_val     key;
+    uint8_t     keydata[sizeof(short_channel_id) + 1];
+
+    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_ABORT;
+    }
+
+    key.mv_size = sizeof(keydata);
+    key.mv_data = keydata;
+    memcpy(keydata, &short_channel_id, sizeof(short_channel_id));
+
+    //send info
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_SINFO;
+    retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    //channel_announcement
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_ANNO;
+    retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    //channel_update 1
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_UPD1;
+    retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    //channel_update 2
+    keydata[sizeof(short_channel_id)] =LN_DB_CNLANNO_UPD2;
+    retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    MDB_TXN_COMMIT(txn);
+
+    return true;
+
+LABEL_ABORT:
+    MDB_TXN_ABORT(txn);
+LABEL_EXIT:
     return false;
 }
 

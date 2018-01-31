@@ -119,6 +119,30 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
 ////////////////////
+// announcement information
+////////////////////
+
+/** announcement情報取得(short_channel_idごと)
+ *
+ * @param[in]       self
+ * @param[out]      pTimeNode   最後にnode_announcment送信開始した時刻
+ * @param[out]      pTimeCnl    最後にchannel_announcement送信開始した時刻
+ * @retval  true
+ */
+bool ln_db_load_annoinfo(const ln_self_t *self, uint32_t *pTimeNode, uint32_t *pTimeCnl);
+
+
+/** announcement情報保存(short_channel_idごと)
+ *
+ * @param[in]       self
+ * @param[in]       TimeNode    最後にnode_announcment送信開始した時刻
+ * @param[in]       TimeCnl     最後にchannel_announcement送信開始した時刻
+ * @retval  true
+ */
+bool ln_db_save_annoinfo(const ln_self_t *self, uint32_t TimeNode, uint32_t TimeCnl);
+
+
+////////////////////
 // channel_announcement
 ////////////////////
 
@@ -141,6 +165,14 @@ bool ln_db_load_anno_channel(ucoin_buf_t *pCnlAnno, uint64_t short_channel_id);
 bool ln_db_save_anno_channel(const ucoin_buf_t *pCnlAnno, uint64_t CnlSci, const uint8_t *pNodeId);
 
 
+/** channel_announcement削除
+ *
+ * @param[in]       short_channel_id
+ * @retval      true    成功
+ */
+bool ln_db_del_anno_channel(uint64_t short_channel_id);
+
+
 /** channel_update読込み
  *
  * @param[out]      pCnlAnno
@@ -159,6 +191,14 @@ bool ln_db_load_anno_channel_upd(ucoin_buf_t *pCnlUpd, uint64_t short_channel_id
  * @retval      true    成功
  */
 bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir);
+
+
+/** channel_announcement関連データ削除
+ *
+ * @param[in]       short_channel_id
+ * @retval      true    成功
+ */
+bool ln_db_del_anno_channel(uint64_t short_channel_id);
 
 
 /** node_idを含むshort_channel_id検索
