@@ -193,12 +193,21 @@ void ln_db_cursor_anno_channel_close(void *pCur);
 
 /**
  *
+ * @param[in,out]   pCur
+ * @param[out]      p_short_channel_id
+ * @param[out]      p_type
+ * @param[out]      pBuf
+ * @retval  true    成功
  */
 bool ln_db_cursor_anno_channel_get(void *pCur, uint64_t *p_short_channel_id, char *p_type, ucoin_buf_t *pBuf);
 
 
 /**
  *
+ * @param[in,out]   pCur
+ * @param[in]       short_channel_id
+ * @param[out]      pSInfo
+ * @retval  true    成功
  */
 void ln_db_cursor_anno_sinfo(void *pCur, uint64_t short_channel_id, ln_db_channel_sinfo *pSInfo);
 
@@ -243,7 +252,7 @@ bool ln_db_cursor_anno_node_open(void **ppCur);
  */
 void ln_db_cursor_anno_node_close(void *pCur);
 
-/**
+/** node_announcement順次取得
  *
  * @param[in,out]   pCur            #ln_db_cursor_anno_node_open()でオープンしたDB cursor
  * @param[out]      pBuf            node_announcementパケット

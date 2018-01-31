@@ -73,6 +73,7 @@
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
 #define M_WAIT_SEND_WAIT_MSEC   (10)        //socket送信で一度に送信できなかった場合の待ち時間[msec]
+#define M_WAIT_ANNO_WAIT_MSEC   (100)       //announcementする間隔[msec]
 
 //デフォルト値
 //  announcement
@@ -2638,6 +2639,9 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
                 break;
             }
             ucoin_buf_free(&buf_cnl);
+
+            //連続して送信すると混雑する可能性がある
+            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
     } else {
         DBG_PRINTF("no channel_announce DB\n");
@@ -2687,6 +2691,9 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
                 send_peer_noise(p_conf, &buf_node);
             }
             ucoin_buf_free(&buf_node);
+
+            //連続して送信すると混雑する可能性がある
+            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
     } else {
         DBG_PRINTF("no node_announce DB\n");
