@@ -42,7 +42,11 @@
 
 #define M_SPOIL_STDERR
 
-#define M_LMDB_ENV              "./dbucoin"
+#define M_LMDB_DIR              "./dbucoin"
+#define M_LMDB_ENV_DIR          "/dbucoin"
+#define M_LMDB_ANNO_DIR         "/dbucoin_anno"
+#define M_LMDB_ENV              M_LMDB_DIR M_LMDB_ENV_DIR       ///< LMDB名(announce以外)
+#define M_LMDB_ANNO             M_LMDB_DIR M_LMDB_ANNO_DIR      ///< LMDB名(announce)
 
 #define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
 #define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
@@ -83,6 +87,7 @@ static int          cnt2;
 static int          cnt3;
 static int          cnt4;
 static MDB_env      *mpDbEnv = NULL;
+static MDB_env      *mpDbAnno = NULL;
 static FILE         *fp_err;
 
 
@@ -219,7 +224,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
             } while (ret == 0);
             printf("]");
             mdb_cursor_close(cursor);
-            mdb_close(mpDbEnv, dbi);
+            mdb_close(mdb_txn_env(txn), dbi);
         }
         break;
 
@@ -277,7 +282,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
                 }
             } while (ret == 0);
             mdb_cursor_close(cursor);
-            mdb_close(mpDbEnv, dbi);
+            mdb_close(mdb_txn_env(txn), dbi);
         }
         break;
 
@@ -371,9 +376,11 @@ int main(int argc, char *argv[])
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
-    char        dbpath[50];
+    char        dbpath[256];
+    char        annopath[256];
 
     strcpy(dbpath, M_LMDB_ENV);
+    strcpy(annopath, M_LMDB_ANNO);
 
     if (argc >= 3) {
         switch (argv[2][0]) {
@@ -411,7 +418,11 @@ int main(int argc, char *argv[])
         }
 
         if (argc >= 4) {
-            strcpy(dbpath, argv[3]);
+            if (argv[3][strlen(argv[3]) - 1] == '/') {
+                argv[3][strlen(argv[3]) - 1] = '\0';
+            }
+            sprintf(dbpath, "%s%s", argv[3], M_LMDB_ENV_DIR);
+            sprintf(annopath, "%s%s", argv[3], M_LMDB_ANNO_DIR);
         }
     } else {
         fprintf(stderr, "usage:\n");
@@ -443,6 +454,16 @@ int main(int argc, char *argv[])
     ret = mdb_env_open(mpDbEnv, dbpath, MDB_RDONLY, 0664);
     if (ret) {
         fprintf(stderr, "fail: cannot open[%s]\n", dbpath);
+        return -1;
+    }
+    ret = mdb_env_create(&mpDbAnno);
+    assert(ret == 0);
+    ln_lmdb_setenv(mpDbAnno);
+    ret = mdb_env_set_maxdbs(mpDbAnno, 2);
+    assert(ret == 0);
+    ret = mdb_env_open(mpDbAnno, annopath, MDB_RDONLY, 0664);
+    if (ret) {
+        fprintf(stderr, "fail: cannot open[%s]\n", annopath);
         return -1;
     }
 
@@ -492,7 +513,7 @@ int main(int argc, char *argv[])
                     break;
                 }
             }
-            mdb_close(mpDbEnv, dbi2);
+            mdb_close(mdb_txn_env(txn), dbi2);
         }
     }
     if (!(showflag & SHOW_NODEANNO_PEER)) {
@@ -502,7 +523,8 @@ int main(int argc, char *argv[])
         printf("}\n");
     }
     mdb_cursor_close(cursor);
-    mdb_close(mpDbEnv, dbi);
     mdb_txn_abort(txn);
+
+    mdb_env_close(mpDbAnno);
     mdb_env_close(mpDbEnv);
 }
