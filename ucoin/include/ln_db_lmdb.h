@@ -56,6 +56,12 @@ typedef enum {
 } ln_lmdb_dbtype_t;
 
 
+typedef struct {
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+} ln_lmdb_db_t;
+
+
 /**************************************************************************
  * public functions
  **************************************************************************/
@@ -76,7 +82,7 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
 /**
  *
  */
-int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *p_short_channel_id, char *p_type, ucoin_buf_t *pBuf);
+int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf);
 
 
 /**
@@ -90,7 +96,7 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
  *
  *
  */
-int ln_lmdb_check_version(MDB_txn *txn, uint8_t *pMyNodeId);
+int ln_lmdb_check_version(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId);
 
 
 ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);

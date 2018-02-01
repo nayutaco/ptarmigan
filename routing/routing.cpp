@@ -202,13 +202,14 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
         int ret;
 
         do {
+            int idx;
             uint64_t short_channel_id;
             char type;
-            int idx;
+            uint32_t timestamp;
             ucoin_buf_t buf;
 
             ucoin_buf_init(&buf);
-            ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
+            ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &timestamp, &buf);
             if (ret == 0) {
                 ln_cnl_update_t upd;
                 bool bret;
@@ -373,7 +374,9 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
-    ret = ln_lmdb_check_version(txn, my_nodeid);
+    ln_lmdb_db_t db;
+    db.txn = txn;
+    ret = ln_lmdb_check_version(&db, my_nodeid);
     assert(ret == 0);
 #ifdef M_DEBUG
     fprintf(fp_err, "my node_id: ");

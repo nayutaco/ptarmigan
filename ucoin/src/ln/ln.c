@@ -728,27 +728,24 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
 }
 
 
-bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp)
+bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp)
 {
-    ln_cnl_update_t upd;
-
-    upd.short_channel_id = self->short_channel_id;
-    upd.timestamp = TimeStamp;
+    pUpd->short_channel_id = self->short_channel_id;
+    pUpd->timestamp = TimeStamp;
     //announce
-    upd.cltv_expiry_delta = self->anno_default.cltv_expiry_delta;
-    upd.htlc_minimum_msat = self->anno_default.htlc_minimum_msat;
-    upd.fee_base_msat = self->anno_default.fee_base_msat;
-    upd.fee_prop_millionths = self->anno_default.fee_prop_millionths;
+    pUpd->cltv_expiry_delta = self->anno_default.cltv_expiry_delta;
+    pUpd->htlc_minimum_msat = self->anno_default.htlc_minimum_msat;
+    pUpd->fee_base_msat = self->anno_default.fee_base_msat;
+    pUpd->fee_prop_millionths = self->anno_default.fee_prop_millionths;
     //署名
-    upd.p_key = self->p_node->keys.priv;
-    upd.sort = self->peer_node.sort;
-    bool ret = ln_msg_cnl_update_create(pCnlUpd, &upd);
+    pUpd->p_key = self->p_node->keys.priv;
+    pUpd->sort = self->peer_node.sort;
+    bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
     return ret;
 }
 
 
-//送信済みのchannel_updateと現在のパラメータを比較し、相違があれば送信する
 bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
 {
     bool ret;
@@ -757,7 +754,8 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
 
     ucoin_buf_init(&buf_upd);
 
-    ret = ln_db_load_anno_channel_upd(&buf_upd, ln_short_channel_id(self), self->peer_node.sort);
+    uint32_t timestamp;
+    ret = ln_db_load_anno_channel_upd(&buf_upd, &timestamp, ln_short_channel_id(self), self->peer_node.sort);
     if (ret) {
         ret = ln_msg_cnl_update_read(&upd, buf_upd.buf, buf_upd.len);
     }
@@ -771,10 +769,11 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
             DBG_PRINTF("update channel_update\n");
 
             uint32_t now = (uint32_t)time(NULL);
-            ret = ln_create_channel_update(self, pCnlUpd, now);
+            ln_cnl_update_t upd;
+            ret = ln_create_channel_update(self, &upd, pCnlUpd, now);
 
             //DB保存
-            bool dbret = ln_db_save_anno_channel_upd(pCnlUpd, ln_short_channel_id(self), self->peer_node.sort);
+            bool dbret = ln_db_save_anno_channel_upd(pCnlUpd, &upd, ln_their_node_id(self));
             assert(dbret);
         } else {
             //DBG_PRINTF("same channel_update\n");
@@ -2927,9 +2926,10 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     ucoin_buf_t buf_upd;
     ucoin_buf_init(&buf_upd);
     uint32_t now = (uint32_t)time(NULL);
-    ret = ln_create_channel_update(self, &buf_upd, now);
+    ln_cnl_update_t upd;
+    ret = ln_create_channel_update(self, &upd, &buf_upd, now);
     if (!ret) {
-        DBG_PRINTF("fail: ln_create_channel_update\n");
+        DBG_PRINTF("fail\n");
         goto LABEL_EXIT;
     }
 
@@ -2943,9 +2943,9 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         DBG_PRINTF("fail: ln_db_save_anno_channel\n");
         //goto LABEL_EXIT;
     }
-    ret = ln_db_save_anno_channel_upd(&buf_upd, ln_short_channel_id(self), self->peer_node.sort);
+    ret = ln_db_save_anno_channel_upd(&buf_upd, &upd, ln_their_node_id(self));
     if (!ret) {
-        DBG_PRINTF("fail: ln_db_save_anno_channel_upd\n");
+        DBG_PRINTF("fail\n");
         //goto LABEL_EXIT;
     }
     ret = true;
@@ -3071,7 +3071,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         ucoin_buf_t buf;
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
-        ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
+        ret = ln_db_save_anno_channel_upd(&buf, &upd, ln_their_node_id(self));
         if (!ret) {
             DBG_PRINTF("fail: db save\n");
         }

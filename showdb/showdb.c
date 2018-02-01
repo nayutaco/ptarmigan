@@ -190,36 +190,28 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, const MDB_val *p_key)
             do {
                 uint64_t short_channel_id;
                 char type;
+                uint32_t timestamp;
                 ucoin_buf_t buf;
 
                 ucoin_buf_init(&buf);
-                ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
+                ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &timestamp, &buf);
                 if (ret == 0) {
-                    if (type != LN_DB_CNLANNO_SINFO) {
-                        if (cnt1) {
-                            printf(",");
-                        }
-                        if (!(showflag & SHOW_CNLANNO_SCI)) {
-                            ln_print_announce(buf.buf, buf.len);
-                        } else {
-                            ln_print_announce_short(buf.buf, buf.len);
-                        }
-                        cnt1++;
-                    } else {
+                    if (type == LN_DB_CNLANNO_ANNO) {
                         if (cnt1) {
                             printf("],");
                         }
                         printf("\n[\n");
                         cnt1 = 0;
-
-                        //channel_announcement / channel_updateの有無情報
-                        ln_db_channel_sinfo *p_sinfo = (ln_db_channel_sinfo *)buf.buf;
-                        printf("{\"info\": \"%c%c%c\"}",
-                                ((p_sinfo->channel_anno) ? '1' : '0'),
-                                ((p_sinfo->channel_upd[0]) ? '1' : '0'),
-                                ((p_sinfo->channel_upd[1]) ? '1' : '0'));
-                        cnt1 = 1;
                     }
+                    if (cnt1) {
+                        printf(",");
+                    }
+                    if (!(showflag & SHOW_CNLANNO_SCI)) {
+                        ln_print_announce(buf.buf, buf.len);
+                    } else {
+                        ln_print_announce_short(buf.buf, buf.len);
+                    }
+                    cnt1++;
                     ucoin_buf_free(&buf);
                 } else {
                     //printf("end of announce\n");
@@ -456,7 +448,9 @@ int main(int argc, char *argv[])
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
-    ret = ln_lmdb_check_version(txn, NULL);
+    ln_lmdb_db_t db;
+    db.txn = txn;
+    ret = ln_lmdb_check_version(&db, NULL);
     if (ret != 0) {
         fprintf(stderr, "fail: DB version not match.\n");
         return -1;
