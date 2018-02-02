@@ -209,7 +209,7 @@ static int save_anno_channel_upd(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlUpd, 
 
 static int load_anno_node(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
 static int save_anno_node(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno);
-static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
+static bool open_anno_node_cursor(lmdb_cursor_t *pCur);
 
 static bool add_annoinfo(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId);
 static bool search_annoinfo(MDB_val *pMdbData, const uint8_t *pNodeId);
@@ -1345,7 +1345,7 @@ bool ln_db_cursor_anno_node_open(void **ppCur, void *pDb)
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
     p_cur->txn = p_db->txn;
-    bool ret = open_anno_node_cursor(p_cur, 0);
+    bool ret = open_anno_node_cursor(p_cur);
     if (ret) {
         *ppCur = p_cur;
     } else {
@@ -2487,7 +2487,7 @@ static void clr_annoinfo(ln_lmdb_db_t *pDb)
 /** lmdb cursorオープン(node_announcement系)
  *
  */
-static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
+static bool open_anno_node_cursor(lmdb_cursor_t *pCur)
 {
     int retval;
 
