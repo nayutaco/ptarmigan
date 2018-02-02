@@ -2572,12 +2572,10 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
         DBG_PRINTF("current: %016" PRIx64 ", force=%d\n", ln_short_channel_id(p_conf->p_self), force);
 
         ucoin_buf_init(&buf_cnl);
-        uint32_t last_sent = p_conf->last_cnl_anno_sent;
         p_conf->last_cnl_anno_sent = (uint32_t)time(NULL);
 
         while (ln_db_cursor_anno_channel_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl)) {
             DBG_PRINTF("short_channel_id(%c)= %016" PRIx64 "\n", type, short_channel_id);
-            bool send = false;
             bool chk = ln_db_channel_anno_search_nodeid(p_db, short_channel_id, type, ln_their_node_id(p_conf->p_self));
             if (!chk) {
                 DBG_PRINTF("send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
