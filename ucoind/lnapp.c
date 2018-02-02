@@ -1374,7 +1374,7 @@ static void *thread_poll_start(void *pArg)
             //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
             set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
             ln_open_announce_channel_clr(p_conf->p_self);
-            ln_db_save_channel(p_conf->p_self);
+            ln_db_self_save(p_conf->p_self);
         }
 
         counter++;
@@ -1866,7 +1866,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
     }
 
     //DB保存
-    ln_db_save_channel(p_conf->p_self);
+    ln_db_self_save(p_conf->p_self);
 
     //fundingの監視は thread_poll_start()に任せる
     DBG_PRINTF("funding_tx監視開始\n");
@@ -1991,7 +1991,7 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
     ucoin_buf_init(&buf_bolt);
 
     //channel_announcement
-    ret = ln_db_load_anno_channel(&buf_bolt, ln_short_channel_id(p_conf->p_self));
+    ret = ln_db_annocnl_load(&buf_bolt, ln_short_channel_id(p_conf->p_self));
     if (ret) {
         DBG_PRINTF("send: my channel_annoucnement\n");
         send_peer_noise(p_conf, &buf_bolt);
@@ -2002,7 +2002,7 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
 
     //channel_update
     uint32_t timestamp;
-    ret = ln_db_load_anno_channel_upd(&buf_bolt, &timestamp, ln_short_channel_id(p_conf->p_self), p->sort);
+    ret = ln_db_annocnlupd_load(&buf_bolt, &timestamp, ln_short_channel_id(p_conf->p_self), p->sort);
     if (ret) {
         DBG_PRINTF("send: my channel_update\n");
         send_peer_noise(p_conf, &buf_bolt);
@@ -2063,9 +2063,9 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         uint8_t preimage_hash[LN_SZ_HASH];
 
         void *p_cur;
-        bool ret = ln_db_cursor_preimage_open(&p_cur);
+        bool ret = ln_db_preimg_cur_open(&p_cur);
         while (ret) {
-            ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
+            ret = ln_db_preimg_cur_get(p_cur, preimage, &amount);
             if (ret) {
                 ln_calc_preimage_hash(preimage_hash, preimage);
                 if (memcmp(preimage_hash, p_add->p_payment_hash, LN_SZ_HASH) == 0) {
@@ -2074,7 +2074,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 }
             }
         }
-        ln_db_cursor_preimage_close(p_cur);
+        ln_db_preimg_cur_close(p_cur);
 
         if (ret) {
             //last nodeチェック
@@ -2105,7 +2105,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 push_queue(p_conf, fulfill);
 
                 //preimageを使い終わったら消す
-                ln_db_del_preimage(preimage);
+                ln_db_preimg_del(preimage);
             } else {
                 DBG_PRINTF("DBG: no fulfill mode\n");
             }
@@ -2283,7 +2283,7 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
     }
 
     //DB保存
-    ln_db_save_channel(p_conf->p_self);
+    ln_db_self_save(p_conf->p_self);
 
     char fname[FNAME_LEN];
     sprintf(fname, FNAME_AMOUNT_FMT, ln_short_channel_id(p_conf->p_self));
@@ -2376,7 +2376,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
     }
 
     //DB保存
-    ln_db_save_channel(p_conf->p_self);
+    ln_db_self_save(p_conf->p_self);
 
     char fname[FNAME_LEN];
     sprintf(fname, FNAME_AMOUNT_FMT, ln_short_channel_id(p_conf->p_self));
@@ -2557,14 +2557,14 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
     }
 
     void *p_db;
-    ret = ln_db_cursor_anno_transaction(&p_db, LN_DB_TXN_CNL);
+    ret = ln_db_anno_cur_transaction(&p_db, LN_DB_TXN_CNL);
     if (!ret) {
         DBG_PRINTF("fail\n");
         goto LABEL_EXIT;
     }
 
     void *p_cur;
-    ret = ln_db_cursor_anno_channel_open(&p_cur, p_db);
+    ret = ln_db_annocnl_cur_open(&p_cur, p_db);
     if (ret) {
         uint64_t short_channel_id;
         char type = ' ';
@@ -2574,13 +2574,13 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
 
         ucoin_buf_init(&buf_cnl);
 
-        while (ln_db_cursor_anno_channel_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl)) {
+        while (ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl)) {
             DBG_PRINTF("short_channel_id(%c)= %016" PRIx64 "\n", type, short_channel_id);
-            bool chk = ln_db_channel_anno_search_nodeid(p_db, short_channel_id, type, ln_their_node_id(p_conf->p_self));
+            bool chk = ln_db_annocnls_search_nodeid(p_db, short_channel_id, type, ln_their_node_id(p_conf->p_self));
             if (!chk) {
                 DBG_PRINTF("send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
                 send_peer_noise(p_conf, &buf_cnl);
-                ln_db_channel_anno_add_nodeid(p_db, short_channel_id, type, ln_their_node_id(p_conf->p_self));
+                ln_db_annocnls_add_nodeid(p_db, short_channel_id, type, ln_their_node_id(p_conf->p_self));
             } else {
                 DBG_PRINTF("not send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
             }
@@ -2597,10 +2597,10 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
         DBG_PRINTF("no channel_announce DB\n");
     }
     if (p_cur) {
-        ln_db_cursor_anno_channel_close(p_cur);
+        ln_db_annocnl_cur_close(p_cur);
     }
 
-    ln_db_cursor_anno_commit(p_db);
+    ln_db_anno_cur_commit(p_db);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");
@@ -2618,27 +2618,27 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
     }
 
     void *p_db;
-    ret = ln_db_cursor_anno_transaction(&p_db, LN_DB_TXN_NODE);
+    ret = ln_db_anno_cur_transaction(&p_db, LN_DB_TXN_NODE);
     if (!ret) {
         DBG_PRINTF("fail\n");
         goto LABEL_EXIT;
     }
 
     void *p_cur;
-    ret = ln_db_cursor_anno_node_open(&p_cur, p_db);
+    ret = ln_db_annonod_cur_open(&p_cur, p_db);
     if (ret) {
         ucoin_buf_t buf_node;
         uint32_t timestamp;
         uint8_t nodeid[UCOIN_SZ_PUBKEY];
 
         ucoin_buf_init(&buf_node);
-        while (ln_db_cursor_anno_node_get(p_cur, &buf_node, &timestamp, nodeid)) {
-            bool chk = ln_db_node_anno_search_nodeid(p_db, nodeid, ln_their_node_id(p_conf->p_self));
+        while (ln_db_annonod_cur_get(p_cur, &buf_node, &timestamp, nodeid)) {
+            bool chk = ln_db_annonod_search_nodeid(p_db, nodeid, ln_their_node_id(p_conf->p_self));
             if (!chk) {
                 DBG_PRINTF("send node_anno: ");
                 DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
                 send_peer_noise(p_conf, &buf_node);
-                ln_db_node_anno_add_nodeid(p_db, nodeid, ln_their_node_id(p_conf->p_self));
+                ln_db_annonod_add_nodeid(p_db, nodeid, ln_their_node_id(p_conf->p_self));
             } else {
                 DBG_PRINTF("not send node_anno: ");
                 DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
@@ -2656,10 +2656,10 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
         DBG_PRINTF("no node_announce DB\n");
     }
     if (p_cur) {
-        ln_db_cursor_anno_node_close(p_cur);
+        ln_db_annonod_cur_close(p_cur);
     }
 
-    ln_db_cursor_anno_commit(p_db);
+    ln_db_anno_cur_commit(p_db);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");

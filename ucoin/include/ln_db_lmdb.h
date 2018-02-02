@@ -76,27 +76,27 @@ typedef struct {
  *      -
  *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
  */
-int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
 
 
 /**
  *
  */
-int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf);
-
-
-/**
- *
- *
- */
-int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
+int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf);
 
 
 /**
  *
  *
  */
-int ln_lmdb_check_version(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId);
+int ln_lmdb_annonod_cur_load(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
+
+
+/**
+ *
+ *
+ */
+int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId);
 
 
 ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);

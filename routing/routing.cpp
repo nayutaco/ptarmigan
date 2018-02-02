@@ -185,7 +185,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi)
         ucoin_buf_t buf;
 
         ucoin_buf_init(&buf);
-        ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &timestamp, &buf);
+        ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
         if (ret == 0) {
             ln_cnl_update_t upd;
             bool bret;
@@ -247,7 +247,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
 
         ln_self_t   self;
         memset(&self, 0, sizeof(self));
-        ret = ln_lmdb_load_channel(&self, txn, &dbi);
+        ret = ln_lmdb_self_load(&self, txn, &dbi);
         if (ret == 0) {
             //p1: my node_id(送金元とmy node_idが不一致の場合はNULL), p2: target node_id
 #if 1
@@ -378,7 +378,7 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
     ln_lmdb_db_t db;
     db.txn = txn;
-    ret = ln_lmdb_check_version(&db, my_nodeid);
+    ret = ln_lmdb_ver_check(&db, my_nodeid);
     assert(ret == 0);
 
 #ifdef M_DEBUG

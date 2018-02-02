@@ -98,7 +98,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         ln_self_t self;
         memset(&self, 0, sizeof(self));
 
-        int retval = ln_lmdb_load_channel(&self, txn, &dbi);
+        int retval = ln_lmdb_self_load(&self, txn, &dbi);
         if (retval != 0) {
             return;
         }
@@ -159,7 +159,7 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
             ucoin_buf_t buf;
 
             ucoin_buf_init(&buf);
-            ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &timestamp, &buf);
+            ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
             if (ret == 0) {
                 if (type == LN_DB_CNLANNO_ANNO) {
                     if (cnt1) {
@@ -211,7 +211,7 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
             uint8_t nodeid[UCOIN_SZ_PUBKEY];
 
             ucoin_buf_init(&buf);
-            ret = ln_lmdb_load_anno_node_cursor(cursor, &buf, &timestamp, nodeid);
+            ret = ln_lmdb_annonod_cur_load(cursor, &buf, &timestamp, nodeid);
             if (ret == 0) {
                 if (!(showflag & SHOW_NODEANNO_PEER)) {
                     if (cnt2) {
@@ -262,7 +262,7 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
         while (ret) {
             uint8_t preimage[LN_SZ_PREIMAGE];
             uint64_t amount;
-            ret = ln_db_cursor_preimage_get(&cur, preimage, &amount);
+            ret = ln_db_preimg_cur_get(&cur, preimage, &amount);
             if (ret) {
                 if (cnt4) {
                     printf(",");
@@ -427,7 +427,7 @@ int main(int argc, char *argv[])
     assert(ret == 0);
     ln_lmdb_db_t db;
     db.txn = txn;
-    ret = ln_lmdb_check_version(&db, NULL);
+    ret = ln_lmdb_ver_check(&db, NULL);
     if (ret != 0) {
         fprintf(stderr, "fail: DB version not match.\n");
         return -1;

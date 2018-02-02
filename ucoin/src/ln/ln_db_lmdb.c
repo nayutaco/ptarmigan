@@ -352,7 +352,7 @@ bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = ln_lmdb_load_channel(self, txn, &dbi);
+    retval = ln_lmdb_self_load(self, txn, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
@@ -386,7 +386,7 @@ LABEL_EXIT2:
 }
 #endif
 
-int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
+int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 {
     MDB_val     key, data;
 
@@ -497,7 +497,7 @@ int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
 }
 
 
-bool ln_db_save_channel(const ln_self_t *self)
+bool ln_db_self_save(const ln_self_t *self)
 {
     int         retval;
     ln_lmdb_db_t   db;
@@ -547,7 +547,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_del_channel(const ln_self_t *self, void *p_db_param)
+bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
 {
     int         retval;
     MDB_dbi     dbi_anno;
@@ -646,7 +646,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
+bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
     bool result = false;
     int retval;
@@ -689,7 +689,7 @@ bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam)
                 ln_self_t self;
 
                 memset(&self, 0, sizeof(self));
-                retval = ln_lmdb_load_channel(&self, cur.txn, &dbi2);
+                retval = ln_lmdb_self_load(&self, cur.txn, &dbi2);
                 if (retval == 0) {
                     result = (*pFunc)(&self, (void *)&cur, pFuncParam);
                     if (result) {
@@ -715,7 +715,7 @@ LABEL_EXIT:
  * announcement用DB
  ********************************************************************/
 
-bool ln_db_cursor_anno_transaction(void **ppDb, ln_db_txn_t Type)
+bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type)
 {
     MDB_txn *txn = NULL;
 
@@ -748,7 +748,7 @@ bool ln_db_cursor_anno_transaction(void **ppDb, ln_db_txn_t Type)
 }
 
 
-void ln_db_cursor_anno_commit(void *pDb)
+void ln_db_anno_cur_commit(void *pDb)
 {
     if (pDb != NULL) {
         ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -788,7 +788,7 @@ void ln_db_cursor_anno_commit(void *pDb)
  *
  ********************************************************************/
 
-bool ln_db_load_anno_channel(ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
+bool ln_db_annocnl_load(ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
 {
     int         retval;
     ln_lmdb_db_t   db;
@@ -814,7 +814,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_save_anno_channel(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId)
+bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId)
 {
     int         retval;
     ln_lmdb_db_t   db, db_info;
@@ -845,7 +845,7 @@ bool ln_db_save_anno_channel(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelI
     if (retval != 0) {
         retval = save_anno_channel(&db, pCnlAnno, ShortChannelId);
         if ((retval == 0) && (pSendId != NULL)) {
-            bool ret = ln_db_channel_anno_add_nodeid(&db_info, ShortChannelId, LN_DB_CNLANNO_ANNO, pSendId);
+            bool ret = ln_db_annocnls_add_nodeid(&db_info, ShortChannelId, LN_DB_CNLANNO_ANNO, pSendId);
             if (!ret) {
                 retval = -1;
             }
@@ -864,7 +864,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_load_anno_channel_upd(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir)
+bool ln_db_annocnlupd_load(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir)
 {
     int         retval;
     ln_lmdb_db_t   db;
@@ -890,7 +890,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pSendId)
+bool ln_db_annocnlupd_save(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pSendId)
 {
     int             retval;
     ln_lmdb_db_t    db, db_info;
@@ -954,7 +954,7 @@ bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, const ln_cnl_update
         retval = save_anno_channel_upd(&db, pCnlUpd, pUpd);
         if ((retval == 0) && (pSendId != NULL)) {
             char type = ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1;
-            bool ret = ln_db_channel_anno_add_nodeid(&db_info, pUpd->short_channel_id, type, pSendId);
+            bool ret = ln_db_annocnls_add_nodeid(&db_info, pUpd->short_channel_id, type, pSendId);
             if (!ret) {
                 retval = -1;
             }
@@ -968,7 +968,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_del_anno_channel(uint64_t ShortChannelId)
+bool ln_db_annocnlall_del(uint64_t ShortChannelId)
 {
     int         retval;
     MDB_txn     *txn;
@@ -1019,7 +1019,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_channel_anno_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId)
+bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId)
 {
     bool ret = false;
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -1042,7 +1042,7 @@ bool ln_db_channel_anno_search_nodeid(void *pDb, uint64_t ShortChannelId, char T
 }
 
 
-bool ln_db_channel_anno_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId)
+bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId)
 {
     bool ret = true;
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -1068,7 +1068,7 @@ bool ln_db_channel_anno_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type
 }
 
 
-uint64_t ln_db_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2)
+uint64_t ln_db_annocnlall_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2)
 {
     bool ret;
     int retval;
@@ -1107,7 +1107,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_cursor_anno_channel_open(void **ppCur, void *pDb)
+bool ln_db_annocnl_cur_open(void **ppCur, void *pDb)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -1126,7 +1126,7 @@ bool ln_db_cursor_anno_channel_open(void **ppCur, void *pDb)
 }
 
 
-void ln_db_cursor_anno_channel_close(void *pCur)
+void ln_db_annocnl_cur_close(void *pCur)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
@@ -1135,17 +1135,17 @@ void ln_db_cursor_anno_channel_close(void *pCur)
 }
 
 
-bool ln_db_cursor_anno_channel_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf)
+bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
-    int retval = ln_lmdb_load_anno_channel_cursor(p_cur->cursor, pShortChannelId, pType, pTimeStamp, pBuf);
+    int retval = ln_lmdb_annocnl_cur_load(p_cur->cursor, pShortChannelId, pType, pTimeStamp, pBuf);
 
     return retval == 0;
 }
 
 
-int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf)
+int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf)
 {
     MDB_val key, data;
 
@@ -1186,7 +1186,7 @@ int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *pShortChannelId,
  * node_announcement
  ********************************************************************/
 
-bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDbParam)
+bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDbParam)
 {
     int         retval;
     ln_lmdb_db_t   db;
@@ -1217,7 +1217,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_save_anno_node(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId)
+bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId)
 {
     int             retval;
     ln_lmdb_db_t    db, db_info;
@@ -1278,7 +1278,7 @@ bool ln_db_save_anno_node(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t
     if (upddb) {
         retval = save_anno_node(&db, pNodeAnno, pAnno);
         if ((retval == 0) && (pSendId != NULL)) {
-            bool ret = ln_db_node_anno_add_nodeid(&db_info, pAnno->p_node_id, pSendId);
+            bool ret = ln_db_annonod_add_nodeid(&db_info, pAnno->p_node_id, pSendId);
             if (!ret) {
                 retval = -1;
             }
@@ -1292,7 +1292,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_node_anno_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId)
+bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId)
 {
     DBG_PRINTF("node_id= ");
     DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
@@ -1318,7 +1318,7 @@ bool ln_db_node_anno_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint
 }
 
 
-bool ln_db_node_anno_add_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId)
+bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId)
 {
     bool ret = false;
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -1339,7 +1339,7 @@ bool ln_db_node_anno_add_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t
 }
 
 
-bool ln_db_cursor_anno_node_open(void **ppCur, void *pDb)
+bool ln_db_annonod_cur_open(void **ppCur, void *pDb)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -1358,7 +1358,7 @@ bool ln_db_cursor_anno_node_open(void **ppCur, void *pDb)
 }
 
 
-void ln_db_cursor_anno_node_close(void *pCur)
+void ln_db_annonod_cur_close(void *pCur)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
@@ -1367,17 +1367,17 @@ void ln_db_cursor_anno_node_close(void *pCur)
 }
 
 
-bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId)
+bool ln_db_annonod_cur_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
-    int retval = ln_lmdb_load_anno_node_cursor(p_cur->cursor, pBuf, pTimeStamp, pNodeId);
+    int retval = ln_lmdb_annonod_cur_load(p_cur->cursor, pBuf, pTimeStamp, pNodeId);
 
     return retval == 0;
 }
 
 
-int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId)
+int ln_lmdb_annonod_cur_load(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId)
 {
     MDB_val key, data;
 
@@ -1406,7 +1406,7 @@ int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *
  * payment preimage
  **************************************************************************/
 
-bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam)
+bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam)
 {
     bool ret;
     ln_lmdb_db_t db;
@@ -1439,7 +1439,7 @@ bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbPar
 }
 
 
-bool ln_db_del_preimage(const uint8_t *pPreImage)
+bool ln_db_preimg_del(const uint8_t *pPreImage)
 {
     bool ret;
     int retval = -1;
@@ -1477,7 +1477,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_del_preimage_hash(const uint8_t *pPreImageHash)
+bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash)
 {
     int retval = -1;
     bool ret;
@@ -1486,9 +1486,9 @@ bool ln_db_del_preimage_hash(const uint8_t *pPreImageHash)
     uint8_t preimage_hash[LN_SZ_HASH];
     uint64_t amount;
 
-    ret = ln_db_cursor_preimage_open((void **)&p_cur);
+    ret = ln_db_preimg_cur_open((void **)&p_cur);
     while (ret) {
-        ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
+        ret = ln_db_preimg_cur_get(p_cur, preimage, &amount);
         if (ret) {
             ln_calc_preimage_hash(preimage_hash, preimage);
             if (memcmp(preimage_hash, pPreImageHash, LN_SZ_HASH) == 0) {
@@ -1497,13 +1497,13 @@ bool ln_db_del_preimage_hash(const uint8_t *pPreImageHash)
             }
         }
     }
-    ln_db_cursor_preimage_close(p_cur);
+    ln_db_preimg_cur_close(p_cur);
 
     return retval == 0;
 }
 
 
-bool ln_db_cursor_preimage_open(void **ppCur)
+bool ln_db_preimg_cur_open(void **ppCur)
 {
     int         retval;
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
@@ -1538,7 +1538,7 @@ LABEL_EXIT:
 }
 
 
-void ln_db_cursor_preimage_close(void *pCur)
+void ln_db_preimg_cur_close(void *pCur)
 {
     if (pCur != NULL) {
         lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
@@ -1550,7 +1550,7 @@ void ln_db_cursor_preimage_close(void *pCur)
 }
 
 
-bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount)
+bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     int retval;
@@ -1587,7 +1587,7 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
  * payment_hash
  ********************************************************************/
 
-bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry, void *pDbParam)
+bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry, void *pDbParam)
 {
     int         retval;
     MDB_txn     *txn = NULL;
@@ -1637,7 +1637,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_search_payhash(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam)
+bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam)
 {
     int         retval;
     MDB_txn     *txn = NULL;
@@ -1694,7 +1694,7 @@ LABEL_EXIT:
  * revoked transaction用データ
  **************************************************************************/
 
-bool ln_db_load_revoked(ln_self_t *self, void *pDbParam)
+bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
 {
     MDB_val key, data;
     MDB_txn     *txn;
@@ -1774,7 +1774,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam)
+bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
 {
     MDB_val key, data;
     ln_lmdb_db_t   db;
@@ -1879,7 +1879,7 @@ LABEL_EXIT:
  * version
  **************************************************************************/
 
-int ln_lmdb_check_version(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
+int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
 {
     int         retval;
 
@@ -1894,6 +1894,10 @@ LABEL_EXIT:
     return retval;
 }
 
+
+/********************************************************************
+ * others
+ ********************************************************************/
 
 ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
 {

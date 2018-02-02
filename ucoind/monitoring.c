@@ -89,7 +89,7 @@ void *monitor_thread_start(void *pArg)
     (void)pArg;
 
     mMonitoring = true;
-    ln_db_search_channel(monfunc, NULL);
+    ln_db_self_search(monfunc, NULL);
 
     while (mMonitoring) {
         //ループ解除まで時間が長くなるので、短くチェックする
@@ -100,7 +100,7 @@ void *monitor_thread_start(void *pArg)
             }
         }
 
-        ln_db_search_channel(monfunc, NULL);
+        ln_db_self_search(monfunc, NULL);
     }
     DBG_PRINTF("stop\n");
 
@@ -248,7 +248,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         bool ret = jsonrpc_getxout(&unspent, &sat, ln_funding_txid(self), ln_funding_txindex(self));
         if (ret && !unspent) {
             //funding_tx使用済み
-            ln_db_load_revoked(self, p_db_param);
+            ln_db_revtx_load(self, p_db_param);
             const ucoin_buf_t *p_vout = ln_revoked_vout(self);
             if (p_vout == NULL) {
                 //展開されているのが最新のcommit_txか
@@ -315,7 +315,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         }
         if (del) {
             DBG_PRINTF("delete from DB\n");
-            ret = ln_db_del_channel(self, p_db_param);
+            ret = ln_db_self_del(self, p_db_param);
             assert(ret);
         }
     }
@@ -347,7 +347,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
                 if (p_buf != NULL) {
                     DBG_PRINTF("backward preimage: ");
                     DUMPBIN(p_buf->buf, p_buf->len);
-                    ln_db_save_preimage(p_buf->buf, 0, pDbParam);
+                    ln_db_preimg_save(p_buf->buf, 0, pDbParam);
                 } else {
                     assert(0);
                 }
@@ -522,7 +522,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
                 if (p_buf != NULL) {
                     DBG_PRINTF("backward preimage: ");
                     DUMPBIN(p_buf->buf, p_buf->len);
-                    ln_db_save_preimage(p_buf->buf, 0, pDbParam);
+                    ln_db_preimg_save(p_buf->buf, 0, pDbParam);
                 } else {
                     assert(0);
                 }
@@ -631,7 +631,7 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
         }
     }
     if (save) {
-        ln_db_save_revoked(self, true, pDbParam);
+        ln_db_revtx_save(self, true, pDbParam);
     }
 
     return del;
@@ -676,7 +676,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
 
             if (sendret) {
                 ln_set_revoked_confm(self, confm);
-                ln_db_save_revoked(self, false, pDbParam);
+                ln_db_revtx_save(self, false, pDbParam);
                 DBG_PRINTF("del=%d, revoked_cnt=%d\n", del, ln_revoked_cnt(self));
             } else {
                 //送信エラーがあった場合には、次回やり直す
@@ -684,7 +684,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
             }
         } else {
             ln_set_revoked_confm(self, confm);
-            ln_db_save_revoked(self, false, pDbParam);
+            ln_db_revtx_save(self, false, pDbParam);
             DBG_PRINTF("no target txid: %d, revoked_cnt=%d\n", confm, ln_revoked_cnt(self));
         }
     } else {

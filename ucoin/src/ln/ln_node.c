@@ -72,7 +72,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 
     ln_db_init(ln_node_id(node));
 
-    ret = ln_db_load_anno_node(&buf_node, NULL, ln_node_id(node), NULL);
+    ret = ln_db_annonod_load(&buf_node, NULL, ln_node_id(node), NULL);
     if (!ret) {
         //自node_announcement無し
         ln_node_announce_t anno;
@@ -89,7 +89,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
         if (!ret) {
             goto LABEL_EXIT;
         }
-        ret = ln_db_save_anno_node(&buf_node, &anno, NULL);
+        ret = ln_db_annonod_save(&buf_node, &anno, NULL);
     }
 
 LABEL_EXIT:
@@ -111,7 +111,7 @@ bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId)
 
     prm.p_node_id = pNodeId;
     prm.p_self = pSelf;
-    bool detect = ln_db_search_channel(comp_func_cnl, &prm);
+    bool detect = ln_db_self_search(comp_func_cnl, &prm);
 
     DBG_PRINTF("search id:");
     DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
@@ -126,7 +126,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
     ucoin_buf_t buf_anno;
 
     ucoin_buf_init(&buf_anno);
-    bool ret = ln_db_load_anno_node(&buf_anno, NULL, pNodeId, pDbParam);
+    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId, pDbParam);
     if (ret) {
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;
@@ -167,7 +167,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     ucoin_buf_t buf_ann;
     buf_ann.buf = (CONST_CAST uint8_t *)pData;
     buf_ann.len = Len;
-    ret = ln_db_save_anno_node(&buf_ann, &ann, ln_their_node_id(self));
+    ret = ln_db_annonod_save(&buf_ann, &ann, ln_their_node_id(self));
     if (ret) {
         (*self->p_callback)(self, LN_CB_NODE_ANNO_RECV, &ann);
     }
