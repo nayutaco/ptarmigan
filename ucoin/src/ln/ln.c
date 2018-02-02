@@ -325,8 +325,10 @@ bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t
             }
         }
         if (self->p_node->keys.pub[lp] < self->peer_node.node_id[lp]) {
+            DBG_PRINTF("my node= first\n");
             self->peer_node.sort = UCOIN_KEYS_SORT_ASC;
         } else {
+            DBG_PRINTF("my node= second\n");
             self->peer_node.sort = UCOIN_KEYS_SORT_OTHER;
         }
     }
@@ -472,7 +474,8 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    for (int lp = 0; lp < (int)ARRAY_SIZE(RECV_FUNC); lp++) {
+    size_t lp;
+    for (lp = 0; lp < ARRAY_SIZE(RECV_FUNC); lp++) {
         if (type == RECV_FUNC[lp].type) {
             //DBG_PRINTF("type=%04x: Len=%d\n", type, Len);
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);
@@ -481,6 +484,9 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             }
             break;
         }
+    }
+    if (lp == ARRAY_SIZE(RECV_FUNC)) {
+        DBG_PRINTF("not match: type=%04x\n", type);
     }
 
     return ret;
@@ -739,7 +745,7 @@ bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_
     pUpd->fee_prop_millionths = self->anno_default.fee_prop_millionths;
     //署名
     pUpd->p_key = self->p_node->keys.priv;
-    pUpd->sort = self->peer_node.sort;
+    pUpd->flags = self->peer_node.sort;
     bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
     return ret;
@@ -2969,7 +2975,7 @@ LABEL_EXIT:
  */
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    //DBG_PRINTF("\n");
+    DBG_PRINTF("\n");
 
     ln_cnl_announce_read_t ann;
     ln_cb_channel_anno_recv_t param;
@@ -3002,7 +3008,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         // otherwise it SHOULD store this channel_announcement.
         if (ucoin_buf_cmp(&buf_bolt, &buf)) {
             if (param.is_unspent) {
-                //DBG_PRINTF("同じものが送られてきたので、スルー\n");
+                DBG_PRINTF("同じものが送られてきたので、スルー\n");
             } else {
                 //closeされたとみなして削除
                 ret = ln_db_del_anno_channel(ann.short_channel_id);
@@ -3041,7 +3047,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     (void)self;
-    //DBG_PRINTF("\n");
+    DBG_PRINTF("\n");
 
     ln_cnl_update_t upd;
     memset(&upd, 0, sizeof(upd));

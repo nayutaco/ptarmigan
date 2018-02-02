@@ -64,7 +64,7 @@ void ln_print_self(const ln_self_t *self);
 void ln_print_announce(const uint8_t *pData, uint16_t Len);
 void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
 void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
-void ln_lmdb_setenv(MDB_env *p_env);
+void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
 
 
 
@@ -208,11 +208,10 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
         do {
             ucoin_buf_t buf;
             uint32_t timestamp;
-            uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
             uint8_t nodeid[UCOIN_SZ_PUBKEY];
 
             ucoin_buf_init(&buf);
-            ret = ln_lmdb_load_anno_node_cursor(cursor, &buf, &timestamp, send_nodeid, nodeid);
+            ret = ln_lmdb_load_anno_node_cursor(cursor, &buf, &timestamp, nodeid);
             if (ret == 0) {
                 if (!(showflag & SHOW_NODEANNO_PEER)) {
                     if (cnt2) {
@@ -404,7 +403,6 @@ int main(int argc, char *argv[])
 
     ret = mdb_env_create(&mpDbEnv);
     assert(ret == 0);
-    ln_lmdb_setenv(mpDbEnv);
     ret = mdb_env_set_maxdbs(mpDbEnv, 2);
     assert(ret == 0);
     ret = mdb_env_open(mpDbEnv, dbpath, MDB_RDONLY, 0664);
@@ -414,7 +412,6 @@ int main(int argc, char *argv[])
     }
     ret = mdb_env_create(&mpDbAnno);
     assert(ret == 0);
-    ln_lmdb_setenv(mpDbAnno);
     ret = mdb_env_set_maxdbs(mpDbAnno, 2);
     assert(ret == 0);
     ret = mdb_env_open(mpDbAnno, annopath, MDB_RDONLY, 0664);
@@ -422,6 +419,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "fail: cannot open[%s]\n", annopath);
         return -1;
     }
+    ln_lmdb_setenv(mpDbEnv, mpDbAnno);
 
     MDB_env *p_env = (env == 0) ? mpDbEnv : mpDbAnno;
 

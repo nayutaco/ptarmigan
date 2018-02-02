@@ -68,7 +68,8 @@
 #define M_DB_PAYHASH            "payhash"
 #define M_DB_VERSION            "version"
 
-#define M_SZ_ANNOINFO           (sizeof(uint64_t) + 1)
+#define M_SZ_ANNOINFO_CNL           (sizeof(uint64_t) + 1)
+#define M_SZ_ANNOINFO_NODE          (UCOIN_SZ_PUBKEY)
 
 #define M_DB_VERSION_VAL        (-14)           ///< DBバージョン
 /*
@@ -93,11 +94,17 @@
  * macro functions
  ********************************************************************/
 
-#define M_ANNOINFO_SETKEY(keydata, key, short_channel_id, type) {\
+#define M_ANNOINFO_CNL_SET(keydata, key, short_channel_id, type) {\
     key.mv_size = sizeof(keydata);\
     key.mv_data = keydata;\
     memcpy(keydata, &short_channel_id, LN_SZ_SHORT_CHANNEL_ID);\
     keydata[LN_SZ_SHORT_CHANNEL_ID] = type;\
+}
+
+#define M_ANNOINFO_NODE_SET(keydata, key, node_id) {\
+    key.mv_size = sizeof(keydata);\
+    key.mv_data = keydata;\
+    memcpy(keydata, node_id, UCOIN_SZ_PUBKEY);\
 }
 
 #ifndef M_DB_DEBUG
@@ -106,7 +113,7 @@
 #define MDB_TXN_COMMIT(a)           int txn_retval = mdb_txn_commit(a); if (txn_retval) DBG_PRINTF("err: %s\n", mdb_strerror(txn_retval))
 #else
 static int g_cnt[2];
-#define MDB_TXN_BEGIN(a,b,c,d)      my_mdb_txn_begin(a,b,c,d); DBG_PRINTF("\n");
+#define MDB_TXN_BEGIN(a,b,c,d)      my_mdb_txn_begin(a,b,c,d, __LINE__); DBG_PRINTF("\n");
 //#define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d); int ggg1=(a==mpDbEnv)?0:1; g_cnt[ggg1]++; DBG_PRINTF("mdb_txn_begin:[%d]%d(%d)\n", ggg1, g_cnt[ggg1], (int)c);
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a); int ggg2=(mdb_txn_env(a)==mpDbEnv)?0:1; g_cnt[ggg2]--; DBG_PRINTF("mdb_txn_abort:[%d]%d\n", ggg2, g_cnt[ggg2])
 #define MDB_TXN_COMMIT(a)           int txn_retval = mdb_txn_commit(a); int ggg3=(mdb_txn_env(a)==mpDbEnv)?0:1;  g_cnt[ggg3]--; DBG_PRINTF("mdb_txn_commit:[%d]%d\n", ggg3, g_cnt[ggg3]); if (txn_retval) DBG_PRINTF("err: %s\n", mdb_strerror(txn_retval))
@@ -197,16 +204,16 @@ static int save_anno_channel(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlAnno, uin
 static bool open_anno_channel_cursor(lmdb_cursor_t *pCur);
 //static bool search_anno_channel(lmdb_cursor_t *pCur, uint64_t ShortChannelId, ucoin_buf_t *pBuf, char Type);
 
-static bool search_annoinfo(MDB_val *pMdbData, const uint8_t *pNodeId);
-static bool add_annoinfo(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId);
-static void clr_annoinfo(ln_lmdb_db_t *pDb);
-
 static int load_anno_channel_upd(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir);
 static int save_anno_channel_upd(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd);
 
-static int load_anno_node(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId);
-static int save_anno_node(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId);
+static int load_anno_node(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
+static int save_anno_node(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno);
 static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags);
+
+static bool add_annoinfo(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId);
+static bool search_annoinfo(MDB_val *pMdbData, const uint8_t *pNodeId);
+static void clr_annoinfo(ln_lmdb_db_t *pDb);
 
 static bool save_preimage_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
 static void save_preimage_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
@@ -218,10 +225,10 @@ static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 
 
 #ifdef M_DB_DEBUG
-static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **txn) {
+static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **txn, int line) {
     int ggg1 = (env == mpDbEnv) ? 0 : 1;
     g_cnt[ggg1]++;
-    DBG_PRINTF("mdb_txn_begin:[%d]%d(%d)\n", ggg1, g_cnt[ggg1], (int)flags);
+    DBG_PRINTF("mdb_txn_begin:%d:[%d]%d(%d)\n", line, ggg1, g_cnt[ggg1], (int)flags);
     if ((ggg1 == 1) && (g_cnt[ggg1] > 1)) {
         DBG_PRINTF("multi txs\n");
         //return 0;
@@ -708,7 +715,7 @@ LABEL_EXIT:
  * announcement用DB
  ********************************************************************/
 
-bool ln_db_anno_transaction(void **ppDb)
+bool ln_db_cursor_anno_transaction(void **ppDb, ln_db_txn_t Type)
 {
     MDB_txn *txn = NULL;
 
@@ -718,7 +725,19 @@ bool ln_db_anno_transaction(void **ppDb)
         p_db->txn = txn;
         *ppDb = p_db;
 
-        retval = mdb_dbi_open(txn, M_DB_ANNOINFO_CNL, 0, &p_db->dbi);
+        const char *p_name;
+        switch (Type) {
+        case LN_DB_TXN_CNL:
+            p_name = M_DB_ANNOINFO_CNL;
+            break;
+        case LN_DB_TXN_NODE:
+            p_name = M_DB_ANNOINFO_NODE;
+            break;
+        default:
+            assert(0);
+            return false;
+        }
+        retval = mdb_dbi_open(txn, p_name, MDB_CREATE, &p_db->dbi);
     }
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -729,7 +748,7 @@ bool ln_db_anno_transaction(void **ppDb)
 }
 
 
-void ln_db_anno_commit(void *pDb)
+void ln_db_cursor_anno_commit(void *pDb)
 {
     if (pDb != NULL) {
         ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -795,7 +814,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_save_anno_channel(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pNodeId)
+bool ln_db_save_anno_channel(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId)
 {
     int         retval;
     ln_lmdb_db_t   db, db_info;
@@ -825,34 +844,17 @@ bool ln_db_save_anno_channel(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelI
     retval = load_anno_channel(&db, &buf_ann, ShortChannelId);
     if (retval != 0) {
         retval = save_anno_channel(&db, pCnlAnno, ShortChannelId);
+        if ((retval == 0) && (pSendId != NULL)) {
+            bool ret = ln_db_channel_anno_add_nodeid(&db_info, ShortChannelId, LN_DB_CNLANNO_ANNO, pSendId);
+            if (!ret) {
+                retval = -1;
+            }
+        }
     } else {
         if (!ucoin_buf_cmp(&buf_ann, pCnlAnno)) {
             DBG_PRINTF("fail: different channel_announcement\n");
             retval = -1;
         }
-    }
-
-    //channel_announcement info
-    MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO];
-    bool detect = true;
-
-    M_ANNOINFO_SETKEY(keydata, key, ShortChannelId, LN_DB_CNLANNO_ANNO);
-    data.mv_size = 0;
-    if (retval == 0) {
-        retval = mdb_get(db_info.txn, db_info.dbi, &key, &data);
-        if (retval != 0) {
-            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-            detect = false;
-        }
-    }
-    if (retval == 0) {
-        detect = search_annoinfo(&data, pNodeId);
-    }
-    if (!detect) {
-        //新規なら追加
-        bool ret = add_annoinfo(&db_info, &key, &data, pNodeId);
-        retval = (ret) ? 0 : -1;
     }
 
     MDB_TXN_COMMIT(db.txn);
@@ -888,12 +890,10 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pNodeId)
+bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pSendId)
 {
-    int         retval;
-    ln_lmdb_db_t   db, db_info;
-    bool        upddb = false;
-    ucoin_buf_t buf_upd;
+    int             retval;
+    ln_lmdb_db_t    db, db_info;
 
     retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -901,11 +901,11 @@ bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, const ln_cnl_update
         goto LABEL_EXIT;
     }
     db_info.txn = db.txn;
-    ucoin_buf_init(&buf_upd);
     retval = mdb_dbi_open(db.txn, M_DB_ANNO_CNL, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_ABORT;
+        MDB_TXN_ABORT(db.txn);
+        goto LABEL_EXIT;
     }
     retval = mdb_dbi_open(db.txn, M_DB_ANNOINFO_CNL, MDB_CREATE, &db_info.dbi);
     if (retval != 0) {
@@ -914,26 +914,34 @@ bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, const ln_cnl_update
         goto LABEL_EXIT;
     }
 
-    uint32_t timestamp;
-    retval = load_anno_channel_upd(&db, &buf_upd, &timestamp, pUpd->short_channel_id, pUpd->sort);
+    ucoin_buf_t     buf_upd;
+    uint32_t        timestamp;
+    bool            upddb = false;
+
+    ucoin_buf_init(&buf_upd);
+    retval = load_anno_channel_upd(&db, &buf_upd, &timestamp, pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
     if (retval == 0) {
-        if (ucoin_buf_cmp(&buf_upd, pCnlUpd)) {
-            //DBG_PRINTF("same channel_update: %d\n", pUpd->sort);
+        if (timestamp > pUpd->timestamp) {
+            //自分の方が新しければ、スルー
+            //DBG_PRINTF("my channel_update is newer\n");
+        } else if (timestamp < pUpd->timestamp) {
+            //自分の方が古いので、更新
+            //DBG_PRINTF("gotten channel_update is newer\n");
+            upddb = true;
         } else {
-            //不一致
-            if (timestamp > pUpd->timestamp) {
-                //自分の方が新しければ、スルー
-                DBG_PRINTF("my channel_update is newer\n");
-                retval = 0;
-            } else if (timestamp < pUpd->timestamp) {
-                //自分の方が古いので、更新
-                DBG_PRINTF("gotten channel_update is newer\n");
-                upddb = true;
+            if (ucoin_buf_cmp(&buf_upd, pCnlUpd)) {
+                //DBG_PRINTF("same channel_update: %d\n", ln_cnlupd_direction(pUpd));
             } else {
                 //日時が同じなのにデータが異なる
-                DBG_PRINTF("err: channel_update %d mismatch !\n", pUpd->sort);
+                DBG_PRINTF("err: channel_update %d mismatch !\n", ln_cnlupd_direction(pUpd));
+                DBG_PRINTF("  db: ");
+                DUMPBIN(buf_upd.buf, buf_upd.len);
+                DBG_PRINTF("  rv: ");
+                DUMPBIN(pCnlUpd->buf, pCnlUpd->len);
                 retval = -1;
-                goto LABEL_ABORT;
+                ucoin_buf_free(&buf_upd);
+                MDB_TXN_ABORT(db.txn);
+                goto LABEL_EXIT;
             }
         }
     } else {
@@ -944,9 +952,9 @@ bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, const ln_cnl_update
 
     if (upddb) {
         retval = save_anno_channel_upd(&db, pCnlUpd, pUpd);
-        if (retval == 0) {
-            char type = (pUpd->sort) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1;
-            bool ret = ln_db_channel_anno_add_nodeid(&db_info, pUpd->short_channel_id, type, pNodeId);
+        if ((retval == 0) && (pSendId != NULL)) {
+            char type = ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1;
+            bool ret = ln_db_channel_anno_add_nodeid(&db_info, pUpd->short_channel_id, type, pSendId);
             if (!ret) {
                 retval = -1;
             }
@@ -957,11 +965,6 @@ bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, const ln_cnl_update
 
 LABEL_EXIT:
     return retval == 0;
-
-LABEL_ABORT:
-    MDB_TXN_ABORT(db.txn);
-    ucoin_buf_free(&buf_upd);
-    return false;
 }
 
 
@@ -971,7 +974,7 @@ bool ln_db_del_anno_channel(uint64_t ShortChannelId)
     MDB_txn     *txn;
     MDB_dbi     dbi, dbi_info;
     MDB_val     key;
-    uint8_t     keydata[M_SZ_ANNOINFO];
+    uint8_t     keydata[M_SZ_ANNOINFO_CNL];
 
     retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
     if (retval != 0) {
@@ -990,7 +993,7 @@ bool ln_db_del_anno_channel(uint64_t ShortChannelId)
         goto LABEL_ABORT;
     }
 
-    M_ANNOINFO_SETKEY(keydata, key, ShortChannelId, 0);
+    M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, 0);
 
     char POSTFIX[] = { LN_DB_CNLANNO_ANNO, LN_DB_CNLANNO_UPD1, LN_DB_CNLANNO_UPD2 };
     for (size_t lp = 0; lp < ARRAY_SIZE(POSTFIX); lp++) {
@@ -1016,21 +1019,21 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_channel_anno_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pNodeId)
+bool ln_db_channel_anno_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId)
 {
     bool ret = false;
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL];
 
-    M_ANNOINFO_SETKEY(keydata, key, ShortChannelId, Type);
+    M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, Type);
     int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
     if (retval == 0) {
         //DBG_PRINTF("short_channel_id[%c]= %" PRIx64 "\n", Type, ShortChannelId);
-        //DBG_PRINTF("node_id= ");
-        //DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-        ret = search_annoinfo(&data, pNodeId);
+        //DBG_PRINTF("send_id= ");
+        //DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
+        ret = search_annoinfo(&data, pSendId);
     } else {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
@@ -1039,22 +1042,27 @@ bool ln_db_channel_anno_search_nodeid(void *pDb, uint64_t ShortChannelId, char T
 }
 
 
-bool ln_db_channel_anno_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pNodeId)
+bool ln_db_channel_anno_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId)
 {
-    bool ret = false;
+    bool ret = true;
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL];
+    bool detect = false;
 
-    M_ANNOINFO_SETKEY(keydata, key, ShortChannelId, Type);
+    M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, Type);
     int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
-    if (retval != 0) {
+    if (retval == 0) {
+        detect = search_annoinfo(&data, pSendId);
+    } else {
         DBG_PRINTF("new[%c] ", Type);
-        DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+        DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
         data.mv_size = 0;
     }
-    ret = add_annoinfo(p_db, &key, &data, pNodeId);
+    if (!detect) {
+        ret = add_annoinfo(p_db, &key, &data, pSendId);
+    }
 
     return ret;
 }
@@ -1076,7 +1084,7 @@ uint64_t ln_db_search_channel_short_channel_id(const uint8_t *pNodeId1, const ui
 
     while ((retval = mdb_cursor_get(cur.cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
         if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
-            if (*(char *)(key.mv_data + LN_SZ_SHORT_CHANNEL_ID) == LN_DB_CNLANNO_ANNO) {
+            if (*(char *)((uint8_t *)key.mv_data + LN_SZ_SHORT_CHANNEL_ID) == LN_DB_CNLANNO_ANNO) {
                 ln_cnl_announce_read_t ann;
 
                 ret = ln_msg_cnl_announce_read(&ann, data.mv_data, data.mv_size);
@@ -1146,15 +1154,18 @@ int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *pShortChannelId,
         if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
             //key = short_channel_id + type
             memcpy(pShortChannelId, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
-            *pType = *(char *)(key.mv_data + LN_SZ_SHORT_CHANNEL_ID);
+            *pType = *(char *)((uint8_t *)key.mv_data + LN_SZ_SHORT_CHANNEL_ID);
             //data
             uint8_t *pData = (uint8_t *)data.mv_data;
-            if (pTimeStamp != NULL) {
-                *pTimeStamp = *(uint32_t *)pData;
+            if ((*pType == LN_DB_CNLANNO_UPD1) || (*pType == LN_DB_CNLANNO_UPD2)) {
+                if (pTimeStamp != NULL) {
+                    *pTimeStamp = *(uint32_t *)pData;
+                }
+                pData += sizeof(uint32_t);
+                data.mv_size -= sizeof(uint32_t);
+            } else {
+                //channel_announcementにtimestampは無い
             }
-            pData += sizeof(uint32_t);
-            data.mv_size -= sizeof(uint32_t);
-
             ucoin_buf_alloccopy(pBuf, pData, data.mv_size);
         } else {
             DBG_PRINTF("fail: invalid key length: %d\n", (int)key.mv_size);
@@ -1175,13 +1186,13 @@ int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *pShortChannelId,
  * node_announcement
  ********************************************************************/
 
-bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId, void *pDbParam)
+bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDbParam)
 {
     int         retval;
     ln_lmdb_db_t   db;
 
     if (pDbParam == NULL) {
-        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &db.txn);
+        retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
@@ -1195,7 +1206,7 @@ bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t 
         MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
-    retval = load_anno_node(&db, pNodeAnno, pTimeStamp, pSendId, pNodeId);
+    retval = load_anno_node(&db, pNodeAnno, pTimeStamp, pNodeId);
 
     if (pDbParam == NULL) {
         MDB_TXN_ABORT(db.txn);
@@ -1206,25 +1217,73 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_save_anno_node(const ucoin_buf_t *pNodeAnno, const uint8_t *pSendId, const uint8_t *pNodeId)
+bool ln_db_save_anno_node(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId)
 {
-    int         retval;
-    ln_lmdb_db_t   db;
+    int             retval;
+    ln_lmdb_db_t    db, db_info;
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
+    db_info.txn = db.txn;
     retval = mdb_dbi_open(db.txn, M_DB_ANNO_NODE, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
+    retval = mdb_dbi_open(db.txn, M_DB_ANNOINFO_NODE, MDB_CREATE, &db_info.dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.txn);
+        goto LABEL_EXIT;
+    }
 
-    uint32_t now = (uint32_t)time(NULL);
-    retval = save_anno_node(&db, pNodeAnno, now, pSendId, pNodeId);
+    ucoin_buf_t buf_node;
+    uint32_t    timestamp;
+    uint8_t     nodeid[UCOIN_SZ_PUBKEY];
+    bool        upddb = false;
+
+    ucoin_buf_init(&buf_node);
+    retval = load_anno_node(&db, &buf_node, &timestamp, nodeid);
+    if (retval == 0) {
+        if (timestamp > pAnno->timestamp) {
+            //自分の方が新しければ、スルー
+            //DBG_PRINTF("my node_announcement is newer\n");
+            retval = 0;
+        } else if (timestamp < pAnno->timestamp) {
+            //自分の方が古いので、更新
+            //DBG_PRINTF("gotten node_announcement is newer\n");
+            upddb = true;
+        } else {
+            if (ucoin_buf_cmp(&buf_node, pNodeAnno)) {
+                //DBG_PRINTF("same node_announcement\n");
+            } else {
+                //日時が同じなのにデータが異なる
+                DBG_PRINTF("err: node_announcement mismatch !\n");
+                retval = -1;
+                ucoin_buf_free(&buf_node);
+                MDB_TXN_ABORT(db.txn);
+                goto LABEL_EXIT;
+            }
+        }
+    } else {
+        //新規
+        upddb = true;
+    }
+    ucoin_buf_free(&buf_node);
+
+    if (upddb) {
+        retval = save_anno_node(&db, pNodeAnno, pAnno);
+        if ((retval == 0) && (pSendId != NULL)) {
+            bool ret = ln_db_node_anno_add_nodeid(&db_info, pAnno->p_node_id, pSendId);
+            if (!ret) {
+                retval = -1;
+            }
+        }
+    }
 
     MDB_TXN_COMMIT(db.txn);
 
@@ -1233,10 +1292,59 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_cursor_anno_node_open(void **ppCur)
+bool ln_db_node_anno_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId)
+{
+    DBG_PRINTF("node_id= ");
+    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("send_id= ");
+    DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
+
+    bool ret = false;
+    ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
+
+    MDB_val key, data;
+    uint8_t keydata[M_SZ_ANNOINFO_NODE];
+
+    M_ANNOINFO_NODE_SET(keydata, key, pNodeId);
+    int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
+    if (retval == 0) {
+        DBG_PRINTF("search...\n");
+        ret = search_annoinfo(&data, pSendId);
+    } else {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    return ret;
+}
+
+
+bool ln_db_node_anno_add_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId)
+{
+    bool ret = false;
+    ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
+
+    MDB_val key, data;
+    uint8_t keydata[M_SZ_ANNOINFO_NODE];
+
+    M_ANNOINFO_NODE_SET(keydata, key, pNodeId);
+    int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("new ");
+        DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
+        data.mv_size = 0;
+    }
+    ret = add_annoinfo(p_db, &key, &data, pSendId);
+
+    return ret;
+}
+
+
+bool ln_db_cursor_anno_node_open(void **ppCur, void *pDb)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
+    ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
+    p_cur->txn = p_db->txn;
     bool ret = open_anno_node_cursor(p_cur, 0);
     if (ret) {
         *ppCur = p_cur;
@@ -1255,38 +1363,39 @@ void ln_db_cursor_anno_node_close(void *pCur)
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
     mdb_cursor_close(p_cur->cursor);
-    MDB_TXN_COMMIT(p_cur->txn);
     M_FREE(p_cur);
 }
 
 
-bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId)
+bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
-    int retval = ln_lmdb_load_anno_node_cursor(p_cur->cursor, pBuf, pTimeStamp, pSendId, pNodeId);
+    int retval = ln_lmdb_load_anno_node_cursor(p_cur->cursor, pBuf, pTimeStamp, pNodeId);
 
     return retval == 0;
 }
 
 
-int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId)
+int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId)
 {
     MDB_val key, data;
 
     int retval = mdb_cursor_get(cur, &key, &data, MDB_NEXT_NODUP);
     if (retval == 0) {
+        DBG_PRINTF("key:  ");
+        DUMPBIN(key.mv_data, key.mv_size);
+        DBG_PRINTF("data: ");
+        DUMPBIN(data.mv_data, data.mv_size);
         if (pNodeId) {
             memcpy(pNodeId, key.mv_data, key.mv_size);
         }
         memcpy(pTimeStamp, data.mv_data, sizeof(uint32_t));
-        memcpy(pSendId, (uint8_t *)data.mv_data + sizeof(uint32_t), UCOIN_SZ_PUBKEY);
-        ucoin_buf_alloccopy(pBuf, data.mv_data + sizeof(uint32_t) + UCOIN_SZ_PUBKEY,
-                                data.mv_size - sizeof(uint32_t) - UCOIN_SZ_PUBKEY);
+        ucoin_buf_alloccopy(pBuf, (const uint8_t *)data.mv_data + sizeof(uint32_t), data.mv_size - sizeof(uint32_t));
     } else {
-        if (retval != MDB_NOTFOUND) {
-            DBG_PRINTF("fail: mdb_cursor_get(): %d\n", retval);
-        }
+        //if (retval != MDB_NOTFOUND) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        //}
     }
 
     return retval;
@@ -1821,9 +1930,13 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
 }
 
 
-void ln_lmdb_setenv(MDB_env *p_env)
+/* ucoinのDB動作を借りたいために、showdbから使用される。
+ *
+ */
+void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno)
 {
     mpDbEnv = p_env;
+    mpDbAnno = p_anno;
 }
 
 
@@ -2076,17 +2189,17 @@ static int save_channel(const ln_self_t *self, ln_lmdb_db_t *pDb)
  */
 static int load_anno_channel(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
 {
-    //DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
+    DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL];
 
-    M_ANNOINFO_SETKEY(keydata, key, ShortChannelId, LN_DB_CNLANNO_ANNO);
+    M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, LN_DB_CNLANNO_ANNO);
     int retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
     if (retval == 0) {
         ucoin_buf_alloccopy(pCnlAnno, data.mv_data, data.mv_size);
     } else {
-        //DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
     return retval;
@@ -2102,12 +2215,12 @@ static int load_anno_channel(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlAnno, uint64_t 
  */
 static int save_anno_channel(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
 {
-    DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
+    //DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL];
 
-    M_ANNOINFO_SETKEY(keydata, key, ShortChannelId, LN_DB_CNLANNO_ANNO);
+    M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, LN_DB_CNLANNO_ANNO);
     data.mv_size = pCnlAnno->len;
     data.mv_data = pCnlAnno->buf;
     int retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
@@ -2131,14 +2244,12 @@ static bool open_anno_channel_cursor(lmdb_cursor_t *pCur)
     retval = mdb_dbi_open(pCur->txn, M_DB_ANNO_CNL, 0, &pCur->dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(pCur->txn);
         goto LABEL_EXIT;
     }
 
     retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(pCur->txn);
     }
 
 LABEL_EXIT:
@@ -2160,7 +2271,7 @@ static bool search_anno_channel(lmdb_cursor_t *pCur, uint64_t ShortChannelId, uc
         if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
             uint64_t load_sci;
             memcpy(&load_sci, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
-            if ((load_sci == ShortChannelId) && (*(char *)(key.mv_data + LN_SZ_SHORT_CHANNEL_ID) == Type)) {
+            if ((load_sci == ShortChannelId) && (*(char *)((uint8_t *)key.mv_data + LN_SZ_SHORT_CHANNEL_ID) == Type)) {
                 ucoin_buf_alloccopy(pBuf, data.mv_data, data.mv_size);
                 break;
             }
@@ -2183,87 +2294,21 @@ static bool search_anno_channel(lmdb_cursor_t *pCur, uint64_t ShortChannelId, uc
  */
 static int load_anno_channel_upd(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir)
 {
-    //DBG_PRINTF("short_channel_id=%016" PRIx64 ", dir=%d\n", ShortChannelId, Dir);
+    DBG_PRINTF("short_channel_id=%016" PRIx64 ", dir=%d\n", ShortChannelId, Dir);
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL];
 
-    M_ANNOINFO_SETKEY(keydata, key, ShortChannelId, ((Dir) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
+    M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, ((Dir) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
     int retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
     if (retval == 0) {
         *pTimeStamp = *(uint32_t *)data.mv_data;
-        ucoin_buf_alloccopy(pCnlUpd, data.mv_data + sizeof(uint32_t), data.mv_size - sizeof(uint32_t));
+        ucoin_buf_alloccopy(pCnlUpd, (uint8_t *)data.mv_data + sizeof(uint32_t), data.mv_size - sizeof(uint32_t));
     } else {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
 
     return retval;
-}
-
-
-/** annoinfoからnode_idの有無を検索
- *
- * @param[in]   pMdbData
- * @param[in]   pNodeId
- * @retval  true    検出
- */
-static bool search_annoinfo(MDB_val *pMdbData, const uint8_t *pNodeId)
-{
-    int nums = pMdbData->mv_size / UCOIN_SZ_PUBKEY;
-    int lp;
-    for (lp = 0; lp < nums; lp++) {
-        //DBG_PRINTF("  node_id[%d]= ", lp);
-        //DUMPBIN(pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, UCOIN_SZ_PUBKEY);
-        if (memcmp(pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
-            break;
-        }
-    }
-
-    return lp < nums;
-}
-
-
-/** annoinfoにnode_idを追加
- *
- * @param[in,out]   pDb         annoinfo
- * @param[in]       pMdbKey     loadしたchannel_announcement infoのkey
- * @param[in]       pMdbData    loadしたchannel_announcement infoのdata
- * @param[in]       pNodeId     追加するnode_id
- */
-static bool add_annoinfo(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId)
-{
-    int nums = pMdbData->mv_size / UCOIN_SZ_PUBKEY;
-    uint8_t *p_ids = (uint8_t *)M_MALLOC((nums + 1) * UCOIN_SZ_PUBKEY);
-    memcpy(p_ids, pMdbData->mv_data, pMdbData->mv_size);
-    memcpy(p_ids + pMdbData->mv_size, pNodeId, UCOIN_SZ_PUBKEY);
-
-    pMdbData->mv_data = p_ids;
-    pMdbData->mv_size += UCOIN_SZ_PUBKEY;
-    int retval = mdb_put(pDb->txn, pDb->dbi, pMdbKey, pMdbData, 0);
-    if (retval == 0) {
-        DBG_PRINTF("add node: ");
-        DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-    } else {
-        DBG_PRINTF("fail\n");
-    }
-    M_FREE(p_ids);
-
-    return retval == 0;
-}
-
-
-/** annoinfoをクリア
- *
- * @param[in,out]   pDb         annoinfo
- */
-static void clr_annoinfo(ln_lmdb_db_t *pDb)
-{
-    int retval = mdb_drop(pDb->txn, pDb->dbi, 0);
-    if (retval == 0) {
-        DBG_PRINTF("clear\n");
-    } else {
-        DBG_PRINTF("fail\n");
-    }
 }
 
 
@@ -2276,12 +2321,12 @@ static void clr_annoinfo(ln_lmdb_db_t *pDb)
  */
 static int save_anno_channel_upd(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd)
 {
-    //DBG_PRINTF("short_channel_id=%016" PRIx64 ", dir=%d\n", pUpd->short_channel_id, pUpd->sort);
+    DBG_PRINTF("short_channel_id=%016" PRIx64 ", dir=%d\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL];
 
-    M_ANNOINFO_SETKEY(keydata, key, pUpd->short_channel_id, ((pUpd->sort) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
+    M_ANNOINFO_CNL_SET(keydata, key, pUpd->short_channel_id, (ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
     ucoin_buf_t buf;
     ucoin_buf_alloc(&buf, sizeof(uint32_t) + pCnlUpd->len);
 
@@ -2305,26 +2350,22 @@ static int save_anno_channel_upd(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlUpd, 
  * @param[in,out]   pDb
  * @param[out]      pNodeAnno       (非NULL時)取得したnode_announcement
  * @param[out]      pTimeStamp      (非NULL時)タイムスタンプ
- * @param[out]      pSendId         (非NULL時)node_announcementの送信元
  * @paramin]        pNodeId         検索するnode_id
  * @retval      true
  */
-static int load_anno_node(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId)
+static int load_anno_node(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId)
 {
     MDB_val key, data;
+    uint8_t keydata[M_SZ_ANNOINFO_NODE];
 
-    key.mv_size = UCOIN_SZ_PUBKEY;
-    key.mv_data = (CONST_CAST uint8_t *)pNodeId;
+    M_ANNOINFO_NODE_SET(keydata, key, pNodeId);
     int retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
     if (retval == 0) {
         if (pTimeStamp != NULL) {
             *pTimeStamp = *(uint32_t *)data.mv_data;
         }
-        if (pSendId != NULL) {
-            memcpy(pSendId, (uint8_t *)data.mv_data + sizeof(uint32_t), UCOIN_SZ_PUBKEY);
-        }
         if (pNodeAnno != NULL) {
-            ucoin_buf_alloccopy(pNodeAnno, (uint8_t *)data.mv_data + sizeof(uint32_t) + UCOIN_SZ_PUBKEY, data.mv_size - sizeof(uint32_t) - UCOIN_SZ_PUBKEY);
+            ucoin_buf_alloccopy(pNodeAnno, (uint8_t *)data.mv_data + sizeof(uint32_t), data.mv_size - sizeof(uint32_t));
         }
     } else {
         //DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -2337,24 +2378,25 @@ static int load_anno_node(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *p
 /* node_announcement書込み
  *
  * @param[in,out]   pDb
- * @param[in]       pNodeAnno       node_announcement
- * @param[in]       pTimeStamp      タイムスタンプ
- * @param[in]       pSendId         node_announcementの送信元
- * @paramin]        pNodeId         検索するnode_id
+ * @param[in]       pNodeAnno       node_announcementパケット
+ * @param[in]       pAnno           node_announcement構造体
  * @retval      true
  */
-static int save_anno_node(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, uint32_t TimeStamp, const uint8_t *pSendId, const uint8_t *pNodeId)
+static int save_anno_node(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno)
 {
+    DBG_PRINTF("node_id=");
+    DUMPBIN(pAnno->p_node_id, UCOIN_SZ_PUBKEY);
+
     MDB_val key, data;
+    uint8_t keydata[M_SZ_ANNOINFO_NODE];
+
+    M_ANNOINFO_NODE_SET(keydata, key, pAnno->p_node_id);
     ucoin_buf_t buf;
+    ucoin_buf_alloc(&buf, sizeof(uint32_t) + pNodeAnno->len);
 
-    ucoin_buf_alloc(&buf, sizeof(uint32_t) + UCOIN_SZ_PUBKEY + pNodeAnno->len);
-    memcpy(buf.buf, &TimeStamp, sizeof(uint32_t));
-    memcpy(buf.buf + sizeof(uint32_t), pSendId, UCOIN_SZ_PUBKEY);
-    memcpy(buf.buf + sizeof(uint32_t) + UCOIN_SZ_PUBKEY, pNodeAnno->buf, pNodeAnno->len);
-
-    key.mv_size = UCOIN_SZ_PUBKEY;
-    key.mv_data = (CONST_CAST uint8_t *)pNodeId;
+    //timestamp + node_announcement
+    memcpy(buf.buf, &pAnno->timestamp, sizeof(uint32_t));
+    memcpy(buf.buf + sizeof(uint32_t), pNodeAnno->buf, pNodeAnno->len);
     data.mv_size = buf.len;
     data.mv_data = buf.buf;
     int retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
@@ -2367,6 +2409,81 @@ static int save_anno_node(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, uint3
 }
 
 
+/** annoinfoにnode_idを追加(channel, node共通)
+ *
+ * @param[in,out]   pDb         annoinfo
+ * @param[in]       pMdbKey     loadしたchannel_announcement infoのkey
+ * @param[in]       pMdbData    loadしたchannel_announcement infoのdata
+ * @param[in]       pNodeId     追加するnode_id
+ */
+static bool add_annoinfo(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId)
+{
+    int nums = pMdbData->mv_size / UCOIN_SZ_PUBKEY;
+for (int lp = 0; lp < nums; lp++) {
+    DBG_PRINTF("[%d]", lp);
+    DUMPBIN(pMdbData->mv_data + lp * UCOIN_SZ_PUBKEY, UCOIN_SZ_PUBKEY);
+}
+
+    uint8_t *p_ids = (uint8_t *)M_MALLOC((nums + 1) * UCOIN_SZ_PUBKEY);
+    memcpy(p_ids, pMdbData->mv_data, pMdbData->mv_size);
+    memcpy(p_ids + pMdbData->mv_size, pNodeId, UCOIN_SZ_PUBKEY);
+
+    pMdbData->mv_data = p_ids;
+    pMdbData->mv_size += UCOIN_SZ_PUBKEY;
+DBG_PRINTF("mv_key: ");
+DUMPBIN(pMdbKey->mv_data, pMdbKey->mv_size);
+DBG_PRINTF("mv_data: ");
+DUMPBIN(pMdbData->mv_data, pMdbData->mv_size);
+    int retval = mdb_put(pDb->txn, pDb->dbi, pMdbKey, pMdbData, 0);
+    if (retval == 0) {
+        DBG_PRINTF("add node: ");
+        DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+    } else {
+        DBG_PRINTF("fail\n");
+    }
+    M_FREE(p_ids);
+
+    return retval == 0;
+}
+
+
+/** annoinfoからnode_idの有無を検索(channel, node共通)
+ *
+ * @param[in]   pMdbData
+ * @param[in]   pNodeId
+ * @retval  true    検出
+ */
+static bool search_annoinfo(MDB_val *pMdbData, const uint8_t *pNodeId)
+{
+    int nums = pMdbData->mv_size / UCOIN_SZ_PUBKEY;
+    int lp;
+    for (lp = 0; lp < nums; lp++) {
+        //DBG_PRINTF("  node_id[%d]= ", lp);
+        //DUMPBIN(pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, UCOIN_SZ_PUBKEY);
+        if (memcmp((uint8_t *)pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
+            break;
+        }
+    }
+
+    return lp < nums;
+}
+
+
+/** annoinfoをクリア(channel, node共通)
+ *
+ * @param[in,out]   pDb         annoinfo
+ */
+static void clr_annoinfo(ln_lmdb_db_t *pDb)
+{
+    int retval = mdb_drop(pDb->txn, pDb->dbi, 0);
+    if (retval == 0) {
+        DBG_PRINTF("clear\n");
+    } else {
+        DBG_PRINTF("fail\n");
+    }
+}
+
+
 /** lmdb cursorオープン(node_announcement系)
  *
  */
@@ -2374,23 +2491,15 @@ static bool open_anno_node_cursor(lmdb_cursor_t *pCur, unsigned int DbFlags)
 {
     int retval;
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, DbFlags, &pCur->txn);
-    if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
     retval = mdb_dbi_open(pCur->txn, M_DB_ANNO_NODE, 0, &pCur->dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(pCur->txn);
         goto LABEL_EXIT;
     }
 
     retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(pCur->txn);
     }
 
 LABEL_EXIT:

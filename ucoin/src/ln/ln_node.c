@@ -72,12 +72,13 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 
     ln_db_init(ln_node_id(node));
 
-    ret = ln_db_load_anno_node(&buf_node, NULL, NULL, ln_node_id(node), NULL);
+    ret = ln_db_load_anno_node(&buf_node, NULL, ln_node_id(node), NULL);
     if (!ret) {
         //自node_announcement無し
         ln_node_announce_t anno;
 
         anno.timestamp = (uint32_t)time(NULL);
+        anno.p_node_id = node->keys.pub;
         anno.p_my_node = &node->keys;
         anno.p_alias = node->alias;
         anno.rgbcolor[0] = 0;
@@ -88,7 +89,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
         if (!ret) {
             goto LABEL_EXIT;
         }
-        ret = ln_db_save_anno_node(&buf_node, ln_node_id(node), ln_node_id(node));
+        ret = ln_db_save_anno_node(&buf_node, &anno, NULL);
     }
 
 LABEL_EXIT:
@@ -125,7 +126,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
     ucoin_buf_t buf_anno;
 
     ucoin_buf_init(&buf_anno);
-    bool ret = ln_db_load_anno_node(&buf_anno, NULL, NULL, pNodeId, pDbParam);
+    bool ret = ln_db_load_anno_node(&buf_anno, NULL, pNodeId, pDbParam);
     if (ret) {
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;
@@ -151,9 +152,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     ln_node_announce_t ann;
     uint8_t node_id[UCOIN_SZ_PUBKEY];
     char node_alias[LN_SZ_ALIAS + 1];
-    ucoin_buf_t buf_old;
 
-    //通知されたノード情報を、追加 or 更新する
     ann.p_node_id = node_id;
     ann.p_alias = node_alias;
     ret = ln_msg_node_announce_read(&ann, pData, Len);
@@ -164,49 +163,16 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
 
     //DBG_PRINTF("node_id:");
     //DUMPBIN(node_id, sizeof(node_id));
-    ucoin_buf_init(&buf_old);
-    ret = ln_db_load_anno_node(&buf_old, NULL, NULL, node_id, NULL);
-    bool update = false;
+
+    ucoin_buf_t buf_ann;
+    buf_ann.buf = (CONST_CAST uint8_t *)pData;
+    buf_ann.len = Len;
+    ret = ln_db_save_anno_node(&buf_ann, &ann, ln_their_node_id(self));
     if (ret) {
-        //保存データあり
-        ln_node_announce_t ann_old;
-        uint8_t node_id_old[UCOIN_SZ_PUBKEY];
-        char node_alias_old[LN_SZ_ALIAS + 1];
-
-        ann_old.p_node_id = node_id_old;
-        ann_old.p_alias = node_alias_old;
-        ret = ln_msg_node_announce_read(&ann_old, buf_old.buf, buf_old.len);
-        if (ret) {
-            if (ann.timestamp > ann_old.timestamp) {
-                DBG_PRINTF("newer node_announcement: ");
-                update = true;
-            } else if (ann.timestamp == ann_old.timestamp) {
-                //DBG_PRINTF("更新不要\n");
-            } else {
-                DBG_PRINTF("古いデータ\n");
-            }
-        } else {
-            DBG_PRINTF("fail: read message\n");
-        }
-    } else {
-        DBG_PRINTF("new node_announcement: ");
-        update = true;
+        (*self->p_callback)(self, LN_CB_NODE_ANNO_RECV, &ann);
     }
-    if (update) {
-        //新規 or 更新
-        DUMPBIN(node_id, UCOIN_SZ_PUBKEY);
 
-        ucoin_buf_t buf_ann;
-        buf_ann.buf = (CONST_CAST uint8_t *)pData;
-        buf_ann.len = Len;
-        ret = ln_db_save_anno_node(&buf_ann, ln_their_node_id(self), node_id);
-        if (ret) {
-            (*self->p_callback)(self, LN_CB_NODE_ANNO_RECV, &ann);
-        }
-    }
-    ucoin_buf_free(&buf_old);
-
-    return ret;
+    return true;
 }
 
 

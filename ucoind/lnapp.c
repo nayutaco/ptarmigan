@@ -761,8 +761,6 @@ static void *thread_main_start(void *pArg)
     ln_init(&my_self, mpNode, seed, &mAnnoDef, notify_cb);
 
     p_conf->p_self = &my_self;
-    p_conf->last_cnl_anno_sent = 0;
-    p_conf->last_node_anno_sent = 0;
     p_conf->ping_counter = 0;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
@@ -2524,7 +2522,7 @@ static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 //peer送信(Noise Protocol送信)
 static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 {
-    //DBG_PRINTF("type=%02x%02x: sock=%d, Len=%d\n", pBuf->buf[0], pBuf->buf[1], p_conf->sock, pBuf->len);
+    DBG_PRINTF("type=%02x%02x: sock=%d, Len=%d\n", pBuf->buf[0], pBuf->buf[1], p_conf->sock, pBuf->len);
 
     pthread_mutex_lock(&p_conf->mux_send);
     ucoin_buf_t buf_enc;
@@ -2552,13 +2550,16 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
 {
     bool ret;
 
+    DBG_PRINTF("BEGIN\n");
+
     if (force) {
         DBG_PRINTF("force send\n");
     }
 
     void *p_db;
-    ret = ln_db_anno_transaction(&p_db);
+    ret = ln_db_cursor_anno_transaction(&p_db, LN_DB_TXN_CNL);
     if (!ret) {
+        DBG_PRINTF("fail\n");
         goto LABEL_EXIT;
     }
 
@@ -2572,7 +2573,6 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
         DBG_PRINTF("current: %016" PRIx64 ", force=%d\n", ln_short_channel_id(p_conf->p_self), force);
 
         ucoin_buf_init(&buf_cnl);
-        p_conf->last_cnl_anno_sent = (uint32_t)time(NULL);
 
         while (ln_db_cursor_anno_channel_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl)) {
             DBG_PRINTF("short_channel_id(%c)= %016" PRIx64 "\n", type, short_channel_id);
@@ -2600,50 +2600,48 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
         ln_db_cursor_anno_channel_close(p_cur);
     }
 
-    ln_db_anno_commit(p_db);
+    ln_db_cursor_anno_commit(p_db);
 
 LABEL_EXIT:
-    ;
+    DBG_PRINTF("END\n");
 }
 
 
 static void send_node_anno(lnapp_conf_t *p_conf, bool force)
 {
+    bool ret;
+
+    DBG_PRINTF("BEGIN\n");
+
+    if (force) {
+        DBG_PRINTF("force send\n");
+    }
+
+    void *p_db;
+    ret = ln_db_cursor_anno_transaction(&p_db, LN_DB_TXN_NODE);
+    if (!ret) {
+        DBG_PRINTF("fail\n");
+        goto LABEL_EXIT;
+    }
+
     void *p_cur;
-    bool ret = ln_db_cursor_anno_node_open(&p_cur);
+    ret = ln_db_cursor_anno_node_open(&p_cur, p_db);
     if (ret) {
         ucoin_buf_t buf_node;
         uint32_t timestamp;
-        uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
         uint8_t nodeid[UCOIN_SZ_PUBKEY];
 
-        uint32_t last_sent = p_conf->last_node_anno_sent;
-        p_conf->last_node_anno_sent = (uint32_t)time(NULL);
-        bool first = true;
-
         ucoin_buf_init(&buf_node);
-        while (ln_db_cursor_anno_node_get(p_cur, &buf_node, &timestamp, send_nodeid, nodeid)) {
-            bool send;
-            if ( (memcmp(nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ||
-                 (memcmp(send_nodeid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY) == 0) ) {
-                //node_idがpeerと同じか、node_announcementの送信元がpeerと同じであれば、配信不要
-                send = false;
-            } else {
-                send = force || (last_sent < timestamp);
-            }
-            if (send) {
-                if (first) {
-                    DBG_PRINTF("send node_anno[%d]: ", force);
-                    DUMPBIN(send_nodeid, UCOIN_SZ_PUBKEY);
-                    DBG_PRINTF("peer nodeid= ");
-                    DUMPBIN(ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
-                    DBG_PRINTF("last_node_anno_sent : %" PRIu32 "\n", last_sent);
-                    first = false;
-                }
-                DBG_PRINTF("  nodeid: ");
+        while (ln_db_cursor_anno_node_get(p_cur, &buf_node, &timestamp, nodeid)) {
+            bool chk = ln_db_node_anno_search_nodeid(p_db, nodeid, ln_their_node_id(p_conf->p_self));
+            if (!chk) {
+                DBG_PRINTF("send node_anno: ");
                 DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
-                DBG_PRINTF("    timestamp: %" PRIu32 "\n", timestamp);
                 send_peer_noise(p_conf, &buf_node);
+                ln_db_node_anno_add_nodeid(p_db, nodeid, ln_their_node_id(p_conf->p_self));
+            } else {
+                DBG_PRINTF("not send node_anno: ");
+                DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
             }
             ucoin_buf_free(&buf_node);
 
@@ -2660,6 +2658,11 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
     if (p_cur) {
         ln_db_cursor_anno_node_close(p_cur);
     }
+
+    ln_db_cursor_anno_commit(p_db);
+
+LABEL_EXIT:
+    DBG_PRINTF("END\n");
 }
 
 

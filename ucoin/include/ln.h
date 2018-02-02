@@ -680,7 +680,6 @@ typedef struct {
     uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
 
     const uint8_t           *p_key;                 ///< priv:sign / pub:verify
-    ucoin_keys_sort_t       sort;                   ///< ln_node_announce_t.sort
 } ln_cnl_update_t;
 
 
@@ -1843,6 +1842,24 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
  */
 static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
     return (uint64_t)self->anno_default.fee_base_msat + (amount * (uint64_t)self->anno_default.fee_prop_millionths / (uint64_t)1000000);
+}
+
+
+/**
+ *
+ * @retval      0:node_1, 1:node_2
+ */
+static inline int ln_cnlupd_direction(const ln_cnl_update_t *pCnlUpd) {
+    return pCnlUpd->flags & LN_CNLUPD_FLAGS_DIRECTION;
+}
+
+
+/**
+ *
+ * @retval      true    disableフラグが立っていない
+ */
+static inline bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd) {
+    return !(pCnlUpd->flags & LN_CNLUPD_FLAGS_DISABLE);
 }
 
 
