@@ -153,7 +153,7 @@ bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr)
 misc_genesis_t misc_get_genesis(const uint8_t *pGenesisHash)
 {
     misc_genesis_t ret;
-    
+
     if (memcmp(pGenesisHash, M_BTC_GENESIS_MAIN, LN_SZ_HASH) == 0) {
         ret = MISC_GENESIS_BTCMAIN;
     } else if (memcmp(pGenesisHash, M_BTC_GENESIS_TEST, LN_SZ_HASH) == 0) {
@@ -165,6 +165,23 @@ misc_genesis_t misc_get_genesis(const uint8_t *pGenesisHash)
         ret = MISC_GENESIS_UNKNOWN;
     }
     return ret;
+}
+
+
+const uint8_t *misc_get_genesis_block(misc_genesis_t kind)
+{
+    switch (kind) {
+    case MISC_GENESIS_BTCMAIN:
+        return M_BTC_GENESIS_MAIN;
+    case MISC_GENESIS_BTCTEST:
+        return M_BTC_GENESIS_TEST;
+    case MISC_GENESIS_BTCREGTEST:
+        return M_BTC_GENESIS_REGTEST;
+    default:
+        DBG_PRINTF("unknown kind: %02x\n", kind);
+    }
+
+    return NULL;
 }
 
 

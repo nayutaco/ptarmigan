@@ -19,6 +19,10 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+/**
+ * @file    misc.h
+ * @brief   miscellaneous
+ */
 #ifndef MISC_H__
 #define MISC_H__
 
@@ -74,7 +78,7 @@ typedef enum {
  **************************************************************************/
 
 /** sleep millisecond
- * 
+ *
  * @param[in]   slp     スリープする時間[msec]
  */
 static inline void misc_msleep(unsigned long slp) {
@@ -84,7 +88,7 @@ static inline void misc_msleep(unsigned long slp) {
 
 
 /** 16進数文字列に変換
- * 
+ *
  * @param[out]      pStr        変換結果
  * @param[in]       pBin        元データ
  * @param[in]       BinLen      pBin長
@@ -93,7 +97,7 @@ void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 
 
 /** 16進数文字列に変換(エンディアン反転)
- * 
+ *
  * @param[out]      pStr        変換結果(エンディアン反転)
  * @param[in]       pBin        元データ
  * @param[in]       BinLen      pBin長
@@ -102,7 +106,7 @@ void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 
 
 /** 16進数文字列から変換
- * 
+ *
  * @param[out]      pBin        変換結果
  * @param[out]      BinLen      pBin長
  * @param[out]      pStr        元データ
@@ -111,7 +115,7 @@ bool misc_str2bin(uint8_t *pBin, uint16_t BinLen, const char *pStr);
 
 
 /** 16進数文字列から変換(エンディアン反転)
- * 
+ *
  * @param[out]      pBin        変換結果(エンディアン反転)
  * @param[out]      BinLen      pBin長
  * @param[out]      pStr        元データ
@@ -120,11 +124,19 @@ bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr);
 
 
 /** ブロックチェーン種別取得
- * 
+ *
  * @param[in]       pGenesisHash
  * @return      ブロックチェーン種別
  */
 misc_genesis_t misc_get_genesis(const uint8_t *pGenesisHash);
+
+
+/** ブロックチェーンハッシュ取得
+ *
+ * @param[in]       Kind
+ * @return      ブロックチェーンハッシュ(未知のKindの場合はNULL)
+ */
+const uint8_t *misc_get_genesis_block(misc_genesis_t Kind);
 
 
 /** JSON-RPC送信
