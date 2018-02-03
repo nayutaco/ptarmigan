@@ -68,8 +68,9 @@
 #define M_DB_PAYHASH            "payhash"
 #define M_DB_VERSION            "version"
 
-#define M_SZ_ANNOINFO_CNL           (sizeof(uint64_t) + 1)
-#define M_SZ_ANNOINFO_NODE          (UCOIN_SZ_PUBKEY)
+#define M_SZ_DBNAME_LEN         (M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1)
+#define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
+#define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
 
 #define M_DB_VERSION_VAL        (-14)           ///< DBバージョン
 /*
@@ -337,7 +338,7 @@ bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId)
     int         retval;
     MDB_txn     *txn = NULL;
     MDB_dbi     dbi;
-    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+    char        dbname[M_SZ_DBNAME_LEN];
 
     retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
     if (retval != 0) {
@@ -501,7 +502,7 @@ bool ln_db_self_save(const ln_self_t *self)
 {
     int         retval;
     ln_lmdb_db_t   db;
-    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+    char        dbname[M_SZ_DBNAME_LEN];
 
     retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -554,7 +555,7 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
     MDB_dbi     dbi_cnl;
     MDB_cursor  *cursor;
     MDB_val     key, data;
-    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+    char        dbname[M_SZ_DBNAME_LEN];
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
 
     //channel_announcementから自分のshort_channel_idを含むデータを削除
@@ -685,7 +686,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
         if (ret == 0) {
             if (list) {
                 list++;
-            } else if ((key.mv_size > M_PREFIX_LEN) && (memcmp(key.mv_data, M_CHANNEL_NAME, M_PREFIX_LEN) == 0)) {
+            } else if ((key.mv_size == (M_SZ_DBNAME_LEN - 1)) && (memcmp(key.mv_data, M_CHANNEL_NAME, M_PREFIX_LEN) == 0)) {
                 ln_self_t self;
 
                 memset(&self, 0, sizeof(self));
@@ -1383,19 +1384,21 @@ int ln_lmdb_annonod_cur_load(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTime
 
     int retval = mdb_cursor_get(cur, &key, &data, MDB_NEXT_NODUP);
     if (retval == 0) {
-        DBG_PRINTF("key:  ");
-        DUMPBIN(key.mv_data, key.mv_size);
-        DBG_PRINTF("data: ");
-        DUMPBIN(data.mv_data, data.mv_size);
+        // DBG_PRINTF("key:  ");
+        // DUMPBIN(key.mv_data, key.mv_size);
+        // DBG_PRINTF("data: ");
+        // DUMPBIN(data.mv_data, data.mv_size);
         if (pNodeId) {
             memcpy(pNodeId, key.mv_data, key.mv_size);
         }
         memcpy(pTimeStamp, data.mv_data, sizeof(uint32_t));
         ucoin_buf_alloccopy(pBuf, (const uint8_t *)data.mv_data + sizeof(uint32_t), data.mv_size - sizeof(uint32_t));
     } else {
-        //if (retval != MDB_NOTFOUND) {
+        if (retval != MDB_NOTFOUND) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        //}
+        } else {
+            //end of cursor
+        }
     }
 
     return retval;
@@ -1699,7 +1702,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     MDB_val key, data;
     MDB_txn     *txn;
     MDB_dbi     dbi;
-    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+    char        dbname[M_SZ_DBNAME_LEN];
 
     txn = ((ln_lmdb_db_t *)pDbParam)->txn;
 
@@ -1778,7 +1781,7 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
 {
     MDB_val key, data;
     ln_lmdb_db_t   db;
-    char        dbname[M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1];
+    char        dbname[M_SZ_DBNAME_LEN];
     ucoin_buf_t buf;
     ucoin_push_t push;
 
