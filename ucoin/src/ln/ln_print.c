@@ -441,6 +441,8 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
     ucoin_util_dumpbin(fp, pRemote->prev_percommit, UCOIN_SZ_PUBKEY, true);
     fprintf(fp, "----------------------------------------\n");
 #endif
+#else
+    (void)fp; (void)pLocal; (void)pRemote;
 #endif  //M_DBG_VERBOSE
 }
 

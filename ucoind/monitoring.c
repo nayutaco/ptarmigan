@@ -63,6 +63,9 @@ static volatile bool        mMonitoring;
 
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 
+static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param);
+static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param);
+
 static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 static bool close_unilateral_local_received(bool spent);
 
@@ -248,70 +251,10 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         bool ret = jsonrpc_getxout(&unspent, &sat, ln_funding_txid(self), ln_funding_txindex(self));
         if (ret && !unspent) {
             //funding_tx使用済み
-            ln_db_revtx_load(self, p_db_param);
-            const ucoin_buf_t *p_vout = ln_revoked_vout(self);
-            if (p_vout == NULL) {
-                //展開されているのが最新のcommit_txか
-                ucoin_tx_t tx_commit;
-                ucoin_tx_init(&tx_commit);
-                if (jsonrpc_getraw_tx(&tx_commit, ln_commit_local(self)->txid)) {
-                    //最新のlocal commit_tx --> unilateral close(local)
-                    del = monitor_close_unilateral_local(self, p_db_param);
-                } else if (jsonrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid)) {
-                    //最新のremote commit_tx --> unilateral close(remote)
-                    del = close_unilateral_remote(self, p_db_param);
-                } else {
-                    //最新ではないcommit_tx --> mutual close or revoked transaction close
-                    del = close_others(self, confm, p_db_param);
-                }
-                ucoin_tx_free(&tx_commit);
-            } else {
-                // revoked transaction close
-                del = close_revoked_after(self, confm, p_db_param);
-            }
+            del = funding_spent(self, confm, p_db_param);
         } else {
             //funding_tx未使用
-            DBG_PRINTF("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
-            DUMPTXID(ln_funding_txid(self));
-
-            //socket未接続であれば、接続しに行こうとする
-            lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
-            if (p_app_conf == NULL) {
-                //node_id-->node_announcement-->接続先アドレス
-                DBG_PRINTF("disconnecting: %0" PRIx64 "\n", ln_short_channel_id(self));
-                DBG_PRINTF("  peer node_id: ");
-                const uint8_t *p_node_id = ln_their_node_id(self);
-                DUMPBIN(p_node_id, UCOIN_SZ_PUBKEY);
-
-                ln_node_announce_t anno;
-                ret = ln_node_search_nodeanno(&anno, p_node_id, p_db_param);
-                if (ret) {
-                    switch (anno.addr.type) {
-                    case LN_NODEDESC_IPV4:
-                        {
-                            //自分に対して「接続要求」のJSON-RPCを送信する
-                            char ipaddr[15 + 1];
-                            sprintf(ipaddr, "%d.%d.%d.%d",
-                                        anno.addr.addrinfo.ipv4.addr[0], anno.addr.addrinfo.ipv4.addr[1],
-                                        anno.addr.addrinfo.ipv4.addr[2], anno.addr.addrinfo.ipv4.addr[3]);
-
-                            char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
-                            char json[256];
-                            misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
-                            sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
-                            DBG_PRINTF("%s\n", json);
-                            int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
-                            DBG_PRINTF("retval=%d\n", retval);
-                        }
-                        break;
-                    default:
-                        DBG_PRINTF("addrtype: %d\n", anno.addr.type);
-                        break;
-                    }
-                } else {
-                    DBG_PRINTF("  not found: node_announcement\n");
-                }
-            }
+            del = funding_unspent(self, confm, p_db_param);
         }
         if (del) {
             DBG_PRINTF("delete from DB\n");
@@ -321,6 +264,86 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
     }
 
     return false;
+}
+
+
+static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
+{
+    bool del = false;
+
+    ln_db_revtx_load(self, p_db_param);
+    const ucoin_buf_t *p_vout = ln_revoked_vout(self);
+    if (p_vout == NULL) {
+        //展開されているのが最新のcommit_txか
+        ucoin_tx_t tx_commit;
+        ucoin_tx_init(&tx_commit);
+        if (jsonrpc_getraw_tx(&tx_commit, ln_commit_local(self)->txid)) {
+            //最新のlocal commit_tx --> unilateral close(local)
+            del = monitor_close_unilateral_local(self, p_db_param);
+        } else if (jsonrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid)) {
+            //最新のremote commit_tx --> unilateral close(remote)
+            del = close_unilateral_remote(self, p_db_param);
+        } else {
+            //最新ではないcommit_tx --> mutual close or revoked transaction close
+            del = close_others(self, confm, p_db_param);
+        }
+        ucoin_tx_free(&tx_commit);
+    } else {
+        // revoked transaction close
+        del = close_revoked_after(self, confm, p_db_param);
+    }
+
+    return del;
+}
+
+
+static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param)
+{
+    bool del = false;
+
+    DBG_PRINTF("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
+    DUMPTXID(ln_funding_txid(self));
+
+    //socket未接続であれば、接続しに行こうとする
+    lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
+    if (p_app_conf == NULL) {
+        //node_id-->node_announcement-->接続先アドレス
+        DBG_PRINTF("disconnecting: %0" PRIx64 "\n", ln_short_channel_id(self));
+        DBG_PRINTF("  peer node_id: ");
+        const uint8_t *p_node_id = ln_their_node_id(self);
+        DUMPBIN(p_node_id, UCOIN_SZ_PUBKEY);
+
+        ln_node_announce_t anno;
+        bool ret = ln_node_search_nodeanno(&anno, p_node_id);
+        if (ret) {
+            switch (anno.addr.type) {
+            case LN_NODEDESC_IPV4:
+                {
+                    //自分に対して「接続要求」のJSON-RPCを送信する
+                    char ipaddr[15 + 1];
+                    sprintf(ipaddr, "%d.%d.%d.%d",
+                                anno.addr.addrinfo.ipv4.addr[0], anno.addr.addrinfo.ipv4.addr[1],
+                                anno.addr.addrinfo.ipv4.addr[2], anno.addr.addrinfo.ipv4.addr[3]);
+
+                    char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
+                    char json[256];
+                    misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
+                    sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
+                    DBG_PRINTF("%s\n", json);
+                    int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+                    DBG_PRINTF("retval=%d\n", retval);
+                }
+                break;
+            default:
+                DBG_PRINTF("addrtype: %d\n", anno.addr.type);
+                break;
+            }
+        } else {
+            DBG_PRINTF("  not found: node_announcement\n");
+        }
+    }
+
+    return del;
 }
 
 

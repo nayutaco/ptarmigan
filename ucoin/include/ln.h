@@ -1902,7 +1902,7 @@ bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId);
  * @param[in]       pNodeId             検索するnode_id
  * @retval      true        検索成功
  */
-bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId, void *p_db_param);
+bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId);
 
 
 /********************************************************************

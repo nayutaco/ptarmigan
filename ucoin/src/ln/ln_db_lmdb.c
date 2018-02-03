@@ -1214,33 +1214,25 @@ int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *p
  * node_announcement
  ********************************************************************/
 
-bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDbParam)
+bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId)
 {
     int         retval;
     ln_lmdb_db_t   db;
 
-    if (pDbParam == NULL) {
-        retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
-        if (retval != 0) {
-            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
-    } else {
-        db.txn = ((ln_lmdb_db_t *)pDbParam)->txn;
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
     }
     retval = mdb_dbi_open(db.txn, M_DB_ANNO_NODE, 0, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        if (pDbParam == NULL) {
-            MDB_TXN_ABORT(db.txn);
-        }
+        MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
     retval = annonod_load(&db, pNodeAnno, pTimeStamp, pNodeId);
 
-    if (pDbParam == NULL) {
-        MDB_TXN_ABORT(db.txn);
-    }
+    MDB_TXN_ABORT(db.txn);
 
 LABEL_EXIT:
     return retval == 0;

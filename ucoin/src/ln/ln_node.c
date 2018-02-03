@@ -72,7 +72,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 
     ln_db_init(ln_node_id(node));
 
-    ret = ln_db_annonod_load(&buf_node, NULL, ln_node_id(node), NULL);
+    ret = ln_db_annonod_load(&buf_node, NULL, ln_node_id(node));
     if (!ret) {
         //自node_announcement無し
         ln_node_announce_t anno;
@@ -121,12 +121,12 @@ bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId)
 }
 
 
-bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId, void *pDbParam)
+bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId)
 {
     ucoin_buf_t buf_anno;
 
     ucoin_buf_init(&buf_anno);
-    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId, NULL);
+    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId);
     if (ret) {
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;
