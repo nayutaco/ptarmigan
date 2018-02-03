@@ -2646,7 +2646,7 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
                 DBG_PRINTF("send node_anno: ");
                 DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
                 send_peer_noise(p_conf, &buf_node);
-                ln_db_annonod_add_nodeid(p_db, nodeid, ln_their_node_id(p_conf->p_self));
+                ln_db_annonod_add_nodeid(p_db, nodeid, false, ln_their_node_id(p_conf->p_self));
             } else {
                 DBG_PRINTF("not send node_anno: ");
                 DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);

@@ -1267,6 +1267,7 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
     uint32_t    timestamp;
     uint8_t     nodeid[UCOIN_SZ_PUBKEY];
     bool        upddb = false;
+    bool        clr = false;
 
     ucoin_buf_init(&buf_node);
     retval = annonod_load(&db, &buf_node, &timestamp, nodeid);
@@ -1279,6 +1280,9 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
             //自分の方が古いので、更新
             //DBG_PRINTF("gotten node_announcement is newer\n");
             upddb = true;
+
+            //announceし直す必要があるため、クリアする
+            clr = true;
         } else {
             if (ucoin_buf_cmp(&buf_node, pNodeAnno)) {
                 //DBG_PRINTF("same node_announcement\n");
@@ -1300,7 +1304,7 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
     if (upddb) {
         retval = annonod_save(&db, pNodeAnno, pAnno);
         if ((retval == 0) && (pSendId != NULL)) {
-            bool ret = ln_db_annonod_add_nodeid(&db_info, pAnno->p_node_id, pSendId);
+            bool ret = ln_db_annonod_add_nodeid(&db_info, pAnno->p_node_id, clr, pSendId);
             if (!ret) {
                 retval = -1;
             }
@@ -1340,22 +1344,31 @@ bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_
 }
 
 
-bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId)
+bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, const uint8_t *pSendId)
 {
-    bool ret = false;
+    bool ret = true;
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_NODE];
+    bool detect = false;
 
     M_ANNOINFO_NODE_SET(keydata, key, pNodeId);
-    int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
-    if (retval != 0) {
-        DBG_PRINTF("new ");
-        DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
+    if (!bClr) {
+        int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
+        if (retval == 0) {
+            detect = annoinfo_search(&data, pNodeId);
+        } else {
+            DBG_PRINTF("new ");
+            DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
+            data.mv_size = 0;
+        }
+    } else {
         data.mv_size = 0;
     }
-    ret = annoinfo_add(p_db, &key, &data, pSendId);
+    if (!detect) {
+        ret = annoinfo_add(p_db, &key, &data, pSendId);
+    }
 
     return ret;
 }
@@ -1939,6 +1952,12 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     } else if (strcmp(pDbName, M_DB_ANNO_NODE) == 0) {
         //node_announcement
         dbtype = LN_LMDB_DBTYPE_NODE_ANNO;
+    } else if (strcmp(pDbName, M_DB_ANNOINFO_CNL) == 0) {
+        //channel_announcement/channel_update information
+        dbtype = LN_LMDB_DBTYPE_NODE_ANNOINFO;
+    } else if (strcmp(pDbName, M_DB_ANNOINFO_NODE) == 0) {
+        //node_announcement information
+        dbtype = LN_LMDB_DBTYPE_NODE_ANNOINFO;
     } else if (strcmp(pDbName, M_DB_PREIMAGE) == 0) {
         //preimage
         dbtype = LN_LMDB_DBTYPE_PREIMAGE;
