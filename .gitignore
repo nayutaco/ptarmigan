@@ -12,3 +12,7 @@ routing/routing
 
 .Depend
 *.log
+GPATH
+GRTAGS
+GSYMS
+GTAGS
