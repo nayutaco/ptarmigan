@@ -247,7 +247,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
 
         ln_self_t   self;
         memset(&self, 0, sizeof(self));
-        ret = ln_lmdb_self_load(&self, txn, &dbi);
+        ret = ln_lmdb_self_load(&self, txn, dbi);
         if (ret == 0) {
             //p1: my node_id(送金元とmy node_idが不一致の場合はNULL), p2: target node_id
 #if 1

@@ -352,7 +352,7 @@ bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = ln_lmdb_self_load(self, txn, &dbi);
+    retval = ln_lmdb_self_load(self, txn, dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
@@ -386,13 +386,13 @@ LABEL_EXIT2:
 }
 #endif
 
-int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
+int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 {
     MDB_val     key, data;
 
     key.mv_size = 6;
     key.mv_data = "self1";
-    int retval = mdb_get(txn, *pdbi, &key, &data);
+    int retval = mdb_get(txn, dbi, &key, &data);
 
     //構造体部分
     if ((retval == 0) && (data.mv_size == sizeof(backup_self_t))) {
@@ -450,7 +450,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi)
         //次読込み
         key.mv_size = 6;
         key.mv_data = "self2";
-        retval = mdb_get(txn, *pdbi, &key, &data);
+        retval = mdb_get(txn, dbi, &key, &data);
     }
 
     //スクリプト部分
@@ -689,7 +689,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
                 ln_self_t self;
 
                 memset(&self, 0, sizeof(self));
-                retval = ln_lmdb_self_load(&self, cur.txn, &dbi2);
+                retval = ln_lmdb_self_load(&self, cur.txn, dbi2);
                 if (retval == 0) {
                     result = (*pFunc)(&self, (void *)&cur, pFuncParam);
                     if (result) {

@@ -76,7 +76,7 @@ typedef struct {
  *      -
  *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
  */
-int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi);
 
 
 /**
