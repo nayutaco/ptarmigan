@@ -1192,7 +1192,7 @@ static void *thread_recv_start(void *pArg)
             }
 
             //ping送信待ちカウンタ
-            p_conf->ping_counter = 0;
+            //p_conf->ping_counter = 0;
         } else {
             break;
         }
