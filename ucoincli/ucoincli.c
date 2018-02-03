@@ -226,12 +226,15 @@ int main(int argc, char *argv[])
                 ln_invoice_t invoice_data;
                 const char *invoice = strtok(optarg, ",");
                 const char *amount_msat = strtok(NULL, ",");
+                const char *cltv_offset = strtok(NULL, ",");
                 bool bret = ln_invoice_decode(&invoice_data, invoice);
                 if (bret) {
                     printf("---------------------------------\n");
                     switch (invoice_data.hrp_type) {
                     case LN_INVOICE_MAINNET:
                         printf("for mainnet\n");
+                        printf("fail: mainnet payment not supported yet.\n");
+                        options = M_OPTIONS_ERR;
                         break;
                     case LN_INVOICE_TESTNET:
                         printf("for testnet\n");
@@ -272,6 +275,18 @@ int main(int argc, char *argv[])
                             options = M_OPTIONS_ERR;
                         }
                     }
+                    if (cltv_offset != NULL) {
+                        errno = 0;
+                        uint32_t add_cltv = (uint32_t)strtoull(cltv_offset, NULL, 10);
+                        if (errno == 0) {
+                            invoice_data.min_final_cltv_expiry += add_cltv;
+                            printf("additional min_final_cltv_expiry=%" PRIu32 "\n", add_cltv);
+                            printf("---------------------------------\n");
+                        } else {
+                            printf("fail: errno=%s\n", strerror(errno));
+                            options = M_OPTIONS_ERR;
+                        }
+                    } 
                     if (options != M_OPTIONS_ERR) {
                         if (invoice_data.amount_msat > 0) {
                             routepay_rpc(mBuf, &invoice_data);
@@ -393,7 +408,7 @@ int main(int argc, char *argv[])
         printf("\t\t-i <amount_msat> : add preimage, and show payment_hash\n");
         printf("\t\t-e <payment_hash> or ALL) : erase payment_hash(s)\n");
         printf("\t\t-p <payment.conf>,<paymenet_hash> : payment(don't put a space before or after the comma)\n");
-        printf("\t\t-r <BOLT#11 invoice>(,<additional amount_msat>) : payment(don't put a space before or after the comma)\n");
+        printf("\t\t-r <BOLT#11 invoice>(,<additional amount_msat>)(,<additional min_filnal_cltv_expiry>) : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
         printf("\t\t-c <peer.conf> : connect node\n");
         printf("\t\t-c <peer.conf> -f <fund.conf> : funding\n");
