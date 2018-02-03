@@ -2499,10 +2499,13 @@ for (int lp = 0; lp < nums; lp++) {
 static bool annoinfo_search(MDB_val *pMdbData, const uint8_t *pNodeId)
 {
     int nums = pMdbData->mv_size / UCOIN_SZ_PUBKEY;
+    DBG_PRINTF("nums=%d\n", nums);
+    DBG_PRINTF("search id: ");
+    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
     int lp;
     for (lp = 0; lp < nums; lp++) {
-        //DBG_PRINTF("  node_id[%d]= ", lp);
-        //DUMPBIN(pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, UCOIN_SZ_PUBKEY);
+        DBG_PRINTF("  node_id[%d]= ", lp);
+        DUMPBIN(pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, UCOIN_SZ_PUBKEY);
         if (memcmp((uint8_t *)pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
             break;
         }
