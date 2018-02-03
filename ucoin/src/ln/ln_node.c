@@ -126,7 +126,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
     ucoin_buf_t buf_anno;
 
     ucoin_buf_init(&buf_anno);
-    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId, pDbParam);
+    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId, NULL);
     if (ret) {
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;

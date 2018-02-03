@@ -2580,7 +2580,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
             if (!chk) {
                 DBG_PRINTF("send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
                 send_peer_noise(p_conf, &buf_cnl);
-                ln_db_annocnls_add_nodeid(p_db, short_channel_id, type, ln_their_node_id(p_conf->p_self));
+                ln_db_annocnls_add_nodeid(p_db, short_channel_id, type, false, ln_their_node_id(p_conf->p_self));
             } else {
                 DBG_PRINTF("not send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
             }

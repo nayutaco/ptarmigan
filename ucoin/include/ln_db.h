@@ -182,9 +182,10 @@ bool ln_db_annocnlall_del(uint64_t short_channel_id);
  * @param[in,out]   pDb
  * @param[in]       ShortChannelId
  * @param[in]       Type
+ * @param[in]       bClr                true:保存したノードを削除してから追加する
  * @param[in]       pSendId             送信元/先ノード
  */
-bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId);
+bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bool bClr, const uint8_t *pSendId);
 
 
 /** node_idを含むshort_channel_id検索
@@ -194,7 +195,7 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, co
  * @retval      0以外   成功
  * @retval      0       検索失敗
  */
-uint64_t ln_db_annocnlall_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
+//uint64_t ln_db_annocnlall_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
 
 
 /**
