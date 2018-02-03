@@ -1410,6 +1410,7 @@ static void poll_ping(lnapp_conf_t *p_conf)
 
     //未送受信の状態が続いたらping送信する
     p_conf->ping_counter++;
+    DBG_PRINTF("ping_counter=%d\n", p_conf->ping_counter);
     if (p_conf->ping_counter >= M_WAIT_PING_SEC / M_WAIT_POLL_SEC) {
         ucoin_buf_t buf_ping;
 
@@ -2599,7 +2600,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
             }
 
             //連続して送信すると混雑する可能性がある
-            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
+            //misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
     } else {
         DBG_PRINTF("no channel_announce DB\n");
@@ -2658,7 +2659,7 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
             }
 
             //連続して送信すると混雑する可能性がある
-            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
+            //misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
     } else {
         DBG_PRINTF("no node_announce DB\n");
