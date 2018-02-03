@@ -409,6 +409,7 @@ void ln_print_node(const ln_node_t *node)
 
 void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote)
 {
+#ifdef M_DBG_VERBOSE
 #ifdef UCOIN_DEBUG
     fprintf(fp, "-[local]-------------------------------\n");
     fprintf(fp, "funding_txid: ");
@@ -440,6 +441,9 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
     ucoin_util_dumpbin(fp, pRemote->prev_percommit, UCOIN_SZ_PUBKEY, true);
     fprintf(fp, "----------------------------------------\n");
 #endif
+#else
+    (void)fp; (void)pLocal; (void)pRemote;
+#endif  //M_DBG_VERBOSE
 }
 
-#endif
+#endif  //UCOIN_USE_PRINTFUNC

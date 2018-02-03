@@ -24,7 +24,7 @@ clean:
 	make -C ucoincli clean
 	make -C showdb clean
 	make -C routing clean
-	-@rm -rf $(INSTALL_DIR)/ucoind $(INSTALL_DIR)/ucoincli $(INSTALL_DIR)/showdb $(INSTALL_DIR)/routing
+	-@rm -rf $(INSTALL_DIR)/ucoind $(INSTALL_DIR)/ucoincli $(INSTALL_DIR)/showdb $(INSTALL_DIR)/routing GPATH GRTAGS GSYMS GTAGS
 
 full: git_subs lib default
 

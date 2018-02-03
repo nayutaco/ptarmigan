@@ -680,7 +680,6 @@ typedef struct {
     uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
 
     const uint8_t           *p_key;                 ///< priv:sign / pub:verify
-    ucoin_keys_sort_t       sort;                   ///< ln_node_announce_t.sort
 } ln_cnl_update_t;
 
 
@@ -1267,15 +1266,16 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns);
 /** channel_update作成
  *
  * @param[in,out]       self            channel情報
+ * @param[out]          pUpd            生成したchannel_update構造体
  * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
- * @param[in]           TimeStamp       EPOCH
+ * @param[in]           TimeStamp       作成時刻とするEPOCH time
  * @retval      ture    成功
  */
-bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp);
+bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp);
 
 
 /** channel_update更新
- * 送信済みのchannel_updateと現在のパラメータを比較し、相違があれば送信する
+ * 送信済みのchannel_updateと現在のパラメータを比較し、相違があれば作成する
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
@@ -1845,6 +1845,24 @@ static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
 }
 
 
+/**
+ *
+ * @retval      0:node_1, 1:node_2
+ */
+static inline int ln_cnlupd_direction(const ln_cnl_update_t *pCnlUpd) {
+    return pCnlUpd->flags & LN_CNLUPD_FLAGS_DIRECTION;
+}
+
+
+/**
+ *
+ * @retval      true    disableフラグが立っていない
+ */
+static inline bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd) {
+    return !(pCnlUpd->flags & LN_CNLUPD_FLAGS_DISABLE);
+}
+
+
 /********************************************************************
  * NODE
  ********************************************************************/
@@ -1884,7 +1902,7 @@ bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId);
  * @param[in]       pNodeId             検索するnode_id
  * @retval      true        検索成功
  */
-bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId, void *p_db_param);
+bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId);
 
 
 /********************************************************************

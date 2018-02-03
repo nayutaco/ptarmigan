@@ -40,6 +40,7 @@
 #include "ln/ln_node.h"
 #include "ln/ln_enc_auth.h"
 
+//#define M_DBG_VERBOSE
 
 /**************************************************************************
  * macros
@@ -92,6 +93,13 @@
 #define M_PONG_MISSING                      (5)             ///< pongが返ってこないエラー上限
 
 #define M_FUNDING_INDEX                     (0)             ///< funding_txのvout
+
+
+#ifndef M_DBG_VERBOSE
+#define M_DBG_PRINT_TX(tx)      //NONE
+#else
+#define M_DBG_PRINT_TX(tx)      ucoin_print_tx(tx)
+#endif  //M_DBG_VERBOSE
 
 
 /**************************************************************************
@@ -325,8 +333,10 @@ bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t
             }
         }
         if (self->p_node->keys.pub[lp] < self->peer_node.node_id[lp]) {
+            DBG_PRINTF("my node= first\n");
             self->peer_node.sort = UCOIN_KEYS_SORT_ASC;
         } else {
+            DBG_PRINTF("my node= second\n");
             self->peer_node.sort = UCOIN_KEYS_SORT_OTHER;
         }
     }
@@ -472,7 +482,8 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
-    for (int lp = 0; lp < (int)ARRAY_SIZE(RECV_FUNC); lp++) {
+    size_t lp;
+    for (lp = 0; lp < ARRAY_SIZE(RECV_FUNC); lp++) {
         if (type == RECV_FUNC[lp].type) {
             //DBG_PRINTF("type=%04x: Len=%d\n", type, Len);
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);
@@ -481,6 +492,9 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             }
             break;
         }
+    }
+    if (lp == ARRAY_SIZE(RECV_FUNC)) {
+        DBG_PRINTF("not match: type=%04x\n", type);
     }
 
     return ret;
@@ -689,7 +703,7 @@ bool ln_funding_tx_stabled(ln_self_t *self)
 
     self->flck_flag |= M_FLCK_FLAG_SEND;
 
-    ln_db_save_channel(self);
+    ln_db_self_save(self);
 
     return true;
 }
@@ -721,34 +735,31 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
     ret = ln_msg_announce_signs_create(pBufAnnoSigns, &anno_signs);
     if (ret) {
         self->anno_flag |= M_ANNO_FLAG_SEND;
-        ln_db_save_channel(self);
+        ln_db_self_save(self);
     }
 
     return ret;
 }
 
 
-bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp)
+bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp)
 {
-    ln_cnl_update_t upd;
-
-    upd.short_channel_id = self->short_channel_id;
-    upd.timestamp = TimeStamp;
+    pUpd->short_channel_id = self->short_channel_id;
+    pUpd->timestamp = TimeStamp;
     //announce
-    upd.cltv_expiry_delta = self->anno_default.cltv_expiry_delta;
-    upd.htlc_minimum_msat = self->anno_default.htlc_minimum_msat;
-    upd.fee_base_msat = self->anno_default.fee_base_msat;
-    upd.fee_prop_millionths = self->anno_default.fee_prop_millionths;
+    pUpd->cltv_expiry_delta = self->anno_default.cltv_expiry_delta;
+    pUpd->htlc_minimum_msat = self->anno_default.htlc_minimum_msat;
+    pUpd->fee_base_msat = self->anno_default.fee_base_msat;
+    pUpd->fee_prop_millionths = self->anno_default.fee_prop_millionths;
     //署名
-    upd.p_key = self->p_node->keys.priv;
-    upd.sort = self->peer_node.sort;
-    bool ret = ln_msg_cnl_update_create(pCnlUpd, &upd);
+    pUpd->p_key = self->p_node->keys.priv;
+    pUpd->flags = self->peer_node.sort;
+    bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
     return ret;
 }
 
 
-//送信済みのchannel_updateと現在のパラメータを比較し、相違があれば送信する
 bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
 {
     bool ret;
@@ -757,7 +768,8 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
 
     ucoin_buf_init(&buf_upd);
 
-    ret = ln_db_load_anno_channel_upd(&buf_upd, ln_short_channel_id(self), self->peer_node.sort);
+    uint32_t timestamp;
+    ret = ln_db_annocnlupd_load(&buf_upd, &timestamp, ln_short_channel_id(self), self->peer_node.sort);
     if (ret) {
         ret = ln_msg_cnl_update_read(&upd, buf_upd.buf, buf_upd.len);
     }
@@ -771,10 +783,11 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
             DBG_PRINTF("update channel_update\n");
 
             uint32_t now = (uint32_t)time(NULL);
-            ret = ln_create_channel_update(self, pCnlUpd, now);
+            ln_cnl_update_t upd;
+            ret = ln_create_channel_update(self, &upd, pCnlUpd, now);
 
             //DB保存
-            bool dbret = ln_db_save_anno_channel_upd(pCnlUpd, ln_short_channel_id(self), self->peer_node.sort);
+            bool dbret = ln_db_annocnlupd_save(pCnlUpd, &upd, ln_their_node_id(self));
             assert(dbret);
         } else {
             //DBG_PRINTF("same channel_update\n");
@@ -1047,7 +1060,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
             ln_htlctype_t type;
             uint8_t payhash[LN_SZ_HASH];
             uint32_t expiry;
-            bool srch = ln_db_search_payhash(payhash, &type, &expiry,
+            bool srch = ln_db_phash_search(payhash, &type, &expiry,
                             pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
                 DBG_PRINTF("[%d]detect!\n", lp);
@@ -2119,7 +2132,7 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
         ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     }
     if (ret) {
-        ln_db_save_channel(self);
+        ln_db_self_save(self);
     }
 
     DBG_PRINTF("END\n");
@@ -2350,7 +2363,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     if (!ln_is_closing_signed_recvd(self)) {
         DBG_PRINTF("closing_signed exchanged\n");
         self->obscured = 0;
-        ln_db_save_channel(self);
+        ln_db_self_save(self);
     }
 
     DBG_PRINTF("END\n");
@@ -2927,31 +2940,32 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     ucoin_buf_t buf_upd;
     ucoin_buf_init(&buf_upd);
     uint32_t now = (uint32_t)time(NULL);
-    ret = ln_create_channel_update(self, &buf_upd, now);
+    ln_cnl_update_t upd;
+    ret = ln_create_channel_update(self, &upd, &buf_upd, now);
     if (!ret) {
-        DBG_PRINTF("fail: ln_create_channel_update\n");
+        DBG_PRINTF("fail\n");
         goto LABEL_EXIT;
     }
 
     //DB保存
-    ret = ln_db_save_anno_channel(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
+    ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
     if (ret) {
         //これ以降はchannel DBで管理する
         //ucoin_buf_free(&self->cnl_anno);
-        //ln_db_save_channel(self);
+        //ln_db_self_save(self);
     } else {
-        DBG_PRINTF("fail: ln_db_save_anno_channel\n");
+        DBG_PRINTF("fail: ln_db_annocnl_save\n");
         //goto LABEL_EXIT;
     }
-    ret = ln_db_save_anno_channel_upd(&buf_upd, ln_short_channel_id(self), self->peer_node.sort);
+    ret = ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));
     if (!ret) {
-        DBG_PRINTF("fail: ln_db_save_anno_channel_upd\n");
+        DBG_PRINTF("fail\n");
         //goto LABEL_EXIT;
     }
     ret = true;
 
     self->anno_flag |= M_ANNO_FLAG_RECV;
-    ln_db_save_channel(self);
+    ln_db_self_save(self);
 
 LABEL_EXIT:
     ucoin_buf_free(&buf_upd);
@@ -2969,7 +2983,7 @@ LABEL_EXIT:
  */
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    //DBG_PRINTF("\n");
+    DBG_PRINTF("\n");
 
     ln_cnl_announce_read_t ann;
     ln_cb_channel_anno_recv_t param;
@@ -2990,7 +3004,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 
     //DB読込み
     ucoin_buf_t buf_bolt;
-    ret = ln_db_load_anno_channel(&buf_bolt, ann.short_channel_id);
+    ret = ln_db_annocnl_load(&buf_bolt, ann.short_channel_id);
     if (ret) {
         // BOLT#7
         //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements-1
@@ -3002,10 +3016,10 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         // otherwise it SHOULD store this channel_announcement.
         if (ucoin_buf_cmp(&buf_bolt, &buf)) {
             if (param.is_unspent) {
-                //DBG_PRINTF("同じものが送られてきたので、スルー\n");
+                DBG_PRINTF("同じものが送られてきたので、スルー\n");
             } else {
                 //closeされたとみなして削除
-                ret = ln_db_del_anno_channel(ann.short_channel_id);
+                ret = ln_db_annocnlall_del(ann.short_channel_id);
                 DBG_PRINTF("remove db: %0" PRIx64 "(ret=%d)\n", ann.short_channel_id, ret);
             }
         } else {
@@ -3019,7 +3033,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     } else if (param.is_unspent) {
         //DB保存
         DBG_PRINTF("new channel_announcement: %0" PRIx64 "\n", ann.short_channel_id);
-        ret = ln_db_save_anno_channel(&buf, ann.short_channel_id, ln_their_node_id(self));
+        ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self));
         if (!ret) {
             DBG_PRINTF("fail: db save\n");
         }
@@ -3041,7 +3055,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     (void)self;
-    //DBG_PRINTF("\n");
+    DBG_PRINTF("\n");
 
     ln_cnl_update_t upd;
     memset(&upd, 0, sizeof(upd));
@@ -3071,7 +3085,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         ucoin_buf_t buf;
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
-        ret = ln_db_save_anno_channel_upd(&buf, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
+        ret = ln_db_annocnlupd_save(&buf, &upd, ln_their_node_id(self));
         if (!ret) {
             DBG_PRINTF("fail: db save\n");
         }
@@ -3296,10 +3310,10 @@ static bool create_to_local(ln_self_t *self,
                     ret = ln_create_tolocal_spent(self, &tx, tx_local.vout[vout_idx].value, to_self_delay,
                             &buf_ws, self->commit_local.txid, vout_idx, false);
                     if (ret) {
-                        ucoin_print_tx(&tx);
+                        M_DBG_PRINT_TX(&tx);
+                        memcpy(&pTxHtlcs[0], &tx, sizeof(tx));
+                        ucoin_tx_init(&tx);     //txはfreeさせない
                     }
-                    memcpy(&pTxHtlcs[0], &tx, sizeof(tx));
-                    ucoin_tx_init(&tx);     //txはfreeさせない
                 }
             } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
                 DBG_PRINTF("+++[%d]to_remote\n", vout_idx);
@@ -3310,7 +3324,7 @@ static bool create_to_local(ln_self_t *self,
                     ln_create_htlc_tx(&tx, tx_local.vout[vout_idx].value - fee, &buf_ws,
                                 pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry,
                                 self->commit_local.txid, vout_idx);
-                    ucoin_print_tx(&tx);
+                    M_DBG_PRINT_TX(&tx);
 
                     if (p_htlc_sigs != NULL) {
                         //署名チェック
@@ -3378,7 +3392,7 @@ static bool create_to_local(ln_self_t *self,
                         if ( ((pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) && ret_img) ||
                              (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ) {
                             DBG_PRINTF("create HTLC tx[%d]\n", htlc_num);
-                            ucoin_print_tx(&tx);
+                            M_DBG_PRINT_TX(&tx);
                             memcpy(&pTxHtlcs[1 + htlc_num], &tx, sizeof(tx));
 
                             // HTLC Timeout/Success Txを作った場合はそれを取り戻すトランザクションも作る
@@ -3390,7 +3404,7 @@ static bool create_to_local(ln_self_t *self,
                                         &buf_ws, txid, 0, false);
                             if (ret) {
                                 DBG_PRINTF("*** HTLC out Tx ***\n");
-                                ucoin_print_tx(&tx2);
+                                M_DBG_PRINT_TX(&tx2);
                                 ucoin_push_data(&push, &tx2, sizeof(ucoin_tx_t));
                             } else {
                                 ucoin_tx_free(&tx2);
@@ -3447,7 +3461,7 @@ static bool create_to_local(ln_self_t *self,
                                 &buf_sig_from_remote,
                                 &self->redeem_fund);
         DBG_PRINTF("++++++++++++++ 自分のcommit txに署名: tx_local[%" PRIx64 "]\n", self->short_channel_id);
-        ucoin_print_tx(&tx_local);
+        M_DBG_PRINT_TX(&tx_local);
 
         //
         // 署名verify
@@ -3571,7 +3585,7 @@ static bool create_to_remote(ln_self_t *self,
         //payment_hash, type, expiry保存
         uint8_t vout[M_SZ_WITPROG_WSH];
         ucoin_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[lp]->script);
-        ln_db_save_payhash(pp_htlcinfo[lp]->preimage_hash,
+        ln_db_phash_save(pp_htlcinfo[lp]->preimage_hash,
                         vout,
                         pp_htlcinfo[lp]->type,
                         pp_htlcinfo[lp]->expiry,
@@ -3600,7 +3614,7 @@ static bool create_to_remote(ln_self_t *self,
         DBG_PRINTF("fail: ln_create_commit_tx(Remote)\n");
     }
     DBG_PRINTF("++++++++++++++ 相手のcommit tx: tx_remote[%" PRIx64 "]\n", self->short_channel_id);
-    ucoin_print_tx(&tx_remote);
+    M_DBG_PRINT_TX(&tx_remote);
 
     ret = ucoin_tx_txid(self->commit_remote.txid, &tx_remote);
     if (!ret) {
@@ -3653,7 +3667,7 @@ static bool create_to_remote(ln_self_t *self,
                     ln_create_htlc_tx(&tx, tx_remote.vout[vout_idx].value - fee, &buf_ws,
                                 pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry,
                                 self->commit_remote.txid, vout_idx);
-                    ucoin_print_tx(&tx);
+                    M_DBG_PRINT_TX(&tx);
 
                     uint8_t preimage[LN_SZ_PREIMAGE];
                     bool ret_img;
@@ -3706,7 +3720,7 @@ static bool create_to_remote(ln_self_t *self,
                         if ( ((pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) && ret_img) ||
                              (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) ) {
                             DBG_PRINTF("create HTLC tx[%d]\n", htlc_num);
-                            ucoin_print_tx(&tx);
+                            M_DBG_PRINT_TX(&tx);
                             memcpy(&pTxHtlcs[1 + htlc_num], &tx, sizeof(tx));
                             ucoin_tx_init(&tx);     //txはfreeさせない
                         } else {
@@ -3839,7 +3853,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
     ucoin_buf_free(&buf_sig);
 
     DBG_PRINTF("+++++++++++++ closing_tx[%" PRIx64 "]\n", self->short_channel_id);
-    ucoin_print_tx(pTx);
+    M_DBG_PRINT_TX(pTx);
 
     DBG_PRINTF("END ret=%d\n", ret);
     return ret;
@@ -3903,8 +3917,8 @@ static void update_percommit_secret(ln_self_t *self)
 {
     ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
-    DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, UCOIN_SZ_PRIVKEY);
+    // DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
+    // DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, UCOIN_SZ_PRIVKEY);
 
     self->storage_index--;
 
@@ -3948,7 +3962,7 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
     bool ret = ln_derkey_storage_insert_secret(&self->peer_storage, p_prev_secret, self->peer_storage_index);
     if (ret) {
         self->peer_storage_index--;
-        ln_db_save_channel(self);
+        ln_db_self_save(self);
         DBG_PRINTF("I=%" PRIx64 " --> %" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
 
         //for (uint64_t idx = M_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
@@ -4018,7 +4032,7 @@ static void proc_announce_sigsed(ln_self_t *self)
         (*self->p_callback)(self, LN_CB_ANNO_SIGSED, &anno);
 
         self->anno_flag |= M_ANNO_FLAG_END;
-        ln_db_save_channel(self);
+        ln_db_self_save(self);
     }
 }
 
@@ -4038,7 +4052,7 @@ static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
 
     ucoin_buf_t buf_cnl_anno;
     ucoin_buf_init(&buf_cnl_anno);
-    ret = ln_db_load_anno_channel(&buf_cnl_anno, short_channel_id);
+    ret = ln_db_annocnl_load(&buf_cnl_anno, short_channel_id);
     if (ret) {
         ln_cnl_announce_read_t ann;
 
@@ -4086,10 +4100,10 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
     uint64_t amount;
     uint8_t preimage_hash[LN_SZ_HASH];
     void *p_cur;
-    bool ret = ln_db_cursor_preimage_open(&p_cur);
+    bool ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
         DBG_PRINTF("ret=%d\n", ret);
-        ret = ln_db_cursor_preimage_get(p_cur, pPreImage, &amount);
+        ret = ln_db_preimg_cur_get(p_cur, pPreImage, &amount);
         if (ret) {
             DBG_PRINTF("compare preimage : ");
             DUMPBIN(pPreImage, UCOIN_SZ_PRIVKEY);
@@ -4102,7 +4116,7 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
             }
         }
     }
-    ln_db_cursor_preimage_close(p_cur);
+    ln_db_preimg_cur_close(p_cur);
 
     return ret;
 }

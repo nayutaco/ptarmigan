@@ -753,13 +753,7 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
     ln_misc_push32be(&proto, pMsg->timestamp);
 
     //        [2:flags]
-    uint16_t flags;
-    if (pMsg->sort == UCOIN_KEYS_SORT_ASC) {
-        flags = 0x0000;
-    } else {
-        flags = 0x0001;
-    }
-    ln_misc_push16be(&proto, flags);
+    ln_misc_push16be(&proto, pMsg->flags);
 
     //        [2:cltv_expiry_delta]
     ln_misc_push16be(&proto, pMsg->cltv_expiry_delta);
@@ -854,10 +848,10 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
 
     assert(Len == pos);
 
-//#ifdef DBG_PRINT_CREATE
-//    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-//    ln_msg_cnl_update_print(pMsg);
-//#endif  //DBG_PRINT_CREATE
+#ifdef DBG_PRINT_CREATE
+    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    ln_msg_cnl_update_print(pMsg);
+#endif  //DBG_PRINT_CREATE
 
     return chain_match;
 }
@@ -891,8 +885,8 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
     time_t t = (time_t)pMsg->timestamp;
     DBG_PRINTF2("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
     DBG_PRINTF2("flags= 0x%04x\n", pMsg->flags);
-    DBG_PRINTF2("    direction: %s\n", (pMsg->flags & 0x0001) ? "node_2" : "node_1");
-    DBG_PRINTF2("    %s\n", (pMsg->flags & LN_CNLUPD_FLAGS_DISABLE) ? "disabling" : "enable");
+    DBG_PRINTF2("    direction: %s\n", ln_cnlupd_direction(pMsg) ? "node_2" : "node_1");
+    DBG_PRINTF2("    %s\n", ln_cnlupd_enable(pMsg) ? "enable" : "disable");
     DBG_PRINTF2("cltv_expiry_delta= %u\n", pMsg->cltv_expiry_delta);
     DBG_PRINTF2("htlc_minimum_msat= %" PRIu64 "\n", pMsg->htlc_minimum_msat);
     DBG_PRINTF2("fee_base_msat= %u\n", pMsg->fee_base_msat);

@@ -37,31 +37,29 @@ extern "C" {
  * macros
  ********************************************************************/
 
-#define LN_DB_CNLANNO_SINFO         '0'     ///< channel_announcement用KEYの末尾: sendinfo
-#define LN_DB_CNLANNO_ANNO          '1'     ///< channel_announcement用KEYの末尾: channel_announcement
-#define LN_DB_CNLANNO_UPD1          '2'     ///< channel_announcement用KEYの末尾: channel_update 1
-#define LN_DB_CNLANNO_UPD2          '3'     ///< channel_announcement用KEYの末尾: channel_update 2
+#define LN_DB_CNLANNO_ANNO          'A'     ///< channel_announcement用KEYの末尾: channel_announcement
+#define LN_DB_CNLANNO_UPD1          'B'     ///< channel_announcement用KEYの末尾: channel_update 1
+#define LN_DB_CNLANNO_UPD2          'C'     ///< channel_announcement用KEYの末尾: channel_update 2
 
 
 /**************************************************************************
  * typedefs
  **************************************************************************/
 
-typedef struct {
-    uint32_t        channel_anno;                   ///< [timestamp] channel_announcement
-    uint32_t        channel_upd[2];                 ///< [timestamp] channel_update(0:node_1, 1:node_2)
-    uint8_t         send_nodeid[UCOIN_SZ_PUBKEY];   ///< channel_announcement送信元node_id
-} ln_db_channel_sinfo;
-
-
-/** 比較関数 #ln_db_search_channel()
+/** 比較関数 #ln_db_self_search()
  *
  * @param[in]       self
  * @param[in]       p_db_param      db
  * @param[in]       p_param
- * @retval  true    比較終了(#ln_db_search_channel()の戻り値もtrue)
+ * @retval  true    比較終了(#ln_db_self_search()の戻り値もtrue)
  */
 typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_param);
+
+
+typedef enum {
+    LN_DB_TXN_CNL,
+    LN_DB_TXN_NODE
+} ln_db_txn_t;
 
 
 /********************************************************************
@@ -95,7 +93,7 @@ void ln_db_term(void);
  * @param[in]       self
  * @retval      true    成功
  */
-bool ln_db_save_channel(const ln_self_t *self);
+bool ln_db_self_save(const ln_self_t *self);
 
 
 /** channel削除
@@ -104,7 +102,7 @@ bool ln_db_save_channel(const ln_self_t *self);
  * @param[in,out]   p_db_param      呼び出されたコールバック関数のパラメータ
  * @retval      true    成功
  */
-bool ln_db_del_channel(const ln_self_t *self, void *p_db_param);
+bool ln_db_self_del(const ln_self_t *self, void *p_db_param);
 
 
 /** channel情報検索
@@ -115,50 +113,60 @@ bool ln_db_del_channel(const ln_self_t *self, void *p_db_param);
  * @retval      true    検索関数がtrueを戻した
  * @retval      false   検索関数が最後までtrueを返さなかった
  */
-bool ln_db_search_channel(ln_db_func_cmp_t pFunc, void *pFuncParam);
+bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
+
+
+////////////////////
+// announcement
+////////////////////
+
+bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type);
+void ln_db_anno_cur_commit(void *pDb);
 
 
 ////////////////////
 // channel_announcement
 ////////////////////
 
+
 /** channel_announcement読込み
  *
  * @param[out]      pCnlAnno
- * @param[in]       short_channel_id
+ * @param[in]       ShortChannelId
  * @retval      true    成功
  */
-bool ln_db_load_anno_channel(ucoin_buf_t *pCnlAnno, uint64_t short_channel_id);
+bool ln_db_annocnl_load(ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId);
 
 
 /** channel_announcement書込み
  *
  * @param[in]       pCnlAnno
- * @param[in]       CnlSci      pCnlAnnoのshort_channel_id
- * @param[in]       pNodeId     pCnlAnnoの送信元node_id
+ * @param[in]       ShortChannelId  pCnlAnnoのshort_channel_id
+ * @param[in]       pSendId         pCnlAnnoの送信元/先node_id
  * @retval      true    成功
  */
-bool ln_db_save_anno_channel(const ucoin_buf_t *pCnlAnno, uint64_t CnlSci, const uint8_t *pNodeId);
+bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId);
 
 
 /** channel_update読込み
  *
- * @param[out]      pCnlAnno
- * @param[in]       short_channel_id
+ * @param[out]      pCnlAnno            channel_updateパケット
+ * @param[out]      pTimeStamp          pCnlAnnoのTimeStamp
+ * @param[in]       ShortChannelId
  * @param[in]       Dir
  * @retval      true    成功
  */
-bool ln_db_load_anno_channel_upd(ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir);
+bool ln_db_annocnlupd_load(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir);
 
 
 /** channel_update書込み
  *
- * @param[in]       pCnlAnno
- * @param[in]       short_channel_id
- * @param[in]       Dir
+ * @param[in]       pCnlUpd             channel_updateパケット
+ * @param[in]       pUpd                channel_update構造体
+ * @param[in]       pSendId             channel_updateの送信元/先ノード
  * @retval      true    成功
  */
-bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, uint64_t short_channel_id, uint8_t Dir);
+bool ln_db_annocnlupd_save(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pSendId);
 
 
 /** channel_announcement削除
@@ -166,7 +174,18 @@ bool ln_db_save_anno_channel_upd(const ucoin_buf_t *pCnlUpd, uint64_t short_chan
  * @param[in]       short_channel_id
  * @retval      true    成功
  */
-bool ln_db_del_anno_channel(uint64_t short_channel_id);
+bool ln_db_annocnlall_del(uint64_t short_channel_id);
+
+
+/** channel_announcement系の送信元/先ノード追加
+ *
+ * @param[in,out]   pDb
+ * @param[in]       ShortChannelId
+ * @param[in]       Type
+ * @param[in]       bClr                true:保存したノードを削除してから追加する
+ * @param[in]       pSendId             送信元/先ノード
+ */
+bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bool bClr, const uint8_t *pSendId);
 
 
 /** node_idを含むshort_channel_id検索
@@ -176,40 +195,37 @@ bool ln_db_del_anno_channel(uint64_t short_channel_id);
  * @retval      0以外   成功
  * @retval      0       検索失敗
  */
-uint64_t ln_db_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
+//uint64_t ln_db_annocnlall_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
 
 
 /**
  *
  */
-bool ln_db_cursor_anno_channel_open(void **ppCur);
+bool ln_db_annocnl_cur_open(void **ppCur, void *pDb);
 
 
 /**
  *
  */
-void ln_db_cursor_anno_channel_close(void *pCur);
+void ln_db_annocnl_cur_close(void *pCur);
 
 
-/**
+/** channel_announcement関連情報送信済み検索
  *
- * @param[in,out]   pCur
- * @param[out]      p_short_channel_id
- * @param[out]      p_type
- * @param[out]      pBuf
+ */
+bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId);
+
+
+/** channel_announcement関連情報の順次取得
+ *
+ * @param[in,out]   pCur                    #ln_db_annocnl_cur_open()でオープンした*ppCur
+ * @param[out]      pShortChannelId         short_channel_id
+ * @param[out]      pType                   LN_DB_CNLANNO_xxx(channel_announcement / channel_update)
+ * @param[out]      pTimeStamp              channel_announcementのtimestamp
+ * @param[out]      pBuf                    取得したデータ(p_typeに応じて内容は変わる)
  * @retval  true    成功
  */
-bool ln_db_cursor_anno_channel_get(void *pCur, uint64_t *p_short_channel_id, char *p_type, ucoin_buf_t *pBuf);
-
-
-/**
- *
- * @param[in,out]   pCur
- * @param[in]       short_channel_id
- * @param[out]      pSInfo
- * @retval  true    成功
- */
-void ln_db_cursor_anno_sinfo(void *pCur, uint64_t short_channel_id, ln_db_channel_sinfo *pSInfo);
+bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf);
 
 
 ////////////////////
@@ -219,61 +235,74 @@ void ln_db_cursor_anno_sinfo(void *pCur, uint64_t short_channel_id, ln_db_channe
 /** node_announcement読込み
  *
  * @param[out]      pNodeAnno       node_announcement(NULL時は無視)
- * @param[out]      pTimeStamp      保存時間(NULL時は無視)
- * @param[out]      pSendId         送信元ノード(NULL時は無視)
+ * @param[out]      pTimeStamp      node_announcementのtimestamp(NULL時は無視)
  * @param[in]       pNodeId         検索するnode_id
  * @retval      true    成功
  */
-bool ln_db_load_anno_node(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, uint8_t *pSendId, const uint8_t *pNodeId, void *pDbParam);
+bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
 
 
 /** node_announcement書込み
  *
  * @param[in]       pNodeAnno       node_announcementパケット
- * @param[in]       pSendId         node_announcementの送信元node_id
- * @param[in]       pNodeId         node_announcementのnode_id
+ * @param[in]       pAnno           node_announcement構造体
+ * @param[in]       pSendId         (非NULL)node_announcementの送信元/先ノード
  * @retval      true    成功
  * @note
  *      - タイムスタンプはAPI呼び出し時の値が保存される
  */
-bool ln_db_save_anno_node(const ucoin_buf_t *pNodeAnno, const uint8_t *pSendId, const uint8_t *pNodeId);
+bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId);
 
 
-/** #ln_db_cursor_anno_node_get()用DB cursorオープン
+/** node_announcement送信済み検索
+ *
+ */
+bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId);
+
+
+/** node_announcement送信元/先ノード追加
+ *
+ * @param[in,out]   pDb
+ * @param[in]       pNodeId
+ * @param[in]       pSendId             送信元/先ノード
+ */
+bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId);
+
+
+/** #ln_db_annonod_cur_get()用DB cursorオープン
  *
  *
  */
-bool ln_db_cursor_anno_node_open(void **ppCur);
+bool ln_db_annonod_cur_open(void **ppCur, void *pDb);
 
 
-/** #ln_db_cursor_anno_node_get()用DB cursorクローズ
+/** #ln_db_annonod_cur_get()用DB cursorクローズ
  *
  *
  */
-void ln_db_cursor_anno_node_close(void *pCur);
+void ln_db_annonod_cur_close(void *pCur);
 
 /** node_announcement順次取得
  *
- * @param[in,out]   pCur            #ln_db_cursor_anno_node_open()でオープンしたDB cursor
+ * @param[in,out]   pCur            #ln_db_annonod_cur_open()でオープンしたDB cursor
  * @param[out]      pBuf            node_announcementパケット
  * @param[out]      pTimeStamp      保存時刻
- * @param[out]      pSendId         node_announcementの送信元node_id
  * @param[out]      pNodeId         node_announcementのnode_id
  * @retval      true    成功
  */
-bool ln_db_cursor_anno_node_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId);
+bool ln_db_annonod_cur_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
 
 
 ////////////////////
 // payment_preimage
 ////////////////////
 
-bool ln_db_save_preimage(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam);
-bool ln_db_del_preimage(const uint8_t *pPreImage);
-bool ln_db_del_preimage_hash(const uint8_t *pPreImageHash);
-bool ln_db_cursor_preimage_open(void **ppCur);
-void ln_db_cursor_preimage_close(void *pCur);
-bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
+bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam);
+bool ln_db_preimg_del(const uint8_t *pPreImage);
+bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash);
+bool ln_db_preimg_cur_open(void **ppCur);
+void ln_db_preimg_cur_close(void *pCur);
+bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
 
 
 #ifdef LN_UGLY_NORMAL
@@ -289,7 +318,7 @@ bool ln_db_cursor_preimage_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount
  * @param[in]       Expiry          Expiry
  * @param[in,out]   pDbParam        DBパラメータ
  */
-bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry, void *pDbParam);
+bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry, void *pDbParam);
 
 
 /** payment_hash検索
@@ -300,7 +329,7 @@ bool ln_db_save_payhash(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlcty
  * @param[in]       pVout           検索するvout
  * @param[in,out]   pDbParam        DBパラメータ
  */
-bool ln_db_search_payhash(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
+bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
 
 #endif  //LN_UGLY_NORMAL
 
@@ -309,8 +338,8 @@ bool ln_db_search_payhash(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pEx
 // revoked transaction close
 ////////////////////
 
-bool ln_db_load_revoked(ln_self_t *self, void *pDbParam);
-bool ln_db_save_revoked(const ln_self_t *self, bool bUpdate, void *pDbParam);
+bool ln_db_revtx_load(ln_self_t *self, void *pDbParam);
+bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
 
 #ifdef __cplusplus
 }

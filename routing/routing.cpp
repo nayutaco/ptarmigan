@@ -73,7 +73,15 @@ using namespace boost;
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
 
 #define M_CLTV_INIT                         ((uint16_t)0xffff)
-#define M_SHADOW_ROUTE                      (0)
+#define M_SHADOW_ROUTE                      (0)     // shadow route extension
+                                                    //  攪乱するためにオフセットとして加算するCLTV
+                                                    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendations-for-routing
+
+#define M_LMDB_DIR              "./dbucoin"
+#define M_LMDB_ENV_DIR          "/dbucoin"
+#define M_LMDB_ANNO_DIR         "/dbucoin_anno"
+#define M_LMDB_ENV              M_LMDB_DIR M_LMDB_ENV_DIR       ///< LMDB名(announce以外)
+#define M_LMDB_ANNO             M_LMDB_DIR M_LMDB_ANNO_DIR      ///< LMDB名(announce)
 
 
 /**************************************************************************
@@ -127,6 +135,7 @@ typedef graph_traits < graph_t >::vertex_iterator vertex_iterator;
  ********************************************************************/
 
 static MDB_env      *mpDbEnv = NULL;
+static MDB_env      *mpDbAnno = NULL;
 static struct nodes_t {
     uint64_t    short_channel_id;
     nodeinfo_t  ninfo[2];
@@ -136,32 +145,6 @@ static uint8_t mMyNodeId[UCOIN_SZ_PUBKEY];
 static uint8_t mTgtNodeId[UCOIN_SZ_PUBKEY];
 static uint16_t mMinFinalCltvExpiry = 0;
 static FILE *fp_err;
-
-// https://github.com/lightningnetwork/lightning-rfc/issues/237
-// https://github.com/bitcoin/bips/blob/master/bip-0122.mediawiki
-static const uint8_t M_BTC_GENESIS_MAIN[] = {
-    // bitcoin mainnet
-    0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
-    0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
-    0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c,
-    0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-static const uint8_t M_BTC_GENESIS_TEST[] = {
-    // bitcoin testnet
-    0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
-    0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
-    0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
-    0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
-};
-
-static const uint8_t M_BTC_GENESIS_REGTEST[] = {
-    // bitcoin regtest
-    0x06, 0x22, 0x6e, 0x46, 0x11, 0x1a, 0x0b, 0x59,
-    0xca, 0xaf, 0x12, 0x60, 0x43, 0xeb, 0x5b, 0xbf,
-    0x28, 0xc3, 0x4f, 0x3a, 0x5e, 0x33, 0x2a, 0x1f,
-    0xc7, 0xb2, 0xb7, 0x3c, 0xf1, 0x88, 0x91, 0x0f,
-};
 
 
 /********************************************************************
@@ -185,88 +168,86 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-/* Dump in BDB-compatible format */
-static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const uint8_t *p2)
+static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi)
 {
-    MDB_dbi     dbi;
+    int retval;
     MDB_cursor  *cursor;
-    const char *name = (const char *)p_key->mv_data;
 
-    ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
+    retval = mdb_cursor_open(txn, dbi, &cursor);
+    assert(retval == 0);
+    int ret;
 
-    if (dbtype == LN_LMDB_DBTYPE_CHANNEL_ANNO) {
-        int retval = mdb_dbi_open(txn, name, 0, &dbi);
-        assert(retval == 0);
-        retval = mdb_cursor_open(txn, dbi, &cursor);
-        assert(retval == 0);
-        int ret;
+    do {
+        int idx;
+        uint64_t short_channel_id;
+        char type;
+        uint32_t timestamp;
+        ucoin_buf_t buf;
 
-        do {
-            uint64_t short_channel_id;
-            char type;
-            int idx;
-            ucoin_buf_t buf;
+        ucoin_buf_init(&buf);
+        ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
+        if (ret == 0) {
+            ln_cnl_update_t upd;
+            bool bret;
 
-            ucoin_buf_init(&buf);
-            ret = ln_lmdb_load_anno_channel_cursor(cursor, &short_channel_id, &type, &buf);
-            if (ret == 0) {
-                ln_cnl_update_t upd;
-                bool bret;
+            switch (type) {
+            case LN_DB_CNLANNO_ANNO:
+                mNodeNum++;
+                mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
 
-                switch (type) {
-                case LN_DB_CNLANNO_ANNO:
-                    mNodeNum++;
-                    mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
-
-                    ln_getids_cnl_anno(
-                                        &mpNodes[mNodeNum - 1].short_channel_id,
-                                        mpNodes[mNodeNum - 1].ninfo[0].node_id,
-                                        mpNodes[mNodeNum - 1].ninfo[1].node_id,
-                                        buf.buf, buf.len);
-                    mpNodes[mNodeNum - 1].ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
-                    mpNodes[mNodeNum - 1].ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
+                ln_getids_cnl_anno(
+                                    &mpNodes[mNodeNum - 1].short_channel_id,
+                                    mpNodes[mNodeNum - 1].ninfo[0].node_id,
+                                    mpNodes[mNodeNum - 1].ninfo[1].node_id,
+                                    buf.buf, buf.len);
+                mpNodes[mNodeNum - 1].ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
+                mpNodes[mNodeNum - 1].ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
 #ifdef M_DEBUG
-                    fprintf(fp_err, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
-                    ln_print_announce(buf.buf, buf.len);
+                fprintf(fp_err, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
+                ln_print_announce(buf.buf, buf.len);
 #endif
-                    break;
-                case LN_DB_CNLANNO_UPD1:
-                case LN_DB_CNLANNO_UPD2:
-                    idx = type - LN_DB_CNLANNO_UPD1;
-                    bret = ln_getparams_cnl_upd(&upd, buf.buf, buf.len);
-                    if (bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0)) {
-                        //disable状態ではない
-                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
-                        mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
-                        mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat = upd.fee_base_msat;
-                        mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
-                    } else {
-                        //disableの場合は、対象外にされるよう初期値にしておく
-                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
-                    }
-#ifdef M_DEBUG
-                    fprintf(fp_err, "channel update : %c\n", type);
-                    ln_print_announce(buf.buf, buf.len);
-#endif
-                    break;
-                default:
-                    break;
+                break;
+            case LN_DB_CNLANNO_UPD1:
+            case LN_DB_CNLANNO_UPD2:
+                idx = type - LN_DB_CNLANNO_UPD1;
+                bret = ln_getparams_cnl_upd(&upd, buf.buf, buf.len);
+                if (bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0)) {
+                    //disable状態ではない
+                    mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
+                    mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
+                    mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat = upd.fee_base_msat;
+                    mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
+                } else {
+                    //disableの場合は、対象外にされるよう初期値にしておく
+                    mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
                 }
+#ifdef M_DEBUG
+                fprintf(fp_err, "channel update : %c\n", type);
+                ln_print_announce(buf.buf, buf.len);
+#endif
+                break;
+            default:
+                break;
             }
-            ucoin_buf_free(&buf);
-        } while (ret == 0);
-        mdb_cursor_close(cursor);
-        mdb_close(mpDbEnv, dbi);
-    } else if ((dbtype == LN_LMDB_DBTYPE_SELF) && p1 && p2) {
-        int retval = mdb_dbi_open(txn, name, 0, &dbi);
-        assert(retval == 0);
+        }
+        ucoin_buf_free(&buf);
+    } while (ret == 0);
+    mdb_cursor_close(cursor);
+}
+
+static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint8_t *p2)
+{
+    int retval;
+    MDB_cursor  *cursor;
+
+    if (p1 && p2) {
         retval = mdb_cursor_open(txn, dbi, &cursor);
         assert(retval == 0);
         int ret;
 
         ln_self_t   self;
         memset(&self, 0, sizeof(self));
-        ret = ln_lmdb_load_channel(&self, txn, &dbi);
+        ret = ln_lmdb_self_load(&self, txn, dbi);
         if (ret == 0) {
             //p1: my node_id(送金元とmy node_idが不一致の場合はNULL), p2: target node_id
 #if 1
@@ -339,11 +320,7 @@ static int dumpit(MDB_txn *txn, const MDB_val *p_key, const uint8_t *p1, const u
         }
         ln_term(&self);
         mdb_close(mpDbEnv, dbi);
-    } else {
-        //none
     }
-
-    return 0;
 }
 
 
@@ -356,25 +333,54 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
 {
     int ret;
     MDB_txn     *txn;
+    MDB_txn     *txn_anno;
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
+    char        dbpath[256];
+    char        annopath[256];
+
+    strcpy(dbpath, pDbPath);
+    size_t len = strlen(dbpath);
+    if (dbpath[len - 1] == '/') {
+        dbpath[len - 1] = '\0';
+    }
+    strcpy(annopath, dbpath);
+    strcat(dbpath, M_LMDB_ENV_DIR);
+    strcat(annopath, M_LMDB_ANNO_DIR);
 
     ret = mdb_env_create(&mpDbEnv);
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(mpDbEnv, 2);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbEnv, pDbPath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(mpDbEnv, dbpath, MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", pDbPath);
+        fprintf(fp_err, "fail: cannot open[%s]\n", dbpath);
         assert(ret == 0);
     }
 
+    ret = mdb_env_create(&mpDbAnno);
+    assert(ret == 0);
+    ret = mdb_env_set_maxdbs(mpDbAnno, 2);
+    assert(ret == 0);
+    ret = mdb_env_open(mpDbAnno, annopath, MDB_RDONLY, 0664);
+    if (ret) {
+        fprintf(fp_err, "fail: cannot open[%s]\n", annopath);
+        assert(ret == 0);
+    }
+
+
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
-    uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
-    ret = ln_lmdb_check_version(txn, my_nodeid);
+    ret = mdb_txn_begin(mpDbAnno, NULL, MDB_RDONLY, &txn_anno);
     assert(ret == 0);
+
+    uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
+    ln_lmdb_db_t db;
+    db.txn = txn;
+    ret = ln_lmdb_ver_check(&db, my_nodeid);
+    assert(ret == 0);
+
 #ifdef M_DEBUG
     fprintf(fp_err, "my node_id: ");
     dumpbin(my_nodeid, sizeof(my_nodeid));
@@ -383,9 +389,10 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
         //p1がmy node_idと不一致なら、NULL扱い
         p1 = NULL;
     }
+
+    //self
     ret = mdb_dbi_open(txn, NULL, 0, &dbi);
     assert(ret == 0);
-
     ret = mdb_cursor_open(txn, dbi, &cursor);
     assert(ret == 0);
 
@@ -400,9 +407,10 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
             if (list) {
                 list++;
             } else {
-                ret = dumpit(txn, &key, p1, p2);
-                if (ret) {
-                    break;
+                const char *name = (const char *)key.mv_data;
+                ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
+                if (dbtype == LN_LMDB_DBTYPE_SELF) {
+                    dumpit_self(txn, dbi2, p1, p2);
                 }
             }
             mdb_close(mpDbEnv, dbi2);
@@ -411,8 +419,42 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
         }
     }
     mdb_cursor_close(cursor);
-    mdb_close(mpDbEnv, dbi);
     mdb_txn_abort(txn);
+
+
+    //channel_anno
+    ret = mdb_dbi_open(txn_anno, NULL, 0, &dbi);
+    assert(ret == 0);
+    ret = mdb_cursor_open(txn_anno, dbi, &cursor);
+    assert(ret == 0);
+
+    list = 0;
+    while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
+        MDB_dbi dbi2;
+        if (memchr(key.mv_data, '\0', key.mv_size)) {
+            continue;
+        }
+        ret = mdb_dbi_open(txn_anno, (const char *)key.mv_data, 0, &dbi2);
+        if (ret == 0) {
+            if (list) {
+                list++;
+            } else {
+                const char *name = (const char *)key.mv_data;
+                ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
+                if (dbtype == LN_LMDB_DBTYPE_CHANNEL_ANNO) {
+                    dumpit_chan(txn_anno, dbi2);
+                }
+            }
+            mdb_close(mpDbEnv, dbi2);
+        } else {
+            fprintf(fp_err, "???\n");
+        }
+    }
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn_anno);
+
+
+    mdb_env_close(mpDbAnno);
     mdb_env_close(mpDbEnv);
 }
 
@@ -492,20 +534,24 @@ int main(int argc, char* argv[])
         }
     } else {
         fprintf(fp_err, "usage:");
-        //                    1                 2
-        fprintf(fp_err, "\t%s [mainnet/testnet] [db dir]\n", argv[0]);
-        //                    1                 2        3               4               5             6
-        fprintf(fp_err, "\t%s [mainnet/testnet] [db dir] [payer node_id] [payee node_id] [amount_msat] <[min_final_cltv_expiry]>\n", argv[0]);
+        //                    1                         2
+        fprintf(fp_err, "\t%s [mainnet/testnet/regtest] [db dir] : output map dot file(route.dot)\n", argv[0]);
+        //                    1                         2        3               4               5
+        fprintf(fp_err, "\t%s [mainnet/testnet/regtest] [db dir] [payer node_id] [payee node_id] [amount_msat] : payment route(CSV)\n", argv[0]);
+        //                    1                         2        3               4               5             6
+        fprintf(fp_err, "\t%s [mainnet/testnet/regtest] [db dir] [payer node_id] [payee node_id] [amount_msat] [min_final_cltv_expiry] : payment route(CSV)\n", argv[0]);
+        //                    1                         2        3               4               5             6                       7
+        fprintf(fp_err, "\t%s [mainnet/testnet/regtest] [db dir] [payer node_id] [payee node_id] [amount_msat] [min_final_cltv_expiry] [payment_hash] : payment route(JSON)\n", argv[0]);
         return -1;
     }
 
 
     if (strcmp(nettype, "mainnet") == 0) {
-        ln_set_genesishash(M_BTC_GENESIS_MAIN);
+        ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCMAIN));
     } else if (strcmp(nettype, "testnet") == 0) {
-        ln_set_genesishash(M_BTC_GENESIS_TEST);
+        ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCTEST));
     } else if (strcmp(nettype, "regtest") == 0) {
-        ln_set_genesishash(M_BTC_GENESIS_REGTEST);
+        ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCREGTEST));
     } else {
         fprintf(fp_err, "mainnet or testnet only[%s]\n", nettype);
         return -1;
