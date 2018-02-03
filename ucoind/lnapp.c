@@ -632,6 +632,14 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
         //minimum_depth
         cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(pAppConf->funding_min_depth));
+    } else if (p_self && ln_is_funding(p_self)) {
+        char str[256];
+
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString("fund_waiting"));
+
+        //peer node_id
+        misc_bin2str(str, pAppConf->node_id, UCOIN_SZ_PUBKEY);
+        cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
     } else if (ucoin_keys_chkpub(pAppConf->node_id)) {
         char str[256];
 

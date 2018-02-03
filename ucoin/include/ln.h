@@ -1570,7 +1570,7 @@ static inline bool ln_is_funder(const ln_self_t *self) {
 }
 
 
-/** funding注かどうか
+/** funding中かどうか
  *
  * @param[in]           self            channel情報
  * @retval      true    fundingしている
