@@ -1357,7 +1357,7 @@ bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, cons
     if (!bClr) {
         int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
         if (retval == 0) {
-            detect = annoinfo_search(&data, pNodeId);
+            detect = annoinfo_search(&data, pSendId);
         } else {
             DBG_PRINTF("new ");
             DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
