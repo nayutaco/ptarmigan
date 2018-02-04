@@ -1420,8 +1420,8 @@ static void poll_ping(lnapp_conf_t *p_conf)
             send_peer_noise(p_conf, &buf_ping);
             ucoin_buf_free(&buf_ping);
         } else {
-            SYSLOG_ERR("%s(): pong not respond", __func__);
-            stop_threads(p_conf);
+            //SYSLOG_ERR("%s(): pong not respond", __func__);
+            //stop_threads(p_conf);
         }
     }
 

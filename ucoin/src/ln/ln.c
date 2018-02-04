@@ -1352,17 +1352,22 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 {
     ln_ping_t ping;
 
+    if (self->last_num_pong_bytes != 0) {
+        DBG_PRINTF("not receive pong\n");
+        return false;
+    }
+
     ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
     ping.num_pong_bytes = self->last_num_pong_bytes;
     ucoin_util_random((uint8_t *)&ping.byteslen, 2);
     bool ret = ln_msg_ping_create(pPing, &ping);
     if (ret) {
         self->missing_pong_cnt++;
-        if (self->missing_pong_cnt > M_PONG_MISSING) {
-            self->err = LNERR_PINGPONG;
-            DBG_PRINTF("many pong missing...(%d)\n", self->missing_pong_cnt);
-            ret = false;
-        }
+        //if (self->missing_pong_cnt > M_PONG_MISSING) {
+        //    self->err = LNERR_PINGPONG;
+        //    DBG_PRINTF("many pong missing...(%d)\n", self->missing_pong_cnt);
+        //    ret = false;
+        //}
     }
 
     return ret;
@@ -1730,6 +1735,9 @@ static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ret = (pong.byteslen == self->last_num_pong_bytes);
     if (ret) {
         self->missing_pong_cnt--;
+        self->last_num_pong_bytes = 0;
+    } else {
+        DBG_PRINTF("fail: pong.byteslen(%" PRIu16 ") != self->last_num_pong_bytes(%" PRIu16 ")\n", pong.byteslen, self->last_num_pong_bytes);
     }
 
     DBG_PRINTF("END\n");
