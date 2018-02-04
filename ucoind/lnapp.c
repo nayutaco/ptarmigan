@@ -632,6 +632,14 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
         //minimum_depth
         cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(pAppConf->funding_min_depth));
+    } else if (p_self && ln_is_funding(p_self)) {
+        char str[256];
+
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString("fund_waiting"));
+
+        //peer node_id
+        misc_bin2str(str, pAppConf->node_id, UCOIN_SZ_PUBKEY);
+        cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
     } else if (ucoin_keys_chkpub(pAppConf->node_id)) {
         char str[256];
 
@@ -1184,7 +1192,7 @@ static void *thread_recv_start(void *pArg)
             }
 
             //ping送信待ちカウンタ
-            p_conf->ping_counter = 0;
+            //p_conf->ping_counter = 0;
         } else {
             break;
         }
@@ -1402,6 +1410,7 @@ static void poll_ping(lnapp_conf_t *p_conf)
 
     //未送受信の状態が続いたらping送信する
     p_conf->ping_counter++;
+    DBG_PRINTF("ping_counter=%d\n", p_conf->ping_counter);
     if (p_conf->ping_counter >= M_WAIT_PING_SEC / M_WAIT_POLL_SEC) {
         ucoin_buf_t buf_ping;
 
@@ -2591,7 +2600,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
             }
 
             //連続して送信すると混雑する可能性がある
-            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
+            //misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
     } else {
         DBG_PRINTF("no channel_announce DB\n");
@@ -2638,7 +2647,7 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
                 DBG_PRINTF("send node_anno: ");
                 DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
                 send_peer_noise(p_conf, &buf_node);
-                ln_db_annonod_add_nodeid(p_db, nodeid, ln_their_node_id(p_conf->p_self));
+                ln_db_annonod_add_nodeid(p_db, nodeid, false, ln_their_node_id(p_conf->p_self));
             } else {
                 DBG_PRINTF("not send node_anno: ");
                 DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
@@ -2650,7 +2659,7 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
             }
 
             //連続して送信すると混雑する可能性がある
-            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
+            //misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
     } else {
         DBG_PRINTF("no node_announce DB\n");

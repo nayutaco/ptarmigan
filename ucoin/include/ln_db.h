@@ -264,9 +264,10 @@ bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_
  *
  * @param[in,out]   pDb
  * @param[in]       pNodeId
+ * @param[in]       bClr                true:保存したノードを削除してから追加する
  * @param[in]       pSendId             送信元/先ノード
  */
-bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId);
+bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, const uint8_t *pSendId);
 
 
 /** #ln_db_annonod_cur_get()用DB cursorオープン
