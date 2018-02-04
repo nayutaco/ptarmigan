@@ -819,7 +819,7 @@ static void *thread_main_start(void *pArg)
     {
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
-        ret = ln_create_init(&my_self, &buf_bolt);
+        ret = ln_create_init(&my_self, &buf_bolt, detect);
         if (!ret) {
             goto LABEL_JOIN;
         }

@@ -502,7 +502,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
 
 //init作成
-bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
+bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
 {
     if (self->init_flag & INIT_FLAG_SEND) {
         self->err = LNERR_INV_STATE;
@@ -515,18 +515,25 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
     //TODO: globalfeatures と localfeatures
     ucoin_buf_init(&msg.globalfeatures);
 
-#ifdef INIT_LF_VALUE
+    if (bHaveCnl) {
+        const uint8_t INIT_VAL[] = { INIT_LF_ROUTE_SYNC };
+        ucoin_buf_alloccopy(&msg.localfeatures, INIT_VAL, sizeof(INIT_VAL));
+    } else {
+        ucoin_buf_init(&msg.localfeatures);
+    }
 
-#if INIT_LF_SZ_VALUE > 0
-    const uint8_t INIT_VAL[] = INIT_LF_VALUE;
-    ucoin_buf_alloccopy(&msg.localfeatures, INIT_VAL, INIT_LF_SZ_VALUE);
-#else
-#error feature support
-#endif
+//#ifdef INIT_LF_VALUE
 
-#else
-    ucoin_buf_init(&msg.localfeatures);
-#endif
+//#if INIT_LF_SZ_VALUE > 0
+//    const uint8_t INIT_VAL[] = INIT_LF_VALUE;
+//    ucoin_buf_alloccopy(&msg.localfeatures, INIT_VAL, INIT_LF_SZ_VALUE);
+//#else
+//#error feature support
+//#endif
+
+//#else
+//    ucoin_buf_init(&msg.localfeatures);
+//#endif
 
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {
