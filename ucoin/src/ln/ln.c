@@ -1359,6 +1359,18 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 {
     ln_ping_t ping;
 
+#if 1
+    if (self->last_num_pong_bytes == 0) {
+        ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
+    }
+    ping.num_pong_bytes = self->last_num_pong_bytes;
+    ucoin_util_random((uint8_t *)&ping.byteslen, 2);
+    bool ret = ln_msg_ping_create(pPing, &ping);
+    if (ret) {
+        self->missing_pong_cnt++;
+    }
+    DBG_PRINTF("missing_pong_cnt: %d\n", self->missing_pong_cnt);
+#else
     if (self->last_num_pong_bytes != 0) {
         DBG_PRINTF("not receive pong\n");
         return false;
@@ -1376,6 +1388,7 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
         //    ret = false;
         //}
     }
+#endif
 
     return ret;
 }
