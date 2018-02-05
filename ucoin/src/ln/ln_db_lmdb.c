@@ -2246,7 +2246,9 @@ static int annocnl_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlAnno, uint64_t Short
     if (retval == 0) {
         ucoin_buf_alloccopy(pCnlAnno, data.mv_data, data.mv_size);
     } else {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        }
     }
 
     return retval;
@@ -2262,7 +2264,7 @@ static int annocnl_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlAnno, uint64_t Short
  */
 static int annocnl_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
 {
-    //DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
+    DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL];
@@ -2352,7 +2354,9 @@ static int annocnlupd_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlUpd, uint32_t *pT
         *pTimeStamp = *(uint32_t *)data.mv_data;
         ucoin_buf_alloccopy(pCnlUpd, (uint8_t *)data.mv_data + sizeof(uint32_t), data.mv_size - sizeof(uint32_t));
     } else {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        }
     }
 
     return retval;
@@ -2415,7 +2419,9 @@ static int annonod_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *pTi
             ucoin_buf_alloccopy(pNodeAnno, (uint8_t *)data.mv_data + sizeof(uint32_t), data.mv_size - sizeof(uint32_t));
         }
     } else {
-        //DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        }
     }
 
     return retval;
