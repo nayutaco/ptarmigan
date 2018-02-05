@@ -1209,8 +1209,7 @@ static void *thread_recv_start(void *pArg)
             //DBG_PRINTF("ln_recv() result=%d\n", ret);
             if (!ret) {
                 DBG_PRINTF("DISC: fail recv message\n");
-#warning closeしなくしておく
-                //lnapp_close_channel_force(ln_their_node_id(p_conf->p_self));
+                lnapp_close_channel_force(ln_their_node_id(p_conf->p_self));
                 stop_threads(p_conf);
                 break;
             }
