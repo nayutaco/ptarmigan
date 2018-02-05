@@ -1370,11 +1370,13 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
     uint8_t r;
     ucoin_util_random(&r, 1);
     self->last_num_pong_bytes = r;
+    ucoin_util_random(&r, 1);
+    ping.byteslen = r;
 #else
     ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
+    ucoin_util_random((uint8_t *)&ping.byteslen, 2);
 #endif
     ping.num_pong_bytes = self->last_num_pong_bytes;
-    ucoin_util_random((uint8_t *)&ping.byteslen, 2);
     bool ret = ln_msg_ping_create(pPing, &ping);
     //if (ret) {
     //    self->missing_pong_cnt++;
