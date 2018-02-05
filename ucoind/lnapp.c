@@ -854,8 +854,6 @@ static void *thread_main_start(void *pArg)
         //my_selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
         if (ln_short_channel_id(&my_self) != 0) {
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
-            send_reestablish(p_conf);
-            DBG_PRINTF("reestablish交換完了\n\n");
 
 #warning おそらく、切断によってdisableにした状態を戻すために行っているが、まだdisableにする送信を行っていない
             // //channel_update更新
@@ -879,6 +877,8 @@ static void *thread_main_start(void *pArg)
             p_conf->funding_min_depth = ln_minimum_depth(&my_self);
             p_conf->funding_waiting = true;
         }
+        send_reestablish(p_conf);
+        DBG_PRINTF("reestablish交換完了\n\n");
     } else {
         DBG_PRINTF("Establish待ち\n");
         set_establish_default(p_conf, p_conf->node_id);
