@@ -3019,6 +3019,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     param.is_unspent = true;
     bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
     if (ret) {
+        //is_unspent更新
         param.short_channel_id = ann.short_channel_id;
         (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
     } else {
@@ -3030,6 +3031,19 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
 
+#if 1
+    if (param.is_unspent) {
+        //DB保存
+        ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self));
+        if (!ret) {
+            DBG_PRINTF("fail: db save\n");
+        }
+    } else {
+        //closeされたとみなして削除
+        ret = ln_db_annocnlall_del(ann.short_channel_id);
+        DBG_PRINTF("remove db: %0" PRIx64 "(ret=%d)\n", ann.short_channel_id, ret);
+    }
+#else
     //DB読込み
     ucoin_buf_t buf_bolt;
     ret = ln_db_annocnl_load(&buf_bolt, ann.short_channel_id);
@@ -3068,6 +3082,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     } else {
         DBG_PRINTF("do nothing: short_channel_id already closed\n");
     }
+#endif
 
     return true;
 }
