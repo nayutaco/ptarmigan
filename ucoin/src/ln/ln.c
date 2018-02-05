@@ -90,7 +90,7 @@
 #define M_SHDN_FLAG_RECV                    (0x02)          ///< 1:shutdown受信あり
 #define M_SHDN_FLAG_END                     (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)
 
-#define M_PONG_MISSING                      (5)             ///< pongが返ってこないエラー上限
+#define M_PONG_MISSING                      (50)            ///< pongが返ってこないエラー上限
 
 #define M_FUNDING_INDEX                     (0)             ///< funding_txのvout
 
@@ -1359,37 +1359,31 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 {
     ln_ping_t ping;
 
-#if 1
-    if (self->last_num_pong_bytes == 0) {
-        //ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
-        self->last_num_pong_bytes = 16;
-    }
-    ping.num_pong_bytes = self->last_num_pong_bytes;
-    ucoin_util_random((uint8_t *)&ping.byteslen, 2);
-    bool ret = ln_msg_ping_create(pPing, &ping);
-    if (ret) {
-        self->missing_pong_cnt++;
-    }
-    DBG_PRINTF("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
-#else
     if (self->last_num_pong_bytes != 0) {
-        DBG_PRINTF("not receive pong\n");
+        DBG_PRINTF("not receive pong(last_num_pong_bytes=%d)\n", self->last_num_pong_bytes);
         return false;
     }
 
+#if 1
+    // https://github.com/lightningnetwork/lightning-rfc/issues/373
+    //  num_pong_bytesが大きすぎると無視される？
+    uint8_t r;
+    ucoin_util_random(&r, 1);
+    self->last_num_pong_bytes = r;
+#else
     ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
     ping.num_pong_bytes = self->last_num_pong_bytes;
+#endif
     ucoin_util_random((uint8_t *)&ping.byteslen, 2);
     bool ret = ln_msg_ping_create(pPing, &ping);
-    if (ret) {
-        self->missing_pong_cnt++;
-        //if (self->missing_pong_cnt > M_PONG_MISSING) {
-        //    self->err = LNERR_PINGPONG;
-        //    DBG_PRINTF("many pong missing...(%d)\n", self->missing_pong_cnt);
-        //    ret = false;
-        //}
-    }
-#endif
+    //if (ret) {
+    //    self->missing_pong_cnt++;
+    //    if (self->missing_pong_cnt > M_PONG_MISSING) {
+    //        self->err = LNERR_PINGPONG;
+    //        DBG_PRINTF("many pong missing...(%d)\n", self->missing_pong_cnt);
+    //        ret = false;
+    //    }
+    //}
 
     return ret;
 }
