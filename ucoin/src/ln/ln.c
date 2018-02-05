@@ -1361,7 +1361,8 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 
 #if 1
     if (self->last_num_pong_bytes == 0) {
-        ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
+        //ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
+        self->last_num_pong_bytes = 16;
     }
     ping.num_pong_bytes = self->last_num_pong_bytes;
     ucoin_util_random((uint8_t *)&ping.byteslen, 2);
@@ -1369,7 +1370,7 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
     if (ret) {
         self->missing_pong_cnt++;
     }
-    DBG_PRINTF("missing_pong_cnt: %d\n", self->missing_pong_cnt);
+    DBG_PRINTF("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
 #else
     if (self->last_num_pong_bytes != 0) {
         DBG_PRINTF("not receive pong\n");
@@ -1755,6 +1756,7 @@ static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ret = (pong.byteslen == self->last_num_pong_bytes);
     if (ret) {
         self->missing_pong_cnt--;
+        DBG_PRINTF("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
         self->last_num_pong_bytes = 0;
     } else {
         DBG_PRINTF("fail: pong.byteslen(%" PRIu16 ") != self->last_num_pong_bytes(%" PRIu16 ")\n", pong.byteslen, self->last_num_pong_bytes);
