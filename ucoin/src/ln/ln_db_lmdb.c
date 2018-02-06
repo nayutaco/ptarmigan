@@ -40,7 +40,7 @@
 #include "ln_db_lmdb.h"
 
 
-#define M_DB_DEBUG
+//#define M_DB_DEBUG
 
 /********************************************************************
  * macros
