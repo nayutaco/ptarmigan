@@ -413,9 +413,9 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
                     dumpit_self(txn, dbi2, p1, p2);
                 }
             }
-            mdb_close(mpDbEnv, dbi2);
+            mdb_close(mdb_txn_env(txn), dbi2);
         } else {
-            fprintf(fp_err, "???\n");
+            fprintf(fp_err, "err1[%s]: %s\n", (const char *)key.mv_data, mdb_strerror(ret));
         }
     }
     mdb_cursor_close(cursor);
@@ -445,9 +445,9 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
                     dumpit_chan(txn_anno, dbi2);
                 }
             }
-            mdb_close(mpDbEnv, dbi2);
+            mdb_close(mdb_txn_env(txn_anno), dbi2);
         } else {
-            fprintf(fp_err, "???\n");
+            fprintf(fp_err, "err2[%s]: %s\n", (const char *)key.mv_data, mdb_strerror(ret));
         }
     }
     mdb_cursor_close(cursor);
