@@ -185,6 +185,14 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    bool is_funding = ln_is_funding(p_appconf->p_self);
+    if (is_funding) {
+        //開設しようとしてチャネルが開設中
+        ctx->error_code = RPCERR_OPENING;
+        ctx->error_message = strdup(RPCERR_OPENING_STR);
+        goto LABEL_EXIT;
+    }
+
     bool inited = lnapp_is_inited(p_appconf);
     if (!inited) {
         //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
@@ -406,7 +414,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     char str_hash[LN_SZ_HASH * 2 + 1];
 
     ucoin_util_random(preimage, LN_SZ_PREIMAGE);
-    ln_db_save_preimage(preimage, amount, NULL);
+    ln_db_preimg_save(preimage, amount, NULL);
     ln_calc_preimage_hash(preimage_hash, preimage);
 
     misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
@@ -467,9 +475,9 @@ static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (strlen(json->valuestring) > 0) {
         DBG_PRINTF("erase hash: %s\n", json->valuestring);
         misc_str2bin(preimage_hash, sizeof(preimage_hash), json->valuestring);
-        ret = ln_db_del_preimage_hash(preimage_hash);
+        ret = ln_db_preimg_del_hash(preimage_hash);
     } else {
-        ret = ln_db_del_preimage(NULL);
+        ret = ln_db_preimg_del(NULL);
     }
     if (ret) {
         result = cJSON_CreateString("OK");
@@ -505,9 +513,9 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     result = cJSON_CreateArray();
-    ret = ln_db_cursor_preimage_open(&p_cur);
+    ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        ret = ln_db_cursor_preimage_get(p_cur, preimage, &amount);
+        ret = ln_db_preimg_cur_get(p_cur, preimage, &amount);
         if (ret) {
             ln_calc_preimage_hash(preimage_hash, preimage);
             cJSON *json = cJSON_CreateArray();
@@ -519,7 +527,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON_AddItemToArray(result, json);
         }
     }
-    ln_db_cursor_preimage_close(p_cur);
+    ln_db_preimg_cur_close(p_cur);
 
 LABEL_EXIT:
     if (index < 0) {

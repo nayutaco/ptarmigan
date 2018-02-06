@@ -80,6 +80,8 @@ static inline int tid() {
 #define RPCERR_CONNECT              (-20005)
 #define RPCERR_CONNECT_STR          "connect"
 #define RPCERR_PEER_ERROR           (-20006)
+#define RPCERR_OPENING              (-20007)
+#define RPCERR_OPENING_STR          "funding now"
 
 #define RPCERR_FUNDING              (-21000)
 #define RPCERR_FUNDING_STR          "fail funding"

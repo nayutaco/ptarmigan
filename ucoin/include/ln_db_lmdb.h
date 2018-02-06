@@ -50,10 +50,18 @@ typedef enum {
     LN_LMDB_DBTYPE_SHARED_SECRET,
     LN_LMDB_DBTYPE_CHANNEL_ANNO,
     LN_LMDB_DBTYPE_NODE_ANNO,
+    LN_LMDB_DBTYPE_CHANNEL_ANNOINFO,
+    LN_LMDB_DBTYPE_NODE_ANNOINFO,
     LN_LMDB_DBTYPE_PREIMAGE,
     LN_LMDB_DBTYPE_PAYHASH,
     LN_LMDB_DBTYPE_VERSION,
 } ln_lmdb_dbtype_t;
+
+
+typedef struct {
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+} ln_lmdb_db_t;
 
 
 /**************************************************************************
@@ -70,27 +78,27 @@ typedef enum {
  *      -
  *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
  */
-int ln_lmdb_load_channel(ln_self_t *self, MDB_txn *txn, MDB_dbi *pdbi);
+int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi);
 
 
 /**
  *
  */
-int ln_lmdb_load_anno_channel_cursor(MDB_cursor *cur, uint64_t *p_short_channel_id, char *p_type, ucoin_buf_t *pBuf);
-
-
-/**
- *
- *
- */
-int ln_lmdb_load_anno_node_cursor(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pSendId, uint8_t *pNodeId);
+int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf);
 
 
 /**
  *
  *
  */
-int ln_lmdb_check_version(MDB_txn *txn, uint8_t *pMyNodeId);
+int ln_lmdb_annonod_cur_load(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
+
+
+/**
+ *
+ *
+ */
+int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId);
 
 
 ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);

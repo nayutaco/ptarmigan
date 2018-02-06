@@ -47,6 +47,8 @@
  **************************************************************************/
 
 static void init_print(const ln_init_t *pMsg);
+static void ping_print(const ln_ping_t *pMsg);
+static void pong_print(const ln_pong_t *pMsg);
 
 
 /********************************************************************
@@ -223,6 +225,11 @@ bool HIDDEN ln_msg_ping_create(ucoin_buf_t *pBuf, const ln_ping_t *pMsg)
         return false;
     }
 
+#ifdef DBG_PRINT_CREATE
+    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    ping_print(pMsg);
+#endif  //DBG_PRINT_CREATE
+
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->byteslen);
 
     //        type: 18 (ping)
@@ -271,6 +278,11 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
         return false;
     }
 
+#ifdef DBG_PRINT_READ
+    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    ping_print(pMsg);
+#endif  //DBG_PRINT_READ
+
     for (int lp = 0; lp < pMsg->byteslen; lp++) {
         if (*(pData + sizeof(uint16_t) + 4 + lp) != 0x00) {
             DBG_PRINTF("fail: contain not ZERO\n");
@@ -281,6 +293,17 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
     assert(Len == sizeof(uint16_t) + 4 + pMsg->byteslen);
 
     return true;
+}
+
+
+static void ping_print(const ln_ping_t *pMsg)
+{
+#ifdef UCOIN_DEBUG
+    DBG_PRINTF2("-[ping]-------------------------------\n\n");
+    DBG_PRINTF2("num_pong_bytes: %" PRIu16 "\n", pMsg->num_pong_bytes);
+    DBG_PRINTF2("byteslen: %" PRIu16 "\n", pMsg->byteslen);
+    DBG_PRINTF2("--------------------------------\n\n\n");
+#endif  //UCOIN_DEBUG
 }
 
 
@@ -301,6 +324,11 @@ bool HIDDEN ln_msg_pong_create(ucoin_buf_t *pBuf, const ln_pong_t *pMsg)
         DBG_PRINTF("fail: byteslen: %d\n", pMsg->byteslen);
         return false;
     }
+
+#ifdef DBG_PRINT_CREATE
+    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    pong_print(pMsg);
+#endif  //DBG_PRINT_CREATE
 
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 2 + pMsg->byteslen);
 
@@ -345,6 +373,11 @@ bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len
         return false;
     }
 
+#ifdef DBG_PRINT_READ
+    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    pong_print(pMsg);
+#endif  //DBG_PRINT_READ
+
     for (int lp = 0; lp < pMsg->byteslen; lp++) {
         if (*(pData + sizeof(uint16_t) + 2 + lp) != 0x00) {
             DBG_PRINTF("fail: contain not ZERO\n");
@@ -355,4 +388,14 @@ bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len
     assert(Len == sizeof(uint16_t) + 2 + pMsg->byteslen);
 
     return true;
+}
+
+
+static void pong_print(const ln_pong_t *pMsg)
+{
+#ifdef UCOIN_DEBUG
+    DBG_PRINTF2("-[pong]-------------------------------\n\n");
+    DBG_PRINTF2("byteslen: %" PRIu16 "\n", pMsg->byteslen);
+    DBG_PRINTF2("--------------------------------\n\n\n");
+#endif  //UCOIN_DEBUG
 }
