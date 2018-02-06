@@ -1359,10 +1359,10 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 {
     ln_ping_t ping;
 
-    if (self->last_num_pong_bytes != 0) {
-        DBG_PRINTF("not receive pong(last_num_pong_bytes=%d)\n", self->last_num_pong_bytes);
-        return false;
-    }
+    // if (self->last_num_pong_bytes != 0) {
+    //     DBG_PRINTF("not receive pong(last_num_pong_bytes=%d)\n", self->last_num_pong_bytes);
+    //     return false;
+    // }
 
 #if 1
     // https://github.com/lightningnetwork/lightning-rfc/issues/373
@@ -1759,7 +1759,7 @@ static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     DBG_PRINTF("END\n");
-    return ret;
+    return true;
 }
 
 
