@@ -1213,9 +1213,10 @@ void ln_flag_proc(ln_self_t *self);
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pInit           initメッセージ
+ * @param[in]           bHaveCnl        true:チャネル開設済み
  * retval       true    成功
  */
-bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit);
+bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl);
 
 
 /** channel_reestablishメッセージ作成

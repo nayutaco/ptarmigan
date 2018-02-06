@@ -73,7 +73,7 @@
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
 #define M_WAIT_SEND_WAIT_MSEC   (10)        //socket送信で一度に送信できなかった場合の待ち時間[msec]
-#define M_WAIT_ANNO_WAIT_MSEC   (100)       //announcementする間隔[msec]
+#define M_WAIT_ANNO_WAIT_MSEC   (1)         //announcementする間隔[msec]
 
 //デフォルト値
 //  announcement
@@ -206,6 +206,8 @@ static void *thread_poll_start(void *pArg);
 static void poll_ping(lnapp_conf_t *p_conf);
 static void poll_funding_wait(lnapp_conf_t *p_conf);
 static void poll_normal_operating(lnapp_conf_t *p_conf);
+
+static void *thread_anno_start(void *pArg);
 
 static bool set_request_recvproc(lnapp_conf_t *p_conf, recv_proc_t cmd, uint16_t Len, void *pData);
 
@@ -811,15 +813,18 @@ static void *thread_main_start(void *pArg)
     //peer受信スレッド
     pthread_create(&th_peer, NULL, &thread_recv_start, p_conf);
 
-    //監視対象の有無にかかわらず立ち上げておく
+    //監視スレッド
     pthread_create(&th_poll, NULL, &thread_poll_start, p_conf);
+
+    //announceスレッド
+    pthread_create(&th_poll, NULL, &thread_anno_start, p_conf);
 
 
     //init送受信
     {
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
-        ret = ln_create_init(&my_self, &buf_bolt);
+        ret = ln_create_init(&my_self, &buf_bolt, detect);
         if (!ret) {
             goto LABEL_JOIN;
         }
@@ -849,8 +854,6 @@ static void *thread_main_start(void *pArg)
         //my_selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
         if (ln_short_channel_id(&my_self) != 0) {
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
-            send_reestablish(p_conf);
-            DBG_PRINTF("reestablish交換完了\n\n");
 
 #warning おそらく、切断によってdisableにした状態を戻すために行っているが、まだdisableにする送信を行っていない
             // //channel_update更新
@@ -874,6 +877,8 @@ static void *thread_main_start(void *pArg)
             p_conf->funding_min_depth = ln_minimum_depth(&my_self);
             p_conf->funding_waiting = true;
         }
+        send_reestablish(p_conf);
+        DBG_PRINTF("reestablish交換完了\n\n");
     } else {
         DBG_PRINTF("Establish待ち\n");
         set_establish_default(p_conf, p_conf->node_id);
@@ -1332,7 +1337,6 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
 static void *thread_poll_start(void *pArg)
 {
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
-    int counter = M_WAIT_ANNO_SEC / M_WAIT_POLL_SEC;
 
     while (p_conf->loop) {
         //ループ解除まで時間が長くなるので、短くチェックする
@@ -1384,18 +1388,6 @@ static void *thread_poll_start(void *pArg)
             ln_open_announce_channel_clr(p_conf->p_self);
             ln_db_self_save(p_conf->p_self);
         }
-
-        counter++;
-        if (counter > M_WAIT_ANNO_SEC / M_WAIT_POLL_SEC) {
-            if (!p_conf->funding_waiting) {
-                //未送信channel_announcementチェック
-                send_channel_anno(p_conf, false);
-            }
-            //未送信node_announcementチェック
-            send_node_anno(p_conf, false);
-
-            counter = 0;
-        }
     }
 
     SYSLOG_WARN("[exit]poll thread\n");
@@ -1420,8 +1412,8 @@ static void poll_ping(lnapp_conf_t *p_conf)
             send_peer_noise(p_conf, &buf_ping);
             ucoin_buf_free(&buf_ping);
         } else {
-            SYSLOG_ERR("%s(): pong not respond", __func__);
-            stop_threads(p_conf);
+            //SYSLOG_ERR("%s(): pong not respond", __func__);
+            //stop_threads(p_conf);
         }
     }
 
@@ -1485,6 +1477,48 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     }
 
     //DBGTRACE_END
+}
+
+
+/********************************************************************
+ * announceスレッド
+ ********************************************************************/
+
+/** announceスレッド開始
+ *
+ * @param[in,out]   pArg    lnapp_conf_t*
+ */
+static void *thread_anno_start(void *pArg)
+{
+    lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
+
+    while (p_conf->loop) {
+        //ループ解除まで時間が長くなるので、短くチェックする
+        for (int lp = 0; lp < M_WAIT_ANNO_SEC; lp++) {
+            sleep(1);
+            if (!p_conf->loop) {
+                break;
+            }
+        }
+        if (!p_conf->loop || (p_conf->p_self == NULL)) {
+            break;
+        }
+
+        if ((p_conf->flag_recv & RECV_MSG_INIT) == 0) {
+            //まだ接続していない
+            continue;
+        }
+
+        //未送信channel_announcementチェック
+        send_channel_anno(p_conf, false);
+
+        //未送信node_announcementチェック
+        send_node_anno(p_conf, false);
+    }
+
+    SYSLOG_WARN("[exit]anno thread\n");
+
+    return NULL;
 }
 
 
@@ -2599,8 +2633,8 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
                 break;
             }
 
-            //連続して送信すると混雑する可能性がある
-            //misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
+            //他スレッドのために少し待つ
+            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
     } else {
         DBG_PRINTF("no channel_announce DB\n");
@@ -2658,8 +2692,8 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
                 break;
             }
 
-            //連続して送信すると混雑する可能性がある
-            //misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
+            //他スレッドのために少し待つ
+            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
     } else {
         DBG_PRINTF("no node_announce DB\n");

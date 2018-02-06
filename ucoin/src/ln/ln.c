@@ -90,7 +90,7 @@
 #define M_SHDN_FLAG_RECV                    (0x02)          ///< 1:shutdown受信あり
 #define M_SHDN_FLAG_END                     (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)
 
-#define M_PONG_MISSING                      (5)             ///< pongが返ってこないエラー上限
+#define M_PONG_MISSING                      (50)            ///< pongが返ってこないエラー上限
 
 #define M_FUNDING_INDEX                     (0)             ///< funding_txのvout
 
@@ -502,7 +502,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
 
 //init作成
-bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
+bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
 {
     if (self->init_flag & INIT_FLAG_SEND) {
         self->err = LNERR_INV_STATE;
@@ -515,18 +515,25 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit)
     //TODO: globalfeatures と localfeatures
     ucoin_buf_init(&msg.globalfeatures);
 
-#ifdef INIT_LF_VALUE
+    if (bHaveCnl) {
+        const uint8_t INIT_VAL[] = { INIT_LF_ROUTE_SYNC };
+        ucoin_buf_alloccopy(&msg.localfeatures, INIT_VAL, sizeof(INIT_VAL));
+    } else {
+        ucoin_buf_init(&msg.localfeatures);
+    }
 
-#if INIT_LF_SZ_VALUE > 0
-    const uint8_t INIT_VAL[] = INIT_LF_VALUE;
-    ucoin_buf_alloccopy(&msg.localfeatures, INIT_VAL, INIT_LF_SZ_VALUE);
-#else
-#error feature support
-#endif
+//#ifdef INIT_LF_VALUE
 
-#else
-    ucoin_buf_init(&msg.localfeatures);
-#endif
+//#if INIT_LF_SZ_VALUE > 0
+//    const uint8_t INIT_VAL[] = INIT_LF_VALUE;
+//    ucoin_buf_alloccopy(&msg.localfeatures, INIT_VAL, INIT_LF_SZ_VALUE);
+//#else
+//#error feature support
+//#endif
+
+//#else
+//    ucoin_buf_init(&msg.localfeatures);
+//#endif
 
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {
@@ -1352,18 +1359,33 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 {
     ln_ping_t ping;
 
-    ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
-    ping.num_pong_bytes = self->last_num_pong_bytes;
-    ucoin_util_random((uint8_t *)&ping.byteslen, 2);
-    bool ret = ln_msg_ping_create(pPing, &ping);
-    if (ret) {
-        self->missing_pong_cnt++;
-        if (self->missing_pong_cnt > M_PONG_MISSING) {
-            self->err = LNERR_PINGPONG;
-            DBG_PRINTF("many pong missing...(%d)\n", self->missing_pong_cnt);
-            ret = false;
-        }
+    if (self->last_num_pong_bytes != 0) {
+        DBG_PRINTF("not receive pong(last_num_pong_bytes=%d)\n", self->last_num_pong_bytes);
+        return false;
     }
+
+#if 1
+    // https://github.com/lightningnetwork/lightning-rfc/issues/373
+    //  num_pong_bytesが大きすぎると無視される？
+    uint8_t r;
+    ucoin_util_random(&r, 1);
+    self->last_num_pong_bytes = r;
+    ucoin_util_random(&r, 1);
+    ping.byteslen = r;
+#else
+    ucoin_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
+    ucoin_util_random((uint8_t *)&ping.byteslen, 2);
+#endif
+    ping.num_pong_bytes = self->last_num_pong_bytes;
+    bool ret = ln_msg_ping_create(pPing, &ping);
+    //if (ret) {
+    //    self->missing_pong_cnt++;
+    //    if (self->missing_pong_cnt > M_PONG_MISSING) {
+    //        self->err = LNERR_PINGPONG;
+    //        DBG_PRINTF("many pong missing...(%d)\n", self->missing_pong_cnt);
+    //        ret = false;
+    //    }
+    //}
 
     return ret;
 }
@@ -1730,6 +1752,10 @@ static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ret = (pong.byteslen == self->last_num_pong_bytes);
     if (ret) {
         self->missing_pong_cnt--;
+        DBG_PRINTF("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
+        self->last_num_pong_bytes = 0;
+    } else {
+        DBG_PRINTF("fail: pong.byteslen(%" PRIu16 ") != self->last_num_pong_bytes(%" PRIu16 ")\n", pong.byteslen, self->last_num_pong_bytes);
     }
 
     DBG_PRINTF("END\n");
@@ -2991,6 +3017,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     param.is_unspent = true;
     bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
     if (ret) {
+        //is_unspent更新
         param.short_channel_id = ann.short_channel_id;
         (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
     } else {
@@ -3002,6 +3029,19 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
 
+#if 1
+    if (param.is_unspent) {
+        //DB保存
+        ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self));
+        if (!ret) {
+            DBG_PRINTF("fail: db save\n");
+        }
+    } else {
+        //closeされたとみなして削除
+        ret = ln_db_annocnlall_del(ann.short_channel_id);
+        DBG_PRINTF("remove db: %0" PRIx64 "(ret=%d)\n", ann.short_channel_id, ret);
+    }
+#else
     //DB読込み
     ucoin_buf_t buf_bolt;
     ret = ln_db_annocnl_load(&buf_bolt, ann.short_channel_id);
@@ -3040,6 +3080,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     } else {
         DBG_PRINTF("do nothing: short_channel_id already closed\n");
     }
+#endif
 
     return true;
 }
