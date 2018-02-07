@@ -655,6 +655,9 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
     } else {
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
     }
+    if ((pAppConf->err != 0) && (pAppConf->p_errstr != NULL)) {
+        cJSON_AddItemToObject(result, "last_errmsg", cJSON_CreateString(pAppConf->p_errstr));
+    }
     cJSON_AddItemToArray(pResult, result);
 }
 
