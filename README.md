@@ -3,7 +3,7 @@
 ## setup
 
 * bitcoind v0.15
-  * for bitcoin testnet/regtest (mainnet not support now)
+  * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
 * Ubuntu 16.04
 
 ## build
@@ -56,7 +56,7 @@ make distclean
 
 ### libraries
 
-* git clone
+* git submodule
   * [jsonrpc-c(github)](https://github.com/hmng/jsonrpc-c)
   * [inih(github)](https://github.com/benhoyt/inih)
   * [mbedTLS](https://tls.mbed.org/)([github](https://github.com/ARMmbed/mbedtls))
@@ -86,7 +86,7 @@ make distclean
     * `gettxout`
     * `getblock`
     * `getnewaddress`
-    * `dumpprivkey` (for open_channel)
+    * `dumpprivkey` (for funding)
     * `estimatefee`
 
 ## implement status

@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2018/02/06
+
+* DB version update
+  * 13 --> 14
+* `ping`/`pong`変更
+  * `ping`は未送信状態が１分間経過すると送信する
+    * 対応する`pong`を受信していない場合でも送信する(`lnd`が5分の未受信で接続するため)
+  * `pong`受信はパケットの正常チェックのみ行い、前回の`ping`との対応はチェックしない
+* 支払いのrouting計算の際、自チャネルの`channel_update`をチェックしない
+  * BOLT#7の仕様に合わせる
+
 ## 2018/01/30
 
 * DB version update
