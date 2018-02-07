@@ -2254,8 +2254,9 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         mMuxTiming &= ~MUX_PAYMENT;
 
         ucoin_buf_t reason;
+        int hop;
         ucoin_buf_init(&reason);
-        bool ret = ln_onion_failure_read(&reason, p_fail->p_shared_secret, p_fail->p_reason);
+        bool ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
         if (ret) {
             DBG_PRINTF("  failure reason= ");
             DUMPBIN(reason.buf, reason.len);
@@ -2268,7 +2269,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 sprintf(bin, "%02x", reason.buf[lp]);
                 strcat(reasonstr, bin);
             }
-            sprintf(errstr, "fail reason:%s", reasonstr);
+            sprintf(errstr, "fail reason:%s(hop=%d)", reasonstr, hop);
             set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
         } else {
             //デコード失敗

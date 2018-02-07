@@ -414,12 +414,16 @@ void ln_onion_failure_forward(ucoin_buf_t *pNextPacket,
 
 
 bool ln_onion_failure_read(ucoin_buf_t *pReason,
+            int *pHop,
             const ucoin_buf_t *pSharedSecrets,
             const ucoin_buf_t *pPacket)
 {
     const int DATALEN = 256;
 
     int NumHops = pSharedSecrets->len / UCOIN_SZ_PRIVKEY;
+    if (pHop != NULL) {
+        *pHop = -1;
+    }
 
 #ifdef M_DBG_FAIL
     DBG_PRINTF("NumHops=%d\n", NumHops);
@@ -469,6 +473,9 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
                     bend = memcmp(p_out->buf, hmac, M_SZ_HMAC) == 0;
                     if (bend) {
                         DBG_PRINTF("decode hops=%d\n", lp);
+                        if (pHop != NULL) {
+                            *pHop = lp;
+                        }
                         ucoin_buf_alloccopy(pReason, reason.buf, reason.len);
                     } else {
                         DBG_PRINTF("fail: HMAC not match!\n");
