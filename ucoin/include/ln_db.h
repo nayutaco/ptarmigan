@@ -46,19 +46,27 @@ extern "C" {
  * typedefs
  **************************************************************************/
 
-/** 比較関数 #ln_db_self_search()
+/** @typedef    ln_db_func_cmp_t
+ *  @brief      比較関数(#ln_db_self_search())
  *
- * @param[in]       self
- * @param[in]       p_db_param      db
- * @param[in]       p_param
+ * DB内からselfを順次取得しコールバックされる。
+ * trueを返すまでコールバックが続けられる。
+ * 最後までfalseを返し、DBの走査が終わると、#ln_db_self_search()はfalseを返す。
+ *
+ * @param[in]       self            DBから取得したself
+ * @param[in]       p_db_param      DB情報(ln_dbで使用する)
+ * @param[in]       p_param         #ln_db_self_search()に渡したデータポインタ
  * @retval  true    比較終了(#ln_db_self_search()の戻り値もtrue)
  */
 typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_param);
 
 
+/** @typedef    ln_db_txn_t
+ *  @brief      announcement種別
+ */
 typedef enum {
-    LN_DB_TXN_CNL,
-    LN_DB_TXN_NODE
+    LN_DB_TXN_CNL,          ///< channel_announcement/channel_update
+    LN_DB_TXN_NODE          ///< node_announcement
 } ln_db_txn_t;
 
 
@@ -120,7 +128,19 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
 // announcement
 ////////////////////
 
+/** announcement用DBのトランザクション取得およびDBオープン
+ *
+ * @param[out]  ppDb        取得したDB情報(ln_dbで使用する)
+ * @param[in]   Type        オープンするDB(LN_DB_TXN_xx)
+ * @retval  true    成功
+ */
 bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type);
+
+
+/** #ln_db_anno_cur_transaction()で取得したトランザクションのcommit
+ *
+ * @param[out]  pDb         #ln_db_anno_cur_transaction()取得したDB情報
+ */
 void ln_db_anno_cur_commit(void *pDb);
 
 
@@ -198,14 +218,17 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bo
 //uint64_t ln_db_annocnlall_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
 
 
-/**
+/** DB curosrオープン
  *
+ * @param[out]      ppCur   curosr情報(ln_dbで使用する)
+ * @param[in,out]   pDb     #ln_db_anno_cur_transaction()取得したDB情報
  */
 bool ln_db_annocnl_cur_open(void **ppCur, void *pDb);
 
 
-/**
+/** DB curosrクローズ
  *
+ * @param[in]       pCur    #ln_db_annocnl_cur_open()で取得したcursor情報
  */
 void ln_db_annocnl_cur_close(void *pCur);
 
@@ -265,7 +288,7 @@ bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_
  * @param[in,out]   pDb
  * @param[in]       pNodeId
  * @param[in]       bClr                true:保存したノードを削除してから追加する
- * @param[in]       pSendId             送信元/先ノード
+ * @param[in]       pSendId             送信元/先ノード(NULLでbClr=true時はクリアのみ行う)
  */
 bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, const uint8_t *pSendId);
 

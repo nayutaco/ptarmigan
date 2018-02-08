@@ -51,6 +51,7 @@ typedef struct {
  **************************************************************************/
 
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
+static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
 
 
 /**************************************************************************
@@ -71,12 +72,38 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
     node->features = Features;
 
     ln_db_init(ln_node_id(node));
+    ln_node_announce_t anno;
+    bool update = false;
 
     ret = ln_db_annonod_load(&buf_node, NULL, ln_node_id(node));
-    if (!ret) {
-        //自node_announcement無し
-        ln_node_announce_t anno;
+    if (ret) {
+        //ノード設定が変更されていないかチェック
+        //  少なくともnode_idは変更されていない
+        uint8_t node_id[UCOIN_SZ_PUBKEY];
+        char node_alias[LN_SZ_ALIAS + 1];
 
+        anno.p_node_id = node_id;
+        anno.p_alias = node_alias;
+        ret = ln_msg_node_announce_read(&anno, buf_node.buf, buf_node.len);
+        if (ret) {
+            if ( (memcmp(anno.p_node_id, ln_node_id(node), UCOIN_SZ_PUBKEY) != 0) ||
+                 (strcmp(anno.p_alias, pNodeName) != 0) ||
+                 (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
+                 !comp_node_addr(&anno.addr, &node->addr) ) {
+                //保持している情報と不一致
+                DBG_PRINTF("update\n");
+                update = true;
+            } else {
+                DBG_PRINTF("same node.conf\n");
+            }
+        }
+    } else {
+        //自node_announcement無し
+        DBG_PRINTF("new\n");
+        update = true;
+    }
+
+    if (update) {
         anno.timestamp = (uint32_t)time(NULL);
         anno.p_node_id = node->keys.pub;
         anno.p_my_node = &node->keys;
@@ -144,18 +171,21 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
  * HIDDEN
  ********************************************************************/
 
+/** node_announcement受信処理
+ *
+ */
 bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     //DBG_PRINTF("\n");
 
     bool ret;
-    ln_node_announce_t ann;
+    ln_node_announce_t anno;
     uint8_t node_id[UCOIN_SZ_PUBKEY];
     char node_alias[LN_SZ_ALIAS + 1];
 
-    ann.p_node_id = node_id;
-    ann.p_alias = node_alias;
-    ret = ln_msg_node_announce_read(&ann, pData, Len);
+    anno.p_node_id = node_id;
+    anno.p_alias = node_alias;
+    ret = ln_msg_node_announce_read(&anno, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
         return false;
@@ -167,9 +197,9 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     ucoin_buf_t buf_ann;
     buf_ann.buf = (CONST_CAST uint8_t *)pData;
     buf_ann.len = Len;
-    ret = ln_db_annonod_save(&buf_ann, &ann, ln_their_node_id(self));
+    ret = ln_db_annonod_save(&buf_ann, &anno, ln_their_node_id(self));
     if (ret) {
-        (*self->p_callback)(self, LN_CB_NODE_ANNO_RECV, &ann);
+        (*self->p_callback)(self, LN_CB_NODE_ANNO_RECV, &anno);
     }
 
     return true;
@@ -180,6 +210,12 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
  * private functions
  **************************************************************************/
 
+/** #ln_node_search_channel()処理関数
+ *
+ * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
+ * @param[in,out]   p_param         comp_param_cnl_t構造体
+ */
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
@@ -197,4 +233,37 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
         }
     }
     return ret;
+}
+
+
+/** ln_nodeaddr_t比較
+ *
+ * @param[in]   pAddr1      比較対象1
+ * @param[in]   pAddr2      比較対象2
+ * @retval  true    一致
+ */
+static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2)
+{
+    const size_t SZ[] = {
+        0,          //LN_NODEDESC_NONE
+        4,          //LN_NODEDESC_IPV4
+        16,         //LN_NODEDESC_IPV6
+        10,         //LN_NODEDESC_ONIONV2
+        35          //LN_NODEDESC_ONIONV3
+    };
+
+    if (pAddr1->type != pAddr2->type) {
+        return false;
+    }
+    if (pAddr1->port != pAddr2->port) {
+        return false;
+    }
+    if (pAddr1->type <= LN_NODEDESC_ONIONV3) {
+        if (memcmp(pAddr1->addrinfo.addr, pAddr2->addrinfo.addr, SZ[pAddr1->type]) != 0) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    return true;
 }
