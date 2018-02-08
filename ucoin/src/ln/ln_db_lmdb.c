@@ -2487,10 +2487,10 @@ static int annonod_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const l
  */
 static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId)
 {
-    int nums = pMdbData->mv_size / UCOIN_SZ_PUBKEY;
     uint8_t *p_ids;
 
     if (pNodeId != NULL) {
+        int nums = pMdbData->mv_size / UCOIN_SZ_PUBKEY;
         p_ids = (uint8_t *)M_MALLOC((nums + 1) * UCOIN_SZ_PUBKEY);
         memcpy(p_ids, pMdbData->mv_data, pMdbData->mv_size);
         memcpy(p_ids + pMdbData->mv_size, pNodeId, UCOIN_SZ_PUBKEY);
