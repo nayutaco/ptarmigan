@@ -1118,14 +1118,16 @@ TEST_F(onion, testvector_failure_resolve_api)
     ucoin_buf_t err = { (CONST_CAST uint8_t *)ERR0, sizeof(ERR0) };
 
     ucoin_buf_t reason;
+    int hop;
     ucoin_buf_init(&reason);
-    ret = ln_onion_failure_read(&reason, &shared_secrets, &err);
+    ret = ln_onion_failure_read(&reason, &hop, &shared_secrets, &err);
     ASSERT_TRUE(ret);
     ucoin_buf_free(&shared_secrets);
 
     ASSERT_EQ(2, reason.len);
     ASSERT_EQ(0x20, reason.buf[0]);
     ASSERT_EQ(0x02, reason.buf[1]);
+    ASSERT_EQ(4, hop);
     ucoin_buf_free(&reason);
 }
 

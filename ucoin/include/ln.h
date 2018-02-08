@@ -1957,10 +1957,12 @@ void ln_onion_failure_forward(ucoin_buf_t *pNextPacket,
 /** ONION failureパケット解析
  *
  * @param[out]      pReason             Failure Message
+ * @param[out]      pHop                エラー元までのノード数(0は相手ノード)
  * @param[in]       pSharedSecrets      ONIONパケット生成自の全shared secret(#ln_onion_create_packet())
  * @param[in]       pPacket             受信したONION failureパケット
  */
 bool ln_onion_failure_read(ucoin_buf_t *pReason,
+            int *pHop,
             const ucoin_buf_t *pSharedSecrets,
             const ucoin_buf_t *pPacket);
 
