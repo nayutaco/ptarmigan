@@ -1749,8 +1749,9 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     }
 
     ln_free_revoked_buf(self);
-
     key.mv_size = 3;
+
+    //number of vout scripts
     key.mv_data = "rvn";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
@@ -1761,6 +1762,8 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     self->revoked_cnt = p[0];
     self->revoked_num = p[1];
     ln_alloc_revoked_buf(self);
+
+    //vout scripts
     key.mv_data = "rvv";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
@@ -1775,6 +1778,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
         p_scr += len;
     }
 
+    //witness script
     key.mv_data = "rvw";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
@@ -1789,6 +1793,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
         p_scr += len;
     }
 
+    //remote per_commit_secret
     key.mv_data = "rvs";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
@@ -1798,6 +1803,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     ucoin_buf_free(&self->revoked_sec);
     ucoin_buf_alloccopy(&self->revoked_sec, data.mv_data, data.mv_size);
 
+    //confirmation数
     key.mv_data = "rvc";
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {

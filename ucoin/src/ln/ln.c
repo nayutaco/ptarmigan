@@ -1508,7 +1508,7 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 }
 
 
-/** [routing用]channel_announcementデータ解析
+/* [routing用]channel_announcementデータ解析
  *
  * @param[out]  p_short_channel_id
  * @param[out]  pNodeId1
@@ -1546,6 +1546,9 @@ bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t 
 }
 
 
+/* [非公開]デバッグ用オプション設定
+ *
+ */
 void ln_set_debug(unsigned long debug)
 {
     mDebug = debug;
@@ -1557,6 +1560,9 @@ void ln_set_debug(unsigned long debug)
 }
 
 
+/* [非公開]デバッグ用オプション取得
+ *
+ */
 unsigned long ln_get_debug(void)
 {
     return mDebug;
@@ -1567,6 +1573,9 @@ unsigned long ln_get_debug(void)
  * package functions
  ********************************************************************/
 
+/** revoked transaction close関連のメモリ確保
+ *
+ */
 void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
 {
     DBG_PRINTF("alloc(%d)\n", self->revoked_num);
@@ -1582,6 +1591,9 @@ void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
 }
 
 
+/** #ln_alloc_revoked_buf()で確保したメモリの解放
+ *
+ */
 void HIDDEN ln_free_revoked_buf(ln_self_t *self)
 {
     if (self->revoked_num == 0) {
@@ -1641,8 +1653,6 @@ static void channel_clear(ln_self_t *self)
     self->flck_flag = 0;
     self->anno_flag = 0;
     self->shutdown_flag = 0;
-
-    //TODO: クリア漏れ調査
 }
 
 
@@ -3029,7 +3039,6 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
 
-#if 1
     if (param.is_unspent) {
         //DB保存
         ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self));
@@ -3041,46 +3050,6 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         ret = ln_db_annocnlall_del(ann.short_channel_id);
         DBG_PRINTF("remove db: %0" PRIx64 "(ret=%d)\n", ann.short_channel_id, ret);
     }
-#else
-    //DB読込み
-    ucoin_buf_t buf_bolt;
-    ret = ln_db_annocnl_load(&buf_bolt, ann.short_channel_id);
-    if (ret) {
-        // BOLT#7
-        //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements-1
-        //
-        // If it has previously received a valid channel_announcement
-        // for the same transaction in the same block, but different node_id_1 or node_id_2,
-        // it SHOULD blacklist the previous message's node_id_1 and node_id_2 as well as
-        // this node_id_1 and node_id_2 and forget channels connected to them,
-        // otherwise it SHOULD store this channel_announcement.
-        if (ucoin_buf_cmp(&buf_bolt, &buf)) {
-            if (param.is_unspent) {
-                DBG_PRINTF("同じものが送られてきたので、スルー\n");
-            } else {
-                //closeされたとみなして削除
-                ret = ln_db_annocnlall_del(ann.short_channel_id);
-                DBG_PRINTF("remove db: %0" PRIx64 "(ret=%d)\n", ann.short_channel_id, ret);
-            }
-        } else {
-            DBG_PRINTF("不一致のためblacklist入りする予定\n");
-            DBG_PRINTF("buf_bolt: ");
-            DUMPBIN(buf_bolt.buf, buf_bolt.len);
-            DBG_PRINTF("buf: ");
-            DUMPBIN(buf.buf, buf.len);
-            //assert(0);
-        }
-    } else if (param.is_unspent) {
-        //DB保存
-        DBG_PRINTF("new channel_announcement: %0" PRIx64 "\n", ann.short_channel_id);
-        ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self));
-        if (!ret) {
-            DBG_PRINTF("fail: db save\n");
-        }
-    } else {
-        DBG_PRINTF("do nothing: short_channel_id already closed\n");
-    }
-#endif
 
     return true;
 }

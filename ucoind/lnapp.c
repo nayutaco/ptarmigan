@@ -68,7 +68,7 @@
 #define M_WAIT_MUTEX_SEC        (1)         //mMuxSeqのロック解除待ち間隔[sec]
 #define M_WAIT_POLL_SEC         (10)        //監視スレッドの待ち間隔[sec]
 #define M_WAIT_PING_SEC         (60)        //ping送信待ち[sec](pingは30秒以上の間隔をあけること)
-#define M_WAIT_ANNO_SEC         (30)        //監視スレッドでのannounce処理間隔[sec]
+#define M_WAIT_ANNO_SEC         (1)         //監視スレッドでのannounce処理間隔[sec]
 #define M_WAIT_MUTEX_MSEC       (100)       //mMuxSeqのロック解除待ち間隔[msec]
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
@@ -103,6 +103,8 @@
 #define RECV_MSG_END            (0x80)      ///< 初期化完了
 
 #define M_SCRIPT_DIR            "./script/"
+
+#define M_ANNO_UNIT             (3)         ///< 1回のsend_channel_anno()/send_node_anno()で送信する数
 
 
 /********************************************************************
@@ -777,6 +779,8 @@ static void *thread_main_start(void *pArg)
     p_conf->fwd_proc_rpnt = 0;
     p_conf->fwd_proc_wpnt = 0;
     p_conf->flag_recv = 0;
+    p_conf->last_anno_cnl = 0;
+    p_conf->last_anno_node[0] = 0;      //pubkeyなので、0にはならない
     p_conf->err = 0;
     p_conf->p_errstr = NULL;
 
@@ -1257,16 +1261,8 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
             if (ret) {
                 send_peer_noise(p_conf, &buf_bolt);
                 ucoin_buf_free(&buf_bolt);
-
-                set_request_recvproc(p_conf, INNER_SEND_ANNOUNCEMENT, 0, NULL);
             }
         }
-        break;
-    case INNER_SEND_ANNOUNCEMENT:
-        DBG_PRINTF("INNER_SEND_ANNOUNCEMENT\n");
-        send_channel_anno(p_conf, true);
-        //send_node_anno(p_conf, true);
-        ret = true;
         break;
     default:
         break;
@@ -1493,19 +1489,14 @@ static void *thread_anno_start(void *pArg)
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
 
     while (p_conf->loop) {
-        //ループ解除まで時間が長くなるので、短くチェックする
-        for (int lp = 0; lp < M_WAIT_ANNO_SEC; lp++) {
-            sleep(1);
-            if (!p_conf->loop) {
-                break;
-            }
-        }
-        if (!p_conf->loop || (p_conf->p_self == NULL)) {
+        sleep(M_WAIT_ANNO_SEC);
+
+        if (!p_conf->loop) {
             break;
         }
 
-        if ((p_conf->flag_recv & RECV_MSG_INIT) == 0) {
-            //まだ接続していない
+        if ((p_conf->flag_recv & RECV_MSG_END) == 0) {
+            //まだ接続完了していない
             continue;
         }
 
@@ -2592,6 +2583,7 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
 {
     bool ret;
+    int anno_cnt = 0;
 
     DBG_PRINTF("BEGIN\n");
 
@@ -2610,15 +2602,27 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
     ret = ln_db_annocnl_cur_open(&p_cur, p_db);
     if (ret) {
         uint64_t short_channel_id;
-        char type = ' ';
+        char type;
         ucoin_buf_t buf_cnl;
-
-        DBG_PRINTF("current: %016" PRIx64 ", force=%d\n", ln_short_channel_id(p_conf->p_self), force);
 
         ucoin_buf_init(&buf_cnl);
 
-        while (ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl)) {
-            DBG_PRINTF("short_channel_id(%c)= %016" PRIx64 "\n", type, short_channel_id);
+        if (p_conf->last_anno_cnl != 0) {
+            //前回のところまで検索する
+            while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
+                if (short_channel_id == p_conf->last_anno_cnl) {
+                    break;
+                }
+                ucoin_buf_free(&buf_cnl);
+            }
+        }
+        ucoin_buf_free(&buf_cnl);
+
+        while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
+            if (!p_conf->loop) {
+                break;
+            }
+
             bool chk = ln_db_annocnls_search_nodeid(p_db, short_channel_id, type, ln_their_node_id(p_conf->p_self));
             if (!chk) {
                 DBG_PRINTF("send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
@@ -2629,12 +2633,18 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
             }
             ucoin_buf_free(&buf_cnl);
 
-            if (!p_conf->loop) {
+            anno_cnt++;
+            if (anno_cnt >= M_ANNO_UNIT) {
                 break;
             }
 
             //他スレッドのために少し待つ
             misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
+        }
+        if (ret) {
+            p_conf->last_anno_cnl = short_channel_id;
+        } else {
+            p_conf->last_anno_cnl = 0;
         }
     } else {
         DBG_PRINTF("no channel_announce DB\n");
@@ -2653,6 +2663,7 @@ LABEL_EXIT:
 static void send_node_anno(lnapp_conf_t *p_conf, bool force)
 {
     bool ret;
+    int anno_cnt = 0;
 
     DBG_PRINTF("BEGIN\n");
 
@@ -2675,7 +2686,23 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
         uint8_t nodeid[UCOIN_SZ_PUBKEY];
 
         ucoin_buf_init(&buf_node);
-        while (ln_db_annonod_cur_get(p_cur, &buf_node, &timestamp, nodeid)) {
+
+        if (p_conf->last_anno_node[0] != 0) {
+            //前回のところまで検索する
+            while ((ret = ln_db_annonod_cur_get(p_cur, &buf_node, &timestamp, nodeid))) {
+                if (memcmp(nodeid, p_conf->last_anno_node, UCOIN_SZ_PUBKEY) == 0) {
+                    break;
+                }
+                ucoin_buf_free(&buf_node);
+            }
+        }
+        ucoin_buf_free(&buf_node);
+
+        while ((ret = ln_db_annonod_cur_get(p_cur, &buf_node, &timestamp, nodeid))) {
+            if (!p_conf->loop) {
+                break;
+            }
+
             bool chk = ln_db_annonod_search_nodeid(p_db, nodeid, ln_their_node_id(p_conf->p_self));
             if (!chk) {
                 DBG_PRINTF("send node_anno: ");
@@ -2688,12 +2715,18 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
             }
             ucoin_buf_free(&buf_node);
 
-            if (!p_conf->loop) {
+            anno_cnt++;
+            if (anno_cnt >= M_ANNO_UNIT) {
                 break;
             }
 
             //他スレッドのために少し待つ
             misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
+        }
+        if (ret) {
+            memcpy(p_conf->last_anno_node, nodeid, UCOIN_SZ_PUBKEY);
+        } else {
+            p_conf->last_anno_node[0] = 0;
         }
     } else {
         DBG_PRINTF("no node_announce DB\n");

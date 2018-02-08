@@ -299,6 +299,8 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 
 static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
+    (void)p_db_param;
+
     bool del = false;
 
     DBG_PRINTF("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));

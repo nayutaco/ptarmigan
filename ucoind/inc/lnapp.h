@@ -60,7 +60,6 @@ typedef enum {
 
     //内部用
     INNER_SEND_ANNO_SIGNS,          ///< announcement_signatures送信要求
-    INNER_SEND_ANNOUNCEMENT,        ///< announcement送信要求
 } recv_proc_t;
 
 
@@ -109,6 +108,10 @@ typedef struct lnapp_conf_t {
 
     //fulfillキュー
     queue_fulfill_t *p_fulfill_queue;
+
+    //last send announcement
+    uint64_t        last_anno_cnl;                      ///< 最後にannouncementしたchannel
+    uint8_t         last_anno_node[UCOIN_SZ_PUBKEY];    ///< 最後にannouncementしたnode
 
     int             err;            ///< last error
     char            *p_errstr;      ///< last error string
