@@ -73,7 +73,6 @@
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
 #define M_WAIT_SEND_WAIT_MSEC   (10)        //socket送信で一度に送信できなかった場合の待ち時間[msec]
-#define M_WAIT_ANNO_WAIT_MSEC   (1)         //announcementする間隔[msec]
 
 //デフォルト値
 //  announcement
@@ -243,8 +242,8 @@ static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
 static void stop_threads(lnapp_conf_t *p_conf);
 static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
-static void send_channel_anno(lnapp_conf_t *p_conf, bool force);
-static void send_node_anno(lnapp_conf_t *p_conf, bool force);
+static void send_channel_anno(lnapp_conf_t *p_conf);
+static void send_node_anno(lnapp_conf_t *p_conf);
 
 static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId);
 static void set_changeaddr(ln_self_t *self, uint64_t commit_fee);
@@ -869,7 +868,7 @@ static void *thread_main_start(void *pArg)
             // } else {
             //     if (p_conf->initial_routing_sync) {
             //         DBG_PRINTF("channel_announcement再送\n");
-            //         send_channel_anno(p_conf, true);
+            //         send_channel_anno(p_conf);
             //     }
             // }
             // ucoin_buf_free(&buf_upd);
@@ -1501,10 +1500,10 @@ static void *thread_anno_start(void *pArg)
         }
 
         //未送信channel_announcementチェック
-        send_channel_anno(p_conf, false);
+        send_channel_anno(p_conf);
 
         //未送信node_announcementチェック
-        send_node_anno(p_conf, false);
+        send_node_anno(p_conf);
     }
 
     SYSLOG_WARN("[exit]anno thread\n");
@@ -2580,16 +2579,24 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 }
 
 
-static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
+/********************************************************************
+ * announcement展開
+ ********************************************************************/
+
+/** channel_announcement/channel_update送信
+ *
+ * 接続先へ未送信のchannel_announcement/channel_updateを送信する。
+ * 一度にすべて送信するとDBのロック期間が長くなるため、
+ * 最大M_ANNO_UNITパケットまで送信を行い、残りは次回呼び出しに行う。
+ *
+ * @param[in,out]   p_conf  lnapp情報
+ */
+static void send_channel_anno(lnapp_conf_t *p_conf)
 {
     bool ret;
     int anno_cnt = 0;
 
     DBG_PRINTF("BEGIN\n");
-
-    if (force) {
-        DBG_PRINTF("force send\n");
-    }
 
     void *p_db;
     ret = ln_db_anno_cur_transaction(&p_db, LN_DB_TXN_CNL);
@@ -2637,9 +2644,6 @@ static void send_channel_anno(lnapp_conf_t *p_conf, bool force)
             if (anno_cnt >= M_ANNO_UNIT) {
                 break;
             }
-
-            //他スレッドのために少し待つ
-            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
         if (ret) {
             p_conf->last_anno_cnl = short_channel_id;
@@ -2660,16 +2664,20 @@ LABEL_EXIT:
 }
 
 
-static void send_node_anno(lnapp_conf_t *p_conf, bool force)
+/** node_announcement送信
+ *
+ * 接続先へ未送信のnode_announcementを送信する。
+ * 一度にすべて送信するとDBのロック期間が長くなるため、
+ * 最大M_ANNO_UNITパケットまで送信を行い、残りは次回呼び出しに行う。
+ *
+ * @param[in,out]   p_conf  lnapp情報
+ */
+static void send_node_anno(lnapp_conf_t *p_conf)
 {
     bool ret;
     int anno_cnt = 0;
 
     DBG_PRINTF("BEGIN\n");
-
-    if (force) {
-        DBG_PRINTF("force send\n");
-    }
 
     void *p_db;
     ret = ln_db_anno_cur_transaction(&p_db, LN_DB_TXN_NODE);
@@ -2719,9 +2727,6 @@ static void send_node_anno(lnapp_conf_t *p_conf, bool force)
             if (anno_cnt >= M_ANNO_UNIT) {
                 break;
             }
-
-            //他スレッドのために少し待つ
-            misc_msleep(M_WAIT_ANNO_WAIT_MSEC);
         }
         if (ret) {
             memcpy(p_conf->last_anno_node, nodeid, UCOIN_SZ_PUBKEY);

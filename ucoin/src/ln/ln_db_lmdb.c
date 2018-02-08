@@ -1265,27 +1265,26 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
 
     ucoin_buf_t buf_node;
     uint32_t    timestamp;
-    uint8_t     nodeid[UCOIN_SZ_PUBKEY];
     bool        upddb = false;
     bool        clr = false;
 
     ucoin_buf_init(&buf_node);
-    retval = annonod_load(&db, &buf_node, &timestamp, nodeid);
+    retval = annonod_load(&db, &buf_node, &timestamp, pAnno->p_node_id);
     if (retval == 0) {
         if (timestamp > pAnno->timestamp) {
             //自分の方が新しければ、スルー
-            //DBG_PRINTF("my node_announcement is newer\n");
+            DBG_PRINTF("my node_announcement is newer\n");
             retval = 0;
         } else if (timestamp < pAnno->timestamp) {
             //自分の方が古いので、更新
-            //DBG_PRINTF("gotten node_announcement is newer\n");
+            DBG_PRINTF("gotten node_announcement is newer\n");
             upddb = true;
 
             //announceし直す必要があるため、クリアする
             clr = true;
         } else {
             if (ucoin_buf_cmp(&buf_node, pNodeAnno)) {
-                //DBG_PRINTF("same node_announcement\n");
+                DBG_PRINTF("same node_announcement\n");
             } else {
                 //日時が同じなのにデータが異なる
                 DBG_PRINTF("err: node_announcement mismatch !\n");
@@ -1297,13 +1296,14 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         }
     } else {
         //新規
+        DBG_PRINTF("new node_announcement\n");
         upddb = true;
     }
     ucoin_buf_free(&buf_node);
 
     if (upddb) {
         retval = annonod_save(&db, pNodeAnno, pAnno);
-        if ((retval == 0) && (pSendId != NULL)) {
+        if ((retval == 0) && ((pSendId != NULL) || (clr && (pSendId == NULL)))) {
             bool ret = ln_db_annonod_add_nodeid(&db_info, pAnno->p_node_id, clr, pSendId);
             if (!ret) {
                 retval = -1;
@@ -1346,6 +1346,12 @@ bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_
 
 bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, const uint8_t *pSendId)
 {
+    if ((pSendId == NULL) && !bClr) {
+        //更新する必要がないため、何もしない
+        DBG_PRINTF("do nothing\n");
+        return true;
+    }
+
     bool ret = true;
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
@@ -1360,7 +1366,11 @@ bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, cons
             detect = annoinfo_search(&data, pSendId);
         } else {
             DBG_PRINTF("new ");
-            DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
+            if (pSendId != NULL) {
+                DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
+            } else {
+                DBG_PRINTF(": only clear\n");
+            }
             data.mv_size = 0;
         }
     } else {
@@ -2473,27 +2483,26 @@ static int annonod_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const l
  * @param[in,out]   pDb         annoinfo
  * @param[in]       pMdbKey     loadしたchannel_announcement infoのkey
  * @param[in]       pMdbData    loadしたchannel_announcement infoのdata
- * @param[in]       pNodeId     追加するnode_id
+ * @param[in]       pNodeId     追加するnode_id(NULL時はクリア)
  */
 static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId)
 {
     int nums = pMdbData->mv_size / UCOIN_SZ_PUBKEY;
-for (int lp = 0; lp < nums; lp++) {
-    DBG_PRINTF("[%d]", lp);
-    DUMPBIN(pMdbData->mv_data + lp * UCOIN_SZ_PUBKEY, UCOIN_SZ_PUBKEY);
-}
+    uint8_t *p_ids;
 
-    uint8_t *p_ids = (uint8_t *)M_MALLOC((nums + 1) * UCOIN_SZ_PUBKEY);
-    memcpy(p_ids, pMdbData->mv_data, pMdbData->mv_size);
-    memcpy(p_ids + pMdbData->mv_size, pNodeId, UCOIN_SZ_PUBKEY);
+    if (pNodeId != NULL) {
+        p_ids = (uint8_t *)M_MALLOC((nums + 1) * UCOIN_SZ_PUBKEY);
+        memcpy(p_ids, pMdbData->mv_data, pMdbData->mv_size);
+        memcpy(p_ids + pMdbData->mv_size, pNodeId, UCOIN_SZ_PUBKEY);
+        pMdbData->mv_size += UCOIN_SZ_PUBKEY;
+    } else {
+        pMdbData->mv_size = 0;
+        p_ids = NULL;
+    }
 
     pMdbData->mv_data = p_ids;
-    pMdbData->mv_size += UCOIN_SZ_PUBKEY;
     int retval = mdb_put(pDb->txn, pDb->dbi, pMdbKey, pMdbData, 0);
-    if (retval == 0) {
-        DBG_PRINTF("add node: ");
-        DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-    } else {
+    if (retval != 0) {
         DBG_PRINTF("fail\n");
     }
     M_FREE(p_ids);

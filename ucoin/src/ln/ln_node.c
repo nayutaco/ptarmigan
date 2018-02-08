@@ -51,6 +51,7 @@ typedef struct {
  **************************************************************************/
 
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
+static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
 
 
 /**************************************************************************
@@ -72,6 +73,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 
     ln_db_init(ln_node_id(node));
     ln_node_announce_t anno;
+    bool update = false;
 
     ret = ln_db_annonod_load(&buf_node, NULL, ln_node_id(node));
     if (ret) {
@@ -79,7 +81,6 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
         //  少なくともnode_idは変更されていない
         uint8_t node_id[UCOIN_SZ_PUBKEY];
         char node_alias[LN_SZ_ALIAS + 1];
-
 
         anno.p_node_id = node_id;
         anno.p_alias = node_alias;
@@ -89,12 +90,20 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
                  (strcmp(anno.p_alias, pNodeName) != 0) ||
                  (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
                  !comp_node_addr(&anno.addr, &node->addr) ) {
-                //
+                //保持している情報と不一致
+                DBG_PRINTF("update\n");
+                update = true;
+            } else {
+                DBG_PRINTF("same node.conf\n");
             }
         }
     } else {
         //自node_announcement無し
+        DBG_PRINTF("new\n");
+        update = true;
+    }
 
+    if (update) {
         anno.timestamp = (uint32_t)time(NULL);
         anno.p_node_id = node->keys.pub;
         anno.p_my_node = &node->keys;
@@ -162,6 +171,9 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
  * HIDDEN
  ********************************************************************/
 
+/** node_announcement受信処理
+ *
+ */
 bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     //DBG_PRINTF("\n");
@@ -198,6 +210,12 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
  * private functions
  **************************************************************************/
 
+/** #ln_node_search_channel()処理関数
+ *
+ * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
+ * @param[in,out]   p_param         comp_param_cnl_t構造体
+ */
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
@@ -218,9 +236,16 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 }
 
 
+/** ln_nodeaddr_t比較
+ *
+ * @param[in]   pAddr1      比較対象1
+ * @param[in]   pAddr2      比較対象2
+ * @retval  true    一致
+ */
 static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2)
 {
-    const int SZ[] = {
+    const size_t SZ[] = {
+        0,          //LN_NODEDESC_NONE
         4,          //LN_NODEDESC_IPV4
         16,         //LN_NODEDESC_IPV6
         10,         //LN_NODEDESC_ONIONV2
@@ -233,22 +258,12 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
     if (pAddr1->port != pAddr2->port) {
         return false;
     }
-    switch (pAddr1->type) {
-    case LN_NODEDESC_NONE:
-        break;
-    case LN_NODEDESC_IPV4:
-        if (memcmp(pAddr1->addrinfo.addr, pAddr2->addrinfo.addr, ) {
+    if (pAddr1->type <= LN_NODEDESC_ONIONV3) {
+        if (memcmp(pAddr1->addrinfo.addr, pAddr2->addrinfo.addr, SZ[pAddr1->type]) != 0) {
+            return false;
         }
-        break;
-    case LN_NODEDESC_IPV6:
-        break;
-    case LN_NODEDESC_ONIONV2:
-        break;
-    case LN_NODEDESC_ONIONV3:
-        break;
-    default:
+    } else {
         return false;
     }
-
     return true;
 }
