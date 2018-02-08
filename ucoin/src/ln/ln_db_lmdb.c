@@ -1273,18 +1273,18 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
     if (retval == 0) {
         if (timestamp > pAnno->timestamp) {
             //自分の方が新しければ、スルー
-            DBG_PRINTF("my node_announcement is newer\n");
+            //DBG_PRINTF("my node_announcement is newer\n");
             retval = 0;
         } else if (timestamp < pAnno->timestamp) {
             //自分の方が古いので、更新
-            DBG_PRINTF("gotten node_announcement is newer\n");
+            //DBG_PRINTF("gotten node_announcement is newer\n");
             upddb = true;
 
             //announceし直す必要があるため、クリアする
             clr = true;
         } else {
             if (ucoin_buf_cmp(&buf_node, pNodeAnno)) {
-                DBG_PRINTF("same node_announcement\n");
+                //DBG_PRINTF("same node_announcement\n");
             } else {
                 //日時が同じなのにデータが異なる
                 DBG_PRINTF("err: node_announcement mismatch !\n");
@@ -1296,7 +1296,7 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         }
     } else {
         //新規
-        DBG_PRINTF("new node_announcement\n");
+        //DBG_PRINTF("new node_announcement\n");
         upddb = true;
     }
     ucoin_buf_free(&buf_node);
