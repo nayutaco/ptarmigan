@@ -1400,7 +1400,7 @@ static void poll_ping(lnapp_conf_t *p_conf)
 
     //未送受信の状態が続いたらping送信する
     p_conf->ping_counter++;
-    DBG_PRINTF("ping_counter=%d\n", p_conf->ping_counter);
+    //DBG_PRINTF("ping_counter=%d\n", p_conf->ping_counter);
     if (p_conf->ping_counter >= M_WAIT_PING_SEC / M_WAIT_POLL_SEC) {
         ucoin_buf_t buf_ping;
 
@@ -2600,7 +2600,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
     bool ret;
     int anno_cnt = 0;
 
-    DBG_PRINTF("BEGIN\n");
+    //DBG_PRINTF("BEGIN\n");
 
     void *p_db;
     ret = ln_db_anno_cur_transaction(&p_db, LN_DB_TXN_CNL);
@@ -2640,7 +2640,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
                 send_peer_noise(p_conf, &buf_cnl);
                 ln_db_annocnls_add_nodeid(p_db, short_channel_id, type, false, ln_their_node_id(p_conf->p_self));
             } else {
-                DBG_PRINTF("not send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
+                //DBG_PRINTF("not send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
             }
             ucoin_buf_free(&buf_cnl);
 
@@ -2664,7 +2664,8 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
     ln_db_anno_cur_commit(p_db);
 
 LABEL_EXIT:
-    DBG_PRINTF("END\n");
+    //DBG_PRINTF("END\n");
+    ;
 }
 
 
@@ -2681,7 +2682,7 @@ static void send_node_anno(lnapp_conf_t *p_conf)
     bool ret;
     int anno_cnt = 0;
 
-    DBG_PRINTF("BEGIN\n");
+    //DBG_PRINTF("BEGIN\n");
 
     void *p_db;
     ret = ln_db_anno_cur_transaction(&p_db, LN_DB_TXN_NODE);
@@ -2722,8 +2723,8 @@ static void send_node_anno(lnapp_conf_t *p_conf)
                 send_peer_noise(p_conf, &buf_node);
                 ln_db_annonod_add_nodeid(p_db, nodeid, false, ln_their_node_id(p_conf->p_self));
             } else {
-                DBG_PRINTF("not send node_anno: ");
-                DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
+                //DBG_PRINTF("not send node_anno: ");
+                //DUMPBIN(nodeid, UCOIN_SZ_PUBKEY);
             }
             ucoin_buf_free(&buf_node);
 
@@ -2747,7 +2748,8 @@ static void send_node_anno(lnapp_conf_t *p_conf)
     ln_db_anno_cur_commit(p_db);
 
 LABEL_EXIT:
-    DBG_PRINTF("END\n");
+    //DBG_PRINTF("END\n");
+    ;
 }
 
 

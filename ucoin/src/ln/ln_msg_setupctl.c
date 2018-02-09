@@ -226,8 +226,8 @@ bool HIDDEN ln_msg_ping_create(ucoin_buf_t *pBuf, const ln_ping_t *pMsg)
     }
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-    ping_print(pMsg);
+    //DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    //ping_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->byteslen);
@@ -279,8 +279,8 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
     }
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-    ping_print(pMsg);
+    //DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    //ping_print(pMsg);
 #endif  //DBG_PRINT_READ
 
     for (int lp = 0; lp < pMsg->byteslen; lp++) {
@@ -326,8 +326,8 @@ bool HIDDEN ln_msg_pong_create(ucoin_buf_t *pBuf, const ln_pong_t *pMsg)
     }
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-    pong_print(pMsg);
+    //DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    //pong_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 2 + pMsg->byteslen);
@@ -374,8 +374,8 @@ bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len
     }
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-    pong_print(pMsg);
+    //DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    //pong_print(pMsg);
 #endif  //DBG_PRINT_READ
 
     for (int lp = 0; lp < pMsg->byteslen; lp++) {

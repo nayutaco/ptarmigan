@@ -1320,10 +1320,10 @@ LABEL_EXIT:
 
 bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId)
 {
-    DBG_PRINTF("node_id= ");
-    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("send_id= ");
-    DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
+    //DBG_PRINTF("node_id= ");
+    //DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+    //DBG_PRINTF("send_id= ");
+    //DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
 
     bool ret = false;
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -1334,7 +1334,7 @@ bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_
     M_ANNOINFO_NODE_SET(keydata, key, pNodeId);
     int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
     if (retval == 0) {
-        DBG_PRINTF("search...\n");
+        //DBG_PRINTF("search...\n");
         ret = annoinfo_search(&data, pSendId);
     } else {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -2520,13 +2520,13 @@ static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData,
 static bool annoinfo_search(MDB_val *pMdbData, const uint8_t *pNodeId)
 {
     int nums = pMdbData->mv_size / UCOIN_SZ_PUBKEY;
-    DBG_PRINTF("nums=%d\n", nums);
-    DBG_PRINTF("search id: ");
-    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+    //DBG_PRINTF("nums=%d\n", nums);
+    //DBG_PRINTF("search id: ");
+    //DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
     int lp;
     for (lp = 0; lp < nums; lp++) {
-        DBG_PRINTF("  node_id[%d]= ", lp);
-        DUMPBIN(pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, UCOIN_SZ_PUBKEY);
+        //DBG_PRINTF("  node_id[%d]= ", lp);
+        //DUMPBIN(pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, UCOIN_SZ_PUBKEY);
         if (memcmp((uint8_t *)pMdbData->mv_data + UCOIN_SZ_PUBKEY * lp, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
             break;
         }
