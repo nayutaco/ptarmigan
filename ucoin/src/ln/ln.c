@@ -1378,14 +1378,14 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
 #endif
     ping.num_pong_bytes = self->last_num_pong_bytes;
     bool ret = ln_msg_ping_create(pPing, &ping);
-    //if (ret) {
-    //    self->missing_pong_cnt++;
-    //    if (self->missing_pong_cnt > M_PONG_MISSING) {
-    //        self->err = LNERR_PINGPONG;
-    //        DBG_PRINTF("many pong missing...(%d)\n", self->missing_pong_cnt);
-    //        ret = false;
-    //    }
-    //}
+    if (ret) {
+        self->missing_pong_cnt++;
+        //if (self->missing_pong_cnt > M_PONG_MISSING) {
+        //    self->err = LNERR_PINGPONG;
+        //    DBG_PRINTF("many pong missing...(%d)\n", self->missing_pong_cnt);
+        //    ret = false;
+        //}
+    }
 
     return ret;
 }
@@ -1723,7 +1723,7 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
 static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    //DBG_PRINTF("BEGIN\n");
 
     bool ret;
 
@@ -1740,14 +1740,14 @@ static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
-    DBG_PRINTF("END\n");
+    //DBG_PRINTF("END\n");
     return ret;
 }
 
 
 static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    //DBG_PRINTF("BEGIN\n");
 
     bool ret;
 
@@ -1762,13 +1762,13 @@ static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ret = (pong.byteslen == self->last_num_pong_bytes);
     if (ret) {
         self->missing_pong_cnt--;
-        DBG_PRINTF("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
+        //DBG_PRINTF("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
         self->last_num_pong_bytes = 0;
     } else {
         DBG_PRINTF("fail: pong.byteslen(%" PRIu16 ") != self->last_num_pong_bytes(%" PRIu16 ")\n", pong.byteslen, self->last_num_pong_bytes);
     }
 
-    DBG_PRINTF("END\n");
+    //DBG_PRINTF("END\n");
     return true;
 }
 
