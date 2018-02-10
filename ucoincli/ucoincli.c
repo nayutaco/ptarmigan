@@ -232,15 +232,16 @@ int main(int argc, char *argv[])
                     printf("---------------------------------\n");
                     switch (invoice_data.hrp_type) {
                     case LN_INVOICE_MAINNET:
-                        printf("for mainnet\n");
+                        printf("blockchain: bitcoin mainnet\n");
                         printf("fail: mainnet payment not supported yet.\n");
                         options = M_OPTIONS_ERR;
                         break;
                     case LN_INVOICE_TESTNET:
-                        printf("for testnet\n");
+                        printf("blockchain: bitcoin testnet\n");
                         break;
                     default:
                         printf("unknown hrp_type\n");
+                        options = M_OPTIONS_ERR;
                     }
                     printf("amount_msat=%" PRIu64 "\n", invoice_data.amount_msat);
                     time_t tm = (time_t)invoice_data.timestamp;
@@ -286,7 +287,7 @@ int main(int argc, char *argv[])
                             printf("fail: errno=%s\n", strerror(errno));
                             options = M_OPTIONS_ERR;
                         }
-                    } 
+                    }
                     if (options != M_OPTIONS_ERR) {
                         if (invoice_data.amount_msat > 0) {
                             routepay_rpc(mBuf, &invoice_data);

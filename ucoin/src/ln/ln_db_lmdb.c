@@ -1145,7 +1145,7 @@ bool ln_db_annocnl_cur_open(void **ppCur, void *pDb)
     if (ret) {
         *ppCur = p_cur;
     } else {
-        DBG_PRINTF("err: cursor open\n");
+        //DBG_PRINTF("err: cursor open\n");
         M_FREE(p_cur);
         *ppCur = NULL;
     }
@@ -2308,7 +2308,7 @@ static bool annocnl_cur_open(lmdb_cursor_t *pCur)
 
     retval = mdb_dbi_open(pCur->txn, M_DB_ANNO_CNL, 0, &pCur->dbi);
     if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        //DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
 
