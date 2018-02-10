@@ -8,13 +8,13 @@
 
     swhodb [mainnet/testnet/regtest] [options] [(db dir)]
 
-### options :
+### options
 
-    `w` : show wallet info  
-    `s` : show self info  
-    `c` : show channel info  
-    `n` : show node info
-    'p' : create peer config files
+* `w` : show wallet info
+* `s` : show self info
+* `c` : show channel info
+* `n` : show node info
+* 'p' : create peer config files
 
 ## DESCRIPTION
 

@@ -12,10 +12,16 @@
 routing [mainnet/testnet/regtest] [db dir]
 ```
 
-* create payment route
+* create payment route(CSV format)
 
 ```bash
 routing [mainnet/testnet/regtest] [db dir] [payer node_id] [payee node_id] [amount msat] <[min_final_cltv_expiry]>
+```
+
+* create payment route(JSON format)
+
+```bash
+routing [mainnet/testnet/regtest] [db dir] [payer node_id] [payee node_id] [amount msat] [min_final_cltv_expiry] [payment_hash]
 ```
 
 ## DESCRIPTION

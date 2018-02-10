@@ -13,7 +13,7 @@ regtest=1
 
 2. [btc]bitcoind起動
 
-3. [btc] (初めてのregtestの場合)  
+3. [btc] (初めてのregtestの場合)
 
 ```bash
 bitcoin-cli generate 432
