@@ -10,17 +10,32 @@
 
 ### options
 
-* `-h` : help
-* `-q` : quit ucoind
-* `-l` : list channels
-* `-i [amount_msat]` : add invoice
-* `-m` : list invoices
-* `-p [pay config file],[payment_hash]`  : payment(need connected). if use `payment_hash`, `hash` is ignored in config file.
-* `-c [peer config file]` : connect another node
-* `-f [fund config file]` : open channel(need `-c` option)
+* single command
+  * `-h` : help
+  * `-q` : quit ucoind
+
+* connect peer
+  * `-c [peer config file]` : connect another node
+
+* information
+  * `-l` : get information
+  * `-m` : list invoices
+
+* funding
+  * `-f [fund config file]` : open channel(need `-c` option)
+
+* payment
+  * `-i [amount_msat]` : add invoice
+  * `-e [payment_hash]` : erase a payment_hash
+  * `-e ALL` : erase all payment_hashs
+  * `-p [pay config file],[payment_hash]` : payment
+  * `-r [BOLT11 invoice]`  : payment with BOLT11 invoice format
+
 * `-x` : close channel(need `-c` option)
-* `-d [value]` : debug option
-* `-g` : get commitment transaction(need `-c` option)
+
+* debug
+  * `-d [value]` : debug option
+  * `-g` : get commitment transaction(need `-c` option)
 
 ## DESCRIPTION
 
@@ -29,15 +44,15 @@ Control `ucoind`.
 
 ### Configuration File Format
 
-* peer config file format
+* peer config file format (`-c`)
 
 ```text
-ipaddr=[IPv4 address]
-port=[socket number]
 node_id=[node pubkey]
+ipaddr=[IPv4 address]
+port=[port number]
 ```
 
-* fund config file format
+* fund config file format (`-f`)
 
 ```text
 txid=[fund-in txid]
@@ -47,7 +62,7 @@ funding_sat=[funding satoshis in txid amount]
 push_sat=[push satoshis for peer node]
 ```
 
-* pay config file format
+* payment CSV config file format (`-p`)
 
 ```text
 hop_num=[below route num]

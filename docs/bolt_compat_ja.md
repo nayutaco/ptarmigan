@@ -5,7 +5,9 @@
 * Setup Messages
   * `init` : `initial_routing_sync` = 1 のみ送信。受信したfeaturesは無視。
   * `error` : 受信結果をログに出す
-  * `ping` and `pong` : 無通信状態が60秒継続すると、 `ping` を送信する
+  * `ping` and `pong`
+    * 無送信状態が60秒継続すると、 `ping` を送信する
+    * `pong`受信の際、前回の`ping`に対応するかチェックしない
 
 ## BOLT#2
 
@@ -17,12 +19,7 @@
   * `commitment_signed` がなかった場合の取消にまだ対応できておらず、受信メッセージをすぐに反映させている。
 
 * Message Retransmission
-  * `funding_locked` 交換しないと再接続できない
-
-## BOLT#3
-
-* Commitment Transaction
-  * HTLCは1つまでしか動作確認していない
+  * `c-lightning`とEstablish後、paymenetせずに切断し、再接続すると切断される([#138](https://github.com/nayutaco/ptarmigan/issues/138))
 
 ## BOLT#4
 
@@ -31,7 +28,7 @@
 ## BOLT#5
 
 * Mutual Closeの完了チェック(`closing_tx` の展開チェック)を `getblock` でのTXID監視に変更
- * よって、1ブロック以上マイニングされないと完了しない
+  * よって、1ブロック以上マイニングされないと完了しない
 
 ## BOLT#7
 
@@ -41,10 +38,4 @@
 
 ## BOLT#11
 
-* mbedTLSに、ecdsa signature recovery用APIがないため、実装中断
-* 当面は[lightning-payencode](https://github.com/rustyrussell/lightning-payencode)で代用しておく
-
-```bash
-sudo apt install python3-pip bc
-sudo python3 -m pip install bitstring base58 secp256k1
-```
+* `description`は`ptarmigan`固定

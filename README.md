@@ -35,7 +35,6 @@ make
 
 ```bash
 cd ptarmigan
-git submodule update
 git pull
 ./update_libs.sh
 make full
@@ -57,12 +56,13 @@ make distclean
 ### libraries
 
 * git submodule
-  * [jsonrpc-c(github)](https://github.com/hmng/jsonrpc-c)
-  * [inih(github)](https://github.com/benhoyt/inih)
-  * [mbedTLS](https://tls.mbed.org/)([github](https://github.com/ARMmbed/mbedtls))
-  * [libbase58 github](https://github.com/luke-jr/libbase58)
-  * [libsodium](https://download.libsodium.org/doc/)([github](https://github.com/jedisct1/libsodium))
-  * [lmdb](https://symas.com/lightning-memory-mapped-database/)([github](https://github.com/LMDB/lmdb))
+  * [inih](https://github.com/benhoyt/inih)
+  * [libbase58](https://github.com/luke-jr/libbase58)
+  * [mbedTLS](https://tls.mbed.org/) ([github](https://github.com/ARMmbed/mbedtls))
+  * [libsodium](https://download.libsodium.org/doc/) ([github](https://github.com/jedisct1/libsodium))
+  * [lmdb](https://symas.com/lightning-memory-mapped-database/) ([github](https://github.com/LMDB/lmdb))
+  * [jsonrpc-c](https://github.com/nayutaco/jsonrpc-c) - forked from [hmng/jsonrpc-c](https://github.com/hmng/jsonrpc-c)
+  * [bech32](https://github.com/nayutaco/bech32) - forked from [sipa/bech32](https://github.com/sipa/bech32)
 
 * install
   * [curl](https://curl.haxx.se/)
