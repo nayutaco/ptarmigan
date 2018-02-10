@@ -26,6 +26,11 @@
 #ifndef LN_ERR_H__
 #define LN_ERR_H__
 
+
+/**************************************************************************
+ * library error
+ **************************************************************************/
+
 enum {
     LNERR_INV_NODEID,
     LNERR_INV_PRIVKEY,
@@ -51,5 +56,39 @@ enum {
     LNERR_ADDHTLC_APP,
     LNERR_ALREADY_FUNDING,
 };
+
+
+/**************************************************************************
+ * onion
+ **************************************************************************/
+
+#define LNERR_ONION_BADONION        ((uint16_t)0x8000)
+#define LNERR_ONION_PERM            ((uint16_t)0x4000)
+#define LNERR_ONION_NODE            ((uint16_t)0x2000)
+#define LNERR_ONION_UPDATE          ((uint16_t)0x1000)
+
+typedef enum {
+    LNONION_INV_REALM               = ((uint16_t)(LNERR_ONION_PERM | 1)),
+    LNONION_TMP_NODE_FAIL           = ((uint16_t)(LNERR_ONION_NODE | 2)),
+    LNONION_PERM_NODE_FAIL          = ((uint16_t)(LNERR_ONION_PERM | LNERR_ONION_NODE | 2)),
+    LNONION_REQ_NODE_FTR_MISSING    = ((uint16_t)(LNERR_ONION_PERM | LNERR_ONION_NODE | 3)),
+    LNONION_INV_ONION_VERSION       = ((uint16_t)(LNERR_ONION_BADONION | LNERR_ONION_PERM | 4)),
+    LNONION_INV_ONION_HMAC          = ((uint16_t)(LNERR_ONION_BADONION | LNERR_ONION_PERM | 5)),
+    LNONION_INV_ONION_KEY           = ((uint16_t)(LNERR_ONION_BADONION | LNERR_ONION_PERM | 6)),
+    LNONION_TMP_CHAN_FAIL           = ((uint16_t)(LNERR_ONION_UPDATE | 7)),
+    LNONION_PERM_CHAN_FAIL          = ((uint16_t)(LNERR_ONION_PERM | 8)),
+    LNONION_REQ_CHAN_FTR_MISSING    = ((uint16_t)(LNERR_ONION_PERM | 9)),
+    LNONION_UNKNOWN_NEXT_PEER       = ((uint16_t)(LNERR_ONION_PERM | 10)),
+    LNONION_AMT_BELOW_MIN           = ((uint16_t)(LNERR_ONION_UPDATE | 11)),
+    LNONION_FEE_INSUFFICIENT        = ((uint16_t)(LNERR_ONION_UPDATE | 12)),
+    LNONION_INCORR_CLTV_EXPIRY      = ((uint16_t)(LNERR_ONION_UPDATE | 13)),
+    LNONION_EXPIRY_TOO_SOON         = ((uint16_t)(LNERR_ONION_UPDATE | 14)),
+    LNONION_UNKNOWN_PAY_HASH        = ((uint16_t)(LNERR_ONION_PERM | 15)),
+    LNONION_INCORR_PAY_AMT          = ((uint16_t)(LNERR_ONION_PERM | 16)),
+    LNONION_FINAL_EXPIRY_TOO_SOON   = ((uint16_t)(17)),
+    LNONION_FINAL_INCORR_CLTV_EXP   = ((uint16_t)(18)),
+    LNONION_FINAL_INCORR_HTLC_AMT   = ((uint16_t)(19)),
+    LNONION_CHAN_DISABLE            = ((uint16_t)(LNERR_ONION_UPDATE | 20)),
+} lnerr_onion_t;
 
 #endif /* LN_ERR_H__ */

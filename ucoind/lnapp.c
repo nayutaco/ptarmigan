@@ -252,6 +252,7 @@ static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
 static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf);
 static void call_script(event_t event, const char *param);
+static void set_onionerr_str(char *pStr, const ucoin_buf_t *pBuf);
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
@@ -860,21 +861,6 @@ static void *thread_main_start(void *pArg)
         //my_selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
         if (ln_short_channel_id(&my_self) != 0) {
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
-
-#warning おそらく、切断によってdisableにした状態を戻すために行っているが、まだdisableにする送信を行っていない
-            // //channel_update更新
-            // ucoin_buf_t buf_upd;
-            // ucoin_buf_init(&buf_upd);
-            // ret = ln_update_channel_update(&my_self, &buf_upd);
-            // if (ret) {
-            //     send_peer_noise(p_conf, &buf_upd);
-            // } else {
-            //     if (p_conf->initial_routing_sync) {
-            //         DBG_PRINTF("channel_announcement再送\n");
-            //         send_channel_anno(p_conf);
-            //     }
-            // }
-            // ucoin_buf_free(&buf_upd);
         } else {
             DBG_PRINTF("funding_tx監視開始\n");
             DUMPTXID(ln_funding_txid(&my_self));
@@ -2262,15 +2248,10 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         if (ret) {
             DBG_PRINTF("  failure reason= ");
             DUMPBIN(reason.buf, reason.len);
+
             char errstr[256];
             char reasonstr[128];
-            reasonstr[0] = '\0';
-            int loop = (reason.len < sizeof(reason)) ? reason.len : sizeof(reason);
-            for (int lp = 0; lp < loop; lp++) {
-                char bin[3];
-                sprintf(bin, "%02x", reason.buf[lp]);
-                strcat(reasonstr, bin);
-            }
+            set_onionerr_str(reasonstr, &reason);
             sprintf(errstr, "fail reason:%s(hop=%d)", reasonstr, hop);
             set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
         } else {
@@ -2868,6 +2849,10 @@ static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf)
 }
 
 
+/** イベント発生によるスクリプト実行
+ *
+ *
+ */
 static void call_script(event_t event, const char *param)
 {
     DBG_PRINTF("event=0x%02x\n", (int)event);
@@ -2884,6 +2869,58 @@ static void call_script(event_t event, const char *param)
 }
 
 
+/** onion fail reason文字列設定
+ *
+ *
+ */
+static void set_onionerr_str(char *pStr, const ucoin_buf_t *pBuf)
+{
+    const struct {
+        uint16_t err;
+        const char *str;
+    } ONIONERR[] = {
+        { LNONION_INV_REALM, "invalid realm" },
+        { LNONION_TMP_NODE_FAIL, "temporary_node_failure" },
+        { LNONION_PERM_NODE_FAIL, "permanent_node_failure" },
+        { LNONION_REQ_NODE_FTR_MISSING, "required_node_feature_missing" },
+        { LNONION_INV_ONION_VERSION, "invalid_onion_version" },
+        { LNONION_INV_ONION_HMAC, "invalid_onion_hmac" },
+        { LNONION_INV_ONION_KEY, "invalid_onion_key" },
+        { LNONION_TMP_CHAN_FAIL, "temporary_channel_failure" },
+        { LNONION_PERM_CHAN_FAIL, "permanent_channel_failure" },
+        { LNONION_REQ_CHAN_FTR_MISSING, "required_channel_feature_missing" },
+        { LNONION_UNKNOWN_NEXT_PEER, "unknown_next_peer" },
+        { LNONION_AMT_BELOW_MIN, "amount_below_minimum" },
+        { LNONION_FEE_INSUFFICIENT, "fee_insufficient" },
+        { LNONION_INCORR_CLTV_EXPIRY, "incorrect_cltv_expiry" },
+        { LNONION_EXPIRY_TOO_SOON, "expiry_too_soon" },
+        { LNONION_UNKNOWN_PAY_HASH, "unknown_payment_hash" },
+        { LNONION_INCORR_PAY_AMT, "incorrect_payment_amount" },
+        { LNONION_FINAL_EXPIRY_TOO_SOON, "final_expiry_too_soon" },
+        { LNONION_FINAL_INCORR_CLTV_EXP, "final_incorrect_cltv_expiry" },
+        { LNONION_FINAL_INCORR_HTLC_AMT, "final_incorrect_htlc_amount" },
+        { LNONION_CHAN_DISABLE, "channel_disabled" },
+    };
+
+    uint16_t err_reason = ((uint16_t)pBuf->buf[0] << 8) | pBuf->buf[1];
+    const char *p_str = NULL;
+    for (size_t lp = 0; lp < ARRAY_SIZE(ONIONERR); lp++) {
+        if (err_reason == ONIONERR[lp].err) {
+            p_str = ONIONERR[lp].str;
+            break;
+        }
+    }
+    if (p_str != NULL) {
+        strcpy(pStr, p_str);
+    } else {
+        sprintf(pStr, "unknown reason[%04x]", err_reason);
+    }
+}
+
+
+/** エラー文字列設定
+ *
+ */
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
 {
     p_conf->err = Err;
