@@ -36,7 +36,6 @@ make
 ```bash
 cd ptarmigan
 git pull
-./update_libs.sh
 make full
 ```
 
