@@ -2636,7 +2636,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
             p_conf->last_anno_cnl = 0;
         }
     } else {
-        DBG_PRINTF("no channel_announce DB\n");
+        //DBG_PRINTF("no channel_announce DB\n");
     }
     if (p_cur) {
         ln_db_annocnl_cur_close(p_cur);
