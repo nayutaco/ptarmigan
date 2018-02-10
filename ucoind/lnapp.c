@@ -83,7 +83,7 @@
 
 //  establish
 #define M_DUST_LIMIT_SAT                (546)
-#define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (UINT64_MAX)
+#define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (INT64_MAX)
 #define M_CHANNEL_RESERVE_SAT           (700)
 #define M_HTLC_MINIMUM_MSAT_EST         (0)
 #define M_TO_SELF_DELAY                 (40)
