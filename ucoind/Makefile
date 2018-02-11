@@ -41,7 +41,7 @@ C_SOURCE_FILES += $(PRJ_PATH)cmd_json.c
 C_SOURCE_FILES += $(PRJ_PATH)monitoring.c
 C_SOURCE_FILES += $(COMMON_PATH)cmn/conf.c
 C_SOURCE_FILES += $(COMMON_PATH)cmn/misc.c
-C_SOURCE_FILES += $(COMMON_PATH)cmn/jsonrpc.c
+C_SOURCE_FILES += $(COMMON_PATH)cmn/btcrpc.c
 
 #includes common to all targets
 INC_PATHS += -I$(COMMON_PATH)include -I$(PRJ_PATH)inc

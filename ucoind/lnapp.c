@@ -55,7 +55,7 @@
 #include "cmd_json.h"
 #include "lnapp.h"
 #include "conf.h"
-#include "jsonrpc.h"
+#include "btcrpc.h"
 #include "ln_db.h"
 
 #include "monitoring.h"
@@ -610,7 +610,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
         cJSON_AddItemToObject(result, "fundindg_tx", cJSON_CreateString(str));
         //confirmation
-        uint32_t confirm = jsonrpc_get_confirmation(ln_funding_txid(pAppConf->p_self));
+        uint32_t confirm = btcprc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
 
         //short_channel_id
@@ -632,7 +632,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
         cJSON_AddItemToObject(result, "fundindg_tx", cJSON_CreateString(str));
         //confirmation
-        uint32_t confirm = jsonrpc_get_confirmation(ln_funding_txid(pAppConf->p_self));
+        uint32_t confirm = btcprc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
         //minimum_depth
         cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(pAppConf->funding_min_depth));
@@ -852,7 +852,7 @@ static void *thread_main_start(void *pArg)
 
     //送金先
     char payaddr[UCOIN_SZ_ADDR_MAX];
-    jsonrpc_getnewaddress(payaddr);
+    btcprc_getnewaddress(payaddr);
     ln_set_shutdown_vout_addr(&my_self, payaddr);
 
     // Establishチェック
@@ -1070,26 +1070,26 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
     char wif[UCOIN_SZ_WIF_MAX];
     uint64_t fundin_sat;
 
-    bool ret = jsonrpc_dumpprivkey(wif, p_conf->p_funding->signaddr);
+    bool ret = btcprc_dumpprivkey(wif, p_conf->p_funding->signaddr);
     if (ret) {
-        ret = jsonrpc_getnewaddress(p_conf->p_opening->chargeaddr);
+        ret = btcprc_getnewaddress(p_conf->p_opening->chargeaddr);
     } else {
-        SYSLOG_ERR("%s(): jsonrpc_dumpprivkey", __func__);
+        SYSLOG_ERR("%s(): btcprc_dumpprivkey", __func__);
     }
     assert(ret);
 
     bool unspent = true;
     if (ret) {
         //TODO: unspentしか成功しないので、再開にうまく利用できないものか
-        ret = jsonrpc_getxout(&unspent, &fundin_sat, p_conf->p_funding->txid, p_conf->p_funding->txindex);
+        ret = btcprc_getxout(&unspent, &fundin_sat, p_conf->p_funding->txid, p_conf->p_funding->txindex);
         DBG_PRINTF("ret=%d, unspent=%d\n", ret, unspent);
     } else {
-        SYSLOG_ERR("%s(): jsonrpc_getnewaddress", __func__);
+        SYSLOG_ERR("%s(): btcprc_getnewaddress", __func__);
     }
     if (ret && unspent) {
         //estimate fee
         uint64_t feerate;
-        bool ret = jsonrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
+        bool ret = btcprc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
         //BOLT#2
         //  feerate_per_kw indicates the initial fee rate by 1000-weight
         //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
@@ -1132,7 +1132,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         send_peer_noise(p_conf, &buf_bolt);
         ucoin_buf_free(&buf_bolt);
     } else {
-        SYSLOG_WARN("fail through: jsonrpc_getxout");
+        SYSLOG_WARN("fail through: btcprc_getxout");
         DUMPTXID(p_conf->p_funding->txid);
     }
 
@@ -1342,7 +1342,7 @@ static void *thread_poll_start(void *pArg)
         poll_ping(p_conf);
 
         uint32_t bak_conf = p_conf->funding_confirm;
-        p_conf->funding_confirm = jsonrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
+        p_conf->funding_confirm = btcprc_get_confirmation(ln_funding_txid(p_conf->p_self));
         if (bak_conf != p_conf->funding_confirm) {
             DBG_PRINTF2("\n***********************************\n");
             DBG_PRINTF2("* CONFIRMATION: %d\n", p_conf->funding_confirm);
@@ -1428,7 +1428,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         //      [6-7]funding_txのvout index
         int bheight = 0;
         int bindex = 0;
-        bool ret = jsonrpc_get_short_channel_param(&bheight, &bindex, ln_funding_txid(p_conf->p_self));
+        bool ret = btcprc_get_short_channel_param(&bheight, &bindex, ln_funding_txid(p_conf->p_self));
         if (ret) {
             fprintf(PRINTOUT, "bindex=%d, bheight=%d\n", bindex, bheight);
             ln_set_short_channel_id_param(self, bheight, bindex);
@@ -1437,7 +1437,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
             ret = ln_funding_tx_stabled(self);
             assert(ret);
         } else {
-            DBG_PRINTF("fail: jsonrpc_get_short_channel_param()\n");
+            DBG_PRINTF("fail: btcprc_get_short_channel_param()\n");
         }
     }
 
@@ -1453,7 +1453,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     //funding_tx使用チェック
     bool unspent;
     uint64_t sat;
-    bool ret = jsonrpc_getxout(&unspent, &sat, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
+    bool ret = btcprc_getxout(&unspent, &sat, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
     if (ret && !unspent) {
         //ループ解除
         DBG_PRINTF("funding_tx is spent.\n");
@@ -1848,12 +1848,12 @@ static void cb_find_index_wif_req(lnapp_conf_t *p_conf, void *p_param)
 
     //2-of-2の片方(wifはcommit_txの署名用)
     char funding_addr[UCOIN_SZ_ADDR_MAX];
-    ret = jsonrpc_getnewaddress(funding_addr);
+    ret = btcprc_getnewaddress(funding_addr);
     assert(ret);
     fprintf(PRINTOUT, "fundingaddr %s\n", funding_addr);
 
     char wif[UCOIN_SZ_WIF_MAX];
-    ret = jsonrpc_dumpprivkey(wif, funding_addr);
+    ret = btcprc_dumpprivkey(wif, funding_addr);
     assert(ret);
 
     ret = ln_set_funding_wif(p_conf->p_self, wif);
@@ -1877,7 +1877,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
         ucoin_buf_init(&buf_tx);
         ucoin_tx_create(&buf_tx, p->p_tx_funding);
-        bool ret = jsonrpc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
+        bool ret = btcprc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
         if (ret) {
             DBG_PRINTF("OK\n");
         } else {
@@ -1953,7 +1953,7 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
     uint32_t vindex;
     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, p->short_channel_id);
 
-    p->is_unspent = jsonrpc_is_short_channel_unspent(bheight, bindex, vindex);
+    p->is_unspent = btcprc_is_short_channel_unspent(bheight, bindex, vindex);
     if (!p->is_unspent) {
         DBG_PRINTF("fail: already spent : %016" PRIx64 "\n", p->short_channel_id);
     }
@@ -1989,7 +1989,7 @@ static void cb_short_channel_id_upd(lnapp_conf_t *p_conf, void *p_param)
 
     //self->short_chennel_id更新
     while (p_conf->funding_confirm < p_conf->funding_min_depth) {
-        p_conf->funding_confirm = jsonrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
+        p_conf->funding_confirm = btcprc_get_confirmation(ln_funding_txid(p_conf->p_self));
         DBG_PRINTF("confimation=%d / %d\n", p_conf->funding_confirm, p_conf->funding_min_depth);
         if (p_conf->funding_confirm < p_conf->funding_min_depth) {
             sleep(M_WAIT_POLL_SEC);
@@ -2065,7 +2065,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF2("  FWD: outgoing_cltv_value: %d\n", p_add->p_hop->outgoing_cltv_value);
     DBG_PRINTF2("  -------\n");
     //自分への通知
-    int height = jsonrpc_getblockcount();
+    int height = btcprc_getblockcount();
     DBG_PRINTF2("  amount_msat: %" PRIu64 "\n", p_add->amount_msat);
     DBG_PRINTF2("  cltv_expiry: %d\n", p_add->cltv_expiry);
     DBG_PRINTF2("  my fee : %" PRIu64 "\n", (uint64_t)(p_add->amount_msat - p_add->p_hop->amt_to_forward));
@@ -2465,9 +2465,9 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         DBG_PRINTF("send closing tx\n");
 
         uint8_t txid[UCOIN_SZ_TXID];
-        bool ret = jsonrpc_sendraw_tx(txid, NULL, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
+        bool ret = btcprc_sendraw_tx(txid, NULL, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
         if (!ret) {
-            SYSLOG_ERR("%s(): jsonrpc_sendraw_tx", __func__);
+            SYSLOG_ERR("%s(): btcprc_sendraw_tx", __func__);
             assert(0);
         }
         DBG_PRINTF("closing_txid: ");

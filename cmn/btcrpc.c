@@ -27,7 +27,7 @@
 #include <pthread.h>
 #include "jansson.h"
 
-#include "jsonrpc.h"
+#include "btcrpc.h"
 #include "misc.h"
 
 
@@ -101,7 +101,7 @@ static pthread_mutex_t      mMux;
  * public functions
  **************************************************************************/
 
-void jsonrpc_init(const rpc_conf_t *pRpcConf)
+void btcprc_init(const rpc_conf_t *pRpcConf)
 {
     pthread_mutex_init(&mMux, NULL);
     curl_global_init(CURL_GLOBAL_ALL);
@@ -114,13 +114,13 @@ void jsonrpc_init(const rpc_conf_t *pRpcConf)
 #endif //M_DBG_SHOWRPC
 }
 
-void jsonrpc_term(void)
+void btcprc_term(void)
 {
     curl_global_cleanup();
 }
 
 
-int jsonrpc_getblockcount(void)
+int btcprc_getblockcount(void)
 {
     bool retval;
     int blocks = -1;
@@ -167,7 +167,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_getblockhash(uint8_t *pHash, int Height)
+bool btcprc_getblockhash(uint8_t *pHash, int Height)
 {
     bool ret = false;
     bool retval;
@@ -213,7 +213,7 @@ LABEL_EXIT:
 }
 
 
-uint32_t jsonrpc_get_confirmation(const uint8_t *pTxid)
+uint32_t btcprc_get_confirmation(const uint8_t *pTxid)
 {
     bool retval;
     int64_t confirmation = 0;
@@ -264,7 +264,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid)
+bool btcprc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid)
 {
     bool retval;
     char *p_json;
@@ -362,7 +362,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
+bool btcprc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
 {
     bool ret = false;
     bool retval;
@@ -481,7 +481,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex)
+bool btcprc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex)
 {
     bool ret = false;
     bool retval;
@@ -595,7 +595,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout)
+bool btcprc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout)
 {
     bool ret = false;
     bool retval;
@@ -716,7 +716,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint16_t Len)
+bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint16_t Len)
 {
     bool ret = false;
     bool retval;
@@ -773,18 +773,18 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
+bool btcprc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
 {
     char txid[UCOIN_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
-    return jsonrpc_getraw_txstr(pTx, txid);
+    return btcprc_getraw_txstr(pTx, txid);
 }
 
 
-bool jsonrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
+bool btcprc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
 {
     bool ret;
 
@@ -798,7 +798,7 @@ bool jsonrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
 }
 
 
-bool jsonrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx)
+bool btcprc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx)
 {
     bool retval;
     char *p_json = NULL;
@@ -857,7 +857,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_getnewaddress(char *pAddr)
+bool btcprc_getnewaddress(char *pAddr)
 {
     bool ret = false;
     bool retval;
@@ -903,7 +903,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_dumpprivkey(char *pWif, const char *pAddr)
+bool btcprc_dumpprivkey(char *pWif, const char *pAddr)
 {
     bool ret = false;
     bool retval;
@@ -949,7 +949,7 @@ LABEL_EXIT:
 }
 
 
-bool jsonrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
+bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
 {
     bool ret = false;
     bool retval;
@@ -1401,7 +1401,7 @@ static int error_result(json_t *p_root)
 
 #ifdef JSONRPC_TEST
 /**************************************************************************
-	gcc -o tst -I.. -I../include -I../libs/install/include -I../ucoin/include -DNETKIND=1 -DJSONRPC_TEST misc.c jsonrpc.c -L../libs/install/lib -lcurl -ljansson -L../ucoin -lucoin -L../ucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium -llmdb -pthread
+	gcc -o tst -I.. -I../include -I../libs/install/include -I../ucoin/include -DNETKIND=1 -DJSONRPC_TEST misc.c btcrpc.c -L../libs/install/lib -lcurl -ljansson -L../ucoin -lucoin -L../ucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium -llmdb -pthread
  **************************************************************************/
 
 #include <inttypes.h>
@@ -1468,7 +1468,7 @@ int main(int argc, char *argv[])
     strcpy(rpc_conf.rpcuser, "bitcoinuser");
     strcpy(rpc_conf.rpcpasswd, "bitcoinpassword");
     strcpy(rpc_conf.rpcurl, "127.0.0.1");
-    jsonrpc_init(&rpc_conf);
+    btcprc_init(&rpc_conf);
 
     bool ret;
 
@@ -1479,7 +1479,7 @@ int main(int argc, char *argv[])
 //    fprintf(PRINTOUT, "-[short_channel_info]-------------------------\n");
 //    int bindex;
 //    int bheight;
-//    ret = jsonrpc_get_short_channel_param(&bindex, &bheight, TXID);
+//    ret = btcprc_get_short_channel_param(&bindex, &bheight, TXID);
 //    if (ret) {
 //        fprintf(PRINTOUT, "index = %d\n", bindex);
 //        fprintf(PRINTOUT, "height = %d\n", bheight);
@@ -1487,19 +1487,19 @@ int main(int argc, char *argv[])
 
 //    int conf;
 //    fprintf(PRINTOUT, "-conf-------------------------\n");
-//    conf = jsonrpc_get_confirmation(TXID);
+//    conf = btcprc_get_confirmation(TXID);
 //    fprintf(PRINTOUT, "confirmations = %d\n", conf);
 
 //    fprintf(PRINTOUT, "-getnewaddress-------------------------\n");
 //    char addr[UCOIN_SZ_ADDR_MAX];
-//    ret = jsonrpc_getnewaddress(addr);
+//    ret = btcprc_getnewaddress(addr);
 //    if (ret) {
 //        fprintf(PRINTOUT, "addr=%s\n", addr);
 //    }
 
 //    fprintf(PRINTOUT, "-dumpprivkey-------------------------\n");
 //    char wif[UCOIN_SZ_WIF_MAX];
-//    ret = jsonrpc_dumpprivkey(wif, addr);
+//    ret = btcprc_dumpprivkey(wif, addr);
 //    if (ret) {
 //        fprintf(PRINTOUT, "wif=%s\n", wif);
 //    }
@@ -1507,7 +1507,7 @@ int main(int argc, char *argv[])
     //fprintf(PRINTOUT, "-gettxout-------------------------\n");
     //bool unspent;
     //uint64_t value;
-    //ret = jsonrpc_getxout(&unspent, &value, TXID, 1);
+    //ret = btcprc_getxout(&unspent, &value, TXID, 1);
     //if (ret && unspent) {
     //    fprintf(PRINTOUT, "value=%" PRIu64 "\n", value);
     //}
@@ -1515,7 +1515,7 @@ int main(int argc, char *argv[])
 //    fprintf(PRINTOUT, "-getrawtx------------------------\n");
 //    ucoin_tx_t tx;
 //    ucoin_tx_init(&tx);
-//    ret = jsonrpc_getraw_tx(&tx, TXID);
+//    ret = btcprc_getraw_tx(&tx, TXID);
 //    if (ret) {
 //        ucoin_print_tx(&tx);
 //    }
@@ -1523,7 +1523,7 @@ int main(int argc, char *argv[])
 
 //    fprintf(PRINTOUT, "--------------------------\n");
 //    uint8_t txid[UCOIN_SZ_TXID];
-//    bool ret = jsonrpc_sendraw_tx(txid, NULL, TX, sizeof(TX));
+//    bool ret = btcprc_sendraw_tx(txid, NULL, TX, sizeof(TX));
 //    if (ret) {
 //        for (int lp = 0; lp < sizeof(txid); lp++) {
 //            fprintf(PRINTOUT, "%02x", txid[lp]);
@@ -1541,19 +1541,19 @@ int main(int argc, char *argv[])
 
     //     short_channel_id = 0x11a7810000440000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
-    //     unspent = jsonrpc_is_short_channel_unspent(bheight, bindex, vindex);
+    //     unspent = btcprc_is_short_channel_unspent(bheight, bindex, vindex);
     //     fprintf(PRINTOUT, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
 
     //     short_channel_id = 0x11a2eb0000210000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
-    //     unspent = jsonrpc_is_short_channel_unspent(bheight, bindex, vindex);
+    //     unspent = btcprc_is_short_channel_unspent(bheight, bindex, vindex);
     //     fprintf(PRINTOUT, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
     // }
 
     fprintf(PRINTOUT, "--------------------------\n");
     {
         uint64_t feeperrate;
-        bool ret = jsonrpc_estimatefee(&feeperrate, 3);
+        bool ret = btcprc_estimatefee(&feeperrate, 3);
         if (ret) {
             printf("feeperate=%"PRIu64"\n", feeperrate);
         } else {
@@ -1563,7 +1563,7 @@ int main(int argc, char *argv[])
 
     fprintf(PRINTOUT, "--------------------------\n");
 
-    jsonrpc_term();
+    btcprc_term();
     ucoin_term();
 }
 #endif
