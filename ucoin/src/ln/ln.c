@@ -1084,6 +1084,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
         if (pRevokedTx->vout[lp].script.len == M_SZ_WITPROG_WPKH) {
             //to_remote output
             DBG_PRINTF("[%d]to_remote_output\n", lp);
+            ucoin_buf_init(&self->p_revoked_wit[LN_RCLOSE_IDX_TOREMOTE]);
             ucoin_buf_alloccopy(&self->p_revoked_vout[LN_RCLOSE_IDX_TOREMOTE], pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
         } else if (ucoin_buf_cmp(&pRevokedTx->vout[lp].script, &self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL])) {
             //to_local output
@@ -1484,7 +1485,6 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
 {
     bool ret;
     ucoin_util_keys_t signkey;
-    ucoin_buf_t sig;
 
     //to_remoteのFEE
     uint64_t fee_toremote = M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
@@ -1492,6 +1492,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
         DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_toremote);
         goto LABEL_EXIT;
     }
+    DBG_PRINTF("value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee_toremote);
 
     // remotekeyへの支払いを self->shutdown_scriptpk_local に送金する
     //  通常のP2WPKHなので、bRevoedはfalse扱い
@@ -1501,6 +1502,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     ret = ln_create_tolocal_tx(pTx, Value - fee_toremote,
             &self->shutdown_scriptpk_local, 0, pTxid, Index, false);
     if (!ret) {
+        DBG_PRINTF("fail: create to_remote tx\n");
         goto LABEL_EXIT;
     }
     //<remotesecretkey>
@@ -1510,15 +1512,19 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
                 self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
                 self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
     ucoin_keys_priv2pub(signkey.pub, signkey.priv);
-    assert(memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], UCOIN_SZ_PUBKEY) == 0);
-    //DBG_PRINTF("key-priv: ");
-    //DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
-    //DBG_PRINTF("key-pub : ");
-    //DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("key-priv: ");
+    DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF("key-pub : ");
+    DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
+    if (memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], UCOIN_SZ_PUBKEY) == 0) {
+        DBG_PRINTF("OK!\n");
+    } else {
+        DBG_PRINTF("fail: pubkey mismatch\n");
+        assert(0);
+    }
 
-    ucoin_buf_init(&sig);
     ret = ucoin_util_sign_p2wpkh(pTx, Index, Value, &signkey);
-    ucoin_buf_free(&sig);
+    DBG_PRINTF("ret=%d\n", ret);
 
 LABEL_EXIT:
     return ret;
@@ -1559,9 +1565,10 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
         break;
     default:
         DBG_PRINTF("index=%d, %d\n", WitIndex, self->p_revoked_type[WitIndex]);
-        assert(0);
     }
-    bool ret = ln_sign_htlc_tx(pTx,
+    bool ret;
+    if (htlcsign != HTLCSIGN_NONE) {
+        ret = ln_sign_htlc_tx(pTx,
                 &buf_sig,
                 Value,
                 &signkey,
@@ -1569,7 +1576,10 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
                 NULL,
                 &self->p_revoked_wit[WitIndex],
                 htlcsign);
-    ucoin_buf_free(&buf_sig);
+        ucoin_buf_free(&buf_sig);
+    } else {
+        ret = false;
+    }
 
     return ret;
 }
