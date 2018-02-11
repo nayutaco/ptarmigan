@@ -94,6 +94,11 @@ extern "C" {
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
 #define LN_CNLUPD_FLAGS_DISABLE         (0x0002)    ///< b1: disable
 
+// ln_close_force_t.p_tx, p_htlc_idxのインデックス値
+#define LN_CLOSE_IDX_COMMIT             (0)         ///< commit_tx
+#define LN_CLOSE_IDX_TOLOCAL            (1)         ///< to_local tx
+#define LN_CLOSE_IDX_HTLC               (2)         ///< HTLC tx
+
 #define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
                                                     ///< コメントアウトするとDB保存しなくなるが、revoked transaction closeから取り戻すために
                                                     ///< 相手のアクションが必要となる
@@ -418,6 +423,11 @@ typedef struct {
 
 /** @struct ln_close_force_t
  *  @brief  [Close]Unilateral Close / Revoked Transaction Close用
+ *  @note
+ *      - p_tx, p_htlc_idxのインデックス値
+ *          - commit_tx: LN_CLOSE_IDX_COMMIT
+ *          - to_local output: LN_CLOSE_IDX_TOLOCAL
+ *          - HTLC: LN_CLOSE_IDX_HTLC～
  */
 typedef struct {
     int             num;                            ///< p_bufのtransaction数

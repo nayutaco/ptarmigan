@@ -131,15 +131,15 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
         del = true;
         uint8_t txid[UCOIN_SZ_TXID];
         for (int lp = 0; lp < close_dat.num; lp++) {
-            if (lp == 0) {
+            if (lp == LN_CLOSE_IDX_COMMIT) {
                 DBG_PRINTF2("\n$$$ commit_tx\n");
                 //for (int lp2 = 0; lp2 < close_dat.p_tx[lp].vout_cnt; lp2++) {
                 //    DBG_PRINTF("vout[%d]=%x\n", lp2, close_dat.p_tx[lp].vout[lp2].opt);
                 //}
-            } else if (lp == 1) {
+            } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
                 DBG_PRINTF2("\n$$$ to_local tx\n");
             } else {
-                DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - 2);
+                DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //自分のtxを展開済みかチェック
@@ -284,7 +284,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
             //最新のremote commit_tx --> unilateral close(remote)
             del = close_unilateral_remote(self, p_db_param);
         } else {
-            //最新ではないcommit_tx --> mutual close or revoked transaction close
+            //最新のcommit_txではない --> mutual close or revoked transaction close
             del = close_others(self, confm, p_db_param);
         }
         ucoin_tx_free(&tx_commit);
@@ -364,7 +364,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             ucoin_tx_init(&tx);
             uint32_t confm = btcprc_get_confirmation(ln_funding_txid(self));
             uint8_t txid[UCOIN_SZ_TXID];
-            ucoin_tx_txid(txid, &pCloseDat->p_tx[0]);
+            ucoin_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
             bool ret = search_spent_tx(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
             if (ret) {
                 //preimageを登録(自分が持っているのと同じ状態にする)
@@ -427,14 +427,14 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
             del = true;
             uint8_t txid[UCOIN_SZ_TXID];
             for (int lp = 0; lp < close_dat.num; lp++) {
-                if (lp == 0) {
+                if (lp == LN_CLOSE_IDX_COMMIT) {
                     DBG_PRINTF2("\n$$$ commit_tx\n");
                     continue;
-                } else if (lp == 1) {
+                } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
                     DBG_PRINTF2("\n$$$ to_local tx\n");
                     continue;
                 } else {
-                    DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - 2);
+                    DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
                 }
                 if (close_dat.p_tx[lp].vin_cnt > 0) {
                     //自分のtxを展開済みかチェック
@@ -461,6 +461,9 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 
                     //ln_create_htlc_tx()後だから、OFFERED/RECEIVEDがわかる
                     switch (close_dat.p_tx[lp].vout[0].opt) {
+                    case LN_HTLCTYPE_TOREMOTE:
+                        //send_req = close_unilateral_remote_toremote(!unspent);
+                        break;
                     case LN_HTLCTYPE_OFFERED:
                         send_req = close_unilateral_remote_offered(!unspent);
                         break;
@@ -511,13 +514,13 @@ static bool close_unilateral_remote_offered(bool spent)
     bool send_req;
 
     DBG_PRINTF("offered HTLC output\n");
-    if (!spent) {
-        //展開(preimageがなければsendrawtransactionに失敗する)
-        send_req = true;
-    } else {
+    if (spent) {
         //展開済みならOK
         DBG_PRINTF("-->OK\n");
         send_req = false;
+    } else {
+        //展開(preimageがなければsendrawtransactionに失敗する)
+        send_req = true;
     }
 
     return send_req;
@@ -539,7 +542,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
             ucoin_tx_init(&tx);
             uint32_t confm = btcprc_get_confirmation(ln_funding_txid(self));
             uint8_t txid[UCOIN_SZ_TXID];
-            ucoin_tx_txid(txid, &pCloseDat->p_tx[0]);
+            ucoin_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
             bool ret = search_spent_tx(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
             if (ret) {
                 //preimageを登録(自分が持っているのと同じ状態にする)
