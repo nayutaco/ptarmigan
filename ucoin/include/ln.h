@@ -97,7 +97,13 @@ extern "C" {
 // ln_close_force_t.p_tx, p_htlc_idxのインデックス値
 #define LN_CLOSE_IDX_COMMIT             (0)         ///< commit_tx
 #define LN_CLOSE_IDX_TOLOCAL            (1)         ///< to_local tx
-#define LN_CLOSE_IDX_HTLC               (2)         ///< HTLC tx
+#define LN_CLOSE_IDX_TOREMOTE           (2)         ///< to_remote tx
+#define LN_CLOSE_IDX_HTLC               (3)         ///< HTLC tx
+
+// revoked transaction closeされたときの self->p_revoked_vout, p_revoked_witのインデックス値
+#define LN_RCLOSE_IDX_TOLOCAL           (0)         ///< to_local
+#define LN_RCLOSE_IDX_TOREMOTE          (1)         ///< to_remote
+#define LN_RCLOSE_IDX_HTLC              (2)         ///< HTLC
 
 #define LN_UGLY_NORMAL                              ///< payment_hashを保存するタイプ
                                                     ///< コメントアウトするとDB保存しなくなるが、revoked transaction closeから取り戻すために
@@ -427,12 +433,13 @@ typedef struct {
  *      - p_tx, p_htlc_idxのインデックス値
  *          - commit_tx: LN_CLOSE_IDX_COMMIT
  *          - to_local output: LN_CLOSE_IDX_TOLOCAL
+ *          - to_remote output: LN_CLOSE_IDX_TOREMOTE
  *          - HTLC: LN_CLOSE_IDX_HTLC～
  */
 typedef struct {
     int             num;                            ///< p_bufのtransaction数
-    ucoin_tx_t      *p_tx;                          ///< [0]commit_tx [1]to_local [2-]HTLC
-    uint8_t         *p_htlc_idx;                    ///< [0,1]ignore [2-]self->cnl_add_htlc[]のhtlc_idx
+    ucoin_tx_t      *p_tx;                          ///< [0]commit_tx [1]to_local [2]to_remote [3-]HTLC
+    uint8_t         *p_htlc_idx;                    ///< [0,1,2]ignore [3-]self->cnl_add_htlc[]のhtlc_idx
     ucoin_buf_t     tx_buf;                         ///< HTLC Timeout/Successから取り戻すTX
 } ln_close_force_t;
 
@@ -1431,12 +1438,33 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing);
 bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 
 
-/** to_local用トランザクション作成
+/** to_local用トランザクション作成(署名まで実施)
  *
+ * @param[in]           self            channel情報
+ * @param[out]          pTx             生成結果
+ * @param[in]           Value           vinとなるamount(ここからfeeを内部で引く)
+ * @param[in]           to_self_delay   to_self_delay
+ * @param[in]           pScript         送金先スクリプト
+ * @param[in]           pTxid           vinとなるoutpointのtxid
+ * @param[in]           Index           vinとなるoutpointのindex
+ * @param[in]           bRevoked        true:revoked transaction close対応
+ * @retval  true    成功
  *
  */
 bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
                 const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
+
+
+/** to_remote用トランザクション作成(署名まで実施)
+ *
+ * @param[in]           self            channel情報
+ * @param[out]          pTx             生成結果
+ * @param[in]           Value           vinとなるamount(ここからfeeを内部で引く)
+ * @param[in]           pTxid           vinとなるoutpointのtxid
+ * @param[in]           Index           vinとなるoutpointのindex
+ * @retval  true    成功
+ */
+bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pTxid, int Index);
 
 
 /** revoked HTLC Txから取り戻すトランザクション作成
