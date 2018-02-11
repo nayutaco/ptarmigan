@@ -31,7 +31,7 @@
 #include <linux/limits.h>
 #include <assert.h>
 
-#include "jsonrpc.h"
+#include "btcrpc.h"
 #include "conf.h"
 #include "misc.h"
 #include "ln_db.h"
@@ -152,11 +152,11 @@ int main(int argc, char *argv[])
     }
 
     p2p_cli_init();
-    jsonrpc_init(&rpc_conf);
+    btcprc_init(&rpc_conf);
 
     //bitcoind起動確認
     uint8_t genesis[LN_SZ_HASH];
-    bret = jsonrpc_getblockhash(genesis, 0);
+    bret = btcprc_getblockhash(genesis, 0);
     if (!bret) {
         DBG_PRINTF("fail: bitcoin getblockhash(check bitcoind)\n");
         return -1;
