@@ -109,6 +109,12 @@ extern "C" {
 #define UCOIN_OP_SZ32           "\x20"          ///< 32byte値
 #define UCOIN_OP_SZ_PUBKEY      "\x21"          ///< 33byte値
 
+#define UCOIN_DUST_LIMIT        ((uint64_t)546) ///< voutに指定できるamountの下限[satoshis]
+                                                // 2018/02/11 17:54(JST)
+                                                // https://github.com/bitcoin/bitcoin/blob/fe53d5f3636aed064823bc220d828c7ff08d1d52/src/test/transaction_tests.cpp#L695
+                                                //
+                                                // https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/policy/policy.cpp#L52-L55
+
 
 /**************************************************************************
  * macro functions
@@ -143,6 +149,11 @@ extern "C" {
  *  @brief  scriptPubKey(P2SH)からPubKeyHashアドレス位置算出
  */
 #define UCOIN_VOUT2PKH_P2SH(script)     ((script) + 2)
+
+/** @def    UCOIN_IS_DUST
+ *  @brief  amountが支払いに使用できないDUSTかどうかチェックする(true:支払えない)
+ */
+#define UCOIN_IS_DUST(amount)           (UCOIN_DUST_LIMIT > (amount))
 
 
 /**************************************************************************
@@ -831,7 +842,7 @@ bool ucoin_tx_verify_p2sh_addr(const ucoin_tx_t *pTx, int Index, const uint8_t *
 
 
 /** 公開鍵復元
- * 
+ *
  * @param[out]      pPubKey
  * @param[in]       RecId       recovery ID
  * @param[in]       pRS
@@ -842,7 +853,7 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, co
 
 
 /** 公開鍵復元ID取得
- * 
+ *
  * @param[out]      pRecId      recovery ID
  * @param[in]       pPubKey
  * @param[in]       pRS
