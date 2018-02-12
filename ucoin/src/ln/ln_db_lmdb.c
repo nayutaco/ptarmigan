@@ -194,7 +194,7 @@ static MDB_env      *mpDbAnno = NULL;
  * prototypes
  ********************************************************************/
 
-//static int load_shared_secret(ln_self_t *self, ln_lmdb_db_t *pDb);
+//static int self_ss_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_ss_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
@@ -374,7 +374,7 @@ void ln_db_term(void)
  * self
  ********************************************************************/
 #if 0
-bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId)
+bool ln_db_self_load(ln_self_t *self, const uint8_t *pChannelId)
 {
     int         retval;
     MDB_txn     *txn = NULL;
@@ -405,7 +405,7 @@ bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = load_shared_secret(self, txn, &dbi);
+    retval = self_ss_load(self, txn, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
@@ -2095,13 +2095,13 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
  ********************************************************************/
 
 #if 0
-/** channel_announcement読込み
+/** channel: HTLC shared secret読み込み
  *
  * @param[out]      self
  * @param[in]       pDb
  * @retval      true    成功
  */
-static int load_shared_secret(ln_self_t *self, ln_lmdb_db_t *pDb)
+static int self_ss_load(ln_self_t *self, ln_lmdb_db_t *pDb)
 {
     int retval = 0;
     MDB_val key, data;
