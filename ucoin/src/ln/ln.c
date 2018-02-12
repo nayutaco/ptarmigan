@@ -1492,7 +1492,6 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
         DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_toremote);
         goto LABEL_EXIT;
     }
-    DBG_PRINTF("value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee_toremote);
 
     // remotekeyへの支払いを self->shutdown_scriptpk_local に送金する
     //  通常のP2WPKHなので、bRevoedはfalse扱い
@@ -1512,19 +1511,14 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
                 self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
                 self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
     ucoin_keys_priv2pub(signkey.pub, signkey.priv);
-    DBG_PRINTF("key-priv: ");
-    DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF("key-pub : ");
-    DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
-    if (memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], UCOIN_SZ_PUBKEY) == 0) {
-        DBG_PRINTF("OK!\n");
-    } else {
-        DBG_PRINTF("fail: pubkey mismatch\n");
-        assert(0);
-    }
+    assert(memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], UCOIN_SZ_PUBKEY) == 0);
+    //DBG_PRINTF("key-priv: ");
+    //DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
+    //DBG_PRINTF("key-pub : ");
+    //DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
-    ret = ucoin_util_sign_p2wpkh(pTx, Index, Value, &signkey);
-    DBG_PRINTF("ret=%d\n", ret);
+    //vinは1つしかない
+    ret = ucoin_util_sign_p2wpkh(pTx, 0, Value, &signkey);
 
 LABEL_EXIT:
     return ret;
