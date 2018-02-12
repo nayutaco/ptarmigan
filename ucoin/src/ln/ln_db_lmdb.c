@@ -1680,7 +1680,7 @@ bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype
         goto LABEL_EXIT;
     }
 
-    key.mv_size = M_SZ_WITPROG_WSH;
+    key.mv_size = LNL_SZ_WITPROG_WSH;
     key.mv_data = (CONST_CAST uint8_t *)pVout;
     uint8_t hash[1 + sizeof(uint32_t) + LN_SZ_HASH];
     hash[0] = (uint8_t)Type;
@@ -1738,8 +1738,8 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
     }
 
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-        if ( (key.mv_size == M_SZ_WITPROG_WSH) &&
-             (memcmp(key.mv_data, pVout, M_SZ_WITPROG_WSH) == 0) ) {
+        if ( (key.mv_size == LNL_SZ_WITPROG_WSH) &&
+             (memcmp(key.mv_data, pVout, LNL_SZ_WITPROG_WSH) == 0) ) {
             uint8_t *p = (uint8_t *)data.mv_data;
             *pType = (ln_htlctype_t)*p;
             *pExpiry = *(uint32_t *)(p + 1);

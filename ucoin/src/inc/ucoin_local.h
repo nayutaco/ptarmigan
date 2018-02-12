@@ -59,9 +59,9 @@ static inline int tid() {
 #define HIDDEN __attribute__((visibility("hidden")))
 #define CONST_CAST      /* const外しキャストを検索しやすくするため */
 
-#define M_SZ_2OF2           (1 + 34 + 34 + 2)           ///< OP_m 21 [pub1] 21 [pub2] OP_n OP_CHKMULTISIG
-#define M_SZ_WITPROG_WPKH   (2 + UCOIN_SZ_HASH160)      ///< P2WPKHのwitnessProgramサイズ
-#define M_SZ_WITPROG_WSH    (2 + UCOIN_SZ_HASH256)      ///< P2WSHのwitnessProgramサイズ
+#define LNL_SZ_2OF2             (1 + 34 + 34 + 2)           ///< OP_m 21 [pub1] 21 [pub2] OP_n OP_CHKMULTISIG
+#define LNL_SZ_WITPROG_WPKH     (2 + UCOIN_SZ_HASH160)      ///< P2WPKHのwitnessProgramサイズ
+#define LNL_SZ_WITPROG_WSH      (2 + UCOIN_SZ_HASH256)      ///< P2WSHのwitnessProgramサイズ
 
 #define OP_0                    (0x00)
 #define OP_HASH160              (0xa9)

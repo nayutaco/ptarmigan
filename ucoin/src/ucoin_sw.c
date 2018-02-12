@@ -44,7 +44,7 @@ void ucoin_sw_add_vout_p2wpkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pP
 
 void ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pWitScript)
 {
-    uint8_t wit_prog[M_SZ_WITPROG_WSH];
+    uint8_t wit_prog[LNL_SZ_WITPROG_WSH];
 
     ucoin_sw_wit2prog_p2wsh(wit_prog, pWitScript);
     if (mNativeSegwit) {

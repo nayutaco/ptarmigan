@@ -116,10 +116,10 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
 #ifdef M_DBG_VERBOSE
     DBG_PRINTF("script:\n");
     ucoin_print_script(pBuf->buf, pBuf->len);
-    uint8_t prog[M_SZ_WITPROG_WSH];
+    uint8_t prog[LNL_SZ_WITPROG_WSH];
     ucoin_sw_wit2prog_p2wsh(prog, pBuf);
     DBG_PRINTF("vout: ");
-    DUMPBIN(prog, M_SZ_WITPROG_WSH);
+    DUMPBIN(prog, LNL_SZ_WITPROG_WSH);
 #endif  //M_DBG_VERBOSE
 }
 
