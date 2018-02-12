@@ -139,6 +139,8 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                 //}
             } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
                 DBG_PRINTF2("\n$$$ to_local tx\n");
+            } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
+                DBG_PRINTF2("\n$$$ to_remote tx\n");
             } else {
                 DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             }
@@ -419,88 +421,88 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 {
     bool del = true;
 
-    if (ln_htlc_num(self) == 0) {
-        DBG_PRINTF("no HTLCS\n");
-    } else {
-        ln_close_force_t close_dat;
-        bool ret = ln_create_closed_tx(self, &close_dat);
-        if (ret) {
-            del = true;
-            uint8_t txid[UCOIN_SZ_TXID];
-            for (int lp = 0; lp < close_dat.num; lp++) {
-                if (lp == LN_CLOSE_IDX_COMMIT) {
-                    DBG_PRINTF2("\n$$$ commit_tx\n");
-                    continue;
-                } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
-                    DBG_PRINTF2("\n$$$ to_local tx\n");
-                    continue;
-                } else {
-                    DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
-                }
-                if (close_dat.p_tx[lp].vin_cnt > 0) {
-                    //自分のtxを展開済みかチェック
-                    ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
-                    DBG_PRINTF("txid[%d]= ", lp);
-                    DUMPTXID(txid);
-                    bool broad = btcprc_getraw_tx(NULL, txid);
-                    if (broad) {
-                        DBG_PRINTF("already broadcasted[%d]\n", lp);
-                        DBG_PRINTF("-->OK\n");
-                        continue;
-                    }
-
-                    bool send_req = false;
-
-                    //展開済みチェック
-                    bool unspent;
-                    uint64_t sat;
-                    bool ret = btcprc_getxout(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
-                    if (!ret) {
-                        goto LABEL_EXIT;
-                    }
-                    DBG_PRINTF("vin unspent[%d]=%d\n", lp, unspent);
-
-                    //ln_create_htlc_tx()後だから、OFFERED/RECEIVEDがわかる
-                    switch (close_dat.p_tx[lp].vout[0].opt) {
-                    case LN_HTLCTYPE_TOREMOTE:
-                        //send_req = close_unilateral_remote_toremote(!unspent);
-                        break;
-                    case LN_HTLCTYPE_OFFERED:
-                        send_req = close_unilateral_remote_offered(!unspent);
-                        break;
-                    case LN_HTLCTYPE_RECEIVED:
-                        send_req = close_unilateral_remote_received(self, &del, !unspent, &close_dat, lp, pDbParam);
-                        break;
-                    default:
-                        DBG_PRINTF("opt=%x\n", close_dat.p_tx[lp].vout[0].opt);
-                        break;
-                    }
-
-                    if (send_req) {
-                        ucoin_buf_t buf;
-                        ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
-                        ret = btcprc_sendraw_tx(txid, NULL, buf.buf, buf.len);
-                        ucoin_buf_free(&buf);
-                        if (ret) {
-                            DBG_PRINTF("broadcast txid[%d]: ", lp);
-                            DUMPTXID(txid);
-                            DBG_PRINTF("-->OK\n");
-                        } else {
-                            del = false;
-                            DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
-                        }
-                    }
-                } else {
-                    DBG_PRINTF("skip tx[%d]\n", lp);
-                    del = false;
-                }
+    ln_close_force_t close_dat;
+    bool ret = ln_create_closed_tx(self, &close_dat);
+    if (ret) {
+        uint8_t txid[UCOIN_SZ_TXID];
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            if (lp == LN_CLOSE_IDX_COMMIT) {
+                DBG_PRINTF2("\n$$$ commit_tx\n");
+                continue;
+            } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
+                DBG_PRINTF2("\n$$$ to_local tx\n");
+                continue;
+            } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
+                DBG_PRINTF2("\n$$$ to_remote tx\n");
+            } else {
+                DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             }
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
+                //自分のtxを展開済みかチェック
+                ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                DBG_PRINTF("txid[%d]= ", lp);
+                DUMPTXID(txid);
+                bool broad = btcprc_getraw_tx(NULL, txid);
+                if (broad) {
+                    DBG_PRINTF("already broadcasted[%d]\n", lp);
+                    DBG_PRINTF("-->OK\n");
+                    continue;
+                }
+
+                bool send_req = false;
+
+                //展開済みチェック
+                //  to_remoteはcommit_txが展開された時点で使用可能なので、チェック不要
+                bool unspent;
+                uint64_t sat;
+                bool ret = btcprc_getxout(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                if (lp == LN_CLOSE_IDX_TOREMOTE) {
+                    send_req = !ret;
+                    //DBG_PRINTF("to_remote: %d\n", send_req);
+                    //ucoin_print_tx(&close_dat.p_tx[lp]);
+                } else  if (!ret) {
+                    del = false;
+                    goto LABEL_EXIT;
+                }
+                //DBG_PRINTF("vin unspent[%d]=%d\n", lp, unspent);
+
+                //ln_create_htlc_tx()後だから、OFFERED/RECEIVEDがわかる
+                switch (close_dat.p_tx[lp].vout[0].opt) {
+                case LN_HTLCTYPE_OFFERED:
+                    send_req = close_unilateral_remote_offered(!unspent);
+                    break;
+                case LN_HTLCTYPE_RECEIVED:
+                    send_req = close_unilateral_remote_received(self, &del, !unspent, &close_dat, lp, pDbParam);
+                    break;
+                default:
+                    DBG_PRINTF("opt=%x\n", close_dat.p_tx[lp].vout[0].opt);
+                    break;
+                }
+
+                if (send_req) {
+                    ucoin_buf_t buf;
+                    ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                    ret = btcprc_sendraw_tx(txid, NULL, buf.buf, buf.len);
+                    ucoin_buf_free(&buf);
+                    if (ret) {
+                        DBG_PRINTF("broadcast txid[%d]: ", lp);
+                        DUMPTXID(txid);
+                        DBG_PRINTF("-->OK\n");
+                    } else {
+                        del = false;
+                        DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                    }
+                }
+            } else {
+                DBG_PRINTF("skip tx[%d]\n", lp);
+                del = false;
+            }
+        }
 
 LABEL_EXIT:
-            ln_free_close_force_tx(&close_dat);
-        } else {
-            del = false;
-        }
+        ln_free_close_force_tx(&close_dat);
+    } else {
+        del = false;
     }
 
     DBG_PRINTF("del=%d\n", del);

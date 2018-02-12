@@ -813,7 +813,7 @@ bool btcprc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
     //まずtxの存在確認を行う
     retval = getraw_txstr(NULL, txid);
     if (!retval) {
-        DBG_PRINTF("fail: maybe not broadcasted\n");
+        //DBG_PRINTF("fail: maybe not broadcasted\n");
         goto LABEL_EXIT;
     }
 

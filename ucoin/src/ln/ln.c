@@ -180,6 +180,7 @@ static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
+static void close_alloc(ln_close_force_t *pClose, int Num);
 
 
 /**************************************************************************
@@ -920,12 +921,8 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //commitment number(for obscured commitment number)
     self->commit_num--;
 
-    //[0]commit_tx, [1]to_local, [2...]HTLC
-    pClose->num = LN_CLOSE_IDX_HTLC + self->commit_local.htlc_num;
-    pClose->p_tx = (ucoin_tx_t *)M_MALLOC(sizeof(ucoin_tx_t) * pClose->num);
-    pClose->p_htlc_idx = (uint8_t *)M_MALLOC(sizeof(uint8_t) * pClose->num);
-    ucoin_buf_init(&pClose->tx_buf);
-    DBG_PRINTF("TX num: %d\n", pClose->num);
+    //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_local.htlc_num);
 
     //local commit_tx
     bool ret = create_to_local(self, pClose, NULL, 0,
@@ -975,12 +972,8 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     //commitment number(for obscured commitment number)
     self->remote_commit_num--;
 
-    //[0]commit_tx, [1]to_local, [2...]HTLC
-    pClose->num = LN_CLOSE_IDX_HTLC + self->commit_remote.htlc_num;
-    pClose->p_tx = (ucoin_tx_t *)M_MALLOC(sizeof(ucoin_tx_t) * pClose->num);
-    pClose->p_htlc_idx = (uint8_t *)M_MALLOC(sizeof(uint8_t) * pClose->num);
-    ucoin_buf_init(&pClose->tx_buf);
-    DBG_PRINTF("TX num: %d\n", pClose->num);
+    //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
+    close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_remote.htlc_num);
 
     //remote commit_tx
     bool ret = create_to_remote(self, pClose, NULL,
@@ -3278,7 +3271,6 @@ static bool create_to_local(ln_self_t *self,
     ucoin_tx_t tx_commit;
     ucoin_tx_t *pTxCommit = NULL;
     ucoin_tx_t *pTxToLocal = NULL;
-    ucoin_tx_t *pTxToRemote = NULL;
     ucoin_tx_t *pTxHtlcs = NULL;
     ucoin_push_t push;
 
@@ -3289,7 +3281,6 @@ static bool create_to_local(ln_self_t *self,
     if (pClose != NULL) {
         pTxCommit = &pClose->p_tx[LN_CLOSE_IDX_COMMIT];
         pTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
-        pTxToRemote = &pClose->p_tx[LN_CLOSE_IDX_TOREMOTE];
         pTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
         ucoin_push_init(&push, &pClose->tx_buf, 0);
     }
@@ -3409,9 +3400,6 @@ static bool create_to_local(ln_self_t *self,
                 }
             } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
                 DBG_PRINTF("+++[%d]to_remote\n", vout_idx);
-                if (pTxToRemote != NULL) {
-                    ucoin_tx_init(pTxToRemote);    //to_remoteは相手が処理する
-                }
             } else {
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_commit.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
@@ -3612,7 +3600,6 @@ static bool create_to_remote(ln_self_t *self,
     ln_feeinfo_t feeinfo;
     ln_tx_cmt_t lntx_commit;
     ucoin_tx_t *pTxCommit = NULL;
-    ucoin_tx_t *pTxToLocal = NULL;
     ucoin_tx_t *pTxToRemote = NULL;
     ucoin_tx_t *pTxHtlcs = NULL;
 
@@ -3622,7 +3609,6 @@ static bool create_to_remote(ln_self_t *self,
 
     if (pClose != NULL) {
         pTxCommit = &pClose->p_tx[LN_CLOSE_IDX_COMMIT];
-        pTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
         pTxToRemote = &pClose->p_tx[LN_CLOSE_IDX_TOREMOTE];
         pTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
     }
@@ -3720,6 +3706,28 @@ static bool create_to_remote(ln_self_t *self,
         DBG_PRINTF("fail: ucoin_tx_txid\n");
     }
 
+    //to_remote処理
+    if (pTxToRemote != NULL) {
+        for (int vout_idx = 0; vout_idx < tx_commit.vout_cnt; vout_idx++) {
+            if (tx_commit.vout[vout_idx].opt == LN_HTLCTYPE_TOREMOTE) {
+                DBG_PRINTF("---[%d]to_remote\n", vout_idx);
+
+                ucoin_tx_t tx;
+                ucoin_tx_init(&tx);
+                ret = ln_create_toremote_spent(self, &tx, tx_commit.vout[vout_idx].value,
+                            self->commit_remote.txid, vout_idx);
+                if (ret) {
+                    M_DBG_PRINT_TX(&tx);
+                    memcpy(pTxToRemote, &tx, sizeof(tx));
+                    ucoin_tx_init(&tx);     //txはfreeさせない
+                } else {
+                    ucoin_tx_free(&tx);
+                }
+                break;
+            }
+        }
+    }
+
     //送信用 commitment_signed.signature
     ln_misc_sigtrim(self->commit_local.signature, buf_sig.buf);
     ucoin_buf_free(&buf_sig);
@@ -3754,20 +3762,8 @@ static bool create_to_remote(ln_self_t *self,
             uint8_t htlc_idx = tx_commit.vout[vout_idx].opt;
             if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
                 DBG_PRINTF("---[%d]to_local\n", vout_idx);
-                if (pTxToLocal != NULL) {
-                    ucoin_tx_init(pTxToLocal);    //remoteにto_local要素はない
-                }
             } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
                 DBG_PRINTF("---[%d]to_remote\n", vout_idx);
-                if (pTxToRemote != NULL) {
-                    ret = ln_create_toremote_spent(self, &tx, tx_commit.vout[vout_idx].value,
-                                self->commit_local.txid, vout_idx);
-                    if (ret) {
-                        M_DBG_PRINT_TX(&tx);
-                        memcpy(pTxToRemote, &tx, sizeof(tx));
-                        ucoin_tx_init(&tx);     //txはfreeさせない
-                    }
-                }
             } else {
                 uint64_t fee = (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
                 if (tx_commit.vout[vout_idx].value >= feeinfo.dust_limit_satoshi + fee) {
@@ -4243,4 +4239,22 @@ static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id)
     }
 
     return ret;
+}
+
+
+/** ln_close_force_tのメモリ確保
+ *
+ *
+ */
+static void close_alloc(ln_close_force_t *pClose, int Num)
+{
+    pClose->num = Num;
+    pClose->p_tx = (ucoin_tx_t *)M_MALLOC(sizeof(ucoin_tx_t) * pClose->num);
+    pClose->p_htlc_idx = (uint8_t *)M_MALLOC(sizeof(uint8_t) * pClose->num);
+    for (int lp = 0; lp < pClose->num; lp++) {
+        ucoin_tx_init(&pClose->p_tx[lp]);
+        pClose->p_htlc_idx[lp] = 0;
+    }
+    ucoin_buf_init(&pClose->tx_buf);
+    DBG_PRINTF("TX num: %d\n", pClose->num);
 }
