@@ -60,18 +60,34 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
 
 bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint8_t Features)
 {
+    bool ret;
     ucoin_buf_t buf_node;
     ucoin_buf_init(&buf_node);
 
-    bool ret = ucoin_util_wif2keys(&node->keys, pWif);
-    assert(ret);
-    if (!ret) {
+    if (pWif != NULL) {
+        ret = ucoin_util_wif2keys(&node->keys, pWif);
+        assert(ret);
+        if (!ret) {
+            goto LABEL_EXIT;
+        }
+    } else {
+        DBG_PRINTF("fail: no node secretkey\n");
         goto LABEL_EXIT;
     }
-    strcpy(node->alias, pNodeName);
+    if (pNodeName != NULL) {
+        strcpy(node->alias, pNodeName);
+    } else {
+        DBG_PRINTF("fail: no node name\n");
+        goto LABEL_EXIT;
+    }
     node->features = Features;
 
-    ln_db_init(ln_node_id(node));
+    ret = ln_db_init(ln_node_id(node));
+    if (!ret) {
+        DBG_PRINTF("fail: db init\n");
+        goto LABEL_EXIT;
+    }
+
     ln_node_announce_t anno;
     bool update = false;
 

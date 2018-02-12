@@ -171,7 +171,11 @@ int main(int argc, char *argv[])
     ln_set_genesishash(genesis);
 
     //node情報読込み
-    ln_node_init(&mNode, node_conf.wif, node_conf.name, 0);
+    bret = ln_node_init(&mNode, node_conf.wif, node_conf.name, 0);
+    if (!bret) {
+        DBG_PRINTF("fail: node init\n");
+        return -2;
+    }
     ln_print_node(&mNode);
     lnapp_init(&mNode);
 

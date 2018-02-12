@@ -260,7 +260,7 @@ static inline void my_mdb_txn_abort(MDB_txn *txn, int line) {
  * public functions
  **************************************************************************/
 
-void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
+bool HIDDEN ln_db_init(const uint8_t *pMyNodeId)
 {
     int         retval;
     ln_lmdb_db_t   db;
@@ -268,13 +268,22 @@ void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
     //lmdbのopenは複数呼ばないでenvを共有する
     if (mpDbEnv == NULL) {
         retval = mdb_env_create(&mpDbEnv);
-        assert(retval == 0);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
 
         retval = mdb_env_set_maxdbs(mpDbEnv, M_LMDB_MAXDBS);
-        assert(retval == 0);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
 
         retval = mdb_env_set_mapsize(mpDbEnv, M_LMDB_MAPSIZE);
-        assert(retval == 0);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
 
         mkdir(M_LMDB_DIR, 0755);
         mkdir(M_LMDB_ENV, 0755);
@@ -283,30 +292,38 @@ void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
         retval = mdb_env_open(mpDbEnv, M_LMDB_ENV, 0, 0644);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-            abort();
+            goto LABEL_EXIT;
         }
 
         retval = mdb_env_create(&mpDbAnno);
-        assert(retval == 0);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
 
         retval = mdb_env_set_maxdbs(mpDbAnno, M_LMDB_MAXDBS);
-        assert(retval == 0);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
 
         retval = mdb_env_set_mapsize(mpDbAnno, M_LMDB_MAPSIZE);
-        assert(retval == 0);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
 
         retval = mdb_env_open(mpDbAnno, M_LMDB_ANNO, 0, 0644);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-            abort();
+            goto LABEL_EXIT;
         }
-
     }
 
     retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        abort();
+        goto LABEL_EXIT;
     }
     retval = mdb_dbi_open(db.txn, M_DB_VERSION, 0, &db.dbi);
     if (retval != 0) {
@@ -316,7 +333,7 @@ void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
         } else {
             DBG_PRINTF("FAIL: create version db\n");
             MDB_TXN_ABORT(db.txn);
-            abort();
+            goto LABEL_EXIT;
         }
     } else {
         uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
@@ -327,13 +344,20 @@ void HIDDEN ln_db_init(const uint8_t *pMyNodeId)
                 DBG_PRINTF("ok\n");
             } else {
                 DBG_PRINTF("FAIL: node_id mismatch\n");
-                abort();
+                goto LABEL_EXIT;
             }
         } else {
             DBG_PRINTF("FAIL: check version db\n");
-            abort();
+            goto LABEL_EXIT;
         }
     }
+
+    return true;
+
+LABEL_EXIT:
+    mdb_env_close(mpDbAnno);
+    mdb_env_close(mpDbEnv);
+    return false;
 }
 
 

@@ -483,8 +483,9 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
 /** DB初期化
  *
  * @param[in]       pMyNodeId       非NULL時、DB保存するnode_id
+ * @retval  true    初期化失敗
  */
-void HIDDEN ln_db_init(const uint8_t *pMyNodeId);
+bool HIDDEN ln_db_init(const uint8_t *pMyNodeId);
 
 
 /** DBで保存している対象のデータだけコピーする
