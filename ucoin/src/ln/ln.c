@@ -1559,6 +1559,7 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
         break;
     default:
         DBG_PRINTF("index=%d, %d\n", WitIndex, self->p_revoked_type[WitIndex]);
+        assert(0);
     }
     bool ret;
     if (htlcsign != HTLCSIGN_NONE) {
