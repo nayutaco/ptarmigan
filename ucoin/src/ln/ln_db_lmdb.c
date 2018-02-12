@@ -55,18 +55,11 @@
 #define M_LMDB_DIR              "./dbucoin"
 #define M_LMDB_ENV              M_LMDB_DIR "/dbucoin"       ///< LMDB名(announce以外)
 #define M_LMDB_ANNO             M_LMDB_DIR "/dbucoin_anno"  ///< LMDB名(announce)
+
 #define M_PREFIX_LEN            (2)
 #define M_CHANNEL_NAME          "CN"            ///< channel
 #define M_SHAREDSECRET_NAME     "SS"            ///< shared secret
 #define M_REVOKED_NAME          "RV"            ///< revoked transaction用
-
-#define M_DB_ANNO_CNL           "channel_anno"
-#define M_DB_ANNOINFO_CNL       "channel_annoinfo"
-#define M_DB_ANNO_NODE          "node_anno"
-#define M_DB_ANNOINFO_NODE      "node_annoinfo"
-#define M_DB_PREIMAGE           "preimage"
-#define M_DB_PAYHASH            "payhash"
-#define M_DB_VERSION            "version"
 
 #define M_SZ_DBNAME_LEN         (M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1)
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
@@ -325,7 +318,7 @@ bool HIDDEN ln_db_init(const uint8_t *pMyNodeId)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = mdb_dbi_open(db.txn, M_DB_VERSION, 0, &db.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_VERSION, 0, &db.dbi);
     if (retval != 0) {
         retval = ver_write(db.txn, pMyNodeId);
         if (retval == 0) {
@@ -432,8 +425,8 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 {
     MDB_val     key, data;
 
-    key.mv_size = 6;
-    key.mv_data = "self1";
+    key.mv_size = LNDBK_LEN(LNDBK_SELF1);
+    key.mv_data = LNDBK_SELF1;
     int retval = mdb_get(txn, dbi, &key, &data);
 
     //構造体部分
@@ -490,8 +483,8 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
         self->anno_flag = p_bk->anno_flag;  //31
 
         //次読込み
-        key.mv_size = 6;
-        key.mv_data = "self2";
+        key.mv_size = LNDBK_LEN(M_DBK_SELF2);
+        key.mv_data = M_DBK_SELF2;
         retval = mdb_get(txn, dbi, &key, &data);
     }
 
@@ -600,7 +593,7 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
 
     //channel_announcementから自分のshort_channel_idを含むデータを削除
-    retval = mdb_dbi_open(p_cur->txn, M_DB_ANNO_CNL, 0, &dbi_anno);
+    retval = mdb_dbi_open(p_cur->txn, LNDBI_ANNO_CNL, 0, &dbi_anno);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         if (retval == MDB_NOTFOUND) {
@@ -770,10 +763,10 @@ bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type)
         const char *p_name;
         switch (Type) {
         case LN_DB_TXN_CNL:
-            p_name = M_DB_ANNOINFO_CNL;
+            p_name = LNDBI_ANNOINFO_CNL;
             break;
         case LN_DB_TXN_NODE:
-            p_name = M_DB_ANNOINFO_NODE;
+            p_name = LNDBI_ANNOINFO_NODE;
             break;
         default:
             assert(0);
@@ -840,7 +833,7 @@ bool ln_db_annocnl_load(ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = mdb_dbi_open(db.txn, M_DB_ANNO_CNL, 0, &db.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_ANNO_CNL, 0, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
@@ -867,13 +860,13 @@ bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, co
         goto LABEL_EXIT;
     }
     db_info.txn = db.txn;
-    retval = mdb_dbi_open(db.txn, M_DB_ANNO_CNL, MDB_CREATE, &db.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_ANNO_CNL, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
-    retval = mdb_dbi_open(db.txn, M_DB_ANNOINFO_CNL, MDB_CREATE, &db_info.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_ANNOINFO_CNL, MDB_CREATE, &db_info.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
@@ -916,7 +909,7 @@ bool ln_db_annocnlupd_load(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t 
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = mdb_dbi_open(db.txn, M_DB_ANNO_CNL, 0, &db.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_ANNO_CNL, 0, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
@@ -943,13 +936,13 @@ bool ln_db_annocnlupd_save(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pU
         goto LABEL_EXIT;
     }
     db_info.txn = db.txn;
-    retval = mdb_dbi_open(db.txn, M_DB_ANNO_CNL, MDB_CREATE, &db.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_ANNO_CNL, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
-    retval = mdb_dbi_open(db.txn, M_DB_ANNOINFO_CNL, MDB_CREATE, &db_info.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_ANNOINFO_CNL, MDB_CREATE, &db_info.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
@@ -1028,12 +1021,12 @@ bool ln_db_annocnlall_del(uint64_t ShortChannelId)
         goto LABEL_EXIT;
     }
 
-    retval = mdb_dbi_open(txn, M_DB_ANNO_CNL, MDB_CREATE, &dbi);
+    retval = mdb_dbi_open(txn, LNDBI_ANNO_CNL, MDB_CREATE, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_ABORT;
     }
-    retval = mdb_dbi_open(txn, M_DB_ANNOINFO_CNL, MDB_CREATE, &dbi_info);
+    retval = mdb_dbi_open(txn, LNDBI_ANNOINFO_CNL, MDB_CREATE, &dbi_info);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_ABORT;
@@ -1248,7 +1241,7 @@ bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = mdb_dbi_open(db.txn, M_DB_ANNO_NODE, 0, &db.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_ANNO_NODE, 0, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
@@ -1274,13 +1267,13 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         goto LABEL_EXIT;
     }
     db_info.txn = db.txn;
-    retval = mdb_dbi_open(db.txn, M_DB_ANNO_NODE, MDB_CREATE, &db.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_ANNO_NODE, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
-    retval = mdb_dbi_open(db.txn, M_DB_ANNOINFO_NODE, MDB_CREATE, &db_info.dbi);
+    retval = mdb_dbi_open(db.txn, LNDBI_ANNOINFO_NODE, MDB_CREATE, &db_info.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(db.txn);
@@ -1585,7 +1578,7 @@ bool ln_db_preimg_cur_open(void **ppCur)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = mdb_dbi_open(p_cur->txn, M_DB_PREIMAGE, 0, &p_cur->dbi);
+    retval = mdb_dbi_open(p_cur->txn, LNDBI_PREIMAGE, 0, &p_cur->dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1674,7 +1667,7 @@ bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype
             goto LABEL_EXIT;
         }
     }
-    retval = mdb_dbi_open(txn, M_DB_PAYHASH, MDB_CREATE, &dbi);
+    retval = mdb_dbi_open(txn, LNDBI_PAYHASH, MDB_CREATE, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1726,7 +1719,7 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
             goto LABEL_EXIT;
         }
     }
-    retval = mdb_dbi_open(txn, M_DB_PAYHASH, 0, &dbi);
+    retval = mdb_dbi_open(txn, LNDBI_PAYHASH, 0, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1783,10 +1776,10 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     }
 
     ln_free_revoked_buf(self);
-    key.mv_size = 3;
+    key.mv_size = LNDBK_RLEN;
 
     //number of vout scripts
-    key.mv_data = "rvn";
+    key.mv_data = LNDBK_RVN;
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1798,7 +1791,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     ln_alloc_revoked_buf(self);
 
     //vout scripts
-    key.mv_data = "rvv";
+    key.mv_data = LNDBK_RVV;
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1813,7 +1806,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     }
 
     //witness script
-    key.mv_data = "rvw";
+    key.mv_data = LNDBK_RVW;
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1828,7 +1821,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     }
 
     //remote per_commit_secret
-    key.mv_data = "rvs";
+    key.mv_data = LNDBK_RVS;
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1838,7 +1831,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     ucoin_buf_alloccopy(&self->revoked_sec, data.mv_data, data.mv_size);
 
     //confirmation数
-    key.mv_data = "rvc";
+    key.mv_data = LNDBK_RVC;
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1870,9 +1863,9 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
         goto LABEL_EXIT;
     }
 
-    key.mv_size = 3;
+    key.mv_size = LNDBK_RLEN;
 
-    key.mv_data = "rvv";
+    key.mv_data = LNDBK_RVV;
     ucoin_push_init(&push, &buf, 0);
     for (int lp = 0; lp < self->revoked_num; lp++) {
         ucoin_push_data(&push, &self->p_revoked_vout[lp].len, sizeof(uint16_t));
@@ -1887,7 +1880,7 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
     }
     ucoin_buf_free(&buf);
 
-    key.mv_data = "rvw";
+    key.mv_data = LNDBK_RVW;
     ucoin_push_init(&push, &buf, 0);
     for (int lp = 0; lp < self->revoked_num; lp++) {
         ucoin_push_data(&push, &self->p_revoked_wit[lp].len, sizeof(uint16_t));
@@ -1902,7 +1895,7 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
     }
     ucoin_buf_free(&buf);
 
-    key.mv_data = "rvs";
+    key.mv_data = LNDBK_RVS;
     data.mv_size = self->revoked_sec.len;
     data.mv_data = self->revoked_sec.buf;
     retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
@@ -1911,7 +1904,7 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
         goto LABEL_EXIT;
     }
 
-    key.mv_data = "rvn";
+    key.mv_data = LNDBK_RVN;
     data.mv_size = sizeof(uint16_t) * 2;
     uint16_t p[2];
     p[0] = self->revoked_cnt;
@@ -1923,7 +1916,7 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
         goto LABEL_EXIT;
     }
 
-    key.mv_data = "rvc";
+    key.mv_data = LNDBK_RVC;
     data.mv_size = sizeof(self->revoked_chk);
     data.mv_data = (CONST_CAST uint32_t *)&self->revoked_chk;
     retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
@@ -1960,7 +1953,7 @@ int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
 {
     int         retval;
 
-    retval = mdb_dbi_open(pDb->txn, M_DB_VERSION, 0, &pDb->dbi);
+    retval = mdb_dbi_open(pDb->txn, LNDBI_VERSION, 0, &pDb->dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1986,27 +1979,27 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     } else if (strncmp(pDbName, M_SHAREDSECRET_NAME, M_PREFIX_LEN) == 0) {
         //shared secret
         dbtype = LN_LMDB_DBTYPE_SHARED_SECRET;
-    } else if (strcmp(pDbName, M_DB_ANNO_CNL) == 0) {
+    } else if (strcmp(pDbName, LNDBI_ANNO_CNL) == 0) {
         //channel_announcement
         dbtype = LN_LMDB_DBTYPE_CHANNEL_ANNO;
-    } else if (strcmp(pDbName, M_DB_ANNO_NODE) == 0) {
+    } else if (strcmp(pDbName, LNDBI_ANNO_NODE) == 0) {
         //node_announcement
         dbtype = LN_LMDB_DBTYPE_NODE_ANNO;
-    } else if (strcmp(pDbName, M_DB_ANNOINFO_CNL) == 0) {
+    } else if (strcmp(pDbName, LNDBI_ANNOINFO_CNL) == 0) {
         //channel_announcement/channel_update information
         dbtype = LN_LMDB_DBTYPE_NODE_ANNOINFO;
-    } else if (strcmp(pDbName, M_DB_ANNOINFO_NODE) == 0) {
+    } else if (strcmp(pDbName, LNDBI_ANNOINFO_NODE) == 0) {
         //node_announcement information
         dbtype = LN_LMDB_DBTYPE_NODE_ANNOINFO;
-    } else if (strcmp(pDbName, M_DB_PREIMAGE) == 0) {
+    } else if (strcmp(pDbName, LNDBI_PREIMAGE) == 0) {
         //preimage
         dbtype = LN_LMDB_DBTYPE_PREIMAGE;
 #ifdef LN_UGLY_NORMAL
-    } else if (strcmp(pDbName, M_DB_PAYHASH) == 0) {
+    } else if (strcmp(pDbName, LNDBI_PAYHASH) == 0) {
         //preimage
         dbtype = LN_LMDB_DBTYPE_PAYHASH;
 #endif //LN_UGLY_NORMAL
-    } else if (strcmp(pDbName, M_DB_VERSION) == 0) {
+    } else if (strcmp(pDbName, LNDBI_VERSION) == 0) {
         //version
         dbtype = LN_LMDB_DBTYPE_VERSION;
     } else {
@@ -2106,8 +2099,8 @@ static int self_ss_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     int retval = 0;
     MDB_val key, data;
 
-    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        key.mv_size = sizeof(int);
+    for (uint32_t lp = 0; lp < LN_HTLC_MAX; lp++) {
+        key.mv_size = sizeof(uint32_t);
         key.mv_data = &lp;
         retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
         if (retval != 0) {
@@ -2131,8 +2124,8 @@ static int self_ss_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     int retval = 0;
     MDB_val key, data;
 
-    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        key.mv_size = sizeof(int);
+    for (uint32_t lp = 0; lp < LN_HTLC_MAX; lp++) {
+        key.mv_size = sizeof(uint32_t);
         key.mv_data = &lp;
         data.mv_size = self->cnl_add_htlc[lp].shared_secret.len;
         data.mv_data = self->cnl_add_htlc[lp].shared_secret.buf;
@@ -2203,8 +2196,8 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     bk->min_depth = self->min_depth; //30
     bk->anno_flag = self->anno_flag;    //31
 
-    key.mv_size = 6;
-    key.mv_data = "self1";
+    key.mv_size = LNDBK_LEN(LNDBK_SELF1);
+    key.mv_data = LNDBK_SELF1;
     data.mv_size = sizeof(backup_self_t);
     data.mv_data = bk;
     int retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
@@ -2251,8 +2244,8 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
         ucoin_push_data(&ps, buf_funding.buf, len);
         ucoin_buf_free(&buf_funding);
 
-        key.mv_size = 6;
-        key.mv_data = "self2";
+        key.mv_size = LNDBK_LEN(M_DBK_SELF2);
+        key.mv_data = M_DBK_SELF2;
         data.mv_size = buf_bk.len;
         data.mv_data = buf_bk.buf;
         retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
@@ -2330,7 +2323,7 @@ static bool annocnl_cur_open(lmdb_cursor_t *pCur)
 {
     int retval;
 
-    retval = mdb_dbi_open(pCur->txn, M_DB_ANNO_CNL, 0, &pCur->dbi);
+    retval = mdb_dbi_open(pCur->txn, LNDBI_ANNO_CNL, 0, &pCur->dbi);
     if (retval != 0) {
         //DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -2584,7 +2577,7 @@ static bool annonod_cur_open(lmdb_cursor_t *pCur)
 {
     int retval;
 
-    retval = mdb_dbi_open(pCur->txn, M_DB_ANNO_NODE, 0, &pCur->dbi);
+    retval = mdb_dbi_open(pCur->txn, LNDBI_ANNO_NODE, 0, &pCur->dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -2613,7 +2606,7 @@ static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn)
     } else {
         p_db->txn = txn;
     }
-    retval = mdb_dbi_open(p_db->txn, M_DB_PREIMAGE, MDB_CREATE, &p_db->dbi);
+    retval = mdb_dbi_open(p_db->txn, LNDBI_PREIMAGE, MDB_CREATE, &p_db->dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(p_db->txn);
@@ -2640,23 +2633,23 @@ static int ver_write(MDB_txn *txn, const uint8_t *pMyNodeId)
     MDB_val     key, data;
     int         version = M_DB_VERSION_VAL;
 
-    retval = mdb_dbi_open(txn, M_DB_VERSION, MDB_CREATE, &dbi);
+    retval = mdb_dbi_open(txn, LNDBI_VERSION, MDB_CREATE, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
 
     //version
-    key.mv_size = 3;
-    key.mv_data = "ver";
-    data.mv_size = sizeof(int);
+    key.mv_size = LNDBK_LEN(LNDBK_VER);
+    key.mv_data = LNDBK_VER;
+    data.mv_size = sizeof(int32_t);
     data.mv_data = &version;
     retval = mdb_put(txn, dbi, &key, &data, 0);
 
     //my node_id
     if ((retval == 0) && pMyNodeId) {
-        key.mv_size = 8;
-        key.mv_data = "mynodeid";
+        key.mv_size = LNDBK_LEN(LNDBK_NODEID);
+        key.mv_data = LNDBK_NODEID;
         data.mv_size = UCOIN_SZ_PUBKEY;
         data.mv_data = (void *)pMyNodeId;
         retval = mdb_put(txn, dbi, &key, &data, 0);
@@ -2681,8 +2674,8 @@ static int ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
     MDB_val key, data;
 
     //version
-    key.mv_size = 3;
-    key.mv_data = "ver";
+    key.mv_size = LNDBK_LEN(LNDBK_VER);
+    key.mv_data = LNDBK_VER;
     retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
     if (retval == 0) {
         int version = *(int *)data.mv_data;
@@ -2693,8 +2686,8 @@ static int ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
     }
     if (retval == 0) {
         if (pMyNodeId) {
-            key.mv_size = 8;
-            key.mv_data = "mynodeid";
+            key.mv_size = LNDBK_LEN(LNDBK_NODEID);
+            key.mv_data = LNDBK_NODEID;
             retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
             if ((retval == 0) && (data.mv_size == UCOIN_SZ_PUBKEY)) {
                 memcpy(pMyNodeId, data.mv_data, UCOIN_SZ_PUBKEY);

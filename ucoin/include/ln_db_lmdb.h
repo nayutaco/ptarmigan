@@ -39,6 +39,28 @@ extern "C" {
  * LMDB
  ********************************************************************/
 
+#define LNDBI_ANNO_CNL          "channel_anno"
+#define LNDBI_ANNOINFO_CNL      "channel_annoinfo"
+#define LNDBI_ANNO_NODE         "node_anno"
+#define LNDBI_ANNOINFO_NODE     "node_annoinfo"
+#define LNDBI_PREIMAGE          "preimage"
+#define LNDBI_PAYHASH           "payhash"
+#define LNDBI_VERSION           "version"
+
+#define LNDBK_LEN(key)          (sizeof(key))       //\0も含む
+#define LNDBK_SELF1             "self1"
+#define M_DBK_SELF2             "self2"
+//
+#define LNDBK_RLEN              (3)
+#define LNDBK_RVV               "rvv"
+#define LNDBK_RVW               "rvw"
+#define LNDBK_RVS               "rvs"
+#define LNDBK_RVN               "rvn"
+#define LNDBK_RVC               "rvc"
+//
+#define LNDBK_VER               "ver"
+#define LNDBK_NODEID            "mynodeid"
+
 
 /**************************************************************************
  * typedefs

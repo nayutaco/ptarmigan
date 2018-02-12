@@ -129,8 +129,8 @@ static void dumpit_ss(MDB_txn *txn, MDB_dbi dbi)
     if (showflag & (SHOW_SELF | SHOW_WALLET)) {
         MDB_val key, data;
 
-        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            key.mv_size = sizeof(int);
+        for (uint32_t lp = 0; lp < LN_HTLC_MAX; lp++) {
+            key.mv_size = sizeof(uint32_t);
             key.mv_data = &lp;
             int retval = mdb_get(txn, dbi, &key, &data);
             if (retval != 0) {
