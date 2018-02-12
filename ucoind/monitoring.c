@@ -77,6 +77,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm, void *pDbParam);
 static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked_tolocal(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex);
+static bool close_revoked_toremote(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex);
 static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex, int WitIndex);
 
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
@@ -131,15 +132,17 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
         del = true;
         uint8_t txid[UCOIN_SZ_TXID];
         for (int lp = 0; lp < close_dat.num; lp++) {
-            if (lp == 0) {
+            if (lp == LN_CLOSE_IDX_COMMIT) {
                 DBG_PRINTF2("\n$$$ commit_tx\n");
                 //for (int lp2 = 0; lp2 < close_dat.p_tx[lp].vout_cnt; lp2++) {
                 //    DBG_PRINTF("vout[%d]=%x\n", lp2, close_dat.p_tx[lp].vout[lp2].opt);
                 //}
-            } else if (lp == 1) {
+            } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
                 DBG_PRINTF2("\n$$$ to_local tx\n");
+            } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
+                DBG_PRINTF2("\n$$$ to_remote tx\n");
             } else {
-                DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - 2);
+                DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //自分のtxを展開済みかチェック
@@ -284,7 +287,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
             //最新のremote commit_tx --> unilateral close(remote)
             del = close_unilateral_remote(self, p_db_param);
         } else {
-            //最新ではないcommit_tx --> mutual close or revoked transaction close
+            //最新のcommit_txではない --> mutual close or revoked transaction close
             del = close_others(self, confm, p_db_param);
         }
         ucoin_tx_free(&tx_commit);
@@ -364,7 +367,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             ucoin_tx_init(&tx);
             uint32_t confm = btcprc_get_confirmation(ln_funding_txid(self));
             uint8_t txid[UCOIN_SZ_TXID];
-            ucoin_tx_txid(txid, &pCloseDat->p_tx[0]);
+            ucoin_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
             bool ret = search_spent_tx(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
             if (ret) {
                 //preimageを登録(自分が持っているのと同じ状態にする)
@@ -418,85 +421,88 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 {
     bool del = true;
 
-    if (ln_htlc_num(self) == 0) {
-        DBG_PRINTF("no HTLCS\n");
-    } else {
-        ln_close_force_t close_dat;
-        bool ret = ln_create_closed_tx(self, &close_dat);
-        if (ret) {
-            del = true;
-            uint8_t txid[UCOIN_SZ_TXID];
-            for (int lp = 0; lp < close_dat.num; lp++) {
-                if (lp == 0) {
-                    DBG_PRINTF2("\n$$$ commit_tx\n");
-                    continue;
-                } else if (lp == 1) {
-                    DBG_PRINTF2("\n$$$ to_local tx\n");
-                    continue;
-                } else {
-                    DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - 2);
-                }
-                if (close_dat.p_tx[lp].vin_cnt > 0) {
-                    //自分のtxを展開済みかチェック
-                    ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
-                    DBG_PRINTF("txid[%d]= ", lp);
-                    DUMPTXID(txid);
-                    bool broad = btcprc_getraw_tx(NULL, txid);
-                    if (broad) {
-                        DBG_PRINTF("already broadcasted[%d]\n", lp);
-                        DBG_PRINTF("-->OK\n");
-                        continue;
-                    }
-
-                    bool send_req = false;
-
-                    //展開済みチェック
-                    bool unspent;
-                    uint64_t sat;
-                    bool ret = btcprc_getxout(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
-                    if (!ret) {
-                        goto LABEL_EXIT;
-                    }
-                    DBG_PRINTF("vin unspent[%d]=%d\n", lp, unspent);
-
-                    //ln_create_htlc_tx()後だから、OFFERED/RECEIVEDがわかる
-                    switch (close_dat.p_tx[lp].vout[0].opt) {
-                    case LN_HTLCTYPE_OFFERED:
-                        send_req = close_unilateral_remote_offered(!unspent);
-                        break;
-                    case LN_HTLCTYPE_RECEIVED:
-                        send_req = close_unilateral_remote_received(self, &del, !unspent, &close_dat, lp, pDbParam);
-                        break;
-                    default:
-                        DBG_PRINTF("opt=%x\n", close_dat.p_tx[lp].vout[0].opt);
-                        break;
-                    }
-
-                    if (send_req) {
-                        ucoin_buf_t buf;
-                        ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
-                        ret = btcprc_sendraw_tx(txid, NULL, buf.buf, buf.len);
-                        ucoin_buf_free(&buf);
-                        if (ret) {
-                            DBG_PRINTF("broadcast txid[%d]: ", lp);
-                            DUMPTXID(txid);
-                            DBG_PRINTF("-->OK\n");
-                        } else {
-                            del = false;
-                            DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
-                        }
-                    }
-                } else {
-                    DBG_PRINTF("skip tx[%d]\n", lp);
-                    del = false;
-                }
+    ln_close_force_t close_dat;
+    bool ret = ln_create_closed_tx(self, &close_dat);
+    if (ret) {
+        uint8_t txid[UCOIN_SZ_TXID];
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            if (lp == LN_CLOSE_IDX_COMMIT) {
+                DBG_PRINTF2("\n$$$ commit_tx\n");
+                continue;
+            } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
+                DBG_PRINTF2("\n$$$ to_local tx\n");
+                continue;
+            } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
+                DBG_PRINTF2("\n$$$ to_remote tx\n");
+            } else {
+                DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             }
+            if (close_dat.p_tx[lp].vin_cnt > 0) {
+                //自分のtxを展開済みかチェック
+                ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
+                DBG_PRINTF("txid[%d]= ", lp);
+                DUMPTXID(txid);
+                bool broad = btcprc_getraw_tx(NULL, txid);
+                if (broad) {
+                    DBG_PRINTF("already broadcasted[%d]\n", lp);
+                    DBG_PRINTF("-->OK\n");
+                    continue;
+                }
+
+                bool send_req = false;
+
+                //展開済みチェック
+                //  to_remoteはcommit_txが展開された時点で使用可能なので、チェック不要
+                bool unspent;
+                uint64_t sat;
+                bool ret = btcprc_getxout(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                if (lp == LN_CLOSE_IDX_TOREMOTE) {
+                    send_req = !ret;
+                    //DBG_PRINTF("to_remote: %d\n", send_req);
+                    //ucoin_print_tx(&close_dat.p_tx[lp]);
+                } else  if (!ret) {
+                    del = false;
+                    goto LABEL_EXIT;
+                }
+                //DBG_PRINTF("vin unspent[%d]=%d\n", lp, unspent);
+
+                //ln_create_htlc_tx()後だから、OFFERED/RECEIVEDがわかる
+                switch (close_dat.p_tx[lp].vout[0].opt) {
+                case LN_HTLCTYPE_OFFERED:
+                    send_req = close_unilateral_remote_offered(!unspent);
+                    break;
+                case LN_HTLCTYPE_RECEIVED:
+                    send_req = close_unilateral_remote_received(self, &del, !unspent, &close_dat, lp, pDbParam);
+                    break;
+                default:
+                    DBG_PRINTF("opt=%x\n", close_dat.p_tx[lp].vout[0].opt);
+                    break;
+                }
+
+                if (send_req) {
+                    ucoin_buf_t buf;
+                    ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                    ret = btcprc_sendraw_tx(txid, NULL, buf.buf, buf.len);
+                    ucoin_buf_free(&buf);
+                    if (ret) {
+                        DBG_PRINTF("broadcast txid[%d]: ", lp);
+                        DUMPTXID(txid);
+                        DBG_PRINTF("-->OK\n");
+                    } else {
+                        del = false;
+                        DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
+                    }
+                }
+            } else {
+                DBG_PRINTF("skip tx[%d]\n", lp);
+                del = false;
+            }
+        }
 
 LABEL_EXIT:
-            ln_free_close_force_tx(&close_dat);
-        } else {
-            del = false;
-        }
+        ln_free_close_force_tx(&close_dat);
+    } else {
+        del = false;
     }
 
     DBG_PRINTF("del=%d\n", del);
@@ -511,13 +517,13 @@ static bool close_unilateral_remote_offered(bool spent)
     bool send_req;
 
     DBG_PRINTF("offered HTLC output\n");
-    if (!spent) {
-        //展開(preimageがなければsendrawtransactionに失敗する)
-        send_req = true;
-    } else {
+    if (spent) {
         //展開済みならOK
         DBG_PRINTF("-->OK\n");
         send_req = false;
+    } else {
+        //展開(preimageがなければsendrawtransactionに失敗する)
+        send_req = true;
     }
 
     return send_req;
@@ -539,7 +545,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
             ucoin_tx_init(&tx);
             uint32_t confm = btcprc_get_confirmation(ln_funding_txid(self));
             uint8_t txid[UCOIN_SZ_TXID];
-            ucoin_tx_txid(txid, &pCloseDat->p_tx[0]);
+            ucoin_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
             bool ret = search_spent_tx(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
             if (ret) {
                 //preimageを登録(自分が持っているのと同じ状態にする)
@@ -587,11 +593,13 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
             DBG_PRINTF("This is closing_tx\n");
             del = true;
         } else {
-            //revoked transaction close
+            //相手にrevoked transaction closeされた
             SYSLOG_WARN("closed: ugly way\n");
             ret = ln_close_ugly(self, &tx, pDbParam);
             if (ret) {
                 if (ln_revoked_cnt(self) > 0) {
+                    //revoked transactionのvoutに未解決あり
+                    //  2回目以降はclose_revoked_after()が呼び出される
                     del = close_revoked_first(self, &tx, confm, pDbParam);
                 } else {
                     DBG_PRINTF("all revoked transaction vout is already solved.\n");
@@ -621,30 +629,37 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
 {
     bool del = false;
     bool save = true;
+    bool ret;
 
     for (int lp = 0; lp < pTx->vout_cnt; lp++) {
         const ucoin_buf_t *p_vout = ln_revoked_vout(self);
 
         DBG_PRINTF("vout[%d]=", lp);
         DUMPBIN(pTx->vout[lp].script.buf, pTx->vout[lp].script.len);
-        if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[0])) {
+        if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOLOCAL])) {
             DBG_PRINTF("[%d]to_local !\n", lp);
 
-            bool ret = close_revoked_tolocal(self, pTx, lp);
+            ret = close_revoked_tolocal(self, pTx, lp);
             if (ret) {
                 del = ln_revoked_cnt_dec(self);
                 ln_set_revoked_confm(self, confm);
             } else {
                 save = false;
             }
+        } else if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOREMOTE])) {
+            DBG_PRINTF("[%d]to_remote !\n", lp);
+            ret = close_revoked_toremote(self, pTx, lp);
+            if (ret) {
+                save = true;
+            }
         } else {
-            for (int lp2 = 1; lp2 < self->revoked_num; lp2++) {
+            for (int lp2 = LN_RCLOSE_IDX_HTLC; lp2 < self->revoked_num; lp2++) {
                 DBG_PRINTF("p_vout[%d]=", lp2);
                 DUMPBIN(p_vout[lp2].buf, p_vout[lp2].len);
                 if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[lp2])) {
                     DBG_PRINTF("[%d]HTLC vout[%d] !\n", lp, lp2);
 
-                    bool ret = close_revoked_htlc(self, pTx, lp, lp2);
+                    ret = close_revoked_htlc(self, pTx, lp, lp2);
                     if (ret) {
                         del = ln_revoked_cnt_dec(self);
                         ln_set_revoked_confm(self, confm);
@@ -730,15 +745,41 @@ static bool close_revoked_tolocal(const ln_self_t *self, const ucoin_tx_t *pTx, 
     ucoin_tx_init(&tx);
     const ucoin_buf_t *p_wit = ln_revoked_wit(self);
 
-    ln_create_tolocal_spent(self, &tx, pTx->vout[VIndex].value,
+    bool ret = ln_create_tolocal_spent(self, &tx, pTx->vout[VIndex].value,
                 ln_commit_local(self)->to_self_delay,
                 &p_wit[0], txid, VIndex, true);
-    ucoin_print_tx(&tx);
-    ucoin_buf_t buf;
-    ucoin_tx_create(&buf, &tx);
-    ucoin_tx_free(&tx);
-    bool ret = btcprc_sendraw_tx(txid, NULL, buf.buf, buf.len);
-    ucoin_buf_free(&buf);
+    if (ret) {
+        ucoin_print_tx(&tx);
+        ucoin_buf_t buf;
+        ucoin_tx_create(&buf, &tx);
+        ucoin_tx_free(&tx);
+        ret = btcprc_sendraw_tx(txid, NULL, buf.buf, buf.len);
+        ucoin_buf_free(&buf);
+    }
+
+    return ret;
+}
+
+
+//revoked to_remote outputを取り戻す
+//  to_remoteはP2WPKHで支払い済みだが、bitcoindがremotekeyを知らないため、転送する
+static bool close_revoked_toremote(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex)
+{
+    uint8_t txid[UCOIN_SZ_TXID];
+    ucoin_tx_txid(txid, pTx);
+
+    ucoin_tx_t tx;
+    ucoin_tx_init(&tx);
+
+    bool ret = ln_create_toremote_spent(self, &tx, pTx->vout[VIndex].value, txid, VIndex);
+    if (ret) {
+        ucoin_print_tx(&tx);
+        ucoin_buf_t buf;
+        ucoin_tx_create(&buf, &tx);
+        ucoin_tx_free(&tx);
+        ret = btcprc_sendraw_tx(txid, NULL, buf.buf, buf.len);
+        ucoin_buf_free(&buf);
+    }
 
     return ret;
 }
