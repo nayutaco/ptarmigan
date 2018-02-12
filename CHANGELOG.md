@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2018/02/12
+
+* 相手からのclose時、remotekeyへの送金をbitcoindに戻す
+
 ## 2018/02/06
 
 * DB version update
