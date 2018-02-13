@@ -1,7 +1,18 @@
-all: routing
+SRC = routing.cpp
+OBJ = routing
+CFLAGS = -I../include -I../ucoin/include -I../libs/install/include -I../ucoin/libs/install/include
+LDFLAGS = -L../libs/install/lib -L../ucoin/libs/install/lib -L../ucoin
+LDFLAGS += -linih -llmdb -lucoin -lsodium -lbase58 -lmbedcrypto -pthread
 
-routing: routing.cpp
-	g++ -W -Wall -ggdb -I../include -I../ucoin/include -I../libs/install/include -I../ucoin/libs/install/include -o routing routing.cpp ../cmn/conf.c ../cmn/misc.c -L../libs/install/lib -linih -L../ucoin/libs/install/lib -L../ucoin -llmdb -lucoin -lsodium -lbase58 -lmbedcrypto -pthread
+all: .Depend routing
+
+routing: $(SRC)
+	g++ -W -Wall -ggdb $(CFLAGS) -o $(OBJ) $(SRC) ../cmn/conf.c ../cmn/misc.c $(LDFLAGS)
 
 clean:
-	-rm -rf routing
+	-rm -rf $(OBJ) .Depend
+
+.Depend:
+	@$(CC) $(CFLAGS) -MM -MT $(SRC:%.cpp=%) $(SRC) > .Depend
+
+-include .Depend

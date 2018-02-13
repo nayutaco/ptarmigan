@@ -195,10 +195,9 @@ typedef struct {
 } payment_conf_t;
 
 
-// config file
 typedef struct {
     uint16_t        port;
-    char            name[32];
+    char            name[LN_SZ_ALIAS];
     char            wif[UCOIN_SZ_WIF_MAX];
 } node_conf_t;
 

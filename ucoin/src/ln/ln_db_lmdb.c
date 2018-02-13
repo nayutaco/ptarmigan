@@ -70,7 +70,7 @@
 #define LNDBI_PAYHASH           "payhash"
 #define LNDBI_VERSION           "version"
 
-#define M_DB_VERSION_VAL        (-14)           ///< DBバージョン
+#define M_DB_VERSION_VAL        (-15)           ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -86,6 +86,7 @@
     -12: revoked transaction用データ追加
     -13: self.anno_flag追加
     -14: announcementの送信管理追加
+    -15: node.conf情報をversionに追加
  */
 
 
@@ -166,6 +167,19 @@ typedef struct {
 } backup_self_t;
 
 
+/** @typedef    nodeinfo_t
+ *  @brief      [version]に保存するnode情報
+ */
+typedef struct {
+    char        wif[UCOIN_SZ_WIF_MAX];
+    char        name[LN_SZ_ALIAS];
+    uint16_t    port;
+} nodeinfo_t;
+
+
+/** @typedef    lmdb_cursor_t
+ *  @brief      lmdbのcursor情報。外部へはvoid*でキャストして渡す。
+ */
 typedef struct {
     MDB_txn     *txn;
     MDB_dbi     dbi;
@@ -173,6 +187,9 @@ typedef struct {
 } lmdb_cursor_t;
 
 
+/** @typedef    preimage_info_t
+ *  @brief      [preimage]に保存するpreimage情報
+ */
 typedef struct {
     uint64_t amount;
     time_t creation;
@@ -216,8 +233,8 @@ static bool annoinfo_search(MDB_val *pMdbData, const uint8_t *pNodeId);
 static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
 static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
 
-static int ver_write(MDB_txn *txn, const uint8_t *pMyNodeId);
-static int ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId);
+static int ver_write(MDB_txn *txn, const char *pWif, const char *pNodeName, uint16_t Port);
+static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort);
 
 static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 
@@ -258,7 +275,7 @@ static inline void my_mdb_txn_abort(MDB_txn *txn, int line) {
  * public functions
  **************************************************************************/
 
-bool HIDDEN ln_db_init(const uint8_t *pMyNodeId)
+bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
 {
     int         retval;
     ln_lmdb_db_t   db;
@@ -325,7 +342,13 @@ bool HIDDEN ln_db_init(const uint8_t *pMyNodeId)
     }
     retval = mdb_dbi_open(db.txn, LNDBI_VERSION, 0, &db.dbi);
     if (retval != 0) {
-        retval = ver_write(db.txn, pMyNodeId);
+        //新規の場合は保存する
+        if (pWif == NULL) {
+            DBG_PRINTF("FAIL: no node_wif\n");
+            MDB_TXN_ABORT(db.txn);
+            goto LABEL_EXIT;
+        }
+        retval = ver_write(db.txn, pWif, pNodeName, *pPort);
         if (retval == 0) {
             MDB_TXN_COMMIT(db.txn);
         } else {
@@ -334,17 +357,9 @@ bool HIDDEN ln_db_init(const uint8_t *pMyNodeId)
             goto LABEL_EXIT;
         }
     } else {
-        uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
-        retval = ver_check(&db, my_nodeid);
+        retval = ver_check(&db, pWif, pNodeName, pPort);
         MDB_TXN_ABORT(db.txn);
-        if (retval == 0) {
-            if (memcmp(pMyNodeId, my_nodeid, UCOIN_SZ_PUBKEY) == 0) {
-                DBG_PRINTF("ok\n");
-            } else {
-                DBG_PRINTF("FAIL: node_id mismatch\n");
-                goto LABEL_EXIT;
-            }
-        } else {
+        if (retval != 0) {
             DBG_PRINTF("FAIL: check version db\n");
             goto LABEL_EXIT;
         }
@@ -1963,7 +1978,20 @@ int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = ver_check(pDb, pMyNodeId);
+
+    char wif[UCOIN_SZ_WIF_MAX];
+    char alias[LN_SZ_ALIAS];
+    uint16_t port;
+    retval = ver_check(pDb, wif, alias, &port);
+    if ((retval == 0) && (pMyNodeId != NULL)) {
+        ucoin_util_keys_t key;
+        bool ret = ucoin_util_wif2keys(&key, wif);
+        if (ret) {
+            memcpy(pMyNodeId, key.pub, UCOIN_SZ_PUBKEY);
+        } else {
+            retval = -1;
+        }
+    }
 
 LABEL_EXIT:
     return retval;
@@ -2631,7 +2659,7 @@ static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn)
 }
 
 
-static int ver_write(MDB_txn *txn, const uint8_t *pMyNodeId)
+static int ver_write(MDB_txn *txn, const char *pWif, const char *pNodeName, uint16_t Port)
 {
     int         retval;
     MDB_dbi     dbi;
@@ -2651,12 +2679,17 @@ static int ver_write(MDB_txn *txn, const uint8_t *pMyNodeId)
     data.mv_data = &version;
     retval = mdb_put(txn, dbi, &key, &data, 0);
 
-    //my node_id
-    if ((retval == 0) && pMyNodeId) {
+    //my node info
+    if ((retval == 0) && pWif) {
         key.mv_size = LNDBK_LEN(LNDBK_NODEID);
         key.mv_data = LNDBK_NODEID;
-        data.mv_size = UCOIN_SZ_PUBKEY;
-        data.mv_data = (void *)pMyNodeId;
+
+        nodeinfo_t nodeinfo;
+        strcpy(nodeinfo.wif, pWif);
+        strcpy(nodeinfo.name, pNodeName);
+        nodeinfo.port = Port;
+        data.mv_size = sizeof(nodeinfo);
+        data.mv_data = (void *)&nodeinfo;
         retval = mdb_put(txn, dbi, &key, &data, 0);
     } else if (retval) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -2670,10 +2703,12 @@ LABEL_EXIT:
 /** DBバージョンチェック
  *
  * @param[in,out]   pDb
- * @param[out]      pMyNodeId   [NULL]無視 / [非NULL]自nodeid
+ * @param[out]      pWif
+ * @param[out]      pNodeName
+ * @param[out]      pPort
  * @retval  0   DBバージョン一致
  */
-static int ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
+static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort)
 {
     int         retval;
     MDB_val key, data;
@@ -2689,19 +2724,17 @@ static int ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
             retval = -1;
         }
     }
-    if (retval == 0) {
-        if (pMyNodeId) {
-            key.mv_size = LNDBK_LEN(LNDBK_NODEID);
-            key.mv_data = LNDBK_NODEID;
-            retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
-            if ((retval == 0) && (data.mv_size == UCOIN_SZ_PUBKEY)) {
-                memcpy(pMyNodeId, data.mv_data, UCOIN_SZ_PUBKEY);
-            } else {
-                memset(pMyNodeId, 0, UCOIN_SZ_PUBKEY);
-            }
+    if ((retval == 0) && (pWif != NULL)) {
+        key.mv_size = LNDBK_LEN(LNDBK_NODEID);
+        key.mv_data = LNDBK_NODEID;
+        retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
+        if (retval == 0) {
+            const nodeinfo_t *p_nodeinfo = (const nodeinfo_t*)data.mv_data;
+
+            strcpy(pWif, p_nodeinfo->wif);
+            strcpy(pNodeName, p_nodeinfo->name);
+            *pPort = p_nodeinfo->port;
         }
-    } else {
-        DBG_PRINTF("*** version check: %d ***\n", retval);
     }
 
     return retval;

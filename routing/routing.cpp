@@ -358,7 +358,6 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
         assert(ret == 0);
     }
 
-
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
     ret = mdb_txn_begin(mpDbAnno, NULL, MDB_RDONLY, &txn_anno);
@@ -534,13 +533,15 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-
     if (strcmp(nettype, "mainnet") == 0) {
         ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCMAIN));
+        ucoin_init(UCOIN_MAINNET, true);
     } else if (strcmp(nettype, "testnet") == 0) {
         ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCTEST));
+        ucoin_init(UCOIN_TESTNET, true);
     } else if (strcmp(nettype, "regtest") == 0) {
         ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCREGTEST));
+        ucoin_init(UCOIN_TESTNET, true);
     } else {
         fprintf(fp_err, "mainnet or testnet only[%s]\n", nettype);
         return -1;
