@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2018/02/12
+
+* 相手からのclose時、remotekeyへの送金をbitcoindに戻す
+
 ## 2018/02/06
 
 * DB version update
@@ -79,11 +83,11 @@
 
 * issue#12: fail_htlcをcommitment_signed後にする
 * イベントのタイミングでスクリプトを呼び出す
-    * `./script/payment.sh` : 送金開始
-    * `./script/forward.sh` : 送金を転送するとき
-    * `./script/fulfaill.sh` : `update_fulfill_htlc` 送信時
-    * `./script/fail.sh` : `update_fail_htlc` 送信時
-    * `./script/htlcchanged.sh` : `revoke_and_ack` 後
+  * `./script/payment.sh` : 送金開始
+  * `./script/forward.sh` : 送金を転送するとき
+  * `./script/fulfaill.sh` : `update_fulfill_htlc` 送信時
+  * `./script/fail.sh` : `update_fail_htlc` 送信時
+  * `./script/htlcchanged.sh` : `revoke_and_ack` 後
 
 ## 2017/10/12
 
