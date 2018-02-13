@@ -171,6 +171,7 @@ typedef struct {
  *  @brief      [version]に保存するnode情報
  */
 typedef struct {
+    uint8_t     genesis[LN_SZ_HASH];
     char        wif[UCOIN_SZ_WIF_MAX];
     char        name[LN_SZ_ALIAS];
     uint16_t    port;
@@ -234,7 +235,7 @@ static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
 static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
 
 static int ver_write(MDB_txn *txn, const char *pWif, const char *pNodeName, uint16_t Port);
-static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort);
+static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
 
 static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 
@@ -357,9 +358,29 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
             goto LABEL_EXIT;
         }
     } else {
-        retval = ver_check(&db, pWif, pNodeName, pPort);
+        uint8_t genesis[LN_SZ_HASH];
+        retval = ver_check(&db, pWif, pNodeName, pPort, genesis);
         MDB_TXN_ABORT(db.txn);
-        if (retval != 0) {
+        if (retval == 0) {
+            retval = memcmp(gGenesisChainHash, genesis, LN_SZ_HASH);
+        }
+        if (retval == 0) {
+            ucoin_genesis_t gtype = ucoin_util_get_genesis(genesis);
+            switch (gtype) {
+            case UCOIN_GENESIS_BTCMAIN:
+                DBG_PRINTF("chainhash: bitcoin mainnet\n");
+                break;
+            case UCOIN_GENESIS_BTCTEST:
+                DBG_PRINTF("chainhash: bitcoin testnet\n");
+                break;
+            case UCOIN_GENESIS_BTCREGTEST:
+                DBG_PRINTF("chainhash: bitcoin regtest\n");
+                break;
+            default:
+                DBG_PRINTF("chainhash: unknown chainhash\n");
+                break;
+            }
+        } else {
             DBG_PRINTF("FAIL: check version db\n");
             goto LABEL_EXIT;
         }
@@ -1969,7 +1990,7 @@ LABEL_EXIT:
  * version
  **************************************************************************/
 
-int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
+int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
 {
     int         retval;
 
@@ -1982,14 +2003,20 @@ int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId)
     char wif[UCOIN_SZ_WIF_MAX];
     char alias[LN_SZ_ALIAS];
     uint16_t port;
-    retval = ver_check(pDb, wif, alias, &port);
-    if ((retval == 0) && (pMyNodeId != NULL)) {
-        ucoin_util_keys_t key;
-        bool ret = ucoin_util_wif2keys(&key, wif);
-        if (ret) {
-            memcpy(pMyNodeId, key.pub, UCOIN_SZ_PUBKEY);
-        } else {
-            retval = -1;
+    uint8_t genesis[LN_SZ_HASH];
+    retval = ver_check(pDb, wif, alias, &port, genesis);
+    if (retval == 0) {
+        if (pMyNodeId != NULL) {
+            ucoin_util_keys_t key;
+            bool ret = ucoin_util_wif2keys(&key, wif);
+            if (ret) {
+                memcpy(pMyNodeId, key.pub, UCOIN_SZ_PUBKEY);
+            } else {
+                retval = -1;
+            }
+        }
+        if (pGType != NULL) {
+            *pGType = ucoin_util_get_genesis(genesis);
         }
     }
 
@@ -2688,6 +2715,7 @@ static int ver_write(MDB_txn *txn, const char *pWif, const char *pNodeName, uint
         // DBG_PRINTF("name=%s\n", pNodeName);
         // DBG_PRINTF("port=%" PRIu16 "\n", Port);
         nodeinfo_t nodeinfo;
+        memcpy(nodeinfo.genesis, gGenesisChainHash, LN_SZ_HASH);
         strcpy(nodeinfo.wif, pWif);
         strcpy(nodeinfo.name, pNodeName);
         nodeinfo.port = Port;
@@ -2711,7 +2739,7 @@ LABEL_EXIT:
  * @param[out]      pPort
  * @retval  0   DBバージョン一致
  */
-static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort)
+static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis)
 {
     int         retval;
     MDB_val key, data;
@@ -2737,9 +2765,14 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
             strcpy(pWif, p_nodeinfo->wif);
             strcpy(pNodeName, p_nodeinfo->name);
             *pPort = p_nodeinfo->port;
+            if (pGenesis != NULL) {
+                memcpy(pGenesis, p_nodeinfo->genesis, LN_SZ_HASH);
+            }
             // DBG_PRINTF("wif=%s\n", pWif);
             // DBG_PRINTF("name=%s\n", pNodeName);
             // DBG_PRINTF("port=%" PRIu16 "\n", *pPort);
+            // DBG_PRINTF("genesis=");
+            // DUMPBIN(p_nodeinfo->genesis, LN_SZ_HASH);
         }
     }
 

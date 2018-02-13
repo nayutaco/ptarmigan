@@ -481,9 +481,10 @@ int main(int argc, char *argv[])
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
+    ucoin_genesis_t gtype;
     ln_lmdb_db_t db;
     db.txn = txn;
-    ret = ln_lmdb_ver_check(&db, NULL);
+    ret = ln_lmdb_ver_check(&db, NULL, &gtype);
     if (ret != 0) {
         fprintf(stderr, "fail: DB version not match.\n");
         return -1;

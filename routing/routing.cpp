@@ -364,9 +364,10 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     assert(ret == 0);
 
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
+    ucoin_genesis_t gtype;
     ln_lmdb_db_t db;
     db.txn = txn;
-    ret = ln_lmdb_ver_check(&db, my_nodeid);
+    ret = ln_lmdb_ver_check(&db, my_nodeid, &gtype);
     assert(ret == 0);
 
 #ifdef M_DEBUG
