@@ -1104,7 +1104,11 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         }
         DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
 
-        ucoin_util_wif2keys(&p_conf->p_opening->fundin_keys, wif);
+        ucoin_chain_t chain;
+        ucoin_util_wif2keys(&p_conf->p_opening->fundin_keys, &chain, wif);
+printf("chain: %d\n", chain);
+printf("get_chain: %d\n", ucoin_get_chain());
+        assert(ucoin_get_chain() == chain);
         //TODO: データ構造に無駄が多い
         //      スタックに置けないものを詰めていったせいだが、整理したいところだ。
         //

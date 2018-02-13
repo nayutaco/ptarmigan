@@ -62,10 +62,10 @@ using namespace boost;
 //#define M_DEBUG
 #define M_SPOIL_STDERR
 
-#define ARGS_GRAPH                          (3)     ///< [引数の数]graphviz用ファイル出力のみ
-#define ARGS_PAYMENT                        (6)     ///< [引数の数]routing(min_final_cltv_expiryはデフォルト)
-#define ARGS_PAY_AND_EXPIRY                 (7)     ///< [引数の数]routing(min_final_cltv_expiryは指定)
-#define ARGS_ALL                            (8)     ///< [引数の数]routing(min_final_cltv_expiry, payment_hash指定)
+#define ARGS_GRAPH                          (2)     ///< [引数の数]graphviz用ファイル出力のみ
+#define ARGS_PAYMENT                        (5)     ///< [引数の数]routing(min_final_cltv_expiryはデフォルト)
+#define ARGS_PAY_AND_EXPIRY                 (6)     ///< [引数の数]routing(min_final_cltv_expiryは指定)
+#define ARGS_ALL                            (7)     ///< [引数の数]routing(min_final_cltv_expiry, payment_hash指定)
 
 #define M_CLTV_INIT                         ((uint16_t)0xffff)
 #define M_SHADOW_ROUTE                      (0)     // shadow route extension
@@ -318,7 +318,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
  * @param[in]       p2      送金先node_id(NULLあり)
  *
  */
-static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
+static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
 {
     int ret;
     MDB_txn     *txn;
@@ -369,6 +369,20 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     db.txn = txn;
     ret = ln_lmdb_ver_check(&db, my_nodeid, &gtype);
     assert(ret == 0);
+
+    ln_set_genesishash(ucoin_util_get_genesis_block(gtype));
+    switch (gtype) {
+    case UCOIN_GENESIS_BTCMAIN:
+        ucoin_init(UCOIN_MAINNET, true);
+        break;
+    case UCOIN_GENESIS_BTCTEST:
+    case UCOIN_GENESIS_BTCREGTEST:
+        ucoin_init(UCOIN_TESTNET, true);
+        break;
+    default:
+        fprintf(fp_err, "fail: unknown chainhash in DB\n");
+        return false;
+    }
 
 #ifdef M_DEBUG
     fprintf(fp_err, "my node_id: ");
@@ -442,9 +456,9 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn_anno);
 
-
     mdb_env_close(mpDbAnno);
     mdb_env_close(mpDbEnv);
+    return true;
 }
 
 
@@ -492,7 +506,6 @@ int main(int argc, char* argv[])
     fp_err = stderr;
     uint64_t amtmsat;
 
-    const char *nettype;
     const char *dbdir;
     const char *my_node;
     const char *tgt_node;
@@ -500,57 +513,40 @@ int main(int argc, char* argv[])
     const char *payment_hash = NULL;
 
     if (argc == ARGS_GRAPH) {
-        nettype = argv[1];
-        dbdir = argv[2];
+        dbdir = argv[1];
         my_node = NULL;
         tgt_node = NULL;
         amount = NULL;
     } else if (argc >= ARGS_PAYMENT) {
-        nettype = argv[1];
-        dbdir = argv[2];
-        my_node = argv[3];
-        tgt_node = argv[4];
-        amount = argv[5];
+        dbdir = argv[1];
+        my_node = argv[2];
+        tgt_node = argv[3];
+        amount = argv[4];
         if (argc >= ARGS_PAY_AND_EXPIRY) {
-            mMinFinalCltvExpiry = (uint16_t)atoi(argv[6]);
+            mMinFinalCltvExpiry = (uint16_t)atoi(argv[5]);
         } else {
             mMinFinalCltvExpiry = LN_MIN_FINAL_CLTV_EXPIRY;
         }
         mMinFinalCltvExpiry += M_SHADOW_ROUTE;
         //fprintf(fp_err, "min_final_cltv_expiry = %" PRIu16 "\n", mMinFinalCltvExpiry);
         if (argc == ARGS_ALL) {
-            payment_hash = argv[7];
+            payment_hash = argv[6];
         }
     } else {
         fprintf(fp_err, "usage:");
-        //                    1                         2
-        fprintf(fp_err, "\t%s [mainnet/testnet/regtest] [db dir] : output map dot file(route.dot)\n", argv[0]);
-        //                    1                         2        3               4               5
-        fprintf(fp_err, "\t%s [mainnet/testnet/regtest] [db dir] [payer node_id] [payee node_id] [amount_msat] : payment route(CSV)\n", argv[0]);
-        //                    1                         2        3               4               5             6
-        fprintf(fp_err, "\t%s [mainnet/testnet/regtest] [db dir] [payer node_id] [payee node_id] [amount_msat] [min_final_cltv_expiry] : payment route(CSV)\n", argv[0]);
-        //                    1                         2        3               4               5             6                       7
-        fprintf(fp_err, "\t%s [mainnet/testnet/regtest] [db dir] [payer node_id] [payee node_id] [amount_msat] [min_final_cltv_expiry] [payment_hash] : payment route(JSON)\n", argv[0]);
+        //                    1
+        fprintf(fp_err, "\t%s <db dir> : output map dot file(route.dot)\n", argv[0]);
+        //                    1        2               3               4
+        fprintf(fp_err, "\t%s <db dir> <payer node_id> <payee node_id> <amount_msat> : payment route(CSV)\n", argv[0]);
+        //                    1        2               3               4             5
+        fprintf(fp_err, "\t%s <db dir> <payer node_id> <payee node_id> <amount_msat> <min_final_cltv_expiry> : payment route(CSV)\n", argv[0]);
+        //                    1        2               3               4             5                       6
+        fprintf(fp_err, "\t%s <db dir> <payer node_id> <payee node_id> <amount_msat> <min_final_cltv_expiry> <payment_hash> : payment route(JSON)\n", argv[0]);
         return -1;
     }
 
-    if (strcmp(nettype, "mainnet") == 0) {
-        ln_set_genesishash(ucoin_util_get_genesis_block(UCOIN_GENESIS_BTCMAIN));
-        ucoin_init(UCOIN_MAINNET, true);
-    } else if (strcmp(nettype, "testnet") == 0) {
-        ln_set_genesishash(ucoin_util_get_genesis_block(UCOIN_GENESIS_BTCTEST));
-        ucoin_init(UCOIN_TESTNET, true);
-    } else if (strcmp(nettype, "regtest") == 0) {
-        ln_set_genesishash(ucoin_util_get_genesis_block(UCOIN_GENESIS_BTCREGTEST));
-        ucoin_init(UCOIN_TESTNET, true);
-    } else {
-        fprintf(fp_err, "mainnet or testnet only[%s]\n", nettype);
-        return -1;
-    }
-
+    bool ret;
     if (argc >= ARGS_PAYMENT) {
-        bool ret;
-
         ret = misc_str2bin(mMyNodeId, sizeof(mMyNodeId), my_node);
         if (!ret) {
             fprintf(fp_err, "invalid arg: payer node id\n");
@@ -572,7 +568,10 @@ int main(int argc, char* argv[])
 #endif  //M_SPOIL_STDERR
 
     if (argc >= ARGS_PAYMENT) {
-        loaddb(dbdir, mMyNodeId, mTgtNodeId);
+        ret = loaddb(dbdir, mMyNodeId, mTgtNodeId);
+        if (!ret) {
+            return -1;
+        }
 
         errno = 0;
         amtmsat = (uint64_t)strtoull(amount, NULL, 10);
@@ -588,7 +587,10 @@ int main(int argc, char* argv[])
         ucoin_util_dumpbin(fp_err, mTgtNodeId, UCOIN_SZ_PUBKEY, true);
 #endif
     } else {
-        loaddb(dbdir, NULL, NULL);
+        ret = loaddb(dbdir, NULL, NULL);
+        if (!ret) {
+            return -1;
+        }
     }
 
     graph_t g;

@@ -62,13 +62,14 @@ bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort,
 {
     bool ret;
     bool loadmode = true;
+    ucoin_chain_t chain;
     ucoin_buf_t buf_node;
     ucoin_buf_init(&buf_node);
 
     if (strlen(pWif) != 0) {
         DBG_PRINTF("load node.conf from file\n");
         loadmode = false;
-        ret = ucoin_util_wif2keys(&node->keys, pWif);
+        ret = ucoin_util_wif2keys(&node->keys, &chain, pWif);
         if (!ret) {
             goto LABEL_EXIT;
         }
@@ -81,7 +82,7 @@ bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort,
     ret = ln_db_init(pWif, pNodeName, pPort);
     if (ret) {
         if (loadmode) {
-            ret = ucoin_util_wif2keys(&node->keys, pWif);
+            ret = ucoin_util_wif2keys(&node->keys, &chain, pWif);
             if (!ret) {
                 goto LABEL_EXIT;
             }

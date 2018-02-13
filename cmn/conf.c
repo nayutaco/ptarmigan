@@ -116,9 +116,22 @@ void print_node_conf(const node_conf_t *pNodeConf, const rpc_conf_t *pRpcConf)
     fprintf(PRINTOUT, "rpcpasswd=%s\n", pRpcConf->rpcpasswd);
     fprintf(PRINTOUT, "rpcurl=%s\n", pRpcConf->rpcurl);
     ucoin_util_keys_t keys;
-    ucoin_util_wif2keys(&keys, pNodeConf->wif);
+    ucoin_chain_t chain;
+    ucoin_util_wif2keys(&keys, &chain, pNodeConf->wif);
     fprintf(PRINTOUT, "node_id=");
     ucoin_util_dumpbin(PRINTOUT, keys.pub, UCOIN_SZ_PUBKEY, true);
+    fprintf(PRINTOUT, "chain type: ");
+    switch (chain) {
+    case UCOIN_MAINNET:
+        fprintf(PRINTOUT, "mainnet\n");
+        break;
+    case UCOIN_TESTNET:
+        fprintf(PRINTOUT, "testnet\n");
+        break;
+    default:
+        fprintf(PRINTOUT, "unknown\n");
+        break;
+    }
     fprintf(PRINTOUT, "\n\n");
 }
 

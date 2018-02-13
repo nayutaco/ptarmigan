@@ -78,13 +78,13 @@ bitcoin-cli generate 6
 12. [ptarm]送金ルート準備
 
 ```bash
-./routing regtest node/dbucoin `./ucoind node/node.conf id` [c-lightning node_id] 10000 > node/pay.conf
+./routing node/dbucoin `./ucoind node/node.conf id` [c-lightning node_id] 10000 > node/pay.conf
 ```
 
 13. [ptarm]現在のamountを確認
 
 ```bash
-./showdb regtest w node/dbucoin
+./showdb w node/dbucoin
 ```
 
 14. [ptarm]送金
@@ -96,7 +96,7 @@ bitcoin-cli generate 6
 15. [ptarm]実施後のamountを確認
 
 ```bash
-./showdb regtest w node/dbucoin
+./showdb w node/dbucoin
 ```
 
 16. [ptarm]ptarmigan node_id取得

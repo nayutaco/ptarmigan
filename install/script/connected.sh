@@ -25,7 +25,7 @@ echo { \"method\": \"connected\", \"short_channel_id\": \"$1\", \"node_id\": \"$
 #fund_node=""
 #for elm in ${peer_array[@]}; do
 #    if [ $elm = $3 ]; then
-#        res=`../showdb testnet s | grep "peer_node_id" | grep -c $elm`
+#        res=`../showdb s | grep "peer_node_id" | grep -c $elm`
 #        if [ $res -eq 0 ]; then
 #            echo funding $elm
 #            CONF=~/.bitcoin/bitcoin.conf

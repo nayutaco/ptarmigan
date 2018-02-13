@@ -99,11 +99,11 @@ void ucoin_util_random(uint8_t *pData, uint16_t Len)
 }
 
 
-bool ucoin_util_wif2keys(ucoin_util_keys_t *pKeys, const char *pWifPriv)
+bool ucoin_util_wif2keys(ucoin_util_keys_t *pKeys, ucoin_chain_t *pChain, const char *pWifPriv)
 {
     bool ret;
 
-    ret = ucoin_keys_wif2priv(pKeys->priv, pWifPriv);
+    ret = ucoin_keys_wif2priv(pKeys->priv, pChain, pWifPriv);
     if (ret) {
         ret = ucoin_keys_priv2pub(pKeys->pub, pKeys->priv);
     }

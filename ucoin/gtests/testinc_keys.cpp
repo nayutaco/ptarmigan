@@ -119,10 +119,12 @@ TEST_F(keys, keys_1)
     uint8_t pkh2[UCOIN_SZ_PUBKEYHASH];
     char addr[UCOIN_SZ_ADDR_MAX];
     char waddr[UCOIN_SZ_ADDR_MAX];
+    ucoin_chain_t chain;
 
-    ret = ucoin_keys_wif2priv(priv, WIF);
+    ret = ucoin_keys_wif2priv(priv, &chain, WIF);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PRIV, priv, sizeof(PRIV)));
+    ASSERT_EQ(UCOIN_TESTNET, chain);
 
     char wif[UCOIN_SZ_WIF_MAX];
     ret = ucoin_keys_priv2wif(wif, priv);

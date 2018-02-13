@@ -367,8 +367,9 @@ bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t
 
 bool ln_set_funding_wif(ln_self_t *self, const char *pWif)
 {
-    bool ret = ucoin_util_wif2keys(&self->funding_local.keys[MSG_FUNDIDX_FUNDING], pWif);
-    if (!ret) {
+    ucoin_chain_t chain;
+    bool ret = ucoin_util_wif2keys(&self->funding_local.keys[MSG_FUNDIDX_FUNDING], &chain, pWif);
+    if (!ret || (ucoin_get_chain() != chain)) {
         self->err = LNERR_INV_PRIVKEY;
     }
     //DBG_PRINTF("funding wif: %s\n", pWif);

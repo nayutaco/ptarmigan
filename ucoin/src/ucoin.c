@@ -67,7 +67,7 @@ static mbedtls_entropy_context mEntropy;
  * public functions
  **************************************************************************/
 
-bool ucoin_init(uint8_t net, bool bSegNative)
+bool ucoin_init(ucoin_chain_t chain, bool bSegNative)
 {
     bool ret = false;
 
@@ -77,8 +77,8 @@ bool ucoin_init(uint8_t net, bool bSegNative)
         return false;
     }
 
-    mPref[UCOIN_PREF] = net;
-    switch (net) {
+    mPref[UCOIN_PREF] = (uint8_t)chain;
+    switch (chain) {
     case UCOIN_TESTNET:
         //DBG_PRINTF("[testnet]\n");
         mPref[UCOIN_PREF_WIF] = 0xef;
@@ -98,7 +98,7 @@ bool ucoin_init(uint8_t net, bool bSegNative)
         ret = true;
         break;
     default:
-        DBG_PRINTF("unknown net\n");
+        DBG_PRINTF("unknown chain\n");
         assert(0);
     }
 
@@ -134,6 +134,12 @@ bool ucoin_init(uint8_t net, bool bSegNative)
 
 void ucoin_term(void)
 {
-    mPref[UCOIN_PREF_WIF] = 0;
+    mPref[UCOIN_PREF_WIF] = UCOIN_UNKNOWN;
     //DBG_PRINTF("\n");
+}
+
+
+ucoin_chain_t ucoin_get_chain(void)
+{
+    return mPref[UCOIN_PREF];
 }

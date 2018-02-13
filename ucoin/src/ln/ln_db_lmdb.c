@@ -2006,17 +2006,28 @@ int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId, ucoin_genesis_t *pG
     uint8_t genesis[LN_SZ_HASH];
     retval = ver_check(pDb, wif, alias, &port, genesis);
     if (retval == 0) {
-        if (pMyNodeId != NULL) {
-            ucoin_util_keys_t key;
-            bool ret = ucoin_util_wif2keys(&key, wif);
-            if (ret) {
-                memcpy(pMyNodeId, key.pub, UCOIN_SZ_PUBKEY);
-            } else {
-                retval = -1;
-            }
+        ucoin_util_keys_t key;
+        ucoin_chain_t chain;
+
+        ucoin_genesis_t gtype = ucoin_util_get_genesis(genesis);
+        bool ret = ucoin_util_wif2keys(&key, &chain, wif);
+        if (
+          ((chain == UCOIN_MAINNET) && (gtype == UCOIN_GENESIS_BTCMAIN)) ||
+          ((chain == UCOIN_TESTNET) && (
+                (gtype == UCOIN_GENESIS_BTCTEST) || (gtype == UCOIN_GENESIS_BTCREGTEST)) ) ) {
+            //ok
+        } else {
+            ret = false;
         }
-        if (pGType != NULL) {
-            *pGType = ucoin_util_get_genesis(genesis);
+        if (ret) {
+            if (pMyNodeId != NULL) {
+                memcpy(pMyNodeId, key.pub, UCOIN_SZ_PUBKEY);
+            }
+            if (pGType != NULL) {
+                *pGType = gtype;
+            }
+        } else {
+            retval = -1;
         }
     }
 

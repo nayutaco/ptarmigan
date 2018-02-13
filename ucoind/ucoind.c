@@ -115,7 +115,20 @@ int main(int argc, char *argv[])
 
     if (argc == 3) {
         ucoin_util_keys_t keys;
-        ucoin_util_wif2keys(&keys, node_conf.wif);
+        ucoin_chain_t chain;
+        ucoin_util_wif2keys(&keys, &chain, node_conf.wif);
+        fprintf(stderr, "chain type: ");
+        switch (chain) {
+        case UCOIN_MAINNET:
+            fprintf(stderr, "mainnet\n");
+            break;
+        case UCOIN_TESTNET:
+            fprintf(stderr, "testnet\n");
+            break;
+        default:
+            fprintf(stderr, "unknown\n");
+            break;
+        }
 
         if (strcmp(argv[2], "id") == 0) {
             //node_id出力
@@ -178,6 +191,8 @@ int main(int argc, char *argv[])
         DBG_PRINTF("fail: node init\n");
         return -2;
     }
+
+
     ln_print_node(&mNode);
     lnapp_init(&mNode);
 

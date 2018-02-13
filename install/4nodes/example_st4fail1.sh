@@ -1,5 +1,4 @@
 #!/bin/sh
-NETTYPE=regtest
 ROUTECONF=pay_route.conf
 AMOUNT=100000
 PAY_BEGIN=4444
@@ -13,7 +12,7 @@ PAYEE_PORT=$(( ${PAY_END} + 1 ))
 echo 途中のノードがないため、中継ノードで失敗する
 
 
-./routing $NETTYPE $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT
+./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
@@ -21,7 +20,7 @@ fi
 
 echo -n hash= > $ROUTECONF
 echo `./ucoincli -i $AMOUNT $PAYEE_PORT` | jq '.result.hash' | sed -e 's/\"//g' >> $ROUTECONF
-./routing $NETTYPE $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
+./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
 
 # 強制的に中間のノードを終了させる
 ./ucoincli -q 5556

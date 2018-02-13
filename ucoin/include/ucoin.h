@@ -66,9 +66,6 @@ extern "C" {
 #define UCOIN_SZ_CHAINCODE      (32)            ///< サイズ:拡張鍵chaincode
 #define UCOIN_SZ_EKEY_ADDR_MAX  (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
 
-#define UCOIN_MAINNET           (1)             ///< #ucoin_init() : main net
-#define UCOIN_TESTNET           (2)             ///< #ucoin_init() : test net3
-
 #define UCOIN_PREF              (0)             ///< Prefix: 1:mainnet, 2:testnet
 #define UCOIN_PREF_WIF          (1)             ///< Prefix: WIF
 #define UCOIN_PREF_P2PKH        (2)             ///< Prefix: P2PKH
@@ -159,6 +156,16 @@ extern "C" {
 /**************************************************************************
  * types
  **************************************************************************/
+
+/** @enum   ucoin_chain_t
+ *  @brief  blockchain種別
+ */
+typedef enum {
+    UCOIN_UNKNOWN,
+    UCOIN_MAINNET,          ///< mainnet
+    UCOIN_TESTNET           ///< testnet, regtest
+} ucoin_chain_t;
+
 
 /** @struct ucoin_buf_t
  *  @brief  バッファ管理構造体
@@ -266,10 +273,10 @@ typedef enum {
 
 /** 初期化
  *
- * @param[in]       net             UCOIN_MAINNET / UCOIN_TESTNET
+ * @param[in]       chain           UCOIN_MAINNET / UCOIN_TESTNET
  * @param[in]       bSegNative      true:segwit native transaction
  */
-bool ucoin_init(uint8_t net, bool bSegNative);
+bool ucoin_init(ucoin_chain_t net, bool bSegNative);
 
 
 /** 終了
@@ -279,6 +286,12 @@ bool ucoin_init(uint8_t net, bool bSegNative);
 void ucoin_term(void);
 
 
+/** blockchain種別取得
+ *
+ */
+ucoin_chain_t ucoin_get_chain(void);
+
+
 //////////////////////
 //KEYS
 //////////////////////
@@ -286,13 +299,14 @@ void ucoin_term(void);
 /** WIF形式秘密鍵をRAW形式に変換
  *
  * @param[out]      pPrivKey        変換後データ(UCOIN_SZ_PRIVKEY以上のサイズが必要)
+ * @param[out]      pChain          WIFのblockchain種別
  * @param[in]       pWifPriv        対象データ(\0 terminate)
  * @return      true:成功
  *
  * @note
  *      - #ucoin_init()の設定と一致しない場合、abortする
  */
-bool ucoin_keys_wif2priv(uint8_t *pPrivKey, const char *pWifPriv);
+bool ucoin_keys_wif2priv(uint8_t *pPrivKey, ucoin_chain_t *pChain, const char *pWifPriv);
 
 
 /** RAW秘密鍵をWI形式秘密鍵に変換
@@ -1164,10 +1178,11 @@ void ucoin_util_random(uint8_t *pData, uint16_t Len);
 /** WIFからの鍵生成
  *
  * @param[out]      pKeys           鍵情報
+ * @param[out]      pChain          WIF種別
  * @param[in]       pWifPriv        WIF形式秘密鍵
  * @return      true    成功
  */
-bool ucoin_util_wif2keys(ucoin_util_keys_t *pKeys, const char *pWifPriv);
+bool ucoin_util_wif2keys(ucoin_util_keys_t *pKeys, ucoin_chain_t *pChain, const char *pWifPriv);
 
 
 /** 乱数での鍵生成

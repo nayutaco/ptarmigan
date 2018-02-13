@@ -104,10 +104,12 @@ TEST_F(ln_bolt3_b, fuding2)
     };
 
     bool ret;
+    ucoin_chain_t chain;
 
-    ret = ucoin_util_wif2keys(&keys, WIF_PRIV);
+    ret = ucoin_util_wif2keys(&keys, &chain, WIF_PRIV);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PRIV, keys.priv, sizeof(PRIV)));
+    ASSERT_EQ(UCOIN_TESTNET, chain);
 }
 
 

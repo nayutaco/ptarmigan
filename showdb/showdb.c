@@ -381,8 +381,8 @@ int main(int argc, char *argv[])
     strcpy(annopath, LNDB_ANNOENV);
 
     int env = -1;
-    if (argc >= 3) {
-        switch (argv[2][0]) {
+    if (argc >= 2) {
+        switch (argv[1][0]) {
         case 's':
             showflag = SHOW_SELF;
             env = 0;
@@ -408,7 +408,7 @@ int main(int argc, char *argv[])
             env = 0;
             break;
         case '9':
-            switch (argv[2][1]) {
+            switch (argv[1][1]) {
             case '1':
                 showflag = SHOW_CNLANNO;
                 env = 1;
@@ -425,35 +425,21 @@ int main(int argc, char *argv[])
             break;
         }
 
-        if (argc >= 4) {
-            if (argv[3][strlen(argv[3]) - 1] == '/') {
-                argv[3][strlen(argv[3]) - 1] = '\0';
+        if (argc >= 3) {
+            if (argv[2][strlen(argv[2]) - 1] == '/') {
+                argv[2][strlen(argv[2]) - 1] = '\0';
             }
-            sprintf(dbpath, "%s%s", argv[3], LNDB_DBENV_DIR);
-            sprintf(annopath, "%s%s", argv[3], LNDB_ANNOENV_DIR);
+            sprintf(dbpath, "%s%s", argv[2], LNDB_DBENV_DIR);
+            sprintf(annopath, "%s%s", argv[2], LNDB_ANNOENV_DIR);
         }
     } else {
         fprintf(stderr, "usage:\n");
-        fprintf(stderr, "\t%s [mainnet/testnet/regtest] [option] [db dir]\n", argv[0]);
+        fprintf(stderr, "\t%s <option> [<db dir>]\n", argv[0]);
         fprintf(stderr, "\t\twallet  : show wallet info\n");
         fprintf(stderr, "\t\tself    : show self info\n");
         fprintf(stderr, "\t\tchannel : show channel info\n");
         fprintf(stderr, "\t\tnode    : show node info\n");
         fprintf(stderr, "\t\tversion : version\n");
-        return -1;
-    }
-
-    if (strcmp(argv[1], "mainnet") == 0) {
-        ln_set_genesishash(ucoin_util_get_genesis_block(UCOIN_GENESIS_BTCMAIN));
-        ucoin_init(UCOIN_MAINNET, true);
-    } else if (strcmp(argv[1], "testnet") == 0) {
-        ln_set_genesishash(ucoin_util_get_genesis_block(UCOIN_GENESIS_BTCTEST));
-        ucoin_init(UCOIN_TESTNET, true);
-    } else if (strcmp(argv[1], "regtest") == 0) {
-        ln_set_genesishash(ucoin_util_get_genesis_block(UCOIN_GENESIS_BTCREGTEST));
-        ucoin_init(UCOIN_TESTNET, true);
-    } else {
-        fprintf(fp_err, "mainnet or testnet only[%s]\n", argv[1]);
         return -1;
     }
 
@@ -490,6 +476,20 @@ int main(int argc, char *argv[])
         return -1;
     }
     mdb_txn_abort(txn);
+
+    ln_set_genesishash(ucoin_util_get_genesis_block(gtype));
+    switch (gtype) {
+    case UCOIN_GENESIS_BTCMAIN:
+        ucoin_init(UCOIN_MAINNET, true);
+        break;
+    case UCOIN_GENESIS_BTCTEST:
+    case UCOIN_GENESIS_BTCREGTEST:
+        ucoin_init(UCOIN_TESTNET, true);
+        break;
+    default:
+        fprintf(fp_err, "fail: unknown chainhash in DB\n");
+        return -1;
+    }
 
     ret = mdb_txn_begin(p_env, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
