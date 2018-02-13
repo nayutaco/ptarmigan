@@ -30,6 +30,7 @@ extern "C" {
 #endif  //__cplusplus
 
 
+void load_node_init(node_conf_t *pNodeConf, rpc_conf_t *pRpcConf, ln_nodeaddr_t *pAddr);
 bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *pRpcConf, ln_nodeaddr_t *pAddr);
 void print_node_conf(const node_conf_t *pNodeConf, const rpc_conf_t *pRpcConf);
 

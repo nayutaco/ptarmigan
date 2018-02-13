@@ -71,9 +71,8 @@ static bool chk_nonzero(const uint8_t *pData, int Len);
  * node.conf
  ********************/
 
-bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *pRpcConf, ln_nodeaddr_t *pAddr)
+void load_node_init(node_conf_t *pNodeConf, rpc_conf_t *pRpcConf, ln_nodeaddr_t *pAddr)
 {
-    struct node_confs_t node_confs = { pNodeConf, pRpcConf, pAddr };
     memset(pNodeConf, 0, sizeof(node_conf_t));
     memset(pRpcConf, 0, sizeof(rpc_conf_t));
     memset(pAddr, 0, sizeof(ln_nodeaddr_t));
@@ -84,6 +83,12 @@ bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *p
 #elif NETKIND==1
     pRpcConf->rpcport = 18332;
 #endif
+}
+
+
+bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *pRpcConf, ln_nodeaddr_t *pAddr)
+{
+    struct node_confs_t node_confs = { pNodeConf, pRpcConf, pAddr };
 
     if (ini_parse(pConfFile, handler_node_conf, &node_confs) != 0) {
         SYSLOG_ERR("fail node parse[%s]", pConfFile);

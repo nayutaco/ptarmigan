@@ -61,29 +61,33 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
 bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t Features)
 {
     bool ret;
+    bool loadmode = true;
     ucoin_buf_t buf_node;
     ucoin_buf_init(&buf_node);
 
-    if (pWif != NULL) {
+    if (strlen(pWif) != 0) {
+        DBG_PRINTF("load node.conf from file\n");
+        loadmode = false;
         ret = ucoin_util_wif2keys(&node->keys, pWif);
-        assert(ret);
         if (!ret) {
             goto LABEL_EXIT;
         }
-    } else {
-        DBG_PRINTF("fail: no node secretkey\n");
-        goto LABEL_EXIT;
-    }
-    if (pNodeName != NULL) {
         strcpy(node->alias, pNodeName);
     } else {
-        DBG_PRINTF("fail: no node name\n");
-        goto LABEL_EXIT;
+        DBG_PRINTF("load node.conf from DB\n");
     }
     node->features = Features;
 
     ret = ln_db_init(pWif, pNodeName, pPort);
-    if (!ret) {
+    if (ret) {
+        if (loadmode) {
+            ret = ucoin_util_wif2keys(&node->keys, pWif);
+            if (!ret) {
+                goto LABEL_EXIT;
+            }
+            strcpy(node->alias, pNodeName);
+        }
+    } else {
         DBG_PRINTF("fail: db init\n");
         goto LABEL_EXIT;
     }
@@ -133,7 +137,6 @@ bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort,
 
 LABEL_EXIT:
     ucoin_buf_free(&buf_node);
-    assert(ret);
     return ret;
 }
 

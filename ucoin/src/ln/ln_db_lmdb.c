@@ -343,7 +343,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
     retval = mdb_dbi_open(db.txn, LNDBI_VERSION, 0, &db.dbi);
     if (retval != 0) {
         //新規の場合は保存する
-        if (pWif == NULL) {
+        if (strlen(pWif) == 0) {
             DBG_PRINTF("FAIL: no node_wif\n");
             MDB_TXN_ABORT(db.txn);
             goto LABEL_EXIT;
@@ -2680,10 +2680,13 @@ static int ver_write(MDB_txn *txn, const char *pWif, const char *pNodeName, uint
     retval = mdb_put(txn, dbi, &key, &data, 0);
 
     //my node info
-    if ((retval == 0) && pWif) {
+    if ((retval == 0) && (pWif != NULL)) {
         key.mv_size = LNDBK_LEN(LNDBK_NODEID);
         key.mv_data = LNDBK_NODEID;
 
+        // DBG_PRINTF("wif=%s\n", pWif);
+        // DBG_PRINTF("name=%s\n", pNodeName);
+        // DBG_PRINTF("port=%" PRIu16 "\n", Port);
         nodeinfo_t nodeinfo;
         strcpy(nodeinfo.wif, pWif);
         strcpy(nodeinfo.name, pNodeName);
@@ -2734,6 +2737,9 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
             strcpy(pWif, p_nodeinfo->wif);
             strcpy(pNodeName, p_nodeinfo->name);
             *pPort = p_nodeinfo->port;
+            // DBG_PRINTF("wif=%s\n", pWif);
+            // DBG_PRINTF("name=%s\n", pNodeName);
+            // DBG_PRINTF("port=%" PRIu16 "\n", *pPort);
         }
     }
 

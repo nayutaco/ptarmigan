@@ -81,15 +81,15 @@ int main(int argc, char *argv[])
 
         char wif[UCOIN_SZ_WIF_MAX];
         ucoin_keys_priv2wif(wif, priv);
-        printf("wif=%s\n", wif);
+        printf("%s\n", wif);
 
         uint8_t pub[UCOIN_SZ_PUBKEY];
         ucoin_keys_priv2pub(pub, priv);
-        fprintf(stderr, "pubkey= ");
+        printf(" ");
         for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-            fprintf(stderr, "%02x", pub[lp]);
+            printf("%02x", pub[lp]);
         }
-        fprintf(stderr, "\n");
+        printf("\n");
 
         ucoin_term();
         return 0;
@@ -97,14 +97,13 @@ int main(int argc, char *argv[])
 
     rpc_conf_t rpc_conf;
     node_conf_t node_conf;
+    load_node_init(&node_conf, &rpc_conf, ln_node_addr(&mNode));
+
     if (argc >= 2) {
         bret = load_node_conf(argv[1], &node_conf, &rpc_conf, ln_node_addr(&mNode));
         if (!bret) {
             goto LABEL_EXIT;
         }
-    } else {
-        memset(&rpc_conf, 0, sizeof(rpc_conf));
-        memset(&node_conf, 0, sizeof(node_conf));
     }
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
         //bitcoin.confから読込む

@@ -15,4 +15,4 @@ clean:
 .Depend:
 	@$(CC) $(CFLAGS) -MM -MT $(SRC:%.c=%) $(SRC) > .Depend
 
-include .Depend
+-include .Depend
