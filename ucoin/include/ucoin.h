@@ -251,6 +251,15 @@ typedef enum {
 } ucoin_keys_sort_t;
 
 
+/** @enum ucoin_genesis_t */
+typedef enum {
+    UCOIN_GENESIS_UNKNOWN,          ///< 不明
+    UCOIN_GENESIS_BTCMAIN,          ///< Bitcoin mainnet
+    UCOIN_GENESIS_BTCTEST,          ///< Bitcoin testnet
+    UCOIN_GENESIS_BTCREGTEST,       ///< Bitcoin regtest
+} ucoin_genesis_t;
+
+
 /**************************************************************************
  * prototypes
  **************************************************************************/
@@ -1287,6 +1296,22 @@ bool ucoin_util_sign_p2wsh_3_2of2(ucoin_tx_t *pTx, int Index, ucoin_keys_sort_t 
  * @param[in,out]   pTx     処理対象のトランザクション
  */
 void ucoin_util_sort_bip69(ucoin_tx_t *pTx);
+
+
+/** ブロックチェーン種別取得
+ *
+ * @param[in]       pGenesisHash
+ * @return      ブロックチェーン種別
+ */
+ucoin_genesis_t ucoin_util_get_genesis(const uint8_t *pGenesisHash);
+
+
+/** ブロックチェーンハッシュ取得
+ *
+ * @param[in]       Kind
+ * @return      ブロックチェーンハッシュ(未知のKindの場合はNULL)
+ */
+const uint8_t *ucoin_util_get_genesis_block(ucoin_genesis_t Kind);
 
 
 #if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)

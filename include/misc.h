@@ -61,19 +61,6 @@ extern "C" {
 
 
 /**************************************************************************
- * typedefs
- **************************************************************************/
-
-/** @enum misc_genesis_t */
-typedef enum {
-    MISC_GENESIS_UNKNOWN,           ///< 不明
-    MISC_GENESIS_BTCMAIN,           ///< Bitcoin mainnet
-    MISC_GENESIS_BTCTEST,           ///< Bitcoin testnet
-    MISC_GENESIS_BTCREGTEST,        ///< Bitcoin regtest
-} misc_genesis_t;
-
-
-/**************************************************************************
  * prototypes
  **************************************************************************/
 
@@ -121,22 +108,6 @@ bool misc_str2bin(uint8_t *pBin, uint16_t BinLen, const char *pStr);
  * @param[out]      pStr        元データ
  */
 bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr);
-
-
-/** ブロックチェーン種別取得
- *
- * @param[in]       pGenesisHash
- * @return      ブロックチェーン種別
- */
-misc_genesis_t misc_get_genesis(const uint8_t *pGenesisHash);
-
-
-/** ブロックチェーンハッシュ取得
- *
- * @param[in]       Kind
- * @return      ブロックチェーンハッシュ(未知のKindの場合はNULL)
- */
-const uint8_t *misc_get_genesis_block(misc_genesis_t Kind);
 
 
 /** JSON-RPC送信

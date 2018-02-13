@@ -736,8 +736,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     SYSLOG_INFO("routepay");
 
     const uint8_t *p_gen = ln_get_genesishash();
-    misc_genesis_t blktype = misc_get_genesis(p_gen);
-    if (blktype == MISC_GENESIS_UNKNOWN) {
+    ucoin_genesis_t blktype = ucoin_util_get_genesis(p_gen);
+    if (blktype == UCOIN_GENESIS_UNKNOWN) {
         index = -1;
         goto LABEL_EXIT;
     }

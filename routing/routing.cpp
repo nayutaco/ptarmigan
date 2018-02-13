@@ -534,13 +534,13 @@ int main(int argc, char* argv[])
     }
 
     if (strcmp(nettype, "mainnet") == 0) {
-        ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCMAIN));
+        ln_set_genesishash(ucoin_util_get_genesis_block(UCOIN_GENESIS_BTCMAIN));
         ucoin_init(UCOIN_MAINNET, true);
     } else if (strcmp(nettype, "testnet") == 0) {
-        ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCTEST));
+        ln_set_genesishash(ucoin_util_get_genesis_block(UCOIN_GENESIS_BTCTEST));
         ucoin_init(UCOIN_TESTNET, true);
     } else if (strcmp(nettype, "regtest") == 0) {
-        ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCREGTEST));
+        ln_set_genesishash(ucoin_util_get_genesis_block(UCOIN_GENESIS_BTCREGTEST));
         ucoin_init(UCOIN_TESTNET, true);
     } else {
         fprintf(fp_err, "mainnet or testnet only[%s]\n", nettype);
