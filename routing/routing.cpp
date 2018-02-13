@@ -36,9 +36,6 @@
 #include <sys/types.h>
 #include <assert.h>
 
-//#define M_DEBUG
-#define M_SPOIL_STDERR
-
 #include "ucoind.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
@@ -62,30 +59,22 @@ using namespace boost;
  * macros
  **************************************************************************/
 
+//#define M_DEBUG
+#define M_SPOIL_STDERR
+
 #define ARGS_GRAPH                          (3)     ///< [引数の数]graphviz用ファイル出力のみ
 #define ARGS_PAYMENT                        (6)     ///< [引数の数]routing(min_final_cltv_expiryはデフォルト)
 #define ARGS_PAY_AND_EXPIRY                 (7)     ///< [引数の数]routing(min_final_cltv_expiryは指定)
 #define ARGS_ALL                            (8)     ///< [引数の数]routing(min_final_cltv_expiry, payment_hash指定)
-
-#define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
-#define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
-#define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
-#define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
 
 #define M_CLTV_INIT                         ((uint16_t)0xffff)
 #define M_SHADOW_ROUTE                      (0)     // shadow route extension
                                                     //  攪乱するためにオフセットとして加算するCLTV
                                                     //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendations-for-routing
 
-#define M_LMDB_DIR              "./dbucoin"
-#define M_LMDB_ENV_DIR          "/dbucoin"
-#define M_LMDB_ANNO_DIR         "/dbucoin_anno"
-#define M_LMDB_ENV              M_LMDB_DIR M_LMDB_ENV_DIR       ///< LMDB名(announce以外)
-#define M_LMDB_ANNO             M_LMDB_DIR M_LMDB_ANNO_DIR      ///< LMDB名(announce)
-
 
 /**************************************************************************
- * prototypes
+ * typedefs
  **************************************************************************/
 
 extern "C" {
@@ -148,7 +137,7 @@ static FILE *fp_err;
 
 
 /********************************************************************
- * misc
+ * functions
  ********************************************************************/
 
 #ifdef M_DEBUG
@@ -346,8 +335,8 @@ static void loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
         dbpath[len - 1] = '\0';
     }
     strcpy(annopath, dbpath);
-    strcat(dbpath, M_LMDB_ENV_DIR);
-    strcat(annopath, M_LMDB_ANNO_DIR);
+    strcat(dbpath, LNDB_DBENV_DIR);
+    strcat(annopath, LNDB_ANNOENV_DIR);
 
     ret = mdb_env_create(&mpDbEnv);
     assert(ret == 0);
@@ -495,7 +484,7 @@ static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 
 
 /********************************************************************
- *
+ * main entry
  ********************************************************************/
 
 int main(int argc, char* argv[])

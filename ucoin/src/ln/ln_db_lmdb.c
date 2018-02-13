@@ -49,12 +49,8 @@
 #define M_LMDB_MAXDBS           (2 * 10)        ///< 同時オープンできるDB数
                                                 //  channel
                                                 //  channel_anno
-#define M_LMDB_MAPSIZE          ((uint64_t)4294967296)      //DB最大長[byte]
-                                                // mdb_txn_commit()でMDB_MAP_FULLになったため拡張
-
-#define M_LMDB_DIR              "./dbucoin"
-#define M_LMDB_ENV              M_LMDB_DIR "/dbucoin"       ///< LMDB名(announce以外)
-#define M_LMDB_ANNO             M_LMDB_DIR "/dbucoin_anno"  ///< LMDB名(announce)
+#define M_LMDB_MAPSIZE          ((uint64_t)4294967296)      // DB最大長[byte]
+                                                            // mdb_txn_commit()でMDB_MAP_FULLになったため拡張
 
 #define M_PREFIX_LEN            (2)
 #define M_CHANNEL_NAME          "CN"            ///< channel
@@ -64,6 +60,15 @@
 #define M_SZ_DBNAME_LEN         (M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1)
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
+
+//DB名
+#define LNDBI_ANNO_CNL          "channel_anno"
+#define LNDBI_ANNOINFO_CNL      "channel_annoinfo"
+#define LNDBI_ANNO_NODE         "node_anno"
+#define LNDBI_ANNOINFO_NODE     "node_annoinfo"
+#define LNDBI_PREIMAGE          "preimage"
+#define LNDBI_PAYHASH           "payhash"
+#define LNDBI_VERSION           "version"
 
 #define M_DB_VERSION_VAL        (-14)           ///< DBバージョン
 /*
@@ -278,11 +283,11 @@ bool HIDDEN ln_db_init(const uint8_t *pMyNodeId)
             goto LABEL_EXIT;
         }
 
-        mkdir(M_LMDB_DIR, 0755);
-        mkdir(M_LMDB_ENV, 0755);
-        mkdir(M_LMDB_ANNO, 0755);
+        mkdir(LNDB_DBDIR, 0755);
+        mkdir(LNDB_DBENV, 0755);
+        mkdir(LNDB_ANNOENV, 0755);
 
-        retval = mdb_env_open(mpDbEnv, M_LMDB_ENV, 0, 0644);
+        retval = mdb_env_open(mpDbEnv, LNDB_DBENV, 0, 0644);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
@@ -306,7 +311,7 @@ bool HIDDEN ln_db_init(const uint8_t *pMyNodeId)
             goto LABEL_EXIT;
         }
 
-        retval = mdb_env_open(mpDbAnno, M_LMDB_ANNO, 0, 0644);
+        retval = mdb_env_open(mpDbAnno, LNDB_ANNOENV, 0, 0644);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;

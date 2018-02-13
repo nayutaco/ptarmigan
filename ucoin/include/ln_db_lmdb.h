@@ -39,27 +39,25 @@ extern "C" {
  * LMDB
  ********************************************************************/
 
-#define LNDBI_ANNO_CNL          "channel_anno"
-#define LNDBI_ANNOINFO_CNL      "channel_annoinfo"
-#define LNDBI_ANNO_NODE         "node_anno"
-#define LNDBI_ANNOINFO_NODE     "node_annoinfo"
-#define LNDBI_PREIMAGE          "preimage"
-#define LNDBI_PAYHASH           "payhash"
-#define LNDBI_VERSION           "version"
+//key名
+#define LNDBK_SELF1             "self1"         ///< [self]パラメータ
+#define M_DBK_SELF2             "self2"         ///< [self]スクリプト
+#define LNDBK_RVV               "rvv"           ///< [revoked]vout
+#define LNDBK_RVW               "rvw"           ///< [revoked]witness
+#define LNDBK_RVS               "rvs"           ///< [revoked]script
+#define LNDBK_RVN               "rvn"           ///< [revoked]num
+#define LNDBK_RVC               "rvc"           ///< [revoked]count
+#define LNDBK_VER               "ver"           ///< [version]version
+#define LNDBK_NODEID            "mynodeid"      ///< [version]自node_id
 
-#define LNDBK_LEN(key)          (sizeof(key))       //\0も含む
-#define LNDBK_SELF1             "self1"
-#define M_DBK_SELF2             "self2"
-//
-#define LNDBK_RLEN              (3)
-#define LNDBK_RVV               "rvv"
-#define LNDBK_RVW               "rvw"
-#define LNDBK_RVS               "rvs"
-#define LNDBK_RVN               "rvn"
-#define LNDBK_RVC               "rvc"
-//
-#define LNDBK_VER               "ver"
-#define LNDBK_NODEID            "mynodeid"
+#define LNDBK_LEN(key)          (sizeof(key) - 1)       ///< key長
+#define LNDBK_RLEN              (3)                     ///< [revoked]key長
+
+#define LNDB_DBDIR              "./dbucoin"
+#define LNDB_DBENV_DIR          "/dbucoin"
+#define LNDB_ANNOENV_DIR        "/dbucoin_anno"
+#define LNDB_DBENV              LNDB_DBDIR LNDB_DBENV_DIR   ///< LMDB名(announce以外)
+#define LNDB_ANNOENV            LNDB_DBDIR LNDB_ANNOENV_DIR ///< LMDB名(announce)
 
 
 /**************************************************************************

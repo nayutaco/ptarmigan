@@ -42,31 +42,15 @@
 
 #define M_SPOIL_STDERR
 
-#define M_LMDB_DIR              "./dbucoin"
-#define M_LMDB_ENV_DIR          "/dbucoin"
-#define M_LMDB_ANNO_DIR         "/dbucoin_anno"
-#define M_LMDB_ENV              M_LMDB_DIR M_LMDB_ENV_DIR       ///< LMDB名(announce以外)
-#define M_LMDB_ANNO             M_LMDB_DIR M_LMDB_ANNO_DIR      ///< LMDB名(announce)
 
-#define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
-#define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
-#define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
-#define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
+/********************************************************************
+ * macros
+ ********************************************************************/
 
 #define M_NEXT              ","
 #define M_QQ(str)           "\"" str "\""
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
-
-
-void ln_print_wallet(const ln_self_t *self);
-void ln_print_self(const ln_self_t *self);
-void ln_print_announce(const uint8_t *pData, uint16_t Len);
-void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
-void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
-void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
-
-
 
 #define SHOW_SELF               (0x0001)
 #define SHOW_WALLET             (0x0002)
@@ -83,6 +67,23 @@ void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
 
 #define SHOW_DEFAULT        (SHOW_SELF)
 
+
+/********************************************************************
+ * prototypes
+ ********************************************************************/
+
+void ln_print_wallet(const ln_self_t *self);
+void ln_print_self(const ln_self_t *self);
+void ln_print_announce(const uint8_t *pData, uint16_t Len);
+void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
+void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
+void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
+
+
+/********************************************************************
+ * static variables
+ ********************************************************************/
+
 static uint16_t     showflag = SHOW_DEFAULT;
 static int          cnt0;
 static int          cnt1;
@@ -93,6 +94,10 @@ static MDB_env      *mpDbEnv = NULL;
 static MDB_env      *mpDbAnno = NULL;
 static FILE         *fp_err;
 
+
+/********************************************************************
+ * functions
+ ********************************************************************/
 
 static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
 {
@@ -337,16 +342,16 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
 
         MDB_val key, data;
 
-        key.mv_size = 3;
-        key.mv_data = "ver";
+        key.mv_size = LNDBK_LEN(LNDBK_VER);
+        key.mv_data = LNDBK_VER;
         int retval = mdb_get(txn, dbi, &key, &data);
         if (retval == 0) {
             int version = *(int *)data.mv_data;
             printf(M_QQ("version") ": [ %d\n", version);
         }
 
-        key.mv_size = 8;
-        key.mv_data = "mynodeid";
+        key.mv_size = LNDBK_LEN(LNDBK_NODEID);
+        key.mv_data = LNDBK_NODEID;
         retval = mdb_get(txn, dbi, &key, &data);
         if ((retval == 0) && (data.mv_size == UCOIN_SZ_PUBKEY)) {
             const uint8_t *p = (const uint8_t *)data.mv_data;
@@ -372,8 +377,8 @@ int main(int argc, char *argv[])
     char        dbpath[256];
     char        annopath[256];
 
-    strcpy(dbpath, M_LMDB_ENV);
-    strcpy(annopath, M_LMDB_ANNO);
+    strcpy(dbpath, LNDB_DBENV);
+    strcpy(annopath, LNDB_ANNOENV);
 
     int env = -1;
     if (argc >= 3) {
@@ -424,8 +429,8 @@ int main(int argc, char *argv[])
             if (argv[3][strlen(argv[3]) - 1] == '/') {
                 argv[3][strlen(argv[3]) - 1] = '\0';
             }
-            sprintf(dbpath, "%s%s", argv[3], M_LMDB_ENV_DIR);
-            sprintf(annopath, "%s%s", argv[3], M_LMDB_ANNO_DIR);
+            sprintf(dbpath, "%s%s", argv[3], LNDB_DBENV_DIR);
+            sprintf(annopath, "%s%s", argv[3], LNDB_ANNOENV_DIR);
         }
     } else {
         fprintf(stderr, "usage:\n");
