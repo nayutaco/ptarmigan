@@ -1435,7 +1435,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         bool ret = btcprc_get_short_channel_param(&bheight, &bindex, ln_funding_txid(p_conf->p_self));
         if (ret) {
             fprintf(PRINTOUT, "bindex=%d, bheight=%d\n", bindex, bheight);
-            ln_set_short_channel_id_param(self, bheight, bindex);
+            ln_set_short_channel_id_param(self, bheight, bindex, ln_funding_txindex(p_conf->p_self));
 
             //安定後
             ret = ln_funding_tx_stabled(self);
