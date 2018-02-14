@@ -80,8 +80,10 @@ TEST_F(send, p2pkh)
     ASSERT_TRUE(ret);
     uint8_t priv[UCOIN_SZ_PRIVKEY];
     const char WIF[] = "cR645M2xZJnE5mDWw5LpAghNLudXGZsCs4ZEUvRMr2NrHqU3rLWa";
-    ret = ucoin_keys_wif2priv(priv, WIF);
+    ucoin_chain_t chain;
+    ret = ucoin_keys_wif2priv(priv, &chain, WIF);
     ASSERT_TRUE(ret);
+    ASSERT_EQ(UCOIN_TESTNET, chain);
     ret = ucoin_tx_sign_p2pkh(&tx, 0, txhash, priv, NULL);
     ASSERT_TRUE(ret);
 
@@ -170,8 +172,10 @@ TEST_F(send, p2wpkh)
 
     ucoin_util_keys_t keys;
     const char WIF[] = "cW8SSTFrM42mX5YKHKbDfvXF5qEJrAgLoRTc68bNJo5GFDv6WvX1";
-    ret = ucoin_util_wif2keys(&keys, WIF);
+    ucoin_chain_t chain;
+    ret = ucoin_util_wif2keys(&keys, &chain, WIF);
     ASSERT_TRUE(ret);
+    ASSERT_EQ(UCOIN_TESTNET, chain);
     ret = ucoin_util_sign_p2wpkh(&tx, 0, UCOIN_MBTC2SATOSHI(3), &keys);
     ASSERT_TRUE(ret);
 
@@ -268,14 +272,17 @@ TEST_F(send, p2wsh)
     ucoin_tx_add_vin(&tx, TXID2, 0);
 
     ucoin_util_keys_t keys1;
+    ucoin_chain_t chain;
     const char WIF1[] = "cW8SSTFrM42mX5YKHKbDfvXF5qEJrAgLoRTc68bNJo5GFDv6WvX1";
-    ret = ucoin_util_wif2keys(&keys1, WIF1);
+    ret = ucoin_util_wif2keys(&keys1, &chain, WIF1);
     ASSERT_TRUE(ret);
+    ASSERT_EQ(UCOIN_TESTNET, chain);
 
     ucoin_util_keys_t keys2;
     const char WIF2[] = "cR645M2xZJnE5mDWw5LpAghNLudXGZsCs4ZEUvRMr2NrHqU3rLWa";
-    ret = ucoin_util_wif2keys(&keys2, WIF2);
+    ret = ucoin_util_wif2keys(&keys2, &chain, WIF2);
     ASSERT_TRUE(ret);
+    ASSERT_EQ(UCOIN_TESTNET, chain);
 
     //2-of-2
     ucoin_buf_t wit;

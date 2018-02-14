@@ -81,13 +81,13 @@ c-lightningから送金する場合は、6ブロック待たないといけな�
 12. [ptarm]送金ルート準備
 
 ```bash
-./routing testnet node/dbucoin `./ucoind node/node.conf id` [c-lightning node_id] 10000 > node/pay.conf
+./routing node/dbucoin `./ucoind node/node.conf id` [c-lightning node_id] 10000 > node/pay.conf
 ```
 
 13. [ptarm]現在のamountを確認
 
 ```bash
-./showdb testnet w node/dbucoin
+./showdb w node/dbucoin
 ```
 
 14. [ptarm]送金
@@ -99,7 +99,7 @@ c-lightningから送金する場合は、6ブロック待たないといけな�
 15. [ptarm]実施後のamountを確認
 
 ```bash
-./showdb testnet w node/dbucoin
+./showdb w node/dbucoin
 ```
 
 16. [ptarm]ptarmigan node_id取得

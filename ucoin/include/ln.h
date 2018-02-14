@@ -1909,12 +1909,12 @@ static inline bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd) {
 /** ノード情報初期化
  *
  * @param[out]      node            ノード情報
- * @param[in]       pWif            ノード秘密鍵
- * @param[in]       pNodeName       ノード名
- * @param[in]       pAddr           アドレス情報
+ * @param[in,out]   pWif            ノード秘密鍵
+ * @param[in,out]   pNodeName       ノード名
+ * @param[in,out]   pPort           ポート番号
  * @param[in]       Features        ?
  */
-bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint8_t Features);
+bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t Features);
 
 
 /** ノード情報終了
@@ -1926,10 +1926,11 @@ void ln_node_term(ln_node_t *node);
 
 /** channel情報検索(node_idから)
  *
- *      self DBから一致するnode_idを検索する。
+ *      self DBから、channelの相手になっているpeerのnode_idが一致するselfを検索する。
+ *      一致した場合、pSelfにDB保存しているデータを返す。
  *
  * @param[out]      pSelf               検索成功時、pSelfが非NULLであればコピーする
- * @param[in]       pNodeId             検索するnode_id
+ * @param[in]       pNodeId             検索する相手チャネルnode_id
  * @retval      true        検索成功
  */
 bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId);

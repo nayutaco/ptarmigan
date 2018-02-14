@@ -42,31 +42,15 @@
 
 #define M_SPOIL_STDERR
 
-#define M_LMDB_DIR              "./dbucoin"
-#define M_LMDB_ENV_DIR          "/dbucoin"
-#define M_LMDB_ANNO_DIR         "/dbucoin_anno"
-#define M_LMDB_ENV              M_LMDB_DIR M_LMDB_ENV_DIR       ///< LMDB名(announce以外)
-#define M_LMDB_ANNO             M_LMDB_DIR M_LMDB_ANNO_DIR      ///< LMDB名(announce)
 
-#define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
-#define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
-#define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
-#define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
+/********************************************************************
+ * macros
+ ********************************************************************/
 
 #define M_NEXT              ","
 #define M_QQ(str)           "\"" str "\""
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
-
-
-void ln_print_wallet(const ln_self_t *self);
-void ln_print_self(const ln_self_t *self);
-void ln_print_announce(const uint8_t *pData, uint16_t Len);
-void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
-void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
-void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
-
-
 
 #define SHOW_SELF               (0x0001)
 #define SHOW_WALLET             (0x0002)
@@ -83,6 +67,23 @@ void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
 
 #define SHOW_DEFAULT        (SHOW_SELF)
 
+
+/********************************************************************
+ * prototypes
+ ********************************************************************/
+
+void ln_print_wallet(const ln_self_t *self);
+void ln_print_self(const ln_self_t *self);
+void ln_print_announce(const uint8_t *pData, uint16_t Len);
+void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
+void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
+void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
+
+
+/********************************************************************
+ * static variables
+ ********************************************************************/
+
 static uint16_t     showflag = SHOW_DEFAULT;
 static int          cnt0;
 static int          cnt1;
@@ -93,6 +94,10 @@ static MDB_env      *mpDbEnv = NULL;
 static MDB_env      *mpDbAnno = NULL;
 static FILE         *fp_err;
 
+
+/********************************************************************
+ * functions
+ ********************************************************************/
 
 static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
 {
@@ -129,8 +134,8 @@ static void dumpit_ss(MDB_txn *txn, MDB_dbi dbi)
     if (showflag & (SHOW_SELF | SHOW_WALLET)) {
         MDB_val key, data;
 
-        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            key.mv_size = sizeof(int);
+        for (uint32_t lp = 0; lp < LN_HTLC_MAX; lp++) {
+            key.mv_size = sizeof(uint32_t);
             key.mv_data = &lp;
             int retval = mdb_get(txn, dbi, &key, &data);
             if (retval != 0) {
@@ -337,16 +342,16 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
 
         MDB_val key, data;
 
-        key.mv_size = 3;
-        key.mv_data = "ver";
+        key.mv_size = LNDBK_LEN(LNDBK_VER);
+        key.mv_data = LNDBK_VER;
         int retval = mdb_get(txn, dbi, &key, &data);
         if (retval == 0) {
             int version = *(int *)data.mv_data;
             printf(M_QQ("version") ": [ %d\n", version);
         }
 
-        key.mv_size = 8;
-        key.mv_data = "mynodeid";
+        key.mv_size = LNDBK_LEN(LNDBK_NODEID);
+        key.mv_data = LNDBK_NODEID;
         retval = mdb_get(txn, dbi, &key, &data);
         if ((retval == 0) && (data.mv_size == UCOIN_SZ_PUBKEY)) {
             const uint8_t *p = (const uint8_t *)data.mv_data;
@@ -372,12 +377,12 @@ int main(int argc, char *argv[])
     char        dbpath[256];
     char        annopath[256];
 
-    strcpy(dbpath, M_LMDB_ENV);
-    strcpy(annopath, M_LMDB_ANNO);
+    strcpy(dbpath, LNDB_DBENV);
+    strcpy(annopath, LNDB_ANNOENV);
 
     int env = -1;
-    if (argc >= 3) {
-        switch (argv[2][0]) {
+    if (argc >= 2) {
+        switch (argv[1][0]) {
         case 's':
             showflag = SHOW_SELF;
             env = 0;
@@ -403,7 +408,7 @@ int main(int argc, char *argv[])
             env = 0;
             break;
         case '9':
-            switch (argv[2][1]) {
+            switch (argv[1][1]) {
             case '1':
                 showflag = SHOW_CNLANNO;
                 env = 1;
@@ -420,32 +425,21 @@ int main(int argc, char *argv[])
             break;
         }
 
-        if (argc >= 4) {
-            if (argv[3][strlen(argv[3]) - 1] == '/') {
-                argv[3][strlen(argv[3]) - 1] = '\0';
+        if (argc >= 3) {
+            if (argv[2][strlen(argv[2]) - 1] == '/') {
+                argv[2][strlen(argv[2]) - 1] = '\0';
             }
-            sprintf(dbpath, "%s%s", argv[3], M_LMDB_ENV_DIR);
-            sprintf(annopath, "%s%s", argv[3], M_LMDB_ANNO_DIR);
+            sprintf(dbpath, "%s%s", argv[2], LNDB_DBENV_DIR);
+            sprintf(annopath, "%s%s", argv[2], LNDB_ANNOENV_DIR);
         }
     } else {
         fprintf(stderr, "usage:\n");
-        fprintf(stderr, "\t%s [mainnet/testnet/regtest] [option] [db dir]\n", argv[0]);
+        fprintf(stderr, "\t%s <option> [<db dir>]\n", argv[0]);
         fprintf(stderr, "\t\twallet  : show wallet info\n");
         fprintf(stderr, "\t\tself    : show self info\n");
         fprintf(stderr, "\t\tchannel : show channel info\n");
         fprintf(stderr, "\t\tnode    : show node info\n");
         fprintf(stderr, "\t\tversion : version\n");
-        return -1;
-    }
-
-    if (strcmp(argv[1], "mainnet") == 0) {
-        ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCMAIN));
-    } else if (strcmp(argv[1], "testnet") == 0) {
-        ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCTEST));
-    } else if (strcmp(argv[1], "regtest") == 0) {
-        ln_set_genesishash(misc_get_genesis_block(MISC_GENESIS_BTCREGTEST));
-    } else {
-        fprintf(fp_err, "mainnet or testnet only[%s]\n", argv[1]);
         return -1;
     }
 
@@ -473,14 +467,29 @@ int main(int argc, char *argv[])
 
     ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
+    ucoin_genesis_t gtype;
     ln_lmdb_db_t db;
     db.txn = txn;
-    ret = ln_lmdb_ver_check(&db, NULL);
+    ret = ln_lmdb_ver_check(&db, NULL, &gtype);
     if (ret != 0) {
         fprintf(stderr, "fail: DB version not match.\n");
         return -1;
     }
     mdb_txn_abort(txn);
+
+    ln_set_genesishash(ucoin_util_get_genesis_block(gtype));
+    switch (gtype) {
+    case UCOIN_GENESIS_BTCMAIN:
+        ucoin_init(UCOIN_MAINNET, true);
+        break;
+    case UCOIN_GENESIS_BTCTEST:
+    case UCOIN_GENESIS_BTCREGTEST:
+        ucoin_init(UCOIN_TESTNET, true);
+        break;
+    default:
+        fprintf(fp_err, "fail: unknown chainhash in DB\n");
+        return -1;
+    }
 
     ret = mdb_txn_begin(p_env, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);

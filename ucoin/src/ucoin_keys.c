@@ -39,15 +39,25 @@
  * public functions
  **************************************************************************/
 
-bool ucoin_keys_wif2priv(uint8_t *pPrivKey, const char *pWifPriv)
+bool ucoin_keys_wif2priv(uint8_t *pPrivKey, ucoin_chain_t *pChain, const char *pWifPriv)
 {
     // [1byte][32bytes:privkey][1byte][4bytes]
     // プレフィクスの1byteは「圧縮された秘密鍵」
     uint8_t b58dec[1 + UCOIN_SZ_PRIVKEY + 1 + 4];
     size_t sz_priv = sizeof(b58dec);
     bool ret = b58tobin(b58dec, &sz_priv, pWifPriv, strlen(pWifPriv));
-    ret &= (b58dec[0] == mPref[UCOIN_PREF_WIF]);
     if (ret) {
+        //chain
+        switch (b58dec[0]) {
+        case 0x80:
+            *pChain = UCOIN_MAINNET;
+            break;
+        case 0xef:
+            *pChain = UCOIN_TESTNET;
+            break;
+        default:
+            *pChain = UCOIN_UNKNOWN;
+        }
         //checksum
         uint8_t buf_sha256[UCOIN_SZ_HASH256];
         int tail = (sz_priv == sizeof(b58dec)) ? 1 : 0;
@@ -215,7 +225,7 @@ bool ucoin_keys_wit2waddr(char *pWAddr, const ucoin_buf_t *pWitScript)
         memcpy(shash + 3 + UCOIN_SZ_HASH256, buf_sha256, 4);
         ret = b58enc(pWAddr, &sz, shash, sizeof(shash));
     } else {
-        uint8_t wit_prog[M_SZ_WITPROG_WSH];
+        uint8_t wit_prog[LNL_SZ_WITPROG_WSH];
         uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
 
         wit_prog[0] = 0x00;
@@ -284,7 +294,7 @@ bool ucoin_keys_chkpub(const uint8_t *pPubKey)
 
 bool ucoin_keys_create2of2(ucoin_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
-    ucoin_buf_alloc(pRedeem, M_SZ_2OF2);
+    ucoin_buf_alloc(pRedeem, LNL_SZ_2OF2);
 
     uint8_t *p = pRedeem->buf;
 

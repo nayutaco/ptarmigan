@@ -1,6 +1,4 @@
 #!/bin/sh
-NETTYPE=regtest
-
 # 0.01BTC(10mBTC)をP2WPKHアドレスに送金している。
 # fund.txt は、そのうち 9.0mBTC でチャネルを開き、5.0mBTCを相手に渡している。
 # なぜ 10mBTCで開かないかというと、P2WPKHアドレスからさらに funding_txに送金するため、
@@ -87,10 +85,10 @@ bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 6
 echo wait............
 while :
 do
-    ./showdb $NETTYPE c node_3333/dbucoin/ | jq '.' > n3.txt
-    ./showdb $NETTYPE c node_4444/dbucoin/ | jq '.' > n4.txt
-    ./showdb $NETTYPE c node_5555/dbucoin/ | jq '.' > n5.txt
-    ./showdb $NETTYPE c node_6666/dbucoin/ | jq '.' > n6.txt
+    ./showdb c node_3333/dbucoin/ | jq '.' > n3.txt
+    ./showdb c node_4444/dbucoin/ | jq '.' > n4.txt
+    ./showdb c node_5555/dbucoin/ | jq '.' > n5.txt
+    ./showdb c node_6666/dbucoin/ | jq '.' > n6.txt
     cmp n3.txt n4.txt
     RES1=$?
     cmp n3.txt n5.txt

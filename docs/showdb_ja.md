@@ -6,7 +6,7 @@
 
 ## SYNOPSIS
 
-    swhodb [mainnet/testnet/regtest] [options] [(db dir)]
+    swhodb [options] [(db dir)]
 
 ### options
 

@@ -93,7 +93,7 @@ void ln_db_term(void);
  *      -
  *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
  */
-//bool ln_db_load_channel(ln_self_t *self, const uint8_t *pChannelId);
+//bool ln_db_self_load(ln_self_t *self, const uint8_t *pChannelId);
 
 
 /** channel情報書き込み
@@ -337,7 +337,7 @@ bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
 /** payment_hash保存
  *
  * @param[in]       pPayHash        保存するpayment_hash
- * @param[in]       pVout           pPayHashを含むvout
+ * @param[in]       pVout           pPayHashを含むvoutスクリプトを#ucoin_sw_wit2prog_p2wsh()した結果。大きさはLNL_SZ_WITPROG_WSH。
  * @param[in]       Type            pVout先のHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
  * @param[in]       Expiry          Expiry
  * @param[in,out]   pDbParam        DBパラメータ

@@ -1,5 +1,4 @@
 #!/bin/sh
-NETTYPE=regtest
 ROUTECONF=pay_route.conf
 AMOUNT=100000
 PAY_BEGIN=4444
@@ -13,7 +12,7 @@ PAYEE_PORT=$(( ${PAY_END} + 1 ))
 echo invoiceのAMOUNTが異なるため、payeeノードで失敗する
 
 
-./routing $NETTYPE $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT
+./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
@@ -27,8 +26,8 @@ if [ $? -ne 0 ]; then
 fi
 
 echo -n hash= > $ROUTECONF
-echo $INVOICE | jq '.result.hash' | sed -e 's/\"//g' >> $ROUTECONF
-./routing $NETTYPE $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
+echo $INVOICE | jq -r '.result.hash' >> $ROUTECONF
+./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
 
 # 送金実施
 ./ucoincli -p $ROUTECONF $PAYER_PORT

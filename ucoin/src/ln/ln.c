@@ -367,8 +367,9 @@ bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t
 
 bool ln_set_funding_wif(ln_self_t *self, const char *pWif)
 {
-    bool ret = ucoin_util_wif2keys(&self->funding_local.keys[MSG_FUNDIDX_FUNDING], pWif);
-    if (!ret) {
+    ucoin_chain_t chain;
+    bool ret = ucoin_util_wif2keys(&self->funding_local.keys[MSG_FUNDIDX_FUNDING], &chain, pWif);
+    if (!ret || (ucoin_get_chain() != chain)) {
         self->err = LNERR_INV_PRIVKEY;
     }
     //DBG_PRINTF("funding wif: %s\n", pWif);
@@ -1022,7 +1023,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     //取り戻す必要があるvout数
     self->revoked_cnt = 0;
     for (int lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
-        if (pRevokedTx->vout[lp].script.len != M_SZ_WITPROG_WPKH) {
+        if (pRevokedTx->vout[lp].script.len != LNL_SZ_WITPROG_WPKH) {
             //to_remote output以外はスクリプトを作って取り戻す
             self->revoked_cnt++;
         }
@@ -1066,7 +1067,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 self->commit_local.to_self_delay);
-    ucoin_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], M_SZ_WITPROG_WSH);
+    ucoin_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], LNL_SZ_WITPROG_WSH);
     ucoin_sw_wit2prog_p2wsh(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
     DBG_PRINTF("calc to_local vout: ");
     DUMPBIN(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
@@ -1074,7 +1075,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     for (int lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
         DBG_PRINTF("vout[%d]: ", lp);
         DUMPBIN(pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
-        if (pRevokedTx->vout[lp].script.len == M_SZ_WITPROG_WPKH) {
+        if (pRevokedTx->vout[lp].script.len == LNL_SZ_WITPROG_WPKH) {
             //to_remote output
             DBG_PRINTF("[%d]to_remote_output\n", lp);
             ucoin_buf_init(&self->p_revoked_wit[LN_RCLOSE_IDX_TOREMOTE]);
@@ -1100,7 +1101,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                         payhash,
                         expiry);
-                ucoin_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_HTLC + lp], M_SZ_WITPROG_WSH);
+                ucoin_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_HTLC + lp], LNL_SZ_WITPROG_WSH);
                 ucoin_sw_wit2prog_p2wsh(self->p_revoked_vout[LN_RCLOSE_IDX_HTLC + lp].buf, &self->p_revoked_wit[LN_RCLOSE_IDX_HTLC + lp]);
                 self->p_revoked_type[LN_RCLOSE_IDX_HTLC + lp] = type;
             } else {
@@ -3668,7 +3669,7 @@ static bool create_to_remote(ln_self_t *self,
 
 #ifdef LN_UGLY_NORMAL
         //payment_hash, type, expiry保存
-        uint8_t vout[M_SZ_WITPROG_WSH];
+        uint8_t vout[LNL_SZ_WITPROG_WSH];
         ucoin_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[lp]->script);
         ln_db_phash_save(pp_htlcinfo[lp]->preimage_hash,
                         vout,

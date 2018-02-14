@@ -482,9 +482,15 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
 
 /** DB初期化
  *
- * @param[in]       pMyNodeId       非NULL時、DB保存するnode_id
+ * DBを使用できるようにする。
+ * また、新規の場合は引数をDBに書き込み、新規でない場合にはDBから読込む
+ * 
+ * @param[in,out]   pWif            ノードの秘密鍵
+ * @param[in,out]   pNodeName       ノード名
+ * @param[in,out]   pPort           ポート番号
+ * @retval  true    初期化成功
  */
-void HIDDEN ln_db_init(const uint8_t *pMyNodeId);
+bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort);
 
 
 /** DBで保存している対象のデータだけコピーする

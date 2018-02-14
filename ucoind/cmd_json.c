@@ -39,7 +39,7 @@
 #include "p2p_cli.h"
 #include "lnapp.h"
 #include "monitoring.h"
-
+#include "ln_db_lmdb.h"
 #include "segwit_addr.h"
 
 
@@ -735,20 +735,11 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("routepay");
 
-    const uint8_t *p_gen = ln_get_genesishash();
-    misc_genesis_t blktype = misc_get_genesis(p_gen);
-    if (blktype == MISC_GENESIS_UNKNOWN) {
-        index = -1;
-        goto LABEL_EXIT;
-    }
-
-    const char *BLKNAME[] = { NULL, "mainnet", "testnet", "regtest" };
-
     // execute `routing` command
     char cmd[512];
-    sprintf(cmd, "%srouting %s %s %s %s %" PRIu64 " %d %s\n",
+    sprintf(cmd, "%srouting %s %s %s %" PRIu64 " %d %s\n",
                 ucoind_get_exec_path(),
-                BLKNAME[blktype], "./dbucoin",
+                LNDB_DBDIR,
                 nodeid_payer, nodeid_payee, amount_msat, 9, payment_hash);
     //DBG_PRINTF("cmd=%s\n", cmd);
     FILE *fp = popen(cmd, "r");

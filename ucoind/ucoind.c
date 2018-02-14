@@ -60,9 +60,7 @@ static char                 mExecPath[PATH_MAX];
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2) {
-        goto LABEL_EXIT;
-    }
+    bool bret;
 
 #ifndef NETKIND
 #error not define NETKIND
@@ -83,15 +81,15 @@ int main(int argc, char *argv[])
 
         char wif[UCOIN_SZ_WIF_MAX];
         ucoin_keys_priv2wif(wif, priv);
-        printf("wif=%s\n", wif);
+        printf("%s\n", wif);
 
         uint8_t pub[UCOIN_SZ_PUBKEY];
         ucoin_keys_priv2pub(pub, priv);
-        fprintf(stderr, "pubkey= ");
+        printf(" ");
         for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-            fprintf(stderr, "%02x", pub[lp]);
+            printf("%02x", pub[lp]);
         }
-        fprintf(stderr, "\n");
+        printf("\n");
 
         ucoin_term();
         return 0;
@@ -99,9 +97,13 @@ int main(int argc, char *argv[])
 
     rpc_conf_t rpc_conf;
     node_conf_t node_conf;
-    bool bret = load_node_conf(argv[1], &node_conf, &rpc_conf, ln_node_addr(&mNode));
-    if (!bret) {
-        goto LABEL_EXIT;
+    load_node_init(&node_conf, &rpc_conf, ln_node_addr(&mNode));
+
+    if (argc >= 2) {
+        bret = load_node_conf(argv[1], &node_conf, &rpc_conf, ln_node_addr(&mNode));
+        if (!bret) {
+            goto LABEL_EXIT;
+        }
     }
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
         //bitcoin.confから読込む
@@ -113,7 +115,20 @@ int main(int argc, char *argv[])
 
     if (argc == 3) {
         ucoin_util_keys_t keys;
-        ucoin_util_wif2keys(&keys, node_conf.wif);
+        ucoin_chain_t chain;
+        ucoin_util_wif2keys(&keys, &chain, node_conf.wif);
+        fprintf(stderr, "chain type: ");
+        switch (chain) {
+        case UCOIN_MAINNET:
+            fprintf(stderr, "mainnet\n");
+            break;
+        case UCOIN_TESTNET:
+            fprintf(stderr, "testnet\n");
+            break;
+        default:
+            fprintf(stderr, "unknown\n");
+            break;
+        }
 
         if (strcmp(argv[2], "id") == 0) {
             //node_id出力
@@ -171,7 +186,13 @@ int main(int argc, char *argv[])
     ln_set_genesishash(genesis);
 
     //node情報読込み
-    ln_node_init(&mNode, node_conf.wif, node_conf.name, 0);
+    bret = ln_node_init(&mNode, node_conf.wif, node_conf.name, &node_conf.port, 0);
+    if (!bret) {
+        DBG_PRINTF("fail: node init\n");
+        return -2;
+    }
+
+
     ln_print_node(&mNode);
     lnapp_init(&mNode);
 

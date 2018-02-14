@@ -58,22 +58,42 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
  * public functions
  **************************************************************************/
 
-bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint8_t Features)
+bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t Features)
 {
+    bool ret;
+    bool loadmode = true;
+    ucoin_chain_t chain;
     ucoin_buf_t buf_node;
     ucoin_buf_init(&buf_node);
 
-    bool ret = ucoin_util_wif2keys(&node->keys, pWif);
-    assert(ret);
-    if (!ret) {
-        goto LABEL_EXIT;
+    if (strlen(pWif) != 0) {
+        DBG_PRINTF("load node.conf from file\n");
+        loadmode = false;
+        ret = ucoin_util_wif2keys(&node->keys, &chain, pWif);
+        if (!ret) {
+            goto LABEL_EXIT;
+        }
+        strcpy(node->alias, pNodeName);
+    } else {
+        DBG_PRINTF("load node.conf from DB\n");
     }
-    strcpy(node->alias, pNodeName);
     node->features = Features;
 
-    ln_db_init(ln_node_id(node));
+    ret = ln_db_init(pWif, pNodeName, pPort);
+    if (ret) {
+        if (loadmode) {
+            ret = ucoin_util_wif2keys(&node->keys, &chain, pWif);
+            if (!ret) {
+                goto LABEL_EXIT;
+            }
+            strcpy(node->alias, pNodeName);
+        }
+    } else {
+        DBG_PRINTF("fail: db init\n");
+        goto LABEL_EXIT;
+    }
+
     ln_node_announce_t anno;
-    bool update = false;
 
     ret = ln_db_annonod_load(&buf_node, NULL, ln_node_id(node));
     if (ret) {
@@ -91,8 +111,8 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
                  (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
                  !comp_node_addr(&anno.addr, &node->addr) ) {
                 //保持している情報と不一致
-                DBG_PRINTF("update\n");
-                update = true;
+                DBG_PRINTF("fail: node info not match\n");
+                goto LABEL_EXIT;
             } else {
                 DBG_PRINTF("same node.conf\n");
             }
@@ -100,10 +120,7 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
     } else {
         //自node_announcement無し
         DBG_PRINTF("new\n");
-        update = true;
-    }
 
-    if (update) {
         anno.timestamp = (uint32_t)time(NULL);
         anno.p_node_id = node->keys.pub;
         anno.p_my_node = &node->keys;
@@ -121,7 +138,6 @@ bool ln_node_init(ln_node_t *node, const char *pWif, const char *pNodeName, uint
 
 LABEL_EXIT:
     ucoin_buf_free(&buf_node);
-    assert(ret);
     return ret;
 }
 

@@ -53,6 +53,37 @@ static int set_le64(uint8_t *pData, uint64_t val);
 
 
 /**************************************************************************
+ *const variables
+ **************************************************************************/
+
+// https://github.com/lightningnetwork/lightning-rfc/issues/237
+// https://github.com/bitcoin/bips/blob/master/bip-0122.mediawiki
+static const uint8_t M_BTC_GENESIS_MAIN[] = {
+    // bitcoin mainnet
+    0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72,
+    0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f,
+    0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c,
+    0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const uint8_t M_BTC_GENESIS_TEST[] = {
+    // bitcoin testnet
+    0x43, 0x49, 0x7f, 0xd7, 0xf8, 0x26, 0x95, 0x71,
+    0x08, 0xf4, 0xa3, 0x0f, 0xd9, 0xce, 0xc3, 0xae,
+    0xba, 0x79, 0x97, 0x20, 0x84, 0xe9, 0x0e, 0xad,
+    0x01, 0xea, 0x33, 0x09, 0x00, 0x00, 0x00, 0x00,
+};
+
+static const uint8_t M_BTC_GENESIS_REGTEST[] = {
+    // bitcoin regtest
+    0x06, 0x22, 0x6e, 0x46, 0x11, 0x1a, 0x0b, 0x59,
+    0xca, 0xaf, 0x12, 0x60, 0x43, 0xeb, 0x5b, 0xbf,
+    0x28, 0xc3, 0x4f, 0x3a, 0x5e, 0x33, 0x2a, 0x1f,
+    0xc7, 0xb2, 0xb7, 0x3c, 0xf1, 0x88, 0x91, 0x0f,
+};
+
+
+/**************************************************************************
  * public functions
  **************************************************************************/
 
@@ -68,11 +99,11 @@ void ucoin_util_random(uint8_t *pData, uint16_t Len)
 }
 
 
-bool ucoin_util_wif2keys(ucoin_util_keys_t *pKeys, const char *pWifPriv)
+bool ucoin_util_wif2keys(ucoin_util_keys_t *pKeys, ucoin_chain_t *pChain, const char *pWifPriv)
 {
     bool ret;
 
-    ret = ucoin_keys_wif2priv(pKeys->priv, pWifPriv);
+    ret = ucoin_keys_wif2priv(pKeys->priv, pChain, pWifPriv);
     if (ret) {
         ret = ucoin_keys_priv2pub(pKeys->pub, pKeys->priv);
     }
@@ -307,6 +338,41 @@ void ucoin_util_sort_bip69(ucoin_tx_t *pTx)
             }
         }
     }
+}
+
+
+ucoin_genesis_t ucoin_util_get_genesis(const uint8_t *pGenesisHash)
+{
+    ucoin_genesis_t ret;
+
+    if (memcmp(pGenesisHash, M_BTC_GENESIS_MAIN, UCOIN_SZ_HASH256) == 0) {
+        ret = UCOIN_GENESIS_BTCMAIN;
+    } else if (memcmp(pGenesisHash, M_BTC_GENESIS_TEST, UCOIN_SZ_HASH256) == 0) {
+        ret = UCOIN_GENESIS_BTCTEST;
+    } else if (memcmp(pGenesisHash, M_BTC_GENESIS_REGTEST, UCOIN_SZ_HASH256) == 0) {
+        ret = UCOIN_GENESIS_BTCREGTEST;
+    } else {
+        DBG_PRINTF2("unknown genesis hash\n");
+        ret = UCOIN_GENESIS_UNKNOWN;
+    }
+    return ret;
+}
+
+
+const uint8_t *ucoin_util_get_genesis_block(ucoin_genesis_t kind)
+{
+    switch (kind) {
+    case UCOIN_GENESIS_BTCMAIN:
+        return M_BTC_GENESIS_MAIN;
+    case UCOIN_GENESIS_BTCTEST:
+        return M_BTC_GENESIS_TEST;
+    case UCOIN_GENESIS_BTCREGTEST:
+        return M_BTC_GENESIS_REGTEST;
+    default:
+        DBG_PRINTF("unknown kind: %02x\n", kind);
+    }
+
+    return NULL;
 }
 
 
