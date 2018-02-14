@@ -139,6 +139,7 @@ typedef struct queue_fulfill_t {
 
 //event
 typedef enum {
+    M_EVT_ERROR,
     M_EVT_CONNECTED,
     M_EVT_ESTABLISHED,
     M_EVT_PAYMENT,
@@ -171,6 +172,8 @@ static volatile enum {
 
 
 static const char *M_SCRIPT[] = {
+    //M_EVT_ERROR
+    M_SCRIPT_DIR "error.sh",
     //M_EVT_CONNECTED
     M_SCRIPT_DIR "connected.sh",
     //M_EVT_ESTABLISHED
@@ -2864,11 +2867,11 @@ static void call_script(event_t event, const char *param)
     struct stat buf;
     int ret = stat(M_SCRIPT[event], &buf);
     if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
-        char cmdline[512];
-
+        char *cmdline = (char *)APP_MALLOC(128 + strlen(param));
         sprintf(cmdline, "%s %s", M_SCRIPT[event], param);
         DBG_PRINTF("cmdline: %s\n", cmdline);
         system(cmdline);
+        APP_FREE(cmdline);
     }
 }
 
@@ -2942,6 +2945,19 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         sprintf(str, "[%s]%s", date, pErrStr);
         p_conf->p_errstr = strdup(str);
         DBG_PRINTF("%s\n", p_conf->p_errstr);
+
+        // method: error
+        // $1: short_channel_id
+        // $2: node_id
+        // $3: err_str
+        char param[256];
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        sprintf(param, "%" PRIx64 " %s "
+                    "%s",
+                    ln_short_channel_id(p_conf->p_self), node_id,
+                    str);
+        call_script(M_EVT_ERROR, param);
     }
 }
 
