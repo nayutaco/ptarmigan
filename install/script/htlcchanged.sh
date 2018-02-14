@@ -8,8 +8,8 @@ DATE=`date +"%c %N"`
 echo { \"method\": \"htlc_changed\", \"short_channel_id\": \"$1\", \"node_id\": \"$2\", \"date\": \"$DATE\", \"our_msat\": $3, \"debug\": \"htlc_num=$4\" } | jq .
 
 # changes in amount
-if [ -f our_msat.txt ]; then
-    OUR_MSAT=`cat our_msat.txt`
+if [ -f our_msat_$1.txt ]; then
+    OUR_MSAT=`cat our_msat_$1.txt`
     pay=$(($3-$OUR_MSAT))
     if [ $pay -gt 0 ]; then
         echo GET: $pay msat!
@@ -19,5 +19,5 @@ if [ -f our_msat.txt ]; then
         echo PAY: $((0-$pay)) msat!
         #./script/something_pay.sh $pay
     fi
-    echo $3 > our_msat.txt
+    echo $3 > our_msat_$1.txt
 fi
