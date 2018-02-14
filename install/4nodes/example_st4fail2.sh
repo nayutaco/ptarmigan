@@ -26,7 +26,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo -n hash= > $ROUTECONF
-echo $INVOICE | jq '.result.hash' | sed -e 's/\"//g' >> $ROUTECONF
+echo $INVOICE | jq -r '.result.hash' >> $ROUTECONF
 ./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
 
 # 送金実施

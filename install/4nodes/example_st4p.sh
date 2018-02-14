@@ -25,7 +25,7 @@ pay() {
 		exit 2
 	fi
 
-	ROUTEPAY=`echo $INVOICE | jq '.result.bolt11' | sed -e 's/\"//g'`
+	ROUTEPAY=`echo $INVOICE | jq -r '.result.bolt11'`
 
 	# 送金実施
 	./ucoincli -r $ROUTEPAY $PAYER_PORT

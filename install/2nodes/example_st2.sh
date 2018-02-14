@@ -9,5 +9,3 @@ cd node_3333
 cd ../node_4444
 ../ucoind node.conf &
 cd ..
-cp -ra ../script node_3333/
-cp -ra ../script node_4444/

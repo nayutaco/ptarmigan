@@ -32,7 +32,7 @@ pay() {
 		exit 2
 	fi
 
-	HASH=`echo $INVOICE | jq '.result.hash' | sed -e 's/\"//g'`
+	HASH=`echo $INVOICE | jq -r '.result.hash'`
 	./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT > $ROUTECONF
 
 	# 送金実施
