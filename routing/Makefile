@@ -13,6 +13,8 @@ clean:
 	-rm -rf $(OBJ) .Depend
 
 .Depend:
+ifneq ($(MAKECMDGOALS),clean)
 	@$(CC) $(CFLAGS) -MM -MT $(SRC:%.cpp=%) $(SRC) > .Depend
+endif
 
 -include .Depend
