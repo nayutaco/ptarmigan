@@ -608,7 +608,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "node_alias", cJSON_CreateString(p_self->peer_node.alias));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
-        cJSON_AddItemToObject(result, "fundindg_tx", cJSON_CreateString(str));
+        cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
+        cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
         uint32_t confirm = btcprc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
