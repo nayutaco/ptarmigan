@@ -1,5 +1,10 @@
 # ptarmigan
 
+<a href="https://scan.coverity.com/projects/nayutaco-ptarmigan">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/15128/badge.svg"/>
+</a>
+
 ## setup
 
 * bitcoind v0.15
