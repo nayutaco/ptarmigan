@@ -47,8 +47,8 @@
  **************************************************************************/
 
 static void init_print(const ln_init_t *pMsg);
-static void ping_print(const ln_ping_t *pMsg);
-static void pong_print(const ln_pong_t *pMsg);
+// static void ping_print(const ln_ping_t *pMsg);
+// static void pong_print(const ln_pong_t *pMsg);
 
 
 /********************************************************************
@@ -296,6 +296,7 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
 }
 
 
+#if 0
 static void ping_print(const ln_ping_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
@@ -305,6 +306,7 @@ static void ping_print(const ln_ping_t *pMsg)
     DBG_PRINTF2("--------------------------------\n\n\n");
 #endif  //UCOIN_DEBUG
 }
+#endif
 
 
 /********************************************************************
@@ -391,6 +393,7 @@ bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len
 }
 
 
+#if 0
 static void pong_print(const ln_pong_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
@@ -399,3 +402,4 @@ static void pong_print(const ln_pong_t *pMsg)
     DBG_PRINTF2("--------------------------------\n\n\n");
 #endif  //UCOIN_DEBUG
 }
+#endif

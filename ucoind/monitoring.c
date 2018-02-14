@@ -302,12 +302,12 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 
 static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
-    (void)p_db_param;
+    (void)confm; (void)p_db_param;
 
     bool del = false;
 
-    DBG_PRINTF("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
-    DUMPTXID(ln_funding_txid(self));
+    // DBG_PRINTF("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
+    // DUMPTXID(ln_funding_txid(self));
 
     //socket未接続であれば、接続しに行こうとする
     lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
