@@ -11,7 +11,7 @@
 ### installation
 
 ```bash
-sudo apt install autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool jq
+sudo apt install git autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool jq
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
 make full
