@@ -37,6 +37,9 @@
   * `-d [value]` : debug option
   * `-g` : get commitment transaction(need `-c` option)
 
+* port
+  * default port number is 9736
+
 ## DESCRIPTION
 
 Control `ucoind`.  
