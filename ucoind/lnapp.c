@@ -2939,7 +2939,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         gmtime_r(&now, &tmval);
         strftime(date, sizeof(date), "%d %b %Y %T %z", &tmval);
         char *str = (char *)malloc(1024);
-        sprintf(str, "[%s]%s", date, pErrStr);
+        sprintf(str, "\"[%s]%s\"", date, pErrStr);
         p_conf->p_errstr = strdup(str);
         DBG_PRINTF("%s\n", p_conf->p_errstr);
     }
