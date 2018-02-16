@@ -73,33 +73,31 @@ int main(int argc, char *argv[])
 
     signal(SIGPIPE , SIG_IGN);   //ignore SIGPIPE
 
-    if ((argc == 2) && (strcmp(argv[1], "wif") == 0)) {
-        uint8_t priv[UCOIN_SZ_PRIVKEY];
-        do {
-            ucoin_util_random(priv, UCOIN_SZ_PRIVKEY);
-        } while (!ucoin_keys_chkpriv(priv));
-
-        char wif[UCOIN_SZ_WIF_MAX];
-        ucoin_keys_priv2wif(wif, priv);
-        printf("%s\n", wif);
-
-        uint8_t pub[UCOIN_SZ_PUBKEY];
-        ucoin_keys_priv2pub(pub, priv);
-        printf(" ");
-        for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-            printf("%02x", pub[lp]);
-        }
-        printf("\n");
-
-        ucoin_term();
-        return 0;
-    }
-
     rpc_conf_t rpc_conf;
     node_conf_t node_conf;
     load_node_init(&node_conf, &rpc_conf, ln_node_addr(&mNode));
 
-    if (argc >= 2) {
+    int starttype;
+    if (argc == 1) {
+        //DBのみで起動
+        starttype = 0;
+    } else if (argc == 2) {
+        if (strcmp(argv[1], "id") == 0) {
+            //node_id出力
+            starttype = 2;
+        } else if (strcmp(argv[1], "peer") == 0) {
+            //peer.conf出力
+            starttype = 3;
+        } else {
+            //node.confあり起動
+            DBG_PRINTF("conf: %s\n", argv[1]);
+            starttype = 1;
+        }
+    } else {
+        goto LABEL_EXIT;
+    }
+
+    if (starttype == 1) {
         bret = load_node_conf(argv[1], &node_conf, &rpc_conf, ln_node_addr(&mNode));
         if (!bret) {
             goto LABEL_EXIT;
@@ -112,50 +110,6 @@ int main(int argc, char *argv[])
             goto LABEL_EXIT;
         }
     }
-
-    if (argc == 3) {
-        ucoin_util_keys_t keys;
-        ucoin_chain_t chain;
-        ucoin_util_wif2keys(&keys, &chain, node_conf.wif);
-        fprintf(stderr, "chain type: ");
-        switch (chain) {
-        case UCOIN_MAINNET:
-            fprintf(stderr, "mainnet\n");
-            break;
-        case UCOIN_TESTNET:
-            fprintf(stderr, "testnet\n");
-            break;
-        default:
-            fprintf(stderr, "unknown\n");
-            break;
-        }
-
-        if (strcmp(argv[2], "id") == 0) {
-            //node_id出力
-            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
-        } else if (strcmp(argv[2], "peer") == 0) {
-            //peer config出力
-            const ln_nodeaddr_t *p_addr = ln_node_addr(&mNode);
-            if (p_addr->type == LN_NODEDESC_IPV4) {
-                printf("ipaddr=%d.%d.%d.%d\n",
-                            p_addr->addrinfo.ipv4.addr[0],
-                            p_addr->addrinfo.ipv4.addr[1],
-                            p_addr->addrinfo.ipv4.addr[2],
-                            p_addr->addrinfo.ipv4.addr[3]);
-            } else {
-                printf("ipaddr=127.0.0.1\n");
-            }
-            printf("port=%d\n", p_addr->port);
-            printf("node_id=");
-            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
-        }
-
-        ucoin_term();
-        return 0;
-    }
-
-    //syslog
-    openlog("ucoind", LOG_CONS, LOG_USER);
 
     //ucoindがあるパスを取る("routepay"用)
     const char *p_delimit = strrchr(argv[0], '/');
@@ -193,7 +147,56 @@ int main(int argc, char *argv[])
     }
 
 
+    if ((starttype == 2) || (starttype == 3)) {
+        ucoin_util_keys_t keys;
+        ucoin_chain_t chain;
+        ucoin_util_wif2keys(&keys, &chain, node_conf.wif);
+        fprintf(stderr, "chain type: ");
+        switch (chain) {
+        case UCOIN_MAINNET:
+            fprintf(stderr, "mainnet\n");
+            break;
+        case UCOIN_TESTNET:
+            fprintf(stderr, "testnet\n");
+            break;
+        default:
+            fprintf(stderr, "unknown\n");
+            break;
+        }
+
+        const ln_nodeaddr_t *p_addr = ln_node_addr(&mNode);
+        switch (starttype) {
+        case 2:
+            //node_id出力
+            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
+            break;
+        case 3:
+            //peer config出力
+            if (p_addr->type == LN_NODEDESC_IPV4) {
+                printf("ipaddr=%d.%d.%d.%d\n",
+                            p_addr->addrinfo.ipv4.addr[0],
+                            p_addr->addrinfo.ipv4.addr[1],
+                            p_addr->addrinfo.ipv4.addr[2],
+                            p_addr->addrinfo.ipv4.addr[3]);
+            } else {
+                printf("ipaddr=127.0.0.1\n");
+            }
+            printf("port=%d\n", p_addr->port);
+            printf("node_id=");
+            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
+            break;
+        default:
+            break;
+        }
+
+        ucoin_term();
+        return 0;
+    }
+
+    //syslog
+    openlog("ucoind", LOG_CONS, LOG_USER);
     ln_print_node(&mNode);
+
     lnapp_init(&mNode);
 
     pthread_mutex_init(&mMuxPreimage, NULL);

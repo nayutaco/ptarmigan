@@ -77,6 +77,7 @@ void load_node_init(node_conf_t *pNodeConf, rpc_conf_t *pRpcConf, ln_nodeaddr_t 
     memset(pRpcConf, 0, sizeof(rpc_conf_t));
     memset(pAddr, 0, sizeof(ln_nodeaddr_t));
 
+    pNodeConf->port = 9735;
     strcpy(pRpcConf->rpcurl, "127.0.0.1");
 #if NETKIND==0
     pRpcConf->rpcport = 8332;
@@ -111,27 +112,9 @@ void print_node_conf(const node_conf_t *pNodeConf, const rpc_conf_t *pRpcConf)
     fprintf(PRINTOUT, "\n--- node ---\n");
     fprintf(PRINTOUT, "port=%d\n", pNodeConf->port);
     fprintf(PRINTOUT, "name=%s\n", pNodeConf->name);
-    fprintf(PRINTOUT, "wif=%s\n", pNodeConf->wif);
     fprintf(PRINTOUT, "rpcuser=%s\n", pRpcConf->rpcuser);
     fprintf(PRINTOUT, "rpcpasswd=%s\n", pRpcConf->rpcpasswd);
     fprintf(PRINTOUT, "rpcurl=%s\n", pRpcConf->rpcurl);
-    ucoin_util_keys_t keys;
-    ucoin_chain_t chain;
-    ucoin_util_wif2keys(&keys, &chain, pNodeConf->wif);
-    fprintf(PRINTOUT, "node_id=");
-    ucoin_util_dumpbin(PRINTOUT, keys.pub, UCOIN_SZ_PUBKEY, true);
-    fprintf(PRINTOUT, "chain type: ");
-    switch (chain) {
-    case UCOIN_MAINNET:
-        fprintf(PRINTOUT, "mainnet\n");
-        break;
-    case UCOIN_TESTNET:
-        fprintf(PRINTOUT, "testnet\n");
-        break;
-    default:
-        fprintf(PRINTOUT, "unknown\n");
-        break;
-    }
     fprintf(PRINTOUT, "\n\n");
 }
 
@@ -321,8 +304,6 @@ static int handler_node_conf(void* user, const char* section, const char* name, 
         pconfig->p_node_conf->port = (uint16_t)atoi(value);
     } else if (strcmp(name, "name") == 0) {
         strcpy(pconfig->p_node_conf->name, value);
-    } else if (strcmp(name, "wif") == 0) {
-        strcpy(pconfig->p_node_conf->wif, value);
     } else if (strcmp(name, "rpcuser") == 0) {
         strcpy(pconfig->p_rpc_conf->rpcuser, value);
     } else if (strcmp(name, "rpcpasswd") == 0) {
@@ -337,7 +318,7 @@ static int handler_node_conf(void* user, const char* section, const char* name, 
         sscanf(value, "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8,
                 &p[0], &p[1], &p[2], &p[3]);
     } else {
-        return 0;  /* unknown section/name, error */
+        //return 0;  /* unknown section/name, error */
     }
     return 1;
 }
