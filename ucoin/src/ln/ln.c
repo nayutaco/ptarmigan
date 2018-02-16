@@ -2937,6 +2937,7 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ln_update_fee_t upfee;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
 
+    upfee.p_channel_id = channel_id;
     ret = ln_msg_update_fee_read(&upfee, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
