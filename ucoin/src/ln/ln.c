@@ -1981,7 +1981,8 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //temporary-channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
@@ -2063,7 +2064,8 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     }
 
     //temporary-channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
@@ -2153,7 +2155,8 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
@@ -2208,7 +2211,8 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
@@ -2306,7 +2310,8 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
@@ -2394,7 +2399,8 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
@@ -2513,7 +2519,8 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
@@ -2668,7 +2675,8 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
@@ -2737,7 +2745,8 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         ucoin_buf_free(&reason);
         return false;
@@ -2791,7 +2800,8 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         goto LABEL_EXIT;
     }
@@ -2871,7 +2881,8 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         goto LABEL_EXIT;
     }
@@ -2920,10 +2931,32 @@ LABEL_EXIT:
 
 static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    (void)self; (void)pData; (void)Len;
     DBG_PRINTF("BEGIN\n");
-#warning not implemented
-    return true;
+
+    bool ret;
+    ln_update_fee_t upfee;
+    uint8_t channel_id[LN_SZ_CHANNEL_ID];
+
+    ret = ln_msg_update_fee_read(&upfee, pData, Len);
+    if (!ret) {
+        DBG_PRINTF("fail: read message\n");
+        goto LABEL_EXIT;
+    }
+
+    //channel-idチェック
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
+        self->err = LNERR_INV_CHANNEL;
+        goto LABEL_EXIT;
+    }
+
+    uint32_t fee_per_kw = self->feerate_per_kw;
+    self->feerate_per_kw = upfee.feerate_per_kw;
+    DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", fee_per_kw, upfee.feerate_per_kw);
+
+LABEL_EXIT:
+    DBG_PRINTF("END\n");
+    return ret;
 }
 
 
@@ -2958,7 +2991,8 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
@@ -3035,7 +3069,8 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     }
 
     //channel-idチェック
-    if (!chk_channelid(channel_id, self->channel_id)) {
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
         self->err = LNERR_INV_CHANNEL;
         return false;
     }
