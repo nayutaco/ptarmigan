@@ -493,6 +493,8 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                         DBG_PRINTF("fail[%d]: sendrawtransaction\n", lp);
                     }
                 }
+            } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
+                DBG_PRINTF("skip: no to_remote payment\n");
             } else {
                 DBG_PRINTF("skip tx[%d]\n", lp);
                 del = false;
