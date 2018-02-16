@@ -6,23 +6,25 @@
 
 ## SYNOPSIS
 
-    ucoind [node config file] [options]
+    ucoind [node config file] [id]
 
 ### options
 
-    `id`  : show own node_id(only read config file)
-    `wif` : create WIF format string(random 32byte)
+* `node config file` : node configuration file(detail below)
+* `id` : show own node_id from DB
 
 ## DESCRIPTION
 
-Start ucoin lightning daemon.
+Start ucoin lightning daemon.  
+First time(`dbucoin` DB directory not created), `node_id`, `name` and `port` are written in DB.  
+After second time, `name` and `port` dont't reflect at node settings.
 
-* node config file format
+
+### node config file format
 
 ```text
-port=[TCP socket number]
-name=[alias name for node_announcement]
-wif=[node private key(WIF format)]
+port=[TCP socket number] (*first time)
+name=[alias name for node_announcement] (*first time)
 _ipv4=[node IPv4 Address]_
 _rpcuser=[JSON-RPC username]_
 _rpcpasswd=[JSON-RPC password]_

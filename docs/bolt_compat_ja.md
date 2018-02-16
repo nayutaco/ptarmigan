@@ -11,11 +11,15 @@
 
 ## BOLT#2
 
+* Channel Establishment
+  * `feerate_per_kw`は `estimatefee 6` の4分の1
+  * `feerate_per_kw`の大きさチェックをしていない
+
 * Channel Close
-  * FEEは `estimatefee` の結果を使用している
+  * FEEは `estimatefee` の結果を使用している
 
 * Normal Operation
-  * エラーメッセージに対応していない(箇所によってはabortする)。
+  * エラーメッセージに対応していない(箇所によってはabortする)。
   * `commitment_signed` がなかった場合の取消にまだ対応できておらず、受信メッセージをすぐに反映させている。
 
 * Message Retransmission

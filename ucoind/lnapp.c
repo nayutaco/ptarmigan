@@ -598,7 +598,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
     cJSON *result = cJSON_CreateObject();
 
     if (p_self && ln_short_channel_id(p_self)) {
-        show_self_param(p_self, PRINTOUT, __LINE__);
+        //show_self_param(p_self, PRINTOUT, __LINE__);
 
         char str[256];
 

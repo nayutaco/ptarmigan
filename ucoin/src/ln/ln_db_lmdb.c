@@ -343,6 +343,9 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
     retval = mdb_dbi_open(db.txn, M_DBI_VERSION, 0, &db.dbi);
     if (retval != 0) {
         //新規の場合は作成/保存する
+        //      node_id : 生成
+        //      aliase : 指定が無ければ生成
+        //      port : 指定された値
         DBG_PRINTF("create node DB\n");
         uint8_t priv[UCOIN_SZ_PRIVKEY];
         do {
