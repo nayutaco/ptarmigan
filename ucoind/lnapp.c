@@ -139,6 +139,7 @@ typedef struct queue_fulfill_t {
 
 //event
 typedef enum {
+    M_EVT_ERROR,
     M_EVT_CONNECTED,
     M_EVT_ESTABLISHED,
     M_EVT_PAYMENT,
@@ -171,6 +172,8 @@ static volatile enum {
 
 
 static const char *M_SCRIPT[] = {
+    //M_EVT_ERROR
+    M_SCRIPT_DIR "error.sh",
     //M_EVT_CONNECTED
     M_SCRIPT_DIR "connected.sh",
     //M_EVT_ESTABLISHED
@@ -608,7 +611,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "node_alias", cJSON_CreateString(p_self->peer_node.alias));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
-        cJSON_AddItemToObject(result, "fundindg_tx", cJSON_CreateString(str));
+        cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
+        cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
         uint32_t confirm = btcprc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
@@ -630,7 +634,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
-        cJSON_AddItemToObject(result, "fundindg_tx", cJSON_CreateString(str));
+        cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
+        cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
         uint32_t confirm = btcprc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
@@ -1435,7 +1440,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         bool ret = btcprc_get_short_channel_param(&bheight, &bindex, ln_funding_txid(p_conf->p_self));
         if (ret) {
             fprintf(PRINTOUT, "bindex=%d, bheight=%d\n", bindex, bheight);
-            ln_set_short_channel_id_param(self, bheight, bindex);
+            ln_set_short_channel_id_param(self, bheight, bindex, ln_funding_txindex(p_conf->p_self));
 
             //安定後
             ret = ln_funding_tx_stabled(self);
@@ -2864,11 +2869,11 @@ static void call_script(event_t event, const char *param)
     struct stat buf;
     int ret = stat(M_SCRIPT[event], &buf);
     if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
-        char cmdline[512];
-
+        char *cmdline = (char *)APP_MALLOC(128 + strlen(param));
         sprintf(cmdline, "%s %s", M_SCRIPT[event], param);
         DBG_PRINTF("cmdline: %s\n", cmdline);
         system(cmdline);
+        APP_FREE(cmdline);
     }
 }
 
@@ -2942,6 +2947,19 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         sprintf(str, "\"[%s]%s\"", date, pErrStr);
         p_conf->p_errstr = strdup(str);
         DBG_PRINTF("%s\n", p_conf->p_errstr);
+
+        // method: error
+        // $1: short_channel_id
+        // $2: node_id
+        // $3: err_str
+        char param[256];
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        sprintf(param, "%" PRIx64 " %s "
+                    "%s",
+                    ln_short_channel_id(p_conf->p_self), node_id,
+                    str);
+        call_script(M_EVT_ERROR, param);
     }
 }
 
