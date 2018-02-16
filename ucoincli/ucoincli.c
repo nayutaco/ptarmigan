@@ -399,9 +399,9 @@ int main(int argc, char *argv[])
     if (options == M_OPTIONS_ERR) {
         return -1;
     }
-    if ((options == M_OPTIONS_INIT) || (options == M_OPTIONS_HELP) || (optind >= argc)) {
+    if ((options == M_OPTIONS_INIT) || (options == M_OPTIONS_HELP)) {
         printf("[usage]\n");
-        printf("\t%s <-t> <options> <JSON-RPC port(not ucoind port)>\n", argv[0]);
+        printf("\t%s <-t> <options> [<JSON-RPC port(not ucoind port)>]\n", argv[0]);
         printf("\t\t-h : help\n");
         printf("\t\t-t : test(not send command)\n");
         printf("\t\t-q : quit ucoind\n");
@@ -414,7 +414,7 @@ int main(int argc, char *argv[])
         printf("\t\t-c <peer.conf> : connect node\n");
         printf("\t\t-c <peer.conf> -f <fund.conf> : funding\n");
         printf("\t\t-c <peer.conf> -x : mutual close channel\n");
-        printf("\t\tc <peer.conf> -w : get last error\n");
+        printf("\t\t-c <peer.conf> -w : get last error\n");
         // printf("\n");
         // printf("\t\t-a <IP address> : [debug]JSON-RPC send address\n");
         // printf("\t\t-d <value> : [debug]debug option\n");
@@ -426,7 +426,12 @@ int main(int argc, char *argv[])
         connect_rpc(mBuf);
     }
 
-    uint16_t port = (uint16_t)atoi(argv[optind]);
+    uint16_t port;
+    if (optind == argc) {
+        port = 9736;
+    } else {
+        port = (uint16_t)atoi(argv[optind]);
+    }
 
     int ret = msg_send(mBuf, mBuf, p_addr, port, b_send);
 
@@ -695,6 +700,7 @@ static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t 
         }
         close(sock);
     } else {
+        fprintf(stdout, "sendto: %s:%" PRIu16 "\n", (pAddr) ? pAddr : "localhost", Port);
         fprintf(stdout, "%s\n", pSend);
         retval = 0;
     }

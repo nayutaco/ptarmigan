@@ -1106,13 +1106,14 @@ bool ln_set_funding_wif(ln_self_t *self, const char *pWif);
 
 /** short_channel_id情報設定
  *
- * @param[in,out]       self        channel情報
- * @param[in]           Height      funding_txが入ったブロック height
- * @param[in]           Index       funding_txのTXIDが入っているindex
+ * @param[in,out]       self            channel情報
+ * @param[in]           Height          funding_txが入ったブロック height
+ * @param[in]           Index           funding_txのTXIDが入っているindex
+ * @param[in]           FundingIndex    funding_tx vout in channel
  * @note
  *      - #LN_CB_FUNDINGTX_WAIT でコールバックされた後、安定後に呼び出すこと
  */
-void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index);
+void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex);
 
 
 /** short_channel_id情報取得

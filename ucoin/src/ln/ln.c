@@ -380,9 +380,9 @@ bool ln_set_funding_wif(ln_self_t *self, const char *pWif)
 }
 
 
-void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index)
+void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex)
 {
-    self->short_channel_id = ln_misc_calc_short_channel_id(Height, Index, M_FUNDING_INDEX);
+    self->short_channel_id = ln_misc_calc_short_channel_id(Height, Index, FundingIndex);
 
     //announcement_signatures受信用
     create_local_channel_announcement(self);
