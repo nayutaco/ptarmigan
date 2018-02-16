@@ -85,9 +85,6 @@ int main(int argc, char *argv[])
         if (strcmp(argv[1], "id") == 0) {
             //node_id出力
             starttype = 2;
-        } else if (strcmp(argv[1], "peer") == 0) {
-            //peer.conf出力
-            starttype = 3;
         } else {
             //node.confあり起動
             DBG_PRINTF("conf: %s\n", argv[1]);
@@ -146,49 +143,26 @@ int main(int argc, char *argv[])
         return -2;
     }
 
+    const ln_nodeaddr_t *p_addr = ln_node_addr(&mNode);
+    ucoin_util_keys_t keys;
+    ucoin_chain_t chain;
+    ucoin_util_wif2keys(&keys, &chain, node_conf.wif);
+    fprintf(stderr, "chain type: ");
+    switch (chain) {
+    case UCOIN_MAINNET:
+        fprintf(stderr, "mainnet\n");
+        break;
+    case UCOIN_TESTNET:
+        fprintf(stderr, "testnet\n");
+        break;
+    default:
+        fprintf(stderr, "unknown\n");
+        break;
+    }
 
-    if ((starttype == 2) || (starttype == 3)) {
-        ucoin_util_keys_t keys;
-        ucoin_chain_t chain;
-        ucoin_util_wif2keys(&keys, &chain, node_conf.wif);
-        fprintf(stderr, "chain type: ");
-        switch (chain) {
-        case UCOIN_MAINNET:
-            fprintf(stderr, "mainnet\n");
-            break;
-        case UCOIN_TESTNET:
-            fprintf(stderr, "testnet\n");
-            break;
-        default:
-            fprintf(stderr, "unknown\n");
-            break;
-        }
-
-        const ln_nodeaddr_t *p_addr = ln_node_addr(&mNode);
-        switch (starttype) {
-        case 2:
-            //node_id出力
-            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
-            break;
-        case 3:
-            //peer config出力
-            if (p_addr->type == LN_NODEDESC_IPV4) {
-                printf("ipaddr=%d.%d.%d.%d\n",
-                            p_addr->addrinfo.ipv4.addr[0],
-                            p_addr->addrinfo.ipv4.addr[1],
-                            p_addr->addrinfo.ipv4.addr[2],
-                            p_addr->addrinfo.ipv4.addr[3]);
-            } else {
-                printf("ipaddr=127.0.0.1\n");
-            }
-            printf("port=%d\n", p_addr->port);
-            printf("node_id=");
-            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
-            break;
-        default:
-            break;
-        }
-
+    if (starttype == 2) {
+        //node_id出力
+        ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
         ucoin_term();
         return 0;
     }
@@ -196,6 +170,24 @@ int main(int argc, char *argv[])
     //syslog
     openlog("ucoind", LOG_CONS, LOG_USER);
     ln_print_node(&mNode);
+
+    //peer config出力
+    FILE *fp = fopen("peer.conf", "w");
+    if (fp) {
+        if (p_addr->type == LN_NODEDESC_IPV4) {
+            fprintf(fp, "ipaddr=%d.%d.%d.%d\n",
+                        p_addr->addrinfo.ipv4.addr[0],
+                        p_addr->addrinfo.ipv4.addr[1],
+                        p_addr->addrinfo.ipv4.addr[2],
+                        p_addr->addrinfo.ipv4.addr[3]);
+        } else {
+            fprintf(fp, "ipaddr=127.0.0.1\n");
+        }
+        fprintf(fp, "port=%d\n", p_addr->port);
+        fprintf(fp, "node_id=");
+        ucoin_util_dumpbin(fp, keys.pub, UCOIN_SZ_PUBKEY, true);
+        fclose(fp);
+    }
 
     lnapp_init(&mNode);
 

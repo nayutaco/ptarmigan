@@ -47,6 +47,12 @@
 #  |    fundee +-------------+    FUNDER |
 #  +-----------+             +-----------+
 
+mkdir -p conf
+cp node_3333/peer.conf conf/peer3333.conf
+cp node_4444/peer.conf conf/peer4444.conf
+cp node_5555/peer.conf conf/peer5555.conf
+cp node_6666/peer.conf conf/peer6666.conf
+
 # connect
 ./ucoincli -c conf/peer3333.conf 4445
 sleep 1
