@@ -68,7 +68,7 @@
 #define M_WAIT_MUTEX_SEC        (1)         //mMuxSeqのロック解除待ち間隔[sec]
 #define M_WAIT_POLL_SEC         (10)        //監視スレッドの待ち間隔[sec]
 #define M_WAIT_PING_SEC         (60)        //ping送信待ち[sec](pingは30秒以上の間隔をあけること)
-#define M_WAIT_ANNO_SEC         (1)         //監視スレッドでのannounce処理間隔[sec]
+#define M_WAIT_ANNO_MSEC        (500)       //監視スレッドでのannounce処理間隔[msec]
 #define M_WAIT_MUTEX_MSEC       (100)       //mMuxSeqのロック解除待ち間隔[msec]
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
@@ -1486,7 +1486,7 @@ static void *thread_anno_start(void *pArg)
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
 
     while (p_conf->loop) {
-        sleep(M_WAIT_ANNO_SEC);
+        misc_msleep(M_WAIT_ANNO_MSEC);
 
         if (!p_conf->loop) {
             break;
