@@ -17,10 +17,17 @@ PAYEE=node_${PAY_END}
 PAYEE_PORT=$(( ${PAY_END} + 1 ))
 
 
+nodeid() {
+	cat $1/peer.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
+}
+
 pay() {
 	echo "payment ${PAYER} --> ${PAYEE}"
 
-	./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT
+	payer_id=`nodeid $PAYER`
+	payee_id=`nodeid $PAYEE`
+
+	./routing $PAYER/dbucoin $payer_id $payee_id $AMOUNT
 	if [ $? -ne 0 ]; then
 		echo no routing
 		exit 1
@@ -34,7 +41,7 @@ pay() {
 
 	echo -n hash= > $ROUTECONF
 	echo $INVOICE | jq -r '.result.hash' >> $ROUTECONF
-	./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
+	./routing $PAYER/dbucoin $payer_id $payee_id $AMOUNT >> $ROUTECONF
 
 	# 送金実施
 	./ucoincli -p $ROUTECONF $PAYER_PORT

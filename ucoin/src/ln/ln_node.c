@@ -58,35 +58,22 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
  * public functions
  **************************************************************************/
 
-bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t Features)
+bool ln_node_init(ln_node_t *node, uint8_t Features)
 {
     bool ret;
-    bool loadmode = true;
+    char wif[UCOIN_SZ_WIF_MAX];
     ucoin_chain_t chain;
     ucoin_buf_t buf_node;
     ucoin_buf_init(&buf_node);
 
-    if (strlen(pWif) != 0) {
-        DBG_PRINTF("load node.conf from file\n");
-        loadmode = false;
-        ret = ucoin_util_wif2keys(&node->keys, &chain, pWif);
-        if (!ret) {
-            goto LABEL_EXIT;
-        }
-        strcpy(node->alias, pNodeName);
-    } else {
-        DBG_PRINTF("load node.conf from DB\n");
-    }
     node->features = Features;
 
-    ret = ln_db_init(pWif, pNodeName, pPort);
+    ret = ln_db_init(wif, node->alias, &node->addr.port);
     if (ret) {
-        if (loadmode) {
-            ret = ucoin_util_wif2keys(&node->keys, &chain, pWif);
-            if (!ret) {
-                goto LABEL_EXIT;
-            }
-            strcpy(node->alias, pNodeName);
+        //新規設定 or DBから読み込み
+        ret = ucoin_util_wif2keys(&node->keys, &chain, wif);
+        if (!ret) {
+            goto LABEL_EXIT;
         }
     } else {
         DBG_PRINTF("fail: db init\n");
@@ -107,14 +94,18 @@ bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort,
         ret = ln_msg_node_announce_read(&anno, buf_node.buf, buf_node.len);
         if (ret) {
             if ( (memcmp(anno.p_node_id, ln_node_id(node), UCOIN_SZ_PUBKEY) != 0) ||
-                 (strcmp(anno.p_alias, pNodeName) != 0) ||
+                 (strcmp(anno.p_alias, node->alias) != 0) ||
                  (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
-                 !comp_node_addr(&anno.addr, &node->addr) ) {
+                 (!comp_node_addr(&anno.addr, &node->addr)) ) {
                 //保持している情報と不一致
                 DBG_PRINTF("fail: node info not match\n");
+                ret = false;
                 goto LABEL_EXIT;
             } else {
                 DBG_PRINTF("same node.conf\n");
+                uint16_t bak = node->addr.port; //node_announcementにはポート番号が載らないことがあり得る
+                memcpy(&node->addr, &anno.addr, sizeof(anno.addr));
+                node->addr.port = bak;
             }
         }
     } else {
@@ -269,16 +260,20 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
     };
 
     if (pAddr1->type != pAddr2->type) {
+        DBG_PRINTF("not match: type\n");
         return false;
     }
-    if (pAddr1->port != pAddr2->port) {
+    if ((pAddr1->type != LN_NODEDESC_NONE) && (pAddr1->port != pAddr2->port)) {
+        DBG_PRINTF("not match: port, %d, %d\n", pAddr1->port, pAddr2->port);
         return false;
     }
     if (pAddr1->type <= LN_NODEDESC_ONIONV3) {
         if (memcmp(pAddr1->addrinfo.addr, pAddr2->addrinfo.addr, SZ[pAddr1->type]) != 0) {
+            DBG_PRINTF("not match: addr\n");
             return false;
         }
     } else {
+        DBG_PRINTF("invalid: type\n");
         return false;
     }
     return true;

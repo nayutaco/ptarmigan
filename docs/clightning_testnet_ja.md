@@ -1,5 +1,8 @@
 # c-lightning testnet
 
+* ここではポート番号を、c-lightningは9735、ptarmiganは8888として動かしている
+  * ptarmiganのJSON-RPCポートは、待ち受けポート番号を+1した値
+
  1. [btc]~/.bitcoin/bitcoin.conf
 
 ```text
@@ -19,13 +22,9 @@ testnet=1
 ```bash
 cd install
 mkdir node
-./create_nodeconf.sh 8888 > node/node.conf
 cd node
-../ucoind node.conf
+../ucoind -p 8888
 ```
-
-create_nodeconf.shの引数はLightning Nodeのポート番号。  
-node.confは適当に編集する。デフォルトではprivate nodeになる(IPアドレスをannounceしない)。
 
 5. [cln]c-lightning起動
 
@@ -68,7 +67,6 @@ cd install
 
 1ブロックで、チャネルは生成される。  
 6ブロックで、announcementが行われる。  
-c-lightningから送金する場合は、6ブロック待たないといけないかもしれない。
 
 11. [cln]invoice作成(rhash取得)
 
@@ -78,63 +76,44 @@ c-lightningから送金する場合は、6ブロック待たないといけな�
 
 単位はmsatoshi。
 
-12. [ptarm]送金ルート準備
+12. [ptarm]送金
 
 ```bash
-./routing node/dbucoin `./ucoind node/node.conf id` [c-lightning node_id] 10000 > node/pay.conf
+./ucoincli -r <BOLT11 invoice> 8889
 ```
 
-13. [ptarm]現在のamountを確認
+13. [ptarm]実施後のamountを確認
 
 ```bash
-./showdb w node/dbucoin
+./showdb w node/dbucoin | jq
 ```
 
-14. [ptarm]送金
+14. [ptarm]ptarmigan node_id取得
 
 ```bash
-./ucoincli -p node/pay.conf,[c-lightning rhash] 8889
+./ucoincli -l 8889 | jq
 ```
 
-15. [ptarm]実施後のamountを確認
-
-```bash
-./showdb w node/dbucoin
-```
-
-16. [ptarm]ptarmigan node_id取得
-
-```bash
-./ucoincli -l 8889
-```
-
-17. [ptarm]invoice作成
+15. [ptarm]invoice作成
 
 ```bash
 ./ucoincli -i 20000 8889
 ```
 
-18. [cln]送金ルート準備
+16. [cln]現在のamountを確認
 
 ```bash
-route=$(cli/lightning-cli getroute [ptarmigan node_id] 20000 1 | jq --raw-output .route -)
-echo $route
+./cli/lightning-cli listpeers | jq
 ```
 
-19. [cln]現在のamountを確認
+17. [cln]送金
 
 ```bash
-./cli/lightning-cli getpeers | jq
+./cli/lightning-cli pay <BOLT11 invoice>
 ```
 
-20. [cln]送金
+18. [cln]実施後のamountを確認
 
 ```bash
-./cli/lightning-cli sendpay "$route" [ptarmigan hash]
-```
-
-21. [cln]実施後のamountを確認
-
-```bash
-./cli/lightning-cli getpeers
+./cli/lightning-cli listpeers | jq
 ```

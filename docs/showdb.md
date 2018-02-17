@@ -14,7 +14,6 @@
 * `s` : show self info
 * `c` : show channel info
 * `n` : show node info
-* 'p' : create peer config files
 
 ## DESCRIPTION
 

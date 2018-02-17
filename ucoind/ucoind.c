@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <linux/limits.h>
+#include <getopt.h>
 #include <assert.h>
 
 #include "btcrpc.h"
@@ -49,7 +50,6 @@
  ********************************************************************/
 
 static ln_node_t            mNode;
-static uint16_t             mNodePort;
 static pthread_mutex_t      mMuxPreimage;
 static char                 mExecPath[PATH_MAX];
 
@@ -61,50 +61,60 @@ static char                 mExecPath[PATH_MAX];
 int main(int argc, char *argv[])
 {
     bool bret;
+    rpc_conf_t rpc_conf;
+    ln_nodeaddr_t *p_addr = ln_node_addr(&mNode);
 
+    memset(&rpc_conf, 0, sizeof(rpc_conf_t));
 #ifndef NETKIND
 #error not define NETKIND
 #endif
 #if NETKIND==0
     ucoin_init(UCOIN_MAINNET, true);
+    rpc_conf.rpcport = 8332;
 #elif NETKIND==1
     ucoin_init(UCOIN_TESTNET, true);
+    rpc_conf.rpcport = 18332;
 #endif
+    strcpy(rpc_conf.rpcurl, "127.0.0.1");
 
-    signal(SIGPIPE , SIG_IGN);   //ignore SIGPIPE
+    mNode.addr.type = LN_NODEDESC_NONE;
+    mNode.addr.port = 9735;
 
-    if ((argc == 2) && (strcmp(argv[1], "wif") == 0)) {
-        uint8_t priv[UCOIN_SZ_PRIVKEY];
-        do {
-            ucoin_util_random(priv, UCOIN_SZ_PRIVKEY);
-        } while (!ucoin_keys_chkpriv(priv));
-
-        char wif[UCOIN_SZ_WIF_MAX];
-        ucoin_keys_priv2wif(wif, priv);
-        printf("%s\n", wif);
-
-        uint8_t pub[UCOIN_SZ_PUBKEY];
-        ucoin_keys_priv2pub(pub, priv);
-        printf(" ");
-        for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-            printf("%02x", pub[lp]);
+    int opt;
+    int options = 0;
+    while ((opt = getopt(argc, argv, "p:n:a:c:i")) != -1) {
+        switch (opt) {
+        case 'p':
+            //port num
+            mNode.addr.port = (uint16_t)atoi(optarg);
+            break;
+        case 'n':
+            //node name(alias)
+            strncpy(mNode.alias, optarg, LN_SZ_ALIAS - 1);
+            break;
+        case 'a':
+            //ip address
+            mNode.addr.type = LN_NODEDESC_IPV4;
+            uint8_t *p = mNode.addr.addrinfo.addr;
+            sscanf(optarg, "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8,
+                    &p[0], &p[1], &p[2], &p[3]);
+            break;
+        case 'c':
+            //load btcconf file
+            bret = load_btcrpc_conf(optarg, &rpc_conf);
+            if (!bret) {
+                goto LABEL_EXIT;
+            }
+            break;
+        case 'i':
+            //show node_id
+            options |= 0x01;
+            break;
+        default:
+            break;
         }
-        printf("\n");
-
-        ucoin_term();
-        return 0;
     }
 
-    rpc_conf_t rpc_conf;
-    node_conf_t node_conf;
-    load_node_init(&node_conf, &rpc_conf, ln_node_addr(&mNode));
-
-    if (argc >= 2) {
-        bret = load_node_conf(argv[1], &node_conf, &rpc_conf, ln_node_addr(&mNode));
-        if (!bret) {
-            goto LABEL_EXIT;
-        }
-    }
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
         //bitcoin.confから読込む
         bret = load_btcrpc_default_conf(&rpc_conf);
@@ -112,50 +122,6 @@ int main(int argc, char *argv[])
             goto LABEL_EXIT;
         }
     }
-
-    if (argc == 3) {
-        ucoin_util_keys_t keys;
-        ucoin_chain_t chain;
-        ucoin_util_wif2keys(&keys, &chain, node_conf.wif);
-        fprintf(stderr, "chain type: ");
-        switch (chain) {
-        case UCOIN_MAINNET:
-            fprintf(stderr, "mainnet\n");
-            break;
-        case UCOIN_TESTNET:
-            fprintf(stderr, "testnet\n");
-            break;
-        default:
-            fprintf(stderr, "unknown\n");
-            break;
-        }
-
-        if (strcmp(argv[2], "id") == 0) {
-            //node_id出力
-            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
-        } else if (strcmp(argv[2], "peer") == 0) {
-            //peer config出力
-            const ln_nodeaddr_t *p_addr = ln_node_addr(&mNode);
-            if (p_addr->type == LN_NODEDESC_IPV4) {
-                printf("ipaddr=%d.%d.%d.%d\n",
-                            p_addr->addrinfo.ipv4.addr[0],
-                            p_addr->addrinfo.ipv4.addr[1],
-                            p_addr->addrinfo.ipv4.addr[2],
-                            p_addr->addrinfo.ipv4.addr[3]);
-            } else {
-                printf("ipaddr=127.0.0.1\n");
-            }
-            printf("port=%d\n", p_addr->port);
-            printf("node_id=");
-            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, true);
-        }
-
-        ucoin_term();
-        return 0;
-    }
-
-    //syslog
-    openlog("ucoind", LOG_CONS, LOG_USER);
 
     //ucoindがあるパスを取る("routepay"用)
     const char *p_delimit = strrchr(argv[0], '/');
@@ -166,11 +132,12 @@ int main(int argc, char *argv[])
         mExecPath[0] = '\0';
     }
 
+    signal(SIGPIPE , SIG_IGN);   //ignore SIGPIPE
     p2p_cli_init();
-    btcprc_init(&rpc_conf);
 
     //bitcoind起動確認
     uint8_t genesis[LN_SZ_HASH];
+    btcprc_init(&rpc_conf);
     bret = btcprc_getblockhash(genesis, 0);
     if (!bret) {
         DBG_PRINTF("fail: bitcoin getblockhash(check bitcoind)\n");
@@ -186,22 +153,48 @@ int main(int argc, char *argv[])
     ln_set_genesishash(genesis);
 
     //node情報読込み
-    bret = ln_node_init(&mNode, node_conf.wif, node_conf.name, &node_conf.port, 0);
+    bret = ln_node_init(&mNode, 0);
     if (!bret) {
         DBG_PRINTF("fail: node init\n");
         return -2;
     }
 
+    if (options == 0x01) {
+        //node_id出力
+        ucoin_util_dumpbin(stdout, mNode.keys.pub, UCOIN_SZ_PUBKEY, true);
+        ucoin_term();
+        return 0;
+    }
 
+    //syslog
+    openlog("ucoind", LOG_CONS, LOG_USER);
     ln_print_node(&mNode);
+
+    //peer config出力
+    FILE *fp = fopen("peer.conf", "w");
+    if (fp) {
+        if (p_addr->type == LN_NODEDESC_IPV4) {
+            fprintf(fp, "ipaddr=%d.%d.%d.%d\n",
+                        p_addr->addrinfo.ipv4.addr[0],
+                        p_addr->addrinfo.ipv4.addr[1],
+                        p_addr->addrinfo.ipv4.addr[2],
+                        p_addr->addrinfo.ipv4.addr[3]);
+        } else {
+            fprintf(fp, "ipaddr=127.0.0.1\n");
+        }
+        fprintf(fp, "port=%d\n", p_addr->port);
+        fprintf(fp, "node_id=");
+        ucoin_util_dumpbin(fp, mNode.keys.pub, UCOIN_SZ_PUBKEY, true);
+        fclose(fp);
+    }
+
     lnapp_init(&mNode);
 
     pthread_mutex_init(&mMuxPreimage, NULL);
 
     //接続待ち受け用
     pthread_t th_svr;
-    pthread_create(&th_svr, NULL, &p2p_svr_start, &node_conf.port);
-    mNodePort = node_conf.port;
+    pthread_create(&th_svr, NULL, &p2p_svr_start, &mNode.addr.port);
 
     //チャネル監視用
     pthread_t th_poll;
@@ -210,11 +203,11 @@ int main(int argc, char *argv[])
 #if NETKIND==0
     SYSLOG_INFO("start bitcoin mainnet");
 #elif NETKIND==1
-    SYSLOG_INFO("start bitcoin testnet");
+    SYSLOG_INFO("start bitcoin testnet/regtest");
 #endif
 
     //ucoincli受信用
-    cmd_json_start(node_conf.port + 1);
+    cmd_json_start(mNode.addr.port + 1);
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
@@ -229,10 +222,7 @@ int main(int argc, char *argv[])
 
 LABEL_EXIT:
     fprintf(PRINTOUT, "[usage]\n");
-    fprintf(PRINTOUT, "\t%s wif\tcreate new node_id\n", argv[0]);
-    fprintf(PRINTOUT, "\t%s <node.conf>\tstart node\n", argv[0]);
-    fprintf(PRINTOUT, "\t%s <node.conf> id\tget node_id\n", argv[0]);
-    fprintf(PRINTOUT, "\t%s <node.conf> peer\toutput peer config\n", argv[0]);
+    fprintf(PRINTOUT, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
     return -1;
 }
 
@@ -249,7 +239,7 @@ const uint8_t *ucoind_nodeid(void)
 
 uint16_t ucoind_nodeport(void)
 {
-    return mNodePort;
+    return mNode.addr.port;
 }
 
 

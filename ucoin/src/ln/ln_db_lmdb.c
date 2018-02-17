@@ -342,47 +342,76 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
     }
     retval = mdb_dbi_open(db.txn, M_DBI_VERSION, 0, &db.dbi);
     if (retval != 0) {
-        //新規の場合は保存する
-        if (strlen(pWif) == 0) {
-            DBG_PRINTF("FAIL: no node_wif\n");
-            MDB_TXN_ABORT(db.txn);
-            goto LABEL_EXIT;
+        //新規の場合は作成/保存する
+        //      node_id : 生成
+        //      aliase : 指定が無ければ生成
+        //      port : 指定された値
+        DBG_PRINTF("create node DB\n");
+        uint8_t priv[UCOIN_SZ_PRIVKEY];
+        do {
+            ucoin_util_random(priv, UCOIN_SZ_PRIVKEY);
+        } while (!ucoin_keys_chkpriv(priv));
+        ucoin_keys_priv2wif(pWif, priv);
+
+        char nodename[LN_SZ_ALIAS];
+        if (pNodeName == NULL) {
+            pNodeName = nodename;
+            nodename[0] = '\0';
         }
+        if (strlen(pNodeName) == 0) {
+            uint8_t pub[UCOIN_SZ_PUBKEY];
+            ucoin_keys_priv2pub(pub, priv);
+            sprintf(pNodeName, "node_%02x%02x%02x%02x%02x%02x",
+                        pub[0], pub[1], pub[2], pub[3], pub[4], pub[5]);
+        }
+        //DBG_PRINTF("wif=%s\n", pWif);
+        DBG_PRINTF("aliase=%s\n", pNodeName);
+        DBG_PRINTF("port=%d\n", *pPort);
         retval = ver_write(db.txn, pWif, pNodeName, *pPort);
         if (retval == 0) {
-            MDB_TXN_COMMIT(db.txn);
+            //MDB_TXN_COMMIT(db.txn);
         } else {
             DBG_PRINTF("FAIL: create version db\n");
             MDB_TXN_ABORT(db.txn);
             goto LABEL_EXIT;
         }
-    } else {
-        uint8_t genesis[LN_SZ_HASH];
-        retval = ver_check(&db, pWif, pNodeName, pPort, genesis);
-        MDB_TXN_ABORT(db.txn);
-        if (retval == 0) {
-            retval = memcmp(gGenesisChainHash, genesis, LN_SZ_HASH);
-        }
-        if (retval == 0) {
-            ucoin_genesis_t gtype = ucoin_util_get_genesis(genesis);
-            switch (gtype) {
-            case UCOIN_GENESIS_BTCMAIN:
-                DBG_PRINTF("chainhash: bitcoin mainnet\n");
-                break;
-            case UCOIN_GENESIS_BTCTEST:
-                DBG_PRINTF("chainhash: bitcoin testnet\n");
-                break;
-            case UCOIN_GENESIS_BTCREGTEST:
-                DBG_PRINTF("chainhash: bitcoin regtest\n");
-                break;
-            default:
-                DBG_PRINTF("chainhash: unknown chainhash\n");
-                break;
-            }
-        } else {
-            DBG_PRINTF("FAIL: check version db\n");
+        retval = mdb_dbi_open(db.txn, M_DBI_VERSION, 0, &db.dbi);
+        if (retval != 0) {
+            DBG_PRINTF("FAIL: create version db\n");
+            MDB_TXN_ABORT(db.txn);
             goto LABEL_EXIT;
         }
+    }
+
+    uint8_t genesis[LN_SZ_HASH];
+    retval = ver_check(&db, pWif, pNodeName, pPort, genesis);
+    MDB_TXN_COMMIT(db.txn);
+    if (retval == 0) {
+        //DBG_PRINTF("wif=%s\n", pWif);
+        DBG_PRINTF("aliase=%s\n", pNodeName);
+        DBG_PRINTF("port=%d\n", *pPort);
+
+        retval = memcmp(gGenesisChainHash, genesis, LN_SZ_HASH);
+    }
+    if (retval == 0) {
+        ucoin_genesis_t gtype = ucoin_util_get_genesis(genesis);
+        switch (gtype) {
+        case UCOIN_GENESIS_BTCMAIN:
+            DBG_PRINTF("chainhash: bitcoin mainnet\n");
+            break;
+        case UCOIN_GENESIS_BTCTEST:
+            DBG_PRINTF("chainhash: bitcoin testnet\n");
+            break;
+        case UCOIN_GENESIS_BTCREGTEST:
+            DBG_PRINTF("chainhash: bitcoin regtest\n");
+            break;
+        default:
+            DBG_PRINTF("chainhash: unknown chainhash\n");
+            break;
+        }
+    } else {
+        DBG_PRINTF("FAIL: check version db\n");
+        goto LABEL_EXIT;
     }
 
     return true;
@@ -2764,6 +2793,8 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
             DBG_PRINTF("FAIL: version mismatch : %d(require %d)\n", version, M_DB_VERSION_VAL);
             retval = -1;
         }
+    } else {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
     if ((retval == 0) && (pWif != NULL)) {
         key.mv_size = LNDBK_LEN(LNDBK_NODEID);
@@ -2783,6 +2814,8 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
             // DBG_PRINTF("port=%" PRIu16 "\n", *pPort);
             // DBG_PRINTF("genesis=");
             // DUMPBIN(p_nodeinfo->genesis, LN_SZ_HASH);
+        } else {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         }
     }
 

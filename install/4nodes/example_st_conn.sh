@@ -2,16 +2,16 @@
 
 killall ucoind
 cd node_3333
-../ucoind node.conf&
+../ucoind -c ../regtest.conf &
 cd .. 
 cd node_4444
-../ucoind node.conf&
+../ucoind -c ../regtest.conf&
 cd ..
 cd node_5555
-../ucoind node.conf&
+../ucoind -c ../regtest.conf&
 cd ..
 cd node_6666
-../ucoind node.conf&
+../ucoind -c ../regtest.conf&
 cd ..
 
 sleep 1
