@@ -51,7 +51,7 @@ typedef struct {
  **************************************************************************/
 
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
-//static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
+static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
 
 
 /**************************************************************************
@@ -93,16 +93,19 @@ bool ln_node_init(ln_node_t *node, uint8_t Features)
         anno.p_alias = node_alias;
         ret = ln_msg_node_announce_read(&anno, buf_node.buf, buf_node.len);
         if (ret) {
-            memcpy(&node->addr, &anno.addr, sizeof(anno.addr));
             if ( (memcmp(anno.p_node_id, ln_node_id(node), UCOIN_SZ_PUBKEY) != 0) ||
                  (strcmp(anno.p_alias, node->alias) != 0) ||
-                 (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ) {
+                 (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
+                 (!comp_node_addr(&anno.addr, &node->addr)) ) {
                 //保持している情報と不一致
                 DBG_PRINTF("fail: node info not match\n");
                 ret = false;
                 goto LABEL_EXIT;
             } else {
                 DBG_PRINTF("same node.conf\n");
+                uint16_t bak = node->addr.port; //node_announcementにはポート番号が載らないことがあり得る
+                memcpy(&node->addr, &anno.addr, sizeof(anno.addr));
+                node->addr.port = bak;
             }
         }
     } else {
@@ -240,7 +243,6 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 }
 
 
-#if 0
 /** ln_nodeaddr_t比較
  *
  * @param[in]   pAddr1      比較対象1
@@ -276,4 +278,3 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
     }
     return true;
 }
-#endif
