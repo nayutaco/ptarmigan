@@ -4,7 +4,7 @@ CFLAGS = --std=c99 -D_GNU_SOURCE -I../include -I../ucoin/include -I../ucoin/libs
 LDFLAGS = -L../libs/install/lib -L../ucoin/libs/install/lib -L../ucoin
 LDFLAGS += -llmdb -lucoin -lsodium -lbase58 -lmbedcrypto -pthread
 
-all: .Depend showdb
+all: showdb
 
 showdb: ../ucoin/libucoin.a $(SRC)
 	gcc -W -Wall $(CFLAGS) -o $(OBJ) $(SRC) ../cmn/misc.c $(LDFLAGS)

@@ -4,7 +4,7 @@ CFLAGS = -I../include -I../ucoin/include -I../libs/install/include -I../ucoin/li
 LDFLAGS = -L../libs/install/lib -L../ucoin/libs/install/lib -L../ucoin
 LDFLAGS += -linih -llmdb -lucoin -lsodium -lbase58 -lmbedcrypto -pthread
 
-all: .Depend routing
+all: routing
 
 routing: $(SRC)
 	g++ -W -Wall -ggdb $(CFLAGS) -o $(OBJ) $(SRC) ../cmn/conf.c ../cmn/misc.c $(LDFLAGS)

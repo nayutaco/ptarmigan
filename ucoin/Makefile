@@ -179,13 +179,13 @@ cppcheck:
 	cppcheck --enable=all --suppress=missingIncludeSystem -D__ORDER_LITTLE_ENDIAN__ -DDEBUG -DUCOIN_DEBUG -DUCOIN_USE_PRINTFUNC -DUCOIN_DEBUG_MEM $(INC_PATHS) $(PRJ_PATH)/*.c
 
 clean:
-	$(RM) $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME)
+	$(RM) $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME) .Depend
 
 ################################
 
 .Depend:
-	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
-
 ifneq ($(MAKECMDGOALS),clean)
--include .Depend
+	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
 endif
+
+-include .Depend
