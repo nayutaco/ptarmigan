@@ -6,50 +6,51 @@
 
 ## SYNOPSIS
 
-    ucoind [node config file] [id]
+```bash
+ucoind [-p PORT] [-n ALIAS NAME] [-a IPv4 ADDRESS] [-c BITCOIN.CONF] [-i]
+```
 
 ### options
 
-* `node config file` : node configuration file(detail below)
-* `id` : show own node_id from DB
+* -p PORT
+  * port number
+    * default: 9735(if DB don't have data)
+  * _NOTICE_: this value is witten to DB at first time
+
+* -n ALIAS NAME
+  * node alias name
+    * default: `node_` + node_id first 6byte(if DB don't have data)
+  * _NOTICE_: this value is witten to DB at first time
+
+* -a IPv4 ADDRESS
+  * node announcement ip address
+    * default: no ip address(if DB don't have data)
+  * _NOTICE_: this value is witten to DB at first time
+
+* -c BITCOIN.CONF
+  * current bitcoin.conf
+    * default: ~/.bitcoin/bitcoin.conf
+
+* -i
+  * show node_id, and exit
+  * not start node
 
 ## DESCRIPTION
 
 Start ucoin lightning daemon.  
-First time(`dbucoin` DB directory not created), `node_id`, `name` and `port` are written in DB.  
-After second time, `name` and `port` dont't reflect at node settings.
 
-
-### node config file format
-
-```text
-port=[TCP socket number] (*first time)
-name=[alias name for node_announcement] (*first time)
-_ipv4=[node IPv4 Address]_
-_rpcuser=[JSON-RPC username]_
-_rpcpasswd=[JSON-RPC password]_
-_rpcurl=[JSON-RPC URL]_
-_rpcport=[JSON-RPC port number]_
-```
-
-If not exist ipv4, `address descriptor` in `node_announcement` is 0.  
-If not exist rpcxxx, read from `~/.bitcoin/bitcoin.conf`.
-
-### other config file
-
-If `anno.conf` exists same folder, use it for announcement parameter.  
-If `establish.conf` exists same folder, use it for establish parameter.  
+### related config file
 
 * announcement config file(`anno.conf`) format
 
 ```text
-cltv_expiry_delta=[_(channel_update)_ cltv_expiry_delta]
-htlc_minimum_msat=[_(channel_update)_ htlc_minimum_msat]
-fee_base_msat=[_(channel_update)_ fee_base_msat]
-fee_prop_millionths=[_(channel_update)_ fee_prop_millionths]
+cltv_expiry_delta=[(channel_update) cltv_expiry_delta]
+htlc_minimum_msat=[(channel_update) htlc_minimum_msat]
+fee_base_msat=[(channel_update) fee_base_msat]
+fee_prop_millionths=[(channel_update) fee_prop_millionths]
 ```
 
-* establish config file(establish.conf) format
+* establish config file(`establish.conf`) format
 
 ```text
 dust_limit_sat=[dust_lmit_satoshis]

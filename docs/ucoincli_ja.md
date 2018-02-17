@@ -6,7 +6,11 @@
 
 ## SYNOPSIS
 
-    ucoincli [options] [JSON-RPC port number]
+```bash
+ucoincli [options] [JSON-RPC port number]
+```
+
+* It can be omitted if the JSON-RPC port number is 9736 (`ucoind` port number is 9735).
 
 ### options
 
