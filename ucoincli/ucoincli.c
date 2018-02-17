@@ -597,8 +597,8 @@ static void routepay_rpc(char *pJson, const ln_invoice_t *pInvData)
             M_STR("method", "routepay") M_NEXT
             M_QQ("params") ":[ "
                 //payment_hash, amount_msat, payee, payer
-                M_QQ("%s") ",%" PRIu64 "," M_QQ("%s") "," M_QQ("") "]}",
-            payhash, pInvData->amount_msat, payee);
+                M_QQ("%s") ",%" PRIu64 "," M_QQ("%s") "," M_QQ("") ",%" PRIu32 "]}",
+            payhash, pInvData->amount_msat, payee, pInvData->min_final_cltv_expiry);
 }
 
 

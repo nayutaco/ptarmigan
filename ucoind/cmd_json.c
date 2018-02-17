@@ -683,6 +683,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     char nodeid_payee[2 * UCOIN_SZ_PUBKEY + 1];
     char nodeid_payer[2 * UCOIN_SZ_PUBKEY + 1];
     uint64_t amount_msat;
+    uint32_t min_final_cltv_expiry;
 
     if (params == NULL) {
         index = -1;
@@ -728,6 +729,14 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         index = -1;
         goto LABEL_EXIT;
     }
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        min_final_cltv_expiry = (uint32_t)json->valueu64;
+        DBG_PRINTF("  min_final_cltv_expiry=%" PRIu32 "\n", min_final_cltv_expiry);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
 
     SYSLOG_INFO("routepay");
 
@@ -736,7 +745,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     sprintf(cmd, "%srouting %s %s %s %" PRIu64 " %d %s\n",
                 ucoind_get_exec_path(),
                 LNDB_DBDIR,
-                nodeid_payer, nodeid_payee, amount_msat, 9, payment_hash);
+                nodeid_payer, nodeid_payee, amount_msat, min_final_cltv_expiry, payment_hash);
     //DBG_PRINTF("cmd=%s\n", cmd);
     FILE *fp = popen(cmd, "r");
     if (fp == NULL) {
