@@ -125,7 +125,7 @@ OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 debug: CFLAGS += $(CFLAGS_USER)
 debug: CFLAGS += -ggdb3 -O0 --coverage
 debug: LDFLAGS += -ggdb3 -O0 --coverage
-debug: $(BUILD_DIRECTORIES) .Depend $(OBJECTS)
+debug: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo [DEBUG]Linking target: $(OUTPUT_FILENAME)
 	@echo [DEBUG]CFLAGS=$(CFLAGS)
 	$(NO_ECHO)$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME)
@@ -133,7 +133,7 @@ debug: $(BUILD_DIRECTORIES) .Depend $(OBJECTS)
 release: CFLAGS += $(CFLAGS_USER)
 release: CFLAGS += -DNDEBUG -O3
 release: LDFLAGS += -O3
-release: $(BUILD_DIRECTORIES) .Depend $(OBJECTS)
+release: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo [RELEASE]Linking target: $(OUTPUT_FILENAME)
 	$(NO_ECHO)$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME)
 
@@ -161,8 +161,8 @@ lcov:
 ################################
 
 .Depend:
-	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) -MM -MT $(SRC:$(PRJ_PATH)%.c=$(OBJECT_DIRECTORY)/%.o) $(SRC) >> .Depend;)
-
 ifneq ($(MAKECMDGOALS),clean)
--include .Depend
+	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) -MM -MT $(SRC:$(PRJ_PATH)%.c=$(OBJECT_DIRECTORY)/%.o) $(SRC) >> .Depend;)
 endif
+
+-include .Depend
