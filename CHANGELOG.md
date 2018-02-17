@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 2018/02/17
+
+* deprecate `node.conf`
+
+## 2018/02/16
+
+* `update_fee` receive
+
+## 2018/02/14
+
+* DB version update
+  * 14 --> 15
+* `shordb`, `routing`からchain種別の引数を削除
+
 ## 2018/02/12
 
 * 相手からのclose時、remotekeyへの送金をbitcoindに戻す
