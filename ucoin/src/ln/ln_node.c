@@ -99,6 +99,7 @@ bool ln_node_init(ln_node_t *node, uint8_t Features)
                  !comp_node_addr(&anno.addr, &node->addr) ) {
                 //保持している情報と不一致
                 DBG_PRINTF("fail: node info not match\n");
+                ret = false;
                 goto LABEL_EXIT;
             } else {
                 DBG_PRINTF("same node.conf\n");
