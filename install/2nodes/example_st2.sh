@@ -5,7 +5,7 @@
 # ここでは連続して起動させているが、動作を見る場合にはコンソールをそれぞれ開き、
 # 各コンソールで起動させた方がログを見やすい。
 cd node_3333
-../ucoind node.conf &
+../ucoind -c ../regtest.conf -p 3333 &
 cd ../node_4444
-../ucoind node.conf &
+../ucoind -c ../regtest.conf -p 4444 &
 cd ..

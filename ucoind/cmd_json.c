@@ -390,10 +390,6 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    //connect parameter
-    daemon_connect_t conn;
-    index = json_connect(params, index, &conn);
-
     //amount
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {

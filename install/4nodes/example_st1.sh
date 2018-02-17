@@ -24,6 +24,3 @@ ln -s ../../script node_3333/script
 ln -s ../../script node_4444/script
 ln -s ../../script node_5555/script
 ln -s ../../script node_6666/script
-
-# ノード設定ファイルを作成する。
-tar zxf ../nodes.tgz

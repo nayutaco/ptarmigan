@@ -22,7 +22,3 @@ bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest generate 432
 mkdir -p node_3333 node_4444
 ln -s ../../script node_3333/script
 ln -s ../../script node_4444/script
-
-# ノード設定ファイルを作成する。
-tar zxf ../nodes.tgz
-rm -rf node_5555 node_6666
