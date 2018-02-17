@@ -58,23 +58,23 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
  * public functions
  **************************************************************************/
 
-bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t Features)
+bool ln_node_init(ln_node_t *node, uint8_t Features)
 {
     bool ret;
+    char wif[UCOIN_SZ_WIF_MAX];
     ucoin_chain_t chain;
     ucoin_buf_t buf_node;
     ucoin_buf_init(&buf_node);
 
     node->features = Features;
 
-    ret = ln_db_init(pWif, pNodeName, pPort);
+    ret = ln_db_init(wif, node->alias, &node->addr.port);
     if (ret) {
-        ret = ucoin_util_wif2keys(&node->keys, &chain, pWif);
+        //新規設定 or DBから読み込み
+        ret = ucoin_util_wif2keys(&node->keys, &chain, wif);
         if (!ret) {
             goto LABEL_EXIT;
         }
-        strcpy(node->alias, pNodeName);
-        node->addr.port = *pPort;
     } else {
         DBG_PRINTF("fail: db init\n");
         goto LABEL_EXIT;

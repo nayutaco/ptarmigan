@@ -1909,13 +1909,10 @@ static inline bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd) {
 
 /** ノード情報初期化
  *
- * @param[out]      node            ノード情報
- * @param[in,out]   pWif            ノード秘密鍵
- * @param[in,out]   pNodeName       ノード名
- * @param[in,out]   pPort           ポート番号
+ * @param[in,out]   node            ノード情報
  * @param[in]       Features        ?
  */
-bool ln_node_init(ln_node_t *node, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t Features);
+bool ln_node_init(ln_node_t *node, uint8_t Features);
 
 
 /** ノード情報終了

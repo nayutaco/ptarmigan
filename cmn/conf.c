@@ -39,21 +39,9 @@
 
 
 /**************************************************************************
- * typedefs
- **************************************************************************/
-
-struct node_confs_t {
-    node_conf_t     *p_node_conf;
-    rpc_conf_t      *p_rpc_conf;
-    ln_nodeaddr_t   *p_addr;
-};
-
-
-/**************************************************************************
  * prototypes
  **************************************************************************/
 
-static int handler_node_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_peer_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_fund_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
@@ -66,58 +54,6 @@ static bool chk_nonzero(const uint8_t *pData, int Len);
 /**************************************************************************
  * public functions
  **************************************************************************/
-
-/********************
- * node.conf
- ********************/
-
-void load_node_init(node_conf_t *pNodeConf, rpc_conf_t *pRpcConf, ln_nodeaddr_t *pAddr)
-{
-    memset(pNodeConf, 0, sizeof(node_conf_t));
-    memset(pRpcConf, 0, sizeof(rpc_conf_t));
-    memset(pAddr, 0, sizeof(ln_nodeaddr_t));
-
-    pNodeConf->port = 9735;
-    strcpy(pRpcConf->rpcurl, "127.0.0.1");
-#if NETKIND==0
-    pRpcConf->rpcport = 8332;
-#elif NETKIND==1
-    pRpcConf->rpcport = 18332;
-#endif
-}
-
-
-bool load_node_conf(const char *pConfFile, node_conf_t *pNodeConf, rpc_conf_t *pRpcConf, ln_nodeaddr_t *pAddr)
-{
-    struct node_confs_t node_confs = { pNodeConf, pRpcConf, pAddr };
-
-    if (ini_parse(pConfFile, handler_node_conf, &node_confs) != 0) {
-        SYSLOG_ERR("fail node parse[%s]", pConfFile);
-        return false;
-    }
-
-    pAddr->port = pNodeConf->port;
-
-#ifdef M_DEBUG
-    fprintf(PRINTOUT, "\n--- node: %s ---\n", pConfFile);
-    print_node_conf(pNodeConf, pRpcConf);
-#endif
-
-    return true;
-}
-
-
-void print_node_conf(const node_conf_t *pNodeConf, const rpc_conf_t *pRpcConf)
-{
-    fprintf(PRINTOUT, "\n--- node ---\n");
-    fprintf(PRINTOUT, "port=%d\n", pNodeConf->port);
-    fprintf(PRINTOUT, "name=%s\n", pNodeConf->name);
-    fprintf(PRINTOUT, "rpcuser=%s\n", pRpcConf->rpcuser);
-    fprintf(PRINTOUT, "rpcpasswd=%s\n", pRpcConf->rpcpasswd);
-    fprintf(PRINTOUT, "rpcurl=%s\n", pRpcConf->rpcurl);
-    fprintf(PRINTOUT, "\n\n");
-}
-
 
 /********************
  * peer.conf
@@ -192,8 +128,6 @@ void print_funding_conf(const funding_conf_t *pFundConf)
 
 bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
-    //memset(pRpcConf, 0, sizeof(rpc_conf_t));
-
     if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
         SYSLOG_ERR("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
@@ -294,36 +228,6 @@ bool load_establish_conf(const char *pConfFile, establish_conf_t *pEstConf)
  * private functions
  **************************************************************************/
 
-static int handler_node_conf(void* user, const char* section, const char* name, const char* value)
-{
-    (void)section;
-
-    struct node_confs_t* pconfig = (struct node_confs_t *)user;
-
-    if (strcmp(name, "port") == 0) {
-        pconfig->p_node_conf->port = (uint16_t)atoi(value);
-    } else if (strcmp(name, "name") == 0) {
-        strcpy(pconfig->p_node_conf->name, value);
-    } else if (strcmp(name, "rpcuser") == 0) {
-        strcpy(pconfig->p_rpc_conf->rpcuser, value);
-    } else if (strcmp(name, "rpcpasswd") == 0) {
-        strcpy(pconfig->p_rpc_conf->rpcpasswd, value);
-    } else if (strcmp(name, "rpcurl") == 0) {
-        strcpy(pconfig->p_rpc_conf->rpcurl, value);
-    } else if (strcmp(name, "rpcport") == 0) {
-        pconfig->p_rpc_conf->rpcport = atoi(value);
-    } else if (strcmp(name, "ipv4") == 0) {
-        pconfig->p_addr->type = LN_NODEDESC_IPV4;
-        uint8_t *p = pconfig->p_addr->addrinfo.addr;
-        sscanf(value, "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8,
-                &p[0], &p[1], &p[2], &p[3]);
-    } else {
-        //return 0;  /* unknown section/name, error */
-    }
-    return 1;
-}
-
-
 static int handler_peer_conf(void* user, const char* section, const char* name, const char* value)
 {
     (void)section;
@@ -385,6 +289,9 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
         strcpy(pconfig->rpcpasswd, value);
     } else if (strcmp(name, "rpcport") == 0) {
         pconfig->rpcport = atoi(value);
+    } else if (strcmp(name, "rpcurl") == 0) {
+        //bitcoin.confには無い。ptarmiganテスト用。
+        strcpy(pconfig->rpcurl, value);
     } else {
         //return 0;  /* unknown section/name, error */
     }

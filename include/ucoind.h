@@ -196,13 +196,6 @@ typedef struct {
 
 
 typedef struct {
-    uint16_t        port;
-    char            name[LN_SZ_ALIAS];
-    char            wif[UCOIN_SZ_WIF_MAX];
-} node_conf_t;
-
-
-typedef struct {
     char            rpcuser[SZ_RPC_USER];
     char            rpcpasswd[SZ_RPC_PASSWD];
     char            rpcurl[SZ_RPC_URL];
