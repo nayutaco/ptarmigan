@@ -2265,22 +2265,30 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DUMPBIN(reason.buf, reason.len);
 
             //失敗したと思われるshort_channel_idを登録
-            //  hopはfailを通知したノードに当たるため、その次が使えなくなっているはず
-            if (hop == p_conf->route.hop_num - 1) {
+            //      route.hop_datain[0]は自分、[1]が相手
+            //      hopの0は相手
+            char suggest[64];
+            if (hop == p_conf->route.hop_num - 2) {
                 //送金先がエラーを返した？
-            } else if (hop < p_conf->route.hop_num - 1) {
+                strcpy(suggest, "payee");
+            } else if (hop < p_conf->route.hop_num - 2) {
                 //途中がエラーを返した
-                uint64_t short_channel_id = p_conf->route.hop_datain[1 + hop + 1].short_channel_id;
-                DBG_PRINTF("  maybe short_channl_id: %" PRIu64 "\n", short_channel_id);
+                // DBG_PRINTF2("hop=%d\n", hop);
+                // for (int lp = 0; lp < p_conf->route.hop_num; lp++) {
+                //     DBG_PRINTF2("[%d]%" PRIu64 "\n", lp, p_conf->route.hop_datain[lp].short_channel_id);
+                // }
+
+                uint64_t short_channel_id = p_conf->route.hop_datain[hop + 1].short_channel_id;
+                sprintf(suggest, "%016" PRIx64, short_channel_id);
                 ln_db_annoskip_save(short_channel_id);
             } else {
-                DBG_PRINTF("  invalid hop %d?\n", hop);
+                strcpy(suggest, "invalid");
             }
 
-            char errstr[256];
+            char errstr[512];
             char reasonstr[128];
             set_onionerr_str(reasonstr, &reason);
-            sprintf(errstr, "fail reason:%s(hop=%d)", reasonstr, hop);
+            sprintf(errstr, "fail reason:%s (hop=%d)(suggest:%s)", reasonstr, hop, suggest);
             set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
         } else {
             //デコード失敗
@@ -2294,7 +2302,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed受信(前処理)
+//LN_CB_COMMIT_SIG_RECV_PREV": commitment_signed受信(前処理)
 static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf; (void)p_param;
