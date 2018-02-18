@@ -26,6 +26,8 @@ cd node
 ../ucoind -p 8888
 ```
 
+もしc-lightningを別PCで動作させるのであれば、ポート番号はデフォルト値でもよい。
+
 5. [cln]c-lightning起動
 
 ```bash
@@ -42,25 +44,34 @@ cd "to/clightning/dir"
 7. [ptarm]接続先CONFファイル作成
 
 ```bash
-cd install
-./create_knownpeer.sh [c-lightning node_id] [c-lightning node IP address] > peer.conf
+cd install/node
+../create_knownpeer.sh [c-lightning node_id] [c-lightning node IP address] > peer_cln.conf
 ```
 
 8. [ptarm]fund-in transaction作成
 
 ```bash
-./fund-in.sh 0.01 fund.txt > node/fund.conf
+../pay_fundin.sh [fund-in satoshi] [channel satoshi] [push satoshi]
 ```
 
-0.01BTCのsegwit transactionを作成し、そこからchannelにfund.txtの配分でデポジットする。  
-`funding_sat` が 0.01BTCのうちchannelにデポジットする全satoshi。  
-`push_sat` が `funding_sat` のうち相手の持ち分とするsatoshi。
+`fund-in satoshi`は、チャネルに送金する手前のアドレスに対する送金額。  
+`channel satoshi`は、実際にチャネルに送金する額。  
+`push satoshi`は、`channel satoshi`のうち相手に渡す額。
+よって、`fund-in satoshi`の額は、`channel satoshi`にfeeを加えた以上の値にしなくてはならない。  
+
+例えば、5mBTCチャネルに入れたい場合は、以下のようにする。
+
+```bash
+../pay_fundin.sh 1000000 500000 0
+```
+
+`pay_fundin.sh`は`fund_yyyymmddhhmmss.conf`という形式のファイルを作成する。
 
 9. [ptarm]Establish開始
 
 ```bash
-./ucoincli -c peer.conf 8889
-./ucoincli -c peer.conf -f node/fund.conf 8889
+./ucoincli -c peer_cln.conf 8889
+./ucoincli -c peer_cln.conf -f node/fund_yyyymmddhhmmss.conf 8889
 ```
 
 10. [btc]block生成待ち
