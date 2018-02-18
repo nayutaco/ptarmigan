@@ -88,7 +88,7 @@ git checkout -b test refs/tags/2018-02-18
 make full
 ```
 
-6. ノード設定ファイルを作成し、`ucoind`を起動
+6. ノードdaemon `ucoind`を起動
 
 ```bash
 cd install
