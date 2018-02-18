@@ -298,7 +298,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
 static void dumpit_annoskip(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag == SHOW_ANNOSKIP) {
-        printf(M_QQ("skiproute") ": [");
+        printf(M_QQ("skiproute") ": [\n");
 
         MDB_cursor  *cursor;
 
@@ -308,12 +308,19 @@ static void dumpit_annoskip(MDB_txn *txn, MDB_dbi dbi)
             mdb_txn_abort(txn);
         }
 
+        int cnt = 0;
         MDB_val key, data;
         while ((retval =  mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-            const uint8_t *p = key.mv_data;
-            ucoin_util_dumpbin(stdout, p, sizeof(uint64_t), true);
+            if (cnt > 0) {
+                printf(",\n");
+            }
+            uint64_t short_channel_id = *(uint64_t *)key.mv_data;
+            printf("\"%016" PRIx64 "\"", short_channel_id);
+            cnt++;
         }
         mdb_cursor_close(cursor);
+
+        printf("\n]");
     }
 }
 
