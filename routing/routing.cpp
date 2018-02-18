@@ -157,7 +157,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi)
+static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip)
 {
     int retval;
     MDB_cursor  *cursor;
@@ -179,6 +179,16 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi)
             ln_cnl_update_t upd;
             bool bret;
 
+            ln_lmdb_db_t db;
+            db.txn = txn;
+            db.dbi = dbi_skip;
+            bret = ln_db_annoskip_search(&db, short_channel_id);
+            if (bret) {
+#ifdef M_DEBUG
+                fprintf(fp_err, "skip : %016" PRIx64 "\n", short_channel_id);
+#endif
+                continue;
+            }
             switch (type) {
             case LN_DB_CNLANNO_ANNO:
                 mNodeNum++;
@@ -430,6 +440,9 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     assert(ret == 0);
     ret = mdb_cursor_open(txn_anno, dbi, &cursor);
     assert(ret == 0);
+    MDB_dbi dbi_skip;
+    ret = mdb_dbi_open(txn_anno, "route_skip", 0, &dbi_skip);
+    assert(ret == 0);
 
     list = 0;
     while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
@@ -445,7 +458,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
                 const char *name = (const char *)key.mv_data;
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 if (dbtype == LN_LMDB_DBTYPE_CHANNEL_ANNO) {
-                    dumpit_chan(txn_anno, dbi2);
+                    dumpit_chan(txn_anno, dbi2, dbi_skip);
                 }
             }
             mdb_close(mdb_txn_env(txn_anno), dbi2);
