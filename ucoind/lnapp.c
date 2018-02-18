@@ -641,6 +641,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
         //minimum_depth
         cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(pAppConf->funding_min_depth));
+        //feerate_per_kw
+        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
     } else if (p_self && ln_is_funding(p_self)) {
         char str[256];
 
@@ -1111,8 +1113,6 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
 
         ucoin_chain_t chain;
         ucoin_util_wif2keys(&p_conf->p_opening->fundin_keys, &chain, wif);
-printf("chain: %d\n", chain);
-printf("get_chain: %d\n", ucoin_get_chain());
         assert(ucoin_get_chain() == chain);
         //TODO: データ構造に無駄が多い
         //      スタックに置けないものを詰めていったせいだが、整理したいところだ。

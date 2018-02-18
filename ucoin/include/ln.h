@@ -1621,6 +1621,16 @@ static inline bool ln_is_funding(const ln_self_t *self) {
 }
 
 
+/** feerate_per_kw取得
+ *
+ * @param[in]           self            channel情報
+ * @return      feerate_per_kw
+ */
+static inline uint32_t ln_feerate(ln_self_t *self) {
+    return self->feerate_per_kw;
+}
+
+
 /** feerate_per_kw設定
  *
  * @param[out]          self            channel情報
