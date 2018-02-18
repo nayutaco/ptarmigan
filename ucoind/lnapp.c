@@ -627,6 +627,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "their_msat", cJSON_CreateNumber64(ln_their_msat(p_self)));
         //feerate_per_kw
         cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
+        //htlc
+        cJSON_AddItemToObject(result, "htlc_num", cJSON_CreateNumber(ln_htlc_num(pAppConf->p_self)));
     } else if (pAppConf->funding_waiting) {
         char str[256];
 
