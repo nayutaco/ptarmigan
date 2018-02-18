@@ -93,12 +93,11 @@ cd install
 | `example_st4p.sh` | (example用) 送金実施スクリプト |
 | `example_st5.sh` | (example用) mutual closeおよび `bitcoind` 停止 |
 | `fund-test-in.sh` | (example用) funding_txの inputとなる P2WPKHトランザクションへの送金 |
-| `fund-in.sh` | funding_txの inputとなる P2WPKHトランザクションへの送金 |
+| `pay_funding.sh` | funding_txの inputとなる P2WPKHトランザクションへの送金 |
 
 ### その他ファイル
 
 | filename | 概要 |
 |----------|------|
 | `script/` | `ucoind` がイベント時に実行するスクリプトファイル。 `ucoind` と同じ場所にフォルダごとコピーし、ファイルの中身は適当に編集する想定。 |
-| `fund.txt` | `fund?-in.sh` の引数に使用するファイル。funding_txへの入金額(`funding_sat`)と相手への入金額(`push_sat`)を指定する。 |
 | `regtest.conf` | (example用) `bitcoind` 用設定ファイル。 `example_st1.sh` で使用する。 |
