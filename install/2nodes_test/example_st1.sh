@@ -9,9 +9,9 @@ ln -s ../ucoincli ucoincli
 ln -s ../ucoind ucoind
 ln -s ../showdb showdb
 ln -s ../routing routing
-ln -s ../fund-test-in.sh fund-test-in.sh
-ln -s ../regtest.conf regtest.conf
-ln -s ../generate.sh generate.sh
+ln -s ../testfiles/fund-test-in.sh fund-test-in.sh
+ln -s ../testfiles/regtest.conf regtest.conf
+ln -s ../testfiles/generate.sh generate.sh
 
 bitcoind -conf=`pwd`/regtest.conf -datadir=`pwd`/regtest -daemon
 sleep 3
