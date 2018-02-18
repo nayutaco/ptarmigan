@@ -67,6 +67,7 @@ txindex=[fund-in outpoint index]
 signaddr=[address for sign funding transaction(internally use `bitcoin-cli dumpprivkey`)]
 funding_sat=[funding satoshis in txid amount]
 push_sat=[push satoshis for peer node]
+feerate_per_kw=[feerate_per_kw for `open_channel`]
 ```
 
 * payment CSV config file format (`-p`)
@@ -83,7 +84,7 @@ route1=[next `node_id`,next `short_channel_id`,`msat`,`cltv_expiry`]
 #### funding
 
 ```bash
-ucoincli -c peer.conf -f fund.conf 9736
+ucoincli -c peer.conf -f fund.conf
 ```
 
 ```json
@@ -92,7 +93,7 @@ ucoincli -c peer.conf -f fund.conf 9736
     "params":[
         "02f5fa009cbf9774960d5f5591a37fd931fe4a22563b7cfbf57d3f9a98b0e11882",
         "127.0.0.1",
-        3333,
+        9735,
         "c165fed21602822ccad2f2394cfb8054e3c0c03620ab332b8f9bcad21c38e902",
         1,
         "mtkpsxCZhYmwGffbE2Rkj3DUcbrX8rJzfR",
@@ -105,7 +106,7 @@ ucoincli -c peer.conf -f fund.conf 9736
 #### connect
 
 ```bash
-ucoincli -c peer.conf 9736
+ucoincli -c peer.conf
 ```
 
 ```json
@@ -113,7 +114,7 @@ ucoincli -c peer.conf 9736
     "method":"connect",
     "params":[
         "02f5fa009cbf9774960d5f5591a37fd931fe4a22563b7cfbf57d3f9a98b0e11882","127.0.0.1",
-        3333
+        9735
     ]
 }
 ```
@@ -121,7 +122,7 @@ ucoincli -c peer.conf 9736
 #### add invoice
 
 ```bash
-ucoincli -i 123000 9736
+ucoincli -i 123000
 ```
 
 ```json
@@ -134,7 +135,7 @@ ucoincli -i 123000 9736
 #### getinfo
 
 ```bash
-ucoincli -l 9736
+ucoincli -l
 ```
 
 ```json
@@ -147,7 +148,7 @@ ucoincli -l 9736
 #### listinvoice
 
 ```bash
-ucoincli -m 9736
+ucoincli -m
 ```
 
 ```json
@@ -160,7 +161,25 @@ ucoincli -m 9736
 #### payment
 
 ```bash
-ucoincli -p pay.conf,112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00 9736
+ucoincli -r lntb1u1pdgjjwwpp50h7wjfp56ye392ajz82grpkeyerkh9ssaq9z7pgceqfkj8enugvqdyu0v3xgg36yffx2ctyypqhyarfvdkx2w3qfa6xsetjypcxcctrv4ejqar0yp6x2um5ypehqetwv35kueeqwdhjytpzdy3r5g3h8p3kzepcve3z6dekxgcz6dpnxgmj6wfexycz6ef4vgur2dmrvcmxzdtzyf7scqzysq5h93u4m2mcmn0yy4dr7rlwdnt57s9777rduwjnr6my0acf23wdnk8quh5ewyw4t6gmqd05lwlpp57uzvljjcc2sm2vwzxsy40adyfqqgv3djj
+```
+
+```json
+{
+    "method": "routepay", 
+    "params": [
+        "7dfce92434d13312abb211d48186d926476b9610e80a2f0518c813691f33e218", 
+        100000, 
+        "039cc950286a8fa99218283d1adc2456e0d5e81be558da77dd6e85ba9a1fff5ad3", 
+        ""
+    ]
+}
+```
+
+----
+
+```bash
+ucoincli -p pay.conf,112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00
 ```
 
 ```json
