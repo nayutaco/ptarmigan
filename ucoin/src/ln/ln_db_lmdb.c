@@ -61,6 +61,7 @@
 #define M_DBI_ANNOINFO_CNL      "channel_annoinfo"
 #define M_DBI_ANNO_NODE         "node_anno"
 #define M_DBI_ANNOINFO_NODE     "node_annoinfo"
+#define M_DBI_ANNO_SKIP         "route_skip"
 #define M_DBI_PREIMAGE          "preimage"
 #define M_DBI_PAYHASH           "payhash"
 #define M_DBI_VERSION           "version"
@@ -822,6 +823,7 @@ LABEL_EXIT:
 bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type)
 {
     MDB_txn *txn = NULL;
+    int opt = MDB_CREATE;
 
     int retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
     if (retval == 0) {
@@ -837,11 +839,15 @@ bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type)
         case LN_DB_TXN_NODE:
             p_name = M_DBI_ANNOINFO_NODE;
             break;
+        case LN_DB_TXN_SKIP:
+            p_name = M_DBI_ANNO_SKIP;
+            opt = 0;        //検索のみのため、DBが無くてもよい
+            break;
         default:
             assert(0);
             return false;
         }
-        retval = mdb_dbi_open(txn, p_name, MDB_CREATE, &p_db->dbi);
+        retval = mdb_dbi_open(txn, p_name, opt, &p_db->dbi);
     }
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1293,6 +1299,63 @@ int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *p
     }
 
     return retval;
+}
+
+
+/********************************************************************
+ * skip routing list
+ ********************************************************************/
+
+
+bool ln_db_annoskip_save(uint64_t ShortChannelId)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_val key, data;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_SKIP, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+
+    //keyだけを使う
+    key.mv_size = sizeof(ShortChannelId);
+    key.mv_data = &ShortChannelId;
+    data.mv_size = 0;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    MDB_TXN_COMMIT(txn);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId)
+{
+    int         retval;
+    MDB_val key, data;
+
+    ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
+
+    //keyだけを使う
+    key.mv_size = sizeof(ShortChannelId);
+    key.mv_data = &ShortChannelId;
+    retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
+
+    return retval == 0;
+
 }
 
 
