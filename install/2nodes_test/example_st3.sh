@@ -7,10 +7,6 @@
 #  +-----------+             |    fundee |
 #                            +-----------+
 
-mkdir -p conf
-cp node_3333/peer.conf conf/peer3333.conf
-cp node_4444/peer.conf conf/peer4444.conf
-
 # connect
 ./ucoincli -c conf/peer3333.conf 4445
 
