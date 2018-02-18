@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-FUNDIN_BTC=`bc "scale=10; $1/100000000"`
+FUNDIN_BTC=`echo "scale=10; $1/100000000" | bc`
+FUNDIN_BTC=`printf "%.8f" $FUNDIN_BTC`
 FUND_SAT=$2
 PUSH_SAT=$3
 
@@ -10,7 +11,7 @@ DATADIR=~/.bitcoin
 
 ADDR=`bitcoin-cli -conf=$CONF -datadir=$DATADIR getnewaddress`
 SEG=`bitcoin-cli -conf=$CONF -datadir=$DATADIR addwitnessaddress $ADDR`
-TXID=`bitcoin-cli -conf=$CONF -datadir=$DATADIR sendtoaddress $SEG $$FUNDIN_BTC`
+TXID=`bitcoin-cli -conf=$CONF -datadir=$DATADIR sendtoaddress $SEG $FUNDIN_BTC`
 echo txid=$TXID
 CNT=`bitcoin-cli -conf=$CONF -datadir=$DATADIR gettxout $TXID 0 | grep $SEG | wc -c`
 if [ $CNT -gt 0 ]; then
