@@ -3,6 +3,7 @@
 ## 2018/02/18
 
 * change `fund-in.sh` to `pay_fundin.sh`
+  * use `bc` command (`sudo apt install bc`)
 
 ```bash
 pay_fundin.sh <pay to fund-in tx(satoshi)> <pay to our channel(satoshi)> <pay to their channel(satoshi)>
