@@ -335,6 +335,8 @@ static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param)
                     misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
                     sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
                     DBG_PRINTF("%s\n", json);
+
+                    misc_msleep(10 + rand() % 2000);    //双方が同時に接続しに行かないように時差を付ける(効果があるかは不明)
                     int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
                     DBG_PRINTF("retval=%d\n", retval);
                 }
