@@ -616,7 +616,6 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //confirmation
         uint32_t confirm = btcprc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
-
         //short_channel_id
         sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
         cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
@@ -624,6 +623,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "our_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
         //their_msat
         cJSON_AddItemToObject(result, "their_msat", cJSON_CreateNumber64(ln_their_msat(p_self)));
+        //feerate_per_kw
+        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
     } else if (pAppConf->funding_waiting) {
         char str[256];
 
@@ -1104,7 +1105,6 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
             //  which this side will pay for commitment and HTLC transactions
             //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
             feerate = (uint32_t)(feerate / 4);
-#warning issue#46
             if (!ret) {
             // https://github.com/nayutaco/ptarmigan/issues/46
             DBG_PRINTF("fail: estimatefee\n");
