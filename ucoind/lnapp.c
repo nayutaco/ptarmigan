@@ -616,7 +616,6 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //confirmation
         uint32_t confirm = btcprc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
-
         //short_channel_id
         sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
         cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
@@ -624,6 +623,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "our_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
         //their_msat
         cJSON_AddItemToObject(result, "their_msat", cJSON_CreateNumber64(ln_their_msat(p_self)));
+        //feerate_per_kw
+        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
     } else if (pAppConf->funding_waiting) {
         char str[256];
 
@@ -641,6 +642,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
         //minimum_depth
         cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(pAppConf->funding_min_depth));
+        //feerate_per_kw
+        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
     } else if (p_self && ln_is_funding(p_self)) {
         char str[256];
 
@@ -1092,27 +1095,28 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         SYSLOG_ERR("%s(): btcprc_getnewaddress", __func__);
     }
     if (ret && unspent) {
-        //estimate fee
         uint64_t feerate;
-        bool ret = btcprc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
-        //BOLT#2
-        //  feerate_per_kw indicates the initial fee rate by 1000-weight
-        //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
-        //  which this side will pay for commitment and HTLC transactions
-        //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
-        feerate = (uint32_t)(feerate / 4);
-#warning issue#46
-        if (!ret) {
-           // https://github.com/nayutaco/ptarmigan/issues/46
-           DBG_PRINTF("fail: estimatefee\n");
-           feerate = LN_FEERATE_PER_KW;
+        if (p_conf->p_funding->feerate_per_kw == 0) {
+            //estimate fee
+            bool ret = btcprc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
+            //BOLT#2
+            //  feerate_per_kw indicates the initial fee rate by 1000-weight
+            //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
+            //  which this side will pay for commitment and HTLC transactions
+            //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
+            feerate = (uint32_t)(feerate / 4);
+            if (!ret) {
+            // https://github.com/nayutaco/ptarmigan/issues/46
+            DBG_PRINTF("fail: estimatefee\n");
+            feerate = LN_FEERATE_PER_KW;
+            }
+        } else {
+            feerate = p_conf->p_funding->feerate_per_kw;
         }
-        DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
+        DBG_PRINTF2("feerate_per_kw=%" PRIu64 "\n", feerate);
 
         ucoin_chain_t chain;
         ucoin_util_wif2keys(&p_conf->p_opening->fundin_keys, &chain, wif);
-printf("chain: %d\n", chain);
-printf("get_chain: %d\n", ucoin_get_chain());
         assert(ucoin_get_chain() == chain);
         //TODO: データ構造に無駄が多い
         //      スタックに置けないものを詰めていったせいだが、整理したいところだ。
