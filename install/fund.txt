@@ -1,2 +1,0 @@
-funding_sat=600000
-push_sat=300000
