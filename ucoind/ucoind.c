@@ -171,7 +171,9 @@ int main(int argc, char *argv[])
     ln_print_node(&mNode);
 
     //peer config出力
-    FILE *fp = fopen("peer.conf", "w");
+    char fname[256];
+    sprintf(fname, "peer_%s.conf", mNode.alias);
+    FILE *fp = fopen(fname, "w");
     if (fp) {
         if (p_addr->type == LN_NODEDESC_IPV4) {
             fprintf(fp, "ipaddr=%d.%d.%d.%d\n",

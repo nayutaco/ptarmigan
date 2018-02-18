@@ -17,14 +17,14 @@ PAYEE=node_${PAY_END}
 PAYEE_PORT=$(( ${PAY_END} + 1 ))
 
 nodeid() {
-	cat $1/peer.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
+	cat conf/peer$1.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
 }
 
 pay() {
 	echo "payment ${PAYER} --> ${PAYEE}"
 
-	payer_id=`nodeid $PAYER`
-	payee_id=`nodeid $PAYEE`
+	payer_id=`nodeid $PAY_BEGIN`
+	payee_id=`nodeid $PAY_END`
 
 	./routing $PAYER/dbucoin $payer_id $payee_id $AMOUNT
 	if [ $? -ne 0 ]; then
