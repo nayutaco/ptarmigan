@@ -9,7 +9,11 @@ PAYER_PORT=$(( ${PAY_BEGIN} + 1 ))
 PAYEE=node_${PAY_END}
 PAYEE_PORT=$(( ${PAY_END} + 1 ))
 
-./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT
+nodeid() {
+	cat conf/peer$1.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
+}
+
+./routing $PAYER/dbucoin `nodeid $PAY_BEGIN` `nodeid $PAY_END` $AMOUNT
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
@@ -23,7 +27,7 @@ fi
 
 # preimage_hash無視
 echo hash=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff > $ROUTECONF
-./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
+./routing $PAYER/dbucoin `nodeid $PAY_BEGIN` `nodeid $PAY_END` $AMOUNT >> $ROUTECONF
 
 # 送金実施
 ./ucoincli -p $ROUTECONF $PAYER_PORT

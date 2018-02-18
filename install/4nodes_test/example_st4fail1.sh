@@ -12,7 +12,11 @@ PAYEE_PORT=$(( ${PAY_END} + 1 ))
 echo 途中のノードがないため、中継ノードで失敗する
 
 
-./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT
+nodeid() {
+	cat conf/peer$1.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
+}
+
+./routing $PAYER/dbucoin `nodeid $PAY_BEGIN` `nodeid $PAY_END` $AMOUNT
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
@@ -20,7 +24,7 @@ fi
 
 echo -n hash= > $ROUTECONF
 echo `./ucoincli -i $AMOUNT $PAYEE_PORT` | jq -r '.result.hash' >> $ROUTECONF
-./routing $PAYER/dbucoin `./ucoind ./$PAYER/node.conf id` `./ucoind ./$PAYEE/node.conf id` $AMOUNT >> $ROUTECONF
+./routing $PAYER/dbucoin `nodeid $PAY_BEGIN` `nodeid $PAY_END` $AMOUNT >> $ROUTECONF
 
 # 強制的に中間のノードを終了させる
 ./ucoincli -q 5556
