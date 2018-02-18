@@ -109,6 +109,9 @@ typedef struct lnapp_conf_t {
     //fulfillキュー
     queue_fulfill_t *p_fulfill_queue;
 
+    //payment
+    payment_conf_t  route;          ///< 最後に実行したpayment(fail時の反省に使う)
+
     //last send announcement
     uint64_t        last_anno_cnl;                      ///< 最後にannouncementしたchannel
     uint8_t         last_anno_node[UCOIN_SZ_PUBKEY];    ///< 最後にannouncementしたnode

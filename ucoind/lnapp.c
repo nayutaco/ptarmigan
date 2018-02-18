@@ -376,7 +376,9 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
                         0,
                         0,
                         &secrets);  //secretsはln.cで管理するので、ここでは解放しない
-    if (!ret) {
+    if (ret) {
+        memcpy(&pAppConf->route, pPay, sizeof(payment_conf_t));
+    } else {
         goto LABEL_EXIT;
     }
     send_peer_noise(pAppConf, &buf_bolt);
@@ -2261,6 +2263,19 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         if (ret) {
             DBG_PRINTF("  failure reason= ");
             DUMPBIN(reason.buf, reason.len);
+
+            //失敗したと思われるshort_channel_idを登録
+            //  hopはfailを通知したノードに当たるため、その次が使えなくなっているはず
+            if (hop == p_conf->route.hop_num - 1) {
+                //送金先がエラーを返した？
+            } else if (hop < p_conf->route.hop_num - 1) {
+                //途中がエラーを返した
+                uint64_t short_channel_id = p_conf->route.hop_datain[1 + hop + 1].short_channel_id;
+                DBG_PRINTF("  maybe short_channl_id: %" PRIu64 "\n", short_channel_id);
+                ln_db_annoskip_save(short_channel_id);
+            } else {
+                DBG_PRINTF("  invalid hop %d?\n", hop);
+            }
 
             char errstr[256];
             char reasonstr[128];
