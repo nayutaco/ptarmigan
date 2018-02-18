@@ -81,52 +81,45 @@ faucet WEBサイト例
 5. `ptarmigan`のインストール
 
 ```bash
-sudo apt-get install autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool autoconf jq
+sudo apt install -y git autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool jq bc
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
-git checkout -b test refs/tags/2018-01-29
+git checkout -b test refs/tags/2018-02-18
 make full
 ```
-
-上記の8888はLightning Networkのポート番号。  
-`ucoincli`などで使用するJSON-RPCのポート番号は自動的に8889になる。
 
 6. ノード設定ファイルを作成し、`ucoind`を起動
 
 ```bash
 cd install
 mkdir node
-./create_nodeconf.sh 8888 > node/node.conf
 cd node
-../ucoind node.conf
+../ucoind
 ```
 
-`create_nodeconf.sh`の引数はポート番号。  
-`node.conf`は[説明](ucoind_ja.md)を見て適当に編集する(編集しなくてもよい)。  
 デフォルトではprivate nodeになり、IPアドレスをアナウンスしない。  
 `ucoind`はdaemonとして起動するため、これ以降はUbuntuで別のコンソールを開き、そちらで作業する。
 
 7. `ucoind`の接続先設定ファイル作成
 
 ```bash
-cd ptarmigan/install
-./create_knownpeer.sh [Lightning node_id] [Lightning node IP address] [Lightning node port] > peer.conf
+cd ptarmigan/install/node
+../create_knownpeer.sh [Lightning node_id] [Lightning node IP address] [Lightning node port] > peer_xxx.conf
 ```
 
 8. `ucoind`を他のノードに接続
 
 ```bash
-./ucoincli -c peer.conf 8889
+../ucoincli -c peer_xxx.conf
 ```
 
-8889は`ucoind`のJSON-RPCポート番号。
 接続に成功すると、`ucoind`を起動しているコンソールに接続先から大量のノード情報が出力される。  
 大量にログが出るのでログが止まるまで待つ。
 
 9. `ucoind`が接続されていることを確認
 
 ```bash
-./ucoincli -l 8889 | jq
+../ucoincli -l | jq
 ```
 
 現在の接続情報が出力される。
@@ -134,24 +127,24 @@ cd ptarmigan/install
 10. Lightning Networkで使用するために、segwit addressに送金し、同時にpayment channnelにファンディングするtransaction作成のための情報を作る
 
 ```bash
-./fund-in.sh 0.01 fund.txt > node/fund.conf
+../pay_fundin.sh 1000000 800000 400000
 ```
 
-0.01BTCのsegwit transactionを作成し送金。そこからchannelに`fund.txt`の配分でデポジットするための情報をつくる。  
-`funding_sat` が 0.01BTCのうちchannelにデポジットする全satoshi。  
-`push_sat` が `funding_sat` のうち相手の持ち分とするsatoshi。  
-`fund.txt`は編集してよい。単位がsatoshiであることに注意すること。
+fundingする情報ファイルとして、`fund_yyyymmddhhmmss.conf`を生成する。  
+10mBTCのsegwit transactionを作成し送金。  
+そこからchannelに8mBTC入れ、そのうち4mBTCを相手に渡す。  
+単位がsatoshiであることに注意すること。  
 
 11. payment channelへのファンディングを実行
 
 ```bash
-./ucoincli -c peer.conf -f node/fund.conf 8889
+../ucoincli -c peer.conf -f fund_yyyymmddhhmmss.conf
 ```
 
 12. funding transactionnがブロックチェーンのブロックに入るのを待つ
 
 ```bash
-./ucoincli -l 8889 | jq
+../ucoincli -l | jq
 ```
 
 confirmation数は、相手ノードに依存する(デフォルトでは、`c-lightning`は1、`lnd`は3以上)。  
@@ -174,14 +167,14 @@ starblocksの場合、ドリンク購入ボタンを押して、checkoutボタ�
 14. ptarmiganから支払い実行
 
 ```bash
-./ucoincli -l 8889 | jq
+../ucoincli -l | jq
 ```
 
 ノード状態を表示し、payment channelのconfirmationの項目が6以上になっているか確認する(約1時間待つ)。  
 6未満の場合、payment channelのアナウンスをLightning Networkに行っていないので、6以上になるまで待つ必要がある。
 
 ```bash
-./ucoincli -r [invoice番号] 8889
+../ucoincli -r [invoice番号]
 ```
 
 支払いの実行を開始する。  
