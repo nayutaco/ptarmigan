@@ -61,6 +61,7 @@
 #define SHOW_ANNOINFO           (0x0040)
 #define SHOW_VERSION            (0x0080)
 #define SHOW_PREIMAGE           (0x0100)
+#define SHOW_ANNOSKIP           (0x0200)
 
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
@@ -294,6 +295,28 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
     mdb_cursor_close(cursor);
 }
 
+static void dumpit_annoskip(MDB_txn *txn, MDB_dbi dbi)
+{
+    if (showflag == SHOW_ANNOSKIP) {
+        printf(M_QQ("skiproute") ": [");
+
+        MDB_cursor  *cursor;
+
+        int retval = mdb_cursor_open(txn, dbi, &cursor);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            mdb_txn_abort(txn);
+        }
+
+        MDB_val key, data;
+        while ((retval =  mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
+            const uint8_t *p = key.mv_data;
+            ucoin_util_dumpbin(stdout, p, sizeof(uint64_t), true);
+        }
+        mdb_cursor_close(cursor);
+    }
+}
+
 static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag == SHOW_PREIMAGE) {
@@ -401,6 +424,10 @@ int main(int argc, char *argv[])
             break;
         case 'a':
             showflag = SHOW_ANNOINFO;
+            env = 1;
+            break;
+        case 'k':
+            showflag = SHOW_ANNOSKIP;
             env = 1;
             break;
         case 'v':
@@ -541,6 +568,9 @@ int main(int argc, char *argv[])
                 case LN_LMDB_DBTYPE_CHANNEL_ANNOINFO:
                 case LN_LMDB_DBTYPE_NODE_ANNOINFO:
                     dumpit_annoinfo(txn, dbi2, dbtype);
+                    break;
+                case LN_LMDB_DBTYPE_ANNO_SKIP:
+                    dumpit_annoskip(txn, dbi2);
                     break;
                 case LN_LMDB_DBTYPE_PREIMAGE:
                     dumpit_preimage(txn, dbi2);

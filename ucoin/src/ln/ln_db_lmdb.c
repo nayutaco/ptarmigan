@@ -2153,6 +2153,9 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     } else if (strcmp(pDbName, M_DBI_ANNOINFO_NODE) == 0) {
         //node_announcement information
         dbtype = LN_LMDB_DBTYPE_NODE_ANNOINFO;
+    } else if (strcmp(pDbName, M_DBI_ANNO_SKIP) == 0) {
+        //route skip
+        dbtype = LN_LMDB_DBTYPE_ANNO_SKIP;
     } else if (strcmp(pDbName, M_DBI_PREIMAGE) == 0) {
         //preimage
         dbtype = LN_LMDB_DBTYPE_PREIMAGE;
