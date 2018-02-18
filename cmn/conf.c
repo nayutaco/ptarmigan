@@ -266,6 +266,8 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
         pconfig->funding_sat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "push_sat") == 0) {
         pconfig->push_sat = strtoull(value, NULL, 10);
+    } else if (strcmp(name, "feerate_per_kw") == 0) {
+        pconfig->feerate_per_kw = strtoull(value, NULL, 10);
     } else {
         return 0;  /* unknown section/name, error */
     }

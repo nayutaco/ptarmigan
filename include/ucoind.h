@@ -185,6 +185,7 @@ typedef struct {
     char            signaddr[UCOIN_SZ_ADDR_MAX];
     uint64_t        funding_sat;
     uint64_t        push_sat;
+    uint32_t        feerate_per_kw;
 } funding_conf_t;
 
 

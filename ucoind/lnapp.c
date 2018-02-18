@@ -1094,22 +1094,26 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         SYSLOG_ERR("%s(): btcprc_getnewaddress", __func__);
     }
     if (ret && unspent) {
-        //estimate fee
         uint64_t feerate;
-        bool ret = btcprc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
-        //BOLT#2
-        //  feerate_per_kw indicates the initial fee rate by 1000-weight
-        //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
-        //  which this side will pay for commitment and HTLC transactions
-        //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
-        feerate = (uint32_t)(feerate / 4);
+        if (p_conf->p_funding->feerate_per_kw == 0) {
+            //estimate fee
+            bool ret = btcprc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
+            //BOLT#2
+            //  feerate_per_kw indicates the initial fee rate by 1000-weight
+            //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
+            //  which this side will pay for commitment and HTLC transactions
+            //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
+            feerate = (uint32_t)(feerate / 4);
 #warning issue#46
-        if (!ret) {
-           // https://github.com/nayutaco/ptarmigan/issues/46
-           DBG_PRINTF("fail: estimatefee\n");
-           feerate = LN_FEERATE_PER_KW;
+            if (!ret) {
+            // https://github.com/nayutaco/ptarmigan/issues/46
+            DBG_PRINTF("fail: estimatefee\n");
+            feerate = LN_FEERATE_PER_KW;
+            }
+        } else {
+            feerate = p_conf->p_funding->feerate_per_kw;
         }
-        DBG_PRINTF2("estimatefee=%" PRIu64 "\n", feerate);
+        DBG_PRINTF2("feerate_per_kw=%" PRIu64 "\n", feerate);
 
         ucoin_chain_t chain;
         ucoin_util_wif2keys(&p_conf->p_opening->fundin_keys, &chain, wif);

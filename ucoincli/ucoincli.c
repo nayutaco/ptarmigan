@@ -491,11 +491,11 @@ static void fund_rpc(char *pJson, const funding_conf_t *pFund)
                 //peer_nodeid, peer_addr, peer_port
                 M_QQ("%s") "," M_QQ("%s") ",%d,"
                 //txid, txindex, signaddr, funding_sat, push_sat
-                M_QQ("%s") ",%d," M_QQ("%s") ",%" PRIu64 ",%" PRIu64
+                M_QQ("%s") ",%d," M_QQ("%s") ",%" PRIu64 ",%" PRIu64 ",%" PRIu32
             " ]"
         "}",
             mPeerNodeId, mPeerAddr, mPeerPort,
-            txid, pFund->txindex, pFund->signaddr, pFund->funding_sat, pFund->push_sat);
+            txid, pFund->txindex, pFund->signaddr, pFund->funding_sat, pFund->push_sat, pFund->feerate_per_kw);
 }
 
 

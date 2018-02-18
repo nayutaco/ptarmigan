@@ -248,6 +248,14 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         index = -1;
         goto LABEL_EXIT;
     }
+    //feerate_per_kw
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        p_fundconf->feerate_per_kw = (uint32_t)json->valueu64;
+        DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", p_fundconf->feerate_per_kw);
+    } else {
+        //スルー
+    }
 
     print_funding_conf(p_fundconf);
 
