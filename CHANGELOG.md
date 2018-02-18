@@ -2,6 +2,8 @@
 
 ## 2018/02/18
 
+* `feerate_per_kw`を設定可能にする
+  * `fund.conf`に記載すると、その値を使用する
 * change `fund-in.sh` to `pay_fundin.sh`
   * use `bc` command (`sudo apt install bc`)
 
