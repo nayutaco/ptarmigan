@@ -5,7 +5,7 @@
        src="https://scan.coverity.com/projects/15128/badge.svg"/>
 </a>
 
-* [recentry changed](CHANGELOG.md)
+* [recently changed](CHANGELOG.md)
 
 ## setup
 
