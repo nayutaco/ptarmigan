@@ -96,8 +96,8 @@ bool ln_node_init(ln_node_t *node, uint8_t Features)
             if ( (memcmp(anno.p_node_id, ln_node_id(node), UCOIN_SZ_PUBKEY) != 0) ||
                  (strcmp(anno.p_alias, node->alias) != 0) ||
                  (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
-                 (!comp_node_addr(&anno.addr, &node->addr)) ) {
-                //保持している情報と不一致
+                 (!comp_node_addr(&anno.addr, &node->addr) && (node->addr.type != LN_NODEDESC_NONE)) ) {
+                //保持している情報と不一致(IPアドレスは引数で指定された場合のみチェック)
                 DBG_PRINTF("fail: node info not match\n");
                 ret = false;
                 goto LABEL_EXIT;
