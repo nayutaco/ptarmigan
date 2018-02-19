@@ -179,15 +179,17 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip)
             ln_cnl_update_t upd;
             bool bret;
 
-            ln_lmdb_db_t db;
-            db.txn = txn;
-            db.dbi = dbi_skip;
-            bret = ln_db_annoskip_search(&db, short_channel_id);
-            if (bret) {
+            if (dbi_skip != (MDB_dbi)-1) {
+                ln_lmdb_db_t db;
+                db.txn = txn;
+                db.dbi = dbi_skip;
+                bret = ln_db_annoskip_search(&db, short_channel_id);
+                if (bret) {
 #ifdef M_DEBUG
-                fprintf(fp_err, "skip : %016" PRIx64 "\n", short_channel_id);
+                    fprintf(fp_err, "skip : %016" PRIx64 "\n", short_channel_id);
 #endif
-                continue;
+                    continue;
+                }
             }
             switch (type) {
             case LN_DB_CNLANNO_ANNO:
@@ -442,7 +444,9 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     assert(ret == 0);
     MDB_dbi dbi_skip;
     ret = mdb_dbi_open(txn_anno, "route_skip", 0, &dbi_skip);
-    assert(ret == 0);
+    if (ret != 0) {
+        dbi_skip = (MDB_dbi)-1;
+    }
 
     list = 0;
     while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
