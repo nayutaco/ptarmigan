@@ -1119,7 +1119,9 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
  * Normal Operation関係
  ********************************************************************/
 
-bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
+bool ln_create_add_htlc(ln_self_t *self,
+            ucoin_buf_t *pAdd,
+            uint64_t *pHtlcId,
             const uint8_t *pPacket,
             uint64_t amount_msat,
             uint32_t cltv_value,
@@ -1213,6 +1215,7 @@ bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
         self->our_msat -= amount_msat;
         self->htlc_id_num++;        //offer時にインクリメント
         self->htlc_num++;
+        *pHtlcId = self->cnl_add_htlc[idx].id;
         DBG_PRINTF("HTLC add : htlc_num=%d, prev_short_channel_id=%" PRIu64 "\n", self->htlc_num, self->cnl_add_htlc[idx].prev_short_channel_id);
     }
 
