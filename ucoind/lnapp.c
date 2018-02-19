@@ -22,17 +22,18 @@
 
 /** @file   lnapp.c
  *  @brief  channel処理
- *  @note
- *                +-------------+  create
- *                | main thread |<-------- p2p_svr/cli
- *                |             |
- *                +--+-------+--+
- *            create |       | create
- *                   v       v
- *      +-------------+     +-------------+
- *      | recv thread |     | poll thread |
- *      |             |     |             |
- *      +-------------+     +-------------+
+ *  @note   <pre>
+ *                +-----------------------------------------------+
+ * p2p_svr/cli--->| channel thread                                |
+ *                |                                               |
+ *                +--+-------+-------------------+----------------+
+ *            create |       | create            | create
+ *                   v       v                   v
+ *      +-------------+     +-------------+     +-------------+
+ *      | recv thread |     | poll thread |     | anno thread |
+ *      |             |     |             |     |             |
+ *      +-------------+     +-------------+     +-------------+
+ * </pre>
  */
 #include <stdio.h>
 #include <stdlib.h>

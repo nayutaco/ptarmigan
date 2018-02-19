@@ -21,6 +21,18 @@
  */
 /** @file   ucoind.c
  *  @brief  ucoin daemon
+ *  @note   <pre>
+ *                +------------------+
+ * main---------->| main thread      |
+ *                |                  |
+ *                +----+----------+--+
+ *               create|          | create
+ *                     v          v
+ *      +-------------------+   +----------------+
+ *      | p2p server thread |   | monitor thread |
+ *      |                   |   |                |
+ *      +-------------------+   +----------------+
+ * </pre>
  */
 #include <stdio.h>
 #include <inttypes.h>
