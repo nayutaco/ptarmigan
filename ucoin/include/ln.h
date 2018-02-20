@@ -803,7 +803,8 @@ typedef struct {
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     const ucoin_buf_t       *p_reason;              ///< reason
     const ucoin_buf_t       *p_shared_secret;       ///< shared secret
-    uint64_t                id;                     ///< HTLC id
+    uint64_t                prev_id;                ///< 戻すHTLC id
+    uint64_t                orig_id;                ///< 元のHTLC id
     const uint8_t           *p_payment_hash;        ///< payment_hash
 } ln_cb_fail_htlc_recv_t;
 

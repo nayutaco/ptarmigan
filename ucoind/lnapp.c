@@ -510,7 +510,7 @@ bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *p
     DBG_PRINTF("first= %s\n", (bFirst) ? "true" : "false");
 
     fwd_proc_fail_t *p_fwd_fail = (fwd_proc_fail_t *)APP_MALLOC(sizeof(fwd_proc_fail_t));   //APP_FREE: fwd_fail_backward()
-    p_fwd_fail->id = pFail->id;
+    p_fwd_fail->id = pFail->prev_id;
     ucoin_buf_alloccopy(&p_fwd_fail->reason, pFail->p_reason->buf, pFail->p_reason->len);
     ucoin_buf_alloccopy(&p_fwd_fail->shared_secret,     //APP_FREE:fwd_fail_backward()
                             pFail->p_shared_secret->buf, pFail->p_shared_secret->len);
@@ -2285,7 +2285,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     if (p_fail->prev_short_channel_id != 0) {
         //フラグを立てて、相手の受信スレッドで処理してもらう
-        DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->id);
+        DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->prev_id);
         ucoind_backward_fail(p_fail);
     } else {
         DBG_PRINTF("ここまで\n");
@@ -2305,7 +2305,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             //      route.hop_datain[0]は自分、[1]が相手
             //      hopの0は相手
             char suggest[64];
-            const payment_conf_t *p_payconf = get_routelist(p_conf, p_fail->id);
+            const payment_conf_t *p_payconf = get_routelist(p_conf, p_fail->orig_id);
             if (p_payconf != NULL) {
                 if (hop == p_payconf->hop_num - 2) {
                     //送金先がエラーを返した？
@@ -2338,7 +2338,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             //デコード失敗
             set_lasterror(p_conf, RPCERR_PAYFAIL, "fail result cannot decode");
         }
-        del_routelist(p_conf, p_fail->id);
+        del_routelist(p_conf, p_fail->orig_id);
         if (retry) {
             //キューにためる(payment retry)
             DBG_PRINTF("payment_hash: ");
@@ -2489,10 +2489,11 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
                 const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
 
-                fail.id = p->id;
+                fail.prev_id = p->id;
+                fail.orig_id = (uint64_t)-1;
                 fail.p_reason = &dummy_reason;
                 fail.p_shared_secret = p_fail_ss;
-                DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", fail.id);
+                DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", fail.prev_id);
                 lnapp_backward_fail(p_conf, &fail, true);
             }
             ucoin_buf_free(&p->buf);
@@ -3072,6 +3073,8 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
     rt->htlc_id = HtlcId;
     LIST_INSERT_HEAD(&p_conf->routing_head, rt, list);
     DBG_PRINTF("htlc_id: %" PRIu64 "\n", HtlcId);
+
+    print_routelist(p_conf);
 #else
     if (p_conf->routing == NULL) {
         p_conf->routing = (routelist_t *)APP_MALLOC(sizeof(routelist_t));
@@ -3099,11 +3102,13 @@ static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId
 {
 #ifdef USE_LINUX_LIST
     routelist_t *p;
+    DBG_PRINTF("START:htlc_id: %" PRIu64 "\n", HtlcId);
 
     p = LIST_FIRST(&p_conf->routing_head);
     while (p != NULL) {
+        DBG_PRINTF("htlc_id: %" PRIu64 "\n", p->htlc_id);
         if (p->htlc_id == HtlcId) {
-            DBG_PRINTF("htlc_id: %" PRIu64 "\n", HtlcId);
+            DBG_PRINTF("HIT:htlc_id: %" PRIu64 "\n", HtlcId);
             break;
         }
         p = LIST_NEXT(p, list);
@@ -3155,6 +3160,8 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
         LIST_REMOVE(p, list);
         APP_FREE(p);
     }
+
+    print_routelist(p_conf);
 #else
     if (p_conf->routing == NULL) {
         return;

@@ -1470,7 +1470,6 @@ bool ln_db_annoskip_invoice_drop(void)
     int         retval;
     MDB_txn     *txn;
     MDB_dbi     dbi;
-    MDB_val     key;
 
     retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
     if (retval != 0) {
