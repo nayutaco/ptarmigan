@@ -291,6 +291,12 @@ bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash);
 bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash);
 
 
+/** "routepay" DB削除
+ *
+ */
+bool ln_db_annoskip_invoice_drop(void);
+
+
 ////////////////////
 // node_announcement
 ////////////////////

@@ -415,6 +415,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         DBG_PRINTF("FAIL: check version db\n");
         goto LABEL_EXIT;
     }
+    ln_db_annoskip_invoice_drop();
 
     return true;
 
@@ -1453,6 +1454,37 @@ bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash)
     key.mv_size = LN_SZ_HASH;
     key.mv_data = (CONST_CAST uint8_t*)pPayHash;
     retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    MDB_TXN_COMMIT(txn);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+bool ln_db_annoskip_invoice_drop(void)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_val     key;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_drop(txn, dbi, 1);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }

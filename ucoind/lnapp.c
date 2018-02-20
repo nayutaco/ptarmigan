@@ -2321,6 +2321,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             } else {
                 strcpy(suggest, "invalid");
             }
+            DBG_PRINTF("suggest: %s\n", suggest);
 
             char errstr[512];
             char reasonstr[128];
