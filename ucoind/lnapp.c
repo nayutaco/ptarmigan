@@ -2474,8 +2474,13 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                     bool ret = ln_db_annoskip_invoice_load(&p_invoice, p->buf.buf);
                     if (ret) {
                         DBG_PRINTF("invoice:%s\n", p_invoice);
-                        int retval = misc_sendjson(p_invoice, "127.0.0.1", cmd_json_get_port());
+                        char *json = (char *)APP_MALLOC(8192);
+                        strcpy(json, "{\"method\":\"routepay\",\"params\":");
+                        strcat(json, p_invoice);
+                        strcat(json, "}");
+                        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
                         DBG_PRINTF("retval=%d\n", retval);
+                        free(json);
                         free(p_invoice);
                     }
                 }
