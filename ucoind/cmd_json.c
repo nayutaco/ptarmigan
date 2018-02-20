@@ -812,7 +812,21 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     misc_bin2str(node_id, ucoind_nodeid(), UCOIN_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ucoind_nodeport()));
-    cJSON_AddItemToObject(result, "btcprc_port", cJSON_CreateNumber(cmd_json_get_port()));
+    cJSON_AddItemToObject(result, "jsonrpc_port", cJSON_CreateNumber(cmd_json_get_port()));
+    uint8_t *p_hash;
+    int cnt = ln_db_annoskip_invoice_get(&p_hash);
+    if (cnt > 0) {
+        cJSON *result_hash = cJSON_CreateArray();
+        uint8_t *p = p_hash;
+        for (int lp = 0; lp < cnt; lp++) {
+            char hash_str[LN_SZ_HASH * 2 + 1];
+            misc_bin2str(hash_str, p, LN_SZ_HASH);
+            p += LN_SZ_HASH;
+            cJSON_AddItemToArray(result_hash, cJSON_CreateString(hash_str));
+        }
+        free(p_hash);       //ln_lmdbでrealloc()している
+        cJSON_AddItemToObject(result, "paying", result_hash);
+    }
     p2p_svr_show_self(result_svr);
     cJSON_AddItemToObject(result, "server", result_svr);
     p2p_cli_show_self(result_cli);

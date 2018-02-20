@@ -1431,6 +1431,48 @@ LABEL_EXIT:
 }
 
 
+int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
+{
+    int         retval;
+    MDB_txn     *txn = NULL;
+    MDB_dbi     dbi;
+    MDB_val     key, data;
+    MDB_cursor  *cursor;
+
+    *ppPayHash = NULL;
+    int cnt = 0;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_cursor_open(txn, dbi, &cursor);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+        if (key.mv_size == LN_SZ_HASH) {
+            cnt++;
+            *ppPayHash = (uint8_t *)realloc(*ppPayHash, cnt * LN_SZ_HASH);
+            memcpy(*ppPayHash + (cnt - 1) * LN_SZ_HASH, key.mv_data, LN_SZ_HASH);
+        }
+    }
+
+LABEL_EXIT:
+    if (txn != NULL) {
+        MDB_TXN_ABORT(txn);
+    }
+    return cnt;
+}
+
+
 bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash)
 {
     int         retval;

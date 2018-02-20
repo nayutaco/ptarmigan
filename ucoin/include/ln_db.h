@@ -285,6 +285,14 @@ bool ln_db_annoskip_invoice_save(const char *pInvoice, const uint8_t *pPayHash);
 bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash);
 
 
+/** "routepay" 全payment_hash取得
+ *
+ * @attention
+ *      - 内部で realloc()するため、使用後に free()すること
+ */
+int ln_db_annoskip_invoice_get(uint8_t **ppPayHash);
+
+
 /** "routepay" invoice削除
  *
  */
