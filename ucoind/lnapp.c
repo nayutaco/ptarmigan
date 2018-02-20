@@ -2306,22 +2306,26 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             //      hopの0は相手
             char suggest[64];
             const payment_conf_t *p_payconf = get_routelist(p_conf, p_fail->id);
-            if (hop == p_payconf->hop_num - 2) {
-                //送金先がエラーを返した？
-                strcpy(suggest, "payee");
-            } else if (hop < p_payconf->hop_num - 2) {
-                //途中がエラーを返した
-                // DBG_PRINTF2("hop=%d\n", hop);
-                // for (int lp = 0; lp < p_payconf.hop_num; lp++) {
-                //     DBG_PRINTF2("[%d]%" PRIu64 "\n", lp, p_payconf->hop_datain[lp].short_channel_id);
-                // }
+            if (p_payconf != NULL) {
+                if (hop == p_payconf->hop_num - 2) {
+                    //送金先がエラーを返した？
+                    strcpy(suggest, "payee");
+                } else if (hop < p_payconf->hop_num - 2) {
+                    //途中がエラーを返した
+                    // DBG_PRINTF2("hop=%d\n", hop);
+                    // for (int lp = 0; lp < p_payconf.hop_num; lp++) {
+                    //     DBG_PRINTF2("[%d]%" PRIu64 "\n", lp, p_payconf->hop_datain[lp].short_channel_id);
+                    // }
 
-                uint64_t short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
-                sprintf(suggest, "%016" PRIx64, short_channel_id);
-                ln_db_annoskip_save(short_channel_id);
-                retry = true;
+                    uint64_t short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
+                    sprintf(suggest, "%016" PRIx64, short_channel_id);
+                    ln_db_annoskip_save(short_channel_id);
+                    retry = true;
+                } else {
+                    strcpy(suggest, "invalid");
+                }
             } else {
-                strcpy(suggest, "invalid");
+                strcpy(suggest, "?");
             }
             DBG_PRINTF("suggest: %s\n", suggest);
 
@@ -3067,6 +3071,7 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
     rt->route = *pPayConf;
     rt->htlc_id = HtlcId;
     LIST_INSERT_HEAD(&p_conf->routing_head, rt, list);
+    DBG_PRINTF("htlc_id: %" PRIu64 "\n", HtlcId);
 #else
     if (p_conf->routing == NULL) {
         p_conf->routing = (routelist_t *)APP_MALLOC(sizeof(routelist_t));
@@ -3075,7 +3080,7 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
     routelist_t *route = p_conf->routing;
 
     while (route->p_next != NULL) {
-        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, route->htlc_id);
+        DBG_PRINTF("htlc_id: %" PRIu64 "\n", route->htlc_id);
         route = route->p_next;
     }
     if (route->p_route != NULL) {
@@ -3097,8 +3102,8 @@ static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId
 
     p = LIST_FIRST(&p_conf->routing_head);
     while (p != NULL) {
-        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
         if (p->htlc_id == HtlcId) {
+            DBG_PRINTF("htlc_id: %" PRIu64 "\n", HtlcId);
             break;
         }
         p = LIST_NEXT(p, list);
@@ -3141,6 +3146,7 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
     p = LIST_FIRST(&p_conf->routing_head);
     while (p != NULL) {
         if (p->htlc_id == HtlcId) {
+            DBG_PRINTF("htlc_id: %" PRIu64 "\n", HtlcId);
             break;
         }
         p = LIST_NEXT(p, list);
@@ -3196,7 +3202,7 @@ static void print_routelist(lnapp_conf_t *p_conf)
     DBG_PRINTF("------------------------------------\n");
     p = LIST_FIRST(&p_conf->routing_head);
     while (p != NULL) {
-        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
+        DBG_PRINTF("htlc_id: %" PRIu64 "\n", p->htlc_id);
         p = LIST_NEXT(p, list);
     }
     DBG_PRINTF("------------------------------------\n");
