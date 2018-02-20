@@ -270,7 +270,7 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
 static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 #ifdef USE_LINUX_LIST
-//static void print_routelist(lnapp_conf_t *p_conf);
+static void print_routelist(lnapp_conf_t *p_conf);
 static void clear_routelist(lnapp_conf_t *p_conf);
 #endif
 
@@ -2299,6 +2299,8 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DBG_PRINTF("  failure reason= ");
             DUMPBIN(reason.buf, reason.len);
 
+            print_routelist(p_conf);
+
             //失敗したと思われるshort_channel_idを登録
             //      route.hop_datain[0]は自分、[1]が相手
             //      hopの0は相手
@@ -3187,16 +3189,18 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
 }
 
 #ifdef USE_LINUX_LIST
-//static void print_routelist(lnapp_conf_t *p_conf)
-//{
-//    routelist_t *p;
+static void print_routelist(lnapp_conf_t *p_conf)
+{
+    routelist_t *p;
 
-//    p = LIST_FIRST(&p_conf->routing_head);
-//    while (p != NULL) {
-//        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
-//        p = LIST_NEXT(p, list);
-//    }
-//}
+    DBG_PRINTF("------------------------------------\n");
+    p = LIST_FIRST(&p_conf->routing_head);
+    while (p != NULL) {
+        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
+        p = LIST_NEXT(p, list);
+    }
+    DBG_PRINTF("------------------------------------\n");
+}
 
 
 static void clear_routelist(lnapp_conf_t *p_conf)
