@@ -2766,6 +2766,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
             fail_recv.p_reason = &reason;
             fail_recv.p_shared_secret = &self->cnl_add_htlc[idx].shared_secret;
             fail_recv.id = self->cnl_add_htlc[idx].prev_id;
+            fail_recv.p_payment_hash = self->cnl_add_htlc[idx].payment_sha256;
             (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
 
             clear_htlc(self, &self->cnl_add_htlc[idx]);

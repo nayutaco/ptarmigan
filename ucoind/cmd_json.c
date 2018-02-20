@@ -560,6 +560,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //blockcount
     int blockcnt = btcprc_getblockcount();
+    DBG_PRINTF("blockcnt=%d\n", blockcnt);
     if (blockcnt < 0) {
         index = -1;
         goto LABEL_EXIT;
@@ -689,23 +690,24 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *json;
     cJSON *result = NULL;
     int index = 0;
-    char payment_hash[2 * LN_SZ_HASH + 1];
-    char nodeid_payee[2 * UCOIN_SZ_PUBKEY + 1];
-    char nodeid_payer[2 * UCOIN_SZ_PUBKEY + 1];
+    char str_payhash[2 * LN_SZ_HASH + 1];
+    char str_payee[2 * UCOIN_SZ_PUBKEY + 1];
+    char str_payer[2 * UCOIN_SZ_PUBKEY + 1];
     uint64_t amount_msat;
     uint32_t min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
+    uint8_t payhash[LN_SZ_HASH];
 
     if (params == NULL) {
         index = -1;
         goto LABEL_EXIT;
     }
 
-    //payment_hash, amount_msat, nodeid_payee, nodeid_payer
+    //str_payhash, amount_msat, str_payee, str_payer
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        //misc_str2bin(payment_hash, LN_SZ_HASH, json->valuestring);
-        strcpy(payment_hash, json->valuestring);
-        DBG_PRINTF("payment_hash=%s\n", payment_hash);
+        strcpy(str_payhash, json->valuestring);
+        DBG_PRINTF("str_payhash=%s\n", str_payhash);
+        misc_str2bin(payhash, LN_SZ_HASH, str_payhash);
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -720,8 +722,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        strcpy(nodeid_payee, json->valuestring);
-        DBG_PRINTF("nodeid_payee=%s\n", nodeid_payee);
+        strcpy(str_payee, json->valuestring);
+        DBG_PRINTF("str_payee=%s\n", str_payee);
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -729,12 +731,12 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
         if (strlen(json->valuestring) > 0) {
-            strcpy(nodeid_payer, json->valuestring);
+            strcpy(str_payer, json->valuestring);
         } else {
             //自分をpayerにする
-            misc_bin2str(nodeid_payer, ucoind_nodeid(), UCOIN_SZ_PUBKEY);
+            misc_bin2str(str_payer, ucoind_nodeid(), UCOIN_SZ_PUBKEY);
         }
-        DBG_PRINTF("nodeid_payer=%s\n", nodeid_payer);
+        DBG_PRINTF("str_payer=%s\n", str_payer);
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -752,7 +754,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     sprintf(cmd, "%srouting %s %s %s %" PRIu64 " %d %s\n",
                 ucoind_get_exec_path(),
                 LNDB_DBDIR,
-                nodeid_payer, nodeid_payee, amount_msat, min_final_cltv_expiry, payment_hash);
+                str_payer, str_payee, amount_msat, min_final_cltv_expiry, str_payhash);
     //DBG_PRINTF("cmd=%s\n", cmd);
     FILE *fp = popen(cmd, "r");
     if (fp == NULL) {
@@ -770,6 +772,11 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
     pclose(fp);
     if (strlen(p_route) > 0) {
+        //再送のためにinvoice保存
+        char *p_invoice = cJSON_PrintUnformatted(params);
+        (void)ln_db_annoskip_invoice_save(p_invoice, payhash);
+        free(p_invoice);
+
         DBG_PRINTF("---------------\n");
         DBG_PRINTF2("%s", p_route);
         DBG_PRINTF("---------------\n");
@@ -777,6 +784,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         DBG_PRINTF("retval=%d\n", retval);
         result = cJSON_CreateString("Progressing");
     } else {
+        ln_db_annoskip_invoice_del(payhash);
+
         ctx->error_code = RPCERR_NOROUTE;
         ctx->error_message = strdup(RPCERR_NOROUTE_STR);
     }

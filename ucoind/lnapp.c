@@ -132,9 +132,10 @@ typedef struct {
 
 typedef struct queue_fulfill_t {
     enum {
-        QTYPE_FWD_ADD_HTLC,
-        QTYPE_BWD_FULFILL_HTLC,
-        QTYPE_BWD_FAIL_HTLC
+        QTYPE_FWD_ADD_HTLC,             ///< add_htlcの転送
+        QTYPE_BWD_FULFILL_HTLC,         ///< fulfill_htlcの転送
+        QTYPE_BWD_FAIL_HTLC,            ///< fail_htlcの転送
+        QTYPE_PAY_RETRY                 ///< 支払いのリトライ
     }               type;
     uint64_t        id;                     ///< add_htlc: short_channel_id
                                             ///< fulfill_htlc, fail_htlc: HTLC id
@@ -269,7 +270,7 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
 static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 #ifdef USE_LINUX_LIST
-static void print_routelist(lnapp_conf_t *p_conf);
+//static void print_routelist(lnapp_conf_t *p_conf);
 static void clear_routelist(lnapp_conf_t *p_conf);
 #endif
 
@@ -2251,6 +2252,10 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     } else {
         DBG_PRINTF("ここまで\n");
         del_routelist(p_conf, p_fulfill->id);
+
+        uint8_t hash[LN_SZ_HASH];
+        ln_calc_preimage_hash(hash, p_fulfill->p_preimage);
+        ln_db_annoskip_invoice_del(hash);
     }
     pthread_mutex_unlock(&mMuxSeq);
     DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
@@ -2265,6 +2270,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
+    bool retry = false;
 
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
     while (true) {
@@ -2311,6 +2317,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 uint64_t short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
                 sprintf(suggest, "%016" PRIx64, short_channel_id);
                 ln_db_annoskip_save(short_channel_id);
+                retry = true;
             } else {
                 strcpy(suggest, "invalid");
             }
@@ -2325,6 +2332,16 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             set_lasterror(p_conf, RPCERR_PAYFAIL, "fail result cannot decode");
         }
         del_routelist(p_conf, p_fail->id);
+        if (retry) {
+            //キューにためる(payment retry)
+            queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));
+            fulfill->type = QTYPE_PAY_RETRY;
+            fulfill->id = 0;
+            ucoin_buf_alloccopy(&fulfill->buf, p_fail->p_payment_hash, LN_SZ_HASH);
+            push_queue(p_conf, fulfill);
+        } else {
+            ln_db_annoskip_invoice_del(p_fail->p_payment_hash);
+        }
     }
     pthread_mutex_unlock(&mMuxSeq);
     DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
@@ -2439,6 +2456,19 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 break;
             case QTYPE_BWD_FAIL_HTLC:
                 p_fail_ss = &p->buf;
+                break;
+            case QTYPE_PAY_RETRY:
+                {
+                    //リトライ
+                    char *p_invoice;
+                    bool ret = ln_db_annoskip_invoice_load(&p_invoice, p->buf.buf);
+                    if (ret) {
+                        DBG_PRINTF("invoice:%s\n", p_invoice);
+                        int retval = misc_sendjson(p_invoice, "127.0.0.1", cmd_json_get_port());
+                        DBG_PRINTF("retval=%d\n", retval);
+                        free(p_invoice);
+                    }
+                }
                 break;
             default:
                 break;
@@ -3153,16 +3183,16 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
 }
 
 #ifdef USE_LINUX_LIST
-static void print_routelist(lnapp_conf_t *p_conf)
-{
-    routelist_t *p;
+//static void print_routelist(lnapp_conf_t *p_conf)
+//{
+//    routelist_t *p;
 
-    p = LIST_FIRST(&p_conf->routing_head);
-    while (p != NULL) {
-        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
-        p = LIST_NEXT(p, list);
-    }
-}
+//    p = LIST_FIRST(&p_conf->routing_head);
+//    while (p != NULL) {
+//        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
+//        p = LIST_NEXT(p, list);
+//    }
+//}
 
 
 static void clear_routelist(lnapp_conf_t *p_conf)

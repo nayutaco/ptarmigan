@@ -804,6 +804,7 @@ typedef struct {
     const ucoin_buf_t       *p_reason;              ///< reason
     const ucoin_buf_t       *p_shared_secret;       ///< shared secret
     uint64_t                id;                     ///< HTLC id
+    const uint8_t           *p_payment_hash;        ///< payment_hash
 } ln_cb_fail_htlc_recv_t;
 
 
