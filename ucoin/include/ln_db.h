@@ -273,6 +273,24 @@ bool ln_db_annoskip_save(uint64_t ShortChannelId);
 bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId);
 
 
+/** "routepay" invoice保存
+ *
+ */
+bool ln_db_annoskip_invoice_save(const char *pInvoice, const uint8_t *pPayHash);
+
+
+/** "routepay" invoice取得
+ *
+ */
+bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash);
+
+
+/** "routepay" invoice削除
+ *
+ */
+bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash);
+
+
 ////////////////////
 // node_announcement
 ////////////////////
