@@ -312,11 +312,11 @@ static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param)
     //socket未接続であれば、接続しに行こうとする
     lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
     if (p_app_conf == NULL) {
-        //node_id-->node_announcement-->接続先アドレス
-        DBG_PRINTF("disconnecting: %0" PRIx64 "\n", ln_short_channel_id(self));
-        DBG_PRINTF("  peer node_id: ");
         const uint8_t *p_node_id = ln_their_node_id(self);
-        DUMPBIN(p_node_id, UCOIN_SZ_PUBKEY);
+        //node_id-->node_announcement-->接続先アドレス
+        // DBG_PRINTF("disconnecting: %0" PRIx64 "\n", ln_short_channel_id(self));
+        // DBG_PRINTF("  peer node_id: ");
+        // DUMPBIN(p_node_id, UCOIN_SZ_PUBKEY);
 
         ln_node_announce_t anno;
         bool ret = ln_node_search_nodeanno(&anno, p_node_id);
@@ -342,7 +342,7 @@ static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param)
                 }
                 break;
             default:
-                DBG_PRINTF("addrtype: %d\n", anno.addr.type);
+                //DBG_PRINTF("addrtype: %d\n", anno.addr.type);
                 break;
             }
         } else {
