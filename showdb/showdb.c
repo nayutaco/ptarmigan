@@ -62,6 +62,7 @@
 #define SHOW_VERSION            (0x0080)
 #define SHOW_PREIMAGE           (0x0100)
 #define SHOW_ANNOSKIP           (0x0200)
+#define SHOW_ANNOINVOICE        (0x0400)
 
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
@@ -324,6 +325,38 @@ static void dumpit_annoskip(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
+static void dumpit_annoinvoice(MDB_txn *txn, MDB_dbi dbi)
+{
+    if (showflag == SHOW_ANNOINVOICE) {
+        printf(M_QQ("payinvoice") ": [\n");
+
+        MDB_cursor  *cursor;
+
+        int retval = mdb_cursor_open(txn, dbi, &cursor);
+        if (retval != 0) {
+            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            mdb_txn_abort(txn);
+        }
+
+        int cnt = 0;
+        MDB_val key, data;
+        while ((retval =  mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
+            if (cnt > 0) {
+                printf(",\n");
+            }
+            
+            printf("[\"");
+            ucoin_util_dumpbin(stdout, key.mv_data, key.mv_size, false);
+            printf("\",\"");
+            printf("%s\"]", (const char *)data.mv_data);
+            cnt++;
+        }
+        mdb_cursor_close(cursor);
+
+        printf("\n]");
+    }
+}
+
 static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag == SHOW_PREIMAGE) {
@@ -351,9 +384,7 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
                     printf(",");
                 }
                 printf("[\"");
-                for (int lp = 0; lp < LN_SZ_PREIMAGE; lp++) {
-                    printf("%02x", preimage[lp]);
-                }
+                ucoin_util_dumpbin(stdout, preimage, LN_SZ_PREIMAGE, false);
                 printf("\", %" PRIu64 "]", amount);
                 cnt4++;
             }
@@ -386,9 +417,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         if ((retval == 0) && (data.mv_size == UCOIN_SZ_PUBKEY)) {
             const uint8_t *p = (const uint8_t *)data.mv_data;
             printf(", \"");
-            for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-                printf("%02x", p[lp]);
-            }
+            ucoin_util_dumpbin(stdout, p, UCOIN_SZ_PUBKEY, false);
             printf("\"");
         }
         cnt3++;
@@ -435,6 +464,10 @@ int main(int argc, char *argv[])
             break;
         case 'k':
             showflag = SHOW_ANNOSKIP;
+            env = 1;
+            break;
+        case 'i':
+            showflag = SHOW_ANNOINVOICE;
             env = 1;
             break;
         case 'v':
@@ -578,6 +611,9 @@ int main(int argc, char *argv[])
                     break;
                 case LN_LMDB_DBTYPE_ANNO_SKIP:
                     dumpit_annoskip(txn, dbi2);
+                    break;
+                case LN_LMDB_DBTYPE_ANNO_INVOICE:
+                    dumpit_annoinvoice(txn, dbi2);
                     break;
                 case LN_LMDB_DBTYPE_PREIMAGE:
                     dumpit_preimage(txn, dbi2);
