@@ -344,11 +344,11 @@ static void dumpit_annoinvoice(MDB_txn *txn, MDB_dbi dbi)
             if (cnt > 0) {
                 printf(",\n");
             }
-            
+
             printf("[\"");
             ucoin_util_dumpbin(stdout, key.mv_data, key.mv_size, false);
-            printf("\",\"");
-            printf("%s\"]", (const char *)data.mv_data);
+            printf("\",");
+            printf("%s]", (const char *)data.mv_data);
             cnt++;
         }
         mdb_cursor_close(cursor);

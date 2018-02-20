@@ -1380,7 +1380,7 @@ bool ln_db_annoskip_invoice_save(const char *pInvoice, const uint8_t *pPayHash)
     }
 
     key.mv_size = LN_SZ_HASH;
-    key.mv_data = (CONST_CAST char *)pPayHash;
+    key.mv_data = (CONST_CAST uint8_t *)pPayHash;
     data.mv_size = strlen(pInvoice) + 1;    //\0含む
     data.mv_data = (CONST_CAST char *)pInvoice;
     retval = mdb_put(txn, dbi, &key, &data, 0);

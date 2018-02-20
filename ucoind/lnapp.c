@@ -2334,6 +2334,9 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         del_routelist(p_conf, p_fail->id);
         if (retry) {
             //キューにためる(payment retry)
+            DBG_PRINTF("payment_hash: ");
+            DUMPBIN(p_fail->p_payment_hash, LN_SZ_HASH);
+
             queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));
             fulfill->type = QTYPE_PAY_RETRY;
             fulfill->id = 0;
