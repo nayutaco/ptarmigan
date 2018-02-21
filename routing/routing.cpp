@@ -34,7 +34,6 @@
 #include <poll.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/statvfs.h>
 #include <assert.h>
 
 #include "ucoind.h"
@@ -443,10 +442,10 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     assert(ret == 0);
     ret = mdb_cursor_open(txn_anno, dbi, &cursor);
     assert(ret == 0);
-    MDB_dbi dbi_skip = (MDB_dbi)-1;
-    struct statvfs svfs;
-    if (statvfs("./IGNORESKIP", &svfs) == -1) {
-        ret = mdb_dbi_open(txn_anno, "route_skip", 0, &dbi_skip);
+    MDB_dbi dbi_skip;
+    ret = mdb_dbi_open(txn_anno, "route_skip", 0, &dbi_skip);
+    if (ret != 0) {
+        dbi_skip = (MDB_dbi)-1;
     }
 
     list = 0;
