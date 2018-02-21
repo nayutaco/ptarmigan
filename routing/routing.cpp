@@ -73,6 +73,7 @@ using namespace boost;
                                                     //  攪乱するためにオフセットとして加算するCLTV
                                                     //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendations-for-routing
 
+#define M_ROUTE_SKIP_DBNAME                 "route_skip"
 
 /**************************************************************************
  * typedefs
@@ -130,6 +131,15 @@ static struct nodes_t {
 } *mpNodes = NULL;
 static int mNodeNum = 0;
 static FILE *fp_err;
+
+
+/********************************************************************
+ * external prototypes
+ ********************************************************************/
+
+extern "C" {
+void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
+}
 
 
 /********************************************************************
@@ -292,9 +302,9 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
 /**
  * @param[in]       p1      送金元node_id(NULLあり)
  * @param[in]       p2      送金先node_id(NULLあり)
- *
+ * @param[in]       clear_skip_db       true:routing skip DBクリア
  */
-static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
+static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db)
 {
     int ret;
     MDB_env     *pDbEnv = NULL;
@@ -334,6 +344,11 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     if (ret) {
         fprintf(fp_err, "fail: cannot open[%s]\n", annopath);
         return false;
+    }
+
+    if (clear_skip_db) {
+        ln_lmdb_setenv(pDbEnv, pDbAnno);
+        ln_db_annoskip_invoice_drop();
     }
 
     ret = mdb_txn_begin(pDbEnv, NULL, MDB_RDONLY, &txn);
@@ -409,7 +424,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     ret = mdb_cursor_open(txn_anno, dbi, &cursor);
     assert(ret == 0);
     MDB_dbi dbi_skip;
-    ret = mdb_dbi_open(txn_anno, "route_skip", 0, &dbi_skip);
+    ret = mdb_dbi_open(txn_anno, M_ROUTE_SKIP_DBNAME, 0, &dbi_skip);
     if (ret != 0) {
         dbi_skip = (MDB_dbi)-1;
     }
@@ -457,10 +472,9 @@ static int direction(const uint8_t *pNode1, const uint8_t *pNode2)
 }
 
 
-//true:含む
 static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 {
-    graph_t::vertex_descriptor v;
+    graph_t::vertex_descriptor v = static_cast<graph_t::vertex_descriptor>(-1);
     bool ret = false;
 
     std::pair<graph_t::vertex_iterator, graph_t::vertex_iterator> ver_its = vertices(g);
@@ -495,12 +509,13 @@ int main(int argc, char* argv[])
     uint64_t amtmsat = 0;
     bool only_graph = false;
     bool output_json = false;
+    bool clear_skip_db = false;
     char *payment_hash = NULL;
     char *dbdir = strdup(LNDB_DBDIR);
 
     int opt;
     int options = 0;
-    while ((opt = getopt(argc, argv, "hd:s:r:a:e:p:j")) != -1) {
+    while ((opt = getopt(argc, argv, "hd:s:r:a:e:p:jc")) != -1) {
         switch (opt) {
         case 'd':
             //db directory
@@ -546,10 +561,14 @@ int main(int argc, char* argv[])
             //JSON
             output_json = true;
             break;
+        case 'c':
+            //clear skip DB before routing
+            clear_skip_db = true;
+            break;
         case 'h':
             //help
             fprintf(fp_err, "usage:");
-            fprintf(fp_err, "\t%s -s PAYER_NODEID -r PAYEE_NODEID [-d DB_DIR] [-a AMOUNT_MSAT] [-e MIN_FINAL_CLTV_EXPIRY] [-p PAYMENT_HASH] [-j]\n", argv[0]);
+            fprintf(fp_err, "\t%s -s PAYER_NODEID -r PAYEE_NODEID [-d DB_DIR] [-a AMOUNT_MSAT] [-e MIN_FINAL_CLTV_EXPIRY] [-p PAYMENT_HASH] [-j] [-c]\n", argv[0]);
             return -1;
         default:
             break;
@@ -575,7 +594,7 @@ int main(int argc, char* argv[])
 #endif  //M_SPOIL_STDERR
 
     if (!only_graph) {
-        ret = loaddb(dbdir, send_nodeid, recv_nodeid);
+        ret = loaddb(dbdir, send_nodeid, recv_nodeid, clear_skip_db);
         if (!ret) {
             return -1;
         }
@@ -587,7 +606,7 @@ int main(int argc, char* argv[])
         ucoin_util_dumpbin(fp_err, recv_nodeid, UCOIN_SZ_PUBKEY, true);
 #endif
     } else {
-        ret = loaddb(dbdir, NULL, NULL);
+        ret = loaddb(dbdir, NULL, NULL, false);
         if (!ret) {
             return -1;
         }

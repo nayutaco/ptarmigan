@@ -2356,7 +2356,7 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
 }
 
 
-/* ucoinのDB動作を借りたいために、showdbから使用される。
+/* ucoinのDB動作を借りたいために、showdb/routingから使用される。
  *
  */
 void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno)
