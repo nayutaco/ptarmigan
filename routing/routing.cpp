@@ -303,8 +303,9 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
  * @param[in]       p1      送金元node_id(NULLあり)
  * @param[in]       p2      送金先node_id(NULLあり)
  * @param[in]       clear_skip_db       true:routing skip DBクリア
+ * @param[in]       stop_after_dbclear  true:routing skip DBクリア後、すぐにreturnする
  */
-static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db)
+static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db, bool stop_after_dbclear)
 {
     int ret;
     MDB_env     *pDbEnv = NULL;
@@ -340,7 +341,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(pDbAnno, 2);
     assert(ret == 0);
-    ret = mdb_env_open(pDbAnno, annopath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(pDbAnno, annopath, 0, 0664);
     if (ret) {
         fprintf(fp_err, "fail: cannot open[%s]\n", annopath);
         return false;
@@ -348,7 +349,11 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
 
     if (clear_skip_db) {
         ln_lmdb_setenv(pDbEnv, pDbAnno);
-        ln_db_annoskip_invoice_drop();
+        bool bret = ln_db_annoskip_drop();
+        fprintf(fp_err, "%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
+        if (stop_after_dbclear) {
+            return false;
+        }
     }
 
     ret = mdb_txn_begin(pDbEnv, NULL, MDB_RDONLY, &txn);
@@ -575,13 +580,22 @@ int main(int argc, char* argv[])
         }
     }
 
+    bool stop_after_dbclear = false;
     if (options != 3) {
         fprintf(fp_err, "fail: need -s and -r\n");
-        return -1;
+        if (clear_skip_db) {
+            stop_after_dbclear = true;
+        } else {
+            return -1;
+        }
     }
     if (output_json && (payment_hash == NULL)) {
         fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
-        return -1;
+        if (clear_skip_db) {
+            stop_after_dbclear = true;
+        } else {
+            return -1;
+        }
     }
 
     cltv_expiry += M_SHADOW_ROUTE;
@@ -594,7 +608,7 @@ int main(int argc, char* argv[])
 #endif  //M_SPOIL_STDERR
 
     if (!only_graph) {
-        ret = loaddb(dbdir, send_nodeid, recv_nodeid, clear_skip_db);
+        ret = loaddb(dbdir, send_nodeid, recv_nodeid, clear_skip_db, stop_after_dbclear);
         if (!ret) {
             return -1;
         }
@@ -606,10 +620,13 @@ int main(int argc, char* argv[])
         ucoin_util_dumpbin(fp_err, recv_nodeid, UCOIN_SZ_PUBKEY, true);
 #endif
     } else {
-        ret = loaddb(dbdir, NULL, NULL, false);
+        ret = loaddb(dbdir, NULL, NULL, false, false);
         if (!ret) {
             return -1;
         }
+    }
+    if (stop_after_dbclear) {
+        return -1;
     }
 
     graph_t g;

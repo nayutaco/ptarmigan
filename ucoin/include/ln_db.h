@@ -256,7 +256,7 @@ bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, u
 // channel_announcement
 ////////////////////
 
-/** short_channel_id登録
+/** "route_skip" short_channel_id登録
  *
  * @param[in]   ShortChannelId      登録するshort_channel_id
  * @retval  true    成功
@@ -264,13 +264,19 @@ bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, u
 bool ln_db_annoskip_save(uint64_t ShortChannelId);
 
 
-/** short_channel_id検索
+/** "route_skip" short_channel_id検索
  *
  * @param[in,out]   pDb                 #ln_db_anno_cur_transaction()取得したDB情報
  * @param[in]       ShortChannelId      検索するshort_channel_id
  * @retval  true    検出
  */
 bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId);
+
+
+/** "route_skip" DB削除
+ *
+ */
+bool ln_db_annoskip_drop(void);
 
 
 /** "routepay" invoice保存
