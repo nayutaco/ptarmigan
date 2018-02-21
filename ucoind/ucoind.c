@@ -21,6 +21,18 @@
  */
 /** @file   ucoind.c
  *  @brief  ucoin daemon
+ *  @note   <pre>
+ *                +------------------+
+ * main---------->| main thread      |
+ *                |                  |
+ *                +----+----------+--+
+ *               create|          | create
+ *                     v          v
+ *      +-------------------+   +----------------+
+ *      | p2p server thread |   | monitor thread |
+ *      |                   |   |                |
+ *      +-------------------+   +----------------+
+ * </pre>
  */
 #include <stdio.h>
 #include <inttypes.h>
@@ -330,9 +342,6 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id)
     p_appconf = p2p_cli_search_short_channel_id(short_channel_id);
     if (p_appconf == NULL) {
         p_appconf = p2p_svr_search_short_channel_id(short_channel_id);
-    }
-    if (p_appconf == NULL) {
-        DBG_PRINTF("not connected\n");
     }
     return p_appconf;
 }

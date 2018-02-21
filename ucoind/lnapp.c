@@ -22,17 +22,18 @@
 
 /** @file   lnapp.c
  *  @brief  channel処理
- *  @note
- *                +-------------+  create
- *                | main thread |<-------- p2p_svr/cli
- *                |             |
- *                +--+-------+--+
- *            create |       | create
- *                   v       v
- *      +-------------+     +-------------+
- *      | recv thread |     | poll thread |
- *      |             |     |             |
- *      +-------------+     +-------------+
+ *  @note   <pre>
+ *                +-----------------------------------------------+
+ * p2p_svr/cli--->| channel thread                                |
+ *                |                                               |
+ *                +--+-------+-------------------+----------------+
+ *            create |       | create            | create
+ *                   v       v                   v
+ *      +-------------+     +-------------+     +-------------+
+ *      | recv thread |     | poll thread |     | anno thread |
+ *      |             |     |             |     |             |
+ *      +-------------+     +-------------+     +-------------+
+ * </pre>
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +49,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <assert.h>
+
+#define USE_LINUX_LIST
+#ifdef USE_LINUX_LIST
+#include <sys/queue.h>
+#endif  //USE_LINUX_LIST
 
 #include "cJSON.h"
 
@@ -126,9 +132,10 @@ typedef struct {
 
 typedef struct queue_fulfill_t {
     enum {
-        QTYPE_FWD_ADD_HTLC,
-        QTYPE_BWD_FULFILL_HTLC,
-        QTYPE_BWD_FAIL_HTLC
+        QTYPE_FWD_ADD_HTLC,             ///< add_htlcの転送
+        QTYPE_BWD_FULFILL_HTLC,         ///< fulfill_htlcの転送
+        QTYPE_BWD_FAIL_HTLC,            ///< fail_htlcの転送
+        QTYPE_PAY_RETRY                 ///< 支払いのリトライ
     }               type;
     uint64_t        id;                     ///< add_htlc: short_channel_id
                                             ///< fulfill_htlc, fail_htlc: HTLC id
@@ -259,6 +266,14 @@ static void set_onionerr_str(char *pStr, const ucoin_buf_t *pBuf);
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
+static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId);
+static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
+static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
+#ifdef USE_LINUX_LIST
+static void print_routelist(lnapp_conf_t *p_conf);
+static void clear_routelist(lnapp_conf_t *p_conf);
+#endif
+
 
 /********************************************************************
  * public functions
@@ -368,7 +383,10 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
 
     show_self_param(p_self, PRINTOUT, __LINE__);
 
-    ret = ln_create_add_htlc(p_self, &buf_bolt,
+    uint64_t htlc_id;
+    ret = ln_create_add_htlc(p_self,
+                        &buf_bolt,
+                        &htlc_id,
                         onion,
                         pPay->hop_datain[0].amt_to_forward,
                         pPay->hop_datain[0].outgoing_cltv_value,
@@ -376,7 +394,9 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
                         0,
                         0,
                         &secrets);  //secretsはln.cで管理するので、ここでは解放しない
-    if (!ret) {
+    if (ret) {
+        add_routelist(pAppConf, pPay, htlc_id);
+    } else {
         goto LABEL_EXIT;
     }
     send_peer_noise(pAppConf, &buf_bolt);
@@ -490,7 +510,7 @@ bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *p
     DBG_PRINTF("first= %s\n", (bFirst) ? "true" : "false");
 
     fwd_proc_fail_t *p_fwd_fail = (fwd_proc_fail_t *)APP_MALLOC(sizeof(fwd_proc_fail_t));   //APP_FREE: fwd_fail_backward()
-    p_fwd_fail->id = pFail->id;
+    p_fwd_fail->id = pFail->prev_id;
     ucoin_buf_alloccopy(&p_fwd_fail->reason, pFail->p_reason->buf, pFail->p_reason->len);
     ucoin_buf_alloccopy(&p_fwd_fail->shared_secret,     //APP_FREE:fwd_fail_backward()
                             pFail->p_shared_secret->buf, pFail->p_shared_secret->len);
@@ -625,6 +645,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "their_msat", cJSON_CreateNumber64(ln_their_msat(p_self)));
         //feerate_per_kw
         cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
+        //htlc
+        cJSON_AddItemToObject(result, "htlc_num", cJSON_CreateNumber(ln_htlc_num(pAppConf->p_self)));
     } else if (pAppConf->funding_waiting) {
         char str[256];
 
@@ -794,6 +816,11 @@ static void *thread_main_start(void *pArg)
     p_conf->last_anno_node[0] = 0;      //pubkeyなので、0にはならない
     p_conf->err = 0;
     p_conf->p_errstr = NULL;
+#ifdef USE_LINUX_LIST
+    LIST_INIT(&p_conf->routing_head);
+#else   //USE_LINUX_LIST
+    p_conf->p_routing = NULL;
+#endif  //USE_LINUX_LIST
 
     pthread_cond_init(&p_conf->cond, NULL);
     pthread_mutex_init(&p_conf->mux, NULL);
@@ -939,6 +966,7 @@ LABEL_SHUTDOWN:
         APP_FREE(p_conf->fwd_proc[lp].p_data);
     }
     ln_term(&my_self);
+    clear_routelist(p_conf);
     memset(p_conf, 0, sizeof(lnapp_conf_t));
     p_conf->sock = -1;
 
@@ -1566,7 +1594,10 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *p_fwd_add)
     //DBG_PRINTF("fwd_proc_add_t.prev_short_channel_id= %" PRIx64 "\n", p_fwd_add->prev_short_channel_id);
     //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));         //current
     //DBG_PRINTF("------------------------------\n");
-    ret = ln_create_add_htlc(p_conf->p_self, &buf_bolt,
+    uint64_t htlc_id;
+    ret = ln_create_add_htlc(p_conf->p_self,
+                        &buf_bolt,
+                        &htlc_id,
                         p_fwd_add->onion_route,
                         p_fwd_add->amt_to_forward,
                         p_fwd_add->outgoing_cltv_value,
@@ -2220,6 +2251,11 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         ucoind_backward_fulfill(p_fulfill);
     } else {
         DBG_PRINTF("ここまで\n");
+        del_routelist(p_conf, p_fulfill->id);
+
+        uint8_t hash[LN_SZ_HASH];
+        ln_calc_preimage_hash(hash, p_fulfill->p_preimage);
+        ln_db_annoskip_invoice_del(hash);
     }
     pthread_mutex_unlock(&mMuxSeq);
     DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
@@ -2234,6 +2270,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
+    bool retry = false;
 
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
     while (true) {
@@ -2248,7 +2285,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     if (p_fail->prev_short_channel_id != 0) {
         //フラグを立てて、相手の受信スレッドで処理してもらう
-        DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->id);
+        DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->prev_id);
         ucoind_backward_fail(p_fail);
     } else {
         DBG_PRINTF("ここまで\n");
@@ -2262,14 +2299,58 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DBG_PRINTF("  failure reason= ");
             DUMPBIN(reason.buf, reason.len);
 
-            char errstr[256];
+            print_routelist(p_conf);
+
+            //失敗したと思われるshort_channel_idを登録
+            //      route.hop_datain[0]は自分、[1]が相手
+            //      hopの0は相手
+            char suggest[64];
+            const payment_conf_t *p_payconf = get_routelist(p_conf, p_fail->orig_id);
+            if (p_payconf != NULL) {
+                if (hop == p_payconf->hop_num - 2) {
+                    //送金先がエラーを返した？
+                    strcpy(suggest, "payee");
+                } else if (hop < p_payconf->hop_num - 2) {
+                    //途中がエラーを返した
+                    // DBG_PRINTF2("hop=%d\n", hop);
+                    // for (int lp = 0; lp < p_payconf.hop_num; lp++) {
+                    //     DBG_PRINTF2("[%d]%" PRIu64 "\n", lp, p_payconf->hop_datain[lp].short_channel_id);
+                    // }
+
+                    uint64_t short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
+                    sprintf(suggest, "%016" PRIx64, short_channel_id);
+                    ln_db_annoskip_save(short_channel_id);
+                    retry = true;
+                } else {
+                    strcpy(suggest, "invalid");
+                }
+            } else {
+                strcpy(suggest, "?");
+            }
+            DBG_PRINTF("suggest: %s\n", suggest);
+
+            char errstr[512];
             char reasonstr[128];
             set_onionerr_str(reasonstr, &reason);
-            sprintf(errstr, "fail reason:%s(hop=%d)", reasonstr, hop);
+            sprintf(errstr, "fail reason:%s (hop=%d)(suggest:%s)", reasonstr, hop, suggest);
             set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
         } else {
             //デコード失敗
             set_lasterror(p_conf, RPCERR_PAYFAIL, "fail result cannot decode");
+        }
+        del_routelist(p_conf, p_fail->orig_id);
+        if (retry) {
+            //キューにためる(payment retry)
+            DBG_PRINTF("payment_hash: ");
+            DUMPBIN(p_fail->p_payment_hash, LN_SZ_HASH);
+
+            queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));
+            fulfill->type = QTYPE_PAY_RETRY;
+            fulfill->id = 0;
+            ucoin_buf_alloccopy(&fulfill->buf, p_fail->p_payment_hash, LN_SZ_HASH);
+            push_queue(p_conf, fulfill);
+        } else {
+            ln_db_annoskip_invoice_del(p_fail->p_payment_hash);
         }
     }
     pthread_mutex_unlock(&mMuxSeq);
@@ -2279,7 +2360,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed受信(前処理)
+//LN_CB_COMMIT_SIG_RECV_PREV": commitment_signed受信(前処理)
 static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf; (void)p_param;
@@ -2386,6 +2467,24 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
             case QTYPE_BWD_FAIL_HTLC:
                 p_fail_ss = &p->buf;
                 break;
+            case QTYPE_PAY_RETRY:
+                {
+                    //リトライ
+                    char *p_invoice;
+                    bool ret = ln_db_annoskip_invoice_load(&p_invoice, p->buf.buf);
+                    if (ret) {
+                        DBG_PRINTF("invoice:%s\n", p_invoice);
+                        char *json = (char *)APP_MALLOC(8192);
+                        strcpy(json, "{\"method\":\"routepay\",\"params\":");
+                        strcat(json, p_invoice);
+                        strcat(json, "}");
+                        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+                        DBG_PRINTF("retval=%d\n", retval);
+                        free(json);
+                        free(p_invoice);
+                    }
+                }
+                break;
             default:
                 break;
             }
@@ -2395,10 +2494,11 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 const uint8_t dummy_reason_data[] = { 0x20, 0x02 };
                 const ucoin_buf_t dummy_reason = { (uint8_t *)dummy_reason_data, sizeof(dummy_reason_data) };
 
-                fail.id = p->id;
+                fail.prev_id = p->id;
+                fail.orig_id = (uint64_t)-1;
                 fail.p_reason = &dummy_reason;
                 fail.p_shared_secret = p_fail_ss;
-                DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", fail.id);
+                DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", fail.prev_id);
                 lnapp_backward_fail(p_conf, &fail, true);
             }
             ucoin_buf_free(&p->buf);
@@ -2966,6 +3066,175 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         call_script(M_EVT_ERROR, param);
     }
 }
+
+
+
+static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId)
+{
+#ifdef USE_LINUX_LIST
+    routelist_t *rt = (routelist_t *)APP_MALLOC(sizeof(routelist_t));
+
+    rt->route = *pPayConf;
+    rt->htlc_id = HtlcId;
+    LIST_INSERT_HEAD(&p_conf->routing_head, rt, list);
+    DBG_PRINTF("htlc_id: %" PRIu64 "\n", HtlcId);
+
+    print_routelist(p_conf);
+#else
+    if (p_conf->routing == NULL) {
+        p_conf->routing = (routelist_t *)APP_MALLOC(sizeof(routelist_t));
+    }
+
+    routelist_t *route = p_conf->routing;
+
+    while (route->p_next != NULL) {
+        DBG_PRINTF("htlc_id: %" PRIu64 "\n", route->htlc_id);
+        route = route->p_next;
+    }
+    if (route->p_route != NULL) {
+        route->p_next = (routelist_t *)APP_MALLOC(sizeof(routelist_t));
+        route = route->p_next;
+    }
+    route->p_route = (payment_conf_t *)APP_MALLOC(sizeof(payment_conf_t));
+    memcpy(route->p_route, pPayConf, sizeof(payment_conf_t));
+    route->htlc_id = HtlcId;
+    route->p_next = NULL;
+#endif
+}
+
+
+static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
+{
+#ifdef USE_LINUX_LIST
+    routelist_t *p;
+    DBG_PRINTF("START:htlc_id: %" PRIu64 "\n", HtlcId);
+
+    p = LIST_FIRST(&p_conf->routing_head);
+    while (p != NULL) {
+        DBG_PRINTF("htlc_id: %" PRIu64 "\n", p->htlc_id);
+        if (p->htlc_id == HtlcId) {
+            DBG_PRINTF("HIT:htlc_id: %" PRIu64 "\n", HtlcId);
+            break;
+        }
+        p = LIST_NEXT(p, list);
+    }
+    if (p != NULL) {
+        return &p->route;
+    } else {
+        return NULL;
+    }
+#else
+    if (p_conf->routing == NULL) {
+        return NULL;
+    }
+
+    routelist_t *route = p_conf->routing;
+
+    while (route->p_route != NULL) {
+        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
+        if (route->htlc_id == HtlcId) {
+            DBG_PRINTF("*[%d]GET htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
+            break;
+        }
+        if (route->p_next == NULL) {
+            DBG_PRINTF("[%d]not found\n", __LINE__);
+            return NULL;
+        }
+        route = route->p_next;
+    }
+
+    return route->p_route;
+#endif
+}
+
+
+static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
+{
+#ifdef USE_LINUX_LIST
+    struct routelist_t *p;
+
+    p = LIST_FIRST(&p_conf->routing_head);
+    while (p != NULL) {
+        if (p->htlc_id == HtlcId) {
+            DBG_PRINTF("htlc_id: %" PRIu64 "\n", HtlcId);
+            break;
+        }
+        p = LIST_NEXT(p, list);
+    }
+    if (p != NULL) {
+        LIST_REMOVE(p, list);
+        APP_FREE(p);
+    }
+
+    print_routelist(p_conf);
+#else
+    if (p_conf->routing == NULL) {
+        return;
+    }
+
+    routelist_t *route = p_conf->routing;
+    routelist_t *prev_route = NULL;
+
+    while (route->p_route != NULL) {
+        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, route->htlc_id);
+        if (route->htlc_id == HtlcId) {
+            DBG_PRINTF("*[%d]htlc_id: %" PRIu64 "\n", __LINE__, route->htlc_id);
+            break;
+        }
+        if (route->p_next == NULL) {
+            DBG_PRINTF("[%d]not found\n", __LINE__);
+            return;
+        }
+        prev_route = route;
+        route = route->p_next;
+    }
+
+    if (route->p_route != NULL) {
+        DBG_PRINTF("*[%d]DEL htlc_id: %" PRIu64 "\n", __LINE__, route->htlc_id);
+        APP_FREE(route->p_route);
+        route->p_route = NULL;
+        if (prev_route != NULL) {
+            //前がある
+            prev_route->p_next = route->p_next;
+        } else {
+            p_conf->routing = route->p_next;
+        }
+        if (route != p_conf->routing) {
+            APP_FREE(route);
+        }
+    }
+#endif
+}
+
+#ifdef USE_LINUX_LIST
+static void print_routelist(lnapp_conf_t *p_conf)
+{
+    routelist_t *p;
+
+    DBG_PRINTF("------------------------------------\n");
+    p = LIST_FIRST(&p_conf->routing_head);
+    while (p != NULL) {
+        DBG_PRINTF("htlc_id: %" PRIu64 "\n", p->htlc_id);
+        p = LIST_NEXT(p, list);
+    }
+    DBG_PRINTF("------------------------------------\n");
+}
+
+
+static void clear_routelist(lnapp_conf_t *p_conf)
+{
+    routelist_t *p;
+
+    p = LIST_FIRST(&p_conf->routing_head);
+    while (p != NULL) {
+        DBG_PRINTF("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
+        routelist_t *tmp = LIST_NEXT(p, list);
+        LIST_REMOVE(p, list);
+        APP_FREE(p);
+        p = tmp;
+    }
+}
+#endif
 
 
 /** ln_self_t内容表示(デバッグ用)

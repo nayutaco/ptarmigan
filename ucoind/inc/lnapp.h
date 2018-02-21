@@ -27,6 +27,11 @@
 
 #include <pthread.h>
 
+#define USE_LINUX_LIST
+#ifdef USE_LINUX_LIST
+#include <sys/queue.h>
+#endif  //USE_LINUX_LIST
+
 #include "ucoind.h"
 #include "conf.h"
 
@@ -61,6 +66,23 @@ typedef enum {
     //内部用
     INNER_SEND_ANNO_SIGNS,          ///< announcement_signatures送信要求
 } recv_proc_t;
+
+
+typedef struct routelist_t {
+#ifdef USE_LINUX_LIST
+    LIST_ENTRY(routelist_t) list;
+    payment_conf_t          route;
+#else   //USE_LINUX_LIST
+    struct routelist_t      *p_next;    ///< list構造
+    payment_conf_t          *p_route;   ///< APP_MALLOC()にて確保
+#endif  //USE_LINUX_LIST
+    uint64_t                htlc_id;    ///< 該当するhtlc id
+} routelist_t;
+
+
+#ifdef USE_LINUX_LIST
+LIST_HEAD(listhead_t, routelist_t);
+#endif
 
 
 /** @struct lnapp_conf_t
@@ -108,6 +130,13 @@ typedef struct lnapp_conf_t {
 
     //fulfillキュー
     queue_fulfill_t *p_fulfill_queue;
+
+    //payment
+#ifdef USE_LINUX_LIST
+    struct listhead_t routing_head;
+#else   //USE_LINUX_LIST
+    routelist_t     *p_routing;
+#endif  //USE_LINUX_LIST
 
     //last send announcement
     uint64_t        last_anno_cnl;                      ///< 最後にannouncementしたchannel

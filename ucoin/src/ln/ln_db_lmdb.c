@@ -61,6 +61,8 @@
 #define M_DBI_ANNOINFO_CNL      "channel_annoinfo"
 #define M_DBI_ANNO_NODE         "node_anno"
 #define M_DBI_ANNOINFO_NODE     "node_annoinfo"
+#define M_DBI_ANNO_SKIP         "route_skip"
+#define M_DBI_ANNO_INVOICE      "route_invoice"
 #define M_DBI_PREIMAGE          "preimage"
 #define M_DBI_PAYHASH           "payhash"
 #define M_DBI_VERSION           "version"
@@ -118,9 +120,9 @@ static int g_cnt[2];
 #endif
 
 
-/**************************************************************************
+/********************************************************************
  * typedefs
- **************************************************************************/
+ ********************************************************************/
 
 // ln_self_tのバックアップ
 typedef struct {
@@ -271,9 +273,9 @@ static inline void my_mdb_txn_abort(MDB_txn *txn, int line) {
 #endif  //M_DB_DEBUG
 
 
-/**************************************************************************
+/********************************************************************
  * public functions
- **************************************************************************/
+ ********************************************************************/
 
 bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
 {
@@ -413,6 +415,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         DBG_PRINTF("FAIL: check version db\n");
         goto LABEL_EXIT;
     }
+    ln_db_annoskip_invoice_drop();
 
     return true;
 
@@ -822,6 +825,7 @@ LABEL_EXIT:
 bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type)
 {
     MDB_txn *txn = NULL;
+    int opt = MDB_CREATE;
 
     int retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
     if (retval == 0) {
@@ -837,11 +841,15 @@ bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type)
         case LN_DB_TXN_NODE:
             p_name = M_DBI_ANNOINFO_NODE;
             break;
+        case LN_DB_TXN_SKIP:
+            p_name = M_DBI_ANNO_SKIP;
+            opt = 0;        //検索のみのため、DBが無くてもよい
+            break;
         default:
             assert(0);
             return false;
         }
-        retval = mdb_dbi_open(txn, p_name, MDB_CREATE, &p_db->dbi);
+        retval = mdb_dbi_open(txn, p_name, opt, &p_db->dbi);
     }
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1297,6 +1305,239 @@ int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *p
 
 
 /********************************************************************
+ * skip routing list
+ ********************************************************************/
+
+
+bool ln_db_annoskip_save(uint64_t ShortChannelId)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_val key, data;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_SKIP, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+
+    //keyだけを使う
+    key.mv_size = sizeof(ShortChannelId);
+    key.mv_data = &ShortChannelId;
+    data.mv_size = 0;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    MDB_TXN_COMMIT(txn);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId)
+{
+    int         retval;
+    MDB_val key, data;
+
+    ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
+
+    //keyだけを使う
+    key.mv_size = sizeof(ShortChannelId);
+    key.mv_data = &ShortChannelId;
+    retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
+
+    return retval == 0;
+
+}
+
+
+bool ln_db_annoskip_invoice_save(const char *pInvoice, const uint8_t *pPayHash)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_val     key, data;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+
+    key.mv_size = LN_SZ_HASH;
+    key.mv_data = (CONST_CAST uint8_t *)pPayHash;
+    data.mv_size = strlen(pInvoice) + 1;    //\0含む
+    data.mv_data = (CONST_CAST char *)pInvoice;
+    retval = mdb_put(txn, dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    MDB_TXN_COMMIT(txn);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
+{
+    int         retval;
+    MDB_txn     *txn = NULL;
+    MDB_dbi     dbi;
+    MDB_val     key, data;
+
+    *ppInvoice = NULL;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    key.mv_size = LN_SZ_HASH;
+    key.mv_data = (CONST_CAST uint8_t *)pPayHash;
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval == 0) {
+        *ppInvoice = strdup(data.mv_data);
+    }
+
+LABEL_EXIT:
+    if (txn != NULL) {
+        MDB_TXN_ABORT(txn);
+    }
+    return retval == 0;
+}
+
+
+int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
+{
+    int         retval;
+    MDB_txn     *txn = NULL;
+    MDB_dbi     dbi;
+    MDB_val     key, data;
+    MDB_cursor  *cursor;
+
+    *ppPayHash = NULL;
+    int cnt = 0;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, 0, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_cursor_open(txn, dbi, &cursor);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+        if (key.mv_size == LN_SZ_HASH) {
+            cnt++;
+            *ppPayHash = (uint8_t *)realloc(*ppPayHash, cnt * LN_SZ_HASH);
+            memcpy(*ppPayHash + (cnt - 1) * LN_SZ_HASH, key.mv_data, LN_SZ_HASH);
+        }
+    }
+
+LABEL_EXIT:
+    if (txn != NULL) {
+        MDB_TXN_ABORT(txn);
+    }
+    return cnt;
+}
+
+
+bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_val     key;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+
+    //再送があるため、同じkeyで上書きして良い
+    key.mv_size = LN_SZ_HASH;
+    key.mv_data = (CONST_CAST uint8_t*)pPayHash;
+    retval = mdb_del(txn, dbi, &key, NULL);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    MDB_TXN_COMMIT(txn);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+bool ln_db_annoskip_invoice_drop(void)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_drop(txn, dbi, 1);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    MDB_TXN_COMMIT(txn);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
+/********************************************************************
  * node_announcement
  ********************************************************************/
 
@@ -1535,9 +1776,9 @@ int ln_lmdb_annonod_cur_load(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTime
 }
 
 
-/**************************************************************************
+/********************************************************************
  * payment preimage
- **************************************************************************/
+ ********************************************************************/
 
 bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam)
 {
@@ -1823,9 +2064,9 @@ LABEL_EXIT:
 #endif  //LN_UGLY_NORMAL
 
 
-/**************************************************************************
+/********************************************************************
  * revoked transaction用データ
- **************************************************************************/
+ ********************************************************************/
 
 bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
 {
@@ -2014,9 +2255,9 @@ LABEL_EXIT:
 }
 
 
-/**************************************************************************
+/********************************************************************
  * version
- **************************************************************************/
+ ********************************************************************/
 
 int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
 {
@@ -2090,6 +2331,12 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     } else if (strcmp(pDbName, M_DBI_ANNOINFO_NODE) == 0) {
         //node_announcement information
         dbtype = LN_LMDB_DBTYPE_NODE_ANNOINFO;
+    } else if (strcmp(pDbName, M_DBI_ANNO_SKIP) == 0) {
+        //route skip
+        dbtype = LN_LMDB_DBTYPE_ANNO_SKIP;
+    } else if (strcmp(pDbName, M_DBI_ANNO_INVOICE) == 0) {
+        //payment invoice
+        dbtype = LN_LMDB_DBTYPE_ANNO_INVOICE;
     } else if (strcmp(pDbName, M_DBI_PREIMAGE) == 0) {
         //preimage
         dbtype = LN_LMDB_DBTYPE_PREIMAGE;

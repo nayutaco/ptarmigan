@@ -803,7 +803,9 @@ typedef struct {
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     const ucoin_buf_t       *p_reason;              ///< reason
     const ucoin_buf_t       *p_shared_secret;       ///< shared secret
-    uint64_t                id;                     ///< HTLC id
+    uint64_t                prev_id;                ///< 戻すHTLC id
+    uint64_t                orig_id;                ///< 元のHTLC id
+    const uint8_t           *p_payment_hash;        ///< payment_hash
 } ln_cb_fail_htlc_recv_t;
 
 
@@ -1368,6 +1370,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pAdd            生成したupdate_add_htlcメッセージ
+ * @param[out]          pHtlcId         生成したHTLCのid
  * @param[in]           pPacket         onion packet
  * @param[in]           amount_msat     送金額[msat]
  * @param[in]           cltv_value      CLTV値
@@ -1379,7 +1382,9 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
  * @note
  *      - prev_short_channel_id はfullfillの通知先として使用する
  */
-bool ln_create_add_htlc(ln_self_t *self, ucoin_buf_t *pAdd,
+bool ln_create_add_htlc(ln_self_t *self,
+            ucoin_buf_t *pAdd,
+            uint64_t *pHtlcId,
             const uint8_t *pPacket,
             uint64_t amount_msat,
             uint32_t cltv_value,

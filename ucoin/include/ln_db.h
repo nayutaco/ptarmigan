@@ -66,7 +66,8 @@ typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_para
  */
 typedef enum {
     LN_DB_TXN_CNL,          ///< channel_announcement/channel_update
-    LN_DB_TXN_NODE          ///< node_announcement
+    LN_DB_TXN_NODE,         ///< node_announcement
+    LN_DB_TXN_SKIP          ///< routing skip channel
 } ln_db_txn_t;
 
 
@@ -249,6 +250,59 @@ bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type,
  * @retval  true    成功
  */
 bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf);
+
+
+////////////////////
+// channel_announcement
+////////////////////
+
+/** short_channel_id登録
+ *
+ * @param[in]   ShortChannelId      登録するshort_channel_id
+ * @retval  true    成功
+ */
+bool ln_db_annoskip_save(uint64_t ShortChannelId);
+
+
+/** short_channel_id検索
+ *
+ * @param[in,out]   pDb                 #ln_db_anno_cur_transaction()取得したDB情報
+ * @param[in]       ShortChannelId      検索するshort_channel_id
+ * @retval  true    検出
+ */
+bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId);
+
+
+/** "routepay" invoice保存
+ *
+ */
+bool ln_db_annoskip_invoice_save(const char *pInvoice, const uint8_t *pPayHash);
+
+
+/** "routepay" invoice取得
+ *
+ */
+bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash);
+
+
+/** "routepay" 全payment_hash取得
+ *
+ * @attention
+ *      - 内部で realloc()するため、使用後に free()すること
+ */
+int ln_db_annoskip_invoice_get(uint8_t **ppPayHash);
+
+
+/** "routepay" invoice削除
+ *
+ */
+bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash);
+
+
+/** "routepay" DB削除
+ *
+ */
+bool ln_db_annoskip_invoice_drop(void);
 
 
 ////////////////////
