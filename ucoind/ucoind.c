@@ -241,7 +241,7 @@ LABEL_EXIT:
     fprintf(PRINTOUT, "[usage]\n");
     fprintf(PRINTOUT, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
     fprintf(PRINTOUT, "\n");
-    fprintf(PRINTOUT, "\t\t-h : help(this)\n");
+    fprintf(PRINTOUT, "\t\t-h : help\n");
     fprintf(PRINTOUT, "\t\t-p : node port(default: 9735)\n");
     fprintf(PRINTOUT, "\t\t-n : alias name(default: \"node_xxxxxxxxxxxx\")\n");
     fprintf(PRINTOUT, "\t\t-c : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
