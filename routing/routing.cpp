@@ -34,6 +34,7 @@
 #include <poll.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <getopt.h>
 #include <assert.h>
 
 #include "ucoind.h"
@@ -123,16 +124,11 @@ typedef graph_traits < graph_t >::vertex_iterator vertex_iterator;
  * static variables
  ********************************************************************/
 
-static MDB_env      *mpDbEnv = NULL;
-static MDB_env      *mpDbAnno = NULL;
 static struct nodes_t {
     uint64_t    short_channel_id;
     nodeinfo_t  ninfo[2];
 } *mpNodes = NULL;
 static int mNodeNum = 0;
-static uint8_t mMyNodeId[UCOIN_SZ_PUBKEY];
-static uint8_t mTgtNodeId[UCOIN_SZ_PUBKEY];
-static uint16_t mMinFinalCltvExpiry = 0;
 static FILE *fp_err;
 
 
@@ -251,7 +247,6 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
         ret = ln_lmdb_self_load(&self, txn, dbi);
         if (ret == 0) {
             //p1: my node_id(送金元とmy node_idが不一致の場合はNULL), p2: target node_id
-#if 1
             //
             // チャネル開設済みのノードに対しては、routing計算に含める。
             // fee計算にそのルートは関係がないため、パラメータは0にしておく。
@@ -286,41 +281,10 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
                     mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
                 }
             }
-#else
-            //
-            // まだannounceする前で、送金元が自分、送金先がpeer相手でチャネル開設が完了している場合のみルートを許可
-            //
 
-            if ((self.short_channel_id != 0) && (memcmp(self.peer_node.node_id, p2, UCOIN_SZ_PUBKEY) == 0)) {
-                //チャネル接続しているが、announcement_signaturesはしていない相手
-#ifdef M_DEBUG
-                fprintf(fp_err, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
-                fprintf(fp_err, "p1= ");
-                dumpbin(p1, 33);
-                fprintf(fp_err, "p2= ");
-                dumpbin(p2, 33);
-#endif
-                mNodeNum++;
-                mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
-                mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
-                if (memcmp(p1, p2, UCOIN_SZ_PUBKEY) > 0) {
-                    const uint8_t *p = p1;
-                    p1 = p2;
-                    p2 = p;
-                }
-                memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
-                memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
-                for (int lp = 0; lp < 2; lp++) {
-                    mpNodes[mNodeNum - 1].ninfo[lp].cltv_expiry_delta = 0;
-                    mpNodes[mNodeNum - 1].ninfo[lp].htlc_minimum_msat = 0;
-                    mpNodes[mNodeNum - 1].ninfo[lp].fee_base_msat = 0;
-                    mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
-                }
-            }
-#endif
         }
         ln_term(&self);
-        mdb_close(mpDbEnv, dbi);
+        mdb_close(mdb_txn_env(txn), dbi);
     }
 }
 
@@ -333,6 +297,8 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
 static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
 {
     int ret;
+    MDB_env     *pDbEnv = NULL;
+    MDB_env     *pDbAnno = NULL;
     MDB_txn     *txn;
     MDB_txn     *txn_anno;
     MDB_dbi     dbi;
@@ -350,29 +316,29 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     strcat(dbpath, LNDB_DBENV_DIR);
     strcat(annopath, LNDB_ANNOENV_DIR);
 
-    ret = mdb_env_create(&mpDbEnv);
+    ret = mdb_env_create(&pDbEnv);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbEnv, 2);
+    ret = mdb_env_set_maxdbs(pDbEnv, 2);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbEnv, dbpath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(pDbEnv, dbpath, MDB_RDONLY, 0664);
     if (ret) {
         fprintf(fp_err, "fail: cannot open[%s]\n", dbpath);
-        assert(ret == 0);
+        return false;
     }
 
-    ret = mdb_env_create(&mpDbAnno);
+    ret = mdb_env_create(&pDbAnno);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbAnno, 2);
+    ret = mdb_env_set_maxdbs(pDbAnno, 2);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbAnno, annopath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(pDbAnno, annopath, MDB_RDONLY, 0664);
     if (ret) {
         fprintf(fp_err, "fail: cannot open[%s]\n", annopath);
-        assert(ret == 0);
+        return false;
     }
 
-    ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
+    ret = mdb_txn_begin(pDbEnv, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
-    ret = mdb_txn_begin(mpDbAnno, NULL, MDB_RDONLY, &txn_anno);
+    ret = mdb_txn_begin(pDbAnno, NULL, MDB_RDONLY, &txn_anno);
     assert(ret == 0);
 
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
@@ -473,8 +439,8 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2)
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn_anno);
 
-    mdb_env_close(mpDbAnno);
-    mdb_env_close(mpDbEnv);
+    mdb_env_close(pDbAnno);
+    mdb_env_close(pDbEnv);
     return true;
 }
 
@@ -520,62 +486,86 @@ static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 
 int main(int argc, char* argv[])
 {
+    bool ret;
     fp_err = stderr;
-    uint64_t amtmsat;
 
-    const char *dbdir;
-    const char *my_node;
-    const char *tgt_node;
-    const char *amount;
-    const char *payment_hash = NULL;
+    uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
+    uint8_t recv_nodeid[UCOIN_SZ_PUBKEY];
+    uint32_t cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
+    uint64_t amtmsat = 0;
+    bool only_graph = false;
+    bool output_json = false;
+    char *payment_hash = NULL;
+    char *dbdir = strdup(LNDB_DBDIR);
 
-    if (argc == ARGS_GRAPH) {
-        dbdir = argv[1];
-        my_node = NULL;
-        tgt_node = NULL;
-        amount = NULL;
-    } else if (argc >= ARGS_PAYMENT) {
-        dbdir = argv[1];
-        my_node = argv[2];
-        tgt_node = argv[3];
-        amount = argv[4];
-        if (argc >= ARGS_PAY_AND_EXPIRY) {
-            mMinFinalCltvExpiry = (uint16_t)atoi(argv[5]);
-        } else {
-            mMinFinalCltvExpiry = LN_MIN_FINAL_CLTV_EXPIRY;
+    int opt;
+    int options = 0;
+    while ((opt = getopt(argc, argv, "hd:s:r:a:e:p:j")) != -1) {
+        switch (opt) {
+        case 'd':
+            //db directory
+            free(dbdir);
+            dbdir = strdup(optarg);
+            break;
+        case 's':
+            //sender(payer)
+            ret = misc_str2bin(send_nodeid, sizeof(send_nodeid), optarg);
+            if (!ret) {
+                fprintf(fp_err, "invalid arg: payer node id\n");
+                return -1;
+            }
+            options |= 1;
+            break;
+        case 'r':
+            //receiver(payee)
+            ret = misc_str2bin(recv_nodeid, sizeof(recv_nodeid), optarg);
+            if (!ret) {
+                fprintf(fp_err, "invalid arg: payee node id\n");
+                return -1;
+            }
+            options |= 2;
+            break;
+        case 'a':
+            //amount
+            errno = 0;
+            amtmsat = (uint64_t)strtoull(optarg, NULL, 10);
+            if (errno) {
+                DBG_PRINTF("errno=%s\n", strerror(errno));
+                return -1;
+            }
+            break;
+        case 'e':
+            //min_final_expiry_delta
+            cltv_expiry = (uint32_t)atoi(optarg);
+            break;
+        case 'p':
+            //payment_hash
+            payment_hash = strdup(optarg);
+            break;
+        case 'j':
+            //JSON
+            output_json = true;
+            break;
+        case 'h':
+            //help
+            fprintf(fp_err, "usage:");
+            fprintf(fp_err, "\t%s -s PAYER_NODEID -r PAYEE_NODEID [-d DB_DIR] [-a AMOUNT_MSAT] [-e MIN_FINAL_CLTV_EXPIRY] [-p PAYMENT_HASH] [-j]\n", argv[0]);
+            return -1;
+        default:
+            break;
         }
-        mMinFinalCltvExpiry += M_SHADOW_ROUTE;
-        //fprintf(fp_err, "min_final_cltv_expiry = %" PRIu16 "\n", mMinFinalCltvExpiry);
-        if (argc == ARGS_ALL) {
-            payment_hash = argv[6];
-        }
-    } else {
-        fprintf(fp_err, "usage:");
-        //                    1
-        fprintf(fp_err, "\t%s <db dir> : output map dot file(route.dot)\n", argv[0]);
-        //                    1        2               3               4
-        fprintf(fp_err, "\t%s <db dir> <payer node_id> <payee node_id> <amount_msat> : payment route(CSV)\n", argv[0]);
-        //                    1        2               3               4             5
-        fprintf(fp_err, "\t%s <db dir> <payer node_id> <payee node_id> <amount_msat> <min_final_cltv_expiry> : payment route(CSV)\n", argv[0]);
-        //                    1        2               3               4             5                       6
-        fprintf(fp_err, "\t%s <db dir> <payer node_id> <payee node_id> <amount_msat> <min_final_cltv_expiry> <payment_hash> : payment route(JSON)\n", argv[0]);
+    }
+
+    if (options != 3) {
+        fprintf(fp_err, "fail: need -s and -r\n");
+        return -1;
+    }
+    if (output_json && (payment_hash == NULL)) {
+        fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
         return -1;
     }
 
-    bool ret;
-    if (argc >= ARGS_PAYMENT) {
-        ret = misc_str2bin(mMyNodeId, sizeof(mMyNodeId), my_node);
-        if (!ret) {
-            fprintf(fp_err, "invalid arg: payer node id\n");
-            return -1;
-        }
-
-        ret = misc_str2bin(mTgtNodeId, sizeof(mTgtNodeId), tgt_node);
-        if (!ret) {
-            fprintf(fp_err, "invalid arg: payee node id\n");
-            return -1;
-        }
-    }
+    cltv_expiry += M_SHADOW_ROUTE;
 
 #ifdef M_SPOIL_STDERR
     //stderrを捨てる
@@ -584,24 +574,17 @@ int main(int argc, char* argv[])
     close(2);
 #endif  //M_SPOIL_STDERR
 
-    if (argc >= ARGS_PAYMENT) {
-        ret = loaddb(dbdir, mMyNodeId, mTgtNodeId);
+    if (!only_graph) {
+        ret = loaddb(dbdir, send_nodeid, recv_nodeid);
         if (!ret) {
-            return -1;
-        }
-
-        errno = 0;
-        amtmsat = (uint64_t)strtoull(amount, NULL, 10);
-        if (errno) {
-            DBG_PRINTF("errno=%s\n", strerror(errno));
             return -1;
         }
 
 #ifdef M_DEBUG
         fprintf(fp_err, "start nodeid : ");
-        ucoin_util_dumpbin(fp_err, mMyNodeId, UCOIN_SZ_PUBKEY, true);
+        ucoin_util_dumpbin(fp_err, send_nodeid, UCOIN_SZ_PUBKEY, true);
         fprintf(fp_err, "end nodeid   : ");
-        ucoin_util_dumpbin(fp_err, mTgtNodeId, UCOIN_SZ_PUBKEY, true);
+        ucoin_util_dumpbin(fp_err, recv_nodeid, UCOIN_SZ_PUBKEY, true);
 #endif
     } else {
         ret = loaddb(dbdir, NULL, NULL);
@@ -617,7 +600,7 @@ int main(int argc, char* argv[])
     graph_t::vertex_descriptor pnt_start = static_cast<graph_t::vertex_descriptor>(-1);
     graph_t::vertex_descriptor pnt_goal = static_cast<graph_t::vertex_descriptor>(-1);
 
-    if (argc == ARGS_GRAPH) {
+    if (only_graph) {
         set_start = true;
         set_goal = true;
     } else {
@@ -640,19 +623,19 @@ int main(int argc, char* argv[])
         graph_t::vertex_descriptor node2 = ver_add(g, mpNodes[lp].ninfo[1].node_id);
 
         if (!set_start) {
-            if (memcmp(mpNodes[lp].ninfo[0].node_id, mMyNodeId, UCOIN_SZ_PUBKEY) == 0) {
+            if (memcmp(mpNodes[lp].ninfo[0].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_start = node1;
                 set_start = true;
-            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, mMyNodeId, UCOIN_SZ_PUBKEY) == 0) {
+            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_start = node2;
                 set_start = true;
             }
         }
         if (!set_goal) {
-            if (memcmp(mpNodes[lp].ninfo[0].node_id, mTgtNodeId, UCOIN_SZ_PUBKEY) == 0) {
+            if (memcmp(mpNodes[lp].ninfo[0].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_goal = node1;
                 set_goal = true;
-            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, mTgtNodeId, UCOIN_SZ_PUBKEY) == 0) {
+            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_goal = node2;
                 set_goal = true;
             }
@@ -686,7 +669,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (argc >= ARGS_PAYMENT) {
+    if (!only_graph) {
 #ifdef M_DEBUG
         fprintf(fp_err, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
 #endif
@@ -716,7 +699,6 @@ int main(int argc, char* argv[])
         std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
         std::deque<uint64_t> msat;
         std::deque<uint32_t> cltv;
-        uint32_t cltv_expiry = mMinFinalCltvExpiry;
 
         route.push_front(pnt_goal);
         msat.push_front(amtmsat);
@@ -747,21 +729,9 @@ int main(int argc, char* argv[])
             msat.push_front(amtmsat);
             cltv.push_front(cltv_expiry);
 
-            //if (cltv_expiry == mMinFinalCltvExpiry) {
-            //    //初回
-            //    //  BOLT#4
-            //    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
-            //    msat.push_front(amtmsat);
-            //    cltv.push_front(mMinFinalCltvExpiry);
-            //}
-
             amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
             cltv_expiry += g[e].cltv_expiry_delta;
         }
-        //route.push_front(pnt_start);
-        //msat.push_front(amtmsat);
-        //cltv.push_front(cltv_expiry);
-
         //std::cout << "distance: " << d[pnt_goal] << std::endl;
 
         //pay.conf形式の出力
@@ -771,7 +741,7 @@ int main(int argc, char* argv[])
 
         memset(&ninfo, 0, sizeof(ninfo));
 
-        if (argc <= ARGS_PAY_AND_EXPIRY) {
+        if (!output_json) {
             //CSV形式
             printf("hop_num=%d\n", hop);
             for (int lp = 0; lp < hop - 1; lp++) {
@@ -914,6 +884,9 @@ int main(int argc, char* argv[])
         }
         dot_file << "}";
     }
+
+    free(dbdir);
+    free(payment_hash);
 
     return 0;
 }
