@@ -1487,6 +1487,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     uint64_t fee_toremote = M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
     if (Value < UCOIN_DUST_LIMIT + fee_toremote) {
         DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_toremote);
+        ret = false;
         goto LABEL_EXIT;
     }
 
@@ -3764,6 +3765,7 @@ static bool create_to_remote(ln_self_t *self,
                     ucoin_tx_init(&tx);     //txはfreeさせない
                 } else {
                     ucoin_tx_free(&tx);
+                    ucoin_tx_init(pTxToRemote);
                 }
                 break;
             }
