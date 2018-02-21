@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
 
     int opt;
     int options = 0;
-    while ((opt = getopt(argc, argv, "p:n:a:c:i")) != -1) {
+    while ((opt = getopt(argc, argv, "p:n:a:c:ih")) != -1) {
         switch (opt) {
         case 'p':
             //port num
@@ -122,6 +122,9 @@ int main(int argc, char *argv[])
             //show node_id
             options |= 0x01;
             break;
+        case 'h':
+            //help
+            goto LABEL_EXIT;
         default:
             break;
         }
@@ -237,6 +240,13 @@ int main(int argc, char *argv[])
 LABEL_EXIT:
     fprintf(PRINTOUT, "[usage]\n");
     fprintf(PRINTOUT, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
+    fprintf(PRINTOUT, "\n");
+    fprintf(PRINTOUT, "\t\t-h : help\n");
+    fprintf(PRINTOUT, "\t\t-p : node port(default: 9735)\n");
+    fprintf(PRINTOUT, "\t\t-n : alias name(default: \"node_xxxxxxxxxxxx\")\n");
+    fprintf(PRINTOUT, "\t\t-c : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
+    fprintf(PRINTOUT, "\t\t-a : announce IPv4 address(default: none)\n");
+    fprintf(PRINTOUT, "\t\t-i : show node_id(not start node)\n");
     return -1;
 }
 
