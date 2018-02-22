@@ -109,7 +109,7 @@ watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
 1. [cln]invoice作成
 
 ```bash
-./cli/lightning-cli invoice 10000 abc def
+./cli/lightning-cli invoice 100000000 abc def
 ```
 
 * 単位はmsatoshi。  
