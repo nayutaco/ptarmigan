@@ -661,7 +661,7 @@ static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t 
     if (bSend) {
         struct sockaddr_in sv_addr;
 
-        fprintf(stderr, "%s\n", pSend);
+        //fprintf(stderr, "%s\n", pSend);
         int sock = socket(PF_INET, SOCK_STREAM, 0);
         if (sock < 0) {
             return retval;
