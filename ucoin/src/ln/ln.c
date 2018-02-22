@@ -3765,7 +3765,6 @@ static bool create_to_remote(ln_self_t *self,
                     ucoin_tx_init(&tx);     //txはfreeさせない
                 } else {
                     ucoin_tx_free(&tx);
-                    ucoin_tx_init(pTxToRemote);
                 }
                 break;
             }
