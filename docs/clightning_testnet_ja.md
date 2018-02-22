@@ -129,7 +129,7 @@ watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
 ../showdb w | jq
 ```
 
-* 成功した場合、`our_msat`が799990000、`their_msat`が10000になる
+* 成功した場合、`our_msat`が700000000、`their_msat`が100000000になる
 
 ### 送金(c-lightning --> ptarmigan)
 
