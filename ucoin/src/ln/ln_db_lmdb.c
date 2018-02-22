@@ -1361,6 +1361,37 @@ bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId)
 }
 
 
+bool ln_db_annoskip_drop(void)
+{
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
+    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_SKIP, 0, &dbi);
+    if (retval != 0) {
+        //存在しないなら削除しなくてよい
+        MDB_TXN_ABORT(txn);
+        //retval = 0;
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_drop(txn, dbi, 1);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+    }
+
+    MDB_TXN_COMMIT(txn);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
 bool ln_db_annoskip_invoice_save(const char *pInvoice, const uint8_t *pPayHash)
 {
     int         retval;
@@ -1518,10 +1549,11 @@ bool ln_db_annoskip_invoice_drop(void)
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, MDB_CREATE, &dbi);
+    retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, 0, &dbi);
     if (retval != 0) {
-        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        //存在しないなら削除もしなくて良い
         MDB_TXN_ABORT(txn);
+        retval = 0;
         goto LABEL_EXIT;
     }
 
@@ -2356,7 +2388,7 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
 }
 
 
-/* ucoinのDB動作を借りたいために、showdbから使用される。
+/* ucoinのDB動作を借りたいために、showdb/routingから使用される。
  *
  */
 void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno)

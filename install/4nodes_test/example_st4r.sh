@@ -27,7 +27,7 @@ pay() {
 	payer_id=`nodeid $PAY_BEGIN`
 	payee_id=`nodeid $PAY_END`
 
-	./routing $PAYER/dbucoin $payer_id $payee_id $AMOUNT
+	./routing -d $PAYER/dbucoin -s $payer_id -r $payee_id -a $AMOUNT
 	if [ $? -ne 0 ]; then
 		echo no routing
 		exit 1
@@ -41,7 +41,7 @@ pay() {
 
 	echo -n hash= > $ROUTECONF
 	echo $INVOICE | jq -r '.result.hash' >> $ROUTECONF
-	./routing $PAYER/dbucoin $payer_id $payee_id $AMOUNT >> $ROUTECONF
+	./routing -d $PAYER/dbucoin -s $payer_id -r $payee_id -a $AMOUNT >> $ROUTECONF
 
 	# 送金実施
 	./ucoincli -p $ROUTECONF $PAYER_PORT

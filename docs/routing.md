@@ -6,23 +6,38 @@
 
 ## SYNOPSIS
 
-* create node graph
-
 ```bash
-routing <db dir>
+routing -s PAYER_NODEID -r PAYEE_NODEID -d DB_DIR -a AMOUNT_MSAT -e MIN_FINAL_CLTV_EXPIRY -p PAYMENT_HASH [-j]
 ```
 
-* create payment route(CSV format)
+### options
 
-```bash
-routing <db dir> <payer node_id> <payee node_id> <amount msat> [<min_final_cltv_expiry>]
-```
+* -s PAYER_NODEID
+  * payer node_id
 
-* create payment route(JSON format)
+* -r PAYEE_NODEID 
+  * payee node_id
 
-```bash
-routing <db dir> <payer node_id> <payee node_id> <amount msat> <min_final_cltv_expiry> <payment_hash>
-```
+* -d DB_DIR
+  * DB directory
+    * default: `./dbucoin`
+
+* -a AMOUNT_MSAT 
+  * amount_msat
+    * default: `0`
+
+* -e MIN_FINAL_CLTV_EXPIRY
+  * min_final_cltv_expiry
+    * default: `9`
+
+* -p PAYMENT_HASH
+  * payment_hash
+    * default: none
+
+* -j
+  * output JSON format
+    * default: CSV format
+  * _NOTE_ : need PAYMENT_HASH if `-j` set
 
 ## DESCRIPTION
 

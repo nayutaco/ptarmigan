@@ -13,7 +13,7 @@ nodeid() {
 	cat conf/peer$1.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
 }
 
-./routing $PAYER/dbucoin `nodeid $PAY_BEGIN` `nodeid $PAY_END` $AMOUNT
+./routing -d $PAYER/dbucoin -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
@@ -27,7 +27,7 @@ fi
 
 # preimage_hash無視
 echo hash=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff > $ROUTECONF
-./routing $PAYER/dbucoin `nodeid $PAY_BEGIN` `nodeid $PAY_END` $AMOUNT >> $ROUTECONF
+./routing -d $PAYER/dbucoin -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT >> $ROUTECONF
 
 # 送金実施
 ./ucoincli -p $ROUTECONF $PAYER_PORT

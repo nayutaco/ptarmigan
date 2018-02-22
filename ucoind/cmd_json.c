@@ -751,10 +751,13 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     // execute `routing` command
     char cmd[512];
-    sprintf(cmd, "%srouting %s %s %s %" PRIu64 " %d %s\n",
+    sprintf(cmd, "%srouting -s %s -r %s -a %" PRIu64 " -e %d -p %s -j\n",
                 ucoind_get_exec_path(),
-                LNDB_DBDIR,
-                str_payer, str_payee, amount_msat, min_final_cltv_expiry, str_payhash);
+                str_payer,      // -s
+                str_payee,      // -r
+                amount_msat,    // -a
+                min_final_cltv_expiry,  // -e
+                str_payhash);           // -p
     //DBG_PRINTF("cmd=%s\n", cmd);
     FILE *fp = popen(cmd, "r");
     if (fp == NULL) {
