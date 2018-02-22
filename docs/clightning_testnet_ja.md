@@ -59,10 +59,10 @@ cd install/node
 `push satoshi`は、`channel satoshi`のうち相手に渡す額。
 よって、`fund-in satoshi`の額は、`channel satoshi`にfeeを加えた以上の値にしなくてはならない。  
 
-例えば、5mBTCチャネルに入れたい場合は、以下のようにする。
+例えば、8mBTCチャネルに入れたい場合は、以下のようにする。
 
 ```bash
-../pay_fundin.sh 1000000 500000 0
+../pay_fundin.sh 1000000 800000 0
 ```
 
 `pay_fundin.sh`は`fund_yyyymmddhhmmss.conf`という形式のファイルを作成する。
@@ -79,10 +79,10 @@ cd install/node
 1ブロックで、チャネルは生成される。  
 6ブロックで、announcementが行われる。  
 
-11. [cln]invoice作成(rhash取得)
+11. [cln]invoice作成
 
 ```bash
-./cli/lightning-cli invoice 10000 abc def
+./cli/lightning-cli invoice 10000000 abc def
 ```
 
 単位はmsatoshi。
@@ -108,7 +108,7 @@ cd install/node
 15. [ptarm]invoice作成
 
 ```bash
-./ucoincli -i 20000 8889
+./ucoincli -i 10000 8889
 ```
 
 16. [cln]現在のamountを確認
