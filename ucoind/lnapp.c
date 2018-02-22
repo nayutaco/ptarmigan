@@ -460,7 +460,7 @@ bool lnapp_forward_payment(lnapp_conf_t *pAppConf, fwd_proc_add_t *pAdd)
     }
 
     //pAddは自動で解放されるためコピーする
-    fwd_proc_add_t *p_add = (fwd_proc_add_t *)APP_MALLOC(sizeof(fwd_proc_add_t));
+    fwd_proc_add_t *p_add = (fwd_proc_add_t *)APP_MALLOC(sizeof(fwd_proc_add_t));       //APP_FREE: recv_node_proc()
     memcpy(p_add, pAdd, sizeof(fwd_proc_add_t));
 
     //DBG_PRINTF("------------------------------: %p\n", p_add);
@@ -627,8 +627,6 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //peer node_id
         misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
-        //node alias
-        cJSON_AddItemToObject(result, "node_alias", cJSON_CreateString(p_self->peer_node.alias));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
@@ -707,7 +705,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
                 ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
-                char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);
+                char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);        //APP_FREE: この中
                 misc_bin2str(transaction, buf.buf, buf.len);
                 ucoin_buf_free(&buf);
 
@@ -728,7 +726,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
         ucoin_tx_t *p_tx = (ucoin_tx_t *)close_dat.tx_buf.buf;
         for (int lp = 0; lp < num; lp++) {
             ucoin_tx_create(&buf, &p_tx[lp]);
-            char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);
+            char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);    //APP_FREE: この中
             misc_bin2str(transaction, buf.buf, buf.len);
             ucoin_buf_free(&buf);
 
@@ -962,6 +960,7 @@ LABEL_SHUTDOWN:
     APP_FREE(p_conf->p_opening);
     APP_FREE(p_conf->p_funding);
     APP_FREE(p_conf->p_establish);
+    APP_FREE(p_conf->p_errstr);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
     }
@@ -1299,7 +1298,7 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
     if (ret) {
         //解放
         p_conf->fwd_proc[p_conf->fwd_proc_rpnt].cmd = FWD_PROC_NONE;
-        APP_FREE(p_conf->fwd_proc[p_conf->fwd_proc_rpnt].p_data);
+        APP_FREE(p_conf->fwd_proc[p_conf->fwd_proc_rpnt].p_data);       //APP_MALLOC: lnapp_forward_payment()
         p_conf->fwd_proc[p_conf->fwd_proc_rpnt].p_data = NULL;
         p_conf->fwd_proc_rpnt = (p_conf->fwd_proc_rpnt + 1) % APP_FWD_PROC_MAX;
     }
@@ -1850,10 +1849,8 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     const ln_error_t *p_err = (const ln_error_t *)p_param;
-    char *str = (char *)malloc(p_err->len + 1);
-    memcpy(str, p_err->p_data, p_err->len);
-    str[p_err->len] = '\0';
-    set_lasterror(p_conf, RPCERR_PEER_ERROR, str);
+
+    set_lasterror(p_conf, RPCERR_PEER_ERROR, p_err->p_data);
 }
 
 
@@ -1952,7 +1949,7 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
 
     APP_FREE(p_conf->p_establish);      //APP_MALLOC: set_establish_default()
     APP_FREE(p_conf->p_opening);        //APP_MALLOC: send_open_channel()
-    APP_FREE(p_conf->p_funding);        //
+    APP_FREE(p_conf->p_funding);        //APP_MALLOC: set_lasterror()
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 
@@ -2164,7 +2161,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         if (ret) {
             if (LN_DBG_FULFILL()) {
                 //キューにためる(fulfill)
-                queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));
+                queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));  //APP_FREE: cb_htlc_changed()
                 fulfill->type = QTYPE_BWD_FULFILL_HTLC;
                 fulfill->id = p_add->id;
                 ucoin_buf_alloccopy(&fulfill->buf, preimage, LN_SZ_PREIMAGE);
@@ -2182,7 +2179,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             SYSLOG_ERR("%s(): payment stop", __func__);
 
             //キューにためる(fail)
-            queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));
+            queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));  //APP_FREE: cb_htlc_changed()
             fulfill->type = QTYPE_BWD_FAIL_HTLC;
             fulfill->id = p_add->id;
             ucoin_buf_alloccopy(&fulfill->buf, p_add->p_shared_secret->buf, p_add->p_shared_secret->len);
@@ -2193,7 +2190,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         SYSLOG_INFO("forward: %" PRIx64 "(%" PRIu64 " msat) --> %" PRIx64 "(%" PRIu64 " msat)", ln_short_channel_id(p_conf->p_self), p_add->amount_msat, p_add->p_hop->short_channel_id, p_add->p_hop->amt_to_forward);
 
         //キューにためる(add)
-        queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));
+        queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));      //APP_FREE: cb_htlc_changed()
         fulfill->type = QTYPE_FWD_ADD_HTLC;
         fulfill->id = p_add->id;
         //forward情報
@@ -2344,7 +2341,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DBG_PRINTF("payment_hash: ");
             DUMPBIN(p_fail->p_payment_hash, LN_SZ_HASH);
 
-            queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));
+            queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));      //APP_FREE: cb_htlc_changed()
             fulfill->type = QTYPE_PAY_RETRY;
             fulfill->id = 0;
             ucoin_buf_alloccopy(&fulfill->buf, p_fail->p_payment_hash, LN_SZ_HASH);
@@ -2471,16 +2468,16 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 {
                     //リトライ
                     char *p_invoice;
-                    bool ret = ln_db_annoskip_invoice_load(&p_invoice, p->buf.buf);
+                    bool ret = ln_db_annoskip_invoice_load(&p_invoice, p->buf.buf);     //p_invoiceはmalloc()
                     if (ret) {
                         DBG_PRINTF("invoice:%s\n", p_invoice);
-                        char *json = (char *)APP_MALLOC(8192);
+                        char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
                         strcpy(json, "{\"method\":\"routepay\",\"params\":");
                         strcat(json, p_invoice);
                         strcat(json, "}");
                         int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
                         DBG_PRINTF("retval=%d\n", retval);
-                        free(json);
+                        APP_FREE(json);     //APP_MALLOC: この中
                         free(p_invoice);
                     }
                 }
@@ -2973,11 +2970,11 @@ static void call_script(event_t event, const char *param)
     struct stat buf;
     int ret = stat(M_SCRIPT[event], &buf);
     if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
-        char *cmdline = (char *)APP_MALLOC(128 + strlen(param));
+        char *cmdline = (char *)APP_MALLOC(128 + strlen(param));    //APP_FREE: この中
         sprintf(cmdline, "%s %s", M_SCRIPT[event], param);
         DBG_PRINTF("cmdline: %s\n", cmdline);
         system(cmdline);
-        APP_FREE(cmdline);
+        APP_FREE(cmdline);      //APP_MALLOC: この中
     }
 }
 
@@ -3045,25 +3042,28 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         char date[50];
         struct tm tmval;
         time_t now = time(NULL);
+        size_t len_max = sizeof(date) + strlen(pErrStr) + 128;
+
         gmtime_r(&now, &tmval);
         strftime(date, sizeof(date), "%d %b %Y %T %z", &tmval);
-        char *str = (char *)malloc(1024);
-        sprintf(str, "\"[%s]%s\"", date, pErrStr);
-        p_conf->p_errstr = strdup(str);
+
+        p_conf->p_errstr = (char *)APP_MALLOC(len_max);        //APP_FREE: thread_main_start()
+        sprintf(p_conf->p_errstr, "\"[%s]%s\"", date, pErrStr);
         DBG_PRINTF("%s\n", p_conf->p_errstr);
 
         // method: error
         // $1: short_channel_id
         // $2: node_id
         // $3: err_str
-        char param[256];
+        char *param = (char *)APP_MALLOC(len_max);      //APP_FREE: この中
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "%s",
                     ln_short_channel_id(p_conf->p_self), node_id,
-                    str);
+                    p_conf->p_errstr);
         call_script(M_EVT_ERROR, param);
+        APP_FREE(param);        //APP_MALLOC: この中
     }
 }
 
@@ -3072,7 +3072,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
 static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId)
 {
 #ifdef USE_LINUX_LIST
-    routelist_t *rt = (routelist_t *)APP_MALLOC(sizeof(routelist_t));
+    routelist_t *rt = (routelist_t *)APP_MALLOC(sizeof(routelist_t));       //APP_FREE: del_routelist()
 
     rt->route = *pPayConf;
     rt->htlc_id = HtlcId;
