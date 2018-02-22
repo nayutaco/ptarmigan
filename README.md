@@ -52,9 +52,9 @@ make full
 make distclean
 ```
 
-## usage (English version is underconstruction)
+## usage
 
-* [install/README.md](install/README.md) (Japanese)
+* [docs/README.md](docs/README.md)
 * [How to Pay starblocks/Y'alls](docs/howtopay_starblocks_ja.md) (Japanese)
 
 ## dependency
