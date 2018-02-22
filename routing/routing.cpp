@@ -582,18 +582,18 @@ int main(int argc, char* argv[])
 
     bool stop_after_dbclear = false;
     if (options != 3) {
-        fprintf(fp_err, "fail: need -s and -r\n");
         if (clear_skip_db) {
             stop_after_dbclear = true;
         } else {
+            fprintf(fp_err, "fail: need -s and -r\n");
             return -1;
         }
     }
     if (output_json && (payment_hash == NULL)) {
-        fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
         if (clear_skip_db) {
             stop_after_dbclear = true;
         } else {
+            fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
             return -1;
         }
     }
