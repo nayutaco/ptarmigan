@@ -534,12 +534,18 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
     //TODO: globalfeatures と localfeatures
     ucoin_buf_init(&msg.globalfeatures);
 
+#if 1
+    //init_routing_sync=0のままでは既存のannouncementを送ってこない
+    const uint8_t INIT_VAL[] = { INIT_LF_ROUTE_SYNC };
+    ucoin_buf_alloccopy(&msg.localfeatures, INIT_VAL, sizeof(INIT_VAL));
+#else
     if (bHaveCnl) {
         const uint8_t INIT_VAL[] = { INIT_LF_ROUTE_SYNC };
         ucoin_buf_alloccopy(&msg.localfeatures, INIT_VAL, sizeof(INIT_VAL));
     } else {
         ucoin_buf_init(&msg.localfeatures);
     }
+#endif
 
 //#ifdef INIT_LF_VALUE
 
