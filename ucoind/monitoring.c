@@ -198,7 +198,6 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                 }
             } else {
                 DBG_PRINTF("skip tx[%d]\n", lp);
-                del = false;
             }
         }
 
