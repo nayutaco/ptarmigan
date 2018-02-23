@@ -3,7 +3,7 @@
 ## version
 
 * [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/d3221c91282cf4e7c9572ca5a687eba5a66a0d46) : commit d3221c91282cf4e7c9572ca5a687eba5a66a0d46
+* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/e996237ae6d198e43bf04e8ee37a4d406971a10f) : commit e996237ae6d198e43bf04e8ee37a4d406971a10f
 
 ----
 
