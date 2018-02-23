@@ -3,7 +3,7 @@
 ## version
 
 * [eclair](https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar) : Eclair v0.2-alpha10
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/d3221c91282cf4e7c9572ca5a687eba5a66a0d46) : commit d3221c91282cf4e7c9572ca5a687eba5a66a0d46
+* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/e996237ae6d198e43bf04e8ee37a4d406971a10f) : commit e996237ae6d198e43bf04e8ee37a4d406971a10f
 
 ----
 
@@ -65,6 +65,8 @@ java -jar eclair-node-0.2-alpha10-0beca13.jar
 ```
 
 * client appをダウンロード
+  * ダウンロードした`eclair-cli`は、テキストエディタで8行目辺りにある`PASSWORD`を`eclair.conf`に記載した`eclair.api.password`と同じ文字を書き込む
+  * 書かなかった場合、毎回質問される
 
 ```bash
 wget https://raw.githubusercontent.com/ACINQ/eclair/master/eclair-core/eclair-cli
@@ -168,3 +170,5 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 
 ./eclair-cli channel <channelId>
 ```
+
+* 成功した場合、`balanceMsat`が99980000になる
