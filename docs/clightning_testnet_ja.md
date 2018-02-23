@@ -1,9 +1,9 @@
 # c-lightning testnet
 
-## git commit
+## version
 
-* c-lightning : commit b536e97df29e2881eda0bda008a3c8b1e412d249
-* ptarmigan : commit d3221c91282cf4e7c9572ca5a687eba5a66a0d46
+* [c-lightning](https://github.com/ElementsProject/lightning/tree/b536e97df29e2881eda0bda008a3c8b1e412d249) : commit b536e97df29e2881eda0bda008a3c8b1e412d249
+* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/d3221c91282cf4e7c9572ca5a687eba5a66a0d46) : commit d3221c91282cf4e7c9572ca5a687eba5a66a0d46
 
 ----
 
@@ -38,18 +38,9 @@ cd node
 ../ucoind
 ```
 
-5. [c-lightning]ビルドおよび起動
+5. [c-lightning]起動
 
-* ビルド
-
-```bash
-cd "clightning/work/dir"
-git clone https://github.com/ElementsProject/lightning.git
-cd lightning
-make
-```
-
-* 過去のDBも消しておく
+* 過去のDBを消しておく
 
 ```bash
 rm -rf ~/.lightning
@@ -106,10 +97,6 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 
 #### 送金(ptarmigan --> c-lightning)
 
-* 1confirmation以上経過していれば送金可能
-  * 経過したconfirmation数は以下で取得できる
-    * `../ucoincli -l | jq '.result.client[].confirmation'`
-
 1. [c-lightning]invoice作成
 
 ```bash
@@ -138,10 +125,6 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 
 #### 送金(c-lightning --> ptarmigan)
 
-* 1confirmation以上経過していれば送金可能
-  * 経過したconfirmation数は以下で取得できる
-    * `../ucoincli -l | jq '.result.client[].confirmation'`
-
 1. [ptarm]invoice作成
 
 ```bash
@@ -149,6 +132,7 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 ```
 
 * 単位はmsatoshi。
+  * `20000msat` = `20satoshi`
 
 2. [c-lightning]送金
 
@@ -264,10 +248,6 @@ watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
 
 #### 送金(ptarmigan --> c-lightning)
 
-* 1confirmation以上経過していれば送金可能
-  * 経過したconfirmation数は以下で取得できる
-    * `../ucoincli -l 8889 | jq '.result.client[].confirmation'`
-
 1. [c-lightning]invoice作成
 
 ```bash
@@ -296,10 +276,6 @@ watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
 
 #### 送金(c-lightning --> ptarmigan)
 
-* 1confirmation以上経過していれば送金可能
-  * 経過したconfirmation数は以下で取得できる
-    * `../ucoincli -l 8889 | jq '.result.client[].confirmation'`
-
 1. [ptarm]invoice作成
 
 ```bash
@@ -307,6 +283,7 @@ watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
 ```
 
 * 単位はmsatoshi。
+  * `20000msat` = `20satoshi`
 
 2. [c-lightning]送金
 
