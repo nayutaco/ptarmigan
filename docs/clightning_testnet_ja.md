@@ -3,7 +3,7 @@
 ## version
 
 * [c-lightning](https://github.com/ElementsProject/lightning/tree/b536e97df29e2881eda0bda008a3c8b1e412d249) : commit b536e97df29e2881eda0bda008a3c8b1e412d249
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/d3221c91282cf4e7c9572ca5a687eba5a66a0d46) : commit d3221c91282cf4e7c9572ca5a687eba5a66a0d46
+* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/e996237ae6d198e43bf04e8ee37a4d406971a10f) : commit e996237ae6d198e43bf04e8ee37a4d406971a10f
 
 ----
 
@@ -145,6 +145,8 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 ```bash
 ./cli/lightning-cli listpeers | jq
 ```
+
+* 成功した場合、`msatoshi_to_us`が99980000になる
 
 ----
 
@@ -296,3 +298,5 @@ watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
 ```bash
 ./cli/lightning-cli listpeers | jq
 ```
+
+* 成功した場合、`msatoshi_to_us`が99980000になる
