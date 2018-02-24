@@ -111,4 +111,4 @@ make distclean
 |  10  | yet |
 |  11  | partial supported |
 
-[detail](docs/bolt_compat_ja.md) (Japanese)
+[detail](docs/bolt_compliant_ja.md) (Japanese)
