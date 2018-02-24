@@ -3,6 +3,7 @@ _ggtest/
 /libs/
 /ucoin/libs/
 /install/
+/tests/
 .vscode/
 
 ucoind/ucoind
