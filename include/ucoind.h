@@ -91,8 +91,8 @@ static inline int tid() {
 #define RPCERR_INVOICE_ERASE        (-22001)
 #define RPCERR_INVOICE_ERASE_STR    "fail: erase invoice"
 
-#define RPCERR_CLOSE_HTLC           (-25000)
-#define RPCERR_CLOSE_HTLC_STR       "remain HTLC"
+#define RPCERR_CLOSE_START          (-25000)
+#define RPCERR_CLOSE_START_STR      "fail start closing"
 #define RPCERR_CLOSE_FAIL           (-25001)
 #define RPCERR_CLOSE_FAIL_STR       "fail unilateral close"
 
