@@ -54,10 +54,10 @@ extern "C" {
 #define LNDBK_RLEN              (3)                     ///< [revoked]key長
 
 #define LNDB_DBDIR              "./dbucoin"
-#define LNDB_DBENV_DIR          "/dbucoin"
-#define LNDB_ANNOENV_DIR        "/dbucoin_anno"
-#define LNDB_DBENV              LNDB_DBDIR LNDB_DBENV_DIR   ///< LMDB名(announce以外)
-#define LNDB_ANNOENV            LNDB_DBDIR LNDB_ANNOENV_DIR ///< LMDB名(announce)
+#define LNDB_SELFENV_DIR        "/dbucoin_self"
+#define LNDB_NODEENV_DIR        "/dbucoin_node"
+#define LNDB_SELFENV            LNDB_DBDIR LNDB_SELFENV_DIR     ///< LMDB名(self)
+#define LNDB_NODEENV            LNDB_DBDIR LNDB_NODEENV_DIR     ///< LMDB名(self以外)
 
 
 /**************************************************************************

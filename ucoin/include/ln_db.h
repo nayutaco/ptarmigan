@@ -135,14 +135,14 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
  * @param[in]   Type        オープンするDB(LN_DB_TXN_xx)
  * @retval  true    成功
  */
-bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type);
+bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type);
 
 
-/** #ln_db_anno_cur_transaction()で取得したトランザクションのcommit
+/** #ln_db_node_cur_transaction()で取得したトランザクションのcommit
  *
- * @param[out]  pDb         #ln_db_anno_cur_transaction()取得したDB情報
+ * @param[out]  pDb         #ln_db_node_cur_transaction()取得したDB情報
  */
-void ln_db_anno_cur_commit(void *pDb);
+void ln_db_node_cur_commit(void *pDb);
 
 
 ////////////////////
@@ -222,7 +222,7 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bo
 /** DB curosrオープン
  *
  * @param[out]      ppCur   curosr情報(ln_dbで使用する)
- * @param[in,out]   pDb     #ln_db_anno_cur_transaction()取得したDB情報
+ * @param[in,out]   pDb     #ln_db_node_cur_transaction()取得したDB情報
  */
 bool ln_db_annocnl_cur_open(void **ppCur, void *pDb);
 
@@ -266,7 +266,7 @@ bool ln_db_annoskip_save(uint64_t ShortChannelId);
 
 /** "route_skip" short_channel_id検索
  *
- * @param[in,out]   pDb                 #ln_db_anno_cur_transaction()取得したDB情報
+ * @param[in,out]   pDb                 #ln_db_node_cur_transaction()取得したDB情報
  * @param[in]       ShortChannelId      検索するshort_channel_id
  * @retval  true    検出
  */

@@ -2694,7 +2694,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
     //DBG_PRINTF("BEGIN\n");
 
     void *p_db;
-    ret = ln_db_anno_cur_transaction(&p_db, LN_DB_TXN_CNL);
+    ret = ln_db_node_cur_transaction(&p_db, LN_DB_TXN_CNL);
     if (!ret) {
         DBG_PRINTF("fail\n");
         goto LABEL_EXIT;
@@ -2752,7 +2752,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
         ln_db_annocnl_cur_close(p_cur);
     }
 
-    ln_db_anno_cur_commit(p_db);
+    ln_db_node_cur_commit(p_db);
 
 LABEL_EXIT:
     //DBG_PRINTF("END\n");
@@ -2776,7 +2776,7 @@ static void send_node_anno(lnapp_conf_t *p_conf)
     //DBG_PRINTF("BEGIN\n");
 
     void *p_db;
-    ret = ln_db_anno_cur_transaction(&p_db, LN_DB_TXN_NODE);
+    ret = ln_db_node_cur_transaction(&p_db, LN_DB_TXN_NODE);
     if (!ret) {
         DBG_PRINTF("fail\n");
         goto LABEL_EXIT;
@@ -2836,7 +2836,7 @@ static void send_node_anno(lnapp_conf_t *p_conf)
         ln_db_annonod_cur_close(p_cur);
     }
 
-    ln_db_anno_cur_commit(p_db);
+    ln_db_node_cur_commit(p_db);
 
 LABEL_EXIT:
     //DBG_PRINTF("END\n");

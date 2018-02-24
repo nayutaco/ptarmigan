@@ -47,10 +47,10 @@
  ********************************************************************/
 
 #define M_LMDB_MAXDBS           (2 * 10)        ///< 同時オープンできるDB数
-                                                //  channel
-                                                //  channel_anno
-#define M_LMDB_MAPSIZE          ((uint64_t)4294967296)      // DB最大長[byte]
-                                                            // mdb_txn_commit()でMDB_MAP_FULLになったため拡張
+#define M_LMDB_MAPSIZE          ((uint64_t)10485760)         // DB最大長[byte](LMDBのデフォルト値)
+
+#define M_LMDB_NODE_MAXDBS      (2 * 10)        ///< 同時オープンできるDB数
+#define M_LMDB_NODE_MAPSIZE     ((uint64_t)4294967296)      // DB最大長[byte](mdb_txn_commit()でMDB_MAP_FULLになったため拡張)
 
 #define M_PREFIX_LEN            (2)
 #define M_CHANNEL_NAME          "CN"            ///< channel
@@ -71,7 +71,7 @@
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
 
-#define M_DB_VERSION_VAL        (-15)           ///< DBバージョン
+#define M_DB_VERSION_VAL        (-16)           ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -88,6 +88,7 @@
     -13: self.anno_flag追加
     -14: announcementの送信管理追加
     -15: node.conf情報をversionに追加
+    -16: selfはmpDbEnv、それ以外はmpDbNodeEnvにする
  */
 
 
@@ -203,8 +204,8 @@ typedef struct {
  ********************************************************************/
 
 //LMDB
-static MDB_env      *mpDbEnv = NULL;
-static MDB_env      *mpDbAnno = NULL;
+static MDB_env      *mpDbSelf = NULL;
+static MDB_env      *mpDbNode = NULL;
 
 
 /********************************************************************
@@ -243,7 +244,7 @@ static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 
 #ifdef M_DB_DEBUG
 static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **txn, int line) {
-    int ggg = (env == mpDbEnv) ? 0 : 1;
+    int ggg = (env == mpDbSelf) ? 0 : 1;
     g_cnt[ggg]++;
     DBG_PRINTF("mdb_txn_begin:%d:[%d]%d(%d)\n", line, ggg, g_cnt[ggg], (int)flags);
     if ((ggg == 1) && (g_cnt[ggg] > 1)) {
@@ -253,7 +254,7 @@ static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int f
 }
 
 static inline int my_mdb_txn_commit(MDB_txn *txn, int line) {
-    int ggg = (mdb_txn_env(txn) == mpDbEnv) ? 0 : 1;
+    int ggg = (mdb_txn_env(txn) == mpDbSelf) ? 0 : 1;
     g_cnt[ggg]--;
     DBG_PRINTF("mdb_txn_commit:%d:[%d]%d\n", line, ggg, g_cnt[ggg]);
     int txn_retval = mdb_txn_commit(txn);
@@ -264,7 +265,7 @@ static inline int my_mdb_txn_commit(MDB_txn *txn, int line) {
 }
 
 static inline void my_mdb_txn_abort(MDB_txn *txn, int line) {
-    int ggg = (mdb_txn_env(txn) == mpDbEnv) ? 0 : 1;
+    int ggg = (mdb_txn_env(txn) == mpDbSelf) ? 0 : 1;
     g_cnt[ggg]--;
     DBG_PRINTF("mdb_txn_abort:%d:[%d]%d\n", line, ggg, g_cnt[ggg]);
     mdb_txn_abort(txn);
@@ -283,61 +284,61 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
     ln_lmdb_db_t   db;
 
     //lmdbのopenは複数呼ばないでenvを共有する
-    if (mpDbEnv == NULL) {
-        retval = mdb_env_create(&mpDbEnv);
+    if (mpDbSelf == NULL) {
+        retval = mdb_env_create(&mpDbSelf);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
 
-        retval = mdb_env_set_maxdbs(mpDbEnv, M_LMDB_MAXDBS);
+        retval = mdb_env_set_maxdbs(mpDbSelf, M_LMDB_MAXDBS);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
 
-        retval = mdb_env_set_mapsize(mpDbEnv, M_LMDB_MAPSIZE);
+        retval = mdb_env_set_mapsize(mpDbSelf, M_LMDB_MAPSIZE);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
 
         mkdir(LNDB_DBDIR, 0755);
-        mkdir(LNDB_DBENV, 0755);
-        mkdir(LNDB_ANNOENV, 0755);
+        mkdir(LNDB_SELFENV, 0755);
+        mkdir(LNDB_NODEENV, 0755);
 
-        retval = mdb_env_open(mpDbEnv, LNDB_DBENV, 0, 0644);
+        retval = mdb_env_open(mpDbSelf, LNDB_SELFENV, 0, 0644);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
 
-        retval = mdb_env_create(&mpDbAnno);
+        retval = mdb_env_create(&mpDbNode);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
 
-        retval = mdb_env_set_maxdbs(mpDbAnno, M_LMDB_MAXDBS);
+        retval = mdb_env_set_maxdbs(mpDbNode, M_LMDB_NODE_MAXDBS);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
 
-        retval = mdb_env_set_mapsize(mpDbAnno, M_LMDB_MAPSIZE);
+        retval = mdb_env_set_mapsize(mpDbNode, M_LMDB_NODE_MAPSIZE);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
 
-        retval = mdb_env_open(mpDbAnno, LNDB_ANNOENV, 0, 0644);
+        retval = mdb_env_open(mpDbNode, LNDB_NODEENV, 0, 0644);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
     }
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -370,9 +371,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         DBG_PRINTF("aliase=%s\n", pNodeName);
         DBG_PRINTF("port=%d\n", *pPort);
         retval = ver_write(db.txn, pWif, pNodeName, *pPort);
-        if (retval == 0) {
-            //MDB_TXN_COMMIT(db.txn);
-        } else {
+        if (retval != 0) {
             DBG_PRINTF("FAIL: create version db\n");
             MDB_TXN_ABORT(db.txn);
             goto LABEL_EXIT;
@@ -417,21 +416,21 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
     }
     ln_db_annoskip_invoice_drop();
 
-    return true;
-
 LABEL_EXIT:
-    mdb_env_close(mpDbAnno);
-    mdb_env_close(mpDbEnv);
-    return false;
+    if (retval != 0) {
+        ln_db_term();
+    }
+
+    return retval == 0;
 }
 
 
 void ln_db_term(void)
 {
-    mdb_env_close(mpDbAnno);
-    mpDbAnno = NULL;
-    mdb_env_close(mpDbEnv);
-    mpDbEnv = NULL;
+    mdb_env_close(mpDbNode);
+    mpDbNode = NULL;
+    mdb_env_close(mpDbSelf);
+    mpDbSelf = NULL;
 }
 
 
@@ -446,7 +445,7 @@ bool ln_db_self_load(ln_self_t *self, const uint8_t *pChannelId)
     MDB_dbi     dbi;
     char        dbname[M_SZ_DBNAME_LEN];
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT2;
@@ -610,7 +609,7 @@ bool ln_db_self_save(const ln_self_t *self)
     ln_lmdb_db_t   db;
     char        dbname[M_SZ_DBNAME_LEN];
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -759,7 +758,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
     int retval;
     lmdb_cursor_t cur;
 
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &cur.txn);
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &cur.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -819,15 +818,15 @@ LABEL_EXIT:
 
 
 /********************************************************************
- * announcement用DB
+ * node用DB
  ********************************************************************/
 
-bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type)
+bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type)
 {
     MDB_txn *txn = NULL;
     int opt = MDB_CREATE;
 
-    int retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    int retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval == 0) {
         ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)M_MALLOC(sizeof(ln_lmdb_db_t));
         p_db->txn = txn;
@@ -860,7 +859,7 @@ bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type)
 }
 
 
-void ln_db_anno_cur_commit(void *pDb)
+void ln_db_node_cur_commit(void *pDb)
 {
     if (pDb != NULL) {
         ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -905,7 +904,7 @@ bool ln_db_annocnl_load(ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -931,7 +930,7 @@ bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, co
     int         retval;
     ln_lmdb_db_t   db, db_info;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -981,7 +980,7 @@ bool ln_db_annocnlupd_load(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t 
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1007,7 +1006,7 @@ bool ln_db_annocnlupd_save(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pU
     int             retval;
     ln_lmdb_db_t    db, db_info;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1092,7 +1091,7 @@ bool ln_db_annocnlall_del(uint64_t ShortChannelId)
     MDB_val     key;
     uint8_t     keydata[M_SZ_ANNOINFO_CNL];
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1316,7 +1315,7 @@ bool ln_db_annoskip_save(uint64_t ShortChannelId)
     MDB_dbi     dbi;
     MDB_val key, data;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1367,7 +1366,7 @@ bool ln_db_annoskip_drop(void)
     MDB_txn     *txn;
     MDB_dbi     dbi;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1399,7 +1398,7 @@ bool ln_db_annoskip_invoice_save(const char *pInvoice, const uint8_t *pPayHash)
     MDB_dbi     dbi;
     MDB_val     key, data;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1436,7 +1435,7 @@ bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
 
     *ppInvoice = NULL;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1473,7 +1472,7 @@ int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
     *ppPayHash = NULL;
     int cnt = 0;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1511,7 +1510,7 @@ bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash)
     MDB_dbi     dbi;
     MDB_val     key;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1544,7 +1543,7 @@ bool ln_db_annoskip_invoice_drop(void)
     MDB_txn     *txn;
     MDB_dbi     dbi;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1578,7 +1577,7 @@ bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1603,7 +1602,7 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
     int             retval;
     ln_lmdb_db_t    db, db_info;
 
-    retval = MDB_TXN_BEGIN(mpDbAnno, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1915,7 +1914,7 @@ bool ln_db_preimg_cur_open(void **ppCur)
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
 
     p_cur->txn = NULL;
-    retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &p_cur->txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &p_cur->txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -2003,7 +2002,7 @@ bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype
     if (pDbParam != NULL) {
         txn = ((ln_lmdb_db_t *)pDbParam)->txn;
     } else {
-        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
+        retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
@@ -2055,7 +2054,7 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
     if (pDbParam != NULL) {
         txn = ((ln_lmdb_db_t *)pDbParam)->txn;
     } else {
-        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &txn);
+        retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
@@ -2393,8 +2392,8 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
  */
 void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno)
 {
-    mpDbEnv = p_env;
-    mpDbAnno = p_anno;
+    mpDbSelf = p_env;
+    mpDbNode = p_anno;
 }
 
 
@@ -2976,7 +2975,7 @@ static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn)
     int retval;
 
     if (txn == NULL) {
-        retval = MDB_TXN_BEGIN(mpDbEnv, NULL, 0, &p_db->txn);
+        retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &p_db->txn);
         if (retval != 0) {
             DBG_PRINTF("err: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;

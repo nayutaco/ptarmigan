@@ -92,8 +92,8 @@ static int          cnt1;
 static int          cnt2;
 static int          cnt3;
 static int          cnt4;
-static MDB_env      *mpDbEnv = NULL;
-static MDB_env      *mpDbAnno = NULL;
+static MDB_env      *mpDbSelf = NULL;
+static MDB_env      *mpDbNode = NULL;
 static FILE         *fp_err;
 
 
@@ -433,11 +433,11 @@ int main(int argc, char *argv[])
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
-    char        dbpath[256];
-    char        annopath[256];
+    char        selfpath[256];
+    char        nodepath[256];
 
-    strcpy(dbpath, LNDB_DBENV);
-    strcpy(annopath, LNDB_ANNOENV);
+    strcpy(selfpath, LNDB_SELFENV);
+    strcpy(nodepath, LNDB_NODEENV);
 
     int env = -1;
     if (argc >= 2) {
@@ -496,8 +496,8 @@ int main(int argc, char *argv[])
             if (argv[2][strlen(argv[2]) - 1] == '/') {
                 argv[2][strlen(argv[2]) - 1] = '\0';
             }
-            sprintf(dbpath, "%s%s", argv[2], LNDB_DBENV_DIR);
-            sprintf(annopath, "%s%s", argv[2], LNDB_ANNOENV_DIR);
+            sprintf(selfpath, "%s%s", argv[2], LNDB_SELFENV_DIR);
+            sprintf(nodepath, "%s%s", argv[2], LNDB_NODEENV_DIR);
         }
     } else {
         fprintf(stderr, "usage:\n");
@@ -510,29 +510,29 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    ret = mdb_env_create(&mpDbEnv);
+    ret = mdb_env_create(&mpDbSelf);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbEnv, 2);
+    ret = mdb_env_set_maxdbs(mpDbSelf, 2);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbEnv, dbpath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(mpDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", dbpath);
+        fprintf(stderr, "fail: cannot open[%s]\n", selfpath);
         return -1;
     }
-    ret = mdb_env_create(&mpDbAnno);
+    ret = mdb_env_create(&mpDbNode);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbAnno, 2);
+    ret = mdb_env_set_maxdbs(mpDbNode, 2);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbAnno, annopath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(mpDbNode, nodepath, MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", annopath);
+        fprintf(stderr, "fail: cannot open[%s]\n", nodepath);
         return -1;
     }
-    ln_lmdb_setenv(mpDbEnv, mpDbAnno);
+    ln_lmdb_setenv(mpDbSelf, mpDbNode);
 
-    MDB_env *p_env = (env == 0) ? mpDbEnv : mpDbAnno;
+    MDB_env *p_env = (env == 0) ? mpDbSelf : mpDbNode;
 
-    ret = mdb_txn_begin(mpDbEnv, NULL, MDB_RDONLY, &txn);
+    ret = mdb_txn_begin(mpDbNode, NULL, MDB_RDONLY, &txn);
     assert(ret == 0);
     ucoin_genesis_t gtype;
     ln_lmdb_db_t db;
@@ -636,6 +636,6 @@ int main(int argc, char *argv[])
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
 
-    mdb_env_close(mpDbAnno);
-    mdb_env_close(mpDbEnv);
+    mdb_env_close(mpDbNode);
+    mdb_env_close(mpDbSelf);
 }
