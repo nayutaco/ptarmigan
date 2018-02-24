@@ -349,8 +349,8 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
         if (ret) {
             result = cJSON_CreateString("Progressing");
         } else {
-            ctx->error_code = RPCERR_CLOSE_HTLC;
-            ctx->error_message = strdup(RPCERR_CLOSE_HTLC_STR);
+            ctx->error_code = RPCERR_CLOSE_START;
+            ctx->error_message = strdup(RPCERR_CLOSE_START_STR);
         }
     } else {
         //未接続
