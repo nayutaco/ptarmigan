@@ -96,7 +96,7 @@ lncli --no-macaroons create
 6. [lnd]node_id取得
 
 ```bash
-lnd getinfo
+lncli --no-macaroons getinfo
 ```
 
 7. [ptarm]接続先CONFファイル作成
@@ -181,5 +181,7 @@ lncli --no-macaroons payinvoice <BOLT11 invoice>
 3. [lnd]実施後のamountを確認
 
 ```bash
-lncli --no-macaroons listpeers
+lncli --no-macaroons listchannels
 ```
+
+* 成功した場合、`local_balance`が99980になる
