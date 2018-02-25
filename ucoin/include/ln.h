@@ -1023,6 +1023,8 @@ struct ln_self_t {
     uint64_t                    funding_sat;                    ///< funding_satoshis
     uint32_t                    feerate_per_kw;                 ///< feerate_per_kw
 
+    ////////////////////////////////////////////////
+
     //noise protocol
     ln_noise_t                  noise_send;                     ///< noise protocol
     ln_noise_t                  noise_recv;                     ///< noise protocol

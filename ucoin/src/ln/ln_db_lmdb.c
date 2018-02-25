@@ -51,6 +51,8 @@
 #define M_LMDB_NODE_MAXDBS      (2 * 10)        ///< 同時オープンできるDB数
 #define M_LMDB_NODE_MAPSIZE     ((uint64_t)4294967296)      // DB最大長[byte](mdb_txn_commit()でMDB_MAP_FULLになったため拡張)
 
+#define M_SELF_BUFS             (5)             ///< DB保存する可変長データ数
+
 #define M_PREFIX_LEN            (2)
 #define M_CHANNEL_NAME          "CN"            ///< channel
 #define M_SHAREDSECRET_NAME     "SS"            ///< shared secret
@@ -107,6 +109,10 @@
     key.mv_data = keydata;\
     memcpy(keydata, node_id, UCOIN_SZ_PUBKEY);\
 }
+
+#define M_SIZE(type, mem)   sizeof(((type *)0)->mem)
+#define M_ITEM(type, mem)   { #mem, M_SIZE(type, mem), offsetof(type, mem) }
+#define M_BUF_ITEM(idx, mem)   { p_dbscript_keys[idx].name = #mem; p_dbscript_keys[idx].p_buf = (CONST_CAST ucoin_buf_t*)&self->mem; }
 
 #ifndef M_DB_DEBUG
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d)
@@ -167,6 +173,85 @@ typedef struct {
     uint8_t                     anno_flag;                      ///< 31:anno_flag
 } backup_self_t;
 
+
+typedef struct backup_param_t {
+    const char  *name;
+    size_t      datalen;
+    size_t      offset;
+} backup_param_t;
+
+
+typedef struct backup_buf_t {
+    const char  *name;
+    ucoin_buf_t *p_buf;
+} backup_buf_t;
+
+
+const backup_param_t DBSELF_KEYS[] = {
+    //p_node: none
+    M_ITEM(ln_self_t, peer_node),
+    M_ITEM(ln_self_t, storage_index),
+    M_ITEM(ln_self_t, storage_seed),
+    M_ITEM(ln_self_t, peer_storage),
+    M_ITEM(ln_self_t, peer_storage_index),
+    M_ITEM(ln_self_t, fund_flag),
+    M_ITEM(ln_self_t, funding_local),
+    M_ITEM(ln_self_t, funding_remote),
+    M_ITEM(ln_self_t, obscured),
+    //redeem_fund --> script
+    M_ITEM(ln_self_t, key_fund_sort),
+    //tx_funding --> script
+    //flck_flag: none
+    //p_est: none
+    M_ITEM(ln_self_t, min_depth),
+    M_ITEM(ln_self_t, anno_flag),
+    //anno_default: none
+    //cnl_anno --> script
+    //init_flag: none
+    M_ITEM(ln_self_t, lfeature_remote),
+    //tx_closing: none
+    //shutdown_flag: none
+    //close_fee_sat: none
+    //close_last_fee_sat: none
+    //shutdown_scriptpk_local --> script
+    //shutdown_scriptpk_remote --> script
+    //cnl_closing_singed: none
+
+    //p_revoked_vout --> revoked db
+    //p_revoked_wit  --> revoked db
+    //p_revoked_type: --> revoked db
+    //revoked_sec: --> revoked db
+    //revoked_num: --> revoked db
+    //revoked_cnt: --> revoked db
+    //revoked_chk --> revoked db
+
+    M_ITEM(ln_self_t, htlc_num),
+    M_ITEM(ln_self_t, commit_num),
+    M_ITEM(ln_self_t, revoke_num),
+    M_ITEM(ln_self_t, remote_commit_num),
+    M_ITEM(ln_self_t, remote_revoke_num),
+    M_ITEM(ln_self_t, htlc_id_num),
+    M_ITEM(ln_self_t, our_msat),
+    M_ITEM(ln_self_t, their_msat),
+    M_ITEM(ln_self_t, channel_id),
+    M_ITEM(ln_self_t, short_channel_id),
+    M_ITEM(ln_self_t, cnl_add_htlc),
+
+    //missing_pong_cnt: none
+    //last_num_pong_bytes: none
+
+    M_ITEM(ln_self_t, commit_local),
+    M_ITEM(ln_self_t, commit_remote),
+
+    M_ITEM(ln_self_t, funding_sat),
+    M_ITEM(ln_self_t, feerate_per_kw),
+};
+
+//redeem_fund
+//tx_funding
+//cnl_anno
+//shutdown_scriptpk_local
+//shutdown_scriptpk_remote
 
 /** @typedef    nodeinfo_t
  *  @brief      [version]に保存するnode情報
@@ -498,112 +583,56 @@ LABEL_EXIT2:
 }
 #endif
 
+
 int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 {
+    int retval;
     MDB_val     key, data;
 
-    key.mv_size = LNDBK_LEN(LNDBK_SELF1);
-    key.mv_data = LNDBK_SELF1;
-    int retval = mdb_get(txn, dbi, &key, &data);
-
-    //構造体部分
-    if ((retval == 0) && (data.mv_size == sizeof(backup_self_t))) {
-        //リストア
-        const backup_self_t *p_bk = (const backup_self_t *)data.mv_data;
-
-        self->lfeature_remote = p_bk->lfeature_remote;     //3
-        self->storage_index = p_bk->storage_index;     //5
-        memcpy(self->storage_seed, p_bk->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-
-        //self->funding_local = p_bk->funding_local;     //7
-        memcpy(self->funding_local.txid, p_bk->funding_local_txid, UCOIN_SZ_TXID);      //7.1
-        self->funding_local.txindex = p_bk->funding_local_txindex;      //7.2
-        for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-            memcpy(self->funding_local.keys[lp].priv, p_bk->funding_local_privkey[lp], UCOIN_SZ_PRIVKEY);   //7.3
-            ucoin_keys_priv2pub(self->funding_local.keys[lp].pub, self->funding_local.keys[lp].priv);
-        }
-
-        //self->funding_remote = p_bk->funding_remote;       //8
-        for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-            memcpy(self->funding_remote.pubkeys[lp], p_bk->funding_remote_pubkey[lp], UCOIN_SZ_PUBKEY);     //8.1
-        }
-        memcpy(self->funding_remote.prev_percommit, p_bk->funding_remote_prev_percommit, UCOIN_SZ_PUBKEY);  //8.2
-
-        self->obscured = p_bk->obscured;       //9
-        self->key_fund_sort = p_bk->key_fund_sort;     //10
-        self->htlc_num = p_bk->htlc_num;       //11
-        self->commit_num = p_bk->commit_num;       //12
-        self->htlc_id_num = p_bk->htlc_id_num;     //13
-        self->our_msat = p_bk->our_msat;       //14
-        self->their_msat = p_bk->their_msat;       //15
-        for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-            self->cnl_add_htlc[idx] = p_bk->cnl_add_htlc[idx];       //16
-            self->cnl_add_htlc[idx].p_channel_id = NULL;     //送受信前に決定する
-            self->cnl_add_htlc[idx].p_onion_route = NULL;
-            //shared secretは別DB
-            ucoin_buf_init(&self->cnl_add_htlc[idx].shared_secret);
-        }
-        memcpy(self->channel_id, p_bk->channel_id, LN_SZ_CHANNEL_ID);      //17
-        self->short_channel_id = p_bk->short_channel_id;       //18
-        self->commit_local = p_bk->commit_local;       //19
-        self->commit_remote = p_bk->commit_remote;     //20
-        self->funding_sat = p_bk->funding_sat;     //21
-        self->feerate_per_kw = p_bk->feerate_per_kw;       //22
-        self->peer_storage = p_bk->peer_storage;     //23
-        self->peer_storage_index = p_bk->peer_storage_index;     //24
-        self->remote_commit_num = p_bk->remote_commit_num;  //25
-        self->revoke_num = p_bk->revoke_num;  //26
-        self->remote_revoke_num = p_bk->remote_revoke_num;  //27
-        self->fund_flag = p_bk->fund_flag;  //28
-        memcpy(&self->peer_node, &p_bk->peer_node, sizeof(ln_node_info_t));   //29
-        self->min_depth = p_bk->min_depth;  //30
-        self->anno_flag = p_bk->anno_flag;  //31
-
-        //次読込み
-        key.mv_size = LNDBK_LEN(M_DBK_SELF2);
-        key.mv_data = M_DBK_SELF2;
+    //固定サイズ
+    for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_KEYS); lp++) {
+        key.mv_size = strlen(DBSELF_KEYS[lp].name);
+        key.mv_data = (CONST_CAST char*)DBSELF_KEYS[lp].name;
         retval = mdb_get(txn, dbi, &key, &data);
+        if (retval == 0) {
+            memcpy((uint8_t *)self + DBSELF_KEYS[lp].offset, data.mv_data,  DBSELF_KEYS[lp].datalen);
+        } else {
+            DBG_PRINTF("fail: %s\n", DBSELF_KEYS[lp].name);
+        }
     }
 
-    //スクリプト部分
-    if (retval == 0) {
-        uint16_t len;
-        int pos = 0;
-
-        //cnl_anno
-        len = *(const uint16_t *)(data.mv_data + pos);
-        pos += sizeof(uint16_t);
-        ucoin_buf_free(&self->cnl_anno);
-        ucoin_buf_alloccopy(&self->cnl_anno, data.mv_data + pos, len);
-        pos += len;
-
-        //redeem_fund
-        len = *(const uint16_t *)(data.mv_data + pos);
-        pos += sizeof(uint16_t);
-        ucoin_buf_free(&self->redeem_fund);
-        ucoin_buf_alloccopy(&self->redeem_fund, data.mv_data + pos, len);
-        pos += len;
-
-        //shutdown_scriptpk_local
-        len = *(const uint16_t *)(data.mv_data + pos);
-        pos += sizeof(uint16_t);
-        ucoin_buf_free(&self->shutdown_scriptpk_local);
-        ucoin_buf_alloccopy(&self->shutdown_scriptpk_local, data.mv_data + pos, len);
-        pos += len;
-
-        //shutdown_scriptpk_remote
-        len = *(const uint16_t *)(data.mv_data + pos);
-        pos += sizeof(uint16_t);
-        ucoin_buf_free(&self->shutdown_scriptpk_remote);
-        ucoin_buf_alloccopy(&self->shutdown_scriptpk_remote, data.mv_data + pos, len);
-        pos += len;
-
-        //tx_funding
-        len = *(const uint16_t *)(data.mv_data + pos);
-        pos += sizeof(uint16_t);
-        ucoin_tx_free(&self->tx_funding);
-        ucoin_tx_read(&self->tx_funding, data.mv_data + pos, len);
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        self->cnl_add_htlc[idx].p_channel_id = NULL;
+        self->cnl_add_htlc[idx].p_onion_route = NULL;
+        ucoin_buf_init(&self->cnl_add_htlc[idx].shared_secret);
     }
+
+    //可変サイズ
+    ucoin_buf_t buf_funding;
+    ucoin_buf_init(&buf_funding);
+    //
+    backup_buf_t *p_dbscript_keys = (backup_buf_t *)M_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
+    M_BUF_ITEM(0, redeem_fund);
+    p_dbscript_keys[1].name = "buf_funding";
+    p_dbscript_keys[1].p_buf = &buf_funding;
+    M_BUF_ITEM(2, cnl_anno);
+    M_BUF_ITEM(3, shutdown_scriptpk_local);
+    M_BUF_ITEM(4, shutdown_scriptpk_remote);
+
+    for (size_t lp = 0; lp < M_SELF_BUFS; lp++) {
+        key.mv_size = strlen(p_dbscript_keys[lp].name);
+        key.mv_data = (CONST_CAST char*)p_dbscript_keys[lp].name;
+        retval = mdb_get(txn, dbi, &key, &data);
+        if (retval == 0) {
+            ucoin_buf_alloccopy(p_dbscript_keys[lp].p_buf, data.mv_data, data.mv_size);
+        } else {
+            DBG_PRINTF("fail: %s\n", p_dbscript_keys[lp].name);
+        }
+    }
+
+    ucoin_tx_read(&self->tx_funding, buf_funding.buf, buf_funding.len);
+    ucoin_buf_free(&buf_funding);
+    M_FREE(p_dbscript_keys);
 
     return retval;
 }
@@ -2517,110 +2546,47 @@ static int self_ss_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
 {
     MDB_val key, data;
+    int retval;
 
-    //構造体部分
-    backup_self_t *bk = (backup_self_t *)M_MALLOC(sizeof(backup_self_t));
-
-    memset(bk, 0, sizeof(backup_self_t));
-    bk->lfeature_remote = self->lfeature_remote;     //3
-    bk->storage_index = self->storage_index;     //5
-    memcpy(bk->storage_seed, self->storage_seed, UCOIN_SZ_PRIVKEY);      //6
-
-    //bk->funding_local = self->funding_local;     //7
-    memcpy(bk->funding_local_txid, self->funding_local.txid, UCOIN_SZ_TXID);    //7.1
-    bk->funding_local_txindex = self->funding_local.txindex;        //7.2
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        memcpy(bk->funding_local_privkey[lp], self->funding_local.keys[lp].priv, UCOIN_SZ_PRIVKEY);     //7.3
-    }
-
-    //bk->funding_remote = self->funding_remote;       //8
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        memcpy(bk->funding_remote_pubkey[lp], self->funding_remote.pubkeys[lp], UCOIN_SZ_PUBKEY);       //8.1
-    }
-    memcpy(bk->funding_remote_prev_percommit, self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);    //8.2
-
-    bk->obscured = self->obscured;       //9
-    bk->key_fund_sort = self->key_fund_sort;     //10
-    bk->htlc_num = self->htlc_num;       //11
-    bk->commit_num = self->commit_num;       //12
-    bk->htlc_id_num = self->htlc_id_num;     //13
-    bk->our_msat = self->our_msat;       //14
-    bk->their_msat = self->their_msat;       //15
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        bk->cnl_add_htlc[idx] = self->cnl_add_htlc[idx];       //16
-    }
-    memcpy(bk->channel_id, self->channel_id, LN_SZ_CHANNEL_ID);      //17
-    bk->short_channel_id = self->short_channel_id;       //18
-    bk->commit_local = self->commit_local;       //19
-    bk->commit_remote = self->commit_remote;     //20
-    bk->funding_sat = self->funding_sat;     //21
-    bk->feerate_per_kw = self->feerate_per_kw;       //22
-    bk->peer_storage = self->peer_storage;     //23
-    bk->peer_storage_index = self->peer_storage_index;     //24
-    bk->remote_commit_num = self->remote_commit_num;       //25
-    bk->revoke_num = self->revoke_num;       //26
-    bk->remote_revoke_num = self->remote_revoke_num;       //27
-    bk->fund_flag = self->fund_flag;       //28
-    memcpy(&bk->peer_node, &self->peer_node, sizeof(ln_node_info_t));    //29
-    bk->min_depth = self->min_depth; //30
-    bk->anno_flag = self->anno_flag;    //31
-
-    key.mv_size = LNDBK_LEN(LNDBK_SELF1);
-    key.mv_data = LNDBK_SELF1;
-    data.mv_size = sizeof(backup_self_t);
-    data.mv_data = bk;
-    int retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
-    M_FREE(bk);
-
-    //スクリプト部分
-    if (retval == 0) {
-        ucoin_buf_t buf_bk;
-        ucoin_buf_t buf_funding;
-
-        ucoin_buf_init(&buf_bk);
-        ucoin_buf_init(&buf_funding);
-        ucoin_tx_create(&buf_funding, &self->tx_funding);
-
-        size_t sz = sizeof(uint16_t) + self->cnl_anno.len +
-                        sizeof(uint16_t) + self->redeem_fund.len +
-                        sizeof(uint16_t) + self->shutdown_scriptpk_local.len +
-                        sizeof(uint16_t) + self->shutdown_scriptpk_remote.len +
-                        sizeof(uint16_t) + buf_funding.len;
-        uint16_t len;
-        ucoin_push_t ps;
-        ucoin_push_init(&ps, &buf_bk, sz);
-
-        //cnl_anno
-        len = self->cnl_anno.len;
-        ucoin_push_data(&ps, &len, sizeof(len));
-        ucoin_push_data(&ps, self->cnl_anno.buf, len);
-        //redeem_fund
-        len = self->redeem_fund.len;
-        ucoin_push_data(&ps, &len, sizeof(len));
-        ucoin_push_data(&ps, self->redeem_fund.buf, len);
-        //shutdown_scriptpk_local
-        len = self->shutdown_scriptpk_local.len;
-        ucoin_push_data(&ps, &len, sizeof(len));
-        ucoin_push_data(&ps, self->shutdown_scriptpk_local.buf, len);
-        //shutdown_scriptpk_remote
-        len = self->shutdown_scriptpk_remote.len;
-        ucoin_push_data(&ps, &len, sizeof(len));
-        ucoin_push_data(&ps, self->shutdown_scriptpk_remote.buf, len);
-
-        //buf_funding
-        len = buf_funding.len;
-        ucoin_push_data(&ps, &len, sizeof(len));
-        ucoin_push_data(&ps, buf_funding.buf, len);
-        ucoin_buf_free(&buf_funding);
-
-        key.mv_size = LNDBK_LEN(M_DBK_SELF2);
-        key.mv_data = M_DBK_SELF2;
-        data.mv_size = buf_bk.len;
-        data.mv_data = buf_bk.buf;
+    //固定サイズ
+    for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_KEYS); lp++) {
+        key.mv_size = strlen(DBSELF_KEYS[lp].name);
+        key.mv_data = (CONST_CAST char*)DBSELF_KEYS[lp].name;
+        data.mv_size = DBSELF_KEYS[lp].datalen;
+        data.mv_data = (uint8_t *)self + DBSELF_KEYS[lp].offset;
         retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
-
-        ucoin_buf_free(&buf_bk);
+        if (retval != 0) {
+            DBG_PRINTF("fail: %s\n", DBSELF_KEYS[lp].name);
+        }
     }
+
+    //可変サイズ
+    ucoin_buf_t buf_funding;
+    ucoin_buf_init(&buf_funding);
+    ucoin_tx_create(&buf_funding, &self->tx_funding);
+    //
+    backup_buf_t *p_dbscript_keys = (backup_buf_t *)M_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
+    M_BUF_ITEM(0, redeem_fund);
+    p_dbscript_keys[1].name = "buf_funding";
+    p_dbscript_keys[1].p_buf = &buf_funding;
+    M_BUF_ITEM(2, cnl_anno);
+    M_BUF_ITEM(3, shutdown_scriptpk_local);
+    M_BUF_ITEM(4, shutdown_scriptpk_remote);
+
+    for (size_t lp = 0; lp < M_SELF_BUFS; lp++) {
+        key.mv_size = strlen(p_dbscript_keys[lp].name);
+        key.mv_data = (CONST_CAST char*)p_dbscript_keys[lp].name;
+        data.mv_size = p_dbscript_keys[lp].p_buf->len;
+        data.mv_data = p_dbscript_keys[lp].p_buf->buf;
+        retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
+        if (retval != 0) {
+            DBG_PRINTF("fail: %s\n", p_dbscript_keys[lp].name);
+        }
+    }
+
+    ucoin_buf_free(&buf_funding);
+    M_FREE(p_dbscript_keys);
+
     if (retval != 0) {
         DBG_PRINTF("retval=%d\n", retval);
     }
