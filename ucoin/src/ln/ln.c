@@ -3012,12 +3012,15 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         return false;
     }
 
-    if ( (self->remote_commit_num != reest.next_local_commitment_number) ||
-         (self->revoke_num != reest.next_remote_revocation_number) ) {
+    if (self->remote_commit_num != reest.next_local_commitment_number) {
         DBG_PRINTF("number mismatch\n");
-        DBG_PRINTF("  next_local_commitment_number: %" PRIu64 "(own) .. %" PRIu64 "(recv)\n", self->remote_commit_num, reest.next_local_commitment_number);
-        DBG_PRINTF("  next_remote_revocation_number:%" PRIu64 "(own) .. %" PRIu64 "(recv)\n", self->revoke_num, reest.next_remote_revocation_number);
+        DBG_PRINTF("  next_local_commitment_number: %" PRIu64 "(own) != %" PRIu64 "(recv)\n", self->remote_commit_num, reest.next_local_commitment_number);
         return false;
+    }
+    if (self->revoke_num != reest.next_remote_revocation_number) {
+        DBG_PRINTF("number mismatch : update own revoke_num\n");
+        DBG_PRINTF("  next_remote_revocation_number:%" PRIu64 "(own) <- %" PRIu64 "(recv)\n", self->revoke_num, reest.next_remote_revocation_number);
+        self->revoke_num =  reest.next_remote_revocation_number;
     }
 
     self->init_flag |= INIT_FLAG_REEST_RECV;
