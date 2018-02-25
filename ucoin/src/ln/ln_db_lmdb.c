@@ -288,9 +288,9 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
     {
         struct stat sfs;
         int ret1 = stat("./dbucoin/dbucoin", &sfs);
-        int ret2 = stat("./dbucoin/dbucoin_", &sfs);
+        int ret2 = stat("./dbucoin/dbucoin_anno", &sfs);
         if ((ret1 == 0) || (ret2 == 0)) {
-            DBG_PRINTF("FAIL: Old DB detect! Please remove dbucoin.\n");
+            DBG_PRINTF("FAIL: old DB detect! Please remove dbucoin.\n");
             exit(-1);
         }
     }
