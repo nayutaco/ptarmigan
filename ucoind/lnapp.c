@@ -287,8 +287,6 @@ void lnapp_init(ln_node_t *pNode)
     pthread_mutexattr_settype(&mMuxAttr, PTHREAD_MUTEX_RECURSIVE_NP);
     pthread_mutex_init(&mMuxSeq, &mMuxAttr);
     mMuxTiming = MUX_NONE;
-
-    mkdir(FNAME_DIR, 0755);
 }
 
 
@@ -1953,12 +1951,6 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 
-    char fname[FNAME_LEN];
-    sprintf(fname, FNAME_AMOUNT_FMT, ln_short_channel_id(p_conf->p_self));
-    FILE *fp = fopen(fname, "w");
-    show_self_param(p_conf->p_self, fp, 0);
-    fclose(fp);
-
     // method: established
     // $1: short_channel_id
     // $2: node_id
@@ -2394,13 +2386,6 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
     //DB保存
     //ln_db_self_save(p_conf->p_self);  //revoke_and_ack後のみにする
 
-    char fname[FNAME_LEN];
-    sprintf(fname, FNAME_AMOUNT_FMT, ln_short_channel_id(p_conf->p_self));
-    FILE *fp = fopen(fname, "w");
-    show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
-    show_self_param(p_conf->p_self, fp, 0);
-    fclose(fp);
-
     mMuxTiming &= ~(MUX_PAYMENT | MUX_COMSIG);
     pthread_mutex_unlock(&mMuxSeq);
     DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
@@ -2505,13 +2490,6 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 
     //DB保存
     ln_db_self_save(p_conf->p_self);
-
-    char fname[FNAME_LEN];
-    sprintf(fname, FNAME_AMOUNT_FMT, ln_short_channel_id(p_conf->p_self));
-    FILE *fp = fopen(fname, "w");
-    show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
-    show_self_param(p_conf->p_self, fp, 0);
-    fclose(fp);
 
     // method: htlc_changed
     // $1: short_channel_id
