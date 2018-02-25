@@ -599,7 +599,8 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
         self->init_flag |= INIT_FLAG_REEST_SEND;
     }
     if ( ret && INIT_FLAG_REESTED(self->init_flag) &&
-        (self->commit_num == 1) && (self->remote_commit_num == 1) ) {
+            (self->commit_num == 1) && (self->remote_commit_num == 1) ) {
+        DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
         ret = ln_funding_tx_stabled(self);
     }
     return ret;
@@ -2920,6 +2921,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //相手のrevoke_numberをインクリメント(channel_reestablish用)
     self->remote_revoke_num++;
+    DBG_PRINTF("self->remote_revoke_num=%" PRIx64 "\n", self->remote_revoke_num);
 
     //prev_secret保存
     ret = store_peer_percommit_secret(self, prev_secret);
@@ -3029,7 +3031,8 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
 
     if (INIT_FLAG_REESTED(self->init_flag) &&
-       (self->commit_num == 1) && (self->remote_commit_num == 1)) {
+            (self->commit_num == 1) && (self->remote_commit_num == 1)) {
+        DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
         ret = ln_funding_tx_stabled(self);
     }
 
