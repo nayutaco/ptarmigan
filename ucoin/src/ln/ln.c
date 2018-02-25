@@ -3724,8 +3724,7 @@ static bool create_to_remote(ln_self_t *self,
         ln_db_phash_save(pp_htlcinfo[lp]->preimage_hash,
                         vout,
                         pp_htlcinfo[lp]->type,
-                        pp_htlcinfo[lp]->expiry,
-                        NULL);
+                        pp_htlcinfo[lp]->expiry);
 #endif  //LN_UGLY_NORMAL
     }
 

@@ -1106,12 +1106,14 @@ bool ln_db_annocnlall_del(uint64_t ShortChannelId)
     retval = mdb_dbi_open(txn, M_DBI_ANNO_CNL, MDB_CREATE, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_ABORT;
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
     }
     retval = mdb_dbi_open(txn, M_DBI_ANNOINFO_CNL, MDB_CREATE, &dbi_info);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-        goto LABEL_ABORT;
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
     }
 
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, 0);
@@ -1130,13 +1132,10 @@ bool ln_db_annocnlall_del(uint64_t ShortChannelId)
     }
 
     MDB_TXN_COMMIT(txn);
+    retval = 0;
 
-    return true;
-
-LABEL_ABORT:
-    MDB_TXN_ABORT(txn);
 LABEL_EXIT:
-    return false;
+    return retval == 0;
 }
 
 
@@ -1381,7 +1380,7 @@ bool ln_db_annoskip_drop(void)
     if (retval != 0) {
         //存在しないなら削除しなくてよい
         MDB_TXN_ABORT(txn);
-        //retval = 0;
+        retval = 0;
         goto LABEL_EXIT;
     }
 
@@ -1435,7 +1434,7 @@ LABEL_EXIT:
 bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
 {
     int         retval;
-    MDB_txn     *txn = NULL;
+    MDB_txn     *txn;
     MDB_dbi     dbi;
     MDB_val     key, data;
 
@@ -1449,6 +1448,7 @@ bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
     retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, 0, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
         goto LABEL_EXIT;
     }
 
@@ -1460,9 +1460,6 @@ bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
     }
 
 LABEL_EXIT:
-    if (txn != NULL) {
-        MDB_TXN_ABORT(txn);
-    }
     return retval == 0;
 }
 
@@ -1486,6 +1483,7 @@ int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
     retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, 0, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
         goto LABEL_EXIT;
     }
     retval = mdb_cursor_open(txn, dbi, &cursor);
@@ -1502,9 +1500,6 @@ int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
     }
 
 LABEL_EXIT:
-    if (txn != NULL) {
-        MDB_TXN_ABORT(txn);
-    }
     return cnt;
 }
 
@@ -1919,7 +1914,6 @@ bool ln_db_preimg_cur_open(void **ppCur)
     int         retval;
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
 
-    p_cur->txn = NULL;
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &p_cur->txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -1928,6 +1922,7 @@ bool ln_db_preimg_cur_open(void **ppCur)
     retval = mdb_dbi_open(p_cur->txn, M_DBI_PREIMAGE, 0, &p_cur->dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(p_cur->txn);
         goto LABEL_EXIT;
     }
     retval = mdb_cursor_open(p_cur->txn, p_cur->dbi, &p_cur->cursor);
@@ -1939,9 +1934,6 @@ LABEL_EXIT:
     if (retval == 0) {
         *ppCur = p_cur;
     } else {
-        if (p_cur->txn != NULL) {
-            MDB_TXN_ABORT(p_cur->txn);
-        }
         M_FREE(p_cur);
         *ppCur = NULL;
     }
@@ -1998,21 +1990,17 @@ bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount)
  * payment_hash
  ********************************************************************/
 
-bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry, void *pDbParam)
+bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry)
 {
     int         retval;
     MDB_txn     *txn = NULL;
     MDB_dbi     dbi;
     MDB_val     key, data;
 
-    if (pDbParam != NULL) {
-        txn = ((ln_lmdb_db_t *)pDbParam)->txn;
-    } else {
-        retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
-        if (retval != 0) {
-            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
     }
     retval = mdb_dbi_open(txn, M_DBI_PAYHASH, MDB_CREATE, &dbi);
     if (retval != 0) {
@@ -2036,7 +2024,7 @@ bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype
     }
 
 LABEL_EXIT:
-    if ((pDbParam == NULL) && (txn != NULL)) {
+    if (txn != NULL) {
         if (retval == 0) {
             MDB_TXN_COMMIT(txn);
         } else {
@@ -2057,15 +2045,8 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
     MDB_val     key, data;
     bool found = false;
 
-    if (pDbParam != NULL) {
-        txn = ((ln_lmdb_db_t *)pDbParam)->txn;
-    } else {
-        retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
-        if (retval != 0) {
-            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
-    }
+    txn = ((ln_lmdb_db_t *)pDbParam)->txn;
+
     retval = mdb_dbi_open(txn, M_DBI_PAYHASH, 0, &dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -2091,10 +2072,6 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
     mdb_cursor_close(cursor);
 
 LABEL_EXIT:
-    if ((pDbParam == NULL) && (txn != NULL)) {
-        MDB_TXN_ABORT(txn);
-    }
-
     return found;
 }
 
@@ -2301,7 +2278,6 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
     int             retval;
     ln_lmdb_db_t    db;
 
-    db.txn = NULL;
     retval = MDB_TXN_BEGIN(mpDbSelf, NULL, MDB_RDONLY, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
@@ -2310,6 +2286,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
     retval = mdb_dbi_open(db.txn, M_DBI_VERSION, 0, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
 
@@ -2345,9 +2322,6 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
     }
 
 LABEL_EXIT:
-    if (db.txn != NULL) {
-        MDB_TXN_ABORT(db.txn);
-    }
     return retval == 0;
 }
 
