@@ -2392,7 +2392,7 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
     }
 
     //DB保存
-    //ln_db_self_save(p_conf->p_self);  //revoke_and_ack後のみにする
+    ln_db_self_save(p_conf->p_self);
 
     char fname[FNAME_LEN];
     sprintf(fname, FNAME_AMOUNT_FMT, ln_short_channel_id(p_conf->p_self));
