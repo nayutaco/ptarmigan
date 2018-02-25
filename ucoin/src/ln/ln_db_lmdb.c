@@ -290,6 +290,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         int ret2 = stat("./dbucoin/dbucoin_anno", &sfs);
         if ((ret1 == 0) || (ret2 == 0)) {
             DBG_PRINTF("ERR: old DB detect! Please remove dbucoin.\n");
+            retval = -1;
             goto LABEL_EXIT;
         }
     }
