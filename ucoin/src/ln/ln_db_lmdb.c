@@ -236,7 +236,7 @@ static bool annoinfo_search(MDB_val *pMdbData, const uint8_t *pNodeId);
 static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
 static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
 
-static int ver_write(MDB_txn *txn, const char *pWif, const char *pNodeName, uint16_t Port);
+static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port);
 static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
 
 static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
@@ -282,6 +282,18 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
 {
     int         retval;
     ln_lmdb_db_t   db;
+
+    //旧バージョンチェック(2018/02/25)
+    //  ディレクトリ名を変更したため、バージョンチェックできなくなった
+    {
+        struct stat sfs;
+        int ret1 = stat("./dbucoin/dbucoin", &sfs);
+        int ret2 = stat("./dbucoin/dbucoin_", &sfs);
+        if ((ret1 == 0) || (ret2 == 0)) {
+            DBG_PRINTF("FAIL: Old DB detect! Please remove dbucoin.\n");
+            exit(-1);
+        }
+    }
 
     //lmdbのopenは複数呼ばないでenvを共有する
     if (mpDbSelf == NULL) {
@@ -338,7 +350,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         }
     }
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -370,13 +382,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         //DBG_PRINTF("wif=%s\n", pWif);
         DBG_PRINTF("aliase=%s\n", pNodeName);
         DBG_PRINTF("port=%d\n", *pPort);
-        retval = ver_write(db.txn, pWif, pNodeName, *pPort);
-        if (retval != 0) {
-            DBG_PRINTF("FAIL: create version db\n");
-            MDB_TXN_ABORT(db.txn);
-            goto LABEL_EXIT;
-        }
-        retval = mdb_dbi_open(db.txn, M_DBI_VERSION, 0, &db.dbi);
+        retval = ver_write(&db, pWif, pNodeName, *pPort);
         if (retval != 0) {
             DBG_PRINTF("FAIL: create version db\n");
             MDB_TXN_ABORT(db.txn);
@@ -2296,7 +2302,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
     ln_lmdb_db_t    db;
 
     db.txn = NULL;
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, MDB_RDONLY, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -3013,14 +3019,13 @@ static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn)
 }
 
 
-static int ver_write(MDB_txn *txn, const char *pWif, const char *pNodeName, uint16_t Port)
+static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port)
 {
     int         retval;
-    MDB_dbi     dbi;
     MDB_val     key, data;
     int         version = M_DB_VERSION_VAL;
 
-    retval = mdb_dbi_open(txn, M_DBI_VERSION, MDB_CREATE, &dbi);
+    retval = mdb_dbi_open(pDb->txn, M_DBI_VERSION, MDB_CREATE, &pDb->dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -3031,7 +3036,7 @@ static int ver_write(MDB_txn *txn, const char *pWif, const char *pNodeName, uint
     key.mv_data = LNDBK_VER;
     data.mv_size = sizeof(int32_t);
     data.mv_data = &version;
-    retval = mdb_put(txn, dbi, &key, &data, 0);
+    retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
 
     //my node info
     if ((retval == 0) && (pWif != NULL)) {
@@ -3048,7 +3053,7 @@ static int ver_write(MDB_txn *txn, const char *pWif, const char *pNodeName, uint
         nodeinfo.port = Port;
         data.mv_size = sizeof(nodeinfo);
         data.mv_data = (void *)&nodeinfo;
-        retval = mdb_put(txn, dbi, &key, &data, 0);
+        retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
     } else if (retval) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
     }
