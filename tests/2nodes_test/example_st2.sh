@@ -11,5 +11,3 @@ cd ../node_4444
 rm -rf dbucoin
 ../ucoind -c ../regtest.conf -p 4444 &
 cd ..
-
-sleep 1
