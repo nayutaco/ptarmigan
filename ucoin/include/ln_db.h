@@ -425,6 +425,19 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
 bool ln_db_revtx_load(ln_self_t *self, void *pDbParam);
 bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
 
+
+////////////////////
+// version
+////////////////////
+
+/** DB version check
+ *
+ * @param[out]      pMyNodeId       (非NULL時)node_id
+ * @param[out]      pGType          (非NULL時)genesis hash type
+ * @retval  true    チェックOK
+ */
+bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType);
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus

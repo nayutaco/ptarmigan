@@ -2290,11 +2290,18 @@ LABEL_EXIT:
  * version
  ********************************************************************/
 
-int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
+bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
 {
-    int         retval;
+    int             retval;
+    ln_lmdb_db_t    db;
 
-    retval = mdb_dbi_open(pDb->txn, M_DBI_VERSION, 0, &pDb->dbi);
+    db.txn = NULL;
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
+    if (retval != 0) {
+        DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(db.txn, M_DBI_VERSION, 0, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("err: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -2304,7 +2311,7 @@ int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId, ucoin_genesis_t *pG
     char alias[LN_SZ_ALIAS];
     uint16_t port;
     uint8_t genesis[LN_SZ_HASH];
-    retval = ver_check(pDb, wif, alias, &port, genesis);
+    retval = ver_check(&db, wif, alias, &port, genesis);
     if (retval == 0) {
         ucoin_util_keys_t key;
         ucoin_chain_t chain;
@@ -2332,7 +2339,10 @@ int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId, ucoin_genesis_t *pG
     }
 
 LABEL_EXIT:
-    return retval;
+    if (db.txn != NULL) {
+        MDB_TXN_ABORT(db.txn);
+    }
+    return retval == 0;
 }
 
 

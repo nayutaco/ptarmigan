@@ -60,8 +60,8 @@ using namespace boost;
  * macros
  **************************************************************************/
 
-//#define M_DEBUG
-#define M_SPOIL_STDERR
+#define M_DEBUG
+//#define M_SPOIL_STDERR
 
 #define ARGS_GRAPH                          (2)     ///< [引数の数]graphviz用ファイル出力のみ
 #define ARGS_PAYMENT                        (5)     ///< [引数の数]routing(min_final_cltv_expiryはデフォルト)
@@ -308,6 +308,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
 static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db, bool stop_after_dbclear)
 {
     int ret;
+    bool bret;
     MDB_env     *pDbSelf = NULL;
     MDB_env     *pDbNode = NULL;
     MDB_txn     *txn_self;
@@ -346,27 +347,23 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
         fprintf(fp_err, "fail: cannot open[%s]\n", nodepath);
         return false;
     }
+    ln_lmdb_setenv(pDbSelf, pDbNode);
 
     if (clear_skip_db) {
-        ln_lmdb_setenv(pDbSelf, pDbNode);
-        bool bret = ln_db_annoskip_drop();
+        bret = ln_db_annoskip_drop();
         fprintf(fp_err, "%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
         if (stop_after_dbclear) {
             return false;
         }
     }
 
-    ret = mdb_txn_begin(pDbSelf, NULL, MDB_RDONLY, &txn_self);
-    assert(ret == 0);
-    ret = mdb_txn_begin(pDbNode, NULL, MDB_RDONLY, &txn_node);
-    assert(ret == 0);
-
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
     ucoin_genesis_t gtype;
-    ln_lmdb_db_t db;
-    db.txn = txn_node;
-    ret = ln_lmdb_ver_check(&db, my_nodeid, &gtype);
-    assert(ret == 0);
+    bret = ln_db_ver_check(my_nodeid, &gtype);
+    if (!bret) {
+        fprintf(fp_err, "fail: DB version mismatch\n");
+        return false;
+    }
 
     ln_set_genesishash(ucoin_util_get_genesis_block(gtype));
     switch (gtype) {
@@ -392,6 +389,11 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     }
 
     //self
+    ret = mdb_txn_begin(pDbSelf, NULL, MDB_RDONLY, &txn_self);
+    if (ret != 0) {
+        fprintf(fp_err, "fail: DB txn 1\n");
+        return false;
+    }
     ret = mdb_dbi_open(txn_self, NULL, 0, &dbi);
     assert(ret == 0);
     ret = mdb_cursor_open(txn_self, dbi, &cursor);
@@ -424,6 +426,11 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
 
 
     //channel_anno
+    ret = mdb_txn_begin(pDbNode, NULL, MDB_RDONLY, &txn_node);
+    if (ret != 0) {
+        fprintf(fp_err, "fail: DB txn 2\n");
+        return false;
+    }
     ret = mdb_dbi_open(txn_node, NULL, 0, &dbi);
     assert(ret == 0);
     ret = mdb_cursor_open(txn_node, dbi, &cursor);

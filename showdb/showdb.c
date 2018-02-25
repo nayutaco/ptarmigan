@@ -532,17 +532,12 @@ int main(int argc, char *argv[])
 
     MDB_env *p_env = (env == 0) ? mpDbSelf : mpDbNode;
 
-    ret = mdb_txn_begin(mpDbNode, NULL, MDB_RDONLY, &txn);
-    assert(ret == 0);
     ucoin_genesis_t gtype;
-    ln_lmdb_db_t db;
-    db.txn = txn;
-    ret = ln_lmdb_ver_check(&db, NULL, &gtype);
-    if (ret != 0) {
+    bool bret = ln_db_ver_check(NULL, &gtype);
+    if (!bret) {
         fprintf(stderr, "fail: DB version not match.\n");
         return -1;
     }
-    mdb_txn_abort(txn);
 
     ln_set_genesishash(ucoin_util_get_genesis_block(gtype));
     switch (gtype) {
