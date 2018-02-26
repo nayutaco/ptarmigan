@@ -16,3 +16,4 @@ mkdir $NODEDIR
 cp -ra script $NODEDIR/
 
 echo create new node: \"$NODEDIR\"
+cd $NODEDIR
