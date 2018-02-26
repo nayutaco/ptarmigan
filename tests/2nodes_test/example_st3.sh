@@ -40,7 +40,7 @@ do
     LEN3=`cat n3.txt | jq length`
     LEN4=`cat n4.txt | jq length`
 
-    if [ $LEN3 -ne 0 ] && [ $LEN4 -ne 0 ] && [ $RES1 -eq 0 ]; then
+    if [ "$LEN3" -ne 0 ] && [ "$LEN4" -ne 0 ] && [ $RES1 -eq 0 ]; then
         break
     fi
     sleep 3
