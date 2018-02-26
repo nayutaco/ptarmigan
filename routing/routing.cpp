@@ -308,65 +308,62 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
 static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db, bool stop_after_dbclear)
 {
     int ret;
-    MDB_env     *pDbEnv = NULL;
-    MDB_env     *pDbAnno = NULL;
-    MDB_txn     *txn;
-    MDB_txn     *txn_anno;
+    bool bret;
+    MDB_env     *pDbSelf = NULL;
+    MDB_env     *pDbNode = NULL;
+    MDB_txn     *txn_self;
+    MDB_txn     *txn_node;
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
-    char        dbpath[256];
-    char        annopath[256];
+    char        selfpath[256];
+    char        nodepath[256];
 
-    strcpy(dbpath, pDbPath);
-    size_t len = strlen(dbpath);
-    if (dbpath[len - 1] == '/') {
-        dbpath[len - 1] = '\0';
+    strcpy(selfpath, pDbPath);
+    size_t len = strlen(selfpath);
+    if (selfpath[len - 1] == '/') {
+        selfpath[len - 1] = '\0';
     }
-    strcpy(annopath, dbpath);
-    strcat(dbpath, LNDB_DBENV_DIR);
-    strcat(annopath, LNDB_ANNOENV_DIR);
+    strcpy(nodepath, selfpath);
+    strcat(selfpath, LNDB_SELFENV_DIR);
+    strcat(nodepath, LNDB_NODEENV_DIR);
 
-    ret = mdb_env_create(&pDbEnv);
+    ret = mdb_env_create(&pDbSelf);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(pDbEnv, 2);
+    ret = mdb_env_set_maxdbs(pDbSelf, 2);
     assert(ret == 0);
-    ret = mdb_env_open(pDbEnv, dbpath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(pDbSelf, selfpath, 0, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", dbpath);
+        fprintf(fp_err, "fail: cannot open[%s]\n", selfpath);
         return false;
     }
 
-    ret = mdb_env_create(&pDbAnno);
+    ret = mdb_env_create(&pDbNode);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(pDbAnno, 2);
+    ret = mdb_env_set_maxdbs(pDbNode, 2);
     assert(ret == 0);
-    ret = mdb_env_open(pDbAnno, annopath, 0, 0664);
+    ret = mdb_env_open(pDbNode, nodepath, 0, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", annopath);
+        fprintf(fp_err, "fail: cannot open[%s]\n", nodepath);
         return false;
     }
+    ln_lmdb_setenv(pDbSelf, pDbNode);
 
     if (clear_skip_db) {
-        ln_lmdb_setenv(pDbEnv, pDbAnno);
-        bool bret = ln_db_annoskip_drop();
+        bret = ln_db_annoskip_drop();
         fprintf(fp_err, "%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
         if (stop_after_dbclear) {
             return false;
         }
     }
 
-    ret = mdb_txn_begin(pDbEnv, NULL, MDB_RDONLY, &txn);
-    assert(ret == 0);
-    ret = mdb_txn_begin(pDbAnno, NULL, MDB_RDONLY, &txn_anno);
-    assert(ret == 0);
-
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
     ucoin_genesis_t gtype;
-    ln_lmdb_db_t db;
-    db.txn = txn;
-    ret = ln_lmdb_ver_check(&db, my_nodeid, &gtype);
-    assert(ret == 0);
+    bret = ln_db_ver_check(my_nodeid, &gtype);
+    if (!bret) {
+        fprintf(fp_err, "fail: DB version mismatch\n");
+        return false;
+    }
 
     ln_set_genesishash(ucoin_util_get_genesis_block(gtype));
     switch (gtype) {
@@ -392,9 +389,14 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     }
 
     //self
-    ret = mdb_dbi_open(txn, NULL, 0, &dbi);
+    ret = mdb_txn_begin(pDbSelf, NULL, 0, &txn_self);
+    if (ret != 0) {
+        fprintf(fp_err, "fail: DB txn 1: %s\n", mdb_strerror(ret));
+        return false;
+    }
+    ret = mdb_dbi_open(txn_self, NULL, 0, &dbi);
     assert(ret == 0);
-    ret = mdb_cursor_open(txn, dbi, &cursor);
+    ret = mdb_cursor_open(txn_self, dbi, &cursor);
     assert(ret == 0);
 
     int list = 0;
@@ -403,7 +405,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
         if (memchr(key.mv_data, '\0', key.mv_size)) {
             continue;
         }
-        ret = mdb_dbi_open(txn, (const char *)key.mv_data, 0, &dbi2);
+        ret = mdb_dbi_open(txn_self, (const char *)key.mv_data, 0, &dbi2);
         if (ret == 0) {
             if (list) {
                 list++;
@@ -411,25 +413,30 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
                 const char *name = (const char *)key.mv_data;
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 if (dbtype == LN_LMDB_DBTYPE_SELF) {
-                    dumpit_self(txn, dbi2, p1, p2);
+                    dumpit_self(txn_self, dbi2, p1, p2);
                 }
             }
-            mdb_close(mdb_txn_env(txn), dbi2);
+            mdb_close(mdb_txn_env(txn_self), dbi2);
         } else {
             fprintf(fp_err, "err1[%s]: %s\n", (const char *)key.mv_data, mdb_strerror(ret));
         }
     }
     mdb_cursor_close(cursor);
-    mdb_txn_abort(txn);
+    mdb_txn_abort(txn_self);
 
 
     //channel_anno
-    ret = mdb_dbi_open(txn_anno, NULL, 0, &dbi);
+    ret = mdb_txn_begin(pDbNode, NULL, 0, &txn_node);
+    if (ret != 0) {
+        fprintf(fp_err, "fail: DB txn 2: %s\n", mdb_strerror(ret));
+        return false;
+    }
+    ret = mdb_dbi_open(txn_node, NULL, 0, &dbi);
     assert(ret == 0);
-    ret = mdb_cursor_open(txn_anno, dbi, &cursor);
+    ret = mdb_cursor_open(txn_node, dbi, &cursor);
     assert(ret == 0);
     MDB_dbi dbi_skip;
-    ret = mdb_dbi_open(txn_anno, M_ROUTE_SKIP_DBNAME, 0, &dbi_skip);
+    ret = mdb_dbi_open(txn_node, M_ROUTE_SKIP_DBNAME, 0, &dbi_skip);
     if (ret != 0) {
         dbi_skip = (MDB_dbi)-1;
     }
@@ -440,7 +447,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
         if (memchr(key.mv_data, '\0', key.mv_size)) {
             continue;
         }
-        ret = mdb_dbi_open(txn_anno, (const char *)key.mv_data, 0, &dbi2);
+        ret = mdb_dbi_open(txn_node, (const char *)key.mv_data, 0, &dbi2);
         if (ret == 0) {
             if (list) {
                 list++;
@@ -448,19 +455,19 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
                 const char *name = (const char *)key.mv_data;
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 if (dbtype == LN_LMDB_DBTYPE_CHANNEL_ANNO) {
-                    dumpit_chan(txn_anno, dbi2, dbi_skip);
+                    dumpit_chan(txn_node, dbi2, dbi_skip);
                 }
             }
-            mdb_close(mdb_txn_env(txn_anno), dbi2);
+            mdb_close(mdb_txn_env(txn_node), dbi2);
         } else {
             fprintf(fp_err, "err2[%s]: %s\n", (const char *)key.mv_data, mdb_strerror(ret));
         }
     }
     mdb_cursor_close(cursor);
-    mdb_txn_abort(txn_anno);
+    mdb_txn_abort(txn_node);
 
-    mdb_env_close(pDbAnno);
-    mdb_env_close(pDbEnv);
+    mdb_env_close(pDbNode);
+    mdb_env_close(pDbSelf);
     return true;
 }
 

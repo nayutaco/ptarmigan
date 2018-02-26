@@ -17,11 +17,3 @@ cd ../node_6666
 rm -rf dbucoin
 ../ucoind -c ../regtest.conf -p 6666 &
 cd ..
-
-sleep 3
-
-mkdir -p conf
-mv node_3333/peer_*.conf conf/peer3333.conf
-mv node_4444/peer_*.conf conf/peer4444.conf
-mv node_5555/peer_*.conf conf/peer5555.conf
-mv node_6666/peer_*.conf conf/peer6666.conf

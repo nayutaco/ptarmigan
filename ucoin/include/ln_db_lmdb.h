@@ -54,10 +54,10 @@ extern "C" {
 #define LNDBK_RLEN              (3)                     ///< [revoked]key長
 
 #define LNDB_DBDIR              "./dbucoin"
-#define LNDB_DBENV_DIR          "/dbucoin"
-#define LNDB_ANNOENV_DIR        "/dbucoin_anno"
-#define LNDB_DBENV              LNDB_DBDIR LNDB_DBENV_DIR   ///< LMDB名(announce以外)
-#define LNDB_ANNOENV            LNDB_DBDIR LNDB_ANNOENV_DIR ///< LMDB名(announce)
+#define LNDB_SELFENV_DIR        "/dbucoin_self"
+#define LNDB_NODEENV_DIR        "/dbucoin_node"
+#define LNDB_SELFENV            LNDB_DBDIR LNDB_SELFENV_DIR     ///< LMDB名(self)
+#define LNDB_NODEENV            LNDB_DBDIR LNDB_NODEENV_DIR     ///< LMDB名(self以外)
 
 
 /**************************************************************************
@@ -114,16 +114,6 @@ int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *p
  *
  */
 int ln_lmdb_annonod_cur_load(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
-
-
-/** DB check
- *
- * @param[in,out]   pDb
- * @param[out]      pMyNodeId
- * @param[out]      pGType
- * @retval  0   success
- */
-int ln_lmdb_ver_check(ln_lmdb_db_t *pDb, uint8_t *pMyNodeId, ucoin_genesis_t *pGType);
 
 
 ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);

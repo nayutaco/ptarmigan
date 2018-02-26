@@ -78,19 +78,19 @@ void ln_print_self(const ln_self_t *self)
 {
     fprintf(PRINTOUT, "{\n");
 
-    fprintf(PRINTOUT, M_QQ("p_node") ": \"");
-    if (self->p_node) {
-        ucoin_util_dumpbin(PRINTOUT, self->p_node->keys.pub, UCOIN_SZ_PUBKEY, false);
-    } else {
-        fprintf(PRINTOUT, "none");
-    }
-    fprintf(PRINTOUT, "\",");
+    //fprintf(PRINTOUT, M_QQ("p_node") ": \"");
+    //if (self->p_node) {
+    //    ucoin_util_dumpbin(PRINTOUT, self->p_node->keys.pub, UCOIN_SZ_PUBKEY, false);
+    //} else {
+    //    fprintf(PRINTOUT, "none");
+    //}
+    //fprintf(PRINTOUT, "\",");
 
     //peer_node
     fprintf(PRINTOUT, M_QQ("peer_node_id") ": \"");
     ucoin_util_dumpbin(PRINTOUT, self->peer_node.node_id, UCOIN_SZ_PUBKEY, false);
     fprintf(PRINTOUT, "\",");
-    fprintf(PRINTOUT, M_QQ("alias") ": " M_QQ("%s") ",", self->peer_node.alias);
+    //fprintf(PRINTOUT, M_QQ("alias") ": " M_QQ("%s") ",", self->peer_node.alias);
 
     //key storage
     fprintf(PRINTOUT, M_QQ("storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->storage_index);

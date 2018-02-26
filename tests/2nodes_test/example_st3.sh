@@ -7,6 +7,11 @@
 #  +-----------+             |    fundee |
 #                            +-----------+
 
+mkdir -p conf
+rm -rf conf/*.conf
+mv node_3333/peer_*.conf conf/peer3333.conf
+mv node_4444/peer_*.conf conf/peer4444.conf
+
 # connect
 ./ucoincli -c conf/peer3333.conf 4445
 
@@ -35,7 +40,7 @@ do
     LEN3=`cat n3.txt | jq length`
     LEN4=`cat n4.txt | jq length`
 
-    if [ $LEN3 -ne 0 ] && [ $LEN4 -ne 0 ] && [ $RES1 -eq 0 ]; then
+    if [ "$LEN3" -ne 0 ] && [ "$LEN4" -ne 0 ] && [ $RES1 -eq 0 ]; then
         break
     fi
     sleep 3

@@ -21,10 +21,9 @@ nodeid() {
 }
 
 pay() {
-	echo "payment ${PAYER} --> ${PAYEE}"
-
 	payer_id=`nodeid $PAY_BEGIN`
 	payee_id=`nodeid $PAY_END`
+	echo "payment ${PAYER}:${payer_id} --> ${PAYEE}:${payee_id}"
 
 	./routing -d $PAYER/dbucoin -s $payer_id -r $payee_id -a $AMOUNT
 	if [ $? -ne 0 ]; then

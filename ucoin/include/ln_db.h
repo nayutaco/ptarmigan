@@ -135,14 +135,14 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
  * @param[in]   Type        オープンするDB(LN_DB_TXN_xx)
  * @retval  true    成功
  */
-bool ln_db_anno_cur_transaction(void **ppDb, ln_db_txn_t Type);
+bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type);
 
 
-/** #ln_db_anno_cur_transaction()で取得したトランザクションのcommit
+/** #ln_db_node_cur_transaction()で取得したトランザクションのcommit
  *
- * @param[out]  pDb         #ln_db_anno_cur_transaction()取得したDB情報
+ * @param[out]  pDb         #ln_db_node_cur_transaction()取得したDB情報
  */
-void ln_db_anno_cur_commit(void *pDb);
+void ln_db_node_cur_commit(void *pDb);
 
 
 ////////////////////
@@ -222,7 +222,7 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bo
 /** DB curosrオープン
  *
  * @param[out]      ppCur   curosr情報(ln_dbで使用する)
- * @param[in,out]   pDb     #ln_db_anno_cur_transaction()取得したDB情報
+ * @param[in,out]   pDb     #ln_db_node_cur_transaction()取得したDB情報
  */
 bool ln_db_annocnl_cur_open(void **ppCur, void *pDb);
 
@@ -266,7 +266,7 @@ bool ln_db_annoskip_save(uint64_t ShortChannelId);
 
 /** "route_skip" short_channel_id検索
  *
- * @param[in,out]   pDb                 #ln_db_anno_cur_transaction()取得したDB情報
+ * @param[in,out]   pDb                 #ln_db_node_cur_transaction()取得したDB情報
  * @param[in]       ShortChannelId      検索するshort_channel_id
  * @retval  true    検出
  */
@@ -400,9 +400,8 @@ bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
  * @param[in]       pVout           pPayHashを含むvoutスクリプトを#ucoin_sw_wit2prog_p2wsh()した結果。大きさはLNL_SZ_WITPROG_WSH。
  * @param[in]       Type            pVout先のHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
  * @param[in]       Expiry          Expiry
- * @param[in,out]   pDbParam        DBパラメータ
  */
-bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry, void *pDbParam);
+bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry);
 
 
 /** payment_hash検索
@@ -424,6 +423,19 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
 
 bool ln_db_revtx_load(ln_self_t *self, void *pDbParam);
 bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
+
+
+////////////////////
+// version
+////////////////////
+
+/** DB version check
+ *
+ * @param[out]      pMyNodeId       (非NULL時)node_id
+ * @param[out]      pGType          (非NULL時)genesis hash type
+ * @retval  true    チェックOK
+ */
+bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType);
 
 #ifdef __cplusplus
 }

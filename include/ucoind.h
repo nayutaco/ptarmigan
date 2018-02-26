@@ -47,10 +47,6 @@ static inline int tid() {
 #define SZ_RPC_PASSWD               (64)        ///< RPCPASSWORD
 #define SZ_RPC_URL                  (256)       ///< URL
 
-#define FNAME_LEN                   (50)
-#define FNAME_DIR                   "amount"
-#define FNAME_AMOUNT_FMT            FNAME_DIR "/amount.%" PRIx64
-
 
 // JSON-RPCエラー
 
