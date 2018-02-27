@@ -1538,6 +1538,9 @@ bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash)
     MDB_dbi     dbi;
     MDB_val     key;
 
+    DBG_PRINTF("payment_hash=");
+    DUMPBIN(pPayHash, LN_SZ_HASH);
+
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));

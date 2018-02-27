@@ -3026,7 +3026,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         strftime(date, sizeof(date), "%d %b %Y %T %z", &tmval);
 
         p_conf->p_errstr = (char *)APP_MALLOC(len_max);        //APP_FREE: thread_main_start()
-        sprintf(p_conf->p_errstr, "\"[%s]%s\"", date, pErrStr);
+        sprintf(p_conf->p_errstr, "[%s]%s", date, pErrStr);
         DBG_PRINTF("%s\n", p_conf->p_errstr);
 
         // method: error
@@ -3037,7 +3037,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
-                    "%s",
+                    "\"%s\"",
                     ln_short_channel_id(p_conf->p_self), node_id,
                     p_conf->p_errstr);
         call_script(M_EVT_ERROR, param);
