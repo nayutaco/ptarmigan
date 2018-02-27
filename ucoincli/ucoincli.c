@@ -137,37 +137,22 @@ int main(int argc, char *argv[])
             options = M_OPTIONS_EXEC;
             break;
 
+        case 'q':
+            if (options == M_OPTIONS_CONN) {
+                //特定接続を切る
+                disconnect_rpc(mBuf);
+                options = M_OPTIONS_EXEC;
+                conn = false;
+            } else {
+                //ucoind終了
+                stop_rpc(mBuf);
+                options = M_OPTIONS_STOP;
+            }
+            break;
+
         //
         // -c不要
         //
-        case 'q':
-            //ucoind停止
-            if (options > M_OPTIONS_STOP) {
-                if (optarg != NULL) {
-                    //特定接続を切る
-                    peer_conf_t peer;
-                    bool bret = load_peer_conf(optarg, &peer);
-                    if (bret) {
-                        //peer.conf
-                        strcpy(mPeerAddr, peer.ipaddr);
-                        mPeerPort = peer.port;
-                        misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
-                        disconnect_rpc(mBuf);
-                        options = M_OPTIONS_EXEC;
-                    } else {
-                        printf("fail: peer configuration file\n");
-                        options = M_OPTIONS_HELP;
-                    }
-                } else {
-                    //ucoind終了
-                    stop_rpc(mBuf);
-                    options = M_OPTIONS_STOP;
-                }
-            } else {
-                printf("fail: too many options\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
         case 'l':
             //channel一覧
             if (options == M_OPTIONS_INIT) {
