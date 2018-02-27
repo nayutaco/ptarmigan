@@ -114,8 +114,11 @@
 
 #ifndef M_DBG_VERBOSE
 #define M_DBG_PRINT_TX(tx)      //NONE
+//#define M_DBG_PRINT_TX2(tx)     //NONE
+#define M_DBG_PRINT_TX2(tx)     ucoin_print_tx(tx)
 #else
 #define M_DBG_PRINT_TX(tx)      ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX2(tx)     ucoin_print_tx(tx)
 #endif  //M_DBG_VERBOSE
 
 
@@ -3446,7 +3449,7 @@ static bool create_to_local(ln_self_t *self,
                     ret = ln_create_tolocal_spent(self, &tx, tx_commit.vout[vout_idx].value, to_self_delay,
                             &buf_ws, self->commit_local.txid, vout_idx, false);
                     if (ret) {
-                        M_DBG_PRINT_TX(&tx);
+                        M_DBG_PRINT_TX2(&tx);
                         memcpy(pTxToLocal, &tx, sizeof(tx));
                         ucoin_tx_init(&tx);     //txはfreeさせない
                     }
@@ -3460,7 +3463,7 @@ static bool create_to_local(ln_self_t *self,
                     ln_create_htlc_tx(&tx, tx_commit.vout[vout_idx].value - fee, &buf_ws,
                                 pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry,
                                 self->commit_local.txid, vout_idx);
-                    M_DBG_PRINT_TX(&tx);
+                    M_DBG_PRINT_TX2(&tx);
 
                     if (p_htlc_sigs != NULL) {
                         //署名チェック
@@ -3528,7 +3531,7 @@ static bool create_to_local(ln_self_t *self,
                         if ( ((pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) && ret_img) ||
                              (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ) {
                             DBG_PRINTF("create HTLC tx[%d]\n", htlc_num);
-                            M_DBG_PRINT_TX(&tx);
+                            M_DBG_PRINT_TX2(&tx);
                             memcpy(&pTxHtlcs[htlc_num], &tx, sizeof(tx));
 
                             // HTLC Timeout/Success Txを作った場合はそれを取り戻すトランザクションも作る
@@ -3540,7 +3543,7 @@ static bool create_to_local(ln_self_t *self,
                                         &buf_ws, txid, 0, false);
                             if (ret) {
                                 DBG_PRINTF("*** HTLC out Tx ***\n");
-                                M_DBG_PRINT_TX(&tx2);
+                                M_DBG_PRINT_TX2(&tx2);
                                 ucoin_push_data(&push, &tx2, sizeof(ucoin_tx_t));
                             } else {
                                 ucoin_tx_free(&tx2);
@@ -3769,7 +3772,7 @@ static bool create_to_remote(ln_self_t *self,
                 ret = ln_create_toremote_spent(self, &tx, tx_commit.vout[vout_idx].value,
                             self->commit_remote.txid, vout_idx);
                 if (ret) {
-                    M_DBG_PRINT_TX(&tx);
+                    M_DBG_PRINT_TX2(&tx);
                     memcpy(pTxToRemote, &tx, sizeof(tx));
                     ucoin_tx_init(&tx);     //txはfreeさせない
                 } else {
@@ -3823,7 +3826,7 @@ static bool create_to_remote(ln_self_t *self,
                     ln_create_htlc_tx(&tx, tx_commit.vout[vout_idx].value - fee, &buf_ws,
                                 pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry,
                                 self->commit_remote.txid, vout_idx);
-                    M_DBG_PRINT_TX(&tx);
+                    M_DBG_PRINT_TX2(&tx);
 
                     uint8_t preimage[LN_SZ_PREIMAGE];
                     bool ret_img;
@@ -3876,7 +3879,7 @@ static bool create_to_remote(ln_self_t *self,
                         if ( ((pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) && ret_img) ||
                              (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) ) {
                             DBG_PRINTF("create HTLC tx[%d]\n", htlc_num);
-                            M_DBG_PRINT_TX(&tx);
+                            M_DBG_PRINT_TX2(&tx);
                             memcpy(&pTxHtlcs[htlc_num], &tx, sizeof(tx));
                             ucoin_tx_init(&tx);     //txはfreeさせない
                         } else {
@@ -3975,7 +3978,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
 
     //BIP69
     ucoin_util_sort_bip69(pTx);
-    ucoin_print_tx(pTx);
+    M_DBG_PRINT_TX(pTx);
 
     //署名
     uint8_t sighash[UCOIN_SZ_SIGHASH];
