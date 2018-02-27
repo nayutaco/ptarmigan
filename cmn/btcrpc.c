@@ -1305,7 +1305,7 @@ static bool estimatefee_rpc(char *pJson, int nBlock)
                 M_1("id", RPCID) M_NEXT
 
                 ///////////////////////////////////////////
-                M_1("method", "estimatefee") M_NEXT
+                M_1("method", "estimatesmartfee") M_NEXT
                 M_QQ("params") ":[%d]"
             "}", nBlock);
 
