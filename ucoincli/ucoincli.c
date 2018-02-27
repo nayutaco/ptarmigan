@@ -81,6 +81,7 @@ static char         mBuf[BUFFER_SIZE];
 static void stop_rpc(char *pJson);
 static void getinfo_rpc(char *pJson);
 static void connect_rpc(char *pJson);
+static void disconnect_rpc(char *pJson);
 static void fund_rpc(char *pJson, const funding_conf_t *pFund);
 static void invoice_rpc(char *pJson, uint64_t Amount, bool conn);
 static void erase_invoice_rpc(char *pJson, const char *pPaymentHash);
@@ -116,7 +117,7 @@ int main(int argc, char *argv[])
     bool b_send = true;
     int opt;
     int options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "htqlc:f:i:e:mp:r:xgwa:d:")) != -1) {
+    while ((opt = getopt(argc, argv, "htq::lc:f:i:e:mp:r:xgwa:d:")) != -1) {
         switch (opt) {
         case 'h':
             options = M_OPTIONS_HELP;
@@ -142,8 +143,26 @@ int main(int argc, char *argv[])
         case 'q':
             //ucoind停止
             if (options > M_OPTIONS_STOP) {
-                stop_rpc(mBuf);
-                options = M_OPTIONS_STOP;
+                if (optarg != NULL) {
+                    //特定接続を切る
+                    peer_conf_t peer;
+                    bool bret = load_peer_conf(optarg, &peer);
+                    if (bret) {
+                        //peer.conf
+                        strcpy(mPeerAddr, peer.ipaddr);
+                        mPeerPort = peer.port;
+                        misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
+                        disconnect_rpc(mBuf);
+                        options = M_OPTIONS_EXEC;
+                    } else {
+                        printf("fail: peer configuration file\n");
+                        options = M_OPTIONS_HELP;
+                    }
+                } else {
+                    //ucoind終了
+                    stop_rpc(mBuf);
+                    options = M_OPTIONS_STOP;
+                }
             } else {
                 printf("fail: too many options\n");
                 options = M_OPTIONS_HELP;
@@ -470,6 +489,20 @@ static void connect_rpc(char *pJson)
     snprintf(pJson, BUFFER_SIZE,
         "{"
             M_STR("method", "connect") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d"
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort);
+}
+
+
+static void disconnect_rpc(char *pJson)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "disconnect") M_NEXT
             M_QQ("params") ":[ "
                 //peer_nodeid, peer_addr, peer_port
                 M_QQ("%s") "," M_QQ("%s") ",%d"

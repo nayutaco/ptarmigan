@@ -49,6 +49,9 @@
 
 static struct jrpc_server   mJrpc;
 
+static const char *kOK = "OK";
+static const char *kNG = "NG";
+
 
 /********************************************************************
  * prototypes
@@ -56,6 +59,7 @@ static struct jrpc_server   mJrpc;
 
 static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -79,6 +83,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_server_init(&mJrpc, Port);
     jrpc_register_procedure(&mJrpc, cmd_fund,        "fund", NULL);
     jrpc_register_procedure(&mJrpc, cmd_connect,     "connect", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_disconnect,  "disconnect", NULL);
     jrpc_register_procedure(&mJrpc, cmd_close,       "close", NULL);
     jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
@@ -305,11 +310,50 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (p_appconf == NULL) {
         p2p_cli_start(&conn, ctx);
         if (ctx->error_code == 0) {
-            result = cJSON_CreateString("OK");
+            result = cJSON_CreateString(kOK);
         }
     } else {
         ctx->error_code = RPCERR_ALCONN;
         ctx->error_message = strdup(RPCERR_ALCONN_STR);
+    }
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    daemon_connect_t conn;
+    cJSON *result = NULL;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //connect parameter
+    index = json_connect(params, index, &conn);
+    if (index < 0) {
+        goto LABEL_EXIT;
+    }
+
+    SYSLOG_INFO("disconnect");
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
+    if (p_appconf != NULL) {
+        lnapp_stop(p_appconf);
+        result = cJSON_CreateString(kOK);
+    } else {
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
     }
 
 LABEL_EXIT:
@@ -486,7 +530,7 @@ static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         ret = ln_db_preimg_del(NULL);
     }
     if (ret) {
-        result = cJSON_CreateString("OK");
+        result = cJSON_CreateString(kOK);
     } else {
         ctx->error_code = RPCERR_INVOICE_ERASE;
         ctx->error_message = strdup(RPCERR_INVOICE_ERASE_STR);
@@ -925,7 +969,7 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
         }
         ret = str;
     } else {
-        ret = "NG";
+        ret = kNG;
     }
 
     return cJSON_CreateString(ret);
