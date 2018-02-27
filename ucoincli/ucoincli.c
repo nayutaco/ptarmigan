@@ -419,10 +419,15 @@ int main(int argc, char *argv[])
         printf("\t\t-c <peer.conf> -f <fund.conf> : funding\n");
         printf("\t\t-c <peer.conf> -x : mutual close channel\n");
         printf("\t\t-c <peer.conf> -w : get last error\n");
-        // printf("\n");
+        printf("\t\t-c <peer.conf> -q : disconnect node\n");
+        printf("\n");
         // printf("\t\t-a <IP address> : [debug]JSON-RPC send address\n");
-        // printf("\t\t-d <value> : [debug]debug option\n");
-        // printf("\t\t-c <node.conf> -g : [debug]get commitment transaction\n");
+        printf("\t\t-d <value> : [debug]debug option\n");
+        printf("\t\t\tb0 ... no update_fulfill_htlc\n");
+        printf("\t\t\tb1 ... no closing transaction\n");
+        printf("\t\t\tb2 ... force payment_preimage mismatch\n");
+        printf("\t\t\tb3 ... no node auto connect\n");
+        printf("\t\t-c <node.conf> -g : [debug]get commitment transaction\n");
         return -1;
     }
 
