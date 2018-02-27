@@ -3975,6 +3975,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
 
     //BIP69
     ucoin_util_sort_bip69(pTx);
+    ucoin_print_tx(pTx);
 
     //署名
     uint8_t sighash[UCOIN_SZ_SIGHASH];
