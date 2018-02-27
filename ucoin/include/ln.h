@@ -138,12 +138,18 @@ extern "C" {
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
 
 
+//
+// [ucoincli -d]マクロがtrueになるのが通常動作とする
+//
+
 // 1: update_fulfill_htlcを返さない
 #define LN_DBG_FULFILL()        ((ln_get_debug() & 0x01) == 0)
 // 2: closeでclosing_txを展開しない
 #define LN_DBG_CLOSING_TX()     ((ln_get_debug() & 0x02) == 0)
 // 4: HTLC scriptでpreimageが一致しても不一致とみなす
 #define LN_DBG_MATCH_PREIMAGE() ((ln_get_debug() & 0x04) == 0)
+// 8: monitoringで未接続ノードに接続しに行かない
+#define LN_DBG_NODE_AUTO_CONNECT() ((ln_get_debug() & 0x08) == 0)
 
 
 /********************************************************************

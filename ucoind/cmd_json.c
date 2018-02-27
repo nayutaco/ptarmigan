@@ -908,8 +908,21 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_Number)) {
-        ln_set_debug(json->valueint);
-        sprintf(str, "%d", json->valueint);
+        unsigned long dbg = ln_get_debug();
+        ln_set_debug(dbg ^ json->valueint);
+        sprintf(str, "%08lx", dbg);
+        if (!LN_DBG_FULFILL()) {
+            DBG_PRINTF("no fulfill return\n");
+        }
+        if (!LN_DBG_CLOSING_TX()) {
+            DBG_PRINTF("no closing tx\n");
+        }
+        if (!LN_DBG_MATCH_PREIMAGE()) {
+            DBG_PRINTF("force preimage mismatch\n");
+        }
+        if (!LN_DBG_NODE_AUTO_CONNECT()) {
+            DBG_PRINTF("no node Auto connect\n");
+        }
         ret = str;
     } else {
         ret = "NG";
