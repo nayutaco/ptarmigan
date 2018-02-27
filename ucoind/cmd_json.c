@@ -908,8 +908,8 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_Number)) {
-        unsigned long dbg = ln_get_debug();
-        ln_set_debug(dbg ^ json->valueint);
+        unsigned long dbg = ln_get_debug() ^ json->valueint;
+        ln_set_debug(dbg);
         sprintf(str, "%08lx", dbg);
         if (!LN_DBG_FULFILL()) {
             DBG_PRINTF("no fulfill return\n");
