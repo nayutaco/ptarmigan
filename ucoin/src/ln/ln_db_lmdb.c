@@ -51,7 +51,7 @@
 #define M_LMDB_NODE_MAXDBS      (2 * 10)        ///< 同時オープンできるDB数
 #define M_LMDB_NODE_MAPSIZE     ((uint64_t)4294967296)      // DB最大長[byte](mdb_txn_commit()でMDB_MAP_FULLになったため拡張)
 
-#define M_SELF_BUFS             (5)             ///< DB保存する可変長データ数
+#define M_SELF_BUFS             (3)             ///< DB保存する可変長データ数
 
 #define M_PREFIX_LEN            (2)
 #define M_CHANNEL_NAME          "CN"            ///< channel
@@ -179,8 +179,8 @@ typedef struct {
  ********************************************************************/
 
 //LMDB
-static MDB_env      *mpDbSelf = NULL;
-static MDB_env      *mpDbNode = NULL;
+static MDB_env      *mpDbSelf = NULL;           // channel
+static MDB_env      *mpDbNode = NULL;           // node
 
 
 static const backup_param_t DBSELF_KEYS[] = {
@@ -208,15 +208,15 @@ static const backup_param_t DBSELF_KEYS[] = {
                                                 //      uint8[]
                                                 //      uint8[][]
     M_ITEM(ln_self_t, obscured),
-    //redeem_fund --> script
-    M_ITEM(ln_self_t, key_fund_sort),
+    //redeem_fund --> none
+    //key_fund_sort --> none
     //tx_funding --> script
     //flck_flag: none
     //p_est: none
     M_ITEM(ln_self_t, min_depth),
     M_ITEM(ln_self_t, anno_flag),
     //anno_default: none
-    //cnl_anno --> script
+    //cnl_anno --> none
     //init_flag: none
     M_ITEM(ln_self_t, lfeature_remote),
     //tx_closing: none
@@ -283,9 +283,7 @@ static const backup_param_t DBSELF_KEYS[] = {
     M_ITEM(ln_self_t, feerate_per_kw),
 };
 
-//redeem_fund
 //tx_funding
-//cnl_anno
 //shutdown_scriptpk_local
 //shutdown_scriptpk_remote
 
@@ -610,12 +608,14 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     ucoin_buf_init(&buf_funding);
     //
     backup_buf_t *p_dbscript_keys = (backup_buf_t *)M_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
-    M_BUF_ITEM(0, redeem_fund);
-    p_dbscript_keys[1].name = "buf_funding";
-    p_dbscript_keys[1].p_buf = &buf_funding;
-    M_BUF_ITEM(2, cnl_anno);
-    M_BUF_ITEM(3, shutdown_scriptpk_local);
-    M_BUF_ITEM(4, shutdown_scriptpk_remote);
+    int index = 0;
+    p_dbscript_keys[index].name = "buf_funding";
+    p_dbscript_keys[index].p_buf = &buf_funding;
+    index++;
+    M_BUF_ITEM(index, shutdown_scriptpk_local);
+    index++;
+    M_BUF_ITEM(index, shutdown_scriptpk_remote);
+    index++;
 
     for (size_t lp = 0; lp < M_SELF_BUFS; lp++) {
         key.mv_size = strlen(p_dbscript_keys[lp].name);
@@ -2430,15 +2430,15 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     pOutSelf->funding_local = pInSelf->funding_local;
     pOutSelf->funding_remote = pInSelf->funding_remote;
     pOutSelf->obscured = pInSelf->obscured;
-    //redeem_fund --> script
-    pOutSelf->key_fund_sort = pInSelf->key_fund_sort;
+    //redeem_fund --> none
+    //key_fund_sort --> none
     //tx_funding --> script
     //flck_flag: none
     //p_est: none
     pOutSelf->min_depth = pInSelf->min_depth;
     pOutSelf->anno_flag = pInSelf->anno_flag;
     //anno_default: none
-    //cnl_anno --> script
+    //cnl_anno --> none
     //init_flag: none
     pOutSelf->lfeature_remote = pInSelf->lfeature_remote;
     //tx_closing: none
@@ -2486,17 +2486,9 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 
     //可変サイズ(shallow copy)
 
-    //redeem_fund
-    ucoin_buf_free(&pOutSelf->redeem_fund);
-    memcpy(&pOutSelf->redeem_fund, &pInSelf->redeem_fund, sizeof(ucoin_buf_t));
-
     //tx_funding
     ucoin_tx_free(&pOutSelf->tx_funding);
     memcpy(&pOutSelf->tx_funding, &pInSelf->tx_funding, sizeof(ucoin_tx_t));
-
-    //cnl_anno
-    ucoin_buf_free(&pOutSelf->cnl_anno);
-    memcpy(&pOutSelf->cnl_anno, &pInSelf->cnl_anno, sizeof(ucoin_buf_t));
 
     //shutdown_scriptpk_local
     ucoin_buf_free(&pOutSelf->shutdown_scriptpk_local);
@@ -2593,12 +2585,13 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     ucoin_tx_create(&buf_funding, &self->tx_funding);
     //
     backup_buf_t *p_dbscript_keys = (backup_buf_t *)M_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
-    M_BUF_ITEM(0, redeem_fund);
-    p_dbscript_keys[1].name = "buf_funding";
-    p_dbscript_keys[1].p_buf = &buf_funding;
-    M_BUF_ITEM(2, cnl_anno);
-    M_BUF_ITEM(3, shutdown_scriptpk_local);
-    M_BUF_ITEM(4, shutdown_scriptpk_remote);
+    int index = 0;
+    p_dbscript_keys[index].name = "buf_funding";
+    p_dbscript_keys[index].p_buf = &buf_funding;
+    index++;
+    M_BUF_ITEM(index, shutdown_scriptpk_local);
+    index++;
+    M_BUF_ITEM(index, shutdown_scriptpk_remote);
 
     for (size_t lp = 0; lp < M_SELF_BUFS; lp++) {
         key.mv_size = strlen(p_dbscript_keys[lp].name);

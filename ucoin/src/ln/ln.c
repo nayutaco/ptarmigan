@@ -3113,11 +3113,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     //DB保存
     ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
-    if (ret) {
-        //これ以降はchannel DBで管理する
-        //ucoin_buf_free(&self->cnl_anno);
-        //ln_db_self_save(self);
-    } else {
+    if (!ret) {
         DBG_PRINTF("fail: ln_db_annocnl_save\n");
         //goto LABEL_EXIT;
     }
