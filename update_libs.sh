@@ -35,4 +35,4 @@ func_upd bech32 https://github.com/nayutaco/bech32.git ptarmigan
 func_upd libbase58 https://github.com/luke-jr/libbase58.git master
 func_tag libsodium https://github.com/jedisct1/libsodium.git master 1.0.16
 func_tag lmdb https://github.com/LMDB/lmdb.git mdb.master LMDB_0.9.21
-func_tag mbedtls https://github.com/ARMmbed/mbedtls.git development mbedtls-2.7.0
+func_tag mbedtls https://github.com/ARMmbed/mbedtls.git development mbedtls-2.7.1
