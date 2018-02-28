@@ -236,14 +236,14 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 
             //復元データからさらに復元
             ln_misc_update_scriptkeys(&p->p_self->funding_local, &p->p_self->funding_remote);
-            ucoin_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
-                    self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub, self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
+            ucoin_util_create2of2(&p->p_self->redeem_fund, &p->p_self->key_fund_sort,
+                    p->p_self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub, p->p_self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
-            if (self->short_channel_id != 0) {
+            if (p->p_self->short_channel_id != 0) {
                 ucoin_buf_t buf;
 
                 ucoin_buf_init(&buf);
-                bool bret2 = ln_db_annocnl_load(&p->p_self->cnl_anno, self->short_channel_id);
+                bool bret2 = ln_db_annocnl_load(&p->p_self->cnl_anno, p->p_self->short_channel_id);
                 if (bret2) {
                     ucoin_buf_alloccopy(&p->p_self->cnl_anno, buf.buf, buf.len);
                 }
