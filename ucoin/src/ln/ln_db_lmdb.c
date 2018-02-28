@@ -2176,6 +2176,15 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
         p_scr += len;
     }
 
+    //HTLC type
+    key.mv_data = LNDBK_RVT;
+    retval = mdb_get(txn, dbi, &key, &data);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    memcpy(self->p_revoked_type, data.mv_data, data.mv_size);
+
     //remote per_commit_secret
     key.mv_data = LNDBK_RVS;
     retval = mdb_get(txn, dbi, &key, &data);
@@ -2250,6 +2259,15 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
         goto LABEL_EXIT;
     }
     ucoin_buf_free(&buf);
+
+    key.mv_data = LNDBK_RVT;
+    data.mv_size = sizeof(ln_htlctype_t) * self->revoked_num;
+    data.mv_data = self->p_revoked_type;
+    retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
 
     key.mv_data = LNDBK_RVS;
     data.mv_size = self->revoked_sec.len;

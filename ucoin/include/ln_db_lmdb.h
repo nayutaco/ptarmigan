@@ -40,10 +40,9 @@ extern "C" {
  ********************************************************************/
 
 //key名
-#define LNDBK_SELF1             "self1"         ///< [self]パラメータ
-#define M_DBK_SELF2             "self2"         ///< [self]スクリプト
 #define LNDBK_RVV               "rvv"           ///< [revoked]vout
 #define LNDBK_RVW               "rvw"           ///< [revoked]witness
+#define LNDBK_RVT               "rvt"           ///< [revoked]HTLC type
 #define LNDBK_RVS               "rvs"           ///< [revoked]script
 #define LNDBK_RVN               "rvn"           ///< [revoked]num
 #define LNDBK_RVC               "rvc"           ///< [revoked]count
