@@ -2476,6 +2476,21 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 {
     //固定サイズ
 
+#if 1
+    for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_KEYS); lp++) {
+        memcpy((uint8_t *)pOutSelf + DBSELF_KEYS[lp].offset, (uint8_t *)pInSelf + DBSELF_KEYS[lp].offset,  DBSELF_KEYS[lp].datalen);
+    }
+
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        pOutSelf->cnl_add_htlc[idx].p_channel_id = NULL;
+        pOutSelf->cnl_add_htlc[idx].p_onion_route = NULL;
+        ucoin_buf_init(&pOutSelf->cnl_add_htlc[idx].shared_secret);
+    }
+
+    //復元データ
+    ucoin_buf_alloccopy(&pOutSelf->redeem_fund, pInSelf->redeem_fund.buf, pInSelf->redeem_fund.len);
+    pOutSelf->key_fund_sort = pInSelf->key_fund_sort;
+#else
     //p_node: none
     memcpy(&pOutSelf->peer_node, &pInSelf->peer_node, sizeof(ln_node_info_t));
     pOutSelf->storage_index = pInSelf->storage_index;
@@ -2538,6 +2553,7 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 
     pOutSelf->funding_sat = pInSelf->funding_sat;
     pOutSelf->feerate_per_kw = pInSelf->feerate_per_kw;
+#endif
 
 
     //可変サイズ(shallow copy)
