@@ -9,7 +9,7 @@
 
 ## Set up nodes in separate computers
 
-* First, IP adresses are xx.xx.xx.xx and yy.yy.yy.yy respectively for `eclair` and `ptarmigan`.
+* First, IP adresses are `xx.xx.xx.xx` and `yy.yy.yy.yy` respectively for `eclair` and `ptarmigan`.
 
 ### Steps
 
