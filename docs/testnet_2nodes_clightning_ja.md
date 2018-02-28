@@ -27,9 +27,13 @@ testnet=1
 
 2. [btc]bitcoind起動
 
+```bash
+bitcoind -daemon
+```
+
 3. [btc] (同期待ち)  
 
-4. [ptarm node]ucoind起動
+4. [ptarmigan]起動
 
 ```bash
 cd install
