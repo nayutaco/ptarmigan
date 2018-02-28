@@ -103,7 +103,6 @@ typedef struct lnapp_conf_t {
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中
     ln_self_t       *p_self;                ///< channelのコンテキスト
-    ln_establish_t  *p_establish;           ///< Establish用のワーク領域
 
     bool            initial_routing_sync;   ///< init.localfeaturesのinitial_routing_sync
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)

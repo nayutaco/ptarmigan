@@ -1093,14 +1093,13 @@ const uint8_t* ln_get_genesishash(void);
 /** Channel Establish設定
  *
  * @param[in,out]       self            channel情報
- * @param[out]          pEstablish      ワーク領域
  * @param[in]           pNodeId         Establish先(NULL可)
  * @param[in]           pEstDef         Establishデフォルト値
  * @retval      true    成功
  * @note
  *      - pEstablishは接続完了まで保持すること
  */
-bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId, const ln_est_default_t *pEstDef);
+bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_est_default_t *pEstDef);
 
 
 /** funding鍵設定

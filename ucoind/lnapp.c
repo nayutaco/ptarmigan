@@ -957,7 +957,6 @@ LABEL_SHUTDOWN:
     //クリア
     APP_FREE(p_conf->p_opening);
     APP_FREE(p_conf->p_funding);
-    APP_FREE(p_conf->p_establish);
     APP_FREE(p_conf->p_errstr);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
@@ -1945,7 +1944,6 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     (void)p_param;
     DBGTRACE_BEGIN
 
-    APP_FREE(p_conf->p_establish);      //APP_MALLOC: set_establish_default()
     APP_FREE(p_conf->p_opening);        //APP_MALLOC: send_open_channel()
     APP_FREE(p_conf->p_funding);        //APP_MALLOC: set_lasterror()
 
@@ -2856,8 +2854,7 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
         defval.min_depth = M_MIN_DEPTH;
     }
 
-    p_conf->p_establish = (ln_establish_t *)APP_MALLOC(sizeof(ln_establish_t));     //APP_FREE: cb_established()
-    ret = ln_set_establish(p_conf->p_self, p_conf->p_establish, pNodeId, &defval);
+    ret = ln_set_establish(p_conf->p_self, pNodeId, &defval);
     assert(ret);
 }
 

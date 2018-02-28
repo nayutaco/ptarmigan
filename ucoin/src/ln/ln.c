@@ -318,14 +318,14 @@ const uint8_t* ln_get_genesishash(void)
 }
 
 
-bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId, const ln_est_default_t *pEstDef)
+bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_est_default_t *pEstDef)
 {
     DBG_PRINTF("BEGIN\n");
 
-    self->p_est = pEstablish;
+    self->p_est = (ln_establish_t *)M_MALLOC(sizeof(ln_establish_t));   //M_FREE:
 
     //デフォルト値
-    if (pEstablish && pEstDef) {
+    if (pEstDef != NULL) {
         self->p_est->p_fundin = NULL;       //open_channel送信側が設定する
         memcpy(&self->p_est->defval, pEstDef, sizeof(ln_est_default_t));
         DBG_PRINTF("dust_limit_sat= %" PRIu64 "\n", self->p_est->defval.dust_limit_sat);
@@ -4168,6 +4168,7 @@ static void proc_established(ln_self_t *self)
         (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
 
         //Normal Operation可能
+        M_FREE(self->p_est);        //M_MALLOC: ln_set_establish()
         self->p_est = NULL;
 
         DBG_PRINTF("Normal Operation可能\n");
