@@ -99,7 +99,7 @@ cd install/node
   * 1000000 (fund-in satoshi) is the amount of money that is sent to an adress before sending payment to the channel.
   * 800000 (channel satoshi) is the amount of sending payment to the channel.
   * 0 (push satoshi) is the amount out of channel satoshi to be sent to the other person.
-* pay_fundin.sh will create a file in `fund_yyyymmddhhmmss.conf` format.
+* `pay_fundin.sh` will create a file in `fund_yyyymmddhhmmss.conf` format.
 
 9. [ptarmigan] Starting Channel Establishment
 
@@ -116,7 +116,7 @@ cd install/node
 The channel is gererated after reaching two blocks.  
   
 When status is established in a result of -l, we can confirm that if the channel is generated.  
-Combining watch and jq is also available for observing it.
+Combining `watch` and `jq` is also available for observing it.
 
 ```bash
 watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
@@ -133,7 +133,7 @@ Now, we will move on how to send payment.
 ```
 
 * A unit is msatoshi.
-  * `100000000msat` = `1mBTC`
+  * `100000000 msat` = `1 mBTC`
   * You don't need to be concerned about "`abc`".
 
 2. [ptarmigan] Sending payment
@@ -159,7 +159,7 @@ Now, we will move on how to send payment.
 ```
 
 * A unit is msatoshi.
-  * `20000msat` = `20satoshi`
+  * `20000 msat` = `20 satoshi`
 
 2. [eclair] Sending payment
 

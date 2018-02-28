@@ -1,21 +1,23 @@
-# c-lightning testnet
+# lnd testnet
 
 ## version
 
-* [c-lightning](https://github.com/ElementsProject/lightning/tree/b536e97df29e2881eda0bda008a3c8b1e412d249) : commit b536e97df29e2881eda0bda008a3c8b1e412d249
+* [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
 * [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/e996237ae6d198e43bf04e8ee37a4d406971a10f) : commit e996237ae6d198e43bf04e8ee37a4d406971a10f
 
 ----
 
 ## Set up nodes in separate computers
 
-* First, IP adresses are xx.xx.xx.xx and yy.yy.yy.yy respectively for `c-lightning` and `ptarmigan`.
+* First, IP adresses are xx.xx.xx.xx and yy.yy.yy.yy respectively for lnd and ptarmigan.
 
 ### Steps
 
-#### Let's create a channel
+#### Let's create a channel.
 
- 1. [btc] Edit `~/.bitcoin/bitcoin.conf`
+ 1. Running bitcoin node
+ 
+ * [bitcoind] `~/.bitcoin/bitcoin.conf`
 
 ```text
 rpcuser=bitcoinuser
@@ -25,13 +27,49 @@ txindex=1
 testnet=1
 ```
 
-2. [btc] Running `bitcoind`
+* [btcd] `~/.btcd/btcd.conf`
+
+```text
+testnet=1
+txindex=1
+rpcuser=nayuta
+rpcpass=nayuta
+```
+
+* [btcd] `~/.btcctl/btcctl.conf`
+
+```text
+rpcuser=nayuta
+rpcpass=nayuta
+```
+
+* [lnd] `~/.lnd/lnd.conf`
+
+```text
+[Application Options]
+debughtlc=true
+maxpendingchannels=10
+no-macaroons=true
+debuglevel=trace
+nobootstrap=1
+
+[Bitcoin]
+bitcoin.active=1
+bitcoin.testnet=1
+bitcoin.node=btcd
+```
+
+2. Running `bitcoind`/`btcd`
 
 ```bash
 bitcoind -daemon
 ```
 
-3. [btc] Waiting for synchronization
+```bash
+btcd&
+```
+
+3. Waiting for synchronization
 
 4. [ptarmigan] Running `ucoind`
 
@@ -42,31 +80,38 @@ cd node
 ../ucoind
 ```
 
-5. [c-lightning] Running `c-lightning`
+5. [lnd] Running `lnd`
 
 * Remove old DB
 
 ```bash
-rm -rf ~/.lightning
+rm -rf ~/.lnd/data
 ```
 
-* Running `c-lightning`
+* Running `lnd`
 
 ```bash
-./lightningd/lightningd --network=testnet
+lnd
 ```
 
-6. [c-lightning] Getting node_id
+* Creating a wallet
+  * All you have to do is using `lncli --no-macaroons unlock` next time.
 
 ```bash
-./cli/lightning-cli getinfo
+lncli --no-macaroons create
+```
+
+6. [lnd] Getting node_id
+
+```bash
+lncli --no-macaroons getinfo
 ```
 
 7. [ptarmigan] Creating a CONF file to connect
 
 ```bash
 cd install/node
-../create_knownpeer.sh [c-lightning node_id] xx.xx.xx.xx > peer_cln.conf
+../create_knownpeer.sh [lnd node_id] xx.xx.xx.xx > peer_lnd.conf
 ```
 
 8. [ptarmigan] Creating fund-in transaction
@@ -84,13 +129,13 @@ cd install/node
 9. [ptarmigan] Starting Channel Establishment
 
 ```bash
-../ucoincli -c peer_cln.conf
-../ucoincli -c peer_cln.conf -f fund_yyyymmddhhmmss.conf
+../ucoincli -c peer_lnd.conf
+../ucoincli -c peer_lnd.conf -f fund_yyyymmddhhmmss.conf
 ```
 
 10. [btc] Waiting for generating a block
 
-The channel is gererated after reaching one block.  
+The channel is gererated after reaching three blocks.  
   
 When status is established in a result of `ucoincli -l`, we can confirm that if the channel is generated.  
 Combining `watch` and `jq` is also available for observing it.
@@ -99,22 +144,18 @@ Combining `watch` and `jq` is also available for observing it.
 watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 ```
 
-Now, we will move on how to send payment.
+Now we will move on how to send payment.
 
-#### `ptarmigan` --> `c-lightning`
+#### `ptarmigan` --> `lnd`
 
-1. [c-lightning] Generating an invoice
+1. [lnd] Generating an invoice
 
 ```bash
-./cli/lightning-cli invoice 100000000 abc def
+lncli --no-macaroons addinvoice --amt 100000
 ```
 
 * A unit is msatoshi.
-  * `100000000 msat` = `1 mBTC`
-  * You don't need to be concerned about "abc" or "def".
-* We can get its result in JSON format.
-  * Invoice to use this time is `"bolt11"`.
-
+  * `100000 satoshi` = `1 mBTC`
 
 2. [ptarmigan] Sending payment
 
@@ -128,9 +169,9 @@ Now, we will move on how to send payment.
 ../showdb w | jq
 ```
 
-* If successful, `our_msat` will be 700000000 and `their_msat` will be 100000000.
+* If successful, our_msat will be 700000000 and their_masat will be 10000000.
 
-#### `c-lightning` --> `ptarmigan`
+#### `lnd` --> `ptarmigan`
 
 1. [ptarmigan] Cenerating an invoice
 
@@ -141,16 +182,16 @@ Now, we will move on how to send payment.
 * A unit is msatoshi.
   * `20000 msat` = `20 satoshi`
 
-2. [c-lightning] Sending payment
+2. [lnd] Sending payment
 
 ```bash
-./cli/lightning-cli pay <BOLT11 invoice>
+lncli --no-macaroons payinvoice <BOLT11 invoice>
 ```
 
-3. [c-lightning] Confirming the amount after running it
+3. [lnd] Confirming the amount after running it
 
 ```bash
-./cli/lightning-cli listpeers | jq
+lncli --no-macaroons listchannels
 ```
 
-* If successful, `msatoshi_to_us` will be 99980000.
+* If successful, msatoshi_to_us will be 99980000.
