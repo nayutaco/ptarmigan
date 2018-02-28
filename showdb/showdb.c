@@ -109,7 +109,11 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         memset(&self, 0, sizeof(self));
 
         int retval = ln_lmdb_self_load(&self, txn, dbi);
+        if (retval == 0) {
+            retval = ln_lmdb_self_ss_load(&self, txn);
+        }
         if (retval != 0) {
+            printf(M_QQ("load") ":" M_QQ("fail"));
             return;
         }
 
