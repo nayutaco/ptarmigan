@@ -38,9 +38,13 @@ eclair.api.password=xxxxx
 
 2. bitcoind起動
 
+```bash
+bitcoind -daemon
+```
+
 3. 同期待ち
 
-4. [ptarm]ucoind起動
+4. [ptarmigan]起動
 
 ```bash
 cd install
