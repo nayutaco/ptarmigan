@@ -73,7 +73,7 @@
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
 
-#define M_DB_VERSION_VAL        (-16)           ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-16)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -3056,7 +3056,7 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
 {
     int         retval;
     MDB_val     key, data;
-    int         version = M_DB_VERSION_VAL;
+    int32_t     version = M_DB_VERSION_VAL;
 
     retval = mdb_dbi_open(pDb->txn, M_DBI_VERSION, MDB_CREATE, &pDb->dbi);
     if (retval != 0) {
@@ -3067,7 +3067,7 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
     //version
     key.mv_size = LNDBK_LEN(LNDBK_VER);
     key.mv_data = LNDBK_VER;
-    data.mv_size = sizeof(int32_t);
+    data.mv_size = sizeof(version);
     data.mv_data = &version;
     retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
 
@@ -3114,7 +3114,7 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
     key.mv_data = LNDBK_VER;
     retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
     if (retval == 0) {
-        int version = *(int *)data.mv_data;
+        int32_t version = *(int32_t *)data.mv_data;
         if (version != M_DB_VERSION_VAL) {
             DBG_PRINTF("FAIL: version mismatch : %d(require %d)\n", version, M_DB_VERSION_VAL);
             retval = -1;
