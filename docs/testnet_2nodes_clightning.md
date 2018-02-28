@@ -7,7 +7,7 @@
 
 ----
 
-## When we set up nodes in multiple computers
+## Set up nodes in separate computers
 
 * First, IP adresses are xx.xx.xx.xx and yy.yy.yy.yy respectively for `c-lightning` and `ptarmigan`.
 
@@ -15,7 +15,7 @@
 
 #### Let's create a channel
 
- 1. [btc] Edit ~/.bitcoin/bitcoin.conf
+ 1. [btc] Edit `~/.bitcoin/bitcoin.conf`
 
 ```text
 rpcuser=bitcoinuser
@@ -42,7 +42,7 @@ cd node
 ../ucoind
 ```
 
-5. [c-lightning] Running c-lightning
+5. [c-lightning] Running `c-lightning`
 
 * Remove old DB
 
@@ -56,7 +56,7 @@ rm -rf ~/.lightning
 ./lightningd/lightningd --network=testnet
 ```
 
-6. [c-lightning] Getting nodes_id
+6. [c-lightning] Getting node_id
 
 ```bash
 ./cli/lightning-cli getinfo
@@ -101,7 +101,7 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 
 Now, we will move on how to send payment.
 
-#### ptarmigan --> c-lightning
+#### `ptarmigan` --> `c-lightning`
 
 1. [c-lightning] Generating an invoice
 
@@ -128,9 +128,9 @@ Now, we will move on how to send payment.
 ../showdb w | jq
 ```
 
-* if successful, `our_msat` will be 700000000 and `their_msat` will be 100000000.
+* If successful, `our_msat` will be 700000000 and `their_msat` will be 100000000.
 
-#### c-lightning --> ptarmigan
+#### `c-lightning` --> `ptarmigan`
 
 1. [ptarmigan] Cenerating an invoice
 
