@@ -234,11 +234,6 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
             //DBから復元
             ln_db_copy_channel(p->p_self, self);
 
-            //復元データからさらに復元
-            ln_misc_update_scriptkeys(&p->p_self->funding_local, &p->p_self->funding_remote);
-            ucoin_util_create2of2(&p->p_self->redeem_fund, &p->p_self->key_fund_sort,
-                    p->p_self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub, p->p_self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
-
             if (p->p_self->short_channel_id != 0) {
                 ucoin_buf_t buf;
 

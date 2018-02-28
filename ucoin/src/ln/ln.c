@@ -113,9 +113,9 @@
 
 
 #ifndef M_DBG_VERBOSE
-#define M_DBG_PRINT_TX(tx)      //NONE
-//#define M_DBG_PRINT_TX2(tx)     //NONE
-#define M_DBG_PRINT_TX2(tx)     ucoin_print_tx(tx)
+//#define M_DBG_PRINT_TX(tx)      //NONE
+#define M_DBG_PRINT_TX(tx)      ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX2(tx)     //NONE
 #else
 #define M_DBG_PRINT_TX(tx)      ucoin_print_tx(tx)
 #define M_DBG_PRINT_TX2(tx)     ucoin_print_tx(tx)
@@ -301,6 +301,7 @@ void ln_term(ln_self_t *self)
         self->cnl_add_htlc[idx].p_onion_route = NULL;
         ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
     }
+    DBG_PRINTF("END\n");
 }
 
 
@@ -3116,7 +3117,10 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     //DB保存
     ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
-    if (!ret) {
+    if (ret) {
+        //cnl_annoは使用しないはず
+        ucoin_buf_free(&self->cnl_anno);
+    } else {
         DBG_PRINTF("fail: ln_db_annocnl_save\n");
         //goto LABEL_EXIT;
     }

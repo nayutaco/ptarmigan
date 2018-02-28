@@ -34,6 +34,7 @@
 
 #include "ln/ln_local.h"
 #include "ln/ln_msg_anno.h"
+#include "ln/ln_misc.h"
 
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
@@ -603,6 +604,12 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
         ucoin_buf_init(&self->cnl_add_htlc[idx].shared_secret);
     }
 
+    //復元データからさらに復元
+    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ucoin_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
+            self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub,
+            self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
+
     //可変サイズ
     ucoin_buf_t buf_funding;
     ucoin_buf_init(&buf_funding);
@@ -866,7 +873,12 @@ int ln_lmdb_self_ss_load(ln_self_t *self, MDB_txn *txn)
         retval = self_ss_load(self, &db_ss);
     }
     if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        if (retval == MDB_NOTFOUND) {
+            //存在しないことは問題ではない
+            retval = 0;
+        } else {
+            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        }
     }
 
     return retval;
