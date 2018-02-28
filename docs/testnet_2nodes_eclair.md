@@ -9,7 +9,7 @@
 
 ## Set up nodes in separate computers
 
-* First, IP adresses are xx.xx.xx.xx and yy.yy.yy.yy respectively for eclair and ptarmigan.
+* First, IP adresses are xx.xx.xx.xx and yy.yy.yy.yy respectively for `eclair` and `ptarmigan`.
 
 ### Steps
 
@@ -68,7 +68,7 @@ java -jar eclair-node-0.2-alpha10-0beca13.jar
 ```
 
 * Downloading a client app
-  * Edit eclair-cli downloaded. Fill the same words as `eclair.api.password` on `eclair.conf` in `PASSWORD` in the 8th line of text editor.
+  * Edit `eclair-cli` downloaded. Fill the same words as `eclair.api.password` on `eclair.conf` in `PASSWORD` in the 8th line of text editor.
   * If not, you will be asked it every time.
 
 ```bash
