@@ -79,7 +79,7 @@ cd install/node
   * 1000000 (fund-in satoshi) is the amount of money that is sent to an adress before sending payment to the channel.
   * 800000 (channel satoshi) is the amount of sending payment to the channel.
   * 0 (push satoshi) is the amount out of channel satoshi to be sent to the other person.
-* `pay_fundin.sh` create file named as `fund_yyyymmddhhmmss.conf`.
+* pay_fundin.sh will create a file in `fund_yyyymmddhhmmss.conf` format.
 
 9. [ptarmigan] Starting Channel Establishment
 

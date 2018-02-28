@@ -14,7 +14,7 @@
 ### 2nodes payment
 
 * c-lightning: [English](testnet_2nodes_clightning.md), [Japanese](testnet_2nodes_clightning_ja.md)
-* eclair: [Japanese](testnet_2nodes_eclair_ja.md)
+* eclair: [English](testnet_2nodes_eclair.md), [Japanese](testnet_2nodes_eclair_ja.md)
 * lnd: [Japanese](testnet_2nodes_lnd_ja.md)
 
 ## others
