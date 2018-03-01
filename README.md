@@ -9,7 +9,7 @@
 
 ## setup
 
-* bitcoind v0.15
+* bitcoind v0.15 (yet [v0.16](https://github.com/nayutaco/ptarmigan/tree/bitcoind0_16_first))
   * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
 * Ubuntu 16.04
 

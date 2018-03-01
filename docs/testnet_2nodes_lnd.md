@@ -2,6 +2,7 @@
 
 ## version
 
+* bitcoind v0.15.x(not v0.16.x)
 * [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
 * [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/e996237ae6d198e43bf04e8ee37a4d406971a10f) : commit e996237ae6d198e43bf04e8ee37a4d406971a10f
 
