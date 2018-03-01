@@ -2,6 +2,7 @@
 
 ## version
 
+* bitcoind v0.15.x(not v0.16.x)
 * [eclair](https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar) : Eclair v0.2-alpha10
 * [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/e996237ae6d198e43bf04e8ee37a4d406971a10f) : commit e996237ae6d198e43bf04e8ee37a4d406971a10f
 

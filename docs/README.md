@@ -17,6 +17,10 @@
 * eclair: [English](testnet_2nodes_eclair.md), [Japanese](testnet_2nodes_eclair_ja.md)
 * lnd: [English](testnet_2nodes_lnd.md), [Japanese](testnet_2nodes_lnd_ja.md)
 
+### 4nodes payment
+
+* [Japanese](testnet_4nodes_ja.md)
+
 ## others
 
 * [BOLT compliance(Japanese)](bolt_compliant_ja.md)
