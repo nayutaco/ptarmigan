@@ -954,8 +954,6 @@ LABEL_SHUTDOWN:
     SYSLOG_WARN("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(&my_self));
 
     //クリア
-    free(p_conf->fundin.p_change_addr);
-    free(p_conf->fundin.p_change_pubkey);
     APP_FREE(p_conf->p_errstr);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
@@ -1136,21 +1134,22 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         DBG_PRINTF2("feerate_per_kw=%" PRIu64 "\n", feerate);
 
-        memcpy(p_conf->fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
-        p_conf->fundin.index = pFunding->txindex;
-        p_conf->fundin.amount = fundin_sat;
-        p_conf->fundin.p_change_pubkey = NULL;
-        p_conf->fundin.p_change_addr = strdup(changeaddr);
+        ln_fundin_t fundin;
+        memcpy(fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
+        fundin.index = pFunding->txindex;
+        fundin.amount = fundin_sat;
+        fundin.p_change_pubkey = NULL;
+        fundin.p_change_addr = strdup(changeaddr);
         ucoin_chain_t chain;
-        ucoin_util_wif2keys(&p_conf->fundin.keys, &chain, wif);
+        ucoin_util_wif2keys(&fundin.keys, &chain, wif);
         assert(ucoin_get_chain() == chain);
-        p_conf->fundin.b_native = false;        //nested in BIP16
+        fundin.b_native = false;        //nested in BIP16
 
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
-                        &p_conf->fundin,
+                        &fundin,
                         pFunding->funding_sat,
                         pFunding->push_sat,
                         (uint32_t)feerate);
@@ -1934,11 +1933,6 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
     DBGTRACE_BEGIN
-
-    free(p_conf->fundin.p_change_addr);
-    free(p_conf->fundin.p_change_pubkey);
-    p_conf->fundin.p_change_addr = NULL;
-    p_conf->fundin.p_change_pubkey = NULL;
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 

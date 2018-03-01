@@ -400,7 +400,7 @@ typedef struct {
     ln_funding_created_t        cnl_funding_created;            ///< 送信 or 受信したfunding_created
     ln_funding_signed_t         cnl_funding_signed;             ///< 送信 or 受信したfunding_signed
 
-    const ln_fundin_t           *p_fundin;                      ///< 非NULL:open_channel側
+    ln_fundin_t                 *p_fundin;                      ///< 非NULL:open_channel側
     ln_est_default_t            defval;                         ///< デフォルト値
 } ln_establish_t;
 

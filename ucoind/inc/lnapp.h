@@ -97,7 +97,6 @@ typedef struct lnapp_conf_t {
     bool            initiator;                  ///< true:Noise Protocolのinitiator
     uint8_t         node_id[UCOIN_SZ_PUBKEY];   ///< 接続先(initiator==true時)
     daemoncmd_t     cmd;                        ///< ucoincliからの処理要求
-    ln_fundin_t     fundin;
 
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中

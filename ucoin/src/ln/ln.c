@@ -323,7 +323,7 @@ bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_est_defa
 {
     DBG_PRINTF("BEGIN\n");
 
-    self->p_est = (ln_establish_t *)M_MALLOC(sizeof(ln_establish_t));   //M_FREE:
+    self->p_est = (ln_establish_t *)M_MALLOC(sizeof(ln_establish_t));   //M_FREE:proc_established()
 
     //デフォルト値
     if (pEstDef != NULL) {
@@ -661,7 +661,8 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
 
     //funding_tx作成用に保持
-    self->p_est->p_fundin = pFundin;
+    self->p_est->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));
+    memcpy(self->p_est->p_fundin, pFundin, sizeof(ln_fundin_t));
 
     //open_channel
     ln_open_channel_t *open_ch = &self->p_est->cnl_open;
@@ -4169,8 +4170,14 @@ static void proc_established(ln_self_t *self)
         (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
 
         //Normal Operation可能
-        M_FREE(self->p_est);        //M_MALLOC: ln_set_establish()
-        self->p_est = NULL;
+        if (self->p_est != NULL) {
+            if (self->p_est->p_fundin != NULL) {
+                M_FREE(self->p_est->p_fundin->p_change_pubkey);     //APP
+                M_FREE(self->p_est->p_fundin->p_change_addr);       //APP
+                M_FREE(self->p_est->p_fundin);  //M_MALLOC: ln_create_open_channel()
+            }
+            M_FREE(self->p_est);        //M_MALLOC: ln_set_establish()
+        }
 
         DBG_PRINTF("Normal Operation可能\n");
         self->flck_flag |= M_FLCK_FLAG_END;
