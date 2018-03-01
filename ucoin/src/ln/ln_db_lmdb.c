@@ -605,7 +605,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     }
 
     //復元データからさらに復元
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    //ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ucoin_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
             self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub,
             self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
