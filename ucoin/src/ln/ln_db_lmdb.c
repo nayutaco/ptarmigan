@@ -216,7 +216,7 @@ static const backup_param_t DBSELF_KEYS[] = {
     //p_establish: none
     M_ITEM(ln_self_t, min_depth),
     M_ITEM(ln_self_t, anno_flag),
-    //anno_default: none
+    //anno_prm: none
     //cnl_anno --> none
     //init_flag: none
     M_ITEM(ln_self_t, lfeature_remote),
@@ -2508,7 +2508,7 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     //p_establish: none
     pOutSelf->min_depth = pInSelf->min_depth;
     pOutSelf->anno_flag = pInSelf->anno_flag;
-    //anno_default: none
+    //anno_prm: none
     //cnl_anno --> none
     //init_flag: none
     pOutSelf->lfeature_remote = pInSelf->lfeature_remote;

@@ -717,8 +717,8 @@ typedef struct {
 } ln_announce_signs_t;
 
 
-/** @struct     ln_anno_default_t
- *  @brief      announce関連のデフォルト値
+/** @struct     ln_anno_prm_t
+ *  @brief      announce関連のパラメータ
  */
 typedef struct {
     //channel_update
@@ -726,7 +726,7 @@ typedef struct {
     uint64_t    htlc_minimum_msat;                  ///< 8 : htlc_minimum_msat
     uint32_t    fee_base_msat;                      ///< 4 : fee_base_msat
     uint32_t    fee_prop_millionths;                ///< 4 : fee_proportional_millionths
-} ln_anno_default_t;
+} ln_anno_prm_t;
 
 /// @}
 
@@ -980,7 +980,7 @@ struct ln_self_t {
 
     //announce
     uint8_t                     anno_flag;                      ///< announcement_signaturesなど
-    ln_anno_default_t           anno_default;
+    ln_anno_prm_t               anno_prm;                       ///< announcementパラメータ
     ucoin_buf_t                 cnl_anno;                       ///< 自channel_announcement
 
     //msg:init
@@ -1058,11 +1058,11 @@ struct ln_self_t {
  * @param[in,out]       self            channel情報
  * @param[in]           node            関連付けるnode
  * @param[in]           pSeed           per-commit-secret生成用
- * @param[in]           pAnnoDef        announcement値(NULLの場合、デフォルト値を使用する)
+ * @param[in]           pAnnoPrm        announcementパラメータ
  * @param[in]           pFunc           通知用コールバック関数
  * @retval      true    成功
  */
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_default_t *pAnnoDef, ln_callback_t pFunc);
+bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
 
 
 /** 終了
@@ -1892,7 +1892,7 @@ static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
  * @return      cltv_expiry_delta
  */
 static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
-    return self->anno_default.cltv_expiry_delta;
+    return self->anno_prm.cltv_expiry_delta;
 }
 
 
@@ -1903,7 +1903,7 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
  * @return      転送FEE(msat)
  */
 static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
-    return (uint64_t)self->anno_default.fee_base_msat + (amount * (uint64_t)self->anno_default.fee_prop_millionths / (uint64_t)1000000);
+    return (uint64_t)self->anno_prm.fee_base_msat + (amount * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
 }
 
 

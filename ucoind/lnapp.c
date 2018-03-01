@@ -165,7 +165,7 @@ typedef enum {
 static volatile bool        mLoop;          //true:チャネル有効
 
 static ln_node_t            *mpNode;
-static ln_anno_default_t    mAnnoDef;       ///< announcementデフォルト値
+static ln_anno_prm_t        mAnnoPrm;       ///< announcementパラメータ
 
 //シーケンスのmutex
 static pthread_mutexattr_t  mMuxAttr;
@@ -568,17 +568,17 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     anno_conf_t aconf;
     ret = load_anno_conf("anno.conf", &aconf);
     if (ret) {
-        mAnnoDef.cltv_expiry_delta = aconf.cltv_expiry_delta;
-        mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
-        mAnnoDef.fee_base_msat = aconf.fee_base_msat;
-        mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
+        mAnnoPrm.cltv_expiry_delta = aconf.cltv_expiry_delta;
+        mAnnoPrm.htlc_minimum_msat = aconf.htlc_minimum_msat;
+        mAnnoPrm.fee_base_msat = aconf.fee_base_msat;
+        mAnnoPrm.fee_prop_millionths = aconf.fee_prop_millionths;
     } else {
-        mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
-        mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
-        mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
-        mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
+        mAnnoPrm.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
+        mAnnoPrm.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
+        mAnnoPrm.fee_base_msat = M_FEE_BASE_MSAT;
+        mAnnoPrm.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
     }
-    ln_init(&my_self, mpNode, NULL, &mAnnoDef, NULL);
+    ln_init(&my_self, mpNode, NULL, &mAnnoPrm, NULL);
 
     ret = ln_node_search_channel(&my_self, pNodeId);
     if (!ret) {
@@ -774,19 +774,18 @@ static void *thread_main_start(void *pArg)
 
     my_self.p_param = p_conf;
 
-    //announcementデフォルト値
     anno_conf_t aconf;
     ret = load_anno_conf("anno.conf", &aconf);
     if (ret) {
-        mAnnoDef.cltv_expiry_delta = aconf.cltv_expiry_delta;
-        mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
-        mAnnoDef.fee_base_msat = aconf.fee_base_msat;
-        mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
+        mAnnoPrm.cltv_expiry_delta = aconf.cltv_expiry_delta;
+        mAnnoPrm.htlc_minimum_msat = aconf.htlc_minimum_msat;
+        mAnnoPrm.fee_base_msat = aconf.fee_base_msat;
+        mAnnoPrm.fee_prop_millionths = aconf.fee_prop_millionths;
     } else {
-        mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
-        mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
-        mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
-        mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
+        mAnnoPrm.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
+        mAnnoPrm.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
+        mAnnoPrm.fee_base_msat = M_FEE_BASE_MSAT;
+        mAnnoPrm.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
     }
 
     //スレッド
@@ -797,7 +796,7 @@ static void *thread_main_start(void *pArg)
     uint8_t seed[LN_SZ_SEED];
     DBG_PRINTF("ln_self_t initialize");
     ucoin_util_random(seed, LN_SZ_SEED);
-    ln_init(&my_self, mpNode, seed, &mAnnoDef, notify_cb);
+    ln_init(&my_self, mpNode, seed, &mAnnoPrm, notify_cb);
 
     p_conf->p_self = &my_self;
     p_conf->ping_counter = 0;

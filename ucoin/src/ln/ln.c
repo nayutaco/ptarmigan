@@ -232,7 +232,7 @@ static unsigned long mDebug;
  * public functions
  **************************************************************************/
 
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_default_t *pAnnoDef, ln_callback_t pFunc)
+bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc)
 {
     DBG_PRINTF("BEGIN : pSeed=%p\n", pSeed);
 
@@ -272,12 +272,11 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     self->p_node = node;
     self->p_callback = pFunc;
 
-    //初期値
-    memcpy(&self->anno_default, pAnnoDef, sizeof(ln_anno_default_t));
-    DBG_PRINTF("cltv_expiry_delta=%" PRIu16 "\n", self->anno_default.cltv_expiry_delta);
-    DBG_PRINTF("htlc_minimum_msat=%" PRIu64 "\n", self->anno_default.htlc_minimum_msat);
-    DBG_PRINTF("fee_base_msat=%" PRIu32 "\n", self->anno_default.fee_base_msat);
-    DBG_PRINTF("fee_prop_millionths=%" PRIu32 "\n", self->anno_default.fee_prop_millionths);
+    memcpy(&self->anno_prm, pAnnoPrm, sizeof(ln_anno_prm_t));
+    DBG_PRINTF("cltv_expiry_delta=%" PRIu16 "\n", self->anno_prm.cltv_expiry_delta);
+    DBG_PRINTF("htlc_minimum_msat=%" PRIu64 "\n", self->anno_prm.htlc_minimum_msat);
+    DBG_PRINTF("fee_base_msat=%" PRIu32 "\n", self->anno_prm.fee_base_msat);
+    DBG_PRINTF("fee_prop_millionths=%" PRIu32 "\n", self->anno_prm.fee_prop_millionths);
 
     //seed
     self->storage_index = M_SECINDEX_INIT;
@@ -793,10 +792,10 @@ bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_
     pUpd->short_channel_id = self->short_channel_id;
     pUpd->timestamp = TimeStamp;
     //announce
-    pUpd->cltv_expiry_delta = self->anno_default.cltv_expiry_delta;
-    pUpd->htlc_minimum_msat = self->anno_default.htlc_minimum_msat;
-    pUpd->fee_base_msat = self->anno_default.fee_base_msat;
-    pUpd->fee_prop_millionths = self->anno_default.fee_prop_millionths;
+    pUpd->cltv_expiry_delta = self->anno_prm.cltv_expiry_delta;
+    pUpd->htlc_minimum_msat = self->anno_prm.htlc_minimum_msat;
+    pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
+    pUpd->fee_prop_millionths = self->anno_prm.fee_prop_millionths;
     //署名
     pUpd->p_key = self->p_node->keys.priv;
     pUpd->flags = self->peer_node.sort;
@@ -822,10 +821,10 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
     if (ret) {
         ln_msg_cnl_update_print(&upd);
 
-        if ( (upd.cltv_expiry_delta != self->anno_default.cltv_expiry_delta) ||
-             (upd.htlc_minimum_msat != self->anno_default.htlc_minimum_msat) ||
-             (upd.fee_base_msat != self->anno_default.fee_base_msat) ||
-             (upd.fee_prop_millionths != self->anno_default.fee_prop_millionths) ) {
+        if ( (upd.cltv_expiry_delta != self->anno_prm.cltv_expiry_delta) ||
+             (upd.htlc_minimum_msat != self->anno_prm.htlc_minimum_msat) ||
+             (upd.fee_base_msat != self->anno_prm.fee_base_msat) ||
+             (upd.fee_prop_millionths != self->anno_prm.fee_prop_millionths) ) {
             DBG_PRINTF("update channel_update\n");
 
             uint32_t now = (uint32_t)time(NULL);
