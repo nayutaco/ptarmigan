@@ -2476,7 +2476,6 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 {
     //固定サイズ
 
-#if 1
     for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_KEYS); lp++) {
         memcpy((uint8_t *)pOutSelf + DBSELF_KEYS[lp].offset, (uint8_t *)pInSelf + DBSELF_KEYS[lp].offset,  DBSELF_KEYS[lp].datalen);
     }
@@ -2490,70 +2489,6 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     //復元データ
     ucoin_buf_alloccopy(&pOutSelf->redeem_fund, pInSelf->redeem_fund.buf, pInSelf->redeem_fund.len);
     pOutSelf->key_fund_sort = pInSelf->key_fund_sort;
-#else
-    //p_node: none
-    memcpy(&pOutSelf->peer_node, &pInSelf->peer_node, sizeof(ln_node_info_t));
-    pOutSelf->storage_index = pInSelf->storage_index;
-    memcpy(pOutSelf->storage_seed, pInSelf->storage_seed, UCOIN_SZ_PRIVKEY);
-    pOutSelf->peer_storage = pInSelf->peer_storage;
-    pOutSelf->peer_storage_index = pInSelf->peer_storage_index;
-    pOutSelf->fund_flag = pInSelf->fund_flag;
-    pOutSelf->funding_local = pInSelf->funding_local;
-    pOutSelf->funding_remote = pInSelf->funding_remote;
-    pOutSelf->obscured = pInSelf->obscured;
-    //redeem_fund --> none
-    //key_fund_sort --> none
-    //tx_funding --> script
-    //flck_flag: none
-    //p_establish: none
-    pOutSelf->min_depth = pInSelf->min_depth;
-    pOutSelf->anno_flag = pInSelf->anno_flag;
-    //anno_prm: none
-    //cnl_anno --> none
-    //init_flag: none
-    pOutSelf->lfeature_remote = pInSelf->lfeature_remote;
-    //tx_closing: none
-    //shutdown_flag: none
-    //close_fee_sat: none
-    //close_last_fee_sat: none
-    //shutdown_scriptpk_local --> script
-    //shutdown_scriptpk_remote --> script
-    //cnl_closing_singed: none
-
-    //p_revoked_vout --> revoked db
-    //p_revoked_wit  --> revoked db
-    //p_revoked_type: --> revoked db
-    //revoked_sec: --> revoked db
-    //revoked_num: --> revoked db
-    //revoked_cnt: --> revoked db
-    //revoked_chk --> revoked db
-
-    pOutSelf->htlc_num = pInSelf->htlc_num;
-    pOutSelf->commit_num = pInSelf->commit_num;
-    pOutSelf->revoke_num = pInSelf->revoke_num;
-    pOutSelf->remote_commit_num = pInSelf->remote_commit_num;
-    pOutSelf->remote_revoke_num = pInSelf->remote_revoke_num;
-    pOutSelf->htlc_id_num = pInSelf->htlc_id_num;
-    pOutSelf->our_msat = pInSelf->our_msat;
-    pOutSelf->their_msat = pInSelf->their_msat;
-    memcpy(pOutSelf->channel_id, pInSelf->channel_id, LN_SZ_CHANNEL_ID);
-    pOutSelf->short_channel_id = pInSelf->short_channel_id;
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        pOutSelf->cnl_add_htlc[idx] = pInSelf->cnl_add_htlc[idx];
-        pOutSelf->cnl_add_htlc[idx].p_channel_id = NULL;
-        pOutSelf->cnl_add_htlc[idx].p_onion_route = NULL;
-        ucoin_buf_init(&pOutSelf->cnl_add_htlc[idx].shared_secret);
-    }
-
-    //missing_pong_cnt: none
-    //last_num_pong_bytes: none
-
-    pOutSelf->commit_local = pInSelf->commit_local;
-    pOutSelf->commit_remote = pInSelf->commit_remote;
-
-    pOutSelf->funding_sat = pInSelf->funding_sat;
-    pOutSelf->feerate_per_kw = pInSelf->feerate_per_kw;
-#endif
 
 
     //可変サイズ(shallow copy)
