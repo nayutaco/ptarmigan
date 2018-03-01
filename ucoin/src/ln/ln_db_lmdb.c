@@ -213,7 +213,7 @@ static const backup_param_t DBSELF_KEYS[] = {
     //key_fund_sort --> none
     //tx_funding --> script
     //flck_flag: none
-    //p_est: none
+    //p_establish: none
     M_ITEM(ln_self_t, min_depth),
     M_ITEM(ln_self_t, anno_flag),
     //anno_default: none
@@ -2505,7 +2505,7 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     //key_fund_sort --> none
     //tx_funding --> script
     //flck_flag: none
-    //p_est: none
+    //p_establish: none
     pOutSelf->min_depth = pInSelf->min_depth;
     pOutSelf->anno_flag = pInSelf->anno_flag;
     //anno_default: none

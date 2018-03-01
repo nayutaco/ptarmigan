@@ -320,28 +320,27 @@ const uint8_t* ln_get_genesishash(void)
 }
 
 
-bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_est_default_t *pEstDef)
+bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm)
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (self->p_est != 0) {
+    if (self->p_establish != 0) {
         DBG_PRINTF("already set\n");
         return true;
     }
 
-    self->p_est = (ln_establish_t *)M_MALLOC(sizeof(ln_establish_t));   //M_FREE:proc_established()
+    self->p_establish = (ln_establish_t *)M_MALLOC(sizeof(ln_establish_t));   //M_FREE:proc_established()
 
-    //デフォルト値
-    if (pEstDef != NULL) {
-        self->p_est->p_fundin = NULL;       //open_channel送信側が設定する
-        memcpy(&self->p_est->defval, pEstDef, sizeof(ln_est_default_t));
-        DBG_PRINTF("dust_limit_sat= %" PRIu64 "\n", self->p_est->defval.dust_limit_sat);
-        DBG_PRINTF("max_htlc_value_in_flight_msat= %" PRIu64 "\n", self->p_est->defval.max_htlc_value_in_flight_msat);
-        DBG_PRINTF("channel_reserve_sat= %" PRIu64 "\n", self->p_est->defval.channel_reserve_sat);
-        DBG_PRINTF("htlc_minimum_msat= %" PRIu64 "\n", self->p_est->defval.htlc_minimum_msat);
-        DBG_PRINTF("to_self_delay= %" PRIu16 "\n", self->p_est->defval.to_self_delay);
-        DBG_PRINTF("max_accepted_htlcs= %" PRIu16 "\n", self->p_est->defval.max_accepted_htlcs);
-        DBG_PRINTF("min_depth= %" PRIu16 "\n", self->p_est->defval.min_depth);
+    if (pEstPrm != NULL) {
+        self->p_establish->p_fundin = NULL;       //open_channel送信側が設定する
+        memcpy(&self->p_establish->estprm, pEstPrm, sizeof(ln_establish_prm_t));
+        DBG_PRINTF("dust_limit_sat= %" PRIu64 "\n", self->p_establish->estprm.dust_limit_sat);
+        DBG_PRINTF("max_htlc_value_in_flight_msat= %" PRIu64 "\n", self->p_establish->estprm.max_htlc_value_in_flight_msat);
+        DBG_PRINTF("channel_reserve_sat= %" PRIu64 "\n", self->p_establish->estprm.channel_reserve_sat);
+        DBG_PRINTF("htlc_minimum_msat= %" PRIu64 "\n", self->p_establish->estprm.htlc_minimum_msat);
+        DBG_PRINTF("to_self_delay= %" PRIu16 "\n", self->p_establish->estprm.to_self_delay);
+        DBG_PRINTF("max_accepted_htlcs= %" PRIu16 "\n", self->p_establish->estprm.max_accepted_htlcs);
+        DBG_PRINTF("min_depth= %" PRIu16 "\n", self->p_establish->estprm.min_depth);
     }
 
     if ((pNodeId != NULL) && !ucoin_keys_chkpub(pNodeId)) {
@@ -667,21 +666,21 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
 
     //funding_tx作成用に保持
-    assert(self->p_est->p_fundin == NULL);
-    self->p_est->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));
-    memcpy(self->p_est->p_fundin, pFundin, sizeof(ln_fundin_t));
+    assert(self->p_establish->p_fundin == NULL);
+    self->p_establish->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));
+    memcpy(self->p_establish->p_fundin, pFundin, sizeof(ln_fundin_t));
 
     //open_channel
-    ln_open_channel_t *open_ch = &self->p_est->cnl_open;
+    ln_open_channel_t *open_ch = &self->p_establish->cnl_open;
     open_ch->funding_sat = FundingSat;
     open_ch->push_msat = LN_SATOSHI2MSAT(PushSat);
-    open_ch->dust_limit_sat = self->p_est->defval.dust_limit_sat;
-    open_ch->max_htlc_value_in_flight_msat = self->p_est->defval.max_htlc_value_in_flight_msat;
-    open_ch->channel_reserve_sat = self->p_est->defval.channel_reserve_sat;
-    open_ch->htlc_minimum_msat = self->p_est->defval.htlc_minimum_msat;
+    open_ch->dust_limit_sat = self->p_establish->estprm.dust_limit_sat;
+    open_ch->max_htlc_value_in_flight_msat = self->p_establish->estprm.max_htlc_value_in_flight_msat;
+    open_ch->channel_reserve_sat = self->p_establish->estprm.channel_reserve_sat;
+    open_ch->htlc_minimum_msat = self->p_establish->estprm.htlc_minimum_msat;
     open_ch->feerate_per_kw = FeeRate;
-    open_ch->to_self_delay = self->p_est->defval.to_self_delay;
-    open_ch->max_accepted_htlcs = self->p_est->defval.max_accepted_htlcs;
+    open_ch->to_self_delay = self->p_establish->estprm.to_self_delay;
+    open_ch->max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
     open_ch->p_temp_channel_id = self->channel_id;
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         open_ch->p_pubkeys[lp] = self->funding_local.keys[lp].pub;
@@ -1891,7 +1890,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         return false;
     }
 
-    ln_open_channel_t *open_ch = &self->p_est->cnl_open;
+    ln_open_channel_t *open_ch = &self->p_establish->cnl_open;
 
     open_ch->p_temp_channel_id = self->channel_id;
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
@@ -1935,14 +1934,14 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     //スクリプト用鍵生成
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
-    ln_accept_channel_t *acc_ch = &self->p_est->cnl_accept;
-    acc_ch->dust_limit_sat = self->p_est->defval.dust_limit_sat;
-    acc_ch->max_htlc_value_in_flight_msat = self->p_est->defval.max_htlc_value_in_flight_msat;
-    acc_ch->channel_reserve_sat = self->p_est->defval.channel_reserve_sat;
-    acc_ch->min_depth = self->p_est->defval.min_depth;
-    acc_ch->htlc_minimum_msat = self->p_est->defval.htlc_minimum_msat;
-    acc_ch->to_self_delay = self->p_est->defval.to_self_delay;
-    acc_ch->max_accepted_htlcs = self->p_est->defval.max_accepted_htlcs;
+    ln_accept_channel_t *acc_ch = &self->p_establish->cnl_accept;
+    acc_ch->dust_limit_sat = self->p_establish->estprm.dust_limit_sat;
+    acc_ch->max_htlc_value_in_flight_msat = self->p_establish->estprm.max_htlc_value_in_flight_msat;
+    acc_ch->channel_reserve_sat = self->p_establish->estprm.channel_reserve_sat;
+    acc_ch->min_depth = self->p_establish->estprm.min_depth;
+    acc_ch->htlc_minimum_msat = self->p_establish->estprm.htlc_minimum_msat;
+    acc_ch->to_self_delay = self->p_establish->estprm.to_self_delay;
+    acc_ch->max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
     acc_ch->p_temp_channel_id = self->channel_id;
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         acc_ch->p_pubkeys[lp] = self->funding_local.keys[lp].pub;
@@ -1996,7 +1995,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    ln_accept_channel_t *acc_ch = &self->p_est->cnl_accept;
+    ln_accept_channel_t *acc_ch = &self->p_establish->cnl_accept;
     acc_ch->p_temp_channel_id = channel_id;
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         acc_ch->p_pubkeys[lp] = self->funding_remote.pubkeys[lp];
@@ -2037,7 +2036,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     //  1番目:open_channelのpayment-basepoint
     //  2番目:accept_channelのpayment-basepoint
     self->obscured = ln_calc_obscured_txnum(
-                                self->p_est->cnl_open.p_pubkeys[MSG_FUNDIDX_PAYMENT],
+                                self->p_establish->cnl_open.p_pubkeys[MSG_FUNDIDX_PAYMENT],
                                 acc_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT]);
     DBG_PRINTF("obscured=0x%" PRIx64 "\n", self->obscured);
 
@@ -2046,10 +2045,10 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
     ret = create_to_remote(self, NULL, NULL,
-                self->p_est->cnl_open.to_self_delay, acc_ch->dust_limit_sat);
+                self->p_establish->cnl_open.to_self_delay, acc_ch->dust_limit_sat);
     if (ret) {
         //funding_created
-        ln_funding_created_t *fundc = &self->p_est->cnl_funding_created;
+        ln_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
         fundc->p_temp_channel_id = self->channel_id;
         fundc->funding_output_idx = self->funding_local.txindex;
         fundc->p_funding_txid = self->funding_local.txid;
@@ -2080,11 +2079,11 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     }
 
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    ln_funding_created_t *fundc = &self->p_est->cnl_funding_created;
+    ln_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
     fundc->p_temp_channel_id = channel_id;
     fundc->p_funding_txid = self->funding_local.txid;
     fundc->p_signature = self->commit_remote.signature;
-    ret = ln_msg_funding_created_read(&self->p_est->cnl_funding_created, pData, Len);
+    ret = ln_msg_funding_created_read(&self->p_establish->cnl_funding_created, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
         return false;
@@ -2105,7 +2104,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
         //処理の都合上、voutの位置を調整している
         ucoin_tx_add_vout(&self->tx_funding, 0);
     }
-    ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_est->cnl_open.funding_sat, &self->redeem_fund);
+    ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
     //TODO: 実装上、vinが0、voutが1だった場合にsegwitと誤認してしまう
     ucoin_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
 
@@ -2114,7 +2113,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     //      to-self-delayは自分の値(open_channel)を使う
     //      HTLCは存在しない
     ret = create_to_local(self, NULL, NULL, 0,
-                self->p_est->cnl_open.to_self_delay, self->p_est->cnl_accept.dust_limit_sat);
+                self->p_establish->cnl_open.to_self_delay, self->p_establish->cnl_accept.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
         return false;
@@ -2124,7 +2123,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
     ret = create_to_remote(self, NULL, NULL,
-                self->p_est->cnl_accept.to_self_delay, self->p_est->cnl_open.dust_limit_sat);
+                self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_remote\n");
         return false;
@@ -2134,11 +2133,11 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     ln_misc_calc_channel_id(self->channel_id, self->funding_local.txid, self->funding_local.txindex);
 
     //funding_signed
-    self->p_est->cnl_funding_signed.p_channel_id = self->channel_id;
-    self->p_est->cnl_funding_signed.p_signature = self->commit_local.signature;
+    self->p_establish->cnl_funding_signed.p_channel_id = self->channel_id;
+    self->p_establish->cnl_funding_signed.p_signature = self->commit_local.signature;
 
     ucoin_buf_t buf_bolt;
-    ln_msg_funding_signed_create(&buf_bolt, &self->p_est->cnl_funding_signed);
+    ln_msg_funding_signed_create(&buf_bolt, &self->p_establish->cnl_funding_signed);
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
@@ -2170,9 +2169,9 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    self->p_est->cnl_funding_signed.p_channel_id = channel_id;
-    self->p_est->cnl_funding_signed.p_signature = self->commit_remote.signature;
-    ret = ln_msg_funding_signed_read(&self->p_est->cnl_funding_signed, pData, Len);
+    self->p_establish->cnl_funding_signed.p_channel_id = channel_id;
+    self->p_establish->cnl_funding_signed.p_signature = self->commit_remote.signature;
+    ret = ln_msg_funding_signed_read(&self->p_establish->cnl_funding_signed, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
         return false;
@@ -2193,7 +2192,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     //      to-self-delayは相手の値(accept_channel)を使う
     //      HTLCは存在しない
     ret = create_to_local(self, NULL, NULL, 0,
-                self->p_est->cnl_accept.to_self_delay, self->p_est->cnl_open.dust_limit_sat);
+                self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
         return false;
@@ -3265,17 +3264,17 @@ static bool create_funding_tx(ln_self_t *self)
 
     //output
     //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
-    ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_est->cnl_open.funding_sat, &self->redeem_fund);
+    ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
 
     //vout#1:P2WPKH - change(amountは後で代入)
-    if (self->p_est->p_fundin->p_change_pubkey != NULL) {
-        ucoin_sw_add_vout_p2wpkh_pub(&self->tx_funding, (uint64_t)-1, self->p_est->p_fundin->p_change_pubkey);
-        free(self->p_est->p_fundin->p_change_pubkey);       //APP
-        self->p_est->p_fundin->p_change_pubkey = NULL;
-    } else if (self->p_est->p_fundin->p_change_addr != NULL) {
-        ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_est->p_fundin->p_change_addr);
-        free(self->p_est->p_fundin->p_change_addr);         //APP
-        self->p_est->p_fundin->p_change_addr = NULL;
+    if (self->p_establish->p_fundin->p_change_pubkey != NULL) {
+        ucoin_sw_add_vout_p2wpkh_pub(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->p_change_pubkey);
+        free(self->p_establish->p_fundin->p_change_pubkey);       //APP
+        self->p_establish->p_fundin->p_change_pubkey = NULL;
+    } else if (self->p_establish->p_fundin->p_change_addr != NULL) {
+        ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->p_change_addr);
+        free(self->p_establish->p_fundin->p_change_addr);         //APP
+        self->p_establish->p_fundin->p_change_addr = NULL;
     } else {
         DBG_PRINTF("fail: no change address\n");
         return false;
@@ -3283,7 +3282,7 @@ static bool create_funding_tx(ln_self_t *self)
 
     //input
     //vin#0
-    ucoin_tx_add_vin(&self->tx_funding, self->p_est->p_fundin->txid, self->p_est->p_fundin->index);
+    ucoin_tx_add_vin(&self->tx_funding, self->p_establish->p_fundin->txid, self->p_establish->p_fundin->index);
 
 
     //FEE計算
@@ -3294,13 +3293,13 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_tx_create(&txbuf, &self->tx_funding);
 
     // LEN+署名(72) + LEN+公開鍵(33)
-    uint64_t fee = (txbuf.len + 1 + 72 + 1 + 33) * 4 * self->p_est->cnl_open.feerate_per_kw / 1000;
-    if (self->p_est->p_fundin->amount >= self->p_est->cnl_open.funding_sat + fee) {
-        self->tx_funding.vout[1].value = self->p_est->p_fundin->amount - self->p_est->cnl_open.funding_sat - fee;
+    uint64_t fee = (txbuf.len + 1 + 72 + 1 + 33) * 4 * self->p_establish->cnl_open.feerate_per_kw / 1000;
+    if (self->p_establish->p_fundin->amount >= self->p_establish->cnl_open.funding_sat + fee) {
+        self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->p_establish->cnl_open.funding_sat - fee;
     } else {
         DBG_PRINTF("fail: amount too short:\n");
-        DBG_PRINTF("    amount=%" PRIu64 "\n", self->p_est->p_fundin->amount);
-        DBG_PRINTF("    funding_sat=%" PRIu64 "\n", self->p_est->cnl_open.funding_sat);
+        DBG_PRINTF("    amount=%" PRIu64 "\n", self->p_establish->p_fundin->amount);
+        DBG_PRINTF("    funding_sat=%" PRIu64 "\n", self->p_establish->cnl_open.funding_sat);
         DBG_PRINTF("    fee=%" PRIu64 "\n", fee);
         return false;
     }
@@ -3309,7 +3308,7 @@ static bool create_funding_tx(ln_self_t *self)
     //署名
     self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
     ucoin_util_sign_p2wpkh_native(&self->tx_funding, self->funding_local.txindex,
-            self->p_est->p_fundin->amount, &self->p_est->p_fundin->keys, self->p_est->p_fundin->b_native);
+            self->p_establish->p_fundin->amount, &self->p_establish->p_fundin->keys, self->p_establish->p_fundin->b_native);
     ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
 
     return true;
@@ -4182,7 +4181,7 @@ static void proc_established(ln_self_t *self)
         funding.p_tx_funding = &self->tx_funding;
         funding.p_txid = self->funding_local.txid;
         funding.b_send = false;
-        funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : false;
+        funding.annosigs = (self->p_establish) ? (self->p_establish->cnl_open.channel_flags) : false;
         (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
 
         free_establish(self);
@@ -4340,13 +4339,13 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
  */
 static void free_establish(ln_self_t *self)
 {
-    if (self->p_est != NULL) {
-        if (self->p_est->p_fundin != NULL) {
-            free(self->p_est->p_fundin->p_change_pubkey);       //APP
-            free(self->p_est->p_fundin->p_change_addr);         //APP
-            M_FREE(self->p_est->p_fundin);  //M_MALLOC: ln_create_open_channel()
+    if (self->p_establish != NULL) {
+        if (self->p_establish->p_fundin != NULL) {
+            free(self->p_establish->p_fundin->p_change_pubkey);       //APP
+            free(self->p_establish->p_fundin->p_change_addr);         //APP
+            M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
         }
-        M_FREE(self->p_est);        //M_MALLOC: ln_set_establish()
+        M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
         DBG_PRINTF("END\n");
     }
 }

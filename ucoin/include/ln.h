@@ -375,8 +375,8 @@ typedef struct {
 } ln_fundin_t;
 
 
-/** @struct ln_est_default_t
- *  @brief  Establish関連のデフォルト値
+/** @struct ln_establish_prm_t
+ *  @brief  Establish関連のパラメータ
  *  @note
  *      - #ln_set_establish()で初期化する
  */
@@ -388,7 +388,7 @@ typedef struct {
     uint16_t    to_self_delay;                      ///< 2 : to-self-delay
     uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
-} ln_est_default_t;
+} ln_establish_prm_t;
 
 
 /** @struct ln_establish_t
@@ -401,7 +401,7 @@ typedef struct {
     ln_funding_signed_t         cnl_funding_signed;             ///< 送信 or 受信したfunding_signed
 
     ln_fundin_t                 *p_fundin;                      ///< 非NULL:open_channel側
-    ln_est_default_t            defval;                         ///< デフォルト値
+    ln_establish_prm_t          estprm;                         ///< channel establish parameter
 } ln_establish_t;
 
 /// @}
@@ -975,7 +975,7 @@ struct ln_self_t {
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
     uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
-    ln_establish_t              *p_est;                         ///< Establish時ワーク領域
+    ln_establish_t              *p_establish;                   ///< Establishワーク領域
     uint32_t                    min_depth;                      ///< minimum_depth
 
     //announce
@@ -1094,12 +1094,12 @@ const uint8_t* ln_get_genesishash(void);
  *
  * @param[in,out]       self            channel情報
  * @param[in]           pNodeId         Establish先(NULL可)
- * @param[in]           pEstDef         Establishデフォルト値
+ * @param[in]           pEstPrm         Establishパラメータ
  * @retval      true    成功
  * @note
  *      - pEstablishは接続完了まで保持すること
  */
-bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_est_default_t *pEstDef);
+bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm);
 
 
 /** funding鍵設定

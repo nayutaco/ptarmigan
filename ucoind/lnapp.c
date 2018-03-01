@@ -2821,28 +2821,28 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
 {
     bool ret;
     establish_conf_t econf;
-    ln_est_default_t defval;
+    ln_establish_prm_t estprm;
 
     ret = load_establish_conf("establish.conf", &econf);
     if (ret) {
-        defval.dust_limit_sat = econf.dust_limit_sat;
-        defval.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;
-        defval.channel_reserve_sat = econf.channel_reserve_sat;
-        defval.htlc_minimum_msat = econf.htlc_minimum_msat;
-        defval.to_self_delay = econf.to_self_delay;
-        defval.max_accepted_htlcs = econf.max_accepted_htlcs;
-        defval.min_depth = econf.min_depth;
+        estprm.dust_limit_sat = econf.dust_limit_sat;
+        estprm.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;
+        estprm.channel_reserve_sat = econf.channel_reserve_sat;
+        estprm.htlc_minimum_msat = econf.htlc_minimum_msat;
+        estprm.to_self_delay = econf.to_self_delay;
+        estprm.max_accepted_htlcs = econf.max_accepted_htlcs;
+        estprm.min_depth = econf.min_depth;
     } else {
-        defval.dust_limit_sat = M_DUST_LIMIT_SAT;
-        defval.max_htlc_value_in_flight_msat = M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT;
-        defval.channel_reserve_sat = M_CHANNEL_RESERVE_SAT;
-        defval.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_EST;
-        defval.to_self_delay = M_TO_SELF_DELAY;
-        defval.max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
-        defval.min_depth = M_MIN_DEPTH;
+        estprm.dust_limit_sat = M_DUST_LIMIT_SAT;
+        estprm.max_htlc_value_in_flight_msat = M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT;
+        estprm.channel_reserve_sat = M_CHANNEL_RESERVE_SAT;
+        estprm.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_EST;
+        estprm.to_self_delay = M_TO_SELF_DELAY;
+        estprm.max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
+        estprm.min_depth = M_MIN_DEPTH;
     }
 
-    ret = ln_set_establish(p_conf->p_self, pNodeId, &defval);
+    ret = ln_set_establish(p_conf->p_self, pNodeId, &estprm);
     assert(ret);
 }
 
