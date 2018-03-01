@@ -3266,7 +3266,7 @@ static bool create_funding_tx(ln_self_t *self)
 
     //input
     //vin#0
-    ucoin_tx_add_vin(&self->tx_funding, self->p_est->p_fundin->p_txid, self->p_est->p_fundin->index);
+    ucoin_tx_add_vin(&self->tx_funding, self->p_est->p_fundin->txid, self->p_est->p_fundin->index);
 
 
     //FEE計算

@@ -159,7 +159,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     cJSON *json;
     daemon_connect_t conn;
-    funding_conf_t *p_fundconf = (funding_conf_t *)APP_MALLOC(sizeof(funding_conf_t));  //lnapp.c cb_established()で解放
+    funding_conf_t fundconf;
     cJSON *result = NULL;
     int index = 0;
 
@@ -211,7 +211,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //txid
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        misc_str2bin_rev(p_fundconf->txid, UCOIN_SZ_TXID, json->valuestring);
+        misc_str2bin_rev(fundconf.txid, UCOIN_SZ_TXID, json->valuestring);
         DBG_PRINTF("txid=%s\n", json->valuestring);
     } else {
         index = -1;
@@ -220,7 +220,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //txindex
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        p_fundconf->txindex = json->valueint;
+        fundconf.txindex = json->valueint;
         DBG_PRINTF("txindex=%d\n", json->valueint);
     } else {
         index = -1;
@@ -229,7 +229,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //signaddr
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        strcpy(p_fundconf->signaddr, json->valuestring);
+        strcpy(fundconf.signaddr, json->valuestring);
         DBG_PRINTF("signaddr=%s\n", json->valuestring);
     } else {
         index = -1;
@@ -238,8 +238,8 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //funding_sat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        p_fundconf->funding_sat = json->valueu64;
-        DBG_PRINTF("funding_sat=%" PRIu64 "\n", p_fundconf->funding_sat);
+        fundconf.funding_sat = json->valueu64;
+        DBG_PRINTF("funding_sat=%" PRIu64 "\n", fundconf.funding_sat);
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -247,8 +247,8 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //push_sat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        p_fundconf->push_sat = json->valueu64;
-        DBG_PRINTF("push_sat=%" PRIu64 "\n", p_fundconf->push_sat);
+        fundconf.push_sat = json->valueu64;
+        DBG_PRINTF("push_sat=%" PRIu64 "\n", fundconf.push_sat);
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -256,17 +256,17 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //feerate_per_kw
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        p_fundconf->feerate_per_kw = (uint32_t)json->valueu64;
-        DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", p_fundconf->feerate_per_kw);
+        fundconf.feerate_per_kw = (uint32_t)json->valueu64;
+        DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", fundconf.feerate_per_kw);
     } else {
         //スルー
     }
 
-    print_funding_conf(p_fundconf);
+    print_funding_conf(&fundconf);
 
     SYSLOG_INFO("fund");
 
-    bool ret = lnapp_funding(p_appconf, p_fundconf);
+    bool ret = lnapp_funding(p_appconf, &fundconf);
     if (ret) {
         result = cJSON_CreateObject();
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("Progressing"));

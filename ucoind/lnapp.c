@@ -207,7 +207,7 @@ static const char *M_SCRIPT[] = {
 static void *thread_main_start(void *pArg);
 static bool noise_handshake(lnapp_conf_t *p_conf);
 static bool send_reestablish(lnapp_conf_t *p_conf);
-static bool send_open_channel(lnapp_conf_t *p_conf);
+static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFunding);
 
 static void *thread_recv_start(void *pArg);
 static void recv_node_proc(lnapp_conf_t *p_conf);
@@ -302,7 +302,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 }
 
 
-bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding)
+bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
 {
     if (!pAppConf->loop) {
         //DBG_PRINTF("This AppConf not working\n");
@@ -310,9 +310,8 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding)
     }
 
     DBG_PRINTF("Establish開始\n");
-    pAppConf->p_funding = pFunding;
     set_establish_default(pAppConf, pAppConf->node_id);
-    send_open_channel(pAppConf);
+    send_open_channel(pAppConf, pFunding);
 
     return true;
 }
@@ -957,7 +956,6 @@ LABEL_SHUTDOWN:
     //クリア
     free(p_conf->fundin.p_change_addr);
     free(p_conf->fundin.p_change_pubkey);
-    APP_FREE(p_conf->p_funding);        //APP_MALLOC(): cmd_fund()
     APP_FREE(p_conf->p_errstr);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
@@ -1090,19 +1088,19 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
 /** open_channel送信
  *
  */
-static bool send_open_channel(lnapp_conf_t *p_conf)
+static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFunding)
 {
     //Establish開始
-    DBG_PRINTF("  signaddr: %s\n", p_conf->p_funding->signaddr);
-    DBG_PRINTF("  funding_sat: %" PRIu64 "\n", p_conf->p_funding->funding_sat);
-    DBG_PRINTF("  push_sat: %" PRIu64 "\n", p_conf->p_funding->push_sat);
+    DBG_PRINTF("  signaddr: %s\n", pFunding->signaddr);
+    DBG_PRINTF("  funding_sat: %" PRIu64 "\n", pFunding->funding_sat);
+    DBG_PRINTF("  push_sat: %" PRIu64 "\n", pFunding->push_sat);
 
     //open_channel
     char wif[UCOIN_SZ_WIF_MAX];
     char changeaddr[UCOIN_SZ_WSHADDR];
     uint64_t fundin_sat;
 
-    bool ret = btcprc_dumpprivkey(wif, p_conf->p_funding->signaddr);
+    bool ret = btcprc_dumpprivkey(wif, pFunding->signaddr);
     if (ret) {
         ret = btcprc_getnewaddress(changeaddr);
     } else {
@@ -1112,14 +1110,14 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
 
     bool unspent = true;
     if (ret) {
-        ret = btcprc_getxout(&unspent, &fundin_sat, p_conf->p_funding->txid, p_conf->p_funding->txindex);
+        ret = btcprc_getxout(&unspent, &fundin_sat, pFunding->txid, pFunding->txindex);
         DBG_PRINTF("ret=%d, unspent=%d\n", ret, unspent);
     } else {
         SYSLOG_ERR("%s(): btcprc_getnewaddress", __func__);
     }
     if (ret && unspent) {
         uint64_t feerate;
-        if (p_conf->p_funding->feerate_per_kw == 0) {
+        if (pFunding->feerate_per_kw == 0) {
             //estimate fee
             bool ret = btcprc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
             //BOLT#2
@@ -1134,17 +1132,12 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
             feerate = LN_FEERATE_PER_KW;
             }
         } else {
-            feerate = p_conf->p_funding->feerate_per_kw;
+            feerate = pFunding->feerate_per_kw;
         }
         DBG_PRINTF2("feerate_per_kw=%" PRIu64 "\n", feerate);
 
-        //TODO: データ構造に無駄が多い
-        //      スタックに置けないものを詰めていったせいだが、整理したいところだ。
-        //
-        //p_conf->p_funding以下のアドレスを下位層に渡しているので、
-        //Establishが完了するまでメモリを解放しないこと
-        p_conf->fundin.p_txid = p_conf->p_funding->txid;
-        p_conf->fundin.index = p_conf->p_funding->txindex;
+        memcpy(p_conf->fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
+        p_conf->fundin.index = pFunding->txindex;
         p_conf->fundin.amount = fundin_sat;
         p_conf->fundin.p_change_pubkey = NULL;
         p_conf->fundin.p_change_addr = strdup(changeaddr);
@@ -1158,8 +1151,8 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         ucoin_buf_init(&buf_bolt);
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
                         &p_conf->fundin,
-                        p_conf->p_funding->funding_sat,
-                        p_conf->p_funding->push_sat,
+                        pFunding->funding_sat,
+                        pFunding->push_sat,
                         (uint32_t)feerate);
         assert(ret);
 
@@ -1168,7 +1161,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         ucoin_buf_free(&buf_bolt);
     } else {
         SYSLOG_WARN("fail through: btcprc_getxout");
-        DUMPTXID(p_conf->p_funding->txid);
+        DUMPTXID(pFunding->txid);
     }
 
     return ret;
@@ -1946,7 +1939,6 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     free(p_conf->fundin.p_change_pubkey);
     p_conf->fundin.p_change_addr = NULL;
     p_conf->fundin.p_change_pubkey = NULL;
-    APP_FREE(p_conf->p_funding);        //APP_MALLOC: cmd_fund()
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 

@@ -97,7 +97,6 @@ typedef struct lnapp_conf_t {
     bool            initiator;                  ///< true:Noise Protocolのinitiator
     uint8_t         node_id[UCOIN_SZ_PUBKEY];   ///< 接続先(initiator==true時)
     daemoncmd_t     cmd;                        ///< ucoincliからの処理要求
-    funding_conf_t  *p_funding;                 ///< ucoincliで #DCMD_CREATE 時のパラメータ
     ln_fundin_t     fundin;
 
     //lnappワーク
@@ -172,7 +171,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf);
 /** [lnapp]チャネル接続開始
  *
  */
-bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding);
+bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding);
 
 
 /** [lnapp]送金開始
