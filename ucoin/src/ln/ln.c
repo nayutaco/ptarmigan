@@ -184,6 +184,7 @@ static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 static void close_alloc(ln_close_force_t *pClose, int Num);
+static void free_establish(ln_self_t *self);
 
 
 /**************************************************************************
@@ -1743,6 +1744,8 @@ static void channel_clear(ln_self_t *self)
     self->flck_flag = 0;
     self->anno_flag = 0;
     self->shutdown_flag = 0;
+
+    free_establish(self);
 }
 
 
@@ -3258,11 +3261,18 @@ static bool create_funding_tx(ln_self_t *self)
     //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
     ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_est->cnl_open.funding_sat, &self->redeem_fund);
 
-    //vout#1:P2WPKH - change(後で代入)
-    if (self->p_est->p_fundin->p_change_pubkey) {
+    //vout#1:P2WPKH - change(amountは後で代入)
+    if (self->p_est->p_fundin->p_change_pubkey != NULL) {
         ucoin_sw_add_vout_p2wpkh_pub(&self->tx_funding, (uint64_t)-1, self->p_est->p_fundin->p_change_pubkey);
-    } else {
+        free(self->p_est->p_fundin->p_change_pubkey);       //APP
+        self->p_est->p_fundin->p_change_pubkey = NULL;
+    } else if (self->p_est->p_fundin->p_change_addr != NULL) {
         ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_est->p_fundin->p_change_addr);
+        free(self->p_est->p_fundin->p_change_addr);         //APP
+        self->p_est->p_fundin->p_change_addr = NULL;
+    } else {
+        DBG_PRINTF("fail: no change address\n");
+        return false;
     }
 
     //input
@@ -3293,7 +3303,7 @@ static bool create_funding_tx(ln_self_t *self)
     //署名
     self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
     ucoin_util_sign_p2wpkh_native(&self->tx_funding, self->funding_local.txindex,
-                        self->p_est->p_fundin->amount, &self->p_est->p_fundin->keys, self->p_est->p_fundin->b_native);
+            self->p_est->p_fundin->amount, &self->p_est->p_fundin->keys, self->p_est->p_fundin->b_native);
     ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
 
     return true;
@@ -4169,16 +4179,9 @@ static void proc_established(ln_self_t *self)
         funding.annosigs = (self->p_est) ? (self->p_est->cnl_open.channel_flags) : false;
         (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
 
-        //Normal Operation可能
-        if (self->p_est != NULL) {
-            if (self->p_est->p_fundin != NULL) {
-                M_FREE(self->p_est->p_fundin->p_change_pubkey);     //APP
-                M_FREE(self->p_est->p_fundin->p_change_addr);       //APP
-                M_FREE(self->p_est->p_fundin);  //M_MALLOC: ln_create_open_channel()
-            }
-            M_FREE(self->p_est);        //M_MALLOC: ln_set_establish()
-        }
+        free_establish(self);
 
+        //Normal Operation可能
         DBG_PRINTF("Normal Operation可能\n");
         self->flck_flag |= M_FLCK_FLAG_END;
     }
@@ -4323,4 +4326,20 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
     }
     ucoin_buf_init(&pClose->tx_buf);
     DBG_PRINTF("TX num: %d\n", pClose->num);
+}
+
+
+/** establish用メモリ解放
+ *
+ */
+static void free_establish(ln_self_t *self)
+{
+    if (self->p_est != NULL) {
+        if (self->p_est->p_fundin != NULL) {
+            free(self->p_est->p_fundin->p_change_pubkey);       //APP
+            free(self->p_est->p_fundin->p_change_addr);         //APP
+            M_FREE(self->p_est->p_fundin);  //M_MALLOC: ln_create_open_channel()
+        }
+        M_FREE(self->p_est);        //M_MALLOC: ln_set_establish()
+    }
 }

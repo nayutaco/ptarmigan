@@ -1139,11 +1139,13 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         fundin.index = pFunding->txindex;
         fundin.amount = fundin_sat;
         fundin.p_change_pubkey = NULL;
-        fundin.p_change_addr = strdup(changeaddr);
+        fundin.p_change_addr = strdup(changeaddr);      //下位層でfreeする
         ucoin_chain_t chain;
         ucoin_util_wif2keys(&fundin.keys, &chain, wif);
         assert(ucoin_get_chain() == chain);
-        fundin.b_native = false;        //nested in BIP16
+        fundin.b_native = false;        //fundin_txの送金先アドレスのsegwit具合
+                                        //  false: nested in BIP16
+                                        //      bitcoind v0.15ではsegwitアドレスをaddwitnessaddressで行っている
 
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
         ucoin_buf_t buf_bolt;
