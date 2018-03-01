@@ -370,7 +370,7 @@ typedef struct {
     uint64_t                    amount;                         ///< 2-of-2へ入金するtxのvout amount
     const uint8_t               *p_change_pubkey;               ///< 2-of-2へ入金したお釣りの送金先アドレス
     const char                  *p_change_addr;                 ///< 2-of-2へ入金したお釣りの送金先アドレス
-    const ucoin_util_keys_t     *p_keys;                        ///< 2-of-2へ入金するtxの鍵(署名用)
+    ucoin_util_keys_t           keys;                           ///< 2-of-2へ入金するtxの鍵(署名用)
     bool                        b_native;                       ///< true:fundinがnative segwit output
 } ln_fundin_t;
 

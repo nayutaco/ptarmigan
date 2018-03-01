@@ -955,7 +955,8 @@ LABEL_SHUTDOWN:
     SYSLOG_WARN("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(&my_self));
 
     //クリア
-    APP_FREE(p_conf->p_opening);        //APP_MALLOC(): send_open_channel()
+    free(p_conf->fundin.p_change_addr);
+    free(p_conf->fundin.p_change_pubkey);
     APP_FREE(p_conf->p_funding);        //APP_MALLOC(): cmd_fund()
     APP_FREE(p_conf->p_errstr);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
@@ -1091,8 +1092,6 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
  */
 static bool send_open_channel(lnapp_conf_t *p_conf)
 {
-    p_conf->p_opening = (opening_t *)APP_MALLOC(sizeof(opening_t));  //APP_FREE: cb_established()
-
     //Establish開始
     DBG_PRINTF("  signaddr: %s\n", p_conf->p_funding->signaddr);
     DBG_PRINTF("  funding_sat: %" PRIu64 "\n", p_conf->p_funding->funding_sat);
@@ -1100,11 +1099,12 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
 
     //open_channel
     char wif[UCOIN_SZ_WIF_MAX];
+    char changeaddr[UCOIN_SZ_WSHADDR];
     uint64_t fundin_sat;
 
     bool ret = btcprc_dumpprivkey(wif, p_conf->p_funding->signaddr);
     if (ret) {
-        ret = btcprc_getnewaddress(p_conf->p_opening->chargeaddr);
+        ret = btcprc_getnewaddress(changeaddr);
     } else {
         SYSLOG_ERR("%s(): btcprc_dumpprivkey", __func__);
     }
@@ -1112,7 +1112,6 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
 
     bool unspent = true;
     if (ret) {
-        //TODO: unspentしか成功しないので、再開にうまく利用できないものか
         ret = btcprc_getxout(&unspent, &fundin_sat, p_conf->p_funding->txid, p_conf->p_funding->txindex);
         DBG_PRINTF("ret=%d, unspent=%d\n", ret, unspent);
     } else {
@@ -1139,27 +1138,26 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         }
         DBG_PRINTF2("feerate_per_kw=%" PRIu64 "\n", feerate);
 
-        ucoin_chain_t chain;
-        ucoin_util_wif2keys(&p_conf->p_opening->fundin_keys, &chain, wif);
-        assert(ucoin_get_chain() == chain);
         //TODO: データ構造に無駄が多い
         //      スタックに置けないものを詰めていったせいだが、整理したいところだ。
         //
         //p_conf->p_funding以下のアドレスを下位層に渡しているので、
         //Establishが完了するまでメモリを解放しないこと
-        p_conf->p_opening->fundin.p_txid = p_conf->p_funding->txid;
-        p_conf->p_opening->fundin.index = p_conf->p_funding->txindex;
-        p_conf->p_opening->fundin.amount = fundin_sat;
-        p_conf->p_opening->fundin.p_change_pubkey = NULL;
-        p_conf->p_opening->fundin.p_change_addr = p_conf->p_opening->chargeaddr;
-        p_conf->p_opening->fundin.p_keys = &p_conf->p_opening->fundin_keys;
-        p_conf->p_opening->fundin.b_native = false;        //nested in BIP16
+        p_conf->fundin.p_txid = p_conf->p_funding->txid;
+        p_conf->fundin.index = p_conf->p_funding->txindex;
+        p_conf->fundin.amount = fundin_sat;
+        p_conf->fundin.p_change_pubkey = NULL;
+        p_conf->fundin.p_change_addr = strdup(changeaddr);
+        ucoin_chain_t chain;
+        ucoin_util_wif2keys(&p_conf->fundin.keys, &chain, wif);
+        assert(ucoin_get_chain() == chain);
+        p_conf->fundin.b_native = false;        //nested in BIP16
 
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
-                        &p_conf->p_opening->fundin,
+                        &p_conf->fundin,
                         p_conf->p_funding->funding_sat,
                         p_conf->p_funding->push_sat,
                         (uint32_t)feerate);
@@ -1944,7 +1942,10 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     (void)p_param;
     DBGTRACE_BEGIN
 
-    APP_FREE(p_conf->p_opening);        //APP_MALLOC: send_open_channel()
+    free(p_conf->fundin.p_change_addr);
+    free(p_conf->fundin.p_change_pubkey);
+    p_conf->fundin.p_change_addr = NULL;
+    p_conf->fundin.p_change_pubkey = NULL;
     APP_FREE(p_conf->p_funding);        //APP_MALLOC: cmd_fund()
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));

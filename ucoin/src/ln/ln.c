@@ -3292,7 +3292,7 @@ static bool create_funding_tx(ln_self_t *self)
     //署名
     self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
     ucoin_util_sign_p2wpkh_native(&self->tx_funding, self->funding_local.txindex,
-                        self->p_est->p_fundin->amount, self->p_est->p_fundin->p_keys, self->p_est->p_fundin->b_native);
+                        self->p_est->p_fundin->amount, &self->p_est->p_fundin->keys, self->p_est->p_fundin->b_native);
     ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
 
     return true;
