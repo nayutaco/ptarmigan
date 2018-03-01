@@ -92,6 +92,14 @@
 #define M_SECINDEX_INIT     ((uint64_t)0xffffffffffff)      ///< per-commitment secret生成用indexの初期値
                                                             ///< https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#per-commitment-secret-requirements
 
+// ln_self_t.init_flag
+#define M_INIT_FLAG_SEND                    (0x01)
+#define M_INIT_FLAG_RECV                    (0x02)
+#define M_INIT_FLAG_INITED(flag)            (((flag) & (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)) == (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV))
+#define M_INIT_FLAG_REEST_SEND              (0x04)
+#define M_INIT_FLAG_REEST_RECV              (0x08)
+#define M_INIT_FLAG_REESTED(flag)           (((flag) & (M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV)) == (M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV))
+
 // ln_self_t.flck_flag
 #define M_FLCK_FLAG_SEND                    (0x01)          ///< 1:funding_locked送信あり
 #define M_FLCK_FLAG_RECV                    (0x02)          ///< 1:funding_locked受信あり
@@ -498,7 +506,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     uint16_t type = ln_misc_get16be(pData);
 
     //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
-    if ((type != MSGTYPE_INIT) && (!INIT_FLAG_INITED(self->init_flag))) {
+    if ((type != MSGTYPE_INIT) && (!M_INIT_FLAG_INITED(self->init_flag))) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init received : %04x\n", type);
         return false;
@@ -533,7 +541,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 //init作成
 bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
 {
-    if (self->init_flag & INIT_FLAG_SEND) {
+    if (self->init_flag & M_INIT_FLAG_SEND) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: init already sent.\n");
         return false;
@@ -572,7 +580,7 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
 
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {
-        self->init_flag |= INIT_FLAG_SEND;
+        self->init_flag |= M_INIT_FLAG_SEND;
     }
     ucoin_buf_free(&msg.localfeatures);
     ucoin_buf_free(&msg.globalfeatures);
@@ -591,7 +599,7 @@ void ln_flag_proc(ln_self_t *self)
 //channel_reestablish作成
 bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 {
-    if (self->init_flag & INIT_FLAG_REEST_SEND) {
+    if (self->init_flag & M_INIT_FLAG_REEST_SEND) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: channel_reestablish already sent.\n");
         return false;
@@ -604,9 +612,9 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
     if (ret) {
-        self->init_flag |= INIT_FLAG_REEST_SEND;
+        self->init_flag |= M_INIT_FLAG_REEST_SEND;
     }
-    if ( ret && INIT_FLAG_REESTED(self->init_flag) &&
+    if ( ret && M_INIT_FLAG_REESTED(self->init_flag) &&
             (self->commit_num == 1) && (self->remote_commit_num == 1) ) {
         DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
         ret = ln_funding_tx_stabled(self);
@@ -623,7 +631,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
             const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate)
 {
-    if (!INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_INITED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -716,7 +724,7 @@ bool ln_funding_tx_stabled(ln_self_t *self)
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (!INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_INITED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -727,7 +735,7 @@ bool ln_funding_tx_stabled(ln_self_t *self)
         return false;
     }
 
-    if (!INIT_FLAG_REESTED(self->init_flag)) {
+    if (!M_INIT_FLAG_REESTED(self->init_flag)) {
         //per-commit-secret更新
         update_percommit_secret(self);
     } else {
@@ -872,7 +880,7 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown)
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (!INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_INITED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -1151,7 +1159,7 @@ bool ln_create_add_htlc(ln_self_t *self,
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (!INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_INITED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -1247,7 +1255,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (!INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_INITED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -1309,7 +1317,7 @@ bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t id, const
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (!INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_INITED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -1362,7 +1370,7 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
 
     bool ret;
 
-    if (!INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_INITED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -1761,7 +1769,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     bool ret;
 
-    if (self->init_flag & INIT_FLAG_RECV) {
+    if (self->init_flag & M_INIT_FLAG_RECV) {
         //TODO: 2回init受信した場合はどうする？
         DBG_PRINTF("???: multiple init received.\n");
     }
@@ -1789,7 +1797,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         }
     }
     if (ret) {
-        self->init_flag |= INIT_FLAG_RECV;
+        self->init_flag |= M_INIT_FLAG_RECV;
 
         //init受信通知
         (*self->p_callback)(self, LN_CB_INIT_RECV, &initial_routing_sync);
@@ -2242,7 +2250,7 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    if (INIT_FLAG_REESTED(self->init_flag)) {
+    if (M_INIT_FLAG_REESTED(self->init_flag)) {
         if (memcmp(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY) == 0) {
             DBG_PRINTF("OK: same current per_commitment_point\n");
         } else {
@@ -3004,7 +3012,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 
     DBG_PRINTF("BEGIN\n");
 
-    if (self->init_flag & INIT_FLAG_REEST_RECV) {
+    if (self->init_flag & M_INIT_FLAG_REEST_RECV) {
         //TODO: 2回channel_reestablish受信した場合はどうする？
         DBG_PRINTF("???: multiple channel_reestablish received.\n");
     }
@@ -3037,12 +3045,12 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         self->revoke_num =  reest.next_remote_revocation_number;
     }
 
-    self->init_flag |= INIT_FLAG_REEST_RECV;
+    self->init_flag |= M_INIT_FLAG_REEST_RECV;
 
     //reestablish受信通知
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
 
-    if (INIT_FLAG_REESTED(self->init_flag) &&
+    if (M_INIT_FLAG_REESTED(self->init_flag) &&
             (self->commit_num == 1) && (self->remote_commit_num == 1)) {
         DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
         ret = ln_funding_tx_stabled(self);
@@ -4171,7 +4179,7 @@ static void proc_established(ln_self_t *self)
         DBG_PRINTF("funding_locked sent and recv\n");
 
         //channel_reestablish済みと同じ状態にしておく
-        self->init_flag |= INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV;
+        self->init_flag |= M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
 
         //Establish完了通知
         DBG_PRINTF("Establish完了通知");
