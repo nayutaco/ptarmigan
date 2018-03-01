@@ -2383,15 +2383,16 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     } else {
         //shutdown未受信の場合 == shutdownを要求した方
         DBG_PRINTF("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
-        self->cnl_closing_signed.p_channel_id = self->channel_id;
-        self->cnl_closing_signed.fee_sat = self->close_fee_sat;
-        self->cnl_closing_signed.p_signature = self->commit_local.signature;
+        ln_closing_signed_t cnl_close;
+        cnl_close.p_channel_id = self->channel_id;
+        cnl_close.fee_sat = self->close_fee_sat;
+        cnl_close.p_signature = self->commit_local.signature;
 
         //remoteの署名はないので、verifyしない
         ucoin_tx_free(&self->tx_closing);
         ret = create_closing_tx(self, &self->tx_closing, false);
         if (ret) {
-            ret = ln_msg_closing_signed_create(&buf_bolt, &self->cnl_closing_signed);
+            ret = ln_msg_closing_signed_create(&buf_bolt, &cnl_close);
         }
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
@@ -2423,9 +2424,10 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     bool ret;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    self->cnl_closing_signed.p_channel_id = channel_id;
-    self->cnl_closing_signed.p_signature = self->commit_remote.signature;
-    ret = ln_msg_closing_signed_read(&self->cnl_closing_signed, pData, Len);
+    ln_closing_signed_t cnl_close;
+    cnl_close.p_channel_id = channel_id;
+    cnl_close.p_signature = self->commit_remote.signature;
+    ret = ln_msg_closing_signed_read(&cnl_close, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
         return false;
@@ -2442,8 +2444,8 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     //  A sending node MUST set fee_satoshis lower than or equal to the base fee
     //      of the final commitment transaction as calculated in BOLT #3.
     uint64_t feemax = ln_calc_max_closing_fee(self);
-    if (self->cnl_closing_signed.fee_sat > feemax) {
-        DBG_PRINTF("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", self->cnl_closing_signed.fee_sat, feemax);
+    if (cnl_close.fee_sat > feemax) {
+        DBG_PRINTF("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", cnl_close.fee_sat, feemax);
         return false;
     }
 
@@ -2454,16 +2456,16 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         DBG_PRINTF("fail: verify\n");
     }
 
-    self->cnl_closing_signed.p_channel_id = self->channel_id;
-    self->cnl_closing_signed.p_signature = self->commit_local.signature;
-
-    bool need_closetx = (self->close_last_fee_sat == self->cnl_closing_signed.fee_sat);
+    cnl_close.p_channel_id = self->channel_id;
+    cnl_close.p_signature = self->commit_local.signature;
+    bool need_closetx = (self->close_last_fee_sat == cnl_close.fee_sat);
 
     if (!need_closetx) {
-        //不一致なので、feeを設定してもらう
+        //送信feeと受信feeが不一致なので、上位層にfeeを設定してもらう
         ln_cb_closed_fee_t closed_fee;
-        closed_fee.fee_sat = self->cnl_closing_signed.fee_sat;
+        closed_fee.fee_sat = cnl_close.fee_sat;
         (*self->p_callback)(self, LN_CB_CLOSED_FEE, &closed_fee);
+        //self->close_fee_satが更新される
     }
 
     //closing_tx作成
@@ -2472,7 +2474,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     assert(ret);
 
     if (need_closetx) {
-        //closing_txを展開してもらう
+        //closing_txを展開する
         DBG_PRINTF("same fee!\n");
         ucoin_buf_t txbuf;
         ucoin_buf_init(&txbuf);
@@ -2495,7 +2497,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         DBG_PRINTF("different fee!\n");
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
-        ret = ln_msg_closing_signed_create(&buf_bolt, &self->cnl_closing_signed);
+        ret = ln_msg_closing_signed_create(&buf_bolt, &cnl_close);
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
@@ -3975,11 +3977,11 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
 
     //BOLT#3: feeはfundedの方から引く
     if (ln_is_funder(self)) {
-        fee_local = self->cnl_closing_signed.fee_sat;
+        fee_local = self->close_fee_sat;
         fee_remote = 0;
     } else {
         fee_local = 0;
-        fee_remote = self->cnl_closing_signed.fee_sat;
+        fee_remote = self->close_fee_sat;
     }
 
     //vout
