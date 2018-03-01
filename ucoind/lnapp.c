@@ -955,8 +955,8 @@ LABEL_SHUTDOWN:
     SYSLOG_WARN("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(&my_self));
 
     //クリア
-    APP_FREE(p_conf->p_opening);
-    APP_FREE(p_conf->p_funding);
+    APP_FREE(p_conf->p_opening);        //APP_MALLOC(): send_open_channel()
+    APP_FREE(p_conf->p_funding);        //APP_MALLOC(): cmd_fund()
     APP_FREE(p_conf->p_errstr);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
@@ -1945,7 +1945,7 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     APP_FREE(p_conf->p_opening);        //APP_MALLOC: send_open_channel()
-    APP_FREE(p_conf->p_funding);        //APP_MALLOC: set_lasterror()
+    APP_FREE(p_conf->p_funding);        //APP_MALLOC: cmd_fund()
 
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 
