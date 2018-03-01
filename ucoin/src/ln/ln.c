@@ -324,6 +324,11 @@ bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_est_defa
 {
     DBG_PRINTF("BEGIN\n");
 
+    if (self->p_est != 0) {
+        DBG_PRINTF("already set\n");
+        return true;
+    }
+
     self->p_est = (ln_establish_t *)M_MALLOC(sizeof(ln_establish_t));   //M_FREE:proc_established()
 
     //デフォルト値
@@ -662,6 +667,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
 
     //funding_tx作成用に保持
+    assert(self->p_est->p_fundin == NULL);
     self->p_est->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));
     memcpy(self->p_est->p_fundin, pFundin, sizeof(ln_fundin_t));
 
@@ -4341,5 +4347,6 @@ static void free_establish(ln_self_t *self)
             M_FREE(self->p_est->p_fundin);  //M_MALLOC: ln_create_open_channel()
         }
         M_FREE(self->p_est);        //M_MALLOC: ln_set_establish()
+        DBG_PRINTF("END\n");
     }
 }

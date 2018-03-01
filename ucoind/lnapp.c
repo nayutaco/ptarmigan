@@ -310,7 +310,6 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
     }
 
     DBG_PRINTF("Establish開始\n");
-    set_establish_default(pAppConf, pAppConf->node_id);
     send_open_channel(pAppConf, pFunding);
 
     return true;

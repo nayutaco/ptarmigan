@@ -166,7 +166,9 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
         pNodeAnno->p_alias = NULL;
         pNodeAnno->p_my_node = NULL;
         ret = ln_msg_node_announce_read(pNodeAnno, buf_anno.buf, buf_anno.len);
-        DBG_PRINTF("ret=%d\n", ret);
+        if (!ret) {
+            DBG_PRINTF("fail: read node_announcement\n");
+        }
     }
     ucoin_buf_free(&buf_anno);
 
