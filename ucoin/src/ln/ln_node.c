@@ -230,7 +230,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     (void)p_db_param;
     comp_param_cnl_t *p = (comp_param_cnl_t *)p_param;
 
-    bool ret = (memcmp(self->peer_node.node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
+    bool ret = (memcmp(self->peer_node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
     if (ret) {
         if (p->p_self) {
             //DBから復元

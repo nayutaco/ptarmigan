@@ -73,7 +73,7 @@
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
 
-#define M_DB_VERSION_VAL        ((int32_t)-16)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-17)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -91,6 +91,7 @@
     -14: announcementの送信管理追加
     -15: node.conf情報をversionに追加
     -16: selfはmpDbEnv、それ以外はmpDbNodeEnvにする
+    -17: selfの構造体を個別に保存する
  */
 
 
@@ -111,9 +112,13 @@
     memcpy(keydata, node_id, UCOIN_SZ_PUBKEY);\
 }
 
-#define M_SIZE(type, mem)   sizeof(((type *)0)->mem)
-#define M_ITEM(type, mem)   { #mem, M_SIZE(type, mem), offsetof(type, mem) }
-#define M_BUF_ITEM(idx, mem)   { p_dbscript_keys[idx].name = #mem; p_dbscript_keys[idx].p_buf = (CONST_CAST ucoin_buf_t*)&self->mem; }
+#define M_SIZE(type, mem)       (sizeof(((type *)0)->mem))
+#define M_ITEM(type, mem)       { #mem, M_SIZE(type, mem), offsetof(type, mem) }
+#define MM_ITEM(type1, mem1, type2, mem2) \
+                                { #mem1 "." #mem2, M_SIZE(type2, mem2), offsetof(type1, mem1) + offsetof(type2, mem2) }
+#define MMN_ITEM(type1, mem1, n, type2, mem2) \
+                                { #mem1 "." #mem2 ":" #n, M_SIZE(type2, mem2), offsetof(type1, mem1) + sizeof(type2) * n + offsetof(type2, mem2) }
+#define M_BUF_ITEM(idx, mem)    { p_dbscript_keys[idx].name = #mem; p_dbscript_keys[idx].p_buf = (CONST_CAST ucoin_buf_t*)&self->mem; }
 
 #ifndef M_DB_DEBUG
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d)
@@ -186,28 +191,28 @@ static MDB_env      *mpDbNode = NULL;           // node
 
 static const backup_param_t DBSELF_KEYS[] = {
     //p_node: none
-    M_ITEM(ln_self_t, peer_node),               //ln_node_info_t
-                                                //      uint8[]
-                                                //      char[]
-                                                //      ucoin_keys_sort_t
+    M_ITEM(ln_self_t, peer_node_id),
     M_ITEM(ln_self_t, storage_index),
     M_ITEM(ln_self_t, storage_seed),
     M_ITEM(ln_self_t, peer_storage),            //ln_derkey_storage
                                                 //      {
                                                 //          uint8[]
                                                 //          uint64
-                                                //      ][]
+                                                //      }[]
     M_ITEM(ln_self_t, peer_storage_index),
     M_ITEM(ln_self_t, fund_flag),
-    M_ITEM(ln_self_t, funding_local),           //ln_funding_local_data_t(outpoint, privkey)
-                                                //      uint8[]
-                                                //      uint16
-                                                //      ucoin_util_keys_t[]
-                                                //      uint8[][]
-    M_ITEM(ln_self_t, funding_remote),          //ln_funding_remote_data_t(pubkey, percommit)
-                                                //      uint8[][]
-                                                //      uint8[]
-                                                //      uint8[][]
+
+    //M_ITEM(ln_self_t, funding_local),           //ln_funding_local_data_t(outpoint, privkey)
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, scriptpubkeys),
+
+    //M_ITEM(ln_self_t, funding_remote),          //ln_funding_remote_data_t(pubkey, percommit)
+    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
+    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
+    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, scriptpubkeys),
+
     M_ITEM(ln_self_t, obscured),
     //redeem_fund --> none
     //key_fund_sort --> none
@@ -246,39 +251,77 @@ static const backup_param_t DBSELF_KEYS[] = {
     M_ITEM(ln_self_t, their_msat),
     M_ITEM(ln_self_t, channel_id),
     M_ITEM(ln_self_t, short_channel_id),
-    M_ITEM(ln_self_t, cnl_add_htlc),            //ln_update_add_htlc_t
-                                                //      uint8*  p_channel_id
-                                                //      uint64
-                                                //      uint64
-                                                //      uint32
-                                                //      uint8[]
-                                                //      uint8*  p_onion_route
-                                                //      uint8[]
-                                                //      uint64
-                                                //      uint64
-                                                //      ucoin_buf_t shared_secret
+    //M_ITEM(ln_self_t, cnl_add_htlc),            //ln_update_add_htlc_t
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, amount_msat),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, cltv_expiry),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, payment_sha256),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, flag),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, signature),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, prev_short_channel_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, prev_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, amount_msat),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, cltv_expiry),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, payment_sha256),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, flag),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, signature),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, prev_short_channel_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, prev_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, amount_msat),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, cltv_expiry),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, payment_sha256),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, flag),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, signature),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, prev_short_channel_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, prev_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, amount_msat),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, cltv_expiry),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, payment_sha256),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, flag),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, signature),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, prev_short_channel_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, prev_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, amount_msat),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, cltv_expiry),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, payment_sha256),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, flag),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, signature),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, prev_short_channel_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, prev_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, amount_msat),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, cltv_expiry),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, payment_sha256),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, flag),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, signature),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, prev_short_channel_id),
+    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, prev_id),
 
     //missing_pong_cnt: none
     //last_num_pong_bytes: none
 
-    M_ITEM(ln_self_t, commit_local),            //ln_commit_data_t
-                                                //      uint32
-                                                //      uint32
-                                                //      uint64
-                                                //      uint64
-                                                //      uint64
-                                                //      uint8[]
-                                                //      uint8[]
-                                                //      uint16
-    M_ITEM(ln_self_t, commit_remote),           //ln_commit_data_t
-                                                //      uint32
-                                                //      uint32
-                                                //      uint64
-                                                //      uint64
-                                                //      uint64
-                                                //      uint8[]
-                                                //      uint8[]
-                                                //      uint16
+    //M_ITEM(ln_self_t, commit_local),            //ln_commit_data_t
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, accept_htlcs),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, to_self_delay),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, minimum_msat),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, in_flight_msat),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, dust_limit_sat),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, signature),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, txid),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_num),
+    //M_ITEM(ln_self_t, commit_remote),           //ln_commit_data_t
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, accept_htlcs),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, to_self_delay),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, minimum_msat),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, in_flight_msat),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, dust_limit_sat),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, signature),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, txid),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_num),
 
     M_ITEM(ln_self_t, funding_sat),
     M_ITEM(ln_self_t, feerate_per_kw),

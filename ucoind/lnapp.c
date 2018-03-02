@@ -621,7 +621,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("established"));
 
         //peer node_id
-        misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
+        misc_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
@@ -647,7 +647,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));
 
         //peer node_id
-        misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
+        misc_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
@@ -3214,7 +3214,7 @@ static void show_self_param(const ln_self_t *self, FILE *fp, int line)
             fprintf(fp, "(none)\n");
         }
         fprintf(fp, "peer node_id: ");
-        ucoin_util_dumpbin(fp, self->peer_node.node_id, UCOIN_SZ_PUBKEY, true);
+        ucoin_util_dumpbin(fp, self->peer_node_id, UCOIN_SZ_PUBKEY, true);
         fprintf(fp, "our_msat:   %" PRIu64 "\n", ln_our_msat(self));
         fprintf(fp, "their_msat: %" PRIu64 "\n", ln_their_msat(self));
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {

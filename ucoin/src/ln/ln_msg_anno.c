@@ -441,10 +441,10 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
 }
 
 
-void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal)
+void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, ucoin_keys_sort_t Sort)
 {
-    if ( ((self->peer_node.sort == UCOIN_KEYS_SORT_ASC) && bLocal) ||
-         ((self->peer_node.sort != UCOIN_KEYS_SORT_ASC) && !bLocal) ) {
+    if ( ((Sort == UCOIN_KEYS_SORT_ASC) && bLocal) ||
+         ((Sort != UCOIN_KEYS_SORT_ASC) && !bLocal) ) {
         DBG_PRINTF("addr: 1\n");
         *pp_sig_node = self->cnl_anno.buf + sizeof(uint16_t);
     } else {

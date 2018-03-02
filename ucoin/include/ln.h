@@ -957,7 +957,7 @@ typedef struct {
  */
 struct ln_self_t {
     ln_node_t                   *p_node;                        ///< 属しているnode情報
-    ln_node_info_t              peer_node;                      ///< 接続先ノード
+    uint8_t                     peer_node_id[UCOIN_SZ_PUBKEY];  ///< 接続先ノード
 
     //key storage
     uint64_t                    storage_index;                  ///< 現在のindex
@@ -1881,7 +1881,7 @@ static inline const uint8_t *ln_our_node_id(const ln_self_t *self) {
  * @return      自channelの他node_id
  */
 static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
-    return self->peer_node.node_id;
+    return self->peer_node_id;
 }
 
 

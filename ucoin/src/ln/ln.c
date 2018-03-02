@@ -193,6 +193,7 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 static void close_alloc(ln_close_force_t *pClose, int Num);
 static void free_establish(ln_self_t *self);
+static ucoin_keys_sort_t sort_nodeid(ln_self_t *self);
 
 
 /**************************************************************************
@@ -359,20 +360,7 @@ bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establis
 
     if (pNodeId) {
         DBG_PRINTF("set peer_node info\n");
-        memcpy(self->peer_node.node_id, pNodeId, UCOIN_SZ_PUBKEY);
-        int lp;
-        for (lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-            if (self->p_node->keys.pub[lp] != self->peer_node.node_id[lp]) {
-                break;
-            }
-        }
-        if (self->p_node->keys.pub[lp] < self->peer_node.node_id[lp]) {
-            DBG_PRINTF("my node= first\n");
-            self->peer_node.sort = UCOIN_KEYS_SORT_ASC;
-        } else {
-            DBG_PRINTF("my node= second\n");
-            self->peer_node.sort = UCOIN_KEYS_SORT_OTHER;
-        }
+        memcpy(self->peer_node_id, pNodeId, UCOIN_SZ_PUBKEY);
     }
 
     DBG_PRINTF("END\n");
@@ -777,7 +765,8 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
 
     //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
     //  localのsignature
-    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true);
+    ucoin_keys_sort_t sort = sort_nodeid(self);
+    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true, sort);
 
     ln_announce_signs_t anno_signs;
 
@@ -806,7 +795,7 @@ bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_
     pUpd->fee_prop_millionths = self->anno_prm.fee_prop_millionths;
     //署名
     pUpd->p_key = self->p_node->keys.priv;
-    pUpd->flags = self->peer_node.sort;
+    pUpd->flags = sort_nodeid(self);
     bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
     return ret;
@@ -822,7 +811,8 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
     ucoin_buf_init(&buf_upd);
 
     uint32_t timestamp;
-    ret = ln_db_annocnlupd_load(&buf_upd, &timestamp, ln_short_channel_id(self), self->peer_node.sort);
+    ucoin_keys_sort_t sort = sort_nodeid(self);
+    ret = ln_db_annocnlupd_load(&buf_upd, &timestamp, ln_short_channel_id(self), sort);
     if (ret) {
         ret = ln_msg_cnl_update_read(&upd, buf_upd.buf, buf_upd.len);
     }
@@ -1752,7 +1742,7 @@ static void channel_clear(ln_self_t *self)
         ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
     }
 
-    memset(&self->peer_node, 0, sizeof(ln_node_info_t));
+    memset(self->peer_node_id, 0, UCOIN_SZ_PUBKEY);
     self->flck_flag = 0;
     self->anno_flag = 0;
     self->shutdown_flag = 0;
@@ -3100,7 +3090,8 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     //channel_announcementを埋める
     //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
     //  remoteのsignature
-    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, false);
+    ucoin_keys_sort_t sort = sort_nodeid(self);
+    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, false, sort);
 
     anno_signs.p_channel_id = channel_id;
     anno_signs.p_node_signature = p_sig_node;
@@ -4083,10 +4074,10 @@ static bool create_local_channel_announcement(ln_self_t *self)
 
     anno.short_channel_id = self->short_channel_id;
     anno.p_my_node = &self->p_node->keys;
-    anno.p_peer_node_pub = self->peer_node.node_id;
+    anno.p_peer_node_pub = self->peer_node_id;
     anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
     anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
-    anno.sort = self->peer_node.sort;
+    anno.sort = sort_nodeid(self);
     bool ret = ln_msg_cnl_announce_create(&self->cnl_anno, &anno);
 
     return ret;
@@ -4214,7 +4205,7 @@ static void proc_announce_sigsed(ln_self_t *self)
 
         ln_cb_anno_sigs_t anno;
 
-        anno.sort = self->peer_node.sort;
+        anno.sort = sort_nodeid(self);
         (*self->p_callback)(self, LN_CB_ANNO_SIGSED, &anno);
 
         self->anno_flag |= M_ANNO_FLAG_END;
@@ -4226,7 +4217,7 @@ static void proc_announce_sigsed(ln_self_t *self)
 
 static bool chk_peer_node(ln_self_t *self)
 {
-    return self->peer_node.node_id[0];      //先頭が0の場合は不正
+    return self->peer_node_id[0];       //先頭が0の場合は不正
 }
 
 
@@ -4357,4 +4348,26 @@ static void free_establish(ln_self_t *self)
         M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
         DBG_PRINTF("END\n");
     }
+}
+
+
+static ucoin_keys_sort_t sort_nodeid(ln_self_t *self)
+{
+    ucoin_keys_sort_t sort;
+
+    int lp;
+    for (lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
+        if (self->p_node->keys.pub[lp] != self->peer_node_id[lp]) {
+            break;
+        }
+    }
+    if (self->p_node->keys.pub[lp] < self->peer_node_id[lp]) {
+        DBG_PRINTF("my node= first\n");
+        sort = UCOIN_KEYS_SORT_ASC;
+    } else {
+        DBG_PRINTF("my node= second\n");
+        sort = UCOIN_KEYS_SORT_OTHER;
+    }
+
+    return sort;
 }
