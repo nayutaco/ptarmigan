@@ -5,7 +5,8 @@
 * bitcoind v0.15.x(not v0.16.x)
 * [eclair](https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar) : Eclair v0.2-alpha10
 * [ptarmigan] tags 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-- When ptarmigan version up with DB change is done, you need clean install.(Next version up will be include DB change)
+  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`).(Next version up will be include DB change)
+
 ----
 
 ## Set up nodes in separate computers
