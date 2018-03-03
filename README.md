@@ -6,6 +6,7 @@
 ## About
 
 * [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
+* In Japanese, `ptarmigan` is called "雷(thunder)鳥(bird)".
 
 ## Setup
 
