@@ -1,17 +1,18 @@
 # ptarmigan
 
-<a href="https://scan.coverity.com/projects/nayutaco-ptarmigan">
-  <img alt="Coverity Scan Build Status"
-       src="https://scan.coverity.com/projects/15128/badge.svg"/>
-</a>
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/15128/badge.svg)](https://scan.coverity.com/projects/nayutaco-ptarmigan)
 
-* [recently changed](CHANGELOG.md)
+## About
+
+* [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
 
 ## setup
 
 * bitcoind v0.15 (yet [v0.16](https://github.com/nayutaco/ptarmigan/tree/bitcoind0_16_first))
   * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
 * Ubuntu 16.04
+* [recently changed](CHANGELOG.md)
 
 ## build
 
