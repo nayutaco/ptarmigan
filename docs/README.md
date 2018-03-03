@@ -9,7 +9,7 @@
 
 ## usage
 
-* [How to Pay starblocks/Y'alls (or Your Lightning Node) from ptarmigan Node(Japanese)](howtopay_starblocks_ja.md)
+* How to Pay starblocks/Y'alls (or Your Lightning Node) from ptarmigan Node,[English](howtopay_starblocks.md), [Japanese](howtopay_starblocks_ja.md)
 
 ### 2nodes payment
 
