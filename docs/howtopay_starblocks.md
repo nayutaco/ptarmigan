@@ -10,7 +10,6 @@ Note: This software currently work with only bitcoin v0.15
   The "visible" node on testnet is displayed in [Lightning Network Explorer(TESTNET)](https://explorer.acinq.co/#/)
   As to connect the channels of the Lightning Network, the id, IP address, and port number of node with in this site are required(some nodes don't disclose IP address, and some nodes is not operating).
 - Because Lightning Network makes payments on the P2P network, it is necessary for all node on payment path to operate correctly. Even if only one node on payment path returns an error, payment will not be completed.
-- If an error occurs in the protocol, the application `ucoind` may stop abnormally.
 - Node software is `ucoind`. Use `ucoincli` to operate `ucoind`.
 - It is necessary that `bitcoind` completely synchroninzed with testnet is running on the same local host on which `ucoind` is running. It is necessary to have testnet bitcoin.
 - Current user interface of `ucoincli` is not easy understandable. It is improving.
