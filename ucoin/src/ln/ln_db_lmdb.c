@@ -1485,6 +1485,7 @@ bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
     if (retval == 0) {
         *ppInvoice = strdup(data.mv_data);
     }
+    MDB_TXN_ABORT(txn);
 
 LABEL_EXIT:
     return retval == 0;
@@ -1525,6 +1526,7 @@ int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
             memcpy(*ppPayHash + (cnt - 1) * LN_SZ_HASH, key.mv_data, LN_SZ_HASH);
         }
     }
+    MDB_TXN_ABORT(txn);
 
 LABEL_EXIT:
     return cnt;
@@ -2349,6 +2351,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
             retval = -1;
         }
     }
+    MDB_TXN_COMMIT(db.txn);
 
 LABEL_EXIT:
     return retval == 0;
