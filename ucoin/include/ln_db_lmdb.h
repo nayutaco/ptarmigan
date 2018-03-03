@@ -40,10 +40,9 @@ extern "C" {
  ********************************************************************/
 
 //key名
-#define LNDBK_SELF1             "self1"         ///< [self]パラメータ
-#define M_DBK_SELF2             "self2"         ///< [self]スクリプト
 #define LNDBK_RVV               "rvv"           ///< [revoked]vout
 #define LNDBK_RVW               "rvw"           ///< [revoked]witness
+#define LNDBK_RVT               "rvt"           ///< [revoked]HTLC type
 #define LNDBK_RVS               "rvs"           ///< [revoked]script
 #define LNDBK_RVN               "rvn"           ///< [revoked]num
 #define LNDBK_RVC               "rvc"           ///< [revoked]count
@@ -95,12 +94,23 @@ typedef struct {
  * @param[out]      self
  * @param[in]       txn
  * @param[in]       pdbi
- * @retval      true    成功
+ * @retval      0       成功
  * @attention
  *      -
- *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
+ *      - 新規 self に読込を行う場合は、事前に #ln_self_init()を行っておくこと(seedはNULLでよい)
  */
 int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi);
+
+
+/** channel shared_secret読込み
+ *
+ * @param[in,out]   self
+ * @param[in]       txn
+ * @retval      0       成功
+ * @note
+ *      - self->channel_idをDBのkeyとして使用する
+ */
+int ln_lmdb_self_ss_load(ln_self_t *self, MDB_txn *txn);
 
 
 /**

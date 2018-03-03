@@ -256,7 +256,11 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             del = funding_spent(self, confm, p_db_param);
         } else {
             //funding_tx未使用
-            del = funding_unspent(self, confm, p_db_param);
+            if (LN_DBG_NODE_AUTO_CONNECT()) {
+                del = funding_unspent(self, confm, p_db_param);
+            } else {
+                DBG_PRINTF("[DBG]no Auto connect mode\n");
+            }
         }
         if (del) {
             DBG_PRINTF("delete from DB\n");
