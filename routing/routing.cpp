@@ -332,7 +332,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(pDbSelf, 2);
     assert(ret == 0);
-    ret = mdb_env_open(pDbSelf, selfpath, 0, 0664);
+    ret = mdb_env_open(pDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
         fprintf(fp_err, "fail: cannot open[%s]\n", selfpath);
         return false;
@@ -389,9 +389,9 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     }
 
     //self
-    ret = mdb_txn_begin(pDbSelf, NULL, 0, &txn_self);
+    ret = mdb_txn_begin(pDbSelf, NULL, MDB_RDONLY, &txn_self);
     if (ret != 0) {
-        fprintf(fp_err, "fail: DB txn 1: %s\n", mdb_strerror(ret));
+        fprintf(fp_err, "fail: DB txn 1\n");
         return false;
     }
     ret = mdb_dbi_open(txn_self, NULL, 0, &dbi);
@@ -426,9 +426,9 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
 
 
     //channel_anno
-    ret = mdb_txn_begin(pDbNode, NULL, 0, &txn_node);
+    ret = mdb_txn_begin(pDbNode, NULL, MDB_RDONLY, &txn_node);
     if (ret != 0) {
-        fprintf(fp_err, "fail: DB txn 2: %s\n", mdb_strerror(ret));
+        fprintf(fp_err, "fail: DB txn 2\n");
         return false;
     }
     ret = mdb_dbi_open(txn_node, NULL, 0, &dbi);

@@ -498,8 +498,6 @@ int main(int argc, char *argv[])
             }
             sprintf(selfpath, "%s%s", argv[2], LNDB_SELFENV_DIR);
             sprintf(nodepath, "%s%s", argv[2], LNDB_NODEENV_DIR);
-            // fprintf(stderr, "selfpath=%s\n", selfpath);
-            // fprintf(stderr, "nodepath=%s\n", nodepath);
         }
     } else {
         fprintf(stderr, "usage:\n");
@@ -516,7 +514,7 @@ int main(int argc, char *argv[])
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(mpDbSelf, 2);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbSelf, selfpath, 0, 0664);
+    ret = mdb_env_open(mpDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
         fprintf(stderr, "fail: cannot open[%s]\n", selfpath);
         return -1;
@@ -525,7 +523,7 @@ int main(int argc, char *argv[])
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(mpDbNode, 2);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbNode, nodepath, 0, 0664);
+    ret = mdb_env_open(mpDbNode, nodepath, MDB_RDONLY, 0664);
     if (ret) {
         fprintf(stderr, "fail: cannot open[%s]\n", nodepath);
         return -1;
@@ -555,11 +553,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    ret = mdb_txn_begin(p_env, NULL, 0, &txn);
-    if (ret != 0) {
-        fprintf(stderr, "fail: %s\n", mdb_strerror(ret));
-        return -1;
-    }
+    ret = mdb_txn_begin(p_env, NULL, MDB_RDONLY, &txn);
+    assert(ret == 0);
     ret = mdb_dbi_open(txn, NULL, 0, &dbi);
     if (ret != 0) {
         fprintf(stderr, "fail: DB cannot open.\n");
