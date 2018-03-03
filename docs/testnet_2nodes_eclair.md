@@ -4,8 +4,8 @@
 
 * bitcoind v0.15.x(not v0.16.x)
 * [eclair](https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar) : Eclair v0.2-alpha10
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/e996237ae6d198e43bf04e8ee37a4d406971a10f) : commit e996237ae6d198e43bf04e8ee37a4d406971a10f
-
+* [ptarmigan] tags 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
+- When ptarmigan version up with DB change is done, you need clean install.(Next version up will be include DB change)
 ----
 
 ## Set up nodes in separate computers
@@ -17,7 +17,7 @@
 #### Let's create a channel
 
 1. Running bitcoin node
- 
+
  * [bitcoind] `~/.bitcoin/bitcoin.conf`
 
 ```text
@@ -115,7 +115,7 @@ cd install/node
 10. [btc] Waiting for generating a block
 
 The channel is gererated after reaching two blocks.  
-  
+
 When status is established in a result of -l, we can confirm that if the channel is generated.  
 Combining `watch` and `jq` is also available for observing it.
 

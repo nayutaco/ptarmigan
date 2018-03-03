@@ -20,6 +20,7 @@ Note: This software currently work with only bitcoin v0.15
 - When executed according to the following procedure, `ptarmigan / install / node` is the directory where the node information is stored and `ptarmigan / install / node / dbucoin` is the database directory.
   Even if you exit `ucoind` software, re-running `ucoind` in the `ptarmigan / install / node` directory will start up as the same Lightning Network node.
   If re-startup is not successful, remove the `dbucoin` directory and run it as a new node (if you do not change the `node.conf` file, the node ID will not be changed).
+- When version up with DB change is done, you need clean install.(Next version up will be include DB change)
 
 ## Overview of Payment for Starblocks/Y'alls
 
@@ -81,7 +82,7 @@ Example of faucet WEB
 sudo apt install -y git autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool jq bc
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
-git checkout -b test refs/tags/2018-02-18
+git checkout -b test refs/tags/2018-03-03
 make full
 ```
 
@@ -188,7 +189,7 @@ Display the node status. Comfirm the number of payment channel confirmation is m
 Execute payment from ptarmigan.  
 When payment starts, ptarmigan show message "Progressing".  
 If payment for starblocks successfuly executed, starblocks WEB changes status.
-  
+
 Because Lightning Network is P2P payment, payment does not complete if even one node on the path doesn't correspond correctly.  
 When payment is not completed, ptarmigan execute path re-serach.
 

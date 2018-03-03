@@ -21,6 +21,7 @@
 - 以下の手順に従って実行した場合、`ptarmigan/install/node`　がノード情報が格納されるディレクトリになり、 `ptarmigan/install/node/dbucoin`がデータベースとなる。
   `ucoind`ソフトウェアを終了した場合でも、`ptarmigan/install/node`ディレクトリで`ucoind`を再実行すると同じノードとして立ち上がる。
   起動がうまくいかない場合、`dbucoin`ディレクトリを削除して、新しいノードとして実行すること(`node.conf`ファイルを変更しない場合、ノードIDは変更されない)。
+- バージョンアップでDBの変更が入った場合、クリーンインストールが必要となる。次のバージョンでDBのアップデートが行われる予定。
 
 ## Starblocks または Y'allsに支払いをする全体像
 
@@ -82,7 +83,7 @@ faucet WEBサイト例
 sudo apt install -y git autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool jq bc
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
-git checkout -b test refs/tags/2018-02-18
+git checkout -b test refs/tags/2018-03-03
 make full
 ```
 
