@@ -94,7 +94,7 @@ make distclean
     * `getblock`
     * `getnewaddress`
     * `dumpprivkey` (for funding)
-    * `estimatefee`
+    * `estimatesmartfee`
 
 ## Implement status
 
