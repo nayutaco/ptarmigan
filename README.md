@@ -7,14 +7,18 @@
 
 * [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
 
-## setup
+## Setup
 
 * bitcoind v0.15 (yet [v0.16](https://github.com/nayutaco/ptarmigan/tree/bitcoind0_16_first))
   * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
 * Ubuntu 16.04
 * [recently changed](CHANGELOG.md)
 
-## build
+## Usage
+
+* [docs/README.md](docs/README.md)
+
+## Build
 
 ### installation
 
@@ -53,11 +57,7 @@ make full
 make distclean
 ```
 
-## usage
-
-* [docs/README.md](docs/README.md)
-
-## dependency
+## Dependency
 
 ### libraries
 
@@ -95,7 +95,7 @@ make distclean
     * `dumpprivkey` (for funding)
     * `estimatefee`
 
-## implement status
+## Implement status
 
 | BOLT | status |
 |------|-------|
