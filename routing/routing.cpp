@@ -60,8 +60,8 @@ using namespace boost;
  * macros
  **************************************************************************/
 
-#define M_DEBUG
-//#define M_SPOIL_STDERR
+//#define M_DEBUG
+#define M_SPOIL_STDERR
 
 #define ARGS_GRAPH                          (2)     ///< [引数の数]graphviz用ファイル出力のみ
 #define ARGS_PAYMENT                        (5)     ///< [引数の数]routing(min_final_cltv_expiryはデフォルト)
