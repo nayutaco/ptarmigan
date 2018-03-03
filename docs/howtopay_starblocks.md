@@ -2,6 +2,8 @@
 
 ## Current development status & Usage
 
+Note: This software currently work with only bitcoin0.15
+
 ### 2018/02/21
 
 - In order to make payment to destination node, the path of channels must exist.
@@ -31,7 +33,7 @@ If re-startup is not successful, remove the `dbucoin` directory and run it as a 
 - Create payment channel from ptarmigan to connected node
 - Issue invoice from starblocks/Y'alls WEB
 - Make payment from ptarmigan with invoice
-- 支払いが成功すると、WEB画面が遷移する
+- After successful payment, web screen change
 
 ## concrete operational method
 
@@ -114,8 +116,7 @@ When `Lightning node port` is 9735, it can be ommited.
 ../ucoincli -c peer_xxx.conf
 ```
 When ucoind successfully connect other node, you receive the large amount of node information from peer node.
-You should wait untill log
-大量にログが出るのでログが止まるまで待つ。  
+You should wait untill finishing log output.
 
 9. Confirm connection between  `ucoind` and peer.
 
@@ -138,11 +139,6 @@ File contents means the following:
 (2)send the transaction
 (4)fund channel 8mBTC (give 4mBTC for peer node)
 Note that unit is satoshi.
-
-fundingする情報ファイルとして、`fund_yyyymmddhhmmss.conf`を生成する。  
-10mBTCのsegwit transactionを作成し送金。  
-そこからchannelに8mBTC入れ、そのうち4mBTCを相手に渡す。  
-単位がsatoshiであることに注意すること。  
 
 11. fund payment channel
 
