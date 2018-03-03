@@ -1,19 +1,24 @@
 # ptarmigan
 
-<a href="https://scan.coverity.com/projects/nayutaco-ptarmigan">
-  <img alt="Coverity Scan Build Status"
-       src="https://scan.coverity.com/projects/15128/badge.svg"/>
-</a>
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/15128/badge.svg)](https://scan.coverity.com/projects/nayutaco-ptarmigan)
 
-* [recently changed](CHANGELOG.md)
+## About
 
-## setup
+* [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
+
+## Setup
 
 * bitcoind v0.15 (yet [v0.16](https://github.com/nayutaco/ptarmigan/tree/bitcoind0_16_first))
   * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
 * Ubuntu 16.04
+* [recently changed](CHANGELOG.md)
 
-## build
+## Usage
+
+* [docs/README.md](docs/README.md)
+
+## Build
 
 ### installation
 
@@ -52,11 +57,7 @@ make full
 make distclean
 ```
 
-## usage
-
-* [docs/README.md](docs/README.md)
-
-## dependency
+## Dependency
 
 ### libraries
 
@@ -94,7 +95,7 @@ make distclean
     * `dumpprivkey` (for funding)
     * `estimatefee`
 
-## implement status
+## Implement status
 
 | BOLT | status |
 |------|-------|
