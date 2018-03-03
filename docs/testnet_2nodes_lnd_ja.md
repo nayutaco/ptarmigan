@@ -3,7 +3,9 @@
 ## version
 
 * [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/e996237ae6d198e43bf04e8ee37a4d406971a10f) : commit e996237ae6d198e43bf04e8ee37a4d406971a10f
+* [ptarmigan] tags 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
+- ptarmiganバージョンアップでDBの変更が入った場合、クリーンインストールが必要となる。次のバージョンでDBのアップデートが行われる予定。
+
 
 ----
 
@@ -16,7 +18,7 @@
 #### チャネル開設
 
  1. bitcoinノード設定
- 
+
  * [bitcoind]~/.bitcoin/bitcoin.conf
 
 ```text
