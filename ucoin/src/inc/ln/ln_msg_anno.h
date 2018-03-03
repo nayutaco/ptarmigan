@@ -72,7 +72,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
  *
  */
  void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg);
- 
+
 
 /** node_announcement生成
  *
@@ -153,6 +153,6 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 /** announcement_signaturesの署名アドレス取得
  *
  */
-void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal);
+void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, ucoin_keys_sort_t Sort);
 
 #endif /* LN_MSG_ANNO_H__ */

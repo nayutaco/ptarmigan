@@ -49,6 +49,9 @@
 
 static struct jrpc_server   mJrpc;
 
+static const char *kOK = "OK";
+static const char *kNG = "NG";
+
 
 /********************************************************************
  * prototypes
@@ -56,6 +59,7 @@ static struct jrpc_server   mJrpc;
 
 static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -79,6 +83,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_server_init(&mJrpc, Port);
     jrpc_register_procedure(&mJrpc, cmd_fund,        "fund", NULL);
     jrpc_register_procedure(&mJrpc, cmd_connect,     "connect", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_disconnect,  "disconnect", NULL);
     jrpc_register_procedure(&mJrpc, cmd_close,       "close", NULL);
     jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
@@ -154,7 +159,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     cJSON *json;
     daemon_connect_t conn;
-    funding_conf_t *p_fundconf = (funding_conf_t *)APP_MALLOC(sizeof(funding_conf_t));  //lnapp.c cb_established()で解放
+    funding_conf_t fundconf;
     cJSON *result = NULL;
     int index = 0;
 
@@ -206,7 +211,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //txid
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        misc_str2bin_rev(p_fundconf->txid, UCOIN_SZ_TXID, json->valuestring);
+        misc_str2bin_rev(fundconf.txid, UCOIN_SZ_TXID, json->valuestring);
         DBG_PRINTF("txid=%s\n", json->valuestring);
     } else {
         index = -1;
@@ -215,7 +220,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //txindex
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        p_fundconf->txindex = json->valueint;
+        fundconf.txindex = json->valueint;
         DBG_PRINTF("txindex=%d\n", json->valueint);
     } else {
         index = -1;
@@ -224,7 +229,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //signaddr
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        strcpy(p_fundconf->signaddr, json->valuestring);
+        strcpy(fundconf.signaddr, json->valuestring);
         DBG_PRINTF("signaddr=%s\n", json->valuestring);
     } else {
         index = -1;
@@ -233,8 +238,8 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //funding_sat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        p_fundconf->funding_sat = json->valueu64;
-        DBG_PRINTF("funding_sat=%" PRIu64 "\n", p_fundconf->funding_sat);
+        fundconf.funding_sat = json->valueu64;
+        DBG_PRINTF("funding_sat=%" PRIu64 "\n", fundconf.funding_sat);
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -242,8 +247,8 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //push_sat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        p_fundconf->push_sat = json->valueu64;
-        DBG_PRINTF("push_sat=%" PRIu64 "\n", p_fundconf->push_sat);
+        fundconf.push_sat = json->valueu64;
+        DBG_PRINTF("push_sat=%" PRIu64 "\n", fundconf.push_sat);
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -251,17 +256,17 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //feerate_per_kw
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
-        p_fundconf->feerate_per_kw = (uint32_t)json->valueu64;
-        DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", p_fundconf->feerate_per_kw);
+        fundconf.feerate_per_kw = (uint32_t)json->valueu64;
+        DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", fundconf.feerate_per_kw);
     } else {
         //スルー
     }
 
-    print_funding_conf(p_fundconf);
+    print_funding_conf(&fundconf);
 
     SYSLOG_INFO("fund");
 
-    bool ret = lnapp_funding(p_appconf, p_fundconf);
+    bool ret = lnapp_funding(p_appconf, &fundconf);
     if (ret) {
         result = cJSON_CreateObject();
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("Progressing"));
@@ -305,11 +310,50 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (p_appconf == NULL) {
         p2p_cli_start(&conn, ctx);
         if (ctx->error_code == 0) {
-            result = cJSON_CreateString("OK");
+            result = cJSON_CreateString(kOK);
         }
     } else {
         ctx->error_code = RPCERR_ALCONN;
         ctx->error_message = strdup(RPCERR_ALCONN_STR);
+    }
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    return result;
+}
+
+
+static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    daemon_connect_t conn;
+    cJSON *result = NULL;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //connect parameter
+    index = json_connect(params, index, &conn);
+    if (index < 0) {
+        goto LABEL_EXIT;
+    }
+
+    SYSLOG_INFO("disconnect");
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
+    if (p_appconf != NULL) {
+        lnapp_stop(p_appconf);
+        result = cJSON_CreateString(kOK);
+    } else {
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
     }
 
 LABEL_EXIT:
@@ -486,7 +530,7 @@ static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         ret = ln_db_preimg_del(NULL);
     }
     if (ret) {
-        result = cJSON_CreateString("OK");
+        result = cJSON_CreateString(kOK);
     } else {
         ctx->error_code = RPCERR_INVOICE_ERASE;
         ctx->error_message = strdup(RPCERR_INVOICE_ERASE_STR);
@@ -678,6 +722,9 @@ LABEL_EXIT:
     if (index < 0) {
         ctx->error_code = RPCERR_PARSE;
         ctx->error_message = strdup(RPCERR_PARSE_STR);
+    }
+    if (ctx->error_code != 0) {
+        ln_db_annoskip_invoice_del(payconf.payment_hash);
     }
     return result;
 }
@@ -905,11 +952,24 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_Number)) {
-        ln_set_debug(json->valueint);
-        sprintf(str, "%d", json->valueint);
+        unsigned long dbg = ln_get_debug() ^ json->valueint;
+        ln_set_debug(dbg);
+        sprintf(str, "%08lx", dbg);
+        if (!LN_DBG_FULFILL()) {
+            DBG_PRINTF("no fulfill return\n");
+        }
+        if (!LN_DBG_CLOSING_TX()) {
+            DBG_PRINTF("no closing tx\n");
+        }
+        if (!LN_DBG_MATCH_PREIMAGE()) {
+            DBG_PRINTF("force preimage mismatch\n");
+        }
+        if (!LN_DBG_NODE_AUTO_CONNECT()) {
+            DBG_PRINTF("no node Auto connect\n");
+        }
         ret = str;
     } else {
-        ret = "NG";
+        ret = kNG;
     }
 
     return cJSON_CreateString(ret);

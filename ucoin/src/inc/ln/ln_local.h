@@ -91,15 +91,6 @@
 #define MSGTYPE_IS_PINGPONG(type)           (((type) == MSGTYPE_PING) || (type) == MSGTYPE_PONG) 
 #define MSGTYPE_IS_ANNOUNCE(type)           ((MSGTYPE_CHANNEL_ANNOUNCEMENT <= (type)) && ((type) <= MSGTYPE_CHANNEL_UPDATE))
 
-
-// self.init_flag
-#define INIT_FLAG_SEND              (0x01)
-#define INIT_FLAG_RECV              (0x02)
-#define INIT_FLAG_INITED(flag)      ((flag & (INIT_FLAG_SEND | INIT_FLAG_RECV)) == (INIT_FLAG_SEND | INIT_FLAG_RECV))
-#define INIT_FLAG_REEST_SEND        (0x04)
-#define INIT_FLAG_REEST_RECV        (0x08)
-#define INIT_FLAG_REESTED(flag)     ((flag & (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV)) == (INIT_FLAG_REEST_SEND | INIT_FLAG_REEST_RECV))
-
 // init.localfeatures
 #define INIT_LF_OPT_DATALOSS_REQ    (1 << 0)    ///< option-data-loss-protect
 #define INIT_LF_OPT_DATALOSS_OPT    (1 << 1)    ///< option-data-loss-protect
