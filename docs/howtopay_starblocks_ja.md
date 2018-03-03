@@ -5,21 +5,21 @@
 ### 2018/02/21
 
 - プロトコル上でエラーが起きた場合、アプリケーション`ucoind`をAssertionで異常終了する場合がある。
-- 送金先ノードへ支払いをするためには、送金パスが存在する必要がある。  
-  [Lightning Network Explorer(TESTNET)](https://explorer.acinq.co/#/)に、testnet上に"見えている"ノードが表示されてる。  
+- 送金先ノードへ支払いをするためには、送金パスが存在する必要がある。
+  [Lightning Network Explorer(TESTNET)](https://explorer.acinq.co/#/)に、testnet上に"見えている"ノードが表示されてる。
   Lightning Networkのチャネルを接続するためには、この中で動作しているノードのID, IP address, port番号 が必要となる(IPアドレス非公開や、運用を取りやめたノードも見受けられる)。
-- Lightning NetworkはP2Pネットワーク上で支払いを行うため、送金が完了するためには送金パス上が全てのノードが正しく動作する必要がある。  
-  エラーを返すノードがある場合、支払いは完了しない。 
+- Lightning NetworkはP2Pネットワーク上で支払いを行うため、送金が完了するためには送金パス上が全てのノードが正しく動作する必要がある。
+  エラーを返すノードがある場合、支払いは完了しない。
 - ノードソフト本体は `ucoind`で、起動している `ucoind` への操作は `ucoincli` を使用する。
-- `ucoind` が起動している同じlocalhost上でtestnetに完全に同期している`bitcoind`が動作している必要がある。  
+- `ucoind` が起動している同じlocalhost上でtestnetに完全に同期している`bitcoind`が動作している必要がある。
   また、testnet上のbitcoinを持っている必要がある。
-- `ucoincli`コマンドラインは、開発速度を優先してユーザには分かりづらいところがあり、改善していく予定である。  
-  オプションを指定するファイルとコマンドラインからのオプションを混在して指定する。  
+- `ucoincli`コマンドラインは、開発速度を優先してユーザには分かりづらいところがあり、改善していく予定である。
+  オプションを指定するファイルとコマンドラインからのオプションを混在して指定する。
   使用法として、"オプション指定ファイル生成プログラムを動かす ->  `ucoincli`にそのファイルとコマンドを渡す"というパターンが多い。
 - 現状、同時接続できる数は計20個(相手ノードからの接続10個、自分からの接続10個)までに限定されている。
 - 指定したLightning Networkプロトコル用ポート番号 + 1が固定でJSON-RPCのポート番号になる(`ucoincli`もJSON-RPCのポートを使用する)。
-- 以下の手順に従って実行した場合、`ptarmigan/install/node`　がノード情報が格納されるディレクトリになり、 `ptarmigan/install/node/dbucoin`がデータベースとなる。  
-  `ucoind`ソフトウェアを終了した場合でも、`ptarmigan/install/node`ディレクトリで`ucoind`を再実行すると同じノードとして立ち上がる。  
+- 以下の手順に従って実行した場合、`ptarmigan/install/node`　がノード情報が格納されるディレクトリになり、 `ptarmigan/install/node/dbucoin`がデータベースとなる。
+  `ucoind`ソフトウェアを終了した場合でも、`ptarmigan/install/node`ディレクトリで`ucoind`を再実行すると同じノードとして立ち上がる。
   起動がうまくいかない場合、`dbucoin`ディレクトリを削除して、新しいノードとして実行すること(`node.conf`ファイルを変更しない場合、ノードIDは変更されない)。
 
 ## Starblocks または Y'allsに支払いをする全体像
@@ -44,7 +44,6 @@ sudo add-apt-repository ppa:bitcoin/bitcoin
 sudo apt-get update
 sudo apt-get install bitcoind
 ```
-
 
 `~/.bitcoin/bitcoin.conf`
 
@@ -192,8 +191,10 @@ starblocksの場合、ドリンク購入ボタンを押して、checkoutボタ�
 P2Pネットワーク上での支払いであるため、ネットワークの支払いパス上にあるノードがすべて正しく動作して初めて支払いが完了する。  
 どれか一つがエラーを返した場合、支払いは完了しない。  
 送金中にエラーが発生した場合、`ptarmigan`は以下のように動作する。
-  * エラーになったと思われるチャネルを、回避リストDBに登録する
-  * 再度、`ucoincli -r`と同じ動作を内部で実行する
+
+- エラーになったと思われるチャネルを、回避リストDBに登録する
+- 再度、`ucoincli -r`と同じ動作を内部で実行する
+
 この動作には時間がかかる場合もある。  
 支払い処理を続けている間、`ucoincli -l`で最初の方に"paying"項目が現れている。  
 

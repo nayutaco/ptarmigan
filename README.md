@@ -55,7 +55,6 @@ make distclean
 ## usage
 
 * [docs/README.md](docs/README.md)
-* [How to Pay starblocks/Y'alls](docs/howtopay_starblocks_ja.md) (Japanese)
 
 ## dependency
 
