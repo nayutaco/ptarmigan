@@ -5,7 +5,7 @@
 * bitcoind v0.15.x(not v0.16.x)
 * [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
 * [ptarmigan] tags 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-- When ptarmigan version up with DB change is done, you need clean install.(Next version up will be include DB change)
+  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`).(Next version up will be include DB change)
 
 ----
 
