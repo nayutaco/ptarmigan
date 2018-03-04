@@ -102,17 +102,6 @@ typedef struct {
 int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi);
 
 
-/** channel shared_secret読込み
- *
- * @param[in,out]   self
- * @param[in]       txn
- * @retval      0       成功
- * @note
- *      - self->channel_idをDBのkeyとして使用する
- */
-int ln_lmdb_self_ss_load(ln_self_t *self, MDB_txn *txn);
-
-
 /**
  *
  */

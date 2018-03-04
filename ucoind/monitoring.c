@@ -277,6 +277,8 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
     bool del = false;
 
+    ln_goto_closing(self, p_db_param);
+
     ln_db_revtx_load(self, p_db_param);
     const ucoin_buf_t *p_vout = ln_revoked_vout(self);
     if (p_vout == NULL) {

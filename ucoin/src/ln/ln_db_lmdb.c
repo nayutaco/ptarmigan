@@ -190,7 +190,6 @@ static MDB_env      *mpDbNode = NULL;           // node
 
 
 static const backup_param_t DBSELF_KEYS[] = {
-    //p_node: none
     M_ITEM(ln_self_t, peer_node_id),
     M_ITEM(ln_self_t, storage_index),
     M_ITEM(ln_self_t, storage_seed),
@@ -682,6 +681,26 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     ucoin_buf_free(&buf_funding);
     M_FREE(p_dbscript_keys);
 
+    //shared secret
+    ln_lmdb_db_t db_ss;
+    char dbname[M_SZ_DBNAME_LEN];
+
+    strcpy(dbname, M_SHAREDSECRET_NAME);
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    db_ss.txn = txn;
+    retval = mdb_dbi_open(db_ss.txn, dbname, 0, &db_ss.dbi);
+    if (retval == 0) {
+        retval = self_ss_load(self, &db_ss);
+    }
+    if (retval != 0) {
+        if (retval == MDB_NOTFOUND) {
+            //存在しないことは問題ではない
+            retval = 0;
+        } else {
+            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        }
+    }
+
     return retval;
 }
 
@@ -880,9 +899,6 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
                 memset(&self, 0, sizeof(self));
                 retval = ln_lmdb_self_load(&self, cur.txn, dbi2);
                 if (retval == 0) {
-                    retval = ln_lmdb_self_ss_load(&self, cur.txn);
-                }
-                if (retval == 0) {
                     result = (*pFunc)(&self, (void *)&cur, pFuncParam);
                     if (result) {
                         DBG_PRINTF("match !\n");
@@ -903,28 +919,26 @@ LABEL_EXIT:
 }
 
 
-int ln_lmdb_self_ss_load(ln_self_t *self, MDB_txn *txn)
+bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam)
 {
-    ln_lmdb_db_t db_ss;
-    char dbname[M_SZ_DBNAME_LEN];
+    int             retval;
+    MDB_val         key, data;
+    lmdb_cursor_t   *p_cur;
 
-    strcpy(dbname, M_SHAREDSECRET_NAME);
-    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    db_ss.txn = txn;
-    int retval = mdb_dbi_open(db_ss.txn, dbname, 0, &db_ss.dbi);
-    if (retval == 0) {
-        retval = self_ss_load(self, &db_ss);
-    }
+    //self->fund_flagのみ
+    const backup_param_t DBSELF_KEYS = M_ITEM(ln_self_t, fund_flag);
+
+    p_cur = (lmdb_cursor_t *)pDbParam;
+    key.mv_size = strlen(DBSELF_KEYS.name);
+    key.mv_data = (CONST_CAST char*)DBSELF_KEYS.name;
+    data.mv_size = DBSELF_KEYS.datalen;
+    data.mv_data = (uint8_t *)self + DBSELF_KEYS.offset;
+    retval = mdb_cursor_put(p_cur->cursor, &key, &data, 0);
     if (retval != 0) {
-        if (retval == MDB_NOTFOUND) {
-            //存在しないことは問題ではない
-            retval = 0;
-        } else {
-            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        }
+        DBG_PRINTF("fail: %s(%s)\n", mdb_strerror(retval), DBSELF_KEYS.name);
     }
 
-    return retval;
+    return retval == 0;
 }
 
 

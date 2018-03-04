@@ -109,11 +109,8 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         memset(&self, 0, sizeof(self));
 
         int retval = ln_lmdb_self_load(&self, txn, dbi);
-        if (retval == 0) {
-            retval = ln_lmdb_self_ss_load(&self, txn);
-        }
         if (retval != 0) {
-            printf(M_QQ("load") ":" M_QQ("fail"));
+            printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
             return;
         }
 
@@ -516,7 +513,7 @@ int main(int argc, char *argv[])
 
     ret = mdb_env_create(&mpDbSelf);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbSelf, 2);
+    ret = mdb_env_set_maxdbs(mpDbSelf, 5);
     assert(ret == 0);
     ret = mdb_env_open(mpDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
@@ -525,7 +522,7 @@ int main(int argc, char *argv[])
     }
     ret = mdb_env_create(&mpDbNode);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbNode, 2);
+    ret = mdb_env_set_maxdbs(mpDbNode, 5);
     assert(ret == 0);
     ret = mdb_env_open(mpDbNode, nodepath, MDB_RDONLY, 0664);
     if (ret) {
