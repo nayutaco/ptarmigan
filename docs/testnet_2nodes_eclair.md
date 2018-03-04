@@ -178,4 +178,4 @@ Now, we will move on how to send payment.
 ./eclair-cli channel <channelId>
 ```
 
-* If successful,balanceMsat will be 99980000.
+* If successful, `balanceMsat` will be 99980000.
