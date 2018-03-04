@@ -6,8 +6,9 @@
 * [c-lightning](https://github.com/ElementsProject/lightning/tree/b536e97df29e2881eda0bda008a3c8b1e412d249) : commit b536e97df29e2881eda0bda008a3c8b1e412d249
 * [eclair](https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar) : Eclair v0.2-alpha10
 * [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
-* [ptarmigan] tags 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーンが必要となる(`rm -rf dbucoin`)。次のバージョンでDBのアップデートが行われる予定。
+* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
+  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーンが必要となる(`rm -rf dbucoin`)。  
+    次のバージョンでDBのアップデートが行われる予定。
 
 ## node_id取得
 
