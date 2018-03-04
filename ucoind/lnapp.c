@@ -618,7 +618,13 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 
         char str[256];
 
-        cJSON_AddItemToObject(result, "status", cJSON_CreateString("established"));
+        const char *p_status;
+        if (p_self->fund_flag & LN_FUNDFLAG_CLOSE) {
+            p_status = "close";
+        } else {
+            p_status = "established";
+        }
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
 
         //peer node_id
         misc_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);

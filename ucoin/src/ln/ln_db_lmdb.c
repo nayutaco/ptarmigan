@@ -58,6 +58,7 @@
 #define M_CHANNEL_NAME          "CN"            ///< channel
 #define M_SHAREDSECRET_NAME     "SS"            ///< shared secret
 #define M_REVOKED_NAME          "RV"            ///< revoked transaction用
+#define M_BAKCHANNEL_NAME       "cn"            ///< closed channel
 
 #define M_DBI_ANNO_CNL          "channel_anno"
 #define M_DBI_ANNOINFO_CNL      "channel_annoinfo"
@@ -758,49 +759,15 @@ LABEL_EXIT:
 bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
 {
     int         retval;
-    MDB_dbi     dbi_anno;
     MDB_dbi     dbi_cnl;
-    MDB_cursor  *cursor;
+    MDB_dbi     dbi_bk;
     MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN];
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
 
-    //channel_announcementから自分のshort_channel_idを含むデータを削除
-    retval = mdb_dbi_open(p_cur->txn, M_DBI_ANNO_CNL, 0, &dbi_anno);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        if (retval == MDB_NOTFOUND) {
-            DBG_PRINTF("fall through\n");
-            goto LABEL_DEL_SS;
-        } else {
-            goto LABEL_EXIT;
-        }
-    }
-    retval = mdb_cursor_open(p_cur->txn, dbi_anno, &cursor);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
-    while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-        if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
-            uint64_t load_sci;
-            memcpy(&load_sci, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
-            if (load_sci == ln_short_channel_id(self)) {
-                DBG_PRINTF("delete short_channel_id=%016" PRIx64 "[%c]\n", load_sci, ((const char *)key.mv_data)[LN_SZ_SHORT_CHANNEL_ID]);
-                retval = mdb_cursor_del(cursor, 0);
-                if (retval != 0) {
-                    DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-                }
-            }
-        }
-    }
-    mdb_cursor_close(cursor);
-
-    //shared secret
-LABEL_DEL_SS:
-    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    //shared secret
+    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
     retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi_cnl);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
@@ -820,7 +787,6 @@ LABEL_DEL_SS:
     //revoked transaction用データ
 LABEL_DEL_RV:
     memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
-    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi_cnl);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
@@ -844,6 +810,28 @@ LABEL_DEL_CNL:
     if (retval == 0) {
         retval = mdb_drop(p_cur->txn, dbi_cnl, 1);
         DBG_PRINTF("drop: %s(%d)\n", dbname, retval);
+    }
+
+    memcpy(dbname, M_BAKCHANNEL_NAME, M_PREFIX_LEN);
+    retval = mdb_dbi_open(p_cur->txn, dbname, MDB_CREATE, &dbi_bk);
+    if (retval == 0) {
+        const backup_param_t DBCOPY_KEYS[] = {
+            M_ITEM(ln_self_t, peer_node_id),
+            M_ITEM(ln_self_t, short_channel_id),
+            MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
+            MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
+            MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
+        };
+        for (size_t lp = 0; lp < ARRAY_SIZE(DBCOPY_KEYS); lp++) {
+            key.mv_size = strlen(DBCOPY_KEYS[lp].name);
+            key.mv_data = (CONST_CAST char*)DBCOPY_KEYS[lp].name;
+            data.mv_size = DBCOPY_KEYS[lp].datalen;
+            data.mv_data = (uint8_t *)self + DBCOPY_KEYS[lp].offset;
+            retval = mdb_put(p_cur->txn, dbi_bk, &key, &data, 0);
+            if (retval != 0) {
+                DBG_PRINTF("fail: %s\n", DBCOPY_KEYS[lp].name);
+            }
+        }
     }
 
 LABEL_EXIT:

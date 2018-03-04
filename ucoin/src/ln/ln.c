@@ -182,7 +182,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify);
 static bool create_channelkeys(ln_self_t *self);
 static bool create_local_channel_announcement(ln_self_t *self);
 static void update_percommit_secret(ln_self_t *self);
-static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, bool Flag);
+static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
 static void get_prev_percommit_secret(ln_self_t *self, uint8_t *p_prev_secret);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 static void proc_established(ln_self_t *self);
@@ -900,8 +900,10 @@ void ln_goto_closing(ln_self_t *self, void *pDbParam)
         uint32_t now = (uint32_t)time(NULL);
         ln_cnl_update_t upd;
         bool ret = create_channel_update(self, &upd, &buf_upd, now, LN_CNLUPD_FLAGS_DISABLE);
-        ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));
-        ucoin_buf_free(&buf_upd);
+        if (ret) {
+            ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));
+            ucoin_buf_free(&buf_upd);
+        }
     }
     DBG_PRINTF("END\n");
 }
@@ -4091,7 +4093,7 @@ static bool create_local_channel_announcement(ln_self_t *self)
  * @param[in]           Flag            flagsにORする値
  * @retval      ture    成功
  */
-static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, bool Flag)
+static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag)
 {
     pUpd->short_channel_id = self->short_channel_id;
     pUpd->timestamp = TimeStamp;
