@@ -196,4 +196,4 @@ lncli --no-macaroons payinvoice <BOLT11 invoice>
 lncli --no-macaroons listchannels
 ```
 
-* If successful, msatoshi_to_us will be 99980000.
+* If successful, `local_balance` will be 99980.
