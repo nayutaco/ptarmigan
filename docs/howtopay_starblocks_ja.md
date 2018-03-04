@@ -156,7 +156,7 @@ fundingする情報ファイルとして、`fund_yyyymmddhhmmss.conf`を生成�
 
 confirmation数は、相手ノードに依存する(デフォルトでは、`c-lightning`は1、`lnd`は3以上)。  
 ノード状態を表示させる。チャネル開設できたら、statusが `wait_minimum_depth` から `established` になる。
-ただし、以降の支払いを実行するには、channnelが生成されてアナウンスされる必要があり、6confirmation待つ必要がある(1時間ぐらいかかる)。  
+ただし、以降の支払いを実行するには、channnelが生成されてアナウンスされる必要があり、6confirmation待つ必要がある。  
 現在のconfirmation数は、`ucoincli -l`で確認できる。
 
 13. Starblocks/Y'alls でinvoiceを作成
