@@ -3,8 +3,9 @@
 ## version
 
 * [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
-* [ptarmigan] tags 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーン(`rm -rf dbucoin`)が必要となる。次のバージョンでDBのアップデートが行われる予定。
+* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
+  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーン(`rm -rf dbucoin`)が必要となる。  
+    次のバージョンでDBのアップデートが行われる予定。
 
 ----
 
