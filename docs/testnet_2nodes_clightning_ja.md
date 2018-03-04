@@ -4,8 +4,9 @@
 
 * bitcoind v0.15.x(not v0.16.x)
 * [c-lightning](https://github.com/ElementsProject/lightning/tree/b536e97df29e2881eda0bda008a3c8b1e412d249) : commit b536e97df29e2881eda0bda008a3c8b1e412d249
-* [ptarmigan] tags 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーン(`rm -rf dbucoin`)が必要となる。次のバージョンでDBのアップデートが行われる予定。
+* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
+  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーン(`rm -rf dbucoin`)が必要となる。  
+    次のバージョンでDBのアップデートが行われる予定。
 
 ----
 
