@@ -158,7 +158,7 @@ Note that unit is satoshi.
 Number of comfirmation is depend on peer node(`c-lightning` default value is 1. `lnd` default value is 3).  
 Display node status.  
 When channel is established, status change from `"wait_minimum_depth"` to `"established"`.  
-You should wait 6 confirmation(about 1 hour), because broadcasting of channel start after 6 confirmation.  
+You should wait 6 confirmation, because broadcasting of channel start after 6 confirmation.  
 You can check current number of confirmationn by command `ucoincli -l`.
 
 13. Generate invoice on Starblocks/Y'alls Web
