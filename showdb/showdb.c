@@ -131,23 +131,6 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
-static void dumpit_ss(MDB_txn *txn, MDB_dbi dbi)
-{
-    //shared secret
-    if (showflag & (SHOW_SELF | SHOW_WALLET)) {
-        MDB_val key, data;
-
-        for (uint32_t lp = 0; lp < LN_HTLC_MAX; lp++) {
-            key.mv_size = sizeof(uint32_t);
-            key.mv_data = &lp;
-            int retval = mdb_get(txn, dbi, &key, &data);
-            if (retval != 0) {
-                break;
-            }
-        }
-    }
-}
-
 static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag & SHOW_CNLANNO) {
@@ -592,8 +575,8 @@ int main(int argc, char *argv[])
                 case LN_LMDB_DBTYPE_SELF:
                     dumpit_self(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_SHARED_SECRET:
-                    dumpit_ss(txn, dbi2);
+                case LN_LMDB_DBTYPE_ADD_HTLC:
+                    //LN_LMDB_DBTYPE_SELFで読み込むので、スルー
                     break;
                 case LN_LMDB_DBTYPE_CHANNEL_ANNO:
                     dumpit_channel(txn, dbi2);

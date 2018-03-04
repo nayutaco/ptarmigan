@@ -388,10 +388,10 @@ bool ln_db_annonod_cur_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, 
  *
  * @param[in]       pPreImage
  * @param[in]       Amount
- * @param[in,out]   pDbParam
+ * @param[in,out]   pDb
  * @retval  true
  */
-bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam);
+bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb);
 
 
 /** preimage削除

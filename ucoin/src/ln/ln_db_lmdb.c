@@ -56,7 +56,7 @@
 
 #define M_PREFIX_LEN            (2)
 #define M_CHANNEL_NAME          "CN"            ///< channel
-#define M_SHAREDSECRET_NAME     "SS"            ///< shared secret
+#define M_ADDHTLC_NAME          "HT"            ///< update_add_htlc関連
 #define M_REVOKED_NAME          "RV"            ///< revoked transaction用
 #define M_BAKCHANNEL_NAME       "cn"            ///< closed channel
 
@@ -71,8 +71,12 @@
 #define M_DBI_VERSION           "version"
 
 #define M_SZ_DBNAME_LEN         (M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1)
+#define M_SZ_HTLC_STR           (3)
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
+
+#define M_KEY_SHAREDSECRET      "shared_secret"
+#define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
 #define M_DB_VERSION_VAL        ((int32_t)-17)      ///< DBバージョン
 /*
@@ -164,10 +168,15 @@ typedef struct {
 
 /** @typedef    lmdb_cursor_t
  *  @brief      lmdbのcursor情報。外部へはvoid*でキャストして渡す。
+ *  @attention
+ *      - キャストしてln_lmdb_db_tと同等に使用できる(逆はできない)
  */
 typedef struct {
+    //ln_lmdb_db_t
     MDB_txn     *txn;
     MDB_dbi     dbi;
+
+    //cursor
     MDB_cursor  *cursor;
 } lmdb_cursor_t;
 
@@ -252,55 +261,6 @@ static const backup_param_t DBSELF_KEYS[] = {
     M_ITEM(ln_self_t, channel_id),
     M_ITEM(ln_self_t, short_channel_id),
     //M_ITEM(ln_self_t, cnl_add_htlc),            //ln_update_add_htlc_t
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, amount_msat),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, cltv_expiry),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, payment_sha256),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, flag),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, signature),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, prev_short_channel_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 0, ln_update_add_htlc_t, prev_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, amount_msat),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, cltv_expiry),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, payment_sha256),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, flag),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, signature),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, prev_short_channel_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 1, ln_update_add_htlc_t, prev_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, amount_msat),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, cltv_expiry),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, payment_sha256),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, flag),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, signature),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, prev_short_channel_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 2, ln_update_add_htlc_t, prev_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, amount_msat),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, cltv_expiry),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, payment_sha256),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, flag),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, signature),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, prev_short_channel_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 3, ln_update_add_htlc_t, prev_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, amount_msat),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, cltv_expiry),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, payment_sha256),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, flag),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, signature),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, prev_short_channel_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 4, ln_update_add_htlc_t, prev_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, amount_msat),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, cltv_expiry),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, payment_sha256),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, flag),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, signature),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, prev_short_channel_id),
-    MMN_ITEM(ln_self_t, cnl_add_htlc, 5, ln_update_add_htlc_t, prev_id),
-
     //missing_pong_cnt: none
     //last_num_pong_bytes: none
 
@@ -327,6 +287,19 @@ static const backup_param_t DBSELF_KEYS[] = {
     M_ITEM(ln_self_t, feerate_per_kw),
 };
 
+
+static const backup_param_t DBHTLC_KEYS[] = {
+    M_ITEM(ln_update_add_htlc_t, id),
+    M_ITEM(ln_update_add_htlc_t, amount_msat),
+    M_ITEM(ln_update_add_htlc_t, cltv_expiry),
+    M_ITEM(ln_update_add_htlc_t, payment_sha256),
+    M_ITEM(ln_update_add_htlc_t, flag),
+    M_ITEM(ln_update_add_htlc_t, signature),
+    M_ITEM(ln_update_add_htlc_t, prev_short_channel_id),
+    M_ITEM(ln_update_add_htlc_t, prev_id),
+};
+
+
 //tx_funding
 //shutdown_scriptpk_local
 //shutdown_scriptpk_remote
@@ -336,8 +309,8 @@ static const backup_param_t DBSELF_KEYS[] = {
  * prototypes
  ********************************************************************/
 
-static int self_ss_load(ln_self_t *self, ln_lmdb_db_t *pDb);
-static int self_ss_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
+static int self_addhtlc_load(ln_self_t *self, MDB_txn *txn);
+static int self_addhtlc_save(const ln_self_t *self, MDB_txn *txn);
 
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 
@@ -568,61 +541,6 @@ void ln_db_term(void)
 /********************************************************************
  * self
  ********************************************************************/
-#if 0
-bool ln_db_self_load(ln_self_t *self, const uint8_t *pChannelId)
-{
-    int         retval;
-    MDB_txn     *txn = NULL;
-    MDB_dbi     dbi;
-    char        dbname[M_SZ_DBNAME_LEN];
-
-    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &txn);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT2;
-    }
-
-    strcpy(dbname, M_CHANNEL_NAME);
-    misc_bin2str(dbname + M_PREFIX_LEN, pChannelId, LN_SZ_CHANNEL_ID);
-    retval = mdb_dbi_open(txn, dbname, 0, &dbi);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = ln_lmdb_self_load(self, txn, dbi);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-    }
-
-    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
-    retval = mdb_dbi_open(txn, dbname, 0, &dbi);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = self_ss_load(self, txn, &dbi);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-    }
-
-    memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
-    retval = mdb_dbi_open(txn, dbname, 0, &dbi);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
-LABEL_EXIT:
-    if (txn) {
-        MDB_TXN_ABORT(txn);
-    }
-
-LABEL_EXIT2:
-    DBG_PRINTF("retval=%d\n", retval);
-    return retval == 0;
-}
-#endif
-
 
 int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 {
@@ -682,24 +600,10 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     ucoin_buf_free(&buf_funding);
     M_FREE(p_dbscript_keys);
 
-    //shared secret
-    ln_lmdb_db_t db_ss;
-    char dbname[M_SZ_DBNAME_LEN];
-
-    strcpy(dbname, M_SHAREDSECRET_NAME);
-    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    db_ss.txn = txn;
-    retval = mdb_dbi_open(db_ss.txn, dbname, 0, &db_ss.dbi);
-    if (retval == 0) {
-        retval = self_ss_load(self, &db_ss);
-    }
+    //add_htlc
+    retval = self_addhtlc_load(self, txn);
     if (retval != 0) {
-        if (retval == MDB_NOTFOUND) {
-            //存在しないことは問題ではない
-            retval = 0;
-        } else {
-            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        }
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
     }
 
     return retval;
@@ -731,13 +635,7 @@ bool ln_db_self_save(const ln_self_t *self)
         goto LABEL_EXIT;
     }
 
-    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
-    retval = mdb_dbi_open(db.txn, dbname, MDB_CREATE, &db.dbi);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = self_ss_save(self, &db);
+    retval = self_addhtlc_save(self, db.txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -759,61 +657,59 @@ LABEL_EXIT:
 bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
 {
     int         retval;
-    MDB_dbi     dbi_cnl;
-    MDB_dbi     dbi_bk;
+    MDB_dbi     dbi;
     MDB_val     key, data;
-    char        dbname[M_SZ_DBNAME_LEN];
+    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR];
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    //shared secret
-    memcpy(dbname, M_SHAREDSECRET_NAME, M_PREFIX_LEN);
-    retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi_cnl);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        if (retval == MDB_NOTFOUND) {
-            DBG_PRINTF("fall through: %s\n", dbname);
-            goto LABEL_DEL_RV;
-        } else {
-            goto LABEL_EXIT;
+
+    //add_htlc
+    memcpy(dbname, M_ADDHTLC_NAME, M_PREFIX_LEN);
+
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        char htlc_str[M_SZ_HTLC_STR + 1];
+        sprintf(htlc_str, "%03d", lp);
+        memcpy(dbname + M_SZ_DBNAME_LEN - 1, htlc_str, M_SZ_HTLC_STR);
+        DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
+        retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi);
+        if (retval == 0) {
+            retval = mdb_drop(p_cur->txn, dbi, 1);
         }
-    }
-    retval = mdb_drop(p_cur->txn, dbi_cnl, 1);
-    DBG_PRINTF("drop: %s(%d)\n", dbname, retval);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        if (retval == 0) {
+            DBG_PRINTF("drop: %s\n", dbname);
+        } else {
+            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        }
     }
 
     //revoked transaction用データ
-LABEL_DEL_RV:
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
-    retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi_cnl);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        if (retval == MDB_NOTFOUND) {
-            DBG_PRINTF("fall through: %s\n", dbname);
-            goto LABEL_DEL_CNL;
-        } else {
-            goto LABEL_EXIT;
-        }
+    retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi);
+    if (retval == 0) {
+        retval = mdb_drop(p_cur->txn, dbi, 1);
     }
-    retval = mdb_drop(p_cur->txn, dbi_cnl, 1);
-    DBG_PRINTF("drop: %s(%d)\n", dbname, retval);
-    if (retval != 0) {
+    if (retval == 0) {
+        DBG_PRINTF("drop: %s\n", dbname);
+    } else {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
     }
 
     //channel削除
-LABEL_DEL_CNL:
     memcpy(dbname, M_CHANNEL_NAME, M_PREFIX_LEN);
-    retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi_cnl);
+    retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi);
     if (retval == 0) {
-        retval = mdb_drop(p_cur->txn, dbi_cnl, 1);
-        DBG_PRINTF("drop: %s(%d)\n", dbname, retval);
+        retval = mdb_drop(p_cur->txn, dbi, 1);
+    }
+    if (retval == 0) {
+        DBG_PRINTF("drop: %s\n", dbname);
+    } else {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
     }
 
     memcpy(dbname, M_BAKCHANNEL_NAME, M_PREFIX_LEN);
-    retval = mdb_dbi_open(p_cur->txn, dbname, MDB_CREATE, &dbi_bk);
+    retval = mdb_dbi_open(p_cur->txn, dbname, MDB_CREATE, &dbi);
     if (retval == 0) {
         const backup_param_t DBCOPY_KEYS[] = {
             M_ITEM(ln_self_t, peer_node_id),
@@ -827,18 +723,16 @@ LABEL_DEL_CNL:
             key.mv_data = (CONST_CAST char*)DBCOPY_KEYS[lp].name;
             data.mv_size = DBCOPY_KEYS[lp].datalen;
             data.mv_data = (uint8_t *)self + DBCOPY_KEYS[lp].offset;
-            retval = mdb_put(p_cur->txn, dbi_bk, &key, &data, 0);
+            retval = mdb_put(p_cur->txn, dbi, &key, &data, 0);
             if (retval != 0) {
                 DBG_PRINTF("fail: %s\n", DBCOPY_KEYS[lp].name);
             }
         }
-    }
-
-LABEL_EXIT:
-    if (retval != 0) {
+    } else {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
     }
-    return retval == 0;
+
+    return true;
 }
 
 
@@ -877,7 +771,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
         if (memchr(key.mv_data, '\0', key.mv_size)) {
             continue;
         }
-        ret = mdb_open(cur.txn, key.mv_data, 0, &dbi2);
+        ret = mdb_dbi_open(cur.txn, key.mv_data, 0, &dbi2);
         if (ret == 0) {
             if (list) {
                 list++;
@@ -886,6 +780,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 
                 memset(&self, 0, sizeof(self));
                 retval = ln_lmdb_self_load(&self, cur.txn, dbi2);
+                mdb_dbi_close(mpDbSelf, dbi2);
                 if (retval == 0) {
                     result = (*pFunc)(&self, (void *)&cur, pFuncParam);
                     if (result) {
@@ -1924,7 +1819,7 @@ int ln_lmdb_annonod_cur_load(MDB_cursor *cur, ucoin_buf_t *pBuf, uint32_t *pTime
  * payment preimage
  ********************************************************************/
 
-bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam)
+bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb)
 {
     bool ret;
     ln_lmdb_db_t db;
@@ -1932,8 +1827,8 @@ bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam
     MDB_txn *txn = NULL;
     preimage_info_t info;
 
-    if (pDbParam != NULL) {
-        txn = ((ln_lmdb_db_t *)pDbParam)->txn;
+    if (pDb != NULL) {
+        txn = ((ln_lmdb_db_t *)pDb)->txn;
     }
     ret = preimg_open(&db, txn);
     if (!ret) {
@@ -2205,8 +2100,8 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
 
     txn = ((ln_lmdb_db_t *)pDbParam)->txn;
 
-    strcpy(dbname, M_REVOKED_NAME);
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
     int retval = mdb_dbi_open(txn, dbname, 0, &dbi);
     if (retval != 0) {
         //DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
@@ -2302,8 +2197,8 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
     ucoin_buf_init(&buf);
     db.txn = ((ln_lmdb_db_t *)pDbParam)->txn;
 
-    strcpy(dbname, M_REVOKED_NAME);
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
     int retval = mdb_dbi_open(db.txn, dbname, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
@@ -2470,9 +2365,9 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     if (strncmp(pDbName, M_CHANNEL_NAME, M_PREFIX_LEN) == 0) {
         //self
         dbtype = LN_LMDB_DBTYPE_SELF;
-    } else if (strncmp(pDbName, M_SHAREDSECRET_NAME, M_PREFIX_LEN) == 0) {
-        //shared secret
-        dbtype = LN_LMDB_DBTYPE_SHARED_SECRET;
+    } else if (strncmp(pDbName, M_ADDHTLC_NAME, M_PREFIX_LEN) == 0) {
+        //add_htlc
+        dbtype = LN_LMDB_DBTYPE_ADD_HTLC;
     } else if (strcmp(pDbName, M_DBI_ANNO_CNL) == 0) {
         //channel_announcement
         dbtype = LN_LMDB_DBTYPE_CHANNEL_ANNO;
@@ -2559,50 +2454,107 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
  * private functions
  ********************************************************************/
 
-/** channel: HTLC shared secret読み込み
+/** channel: add_htlc読み込み
  *
  * @param[out]      self
  * @param[in]       pDb
  * @retval      true    成功
  */
-static int self_ss_load(ln_self_t *self, ln_lmdb_db_t *pDb)
+static int self_addhtlc_load(ln_self_t *self, MDB_txn *txn)
 {
-    int retval = 0;
-    MDB_val key, data;
+    int         retval;
+    MDB_dbi     dbi;
+    MDB_val     key, data;
+    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR];
 
-    for (uint32_t lp = 0; lp < LN_HTLC_MAX; lp++) {
-        key.mv_size = sizeof(uint32_t);
-        key.mv_data = &lp;
-        retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
+    void *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
+
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(dbname, M_ADDHTLC_NAME, M_PREFIX_LEN);
+
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        char htlc_str[M_SZ_HTLC_STR + 1];
+        sprintf(htlc_str, "%03d", lp);
+        memcpy(dbname + M_SZ_DBNAME_LEN - 1, htlc_str, M_SZ_HTLC_STR);
+        //DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
+        retval = mdb_dbi_open(txn, dbname, 0, &dbi);
         if (retval != 0) {
-            break;
+            DBG_PRINTF("ERR: %s(%s)\n", mdb_strerror(retval), dbname);
+            continue;
+        }
+        for (size_t lp2 = 0; lp2 < ARRAY_SIZE(DBHTLC_KEYS); lp2++) {
+            key.mv_size = strlen(DBHTLC_KEYS[lp2].name);
+            key.mv_data = (CONST_CAST char*)DBHTLC_KEYS[lp2].name;
+            retval = mdb_get(txn, dbi, &key, &data);
+            if (retval == 0) {
+                //DBG_PRINTF("[%d]%s: ", lp, DBHTLC_KEYS[lp2].name);
+                //DUMPBIN(data.mv_data, data.mv_size);
+                memcpy(OFFSET + sizeof(ln_update_add_htlc_t) * lp + DBHTLC_KEYS[lp2].offset, data.mv_data, DBHTLC_KEYS[lp2].datalen);
+            } else {
+                DBG_PRINTF("ERR: %s(%s)\n", mdb_strerror(retval), DBHTLC_KEYS[lp2].name);
+            }
+        }
+        key.mv_size = M_SZ_SHAREDSECRET;
+        key.mv_data = M_KEY_SHAREDSECRET;
+        retval = mdb_get(txn, dbi, &key, &data);
+        if (retval != 0) {
+            DBG_PRINTF("ERR: %s(shared_secret)\n", mdb_strerror(retval));
         }
         ucoin_buf_alloccopy(&self->cnl_add_htlc[lp].shared_secret, data.mv_data, data.mv_size);
+        mdb_dbi_close(mpDbSelf, dbi);
     }
 
     return retval;
 }
 
 
-/** channel: HTLC shared secret書込み
+/** channel: add_htlc書込み
  *
  * @param[in]       self
  * @param[in]       pDb
  * @retval      true    成功
  */
-static int self_ss_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
+static int self_addhtlc_save(const ln_self_t *self, MDB_txn *txn)
 {
-    int retval = 0;
-    MDB_val key, data;
+    int         retval;
+    MDB_dbi     dbi;
+    MDB_val     key, data;
+    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR];
 
-    for (uint32_t lp = 0; lp < LN_HTLC_MAX; lp++) {
-        key.mv_size = sizeof(uint32_t);
-        key.mv_data = &lp;
+    void *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
+
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(dbname, M_ADDHTLC_NAME, M_PREFIX_LEN);
+
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        char htlc_str[M_SZ_HTLC_STR + 1];
+        sprintf(htlc_str, "%03d", lp);
+        memcpy(dbname + M_SZ_DBNAME_LEN - 1, htlc_str, M_SZ_HTLC_STR);
+        DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
+        retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi);
+        if (retval != 0) {
+            DBG_PRINTF("ERR: %s(%s)\n", mdb_strerror(retval), dbname);
+            continue;
+        }
+        for (size_t lp2 = 0; lp2 < ARRAY_SIZE(DBHTLC_KEYS); lp2++) {
+            key.mv_size = strlen(DBHTLC_KEYS[lp2].name);
+            key.mv_data = (CONST_CAST char*)DBHTLC_KEYS[lp2].name;
+            data.mv_size = DBHTLC_KEYS[lp2].datalen;
+            data.mv_data = OFFSET + sizeof(ln_update_add_htlc_t) * lp + DBHTLC_KEYS[lp2].offset;
+            //DBG_PRINTF("[%d]%s: ", lp, DBHTLC_KEYS[lp2].name);
+            //DUMPBIN(data.mv_data, data.mv_size);
+            retval = mdb_put(txn, dbi, &key, &data, 0);
+            if (retval != 0) {
+                DBG_PRINTF("ERR: %s(%s)\n", mdb_strerror(retval), DBHTLC_KEYS[lp2].name);
+            }
+        }
+        key.mv_size = M_SZ_SHAREDSECRET;
+        key.mv_data = M_KEY_SHAREDSECRET;
         data.mv_size = self->cnl_add_htlc[lp].shared_secret.len;
         data.mv_data = self->cnl_add_htlc[lp].shared_secret.buf;
-        retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
+        retval = mdb_put(txn, dbi, &key, &data, 0);
         if (retval != 0) {
-            break;
+            DBG_PRINTF("ERR: %s(shared_secret)\n", mdb_strerror(retval));
         }
     }
 
