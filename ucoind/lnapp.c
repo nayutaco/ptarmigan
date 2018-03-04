@@ -620,7 +620,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 
         const char *p_status;
         if (p_self->fund_flag & LN_FUNDFLAG_CLOSE) {
-            p_status = "close";
+            p_status = "closing";
         } else {
             p_status = "established";
         }
