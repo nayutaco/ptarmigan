@@ -309,8 +309,8 @@ static const backup_param_t DBHTLC_KEYS[] = {
  * prototypes
  ********************************************************************/
 
-static int self_addhtlc_load(ln_self_t *self, MDB_txn *txn);
-static int self_addhtlc_save(const ln_self_t *self, MDB_txn *txn);
+static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb);
+static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 
@@ -544,7 +544,7 @@ void ln_db_term(void)
 
 int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 {
-    int retval;
+    int         retval;
     MDB_val     key, data;
 
     //固定サイズ
@@ -601,7 +601,9 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     M_FREE(p_dbscript_keys);
 
     //add_htlc
-    retval = self_addhtlc_load(self, txn);
+    ln_lmdb_db_t db;
+    db.txn = txn;
+    retval = self_addhtlc_load(self, &db);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
     }
@@ -612,9 +614,9 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 
 bool ln_db_self_save(const ln_self_t *self)
 {
-    int         retval;
-    ln_lmdb_db_t   db;
-    char        dbname[M_SZ_DBNAME_LEN];
+    int             retval;
+    ln_lmdb_db_t    db;
+    char            dbname[M_SZ_DBNAME_LEN];
 
     retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -634,8 +636,7 @@ bool ln_db_self_save(const ln_self_t *self)
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-
-    retval = self_addhtlc_save(self, db.txn);
+    retval = self_addhtlc_save(self, &db);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -662,9 +663,8 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR];
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
 
-    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-
     //add_htlc
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_ADDHTLC_NAME, M_PREFIX_LEN);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
@@ -675,6 +675,8 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
         retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi);
         if (retval == 0) {
             retval = mdb_drop(p_cur->txn, dbi, 1);
+        } else {
+            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         }
         if (retval == 0) {
             DBG_PRINTF("drop: %s\n", dbname);
@@ -708,6 +710,7 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
     }
 
+    //記録として残す
     memcpy(dbname, M_BAKCHANNEL_NAME, M_PREFIX_LEN);
     retval = mdb_dbi_open(p_cur->txn, dbname, MDB_CREATE, &dbi);
     if (retval == 0) {
@@ -738,9 +741,10 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
 
 bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
-    bool result = false;
-    int retval;
-    lmdb_cursor_t cur;
+    bool            result = false;
+    int             retval;
+    lmdb_cursor_t   cur;
+    MDB_dbi         dbi;
 
     retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &cur.txn);
     if (retval != 0) {
@@ -748,14 +752,14 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
         goto LABEL_EXIT;
     }
 
-    retval = mdb_dbi_open(cur.txn, NULL, 0, &cur.dbi);
+    retval = mdb_dbi_open(cur.txn, NULL, 0, &dbi);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(cur.txn);
         goto LABEL_EXIT;
     }
 
-    retval = mdb_cursor_open(cur.txn, cur.dbi, &cur.cursor);
+    retval = mdb_cursor_open(cur.txn, dbi, &cur.cursor);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(cur.txn);
@@ -763,24 +767,16 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
     }
 
     bool ret;
-    int list = 0;
     MDB_val     key;
     while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
-        MDB_dbi dbi2;
-
-        if (memchr(key.mv_data, '\0', key.mv_size)) {
-            continue;
-        }
-        ret = mdb_dbi_open(cur.txn, key.mv_data, 0, &dbi2);
-        if (ret == 0) {
-            if (list) {
-                list++;
-            } else if ((key.mv_size == (M_SZ_DBNAME_LEN - 1)) && (memcmp(key.mv_data, M_CHANNEL_NAME, M_PREFIX_LEN) == 0)) {
+        //DBG_PRINTF("key.mv_data=%s\n", (const char *)key.mv_data);
+        if ((key.mv_size == (M_SZ_DBNAME_LEN - 1)) && (memcmp(key.mv_data, M_CHANNEL_NAME, M_PREFIX_LEN) == 0)) {
+            ret = mdb_dbi_open(cur.txn, key.mv_data, 0, &cur.dbi);
+            if (ret == 0) {
                 ln_self_t self;
 
                 memset(&self, 0, sizeof(self));
-                retval = ln_lmdb_self_load(&self, cur.txn, dbi2);
-                mdb_dbi_close(mpDbSelf, dbi2);
+                retval = ln_lmdb_self_load(&self, cur.txn, cur.dbi);
                 if (retval == 0) {
                     result = (*pFunc)(&self, (void *)&cur, pFuncParam);
                     if (result) {
@@ -791,6 +787,8 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
                 } else {
                     DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
                 }
+            } else {
+                DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
             }
         }
     }
@@ -809,16 +807,16 @@ bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam)
     lmdb_cursor_t   *p_cur;
 
     //self->fund_flagのみ
-    const backup_param_t DBSELF_KEYS = M_ITEM(ln_self_t, fund_flag);
+    const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, fund_flag);
 
     p_cur = (lmdb_cursor_t *)pDbParam;
-    key.mv_size = strlen(DBSELF_KEYS.name);
-    key.mv_data = (CONST_CAST char*)DBSELF_KEYS.name;
-    data.mv_size = DBSELF_KEYS.datalen;
-    data.mv_data = (uint8_t *)self + DBSELF_KEYS.offset;
-    retval = mdb_cursor_put(p_cur->cursor, &key, &data, 0);
+    key.mv_size = strlen(DBSELF_KEY.name);
+    key.mv_data = (CONST_CAST char*)DBSELF_KEY.name;
+    data.mv_size = DBSELF_KEY.datalen;
+    data.mv_data = (uint8_t *)self + DBSELF_KEY.offset;
+    retval = mdb_put(p_cur->txn, p_cur->dbi, &key, &data, 0);
     if (retval != 0) {
-        DBG_PRINTF("fail: %s(%s)\n", mdb_strerror(retval), DBSELF_KEYS.name);
+        DBG_PRINTF("fail: %s(%s)\n", mdb_strerror(retval), DBSELF_KEY.name);
     }
 
     return retval == 0;
@@ -2460,7 +2458,7 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
  * @param[in]       pDb
  * @retval      true    成功
  */
-static int self_addhtlc_load(ln_self_t *self, MDB_txn *txn)
+static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb)
 {
     int         retval;
     MDB_dbi     dbi;
@@ -2477,7 +2475,7 @@ static int self_addhtlc_load(ln_self_t *self, MDB_txn *txn)
         sprintf(htlc_str, "%03d", lp);
         memcpy(dbname + M_SZ_DBNAME_LEN - 1, htlc_str, M_SZ_HTLC_STR);
         //DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
-        retval = mdb_dbi_open(txn, dbname, 0, &dbi);
+        retval = mdb_dbi_open(pDb->txn, dbname, 0, &dbi);
         if (retval != 0) {
             DBG_PRINTF("ERR: %s(%s)\n", mdb_strerror(retval), dbname);
             continue;
@@ -2485,7 +2483,7 @@ static int self_addhtlc_load(ln_self_t *self, MDB_txn *txn)
         for (size_t lp2 = 0; lp2 < ARRAY_SIZE(DBHTLC_KEYS); lp2++) {
             key.mv_size = strlen(DBHTLC_KEYS[lp2].name);
             key.mv_data = (CONST_CAST char*)DBHTLC_KEYS[lp2].name;
-            retval = mdb_get(txn, dbi, &key, &data);
+            retval = mdb_get(pDb->txn, dbi, &key, &data);
             if (retval == 0) {
                 //DBG_PRINTF("[%d]%s: ", lp, DBHTLC_KEYS[lp2].name);
                 //DUMPBIN(data.mv_data, data.mv_size);
@@ -2496,7 +2494,7 @@ static int self_addhtlc_load(ln_self_t *self, MDB_txn *txn)
         }
         key.mv_size = M_SZ_SHAREDSECRET;
         key.mv_data = M_KEY_SHAREDSECRET;
-        retval = mdb_get(txn, dbi, &key, &data);
+        retval = mdb_get(pDb->txn, dbi, &key, &data);
         if (retval != 0) {
             DBG_PRINTF("ERR: %s(shared_secret)\n", mdb_strerror(retval));
         }
@@ -2514,7 +2512,7 @@ static int self_addhtlc_load(ln_self_t *self, MDB_txn *txn)
  * @param[in]       pDb
  * @retval      true    成功
  */
-static int self_addhtlc_save(const ln_self_t *self, MDB_txn *txn)
+static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
 {
     int         retval;
     MDB_dbi     dbi;
@@ -2530,8 +2528,8 @@ static int self_addhtlc_save(const ln_self_t *self, MDB_txn *txn)
         char htlc_str[M_SZ_HTLC_STR + 1];
         sprintf(htlc_str, "%03d", lp);
         memcpy(dbname + M_SZ_DBNAME_LEN - 1, htlc_str, M_SZ_HTLC_STR);
-        DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
-        retval = mdb_dbi_open(txn, dbname, MDB_CREATE, &dbi);
+        //DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
+        retval = mdb_dbi_open(pDb->txn, dbname, MDB_CREATE, &dbi);
         if (retval != 0) {
             DBG_PRINTF("ERR: %s(%s)\n", mdb_strerror(retval), dbname);
             continue;
@@ -2543,7 +2541,7 @@ static int self_addhtlc_save(const ln_self_t *self, MDB_txn *txn)
             data.mv_data = OFFSET + sizeof(ln_update_add_htlc_t) * lp + DBHTLC_KEYS[lp2].offset;
             //DBG_PRINTF("[%d]%s: ", lp, DBHTLC_KEYS[lp2].name);
             //DUMPBIN(data.mv_data, data.mv_size);
-            retval = mdb_put(txn, dbi, &key, &data, 0);
+            retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
             if (retval != 0) {
                 DBG_PRINTF("ERR: %s(%s)\n", mdb_strerror(retval), DBHTLC_KEYS[lp2].name);
             }
@@ -2552,7 +2550,7 @@ static int self_addhtlc_save(const ln_self_t *self, MDB_txn *txn)
         key.mv_data = M_KEY_SHAREDSECRET;
         data.mv_size = self->cnl_add_htlc[lp].shared_secret.len;
         data.mv_data = self->cnl_add_htlc[lp].shared_secret.buf;
-        retval = mdb_put(txn, dbi, &key, &data, 0);
+        retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
         if (retval != 0) {
             DBG_PRINTF("ERR: %s(shared_secret)\n", mdb_strerror(retval));
         }
