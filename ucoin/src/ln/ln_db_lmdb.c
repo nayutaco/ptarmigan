@@ -55,10 +55,10 @@
 #define M_SELF_BUFS             (3)             ///< DB保存する可変長データ数
 
 #define M_PREFIX_LEN            (2)
-#define M_CHANNEL_NAME          "CN"            ///< channel
-#define M_ADDHTLC_NAME          "HT"            ///< update_add_htlc関連
-#define M_REVOKED_NAME          "RV"            ///< revoked transaction用
-#define M_BAKCHANNEL_NAME       "cn"            ///< closed channel
+#define M_PREF_CHANNEL          "CN"            ///< channel
+#define M_PREF_ADDHTLC          "HT"            ///< update_add_htlc関連
+#define M_PREF_REVOKED          "RV"            ///< revoked transaction用
+#define M_PREF_BAKCHANNEL       "cn"            ///< closed channel
 
 #define M_DBI_ANNO_CNL          "channel_anno"
 #define M_DBI_ANNOINFO_CNL      "channel_annoinfo"
@@ -70,9 +70,9 @@
 #define M_DBI_PAYHASH           "payhash"
 #define M_DBI_VERSION           "version"
 
-#define M_SZ_DBNAME_LEN         (M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2 + 1)
+#define M_SZ_DBNAME_LEN         (M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2)
 #define M_SZ_HTLC_STR           (3)
-#define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
+#define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t))
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
 
 #define M_KEY_SHAREDSECRET      "shared_secret"
@@ -336,6 +336,7 @@ static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
 static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port);
 static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
 
+static void addhtlc_dbname(char *pDbName, int num);
 static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 
 
@@ -616,7 +617,7 @@ bool ln_db_self_save(const ln_self_t *self)
 {
     int             retval;
     ln_lmdb_db_t    db;
-    char            dbname[M_SZ_DBNAME_LEN];
+    char            dbname[M_SZ_DBNAME_LEN + 1];
 
     retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -624,8 +625,9 @@ bool ln_db_self_save(const ln_self_t *self)
         goto LABEL_EXIT;
     }
 
-    strcpy(dbname, M_CHANNEL_NAME);
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(dbname, M_PREF_CHANNEL, M_PREFIX_LEN);
+
     retval = mdb_dbi_open(db.txn, dbname, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
@@ -660,18 +662,16 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
     int         retval;
     MDB_dbi     dbi;
     MDB_val     key, data;
-    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR];
+    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
 
     //add_htlc
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    memcpy(dbname, M_ADDHTLC_NAME, M_PREFIX_LEN);
+    memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        char htlc_str[M_SZ_HTLC_STR + 1];
-        sprintf(htlc_str, "%03d", lp);
-        memcpy(dbname + M_SZ_DBNAME_LEN - 1, htlc_str, M_SZ_HTLC_STR);
-        DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
+        addhtlc_dbname(dbname, lp);
+        //DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
         retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi);
         if (retval == 0) {
             retval = mdb_drop(p_cur->txn, dbi, 1);
@@ -687,7 +687,8 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
 
     //revoked transaction用データ
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
+    memcpy(dbname, M_PREF_REVOKED, M_PREFIX_LEN);
+
     retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi);
     if (retval == 0) {
         retval = mdb_drop(p_cur->txn, dbi, 1);
@@ -699,7 +700,7 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
     }
 
     //channel削除
-    memcpy(dbname, M_CHANNEL_NAME, M_PREFIX_LEN);
+    memcpy(dbname, M_PREF_CHANNEL, M_PREFIX_LEN);
     retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi);
     if (retval == 0) {
         retval = mdb_drop(p_cur->txn, dbi, 1);
@@ -711,7 +712,7 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
     }
 
     //記録として残す
-    memcpy(dbname, M_BAKCHANNEL_NAME, M_PREFIX_LEN);
+    memcpy(dbname, M_PREF_BAKCHANNEL, M_PREFIX_LEN);
     retval = mdb_dbi_open(p_cur->txn, dbname, MDB_CREATE, &dbi);
     if (retval == 0) {
         const backup_param_t DBCOPY_KEYS[] = {
@@ -770,7 +771,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
     MDB_val     key;
     while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
         //DBG_PRINTF("key.mv_data=%s\n", (const char *)key.mv_data);
-        if ((key.mv_size == (M_SZ_DBNAME_LEN - 1)) && (memcmp(key.mv_data, M_CHANNEL_NAME, M_PREFIX_LEN) == 0)) {
+        if ((key.mv_size == (M_SZ_DBNAME_LEN)) && (memcmp(key.mv_data, M_PREF_CHANNEL, M_PREFIX_LEN) == 0)) {
             ret = mdb_dbi_open(cur.txn, key.mv_data, 0, &cur.dbi);
             if (ret == 0) {
                 ln_self_t self;
@@ -1095,7 +1096,7 @@ bool ln_db_annocnlall_del(uint64_t ShortChannelId)
     MDB_txn     *txn;
     MDB_dbi     dbi, dbi_info;
     MDB_val     key;
-    uint8_t     keydata[M_SZ_ANNOINFO_CNL];
+    uint8_t     keydata[M_SZ_ANNOINFO_CNL + 1];
 
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
@@ -1145,7 +1146,7 @@ bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type,
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO_CNL];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
 
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, Type);
     int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
@@ -1168,7 +1169,7 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bo
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO_CNL];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
     bool detect = false;
 
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, Type);
@@ -2094,12 +2095,13 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     MDB_val key, data;
     MDB_txn     *txn;
     MDB_dbi     dbi;
-    char        dbname[M_SZ_DBNAME_LEN];
+    char        dbname[M_SZ_DBNAME_LEN + 1];
 
     txn = ((ln_lmdb_db_t *)pDbParam)->txn;
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
+    memcpy(dbname, M_PREF_REVOKED, M_PREFIX_LEN);
+
     int retval = mdb_dbi_open(txn, dbname, 0, &dbi);
     if (retval != 0) {
         //DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
@@ -2188,7 +2190,7 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
 {
     MDB_val key, data;
     ln_lmdb_db_t   db;
-    char        dbname[M_SZ_DBNAME_LEN];
+    char        dbname[M_SZ_DBNAME_LEN + 1];
     ucoin_buf_t buf;
     ucoin_push_t push;
 
@@ -2196,7 +2198,8 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
     db.txn = ((ln_lmdb_db_t *)pDbParam)->txn;
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    memcpy(dbname, M_REVOKED_NAME, M_PREFIX_LEN);
+    memcpy(dbname, M_PREF_REVOKED, M_PREFIX_LEN);
+
     int retval = mdb_dbi_open(db.txn, dbname, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
@@ -2275,7 +2278,7 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
     }
 
     if (bUpdate) {
-        memcpy(dbname, M_CHANNEL_NAME, M_PREFIX_LEN);
+        memcpy(dbname, M_PREF_CHANNEL, M_PREFIX_LEN);
         retval = mdb_dbi_open(db.txn, dbname, 0, &db.dbi);
         if (retval != 0) {
             DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
@@ -2360,12 +2363,18 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
 {
     ln_lmdb_dbtype_t dbtype;
 
-    if (strncmp(pDbName, M_CHANNEL_NAME, M_PREFIX_LEN) == 0) {
+    if (strncmp(pDbName, M_PREF_CHANNEL, M_PREFIX_LEN) == 0) {
         //self
         dbtype = LN_LMDB_DBTYPE_SELF;
-    } else if (strncmp(pDbName, M_ADDHTLC_NAME, M_PREFIX_LEN) == 0) {
+    } else if (strncmp(pDbName, M_PREF_ADDHTLC, M_PREFIX_LEN) == 0) {
         //add_htlc
         dbtype = LN_LMDB_DBTYPE_ADD_HTLC;
+    } else if (strncmp(pDbName, M_PREF_REVOKED, M_PREFIX_LEN) == 0) {
+        //revoked transaction
+        dbtype = LN_LMDB_DBTYPE_REVOKED;
+    } else if (strncmp(pDbName, M_PREF_BAKCHANNEL, M_PREFIX_LEN) == 0) {
+        //removed self
+        dbtype = LN_LMDB_DBTYPE_BKSELF;
     } else if (strcmp(pDbName, M_DBI_ANNO_CNL) == 0) {
         //channel_announcement
         dbtype = LN_LMDB_DBTYPE_CHANNEL_ANNO;
@@ -2463,17 +2472,15 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     int         retval;
     MDB_dbi     dbi;
     MDB_val     key, data;
-    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR];
+    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
     void *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    memcpy(dbname, M_ADDHTLC_NAME, M_PREFIX_LEN);
+    memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        char htlc_str[M_SZ_HTLC_STR + 1];
-        sprintf(htlc_str, "%03d", lp);
-        memcpy(dbname + M_SZ_DBNAME_LEN - 1, htlc_str, M_SZ_HTLC_STR);
+        addhtlc_dbname(dbname, lp);
         //DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
         retval = mdb_dbi_open(pDb->txn, dbname, 0, &dbi);
         if (retval != 0) {
@@ -2517,17 +2524,15 @@ static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     int         retval;
     MDB_dbi     dbi;
     MDB_val     key, data;
-    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR];
+    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
     void *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
-    memcpy(dbname, M_ADDHTLC_NAME, M_PREFIX_LEN);
+    memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        char htlc_str[M_SZ_HTLC_STR + 1];
-        sprintf(htlc_str, "%03d", lp);
-        memcpy(dbname + M_SZ_DBNAME_LEN - 1, htlc_str, M_SZ_HTLC_STR);
+        addhtlc_dbname(dbname, lp);
         //DBG_PRINTF("[%d]dbname: %s\n", lp, dbname);
         retval = mdb_dbi_open(pDb->txn, dbname, MDB_CREATE, &dbi);
         if (retval != 0) {
@@ -2631,7 +2636,7 @@ static int annocnl_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlAnno, uint64_t Short
     DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO_CNL];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
 
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, LN_DB_CNLANNO_ANNO);
     int retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
@@ -2659,7 +2664,7 @@ static int annocnl_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlAnno, uint64_t
     DBG_PRINTF("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO_CNL];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
 
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, LN_DB_CNLANNO_ANNO);
     data.mv_size = pCnlAnno->len;
@@ -2738,7 +2743,7 @@ static int annocnlupd_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlUpd, uint32_t *pT
     DBG_PRINTF("short_channel_id=%016" PRIx64 ", dir=%d\n", ShortChannelId, Dir);
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO_CNL];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
 
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, ((Dir) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
     int retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
@@ -2767,7 +2772,7 @@ static int annocnlupd_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlUpd, const 
     DBG_PRINTF("short_channel_id=%016" PRIx64 ", dir=%d\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
 
     MDB_val key, data;
-    uint8_t keydata[M_SZ_ANNOINFO_CNL];
+    uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
 
     M_ANNOINFO_CNL_SET(keydata, key, pUpd->short_channel_id, (ln_cnlupd_direction(pUpd) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
     ucoin_buf_t buf;
@@ -3082,12 +3087,32 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
 }
 
 
+/** addhtlc用db名の作成
+ *
+ * @note
+ *      - "HT" + xxxxxxxx...xx[32*2] + "ddd"
+ *        |<-- M_SZ_DBNAME_LEN  -->|
+ *
+ * @attention
+ *      - 予め pDbName に M_PREF_ADDHTLC と channel_idはコピーしておくこと
+ */
+static void addhtlc_dbname(char *pDbName, int num)
+{
+    char htlc_str[M_SZ_HTLC_STR + 1];
+
+    snprintf(htlc_str, sizeof(htlc_str), "%03d", num);
+    memcpy(pDbName + M_SZ_DBNAME_LEN, htlc_str, M_SZ_HTLC_STR);
+    pDbName[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR] = '\0';
+
+}
+
+
 static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen)
 {
     *pStr = '\0';
     for (int lp = 0; lp < BinLen; lp++) {
         char str[3];
-        sprintf(str, "%02x", pBin[lp]);
+        snprintf(str, sizeof(str), "%02x", pBin[lp]);
         strcat(pStr, str);
     }
 }
