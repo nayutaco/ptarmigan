@@ -263,8 +263,8 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
             //
 
             //p1が非NULL == my node_id
-            if (self.short_channel_id != 0) {
-                //チャネルは開設している
+            if ((self.short_channel_id != 0) && ((self.fund_flag & LN_FUNDFLAG_CLOSE) == 0)) {
+                //チャネルは開設している && close処理をしていない
                 p2 = self.peer_node_id;
 
 #ifdef M_DEBUG

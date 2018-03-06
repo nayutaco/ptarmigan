@@ -109,11 +109,8 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         memset(&self, 0, sizeof(self));
 
         int retval = ln_lmdb_self_load(&self, txn, dbi);
-        if (retval == 0) {
-            retval = ln_lmdb_self_ss_load(&self, txn);
-        }
         if (retval != 0) {
-            printf(M_QQ("load") ":" M_QQ("fail"));
+            printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
             return;
         }
 
@@ -131,23 +128,6 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         }
         ln_term(&self);
         cnt0++;
-    }
-}
-
-static void dumpit_ss(MDB_txn *txn, MDB_dbi dbi)
-{
-    //shared secret
-    if (showflag & (SHOW_SELF | SHOW_WALLET)) {
-        MDB_val key, data;
-
-        for (uint32_t lp = 0; lp < LN_HTLC_MAX; lp++) {
-            key.mv_size = sizeof(uint32_t);
-            key.mv_data = &lp;
-            int retval = mdb_get(txn, dbi, &key, &data);
-            if (retval != 0) {
-                break;
-            }
-        }
     }
 }
 
@@ -516,7 +496,7 @@ int main(int argc, char *argv[])
 
     ret = mdb_env_create(&mpDbSelf);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbSelf, 2);
+    ret = mdb_env_set_maxdbs(mpDbSelf, 5);
     assert(ret == 0);
     ret = mdb_env_open(mpDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
@@ -525,7 +505,7 @@ int main(int argc, char *argv[])
     }
     ret = mdb_env_create(&mpDbNode);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbNode, 2);
+    ret = mdb_env_set_maxdbs(mpDbNode, 5);
     assert(ret == 0);
     ret = mdb_env_open(mpDbNode, nodepath, MDB_RDONLY, 0664);
     if (ret) {
@@ -595,8 +575,8 @@ int main(int argc, char *argv[])
                 case LN_LMDB_DBTYPE_SELF:
                     dumpit_self(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_SHARED_SECRET:
-                    dumpit_ss(txn, dbi2);
+                case LN_LMDB_DBTYPE_ADD_HTLC:
+                    //LN_LMDB_DBTYPE_SELFで読み込むので、スルー
                     break;
                 case LN_LMDB_DBTYPE_CHANNEL_ANNO:
                     dumpit_channel(txn, dbi2);

@@ -66,7 +66,9 @@ extern "C" {
 typedef enum {
     LN_LMDB_DBTYPE_UNKNOWN,
     LN_LMDB_DBTYPE_SELF,
-    LN_LMDB_DBTYPE_SHARED_SECRET,
+    LN_LMDB_DBTYPE_ADD_HTLC,
+    LN_LMDB_DBTYPE_REVOKED,
+    LN_LMDB_DBTYPE_BKSELF,
     LN_LMDB_DBTYPE_CHANNEL_ANNO,
     LN_LMDB_DBTYPE_NODE_ANNO,
     LN_LMDB_DBTYPE_CHANNEL_ANNOINFO,
@@ -100,17 +102,6 @@ typedef struct {
  *      - 新規 self に読込を行う場合は、事前に #ln_self_init()を行っておくこと(seedはNULLでよい)
  */
 int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi);
-
-
-/** channel shared_secret読込み
- *
- * @param[in,out]   self
- * @param[in]       txn
- * @retval      0       成功
- * @note
- *      - self->channel_idをDBのkeyとして使用する
- */
-int ln_lmdb_self_ss_load(ln_self_t *self, MDB_txn *txn);
 
 
 /**

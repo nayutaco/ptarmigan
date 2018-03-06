@@ -47,6 +47,13 @@ typedef struct {
 
 
 /**************************************************************************
+ * private variables
+ **************************************************************************/
+
+static ln_node_t    *mpNode;
+
+
+/**************************************************************************
  * prototypes
  **************************************************************************/
 
@@ -57,6 +64,18 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
 /**************************************************************************
  * public functions
  **************************************************************************/
+
+void ln_node_set(ln_node_t *node)
+{
+    mpNode = node;
+}
+
+
+ln_node_t *ln_node_get(void)
+{
+    return mpNode;
+}
+
 
 bool ln_node_init(ln_node_t *node, uint8_t Features)
 {

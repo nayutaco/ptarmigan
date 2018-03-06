@@ -89,6 +89,7 @@ extern "C" {
 #define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
 #define LN_FUNDFLAG_ANNO_CH             (0x02)      ///< open_channel.channel_flags.announce_channel
 #define LN_FUNDFLAG_FUNDING             (0x04)      ///< 1:open_channel～funding_lockedまで
+#define LN_FUNDFLAG_CLOSE               (0x08)      ///< 1:funding_txがspentになっている
 
 // channel_update.flags
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
@@ -956,7 +957,6 @@ typedef struct {
  *  @brief      チャネル情報
  */
 struct ln_self_t {
-    ln_node_t                   *p_node;                        ///< 属しているnode情報
     uint8_t                     peer_node_id[UCOIN_SZ_PUBKEY];  ///< 接続先ノード
 
     //key storage
@@ -1290,17 +1290,6 @@ bool ln_funding_tx_stabled(ln_self_t *self);
 bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns);
 
 
-/** channel_update作成
- *
- * @param[in,out]       self            channel情報
- * @param[out]          pUpd            生成したchannel_update構造体
- * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
- * @param[in]           TimeStamp       作成時刻とするEPOCH time
- * @retval      ture    成功
- */
-bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp);
-
-
 /** channel_update更新
  * 送信済みのchannel_updateと現在のパラメータを比較し、相違があれば作成する
  *
@@ -1308,7 +1297,7 @@ bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_
  * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
  * @retval      ture    更新あり
  */
-bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd);
+//bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd);
 
 
 /** closing transactionのFEE設定
@@ -1328,6 +1317,13 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee);
  *      - scriptPubKeyは #ln_init()で指定したアドレスを使用する
  */
 bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
+
+
+/** close中状態に遷移させる
+ *
+ * @param[in,out]       self        channel情報
+ */
+void ln_goto_closing(ln_self_t *self, void *pDbParam);
 
 
 /** 送信用unilateral closeトランザクション作成
@@ -1865,16 +1861,6 @@ static inline void ln_open_announce_channel_clr(ln_self_t *self) {
 }
 
 
-/** 自ノードID取得
- *
- * @param[in]           self            channel情報
- * @return      自channelの自node_id
- */
-static inline const uint8_t *ln_our_node_id(const ln_self_t *self) {
-    return ln_node_id(self->p_node);
-}
-
-
 /** 他ノードID取得
  *
  * @param[in]           self            channel情報
@@ -1927,6 +1913,10 @@ static inline bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd) {
 /********************************************************************
  * NODE
  ********************************************************************/
+
+void ln_node_set(ln_node_t *node);
+ln_node_t *ln_node_get(void);
+
 
 /** ノード情報初期化
  *

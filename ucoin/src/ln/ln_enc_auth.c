@@ -107,7 +107,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
 
     //自ノード情報
-    pBolt->keys = &self->p_node->keys;
+    pBolt->keys = &(ln_node_get()->keys);
 
     //ephemeral key
     ret = ucoin_util_createkeys(&pBolt->e);
@@ -130,7 +130,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     } else {
         //nose handshake responder
         DBG_PRINTF("responder\n");
-        pNodeId = self->p_node->keys.pub;
+        pNodeId = ln_node_get()->keys.pub;
         pBolt->state = WAIT_ACT_ONE;
     }
     //initiatorは相手node_id, responderは自node_id

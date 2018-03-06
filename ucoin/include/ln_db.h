@@ -125,6 +125,9 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param);
 bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
+bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam);
+
+
 ////////////////////
 // announcement
 ////////////////////
@@ -382,17 +385,17 @@ bool ln_db_annonod_cur_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, 
 ////////////////////
 
 /** preimage保存
- * 
+ *
  * @param[in]       pPreImage
  * @param[in]       Amount
- * @param[in,out]   pDbParam
+ * @param[in,out]   pDb
  * @retval  true
  */
-bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam);
+bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb);
 
 
 /** preimage削除
- * 
+ *
  * @param[in]       pPreImage
  * @retval  true
  */
@@ -400,7 +403,7 @@ bool ln_db_preimg_del(const uint8_t *pPreImage);
 
 
 /** preimage削除(payment_hash検索)
- * 
+ *
  * @param[in]       pPreImageHash
  * @retval  true
  */
@@ -408,7 +411,7 @@ bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash);
 
 
 /** preimage curosrオープン
- * 
+ *
  * @param[in,out]   ppCur
  * @retval  true
  */
@@ -416,7 +419,7 @@ bool ln_db_preimg_cur_open(void **ppCur);
 
 
 /** preimage cursorクローズ
- * 
+ *
  * @param[in]       pCur
  * @retval  true
  */
@@ -424,7 +427,7 @@ void ln_db_preimg_cur_close(void *pCur);
 
 
 /** preimage取得
- * 
+ *
  * @param[in]       pCur
  * @param[out]      pPreImage
  * @param[out]      pAmount
@@ -468,7 +471,7 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
 ////////////////////
 
 /** revoked transaction情報読込み
- * 
+ *
  * @param[in,out]   self
  * @param[in,out]   pDbParam
  * @retval  true        .
@@ -477,7 +480,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam);
 
 
 /** revoked transaction情報保存
- * 
+ *
  * @param[in]       self
  * @param[in]       bUpdate
  * @param[in,out]   pDbParam

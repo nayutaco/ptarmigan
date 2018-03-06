@@ -76,6 +76,8 @@ int main(int argc, char *argv[])
     rpc_conf_t rpc_conf;
     ln_nodeaddr_t *p_addr = ln_node_addr(&mNode);
 
+    ln_node_set(&mNode);
+
     memset(&rpc_conf, 0, sizeof(rpc_conf_t));
 #ifndef NETKIND
 #error not define NETKIND
