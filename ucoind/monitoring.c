@@ -265,7 +265,10 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         if (del) {
             DBG_PRINTF("delete from DB\n");
             ret = ln_db_self_del(self, p_db_param);
-            assert(ret);
+            if (!ret) {
+                DBG_PRINTF("fail: del channel: ");
+                DUMPBIN(self->channel_id, LN_SZ_CHANNEL_ID);
+            }
         }
     }
 
