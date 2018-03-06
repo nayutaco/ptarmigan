@@ -19,7 +19,7 @@
 
 ### 4nodes payment
 
-* [Japanese](testnet_4nodes_ja.md)
+* [English](testnet_4nodes.md), [Japanese](testnet_4nodes_ja.md)
 
 ## others
 
