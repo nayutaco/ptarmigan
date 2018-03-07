@@ -15,14 +15,14 @@ routing -s PAYER_NODEID -r PAYEE_NODEID -d DB_DIR -a AMOUNT_MSAT -e MIN_FINAL_CL
 * -s PAYER_NODEID
   * payer node_id
 
-* -r PAYEE_NODEID 
+* -r PAYEE_NODEID
   * payee node_id
 
 * -d DB_DIR
   * DB directory
     * default: `./dbucoin`
 
-* -a AMOUNT_MSAT 
+* -a AMOUNT_MSAT
   * amount_msat
     * default: `0`
 
@@ -38,6 +38,9 @@ routing -s PAYER_NODEID -r PAYEE_NODEID -d DB_DIR -a AMOUNT_MSAT -e MIN_FINAL_CL
   * output JSON format
     * default: CSV format
   * _NOTE_ : need PAYMENT_HASH if `-j` set
+
+* -c
+  * clear routing skip channel list
 
 ## DESCRIPTION
 

@@ -104,6 +104,12 @@ typedef struct {
 int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi);
 
 
+/** closeしたDB("cn")を出力
+ * 
+ */
+void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi);
+
+
 /**
  *
  */

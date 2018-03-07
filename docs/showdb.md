@@ -10,10 +10,15 @@
 
 ### options
 
-* `w` : show wallet info
-* `s` : show self info
-* `c` : show channel info
-* `n` : show node info
+* `w` : wallet info
+* `s` : self info
+* `q` : closed self info
+* `c` : channel_announcement/channel_update
+* `n` : node_announcement
+* `v` : DB version
+* `a` : (internal)announcement received/sent node_id list
+* `k` : (internal)routing skip channel list
+* `i` : (internal)paying invoice list
 
 ## DESCRIPTION
 
