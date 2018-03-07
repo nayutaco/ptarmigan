@@ -48,6 +48,13 @@ void *monitor_thread_start(void *pArg);
 void monitor_stop(void);
 
 
+/** チャネルありnodeへの自動接続停止設定
+ * 
+ * @param[in]   bDisable        true:自動接続停止
+ */
+void monitor_disable_autoconn(bool bDisable);
+
+
 /** Unilateral Close(自分が展開)
  *
  * @param[in,out]       self        チャネル情報
