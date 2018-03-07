@@ -92,6 +92,7 @@ static void close_rpc(char *pJson);
 static void getlasterror_rpc(char *pJson);
 static void debug_rpc(char *pJson, int debug);
 static void getcommittx_rpc(char *pJson);
+static void disable_autoconnect_rpc(char *pJson, const char *pDisable);
 
 static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t Port, bool bSend);
 
@@ -117,7 +118,7 @@ int main(int argc, char *argv[])
     bool b_send = true;
     int opt;
     int options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "htq::lc:f:i:e:mp:r:xgwa:d:")) != -1) {
+    while ((opt = getopt(argc, argv, "htq::lc:f:i:e:mp:r:xs:gwa:d:")) != -1) {
         switch (opt) {
         case 'h':
             options = M_OPTIONS_HELP;
@@ -158,6 +159,9 @@ int main(int argc, char *argv[])
             if (options == M_OPTIONS_INIT) {
                 getinfo_rpc(mBuf);
                 options = M_OPTIONS_EXEC;
+            } else {
+                printf("fail: too many options\n");
+                options = M_OPTIONS_HELP;
             }
             break;
         case 'i':
@@ -190,6 +194,9 @@ int main(int argc, char *argv[])
                     printf("fail: invalid param\n");
                     options = M_OPTIONS_ERR;
                 }
+            } else {
+                printf("fail: too many options\n");
+                options = M_OPTIONS_HELP;
             }
             break;
         case 'm':
@@ -220,7 +227,7 @@ int main(int argc, char *argv[])
                     options = M_OPTIONS_ERR;
                 }
             } else {
-                printf("-f need -c option before\n");
+                printf("fail: too many options\n");
                 options = M_OPTIONS_HELP;
             }
             break;
@@ -305,6 +312,21 @@ int main(int argc, char *argv[])
                     printf("fail: decode BOLT#11 invoice\n");
                     options = M_OPTIONS_ERR;
                 }
+            }
+            break;
+        case 's':
+            //disable auto channel connect
+            if (options == M_OPTIONS_INIT) {
+                if ((strlen(optarg) == 1) && ((optarg[0] == '1') || (optarg[0] == '0'))) {
+                    disable_autoconnect_rpc(mBuf, optarg);
+                    options = M_OPTIONS_EXEC;
+                } else {
+                    printf("fail: invalid option\n");
+                    options = M_OPTIONS_HELP;
+                }
+            } else {
+                printf("fail: too many options\n");
+                options = M_OPTIONS_HELP;
             }
             break;
 
@@ -422,6 +444,7 @@ int main(int argc, char *argv[])
         printf("\t\t-p <payment.conf>,<paymenet_hash> : payment(don't put a space before or after the comma)\n");
         printf("\t\t-r <BOLT#11 invoice>(,<additional amount_msat>)(,<additional min_filnal_cltv_expiry>) : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
+        printf("\t\t-s<1 or 0> : 1=stop auto channel connect\n");
         printf("\t\t-c <peer.conf> : connect node\n");
         printf("\t\t-c <peer node_id> OR <peer.conf> -f <fund.conf> : funding\n");
         printf("\t\t-c <peer node_id> OR <peer.conf> -x : mutual close channel\n");
@@ -683,6 +706,15 @@ static void getcommittx_rpc(char *pJson)
             mPeerNodeId, mPeerAddr, mPeerPort);
 }
 
+
+static void disable_autoconnect_rpc(char *pJson, const char *pDisable)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "disautoconn") M_NEXT
+            M_QQ("params") ":[ \"%s\" ]"
+        "}", pDisable);
+}
 
 static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t Port, bool bSend)
 {

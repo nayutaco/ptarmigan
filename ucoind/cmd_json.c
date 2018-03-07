@@ -76,6 +76,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
@@ -100,6 +101,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getlasterror,"getlasterror", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_disautoconn, "disautoconn", NULL);
     jrpc_register_procedure(&mJrpc, cmd_debug,       "debug", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getcommittx, "getcommittx", NULL);
     jrpc_server_run(&mJrpc);
@@ -964,6 +966,34 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 LABEL_EXIT:
     return NULL;
+}
+
+
+static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    const char *p_str = NULL;
+
+    cJSON *json = cJSON_GetArrayItem(params, 0);
+    if (json && (json->type == cJSON_String)) {
+        if (json->valuestring[0] == '1') {
+            monitor_disable_autoconn(true);
+            p_str = "disable auto connect";
+        } else if (json->valuestring[0] == '0') {
+            monitor_disable_autoconn(false);
+            p_str = "enable auto connect";
+        } else {
+            //none
+        }
+    }
+    if (p_str != NULL) {
+        return cJSON_CreateString(p_str);
+    } else {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+        return NULL;
+    }
 }
 
 
