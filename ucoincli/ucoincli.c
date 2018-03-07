@@ -323,6 +323,13 @@ int main(int argc, char *argv[])
                     mPeerPort = peer.port;
                     misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
                     options = M_OPTIONS_CONN;
+                } else if (strlen(optarg) == UCOIN_SZ_PUBKEY * 2) {
+                    //node_idを直で指定した可能性あり(connectとしては使用できない)
+                    strcpy(mPeerAddr, "0.0.0.0");
+                    mPeerPort = 0;
+                    strcpy(mPeerNodeId, optarg);
+                    options = M_OPTIONS_CONN;
+                    printf("-c node_id\n");
                 } else {
                     printf("fail: peer configuration file\n");
                     options = M_OPTIONS_HELP;
@@ -403,7 +410,7 @@ int main(int argc, char *argv[])
     if (options == M_OPTIONS_ERR) {
         return -1;
     }
-    if ((options == M_OPTIONS_INIT) || (options == M_OPTIONS_HELP)) {
+    if ((options == M_OPTIONS_INIT) || (options == M_OPTIONS_HELP) || (!conn && (options == M_OPTIONS_CONN))) {
         printf("[usage]\n");
         printf("\t%s <-t> <options> [<JSON-RPC port(not ucoind port)>]\n", argv[0]);
         printf("\t\t-h : help\n");
@@ -416,10 +423,10 @@ int main(int argc, char *argv[])
         printf("\t\t-r <BOLT#11 invoice>(,<additional amount_msat>)(,<additional min_filnal_cltv_expiry>) : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
         printf("\t\t-c <peer.conf> : connect node\n");
-        printf("\t\t-c <peer.conf> -f <fund.conf> : funding\n");
-        printf("\t\t-c <peer.conf> -x : mutual close channel\n");
-        printf("\t\t-c <peer.conf> -w : get last error\n");
-        printf("\t\t-c <peer.conf> -q : disconnect node\n");
+        printf("\t\t-c <peer node_id> OR <peer.conf> -f <fund.conf> : funding\n");
+        printf("\t\t-c <peer node_id> OR <peer.conf> -x : mutual close channel\n");
+        printf("\t\t-c <peer node_id> OR <peer.conf> -w : get last error\n");
+        printf("\t\t-c <peer node_id> OR <peer.conf> -q : disconnect node\n");
         printf("\n");
         // printf("\t\t-a <IP address> : [debug]JSON-RPC send address\n");
         printf("\t\t-d <value> : [debug]debug option\n");
@@ -427,7 +434,7 @@ int main(int argc, char *argv[])
         printf("\t\t\tb1 ... no closing transaction\n");
         printf("\t\t\tb2 ... force payment_preimage mismatch\n");
         printf("\t\t\tb3 ... no node auto connect\n");
-        printf("\t\t-c <node.conf> -g : [debug]get commitment transaction\n");
+        printf("\t\t-c <peer node_id> OR <peer.conf> -g : [debug]get commitment transaction\n");
         return -1;
     }
 

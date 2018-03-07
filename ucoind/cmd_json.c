@@ -124,8 +124,14 @@ static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
     //peer_nodeid, peer_addr, peer_port
     json = cJSON_GetArrayItem(params, Index++);
     if (json && (json->type == cJSON_String)) {
-        misc_str2bin(pConn->node_id, UCOIN_SZ_PUBKEY, json->valuestring);
-        DBG_PRINTF("pConn->node_id=%s\n", json->valuestring);
+        bool ret = misc_str2bin(pConn->node_id, UCOIN_SZ_PUBKEY, json->valuestring);
+        if (ret) {
+            DBG_PRINTF("pConn->node_id=%s\n", json->valuestring);
+        } else {
+            DBG_PRINTF("fail: invalid node_id string\n");
+            Index = -1;
+            goto LABEL_EXIT;
+        }
     } else {
         DBG_PRINTF("fail: node_id\n");
         Index = -1;
