@@ -491,8 +491,14 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     const ucoin_util_keys_t *p_keys = ucoind_nodekeys();
     ln_invoice_t invoice_data;
-#warning BOLT#11形式はTESTNETのみになっている
+#ifndef NETKIND
+#error not define NETKIND
+#endif
+#if NETKIND==0
+    invoice_data.hrp_type = LN_INVOICE_MAINNET;
+#elif NETKIND==1
     invoice_data.hrp_type = LN_INVOICE_TESTNET;
+#endif
     invoice_data.amount_msat = amount;
     invoice_data.min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     memcpy(invoice_data.pubkey, p_keys->pub, UCOIN_SZ_PUBKEY);
