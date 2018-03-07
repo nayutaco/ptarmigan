@@ -63,6 +63,7 @@
 #define SHOW_PREIMAGE           (0x0100)
 #define SHOW_ANNOSKIP           (0x0200)
 #define SHOW_ANNOINVOICE        (0x0400)
+#define SHOW_CLOSED_CH          (0x0800)
 
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
@@ -92,6 +93,7 @@ static int          cnt1;
 static int          cnt2;
 static int          cnt3;
 static int          cnt4;
+static int          cnt5;
 static MDB_env      *mpDbSelf = NULL;
 static MDB_env      *mpDbNode = NULL;
 static FILE         *fp_err;
@@ -128,6 +130,22 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         }
         ln_term(&self);
         cnt0++;
+    }
+}
+
+static void dumpit_bkself(MDB_txn *txn, MDB_dbi dbi)
+{
+    //bkself
+    if (showflag & (SHOW_CLOSED_CH)) {
+        if (cnt5) {
+            printf(",\n");
+        } else {
+            printf(M_QQ("closed_self") ": [");
+        }
+        printf("{");
+        ln_lmdb_bkself_show(txn, dbi);
+        printf("}");
+        cnt5++;
     }
 }
 
@@ -434,6 +452,10 @@ int main(int argc, char *argv[])
             showflag = SHOW_WALLET;
             env = 0;
             break;
+        case 'q':
+            showflag = SHOW_CLOSED_CH;
+            env = 0;
+            break;
         case 'c':
             showflag = SHOW_CNLANNO | SHOW_CNLANNO_SCI;
             env = 1;
@@ -486,11 +508,15 @@ int main(int argc, char *argv[])
     } else {
         fprintf(stderr, "usage:\n");
         fprintf(stderr, "\t%s <option> [<db dir>]\n", argv[0]);
-        fprintf(stderr, "\t\twallet  : show wallet info\n");
-        fprintf(stderr, "\t\tself    : show self info\n");
-        fprintf(stderr, "\t\tchannel : show channel info\n");
-        fprintf(stderr, "\t\tnode    : show node info\n");
-        fprintf(stderr, "\t\tversion : version\n");
+        fprintf(stderr, "\t\tw : wallet info\n");
+        fprintf(stderr, "\t\ts : self info\n");
+        fprintf(stderr, "\t\tq : closed self info\n");
+        fprintf(stderr, "\t\tc : channel_announcement/channel_update\n");
+        fprintf(stderr, "\t\tn : node_announcement\n");
+        fprintf(stderr, "\t\tv : DB version\n");
+        fprintf(stderr, "\t\ta : (internal)announcement received/sent node_id list\n");
+        fprintf(stderr, "\t\tk : (internal)skip routing channel list\n");
+        fprintf(stderr, "\t\ti : (internal)paying invoice\n");
         return -1;
     }
 
@@ -578,6 +604,9 @@ int main(int argc, char *argv[])
                 case LN_LMDB_DBTYPE_ADD_HTLC:
                     //LN_LMDB_DBTYPE_SELFで読み込むので、スルー
                     break;
+                case LN_LMDB_DBTYPE_BKSELF:
+                    dumpit_bkself(txn, dbi2);
+                    break;
                 case LN_LMDB_DBTYPE_CHANNEL_ANNO:
                     dumpit_channel(txn, dbi2);
                     break;
@@ -608,7 +637,7 @@ int main(int argc, char *argv[])
             mdb_close(mdb_txn_env(txn), dbi2);
         }
     }
-    if (cnt0 || cnt1 || cnt2 || cnt3 || cnt4) {
+    if (cnt0 || cnt1 || cnt2 || cnt3 || cnt4 || cnt5) {
         printf("]");
     }
     printf("}\n");

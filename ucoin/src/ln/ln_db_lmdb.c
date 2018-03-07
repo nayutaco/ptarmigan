@@ -288,6 +288,15 @@ static const backup_param_t DBSELF_KEYS[] = {
 };
 
 
+static const backup_param_t DBCOPY_KEYS[] = {
+    M_ITEM(ln_self_t, peer_node_id),
+    M_ITEM(ln_self_t, short_channel_id),
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
+};
+
+
 static const backup_param_t DBHTLC_KEYS[] = {
     M_ITEM(ln_update_add_htlc_t, id),
     M_ITEM(ln_update_add_htlc_t, amount_msat),
@@ -715,13 +724,6 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
     memcpy(dbname, M_PREF_BAKCHANNEL, M_PREFIX_LEN);
     retval = mdb_dbi_open(p_cur->txn, dbname, MDB_CREATE, &dbi);
     if (retval == 0) {
-        const backup_param_t DBCOPY_KEYS[] = {
-            M_ITEM(ln_self_t, peer_node_id),
-            M_ITEM(ln_self_t, short_channel_id),
-            MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
-            MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
-            MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
-        };
         for (size_t lp = 0; lp < ARRAY_SIZE(DBCOPY_KEYS); lp++) {
             key.mv_size = strlen(DBCOPY_KEYS[lp].name);
             key.mv_data = (CONST_CAST char*)DBCOPY_KEYS[lp].name;
@@ -823,6 +825,63 @@ bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam)
     return retval == 0;
 }
 
+
+void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
+{
+    MDB_val         key, data;
+
+    const struct {
+        int type;
+        int offset;
+        int length;
+    } DBCOPY_IDX[] = {
+        //  type:
+        //      0: const uint8_t*
+        //      1: uint64_t
+        //      2: uint16_t
+        //      3: txid
+        { 0, 0, 33 },
+        { 1, 0, 1 },
+        { 3, 0, 32 },
+        { 2, 0, 1 },
+        { 0, 32, 33 }
+    };
+
+    for (size_t lp = 0; lp < ARRAY_SIZE(DBCOPY_KEYS); lp++) {
+        key.mv_size = strlen(DBCOPY_KEYS[lp].name);
+        key.mv_data = (CONST_CAST char*)DBCOPY_KEYS[lp].name;
+        int retval = mdb_get(txn, dbi, &key, &data);
+        if (retval == 0) {
+            const uint8_t *p = (const uint8_t *)data.mv_data + DBCOPY_IDX[lp].offset;
+            if (lp != 0) {
+                fprintf(PRINTOUT, ",\n");
+            }
+            fprintf(PRINTOUT, "\"%s\": ", DBCOPY_KEYS[lp].name);
+            switch (DBCOPY_IDX[lp].type) {
+            case 0: //const uint8_t*
+                fprintf(PRINTOUT, "\"");
+                ucoin_util_dumpbin(PRINTOUT, p, DBCOPY_IDX[lp].length, false);
+                fprintf(PRINTOUT, "\"");
+                break;
+            case 1:
+                fprintf(PRINTOUT, "\"%" PRIx64 "\"", *(const uint64_t *)p);
+                break;
+            case 2:
+                fprintf(PRINTOUT, "%" PRIu16, *(const uint16_t *)p);
+                break;
+            case 3: //txid
+                fprintf(PRINTOUT, "\"");
+                ucoin_util_dumptxid(PRINTOUT, p);
+                fprintf(PRINTOUT, "\"");
+                break;
+            default:
+                break;
+            }
+        } else {
+            DBG_PRINTF("fail: %s\n", DBCOPY_KEYS[lp].name);
+        }
+    }
+}
 
 /********************************************************************
  * node用DB

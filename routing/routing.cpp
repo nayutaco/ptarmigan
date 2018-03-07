@@ -581,6 +581,14 @@ int main(int argc, char* argv[])
             //help
             fprintf(fp_err, "usage:");
             fprintf(fp_err, "\t%s -s PAYER_NODEID -r PAYEE_NODEID [-d DB_DIR] [-a AMOUNT_MSAT] [-e MIN_FINAL_CLTV_EXPIRY] [-p PAYMENT_HASH] [-j] [-c]\n", argv[0]);
+            fprintf(fp_err, "\t\t-s : sender(payer) node_id\n");
+            fprintf(fp_err, "\t\t-r : receiver(payee) node_id\n");
+            fprintf(fp_err, "\t\t-d : db directory\n");
+            fprintf(fp_err, "\t\t-a : amount_msat\n");
+            fprintf(fp_err, "\t\t-e : min_final_cltv_expiry\n");
+            fprintf(fp_err, "\t\t-p : payment_hash\n");
+            fprintf(fp_err, "\t\t-j : output JSON format(default: CSV format)\n");
+            fprintf(fp_err, "\t\t-c : clear routing skip channel list\n");
             return -1;
         default:
             break;
