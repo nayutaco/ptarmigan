@@ -44,6 +44,13 @@
 
 
 /********************************************************************
+ * macros
+ ********************************************************************/
+
+#define M_SZ_JSONSTR            (8192)
+
+
+/********************************************************************
  * static variables
  ********************************************************************/
 
@@ -813,11 +820,11 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_message = strdup(RPCERR_ERROR_STR);
         goto LABEL_EXIT;
     }
-    char *p_route = (char *)APP_MALLOC(8192);
+    char *p_route = (char *)APP_MALLOC(M_SZ_JSONSTR);
     p_route[0] = '\0';
     char *p_tmp = p_route;
     while (!feof(fp)) {
-        fgets(p_tmp, 8192, fp);
+        fgets(p_tmp, M_SZ_JSONSTR, fp);
         p_tmp += strlen(p_tmp);
     }
     pclose(fp);
@@ -831,8 +838,14 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         DBG_PRINTF2("%s", p_route);
         DBG_PRINTF("---------------\n");
         int retval = misc_sendjson(p_route, "127.0.0.1", cmd_json_get_port());
-        DBG_PRINTF("retval=%d\n", retval);
-        result = cJSON_CreateString("Progressing");
+        if (retval == 0) {
+            //payment完了待ち
+            result = cJSON_CreateString("Progressing");
+        } else {
+            DBG_PRINTF("retval=%d\n", retval);
+            ctx->error_code = RPCERR_ERROR;
+            ctx->error_message = strdup(RPCERR_ERROR_STR);
+        }
     } else {
         ln_db_annoskip_invoice_del(payhash);
 

@@ -273,6 +273,8 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void print_routelist(lnapp_conf_t *p_conf);
 static void clear_routelist(lnapp_conf_t *p_conf);
 #endif
+static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash);
+static void pay_retry(const uint8_t *pPayHash);
 
 
 /********************************************************************
@@ -338,6 +340,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     DBGTRACE_BEGIN
 
     bool ret = false;
+    bool retry = false;
     ucoin_buf_t buf_bolt;
     uint8_t session_key[UCOIN_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
@@ -348,6 +351,8 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
         fprintf(PRINTOUT, "fail: short_channel_id mismatch\n");
         fprintf(PRINTOUT, "    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         fprintf(PRINTOUT, "    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
+        ln_db_annoskip_save(pPay->hop_datain[0].short_channel_id);
+        retry = true;
         goto LABEL_EXIT;
     }
 
@@ -433,6 +438,9 @@ LABEL_EXIT:
         call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
+        if (retry) {
+            pay_retry(pPay->payment_hash);
+        }
         mMuxTiming = 0;
     }
 
@@ -2320,15 +2328,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         }
         del_routelist(p_conf, p_fail->orig_id);
         if (retry) {
-            //キューにためる(payment retry)
-            DBG_PRINTF("payment_hash: ");
-            DUMPBIN(p_fail->p_payment_hash, LN_SZ_HASH);
-
-            queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));      //APP_FREE: cb_htlc_changed()
-            fulfill->type = QTYPE_PAY_RETRY;
-            fulfill->id = 0;
-            ucoin_buf_alloccopy(&fulfill->buf, p_fail->p_payment_hash, LN_SZ_HASH);
-            push_queue(p_conf, fulfill);
+            push_pay_retry_queue(p_conf, p_fail->p_payment_hash);
         } else {
             ln_db_annoskip_invoice_del(p_fail->p_payment_hash);
         }
@@ -3203,6 +3203,48 @@ static void clear_routelist(lnapp_conf_t *p_conf)
     }
 }
 #endif
+
+
+/** キューに追加(送金リトライ)
+ *
+ * @param[in,out]       p_conf
+ * @param[in]           pPayHash
+ */
+static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash)
+{
+    //キューにためる(payment retry)
+    DBG_PRINTF("payment_hash: ");
+    DUMPBIN(pPayHash, LN_SZ_HASH);
+
+    queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));      //APP_FREE: cb_htlc_changed()
+    fulfill->type = QTYPE_PAY_RETRY;
+    fulfill->id = 0;
+    ucoin_buf_alloccopy(&fulfill->buf, pPayHash, LN_SZ_HASH);
+    push_queue(p_conf, fulfill);
+}
+
+
+/** 送金リトライ要求
+ *
+ * @param[in]   pPayHash
+ */
+static void pay_retry(const uint8_t *pPayHash)
+{
+    char *p_invoice;
+    bool ret = ln_db_annoskip_invoice_load(&p_invoice, pPayHash);     //p_invoiceはmalloc()される
+    if (ret) {
+        DBG_PRINTF("invoice:%s\n", p_invoice);
+        char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
+        strcpy(json, "{\"method\":\"routepay\",\"params\":");
+        strcat(json, p_invoice);
+        strcat(json, "}");
+        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+        DBG_PRINTF("retval=%d\n", retval);
+        APP_FREE(json);     //APP_MALLOC: この中
+        free(p_invoice);
+    }
+
+}
 
 
 /** ln_self_t内容表示(デバッグ用)
