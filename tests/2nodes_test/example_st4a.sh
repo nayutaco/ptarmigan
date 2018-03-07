@@ -3,4 +3,4 @@ PAY_BEGIN=4444
 PAY_END=3333
 AMOUNT=100000
 
-./example_st4r.sh $PAY_BEGIN $PAY_END $AMOUNT $1
+./example_st4pay_p.sh $PAY_BEGIN $PAY_END $AMOUNT $1
