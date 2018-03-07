@@ -984,12 +984,16 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id)
             monitor_disable_autoconn(false);
             p_str = "enable auto connect";
         } else {
-            ctx->error_code = RPCERR_PARSE;
-            ctx->error_message = strdup(RPCERR_PARSE_STR);
+            //none
         }
     }
-
-    return (p_str) ? cJSON_CreateString(p_str) : NULL;
+    if (p_str != NULL) {
+        return cJSON_CreateString(p_str);
+    } else {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+        return NULL;
+    }
 }
 
 

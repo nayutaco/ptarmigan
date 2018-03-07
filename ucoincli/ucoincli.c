@@ -712,7 +712,7 @@ static void disable_autoconnect_rpc(char *pJson, const char *pDisable)
     snprintf(pJson, BUFFER_SIZE,
         "{"
             M_STR("method", "disautoconn") M_NEXT
-            M_QQ("params") ":[ %s ]"
+            M_QQ("params") ":[ \"%s\" ]"
         "}", pDisable);
 }
 
