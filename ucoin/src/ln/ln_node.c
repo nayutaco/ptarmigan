@@ -47,6 +47,13 @@ typedef struct {
 
 
 /**************************************************************************
+ * private variables
+ **************************************************************************/
+
+static ln_node_t    *mpNode;
+
+
+/**************************************************************************
  * prototypes
  **************************************************************************/
 
@@ -57,6 +64,18 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
 /**************************************************************************
  * public functions
  **************************************************************************/
+
+void ln_node_set(ln_node_t *node)
+{
+    mpNode = node;
+}
+
+
+ln_node_t *ln_node_get(void)
+{
+    return mpNode;
+}
+
 
 bool ln_node_init(ln_node_t *node, uint8_t Features)
 {
@@ -166,7 +185,9 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
         pNodeAnno->p_alias = NULL;
         pNodeAnno->p_my_node = NULL;
         ret = ln_msg_node_announce_read(pNodeAnno, buf_anno.buf, buf_anno.len);
-        DBG_PRINTF("ret=%d\n", ret);
+        if (!ret) {
+            DBG_PRINTF("fail: read node_announcement\n");
+        }
     }
     ucoin_buf_free(&buf_anno);
 
@@ -228,12 +249,22 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     (void)p_db_param;
     comp_param_cnl_t *p = (comp_param_cnl_t *)p_param;
 
-    bool ret = (memcmp(self->peer_node.node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
+    bool ret = (memcmp(self->peer_node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
     if (ret) {
         if (p->p_self) {
             //DBから復元
             ln_db_copy_channel(p->p_self, self);
-            ln_misc_update_scriptkeys(&p->p_self->funding_local, &p->p_self->funding_remote);
+
+            if (p->p_self->short_channel_id != 0) {
+                ucoin_buf_t buf;
+
+                ucoin_buf_init(&buf);
+                bool bret2 = ln_db_annocnl_load(&p->p_self->cnl_anno, p->p_self->short_channel_id);
+                if (bret2) {
+                    ucoin_buf_alloccopy(&p->p_self->cnl_anno, buf.buf, buf.len);
+                }
+                ucoin_buf_free(&buf);
+            }
         } else {
             //true時は予備元では解放しないので、ここで解放する
             ln_term(self);

@@ -40,10 +40,9 @@ extern "C" {
  ********************************************************************/
 
 //key名
-#define LNDBK_SELF1             "self1"         ///< [self]パラメータ
-#define M_DBK_SELF2             "self2"         ///< [self]スクリプト
 #define LNDBK_RVV               "rvv"           ///< [revoked]vout
 #define LNDBK_RVW               "rvw"           ///< [revoked]witness
+#define LNDBK_RVT               "rvt"           ///< [revoked]HTLC type
 #define LNDBK_RVS               "rvs"           ///< [revoked]script
 #define LNDBK_RVN               "rvn"           ///< [revoked]num
 #define LNDBK_RVC               "rvc"           ///< [revoked]count
@@ -67,7 +66,9 @@ extern "C" {
 typedef enum {
     LN_LMDB_DBTYPE_UNKNOWN,
     LN_LMDB_DBTYPE_SELF,
-    LN_LMDB_DBTYPE_SHARED_SECRET,
+    LN_LMDB_DBTYPE_ADD_HTLC,
+    LN_LMDB_DBTYPE_REVOKED,
+    LN_LMDB_DBTYPE_BKSELF,
     LN_LMDB_DBTYPE_CHANNEL_ANNO,
     LN_LMDB_DBTYPE_NODE_ANNO,
     LN_LMDB_DBTYPE_CHANNEL_ANNOINFO,
@@ -95,10 +96,10 @@ typedef struct {
  * @param[out]      self
  * @param[in]       txn
  * @param[in]       pdbi
- * @retval      true    成功
+ * @retval      0       成功
  * @attention
  *      -
- *      - 新規 self に読込を行う場合は、事前に #ln_self_ini()を行っておくこと(seedはNULLでよい)
+ *      - 新規 self に読込を行う場合は、事前に #ln_self_init()を行っておくこと(seedはNULLでよい)
  */
 int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi);
 

@@ -10,8 +10,9 @@
 
 ## Setup
 
-* bitcoind v0.15 (yet [v0.16](https://github.com/nayutaco/ptarmigan/tree/bitcoind0_16_first))
+* bitcoind v0.15/v0.16
   * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
+  * nested in BIP16 P2SH
 * Ubuntu 16.04
 * [recently changed](CHANGELOG.md)
 
@@ -94,7 +95,7 @@ make distclean
     * `getblock`
     * `getnewaddress`
     * `dumpprivkey` (for funding)
-    * `estimatefee`
+    * `estimatesmartfee`
 
 ## Implement status
 

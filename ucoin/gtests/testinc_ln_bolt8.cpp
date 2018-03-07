@@ -65,8 +65,7 @@ TEST_F(bolt8test, initiator)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
@@ -209,8 +208,7 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
@@ -316,8 +314,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
@@ -423,8 +420,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
@@ -530,8 +526,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, RS_PUB);
     ASSERT_TRUE(ret);
@@ -623,8 +618,7 @@ TEST_F(bolt8test, responder)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
@@ -753,8 +747,7 @@ TEST_F(bolt8test, responder_act1_short_read)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
@@ -826,8 +819,7 @@ TEST_F(bolt8test, responder_act1_bad_version)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
@@ -900,8 +892,7 @@ TEST_F(bolt8test, responder_act1_bad_key_serialization)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
@@ -974,8 +965,7 @@ TEST_F(bolt8test, responder_act1_bad_mac)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
@@ -1048,8 +1038,7 @@ TEST_F(bolt8test, responder_act3_bad_version)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
@@ -1156,8 +1145,7 @@ TEST_F(bolt8test, responder_act3_short_read)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
@@ -1264,8 +1252,7 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
@@ -1372,8 +1359,7 @@ TEST_F(bolt8test, responder_act3_bad_rs)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);
@@ -1480,8 +1466,7 @@ TEST_F(bolt8test, responder_act3_bad_mac)
 
     memcpy(node.keys.priv, LS_PRIV, sizeof(LS_PRIV));
     memcpy(node.keys.pub, LS_PUB, sizeof(LS_PUB));
-
-    self.p_node = &node;
+    ln_node_set(&node);
 
     ret = ln_enc_auth_handshake_init(&self, NULL);
     ASSERT_TRUE(ret);

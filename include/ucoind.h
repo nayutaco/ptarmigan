@@ -169,13 +169,6 @@ typedef struct {
 
 
 typedef struct {
-    ln_fundin_t         fundin;
-    ucoin_util_keys_t   fundin_keys;
-    char                chargeaddr[UCOIN_SZ_ADDR_MAX];
-} opening_t;
-
-
-typedef struct {
     uint8_t         txid[UCOIN_SZ_TXID];
     int             txindex;
     char            signaddr[UCOIN_SZ_ADDR_MAX];

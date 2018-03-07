@@ -97,13 +97,10 @@ typedef struct lnapp_conf_t {
     bool            initiator;                  ///< true:Noise Protocolのinitiator
     uint8_t         node_id[UCOIN_SZ_PUBKEY];   ///< 接続先(initiator==true時)
     daemoncmd_t     cmd;                        ///< ucoincliからの処理要求
-    funding_conf_t  *p_funding;                 ///< ucoincliで #DCMD_CREATE 時のパラメータ
-    opening_t       *p_opening;                 ///< establish時にmalloc()して使用する
 
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中
     ln_self_t       *p_self;                ///< channelのコンテキスト
-    ln_establish_t  *p_establish;           ///< Establish用のワーク領域
 
     bool            initial_routing_sync;   ///< init.localfeaturesのinitial_routing_sync
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
@@ -173,7 +170,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf);
 /** [lnapp]チャネル接続開始
  *
  */
-bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding);
+bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding);
 
 
 /** [lnapp]送金開始

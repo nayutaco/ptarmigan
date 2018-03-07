@@ -165,7 +165,7 @@ typedef enum {
 static volatile bool        mLoop;          //true:チャネル有効
 
 static ln_node_t            *mpNode;
-static ln_anno_default_t    mAnnoDef;       ///< announcementデフォルト値
+static ln_anno_prm_t        mAnnoPrm;       ///< announcementパラメータ
 
 //シーケンスのmutex
 static pthread_mutexattr_t  mMuxAttr;
@@ -207,7 +207,7 @@ static const char *M_SCRIPT[] = {
 static void *thread_main_start(void *pArg);
 static bool noise_handshake(lnapp_conf_t *p_conf);
 static bool send_reestablish(lnapp_conf_t *p_conf);
-static bool send_open_channel(lnapp_conf_t *p_conf);
+static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFunding);
 
 static void *thread_recv_start(void *pArg);
 static void recv_node_proc(lnapp_conf_t *p_conf);
@@ -273,6 +273,8 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void print_routelist(lnapp_conf_t *p_conf);
 static void clear_routelist(lnapp_conf_t *p_conf);
 #endif
+static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash);
+static void pay_retry(const uint8_t *pPayHash);
 
 
 /********************************************************************
@@ -302,7 +304,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 }
 
 
-bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding)
+bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
 {
     if (!pAppConf->loop) {
         //DBG_PRINTF("This AppConf not working\n");
@@ -310,9 +312,7 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, funding_conf_t *pFunding)
     }
 
     DBG_PRINTF("Establish開始\n");
-    pAppConf->p_funding = pFunding;
-    set_establish_default(pAppConf, pAppConf->node_id);
-    send_open_channel(pAppConf);
+    send_open_channel(pAppConf, pFunding);
 
     return true;
 }
@@ -340,6 +340,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     DBGTRACE_BEGIN
 
     bool ret = false;
+    bool retry = false;
     ucoin_buf_t buf_bolt;
     uint8_t session_key[UCOIN_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
@@ -350,6 +351,8 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
         fprintf(PRINTOUT, "fail: short_channel_id mismatch\n");
         fprintf(PRINTOUT, "    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         fprintf(PRINTOUT, "    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
+        ln_db_annoskip_save(pPay->hop_datain[0].short_channel_id);
+        retry = true;
         goto LABEL_EXIT;
     }
 
@@ -422,7 +425,7 @@ LABEL_EXIT:
         char hashstr[LN_SZ_HASH * 2 + 1];
         misc_bin2str(hashstr, pPay->payment_hash, LN_SZ_HASH);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_our_node_id(p_self), UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
@@ -435,6 +438,9 @@ LABEL_EXIT:
         call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
+        if (retry) {
+            pay_retry(pPay->payment_hash);
+        }
         mMuxTiming = 0;
     }
 
@@ -570,17 +576,17 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     anno_conf_t aconf;
     ret = load_anno_conf("anno.conf", &aconf);
     if (ret) {
-        mAnnoDef.cltv_expiry_delta = aconf.cltv_expiry_delta;
-        mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
-        mAnnoDef.fee_base_msat = aconf.fee_base_msat;
-        mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
+        mAnnoPrm.cltv_expiry_delta = aconf.cltv_expiry_delta;
+        mAnnoPrm.htlc_minimum_msat = aconf.htlc_minimum_msat;
+        mAnnoPrm.fee_base_msat = aconf.fee_base_msat;
+        mAnnoPrm.fee_prop_millionths = aconf.fee_prop_millionths;
     } else {
-        mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
-        mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
-        mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
-        mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
+        mAnnoPrm.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
+        mAnnoPrm.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
+        mAnnoPrm.fee_base_msat = M_FEE_BASE_MSAT;
+        mAnnoPrm.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
     }
-    ln_init(&my_self, mpNode, NULL, &mAnnoDef, NULL);
+    ln_init(&my_self, mpNode, NULL, &mAnnoPrm, NULL);
 
     ret = ln_node_search_channel(&my_self, pNodeId);
     if (!ret) {
@@ -620,10 +626,16 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
 
         char str[256];
 
-        cJSON_AddItemToObject(result, "status", cJSON_CreateString("established"));
+        const char *p_status;
+        if (p_self->fund_flag & LN_FUNDFLAG_CLOSE) {
+            p_status = "closing";
+        } else {
+            p_status = "established";
+        }
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
 
         //peer node_id
-        misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
+        misc_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
@@ -649,7 +661,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));
 
         //peer node_id
-        misc_bin2str(str, p_self->peer_node.node_id, UCOIN_SZ_PUBKEY);
+        misc_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
@@ -776,19 +788,18 @@ static void *thread_main_start(void *pArg)
 
     my_self.p_param = p_conf;
 
-    //announcementデフォルト値
     anno_conf_t aconf;
     ret = load_anno_conf("anno.conf", &aconf);
     if (ret) {
-        mAnnoDef.cltv_expiry_delta = aconf.cltv_expiry_delta;
-        mAnnoDef.htlc_minimum_msat = aconf.htlc_minimum_msat;
-        mAnnoDef.fee_base_msat = aconf.fee_base_msat;
-        mAnnoDef.fee_prop_millionths = aconf.fee_prop_millionths;
+        mAnnoPrm.cltv_expiry_delta = aconf.cltv_expiry_delta;
+        mAnnoPrm.htlc_minimum_msat = aconf.htlc_minimum_msat;
+        mAnnoPrm.fee_base_msat = aconf.fee_base_msat;
+        mAnnoPrm.fee_prop_millionths = aconf.fee_prop_millionths;
     } else {
-        mAnnoDef.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
-        mAnnoDef.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
-        mAnnoDef.fee_base_msat = M_FEE_BASE_MSAT;
-        mAnnoDef.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
+        mAnnoPrm.cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
+        mAnnoPrm.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
+        mAnnoPrm.fee_base_msat = M_FEE_BASE_MSAT;
+        mAnnoPrm.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
     }
 
     //スレッド
@@ -799,7 +810,7 @@ static void *thread_main_start(void *pArg)
     uint8_t seed[LN_SZ_SEED];
     DBG_PRINTF("ln_self_t initialize");
     ucoin_util_random(seed, LN_SZ_SEED);
-    ln_init(&my_self, mpNode, seed, &mAnnoDef, notify_cb);
+    ln_init(&my_self, mpNode, seed, &mAnnoPrm, notify_cb);
 
     p_conf->p_self = &my_self;
     p_conf->ping_counter = 0;
@@ -917,7 +928,7 @@ static void *thread_main_start(void *pArg)
     // $3: peer_id
     // $4: JSON-RPC port
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_our_node_id(&my_self), UCOIN_SZ_PUBKEY);
+    misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
     char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
     misc_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
     char param[256];
@@ -955,9 +966,6 @@ LABEL_SHUTDOWN:
     SYSLOG_WARN("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(&my_self));
 
     //クリア
-    APP_FREE(p_conf->p_opening);
-    APP_FREE(p_conf->p_funding);
-    APP_FREE(p_conf->p_establish);
     APP_FREE(p_conf->p_errstr);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
@@ -1090,22 +1098,21 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
 /** open_channel送信
  *
  */
-static bool send_open_channel(lnapp_conf_t *p_conf)
+static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFunding)
 {
-    p_conf->p_opening = (opening_t *)APP_MALLOC(sizeof(opening_t));  //APP_FREE: cb_established()
-
     //Establish開始
-    DBG_PRINTF("  signaddr: %s\n", p_conf->p_funding->signaddr);
-    DBG_PRINTF("  funding_sat: %" PRIu64 "\n", p_conf->p_funding->funding_sat);
-    DBG_PRINTF("  push_sat: %" PRIu64 "\n", p_conf->p_funding->push_sat);
+    DBG_PRINTF("  signaddr: %s\n", pFunding->signaddr);
+    DBG_PRINTF("  funding_sat: %" PRIu64 "\n", pFunding->funding_sat);
+    DBG_PRINTF("  push_sat: %" PRIu64 "\n", pFunding->push_sat);
 
     //open_channel
     char wif[UCOIN_SZ_WIF_MAX];
+    char changeaddr[UCOIN_SZ_WSHADDR];
     uint64_t fundin_sat;
 
-    bool ret = btcprc_dumpprivkey(wif, p_conf->p_funding->signaddr);
+    bool ret = btcprc_dumpprivkey(wif, pFunding->signaddr);
     if (ret) {
-        ret = btcprc_getnewaddress(p_conf->p_opening->chargeaddr);
+        ret = btcprc_getnewaddress(changeaddr);
     } else {
         SYSLOG_ERR("%s(): btcprc_dumpprivkey", __func__);
     }
@@ -1113,15 +1120,14 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
 
     bool unspent = true;
     if (ret) {
-        //TODO: unspentしか成功しないので、再開にうまく利用できないものか
-        ret = btcprc_getxout(&unspent, &fundin_sat, p_conf->p_funding->txid, p_conf->p_funding->txindex);
+        ret = btcprc_getxout(&unspent, &fundin_sat, pFunding->txid, pFunding->txindex);
         DBG_PRINTF("ret=%d, unspent=%d\n", ret, unspent);
     } else {
         SYSLOG_ERR("%s(): btcprc_getnewaddress", __func__);
     }
     if (ret && unspent) {
         uint64_t feerate;
-        if (p_conf->p_funding->feerate_per_kw == 0) {
+        if (pFunding->feerate_per_kw == 0) {
             //estimate fee
             bool ret = btcprc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
             //BOLT#2
@@ -1136,33 +1142,30 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
             feerate = LN_FEERATE_PER_KW;
             }
         } else {
-            feerate = p_conf->p_funding->feerate_per_kw;
+            feerate = pFunding->feerate_per_kw;
         }
         DBG_PRINTF2("feerate_per_kw=%" PRIu64 "\n", feerate);
 
+        ln_fundin_t fundin;
+        memcpy(fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
+        fundin.index = pFunding->txindex;
+        fundin.amount = fundin_sat;
+        fundin.p_change_pubkey = NULL;
+        fundin.p_change_addr = strdup(changeaddr);      //下位層でfreeする
         ucoin_chain_t chain;
-        ucoin_util_wif2keys(&p_conf->p_opening->fundin_keys, &chain, wif);
+        ucoin_util_wif2keys(&fundin.keys, &chain, wif);
         assert(ucoin_get_chain() == chain);
-        //TODO: データ構造に無駄が多い
-        //      スタックに置けないものを詰めていったせいだが、整理したいところだ。
-        //
-        //p_conf->p_funding以下のアドレスを下位層に渡しているので、
-        //Establishが完了するまでメモリを解放しないこと
-        p_conf->p_opening->fundin.p_txid = p_conf->p_funding->txid;
-        p_conf->p_opening->fundin.index = p_conf->p_funding->txindex;
-        p_conf->p_opening->fundin.amount = fundin_sat;
-        p_conf->p_opening->fundin.p_change_pubkey = NULL;
-        p_conf->p_opening->fundin.p_change_addr = p_conf->p_opening->chargeaddr;
-        p_conf->p_opening->fundin.p_keys = &p_conf->p_opening->fundin_keys;
-        p_conf->p_opening->fundin.b_native = false;        //nested in BIP16
+        fundin.b_native = false;        //fundin_txの送金先アドレスのsegwit具合
+                                        //  false: nested in BIP16
+                                        //      bitcoind v0.15ではsegwitアドレスをaddwitnessaddressで行っている
 
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
-                        &p_conf->p_opening->fundin,
-                        p_conf->p_funding->funding_sat,
-                        p_conf->p_funding->push_sat,
+                        &fundin,
+                        pFunding->funding_sat,
+                        pFunding->push_sat,
                         (uint32_t)feerate);
         assert(ret);
 
@@ -1171,7 +1174,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf)
         ucoin_buf_free(&buf_bolt);
     } else {
         SYSLOG_WARN("fail through: btcprc_getxout");
-        DUMPTXID(p_conf->p_funding->txid);
+        DUMPTXID(pFunding->txid);
     }
 
     return ret;
@@ -1632,7 +1635,7 @@ LABEL_EXIT:
         char hashstr[LN_SZ_HASH * 2 + 1];
         misc_bin2str(hashstr, p_fwd_add->payment_hash, LN_SZ_HASH);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
@@ -1694,7 +1697,7 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf, fwd_proc_fulfill_t *p_fwd
         char imgstr[LN_SZ_PREIMAGE * 2 + 1];
         misc_bin2str(imgstr, p_fwd_fulfill->preimage, LN_SZ_PREIMAGE);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%s "
@@ -1757,7 +1760,7 @@ static bool fwd_fail_backward(lnapp_conf_t *p_conf, fwd_proc_fail_t *p_fwd_fail)
         // $1: short_channel_id
         // $2: node_id
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s",
                     ln_short_channel_id(p_conf->p_self), node_id);
@@ -1945,10 +1948,6 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     (void)p_param;
     DBGTRACE_BEGIN
 
-    APP_FREE(p_conf->p_establish);      //APP_MALLOC: set_establish_default()
-    APP_FREE(p_conf->p_opening);        //APP_MALLOC: send_open_channel()
-    APP_FREE(p_conf->p_funding);        //APP_MALLOC: set_lasterror()
-
     SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
 
     // method: established
@@ -1959,7 +1958,7 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     char txidstr[UCOIN_SZ_TXID * 2 + 1];
     misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+    misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
     char param[256];
     sprintf(param, "%" PRIx64 " %s "
                 "%" PRIu64 " "
@@ -2329,15 +2328,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         }
         del_routelist(p_conf, p_fail->orig_id);
         if (retry) {
-            //キューにためる(payment retry)
-            DBG_PRINTF("payment_hash: ");
-            DUMPBIN(p_fail->p_payment_hash, LN_SZ_HASH);
-
-            queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));      //APP_FREE: cb_htlc_changed()
-            fulfill->type = QTYPE_PAY_RETRY;
-            fulfill->id = 0;
-            ucoin_buf_alloccopy(&fulfill->buf, p_fail->p_payment_hash, LN_SZ_HASH);
-            push_queue(p_conf, fulfill);
+            push_pay_retry_queue(p_conf, p_fail->p_payment_hash);
         } else {
             ln_db_annoskip_invoice_del(p_fail->p_payment_hash);
         }
@@ -2498,7 +2489,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
     // $4: htlc_num
     char param[256];
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+    misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
     sprintf(param, "%" PRIx64 " %s "
                 "%" PRIu64 " "
                 "%d",
@@ -2569,7 +2560,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         char txidstr[UCOIN_SZ_TXID * 2 + 1];
         misc_bin2str_rev(txidstr, txid, UCOIN_SZ_TXID);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "%s",
                     ln_short_channel_id(p_conf->p_self), node_id,
@@ -2835,29 +2826,28 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
 {
     bool ret;
     establish_conf_t econf;
-    ln_est_default_t defval;
+    ln_establish_prm_t estprm;
 
     ret = load_establish_conf("establish.conf", &econf);
     if (ret) {
-        defval.dust_limit_sat = econf.dust_limit_sat;
-        defval.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;
-        defval.channel_reserve_sat = econf.channel_reserve_sat;
-        defval.htlc_minimum_msat = econf.htlc_minimum_msat;
-        defval.to_self_delay = econf.to_self_delay;
-        defval.max_accepted_htlcs = econf.max_accepted_htlcs;
-        defval.min_depth = econf.min_depth;
+        estprm.dust_limit_sat = econf.dust_limit_sat;
+        estprm.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;
+        estprm.channel_reserve_sat = econf.channel_reserve_sat;
+        estprm.htlc_minimum_msat = econf.htlc_minimum_msat;
+        estprm.to_self_delay = econf.to_self_delay;
+        estprm.max_accepted_htlcs = econf.max_accepted_htlcs;
+        estprm.min_depth = econf.min_depth;
     } else {
-        defval.dust_limit_sat = M_DUST_LIMIT_SAT;
-        defval.max_htlc_value_in_flight_msat = M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT;
-        defval.channel_reserve_sat = M_CHANNEL_RESERVE_SAT;
-        defval.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_EST;
-        defval.to_self_delay = M_TO_SELF_DELAY;
-        defval.max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
-        defval.min_depth = M_MIN_DEPTH;
+        estprm.dust_limit_sat = M_DUST_LIMIT_SAT;
+        estprm.max_htlc_value_in_flight_msat = M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT;
+        estprm.channel_reserve_sat = M_CHANNEL_RESERVE_SAT;
+        estprm.htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_EST;
+        estprm.to_self_delay = M_TO_SELF_DELAY;
+        estprm.max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
+        estprm.min_depth = M_MIN_DEPTH;
     }
 
-    p_conf->p_establish = (ln_establish_t *)APP_MALLOC(sizeof(ln_establish_t));     //APP_FREE: cb_established()
-    ret = ln_set_establish(p_conf->p_self, p_conf->p_establish, pNodeId, &defval);
+    ret = ln_set_establish(p_conf->p_self, pNodeId, &estprm);
     assert(ret);
 }
 
@@ -3026,7 +3016,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         strftime(date, sizeof(date), "%d %b %Y %T %z", &tmval);
 
         p_conf->p_errstr = (char *)APP_MALLOC(len_max);        //APP_FREE: thread_main_start()
-        sprintf(p_conf->p_errstr, "\"[%s]%s\"", date, pErrStr);
+        sprintf(p_conf->p_errstr, "[%s]%s", date, pErrStr);
         DBG_PRINTF("%s\n", p_conf->p_errstr);
 
         // method: error
@@ -3035,9 +3025,9 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         // $3: err_str
         char *param = (char *)APP_MALLOC(len_max);      //APP_FREE: この中
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_our_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
-                    "%s",
+                    "\"%s\"",
                     ln_short_channel_id(p_conf->p_self), node_id,
                     p_conf->p_errstr);
         call_script(M_EVT_ERROR, param);
@@ -3215,6 +3205,48 @@ static void clear_routelist(lnapp_conf_t *p_conf)
 #endif
 
 
+/** キューに追加(送金リトライ)
+ *
+ * @param[in,out]       p_conf
+ * @param[in]           pPayHash
+ */
+static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash)
+{
+    //キューにためる(payment retry)
+    DBG_PRINTF("payment_hash: ");
+    DUMPBIN(pPayHash, LN_SZ_HASH);
+
+    queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));      //APP_FREE: cb_htlc_changed()
+    fulfill->type = QTYPE_PAY_RETRY;
+    fulfill->id = 0;
+    ucoin_buf_alloccopy(&fulfill->buf, pPayHash, LN_SZ_HASH);
+    push_queue(p_conf, fulfill);
+}
+
+
+/** 送金リトライ要求
+ *
+ * @param[in]   pPayHash
+ */
+static void pay_retry(const uint8_t *pPayHash)
+{
+    char *p_invoice;
+    bool ret = ln_db_annoskip_invoice_load(&p_invoice, pPayHash);     //p_invoiceはmalloc()される
+    if (ret) {
+        DBG_PRINTF("invoice:%s\n", p_invoice);
+        char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
+        strcpy(json, "{\"method\":\"routepay\",\"params\":");
+        strcat(json, p_invoice);
+        strcat(json, "}");
+        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+        DBG_PRINTF("retval=%d\n", retval);
+        APP_FREE(json);     //APP_MALLOC: この中
+        free(p_invoice);
+    }
+
+}
+
+
 /** ln_self_t内容表示(デバッグ用)
  *
  */
@@ -3224,13 +3256,8 @@ static void show_self_param(const ln_self_t *self, FILE *fp, int line)
     if (ln_short_channel_id(self)) {
         fprintf(fp, "short_channel_id: %0" PRIx64 "\n", ln_short_channel_id(self));
         fprintf(fp, "my node_id:   ");
-        if (self->p_node) {
-            ucoin_util_dumpbin(fp, self->p_node->keys.pub, UCOIN_SZ_PUBKEY, true);
-        } else {
-            fprintf(fp, "(none)\n");
-        }
         fprintf(fp, "peer node_id: ");
-        ucoin_util_dumpbin(fp, self->peer_node.node_id, UCOIN_SZ_PUBKEY, true);
+        ucoin_util_dumpbin(fp, self->peer_node_id, UCOIN_SZ_PUBKEY, true);
         fprintf(fp, "our_msat:   %" PRIu64 "\n", ln_our_msat(self));
         fprintf(fp, "their_msat: %" PRIu64 "\n", ln_their_msat(self));
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {

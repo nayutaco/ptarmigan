@@ -125,6 +125,9 @@ bool ln_db_self_del(const ln_self_t *self, void *p_db_param);
 bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
+bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam);
+
+
 ////////////////////
 // announcement
 ////////////////////
@@ -381,11 +384,55 @@ bool ln_db_annonod_cur_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, 
 // payment_preimage
 ////////////////////
 
-bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDbParam);
+/** preimage保存
+ *
+ * @param[in]       pPreImage
+ * @param[in]       Amount
+ * @param[in,out]   pDb
+ * @retval  true
+ */
+bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb);
+
+
+/** preimage削除
+ *
+ * @param[in]       pPreImage
+ * @retval  true
+ */
 bool ln_db_preimg_del(const uint8_t *pPreImage);
+
+
+/** preimage削除(payment_hash検索)
+ *
+ * @param[in]       pPreImageHash
+ * @retval  true
+ */
 bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash);
+
+
+/** preimage curosrオープン
+ *
+ * @param[in,out]   ppCur
+ * @retval  true
+ */
 bool ln_db_preimg_cur_open(void **ppCur);
+
+
+/** preimage cursorクローズ
+ *
+ * @param[in]       pCur
+ * @retval  true
+ */
 void ln_db_preimg_cur_close(void *pCur);
+
+
+/** preimage取得
+ *
+ * @param[in]       pCur
+ * @param[out]      pPreImage
+ * @param[out]      pAmount
+ * @retval  true
+ */
 bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
 
 
@@ -400,6 +447,7 @@ bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
  * @param[in]       pVout           pPayHashを含むvoutスクリプトを#ucoin_sw_wit2prog_p2wsh()した結果。大きさはLNL_SZ_WITPROG_WSH。
  * @param[in]       Type            pVout先のHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
  * @param[in]       Expiry          Expiry
+ * @retval  true
  */
 bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype_t Type, uint32_t Expiry);
 
@@ -411,6 +459,7 @@ bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype
  * @param[out]      pExpiry         Expiry
  * @param[in]       pVout           検索するvout
  * @param[in,out]   pDbParam        DBパラメータ
+ * @retval  true
  */
 bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam);
 
@@ -421,7 +470,22 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
 // revoked transaction close
 ////////////////////
 
+/** revoked transaction情報読込み
+ *
+ * @param[in,out]   self
+ * @param[in,out]   pDbParam
+ * @retval  true        .
+ */
 bool ln_db_revtx_load(ln_self_t *self, void *pDbParam);
+
+
+/** revoked transaction情報保存
+ *
+ * @param[in]       self
+ * @param[in]       bUpdate
+ * @param[in,out]   pDbParam
+ * @retval  true        .
+ */
 bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
 
 

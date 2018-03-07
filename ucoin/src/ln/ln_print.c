@@ -78,19 +78,10 @@ void ln_print_self(const ln_self_t *self)
 {
     fprintf(PRINTOUT, "{\n");
 
-    //fprintf(PRINTOUT, M_QQ("p_node") ": \"");
-    //if (self->p_node) {
-    //    ucoin_util_dumpbin(PRINTOUT, self->p_node->keys.pub, UCOIN_SZ_PUBKEY, false);
-    //} else {
-    //    fprintf(PRINTOUT, "none");
-    //}
-    //fprintf(PRINTOUT, "\",");
-
     //peer_node
     fprintf(PRINTOUT, M_QQ("peer_node_id") ": \"");
-    ucoin_util_dumpbin(PRINTOUT, self->peer_node.node_id, UCOIN_SZ_PUBKEY, false);
+    ucoin_util_dumpbin(PRINTOUT, self->peer_node_id, UCOIN_SZ_PUBKEY, false);
     fprintf(PRINTOUT, "\",");
-    //fprintf(PRINTOUT, M_QQ("alias") ": " M_QQ("%s") ",", self->peer_node.alias);
 
     //key storage
     fprintf(PRINTOUT, M_QQ("storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->storage_index);
@@ -157,10 +148,10 @@ void ln_print_self(const ln_self_t *self)
 
     //announce
     fprintf(PRINTOUT, M_QQ("anno_flag") ": " M_QQ("%02x") ",\n", self->anno_flag);
-    fprintf(PRINTOUT, M_QQ("cltv_expiry_delta") ": %" PRIu16 ",\n", self->anno_default.cltv_expiry_delta);
-    fprintf(PRINTOUT, M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->anno_default.htlc_minimum_msat);
-    fprintf(PRINTOUT, M_QQ("fee_base_msat") ": %" PRIu32 ",\n", self->anno_default.fee_base_msat);
-    fprintf(PRINTOUT, M_QQ("fee_prop_millionths") ": %" PRIu32 ",\n", self->anno_default.fee_prop_millionths);
+    fprintf(PRINTOUT, M_QQ("cltv_expiry_delta") ": %" PRIu16 ",\n", self->anno_prm.cltv_expiry_delta);
+    fprintf(PRINTOUT, M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->anno_prm.htlc_minimum_msat);
+    fprintf(PRINTOUT, M_QQ("fee_base_msat") ": %" PRIu32 ",\n", self->anno_prm.fee_base_msat);
+    fprintf(PRINTOUT, M_QQ("fee_prop_millionths") ": %" PRIu32 ",\n", self->anno_prm.fee_prop_millionths);
 
     //init
     fprintf(PRINTOUT, M_QQ("init_flag") ": " M_QQ("%02x") ",\n", self->init_flag);

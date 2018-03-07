@@ -89,6 +89,7 @@ extern "C" {
 #define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
 #define LN_FUNDFLAG_ANNO_CH             (0x02)      ///< open_channel.channel_flags.announce_channel
 #define LN_FUNDFLAG_FUNDING             (0x04)      ///< 1:open_channel～funding_lockedまで
+#define LN_FUNDFLAG_CLOSE               (0x08)      ///< 1:funding_txがspentになっている
 
 // channel_update.flags
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
@@ -138,12 +139,18 @@ extern "C" {
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
 
 
+//
+// [ucoincli -d]マクロがtrueになるのが通常動作とする
+//
+
 // 1: update_fulfill_htlcを返さない
 #define LN_DBG_FULFILL()        ((ln_get_debug() & 0x01) == 0)
 // 2: closeでclosing_txを展開しない
 #define LN_DBG_CLOSING_TX()     ((ln_get_debug() & 0x02) == 0)
 // 4: HTLC scriptでpreimageが一致しても不一致とみなす
 #define LN_DBG_MATCH_PREIMAGE() ((ln_get_debug() & 0x04) == 0)
+// 8: monitoringで未接続ノードに接続しに行かない
+#define LN_DBG_NODE_AUTO_CONNECT() ((ln_get_debug() & 0x08) == 0)
 
 
 /********************************************************************
@@ -359,18 +366,18 @@ typedef struct {
  *      - open_channelする方が #ln_establish_t .p_fundinに設定して使う
  */
 typedef struct {
-    const uint8_t               *p_txid;                        ///< 2-of-2へ入金するTXID
+    uint8_t                     txid[UCOIN_SZ_TXID];            ///< 2-of-2へ入金するTXID
     int32_t                     index;                          ///< 未設定時(channelを開かれる方)は-1
     uint64_t                    amount;                         ///< 2-of-2へ入金するtxのvout amount
-    const uint8_t               *p_change_pubkey;               ///< 2-of-2へ入金したお釣りの送金先アドレス
-    const char                  *p_change_addr;                 ///< 2-of-2へ入金したお釣りの送金先アドレス
-    const ucoin_util_keys_t     *p_keys;                        ///< 2-of-2へ入金するtxの鍵(署名用)
+    uint8_t                     *p_change_pubkey;               ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
+    char                        *p_change_addr;                 ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
+    ucoin_util_keys_t           keys;                           ///< 2-of-2へ入金するtxの鍵(署名用)
     bool                        b_native;                       ///< true:fundinがnative segwit output
 } ln_fundin_t;
 
 
-/** @struct ln_est_default_t
- *  @brief  Establish関連のデフォルト値
+/** @struct ln_establish_prm_t
+ *  @brief  Establish関連のパラメータ
  *  @note
  *      - #ln_set_establish()で初期化する
  */
@@ -382,7 +389,7 @@ typedef struct {
     uint16_t    to_self_delay;                      ///< 2 : to-self-delay
     uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
-} ln_est_default_t;
+} ln_establish_prm_t;
 
 
 /** @struct ln_establish_t
@@ -394,8 +401,8 @@ typedef struct {
     ln_funding_created_t        cnl_funding_created;            ///< 送信 or 受信したfunding_created
     ln_funding_signed_t         cnl_funding_signed;             ///< 送信 or 受信したfunding_signed
 
-    const ln_fundin_t           *p_fundin;                      ///< 非NULL:open_channel側
-    ln_est_default_t            defval;                         ///< デフォルト値
+    ln_fundin_t                 *p_fundin;                      ///< 非NULL:open_channel側
+    ln_establish_prm_t          estprm;                         ///< channel establish parameter
 } ln_establish_t;
 
 /// @}
@@ -711,8 +718,8 @@ typedef struct {
 } ln_announce_signs_t;
 
 
-/** @struct     ln_anno_default_t
- *  @brief      announce関連のデフォルト値
+/** @struct     ln_anno_prm_t
+ *  @brief      announce関連のパラメータ
  */
 typedef struct {
     //channel_update
@@ -720,7 +727,7 @@ typedef struct {
     uint64_t    htlc_minimum_msat;                  ///< 8 : htlc_minimum_msat
     uint32_t    fee_base_msat;                      ///< 4 : fee_base_msat
     uint32_t    fee_prop_millionths;                ///< 4 : fee_proportional_millionths
-} ln_anno_default_t;
+} ln_anno_prm_t;
 
 /// @}
 
@@ -950,8 +957,7 @@ typedef struct {
  *  @brief      チャネル情報
  */
 struct ln_self_t {
-    ln_node_t                   *p_node;                        ///< 属しているnode情報
-    ln_node_info_t              peer_node;                      ///< 接続先ノード
+    uint8_t                     peer_node_id[UCOIN_SZ_PUBKEY];  ///< 接続先ノード
 
     //key storage
     uint64_t                    storage_index;                  ///< 現在のindex
@@ -969,12 +975,12 @@ struct ln_self_t {
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
     uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
-    ln_establish_t              *p_est;                         ///< Establish時ワーク領域
+    ln_establish_t              *p_establish;                   ///< Establishワーク領域
     uint32_t                    min_depth;                      ///< minimum_depth
 
     //announce
     uint8_t                     anno_flag;                      ///< announcement_signaturesなど
-    ln_anno_default_t           anno_default;
+    ln_anno_prm_t               anno_prm;                       ///< announcementパラメータ
     ucoin_buf_t                 cnl_anno;                       ///< 自channel_announcement
 
     //msg:init
@@ -988,7 +994,6 @@ struct ln_self_t {
     uint64_t                    close_last_fee_sat;             ///< 最後に送信したclosing_txのFEE
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< close時の送金先(local)
     ucoin_buf_t                 shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
-    ln_closing_signed_t         cnl_closing_signed;             ///< 受信したclosing_signed
     ucoin_buf_t                 *p_revoked_vout;                ///< revoked transaction close時に検索するvoutスクリプト([0]は必ずto_local系)
     ucoin_buf_t                 *p_revoked_wit;                 ///< revoked transaction close時のwitnessスクリプト
     ln_htlctype_t               *p_revoked_type;                ///< p_revoked_vout/p_revoked_witに対応するtype
@@ -1052,11 +1057,11 @@ struct ln_self_t {
  * @param[in,out]       self            channel情報
  * @param[in]           node            関連付けるnode
  * @param[in]           pSeed           per-commit-secret生成用
- * @param[in]           pAnnoDef        announcement値(NULLの場合、デフォルト値を使用する)
+ * @param[in]           pAnnoPrm        announcementパラメータ
  * @param[in]           pFunc           通知用コールバック関数
  * @retval      true    成功
  */
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_default_t *pAnnoDef, ln_callback_t pFunc);
+bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
 
 
 /** 終了
@@ -1087,14 +1092,13 @@ const uint8_t* ln_get_genesishash(void);
 /** Channel Establish設定
  *
  * @param[in,out]       self            channel情報
- * @param[out]          pEstablish      ワーク領域
  * @param[in]           pNodeId         Establish先(NULL可)
- * @param[in]           pEstDef         Establishデフォルト値
+ * @param[in]           pEstPrm         Establishパラメータ
  * @retval      true    成功
  * @note
  *      - pEstablishは接続完了まで保持すること
  */
-bool ln_set_establish(ln_self_t *self, ln_establish_t *pEstablish, const uint8_t *pNodeId, const ln_est_default_t *pEstDef);
+bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm);
 
 
 /** funding鍵設定
@@ -1286,17 +1290,6 @@ bool ln_funding_tx_stabled(ln_self_t *self);
 bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns);
 
 
-/** channel_update作成
- *
- * @param[in,out]       self            channel情報
- * @param[out]          pUpd            生成したchannel_update構造体
- * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
- * @param[in]           TimeStamp       作成時刻とするEPOCH time
- * @retval      ture    成功
- */
-bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp);
-
-
 /** channel_update更新
  * 送信済みのchannel_updateと現在のパラメータを比較し、相違があれば作成する
  *
@@ -1304,7 +1297,7 @@ bool ln_create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_
  * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
  * @retval      ture    更新あり
  */
-bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd);
+//bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd);
 
 
 /** closing transactionのFEE設定
@@ -1324,6 +1317,13 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee);
  *      - scriptPubKeyは #ln_init()で指定したアドレスを使用する
  */
 bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
+
+
+/** close中状態に遷移させる
+ *
+ * @param[in,out]       self        channel情報
+ */
+void ln_goto_closing(ln_self_t *self, void *pDbParam);
 
 
 /** 送信用unilateral closeトランザクション作成
@@ -1861,23 +1861,13 @@ static inline void ln_open_announce_channel_clr(ln_self_t *self) {
 }
 
 
-/** 自ノードID取得
- *
- * @param[in]           self            channel情報
- * @return      自channelの自node_id
- */
-static inline const uint8_t *ln_our_node_id(const ln_self_t *self) {
-    return ln_node_id(self->p_node);
-}
-
-
 /** 他ノードID取得
  *
  * @param[in]           self            channel情報
  * @return      自channelの他node_id
  */
 static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
-    return self->peer_node.node_id;
+    return self->peer_node_id;
 }
 
 
@@ -1887,7 +1877,7 @@ static inline const uint8_t *ln_their_node_id(const ln_self_t *self) {
  * @return      cltv_expiry_delta
  */
 static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
-    return self->anno_default.cltv_expiry_delta;
+    return self->anno_prm.cltv_expiry_delta;
 }
 
 
@@ -1898,7 +1888,7 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
  * @return      転送FEE(msat)
  */
 static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
-    return (uint64_t)self->anno_default.fee_base_msat + (amount * (uint64_t)self->anno_default.fee_prop_millionths / (uint64_t)1000000);
+    return (uint64_t)self->anno_prm.fee_base_msat + (amount * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
 }
 
 
@@ -1923,6 +1913,10 @@ static inline bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd) {
 /********************************************************************
  * NODE
  ********************************************************************/
+
+void ln_node_set(ln_node_t *node);
+ln_node_t *ln_node_get(void);
+
 
 /** ノード情報初期化
  *

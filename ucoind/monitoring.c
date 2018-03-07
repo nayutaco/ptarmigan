@@ -256,12 +256,19 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             del = funding_spent(self, confm, p_db_param);
         } else {
             //funding_tx未使用
-            del = funding_unspent(self, confm, p_db_param);
+            if (LN_DBG_NODE_AUTO_CONNECT()) {
+                del = funding_unspent(self, confm, p_db_param);
+            } else {
+                DBG_PRINTF("[DBG]no Auto connect mode\n");
+            }
         }
         if (del) {
             DBG_PRINTF("delete from DB\n");
             ret = ln_db_self_del(self, p_db_param);
-            assert(ret);
+            if (!ret) {
+                DBG_PRINTF("fail: del channel: ");
+                DUMPBIN(self->channel_id, LN_SZ_CHANNEL_ID);
+            }
         }
     }
 
@@ -272,6 +279,8 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
     bool del = false;
+
+    ln_goto_closing(self, p_db_param);
 
     ln_db_revtx_load(self, p_db_param);
     const ucoin_buf_t *p_vout = ln_revoked_vout(self);

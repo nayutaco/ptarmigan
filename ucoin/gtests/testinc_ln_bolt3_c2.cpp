@@ -684,9 +684,9 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
     //est.cnl_open.funding_sat = SATOSHI_FUNDING;
     //est.cnl_open.feerate_per_kw
     //est.p_fundin = &fundin;
-    //est.defval = ;
+    //est.estprm = ;
 
-    //self.p_est = &est;
+    //self.p_establish = &est;
     //create_funding_tx(&self);
 
     ret = create_to_local(&self, sigs,

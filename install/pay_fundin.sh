@@ -17,14 +17,31 @@ FUNDIN_BTC=`printf "%.8f" $FUNDIN_BTC`
 FUND_SAT=$2
 PUSH_SAT=$3
 
-CONF=~/.bitcoin/bitcoin.conf
+CONFFILE=~/.bitcoin/bitcoin.conf
 DATADIR=~/.bitcoin
 
-ADDR=`bitcoin-cli -conf=$CONF -datadir=$DATADIR getnewaddress`
-SEG=`bitcoin-cli -conf=$CONF -datadir=$DATADIR addwitnessaddress $ADDR`
-TXID=`bitcoin-cli -conf=$CONF -datadir=$DATADIR sendtoaddress $SEG $FUNDIN_BTC`
+cli() {
+	bitcoin-cli -conf=$CONFFILE -datadir=$DATADIR $@
+}
+
+OPT_GENERATE=
+BITCOIND_VER=`cli getnetworkinfo | jq .version | sed -e 's/\([0-9][0-9]\).*/\1/'`
+if [ "$BITCOIND_VER" = "16" ]; then
+	OPT_GENERATE="p2sh-segwit"
+fi
+
+ADDR=
+SEG=
+if [ "$BITCOIND_VER" = "16" ]; then
+	ADDR=`cli getnewaddress "" p2sh-segwit`
+	SEG=$ADDR
+else
+	ADDR=`cli getnewaddress`
+	SEG=`cli addwitnessaddress $ADDR`
+fi
+TXID=`cli sendtoaddress $SEG $FUNDIN_BTC`
 echo txid=$TXID > $FUNDIN_CONF
-CNT=`bitcoin-cli -conf=$CONF -datadir=$DATADIR gettxout $TXID 0 | grep $SEG | wc -c`
+CNT=`cli gettxout $TXID 0 | grep $SEG | wc -c`
 if [ $CNT -gt 0 ]; then
 	echo txindex=0 >> $FUNDIN_CONF
 else

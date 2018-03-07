@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 2018/03/07
+
+* DB version : -17
+  * most items were separated
+* close処理中のDBをルート計算から除外する
+* bitcoind v0.16暫定対応
+  * nested in BIP16 P2SH(以前と同じレベル)
+  * `estimatefee` --> `estimatesmartfee`
+
+## 2018/03/03
+
+* tag: 2018-03-03
+  * DB version : - 16
+
 ## 2018/02/21
 
 * `ucoincli -r`での送金リトライ機能
