@@ -273,6 +273,7 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void print_routelist(lnapp_conf_t *p_conf);
 static void clear_routelist(lnapp_conf_t *p_conf);
 #endif
+static void paymenet_retry(lnapp_conf_t *p_conf, const uint8_t *pPayHash);
 
 
 /********************************************************************
@@ -433,6 +434,7 @@ LABEL_EXIT:
         call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
+        paymenet_retry(pAppConf, pPay->payment_hash);
         mMuxTiming = 0;
     }
 
@@ -2320,15 +2322,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         }
         del_routelist(p_conf, p_fail->orig_id);
         if (retry) {
-            //キューにためる(payment retry)
-            DBG_PRINTF("payment_hash: ");
-            DUMPBIN(p_fail->p_payment_hash, LN_SZ_HASH);
-
-            queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));      //APP_FREE: cb_htlc_changed()
-            fulfill->type = QTYPE_PAY_RETRY;
-            fulfill->id = 0;
-            ucoin_buf_alloccopy(&fulfill->buf, p_fail->p_payment_hash, LN_SZ_HASH);
-            push_queue(p_conf, fulfill);
+            paymenet_retry(p_conf, p_fail->p_payment_hash);
         } else {
             ln_db_annoskip_invoice_del(p_fail->p_payment_hash);
         }
@@ -3203,6 +3197,25 @@ static void clear_routelist(lnapp_conf_t *p_conf)
     }
 }
 #endif
+
+
+/** 送金リトライ
+ * 
+ * @param[in,out]       p_conf
+ * @param[in]           pPayHash
+ */
+static void paymenet_retry(lnapp_conf_t *p_conf, const uint8_t *pPayHash)
+{
+    //キューにためる(payment retry)
+    DBG_PRINTF("payment_hash: ");
+    DUMPBIN(pPayHash, LN_SZ_HASH);
+
+    queue_fulfill_t *fulfill = (queue_fulfill_t *)APP_MALLOC(sizeof(queue_fulfill_t));      //APP_FREE: cb_htlc_changed()
+    fulfill->type = QTYPE_PAY_RETRY;
+    fulfill->id = 0;
+    ucoin_buf_alloccopy(&fulfill->buf, pPayHash, LN_SZ_HASH);
+    push_queue(p_conf, fulfill);
+}
 
 
 /** ln_self_t内容表示(デバッグ用)
