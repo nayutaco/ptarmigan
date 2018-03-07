@@ -893,8 +893,8 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
             p += LN_SZ_HASH;
             cJSON_AddItemToArray(result_hash, cJSON_CreateString(hash_str));
         }
-        free(p_hash);       //ln_lmdbでrealloc()している
-        cJSON_AddItemToObject(result, "paying", result_hash);
+        free(p_hash);       //ln_lmdbでmalloc/realloc()している
+        cJSON_AddItemToObject(result, "paying_hash", result_hash);
     }
     p2p_svr_show_self(result_svr);
     cJSON_AddItemToObject(result, "server", result_svr);
