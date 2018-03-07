@@ -351,6 +351,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
         fprintf(PRINTOUT, "fail: short_channel_id mismatch\n");
         fprintf(PRINTOUT, "    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         fprintf(PRINTOUT, "    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
+        ln_db_annoskip_save(pPay->hop_datain[0].short_channel_id);
         retry = true;
         goto LABEL_EXIT;
     }
