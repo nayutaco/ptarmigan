@@ -339,6 +339,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     DBGTRACE_BEGIN
 
     bool ret = false;
+    bool retry = false;
     ucoin_buf_t buf_bolt;
     uint8_t session_key[UCOIN_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
@@ -349,6 +350,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
         fprintf(PRINTOUT, "fail: short_channel_id mismatch\n");
         fprintf(PRINTOUT, "    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         fprintf(PRINTOUT, "    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
+        retry = true;
         goto LABEL_EXIT;
     }
 
@@ -434,7 +436,9 @@ LABEL_EXIT:
         call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
-        paymenet_retry(pAppConf, pPay->payment_hash);
+        if (retry) {
+            paymenet_retry(pAppConf, pPay->payment_hash);
+        }
         mMuxTiming = 0;
     }
 
