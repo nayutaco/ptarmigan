@@ -859,7 +859,7 @@ LABEL_EXIT:
         ctx->error_code = RPCERR_PARSE;
         ctx->error_message = strdup(RPCERR_PARSE_STR);
     }
-    return result;
+    return NULL;
 }
 
 
