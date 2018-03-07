@@ -735,7 +735,6 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     cJSON *json;
-    cJSON *result = NULL;
     int index = 0;
     char str_payhash[2 * LN_SZ_HASH + 1];
     char str_payee[2 * UCOIN_SZ_PUBKEY + 1];
@@ -831,8 +830,11 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         DBG_PRINTF2("%s", p_route);
         DBG_PRINTF("---------------\n");
         int retval = misc_sendjson(p_route, "127.0.0.1", cmd_json_get_port());
-        DBG_PRINTF("retval=%d\n", retval);
-        result = cJSON_CreateString("Progressing");
+        if (retval != 0) {
+            DBG_PRINTF("retval=%d\n", retval);
+            ctx->error_code = RPCERR_ERROR;
+            ctx->error_message = strdup(RPCERR_ERROR_STR);
+        }
     } else {
         ln_db_annoskip_invoice_del(payhash);
 
@@ -846,7 +848,7 @@ LABEL_EXIT:
         ctx->error_code = RPCERR_PARSE;
         ctx->error_message = strdup(RPCERR_PARSE_STR);
     }
-    return result;
+    return NULL;
 }
 
 
