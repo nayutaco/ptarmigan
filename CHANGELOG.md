@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 2018/03/xx
+## 2018/03/07
 
 * DB version : -17
   * most items were separated
