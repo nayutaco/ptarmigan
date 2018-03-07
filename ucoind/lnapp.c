@@ -273,7 +273,8 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void print_routelist(lnapp_conf_t *p_conf);
 static void clear_routelist(lnapp_conf_t *p_conf);
 #endif
-static void paymenet_retry(lnapp_conf_t *p_conf, const uint8_t *pPayHash);
+static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash);
+static void pay_retry(const uint8_t *pPayHash);
 
 
 /********************************************************************
@@ -437,7 +438,7 @@ LABEL_EXIT:
     } else {
         DBG_PRINTF("fail\n");
         if (retry) {
-            paymenet_retry(pAppConf, pPay->payment_hash);
+            pay_retry(pPay->payment_hash);
         }
         mMuxTiming = 0;
     }
@@ -2326,7 +2327,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         }
         del_routelist(p_conf, p_fail->orig_id);
         if (retry) {
-            paymenet_retry(p_conf, p_fail->p_payment_hash);
+            push_pay_retry_queue(p_conf, p_fail->p_payment_hash);
         } else {
             ln_db_annoskip_invoice_del(p_fail->p_payment_hash);
         }
@@ -3203,12 +3204,12 @@ static void clear_routelist(lnapp_conf_t *p_conf)
 #endif
 
 
-/** 送金リトライ
- * 
+/** キューに追加(送金リトライ)
+ *
  * @param[in,out]       p_conf
  * @param[in]           pPayHash
  */
-static void paymenet_retry(lnapp_conf_t *p_conf, const uint8_t *pPayHash)
+static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash)
 {
     //キューにためる(payment retry)
     DBG_PRINTF("payment_hash: ");
@@ -3219,6 +3220,29 @@ static void paymenet_retry(lnapp_conf_t *p_conf, const uint8_t *pPayHash)
     fulfill->id = 0;
     ucoin_buf_alloccopy(&fulfill->buf, pPayHash, LN_SZ_HASH);
     push_queue(p_conf, fulfill);
+}
+
+
+/** 送金リトライ要求
+ *
+ * @param[in]   pPayHash
+ */
+static void pay_retry(const uint8_t *pPayHash)
+{
+    char *p_invoice;
+    bool ret = ln_db_annoskip_invoice_load(&p_invoice, pPayHash);     //p_invoiceはmalloc()される
+    if (ret) {
+        DBG_PRINTF("invoice:%s\n", p_invoice);
+        char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
+        strcpy(json, "{\"method\":\"routepay\",\"params\":");
+        strcat(json, p_invoice);
+        strcat(json, "}");
+        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+        DBG_PRINTF("retval=%d\n", retval);
+        APP_FREE(json);     //APP_MALLOC: この中
+        free(p_invoice);
+    }
+
 }
 
 
