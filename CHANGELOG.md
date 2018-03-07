@@ -8,6 +8,12 @@
 * bitcoind v0.16暫定対応
   * nested in BIP16 P2SH(以前と同じレベル)
   * `estimatefee` --> `estimatesmartfee`
+* add `ucoincli` command
+  * `ucoincli -sX` : "X=1" stop auto channel connect
+    * assume: keep disconnect after `ucoincli -c <peer node> -q`(disconnect channel)
+* update `ucoincli` parameter
+  * `ucoincli -c PEER.CONF` ==> `ucoincli -c PEER.CONF or NODE_ID` : allow node_id
+    * ATTENTION: need other option using `-c NODE_ID`
 
 ## 2018/03/03
 
