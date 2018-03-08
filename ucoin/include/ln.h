@@ -1515,6 +1515,16 @@ static inline const uint8_t *ln_node_id(const ln_node_t *node) {
 }
 
 
+/** channel_id取得
+ *
+ * @param[in]           self            channel情報
+ * @return      channel_id
+ */
+static inline const uint8_t *ln_channel_id(const ln_self_t *self) {
+    return self->channel_id;
+}
+
+
 /** short_channel_id取得
  *
  * @param[in]           self            channel情報
