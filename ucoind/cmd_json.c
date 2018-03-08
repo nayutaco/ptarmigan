@@ -77,6 +77,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
@@ -102,6 +103,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getlasterror,"getlasterror", NULL);
     jrpc_register_procedure(&mJrpc, cmd_disautoconn, "disautoconn", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_removechannel,"removechannel", NULL);
     jrpc_register_procedure(&mJrpc, cmd_debug,       "debug", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getcommittx, "getcommittx", NULL);
     jrpc_server_run(&mJrpc);
@@ -989,6 +991,28 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
     if (p_str != NULL) {
         return cJSON_CreateString(p_str);
+    } else {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = strdup(RPCERR_PARSE_STR);
+        return NULL;
+    }
+}
+
+
+static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    bool ret = false;
+    uint8_t channel_id[LN_SZ_CHANNEL_ID];
+
+    cJSON *json = cJSON_GetArrayItem(params, 0);
+    if (json && (json->type == cJSON_String)) {
+        misc_str2bin(channel_id, sizeof(channel_id), json->valuestring);
+        ret = ln_db_self_del(channel_id);
+    }
+    if (ret) {
+        return cJSON_CreateString(kOK);
     } else {
         ctx->error_code = RPCERR_PARSE;
         ctx->error_message = strdup(RPCERR_PARSE_STR);

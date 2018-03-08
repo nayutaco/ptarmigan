@@ -105,6 +105,14 @@ void ln_db_term(void);
 bool ln_db_self_save(const ln_self_t *self);
 
 
+/** channel削除(channel_id指定)
+ * 
+ * @param[in]       pChannelId      削除するselfのchannel_id
+ * @retval      true    検索成功(削除成功かどうかは判断しない)
+ */
+bool ln_db_self_del(const uint8_t *pChannelId);
+
+
 /** channel削除(DB paramあり)
  *
  * @param[in]       self
