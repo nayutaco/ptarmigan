@@ -1234,23 +1234,9 @@ bool ucoin_util_verify_p2pkh(ucoin_tx_t *pTx, int Index, const char *pAddrVout);
  * @param[in]       pKeys
  * @return      true:成功
  * @note
- *      - #ucoin_init()の設定で署名するため、異なる場合は #ucoin_util_sign_p2wpkh_native()を使用すること
+ *      - #ucoin_init()の設定で署名する
  */
 bool ucoin_util_sign_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys);
-
-
-/** #ucoin_util_sign_p2wpkh()のsegwit/nested inを選択できるバージョン
- *
- * @param[out]      pTx
- * @param[in]       Index
- * @param[in]       Value
- * @param[in]       pKeys
- * @param[in]       bNative     true:native
- * @return      true:成功
- * @note
- *      - bNativeは、#ucoin_sw_set_vin_p2wpkh() でscriptSigへ書込むかどうかの判定に使っている
- */
-bool ucoin_util_sign_p2wpkh_native(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys, bool bNative);
 
 
 /** P2WSH署名 - Phase1: トランザクションハッシュ作成

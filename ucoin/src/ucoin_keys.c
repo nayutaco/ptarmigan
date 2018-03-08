@@ -159,7 +159,7 @@ bool ucoin_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
 
     //BIP142のテストデータが非圧縮公開鍵だったので、やむなくこうした
     ucoin_util_hash160(pkh, pPubKey, (pPubKey[0] == 0x04) ? UCOIN_SZ_PUBKEY_UNCOMP+1 : UCOIN_SZ_PUBKEY);
-    if(mNativeSegwit) {
+    if (mNativeSegwit) {
         pref = UCOIN_PREF_NATIVE;
     } else {
         ucoin_util_create_pkh2wpkh(pkh, pkh);
