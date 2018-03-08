@@ -1552,7 +1552,9 @@ int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
     }
     retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, 0, &dbi);
     if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        }
         MDB_TXN_ABORT(txn);
         goto LABEL_EXIT;
     }
