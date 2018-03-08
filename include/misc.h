@@ -98,7 +98,7 @@ void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint16_t BinLen);
  * @param[out]      BinLen      pBin長
  * @param[out]      pStr        元データ
  */
-bool misc_str2bin(uint8_t *pBin, uint16_t BinLen, const char *pStr);
+bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 
 
 /** 16進数文字列から変換(エンディアン反転)
@@ -107,7 +107,7 @@ bool misc_str2bin(uint8_t *pBin, uint16_t BinLen, const char *pStr);
  * @param[out]      BinLen      pBin長
  * @param[out]      pStr        元データ
  */
-bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr);
+bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 
 
 /** JSON-RPC送信

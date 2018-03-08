@@ -1057,7 +1057,7 @@ static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid)
         json_t *p_result;
         uint8_t *p_hex;
         const char *str_hex;
-        uint16_t len;
+        uint32_t len;
         json_error_t error;
 
         p_root = json_loads(p_json, 0, &error);
