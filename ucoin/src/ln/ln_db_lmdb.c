@@ -666,7 +666,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
+bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param)
 {
     int         retval;
     MDB_dbi     dbi;

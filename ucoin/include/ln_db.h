@@ -105,13 +105,15 @@ void ln_db_term(void);
 bool ln_db_self_save(const ln_self_t *self);
 
 
-/** channel削除
+/** channel削除(DB paramあり)
  *
  * @param[in]       self
  * @param[in,out]   p_db_param      呼び出されたコールバック関数のパラメータ
  * @retval      true    成功
+ * @note
+ *      - #ln_db_self_search() 経由を想定
  */
-bool ln_db_self_del(const ln_self_t *self, void *p_db_param);
+bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param);
 
 
 /** channel情報検索
