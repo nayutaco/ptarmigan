@@ -138,7 +138,6 @@ bool ucoin_util_create2of2(ucoin_buf_t *pRedeem, ucoin_keys_sort_t *pSort, const
 bool ucoin_util_sign_p2pkh(ucoin_tx_t *pTx, int Index, const ucoin_util_keys_t *pKeys)
 {
     ucoin_buf_t scrpk;
-    //ucoin_tx_create_vout_p2pkh(&scrpk, pAddr);
     uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
     ucoin_util_hash160(pkh, pKeys->pub, UCOIN_SZ_PUBKEY);
     ucoin_util_create_scriptpk(&scrpk, pkh, UCOIN_PREF_P2PKH);
@@ -197,20 +196,6 @@ bool ucoin_util_sign_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const uc
 
     ucoin_buf_free(&sigbuf);
     ucoin_buf_free(&script_code);
-
-    return ret;
-}
-
-
-bool ucoin_util_sign_p2wpkh_native(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys, bool bNative)
-{
-    bool segwit = mNativeSegwit;        //backup
-
-    mNativeSegwit = bNative;
-
-    bool ret = ucoin_util_sign_p2wpkh(pTx, Index, Value, pKeys);
-
-    mNativeSegwit = segwit;             //restore
 
     return ret;
 }

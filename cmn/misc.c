@@ -64,10 +64,10 @@ void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint16_t BinLen)
 }
 
 
-bool misc_str2bin(uint8_t *pBin, uint16_t BinLen, const char *pStr)
+bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
     if (strlen(pStr) != BinLen * 2) {
-        DBG_PRINTF("fail: invalid buffer size\n");
+        DBG_PRINTF("fail: invalid buffer size: %lu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
         return false;
     }
 
@@ -75,7 +75,7 @@ bool misc_str2bin(uint8_t *pBin, uint16_t BinLen, const char *pStr)
 
     char str[3];
     str[2] = '\0';
-    int lp;
+    uint32_t lp;
     for (lp = 0; lp < BinLen; lp++) {
         str[0] = *(pStr + 2 * lp);
         str[1] = *(pStr + 2 * lp + 1);
@@ -104,11 +104,11 @@ bool misc_str2bin(uint8_t *pBin, uint16_t BinLen, const char *pStr)
 }
 
 
-bool misc_str2bin_rev(uint8_t *pBin, uint16_t BinLen, const char *pStr)
+bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
     bool ret = misc_str2bin(pBin, BinLen, pStr);
     if (ret) {
-        for (int lp = 0; lp < BinLen / 2; lp++) {
+        for (uint32_t lp = 0; lp < BinLen / 2; lp++) {
             uint8_t tmp = pBin[lp];
             pBin[lp] = pBin[BinLen - lp - 1];
             pBin[BinLen - lp - 1] = tmp;

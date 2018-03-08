@@ -434,30 +434,30 @@ int main(int argc, char *argv[])
     }
     if ((options == M_OPTIONS_INIT) || (options == M_OPTIONS_HELP) || (!conn && (options == M_OPTIONS_CONN))) {
         printf("[usage]\n");
-        printf("\t%s <-t> <options> [<JSON-RPC port(not ucoind port)>]\n", argv[0]);
+        printf("\t%s [-t] [OPTIONS...] [JSON-RPC port(not ucoind port)]\n", argv[0]);
         printf("\t\t-h : help\n");
         printf("\t\t-t : test(not send command)\n");
         printf("\t\t-q : quit ucoind\n");
         printf("\t\t-l : list channels\n");
-        printf("\t\t-i <amount_msat> : add preimage, and show payment_hash\n");
-        printf("\t\t-e <payment_hash> or ALL) : erase payment_hash(s)\n");
-        printf("\t\t-p <payment.conf>,<paymenet_hash> : payment(don't put a space before or after the comma)\n");
-        printf("\t\t-r <BOLT#11 invoice>(,<additional amount_msat>)(,<additional min_filnal_cltv_expiry>) : payment(don't put a space before or after the comma)\n");
+        printf("\t\t-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
+        printf("\t\t-e PAYMENT_HASH : erase payment_hash\n");
+        printf("\t\t-e ALL : erase all payment_hash\n");
+        printf("\t\t-r BOLT#11 invoice[,ADDITIONAL AMOUNT_MSAT][,ADDITIONAL MIN_FINAL_CLTV_EXPIRY] : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
         printf("\t\t-s<1 or 0> : 1=stop auto channel connect\n");
-        printf("\t\t-c <peer.conf> : connect node\n");
-        printf("\t\t-c <peer node_id> OR <peer.conf> -f <fund.conf> : funding\n");
-        printf("\t\t-c <peer node_id> OR <peer.conf> -x : mutual close channel\n");
-        printf("\t\t-c <peer node_id> OR <peer.conf> -w : get last error\n");
-        printf("\t\t-c <peer node_id> OR <peer.conf> -q : disconnect node\n");
+        printf("\t\t-c PEER.CONF : connect node\n");
+        printf("\t\t-c PEER NODE_ID or PEER.CONF -f FUND.CONF : funding\n");
+        printf("\t\t-c PEER NODE_ID or PEER.CONF -x : mutual close channel\n");
+        printf("\t\t-c PEER NODE_ID or PEER.CONF -w : get last error\n");
+        printf("\t\t-c PEER NODE_ID or PEER.CONF -q : disconnect node\n");
         printf("\n");
         // printf("\t\t-a <IP address> : [debug]JSON-RPC send address\n");
-        printf("\t\t-d <value> : [debug]debug option\n");
+        printf("\t\t-d VALUE : [debug]debug option\n");
         printf("\t\t\tb0 ... no update_fulfill_htlc\n");
         printf("\t\t\tb1 ... no closing transaction\n");
         printf("\t\t\tb2 ... force payment_preimage mismatch\n");
         printf("\t\t\tb3 ... no node auto connect\n");
-        printf("\t\t-c <peer node_id> OR <peer.conf> -g : [debug]get commitment transaction\n");
+        printf("\t\t-c PEER NODE_ID or PEER.CONF -g : [debug]get commitment transaction\n");
         return -1;
     }
 
