@@ -332,7 +332,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
 
     ret = mdb_env_create(&pDbSelf);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(pDbSelf, 2);
+    ret = mdb_env_set_maxdbs(pDbSelf, 10);
     assert(ret == 0);
     ret = mdb_env_open(pDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
@@ -342,7 +342,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
 
     ret = mdb_env_create(&pDbNode);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(pDbNode, 2);
+    ret = mdb_env_set_maxdbs(pDbNode, 10);
     assert(ret == 0);
     ret = mdb_env_open(pDbNode, nodepath, 0, 0664);
     if (ret) {
