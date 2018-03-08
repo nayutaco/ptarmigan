@@ -64,6 +64,7 @@
 #define SHOW_ANNOSKIP           (0x0200)
 #define SHOW_ANNOINVOICE        (0x0400)
 #define SHOW_CLOSED_CH          (0x0800)
+#define SHOW_CH                 (0x1000)
 
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
@@ -106,7 +107,7 @@ static FILE         *fp_err;
 static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
 {
     //self
-    if (showflag & (SHOW_SELF | SHOW_WALLET)) {
+    if (showflag & (SHOW_SELF | SHOW_WALLET | SHOW_CH)) {
         ln_self_t self;
         memset(&self, 0, sizeof(self));
 
@@ -115,11 +116,21 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
             printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
             return;
         }
+        const char *p_title;
+        if (showflag & SHOW_SELF) {
+            p_title = "channel_info";
+        }
+        if (showflag & SHOW_WALLET) {
+            p_title = "wallet_info";
+        }
+        if (showflag & SHOW_CH) {
+            p_title = "peer_node_id";
+        }
 
         if (cnt0) {
             printf(",");
         } else {
-            printf(M_QQ("channel_info") ": [");
+            printf(M_QQ("%s") ": [", p_title);
         }
 
         if (showflag & SHOW_SELF) {
@@ -127,6 +138,11 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         }
         if (showflag & SHOW_WALLET) {
             ln_print_wallet(&self);
+        }
+        if (showflag & SHOW_CH) {
+            printf("\"");
+            ucoin_util_dumpbin(stdout, self.peer_node_id, UCOIN_SZ_PUBKEY, false);
+            printf("\"");
         }
         ln_term(&self);
         cnt0++;
@@ -450,6 +466,10 @@ int main(int argc, char *argv[])
             break;
         case 'w':
             showflag = SHOW_WALLET;
+            env = 0;
+            break;
+        case 'l':
+            showflag = SHOW_CH;
             env = 0;
             break;
         case 'q':
