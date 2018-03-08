@@ -55,6 +55,7 @@
  **************************************************************************/
 
 static volatile bool        mMonitoring;
+static bool                 mDisableAutoConn;           ///< true:channelのある他nodeへの自動接続停止
 
 
 /********************************************************************
@@ -115,6 +116,12 @@ void *monitor_thread_start(void *pArg)
 void monitor_stop(void)
 {
     mMonitoring = false;
+}
+
+
+void monitor_disable_autoconn(bool bDisable)
+{
+    mDisableAutoConn = bDisable;
 }
 
 
@@ -256,10 +263,10 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             del = funding_spent(self, confm, p_db_param);
         } else {
             //funding_tx未使用
-            if (LN_DBG_NODE_AUTO_CONNECT()) {
+            if (LN_DBG_NODE_AUTO_CONNECT() && !mDisableAutoConn) {
                 del = funding_unspent(self, confm, p_db_param);
             } else {
-                DBG_PRINTF("[DBG]no Auto connect mode\n");
+                DBG_PRINTF("No Auto connect mode\n");
             }
         }
         if (del) {
