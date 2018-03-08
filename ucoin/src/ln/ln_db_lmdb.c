@@ -288,12 +288,31 @@ static const backup_param_t DBSELF_KEYS[] = {
 };
 
 
+// DBCOPY_KEYS[]とDBCOPY_IDX[]を同時に更新すること
 static const backup_param_t DBCOPY_KEYS[] = {
     M_ITEM(ln_self_t, peer_node_id),
+    M_ITEM(ln_self_t, channel_id),
     M_ITEM(ln_self_t, short_channel_id),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
+};
+static const struct {
+    enum {
+        ETYPE_BYTEPTR,      //const uint8_t*
+        ETYPE_UINT64,       //uint64_t
+        ETYPE_UINT16,       //uint16_t
+        ETYPE_TXID,         //txid
+    } type;
+    int offset;
+    int length;
+} DBCOPY_IDX[] = {
+    { ETYPE_BYTEPTR,    0,  33  },      // peer_node_id
+    { ETYPE_BYTEPTR,    0,  32  },      // channel_id
+    { ETYPE_UINT64,     0,  1   },      // short_channel_id
+    { ETYPE_TXID,       0,  32  },      // funding_local.txid
+    { ETYPE_UINT16,     0,  1   },      // funding_local.txindex
+    { ETYPE_BYTEPTR,    32, 33  }       // funding_local.keys.pub
 };
 
 
@@ -347,6 +366,7 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
 
 static void addhtlc_dbname(char *pDbName, int num);
 static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
+static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 
 
 #ifdef M_DB_DEBUG
@@ -666,7 +686,13 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_self_del(const ln_self_t *self, void *p_db_param)
+bool ln_db_self_del(const uint8_t *pChannelId)
+{
+    return ln_db_self_search(comp_func_cnl, (CONST_CAST void *)pChannelId);
+}
+
+
+bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param)
 {
     int         retval;
     MDB_dbi     dbi;
@@ -829,23 +855,6 @@ bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam)
 void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
 {
     MDB_val         key, data;
-
-    const struct {
-        int type;
-        int offset;
-        int length;
-    } DBCOPY_IDX[] = {
-        //  type:
-        //      0: const uint8_t*
-        //      1: uint64_t
-        //      2: uint16_t
-        //      3: txid
-        { 0, 0, 33 },
-        { 1, 0, 1 },
-        { 3, 0, 32 },
-        { 2, 0, 1 },
-        { 0, 32, 33 }
-    };
 
     for (size_t lp = 0; lp < ARRAY_SIZE(DBCOPY_KEYS); lp++) {
         key.mv_size = strlen(DBCOPY_KEYS[lp].name);
@@ -1543,7 +1552,9 @@ int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
     }
     retval = mdb_dbi_open(txn, M_DBI_ANNO_INVOICE, 0, &dbi);
     if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        }
         MDB_TXN_ABORT(txn);
         goto LABEL_EXIT;
     }
@@ -3174,4 +3185,26 @@ static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen)
         snprintf(str, sizeof(str), "%02x", pBin[lp]);
         strcat(pStr, str);
     }
+}
+
+
+/** #ln_node_search_channel()処理関数
+ *
+ * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
+ * @param[in,out]   p_param         comp_param_cnl_t構造体
+ */
+static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
+{
+    (void)p_db_param;
+    const uint8_t *p_channel_id = (const uint8_t *)p_param;
+
+    bool ret = (memcmp(self->channel_id, p_channel_id, LN_SZ_CHANNEL_ID) == 0);
+    if (ret) {
+        ln_db_self_del_prm(self, p_db_param);
+
+        //true時は呼び元では解放しないので、ここで解放する
+        ln_term(self);
+    }
+    return ret;
 }

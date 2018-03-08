@@ -266,7 +266,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
                 ucoin_buf_free(&buf);
             }
         } else {
-            //true時は予備元では解放しないので、ここで解放する
+            //true時は呼び元では解放しないので、ここで解放する
             ln_term(self);
         }
     }

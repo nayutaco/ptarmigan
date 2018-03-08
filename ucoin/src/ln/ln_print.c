@@ -66,6 +66,9 @@ void ln_print_wallet(const ln_self_t *self)
     fprintf(PRINTOUT, M_QQ("node_id") ": \"");
     ucoin_util_dumpbin(PRINTOUT, self->peer_node_id, UCOIN_SZ_PUBKEY, false);
     fprintf(PRINTOUT, "\",\n");
+    fprintf(PRINTOUT, M_QQ("channel_id") ": \"");
+    ucoin_util_dumpbin(PRINTOUT, self->channel_id, LN_SZ_CHANNEL_ID, false);
+    fprintf(PRINTOUT, "\",\n");
     fprintf(PRINTOUT, M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", self->short_channel_id);
     if (self->htlc_num != 0) {
         fprintf(PRINTOUT, M_QQ("htlc_num") ": %d,", self->htlc_num);

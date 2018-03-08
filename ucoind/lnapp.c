@@ -637,6 +637,12 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //peer node_id
         misc_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
+        //channel_id
+        misc_bin2str(str, ln_channel_id(pAppConf->p_self), LN_SZ_CHANNEL_ID);
+        cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
+        //short_channel_id
+        sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
+        cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
         //funding_tx
         misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
@@ -644,9 +650,6 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
         //confirmation
         uint32_t confirm = btcprc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
-        //short_channel_id
-        sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
-        cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
         //our_msat
         cJSON_AddItemToObject(result, "our_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
         //their_msat

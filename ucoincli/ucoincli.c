@@ -93,6 +93,7 @@ static void getlasterror_rpc(char *pJson);
 static void debug_rpc(char *pJson, int debug);
 static void getcommittx_rpc(char *pJson);
 static void disable_autoconnect_rpc(char *pJson, const char *pDisable);
+static void remove_channel_rpc(char *pJson, const char *pChannelId);
 
 static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t Port, bool bSend);
 
@@ -118,7 +119,7 @@ int main(int argc, char *argv[])
     bool b_send = true;
     int opt;
     int options = M_OPTIONS_INIT;
-    while ((opt = getopt(argc, argv, "htq::lc:f:i:e:mp:r:xs:gwa:d:")) != -1) {
+    while ((opt = getopt(argc, argv, "htq::lc:f:i:e:mp:r:xX:s:gwa:d:")) != -1) {
         switch (opt) {
         case 'h':
             options = M_OPTIONS_HELP;
@@ -326,6 +327,15 @@ int main(int argc, char *argv[])
                 }
             } else {
                 printf("fail: too many options\n");
+                options = M_OPTIONS_HELP;
+            }
+            break;
+        case 'X':
+            if ((options == M_OPTIONS_INIT) && (strlen(optarg) == LN_SZ_CHANNEL_ID * 2)) {
+                remove_channel_rpc(mBuf, optarg);
+                options = M_OPTIONS_EXEC;
+            } else {
+                printf("fail: invalid option\n");
                 options = M_OPTIONS_HELP;
             }
             break;
@@ -715,6 +725,20 @@ static void disable_autoconnect_rpc(char *pJson, const char *pDisable)
             M_QQ("params") ":[ \"%s\" ]"
         "}", pDisable);
 }
+
+
+static void remove_channel_rpc(char *pJson, const char *pChannelId)
+{
+    snprintf(pJson, BUFFER_SIZE,
+        "{"
+            M_STR("method", "removechannel") M_NEXT
+            M_QQ("params") ":[ "
+                M_QQ("%s")
+            " ]"
+        "}",
+            pChannelId);
+}
+
 
 static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t Port, bool bSend)
 {
