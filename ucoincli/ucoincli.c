@@ -188,7 +188,7 @@ int main(int argc, char *argv[])
         printf("\t\t-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
         printf("\t\t-e PAYMENT_HASH : erase payment_hash\n");
         printf("\t\t-e ALL : erase all payment_hash\n");
-        printf("\t\t-r BOLT#11 invoice[,ADDITIONAL AMOUNT_MSAT][,ADDITIONAL MIN_FINAL_CLTV_EXPIRY] : payment(don't put a space before or after the comma)\n");
+        printf("\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT][,ADDITIONAL MIN_FINAL_CLTV_EXPIRY] : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
         printf("\t\t-s<1 or 0> : 1=stop auto channel connect\n");
         printf("\t\t-c PEER.CONF : connect node\n");
