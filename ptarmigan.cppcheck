@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="1">
-    <builddir>ptarmigan-cppcheck-build-dir</builddir>
+    <builddir>tests/ptarmigan-cppcheck-build-dir</builddir>
     <analyze-all-vs-configs>true</analyze-all-vs-configs>
     <includedir>
         <dir name="include/"/>
