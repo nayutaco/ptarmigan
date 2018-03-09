@@ -418,7 +418,7 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
             const ucoin_buf_t *pSharedSecrets,
             const ucoin_buf_t *pPacket)
 {
-    const int DATALEN = 256;
+    const uint32_t DATALEN = 256;
 
     int NumHops = pSharedSecrets->len / UCOIN_SZ_PRIVKEY;
     if (pHop != NULL) {
@@ -446,9 +446,9 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
         reason.buf = p_out->buf + M_SZ_HMAC + 2;
         reason.len = ln_misc_get16be(p_out->buf + M_SZ_HMAC);
         if (reason.len < DATALEN) {
-            uint16_t pad_len = ln_misc_get16be(p_out->buf + M_SZ_HMAC + 2 + reason.len);
+            uint32_t pad_len = ln_misc_get16be(p_out->buf + M_SZ_HMAC + 2 + reason.len);
             if (reason.len + pad_len == DATALEN) {
-                int lp2;
+                uint32_t lp2;
                 for (lp2 = 0; lp2 < pad_len; lp2++) {
                     if (p_out->buf[M_SZ_HMAC + 2 + reason.len + 2 + lp2] != 0) {
                         break;

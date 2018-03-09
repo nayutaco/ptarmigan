@@ -716,7 +716,7 @@ LABEL_EXIT:
 }
 
 
-bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint16_t Len)
+bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len)
 {
     bool ret = false;
     bool retval;

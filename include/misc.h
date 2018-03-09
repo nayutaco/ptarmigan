@@ -80,7 +80,7 @@ static inline void misc_msleep(unsigned long slp) {
  * @param[in]       pBin        元データ
  * @param[in]       BinLen      pBin長
  */
-void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
+void misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
 /** 16進数文字列に変換(エンディアン反転)
@@ -89,7 +89,7 @@ void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
  * @param[in]       pBin        元データ
  * @param[in]       BinLen      pBin長
  */
-void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint16_t BinLen);
+void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
 /** 16進数文字列から変換

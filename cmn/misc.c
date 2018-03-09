@@ -42,10 +42,10 @@ static int mcount = 0;
  * public functions
  **************************************************************************/
 
-void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen)
+void misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 {
     *pStr = '\0';
-    for (int lp = 0; lp < BinLen; lp++) {
+    for (uint32_t lp = 0; lp < BinLen; lp++) {
         char str[3];
         sprintf(str, "%02x", pBin[lp]);
         strcat(pStr, str);
@@ -53,10 +53,10 @@ void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen)
 }
 
 
-void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint16_t BinLen)
+void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 {
     *pStr = '\0';
-    for (int lp = 0; lp < BinLen; lp++) {
+    for (uint32_t lp = 0; lp < BinLen; lp++) {
         char str[3];
         sprintf(str, "%02x", pBin[BinLen - lp - 1]);
         strcat(pStr, str);
