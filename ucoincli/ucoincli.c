@@ -232,8 +232,8 @@ int main(int argc, char *argv[])
 
 static void optfunc_conn_param(int *pOption, bool *pConn)
 {
-    if (*pOption > M_OPTIONS_CONN) {
-        printf("fail: too many *pOption\n");
+    if (*pOption != M_OPTIONS_INIT) {
+        printf("fail: '-c' must first\n");
         *pOption = M_OPTIONS_HELP;
         return;
     }
