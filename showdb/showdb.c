@@ -55,16 +55,15 @@
 #define SHOW_SELF               (0x0001)
 #define SHOW_WALLET             (0x0002)
 #define SHOW_CNLANNO            (0x0004)
-#define SHOW_CNLANNO_SCI        (0x0008)
+#define SHOW_DEBUG              (0x0008)
 #define SHOW_NODEANNO           (0x0010)
-#define SHOW_NODEANNO_NODE      (0x0020)
+#define SHOW_CH                 (0x0020)
 #define SHOW_ANNOINFO           (0x0040)
 #define SHOW_VERSION            (0x0080)
 #define SHOW_PREIMAGE           (0x0100)
 #define SHOW_ANNOSKIP           (0x0200)
 #define SHOW_ANNOINVOICE        (0x0400)
 #define SHOW_CLOSED_CH          (0x0800)
-#define SHOW_CH                 (0x1000)
 
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
@@ -188,7 +187,7 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
 
             ucoin_buf_init(&buf);
             ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
-            if (ret == 0) {
+            if ((ret == 0) && (short_channel_id != 0)) {
                 if (type == LN_DB_CNLANNO_ANNO) {
                     if (cnt1) {
                         printf("],");
@@ -199,10 +198,10 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
                 if (cnt1) {
                     printf(",");
                 }
-                if (!(showflag & SHOW_CNLANNO_SCI)) {
-                    ln_print_announce(buf.buf, buf.len);
-                } else {
+                if (!(showflag & SHOW_DEBUG)) {
                     ln_print_announce_short(buf.buf, buf.len);
+                } else {
+                    ln_print_announce(buf.buf, buf.len);
                 }
                 cnt1++;
                 ucoin_buf_free(&buf);
@@ -242,7 +241,7 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
                 if (cnt2) {
                     printf(",\n");
                 }
-                if (showflag & SHOW_NODEANNO_NODE) {
+                if (!(showflag & SHOW_DEBUG)) {
                     ln_print_announce_short(buf.buf, buf.len);
                 } else {
                     ln_print_announce(buf.buf, buf.len);
@@ -453,6 +452,11 @@ int main(int argc, char *argv[])
     MDB_cursor  *cursor;
     char        selfpath[256];
     char        nodepath[256];
+#ifdef M_SPOIL_STDERR
+    bool        spoil_stderr = true;
+#else
+    bool        spoil_stderr = false;
+#endif  //M_SPOIL_STDERR
 
     strcpy(selfpath, LNDB_SELFENV);
     strcpy(nodepath, LNDB_NODEENV);
@@ -477,11 +481,11 @@ int main(int argc, char *argv[])
             env = 0;
             break;
         case 'c':
-            showflag = SHOW_CNLANNO | SHOW_CNLANNO_SCI;
+            showflag = SHOW_CNLANNO;
             env = 1;
             break;
         case 'n':
-            showflag = SHOW_NODEANNO | SHOW_NODEANNO_NODE;
+            showflag = SHOW_NODEANNO;
             env = 1;
             break;
         case 'a':
@@ -503,11 +507,13 @@ int main(int argc, char *argv[])
         case '9':
             switch (argv[1][1]) {
             case '1':
-                showflag = SHOW_CNLANNO;
+                showflag = SHOW_CNLANNO | SHOW_DEBUG;
+                spoil_stderr = false;
                 env = 1;
                 break;
             case '2':
-                showflag = SHOW_NODEANNO;
+                showflag = SHOW_NODEANNO | SHOW_DEBUG;
+                spoil_stderr = false;
                 env = 1;
                 break;
             case '3':
@@ -524,6 +530,10 @@ int main(int argc, char *argv[])
             }
             sprintf(selfpath, "%s%s", argv[2], LNDB_SELFENV_DIR);
             sprintf(nodepath, "%s%s", argv[2], LNDB_NODEENV_DIR);
+        }
+        if ((argc >= 4) && (argv[3][0] == 'e')) {
+            //デバッグでstderrを出力させたい場合
+            spoil_stderr = false;
         }
     } else {
         fprintf(stderr, "usage:\n");
@@ -542,7 +552,7 @@ int main(int argc, char *argv[])
 
     ret = mdb_env_create(&mpDbSelf);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbSelf, 5);
+    ret = mdb_env_set_maxdbs(mpDbSelf, 10);
     assert(ret == 0);
     ret = mdb_env_open(mpDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
@@ -551,7 +561,7 @@ int main(int argc, char *argv[])
     }
     ret = mdb_env_create(&mpDbNode);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(mpDbNode, 5);
+    ret = mdb_env_set_maxdbs(mpDbNode, 10);
     assert(ret == 0);
     ret = mdb_env_open(mpDbNode, nodepath, MDB_RDONLY, 0664);
     if (ret) {
@@ -596,12 +606,12 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-#ifdef M_SPOIL_STDERR
-    //stderrを捨てる
-    int fd_err = dup(2);
-    fp_err = fdopen(fd_err, "w");
-    close(2);
-#endif  //M_SPOIL_STDERR
+    if (spoil_stderr) {
+        //stderrを捨てる
+        int fd_err = dup(2);
+        fp_err = fdopen(fd_err, "w");
+        close(2);
+    }
 
     printf("{\n");
     int list = 0;

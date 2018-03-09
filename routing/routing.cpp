@@ -216,22 +216,24 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip)
                 break;
             case LN_DB_CNLANNO_UPD1:
             case LN_DB_CNLANNO_UPD2:
-                idx = type - LN_DB_CNLANNO_UPD1;
-                bret = ln_getparams_cnl_upd(&upd, buf.buf, buf.len);
-                if (bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0)) {
-                    //disable状態ではない
-                    mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
-                    mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
-                    mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat = upd.fee_base_msat;
-                    mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
-                } else {
-                    //disableの場合は、対象外にされるよう初期値にしておく
-                    mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
-                }
+                if ((mNodeNum > 0) && (mpNodes[mNodeNum - 1].short_channel_id == upd.short_channel_id)) {
+                    idx = type - LN_DB_CNLANNO_UPD1;
+                    bret = ln_getparams_cnl_upd(&upd, buf.buf, buf.len);
+                    if (bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0)) {
+                        //disable状態ではない
+                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
+                        mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
+                        mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat = upd.fee_base_msat;
+                        mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
+                    } else {
+                        //disableの場合は、対象外にされるよう初期値にしておく
+                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
+                    }
 #ifdef M_DEBUG
-                fprintf(fp_err, "channel update : %c\n", type);
-                ln_print_announce(buf.buf, buf.len);
+                    fprintf(fp_err, "channel update : %c\n", type);
+                    ln_print_announce(buf.buf, buf.len);
 #endif
+                }
                 break;
             default:
                 break;
@@ -330,7 +332,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
 
     ret = mdb_env_create(&pDbSelf);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(pDbSelf, 2);
+    ret = mdb_env_set_maxdbs(pDbSelf, 10);
     assert(ret == 0);
     ret = mdb_env_open(pDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
@@ -340,7 +342,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
 
     ret = mdb_env_create(&pDbNode);
     assert(ret == 0);
-    ret = mdb_env_set_maxdbs(pDbNode, 2);
+    ret = mdb_env_set_maxdbs(pDbNode, 10);
     assert(ret == 0);
     ret = mdb_env_open(pDbNode, nodepath, 0, 0664);
     if (ret) {
