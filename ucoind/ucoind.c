@@ -235,6 +235,7 @@ int main(int argc, char *argv[])
 
     SYSLOG_INFO("end");
 
+    btcprc_term();
     ln_db_term();
 
     return 0;
