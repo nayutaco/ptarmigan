@@ -620,12 +620,14 @@ int main(int argc, char *argv[])
         if (memchr(key.mv_data, '\0', key.mv_size)) {
             continue;
         }
-        ret = mdb_open(txn, key.mv_data, 0, &dbi2);
+        char *name = (char *)malloc(key.mv_size + 1);
+        memcpy(name, key.mv_data, key.mv_size);
+        name[key.mv_size] = '\0';
+        ret = mdb_dbi_open(txn, name, 0, &dbi2);
         if (ret == 0) {
             if (list) {
                 list++;
             } else {
-                const char *name = (const char *)key.mv_data;
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 switch (dbtype) {
                 case LN_LMDB_DBTYPE_SELF:
@@ -666,6 +668,7 @@ int main(int argc, char *argv[])
             }
             mdb_close(mdb_txn_env(txn), dbi2);
         }
+        free(name);
     }
     if (cnt0 || cnt1 || cnt2 || cnt3 || cnt4 || cnt5) {
         printf("]");

@@ -797,10 +797,12 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 
     bool ret;
     MDB_val     key;
+    char name[M_SZ_DBNAME_LEN + 1];
+    name[sizeof(name) - 1] = '\0';
     while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
-        //DBG_PRINTF("key.mv_data=%s\n", (const char *)key.mv_data);
-        if ((key.mv_size == (M_SZ_DBNAME_LEN)) && (memcmp(key.mv_data, M_PREF_CHANNEL, M_PREFIX_LEN) == 0)) {
-            ret = mdb_dbi_open(cur.txn, key.mv_data, 0, &cur.dbi);
+        if ((key.mv_size == M_SZ_DBNAME_LEN) && (memcmp(key.mv_data, M_PREF_CHANNEL, M_PREFIX_LEN) == 0)) {
+            memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
+            ret = mdb_dbi_open(cur.txn, name, 0, &cur.dbi);
             if (ret == 0) {
                 ln_self_t self;
 
