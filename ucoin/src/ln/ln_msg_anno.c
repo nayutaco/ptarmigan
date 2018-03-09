@@ -824,6 +824,10 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
 
     //        [8:short_channel_id]
     pMsg->short_channel_id = ln_misc_get64be(pData + pos);
+    if (pMsg->short_channel_id == 0) {
+        DBG_PRINTF("fail: short_channel_id == 0\n");
+        return false;
+    }
     pos += LN_SZ_SHORT_CHANNEL_ID;
 
     //        [4:timestamp]
