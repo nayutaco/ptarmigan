@@ -31,6 +31,7 @@
 #include <assert.h>
 
 #include "jsonrpc-c.h"
+#include "cmd_json.h"
 
 #include "ln_db.h"
 #include "btcrpc.h"
