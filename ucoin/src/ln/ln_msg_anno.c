@@ -326,6 +326,10 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
 
     //        [8:short_channel_id]
     pPtr->short_channel_id = ln_misc_get64be(pData + pos);
+    if (pPtr->short_channel_id == 0) {
+        DBG_PRINTF("fail: short_channel_id == 0\n");
+        return false;
+    }
     pos += LN_SZ_SHORT_CHANNEL_ID;
 
     //        [33:node_id_1]
