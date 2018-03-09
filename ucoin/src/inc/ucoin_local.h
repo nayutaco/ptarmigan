@@ -107,7 +107,7 @@ static inline int tid() {
 
 /// @def    DBG_PRINTF(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
-#define DBG_PRINTF(format, ...) {fprintf(DEBUGOUT, "%ld (%d)[%s:%d]", (unsigned long)time(NULL), tid(), __func__, __LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
+#define DBG_PRINTF(format, ...) {fprintf(DEBUGOUT, "%lu (%d)[%s:%d]", (unsigned long)time(NULL), (int)tid(), __func__, (int)__LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
 #define DBG_PRINTF2(format, ...) {fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
 /// @def    DUMPBIN(dt,ln)
 /// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)

@@ -1128,7 +1128,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
     ucoin_util_dumptxid(fp, txid);
     fprintf(fp, "\n");
     fprintf(fp, "======================================\n");
-    fprintf(fp, " version:%d\n\n", pTx->version);
+    fprintf(fp, " version:%u\n\n", pTx->version);
     fprintf(fp, " txin_cnt=%d\n", pTx->vin_cnt);
     for(int lp = 0; lp < pTx->vin_cnt; lp++) {
         fprintf(fp, " [vin #%d]\n", lp);
@@ -1137,7 +1137,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         fprintf(fp, "\n");
         fprintf(fp, "       LE: ");
         ucoin_util_dumpbin(fp, pTx->vin[lp].txid, UCOIN_SZ_TXID, true);
-        fprintf(fp, "  index= %d\n", pTx->vin[lp].index);
+        fprintf(fp, "  index= %u\n", pTx->vin[lp].index);
         fprintf(fp, "  scriptSig[%d]= ", pTx->vin[lp].script.len);
         ucoin_util_dumpbin(fp, pTx->vin[lp].script.buf, pTx->vin[lp].script.len, true);
         ucoin_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);

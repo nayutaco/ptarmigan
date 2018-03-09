@@ -414,6 +414,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
 
 
 // Unilateral Close(自分がcommit_tx展開): Received HTLC output
+//      true: tx展開する
 static bool close_unilateral_local_received(bool spent)
 {
     bool send_req;
@@ -425,6 +426,7 @@ static bool close_unilateral_local_received(bool spent)
     } else {
         //展開済みならOK
         DBG_PRINTF("-->OK\n");
+        send_req = false;
     }
 
     return send_req;
@@ -744,10 +746,10 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
         } else {
             ln_set_revoked_confm(self, confm);
             ln_db_revtx_save(self, false, pDbParam);
-            DBG_PRINTF("no target txid: %d, revoked_cnt=%d\n", confm, ln_revoked_cnt(self));
+            DBG_PRINTF("no target txid: %u, revoked_cnt=%d\n", confm, ln_revoked_cnt(self));
         }
     } else {
-        DBG_PRINTF("same block: %d, revoked_cnt=%d\n", confm, ln_revoked_cnt(self));
+        DBG_PRINTF("same block: %u, revoked_cnt=%d\n", confm, ln_revoked_cnt(self));
     }
 
     return del;

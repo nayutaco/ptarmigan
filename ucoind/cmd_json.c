@@ -452,7 +452,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     cJSON *json;
-    uint64_t amount;
+    uint64_t amount = 0;
     cJSON *result = NULL;
     int index = 0;
 
@@ -703,7 +703,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
             jprm = cJSON_GetArrayItem(jarray, 3);
             if (jprm && (jprm->type == cJSON_Number)) {
                 p->outgoing_cltv_value = jprm->valueint + blockcnt;
-                DBG_PRINTF("  outgoing_cltv_value=%d\n", p->outgoing_cltv_value);
+                DBG_PRINTF("  outgoing_cltv_value=%u\n", p->outgoing_cltv_value);
             } else {
                 DBG_PRINTF("fail: p=%p\n", jprm);
                 index = -1;
@@ -763,7 +763,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     char str_payhash[2 * LN_SZ_HASH + 1];
     char str_payee[2 * UCOIN_SZ_PUBKEY + 1];
     char str_payer[2 * UCOIN_SZ_PUBKEY + 1];
-    uint64_t amount_msat;
+    uint64_t amount_msat = 0;
     uint32_t min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     uint8_t payhash[LN_SZ_HASH];
 
