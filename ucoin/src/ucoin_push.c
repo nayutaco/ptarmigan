@@ -30,7 +30,7 @@
  * public functions
  **************************************************************************/
 
-void ucoin_push_init(ucoin_push_t *pPush, ucoin_buf_t *pBuf, uint16_t Size)
+void ucoin_push_init(ucoin_push_t *pPush, ucoin_buf_t *pBuf, uint32_t Size)
 {
     pPush->pos = 0;
     pPush->data = pBuf;
@@ -42,7 +42,7 @@ void ucoin_push_init(ucoin_push_t *pPush, ucoin_buf_t *pBuf, uint16_t Size)
 }
 
 
-void ucoin_push_data(ucoin_push_t *pPush, const void *pData, uint16_t Len)
+void ucoin_push_data(ucoin_push_t *pPush, const void *pData, uint32_t Len)
 {
     int rest = pPush->data->len - pPush->pos - Len;
     if (rest < 0) {

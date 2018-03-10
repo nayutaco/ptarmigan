@@ -368,9 +368,9 @@ const uint8_t *ucoin_util_get_genesis_block(ucoin_genesis_t kind)
  * @param[in]       pData       対象データ
  * @param[in]       Len         pData長
  */
-void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len, bool bLf)
+void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf)
 {
-    for (uint16_t lp = 0; lp < Len; lp++) {
+    for (uint32_t lp = 0; lp < Len; lp++) {
         fprintf(fp, "%02x", pData[lp]);
     }
     if (bLf) {

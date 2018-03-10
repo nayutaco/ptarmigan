@@ -335,8 +335,8 @@ LABEL_DECREF:
             *pBHeight = (int)json_integer_value(p_height);
         }
         p_tx = json_object_get(p_result, M_TX);
-        size_t index;
-        json_t *p_value;
+        size_t index = 0;
+        json_t *p_value = NULL;
         json_array_foreach(p_tx, index, p_value) {
             if (strcmp(txid, (const char *)json_string_value(p_value)) == 0) {
                 *pBIndex = (int)index;
@@ -432,8 +432,8 @@ LABEL_DECREF:
             }
         }
         p_tx = json_object_get(p_result, M_TX);
-        size_t index;
-        json_t *p_value;
+        size_t index = 0;
+        json_t *p_value = NULL;
         json_array_foreach(p_tx, index, p_value) {
             if ((int)index == BIndex) {
                 strcpy(txid, (const char *)json_string_value(p_value));
@@ -552,8 +552,8 @@ LABEL_DECREF:
         }
         //検索
         p_tx = json_object_get(p_result, M_TX);
-        size_t index;
-        json_t *p_value;
+        size_t index = 0;
+        json_t *p_value = NULL;
         json_array_foreach(p_tx, index, p_value) {
             strcpy(txid, (const char *)json_string_value(p_value));
             ucoin_tx_t tx;
@@ -668,8 +668,8 @@ LABEL_DECREF:
         p_tx = json_object_get(p_result, M_TX);
         ucoin_push_t push;
         ucoin_push_init(&push, pTxBuf, 0);
-        size_t index;
-        json_t *p_value;
+        size_t index = 0;
+        json_t *p_value = NULL;
         json_array_foreach(p_tx, index, p_value) {
             strcpy(txid, (const char *)json_string_value(p_value));
             ucoin_tx_t tx;
@@ -716,7 +716,7 @@ LABEL_EXIT:
 }
 
 
-bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint16_t Len)
+bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len)
 {
     bool ret = false;
     bool retval;

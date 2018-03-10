@@ -328,7 +328,7 @@ bool ucoin_tx_set_vin_p2sh(ucoin_tx_t *pTx, int Index, const ucoin_buf_t *pSigs[
 }
 
 
-bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint16_t Len)
+bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
 {
     if (Len < 8) {
         //version(4) + txin_cnt(1) + txout_cnt(1) + locktime(4)
@@ -346,7 +346,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint16_t Len)
         //2017/01/04:BIP-144ではflag==0x01のみ
         return false;
     }
-    int pos;
+    uint32_t pos;
     if ((mark == 0x00) && (flag == 0x01)) {
         //BIP-144
         //DBG_PRINTF("segwit\n");
@@ -364,8 +364,8 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint16_t Len)
     int tmp;
     uint16_t var;
 #ifdef UCOIN_DEBUG
-    int prev_pos = pos - 1;
-    int pos_cnt = 0;
+    uint32_t prev_pos = pos - 1;
+    uint32_t pos_cnt = 0;
 #endif
     while (pos < Len) {
 #ifdef UCOIN_DEBUG
@@ -905,7 +905,7 @@ bool ucoin_tx_verify_multisig(const ucoin_tx_t *pTx, int Index, const uint8_t *p
     //署名数取得
     int signum = 0;
     int sigpos = 1;     //OP_0の次
-    int pos = 1;
+    uint32_t pos = 1;
     while (pos < p_scriptsig->len) {
         uint8_t len = *(p + pos);
         if ((len == OP_PUSHDATA1) || (len == OP_PUSHDATA2)) {
@@ -1128,7 +1128,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
     ucoin_util_dumptxid(fp, txid);
     fprintf(fp, "\n");
     fprintf(fp, "======================================\n");
-    fprintf(fp, " version:%d\n\n", pTx->version);
+    fprintf(fp, " version:%u\n\n", pTx->version);
     fprintf(fp, " txin_cnt=%d\n", pTx->vin_cnt);
     for(int lp = 0; lp < pTx->vin_cnt; lp++) {
         fprintf(fp, " [vin #%d]\n", lp);
@@ -1137,7 +1137,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         fprintf(fp, "\n");
         fprintf(fp, "       LE: ");
         ucoin_util_dumpbin(fp, pTx->vin[lp].txid, UCOIN_SZ_TXID, true);
-        fprintf(fp, "  index= %d\n", pTx->vin[lp].index);
+        fprintf(fp, "  index= %u\n", pTx->vin[lp].index);
         fprintf(fp, "  scriptSig[%d]= ", pTx->vin[lp].script.len);
         ucoin_util_dumpbin(fp, pTx->vin[lp].script.buf, pTx->vin[lp].script.len, true);
         ucoin_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
@@ -1194,7 +1194,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
 }
 
 
-void ucoin_print_rawtx(const uint8_t *pData, uint16_t Len)
+void ucoin_print_rawtx(const uint8_t *pData, uint32_t Len)
 {
     ucoin_tx_t tx;
     bool ret = ucoin_tx_read(&tx, pData, Len);

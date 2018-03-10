@@ -52,14 +52,14 @@ void ucoin_buf_free(ucoin_buf_t *pBuf)
 }
 
 
-void ucoin_buf_alloc(ucoin_buf_t *pBuf, uint16_t Size)
+void ucoin_buf_alloc(ucoin_buf_t *pBuf, uint32_t Size)
 {
     pBuf->len = Size;
     pBuf->buf = (uint8_t *)M_MALLOC(Size);
 }
 
 
-void ucoin_buf_alloccopy(ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len)
+void ucoin_buf_alloccopy(ucoin_buf_t *pBuf, const uint8_t *pData, uint32_t Len)
 {
     if (Len > 0) {
         ucoin_buf_alloc(pBuf, Len);

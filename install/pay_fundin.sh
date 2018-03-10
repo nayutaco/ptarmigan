@@ -50,3 +50,5 @@ fi
 echo signaddr=$ADDR >> $FUNDIN_CONF
 echo funding_sat=$FUND_SAT >> $FUNDIN_CONF
 echo push_sat=$PUSH_SAT >> $FUNDIN_CONF
+
+echo "create: $FUNDIN_CONF"

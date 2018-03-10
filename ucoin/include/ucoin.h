@@ -173,7 +173,7 @@ typedef enum {
  */
 typedef struct {
     uint8_t         *buf;       ///< バッファ(malloc前提)
-    uint16_t        len;        ///< bufサイズ
+    uint32_t        len;        ///< bufサイズ
 } ucoin_buf_t;
 
 
@@ -181,7 +181,7 @@ typedef struct {
  *  @brief      PUSH管理構造体
  */
 typedef struct {
-    uint16_t        pos;            ///< 次書込み位置
+    uint32_t        pos;            ///< 次書込み位置
     ucoin_buf_t     *data;          ///< 更新対象
 } ucoin_push_t;
 
@@ -469,7 +469,7 @@ void ucoin_buf_free(ucoin_buf_t *pBuf);
  * @note
  *      - #ucoin_buf_init()の代わりに使用できるが、元の領域は解放しない
  */
-void ucoin_buf_alloc(ucoin_buf_t *pBuf, uint16_t Size);
+void ucoin_buf_alloc(ucoin_buf_t *pBuf, uint32_t Size);
 
 
 /** #ucoin_buf_t へのメモリ確保及びデータコピー
@@ -481,7 +481,7 @@ void ucoin_buf_alloc(ucoin_buf_t *pBuf, uint16_t Size);
  * @note
  *      - #ucoin_buf_init()の代わりに使用できるが、元の領域は解放しない
  */
-void ucoin_buf_alloccopy(ucoin_buf_t *pBuf, const uint8_t *pData, uint16_t Len);
+void ucoin_buf_alloccopy(ucoin_buf_t *pBuf, const uint8_t *pData, uint32_t Len);
 
 
 /** #ucoin_buf_t の比較
@@ -690,7 +690,7 @@ bool ucoin_tx_set_vin_p2sh(ucoin_tx_t *pTx, int Index, const ucoin_buf_t *pSigs[
  * @note
  *      - 動的にメモリ確保するため、#ucoin_tx_free()を呼ぶこと
  */
-bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint16_t Len);
+bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len);
 
 
 /** トランザクションデータ作成
@@ -1075,7 +1075,7 @@ void ucoin_sw_wit2prog_p2wsh(uint8_t *pWitProg, const ucoin_buf_t *pWitScript);
  *          realloc()を繰り返すことになるので、必要なサイズ以上を確保した方が望ましい。
  *      - pDataは解放せず初期化して使用するため、必要なら先に解放すること。
  */
-void ucoin_push_init(ucoin_push_t *pPush, ucoin_buf_t *pBuf, uint16_t Size);
+void ucoin_push_init(ucoin_push_t *pPush, ucoin_buf_t *pBuf, uint32_t Size);
 
 
 /** データ追加
@@ -1088,7 +1088,7 @@ void ucoin_push_init(ucoin_push_t *pPush, ucoin_buf_t *pBuf, uint16_t Size);
  *      - 初期化時のサイズからあふれる場合、realloc()して拡張する。
  *      - そのまま追加するため、OP_PUSHDATAxなどは呼び出し元で行うこと。
  */
-void ucoin_push_data(ucoin_push_t *pPush, const void *pData, uint16_t Len);
+void ucoin_push_data(ucoin_push_t *pPush, const void *pData, uint32_t Len);
 
 
 /** スタックへの値追加(符号無し)
@@ -1316,7 +1316,7 @@ const uint8_t *ucoin_util_get_genesis_block(ucoin_genesis_t Kind);
 
 
 #if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
-void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint16_t Len, bool bLf);
+void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);
 void ucoin_util_dumptxid(FILE *fp, const uint8_t *pTxid);
 #endif  //UCOIN_USE_PRINTFUNC
 
@@ -1338,7 +1338,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx);
  * @param[in]       pData       表示対象
  * @param[in]       Len         pDatat長
  */
-void ucoin_print_rawtx(const uint8_t *pData, uint16_t Len);
+void ucoin_print_rawtx(const uint8_t *pData, uint32_t Len);
 
 
 /** スクリプトの内容表示

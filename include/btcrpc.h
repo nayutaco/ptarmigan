@@ -127,7 +127,7 @@ bool btcprc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_
  * @param[in]   Len         pData長
  * @retval  true        送信成功
  */
-bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint16_t Len);
+bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len);
 
 
 /** [bitcoin rpc]getrawtransaction

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="1">
+    <builddir>tests/ptarmigan-cppcheck-build-dir</builddir>
+    <analyze-all-vs-configs>true</analyze-all-vs-configs>
+    <includedir>
+        <dir name="include/"/>
+        <dir name="ucoin/include/"/>
+        <dir name="ucoin/src/inc/"/>
+        <dir name="ucoind/inc/"/>
+    </includedir>
+    <defines>
+        <define name="NETKIND=1 UCOIN_DEBUG __ORDER_LITTLE_ENDIAN__"/>
+    </defines>
+    <paths>
+        <dir name="cmn"/>
+        <dir name="routing"/>
+        <dir name="showdb"/>
+        <dir name="ucoin"/>
+        <dir name="ucoincli"/>
+        <dir name="ucoind"/>
+    </paths>
+    <exclude>
+        <path name="ucoin/gtests/"/>
+        <path name="libs/"/>
+        <path name="ucoin/libs/"/>
+    </exclude>
+    <libraries>
+        <library>posix</library>
+    </libraries>
+</project>

@@ -54,6 +54,22 @@
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
 
+#define M_CHK_INIT      {\
+    if (*pOption != M_OPTIONS_INIT) {           \
+        printf("fail: too many options\n");     \
+        *pOption = M_OPTIONS_HELP;              \
+        return;                                 \
+    }                                           \
+}
+
+#define M_CHK_CONN      {\
+    if (*pOption != M_OPTIONS_CONN) {           \
+        printf("need -c option first\n");       \
+        *pOption = M_OPTIONS_HELP;              \
+        return;                                 \
+    }                                           \
+}
+
 /**************************************************************************
  * typedefs
  **************************************************************************/
@@ -72,30 +88,62 @@ static char         mPeerAddr[INET6_ADDRSTRLEN];
 static uint16_t     mPeerPort;
 static char         mPeerNodeId[UCOIN_SZ_PUBKEY * 2 + 1];
 static char         mBuf[BUFFER_SIZE];
+static bool         mTcpSend;
+static char         mAddr[256];
 
 
 /********************************************************************
  * prototypes
  ********************************************************************/
 
-static void stop_rpc(char *pJson);
-static void getinfo_rpc(char *pJson);
-static void connect_rpc(char *pJson);
-static void disconnect_rpc(char *pJson);
-static void fund_rpc(char *pJson, const funding_conf_t *pFund);
-static void invoice_rpc(char *pJson, uint64_t Amount, bool conn);
-static void erase_invoice_rpc(char *pJson, const char *pPaymentHash);
-static void listinvoice_rpc(char *pJson);
-static void payment_rpc(char *pJson, const payment_conf_t *pPay);
-static void routepay_rpc(char *pJson, const ln_invoice_t *pInvData);
-static void close_rpc(char *pJson);
-static void getlasterror_rpc(char *pJson);
-static void debug_rpc(char *pJson, int debug);
-static void getcommittx_rpc(char *pJson);
-static void disable_autoconnect_rpc(char *pJson, const char *pDisable);
-static void remove_channel_rpc(char *pJson, const char *pChannelId);
+static void optfunc_conn_param(int *pOption, bool *pConn);
+static void optfunc_help(int *pOption, bool *pConn);
+static void optfunc_test(int *pOption, bool *pConn);
+static void optfunc_addr(int *pOption, bool *pConn);
+static void optfunc_getinfo(int *pOption, bool *pConn);
+static void optfunc_disconnect(int *pOption, bool *pConn);
+static void optfunc_funding(int *pOption, bool *pConn);
+static void optfunc_invoice(int *pOption, bool *pConn);
+static void optfunc_erase(int *pOption, bool *pConn);
+static void optfunc_listinvoice(int *pOption, bool *pConn);
+static void optfunc_payment(int *pOption, bool *pConn);
+static void optfunc_routepay(int *pOption, bool *pConn);
+static void optfunc_close(int *pOption, bool *pConn);
+static void optfunc_getlasterr(int *pOption, bool *pConn);
+static void optfunc_debug(int *pOption, bool *pConn);
+static void optfunc_getcommittx(int *pOption, bool *pConn);
+static void optfunc_disable_autoconn(int *pOption, bool *pConn);
+static void optfunc_remove_channel(int *pOption, bool *pConn);
+
+static void connect_rpc(void);
+static void stop_rpc(void);
 
 static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t Port, bool bSend);
+
+
+static const struct {
+    char        opt;
+    void        (*func)(int *pOption, bool *pConn);
+} OPTION_FUNCS[] = {
+    { 'h', optfunc_help },
+    { 't', optfunc_test },
+    { 'a', optfunc_addr },
+    { 'd', optfunc_debug },
+    { 'q', optfunc_disconnect },
+    { 'l', optfunc_getinfo },
+    { 'i', optfunc_invoice },
+    { 'e', optfunc_erase },
+    { 'm', optfunc_listinvoice },
+    { 'p', optfunc_payment },
+    { 'r', optfunc_routepay },
+    { 's', optfunc_disable_autoconn },
+    { 'X', optfunc_remove_channel },
+    { 'c', optfunc_conn_param },
+    { 'f', optfunc_funding },
+    { 'x', optfunc_close },
+    { 'w', optfunc_getlasterr },
+    { 'g', optfunc_getcommittx },
+};
 
 
 /********************************************************************
@@ -113,336 +161,24 @@ int main(int argc, char *argv[])
     ucoin_init(UCOIN_TESTNET, true);
 #endif
 
+    int option = M_OPTIONS_INIT;
     bool conn = false;
-    const char *p_addr = NULL;
-    char addr[256];
-    bool b_send = true;
+    mAddr[0] = '\0';
+    mTcpSend = true;
     int opt;
-    int options = M_OPTIONS_INIT;
     while ((opt = getopt(argc, argv, "htq::lc:f:i:e:mp:r:xX:s:gwa:d:")) != -1) {
-        switch (opt) {
-        case 'h':
-            options = M_OPTIONS_HELP;
-            break;
-        case 't':
-            //JSONデータを表示させるのみで送信しない
-            b_send = false;
-            break;
-        case 'a':
-            //指示するucoindのIPアドレス指定
-            strcpy(addr, optarg);
-            p_addr = addr;
-            break;
-        case 'd':
-            //デバッグ
-            debug_rpc(mBuf, (int)strtol(optarg, NULL, 10));
-            options = M_OPTIONS_EXEC;
-            break;
-
-        case 'q':
-            if (options == M_OPTIONS_CONN) {
-                //特定接続を切る
-                disconnect_rpc(mBuf);
-                options = M_OPTIONS_EXEC;
-                conn = false;
-            } else {
-                //ucoind終了
-                stop_rpc(mBuf);
-                options = M_OPTIONS_STOP;
+        for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
+            if (opt == OPTION_FUNCS[lp].opt) {
+                (*OPTION_FUNCS[lp].func)(&option, &conn);
+                break;
             }
-            break;
-
-        //
-        // -c不要
-        //
-        case 'l':
-            //channel一覧
-            if (options == M_OPTIONS_INIT) {
-                getinfo_rpc(mBuf);
-                options = M_OPTIONS_EXEC;
-            } else {
-                printf("fail: too many options\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'i':
-            //payment_preimage作成
-            errno = 0;
-            uint64_t amount = (uint64_t)strtoull(optarg, NULL, 10);
-            if (errno == 0) {
-                invoice_rpc(mBuf, amount, conn);
-                conn = false;
-                options = M_OPTIONS_EXEC;
-            } else {
-                printf("fail: errno=%s\n", strerror(errno));
-                options = M_OPTIONS_ERR;
-            }
-            break;
-        case 'e':
-            if (options == M_OPTIONS_INIT) {
-                const char *pPaymentHash = NULL;
-                if (strcmp(optarg, "ALL") == 0) {
-                    pPaymentHash = "";
-                } else if (strlen(optarg) == LN_SZ_HASH * 2) {
-                    pPaymentHash = optarg;
-                } else {
-                    //error
-                }
-                if (pPaymentHash != NULL) {
-                    erase_invoice_rpc(mBuf, pPaymentHash);
-                    options = M_OPTIONS_EXEC;
-                } else {
-                    printf("fail: invalid param\n");
-                    options = M_OPTIONS_ERR;
-                }
-            } else {
-                printf("fail: too many options\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'm':
-            //payment-hash表示
-            if (options == M_OPTIONS_INIT) {
-                listinvoice_rpc(mBuf);
-                options = M_OPTIONS_EXEC;
-            } else {
-                printf("fail: too many options\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'p':
-            //payment
-            if (options == M_OPTIONS_INIT) {
-                payment_conf_t payconf;
-                const char *path = strtok(optarg, ",");
-                const char *hash = strtok(NULL, ",");
-                bool bret = load_payment_conf(path, &payconf);
-                if (hash) {
-                    bret &= misc_str2bin(payconf.payment_hash, LN_SZ_HASH, hash);
-                }
-                if (bret) {
-                    payment_rpc(mBuf, &payconf);
-                    options = M_OPTIONS_EXEC;
-                } else {
-                    printf("fail: payment configuration file\n");
-                    options = M_OPTIONS_ERR;
-                }
-            } else {
-                printf("fail: too many options\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'r':
-            //routepay
-            if (options == M_OPTIONS_INIT) {
-                ln_invoice_t invoice_data;
-                const char *invoice = strtok(optarg, ",");
-                const char *amount_msat = strtok(NULL, ",");
-                const char *cltv_offset = strtok(NULL, ",");
-                bool bret = ln_invoice_decode(&invoice_data, invoice);
-                if (bret) {
-                    printf("---------------------------------\n");
-                    switch (invoice_data.hrp_type) {
-                    case LN_INVOICE_MAINNET:
-                        printf("blockchain: bitcoin mainnet\n");
-                        printf("fail: mainnet payment not supported yet.\n");
-                        options = M_OPTIONS_ERR;
-                        break;
-                    case LN_INVOICE_TESTNET:
-                        printf("blockchain: bitcoin testnet\n");
-                        break;
-                    default:
-                        printf("unknown hrp_type\n");
-                        options = M_OPTIONS_ERR;
-                    }
-                    printf("amount_msat=%" PRIu64 "\n", invoice_data.amount_msat);
-                    time_t tm = (time_t)invoice_data.timestamp;
-                    printf("timestamp= %" PRIu64 " : %s", (uint64_t)invoice_data.timestamp, ctime(&tm));
-                    printf("min_final_cltv_expiry=%d\n", invoice_data.min_final_cltv_expiry);
-                    printf("payee=");
-                    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-                        printf("%02x", invoice_data.pubkey[lp]);
-                    }
-                    printf("\n");
-                    printf("payment_hash=");
-                    for (int lp = 0; lp < UCOIN_SZ_SHA256; lp++) {
-                        printf("%02x", invoice_data.payment_hash[lp]);
-                    }
-                    printf("\n");
-                    printf("---------------------------------\n");
-                    if (amount_msat != NULL) {
-                        errno = 0;
-                        uint64_t add_msat = (uint64_t)strtoull(amount_msat, NULL, 10);
-                        if (errno == 0) {
-                            invoice_data.amount_msat += add_msat;
-                            printf("additional amount_msat=%" PRIu64 "\n", add_msat);
-                            printf("---------------------------------\n");
-                        } else {
-                            printf("fail: errno=%s\n", strerror(errno));
-                            options = M_OPTIONS_ERR;
-                        }
-                        if (invoice_data.amount_msat & 0xffffffff00000000ULL) {
-                            //BOLT#2
-                            //  MUST set the four most significant bytes of amount_msat to 0.
-                            printf("fail: amount_msat too large\n");
-                            options = M_OPTIONS_ERR;
-                        }
-                    }
-                    if (cltv_offset != NULL) {
-                        errno = 0;
-                        uint32_t add_cltv = (uint32_t)strtoull(cltv_offset, NULL, 10);
-                        if (errno == 0) {
-                            invoice_data.min_final_cltv_expiry += add_cltv;
-                            printf("additional min_final_cltv_expiry=%" PRIu32 "\n", add_cltv);
-                            printf("---------------------------------\n");
-                        } else {
-                            printf("fail: errno=%s\n", strerror(errno));
-                            options = M_OPTIONS_ERR;
-                        }
-                    }
-                    if (options != M_OPTIONS_ERR) {
-                        if (invoice_data.amount_msat > 0) {
-                            routepay_rpc(mBuf, &invoice_data);
-                            options = M_OPTIONS_EXEC;
-                        } else {
-                            printf("fail: pay amount_msat is 0\n");
-                            options = M_OPTIONS_ERR;
-                        }
-                    }
-                } else {
-                    printf("fail: decode BOLT#11 invoice\n");
-                    options = M_OPTIONS_ERR;
-                }
-            }
-            break;
-        case 's':
-            //disable auto channel connect
-            if (options == M_OPTIONS_INIT) {
-                if ((strlen(optarg) == 1) && ((optarg[0] == '1') || (optarg[0] == '0'))) {
-                    disable_autoconnect_rpc(mBuf, optarg);
-                    options = M_OPTIONS_EXEC;
-                } else {
-                    printf("fail: invalid option\n");
-                    options = M_OPTIONS_HELP;
-                }
-            } else {
-                printf("fail: too many options\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'X':
-            if ((options == M_OPTIONS_INIT) && (strlen(optarg) == LN_SZ_CHANNEL_ID * 2)) {
-                remove_channel_rpc(mBuf, optarg);
-                options = M_OPTIONS_EXEC;
-            } else {
-                printf("fail: invalid option\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-
-        //
-        // -c必要
-        //
-        case 'c':
-            //接続先
-            if (options > M_OPTIONS_CONN) {
-                peer_conf_t peer;
-                bool bret = load_peer_conf(optarg, &peer);
-                if (bret) {
-                    //peer.conf
-                    conn = true;
-                    strcpy(mPeerAddr, peer.ipaddr);
-                    mPeerPort = peer.port;
-                    misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
-                    options = M_OPTIONS_CONN;
-                } else if (strlen(optarg) == UCOIN_SZ_PUBKEY * 2) {
-                    //node_idを直で指定した可能性あり(connectとしては使用できない)
-                    strcpy(mPeerAddr, "0.0.0.0");
-                    mPeerPort = 0;
-                    strcpy(mPeerNodeId, optarg);
-                    options = M_OPTIONS_CONN;
-                    printf("-c node_id\n");
-                } else {
-                    printf("fail: peer configuration file\n");
-                    options = M_OPTIONS_HELP;
-                }
-            } else {
-                printf("fail: too many options\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'f':
-            //funding情報
-            if (options == M_OPTIONS_CONN) {
-                funding_conf_t fundconf;
-                bool bret = load_funding_conf(optarg, &fundconf);
-                if (bret) {
-                    conn = false;
-                    fund_rpc(mBuf, &fundconf);
-                    options = M_OPTIONS_EXEC;
-                } else {
-                    printf("fail: funding configuration file\n");
-                    options = M_OPTIONS_HELP;
-                }
-            } else {
-                printf("-f need -c option before\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'x':
-            //mutual close
-            if (options == M_OPTIONS_CONN) {
-                conn = false;
-                close_rpc(mBuf);
-                options = M_OPTIONS_EXEC;
-            } else {
-                printf("-x need -c option before\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'w':
-            //get last error
-            if (options == M_OPTIONS_CONN) {
-                conn = false;
-                getlasterror_rpc(mBuf);
-                options = M_OPTIONS_EXEC;
-            } else {
-                printf("-g need -c option before\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-        case 'g':
-            //getcommittx
-            if (options == M_OPTIONS_CONN) {
-                conn = false;
-                getcommittx_rpc(mBuf);
-                options = M_OPTIONS_EXEC;
-            } else {
-                printf("-g need -c option before\n");
-                options = M_OPTIONS_HELP;
-            }
-            break;
-
-        //
-        // other
-        //
-        case ':':
-            printf("need value: %c\n", optopt);
-            options = M_OPTIONS_HELP;
-            break;
-        case '?':
-            printf("unknown option: %c\n", optopt);
-            /* THROUGH FALL */
-        default:
-            options = M_OPTIONS_HELP;
-            break;
         }
     }
 
-    if (options == M_OPTIONS_ERR) {
+    if (option == M_OPTIONS_ERR) {
         return -1;
     }
-    if ((options == M_OPTIONS_INIT) || (options == M_OPTIONS_HELP) || (!conn && (options == M_OPTIONS_CONN))) {
+    if ((option == M_OPTIONS_INIT) || (option == M_OPTIONS_HELP) || (!conn && (option == M_OPTIONS_CONN))) {
         printf("[usage]\n");
         printf("\t%s [-t] [OPTIONS...] [JSON-RPC port(not ucoind port)]\n", argv[0]);
         printf("\t\t-h : help\n");
@@ -452,7 +188,7 @@ int main(int argc, char *argv[])
         printf("\t\t-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
         printf("\t\t-e PAYMENT_HASH : erase payment_hash\n");
         printf("\t\t-e ALL : erase all payment_hash\n");
-        printf("\t\t-r BOLT#11 invoice[,ADDITIONAL AMOUNT_MSAT][,ADDITIONAL MIN_FINAL_CLTV_EXPIRY] : payment(don't put a space before or after the comma)\n");
+        printf("\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT][,ADDITIONAL MIN_FINAL_CLTV_EXPIRY] : payment(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
         printf("\t\t-s<1 or 0> : 1=stop auto channel connect\n");
         printf("\t\t-c PEER.CONF : connect node\n");
@@ -472,7 +208,7 @@ int main(int argc, char *argv[])
     }
 
     if (conn) {
-        connect_rpc(mBuf);
+        connect_rpc();
     }
 
     uint16_t port;
@@ -482,7 +218,7 @@ int main(int argc, char *argv[])
         port = (uint16_t)atoi(argv[optind]);
     }
 
-    int ret = msg_send(mBuf, mBuf, p_addr, port, b_send);
+    int ret = msg_send(mBuf, mBuf, mAddr, port, mTcpSend);
 
     ucoin_term();
 
@@ -494,29 +230,483 @@ int main(int argc, char *argv[])
  * private functions
  ********************************************************************/
 
-static void stop_rpc(char *pJson)
+static void optfunc_conn_param(int *pOption, bool *pConn)
 {
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "stop") M_NEXT
-            M_QQ("params") ":[]"
-        "}");
+    if (*pOption != M_OPTIONS_INIT) {
+        printf("fail: '-c' must first\n");
+        *pOption = M_OPTIONS_HELP;
+        return;
+    }
+
+    peer_conf_t peer;
+    bool bret = load_peer_conf(optarg, &peer);
+    if (bret) {
+        //peer.conf
+        *pConn = true;
+        strcpy(mPeerAddr, peer.ipaddr);
+        mPeerPort = peer.port;
+        misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
+        *pOption = M_OPTIONS_CONN;
+    } else if (strlen(optarg) == UCOIN_SZ_PUBKEY * 2) {
+        //node_idを直で指定した可能性あり(connectとしては使用できない)
+        strcpy(mPeerAddr, "0.0.0.0");
+        mPeerPort = 0;
+        strcpy(mPeerNodeId, optarg);
+        *pOption = M_OPTIONS_CONN;
+        printf("-c node_id\n");
+    } else {
+        printf("fail: peer configuration file\n");
+        *pOption = M_OPTIONS_HELP;
+    }
 }
 
 
-static void getinfo_rpc(char *pJson)
+static void optfunc_help(int *pOption, bool *pConn)
 {
-    snprintf(pJson, BUFFER_SIZE,
+    (void)pConn;
+
+    *pOption = M_OPTIONS_HELP;
+}
+
+
+static void optfunc_test(int *pOption, bool *pConn)
+{
+    (void)pOption; (void)pConn;
+
+    mTcpSend = false;
+}
+
+
+static void optfunc_addr(int *pOption, bool *pConn)
+{
+    (void)pOption; (void)pConn;
+
+    strcpy(mAddr, optarg);
+}
+
+
+static void optfunc_getinfo(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "getinfo") M_NEXT
             M_QQ("params") ":[]"
         "}");
+
+    *pOption = M_OPTIONS_EXEC;
 }
 
 
-static void connect_rpc(char *pJson)
+static void optfunc_disconnect(int *pOption, bool *pConn)
 {
-    snprintf(pJson, BUFFER_SIZE,
+    if (*pOption == M_OPTIONS_CONN) {
+        //特定接続を切る
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "disconnect") M_NEXT
+                M_QQ("params") ":[ "
+                    //peer_nodeid, peer_addr, peer_port
+                    M_QQ("%s") "," M_QQ("%s") ",%d"
+                " ]"
+            "}",
+                mPeerNodeId, mPeerAddr, mPeerPort);
+
+        *pOption = M_OPTIONS_EXEC;
+        *pConn = false;
+    } else {
+        //ucoind終了
+        stop_rpc();
+        *pOption = M_OPTIONS_STOP;
+    }
+}
+
+
+static void optfunc_funding(int *pOption, bool *pConn)
+{
+    M_CHK_CONN
+
+    funding_conf_t fundconf;
+    bool bret = load_funding_conf(optarg, &fundconf);
+    if (bret) {
+        char txid[UCOIN_SZ_TXID * 2 + 1];
+
+        misc_bin2str_rev(txid, fundconf.txid, UCOIN_SZ_TXID);
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "fund") M_NEXT
+                M_QQ("params") ":[ "
+                    //peer_nodeid, peer_addr, peer_port
+                    M_QQ("%s") "," M_QQ("%s") ",%d,"
+                    //txid, txindex, signaddr, funding_sat, push_sat
+                    M_QQ("%s") ",%d," M_QQ("%s") ",%" PRIu64 ",%" PRIu64 ",%" PRIu32
+                " ]"
+            "}",
+                mPeerNodeId, mPeerAddr, mPeerPort,
+                txid, fundconf.txindex, fundconf.signaddr,
+                fundconf.funding_sat, fundconf.push_sat, fundconf.feerate_per_kw);
+
+        *pConn = false;
+        *pOption = M_OPTIONS_EXEC;
+    } else {
+        printf("fail: funding configuration file\n");
+        *pOption = M_OPTIONS_HELP;
+    }
+}
+
+
+static void optfunc_invoice(int *pOption, bool *pConn)
+{
+    M_CHK_INIT
+
+    errno = 0;
+    uint64_t amount = (uint64_t)strtoull(optarg, NULL, 10);
+    if (errno == 0) {
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "invoice") M_NEXT
+                M_QQ("params") ":[ "
+                    //invoice
+                    "%" PRIu64
+                " ]"
+            "}",
+                amount);
+
+        *pConn = false;
+        *pOption = M_OPTIONS_EXEC;
+    } else {
+        printf("fail: errno=%s\n", strerror(errno));
+        *pOption = M_OPTIONS_ERR;
+    }
+}
+
+
+static void optfunc_erase(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    const char *pPaymentHash = NULL;
+    if (strcmp(optarg, "ALL") == 0) {
+        pPaymentHash = "";
+    } else if (strlen(optarg) == LN_SZ_HASH * 2) {
+        pPaymentHash = optarg;
+    } else {
+        //error
+    }
+    if (pPaymentHash != NULL) {
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "eraseinvoice") M_NEXT
+                M_QQ("params") ":[ "
+                    M_QQ("%s")
+                " ]"
+            "}",
+                pPaymentHash);
+
+        *pOption = M_OPTIONS_EXEC;
+    } else {
+        printf("fail: invalid param\n");
+        *pOption = M_OPTIONS_ERR;
+    }
+}
+
+
+static void optfunc_listinvoice(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "listinvoice") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void optfunc_payment(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    payment_conf_t payconf;
+    const char *path = strtok(optarg, ",");
+    const char *hash = strtok(NULL, ",");
+    bool bret = load_payment_conf(path, &payconf);
+    if (hash) {
+        bret &= misc_str2bin(payconf.payment_hash, LN_SZ_HASH, hash);
+    }
+    if (!bret) {
+        printf("fail: payment configuration file\n");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+
+    char payhash[LN_SZ_HASH * 2 + 1];
+    //node_id(33*2),short_channel_id(8*2),amount(21),cltv(5)
+    char forward[UCOIN_SZ_PUBKEY*2 + sizeof(uint64_t)*2 + 21 + 5 + 50];
+
+    misc_bin2str(payhash, payconf.payment_hash, LN_SZ_HASH);
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "pay") M_NEXT
+            M_QQ("params") ":[ "
+                //payment_hash, hop_num
+                M_QQ("%s") ",%d, [\n",
+            payhash, payconf.hop_num);
+
+    for (int lp = 0; lp < payconf.hop_num; lp++) {
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+
+        misc_bin2str(node_id, payconf.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
+        snprintf(forward, sizeof(forward), "[" M_QQ("%s") "," M_QQ("%" PRIx64) ",%" PRIu64 ",%d]",
+                node_id,
+                payconf.hop_datain[lp].short_channel_id,
+                payconf.hop_datain[lp].amt_to_forward,
+                payconf.hop_datain[lp].outgoing_cltv_value
+        );
+        strcat(mBuf, forward);
+        if (lp != payconf.hop_num - 1) {
+            strcat(mBuf, ",");
+        }
+    }
+    strcat(mBuf, "] ]}");
+
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void optfunc_routepay(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    ln_invoice_t invoice_data;
+    const char *invoice = strtok(optarg, ",");
+    const char *amount_msat = strtok(NULL, ",");
+    const char *cltv_offset = strtok(NULL, ",");
+    bool bret = ln_invoice_decode(&invoice_data, invoice);
+    if (!bret) {
+        printf("fail: decode BOLT#11 invoice\n");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+
+    printf("---------------------------------\n");
+    switch (invoice_data.hrp_type) {
+    case LN_INVOICE_MAINNET:
+        printf("blockchain: bitcoin mainnet\n");
+        printf("fail: mainnet payment not supported yet.\n");
+        *pOption = M_OPTIONS_ERR;
+        break;
+    case LN_INVOICE_TESTNET:
+        printf("blockchain: bitcoin testnet\n");
+        break;
+    default:
+        printf("unknown hrp_type\n");
+        *pOption = M_OPTIONS_ERR;
+    }
+    printf("amount_msat=%" PRIu64 "\n", invoice_data.amount_msat);
+    time_t tm = (time_t)invoice_data.timestamp;
+    printf("timestamp= %" PRIu64 " : %s", (uint64_t)invoice_data.timestamp, ctime(&tm));
+    printf("min_final_cltv_expiry=%d\n", invoice_data.min_final_cltv_expiry);
+    printf("payee=");
+    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
+        printf("%02x", invoice_data.pubkey[lp]);
+    }
+    printf("\n");
+    printf("payment_hash=");
+    for (int lp = 0; lp < UCOIN_SZ_SHA256; lp++) {
+        printf("%02x", invoice_data.payment_hash[lp]);
+    }
+    printf("\n");
+    printf("---------------------------------\n");
+    if (amount_msat != NULL) {
+        errno = 0;
+        uint64_t add_msat = (uint64_t)strtoull(amount_msat, NULL, 10);
+        if (errno == 0) {
+            invoice_data.amount_msat += add_msat;
+            printf("additional amount_msat=%" PRIu64 "\n", add_msat);
+            printf("---------------------------------\n");
+        } else {
+            printf("fail: errno=%s\n", strerror(errno));
+            *pOption = M_OPTIONS_ERR;
+        }
+        if (invoice_data.amount_msat & 0xffffffff00000000ULL) {
+            //BOLT#2
+            //  MUST set the four most significant bytes of amount_msat to 0.
+            printf("fail: amount_msat too large\n");
+            *pOption = M_OPTIONS_ERR;
+        }
+    }
+    if (cltv_offset != NULL) {
+        errno = 0;
+        uint32_t add_cltv = (uint32_t)strtoull(cltv_offset, NULL, 10);
+        if (errno == 0) {
+            invoice_data.min_final_cltv_expiry += add_cltv;
+            printf("additional min_final_cltv_expiry=%" PRIu32 "\n", add_cltv);
+            printf("---------------------------------\n");
+        } else {
+            printf("fail: errno=%s\n", strerror(errno));
+            *pOption = M_OPTIONS_ERR;
+        }
+    }
+    if (*pOption != M_OPTIONS_ERR) {
+        if (invoice_data.amount_msat > 0) {
+            char payhash[LN_SZ_HASH * 2 + 1];
+            char payee[UCOIN_SZ_PUBKEY * 2 + 1];
+
+            misc_bin2str(payhash, invoice_data.payment_hash, LN_SZ_HASH);
+            misc_bin2str(payee, invoice_data.pubkey, UCOIN_SZ_PUBKEY);
+
+            snprintf(mBuf, BUFFER_SIZE,
+                "{"
+                    M_STR("method", "routepay") M_NEXT
+                    M_QQ("params") ":[ "
+                        //payment_hash, amount_msat, payee, payer
+                        M_QQ("%s") ",%" PRIu64 "," M_QQ("%s") "," M_QQ("") ",%" PRIu32 "]}",
+                    payhash, invoice_data.amount_msat, payee, invoice_data.min_final_cltv_expiry);
+
+            *pOption = M_OPTIONS_EXEC;
+        } else {
+            printf("fail: pay amount_msat is 0\n");
+            *pOption = M_OPTIONS_ERR;
+        }
+    }
+}
+
+
+static void optfunc_close(int *pOption, bool *pConn)
+{
+    M_CHK_CONN
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "close") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d"
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort);
+
+    *pConn = false;
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void optfunc_getlasterr(int *pOption, bool *pConn)
+{
+    M_CHK_CONN
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "getlasterror") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d"
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort);
+
+    *pConn = false;
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void optfunc_debug(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    int debug = (int)strtol(optarg, NULL, 10);
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "debug") M_NEXT
+            M_QQ("params") ":[ %d ]"
+        "}", debug);
+
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void optfunc_getcommittx(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_CONN
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "getcommittx") M_NEXT
+            M_QQ("params") ":[ "
+                //peer_nodeid, peer_addr, peer_port
+                M_QQ("%s") "," M_QQ("%s") ",%d"
+            " ]"
+        "}",
+            mPeerNodeId, mPeerAddr, mPeerPort);
+
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void optfunc_disable_autoconn(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    if ((strlen(optarg) == 1) && ((optarg[0] == '1') || (optarg[0] == '0'))) {
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "disautoconn") M_NEXT
+                M_QQ("params") ":[ \"%s\" ]"
+            "}", optarg);
+
+        *pOption = M_OPTIONS_EXEC;
+    } else {
+        printf("fail: invalid option\n");
+        *pOption = M_OPTIONS_HELP;
+    }
+}
+
+
+static void optfunc_remove_channel(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    if (strlen(optarg) == LN_SZ_CHANNEL_ID * 2) {
+        printf("fail: invalid option\n");
+        *pOption = M_OPTIONS_HELP;
+        return;
+    }
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "removechannel") M_NEXT
+            M_QQ("params") ":[ "
+                M_QQ("%s")
+            " ]"
+        "}",
+            optarg);
+
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void connect_rpc(void)
+{
+    snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "connect") M_NEXT
             M_QQ("params") ":[ "
@@ -528,215 +718,13 @@ static void connect_rpc(char *pJson)
 }
 
 
-static void disconnect_rpc(char *pJson)
+static void stop_rpc(void)
 {
-    snprintf(pJson, BUFFER_SIZE,
+    snprintf(mBuf, BUFFER_SIZE,
         "{"
-            M_STR("method", "disconnect") M_NEXT
-            M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d"
-            " ]"
-        "}",
-            mPeerNodeId, mPeerAddr, mPeerPort);
-}
-
-
-static void fund_rpc(char *pJson, const funding_conf_t *pFund)
-{
-    char txid[UCOIN_SZ_TXID * 2 + 1];
-
-    misc_bin2str_rev(txid, pFund->txid, UCOIN_SZ_TXID);
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "fund") M_NEXT
-            M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d,"
-                //txid, txindex, signaddr, funding_sat, push_sat
-                M_QQ("%s") ",%d," M_QQ("%s") ",%" PRIu64 ",%" PRIu64 ",%" PRIu32
-            " ]"
-        "}",
-            mPeerNodeId, mPeerAddr, mPeerPort,
-            txid, pFund->txindex, pFund->signaddr, pFund->funding_sat, pFund->push_sat, pFund->feerate_per_kw);
-}
-
-
-static void invoice_rpc(char *pJson, uint64_t Amount, bool conn)
-{
-    if (conn) {
-        snprintf(pJson, BUFFER_SIZE,
-            "{"
-                M_STR("method", "invoice") M_NEXT
-                M_QQ("params") ":[ "
-                    //peer_nodeid, peer_addr, peer_port
-                    M_QQ("%s") "," M_QQ("%s") ",%d,"
-                    //invoice
-                    "%" PRIu64
-                " ]"
-            "}",
-                mPeerNodeId, mPeerAddr, mPeerPort, Amount);
-    } else {
-        snprintf(pJson, BUFFER_SIZE,
-            "{"
-                M_STR("method", "invoice") M_NEXT
-                M_QQ("params") ":[ "
-                    //invoice
-                    "%" PRIu64
-                " ]"
-            "}",
-                Amount);
-    }
-}
-
-
-static void erase_invoice_rpc(char *pJson, const char *pPaymentHash)
-{
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "eraseinvoice") M_NEXT
-            M_QQ("params") ":[ "
-                M_QQ("%s")
-            " ]"
-        "}",
-            pPaymentHash);
-}
-
-
-static void listinvoice_rpc(char *pJson)
-{
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "listinvoice") M_NEXT
+            M_STR("method", "stop") M_NEXT
             M_QQ("params") ":[]"
         "}");
-}
-
-
-static void payment_rpc(char *pJson, const payment_conf_t *pPay)
-{
-    char payhash[LN_SZ_HASH * 2 + 1];
-    //node_id(33*2),short_channel_id(8*2),amount(21),cltv(5)
-    char forward[UCOIN_SZ_PUBKEY*2 + sizeof(uint64_t)*2 + 21 + 5 + 50];
-
-    misc_bin2str(payhash, pPay->payment_hash, LN_SZ_HASH);
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "pay") M_NEXT
-            M_QQ("params") ":[ "
-                //payment_hash, hop_num
-                M_QQ("%s") ",%d, [\n",
-            payhash, pPay->hop_num);
-
-    for (int lp = 0; lp < pPay->hop_num; lp++) {
-        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-
-        misc_bin2str(node_id, pPay->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
-        snprintf(forward, sizeof(forward), "[" M_QQ("%s") "," M_QQ("%" PRIx64) ",%" PRIu64 ",%d]",
-                node_id,
-                pPay->hop_datain[lp].short_channel_id,
-                pPay->hop_datain[lp].amt_to_forward,
-                pPay->hop_datain[lp].outgoing_cltv_value
-        );
-        strcat(pJson, forward);
-        if (lp != pPay->hop_num - 1) {
-            strcat(pJson, ",");
-        }
-    }
-    strcat(pJson, "] ]}");
-}
-
-
-static void routepay_rpc(char *pJson, const ln_invoice_t *pInvData)
-{
-    char payhash[LN_SZ_HASH * 2 + 1];
-    char payee[UCOIN_SZ_PUBKEY * 2 + 1];
-
-    misc_bin2str(payhash, pInvData->payment_hash, LN_SZ_HASH);
-    misc_bin2str(payee, pInvData->pubkey, UCOIN_SZ_PUBKEY);
-
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "routepay") M_NEXT
-            M_QQ("params") ":[ "
-                //payment_hash, amount_msat, payee, payer
-                M_QQ("%s") ",%" PRIu64 "," M_QQ("%s") "," M_QQ("") ",%" PRIu32 "]}",
-            payhash, pInvData->amount_msat, payee, pInvData->min_final_cltv_expiry);
-}
-
-
-static void close_rpc(char *pJson)
-{
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "close") M_NEXT
-            M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d"
-            " ]"
-        "}",
-            mPeerNodeId, mPeerAddr, mPeerPort);
-}
-
-
-static void getlasterror_rpc(char *pJson)
-{
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "getlasterror") M_NEXT
-            M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d"
-            " ]"
-        "}",
-            mPeerNodeId, mPeerAddr, mPeerPort);
-}
-
-
-static void debug_rpc(char *pJson, int debug)
-{
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "debug") M_NEXT
-            M_QQ("params") ":[ %d ]"
-        "}", debug);
-}
-
-
-static void getcommittx_rpc(char *pJson)
-{
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "getcommittx") M_NEXT
-            M_QQ("params") ":[ "
-                //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d"
-            " ]"
-        "}",
-            mPeerNodeId, mPeerAddr, mPeerPort);
-}
-
-
-static void disable_autoconnect_rpc(char *pJson, const char *pDisable)
-{
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "disautoconn") M_NEXT
-            M_QQ("params") ":[ \"%s\" ]"
-        "}", pDisable);
-}
-
-
-static void remove_channel_rpc(char *pJson, const char *pChannelId)
-{
-    snprintf(pJson, BUFFER_SIZE,
-        "{"
-            M_STR("method", "removechannel") M_NEXT
-            M_QQ("params") ":[ "
-                M_QQ("%s")
-            " ]"
-        "}",
-            pChannelId);
 }
 
 
@@ -754,7 +742,7 @@ static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t 
         }
         memset(&sv_addr, 0, sizeof(sv_addr));
         sv_addr.sin_family = AF_INET;
-        if (pAddr == NULL) {
+        if (strlen(pAddr) == 0) {
             sv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         } else {
             sv_addr.sin_addr.s_addr = inet_addr(pAddr);
@@ -786,7 +774,7 @@ static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t 
         }
         close(sock);
     } else {
-        fprintf(stdout, "sendto: %s:%" PRIu16 "\n", (pAddr) ? pAddr : "localhost", Port);
+        fprintf(stdout, "sendto: %s:%" PRIu16 "\n", (strlen(pAddr) != 0) ? pAddr : "localhost", Port);
         fprintf(stdout, "%s\n", pSend);
         retval = 0;
     }

@@ -193,7 +193,7 @@ void print_payment_conf(const payment_conf_t *pPayConf)
         ucoin_util_dumpbin(PRINTOUT, pPayConf->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, true);
         fprintf(PRINTOUT, "  short_channel_id= %" PRIx64 "\n", pPayConf->hop_datain[lp].short_channel_id);
         fprintf(PRINTOUT, "  amount_msat= %" PRIu64 "\n", pPayConf->hop_datain[lp].amt_to_forward);
-        fprintf(PRINTOUT, "  cltv_expiry: %d\n", pPayConf->hop_datain[lp].outgoing_cltv_value);
+        fprintf(PRINTOUT, "  cltv_expiry: %u\n", pPayConf->hop_datain[lp].outgoing_cltv_value);
     }
 }
 
