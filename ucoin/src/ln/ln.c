@@ -277,7 +277,6 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     }
 
     self->lfeature_remote = 0;
-    self->commit_num = 1;
 
     self->p_callback = pFunc;
 
@@ -918,6 +917,8 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
 
+    bool flocked = (self->commit_num != 0);
+
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
 
@@ -943,7 +944,9 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //commitment number(for obscured commitment number)
-    self->commit_num--;
+    if (flocked) {
+        self->commit_num--;
+    }
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_local.htlc_num);
@@ -956,7 +959,9 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
         ln_free_close_force_tx(pClose);
     }
 
-    self->commit_num++;
+    if (flocked) {
+        self->commit_num++;
+    }
 
     self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT] = bak_key;
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_pubkey, sizeof(bak_pubkey));
