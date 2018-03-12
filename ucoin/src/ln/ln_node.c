@@ -158,12 +158,12 @@ void ln_node_term(ln_node_t *node)
 }
 
 
-bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId)
+bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
 {
     comp_param_cnl_t prm;
 
     prm.p_node_id = pNodeId;
-    prm.p_self = pSelf;
+    prm.p_self = self;
     bool detect = ln_db_self_search(comp_func_cnl, &prm);
 
     DBG_PRINTF("search id:");
