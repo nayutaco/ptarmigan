@@ -918,7 +918,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
 
-    bool flocked = (self->commit_num != 0);
+    int flocked = (self->commit_num != 0) ? 1 : 0;
 
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
@@ -934,7 +934,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //  現在のnext_per_commitment_secret用の値は storage_seed+1。
     //  現在のper_commitment_secret用の値は、storage_seed+2 となる。
     //DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 2);
+    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 1 + flocked);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
     //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
     //remote
@@ -945,9 +945,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //commitment number(for obscured commitment number)
-    if (flocked) {
-        self->commit_num--;
-    }
+    self->commit_num -= flocked;
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_local.htlc_num);
@@ -960,9 +958,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
         ln_free_close_force_tx(pClose);
     }
 
-    if (flocked) {
-        self->commit_num++;
-    }
+    self->commit_num += flocked;
 
     self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT] = bak_key;
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_pubkey, sizeof(bak_pubkey));
