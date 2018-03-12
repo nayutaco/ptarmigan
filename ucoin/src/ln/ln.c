@@ -594,7 +594,8 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 
     ln_channel_reestablish_t msg;
     msg.p_channel_id = self->channel_id;
-    msg.next_local_commitment_number = self->commit_num;
+    //commitment_numberを0で送信することはないため、0の場合は+1する
+    msg.next_local_commitment_number = self->commit_num + ((self->commit_num == 0) ? 1 : 0);
     msg.next_remote_revocation_number = self->remote_revoke_num;
 
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
