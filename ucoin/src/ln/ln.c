@@ -276,8 +276,8 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
         ucoin_buf_init(&self->cnl_add_htlc[idx].shared_secret);
     }
 
-    //クリア
     self->lfeature_remote = 0;
+    self->commit_num = 1;
 
     self->p_callback = pFunc;
 
