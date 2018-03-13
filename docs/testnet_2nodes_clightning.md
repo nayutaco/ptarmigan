@@ -2,11 +2,11 @@
 
 ## version
 
-* bitcoind v0.15.x(not v0.16.x)
-* [c-lightning](https://github.com/ElementsProject/lightning/tree/b536e97df29e2881eda0bda008a3c8b1e412d249) : commit b536e97df29e2881eda0bda008a3c8b1e412d249
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03).
-  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`)  
-    (Next version up will be include DB change)
+* [c-lightning](https://github.com/ElementsProject/lightning)
+  * commit: 74a444eb7aa29ffca693a3ae5fed43dfdcc722e0
+* [ptarmigan](https://github.com/nayutaco/ptarmigan)
+  * tag: 2018-03-13
+  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`)
 
 ----
 

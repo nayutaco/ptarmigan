@@ -1,10 +1,6 @@
 # How to Pay starblocks/Y'alls (or Your Lightning Node) from ptarmigan Node
 
-## Current development status & Usage
-
-Note: This software currently work with only bitcoin v0.15
-
-### 2018/02/21
+## 2018/03/13
 
 - In order to make payment to destination node, the path of channels must exist.
   The "visible" node on testnet is displayed in [Lightning Network Explorer(TESTNET)](https://explorer.acinq.co/#/)
@@ -20,7 +16,7 @@ Note: This software currently work with only bitcoin v0.15
 - When executed according to the following procedure, `ptarmigan / install / node` is the directory where the node information is stored and `ptarmigan / install / node / dbucoin` is the database directory.
   Even if you exit `ucoind` software, re-running `ucoind` in the `ptarmigan / install / node` directory will start up as the same Lightning Network node.
   If re-startup is not successful, remove the `dbucoin` directory and run it as a new node (if you do not change the `node.conf` file, the node ID will not be changed).
-- When version up with DB change is done, you need DB clean(`rm -rf dbucoin`).(Next version up will be include DB change)
+- When version up with DB change is done, you need DB clean(`rm -rf dbucoin`).
 
 ## Overview of Payment for Starblocks/Y'alls
 

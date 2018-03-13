@@ -79,6 +79,8 @@
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
 #define M_WAIT_SEND_WAIT_MSEC   (10)        //socket送信で一度に送信できなかった場合の待ち時間[msec]
+#define M_WAIT_RECV_MSG_MSEC    (500)       //message受信監視周期[msec]
+#define M_WAIT_RECV_THREAD      (100)       //recv_thread開始待ち[msec]
 
 //デフォルト値
 //  announcement
@@ -568,9 +570,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 bool lnapp_close_channel_force(const uint8_t *pNodeId)
 {
     bool ret;
-    ln_self_t my_self;
-
-    memset(&my_self, 0, sizeof(my_self));
+    ln_self_t *p_self = (ln_self_t *)APP_MALLOC(sizeof(ln_self_t));
 
     //announcementデフォルト値
     anno_conf_t aconf;
@@ -586,15 +586,16 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         mAnnoPrm.fee_base_msat = M_FEE_BASE_MSAT;
         mAnnoPrm.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
     }
-    ln_init(&my_self, mpNode, NULL, &mAnnoPrm, NULL);
+    ln_init(p_self, mpNode, NULL, &mAnnoPrm, NULL);
 
-    ret = ln_node_search_channel(&my_self, pNodeId);
+    ret = ln_node_search_channel(p_self, pNodeId);
     if (!ret) {
         return false;
     }
 
-    SYSLOG_WARN("close: bad way(local): htlc=%d\n", ln_commit_local(&my_self)->htlc_num);
-    (void)monitor_close_unilateral_local(&my_self, NULL);
+    SYSLOG_WARN("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
+    (void)monitor_close_unilateral_local(p_self, NULL);
+    APP_FREE(p_self);
 
     return true;
 }
@@ -787,9 +788,9 @@ static void *thread_main_start(void *pArg)
     int retval;
 
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
-    ln_self_t my_self;
+    ln_self_t *p_self = (ln_self_t *)APP_MALLOC(sizeof(ln_self_t));
 
-    my_self.p_param = p_conf;
+    p_self->p_param = p_conf;
 
     anno_conf_t aconf;
     ret = load_anno_conf("anno.conf", &aconf);
@@ -813,9 +814,9 @@ static void *thread_main_start(void *pArg)
     uint8_t seed[LN_SZ_SEED];
     DBG_PRINTF("ln_self_t initialize");
     ucoin_util_random(seed, LN_SZ_SEED);
-    ln_init(&my_self, mpNode, seed, &mAnnoPrm, notify_cb);
+    ln_init(p_self, mpNode, seed, &mAnnoPrm, notify_cb);
 
-    p_conf->p_self = &my_self;
+    p_conf->p_self = p_self;
     p_conf->ping_counter = 0;
     p_conf->funding_waiting = false;
     p_conf->funding_confirm = 0;
@@ -855,11 +856,11 @@ static void *thread_main_start(void *pArg)
     /////////////////////////
 
     //p_conf->node_idがchannel情報を持っているかどうか。
-    //持っている場合、my_selfにDBから読み込みまで行われている。
-    bool detect = ln_node_search_channel(&my_self, p_conf->node_id);
+    //持っている場合、selfにDBから読み込みまで行われている。
+    bool detect = ln_node_search_channel(p_self, p_conf->node_id);
 
     //
-    //my_selfへの設定はこれ以降に行う
+    //selfへの設定はこれ以降に行う
     //
 
     //peer受信スレッド
@@ -876,7 +877,7 @@ static void *thread_main_start(void *pArg)
     {
         ucoin_buf_t buf_bolt;
         ucoin_buf_init(&buf_bolt);
-        ret = ln_create_init(&my_self, &buf_bolt, detect);
+        ret = ln_create_init(p_self, &buf_bolt, detect);
         if (!ret) {
             goto LABEL_JOIN;
         }
@@ -886,32 +887,30 @@ static void *thread_main_start(void *pArg)
 
     //コールバックでのINIT受信通知待ち
     pthread_mutex_lock(&p_conf->mux);
+
+    DBG_PRINTF("init wait...\n");
     while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
-        //init受信待ち合わせ(*1)
-        DBG_PRINTF("init wait...\n");
-        pthread_cond_wait(&p_conf->cond, &p_conf->mux);
-        DBG_PRINTF("init received\n");
+        misc_msleep(M_WAIT_RECV_MSG_MSEC);
     }
-    pthread_mutex_unlock(&p_conf->mux);
     DBG_PRINTF("init交換完了\n\n");
 
     //送金先
     char payaddr[UCOIN_SZ_ADDR_MAX];
     btcprc_getnewaddress(payaddr);
-    ln_set_shutdown_vout_addr(&my_self, payaddr);
+    ln_set_shutdown_vout_addr(p_self, payaddr);
 
     // Establishチェック
     if (detect) {
         //既にチャネルあり
-        //my_selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
-        if (ln_short_channel_id(&my_self) != 0) {
+        //selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
+        if (ln_short_channel_id(p_self) != 0) {
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
         } else {
             DBG_PRINTF("funding_tx監視開始\n");
-            DUMPTXID(ln_funding_txid(&my_self));
+            DUMPTXID(ln_funding_txid(p_self));
 
             set_establish_default(p_conf, p_conf->node_id);
-            p_conf->funding_min_depth = ln_minimum_depth(&my_self);
+            p_conf->funding_min_depth = ln_minimum_depth(p_self);
             p_conf->funding_waiting = true;
         }
         send_reestablish(p_conf);
@@ -938,17 +937,17 @@ static void *thread_main_start(void *pArg)
     sprintf(param, "%" PRIx64 " %s "
                 "%s "
                 "%" PRIu16,
-                ln_short_channel_id(&my_self), node_id,
+                ln_short_channel_id(p_self), node_id,
                 peer_id,
                 cmd_json_get_port());
     call_script(M_EVT_CONNECTED, param);
 
     while (p_conf->loop) {
         DBG_PRINTF("loop...\n");
-        show_self_param(&my_self, PRINTOUT, __LINE__);
+        show_self_param(p_self, PRINTOUT, __LINE__);
         pthread_mutex_lock(&p_conf->mux);
 
-        //待ち合わせ解除(*2)
+        //mainloop待ち合わせ(*2)
         pthread_cond_wait(&p_conf->cond, &p_conf->mux);
 
         pthread_mutex_unlock(&p_conf->mux);
@@ -966,17 +965,18 @@ LABEL_SHUTDOWN:
         SYSLOG_ERR("%s(): shutdown: %s", __func__, strerror(errno));
     }
 
-    SYSLOG_WARN("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(&my_self));
+    SYSLOG_WARN("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(p_self));
 
     //クリア
     APP_FREE(p_conf->p_errstr);
     for (int lp = 0; lp < APP_FWD_PROC_MAX; lp++) {
         APP_FREE(p_conf->fwd_proc[lp].p_data);
     }
-    ln_term(&my_self);
+    ln_term(p_self);
     clear_routelist(p_conf);
     memset(p_conf, 0, sizeof(lnapp_conf_t));
     p_conf->sock = -1;
+    APP_FREE(p_self);
 
     return NULL;
 }
@@ -1084,14 +1084,10 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
     ucoin_buf_free(&buf_bolt);
 
     //コールバックでのchannel_reestablish受信通知待ち
-    pthread_mutex_lock(&p_conf->mux);
+    DBG_PRINTF("channel_reestablish wait...\n");
     if (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0)) {
-        //channel_reestablish受信待ち合わせ(*3)
-        DBG_PRINTF("channel_reestablish wait...\n");
-        pthread_cond_wait(&p_conf->cond, &p_conf->mux);
-        DBG_PRINTF("channel_reestablish received\n");
+        misc_msleep(M_WAIT_RECV_MSG_MSEC);
     }
-    pthread_mutex_unlock(&p_conf->mux);
     DBG_PRINTF("channel_reestablish交換完了\n\n");
 
     return ret;
@@ -1196,6 +1192,9 @@ static void *thread_recv_start(void *pArg)
 {
     ucoin_buf_t buf_recv;
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
+
+    //init受信待ちの準備時間を設ける
+    misc_msleep(M_WAIT_RECV_THREAD);
 
     while (p_conf->loop) {
         bool ret = true;
@@ -1865,9 +1864,8 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param)
 
     p_conf->initial_routing_sync = *(bool *)p_param;
 
-    //待ち合わせ解除(*1)
+    //init受信待ち合わせ解除(*1)
     p_conf->flag_recv |= RECV_MSG_INIT;
-    pthread_cond_signal(&p_conf->cond);
 }
 
 
@@ -1877,9 +1875,8 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
     (void)p_param;
     DBGTRACE_BEGIN
 
-    //待ち合わせ解除(*3)
+    //channel_reestablish受信待ち合わせ解除(*3)
     p_conf->flag_recv |= RECV_MSG_REESTABLISH;
-    pthread_cond_signal(&p_conf->cond);
 }
 
 
@@ -2594,7 +2591,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
 {
     if (p_conf->loop) {
         p_conf->loop = false;
-        //待ち合わせ解除(*2)
+        //mainloop待ち合わせ解除(*2)
         pthread_cond_signal(&p_conf->cond);
         SYSLOG_WARN("close channel: %" PRIx64, ln_short_channel_id(p_conf->p_self));
         DBG_PRINTF("===================================\n");

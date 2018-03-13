@@ -2,11 +2,11 @@
 
 ## version
 
-* bitcoind v0.15.x(not v0.16.x)
-* [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`).  
-    (Next version up will be include DB change)
+* [lnd](https://github.com/lightningnetwork/lnd/)
+  * commit: 45eaa70814e8f94a569bc277c52a79a5c4351c43
+* [ptarmigan](https://github.com/nayutaco/ptarmigan/)
+  * tag: 2018-03-13
+  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`).
 
 ----
 
@@ -94,7 +94,7 @@ rm -rf ~/.lnd/data
 * Running `lnd`
 
 ```bash
-lnd
+lnd --no-macaroons
 ```
 
 * Creating a wallet

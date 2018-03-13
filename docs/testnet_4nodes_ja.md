@@ -2,13 +2,29 @@
 
 ## version
 
-* bitcoind v0.15.x(not v0.16.x)
-* [c-lightning](https://github.com/ElementsProject/lightning/tree/b536e97df29e2881eda0bda008a3c8b1e412d249) : commit b536e97df29e2881eda0bda008a3c8b1e412d249
-* [eclair](https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar) : Eclair v0.2-alpha10
-* [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーンが必要となる(`rm -rf dbucoin`)。  
-    次のバージョンでDBのアップデートが行われる予定。
+* [c-lightning](https://github.com/ElementsProject/lightning)
+  * commit: 74a444eb7aa29ffca693a3ae5fed43dfdcc722e0
+* [eclair](https://github.com/ACINQ/eclair)
+  * [Eclair v0.2-alpha10]((https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar))
+* [lnd](https://github.com/lightningnetwork/lnd)
+  * commit: 45eaa70814e8f94a569bc277c52a79a5c4351c43
+* [ptarmigan](https://github.com/nayutaco/ptarmigan)
+  * tag 2018-03-13
+  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーンが必要となる(`rm -rf dbucoin`)。
+
+## bitcoind
+
+* eclair + bitcoind v0.16
+
+```bash
+bitcoind -deprecatedrpc=addwitnessaddress -daemon
+```
+
+* others
+
+```bash
+bitcoind -daemon
+```
 
 ## node_id取得
 
@@ -58,21 +74,22 @@ lncli --no-macaroons getinfo
 ## チャネル作成
 
 * `ptarmigan`からそれぞれに対してチャネルを作成する
+  * これ以降、`feerate_per_kw=10000`の結果を示す
 
 ```bash
-../pay_fundin.sh 1000000 800000 300000000
+../pay_fundin.sh 1000000 800000 300000
 ../ucoincli -c peer_cln.conf -f fund_yyyymmddhhddss.conf
 ../ucoincli -l
 (statusが"wait_minimum_depth"になるのを確認する)
 rm fund_yyyymmddhhddss.conf
 
-../pay_fundin.sh 1000000 800000 400000000
+../pay_fundin.sh 1000000 800000 400000
 ../ucoincli -c peer_eclr.conf -f fund_yyyymmddhhddss.conf
 ../ucoincli -l
 (statusが"wait_minimum_depth"になるのを確認する)
 rm fund_yyyymmddhhddss.conf
 
-../pay_fundin.sh 1000000 800000 500000000
+../pay_fundin.sh 1000000 800000 500000
 ../ucoincli -c peer_lnd.conf -f fund_yyyymmddhhddss.conf
 ../ucoincli -l
 (statusが"wait_minimum_depth"になるのを確認する)

@@ -1948,11 +1948,11 @@ void ln_node_term(ln_node_t *node);
  *      self DBから、channelの相手になっているpeerのnode_idが一致するselfを検索する。
  *      一致した場合、pSelfにDB保存しているデータを返す。
  *
- * @param[out]      pSelf               検索成功時、pSelfが非NULLであればコピーする
+ * @param[out]      self                検索成功時、pSelfが非NULLであればコピーする
  * @param[in]       pNodeId             検索する相手チャネルnode_id
  * @retval      true        検索成功
  */
-bool ln_node_search_channel(ln_self_t *pSelf, const uint8_t *pNodeId);
+bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId);
 
 
 /** node_announcement検索(node_idから)

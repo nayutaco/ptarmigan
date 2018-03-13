@@ -276,7 +276,6 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
         ucoin_buf_init(&self->cnl_add_htlc[idx].shared_secret);
     }
 
-    //クリア
     self->lfeature_remote = 0;
 
     self->p_callback = pFunc;
@@ -595,7 +594,8 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 
     ln_channel_reestablish_t msg;
     msg.p_channel_id = self->channel_id;
-    msg.next_local_commitment_number = self->commit_num;
+    //commitment_numberを0で送信することはないため、0の場合は+1する
+    msg.next_local_commitment_number = self->commit_num + ((self->commit_num == 0) ? 1 : 0);
     msg.next_remote_revocation_number = self->remote_revoke_num;
 
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
@@ -918,6 +918,8 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
 
+    int flocked = (self->commit_num != 0) ? 1 : 0;
+
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
 
@@ -932,7 +934,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //  現在のnext_per_commitment_secret用の値は storage_seed+1。
     //  現在のper_commitment_secret用の値は、storage_seed+2 となる。
     //DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 2);
+    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 1 + flocked);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
     //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
     //remote
@@ -943,7 +945,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //commitment number(for obscured commitment number)
-    self->commit_num--;
+    self->commit_num -= flocked;
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_local.htlc_num);
@@ -956,7 +958,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
         ln_free_close_force_tx(pClose);
     }
 
-    self->commit_num++;
+    self->commit_num += flocked;
 
     self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT] = bak_key;
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_pubkey, sizeof(bak_pubkey));

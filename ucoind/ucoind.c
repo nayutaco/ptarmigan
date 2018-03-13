@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
 
     //peer config出力
     char fname[256];
-    sprintf(fname, "peer_%s.conf", mNode.alias);
+    sprintf(fname, "ptarm_%s.conf", mNode.alias);
     FILE *fp = fopen(fname, "w");
     if (fp) {
         if (p_addr->type == LN_NODEDESC_IPV4) {

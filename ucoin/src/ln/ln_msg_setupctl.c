@@ -41,6 +41,9 @@
 #define DBG_PRINT_CREATE
 #define DBG_PRINT_READ
 
+// #define M_PING_NONZERO_CHK
+// #define M_PONG_NONZERO_CHK
+
 
 /**************************************************************************
  * prototypes
@@ -283,12 +286,14 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
     //ping_print(pMsg);
 #endif  //DBG_PRINT_READ
 
+#ifdef M_PING_NONZERO_CHK
     for (int lp = 0; lp < pMsg->byteslen; lp++) {
         if (*(pData + sizeof(uint16_t) + 4 + lp) != 0x00) {
             DBG_PRINTF("fail: contain not ZERO\n");
             return false;
         }
     }
+#endif  //M_PING_NONZERO_CHK
 
     assert(Len == sizeof(uint16_t) + 4 + pMsg->byteslen);
 
@@ -380,12 +385,14 @@ bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len
     //pong_print(pMsg);
 #endif  //DBG_PRINT_READ
 
+#ifdef M_PONG_NONZERO_CHK
     for (int lp = 0; lp < pMsg->byteslen; lp++) {
         if (*(pData + sizeof(uint16_t) + 2 + lp) != 0x00) {
             DBG_PRINTF("fail: contain not ZERO\n");
             return false;
         }
     }
+#endif  //M_PONG_NONZERO_CHK
 
     assert(Len == sizeof(uint16_t) + 2 + pMsg->byteslen);
 

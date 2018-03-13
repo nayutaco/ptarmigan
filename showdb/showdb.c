@@ -107,10 +107,10 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
 {
     //self
     if (showflag & (SHOW_SELF | SHOW_WALLET | SHOW_CH)) {
-        ln_self_t self;
-        memset(&self, 0, sizeof(self));
+        ln_self_t *p_self = (ln_self_t *)malloc(sizeof(ln_self_t));
+        memset(p_self, 0, sizeof(ln_self_t));
 
-        int retval = ln_lmdb_self_load(&self, txn, dbi);
+        int retval = ln_lmdb_self_load(p_self, txn, dbi);
         if (retval != 0) {
             printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
             return;
@@ -133,17 +133,18 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         }
 
         if (showflag & SHOW_SELF) {
-            ln_print_self(&self);
+            ln_print_self(p_self);
         }
         if (showflag & SHOW_WALLET) {
-            ln_print_wallet(&self);
+            ln_print_wallet(p_self);
         }
         if (showflag & SHOW_CH) {
             printf("\"");
-            ucoin_util_dumpbin(stdout, self.peer_node_id, UCOIN_SZ_PUBKEY, false);
+            ucoin_util_dumpbin(stdout, p_self->peer_node_id, UCOIN_SZ_PUBKEY, false);
             printf("\"");
         }
-        ln_term(&self);
+        ln_term(p_self);
+        free(p_self);
         cnt0++;
     }
 }

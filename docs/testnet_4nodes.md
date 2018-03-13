@@ -2,13 +2,14 @@
 
 ## version
 
-* bitcoind v0.15.x(not v0.16.x)
-* [c-lightning](https://github.com/ElementsProject/lightning/tree/b536e97df29e2881eda0bda008a3c8b1e412d249) : commit b536e97df29e2881eda0bda008a3c8b1e412d249
-* [eclair](https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar) : Eclair v0.2-alpha10
-* [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`)  
-    (Next version up will be include DB change)
+* [c-lightning](https://github.com/ElementsProject/lightning)
+  * commit: 74a444eb7aa29ffca693a3ae5fed43dfdcc722e0
+* [eclair](https://github.com/ACINQ/eclair)
+  * [Eclair v0.2-alpha10]((https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar))
+* [lnd](https://github.com/lightningnetwork/lnd)
+  * commit: 45eaa70814e8f94a569bc277c52a79a5c4351c43
+* [ptarmigan](https://github.com/nayutaco/ptarmigan)
+  * tag 2018-03-13
 
 ## Getting node_id
 
@@ -58,6 +59,7 @@ lncli --no-macaroons getinfo
 ## Creating channels
 
 * Creating channels from `ptarmigan` to each nodes
+  * Following results are for `feerate_per_kw = 10000`.
 
 ```bash
 ../pay_fundin.sh 1000000 800000 300000000
