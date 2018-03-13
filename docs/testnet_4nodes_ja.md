@@ -74,6 +74,7 @@ lncli --no-macaroons getinfo
 ## チャネル作成
 
 * `ptarmigan`からそれぞれに対してチャネルを作成する
+  * これ以降、`feerate_per_kw=10000`の結果を示す
 
 ```bash
 ../pay_fundin.sh 1000000 800000 300000
