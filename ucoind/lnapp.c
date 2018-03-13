@@ -80,6 +80,7 @@
 #define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
 #define M_WAIT_SEND_WAIT_MSEC   (10)        //socket送信で一度に送信できなかった場合の待ち時間[msec]
 #define M_WAIT_RECV_MSG_MSEC    (500)       //message受信監視周期[msec]
+#define M_WAIT_RECV_THREAD      (100)       //recv_thread開始待ち[msec]
 
 //デフォルト値
 //  announcement
@@ -1193,7 +1194,7 @@ static void *thread_recv_start(void *pArg)
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
 
     //init受信待ちの準備時間を設ける
-    misc_msleep(100);
+    misc_msleep(M_WAIT_RECV_THREAD);
 
     while (p_conf->loop) {
         bool ret = true;
