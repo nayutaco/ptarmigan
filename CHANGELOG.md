@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2018/03/13
+
+* tag: 2018-03-13
+  * DB version: -17
+* `ping`/`pong`のignoredチェック省略
+  * `c-lightning`がnon-zeroの値を入れているため(リリース時には削除されると思われるが、デフォルトでそうなっている)
+
 ## 2018/03/07
 
 * DB version : -17
@@ -18,7 +25,7 @@
 ## 2018/03/03
 
 * tag: 2018-03-03
-  * DB version : - 16
+  * DB version: -16
 
 ## 2018/02/21
 

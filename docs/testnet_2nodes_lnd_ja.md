@@ -2,10 +2,11 @@
 
 ## version
 
-* [lnd](https://github.com/lightningnetwork/lnd/tree/00ea46d9aeabf670dfb18c9e9c5f10f741ff5192) : commit 00ea46d9aeabf670dfb18c9e9c5f10f741ff5192
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーン(`rm -rf dbucoin`)が必要となる。  
-    次のバージョンでDBのアップデートが行われる予定。
+* [lnd](https://github.com/lightningnetwork/lnd)
+  * commit: 45eaa70814e8f94a569bc277c52a79a5c4351c43
+* [ptarmigan](https://github.com/nayutaco/ptarmigan)
+  * tag: 2018-03-13
+  * ptarmiganバージョンアップでDBの変更が行われた場合、DBクリーン(`rm -rf dbucoin`)が必要となる。
 
 ----
 
@@ -19,7 +20,7 @@
 
  1. bitcoinノード設定
 
- * [bitcoind]~/.bitcoin/bitcoin.conf
+* [bitcoind]~/.bitcoin/bitcoin.conf
 
 ```text
 rpcuser=bitcoinuser
@@ -93,7 +94,7 @@ rm -rf ~/.lnd/data
 * 起動
 
 ```bash
-lnd
+lnd --no-macaroons
 ```
 
 * wallet作成

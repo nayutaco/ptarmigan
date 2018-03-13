@@ -2,11 +2,11 @@
 
 ## version
 
-* bitcoind v0.15.x(not v0.16.x)
-* [eclair](https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar) : Eclair v0.2-alpha10
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`).  
-    (Next version up will be include DB change)
+* [eclair](https://github.com/ACINQ/eclair)
+  * [Eclair v0.2-alpha10]((https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar))
+* [ptarmigan](https://github.com/nayutaco/ptarmigan)
+  * tag 2018-03-13
+  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`).
 
 ----
 
@@ -20,7 +20,7 @@
 
 1. Running bitcoin node
 
- * [bitcoind] `~/.bitcoin/bitcoin.conf`
+* [bitcoind] `~/.bitcoin/bitcoin.conf`
 
 ```text
 rpcuser=bitcoinuser
@@ -40,6 +40,20 @@ eclair.api.password=xxxxx
 ```
 
 2. Running `bitcoind`
+
+* eclair + bitcoind v0.16
+
+```bash
+bitcoind -deprecatedrpc=addwitnessaddress -daemon
+```
+
+* eclair + bitcoind v0.15
+
+```bash
+bitcoind -daemon
+```
+
+* ptarmigan
 
 ```bash
 bitcoind -daemon

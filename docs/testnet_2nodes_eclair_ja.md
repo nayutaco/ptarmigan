@@ -2,11 +2,11 @@
 
 ## version
 
-* bitcoind v0.15.x(not v0.16.x)
-* [eclair](https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar) : Eclair v0.2-alpha10
-* [ptarmigan](https://github.com/nayutaco/ptarmigan/tree/2018-03-03) : tag 2018-03-03  (git checkout -b test refs/tags/2018-03-03)
-  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーン(`rm -rf dbucoin`)が必要となる。  
-    次のバージョンでDBのアップデートが行われる予定。
+* [eclair](https://github.com/ACINQ/eclair)
+  * [Eclair v0.2-alpha10]((https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar))
+* [ptarmigan](https://github.com/nayutaco/ptarmigan)
+  * tag 2018-03-13
+  * ptarmiganバージョンアップでDBの変更が行われた場合、DBクリーン(`rm -rf dbucoin`)が必要となる。  
 
 ----
 
@@ -20,7 +20,7 @@
 
  1. bitcoinノード設定
 
- * [bitcoind]~/.bitcoin/bitcoin.conf
+* [bitcoind]~/.bitcoin/bitcoin.conf
 
 ```text
 rpcuser=bitcoinuser
@@ -40,6 +40,20 @@ eclair.api.password=xxxxx
 ```
 
 2. bitcoind起動
+
+* eclair + bitcoind v0.16
+
+```bash
+bitcoind -deprecatedrpc=addwitnessaddress -daemon
+```
+
+* eclair + bitcoind v0.15
+
+```bash
+bitcoind -daemon
+```
+
+* ptarmigan
 
 ```bash
 bitcoind -daemon
@@ -107,6 +121,8 @@ cd install/node
 
 9. [ptarm]Establish開始
 
+* eclair側の`bitcoind`がv0.16で、オプションに`-deprecatedrpc=addwitnessaddress`を指定しない場合、fundingが進まなくなる
+  * `~/.eclair/eclair.log`を確認
 * `feerate_per_kw`が違いすぎるというエラーが出た場合、`fund_yyyymmddhhmmss.conf`を変更する
   * 最終行に`feerate_per_kw=zzzzz`(zzzzzはエラーメッセージの`localFeeratePerKw`に近い値)を追加する
 
