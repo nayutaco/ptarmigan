@@ -255,9 +255,9 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
         assert(retval == 0);
         int ret;
 
-        ln_self_t   self;
-        memset(&self, 0, sizeof(self));
-        ret = ln_lmdb_self_load(&self, txn, dbi);
+        ln_self_t   *p_self = (ln_self_t *)malloc(sizeof(ln_self_t));
+        memset(p_self, 0, sizeof(ln_self_t));
+        ret = ln_lmdb_self_load(p_self, txn, dbi);
         if (ret == 0) {
             //p1: my node_id(送金元とmy node_idが不一致の場合はNULL), p2: target node_id
             //
@@ -266,12 +266,12 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
             //
 
             //p1が非NULL == my node_id
-            if ((self.short_channel_id != 0) && ((self.fund_flag & LN_FUNDFLAG_CLOSE) == 0)) {
+            if ((p_self->short_channel_id != 0) && ((p_self->fund_flag & LN_FUNDFLAG_CLOSE) == 0)) {
                 //チャネルは開設している && close処理をしていない
-                p2 = self.peer_node_id;
+                p2 = p_self->peer_node_id;
 
 #ifdef M_DEBUG
-                fprintf(fp_err, "self.short_channel_id: %" PRIx64 "\n", self.short_channel_id);
+                fprintf(fp_err, "p_self->short_channel_id: %" PRIx64 "\n", p_self->short_channel_id);
                 fprintf(fp_err, "p1= ");
                 dumpbin(p1, 33);
                 fprintf(fp_err, "p2= ");
@@ -279,7 +279,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
 #endif
                 mNodeNum++;
                 mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
-                mpNodes[mNodeNum - 1].short_channel_id = self.short_channel_id;
+                mpNodes[mNodeNum - 1].short_channel_id = p_self->short_channel_id;
                 if (memcmp(p1, p2, UCOIN_SZ_PUBKEY) > 0) {
                     const uint8_t *p = p1;
                     p1 = p2;
@@ -296,7 +296,8 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
             }
 
         }
-        ln_term(&self);
+        ln_term(p_self);
+        free(p_self);
         mdb_close(mdb_txn_env(txn), dbi);
     }
 }

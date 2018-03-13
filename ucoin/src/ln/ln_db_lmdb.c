@@ -795,6 +795,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
         goto LABEL_EXIT;
     }
 
+    ln_self_t *p_self = (ln_self_t *)M_MALLOC(sizeof(ln_self_t));
     bool ret;
     MDB_val     key;
     char name[M_SZ_DBNAME_LEN + 1];
@@ -804,17 +805,15 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
             memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
             ret = mdb_dbi_open(cur.txn, name, 0, &cur.dbi);
             if (ret == 0) {
-                ln_self_t self;
-
-                memset(&self, 0, sizeof(self));
-                retval = ln_lmdb_self_load(&self, cur.txn, cur.dbi);
+                memset(p_self, 0, sizeof(ln_self_t));
+                retval = ln_lmdb_self_load(p_self, cur.txn, cur.dbi);
                 if (retval == 0) {
-                    result = (*pFunc)(&self, (void *)&cur, pFuncParam);
+                    result = (*pFunc)(p_self, (void *)&cur, pFuncParam);
                     if (result) {
                         DBG_PRINTF("match !\n");
                         break;
                     }
-                    ln_term(&self);     //falseのみ解放
+                    ln_term(p_self);     //falseのみ解放
                 } else {
                     DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
                 }
@@ -825,6 +824,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
     }
     mdb_cursor_close(cur.cursor);
     MDB_TXN_COMMIT(cur.txn);
+    M_FREE(p_self);
 
 LABEL_EXIT:
     return result;
