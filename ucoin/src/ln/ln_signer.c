@@ -40,3 +40,14 @@ void ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 }
 
 
+void ln_signer_term(ln_self_t *self)
+{
+    memset(self->storage_seed, 0, UCOIN_SZ_PRIVKEY);
+}
+
+
+void ln_signer_keys_update(ln_self_t *self, uint64_t Index)
+{
+    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, Index);
+    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+}

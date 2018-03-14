@@ -38,4 +38,10 @@
 
 void ln_signer_init(ln_self_t *self, const uint8_t *pSeed);
 
+
+void ln_signer_term(ln_self_t *self);
+
+
+void ln_signer_keys_update(ln_self_t *self, uint64_t Index);
+
 #endif /* LN_SIGNER_H__ */
