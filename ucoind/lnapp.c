@@ -1889,14 +1889,11 @@ static void cb_find_index_wif_req(lnapp_conf_t *p_conf, void *p_param)
     bool ret;
 
     //2-of-2の片方(wifはcommit_txの署名用)
-    char funding_addr[UCOIN_SZ_ADDR_MAX];
-    ret = btcprc_getnewaddress(funding_addr);
-    assert(ret);
-    fprintf(PRINTOUT, "fundingaddr %s\n", funding_addr);
+    uint8_t priv[UCOIN_SZ_PRIVKEY];
+    ucoin_util_createprivkey(priv);
 
     char wif[UCOIN_SZ_WIF_MAX];
-    ret = btcprc_dumpprivkey(wif, funding_addr);
-    assert(ret);
+    ucoin_keys_priv2wif(wif, priv);
 
     ret = ln_set_funding_wif(p_conf->p_self, wif);
     assert(ret);
