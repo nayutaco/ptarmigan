@@ -169,7 +169,7 @@ typedef enum {
     LN_CB_ERROR,                ///< エラー通知
     LN_CB_INIT_RECV,            ///< init受信通知
     LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
-    LN_CB_FINDINGWIF_REQ,       ///< funding鍵設定要求
+    LN_CB_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
     LN_CB_ESTABLISHED,          ///< Establish完了通知
     LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信通知
@@ -767,6 +767,15 @@ typedef struct {
  * typedefs : コールバック用
  **************************************************************************/
 
+/** @struct ln_cb_funding_sign_t
+ *  @brief  funding_tx署名要求(#LN_CB_SIGN_FUNDINGTX_REQ)
+ */
+typedef struct {
+    ucoin_tx_t              *p_tx;
+    bool                    ret;        //署名結果
+} ln_cb_funding_sign_t;
+
+
 /** @struct ln_cb_funding_t
  *  @brief  funding_tx安定待ち要求(#LN_CB_FUNDINGTX_WAIT) / Establish完了通知(#LN_CB_ESTABLISHED)
  */
@@ -1099,17 +1108,6 @@ const uint8_t* ln_get_genesishash(void);
  *      - pEstablishは接続完了まで保持すること
  */
 bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm);
-
-
-/** funding鍵設定
- *
- * @param[in,out]       self        channel情報
- * @param[in]           pWif        funding鍵
- * @retval      true    成功
- * @attention
- *      - コールバックで #LN_CB_FINDINGWIF_REQ が要求された場合のみ呼び出すこと
- */
-bool ln_set_funding_wif(ln_self_t *self, const char *pWif);
 
 
 /** short_channel_id情報設定

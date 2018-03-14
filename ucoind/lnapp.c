@@ -232,7 +232,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param);
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param);
-static void cb_find_index_wif_req(lnapp_conf_t *p_conf, void *p_param);
+static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param);
 static void cb_established(lnapp_conf_t *p_conf, void *p_param);
 static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -1793,7 +1793,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_ERROR,                ///< エラー通知
         //    LN_CB_INIT_RECV,            ///< init受信通知
         //    LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
-        //    LN_CB_FINDINGWIF_REQ,       ///< funding鍵設定要求
+        //    LN_CB_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
         //    LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
         //    LN_CB_ESTABLISHED,          ///< Establish完了通知
         //    LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信
@@ -1815,7 +1815,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_ERROR: エラー有り", cb_error_recv },
         { "  LN_CB_INIT_RECV: init受信", cb_init_recv },
         { "  LN_CB_REESTABLISH_RECV: channel_reestablish受信", cb_channel_reestablish_recv },
-        { "  LN_CB_FINDINGWIF_REQ: funding_tx WIF要求", cb_find_index_wif_req },
+        { "  LN_CB_SIGN_FUNDINGTX_REQ: funding_tx署名要求", cb_funding_tx_sign },
         { "  LN_CB_FUNDINGTX_WAIT: funding_tx confirmation待ち要求", cb_funding_tx_wait },
         { "  LN_CB_ESTABLISHED: Establish完了", cb_established },
         { NULL/*"  LN_CB_CHANNEL_ANNO_RECV: channel_announcement受信"*/, cb_channel_anno_recv },
@@ -1880,26 +1880,16 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_FINDINGWIF_REQ: WIF要求
-static void cb_find_index_wif_req(lnapp_conf_t *p_conf, void *p_param)
+//LN_CB_SIGN_FUNDINGTX_REQ: funding_tx署名要求
+static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_param;
-    DBGTRACE_BEGIN
+    ln_cb_funding_sign_t *p_sig = (ln_cb_funding_sign_t *)p_param;
 
-    bool ret;
-
-    //2-of-2の片方(wifはcommit_txの署名用)
-    uint8_t priv[UCOIN_SZ_PRIVKEY];
-    ucoin_util_createprivkey(priv);
-
-    char wif[UCOIN_SZ_WIF_MAX];
-    ucoin_keys_priv2wif(wif, priv);
-
-    ret = ln_set_funding_wif(p_conf->p_self, wif);
-    assert(ret);
-    memset(wif, 0, sizeof(wif));
-
-    DBGTRACE_END
+    ucoin_buf_t buf_tx;
+    ucoin_buf_init(&buf_tx);
+    ucoin_tx_create(&buf_tx, p_sig->p_tx);
+    p_sig->ret = btcprc_signraw_tx(p_sig->p_tx, buf_tx.buf, buf_tx.len);
+    ucoin_buf_free(&buf_tx);
 }
 
 
