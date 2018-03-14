@@ -360,6 +360,8 @@ static void optfunc_funding(int *pOption, bool *pConn)
 
 static void optfunc_invoice(int *pOption, bool *pConn)
 {
+    (void)pConn;
+
     M_CHK_INIT
 
     errno = 0;
@@ -375,7 +377,6 @@ static void optfunc_invoice(int *pOption, bool *pConn)
             "}",
                 amount);
 
-        *pConn = false;
         *pOption = M_OPTIONS_EXEC;
     } else {
         printf("fail: errno=%s\n", strerror(errno));
@@ -640,8 +641,6 @@ static void optfunc_debug(int *pOption, bool *pConn)
 
 static void optfunc_getcommittx(int *pOption, bool *pConn)
 {
-    (void)pConn;
-
     M_CHK_CONN
 
     snprintf(mBuf, BUFFER_SIZE,
@@ -654,6 +653,7 @@ static void optfunc_getcommittx(int *pOption, bool *pConn)
         "}",
             mPeerNodeId, mPeerAddr, mPeerPort);
 
+    *pConn = false;
     *pOption = M_OPTIONS_EXEC;
 }
 

@@ -61,4 +61,7 @@ void ln_signer_dec_index(ln_self_t *self);
 
 void ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
 
+
+void ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
+
 #endif /* LN_SIGNER_H__ */

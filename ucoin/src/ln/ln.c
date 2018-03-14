@@ -1468,12 +1468,9 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
         assert(memcmp(signkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
     } else {
         //<revocationsecretkey>
-        ln_derkey_revocationprivkey(signkey.priv,
-                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
+        ln_signer_get_revokesec(self, &signkey,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
-                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].priv,
                     self->revoked_sec.buf);
-        ucoin_keys_priv2pub(signkey.pub, signkey.priv);
     }
     //DBG_PRINTF("key-priv: ");
     //DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);

@@ -88,3 +88,14 @@ void ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int M
                 self->funding_local.keys[MsgFundIdx].priv);
     ucoin_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
+
+
+void ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
+{
+    ln_derkey_revocationprivkey(pKeys->priv,
+                self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
+                pPerCommit,
+                self->funding_local.keys[MSG_FUNDIDX_REVOCATION].priv,
+                pRevokedSec);
+    ucoin_keys_priv2pub(pKeys->pub, pKeys->priv);
+}
