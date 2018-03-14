@@ -1462,7 +1462,7 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
     }
     if (!bRevoked) {
         //<delayed_secretkey>
-        ln_signer_get_privkey(self, &signkey, MSG_FUNDIDX_DELAYED,
+        ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_DELAYED,
             self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
         assert(memcmp(signkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
@@ -1515,7 +1515,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     }
     //<remotesecretkey>
     //  revoked transaction close後はremotekeyも当時のものになっているため、同じ処理でよい
-    ln_signer_get_privkey(self, &signkey, MSG_FUNDIDX_PAYMENT,
+    ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_PAYMENT,
         self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     ucoin_keys_priv2pub(signkey.pub, signkey.priv);
@@ -3451,7 +3451,7 @@ static bool create_to_local(ln_self_t *self,
         //      secrethtlckey = basepoint_secret + SHA256(per_commitment_point || basepoint)
         ucoin_util_keys_t htlckey;
         if (pTxHtlcs != NULL) {
-            ln_signer_get_privkey(self, &htlckey, MSG_FUNDIDX_HTLC,
+            ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
                 self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub);
 
             assert(memcmp(htlckey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY], UCOIN_SZ_PUBKEY) == 0);
@@ -3821,7 +3821,7 @@ static bool create_to_remote(ln_self_t *self,
 
         //htlc_signature用鍵
         ucoin_util_keys_t htlckey;
-        ln_signer_get_privkey(self, &htlckey, MSG_FUNDIDX_HTLC,
+        ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
         for (int vout_idx = 0; vout_idx < tx_commit.vout_cnt; vout_idx++) {

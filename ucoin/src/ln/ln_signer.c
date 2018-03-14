@@ -80,7 +80,7 @@ void ln_signer_dec_index(ln_self_t *self)
 }
 
 
-void ln_signer_get_privkey(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
+void ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
 {
     ln_derkey_privkey(pKeys->priv,
                 self->funding_local.keys[MsgFundIdx].pub,
