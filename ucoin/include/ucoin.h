@@ -1185,6 +1185,13 @@ void ucoin_util_random(uint8_t *pData, uint16_t Len);
 bool ucoin_util_wif2keys(ucoin_util_keys_t *pKeys, ucoin_chain_t *pChain, const char *pWifPriv);
 
 
+/** 乱数での秘密鍵生成
+ *
+ * @param[out]      pPriv           秘密鍵
+ */
+void ucoin_util_createprivkey(uint8_t *pPriv);
+
+
 /** 乱数での鍵生成
  *
  * @param[out]      pKeys           鍵情報

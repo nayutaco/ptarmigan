@@ -4043,10 +4043,7 @@ static bool create_channelkeys(ln_self_t *self)
     //  open_channel/accept_channelの鍵は update_percommit_secret()で生成
     for (int lp = MSG_FUNDIDX_REVOCATION; lp < LN_FUNDIDX_MAX; lp++) {
         if (lp != MSG_FUNDIDX_PER_COMMIT) {
-            do {
-                ucoin_util_random(self->funding_local.keys[lp].priv, UCOIN_SZ_PRIVKEY);
-            } while (!ucoin_keys_chkpriv(self->funding_local.keys[lp].priv));
-            ucoin_keys_priv2pub(self->funding_local.keys[lp].pub, self->funding_local.keys[lp].priv);
+            ucoin_util_createkeys(&self->funding_local.keys[lp]);
         }
     }
     ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);

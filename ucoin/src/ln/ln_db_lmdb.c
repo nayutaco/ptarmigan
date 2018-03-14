@@ -491,9 +491,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         //      port : 指定された値
         DBG_PRINTF("create node DB\n");
         uint8_t priv[UCOIN_SZ_PRIVKEY];
-        do {
-            ucoin_util_random(priv, UCOIN_SZ_PRIVKEY);
-        } while (!ucoin_keys_chkpriv(priv));
+        ucoin_util_createprivkey(priv);
         ucoin_keys_priv2wif(pWif, priv);
 
         char nodename[LN_SZ_ALIAS];
