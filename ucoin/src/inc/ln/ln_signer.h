@@ -53,9 +53,12 @@ void ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
  * @param[in,out]   self            チャネル情報
  * @param[out]      pSecret         1つ前のper_commit_secret
  */
-void ln_signer_get_prevkey(ln_self_t *self, uint8_t *pSecret);
+void ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret);
 
 
 void ln_signer_dec_index(ln_self_t *self);
+
+
+void ln_signer_get_privkey(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
 
 #endif /* LN_SIGNER_H__ */

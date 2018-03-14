@@ -62,7 +62,7 @@ void ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 }
 
 
-void ln_signer_get_prevkey(ln_self_t *self, uint8_t *pSecret)
+void ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
 {
     //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
     //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
@@ -77,4 +77,14 @@ void ln_signer_get_prevkey(ln_self_t *self, uint8_t *pSecret)
 void ln_signer_dec_index(ln_self_t *self)
 {
     self->storage_index--;
+}
+
+
+void ln_signer_get_privkey(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
+{
+    ln_derkey_privkey(pKeys->priv,
+                self->funding_local.keys[MsgFundIdx].pub,
+                pPerCommit,
+                self->funding_local.keys[MsgFundIdx].priv);
+    ucoin_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
