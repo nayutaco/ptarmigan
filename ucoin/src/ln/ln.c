@@ -181,7 +181,6 @@ static bool create_channelkeys(ln_self_t *self);
 static bool create_local_channel_announcement(ln_self_t *self);
 static void update_percommit_secret(ln_self_t *self);
 static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
-static void get_prev_percommit_secret(ln_self_t *self, uint8_t *p_prev_secret);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 static void proc_established(ln_self_t *self);
 static void proc_announce_sigsed(ln_self_t *self);
@@ -2842,7 +2841,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     DBG_PRINTF("self->commit_num=%" PRIx64 "\n", self->commit_num);
 
     uint8_t prev_secret[UCOIN_SZ_PRIVKEY];
-    get_prev_percommit_secret(self, prev_secret);
+    ln_signer_get_prevkey(self, prev_secret);
 
     //per-commit-secret更新
     update_percommit_secret(self);
@@ -4134,23 +4133,6 @@ static void update_percommit_secret(ln_self_t *self)
 
     //DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-}
-
-
-/** 1つ前のper_commit_secret取得
- *
- * @param[in,out]   self            チャネル情報
- * @param[out]      p_prev_secret   1つ前のper_commit_secret
- */
-static void get_prev_percommit_secret(ln_self_t *self, uint8_t *p_prev_secret)
-{
-    //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
-    //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
-    //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
-    ln_derkey_create_secret(p_prev_secret, self->storage_seed, self->storage_index + 2);
-
-    DBG_PRINTF("prev self->storage_index = %" PRIx64 "\n", self->storage_index + 2);
-    DUMPBIN(p_prev_secret, UCOIN_SZ_PRIVKEY);
 }
 
 

@@ -51,3 +51,15 @@ void ln_signer_keys_update(ln_self_t *self, uint64_t Index)
     ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, Index);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
 }
+
+
+void ln_signer_get_prevkey(ln_self_t *self, uint8_t *pSecret)
+{
+    //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
+    //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
+    //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
+    ln_derkey_create_secret(pSecret, self->storage_seed, self->storage_index + 2);
+
+    DBG_PRINTF("prev self->storage_index = %" PRIx64 "\n", self->storage_index + 2);
+    DUMPBIN(pSecret, UCOIN_SZ_PRIVKEY);
+}

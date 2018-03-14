@@ -44,4 +44,12 @@ void ln_signer_term(ln_self_t *self);
 
 void ln_signer_keys_update(ln_self_t *self, uint64_t Index);
 
+
+/** 1つ前のper_commit_secret取得
+ *
+ * @param[in,out]   self            チャネル情報
+ * @param[out]      pSecret         1つ前のper_commit_secret
+ */
+void ln_signer_get_prevkey(ln_self_t *self, uint8_t *pSecret);
+
 #endif /* LN_SIGNER_H__ */
