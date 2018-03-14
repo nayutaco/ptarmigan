@@ -924,10 +924,9 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     //local
     //  storage_seedは、次回送信するnext_per_commitment_secret用の値が入っている。
-    //  現在のnext_per_commitment_secret用の値は storage_index+1。
-    //  現在のper_commitment_secret用の値は、storage_index+2 となる。
-    //DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    ln_signer_keys_update(self, self->storage_index + 1 + flocked);
+    //  現在のnext_per_commitment_secret用の値は index+1。
+    //  現在のper_commitment_secret用の値は、index+2 となる。
+    ln_signer_keys_update(self, 1 + flocked);
     //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
     //remote
     //DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
@@ -975,8 +974,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     //  単なる確認用。
 
     //local
-    //DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    ln_signer_keys_update(self, self->storage_index + 2);
+    ln_signer_keys_update(self, 2);
     //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
 
     //remote
@@ -1069,7 +1067,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     //DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //local per_commitment_secretの復元
-    ln_signer_keys_update(self, (uint64_t)(LN_SECINDEX_INIT - commit_num));
+    ln_signer_keys_update_force(self, (uint64_t)(LN_SECINDEX_INIT - commit_num));
 
     //鍵の復元
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -4125,13 +4123,10 @@ static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_
  */
 static void update_percommit_secret(ln_self_t *self)
 {
-    ln_signer_keys_update(self, self->storage_index);
-    // DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
-    // DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, UCOIN_SZ_PRIVKEY);
+    ln_signer_keys_update(self, 0);
 
-    self->storage_index--;
+    ln_signer_dec_index(self);
 
-    //DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 }
 

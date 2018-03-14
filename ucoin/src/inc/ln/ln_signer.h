@@ -42,7 +42,10 @@ void ln_signer_init(ln_self_t *self, const uint8_t *pSeed);
 void ln_signer_term(ln_self_t *self);
 
 
-void ln_signer_keys_update(ln_self_t *self, uint64_t Index);
+void ln_signer_keys_update(ln_self_t *self, int64_t Offset);
+
+
+void ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
 
 
 /** 1つ前のper_commit_secret取得
@@ -51,5 +54,8 @@ void ln_signer_keys_update(ln_self_t *self, uint64_t Index);
  * @param[out]      pSecret         1つ前のper_commit_secret
  */
 void ln_signer_get_prevkey(ln_self_t *self, uint8_t *pSecret);
+
+
+void ln_signer_dec_index(ln_self_t *self);
 
 #endif /* LN_SIGNER_H__ */
