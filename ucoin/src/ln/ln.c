@@ -39,6 +39,7 @@
 #include "ln/ln_msg_anno.h"
 #include "ln/ln_node.h"
 #include "ln/ln_enc_auth.h"
+#include "ln/ln_signer.h"
 
 //#define M_DBG_VERBOSE
 
@@ -88,9 +89,6 @@
 #define M_HTLCCHG_NONE                          (0)
 #define M_HTLCCHG_FF_SEND                       (1)
 #define M_HTLCCHG_FF_RECV                       (2)
-
-#define M_SECINDEX_INIT     ((uint64_t)0xffffffffffff)      ///< per-commitment secret生成用indexの初期値
-                                                            ///< https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#per-commitment-secret-requirements
 
 // ln_self_t.init_flag
 #define M_INIT_FLAG_SEND                    (0x01)
@@ -287,12 +285,8 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     DBG_PRINTF("fee_prop_millionths=%" PRIu32 "\n", self->anno_prm.fee_prop_millionths);
 
     //seed
-    self->storage_index = M_SECINDEX_INIT;
-    self->peer_storage_index = M_SECINDEX_INIT;
-    if (pSeed) {
-        memcpy(self->storage_seed, pSeed, LN_SZ_SEED);
-        ln_derkey_storage_init(&self->peer_storage);
-    }
+    ln_signer_init(self, pSeed);
+    self->peer_storage_index = LN_SECINDEX_INIT;
 
     DBG_PRINTF("END\n");
 
@@ -1069,7 +1063,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
 
     //remote per_commitment_secretの復元
     ucoin_buf_alloc(&self->revoked_sec, UCOIN_SZ_PRIVKEY);
-    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(M_SECINDEX_INIT - commit_num));
+    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(LN_SECINDEX_INIT - commit_num));
     assert(ret);
     ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
     //DBG_PRINTF2("  pri:");
@@ -1078,7 +1072,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     //DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //local per_commitment_secretの復元
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, (uint64_t)(M_SECINDEX_INIT - commit_num));
+    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, (uint64_t)(LN_SECINDEX_INIT - commit_num));
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
 
     //鍵の復元
@@ -4185,7 +4179,7 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
         ln_db_self_save(self);
         DBG_PRINTF("I=%" PRIx64 " --> %" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
 
-        //for (uint64_t idx = M_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
+        //for (uint64_t idx = LN_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
         //    DBG_PRINTF("I=%" PRIx64 "\n", idx);
         //    DBG_PRINTF2("  ");
         //    uint8_t sec[UCOIN_SZ_PRIVKEY];
