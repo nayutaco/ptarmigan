@@ -2942,9 +2942,8 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         goto LABEL_EXIT;
     }
 
-    uint32_t fee_per_kw = self->feerate_per_kw;
+    DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
     self->feerate_per_kw = upfee.feerate_per_kw;
-    DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", fee_per_kw, upfee.feerate_per_kw);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");
