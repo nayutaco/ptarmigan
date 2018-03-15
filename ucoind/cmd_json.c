@@ -40,8 +40,6 @@
 #include "p2p_cli.h"
 #include "lnapp.h"
 #include "monitoring.h"
-#include "ln_db_lmdb.h"
-#include "segwit_addr.h"
 
 
 /********************************************************************
@@ -486,30 +484,16 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     ln_calc_preimage_hash(preimage_hash, preimage);
 
     misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
-    DBG_PRINTF("preimage=")
-    DUMPBIN(preimage, LN_SZ_PREIMAGE);
-    DBG_PRINTF("hash=")
-    DUMPBIN(preimage_hash, LN_SZ_HASH);
+    // DBG_PRINTF("preimage=")
+    // DUMPBIN(preimage, LN_SZ_PREIMAGE);
+    // DBG_PRINTF("hash=")
+    // DUMPBIN(preimage_hash, LN_SZ_HASH);
     cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
     cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
     ucoind_preimage_unlock();
 
-    const ucoin_util_keys_t *p_keys = ucoind_nodekeys();
-    ln_invoice_t invoice_data;
-#ifndef NETKIND
-#error not define NETKIND
-#endif
-#if NETKIND==0
-    invoice_data.hrp_type = LN_INVOICE_MAINNET;
-#elif NETKIND==1
-    invoice_data.hrp_type = LN_INVOICE_TESTNET;
-#endif
-    invoice_data.amount_msat = amount;
-    invoice_data.min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
-    memcpy(invoice_data.pubkey, p_keys->pub, UCOIN_SZ_PUBKEY);
-    memcpy(invoice_data.payment_hash, preimage_hash, LN_SZ_HASH);
     char *p_invoice = NULL;
-    bool ret = ln_invoice_encode(&p_invoice, &invoice_data, p_keys->priv);
+    bool ret = ln_signer_create_invoice(&p_invoice, preimage_hash, amount);
     if (ret) {
         cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
     } else {

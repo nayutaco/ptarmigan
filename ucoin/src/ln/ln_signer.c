@@ -26,12 +26,40 @@
 #include "ln_signer.h"
 #include "ln_derkey.h"
 
+#include "segwit_addr.h"
+
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-void ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
+bool ln_signer_create_invoice(char **ppInvoice, const uint8_t *pPayHash, uint64_t Amount)
+{
+    const ln_node_t * p_node = ln_node_get();
+    ln_invoice_t invoice_data;
+
+#ifndef NETKIND
+#error not define NETKIND
+#endif
+#if NETKIND==0
+    invoice_data.hrp_type = LN_INVOICE_MAINNET;
+#elif NETKIND==1
+    invoice_data.hrp_type = LN_INVOICE_TESTNET;
+#endif
+    invoice_data.amount_msat = Amount;
+    invoice_data.min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
+    memcpy(invoice_data.pubkey, p_node->keys.pub, UCOIN_SZ_PUBKEY);
+    memcpy(invoice_data.payment_hash, pPayHash, LN_SZ_HASH);
+    bool ret = ln_invoice_encode(ppInvoice, &invoice_data, p_node->keys.priv);
+    return ret;
+}
+
+
+/**************************************************************************
+ * library functions
+ **************************************************************************/
+
+void HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 {
     self->storage_index = LN_SECINDEX_INIT;
     if (pSeed) {
@@ -41,19 +69,19 @@ void ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 }
 
 
-void ln_signer_term(ln_self_t *self)
+void HIDDEN ln_signer_term(ln_self_t *self)
 {
     memset(self->storage_seed, 0, UCOIN_SZ_PRIVKEY);
 }
 
 
-void ln_signer_keys_update(ln_self_t *self, int64_t Offset)
+void HIDDEN ln_signer_keys_update(ln_self_t *self, int64_t Offset)
 {
     ln_signer_keys_update_force(self, self->storage_index + Offset);
 }
 
 
-void ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
+void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 {
     ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, Index);
     ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
@@ -63,7 +91,7 @@ void ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 }
 
 
-void ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
+void HIDDEN ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
 {
     //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
     //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
@@ -75,13 +103,13 @@ void ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
 }
 
 
-void ln_signer_dec_index(ln_self_t *self)
+void HIDDEN ln_signer_dec_index(ln_self_t *self)
 {
     self->storage_index--;
 }
 
 
-void ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
+void HIDDEN ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
 {
     ln_derkey_privkey(pKeys->priv,
                 self->funding_local.keys[MsgFundIdx].pub,
@@ -91,7 +119,7 @@ void ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int M
 }
 
 
-void ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
+void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
 {
     ln_derkey_revocationprivkey(pKeys->priv,
                 self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
@@ -102,7 +130,7 @@ void ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, co
 }
 
 
-bool ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
+bool HIDDEN ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
 {
     return ucoin_tx_sign(pSig, pTxHash, pKeys->priv);
 }

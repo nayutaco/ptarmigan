@@ -2019,6 +2019,19 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
             const ucoin_buf_t *pSharedSecrets,
             const ucoin_buf_t *pPacket);
 
+/********************************************************************
+ * signer
+ ********************************************************************/
+
+/** BOLT11 形式invoice作成
+ * 
+ * @param[out]      ppInvoice
+ * @param[in]       pPayHash
+ * @param[in]       Amount
+ * @retval      true        成功
+ */
+bool ln_signer_create_invoice(char **ppInvoice, const uint8_t *pPayHash, uint64_t Amount);
+
 
 /********************************************************************
  * デバッグ

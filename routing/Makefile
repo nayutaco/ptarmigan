@@ -2,7 +2,7 @@ SRC = routing.cpp
 OBJ = routing
 CFLAGS = -I../include -I../ucoin/include -I../libs/install/include -I../ucoin/libs/install/include
 LDFLAGS = -L../libs/install/lib -L../ucoin/libs/install/lib -L../ucoin
-LDFLAGS += -linih -llmdb -lucoin -lsodium -lbase58 -lmbedcrypto -pthread
+LDFLAGS += -linih -llmdb -lucoin -lsodium -lbase58 -lmbedcrypto -lbech32 -pthread
 
 all: routing
 
