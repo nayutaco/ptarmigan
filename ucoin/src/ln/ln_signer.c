@@ -24,6 +24,7 @@
  *  @author ueno@nayuta.co
  */
 #include "ln_signer.h"
+#include "ln_derkey.h"
 
 
 /**************************************************************************
@@ -98,4 +99,45 @@ void ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, co
                 self->funding_local.keys[MSG_FUNDIDX_REVOCATION].priv,
                 pRevokedSec);
     ucoin_keys_priv2pub(pKeys->pub, pKeys->priv);
+}
+
+
+bool ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
+{
+    return ucoin_tx_sign(pSig, pTxHash, pKeys->priv);
+}
+
+
+/** P2WPKH署名
+ *
+ * @param[out]      pTx
+ * @param[in]       Index
+ * @param[in]       Value
+ * @param[in]       pKeys
+ * @return      true:成功
+ * @note
+ *      - #ucoin_init()の設定で署名する
+ */
+bool HIDDEN ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys)
+{
+    bool ret;
+    uint8_t txhash[UCOIN_SZ_HASH256];
+    ucoin_buf_t sigbuf;
+    ucoin_buf_t script_code;
+
+    ucoin_buf_init(&script_code);
+    ucoin_buf_init(&sigbuf);
+    ucoin_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
+
+    ucoin_sw_sighash(txhash, pTx, Index, Value, &script_code);
+    ret = ucoin_tx_sign(&sigbuf, txhash, pKeys->priv);
+    if (ret) {
+        //mNativeSegwitがfalseの場合はscriptSigへの追加も行う
+        ucoin_sw_set_vin_p2wpkh(pTx, Index, &sigbuf, pKeys->pub);
+    }
+
+    ucoin_buf_free(&sigbuf);
+    ucoin_buf_free(&script_code);
+
+    return ret;
 }

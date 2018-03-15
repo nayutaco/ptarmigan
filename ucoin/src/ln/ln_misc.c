@@ -29,6 +29,7 @@
 #include <unistd.h>
 
 #include "ln_misc.h"
+#include "ln_derkey.h"
 
 
 /********************************************************************

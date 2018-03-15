@@ -31,15 +31,18 @@
 #include <assert.h>
 
 #include "ln_db.h"
-#include "ln/ln_misc.h"
-#include "ln/ln_msg_setupctl.h"
-#include "ln/ln_msg_establish.h"
-#include "ln/ln_msg_close.h"
-#include "ln/ln_msg_normalope.h"
-#include "ln/ln_msg_anno.h"
-#include "ln/ln_node.h"
-#include "ln/ln_enc_auth.h"
-#include "ln/ln_signer.h"
+#include "ln_misc.h"
+#include "ln_msg_setupctl.h"
+#include "ln_msg_establish.h"
+#include "ln_msg_close.h"
+#include "ln_msg_normalope.h"
+#include "ln_msg_anno.h"
+#include "ln_node.h"
+#include "ln_enc_auth.h"
+#include "ln_onion.h"
+#include "ln_script.h"
+#include "ln_derkey.h"
+#include "ln_signer.h"
 
 //#define M_DBG_VERBOSE
 
@@ -192,7 +195,6 @@ static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 static void close_alloc(ln_close_force_t *pClose, int Num);
 static void free_establish(ln_self_t *self);
 static ucoin_keys_sort_t sort_nodeid(ln_self_t *self);
-static bool sign_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys);
 
 
 /**************************************************************************
@@ -1511,7 +1513,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     //DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
     //vinは1つしかない
-    ret = sign_p2wpkh(pTx, 0, Value, &signkey);
+    ret = ln_signer_p2wpkh(pTx, 0, Value, &signkey);
 
 LABEL_EXIT:
     return ret;
@@ -3263,11 +3265,11 @@ static bool create_funding_tx(ln_self_t *self)
     (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
     ret = sig.ret;
 #else
-    sign_p2wpkh(&self->tx_funding, self->funding_local.txindex,
+    ln_signer_p2wpkh(&self->tx_funding, self->funding_local.txindex,
             self->p_establish->p_fundin->amount, &self->p_establish->p_fundin->keys);
     if (!self->p_establish->p_fundin->b_native) {
         // lnでは必ずnative設定がtrueになっている。
-        // そのため、 #sign_p2wpkh() で署名するとscriptSigは空になる。
+        // そのため、 #ln_signer_p2wpkh() で署名するとscriptSigは空になる。
         // もしINPUTのトランザクションが非Nativeだった場合、自力でscriptSigを作成する
         ucoin_vin_t *vin = &self->tx_funding.vin[self->funding_local.txindex];
         ucoin_buf_t *p_buf = &vin->script;
@@ -3967,9 +3969,9 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
     //署名
     uint8_t sighash[UCOIN_SZ_SIGHASH];
     ucoin_util_sign_p2wsh_1(sighash, pTx, 0, self->funding_sat, &self->redeem_fund);
-    ret = ucoin_util_sign_p2wsh_2(&buf_sig, sighash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
+    ret = ln_signer_p2wsh_2(&buf_sig, sighash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
     if (!ret) {
-        DBG_PRINTF("fail: ucoin_util_sign_p2wsh_2\n");
+        DBG_PRINTF("fail: ln_signer_p2wsh_2\n");
         ucoin_tx_free(pTx);
         return false;
     }
@@ -4338,39 +4340,4 @@ static ucoin_keys_sort_t sort_nodeid(ln_self_t *self)
     }
 
     return sort;
-}
-
-
-/** P2WPKH署名
- *
- * @param[out]      pTx
- * @param[in]       Index
- * @param[in]       Value
- * @param[in]       pKeys
- * @return      true:成功
- * @note
- *      - #ucoin_init()の設定で署名する
- */
-static bool sign_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys)
-{
-    bool ret;
-    uint8_t txhash[UCOIN_SZ_HASH256];
-    ucoin_buf_t sigbuf;
-    ucoin_buf_t script_code;
-
-    ucoin_buf_init(&script_code);
-    ucoin_buf_init(&sigbuf);
-    ucoin_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
-
-    ucoin_sw_sighash(txhash, pTx, Index, Value, &script_code);
-    ret = ucoin_tx_sign(&sigbuf, txhash, pKeys->priv);
-    if (ret) {
-        //mNativeSegwitがfalseの場合はscriptSigへの追加も行う
-        ucoin_sw_set_vin_p2wpkh(pTx, Index, &sigbuf, pKeys->pub);
-    }
-
-    ucoin_buf_free(&sigbuf);
-    ucoin_buf_free(&script_code);
-
-    return ret;
 }

@@ -25,7 +25,8 @@
  */
 #include <inttypes.h>
 
-#include "ln_local.h"
+#include "ln_script.h"
+#include "ln_signer.h"
 
 //#define M_DBG_VERBOSE
 
@@ -167,7 +168,7 @@ bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig,
     //vinは1つしかないので、Indexは0固定
     ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
 
-    ret = ucoin_util_sign_p2wsh_2(pSig, sighash, pKeys);
+    ret = ln_signer_p2wsh_2(pSig, sighash, pKeys);
     if (ret) {
         // <delayedsig>
         // 0
@@ -409,7 +410,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
     uint8_t txhash[UCOIN_SZ_SIGHASH];
     ucoin_util_sign_p2wsh_1(txhash, pTx, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
 
-    bool ret = ucoin_util_sign_p2wsh_2(pSig, txhash, pCmt->fund.p_keys);
+    bool ret = ln_signer_p2wsh_2(pSig, txhash, pCmt->fund.p_keys);
 
     return ret;
 }

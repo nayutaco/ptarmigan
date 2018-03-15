@@ -29,8 +29,8 @@
 
 #include "mbedtls/md.h"
 
-#include "ln/ln_local.h"
-#include "ln/ln_misc.h"
+#include "ln_onion.h"
+#include "ln_misc.h"
 
 
 /**************************************************************************

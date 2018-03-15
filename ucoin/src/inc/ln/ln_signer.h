@@ -64,4 +64,20 @@ void ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int M
 
 void ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
 
+
+/** P2WSH署名 - Phase2: 署名作成
+ *
+ * @param[out]      pSig
+ * @param[in]       pTxHash
+ * @param[in]       pKeys
+ * @return      true:成功
+ * @note
+ *      - #ucoin_util_sign_p2wsh_2()
+ *      - 中身は #ucoin_tx_sign()
+ */
+bool ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
+
+
+bool ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys);
+
 #endif /* LN_SIGNER_H__ */
