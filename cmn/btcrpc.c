@@ -693,7 +693,7 @@ LABEL_DECREF:
                     //一致
                     DBG_PRINTF("match: %s\n", txid);
                     ucoin_push_data(&push, &tx, sizeof(ucoin_tx_t));
-                    DBG_PRINTF("len=%d\n", pTxBuf->len);
+                    DBG_PRINTF("len=%u\n", pTxBuf->len);
                     ucoin_tx_init(&tx);     //freeさせない
                     ret = true;
                     break;

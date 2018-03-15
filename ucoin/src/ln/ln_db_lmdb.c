@@ -2544,7 +2544,7 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
-    void *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
+    uint8_t *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
@@ -2596,7 +2596,7 @@ static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
-    void *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
+    uint8_t *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
