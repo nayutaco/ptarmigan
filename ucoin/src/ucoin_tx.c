@@ -616,7 +616,7 @@ LABEL_EXIT:
 }
 
 
-bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+bool ucoin_tx_sign_(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey)
 {
     int ret;
     bool bret;
@@ -660,7 +660,7 @@ LABEL_EXIT:
 }
 
 
-bool ucoin_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+bool ucoin_tx_sign_rs_(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey)
 {
     int ret;
     mbedtls_mpi r, s;
