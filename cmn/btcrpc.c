@@ -76,6 +76,7 @@ typedef struct {
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
 static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid);
 static bool getrawtransaction_rpc(char *pJson, const char *pTxid, bool detail);
+static bool signrawtransaction_rpc(char *pJson, const char *pTransaction);
 static bool sendrawtransaction_rpc(char *pJson, const char *pTransaction);
 static bool gettxout_rpc(char *pJson, const char *pTxid, int idx);
 static bool getblock_rpc(char *pJson, const char *pBlock);
@@ -83,7 +84,7 @@ static bool getblockhash_rpc(char *pJson, int BHeight);
 static bool getblockcount_rpc(char *pJson);
 static bool getnewaddress_rpc(char *pJson);
 static bool estimatefee_rpc(char *pJson, int nBlock);
-static bool dumpprivkey_rpc(char *pJson, const char *pAddr);
+//static bool dumpprivkey_rpc(char *pJson, const char *pAddr);
 static int rpc_proc(CURL *curl, char *pJson, char *pData);
 static int error_result(json_t *p_root);
 
@@ -716,6 +717,68 @@ LABEL_EXIT:
 }
 
 
+bool btcprc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
+{
+    bool ret = false;
+    bool retval;
+    char *p_json;
+    char *transaction;
+
+    pthread_mutex_lock(&mMux);
+
+    transaction = (char *)APP_MALLOC(Len * 2 + 1);
+    misc_bin2str(transaction, pData, Len);
+
+    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
+    retval = signrawtransaction_rpc(p_json, transaction);
+DBG_PRINTF("%s\n", p_json);
+    APP_FREE(transaction);
+    if (retval) {
+        json_t *p_root;
+        json_t *p_result;
+        json_t *p_hex;
+        json_error_t error;
+
+        p_root = json_loads(p_json, 0, &error);
+        if (!p_root) {
+            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            goto LABEL_EXIT;
+        }
+
+        //これ以降は終了時に json_decref()で参照を減らすこと
+        p_result = json_object_get(p_root, M_RESULT);
+        if (!p_result) {
+            DBG_PRINTF("error: M_RESULT\n");
+            goto LABEL_DECREF;
+        }
+        p_hex = json_object_get(p_result, M_HEX);
+        if (json_is_string(p_hex)) {
+            const char *p_sigtx = (const char *)json_string_value(p_hex);
+            size_t len = strlen(p_sigtx) / 2;
+            uint8_t *p_buf = APP_MALLOC(len);
+            misc_str2bin(p_buf, len, p_sigtx);
+            ucoin_tx_free(pTx);
+            ret = ucoin_tx_read(pTx, p_buf, len);
+            APP_FREE(p_buf);
+        } else {
+            int code = error_result(p_root);
+            DBG_PRINTF("err code=%d\n", code);
+        }
+LABEL_DECREF:
+        json_decref(p_root);
+    } else {
+        DBG_PRINTF("fail: signrawtransaction_rpc()\n");
+    }
+
+LABEL_EXIT:
+    APP_FREE(p_json);
+
+    pthread_mutex_unlock(&mMux);
+
+    return ret;
+}
+
+
 bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len)
 {
     bool ret = false;
@@ -903,50 +966,50 @@ LABEL_EXIT:
 }
 
 
-bool btcprc_dumpprivkey(char *pWif, const char *pAddr)
-{
-    bool ret = false;
-    bool retval;
-    char *p_json;
+// bool btcprc_dumpprivkey(char *pWif, const char *pAddr)
+// {
+//     bool ret = false;
+//     bool retval;
+//     char *p_json;
 
-    pthread_mutex_lock(&mMux);
+//     pthread_mutex_lock(&mMux);
 
-    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
-    retval = dumpprivkey_rpc(p_json, pAddr);
-    if (retval) {
-        json_t *p_root;
-        json_t *p_result;
-        json_error_t error;
+//     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
+//     retval = dumpprivkey_rpc(p_json, pAddr);
+//     if (retval) {
+//         json_t *p_root;
+//         json_t *p_result;
+//         json_error_t error;
 
-        p_root = json_loads(p_json, 0, &error);
-        if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
-            goto LABEL_EXIT;
-        }
+//         p_root = json_loads(p_json, 0, &error);
+//         if (!p_root) {
+//             DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+//             goto LABEL_EXIT;
+//         }
 
-        //これ以降は終了時に json_decref()で参照を減らすこと
-        p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
-            goto LABEL_DECREF;
-        }
-        if (json_is_string(p_result)) {
-            strcpy(pWif,  (const char *)json_string_value(p_result));
-            ret = true;
-        }
-LABEL_DECREF:
-        json_decref(p_root);
-    } else {
-        DBG_PRINTF("fail: dumpprivkey_rpc()\n");
-    }
+//         //これ以降は終了時に json_decref()で参照を減らすこと
+//         p_result = json_object_get(p_root, M_RESULT);
+//         if (!p_result) {
+//             DBG_PRINTF("error: M_RESULT\n");
+//             goto LABEL_DECREF;
+//         }
+//         if (json_is_string(p_result)) {
+//             strcpy(pWif,  (const char *)json_string_value(p_result));
+//             ret = true;
+//         }
+// LABEL_DECREF:
+//         json_decref(p_root);
+//     } else {
+//         DBG_PRINTF("fail: dumpprivkey_rpc()\n");
+//     }
 
-LABEL_EXIT:
-    APP_FREE(p_json);
+// LABEL_EXIT:
+//     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
+//     pthread_mutex_unlock(&mMux);
 
-    return ret;
-}
+//     return ret;
+// }
 
 
 bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
@@ -1119,6 +1182,35 @@ static bool getrawtransaction_rpc(char *pJson, const char *pTxid, bool detail)
                 M_1("method", "getrawtransaction") M_NEXT
                 M_QQ("params") ":[" M_QQ("%s") ", %s]"
             "}", pTxid, (detail) ? "true" : "false");
+
+        retval = rpc_proc(curl, pJson, data);
+        APP_FREE(data);
+    }
+
+    return retval == 0;
+}
+
+
+/** [cURL]signrawtransaction
+ *
+ */
+static bool signrawtransaction_rpc(char *pJson, const char *pTransaction)
+{
+    int retval = -1;
+    CURL *curl = curl_easy_init();
+
+    if (curl) {
+        char *data = (char *)APP_MALLOC(BUFFER_SIZE);
+        snprintf(data, BUFFER_SIZE,
+            "{"
+                ///////////////////////////////////////////
+                M_1("jsonrpc", "1.0") M_NEXT
+                M_1("id", RPCID) M_NEXT
+
+                ///////////////////////////////////////////
+                M_1("method", "signrawtransaction") M_NEXT
+                M_QQ("params") ":[" M_QQ("%s") "]"
+            "}", pTransaction);
 
         retval = rpc_proc(curl, pJson, data);
         APP_FREE(data);
@@ -1319,29 +1411,29 @@ static bool estimatefee_rpc(char *pJson, int nBlock)
 /** [cURL]dumpprivkey
  *
  */
-static bool dumpprivkey_rpc(char *pJson, const char *pAddr)
-{
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+// static bool dumpprivkey_rpc(char *pJson, const char *pAddr)
+// {
+//     int retval = -1;
+//     CURL *curl = curl_easy_init();
 
-    if (curl) {
-        char data[512];
-        snprintf(data, sizeof(data),
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+//     if (curl) {
+//         char data[512];
+//         snprintf(data, sizeof(data),
+//             "{"
+//                 ///////////////////////////////////////////
+//                 M_1("jsonrpc", "1.0") M_NEXT
+//                 M_1("id", RPCID) M_NEXT
 
-                ///////////////////////////////////////////
-                M_1("method", "dumpprivkey") M_NEXT
-                M_QQ("params") ":[" M_QQ("%s") "]"
-            "}", pAddr);
+//                 ///////////////////////////////////////////
+//                 M_1("method", "dumpprivkey") M_NEXT
+//                 M_QQ("params") ":[" M_QQ("%s") "]"
+//             "}", pAddr);
 
-        retval = rpc_proc(curl, pJson, data);
-    }
+//         retval = rpc_proc(curl, pJson, data);
+//     }
 
-    return retval == 0;
-}
+//     return retval == 0;
+// }
 
 
 static int rpc_proc(CURL *curl, char *pJson, char *pData)

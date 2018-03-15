@@ -169,7 +169,7 @@ typedef enum {
     LN_CB_ERROR,                ///< エラー通知
     LN_CB_INIT_RECV,            ///< init受信通知
     LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
-    LN_CB_FINDINGWIF_REQ,       ///< funding鍵設定要求
+    LN_CB_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
     LN_CB_ESTABLISHED,          ///< Establish完了通知
     LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信通知
@@ -369,10 +369,7 @@ typedef struct {
     uint8_t                     txid[UCOIN_SZ_TXID];            ///< 2-of-2へ入金するTXID
     int32_t                     index;                          ///< 未設定時(channelを開かれる方)は-1
     uint64_t                    amount;                         ///< 2-of-2へ入金するtxのvout amount
-    uint8_t                     *p_change_pubkey;               ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
-    char                        *p_change_addr;                 ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
-    ucoin_util_keys_t           keys;                           ///< 2-of-2へ入金するtxの鍵(署名用)
-    bool                        b_native;                       ///< true:fundinがnative segwit output
+    char                        change_addr[UCOIN_SZ_ADDR_MAX]; ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
 } ln_fundin_t;
 
 
@@ -767,6 +764,15 @@ typedef struct {
  * typedefs : コールバック用
  **************************************************************************/
 
+/** @struct ln_cb_funding_sign_t
+ *  @brief  funding_tx署名要求(#LN_CB_SIGN_FUNDINGTX_REQ)
+ */
+typedef struct {
+    ucoin_tx_t              *p_tx;
+    bool                    ret;        //署名結果
+} ln_cb_funding_sign_t;
+
+
 /** @struct ln_cb_funding_t
  *  @brief  funding_tx安定待ち要求(#LN_CB_FUNDINGTX_WAIT) / Establish完了通知(#LN_CB_ESTABLISHED)
  */
@@ -1099,17 +1105,6 @@ const uint8_t* ln_get_genesishash(void);
  *      - pEstablishは接続完了まで保持すること
  */
 bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm);
-
-
-/** funding鍵設定
- *
- * @param[in,out]       self        channel情報
- * @param[in]           pWif        funding鍵
- * @retval      true    成功
- * @attention
- *      - コールバックで #LN_CB_FINDINGWIF_REQ が要求された場合のみ呼び出すこと
- */
-bool ln_set_funding_wif(ln_self_t *self, const char *pWif);
 
 
 /** short_channel_id情報設定

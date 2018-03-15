@@ -84,17 +84,17 @@ make distclean
 * [bitcoind](https://github.com/bitcoin/bitcoin)
   * bitcoin-cli
     * `getnewaddress`
-    * `addwitnessaddress`
+    * `addwitnessaddress` (bitcoind v0.15.x)
     * `sendtoaddress`
     * `gettxout`
   * JSON-RPC
     * `getblockcount`
     * `getrawtransaction`
+    * `signrawtransaction`
     * `sendrawtransaction`
     * `gettxout`
     * `getblock`
     * `getnewaddress`
-    * `dumpprivkey` (for funding)
     * `estimatesmartfee`
 
 ## Implement status

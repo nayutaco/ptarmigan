@@ -119,6 +119,9 @@ bool btcprc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid
 bool btcprc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout);
 
 
+bool btcprc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len);
+
+
 /** [bitcoin rpc]sendrawtransaction
  *
  * @param[out]  pTxid       取得したTXID(戻り値がtrue時)
@@ -169,6 +172,15 @@ bool btcprc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
 bool btcprc_getnewaddress(char *pAddr);
 
 
+/** [bitcoin rpc]dumpprivkey
+ *
+ * @param[out]  pWif        取得したWIF形式
+ * @param[in]   pAddr       アドレス
+ * @retval  true        取得成功
+ */
+//bool btcprc_dumpprivkey(char *pWif, const char *pAddr);
+
+
 /** [bitcoin rpc]estimatefee
  *
  * @param[out]  pFeeSatoshi estimated fee-per-kilobytes[satoshi]
@@ -176,14 +188,5 @@ bool btcprc_getnewaddress(char *pAddr);
  * @retval  true        取得成功
  */
 bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
-
-
-/** [bitcoin rpc]dumpprivkey
- *
- * @param[out]  pWif        取得したWIF形式
- * @param[in]   pAddr       アドレス
- * @retval  true        取得成功
- */
-bool btcprc_dumpprivkey(char *pWif, const char *pAddr);
 
 #endif /* BTCRPC_H__ */

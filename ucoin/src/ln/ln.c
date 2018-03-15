@@ -630,7 +630,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
         return false;
     }
 
-    //TODO: 仮チャネルID
+    //仮チャネルID
     ucoin_util_random(self->channel_id, LN_SZ_CHANNEL_ID);
 
     //鍵生成
@@ -640,19 +640,6 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
         DBG_PRINTF("fail: create_channelkeys\n");
         return false;
     }
-
-    //funding鍵設定要求
-    //アプリからの設定漏れがチェックできるように、funding鍵を0で初期化
-    memset(&self->funding_local.keys[MSG_FUNDIDX_FUNDING], 0, sizeof(self->funding_local.keys[MSG_FUNDIDX_FUNDING]));
-    (*self->p_callback)(self, LN_CB_FINDINGWIF_REQ, NULL);
-    ret = ucoin_keys_chkpriv(self->funding_local.keys[MSG_FUNDIDX_FUNDING].priv);
-    if (!ret) {
-        self->err = LNERR_INV_PRIVKEY;
-        DBG_PRINTF("fail: no funding key\n");
-        return false;
-    }
-
-    ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
 
     //funding_tx作成用に保持
     assert(self->p_establish->p_fundin == NULL);
@@ -1904,17 +1891,6 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         return false;
     }
 
-    //funding鍵設定要求
-    //アプリからの設定漏れがチェックできるように、funding鍵を0で初期化
-    memset(&self->funding_local.keys[MSG_FUNDIDX_FUNDING], 0, sizeof(self->funding_local.keys[MSG_FUNDIDX_FUNDING]));
-    (*self->p_callback)(self, LN_CB_FINDINGWIF_REQ, NULL);
-    ret = ucoin_keys_chkpriv(self->funding_local.keys[MSG_FUNDIDX_FUNDING].priv);
-    if (!ret) {
-        self->err = LNERR_INV_PRIVKEY;
-        DBG_PRINTF("fail: no funding key\n");
-        return false;
-    }
-
     //スクリプト用鍵生成
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
@@ -2966,9 +2942,8 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         goto LABEL_EXIT;
     }
 
-    uint32_t fee_per_kw = self->feerate_per_kw;
+    DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
     self->feerate_per_kw = upfee.feerate_per_kw;
-    DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", fee_per_kw, upfee.feerate_per_kw);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");
@@ -3252,18 +3227,7 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
 
     //vout#1:P2WPKH - change(amountは後で代入)
-    if (self->p_establish->p_fundin->p_change_pubkey != NULL) {
-        ucoin_sw_add_vout_p2wpkh_pub(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->p_change_pubkey);
-        free(self->p_establish->p_fundin->p_change_pubkey);       //APP
-        self->p_establish->p_fundin->p_change_pubkey = NULL;
-    } else if (self->p_establish->p_fundin->p_change_addr != NULL) {
-        ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->p_change_addr);
-        free(self->p_establish->p_fundin->p_change_addr);         //APP
-        self->p_establish->p_fundin->p_change_addr = NULL;
-    } else {
-        DBG_PRINTF("fail: no change address\n");
-        return false;
-    }
+    ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->change_addr);
 
     //input
     //vin#0
@@ -3289,9 +3253,16 @@ static bool create_funding_tx(ln_self_t *self)
         return false;
     }
     ucoin_buf_free(&txbuf);
+    self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
 
     //署名
-    self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
+    bool ret;
+#if 1
+    ln_cb_funding_sign_t sig;
+    sig.p_tx =  &self->tx_funding;
+    (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
+    ret = sig.ret;
+#else
     sign_p2wpkh(&self->tx_funding, self->funding_local.txindex,
             self->p_establish->p_fundin->amount, &self->p_establish->p_fundin->keys);
     if (!self->p_establish->p_fundin->b_native) {
@@ -3308,9 +3279,11 @@ static bool create_funding_tx(ln_self_t *self)
         p_buf->buf[2] = (uint8_t)UCOIN_SZ_PUBKEYHASH;
         ucoin_util_hash160(&p_buf->buf[3], self->p_establish->p_fundin->keys.pub, UCOIN_SZ_PUBKEY);
     }
+    ret = true;
+#endif
     ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
 
-    return true;
+    return ret;
 }
 
 
@@ -4042,7 +4015,7 @@ static bool create_channelkeys(ln_self_t *self)
 {
     //鍵生成
     //  open_channel/accept_channelの鍵は update_percommit_secret()で生成
-    for (int lp = MSG_FUNDIDX_REVOCATION; lp < LN_FUNDIDX_MAX; lp++) {
+    for (int lp = MSG_FUNDIDX_FUNDING; lp < LN_FUNDIDX_MAX; lp++) {
         if (lp != MSG_FUNDIDX_PER_COMMIT) {
             ucoin_util_createkeys(&self->funding_local.keys[lp]);
         }
@@ -4338,8 +4311,6 @@ static void free_establish(ln_self_t *self)
 {
     if (self->p_establish != NULL) {
         if (self->p_establish->p_fundin != NULL) {
-            free(self->p_establish->p_fundin->p_change_pubkey);       //APP
-            free(self->p_establish->p_fundin->p_change_addr);         //APP
             M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
         }
         M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
