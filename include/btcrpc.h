@@ -178,7 +178,7 @@ bool btcprc_getnewaddress(char *pAddr);
  * @param[in]   pAddr       アドレス
  * @retval  true        取得成功
  */
-bool btcprc_dumpprivkey(char *pWif, const char *pAddr);
+//bool btcprc_dumpprivkey(char *pWif, const char *pAddr);
 
 
 /** [bitcoin rpc]estimatefee

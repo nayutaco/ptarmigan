@@ -84,7 +84,7 @@ static bool getblockhash_rpc(char *pJson, int BHeight);
 static bool getblockcount_rpc(char *pJson);
 static bool getnewaddress_rpc(char *pJson);
 static bool estimatefee_rpc(char *pJson, int nBlock);
-static bool dumpprivkey_rpc(char *pJson, const char *pAddr);
+//static bool dumpprivkey_rpc(char *pJson, const char *pAddr);
 static int rpc_proc(CURL *curl, char *pJson, char *pData);
 static int error_result(json_t *p_root);
 
@@ -966,50 +966,50 @@ LABEL_EXIT:
 }
 
 
-bool btcprc_dumpprivkey(char *pWif, const char *pAddr)
-{
-    bool ret = false;
-    bool retval;
-    char *p_json;
+// bool btcprc_dumpprivkey(char *pWif, const char *pAddr)
+// {
+//     bool ret = false;
+//     bool retval;
+//     char *p_json;
 
-    pthread_mutex_lock(&mMux);
+//     pthread_mutex_lock(&mMux);
 
-    p_json = (char *)APP_MALLOC(BUFFER_SIZE);
-    retval = dumpprivkey_rpc(p_json, pAddr);
-    if (retval) {
-        json_t *p_root;
-        json_t *p_result;
-        json_error_t error;
+//     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
+//     retval = dumpprivkey_rpc(p_json, pAddr);
+//     if (retval) {
+//         json_t *p_root;
+//         json_t *p_result;
+//         json_error_t error;
 
-        p_root = json_loads(p_json, 0, &error);
-        if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
-            goto LABEL_EXIT;
-        }
+//         p_root = json_loads(p_json, 0, &error);
+//         if (!p_root) {
+//             DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+//             goto LABEL_EXIT;
+//         }
 
-        //これ以降は終了時に json_decref()で参照を減らすこと
-        p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
-            goto LABEL_DECREF;
-        }
-        if (json_is_string(p_result)) {
-            strcpy(pWif,  (const char *)json_string_value(p_result));
-            ret = true;
-        }
-LABEL_DECREF:
-        json_decref(p_root);
-    } else {
-        DBG_PRINTF("fail: dumpprivkey_rpc()\n");
-    }
+//         //これ以降は終了時に json_decref()で参照を減らすこと
+//         p_result = json_object_get(p_root, M_RESULT);
+//         if (!p_result) {
+//             DBG_PRINTF("error: M_RESULT\n");
+//             goto LABEL_DECREF;
+//         }
+//         if (json_is_string(p_result)) {
+//             strcpy(pWif,  (const char *)json_string_value(p_result));
+//             ret = true;
+//         }
+// LABEL_DECREF:
+//         json_decref(p_root);
+//     } else {
+//         DBG_PRINTF("fail: dumpprivkey_rpc()\n");
+//     }
 
-LABEL_EXIT:
-    APP_FREE(p_json);
+// LABEL_EXIT:
+//     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
+//     pthread_mutex_unlock(&mMux);
 
-    return ret;
-}
+//     return ret;
+// }
 
 
 bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
@@ -1411,29 +1411,29 @@ static bool estimatefee_rpc(char *pJson, int nBlock)
 /** [cURL]dumpprivkey
  *
  */
-static bool dumpprivkey_rpc(char *pJson, const char *pAddr)
-{
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+// static bool dumpprivkey_rpc(char *pJson, const char *pAddr)
+// {
+//     int retval = -1;
+//     CURL *curl = curl_easy_init();
 
-    if (curl) {
-        char data[512];
-        snprintf(data, sizeof(data),
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+//     if (curl) {
+//         char data[512];
+//         snprintf(data, sizeof(data),
+//             "{"
+//                 ///////////////////////////////////////////
+//                 M_1("jsonrpc", "1.0") M_NEXT
+//                 M_1("id", RPCID) M_NEXT
 
-                ///////////////////////////////////////////
-                M_1("method", "dumpprivkey") M_NEXT
-                M_QQ("params") ":[" M_QQ("%s") "]"
-            "}", pAddr);
+//                 ///////////////////////////////////////////
+//                 M_1("method", "dumpprivkey") M_NEXT
+//                 M_QQ("params") ":[" M_QQ("%s") "]"
+//             "}", pAddr);
 
-        retval = rpc_proc(curl, pJson, data);
-    }
+//         retval = rpc_proc(curl, pJson, data);
+//     }
 
-    return retval == 0;
-}
+//     return retval == 0;
+// }
 
 
 static int rpc_proc(CURL *curl, char *pJson, char *pData)

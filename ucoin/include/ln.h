@@ -369,10 +369,7 @@ typedef struct {
     uint8_t                     txid[UCOIN_SZ_TXID];            ///< 2-of-2へ入金するTXID
     int32_t                     index;                          ///< 未設定時(channelを開かれる方)は-1
     uint64_t                    amount;                         ///< 2-of-2へ入金するtxのvout amount
-    uint8_t                     *p_change_pubkey;               ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
-    char                        *p_change_addr;                 ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
-    ucoin_util_keys_t           keys;                           ///< 2-of-2へ入金するtxの鍵(署名用)
-    bool                        b_native;                       ///< true:fundinがnative segwit output
+    char                        change_addr[UCOIN_SZ_ADDR_MAX]; ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
 } ln_fundin_t;
 
 

@@ -1105,16 +1105,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     DBG_PRINTF("  push_sat: %" PRIu64 "\n", pFunding->push_sat);
 
     //open_channel
-    char wif[UCOIN_SZ_WIF_MAX];
-    char changeaddr[UCOIN_SZ_WSHADDR];
+    char changeaddr[UCOIN_SZ_ADDR_MAX];
     uint64_t fundin_sat;
 
-    bool ret = btcprc_dumpprivkey(wif, pFunding->signaddr);
-    if (ret) {
-        ret = btcprc_getnewaddress(changeaddr);
-    } else {
-        SYSLOG_ERR("%s(): btcprc_dumpprivkey", __func__);
-    }
+    bool ret = btcprc_getnewaddress(changeaddr);
     assert(ret);
 
     bool unspent = true;
@@ -1125,38 +1119,33 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         SYSLOG_ERR("%s(): btcprc_getnewaddress", __func__);
     }
     if (ret && unspent) {
-        uint64_t feerate;
+        uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
             //estimate fee
-            bool ret = btcprc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
-            //BOLT#2
-            //  feerate_per_kw indicates the initial fee rate by 1000-weight
-            //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
-            //  which this side will pay for commitment and HTLC transactions
-            //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
-            feerate = (uint32_t)(feerate / 4);
-            if (!ret) {
-            // https://github.com/nayutaco/ptarmigan/issues/46
-            DBG_PRINTF("fail: estimatefee\n");
-            feerate = LN_FEERATE_PER_KW;
+            uint64_t feerate_kb;
+            bool ret = btcprc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
+            if (ret) {
+                //BOLT#2
+                //  feerate_per_kw indicates the initial fee rate by 1000-weight
+                //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
+                //  which this side will pay for commitment and HTLC transactions
+                //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
+                feerate_kw = (uint32_t)(feerate_kb / 4);
+            } else {
+                // https://github.com/nayutaco/ptarmigan/issues/46
+                DBG_PRINTF("fail: estimatefee\n");
+                feerate_kw = LN_FEERATE_PER_KW;
             }
         } else {
-            feerate = pFunding->feerate_per_kw;
+            feerate_kw = pFunding->feerate_per_kw;
         }
-        DBG_PRINTF2("feerate_per_kw=%" PRIu64 "\n", feerate);
+        DBG_PRINTF2("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
         ln_fundin_t fundin;
         memcpy(fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
         fundin.index = pFunding->txindex;
         fundin.amount = fundin_sat;
-        fundin.p_change_pubkey = NULL;
-        fundin.p_change_addr = strdup(changeaddr);      //下位層でfreeする
-        ucoin_chain_t chain;
-        ucoin_util_wif2keys(&fundin.keys, &chain, wif);
-        assert(ucoin_get_chain() == chain);
-        fundin.b_native = false;        //fundin_txの送金先アドレスのsegwit具合
-                                        //  false: nested in BIP16
-                                        //      bitcoind v0.15ではsegwitアドレスをaddwitnessaddressで行っている
+        strcpy(fundin.change_addr, changeaddr);
 
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
         ucoin_buf_t buf_bolt;
@@ -1165,7 +1154,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
                         &fundin,
                         pFunding->funding_sat,
                         pFunding->push_sat,
-                        (uint32_t)feerate);
+                        feerate_kw);
         assert(ret);
 
         DBG_PRINTF("SEND: open_channel\n");
@@ -1883,6 +1872,9 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_SIGN_FUNDINGTX_REQ: funding_tx署名要求
 static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
 {
+    (void)p_conf;
+    DBGTRACE_BEGIN
+
     ln_cb_funding_sign_t *p_sig = (ln_cb_funding_sign_t *)p_param;
 
     ucoin_buf_t buf_tx;

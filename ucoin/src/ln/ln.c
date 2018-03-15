@@ -3228,18 +3228,7 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
 
     //vout#1:P2WPKH - change(amountは後で代入)
-    if (self->p_establish->p_fundin->p_change_pubkey != NULL) {
-        ucoin_sw_add_vout_p2wpkh_pub(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->p_change_pubkey);
-        free(self->p_establish->p_fundin->p_change_pubkey);       //APP
-        self->p_establish->p_fundin->p_change_pubkey = NULL;
-    } else if (self->p_establish->p_fundin->p_change_addr != NULL) {
-        ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->p_change_addr);
-        free(self->p_establish->p_fundin->p_change_addr);         //APP
-        self->p_establish->p_fundin->p_change_addr = NULL;
-    } else {
-        DBG_PRINTF("fail: no change address\n");
-        return false;
-    }
+    ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->change_addr);
 
     //input
     //vin#0
@@ -4323,8 +4312,6 @@ static void free_establish(ln_self_t *self)
 {
     if (self->p_establish != NULL) {
         if (self->p_establish->p_fundin != NULL) {
-            free(self->p_establish->p_fundin->p_change_pubkey);       //APP
-            free(self->p_establish->p_fundin->p_change_addr);         //APP
             M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
         }
         M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
