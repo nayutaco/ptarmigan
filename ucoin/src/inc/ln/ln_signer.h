@@ -42,6 +42,28 @@ void ln_signer_init(ln_self_t *self, const uint8_t *pSeed);
 void ln_signer_term(ln_self_t *self);
 
 
+void ln_signer_create_nodekey(ucoin_util_keys_t *pKeys);
+
+
+/** チャネル用鍵生成
+ *
+ * @param[in,out]   self        チャネル情報
+ * @retval  true    成功
+ * @note
+ *      - open_channel/accept_channelの送信前に使用する想定
+ */
+bool ln_signer_create_channelkeys(ln_self_t *self);
+
+
+/** per_commitment_secret更新
+ *
+ * @param[in,out]   self        チャネル情報
+ * @note
+ *      - indexを進める
+ */
+void ln_signer_update_percommit_secret(ln_self_t *self);
+
+
 void ln_signer_keys_update(ln_self_t *self, int64_t Offset);
 
 
@@ -54,9 +76,6 @@ void ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
  * @param[out]      pSecret         1つ前のper_commit_secret
  */
 void ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret);
-
-
-void ln_signer_dec_index(ln_self_t *self);
 
 
 void ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
@@ -78,6 +97,16 @@ void ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, co
 bool ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
 
 
+/** P2WPKH署名
+ *
+ * @param[out]      pTx
+ * @param[in]       Index
+ * @param[in]       Value
+ * @param[in]       pKeys
+ * @return      true:成功
+ * @note
+ *      - #ucoin_init()の設定で署名する
+ */
 bool ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys);
 
 

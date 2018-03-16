@@ -26,8 +26,14 @@
 #include "ln_signer.h"
 #include "ln_derkey.h"
 #include "ln_node.h"
+#include "ln_misc.h"
 
 #include "segwit_addr.h"
+
+
+/**************************************************************************
+ * prototypes
+ **************************************************************************/
 
 
 /**************************************************************************
@@ -60,6 +66,39 @@ void HIDDEN ln_signer_term(ln_self_t *self)
 }
 
 
+void HIDDEN ln_signer_create_nodekey(ucoin_util_keys_t *pKeys)
+{
+    ucoin_util_createkeys(pKeys);
+}
+
+
+bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
+{
+    //鍵生成
+    //  open_channel/accept_channelの鍵は ln_signer_update_percommit_secret()で生成
+    for (int lp = MSG_FUNDIDX_FUNDING; lp < LN_FUNDIDX_MAX; lp++) {
+        if (lp != MSG_FUNDIDX_PER_COMMIT) {
+            ucoin_util_createkeys(&self->funding_local.keys[lp]);
+        }
+    }
+    ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+
+    ln_signer_update_percommit_secret(self);
+
+    return true;
+}
+
+
+void HIDDEN ln_signer_update_percommit_secret(ln_self_t *self)
+{
+    ln_signer_keys_update(self, 0);
+
+    self->storage_index--;
+
+    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+}
+
+
 void HIDDEN ln_signer_keys_update(ln_self_t *self, int64_t Offset)
 {
     ln_signer_keys_update_force(self, self->storage_index + Offset);
@@ -85,12 +124,6 @@ void HIDDEN ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
 
     //DBG_PRINTF("prev self->storage_index = %" PRIx64 "\n", self->storage_index + 2);
     //DUMPBIN(pSecret, UCOIN_SZ_PRIVKEY);
-}
-
-
-void HIDDEN ln_signer_dec_index(ln_self_t *self)
-{
-    self->storage_index--;
 }
 
 
@@ -121,16 +154,6 @@ bool HIDDEN ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const u
 }
 
 
-/** P2WPKH署名
- *
- * @param[out]      pTx
- * @param[in]       Index
- * @param[in]       Value
- * @param[in]       pKeys
- * @return      true:成功
- * @note
- *      - #ucoin_init()の設定で署名する
- */
 bool HIDDEN ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys)
 {
     bool ret;
@@ -162,3 +185,8 @@ void HIDDEN ln_signer_generate_shared_secret(uint8_t *pResult, const uint8_t *pP
     ucoin_util_mul_pubkey(pub, pPubKey, ln_node_getprivkey(), UCOIN_SZ_PRIVKEY);
     ucoin_util_sha256(pResult, pub, sizeof(pub));
 }
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/

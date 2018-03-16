@@ -180,9 +180,7 @@ static bool create_to_remote(ln_self_t *self,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat);
 static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify);
-static bool create_channelkeys(ln_self_t *self);
 static bool create_local_channel_announcement(ln_self_t *self);
-static void update_percommit_secret(ln_self_t *self);
 static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 static void proc_established(ln_self_t *self);
@@ -636,10 +634,10 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     ucoin_util_random(self->channel_id, LN_SZ_CHANNEL_ID);
 
     //鍵生成
-    bool ret = create_channelkeys(self);
+    bool ret = ln_signer_create_channelkeys(self);
     if (!ret) {
         self->err = LNERR_INV_PRIVKEY;
-        DBG_PRINTF("fail: create_channelkeys\n");
+        DBG_PRINTF("fail: ln_signer_create_channelkeys\n");
         return false;
     }
 
@@ -708,7 +706,7 @@ bool ln_funding_tx_stabled(ln_self_t *self)
 
     if (!M_INIT_FLAG_REESTED(self->init_flag)) {
         //per-commit-secret更新
-        update_percommit_secret(self);
+        ln_signer_update_percommit_secret(self);
     } else {
         DBG_PRINTF("reestablished\n");
         ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -943,7 +941,9 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT] = bak_key;
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_pubkey, sizeof(bak_pubkey));
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+    ucoin_keys_priv2pub(
+        self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
+        self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     return ret;
@@ -1454,7 +1454,6 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
         //<delayed_secretkey>
         ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_DELAYED,
             self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub);
-
         assert(memcmp(signkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
     } else {
         //<revocationsecretkey>
@@ -1504,8 +1503,6 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     //  revoked transaction close後はremotekeyも当時のものになっているため、同じ処理でよい
     ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_PAYMENT,
         self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-    ucoin_keys_priv2pub(signkey.pub, signkey.priv);
     assert(memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], UCOIN_SZ_PUBKEY) == 0);
     //DBG_PRINTF("key-priv: ");
     //DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
@@ -1532,16 +1529,13 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
     ln_create_htlc_tx(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
 
     ucoin_util_keys_t signkey;
-    ln_derkey_revocationprivkey(signkey.priv,
-                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
+    ln_signer_get_revokesec(self, &signkey,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
-                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].priv,
                     self->revoked_sec.buf);
-    ucoin_keys_priv2pub(signkey.pub, signkey.priv);
-    DBG_PRINTF("key-priv: ");
-    DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF("key-pub : ");
-    DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
+    // DBG_PRINTF("key-priv: ");
+    // DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
+    // DBG_PRINTF("key-pub : ");
+    // DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
     ucoin_buf_t buf_sig;
     ln_htlcsign_t htlcsign = HTLCSIGN_NONE;
@@ -1887,9 +1881,9 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     self->their_msat = LN_SATOSHI2MSAT(open_ch->funding_sat) - open_ch->push_msat;
 
     //鍵生成
-    ret = create_channelkeys(self);
+    ret = ln_signer_create_channelkeys(self);
     if (!ret) {
-        DBG_PRINTF("fail: create_channelkeys\n");
+        DBG_PRINTF("fail: ln_signer_create_channelkeys\n");
         return false;
     }
 
@@ -2815,7 +2809,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     ln_signer_get_prevkey(self, prev_secret);
 
     //per-commit-secret更新
-    update_percommit_secret(self);
+    ln_signer_update_percommit_secret(self);
 
     //チェックOKであれば、revoke_and_ackを返す
     //HTLCに変化がある場合、revoke_and_ack→commitment_signedの順で送信したい
@@ -3426,7 +3420,6 @@ static bool create_to_local(ln_self_t *self,
         if (pTxHtlcs != NULL) {
             ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
                 self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub);
-
             assert(memcmp(htlckey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY], UCOIN_SZ_PUBKEY) == 0);
         }
 
@@ -4006,30 +3999,6 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
 }
 
 
-/** チャネル用鍵生成
- *
- * @param[in,out]   self        チャネル情報
- * @retval  true    成功
- * @note
- *      - open_channel/accept_channelの送信前に使用する想定
- */
-static bool create_channelkeys(ln_self_t *self)
-{
-    //鍵生成
-    //  open_channel/accept_channelの鍵は update_percommit_secret()で生成
-    for (int lp = MSG_FUNDIDX_FUNDING; lp < LN_FUNDIDX_MAX; lp++) {
-        if (lp != MSG_FUNDIDX_PER_COMMIT) {
-            ucoin_util_createkeys(&self->funding_local.keys[lp]);
-        }
-    }
-    ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
-
-    update_percommit_secret(self);
-
-    return true;
-}
-
-
 // channel_announcement用データ(自分の枠)
 //  short_channel_id決定後に呼び出す
 static bool create_local_channel_announcement(ln_self_t *self)
@@ -4073,22 +4042,6 @@ static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_
     bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
     return ret;
-}
-
-
-/** per_commitment_secret更新
- *
- * @param[in,out]   self        チャネル情報
- * @note
- *      - indexを進める
- */
-static void update_percommit_secret(ln_self_t *self)
-{
-    ln_signer_keys_update(self, 0);
-
-    ln_signer_dec_index(self);
-
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 }
 
 
