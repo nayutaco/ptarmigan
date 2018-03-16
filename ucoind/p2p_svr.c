@@ -68,6 +68,8 @@ volatile bool           mLoop = true;
 //ソケット接続用スレッド
 void *p2p_svr_start(void *pArg)
 {
+    (void)pArg;
+
     int ret;
     int sock;
     struct sockaddr_in sv_addr, cl_addr;
