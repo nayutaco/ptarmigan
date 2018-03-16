@@ -68,7 +68,8 @@ volatile bool           mLoop = true;
 //ソケット接続用スレッド
 void *p2p_svr_start(void *pArg)
 {
-    int port = (int)*(uint16_t *)pArg;
+    (void)pArg;
+
     int ret;
     int sock;
     struct sockaddr_in sv_addr, cl_addr;
@@ -101,7 +102,7 @@ void *p2p_svr_start(void *pArg)
     memset(&sv_addr, 0, sizeof(sv_addr));
     sv_addr.sin_family = AF_INET;
     sv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    sv_addr.sin_port = htons(port);
+    sv_addr.sin_port = htons(ln_node_addr()->port);
     ret = bind(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if (ret < 0) {
         SYSLOG_ERR("%s(): bind: %s", __func__, strerror(errno));

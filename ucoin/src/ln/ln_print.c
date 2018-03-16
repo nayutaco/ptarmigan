@@ -197,7 +197,7 @@ void ln_print_self(const ln_self_t *self)
             ucoin_util_dumpbin(PRINTOUT, self->cnl_add_htlc[idx].payment_sha256, UCOIN_SZ_SHA256, false);
             fprintf(PRINTOUT, "\",\n");
             fprintf(PRINTOUT, M_QQ("flag") ": " M_QQ("%02x") ",\n", self->cnl_add_htlc[idx].flag);
-            fprintf(PRINTOUT, M_QQ("shared_secret_len") ": %d,\n", self->cnl_add_htlc[idx].shared_secret.len);
+            fprintf(PRINTOUT, M_QQ("shared_secret_len") ": %u,\n", self->cnl_add_htlc[idx].shared_secret.len);
             fprintf(PRINTOUT, M_QQ("prev_short_channel_id") ": " M_QQ("%016" PRIx64) "\n", self->cnl_add_htlc[idx].prev_short_channel_id);
             fprintf(PRINTOUT, "}\n");
             cont = true;
@@ -264,7 +264,6 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
     case MSGTYPE_CHANNEL_UPDATE:
         {
             ln_cnl_update_t msg;
-            msg.p_key = NULL;
             ln_msg_cnl_update_read(&msg, pData, Len);
             ln_msg_cnl_update_print(&msg);
         }
@@ -331,7 +330,6 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
     case MSGTYPE_CHANNEL_UPDATE:
         {
             ln_cnl_update_t ann;
-            ann.p_key = NULL;
             bool ret = ln_msg_cnl_update_read(&ann, pData, Len);
             if (ret) {
                 fprintf(PRINTOUT, M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (ann.flags & 1) ? "2" : "1");
@@ -378,30 +376,6 @@ void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
         }
     }
 
-}
-
-
-void ln_print_node(const ln_node_t *node)
-{
-    printf("=NODE=============================================\n");
-    // printf("node_key: ");
-    // ucoin_util_dumpbin(PRINTOUT, node->keys.priv, UCOIN_SZ_PRIVKEY, true);
-    printf("node_id: ");
-    ucoin_util_dumpbin(PRINTOUT, node->keys.pub, UCOIN_SZ_PUBKEY, true);
-    printf("features= %02x\n", node->features);
-    printf("alias= %s\n", node->alias);
-    printf("addr.type=%d\n", node->addr.type);
-    if (node->addr.type == LN_NODEDESC_IPV4) {
-        printf("ipv4=%d.%d.%d.%d:%d\n",
-                node->addr.addrinfo.ipv4.addr[0],
-                node->addr.addrinfo.ipv4.addr[1],
-                node->addr.addrinfo.ipv4.addr[2],
-                node->addr.addrinfo.ipv4.addr[3],
-                node->addr.port);
-    } else {
-        printf("port=%d\n", node->addr.port);
-    }
-    printf("=============================================\n\n\n");
 }
 
 

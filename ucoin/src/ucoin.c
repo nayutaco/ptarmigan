@@ -141,5 +141,5 @@ void ucoin_term(void)
 
 ucoin_chain_t ucoin_get_chain(void)
 {
-    return mPref[UCOIN_PREF];
+    return (ucoin_chain_t)mPref[UCOIN_PREF];
 }

@@ -732,7 +732,12 @@ bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScr
  *      - pSigは、成功かどうかにかかわらず#ucoin_buf_init()される
  *      - 成功時、pSigは #ucoin_buf_alloccopy() でメモリ確保するので、使用後は #ucoin_buf_free()で解放すること
  */
-bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+bool ucoin_tx_sign_(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+static inline bool ucoin_tx_sign__(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const char *fname, unsigned int line) {
+    fprintf(stderr, "[%s][%u]ucoin_tx_sign:GOGO\n", fname, line);
+    return ucoin_tx_sign_(pSig, pTxHash, pPrivKey);
+}
+#define ucoin_tx_sign(a,b,c)  ucoin_tx_sign__(a,b,c, __FILE__, __LINE__)
 
 
 /** 署名計算(r/s)
@@ -742,7 +747,12 @@ bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPr
  * @param[in]       pPrivKey    秘密鍵
  * @return          true        成功
  */
-bool ucoin_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+bool ucoin_tx_sign_rs_(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+static inline bool ucoin_tx_sign_rs__(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey, const char *fname, unsigned int line) {
+    fprintf(stderr, "[%s][%u]ucoin_tx_sign_rs:GOGO\n", fname, line);
+    return ucoin_tx_sign_rs_(pRS, pTxHash, pPrivKey);
+}
+#define ucoin_tx_sign_rs(a,b,c)  ucoin_tx_sign_rs__(a,b,c, __FILE__, __LINE__)
 
 
 /** 署名チェック
@@ -1183,6 +1193,13 @@ void ucoin_util_random(uint8_t *pData, uint16_t Len);
  * @return      true    成功
  */
 bool ucoin_util_wif2keys(ucoin_util_keys_t *pKeys, ucoin_chain_t *pChain, const char *pWifPriv);
+
+
+/** 乱数での秘密鍵生成
+ *
+ * @param[out]      pPriv           秘密鍵
+ */
+void ucoin_util_createprivkey(uint8_t *pPriv);
 
 
 /** 乱数での鍵生成

@@ -169,7 +169,7 @@ typedef enum {
     LN_CB_ERROR,                ///< エラー通知
     LN_CB_INIT_RECV,            ///< init受信通知
     LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
-    LN_CB_FINDINGWIF_REQ,       ///< funding鍵設定要求
+    LN_CB_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
     LN_CB_ESTABLISHED,          ///< Establish完了通知
     LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信通知
@@ -369,10 +369,7 @@ typedef struct {
     uint8_t                     txid[UCOIN_SZ_TXID];            ///< 2-of-2へ入金するTXID
     int32_t                     index;                          ///< 未設定時(channelを開かれる方)は-1
     uint64_t                    amount;                         ///< 2-of-2へ入金するtxのvout amount
-    uint8_t                     *p_change_pubkey;               ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
-    char                        *p_change_addr;                 ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
-    ucoin_util_keys_t           keys;                           ///< 2-of-2へ入金するtxの鍵(署名用)
-    bool                        b_native;                       ///< true:fundinがnative segwit output
+    char                        change_addr[UCOIN_SZ_ADDR_MAX]; ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
 } ln_fundin_t;
 
 
@@ -623,7 +620,7 @@ typedef struct {
 //    uint8_t     *p_btc_key2;                        ///< 33: bitcoin_key_2
 //    uint8_t     features;                           ///< 1:  features
 
-    const ucoin_util_keys_t *p_my_node;
+    const uint8_t           *p_my_node_pub;
     const ucoin_util_keys_t *p_my_funding;
     const uint8_t           *p_peer_node_pub;
     const uint8_t           *p_peer_funding_pub;
@@ -682,9 +679,6 @@ typedef struct {
 //    uint8_t     features;                           ///< 1:  features
     ln_nodeaddr_t       addr;
 
-    //create
-    const ucoin_util_keys_t *p_my_node;
-
     //受信したデータ用
     ucoin_keys_sort_t   sort;                       ///< 自ノードとのソート結果(ASC=自ノードが先)
 } ln_node_announce_t;
@@ -702,8 +696,6 @@ typedef struct {
     uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
     uint32_t    fee_base_msat;                      ///< 4:  fee_base_msat
     uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
-
-    const uint8_t           *p_key;                 ///< priv:sign / pub:verify
 } ln_cnl_update_t;
 
 
@@ -766,6 +758,15 @@ typedef struct {
 /**************************************************************************
  * typedefs : コールバック用
  **************************************************************************/
+
+/** @struct ln_cb_funding_sign_t
+ *  @brief  funding_tx署名要求(#LN_CB_SIGN_FUNDINGTX_REQ)
+ */
+typedef struct {
+    ucoin_tx_t              *p_tx;
+    bool                    ret;        //署名結果
+} ln_cb_funding_sign_t;
+
 
 /** @struct ln_cb_funding_t
  *  @brief  funding_tx安定待ち要求(#LN_CB_FUNDINGTX_WAIT) / Establish完了通知(#LN_CB_ESTABLISHED)
@@ -1055,13 +1056,12 @@ struct ln_self_t {
  * 鍵関係を、ストレージを含めて初期化している。
  *
  * @param[in,out]       self            channel情報
- * @param[in]           node            関連付けるnode
  * @param[in]           pSeed           per-commit-secret生成用
  * @param[in]           pAnnoPrm        announcementパラメータ
  * @param[in]           pFunc           通知用コールバック関数
  * @retval      true    成功
  */
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
+bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
 
 
 /** 終了
@@ -1099,17 +1099,6 @@ const uint8_t* ln_get_genesishash(void);
  *      - pEstablishは接続完了まで保持すること
  */
 bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm);
-
-
-/** funding鍵設定
- *
- * @param[in,out]       self        channel情報
- * @param[in]           pWif        funding鍵
- * @retval      true    成功
- * @attention
- *      - コールバックで #LN_CB_FINDINGWIF_REQ が要求された場合のみ呼び出すこと
- */
-bool ln_set_funding_wif(ln_self_t *self, const char *pWif);
 
 
 /** short_channel_id情報設定
@@ -1249,9 +1238,10 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl);
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pReEst          channel_reestablishメッセージ
+ * @param[out]          pFundLock       true:続けてfunding_lockedを送信すること
  * retval       true    成功
  */
-bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst);
+bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst, bool *pFundLock);
 
 
 /** open_channelメッセージ作成
@@ -1494,26 +1484,6 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 /********************************************************************
  * inline展開用
  ********************************************************************/
-
-/** ノードアドレス取得
- *
- * @param[in]           node            node情報
- * @return      ノードアドレス(非const)
- */
-static inline ln_nodeaddr_t *ln_node_addr(ln_node_t *node) {
-    return &node->addr;
-}
-
-
-/** ノードID取得
- *
- * @param[in]           node            node情報
- * @return      node_id
- */
-static inline const uint8_t *ln_node_id(const ln_node_t *node) {
-    return node->keys.pub;
-}
-
 
 /** channel_id取得
  *
@@ -1924,23 +1894,28 @@ static inline bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd) {
  * NODE
  ********************************************************************/
 
-void ln_node_set(ln_node_t *node);
-ln_node_t *ln_node_get(void);
+/** ノードアドレス取得
+ *
+ * @return      ノードアドレス(非const)
+ */
+ln_nodeaddr_t *ln_node_addr(void);
 
+
+char *ln_node_alias(void);
+
+
+const uint8_t *ln_node_getid(void);
 
 /** ノード情報初期化
  *
- * @param[in,out]   node            ノード情報
  * @param[in]       Features        ?
  */
-bool ln_node_init(ln_node_t *node, uint8_t Features);
+bool ln_node_init(uint8_t Features);
 
 
 /** ノード情報終了
- *
- * @param[in,out]   node            ノード情報
  */
-void ln_node_term(ln_node_t *node);
+void ln_node_term(void);
 
 
 /** channel情報検索(node_idから)
@@ -2026,6 +2001,15 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
 
 
 /********************************************************************
+ * signer
+ ********************************************************************/
+
+/** node privkeyによる署名
+ */
+bool ln_signer_sign_nodekey(uint8_t *pRS, const uint8_t *pHash);
+
+
+/********************************************************************
  * デバッグ
  ********************************************************************/
 
@@ -2034,8 +2018,6 @@ unsigned long ln_get_debug(void);
 
 
 #ifdef UCOIN_USE_PRINTFUNC
-void ln_print_node(const ln_node_t *node);
-
 
 /** [デバッグ用]鍵情報出力
  *

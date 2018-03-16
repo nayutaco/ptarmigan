@@ -31,8 +31,9 @@
 #include <assert.h>
 
 #include "jsonrpc-c.h"
-#include "cmd_json.h"
+#include "segwit_addr.h"
 
+#include "cmd_json.h"
 #include "ln_db.h"
 #include "btcrpc.h"
 
@@ -40,8 +41,6 @@
 #include "p2p_cli.h"
 #include "lnapp.h"
 #include "monitoring.h"
-#include "ln_db_lmdb.h"
-#include "segwit_addr.h"
 
 
 /********************************************************************
@@ -142,7 +141,7 @@ static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
         Index = -1;
         goto LABEL_EXIT;
     }
-    if (memcmp(ucoind_nodeid(), pConn->node_id, UCOIN_SZ_PUBKEY) == 0) {
+    if (memcmp(ln_node_getid(), pConn->node_id, UCOIN_SZ_PUBKEY) == 0) {
         //node_idが自分と同じ
         DBG_PRINTF("fail: same own node_id\n");
         Index = -1;
@@ -486,30 +485,25 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     ln_calc_preimage_hash(preimage_hash, preimage);
 
     misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
-    DBG_PRINTF("preimage=")
-    DUMPBIN(preimage, LN_SZ_PREIMAGE);
-    DBG_PRINTF("hash=")
-    DUMPBIN(preimage_hash, LN_SZ_HASH);
+    // DBG_PRINTF("preimage=")
+    // DUMPBIN(preimage, LN_SZ_PREIMAGE);
+    // DBG_PRINTF("hash=")
+    // DUMPBIN(preimage_hash, LN_SZ_HASH);
     cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
     cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
     ucoind_preimage_unlock();
 
-    const ucoin_util_keys_t *p_keys = ucoind_nodekeys();
-    ln_invoice_t invoice_data;
+    char *p_invoice = NULL;
+    uint8_t type;
 #ifndef NETKIND
 #error not define NETKIND
 #endif
 #if NETKIND==0
-    invoice_data.hrp_type = LN_INVOICE_MAINNET;
+    type = LN_INVOICE_MAINNET;
 #elif NETKIND==1
-    invoice_data.hrp_type = LN_INVOICE_TESTNET;
+    type = LN_INVOICE_TESTNET;
 #endif
-    invoice_data.amount_msat = amount;
-    invoice_data.min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
-    memcpy(invoice_data.pubkey, p_keys->pub, UCOIN_SZ_PUBKEY);
-    memcpy(invoice_data.payment_hash, preimage_hash, LN_SZ_HASH);
-    char *p_invoice = NULL;
-    bool ret = ln_invoice_encode(&p_invoice, &invoice_data, p_keys->priv);
+    bool ret = ln_invoice_create(&p_invoice, type, preimage_hash, amount);
     if (ret) {
         cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
     } else {
@@ -805,7 +799,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
             strcpy(str_payer, json->valuestring);
         } else {
             //自分をpayerにする
-            misc_bin2str(str_payer, ucoind_nodeid(), UCOIN_SZ_PUBKEY);
+            misc_bin2str(str_payer, ln_node_getid(), UCOIN_SZ_PUBKEY);
         }
         DBG_PRINTF("str_payer=%s\n", str_payer);
     } else {
@@ -889,9 +883,9 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *result_cli = cJSON_CreateArray();
 
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ucoind_nodeid(), UCOIN_SZ_PUBKEY);
+    misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
-    cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ucoind_nodeport()));
+    cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
     cJSON_AddItemToObject(result, "jsonrpc_port", cJSON_CreateNumber(cmd_json_get_port()));
     uint8_t *p_hash;
     int cnt = ln_db_annoskip_invoice_get(&p_hash);

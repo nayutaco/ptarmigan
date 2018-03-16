@@ -112,12 +112,17 @@ bool ucoin_util_wif2keys(ucoin_util_keys_t *pKeys, ucoin_chain_t *pChain, const 
 }
 
 
-bool ucoin_util_createkeys(ucoin_util_keys_t *pKeys)
+void ucoin_util_createprivkey(uint8_t *pPriv)
 {
     do {
-        ucoin_util_random(pKeys->priv, UCOIN_SZ_PRIVKEY);
-    } while (!ucoin_keys_chkpriv(pKeys->priv));
+        ucoin_util_random(pPriv, UCOIN_SZ_PRIVKEY);
+    } while (!ucoin_keys_chkpriv(pPriv));
+}
 
+
+bool ucoin_util_createkeys(ucoin_util_keys_t *pKeys)
+{
+    ucoin_util_createprivkey(pKeys->priv);
     bool ret = ucoin_keys_priv2pub(pKeys->pub, pKeys->priv);
     return ret;
 }

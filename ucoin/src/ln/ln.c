@@ -31,14 +31,18 @@
 #include <assert.h>
 
 #include "ln_db.h"
-#include "ln/ln_misc.h"
-#include "ln/ln_msg_setupctl.h"
-#include "ln/ln_msg_establish.h"
-#include "ln/ln_msg_close.h"
-#include "ln/ln_msg_normalope.h"
-#include "ln/ln_msg_anno.h"
-#include "ln/ln_node.h"
-#include "ln/ln_enc_auth.h"
+#include "ln_misc.h"
+#include "ln_msg_setupctl.h"
+#include "ln_msg_establish.h"
+#include "ln_msg_close.h"
+#include "ln_msg_normalope.h"
+#include "ln_msg_anno.h"
+#include "ln_node.h"
+#include "ln_enc_auth.h"
+#include "ln_onion.h"
+#include "ln_script.h"
+#include "ln_derkey.h"
+#include "ln_signer.h"
 
 //#define M_DBG_VERBOSE
 
@@ -88,9 +92,6 @@
 #define M_HTLCCHG_NONE                          (0)
 #define M_HTLCCHG_FF_SEND                       (1)
 #define M_HTLCCHG_FF_RECV                       (2)
-
-#define M_SECINDEX_INIT     ((uint64_t)0xffffffffffff)      ///< per-commitment secret生成用indexの初期値
-                                                            ///< https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#per-commitment-secret-requirements
 
 // ln_self_t.init_flag
 #define M_INIT_FLAG_SEND                    (0x01)
@@ -179,11 +180,8 @@ static bool create_to_remote(ln_self_t *self,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat);
 static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify);
-static bool create_channelkeys(ln_self_t *self);
 static bool create_local_channel_announcement(ln_self_t *self);
-static void update_percommit_secret(ln_self_t *self);
 static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
-static void get_prev_percommit_secret(ln_self_t *self, uint8_t *p_prev_secret);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 static void proc_established(ln_self_t *self);
 static void proc_announce_sigsed(ln_self_t *self);
@@ -242,7 +240,7 @@ static unsigned long mDebug;
  * public functions
  **************************************************************************/
 
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc)
+bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc)
 {
     DBG_PRINTF("BEGIN : pSeed=%p\n", pSeed);
 
@@ -287,12 +285,8 @@ bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_an
     DBG_PRINTF("fee_prop_millionths=%" PRIu32 "\n", self->anno_prm.fee_prop_millionths);
 
     //seed
-    self->storage_index = M_SECINDEX_INIT;
-    self->peer_storage_index = M_SECINDEX_INIT;
-    if (pSeed) {
-        memcpy(self->storage_seed, pSeed, LN_SZ_SEED);
-        ln_derkey_storage_init(&self->peer_storage);
-    }
+    ln_signer_init(self, pSeed);
+    self->peer_storage_index = LN_SECINDEX_INIT;
 
     DBG_PRINTF("END\n");
 
@@ -304,7 +298,7 @@ void ln_term(ln_self_t *self)
 {
     channel_clear(self);
 
-    memset(self->storage_seed, 0, UCOIN_SZ_PRIVKEY);
+    ln_signer_term(self);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         self->cnl_add_htlc[idx].p_onion_route = NULL;
         ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
@@ -584,7 +578,7 @@ void ln_flag_proc(ln_self_t *self)
 
 
 //channel_reestablish作成
-bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
+bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst, bool *pFundLock)
 {
     if (self->init_flag & M_INIT_FLAG_REEST_SEND) {
         self->err = LNERR_INV_STATE;
@@ -601,11 +595,13 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
     if (ret) {
         self->init_flag |= M_INIT_FLAG_REEST_SEND;
-    }
-    if ( ret && M_INIT_FLAG_REESTED(self->init_flag) &&
-            (self->commit_num == 1) && (self->remote_commit_num == 1) ) {
-        DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
-        ret = ln_funding_tx_stabled(self);
+        if (M_INIT_FLAG_REESTED(self->init_flag) &&
+                (self->commit_num == 1) && (self->remote_commit_num == 1) ) {
+            DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
+            *pFundLock = true;
+        } else {
+            *pFundLock = false;
+        }
     }
     return ret;
 }
@@ -636,29 +632,16 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
         return false;
     }
 
-    //TODO: 仮チャネルID
+    //仮チャネルID
     ucoin_util_random(self->channel_id, LN_SZ_CHANNEL_ID);
 
     //鍵生成
-    bool ret = create_channelkeys(self);
+    bool ret = ln_signer_create_channelkeys(self);
     if (!ret) {
         self->err = LNERR_INV_PRIVKEY;
-        DBG_PRINTF("fail: create_channelkeys\n");
+        DBG_PRINTF("fail: ln_signer_create_channelkeys\n");
         return false;
     }
-
-    //funding鍵設定要求
-    //アプリからの設定漏れがチェックできるように、funding鍵を0で初期化
-    memset(&self->funding_local.keys[MSG_FUNDIDX_FUNDING], 0, sizeof(self->funding_local.keys[MSG_FUNDIDX_FUNDING]));
-    (*self->p_callback)(self, LN_CB_FINDINGWIF_REQ, NULL);
-    ret = ucoin_keys_chkpriv(self->funding_local.keys[MSG_FUNDIDX_FUNDING].priv);
-    if (!ret) {
-        self->err = LNERR_INV_PRIVKEY;
-        DBG_PRINTF("fail: no funding key\n");
-        return false;
-    }
-
-    ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
 
     //funding_tx作成用に保持
     assert(self->p_establish->p_fundin == NULL);
@@ -725,7 +708,7 @@ bool ln_funding_tx_stabled(ln_self_t *self)
 
     if (!M_INIT_FLAG_REESTED(self->init_flag)) {
         //per-commit-secret更新
-        update_percommit_secret(self);
+        ln_signer_update_percommit_secret(self);
     } else {
         DBG_PRINTF("reestablished\n");
         ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -931,11 +914,9 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     //local
     //  storage_seedは、次回送信するnext_per_commitment_secret用の値が入っている。
-    //  現在のnext_per_commitment_secret用の値は storage_seed+1。
-    //  現在のper_commitment_secret用の値は、storage_seed+2 となる。
-    //DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 1 + flocked);
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+    //  現在のnext_per_commitment_secret用の値は index+1。
+    //  現在のper_commitment_secret用の値は、index+2 となる。
+    ln_signer_keys_update(self, 1 + flocked);
     //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
     //remote
     //DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
@@ -962,7 +943,9 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT] = bak_key;
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_pubkey, sizeof(bak_pubkey));
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+    ucoin_keys_priv2pub(
+        self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
+        self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     return ret;
@@ -983,9 +966,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     //  単なる確認用。
 
     //local
-    //DBG_PRINTF("LI=%" PRIx64 "\n", self->storage_index);
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index + 2);
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+    ln_signer_keys_update(self, 2);
     //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
 
     //remote
@@ -1069,7 +1050,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
 
     //remote per_commitment_secretの復元
     ucoin_buf_alloc(&self->revoked_sec, UCOIN_SZ_PRIVKEY);
-    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(M_SECINDEX_INIT - commit_num));
+    bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(LN_SECINDEX_INIT - commit_num));
     assert(ret);
     ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
     //DBG_PRINTF2("  pri:");
@@ -1078,8 +1059,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     //DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //local per_commitment_secretの復元
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, (uint64_t)(M_SECINDEX_INIT - commit_num));
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
+    ln_signer_keys_update_force(self, (uint64_t)(LN_SECINDEX_INIT - commit_num));
 
     //鍵の復元
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -1474,20 +1454,14 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
     }
     if (!bRevoked) {
         //<delayed_secretkey>
-        ln_derkey_privkey(signkey.priv,
-                    self->funding_local.keys[MSG_FUNDIDX_DELAYED].pub,
-                    self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
-                    self->funding_local.keys[MSG_FUNDIDX_DELAYED].priv);
-        ucoin_keys_priv2pub(signkey.pub, signkey.priv);
+        ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_DELAYED,
+            self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub);
         assert(memcmp(signkey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED], UCOIN_SZ_PUBKEY) == 0);
     } else {
         //<revocationsecretkey>
-        ln_derkey_revocationprivkey(signkey.priv,
-                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
+        ln_signer_get_revokesec(self, &signkey,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
-                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].priv,
                     self->revoked_sec.buf);
-        ucoin_keys_priv2pub(signkey.pub, signkey.priv);
     }
     //DBG_PRINTF("key-priv: ");
     //DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
@@ -1529,11 +1503,8 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     }
     //<remotesecretkey>
     //  revoked transaction close後はremotekeyも当時のものになっているため、同じ処理でよい
-    ln_derkey_privkey(signkey.priv,
-                self->funding_local.keys[MSG_FUNDIDX_PAYMENT].pub,
-                self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
-                self->funding_local.keys[MSG_FUNDIDX_PAYMENT].priv);
-    ucoin_keys_priv2pub(signkey.pub, signkey.priv);
+    ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_PAYMENT,
+        self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
     assert(memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], UCOIN_SZ_PUBKEY) == 0);
     //DBG_PRINTF("key-priv: ");
     //DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
@@ -1541,7 +1512,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     //DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
     //vinは1つしかない
-    ret = ucoin_util_sign_p2wpkh(pTx, 0, Value, &signkey);
+    ret = ln_signer_p2wpkh(pTx, 0, Value, &signkey);
 
 LABEL_EXIT:
     return ret;
@@ -1560,16 +1531,13 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
     ln_create_htlc_tx(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
 
     ucoin_util_keys_t signkey;
-    ln_derkey_revocationprivkey(signkey.priv,
-                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].pub,
+    ln_signer_get_revokesec(self, &signkey,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
-                    self->funding_local.keys[MSG_FUNDIDX_REVOCATION].priv,
                     self->revoked_sec.buf);
-    ucoin_keys_priv2pub(signkey.pub, signkey.priv);
-    DBG_PRINTF("key-priv: ");
-    DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF("key-pub : ");
-    DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
+    // DBG_PRINTF("key-priv: ");
+    // DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
+    // DBG_PRINTF("key-pub : ");
+    // DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
     ucoin_buf_t buf_sig;
     ln_htlcsign_t htlcsign = HTLCSIGN_NONE;
@@ -1915,20 +1883,9 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     self->their_msat = LN_SATOSHI2MSAT(open_ch->funding_sat) - open_ch->push_msat;
 
     //鍵生成
-    ret = create_channelkeys(self);
+    ret = ln_signer_create_channelkeys(self);
     if (!ret) {
-        DBG_PRINTF("fail: create_channelkeys\n");
-        return false;
-    }
-
-    //funding鍵設定要求
-    //アプリからの設定漏れがチェックできるように、funding鍵を0で初期化
-    memset(&self->funding_local.keys[MSG_FUNDIDX_FUNDING], 0, sizeof(self->funding_local.keys[MSG_FUNDIDX_FUNDING]));
-    (*self->p_callback)(self, LN_CB_FINDINGWIF_REQ, NULL);
-    ret = ucoin_keys_chkpriv(self->funding_local.keys[MSG_FUNDIDX_FUNDING].priv);
-    if (!ret) {
-        self->err = LNERR_INV_PRIVKEY;
-        DBG_PRINTF("fail: no funding key\n");
+        DBG_PRINTF("fail: ln_signer_create_channelkeys\n");
         return false;
     }
 
@@ -2603,7 +2560,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
 
     ret = ln_onion_read_packet(self->cnl_add_htlc[idx].p_onion_route, &hop_dataout,
                     &self->cnl_add_htlc[idx].shared_secret,
-                    self->cnl_add_htlc[idx].p_onion_route, ln_node_get()->keys.priv,
+                    self->cnl_add_htlc[idx].p_onion_route,
                     self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH);
     if (!ret) {
         DBG_PRINTF("fail: onion-read\n");
@@ -2851,10 +2808,10 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     DBG_PRINTF("self->commit_num=%" PRIx64 "\n", self->commit_num);
 
     uint8_t prev_secret[UCOIN_SZ_PRIVKEY];
-    get_prev_percommit_secret(self, prev_secret);
+    ln_signer_get_prevkey(self, prev_secret);
 
     //per-commit-secret更新
-    update_percommit_secret(self);
+    ln_signer_update_percommit_secret(self);
 
     //チェックOKであれば、revoke_and_ackを返す
     //HTLCに変化がある場合、revoke_and_ack→commitment_signedの順で送信したい
@@ -2983,9 +2940,8 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         goto LABEL_EXIT;
     }
 
-    uint32_t fee_per_kw = self->feerate_per_kw;
+    DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
     self->feerate_per_kw = upfee.feerate_per_kw;
-    DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", fee_per_kw, upfee.feerate_per_kw);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");
@@ -3269,18 +3225,7 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
 
     //vout#1:P2WPKH - change(amountは後で代入)
-    if (self->p_establish->p_fundin->p_change_pubkey != NULL) {
-        ucoin_sw_add_vout_p2wpkh_pub(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->p_change_pubkey);
-        free(self->p_establish->p_fundin->p_change_pubkey);       //APP
-        self->p_establish->p_fundin->p_change_pubkey = NULL;
-    } else if (self->p_establish->p_fundin->p_change_addr != NULL) {
-        ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->p_change_addr);
-        free(self->p_establish->p_fundin->p_change_addr);         //APP
-        self->p_establish->p_fundin->p_change_addr = NULL;
-    } else {
-        DBG_PRINTF("fail: no change address\n");
-        return false;
-    }
+    ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->change_addr);
 
     //input
     //vin#0
@@ -3306,14 +3251,21 @@ static bool create_funding_tx(ln_self_t *self)
         return false;
     }
     ucoin_buf_free(&txbuf);
+    self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
 
     //署名
-    self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
-    ucoin_util_sign_p2wpkh(&self->tx_funding, self->funding_local.txindex,
+    bool ret;
+#if 1
+    ln_cb_funding_sign_t sig;
+    sig.p_tx =  &self->tx_funding;
+    (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
+    ret = sig.ret;
+#else
+    ln_signer_p2wpkh(&self->tx_funding, self->funding_local.txindex,
             self->p_establish->p_fundin->amount, &self->p_establish->p_fundin->keys);
     if (!self->p_establish->p_fundin->b_native) {
         // lnでは必ずnative設定がtrueになっている。
-        // そのため、 #ucoin_util_sign_p2wpkh() で署名するとscriptSigは空になる。
+        // そのため、 #ln_signer_p2wpkh() で署名するとscriptSigは空になる。
         // もしINPUTのトランザクションが非Nativeだった場合、自力でscriptSigを作成する
         ucoin_vin_t *vin = &self->tx_funding.vin[self->funding_local.txindex];
         ucoin_buf_t *p_buf = &vin->script;
@@ -3325,9 +3277,11 @@ static bool create_funding_tx(ln_self_t *self)
         p_buf->buf[2] = (uint8_t)UCOIN_SZ_PUBKEYHASH;
         ucoin_util_hash160(&p_buf->buf[3], self->p_establish->p_fundin->keys.pub, UCOIN_SZ_PUBKEY);
     }
+    ret = true;
+#endif
     ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
 
-    return true;
+    return ret;
 }
 
 
@@ -3466,11 +3420,8 @@ static bool create_to_local(ln_self_t *self,
         //      secrethtlckey = basepoint_secret + SHA256(per_commitment_point || basepoint)
         ucoin_util_keys_t htlckey;
         if (pTxHtlcs != NULL) {
-            ln_derkey_privkey(htlckey.priv,
-                        self->funding_local.keys[MSG_FUNDIDX_HTLC].pub,
-                        self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
-                        self->funding_local.keys[MSG_FUNDIDX_HTLC].priv);
-            ucoin_keys_priv2pub(htlckey.pub, htlckey.priv);
+            ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
+                self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub);
             assert(memcmp(htlckey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY], UCOIN_SZ_PUBKEY) == 0);
         }
 
@@ -3838,11 +3789,8 @@ static bool create_to_remote(ln_self_t *self,
 
         //htlc_signature用鍵
         ucoin_util_keys_t htlckey;
-        ln_derkey_privkey(htlckey.priv,
-                    self->funding_local.keys[MSG_FUNDIDX_HTLC].pub,
-                    self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
-                    self->funding_local.keys[MSG_FUNDIDX_HTLC].priv);
-        ucoin_keys_priv2pub(htlckey.pub, htlckey.priv);
+        ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
+                    self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
         for (int vout_idx = 0; vout_idx < tx_commit.vout_cnt; vout_idx++) {
             //各HTLCのHTLC Timeout/Success Transactionを作って署名するために、
@@ -4016,9 +3964,9 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
     //署名
     uint8_t sighash[UCOIN_SZ_SIGHASH];
     ucoin_util_sign_p2wsh_1(sighash, pTx, 0, self->funding_sat, &self->redeem_fund);
-    ret = ucoin_util_sign_p2wsh_2(&buf_sig, sighash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
+    ret = ln_signer_p2wsh_2(&buf_sig, sighash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
     if (!ret) {
-        DBG_PRINTF("fail: ucoin_util_sign_p2wsh_2\n");
+        DBG_PRINTF("fail: ln_signer_p2wsh_2\n");
         ucoin_tx_free(pTx);
         return false;
     }
@@ -4053,33 +4001,6 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
 }
 
 
-/** チャネル用鍵生成
- *
- * @param[in,out]   self        チャネル情報
- * @retval  true    成功
- * @note
- *      - open_channel/accept_channelの送信前に使用する想定
- */
-static bool create_channelkeys(ln_self_t *self)
-{
-    //鍵生成
-    //  open_channel/accept_channelの鍵は update_percommit_secret()で生成
-    for (int lp = MSG_FUNDIDX_REVOCATION; lp < LN_FUNDIDX_MAX; lp++) {
-        if (lp != MSG_FUNDIDX_PER_COMMIT) {
-            do {
-                ucoin_util_random(self->funding_local.keys[lp].priv, UCOIN_SZ_PRIVKEY);
-            } while (!ucoin_keys_chkpriv(self->funding_local.keys[lp].priv));
-            ucoin_keys_priv2pub(self->funding_local.keys[lp].pub, self->funding_local.keys[lp].priv);
-        }
-    }
-    ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
-
-    update_percommit_secret(self);
-
-    return true;
-}
-
-
 // channel_announcement用データ(自分の枠)
 //  short_channel_id決定後に呼び出す
 static bool create_local_channel_announcement(ln_self_t *self)
@@ -4089,7 +4010,7 @@ static bool create_local_channel_announcement(ln_self_t *self)
     ln_cnl_announce_create_t anno;
 
     anno.short_channel_id = self->short_channel_id;
-    anno.p_my_node = &(ln_node_get()->keys);
+    anno.p_my_node_pub = ln_node_getid();
     anno.p_peer_node_pub = self->peer_node_id;
     anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
     anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
@@ -4119,48 +4040,10 @@ static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_
     pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
     pUpd->fee_prop_millionths = self->anno_prm.fee_prop_millionths;
     //署名
-    pUpd->p_key = ln_node_get()->keys.priv;
     pUpd->flags = Flag | sort_nodeid(self);
     bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
     return ret;
-}
-
-
-/** per_commitment_secret更新
- *
- * @param[in,out]   self        チャネル情報
- * @note
- *      - indexを進める
- */
-static void update_percommit_secret(ln_self_t *self)
-{
-    ln_derkey_create_secret(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, self->storage_seed, self->storage_index);
-    ucoin_keys_priv2pub(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
-    // DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
-    // DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, UCOIN_SZ_PRIVKEY);
-
-    self->storage_index--;
-
-    //DBG_PRINTF("self->storage_index = %" PRIx64 "\n", self->storage_index);
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-}
-
-
-/** 1つ前のper_commit_secret取得
- *
- * @param[in,out]   self            チャネル情報
- * @param[out]      p_prev_secret   1つ前のper_commit_secret
- */
-static void get_prev_percommit_secret(ln_self_t *self, uint8_t *p_prev_secret)
-{
-    //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
-    //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
-    //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
-    ln_derkey_create_secret(p_prev_secret, self->storage_seed, self->storage_index + 2);
-
-    DBG_PRINTF("prev self->storage_index = %" PRIx64 "\n", self->storage_index + 2);
-    DUMPBIN(p_prev_secret, UCOIN_SZ_PRIVKEY);
 }
 
 
@@ -4185,7 +4068,7 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
         ln_db_self_save(self);
         DBG_PRINTF("I=%" PRIx64 " --> %" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
 
-        //for (uint64_t idx = M_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
+        //for (uint64_t idx = LN_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
         //    DBG_PRINTF("I=%" PRIx64 "\n", idx);
         //    DBG_PRINTF2("  ");
         //    uint8_t sec[UCOIN_SZ_PRIVKEY];
@@ -4384,8 +4267,6 @@ static void free_establish(ln_self_t *self)
 {
     if (self->p_establish != NULL) {
         if (self->p_establish->p_fundin != NULL) {
-            free(self->p_establish->p_fundin->p_change_pubkey);       //APP
-            free(self->p_establish->p_fundin->p_change_addr);         //APP
             M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
         }
         M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
@@ -4399,12 +4280,13 @@ static ucoin_keys_sort_t sort_nodeid(ln_self_t *self)
     ucoin_keys_sort_t sort;
 
     int lp;
+    const uint8_t *p_nodeid = ln_node_getid();
     for (lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        if (ln_node_get()->keys.pub[lp] != self->peer_node_id[lp]) {
+        if (p_nodeid[lp] != self->peer_node_id[lp]) {
             break;
         }
     }
-    if (ln_node_get()->keys.pub[lp] < self->peer_node_id[lp]) {
+    if (p_nodeid[lp] < self->peer_node_id[lp]) {
         DBG_PRINTF("my node= first\n");
         sort = UCOIN_KEYS_SORT_ASC;
     } else {

@@ -1155,11 +1155,12 @@ TEST_F(onion, test1)
         ucoin_keys_priv2pub(datain[lp].pubkey, onion_privkey[lp]);
     }
 
-
     uint8_t pub[UCOIN_SZ_PUBKEY];
     ucoin_keys_priv2pub(pub, session_key);
+printf("ln_onion_create_packet\n");
     bool ret = ln_onion_create_packet(packet, NULL, datain, 1, session_key, NULL, 0);
     ASSERT_TRUE(ret);
+printf("ln_onion_create_packet\n");
 
     const uint8_t PACKET[] = {
         0x00, 0x02, 0xee, 0xc7, 0x24, 0x5d, 0x6b, 0x7d,
@@ -1339,7 +1340,8 @@ TEST_F(onion, test1)
 
     memset(packet, 0, sizeof(packet));
     ln_hop_dataout_t dataout;
-    ret = ln_onion_read_packet(packet, &dataout, NULL, PACKET, onion_privkey[0], NULL, 0);
+    ln_node_setkey(onion_privkey[0]);
+    ret = ln_onion_read_packet(packet, &dataout, NULL, PACKET, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(dataout.b_exit);      //1つなのでここでexit
 }
@@ -1550,7 +1552,8 @@ TEST_F(onion, test2)
     ln_hop_dataout_t dataout;
 
     for (int lp = 0; lp < 20; lp++) {
-        ret = ln_onion_read_packet(packet, &dataout, NULL, packet, onion_privkey[lp], NULL, 0);
+        ln_node_setkey(onion_privkey[lp]);
+        ret = ln_onion_read_packet(packet, &dataout, NULL, packet, NULL, 0);
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);
 
@@ -1593,7 +1596,8 @@ TEST_F(onion, test3)
     ln_hop_dataout_t dataout;
 
     for (int lp = 0; lp < 20; lp++) {
-        ret = ln_onion_read_packet(packet, &dataout, NULL, packet, onion_privkey[lp], NULL, 0);
+        ln_node_setkey(onion_privkey[lp]);
+        ret = ln_onion_read_packet(packet, &dataout, NULL, packet, NULL, 0);
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);
 
@@ -1635,7 +1639,8 @@ TEST_F(onion, test4)
     ln_hop_dataout_t dataout;
 
     for (int lp = 0; lp < 20; lp++) {
-        ret = ln_onion_read_packet(packet, &dataout, NULL, packet, onion_privkey[lp], ASSOC, sizeof(ASSOC));
+        ln_node_setkey(onion_privkey[lp]);
+        ret = ln_onion_read_packet(packet, &dataout, NULL, packet, ASSOC, sizeof(ASSOC));
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);
 

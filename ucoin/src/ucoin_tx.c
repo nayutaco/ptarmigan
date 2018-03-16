@@ -616,7 +616,7 @@ LABEL_EXIT:
 }
 
 
-bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+bool ucoin_tx_sign_(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey)
 {
     int ret;
     bool bret;
@@ -660,7 +660,7 @@ LABEL_EXIT:
 }
 
 
-bool ucoin_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+bool ucoin_tx_sign_rs_(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey)
 {
     int ret;
     mbedtls_mpi r, s;
@@ -1138,7 +1138,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         fprintf(fp, "       LE: ");
         ucoin_util_dumpbin(fp, pTx->vin[lp].txid, UCOIN_SZ_TXID, true);
         fprintf(fp, "  index= %u\n", pTx->vin[lp].index);
-        fprintf(fp, "  scriptSig[%d]= ", pTx->vin[lp].script.len);
+        fprintf(fp, "  scriptSig[%u]= ", pTx->vin[lp].script.len);
         ucoin_util_dumpbin(fp, pTx->vin[lp].script.buf, pTx->vin[lp].script.len, true);
         ucoin_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         //bool p2wsh = (pTx->vin[lp].script.len == 35) &&
@@ -1146,7 +1146,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
         fprintf(fp, "  sequence= 0x%08x\n\n", pTx->vin[lp].sequence);
         for(uint8_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
-            fprintf(fp, "  witness[%d][%d]= ", lp2, pTx->vin[lp].witness[lp2].len);
+            fprintf(fp, "  witness[%d][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
                 ucoin_util_dumpbin(fp, pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len, true);
                 if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
@@ -1167,7 +1167,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         fprintf(fp, " )\n");
         fprintf(fp, "    %f mBTC, %f BTC\n", UCOIN_SATOSHI2MBTC(pTx->vout[lp].value), UCOIN_SATOSHI2BTC(pTx->vout[lp].value));
         ucoin_buf_t *buf = &(pTx->vout[lp].script);
-        fprintf(fp, "  scriptPubKey[%d]= ", buf->len);
+        fprintf(fp, "  scriptPubKey[%u]= ", buf->len);
         ucoin_util_dumpbin(fp, buf->buf, buf->len, true);
         ucoin_print_script(buf->buf, buf->len);
         if ( (buf->len == 25) && (buf->buf[0] == 0x76) && (buf->buf[1] == 0xa9) &&

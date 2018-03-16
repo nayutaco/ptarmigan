@@ -30,6 +30,7 @@
 
 #include "ln_enc_auth.h"
 #include "ln_misc.h"
+#include "ln_signer.h"
 
 #include "mbedtls/md.h"
 #include "sodium/crypto_aead_chacha20poly1305.h"
@@ -71,7 +72,6 @@ enum state_t {
  *  @brief  noise handshake data
  */
 struct bolt8 {
-    ucoin_util_keys_t   *keys;              //ノードの秘密鍵と公開鍵(node_id) ?
     ucoin_util_keys_t   e;                  //ephemeral key
     uint8_t     h[UCOIN_SZ_SHA256];         //h
     uint8_t     ck[UCOIN_SZ_SHA256];        //ck
@@ -106,9 +106,6 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     self->p_handshake = M_MALLOC(sizeof(struct bolt8));
     struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
 
-    //自ノード情報
-    pBolt->keys = &(ln_node_get()->keys);
-
     //ephemeral key
     ret = ucoin_util_createkeys(&pBolt->e);
     if (!ret) {
@@ -130,7 +127,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     } else {
         //nose handshake responder
         DBG_PRINTF("responder\n");
-        pNodeId = ln_node_get()->keys.pub;
+        pNodeId = ln_node_getid();
         pBolt->state = WAIT_ACT_ONE;
     }
     //initiatorは相手node_id, responderは自node_id
@@ -472,7 +469,7 @@ static bool actone_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, re, UCOIN_SZ_PUBKEY);
 
     // ss = ECDH(re, s.priv)
-    ucoin_util_generate_shared_secret(ss, re, pBolt->keys->priv);
+    ln_signer_generate_shared_secret(ss, re);
 
     // ck, temp_k1 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
@@ -616,7 +613,7 @@ static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *p
     nonce[4] = 0x01;
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
                     c, &clen,
-                    pBolt->keys->pub, UCOIN_SZ_PUBKEY,   //s.pub.serializeCompressed()
+                    ln_node_getid(), UCOIN_SZ_PUBKEY,   //s.pub.serializeCompressed()
                     pBolt->h, UCOIN_SZ_SHA256,  //additional data
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
@@ -629,7 +626,7 @@ static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *p
     ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, sizeof(c));
 
     // ss = ECDH(re, s.priv)
-    ucoin_util_generate_shared_secret(ss, pRE, pBolt->keys->priv);
+    ln_signer_generate_shared_secret(ss, pRE);
 
     // ck, temp_k3 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);

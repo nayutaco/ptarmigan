@@ -50,7 +50,7 @@ typedef struct {
  * private variables
  **************************************************************************/
 
-static ln_node_t    *mpNode;
+static ln_node_t    mNode;
 
 
 /**************************************************************************
@@ -59,25 +59,31 @@ static ln_node_t    *mpNode;
 
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
+static void print_node(void);
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-void ln_node_set(ln_node_t *node)
+const uint8_t *ln_node_getid(void)
 {
-    mpNode = node;
+    return mNode.keys.pub;
+}
+
+ln_nodeaddr_t *ln_node_addr(void)
+{
+    return &mNode.addr;
 }
 
 
-ln_node_t *ln_node_get(void)
+char *ln_node_alias(void)
 {
-    return mpNode;
+    return mNode.alias;
 }
 
 
-bool ln_node_init(ln_node_t *node, uint8_t Features)
+bool ln_node_init(uint8_t Features)
 {
     bool ret;
     char wif[UCOIN_SZ_WIF_MAX];
@@ -85,12 +91,12 @@ bool ln_node_init(ln_node_t *node, uint8_t Features)
     ucoin_buf_t buf_node;
     ucoin_buf_init(&buf_node);
 
-    node->features = Features;
+    mNode.features = Features;
 
-    ret = ln_db_init(wif, node->alias, &node->addr.port);
+    ret = ln_db_init(wif, mNode.alias, &mNode.addr.port);
     if (ret) {
         //新規設定 or DBから読み込み
-        ret = ucoin_util_wif2keys(&node->keys, &chain, wif);
+        ret = ucoin_util_wif2keys(&mNode.keys, &chain, wif);
         if (!ret) {
             goto LABEL_EXIT;
         }
@@ -101,7 +107,7 @@ bool ln_node_init(ln_node_t *node, uint8_t Features)
 
     ln_node_announce_t anno;
 
-    ret = ln_db_annonod_load(&buf_node, NULL, ln_node_id(node));
+    ret = ln_db_annonod_load(&buf_node, NULL, mNode.keys.pub);
     if (ret) {
         //ノード設定が変更されていないかチェック
         //  少なくともnode_idは変更されていない
@@ -112,19 +118,19 @@ bool ln_node_init(ln_node_t *node, uint8_t Features)
         anno.p_alias = node_alias;
         ret = ln_msg_node_announce_read(&anno, buf_node.buf, buf_node.len);
         if (ret) {
-            if ( (memcmp(anno.p_node_id, ln_node_id(node), UCOIN_SZ_PUBKEY) != 0) ||
-                 (strcmp(anno.p_alias, node->alias) != 0) ||
+            if ( (memcmp(anno.p_node_id, mNode.keys.pub, UCOIN_SZ_PUBKEY) != 0) ||
+                 (strcmp(anno.p_alias, mNode.alias) != 0) ||
                  (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
-                 (!comp_node_addr(&anno.addr, &node->addr) && (node->addr.type != LN_NODEDESC_NONE)) ) {
+                 (!comp_node_addr(&anno.addr, &mNode.addr) && (mNode.addr.type != LN_NODEDESC_NONE)) ) {
                 //保持している情報と不一致(IPアドレスは引数で指定された場合のみチェック)
                 DBG_PRINTF("fail: node info not match\n");
                 ret = false;
                 goto LABEL_EXIT;
             } else {
                 DBG_PRINTF("same node.conf\n");
-                uint16_t bak = node->addr.port; //node_announcementにはポート番号が載らないことがあり得る
-                memcpy(&node->addr, &anno.addr, sizeof(anno.addr));
-                node->addr.port = bak;
+                uint16_t bak = mNode.addr.port; //node_announcementにはポート番号が載らないことがあり得る
+                memcpy(&mNode.addr, &anno.addr, sizeof(anno.addr));
+                mNode.addr.port = bak;
             }
         }
     } else {
@@ -132,18 +138,21 @@ bool ln_node_init(ln_node_t *node, uint8_t Features)
         DBG_PRINTF("new\n");
 
         anno.timestamp = (uint32_t)time(NULL);
-        anno.p_node_id = node->keys.pub;
-        anno.p_my_node = &node->keys;
-        anno.p_alias = node->alias;
+        anno.p_node_id = mNode.keys.pub;
+        anno.p_alias = mNode.alias;
         anno.rgbcolor[0] = 0;
         anno.rgbcolor[1] = 0;
         anno.rgbcolor[2] = 0;
-        memcpy(&anno.addr, &node->addr, sizeof(ln_nodeaddr_t));
+        memcpy(&anno.addr, &mNode.addr, sizeof(ln_nodeaddr_t));
         ret = ln_msg_node_announce_create(&buf_node, &anno);
         if (!ret) {
             goto LABEL_EXIT;
         }
         ret = ln_db_annonod_save(&buf_node, &anno, NULL);
+    }
+
+    if (ret) {
+        print_node();
     }
 
 LABEL_EXIT:
@@ -152,9 +161,9 @@ LABEL_EXIT:
 }
 
 
-void ln_node_term(ln_node_t *node)
+void ln_node_term(void)
 {
-    memset(node, 0, sizeof(ln_node_t));
+    memset(&mNode, 0, sizeof(ln_node_t));
 }
 
 
@@ -183,7 +192,6 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
     if (ret) {
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;
-        pNodeAnno->p_my_node = NULL;
         ret = ln_msg_node_announce_read(pNodeAnno, buf_anno.buf, buf_anno.len);
         if (!ret) {
             DBG_PRINTF("fail: read node_announcement\n");
@@ -198,6 +206,12 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 /********************************************************************
  * HIDDEN
  ********************************************************************/
+
+const uint8_t HIDDEN *ln_node_getprivkey(void)
+{
+    return mNode.keys.priv;
+}
+
 
 /** node_announcement受信処理
  *
@@ -309,3 +323,36 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
     }
     return true;
 }
+
+
+static void print_node(void)
+{
+    printf("=NODE=============================================\n");
+    // printf("node_key: ");
+    // ucoin_util_dumpbin(PRINTOUT, mNode.keys.priv, UCOIN_SZ_PRIVKEY, true);
+    printf("node_id: ");
+    ucoin_util_dumpbin(PRINTOUT, mNode.keys.pub, UCOIN_SZ_PUBKEY, true);
+    printf("features= %02x\n", mNode.features);
+    printf("alias= %s\n", mNode.alias);
+    printf("addr.type=%d\n", mNode.addr.type);
+    if (mNode.addr.type == LN_NODEDESC_IPV4) {
+        printf("ipv4=%d.%d.%d.%d:%d\n",
+                mNode.addr.addrinfo.ipv4.addr[0],
+                mNode.addr.addrinfo.ipv4.addr[1],
+                mNode.addr.addrinfo.ipv4.addr[2],
+                mNode.addr.addrinfo.ipv4.addr[3],
+                mNode.addr.port);
+    } else {
+        printf("port=%d\n", mNode.addr.port);
+    }
+    printf("=============================================\n\n\n");
+}
+
+
+#ifdef UNITTEST
+static void ln_node_setkey(const uint8_t *pPrivKey)
+{
+    memcpy(mNode.keys.priv, pPrivKey, UCOIN_SZ_PRIVKEY);
+    ucoin_keys_priv2pub(mNode.keys.pub, mNode.keys.priv);
+}
+#endif  //UNITTEST

@@ -32,9 +32,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "ln/ln_local.h"
-#include "ln/ln_msg_anno.h"
-#include "ln/ln_misc.h"
+#include "ln_local.h"
+#include "ln_msg_anno.h"
+#include "ln_misc.h"
+#include "ln_signer.h"
 
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
@@ -490,11 +491,9 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         //      aliase : 指定が無ければ生成
         //      port : 指定された値
         DBG_PRINTF("create node DB\n");
-        uint8_t priv[UCOIN_SZ_PRIVKEY];
-        do {
-            ucoin_util_random(priv, UCOIN_SZ_PRIVKEY);
-        } while (!ucoin_keys_chkpriv(priv));
-        ucoin_keys_priv2wif(pWif, priv);
+        ucoin_util_keys_t keys;
+        ln_signer_create_nodekey(&keys);
+        ucoin_keys_priv2wif(pWif, keys.priv);
 
         char nodename[LN_SZ_ALIAS];
         if (pNodeName == NULL) {
@@ -502,10 +501,9 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
             nodename[0] = '\0';
         }
         if (strlen(pNodeName) == 0) {
-            uint8_t pub[UCOIN_SZ_PUBKEY];
-            ucoin_keys_priv2pub(pub, priv);
             sprintf(pNodeName, "node_%02x%02x%02x%02x%02x%02x",
-                        pub[0], pub[1], pub[2], pub[3], pub[4], pub[5]);
+                        keys.pub[0], keys.pub[1], keys.pub[2],
+                        keys.pub[3], keys.pub[4], keys.pub[5]);
         }
         //DBG_PRINTF("wif=%s\n", pWif);
         DBG_PRINTF("aliase=%s\n", pNodeName);
@@ -2546,7 +2544,7 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
-    void *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
+    uint8_t *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
@@ -2598,7 +2596,7 @@ static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
 
-    void *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
+    uint8_t *OFFSET = ((uint8_t *)self) + offsetof(ln_self_t, cnl_add_htlc);
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);

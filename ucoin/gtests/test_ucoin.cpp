@@ -26,6 +26,7 @@ extern "C" {
 #include "ln_onion.c"
 #include "ln_script.c"
 #include "ln_enc_auth.c"
+#include "ln_signer.c"
 }
 
 ////////////////////////////////////////////////////////////////////////

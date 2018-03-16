@@ -858,7 +858,7 @@ static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *
         for (uint32_t lp = 0; lp < confm; lp++) {
             ret = btcprc_search_vout_block(pTxBuf, height - lp, pVout);
             if (ret) {
-                DBG_PRINTF("buf.len=%d\n", pTxBuf->len);
+                DBG_PRINTF("buf.len=%u\n", pTxBuf->len);
                 break;
             }
         }

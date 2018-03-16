@@ -240,10 +240,6 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  * prototypes
  ********************************************************************/
 
-const uint8_t *ucoind_nodeid(void);
-uint16_t ucoind_nodeport(void);
-const ucoin_util_keys_t *ucoind_nodekeys(void);
-
 bool ucoind_forward_payment(fwd_proc_add_t *p_add);
 bool ucoind_backward_fulfill(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
 bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail);

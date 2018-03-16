@@ -60,6 +60,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_onion.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_db_lmdb.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_enc_auth.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_print.c
+C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_signer.c
 
 #includes common to all targets
 INC_PATHS += -Iinclude -Isrc/inc -Isrc/inc/ln
