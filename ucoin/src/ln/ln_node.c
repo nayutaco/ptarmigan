@@ -314,9 +314,12 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
     return true;
 }
 
-
+#ifdef UNITTEST
 static void ln_node_setkey(const uint8_t *pPrivKey)
 {
+    static ln_node_t sNode;
+    ln_node_set(&sNode);
     memcpy(mpNode->keys.priv, pPrivKey, UCOIN_SZ_PRIVKEY);
     ucoin_keys_priv2pub(mpNode->keys.pub, mpNode->keys.priv);
 }
+#endif  //UNITTEST
