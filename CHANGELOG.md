@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2018/03/17
+
+* remove `dumpprivkey`
+  * use `signrawtransaction`
+* revice signature module
+* update lib: bech32
+  * use new signature api
+* bugfix
+
 ## 2018/03/13
 
 * tag: 2018-03-13
