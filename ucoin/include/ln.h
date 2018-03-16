@@ -1238,9 +1238,10 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl);
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pReEst          channel_reestablishメッセージ
+ * @param[out]          pFundLock       true:続けてfunding_lockedを送信すること
  * retval       true    成功
  */
-bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst);
+bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst, bool *pFundLock);
 
 
 /** open_channelメッセージ作成

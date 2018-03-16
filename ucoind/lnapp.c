@@ -1073,16 +1073,24 @@ static bool send_reestablish(lnapp_conf_t *p_conf)
 {
     //channel_reestablish送信
     ucoin_buf_t buf_bolt;
+    bool b_fundlock = false;
     ucoin_buf_init(&buf_bolt);
-    bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt);
+    bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt, &b_fundlock);
     assert(ret);
 
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
+    if (b_fundlock) {
+        ret = ln_funding_tx_stabled(p_conf->p_self);
+        if (!ret) {
+            DBG_PRINTF("fail: ln_funding_tx_stabled(self)\n");
+        }
+    }
+
     //コールバックでのchannel_reestablish受信通知待ち
     DBG_PRINTF("channel_reestablish wait...\n");
-    if (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0)) {
+    while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0)) {
         misc_msleep(M_WAIT_RECV_MSG_MSEC);
     }
     DBG_PRINTF("channel_reestablish交換完了\n\n");
