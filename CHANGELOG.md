@@ -7,6 +7,7 @@
 * revice signature module
 * update lib: bech32
   * use new signature api
+  * rebuild with `make full`
 * bugfix
 
 ## 2018/03/13
