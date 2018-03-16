@@ -141,7 +141,7 @@ static int json_connect(cJSON *params, int Index, daemon_connect_t *pConn)
         Index = -1;
         goto LABEL_EXIT;
     }
-    if (memcmp(ucoind_nodeid(), pConn->node_id, UCOIN_SZ_PUBKEY) == 0) {
+    if (memcmp(ln_node_getid(), pConn->node_id, UCOIN_SZ_PUBKEY) == 0) {
         //node_idが自分と同じ
         DBG_PRINTF("fail: same own node_id\n");
         Index = -1;
@@ -799,7 +799,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
             strcpy(str_payer, json->valuestring);
         } else {
             //自分をpayerにする
-            misc_bin2str(str_payer, ucoind_nodeid(), UCOIN_SZ_PUBKEY);
+            misc_bin2str(str_payer, ln_node_getid(), UCOIN_SZ_PUBKEY);
         }
         DBG_PRINTF("str_payer=%s\n", str_payer);
     } else {
@@ -883,9 +883,9 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *result_cli = cJSON_CreateArray();
 
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ucoind_nodeid(), UCOIN_SZ_PUBKEY);
+    misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
-    cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ucoind_nodeport()));
+    cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
     cJSON_AddItemToObject(result, "jsonrpc_port", cJSON_CreateNumber(cmd_json_get_port()));
     uint8_t *p_hash;
     int cnt = ln_db_annoskip_invoice_get(&p_hash);

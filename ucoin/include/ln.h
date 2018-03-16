@@ -1056,13 +1056,12 @@ struct ln_self_t {
  * 鍵関係を、ストレージを含めて初期化している。
  *
  * @param[in,out]       self            channel情報
- * @param[in]           node            関連付けるnode
  * @param[in]           pSeed           per-commit-secret生成用
  * @param[in]           pAnnoPrm        announcementパラメータ
  * @param[in]           pFunc           通知用コールバック関数
  * @retval      true    成功
  */
-bool ln_init(ln_self_t *self, ln_node_t *node, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
+bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc);
 
 
 /** 終了
@@ -1485,26 +1484,6 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
  * inline展開用
  ********************************************************************/
 
-/** ノードアドレス取得
- *
- * @param[in]           node            node情報
- * @return      ノードアドレス(非const)
- */
-static inline ln_nodeaddr_t *ln_node_addr(ln_node_t *node) {
-    return &node->addr;
-}
-
-
-/** ノードID取得
- *
- * @param[in]           node            node情報
- * @return      node_id
- */
-static inline const uint8_t *ln_node_id(const ln_node_t *node) {
-    return node->keys.pub;
-}
-
-
 /** channel_id取得
  *
  * @param[in]           self            channel情報
@@ -1914,24 +1893,28 @@ static inline bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd) {
  * NODE
  ********************************************************************/
 
-void ln_node_set(ln_node_t *node);
+/** ノードアドレス取得
+ *
+ * @return      ノードアドレス(非const)
+ */
+ln_nodeaddr_t *ln_node_addr(void);
+
+
+char *ln_node_alias(void);
 
 
 const uint8_t *ln_node_getid(void);
 
 /** ノード情報初期化
  *
- * @param[in,out]   node            ノード情報
  * @param[in]       Features        ?
  */
-bool ln_node_init(ln_node_t *node, uint8_t Features);
+bool ln_node_init(uint8_t Features);
 
 
 /** ノード情報終了
- *
- * @param[in,out]   node            ノード情報
  */
-void ln_node_term(ln_node_t *node);
+void ln_node_term(void);
 
 
 /** channel情報検索(node_idから)
@@ -2034,8 +2017,6 @@ unsigned long ln_get_debug(void);
 
 
 #ifdef UCOIN_USE_PRINTFUNC
-void ln_print_node(const ln_node_t *node);
-
 
 /** [デバッグ用]鍵情報出力
  *

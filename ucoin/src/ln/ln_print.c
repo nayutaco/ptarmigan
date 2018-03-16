@@ -379,30 +379,6 @@ void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
 }
 
 
-void ln_print_node(const ln_node_t *node)
-{
-    printf("=NODE=============================================\n");
-    // printf("node_key: ");
-    // ucoin_util_dumpbin(PRINTOUT, node->keys.priv, UCOIN_SZ_PRIVKEY, true);
-    printf("node_id: ");
-    ucoin_util_dumpbin(PRINTOUT, node->keys.pub, UCOIN_SZ_PUBKEY, true);
-    printf("features= %02x\n", node->features);
-    printf("alias= %s\n", node->alias);
-    printf("addr.type=%d\n", node->addr.type);
-    if (node->addr.type == LN_NODEDESC_IPV4) {
-        printf("ipv4=%d.%d.%d.%d:%d\n",
-                node->addr.addrinfo.ipv4.addr[0],
-                node->addr.addrinfo.ipv4.addr[1],
-                node->addr.addrinfo.ipv4.addr[2],
-                node->addr.addrinfo.ipv4.addr[3],
-                node->addr.port);
-    } else {
-        printf("port=%d\n", node->addr.port);
-    }
-    printf("=============================================\n\n\n");
-}
-
-
 void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote)
 {
 #ifdef M_DBG_VERBOSE

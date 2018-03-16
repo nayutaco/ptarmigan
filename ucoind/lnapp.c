@@ -166,7 +166,6 @@ typedef enum {
 
 static volatile bool        mLoop;          //true:チャネル有効
 
-static ln_node_t            *mpNode;
 static ln_anno_prm_t        mAnnoPrm;       ///< announcementパラメータ
 
 //シーケンスのmutex
@@ -283,10 +282,8 @@ static void pay_retry(const uint8_t *pPayHash);
  * public functions
  ********************************************************************/
 
-void lnapp_init(ln_node_t *pNode)
+void lnapp_init(void)
 {
-    mpNode = pNode;
-
     pthread_mutexattr_init(&mMuxAttr);
     pthread_mutexattr_settype(&mMuxAttr, PTHREAD_MUTEX_RECURSIVE_NP);
     pthread_mutex_init(&mMuxSeq, &mMuxAttr);
@@ -586,7 +583,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         mAnnoPrm.fee_base_msat = M_FEE_BASE_MSAT;
         mAnnoPrm.fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
     }
-    ln_init(p_self, mpNode, NULL, &mAnnoPrm, NULL);
+    ln_init(p_self, NULL, &mAnnoPrm, NULL);
 
     ret = ln_node_search_channel(p_self, pNodeId);
     if (!ret) {
@@ -814,7 +811,7 @@ static void *thread_main_start(void *pArg)
     uint8_t seed[LN_SZ_SEED];
     DBG_PRINTF("ln_self_t initialize");
     ucoin_util_random(seed, LN_SZ_SEED);
-    ln_init(p_self, mpNode, seed, &mAnnoPrm, notify_cb);
+    ln_init(p_self, seed, &mAnnoPrm, notify_cb);
 
     p_conf->p_self = p_self;
     p_conf->ping_counter = 0;

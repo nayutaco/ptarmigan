@@ -61,7 +61,6 @@
  * static variables
  ********************************************************************/
 
-static ln_node_t            mNode;
 static pthread_mutex_t      mMuxPreimage;
 static char                 mExecPath[PATH_MAX];
 
@@ -74,9 +73,8 @@ int main(int argc, char *argv[])
 {
     bool bret;
     rpc_conf_t rpc_conf;
-    ln_nodeaddr_t *p_addr = ln_node_addr(&mNode);
-
-    ln_node_set(&mNode);
+    ln_nodeaddr_t *p_addr = ln_node_addr();
+    char *p_alias = ln_node_alias();
 
     memset(&rpc_conf, 0, sizeof(rpc_conf_t));
 #ifndef NETKIND
@@ -91,8 +89,8 @@ int main(int argc, char *argv[])
 #endif
     strcpy(rpc_conf.rpcurl, "127.0.0.1");
 
-    mNode.addr.type = LN_NODEDESC_NONE;
-    mNode.addr.port = 9735;
+    p_addr->type = LN_NODEDESC_NONE;
+    p_addr->port = 9735;
 
     int opt;
     int options = 0;
@@ -100,16 +98,16 @@ int main(int argc, char *argv[])
         switch (opt) {
         case 'p':
             //port num
-            mNode.addr.port = (uint16_t)atoi(optarg);
+            p_addr->port = (uint16_t)atoi(optarg);
             break;
         case 'n':
             //node name(alias)
-            strncpy(mNode.alias, optarg, LN_SZ_ALIAS - 1);
+            strncpy(p_alias, optarg, LN_SZ_ALIAS - 1);
             break;
         case 'a':
             //ip address
-            mNode.addr.type = LN_NODEDESC_IPV4;
-            uint8_t *p = mNode.addr.addrinfo.addr;
+            p_addr->type = LN_NODEDESC_IPV4;
+            uint8_t *p = p_addr->addrinfo.addr;
             sscanf(optarg, "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8,
                     &p[0], &p[1], &p[2], &p[3]);
             break;
@@ -170,7 +168,7 @@ int main(int argc, char *argv[])
     ln_set_genesishash(genesis);
 
     //node情報読込み
-    bret = ln_node_init(&mNode, 0);
+    bret = ln_node_init(0);
     if (!bret) {
         DBG_PRINTF("fail: node init\n");
         return -2;
@@ -178,18 +176,17 @@ int main(int argc, char *argv[])
 
     if (options == 0x01) {
         //node_id出力
-        ucoin_util_dumpbin(stdout, mNode.keys.pub, UCOIN_SZ_PUBKEY, true);
+        ucoin_util_dumpbin(stdout, ln_node_getid(), UCOIN_SZ_PUBKEY, true);
         ucoin_term();
         return 0;
     }
 
     //syslog
     openlog("ucoind", LOG_CONS, LOG_USER);
-    ln_print_node(&mNode);
 
     //peer config出力
     char fname[256];
-    sprintf(fname, "ptarm_%s.conf", mNode.alias);
+    sprintf(fname, "ptarm_%s.conf", p_alias);
     FILE *fp = fopen(fname, "w");
     if (fp) {
         if (p_addr->type == LN_NODEDESC_IPV4) {
@@ -203,17 +200,17 @@ int main(int argc, char *argv[])
         }
         fprintf(fp, "port=%d\n", p_addr->port);
         fprintf(fp, "node_id=");
-        ucoin_util_dumpbin(fp, mNode.keys.pub, UCOIN_SZ_PUBKEY, true);
+        ucoin_util_dumpbin(fp, ln_node_getid(), UCOIN_SZ_PUBKEY, true);
         fclose(fp);
     }
 
-    lnapp_init(&mNode);
+    lnapp_init();
 
     pthread_mutex_init(&mMuxPreimage, NULL);
 
     //接続待ち受け用
     pthread_t th_svr;
-    pthread_create(&th_svr, NULL, &p2p_svr_start, &mNode.addr.port);
+    pthread_create(&th_svr, NULL, &p2p_svr_start, NULL);
 
     //チャネル監視用
     pthread_t th_poll;
@@ -226,7 +223,7 @@ int main(int argc, char *argv[])
 #endif
 
     //ucoincli受信用
-    cmd_json_start(mNode.addr.port + 1);
+    cmd_json_start(p_addr->port + 1);
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
@@ -257,24 +254,6 @@ LABEL_EXIT:
 /********************************************************************
  * public functions
  ********************************************************************/
-
-const uint8_t *ucoind_nodeid(void)
-{
-    return ln_node_id(&mNode);
-}
-
-
-uint16_t ucoind_nodeport(void)
-{
-    return mNode.addr.port;
-}
-
-
-const ucoin_util_keys_t *ucoind_nodekeys(void)
-{
-    return &mNode.keys;
-}
-
 
 bool ucoind_forward_payment(fwd_proc_add_t *p_add)
 {

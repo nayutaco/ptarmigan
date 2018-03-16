@@ -152,7 +152,7 @@ typedef struct lnapp_conf_t {
 /** [lnapp]初期化
  *
  */
-void lnapp_init(ln_node_t *pNode);
+void lnapp_init(void);
 
 
 /** [lnapp]開始
