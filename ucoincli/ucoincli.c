@@ -238,6 +238,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         return;
     }
 
+    size_t optlen = strlen(optarg);
     peer_conf_t peer;
     bool bret = load_peer_conf(optarg, &peer);
     if (bret) {
@@ -247,13 +248,29 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         mPeerPort = peer.port;
         misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
         *pOption = M_OPTIONS_CONN;
-    } else if (strlen(optarg) == UCOIN_SZ_PUBKEY * 2) {
+    } else if (optlen >= (UCOIN_SZ_PUBKEY * 2 + 1 + 7 + 1 + 1)) {
+        // <pubkey>@<ipaddr>:<port>
+        // (33 * 2)@x.x.x.x:x
+        int results = sscanf(optarg, "%66s@%[^:]:%" SCNu16,
+            mPeerNodeId,
+            mPeerAddr,
+            &mPeerPort);
+        printf("id: %s\n", mPeerNodeId);
+        printf("addr: %s\n", mPeerAddr);
+        printf("port: %" PRIu16 "\n", mPeerPort);
+        if (results == 3) {
+            *pConn = true;
+            *pOption = M_OPTIONS_CONN;
+        } else {
+            printf("fail: peer configuration file\n");
+            *pOption = M_OPTIONS_HELP;
+        }
+    } else if (optlen == UCOIN_SZ_PUBKEY * 2) {
         //node_idを直で指定した可能性あり(connectとしては使用できない)
         strcpy(mPeerAddr, "0.0.0.0");
         mPeerPort = 0;
         strcpy(mPeerNodeId, optarg);
         *pOption = M_OPTIONS_CONN;
-        printf("-c node_id\n");
     } else {
         printf("fail: peer configuration file\n");
         *pOption = M_OPTIONS_HELP;
