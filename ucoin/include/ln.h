@@ -2032,6 +2032,10 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
  */
 bool ln_signer_create_invoice(char **ppInvoice, const uint8_t *pPayHash, uint64_t Amount);
 
+/** node privkeyによる署名
+ */
+bool ln_signer_sign_nodekey(uint8_t *pRS, const uint8_t *pHash);
+
 
 /********************************************************************
  * デバッグ

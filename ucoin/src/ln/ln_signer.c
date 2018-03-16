@@ -35,7 +35,7 @@
 
 bool ln_signer_create_invoice(char **ppInvoice, const uint8_t *pPayHash, uint64_t Amount)
 {
-    const ln_node_t * p_node = ln_node_get();
+    const ln_node_t *p_node = ln_node_get();
     ln_invoice_t invoice_data;
 
 #ifndef NETKIND
@@ -50,8 +50,15 @@ bool ln_signer_create_invoice(char **ppInvoice, const uint8_t *pPayHash, uint64_
     invoice_data.min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     memcpy(invoice_data.pubkey, p_node->keys.pub, UCOIN_SZ_PUBKEY);
     memcpy(invoice_data.payment_hash, pPayHash, LN_SZ_HASH);
-    bool ret = ln_invoice_encode(ppInvoice, &invoice_data, p_node->keys.priv);
+    bool ret = ln_invoice_encode(ppInvoice, &invoice_data);
     return ret;
+}
+
+
+bool ln_signer_sign_nodekey(uint8_t *pRS, const uint8_t *pHash)
+{
+    const ln_node_t * p_node = ln_node_get();
+    return ucoin_tx_sign_rs(pRS, pHash, p_node->keys.priv);
 }
 
 
