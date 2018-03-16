@@ -427,7 +427,7 @@ LABEL_EXIT:
         char hashstr[LN_SZ_HASH * 2 + 1];
         misc_bin2str(hashstr, pPay->payment_hash, LN_SZ_HASH);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
@@ -930,7 +930,7 @@ static void *thread_main_start(void *pArg)
     // $3: peer_id
     // $4: JSON-RPC port
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
+    misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
     misc_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
     char param[256];
@@ -1626,7 +1626,7 @@ LABEL_EXIT:
         char hashstr[LN_SZ_HASH * 2 + 1];
         misc_bin2str(hashstr, p_fwd_add->payment_hash, LN_SZ_HASH);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
@@ -1688,7 +1688,7 @@ static bool fwd_fulfill_backward(lnapp_conf_t *p_conf, fwd_proc_fulfill_t *p_fwd
         char imgstr[LN_SZ_PREIMAGE * 2 + 1];
         misc_bin2str(imgstr, p_fwd_fulfill->preimage, LN_SZ_PREIMAGE);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%s "
@@ -1751,7 +1751,7 @@ static bool fwd_fail_backward(lnapp_conf_t *p_conf, fwd_proc_fail_t *p_fwd_fail)
         // $1: short_channel_id
         // $2: node_id
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s",
                     ln_short_channel_id(p_conf->p_self), node_id);
@@ -1937,7 +1937,7 @@ static void cb_established(lnapp_conf_t *p_conf, void *p_param)
     char txidstr[UCOIN_SZ_TXID * 2 + 1];
     misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
+    misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     char param[256];
     sprintf(param, "%" PRIx64 " %s "
                 "%" PRIu64 " "
@@ -2468,7 +2468,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
     // $4: htlc_num
     char param[256];
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
+    misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     sprintf(param, "%" PRIx64 " %s "
                 "%" PRIu64 " "
                 "%d",
@@ -2539,7 +2539,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         char txidstr[UCOIN_SZ_TXID * 2 + 1];
         misc_bin2str_rev(txidstr, txid, UCOIN_SZ_TXID);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "%s",
                     ln_short_channel_id(p_conf->p_self), node_id,
@@ -3004,7 +3004,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         // $3: err_str
         char *param = (char *)APP_MALLOC(len_max);      //APP_FREE: この中
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(node_id, ln_node_get()->keys.pub, UCOIN_SZ_PUBKEY);
+        misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "\"%s\"",
                     ln_short_channel_id(p_conf->p_self), node_id,

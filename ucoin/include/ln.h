@@ -620,7 +620,7 @@ typedef struct {
 //    uint8_t     *p_btc_key2;                        ///< 33: bitcoin_key_2
 //    uint8_t     features;                           ///< 1:  features
 
-    const ucoin_util_keys_t *p_my_node;
+    const uint8_t           *p_my_node_pub;
     const ucoin_util_keys_t *p_my_funding;
     const uint8_t           *p_peer_node_pub;
     const uint8_t           *p_peer_funding_pub;
@@ -679,9 +679,6 @@ typedef struct {
 //    uint8_t     features;                           ///< 1:  features
     ln_nodeaddr_t       addr;
 
-    //create
-    const ucoin_util_keys_t *p_my_node;
-
     //受信したデータ用
     ucoin_keys_sort_t   sort;                       ///< 自ノードとのソート結果(ASC=自ノードが先)
 } ln_node_announce_t;
@@ -699,8 +696,6 @@ typedef struct {
     uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
     uint32_t    fee_base_msat;                      ///< 4:  fee_base_msat
     uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
-
-    const uint8_t           *p_key;                 ///< priv:sign / pub:verify
 } ln_cnl_update_t;
 
 
@@ -1920,8 +1915,9 @@ static inline bool ln_cnlupd_enable(const ln_cnl_update_t *pCnlUpd) {
  ********************************************************************/
 
 void ln_node_set(ln_node_t *node);
-ln_node_t *ln_node_get(void);
 
+
+const uint8_t *ln_node_getid(void);
 
 /** ノード情報初期化
  *
@@ -2019,18 +2015,10 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
             const ucoin_buf_t *pSharedSecrets,
             const ucoin_buf_t *pPacket);
 
+
 /********************************************************************
  * signer
  ********************************************************************/
-
-/** BOLT11 形式invoice作成
- * 
- * @param[out]      ppInvoice
- * @param[in]       pPayHash
- * @param[in]       Amount
- * @retval      true        成功
- */
-bool ln_signer_create_invoice(char **ppInvoice, const uint8_t *pPayHash, uint64_t Amount);
 
 /** node privkeyによる署名
  */

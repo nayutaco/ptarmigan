@@ -71,9 +71,9 @@ void ln_node_set(ln_node_t *node)
 }
 
 
-ln_node_t *ln_node_get(void)
+const uint8_t *ln_node_getid(void)
 {
-    return mpNode;
+    return mpNode->keys.pub;
 }
 
 
@@ -133,7 +133,6 @@ bool ln_node_init(ln_node_t *node, uint8_t Features)
 
         anno.timestamp = (uint32_t)time(NULL);
         anno.p_node_id = node->keys.pub;
-        anno.p_my_node = &node->keys;
         anno.p_alias = node->alias;
         anno.rgbcolor[0] = 0;
         anno.rgbcolor[1] = 0;
@@ -183,7 +182,6 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
     if (ret) {
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;
-        pNodeAnno->p_my_node = NULL;
         ret = ln_msg_node_announce_read(pNodeAnno, buf_anno.buf, buf_anno.len);
         if (!ret) {
             DBG_PRINTF("fail: read node_announcement\n");
@@ -198,6 +196,12 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 /********************************************************************
  * HIDDEN
  ********************************************************************/
+
+const uint8_t HIDDEN *ln_node_getprivkey(void)
+{
+    return mpNode->keys.priv;
+}
+
 
 /** node_announcement受信処理
  *
@@ -308,4 +312,11 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
         return false;
     }
     return true;
+}
+
+
+static void ln_node_setkey(const uint8_t *pPrivKey)
+{
+    memcpy(mpNode->keys.priv, pPrivKey, UCOIN_SZ_PRIVKEY);
+    ucoin_keys_priv2pub(mpNode->keys.pub, mpNode->keys.priv);
 }

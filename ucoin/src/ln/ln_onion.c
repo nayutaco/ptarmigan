@@ -31,6 +31,7 @@
 
 #include "ln_onion.h"
 #include "ln_misc.h"
+#include "ln_signer.h"
 
 
 /**************************************************************************
@@ -230,7 +231,6 @@ bool ln_onion_create_packet(uint8_t *pPacket,
 bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
             ucoin_buf_t *pSharedSecret,
             const uint8_t *pPacket,
-            const uint8_t *pOnionPrivKey,
             const uint8_t *pAssocData, int AssocLen)
 {
     bool ret;
@@ -255,7 +255,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     uint8_t mu_key[M_SZ_KEYLEN];
     uint8_t shared_secret[M_SZ_SHARED_SECRET];
 
-    ucoin_util_generate_shared_secret(shared_secret, p_dhkey, pOnionPrivKey);
+    ln_signer_generate_shared_secret(shared_secret, p_dhkey);
 
     int len = (M_SZ_HOP_DATA > AssocLen) ? M_SZ_HOP_DATA : AssocLen;
     uint8_t *p_msg = (uint8_t *)M_CALLOC(1, M_SZ_ROUTING_INFO + len);

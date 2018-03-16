@@ -2564,7 +2564,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
 
     ret = ln_onion_read_packet(self->cnl_add_htlc[idx].p_onion_route, &hop_dataout,
                     &self->cnl_add_htlc[idx].shared_secret,
-                    self->cnl_add_htlc[idx].p_onion_route, ln_node_get()->keys.priv,
+                    self->cnl_add_htlc[idx].p_onion_route,
                     self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH);
     if (!ret) {
         DBG_PRINTF("fail: onion-read\n");
@@ -4039,7 +4039,7 @@ static bool create_local_channel_announcement(ln_self_t *self)
     ln_cnl_announce_create_t anno;
 
     anno.short_channel_id = self->short_channel_id;
-    anno.p_my_node = &(ln_node_get()->keys);
+    anno.p_my_node_pub = ln_node_getid();
     anno.p_peer_node_pub = self->peer_node_id;
     anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
     anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
@@ -4069,7 +4069,6 @@ static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_
     pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
     pUpd->fee_prop_millionths = self->anno_prm.fee_prop_millionths;
     //署名
-    pUpd->p_key = ln_node_get()->keys.priv;
     pUpd->flags = Flag | sort_nodeid(self);
     bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
@@ -4326,12 +4325,13 @@ static ucoin_keys_sort_t sort_nodeid(ln_self_t *self)
     ucoin_keys_sort_t sort;
 
     int lp;
+    const uint8_t *p_nodeid = ln_node_getid();
     for (lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        if (ln_node_get()->keys.pub[lp] != self->peer_node_id[lp]) {
+        if (p_nodeid[lp] != self->peer_node_id[lp]) {
             break;
         }
     }
-    if (ln_node_get()->keys.pub[lp] < self->peer_node_id[lp]) {
+    if (p_nodeid[lp] < self->peer_node_id[lp]) {
         DBG_PRINTF("my node= first\n");
         sort = UCOIN_KEYS_SORT_ASC;
     } else {

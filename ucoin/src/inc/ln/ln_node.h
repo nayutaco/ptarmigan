@@ -33,6 +33,9 @@
  * prototypes
  ********************************************************************/
 
+const uint8_t HIDDEN *ln_node_getprivkey(void);
+
+
 /** node_announcement受信
  *
  * @param[in,out]       self            channel情報

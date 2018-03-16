@@ -25,6 +25,7 @@
  */
 #include "ln_signer.h"
 #include "ln_derkey.h"
+#include "ln_node.h"
 
 #include "segwit_addr.h"
 
@@ -33,32 +34,9 @@
  * public functions
  **************************************************************************/
 
-bool ln_signer_create_invoice(char **ppInvoice, const uint8_t *pPayHash, uint64_t Amount)
-{
-    const ln_node_t *p_node = ln_node_get();
-    ln_invoice_t invoice_data;
-
-#ifndef NETKIND
-#error not define NETKIND
-#endif
-#if NETKIND==0
-    invoice_data.hrp_type = LN_INVOICE_MAINNET;
-#elif NETKIND==1
-    invoice_data.hrp_type = LN_INVOICE_TESTNET;
-#endif
-    invoice_data.amount_msat = Amount;
-    invoice_data.min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
-    memcpy(invoice_data.pubkey, p_node->keys.pub, UCOIN_SZ_PUBKEY);
-    memcpy(invoice_data.payment_hash, pPayHash, LN_SZ_HASH);
-    bool ret = ln_invoice_encode(ppInvoice, &invoice_data);
-    return ret;
-}
-
-
 bool ln_signer_sign_nodekey(uint8_t *pRS, const uint8_t *pHash)
 {
-    const ln_node_t * p_node = ln_node_get();
-    return ucoin_tx_sign_rs(pRS, pHash, p_node->keys.priv);
+    return ucoin_tx_sign_rs(pRS, pHash, ln_node_getprivkey());
 }
 
 
@@ -175,4 +153,12 @@ bool HIDDEN ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const u
     ucoin_buf_free(&script_code);
 
     return ret;
+}
+
+
+void HIDDEN ln_signer_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey)
+{
+    uint8_t pub[UCOIN_SZ_PUBKEY];
+    ucoin_util_mul_pubkey(pub, pPubKey, ln_node_getprivkey(), UCOIN_SZ_PRIVKEY);
+    ucoin_util_sha256(pResult, pub, sizeof(pub));
 }

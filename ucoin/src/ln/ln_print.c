@@ -264,7 +264,6 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
     case MSGTYPE_CHANNEL_UPDATE:
         {
             ln_cnl_update_t msg;
-            msg.p_key = NULL;
             ln_msg_cnl_update_read(&msg, pData, Len);
             ln_msg_cnl_update_print(&msg);
         }
@@ -331,7 +330,6 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
     case MSGTYPE_CHANNEL_UPDATE:
         {
             ln_cnl_update_t ann;
-            ann.p_key = NULL;
             bool ret = ln_msg_cnl_update_read(&ann, pData, Len);
             if (ret) {
                 fprintf(PRINTOUT, M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (ann.flags & 1) ? "2" : "1");

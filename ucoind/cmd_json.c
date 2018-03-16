@@ -31,8 +31,9 @@
 #include <assert.h>
 
 #include "jsonrpc-c.h"
-#include "cmd_json.h"
+#include "segwit_addr.h"
 
+#include "cmd_json.h"
 #include "ln_db.h"
 #include "btcrpc.h"
 
@@ -493,7 +494,16 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     ucoind_preimage_unlock();
 
     char *p_invoice = NULL;
-    bool ret = ln_signer_create_invoice(&p_invoice, preimage_hash, amount);
+    uint8_t type;
+#ifndef NETKIND
+#error not define NETKIND
+#endif
+#if NETKIND==0
+    type = LN_INVOICE_MAINNET;
+#elif NETKIND==1
+    type = LN_INVOICE_TESTNET;
+#endif
+    bool ret = ln_invoice_create(&p_invoice, type, preimage_hash, amount);
     if (ret) {
         cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
     } else {

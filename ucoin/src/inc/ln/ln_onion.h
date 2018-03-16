@@ -51,7 +51,6 @@
 bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
             ucoin_buf_t *pSharedSecret,
             const uint8_t *pPacket,
-            const uint8_t *pOnionPrivKey,
             const uint8_t *pAssocData, int AssocLen);
 
 #endif /* LN_ONION_H__ */
