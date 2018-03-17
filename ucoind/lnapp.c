@@ -2642,19 +2642,20 @@ static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 {
     struct pollfd fds;
     ssize_t len = pBuf->len;
-    while (p_conf->loop) {
+    while ((p_conf->loop) && (len > 0)) {
         fds.fd = p_conf->sock;
-        fds.events = POLLIN;
+        fds.events = POLLOUT;
         int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
         if (polr <= 0) {
             SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
             break;
         }
         ssize_t sz = write(p_conf->sock, pBuf->buf, len);
-        len -= sz;
-        if (len == 0) {
+        if (sz < 0) {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
             break;
         }
+        len -= sz;
         misc_msleep(M_WAIT_SEND_WAIT_MSEC);
     }
 }
@@ -2673,19 +2674,20 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 
     struct pollfd fds;
     ssize_t len = buf_enc.len;
-    while (p_conf->loop) {
+    while ((p_conf->loop) && (len > 0)) {
         fds.fd = p_conf->sock;
-        fds.events = POLLIN;
+        fds.events = POLLOUT;
         int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
         if (polr <= 0) {
             SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
             break;
         }
         ssize_t sz = write(p_conf->sock, buf_enc.buf, len);
-        len -= sz;
-        if (len == 0) {
+        if (sz < 0) {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
             break;
         }
+        len -= sz;
         misc_msleep(M_WAIT_SEND_WAIT_MSEC);
     }
     ucoin_buf_free(&buf_enc);
