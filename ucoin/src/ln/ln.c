@@ -3067,6 +3067,11 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         return false;
     }
 
+    if (self->cnl_anno.buf == NULL) {
+        DBG_PRINTF("FAIL: I don't have announce_signature data(maybe bug).\n");
+        return false;
+    }
+
     DBG_PRINTF("+++ channel_announcement[%" PRIx64 "] +++\n", self->short_channel_id);
     ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
 

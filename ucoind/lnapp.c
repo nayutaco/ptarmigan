@@ -1306,6 +1306,9 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
             if (ret) {
                 send_peer_noise(p_conf, &buf_bolt);
                 ucoin_buf_free(&buf_bolt);
+            } else {
+                DBG_PRINTF("fail: create announcement_signatures\n");
+                stop_threads(p_conf);
             }
         }
         break;
