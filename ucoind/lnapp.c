@@ -2901,7 +2901,8 @@ static void set_changeaddr(ln_self_t *self, uint64_t commit_fee)
 static void wait_mutex_lock(uint8_t Flag)
 {
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
-    while (p_conf->loop) {
+    uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_MUTEX_MSEC;
+    while (count) {
         pthread_mutex_lock(&mMuxSeq);
         //ここで PAYMENTがある場合もブロックすると、デッドロックする可能性あり
         if ((mMuxTiming & ~MUX_PAYMENT) == 0) {
@@ -2909,6 +2910,7 @@ static void wait_mutex_lock(uint8_t Flag)
         }
         pthread_mutex_unlock(&mMuxSeq);
         misc_msleep(M_WAIT_MUTEX_MSEC);
+        count--;
     }
     mMuxTiming |= Flag;
     pthread_mutex_unlock(&mMuxSeq);
