@@ -213,7 +213,7 @@ lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id)
 void p2p_svr_show_self(cJSON *pResult)
 {
     for (int lp = 0; lp < M_SOCK_MAX; lp++) {
-        lnapp_show_self(&mAppConf[lp], pResult);
+        lnapp_show_self(&mAppConf[lp], pResult, "server");
     }
 }
 

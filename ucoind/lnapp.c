@@ -609,7 +609,7 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 }
 
 
-void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
+void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *pSvrCli)
 {
     if ((!pAppConf->loop) || (pAppConf->sock < 0)) {
         return;
@@ -618,6 +618,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
     ln_self_t *p_self = pAppConf->p_self;
 
     cJSON *result = cJSON_CreateObject();
+    cJSON_AddItemToObject(result, "role", cJSON_CreateString(pSvrCli));
 
     if (p_self && ln_short_channel_id(p_self)) {
         //show_self_param(p_self, PRINTOUT, __LINE__);
