@@ -921,23 +921,33 @@ static void *thread_main_start(void *pArg)
     DBG_PRINTF("\n\n*** message inited ***\n\n\n");
     p_conf->flag_recv |= RECV_MSG_END;
 
-    // method: connected
-    // $1: short_channel_id
-    // $2: node_id
-    // $3: peer_id
-    // $4: JSON-RPC port
-    char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
-    char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
-    char param[256];
-    sprintf(param, "%" PRIx64 " %s "
-                "%s "
-                "%" PRIu16,
-                ln_short_channel_id(p_self), node_id,
-                peer_id,
-                cmd_json_get_port());
-    call_script(M_EVT_CONNECTED, param);
+    {
+        // method: connected
+        // $1: short_channel_id
+        // $2: node_id
+        // $3: peer_id
+        // $4: JSON-RPC port
+        char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+        char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
+        char param[256];
+        sprintf(param, "%" PRIx64 " %s "
+                    "%s "
+                    "%" PRIu16,
+                    ln_short_channel_id(p_self), node_id,
+                    peer_id,
+                    cmd_json_get_port());
+        call_script(M_EVT_CONNECTED, param);
+
+        FILE *fp = fopen(FNAME_CONN_LOG, "a");
+        if (fp) {
+            char date[50];
+            misc_datetime(date, sizeof(date));
+            fprintf(fp, "[%s]OK: %s@%s\n", date, peer_id, p_conf->conn_str);
+            fclose(fp);
+        }
+    }
 
     while (p_conf->loop) {
         DBG_PRINTF("loop...\n");
@@ -2992,13 +3002,9 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
     }
     if ((Err != 0) && (pErrStr != NULL)) {
         char date[50];
-        struct tm tmval;
-        time_t now = time(NULL);
+        misc_datetime(date, sizeof(date));
+
         size_t len_max = sizeof(date) + strlen(pErrStr) + 128;
-
-        gmtime_r(&now, &tmval);
-        strftime(date, sizeof(date), "%d %b %Y %T %z", &tmval);
-
         p_conf->p_errstr = (char *)APP_MALLOC(len_max);        //APP_FREE: thread_main_start()
         sprintf(p_conf->p_errstr, "[%s]%s", date, pErrStr);
         DBG_PRINTF("%s\n", p_conf->p_errstr);
@@ -3018,7 +3024,6 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         APP_FREE(param);        //APP_MALLOC: この中
     }
 }
-
 
 
 static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId)

@@ -48,6 +48,9 @@ static inline int tid() {
 #define SZ_RPC_URL                  (256)       ///< URL
 
 
+#define FNAME_CONN_LOG              "connect.log"
+#define FNAME_FMT_NODECONF          "ptarm_%s.conf"
+
 // JSON-RPCエラー
 
 #define RPCERR_ERROR                (-10000)
