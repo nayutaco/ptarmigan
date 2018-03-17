@@ -305,7 +305,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 
 bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
 {
-    if (!pAppConf->loop) {
+    if ((!pAppConf->loop) || !lnapp_is_inited(pAppConf)) {
         //DBG_PRINTF("This AppConf not working\n");
         return false;
     }
@@ -320,7 +320,7 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
 //初回ONIONパケット作成
 bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
 {
-    if (!pAppConf->loop) {
+    if (!pAppConf->loop || !lnapp_is_inited(pAppConf)) {
         //DBG_PRINTF("This AppConf not working\n");
         return false;
     }
@@ -687,7 +687,13 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
     } else if (ucoin_keys_chkpub(pAppConf->node_id)) {
         char str[256];
 
-        cJSON_AddItemToObject(result, "status", cJSON_CreateString("connected"));
+        const char *p_conn;
+        if (lnapp_is_inited(pAppConf)) {
+            p_conn = "connected";
+        } else {
+            p_conn = "wait_connection";
+        }
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_conn));
 
         //peer node_id
         misc_bin2str(str, pAppConf->node_id, UCOIN_SZ_PUBKEY);
