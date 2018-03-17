@@ -81,6 +81,7 @@
 #define M_WAIT_SEND_WAIT_MSEC   (10)        //socket送信で一度に送信できなかった場合の待ち時間[msec]
 #define M_WAIT_RECV_MSG_MSEC    (500)       //message受信監視周期[msec]
 #define M_WAIT_RECV_THREAD      (100)       //recv_thread開始待ち[msec]
+#define M_WAIT_RESPONSE_MSEC    (10000)     //受信待ち[msec]
 
 //デフォルト値
 //  announcement
@@ -212,7 +213,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
 static void *thread_recv_start(void *pArg);
 static void recv_node_proc(lnapp_conf_t *p_conf);
-static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len);
+static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uint32_t ToMsec);
 
 static void *thread_poll_start(void *pArg);
 static void poll_ping(lnapp_conf_t *p_conf);
@@ -893,8 +894,10 @@ static void *thread_main_start(void *pArg)
     pthread_mutex_lock(&p_conf->mux);
 
     DBG_PRINTF("init wait...\n");
-    while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
+    uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
+    while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
         misc_msleep(M_WAIT_RECV_MSG_MSEC);
+        count--;
     }
     DBG_PRINTF("init交換完了\n\n");
 
@@ -1023,7 +1026,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
         //recv: act two
         DBG_PRINTF("** RECV act two... **\n");
-        recv_peer(p_conf, rbuf, 50);
+        recv_peer(p_conf, rbuf, 50, M_WAIT_RESPONSE_MSEC);
         DBG_PRINTF("** RECV act two ! **\n");
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 50);
@@ -1046,7 +1049,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
             goto LABEL_FAIL;
         }
         DBG_PRINTF("** RECV act one... **\n");
-        recv_peer(p_conf, rbuf, 50);
+        recv_peer(p_conf, rbuf, 50, M_WAIT_RESPONSE_MSEC);
         DBG_PRINTF("** RECV act one ! **\n");
         ucoin_buf_alloccopy(&buf, rbuf, 50);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
@@ -1060,7 +1063,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
         //recv: act three
         DBG_PRINTF("** RECV act three... **\n");
-        recv_peer(p_conf, rbuf, 66);
+        recv_peer(p_conf, rbuf, 66, M_WAIT_RESPONSE_MSEC);
         DBG_PRINTF("** RECV act three ! **\n");
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 66);
@@ -1212,7 +1215,7 @@ static void *thread_recv_start(void *pArg)
 
         //noise packet データ長
         uint8_t head[LN_SZ_NOISE_HEADER];
-        uint16_t len = recv_peer(p_conf, head, LN_SZ_NOISE_HEADER);
+        uint16_t len = recv_peer(p_conf, head, LN_SZ_NOISE_HEADER, 0);
         if (len == 0) {
             //peerから切断された
             DBG_PRINTF("DISC: loop end\n");
@@ -1227,7 +1230,7 @@ static void *thread_recv_start(void *pArg)
         }
 
         ucoin_buf_alloc(&buf_recv, len);
-        uint16_t len_msg = recv_peer(p_conf, buf_recv.buf, len);
+        uint16_t len_msg = recv_peer(p_conf, buf_recv.buf, len, M_WAIT_RESPONSE_MSEC);
         if (len_msg == 0) {
             //peerから切断された
             DBG_PRINTF("DISC: loop end\n");
@@ -1321,12 +1324,14 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
 
 /** 受信処理
  *
+ * @param[in]   ToMsec      受信タイムアウト(0の場合、タイムアウト無し)
  */
-static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
+static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uint32_t ToMsec)
 {
     ssize_t n = 0;
     struct pollfd fds;
     uint16_t len = 0;
+    ToMsec /= M_WAIT_RECV_TO_MSEC;
 
     //DBG_PRINTF("sock=%d\n", p_conf->sock);
 
@@ -1345,6 +1350,14 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len)
             }
             //フラグを立てた処理を回収
             ln_flag_proc(p_conf->p_self);
+
+            if (ToMsec > 0) {
+                ToMsec--;
+                if (ToMsec == 0) {
+                    DBG_PRINTF("Timeout\n");
+                    break;
+                }
+            }
         } else {
             if (fds.revents & POLLIN) {
                 n = read(p_conf->sock, pBuf, Len);

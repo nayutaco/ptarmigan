@@ -47,6 +47,10 @@ static inline int tid() {
 #define SZ_RPC_PASSWD               (64)        ///< RPCPASSWORD
 #define SZ_RPC_URL                  (256)       ///< URL
 
+#define SZ_SOCK_SERVER_MAX          (10)        ///< 接続可能max(server)
+#define SZ_SOCK_CLIENT_MAX          (10)        ///< 接続可能max(client)
+
+#define TM_WAIT_CONNECT             (10)        ///< client socket接続待ち[sec]
 
 #define FNAME_CONN_LOG              "connect.log"
 #define FNAME_FMT_NODECONF          "ptarm_%s.conf"
