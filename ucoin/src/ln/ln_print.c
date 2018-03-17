@@ -153,6 +153,7 @@ void ln_print_self(const ln_self_t *self)
 
     //announce
     fprintf(PRINTOUT, M_QQ("anno_flag") ": " M_QQ("%02x") ",\n", self->anno_flag);
+    fprintf(PRINTOUT, M_QQ("cnl_anno.len") ": %" PRIu32 ",\n", self->cnl_anno.len);
     fprintf(PRINTOUT, M_QQ("cltv_expiry_delta") ": %" PRIu16 ",\n", self->anno_prm.cltv_expiry_delta);
     fprintf(PRINTOUT, M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->anno_prm.htlc_minimum_msat);
     fprintf(PRINTOUT, M_QQ("fee_base_msat") ": %" PRIu32 ",\n", self->anno_prm.fee_base_msat);
