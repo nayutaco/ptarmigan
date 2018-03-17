@@ -45,14 +45,14 @@
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
-
+#if 0
 static const char *KEYS_STR[LN_FUNDIDX_MAX] = {
     "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_htlc", "bp_per_commit"
 };
 static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
     "remotekey", "delayedkey", "revocationkey", "local_htlckey", "remote_htlckey"
 };
-
+#endif
 
 /**************************************************************************
  * public functions
@@ -60,6 +60,7 @@ static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
 
 #ifdef UCOIN_USE_PRINTFUNC
 
+#if 0
 void ln_print_wallet(const ln_self_t *self)
 {
     fprintf(PRINTOUT, "{\n");
@@ -238,9 +239,10 @@ void ln_print_self(const ln_self_t *self)
 
     fprintf(PRINTOUT, "}\n");
 }
+#endif
 
 
-/** [showdb用]
+/** [showdb/routing用]
  *
  *
  */
@@ -273,7 +275,7 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
 }
 
 
-/** [showdb用]
+/** [showdb/routing用]
  *
  *
  */
