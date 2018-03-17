@@ -2640,8 +2640,16 @@ static void stop_threads(lnapp_conf_t *p_conf)
 //peer送信(そのまま送信)
 static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 {
+    struct pollfd fds;
     ssize_t len = pBuf->len;
     while (p_conf->loop) {
+        fds.fd = p_conf->sock;
+        fds.events = POLLIN;
+        int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
+        if (polr <= 0) {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
+            break;
+        }
         ssize_t sz = write(p_conf->sock, pBuf->buf, len);
         len -= sz;
         if (len == 0) {
@@ -2663,8 +2671,16 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
     pthread_mutex_unlock(&p_conf->mux_send);
     assert(ret);
 
+    struct pollfd fds;
     ssize_t len = buf_enc.len;
     while (p_conf->loop) {
+        fds.fd = p_conf->sock;
+        fds.events = POLLIN;
+        int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
+        if (polr <= 0) {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
+            break;
+        }
         ssize_t sz = write(p_conf->sock, buf_enc.buf, len);
         len -= sz;
         if (len == 0) {

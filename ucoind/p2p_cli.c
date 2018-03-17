@@ -142,7 +142,6 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
 
         goto LABEL_EXIT;
     }
-    fcntl(mAppConf[idx].sock, F_SETFL, 0);
     DBG_PRINTF("connected: sock=%d\n", mAppConf[idx].sock);
 
     //スレッド起動
