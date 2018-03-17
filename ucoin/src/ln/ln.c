@@ -3040,6 +3040,9 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         DBG_PRINTF("fail: short_channel_id mismatch: %016" PRIx64 "\n", self->short_channel_id);
         return false;
     }
+    if (self->cnl_anno.buf == NULL) {
+        create_local_channel_announcement(self);
+    }
 
     //channel_announcementを埋める
     //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
@@ -3063,9 +3066,6 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         return false;
     }
 
-    if (self->cnl_anno.buf == NULL) {
-        create_local_channel_announcement(self);
-    }
     DBG_PRINTF("+++ channel_announcement[%" PRIx64 "] +++\n", self->short_channel_id);
     ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
 
@@ -4004,6 +4004,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
 //  short_channel_id決定後に呼び出す
 static bool create_local_channel_announcement(ln_self_t *self)
 {
+    DBG_PRINTF("short_channel_id=%016" PRIu64 "\n", self->short_channel_id);
     ucoin_buf_free(&self->cnl_anno);
 
     ln_cnl_announce_create_t anno;
