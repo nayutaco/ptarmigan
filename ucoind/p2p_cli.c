@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -111,14 +112,15 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     ret = connect(mAppConf[idx].sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if ((ret < 0) && (errno == EINPROGRESS)) {
         //timeout check
-        struct timeval tv;
-        tv.tv_sec = TM_WAIT_CONNECT;
-        tv.tv_usec = 0;
-
-        fd_set set; 
-        FD_ZERO(&set);
-        FD_SET(mAppConf[idx].sock , &set);
-        ret = select(mAppConf[idx].sock + 1, NULL, &set, NULL, &tv);
+        struct pollfd fds;
+        fds.fd = mAppConf[idx].sock;
+        fds.events = POLLIN;
+        int polr = poll(&fds, 1, TM_WAIT_CONNECT * 1000);
+        if (polr > 0) {
+            ret = 0;
+        } else {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
+        }
     }
     if (ret < 0) {
         SYSLOG_ERR("%s(): connect(%s)", __func__, strerror(errno));
