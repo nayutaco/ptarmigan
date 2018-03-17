@@ -114,7 +114,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         //timeout check
         struct pollfd fds;
         fds.fd = mAppConf[idx].sock;
-        fds.events = POLLIN;
+        fds.events = POLLIN | POLLOUT;
         int polr = poll(&fds, 1, TM_WAIT_CONNECT * 1000);
         if (polr > 0) {
             ret = 0;
