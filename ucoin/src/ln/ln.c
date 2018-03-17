@@ -380,9 +380,6 @@ bool ln_set_funding_wif(ln_self_t *self, const char *pWif)
 void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex)
 {
     self->short_channel_id = ln_misc_calc_short_channel_id(Height, Index, FundingIndex);
-
-    //announcement_signatures受信用
-    create_local_channel_announcement(self);
 }
 
 
@@ -742,8 +739,7 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
     uint8_t *p_sig_btc;
 
     if (self->cnl_anno.buf == NULL) {
-        DBG_PRINTF("fail: no funding_locked\n");
-        return false;
+        create_local_channel_announcement(self);
     }
 
     //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
@@ -3068,10 +3064,8 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     }
 
     if (self->cnl_anno.buf == NULL) {
-        DBG_PRINTF("FAIL: I don't have announce_signature data(maybe bug).\n");
-        return false;
+        create_local_channel_announcement(self);
     }
-
     DBG_PRINTF("+++ channel_announcement[%" PRIx64 "] +++\n", self->short_channel_id);
     ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
 
