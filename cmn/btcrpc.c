@@ -1051,6 +1051,8 @@ bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
             if (!ret) {
                 DBG_PRINTF("fail: Unable to estimate fee\n");
             }
+        } else {
+            DBG_PRINTF("fail: not real value\n");
         }
 LABEL_DECREF:
         json_decref(p_root);
