@@ -19,7 +19,9 @@ ucoincli [options] [JSON-RPC port number]
   * `-q` : quit ucoind
 
 * connect peer
-  * `-c [peer config file]` : connect another node
+  * `-c [peer config file]` : new connection or already connected node
+  * `-c [peer node_id]@[peer ipaddr]:port` : new connection or already connected node
+  * `-c [connected node_id]` : already connected node
 
 * information
   * `-l` : get information

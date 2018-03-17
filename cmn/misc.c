@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
@@ -147,6 +148,15 @@ int misc_sendjson(const char *pSend, const char *pAddr, uint16_t Port)
     close(sock);
 
     return 0;
+}
+
+
+void misc_datetime(char *pDateTime, size_t Len)
+{
+    struct tm tmval;
+    time_t now = time(NULL);
+    gmtime_r(&now, &tmval);
+    strftime(pDateTime, Len, "%d %b %Y %T %z", &tmval);
 }
 
 

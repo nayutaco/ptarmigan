@@ -119,6 +119,18 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         ctx->error_message = strdup(RPCERR_CONNECT_STR);
         close(mAppConf[idx].sock);
         mAppConf[idx].sock = -1;
+
+        FILE *fp = fopen(FNAME_CONN_LOG, "a");
+        if (fp) {
+            char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
+            misc_bin2str(peer_id, pConn->node_id, UCOIN_SZ_PUBKEY);
+
+            char date[50];
+            misc_datetime(date, sizeof(date));
+            fprintf(fp, "[%s]fail: %s@%s:%" PRIu16 "\n", date, peer_id, pConn->ipaddr, pConn->port);
+            fclose(fp);
+        }
+
         goto LABEL_EXIT;
     }
     DBG_PRINTF("connected: sock=%d\n", mAppConf[idx].sock);
@@ -127,6 +139,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
     memcpy(mAppConf[idx].node_id, pConn->node_id, UCOIN_SZ_PUBKEY);
     mAppConf[idx].cmd = DCMD_CONNECT;
+    sprintf(mAppConf[idx].conn_str, "%s:%" PRIu16, pConn->ipaddr, pConn->port);
 
     lnapp_start(&mAppConf[idx]);
 

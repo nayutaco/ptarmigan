@@ -92,6 +92,7 @@ typedef struct lnapp_conf_t {
     //p2p_svr/cli用
     volatile int    sock;
     pthread_t       th;
+    char            conn_str[15 + 1 + 5 + 1];     // client <ipaddr>:<port>
 
     //制御内容通知
     bool            initiator;                  ///< true:Noise Protocolのinitiator

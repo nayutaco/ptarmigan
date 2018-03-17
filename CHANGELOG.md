@@ -8,6 +8,8 @@
 * update lib: bech32
   * use new signature api
   * rebuild with `make full`
+* allow `ucoincli -c <node_id>@<ipaddr>:<port>`
+* output `connection.log`
 * bugfix
 
 ## 2018/03/13

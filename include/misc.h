@@ -116,6 +116,13 @@ bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 int misc_sendjson(const char *pSend, const char *pAddr, uint16_t Port);
 
 
+/** 現在日時取得
+ * 
+ * @param[out]      pDateTime       現在日時
+ * @param[in]       Len             pDataTimeバッファサイズ
+ */
+void misc_datetime(char *pDateTime, size_t Len);
+
 #ifdef APP_DEBUG_MEM
 void *misc_dbg_malloc(size_t size);
 //void *misc_dbg_realloc(void *ptr, size_t size);
