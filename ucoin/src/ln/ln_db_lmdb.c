@@ -53,7 +53,7 @@
 #define M_LMDB_NODE_MAXDBS      (2 * 10)        ///< 同時オープンできるDB数
 #define M_LMDB_NODE_MAPSIZE     ((uint64_t)4294967296)      // DB最大長[byte](mdb_txn_commit()でMDB_MAP_FULLになったため拡張)
 
-#define M_SELF_BUFS             (3)             ///< DB保存する可変長データ数
+#define M_SELF_BUFS             (4)             ///< DB保存する可変長データ数
 
 #define M_PREFIX_LEN            (2)
 #define M_PREF_CHANNEL          "CN"            ///< channel
@@ -612,6 +612,8 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     index++;
     M_BUF_ITEM(index, shutdown_scriptpk_remote);
     index++;
+    M_BUF_ITEM(index, cnl_anno);
+    //index++;
 
     for (size_t lp = 0; lp < M_SELF_BUFS; lp++) {
         key.mv_size = strlen(p_dbscript_keys[lp].name);
@@ -2671,6 +2673,9 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     M_BUF_ITEM(index, shutdown_scriptpk_local);
     index++;
     M_BUF_ITEM(index, shutdown_scriptpk_remote);
+    index++;
+    M_BUF_ITEM(index, cnl_anno);
+    //index++;
 
     for (size_t lp = 0; lp < M_SELF_BUFS; lp++) {
         key.mv_size = strlen(p_dbscript_keys[lp].name);
