@@ -879,8 +879,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)ctx; (void)params; (void)id;
 
     cJSON *result = cJSON_CreateObject();
-    cJSON *result_svr = cJSON_CreateArray();
-    cJSON *result_cli = cJSON_CreateArray();
+    cJSON *result_peer = cJSON_CreateArray();
 
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
     misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
@@ -901,10 +900,9 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
         free(p_hash);       //ln_lmdbでmalloc/realloc()している
         cJSON_AddItemToObject(result, "paying_hash", result_hash);
     }
-    p2p_svr_show_self(result_svr);
-    cJSON_AddItemToObject(result, "server", result_svr);
-    p2p_cli_show_self(result_cli);
-    cJSON_AddItemToObject(result, "client", result_cli);
+    p2p_svr_show_self(result_peer);
+    p2p_cli_show_self(result_peer);
+    cJSON_AddItemToObject(result, "peers", result_peer);
 
     return result;
 }

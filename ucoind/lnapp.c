@@ -305,7 +305,7 @@ void lnapp_stop(lnapp_conf_t *pAppConf)
 
 bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
 {
-    if (!pAppConf->loop) {
+    if ((!pAppConf->loop) || !lnapp_is_inited(pAppConf)) {
         //DBG_PRINTF("This AppConf not working\n");
         return false;
     }
@@ -320,7 +320,7 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
 //初回ONIONパケット作成
 bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
 {
-    if (!pAppConf->loop) {
+    if (!pAppConf->loop || !lnapp_is_inited(pAppConf)) {
         //DBG_PRINTF("This AppConf not working\n");
         return false;
     }
@@ -609,7 +609,7 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 }
 
 
-void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
+void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *pSvrCli)
 {
     if ((!pAppConf->loop) || (pAppConf->sock < 0)) {
         return;
@@ -618,6 +618,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
     ln_self_t *p_self = pAppConf->p_self;
 
     cJSON *result = cJSON_CreateObject();
+    cJSON_AddItemToObject(result, "role", cJSON_CreateString(pSvrCli));
 
     if (p_self && ln_short_channel_id(p_self)) {
         //show_self_param(p_self, PRINTOUT, __LINE__);
@@ -686,7 +687,13 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult)
     } else if (ucoin_keys_chkpub(pAppConf->node_id)) {
         char str[256];
 
-        cJSON_AddItemToObject(result, "status", cJSON_CreateString("connected"));
+        const char *p_conn;
+        if (lnapp_is_inited(pAppConf)) {
+            p_conn = "connected";
+        } else {
+            p_conn = "wait_connection";
+        }
+        cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_conn));
 
         //peer node_id
         misc_bin2str(str, pAppConf->node_id, UCOIN_SZ_PUBKEY);

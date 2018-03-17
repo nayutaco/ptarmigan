@@ -219,7 +219,7 @@ bool lnapp_match_short_channel_id(const lnapp_conf_t *pAppConf, uint64_t short_c
 /** [lnapp]lnapp出力
  *
  */
-void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult);
+void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *pSvrCli);
 
 
 /** [lnapp]現在のcommit_tx出力
