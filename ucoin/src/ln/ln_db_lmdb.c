@@ -611,7 +611,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     M_BUF_ITEM(index, shutdown_scriptpk_local);
     index++;
     M_BUF_ITEM(index, shutdown_scriptpk_remote);
-    index++;
+    //index++;
 
     for (size_t lp = 0; lp < M_SELF_BUFS; lp++) {
         key.mv_size = strlen(p_dbscript_keys[lp].name);
@@ -2671,6 +2671,7 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     M_BUF_ITEM(index, shutdown_scriptpk_local);
     index++;
     M_BUF_ITEM(index, shutdown_scriptpk_remote);
+    //index++;
 
     for (size_t lp = 0; lp < M_SELF_BUFS; lp++) {
         key.mv_size = strlen(p_dbscript_keys[lp].name);

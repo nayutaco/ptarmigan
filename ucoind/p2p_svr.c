@@ -32,6 +32,7 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <poll.h>
+#include <fcntl.h>
 #include <assert.h>
 
 #include "cJSON.h"
@@ -91,6 +92,7 @@ void *p2p_svr_start(void *pArg)
         SYSLOG_ERR("%s(): getsokopt: %s", __func__, strerror(errno));
         goto LABEL_EXIT;
     }
+    fcntl(sock, F_SETFL, O_NONBLOCK);
 
     memset(&sv_addr, 0, sizeof(sv_addr));
     sv_addr.sin_family = AF_INET;

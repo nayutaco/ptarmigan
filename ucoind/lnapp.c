@@ -1008,6 +1008,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
     ucoin_buf_t buf;
     uint8_t rbuf[66];
     bool b_cont;
+    uint16_t len_msg;
 
     ucoin_buf_init(&buf);
 
@@ -1026,7 +1027,13 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
         //recv: act two
         DBG_PRINTF("** RECV act two... **\n");
-        recv_peer(p_conf, rbuf, 50, M_WAIT_RESPONSE_MSEC);
+        len_msg = recv_peer(p_conf, rbuf, 50, M_WAIT_RESPONSE_MSEC);
+        if (len_msg == 0) {
+            //peerから切断された
+            DBG_PRINTF("DISC: loop end\n");
+            stop_threads(p_conf);
+            goto LABEL_FAIL;
+        }
         DBG_PRINTF("** RECV act two ! **\n");
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 50);
@@ -1049,7 +1056,13 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
             goto LABEL_FAIL;
         }
         DBG_PRINTF("** RECV act one... **\n");
-        recv_peer(p_conf, rbuf, 50, M_WAIT_RESPONSE_MSEC);
+        len_msg = recv_peer(p_conf, rbuf, 50, M_WAIT_RESPONSE_MSEC);
+        if (len_msg == 0) {
+            //peerから切断された
+            DBG_PRINTF("DISC: loop end\n");
+            stop_threads(p_conf);
+            goto LABEL_FAIL;
+        }
         DBG_PRINTF("** RECV act one ! **\n");
         ucoin_buf_alloccopy(&buf, rbuf, 50);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
@@ -1063,7 +1076,13 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
 
         //recv: act three
         DBG_PRINTF("** RECV act three... **\n");
-        recv_peer(p_conf, rbuf, 66, M_WAIT_RESPONSE_MSEC);
+        len_msg = recv_peer(p_conf, rbuf, 66, M_WAIT_RESPONSE_MSEC);
+        if (len_msg == 0) {
+            //peerから切断された
+            DBG_PRINTF("DISC: loop end\n");
+            stop_threads(p_conf);
+            goto LABEL_FAIL;
+        }
         DBG_PRINTF("** RECV act three ! **\n");
         ucoin_buf_free(&buf);
         ucoin_buf_alloccopy(&buf, rbuf, 66);
@@ -1306,6 +1325,9 @@ static void recv_node_proc(lnapp_conf_t *p_conf)
             if (ret) {
                 send_peer_noise(p_conf, &buf_bolt);
                 ucoin_buf_free(&buf_bolt);
+            } else {
+                DBG_PRINTF("fail: create announcement_signatures\n");
+                stop_threads(p_conf);
             }
         }
         break;
@@ -2237,7 +2259,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     const ln_cb_fulfill_htlc_recv_t *p_fulfill = (const ln_cb_fulfill_htlc_recv_t *)p_param;
 
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
-    while (true) {
+    while (p_conf->loop) {
         pthread_mutex_lock(&mMuxSeq);
         //ここで PAYMENTがある場合もブロックすると、デッドロックする可能性あり
         if ((mMuxTiming & ~MUX_PAYMENT) == 0) {
@@ -2275,7 +2297,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     bool retry = false;
 
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
-    while (true) {
+    while (p_conf->loop) {
         pthread_mutex_lock(&mMuxSeq);
         //ここで PAYMENTがある場合もブロックすると、デッドロックする可能性あり
         if ((mMuxTiming & ~MUX_PAYMENT) == 0) {
@@ -2618,13 +2640,22 @@ static void stop_threads(lnapp_conf_t *p_conf)
 //peer送信(そのまま送信)
 static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 {
+    struct pollfd fds;
     ssize_t len = pBuf->len;
-    while (true) {
-        ssize_t sz = write(p_conf->sock, pBuf->buf, len);
-        len -= sz;
-        if (len == 0) {
+    while ((p_conf->loop) && (len > 0)) {
+        fds.fd = p_conf->sock;
+        fds.events = POLLOUT;
+        int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
+        if (polr <= 0) {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
             break;
         }
+        ssize_t sz = write(p_conf->sock, pBuf->buf, len);
+        if (sz < 0) {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
+            break;
+        }
+        len -= sz;
         misc_msleep(M_WAIT_SEND_WAIT_MSEC);
     }
 }
@@ -2641,13 +2672,22 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
     pthread_mutex_unlock(&p_conf->mux_send);
     assert(ret);
 
+    struct pollfd fds;
     ssize_t len = buf_enc.len;
-    while (true) {
-        ssize_t sz = write(p_conf->sock, buf_enc.buf, len);
-        len -= sz;
-        if (len == 0) {
+    while ((p_conf->loop) && (len > 0)) {
+        fds.fd = p_conf->sock;
+        fds.events = POLLOUT;
+        int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
+        if (polr <= 0) {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
             break;
         }
+        ssize_t sz = write(p_conf->sock, buf_enc.buf, len);
+        if (sz < 0) {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
+            break;
+        }
+        len -= sz;
         misc_msleep(M_WAIT_SEND_WAIT_MSEC);
     }
     ucoin_buf_free(&buf_enc);
@@ -2879,7 +2919,8 @@ static void set_changeaddr(ln_self_t *self, uint64_t commit_fee)
 static void wait_mutex_lock(uint8_t Flag)
 {
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
-    while (true) {
+    uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_MUTEX_MSEC;
+    while (count) {
         pthread_mutex_lock(&mMuxSeq);
         //ここで PAYMENTがある場合もブロックすると、デッドロックする可能性あり
         if ((mMuxTiming & ~MUX_PAYMENT) == 0) {
@@ -2887,6 +2928,7 @@ static void wait_mutex_lock(uint8_t Flag)
         }
         pthread_mutex_unlock(&mMuxSeq);
         misc_msleep(M_WAIT_MUTEX_MSEC);
+        count--;
     }
     mMuxTiming |= Flag;
     pthread_mutex_unlock(&mMuxSeq);
