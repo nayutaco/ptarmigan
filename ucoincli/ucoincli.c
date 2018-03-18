@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
         printf("\t\t-s<1 or 0> : 1=stop auto channel connect\n");
         printf("\t\t-c PEER.CONF : connect node\n");
         printf("\t\t-c PEER NODE_ID or PEER.CONF -f FUND.CONF : funding\n");
-        printf("\t\t-c PEER NODE_ID or PEER.CONF -x : mutual close channel\n");
+        printf("\t\t-c PEER NODE_ID or PEER.CONF -x : mutual/unilateral close channel\n");
         printf("\t\t-c PEER NODE_ID or PEER.CONF -w : get last error\n");
         printf("\t\t-c PEER NODE_ID or PEER.CONF -q : disconnect node\n");
         printf("\n");
@@ -204,6 +204,7 @@ int main(int argc, char *argv[])
         printf("\t\t\tb2 ... force payment_preimage mismatch\n");
         printf("\t\t\tb3 ... no node auto connect\n");
         printf("\t\t-c PEER NODE_ID or PEER.CONF -g : [debug]get commitment transaction\n");
+        printf("\t\t-X CHANNEL_ID : [debug]delete channel from DB\n");
         return -1;
     }
 
@@ -702,8 +703,8 @@ static void optfunc_remove_channel(int *pOption, bool *pConn)
 
     M_CHK_INIT
 
-    if (strlen(optarg) == LN_SZ_CHANNEL_ID * 2) {
-        printf("fail: invalid option\n");
+    if (strlen(optarg) != LN_SZ_CHANNEL_ID * 2) {
+        printf("fail: invalid option: %s\n", optarg);
         *pOption = M_OPTIONS_HELP;
         return;
     }
