@@ -2206,6 +2206,8 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
             DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
             DBG_PRINTF("received: ");
             DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
+            //copy new per_commitment_point
+            memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
             memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
         }
         ret = recv_funding_locked_reestablish(self);
