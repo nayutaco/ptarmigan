@@ -2201,11 +2201,12 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
         if (memcmp(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY) == 0) {
             DBG_PRINTF("OK: same current per_commitment_point\n");
         } else {
-            DBG_PRINTF("fail?: mismatch current per_commitment_point\n");
+            DBG_PRINTF("fail?: mismatch current per_commitment_point --> use new per_commit_pt !\n");
             DBG_PRINTF("current: ");
             DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
             DBG_PRINTF("received: ");
             DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
+            memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
         }
         ret = recv_funding_locked_reestablish(self);
         if (ret) {
