@@ -294,9 +294,13 @@ static const backup_param_t DBCOPY_KEYS[] = {
     M_ITEM(ln_self_t, peer_node_id),
     M_ITEM(ln_self_t, channel_id),
     M_ITEM(ln_self_t, short_channel_id),
+    M_ITEM(ln_self_t, storage_index),
+    M_ITEM(ln_self_t, storage_seed),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
+    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
+    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
 };
 static const struct {
     enum {
@@ -304,16 +308,25 @@ static const struct {
         ETYPE_UINT64,       //uint64_t
         ETYPE_UINT16,       //uint16_t
         ETYPE_TXID,         //txid
+        ETYPE_FUNDTXID,     //funding_local.txid
+        ETYPE_FUNDTXIDX,    //funding_local.txindex
+        ETYPE_LOCALKEYS,    //funding_local.keys
+        ETYPE_REMOTEKEYS,   //funding_remote.publickeys
+        ETYPE_REMOTECOMM,   //funding_remote.prev_percommit
     } type;
-    int offset;
     int length;
+    bool disp;
 } DBCOPY_IDX[] = {
-    { ETYPE_BYTEPTR,    0,  33  },      // peer_node_id
-    { ETYPE_BYTEPTR,    0,  32  },      // channel_id
-    { ETYPE_UINT64,     0,  1   },      // short_channel_id
-    { ETYPE_TXID,       0,  32  },      // funding_local.txid
-    { ETYPE_UINT16,     0,  1   },      // funding_local.txindex
-    { ETYPE_BYTEPTR,    32, 33  }       // funding_local.keys.pub
+    { ETYPE_BYTEPTR,    UCOIN_SZ_PUBKEY, true },    // peer_node_id
+    { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
+    { ETYPE_UINT64,     1, true },                  // short_channel_id
+    { ETYPE_UINT64,     1, true },                  // storage_index
+    { ETYPE_BYTEPTR,    LN_SZ_SEED, false },        // storage_seed
+    { ETYPE_FUNDTXID,   UCOIN_SZ_TXID, false },     // funding_local.txid
+    { ETYPE_FUNDTXIDX,  1, false },                 // funding_local.txindex
+    { ETYPE_LOCALKEYS,  1, false },                 // funding_local.keys
+    { ETYPE_REMOTEKEYS, 1, false },                 // funding_remote.keys
+    { ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
 };
 
 
@@ -852,36 +865,87 @@ bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam)
 }
 
 
+#define M_DEBUG_KEYS
+#define M_SIZE(type, mem)       (sizeof(((type *)0)->mem))
 void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
 {
     MDB_val         key, data;
+#ifdef M_DEBUG_KEYS
+    ln_funding_local_data_t     local;
+    ln_funding_remote_data_t    remote;
+    memset(&local, 0, sizeof(local));
+    memset(&remote, 0, sizeof(remote));
+#endif  //M_DEBUG_KEYS
 
     for (size_t lp = 0; lp < ARRAY_SIZE(DBCOPY_KEYS); lp++) {
         key.mv_size = strlen(DBCOPY_KEYS[lp].name);
         key.mv_data = (CONST_CAST char*)DBCOPY_KEYS[lp].name;
         int retval = mdb_get(txn, dbi, &key, &data);
         if (retval == 0) {
-            const uint8_t *p = (const uint8_t *)data.mv_data + DBCOPY_IDX[lp].offset;
-            if (lp != 0) {
+            const uint8_t *p = (const uint8_t *)data.mv_data;
+            if ((lp != 0) && (DBCOPY_IDX[lp].disp)) {
                 fprintf(PRINTOUT, ",\n");
             }
-            fprintf(PRINTOUT, "\"%s\": ", DBCOPY_KEYS[lp].name);
+            if (DBCOPY_IDX[lp].disp) {
+                fprintf(PRINTOUT, "\"%s\": ", DBCOPY_KEYS[lp].name);
+            }
             switch (DBCOPY_IDX[lp].type) {
-            case 0: //const uint8_t*
-                fprintf(PRINTOUT, "\"");
-                ucoin_util_dumpbin(PRINTOUT, p, DBCOPY_IDX[lp].length, false);
-                fprintf(PRINTOUT, "\"");
+            case ETYPE_BYTEPTR: //const uint8_t*
+            case ETYPE_REMOTECOMM:
+                if (DBCOPY_IDX[lp].disp) {
+                    fprintf(PRINTOUT, "\"");
+                    ucoin_util_dumpbin(PRINTOUT, p, DBCOPY_IDX[lp].length, false);
+                    fprintf(PRINTOUT, "\"");
+                }
+#ifdef M_DEBUG_KEYS
+                if (DBCOPY_IDX[lp].type == ETYPE_REMOTECOMM) {
+                    memcpy(remote.prev_percommit, p, DBCOPY_IDX[lp].length);
+                }
+#endif  //M_DEBUG_KEYS
                 break;
-            case 1:
-                fprintf(PRINTOUT, "\"%" PRIx64 "\"", *(const uint64_t *)p);
+            case ETYPE_UINT64:
+                if (DBCOPY_IDX[lp].disp) {
+                    fprintf(PRINTOUT, "\"%" PRIx64 "\"", *(const uint64_t *)p);
+                }
                 break;
-            case 2:
-                fprintf(PRINTOUT, "%" PRIu16, *(const uint16_t *)p);
+            case ETYPE_UINT16:
+            case ETYPE_FUNDTXIDX:
+                if (DBCOPY_IDX[lp].disp) {
+                    fprintf(PRINTOUT, "%" PRIu16, *(const uint16_t *)p);
+                }
+#ifdef M_DEBUG_KEYS
+                if (DBCOPY_IDX[lp].type == ETYPE_FUNDTXIDX) {
+                    local.txindex = *(const uint16_t *)p;
+                }
+#endif  //M_DEBUG_KEYS
                 break;
-            case 3: //txid
-                fprintf(PRINTOUT, "\"");
-                ucoin_util_dumptxid(PRINTOUT, p);
-                fprintf(PRINTOUT, "\"");
+            case ETYPE_TXID: //txid
+            case ETYPE_FUNDTXID:
+                if (DBCOPY_IDX[lp].disp) {
+                    fprintf(PRINTOUT, "\"");
+                    ucoin_util_dumptxid(PRINTOUT, p);
+                    fprintf(PRINTOUT, "\"");
+                }
+#ifdef M_DEBUG_KEYS
+                if (DBCOPY_IDX[lp].type == ETYPE_FUNDTXID) {
+                    memcpy(local.txid, p, DBCOPY_IDX[lp].length);
+                }
+#endif  //M_DEBUG_KEYS
+                break;
+            case ETYPE_LOCALKEYS: //funding_local.keys
+#ifdef M_DEBUG_KEYS
+                {
+                    const ucoin_util_keys_t *p_keys = (const ucoin_util_keys_t *)p;
+                    memcpy(local.keys, p_keys, M_SIZE(ln_funding_local_data_t, keys));
+                }
+#endif  //M_DEBUG_KEYS
+                break;
+            case ETYPE_REMOTEKEYS: //funding_remote.keys
+#ifdef M_DEBUG_KEYS
+                {
+                    memcpy(remote.pubkeys, p, M_SIZE(ln_funding_remote_data_t, pubkeys));
+                }
+#endif  //M_DEBUG_KEYS
                 break;
             default:
                 break;
@@ -890,6 +954,14 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
             DBG_PRINTF("fail: %s\n", DBCOPY_KEYS[lp].name);
         }
     }
+#ifdef M_DEBUG_KEYS
+    if ( ((local.keys[0].pub[0] == 0x02) || (local.keys[0].pub[0] == 0x03)) &&
+         ((remote.pubkeys[0][0] == 0x02) || (remote.pubkeys[0][0] == 0x03))) {
+        fprintf(PRINTOUT, ",\n");
+        ln_misc_update_scriptkeys(&local, &remote);
+        //ln_print_keys(PRINTOUT, &local, &remote);
+    }
+#endif  //M_DEBUG_KEYS
 }
 
 /********************************************************************
@@ -2422,6 +2494,18 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
 
 LABEL_EXIT:
     return retval == 0;
+}
+
+
+int ln_db_lmdb_get_mynodeid(MDB_txn *txn, MDB_dbi dbi, char *wif, char *alias, uint16_t *p_port, uint8_t *genesis)
+{
+    int             retval;
+    ln_lmdb_db_t    db;
+
+    db.txn = txn;
+    db.dbi = dbi;
+    retval = ver_check(&db, wif, alias, p_port, genesis);
+    return retval;
 }
 
 

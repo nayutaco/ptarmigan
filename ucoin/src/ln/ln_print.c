@@ -45,14 +45,12 @@
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
-#if 0
 static const char *KEYS_STR[LN_FUNDIDX_MAX] = {
     "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_htlc", "bp_per_commit"
 };
 static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
     "remotekey", "delayedkey", "revocationkey", "local_htlckey", "remote_htlckey"
 };
-#endif
 
 /**************************************************************************
  * public functions
@@ -384,41 +382,55 @@ void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
 
 void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote)
 {
-#ifdef M_DBG_VERBOSE
+//#ifdef M_DBG_VERBOSE
 #ifdef UCOIN_DEBUG
-    fprintf(fp, "-[local]-------------------------------\n");
-    fprintf(fp, "funding_txid: ");
-    ucoin_util_dumptxid(fp, pLocal->txid);
-    fprintf(fp, "\n");
-    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        fprintf(fp, "%s pri: ", KEYS_STR[lp]);
-        ucoin_util_dumpbin(fp, pLocal->keys[lp].priv, UCOIN_SZ_PRIVKEY, true);
-        fprintf(fp, "%s pub: ", KEYS_STR[lp]);
-        ucoin_util_dumpbin(fp, pLocal->keys[lp].pub, UCOIN_SZ_PUBKEY, true);
-    }
-    fprintf(fp, "\n");
-    for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
-        fprintf(fp, "%s pub: ", SCR_STR[lp]);
-        ucoin_util_dumpbin(fp, pLocal->scriptpubkeys[lp], UCOIN_SZ_PUBKEY, true);
-    }
+    fprintf(fp, M_QQ("keys") ": {" M_QQ("local") ": {\n");
 
-    fprintf(fp, "\n-[remote]---------------------------------------\n");
+    fprintf(fp, M_QQ("funding_txid") ": \"");
+    ucoin_util_dumptxid(fp, pLocal->txid);
+    fprintf(fp, "\",\n");
+    fprintf(fp, M_QQ("funding_txindex") ": %" PRIu16 ",\n", pLocal->txindex);
+
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        fprintf(fp, "%s pub: ", KEYS_STR[lp]);
-        ucoin_util_dumpbin(fp, pRemote->pubkeys[lp], UCOIN_SZ_PUBKEY, true);
+        if (lp != 0) {
+            fprintf(fp, ",\n");
+        }
+        fprintf(fp, "  " M_QQ("%s") ": [\"", KEYS_STR[lp]);
+        ucoin_util_dumpbin(fp, pLocal->keys[lp].priv, UCOIN_SZ_PRIVKEY, false);
+        fprintf(fp, "\", \"");
+        ucoin_util_dumpbin(fp, pLocal->keys[lp].pub, UCOIN_SZ_PUBKEY, false);
+        fprintf(fp, "\"]");
     }
-    fprintf(fp, "\n");
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
-        fprintf(fp, "%s pub: ", SCR_STR[lp]);
-        ucoin_util_dumpbin(fp, pRemote->scriptpubkeys[lp], UCOIN_SZ_PUBKEY, true);
+        fprintf(fp, ",\n");
+        fprintf(fp, "  " M_QQ("%s") ": \"", SCR_STR[lp]);
+        ucoin_util_dumpbin(fp, pLocal->scriptpubkeys[lp], UCOIN_SZ_PUBKEY, false);
+        fprintf(fp, "\"");
     }
-    fprintf(fp, "prev_percommit: ");
-    ucoin_util_dumpbin(fp, pRemote->prev_percommit, UCOIN_SZ_PUBKEY, true);
-    fprintf(fp, "----------------------------------------\n");
+    fprintf(fp, "},\n");
+
+    fprintf(fp, M_QQ("remote") ": {\n");
+    for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
+        if (lp != 0) {
+            fprintf(fp, ",\n");
+        }
+        fprintf(fp, "  " M_QQ("%s") ": \"", KEYS_STR[lp]);
+        ucoin_util_dumpbin(fp, pRemote->pubkeys[lp], UCOIN_SZ_PUBKEY, false);
+        fprintf(fp, "\"");
+    }
+    for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
+        fprintf(fp, ",\n");
+        fprintf(fp, "  " M_QQ("%s") ": \"", SCR_STR[lp]);
+        ucoin_util_dumpbin(fp, pRemote->scriptpubkeys[lp], UCOIN_SZ_PUBKEY, false);
+        fprintf(fp, "\"");
+    }
+    fprintf(fp, ",\n  " M_QQ("prev_percommit") ": \"");
+    ucoin_util_dumpbin(fp, pRemote->prev_percommit, UCOIN_SZ_PUBKEY, false);
+    fprintf(fp, "\"\n}}");
 #endif
-#else
-    (void)fp; (void)pLocal; (void)pRemote;
-#endif  //M_DBG_VERBOSE
+//#else
+//    (void)fp; (void)pLocal; (void)pRemote;
+//#endif  //M_DBG_VERBOSE
 }
 
 #endif  //UCOIN_USE_PRINTFUNC
