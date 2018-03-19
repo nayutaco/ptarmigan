@@ -293,6 +293,13 @@ TEST_F(send, p2wsh)
     send::DumpBin(wit.buf, wit.len);
     ucoin_sw_add_vout_p2wsh(&tx, UCOIN_MBTC2SATOSHI(5.8), &wit);
 
+    const char ADDR_2OF2[] = "2MuuDWRBQ5KTxJzAk1qPFZfzeheLcoSu3vy";
+    char addr_2of2[UCOIN_SZ_ADDR_MAX];
+    ucoin_keys_wit2waddr(addr_2of2, &wit);
+    ASSERT_STREQ(ADDR_2OF2, addr_2of2);
+    printf("addr 2of2= %s\n", addr_2of2);
+    ucoin_buf_free(&wit);
+
     //vinの順番は、2-of-2の順番と関係が無い
     ret = ucoin_util_sign_p2wpkh(&tx, 0, UCOIN_MBTC2SATOSHI(1.9), &keys1);
     ASSERT_TRUE(ret);

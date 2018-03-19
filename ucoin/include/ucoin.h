@@ -57,6 +57,8 @@ extern "C" {
 #define UCOIN_SZ_PUBKEYHASH     (20)            ///< サイズ:PubKeyHash
 #define UCOIN_SZ_ADDR_MAX       (35 + 1)        ///< サイズ:Bitcoinアドレス(26-35)
 #define UCOIN_SZ_WIF_MAX        (55 + 1)        ///< サイズ:秘密鍵のWIF(上限不明)
+#define UCOIN_SZ_WPKHADDR       (36 + 1)        ///< サイズ:Bitcoin native segwitアドレス(36)
+#define UCOIN_SZ_WSHADDR        (53 + 1)        ///< サイズ:Bitcoin native segwitアドレス(53)
 #define UCOIN_SZ_TXID           (32)            ///< サイズ:TXID
 #define UCOIN_SZ_SIGHASH        (32)            ///< サイズ:Signature計算用のトランザクションHASH
 #define UCOIN_SZ_SIGN_RS        (64)            ///< サイズ:RS形式の署名
@@ -333,6 +335,33 @@ bool ucoin_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey);
  * @param[in]       pPubKey         対象データ(UCOIN_SZ_PUBKEY)
  */
 bool ucoin_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey);
+
+
+/** 公開鍵をBitcoinアドレス(P2WPKH)に変換
+ *
+ * @param[out]      pWAddr          変換後データ(UCOIN_SZ_WPKHADDR以上のサイズを想定)
+ * @param[in]       pPubKey         対象データ(UCOIN_SZ_PUBKEY)
+ */
+bool ucoin_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);
+
+
+/** P2PKHからP2WPKHへの変換
+ *
+ * @param[out]      pWAddr
+ * @param[in]       pAddr
+ */
+bool ucoin_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
+
+
+/** witnessScriptをBitcoinアドレスに変換
+ *
+ * @param[out]      pWAddr          変換後データ
+ * @param[in]       pWitScript      対象データ
+ *
+ * @note
+ *      - pWAddrのサイズは、native=#UCOIN_SZ_WSHADDR, 非native=#UCOIN_SZ_ADDR_MAX 以上にすること
+ */
+bool ucoin_keys_wit2waddr(char *pWAddr, const ucoin_buf_t *pWitScript);
 
 
 /** 圧縮された公開鍵を展開
