@@ -31,6 +31,69 @@
 #include "ln_misc.h"
 #include "ln_derkey.h"
 
+/********************************************************************
+ * public functions
+ ********************************************************************/
+
+const char *ln_misc_msgname(uint16_t Type)
+{
+    const struct {
+        uint16_t        type;
+        const char      *name;
+    } MESSAGE[] = {
+        { 0x0010, "init" },
+        { 0x0011, "error" },
+        { 0x0012, "ping" },
+        { 0x0013, "pong" },
+        { 0x0020, "open_channel" },
+        { 0x0021, "accept_channel" },
+        { 0x0022, "funding_created" },
+        { 0x0023, "funding_signed" },
+        { 0x0024, "funding_locked" },
+        { 0x0026, "shutdown" },
+        { 0x0027, "closing_signed" },
+        { 0x0080, "update_add_htlc" },
+        { 0x0082, "update_fulfill_htlc" },
+        { 0x0083, "update_fail_htlc" },
+        { 0x0084, "commitment_signed" },
+        { 0x0085, "revoke_and_ack" },
+        { 0x0086, "update_fee" },
+        { 0x0087, "update_fail_malformed_htlc" },
+        { 0x0088, "channel_reestablish" },
+        { 0x0100, "channel_announcement" },
+        { 0x0101, "node_announcement" },
+        { 0x0102, "channel_update" },
+        { 0x0103, "announcement_signatures" },
+    };
+    for (size_t lp = 0; lp < ARRAY_SIZE(MESSAGE); lp++) {
+        if (Type == MESSAGE[lp].type) {
+            return MESSAGE[lp].name;
+        }
+    }
+    return "UNKNOWN MESSAGE";
+}
+
+
+uint16_t ln_misc_get16be(const uint8_t *pData)
+{
+    return (pData[0] << 8) | pData[1];
+}
+
+
+uint32_t ln_misc_get32be(const uint8_t *pData)
+{
+    return (pData[0] << 24) | (pData[1] << 16) | (pData[2] << 8) | pData[3];
+}
+
+
+uint64_t ln_misc_get64be(const uint8_t *pData)
+{
+    return ((uint64_t)pData[0] << 56) | ((uint64_t)pData[1] << 48) |
+                        ((uint64_t)pData[2] << 40) | ((uint64_t)pData[3] << 32) |
+                        ((uint64_t)pData[4] << 24) | ((uint64_t)pData[5] << 16) |
+                        ((uint64_t)pData[6] << 8) | (uint64_t)pData[7];
+}
+
 
 /********************************************************************
  * functions
@@ -74,27 +137,6 @@ void HIDDEN ln_misc_push64be(ucoin_push_t *pPush, uint64_t Value)
     data[1] = (uint8_t)(Value >>= 8);
     data[0] = (uint8_t)(Value >> 8);
     ucoin_push_data(pPush, data, sizeof(data));
-}
-
-
-uint16_t HIDDEN ln_misc_get16be(const uint8_t *pData)
-{
-    return (pData[0] << 8) | pData[1];
-}
-
-
-uint32_t HIDDEN ln_misc_get32be(const uint8_t *pData)
-{
-    return (pData[0] << 24) | (pData[1] << 16) | (pData[2] << 8) | pData[3];
-}
-
-
-uint64_t HIDDEN ln_misc_get64be(const uint8_t *pData)
-{
-    return ((uint64_t)pData[0] << 56) | ((uint64_t)pData[1] << 48) |
-                        ((uint64_t)pData[2] << 40) | ((uint64_t)pData[3] << 32) |
-                        ((uint64_t)pData[4] << 24) | ((uint64_t)pData[5] << 16) |
-                        ((uint64_t)pData[6] << 8) | (uint64_t)pData[7];
 }
 
 

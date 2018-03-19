@@ -66,30 +66,6 @@ void HIDDEN ln_misc_push32be(ucoin_push_t *pPush, uint32_t Value);
 void HIDDEN ln_misc_push64be(ucoin_push_t *pPush, uint64_t Value);
 
 
-/** 16bit BE値の読込み
- *
- * @param[in]       pPush       読込み元
- * @return      16bit値
- */
-uint16_t HIDDEN ln_misc_get16be(const uint8_t *pData);
-
-
-/** 32bit BE値の読込み
- *
- * @param[in]       pPush       読込み元
- * @return      32bit値
- */
-uint32_t HIDDEN ln_misc_get32be(const uint8_t *pData);
-
-
-/** 64bit BE値の読込み
- *
- * @param[in]       pPush       読込み元
- * @return      64bit値
- */
-uint64_t HIDDEN ln_misc_get64be(const uint8_t *pData);
-
-
 /** LenバイトをBigEndianで書込む
  *
  *

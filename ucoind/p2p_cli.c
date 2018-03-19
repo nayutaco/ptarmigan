@@ -26,6 +26,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -40,17 +42,10 @@
 
 
 /********************************************************************
- * macros
- ********************************************************************/
-
-#define M_SOCK_MAX          (10)
-
-
-/********************************************************************
  * static variables
  ********************************************************************/
 
-static lnapp_conf_t     mAppConf[M_SOCK_MAX];
+static lnapp_conf_t     mAppConf[SZ_SOCK_CLIENT_MAX];
 
 
 /********************************************************************
@@ -107,12 +102,26 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         ctx->error_message = strdup(RPCERR_SOCK_STR);
         goto LABEL_EXIT;
     }
+    fcntl(mAppConf[idx].sock, F_SETFL, O_NONBLOCK);
 
     memset(&sv_addr, 0, sizeof(sv_addr));
     sv_addr.sin_family = AF_INET;
     sv_addr.sin_addr.s_addr = inet_addr(pConn->ipaddr);
     sv_addr.sin_port = htons(pConn->port);
+    errno = 0;
     ret = connect(mAppConf[idx].sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+    if ((ret < 0) && (errno == EINPROGRESS)) {
+        //timeout check
+        struct pollfd fds;
+        fds.fd = mAppConf[idx].sock;
+        fds.events = POLLIN | POLLOUT;
+        int polr = poll(&fds, 1, TM_WAIT_CONNECT * 1000);
+        if (polr > 0) {
+            ret = 0;
+        } else {
+            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
+        }
+    }
     if (ret < 0) {
         SYSLOG_ERR("%s(): connect(%s)", __func__, strerror(errno));
         ctx->error_code = RPCERR_CONNECT;
@@ -150,7 +159,7 @@ LABEL_EXIT:
 
 void p2p_cli_stop_all(void)
 {
-    for (int lp = 0; lp < M_SOCK_MAX; lp++) {
+    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].sock != -1) {
             lnapp_stop(&mAppConf[lp]);
         }
@@ -162,7 +171,7 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId)
 {
     lnapp_conf_t *p_appconf = NULL;
     int lp;
-    for (lp = 0; lp < M_SOCK_MAX; lp++) {
+    for (lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, UCOIN_SZ_PUBKEY) == 0)) {
             //DBG_PRINTF("found: client %d\n", lp);
             p_appconf = &mAppConf[lp];
@@ -177,7 +186,7 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId)
 lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
 {
     lnapp_conf_t *p_appconf = NULL;
-    for (int lp = 0; lp < M_SOCK_MAX; lp++) {
+    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].loop && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
             //DBG_PRINTF("found: client[%" PRIx64 "] %d\n", short_channel_id, lp);
             p_appconf = &mAppConf[lp];
@@ -192,7 +201,7 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
 
 void p2p_cli_show_self(cJSON *pResult)
 {
-    for (int lp = 0; lp < M_SOCK_MAX; lp++) {
+    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
         lnapp_show_self(&mAppConf[lp], pResult, "client");
     }
 }
@@ -203,7 +212,7 @@ bool p2p_cli_is_looping(void)
     bool ret = false;
     int connects = 0;
 
-    for (int lp = 0; lp < M_SOCK_MAX; lp++) {
+    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].sock != -1) {
             connects++;
             ret = lnapp_is_looping(&mAppConf[lp]);
