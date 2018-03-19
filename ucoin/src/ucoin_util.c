@@ -645,9 +645,6 @@ bool HIDDEN ucoin_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, ui
     uint8_t buf_sha256[UCOIN_SZ_HASH256];
 
     if (Prefix == UCOIN_PREF_NATIVE) {
-        DBG_PRINTF("FATAL: not BECH32 supported\n");
-        assert(false);
-
         uint8_t pkh[3 + UCOIN_SZ_PUBKEYHASH + 4];
         size_t sz = UCOIN_SZ_ADDR_MAX;
 
