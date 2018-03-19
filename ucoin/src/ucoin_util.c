@@ -646,7 +646,7 @@ bool HIDDEN ucoin_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, ui
 
     if (Prefix == UCOIN_PREF_NATIVE) {
         uint8_t pkh[3 + UCOIN_SZ_PUBKEYHASH + 4];
-        size_t sz = UCOIN_SZ_WPKHADDR;
+        size_t sz = UCOIN_SZ_ADDR_MAX;
 
         pkh[0] = mPref[UCOIN_PREF_ADDRVER];
         pkh[1] = 0x00;

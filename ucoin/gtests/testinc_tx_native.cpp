@@ -28,40 +28,6 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////
-/*
-    自分で計算した値を使う
-TEST_F(tx_native, testdata)
-{
-    bool ret;
-    const uint8_t PUB[] = {
-        0x03, 0xbe, 0xce, 0xc4, 0x1f, 0x68, 0xd7, 0x7f,
-        0xde, 0x9e, 0x97, 0x2c, 0x79, 0xaa, 0x0e, 0x6e,
-        0x4e, 0x81, 0x8b, 0xd3, 0x04, 0x62, 0x76, 0x96,
-        0x9e, 0x79, 0x37, 0x4e, 0xc0, 0x56, 0x1b, 0xa4,
-        0x59,
-    };
-    const uint8_t PKH[] = {
-        0xad, 0x3d, 0xc2, 0xf5, 0x22, 0x96, 0xf9, 0x3c,
-        0x78, 0x98, 0xeb, 0x63, 0x8b, 0x0d, 0x74, 0xf2,
-        0x7d, 0x79, 0xef, 0xc3,
-    };
-    const char WADDR[] = "QWzDXgBcTiiDaG4LYcjUkj3p9WhVtzt5WhLr";
-
-    uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
-    ucoin_util_hash160(pkh, PUB, UCOIN_SZ_PUBKEY);
-    printf("pkh= ");
-    DumpBin(pkh, sizeof(pkh));
-    ASSERT_EQ(0, memcmp(PKH, pkh, sizeof(PKH)));
-
-    char waddr[UCOIN_SZ_WPKHADDR];
-    ret = ucoin_keys_pub2p2wpkh(waddr, PUB);
-    printf("waddr= %s\n", waddr);
-    ASSERT_TRUE(ret);
-    ASSERT_STREQ(WADDR, waddr);
-}
-*/
-
-////////////////////////////////////////////////////////////////////////
 
 TEST_F(tx_native, add_vout_addr)
 {

@@ -110,7 +110,6 @@ TEST_F(keys, keys_1)
         0x7d, 0x79, 0xef, 0xc3,
     };
     const char ADDR[] = "mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685";
-    const char WADDR[] = "2NFqpHBHpWfbL2b4wuBekAsCWv12UerQXiR";
 
     bool ret;
     uint8_t priv[UCOIN_SZ_PRIVKEY];
@@ -118,7 +117,6 @@ TEST_F(keys, keys_1)
     uint8_t uncomppub[UCOIN_SZ_PUBKEY_UNCOMP];
     uint8_t pkh2[UCOIN_SZ_PUBKEYHASH];
     char addr[UCOIN_SZ_ADDR_MAX];
-    char waddr[UCOIN_SZ_ADDR_MAX];
     ucoin_chain_t chain;
 
     ret = ucoin_keys_wif2priv(priv, &chain, WIF);
@@ -144,10 +142,6 @@ TEST_F(keys, keys_1)
     ret = ucoin_keys_pub2p2pkh(addr, pub);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(ADDR, addr);
-
-    ret = ucoin_keys_pub2p2wpkh(waddr, pub);
-    ASSERT_TRUE(ret);
-    ASSERT_STREQ(WADDR, waddr);
 
     int pref;
     ret = ucoin_keys_addr2pkh(pkh2, &pref, addr);
@@ -225,26 +219,6 @@ TEST_F(keys, addr2pkh_fail1)
     int pref;
     bool ret = ucoin_keys_addr2pkh(pkh, &pref, ADDR);
     ASSERT_FALSE(ret);
-}
-
-
-TEST_F(keys, p2wpkh_addr)
-{
-    bool ret;
-    const char ADDR[] = "mtLLAiafrhzcjSZqp2Ts86Gv7PupWnXKUc";
-    char waddr[UCOIN_SZ_ADDR_MAX];
-    ret = ucoin_keys_addr2p2wpkh(waddr, ADDR);
-    ASSERT_TRUE(ret);
-    ASSERT_STREQ("2NCFo5oZuEbXgZdMDzLMA2qQiroHrU6oXSU", waddr);     //bitcoindで計算した値
-    printf(" addr= %s\n", ADDR);
-    printf("waddr= %s\n", waddr);
-
-    const char ADDR2[] = "mmsgPUnoceq7er7f9HuaZV2ktMkaVD3Za1";
-    ret = ucoin_keys_addr2p2wpkh(waddr, ADDR2);
-    ASSERT_TRUE(ret);
-    ASSERT_STREQ("2NDxM8795n9HsLiniWowcn6gwSemNKzsN7a", waddr);     //bitcoindで計算した値
-    printf(" addr= %s\n", ADDR2);
-    printf("waddr= %s\n", waddr);
 }
 
 
@@ -398,34 +372,6 @@ TEST_F(keys, multi_2of3)
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);
     ASSERT_EQ(0, memcmp(REDEEM, bufredeem.buf, sizeof(REDEEM)));
     ucoin_buf_free(&bufredeem);
-}
-
-
-TEST_F(keys, wit2p2wsh)
-{
-    const uint8_t REDEEM[] = {
-        0x52, 0x21, 0x03, 0xd7, 0x98, 0x23, 0x4d, 0xf0,
-        0x07, 0xfe, 0x4d, 0x6f, 0x9c, 0x08, 0xeb, 0x5a,
-        0x81, 0xc7, 0xca, 0xe1, 0x06, 0x38, 0xa0, 0xe6,
-        0xc8, 0x40, 0xad, 0x80, 0xfd, 0x56, 0xf1, 0x32,
-        0xa2, 0x4c, 0xaf, 0x21, 0x02, 0x1c, 0x5f, 0x25,
-        0x61, 0x40, 0x24, 0x56, 0xcc, 0x46, 0x8f, 0xac,
-        0x15, 0xe2, 0x15, 0x2d, 0xf0, 0x32, 0x2b, 0x74,
-        0xef, 0xe9, 0x33, 0xce, 0x21, 0x2b, 0x08, 0x42,
-        0xb4, 0x76, 0x77, 0x5d, 0x22, 0x21, 0x03, 0x06,
-        0x84, 0xb3, 0x3c, 0xde, 0x5a, 0xd6, 0x80, 0x69,
-        0x76, 0x22, 0x1a, 0x8e, 0xac, 0x18, 0x33, 0xf6,
-        0x43, 0x23, 0x95, 0x03, 0xbf, 0x4b, 0x19, 0xe6,
-        0x18, 0x2e, 0x82, 0x04, 0x95, 0x3e, 0x74, 0x53,
-        0xae,
-    };
-    const ucoin_buf_t wit = { (uint8_t *)REDEEM, sizeof(REDEEM) };
-    const char ADDR[] = "2Mt8fd67GgFMQpeKqn9mZ6VRWHnK6MAzGbD";
-
-    char addr[UCOIN_SZ_ADDR_MAX];
-    bool ret = ucoin_keys_wit2waddr(addr, &wit);
-    ASSERT_TRUE(ret);
-    ASSERT_STREQ(ADDR, addr);
 }
 
 
