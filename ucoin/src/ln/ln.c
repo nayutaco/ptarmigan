@@ -3139,6 +3139,19 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
 {
     ln_cb_funding_t funding;
 
+    //commitment numberは0から始まる
+    //  BOLT#0
+    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/00-introduction.md#glossary-and-terminology-guide
+    //が、opening時を1回とカウントするので、Normal Operationでは1から始まる
+    //  BOLT#2
+    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
+    self->commit_num = 1;
+    self->remote_commit_num = 1;
+    self->revoke_num = 0;
+    self->remote_revoke_num = 0;
+    self->htlc_id_num = 0;
+    self->short_channel_id = 0;
+
     funding.p_txid = self->funding_local.txid;
     if (bSendTx) {
         funding.p_tx_funding = &self->tx_funding;
@@ -3149,6 +3162,7 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     }
     (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
+    ln_db_self_save(self);
 }
 
 
