@@ -33,7 +33,7 @@ addons:
   coverity_scan:
     project:
       name: "nayutaco/ptarmigan"
-      description: "<Your project description here>"
+      description: "Lightning Network ptarmigan"
     notification_email: ueno@nayuta.co
     build_command_prepend: ""
     build_command: "make full"
