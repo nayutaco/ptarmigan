@@ -35,7 +35,7 @@ addons:
       name: "nayutaco/ptarmigan"
       description: "<Your project description here>"
     notification_email: ueno@nayuta.co
-    build_command_prepend: "<Your build preprocessing command here>"
-    build_command: "<Your build command here>"
+    build_command_prepend: ""
+    build_command: "make full"
     branch_pattern: coverity_scan
   
