@@ -658,7 +658,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
         //htlc
         cJSON_AddItemToObject(result, "htlc_num", cJSON_CreateNumber(ln_htlc_num(pAppConf->p_self)));
-    } else if (pAppConf->funding_waiting) {
+    } else if (p_self && pAppConf->funding_waiting) {
         char str[256];
 
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));

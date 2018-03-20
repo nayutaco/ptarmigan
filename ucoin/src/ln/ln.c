@@ -152,8 +152,6 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
 static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-static bool recv_funding_locked_first(ln_self_t *self);
-static bool recv_funding_locked_reestablish(ln_self_t *self);
 static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len);
@@ -167,6 +165,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+static void start_funding_wait(ln_self_t *self, bool bSendTx);
 static bool create_funding_tx(ln_self_t *self);
 static bool create_to_local(ln_self_t *self,
                     ln_close_force_t *pClose,
@@ -592,8 +591,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst, bool *p
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
     if (ret) {
         self->init_flag |= M_INIT_FLAG_REEST_SEND;
-        if (M_INIT_FLAG_REESTED(self->init_flag) &&
-                (self->commit_num == 1) && (self->remote_commit_num == 1) ) {
+        if ((self->commit_num == 1) && (self->remote_commit_num == 1) ) {
             DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
             *pFundLock = true;
         } else {
@@ -703,13 +701,8 @@ bool ln_funding_tx_stabled(ln_self_t *self)
         return false;
     }
 
-    if (!M_INIT_FLAG_REESTED(self->init_flag)) {
-        //per-commit-secret更新
-        ln_signer_update_percommit_secret(self);
-    } else {
-        DBG_PRINTF("reestablished\n");
-        ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    }
+    //per-commit-secret更新
+    ln_signer_update_percommit_secret(self);
 
     //funding_locked
     ucoin_buf_t buf;
@@ -2096,13 +2089,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     ucoin_buf_free(&buf_bolt);
 
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
-    self->short_channel_id = 0;
-    self->remote_commit_num = 1;
-    ln_cb_funding_t funding;
-    funding.p_tx_funding = NULL;
-    funding.p_txid = self->funding_local.txid;
-    funding.b_send = false; //sendrawtransactionしない
-    (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
+    start_funding_wait(self, false);
 
     DBG_PRINTF("END\n");
     return true;
@@ -2153,13 +2140,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
-    self->short_channel_id = 0;
-    self->remote_commit_num = 1;
-    ln_cb_funding_t funding;
-    funding.p_tx_funding = &self->tx_funding;
-    funding.p_txid = self->funding_local.txid;
-    funding.b_send = true;  //sendrawtransactionする
-    (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
+    start_funding_wait(self, true);
 
     DBG_PRINTF("END\n");
     return ret;
@@ -2197,76 +2178,25 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    if (M_INIT_FLAG_REESTED(self->init_flag)) {
-        if (memcmp(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY) == 0) {
-            DBG_PRINTF("OK: same current per_commitment_point\n");
-        } else {
-            DBG_PRINTF("fail?: mismatch current per_commitment_point --> use new per_commit_pt !\n");
-            DBG_PRINTF("current: ");
-            DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-            DBG_PRINTF("received: ");
-            DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
-            //copy new per_commitment_point
-            memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-            memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
-        }
-        ret = recv_funding_locked_reestablish(self);
-        if (ret) {
-            ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
-        }
-    } else {
-        //Establish直後 or Establish直後のreestablish
-        DBG_PRINTF("after Established\n");
-        const uint8_t ZERO[UCOIN_SZ_PUBKEY] = {0};
-        if (memcmp(ZERO, self->funding_remote.prev_percommit, sizeof(ZERO)) == 0) {
-            //reestablishの場合、prev_percommitは設定済み
-            memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-        }
-        memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
-        ret = recv_funding_locked_first(self);
-        ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    }
-    if (ret) {
-        ln_db_self_save(self);
-    }
+    DBG_PRINTF("prev: ");
+    DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    DBG_PRINTF("next: ");
+    DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
+
+    //copy per_commitment_point
+    memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
+
+    self->flck_flag |= M_FLCK_FLAG_RECV;
+    proc_established(self);
+
+    //funding中終了
+    self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
+
+    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_db_self_save(self);
 
     DBG_PRINTF("END\n");
-    return ret;
-}
-
-
-static bool recv_funding_locked_first(ln_self_t *self)
-{
-    DBG_PRINTF("\n");
-
-    //commitment numberは0から始まる
-    //  BOLT#0
-    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/00-introduction.md#glossary-and-terminology-guide
-    //が、opening時を1回とカウントするので、Normal Operationでは1から始まる
-    //  BOLT#2
-    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
-    self->commit_num = 1;
-    self->remote_commit_num = 1;
-    self->revoke_num = 0;
-    self->remote_revoke_num = 0;
-    //update_add_htlcのidも0から始まる(インクリメントするタイミングはcommitment numberと異なる)
-    self->htlc_id_num = 0;
-
-    self->flck_flag |= M_FLCK_FLAG_RECV;
-    self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
-    proc_established(self);
-
-    return true;
-}
-
-
-static bool recv_funding_locked_reestablish(ln_self_t *self)
-{
-    DBG_PRINTF("\n");
-
-    self->flck_flag |= M_FLCK_FLAG_RECV;
-    proc_established(self);
-
     return true;
 }
 
@@ -3001,8 +2931,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     //reestablish受信通知
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
 
-    if (M_INIT_FLAG_REESTED(self->init_flag) &&
-            (self->commit_num == 1) && (self->remote_commit_num == 1)) {
+    if ((self->commit_num == 1) && (self->remote_commit_num == 1)) {
         DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
         ret = ln_funding_tx_stabled(self);
     }
@@ -3203,6 +3132,23 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     return ret;
+}
+
+
+static void start_funding_wait(ln_self_t *self, bool bSendTx)
+{
+    ln_cb_funding_t funding;
+
+    funding.p_txid = self->funding_local.txid;
+    if (bSendTx) {
+        funding.p_tx_funding = &self->tx_funding;
+        funding.b_send = true;  //sendrawtransactionする
+    } else {
+        funding.p_tx_funding = NULL;
+        funding.b_send = false; //sendrawtransactionしない
+    }
+    (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
+
 }
 
 
