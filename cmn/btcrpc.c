@@ -1047,7 +1047,7 @@ bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
             goto LABEL_DECREF;
         }
         p_feerate = json_object_get(p_result, M_FEERATE);
-        if (!p_feerate && json_is_real(p_feerate)) {
+        if (p_feerate && json_is_real(p_feerate)) {
             *pFeeSatoshi = UCOIN_BTC2SATOSHI(json_real_value(p_feerate));
             //-1のときは失敗と見なす
             ret = (*pFeeSatoshi + 1.0) > DBL_EPSILON;
