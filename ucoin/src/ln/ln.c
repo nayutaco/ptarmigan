@@ -591,7 +591,8 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst, bool *p
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
     if (ret) {
         self->init_flag |= M_INIT_FLAG_REEST_SEND;
-        if ((self->commit_num == 1) && (self->remote_commit_num == 1) ) {
+        if (M_INIT_FLAG_REESTED(self->init_flag) &&
+                (self->commit_num == 1) && (self->remote_commit_num == 1)) {
             DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
             *pFundLock = true;
         } else {
@@ -2931,7 +2932,8 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     //reestablish受信通知
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
 
-    if ((self->commit_num == 1) && (self->remote_commit_num == 1)) {
+    if (M_INIT_FLAG_REESTED(self->init_flag) &&
+            (self->commit_num == 1) && (self->remote_commit_num == 1)) {
         DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
         ret = ln_funding_tx_stabled(self);
     }
