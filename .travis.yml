@@ -1,0 +1,21 @@
+language: C
+
+compiler:
+  - gcc
+
+addons:
+  apt:
+    packages:
+    - autoconf
+    - pkg-config
+    - libcurl4-openssl-dev
+    - libjansson-dev
+    - libev-dev
+    - libboost-all-dev
+    - build-essential
+    - libtool
+    - autoconf 
+    - jq
+
+script:
+  - make full
