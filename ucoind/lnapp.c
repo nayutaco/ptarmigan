@@ -1461,7 +1461,6 @@ static void *thread_poll_start(void *pArg)
             //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
             set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
             ln_open_announce_channel_clr(p_conf->p_self);
-            ln_db_self_save(p_conf->p_self);
         }
     }
 
@@ -1967,9 +1966,6 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         ucoin_buf_free(&buf_tx);
     }
 
-    //DB保存
-    ln_db_self_save(p_conf->p_self);
-
     //fundingの監視は thread_poll_start()に任せる
     DBG_PRINTF("funding_tx監視開始\n");
     DUMPTXID(ln_funding_txid(p_conf->p_self));
@@ -2412,9 +2408,6 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
         ucoin_buf_free(&buf_bolt);
     }
 
-    //DB保存
-    ln_db_self_save(p_conf->p_self);
-
     mMuxTiming &= ~(MUX_PAYMENT | MUX_COMSIG);
     pthread_mutex_unlock(&mMuxSeq);
     DBG_PRINTF("  -->mMuxTiming %d\n", mMuxTiming);
@@ -2516,9 +2509,6 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
             APP_FREE(p);
         }
     }
-
-    //DB保存
-    ln_db_self_save(p_conf->p_self);
 
     // method: htlc_changed
     // $1: short_channel_id

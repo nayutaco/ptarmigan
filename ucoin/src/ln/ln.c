@@ -724,6 +724,13 @@ bool ln_funding_tx_stabled(ln_self_t *self)
 }
 
 
+void ln_open_announce_channel_clr(ln_self_t *self)
+{
+    self->fund_flag &= ~LN_FUNDFLAG_ANNO_CH;
+    ln_db_self_save(self);
+}
+
+
 //announcement_signaturesを交換すると channel_announcementが完成する。
 bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
 {
@@ -2765,6 +2772,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
         //commitment_signed受信通知
         //ln_cb_commsig_recv_t commsig;
         (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, NULL);
+        ln_db_self_save(self);
     }
 
 LABEL_EXIT:
@@ -3137,6 +3145,14 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
 }
 
 
+/** funding_tx minimum_depth待ち開始
+ * 
+ * @param[in]   self
+ * @param[in]   bSendTx     true:funding_txをbroadcastする
+ * 
+ * @note
+ *      - funding_signed送信後あるいはfunding_tx展開後のみ呼び出す
+ */
 static void start_funding_wait(ln_self_t *self, bool bSendTx)
 {
     ln_cb_funding_t funding;
@@ -3149,18 +3165,14 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     //  https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
     self->commit_num = 1;
     self->remote_commit_num = 1;
-    self->revoke_num = 0;
-    self->remote_revoke_num = 0;
-    self->htlc_id_num = 0;
-    self->short_channel_id = 0;
+    // self->revoke_num = 0;
+    // self->remote_revoke_num = 0;
+    // self->htlc_id_num = 0;
+    // self->short_channel_id = 0;
 
-    funding.p_txid = self->funding_local.txid;
+    funding.b_send = bSendTx;
     if (bSendTx) {
         funding.p_tx_funding = &self->tx_funding;
-        funding.b_send = true;  //sendrawtransactionする
-    } else {
-        funding.p_tx_funding = NULL;
-        funding.b_send = false; //sendrawtransactionしない
     }
     (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
@@ -4080,6 +4092,7 @@ static void proc_established(ln_self_t *self)
         //Normal Operation可能
         DBG_PRINTF("Normal Operation可能\n");
         self->flck_flag |= M_FLCK_FLAG_END;
+        ln_db_self_save(self);
     }
 }
 

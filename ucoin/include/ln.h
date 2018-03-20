@@ -1268,6 +1268,13 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
 bool ln_funding_tx_stabled(ln_self_t *self);
 
 
+/** open_channelのchannel_flags.announce_channelのクリア
+ *
+ * @param[in]           self            channel情報
+ */
+void ln_open_announce_channel_clr(ln_self_t *self);
+
+
 /** announcement_signatures作成およびchannel_announcementの一部(peer署名無し)生成
  *
  * @param[in,out]       self            channel情報
@@ -1829,15 +1836,6 @@ static inline const ucoin_buf_t* ln_revoked_wit(const ln_self_t *self) {
  */
 static inline bool ln_open_announce_channel(const ln_self_t *self) {
     return (self->fund_flag & LN_FUNDFLAG_ANNO_CH);
-}
-
-
-/** open_channelのchannel_flags.announce_channelのクリア
- *
- * @param[in]           self            channel情報
- */
-static inline void ln_open_announce_channel_clr(ln_self_t *self) {
-    self->fund_flag &= ~LN_FUNDFLAG_ANNO_CH;
 }
 
 
