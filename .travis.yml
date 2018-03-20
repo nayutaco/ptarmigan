@@ -3,6 +3,12 @@ language: C
 compiler:
   - gcc
 
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "aTtzrZ8NRZxJdWdLzZ1+aWzOCGe5zHm52tKvIsSHAEgkjGr8xmbRD/UPZtTVxL16FHNl+46gy9fKh5sSd2bYlGdgCZGGN7iZGWUG+CNXHIkKijcQQw7H7kguMzCJPr05jIevfC8ayQBYFCP0SaCq1/Zoxijv/bB8dKs9Bv79LX0TBQ/7m2mdhw//nDb2qIC9XQn3iYll/nEksUCDJIg1T0faC2I49GCAZtRvGWrw2t56Zm+NwvkbfZ8U+zheq/yhD4GQRPTng26QlsG1P6mHjg0d+zSTYkMj5GI9XBnUdk1gyG9l9YxoqFgz9Kb2h2520IFY3OvL8ZJ5LDeS0yzeKm2aeRkKYM+bH4U50LC8q6tx8nO0iM/jVOjhxG+MzWsvH+jZQ+PbUUAy0tzs7wL8BTOAnCsPEIsSfzxGenTycOiZ3+7q1eicb73wLKOuhbgVqxt8c4cp2NHDISmuZjFjU7gNxwQIWjewryElEIQoAYJWXV1G6TA+L4TGUzpGbn10C76fOGrg3dptdi2wpZJ1/jpHUHht7rSXbe+/qTJ/D1kxf5V5URnxLhA6VNzQ/1nwYErU8S1szRGJ5knBdgZNiWEgDCbeSn70jvP71soJcNYqFppajh43li9nIVt/9cB1mla07RNtQnXXQJpb9thPTuRsbbr3vgpn9m46vhfOZ/E="
+
 addons:
   apt:
     packages:
@@ -14,22 +20,7 @@ addons:
     - libboost-all-dev
     - build-essential
     - libtool
-    - autoconf 
     - jq
-
-script:
-  - make full
-
-env:
-  global:
-   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
-   #   via the "travis encrypt" command using the project repo's public key
-   - secure: "aTtzrZ8NRZxJdWdLzZ1+aWzOCGe5zHm52tKvIsSHAEgkjGr8xmbRD/UPZtTVxL16FHNl+46gy9fKh5sSd2bYlGdgCZGGN7iZGWUG+CNXHIkKijcQQw7H7kguMzCJPr05jIevfC8ayQBYFCP0SaCq1/Zoxijv/bB8dKs9Bv79LX0TBQ/7m2mdhw//nDb2qIC9XQn3iYll/nEksUCDJIg1T0faC2I49GCAZtRvGWrw2t56Zm+NwvkbfZ8U+zheq/yhD4GQRPTng26QlsG1P6mHjg0d+zSTYkMj5GI9XBnUdk1gyG9l9YxoqFgz9Kb2h2520IFY3OvL8ZJ5LDeS0yzeKm2aeRkKYM+bH4U50LC8q6tx8nO0iM/jVOjhxG+MzWsvH+jZQ+PbUUAy0tzs7wL8BTOAnCsPEIsSfzxGenTycOiZ3+7q1eicb73wLKOuhbgVqxt8c4cp2NHDISmuZjFjU7gNxwQIWjewryElEIQoAYJWXV1G6TA+L4TGUzpGbn10C76fOGrg3dptdi2wpZJ1/jpHUHht7rSXbe+/qTJ/D1kxf5V5URnxLhA6VNzQ/1nwYErU8S1szRGJ5knBdgZNiWEgDCbeSn70jvP71soJcNYqFppajh43li9nIVt/9cB1mla07RNtQnXXQJpb9thPTuRsbbr3vgpn9m46vhfOZ/E="
-
-before_install:
-  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
-
-addons:
   coverity_scan:
     project:
       name: "nayutaco/ptarmigan"
@@ -38,4 +29,9 @@ addons:
     build_command_prepend: ""
     build_command: "make full"
     branch_pattern: coverity_scan
+
+before_install:
+  - echo -n | openssl s_client -connect https://scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
   
+script:
+  - make full
