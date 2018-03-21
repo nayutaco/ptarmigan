@@ -179,6 +179,9 @@ static void ln_print_self(const ln_self_t *self)
         ucoin_util_dumpbin(stdout, self->funding_remote.pubkeys[lp], UCOIN_SZ_PUBKEY, false);
         printf("\"},\n");
     }
+    printf(M_QQ("%s") ": ", "prev_percommit");
+    ucoin_util_dumpbin(stdout, self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY, false);
+    printf("\",\n");
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
         printf(M_QQ("%s") ": ", SCR_STR[lp]);
         printf("{");
