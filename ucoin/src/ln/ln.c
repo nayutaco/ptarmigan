@@ -591,9 +591,6 @@ bool ln_check_need_funding_locked(const ln_self_t *self)
 
 bool ln_create_funding_locked(ln_self_t *self, ucoin_buf_t *pLocked)
 {
-    //per-commit-secret更新
-    ln_signer_update_percommit_secret(self);
-
     //funding_locked
     ln_funding_locked_t cnl_funding_locked;
     cnl_funding_locked.p_channel_id = self->channel_id;
@@ -2149,8 +2146,13 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
 
     //copy per_commitment_point
-    memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
+    if (memcmp(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY) != 0) {
+        DBG_PRINTF("per_commitpt: update\n");
+        memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+        memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
+    } else {
+        DBG_PRINTF("per_commitpt: same\n");
+    }
 
     //funding中終了
     self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
@@ -3109,6 +3111,9 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     // self->remote_revoke_num = 0;
     // self->htlc_id_num = 0;
     // self->short_channel_id = 0;
+
+    //per_commit_secret更新
+    ln_signer_update_percommit_secret(self);
 
     funding.b_send = bSendTx;
     if (bSendTx) {
