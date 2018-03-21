@@ -108,6 +108,7 @@
 //lnapp_conf_t.flag_recv
 #define RECV_MSG_INIT           (0x01)      ///< init
 #define RECV_MSG_REESTABLISH    (0x02)      ///< channel_reestablish
+#define RECV_MSG_FUNDINGLOCKED  (0x04)      ///< funding locked
 #define RECV_MSG_END            (0x80)      ///< 初期化完了
 
 #define M_SCRIPT_DIR            "./script/"
@@ -208,7 +209,10 @@ static const char *M_SCRIPT[] = {
 
 static void *thread_main_start(void *pArg);
 static bool noise_handshake(lnapp_conf_t *p_conf);
-static bool send_reestablish(lnapp_conf_t *p_conf);
+static bool check_short_channel_id(lnapp_conf_t *p_conf);
+static bool exchange_init(lnapp_conf_t *p_conf);
+static bool exchange_reestablish(lnapp_conf_t *p_conf);
+static bool exchange_funding_locked(lnapp_conf_t *p_conf);
 static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFunding);
 
 static void *thread_recv_start(void *pArg);
@@ -219,6 +223,7 @@ static void *thread_poll_start(void *pArg);
 static void poll_ping(lnapp_conf_t *p_conf);
 static void poll_funding_wait(lnapp_conf_t *p_conf);
 static void poll_normal_operating(lnapp_conf_t *p_conf);
+static bool get_short_channel_id(lnapp_conf_t *p_conf);
 
 static void *thread_anno_start(void *pArg);
 
@@ -234,10 +239,9 @@ static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param);
-static void cb_established(lnapp_conf_t *p_conf, void *p_param);
+static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param);
 static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param);
-static void cb_short_channel_id_upd(lnapp_conf_t *p_conf, void *p_param);
 static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -674,7 +678,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         uint32_t confirm = btcprc_get_confirmation(ln_funding_txid(pAppConf->p_self));
         cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
         //minimum_depth
-        cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(pAppConf->funding_min_depth));
+        cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_minimum_depth(pAppConf->p_self)));
         //feerate_per_kw
         cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
     } else if (p_self && ln_is_funding(p_self)) {
@@ -877,27 +881,20 @@ static void *thread_main_start(void *pArg)
     //announceスレッド
     pthread_create(&th_poll, NULL, &thread_anno_start, p_conf);
 
+    //BOLTメッセージ
+    //  以下のパターンがあり得る
+    //      - チャネル関係にないnode_idと接続した
+    //          init交換
+    //      - チャネル関係にある相手と接続した
+    //          init交換
+    //          channel_reestablish交換
+    //          (funding_locked交換)
 
     //init送受信
-    {
-        ucoin_buf_t buf_bolt;
-        ucoin_buf_init(&buf_bolt);
-        ret = ln_create_init(p_self, &buf_bolt, detect);
-        if (!ret) {
-            goto LABEL_JOIN;
-        }
-        send_peer_noise(p_conf, &buf_bolt);
-        ucoin_buf_free(&buf_bolt);
-    }
-
-    //コールバックでのINIT受信通知待ち
-    pthread_mutex_lock(&p_conf->mux);
-
-    DBG_PRINTF("init wait...\n");
-    uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
-    while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
-        misc_msleep(M_WAIT_RECV_MSG_MSEC);
-        count--;
+    ret = exchange_init(p_conf);
+    if (!ret) {
+        DBG_PRINTF("fail: exchange init\n");
+        goto LABEL_JOIN;
     }
     DBG_PRINTF("init交換完了\n\n");
 
@@ -908,21 +905,39 @@ static void *thread_main_start(void *pArg)
 
     // Establishチェック
     if (detect) {
-        //既にチャネルあり
-        //selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
+        // DBにchannel_id登録済み
+        // →funding_txは展開されている
+        //
+        // selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
+
+        //short_channel_idチェック
+        ret = check_short_channel_id(p_conf);
+        if (!ret) {
+            DBG_PRINTF("fail: check_short_channel_id\n");
+            goto LABEL_JOIN;
+        }
+
         if (ln_short_channel_id(p_self) != 0) {
+            // funding_txはブロックに入ってminimum_depth以上経過している
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
         } else {
+            // funding_txはminimum_depth未満
             DBG_PRINTF("funding_tx監視開始\n");
             DUMPTXID(ln_funding_txid(p_self));
 
             set_establish_default(p_conf, p_conf->node_id);
-            p_conf->funding_min_depth = ln_minimum_depth(p_self);
             p_conf->funding_waiting = true;
         }
-        send_reestablish(p_conf);
+
+        ret = exchange_reestablish(p_conf);
+        if (!ret) {
+            DBG_PRINTF("fail: exchange channel_reestablish\n");
+            goto LABEL_JOIN;
+        }
         DBG_PRINTF("reestablish交換完了\n\n");
     } else {
+        // channel_idはDB未登録
+        // →ユーザの指示待ち
         DBG_PRINTF("Establish待ち\n");
         set_establish_default(p_conf, p_conf->node_id);
     }
@@ -930,6 +945,15 @@ static void *thread_main_start(void *pArg)
     //初期化完了
     DBG_PRINTF("\n\n*** message inited ***\n\n\n");
     p_conf->flag_recv |= RECV_MSG_END;
+
+    if (ln_check_need_funding_locked(p_conf->p_self)) {
+        //funding_locked交換
+        ret = exchange_funding_locked(p_conf);
+        if (!ret) {
+            DBG_PRINTF("fail: exchange funding_locked\n");
+            goto LABEL_JOIN;
+        }
+    }
 
     {
         // method: connected
@@ -1108,33 +1132,154 @@ LABEL_FAIL:
 }
 
 
-static bool send_reestablish(lnapp_conf_t *p_conf)
+/** short_channel_idチェック
+ *      blockchainからshort_channel_idを計算し、self->short_channel_idに設定する。
+ *      もし以前に設定した値と異なるようであれば、エラーと見なす。
+ *
+ * @retval  true    チェックOK(short_channel_idが設定できなかった場合も含む)
+ */
+static bool check_short_channel_id(lnapp_conf_t *p_conf)
 {
-    //channel_reestablish送信
-    ucoin_buf_t buf_bolt;
-    bool b_fundlock = false;
-    ucoin_buf_init(&buf_bolt);
-    bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt, &b_fundlock);
-    assert(ret);
+    bool ret = true;
 
+    p_conf->funding_confirm = btcprc_get_confirmation(ln_funding_txid(p_conf->p_self));
+    if (p_conf->funding_confirm > 0) {
+        uint64_t short_channel_id = ln_short_channel_id(p_conf->p_self);
+        ret = get_short_channel_id(p_conf);
+        if (ret) {
+            if ((short_channel_id != 0) && (short_channel_id != ln_short_channel_id(p_conf->p_self))) {
+                DBG_PRINTF("FATAL: short_channel_id mismatch\n");
+                DBG_PRINTF("  DB: %016" PRIu64 "\n", short_channel_id);
+                DBG_PRINTF("  BC: %016" PRIu64 "\n", ln_short_channel_id(p_conf->p_self));
+                ret = false;
+            } else {
+                //以前と同じ値か、新規で取得した
+            }
+        } else {
+            DBG_PRINTF("fail: calc short_channel_id\n");
+        }
+    } else {
+        //まだfunding_txがブロックに入っていない
+    }
+
+    return ret;
+}
+
+
+/** init交換
+ *
+ * @retval  true    init交換完了
+ */
+static bool exchange_init(lnapp_conf_t *p_conf)
+{
+    ucoin_buf_t buf_bolt;
+
+    ucoin_buf_init(&buf_bolt);
+    bool ret = ln_create_init(p_conf->p_self, &buf_bolt, true);     //channel announceあり
+    if (!ret) {
+        DBG_PRINTF("fail: create\n");
+        return false;
+    }
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
-    if (b_fundlock) {
-        ret = ln_funding_tx_stabled(p_conf->p_self);
-        if (!ret) {
-            DBG_PRINTF("fail: ln_funding_tx_stabled(self)\n");
-        }
+    //コールバックでのINIT受信通知待ち
+    pthread_mutex_lock(&p_conf->mux);
+
+    DBG_PRINTF("wait: init\n");
+    uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
+    while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
+        misc_msleep(M_WAIT_RECV_MSG_MSEC);
+        count--;
     }
+    ret = (count > 0);
+    if (ret) {
+        DBG_PRINTF("exchange: init\n");
+    }
+
+    return count > 0;
+}
+
+
+/** channel_reestablish交換
+ *
+ * @retval  true    channel_reestablish交換完了
+ */
+static bool exchange_reestablish(lnapp_conf_t *p_conf)
+{
+    ucoin_buf_t buf_bolt;
+
+    ucoin_buf_init(&buf_bolt);
+    bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt);
+    if (!ret) {
+        DBG_PRINTF("fail: create\n");
+        return false;
+    }
+    send_peer_noise(p_conf, &buf_bolt);
+    ucoin_buf_free(&buf_bolt);
 
     //コールバックでのchannel_reestablish受信通知待ち
-    DBG_PRINTF("channel_reestablish wait...\n");
-    while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0)) {
+    DBG_PRINTF("wait: channel_reestablish\n");
+    uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
+    while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0)) {
         misc_msleep(M_WAIT_RECV_MSG_MSEC);
+        count--;
     }
-    DBG_PRINTF("channel_reestablish交換完了\n\n");
+    ret = (count > 0);
+    if (ret) {
+        DBG_PRINTF("exchange: channel_reestablish\n");
+    }
 
     return ret;
+}
+
+
+/** funding_locked交換
+ *
+ * @retval  true    funding_locked交換完了
+ */
+static bool exchange_funding_locked(lnapp_conf_t *p_conf)
+{
+    ucoin_buf_t buf_bolt;
+
+    ucoin_buf_init(&buf_bolt);
+    bool ret = ln_create_funding_locked(p_conf->p_self, &buf_bolt);
+    if (!ret) {
+        DBG_PRINTF("fail: create\n");
+        return false;
+    }
+    send_peer_noise(p_conf, &buf_bolt);
+    ucoin_buf_free(&buf_bolt);
+
+    //コールバックでのfunding_locked受信通知待ち
+    //uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
+    DBG_PRINTF("wait: funding_locked\n");
+    while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_FUNDINGLOCKED) == 0)) {
+        misc_msleep(M_WAIT_RECV_MSG_MSEC);
+    }
+    DBG_PRINTF("exchange: funding_locked\n");
+
+    // method: established
+    // $1: short_channel_id
+    // $2: node_id
+    // $3: our_msat
+    // $4: funding_txid
+    char txidstr[UCOIN_SZ_TXID * 2 + 1];
+    misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
+    char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
+    misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+    char param[256];
+    sprintf(param, "%" PRIx64 " %s "
+                "%" PRIu64 " "
+                "%s",
+                ln_short_channel_id(p_conf->p_self), node_id,
+                ln_our_msat(p_conf->p_self),
+                txidstr);
+    call_script(M_EVT_ESTABLISHED, param);
+
+    ln_release_establish(p_conf->p_self);
+
+    return true;
 }
 
 
@@ -1456,7 +1601,7 @@ static void *thread_poll_start(void *pArg)
         //  両方を満たす可能性があるため、先に poll_funding_wait()を行って self->cnl_anno の準備を済ませる。
         if ( ln_open_announce_channel(p_conf->p_self) &&
              (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
-             (p_conf->funding_confirm >= p_conf->funding_min_depth) ) {
+             (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_self)) ) {
             // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
             //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
             set_request_recvproc(p_conf, INNER_SEND_ANNO_SIGNS, 0, NULL);
@@ -1472,7 +1617,7 @@ static void *thread_poll_start(void *pArg)
 
 static void poll_ping(lnapp_conf_t *p_conf)
 {
-    //DBGTRACE_BEGIN
+    DBGTRACE_BEGIN
 
     //未送受信の状態が続いたらping送信する
     p_conf->ping_counter++;
@@ -1491,54 +1636,43 @@ static void poll_ping(lnapp_conf_t *p_conf)
         }
     }
 
-    //DBGTRACE_END
+    DBGTRACE_END
 }
 
 
 //funding_tx確定待ち
 static void poll_funding_wait(lnapp_conf_t *p_conf)
 {
-    //DBGTRACE_BEGIN
+    DBGTRACE_BEGIN
 
     ln_self_t *self = p_conf->p_self;
 
-    if (p_conf->funding_confirm >= p_conf->funding_min_depth) {
+    if (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_self)) {
         DBG_PRINTF("confirmation OK: %d\n", p_conf->funding_confirm);
         p_conf->funding_waiting = false;    //funding_tx確定
     } else {
-        DBG_PRINTF("confirmation waiting...: %d/%d\n", p_conf->funding_confirm, p_conf->funding_min_depth);
+        DBG_PRINTF("confirmation waiting...: %d/%d\n", p_conf->funding_confirm, ln_minimum_depth(p_conf->p_self));
     }
 
     if (!p_conf->funding_waiting) {
         //funding_tx確定
-
-        //  short_channel_id
-        //      [0-2]funding_txが入ったブロック height
-        //      [3-5]funding_txのTXIDが入っているindex
-        //      [6-7]funding_txのvout index
-        int bheight = 0;
-        int bindex = 0;
-        bool ret = btcprc_get_short_channel_param(&bheight, &bindex, ln_funding_txid(p_conf->p_self));
+        bool ret = check_short_channel_id(p_conf);
         if (ret) {
-            fprintf(PRINTOUT, "bindex=%d, bheight=%d\n", bindex, bheight);
-            ln_set_short_channel_id_param(self, bheight, bindex, ln_funding_txindex(p_conf->p_self));
-
-            //安定後
-            ret = ln_funding_tx_stabled(self);
+            ret = exchange_funding_locked(p_conf);
             assert(ret);
         } else {
             DBG_PRINTF("fail: btcprc_get_short_channel_param()\n");
         }
     }
 
-    //DBGTRACE_END
+    DBGTRACE_END
 }
 
 
 //Normal Operation中
 static void poll_normal_operating(lnapp_conf_t *p_conf)
 {
-    //DBGTRACE_BEGIN
+    DBGTRACE_BEGIN
 
     //funding_tx使用チェック
     bool unspent;
@@ -1550,7 +1684,25 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
         stop_threads(p_conf);
     }
 
-    //DBGTRACE_END
+    DBGTRACE_END
+}
+
+
+/** blockchainからのshort_channel_id計算
+ *
+ */
+static bool get_short_channel_id(lnapp_conf_t *p_conf)
+{
+    int bheight = 0;
+    int bindex = 0;
+    bool ret = btcprc_get_short_channel_param(&bheight, &bindex, ln_funding_txid(p_conf->p_self));
+    if (ret) {
+        //DBG_PRINTF("bindex=%d, bheight=%d\n", bindex, bheight);
+        ln_set_short_channel_id_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self));
+        DBG_PRINTF("short_channel_id = %016" PRIu64 "\n", ln_short_channel_id(p_conf->p_self));
+    }
+
+    return ret;
 }
 
 
@@ -1842,10 +1994,9 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
         //    LN_CB_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
         //    LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
-        //    LN_CB_ESTABLISHED,          ///< Establish完了通知
+        //    LN_CB_FUNDINGLOCKED_RECV,   ///< funding_locked受信通知
         //    LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信
         //    LN_CB_NODE_ANNO_RECV,       ///< node_announcement受信通知
-        //    LN_CB_SHT_CNL_ID_UPDATE,    ///< short_chennel_id更新
         //    LN_CB_ANNO_SIGSED,          ///< announcement_signatures完了通知
         //    LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
         //    LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
@@ -1864,10 +2015,9 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_REESTABLISH_RECV: channel_reestablish受信", cb_channel_reestablish_recv },
         { "  LN_CB_SIGN_FUNDINGTX_REQ: funding_tx署名要求", cb_funding_tx_sign },
         { "  LN_CB_FUNDINGTX_WAIT: funding_tx confirmation待ち要求", cb_funding_tx_wait },
-        { "  LN_CB_ESTABLISHED: Establish完了", cb_established },
+        { "  LN_CB_FUNDINGLOCKED_RECV: funding_locked受信通知", cb_funding_locked },
         { NULL/*"  LN_CB_CHANNEL_ANNO_RECV: channel_announcement受信"*/, cb_channel_anno_recv },
         { NULL/*"  LN_CB_NODE_ANNO_RECV: node_announcement受信通知"*/, cb_node_anno_recv },
-        { "  LN_CB_SHT_CNL_ID_UPDATE: short_chennel_id更新", cb_short_channel_id_upd },
         { "  LN_CB_ANNO_SIGSED: announcement_signatures完了", cb_anno_signsed },
         { "  LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc処理前", cb_add_htlc_recv_prev },
         { "  LN_CB_ADD_HTLC_RECV: update_add_htlc受信", cb_add_htlc_recv },
@@ -1969,40 +2119,20 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
     //fundingの監視は thread_poll_start()に任せる
     DBG_PRINTF("funding_tx監視開始\n");
     DUMPTXID(ln_funding_txid(p_conf->p_self));
-    p_conf->funding_min_depth = ln_minimum_depth(p_conf->p_self);
     p_conf->funding_waiting = true;
 
     DBGTRACE_END
 }
 
 
-//LN_CB_ESTABLISHED: funding_locked送受信済み
-static void cb_established(lnapp_conf_t *p_conf, void *p_param)
+//LN_CB_FUNDINGLOCKED_RECV: funding_locked受信通知
+static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
     DBGTRACE_BEGIN
 
-    SYSLOG_INFO("Established[%" PRIx64 "]: our_msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
-
-    // method: established
-    // $1: short_channel_id
-    // $2: node_id
-    // $3: our_msat
-    // $4: funding_txid
-    char txidstr[UCOIN_SZ_TXID * 2 + 1];
-    misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
-    char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
-    char param[256];
-    sprintf(param, "%" PRIx64 " %s "
-                "%" PRIu64 " "
-                "%s",
-                ln_short_channel_id(p_conf->p_self), node_id,
-                ln_our_msat(p_conf->p_self),
-                txidstr);
-    call_script(M_EVT_ESTABLISHED, param);
-
-    DBGTRACE_END
+    //funding_locked受信待ち合わせ解除(*4)
+    p_conf->flag_recv |= RECV_MSG_FUNDINGLOCKED;
 }
 
 
@@ -2044,26 +2174,6 @@ static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 
     //    fclose(fp);
     //}
-}
-
-
-//announcement_signatures受信時に short_channel_idが取得できていなかった場合
-static void cb_short_channel_id_upd(lnapp_conf_t *p_conf, void *p_param)
-{
-    (void)p_param;
-    DBGTRACE_BEGIN
-
-    //self->short_chennel_id更新
-    while (p_conf->funding_confirm < p_conf->funding_min_depth) {
-        p_conf->funding_confirm = btcprc_get_confirmation(ln_funding_txid(p_conf->p_self));
-        DBG_PRINTF("confimation=%d / %d\n", p_conf->funding_confirm, p_conf->funding_min_depth);
-        if (p_conf->funding_confirm < p_conf->funding_min_depth) {
-            sleep(M_WAIT_POLL_SEC);
-        }
-    }
-    poll_funding_wait(p_conf);
-
-    DBGTRACE_END
 }
 
 

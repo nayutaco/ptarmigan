@@ -97,14 +97,6 @@
 #define M_INIT_FLAG_SEND                    (0x01)
 #define M_INIT_FLAG_RECV                    (0x02)
 #define M_INIT_FLAG_INITED(flag)            (((flag) & (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)) == (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV))
-#define M_INIT_FLAG_REEST_SEND              (0x04)
-#define M_INIT_FLAG_REEST_RECV              (0x08)
-#define M_INIT_FLAG_REESTED(flag)           (((flag) & (M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV)) == (M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV))
-
-// ln_self_t.flck_flag
-#define M_FLCK_FLAG_SEND                    (0x01)          ///< 1:funding_locked送信あり
-#define M_FLCK_FLAG_RECV                    (0x02)          ///< 1:funding_locked受信あり
-#define M_FLCK_FLAG_END                     (0x80)
 
 // ln_self_t.anno_flag
 #define M_ANNO_FLAG_SEND                    (0x01)          ///< 1:announcement_signatures送信あり
@@ -182,7 +174,6 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
 static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
-static void proc_established(ln_self_t *self);
 static void proc_announce_sigsed(ln_self_t *self);
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
@@ -358,6 +349,12 @@ bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establis
     DBG_PRINTF("END\n");
 
     return true;
+}
+
+
+void ln_release_establish(ln_self_t *self)
+{
+    free_establish(self);
 }
 
 
@@ -568,20 +565,13 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
 
 void ln_flag_proc(ln_self_t *self)
 {
-    proc_established(self);
     proc_announce_sigsed(self);
 }
 
 
 //channel_reestablish作成
-bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst, bool *pFundLock)
+bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 {
-    if (self->init_flag & M_INIT_FLAG_REEST_SEND) {
-        self->err = LNERR_INV_STATE;
-        DBG_PRINTF("fail: channel_reestablish already sent.\n");
-        return false;
-    }
-
     ln_channel_reestablish_t msg;
     msg.p_channel_id = self->channel_id;
     //commitment_numberを0で送信することはないため、0の場合は+1する
@@ -589,16 +579,30 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst, bool *p
     msg.next_remote_revocation_number = self->remote_revoke_num;
 
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
+    return ret;
+}
+
+
+bool ln_check_need_funding_locked(const ln_self_t *self)
+{
+    return (self->commit_num == 1) && (self->remote_commit_num == 1);
+}
+
+
+bool ln_create_funding_locked(ln_self_t *self, ucoin_buf_t *pLocked)
+{
+    //per-commit-secret更新
+    ln_signer_update_percommit_secret(self);
+
+    //funding_locked
+    ln_funding_locked_t cnl_funding_locked;
+    cnl_funding_locked.p_channel_id = self->channel_id;
+    cnl_funding_locked.p_per_commitpt = self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub;
+    bool ret = ln_msg_funding_locked_create(pLocked, &cnl_funding_locked);
     if (ret) {
-        self->init_flag |= M_INIT_FLAG_REEST_SEND;
-        if (M_INIT_FLAG_REESTED(self->init_flag) &&
-                (self->commit_num == 1) && (self->remote_commit_num == 1)) {
-            DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
-            *pFundLock = true;
-        } else {
-            *pFundLock = false;
-        }
+        ln_db_self_save(self);
     }
+
     return ret;
 }
 
@@ -673,52 +677,6 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     self->feerate_per_kw = open_ch->feerate_per_kw;
 
     self->fund_flag = LN_FUNDFLAG_FUNDER | ((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING;
-
-    return true;
-}
-
-
-//funding_txをブロードキャストして安定した後に呼ぶ
-//  funding_locked送信
-/*
- * funding_lockedはお互い送信し合うことになる。
- *      open_channel送信側: funding_signed受信→funding_tx安定待ち→funding_locked送信→funding_locked受信→完了
- *      open_channel受信側: funding_locked受信→funding_tx安定待ち→完了
- *
- * funding_tx安定待ちで一度シーケンスが止まる。
- */
-bool ln_funding_tx_stabled(ln_self_t *self)
-{
-    DBG_PRINTF("BEGIN\n");
-
-    if (!M_INIT_FLAG_INITED(self->init_flag)) {
-        self->err = LNERR_INV_STATE;
-        DBG_PRINTF("fail: no init finished\n");
-        return false;
-    }
-    if (self->short_channel_id == 0) {
-        self->err = LNERR_NO_CHANNEL;
-        DBG_PRINTF("fail: not stabled\n");
-        return false;
-    }
-
-    //per-commit-secret更新
-    ln_signer_update_percommit_secret(self);
-
-    //funding_locked
-    ucoin_buf_t buf;
-    ln_funding_locked_t cnl_funding_locked;
-    cnl_funding_locked.p_channel_id = self->channel_id;
-    cnl_funding_locked.p_per_commitpt = self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub;
-    ln_msg_funding_locked_create(&buf, &cnl_funding_locked);
-
-    //送信
-    (*self->p_callback)(self, LN_CB_SEND_REQ, &buf);
-    ucoin_buf_free(&buf);
-
-    self->flck_flag |= M_FLCK_FLAG_SEND;
-
-    ln_db_self_save(self);
 
     return true;
 }
@@ -1712,7 +1670,6 @@ static void channel_clear(ln_self_t *self)
     }
 
     memset(self->peer_node_id, 0, UCOIN_SZ_PUBKEY);
-    self->flck_flag = 0;
     self->anno_flag = 0;
     self->shutdown_flag = 0;
 
@@ -2195,14 +2152,13 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
 
-    self->flck_flag |= M_FLCK_FLAG_RECV;
-    proc_established(self);
-
     //funding中終了
     self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
 
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ln_db_self_save(self);
+
+    (*self->p_callback)(self, LN_CB_FUNDINGLOCKED_RECV, NULL);
 
     DBG_PRINTF("END\n");
     return true;
@@ -2902,11 +2858,6 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 
     DBG_PRINTF("BEGIN\n");
 
-    if (self->init_flag & M_INIT_FLAG_REEST_RECV) {
-        //TODO: 2回channel_reestablish受信した場合はどうする？
-        DBG_PRINTF("???: multiple channel_reestablish received.\n");
-    }
-
     ln_channel_reestablish_t reest;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
 
@@ -2935,16 +2886,8 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         self->revoke_num =  reest.next_remote_revocation_number;
     }
 
-    self->init_flag |= M_INIT_FLAG_REEST_RECV;
-
     //reestablish受信通知
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
-
-    if (M_INIT_FLAG_REESTED(self->init_flag) &&
-            (self->commit_num == 1) && (self->remote_commit_num == 1)) {
-        DBG_PRINTF("both commit_num == 1 ==> send funding_locked\n");
-        ret = ln_funding_tx_stabled(self);
-    }
 
     return ret;
 }
@@ -2958,28 +2901,28 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
 
-    //announcement_signaturesを受信したときの状態として、以下が考えられる。
-    //      - 相手から初めて受け取り、まだ自分からは送信していない
-    //      - 自分から送信していて、相手から初めて受け取った
-    //      - 持っているけど、また受け取った
-    //
-    //  また、announcement_signatures はチャネル間メッセージだが、
-    //  channel_announcment はノードとして管理する情報になる。
-    //  ここら辺が紛らわしくなってくる理由だろう。
+//     //announcement_signaturesを受信したときの状態として、以下が考えられる。
+//     //      - 相手から初めて受け取り、まだ自分からは送信していない
+//     //      - 自分から送信していて、相手から初めて受け取った
+//     //      - 持っているけど、また受け取った
+//     //
+//     //  また、announcement_signatures はチャネル間メッセージだが、
+//     //  channel_announcment はノードとして管理する情報になる。
+//     //  ここら辺が紛らわしくなってくる理由だろう。
+
+// #error じっそうしよう
+//     //announcement_signaturesをフラグ方式にする
+//     //...しなくてもよいが、交換してchannel_announcementパケットが生成できたら、
+//     //DB登録する。
+//     //DBに登録すれば、未送信の相手には展開するはずである。
+//     //
+//     //交換は、相手から受信したときに行うのではなく、lnappで自分が送信できるタイミングに
+//     //なったら行うようにする。
 
     //short_channel_idで検索
     uint64_t short_channel_id = ln_msg_announce_signs_read_short_cnl_id(pData, Len, self->channel_id);
     if (short_channel_id == 0) {
         DBG_PRINTF("fail: invalid packet\n");
-        return false;
-    }
-    if (self->short_channel_id == 0) {
-        (*self->p_callback)(self, LN_CB_SHT_CNL_ID_UPDATE, NULL);
-    }
-    DBG_PRINTF("short_channel_id = %" PRIx64 "\n", short_channel_id);
-    if (short_channel_id != self->short_channel_id) {
-        self->err = LNERR_INV_SHORT_CHANNEL;
-        DBG_PRINTF("fail: short_channel_id mismatch: %016" PRIx64 "\n", self->short_channel_id);
         return false;
     }
     if (self->cnl_anno.buf == NULL) {
@@ -3022,8 +2965,6 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         DBG_PRINTF("fail\n");
         goto LABEL_EXIT;
     }
-
-    //DB保存
     ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
     if (!ret) {
         DBG_PRINTF("fail: ln_db_annocnl_save\n");
@@ -3031,8 +2972,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     }
     ret = ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));
     if (!ret) {
-        DBG_PRINTF("fail\n");
-        //goto LABEL_EXIT;
+        DBG_PRINTF("fail: but through\n");
     }
     ret = true;
 
@@ -3146,10 +3086,10 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
 
 
 /** funding_tx minimum_depth待ち開始
- * 
+ *
  * @param[in]   self
  * @param[in]   bSendTx     true:funding_txをbroadcastする
- * 
+ *
  * @note
  *      - funding_signed送信後あるいはfunding_tx展開後のみ呼び出す
  */
@@ -4064,39 +4004,6 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
 }
 
 
-/** funding_locked交換完了のチェックおよび処理実行
- *
- * funding_lockedの送受信処理に移動させてもよいかもしれない
- */
-static void proc_established(ln_self_t *self)
-{
-    if (self->flck_flag == (M_FLCK_FLAG_SEND | M_FLCK_FLAG_RECV)) {
-        //funding_locked送受信済み
-        DBG_PRINTF("funding_locked sent and recv\n");
-
-        //channel_reestablish済みと同じ状態にしておく
-        self->init_flag |= M_INIT_FLAG_REEST_SEND | M_INIT_FLAG_REEST_RECV;
-
-        //Establish完了通知
-        DBG_PRINTF("Establish完了通知");
-        ln_cb_funding_t funding;
-
-        funding.p_tx_funding = &self->tx_funding;
-        funding.p_txid = self->funding_local.txid;
-        funding.b_send = false;
-        funding.annosigs = (self->p_establish) ? (self->p_establish->cnl_open.channel_flags) : false;
-        (*self->p_callback)(self, LN_CB_ESTABLISHED, &funding);
-
-        free_establish(self);
-
-        //Normal Operation可能
-        DBG_PRINTF("Normal Operation可能\n");
-        self->flck_flag |= M_FLCK_FLAG_END;
-        ln_db_self_save(self);
-    }
-}
-
-
 /** announcement_signatures交換完了のチェックおよび処理実行
  *
  * announcement_signaturesの送受信処理に移動させてもよいかもしれない
@@ -4108,7 +4015,6 @@ static void proc_announce_sigsed(ln_self_t *self)
         DBG_PRINTF("announcement_signatures sent and recv\n");
 
         ln_cb_anno_sigs_t anno;
-
         anno.sort = sort_nodeid(self);
         (*self->p_callback)(self, LN_CB_ANNO_SIGSED, &anno);
 
