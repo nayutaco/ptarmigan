@@ -502,6 +502,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     type = LN_INVOICE_MAINNET;
 #elif NETKIND==1
     type = LN_INVOICE_TESTNET;
+    //type = LN_INVOICE_REGTEST;
 #endif
     bool ret = ln_invoice_create(&p_invoice, type, preimage_hash, amount);
     if (ret) {

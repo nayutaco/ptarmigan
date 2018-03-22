@@ -530,6 +530,9 @@ static void optfunc_routepay(int *pOption, bool *pConn)
     case LN_INVOICE_TESTNET:
         printf("blockchain: bitcoin testnet\n");
         break;
+    case LN_INVOICE_REGTEST:
+        printf("blockchain: bitcoin regtest\n");
+        break;
     default:
         printf("unknown hrp_type\n");
         *pOption = M_OPTIONS_ERR;
