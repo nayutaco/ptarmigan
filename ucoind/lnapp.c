@@ -2051,6 +2051,11 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
     const ln_error_t *p_err = (const ln_error_t *)p_param;
 
     set_lasterror(p_conf, RPCERR_PEER_ERROR, p_err->p_data);
+
+    if (p_conf->funding_waiting) {
+        DBG_PRINTF("stop funding by error\n");
+        p_conf->funding_waiting = false;
+    }
 }
 
 
@@ -2536,6 +2541,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
     DBG_PRINTF("mMuxTiming: %d\n", mMuxTiming);
     if (p_conf->flag_ope & OPE_COMSIG_SEND) {
         mMuxTiming &= ~MUX_CHG_HTLC;
+        DBG_PRINTF("OPE_COMSIG_SEND\n");
     } else {
         //fulfill要求があれば送信要求する
         queue_fulfill_t *p = pop_queue(p_conf);

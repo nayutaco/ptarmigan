@@ -174,7 +174,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
 static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
-static void proc_announce_sigsed(ln_self_t *self);
+static bool proc_announce_sigsed(ln_self_t *self);
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
@@ -565,7 +565,10 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
 
 void ln_flag_proc(ln_self_t *self)
 {
-    proc_announce_sigsed(self);
+    bool ret = proc_announce_sigsed(self);
+    if (ret) {
+        ln_db_self_save(self);
+    }
 }
 
 
@@ -596,9 +599,6 @@ bool ln_create_funding_locked(ln_self_t *self, ucoin_buf_t *pLocked)
     cnl_funding_locked.p_channel_id = self->channel_id;
     cnl_funding_locked.p_per_commitpt = self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub;
     bool ret = ln_msg_funding_locked_create(pLocked, &cnl_funding_locked);
-    if (ret) {
-        ln_db_self_save(self);
-    }
 
     return ret;
 }
@@ -1730,6 +1730,11 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     DBG_PRINTF("\n");
 
     self->err = LNERR_MSG_ERROR;
+
+    if (ln_is_funding(self)) {
+        DBG_PRINTF("stop funding\n");
+        self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
+    }
 
     ln_error_t err;
     ln_msg_error_read(&err, pData, Len);
@@ -2899,28 +2904,9 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     bool ret;
-    ln_announce_signs_t anno_signs;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
-
-//     //announcement_signaturesを受信したときの状態として、以下が考えられる。
-//     //      - 相手から初めて受け取り、まだ自分からは送信していない
-//     //      - 自分から送信していて、相手から初めて受け取った
-//     //      - 持っているけど、また受け取った
-//     //
-//     //  また、announcement_signatures はチャネル間メッセージだが、
-//     //  channel_announcment はノードとして管理する情報になる。
-//     //  ここら辺が紛らわしくなってくる理由だろう。
-
-// #error じっそうしよう
-//     //announcement_signaturesをフラグ方式にする
-//     //...しなくてもよいが、交換してchannel_announcementパケットが生成できたら、
-//     //DB登録する。
-//     //DBに登録すれば、未送信の相手には展開するはずである。
-//     //
-//     //交換は、相手から受信したときに行うのではなく、lnappで自分が送信できるタイミングに
-//     //なったら行うようにする。
 
     //short_channel_idで検索
     uint64_t short_channel_id = ln_msg_announce_signs_read_short_cnl_id(pData, Len, self->channel_id);
@@ -2933,11 +2919,10 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     }
 
     //channel_announcementを埋める
-    //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
-    //  remoteのsignature
     ucoin_keys_sort_t sort = sort_nodeid(self);
     ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, false, sort);
 
+    ln_announce_signs_t anno_signs;
     anno_signs.p_channel_id = channel_id;
     anno_signs.p_node_signature = p_sig_node;
     anno_signs.p_btc_signature = p_sig_btc;
@@ -2956,7 +2941,6 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 
     DBG_PRINTF("+++ channel_announcement[%" PRIx64 "] +++\n", self->short_channel_id);
     ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
-
 
     //channel_update
     ucoin_buf_t buf_upd;
@@ -3988,7 +3972,7 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
     bool ret = ln_derkey_storage_insert_secret(&self->peer_storage, p_prev_secret, self->peer_storage_index);
     if (ret) {
         self->peer_storage_index--;
-        ln_db_self_save(self);
+        //ln_db_self_save(self);    //保存は呼び出し元で行う
         DBG_PRINTF("I=%" PRIx64 " --> %" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
 
         //for (uint64_t idx = LN_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
@@ -4014,8 +3998,10 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
  *
  * announcement_signaturesの送受信処理に移動させてもよいかもしれない
  */
-static void proc_announce_sigsed(ln_self_t *self)
+static bool proc_announce_sigsed(ln_self_t *self)
 {
+    bool ret = false;
+
     if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
         //announcement_signatures送受信済み
         DBG_PRINTF("announcement_signatures sent and recv\n");
@@ -4026,8 +4012,10 @@ static void proc_announce_sigsed(ln_self_t *self)
 
         self->anno_flag |= M_ANNO_FLAG_END;
         ucoin_buf_free(&self->cnl_anno);
-        ln_db_self_save(self);
+        ret = true;
     }
+
+    return ret;
 }
 
 
