@@ -493,24 +493,35 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
     ucoind_preimage_unlock();
 
-    char *p_invoice = NULL;
     uint8_t type;
-#ifndef NETKIND
-#error not define NETKIND
-#endif
-#if NETKIND==0
-    type = LN_INVOICE_MAINNET;
-#elif NETKIND==1
-    type = LN_INVOICE_TESTNET;
-    //type = LN_INVOICE_REGTEST;
-#endif
-    bool ret = ln_invoice_create(&p_invoice, type, preimage_hash, amount);
-    if (ret) {
-        cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
-    } else {
-        DBG_PRINTF("fail: BOLT11 format\n");
+    ucoin_genesis_t gtype = ucoin_util_get_genesis(ln_get_genesishash());
+    switch (gtype) {
+    case UCOIN_GENESIS_BTCMAIN:
+        type = LN_INVOICE_MAINNET;
+        break;
+    case UCOIN_GENESIS_BTCTEST:
+        type = LN_INVOICE_TESTNET;
+        break;
+    case UCOIN_GENESIS_BTCREGTEST:
+        type = LN_INVOICE_REGTEST;
+        break;
+    default:
+        type = UCOIN_GENESIS_UNKNOWN;
+        break;
     }
-    free(p_invoice);
+    if (type != UCOIN_GENESIS_UNKNOWN) {
+        char *p_invoice = NULL;
+        bool ret = ln_invoice_create(&p_invoice, type, preimage_hash, amount);
+        if (ret) {
+            cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
+        } else {
+            DBG_PRINTF("fail: BOLT11 format\n");
+        }
+        free(p_invoice);
+    } else {
+        DBG_PRINTF("fail: unknown genesis type\n");
+        index = -1;
+    }
 
 LABEL_EXIT:
     if (index < 0) {
