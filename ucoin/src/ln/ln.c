@@ -2728,7 +2728,6 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
     if (ret) {
         //commitment_signed受信通知
-        //ln_cb_commsig_recv_t commsig;
         (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, NULL);
         ln_db_self_save(self);
     }
@@ -2805,8 +2804,8 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     //HTLC変化通知
-    //ln_cb_htlc_changed_t htlc_chg;
     (*self->p_callback)(self, LN_CB_HTLC_CHANGED, NULL);
+    ln_db_self_save(self);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");
@@ -2838,6 +2837,7 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
     self->feerate_per_kw = upfee.feerate_per_kw;
+    ln_db_self_save(self);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");
@@ -2890,6 +2890,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 
     //reestablish受信通知
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
+    ln_db_self_save(self);
 
     return ret;
 }
