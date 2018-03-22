@@ -107,7 +107,6 @@ typedef struct lnapp_conf_t {
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
-    uint32_t        funding_min_depth;      ///< accept_channel.min_depth
     uint8_t         flag_ope;               ///< normal operation中フラグ
     uint8_t         flag_recv;              ///< 受信済み
 

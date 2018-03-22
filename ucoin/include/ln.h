@@ -171,10 +171,9 @@ typedef enum {
     LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
     LN_CB_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
-    LN_CB_ESTABLISHED,          ///< Establish完了通知
+    LN_CB_FUNDINGLOCKED_RECV,   ///< funding_locked受信通知
     LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信通知
     LN_CB_NODE_ANNO_RECV,       ///< node_announcement受信通知
-    LN_CB_SHT_CNL_ID_UPDATE,    ///< short_chennel_id更新
     LN_CB_ANNO_SIGSED,          ///< announcement_signatures完了通知
     LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
@@ -975,7 +974,6 @@ struct ln_self_t {
     ucoin_buf_t                 redeem_fund;                    ///< 2-of-2のredeemScript
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
-    uint8_t                     flck_flag;                      ///< funding_lockedフラグ(M_FLCK_FLAG_xxx)。 b1:受信済み b0:送信済み
     ln_establish_t              *p_establish;                   ///< Establishワーク領域
     uint32_t                    min_depth;                      ///< minimum_depth
 
@@ -1101,6 +1099,13 @@ const uint8_t* ln_get_genesishash(void);
 bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm);
 
 
+/** Channel Establish解放
+ *
+ * @param[in,out]       self            channel情報
+ */
+void ln_release_establish(ln_self_t *self);
+
+
 /** short_channel_id情報設定
  *
  * @param[in,out]       self            channel情報
@@ -1205,10 +1210,6 @@ bool ln_noise_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf);
  * @param[in]           pData       受信データ
  * @param[in]           Len         pData長
  * @retval      true    解析成功
- * @note
- *      - accept_channel受信時、funding_txを展開し、安定するまで待ち時間が生じる。<br/>
- *          安定した後は #ln_funding_tx_stabled() を呼び出してシーケンスを継続すること。
- *
  */
 bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
@@ -1238,11 +1239,17 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl);
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pReEst          channel_reestablishメッセージ
- * @param[out]          pFundLock       true:続けてfunding_lockedを送信すること
  * retval       true    成功
  */
-bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst, bool *pFundLock);
+bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst);
 
+bool ln_check_need_funding_locked(const ln_self_t *self);
+bool ln_create_funding_locked(ln_self_t *self, ucoin_buf_t *pLocked);
+
+
+/********************************************************************
+ * Establish関係
+ ********************************************************************/
 
 /** open_channelメッセージ作成
  *
@@ -1258,14 +1265,12 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
             const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate);
 
 
-/** funding_tx安定後の処理継続
+
+/** open_channelのchannel_flags.announce_channelのクリア
  *
- * @param[in,out]       self                channel情報
- * @retval      ture    成功
- * @note
- *      - funding_txを展開して、confirmationがaccept_channel.min-depth以上経過したら呼び出す。
+ * @param[in]           self            channel情報
  */
-bool ln_funding_tx_stabled(ln_self_t *self);
+void ln_open_announce_channel_clr(ln_self_t *self);
 
 
 /** announcement_signatures作成およびchannel_announcementの一部(peer署名無し)生成
@@ -1832,15 +1837,6 @@ static inline bool ln_open_announce_channel(const ln_self_t *self) {
 }
 
 
-/** open_channelのchannel_flags.announce_channelのクリア
- *
- * @param[in]           self            channel情報
- */
-static inline void ln_open_announce_channel_clr(ln_self_t *self) {
-    self->fund_flag &= ~LN_FUNDFLAG_ANNO_CH;
-}
-
-
 /** 他ノードID取得
  *
  * @param[in]           self            channel情報
@@ -2014,7 +2010,7 @@ bool ln_signer_sign_nodekey(uint8_t *pRS, const uint8_t *pHash);
  ********************************************************************/
 
 /** BOLTメッセージ名取得
- * 
+ *
  * @param[in]   type        BOLT message type
  * @return          message name
  */

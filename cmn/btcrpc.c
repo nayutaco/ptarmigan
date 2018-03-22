@@ -54,6 +54,7 @@
 #define M_ERROR             "error"
 #define M_MESSAGE           "message"
 #define M_CODE              "code"
+#define M_FEERATE           "feerate"
 
 //#define M_DBG_SHOWRPC       //RPCの命令
 //#define M_DBG_SHOWREPLY     //RPCの応答
@@ -1030,6 +1031,7 @@ bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     if (retval) {
         json_t *p_root;
         json_t *p_result;
+        json_t *p_feerate;
         json_error_t error;
 
         p_root = json_loads(p_json, 0, &error);
@@ -1044,8 +1046,9 @@ bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
             DBG_PRINTF("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
-        if (json_is_real(p_result)) {
-            *pFeeSatoshi = UCOIN_BTC2SATOSHI(json_real_value(p_result));
+        p_feerate = json_object_get(p_result, M_FEERATE);
+        if (p_feerate && json_is_real(p_feerate)) {
+            *pFeeSatoshi = UCOIN_BTC2SATOSHI(json_real_value(p_feerate));
             //-1のときは失敗と見なす
             ret = (*pFeeSatoshi + 1.0) > DBL_EPSILON;
             if (!ret) {

@@ -89,7 +89,6 @@ static uint16_t     showflag = SHOW_DEFAULT;
 static int          cnt0;
 static int          cnt1;
 static int          cnt2;
-static int          cnt3;
 static int          cnt4;
 static int          cnt5;
 static MDB_env      *mpDbSelf = NULL;
@@ -180,6 +179,9 @@ static void ln_print_self(const ln_self_t *self)
         ucoin_util_dumpbin(stdout, self->funding_remote.pubkeys[lp], UCOIN_SZ_PUBKEY, false);
         printf("\"},\n");
     }
+    printf(M_QQ("%s") ": \"", "prev_percommit");
+    ucoin_util_dumpbin(stdout, self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY, false);
+    printf("\",\n");
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
         printf(M_QQ("%s") ": ", SCR_STR[lp]);
         printf("{");
@@ -564,10 +566,6 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
 {
     //version
     if (showflag == SHOW_VERSION) {
-        if (cnt3) {
-            printf(",");
-        }
-
         MDB_val key, data;
 
         key.mv_size = LNDBK_LEN(LNDBK_VER);
@@ -575,19 +573,24 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         int retval = mdb_get(txn, dbi, &key, &data);
         if (retval == 0) {
             int version = *(int *)data.mv_data;
-            printf(M_QQ("version") ": [ %d\n", version);
+            printf(M_QQ("version") ": %d", version);
         }
 
-        key.mv_size = LNDBK_LEN(LNDBK_NODEID);
-        key.mv_data = LNDBK_NODEID;
-        retval = mdb_get(txn, dbi, &key, &data);
-        if ((retval == 0) && (data.mv_size == UCOIN_SZ_PUBKEY)) {
-            const uint8_t *p = (const uint8_t *)data.mv_data;
-            printf(", \"");
-            ucoin_util_dumpbin(stdout, p, UCOIN_SZ_PUBKEY, false);
-            printf("\"");
+        char wif[UCOIN_SZ_WIF_MAX];
+        char alias[LN_SZ_ALIAS];
+        uint16_t port;
+        uint8_t genesis[LN_SZ_HASH];
+        retval = ln_db_lmdb_get_mynodeid(txn, dbi, wif, alias, &port, genesis);
+        if (retval == 0) {
+            printf(",\n");
+            printf(M_QQ("genesis") ": \"");
+            ucoin_util_dumpbin(stdout, genesis, LN_SZ_HASH, false);
+            printf("\",\n");
+
+            printf(M_QQ("wif") ": " M_QQ("%s") ",\n", wif);
+            printf(M_QQ("alias") ": " M_QQ("%s") ",\n", alias);
+            printf(M_QQ("port") ": %" PRIu16 "\n", port);
         }
-        cnt3++;
     }
 }
 
@@ -820,7 +823,7 @@ int main(int argc, char *argv[])
         }
         free(name);
     }
-    if (cnt0 || cnt1 || cnt2 || cnt3 || cnt4 || cnt5) {
+    if (cnt0 || cnt1 || cnt2 || cnt4 || cnt5) {
         printf("]");
     }
     printf("}\n");

@@ -74,6 +74,8 @@ void HIDDEN ln_signer_create_nodekey(ucoin_util_keys_t *pKeys)
 
 bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
 {
+    DBG_PRINTF("\n");
+
     //鍵生成
     //  open_channel/accept_channelの鍵は ln_signer_update_percommit_secret()で生成
     for (int lp = MSG_FUNDIDX_FUNDING; lp < LN_FUNDIDX_MAX; lp++) {
@@ -94,6 +96,7 @@ void HIDDEN ln_signer_update_percommit_secret(ln_self_t *self)
     ln_signer_keys_update(self, 0);
 
     self->storage_index--;
+    DBG_PRINTF("\n");
 
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 }
