@@ -1828,6 +1828,9 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     self->commit_remote.to_self_delay = open_ch->to_self_delay;
     self->commit_remote.dust_limit_sat = open_ch->dust_limit_sat;
 
+    //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
+    memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+
     self->funding_sat = open_ch->funding_sat;
     self->feerate_per_kw = open_ch->feerate_per_kw;
     self->our_msat = open_ch->push_msat;
@@ -1928,6 +1931,9 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->commit_remote.in_flight_msat = acc_ch->max_htlc_value_in_flight_msat;
     self->commit_remote.to_self_delay = acc_ch->to_self_delay;
     self->commit_remote.dust_limit_sat = acc_ch->dust_limit_sat;
+
+    //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
+    memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //スクリプト用鍵生成
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -2145,14 +2151,8 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     DBG_PRINTF("next: ");
     DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
 
-    //copy per_commitment_point
-    if (memcmp(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY) != 0) {
-        DBG_PRINTF("per_commitpt: update\n");
-        memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-        memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
-    } else {
-        DBG_PRINTF("per_commitpt: same\n");
-    }
+    //prev_percommitはrevoke_and_ackでのみ更新する
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
 
     //funding中終了
     self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
