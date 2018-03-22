@@ -10,6 +10,3 @@
 [submodule "libs/lmdb"]
 	path = libs/lmdb
 	url = https://github.com/LMDB/lmdb.git
-[submodule "libs/bech32"]
-	path = libs/bech32
-	url = https://github.com/nayutaco/bech32.git

@@ -9,11 +9,6 @@ mk_install:
 	@mkdir -p $(INSTALL_DIR)/include
 	@mkdir -p $(INSTALL_DIR)/lib
 
-mk_bech32:
-	make -C bech32/ref/c
-	cp bech32/ref/c/libbech32.a $(INSTALL_DIR)/lib/
-	cp bech32/ref/c/segwit_addr.h $(INSTALL_DIR)/include/
-
 mk_base58:
 	cd libbase58; autoreconf -i ; ./configure --prefix=$(INSTALL_DIR) --disable-shared ; make ; make install ; cd ..
 	@rm -rf libbase58/compile
@@ -32,7 +27,6 @@ mk_mbedtls:
 	cp -ra mbedtls/include/* $(INSTALL_DIR)/include/
 
 clean:
-	-make -C bech32/ref/c clean
 	-make -C libbase58 clean
 	-make -C libsodium clean
 	-make -C lmdb/libraries/liblmdb clean
