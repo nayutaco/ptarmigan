@@ -175,23 +175,26 @@ bool ucoin_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
     bool ret;
 
     if (mNativeSegwit) {
-        uint8_t pkh[3 + UCOIN_SZ_PUBKEYHASH + 4];
-        size_t sz = UCOIN_SZ_WPKHADDR;
-        int pref;
+        DBG_PRINTF("FATAL: not BECH32 supported\n");
+        assert(false);
 
-        pkh[0] = mPref[UCOIN_PREF_ADDRVER];
-        pkh[1] = 0x00;
-        pkh[2] = 0x00;
-        ret = ucoin_keys_addr2pkh(pkh + 3, &pref, pAddr);
-        if (ret && (pref == UCOIN_PREF_P2PKH)) {
-            uint8_t buf_sha256[UCOIN_SZ_HASH256];
+        // uint8_t pkh[3 + UCOIN_SZ_PUBKEYHASH + 4];
+        // size_t sz = UCOIN_SZ_ADDR_MAX;
+        // int pref;
 
-            ucoin_util_hash256(buf_sha256, pkh, 3 + UCOIN_SZ_PUBKEYHASH);
-            memcpy(pkh + 3 + UCOIN_SZ_PUBKEYHASH, buf_sha256, 4);
-            ret = b58enc(pWAddr, &sz, pkh, sizeof(pkh));
-        } else {
-            ret = false;
-        }
+        // pkh[0] = mPref[UCOIN_PREF_ADDRVER];
+        // pkh[1] = 0x00;
+        // pkh[2] = 0x00;
+        // ret = ucoin_keys_addr2pkh(pkh + 3, &pref, pAddr);
+        // if (ret && (pref == UCOIN_PREF_P2PKH)) {
+        //     uint8_t buf_sha256[UCOIN_SZ_HASH256];
+
+        //     ucoin_util_hash256(buf_sha256, pkh, 3 + UCOIN_SZ_PUBKEYHASH);
+        //     memcpy(pkh + 3 + UCOIN_SZ_PUBKEYHASH, buf_sha256, 4);
+        //     ret = b58enc(pWAddr, &sz, pkh, sizeof(pkh));
+        // } else {
+        //     ret = false;
+        // }
     } else {
         uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
         int pref;
@@ -213,17 +216,20 @@ bool ucoin_keys_wit2waddr(char *pWAddr, const ucoin_buf_t *pWitScript)
     bool ret;
 
     if (mNativeSegwit) {
-        uint8_t buf_sha256[UCOIN_SZ_HASH256];
-        uint8_t shash[3 + UCOIN_SZ_HASH256 + 4];
-        size_t sz = UCOIN_SZ_WSHADDR;
+        DBG_PRINTF("FATAL: not BECH32 supported\n");
+        assert(false);
 
-        shash[0] = mPref[UCOIN_PREF_ADDRVER_SH];
-        shash[1] = 0x00;
-        shash[2] = 0x00;
-        ucoin_util_sha256(shash + 3, pWitScript->buf, pWitScript->len);
-        ucoin_util_hash256(buf_sha256, pWitScript->buf, pWitScript->len);
-        memcpy(shash + 3 + UCOIN_SZ_HASH256, buf_sha256, 4);
-        ret = b58enc(pWAddr, &sz, shash, sizeof(shash));
+        // uint8_t buf_sha256[UCOIN_SZ_HASH256];
+        // uint8_t shash[3 + UCOIN_SZ_HASH256 + 4];
+        // size_t sz = UCOIN_SZ_ADDR_MAX;
+
+        // shash[0] = mPref[UCOIN_PREF_ADDRVER_SH];
+        // shash[1] = 0x00;
+        // shash[2] = 0x00;
+        // ucoin_util_sha256(shash + 3, pWitScript->buf, pWitScript->len);
+        // ucoin_util_hash256(buf_sha256, pWitScript->buf, pWitScript->len);
+        // memcpy(shash + 3 + UCOIN_SZ_HASH256, buf_sha256, 4);
+        // ret = b58enc(pWAddr, &sz, shash, sizeof(shash));
     } else {
         uint8_t wit_prog[LNL_SZ_WITPROG_WSH];
         uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
