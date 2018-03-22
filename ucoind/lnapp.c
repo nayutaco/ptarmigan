@@ -1617,7 +1617,7 @@ static void *thread_poll_start(void *pArg)
 
 static void poll_ping(lnapp_conf_t *p_conf)
 {
-    DBGTRACE_BEGIN
+    //DBGTRACE_BEGIN
 
     //未送受信の状態が続いたらping送信する
     p_conf->ping_counter++;
@@ -1636,14 +1636,14 @@ static void poll_ping(lnapp_conf_t *p_conf)
         }
     }
 
-    DBGTRACE_END
+    //DBGTRACE_END
 }
 
 
 //funding_tx確定待ち
 static void poll_funding_wait(lnapp_conf_t *p_conf)
 {
-    DBGTRACE_BEGIN
+    //DBGTRACE_BEGIN
 
     ln_self_t *self = p_conf->p_self;
 
@@ -1665,14 +1665,14 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         }
     }
 
-    DBGTRACE_END
+    //DBGTRACE_END
 }
 
 
 //Normal Operation中
 static void poll_normal_operating(lnapp_conf_t *p_conf)
 {
-    DBGTRACE_BEGIN
+    //DBGTRACE_BEGIN
 
     //funding_tx使用チェック
     bool unspent;
@@ -1684,7 +1684,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
         stop_threads(p_conf);
     }
 
-    DBGTRACE_END
+    //DBGTRACE_END
 }
 
 
