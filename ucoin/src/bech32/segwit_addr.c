@@ -224,7 +224,7 @@ static uint64_t convert_be64(const uint8_t *p_data, size_t dlen)
 //inbits:8, outbits:5で64bitまで変換可能
 static int convert64_to8(uint8_t *p_out, uint64_t val)
 {
-    int lp;
+    size_t lp;
     for (lp = 0; lp < sizeof(val); lp++) {
         p_out[lp] = val & 0x1f;
         val >>= 5;
@@ -233,7 +233,7 @@ static int convert64_to8(uint8_t *p_out, uint64_t val)
         }
     }
     //swap endian
-    for (int lp2 = 0; lp2 < lp / 2; lp2++) {
+    for (size_t lp2 = 0; lp2 < lp / 2; lp2++) {
         uint8_t tmp = p_out[lp2];
         p_out[lp2] = p_out[lp - lp2];
         p_out[lp - lp2] = tmp;
@@ -315,7 +315,7 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_inv
         {
             const uint8_t *p = p_data;
 
-            for (int lp2 = 0; lp2 < d_len / 51; lp2++) {
+            for (size_t lp2 = 0; lp2 < d_len / 51; lp2++) {
                 fprintf(stderr, "-----------\npubkey= ");
                 for (size_t lp = 0; lp < 33; lp++) {
                     fprintf(stderr, "%02x", *p++);
