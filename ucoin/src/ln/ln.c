@@ -1733,6 +1733,7 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ln_error_t err;
     ln_msg_error_read(&err, pData, Len);
     (*self->p_callback)(self, LN_CB_ERROR, &err);
+    M_FREE(err.p_data);
 
     return true;
 }

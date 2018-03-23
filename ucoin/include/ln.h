@@ -591,7 +591,7 @@ typedef struct {
  */
 typedef struct {
     uint16_t    len;                                ///< 2: byteslen
-    const char  *p_data;                            ///<
+    char        *p_data;                            ///< エラー文字列(\0あり)
 } ln_error_t;
 
 /// @}

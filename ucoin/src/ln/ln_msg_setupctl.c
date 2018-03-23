@@ -187,8 +187,6 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
     int pos = sizeof(uint16_t);
 
     //        [32:channel-id]
-    DBG_PRINTF("channel_id:");
-    DUMPBIN(pData + pos, LN_SZ_CHANNEL_ID);
     pos += LN_SZ_CHANNEL_ID;
 
     //        [2:len]
@@ -196,11 +194,11 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
     pos += sizeof(uint16_t);
 
     //        [len:data]
-    DBG_PRINTF("data(%d): ", len);
-    DBG_PRINTF("%s\n", pData + pos);
     if (pMsg != NULL) {
         pMsg->len = len;
-        pMsg->p_data = (const char *)(pData + pos);
+        pMsg->p_data = (char *)M_MALLOC(len + 1);
+        memcpy(pMsg->p_data, pData + pos, len);
+        pMsg->p_data[len] = '\0';
     }
 
     pos += len;
