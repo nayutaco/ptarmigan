@@ -1099,13 +1099,6 @@ const uint8_t* ln_get_genesishash(void);
 bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm);
 
 
-/** Channel Establish解放
- *
- * @param[in,out]       self            channel情報
- */
-void ln_release_establish(ln_self_t *self);
-
-
 /** short_channel_id情報設定
  *
  * @param[in,out]       self            channel情報

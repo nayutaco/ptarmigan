@@ -1277,8 +1277,6 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
                 txidstr);
     call_script(M_EVT_ESTABLISHED, param);
 
-    ln_release_establish(p_conf->p_self);
-
     return true;
 }
 

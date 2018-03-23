@@ -352,12 +352,6 @@ bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establis
 }
 
 
-void ln_release_establish(ln_self_t *self)
-{
-    free_establish(self);
-}
-
-
 bool ln_set_funding_wif(ln_self_t *self, const char *pWif)
 {
     ucoin_chain_t chain;
@@ -642,7 +636,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
 
     //funding_tx作成用に保持
     assert(self->p_establish->p_fundin == NULL);
-    self->p_establish->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));
+    self->p_establish->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
     memcpy(self->p_establish->p_fundin, pFundin, sizeof(ln_fundin_t));
 
     //open_channel
@@ -1733,7 +1727,7 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     if (ln_is_funding(self)) {
         DBG_PRINTF("stop funding\n");
-        self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
+        free_establish(self);
     }
 
     ln_error_t err;
@@ -2160,7 +2154,7 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
 
     //funding中終了
-    self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
+    free_establish(self);
 
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ln_db_self_save(self);
@@ -4163,8 +4157,9 @@ static void free_establish(ln_self_t *self)
             M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
         }
         M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
-        DBG_PRINTF("END\n");
+        DBG_PRINTF("free\n");
     }
+    self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
 }
 
 
