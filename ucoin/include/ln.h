@@ -591,7 +591,7 @@ typedef struct {
  */
 typedef struct {
     uint16_t    len;                                ///< 2: byteslen
-    const char  *p_data;                            ///<
+    char        *p_data;                            ///< エラー文字列(\0あり)
 } ln_error_t;
 
 /// @}
@@ -1097,13 +1097,6 @@ const uint8_t* ln_get_genesishash(void);
  *      - pEstablishは接続完了まで保持すること
  */
 bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm);
-
-
-/** Channel Establish解放
- *
- * @param[in,out]       self            channel情報
- */
-void ln_release_establish(ln_self_t *self);
 
 
 /** short_channel_id情報設定
