@@ -525,8 +525,8 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
     //        [addrlen:addresses]
     switch (pMsg->addr.type) {
     case LN_NODEDESC_NONE:
-        ln_misc_push16be(&proto, 1);
-        ln_misc_push8(&proto, LN_NODEDESC_NONE);
+        //noneは登録しない
+        ln_misc_push16be(&proto, 0);
         break;
     case LN_NODEDESC_IPV4:
     case LN_NODEDESC_IPV6:
