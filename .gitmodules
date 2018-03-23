@@ -10,10 +10,6 @@
 [submodule "ucoin/libs/lmdb"]
 	path = ucoin/libs/lmdb
 	url = https://github.com/LMDB/lmdb.git
-[submodule "ucoin/libs/bech32"]
-	path = ucoin/libs/bech32
-	url = https://github.com/nayutaco/bech32.git
-	ignore = dirty
 [submodule "libs/jsonrpc-c"]
 	path = libs/jsonrpc-c
 	url = https://github.com/nayutaco/jsonrpc-c.git

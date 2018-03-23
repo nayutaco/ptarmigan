@@ -70,7 +70,6 @@ make distclean
   * [libsodium](https://download.libsodium.org/doc/) ([github](https://github.com/jedisct1/libsodium))
   * [lmdb](https://symas.com/lightning-memory-mapped-database/) ([github](https://github.com/LMDB/lmdb))
   * [jsonrpc-c](https://github.com/nayutaco/jsonrpc-c) - forked from [hmng/jsonrpc-c](https://github.com/hmng/jsonrpc-c)
-  * [bech32](https://github.com/nayutaco/bech32) - forked from [sipa/bech32](https://github.com/sipa/bech32)
 
 * install
   * [curl](https://curl.haxx.se/)
@@ -78,6 +77,9 @@ make distclean
   * [libev](http://software.schmorp.de/pkg/libev.html) (for `jsonrpc-c`)
   * [boost](http://www.boost.org/) (for dijkstra shortest paths)
   * [jq](https://stedolan.github.io/jq/) (for test scripts)
+
+* include
+  * [bech32](https://github.com/nayutaco/bech32) - forked from [sipa/bech32](https://github.com/sipa/bech32)
 
 ### application
 

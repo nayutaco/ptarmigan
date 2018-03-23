@@ -176,12 +176,12 @@ static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 static bool proc_announce_sigsed(ln_self_t *self);
 static bool chk_peer_node(ln_self_t *self);
-static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
+static bool get_nodeid(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 static void close_alloc(ln_close_force_t *pClose, int Num);
-static void free_establish(ln_self_t *self);
+static void free_establish(ln_self_t *self, bool bEndEstablish);
 static ucoin_keys_sort_t sort_nodeid(ln_self_t *self);
 
 
@@ -349,12 +349,6 @@ bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establis
     DBG_PRINTF("END\n");
 
     return true;
-}
-
-
-void ln_release_establish(ln_self_t *self)
-{
-    free_establish(self);
 }
 
 
@@ -642,7 +636,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
 
     //funding_tx作成用に保持
     assert(self->p_establish->p_fundin == NULL);
-    self->p_establish->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));
+    self->p_establish->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
     memcpy(self->p_establish->p_fundin, pFundin, sizeof(ln_fundin_t));
 
     //open_channel
@@ -1670,7 +1664,7 @@ static void channel_clear(ln_self_t *self)
     self->anno_flag = 0;
     self->shutdown_flag = 0;
 
-    free_establish(self);
+    free_establish(self, true);
 }
 
 
@@ -1733,12 +1727,13 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     if (ln_is_funding(self)) {
         DBG_PRINTF("stop funding\n");
-        self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
+        free_establish(self, false);
     }
 
     ln_error_t err;
     ln_msg_error_read(&err, pData, Len);
     (*self->p_callback)(self, LN_CB_ERROR, &err);
+    M_FREE(err.p_data);
 
     return true;
 }
@@ -2160,7 +2155,7 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
 
     //funding中終了
-    self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
+    free_establish(self, true);
 
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ln_db_self_save(self);
@@ -3040,7 +3035,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
 
-        ret = get_nodeid(node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
+        ret = get_nodeid(self, node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
             if (!ret) {
@@ -3048,6 +3043,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
             }
         } else {
             DBG_PRINTF("fail: maybe not found channel_announcement in DB\n");
+            ret = true;
         }
     } else {
         DBG_PRINTF("fail: channel_update\n");
@@ -4026,7 +4022,7 @@ static bool chk_peer_node(ln_self_t *self)
 
 
 //node_id取得
-static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
+static bool get_nodeid(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
 {
     bool ret;
 
@@ -4051,7 +4047,21 @@ static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
             DBG_PRINTF("ret=%d\n", ret);
         }
     } else {
-        DBG_PRINTF("ret=%d\n", ret);
+        if (short_channel_id == self->short_channel_id) {
+            // DBには無いが、このchannelの情報
+            ucoin_keys_sort_t mydir = sort_nodeid(self);
+            if ( ((mydir == UCOIN_KEYS_SORT_ASC) && (Dir == 0)) ||
+                 ((mydir == UCOIN_KEYS_SORT_OTHER) && (Dir == 1)) ) {
+                //自ノード
+                DBG_PRINTF("this channel: my node\n");
+                memcpy(pNodeId, ln_node_getid(), UCOIN_SZ_PUBKEY);
+            } else {
+                //相手ノード
+                DBG_PRINTF("this channel: peer node\n");
+                memcpy(pNodeId, self->peer_node_id, UCOIN_SZ_PUBKEY);
+            }
+            ret = true;
+        }
     }
     ucoin_buf_free(&buf_cnl_anno);
 
@@ -4140,19 +4150,29 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
 
 /** establish用メモリ解放
  *
+ * @param[in]   bEndEstablish   true: funding用メモリ解放
  */
-static void free_establish(ln_self_t *self)
+static void free_establish(ln_self_t *self, bool bEndEstablish)
 {
     if (self->p_establish != NULL) {
         if (self->p_establish->p_fundin != NULL) {
             M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
         }
-        M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
-        DBG_PRINTF("END\n");
+        if (bEndEstablish) {
+            M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
+            DBG_PRINTF("free\n");
+        }
     }
+    self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
 }
 
 
+/**
+ * 
+ * @param[in]   self
+ * @retval      UCOIN_KEYS_SORT_ASC     自ノードが先
+ * @retval      UCOIN_KEYS_SORT_OTHER   相手ノードが先
+ */
 static ucoin_keys_sort_t sort_nodeid(ln_self_t *self)
 {
     ucoin_keys_sort_t sort;

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2018/03/23
+
+* include [`nayutaco/bech32`](https://github.com/nayutaco/bech32)
+* support `regtest` invoice
+  * cannot test creating
+* bugfix
+
 ## 2018/03/17
 
 * remove `dumpprivkey`

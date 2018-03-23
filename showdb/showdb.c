@@ -340,13 +340,6 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
             ucoin_buf_init(&buf);
             ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
             if ((ret == 0) && (short_channel_id != 0)) {
-                if (type == LN_DB_CNLANNO_ANNO) {
-                    if (cnt1) {
-                        printf("],");
-                    }
-                    printf("\n[\n");
-                    cnt1 = 0;
-                }
                 if (cnt1) {
                     printf(",");
                 }
@@ -823,7 +816,7 @@ int main(int argc, char *argv[])
         }
         free(name);
     }
-    if (cnt0 || cnt1 || cnt2 || cnt4 || cnt5) {
+    if (cnt0 || cnt2 || cnt4 || cnt5) {
         printf("]");
     }
     printf("}\n");
