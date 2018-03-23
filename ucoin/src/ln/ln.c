@@ -181,7 +181,7 @@ static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 static void close_alloc(ln_close_force_t *pClose, int Num);
-static void free_establish(ln_self_t *self);
+static void free_establish(ln_self_t *self, bool bEndEstablish);
 static ucoin_keys_sort_t sort_nodeid(ln_self_t *self);
 
 
@@ -1664,7 +1664,7 @@ static void channel_clear(ln_self_t *self)
     self->anno_flag = 0;
     self->shutdown_flag = 0;
 
-    free_establish(self);
+    free_establish(self, true);
 }
 
 
@@ -1727,7 +1727,7 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     if (ln_is_funding(self)) {
         DBG_PRINTF("stop funding\n");
-        free_establish(self);
+        free_establish(self, false);
     }
 
     ln_error_t err;
@@ -2154,7 +2154,7 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
 
     //funding中終了
-    free_establish(self);
+    free_establish(self, true);
 
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ln_db_self_save(self);
@@ -4149,15 +4149,18 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
 
 /** establish用メモリ解放
  *
+ * @param[in]   bEndEstablish   true: funding用メモリ解放
  */
-static void free_establish(ln_self_t *self)
+static void free_establish(ln_self_t *self, bool bEndEstablish)
 {
     if (self->p_establish != NULL) {
         if (self->p_establish->p_fundin != NULL) {
             M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
         }
-        M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
-        DBG_PRINTF("free\n");
+        if (bEndEstablish) {
+            M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
+            DBG_PRINTF("free\n");
+        }
     }
     self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
 }
