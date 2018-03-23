@@ -176,7 +176,7 @@ static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 static bool proc_announce_sigsed(ln_self_t *self);
 static bool chk_peer_node(ln_self_t *self);
-static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
+static bool get_nodeid(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
@@ -3040,7 +3040,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
 
-        ret = get_nodeid(node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
+        ret = get_nodeid(self, node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
             if (!ret) {
@@ -3048,6 +3048,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
             }
         } else {
             DBG_PRINTF("fail: maybe not found channel_announcement in DB\n");
+            ret = true;
         }
     } else {
         DBG_PRINTF("fail: channel_update\n");
@@ -4026,7 +4027,7 @@ static bool chk_peer_node(ln_self_t *self)
 
 
 //node_id取得
-static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
+static bool get_nodeid(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
 {
     bool ret;
 
@@ -4051,7 +4052,21 @@ static bool get_nodeid(uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
             DBG_PRINTF("ret=%d\n", ret);
         }
     } else {
-        DBG_PRINTF("ret=%d\n", ret);
+        if (short_channel_id == self->short_channel_id) {
+            // DBには無いが、このchannelの情報
+            ucoin_keys_sort_t mydir = sort_nodeid(self);
+            if ( ((mydir == UCOIN_KEYS_SORT_ASC) && (Dir == 0)) ||
+                 ((mydir == UCOIN_KEYS_SORT_OTHER) && (Dir == 1)) ) {
+                //自ノード
+                DBG_PRINTF("this channel: my node\n");
+                memcpy(pNodeId, ln_node_getid(), UCOIN_SZ_PUBKEY);
+            } else {
+                //相手ノード
+                DBG_PRINTF("this channel: peer node\n");
+                memcpy(pNodeId, self->peer_node_id, UCOIN_SZ_PUBKEY);
+            }
+            ret = true;
+        }
     }
     ucoin_buf_free(&buf_cnl_anno);
 
@@ -4153,6 +4168,12 @@ static void free_establish(ln_self_t *self)
 }
 
 
+/**
+ * 
+ * @param[in]   self
+ * @retval      UCOIN_KEYS_SORT_ASC     自ノードが先
+ * @retval      UCOIN_KEYS_SORT_OTHER   相手ノードが先
+ */
 static ucoin_keys_sort_t sort_nodeid(ln_self_t *self)
 {
     ucoin_keys_sort_t sort;
