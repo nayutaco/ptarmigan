@@ -47,14 +47,8 @@ static const char charset[] = {
     's', '3', 'j', 'n', '5', '4', 'k', 'h',
     'c', 'e', '6', 'm', 'u', 'a', '7', 'l'
 };
-static const char hrp_str[][7] = {
-    { 'b', 'c', '\0' },
-    { 't', 'b', '\0' },
-    { 'B', 'C', '\0' },
-    { 'T', 'B', '\0' },
-    { 'l', 'n', 'b', 'c', '\0' },
-    { 'l', 'n', 't', 'b', '\0' },
-    { 'l', 'n', 'b', 'c', 'r', 't', '\0' }
+static const char *hrp_str[] = {
+    "bc", "tb", "BC", "TB", "lnbc", "lntb", "lnbcrt"
 };
 static const int8_t charset_rev[128] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
