@@ -2,7 +2,7 @@ INSTALL_DIR = $(CURDIR)/install
 
 all: lib
 
-lib: mk_install mk_base58 mk_mbedtls mk_bech32 mk_sodium mk_lmdb
+lib: mk_install mk_base58 mk_mbedtls mk_sodium mk_lmdb
 
 mk_install:
 	@mkdir -p $(INSTALL_DIR)
@@ -31,4 +31,4 @@ clean:
 	-make -C libsodium clean
 	-make -C lmdb/libraries/liblmdb clean
 	-make -C mbedtls clean
-	-rm -rf $(INSTALL_DIR)
+	-rm -rf $(INSTALL_DIR) bech32
