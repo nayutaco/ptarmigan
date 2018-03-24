@@ -1318,7 +1318,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
                 //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
                 //  which this side will pay for commitment and HTLC transactions
                 //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
-                feerate_kw = (uint32_t)(feerate_kb / 4);
+                feerate_kw = ln_calc_feerate_per_kw(feerate_kb);
             } else {
                 // https://github.com/nayutaco/ptarmigan/issues/46
                 DBG_PRINTF("fail: estimatefee\n");
