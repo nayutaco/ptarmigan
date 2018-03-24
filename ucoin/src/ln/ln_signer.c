@@ -142,7 +142,7 @@ void HIDDEN ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
     DBG_PRINTF("prev_secret(%" PRIx64 "): ", self->storage_index + 2);
     DUMPBIN(pSecret, UCOIN_SZ_PRIVKEY);
     DBG_PRINTF("       pub: ");
-    uint8_t pub[UCOIN_SZ_PUBKEY);
+    uint8_t pub[UCOIN_SZ_PUBKEY];
     ucoin_keys_priv2pub(pub, pSecret);
     DUMPBIN(pub, UCOIN_SZ_PUBKEY);
 }
