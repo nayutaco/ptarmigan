@@ -1259,6 +1259,8 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     }
     DBG_PRINTF("exchange: funding_locked\n");
 
+    check_short_channel_id(p_conf);
+
     // method: established
     // $1: short_channel_id
     // $2: node_id
