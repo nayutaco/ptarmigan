@@ -3082,6 +3082,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
  */
 static void start_funding_wait(ln_self_t *self, bool bSendTx)
 {
+    DBG_PRINTF("\n");
+    
     ln_cb_funding_t funding;
 
     //commitment numberは0から始まる
