@@ -485,6 +485,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
     if ( (type != MSGTYPE_CLOSING_SIGNED) &&
          !MSGTYPE_IS_ANNOUNCE(type) && !MSGTYPE_IS_PINGPONG(type) &&
+         (type != MSGTYPE_ERROR) &&
          M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) ) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: not closing_signed received : %04x\n", type);
