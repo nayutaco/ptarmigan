@@ -65,7 +65,7 @@ extern "C" {
 #define LN_NODE_MAX                     (5)         ///< 保持するノード情報数   TODO:暫定
 #define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
 #define LN_HOP_MAX                      (20)        ///< onion hop数
-#define LN_FEERATE_PER_KW               (10000)     ///< feerate_per_kwの下限(c-lightningで下限が設定されているため)
+#define LN_FEERATE_PER_KW               (250)       ///< estimate feeできなかった場合のfeerate_per_kw
 #define LN_BLK_FEEESTIMATE              (6)         ///< estimatefeeのブロック数(2以上)
 #define LN_MIN_FINAL_CLTV_EXPIRY        (9)         ///< min_final_cltv_expiryのデフォルト値
 #define LN_INVOICE_EXPIRY               (3600)      ///< invoice expiryのデフォルト値
