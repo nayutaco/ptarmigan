@@ -96,17 +96,17 @@
 // ln_self_t.init_flag
 #define M_INIT_FLAG_SEND                    (0x01)
 #define M_INIT_FLAG_RECV                    (0x02)
-#define M_INIT_FLAG_INITED(flag)            (((flag) & (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)) == (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV))
+#define M_INIT_FLAG_EXCHNAGED(flag)         (((flag) & (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)) == (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV))
 
 // ln_self_t.anno_flag
 #define M_ANNO_FLAG_SEND                    (0x01)          ///< 1:announcement_signatures送信あり
 #define M_ANNO_FLAG_RECV                    (0x02)          ///< 1:announcement_signatures受信あり
-#define M_ANNO_FLAG_END                     (0x80)
+#define M_ANNO_FLAG_END                     (0x80)          ///< 送受信完了後の処理済み
 
 // ln_self_t.shutdown_flag
 #define M_SHDN_FLAG_SEND                    (0x01)          ///< 1:shutdown送信あり
 #define M_SHDN_FLAG_RECV                    (0x02)          ///< 1:shutdown受信あり
-#define M_SHDN_FLAG_END                     (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)
+#define M_SHDN_FLAG_EXCHANGED(flag)         (((flag) & (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)) == (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV))
 
 #define M_PONG_MISSING                      (50)            ///< pongが返ってこないエラー上限
 
@@ -369,7 +369,11 @@ bool ln_set_funding_wif(ln_self_t *self, const char *pWif)
 
 void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex)
 {
-    self->short_channel_id = ln_misc_calc_short_channel_id(Height, Index, FundingIndex);
+    uint64_t short_channel_id = ln_misc_calc_short_channel_id(Height, Index, FundingIndex);
+    if (self->short_channel_id == 0) {
+        self->short_channel_id = short_channel_id;
+        ln_db_self_save(self);
+    }
 }
 
 
@@ -474,14 +478,14 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     uint16_t type = ln_misc_get16be(pData);
 
     //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
-    if ((type != MSGTYPE_INIT) && (!M_INIT_FLAG_INITED(self->init_flag))) {
+    if ((type != MSGTYPE_INIT) && (!M_INIT_FLAG_EXCHNAGED(self->init_flag))) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init received : %04x\n", type);
         return false;
     }
     if ( (type != MSGTYPE_CLOSING_SIGNED) &&
          !MSGTYPE_IS_ANNOUNCE(type) && !MSGTYPE_IS_PINGPONG(type) &&
-         ((self->shutdown_flag & M_SHDN_FLAG_END) == M_SHDN_FLAG_END) ) {
+         M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) ) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: not closing_signed received : %04x\n", type);
         return false;
@@ -606,7 +610,7 @@ bool ln_create_funding_locked(ln_self_t *self, ucoin_buf_t *pLocked)
 bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
             const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate)
 {
-    if (!M_INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -782,7 +786,7 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown)
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (!M_INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -1083,7 +1087,7 @@ bool ln_create_add_htlc(ln_self_t *self,
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (!M_INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -1179,7 +1183,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (!M_INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -1241,7 +1245,7 @@ bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t id, const
 {
     DBG_PRINTF("BEGIN\n");
 
-    if (!M_INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -1294,7 +1298,7 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
 
     bool ret;
 
-    if (!M_INIT_FLAG_INITED(self->init_flag)) {
+    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("fail: no init finished\n");
         return false;
@@ -2262,7 +2266,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 {
     DBG_PRINTF("BEGIN\n");
 
-    if ((self->shutdown_flag & M_SHDN_FLAG_END) != M_SHDN_FLAG_END) {
+    if (!M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
         self->err = LNERR_INV_STATE;
         DBG_PRINTF("bad status : %02x\n", self->shutdown_flag);
         return false;
@@ -3078,6 +3082,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
  */
 static void start_funding_wait(ln_self_t *self, bool bSendTx)
 {
+    DBG_PRINTF("\n");
+    
     ln_cb_funding_t funding;
 
     //commitment numberは0から始まる
