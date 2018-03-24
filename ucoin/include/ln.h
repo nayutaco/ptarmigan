@@ -1611,7 +1611,7 @@ static inline bool ln_is_funding(const ln_self_t *self) {
  * @param[in]           self            channel情報
  * @return      feerate_per_kw
  */
-static inline uint32_t ln_feerate(ln_self_t *self) {
+static inline uint32_t ln_feerate_per_kw(ln_self_t *self) {
     return self->feerate_per_kw;
 }
 
@@ -1631,7 +1631,7 @@ static inline void ln_set_feerate(ln_self_t *self, uint32_t feerate) {
  * @param[in,out]       self            channel情報
  */
 static inline uint64_t ln_calc_max_closing_fee(const ln_self_t *self) {
-    return (LN_FEE_COMMIT_BASE * self->feerate_per_kw / 1000);
+    return (LN_FEE_COMMIT_BASE * self->feerate_per_kw * 4 / 1000);
 }
 
 
