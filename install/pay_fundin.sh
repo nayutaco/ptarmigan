@@ -17,6 +17,16 @@ FUNDIN_BTC=`printf "%.8f" $FUNDIN_BTC`
 FUND_SAT=$2
 PUSH_SAT=$3
 
+if [ $1 -le $FUND_SAT ]; then
+	echo "ERROR: arg1(funding satoshis) <= arg2(channel satoshis)"
+	echo "  note: [funding satoshis] >= [channel satoshis] + [funding_tx fee]"
+	return 2
+fi
+if [ $FUND_SAT -le $PUSH_SAT ]; then
+	echo "ERROR: arg2(channel satoshis) <= arg3(push satoshis)"
+	return 3
+fi
+
 CONFFILE=~/.bitcoin/bitcoin.conf
 DATADIR=~/.bitcoin
 
