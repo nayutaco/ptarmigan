@@ -23,7 +23,6 @@ addons:
     - libboost-all-dev
     - build-essential
     - libtool
-    - jq
   coverity_scan:
     project:
       name: "nayutaco/ptarmigan"
