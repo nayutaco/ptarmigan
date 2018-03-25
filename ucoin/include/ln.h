@@ -65,7 +65,7 @@ extern "C" {
 #define LN_NODE_MAX                     (5)         ///< 保持するノード情報数   TODO:暫定
 #define LN_CHANNEL_MAX                  (10)        ///< 保持するチャネル情報数 TODO:暫定
 #define LN_HOP_MAX                      (20)        ///< onion hop数
-#define LN_FEERATE_PER_KW               (250)       ///< estimate feeできなかった場合のfeerate_per_kw
+#define LN_FEERATE_PER_KW               (500)       ///< estimate feeできなかった場合のfeerate_per_kw
 #define LN_BLK_FEEESTIMATE              (6)         ///< estimatefeeのブロック数(2以上)
 #define LN_MIN_FINAL_CLTV_EXPIRY        (9)         ///< min_final_cltv_expiryのデフォルト値
 #define LN_INVOICE_EXPIRY               (3600)      ///< invoice expiryのデフォルト値
@@ -1639,9 +1639,10 @@ static inline void ln_set_feerate(ln_self_t *self, uint32_t feerate) {
 /** 初期closing_tx FEE取得
  *
  * @param[in,out]       self            channel情報
+ * @return      fee[satoshis]
  */
 static inline uint64_t ln_calc_max_closing_fee(const ln_self_t *self) {
-    return (LN_FEE_COMMIT_BASE * self->feerate_per_kw * 4 / 1000);
+    return (LN_FEE_COMMIT_BASE * self->feerate_per_kw / 1000);
 }
 
 

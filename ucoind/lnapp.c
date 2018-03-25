@@ -1644,8 +1644,6 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
 {
     //DBGTRACE_BEGIN
 
-    ln_self_t *self = p_conf->p_self;
-
     if (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_self)) {
         DBG_PRINTF("confirmation OK: %d\n", p_conf->funding_confirm);
         p_conf->funding_waiting = false;    //funding_tx確定
