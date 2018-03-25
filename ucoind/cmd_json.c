@@ -287,7 +287,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (ret) {
         result = cJSON_CreateObject();
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("Progressing"));
-        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber64(ln_feerate(p_appconf->p_self)));
+        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber64(ln_feerate_per_kw(p_appconf->p_self)));
     } else {
         ctx->error_code = RPCERR_FUNDING;
         ctx->error_message = strdup(RPCERR_FUNDING_STR);

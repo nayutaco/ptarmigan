@@ -262,7 +262,6 @@ static void send_channel_anno(lnapp_conf_t *p_conf);
 static void send_node_anno(lnapp_conf_t *p_conf);
 
 static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId);
-static void set_changeaddr(ln_self_t *self, uint64_t commit_fee);
 static void wait_mutex_lock(uint8_t Flag);
 static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
@@ -659,7 +658,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         //their_msat
         cJSON_AddItemToObject(result, "their_msat", cJSON_CreateNumber64(ln_their_msat(p_self)));
         //feerate_per_kw
-        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
+        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(pAppConf->p_self)));
         //htlc
         cJSON_AddItemToObject(result, "htlc_num", cJSON_CreateNumber(ln_htlc_num(pAppConf->p_self)));
     } else if (p_self && pAppConf->funding_waiting) {
@@ -680,7 +679,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         //minimum_depth
         cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_minimum_depth(pAppConf->p_self)));
         //feerate_per_kw
-        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate(pAppConf->p_self)));
+        cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(pAppConf->p_self)));
     } else if (p_self && ln_is_funding(p_self)) {
         char str[256];
 
@@ -1319,7 +1318,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
                 //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
                 //  which this side will pay for commitment and HTLC transactions
                 //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
-                feerate_kw = (uint32_t)(feerate_kb / 4);
+                feerate_kw = ln_calc_feerate_per_kw(feerate_kb);
             } else {
                 // https://github.com/nayutaco/ptarmigan/issues/46
                 DBG_PRINTF("fail: estimatefee\n");
@@ -1644,8 +1643,6 @@ static void poll_ping(lnapp_conf_t *p_conf)
 static void poll_funding_wait(lnapp_conf_t *p_conf)
 {
     //DBGTRACE_BEGIN
-
-    ln_self_t *self = p_conf->p_self;
 
     if (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_self)) {
         DBG_PRINTF("confirmation OK: %d\n", p_conf->funding_confirm);
@@ -2658,7 +2655,7 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
     //fee and addr
     //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
     uint64_t commit_fee = ln_calc_max_closing_fee(p_conf->p_self);
-    set_changeaddr(p_conf->p_self, commit_fee);
+    ln_update_shutdown_fee(p_conf->p_self, commit_fee);
 }
 
 
@@ -3012,16 +3009,6 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
 
     ret = ln_set_establish(p_conf->p_self, pNodeId, &estprm);
     assert(ret);
-}
-
-
-/** お釣りアドレス設定
- *
- * bitcoindにアドレスを作成する
- */
-static void set_changeaddr(ln_self_t *self, uint64_t commit_fee)
-{
-    ln_update_shutdown_fee(self, commit_fee);
 }
 
 
