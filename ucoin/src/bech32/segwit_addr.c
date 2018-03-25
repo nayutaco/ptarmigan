@@ -29,6 +29,7 @@
 
 #include "mbedtls/sha256.h"
 
+#include "ln_node.h"
 #include "segwit_addr.h"
 
 uint32_t bech32_polymod_step(uint32_t pre) {
@@ -474,7 +475,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     mbedtls_sha256(hashdata, hashdatalen + hrp_len, hash, 0);
 
     uint8_t sign[UCOIN_SZ_SIGN_RS + 1];
-    bool ret = ln_signer_sign_nodekey(sign, hash);
+    bool ret = ln_node_sign_nodekey(sign, hash);
     if (!ret) return false;
 
     int recid;

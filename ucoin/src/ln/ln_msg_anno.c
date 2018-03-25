@@ -34,6 +34,7 @@
 
 #include "ln_msg_anno.h"
 #include "ln_misc.h"
+#include "ln_node.h"
 
 
 /********************************************************************
@@ -187,7 +188,7 @@ bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, const ln_cnl_announce_
     //DBG_PRINTF("hash=");
     //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    ret = ln_signer_sign_nodekey(pBuf->buf + sizeof(uint16_t) + offset_sig, hash);
+    ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t) + offset_sig, hash);
     if (!ret) {
         DBG_PRINTF("fail: sign node\n");
         goto LABEL_EXIT;
@@ -555,7 +556,7 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
     //DBG_PRINTF("hash=");
     //DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    bool ret = ln_signer_sign_nodekey(pBuf->buf + sizeof(uint16_t), hash);
+    bool ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t), hash);
 
     return ret;
 }
@@ -781,7 +782,7 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
     DBG_PRINTF("hash=");
     DUMPBIN(hash, UCOIN_SZ_HASH256);
 
-    ret = ln_signer_sign_nodekey(pBuf->buf + sizeof(uint16_t), hash);
+    ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t), hash);
     if (ret) {
         ucoin_push_trim(&proto);
     } else {

@@ -207,12 +207,6 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
  * HIDDEN
  ********************************************************************/
 
-const uint8_t HIDDEN *ln_node_getprivkey(void)
-{
-    return mNode.keys.priv;
-}
-
-
 /** node_announcement受信処理
  *
  */
@@ -245,6 +239,22 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     }
 
     return true;
+}
+
+
+void HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey)
+{
+    DBG_PRINTF("\n");
+
+    uint8_t pub[UCOIN_SZ_PUBKEY];
+    ucoin_util_mul_pubkey(pub, pPubKey, mNode.keys.priv, UCOIN_SZ_PRIVKEY);
+    ucoin_util_sha256(pResult, pub, sizeof(pub));
+}
+
+
+bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash)
+{
+    return ucoin_tx_sign_rs(pRS, pHash, mNode.keys.priv);
 }
 
 
