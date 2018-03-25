@@ -170,7 +170,7 @@ static bool create_to_remote(ln_self_t *self,
                     uint8_t **pp_htlc_sigs,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat);
-static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify);
+static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
 static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
@@ -2241,9 +2241,12 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
         //remoteの署名はないので、verifyしない
         ucoin_tx_free(&self->tx_closing);
-        ret = create_closing_tx(self, &self->tx_closing, false);
+        ret = create_closing_tx(self, &self->tx_closing, self->close_fee_sat, false);
         if (ret) {
             ret = ln_msg_closing_signed_create(&buf_bolt, &cnl_close);
+        } else {
+            DBG_PRINTF("fail: create close_t\n");
+            assert(false);
         }
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
@@ -2302,9 +2305,10 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //相手が要求するFEEでverify
     ucoin_tx_free(&self->tx_closing);
-    ret = create_closing_tx(self, &self->tx_closing, true);
+    ret = create_closing_tx(self, &self->tx_closing, cnl_close.fee_sat, true);
     if (!ret) {
-        DBG_PRINTF("fail: verify\n");
+        DBG_PRINTF("fail: create close_t\n");
+        assert(false);
     }
 
     cnl_close.p_channel_id = self->channel_id;
@@ -2321,8 +2325,11 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //closing_tx作成
     ucoin_tx_free(&self->tx_closing);
-    ret = create_closing_tx(self, &self->tx_closing, need_closetx);
-    assert(ret);
+    ret = create_closing_tx(self, &self->tx_closing, self->close_fee_sat, need_closetx);
+    if (!ret) {
+        DBG_PRINTF("fail: create close_t\n");
+        assert(false);
+    }
 
     if (need_closetx) {
         //closing_txを展開する
@@ -3811,6 +3818,8 @@ static bool create_to_remote(ln_self_t *self,
 
 /** closing tx作成
  *
+ * @param[in]   FeeSat      
+ * @param[in]   bVerify     true:verifyを行う
  * @note
  *      - INPUT: 2-of-2(順番はself->key_fund_sort)
  *          - 自分：self->commit_local.signature
@@ -3820,14 +3829,14 @@ static bool create_to_remote(ln_self_t *self,
  *          - 相手：self->shutdown_scriptpk_remote, self->their_msat / 1000
  *      - BIP69でソートする
  */
-static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
+static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat, bool bVerify)
 {
+    DBG_PRINTF("BEGIN\n");
+
     if ((self->shutdown_scriptpk_local.len == 0) || (self->shutdown_scriptpk_remote.len == 0)) {
         DBG_PRINTF("not mutual output set\n");
         return false;
     }
-
-    DBG_PRINTF("BEGIN: verify:%d\n", bVerify);
 
     bool ret;
     uint64_t fee_local;
@@ -3841,11 +3850,11 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
 
     //BOLT#3: feeはfundedの方から引く
     if (ln_is_funder(self)) {
-        fee_local = self->close_fee_sat;
+        fee_local = FeeSat;
         fee_remote = 0;
     } else {
         fee_local = 0;
-        fee_remote = self->close_fee_sat;
+        fee_remote = FeeSat;
     }
 
     //vout
@@ -3868,7 +3877,6 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
 
     //BIP69
     ucoin_util_sort_bip69(pTx);
-    M_DBG_PRINT_TX(pTx);
 
     //署名
     uint8_t sighash[UCOIN_SZ_SIGHASH];
@@ -3883,7 +3891,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
     ln_misc_sigtrim(self->commit_local.signature, buf_sig.buf);
 
     //署名追加
-    if (ret && bVerify) {
+    if (bVerify) {
         ucoin_buf_t buf_sig_from_remote;
 
         ucoin_buf_init(&buf_sig_from_remote);
@@ -3899,6 +3907,8 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, bool bVerify)
         //
         ret = ucoin_sw_verify_2of2(pTx, 0, sighash,
                         &self->tx_funding.vout[self->funding_local.txindex].script);
+    } else {
+        DBG_PRINTF("no verify\n");
     }
     ucoin_buf_free(&buf_sig);
 
