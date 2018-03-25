@@ -3,6 +3,7 @@
 ## 2018/03/23
 
 * include [`nayutaco/bech32`](https://github.com/nayutaco/bech32)
+  * `make distclean && make full`
 * support `regtest` invoice
   * cannot test creating
 * bugfix
