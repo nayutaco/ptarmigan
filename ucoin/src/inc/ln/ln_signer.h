@@ -109,7 +109,4 @@ bool ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_ut
  */
 bool ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys);
 
-
-void ln_signer_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey);
-
 #endif /* LN_SIGNER_H__ */

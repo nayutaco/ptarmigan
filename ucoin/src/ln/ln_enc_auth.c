@@ -30,6 +30,7 @@
 
 #include "ln_enc_auth.h"
 #include "ln_misc.h"
+#include "ln_node.h"
 #include "ln_signer.h"
 
 #include "mbedtls/md.h"
@@ -469,7 +470,7 @@ static bool actone_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, re, UCOIN_SZ_PUBKEY);
 
     // ss = ECDH(re, s.priv)
-    ln_signer_generate_shared_secret(ss, re);
+    ln_node_generate_shared_secret(ss, re);
 
     // ck, temp_k1 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
@@ -626,7 +627,7 @@ static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *p
     ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, sizeof(c));
 
     // ss = ECDH(re, s.priv)
-    ln_signer_generate_shared_secret(ss, pRE);
+    ln_node_generate_shared_secret(ss, pRE);
 
     // ck, temp_k3 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);

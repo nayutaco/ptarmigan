@@ -32,21 +32,6 @@
 
 
 /**************************************************************************
- * prototypes
- **************************************************************************/
-
-
-/**************************************************************************
- * public functions
- **************************************************************************/
-
-bool ln_signer_sign_nodekey(uint8_t *pRS, const uint8_t *pHash)
-{
-    return ucoin_tx_sign_rs(pRS, pHash, ln_node_getprivkey());
-}
-
-
-/**************************************************************************
  * library functions
  **************************************************************************/
 
@@ -206,18 +191,3 @@ bool HIDDEN ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const u
 
     return ret;
 }
-
-
-void HIDDEN ln_signer_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey)
-{
-    DBG_PRINTF("\n");
-
-    uint8_t pub[UCOIN_SZ_PUBKEY];
-    ucoin_util_mul_pubkey(pub, pPubKey, ln_node_getprivkey(), UCOIN_SZ_PRIVKEY);
-    ucoin_util_sha256(pResult, pub, sizeof(pub));
-}
-
-
-/**************************************************************************
- * private functions
- **************************************************************************/

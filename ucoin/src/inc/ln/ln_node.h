@@ -33,9 +33,6 @@
  * prototypes
  ********************************************************************/
 
-const uint8_t HIDDEN *ln_node_getprivkey(void);
-
-
 /** node_announcement受信
  *
  * @param[in,out]       self            channel情報
@@ -44,5 +41,12 @@ const uint8_t HIDDEN *ln_node_getprivkey(void);
  * @retval      true    解析成功
  */
 bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+
+
+void HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey);
+
+/** node privkeyによる署名
+ */
+bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash);
 
 #endif /* LN_NODE_H__ */
