@@ -419,7 +419,7 @@ TEST_F(ln_bolt3_c, committx2)
     ucoin_util_calc_sighash_p2wsh(txhash, &tx, 0, UCOIN_MBTC2SATOSHI(100), &funding2of2);
     ucoin_buf_t buf_sig_local;
     ucoin_buf_t buf_sig_remote;
-    ret = ucoin_util_sign_p2wsh_2(&buf_sig_local, txhash, &keys_local_funding);
+    ret = ucoin_util_sign_p2wsh(&buf_sig_local, txhash, &keys_local_funding);
     ASSERT_TRUE(ret);
     const uint8_t LOCAL_SIGNATURE[] = {
         0x30, 0x44, 0x02, 0x20, 0x51, 0xb7, 0x5c, 0x73,

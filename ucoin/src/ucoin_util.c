@@ -218,13 +218,13 @@ void ucoin_util_calc_sighash_p2wsh(uint8_t *pTxHash, const ucoin_tx_t *pTx, int 
 }
 
 
-bool ucoin_util_sign_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
+bool ucoin_util_sign_p2wsh(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
 {
     return ucoin_tx_sign(pSig, pTxHash, pKeys->priv);
 }
 
 
-bool ucoin_util_sign_p2wsh_rs_2(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
+bool ucoin_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
 {
     return ucoin_tx_sign_rs(pRS, pTxHash, pKeys->priv);
 }

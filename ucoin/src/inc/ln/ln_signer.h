@@ -106,7 +106,7 @@ void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pK
  * @param[in]       pKeys
  * @return      true:成功
  * @note
- *      - #ucoin_util_sign_p2wsh_2()
+ *      - #ucoin_util_sign_p2wsh()
  *      - 中身は #ucoin_tx_sign()
  */
 bool HIDDEN ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
