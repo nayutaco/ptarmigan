@@ -225,7 +225,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ucoin_tx_t *pTx,
     //vinは1つしかないので、Indexは0固定
     ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
 
-    ret = ucoin_tx_sign(&sig, sighash, &signkey);
+    ret = ucoin_tx_sign(&sig, sighash, signkey.priv);
     if (ret) {
         // <delayedsig>
         // 0
