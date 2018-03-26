@@ -35,6 +35,7 @@
 #include "ln_local.h"
 #include "ln_msg_anno.h"
 #include "ln_misc.h"
+#include "ln_node.h"
 #include "ln_signer.h"
 
 #include "ln_db.h"
@@ -505,7 +506,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         //      port : 指定された値
         DBG_PRINTF("create node DB\n");
         uint8_t pub[UCOIN_SZ_PUBKEY];
-        ln_signer_create_nodekey(pWif, pub);
+        ln_node_create_key(pWif, pub);
 
         char nodename[LN_SZ_ALIAS];
         if (pNodeName == NULL) {

@@ -150,46 +150,6 @@ bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
 }
 
 
-bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig,
-                    uint64_t Value,
-                    const ucoin_util_keys_t *pKeys,
-                    const ucoin_buf_t *pWitScript, bool bRevoked)
-{
-    // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
-
-    if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
-        DBG_PRINTF("fail: invalid vin/vout\n");
-        return false;
-    }
-
-    bool ret = false;
-    uint8_t sighash[UCOIN_SZ_SIGHASH];
-
-    //vinは1つしかないので、Indexは0固定
-    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
-
-    ret = ln_signer_p2wsh_2(pSig, sighash, pKeys);
-    if (ret) {
-        // <delayedsig>
-        // 0
-        // <script>
-        const uint8_t WIT1 = 0x01;
-        const ucoin_buf_t wit0 = { NULL, 0 };
-        const ucoin_buf_t wit1 = { (CONST_CAST uint8_t *)&WIT1, 1 };
-        const ucoin_buf_t *wits[] = {
-            pSig,
-            NULL,
-            pWitScript
-        };
-        wits[1] = (bRevoked) ? &wit1 : &wit0;
-
-        ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
-    }
-
-    return ret;
-}
-
-
 bool HIDDEN ln_create_scriptpkh(ucoin_buf_t *pBuf, const ucoin_buf_t *pPub, int Prefix)
 {
     bool ret = true;

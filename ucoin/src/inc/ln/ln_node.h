@@ -33,6 +33,14 @@
  * prototypes
  ********************************************************************/
 
+/** nodekey生成
+ *
+ * @param[out]      pWif            秘密鍵(WIF形式)
+ * @param[out]      pPubKey         公開鍵
+ */
+void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey);
+
+
 /** node_announcement受信
  *
  * @param[in,out]       self            channel情報
@@ -43,7 +51,11 @@
 bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 
+/** 共有鍵生成
+ *
+ */
 void HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey);
+
 
 /** node privkeyによる署名
  */

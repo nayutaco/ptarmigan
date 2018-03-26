@@ -54,17 +54,6 @@ void HIDDEN ln_signer_term(ln_self_t *self)
 }
 
 
-void HIDDEN ln_signer_create_nodekey(char *pWif, uint8_t *pPubKey)
-{
-    DBG_PRINTF("\n");
-
-    ucoin_util_keys_t keys;
-    ucoin_util_createkeys(&keys);
-    memcpy(pPubKey, keys.pub, UCOIN_SZ_PUBKEY);
-    ucoin_keys_priv2wif(pWif, keys.priv);
-}
-
-
 bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
 {
     DBG_PRINTF("\n");
@@ -199,4 +188,62 @@ bool HIDDEN ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const u
 bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
 {
     return ucoin_tx_sign_rs(pRS, pTxHash, pKeys->priv);
+}
+
+
+bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ucoin_tx_t *pTx,
+                    uint64_t Value,
+                    const ucoin_buf_t *pWitScript, bool bRevoked)
+{
+    if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
+        DBG_PRINTF("fail: invalid vin/vout\n");
+        return false;
+    }
+
+    ucoin_util_keys_t signkey;
+    if (!bRevoked) {
+        //<delayed_secretkey>
+        ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_DELAYED,
+            self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub);
+    } else {
+        //<revocationsecretkey>
+        ln_signer_get_revokesec(self, &signkey,
+                    self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+                    self->revoked_sec.buf);
+    }
+    //DBG_PRINTF("key-priv: ");
+    //DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
+    //DBG_PRINTF("key-pub : ");
+    //DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
+
+    ucoin_buf_t sig;
+    ucoin_buf_init(&sig);
+
+    bool ret;
+    uint8_t sighash[UCOIN_SZ_SIGHASH];
+
+    //vinは1つしかないので、Indexは0固定
+    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
+
+    ret = ln_signer_p2wsh_2(&sig, sighash, &signkey);
+    if (ret) {
+        // <delayedsig>
+        // 0
+        // <script>
+        const uint8_t WIT1 = 0x01;
+        const ucoin_buf_t wit0 = { NULL, 0 };
+        const ucoin_buf_t wit1 = { (CONST_CAST uint8_t *)&WIT1, 1 };
+        const ucoin_buf_t *wits[] = {
+            &sig,
+            NULL,
+            pWitScript
+        };
+        wits[1] = (bRevoked) ? &wit1 : &wit0;
+
+        ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
+    }
+
+    ucoin_buf_free(&sig);
+
+    return ret;
 }

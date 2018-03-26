@@ -36,18 +36,16 @@
  * prototypes
  **************************************************************************/
 
-void ln_signer_init(ln_self_t *self, const uint8_t *pSeed);
-
-
-void ln_signer_term(ln_self_t *self);
-
-
-/** nodekey生成
+/**
  *
- * @param[out]      pWif            秘密鍵(WIF形式)
- * @param[out]      pPubKey         公開鍵
  */
-void ln_signer_create_nodekey(char *pWif, uint8_t *pPubKey);
+void HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed);
+
+
+/**
+ *
+ */
+void HIDDEN ln_signer_term(ln_self_t *self);
 
 
 /** チャネル用鍵生成
@@ -57,7 +55,7 @@ void ln_signer_create_nodekey(char *pWif, uint8_t *pPubKey);
  * @note
  *      - open_channel/accept_channelの送信前に使用する想定
  */
-bool ln_signer_create_channelkeys(ln_self_t *self);
+bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self);
 
 
 /** per_commitment_secret更新
@@ -66,13 +64,19 @@ bool ln_signer_create_channelkeys(ln_self_t *self);
  * @note
  *      - indexを進める
  */
-void ln_signer_update_percommit_secret(ln_self_t *self);
+void HIDDEN ln_signer_update_percommit_secret(ln_self_t *self);
 
 
-void ln_signer_keys_update(ln_self_t *self, int64_t Offset);
+/**
+ *
+ */
+void HIDDEN ln_signer_keys_update(ln_self_t *self, int64_t Offset);
 
 
-void ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
+/**
+ *
+ */
+void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
 
 
 /** 1つ前のper_commit_secret取得
@@ -80,13 +84,19 @@ void ln_signer_keys_update_force(ln_self_t *self, uint64_t Index);
  * @param[in,out]   self            チャネル情報
  * @param[out]      pSecret         1つ前のper_commit_secret
  */
-void ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret);
+void HIDDEN ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret);
 
 
-void ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
+/**
+ *
+ */
+void HIDDEN ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
 
 
-void ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
+/**
+ *
+ */
+void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
 
 
 /** P2WSH署名 - Phase2: 署名作成
@@ -99,7 +109,7 @@ void ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, co
  *      - #ucoin_util_sign_p2wsh_2()
  *      - 中身は #ucoin_tx_sign()
  */
-bool ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
+bool HIDDEN ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
 
 
 /** P2WPKH署名
@@ -112,7 +122,7 @@ bool ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_ut
  * @note
  *      - #ucoin_init()の設定で署名する
  */
-bool ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys);
+bool HIDDEN ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys);
 
 
 /** 署名(R/S)
@@ -124,6 +134,14 @@ bool ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_ut
  * @note
  *      - #ucoin_init()の設定で署名する
  */
-bool ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
+bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
+
+
+/**
+ *
+ */
+bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ucoin_tx_t *pTx,
+                    uint64_t Value,
+                    const ucoin_buf_t *pWitScript, bool bRevoked);
 
 #endif /* LN_SIGNER_H__ */
