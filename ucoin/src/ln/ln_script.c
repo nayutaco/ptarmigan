@@ -423,7 +423,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
     bool ret = false;
     uint8_t sighash[UCOIN_SZ_SIGHASH];
     ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
-    ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
+    ret = ln_signer_p2wsh_2(pLocalSig, sighash, pKeys);
 
     const ucoin_buf_t wit0 = { NULL, 0 };
     const ucoin_buf_t **pp_wits = NULL;

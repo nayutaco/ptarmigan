@@ -894,9 +894,6 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT] = bak_key;
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_pubkey, sizeof(bak_pubkey));
-    ucoin_keys_priv2pub(
-        self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub,
-        self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     return ret;
