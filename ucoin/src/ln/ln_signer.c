@@ -54,11 +54,14 @@ void HIDDEN ln_signer_term(ln_self_t *self)
 }
 
 
-void HIDDEN ln_signer_create_nodekey(ucoin_util_keys_t *pKeys)
+void HIDDEN ln_signer_create_nodekey(char *pWif, uint8_t *pPubKey)
 {
     DBG_PRINTF("\n");
 
-    ucoin_util_createkeys(pKeys);
+    ucoin_util_keys_t keys;
+    ucoin_util_createkeys(&keys);
+    memcpy(pPubKey, keys.pub, UCOIN_SZ_PUBKEY);
+    ucoin_keys_priv2wif(pWif, keys.priv);
 }
 
 
@@ -190,4 +193,10 @@ bool HIDDEN ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const u
     ucoin_buf_free(&script_code);
 
     return ret;
+}
+
+
+bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
+{
+    return ucoin_tx_sign_rs(pRS, pTxHash, pKeys->priv);
 }

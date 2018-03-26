@@ -42,7 +42,12 @@ void ln_signer_init(ln_self_t *self, const uint8_t *pSeed);
 void ln_signer_term(ln_self_t *self);
 
 
-void ln_signer_create_nodekey(ucoin_util_keys_t *pKeys);
+/** nodekey生成
+ *
+ * @param[out]      pWif            秘密鍵(WIF形式)
+ * @param[out]      pPubKey         公開鍵
+ */
+void ln_signer_create_nodekey(char *pWif, uint8_t *pPubKey);
 
 
 /** チャネル用鍵生成
@@ -108,5 +113,17 @@ bool ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_ut
  *      - #ucoin_init()の設定で署名する
  */
 bool ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys);
+
+
+/** 署名(R/S)
+ *
+ * @param[out]      pRS         署名結果
+ * @param[in]       pTxHash     ハッシュ値
+ * @param[in]       pKeys
+ * @return      true:成功
+ * @note
+ *      - #ucoin_init()の設定で署名する
+ */
+bool ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
 
 #endif /* LN_SIGNER_H__ */

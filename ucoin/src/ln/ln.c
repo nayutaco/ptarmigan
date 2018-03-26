@@ -3932,10 +3932,10 @@ static bool create_local_channel_announcement(ln_self_t *self)
     anno.short_channel_id = self->short_channel_id;
     anno.p_my_node_pub = ln_node_getid();
     anno.p_peer_node_pub = self->peer_node_id;
-    anno.p_my_funding = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
+    anno.p_my_funding_pub = self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub;
     anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
     anno.sort = sort_nodeid(self);
-    bool ret = ln_msg_cnl_announce_create(&self->cnl_anno, &anno);
+    bool ret = ln_msg_cnl_announce_create(self, &self->cnl_anno, &anno);
 
     return ret;
 }

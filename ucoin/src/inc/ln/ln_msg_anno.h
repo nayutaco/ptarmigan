@@ -40,7 +40,7 @@
  * @param[in]       pMsg        元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg);
+bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ucoin_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg);
 
 
 /** channel_announcement読込み(verify無し)

@@ -35,6 +35,7 @@
 #include "ln_msg_anno.h"
 #include "ln_misc.h"
 #include "ln_node.h"
+#include "ln_signer.h"
 
 
 /********************************************************************
@@ -85,7 +86,7 @@ static void announce_signs_print(const ln_announce_signs_t *pMsg);
  * channel_announcement
  ********************************************************************/
 
-bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg)
+bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ucoin_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg)
 {
     //    type: 256 (channel_announcement)
     //    data:
@@ -111,8 +112,8 @@ bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, const ln_cnl_announce_
     DUMPBIN(pMsg->p_my_node_pub, UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_peer_node_pub: ");
     DUMPBIN(pMsg->p_peer_node_pub, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2("p_my_funding->pub: ");
-    DUMPBIN(pMsg->p_my_funding->pub, UCOIN_SZ_PUBKEY);
+    DBG_PRINTF2("p_my_funding_pub: ");
+    DUMPBIN(pMsg->p_my_funding_pub, UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("p_peer_funding_pub: ");
     DUMPBIN(pMsg->p_peer_funding_pub, UCOIN_SZ_PUBKEY);
     DBG_PRINTF2("sort: %d\n", (int)pMsg->sort);
@@ -153,14 +154,14 @@ bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, const ln_cnl_announce_
         //自ノードが先
         p_node_1 = pMsg->p_my_node_pub;
         p_node_2 = pMsg->p_peer_node_pub;
-        p_btc_1 = pMsg->p_my_funding->pub;
+        p_btc_1 = pMsg->p_my_funding_pub;
         p_btc_2 = pMsg->p_peer_funding_pub;
         offset_sig = 0;
     } else {
         p_node_1 = pMsg->p_peer_node_pub;
         p_node_2 = pMsg->p_my_node_pub;
         p_btc_1 = pMsg->p_peer_funding_pub;
-        p_btc_2 = pMsg->p_my_funding->pub;
+        p_btc_2 = pMsg->p_my_funding_pub;
         offset_sig = LN_SZ_SIGNATURE;
     }
     //        [33:node_id_1]
@@ -195,8 +196,8 @@ bool HIDDEN ln_msg_cnl_announce_create(ucoin_buf_t *pBuf, const ln_cnl_announce_
     }
 
     //署名-btc
-    ret = ucoin_tx_sign_rs(pBuf->buf + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
-                    hash, pMsg->p_my_funding->priv);
+    ret = ln_signer_sign_rs(pBuf->buf + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
+                    hash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
     if (!ret) {
         DBG_PRINTF("fail: sign btc\n");
         goto LABEL_EXIT;

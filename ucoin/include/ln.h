@@ -620,7 +620,7 @@ typedef struct {
 //    uint8_t     features;                           ///< 1:  features
 
     const uint8_t           *p_my_node_pub;
-    const ucoin_util_keys_t *p_my_funding;
+    const uint8_t           *p_my_funding_pub;
     const uint8_t           *p_peer_node_pub;
     const uint8_t           *p_peer_funding_pub;
     uint8_t                 *p_peer_node_sign;
