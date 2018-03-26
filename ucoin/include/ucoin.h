@@ -1286,27 +1286,6 @@ bool ucoin_util_sign_p2wsh(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoi
 bool ucoin_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys);
 
 
-/** P2WSH署名 - Phase3: 2-of-2 トランザクション更新
- *
- * @param[in,out]   pTx         TX情報
- * @param[in]       Index
- * @param[in]       Sort
- * @param[in]       pSig1
- * @param[in]       pSig2
- * @param[in]       pWit2of2
- * @return      true:成功
- *
- * @note
- *      - pTx
- *      - #ucoin_util_create2of2()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
- *          例えば、先に自分のデータ、後に相手のデータ、など。
- */
-bool ucoin_util_sign_p2wsh_3_2of2(ucoin_tx_t *pTx, int Index, ucoin_keys_sort_t Sort,
-                    const ucoin_buf_t *pSig1,
-                    const ucoin_buf_t *pSig2,
-                    const ucoin_buf_t *pWit2of2);
-
-
 /** トランザクションをBIP69に従ってソートする
  *
  * @param[in,out]   pTx     処理対象のトランザクション

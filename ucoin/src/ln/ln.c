@@ -158,6 +158,10 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static void start_funding_wait(ln_self_t *self, bool bSendTx);
+static bool set_vin_p2wsh_2of2(ucoin_tx_t *pTx, int Index, ucoin_keys_sort_t Sort,
+                    const ucoin_buf_t *pSig1,
+                    const ucoin_buf_t *pSig2,
+                    const ucoin_buf_t *pWit2of2);
 static bool create_funding_tx(ln_self_t *self);
 static bool create_to_local(ln_self_t *self,
                     ln_close_force_t *pClose,
@@ -3102,6 +3106,52 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
  * Transaction作成
  ********************************************************************/
 
+/** P2WSH署名 - 2-of-2 トランザクション更新
+ *
+ * @param[in,out]   pTx         TX情報
+ * @param[in]       Index
+ * @param[in]       Sort
+ * @param[in]       pSig1
+ * @param[in]       pSig2
+ * @param[in]       pWit2of2
+ * @return      true:成功
+ *
+ * @note
+ *      - pTx
+ *      - #ucoin_util_create2of2()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
+ *          例えば、先に自分のデータ、後に相手のデータ、など。
+ */
+static bool set_vin_p2wsh_2of2(ucoin_tx_t *pTx, int Index, ucoin_keys_sort_t Sort,
+                    const ucoin_buf_t *pSig1,
+                    const ucoin_buf_t *pSig2,
+                    const ucoin_buf_t *pWit2of2)
+{
+    // 0
+    // <sig1>
+    // <sig2>
+    // <script>
+    const ucoin_buf_t wit0 = { NULL, 0 };
+    const ucoin_buf_t *wits[] = {
+        &wit0,
+        NULL,
+        NULL,
+        pWit2of2
+    };
+    if (Sort == UCOIN_KEYS_SORT_ASC) {
+        wits[1] = pSig1;
+        wits[2] = pSig2;
+    } else {
+        wits[1] = pSig2;
+        wits[2] = pSig1;
+    }
+
+    bool ret;
+
+    ret = ucoin_sw_set_vin_p2wsh(pTx, Index, (const ucoin_buf_t **)wits, 4);
+    return ret;
+}
+
+
 /** funding_tx作成
  *
  * @param[in,out]       self
@@ -3473,7 +3523,7 @@ static bool create_to_local(ln_self_t *self,
 
         //署名追加
         ln_misc_sigexpand(&buf_sig_from_remote, self->commit_remote.signature);
-        ucoin_util_sign_p2wsh_3_2of2(&tx_commit, 0, self->key_fund_sort,
+        set_vin_p2wsh_2of2(&tx_commit, 0, self->key_fund_sort,
                                 &buf_sig,
                                 &buf_sig_from_remote,
                                 &self->redeem_fund);
@@ -3874,7 +3924,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat,
 
         ucoin_buf_init(&buf_sig_from_remote);
         ln_misc_sigexpand(&buf_sig_from_remote, self->commit_remote.signature);
-        ucoin_util_sign_p2wsh_3_2of2(pTx, 0, self->key_fund_sort,
+        set_vin_p2wsh_2of2(pTx, 0, self->key_fund_sort,
                                 &buf_sig,
                                 &buf_sig_from_remote,
                                 &self->redeem_fund);

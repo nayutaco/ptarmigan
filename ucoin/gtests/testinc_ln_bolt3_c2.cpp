@@ -751,7 +751,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
 
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);

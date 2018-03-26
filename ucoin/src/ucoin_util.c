@@ -230,37 +230,6 @@ bool ucoin_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_
 }
 
 
-bool ucoin_util_sign_p2wsh_3_2of2(ucoin_tx_t *pTx, int Index, ucoin_keys_sort_t Sort,
-                    const ucoin_buf_t *pSig1,
-                    const ucoin_buf_t *pSig2,
-                    const ucoin_buf_t *pWit2of2)
-{
-    // 0
-    // <sig1>
-    // <sig2>
-    // <script>
-    const ucoin_buf_t wit0 = { NULL, 0 };
-    const ucoin_buf_t *wits[] = {
-        &wit0,
-        NULL,
-        NULL,
-        pWit2of2
-    };
-    if (Sort == UCOIN_KEYS_SORT_ASC) {
-        wits[1] = pSig1;
-        wits[2] = pSig2;
-    } else {
-        wits[1] = pSig2;
-        wits[2] = pSig1;
-    }
-
-    bool ret;
-
-    ret = ucoin_sw_set_vin_p2wsh(pTx, Index, (const ucoin_buf_t **)wits, 4);
-    return ret;
-}
-
-
 void ucoin_util_sort_bip69(ucoin_tx_t *pTx)
 {
     //INPUT
