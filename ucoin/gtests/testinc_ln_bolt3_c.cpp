@@ -416,7 +416,7 @@ TEST_F(ln_bolt3_c, committx2)
         0xf4, 0x5a, 0x4c, 0xa3, 0xbd, 0xb7, 0xc0, 0x01,
     };
     uint8_t txhash[UCOIN_SZ_SIGHASH];
-    ucoin_util_sign_p2wsh_1(txhash, &tx, 0, UCOIN_MBTC2SATOSHI(100), &funding2of2);
+    ucoin_util_calc_sighash_p2wsh(txhash, &tx, 0, UCOIN_MBTC2SATOSHI(100), &funding2of2);
     ucoin_buf_t buf_sig_local;
     ucoin_buf_t buf_sig_remote;
     ret = ucoin_util_sign_p2wsh_2(&buf_sig_local, txhash, &keys_local_funding);

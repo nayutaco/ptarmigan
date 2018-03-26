@@ -206,7 +206,7 @@ bool ucoin_util_sign_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const uc
 }
 
 
-void ucoin_util_sign_p2wsh_1(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index, uint64_t Value,
+void ucoin_util_calc_sighash_p2wsh(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index, uint64_t Value,
                     const ucoin_buf_t *pWitScript)
 {
     ucoin_buf_t script_code;

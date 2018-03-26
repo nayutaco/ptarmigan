@@ -223,7 +223,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ucoin_tx_t *pTx,
     uint8_t sighash[UCOIN_SZ_SIGHASH];
 
     //vinは1つしかないので、Indexは0固定
-    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
+    ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
 
     ret = ln_signer_p2wsh_2(&sig, sighash, &signkey);
     if (ret) {

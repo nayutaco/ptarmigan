@@ -368,7 +368,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
 
     //署名
     uint8_t txhash[UCOIN_SZ_SIGHASH];
-    ucoin_util_sign_p2wsh_1(txhash, pTx, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
+    ucoin_util_calc_sighash_p2wsh(txhash, pTx, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
 
     bool ret = ln_signer_p2wsh_2(pSig, txhash, pCmt->fund.p_keys);
 
@@ -422,7 +422,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
 
     bool ret = false;
     uint8_t sighash[UCOIN_SZ_SIGHASH];
-    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
+    ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
     ret = ln_signer_p2wsh_2(pLocalSig, sighash, pKeys);
 
     const ucoin_buf_t wit0 = { NULL, 0 };
@@ -545,7 +545,7 @@ bool HIDDEN ln_verify_htlc_tx(const ucoin_tx_t *pTx,
     uint8_t sighash[UCOIN_SZ_SIGHASH];
 
     //vinは1つしかないので、Indexは0固定
-    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
+    ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
     //DBG_PRINTF("sighash: ");
     //DUMPBIN(sighash, UCOIN_SZ_SIGHASH);
     if (pLocalPubKey && pLocalSig) {
