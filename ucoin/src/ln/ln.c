@@ -3909,9 +3909,9 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat,
     //署名
     uint8_t sighash[UCOIN_SZ_SIGHASH];
     ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, self->funding_sat, &self->redeem_fund);
-    ret = ln_signer_p2wsh_2(&buf_sig, sighash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
+    ret = ln_signer_p2wsh(&buf_sig, sighash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
     if (!ret) {
-        DBG_PRINTF("fail: ln_signer_p2wsh_2\n");
+        DBG_PRINTF("fail: sign p2wsh\n");
         ucoin_tx_free(pTx);
         return false;
     }

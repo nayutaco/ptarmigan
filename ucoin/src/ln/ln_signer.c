@@ -150,7 +150,7 @@ void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pK
 }
 
 
-bool HIDDEN ln_signer_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
+bool HIDDEN ln_signer_p2wsh(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
 {
     DBG_PRINTF("\n");
 
@@ -225,7 +225,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ucoin_tx_t *pTx,
     //vinは1つしかないので、Indexは0固定
     ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
 
-    ret = ln_signer_p2wsh_2(&sig, sighash, &signkey);
+    ret = ucoin_tx_sign(&sig, sighash, &signkey);
     if (ret) {
         // <delayedsig>
         // 0
