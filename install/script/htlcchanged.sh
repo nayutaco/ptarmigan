@@ -4,8 +4,8 @@
 #   $2: node_id
 #   $3: our_msat
 #   $4: htlc_num
-DATE=`date +"%c %N"`
-echo { \"method\": \"htlc_changed\", \"short_channel_id\": \"$1\", \"node_id\": \"$2\", \"date\": \"$DATE\", \"our_msat\": $3, \"debug\": \"htlc_num=$4\" } | jq .
+DATE=`date +"%Y-%m-%dT%H:%M:%S.%N"`
+echo { \"method\": \"htlc_changed\", \"short_channel_id\": \"$1\", \"node_id\": \"$2\", \"date\": \"$DATE\", \"our_msat\": $3, \"debug\": \"htlc_num=$4\" } | jq -c .
 
 # changes in amount
 if [ -f our_msat_$1.txt ]; then
