@@ -48,7 +48,7 @@ void HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 
 void HIDDEN ln_signer_term(ln_self_t *self)
 {
-    DBG_PRINTF("\n");
+    //DBG_PRINTF("\n");
 
     memset(self->storage_seed, 0, UCOIN_SZ_PRIVKEY);
 }

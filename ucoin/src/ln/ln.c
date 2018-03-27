@@ -169,7 +169,7 @@ static bool create_to_local(ln_self_t *self,
                     uint8_t htlc_sigs_num,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat);
-static bool create_to_local_htlc(ln_self_t *self,
+static bool create_to_local_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
@@ -3338,16 +3338,17 @@ static bool create_to_local(ln_self_t *self,
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self));
     if (!ret) {
         DBG_PRINTF("fail: ln_create_commit_tx\n");
-        return false;
+        goto LABEL_EXIT;
     }
 
     ret = ucoin_tx_txid(self->commit_local.txid, &tx_commit);
     if (!ret) {
         DBG_PRINTF("fail: ucoin_tx_txid\n");
+        goto LABEL_EXIT;
     }
 
     if (tx_commit.vout_cnt > 0) {
-        ret = create_to_local_htlc(self, pClose,
+        ret = create_to_local_spent(self, pClose,
                     p_htlc_sigs, htlc_sigs_num,
                     &tx_commit, pTxToLocal, pTxHtlcs, &buf_ws,
                     pp_htlcinfo,
@@ -3384,9 +3385,7 @@ static bool create_to_local(ln_self_t *self,
         DBG_PRINTF("++++++++++++++ 自分のcommit txに署名: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
         M_DBG_PRINT_TX(&tx_commit);
 
-        //
         // 署名verify
-        //
         DBG_PRINTF("verify\n");
         ucoin_sw_scriptcode_p2wsh(&script_code, &self->redeem_fund);
         ucoin_sw_sighash(sighash, &tx_commit, 0, self->funding_sat, &script_code);
@@ -3403,6 +3402,8 @@ static bool create_to_local(ln_self_t *self,
     } else {
         DBG_PRINTF("fail\n");
     }
+
+LABEL_EXIT:
     ucoin_buf_free(&buf_sig);
     if (pTxCommit != NULL) {
         memcpy(pTxCommit, &tx_commit, sizeof(ucoin_tx_t));
@@ -3414,10 +3415,10 @@ static bool create_to_local(ln_self_t *self,
 }
 
 
-/** create_to_local()のHTLC署名作成部
+/** localのcommit_tx送金先スクリプトの署名作成部
  * 
  */
-static bool create_to_local_htlc(ln_self_t *self,
+static bool create_to_local_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
