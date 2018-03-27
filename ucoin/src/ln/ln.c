@@ -3439,12 +3439,13 @@ static bool create_to_local_htlc(ln_self_t *self,
     ucoin_tx_init(&tx);
 
     ucoin_push_t push;
-    ucoin_push_init(&push, &pClose->tx_buf, 0);
 
     //HTLC署名用鍵
     //      secrethtlckey = basepoint_secret + SHA256(per_commitment_point || basepoint)
     ucoin_util_keys_t htlckey;
     if (pTxHtlcs != NULL) {
+        ucoin_push_init(&push, &pClose->tx_buf, 0);
+
         ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
             self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub);
         assert(memcmp(htlckey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY], UCOIN_SZ_PUBKEY) == 0);
