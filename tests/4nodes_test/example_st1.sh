@@ -34,7 +34,7 @@ cli generate 432
 # 1台のPCで複数ノードを立ち上げるので、ディレクトリをそれぞれ作る。
 # 起動したディレクトリに関連ファイルを作成するためだ。
 mkdir -p node_3333 node_4444 node_5555 node_6666
-ln -s $INSTALL_DIR/script node_3333/script
-ln -s $INSTALL_DIR/script node_4444/script
-ln -s $INSTALL_DIR/script node_5555/script
-ln -s $INSTALL_DIR/script node_6666/script
+cp -ra $INSTALL_DIR/script node_3333/
+cp -ra $INSTALL_DIR/script node_4444/
+cp -ra $INSTALL_DIR/script node_5555/
+cp -ra $INSTALL_DIR/script node_6666/
