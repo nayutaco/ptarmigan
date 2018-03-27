@@ -1434,7 +1434,7 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing);
 bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 
 
-/** to_local用トランザクション作成(署名まで実施)
+/** to_localをINPUTとするトランザクション作成(署名まで実施)
  *
  * @param[in]           self            channel情報
  * @param[out]          pTx             生成結果
@@ -1451,7 +1451,7 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
                 const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
-/** to_remote用トランザクション作成(署名まで実施)
+/** to_remoteをINPUTとするトランザクション作成(署名まで実施)
  *
  * @param[in]           self            channel情報
  * @param[out]          pTx             生成結果
