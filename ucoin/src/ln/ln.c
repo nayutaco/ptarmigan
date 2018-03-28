@@ -115,7 +115,7 @@
 
 #ifndef M_DBG_VERBOSE
 //#define M_DBG_PRINT_TX(tx)      //NONE
-#define M_DBG_PRINT_TX(tx)      ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX(tx)      fprintf(DEBUGOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
 #define M_DBG_PRINT_TX2(tx)     //NONE
 #else
 #define M_DBG_PRINT_TX(tx)      ucoin_print_tx(tx)
@@ -1396,7 +1396,8 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
     bool ret;
 
     //to_localのFEE
-    uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
+    uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * ln_calc_feerate_per_byte(self->feerate_per_kw);
+    DBG_PRINTF("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
     if (Value < UCOIN_DUST_LIMIT + fee_tolocal) {
         DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_tolocal);
         goto LABEL_EXIT;
@@ -1420,7 +1421,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     ucoin_util_keys_t signkey;
 
     //to_remoteのFEE
-    uint64_t fee_toremote = M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len) * self->feerate_per_kw / 1000;
+    uint64_t fee_toremote = M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len) * ln_calc_feerate_per_byte(self->feerate_per_kw);
     if (Value < UCOIN_DUST_LIMIT + fee_toremote) {
         DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_toremote);
         ret = false;
@@ -3188,7 +3189,7 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_tx_create(&txbuf, &self->tx_funding);
 
     // LEN+署名(72) + LEN+公開鍵(33)
-    uint64_t fee = (txbuf.len + 1 + 72 + 1 + 33) * 4 * self->p_establish->cnl_open.feerate_per_kw / 1000;
+    uint64_t fee = (txbuf.len + 1 + 72 + 1 + 33) * 4 * ln_calc_feerate_per_byte(self->p_establish->cnl_open.feerate_per_kw);
     if (self->p_establish->p_fundin->amount >= self->p_establish->cnl_open.funding_sat + fee) {
         self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->p_establish->cnl_open.funding_sat - fee;
     } else {
@@ -3458,7 +3459,7 @@ static bool create_to_local_spent(ln_self_t *self,
                 ret = ln_create_tolocal_spent(self, &tx, pTxCommit->vout[vout_idx].value, to_self_delay,
                         pBufWs, self->commit_local.txid, vout_idx, false);
                 if (ret) {
-                    M_DBG_PRINT_TX2(&tx);
+                    M_DBG_PRINT_TX(&tx);
                     memcpy(pTxToLocal, &tx, sizeof(tx));
                     ucoin_tx_init(&tx);     //txはfreeさせない
                 }
@@ -3472,7 +3473,7 @@ static bool create_to_local_spent(ln_self_t *self,
                 ln_create_htlc_tx(&tx, pTxCommit->vout[vout_idx].value - fee, pBufWs,
                             pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry,
                             self->commit_local.txid, vout_idx);
-                M_DBG_PRINT_TX2(&tx);
+                M_DBG_PRINT_TX(&tx);
 
                 if (p_htlc_sigs != NULL) {
                     //署名チェック
