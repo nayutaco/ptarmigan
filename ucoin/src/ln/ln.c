@@ -173,10 +173,22 @@ static bool create_to_local_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
-                    ucoin_tx_t *pTxCommit,
-                    ucoin_buf_t *pBufWs,
-                    ln_htlcinfo_t **pp_htlcinfo,
-                    ln_feeinfo_t *p_feeinfo,
+                    const ucoin_tx_t *pTxCommit,
+                    const ucoin_buf_t *pBufWs,
+                    const ln_htlcinfo_t **pp_htlcinfo,
+                    const ln_feeinfo_t *p_feeinfo,
+                    uint32_t to_self_delay);
+static bool create_to_local_htlcsign(ln_self_t *self,
+                    ln_close_force_t *pClose,
+                    ucoin_tx_t *pTxHtlcs,
+                    ucoin_push_t *pPush,
+                    const ucoin_tx_t *pTxCommit,
+                    const ucoin_buf_t *pBufWs,
+                    const ln_htlcinfo_t **pp_htlcinfo,
+                    const ucoin_util_keys_t *pHtlcKey,
+                    uint8_t htlc_num,
+                    int vout_idx,
+                    uint8_t htlc_idx,
                     uint32_t to_self_delay);
 static bool create_to_local_sign(ln_self_t *self,
                     ucoin_tx_t *pTxCommit,
@@ -192,10 +204,10 @@ static bool create_to_remote_remoteout(ln_self_t *self,
 static bool create_to_remote_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
                     uint8_t **pp_htlc_sigs,
-                    ucoin_tx_t *pTxCommit,
-                    ucoin_buf_t *pBufWs,
-                    ln_htlcinfo_t **pp_htlcinfo,
-                    ln_feeinfo_t *p_feeinfo);
+                    const ucoin_tx_t *pTxCommit,
+                    const ucoin_buf_t *pBufWs,
+                    const ln_htlcinfo_t **pp_htlcinfo,
+                    const ln_feeinfo_t *p_feeinfo);
 static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
 static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
@@ -3347,12 +3359,18 @@ static bool create_to_local(ln_self_t *self,
             ret = create_to_local_spent(self, pClose,
                         p_htlc_sigs, htlc_sigs_num,
                         &tx_commit, &buf_ws,
-                        pp_htlcinfo,
+                        (const ln_htlcinfo_t **)pp_htlcinfo,
                         &feeinfo,
                         to_self_delay);
         } else {
             self->commit_local.htlc_num = 0;
         }
+    }
+
+    if (ret) {
+        ret = create_to_local_sign(self, &tx_commit, &buf_sig);
+    } else {
+        DBG_PRINTF("fail\n");
     }
 
     DBG_PRINTF("free: ret=%d\n", ret);
@@ -3362,12 +3380,6 @@ static bool create_to_local(ln_self_t *self,
         M_FREE(pp_htlcinfo[lp]);
     }
     M_FREE(pp_htlcinfo);
-
-    if (ret) {
-        ret = create_to_local_sign(self, &tx_commit, &buf_sig);
-    } else {
-        DBG_PRINTF("fail\n");
-    }
 
     ucoin_buf_free(&buf_sig);
     if (pClose != NULL) {
@@ -3387,10 +3399,10 @@ static bool create_to_local_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
-                    ucoin_tx_t *pTxCommit,
-                    ucoin_buf_t *pBufWs,
-                    ln_htlcinfo_t **pp_htlcinfo,
-                    ln_feeinfo_t *p_feeinfo,
+                    const ucoin_tx_t *pTxCommit,
+                    const ucoin_buf_t *pBufWs,
+                    const ln_htlcinfo_t **pp_htlcinfo,
+                    const ln_feeinfo_t *p_feeinfo,
                     uint32_t to_self_delay)
 {
     bool ret = true;
@@ -3468,64 +3480,11 @@ static bool create_to_local_spent(ln_self_t *self,
                     memcpy(self->cnl_add_htlc[htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
                 }
                 if (pTxHtlcs != NULL) {
-                    ucoin_buf_t buf_sig;
-                    ln_misc_sigexpand(&buf_sig, self->cnl_add_htlc[htlc_idx].signature);
-
-                    uint8_t preimage[LN_SZ_PREIMAGE];
-                    bool ret_img;
-                    if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) {
-                        //Receivedであればpreimageを所持している可能性がある
-                        ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
-                        DBG_PRINTF("[received]%d\n", ret_img);
-                    } else {
-                        ret_img = false;
-                        DBG_PRINTF("[offered]%d\n", ret_img);
-                    }
-                    pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
-
-                    //署名:HTLC Success/Timeout Transaction
-                    ucoin_buf_t buf_local_sig;
-                    ret = ln_sign_htlc_tx(&tx,
-                                &buf_local_sig,                 //<localsig>
-                                pTxCommit->vout[vout_idx].value,
-                                &htlckey,
-                                &buf_sig,                       //<remotesig>
-                                (ret_img) ? preimage : NULL,
-                                &pp_htlcinfo[htlc_idx]->script,
-                                HTLCSIGN_TO_SUCCESS);
-                    ucoin_buf_free(&buf_sig);
-                    ucoin_buf_free(&buf_local_sig);
-                    if (!ret) {
-                        DBG_PRINTF("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
-                        break;
-                    }
-
-                    if ( ((pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) && ret_img) ||
-                            (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ) {
-                        DBG_PRINTF("create HTLC tx[%d]\n", htlc_num);
-                        M_DBG_PRINT_TX2(&tx);
-                        memcpy(&pTxHtlcs[htlc_num], &tx, sizeof(tx));
-
-                        // HTLC Timeout/Success Txを作った場合はそれを取り戻すトランザクションも作る
-                        ucoin_tx_t tx2;
-                        ucoin_tx_init(&tx2);
-                        uint8_t txid[UCOIN_SZ_TXID];
-                        ucoin_tx_txid(txid, &tx);
-                        ret = ln_create_tolocal_spent(self, &tx2, tx.vout[0].value, to_self_delay,
-                                    pBufWs, txid, 0, false);
-                        if (ret) {
-                            DBG_PRINTF("*** HTLC out Tx ***\n");
-                            M_DBG_PRINT_TX2(&tx2);
-                            ucoin_push_data(&push, &tx2, sizeof(ucoin_tx_t));
-                        } else {
-                            ucoin_tx_free(&tx2);
-                        }
-
-                        ucoin_tx_init(&tx);     //txはfreeさせない
-                    } else {
-                        DBG_PRINTF("skip create HTLC tx[%d]\n", htlc_num);
-                        ucoin_tx_init(&pTxHtlcs[htlc_num]);
-                    }
+                    ret = create_to_local_htlcsign(self,
+                                    pClose, pTxHtlcs, &push,
+                                    pTxCommit, pBufWs,
+                                    pp_htlcinfo, &htlckey,
+                                    htlc_num, vout_idx, htlc_idx, to_self_delay);
                 }
 
                 ucoin_tx_free(&tx);
@@ -3726,7 +3685,6 @@ static bool create_to_remote(ln_self_t *self,
     if (ret) {
         ln_misc_sigtrim(self->commit_local.signature, buf_sig.buf);
     }
-    ucoin_buf_free(&buf_sig);
 
     //送信用 commitment_signed.htlc_signature
     if (ret) {
@@ -3737,7 +3695,7 @@ static bool create_to_remote(ln_self_t *self,
             ret = create_to_remote_spent(self, pClose,
                         pp_htlc_sigs,
                         &tx_commit, &buf_ws,
-                        pp_htlcinfo,
+                        (const ln_htlcinfo_t **)pp_htlcinfo,
                         &feeinfo);
         } else {
             self->commit_remote.htlc_num = 0;
@@ -3746,16 +3704,18 @@ static bool create_to_remote(ln_self_t *self,
 
     DBG_PRINTF("free: ret=%d\n", ret);
     ucoin_buf_free(&buf_ws);
-    if (pClose != NULL) {
-        memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(ucoin_tx_t));
-    } else {
-        ucoin_tx_free(&tx_commit);
-    }
     for (int lp = 0; lp < cnt; lp++) {
         ln_htlcinfo_free(pp_htlcinfo[lp]);
         M_FREE(pp_htlcinfo[lp]);
     }
     M_FREE(pp_htlcinfo);
+
+    ucoin_buf_free(&buf_sig);
+    if (pClose != NULL) {
+        memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(ucoin_tx_t));
+    } else {
+        ucoin_tx_free(&tx_commit);
+    }
 
     return ret;
 }
@@ -3796,10 +3756,10 @@ static bool create_to_remote_remoteout(ln_self_t *self,
 static bool create_to_remote_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
                     uint8_t **pp_htlc_sigs,
-                    ucoin_tx_t *pTxCommit,
-                    ucoin_buf_t *pBufWs,
-                    ln_htlcinfo_t **pp_htlcinfo,
-                    ln_feeinfo_t *p_feeinfo)
+                    const ucoin_tx_t *pTxCommit,
+                    const ucoin_buf_t *pBufWs,
+                    const ln_htlcinfo_t **pp_htlcinfo,
+                    const ln_feeinfo_t *p_feeinfo)
 {
     bool ret = true;
     uint8_t htlc_num = 0;
@@ -3919,6 +3879,84 @@ static bool create_to_remote_spent(ln_self_t *self,
     self->commit_remote.htlc_num = htlc_num;
 
     return ret;
+}
+
+
+static bool create_to_local_htlcsign(ln_self_t *self,
+                    ln_close_force_t *pClose,
+                    ucoin_tx_t *pTxHtlcs,
+                    ucoin_push_t *pPush,
+                    const ucoin_tx_t *pTxCommit,
+                    const ucoin_buf_t *pBufWs,
+                    const ln_htlcinfo_t **pp_htlcinfo,
+                    const ucoin_util_keys_t *pHtlcKey,
+                    uint8_t htlc_num,
+                    int vout_idx,
+                    uint8_t htlc_idx,
+                    uint32_t to_self_delay)
+{
+    bool ret;
+    ucoin_tx_t tx;
+    ucoin_tx_init(&tx);
+
+    ucoin_buf_t buf_sig;
+    ln_misc_sigexpand(&buf_sig, self->cnl_add_htlc[htlc_idx].signature);
+
+    uint8_t preimage[LN_SZ_PREIMAGE];
+    bool ret_img;
+    if (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) {
+        //Receivedであればpreimageを所持している可能性がある
+        ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
+        DBG_PRINTF("[received]%d\n", ret_img);
+    } else {
+        ret_img = false;
+        DBG_PRINTF("[offered]%d\n", ret_img);
+    }
+    pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
+
+    //署名:HTLC Success/Timeout Transaction
+    ucoin_buf_t buf_local_sig;
+    ret = ln_sign_htlc_tx(&tx,
+                &buf_local_sig,                 //<localsig>
+                pTxCommit->vout[vout_idx].value,
+                pHtlcKey,
+                &buf_sig,                       //<remotesig>
+                (ret_img) ? preimage : NULL,
+                &pp_htlcinfo[htlc_idx]->script,
+                HTLCSIGN_TO_SUCCESS);
+    ucoin_buf_free(&buf_sig);
+    ucoin_buf_free(&buf_local_sig);
+    if (!ret) {
+        DBG_PRINTF("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
+        return false;
+    }
+
+    if ( ((pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_RECEIVED) && ret_img) ||
+            (pp_htlcinfo[htlc_idx]->type == LN_HTLCTYPE_OFFERED) ) {
+        DBG_PRINTF("create HTLC tx[%d]\n", htlc_num);
+        M_DBG_PRINT_TX2(&tx);
+        memcpy(&pTxHtlcs[htlc_num], &tx, sizeof(tx));
+
+        // HTLC Timeout/Success Txを作った場合はそれを取り戻すトランザクションも作る
+        ucoin_tx_t tx2;
+        ucoin_tx_init(&tx2);
+        uint8_t txid[UCOIN_SZ_TXID];
+        ucoin_tx_txid(txid, &tx);
+        ret = ln_create_tolocal_spent(self, &tx2, tx.vout[0].value, to_self_delay,
+                    pBufWs, txid, 0, false);
+        if (ret) {
+            DBG_PRINTF("*** HTLC out Tx ***\n");
+            M_DBG_PRINT_TX2(&tx2);
+            ucoin_push_data(pPush, &tx2, sizeof(ucoin_tx_t));
+        } else {
+            ucoin_tx_free(&tx2);
+        }
+
+        ucoin_tx_init(&tx);     //txはfreeさせない
+    } else {
+        DBG_PRINTF("skip create HTLC tx[%d]\n", htlc_num);
+        ucoin_tx_init(&pTxHtlcs[htlc_num]);
+    }
 }
 
 
