@@ -207,6 +207,18 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
  * HIDDEN
  ********************************************************************/
 
+
+void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
+{
+    DBG_PRINTF("\n");
+
+    ucoin_util_keys_t keys;
+    ucoin_util_createkeys(&keys);
+    memcpy(pPubKey, keys.pub, UCOIN_SZ_PUBKEY);
+    ucoin_keys_priv2wif(pWif, keys.priv);
+}
+
+
 /** node_announcement受信処理
  *
  */

@@ -206,7 +206,7 @@ bool ucoin_util_sign_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const uc
 }
 
 
-void ucoin_util_sign_p2wsh_1(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index, uint64_t Value,
+void ucoin_util_calc_sighash_p2wsh(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index, uint64_t Value,
                     const ucoin_buf_t *pWitScript)
 {
     ucoin_buf_t script_code;
@@ -218,46 +218,15 @@ void ucoin_util_sign_p2wsh_1(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index,
 }
 
 
-bool ucoin_util_sign_p2wsh_2(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
+bool ucoin_util_sign_p2wsh(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
 {
     return ucoin_tx_sign(pSig, pTxHash, pKeys->priv);
 }
 
 
-bool ucoin_util_sign_p2wsh_rs_2(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
+bool ucoin_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
 {
     return ucoin_tx_sign_rs(pRS, pTxHash, pKeys->priv);
-}
-
-
-bool ucoin_util_sign_p2wsh_3_2of2(ucoin_tx_t *pTx, int Index, ucoin_keys_sort_t Sort,
-                    const ucoin_buf_t *pSig1,
-                    const ucoin_buf_t *pSig2,
-                    const ucoin_buf_t *pWit2of2)
-{
-    // 0
-    // <sig1>
-    // <sig2>
-    // <script>
-    const ucoin_buf_t wit0 = { NULL, 0 };
-    const ucoin_buf_t *wits[] = {
-        &wit0,
-        NULL,
-        NULL,
-        pWit2of2
-    };
-    if (Sort == UCOIN_KEYS_SORT_ASC) {
-        wits[1] = pSig1;
-        wits[2] = pSig2;
-    } else {
-        wits[1] = pSig2;
-        wits[2] = pSig1;
-    }
-
-    bool ret;
-
-    ret = ucoin_sw_set_vin_p2wsh(pTx, Index, (const ucoin_buf_t **)wits, 4);
-    return ret;
 }
 
 

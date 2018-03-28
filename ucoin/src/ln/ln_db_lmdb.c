@@ -35,6 +35,7 @@
 #include "ln_local.h"
 #include "ln_msg_anno.h"
 #include "ln_misc.h"
+#include "ln_node.h"
 #include "ln_signer.h"
 
 #include "ln_db.h"
@@ -504,9 +505,8 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         //      aliase : 指定が無ければ生成
         //      port : 指定された値
         DBG_PRINTF("create node DB\n");
-        ucoin_util_keys_t keys;
-        ln_signer_create_nodekey(&keys);
-        ucoin_keys_priv2wif(pWif, keys.priv);
+        uint8_t pub[UCOIN_SZ_PUBKEY];
+        ln_node_create_key(pWif, pub);
 
         char nodename[LN_SZ_ALIAS];
         if (pNodeName == NULL) {
@@ -515,8 +515,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         }
         if (strlen(pNodeName) == 0) {
             sprintf(pNodeName, "node_%02x%02x%02x%02x%02x%02x",
-                        keys.pub[0], keys.pub[1], keys.pub[2],
-                        keys.pub[3], keys.pub[4], keys.pub[5]);
+                        pub[0], pub[1], pub[2], pub[3], pub[4], pub[5]);
         }
         //DBG_PRINTF("wif=%s\n", pWif);
         DBG_PRINTF("aliase=%s\n", pNodeName);

@@ -28,7 +28,7 @@
 #include "ln_script.h"
 #include "ln_signer.h"
 
-//#define M_DBG_VERBOSE
+#define M_DBG_VERBOSE
 
 /**************************************************************************
  * macros
@@ -147,46 +147,6 @@ bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
     }
 
     return true;
-}
-
-
-bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig,
-                    uint64_t Value,
-                    const ucoin_util_keys_t *pKeys,
-                    const ucoin_buf_t *pWitScript, bool bRevoked)
-{
-    // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
-
-    if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
-        DBG_PRINTF("fail: invalid vin/vout\n");
-        return false;
-    }
-
-    bool ret = false;
-    uint8_t sighash[UCOIN_SZ_SIGHASH];
-
-    //vinは1つしかないので、Indexは0固定
-    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
-
-    ret = ln_signer_p2wsh_2(pSig, sighash, pKeys);
-    if (ret) {
-        // <delayedsig>
-        // 0
-        // <script>
-        const uint8_t WIT1 = 0x01;
-        const ucoin_buf_t wit0 = { NULL, 0 };
-        const ucoin_buf_t wit1 = { (CONST_CAST uint8_t *)&WIT1, 1 };
-        const ucoin_buf_t *wits[] = {
-            pSig,
-            NULL,
-            pWitScript
-        };
-        wits[1] = (bRevoked) ? &wit1 : &wit0;
-
-        ret = ucoin_sw_set_vin_p2wsh(pTx, 0, (const ucoin_buf_t **)wits, ARRAY_SIZE(wits));
-    }
-
-    return ret;
 }
 
 
@@ -408,9 +368,9 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
 
     //署名
     uint8_t txhash[UCOIN_SZ_SIGHASH];
-    ucoin_util_sign_p2wsh_1(txhash, pTx, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
+    ucoin_util_calc_sighash_p2wsh(txhash, pTx, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
 
-    bool ret = ln_signer_p2wsh_2(pSig, txhash, pCmt->fund.p_keys);
+    bool ret = ln_signer_p2wsh(pSig, txhash, pCmt->fund.p_keys);
 
     return ret;
 }
@@ -462,8 +422,8 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
 
     bool ret = false;
     uint8_t sighash[UCOIN_SZ_SIGHASH];
-    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
-    ret = ucoin_util_sign_p2wsh_2(pLocalSig, sighash, pKeys);
+    ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
+    ret = ln_signer_p2wsh(pLocalSig, sighash, pKeys);
 
     const ucoin_buf_t wit0 = { NULL, 0 };
     const ucoin_buf_t **pp_wits = NULL;
@@ -585,7 +545,7 @@ bool HIDDEN ln_verify_htlc_tx(const ucoin_tx_t *pTx,
     uint8_t sighash[UCOIN_SZ_SIGHASH];
 
     //vinは1つしかないので、Indexは0固定
-    ucoin_util_sign_p2wsh_1(sighash, pTx, 0, Value, pWitScript);
+    ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
     //DBG_PRINTF("sighash: ");
     //DUMPBIN(sighash, UCOIN_SZ_SIGHASH);
     if (pLocalPubKey && pLocalSig) {

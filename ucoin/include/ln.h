@@ -620,7 +620,7 @@ typedef struct {
 //    uint8_t     features;                           ///< 1:  features
 
     const uint8_t           *p_my_node_pub;
-    const ucoin_util_keys_t *p_my_funding;
+    const uint8_t           *p_my_funding_pub;
     const uint8_t           *p_peer_node_pub;
     const uint8_t           *p_peer_funding_pub;
     uint8_t                 *p_peer_node_sign;
@@ -1434,7 +1434,7 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing);
 bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
 
 
-/** to_local用トランザクション作成(署名まで実施)
+/** to_localをINPUTとするトランザクション作成(署名まで実施)
  *
  * @param[in]           self            channel情報
  * @param[out]          pTx             生成結果
@@ -1451,7 +1451,7 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
                 const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
-/** to_remote用トランザクション作成(署名まで実施)
+/** to_remoteをINPUTとするトランザクション作成(署名まで実施)
  *
  * @param[in]           self            channel情報
  * @param[out]          pTx             生成結果
@@ -1606,13 +1606,23 @@ static inline bool ln_is_funding(const ln_self_t *self) {
 }
 
 
-/**
+/** estimatesmartfee --> feerate_per_kw
  * 
  * @param[in]           feerate_kb  bitcoindから取得したfeerate/KB
  * @retval          feerate_per_kw
  */
 static inline uint32_t ln_calc_feerate_per_kw(uint64_t feerate_kb) {
     return (uint32_t)(feerate_kb / 4);
+}
+
+
+/** feerate_per_kw --> byteあたりのfee
+ * 
+ * @param[in]           feerate_per_kw
+ * @retval          feerate_per_byte
+ */
+static inline uint32_t ln_calc_feerate_per_byte(uint64_t feerate_kw) {
+    return (uint32_t)(feerate_kw * 4 / 1000);
 }
 
 

@@ -416,10 +416,10 @@ TEST_F(ln_bolt3_c, committx2)
         0xf4, 0x5a, 0x4c, 0xa3, 0xbd, 0xb7, 0xc0, 0x01,
     };
     uint8_t txhash[UCOIN_SZ_SIGHASH];
-    ucoin_util_sign_p2wsh_1(txhash, &tx, 0, UCOIN_MBTC2SATOSHI(100), &funding2of2);
+    ucoin_util_calc_sighash_p2wsh(txhash, &tx, 0, UCOIN_MBTC2SATOSHI(100), &funding2of2);
     ucoin_buf_t buf_sig_local;
     ucoin_buf_t buf_sig_remote;
-    ret = ucoin_util_sign_p2wsh_2(&buf_sig_local, txhash, &keys_local_funding);
+    ret = ucoin_util_sign_p2wsh(&buf_sig_local, txhash, &keys_local_funding);
     ASSERT_TRUE(ret);
     const uint8_t LOCAL_SIGNATURE[] = {
         0x30, 0x44, 0x02, 0x20, 0x51, 0xb7, 0x5c, 0x73,
@@ -436,7 +436,7 @@ TEST_F(ln_bolt3_c, committx2)
     ASSERT_EQ(sizeof(LOCAL_SIGNATURE), buf_sig_local.len);
 
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -727,7 +727,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -1445,7 +1445,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -2163,7 +2163,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -2819,7 +2819,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -3475,7 +3475,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -4067,7 +4067,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -4659,7 +4659,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -5190,7 +5190,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -5721,7 +5721,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -6191,7 +6191,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -6662,7 +6662,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -6959,7 +6959,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -7257,7 +7257,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);
@@ -7548,7 +7548,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     };
     ucoin_buf_t buf_sig_remote;
     ucoin_buf_alloccopy(&buf_sig_remote, REMOTE_SIGNATURE, sizeof(REMOTE_SIGNATURE));
-    ret = ucoin_util_sign_p2wsh_3_2of2(&tx, 0, key_fund_sort,
+    ret = set_vin_p2wsh_2of2(&tx, 0, key_fund_sort,
                 &buf_sig_local,
                 &buf_sig_remote,
                 &funding2of2);

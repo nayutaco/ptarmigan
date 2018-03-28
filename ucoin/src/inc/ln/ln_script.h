@@ -63,15 +63,6 @@ bool HIDDEN ln_create_tolocal_tx(ucoin_tx_t *pTx,
                 const uint8_t *pTxid, int Index, bool bRevoked);
 
 
-/**
- *
- */
-bool HIDDEN ln_sign_tolocal_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig,
-                    uint64_t Value,
-                    const ucoin_util_keys_t *pKeys,
-                    const ucoin_buf_t *pWitScript, bool bRevoked);
-
-
 /** HTLC-Timeout Txの出力先スクリプト作成
  *
  * @param[out]      pBuf                生成したスクリプト
