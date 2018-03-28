@@ -28,7 +28,7 @@
 #include "ln_script.h"
 #include "ln_signer.h"
 
-//#define M_DBG_VERBOSE
+#define M_DBG_VERBOSE
 
 /**************************************************************************
  * macros

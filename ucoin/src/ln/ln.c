@@ -44,7 +44,7 @@
 #include "ln_derkey.h"
 #include "ln_signer.h"
 
-//#define M_DBG_VERBOSE
+#define M_DBG_VERBOSE
 
 /**************************************************************************
  * macros
@@ -118,8 +118,8 @@
 #define M_DBG_PRINT_TX(tx)      fprintf(DEBUGOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
 #define M_DBG_PRINT_TX2(tx)     //NONE
 #else
-#define M_DBG_PRINT_TX(tx)      ucoin_print_tx(tx)
-#define M_DBG_PRINT_TX2(tx)     ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX(tx)      fprintf(DEBUGOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX2(tx)     fprintf(DEBUGOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
 #endif  //M_DBG_VERBOSE
 
 
@@ -1467,6 +1467,7 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
     DBG_PRINTF("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
     ln_create_htlc_tx(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
+    M_DBG_PRINT_TX2(pTx);
 
     ucoin_util_keys_t signkey;
     ln_signer_get_revokesec(self, &signkey,
@@ -3473,7 +3474,7 @@ static bool create_to_local_spent(ln_self_t *self,
                 ln_create_htlc_tx(&tx, pTxCommit->vout[vout_idx].value - fee, pBufWs,
                             pp_htlcinfo[htlc_idx]->type, pp_htlcinfo[htlc_idx]->expiry,
                             self->commit_local.txid, vout_idx);
-                M_DBG_PRINT_TX(&tx);
+                M_DBG_PRINT_TX2(&tx);
 
                 if (p_htlc_sigs != NULL) {
                     //署名チェック
