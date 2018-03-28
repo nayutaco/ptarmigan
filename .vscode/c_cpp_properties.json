@@ -14,7 +14,11 @@
                 "${workspaceRoot}/ucoind/inc",
                 "${workspaceRoot}/ucoincli/inc"
             ],
-            "defines": [],
+            "defines": [
+                "UCOIN_DEBUG",
+                "UCOIN_DEBUG_MEM",
+                "NETKIND=1"                
+            ],
             "intelliSenseMode": "clang-x64",
             "browse": {
                 "path": [
@@ -51,7 +55,11 @@
                 "${workspaceRoot}/ucoind/inc",
                 "${workspaceRoot}/ucoincli/inc"
             ],
-            "defines": [],
+            "defines": [
+                "UCOIN_DEBUG",
+                "UCOIN_DEBUG_MEM",
+                "NETKIND=1"
+            ],
             "intelliSenseMode": "clang-x64",
             "browse": {
                 "path": [
@@ -86,6 +94,9 @@
                 "${workspaceRoot}/ucoincli/inc"
             ],
             "defines": [
+                "UCOIN_DEBUG",
+                "UCOIN_DEBUG_MEM",
+                "NETKIND=1",
                 "__linux__",
                 "__x86_64__"
             ],
