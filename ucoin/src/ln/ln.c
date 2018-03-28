@@ -178,6 +178,9 @@ static bool create_to_local_spent(ln_self_t *self,
                     ln_htlcinfo_t **pp_htlcinfo,
                     ln_feeinfo_t *p_feeinfo,
                     uint32_t to_self_delay);
+static bool create_to_local_sign(ln_self_t *self,
+                    ucoin_tx_t *pTxCommit,
+                    const ucoin_buf_t *pBufSig);
 static bool create_to_remote(ln_self_t *self,
                     ln_close_force_t *pClose,
                     uint8_t **pp_htlc_sigs,
@@ -3361,37 +3364,7 @@ static bool create_to_local(ln_self_t *self,
     M_FREE(pp_htlcinfo);
 
     if (ret) {
-        DBG_PRINTF("sign\n");
-
-        ucoin_buf_t buf_sig_from_remote;
-        ucoin_buf_t script_code;
-        uint8_t sighash[UCOIN_SZ_SIGHASH];
-
-        ucoin_buf_init(&buf_sig_from_remote);
-        ucoin_buf_init(&script_code);
-
-        //署名追加
-        ln_misc_sigexpand(&buf_sig_from_remote, self->commit_remote.signature);
-        set_vin_p2wsh_2of2(&tx_commit, 0, self->key_fund_sort,
-                                &buf_sig,
-                                &buf_sig_from_remote,
-                                &self->redeem_fund);
-        DBG_PRINTF("++++++++++++++ 自分のcommit txに署名: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
-        M_DBG_PRINT_TX(&tx_commit);
-
-        // 署名verify
-        ucoin_sw_scriptcode_p2wsh(&script_code, &self->redeem_fund);
-        ucoin_sw_sighash(sighash, &tx_commit, 0, self->funding_sat, &script_code);
-        ret = ucoin_sw_verify_2of2(&tx_commit, 0, sighash,
-                    &self->tx_funding.vout[self->funding_local.txindex].script);
-        if (ret) {
-            DBG_PRINTF("verify OK\n");
-        } else {
-            DBG_PRINTF("fail: ucoin_sw_verify_2of2\n");
-        }
-
-        ucoin_buf_free(&buf_sig_from_remote);
-        ucoin_buf_free(&script_code);
+        ret = create_to_local_sign(self, &tx_commit, &buf_sig);
     } else {
         DBG_PRINTF("fail\n");
     }
@@ -3574,6 +3547,50 @@ static bool create_to_local_spent(ln_self_t *self,
     }
 
     self->commit_local.htlc_num = htlc_num;
+
+    return ret;
+}
+
+
+/** commit_tx署名
+ * 
+ */
+static bool create_to_local_sign(ln_self_t *self,
+                    ucoin_tx_t *pTxCommit,
+                    const ucoin_buf_t *pBufSig)
+{
+    DBG_PRINTF("sign\n");
+
+    bool ret;
+    ucoin_buf_t buf_sig_from_remote;
+    ucoin_buf_t script_code;
+    uint8_t sighash[UCOIN_SZ_SIGHASH];
+
+    ucoin_buf_init(&buf_sig_from_remote);
+    ucoin_buf_init(&script_code);
+
+    //署名追加
+    ln_misc_sigexpand(&buf_sig_from_remote, self->commit_remote.signature);
+    set_vin_p2wsh_2of2(pTxCommit, 0, self->key_fund_sort,
+                            pBufSig,
+                            &buf_sig_from_remote,
+                            &self->redeem_fund);
+    DBG_PRINTF("++++++++++++++ 自分のcommit txに署名: [%" PRIx64 "]\n", self->short_channel_id);
+    M_DBG_PRINT_TX(pTxCommit);
+
+    // 署名verify
+    ucoin_sw_scriptcode_p2wsh(&script_code, &self->redeem_fund);
+    ucoin_sw_sighash(sighash, pTxCommit, 0, self->funding_sat, &script_code);
+    ret = ucoin_sw_verify_2of2(pTxCommit, 0, sighash,
+                &self->tx_funding.vout[self->funding_local.txindex].script);
+    if (ret) {
+        DBG_PRINTF("verify OK\n");
+    } else {
+        DBG_PRINTF("fail: ucoin_sw_verify_2of2\n");
+    }
+
+    ucoin_buf_free(&buf_sig_from_remote);
+    ucoin_buf_free(&script_code);
 
     return ret;
 }
