@@ -1606,13 +1606,23 @@ static inline bool ln_is_funding(const ln_self_t *self) {
 }
 
 
-/**
+/** estimatesmartfee --> feerate_per_kw
  * 
  * @param[in]           feerate_kb  bitcoindから取得したfeerate/KB
  * @retval          feerate_per_kw
  */
 static inline uint32_t ln_calc_feerate_per_kw(uint64_t feerate_kb) {
     return (uint32_t)(feerate_kb / 4);
+}
+
+
+/** feerate_per_kw --> byteあたりのfee
+ * 
+ * @param[in]           feerate_per_kw
+ * @retval          feerate_per_byte
+ */
+static inline uint32_t ln_calc_feerate_per_byte(uint64_t feerate_kw) {
+    return (uint32_t)(feerate_kw * 4 / 1000);
 }
 
 
