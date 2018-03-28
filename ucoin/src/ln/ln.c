@@ -174,8 +174,6 @@ static bool create_to_local_spent(ln_self_t *self,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
                     ucoin_tx_t *pTxCommit,
-                    ucoin_tx_t *pTxToLocal,
-                    ucoin_tx_t *pTxHtlcs,
                     ucoin_buf_t *pBufWs,
                     ln_htlcinfo_t **pp_htlcinfo,
                     ln_feeinfo_t *p_feeinfo,
@@ -185,11 +183,13 @@ static bool create_to_remote(ln_self_t *self,
                     uint8_t **pp_htlc_sigs,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat);
+static bool create_to_remote_remoteout(ln_self_t *self,
+                    ln_close_force_t *pClose,
+                    ucoin_tx_t *pCommitTx);
 static bool create_to_remote_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
                     uint8_t **pp_htlc_sigs,
                     ucoin_tx_t *pTxCommit,
-                    ucoin_tx_t *pTxHtlcs,
                     ucoin_buf_t *pBufWs,
                     ln_htlcinfo_t **pp_htlcinfo,
                     ln_feeinfo_t *p_feeinfo);
@@ -3240,8 +3240,8 @@ static bool create_funding_tx(ln_self_t *self)
  * self->commit_remote.signatureを相手からの署名として追加し、verifyを行う
  *
  * @param[in,out]       self
- * @param[out]          pClose
- * @param[in]           p_htlc_sigs         commitment_signedで受信したHTLCの署名
+ * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
+ * @param[in]           p_htlc_sigs         commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
  * @param[in]           htlc_sigs_num       p_htlc_sigsの署名数
  * @param[in]           to_self_delay       remoteのto_self_delay
  * @param[in]           dust_limit_sat      localのdust_limit_sat
@@ -3262,19 +3262,10 @@ static bool create_to_local(ln_self_t *self,
     ln_feeinfo_t feeinfo;
     ln_tx_cmt_t lntx_commit;
     ucoin_tx_t tx_commit;
-    ucoin_tx_t *pTxCommit = NULL;
-    ucoin_tx_t *pTxToLocal = NULL;
-    ucoin_tx_t *pTxHtlcs = NULL;
 
     ucoin_tx_init(&tx_commit);
     ucoin_buf_init(&buf_sig);
     ucoin_buf_init(&buf_ws);
-
-    if (pClose != NULL) {
-        pTxCommit = &pClose->p_tx[LN_CLOSE_IDX_COMMIT];
-        pTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
-        pTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
-    }
 
     //To-Local
     ln_create_script_local(&buf_ws,
@@ -3352,7 +3343,7 @@ static bool create_to_local(ln_self_t *self,
         if (tx_commit.vout_cnt > 0) {
             ret = create_to_local_spent(self, pClose,
                         p_htlc_sigs, htlc_sigs_num,
-                        &tx_commit, pTxToLocal, pTxHtlcs, &buf_ws,
+                        &tx_commit, &buf_ws,
                         pp_htlcinfo,
                         &feeinfo,
                         to_self_delay);
@@ -3406,8 +3397,8 @@ static bool create_to_local(ln_self_t *self,
     }
 
     ucoin_buf_free(&buf_sig);
-    if (pTxCommit != NULL) {
-        memcpy(pTxCommit, &tx_commit, sizeof(ucoin_tx_t));
+    if (pClose != NULL) {
+        memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(ucoin_tx_t));
     } else {
         ucoin_tx_free(&tx_commit);
     }
@@ -3424,8 +3415,6 @@ static bool create_to_local_spent(ln_self_t *self,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
                     ucoin_tx_t *pTxCommit,
-                    ucoin_tx_t *pTxToLocal,
-                    ucoin_tx_t *pTxHtlcs,
                     ucoin_buf_t *pBufWs,
                     ln_htlcinfo_t **pp_htlcinfo,
                     ln_feeinfo_t *p_feeinfo,
@@ -3435,6 +3424,13 @@ static bool create_to_local_spent(ln_self_t *self,
     int htlc_num = 0;
 
     DBG_PRINTF("local spent\n");
+
+    ucoin_tx_t *pTxToLocal = NULL;
+    ucoin_tx_t *pTxHtlcs = NULL;
+    if (pClose != NULL) {
+        pTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
+        pTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
+    }
 
     ucoin_tx_t tx;
     ucoin_tx_init(&tx);
@@ -3476,7 +3472,7 @@ static bool create_to_local_spent(ln_self_t *self,
                             self->commit_local.txid, vout_idx);
                 M_DBG_PRINT_TX2(&tx);
 
-                if (p_htlc_sigs != NULL) {
+                if ((p_htlc_sigs != NULL) && (htlc_sigs_num != 0)) {
                     //署名チェック
                     ucoin_buf_t buf_sig;
                     ln_misc_sigexpand(&buf_sig, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE);
@@ -3585,10 +3581,15 @@ static bool create_to_local_spent(ln_self_t *self,
 
 /** 相手用 commitment transaction作成
  *
+ * 相手用(相手が送信することができる)commit_txの署名、および関連するトランザクションの署名を行う。
+ *      - funding_created
+ *      - funding_signed
+ *      - commitment_signed
+ * 
  * 署名を、To-Localはself->commit_local.signatureに、HTLCはself->cnl_add_htlc[].signature 代入する
  *
  * @param[in,out]       self
- * @param[out]          pClose
+ * @param[out]          pClose              非NULL:相手がunilateral closeした場合の情報を返す
  * @param[out]          pp_htlc_sigs        commitment_signed送信用署名(NULLの場合は代入しない)
  * @param[in]           to_self_delay       localのto_self_delay
  * @param[in]           dust_limit_sat      remoteのdust_limit_sat
@@ -3601,24 +3602,16 @@ static bool create_to_remote(ln_self_t *self,
 {
     DBG_PRINTF("BEGIN\n");
 
-    ucoin_tx_t tx_commit;
-    ucoin_buf_t buf_sig;
+    bool ret;
     ucoin_buf_t buf_ws;
+    ucoin_buf_t buf_sig;
     ln_feeinfo_t feeinfo;
     ln_tx_cmt_t lntx_commit;
-    ucoin_tx_t *pTxCommit = NULL;
-    ucoin_tx_t *pTxToRemote = NULL;
-    ucoin_tx_t *pTxHtlcs = NULL;
+    ucoin_tx_t tx_commit;
 
     ucoin_tx_init(&tx_commit);
     ucoin_buf_init(&buf_sig);
     ucoin_buf_init(&buf_ws);
-
-    if (pClose != NULL) {
-        pTxCommit = &pClose->p_tx[LN_CLOSE_IDX_COMMIT];
-        pTxToRemote = &pClose->p_tx[LN_CLOSE_IDX_TOREMOTE];
-        pTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
-    }
 
     //To-Local(Remote)
     ln_create_script_local(&buf_ws,
@@ -3699,38 +3692,17 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.htlcinfo_num = cnt;
 
     DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num);
-    bool ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self));
-    if (!ret) {
-        DBG_PRINTF("fail: ln_create_commit_tx(Remote)\n");
-    }
-    DBG_PRINTF("++++++++++++++ 相手のcommit tx: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
-    M_DBG_PRINT_TX(&tx_commit);
+    ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self));
+    if (ret) {
+        DBG_PRINTF("++++++++++++++ 相手のcommit tx: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
+        M_DBG_PRINT_TX(&tx_commit);
 
-    ret = ucoin_tx_txid(self->commit_remote.txid, &tx_commit);
-    if (!ret) {
-        DBG_PRINTF("fail: ucoin_tx_txid\n");
+        ret = ucoin_tx_txid(self->commit_remote.txid, &tx_commit);
     }
 
     //to_remote処理
-    if (ret && (pTxToRemote != NULL)) {
-        for (int vout_idx = 0; vout_idx < tx_commit.vout_cnt; vout_idx++) {
-            if (tx_commit.vout[vout_idx].opt == LN_HTLCTYPE_TOREMOTE) {
-                DBG_PRINTF("---[%d]to_remote\n", vout_idx);
-
-                ucoin_tx_t tx;
-                ucoin_tx_init(&tx);
-                ret = ln_create_toremote_spent(self, &tx, tx_commit.vout[vout_idx].value,
-                            self->commit_remote.txid, vout_idx);
-                if (ret) {
-                    M_DBG_PRINT_TX2(&tx);
-                    memcpy(pTxToRemote, &tx, sizeof(tx));
-                    ucoin_tx_init(&tx);     //txはfreeさせない
-                } else {
-                    ucoin_tx_free(&tx);
-                }
-                break;
-            }
-        }
+    if (ret && (pClose != NULL)) {
+        ret = create_to_remote_remoteout(self, pClose, &tx_commit);
     }
 
     //送信用 commitment_signed.signature
@@ -3747,7 +3719,7 @@ static bool create_to_remote(ln_self_t *self,
             }
             ret = create_to_remote_spent(self, pClose,
                         pp_htlc_sigs,
-                        &tx_commit, pTxHtlcs, &buf_ws,
+                        &tx_commit, &buf_ws,
                         pp_htlcinfo,
                         &feeinfo);
         } else {
@@ -3757,8 +3729,8 @@ static bool create_to_remote(ln_self_t *self,
 
     DBG_PRINTF("free: ret=%d\n", ret);
     ucoin_buf_free(&buf_ws);
-    if (pTxCommit != NULL) {
-        memcpy(pTxCommit, &tx_commit, sizeof(ucoin_tx_t));
+    if (pClose != NULL) {
+        memcpy(&pClose->p_tx[LN_CLOSE_IDX_COMMIT], &tx_commit, sizeof(ucoin_tx_t));
     } else {
         ucoin_tx_free(&tx_commit);
     }
@@ -3772,6 +3744,35 @@ static bool create_to_remote(ln_self_t *self,
 }
 
 
+static bool create_to_remote_remoteout(ln_self_t *self,
+                    ln_close_force_t *pClose,
+                    ucoin_tx_t *pCommitTx)
+{
+    bool ret = true;
+
+    for (int vout_idx = 0; vout_idx < pCommitTx->vout_cnt; vout_idx++) {
+        if (pCommitTx->vout[vout_idx].opt == LN_HTLCTYPE_TOREMOTE) {
+            DBG_PRINTF("---[%d]to_remote\n", vout_idx);
+
+            ucoin_tx_t tx;
+            ucoin_tx_init(&tx);
+            ret = ln_create_toremote_spent(self, &tx, pCommitTx->vout[vout_idx].value,
+                        self->commit_remote.txid, vout_idx);
+            if (ret) {
+                M_DBG_PRINT_TX2(&tx);
+                memcpy(&pClose->p_tx[LN_CLOSE_IDX_TOREMOTE], &tx, sizeof(tx));
+                ucoin_tx_init(&tx);     //txはfreeさせない
+            } else {
+                ucoin_tx_free(&tx);
+            }
+            break;
+        }
+    }
+
+    return ret;
+}
+
+
 /** remote commit_tx送金先スクリプトの署名作成部
  * 
  */
@@ -3779,7 +3780,6 @@ static bool create_to_remote_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
                     uint8_t **pp_htlc_sigs,
                     ucoin_tx_t *pTxCommit,
-                    ucoin_tx_t *pTxHtlcs,
                     ucoin_buf_t *pBufWs,
                     ln_htlcinfo_t **pp_htlcinfo,
                     ln_feeinfo_t *p_feeinfo)
@@ -3788,6 +3788,11 @@ static bool create_to_remote_spent(ln_self_t *self,
     uint8_t htlc_num = 0;
 
     DBG_PRINTF("remote spent\n");
+
+    ucoin_tx_t *pTxHtlcs = NULL;
+    if (pClose != NULL) {
+        pTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
+    }
 
     ucoin_tx_t tx;
     ucoin_tx_init(&tx);
