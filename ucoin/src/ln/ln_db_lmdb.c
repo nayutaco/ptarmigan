@@ -2583,11 +2583,17 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
         memcpy((uint8_t *)pOutSelf + DBSELF_KEYS[lp].offset, (uint8_t *)pInSelf + DBSELF_KEYS[lp].offset,  DBSELF_KEYS[lp].datalen);
     }
 
+    // add_htlc
+    memcpy(pOutSelf->cnl_add_htlc,  pInSelf->cnl_add_htlc, M_SIZE(ln_self_t, cnl_add_htlc));
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         pOutSelf->cnl_add_htlc[idx].p_channel_id = NULL;
         pOutSelf->cnl_add_htlc[idx].p_onion_route = NULL;
-        ucoin_buf_init(&pOutSelf->cnl_add_htlc[idx].shared_secret);
+
+        //shared_secret(shallow copy)
+        ucoin_buf_free(&pOutSelf->cnl_add_htlc[idx].shared_secret);
+        memcpy(&pOutSelf->cnl_add_htlc[idx].shared_secret, &pInSelf->cnl_add_htlc[idx].shared_secret, sizeof(ucoin_buf_t));
     }
+
 
     //復元データ
     ucoin_buf_alloccopy(&pOutSelf->redeem_fund, pInSelf->redeem_fund.buf, pInSelf->redeem_fund.len);

@@ -1,4 +1,7 @@
 #!/bin/sh
+#	送金先でamount不一致
+# 	4444 --> 3333 --> 5555 --> 6666
+
 ROUTECONF=pay_route.conf
 AMOUNT=100000
 PAY_BEGIN=4444

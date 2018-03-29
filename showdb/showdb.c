@@ -221,6 +221,29 @@ static void ln_print_self(const ln_self_t *self)
     printf("\",\n");
     printf(M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", self->short_channel_id);
 
+    if (self->htlc_num > 0) {
+        printf(M_QQ("add_htlc") ": [\n");
+        int cnt = 0;
+        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+            if (self->cnl_add_htlc[lp].amount_msat > 0) {
+                if (cnt > 0) {
+                    printf(",\n");
+                }
+                printf("{\n");
+                printf(M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
+                printf(M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
+                printf(M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
+                printf(M_QQ("payhash") ": \"");
+                ucoin_util_dumpbin(stdout, self->cnl_add_htlc[lp].payment_sha256, UCOIN_SZ_SHA256, false);
+                printf("\",\n");
+                printf(M_QQ("index") ": %d\n", lp);
+                printf("}");
+                cnt++;
+            }
+        }
+        printf("],\n");
+    }
+
     printf(M_QQ("commit_local") ": {\n");
     printf(M_QQ("accept_htlcs") ": %" PRIu32 ",\n", self->commit_local.accept_htlcs);
     printf(M_QQ("to_self_delay") ": %" PRIu32 ",\n", self->commit_local.to_self_delay);

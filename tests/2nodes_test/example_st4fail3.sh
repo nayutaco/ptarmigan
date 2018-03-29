@@ -1,4 +1,6 @@
 #!/bin/sh
+#	payment_hash不一致
+
 ROUTECONF=pay_route.conf
 AMOUNT=100000
 PAY_BEGIN=4444

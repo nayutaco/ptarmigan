@@ -1,4 +1,6 @@
 #!/bin/sh
+# fulfillしない: 3333-->4444
+
 ROUTECONF=pay_route.conf
 AMOUNT=20000000
 PAY_BEGIN=3333
@@ -13,7 +15,7 @@ nodeid() {
 	cat conf/peer$1.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
 }
 
-./routing -d $PAYER/dbucoin -s `nodeid $PAY_BEGIN` -d `nodeid $PAY_END` -a $AMOUNT
+./routing -d $PAYER/dbucoin -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
