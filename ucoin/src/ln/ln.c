@@ -2226,6 +2226,9 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         return false;
     }
 
+    //shutdown受信済み
+    self->shutdown_flag |= M_SHDN_FLAG_RECV;
+
     //  相手がshutdownを送ってきたということは、HTLCは持っていないはず。
     //  相手は持っていなくて自分は持っているという状況は発生しない。
 
@@ -2241,10 +2244,15 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
         ret = ln_create_shutdown(self, &buf_bolt);
         if (ret) {
-            self->shutdown_flag |= M_SHDN_FLAG_SEND;
+            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+            ucoin_buf_free(&buf_bolt);
+        } else {
+            DBG_PRINTF("fail\n");
         }
-    } else {
-        //shutdown未受信の場合 == shutdownを要求した方
+    }
+
+    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) && ln_is_funder(self)) {
+        //shutdown交換完了 && funder --> 最初のclosing_signed送信
         DBG_PRINTF("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
         ln_closing_signed_t cnl_close;
         cnl_close.p_channel_id = self->channel_id;
@@ -2258,20 +2266,15 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             ret = ln_msg_closing_signed_create(&buf_bolt, &cnl_close);
         } else {
             DBG_PRINTF("fail: create close_t\n");
-            assert(false);
         }
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
+            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+            ucoin_buf_free(&buf_bolt);
+        } else {
+            DBG_PRINTF("fail\n");
         }
     }
-
-    if (buf_bolt.len > 0) {
-        (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
-        ucoin_buf_free(&buf_bolt);
-    }
-
-    //shutdown受信済み
-    self->shutdown_flag |= M_SHDN_FLAG_RECV;
 
     DBG_PRINTF("END\n");
     return ret;
