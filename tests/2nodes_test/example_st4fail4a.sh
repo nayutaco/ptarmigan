@@ -1,4 +1,6 @@
 #!/bin/sh
+# fulfillしない: 4444-->3333
+
 ROUTECONF=pay_route.conf
 AMOUNT=10000000
 PAY_BEGIN=4444
