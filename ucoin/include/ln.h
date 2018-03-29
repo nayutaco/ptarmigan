@@ -100,6 +100,7 @@ extern "C" {
 #define LN_CLOSE_IDX_TOLOCAL            (1)         ///< to_local tx
 #define LN_CLOSE_IDX_TOREMOTE           (2)         ///< to_remote tx
 #define LN_CLOSE_IDX_HTLC               (3)         ///< HTLC tx
+#define LN_CLOSE_IDX_NONE               ((uint8_t)0xff)
 
 // revoked transaction closeされたときの self->p_revoked_vout, p_revoked_witのインデックス値
 #define LN_RCLOSE_IDX_TOLOCAL           (0)         ///< to_local
@@ -433,7 +434,7 @@ typedef struct {
 /** @struct ln_close_force_t
  *  @brief  [Close]Unilateral Close / Revoked Transaction Close用
  *  @note
- *      - p_tx, p_htlc_idxのインデックス値
+ *      - p_tx, p_htlc_idxの添字
  *          - commit_tx: LN_CLOSE_IDX_COMMIT
  *          - to_local output: LN_CLOSE_IDX_TOLOCAL
  *          - to_remote output: LN_CLOSE_IDX_TOREMOTE
@@ -441,8 +442,10 @@ typedef struct {
  */
 typedef struct {
     int             num;                            ///< p_bufのtransaction数
-    ucoin_tx_t      *p_tx;                          ///< [0]commit_tx [1]to_local [2]to_remote [3-]HTLC
-    uint8_t         *p_htlc_idx;                    ///< [0,1,2]ignore [3-]self->cnl_add_htlc[]のhtlc_idx
+    ucoin_tx_t      *p_tx;                          ///< トランザクション
+                                                    ///<    添字:[0]commit_tx [1]to_local [2]to_remote [3-]HTLC
+    uint8_t         *p_htlc_idx;                    ///< self->cnl_add_htlc[]のhtlc_idx
+                                                    ///<    添字:[3]以上で有効
     ucoin_buf_t     tx_buf;                         ///< HTLC Timeout/Successから取り戻すTX
 } ln_close_force_t;
 
@@ -1607,7 +1610,7 @@ static inline bool ln_is_funding(const ln_self_t *self) {
 
 
 /** estimatesmartfee --> feerate_per_kw
- * 
+ *
  * @param[in]           feerate_kb  bitcoindから取得したfeerate/KB
  * @retval          feerate_per_kw
  */
@@ -1617,7 +1620,7 @@ static inline uint32_t ln_calc_feerate_per_kw(uint64_t feerate_kb) {
 
 
 /** feerate_per_kw --> byteあたりのfee
- * 
+ *
  * @param[in]           feerate_per_kw
  * @retval          feerate_per_byte
  */
