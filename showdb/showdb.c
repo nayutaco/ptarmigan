@@ -503,11 +503,11 @@ static void dumpit_annoskip(MDB_txn *txn, MDB_dbi dbi)
             uint64_t short_channel_id = *(uint64_t *)key.mv_data;
             printf("[\"%016" PRIx64 "\",", short_channel_id);
             if (data.mv_size == 0) {
-                printf(M_QQ("type") ": \"perm\"]");
+                printf(M_QQ("perm") "]");
             } else if ((data.mv_size == 1) && (*(uint8_t *)data.mv_data == 0x01)) {
-                printf(M_QQ("type") ": \"temp\"]");
+                printf(M_QQ("temp") "]");
             } else {
-                printf(M_QQ("type") ": \"unknown\"]");
+                printf(M_QQ("unknown") "]");
             }
             cnt++;
         }
