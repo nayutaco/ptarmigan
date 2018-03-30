@@ -163,7 +163,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip)
+static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
 {
     int retval;
     MDB_cursor  *cursor;
@@ -185,11 +185,8 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip)
             ln_cnl_update_t upd;
             bool bret;
 
-            if (dbi_skip != (MDB_dbi)-1) {
-                ln_lmdb_db_t db;
-                db.txn = txn;
-                db.dbi = dbi_skip;
-                bret = ln_db_annoskip_search(&db, short_channel_id);
+            if (p_skip->dbi != (MDB_dbi)-1) {
+                bret = ln_db_annoskip_search(p_skip, short_channel_id);
                 if (bret) {
 #ifdef M_DEBUG
                     fprintf(fp_err, "skip : %016" PRIx64 "\n", short_channel_id);
@@ -245,7 +242,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip)
     mdb_cursor_close(cursor);
 }
 
-static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip, const uint8_t *p1, const uint8_t *p2)
+static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, const uint8_t *p1, const uint8_t *p2)
 {
     int retval;
     MDB_cursor  *cursor;
@@ -269,11 +266,8 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip, const uint8
             if ((p_self->short_channel_id != 0) && ((p_self->fund_flag & LN_FUNDFLAG_CLOSE) == 0)) {
                 //チャネルは開設している && close処理をしていない
 
-                if (dbi_skip != (MDB_dbi)-1) {
-                    ln_lmdb_db_t db;
-                    db.txn = txn;
-                    db.dbi = dbi_skip;
-                    bool bret = ln_db_annoskip_search(&db, p_self->short_channel_id);
+                if (p_skip->dbi != (MDB_dbi)-1) {
+                    bool bret = ln_db_annoskip_search(p_skip, p_self->short_channel_id);
                     if (bret) {
 #ifdef M_DEBUG
                         fprintf(fp_err, "skip : %016" PRIx64 "\n", short_channel_id);
@@ -408,22 +402,32 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
         p1 = NULL;
     }
 
+    //node
+    ret = mdb_txn_begin(pDbNode, NULL, MDB_RDONLY, &txn_node);
+    if (ret != 0) {
+        fprintf(fp_err, "fail: DB txn 2\n");
+        return false;
+    }
+    MDB_dbi dbi_skip;
+    ret = mdb_dbi_open(txn_node, M_ROUTE_SKIP_DBNAME, 0, &dbi_skip);
+    if (ret != 0) {
+        dbi_skip = (MDB_dbi)-1;
+    }
+    ln_lmdb_db_t db_skip;
+    db_skip.txn = txn_node;
+    db_skip.dbi = dbi_skip;
+
     //self
     ret = mdb_txn_begin(pDbSelf, NULL, MDB_RDONLY, &txn_self);
     if (ret != 0) {
         fprintf(fp_err, "fail: DB txn 1\n");
+        mdb_txn_abort(txn_node);
         return false;
     }
     ret = mdb_dbi_open(txn_self, NULL, 0, &dbi);
     assert(ret == 0);
     ret = mdb_cursor_open(txn_self, dbi, &cursor);
     assert(ret == 0);
-
-    MDB_dbi dbi_skip;
-    ret = mdb_dbi_open(txn_node, M_ROUTE_SKIP_DBNAME, 0, &dbi_skip);
-    if (ret != 0) {
-        dbi_skip = (MDB_dbi)-1;
-    }
 
     int list = 0;
     while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
@@ -441,7 +445,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
             } else {
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 if (dbtype == LN_LMDB_DBTYPE_SELF) {
-                    dumpit_self(txn_self, dbi2, dbi_skip, p1, p2);
+                    dumpit_self(txn_self, dbi2, &db_skip, p1, p2);
                 }
             }
             mdb_close(mdb_txn_env(txn_self), dbi2);
@@ -455,11 +459,6 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
 
 
     //channel_anno
-    ret = mdb_txn_begin(pDbNode, NULL, MDB_RDONLY, &txn_node);
-    if (ret != 0) {
-        fprintf(fp_err, "fail: DB txn 2\n");
-        return false;
-    }
     ret = mdb_dbi_open(txn_node, NULL, 0, &dbi);
     assert(ret == 0);
     ret = mdb_cursor_open(txn_node, dbi, &cursor);
@@ -481,7 +480,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
             } else {
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 if (dbtype == LN_LMDB_DBTYPE_CHANNEL_ANNO) {
-                    dumpit_chan(txn_node, dbi2, dbi_skip);
+                    dumpit_chan(txn_node, dbi2, &db_skip);
                 }
             }
             mdb_close(mdb_txn_env(txn_node), dbi2);
