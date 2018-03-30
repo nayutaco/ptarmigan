@@ -343,7 +343,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     DBGTRACE_BEGIN
 
     bool ret = false;
-    bool retry = false;
     ucoin_buf_t buf_bolt;
     uint8_t session_key[UCOIN_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
@@ -355,7 +354,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
         fprintf(PRINTOUT, "    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         fprintf(PRINTOUT, "    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
         ln_db_annoskip_save(pPay->hop_datain[0].short_channel_id);
-        retry = true;
         goto LABEL_EXIT;
     }
 
@@ -441,9 +439,7 @@ LABEL_EXIT:
         call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
-        if (retry) {
-            pay_retry(pPay->payment_hash);
-        }
+        pay_retry(pPay->payment_hash);
         mMuxTiming = 0;
     }
 
@@ -3389,6 +3385,8 @@ static void pay_retry(const uint8_t *pPayHash)
         DBG_PRINTF("retval=%d\n", retval);
         APP_FREE(json);     //APP_MALLOC: この中
         free(p_invoice);
+    } else {
+        DBG_PRINTF("fail: invoice not found\n");
     }
 
 }
