@@ -1564,7 +1564,7 @@ bool ln_db_annoskip_drop(bool bTemp)
     MDB_TXN_COMMIT(txn);
 
 LABEL_EXIT:
-    DBG_PRINTF("");
+    DBG_PRINTF("skip drop=%d\n", retval);
     return retval == 0;
 }
 

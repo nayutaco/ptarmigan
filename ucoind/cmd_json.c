@@ -758,7 +758,7 @@ LABEL_EXIT:
     }
     //一時的なスキップは削除する
     ln_db_annoskip_drop(true);
-    DBG_PRINTF("result=%d\n", result);
+    DBG_PRINTF("\n");
 
     return result;
 }
