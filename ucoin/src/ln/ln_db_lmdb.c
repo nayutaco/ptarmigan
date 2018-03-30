@@ -80,6 +80,8 @@
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
+#define M_SKIP_TEMP             ((uint8_t)1)
+
 #define M_DB_VERSION_VAL        ((int32_t)-17)      ///< DBバージョン
 /*
     -1 : first
@@ -1453,7 +1455,7 @@ int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *p
  ********************************************************************/
 
 
-bool ln_db_annoskip_save(uint64_t ShortChannelId)
+bool ln_db_annoskip_save(uint64_t ShortChannelId, bool bTemp)
 {
     int         retval;
     MDB_txn     *txn;
@@ -1475,9 +1477,17 @@ bool ln_db_annoskip_save(uint64_t ShortChannelId)
     //keyだけを使う
     key.mv_size = sizeof(ShortChannelId);
     key.mv_data = &ShortChannelId;
-    data.mv_size = 0;
+    uint8_t data_temp = M_SKIP_TEMP;
+    if (bTemp) {
+        data.mv_size = sizeof(data_temp);
+        data.mv_data = &data_temp;
+    } else {
+        data.mv_size = 0;
+    }
     retval = mdb_put(txn, dbi, &key, &data, 0);
-    if (retval != 0) {
+    if (retval == 0) {
+        DBG_PRINTF("add skip[%d]: %016" PRIx64 "\n", bTemp, ShortChannelId);
+    } else {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
     }
 
@@ -1505,7 +1515,7 @@ bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId)
 }
 
 
-bool ln_db_annoskip_drop(void)
+bool ln_db_annoskip_drop(bool bTemp)
 {
     int         retval;
     MDB_txn     *txn;
@@ -1524,14 +1534,37 @@ bool ln_db_annoskip_drop(void)
         goto LABEL_EXIT;
     }
 
-    retval = mdb_drop(txn, dbi, 1);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+    if (bTemp) {
+        MDB_cursor  *cursor;
+        MDB_val     key, data;
+
+        retval = mdb_cursor_open(txn, dbi, &cursor);
+        if (retval != 0) {
+            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        }
+        while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+            if ( (data.mv_size == sizeof(uint8_t)) &&
+                 (*(uint8_t *)data.mv_data == M_SKIP_TEMP) ) {
+                    int ret = mdb_cursor_del(cursor, 0);
+                    if (ret == 0) {
+                        DBG_PRINTF("del skip: %016" PRIx64 "\n", *(uint64_t *)key.mv_data);
+                    } else {
+                        DBG_PRINTF("ERR: %s\n", mdb_strerror(ret));
+                    }
+            }
+        }
+        retval = 0;
+    } else {
+        retval = mdb_drop(txn, dbi, 1);
+        if (retval != 0) {
+            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        }
     }
 
     MDB_TXN_COMMIT(txn);
 
 LABEL_EXIT:
+    DBG_PRINTF("skip drop=%d\n", retval);
     return retval == 0;
 }
 

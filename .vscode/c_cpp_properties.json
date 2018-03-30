@@ -1,5 +1,6 @@
 {
-    "configurations": [{
+    "configurations": [
+        {
             "name": "Mac",
             "includePath": [
                 "/usr/include",
@@ -17,7 +18,7 @@
             "defines": [
                 "UCOIN_DEBUG",
                 "UCOIN_DEBUG_MEM",
-                "NETKIND=1"                
+                "NETKIND=1"
             ],
             "intelliSenseMode": "clang-x64",
             "browse": {
@@ -112,7 +113,9 @@
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""
-            }
+            },
+            "cStandard": "c11",
+            "cppStandard": "c++17"
         },
         {
             "name": "Win32",

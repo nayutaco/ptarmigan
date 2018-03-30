@@ -754,6 +754,15 @@ typedef struct {
     uint32_t            outgoing_cltv_value;            ///< update_add_htlcのcltv-expiry
 } ln_hop_dataout_t;
 
+
+/** @struct     ln_onion_err_t
+ *  @brief      ONIONエラーreason解析
+ */
+typedef struct {
+    uint16_t            reason;
+    void                *p_data;
+} ln_onion_err_t;
+
 /// @}
 
 
@@ -2006,11 +2015,21 @@ void ln_onion_failure_forward(ucoin_buf_t *pNextPacket,
  * @param[out]      pHop                エラー元までのノード数(0は相手ノード)
  * @param[in]       pSharedSecrets      ONIONパケット生成自の全shared secret(#ln_onion_create_packet())
  * @param[in]       pPacket             受信したONION failureパケット
+ * @retval  true    成功
  */
 bool ln_onion_failure_read(ucoin_buf_t *pReason,
             int *pHop,
             const ucoin_buf_t *pSharedSecrets,
             const ucoin_buf_t *pPacket);
+
+
+/** ONION failure reason解析
+ * 
+ * @param[out]      pOnionErr
+ * @param[in]       pReason
+ * @retval  true    成功
+ */
+bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
 
 
 /********************************************************************

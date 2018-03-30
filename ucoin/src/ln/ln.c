@@ -3969,9 +3969,9 @@ static bool create_to_remote_spent(ln_self_t *self,
                     memcpy(&pClose->p_tx[LN_CLOSE_IDX_TOREMOTE], &tx, sizeof(tx));
                     ucoin_tx_init(&tx);     //txはfreeさせない
                 } else {
-                    DBG_PRINTF("fail: to_remote output\n");
+                    DBG_PRINTF("no to_remote output\n");
                     ucoin_tx_free(&tx);
-                    break;
+                    ret = true;     //継続する
                 }
             }
         } else {

@@ -42,8 +42,8 @@
  * macros
  ********************************************************************/
 
-#define DBG_PRINT_CREATE
-#define DBG_PRINT_READ
+//#define DBG_PRINT_CREATE
+//#define DBG_PRINT_READ
 
 
 /********************************************************************
@@ -78,8 +78,11 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
  **************************************************************************/
 
 static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len);
+
+#if defined(DBG_PRINT_CREATE) || defined(DBG_PRINT_READ)
 static void node_announce_print(const ln_node_announce_t *pMsg);
 static void announce_signs_print(const ln_announce_signs_t *pMsg);
+#endif
 
 
 /********************************************************************
@@ -649,18 +652,12 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     //assert(Len == pos);
     if (Len != pos) {
         DBG_PRINTF("length not match: Len=%d, pos=%d\n", Len, pos);
-        DBG_PRINTF("addrlen=%" PRIu16 "\n", addrlen);
-        node_announce_print(pMsg);
-        DBG_PRINTF("raw=");
-        DUMPBIN(pData + sizeof(uint16_t), Len - sizeof(uint16_t));
-        DBG_PRINTF("over=");
-        DUMPBIN(pData + pos, Len - pos);
     }
 
-//#ifdef DBG_PRINT_READ
-//   DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-//   node_announce_print(pMsg);
-//#endif  //DBG_PRINT_READ
+#ifdef DBG_PRINT_READ
+  DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+  node_announce_print(pMsg);
+#endif  //DBG_PRINT_READ
 
     bool ret = true;
     if (pMsg->p_node_id != NULL) {
@@ -684,7 +681,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 }
 
 
-#if 1
+#if defined(DBG_PRINT_CREATE) || defined(DBG_PRINT_READ)
 static void node_announce_print(const ln_node_announce_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
@@ -1020,6 +1017,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 }
 
 
+#if defined(DBG_PRINT_CREATE) || defined(DBG_PRINT_READ)
 static void announce_signs_print(const ln_announce_signs_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
@@ -1034,4 +1032,4 @@ static void announce_signs_print(const ln_announce_signs_t *pMsg)
     DBG_PRINTF2("--------------------------------\n\n\n");
 #endif  //UCOIN_DEBUG
 }
-
+#endif
