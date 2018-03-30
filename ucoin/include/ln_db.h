@@ -272,9 +272,10 @@ bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, u
 /** "route_skip" short_channel_id登録
  *
  * @param[in]   ShortChannelId      登録するshort_channel_id
+ * @param[in]   bTemp               true:一時的なskip
  * @retval  true    成功
  */
-bool ln_db_annoskip_save(uint64_t ShortChannelId);
+bool ln_db_annoskip_save(uint64_t ShortChannelId, bool bTemp);
 
 
 /** "route_skip" short_channel_id検索
@@ -288,8 +289,9 @@ bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId);
 
 /** "route_skip" DB削除
  *
+ * @param[in]   bTemp               true:一時的なskipのみ削除 / false:全削除
  */
-bool ln_db_annoskip_drop(void);
+bool ln_db_annoskip_drop(bool bTemp);
 
 
 /** "routepay" invoice保存

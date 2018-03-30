@@ -267,7 +267,7 @@ static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
 static queue_fulfill_t *pop_queue(lnapp_conf_t *p_conf);
 static void call_script(event_t event, const char *param);
-static void set_onionerr_str(char *pStr, const ucoin_buf_t *pBuf);
+static void set_onionerr_str(char *pStr, const ln_onion_err_t *pOnionErr);
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
@@ -353,7 +353,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
         fprintf(PRINTOUT, "fail: short_channel_id mismatch\n");
         fprintf(PRINTOUT, "    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         fprintf(PRINTOUT, "    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
-        ln_db_annoskip_save(pPay->hop_datain[0].short_channel_id);
+        ln_db_annoskip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的
         goto LABEL_EXIT;
     }
 
@@ -439,6 +439,7 @@ LABEL_EXIT:
         call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
+        ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
         pay_retry(pPay->payment_hash);
         mMuxTiming = 0;
     }
@@ -2431,6 +2432,22 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
             print_routelist(p_conf);
 
+            ln_onion_err_t onionerr;
+            ret = ln_onion_read_err(&onionerr, &reason);  //onionerr.p_dataはmallocされる
+            bool btemp = false;
+            if (ret) {
+                switch (onionerr.reason) {
+                case LNONION_TMP_NODE_FAIL:
+                case LNONION_TMP_CHAN_FAIL:
+                case LNONION_AMT_BELOW_MIN:
+                    DBG_PRINTF("add skip route: temporary\n");
+                    btemp = true;
+                    break;
+                default:
+                    break;
+                }
+            }
+
             //失敗したと思われるshort_channel_idを登録
             //      route.hop_datain[0]は自分、[1]が相手
             //      hopの0は相手
@@ -2449,7 +2466,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
                     uint64_t short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
                     sprintf(suggest, "%016" PRIx64, short_channel_id);
-                    ln_db_annoskip_save(short_channel_id);
+                    ln_db_annoskip_save(short_channel_id, btemp);
                     retry = true;
                 } else {
                     strcpy(suggest, "invalid");
@@ -2461,9 +2478,11 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
             char errstr[512];
             char reasonstr[128];
-            set_onionerr_str(reasonstr, &reason);
+            set_onionerr_str(reasonstr, &onionerr);
             sprintf(errstr, "fail reason:%s (hop=%d)(suggest:%s)", reasonstr, hop, suggest);
             set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
+
+            free(onionerr.p_data);
         } else {
             //デコード失敗
             set_lasterror(p_conf, RPCERR_PAYFAIL, "fail result cannot decode");
@@ -3099,7 +3118,7 @@ static void call_script(event_t event, const char *param)
  *
  *
  */
-static void set_onionerr_str(char *pStr, const ucoin_buf_t *pBuf)
+static void set_onionerr_str(char *pStr, const ln_onion_err_t *pOnionErr)
 {
     const struct {
         uint16_t err;
@@ -3128,10 +3147,9 @@ static void set_onionerr_str(char *pStr, const ucoin_buf_t *pBuf)
         { LNONION_CHAN_DISABLE, "channel_disabled" },
     };
 
-    uint16_t err_reason = ((uint16_t)pBuf->buf[0] << 8) | pBuf->buf[1];
     const char *p_str = NULL;
     for (size_t lp = 0; lp < ARRAY_SIZE(ONIONERR); lp++) {
-        if (err_reason == ONIONERR[lp].err) {
+        if (pOnionErr->reason == ONIONERR[lp].err) {
             p_str = ONIONERR[lp].str;
             break;
         }
@@ -3139,7 +3157,7 @@ static void set_onionerr_str(char *pStr, const ucoin_buf_t *pBuf)
     if (p_str != NULL) {
         strcpy(pStr, p_str);
     } else {
-        sprintf(pStr, "unknown reason[%04x]", err_reason);
+        sprintf(pStr, "unknown reason[%04x]", pOnionErr->reason);
     }
 }
 

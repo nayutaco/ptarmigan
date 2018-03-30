@@ -509,6 +509,13 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
 }
 
 
+bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason)
+{
+    pOnionErr->reason = ((uint16_t)pReason->buf[0] << 8) | pReason->buf[1];
+    pOnionErr->p_data = NULL;   //TODO:reasonに応じた結果をmallocして代入
+}
+
+
 /**************************************************************************
  * private functions
  **************************************************************************/

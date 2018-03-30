@@ -354,7 +354,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     ln_lmdb_setenv(pDbSelf, pDbNode);
 
     if (clear_skip_db) {
-        bret = ln_db_annoskip_drop();
+        bret = ln_db_annoskip_drop(false);
         fprintf(fp_err, "%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
         if (stop_after_dbclear) {
             return false;

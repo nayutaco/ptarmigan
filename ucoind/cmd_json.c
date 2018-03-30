@@ -756,6 +756,9 @@ LABEL_EXIT:
     if (ctx->error_code != 0) {
         ln_db_annoskip_invoice_del(payconf.payment_hash);
     }
+    //一時的なスキップは削除する
+    ln_db_annoskip_drop(true);
+
     return result;
 }
 
