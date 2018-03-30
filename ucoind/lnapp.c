@@ -442,6 +442,7 @@ LABEL_EXIT:
         ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
         pay_retry(pPay->payment_hash);
         mMuxTiming = 0;
+        ret = true;         //再送はtrue
     }
 
     DBG_PRINTF("mux_proc: end\n");
