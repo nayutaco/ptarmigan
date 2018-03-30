@@ -1553,7 +1553,7 @@ bool ln_db_annoskip_drop(bool bTemp)
                     }
             }
         }
-
+        retval = 0;
     } else {
         retval = mdb_drop(txn, dbi, 1);
         if (retval != 0) {
