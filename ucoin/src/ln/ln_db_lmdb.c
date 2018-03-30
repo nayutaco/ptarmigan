@@ -1485,7 +1485,9 @@ bool ln_db_annoskip_save(uint64_t ShortChannelId, bool bTemp)
         data.mv_size = 0;
     }
     retval = mdb_put(txn, dbi, &key, &data, 0);
-    if (retval != 0) {
+    if (retval == 0) {
+        DBG_PRINTF("add skip[%d]: %016" PRIx64 "\n", bTemp, ShortChannelId);
+    } else {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
     }
 
@@ -1544,7 +1546,9 @@ bool ln_db_annoskip_drop(bool bTemp)
             if ( (data.mv_size == sizeof(uint8_t)) &&
                  (*(uint8_t *)data.mv_data == M_SKIP_TEMP) ) {
                     int ret = mdb_cursor_del(cursor, 0);
-                    if (ret != 0) {
+                    if (ret == 0) {
+                        DBG_PRINTF("del skip: %016" PRIx64 "\n", *(uint64_t *)key.mv_data);
+                    } else {
                         DBG_PRINTF("ERR: %s\n", mdb_strerror(ret));
                     }
             }
@@ -1560,6 +1564,7 @@ bool ln_db_annoskip_drop(bool bTemp)
     MDB_TXN_COMMIT(txn);
 
 LABEL_EXIT:
+    DBG_PRINTF("");
     return retval == 0;
 }
 
