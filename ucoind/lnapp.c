@@ -2607,7 +2607,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                     if (ret) {
                         DBG_PRINTF("invoice:%s\n", p_invoice);
                         char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
-                        strcpy(json, "{\"method\":\"routepay\",\"params\":");
+                        strcpy(json, "{\"method\":\"routepay_cont\",\"params\":");
                         strcat(json, p_invoice);
                         strcat(json, "}");
                         int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
@@ -3396,7 +3396,7 @@ static void pay_retry(const uint8_t *pPayHash)
     if (ret) {
         DBG_PRINTF("invoice:%s\n", p_invoice);
         char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
-        strcpy(json, "{\"method\":\"routepay\",\"params\":");
+        strcpy(json, "{\"method\":\"routepay_cont\",\"params\":");
         strcat(json, p_invoice);
         strcat(json, "}");
         int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());

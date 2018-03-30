@@ -72,6 +72,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -98,7 +99,8 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listinvoice, "listinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_pay,         "pay", NULL);
-    jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_routepay_first, "routepay", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay_cont", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getlasterror,"getlasterror", NULL);
@@ -755,12 +757,18 @@ LABEL_EXIT:
     }
     if (ctx->error_code != 0) {
         ln_db_annoskip_invoice_del(payconf.payment_hash);
+        //一時的なスキップは削除する
+        ln_db_annoskip_drop(true);
     }
-    //一時的なスキップは削除する
-    ln_db_annoskip_drop(true);
-    DBG_PRINTF("\n");
 
     return result;
+}
+
+
+static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    ln_db_annoskip_drop(true);
+    return cmd_routepay(ctx, params, id);
 }
 
 
@@ -791,6 +799,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         misc_str2bin(payhash, LN_SZ_HASH, str_payhash);
     } else {
         index = -1;
+        memset(payhash, 0, sizeof(payhash));
         goto LABEL_EXIT;
     }
     json = cJSON_GetArrayItem(params, index++);
@@ -874,8 +883,6 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
             ctx->error_message = strdup(RPCERR_ERROR_STR);
         }
     } else {
-        ln_db_annoskip_invoice_del(payhash);
-
         ctx->error_code = RPCERR_NOROUTE;
         ctx->error_message = strdup(RPCERR_NOROUTE_STR);
     }
@@ -886,6 +893,11 @@ LABEL_EXIT:
         ctx->error_code = RPCERR_PARSE;
         ctx->error_message = strdup(RPCERR_PARSE_STR);
     }
+    if (ctx->error_code != 0) {
+        ln_db_annoskip_invoice_del(payhash);
+        ln_db_annoskip_drop(true);
+    }
+
     return result;
 }
 
