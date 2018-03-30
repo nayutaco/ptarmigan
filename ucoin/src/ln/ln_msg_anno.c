@@ -42,8 +42,8 @@
  * macros
  ********************************************************************/
 
-#define DBG_PRINT_CREATE
-#define DBG_PRINT_READ
+//#define DBG_PRINT_CREATE
+//#define DBG_PRINT_READ
 
 
 /********************************************************************
@@ -657,10 +657,10 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
         DUMPBIN(pData + pos, Len - pos);
     }
 
-//#ifdef DBG_PRINT_READ
-//   DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
-//   node_announce_print(pMsg);
-//#endif  //DBG_PRINT_READ
+#ifdef DBG_PRINT_READ
+  DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+  node_announce_print(pMsg);
+#endif  //DBG_PRINT_READ
 
     bool ret = true;
     if (pMsg->p_node_id != NULL) {
