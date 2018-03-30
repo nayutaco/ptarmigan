@@ -245,7 +245,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip)
     mdb_cursor_close(cursor);
 }
 
-static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint8_t *p2)
+static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, MDB_dbi dbi_skip, const uint8_t *p1, const uint8_t *p2)
 {
     int retval;
     MDB_cursor  *cursor;
@@ -268,6 +268,20 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
             //p1が非NULL == my node_id
             if ((p_self->short_channel_id != 0) && ((p_self->fund_flag & LN_FUNDFLAG_CLOSE) == 0)) {
                 //チャネルは開設している && close処理をしていない
+
+                if (dbi_skip != (MDB_dbi)-1) {
+                    ln_lmdb_db_t db;
+                    db.txn = txn;
+                    db.dbi = dbi_skip;
+                    bool bret = ln_db_annoskip_search(&db, p_self->short_channel_id);
+                    if (bret) {
+#ifdef M_DEBUG
+                        fprintf(fp_err, "skip : %016" PRIx64 "\n", short_channel_id);
+#endif
+                        goto LABEL_EXIT;
+                    }
+                }
+
                 p2 = p_self->peer_node_id;
 
 #ifdef M_DEBUG
@@ -296,6 +310,8 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, const uint8_t *p1, const uint
             }
 
         }
+
+LABEL_EXIT:
         ln_term(p_self);
         free(p_self);
         mdb_close(mdb_txn_env(txn), dbi);
@@ -403,6 +419,12 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     ret = mdb_cursor_open(txn_self, dbi, &cursor);
     assert(ret == 0);
 
+    MDB_dbi dbi_skip;
+    ret = mdb_dbi_open(txn_node, M_ROUTE_SKIP_DBNAME, 0, &dbi_skip);
+    if (ret != 0) {
+        dbi_skip = (MDB_dbi)-1;
+    }
+
     int list = 0;
     while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
         MDB_dbi dbi2;
@@ -419,7 +441,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
             } else {
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 if (dbtype == LN_LMDB_DBTYPE_SELF) {
-                    dumpit_self(txn_self, dbi2, p1, p2);
+                    dumpit_self(txn_self, dbi2, dbi_skip, p1, p2);
                 }
             }
             mdb_close(mdb_txn_env(txn_self), dbi2);
@@ -442,11 +464,6 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     assert(ret == 0);
     ret = mdb_cursor_open(txn_node, dbi, &cursor);
     assert(ret == 0);
-    MDB_dbi dbi_skip;
-    ret = mdb_dbi_open(txn_node, M_ROUTE_SKIP_DBNAME, 0, &dbi_skip);
-    if (ret != 0) {
-        dbi_skip = (MDB_dbi)-1;
-    }
 
     list = 0;
     while ((ret = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
