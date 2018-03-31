@@ -716,7 +716,7 @@ bool ucoin_tx_create(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx);
  *      - ハッシュはSIGHASHALL
  *      - vinにscriptPubKeyを記入するので、先に #ucoin_tx_add_vin()しておくこと
  */
-bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScriptPks[], int Num);
+bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScriptPks[], uint32_t Num);
 
 
 /** 署名計算

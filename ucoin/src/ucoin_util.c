@@ -236,8 +236,8 @@ void ucoin_util_sort_bip69(ucoin_tx_t *pTx)
     //  1. output(txid)でソート
     //      --> 同じならindexでソート
     if (pTx->vin_cnt > 1) {
-        for (int lp = 0; lp < pTx->vin_cnt - 1; lp++) {
-            for (int lp2 = lp + 1; lp2 < pTx->vin_cnt; lp2++) {
+        for (uint32_t lp = 0; lp < pTx->vin_cnt - 1; lp++) {
+            for (uint32_t lp2 = lp + 1; lp2 < pTx->vin_cnt; lp2++) {
                 uint8_t vin1[UCOIN_SZ_TXID];
                 uint8_t vin2[UCOIN_SZ_TXID];
                 for (int lp3 = 0; lp3 < UCOIN_SZ_TXID / 2; lp3++) {
@@ -274,8 +274,8 @@ void ucoin_util_sort_bip69(ucoin_tx_t *pTx)
     //  1. amountでソート(整数として)
     //      --> 同じならscriptPubKeyでソート
     if (pTx->vout_cnt > 1) {
-        for (int lp = 0; lp < pTx->vout_cnt - 1; lp++) {
-            for (int lp2 = lp + 1; lp2 < pTx->vout_cnt; lp2++) {
+        for (uint32_t lp = 0; lp < pTx->vout_cnt - 1; lp++) {
+            for (uint32_t lp2 = lp + 1; lp2 < pTx->vout_cnt; lp2++) {
                 int cmp;
                 if (pTx->vout[lp].value < pTx->vout[lp2].value) {
                     //そのまま
@@ -775,7 +775,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
     bool segwit = false;
 
     //vin + witness
-    for (int lp = 0; lp < pTx->vin_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ucoin_vin_t *vin = &(pTx->vin[lp]);
 
         len += UCOIN_SZ_TXID + sizeof(uint32_t) + vin->script.len + sizeof(uint32_t);
@@ -783,7 +783,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
         if (enableSegWit && vin->wit_cnt) {
             segwit = true;
             len++;          //wit_cnt
-            for (int lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
+            for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
                 ucoin_buf_t *buf = &(vin->witness[lp2]);
                 len += buf->len;
                 len += ucoin_util_get_varint_len(buf->len);
@@ -794,7 +794,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
         len += 2;       //mark + flag
     }
     //vout
-    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         ucoin_vout_t *vout = &(pTx->vout[lp]);
 
         len += sizeof(uint64_t) + vout->script.len;
@@ -818,7 +818,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
 
     //vin
     *p++ = pTx->vin_cnt;        //本来はvarint型
-    for (int lp = 0; lp < pTx->vin_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ucoin_vin_t *vin = &(pTx->vin[lp]);
 
         //txid
@@ -836,7 +836,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
 
     //vout
     *p++ = pTx->vout_cnt;       //本来はvarint型
-    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         ucoin_vout_t *vout = &(pTx->vout[lp]);
 
         //value
@@ -849,11 +849,11 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
 
     //segwit
     if (segwit) {
-        for (int lp = 0; lp < pTx->vin_cnt; lp++) {
+        for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
             ucoin_vin_t *vin = &(pTx->vin[lp]);
 
             *p++ = vin->wit_cnt;
-            for (int lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
+            for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
                 ucoin_buf_t *buf = &(vin->witness[lp2]);
 
                 p += ucoin_util_set_varint_len(p, buf->buf, buf->len, false);

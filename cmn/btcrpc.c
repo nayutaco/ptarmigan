@@ -689,7 +689,7 @@ LABEL_DECREF:
                 ret = false;
                 break;
             }
-            for (int lp = 0; lp < tx.vout_cnt; lp++) {
+            for (uint32_t lp = 0; lp < tx.vout_cnt; lp++) {
                 if (ucoin_buf_cmp(&tx.vout[0].script, pVout)) {
                     //一致
                     DBG_PRINTF("match: %s\n", txid);

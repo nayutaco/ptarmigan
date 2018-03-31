@@ -652,7 +652,7 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
     bool save = true;
     bool ret;
 
-    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         const ucoin_buf_t *p_vout = ln_revoked_vout(self);
 
         DBG_PRINTF("vout[%d]=", lp);

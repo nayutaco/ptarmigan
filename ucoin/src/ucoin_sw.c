@@ -151,7 +151,7 @@ void ucoin_sw_sighash(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index, uint64
     ucoin_buf_alloc(&hash_sequence, pTx->vin_cnt * 4);
     uint8_t *p_prevouts = hash_prevouts.buf;
     uint8_t *p_sequence = hash_sequence.buf;
-    for (int lp = 0; lp < pTx->vin_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ucoin_vin_t *vin = &pTx->vin[lp];
 
         //hash_prevouts
@@ -191,12 +191,12 @@ void ucoin_sw_sighash(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index, uint64
     //vout:
     //  amountも含めtxoutを連結した SHA256
     int len = 0;
-    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         len += pTx->vout[lp].script.len;
     }
     ucoin_buf_alloc(&hash_outputs, pTx->vout_cnt * (8 + 1) + len);
     uint8_t *p_outputs = hash_outputs.buf;
-    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         ucoin_vout_t *vout = &pTx->vout[lp];
 
         memcpy(p_outputs, &vout->value, sizeof(vout->value));
@@ -258,7 +258,7 @@ bool ucoin_sw_set_vin_p2wpkh(ucoin_tx_t *pTx, int Index, const ucoin_buf_t *pSig
 
     if (vin->wit_cnt != 0) {
         //一度解放する
-        for (int lp = 0; lp < vin->wit_cnt; lp++) {
+        for (uint32_t lp = 0; lp < vin->wit_cnt; lp++) {
             ucoin_buf_free(&vin->witness[lp]);
         }
         vin->wit_cnt = 0;
@@ -302,7 +302,7 @@ bool ucoin_sw_set_vin_p2wsh(ucoin_tx_t *pTx, int Index, const ucoin_buf_t *pWits
 
     if (vin->wit_cnt != 0) {
         //一度解放する
-        for (int lp = 0; lp < vin->wit_cnt; lp++) {
+        for (uint32_t lp = 0; lp < vin->wit_cnt; lp++) {
             ucoin_buf_free(&vin->witness[lp]);
         }
         vin->wit_cnt = 0;

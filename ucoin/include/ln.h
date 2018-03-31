@@ -213,59 +213,6 @@ typedef enum {
 } ln_htlctype_t;
 
 
-/** @struct ln_feeinfo_t
- *  @brief  FEE情報
- */
-typedef struct {
-    uint32_t        feerate_per_kw;                 ///< [IN]1000byte辺りのsatoshi
-    uint64_t        dust_limit_satoshi;             ///< [IN]dust_limit_satoshi
-
-    uint64_t        htlc_success;                   ///< [CALC]HTLC success Transaction FEE
-    uint64_t        htlc_timeout;                   ///< [CALC]HTLC timeout Transaction FEE
-    uint64_t        commit;                         ///< [CALC]Commitment Transaction FEE
-} ln_feeinfo_t;
-
-
-/** @struct ln_htlcinfo_t
- *  @brief  HTLC情報
- */
-typedef struct {
-    ln_htlctype_t           type;                   ///< HTLC種別
-    uint32_t                expiry;                 ///< Expiry
-    uint64_t                amount_msat;            ///< amount_msat
-    const uint8_t           *preimage_hash;         ///< preimageをHASH160したデータ
-    ucoin_buf_t             script;                 ///< スクリプト
-} ln_htlcinfo_t;
-
-
-/** @struct ln_tx_cmt_t
- *  @brief  Commitment Transaction生成用情報
- */
-typedef struct {
-    struct {
-        const uint8_t       *txid;              ///< funding txid
-        uint32_t            txid_index;         ///< funding txid index
-        uint64_t            satoshi;            ///< funding satoshi
-        const ucoin_buf_t   *p_script;          ///< funding script
-        ucoin_util_keys_t   *p_keys;            ///< funding local keys(remoteは署名をもらう)
-    } fund;
-
-    struct {
-        uint64_t            satoshi;            ///< local satoshi
-        const ucoin_buf_t   *p_script;          ///< to-local script
-    } local;
-    struct {
-        uint64_t            satoshi;            ///< remote satoshi
-        const uint8_t       *pubkey;            ///< remote pubkey(to-remote用)
-    } remote;
-
-    uint64_t                obscured;           ///< Obscured Commitment Number(ln_calc_obscured_txnum())
-    ln_feeinfo_t            *p_feeinfo;         ///< FEE情報
-    ln_htlcinfo_t           **pp_htlcinfo;      ///< HTLC情報ポインタ配列(htlcinfo_num個分)
-    uint8_t                 htlcinfo_num;       ///< HTLC数
-} ln_tx_cmt_t;
-
-
 /** @struct ln_derkey_storage
  *  @brief  per-commitment secret storage
  *      https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#efficient-per-commitment-secret-storage
@@ -2024,7 +1971,7 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
 
 
 /** ONION failure reason解析
- * 
+ *
  * @param[out]      pOnionErr
  * @param[in]       pReason
  * @retval  true    成功
