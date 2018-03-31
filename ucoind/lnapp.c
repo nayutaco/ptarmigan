@@ -100,7 +100,10 @@
 #define M_MIN_DEPTH                     (1)
 
 #define M_ANNOSIGS_CONFIRM      (6)         ///< announcement_signaturesを送信するconfirmation
-                                            //      BOLT仕様は6
+
+#define M_ERRSTR_REASON                 "fail: %s (hop=%d)(suggest:%s)"
+#define M_ERRSTR_CANNOTDECODE           "fail: result cannot decode"
+#define M_ERRSTR_CANNOTSTART            "fail: can't start payment(our_msat=% " PRIu64 ", amt_to_forward=%" PRIu64 ")"
 
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
@@ -439,6 +442,12 @@ LABEL_EXIT:
         call_script(M_EVT_PAYMENT, param);
     } else {
         DBG_PRINTF("fail\n");
+        char errstr[512];
+        sprintf(errstr, M_ERRSTR_CANNOTSTART,
+                    ln_our_msat(pAppConf->p_self),
+                    pPay->hop_datain[0].amt_to_forward);
+        set_lasterror(pAppConf, RPCERR_PAYFAIL, errstr);
+
         ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
         pay_retry(pPay->payment_hash);
         mMuxTiming = 0;
@@ -2480,13 +2489,13 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             char errstr[512];
             char reasonstr[128];
             set_onionerr_str(reasonstr, &onionerr);
-            sprintf(errstr, "fail reason:%s (hop=%d)(suggest:%s)", reasonstr, hop, suggest);
+            sprintf(errstr, M_ERRSTR_REASON, reasonstr, hop, suggest);
             set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
 
             free(onionerr.p_data);
         } else {
             //デコード失敗
-            set_lasterror(p_conf, RPCERR_PAYFAIL, "fail result cannot decode");
+            set_lasterror(p_conf, RPCERR_PAYFAIL, M_ERRSTR_CANNOTDECODE);
         }
         del_routelist(p_conf, p_fail->orig_id);
         if (retry) {
