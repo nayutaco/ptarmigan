@@ -67,10 +67,10 @@ void ucoin_tx_init(ucoin_tx_t *pTx)
 void ucoin_tx_free(ucoin_tx_t *pTx)
 {
     //vin
-    for (int lp = 0; lp < pTx->vin_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ucoin_vin_t *vin = &(pTx->vin[lp]);
         ucoin_buf_free(&(vin->script));
-        for (int lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
+        for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
             ucoin_buf_free(&(vin->witness[lp2]));
         }
         if (vin->wit_cnt) {
@@ -85,7 +85,7 @@ void ucoin_tx_free(ucoin_tx_t *pTx)
         pTx->vin_cnt = 0;
     }
     //vout
-    for (int lp = 0; lp < pTx->vout_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         ucoin_vout_t *vout = &(pTx->vout[lp]);
         ucoin_buf_free(&(vout->script));
     }
@@ -360,7 +360,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
     //DBG_PRINTF("  version:%d\n", pTx->version);
 
     int state = 0;
-    int tx_cnt = 0;
+    uint32_t tx_cnt = 0;
     int tmp;
     uint16_t var;
 #ifdef UCOIN_DEBUG
@@ -528,7 +528,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 break;
             }
             //DBG_PRINTF("  wit_cnt=%d\n", pTx->vin[tx_cnt].wit_cnt);
-            for(uint8_t lp = 0; lp < pTx->vin[tx_cnt].wit_cnt; lp++) {
+            for(uint32_t lp = 0; lp < pTx->vin[tx_cnt].wit_cnt; lp++) {
                 pos += get_varint(&var, pData + pos);   //データ長
                 //DBG_PRINTF("   var=%d\n", var);
                 if (pos + var + 4 <= Len) {
@@ -568,7 +568,7 @@ bool ucoin_tx_create(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx)
 }
 
 
-bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScriptPks[], int Num)
+bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScriptPks[], uint32_t Num)
 {
     const uint32_t sigtype = (uint32_t)SIGHASH_ALL;
 
@@ -579,7 +579,7 @@ bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScr
 
     //scriptSigをscriptPubKeyで置き換える
     ucoin_buf_t *tmp_vinbuf = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * pTx->vin_cnt);
-    for (int lp = 0; lp < pTx->vin_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ucoin_vin_t *vin = &pTx->vin[lp];
 
         tmp_vinbuf[lp].buf = vin->script.buf;
@@ -602,7 +602,7 @@ bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScr
     ucoin_buf_free(&tx);
 
     //scriptSigを元に戻す
-    for (int lp = 0; lp < pTx->vin_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ucoin_vin_t *vin = &pTx->vin[lp];
 
         ucoin_buf_free(&vin->script);
@@ -1130,7 +1130,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
     fprintf(fp, "======================================\n");
     fprintf(fp, " version:%u\n\n", pTx->version);
     fprintf(fp, " txin_cnt=%d\n", pTx->vin_cnt);
-    for(int lp = 0; lp < pTx->vin_cnt; lp++) {
+    for(uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         fprintf(fp, " [vin #%d]\n", lp);
         fprintf(fp, "  txid= ");
         ucoin_util_dumptxid(fp, pTx->vin[lp].txid);
@@ -1145,7 +1145,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         //             (pTx->vin[lp].script.buf[1] == 0x00) && (pTx->vin[lp].script.buf[2] == 0x20);
         bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
         fprintf(fp, "  sequence= 0x%08x\n\n", pTx->vin[lp].sequence);
-        for(uint8_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
+        for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
             fprintf(fp, "  witness[%d][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
                 ucoin_util_dumpbin(fp, pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len, true);
@@ -1160,7 +1160,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         }
     }
     fprintf(fp, "\n txout_cnt= %d\n", pTx->vout_cnt);
-    for(int lp = 0; lp < pTx->vout_cnt; lp++) {
+    for(uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         fprintf(fp, " [vout #%d]\n", lp);
         fprintf(fp, "  value= %llu  ( ", (unsigned long long)pTx->vout[lp].value);
         ucoin_util_dumpbin(fp, ((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value), false);

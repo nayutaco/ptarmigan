@@ -213,7 +213,7 @@ typedef struct {
     uint8_t         txid[UCOIN_SZ_TXID];    ///< [outpoint]TXID
     uint32_t        index;                  ///< [outpoint]index
     ucoin_buf_t     script;                 ///< scriptSig
-    uint8_t         wit_cnt;                ///< witness数(0のとき、witnessは無視)
+    uint32_t        wit_cnt;                ///< witness数(0のとき、witnessは無視)
     ucoin_buf_t     *witness;               ///< witness(配列的に使用する)
     uint32_t        sequence;               ///< sequence
 } ucoin_vin_t;
@@ -237,10 +237,10 @@ typedef struct {
 typedef struct {
     uint32_t        version;        ///< TX version
 
-    uint8_t         vin_cnt;        ///< vin数(0のとき、vinは無視)
+    uint32_t        vin_cnt;        ///< vin数(0のとき、vinは無視)
     ucoin_vin_t     *vin;           ///< vin(配列的に使用する)
 
-    uint8_t         vout_cnt;       ///< vout数(0のとき、voutは無視)
+    uint32_t        vout_cnt;       ///< vout数(0のとき、voutは無視)
     ucoin_vout_t    *vout;          ///< vout(配列的に使用する)
 
     uint32_t        locktime;       ///< locktime
@@ -716,7 +716,7 @@ bool ucoin_tx_create(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx);
  *      - ハッシュはSIGHASHALL
  *      - vinにscriptPubKeyを記入するので、先に #ucoin_tx_add_vin()しておくこと
  */
-bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScriptPks[], int Num);
+bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScriptPks[], uint32_t Num);
 
 
 /** 署名計算

@@ -1008,7 +1008,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
 {
     //取り戻す必要があるvout数
     self->revoked_cnt = 0;
-    for (int lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
         if (pRevokedTx->vout[lp].script.len != LNL_SZ_WITPROG_WPKH) {
             //to_remote output以外はスクリプトを作って取り戻す
             self->revoked_cnt++;
@@ -1057,7 +1057,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     DBG_PRINTF("calc to_local vout: ");
     DUMPBIN(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
 
-    for (int lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
         DBG_PRINTF("vout[%d]: ", lp);
         DUMPBIN(pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
         if (pRevokedTx->vout[lp].script.len == LNL_SZ_WITPROG_WPKH) {
@@ -3533,7 +3533,7 @@ static bool create_to_local_spent(ln_self_t *self,
         push.data = NULL;
     }
 
-    for (int vout_idx = 0; vout_idx < pTxCommit->vout_cnt; vout_idx++) {
+    for (uint32_t vout_idx = 0; vout_idx < pTxCommit->vout_cnt; vout_idx++) {
         uint8_t htlc_idx = pTxCommit->vout[vout_idx].opt;
         if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
             DBG_PRINTF("+++[%d]to_local\n", vout_idx);
@@ -3950,7 +3950,7 @@ static bool create_to_remote_spent(ln_self_t *self,
     ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
                 self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
-    for (int vout_idx = 0; vout_idx < pTxCommit->vout_cnt; vout_idx++) {
+    for (uint32_t vout_idx = 0; vout_idx < pTxCommit->vout_cnt; vout_idx++) {
         //各HTLCのHTLC Timeout/Success Transactionを作って署名するために、
         //BIP69ソート後のtx_commit.voutからpp_htlcinfo[]のindexを取得する
         uint8_t htlc_idx = pTxCommit->vout[vout_idx].opt;
