@@ -4516,7 +4516,7 @@ static ucoin_keys_sort_t sort_nodeid(ln_self_t *self)
             break;
         }
     }
-    if (p_nodeid[lp] < self->peer_node_id[lp]) {
+    if ((lp < UCOIN_SZ_PUBKEY) && (p_nodeid[lp] < self->peer_node_id[lp])) {
         DBG_PRINTF("my node= first\n");
         sort = UCOIN_KEYS_SORT_ASC;
     } else {

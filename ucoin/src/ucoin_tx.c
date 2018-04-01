@@ -75,13 +75,11 @@ void ucoin_tx_free(ucoin_tx_t *pTx)
         }
         if (vin->wit_cnt) {
             M_FREE(vin->witness);
-            vin->witness = NULL;
             vin->wit_cnt = 0;
         }
     }
     if (pTx->vin_cnt) {
         M_FREE(pTx->vin);
-        pTx->vin = NULL;
         pTx->vin_cnt = 0;
     }
     //vout
@@ -91,7 +89,6 @@ void ucoin_tx_free(ucoin_tx_t *pTx)
     }
     if (pTx->vout_cnt) {
         M_FREE(pTx->vout);
-        pTx->vout = NULL;
         pTx->vout_cnt = 0;
     }
 #ifdef UCOIN_DEBUG
@@ -1079,7 +1076,7 @@ bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, co
 
 bool ucoin_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash)
 {
-    bool ret = false;
+    bool ret;
     uint8_t pub[UCOIN_SZ_PUBKEY];
 
     *pRecId = -1;       //負の数にすると自動で求める

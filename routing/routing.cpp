@@ -173,7 +173,6 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
     int ret;
 
     do {
-        int idx;
         uint64_t short_channel_id;
         char type;
         uint32_t timestamp;
@@ -214,7 +213,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
             case LN_DB_CNLANNO_UPD1:
             case LN_DB_CNLANNO_UPD2:
                 if (mNodeNum > 0) {
-                    idx = type - LN_DB_CNLANNO_UPD1;
+                    int idx = type - LN_DB_CNLANNO_UPD1;
                     bret = ln_getparams_cnl_upd(&upd, buf.buf, buf.len);
                     if ( bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0) &&
                         (mpNodes[mNodeNum - 1].short_channel_id == upd.short_channel_id) ) {
@@ -252,7 +251,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, const u
         assert(retval == 0);
         int ret;
 
-        ln_self_t   *p_self = (ln_self_t *)malloc(sizeof(ln_self_t));
+        ln_self_t *p_self = static_cast<ln_self_t *>(malloc(sizeof(ln_self_t)));
         memset(p_self, 0, sizeof(ln_self_t));
         ret = ln_lmdb_self_load(p_self, txn, dbi);
         if (ret == 0) {
@@ -814,9 +813,9 @@ int main(int argc, char* argv[])
         //pay.conf形式の出力
         int hop = (int)route.size();
         const uint8_t *p_next;
-        nodeinfo_t ninfo;
+        //nodeinfo_t ninfo;
 
-        memset(&ninfo, 0, sizeof(ninfo));
+        //memset(&ninfo, 0, sizeof(ninfo));
 
         if (!output_json) {
             //CSV形式
@@ -842,7 +841,7 @@ int main(int argc, char* argv[])
                     if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
                         (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
                         sci = mpNodes[lp3].short_channel_id;
-                        ninfo = mpNodes[lp3].ninfo[dir];
+                        //ninfo = mpNodes[lp3].ninfo[dir];
                         break;
                     }
                 }
@@ -884,7 +883,7 @@ int main(int argc, char* argv[])
                     if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
                         (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
                         sci = mpNodes[lp3].short_channel_id;
-                        ninfo = mpNodes[lp3].ninfo[dir];
+                        //ninfo = mpNodes[lp3].ninfo[dir];
                         break;
                     }
                 }
@@ -964,6 +963,7 @@ int main(int argc, char* argv[])
 
     free(dbdir);
     free(payment_hash);
+    free(mpNodes);
 
     return 0;
 }

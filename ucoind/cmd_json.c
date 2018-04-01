@@ -1025,10 +1025,10 @@ static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     bool ret = false;
-    uint8_t channel_id[LN_SZ_CHANNEL_ID];
 
     cJSON *json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_String)) {
+        uint8_t channel_id[LN_SZ_CHANNEL_ID];
         misc_str2bin(channel_id, sizeof(channel_id), json->valuestring);
         ret = ln_db_self_del(channel_id);
     }

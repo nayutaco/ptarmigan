@@ -44,7 +44,6 @@ void ucoin_buf_free(ucoin_buf_t *pBuf)
         memset(pBuf->buf, 0, pBuf->len);
 #endif  //UCOIN_DEBUG
         M_FREE(pBuf->buf);
-        pBuf->buf = NULL;
         pBuf->len = 0;
     } else {
         //DBG_PRINTF("no M_FREE memory\n");
