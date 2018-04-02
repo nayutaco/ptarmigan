@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="1">
-    <builddir>tests/ptarmigan-cppcheck-build-dir</builddir>
-    <analyze-all-vs-configs>true</analyze-all-vs-configs>
     <includedir>
         <dir name="include/"/>
         <dir name="ucoin/include/"/>
@@ -9,7 +7,9 @@
         <dir name="ucoind/inc/"/>
     </includedir>
     <defines>
-        <define name="NETKIND=1 UCOIN_DEBUG __ORDER_LITTLE_ENDIAN__"/>
+        <define name="NETKIND=1"/>
+        <define name="UCOIN_DEBUG=1"/>
+        <define name="__ORDER_LITTLE_ENDIAN__=1"/>
     </defines>
     <paths>
         <dir name="cmn"/>
