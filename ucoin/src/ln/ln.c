@@ -3210,14 +3210,12 @@ static bool create_funding_tx(ln_self_t *self)
 
 
     //FEE計算
-    //      txサイズに署名の中間サイズと公開鍵サイズを加えたサイズにする
-    //          http://bitcoin.stackexchange.com/questions/1195/how-to-calculate-transaction-size-before-sending
     ucoin_buf_t txbuf;
     ucoin_buf_init(&txbuf);
     ucoin_tx_create(&txbuf, &self->tx_funding);
 
-    // LEN+署名(72) + LEN+公開鍵(33)
-    uint64_t fee = (txbuf.len + 1 + 72 + 1 + 33) * 4 * ln_calc_feerate_per_byte(self->p_establish->cnl_open.feerate_per_kw);
+    uint32_t vbyte = ucoin_tx_get_vbyte_raw(txbuf.buf, txbuf.len);
+    uint64_t fee = vbyte * ln_calc_feerate_per_byte(self->p_establish->cnl_open.feerate_per_kw);
     if (self->p_establish->p_fundin->amount >= self->p_establish->cnl_open.funding_sat + fee) {
         self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->p_establish->cnl_open.funding_sat - fee;
     } else {
