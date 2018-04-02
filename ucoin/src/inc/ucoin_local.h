@@ -210,8 +210,8 @@ bool ucoin_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  con
 bool ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool enableSegWit);
 void ucoin_util_add_vout_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref);
 void ucoin_util_add_vout_pkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
-int ucoin_util_get_varint_len(int Len);
-int ucoin_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint16_t Len, bool isScript);
+int ucoin_util_get_varint_len(uint32_t Len);
+int ucoin_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript);
 
 #ifdef UCOIN_DEBUG_MEM
 void* ucoin_dbg_malloc(size_t);
