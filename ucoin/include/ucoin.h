@@ -917,6 +917,16 @@ bool ucoin_tx_txid(uint8_t *pTxId, const ucoin_tx_t *pTx);
 bool ucoin_tx_txid_raw(uint8_t *pTxId, const ucoin_buf_t *pTxRaw);
 
 
+/** vsize取得
+ * 
+ * @param[in]   pData
+ * @param[in]   Len
+ * @retval  != 0    vbyte
+ * @retval  == 0    エラー
+ */
+uint32_t ucoin_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
+
+
 //////////////////////
 //SW
 //////////////////////
