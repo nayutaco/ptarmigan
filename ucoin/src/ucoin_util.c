@@ -760,18 +760,19 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
     //version[4]
     //mark[1]...wit
     //flag[1]...wit
-    //vin_cnt[1]...252以下
+    //vin_cnt[1]
     //  txid[32]
     //  index[4]
     //  script[len]
     //  sequence[4]
-    //vout_cnt[1]...252以下
+    //vout_cnt[1]
     //  value[8]
     //  script[len]
     //witness...wit
     //locktime[4]
 
-    uint16_t len = sizeof(uint32_t) + 2;        //version + vin_cnt + vout_cnt
+    //version + vin_cnt + vout_cnt
+    uint32_t len = sizeof(uint32_t) + ucoin_util_get_varint_len(pTx->vin_cnt) + ucoin_util_get_varint_len(pTx->vout_cnt);
     bool segwit = false;
 
     //vin + witness
@@ -817,7 +818,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
     }
 
     //vin
-    *p++ = pTx->vin_cnt;        //本来はvarint型
+    p += ucoin_util_set_varint_len(p, NULL, pTx->vin_cnt, false);
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ucoin_vin_t *vin = &(pTx->vin[lp]);
 
@@ -835,7 +836,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
     }
 
     //vout
-    *p++ = pTx->vout_cnt;       //本来はvarint型
+    p += ucoin_util_set_varint_len(p, NULL, pTx->vout_cnt, false);
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         ucoin_vout_t *vout = &(pTx->vout[lp]);
 
@@ -852,7 +853,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
         for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
             ucoin_vin_t *vin = &(pTx->vin[lp]);
 
-            *p++ = vin->wit_cnt;
+            p += ucoin_util_set_varint_len(p, NULL, vin->wit_cnt, false);
             for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
                 ucoin_buf_t *buf = &(vin->witness[lp2]);
 
@@ -866,7 +867,6 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
     //locktime
     p += set_le32(p, pTx->locktime);
 
-    //DBG_PRINTF("len2=%d(%d)\n", (int)(p - pBuf->buf), pBuf->len);
     return (p - pBuf->buf == pBuf->len);
 }
 
@@ -898,7 +898,7 @@ void HIDDEN ucoin_util_add_vout_pkh(ucoin_tx_t *pTx, uint64_t Value, const uint8
  *          データ長が0～0xfcまでは1バイト、0xfd～0xffffまでは3バイト、などとなる。<br/>
  *              https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
  */
-int HIDDEN ucoin_util_get_varint_len(int Len)
+int HIDDEN ucoin_util_get_varint_len(uint32_t Len)
 {
     return (Len < VARINT_3BYTE_MIN) ? 1 : 3;
 }
@@ -915,7 +915,7 @@ int HIDDEN ucoin_util_get_varint_len(int Len)
  * @note
  *      - pDataにvarint型のデータ長だけ書込む。pDataから戻り値だけ進んだところにpOrgを書込むとよい。
  */
-int HIDDEN ucoin_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint16_t Len, bool isScript)
+int HIDDEN ucoin_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript)
 {
     int retval = 0;
 

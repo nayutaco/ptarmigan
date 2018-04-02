@@ -100,11 +100,6 @@ void ucoin_tx_free(ucoin_tx_t *pTx)
 
 ucoin_vin_t *ucoin_tx_add_vin(ucoin_tx_t *pTx, const uint8_t *pTxId, int Index)
 {
-    if (pTx->vin_cnt >= VARINT_1BYTE_MAX) {
-        DBG_PRINTF("vin_cnt max\n");
-        return NULL;
-    }
-
     pTx->vin = (ucoin_vin_t *)M_REALLOC(pTx->vin, sizeof(ucoin_vin_t) * (pTx->vin_cnt + 1));
     ucoin_vin_t *vin = &(pTx->vin[pTx->vin_cnt]);
     pTx->vin_cnt++;
@@ -121,11 +116,6 @@ ucoin_vin_t *ucoin_tx_add_vin(ucoin_tx_t *pTx, const uint8_t *pTxId, int Index)
 
 ucoin_buf_t *ucoin_tx_add_wit(ucoin_vin_t *pVin)
 {
-    if (pVin->wit_cnt >= VARINT_1BYTE_MAX) {
-        DBG_PRINTF("wit_cnt max\n");
-        return NULL;
-    }
-
     pVin->witness = (ucoin_buf_t *)M_REALLOC(pVin->witness, sizeof(ucoin_buf_t) * (pVin->wit_cnt + 1));
     ucoin_buf_t *buf = &(pVin->witness[pVin->wit_cnt]);
     pVin->wit_cnt++;
@@ -137,11 +127,6 @@ ucoin_buf_t *ucoin_tx_add_wit(ucoin_vin_t *pVin)
 
 ucoin_vout_t *ucoin_tx_add_vout(ucoin_tx_t *pTx, uint64_t Value)
 {
-    if (pTx->vout_cnt >= VARINT_1BYTE_MAX) {
-        DBG_PRINTF("vout_cnt max\n");
-        return NULL;
-    }
-
     pTx->vout = (ucoin_vout_t *)M_REALLOC(pTx->vout, sizeof(ucoin_vout_t) * (pTx->vout_cnt + 1));
     ucoin_vout_t *vout = &(pTx->vout[pTx->vout_cnt]);
     pTx->vout_cnt++;
