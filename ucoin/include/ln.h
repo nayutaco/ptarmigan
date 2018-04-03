@@ -54,8 +54,8 @@ extern "C" {
 #define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< サイズ:noiseパケットヘッダ
 #define LN_SZ_GFLEN_MAX                 (4)         ///< init.gflen最大
 #define LN_SZ_LFLEN_MAX                 (4)         ///< init.lflen最大
-#define LN_SZ_FUNDINGTX_VSIZE           (177 + 10)  ///< funding_txのvsizeはほぼ固定(open_channel時のamountチェック用)
-                                                    //      それに＋αして余裕をもうける
+#warning issue #344: nested in BIP16 size
+#define LN_SZ_FUNDINGTX_VSIZE           (177)       ///< funding_txのvsize(nested in BIP16 P2SH形式)
 
 
 #define LN_FUNDIDX_MAX                  (6)         ///< 管理用
