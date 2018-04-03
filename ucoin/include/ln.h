@@ -54,6 +54,8 @@ extern "C" {
 #define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< サイズ:noiseパケットヘッダ
 #define LN_SZ_GFLEN_MAX                 (4)         ///< init.gflen最大
 #define LN_SZ_LFLEN_MAX                 (4)         ///< init.lflen最大
+#define LN_SZ_FUNDINGTX_VSIZE           (177)       ///< funding_txのvsize(nested in BIP16 P2SH形式)
+
 
 #define LN_FUNDIDX_MAX                  (6)         ///< 管理用
 #define LN_SCRIPTIDX_MAX                (5)         ///< 管理用
@@ -1575,13 +1577,14 @@ static inline uint32_t ln_calc_feerate_per_kw(uint64_t feerate_kb) {
 }
 
 
-/** feerate_per_kw --> byteあたりのfee
+/** feerate_per_kw --> fee
  *
+ * @param[in]           vsize
  * @param[in]           feerate_per_kw
  * @retval          feerate_per_byte
  */
-static inline uint32_t ln_calc_feerate_per_byte(uint64_t feerate_kw) {
-    return (uint32_t)(feerate_kw * 4 / 1000);
+static inline uint64_t ln_calc_fee(uint32_t vsize, uint64_t feerate_kw) {
+    return vsize * feerate_kw * 4 / 1000;
 }
 
 
@@ -1602,6 +1605,18 @@ static inline uint32_t ln_feerate_per_kw(ln_self_t *self) {
  */
 static inline void ln_set_feerate(ln_self_t *self, uint32_t feerate) {
     self->feerate_per_kw = feerate;
+}
+
+
+/** funding_txの予想されるfee(+α)取得
+ * 
+ * @param[in]   feerate_per_kw      feerate_per_kw(open_channelのパラメータと同じ)
+ * @retval  estimate fee[satoshis]
+ * @note
+ *      - 現在(2018/04/03)のptarmiganが生成するfunding_txは177byteで、それに+αしている
+ */
+static inline uint64_t ln_estimate_fundingtx_fee(uint32_t feerate_per_kw) {
+    return ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, feerate_per_kw);
 }
 
 

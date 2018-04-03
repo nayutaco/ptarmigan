@@ -103,7 +103,7 @@
 
 #define M_ERRSTR_REASON                 "fail: %s (hop=%d)(suggest:%s)"
 #define M_ERRSTR_CANNOTDECODE           "fail: result cannot decode"
-#define M_ERRSTR_CANNOTSTART            "fail: can't start payment(our_msat=% " PRIu64 ", amt_to_forward=%" PRIu64 ")"
+#define M_ERRSTR_CANNOTSTART            "fail: can't start payment(our_msat=%" PRIu64 ", amt_to_forward=%" PRIu64 ")"
 
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
@@ -318,9 +318,9 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
     }
 
     DBG_PRINTF("Establish開始\n");
-    send_open_channel(pAppConf, pFunding);
+    bool ret = send_open_channel(pAppConf, pFunding);
 
-    return true;
+    return ret;
 }
 
 
@@ -1336,6 +1336,15 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         DBG_PRINTF2("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
+        uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
+        DBG_PRINTF("estimate funding_tx fee: %" PRIu64 "\n", estfee);
+        if (fundin_sat < pFunding->funding_sat + estfee) {
+            //amountが足りないと思われる
+            DBG_PRINTF("fail: amount too short\n");
+            DBG_PRINTF("  %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", fundin_sat, pFunding->funding_sat, estfee);
+            return false;
+        }
+
         ln_fundin_t fundin;
         memcpy(fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
         fundin.index = pFunding->txindex;
@@ -1350,10 +1359,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
                         pFunding->funding_sat,
                         pFunding->push_sat,
                         feerate_kw);
-        assert(ret);
-
-        DBG_PRINTF("SEND: open_channel\n");
-        send_peer_noise(p_conf, &buf_bolt);
+        if (ret) {
+            DBG_PRINTF("SEND: open_channel\n");
+            send_peer_noise(p_conf, &buf_bolt);
+        }
         ucoin_buf_free(&buf_bolt);
     } else {
         SYSLOG_WARN("fail through: btcprc_getxout");
@@ -2120,7 +2129,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
             DBG_PRINTF("OK\n");
         } else {
             DBG_PRINTF("NG\n");
-            exit(-1);
+            stop_threads(p_conf);
         }
         ucoin_buf_free(&buf_tx);
     }

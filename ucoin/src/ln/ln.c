@@ -1420,7 +1420,7 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
     bool ret;
 
     //to_localのFEE
-    uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * ln_calc_feerate_per_byte(self->feerate_per_kw);
+    uint64_t fee_tolocal = ln_calc_fee(M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
     DBG_PRINTF("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
     if (Value < UCOIN_DUST_LIMIT + fee_tolocal) {
         DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_tolocal);
@@ -1445,7 +1445,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     ucoin_util_keys_t signkey;
 
     //to_remoteのFEE
-    uint64_t fee_toremote = M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len) * ln_calc_feerate_per_byte(self->feerate_per_kw);
+    uint64_t fee_toremote = ln_calc_fee(M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
     if (Value < UCOIN_DUST_LIMIT + fee_toremote) {
         DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_toremote);
         ret = false;
@@ -3210,14 +3210,36 @@ static bool create_funding_tx(ln_self_t *self)
 
 
     //FEE計算
-    //      txサイズに署名の中間サイズと公開鍵サイズを加えたサイズにする
-    //          http://bitcoin.stackexchange.com/questions/1195/how-to-calculate-transaction-size-before-sending
     ucoin_buf_t txbuf;
     ucoin_buf_init(&txbuf);
     ucoin_tx_create(&txbuf, &self->tx_funding);
 
+    DBG_PRINTF("\n***** funding_tx(no signature) *****\n");
+    M_DBG_PRINT_TX(&self->tx_funding);
+
     // LEN+署名(72) + LEN+公開鍵(33)
-    uint64_t fee = (txbuf.len + 1 + 72 + 1 + 33) * 4 * ln_calc_feerate_per_byte(self->p_establish->cnl_open.feerate_per_kw);
+    //  この時点では、self->tx_funding に scriptSig(23byte)とwitness(1+72+1+33)が入っていない。
+    //  feeを決めるためにvsizeを算出したいが、
+    //
+    //      version:4
+    //      flag:1
+    //      mark:1
+    //      vin_cnt: 1
+    //          txid+index: 36
+    //          scriptSig: 1+23
+    //          sequence: 4
+    //      vout_cnt: 2
+    //          amount: 8
+    //          scriptPubKey: 1+34
+    //          amount: 8
+    //          scriptPubKey: 1+23
+    //      wit_cnt: 2
+    //          sig: 1+72
+    //          pub: 1+33
+    //      locktime: 4
+#warning issue #344: nested in BIP16 size
+    uint64_t fee = ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, self->p_establish->cnl_open.feerate_per_kw);
+    DBG_PRINTF("fee=%" PRIu64 "\n", fee);
     if (self->p_establish->p_fundin->amount >= self->p_establish->cnl_open.funding_sat + fee) {
         self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->p_establish->cnl_open.funding_sat - fee;
     } else {
@@ -3232,31 +3254,14 @@ static bool create_funding_tx(ln_self_t *self)
 
     //署名
     bool ret;
-#if 1
     ln_cb_funding_sign_t sig;
     sig.p_tx =  &self->tx_funding;
     (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
     ret = sig.ret;
-#else
-    ln_signer_p2wpkh(&self->tx_funding, self->funding_local.txindex,
-            self->p_establish->p_fundin->amount, &self->p_establish->p_fundin->keys);
-    if (!self->p_establish->p_fundin->b_native) {
-        // lnでは必ずnative設定がtrueになっている。
-        // そのため、 #ln_signer_p2wpkh() で署名するとscriptSigは空になる。
-        // もしINPUTのトランザクションが非Nativeだった場合、自力でscriptSigを作成する
-        ucoin_vin_t *vin = &self->tx_funding.vin[self->funding_local.txindex];
-        ucoin_buf_t *p_buf = &vin->script;
-        p_buf->len = 3 + UCOIN_SZ_PUBKEYHASH;
-        p_buf->buf = (uint8_t *)M_REALLOC(p_buf->buf, p_buf->len);
-        p_buf->buf[0] = 0x16;
-        //witness program
-        p_buf->buf[1] = 0x00;
-        p_buf->buf[2] = (uint8_t)UCOIN_SZ_PUBKEYHASH;
-        ucoin_util_hash160(&p_buf->buf[3], self->p_establish->p_fundin->keys.pub, UCOIN_SZ_PUBKEY);
-    }
-    ret = true;
-#endif
     ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
+
+    DBG_PRINTF("\n***** funding_tx *****\n");
+    M_DBG_PRINT_TX(&self->tx_funding);
 
     return ret;
 }

@@ -1098,6 +1098,63 @@ bool ucoin_tx_txid_raw(uint8_t *pTxId, const ucoin_buf_t *pTxRaw)
 }
 
 
+// uint32_t ucoin_tx_get_vbyte(const ucoin_tx_t *pTx)
+// {
+//     //segwit判定
+//     bool segwit = false;
+//     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
+//         ucoin_vin_t *vin = &(pTx->vin[lp]);
+//         if (vin->wit_cnt) {
+//             segwit = true;
+//         }
+//     }
+//     return 0;
+// }
+
+
+uint32_t ucoin_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
+{
+    //segwit判定
+    bool segwit;
+    uint8_t mark = pData[4];
+    uint8_t flag = pData[5];
+    if ((mark == 0x00) && (flag != 0x01)) {
+        //2017/01/04:BIP-144ではflag==0x01のみ
+        return 0;
+    }
+    segwit = ((mark == 0x00) && (flag == 0x01));
+
+    //https://bitcoincore.org/ja/segwit_wallet_dev/#transaction-fee-estimation
+    uint32_t len;
+    if (segwit) {
+        //(旧format*3 + 新format) / 4を切り上げ
+        //  旧: nVersion            |txins|txouts        |nLockTim
+        //  新: nVersion|marker|flag|txins|txouts|witness|nLockTime
+        ucoin_tx_t txold;
+        ucoin_buf_t txbuf_old;
+
+        ucoin_tx_init(&txold);
+        ucoin_tx_read(&txold, pData, Len);
+
+        ucoin_buf_init(&txbuf_old);
+        bool ret = ucoin_util_create_tx(&txbuf_old, &txold, false);
+        if (ret) {
+            uint32_t fmt_old = txbuf_old.len;
+            uint32_t fmt_new = Len;
+            len = (fmt_old * 3 + fmt_new + 3) / 4;
+        } else {
+            DBG_PRINTF("fail: vbyte\n");
+            len = 0;
+        }
+    } else {
+        len = Len;
+    }
+
+    DBG_PRINTF("vbyte=%" PRIu32 "\n", len);
+    return len;
+}
+
+
 #ifdef UCOIN_USE_PRINTFUNC
 void ucoin_print_tx(const ucoin_tx_t *pTx)
 {
