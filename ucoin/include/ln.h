@@ -1578,13 +1578,14 @@ static inline uint32_t ln_calc_feerate_per_kw(uint64_t feerate_kb) {
 }
 
 
-/** feerate_per_kw --> byteあたりのfee
+/** feerate_per_kw --> fee
  *
+ * @param[in]           vsize
  * @param[in]           feerate_per_kw
  * @retval          feerate_per_byte
  */
-static inline uint32_t ln_calc_feerate_per_byte(uint64_t feerate_kw) {
-    return (uint32_t)(feerate_kw * 4 / 1000);
+static inline uint64_t ln_calc_fee(uint32_t vsize, uint64_t feerate_kw) {
+    return vsize * feerate_kw * 4 / 1000;
 }
 
 
@@ -1616,7 +1617,7 @@ static inline void ln_set_feerate(ln_self_t *self, uint32_t feerate) {
  *      - 現在(2018/04/03)のptarmiganが生成するfunding_txは177byteで、それに+αしている
  */
 static inline uint64_t ln_estimate_fundingtx_fee(uint32_t feerate_per_kw) {
-    return LN_SZ_FUNDINGTX_VSIZE * ln_calc_feerate_per_byte(feerate_per_kw);
+    return ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, feerate_per_kw);
 }
 
 

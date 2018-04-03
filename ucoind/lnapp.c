@@ -1337,6 +1337,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         DBG_PRINTF2("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
         uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
+        DBG_PRINTF("estimate funding_tx fee: %" PRIu64 "\n", estfee);
         if (fundin_sat < pFunding->funding_sat + estfee) {
             //amountが足りないと思われる
             DBG_PRINTF("fail: amount too short\n");

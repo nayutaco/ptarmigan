@@ -1420,7 +1420,7 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
     bool ret;
 
     //to_localのFEE
-    uint64_t fee_tolocal = M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len) * ln_calc_feerate_per_byte(self->feerate_per_kw);
+    uint64_t fee_tolocal = ln_calc_fee(M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
     DBG_PRINTF("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
     if (Value < UCOIN_DUST_LIMIT + fee_tolocal) {
         DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_tolocal);
@@ -1445,7 +1445,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     ucoin_util_keys_t signkey;
 
     //to_remoteのFEE
-    uint64_t fee_toremote = M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len) * ln_calc_feerate_per_byte(self->feerate_per_kw);
+    uint64_t fee_toremote = ln_calc_fee(M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
     if (Value < UCOIN_DUST_LIMIT + fee_toremote) {
         DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_toremote);
         ret = false;
@@ -3215,7 +3215,7 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_tx_create(&txbuf, &self->tx_funding);
 
     uint32_t vbyte = ucoin_tx_get_vbyte_raw(txbuf.buf, txbuf.len);
-    uint64_t fee = vbyte * ln_calc_feerate_per_byte(self->p_establish->cnl_open.feerate_per_kw);
+    uint64_t fee = ln_calc_fee(vbyte, self->p_establish->cnl_open.feerate_per_kw);
     if (self->p_establish->p_fundin->amount >= self->p_establish->cnl_open.funding_sat + fee) {
         self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->p_establish->cnl_open.funding_sat - fee;
     } else {
