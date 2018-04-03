@@ -1608,6 +1608,18 @@ static inline void ln_set_feerate(ln_self_t *self, uint32_t feerate) {
 }
 
 
+/** funding_txの予想されるfee(+α)取得
+ * 
+ * @param[in]   feerate_per_kw      feerate_per_kw(open_channelのパラメータと同じ)
+ * @retval  estimate fee[satoshis]
+ * @note
+ *      - 現在(2018/04/03)のptarmiganが生成するfunding_txは177byteで、それに+αしている
+ */
+static inline uint64_t ln_estimate_fundingtx_fee(uint32_t feerate_per_kw) {
+    return LN_SZ_FUNDINGTX_VSIZE * ln_calc_feerate_per_byte(feerate_per_kw);
+}
+
+
 /** 初期closing_tx FEE取得
  *
  * @param[in,out]       self            channel情報

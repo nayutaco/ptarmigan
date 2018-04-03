@@ -1138,9 +1138,14 @@ uint32_t ucoin_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
 
         ucoin_buf_init(&txbuf_old);
         bool ret = ucoin_util_create_tx(&txbuf_old, &txold, false);
-        uint32_t fmt_old = txbuf_old.len;
-        uint32_t fmt_new = Len;
-        len = (fmt_old * 3 + fmt_new + 3) / 4;
+        if (ret) {
+            uint32_t fmt_old = txbuf_old.len;
+            uint32_t fmt_new = Len;
+            len = (fmt_old * 3 + fmt_new + 3) / 4;
+        } else {
+            DBG_PRINTF("fail: vbyte\n");
+            len = 0;
+        }
     } else {
         len = Len;
     }

@@ -3230,31 +3230,14 @@ static bool create_funding_tx(ln_self_t *self)
 
     //署名
     bool ret;
-#if 1
     ln_cb_funding_sign_t sig;
     sig.p_tx =  &self->tx_funding;
     (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
     ret = sig.ret;
-#else
-    ln_signer_p2wpkh(&self->tx_funding, self->funding_local.txindex,
-            self->p_establish->p_fundin->amount, &self->p_establish->p_fundin->keys);
-    if (!self->p_establish->p_fundin->b_native) {
-        // lnでは必ずnative設定がtrueになっている。
-        // そのため、 #ln_signer_p2wpkh() で署名するとscriptSigは空になる。
-        // もしINPUTのトランザクションが非Nativeだった場合、自力でscriptSigを作成する
-        ucoin_vin_t *vin = &self->tx_funding.vin[self->funding_local.txindex];
-        ucoin_buf_t *p_buf = &vin->script;
-        p_buf->len = 3 + UCOIN_SZ_PUBKEYHASH;
-        p_buf->buf = (uint8_t *)M_REALLOC(p_buf->buf, p_buf->len);
-        p_buf->buf[0] = 0x16;
-        //witness program
-        p_buf->buf[1] = 0x00;
-        p_buf->buf[2] = (uint8_t)UCOIN_SZ_PUBKEYHASH;
-        ucoin_util_hash160(&p_buf->buf[3], self->p_establish->p_fundin->keys.pub, UCOIN_SZ_PUBKEY);
-    }
-    ret = true;
-#endif
     ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
+
+    DBG_PRINTF("\n***** funding_tx *****\n");
+    M_DBG_PRINT_TX(&self->tx_funding);
 
     return ret;
 }

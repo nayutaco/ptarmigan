@@ -103,7 +103,7 @@
 
 #define M_ERRSTR_REASON                 "fail: %s (hop=%d)(suggest:%s)"
 #define M_ERRSTR_CANNOTDECODE           "fail: result cannot decode"
-#define M_ERRSTR_CANNOTSTART            "fail: can't start payment(our_msat=% " PRIu64 ", amt_to_forward=%" PRIu64 ")"
+#define M_ERRSTR_CANNOTSTART            "fail: can't start payment(our_msat=%" PRIu64 ", amt_to_forward=%" PRIu64 ")"
 
 //lnapp_conf_t.flag_ope
 #define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
@@ -1336,7 +1336,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         DBG_PRINTF2("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
-        uint64_t estfee = LN_SZ_FUNDINGTX_VSIZE * ln_calc_feerate_per_byte(feerate_kw);
+        uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
         if (fundin_sat < pFunding->funding_sat + estfee) {
             //amountが足りないと思われる
             DBG_PRINTF("fail: amount too short\n");
@@ -2128,7 +2128,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
             DBG_PRINTF("OK\n");
         } else {
             DBG_PRINTF("NG\n");
-            exit(-1);
+            stop_threads(p_conf);
         }
         ucoin_buf_free(&buf_tx);
     }
