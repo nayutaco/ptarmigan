@@ -189,6 +189,7 @@ typedef enum {
     LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
     LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
     LN_CB_SEND_REQ,             ///< peerへの送信要求
+    LN_CB_FEERATE_REQ,          ///< feerate_per_kw更新要求
     LN_CB_MAX,
 } ln_cb_t;
 
@@ -1603,13 +1604,13 @@ static inline uint32_t ln_feerate_per_kw(ln_self_t *self) {
  * @param[out]          self            channel情報
  * @param[in]           feerate         設定値
  */
-static inline void ln_set_feerate(ln_self_t *self, uint32_t feerate) {
+static inline void ln_set_feerate_per_kw(ln_self_t *self, uint32_t feerate) {
     self->feerate_per_kw = feerate;
 }
 
 
 /** funding_txの予想されるfee(+α)取得
- * 
+ *
  * @param[in]   feerate_per_kw      feerate_per_kw(open_channelのパラメータと同じ)
  * @retval  estimate fee[satoshis]
  * @note

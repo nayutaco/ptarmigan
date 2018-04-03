@@ -257,12 +257,14 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
+static void cb_feerate_req(lnapp_conf_t *p_conf, void *p_param);
 
 static void stop_threads(lnapp_conf_t *p_conf);
 static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static void send_channel_anno(lnapp_conf_t *p_conf);
 static void send_node_anno(lnapp_conf_t *p_conf);
+static uint32_t get_latest_feerate_kw(void);
 
 static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId);
 static void wait_mutex_lock(uint8_t Flag);
@@ -1316,21 +1318,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     if (ret && unspent) {
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
-            //estimate fee
-            uint64_t feerate_kb;
-            bool ret = btcprc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
-            if (ret) {
-                //BOLT#2
-                //  feerate_per_kw indicates the initial fee rate by 1000-weight
-                //  (ie. 1/4 the more normally-used 'feerate per kilobyte')
-                //  which this side will pay for commitment and HTLC transactions
-                //  as described in BOLT #3 (this can be adjusted later with an update_fee message).
-                feerate_kw = ln_calc_feerate_per_kw(feerate_kb);
-            } else {
-                // https://github.com/nayutaco/ptarmigan/issues/46
-                DBG_PRINTF("fail: estimatefee\n");
-                feerate_kw = LN_FEERATE_PER_KW;
-            }
+            feerate_kw = get_latest_feerate_kw();
         } else {
             feerate_kw = pFunding->feerate_per_kw;
         }
@@ -2022,6 +2010,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
         //    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
         //    LN_CB_SEND_REQ,             ///< peerへの送信要求
+        //    LN_CB_FEERATE_REQ,          ///< feerate_per_kw更新要求
 
         { "  LN_CB_ERROR: エラー有り", cb_error_recv },
         { "  LN_CB_INIT_RECV: init受信", cb_init_recv },
@@ -2043,6 +2032,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)", cb_closed_fee },
         { "  LN_CB_CLOSED: closing_signed受信(FEE一致)", cb_closed },
         { "  LN_CB_SEND_REQ: 送信要求", cb_send_req },
+        { "  LN_CB_FEERATE_REQ: feerate_per_kw更新要求", cb_feerate_req },
     };
 
     if (reason < LN_CB_MAX) {
@@ -2757,6 +2747,16 @@ static void cb_send_req(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
+//LN_CB_FEERATE_REQ
+static void cb_feerate_req(lnapp_conf_t *p_conf, void *p_param)
+{
+    (void)p_param;
+
+    uint32_t feerate_kw = get_latest_feerate_kw();
+    ln_set_feerate_per_kw(p_conf->p_self, feerate_kw);
+}
+
+
 /********************************************************************
  * スレッド共通処理
  ********************************************************************/
@@ -2834,6 +2834,24 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 
     //ping送信待ちカウンタ
     p_conf->ping_counter = 0;
+}
+
+
+//最新のfeerate_per_kw取得
+static uint32_t get_latest_feerate_kw(void)
+{
+    //estimate fee
+    uint32_t feerate_kw;
+    uint64_t feerate_kb;
+    bool ret = btcprc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
+    if (ret) {
+        feerate_kw = ln_calc_feerate_per_kw(feerate_kb);
+    } else {
+        DBG_PRINTF("fail: estimatefee\n");
+        feerate_kw = LN_FEERATE_PER_KW;
+    }
+    DBG_PRINTF2("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
+    return feerate_kw;
 }
 
 
