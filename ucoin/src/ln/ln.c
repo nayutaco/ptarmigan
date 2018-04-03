@@ -3214,7 +3214,27 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_buf_init(&txbuf);
     ucoin_tx_create(&txbuf, &self->tx_funding);
 
-    uint32_t vbyte = ucoin_tx_get_vbyte_raw(txbuf.buf, txbuf.len);
+    DBG_PRINTF("\n***** funding_tx(no signature) *****\n");
+    M_DBG_PRINT_TX(&self->tx_funding);
+
+    // LEN+署名(72) + LEN+公開鍵(33)
+    //      version:4
+    //      flag:1
+    //      mark:1
+    //      vin_cnt: 1
+    //          txid+index: 36
+    //          scriptSig: 1+23
+    //          sequence: 4
+    //      vout_cnt: 2
+    //          amount: 8
+    //          scriptPubKey: 1+34
+    //          amount: 8
+    //          scriptPubKey: 1+23
+    //      wit_cnt: 2
+    //          sig: 1+72
+    //          pub: 1+33
+    //      locktime: 4
+    uint32_t vbyte = ucoin_tx_get_vbyte_raw(txbuf.buf, txbuf.len) + (1 + 72) + (1 + 33);    //witnessの部分がないため、手動で足している
     uint64_t fee = ln_calc_fee(vbyte, self->p_establish->cnl_open.feerate_per_kw);
     if (self->p_establish->p_fundin->amount >= self->p_establish->cnl_open.funding_sat + fee) {
         self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->p_establish->cnl_open.funding_sat - fee;

@@ -1150,6 +1150,7 @@ uint32_t ucoin_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
         len = Len;
     }
 
+    DBG_PRINTF("vbyte=%" PRIu32 "\n", len);
     return len;
 }
 
