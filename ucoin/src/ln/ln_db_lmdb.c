@@ -385,6 +385,8 @@ static void addhtlc_dbname(char *pDbName, int num);
 static void misc_bin2str(char *pStr, const uint8_t *pBin, uint16_t BinLen);
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 
+static int self_cursor_open(lmdb_cursor_t *pCur);
+static void self_cursor_close(lmdb_cursor_t *pCur);
 
 #ifdef M_DB_DEBUG
 static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **txn, int line) {
@@ -426,19 +428,6 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
 {
     int         retval;
     ln_lmdb_db_t   db;
-
-    //旧バージョンチェック(2018/02/25)
-    //  ディレクトリ名を変更したため、バージョンチェックできなくなった
-    {
-        struct stat sfs;
-        int ret1 = stat("./dbucoin/dbucoin", &sfs);
-        int ret2 = stat("./dbucoin/dbucoin_anno", &sfs);
-        if ((ret1 == 0) || (ret2 == 0)) {
-            DBG_PRINTF("ERR: old DB detect! Please remove dbucoin.\n");
-            retval = -1;
-            goto LABEL_EXIT;
-        }
-    }
 
     //lmdbのopenは複数呼ばないでenvを共有する
     if (mpDbSelf == NULL) {
@@ -785,25 +774,9 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
     bool            result = false;
     int             retval;
     lmdb_cursor_t   cur;
-    MDB_dbi         dbi;
 
-    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &cur.txn);
+    retval = self_cursor_open(&cur);
     if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
-    retval = mdb_dbi_open(cur.txn, NULL, 0, &dbi);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(cur.txn);
-        goto LABEL_EXIT;
-    }
-
-    retval = mdb_cursor_open(cur.txn, dbi, &cur.cursor);
-    if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(cur.txn);
         goto LABEL_EXIT;
     }
 
@@ -834,8 +807,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
             }
         }
     }
-    mdb_cursor_close(cur.cursor);
-    MDB_TXN_COMMIT(cur.txn);
+    self_cursor_close(&cur);
     M_FREE(p_self);
 
 LABEL_EXIT:
@@ -2608,6 +2580,66 @@ void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno)
 }
 
 
+bool ln_db_reset(void)
+{
+    if (mpDbSelf != NULL) {
+        DBG_PRINTF("fail: already initialized\n");
+        return false;
+    }
+
+    bool ret = false;
+    int retval;
+    retval = mdb_env_create(&mpDbSelf);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_env_set_maxdbs(mpDbSelf, M_LMDB_MAXDBS);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_env_open(mpDbSelf, LNDB_SELFENV, 0, 0644);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    lmdb_cursor_t cur;
+    retval = self_cursor_open(&cur);
+    if (retval != 0) {
+        goto LABEL_EXIT;
+    }
+    ret = true;     //ここまで来たら成功と見なしてよい
+
+    MDB_val     key;
+    while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
+        if (memcmp(key.mv_data, M_DBI_VERSION, sizeof(M_DBI_VERSION) - 1) != 0) {
+            //"version"以外は削除
+            MDB_dbi dbi2;
+            char *name = (char *)malloc(key.mv_size + 1);
+            memcpy(name, key.mv_data, key.mv_size);
+            name[key.mv_size] = '\0';
+            DBG_PRINTF("dbname: %s\n", name);
+
+            retval = mdb_dbi_open(cur.txn, name, 0, &dbi2);
+            free(name);
+            retval = mdb_drop(cur.txn, dbi2, 1);
+            if (retval != 0) {
+                DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+            }
+        }
+    }
+    self_cursor_close(&cur);
+
+    //node側はディレクトリごと削除
+    system("rm -rf " LNDB_NODEENV);
+
+LABEL_EXIT:
+    return ret;
+}
+
+
 void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 {
     //固定サイズ
@@ -3330,4 +3362,47 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
         ln_term(self);
     }
     return ret;
+}
+
+
+/**
+ * 
+ * @param[out]      pCur
+ * @retval      0   成功
+ */
+static int self_cursor_open(lmdb_cursor_t *pCur)
+{
+    int             retval;
+
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &pCur->txn);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(pCur->txn, NULL, 0, &pCur->dbi);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(pCur->txn);
+        goto LABEL_EXIT;
+    }
+    retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(pCur->txn);
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    return retval;
+}
+
+
+/**
+ * 
+ * @param[out]      pCur
+ */
+static void self_cursor_close(lmdb_cursor_t *pCur)
+{
+    mdb_cursor_close(pCur->cursor);
+    MDB_TXN_COMMIT(pCur->txn);
 }
