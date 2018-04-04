@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
 
     int opt;
     int options = 0;
-    while ((opt = getopt(argc, argv, "p:n:a:c:ih")) != -1) {
+    while ((opt = getopt(argc, argv, "p:n:a:c:ixh")) != -1) {
         switch (opt) {
         case 'p':
             //port num
@@ -122,12 +122,23 @@ int main(int argc, char *argv[])
             //show node_id
             options |= 0x01;
             break;
+        case 'x':
+            //ノード情報を残してすべて削除
+            options |= 0x80;
+            break;
         case 'h':
             //help
             goto LABEL_EXIT;
         default:
             break;
         }
+    }
+
+    if (options & 0x80) {
+        //
+        bret = ln_db_reset();
+        DBG_PRINTF("db_reset: %d\n", bret);
+        return 0;
     }
 
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
@@ -242,11 +253,12 @@ LABEL_EXIT:
     fprintf(PRINTOUT, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
     fprintf(PRINTOUT, "\n");
     fprintf(PRINTOUT, "\t\t-h : help\n");
-    fprintf(PRINTOUT, "\t\t-p : node port(default: 9735)\n");
-    fprintf(PRINTOUT, "\t\t-n : alias name(default: \"node_xxxxxxxxxxxx\")\n");
-    fprintf(PRINTOUT, "\t\t-c : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
-    fprintf(PRINTOUT, "\t\t-a : announce IPv4 address(default: none)\n");
+    fprintf(PRINTOUT, "\t\t-p PORT : node port(default: 9735)\n");
+    fprintf(PRINTOUT, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\")\n");
+    fprintf(PRINTOUT, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
+    fprintf(PRINTOUT, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
     fprintf(PRINTOUT, "\t\t-i : show node_id(not start node)\n");
+    fprintf(PRINTOUT, "\t\t-x : erase current DB(without node)\n");
     return -1;
 }
 

@@ -513,6 +513,17 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
  */
 bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType);
 
+
+////////////////////
+// others
+////////////////////
+
+/** DB reset
+ * "version"以外を削除する
+ * 
+ */
+bool ln_db_reset(void);
+
 #ifdef __cplusplus
 }
 #endif  //__cplusplus
