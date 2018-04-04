@@ -112,6 +112,7 @@
 
 #define M_FUNDING_INDEX                     (0)             ///< funding_txのvout
 
+#define M_FEERATE_MARGIN(fr)                ((fr) * 0.1)    ///< feerate_per_kwの許容範囲[kw]
 
 #ifndef M_DBG_VERBOSE
 //#define M_DBG_PRINT_TX(tx)      //NONE
@@ -1836,6 +1837,20 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     ret = ln_msg_open_channel_read(open_ch, pData, Len);
     if (!ret) {
         DBG_PRINTF("fail: read message\n");
+        return false;
+    }
+
+    //feerate_per_kw更新
+    (*self->p_callback)(self, LN_CB_FEERATE_REQ, NULL);
+
+    //feerate_per_kwの許容チェック
+    const uint32_t MARGIN = M_FEERATE_MARGIN(self->feerate_per_kw);
+    if (self->feerate_per_kw - MARGIN > open_ch->feerate_per_kw) {
+        DBG_PRINTF("fail: feerate_per_kw is too short\n");
+        return false;
+    }
+    if (self->feerate_per_kw + MARGIN < open_ch->feerate_per_kw) {
+        DBG_PRINTF("fail: feerate_per_kw is too large\n");
         return false;
     }
 
