@@ -545,7 +545,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 
     DBG_PRINTF("mux_proc: prev\n");
     pthread_mutex_lock(&pAppConf->mux_proc);
-    DBG_PRINTF("mux_proc: after\n");
+    //DBG_PRINTF("mux_proc: after\n");
 
     DBGTRACE_BEGIN
 
@@ -569,7 +569,9 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
         }
     }
 
-    DBG_PRINTF("mux_proc: end\n");
+    misc_save_event(ln_short_channel_id(p_self), "close: good way(local) start");
+
+    //DBG_PRINTF("mux_proc: end\n");
     pthread_mutex_unlock(&pAppConf->mux_proc);
     DBGTRACE_END
 
@@ -604,6 +606,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
 
     SYSLOG_WARN("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
+    misc_save_event(ln_short_channel_id(p_self), "close: bad way(local)");
     (void)monitor_close_unilateral_local(p_self, NULL);
     APP_FREE(p_self);
 
@@ -948,6 +951,11 @@ static void *thread_main_start(void *pArg)
         // →ユーザの指示待ち
         DBG_PRINTF("Establish待ち\n");
         set_establish_default(p_conf, p_conf->node_id);
+    }
+
+    if (!p_conf->loop) {
+        DBG_PRINTF("fail: loop ended\n");
+        goto LABEL_JOIN;
     }
 
     //初期化完了
@@ -1650,12 +1658,6 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
 
     if (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_self)) {
         DBG_PRINTF("confirmation OK: %d\n", p_conf->funding_confirm);
-        p_conf->funding_waiting = false;    //funding_tx確定
-    } else {
-        DBG_PRINTF("confirmation waiting...: %d/%d\n", p_conf->funding_confirm, ln_minimum_depth(p_conf->p_self));
-    }
-
-    if (!p_conf->funding_waiting) {
         //funding_tx確定
         bool ret = check_short_channel_id(p_conf);
         if (ret) {
@@ -1664,6 +1666,10 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         } else {
             DBG_PRINTF("fail: btcprc_get_short_channel_param()\n");
         }
+
+        p_conf->funding_waiting = false;
+    } else {
+        DBG_PRINTF("confirmation waiting...: %d/%d\n", p_conf->funding_confirm, ln_minimum_depth(p_conf->p_self));
     }
 
     //DBGTRACE_END
@@ -2054,6 +2060,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
     const ln_error_t *p_err = (const ln_error_t *)p_param;
 
     set_lasterror(p_conf, RPCERR_PEER_ERROR, p_err->p_data);
+    misc_save_event(ln_short_channel_id(p_conf->p_self), p_err->p_data);
 
     if (p_conf->funding_waiting) {
         DBG_PRINTF("stop funding by error\n");
@@ -2138,6 +2145,11 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
     DBGTRACE_BEGIN
+
+    if ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0) {
+        //channel establish時のfunding_locked
+        misc_save_event(ln_short_channel_id(p_conf->p_self), "recv: Channel Established");
+    }
 
     //funding_locked受信待ち合わせ解除(*4)
     p_conf->flag_recv |= RECV_MSG_FUNDINGLOCKED;
@@ -2734,6 +2746,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
     } else {
         DBG_PRINTF("DBG: no send closing_tx mode\n");
     }
+    misc_save_event(ln_short_channel_id(p_conf->p_self), "close: good way: end");
 
     DBGTRACE_END
 }

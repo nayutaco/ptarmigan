@@ -123,6 +123,15 @@ int misc_sendjson(const char *pSend, const char *pAddr, uint16_t Port);
  */
 void misc_datetime(char *pDateTime, size_t Len);
 
+
+/** イベントファイル保存
+ * 
+ * @param[in]       ShortChannelId      short_channel_id(ファイル名)
+ * @param[in]       pStr                イベント文字列
+ */
+void misc_save_event(uint64_t ShortChannelId, const char *pStr);
+
+
 #ifdef APP_DEBUG_MEM
 void *misc_dbg_malloc(size_t size);
 //void *misc_dbg_realloc(void *ptr, size_t size);

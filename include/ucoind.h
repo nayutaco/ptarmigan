@@ -53,6 +53,8 @@ static inline int tid() {
 #define TM_WAIT_CONNECT             (10)        ///< client socket接続待ち[sec]
 
 #define FNAME_CONN_LOG              "connect.log"
+#define FNAME_EVENT_LOG             "event.log"
+#define FNAME_EVENTCH_LOG           "evt_%016" PRIx64 ".log"
 #define FNAME_FMT_NODECONF          "ptarm_%s.conf"
 
 // JSON-RPCエラー
