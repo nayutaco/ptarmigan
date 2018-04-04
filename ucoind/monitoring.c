@@ -272,7 +272,9 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         if (del) {
             DBG_PRINTF("delete from DB\n");
             ret = ln_db_self_del_prm(self, p_db_param);
-            if (!ret) {
+            if (ret) {
+                misc_save_event(ln_channel_id(self), "close: finish");
+            } else {
                 DBG_PRINTF("fail: del channel: ");
                 DUMPBIN(self->channel_id, LN_SZ_CHANNEL_ID);
             }
@@ -651,6 +653,8 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
     bool del = false;
     bool save = true;
     bool ret;
+
+    misc_save_event(ln_channel_id(self), "close: ugly way(remote)");
 
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         const ucoin_buf_t *p_vout = ln_revoked_vout(self);
