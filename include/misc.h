@@ -126,10 +126,10 @@ void misc_datetime(char *pDateTime, size_t Len);
 
 /** イベントファイル保存
  * 
- * @param[in]       ShortChannelId      short_channel_id(ファイル名)
+ * @param[in]       pChannelId          channel_id(ファイル名)
  * @param[in]       pStr                イベント文字列
  */
-void misc_save_event(uint64_t ShortChannelId, const char *pStr);
+void misc_save_event(const uint8_t *pChannelId, const char *pStr);
 
 
 #ifdef APP_DEBUG_MEM

@@ -569,7 +569,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
         }
     }
 
-    misc_save_event(ln_short_channel_id(p_self), "close: good way(local) start");
+    misc_save_event(ln_channel_id(p_self), "close: good way(local) start");
 
     //DBG_PRINTF("mux_proc: end\n");
     pthread_mutex_unlock(&pAppConf->mux_proc);
@@ -606,7 +606,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
 
     SYSLOG_WARN("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
-    misc_save_event(ln_short_channel_id(p_self), "close: bad way(local)");
+    misc_save_event(ln_channel_id(p_self), "close: bad way(local)");
     (void)monitor_close_unilateral_local(p_self, NULL);
     APP_FREE(p_self);
 
@@ -2060,7 +2060,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
     const ln_error_t *p_err = (const ln_error_t *)p_param;
 
     set_lasterror(p_conf, RPCERR_PEER_ERROR, p_err->p_data);
-    misc_save_event(ln_short_channel_id(p_conf->p_self), p_err->p_data);
+    misc_save_event(ln_channel_id(p_conf->p_self), p_err->p_data);
 
     if (p_conf->funding_waiting) {
         DBG_PRINTF("stop funding by error\n");
@@ -2136,6 +2136,8 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
     DUMPTXID(ln_funding_txid(p_conf->p_self));
     p_conf->funding_waiting = true;
 
+    misc_save_event(ln_channel_id(p_conf->p_self), "funding wait start");
+
     DBGTRACE_END
 }
 
@@ -2148,7 +2150,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 
     if ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
-        misc_save_event(ln_short_channel_id(p_conf->p_self), "recv: Channel Established");
+        misc_save_event(ln_channel_id(p_conf->p_self), "recv: Channel Established");
     }
 
     //funding_locked受信待ち合わせ解除(*4)
@@ -2746,7 +2748,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
     } else {
         DBG_PRINTF("DBG: no send closing_tx mode\n");
     }
-    misc_save_event(ln_short_channel_id(p_conf->p_self), "close: good way: end");
+    misc_save_event(ln_channel_id(p_conf->p_self), "close: good way: end");
 
     DBGTRACE_END
 }

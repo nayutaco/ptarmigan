@@ -54,7 +54,7 @@ static inline int tid() {
 
 #define FNAME_CONN_LOG              "connect.log"
 #define FNAME_EVENT_LOG             "event.log"
-#define FNAME_EVENTCH_LOG           "evt_%016" PRIx64 ".log"
+#define FNAME_EVENTCH_LOG           "evt_%s.log"
 #define FNAME_FMT_NODECONF          "ptarm_%s.conf"
 
 // JSON-RPCエラー
