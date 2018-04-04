@@ -48,6 +48,7 @@
  ********************************************************************/
 
 #define M_SZ_JSONSTR            (8192)
+#define M_SZ_PAYERR             (20)
 
 
 /********************************************************************
@@ -55,6 +56,7 @@
  ********************************************************************/
 
 static struct jrpc_server   mJrpc;
+static char                 mLastPayErr[M_SZ_PAYERR];       //最後に送金エラーが発生した時刻
 
 static const char *kOK = "OK";
 static const char *kNG = "NG";
@@ -896,6 +898,12 @@ LABEL_EXIT:
     if (ctx->error_code != 0) {
         ln_db_annoskip_invoice_del(payhash);
         ln_db_annoskip_drop(true);
+
+        //最後に失敗した時間
+        char date[50];
+        misc_datetime(date, sizeof(date));
+        sprintf(mLastPayErr, "[%s]payment fail", date);
+        DBG_PRINTF("%s\n", mLastPayErr);
     }
 
     return result;
@@ -909,11 +917,19 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *result = cJSON_CreateObject();
     cJSON *result_peer = cJSON_CreateArray();
 
+    //basic info
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
     misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
     cJSON_AddItemToObject(result, "jsonrpc_port", cJSON_CreateNumber(cmd_json_get_port()));
+
+    //peer info
+    p2p_svr_show_self(result_peer);
+    p2p_cli_show_self(result_peer);
+    cJSON_AddItemToObject(result, "peers", result_peer);
+
+    //payment info
     uint8_t *p_hash;
     int cnt = ln_db_annoskip_invoice_get(&p_hash);
     if (cnt > 0) {
@@ -928,9 +944,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
         free(p_hash);       //ln_lmdbでmalloc/realloc()している
         cJSON_AddItemToObject(result, "paying_hash", result_hash);
     }
-    p2p_svr_show_self(result_peer);
-    p2p_cli_show_self(result_peer);
-    cJSON_AddItemToObject(result, "peers", result_peer);
+    cJSON_AddItemToObject(result, "last_errpay_date", cJSON_CreateString(mLastPayErr));
 
     return result;
 }
