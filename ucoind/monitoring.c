@@ -289,6 +289,11 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
     bool del = false;
 
+    bool spent = ln_is_spent(self);
+    if (!spent) {
+        misc_save_event(ln_channel_id(self), "close: funding_tx spent");
+    }
+
     ln_goto_closing(self, p_db_param);
 
     ln_db_revtx_load(self, p_db_param);
