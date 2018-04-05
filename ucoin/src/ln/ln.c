@@ -359,7 +359,13 @@ const uint8_t* ln_get_genesishash(void)
 }
 
 
-bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm)
+void ln_set_peer_nodeid(ln_self_t *self, const uint8_t *pNodeId)
+{
+    memcpy(self->peer_node_id, pNodeId, UCOIN_SZ_PUBKEY);
+}
+
+
+bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
 {
     DBG_PRINTF("BEGIN\n");
 
@@ -382,21 +388,15 @@ bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establis
         DBG_PRINTF("min_depth= %" PRIu16 "\n", self->p_establish->estprm.min_depth);
     }
 
-    if ((pNodeId != NULL) && !ucoin_keys_chkpub(pNodeId)) {
-        self->err = LNERR_INV_NODEID;
-        DBG_PRINTF("fail: invalid node_id\n");
-        DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-        return false;
-    }
-
-    if (pNodeId) {
-        DBG_PRINTF("set peer_node info\n");
-        memcpy(self->peer_node_id, pNodeId, UCOIN_SZ_PUBKEY);
-    }
-
     DBG_PRINTF("END\n");
 
     return true;
+}
+
+
+void ln_free_establish(ln_self_t *self)
+{
+    free_establish(self, true);
 }
 
 
@@ -1745,7 +1745,7 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     if (ln_is_funding(self)) {
         DBG_PRINTF("stop funding\n");
-        free_establish(self, false);
+        free_establish(self, false);    //切断せずに継続する場合もあるため、残す
     }
 
     ln_error_t err;

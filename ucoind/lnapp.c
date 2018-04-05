@@ -266,7 +266,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf);
 static void send_node_anno(lnapp_conf_t *p_conf);
 static uint32_t get_latest_feerate_kw(void);
 
-static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId);
+static void set_establish_default(lnapp_conf_t *p_conf);
 static void wait_mutex_lock(uint8_t Flag);
 static void wait_mutex_unlock(uint8_t Flag);
 static void push_queue(lnapp_conf_t *p_conf, queue_fulfill_t *pFulfill);
@@ -870,6 +870,10 @@ static void *thread_main_start(void *pArg)
     DBG_PRINTF("connected peer: ");
     DUMPBIN(p_conf->node_id, UCOIN_SZ_PUBKEY);
 
+    //init交換前に設定する(open_channelの受信に間に合わない場合あり issue #351)
+    ln_set_peer_nodeid(p_conf->p_self, p_conf->node_id);
+    set_establish_default(p_conf);
+
     /////////////////////////
     // handshake完了
     //      server動作時、p_conf->node_idに相手node_idが入っている
@@ -931,12 +935,12 @@ static void *thread_main_start(void *pArg)
         if (ln_short_channel_id(p_self) != 0) {
             // funding_txはブロックに入ってminimum_depth以上経過している
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
+            ln_free_establish(p_conf);
         } else {
             // funding_txはminimum_depth未満
             DBG_PRINTF("funding_tx監視開始\n");
             DUMPTXID(ln_funding_txid(p_self));
 
-            set_establish_default(p_conf, p_conf->node_id);
             p_conf->funding_waiting = true;
         }
 
@@ -950,7 +954,6 @@ static void *thread_main_start(void *pArg)
         // channel_idはDB未登録
         // →ユーザの指示待ち
         DBG_PRINTF("Establish待ち\n");
-        set_establish_default(p_conf, p_conf->node_id);
     }
 
     if (!p_conf->loop) {
@@ -3055,9 +3058,8 @@ LABEL_EXIT:
 /** Establish情報設定
  *
  * @param[in,out]       p_conf
- * @param[in]           pNodeId     Establish先(NULL可のはず)
  */
-static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
+static void set_establish_default(lnapp_conf_t *p_conf)
 {
     bool ret;
     establish_conf_t econf;
@@ -3082,7 +3084,7 @@ static void set_establish_default(lnapp_conf_t *p_conf, const uint8_t *pNodeId)
         estprm.min_depth = M_MIN_DEPTH;
     }
 
-    ret = ln_set_establish(p_conf->p_self, pNodeId, &estprm);
+    ret = ln_set_establish(p_conf->p_self, &estprm);
     assert(ret);
 }
 

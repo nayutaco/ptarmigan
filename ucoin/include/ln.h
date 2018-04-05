@@ -1049,16 +1049,30 @@ void ln_set_genesishash(const uint8_t *pHash);
 const uint8_t* ln_get_genesishash(void);
 
 
+/** peer node_id設定
+ *
+ */
+void ln_set_peer_nodeid(ln_self_t *self, const uint8_t *pNodeId);
+
+
 /** Channel Establish設定
  *
  * @param[in,out]       self            channel情報
- * @param[in]           pNodeId         Establish先(NULL可)
  * @param[in]           pEstPrm         Establishパラメータ
  * @retval      true    成功
  * @note
  *      - pEstablishは接続完了まで保持すること
  */
-bool ln_set_establish(ln_self_t *self, const uint8_t *pNodeId, const ln_establish_prm_t *pEstPrm);
+bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm);
+
+
+/** #ln_set_establish()で確保したメモリを解放する
+ * 
+ * @param[in,out]       self            channel情報
+ * @note
+ *      - lnapp.cでfunding済みだった場合に呼ばれる想定
+ */
+void ln_free_establish(ln_self_t *self);
 
 
 /** short_channel_id情報設定
