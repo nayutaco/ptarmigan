@@ -2136,7 +2136,13 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
     DUMPTXID(ln_funding_txid(p_conf->p_self));
     p_conf->funding_waiting = true;
 
-    misc_save_event(ln_channel_id(p_conf->p_self), "funding wait start");
+    const char *p_str;
+    if (ln_is_funder(p_conf->p_self)) {
+        p_str = "open: funding wait start(funder)";
+    } else {
+        p_str = "open: funding wait start(fundee)";
+    }
+    misc_save_event(ln_channel_id(p_conf->p_self), p_str);
 
     DBGTRACE_END
 }
@@ -2150,7 +2156,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 
     if ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
-        misc_save_event(ln_channel_id(p_conf->p_self), "recv: Channel Established");
+        misc_save_event(ln_channel_id(p_conf->p_self), "open: recv funding_locked");
     }
 
     //funding_locked受信待ち合わせ解除(*4)
@@ -2694,6 +2700,8 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
     //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
     uint64_t commit_fee = ln_calc_max_closing_fee(p_conf->p_self);
     ln_update_shutdown_fee(p_conf->p_self, commit_fee);
+
+    misc_save_event(ln_channel_id(p_conf->p_self), "close: recv shutdown");
 }
 
 

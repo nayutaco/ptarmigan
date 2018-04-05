@@ -1568,6 +1568,17 @@ static inline bool ln_is_funding(const ln_self_t *self) {
 }
 
 
+/** spentかどうか
+ *
+ * @param[in]           self            channel情報
+ * @retval      true    #ln_goto_closing() が呼ばれた
+ * @retval      false   まだ #ln_goto_closing() が呼ばれていない
+ */
+static inline bool ln_is_spent(const ln_self_t *self) {
+    return (self->fund_flag & LN_FUNDFLAG_CLOSE);
+}
+
+
 /** estimatesmartfee --> feerate_per_kw
  *
  * @param[in]           feerate_kb  bitcoindから取得したfeerate/KB
