@@ -200,7 +200,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ucoin_buf_t *pBuf,
 
     //署名-btc
     ret = ln_signer_sign_rs(pBuf->buf + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
-                    hash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
+                    hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     if (!ret) {
         DBG_PRINTF("fail: sign btc\n");
         goto LABEL_EXIT;

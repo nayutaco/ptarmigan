@@ -870,7 +870,7 @@ typedef struct {
     uint16_t            txindex;                                ///< funding-tx index
 
     //MSG_FUNDIDX_xxx
-    ucoin_util_keys_t   keys[LN_FUNDIDX_MAX];
+    uint8_t             pubkeys[LN_FUNDIDX_MAX][UCOIN_SZ_PUBKEY];   ///< 自分の公開鍵
     //MSG_SCRIPTIDX_xxx
     uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][UCOIN_SZ_PUBKEY];   ///< script用PubKey
 } ln_funding_local_data_t;
@@ -915,15 +915,25 @@ typedef struct {
 } ln_noise_t;
 
 
+typedef struct {
+    uint64_t                    storage_index;                  ///< 現在のindex
+    uint8_t                     storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
+
+    uint8_t                     priv[LN_FUNDIDX_MAX][UCOIN_SZ_PRIVKEY];
+} ln_self_priv_t;
+
+
 /** @struct     ln_self_t
  *  @brief      チャネル情報
  */
 struct ln_self_t {
     uint8_t                     peer_node_id[UCOIN_SZ_PUBKEY];  ///< 接続先ノード
 
+    ln_self_priv_t              priv_data;
+
     //key storage
-    uint64_t                    storage_index;                  ///< 現在のindex
-    uint8_t                     storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
+    // uint64_t                    storage_index;                  ///< 現在のindex
+    // uint8_t                     storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
     ln_derkey_storage           peer_storage;                   ///< key storage(peer)
     uint64_t                    peer_storage_index;             ///< 現在のindex(peer)
 

@@ -68,7 +68,6 @@ typedef struct {
         uint32_t            txid_index;         ///< funding txid index
         uint64_t            satoshi;            ///< funding satoshi
         const ucoin_buf_t   *p_script;          ///< funding script
-        ucoin_util_keys_t   *p_keys;            ///< funding local keys(remoteは署名をもらう)
     } fund;
 
     struct {
@@ -234,9 +233,10 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
  * @param[out]      pSig        local署名
  * @param[in]       pCmt        Commitment Transaction情報
  * @param[in]       Local       true:LocalがFEEを払う
+ * @param[in]       pPrivData
  * @return      true:成功
  */
-bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local);
+bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local, const ln_self_priv_t *pPrivData);
 
 
 /** Offered/Receveid HTLC Transaction作成

@@ -629,7 +629,7 @@ bool ln_create_funding_locked(ln_self_t *self, ucoin_buf_t *pLocked)
     //funding_locked
     ln_funding_locked_t cnl_funding_locked;
     cnl_funding_locked.p_channel_id = self->channel_id;
-    cnl_funding_locked.p_per_commitpt = self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub;
+    cnl_funding_locked.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
     bool ret = ln_msg_funding_locked_create(pLocked, &cnl_funding_locked);
 
     return ret;
@@ -690,7 +690,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     open_ch->max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
     open_ch->p_temp_channel_id = self->channel_id;
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        open_ch->p_pubkeys[lp] = self->funding_local.keys[lp].pub;
+        open_ch->p_pubkeys[lp] = self->funding_local.pubkeys[lp];
     }
     open_ch->channel_flags = CHANNEL_FLAGS_VALUE;
     ln_msg_open_channel_create(pOpen, open_ch);
@@ -890,9 +890,11 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
 
-    ucoin_util_keys_t bak_key = self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT];
-    uint8_t bak_pubkey[UCOIN_SZ_PUBKEY];
-    memcpy(bak_pubkey, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], sizeof(bak_pubkey));
+    uint8_t bak_percommit[UCOIN_SZ_PRIVKEY];
+    memcpy(bak_percommit, self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], sizeof(bak_percommit));
+
+    uint8_t bak_remotecommit[UCOIN_SZ_PUBKEY];
+    memcpy(bak_remotecommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], sizeof(bak_remotecommit));
 
     //commit_tx
 
@@ -925,8 +927,8 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     self->commit_num += flocked;
 
-    self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT] = bak_key;
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_pubkey, sizeof(bak_pubkey));
+    memcpy(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], bak_percommit, sizeof(bak_percommit));
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_remotecommit, sizeof(bak_remotecommit));
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     return ret;
@@ -1888,7 +1890,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     acc_ch->max_accepted_htlcs = self->p_establish->estprm.max_accepted_htlcs;
     acc_ch->p_temp_channel_id = self->channel_id;
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        acc_ch->p_pubkeys[lp] = self->funding_local.keys[lp].pub;
+        acc_ch->p_pubkeys[lp] = self->funding_local.pubkeys[lp];
     }
     ucoin_buf_t buf_bolt;
     ln_msg_accept_channel_create(&buf_bolt, acc_ch);
@@ -1912,7 +1914,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
 
     //vout 2-of-2
     ret = ucoin_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
-                self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub, self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
+                self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
         self->htlc_num = 0;
         self->fund_flag = ((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING;
@@ -2758,7 +2760,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     ucoin_buf_init(&buf_revack);
     revack.p_channel_id = channel_id;
     revack.p_per_commit_secret = prev_secret;
-    revack.p_per_commitpt = self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub;
+    revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
     ret = ln_msg_revoke_and_ack_create(&buf_revack, &revack);
     if (ret) {
         //自分のrevoke_numberをインクリメント(channel_reestablish用)
@@ -3210,7 +3212,7 @@ static bool create_funding_tx(ln_self_t *self)
 
     //vout 2-of-2
     ucoin_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
-                self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub, self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
+                self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
     //output
     //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
@@ -3381,7 +3383,6 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.fund.txid_index = self->funding_local.txindex;
     lntx_commit.fund.satoshi = self->funding_sat;
     lntx_commit.fund.p_script = &self->redeem_fund;
-    lntx_commit.fund.p_keys = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(self->our_msat);
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->their_msat);
@@ -3392,7 +3393,7 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.htlcinfo_num = cnt;
 
     DBG_PRINTF("self->commit_num=%" PRIx64 "\n", self->commit_num);
-    ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self));
+    ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->priv_data);
     if (ret) {
         ret = create_to_local_sign(self, &tx_commit, &buf_sig);
     } else {
@@ -3547,7 +3548,7 @@ static bool create_to_local_spent(ln_self_t *self,
 
         //HTLC署名用鍵
         ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
-            self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub);
+            self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
         assert(memcmp(htlckey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY], UCOIN_SZ_PUBKEY) == 0);
     } else {
         push.data = NULL;
@@ -3858,7 +3859,6 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.fund.txid_index = self->funding_local.txindex;
     lntx_commit.fund.satoshi = self->funding_sat;
     lntx_commit.fund.p_script = &self->redeem_fund;
-    lntx_commit.fund.p_keys = &self->funding_local.keys[MSG_FUNDIDX_FUNDING];
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(self->their_msat);
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->our_msat);
@@ -3869,7 +3869,7 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.htlcinfo_num = cnt;
 
     DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num);
-    ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self));
+    ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->priv_data);
     if (ret) {
         DBG_PRINTF("++++++++++++++ 相手のcommit tx: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
         M_DBG_PRINT_TX(&tx_commit);
@@ -4216,7 +4216,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat,
     //署名
     uint8_t sighash[UCOIN_SZ_SIGHASH];
     ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, self->funding_sat, &self->redeem_fund);
-    ret = ln_signer_p2wsh(&buf_sig, sighash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
+    ret = ln_signer_p2wsh(&buf_sig, sighash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     if (!ret) {
         DBG_PRINTF("fail: sign p2wsh\n");
         ucoin_tx_free(pTx);
@@ -4267,7 +4267,7 @@ static bool create_local_channel_announcement(ln_self_t *self)
     anno.short_channel_id = self->short_channel_id;
     anno.p_my_node_pub = ln_node_getid();
     anno.p_peer_node_pub = self->peer_node_id;
-    anno.p_my_funding_pub = self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub;
+    anno.p_my_funding_pub = self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING];
     anno.p_peer_funding_pub = self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING];
     anno.sort = sort_nodeid(self);
     bool ret = ln_msg_cnl_announce_create(self, &self->cnl_anno, &anno);
@@ -4506,7 +4506,6 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
  */
 static void free_establish(ln_self_t *self, bool bEndEstablish)
 {
-    DBG_PRINTF("self->p_establish=%p\n", self->p_establish);
     if (self->p_establish != NULL) {
         if (self->p_establish->p_fundin != NULL) {
             DBG_PRINTF("self->p_establish->p_fundin=%p\n", self->p_establish->p_fundin);

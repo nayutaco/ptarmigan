@@ -203,10 +203,17 @@ static MDB_env      *mpDbSelf = NULL;           // channel
 static MDB_env      *mpDbNode = NULL;           // node
 
 
+static const backup_param_t DBSELF_PRIVKEYS[] = {
+    M_ITEM(ln_self_priv_t, storage_index),
+    M_ITEM(ln_self_priv_t, storage_seed),
+    M_ITEM(ln_self_priv_t, priv),
+};
+
+
 static const backup_param_t DBSELF_KEYS[] = {
     M_ITEM(ln_self_t, peer_node_id),
-    M_ITEM(ln_self_t, storage_index),
-    M_ITEM(ln_self_t, storage_seed),
+    // M_ITEM(ln_self_t, storage_index),
+    // M_ITEM(ln_self_t, storage_seed),
     M_ITEM(ln_self_t, peer_storage),            //ln_derkey_storage
                                                 //      {
                                                 //          uint8[]
@@ -218,7 +225,8 @@ static const backup_param_t DBSELF_KEYS[] = {
     //M_ITEM(ln_self_t, funding_local),           //ln_funding_local_data_t(outpoint, privkey)
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
+    // MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, scriptpubkeys),
 
     //M_ITEM(ln_self_t, funding_remote),          //ln_funding_remote_data_t(pubkey, percommit)
@@ -297,11 +305,12 @@ static const backup_param_t DBCOPY_KEYS[] = {
     M_ITEM(ln_self_t, peer_node_id),
     M_ITEM(ln_self_t, channel_id),
     M_ITEM(ln_self_t, short_channel_id),
-    M_ITEM(ln_self_t, storage_index),
-    M_ITEM(ln_self_t, storage_seed),
+    // M_ITEM(ln_self_t, storage_index),
+    // M_ITEM(ln_self_t, storage_seed),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
+    // MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
 };
@@ -599,7 +608,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     //復元データからさらに復元
     //ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ucoin_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
-            self->funding_local.keys[MSG_FUNDIDX_FUNDING].pub,
+            self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING],
             self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
     //可変サイズ
@@ -909,7 +918,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
 #ifdef M_DEBUG_KEYS
                 {
                     const ucoin_util_keys_t *p_keys = (const ucoin_util_keys_t *)p;
-                    memcpy(local.keys, p_keys, M_SIZE(ln_funding_local_data_t, keys));
+                    memcpy(local.pubkeys, p_keys, M_SIZE(ln_funding_local_data_t, pubkeys));
                 }
 #endif  //M_DEBUG_KEYS
                 break;
@@ -928,7 +937,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
         }
     }
 #ifdef M_DEBUG_KEYS
-    if ( ((local.keys[0].pub[0] == 0x02) || (local.keys[0].pub[0] == 0x03)) &&
+    if ( ((local.pubkeys[0][0] == 0x02) || (local.pubkeys[0][0] == 0x03)) &&
          ((remote.pubkeys[0][0] == 0x02) || (remote.pubkeys[0][0] == 0x03))) {
         fprintf(PRINTOUT, ",\n");
         ln_misc_update_scriptkeys(&local, &remote);

@@ -136,10 +136,10 @@ static void ln_print_self(const ln_self_t *self)
     printf("\",");
 
     //key storage
-    printf(M_QQ("storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->storage_index);
-    printf(M_QQ("storage_seed") ": \"");
-    ucoin_util_dumpbin(stdout, self->storage_seed, UCOIN_SZ_PRIVKEY, false);
-    printf("\",\n");
+    // printf(M_QQ("storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->priv_data.storage_index);
+    // printf(M_QQ("storage_seed") ": \"");
+    // ucoin_util_dumpbin(stdout, self->priv_data.storage_seed, UCOIN_SZ_PRIVKEY, false);
+    // printf("\",\n");
     printf(M_QQ("peer_storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->peer_storage_index);
 
     //funding
@@ -152,11 +152,11 @@ static void ln_print_self(const ln_self_t *self)
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         printf(M_QQ("%s") ": ", KEYS_STR[lp]);
         printf("{");
-        printf(M_QQ("priv") ": \"");
-        ucoin_util_dumpbin(stdout, self->funding_local.keys[lp].priv, UCOIN_SZ_PRIVKEY, false);
-        printf("\",");
+        // printf(M_QQ("priv") ": \"");
+        // ucoin_util_dumpbin(stdout, self->funding_local.keys[lp].priv, UCOIN_SZ_PRIVKEY, false);
+        // printf("\",");
         printf(M_QQ("pub") ": \"");
-        ucoin_util_dumpbin(stdout, self->funding_local.keys[lp].pub, UCOIN_SZ_PUBKEY, false);
+        ucoin_util_dumpbin(stdout, self->funding_local.pubkeys[lp], UCOIN_SZ_PUBKEY, false);
         printf("\"},\n");
     }
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {

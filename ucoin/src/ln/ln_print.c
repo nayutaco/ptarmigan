@@ -396,9 +396,7 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
             fprintf(fp, ",\n");
         }
         fprintf(fp, "  " M_QQ("%s") ": [\"", KEYS_STR[lp]);
-        ucoin_util_dumpbin(fp, pLocal->keys[lp].priv, UCOIN_SZ_PRIVKEY, false);
-        fprintf(fp, "\", \"");
-        ucoin_util_dumpbin(fp, pLocal->keys[lp].pub, UCOIN_SZ_PUBKEY, false);
+        ucoin_util_dumpbin(fp, pLocal->pubkeys[lp], UCOIN_SZ_PUBKEY, false);
         fprintf(fp, "\"]");
     }
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
