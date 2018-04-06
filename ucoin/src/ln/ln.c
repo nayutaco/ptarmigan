@@ -4506,9 +4506,12 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
  */
 static void free_establish(ln_self_t *self, bool bEndEstablish)
 {
+    DBG_PRINTF("self->p_establish=%p\n", self->p_establish);
     if (self->p_establish != NULL) {
         if (self->p_establish->p_fundin != NULL) {
+            DBG_PRINTF("self->p_establish->p_fundin=%p\n", self->p_establish->p_fundin);
             M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
+            DBG_PRINTF("free\n");
         }
         if (bEndEstablish) {
             M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
