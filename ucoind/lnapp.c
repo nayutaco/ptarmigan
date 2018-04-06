@@ -935,7 +935,7 @@ static void *thread_main_start(void *pArg)
         if (ln_short_channel_id(p_self) != 0) {
             // funding_txはブロックに入ってminimum_depth以上経過している
             DBG_PRINTF("Establish済み : %d\n", p_conf->cmd);
-            ln_free_establish(p_conf);
+            ln_free_establish(p_self);
         } else {
             // funding_txはminimum_depth未満
             DBG_PRINTF("funding_tx監視開始\n");
