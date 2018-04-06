@@ -58,6 +58,7 @@
 
 #define M_PREFIX_LEN            (2)
 #define M_PREF_CHANNEL          "CN"            ///< channel
+#define M_PREF_SECRET           "SE"            ///< secret
 #define M_PREF_ADDHTLC          "HT"            ///< update_add_htlc関連
 #define M_PREF_REVOKED          "RV"            ///< revoked transaction用
 #define M_PREF_BAKCHANNEL       "cn"            ///< closed channel
@@ -101,6 +102,7 @@
     -15: node.conf情報をversionに追加
     -16: selfはmpDbEnv、それ以外はmpDbNodeEnvにする
     -17: selfの構造体を個別に保存する
+    -18: selfのsecret情報をself.priv_dataに集約
  */
 
 
@@ -203,7 +205,7 @@ static MDB_env      *mpDbSelf = NULL;           // channel
 static MDB_env      *mpDbNode = NULL;           // node
 
 
-static const backup_param_t DBSELF_PRIVKEYS[] = {
+static const backup_param_t DBSELF_SECRET[] = {
     M_ITEM(ln_self_priv_t, storage_index),
     M_ITEM(ln_self_priv_t, storage_seed),
     M_ITEM(ln_self_priv_t, priv),
@@ -212,8 +214,6 @@ static const backup_param_t DBSELF_PRIVKEYS[] = {
 
 static const backup_param_t DBSELF_KEYS[] = {
     M_ITEM(ln_self_t, peer_node_id),
-    // M_ITEM(ln_self_t, storage_index),
-    // M_ITEM(ln_self_t, storage_seed),
     M_ITEM(ln_self_t, peer_storage),            //ln_derkey_storage
                                                 //      {
                                                 //          uint8[]
@@ -396,6 +396,10 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 
 static int self_cursor_open(lmdb_cursor_t *pCur);
 static void self_cursor_close(lmdb_cursor_t *pCur);
+
+static int backup_param_load(void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
+static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
+
 
 #ifdef M_DB_DEBUG
 static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **txn, int line) {
@@ -586,17 +590,14 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 {
     int         retval;
     MDB_val     key, data;
+    ln_lmdb_db_t db;
 
     //固定サイズ
-    for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_KEYS); lp++) {
-        key.mv_size = strlen(DBSELF_KEYS[lp].name);
-        key.mv_data = (CONST_CAST char*)DBSELF_KEYS[lp].name;
-        retval = mdb_get(txn, dbi, &key, &data);
-        if (retval == 0) {
-            memcpy((uint8_t *)self + DBSELF_KEYS[lp].offset, data.mv_data,  DBSELF_KEYS[lp].datalen);
-        } else {
-            DBG_PRINTF("fail: %s\n", DBSELF_KEYS[lp].name);
-        }
+    db.txn = txn;
+    db.dbi = dbi;
+    retval = backup_param_load(self, &db, DBSELF_KEYS, ARRAY_SIZE(DBSELF_KEYS));
+    if (retval != 0) {
+        goto LABEL_EXIT;
     }
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -641,13 +642,19 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     M_FREE(p_dbscript_keys);
 
     //add_htlc
-    ln_lmdb_db_t db;
-    db.txn = txn;
     retval = self_addhtlc_load(self, &db);
     if (retval != 0) {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        DBG_PRINTF("ERR\n");
+        goto LABEL_EXIT;
     }
 
+    //secret
+    retval = backup_param_load(&self->priv_data, &db, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
+    if (retval != 0) {
+        DBG_PRINTF("ERR\n");
+    }
+
+LABEL_EXIT:
     return retval;
 }
 
@@ -706,7 +713,6 @@ bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param)
 {
     int         retval;
     MDB_dbi     dbi;
-    MDB_val     key, data;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
 
@@ -760,18 +766,18 @@ bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param)
     memcpy(dbname, M_PREF_BAKCHANNEL, M_PREFIX_LEN);
     retval = mdb_dbi_open(p_cur->txn, dbname, MDB_CREATE, &dbi);
     if (retval == 0) {
-        for (size_t lp = 0; lp < ARRAY_SIZE(DBCOPY_KEYS); lp++) {
-            key.mv_size = strlen(DBCOPY_KEYS[lp].name);
-            key.mv_data = (CONST_CAST char*)DBCOPY_KEYS[lp].name;
-            data.mv_size = DBCOPY_KEYS[lp].datalen;
-            data.mv_data = (uint8_t *)self + DBCOPY_KEYS[lp].offset;
-            retval = mdb_put(p_cur->txn, dbi, &key, &data, 0);
-            if (retval != 0) {
-                DBG_PRINTF("fail: %s\n", DBCOPY_KEYS[lp].name);
-            }
+        ln_lmdb_db_t db;
+
+        db.txn = p_cur->txn;
+        db.dbi = dbi;
+        retval = backup_param_save(self, &db, DBCOPY_KEYS, ARRAY_SIZE(DBCOPY_KEYS));
+        if (retval != 0) {
+            DBG_PRINTF("fail\n");
         }
     } else {
-        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        if (retval != MDB_NOTFOUND) {
+            DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        }
     }
 
     return true;
@@ -945,6 +951,43 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
     }
 #endif  //M_DEBUG_KEYS
 }
+
+
+bool ln_db_secret_save(ln_self_t *self)
+{
+    int             retval;
+    ln_lmdb_db_t    db;
+    char            dbname[M_SZ_DBNAME_LEN + 1];
+
+    DBG_PRINTF("\n");
+
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(dbname, M_PREF_SECRET, M_PREFIX_LEN);
+    retval = mdb_dbi_open(db.txn, dbname, MDB_CREATE, &db.dbi);
+    if (retval != 0) {
+        DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.txn);
+        goto LABEL_EXIT;
+    }
+
+    retval = backup_param_save(&self->priv_data, &db, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
+    if (retval == 0) {
+        MDB_TXN_COMMIT(db.txn);
+    } else {
+        MDB_TXN_ABORT(db.txn);
+    }
+    DBG_PRINTF("retval=%d\n", retval);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
 
 /********************************************************************
  * node用DB
@@ -1434,7 +1477,6 @@ int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *p
 /********************************************************************
  * skip routing list
  ********************************************************************/
-
 
 bool ln_db_annoskip_save(uint64_t ShortChannelId, bool bTemp)
 {
@@ -2687,6 +2729,13 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     //shutdown_scriptpk_remote
     ucoin_buf_free(&pOutSelf->shutdown_scriptpk_remote);
     memcpy(&pOutSelf->shutdown_scriptpk_remote, &pInSelf->shutdown_scriptpk_remote, sizeof(ucoin_buf_t));
+
+    //secret
+    for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_SECRET); lp++) {
+        memcpy((uint8_t *)&pOutSelf->priv_data + DBSELF_SECRET[lp].offset,
+                    (uint8_t *)&pInSelf->priv_data + DBSELF_SECRET[lp].offset,  
+                    DBSELF_SECRET[lp].datalen);
+    }
 }
 
 
@@ -2772,18 +2821,16 @@ static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
             DBG_PRINTF("ERR: %s(%s)\n", mdb_strerror(retval), dbname);
             continue;
         }
-        for (size_t lp2 = 0; lp2 < ARRAY_SIZE(DBHTLC_KEYS); lp2++) {
-            key.mv_size = strlen(DBHTLC_KEYS[lp2].name);
-            key.mv_data = (CONST_CAST char*)DBHTLC_KEYS[lp2].name;
-            data.mv_size = DBHTLC_KEYS[lp2].datalen;
-            data.mv_data = OFFSET + sizeof(ln_update_add_htlc_t) * lp + DBHTLC_KEYS[lp2].offset;
-            //DBG_PRINTF("[%d]%s: ", lp, DBHTLC_KEYS[lp2].name);
-            //DUMPBIN(data.mv_data, data.mv_size);
-            retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
-            if (retval != 0) {
-                DBG_PRINTF("ERR: %s(%s)\n", mdb_strerror(retval), DBHTLC_KEYS[lp2].name);
-            }
+
+        ln_lmdb_db_t db;
+        db.txn = pDb->txn;
+        db.dbi = dbi;
+        retval = backup_param_save(OFFSET + sizeof(ln_update_add_htlc_t) * lp,
+                        &db, DBHTLC_KEYS, ARRAY_SIZE(DBHTLC_KEYS));
+        if (retval != 0) {
+            DBG_PRINTF("ERR\n");
         }
+
         key.mv_size = M_SZ_SHAREDSECRET;
         key.mv_data = M_KEY_SHAREDSECRET;
         data.mv_size = self->cnl_add_htlc[lp].shared_secret.len;
@@ -2810,15 +2857,9 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     int retval;
 
     //固定サイズ
-    for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_KEYS); lp++) {
-        key.mv_size = strlen(DBSELF_KEYS[lp].name);
-        key.mv_data = (CONST_CAST char*)DBSELF_KEYS[lp].name;
-        data.mv_size = DBSELF_KEYS[lp].datalen;
-        data.mv_data = (uint8_t *)self + DBSELF_KEYS[lp].offset;
-        retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
-        if (retval != 0) {
-            DBG_PRINTF("fail: %s\n", DBSELF_KEYS[lp].name);
-        }
+    retval = backup_param_save(self, pDb, DBSELF_KEYS, ARRAY_SIZE(DBSELF_KEYS));
+    if (retval != 0) {
+        goto LABEL_EXIT;
     }
 
     //可変サイズ
@@ -2844,16 +2885,14 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
         retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
         if (retval != 0) {
             DBG_PRINTF("fail: %s\n", p_dbscript_keys[lp].name);
+            break;
         }
     }
 
     ucoin_buf_free(&buf_funding);
     M_FREE(p_dbscript_keys);
 
-    if (retval != 0) {
-        DBG_PRINTF("retval=%d\n", retval);
-    }
-
+LABEL_EXIT:
     return retval;
 }
 
@@ -3414,4 +3453,64 @@ static void self_cursor_close(lmdb_cursor_t *pCur)
 {
     mdb_cursor_close(pCur->cursor);
     MDB_TXN_COMMIT(pCur->txn);
+}
+
+
+/** backup_param_tデータ読込み
+ * 
+ * @param[out]      pData
+ * @param[in]       pDb
+ * @param[in]       pParam
+ * @param[in]       Num             pParam数
+ */
+static int backup_param_load(void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num)
+{
+    int         retval;
+    MDB_val     key, data;
+
+    for (size_t lp = 0; lp < Num; lp++) {
+        key.mv_size = strlen(pParam[lp].name);
+        key.mv_data = (CONST_CAST char *)pParam[lp].name;
+        retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
+        if (retval == 0) {
+            memcpy((uint8_t *)pData + pParam[lp].offset, data.mv_data,  pParam[lp].datalen);
+        } else {
+            if (retval != MDB_NOTFOUND) {
+                DBG_PRINTF("fail: %s\n", pParam[lp].name);
+                break;
+            } else {
+                retval = 0;
+            }
+        }
+    }
+
+    return retval;
+}
+
+
+/** backup_param_tデータ保存
+ * 
+ * @param[in]       pData
+ * @param[in]       pDb
+ * @param[in]       pParam
+ * @param[in]       Num             pParam数
+ */
+static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num)
+{
+    int             retval;
+    MDB_val         key, data;
+
+    for (size_t lp = 0; lp < Num; lp++) {
+        key.mv_size = strlen(pParam[lp].name);
+        key.mv_data = (CONST_CAST char *)pParam[lp].name;
+        data.mv_size = pParam[lp].datalen;
+        data.mv_data = (CONST_CAST uint8_t *)pData + pParam[lp].offset;
+        retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
+        if (retval != 0) {
+            DBG_PRINTF("fail: %s\n", pParam[lp].name);
+            break;
+        }
+    }
+
+    return retval;
 }

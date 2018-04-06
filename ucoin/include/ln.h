@@ -932,8 +932,6 @@ struct ln_self_t {
     ln_self_priv_t              priv_data;
 
     //key storage
-    // uint64_t                    storage_index;                  ///< 現在のindex
-    // uint8_t                     storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
     ln_derkey_storage           peer_storage;                   ///< key storage(peer)
     uint64_t                    peer_storage_index;             ///< 現在のindex(peer)
 

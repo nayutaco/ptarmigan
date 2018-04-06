@@ -1870,15 +1870,12 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     self->our_msat = open_ch->push_msat;
     self->their_msat = LN_SATOSHI2MSAT(open_ch->funding_sat) - open_ch->push_msat;
 
-    //鍵生成
+    //鍵生成 && スクリプト用鍵生成
     ret = ln_signer_create_channelkeys(self);
     if (!ret) {
         DBG_PRINTF("fail: ln_signer_create_channelkeys\n");
         return false;
     }
-
-    //スクリプト用鍵生成
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     ln_accept_channel_t *acc_ch = &self->p_establish->cnl_accept;
     acc_ch->dust_limit_sat = self->p_establish->estprm.dust_limit_sat;
@@ -2773,7 +2770,6 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     if (ret) {
         //commitment_signed受信通知
         (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, NULL);
-        ln_db_self_save(self);
     }
 
 LABEL_EXIT:
@@ -2849,6 +2845,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //HTLC変化通知
     (*self->p_callback)(self, LN_CB_HTLC_CHANGED, NULL);
+    ln_db_secret_save(self);
     ln_db_self_save(self);
 
 LABEL_EXIT:
@@ -3148,6 +3145,7 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     }
     (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
+    ln_db_secret_save(self);
     ln_db_self_save(self);
 }
 
