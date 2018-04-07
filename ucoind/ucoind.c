@@ -103,6 +103,7 @@ int main(int argc, char *argv[])
         case 'n':
             //node name(alias)
             strncpy(p_alias, optarg, LN_SZ_ALIAS - 1);
+            p_alias[LN_SZ_ALIAS] = '\0';
             break;
         case 'a':
             //ip address

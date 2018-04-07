@@ -2516,7 +2516,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType)
     }
 
     char wif[UCOIN_SZ_WIF_MAX];
-    char alias[LN_SZ_ALIAS];
+    char alias[LN_SZ_ALIAS + 1];
     uint16_t port;
     uint8_t genesis[LN_SZ_HASH];
     retval = ver_check(&db, wif, alias, &port, genesis);

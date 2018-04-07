@@ -615,6 +615,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     //        [32:alias]
     if (pMsg->p_alias != NULL) {
         memcpy(pMsg->p_alias, pData + pos, LN_SZ_ALIAS);
+        pMsg->p_alias[LN_SZ_ALIAS] = '\0';
     }
     pos += LN_SZ_ALIAS;
 

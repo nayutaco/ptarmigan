@@ -597,7 +597,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         }
 
         char wif[UCOIN_SZ_WIF_MAX];
-        char alias[LN_SZ_ALIAS];
+        char alias[LN_SZ_ALIAS + 1];
         uint16_t port;
         uint8_t genesis[LN_SZ_HASH];
         retval = ln_db_lmdb_get_mynodeid(txn, dbi, wif, alias, &port, genesis);
