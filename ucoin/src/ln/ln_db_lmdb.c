@@ -273,21 +273,23 @@ static const backup_param_t DBSELF_KEYS[] = {
     //last_num_pong_bytes: none
 
     //M_ITEM(ln_self_t, commit_local),            //ln_commit_data_t
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, accept_htlcs),
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, to_self_delay),
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, minimum_msat),
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, in_flight_msat),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, dust_limit_sat),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, max_htlc_value_in_flight_msat),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, channel_reserve_sat),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_minimum_msat),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, to_self_delay),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, max_accepted_htlcs),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, signature),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, txid),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_num),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
     //M_ITEM(ln_self_t, commit_remote),           //ln_commit_data_t
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, accept_htlcs),
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, to_self_delay),
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, minimum_msat),
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, in_flight_msat),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, dust_limit_sat),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, max_htlc_value_in_flight_msat),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, channel_reserve_sat),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_minimum_msat),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, to_self_delay),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, max_accepted_htlcs),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, signature),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, txid),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_num),
@@ -2733,7 +2735,7 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     //secret
     for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_SECRET); lp++) {
         memcpy((uint8_t *)&pOutSelf->priv_data + DBSELF_SECRET[lp].offset,
-                    (uint8_t *)&pInSelf->priv_data + DBSELF_SECRET[lp].offset,  
+                    (uint8_t *)&pInSelf->priv_data + DBSELF_SECRET[lp].offset,
                     DBSELF_SECRET[lp].datalen);
     }
 }
@@ -2912,7 +2914,7 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
         DBG_PRINTF("ERR\n");
     }
     // DBG_PRINTF("[priv]storage_index: %016" PRIx64 "\n", self->priv_data.storage_index);
-    // DBG_PRINTF("[priv]storage_seed: "); 
+    // DBG_PRINTF("[priv]storage_seed: ");
     // DUMPBIN(self->priv_data.storage_seed, UCOIN_SZ_PRIVKEY);
     // for (size_t lp = 0; lp < MSG_FUNDIDX_MAX; lp++) {
     //     DBG_PRINTF("[priv][%lu] ", lp);
@@ -3440,7 +3442,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 
 
 /**
- * 
+ *
  * @param[out]      pCur
  * @retval      0   成功
  */
@@ -3472,7 +3474,7 @@ LABEL_EXIT:
 
 
 /**
- * 
+ *
  * @param[out]      pCur
  */
 static void self_cursor_close(lmdb_cursor_t *pCur)
@@ -3483,7 +3485,7 @@ static void self_cursor_close(lmdb_cursor_t *pCur)
 
 
 /** backup_param_tデータ読込み
- * 
+ *
  * @param[out]      pData
  * @param[in]       pDb
  * @param[in]       pParam
@@ -3516,7 +3518,7 @@ static int backup_param_load(void *pData, ln_lmdb_db_t *pDb, const backup_param_
 
 
 /** backup_param_tデータ保存
- * 
+ *
  * @param[in]       pData
  * @param[in]       pDb
  * @param[in]       pParam

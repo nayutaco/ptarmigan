@@ -241,10 +241,10 @@ static void ln_print_self(const ln_self_t *self)
     }
 
     printf(M_QQ("commit_local") ": {\n");
-    printf(M_QQ("accept_htlcs") ": %" PRIu32 ",\n", self->commit_local.accept_htlcs);
+    printf(M_QQ("max_accepted_htlcs") ": %" PRIu32 ",\n", self->commit_local.max_accepted_htlcs);
     printf(M_QQ("to_self_delay") ": %" PRIu32 ",\n", self->commit_local.to_self_delay);
-    printf(M_QQ("minimum_msat") ": %" PRIu64 ",\n", self->commit_local.minimum_msat);
-    printf(M_QQ("in_flight_msat") ": %" PRIu64 ",\n", self->commit_local.in_flight_msat);
+    printf(M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->commit_local.htlc_minimum_msat);
+    printf(M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_local.max_htlc_value_in_flight_msat);
     printf(M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_local.dust_limit_sat);
     printf(M_QQ("commit_txid") ": \"");
     ucoin_util_dumptxid(stdout, self->commit_local.txid);
@@ -255,10 +255,10 @@ static void ln_print_self(const ln_self_t *self)
     printf("},\n");
 
     printf(M_QQ("commit_remote") ": {\n");
-    printf(M_QQ("accept_htlcs") ": %" PRIu32 ",\n", self->commit_remote.accept_htlcs);
+    printf(M_QQ("max_accepted_htlcs") ": %" PRIu32 ",\n", self->commit_remote.max_accepted_htlcs);
     printf(M_QQ("to_self_delay") ": %" PRIu32 ",\n", self->commit_remote.to_self_delay);
-    printf(M_QQ("minimum_msat")  ":%" PRIu64 ",\n", self->commit_remote.minimum_msat);
-    printf(M_QQ("in_flight_msat") ": %" PRIu64 ",\n", self->commit_remote.in_flight_msat);
+    printf(M_QQ("htlc_minimum_msat")  ":%" PRIu64 ",\n", self->commit_remote.htlc_minimum_msat);
+    printf(M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_remote.max_htlc_value_in_flight_msat);
     printf(M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_remote.dust_limit_sat);
     printf(M_QQ("commit_txid") ": \"");
     ucoin_util_dumptxid(stdout, self->commit_remote.txid);

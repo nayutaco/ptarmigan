@@ -697,11 +697,12 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     open_ch->channel_flags = CHANNEL_FLAGS_VALUE;
     ln_msg_open_channel_create(pOpen, open_ch);
 
-    self->commit_local.accept_htlcs = open_ch->max_accepted_htlcs;
-    self->commit_local.minimum_msat = open_ch->htlc_minimum_msat;
-    self->commit_local.in_flight_msat = open_ch->max_htlc_value_in_flight_msat;
-    self->commit_local.to_self_delay = open_ch->to_self_delay;
     self->commit_local.dust_limit_sat = open_ch->dust_limit_sat;
+    self->commit_local.max_htlc_value_in_flight_msat = open_ch->max_htlc_value_in_flight_msat;
+    self->commit_local.channel_reserve_sat = open_ch->channel_reserve_sat;
+    self->commit_local.htlc_minimum_msat = open_ch->htlc_minimum_msat;
+    self->commit_local.to_self_delay = open_ch->to_self_delay;
+    self->commit_local.max_accepted_htlcs = open_ch->max_accepted_htlcs;
     self->our_msat = LN_SATOSHI2MSAT(open_ch->funding_sat) - open_ch->push_msat;
     self->their_msat = open_ch->push_msat;
     self->funding_sat = open_ch->funding_sat;
@@ -1140,7 +1141,7 @@ bool ln_create_add_htlc(ln_self_t *self,
     bool ret;
 
     //追加した結果が相手のmax_accepted_htlcsより多くなるなら、追加してはならない。
-    if (self->commit_remote.accept_htlcs <= self->htlc_num) {
+    if (self->commit_remote.max_accepted_htlcs <= self->htlc_num) {
         self->err = LNERR_INV_VALUE;
         DBG_PRINTF("fail: over max_accepted_htlcs\n");
         return false;
@@ -1148,20 +1149,20 @@ bool ln_create_add_htlc(ln_self_t *self,
 
     //amount_msatは、0より大きくなくてはならない。
     //amount_msatは、相手のhtlc_minimum_msat未満にしてはならない。
-    if ((amount_msat == 0) || (amount_msat < self->commit_remote.minimum_msat)) {
+    if ((amount_msat == 0) || (amount_msat < self->commit_remote.htlc_minimum_msat)) {
         self->err = LNERR_INV_VALUE;
-        DBG_PRINTF("fail: amount_msat(%" PRIu64 ") < remote htlc_minimum_msat(%" PRIu64 ")\n", amount_msat, self->commit_remote.minimum_msat);
+        DBG_PRINTF("fail: amount_msat(%" PRIu64 ") < remote htlc_minimum_msat(%" PRIu64 ")\n", amount_msat, self->commit_remote.htlc_minimum_msat);
         return false;
     }
 
     //加算した結果が相手のmax_htlc_value_in_flight_msatを超えるなら、追加してはならない。
-    uint64_t in_flight_msat = 0;
+    uint64_t max_htlc_value_in_flight_msat = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //TODO: OfferedとReceivedの見分けは不要？
         self->err = LNERR_INV_VALUE;
-        in_flight_msat += self->cnl_add_htlc[idx].amount_msat;
+        max_htlc_value_in_flight_msat += self->cnl_add_htlc[idx].amount_msat;
     }
-    if (in_flight_msat > self->commit_remote.in_flight_msat) {
+    if (max_htlc_value_in_flight_msat > self->commit_remote.max_htlc_value_in_flight_msat) {
         DBG_PRINTF("fail: exceed remote max_htlc_value_in_flight_msat\n");
         self->err = LNERR_INV_VALUE;
         return false;
@@ -1849,11 +1850,12 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         return false;
     }
 
-    self->commit_remote.accept_htlcs = open_ch->max_accepted_htlcs;
-    self->commit_remote.minimum_msat = open_ch->htlc_minimum_msat;
-    self->commit_remote.in_flight_msat = open_ch->max_htlc_value_in_flight_msat;
-    self->commit_remote.to_self_delay = open_ch->to_self_delay;
     self->commit_remote.dust_limit_sat = open_ch->dust_limit_sat;
+    self->commit_remote.max_htlc_value_in_flight_msat = open_ch->max_htlc_value_in_flight_msat;
+    self->commit_remote.channel_reserve_sat = open_ch->channel_reserve_sat;
+    self->commit_remote.htlc_minimum_msat = open_ch->htlc_minimum_msat;
+    self->commit_remote.to_self_delay = open_ch->to_self_delay;
+    self->commit_remote.max_accepted_htlcs = open_ch->max_accepted_htlcs;
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
@@ -1888,11 +1890,12 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     ucoin_buf_free(&buf_bolt);
 
     self->min_depth = acc_ch->min_depth;
-    self->commit_local.accept_htlcs = acc_ch->max_accepted_htlcs;
-    self->commit_local.minimum_msat = acc_ch->htlc_minimum_msat;
-    self->commit_local.in_flight_msat = acc_ch->max_htlc_value_in_flight_msat;
-    self->commit_local.to_self_delay = acc_ch->to_self_delay;
     self->commit_local.dust_limit_sat = acc_ch->dust_limit_sat;
+    self->commit_local.max_htlc_value_in_flight_msat = acc_ch->max_htlc_value_in_flight_msat;
+    self->commit_local.channel_reserve_sat = acc_ch->channel_reserve_sat;
+    self->commit_local.htlc_minimum_msat = acc_ch->htlc_minimum_msat;
+    self->commit_local.to_self_delay = acc_ch->to_self_delay;
+    self->commit_local.max_accepted_htlcs = acc_ch->max_accepted_htlcs;
 
     //obscured commitment tx numberは共通
     //  1番目:open_channelのpayment-basepoint
@@ -1950,11 +1953,12 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     self->min_depth = acc_ch->min_depth;
-    self->commit_remote.accept_htlcs = acc_ch->max_accepted_htlcs;
-    self->commit_remote.minimum_msat = acc_ch->htlc_minimum_msat;
-    self->commit_remote.in_flight_msat = acc_ch->max_htlc_value_in_flight_msat;
-    self->commit_remote.to_self_delay = acc_ch->to_self_delay;
     self->commit_remote.dust_limit_sat = acc_ch->dust_limit_sat;
+    self->commit_remote.max_htlc_value_in_flight_msat = acc_ch->max_htlc_value_in_flight_msat;
+    self->commit_remote.channel_reserve_sat = acc_ch->channel_reserve_sat;
+    self->commit_remote.htlc_minimum_msat = acc_ch->htlc_minimum_msat;
+    self->commit_remote.to_self_delay = acc_ch->to_self_delay;
+    self->commit_remote.max_accepted_htlcs = acc_ch->max_accepted_htlcs;
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
@@ -2446,7 +2450,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //再接続後に、送信側に受入(acknowledge)されていない前と同じidを送ってきても、無視する。
     //破壊するようなidを送ってきたら、チャネルを失敗させる。
 
-    uint64_t in_flight_msat = 0;
+    uint64_t max_htlc_value_in_flight_msat = 0;
     //uint64_t bak_msat = self->their_msat;
     //uint16_t bak_num = self->htlc_num;
     ln_hop_dataout_t hop_dataout;   // update_add_htlc受信後のONION解析結果
@@ -2454,7 +2458,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     add_htlc.ok = true;     //LABEL_ERR時、trueならチェックでNG、falseならアプリでNG
 
     //追加した結果が自分のmax_accepted_htlcsより多くなるなら、チャネルを失敗させる。
-    if (self->commit_local.accept_htlcs <= self->htlc_num) {
+    if (self->commit_local.max_accepted_htlcs <= self->htlc_num) {
         self->err = LNERR_INV_VALUE;
         DBG_PRINTF("fail: over max_accepted_htlcs : %d\n", self->htlc_num);
         goto LABEL_ERR;
@@ -2462,7 +2466,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //amount_msatが0の場合、チャネルを失敗させる。
     //amount_msatが自分のhtlc_minimum_msat未満の場合、チャネルを失敗させる。
-    if ((self->cnl_add_htlc[idx].amount_msat == 0) || (self->cnl_add_htlc[idx].amount_msat < self->commit_local.minimum_msat)) {
+    if ((self->cnl_add_htlc[idx].amount_msat == 0) || (self->cnl_add_htlc[idx].amount_msat < self->commit_local.htlc_minimum_msat)) {
         self->err = LNERR_INV_VALUE;
         DBG_PRINTF("fail: amount_msat < local htlc_minimum_msat\n");
         goto LABEL_ERR;
@@ -2479,9 +2483,9 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //加算した結果が自分のmax_htlc_value_in_flight_msatを超えるなら、チャネルを失敗させる。
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //TODO: OfferedとReceivedの見分けは不要？
-        in_flight_msat += self->cnl_add_htlc[idx].amount_msat;
+        max_htlc_value_in_flight_msat += self->cnl_add_htlc[idx].amount_msat;
     }
-    if (in_flight_msat > self->commit_local.in_flight_msat) {
+    if (max_htlc_value_in_flight_msat > self->commit_local.max_htlc_value_in_flight_msat) {
         self->err = LNERR_INV_VALUE;
         DBG_PRINTF("fail: exceed local max_htlc_value_in_flight_msat\n");
         goto LABEL_ERR;

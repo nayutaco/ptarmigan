@@ -892,11 +892,13 @@ typedef struct {
  *  @brief  commitment transaction用情報
  */
 typedef struct {
-    uint32_t            accept_htlcs;                   ///< accept_htlcs
-    uint32_t            to_self_delay;                  ///< to_self_delay
-    uint64_t            minimum_msat;                   ///< minimum_msat
-    uint64_t            in_flight_msat;                 ///< in_flight_msat
-    uint64_t            dust_limit_sat;                 ///< dust_limit_sat
+    uint64_t            dust_limit_sat;                 ///< dust_limit_satoshis
+    uint64_t            max_htlc_value_in_flight_msat;  ///< max_htlc_value_in_flight_msat
+    uint64_t            channel_reserve_sat;            ///< channel_reserve_satoshis
+    uint64_t            htlc_minimum_msat;              ///< htlc_minimum_msat
+    uint16_t            to_self_delay;                  ///< to_self_delay
+    uint16_t            max_accepted_htlcs;             ///< max_accepted_htlcs
+
     uint8_t             signature[LN_SZ_SIGNATURE];     ///< 署名
                                                         // localには相手に送信する署名
                                                         // remoteには相手から受信した署名
@@ -1070,7 +1072,7 @@ bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm);
 
 
 /** #ln_set_establish()で確保したメモリを解放する
- * 
+ *
  * @param[in,out]       self            channel情報
  * @note
  *      - lnapp.cでfunding済みだった場合に呼ばれる想定
