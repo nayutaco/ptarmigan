@@ -264,9 +264,7 @@ static const backup_param_t DBSELF_KEYS[] = {
 
     M_ITEM(ln_self_t, htlc_num),
     M_ITEM(ln_self_t, commit_num),
-    M_ITEM(ln_self_t, revoke_num),
     M_ITEM(ln_self_t, remote_commit_num),
-    M_ITEM(ln_self_t, remote_revoke_num),
     M_ITEM(ln_self_t, htlc_id_num),
     M_ITEM(ln_self_t, our_msat),
     M_ITEM(ln_self_t, their_msat),
@@ -367,6 +365,8 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
+
+static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 
 static int annocnl_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId);
 static int annocnl_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId);
@@ -649,7 +649,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     }
 
     //secret
-    retval = backup_param_load(&self->priv_data, &db, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
+    retval = secret_load(self, &db);
     if (retval != 0) {
         DBG_PRINTF("ERR\n");
     }
@@ -2897,6 +2897,32 @@ LABEL_EXIT:
 }
 
 
+static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
+{
+    int retval;
+    char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
+
+    misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(dbname, M_PREF_SECRET, M_PREFIX_LEN);
+    retval = mdb_dbi_open(pDb->txn, dbname, 0, &pDb->dbi);
+    if (retval == 0) {
+        retval = backup_param_load(&self->priv_data, pDb, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
+    }
+    if (retval != 0) {
+        DBG_PRINTF("ERR\n");
+    }
+    // DBG_PRINTF("[priv]storage_index: %016" PRIx64 "\n", self->priv_data.storage_index);
+    // DBG_PRINTF("[priv]storage_seed: "); 
+    // DUMPBIN(self->priv_data.storage_seed, UCOIN_SZ_PRIVKEY);
+    // for (size_t lp = 0; lp < MSG_FUNDIDX_MAX; lp++) {
+    //     DBG_PRINTF("[priv][%lu] ", lp);
+    //     DUMPBIN(self->priv_data.priv[lp], UCOIN_SZ_PRIVKEY);
+    // }
+
+    return retval;
+}
+
+
 /** channel_announcement読込み
  *
  * @param[in]       pDb
@@ -3473,10 +3499,11 @@ static int backup_param_load(void *pData, ln_lmdb_db_t *pDb, const backup_param_
         key.mv_data = (CONST_CAST char *)pParam[lp].name;
         retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
         if (retval == 0) {
+            //DBG_PRINTF("%s: %lu\n", pParam[lp].name, pParam[lp].offset);
             memcpy((uint8_t *)pData + pParam[lp].offset, data.mv_data,  pParam[lp].datalen);
         } else {
+            DBG_PRINTF("fail: %s\n", pParam[lp].name);
             if (retval != MDB_NOTFOUND) {
-                DBG_PRINTF("fail: %s\n", pParam[lp].name);
                 break;
             } else {
                 retval = 0;

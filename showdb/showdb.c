@@ -210,9 +210,7 @@ static void ln_print_self(const ln_self_t *self)
     //normal operation
     printf(M_QQ("htlc_num") ": %d,\n", self->htlc_num);
     printf(M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_num);
-    printf(M_QQ("revoke_num") ": %" PRIu64 ",\n", self->revoke_num);
     printf(M_QQ("remote_commit_num") ": %" PRIu64 ",\n", self->remote_commit_num);
-    printf(M_QQ("remote_revoke_num") ": %" PRIu64 ",\n", self->remote_revoke_num);
     printf(M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);
     printf(M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
     printf(M_QQ("their_msat") ": %" PRIu64 ",\n", self->their_msat);

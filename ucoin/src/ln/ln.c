@@ -609,9 +609,8 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 {
     ln_channel_reestablish_t msg;
     msg.p_channel_id = self->channel_id;
-    //commitment_numberを0で送信することはないため、0の場合は+1する
-    msg.next_local_commitment_number = self->commit_num + ((self->commit_num == 0) ? 1 : 0);
-    msg.next_remote_revocation_number = self->remote_revoke_num;
+    msg.next_local_commitment_number = self->commit_num + 1;
+    msg.next_remote_revocation_number = self->remote_commit_num;
 
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
     return ret;
@@ -620,7 +619,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 
 bool ln_check_need_funding_locked(const ln_self_t *self)
 {
-    return (self->commit_num == 1) && (self->remote_commit_num == 1);
+    return (self->short_channel_id != 0) && (self->commit_num == 0) && (self->remote_commit_num == 0);
 }
 
 
@@ -885,8 +884,6 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
 
-    int flocked = (self->commit_num != 0) ? 1 : 0;
-
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
 
@@ -900,9 +897,9 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     //local
     //  storage_seedは、次回送信するnext_per_commitment_secret用の値が入っている。
-    //  現在のnext_per_commitment_secret用の値は index+1。
-    //  現在のper_commitment_secret用の値は、index+2 となる。
-    ln_signer_keys_update(self, 1 + flocked);
+    //  現在のnext_per_commitment_secret用の値は index。
+    //  現在のper_commitment_secret用の値は、index+1 となる。
+    ln_signer_keys_update(self, 1);
     //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
     //remote
     //DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
@@ -912,7 +909,6 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //commitment number(for obscured commitment number)
-    self->commit_num -= flocked;
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_local.htlc_num);
@@ -924,8 +920,6 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
         DBG_PRINTF("fail: create_to_local\n");
         ln_free_close_force_tx(pClose);
     }
-
-    self->commit_num += flocked;
 
     memcpy(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], bak_percommit, sizeof(bak_percommit));
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_remotecommit, sizeof(bak_remotecommit));
@@ -1354,10 +1348,6 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
     commsig.p_htlc_signature = p_htlc_sigs;
     ret = ln_msg_commit_signed_create(pCommSig, &commsig);
     M_FREE(p_htlc_sigs);
-
-    //相手のcommitment_numberをインクリメント
-    self->remote_commit_num++;
-    DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num);
 
     DBG_PRINTF("END\n");
     return ret;
@@ -2748,6 +2738,10 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
     //per-commit-secret更新
     ln_signer_update_percommit_secret(self);
+    ln_db_secret_save(self);
+
+    //commitment_signed受信により、自分のcommit_txが確定する
+    ln_db_self_save(self);
 
     //チェックOKであれば、revoke_and_ackを返す
     //HTLCに変化がある場合、revoke_and_ack→commitment_signedの順で送信したい
@@ -2760,14 +2754,9 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
     ret = ln_msg_revoke_and_ack_create(&buf_revack, &revack);
     if (ret) {
-        //自分のrevoke_numberをインクリメント(channel_reestablish用)
-        self->revoke_num++;
-
         (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_revack);
-    }
-    ucoin_buf_free(&buf_revack);
+        ucoin_buf_free(&buf_revack);
 
-    if (ret) {
         //commitment_signed受信通知
         (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, NULL);
     }
@@ -2827,9 +2816,9 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
         goto LABEL_EXIT;
     }
 
-    //相手のrevoke_numberをインクリメント(channel_reestablish用)
-    self->remote_revoke_num++;
-    DBG_PRINTF("self->remote_revoke_num=%" PRIx64 "\n", self->remote_revoke_num);
+    //相手のcommitment_numberをインクリメント(channel_reestablish用)
+    self->remote_commit_num++;
+    DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num);
 
     //prev_secret保存
     ret = store_peer_percommit_secret(self, prev_secret);
@@ -2843,10 +2832,10 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], new_commitpt, UCOIN_SZ_PUBKEY);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
+    ln_db_self_save(self);
+
     //HTLC変化通知
     (*self->p_callback)(self, LN_CB_HTLC_CHANGED, NULL);
-    ln_db_secret_save(self);
-    ln_db_self_save(self);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");
@@ -2918,20 +2907,20 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         return false;
     }
 
-    if (self->remote_commit_num != reest.next_local_commitment_number) {
-        DBG_PRINTF("number mismatch\n");
+    if (self->remote_commit_num + 1 != reest.next_local_commitment_number) {
+        DBG_PRINTF("number mismatch : update remote commit_num\n");
         DBG_PRINTF("  next_local_commitment_number: %" PRIu64 "(own) != %" PRIu64 "(recv)\n", self->remote_commit_num, reest.next_local_commitment_number);
-        return false;
+        self->remote_commit_num = reest.next_local_commitment_number - 1;
+        ln_db_self_save(self);
     }
-    if (self->revoke_num != reest.next_remote_revocation_number) {
-        DBG_PRINTF("number mismatch : update own revoke_num\n");
-        DBG_PRINTF("  next_remote_revocation_number:%" PRIu64 "(own) <- %" PRIu64 "(recv)\n", self->revoke_num, reest.next_remote_revocation_number);
-        self->revoke_num =  reest.next_remote_revocation_number;
+    if (self->commit_num != reest.next_remote_revocation_number) {
+        DBG_PRINTF("number mismatch\n");
+        DBG_PRINTF("  next_remote_revocation_number:%" PRIu64 "(own) <- %" PRIu64 "(recv)\n", self->commit_num, reest.next_remote_revocation_number);
+        return false;
     }
 
     //reestablish受信通知
     (*self->p_callback)(self, LN_CB_REESTABLISH_RECV, NULL);
-    ln_db_self_save(self);
 
     return ret;
 }
@@ -3129,10 +3118,8 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     //が、opening時を1回とカウントするので、Normal Operationでは1から始まる
     //  BOLT#2
     //  https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
-    self->commit_num = 1;
-    self->remote_commit_num = 1;
-    // self->revoke_num = 0;
-    // self->remote_revoke_num = 0;
+    //self->commit_num = 0;
+    //self->remote_commit_num = 0;
     // self->htlc_id_num = 0;
     // self->short_channel_id = 0;
 
@@ -3385,7 +3372,7 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->their_msat);
     lntx_commit.remote.pubkey = self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
-    lntx_commit.obscured = self->obscured ^ self->commit_num;
+    lntx_commit.obscured = self->obscured ^ (self->commit_num + 1);
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
@@ -3861,7 +3848,7 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->our_msat);
     lntx_commit.remote.pubkey = self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
-    lntx_commit.obscured = self->obscured ^ self->remote_commit_num;
+    lntx_commit.obscured = self->obscured ^ (self->remote_commit_num + 1);
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;

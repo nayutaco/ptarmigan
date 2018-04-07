@@ -1245,8 +1245,8 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
         count--;
     }
     ret = (count > 0);
-    if (ret) {
-        DBG_PRINTF("exchange: channel_reestablish\n");
+    if (!ret) {
+        DBG_PRINTF("fail: channel_reestablish timeout\n");
     }
 
     return ret;
