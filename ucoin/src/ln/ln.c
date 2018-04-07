@@ -326,6 +326,9 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
     ln_signer_init(self, pSeed);
     self->peer_storage_index = LN_SECINDEX_INIT;
 
+    self->commit_num = (uint64_t)-1;
+    self->remote_commit_num = (uint64_t)-1;
+
     DBG_PRINTF("END\n");
 
     return true;
@@ -3118,8 +3121,8 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     //が、opening時を1回とカウントするので、Normal Operationでは1から始まる
     //  BOLT#2
     //  https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
-    //self->commit_num = 0;
-    //self->remote_commit_num = 0;
+    self->commit_num = 0;
+    self->remote_commit_num = 0;
     // self->htlc_id_num = 0;
     // self->short_channel_id = 0;
 
@@ -3377,7 +3380,7 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    DBG_PRINTF("self->commit_num=%" PRIx64 "\n", self->commit_num);
+    DBG_PRINTF("self->commit_num=%" PRIx64 "\n", self->commit_num + 1);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->priv_data);
     if (ret) {
         ret = create_to_local_sign(self, &tx_commit, &buf_sig);
@@ -3853,7 +3856,7 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num);
+    DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num + 1);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->priv_data);
     if (ret) {
         DBG_PRINTF("++++++++++++++ 相手のcommit tx: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
