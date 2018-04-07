@@ -844,7 +844,7 @@ typedef struct {
  */
 typedef struct {
     uint8_t                 node_id[UCOIN_SZ_PUBKEY];           ///< ノードID
-    char                    alias[LN_SZ_ALIAS];                 ///< 名前
+    char                    alias[LN_SZ_ALIAS + 1];             ///< 名前
     ucoin_keys_sort_t       sort;                               ///< 自ノードの順番
                                                                 // #UCOIN_KEYS_SORT_ASC : 自ノードが先
                                                                 // #UCOIN_KEYS_SORT_OTHER : 他ノードが先
@@ -857,7 +857,7 @@ typedef struct {
 typedef struct {
     ucoin_util_keys_t           keys;                           ///< node鍵
     uint8_t                     features;                       ///< localfeatures
-    char                        alias[LN_SZ_ALIAS];             ///< ノード名(\0 terminate)
+    char                        alias[LN_SZ_ALIAS + 1];         ///< ノード名(\0 terminate)
     ln_nodeaddr_t               addr;                           ///< ノードアドレス
 } ln_node_t;
 
