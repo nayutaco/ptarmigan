@@ -263,8 +263,6 @@ static const backup_param_t DBSELF_KEYS[] = {
     //revoked_chk --> revoked db
 
     M_ITEM(ln_self_t, htlc_num),
-    M_ITEM(ln_self_t, commit_num),
-    M_ITEM(ln_self_t, remote_commit_num),
     M_ITEM(ln_self_t, htlc_id_num),
     M_ITEM(ln_self_t, our_msat),
     M_ITEM(ln_self_t, their_msat),
@@ -283,6 +281,7 @@ static const backup_param_t DBSELF_KEYS[] = {
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, signature),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, txid),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_num),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
     //M_ITEM(ln_self_t, commit_remote),           //ln_commit_data_t
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, accept_htlcs),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, to_self_delay),
@@ -292,6 +291,7 @@ static const backup_param_t DBSELF_KEYS[] = {
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, signature),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, txid),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_num),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),
 
     M_ITEM(ln_self_t, funding_sat),
     M_ITEM(ln_self_t, feerate_per_kw),

@@ -623,7 +623,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_commit)
 
     self.funding_sat = SATOSHI_FUNDING;
     self.obscured = OBSCURED_NUM;
-    self.commit_num = COMMITMENT_NUMBER;
+    self.commit_local.commit_num = COMMITMENT_NUMBER;
 
     //0
     self.cnl_add_htlc[0].id = 0;

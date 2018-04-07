@@ -326,8 +326,8 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
     ln_signer_init(self, pSeed);
     self->peer_storage_index = LN_SECINDEX_INIT;
 
-    self->commit_num = (uint64_t)-1;
-    self->remote_commit_num = (uint64_t)-1;
+    self->commit_local.commit_num = (uint64_t)-1;
+    self->commit_remote.commit_num = (uint64_t)-1;
 
     DBG_PRINTF("END\n");
 
@@ -612,8 +612,8 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 {
     ln_channel_reestablish_t msg;
     msg.p_channel_id = self->channel_id;
-    msg.next_local_commitment_number = self->commit_num + 1;
-    msg.next_remote_revocation_number = self->remote_commit_num;
+    msg.next_local_commitment_number = self->commit_local.commit_num + 1;
+    msg.next_remote_revocation_number = self->commit_remote.commit_num;
 
     bool ret = ln_msg_channel_reestablish_create(pReEst, &msg);
     return ret;
@@ -622,7 +622,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 
 bool ln_check_need_funding_locked(const ln_self_t *self)
 {
-    return (self->short_channel_id != 0) && (self->commit_num == 0) && (self->remote_commit_num == 0);
+    return (self->short_channel_id != 0) && (self->commit_local.commit_num == 0) && (self->commit_remote.commit_num == 0);
 }
 
 
@@ -957,7 +957,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //commitment number(for obscured commitment number)
-    self->remote_commit_num--;
+    self->commit_remote.commit_num--;
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_remote.htlc_num);
@@ -1044,7 +1044,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     //鍵の復元
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //commitment number(for obscured commitment number)
-    self->remote_commit_num = commit_num;
+    self->commit_remote.commit_num = commit_num;
 
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
@@ -2733,8 +2733,8 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     }
 
     //自分のcommitment_numberをインクリメント
-    self->commit_num++;
-    DBG_PRINTF("self->commit_num=%" PRIx64 "\n", self->commit_num);
+    self->commit_local.commit_num++;
+    DBG_PRINTF("self->commit_local.commit_num=%" PRIx64 "\n", self->commit_local.commit_num);
 
     uint8_t prev_secret[UCOIN_SZ_PRIVKEY];
     ln_signer_get_prevkey(self, prev_secret);
@@ -2820,8 +2820,8 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //相手のcommitment_numberをインクリメント(channel_reestablish用)
-    self->remote_commit_num++;
-    DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num);
+    self->commit_remote.commit_num++;
+    DBG_PRINTF("self->commit_remote.commit_num=%" PRIx64 "\n", self->commit_remote.commit_num);
 
     //prev_secret保存
     ret = store_peer_percommit_secret(self, prev_secret);
@@ -2910,15 +2910,15 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         return false;
     }
 
-    if (self->remote_commit_num + 1 != reest.next_local_commitment_number) {
+    if (self->commit_remote.commit_num + 1 != reest.next_local_commitment_number) {
         DBG_PRINTF("number mismatch : update remote commit_num\n");
-        DBG_PRINTF("  next_local_commitment_number: %" PRIu64 "(own) != %" PRIu64 "(recv)\n", self->remote_commit_num, reest.next_local_commitment_number);
-        self->remote_commit_num = reest.next_local_commitment_number - 1;
+        DBG_PRINTF("  next_local_commitment_number: %" PRIu64 "(own) != %" PRIu64 "(recv)\n", self->commit_remote.commit_num, reest.next_local_commitment_number);
+        self->commit_remote.commit_num = reest.next_local_commitment_number - 1;
         ln_db_self_save(self);
     }
-    if (self->commit_num != reest.next_remote_revocation_number) {
+    if (self->commit_local.commit_num != reest.next_remote_revocation_number) {
         DBG_PRINTF("number mismatch\n");
-        DBG_PRINTF("  next_remote_revocation_number:%" PRIu64 "(own) <- %" PRIu64 "(recv)\n", self->commit_num, reest.next_remote_revocation_number);
+        DBG_PRINTF("  next_remote_revocation_number:%" PRIu64 "(own) <- %" PRIu64 "(recv)\n", self->commit_local.commit_num, reest.next_remote_revocation_number);
         return false;
     }
 
@@ -3121,8 +3121,8 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     //が、opening時を1回とカウントするので、Normal Operationでは1から始まる
     //  BOLT#2
     //  https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#rationale-10
-    self->commit_num = 0;
-    self->remote_commit_num = 0;
+    self->commit_local.commit_num = 0;
+    self->commit_remote.commit_num = 0;
     // self->htlc_id_num = 0;
     // self->short_channel_id = 0;
 
@@ -3375,12 +3375,12 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->their_msat);
     lntx_commit.remote.pubkey = self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
-    lntx_commit.obscured = self->obscured ^ (self->commit_num + 1);
+    lntx_commit.obscured = self->obscured ^ (self->commit_local.commit_num + 1);
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    DBG_PRINTF("self->commit_num=%" PRIx64 "\n", self->commit_num + 1);
+    DBG_PRINTF("self->commit_local.commit_num=%" PRIx64 "\n", self->commit_local.commit_num + 1);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->priv_data);
     if (ret) {
         ret = create_to_local_sign(self, &tx_commit, &buf_sig);
@@ -3851,12 +3851,12 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->our_msat);
     lntx_commit.remote.pubkey = self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
-    lntx_commit.obscured = self->obscured ^ (self->remote_commit_num + 1);
+    lntx_commit.obscured = self->obscured ^ (self->commit_remote.commit_num + 1);
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    DBG_PRINTF("self->remote_commit_num=%" PRIx64 "\n", self->remote_commit_num + 1);
+    DBG_PRINTF("self->commit_remote.commit_num=%" PRIx64 "\n", self->commit_remote.commit_num + 1);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->priv_data);
     if (ret) {
         DBG_PRINTF("++++++++++++++ 相手のcommit tx: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
