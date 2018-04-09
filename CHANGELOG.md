@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2018/04/09
+
+* DB version : -18
+  * privkey move other database
+* bugfix
+
 ## 2018/03/23
 
 * include [`nayutaco/bech32`](https://github.com/nayutaco/bech32)
