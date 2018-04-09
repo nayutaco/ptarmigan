@@ -900,19 +900,17 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //commit_tx
 
     //local
-    //  storage_seedは、次回送信するnext_per_commitment_secret用の値が入っている。
-    //  現在のnext_per_commitment_secret用の値は index。
-    //  現在のper_commitment_secret用の値は、index+1 となる。
-    ln_signer_keys_update(self, 1);
-    //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
+    ln_signer_keys_update(self, 2);
+    //commitment number(for obscured commitment number)
+    self->commit_local.commit_num--;        //1つ前
+
     //remote
     //DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
-    //DBG_PRINTF("prev: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    //DBG_PRINTF("current remote percommit: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    //commitment number(for obscured commitment number)
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_local.htlc_num);
@@ -958,7 +956,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     //commitment number(for obscured commitment number)
-    self->commit_remote.commit_num--;
+    self->commit_remote.commit_num--;   //1つ前
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_remote.htlc_num);
@@ -2743,7 +2741,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     uint8_t prev_secret[UCOIN_SZ_PRIVKEY];
     ln_signer_get_prevkey(self, prev_secret);
 
-    //per-commit-secret更新
+    //storage_indexデクリメントおよびper_commit_secret更新
     ln_signer_update_percommit_secret(self);
     ln_db_secret_save(self);
 

@@ -59,6 +59,7 @@ bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
     DBG_PRINTF("\n");
 
     self->priv_data.storage_index = LN_SECINDEX_INIT;
+    DBG_PRINTF("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
 
     //鍵生成
     //  open_channel/accept_channelの鍵は ln_signer_update_percommit_secret()で生成
@@ -83,6 +84,7 @@ void HIDDEN ln_signer_update_percommit_secret(ln_self_t *self)
     ln_signer_keys_update(self, 0);
 
     self->priv_data.storage_index--;
+    DBG_PRINTF("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
 
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 }
@@ -103,8 +105,11 @@ void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
     ln_derkey_create_secret(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], self->priv_data.storage_seed, Index);
     ucoin_keys_priv2pub(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT]);
 
-    // DBG_PRINTF("Index = %" PRIx64 "\n", Index);
-    // DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].priv, UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF("Index = %" PRIx64 "\n", Index);
+    DBG_PRINTF("PER_COMMIT_SEC: ");
+    DUMPBIN(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PRIVKEY);
+    DBG_PRINTF("PER_COMMIT_PT : ");
+    DUMPBIN(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 }
 
 

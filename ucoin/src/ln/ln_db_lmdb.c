@@ -2913,7 +2913,7 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     if (retval != 0) {
         DBG_PRINTF("ERR\n");
     }
-    // DBG_PRINTF("[priv]storage_index: %016" PRIx64 "\n", self->priv_data.storage_index);
+    // DBG_PRINTF("[priv]storage_index: %" PRIx64 "\n", self->priv_data.storage_index);
     // DBG_PRINTF("[priv]storage_seed: ");
     // DUMPBIN(self->priv_data.storage_seed, UCOIN_SZ_PRIVKEY);
     // for (size_t lp = 0; lp < MSG_FUNDIDX_MAX; lp++) {
