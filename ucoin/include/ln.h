@@ -844,7 +844,7 @@ typedef struct {
  */
 typedef struct {
     uint8_t                 node_id[UCOIN_SZ_PUBKEY];           ///< ノードID
-    char                    alias[LN_SZ_ALIAS];                 ///< 名前
+    char                    alias[LN_SZ_ALIAS + 1];             ///< 名前
     ucoin_keys_sort_t       sort;                               ///< 自ノードの順番
                                                                 // #UCOIN_KEYS_SORT_ASC : 自ノードが先
                                                                 // #UCOIN_KEYS_SORT_OTHER : 他ノードが先
@@ -857,7 +857,7 @@ typedef struct {
 typedef struct {
     ucoin_util_keys_t           keys;                           ///< node鍵
     uint8_t                     features;                       ///< localfeatures
-    char                        alias[LN_SZ_ALIAS];             ///< ノード名(\0 terminate)
+    char                        alias[LN_SZ_ALIAS + 1];         ///< ノード名(\0 terminate)
     ln_nodeaddr_t               addr;                           ///< ノードアドレス
 } ln_node_t;
 
@@ -870,7 +870,7 @@ typedef struct {
     uint16_t            txindex;                                ///< funding-tx index
 
     //MSG_FUNDIDX_xxx
-    ucoin_util_keys_t   keys[LN_FUNDIDX_MAX];
+    uint8_t             pubkeys[LN_FUNDIDX_MAX][UCOIN_SZ_PUBKEY];   ///< 自分の公開鍵
     //MSG_SCRIPTIDX_xxx
     uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][UCOIN_SZ_PUBKEY];   ///< script用PubKey
 } ln_funding_local_data_t;
@@ -892,16 +892,19 @@ typedef struct {
  *  @brief  commitment transaction用情報
  */
 typedef struct {
-    uint32_t            accept_htlcs;                   ///< accept_htlcs
-    uint32_t            to_self_delay;                  ///< to_self_delay
-    uint64_t            minimum_msat;                   ///< minimum_msat
-    uint64_t            in_flight_msat;                 ///< in_flight_msat
-    uint64_t            dust_limit_sat;                 ///< dust_limit_sat
+    uint64_t            dust_limit_sat;                 ///< dust_limit_satoshis
+    uint64_t            max_htlc_value_in_flight_msat;  ///< max_htlc_value_in_flight_msat
+    uint64_t            channel_reserve_sat;            ///< channel_reserve_satoshis
+    uint64_t            htlc_minimum_msat;              ///< htlc_minimum_msat
+    uint16_t            to_self_delay;                  ///< to_self_delay
+    uint16_t            max_accepted_htlcs;             ///< max_accepted_htlcs
+
     uint8_t             signature[LN_SZ_SIGNATURE];     ///< 署名
                                                         // localには相手に送信する署名
                                                         // remoteには相手から受信した署名
     uint8_t             txid[UCOIN_SZ_TXID];            ///< txid
     uint16_t            htlc_num;                       ///< commit_tx中のHTLC数
+    uint64_t            commit_num;                     ///< commitment_signed送信後にインクリメントする48bitカウンタ(0～)
 } ln_commit_data_t;
 
 
@@ -915,15 +918,23 @@ typedef struct {
 } ln_noise_t;
 
 
+typedef struct {
+    uint64_t                    storage_index;                  ///< 現在のindex
+    uint8_t                     storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
+
+    uint8_t                     priv[LN_FUNDIDX_MAX][UCOIN_SZ_PRIVKEY];
+} ln_self_priv_t;
+
+
 /** @struct     ln_self_t
  *  @brief      チャネル情報
  */
 struct ln_self_t {
     uint8_t                     peer_node_id[UCOIN_SZ_PUBKEY];  ///< 接続先ノード
 
+    ln_self_priv_t              priv_data;
+
     //key storage
-    uint64_t                    storage_index;                  ///< 現在のindex
-    uint8_t                     storage_seed[LN_SZ_SEED];       ///< ユーザから指定されたseed
     ln_derkey_storage           peer_storage;                   ///< key storage(peer)
     uint64_t                    peer_storage_index;             ///< 現在のindex(peer)
 
@@ -965,12 +976,6 @@ struct ln_self_t {
 
     //msg:normal operation
     uint16_t                    htlc_num;                       ///< HTLC数
-    uint64_t                    commit_num;                     ///< commitment_signed送信後にインクリメントする48bitカウンタ(0～)
-                                                                ///<    next_local_commitment_numberに相当する
-    uint64_t                    revoke_num;                     ///< revoke_and_ack送信後にインクリメントする48bitカウンタ(0～)
-    uint64_t                    remote_commit_num;              ///< commitment_signed受信時にインクリメントする48bitカウンタ(0～)
-                                                                ///<    next_remote_revocation_numberに相当する
-    uint64_t                    remote_revoke_num;              ///< revoke_and_ack受信時にインクリメントする48bitカウンタ(0～)
     uint64_t                    htlc_id_num;                    ///< update_add_htlcで使うidの管理
     uint64_t                    our_msat;                       ///< 自分の持ち分
     uint64_t                    their_msat;                     ///< 相手の持ち分
@@ -1067,7 +1072,7 @@ bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm);
 
 
 /** #ln_set_establish()で確保したメモリを解放する
- * 
+ *
  * @param[in,out]       self            channel情報
  * @note
  *      - lnapp.cでfunding済みだった場合に呼ばれる想定

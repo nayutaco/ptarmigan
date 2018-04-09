@@ -200,7 +200,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ucoin_buf_t *pBuf,
 
     //署名-btc
     ret = ln_signer_sign_rs(pBuf->buf + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
-                    hash, &self->funding_local.keys[MSG_FUNDIDX_FUNDING]);
+                    hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     if (!ret) {
         DBG_PRINTF("fail: sign btc\n");
         goto LABEL_EXIT;
@@ -615,6 +615,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     //        [32:alias]
     if (pMsg->p_alias != NULL) {
         memcpy(pMsg->p_alias, pData + pos, LN_SZ_ALIAS);
+        pMsg->p_alias[LN_SZ_ALIAS] = '\0';
     }
     pos += LN_SZ_ALIAS;
 

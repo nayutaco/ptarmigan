@@ -106,7 +106,7 @@ bool ln_db_self_save(const ln_self_t *self);
 
 
 /** channel削除(channel_id指定)
- * 
+ *
  * @param[in]       pChannelId      削除するselfのchannel_id
  * @retval      true    検索成功(削除成功かどうかは判断しない)
  */
@@ -135,7 +135,16 @@ bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param);
 bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
+/** closeフラグ保存
+ *
+ */
 bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam);
+
+
+/** secret保存
+ *
+ */
+bool ln_db_secret_save(ln_self_t *self);
 
 
 ////////////////////
@@ -520,7 +529,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ucoin_genesis_t *pGType);
 
 /** DB reset
  * "version"以外を削除する
- * 
+ *
  */
 bool ln_db_reset(void);
 

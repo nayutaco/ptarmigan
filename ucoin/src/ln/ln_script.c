@@ -293,7 +293,7 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
 }
 
 
-bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local)
+bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local, const ln_self_priv_t *pPrivData)
 {
     uint64_t fee_local;
     uint64_t fee_remote;
@@ -370,7 +370,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
     uint8_t txhash[UCOIN_SZ_SIGHASH];
     ucoin_util_calc_sighash_p2wsh(txhash, pTx, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
 
-    bool ret = ln_signer_p2wsh(pSig, txhash, pCmt->fund.p_keys);
+    bool ret = ln_signer_p2wsh(pSig, txhash, pPrivData, MSG_FUNDIDX_FUNDING);
 
     return ret;
 }
@@ -423,7 +423,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
     bool ret = false;
     uint8_t sighash[UCOIN_SZ_SIGHASH];
     ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
-    ret = ln_signer_p2wsh(pLocalSig, sighash, pKeys);
+    ret = ln_signer_p2wsh_force(pLocalSig, sighash, pKeys);
 
     const ucoin_buf_t wit0 = { NULL, 0 };
     const ucoin_buf_t **pp_wits = NULL;

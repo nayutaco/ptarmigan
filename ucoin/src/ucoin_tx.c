@@ -1458,6 +1458,7 @@ static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, c
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
     ret = mbedtls_mpi_read_binary(&keypair.d, pPrivKey, UCOIN_SZ_PRIVKEY);
     if (ret) {
+        DBG_PRINTF("FAIL: ecdsa_sign: %d\n", ret);
         assert(0);
         goto LABEL_EXIT;
     }
@@ -1466,6 +1467,7 @@ static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, c
     ret = mbedtls_ecdsa_sign_det(&keypair.grp, p_r, p_s, &keypair.d,
                     pTxHash, UCOIN_SZ_HASH256, MBEDTLS_MD_SHA256);
     if (ret) {
+        DBG_PRINTF("FAIL: ecdsa_sign: %d\n", ret);
         assert(0);
         goto LABEL_EXIT;
     }
