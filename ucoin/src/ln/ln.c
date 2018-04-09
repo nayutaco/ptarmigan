@@ -883,6 +883,8 @@ void ln_goto_closing(ln_self_t *self, void *pDbParam)
  * 自分がunilateral closeを行いたい場合に呼び出す。
  * または、funding_txがspentで、local commit_txのtxidがgetrawtransactionできる状態で呼ばれる。
  * (local commit_txが展開＝自分でunilateral closeした)
+ *
+ * 現在のcommitment_transactionを取得する場合にも呼び出されるため、値を元に戻す。
  */
 bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
@@ -891,23 +893,26 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
 
+    //ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+
+    //復元用
     uint8_t bak_percommit[UCOIN_SZ_PRIVKEY];
-    memcpy(bak_percommit, self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], sizeof(bak_percommit));
-
     uint8_t bak_remotecommit[UCOIN_SZ_PUBKEY];
+    memcpy(bak_percommit, self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], sizeof(bak_percommit));
     memcpy(bak_remotecommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], sizeof(bak_remotecommit));
-
-    //commit_tx
+    uint64_t bak_commit_num = self->commit_local.commit_num;
 
     //local
+    //  +0: 次に送信するnext_per_commitment_secret
+    //  +1: 現在のnext_per_commitment_secret
+    //  +2: 現在のper_commitment_secret
     ln_signer_keys_update(self, 2);
     //commitment number(for obscured commitment number)
-    self->commit_local.commit_num--;        //1つ前
+    self->commit_local.commit_num--;        //create_to_local()内でインクリメントされるため、引いておく
 
     //remote
-    //DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
-    //DBG_PRINTF("current remote percommit: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+            self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -917,15 +922,24 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     //local commit_tx
     bool ret = create_to_local(self, pClose, NULL, 0,
-                self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
+                self->commit_remote.to_self_delay,
+                self->commit_local.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_local\n");
         ln_free_close_force_tx(pClose);
     }
 
-    memcpy(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], bak_percommit, sizeof(bak_percommit));
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], bak_remotecommit, sizeof(bak_remotecommit));
+    //元に戻す
+    self->commit_local.commit_num = bak_commit_num;
+    memcpy(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT],
+            bak_percommit, sizeof(bak_percommit));
+    ucoin_keys_priv2pub(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+            self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT]);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+            bak_remotecommit, sizeof(bak_remotecommit));
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+
+    DBG_PRINTF("END: %d\n", ret);
 
     return ret;
 }
@@ -939,31 +953,28 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
 
-    //commit_tx
-    //  最新のcommit_txは ln_commit_remote(self)->txid に txidがあり、
-    //  相手が送信している前提でこの関数が呼ばれているため復元する意味はほとんどない。
-    //  単なる確認用。
-
     //local
+    //  +0: 次に送信するnext_per_commitment_secret
+    //  +1: 現在のnext_per_commitment_secret
+    //  +2: 現在のper_commitment_secret
     ln_signer_keys_update(self, 2);
-    //DBG_PRINTF("I+2: "); DUMPBIN(self->funding_local.keys[MSG_FUNDIDX_PER_COMMIT].pub, UCOIN_SZ_PUBKEY);
 
     //remote
-    //DBG_PRINTF("RI=%" PRIx64 "\n", self->peer_storage_index);
-    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
-    //DBG_PRINTF("prev: "); DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+            self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
+    //commitment number(for obscured commitment number)
+    self->commit_remote.commit_num--;   //create_to_remote()内でインクリメントされるため、引いておく
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    //commitment number(for obscured commitment number)
-    self->commit_remote.commit_num--;   //1つ前
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_remote.htlc_num);
 
     //remote commit_tx
     bool ret = create_to_remote(self, pClose, NULL,
-                self->commit_local.to_self_delay, self->commit_remote.dust_limit_sat);
+                self->commit_local.to_self_delay,
+                self->commit_remote.dust_limit_sat);
     if (!ret) {
         DBG_PRINTF("fail: create_to_remote\n");
         ln_free_close_force_tx(pClose);
@@ -3297,6 +3308,11 @@ static bool create_funding_tx(ln_self_t *self)
  * @param[in]           to_self_delay       remoteのto_self_delay
  * @param[in]           dust_limit_sat      localのdust_limit_sat
  * @retval      true    成功
+ * @note
+ *      - pubkeys[MSG_FUNDIDX_PER_COMMIT]には次のper_commitment_pointが入っている前提。
+ *          self->commit_local.commit_num + 1して commitment transactionを作成する。
+ *      - funding_created/funding_signed時は、pubkeys[MSG_FUNDIDX_PER_COMMIT]にfirst_per_commitment_pointを入れ、
+ *          self->commit_local.commit_num に (uint64_t)-1 を入れること(+1され、commitment_number==0になる)
  */
 static bool create_to_local(ln_self_t *self,
                     ln_close_force_t *pClose,
@@ -3317,6 +3333,8 @@ static bool create_to_local(ln_self_t *self,
     ucoin_tx_init(&tx_commit);
     ucoin_buf_init(&buf_sig);
     ucoin_buf_init(&buf_ws);
+
+    //ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
 
     //To-Local
     ln_create_script_local(&buf_ws,
@@ -3782,6 +3800,8 @@ static bool create_to_remote(ln_self_t *self,
     ucoin_tx_init(&tx_commit);
     ucoin_buf_init(&buf_sig);
     ucoin_buf_init(&buf_ws);
+
+    //ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
 
     //To-Local(Remote)
     ln_create_script_local(&buf_ws,

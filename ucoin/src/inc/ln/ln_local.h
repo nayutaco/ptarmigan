@@ -42,11 +42,16 @@
 #define MSG_FUNDIDX_DELAYED             (3)         ///< delayed_payment_basepoint
 #define MSG_FUNDIDX_HTLC                (4)         ///< htlc_basepoint
 #define MSG_FUNDIDX_PER_COMMIT          (5)         ///< per_commitment_point
+                                                    ///<    commitment_signedの際には、next_per_commitment_pointを入れる。
+                                                    ///<    funding_created/funding_signedの際には、fist_per_commitment_pointを入れる。
+                                                    ///<    unilateral closeの際には、現在のper_commitment_pointを入れる。
+                                                    ///<    revoked transaction closeの際には、該当するper_commitment_pointを入れる。
 #define MSG_FUNDIDX_MAX                 (MSG_FUNDIDX_PER_COMMIT+1)
 #if LN_FUNDIDX_MAX != MSG_FUNDIDX_MAX
 #error LN_FUNDIDX_MAX != MSG_FUNDIDX_MAX
 #endif
 
+//MSG_FUNDIDX_PER_COMMITを使用してスクリプトを作成する
 #define MSG_SCRIPTIDX_REMOTEKEY         (0)         ///< remotekey
 #define MSG_SCRIPTIDX_DELAYED           (1)         ///< delayedkey
 #define MSG_SCRIPTIDX_REVOCATION        (2)         ///< revocationkey
