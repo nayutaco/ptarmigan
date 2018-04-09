@@ -164,7 +164,7 @@ void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
         }
         break;
     }
-    fprintf(PRINTOUT, "}\n");
+    fprintf(PRINTOUT, "}\n\n");
 }
 
 
@@ -202,7 +202,7 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
 {
 //#ifdef M_DBG_VERBOSE
 #ifdef UCOIN_DEBUG
-    fprintf(fp, M_QQ("keys") ": {" M_QQ("local") ": {\n");
+    fprintf(fp, M_QQ("{keys") ": {" M_QQ("local") ": {\n");
 
     fprintf(fp, M_QQ("funding_txid") ": \"");
     ucoin_util_dumptxid(fp, pLocal->txid);
@@ -213,9 +213,9 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
         if (lp != 0) {
             fprintf(fp, ",\n");
         }
-        fprintf(fp, "  " M_QQ("%s") ": [\"", KEYS_STR[lp]);
+        fprintf(fp, "  " M_QQ("%s") ": \"", KEYS_STR[lp]);
         ucoin_util_dumpbin(fp, pLocal->pubkeys[lp], UCOIN_SZ_PUBKEY, false);
-        fprintf(fp, "\"]");
+        fprintf(fp, "\"");
     }
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
         fprintf(fp, ",\n");
@@ -242,7 +242,7 @@ void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_fun
     }
     fprintf(fp, ",\n  " M_QQ("prev_percommit") ": \"");
     ucoin_util_dumpbin(fp, pRemote->prev_percommit, UCOIN_SZ_PUBKEY, false);
-    fprintf(fp, "\"\n}}");
+    fprintf(fp, "\"\n}}}\n\n");
 #endif
 //#else
 //    (void)fp; (void)pLocal; (void)pRemote;
