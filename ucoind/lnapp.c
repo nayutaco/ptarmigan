@@ -1330,6 +1330,12 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
             feerate_kw = get_latest_feerate_kw();
+            if (feerate_kw < LN_FEERATE_PER_KW_MIN) {
+                // estimatesmartfeeは1000satoshisが下限のようだが、c-lightningは1000/4=250ではなく253を下限としている。
+                // 毎回変更が手間になるため、値を合わせる。
+                DBG_PRINTF("FIX: calc feerate_per_kw(%" PRIu32 ") < MIN\n", feerate_kw);
+                feerate_kw = LN_FEERATE_PER_KW_MIN;
+            }
         } else {
             feerate_kw = pFunding->feerate_per_kw;
         }
