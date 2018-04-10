@@ -42,8 +42,14 @@
  * macros
  ********************************************************************/
 
-//#define DBG_PRINT_CREATE
-//#define DBG_PRINT_READ
+//#define DBG_PRINT_CREATE_CNL
+//#define DBG_PRINT_READ_CNL
+//#define DBG_PRINT_CREATE_NOD
+//#define DBG_PRINT_READ_NOD
+//#define DBG_PRINT_CREATE_UPD
+//#define DBG_PRINT_READ_UPD
+#define DBG_PRINT_CREATE_SIG
+#define DBG_PRINT_READ_SIG
 
 
 /********************************************************************
@@ -79,8 +85,10 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
 
 static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len);
 
-#if defined(DBG_PRINT_CREATE) || defined(DBG_PRINT_READ)
+#if defined(DBG_PRINT_CREATE_NOD) || defined(DBG_PRINT_READ_NOD)
 static void node_announce_print(const ln_node_announce_t *pMsg);
+#endif
+#if defined(DBG_PRINT_CREATE_SIG) || defined(DBG_PRINT_READ_SIG)
 static void announce_signs_print(const ln_announce_signs_t *pMsg);
 #endif
 
@@ -108,7 +116,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ucoin_buf_t *pBuf,
 
     ucoin_push_t    proto;
 
-#if 1
+#if 0
     DBG_PRINTF("--------------------------\n");
     DBG_PRINTF2("short_channel_id: %" PRIx64 "\n", pMsg->short_channel_id);
     DBG_PRINTF2("p_my_node_pub: ");
@@ -207,14 +215,14 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ucoin_buf_t *pBuf,
     }
 
 LABEL_EXIT:
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_CREATE_CNL
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     if (ret) {
         ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
     } else {
         DBG_PRINTF("something error\n");
     }
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_CREATE_CNL
 
     return ret;
 }
@@ -485,10 +493,10 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
 
     ucoin_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_CREATE_NOD
    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
    node_announce_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_CREATE_NOD
 
     //flen=0
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 141 + M_ADDRLEN2[pMsg->addr.type]);
@@ -655,10 +663,10 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
         DBG_PRINTF("length not match: Len=%d, pos=%d\n", Len, pos);
     }
 
-#ifdef DBG_PRINT_READ
+#ifdef DBG_PRINT_READ_NOD
   DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
   node_announce_print(pMsg);
-#endif  //DBG_PRINT_READ
+#endif  //DBG_PRINT_READ_NOD
 
     bool ret = true;
     if (pMsg->p_node_id != NULL) {
@@ -682,7 +690,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 }
 
 
-#if defined(DBG_PRINT_CREATE) || defined(DBG_PRINT_READ)
+#if defined(DBG_PRINT_CREATE_NOD) || defined(DBG_PRINT_READ_NOD)
 static void node_announce_print(const ln_node_announce_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
@@ -732,10 +740,10 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
 
     ucoin_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_CREATE_UPD
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     ln_msg_cnl_update_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_CREATE_UPD
 
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 128);
 
@@ -855,10 +863,10 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
 
     assert(Len == pos);
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_READ_UPD
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     ln_msg_cnl_update_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_READ_UPD
 
     return chain_match;
 }
@@ -918,10 +926,10 @@ bool HIDDEN ln_msg_announce_signs_create(ucoin_buf_t *pBuf, const ln_announce_si
 
     ucoin_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_CREATE_SIG
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     announce_signs_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_CREATE_SIG
 
     //len=1
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 168);
@@ -1009,16 +1017,16 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 
     assert(Len == pos);
 
-#ifdef DBG_PRINT_READ
+#ifdef DBG_PRINT_READ_SIG
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     announce_signs_print(pMsg);
-#endif  //DBG_PRINT_READ
+#endif  //DBG_PRINT_READ_SIG
 
     return true;
 }
 
 
-#if defined(DBG_PRINT_CREATE) || defined(DBG_PRINT_READ)
+#if defined(DBG_PRINT_CREATE_SIG) || defined(DBG_PRINT_READ_SIG)
 static void announce_signs_print(const ln_announce_signs_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
