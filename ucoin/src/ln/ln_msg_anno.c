@@ -42,14 +42,14 @@
  * macros
  ********************************************************************/
 
-#define DBG_PRINT_CREATE
-#define DBG_PRINT_READ
 //#define DBG_PRINT_CREATE_CNL
 //#define DBG_PRINT_READ_CNL
 //#define DBG_PRINT_CREATE_NOD
 //#define DBG_PRINT_READ_NOD
 //#define DBG_PRINT_CREATE_UPD
 //#define DBG_PRINT_READ_UPD
+#define DBG_PRINT_CREATE_SIG
+#define DBG_PRINT_READ_SIG
 
 
 /********************************************************************
@@ -88,7 +88,7 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
 #if defined(DBG_PRINT_CREATE_NOD) || defined(DBG_PRINT_READ_NOD)
 static void node_announce_print(const ln_node_announce_t *pMsg);
 #endif
-#if defined(DBG_PRINT_CREATE) || defined(DBG_PRINT_READ)
+#if defined(DBG_PRINT_CREATE_SIG) || defined(DBG_PRINT_READ_SIG)
 static void announce_signs_print(const ln_announce_signs_t *pMsg);
 #endif
 
@@ -496,7 +496,7 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
 #ifdef DBG_PRINT_CREATE_NOD
    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
    node_announce_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_CREATE_NOD
 
     //flen=0
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 141 + M_ADDRLEN2[pMsg->addr.type]);
@@ -926,10 +926,10 @@ bool HIDDEN ln_msg_announce_signs_create(ucoin_buf_t *pBuf, const ln_announce_si
 
     ucoin_push_t    proto;
 
-#ifdef DBG_PRINT_CREATE
+#ifdef DBG_PRINT_CREATE_SIG
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     announce_signs_print(pMsg);
-#endif  //DBG_PRINT_CREATE
+#endif  //DBG_PRINT_CREATE_SIG
 
     //len=1
     ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 168);
@@ -1017,16 +1017,16 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 
     assert(Len == pos);
 
-#ifdef DBG_PRINT_READ
+#ifdef DBG_PRINT_READ_SIG
     DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
     announce_signs_print(pMsg);
-#endif  //DBG_PRINT_READ
+#endif  //DBG_PRINT_READ_SIG
 
     return true;
 }
 
 
-#if defined(DBG_PRINT_CREATE) || defined(DBG_PRINT_READ)
+#if defined(DBG_PRINT_CREATE_SIG) || defined(DBG_PRINT_READ_SIG)
 static void announce_signs_print(const ln_announce_signs_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
