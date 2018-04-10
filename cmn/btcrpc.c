@@ -1090,7 +1090,12 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
         DBG_PRINTF("error: too small buffer\n");
         DBG_PRINTF("  size: %lu\n", (unsigned long)size);
         DBG_PRINTF("  nmemb: %lu\n", (unsigned long)nmemb);
-        DBG_PRINTF("  result->pos : %lu\n", (unsigned long)result->pos );
+        DBG_PRINTF("  result->pos : %lu\n", (unsigned long)result->pos);
+
+        char tmp = result->p_data[result->pos - 1];
+        result->p_data[result->pos - 1] = '\0';
+        DBG_PRINTF("%s\n", result->p_data);
+        result->p_data[result->pos - 1] = tmp;
         return 0;
     }
 #ifdef M_DBG_SHOWREPLY
