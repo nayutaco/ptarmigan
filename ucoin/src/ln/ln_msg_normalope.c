@@ -388,7 +388,7 @@ static void update_fail_htlc_print(const ln_update_fail_htlc_t *pMsg)
 
 
 /********************************************************************
- * commit_signed
+ * commitment_signed
  ********************************************************************/
 
 bool HIDDEN ln_msg_commit_signed_create(ucoin_buf_t *pBuf, const ln_commit_signed_t *pMsg)
@@ -479,7 +479,7 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
 static void commit_signed_print(const ln_commit_signed_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[commit_signed]-------------------------------\n\n");
+    DBG_PRINTF2("-[commitment_signed]-------------------------------\n\n");
     DBG_PRINTF2("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     DBG_PRINTF2("signature: ");
