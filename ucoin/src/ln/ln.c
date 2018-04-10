@@ -1154,7 +1154,7 @@ bool ln_create_add_htlc(ln_self_t *self,
     }
 
     //加算した結果が相手のmax_htlc_value_in_flight_msatを超えるなら、追加してはならない。
-    uint64_t max_htlc_value_in_flight_msat = amount_msat;
+    uint64_t max_htlc_value_in_flight_msat = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //TODO: OfferedとReceivedの見分けは不要？
         max_htlc_value_in_flight_msat += self->cnl_add_htlc[idx].amount_msat;
