@@ -52,9 +52,10 @@ extern "C" {
 #define LN_SZ_ONION_ROUTE               (1366)      ///< サイズ:onion-routing-packet
 #define LN_SZ_ALIAS                     (32)        ///< サイズ:alias長
 #define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< サイズ:noiseパケットヘッダ
-#define LN_SZ_GFLEN_MAX                 (4)         ///< init.gflen最大
-#define LN_SZ_LFLEN_MAX                 (4)         ///< init.lflen最大
-#define LN_SZ_FUNDINGTX_VSIZE           (177)       ///< funding_txのvsize(nested in BIP16 P2SH形式)
+#define LN_SZ_GFLEN_MAX                 (4)         ///< サイズ:init.gflen最大
+#define LN_SZ_LFLEN_MAX                 (4)         ///< サイズ:init.lflen最大
+#define LN_SZ_FUNDINGTX_VSIZE           (177)       ///< サイズ:funding_txのvsize(nested in BIP16 P2SH形式)
+#define LN_SZ_ERRMSG                    (256)       ///< サイズ:last error文字列
 
 
 #define LN_FUNDIDX_MAX                  (6)         ///< 管理用
@@ -1005,6 +1006,7 @@ struct ln_self_t {
 
     //last error
     int                         err;                            ///< error code(ln_err.h)
+    char                        err_msg[LN_SZ_ERRMSG];          ///< エラーメッセージ
 
     //for app
     ln_callback_t               p_callback;                     ///< 通知コールバック
@@ -1603,7 +1605,7 @@ static inline bool ln_is_spent(const ln_self_t *self) {
 /** estimatesmartfee --> feerate_per_kw
  *
  * @param[in]           feerate_kb  bitcoindから取得したfeerate/KB
- * @retval          feerate_per_kw
+ * @return          feerate_per_kw
  */
 static inline uint32_t ln_calc_feerate_per_kw(uint64_t feerate_kb) {
     return (uint32_t)(feerate_kb / 4);
@@ -1614,7 +1616,7 @@ static inline uint32_t ln_calc_feerate_per_kw(uint64_t feerate_kb) {
  *
  * @param[in]           vsize
  * @param[in]           feerate_per_kw
- * @retval          feerate_per_byte
+ * @return          feerate_per_byte
  */
 static inline uint64_t ln_calc_fee(uint32_t vsize, uint64_t feerate_kw) {
     return vsize * feerate_kw * 4 / 1000;
@@ -1644,7 +1646,7 @@ static inline void ln_set_feerate_per_kw(ln_self_t *self, uint32_t feerate) {
 /** funding_txの予想されるfee(+α)取得
  *
  * @param[in]   feerate_per_kw      feerate_per_kw(open_channelのパラメータと同じ)
- * @retval  estimate fee[satoshis]
+ * @return  estimate fee[satoshis]
  * @note
  *      - 現在(2018/04/03)のptarmiganが生成するfunding_txは177byteで、それに+αしている
  */
@@ -1676,7 +1678,7 @@ static inline bool ln_is_closing_signed_recvd(const ln_self_t *self) {
 /** commit_local取得
  *
  * @param[in]           self            channel情報
- * @retval      commit_local情報
+ * @return      commit_local情報
  */
 static inline const ln_commit_data_t *ln_commit_local(const ln_self_t *self) {
     return &self->commit_local;
@@ -1686,7 +1688,7 @@ static inline const ln_commit_data_t *ln_commit_local(const ln_self_t *self) {
 /** commit_remote取得
  *
  * @param[in]           self            channel情報
- * @retval      commit_remote情報
+ * @return      commit_remote情報
  */
 static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
     return &self->commit_remote;
@@ -1696,7 +1698,7 @@ static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
 /** shutdown時のlocal scriptPubKey取得
  *
  * @param[in]           self            channel情報
- * @retval      local scriptPubKey
+ * @return      local scriptPubKey
  */
 static inline const ucoin_buf_t *ln_shutdown_scriptpk_local(const ln_self_t *self) {
     return &self->shutdown_scriptpk_local;
@@ -1706,31 +1708,39 @@ static inline const ucoin_buf_t *ln_shutdown_scriptpk_local(const ln_self_t *sel
 /** shutdown時のremote scriptPubKey取得
  *
  * @param[in]           self            channel情報
- * @retval      remote scriptPubKey
+ * @return      remote scriptPubKey
  */
 static inline const ucoin_buf_t *ln_shutdown_scriptpk_remote(const ln_self_t *self) {
     return &self->shutdown_scriptpk_remote;
 }
 
 
-/**
+/** add_htlc構造体取得
  *
- *
+ * @param[in]           self            channel情報
+ * @param[in]           htlc_idx        index値
+ * @retval      非NULL  add_htlc構造体
+ * @retval      NULL    index不正
  */
-static inline const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, int htlc_idx) {
-    return &self->cnl_add_htlc[htlc_idx];
+static inline const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, uint16_t htlc_idx) {
+    return (htlc_idx < LN_HTLC_MAX) ? &self->cnl_add_htlc[htlc_idx] : NULL;
 }
 
 
-/**
+/** トランザクションがHTLC Success TxのUnlocking Scriptを含むと思われる場合、preimageを取得
  *
+ * @param[in]   tx
+ * @retval  非NULL      preimage
+ * @retval  NULL        -
+ * 
  * @note
- *      - HTLC Success Txではない時のUnlockになる
+ *      - Offered HTLC Outputsをredeemできたtx
+ *          - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#offered-htlc-outputs
  *            -----------------------------------------------------
- *            <remote_htlcsig>
+ *            <remotehtlcsig>
  *            <payment_preimage> ★
  *            -----------------------------------------------------
- *            # To you with revocation key
+ *            # To remote node with revocation key
  *            OP_DUP OP_HASH160 <RIPEMD160(SHA256(revocationkey))> OP_EQUAL
  *            OP_IF
  *                OP_CHECKSIG
@@ -1752,17 +1762,23 @@ static inline const ucoin_buf_t *ln_preimage_local(const ucoin_tx_t *pTx) {
 }
 
 
-/**
+/** トランザクションがHTLC Success TxのUnlocking Scriptを含むと思われる場合、preimageを取得
  *
+ * @param[in]   tx
+ * @retval  非NULL      preimage
+ * @retval  NULL        -
+ * 
  * @note
  *      - HTLC Success Tx時のUnlockになる
+ *          - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#offered-htlc-outputs
+ *          - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
  *            -----------------------------------------------------
  *            0
- *            <remote_htlcsig>
- *            <local_htlcsig>
+ *            <remotehtlcsig>
+ *            <localhtlcsig>
  *            <payment_preimage> ★
  *            -----------------------------------------------------
- *            # To you with revocation key
+ *            # To remote node with revocation key
  *            OP_DUP OP_HASH160 <RIPEMD160(SHA256(revocationkey))> OP_EQUAL
  *            OP_IF
  *                OP_CHECKSIG
@@ -1788,7 +1804,7 @@ static inline const ucoin_buf_t *ln_preimage_remote(const ucoin_tx_t *pTx) {
 /** revoked transaction closeされた後の残取り戻し数
  *
  * @param[in]           self            channel情報
- * @retval      残取り戻し数
+ * @return      残取り戻し数
  */
 static inline uint16_t ln_revoked_cnt(const ln_self_t *self) {
     return self->revoked_cnt;
@@ -1889,16 +1905,37 @@ static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
 }
 
 
-/**
+/** 最後に発生したエラー番号
+ * 
+ * @param[in]           self            channel情報
+ * @return      エラー番号(ln_err.h)
+ */
+static inline int ln_err(const ln_self_t *self) {
+    return self->err;
+}
+
+
+/** 最後に発生したエラー情報
+ * 
+ * @param[in]           self            channel情報
+ * @return      エラー情報文字列
+ */
+static inline const char *ln_errmsg(const ln_self_t *self) {
+    return self->err_msg;
+}
+
+
+/** [channel_update]direction取得
  *
- * @retval      0:node_1, 1:node_2
+ * @retval      0   node_1
+ * @retval      1   node_2
  */
 static inline int ln_cnlupd_direction(const ln_cnl_update_t *pCnlUpd) {
     return pCnlUpd->flags & LN_CNLUPD_FLAGS_DIRECTION;
 }
 
 
-/**
+/** [channel_update]disableフラグ取得
  *
  * @retval      true    disableフラグが立っていない
  */
