@@ -1121,6 +1121,8 @@ bool ln_create_add_htlc(ln_self_t *self,
 {
     DBG_PRINTF("BEGIN\n");
 
+    bool ret;
+
     if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
         return false;
@@ -1132,13 +1134,18 @@ bool ln_create_add_htlc(ln_self_t *self,
         return false;
     }
 
-    //現在のfeerate_per_kwで支払えないようなamount_msatを指定してはいけない
-    if (amount_msat > self->our_msat) {
-        M_SET_ERR(self, LNERR_INV_VALUE, "our_msat too small");
+    //相手が指定したchannel_reserve_satは残しておく必要あり
+    if (self->our_msat < amount_msat + LN_SATOSHI2MSAT(self->commit_remote.channel_reserve_sat)) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "our_msat - amount_msat < channel_reserve_sat(%" PRIu64 ")", self->commit_remote.channel_reserve_sat);
         return false;
     }
 
-    bool ret;
+    //現在のfeerate_per_kwで支払えないようなamount_msatを指定してはいけない
+    uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_calc_max_closing_fee(self));
+    if (self->our_msat < amount_msat + close_fee_msat) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "our_msat - amount_msat < closing_fee_msat(%" PRIu64 ")", close_fee_msat);
+        return false;
+    }
 
     //追加した結果が相手のmax_accepted_htlcsより多くなるなら、追加してはならない。
     if (self->commit_remote.max_accepted_htlcs <= self->htlc_num) {
@@ -1160,7 +1167,7 @@ bool ln_create_add_htlc(ln_self_t *self,
         max_htlc_value_in_flight_msat += self->cnl_add_htlc[idx].amount_msat;
     }
     if (max_htlc_value_in_flight_msat > self->commit_remote.max_htlc_value_in_flight_msat) {
-        M_SET_ERR(self, LNERR_INV_VALUE, "exceed remote max_htlc_value_in_flight_msat");
+        M_SET_ERR(self, LNERR_INV_VALUE, "exceed remote max_htlc_value_in_flight_msat(%" PRIu64 ")", self->commit_remote.max_htlc_value_in_flight_msat);
         return false;
     }
 
