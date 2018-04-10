@@ -718,7 +718,10 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
     }
     if ((pAppConf->err != 0) && (pAppConf->p_errstr != NULL)) {
-        cJSON_AddItemToObject(result, "last_errmsg", cJSON_CreateString(pAppConf->p_errstr));
+        cJSON_AddItemToObject(result, "last_app_errmsg", cJSON_CreateString(pAppConf->p_errstr));
+    }
+    if (ln_err(p_self) != 0) {
+        cJSON_AddItemToObject(result, "last_lib_errmsg", cJSON_CreateString(ln_errmsg(p_self)));
     }
     cJSON_AddItemToArray(pResult, result);
 }

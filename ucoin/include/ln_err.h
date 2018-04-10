@@ -32,6 +32,7 @@
  **************************************************************************/
 
 enum {
+    LNERR_ERROR,
     LNERR_INV_NODEID,
     LNERR_INV_PRIVKEY,
     LNERR_INV_PREF,
@@ -51,10 +52,14 @@ enum {
     LNERR_INV_ID,
     LNERR_PINGPONG,
     LNERR_CREATE_2OF2,
+    LNERR_CREATE_MSG,
+    LNERR_CREATE_TX,
+    LNERR_MSG_READ,
     LNERR_MSG_INIT,
     LNERR_MSG_ERROR,
     LNERR_ADDHTLC_APP,
     LNERR_ALREADY_FUNDING,
+    LNERR_ONION,
 };
 
 
