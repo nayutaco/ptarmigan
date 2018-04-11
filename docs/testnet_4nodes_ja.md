@@ -3,28 +3,22 @@
 ## version
 
 * [c-lightning](https://github.com/ElementsProject/lightning)
-  * commit: 74a444eb7aa29ffca693a3ae5fed43dfdcc722e0
+  * commit: 0ba687732f4f00a8dd3bbad7a3656aff142e5866
 * [eclair](https://github.com/ACINQ/eclair)
-  * [Eclair v0.2-alpha10]((https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar))
+  * [Eclair v0.2-beta2]((https://github.com/ACINQ/eclair/releases/tag/v0.2-beta2))
 * [lnd](https://github.com/lightningnetwork/lnd)
-  * commit: 45eaa70814e8f94a569bc277c52a79a5c4351c43
+  * commit: 12cb35a6c9b4e9ee4f4ecb4b42a81602c7abbb37
 * [ptarmigan](https://github.com/nayutaco/ptarmigan)
-  * tag 2018-03-13
-  * ptarmiganバージョンアップでDBの変更が入った場合、DBクリーンが必要となる(`rm -rf dbucoin`)。
+  * tag 2018-04-11
 
-## bitcoind
-
-* eclair + bitcoind v0.16
-
-```bash
-bitcoind -deprecatedrpc=addwitnessaddress -daemon
-```
-
-* others
+## bitcoind v0.16
 
 ```bash
 bitcoind -daemon
 ```
+
+* eclair
+  * [Configuring Bitcoin Core](https://github.com/ACINQ/eclair#configuring-bitcoin-core)
 
 ## node_id取得
 
@@ -101,7 +95,7 @@ rm fund_yyyymmddhhddss.conf
 * watchコマンドで10秒間隔で監視し、3つとも"established"になるまで待つ
 
 ```bash
-watch -n 10 "../ucoincli -l | jq .result.client[].status"
+watch -n 10 "../ucoincli -l | jq .result.peers[].status"
 ```
 
 ```text
@@ -120,11 +114,10 @@ watch -n 10 "../ucoincli -l | jq .result.client[].status"
 
 ## チャネルアナウンス待ち
 
-* watchコマンドで監視し、`channel_update` が6つ集まるのを待つ
-  * `lnd`は`channel_update`を返すタイミングが分からないため、6confirmation後も5つになっているかもしれない
+* watchコマンドで監視し、`channel_update` が6セット(1セット2メッセージとして、計12メッセージ)集まるのを待つ
 
 ```bash
-watch -n 30 "../showdb c | jq .channel_announcement_list[][].type"
+watch -n 30 "../showdb c | jq .channel_announcement_list[].type | grep -c channel_update"
 ```
 
 ## `ecliar`-->`c-lightning`の送金
@@ -223,18 +216,20 @@ lncli --no-macaroons payinvoice <BOLT11 invoice>
 ./cli/lightning-cli pay <BOLT11 invoice>
 ```
 
+* [automatic overpay](https://github.com/ElementsProject/lightning/pull/1257)のため、c-lightningはランダムで加算したamountを送金する
+
 ```text
                          +--------+
                          | eclair |
                          +---+----+
-                             |409998990
+                             |410015970
                              |
                              |
-                             |390001010
+                             |389984030
 +-------------+        +-----+-----+          +-----+
 | c-lightning +--------+ ptarmigan +----------+ lnd |
 +-------------+        +-----------+          +-----+
-      309998990    490001010   320002020      479997980
+      309982009    490017991   320002020      479997980
 ```
 
 ## `c-lightning`-->`lnd`の送金
@@ -250,18 +245,20 @@ lncli --no-macaroons addinvoice --amt 10000
 ./cli/lightning-cli pay <BOLT11 invoice>
 ```
 
+* [automatic overpay](https://github.com/ElementsProject/lightning/pull/1257)のため、c-lightningはランダムで加算したamountを送金する
+
 ```text
                          +--------+
                          | eclair |
                          +---+----+
-                             |409998990
+                             |410015970
                              |
                              |
-                             |390001010
+                             |389984030
 +-------------+        +-----+-----+          +-----+
 | c-lightning +--------+ ptarmigan +----------+ lnd |
 +-------------+        +-----------+          +-----+
-      299997980    500002020   310002020      489997980
+      299968963    500031037   309989985      490010015
 ```
 
 ## `eclair`-->`lnd`の送金
@@ -281,14 +278,14 @@ lncli --no-macaroons addinvoice --amt 10000
                          +--------+
                          | eclair |
                          +---+----+
-                             |399997980
+                             |400014960
                              |
                              |
-                             |400002020
+                             |399985040
 +-------------+        +-----+-----+          +-----+
 | c-lightning +--------+ ptarmigan +----------+ lnd |
 +-------------+        +-----------+          +-----+
-      299997980    500002020   300002020      499997980
+      299968963    500031037   299989985      500010015
 ```
 
 ## チャネル閉鎖

@@ -3,13 +3,13 @@
 ## version
 
 * [c-lightning](https://github.com/ElementsProject/lightning)
-  * commit: 74a444eb7aa29ffca693a3ae5fed43dfdcc722e0
+  * commit: 0ba687732f4f00a8dd3bbad7a3656aff142e5866
 * [eclair](https://github.com/ACINQ/eclair)
-  * [Eclair v0.2-alpha10]((https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar))
+  * [Eclair v0.2-beta2]((https://github.com/ACINQ/eclair/releases/tag/v0.2-beta2))
 * [lnd](https://github.com/lightningnetwork/lnd)
-  * commit: 45eaa70814e8f94a569bc277c52a79a5c4351c43
+  * commit: 12cb35a6c9b4e9ee4f4ecb4b42a81602c7abbb37
 * [ptarmigan](https://github.com/nayutaco/ptarmigan)
-  * tag 2018-03-13
+  * tag 2018-04-11
 
 ## Getting node_id
 
@@ -86,7 +86,7 @@ rm fund_yyyymmddhhddss.conf
 * Waiting 3 nodes change into `"established"` by observing with watch command every 10 seconds.
 
 ```bash
-watch -n 10 "../ucoincli -l | jq .result.client[].status"
+watch -n 10 "../ucoincli -l | jq .result.peers[].status"
 ```
 
 ```text
@@ -105,11 +105,10 @@ watch -n 10 "../ucoincli -l | jq .result.client[].status"
 
 ## Waiting for channel announce
 
-* Waiting for gathering 6 `channel_update` by observing with watch command
-  * In terms of lnd, we do not know when channel_update appears. It might be 5 channel_update even after 6 confirmation.
+* Waiting for gathering 6 `channel_update`s(total 12messages) by observing with watch command
 
 ```bash
-watch -n 30 "../showdb c | jq .channel_announcement_list[][].type"
+watch -n 30 "../showdb c | jq .channel_announcement_list[].type | grep -c channel_update"
 ```
 
 ## Sending payment (`ecliar`-->`c-lightning`)
@@ -206,18 +205,20 @@ lncli --no-macaroons payinvoice <BOLT11 invoice>
 ./cli/lightning-cli pay <BOLT11 invoice>
 ```
 
+* Supporting [automatic overpay](https://github.com/ElementsProject/lightning/pull/1257), c-lightning sends a small sum by randomly adding amount.
+
 ```text
                          +--------+
                          | eclair |
                          +---+----+
-                             |409998990
+                             |410015970
                              |
                              |
-                             |390001010
+                             |389984030
 +-------------+        +-----+-----+          +-----+
 | c-lightning +--------+ ptarmigan +----------+ lnd |
 +-------------+        +-----------+          +-----+
-      309998990    490001010   320002020      479997980
+      309982009    490017991   320002020      479997980
 ```
 
 ## Sending payment (`c-lightning`-->`lnd`)
@@ -233,18 +234,20 @@ lncli --no-macaroons addinvoice --amt 10000
 ./cli/lightning-cli pay <BOLT11 invoice>
 ```
 
+* Supporting [automatic overpay](https://github.com/ElementsProject/lightning/pull/1257), c-lightning sends a small sum by randomly adding amount.
+
 ```text
                          +--------+
                          | eclair |
                          +---+----+
-                             |409998990
+                             |410015970
                              |
                              |
-                             |390001010
+                             |389984030
 +-------------+        +-----+-----+          +-----+
 | c-lightning +--------+ ptarmigan +----------+ lnd |
 +-------------+        +-----------+          +-----+
-      299997980    500002020   310002020      489997980
+      299968963    500031037   309989985      490010015
 ```
 
 ## Sending payment (`eclair`-->`lnd`)
@@ -264,14 +267,14 @@ lncli --no-macaroons addinvoice --amt 10000
                          +--------+
                          | eclair |
                          +---+----+
-                             |399997980
+                             |400014960
                              |
                              |
-                             |400002020
+                             |399985040
 +-------------+        +-----+-----+          +-----+
 | c-lightning +--------+ ptarmigan +----------+ lnd |
 +-------------+        +-----------+          +-----+
-      299997980    500002020   300002020      499997980
+      299968963    500031037   299989985      500010015
 ```
 
 ## Closing channels
