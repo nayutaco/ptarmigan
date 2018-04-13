@@ -2569,13 +2569,12 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
                 goto LABEL_ADDHTLC;
             }
 
-            //TODO:invoiceのamountより下回ってもOK?
-            // if (self->cnl_add_htlc[idx].amount_msat < amount) {
-            //     M_SET_ERR(self, LNERR_INV_VALUE, "low amount_msat : %" PRIu64 " < %" PRIu64, self->cnl_add_htlc[idx].amount_msat, amount);
-            //     ret = false;
-            //     ln_misc_push16be(&push_htlc, LNONION_UNKNOWN_PAY_HASH);
-            //     goto LABEL_ADDHTLC;
-            // }
+            if (self->cnl_add_htlc[idx].amount_msat < amount) {
+                M_SET_ERR(self, LNERR_INV_VALUE, "low amount_msat : %" PRIu64 " < %" PRIu64, self->cnl_add_htlc[idx].amount_msat, amount);
+                ret = false;
+                ln_misc_push16be(&push_htlc, LNONION_FINAL_INCORR_HTLC_AMT);
+                goto LABEL_ADDHTLC;
+            }
 
             if (self->cnl_add_htlc[idx].amount_msat < self->commit_local.htlc_minimum_msat) {
                 M_SET_ERR(self, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64, self->cnl_add_htlc[idx].amount_msat, self->commit_local.htlc_minimum_msat);
