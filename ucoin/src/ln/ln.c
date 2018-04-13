@@ -2529,7 +2529,8 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //  転送先取得(final nodeの場合はNULLが返る)
     ln_cb_add_htlc_recv_prev_t recv_prev;
     recv_prev.next_short_channel_id = hop_dataout.short_channel_id;
-    (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV_PREV, NULL);
+    recv_prev.p_next_self = NULL;
+    (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV_PREV, &recv_prev);
 
     const uint8_t *p_payment = NULL;
     uint8_t preimage[LN_SZ_PREIMAGE];
