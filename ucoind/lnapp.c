@@ -2411,7 +2411,11 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     if (p_fulfill->prev_short_channel_id != 0) {
         //フラグを立てて、相手の受信スレッドで処理してもらう
         DBG_PRINTF("戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->id);
-        ucoind_backward_fulfill(p_fulfill);
+        bool ret = ucoind_backward_fulfill(p_fulfill);
+        if (!ret) {
+            //TODO:戻す先がない場合の処理(#366)
+            DBG_PRINTF("戻せない\n");
+        }
     } else {
         DBG_PRINTF("ここまで\n");
         del_routelist(p_conf, p_fulfill->id);
@@ -2449,7 +2453,11 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     if (p_fail->prev_short_channel_id != 0) {
         //フラグを立てて、相手の受信スレッドで処理してもらう
         DBG_PRINTF("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->prev_id);
-        ucoind_backward_fail(p_fail);
+        bool ret = ucoind_backward_fail(p_fail);
+        if (!ret) {
+            //TODO:戻す先がない場合の処理(#366)
+            DBG_PRINTF("戻せない\n");
+        }
     } else {
         DBG_PRINTF("ここまで\n");
         mMuxTiming &= ~MUX_PAYMENT;
@@ -2608,11 +2616,8 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                     // DBG_PRINTF("------------------------------\n");
                     // DBG_PRINTF("  --> forward add(sci=%" PRIx64 ")\n", p_fwd_add->next_short_channel_id);
                     bool ret = ucoind_forward_payment(p_fwd_add);
-                    if (ret) {
-                        DBG_PRINTF("転送した\n");
-                    } else {
+                    if (!ret) {
                         DBG_PRINTF("転送失敗\n");
-                        SYSLOG_ERR("%s(): forward", __func__);
 
                         //update_fail_htlc準備
                         p_fail_ss = &p_fwd_add->shared_secret;
@@ -2627,7 +2632,11 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                     fulfill.id = p->id;
                     fulfill.p_preimage = p->buf.buf;
                     DBG_PRINTF("  --> backward fulfill(id=%" PRId64 ")\n", fulfill.id);
-                    lnapp_backward_fulfill(p_conf, &fulfill);
+                    bool ret = lnapp_backward_fulfill(p_conf, &fulfill);
+                    if (!ret) {
+                        //TODO: 戻せない(#366)
+                        DBG_PRINTF("巻き戻し失敗\n");
+                    }
                 }
                 break;
             case QTYPE_BWD_FAIL_HTLC:
