@@ -3183,6 +3183,7 @@ static void set_onionerr_str(char *pStr, const ln_onion_err_t *pOnionErr)
         { LNONION_FINAL_INCORR_CLTV_EXP, "final_incorrect_cltv_expiry" },
         { LNONION_FINAL_INCORR_HTLC_AMT, "final_incorrect_htlc_amount" },
         { LNONION_CHAN_DISABLE, "channel_disabled" },
+        { LNONION_EXPIRY_TOO_FAR, "expiry_too_far" },
     };
 
     const char *p_str = NULL;
