@@ -2583,11 +2583,11 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
                 goto LABEL_ADDHTLC;
             }
 
-            //送金額はinvoiceの2倍以上ならNG
+            //送金額はinvoiceの2倍より大きいならNG
             //  if the amount paid is more than twice the amount expected:
             //      * SHOULD fail the HTLC.
             //      * SHOULD return an incorrect_payment_amount error.
-            if (amount * 2 <= self->cnl_add_htlc[idx].amount_msat) {
+            if (amount * 2 < self->cnl_add_htlc[idx].amount_msat) {
                 M_SET_ERR(self, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, amount *2, self->cnl_add_htlc[idx].amount_msat);
                 ret = false;
                 ln_misc_push16be(&push_htlc, LNONION_INCORR_PAY_AMT);
@@ -2620,6 +2620,10 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         }
 
         p_payment = self->cnl_add_htlc[idx].payment_sha256;
+    }
+
+    //共通チェック
+    if (ret) {
     }
 
 LABEL_ADDHTLC:
