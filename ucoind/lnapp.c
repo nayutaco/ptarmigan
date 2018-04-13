@@ -2302,10 +2302,18 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc受信(前処理)
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_conf; (void)p_param;
-    DBGTRACE_BEGIN
-    wait_mutex_lock(MUX_CHG_HTLC);
-    DBGTRACE_END
+    (void)p_conf;
+    
+    ln_cb_add_htlc_recv_prev_t *p_prev = (ln_cb_add_htlc_recv_prev_t *)p_param;
+
+    //転送先取得
+    lnapp_conf_t *p_appconf = ucoind_search_connected_cnl(p_prev->next_short_channel_id);
+    if (p_appconf != NULL) {
+        p_prev->p_next_self = p_appconf->p_self;
+    } else {
+        DBG_PRINTF("no forwarding\n");
+        p_prev->p_next_self = NULL;
+    }
 }
 
 
@@ -2317,6 +2325,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_add_htlc_recv_t *p_add = (ln_cb_add_htlc_recv_t *)p_param;
 
+    wait_mutex_lock(MUX_CHG_HTLC);
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
 
     ucoind_preimage_lock();

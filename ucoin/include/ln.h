@@ -743,6 +743,15 @@ typedef struct {
 } ln_cb_funding_t;
 
 
+/** @struct ln_cb_add_htlc_recv_prev_t
+ *  @brief  update_add_htlc受信前処理(#LN_CB_ADD_HTLC_RECV_PREV)
+ */
+typedef struct {
+    uint64_t                next_short_channel_id;
+    const ln_self_t         *p_next_self;
+} ln_cb_add_htlc_recv_prev_t;
+
+
 /** @struct ln_cb_add_htlc_recv_t
  *  @brief  update_add_htlc受信通知(#LN_CB_ADD_HTLC_RECV)
  */

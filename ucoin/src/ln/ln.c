@@ -2415,9 +2415,6 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         return false;
     }
 
-    //処理前呼び出し
-    (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV_PREV, NULL);
-
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
     uint8_t onion_route[LN_SZ_ONION_ROUTE];
     self->cnl_add_htlc[idx].p_channel_id = channel_id;
@@ -2523,14 +2520,21 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         M_SET_ERR(self, LNERR_ONION, "onion-read");
 
         //TODO:onionのエラー
+        //  versionやHMACなどのチェックも行っているので、一概にmalformedにできない
         ln_misc_push16be(&push_htlc, LNONION_INV_ONION_HMAC);
         goto LABEL_ADDHTLC;
     }
 
+    //処理前呼び出し
+    //  転送先取得(final nodeの場合はNULLが返る)
+    ln_cb_add_htlc_recv_prev_t recv_prev;
+    recv_prev.next_short_channel_id = hop_dataout.short_channel_id;
+    (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV_PREV, NULL);
+
     const uint8_t *p_payment = NULL;
     uint8_t preimage[LN_SZ_PREIMAGE];
     if (hop_dataout.b_exit) {
-        //自分宛
+        //自分宛(final node)
 
         //preimage-hashチェック
         uint64_t amount;
@@ -2576,13 +2580,6 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
                 goto LABEL_ADDHTLC;
             }
 
-            if (self->cnl_add_htlc[idx].amount_msat < self->commit_local.htlc_minimum_msat) {
-                M_SET_ERR(self, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64, self->cnl_add_htlc[idx].amount_msat, self->commit_local.htlc_minimum_msat);
-                ret = false;
-                ln_misc_push16be(&push_htlc, LNONION_AMT_BELOW_MIN);
-                goto LABEL_ADDHTLC;
-            }
-
             //送金額はinvoiceの2倍より大きいならNG
             //  if the amount paid is more than twice the amount expected:
             //      * SHOULD fail the HTLC.
@@ -2601,16 +2598,31 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     } else {
         //転送
 
-        //転送先のcltv_expiryの方が大きかったり、cltv_expiry_deltaを満たしていない
+        if (recv_prev.p_next_self == NULL) {
+            //転送先がない
+            M_SET_ERR(self, LNERR_INV_VALUE, "no next channel");
+            ln_misc_push16be(&push_htlc, LNONION_UNKNOWN_NEXT_PEER);
+            goto LABEL_ADDHTLC;
+        }
+
+        //転送額が転送先のhtlc_minimum_msatより小さい
+        if (hop_dataout.amt_to_forward < recv_prev.p_next_self->commit_remote.htlc_minimum_msat) {
+            M_SET_ERR(self, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64, hop_dataout.amt_to_forward, recv_prev.p_next_self->commit_remote.htlc_minimum_msat);
+            ret = false;
+            ln_misc_push16be(&push_htlc, LNONION_AMT_BELOW_MIN);
+            goto LABEL_ADDHTLC;
+        }
+
+        //転送先のcltv_expiryの方が自分へのcltv_expiryより大きかったり、cltv_expiry_deltaを満たしていない
         if ( (self->cnl_add_htlc[idx].cltv_expiry <= hop_dataout.outgoing_cltv_value) ||
-             (self->cnl_add_htlc[idx].cltv_expiry + ln_cltv_expily_delta(self) < hop_dataout.outgoing_cltv_value) ) {
-            M_SET_ERR(self, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, ln_cltv_expily_delta(self));
+             (self->cnl_add_htlc[idx].cltv_expiry + ln_cltv_expily_delta(recv_prev.p_next_self) < hop_dataout.outgoing_cltv_value) ) {
+            M_SET_ERR(self, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
             ret = false;
             ln_misc_push16be(&push_htlc, LNONION_INCORR_CLTV_EXPIRY);
             goto LABEL_ADDHTLC;
         }
 
-        //feeが少ない
+        //自分へのfeeが少ない
         uint64_t fwd_fee = ln_forward_fee(self, hop_dataout.amt_to_forward);
         if (self->cnl_add_htlc[idx].amount_msat < hop_dataout.amt_to_forward + fwd_fee) {
             M_SET_ERR(self, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32, fwd_fee, self->cnl_add_htlc[idx].amount_msat - hop_dataout.amt_to_forward);
