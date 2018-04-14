@@ -2303,6 +2303,8 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf;
+
+    DBGTRACE_BEGIN
     
     ln_cb_add_htlc_recv_prev_t *p_prev = (ln_cb_add_htlc_recv_prev_t *)p_param;
 
@@ -2314,6 +2316,8 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
         DBG_PRINTF("no forwarding\n");
         p_prev->p_next_self = NULL;
     }
+
+    DBGTRACE_END
 }
 
 
