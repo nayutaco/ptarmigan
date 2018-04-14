@@ -2311,6 +2311,7 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
     //転送先取得
     lnapp_conf_t *p_appconf = ucoind_search_connected_cnl(p_prev->next_short_channel_id);
     if (p_appconf != NULL) {
+        DBG_PRINTF("get forwarding lnapp\n");
         p_prev->p_next_self = p_appconf->p_self;
     } else {
         DBG_PRINTF("no forwarding\n");
