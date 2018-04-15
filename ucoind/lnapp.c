@@ -2302,9 +2302,22 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
 //LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc受信(前処理)
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_conf; (void)p_param;
+    (void)p_conf;
+
     DBGTRACE_BEGIN
-    wait_mutex_lock(MUX_CHG_HTLC);
+    
+    ln_cb_add_htlc_recv_prev_t *p_prev = (ln_cb_add_htlc_recv_prev_t *)p_param;
+
+    //転送先取得
+    lnapp_conf_t *p_appconf = ucoind_search_connected_cnl(p_prev->next_short_channel_id);
+    if (p_appconf != NULL) {
+        DBG_PRINTF("get forwarding lnapp\n");
+        p_prev->p_next_self = p_appconf->p_self;
+    } else {
+        DBG_PRINTF("fail: no forwarding\n");
+        p_prev->p_next_self = NULL;
+    }
+
     DBGTRACE_END
 }
 
@@ -2317,6 +2330,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_add_htlc_recv_t *p_add = (ln_cb_add_htlc_recv_t *)p_param;
 
+    wait_mutex_lock(MUX_CHG_HTLC);
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
 
     ucoind_preimage_lock();
@@ -2599,7 +2613,8 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
         queue_revack_t *p = revackq_pop(p_conf);
         if (p != NULL) {
             ucoin_buf_t *p_fail_ss = NULL;
-            ucoin_buf_t *p_fail_reason = NULL;
+            ucoin_buf_t fail_reason;
+
             switch (p->type) {
             case QTYPE_FWD_ADD_HTLC:
                 {
@@ -2617,11 +2632,14 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                     // DBG_PRINTF("  --> forward add(sci=%" PRIx64 ")\n", p_fwd_add->next_short_channel_id);
                     bool ret = ucoind_forward_payment(p_fwd_add);
                     if (!ret) {
+                        //add_htlc時に ucoind_search_connected_cnl()でチェックしているので、
+                        //ここまでに接続が切れたか、受信アイドル時キューへの追加に失敗した場合
                         DBG_PRINTF("転送失敗\n");
 
                         //update_fail_htlc準備
                         p_fail_ss = &p_fwd_add->shared_secret;
-                        p_fail_reason = &p_fwd_add->reason;
+                        uint16_t code = LNONION_UNKNOWN_NEXT_PEER;
+                        ucoin_buf_alloccopy(&fail_reason, (uint8_t *)&code, sizeof(code));
                     }
                 }
                 break;
@@ -2635,6 +2653,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                     bool ret = lnapp_backward_fulfill(p_conf, &fulfill);
                     if (!ret) {
                         //TODO: 戻せない(#366)
+                        //受信アイドル時キューへの追加に失敗した場合
                         DBG_PRINTF("巻き戻し失敗\n");
                     }
                 }
@@ -2643,7 +2662,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 {
                     ucoin_buf_t *p_buf = (ucoin_buf_t *)p->buf.buf;
                     p_fail_ss = &p_buf[0];
-                    p_fail_reason = &p_buf[1];
+                    memcpy(&fail_reason, &p_buf[1], sizeof(ucoin_buf_t));
                 }
                 break;
             case QTYPE_PAY_RETRY:
@@ -2672,12 +2691,12 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 
                 fail.prev_id = p->id;
                 fail.orig_id = (uint64_t)-1;
-                fail.p_reason = p_fail_reason;
+                fail.p_reason = &fail_reason;
                 fail.p_shared_secret = p_fail_ss;
                 DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", fail.prev_id);
                 lnapp_backward_fail(p_conf, &fail, true);
                 ucoin_buf_free(p_fail_ss);
-                ucoin_buf_free(p_fail_reason);
+                ucoin_buf_free(&fail_reason);
             }
             ucoin_buf_free(&p->buf);
             APP_FREE(p);

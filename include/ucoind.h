@@ -238,7 +238,6 @@ typedef struct {
     uint64_t    prev_short_channel_id;
     uint64_t    prev_id;
     ucoin_buf_t shared_secret;
-    ucoin_buf_t reason;
 } fwd_proc_add_t;
 
 
