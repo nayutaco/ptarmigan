@@ -2510,7 +2510,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     ln_cb_add_htlc_recv_t add_htlc;
 
     ucoin_push_t push_htlc;
-    ucoin_push_init(&push_htlc, &add_htlc.reason, 0);
+    ucoin_push_init(&push_htlc, &add_htlc.reason, sizeof(uint16_t));
 
     ret = ln_onion_read_packet(self->cnl_add_htlc[idx].p_onion_route, &hop_dataout,
                     &self->cnl_add_htlc[idx].shared_secret,
@@ -2561,7 +2561,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         ln_db_preimg_cur_close(p_cur);
 
         if (ret) {
-            //last nodeチェック
+            //final nodeチェック
             // https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
             //    * outgoing_cltv_value is set to the final expiry specified by the recipient
             //    * amt_to_forward is set to the final amount specified by the recipient
