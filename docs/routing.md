@@ -41,6 +41,7 @@ routing -s PAYER_NODEID -r PAYEE_NODEID -d DB_DIR -a AMOUNT_MSAT -e MIN_FINAL_CL
 
 * -c
   * clear routing skip channel list
+  * _NOTE_ : need restart `ucoind`
 
 ## DESCRIPTION
 
