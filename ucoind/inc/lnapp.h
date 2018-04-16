@@ -125,6 +125,7 @@ typedef struct lnapp_conf_t {
             uint16_t    len;            ///< p_data長
             void        *p_data;        ///< mallocで確保
         } proc[APP_FWD_PROC_MAX];
+        int             retry;          ///< リトライ数
     } rcvidle;
 
     //revoke_and_ack後キュー
