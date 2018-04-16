@@ -308,7 +308,7 @@ bool ucoind_backward_fulfill(const ln_cb_fulfill_htlc_recv_t *pFulFill)
 }
 
 
-bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail)
+bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail, bool bFirst)
 {
     bool ret = false;
     lnapp_conf_t *p_appconf;
@@ -319,7 +319,7 @@ bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail)
     p_appconf = ucoind_search_connected_cnl(pFail->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_backward_fail(p_appconf, pFail, false);
+        ret = lnapp_backward_fail(p_appconf, pFail, bFirst);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }

@@ -94,6 +94,7 @@ typedef enum {
     LNONION_FINAL_INCORR_CLTV_EXP   = ((uint16_t)(18)),
     LNONION_FINAL_INCORR_HTLC_AMT   = ((uint16_t)(19)),
     LNONION_CHAN_DISABLE            = ((uint16_t)(LNERR_ONION_UPDATE | 20)),
+    LNONION_EXPIRY_TOO_FAR          = ((uint16_t)(21)),
 } lnerr_onion_t;
 
 #endif /* LN_ERR_H__ */

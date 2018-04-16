@@ -743,18 +743,28 @@ typedef struct {
 } ln_cb_funding_t;
 
 
+/** @struct ln_cb_add_htlc_recv_prev_t
+ *  @brief  update_add_htlc受信前処理(#LN_CB_ADD_HTLC_RECV_PREV)
+ */
+typedef struct {
+    uint64_t                next_short_channel_id;
+    const ln_self_t         *p_next_self;
+} ln_cb_add_htlc_recv_prev_t;
+
+
 /** @struct ln_cb_add_htlc_recv_t
  *  @brief  update_add_htlc受信通知(#LN_CB_ADD_HTLC_RECV)
  */
 typedef struct {
     bool                        ok;                     ///< true:アプリ層処理OK
     uint64_t                    id;                     ///< HTLC id
-    const uint8_t               *p_payment_hash;        ///< self->cnl_add_htlc[idx].payment_sha256
+    const uint8_t               *p_payment;             ///< payment_hash or preimage
     const ln_hop_dataout_t      *p_hop;                 ///< onion解析結果
     uint64_t                    amount_msat;            ///< self->cnl_add_htlc[idx].amount_msat
     uint32_t                    cltv_expiry;            ///< self->cnl_add_htlc[idx].cltv_expiry
     uint8_t                     *p_onion_route;         ///< 変換後onionパケット(self->cnl_add_htlc[idx].p_onion_route)
     const ucoin_buf_t           *p_shared_secret;       ///< onion shared secret
+    ucoin_buf_t                 reason;                 ///< fail reason
 } ln_cb_add_htlc_recv_t;
 
 
@@ -1464,6 +1474,15 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
+/**
+ * 
+ * @param[out]      pReason
+ * @param[in]       self
+ * @param[in]       Code
+ */
+void ln_create_reason(ucoin_buf_t *pReason, const ln_self_t *self, uint16_t Code);
+
+
 /********************************************************************
  * inline展開用
  ********************************************************************/
@@ -1732,7 +1751,7 @@ static inline const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *se
  * @param[in]   tx
  * @retval  非NULL      preimage
  * @retval  NULL        -
- * 
+ *
  * @note
  *      - Offered HTLC Outputsをredeemできたtx
  *          - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#offered-htlc-outputs
@@ -1767,7 +1786,7 @@ static inline const ucoin_buf_t *ln_preimage_local(const ucoin_tx_t *pTx) {
  * @param[in]   tx
  * @retval  非NULL      preimage
  * @retval  NULL        -
- * 
+ *
  * @note
  *      - HTLC Success Tx時のUnlockになる
  *          - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#offered-htlc-outputs
@@ -1906,7 +1925,7 @@ static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
 
 
 /** 最後に発生したエラー番号
- * 
+ *
  * @param[in]           self            channel情報
  * @return      エラー番号(ln_err.h)
  */
@@ -1916,7 +1935,7 @@ static inline int ln_err(const ln_self_t *self) {
 
 
 /** 最後に発生したエラー情報
- * 
+ *
  * @param[in]           self            channel情報
  * @return      エラー情報文字列
  */

@@ -49,7 +49,7 @@
  ********************************************************************/
 
 typedef struct cJSON cJSON;
-typedef struct queue_fulfill_t queue_fulfill_t;
+typedef struct queue_revack_t queue_revack_t;
 
 
 /** @enum   recv_proc_t
@@ -117,16 +117,19 @@ typedef struct lnapp_conf_t {
     pthread_mutex_t mux_fulque;     ///< update_fulfill_htlcキュー用mutex
 
     //他スレッドからの転送処理要求
-    uint8_t         fwd_proc_rpnt;  ///< fwd_procの読込み位置
-    uint8_t         fwd_proc_wpnt;  ///< fwd_procの書込み位置
     struct {
-        recv_proc_t cmd;            ///< 要求
-        uint16_t    len;            ///< p_data長
-        void        *p_data;        ///< mallocで確保
-    } fwd_proc[APP_FWD_PROC_MAX];
+        uint8_t         rpnt;           ///< fwd_procの読込み位置
+        uint8_t         wpnt;           ///< fwd_procの書込み位置
+        struct {
+            recv_proc_t cmd;            ///< 要求
+            uint16_t    len;            ///< p_data長
+            void        *p_data;        ///< mallocで確保
+        } proc[APP_FWD_PROC_MAX];
+        int             retry;          ///< リトライ数
+    } rcvidle;
 
-    //fulfillキュー
-    queue_fulfill_t *p_fulfill_queue;
+    //revoke_and_ack後キュー
+    queue_revack_t  *p_revackq;
 
     //payment
 #ifdef USE_LINUX_LIST

@@ -251,7 +251,7 @@ typedef struct lnapp_conf_t lnapp_conf_t;
 
 bool ucoind_forward_payment(fwd_proc_add_t *p_add);
 bool ucoind_backward_fulfill(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
-bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail);
+bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
 
 void ucoind_preimage_lock(void);
 void ucoind_preimage_unlock(void);

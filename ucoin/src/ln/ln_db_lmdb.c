@@ -305,11 +305,8 @@ static const backup_param_t DBCOPY_KEYS[] = {
     M_ITEM(ln_self_t, peer_node_id),
     M_ITEM(ln_self_t, channel_id),
     M_ITEM(ln_self_t, short_channel_id),
-    // M_ITEM(ln_self_t, storage_index),
-    // M_ITEM(ln_self_t, storage_seed),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
-    // MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
@@ -332,12 +329,10 @@ static const struct {
     { ETYPE_BYTEPTR,    UCOIN_SZ_PUBKEY, true },    // peer_node_id
     { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
     { ETYPE_UINT64,     1, true },                  // short_channel_id
-    { ETYPE_UINT64,     1, true },                  // storage_index
-    { ETYPE_BYTEPTR,    LN_SZ_SEED, false },        // storage_seed
     { ETYPE_FUNDTXID,   UCOIN_SZ_TXID, false },     // funding_local.txid
     { ETYPE_FUNDTXIDX,  1, false },                 // funding_local.txindex
-    { ETYPE_LOCALKEYS,  1, false },                 // funding_local.keys
-    { ETYPE_REMOTEKEYS, 1, false },                 // funding_remote.keys
+    { ETYPE_LOCALKEYS,  1, false },                 // funding_local.pubkeys
+    { ETYPE_REMOTEKEYS, 1, false },                 // funding_remote.pubkeys
     { ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
 };
 
