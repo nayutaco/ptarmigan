@@ -521,11 +521,11 @@ bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *p
         return false;
     }
 
-    DBG_PRINTF("reason= ");
-    DUMPBIN(pFail->p_reason->buf, pFail->p_reason->len);
-    DBG_PRINTF("shared secret= ");
-    DUMPBIN(pFail->p_shared_secret->buf, pFail->p_shared_secret->len);
-    DBG_PRINTF("first= %s\n", (bFirst) ? "true" : "false");
+    // DBG_PRINTF("reason= ");
+    // DUMPBIN(pFail->p_reason->buf, pFail->p_reason->len);
+    // DBG_PRINTF("shared secret= ");
+    // DUMPBIN(pFail->p_shared_secret->buf, pFail->p_shared_secret->len);
+    // DBG_PRINTF("first= %s\n", (bFirst) ? "true" : "false");
 
     fwd_proc_fail_t *p_fwd_fail = (fwd_proc_fail_t *)APP_MALLOC(sizeof(fwd_proc_fail_t));   //APP_FREE: fwd_fail_backward()
     p_fwd_fail->id = pFail->prev_id;
