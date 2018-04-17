@@ -229,7 +229,7 @@ TEST_F(tx, add_vin_vinmax)
     ucoin_tx_t tx;
     ucoin_tx_init(&tx);
 
-    //今回はvarint型で1byte分までしか対応しない
+    //今回はvarint型で1byte分までしか対応しないつもりだったが、そうもいかなくなった
     tx.vin_cnt = 0xfc;      //既に0xfcある
 
     //2ebe872b03e0a78a614ba162283dc973e56454a08d3d6ba791a617c7f6e6fa30
@@ -240,7 +240,14 @@ TEST_F(tx, add_vin_vinmax)
         0x8a, 0xa7, 0xe0, 0x03, 0x2b, 0x87, 0xbe, 0x2e,
     };
     ucoin_tx_add_vin(&tx, TXID_LE, 2);
-    ASSERT_EQ(0xfc, tx.vin_cnt);
+    ASSERT_EQ(0xfd, tx.vin_cnt);        //追加OK
+
+    //vin_cntを操作したので、解放できるよう変更
+    tx.vin_cnt = 1;
+    tx.vin[0].wit_cnt = 0;
+    tx.vin[0].script.len = 0;
+    tx.vin[0].script.buf = NULL;
+    ucoin_tx_free(&tx);
 }
 
 
@@ -248,8 +255,6 @@ TEST_F(tx, add_vin_witmax)
 {
     ucoin_tx_t tx;
     ucoin_tx_init(&tx);
-
-    tx.vin_cnt = 0xfb;
 
     //2ebe872b03e0a78a614ba162283dc973e56454a08d3d6ba791a617c7f6e6fa30
     const uint8_t TXID_LE[] = {
@@ -259,16 +264,18 @@ TEST_F(tx, add_vin_witmax)
         0x8a, 0xa7, 0xe0, 0x03, 0x2b, 0x87, 0xbe, 0x2e,
     };
     ucoin_tx_add_vin(&tx, TXID_LE, 2);
-    //今回はvarint型で1byte分までしか対応しない
+    //今回はvarint型で1byte分までしか対応しないつもりだったが、そうもいかなくなった
     ucoin_vin_t *vin = &tx.vin[0];
     vin->wit_cnt = 0xfc;
+    vin->witness = NULL;
+
     ucoin_buf_t *wit = ucoin_tx_add_wit(vin);
-    ASSERT_TRUE(wit == NULL);
-    ASSERT_EQ(0xfc, vin->wit_cnt);
+    ASSERT_TRUE(wit != NULL);
+    ASSERT_EQ(0xfd, vin->wit_cnt);
 
     //vin_cntを操作したので、解放できるよう変更
-    tx.vin_cnt = 1;
-    tx.vin[0].wit_cnt = 0;
+printf("vin_cnt=%d, wit_cnt=%d\n", tx.vin_cnt, tx.vin[0].wit_cnt);
+    tx.vin[0].wit_cnt = 1;
     tx.vin[0].script.len = 0;
     tx.vin[0].script.buf = NULL;
     ucoin_tx_free(&tx);

@@ -219,6 +219,7 @@ protected:
     virtual void TearDown() {
     }
 
+    static ln_self_priv_t    priv_data;
     static ucoin_util_keys_t keys_local_funding;
     static ucoin_util_keys_t keys_local_commit;
     static uint8_t remote_funding_pubkey[UCOIN_SZ_PUBKEY];
@@ -243,6 +244,7 @@ public:
     }
 };
 
+ln_self_priv_t    ln_bolt3_c::priv_data;
 ucoin_util_keys_t ln_bolt3_c::keys_local_funding;
 ucoin_util_keys_t ln_bolt3_c::keys_local_commit;
 uint8_t ln_bolt3_c::remote_funding_pubkey[UCOIN_SZ_PUBKEY];
@@ -281,6 +283,8 @@ TEST_F(ln_bolt3_c, committx1)
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(keys_local_funding.pub, LOCAL_FUNDING_PUBKEY, UCOIN_SZ_PUBKEY));
     memcpy(remote_funding_pubkey, REMOTE_FUNDING_PUBKEY, UCOIN_SZ_PUBKEY);
+
+    memcpy(priv_data.priv[MSG_FUNDIDX_FUNDING], LOCAL_FUNDING_PRIVKEY, UCOIN_SZ_PRIVKEY);
 
     memcpy(keys_local_commit.priv, LOCAL_SECRETKEY, UCOIN_SZ_PRIVKEY);
     ret = ucoin_keys_priv2pub(keys_local_commit.pub, keys_local_commit.priv);
@@ -686,7 +690,6 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -697,7 +700,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -1404,7 +1407,6 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -1415,7 +1417,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
     const uint8_t LOCAL_SIGNATURE[] = {
@@ -2121,7 +2123,6 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -2132,7 +2133,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -2777,7 +2778,6 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -2788,7 +2788,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -3433,7 +3433,6 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -3444,7 +3443,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -4025,7 +4024,6 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -4036,7 +4034,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -4617,7 +4615,6 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -4628,7 +4625,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -5148,7 +5145,6 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -5159,7 +5155,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -5679,7 +5675,6 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -5690,7 +5685,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -6149,7 +6144,6 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -6160,7 +6154,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -6620,7 +6614,6 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -6631,7 +6624,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -6917,7 +6910,6 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -6928,7 +6920,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -7215,7 +7207,6 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -7226,7 +7217,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
@@ -7506,7 +7497,6 @@ TEST_F(ln_bolt3_c, committx_commit)
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
     lntx_commit.fund.satoshi = UCOIN_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
-    lntx_commit.fund.p_keys = &keys_local_funding;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(MSAT_REMOTE);
@@ -7517,7 +7507,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     lntx_commit.htlcinfo_num = 5;
     ucoin_buf_t buf_sig_local;
 
-    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true);
+    ret = ln_create_commit_tx(&tx, &buf_sig_local, &lntx_commit, true, &priv_data);
     ASSERT_TRUE(ret);
 
 
