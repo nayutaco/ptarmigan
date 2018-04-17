@@ -1565,10 +1565,8 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
         if (!ret) {
             ln_cb_fail_htlc_recv_t fail;
             ucoin_buf_t fail_reason;
-            lnapp_conf_t *p_appconf;
 
-            ln_create_reason(&fail_reason, p_conf->p_self, LNONION_UNKNOWN_NEXT_PEER);
-
+            ln_create_reason_next_peer(&fail_reason);
             fail.prev_id = p_add->prev_id;
             fail.orig_id = (uint64_t)-1;
             fail.prev_short_channel_id = p_add->prev_short_channel_id;
@@ -2665,7 +2663,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 
                         //update_fail_htlc準備
                         p_fail_ss = &p_fwd_add->shared_secret;
-                        ln_create_reason(&fail_reason, p_conf->p_self, LNONION_UNKNOWN_NEXT_PEER);
+                        ln_create_reason_next_peer(&fail_reason);
                     }
                 }
                 break;

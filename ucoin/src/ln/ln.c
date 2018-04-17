@@ -560,6 +560,8 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 //init作成
 bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
 {
+    (void)bHaveCnl;
+
     if (self->init_flag & M_INIT_FLAG_SEND) {
         M_SET_ERR(self, LNERR_INV_STATE, "init already sent.");
         return false;
@@ -1487,10 +1489,9 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 }
 
 
-void ln_create_reason(ucoin_buf_t *pReason, const ln_self_t *self, uint16_t Code)
+void ln_create_reason_next_peer(ucoin_buf_t *pReason)
 {
-    //#TODO:暫定
-    uint16_t code = (Code >> 8) | ((Code & 0xff) << 8);
+    uint16_t code = (LNONION_UNKNOWN_NEXT_PEER >> 8) | ((LNONION_UNKNOWN_NEXT_PEER & 0xff) << 8);
     ucoin_buf_alloccopy(pReason, (uint8_t *)&code, sizeof(code));
 }
 
@@ -4189,6 +4190,87 @@ static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_
 }
 
 
+#if 0
+//使わなくなったので、後で削除
+static void create_reason(ucoin_buf_t *pReason, const ln_self_t *self, uint16_t Code)
+{
+    ucoin_push_t push_reason;
+
+    ucoin_buf_init(pReason);
+    ucoin_push_init(&push_reason, pReason, sizeof(Code));
+    ln_misc_push16be(&push_reason, Code);
+
+    switch (Code) {
+    case LNONION_INV_REALM            :
+    case LNONION_TMP_NODE_FAIL        :
+    case LNONION_PERM_NODE_FAIL       :
+    case LNONION_REQ_NODE_FTR_MISSING :
+    case LNONION_PERM_CHAN_FAIL       :
+    case LNONION_REQ_CHAN_FTR_MISSING :
+    //case LNONION_UNKNOWN_NEXT_PEER    :
+    //case LNONION_UNKNOWN_PAY_HASH     :
+    //case LNONION_INCORR_PAY_AMT       :
+    case LNONION_FINAL_EXPIRY_TOO_SOON:
+    case LNONION_EXPIRY_TOO_FAR       :
+        //no data
+        break;
+
+    case LNONION_INV_ONION_VERSION    :
+    case LNONION_INV_ONION_HMAC       :
+    case LNONION_INV_ONION_KEY        :
+        //[32:sha256_of_onion]
+        ucoin_push_data(&push_reason, );
+        break;
+
+    case LNONION_TMP_CHAN_FAIL        :
+        //[2:len]
+        //[len:channel_update]
+        break;
+
+    //case LNONION_AMT_BELOW_MIN        :
+    //    //[8:htlc_msat]
+    //    //[2:len]
+    //    //[len:channel_update]
+    //    break;
+
+    //case LNONION_FEE_INSUFFICIENT     :
+    //    //[8:htlc_msat]
+    //    //[2:len]
+    //    //[len:channel_update]
+    //    break;
+
+    //case LNONION_INCORR_CLTV_EXPIRY   :
+    //    //[4:cltv_expiry]
+    //    //[2:len]
+    //    //[len:channel_update]
+    //    break;
+
+    case LNONION_EXPIRY_TOO_SOON      :
+        //[2:len]
+        //[len:channel_update]
+        break;
+
+    //case LNONION_FINAL_INCORR_CLTV_EXP:
+    //    //[4:cltv_expiry]
+    //    break;
+
+    //case LNONION_FINAL_INCORR_HTLC_AMT:
+    //    //[4:incoming_htlc_amt]
+    //    break;
+
+    case LNONION_CHAN_DISABLE         :
+        //[2: flags]
+        //[2:len]
+        //[len:channel_update]
+        break;
+
+    default:
+        break;
+    }
+}
+#endif
+
+
 /** update_add_htlc作成前チェック
  *
  */
@@ -4257,22 +4339,22 @@ static bool check_create_add_htlc(ln_self_t *self, int *pIdx, uint64_t amount_ms
 
 
 /** recv_update_add_htlc()のBOLT#2チェック
- * 
+ *
  */
-static bool check_recv_add_htlc_bolt2(ln_self_t *self, int idx)
+static bool check_recv_add_htlc_bolt2(ln_self_t *self, int Index)
 {
     //amount_msatが0の場合、チャネルを失敗させる。
     //amount_msatが自分のhtlc_minimum_msat未満の場合、チャネルを失敗させる。
     //  receiving an amount_msat equal to 0, OR less than its own htlc_minimum_msat
-    if (self->cnl_add_htlc[idx].amount_msat < self->commit_local.htlc_minimum_msat) {
+    if (self->cnl_add_htlc[Index].amount_msat < self->commit_local.htlc_minimum_msat) {
         M_SET_ERR(self, LNERR_INV_VALUE, "amount_msat < local htlc_minimum_msat");
         return false;
     }
 
     //送信側が現在のfeerate_per_kwで支払えないようなamount_msatの場合、チャネルを失敗させる。
     //  receiving an amount_msat that the sending node cannot afford at the current feerate_per_kw
-    if (self->their_msat < self->cnl_add_htlc[idx].amount_msat) {
-        M_SET_ERR(self, LNERR_INV_VALUE, "their_msat too small(%" PRIu64 " < %" PRIu64 ")", self->their_msat, self->cnl_add_htlc[idx].amount_msat);
+    if (self->their_msat < self->cnl_add_htlc[Index].amount_msat) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "their_msat too small(%" PRIu64 " < %" PRIu64 ")", self->their_msat, self->cnl_add_htlc[Index].amount_msat);
         return false;
     }
 
@@ -4298,13 +4380,13 @@ static bool check_recv_add_htlc_bolt2(ln_self_t *self, int idx)
 
     //cltv_expiryが500000000以上の場合、チャネルを失敗させる。
     //  if sending node sets cltv_expiry to greater or equal to 500000000
-    if (self->cnl_add_htlc[idx].cltv_expiry >= 500000000) {
+    if (self->cnl_add_htlc[Index].cltv_expiry >= 500000000) {
         M_SET_ERR(self, LNERR_INV_VALUE, "cltv_expiry >= 500000000");
         return false;
     }
 
     //for channels with chain_hash identifying the Bitcoin blockchain, if the four most significant bytes of amount_msat are not 0
-    if (self->cnl_add_htlc[idx].amount_msat & (uint64_t)0xffffffff00000000) {
+    if (self->cnl_add_htlc[Index].amount_msat & (uint64_t)0xffffffff00000000) {
         M_SET_ERR(self, LNERR_INV_VALUE, "Bitcoin amount_msat must 4 MSByte not 0");
         return false;
     }
@@ -4324,30 +4406,27 @@ static bool check_recv_add_htlc_bolt2(ln_self_t *self, int idx)
 
 
 /** recv_update_add_htlc()のBOLT#4チェック
- * 
+ *
  */
 static bool check_recv_add_htlc_bolt4(ln_self_t *self,
                     ln_hop_dataout_t *pDataOut,
                     uint8_t **pp_payment,
                     uint8_t *p_preimage,
                     ucoin_buf_t *pReason,
-                    int idx)
+                    int Index)
 {
     bool ret;
 
     ucoin_push_t push_htlc;
     ucoin_push_init(&push_htlc, pReason, sizeof(uint16_t));
 
-    ret = ln_onion_read_packet(self->cnl_add_htlc[idx].p_onion_route, pDataOut,
-                    &self->cnl_add_htlc[idx].shared_secret,
-                    self->cnl_add_htlc[idx].p_onion_route,
-                    self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH);
+    ret = ln_onion_read_packet(self->cnl_add_htlc[Index].p_onion_route, pDataOut,
+                    &self->cnl_add_htlc[Index].shared_secret,
+                    &push_htlc,
+                    self->cnl_add_htlc[Index].p_onion_route,
+                    self->cnl_add_htlc[Index].payment_sha256, LN_SZ_HASH);
     if (!ret) {
         M_SET_ERR(self, LNERR_ONION, "onion-read");
-
-        //TODO:onionのエラー
-        //  versionやHMACなどのチェックも行っているので、一概にmalformedにできない
-        ln_misc_push16be(&push_htlc, LNONION_INV_ONION_HMAC);
         goto LABEL_EXIT;
     }
 
@@ -4375,7 +4454,7 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
             ret = ln_db_preimg_cur_get(p_cur, p_preimage, &amount);
             if (ret) {
                 ln_calc_preimage_hash(preimage_hash, p_preimage);
-                if (memcmp(preimage_hash, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) {
+                if (memcmp(preimage_hash, self->cnl_add_htlc[Index].payment_sha256, LN_SZ_HASH) == 0) {
                     //一致
                     *pp_payment = p_preimage;
                     break;
@@ -4389,23 +4468,26 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
             // https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
             //    * outgoing_cltv_value is set to the final expiry specified by the recipient
             //    * amt_to_forward is set to the final amount specified by the recipient
-            if (pDataOut->outgoing_cltv_value != self->cnl_add_htlc[idx].cltv_expiry) {
+            if (pDataOut->outgoing_cltv_value != self->cnl_add_htlc[Index].cltv_expiry) {
                 DBG_PRINTF("%" PRIu32 " --- %" PRIu32 "\n", pDataOut->outgoing_cltv_value, ln_cltv_expily_delta(self));
                 M_SET_ERR(self, LNERR_INV_VALUE, "incorrect cltv expiry");
                 ln_misc_push16be(&push_htlc, LNONION_FINAL_INCORR_CLTV_EXP);
+                //[4:cltv_expiry]
                 goto LABEL_EXIT;
             }
-            if (pDataOut->amt_to_forward != self->cnl_add_htlc[idx].amount_msat) {
-                DBG_PRINTF("%" PRIu64 " --- %" PRIu64 "\n", pDataOut->amt_to_forward, self->cnl_add_htlc[idx].amount_msat);
+            if (pDataOut->amt_to_forward != self->cnl_add_htlc[Index].amount_msat) {
+                DBG_PRINTF("%" PRIu64 " --- %" PRIu64 "\n", pDataOut->amt_to_forward, self->cnl_add_htlc[Index].amount_msat);
                 M_SET_ERR(self, LNERR_INV_VALUE, "incorrect htlc ammount");
                 ln_misc_push16be(&push_htlc, LNONION_FINAL_INCORR_HTLC_AMT);
+                //[4:incoming_htlc_amt]
                 goto LABEL_EXIT;
             }
 
-            if (self->cnl_add_htlc[idx].amount_msat < amount) {
-                M_SET_ERR(self, LNERR_INV_VALUE, "low amount_msat : %" PRIu64 " < %" PRIu64, self->cnl_add_htlc[idx].amount_msat, amount);
+            if (self->cnl_add_htlc[Index].amount_msat < amount) {
+                M_SET_ERR(self, LNERR_INV_VALUE, "low amount_msat : %" PRIu64 " < %" PRIu64, self->cnl_add_htlc[Index].amount_msat, amount);
                 ret = false;
                 ln_misc_push16be(&push_htlc, LNONION_FINAL_INCORR_HTLC_AMT);
+                //[4:incoming_htlc_amt]
                 goto LABEL_EXIT;
             }
 
@@ -4413,15 +4495,17 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
             //  if the amount paid is more than twice the amount expected:
             //      * SHOULD fail the HTLC.
             //      * SHOULD return an incorrect_payment_amount error.
-            if (amount * 2 < self->cnl_add_htlc[idx].amount_msat) {
-                M_SET_ERR(self, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, amount *2, self->cnl_add_htlc[idx].amount_msat);
+            if (amount * 2 < self->cnl_add_htlc[Index].amount_msat) {
+                M_SET_ERR(self, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, amount *2, self->cnl_add_htlc[Index].amount_msat);
                 ret = false;
                 ln_misc_push16be(&push_htlc, LNONION_INCORR_PAY_AMT);
+                //no data
                 goto LABEL_EXIT;
             }
         } else {
             M_SET_ERR(self, LNERR_INV_VALUE, "preimage mismatch");
             ln_misc_push16be(&push_htlc, LNONION_UNKNOWN_PAY_HASH);
+            //no data
             goto LABEL_EXIT;
         }
     } else {
@@ -4431,6 +4515,7 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
             //転送先がない
             M_SET_ERR(self, LNERR_INV_VALUE, "no next channel");
             ln_misc_push16be(&push_htlc, LNONION_UNKNOWN_NEXT_PEER);
+            //no data
             goto LABEL_EXIT;
         }
 
@@ -4439,28 +4524,37 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
             M_SET_ERR(self, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, recv_prev.p_next_self->commit_remote.htlc_minimum_msat);
             ret = false;
             ln_misc_push16be(&push_htlc, LNONION_AMT_BELOW_MIN);
+            //[8:htlc_msat]
+            //[2:len]
+            //[len:channel_update]
             goto LABEL_EXIT;
         }
 
         //転送先のcltv_expiryの方が自分へのcltv_expiryより大きかったり、cltv_expiry_deltaを満たしていない
-        if ( (self->cnl_add_htlc[idx].cltv_expiry <= pDataOut->outgoing_cltv_value) ||
-             (self->cnl_add_htlc[idx].cltv_expiry + ln_cltv_expily_delta(recv_prev.p_next_self) < pDataOut->outgoing_cltv_value) ) {
+        if ( (self->cnl_add_htlc[Index].cltv_expiry <= pDataOut->outgoing_cltv_value) ||
+             (self->cnl_add_htlc[Index].cltv_expiry + ln_cltv_expily_delta(recv_prev.p_next_self) < pDataOut->outgoing_cltv_value) ) {
             M_SET_ERR(self, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
             ret = false;
             ln_misc_push16be(&push_htlc, LNONION_INCORR_CLTV_EXPIRY);
+            //[4:cltv_expiry]
+            //[2:len]
+            //[len:channel_update]
             goto LABEL_EXIT;
         }
 
         //自分へのfeeが少ない
         uint64_t fwd_fee = ln_forward_fee(self, pDataOut->amt_to_forward);
-        if (self->cnl_add_htlc[idx].amount_msat < pDataOut->amt_to_forward + fwd_fee) {
-            M_SET_ERR(self, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32, fwd_fee, self->cnl_add_htlc[idx].amount_msat - pDataOut->amt_to_forward);
+        if (self->cnl_add_htlc[Index].amount_msat < pDataOut->amt_to_forward + fwd_fee) {
+            M_SET_ERR(self, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32, fwd_fee, self->cnl_add_htlc[Index].amount_msat - pDataOut->amt_to_forward);
             ret = false;
             ln_misc_push16be(&push_htlc, LNONION_FEE_INSUFFICIENT);
+            //[8:htlc_msat]
+            //[2:len]
+            //[len:channel_update]
             goto LABEL_EXIT;
         }
 
-        *pp_payment = self->cnl_add_htlc[idx].payment_sha256;
+        *pp_payment = self->cnl_add_htlc[Index].payment_sha256;
     }
 
     //共通チェック

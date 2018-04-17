@@ -1474,13 +1474,11 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
-/**
+/** onion error
  * 
  * @param[out]      pReason
- * @param[in]       self
- * @param[in]       Code
  */
-void ln_create_reason(ucoin_buf_t *pReason, const ln_self_t *self, uint16_t Code);
+void ln_create_reason_next_peer(ucoin_buf_t *pReason);
 
 
 /********************************************************************
