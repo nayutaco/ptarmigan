@@ -1341,9 +1341,14 @@ printf("ln_onion_create_packet\n");
     memset(packet, 0, sizeof(packet));
     ln_hop_dataout_t dataout;
     ln_node_setkey(onion_privkey[0]);
-    ret = ln_onion_read_packet(packet, &dataout, NULL, PACKET, NULL, 0);
+    ucoin_buf_t buf_rsn;
+    ucoin_push_t push_rsn;
+    ucoin_buf_init(&buf_rsn);
+    ucoin_push_init(&push_rsn, &buf_rsn, 0);
+    ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, PACKET, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(dataout.b_exit);      //1つなのでここでexit
+    ucoin_buf_free(&buf_rsn);
 }
 
 
@@ -1553,9 +1558,14 @@ TEST_F(onion, test2)
 
     for (int lp = 0; lp < 20; lp++) {
         ln_node_setkey(onion_privkey[lp]);
-        ret = ln_onion_read_packet(packet, &dataout, NULL, packet, NULL, 0);
+        ucoin_buf_t buf_rsn;
+        ucoin_push_t push_rsn;
+        ucoin_buf_init(&buf_rsn);
+        ucoin_push_init(&push_rsn, &buf_rsn, 0);
+        ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, NULL, 0);
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);
+        ucoin_buf_free(&buf_rsn);
 
         if (lp == 19) {
             ASSERT_TRUE(dataout.b_exit);
@@ -1597,9 +1607,14 @@ TEST_F(onion, test3)
 
     for (int lp = 0; lp < 20; lp++) {
         ln_node_setkey(onion_privkey[lp]);
-        ret = ln_onion_read_packet(packet, &dataout, NULL, packet, NULL, 0);
+        ucoin_buf_t buf_rsn;
+        ucoin_push_t push_rsn;
+        ucoin_buf_init(&buf_rsn);
+        ucoin_push_init(&push_rsn, &buf_rsn, 0);
+        ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, NULL, 0);
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);
+        ucoin_buf_free(&buf_rsn);
 
         if (lp == 19) {
             ASSERT_TRUE(dataout.b_exit);
@@ -1640,9 +1655,14 @@ TEST_F(onion, test4)
 
     for (int lp = 0; lp < 20; lp++) {
         ln_node_setkey(onion_privkey[lp]);
-        ret = ln_onion_read_packet(packet, &dataout, NULL, packet, ASSOC, sizeof(ASSOC));
+        ucoin_buf_t buf_rsn;
+        ucoin_push_t push_rsn;
+        ucoin_buf_init(&buf_rsn);
+        ucoin_push_init(&push_rsn, &buf_rsn, 0);
+        ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, ASSOC, sizeof(ASSOC));
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);
+        ucoin_buf_free(&buf_rsn);
 
         if (lp == 19) {
             ASSERT_TRUE(dataout.b_exit);
