@@ -267,17 +267,15 @@ TEST_F(tx, add_vin_witmax)
     //今回はvarint型で1byte分までしか対応しないつもりだったが、そうもいかなくなった
     ucoin_vin_t *vin = &tx.vin[0];
     vin->wit_cnt = 0xfc;
-    vin->witness = NULL;
 
     ucoin_buf_t *wit = ucoin_tx_add_wit(vin);
     ASSERT_TRUE(wit != NULL);
     ASSERT_EQ(0xfd, vin->wit_cnt);
 
-    //vin_cntを操作したので、解放できるよう変更
-printf("vin_cnt=%d, wit_cnt=%d\n", tx.vin_cnt, tx.vin[0].wit_cnt);
-    tx.vin[0].wit_cnt = 1;
-    tx.vin[0].script.len = 0;
-    tx.vin[0].script.buf = NULL;
+    //tx_freeのために初期化
+    for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
+        ucoin_buf_init(&(vin->witness[lp2]));
+    }
     ucoin_tx_free(&tx);
 }
 
@@ -355,12 +353,17 @@ TEST_F(tx, add_vout_max)
     ucoin_tx_t tx;
     ucoin_tx_init(&tx);
 
-    //今回はvarint型で1byte分までしか対応しない
+    //今回はvarint型で1byte分までしか対応しない、というわけにもいかなくなった
     tx.vout_cnt = 0xfc;      //既に0xfcある
 
     ucoin_vout_t *vout0 = ucoin_tx_add_vout(&tx, (uint64_t)0x123456789abcdef0);
-    ASSERT_TRUE(vout0 == NULL);
-    ASSERT_EQ(0xfc, tx.vout_cnt);
+    ASSERT_TRUE(vout0 != NULL);
+    ASSERT_EQ(0xfd, tx.vout_cnt);
+
+    for (int lp = 0; lp < tx.vout_cnt; lp++) {
+        ucoin_buf_init(&tx.vout[lp].script);
+    }
+    ucoin_tx_free(&tx);
 }
 
 
