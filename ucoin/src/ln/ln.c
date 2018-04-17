@@ -4190,87 +4190,6 @@ static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_
 }
 
 
-#if 0
-//使わなくなったので、後で削除
-static void create_reason(ucoin_buf_t *pReason, const ln_self_t *self, uint16_t Code)
-{
-    ucoin_push_t push_reason;
-
-    ucoin_buf_init(pReason);
-    ucoin_push_init(&push_reason, pReason, sizeof(Code));
-    ln_misc_push16be(&push_reason, Code);
-
-    switch (Code) {
-    case LNONION_INV_REALM            :
-    case LNONION_TMP_NODE_FAIL        :
-    case LNONION_PERM_NODE_FAIL       :
-    case LNONION_REQ_NODE_FTR_MISSING :
-    case LNONION_PERM_CHAN_FAIL       :
-    case LNONION_REQ_CHAN_FTR_MISSING :
-    //case LNONION_UNKNOWN_NEXT_PEER    :
-    //case LNONION_UNKNOWN_PAY_HASH     :
-    //case LNONION_INCORR_PAY_AMT       :
-    case LNONION_FINAL_EXPIRY_TOO_SOON:
-    case LNONION_EXPIRY_TOO_FAR       :
-        //no data
-        break;
-
-    case LNONION_INV_ONION_VERSION    :
-    case LNONION_INV_ONION_HMAC       :
-    case LNONION_INV_ONION_KEY        :
-        //[32:sha256_of_onion]
-        ucoin_push_data(&push_reason, );
-        break;
-
-    case LNONION_TMP_CHAN_FAIL        :
-        //[2:len]
-        //[len:channel_update]
-        break;
-
-    //case LNONION_AMT_BELOW_MIN        :
-    //    //[8:htlc_msat]
-    //    //[2:len]
-    //    //[len:channel_update]
-    //    break;
-
-    //case LNONION_FEE_INSUFFICIENT     :
-    //    //[8:htlc_msat]
-    //    //[2:len]
-    //    //[len:channel_update]
-    //    break;
-
-    //case LNONION_INCORR_CLTV_EXPIRY   :
-    //    //[4:cltv_expiry]
-    //    //[2:len]
-    //    //[len:channel_update]
-    //    break;
-
-    case LNONION_EXPIRY_TOO_SOON      :
-        //[2:len]
-        //[len:channel_update]
-        break;
-
-    //case LNONION_FINAL_INCORR_CLTV_EXP:
-    //    //[4:cltv_expiry]
-    //    break;
-
-    //case LNONION_FINAL_INCORR_HTLC_AMT:
-    //    //[4:incoming_htlc_amt]
-    //    break;
-
-    case LNONION_CHAN_DISABLE         :
-        //[2: flags]
-        //[2:len]
-        //[len:channel_update]
-        break;
-
-    default:
-        break;
-    }
-}
-#endif
-
-
 /** update_add_htlc作成前チェック
  *
  */
@@ -4407,6 +4326,15 @@ static bool check_recv_add_htlc_bolt2(ln_self_t *self, int Index)
 
 /** recv_update_add_htlc()のBOLT#4チェック
  *
+ *      self->cnl_add_htlc[Index]: update_add_htlcパラメータ
+ *      pDataOut                 : onionパラメータ
+ *
+ * +------+                          +------+                          +------+
+ * |node_A|------------------------->|node_B|------------------------->|node_C|
+ * +------+  update_add_htlc         +------+  update_add_htlc         +------+
+ *             amount_msat_AB                    amount_msat_BC
+ *             onion_routing_packet_AB           onion_routing_packet_BC
+ *               amt_to_forward_BC
  */
 static bool check_recv_add_htlc_bolt4(ln_self_t *self,
                     ln_hop_dataout_t *pDataOut,
@@ -4426,6 +4354,14 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
                     self->cnl_add_htlc[Index].p_onion_route,
                     self->cnl_add_htlc[Index].payment_sha256, LN_SZ_HASH);
     if (!ret) {
+        //A1. if the realm byte is unknown:
+        //      invalid_realm
+        //B1. if the onion version byte is unknown:
+        //      invalid_onion_version
+        //B2. if the onion HMAC is incorrect:
+        //      invalid_onion_hmac
+        //B3. if the ephemeral key in the onion is unparsable:
+        //      invalid_onion_key
         M_SET_ERR(self, LNERR_ONION, "onion-read");
         goto LABEL_EXIT;
     }
@@ -4445,13 +4381,13 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         //自分宛(final node)
 
         //preimage-hashチェック
-        uint64_t amount;
+        uint64_t inv_amount = (uint64_t)-1;
         uint8_t preimage_hash[LN_SZ_HASH];
 
         void *p_cur;
         ret = ln_db_preimg_cur_open(&p_cur);
         while (ret) {
-            ret = ln_db_preimg_cur_get(p_cur, p_preimage, &amount);
+            ret = ln_db_preimg_cur_get(p_cur, p_preimage, &inv_amount);     //from invoice
             if (ret) {
                 ln_calc_preimage_hash(preimage_hash, p_preimage);
                 if (memcmp(preimage_hash, self->cnl_add_htlc[Index].payment_sha256, LN_SZ_HASH) == 0) {
@@ -4464,53 +4400,85 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         ln_db_preimg_cur_close(p_cur);
 
         if (ret) {
-            //final nodeチェック
-            // https://github.com/lightningnetwork/lightning-rfc/blob/master/04-onion-routing.md#payload-for-the-last-node
-            //    * outgoing_cltv_value is set to the final expiry specified by the recipient
-            //    * amt_to_forward is set to the final amount specified by the recipient
-            if (pDataOut->outgoing_cltv_value != self->cnl_add_htlc[Index].cltv_expiry) {
-                DBG_PRINTF("%" PRIu32 " --- %" PRIu32 "\n", pDataOut->outgoing_cltv_value, ln_cltv_expily_delta(self));
-                M_SET_ERR(self, LNERR_INV_VALUE, "incorrect cltv expiry");
-                ln_misc_push16be(&push_htlc, LNONION_FINAL_INCORR_CLTV_EXP);
-                //[4:cltv_expiry]
-                goto LABEL_EXIT;
-            }
-            if (pDataOut->amt_to_forward != self->cnl_add_htlc[Index].amount_msat) {
-                DBG_PRINTF("%" PRIu64 " --- %" PRIu64 "\n", pDataOut->amt_to_forward, self->cnl_add_htlc[Index].amount_msat);
-                M_SET_ERR(self, LNERR_INV_VALUE, "incorrect htlc ammount");
-                ln_misc_push16be(&push_htlc, LNONION_FINAL_INCORR_HTLC_AMT);
-                //[4:incoming_htlc_amt]
-                goto LABEL_EXIT;
-            }
+            //
+            //An intermediate hop MUST NOT, but the final node:
+            //  self->cnl_add_htlc[Index].amount_msat >= pDataOut->amt_to_forwardを認めているため、
+            //  HTLCとしてはself->cnl_add_htlc[Index].amount_msatを使用する。
+            //
 
-            if (self->cnl_add_htlc[Index].amount_msat < amount) {
-                M_SET_ERR(self, LNERR_INV_VALUE, "low amount_msat : %" PRIu64 " < %" PRIu64, self->cnl_add_htlc[Index].amount_msat, amount);
-                ret = false;
-                ln_misc_push16be(&push_htlc, LNONION_FINAL_INCORR_HTLC_AMT);
-                //[4:incoming_htlc_amt]
-                goto LABEL_EXIT;
-            }
-
-            //送金額はinvoiceの2倍より大きいならNG
-            //  if the amount paid is more than twice the amount expected:
-            //      * SHOULD fail the HTLC.
-            //      * SHOULD return an incorrect_payment_amount error.
-            if (amount * 2 < self->cnl_add_htlc[Index].amount_msat) {
-                M_SET_ERR(self, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, amount *2, self->cnl_add_htlc[Index].amount_msat);
+            //C2. if the amount paid is less than the amount expected:
+            //      incorrect_payment_amount
+            if (self->cnl_add_htlc[Index].amount_msat < inv_amount) {
+                M_SET_ERR(self, LNERR_INV_VALUE, "incorrect_payment_amount(final) : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, inv_amount);
                 ret = false;
                 ln_misc_push16be(&push_htlc, LNONION_INCORR_PAY_AMT);
                 //no data
                 goto LABEL_EXIT;
             }
+
+            //C4. if the amount paid is more than twice the amount expected:
+            //      incorrect_payment_amount
+            if (inv_amount * 2 < self->cnl_add_htlc[Index].amount_msat) {
+                M_SET_ERR(self, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, inv_amount * 2, pDataOut->amt_to_forward);
+                ret = false;
+                ln_misc_push16be(&push_htlc, LNONION_INCORR_PAY_AMT);
+                //no data
+                goto LABEL_EXIT;
+            }
+
+            //TODO: implement
+            //C5. if the cltv_expiry value is unreasonably near the present:
+            //      final_expiry_too_soon
+
+            //C6. if the outgoing_cltv_value does NOT correspond with the cltv_expiry from the final node's HTLC:
+            //      final_incorrect_cltv_expiry
+            if (pDataOut->outgoing_cltv_value != self->cnl_add_htlc[Index].cltv_expiry) {
+                DBG_PRINTF("%" PRIu32 " --- %" PRIu32 "\n", pDataOut->outgoing_cltv_value, ln_cltv_expily_delta(self));
+                M_SET_ERR(self, LNERR_INV_VALUE, "incorrect cltv expiry(final)");
+                ln_misc_push16be(&push_htlc, LNONION_FINAL_INCORR_CLTV_EXP);
+                //[4:cltv_expiry]
+                ln_misc_push32be(&push_htlc, pDataOut->outgoing_cltv_value);
+                goto LABEL_EXIT;
+            }
+
+            //C7. if the amt_to_forward is greater than the incoming_htlc_amt from the final node's HTLC:
+            //      final_incorrect_htlc_amount
+            if (pDataOut->amt_to_forward > self->cnl_add_htlc[Index].amount_msat) {
+                DBG_PRINTF("%" PRIu64 " --- %" PRIu64 "\n", pDataOut->amt_to_forward, self->cnl_add_htlc[Index].amount_msat);
+                M_SET_ERR(self, LNERR_INV_VALUE, "incorrect_payment_amount(final)");
+                ln_misc_push16be(&push_htlc, LNONION_FINAL_INCORR_HTLC_AMT);
+                //[4:incoming_htlc_amt]
+                ln_misc_push32be(&push_htlc, self->cnl_add_htlc[Index].amount_msat);
+                goto LABEL_EXIT;
+            }
         } else {
+            //C1. if the payment hash has already been paid:
+            //      ★(採用)MAY treat the payment hash as unknown.★
+            //      MAY succeed in accepting the HTLC.
+            //C3. if the payment hash is unknown:
+            //      unknown_payment_hash
             M_SET_ERR(self, LNERR_INV_VALUE, "preimage mismatch");
             ln_misc_push16be(&push_htlc, LNONION_UNKNOWN_PAY_HASH);
             //no data
             goto LABEL_EXIT;
         }
     } else {
-        //転送
+        //
+        //A forwarding node MAY, but a final node MUST NOT:
+        //TODO: implement
+        //
 
+        //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
+        //      temporary_channel_failure
+
+        //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
+        //      permanent_channel_failure
+
+        //B6. if the outgoing channel has requirements advertised in its channel_announcement's features, which were NOT included in the onion:
+        //      required_channel_feature_missing
+
+        //B7. if the receiving peer specified by the onion is NOT known:
+        //      unknown_next_peer
         if (recv_prev.p_next_self == NULL) {
             //転送先がない
             M_SET_ERR(self, LNERR_INV_VALUE, "no next channel");
@@ -4519,7 +4487,9 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
             goto LABEL_EXIT;
         }
 
-        //転送額が転送先のhtlc_minimum_msatより小さい
+        //B8. if the HTLC amount is less than the currently specified minimum amount:
+        //      amount_below_minimum
+        //      (report the amount of the incoming HTLC and the current channel setting for the outgoing channel.)
         if (pDataOut->amt_to_forward < recv_prev.p_next_self->commit_remote.htlc_minimum_msat) {
             M_SET_ERR(self, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, recv_prev.p_next_self->commit_remote.htlc_minimum_msat);
             ret = false;
@@ -4530,19 +4500,9 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
             goto LABEL_EXIT;
         }
 
-        //転送先のcltv_expiryの方が自分へのcltv_expiryより大きかったり、cltv_expiry_deltaを満たしていない
-        if ( (self->cnl_add_htlc[Index].cltv_expiry <= pDataOut->outgoing_cltv_value) ||
-             (self->cnl_add_htlc[Index].cltv_expiry + ln_cltv_expily_delta(recv_prev.p_next_self) < pDataOut->outgoing_cltv_value) ) {
-            M_SET_ERR(self, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
-            ret = false;
-            ln_misc_push16be(&push_htlc, LNONION_INCORR_CLTV_EXPIRY);
-            //[4:cltv_expiry]
-            //[2:len]
-            //[len:channel_update]
-            goto LABEL_EXIT;
-        }
-
-        //自分へのfeeが少ない
+        //B9. if the HTLC does NOT pay a sufficient fee:
+        //      fee_insufficient
+        //      (report the amount of the incoming HTLC and the current channel setting for the outgoing channel.)
         uint64_t fwd_fee = ln_forward_fee(self, pDataOut->amt_to_forward);
         if (self->cnl_add_htlc[Index].amount_msat < pDataOut->amt_to_forward + fwd_fee) {
             M_SET_ERR(self, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32, fwd_fee, self->cnl_add_htlc[Index].amount_msat - pDataOut->amt_to_forward);
@@ -4554,11 +4514,49 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
             goto LABEL_EXIT;
         }
 
+        //B10. if the outgoing_cltv_value does NOT match the update_add_htlc's cltv_expiry minus the cltv_expiry_delta for the outgoing channel:
+        //      incorrect_cltv_expiry
+        //      (report the cltv_expiry and the current channel setting for the outgoing channel.)
+        if ( (self->cnl_add_htlc[Index].cltv_expiry <= pDataOut->outgoing_cltv_value) ||
+             (self->cnl_add_htlc[Index].cltv_expiry + ln_cltv_expily_delta(recv_prev.p_next_self) < pDataOut->outgoing_cltv_value) ) {
+            M_SET_ERR(self, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
+            ret = false;
+            ln_misc_push16be(&push_htlc, LNONION_INCORR_CLTV_EXPIRY);
+            //[4:cltv_expiry]
+            //[2:len]
+            //[len:channel_update]
+            goto LABEL_EXIT;
+        }
+
+        //B11. if the cltv_expiry is unreasonably near the present:
+        //      expiry_too_soon
+        //      (report the current channel setting for the outgoing channel.)
+
+        //B12. if the cltv_expiry is unreasonably far in the future:
+        //      expiry_too_far
+
+        //B13. if the channel is disabled:
+        //      channel_disabled
+        //      (report the current channel setting for the outgoing channel.)
+
         *pp_payment = self->cnl_add_htlc[Index].payment_sha256;
     }
 
     //共通チェック
     if (ret) {
+        //
+        // Any erring node MAY:
+        //TODO: implement
+        //
+
+        //A2. if an otherwise unspecified transient error occurs for the entire node:
+        //      temporary_node_failure
+
+        //A3. if an otherwise unspecified permanent error occurs for the entire node:
+        //      permanent_node_failure
+
+        //A4. if a node has requirements advertised in its node_announcement features, which were NOT included in the onion:
+        //      required_node_feature_missing
     }
 
 LABEL_EXIT:

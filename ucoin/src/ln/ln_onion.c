@@ -240,6 +240,8 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     if (*pPacket != M_VERSION) {
         DBG_PRINTF("fail: invalid version : %02x\n", *pPacket);
 
+        //B1. if the onion version byte is unknown:
+        //      invalid_onion_version
         set_reason_sha256(pPushReason, pPacket, LNONION_INV_ONION_VERSION);
         return false;
     }
@@ -252,6 +254,8 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     if (!ret) {
         DBG_PRINTF("fail: invalid pubkey\n");
 
+        //B3. if the ephemeral key in the onion is unparsable:
+        //      invalid_onion_key
         set_reason_sha256(pPushReason, pPacket, LNONION_INV_ONION_KEY);
         return false;
     }
@@ -275,6 +279,8 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
         DBG_PRINTF("fail: hmac not match\n");
         M_FREE(p_msg);
 
+        //B2. if the onion HMAC is incorrect:
+        //      invalid_onion_hmac
         set_reason_sha256(pPushReason, pPacket, LNONION_INV_ONION_HMAC);
         return false;
     }
@@ -291,6 +297,8 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
         M_FREE(stream_bytes);
         M_FREE(p_msg);
 
+        //A1. if the realm byte is unknown:
+        //      invalid_realm
         ln_misc_push16be(pPushReason, LNONION_INV_REALM);
         return false;
     }
