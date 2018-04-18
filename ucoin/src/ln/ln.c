@@ -223,8 +223,18 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
                     uint8_t htlc_idx);
 static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
-static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag);
-static bool check_create_add_htlc(ln_self_t *self, int *pIdx, uint64_t amount_msat, uint32_t cltv_value);
+static bool create_channel_update(
+                ln_self_t *self,
+                ln_cnl_update_t *pUpd,
+                ucoin_buf_t *pCnlUpd,
+                uint32_t TimeStamp,
+                uint8_t Flag);
+static bool check_create_add_htlc(
+                ln_self_t *self,
+                int *pIdx,
+                ucoin_buf_t *pReason,
+                uint64_t amount_msat,
+                uint32_t cltv_value);
 static bool check_recv_add_htlc_bolt2(ln_self_t *self, int idx);
 static bool check_recv_add_htlc_bolt4(ln_self_t *self,
                     ln_hop_dataout_t *pDataOut,
@@ -1121,6 +1131,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
 bool ln_create_add_htlc(ln_self_t *self,
             ucoin_buf_t *pAdd,
             uint64_t *pHtlcId,
+            ucoin_buf_t *pReason,
             const uint8_t *pPacket,
             uint64_t amount_msat,
             uint32_t cltv_value,
@@ -1133,7 +1144,7 @@ bool ln_create_add_htlc(ln_self_t *self,
 
     bool ret;
     int idx;
-    ret = check_create_add_htlc(self, &idx, amount_msat, cltv_value);
+    ret = check_create_add_htlc(self, &idx, pReason, amount_msat, cltv_value);
     if (ret) {
         self->cnl_add_htlc[idx].flag = LN_HTLC_FLAG_SEND;        //送信
         self->cnl_add_htlc[idx].p_channel_id = self->channel_id;
@@ -1150,6 +1161,10 @@ bool ln_create_add_htlc(ln_self_t *self,
             self->cnl_add_htlc[idx].shared_secret.len = pSharedSecrets->len;
         }
         ret = ln_msg_update_add_htlc_create(pAdd, &self->cnl_add_htlc[idx]);
+        if (!ret && (pReason != NULL)) {
+            DBG_PRINTF("fail: temporary_node_failure\n");
+            ln_create_reason_temp_node(pReason);
+        }
     }
     if (ret) {
         self->our_msat -= amount_msat;
@@ -1489,9 +1504,11 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 }
 
 
-void ln_create_reason_next_peer(ucoin_buf_t *pReason)
+void ln_create_reason_temp_node(ucoin_buf_t *pReason)
 {
-    uint16_t code = (LNONION_UNKNOWN_NEXT_PEER >> 8) | ((LNONION_UNKNOWN_NEXT_PEER & 0xff) << 8);
+    //A2. if an otherwise unspecified transient error occurs for the entire node:
+    //      temporary_node_failure
+    uint16_t code = (LNONION_TMP_NODE_FAIL >> 8) | ((LNONION_TMP_NODE_FAIL & 0xff) << 8);
     ucoin_buf_alloccopy(pReason, (uint8_t *)&code, sizeof(code));
 }
 
@@ -4173,7 +4190,12 @@ static bool create_local_channel_announcement(ln_self_t *self)
  * @param[in]           Flag            flagsにORする値
  * @retval      ture    成功
  */
-static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_buf_t *pCnlUpd, uint32_t TimeStamp, uint8_t Flag)
+static bool create_channel_update(
+                ln_self_t *self,
+                ln_cnl_update_t *pUpd,
+                ucoin_buf_t *pCnlUpd,
+                uint32_t TimeStamp,
+                uint8_t Flag)
 {
     pUpd->short_channel_id = self->short_channel_id;
     pUpd->timestamp = TimeStamp;
@@ -4192,39 +4214,52 @@ static bool create_channel_update(ln_self_t *self, ln_cnl_update_t *pUpd, ucoin_
 
 /** update_add_htlc作成前チェック
  *
+ * @param[in,out]       self        #M_SET_ERR()で書込む
+ * @param[out]          pIdx        HTLCを追加するself->cnl_add_htlc[*pIdx]
+ * @param[out]          pReason     (非NULL時かつ戻り値がfalse)onion reason
+ * @param[in]           amount_msat
+ * @param[in]           cltv_value
+ * @retval      true    チェックOK
  */
-static bool check_create_add_htlc(ln_self_t *self, int *pIdx, uint64_t amount_msat, uint32_t cltv_value)
+static bool check_create_add_htlc(
+                ln_self_t *self,
+                int *pIdx,
+                ucoin_buf_t *pReason,
+                uint64_t amount_msat,
+                uint32_t cltv_value)
 {
+    bool ret = false;
+
     //cltv_expiryは、500000000未満にしなくてはならない
     if (cltv_value >= 500000000) {
         M_SET_ERR(self, LNERR_INV_VALUE, "cltv_value >= 500000000");
-        return false;
+        goto LABEL_EXIT;
     }
 
     //相手が指定したchannel_reserve_satは残しておく必要あり
     if (self->our_msat < amount_msat + LN_SATOSHI2MSAT(self->commit_remote.channel_reserve_sat)) {
         M_SET_ERR(self, LNERR_INV_VALUE, "our_msat - amount_msat < channel_reserve_sat(%" PRIu64 ")", self->commit_remote.channel_reserve_sat);
-        return false;
+        goto LABEL_EXIT;
     }
 
     //現在のfeerate_per_kwで支払えないようなamount_msatを指定してはいけない
     uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_calc_max_closing_fee(self));
     if (self->our_msat < amount_msat + close_fee_msat) {
         M_SET_ERR(self, LNERR_INV_VALUE, "our_msat - amount_msat < closing_fee_msat(%" PRIu64 ")", close_fee_msat);
-        return false;
+        goto LABEL_EXIT;
     }
 
     //追加した結果が相手のmax_accepted_htlcsより多くなるなら、追加してはならない。
     if (self->commit_remote.max_accepted_htlcs <= self->htlc_num) {
         M_SET_ERR(self, LNERR_INV_VALUE, "over max_accepted_htlcs");
-        return false;
+        goto LABEL_EXIT;
     }
 
     //amount_msatは、0より大きくなくてはならない。
     //amount_msatは、相手のhtlc_minimum_msat未満にしてはならない。
     if ((amount_msat == 0) || (amount_msat < self->commit_remote.htlc_minimum_msat)) {
         M_SET_ERR(self, LNERR_INV_VALUE, "amount_msat(%" PRIu64 ") < remote htlc_minimum_msat(%" PRIu64 ")", amount_msat, self->commit_remote.htlc_minimum_msat);
-        return false;
+        goto LABEL_EXIT;
     }
 
     //加算した結果が相手のmax_htlc_value_in_flight_msatを超えるなら、追加してはならない。
@@ -4236,7 +4271,7 @@ static bool check_create_add_htlc(ln_self_t *self, int *pIdx, uint64_t amount_ms
     }
     if (max_htlc_value_in_flight_msat > self->commit_remote.max_htlc_value_in_flight_msat) {
         M_SET_ERR(self, LNERR_INV_VALUE, "exceed remote max_htlc_value_in_flight_msat(%" PRIu64 ")", self->commit_remote.max_htlc_value_in_flight_msat);
-        return false;
+        goto LABEL_EXIT;
     }
 
     int idx;
@@ -4249,11 +4284,38 @@ static bool check_create_add_htlc(ln_self_t *self, int *pIdx, uint64_t amount_ms
     }
     if (idx >= LN_HTLC_MAX) {
         M_SET_ERR(self, LNERR_HTLC_FULL, "no free add_htlc");
-        return false;
+        goto LABEL_EXIT;
     }
 
     *pIdx = idx;
-    return true;
+    ret = true;
+
+LABEL_EXIT:
+    if (!ret && (pReason != NULL)) {
+        //channel_update
+        ucoin_buf_t buf_bolt;
+        uint32_t timestamp;
+        ucoin_keys_sort_t sort = sort_nodeid(self);
+        uint8_t dir = (sort == UCOIN_KEYS_SORT_OTHER) ? 0 : 1;  //相手のchannel_update
+
+        ucoin_buf_init(&buf_bolt);
+        bool b = ln_db_annocnlupd_load(&buf_bolt, &timestamp, ln_short_channel_id(self), dir);
+        ucoin_push_t push_htlc;
+        if (b) {
+            //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
+            //      temporary_channel_failure
+            DBG_PRINTF("fail: temporary_channel_failure\n");
+            ucoin_push_init(&push_htlc, pReason,
+                                sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
+            ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
+            ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
+            ucoin_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
+        } else {
+            DBG_PRINTF("fail: temporary_node_failure\n");
+            ln_create_reason_temp_node(pReason);
+        }
+    }
+    return ret;
 }
 
 
@@ -4366,17 +4428,6 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         goto LABEL_EXIT;
     }
 
-    //処理前呼び出し
-    //  転送先取得(final nodeの場合はNULLが返る)
-    ln_cb_add_htlc_recv_prev_t recv_prev;
-    recv_prev.p_next_self = NULL;
-    if (pDataOut->short_channel_id != 0) {
-        recv_prev.next_short_channel_id = pDataOut->short_channel_id;
-        (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV_PREV, &recv_prev);
-    } else {
-        DBG_PRINTF("no next channel\n");
-    }
-
     if (pDataOut->b_exit) {
         //自分宛(final node)
 
@@ -4468,8 +4519,16 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         //TODO: implement
         //
 
-        //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
-        //      temporary_channel_failure
+        //処理前呼び出し
+        //  転送先取得(final nodeの場合はNULLが返る)
+        ln_cb_add_htlc_recv_prev_t recv_prev;
+        recv_prev.p_next_self = NULL;
+        if (pDataOut->short_channel_id != 0) {
+            recv_prev.next_short_channel_id = pDataOut->short_channel_id;
+            (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV_PREV, &recv_prev);
+        } else {
+            DBG_PRINTF("no next channel\n");
+        }
 
         //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
         //      permanent_channel_failure
@@ -4479,7 +4538,7 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
 
         //B7. if the receiving peer specified by the onion is NOT known:
         //      unknown_next_peer
-        if (recv_prev.p_next_self == NULL) {
+        if ((pDataOut->short_channel_id == 0) || (recv_prev.p_next_self == NULL)) {
             //転送先がない
             M_SET_ERR(self, LNERR_INV_VALUE, "no next channel");
             ln_misc_push16be(&push_htlc, LNONION_UNKNOWN_NEXT_PEER);
@@ -4548,9 +4607,6 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         // Any erring node MAY:
         //TODO: implement
         //
-
-        //A2. if an otherwise unspecified transient error occurs for the entire node:
-        //      temporary_node_failure
 
         //A3. if an otherwise unspecified permanent error occurs for the entire node:
         //      permanent_node_failure

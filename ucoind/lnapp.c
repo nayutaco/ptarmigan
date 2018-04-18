@@ -125,20 +125,6 @@
  * typedefs
  ********************************************************************/
 
-typedef struct {
-    uint64_t    id;
-    uint8_t     preimage[LN_SZ_PREIMAGE];
-} fwd_proc_fulfill_t;
-
-
-typedef struct {
-    uint64_t    id;
-    ucoin_buf_t reason;
-    ucoin_buf_t shared_secret;
-    bool        b_first;            ///< fail発生元
-} fwd_proc_fail_t;
-
-
 typedef struct queue_revack_t {
     enum {
         QTYPE_FWD_ADD_HTLC,             ///< add_htlcの転送
@@ -146,8 +132,8 @@ typedef struct queue_revack_t {
         QTYPE_BWD_FAIL_HTLC,            ///< fail_htlcの転送
         QTYPE_PAY_RETRY                 ///< 支払いのリトライ
     }               type;
-    uint64_t        id;                     ///< add_htlc: short_channel_id
-                                            ///< fulfill_htlc, fail_htlc: HTLC id
+    uint64_t        id;             ///< HTLC id
+                                    // update_add_htlc受信: 追加したHTLC id
     ucoin_buf_t     buf;
     struct queue_revack_t  *p_next;
 } queue_revack_t;
@@ -396,6 +382,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     ret = ln_create_add_htlc(p_self,
                         &buf_bolt,
                         &htlc_id,
+                        NULL,
                         onion,
                         pPay->hop_datain[0].amt_to_forward,
                         pPay->hop_datain[0].outgoing_cltv_value,
@@ -404,6 +391,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
                         0,
                         &secrets);  //secretsはln.cで管理するので、ここでは解放しない
     if (ret) {
+        //再routing用に送金経路を保存
         add_routelist(pAppConf, pPay, htlc_id);
     } else {
         goto LABEL_EXIT;
@@ -481,14 +469,6 @@ bool lnapp_forward_payment(lnapp_conf_t *pAppConf, fwd_proc_add_t *pAdd)
     fwd_proc_add_t *p_add = (fwd_proc_add_t *)APP_MALLOC(sizeof(fwd_proc_add_t));       //APP_FREE: rcvidle_pop_and_exec()
     memcpy(p_add, pAdd, sizeof(fwd_proc_add_t));
 
-    //DBG_PRINTF("------------------------------: %p\n", p_add);
-    //DBG_PRINTF("fwd_proc_add_t.amt_to_forward= %" PRIu64 "\n", p_add->amt_to_forward);
-    //DBG_PRINTF("fwd_proc_add_t.outgoing_cltv_value= %d\n", (int)p_add->outgoing_cltv_value);
-    //DBG_PRINTF("fwd_proc_add_t.next_short_channel_id= %" PRIx64 "\n", p_add->next_short_channel_id);       //next
-    //DBG_PRINTF("fwd_proc_add_t.prev_short_channel_id= %" PRIx64 "\n", p_add->prev_short_channel_id);       //next
-    //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", ln_short_channel_id(pAppConf->p_self));       //next
-    //DBG_PRINTF("------------------------------\n");
-
     //処理は、thread_recv_start()のスレッドで行う(コンテキスト切り替えのため)
     return rcvidle_push(pAppConf, FWD_PROC_ADD, (uint16_t)sizeof(fwd_proc_add_t), p_add);
 }
@@ -520,12 +500,6 @@ bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *p
         //DBG_PRINTF("This AppConf not working\n");
         return false;
     }
-
-    // DBG_PRINTF("reason= ");
-    // DUMPBIN(pFail->p_reason->buf, pFail->p_reason->len);
-    // DBG_PRINTF("shared secret= ");
-    // DUMPBIN(pFail->p_shared_secret->buf, pFail->p_shared_secret->len);
-    // DBG_PRINTF("first= %s\n", (bFirst) ? "true" : "false");
 
     fwd_proc_fail_t *p_fwd_fail = (fwd_proc_fail_t *)APP_MALLOC(sizeof(fwd_proc_fail_t));   //APP_FREE: fwd_fail_backward()
     p_fwd_fail->id = pFail->prev_id;
@@ -1564,17 +1538,15 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
         ret = fwd_payment_forward(p_conf, p_add);
         if (!ret) {
             ln_cb_fail_htlc_recv_t fail;
-            ucoin_buf_t fail_reason;
 
-            ln_create_reason_next_peer(&fail_reason);
             fail.prev_id = p_add->prev_id;
             fail.orig_id = (uint64_t)-1;
             fail.prev_short_channel_id = p_add->prev_short_channel_id;
-            fail.p_reason = &fail_reason;
+            fail.p_reason = &p_add->reason;
             fail.p_shared_secret = &p_add->shared_secret;
             fail.p_payment_hash = p_add->payment_hash;
             ret = ucoind_backward_fail(&fail, true);
-            ucoin_buf_free(&fail_reason);
+            ucoin_buf_free(&p_add->reason);
         }
         break;
     case FWD_PROC_FULFILL:
@@ -1877,17 +1849,11 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *p_fwd_add)
 
     wait_mutex_lock(MUX_CHG_HTLC);
 
-    //DBG_PRINTF("------------------------------: %p\n", p_fwd_add);
-    //DBG_PRINTF("fwd_proc_add_t.amt_to_forward= %" PRIu64 "\n", p_fwd_add->amt_to_forward);
-    //DBG_PRINTF("fwd_proc_add_t.outgoing_cltv_value= %d\n", (int)p_fwd_add->outgoing_cltv_value);
-    //DBG_PRINTF("fwd_proc_add_t.next_short_channel_id= %" PRIx64 "\n", p_fwd_add->next_short_channel_id);
-    //DBG_PRINTF("fwd_proc_add_t.prev_short_channel_id= %" PRIx64 "\n", p_fwd_add->prev_short_channel_id);
-    //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));         //current
-    //DBG_PRINTF("------------------------------\n");
     uint64_t htlc_id;
     ret = ln_create_add_htlc(p_conf->p_self,
                         &buf_bolt,
                         &htlc_id,
+                        &p_fwd_add->reason,
                         p_fwd_add->onion_route,
                         p_fwd_add->amt_to_forward,
                         p_fwd_add->outgoing_cltv_value,
@@ -1936,6 +1902,13 @@ LABEL_EXIT:
                     p_fwd_add->outgoing_cltv_value,
                     hashstr);
         call_script(M_EVT_FORWARD, param);
+    } else if (p_fwd_add->reason.len == 0) {
+        //エラーだがreasonが未設定
+        DBG_PRINTF("fail: temporary_node_failure\n");
+        ln_create_reason_temp_node(&p_fwd_add->reason);
+    } else {
+        //none
+        DBG_PRINTF("fail\n");
     }
 
     DBGTRACE_END
@@ -2346,10 +2319,17 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_ADD_HTLC_RECV: update_add_htlc受信(後処理)
+/** LN_CB_ADD_HTLC_RECV: update_add_htlc受信(後処理)
+ * 
+ * add_htlc受信後は、以下のどれかになる。
+ *      - add_htlcがOK
+ *          - 自分がfinal node --> fulfill_htlcを巻き戻していく
+ *          - else             --> add_htlcを転送する
+ *      - add_htlcがNG
+ *          - fail_htlcを巻き戻していく
+ */
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
-    //p_add->okはfalseになっている
     DBGTRACE_BEGIN
 
     ln_cb_add_htlc_recv_t *p_add = (ln_cb_add_htlc_recv_t *)p_param;
@@ -2361,14 +2341,15 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     if (p_add->ok) {
         DBG_PRINTF("check OK\n");
         if (p_add->p_hop->b_exit) {
-            //自分宛
-            DBG_PRINTF("自分宛\n");
+            //final node
+            DBG_PRINTF("final node\n");
 
             if (LN_DBG_FULFILL()) {
                 //キューにためる(fulfill)
                 queue_revack_t *fulfill = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));  //APP_FREE: cb_htlc_changed()
                 fulfill->type = QTYPE_BWD_FULFILL_HTLC;
                 fulfill->id = p_add->id;
+                //backward fulfill情報
                 ucoin_buf_alloccopy(&fulfill->buf, p_add->p_payment, LN_SZ_PREIMAGE);
                 revackq_push(p_conf, fulfill);
 
@@ -2379,13 +2360,13 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             }
         } else {
             //転送
-            SYSLOG_INFO("forward: %" PRIx64 "(%" PRIu64 " msat) --> %" PRIx64 "(%" PRIu64 " msat)", ln_short_channel_id(p_conf->p_self), p_add->amount_msat, p_add->p_hop->short_channel_id, p_add->p_hop->amt_to_forward);
+            DBG_PRINTF("forward\n");
 
             //キューにためる(add)
             queue_revack_t *fulfill = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));      //APP_FREE: cb_htlc_changed()
             fulfill->type = QTYPE_FWD_ADD_HTLC;
             fulfill->id = p_add->id;
-            //forward情報
+            //forward add_htlc情報
             ucoin_buf_alloc(&fulfill->buf, sizeof(fwd_proc_add_t));
             fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)fulfill->buf.buf;
             memcpy(p_fwd_add->onion_route, p_add->p_onion_route, LN_SZ_ONION_ROUTE);
@@ -2393,31 +2374,26 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             p_fwd_add->outgoing_cltv_value = p_add->p_hop->outgoing_cltv_value;
             p_fwd_add->next_short_channel_id = p_add->p_hop->short_channel_id;
             p_fwd_add->prev_short_channel_id = ln_short_channel_id(p_conf->p_self);
-            p_fwd_add->prev_id = p_add->id;
+            p_fwd_add->prev_id = p_add->id;        //fulfill_htlc/fail_htlcの戻し先のHTLC id
             memcpy(p_fwd_add->payment_hash, p_add->p_payment, LN_SZ_HASH);
             ucoin_buf_alloccopy(&p_fwd_add->shared_secret, p_add->p_shared_secret->buf, p_add->p_shared_secret->len);   // freeなし: lnで管理
-
+            ucoin_buf_init(&p_fwd_add->reason);
             revackq_push(p_conf, fulfill);
-            //DBG_PRINTF("------------------------------: %p\n", p_fwd_add);
-            //DBG_PRINTF("fwd_proc_add_t.amt_to_forward= %" PRIu64 "\n", p_fwd_add->amt_to_forward);
-            //DBG_PRINTF("fwd_proc_add_t.outgoing_cltv_value= %d\n", (int)p_fwd_add->outgoing_cltv_value);
-            //DBG_PRINTF("fwd_proc_add_t.next_short_channel_id= %" PRIx64 "\n", p_fwd_add->next_short_channel_id);  //next
-            //DBG_PRINTF("fwd_proc_add_t.prev_short_channel_id= %" PRIx64 "\n", p_fwd_add->prev_short_channel_id);  //next
-            //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));         //current
-            //DBG_PRINTF("------------------------------\n");
         }
     } else {
-        DBG_PRINTF("check NG\n");
+        DBG_PRINTF("fail\n");
 
         //キューにためる(fail)
         queue_revack_t *fulfill = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));  //APP_FREE: cb_htlc_changed()
         fulfill->type = QTYPE_BWD_FAIL_HTLC;
         fulfill->id = p_add->id;
-        //reason情報
-        ucoin_buf_alloc(&fulfill->buf, sizeof(ucoin_buf_t) * 2);
-        ucoin_buf_t *p_buf = (ucoin_buf_t *)fulfill->buf.buf;
-        ucoin_buf_alloccopy(&p_buf[0], p_add->p_shared_secret->buf, p_add->p_shared_secret->len);
-        ucoin_buf_alloccopy(&p_buf[1], p_add->reason.buf, p_add->reason.len);
+        //backward fail情報
+        ucoin_buf_alloc(&fulfill->buf, sizeof(fwd_proc_fail_t));
+        fwd_proc_fail_t *p_bwd_fail = (fwd_proc_fail_t *)fulfill->buf.buf;
+        p_bwd_fail->id = (uint64_t)-1;
+        memcpy(&p_bwd_fail->shared_secret, p_add->p_shared_secret->buf, p_add->p_shared_secret->len);
+        memcpy(&p_bwd_fail->reason, p_add->reason.buf, p_add->reason.len);
+        p_bwd_fail->b_first = true;
         revackq_push(p_conf, fulfill);
     }
     ucoind_preimage_unlock();
@@ -2449,14 +2425,14 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     if (p_fulfill->prev_short_channel_id != 0) {
         //フラグを立てて、相手の受信スレッドで処理してもらう
-        DBG_PRINTF("戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->id);
+        DBG_PRINTF("backward: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->id);
         bool ret = ucoind_backward_fulfill(p_fulfill);
         if (!ret) {
             //TODO:戻す先がない場合の処理(#366)
-            DBG_PRINTF("戻せない\n");
+            DBG_PRINTF("fail: cannot backward\n");
         }
     } else {
-        DBG_PRINTF("ここまで\n");
+        DBG_PRINTF("payer node\n");
         del_routelist(p_conf, p_fulfill->id);
 
         uint8_t hash[LN_SZ_HASH];
@@ -2527,7 +2503,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 }
             }
 
-            //失敗したと思われるshort_channel_idを登録
+            //失敗したと思われるshort_channel_idをrouting除外登録
             //      route.hop_datain[0]は自分、[1]が相手
             //      hopの0は相手
             char suggest[64];
@@ -2645,16 +2621,6 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 {
                     fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p->buf.buf;
 
-                    // DBG_PRINTF("------------------------------: %p\n", p_fwd_add);
-                    // DBG_PRINTF("fwd_proc_add_t.amt_to_forward= %" PRIu64 "\n", p_fwd_add->amt_to_forward);
-                    // DBG_PRINTF("fwd_proc_add_t.outgoing_cltv_value= %d\n", (int)p_fwd_add->outgoing_cltv_value);
-                    // DBG_PRINTF("fwd_proc_add_t.next_short_channel_id= %" PRIx64 "\n", p_fwd_add->next_short_channel_id);      //current
-                    // DBG_PRINTF("fwd_proc_add_t.prev_short_channel_id= %" PRIx64 "\n", p_fwd_add->prev_short_channel_id);      //current
-                    // DBG_PRINTF("short_channel_id= %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));         //prev
-                    // DBG_PRINTF("shared_secret= ");
-                    // DUMPBIN(p_fwd_add->shared_secret.buf, p_fwd_add->shared_secret.len);
-                    // DBG_PRINTF("------------------------------\n");
-                    // DBG_PRINTF("  --> forward add(sci=%" PRIx64 ")\n", p_fwd_add->next_short_channel_id);
                     bool ret = ucoind_forward_payment(p_fwd_add);
                     if (!ret) {
                         //add_htlc時に ucoind_search_connected_cnl()でチェックしているので、
@@ -2663,7 +2629,7 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
 
                         //update_fail_htlc準備
                         p_fail_ss = &p_fwd_add->shared_secret;
-                        ln_create_reason_next_peer(&fail_reason);
+                        ln_create_reason_temp_node(&fail_reason);
                     }
                 }
                 break;
@@ -2684,9 +2650,10 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
                 break;
             case QTYPE_BWD_FAIL_HTLC:
                 {
-                    ucoin_buf_t *p_buf = (ucoin_buf_t *)p->buf.buf;
-                    p_fail_ss = &p_buf[0];
-                    memcpy(&fail_reason, &p_buf[1], sizeof(ucoin_buf_t));
+                    fwd_proc_fail_t *p_bwd_fail = (fwd_proc_fail_t *)p->buf.buf;
+
+                    p_fail_ss = &p_bwd_fail->shared_secret;
+                    memcpy(&fail_reason, &p_bwd_fail->reason, sizeof(ucoin_buf_t));
                 }
                 break;
             case QTYPE_PAY_RETRY:
@@ -3280,6 +3247,18 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
 }
 
 
+/** 送金情報リストに追加
+ * 
+ * 送金エラーが発生した場合、reasonからどのnodeがエラーを返したか分かる。
+ * forward nodeがエラーを返した場合には、そのchannelを除外して再routingさせたい。
+ * (final nodeがエラーを返した場合には再送しても仕方が無い)。
+ * 
+ * リストにしたのは、複数の送金が行われることを考慮したため。
+ * 
+ * @param[in,out]       p_conf
+ * @param[in]           pPayConf        送金情報
+ * @param[in]           HtlcId          HTLC id
+ */
 static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId)
 {
 #ifdef USE_LINUX_LIST
@@ -3314,6 +3293,11 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
 }
 
 
+/** 送金情報リスト取得
+ * 
+ * @param[in]       p_conf
+ * @param[in]       HtlcId
+ */
 static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
 {
 #ifdef USE_LINUX_LIST
@@ -3359,6 +3343,11 @@ static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId
 }
 
 
+/** 送金情報リスト削除
+ * 
+ * @param[in,out]   p_conf
+ * @param[in]       HtlcId
+ */
 static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
 {
 #ifdef USE_LINUX_LIST
@@ -3418,6 +3407,9 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
 }
 
 #ifdef USE_LINUX_LIST
+/** 送金情報リスト表示
+ *
+ */
 static void print_routelist(lnapp_conf_t *p_conf)
 {
     routelist_t *p;
@@ -3432,6 +3424,9 @@ static void print_routelist(lnapp_conf_t *p_conf)
 }
 
 
+/** 送金情報リストの全削除
+ * 
+ */
 static void clear_routelist(lnapp_conf_t *p_conf)
 {
     routelist_t *p;

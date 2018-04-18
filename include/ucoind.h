@@ -205,7 +205,7 @@ typedef struct {
 typedef struct {
     char            ipaddr[16];
     uint16_t        port;
-    char            name[32];
+    char            name[LN_SZ_ALIAS + 1];
     uint8_t         node_id[UCOIN_SZ_PUBKEY];
 } peer_conf_t;
 
@@ -236,9 +236,24 @@ typedef struct {
     uint8_t     payment_hash[LN_SZ_HASH];
     uint64_t    next_short_channel_id;
     uint64_t    prev_short_channel_id;
-    uint64_t    prev_id;
+    uint64_t    prev_id;                            ///< 転送元のHTLC id
     ucoin_buf_t shared_secret;
+    ucoin_buf_t reason;
 } fwd_proc_add_t;
+
+
+typedef struct {
+    uint64_t    id;
+    uint8_t     preimage[LN_SZ_PREIMAGE];
+} fwd_proc_fulfill_t;
+
+
+typedef struct {
+    uint64_t    id;
+    ucoin_buf_t reason;
+    ucoin_buf_t shared_secret;
+    bool        b_first;            ///< true:fail発生元
+} fwd_proc_fail_t;
 
 
 struct lnapp_conf_t;

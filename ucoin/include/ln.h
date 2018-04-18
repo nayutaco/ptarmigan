@@ -1356,6 +1356,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
  * @param[in,out]       self            channel情報
  * @param[out]          pAdd            生成したupdate_add_htlcメッセージ
  * @param[out]          pHtlcId         生成したHTLCのid
+ * @param[out]          pReason         (非NULLかつ戻り値がfalse)onion reason
  * @param[in]           pPacket         onion packet
  * @param[in]           amount_msat     送金額[msat]
  * @param[in]           cltv_value      CLTV値
@@ -1370,6 +1371,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
 bool ln_create_add_htlc(ln_self_t *self,
             ucoin_buf_t *pAdd,
             uint64_t *pHtlcId,
+            ucoin_buf_t *pReason,
             const uint8_t *pPacket,
             uint64_t amount_msat,
             uint32_t cltv_value,
@@ -1474,11 +1476,11 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
-/** onion error
+/** set onion reaon: temporary node failure
  * 
  * @param[out]      pReason
  */
-void ln_create_reason_next_peer(ucoin_buf_t *pReason);
+void ln_create_reason_temp_node(ucoin_buf_t *pReason);
 
 
 /********************************************************************
