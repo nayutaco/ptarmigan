@@ -288,7 +288,7 @@ bool ucoind_forward_payment(fwd_proc_add_t *p_add)
 }
 
 
-bool ucoind_backward_fulfill(const ln_cb_fulfill_htlc_recv_t *pFulFill)
+bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *pFulFill)
 {
     bool ret = false;
     lnapp_conf_t *p_appconf;
@@ -299,7 +299,7 @@ bool ucoind_backward_fulfill(const ln_cb_fulfill_htlc_recv_t *pFulFill)
     p_appconf = ucoind_search_connected_cnl(pFulFill->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_backward_fulfill(p_appconf, pFulFill);
+        ret = lnapp_backwind_fulfill(p_appconf, pFulFill);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }
@@ -308,7 +308,7 @@ bool ucoind_backward_fulfill(const ln_cb_fulfill_htlc_recv_t *pFulFill)
 }
 
 
-bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail, bool bFirst)
+bool ucoind_backwind_fail(bwd_proc_fail_t *pFail)
 {
     bool ret = false;
     lnapp_conf_t *p_appconf;
@@ -319,7 +319,7 @@ bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail, bool bFirst)
     p_appconf = ucoind_search_connected_cnl(pFail->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_backward_fail(p_appconf, pFail, bFirst);
+        ret = lnapp_backwind_fail(p_appconf, pFail);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }

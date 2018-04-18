@@ -199,8 +199,10 @@ typedef enum {
 
 /** @typedef    ln_callback_t
  *  @brief      通知コールバック関数
+ *  @note
+ *      - p_paramで渡すデータを上位層で保持しておきたい場合、コピーを取ること
  */
-typedef void (*ln_callback_t)(ln_self_t*, ln_cb_t, void *);
+typedef void (*ln_callback_t)(ln_self_t *self, ln_cb_t type, void *p_param);
 
 
 /**************************************************************************

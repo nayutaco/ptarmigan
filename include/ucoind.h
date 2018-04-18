@@ -229,6 +229,9 @@ typedef struct {
 } establish_conf_t;
 
 
+/** @struct fwd_proc_add_t
+ *  @brief  add_htlc転送データ
+ */
 typedef struct {
     uint8_t     onion_route[LN_SZ_ONION_ROUTE];
     uint64_t    amt_to_forward;
@@ -242,18 +245,26 @@ typedef struct {
 } fwd_proc_add_t;
 
 
+/** @struct bwd_proc_fulfill_t
+ *  @brief  fulfill_htlc巻き戻しデータ
+ */
 typedef struct {
     uint64_t    id;
+    uint64_t    prev_short_channel_id;
     uint8_t     preimage[LN_SZ_PREIMAGE];
-} fwd_proc_fulfill_t;
+} bwd_proc_fulfill_t;
 
 
+/** @struct bwd_proc_fail_t
+ *  @brief  fail_htlc巻き戻しデータ
+ */
 typedef struct {
     uint64_t    id;
+    uint64_t    prev_short_channel_id;
     ucoin_buf_t reason;
     ucoin_buf_t shared_secret;
     bool        b_first;            ///< true:fail発生元
-} fwd_proc_fail_t;
+} bwd_proc_fail_t;
 
 
 struct lnapp_conf_t;
@@ -265,8 +276,8 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  ********************************************************************/
 
 bool ucoind_forward_payment(fwd_proc_add_t *p_add);
-bool ucoind_backward_fulfill(const ln_cb_fulfill_htlc_recv_t *p_fulfill);
-bool ucoind_backward_fail(const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
+bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *p_fulfill);
+bool ucoind_backwind_fail(bwd_proc_fail_t *pFail);
 
 void ucoind_preimage_lock(void);
 void ucoind_preimage_unlock(void);
