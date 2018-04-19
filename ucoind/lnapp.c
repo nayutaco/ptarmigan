@@ -1599,8 +1599,7 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
     if (ret) {
         //解放
         p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].cmd = FWD_PROC_NONE;
-        APP_FREE(p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].p_data);       //APP_MALLOC: lnapp_forward_payment()
-        p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].p_data = NULL;
+        APP_FREE(p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].p_data);       //APP_MALLOC: change_context()
         p_conf->rcvidle.rpnt = (p_conf->rcvidle.rpnt + 1) % APP_FWD_PROC_MAX;
         p_conf->rcvidle.retry = 0;
     } else {
