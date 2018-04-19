@@ -233,15 +233,15 @@ typedef struct {
  *  @brief  add_htlc転送データ
  */
 typedef struct {
-    uint8_t     onion_route[LN_SZ_ONION_ROUTE];
-    uint64_t    amt_to_forward;
-    uint32_t    outgoing_cltv_value;
-    uint8_t     payment_hash[LN_SZ_HASH];
-    uint64_t    next_short_channel_id;
-    uint64_t    prev_short_channel_id;
-    uint64_t    prev_id;                            ///< 転送元のHTLC id
-    ucoin_buf_t shared_secret;
-    ucoin_buf_t reason;
+    uint8_t     onion_route[LN_SZ_ONION_ROUTE];     ///< 送信:onion
+    uint64_t    amt_to_forward;                     ///< 送信:amt_to_forward
+    uint32_t    outgoing_cltv_value;                ///< 送信:cltv
+    uint8_t     payment_hash[LN_SZ_HASH];           ///< 送信:payment_hash
+    uint64_t    next_short_channel_id;              ///< 送信:short_chennl_id
+    uint64_t    prev_short_channel_id;              ///< 転送元:short_channel_id
+    uint64_t    prev_id;                            ///< 転送元:HTLC id
+    ucoin_buf_t shared_secret;                      ///< add_htlc失敗:reason用
+    ucoin_buf_t reason;                             ///< add_htlc失敗:reason
 } fwd_proc_add_t;
 
 

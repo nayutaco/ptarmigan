@@ -761,6 +761,7 @@ typedef struct {
     bool                        ok;                     ///< true:アプリ層処理OK
     uint64_t                    id;                     ///< HTLC id
     const uint8_t               *p_payment;             ///< payment_hash or preimage
+                                                        //      (hop_dataout.b_exit==true) ? preimage : payment_hash
     const ln_hop_dataout_t      *p_hop;                 ///< onion解析結果
     uint64_t                    amount_msat;            ///< self->cnl_add_htlc[idx].amount_msat
     uint32_t                    cltv_expiry;            ///< self->cnl_add_htlc[idx].cltv_expiry

@@ -132,9 +132,7 @@ typedef struct queue_revack_t {
         QTYPE_BWD_FAIL_HTLC,            ///< fail_htlcの転送
         QTYPE_PAY_RETRY                 ///< 支払いのリトライ
     }               type;
-    uint64_t        id;             ///< HTLC id
-                                    // update_add_htlc受信: 追加したHTLC id
-    ucoin_buf_t     buf;
+    ucoin_buf_t     buf;            ///< 転送先で送信するパケット用パラメータ
     struct queue_revack_t  *p_next;
 } queue_revack_t;
 
@@ -1515,8 +1513,8 @@ static bool rcvidle_push(lnapp_conf_t *p_conf, recv_proc_t cmd, uint16_t Len, vo
     p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].len = Len;
     p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].p_data = pData;
 
-    //DBG_PRINTF("[%d:%d]set p_data(%d)=", p_conf->fwd_proc_wpnt, p_conf->fwd_proc[p_conf->fwd_proc_wpnt].cmd, p_conf->fwd_proc[p_conf->fwd_proc_wpnt].len);
-    //DUMPBIN((uint8_t *)p_conf->fwd_proc[p_conf->fwd_proc_wpnt].p_data, p_conf->fwd_proc[p_conf->fwd_proc_wpnt].len);
+    DBG_PRINTF("[%d:%d]set p_data(%d)=", p_conf->rcvidle.wpnt, p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].cmd, p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].len);
+    DUMPBIN((uint8_t *)p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].p_data, p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].len);
 
     p_conf->rcvidle.wpnt = next_wpnt;
 
@@ -1532,11 +1530,12 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
 {
     bool ret = false;
 
-    //DBG_PRINTF("[%d:%d]get p_data(%d)=", p_conf->fwd_proc_rpnt, p_conf->fwd_proc[p_conf->fwd_proc_rpnt].cmd, p_conf->fwd_proc[p_conf->fwd_proc_rpnt].len);
-    //DUMPBIN((uint8_t *)p_conf->fwd_proc[p_conf->fwd_proc_rpnt].p_data, p_conf->fwd_proc[p_conf->fwd_proc_rpnt].len);
-    //DBG_PRINTF("p_conf->fwd_proc_rpnt=%d\n", p_conf->fwd_proc_rpnt);
+    DBG_PRINTF("[%d:%d]get p_data(%d)=", p_conf->rcvidle.rpnt, p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].cmd, p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].len);
+    DUMPBIN((uint8_t *)p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].p_data, p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].len);
+    DBG_PRINTF("p_conf->fwd_proc_rpnt=%d\n", p_conf->rcvidle.rpnt);
     switch (p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].cmd) {
     case FWD_PROC_ADD:
+        //update_add_htlc送信
         DBG_PRINTF("FWD_PROC_ADD\n");
         {
             fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].p_data;
@@ -1558,6 +1557,7 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
         }
         break;
     case FWD_PROC_FULFILL:
+        //update_fulfill_htlc送信
         DBG_PRINTF("FWD_PROC_FULFILL\n");
         {
             bwd_proc_fulfill_t *p_bwd_fulfill = (bwd_proc_fulfill_t *)p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].p_data;
@@ -1565,6 +1565,7 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
         }
         break;
     case FWD_PROC_FAIL:
+        //update_fail_htlc送信
         DBG_PRINTF("FWD_PROC_FAIL\n");
         {
             bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].p_data;
@@ -1860,6 +1861,7 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
 
     if (p_revack != NULL) {
         ucoin_buf_t *p_fail_ss = NULL;
+        uint64_t fail_id;
         ucoin_buf_t fail_reason;
 
         switch (p_revack->type) {
@@ -1875,6 +1877,7 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
 
                     //update_fail_htlc準備
                     p_fail_ss = &p_fwd_add->shared_secret;
+                    fail_id = p_fwd_add->prev_id;
                     ln_create_reason_temp_node(&fail_reason);
                 }
             }
@@ -1896,6 +1899,7 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
                 bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)p_revack->buf.buf;
 
                 p_fail_ss = &p_bwd_fail->shared_secret;
+                fail_id = p_bwd_fail->id;
                 memcpy(&fail_reason, &p_bwd_fail->reason, sizeof(ucoin_buf_t));
             }
             break;
@@ -1922,7 +1926,7 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
         }
         if (p_fail_ss != NULL) {
             bwd_proc_fail_t bwd_fail;
-            bwd_fail.id = p_revack->id;
+            bwd_fail.id = fail_id;
             bwd_fail.reason = fail_reason;              //shallow copyされるので、解放しない
             bwd_fail.shared_secret = *p_fail_ss;        //shallow copyされるので、解放しない
             bwd_fail.prev_short_channel_id = 0;
@@ -2501,9 +2505,12 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 //キューにためる(fulfill)
                 queue_revack_t *p_revack = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));  //APP_FREE: cb_htlc_changed()
                 p_revack->type = QTYPE_BWD_FULFILL_HTLC;
-                p_revack->id = p_addhtlc->id;
                 //backwind fulfill情報
-                ucoin_buf_alloccopy(&p_revack->buf, p_addhtlc->p_payment, LN_SZ_PREIMAGE);
+                ucoin_buf_alloc(&p_revack->buf, sizeof(bwd_proc_fulfill_t));
+                bwd_proc_fulfill_t *p_bwd_fulfill = (bwd_proc_fulfill_t *)p_revack->buf.buf;
+                p_bwd_fulfill->id = p_addhtlc->id;
+                p_bwd_fulfill->prev_short_channel_id = 0;
+                memcpy(p_bwd_fulfill->preimage, p_addhtlc->p_payment, LN_SZ_PREIMAGE);
                 revackq_push(p_conf, p_revack);
 
                 //preimageを使い終わったら消す
@@ -2518,19 +2525,23 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             //キューにためる(add)
             queue_revack_t *p_revack = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));      //APP_FREE: cb_htlc_changed()
             p_revack->type = QTYPE_FWD_ADD_HTLC;
-            p_revack->id = p_addhtlc->id;
             //forward add_htlc情報
             ucoin_buf_alloc(&p_revack->buf, sizeof(fwd_proc_add_t));
             fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p_revack->buf.buf;
+
+            //update_add_htlcパラメータ
             memcpy(p_fwd_add->onion_route, p_addhtlc->p_onion_route, LN_SZ_ONION_ROUTE);
             p_fwd_add->amt_to_forward = p_addhtlc->p_hop->amt_to_forward;
             p_fwd_add->outgoing_cltv_value = p_addhtlc->p_hop->outgoing_cltv_value;
             p_fwd_add->next_short_channel_id = p_addhtlc->p_hop->short_channel_id;
+            memcpy(p_fwd_add->payment_hash, p_addhtlc->p_payment, LN_SZ_HASH);
+            //update_fulfill/fail_htlc巻き戻し用
             p_fwd_add->prev_short_channel_id = ln_short_channel_id(p_conf->p_self);
             p_fwd_add->prev_id = p_addhtlc->id;        //fulfill_htlc/fail_htlcの戻し先のHTLC id
-            memcpy(p_fwd_add->payment_hash, p_addhtlc->p_payment, LN_SZ_HASH);
+            //失敗時
             ucoin_buf_alloccopy(&p_fwd_add->shared_secret, p_addhtlc->p_shared_secret->buf, p_addhtlc->p_shared_secret->len);   // freeなし: lnで管理
             ucoin_buf_init(&p_fwd_add->reason);
+
             revackq_push(p_conf, p_revack);
         }
     } else {
@@ -2539,11 +2550,10 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //キューにためる(fail)
         queue_revack_t *p_revack = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));  //APP_FREE: cb_htlc_changed()
         p_revack->type = QTYPE_BWD_FAIL_HTLC;
-        p_revack->id = p_addhtlc->id;
         //backwind fail情報
         ucoin_buf_alloc(&p_revack->buf, sizeof(bwd_proc_fail_t));
         bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)p_revack->buf.buf;
-        p_bwd_fail->id = (uint64_t)-1;
+        p_bwd_fail->id = p_addhtlc->id;
         p_bwd_fail->prev_short_channel_id = 0;
         ucoin_buf_alloccopy(&p_bwd_fail->shared_secret, p_addhtlc->p_shared_secret->buf, p_addhtlc->p_shared_secret->len);
         ucoin_buf_alloccopy(&p_bwd_fail->reason, p_addhtlc->reason.buf, p_addhtlc->reason.len);
@@ -3542,7 +3552,6 @@ static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash)
 
     queue_revack_t *fulfill = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));      //APP_FREE: cb_htlc_changed()
     fulfill->type = QTYPE_PAY_RETRY;
-    fulfill->id = 0;
     ucoin_buf_alloccopy(&fulfill->buf, pPayHash, LN_SZ_HASH);
     revackq_push(p_conf, fulfill);
 }

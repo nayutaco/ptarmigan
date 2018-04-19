@@ -489,10 +489,10 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     ln_calc_preimage_hash(preimage_hash, preimage);
 
     misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
-    // DBG_PRINTF("preimage=")
-    // DUMPBIN(preimage, LN_SZ_PREIMAGE);
-    // DBG_PRINTF("hash=")
-    // DUMPBIN(preimage_hash, LN_SZ_HASH);
+    DBG_PRINTF("preimage=")
+    DUMPBIN(preimage, LN_SZ_PREIMAGE);
+    DBG_PRINTF("hash=")
+    DUMPBIN(preimage_hash, LN_SZ_HASH);
     cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
     cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
     ucoind_preimage_unlock();

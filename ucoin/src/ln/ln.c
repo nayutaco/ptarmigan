@@ -2459,7 +2459,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //update_add_htlc受信通知
     add_htlc.ok = ret;
     add_htlc.id = self->cnl_add_htlc[idx].id;
-    add_htlc.p_payment = p_payment;
+    add_htlc.p_payment = p_payment;     //(hop_dataout.b_exit==true) ? preimage : payment_hash
     add_htlc.p_hop = &hop_dataout;
     add_htlc.amount_msat = self->cnl_add_htlc[idx].amount_msat;
     add_htlc.cltv_expiry = self->cnl_add_htlc[idx].cltv_expiry;
@@ -4397,6 +4397,14 @@ static bool check_recv_add_htlc_bolt2(ln_self_t *self, int Index)
  *             amount_msat_AB                    amount_msat_BC
  *             onion_routing_packet_AB           onion_routing_packet_BC
  *               amt_to_forward_BC
+ * 
+ * @param[in,out]       self
+ * @param[out]          pDataOut
+ * @param[out]          pp_payment
+ * @param[out]          p_preimage
+ * @param[out]          pReason
+ * @param[in]           Index
+ * @retval  true    成功
  */
 static bool check_recv_add_htlc_bolt4(ln_self_t *self,
                     ln_hop_dataout_t *pDataOut,
@@ -4443,6 +4451,8 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
                 ln_calc_preimage_hash(preimage_hash, p_preimage);
                 if (memcmp(preimage_hash, self->cnl_add_htlc[Index].payment_sha256, LN_SZ_HASH) == 0) {
                     //一致
+                    DBG_PRINTF("match preimage: ");
+                    DUMPBIN(p_preimage, LN_SZ_PREIMAGE);
                     *pp_payment = p_preimage;
                     break;
                 }
@@ -4503,6 +4513,8 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
                 goto LABEL_EXIT;
             }
         } else {
+            memset(p_preimage, 0, LN_SZ_PREIMAGE);
+
             //C1. if the payment hash has already been paid:
             //      ★(採用)MAY treat the payment hash as unknown.★
             //      MAY succeed in accepting the HTLC.
