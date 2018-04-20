@@ -187,7 +187,7 @@ typedef enum {
     LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
     LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
-    LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
+    LN_CB_REV_AND_ACK_RECV,     ///< revoke_and_ack受信通知
     LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
     LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
     LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
@@ -792,24 +792,6 @@ typedef struct {
     uint64_t                orig_id;                ///< 元のHTLC id
     const uint8_t           *p_payment_hash;        ///< payment_hash
 } ln_cb_fail_htlc_recv_t;
-
-
-///** @struct ln_cb_commsig_recv_t
-// *  @brief  commitment_signed受信通知(#LN_CB_COMMIT_SIG_RECV)
-// *  @todo
-// *      - アプリ側も似たような情報を持っているので、まとめたいが方法が見つかっていない
-// */
-//typedef struct {
-//    bool                    unlocked;               ///< true:送金処理完了
-//} ln_cb_commsig_recv_t;
-
-
-///** @struct ln_cb_htlc_changed_t
-// *  @brief  revoke_and_ack受信通知(#LN_CB_HTLC_CHANGED)
-// */
-//typedef struct {
-//    bool                    unlocked;               ///< true:着金処理完了
-//} ln_cb_htlc_changed_t;
 
 
 /** @struct ln_cb_closed_fee_t

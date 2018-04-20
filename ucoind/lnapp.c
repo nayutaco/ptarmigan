@@ -221,8 +221,8 @@ static void revackq_push(lnapp_conf_t *p_conf, queue_revack_t *pRevAck);
 static void revackq_pop_and_exec(lnapp_conf_t *p_conf);
 
 static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd);
-static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pFwdFulfill);
-static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pFwdFail);
+static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdFulfill);
+static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail);
 static bool change_context(lnapp_conf_t *pAppConf, const void *pSrc, size_t Size, recv_proc_t Proc);
 
 static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param);
@@ -241,7 +241,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param);
-static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param);
+static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
@@ -462,10 +462,10 @@ LABEL_EXIT:
 
 /*******************************************
  * 転送/巻き戻しのための lnappコンテキスト移動
- * 
+ *
  *      転送/巻き戻しを行うため、lnappをまたぐ必要がある。
  *      pthreadがlnappで別になるため、受信スレッドのidle処理を介して移動させる。
- * 
+ *
  *      この経路を使うのは、以下のタイミングになる。
  *          - update_add_htlc転送 : revoke_and_ack後(add_htlc転送は、add_htlc受信以外に無い)
  *          - update_fulfill_htlc巻き戻し
@@ -474,11 +474,11 @@ LABEL_EXIT:
  *          - update_fail_htlc巻き戻し
  *              - payee : revoke_and_ack後(add_htlc受信)
  *              - それ以外 : update_fulfill_htlc/update_fail_htlc受信後(fail_htlc受信)
- * 
+ *
  * update_add_htlc受信後に転送/巻き戻しを行う場合、revoke_and_ack受信まで待つ必要があるため、
  * 一旦 lnapp.p_revackq にためている。
  * それ以降はrevoke_and_ackを待つ必要がないため、以下のAPIを直接呼び出す。
- * 
+ *
  * TODO:
  *  - update_fulfill_htlc受信によって、update_fail_htlcを巻き戻す可能性はあるか？
  *  - update_fail_htlc受信は、update_fail_htlc巻き戻し以外になることはあり得るか？
@@ -488,7 +488,7 @@ bool lnapp_forward_payment(lnapp_conf_t *pAppConf, const fwd_proc_add_t *pFwdAdd
 {
     DBGTRACE_BEGIN
 
-    return change_context(pAppConf, pFwdAdd, sizeof(fwd_proc_add_t), FWD_PROC_ADD);   //APP_FREE: rcvidle_pop_and_exec()
+    return change_context(pAppConf, pFwdAdd, sizeof(fwd_proc_add_t), FWD_PROC_ADD);
 }
 
 
@@ -496,7 +496,7 @@ bool lnapp_backwind_fulfill(lnapp_conf_t *pAppConf, const bwd_proc_fulfill_t *pB
 {
     DBGTRACE_BEGIN
 
-    return change_context(pAppConf, pBwdFulFill, sizeof(bwd_proc_fulfill_t), FWD_PROC_FULFILL);   //APP_FREE: fwd_fulfill_backwind()
+    return change_context(pAppConf, pBwdFulFill, sizeof(bwd_proc_fulfill_t), FWD_PROC_FULFILL);
 }
 
 
@@ -504,7 +504,7 @@ bool lnapp_backwind_fail(lnapp_conf_t *pAppConf, const bwd_proc_fail_t *pBwdFail
 {
     DBGTRACE_BEGIN
 
-    return change_context(pAppConf, pBwdFail, sizeof(bwd_proc_fail_t), FWD_PROC_FAIL);   //APP_FREE: fwd_fail_backwind()
+    return change_context(pAppConf, pBwdFail, sizeof(bwd_proc_fail_t), FWD_PROC_FAIL);
 }
 
 
@@ -1803,7 +1803,7 @@ static void *thread_anno_start(void *pArg)
 
 /**************************************************************************
  * revoke_and_ack受信後処理
- * 
+ *
  * update_add/fulfill/fail_htlcは、revoke_and_ackの交換まで待たないと
  * 送信できない仕様になっている(fulfillとfailは、addと混在できない場合のみ)。
  * よって、以下の場合に本APIでキューにため、revoke_and_ack受信まで処理を遅延させる。
@@ -1814,7 +1814,7 @@ static void *thread_anno_start(void *pArg)
  **************************************************************************/
 
 /** [revoke_and_ack受信後]キューpush
- * 
+ *
  */
 static void revackq_push(lnapp_conf_t *p_conf, queue_revack_t *pRevAck)
 {
@@ -1839,7 +1839,7 @@ static void revackq_push(lnapp_conf_t *p_conf, queue_revack_t *pRevAck)
 
 
 /** [revoke_and_ack受信後]キューpop
- * 
+ *
  */
 static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
 {
@@ -1924,8 +1924,8 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
         if (p_fail_ss != NULL) {
             bwd_proc_fail_t bwd_fail;
             bwd_fail.id = fail_id;
-            bwd_fail.reason = fail_reason;              //shallow copyされるので、解放しない
-            bwd_fail.shared_secret = *p_fail_ss;        //shallow copyされるので、解放しない
+            bwd_fail.reason = fail_reason;              //shallow copy
+            bwd_fail.shared_secret = *p_fail_ss;        //shallow copy
             bwd_fail.prev_short_channel_id = 0;
             bwd_fail.b_first = true;
             DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", bwd_fail.id);
@@ -1942,7 +1942,7 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
  ********************************************************************/
 
 /** 前channelからのupdate_add_htlc転送要求実施
- * 
+ *
  * update_add_htlcの転送は、update_add_htlc受信以外に発生しない。
  * タイミングはrevoke_and_ack後になるため、受信時には lnapp.p_revackqにため、
  * revoke_and_ack後に #lnapp_forward_payment()で lnapp.rcvidleにためる。
@@ -2027,19 +2027,19 @@ LABEL_EXIT:
 
 
 /** update_fulfill_htlc巻き戻し要求実施
- * 
+ *
  * update_fulfill_htlcの巻き戻しは、以下の2パターンがある。
  *      - final nodeが update_add_htlc受信
  *      - forwarding nodeが update_fulfill_htlc受信
- * 
+ *
  * 前者の場合、revoke_and_ackまで待つ必要があるため、受信時には lnapp.p_revackqにため、
  * revoke_and_ack後に #lnapp_forward_payment()で lnapp.rcvidleにためる。
  * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
- * 
+ *
  * 後者の場合、待つ必要がないため、update_fulfill_htlc受信で lnapp.rcvidleにためる。
  * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
  */
-static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pFwdFulfill)
+static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdFulfill)
 {
     DBGTRACE_BEGIN
 
@@ -2049,12 +2049,12 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pFwdF
 
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
-    DBG_PRINTF("id= %" PRIu64 "\n", pFwdFulfill->id);
+    DBG_PRINTF("id= %" PRIu64 "\n", pBwdFulfill->id);
     DBG_PRINTF("preimage= ");
-    DUMPBIN(pFwdFulfill->preimage, LN_SZ_PREIMAGE);
+    DUMPBIN(pBwdFulfill->preimage, LN_SZ_PREIMAGE);
 
     ret = ln_create_fulfill_htlc(p_conf->p_self, &buf_bolt,
-                            pFwdFulfill->id, pFwdFulfill->preimage);
+                            pBwdFulfill->id, pBwdFulfill->preimage);
     assert(ret);
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
@@ -2076,10 +2076,10 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pFwdF
         // $4: payment_preimage
         char hashstr[LN_SZ_HASH * 2 + 1];
         uint8_t payment_hash[LN_SZ_HASH];
-        ln_calc_preimage_hash(payment_hash, pFwdFulfill->preimage);
+        ln_calc_preimage_hash(payment_hash, pBwdFulfill->preimage);
         misc_bin2str(hashstr, payment_hash, LN_SZ_HASH);
         char imgstr[LN_SZ_PREIMAGE * 2 + 1];
-        misc_bin2str(imgstr, pFwdFulfill->preimage, LN_SZ_PREIMAGE);
+        misc_bin2str(imgstr, pBwdFulfill->preimage, LN_SZ_PREIMAGE);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char param[256];
@@ -2099,19 +2099,19 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pFwdF
 
 
 /** update_fail_htlc巻き戻し要求実施
- * 
+ *
  * update_fail_htlcの巻き戻しは、以下の2パターンがある。
  *      - final nodeが update_add_htlc受信
  *      - forwarding nodeが update_fulfill_htlc受信 or update_fail_htlc受信
- * 
+ *
  * 前者の場合、revoke_and_ackまで待つ必要があるため、受信時には lnapp.p_revackqにため、
  * revoke_and_ack後に #lnapp_forward_payment()で lnapp.rcvidleにためる。
  * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
- * 
+ *
  * 後者の場合、待つ必要がないため、update_fulfill/fail_htlc受信で lnapp.rcvidleにためる。
  * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
  */
-static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pFwdFail)
+static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
 {
     DBGTRACE_BEGIN
 
@@ -2121,27 +2121,27 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pFwdFail)
 
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
-    DBG_PRINTF("id= %" PRIx64 "\n", pFwdFail->id);
+    DBG_PRINTF("id= %" PRIx64 "\n", pBwdFail->id);
     DBG_PRINTF("reason= ");
-    DUMPBIN(pFwdFail->reason.buf, pFwdFail->reason.len);
+    DUMPBIN(pBwdFail->reason.buf, pBwdFail->reason.len);
     DBG_PRINTF("shared secret= ");
-    DUMPBIN(pFwdFail->shared_secret.buf, pFwdFail->shared_secret.len);
-    DBG_PRINTF("first= %s\n", (pFwdFail->b_first) ? "true" : "false");
+    DUMPBIN(pBwdFail->shared_secret.buf, pBwdFail->shared_secret.len);
+    DBG_PRINTF("first= %s\n", (pBwdFail->b_first) ? "true" : "false");
 
     ucoin_buf_t buf_reason;
     ucoin_buf_init(&buf_reason);
-    if (pFwdFail->b_first) {
-        ln_onion_failure_create(&buf_reason, &pFwdFail->shared_secret, &pFwdFail->reason);
+    if (pBwdFail->b_first) {
+        ln_onion_failure_create(&buf_reason, &pBwdFail->shared_secret, &pBwdFail->reason);
     } else {
-        ln_onion_failure_forward(&buf_reason, &pFwdFail->shared_secret, &pFwdFail->reason);
+        ln_onion_failure_forward(&buf_reason, &pBwdFail->shared_secret, &pBwdFail->reason);
     }
-    ret = ln_create_fail_htlc(p_conf->p_self, &buf_bolt, pFwdFail->id, &buf_reason);
+    ret = ln_create_fail_htlc(p_conf->p_self, &buf_bolt, pBwdFail->id, &buf_reason);
     assert(ret);
 
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
-    ucoin_buf_free(&pFwdFail->reason);
-    ucoin_buf_free(&pFwdFail->shared_secret);
+    ucoin_buf_free(&pBwdFail->reason);
+    ucoin_buf_free(&pBwdFail->shared_secret);
 
     //fail送信する場合はcommitment_signedも送信する
     ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
@@ -2171,7 +2171,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pFwdFail)
 
 
 /** #lnapp_forward_payment(), #lnapp_backwind_fulfill(), #lnapp_backwind_fail()共通処理
- * 
+ *
  */
 static bool change_context(lnapp_conf_t *pAppConf, const void *pSrc, size_t Size, recv_proc_t Proc)
 {
@@ -2221,7 +2221,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
         //    LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
         //    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
-        //    LN_CB_HTLC_CHANGED,         ///< HTLC変化通知
+        //    LN_CB_REV_AND_ACK_RECV,     ///< revoke_and_ack受信通知
         //    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
         //    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
         //    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
@@ -2243,7 +2243,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_FAIL_HTLC_RECV: update_fail_htlc受信", cb_fail_htlc_recv },
         { "  LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed処理前", cb_commit_sig_recv_prev },
         { "  LN_CB_COMMIT_SIG_RECV: commitment_signed受信通知", cb_commit_sig_recv },
-        { "  LN_CB_HTLC_CHANGED: HTLC変化", cb_htlc_changed },
+        { "  LN_CB_REV_AND_ACK_RECV: revoke_and_ack受信", cb_rev_and_ack_recv },
         { "  LN_CB_SHUTDOWN_RECV: shutdown受信", cb_shutdown_recv },
         { "  LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)", cb_closed_fee },
         { "  LN_CB_CLOSED: closing_signed受信(FEE一致)", cb_closed },
@@ -2457,7 +2457,7 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
     (void)p_conf;
 
     DBGTRACE_BEGIN
-    
+
     ln_cb_add_htlc_recv_prev_t *p_prev = (ln_cb_add_htlc_recv_prev_t *)p_param;
 
     //転送先取得
@@ -2475,13 +2475,16 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 
 
 /** LN_CB_ADD_HTLC_RECV: update_add_htlc受信(後処理)
- * 
+ *
  * add_htlc受信後は、以下のどれかになる。
  *      - add_htlcがOK
  *          - 自分がfinal node --> fulfill_htlcを巻き戻していく
  *          - else             --> add_htlcを転送する
  *      - add_htlcがNG
  *          - fail_htlcを巻き戻していく
+ *
+ * revoke_and_ack交換まで待つため、 #revackq_push() で貯めておく
+ *      --> #cb_rev_and_ack_recv() で続きを行う
  */
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
@@ -2500,14 +2503,17 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DBG_PRINTF("final node\n");
 
             if (LN_DBG_FULFILL()) {
+                //同一channelにupdate_fulfill_htlcを折り返す
+
                 //キューにためる(fulfill)
-                queue_revack_t *p_revack = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));  //APP_FREE: cb_htlc_changed()
+                queue_revack_t *p_revack = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));  //APP_FREE: cb_rev_and_ack_recv()
                 p_revack->type = QTYPE_BWD_FULFILL_HTLC;
                 //backwind fulfill情報
                 ucoin_buf_alloc(&p_revack->buf, sizeof(bwd_proc_fulfill_t));
                 bwd_proc_fulfill_t *p_bwd_fulfill = (bwd_proc_fulfill_t *)p_revack->buf.buf;
+
                 p_bwd_fulfill->id = p_addhtlc->id;
-                p_bwd_fulfill->prev_short_channel_id = 0;
+                p_bwd_fulfill->prev_short_channel_id = 0;   //同一channelへの送信になるため、検索不要
                 memcpy(p_bwd_fulfill->preimage, p_addhtlc->p_payment, LN_SZ_PREIMAGE);
                 revackq_push(p_conf, p_revack);
 
@@ -2517,40 +2523,38 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 DBG_PRINTF("DBG: no fulfill mode\n");
             }
         } else {
-            //転送
+            //別channelにupdate_add_htlcを転送する
             DBG_PRINTF("forward\n");
 
             //キューにためる(add)
-            queue_revack_t *p_revack = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));      //APP_FREE: cb_htlc_changed()
+            queue_revack_t *p_revack = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));      //APP_FREE: cb_rev_and_ack_recv()
             p_revack->type = QTYPE_FWD_ADD_HTLC;
             //forward add_htlc情報
             ucoin_buf_alloc(&p_revack->buf, sizeof(fwd_proc_add_t));
             fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p_revack->buf.buf;
 
-            //update_add_htlcパラメータ
             memcpy(p_fwd_add->onion_route, p_addhtlc->p_onion_route, LN_SZ_ONION_ROUTE);
             p_fwd_add->amt_to_forward = p_addhtlc->p_hop->amt_to_forward;
             p_fwd_add->outgoing_cltv_value = p_addhtlc->p_hop->outgoing_cltv_value;
             p_fwd_add->next_short_channel_id = p_addhtlc->p_hop->short_channel_id;
             memcpy(p_fwd_add->payment_hash, p_addhtlc->p_payment, LN_SZ_HASH);
-            //update_fulfill/fail_htlc巻き戻し用
-            p_fwd_add->prev_short_channel_id = ln_short_channel_id(p_conf->p_self);
-            p_fwd_add->prev_id = p_addhtlc->id;        //fulfill_htlc/fail_htlcの戻し先のHTLC id
-            //失敗時
             ucoin_buf_alloccopy(&p_fwd_add->shared_secret, p_addhtlc->p_shared_secret->buf, p_addhtlc->p_shared_secret->len);   // freeなし: lnで管理
+            p_fwd_add->prev_short_channel_id = ln_short_channel_id(p_conf->p_self);
+            p_fwd_add->prev_id = p_addhtlc->id;
             ucoin_buf_init(&p_fwd_add->reason);
-
             revackq_push(p_conf, p_revack);
         }
     } else {
+        //同一channelにupdate_fail_htlcを折り返す
         DBG_PRINTF("fail\n");
 
         //キューにためる(fail)
-        queue_revack_t *p_revack = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));  //APP_FREE: cb_htlc_changed()
+        queue_revack_t *p_revack = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));  //APP_FREE: cb_rev_and_ack_recv()
         p_revack->type = QTYPE_BWD_FAIL_HTLC;
         //backwind fail情報
         ucoin_buf_alloc(&p_revack->buf, sizeof(bwd_proc_fail_t));
         bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)p_revack->buf.buf;
+
         p_bwd_fail->id = p_addhtlc->id;
         p_bwd_fail->prev_short_channel_id = 0;
         ucoin_buf_alloccopy(&p_bwd_fail->shared_secret, p_addhtlc->p_shared_secret->buf, p_addhtlc->p_shared_secret->len);
@@ -2770,8 +2774,9 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_HTLC_CHANGED: revoke_and_ack受信
-static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
+/** LN_CB_REV_AND_ACK_RECV: revoke_and_ack受信通知
+ */
+static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
     DBGTRACE_BEGIN
@@ -2781,6 +2786,16 @@ static void cb_htlc_changed(lnapp_conf_t *p_conf, void *p_param)
     pthread_mutex_lock(&mMuxSeq);
     DBG_PRINTF("mMuxTiming: %d\n", mMuxTiming);
     if (p_conf->flag_ope & OPE_COMSIG_SEND) {
+        /*
+         * flag_ope & OPE_COMSIG_SEND が trueになる場合
+         *      - 送金開始に対するcommitment_signed送信
+         *      - 転送開始に対するcommitment_signed送信
+         *      - fulfill_htlc送信に対するcommitment_signed送信
+         *      - fail_htlc送信に対するcommitment_signed送信
+         *
+         * flag_ope & OPE_COMSIG_SEND が falseになる場合
+         *      - commitment_signed受信
+         */
         mMuxTiming &= ~MUX_CHG_HTLC;
         DBG_PRINTF("OPE_COMSIG_SEND\n");
     } else {
@@ -3342,13 +3357,13 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
 
 
 /** 送金情報リストに追加
- * 
+ *
  * 送金エラーが発生した場合、reasonからどのnodeがエラーを返したか分かる。
  * forward nodeがエラーを返した場合には、そのchannelを除外して再routingさせたい。
  * (final nodeがエラーを返した場合には再送しても仕方が無い)。
- * 
+ *
  * リストにしたのは、複数の送金が行われることを考慮したため。
- * 
+ *
  * @param[in,out]       p_conf
  * @param[in]           pPayConf        送金情報
  * @param[in]           HtlcId          HTLC id
@@ -3388,7 +3403,7 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
 
 
 /** 送金情報リスト取得
- * 
+ *
  * @param[in]       p_conf
  * @param[in]       HtlcId
  */
@@ -3438,7 +3453,7 @@ static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId
 
 
 /** 送金情報リスト削除
- * 
+ *
  * @param[in,out]   p_conf
  * @param[in]       HtlcId
  */
@@ -3519,7 +3534,7 @@ static void print_routelist(lnapp_conf_t *p_conf)
 
 
 /** 送金情報リストの全削除
- * 
+ *
  */
 static void clear_routelist(lnapp_conf_t *p_conf)
 {
@@ -3548,7 +3563,7 @@ static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash)
     DBG_PRINTF("payment_hash: ");
     DUMPBIN(pPayHash, LN_SZ_HASH);
 
-    queue_revack_t *fulfill = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));      //APP_FREE: cb_htlc_changed()
+    queue_revack_t *fulfill = (queue_revack_t *)APP_MALLOC(sizeof(queue_revack_t));      //APP_FREE: cb_rev_and_ack_recv()
     fulfill->type = QTYPE_PAY_RETRY;
     ucoin_buf_alloccopy(&fulfill->buf, pPayHash, LN_SZ_HASH);
     revackq_push(p_conf, fulfill);

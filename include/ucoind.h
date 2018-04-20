@@ -231,6 +231,8 @@ typedef struct {
 
 /** @struct fwd_proc_add_t
  *  @brief  add_htlc転送データ
+ *  @note
+ *      - 転送元情報は、fulfill_htlc/fail_htlcの戻し用に self->cnl_add_htlc[]に保持する
  */
 typedef struct {
     uint8_t     onion_route[LN_SZ_ONION_ROUTE];     ///< 送信:onion
@@ -275,9 +277,9 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  * prototypes
  ********************************************************************/
 
-bool ucoind_forward_payment(fwd_proc_add_t *p_add);
-bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *p_fulfill);
-bool ucoind_backwind_fail(bwd_proc_fail_t *pFail);
+bool ucoind_forward_payment(fwd_proc_add_t *pFwdAdd);
+bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *pBwdFulfill);
+bool ucoind_backwind_fail(bwd_proc_fail_t *pBwdFail);
 
 void ucoind_preimage_lock(void);
 void ucoind_preimage_unlock(void);

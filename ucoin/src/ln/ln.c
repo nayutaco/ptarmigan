@@ -2744,8 +2744,8 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     ln_db_self_save(self);
 
-    //HTLC変化通知
-    (*self->p_callback)(self, LN_CB_HTLC_CHANGED, NULL);
+    //revoke_and_ack受信通知
+    (*self->p_callback)(self, LN_CB_REV_AND_ACK_RECV, NULL);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");

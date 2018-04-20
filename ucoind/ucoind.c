@@ -268,18 +268,18 @@ LABEL_EXIT:
  * public functions
  ********************************************************************/
 
-bool ucoind_forward_payment(fwd_proc_add_t *p_add)
+bool ucoind_forward_payment(fwd_proc_add_t *pFwdAdd)
 {
     bool ret = false;
     lnapp_conf_t *p_appconf;
 
-    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", p_add->next_short_channel_id);
+    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pFwdAdd->next_short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = ucoind_search_connected_cnl(p_add->next_short_channel_id);
+    p_appconf = ucoind_search_connected_cnl(pFwdAdd->next_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_forward_payment(p_appconf, p_add);
+        ret = lnapp_forward_payment(p_appconf, pFwdAdd);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }
@@ -288,18 +288,18 @@ bool ucoind_forward_payment(fwd_proc_add_t *p_add)
 }
 
 
-bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *pFulFill)
+bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *pBwdFulfill)
 {
     bool ret = false;
     lnapp_conf_t *p_appconf;
 
-    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pFulFill->prev_short_channel_id);
+    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pBwdFulfill->prev_short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = ucoind_search_connected_cnl(pFulFill->prev_short_channel_id);
+    p_appconf = ucoind_search_connected_cnl(pBwdFulfill->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_backwind_fulfill(p_appconf, pFulFill);
+        ret = lnapp_backwind_fulfill(p_appconf, pBwdFulfill);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }
@@ -308,18 +308,18 @@ bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *pFulFill)
 }
 
 
-bool ucoind_backwind_fail(bwd_proc_fail_t *pFail)
+bool ucoind_backwind_fail(bwd_proc_fail_t *pBwdFail)
 {
     bool ret = false;
     lnapp_conf_t *p_appconf;
 
-    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pFail->prev_short_channel_id);
+    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pBwdFail->prev_short_channel_id);
 
     //socketが開いているか検索
-    p_appconf = ucoind_search_connected_cnl(pFail->prev_short_channel_id);
+    p_appconf = ucoind_search_connected_cnl(pBwdFail->prev_short_channel_id);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_backwind_fail(p_appconf, pFail);
+        ret = lnapp_backwind_fail(p_appconf, pBwdFail);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }
