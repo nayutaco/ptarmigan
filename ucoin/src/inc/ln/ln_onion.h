@@ -39,6 +39,7 @@
  * @param[out]      pNextPacket         次に送るONIONパケット[LN_SZ_ONION_ROUTE]
  * @param[out]      pNextData           復元情報
  * @param[out]      pSharedSecret       共有秘密鍵
+ * @param[out]      pPushReason         reason(戻り値がfalse時)
  * @param[in]       pPacket             解析するONIONパケット
  * @param[in]       pOnionPrivKey       自ノード秘密鍵?
  * @param[in]       pAssocData          Associated Data
@@ -50,6 +51,7 @@
  */
 bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
             ucoin_buf_t *pSharedSecret,
+            ucoin_push_t *pPushReason,
             const uint8_t *pPacket,
             const uint8_t *pAssocData, int AssocLen);
 

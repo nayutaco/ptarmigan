@@ -84,6 +84,7 @@ static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, c
 static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Len);
 static void right_shift(uint8_t *pData);
 static void xor_bytes(uint8_t *pResult, const uint8_t *pSrc1, const uint8_t *pSrc2, int Len);
+static void set_reason_sha256(ucoin_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code);
 
 
 /**************************************************************************
@@ -230,6 +231,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
 
 bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
             ucoin_buf_t *pSharedSecret,
+            ucoin_push_t *pPushReason,
             const uint8_t *pPacket,
             const uint8_t *pAssocData, int AssocLen)
 {
@@ -237,6 +239,10 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
 
     if (*pPacket != M_VERSION) {
         DBG_PRINTF("fail: invalid version : %02x\n", *pPacket);
+
+        //B1. if the onion version byte is unknown:
+        //      invalid_onion_version
+        set_reason_sha256(pPushReason, pPacket, LNONION_INV_ONION_VERSION);
         return false;
     }
 
@@ -247,6 +253,10 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     ret = ucoin_keys_chkpub(p_dhkey);
     if (!ret) {
         DBG_PRINTF("fail: invalid pubkey\n");
+
+        //B3. if the ephemeral key in the onion is unparsable:
+        //      invalid_onion_key
+        set_reason_sha256(pPushReason, pPacket, LNONION_INV_ONION_KEY);
         return false;
     }
 
@@ -268,6 +278,10 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     if (memcmp(next_hmac, p_hmac, M_SZ_HMAC) != 0) {
         DBG_PRINTF("fail: hmac not match\n");
         M_FREE(p_msg);
+
+        //B2. if the onion HMAC is incorrect:
+        //      invalid_onion_hmac
+        set_reason_sha256(pPushReason, pPacket, LNONION_INV_ONION_HMAC);
         return false;
     }
 
@@ -282,6 +296,10 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
         DBG_PRINTF("fail: invalid realm\n");
         M_FREE(stream_bytes);
         M_FREE(p_msg);
+
+        //A1. if the realm byte is unknown:
+        //      invalid_realm
+        ln_misc_push16be(pPushReason, LNONION_INV_REALM);
         return false;
     }
 
@@ -630,4 +648,17 @@ static void xor_bytes(uint8_t *pResult, const uint8_t *pSrc1, const uint8_t *pSr
     for (int lp = 0; lp < Len; lp++) {
         pResult[lp] = pSrc1[lp] ^ pSrc2[lp];
     }
+}
+
+
+/** reason設定()
+ * 
+ */
+static void set_reason_sha256(ucoin_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code)
+{
+    ln_misc_push16be(pPushReason, Code);
+    //[32:sha256_of_onion]
+    uint8_t sha256_of_onion[UCOIN_SZ_SHA256];
+    ucoin_util_sha256(sha256_of_onion, pPacket, LN_SZ_ONION_ROUTE);
+    ucoin_push_data(pPushReason, sha256_of_onion, sizeof(sha256_of_onion));
 }

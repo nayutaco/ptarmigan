@@ -185,19 +185,19 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay);
 /** [lnapp]送金転送
  *
  */
-bool lnapp_forward_payment(lnapp_conf_t *pAppConf, fwd_proc_add_t *pAdd);
+bool lnapp_forward_payment(lnapp_conf_t *pAppConf, const fwd_proc_add_t *pAdd);
 
 
 /** [lnapp]送金反映
  *
  */
-bool lnapp_backward_fulfill(lnapp_conf_t *pAppConf, const ln_cb_fulfill_htlc_recv_t *pFulFill);
+bool lnapp_backwind_fulfill(lnapp_conf_t *pAppConf, const bwd_proc_fulfill_t *pFulFill);
 
 
 /** [lnapp]送金エラー
  *
  */
-bool lnapp_backward_fail(lnapp_conf_t *pAppConf, const ln_cb_fail_htlc_recv_t *pFail, bool bFirst);
+bool lnapp_backwind_fail(lnapp_conf_t *pAppConf, const bwd_proc_fail_t *pFail);
 
 
 /** [lnapp]チャネル閉鎖

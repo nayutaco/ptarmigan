@@ -397,7 +397,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
                 //preimageを登録(自分が持っているのと同じ状態にする)
                 const ucoin_buf_t *p_buf = ln_preimage_remote(&tx);
                 if (p_buf != NULL) {
-                    DBG_PRINTF("backward preimage: ");
+                    DBG_PRINTF("backwind preimage: ");
                     DUMPBIN(p_buf->buf, p_buf->len);
                     ln_db_preimg_save(p_buf->buf, 0, pDbParam);
                 } else {
@@ -579,7 +579,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
                 //preimageを登録(自分が持っているのと同じ状態にする)
                 const ucoin_buf_t *p_buf = ln_preimage_remote(&tx);
                 if (p_buf != NULL) {
-                    DBG_PRINTF("backward preimage: ");
+                    DBG_PRINTF("backwind preimage: ");
                     DUMPBIN(p_buf->buf, p_buf->len);
                     ln_db_preimg_save(p_buf->buf, 0, pDbParam);
                 } else {
