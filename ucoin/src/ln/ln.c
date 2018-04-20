@@ -1157,8 +1157,7 @@ bool ln_create_add_htlc(ln_self_t *self,
         self->cnl_add_htlc[idx].prev_id = prev_id;
         ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
         if (pSharedSecrets) {
-            self->cnl_add_htlc[idx].shared_secret.buf = pSharedSecrets->buf;
-            self->cnl_add_htlc[idx].shared_secret.len = pSharedSecrets->len;
+            ucoin_buf_alloccopy(&self->cnl_add_htlc[idx].shared_secret, pSharedSecrets->buf, pSharedSecrets->len);
         }
         ret = ln_msg_update_add_htlc_create(pAdd, &self->cnl_add_htlc[idx]);
         if (!ret && (pReason != NULL)) {
@@ -4397,7 +4396,7 @@ static bool check_recv_add_htlc_bolt2(ln_self_t *self, int Index)
  *             amount_msat_AB                    amount_msat_BC
  *             onion_routing_packet_AB           onion_routing_packet_BC
  *               amt_to_forward_BC
- * 
+ *
  * @param[in,out]       self
  * @param[out]          pDataOut
  * @param[out]          pp_payment

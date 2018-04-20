@@ -375,6 +375,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
     uint8_t onion[LN_SZ_ONION_ROUTE];
     ucoin_buf_t secrets;
+    ucoin_buf_init(&secrets);
     ret = ln_onion_create_packet(onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
                         session_key, pPay->payment_hash, LN_SZ_HASH);
     assert(ret);
@@ -392,7 +393,8 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
                         pPay->payment_hash,
                         0,
                         0,
-                        &secrets);  //secretsはln.cで管理するので、ここでは解放しない
+                        &secrets);
+    ucoin_buf_free(&secrets);
     if (ret) {
         //再routing用に送金経路を保存
         add_routelist(pAppConf, pPay, htlc_id);
@@ -714,6 +716,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
     bool ret = ln_create_close_force_tx(pAppConf->p_self, &close_dat);
     if (ret) {
         ucoin_buf_t buf;
+        ucoin_buf_init(&buf);
 
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
@@ -1512,10 +1515,6 @@ static bool rcvidle_push(lnapp_conf_t *p_conf, recv_proc_t cmd, uint16_t Len, vo
     p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].cmd = cmd;
     p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].len = Len;
     p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].p_data = pData;
-
-    DBG_PRINTF("[%d:%d]set p_data(%d)=", p_conf->rcvidle.wpnt, p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].cmd, p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].len);
-    DUMPBIN((uint8_t *)p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].p_data, p_conf->rcvidle.proc[p_conf->rcvidle.wpnt].len);
-
     p_conf->rcvidle.wpnt = next_wpnt;
 
     return true;
@@ -1530,9 +1529,6 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
 {
     bool ret = false;
 
-    DBG_PRINTF("[%d:%d]get p_data(%d)=", p_conf->rcvidle.rpnt, p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].cmd, p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].len);
-    DUMPBIN((uint8_t *)p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].p_data, p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].len);
-    DBG_PRINTF("p_conf->fwd_proc_rpnt=%d\n", p_conf->rcvidle.rpnt);
     switch (p_conf->rcvidle.proc[p_conf->rcvidle.rpnt].cmd) {
     case FWD_PROC_ADD:
         //update_add_htlc送信
@@ -1862,6 +1858,7 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
         ucoin_buf_t *p_fail_ss = NULL;
         uint64_t fail_id;
         ucoin_buf_t fail_reason;
+        ucoin_buf_init(&fail_reason);
 
         switch (p_revack->type) {
         case QTYPE_FWD_ADD_HTLC:
@@ -1900,6 +1897,7 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
                 p_fail_ss = &p_bwd_fail->shared_secret;
                 fail_id = p_bwd_fail->id;
                 memcpy(&fail_reason, &p_bwd_fail->reason, sizeof(ucoin_buf_t));
+                ucoin_buf_init(&p_bwd_fail->reason);
             }
             break;
         case QTYPE_PAY_RETRY:
@@ -2131,6 +2129,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pFwdFail)
     DBG_PRINTF("first= %s\n", (pFwdFail->b_first) ? "true" : "false");
 
     ucoin_buf_t buf_reason;
+    ucoin_buf_init(&buf_reason);
     if (pFwdFail->b_first) {
         ln_onion_failure_create(&buf_reason, &pFwdFail->shared_secret, &pFwdFail->reason);
     } else {
