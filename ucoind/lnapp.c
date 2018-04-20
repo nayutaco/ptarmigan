@@ -162,6 +162,11 @@ static ln_anno_prm_t        mAnnoPrm;       ///< announcementパラメータ
 //シーケンスのmutex
 static pthread_mutexattr_t  mMuxAttr;
 static pthread_mutex_t      mMuxSeq;
+/** 状態フラグ
+ *
+ * スレッド間で並列できない処理がある場合の排他用
+ * 現在、正しく動いていない(issue #373)。
+ */
 static volatile enum {
     MUX_NONE,
     MUX_PAYMENT=0x01,               ///< 送金開始
@@ -328,6 +333,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     pthread_mutex_lock(&pAppConf->mux_proc);
     pthread_mutex_lock(&mMuxSeq);
     if (mMuxTiming) {
+        //何かしているのであれば送金開始できない
         SYSLOG_ERR("%s(): now paying...[%x]", __func__, mMuxTiming);
         pthread_mutex_unlock(&mMuxSeq);
         pthread_mutex_unlock(&pAppConf->mux_proc);
@@ -2578,6 +2584,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     const ln_cb_fulfill_htlc_recv_t *p_fulfill = (const ln_cb_fulfill_htlc_recv_t *)p_param;
 
+    //mutex中に処理をしたいので、 #wait_mutex_lock()を使わない
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
     while (p_conf->loop) {
         pthread_mutex_lock(&mMuxSeq);
@@ -2625,6 +2632,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
     bool retry = false;
 
+    //mutex中に処理をしたいので、 #wait_mutex_lock()を使わない
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
     while (p_conf->loop) {
         pthread_mutex_lock(&mMuxSeq);
@@ -2781,8 +2789,6 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
     (void)p_param;
     DBGTRACE_BEGIN
 
-    SYSLOG_INFO("HTLC[%" PRIx64 "]: our msat=%" PRIu64 ", their_msat=%" PRIu64, ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
-
     pthread_mutex_lock(&mMuxSeq);
     DBG_PRINTF("mMuxTiming: %d\n", mMuxTiming);
     if (p_conf->flag_ope & OPE_COMSIG_SEND) {
@@ -2798,10 +2804,10 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
          */
         mMuxTiming &= ~MUX_CHG_HTLC;
         DBG_PRINTF("OPE_COMSIG_SEND\n");
-    } else {
-        //要求がキューに積んであれば処理する
-        revackq_pop_and_exec(p_conf);
     }
+
+    //要求がキューに積んであれば処理する
+    revackq_pop_and_exec(p_conf);
 
     // method: htlc_changed
     // $1: short_channel_id
@@ -3222,6 +3228,10 @@ static void set_establish_default(lnapp_conf_t *p_conf)
 }
 
 
+/** mMuxTiming フラグの変更(OR処理)
+ *
+ * MUX_PAYMENTが立っていないことを確認
+ */
 static void wait_mutex_lock(uint8_t Flag)
 {
     DBG_PRINTF("mMuxTiming %d\n", mMuxTiming);
@@ -3242,6 +3252,10 @@ static void wait_mutex_lock(uint8_t Flag)
 }
 
 
+/** mMuxTiming フラグの解除
+ *
+ *
+ */
 static void wait_mutex_unlock(uint8_t Flag)
 {
     pthread_mutex_lock(&mMuxSeq);
