@@ -558,9 +558,8 @@ LABEL_DECREF:
         json_t *p_value = NULL;
         json_array_foreach(p_tx, index, p_value) {
             strcpy(txid, (const char *)json_string_value(p_value));
-            ucoin_tx_t tx;
+            ucoin_tx_t tx = UCOIN_TX_INIT;
 
-            ucoin_tx_init(&tx);
             bool bret = getraw_txstr(&tx, txid);
             //DBG_PRINTF("txid=%s\n", txid);
             if ( bret &&
@@ -674,9 +673,8 @@ LABEL_DECREF:
         json_t *p_value = NULL;
         json_array_foreach(p_tx, index, p_value) {
             strcpy(txid, (const char *)json_string_value(p_value));
-            ucoin_tx_t tx;
+            ucoin_tx_t tx = UCOIN_TX_INIT;
 
-            ucoin_tx_init(&tx);
             bool bret = getraw_txstr(&tx, txid);
             if (!bret) {
                 int cnt = pTxBuf->len / sizeof(ucoin_tx_t);
@@ -1615,8 +1613,7 @@ int main(int argc, char *argv[])
     //}
 
 //    fprintf(PRINTOUT, "-getrawtx------------------------\n");
-//    ucoin_tx_t tx;
-//    ucoin_tx_init(&tx);
+//    ucoin_tx_t tx = UCOIN_TX_INIT;
 //    ret = btcprc_getraw_tx(&tx, TXID);
 //    if (ret) {
 //        ucoin_print_tx(&tx);
