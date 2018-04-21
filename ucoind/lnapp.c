@@ -351,7 +351,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     uint8_t session_key[UCOIN_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
 
-    ucoin_buf_init(&buf_bolt);
     if (pPay->hop_datain[0].short_channel_id != ln_short_channel_id(p_self)) {
         SYSLOG_ERR("%s(): short_channel_id mismatch", __func__);
         fprintf(PRINTOUT, "fail: short_channel_id mismatch\n");
@@ -382,8 +381,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     ucoin_util_random(session_key, sizeof(session_key));
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
     uint8_t onion[LN_SZ_ONION_ROUTE];
-    ucoin_buf_t secrets;
-    ucoin_buf_init(&secrets);
+    ucoin_buf_t secrets = UCOIN_BUF_INIT;
     ret = ln_onion_create_packet(onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
                         session_key, pPay->payment_hash, LN_SZ_HASH);
     assert(ret);
@@ -534,7 +532,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     DBGTRACE_BEGIN
 
     bool ret;
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
     ln_self_t *p_self = pAppConf->p_self;
 
     //feeと送金先
@@ -542,7 +540,6 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 
     show_self_param(p_self, PRINTOUT, __LINE__);
 
-    ucoin_buf_init(&buf_bolt);
     ret = ln_create_shutdown(p_self, &buf_bolt);
     if (ret) {
         send_peer_noise(pAppConf, &buf_bolt);
@@ -723,8 +720,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
     ln_close_force_t close_dat;
     bool ret = ln_create_close_force_tx(pAppConf->p_self, &close_dat);
     if (ret) {
-        ucoin_buf_t buf;
-        ucoin_buf_init(&buf);
+        ucoin_buf_t buf = UCOIN_BUF_INIT;
 
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
@@ -1038,12 +1034,10 @@ LABEL_SHUTDOWN:
 static bool noise_handshake(lnapp_conf_t *p_conf)
 {
     bool ret;
-    ucoin_buf_t buf;
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
     uint8_t rbuf[66];
     bool b_cont;
     uint16_t len_msg;
-
-    ucoin_buf_init(&buf);
 
     // 今ひとつだが、同期でやってしまう
     if (p_conf->initiator) {
@@ -1181,9 +1175,8 @@ static bool check_short_channel_id(lnapp_conf_t *p_conf)
  */
 static bool exchange_init(lnapp_conf_t *p_conf)
 {
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&buf_bolt);
     bool ret = ln_create_init(p_conf->p_self, &buf_bolt, true);     //channel announceあり
     if (!ret) {
         DBG_PRINTF("fail: create\n");
@@ -1216,9 +1209,8 @@ static bool exchange_init(lnapp_conf_t *p_conf)
  */
 static bool exchange_reestablish(lnapp_conf_t *p_conf)
 {
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&buf_bolt);
     bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt);
     if (!ret) {
         DBG_PRINTF("fail: create\n");
@@ -1249,9 +1241,8 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
  */
 static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 {
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&buf_bolt);
     bool ret = ln_create_funding_locked(p_conf->p_self, &buf_bolt);
     if (!ret) {
         DBG_PRINTF("fail: create\n");
@@ -1347,8 +1338,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         strcpy(fundin.change_addr, changeaddr);
 
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
-        ucoin_buf_t buf_bolt;
-        ucoin_buf_init(&buf_bolt);
+        ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
                         &fundin,
                         pFunding->funding_sat,
@@ -1583,10 +1573,9 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
         break;
     case INNER_SEND_ANNO_SIGNS:
         {
-            ucoin_buf_t buf_bolt;
+            ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
             DBG_PRINTF("INNER_SEND_ANNO_SIGNS\n");
-            ucoin_buf_init(&buf_bolt);
             ret = ln_create_announce_signs(p_conf->p_self, &buf_bolt);
             if (ret) {
                 send_peer_noise(p_conf, &buf_bolt);
@@ -1693,9 +1682,8 @@ static void poll_ping(lnapp_conf_t *p_conf)
     p_conf->ping_counter++;
     //DBG_PRINTF("ping_counter=%d\n", p_conf->ping_counter);
     if (p_conf->ping_counter >= M_WAIT_PING_SEC / M_WAIT_POLL_SEC) {
-        ucoin_buf_t buf_ping;
+        ucoin_buf_t buf_ping = UCOIN_BUF_INIT;
 
-        ucoin_buf_init(&buf_ping);
         bool ret = ln_create_ping(p_conf->p_self, &buf_ping);
         if (ret) {
             send_peer_noise(p_conf, &buf_ping);
@@ -1865,8 +1853,7 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
     if (p_revack != NULL) {
         ucoin_buf_t *p_fail_ss = NULL;
         uint64_t fail_id;
-        ucoin_buf_t fail_reason;
-        ucoin_buf_init(&fail_reason);
+        ucoin_buf_t fail_reason = UCOIN_BUF_INIT;
 
         switch (p_revack->type) {
         case QTYPE_FWD_ADD_HTLC:
@@ -1961,8 +1948,7 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd)
     DBGTRACE_BEGIN
 
     bool ret;
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     wait_mutex_lock(MUX_CHG_HTLC);
 
@@ -2052,8 +2038,7 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdF
     DBGTRACE_BEGIN
 
     bool ret;
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
@@ -2124,8 +2109,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
     DBGTRACE_BEGIN
 
     bool ret = false;
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
@@ -2136,8 +2120,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
     DUMPBIN(pBwdFail->shared_secret.buf, pBwdFail->shared_secret.len);
     DBG_PRINTF("first= %s\n", (pBwdFail->b_first) ? "true" : "false");
 
-    ucoin_buf_t buf_reason;
-    ucoin_buf_init(&buf_reason);
+    ucoin_buf_t buf_reason = UCOIN_BUF_INIT;
     if (pBwdFail->b_first) {
         ln_onion_failure_create(&buf_reason, &pBwdFail->shared_secret, &pBwdFail->reason);
     } else {
@@ -2318,8 +2301,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_funding_sign_t *p_sig = (ln_cb_funding_sign_t *)p_param;
 
-    ucoin_buf_t buf_tx;
-    ucoin_buf_init(&buf_tx);
+    ucoin_buf_t buf_tx = UCOIN_BUF_INIT;
     ucoin_tx_create(&buf_tx, p_sig->p_tx);
     p_sig->ret = btcprc_signraw_tx(p_sig->p_tx, buf_tx.buf, buf_tx.len);
     ucoin_buf_free(&buf_tx);
@@ -2335,9 +2317,8 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
     if (p->b_send) {
         uint8_t txid[UCOIN_SZ_TXID];
-        ucoin_buf_t buf_tx;
+        ucoin_buf_t buf_tx = UCOIN_BUF_INIT;
 
-        ucoin_buf_init(&buf_tx);
         ucoin_tx_create(&buf_tx, p->p_tx_funding);
         bool ret = btcprc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
         if (ret) {
@@ -2431,8 +2412,7 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
     ln_cb_anno_sigs_t *p = (ln_cb_anno_sigs_t *)p_param;
 
     bool ret;
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     //channel_announcement
     ret = ln_db_annocnl_load(&buf_bolt, ln_short_channel_id(p_conf->p_self));
@@ -2666,9 +2646,8 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         DBG_PRINTF("ここまで\n");
         mMuxTiming &= ~MUX_PAYMENT;
 
-        ucoin_buf_t reason;
+        ucoin_buf_t reason = UCOIN_BUF_INIT;
         int hop;
-        ucoin_buf_init(&reason);
         bool ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
         if (ret) {
             DBG_PRINTF("  failure reason= ");
@@ -2767,9 +2746,7 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
         p_conf->flag_ope &= ~OPE_COMSIG_SEND;
     } else {
         //commitment_signed未送信
-        ucoin_buf_t buf_bolt;
-
-        ucoin_buf_init(&buf_bolt);
+        ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
         bool ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
         if (ret) {
             send_peer_noise(p_conf, &buf_bolt);
@@ -3054,10 +3031,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
     if (ret) {
         uint64_t short_channel_id;
         char type;
-        ucoin_buf_t buf_cnl;
-
-        ucoin_buf_init(&buf_cnl);
-
+        ucoin_buf_t buf_cnl = UCOIN_BUF_INIT;
         if (p_conf->last_anno_cnl != 0) {
             //前回のところまで検索する
             while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
@@ -3134,11 +3108,9 @@ static void send_node_anno(lnapp_conf_t *p_conf)
     void *p_cur;
     ret = ln_db_annonod_cur_open(&p_cur, p_db);
     if (ret) {
-        ucoin_buf_t buf_node;
+        ucoin_buf_t buf_node = UCOIN_BUF_INIT;
         uint32_t timestamp;
         uint8_t nodeid[UCOIN_SZ_PUBKEY];
-
-        ucoin_buf_init(&buf_node);
 
         if (p_conf->last_anno_node[0] != 0) {
             //前回のところまで検索する

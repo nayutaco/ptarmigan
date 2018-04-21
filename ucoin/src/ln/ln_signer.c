@@ -178,11 +178,9 @@ bool HIDDEN ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const u
 
     bool ret;
     uint8_t txhash[UCOIN_SZ_HASH256];
-    ucoin_buf_t sigbuf;
-    ucoin_buf_t script_code;
+    ucoin_buf_t sigbuf = UCOIN_BUF_INIT;
+    ucoin_buf_t script_code = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&script_code);
-    ucoin_buf_init(&sigbuf);
     ucoin_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
 
     ucoin_sw_sighash(txhash, pTx, Index, Value, &script_code);
@@ -230,9 +228,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ucoin_tx_t *pTx,
     //DBG_PRINTF("key-pub : ");
     //DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
 
-    ucoin_buf_t sig;
-    ucoin_buf_init(&sig);
-
+    ucoin_buf_t sig = UCOIN_BUF_INIT;
     bool ret;
     uint8_t sighash[UCOIN_SZ_SIGHASH];
 
