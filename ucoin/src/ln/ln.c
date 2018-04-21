@@ -3211,11 +3211,7 @@ static bool create_to_local(ln_self_t *self,
     ucoin_buf_t buf_sig = UCOIN_BUF_INIT;
     ln_feeinfo_t feeinfo;
     ln_tx_cmt_t lntx_commit;
-    ucoin_tx_t tx_commit;
-
-    ucoin_tx_init(&tx_commit);
-
-    //ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+    ucoin_tx_t tx_commit = UCOIN_TX_INIT;
 
     //To-Local
     ln_create_script_local(&buf_ws,
@@ -3445,8 +3441,7 @@ static bool create_to_local_spent(ln_self_t *self,
         if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
             DBG_PRINTF("+++[%d]to_local\n", vout_idx);
             if (pTxToLocal != NULL) {
-                ucoin_tx_t tx;
-                ucoin_tx_init(&tx);
+                ucoin_tx_t tx = UCOIN_TX_INIT;
 
                 ret = ln_create_tolocal_spent(self, &tx, pTxCommit->vout[vout_idx].value, to_self_delay,
                         pBufWs, self->commit_local.txid, vout_idx, false);
@@ -3465,8 +3460,7 @@ static bool create_to_local_spent(ln_self_t *self,
             uint64_t fee_sat = (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? p_feeinfo->htlc_timeout : p_feeinfo->htlc_success;
             if (pTxCommit->vout[vout_idx].value >= p_feeinfo->dust_limit_satoshi + fee_sat) {
                 DBG_PRINTF("+++[%d]%s HTLC\n", vout_idx, (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-                ucoin_tx_t tx;
-                ucoin_tx_init(&tx);
+                ucoin_tx_t tx = UCOIN_TX_INIT;
 
                 ln_create_htlc_tx(&tx, pTxCommit->vout[vout_idx].value - fee_sat, pBufWs,
                             p_htlcinfo->type, p_htlcinfo->expiry,
@@ -3609,8 +3603,7 @@ static bool create_to_local_close(ln_self_t *self,
         memcpy(&pTxHtlcs[htlc_num], pTxHtlc, sizeof(ucoin_tx_t));
 
         // HTLC Timeout/Success Txを作った場合はそれを取り戻すトランザクションも作る
-        ucoin_tx_t tx;
-        ucoin_tx_init(&tx);
+        ucoin_tx_t tx = UCOIN_TX_INIT;
         uint8_t txid[UCOIN_SZ_TXID];
         ucoin_tx_txid(txid, pTxHtlc);
         ret = ln_create_tolocal_spent(self, &tx,
@@ -3673,11 +3666,7 @@ static bool create_to_remote(ln_self_t *self,
     ucoin_buf_t buf_sig = UCOIN_BUF_INIT;
     ln_feeinfo_t feeinfo;
     ln_tx_cmt_t lntx_commit;
-    ucoin_tx_t tx_commit;
-
-    ucoin_tx_init(&tx_commit);
-
-    //ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+    ucoin_tx_t tx_commit = UCOIN_TX_INIT;
 
     //To-Local(Remote)
     ln_create_script_local(&buf_ws,
@@ -3865,8 +3854,8 @@ static bool create_to_remote_spent(ln_self_t *self,
         } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
             DBG_PRINTF("---[%d]to_remote\n", vout_idx);
             if (pClose != NULL) {
-                ucoin_tx_t tx;
-                ucoin_tx_init(&tx);
+                ucoin_tx_t tx = UCOIN_TX_INIT;
+
                 ret = ln_create_toremote_spent(self, &tx, pTxCommit->vout[vout_idx].value,
                             self->commit_remote.txid, vout_idx);
                 if (ret) {
@@ -3958,8 +3947,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
                     uint8_t htlc_idx)
 {
     bool ret;
-    ucoin_tx_t tx;
-    ucoin_tx_init(&tx);
+    ucoin_tx_t tx = UCOIN_TX_INIT;
 
     DBG_PRINTF("---[%d]%s HTLC\n", vout_idx, (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
     ln_create_htlc_tx(&tx, pTxCommit->vout[vout_idx].value - fee, pBufWs,

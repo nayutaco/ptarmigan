@@ -55,7 +55,7 @@ static uint64_t get_le64(const uint8_t *pData);
 
 void ucoin_tx_init(ucoin_tx_t *pTx)
 {
-    pTx->version = 2;
+    pTx->version = UCOIN_TX_VERSION_INIT;
     pTx->vin_cnt = 0;
     pTx->vin = NULL;
     pTx->vout_cnt = 0;
@@ -1129,10 +1129,9 @@ uint32_t ucoin_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
         //(旧format*3 + 新format) / 4を切り上げ
         //  旧: nVersion            |txins|txouts        |nLockTim
         //  新: nVersion|marker|flag|txins|txouts|witness|nLockTime
-        ucoin_tx_t txold;
+        ucoin_tx_t txold = UCOIN_TX_INIT;
         ucoin_buf_t txbuf_old = UCOIN_BUF_INIT;
 
-        ucoin_tx_init(&txold);
         ucoin_tx_read(&txold, pData, Len);
 
         bool ret = ucoin_util_create_tx(&txbuf_old, &txold, false);

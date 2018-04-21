@@ -386,8 +386,7 @@ TEST_F(ln_bolt3_c, committx2)
 
 
     //tx
-    ucoin_tx_t tx;
-    ucoin_tx_init(&tx);
+    ucoin_tx_t tx = UCOIN_TX_INIT;
 
     //output
     //vout#0:P2WKH - remote
