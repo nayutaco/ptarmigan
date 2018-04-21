@@ -273,9 +273,9 @@ static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId);
 static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
+static void clear_routelist(lnapp_conf_t *p_conf);
 #ifdef USE_LINUX_LIST
 static void print_routelist(lnapp_conf_t *p_conf);
-static void clear_routelist(lnapp_conf_t *p_conf);
 #endif
 static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash);
 static void pay_retry(const uint8_t *pPayHash);
@@ -2612,6 +2612,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DBG_PRINTF("fail: cannot backwind\n");
         }
     } else {
+        //送金元
         DBG_PRINTF("payer node\n");
         del_routelist(p_conf, p_fulfill->id);
 
@@ -3420,6 +3421,10 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
 
 /** 送金情報リスト取得
  *
+ * update_add_htlcの送信元がupdate_fail_htlcを受信した際、
+ * #add_routelist() で保持していたルート情報とreasonから、どのchannelで失敗したかを判断するために使用する。
+ * 自分がupdate_add_htlcの送信元の場合だけリストに保持している。
+ * 
  * @param[in]       p_conf
  * @param[in]       HtlcId
  */
@@ -3469,6 +3474,10 @@ static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId
 
 
 /** 送金情報リスト削除
+ * 
+ * udpate_add_htlc送信元が追加するリストから、指定したHTLC idの情報を削除する。
+ *      - update_fulfill_htlc受信
+ *      - update_fail_htlc受信
  *
  * @param[in,out]   p_conf
  * @param[in]       HtlcId
@@ -3531,23 +3540,6 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
 #endif
 }
 
-#ifdef USE_LINUX_LIST
-/** 送金情報リスト表示
- *
- */
-static void print_routelist(lnapp_conf_t *p_conf)
-{
-    routelist_t *p;
-
-    DBG_PRINTF("------------------------------------\n");
-    p = LIST_FIRST(&p_conf->routing_head);
-    while (p != NULL) {
-        DBG_PRINTF("htlc_id: %" PRIu64 "\n", p->htlc_id);
-        p = LIST_NEXT(p, list);
-    }
-    DBG_PRINTF("------------------------------------\n");
-}
-
 
 /** 送金情報リストの全削除
  *
@@ -3564,6 +3556,24 @@ static void clear_routelist(lnapp_conf_t *p_conf)
         APP_FREE(p);
         p = tmp;
     }
+}
+
+
+#ifdef USE_LINUX_LIST
+/** 送金情報リスト表示
+ *
+ */
+static void print_routelist(lnapp_conf_t *p_conf)
+{
+    routelist_t *p;
+
+    DBG_PRINTF("------------------------------------\n");
+    p = LIST_FIRST(&p_conf->routing_head);
+    while (p != NULL) {
+        DBG_PRINTF("htlc_id: %" PRIu64 "\n", p->htlc_id);
+        p = LIST_NEXT(p, list);
+    }
+    DBG_PRINTF("------------------------------------\n");
 }
 #endif
 
