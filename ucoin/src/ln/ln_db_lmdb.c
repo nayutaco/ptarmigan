@@ -610,8 +610,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
             self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
     //可変サイズ
-    ucoin_buf_t buf_funding;
-    ucoin_buf_init(&buf_funding);
+    ucoin_buf_t buf_funding = UCOIN_BUF_INIT;
     //
     backup_buf_t *p_dbscript_keys = (backup_buf_t *)M_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
     int index = 0;
@@ -1119,8 +1118,7 @@ bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, co
     }
 
     //channel_announcement
-    ucoin_buf_t buf_ann;
-    ucoin_buf_init(&buf_ann);
+    ucoin_buf_t buf_ann = UCOIN_BUF_INIT;
     retval = annocnl_load(&db, &buf_ann, ShortChannelId);
     if (retval != 0) {
         retval = annocnl_save(&db, pCnlAnno, ShortChannelId);
@@ -1194,12 +1192,11 @@ bool ln_db_annocnlupd_save(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pU
         goto LABEL_EXIT;
     }
 
-    ucoin_buf_t     buf_upd;
+    ucoin_buf_t     buf_upd = UCOIN_BUF_INIT;
     uint32_t        timestamp;
     bool            upddb = false;
     bool            clr = false;
 
-    ucoin_buf_init(&buf_upd);
     retval = annocnlupd_load(&db, &buf_upd, &timestamp, pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
     if (retval == 0) {
         if (timestamp > pUpd->timestamp) {
@@ -1822,12 +1819,11 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         goto LABEL_EXIT;
     }
 
-    ucoin_buf_t buf_node;
+    ucoin_buf_t buf_node = UCOIN_BUF_INIT;
     uint32_t    timestamp;
     bool        upddb = false;
     bool        clr = false;
 
-    ucoin_buf_init(&buf_node);
     retval = annonod_load(&db, &buf_node, &timestamp, pAnno->p_node_id);
     if (retval == 0) {
         if (timestamp > pAnno->timestamp) {
@@ -2385,10 +2381,9 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam)
     MDB_val key, data;
     ln_lmdb_db_t   db;
     char        dbname[M_SZ_DBNAME_LEN + 1];
-    ucoin_buf_t buf;
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
     ucoin_push_t push;
 
-    ucoin_buf_init(&buf);
     db.txn = ((ln_lmdb_db_t *)pDbParam)->txn;
 
     misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
@@ -2860,8 +2855,7 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     }
 
     //可変サイズ
-    ucoin_buf_t buf_funding;
-    ucoin_buf_init(&buf_funding);
+    ucoin_buf_t buf_funding = UCOIN_BUF_INIT;
     ucoin_tx_create(&buf_funding, &self->tx_funding);
     //
     backup_buf_t *p_dbscript_keys = (backup_buf_t *)M_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);

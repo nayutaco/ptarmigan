@@ -176,9 +176,8 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
         uint64_t short_channel_id;
         char type;
         uint32_t timestamp;
-        ucoin_buf_t buf;
+        ucoin_buf_t buf = UCOIN_BUF_INIT;
 
-        ucoin_buf_init(&buf);
         ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
         if (ret == 0) {
             ln_cnl_update_t upd;

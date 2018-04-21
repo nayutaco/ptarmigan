@@ -1139,8 +1139,7 @@ TEST_F(ln_bolt3_c2, committx5untrim_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { 0,        2,          1,          3,          4 };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];

@@ -114,8 +114,7 @@ TEST_F(misc, sigtrim1)
     ASSERT_TRUE(ret);
 
     //復元
-    ucoin_buf_t buf_sig;
-    ucoin_buf_init(&buf_sig);
+    ucoin_buf_t buf_sig = UCOIN_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG1, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG1), buf_sig.len);
@@ -158,8 +157,7 @@ TEST_F(misc, sigtrim3)
     ASSERT_TRUE(ret);
 
     //復元
-    ucoin_buf_t buf_sig;
-    ucoin_buf_init(&buf_sig);
+    ucoin_buf_t buf_sig = UCOIN_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG3, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG3), buf_sig.len);
@@ -202,8 +200,7 @@ TEST_F(misc, sigtrim5)
     ASSERT_TRUE(ret);
 
     //復元
-    ucoin_buf_t buf_sig;
-    ucoin_buf_init(&buf_sig);
+    ucoin_buf_t buf_sig = UCOIN_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG5, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG5), buf_sig.len);
@@ -228,8 +225,7 @@ TEST_F(misc, sigtrim6)
     ASSERT_TRUE(ret);
 
     //復元
-    ucoin_buf_t buf_sig;
-    ucoin_buf_init(&buf_sig);
+    ucoin_buf_t buf_sig = UCOIN_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG6, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG6), buf_sig.len);
@@ -351,8 +347,7 @@ TEST_F(misc, sigtrimexp1)
     ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
 
     //復元
-    ucoin_buf_t buf_sig;
-    ucoin_buf_init(&buf_sig);
+    ucoin_buf_t buf_sig = UCOIN_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
@@ -382,8 +377,7 @@ TEST_F(misc, sigtrimexp2)
     ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
 
     //復元
-    ucoin_buf_t buf_sig;
-    ucoin_buf_init(&buf_sig);
+    ucoin_buf_t buf_sig = UCOIN_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
@@ -413,8 +407,7 @@ TEST_F(misc, sigtrimexp3)
     ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
 
     //復元
-    ucoin_buf_t buf_sig;
-    ucoin_buf_init(&buf_sig);
+    ucoin_buf_t buf_sig = UCOIN_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);

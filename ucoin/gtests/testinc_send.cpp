@@ -87,8 +87,7 @@ TEST_F(send, p2pkh)
     ret = ucoin_tx_sign_p2pkh(&tx, 0, txhash, priv, NULL);
     ASSERT_TRUE(ret);
 
-    ucoin_buf_t txbuf;
-    ucoin_buf_init(&txbuf);
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
     ucoin_tx_create(&txbuf, &tx);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);
@@ -179,8 +178,7 @@ TEST_F(send, p2wpkh)
     ret = ucoin_util_sign_p2wpkh(&tx, 0, UCOIN_MBTC2SATOSHI(3), &keys);
     ASSERT_TRUE(ret);
 
-    ucoin_buf_t txbuf;
-    ucoin_buf_init(&txbuf);
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
     ucoin_tx_create(&txbuf, &tx);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);
@@ -285,8 +283,7 @@ TEST_F(send, p2wsh)
     ASSERT_EQ(UCOIN_TESTNET, chain);
 
     //2-of-2
-    ucoin_buf_t wit;
-    ucoin_buf_init(&wit);
+    ucoin_buf_t wit = UCOIN_BUF_INIT;
     ret = ucoin_keys_create2of2(&wit, keys2.pub, keys1.pub);      //ソートしないようにしたので順番をあわせる
     ASSERT_TRUE(ret);
     printf("wit= \n");
@@ -307,8 +304,7 @@ TEST_F(send, p2wsh)
     ASSERT_TRUE(ret);
 
 
-    ucoin_buf_t txbuf;
-    ucoin_buf_init(&txbuf);
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
     ucoin_tx_create(&txbuf, &tx);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);

@@ -273,9 +273,9 @@ static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId);
 static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId);
+static void clear_routelist(lnapp_conf_t *p_conf);
 #ifdef USE_LINUX_LIST
 static void print_routelist(lnapp_conf_t *p_conf);
-static void clear_routelist(lnapp_conf_t *p_conf);
 #endif
 static void push_pay_retry_queue(lnapp_conf_t *p_conf, const uint8_t *pPayHash);
 static void pay_retry(const uint8_t *pPayHash);
@@ -325,7 +325,7 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
  *******************************************/
 
 //初回ONIONパケット作成
-bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
+bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
 {
     if (!pAppConf->loop || !lnapp_is_inited(pAppConf)) {
         //DBG_PRINTF("This AppConf not working\n");
@@ -347,11 +347,10 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     DBGTRACE_BEGIN
 
     bool ret = false;
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
     uint8_t session_key[UCOIN_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
 
-    ucoin_buf_init(&buf_bolt);
     if (pPay->hop_datain[0].short_channel_id != ln_short_channel_id(p_self)) {
         SYSLOG_ERR("%s(): short_channel_id mismatch", __func__);
         fprintf(PRINTOUT, "fail: short_channel_id mismatch\n");
@@ -382,8 +381,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
     ucoin_util_random(session_key, sizeof(session_key));
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
     uint8_t onion[LN_SZ_ONION_ROUTE];
-    ucoin_buf_t secrets;
-    ucoin_buf_init(&secrets);
+    ucoin_buf_t secrets = UCOIN_BUF_INIT;
     ret = ln_onion_create_packet(onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
                         session_key, pPay->payment_hash, LN_SZ_HASH);
     assert(ret);
@@ -534,7 +532,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     DBGTRACE_BEGIN
 
     bool ret;
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
     ln_self_t *p_self = pAppConf->p_self;
 
     //feeと送金先
@@ -542,7 +540,6 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 
     show_self_param(p_self, PRINTOUT, __LINE__);
 
-    ucoin_buf_init(&buf_bolt);
     ret = ln_create_shutdown(p_self, &buf_bolt);
     if (ret) {
         send_peer_noise(pAppConf, &buf_bolt);
@@ -723,8 +720,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
     ln_close_force_t close_dat;
     bool ret = ln_create_close_force_tx(pAppConf->p_self, &close_dat);
     if (ret) {
-        ucoin_buf_t buf;
-        ucoin_buf_init(&buf);
+        ucoin_buf_t buf = UCOIN_BUF_INIT;
 
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
@@ -1038,12 +1034,10 @@ LABEL_SHUTDOWN:
 static bool noise_handshake(lnapp_conf_t *p_conf)
 {
     bool ret;
-    ucoin_buf_t buf;
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
     uint8_t rbuf[66];
     bool b_cont;
     uint16_t len_msg;
-
-    ucoin_buf_init(&buf);
 
     // 今ひとつだが、同期でやってしまう
     if (p_conf->initiator) {
@@ -1181,9 +1175,8 @@ static bool check_short_channel_id(lnapp_conf_t *p_conf)
  */
 static bool exchange_init(lnapp_conf_t *p_conf)
 {
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&buf_bolt);
     bool ret = ln_create_init(p_conf->p_self, &buf_bolt, true);     //channel announceあり
     if (!ret) {
         DBG_PRINTF("fail: create\n");
@@ -1216,9 +1209,8 @@ static bool exchange_init(lnapp_conf_t *p_conf)
  */
 static bool exchange_reestablish(lnapp_conf_t *p_conf)
 {
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&buf_bolt);
     bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt);
     if (!ret) {
         DBG_PRINTF("fail: create\n");
@@ -1249,9 +1241,8 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
  */
 static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 {
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&buf_bolt);
     bool ret = ln_create_funding_locked(p_conf->p_self, &buf_bolt);
     if (!ret) {
         DBG_PRINTF("fail: create\n");
@@ -1347,8 +1338,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         strcpy(fundin.change_addr, changeaddr);
 
         DBG_PRINTF("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
-        ucoin_buf_t buf_bolt;
-        ucoin_buf_init(&buf_bolt);
+        ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
                         &fundin,
                         pFunding->funding_sat,
@@ -1553,8 +1543,8 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
 
                 bwd_fail.id = p_fwd_add->prev_id;
                 bwd_fail.prev_short_channel_id = p_fwd_add->prev_short_channel_id;
-                bwd_fail.reason = p_fwd_add->reason;                //shallow copy
-                bwd_fail.shared_secret = p_fwd_add->shared_secret;  //shallow copy
+                memcpy(&bwd_fail.reason, &p_fwd_add->reason, sizeof(ucoin_buf_t));                //shallow copy
+                memcpy(&bwd_fail.shared_secret, &p_fwd_add->shared_secret, sizeof(ucoin_buf_t));  //shallow copy
                 bwd_fail.b_first = true;
                 ret = ucoind_backwind_fail(&bwd_fail);
             }
@@ -1583,10 +1573,9 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
         break;
     case INNER_SEND_ANNO_SIGNS:
         {
-            ucoin_buf_t buf_bolt;
+            ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
             DBG_PRINTF("INNER_SEND_ANNO_SIGNS\n");
-            ucoin_buf_init(&buf_bolt);
             ret = ln_create_announce_signs(p_conf->p_self, &buf_bolt);
             if (ret) {
                 send_peer_noise(p_conf, &buf_bolt);
@@ -1693,9 +1682,8 @@ static void poll_ping(lnapp_conf_t *p_conf)
     p_conf->ping_counter++;
     //DBG_PRINTF("ping_counter=%d\n", p_conf->ping_counter);
     if (p_conf->ping_counter >= M_WAIT_PING_SEC / M_WAIT_POLL_SEC) {
-        ucoin_buf_t buf_ping;
+        ucoin_buf_t buf_ping = UCOIN_BUF_INIT;
 
-        ucoin_buf_init(&buf_ping);
         bool ret = ln_create_ping(p_conf->p_self, &buf_ping);
         if (ret) {
             send_peer_noise(p_conf, &buf_ping);
@@ -1865,8 +1853,7 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
     if (p_revack != NULL) {
         ucoin_buf_t *p_fail_ss = NULL;
         uint64_t fail_id;
-        ucoin_buf_t fail_reason;
-        ucoin_buf_init(&fail_reason);
+        ucoin_buf_t fail_reason = UCOIN_BUF_INIT;
 
         switch (p_revack->type) {
         case QTYPE_FWD_ADD_HTLC:
@@ -1932,8 +1919,8 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
         if (p_fail_ss != NULL) {
             bwd_proc_fail_t bwd_fail;
             bwd_fail.id = fail_id;
-            bwd_fail.reason = fail_reason;              //shallow copy
-            bwd_fail.shared_secret = *p_fail_ss;        //shallow copy
+            memcpy(&bwd_fail.reason, &fail_reason, sizeof(ucoin_buf_t));        //shallow copy
+            memcpy(&bwd_fail.shared_secret, p_fail_ss, sizeof(ucoin_buf_t));    //shallow copy
             bwd_fail.prev_short_channel_id = 0;
             bwd_fail.b_first = true;
             DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", bwd_fail.id);
@@ -1961,8 +1948,7 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd)
     DBGTRACE_BEGIN
 
     bool ret;
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     wait_mutex_lock(MUX_CHG_HTLC);
 
@@ -2052,8 +2038,7 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdF
     DBGTRACE_BEGIN
 
     bool ret;
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
@@ -2124,8 +2109,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
     DBGTRACE_BEGIN
 
     bool ret = false;
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
 
@@ -2136,8 +2120,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
     DUMPBIN(pBwdFail->shared_secret.buf, pBwdFail->shared_secret.len);
     DBG_PRINTF("first= %s\n", (pBwdFail->b_first) ? "true" : "false");
 
-    ucoin_buf_t buf_reason;
-    ucoin_buf_init(&buf_reason);
+    ucoin_buf_t buf_reason = UCOIN_BUF_INIT;
     if (pBwdFail->b_first) {
         ln_onion_failure_create(&buf_reason, &pBwdFail->shared_secret, &pBwdFail->reason);
     } else {
@@ -2318,8 +2301,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_funding_sign_t *p_sig = (ln_cb_funding_sign_t *)p_param;
 
-    ucoin_buf_t buf_tx;
-    ucoin_buf_init(&buf_tx);
+    ucoin_buf_t buf_tx = UCOIN_BUF_INIT;
     ucoin_tx_create(&buf_tx, p_sig->p_tx);
     p_sig->ret = btcprc_signraw_tx(p_sig->p_tx, buf_tx.buf, buf_tx.len);
     ucoin_buf_free(&buf_tx);
@@ -2335,9 +2317,8 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
     if (p->b_send) {
         uint8_t txid[UCOIN_SZ_TXID];
-        ucoin_buf_t buf_tx;
+        ucoin_buf_t buf_tx = UCOIN_BUF_INIT;
 
-        ucoin_buf_init(&buf_tx);
         ucoin_tx_create(&buf_tx, p->p_tx_funding);
         bool ret = btcprc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
         if (ret) {
@@ -2431,8 +2412,7 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
     ln_cb_anno_sigs_t *p = (ln_cb_anno_sigs_t *)p_param;
 
     bool ret;
-    ucoin_buf_t buf_bolt;
-    ucoin_buf_init(&buf_bolt);
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     //channel_announcement
     ret = ln_db_annocnl_load(&buf_bolt, ln_short_channel_id(p_conf->p_self));
@@ -2612,6 +2592,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DBG_PRINTF("fail: cannot backwind\n");
         }
     } else {
+        //送金元
         DBG_PRINTF("payer node\n");
         del_routelist(p_conf, p_fulfill->id);
 
@@ -2665,9 +2646,8 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         DBG_PRINTF("ここまで\n");
         mMuxTiming &= ~MUX_PAYMENT;
 
-        ucoin_buf_t reason;
+        ucoin_buf_t reason = UCOIN_BUF_INIT;
         int hop;
-        ucoin_buf_init(&reason);
         bool ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
         if (ret) {
             DBG_PRINTF("  failure reason= ");
@@ -2766,9 +2746,7 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
         p_conf->flag_ope &= ~OPE_COMSIG_SEND;
     } else {
         //commitment_signed未送信
-        ucoin_buf_t buf_bolt;
-
-        ucoin_buf_init(&buf_bolt);
+        ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
         bool ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
         if (ret) {
             send_peer_noise(p_conf, &buf_bolt);
@@ -3053,10 +3031,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
     if (ret) {
         uint64_t short_channel_id;
         char type;
-        ucoin_buf_t buf_cnl;
-
-        ucoin_buf_init(&buf_cnl);
-
+        ucoin_buf_t buf_cnl = UCOIN_BUF_INIT;
         if (p_conf->last_anno_cnl != 0) {
             //前回のところまで検索する
             while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
@@ -3133,11 +3108,9 @@ static void send_node_anno(lnapp_conf_t *p_conf)
     void *p_cur;
     ret = ln_db_annonod_cur_open(&p_cur, p_db);
     if (ret) {
-        ucoin_buf_t buf_node;
+        ucoin_buf_t buf_node = UCOIN_BUF_INIT;
         uint32_t timestamp;
         uint8_t nodeid[UCOIN_SZ_PUBKEY];
-
-        ucoin_buf_init(&buf_node);
 
         if (p_conf->last_anno_node[0] != 0) {
             //前回のところまで検索する
@@ -3372,6 +3345,10 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
 }
 
 
+/*******************************************
+ * 送金情報リスト
+ *******************************************/
+
 /** 送金情報リストに追加
  *
  * 送金エラーが発生した場合、reasonからどのnodeがエラーを返したか分かる。
@@ -3381,7 +3358,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
  * リストにしたのは、複数の送金が行われることを考慮したため。
  *
  * @param[in,out]       p_conf
- * @param[in]           pPayConf        送金情報
+ * @param[in]           pPayConf        送金情報(内部でコピー)
  * @param[in]           HtlcId          HTLC id
  */
 static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId)
@@ -3389,7 +3366,7 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
 #ifdef USE_LINUX_LIST
     routelist_t *rt = (routelist_t *)APP_MALLOC(sizeof(routelist_t));       //APP_FREE: del_routelist()
 
-    rt->route = *pPayConf;
+    memcpy(&rt->route, pPayConf, sizeof(payment_conf_t));
     rt->htlc_id = HtlcId;
     LIST_INSERT_HEAD(&p_conf->routing_head, rt, list);
     DBG_PRINTF("htlc_id: %" PRIu64 "\n", HtlcId);
@@ -3420,6 +3397,10 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
 
 /** 送金情報リスト取得
  *
+ * update_add_htlcの送信元がupdate_fail_htlcを受信した際、
+ * #add_routelist() で保持していたルート情報とreasonから、どのchannelで失敗したかを判断するために使用する。
+ * 自分がupdate_add_htlcの送信元の場合だけリストに保持している。
+ * 
  * @param[in]       p_conf
  * @param[in]       HtlcId
  */
@@ -3469,6 +3450,10 @@ static const payment_conf_t* get_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId
 
 
 /** 送金情報リスト削除
+ * 
+ * udpate_add_htlc送信元が追加するリストから、指定したHTLC idの情報を削除する。
+ *      - update_fulfill_htlc受信
+ *      - update_fail_htlc受信
  *
  * @param[in,out]   p_conf
  * @param[in]       HtlcId
@@ -3531,23 +3516,6 @@ static void del_routelist(lnapp_conf_t *p_conf, uint64_t HtlcId)
 #endif
 }
 
-#ifdef USE_LINUX_LIST
-/** 送金情報リスト表示
- *
- */
-static void print_routelist(lnapp_conf_t *p_conf)
-{
-    routelist_t *p;
-
-    DBG_PRINTF("------------------------------------\n");
-    p = LIST_FIRST(&p_conf->routing_head);
-    while (p != NULL) {
-        DBG_PRINTF("htlc_id: %" PRIu64 "\n", p->htlc_id);
-        p = LIST_NEXT(p, list);
-    }
-    DBG_PRINTF("------------------------------------\n");
-}
-
 
 /** 送金情報リストの全削除
  *
@@ -3564,6 +3532,24 @@ static void clear_routelist(lnapp_conf_t *p_conf)
         APP_FREE(p);
         p = tmp;
     }
+}
+
+
+#ifdef USE_LINUX_LIST
+/** 送金情報リスト表示
+ *
+ */
+static void print_routelist(lnapp_conf_t *p_conf)
+{
+    routelist_t *p;
+
+    DBG_PRINTF("------------------------------------\n");
+    p = LIST_FIRST(&p_conf->routing_head);
+    while (p != NULL) {
+        DBG_PRINTF("htlc_id: %" PRIu64 "\n", p->htlc_id);
+        p = LIST_NEXT(p, list);
+    }
+    DBG_PRINTF("------------------------------------\n");
 }
 #endif
 

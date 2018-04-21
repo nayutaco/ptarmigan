@@ -185,11 +185,9 @@ bool ucoin_util_sign_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const uc
 {
     bool ret;
     uint8_t txhash[UCOIN_SZ_HASH256];
-    ucoin_buf_t sigbuf;
-    ucoin_buf_t script_code;
+    ucoin_buf_t sigbuf = UCOIN_BUF_INIT;
+    ucoin_buf_t script_code = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&script_code);
-    ucoin_buf_init(&sigbuf);
     ucoin_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
 
     ucoin_sw_sighash(txhash, pTx, Index, Value, &script_code);
@@ -209,9 +207,8 @@ bool ucoin_util_sign_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const uc
 void ucoin_util_calc_sighash_p2wsh(uint8_t *pTxHash, const ucoin_tx_t *pTx, int Index, uint64_t Value,
                     const ucoin_buf_t *pWitScript)
 {
-    ucoin_buf_t script_code;
+    ucoin_buf_t script_code = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&script_code);
     ucoin_sw_scriptcode_p2wsh(&script_code, pWitScript);
     ucoin_sw_sighash(pTxHash, pTx, Index, Value, &script_code);
     ucoin_buf_free(&script_code);

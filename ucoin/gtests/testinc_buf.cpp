@@ -31,7 +31,7 @@ public:
 
 TEST_F(buf, init)
 {
-    ucoin_buf_t buf;
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
 
     uint8_t a;
 
