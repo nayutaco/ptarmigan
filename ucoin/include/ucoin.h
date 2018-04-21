@@ -113,7 +113,6 @@ extern "C" {
 #define UCOIN_TX_VERSION_INIT   (2)
 
 #define UCOIN_BUF_INIT          { (uint8_t *)NULL, (uint32_t)0 }
-#define UCOIN_PUSH_INIT(p_buf)  { (uint32_t)0, p_buf }
 #define UCOIN_TX_INIT           { UCOIN_TX_VERSION_INIT, 0, (ucoin_vin_t *)NULL, 0, (ucoin_vout_t *)NULL, 0 }
 
 
