@@ -83,6 +83,7 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id);
+static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 
 
@@ -497,33 +498,12 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
     ucoind_preimage_unlock();
 
-    uint8_t type;
-    ucoin_genesis_t gtype = ucoin_util_get_genesis(ln_get_genesishash());
-    switch (gtype) {
-    case UCOIN_GENESIS_BTCMAIN:
-        type = LN_INVOICE_MAINNET;
-        break;
-    case UCOIN_GENESIS_BTCTEST:
-        type = LN_INVOICE_TESTNET;
-        break;
-    case UCOIN_GENESIS_BTCREGTEST:
-        type = LN_INVOICE_REGTEST;
-        break;
-    default:
-        type = UCOIN_GENESIS_UNKNOWN;
-        break;
-    }
-    if (type != UCOIN_GENESIS_UNKNOWN) {
-        char *p_invoice = NULL;
-        bool ret = ln_invoice_create(&p_invoice, type, preimage_hash, amount);
-        if (ret) {
-            cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
-        } else {
-            DBG_PRINTF("fail: BOLT11 format\n");
-        }
+    char *p_invoice = create_bolt11(preimage_hash, amount);
+    if (p_invoice != NULL) {
+        cJSON_AddItemToObject(result, "bolt11", cJSON_CreateString(p_invoice));
         free(p_invoice);
     } else {
-        DBG_PRINTF("fail: unknown genesis type\n");
+        DBG_PRINTF("fail: BOLT11 format\n");
         index = -1;
     }
 
@@ -608,6 +588,11 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
             cJSON_AddItemToArray(json, cJSON_CreateString(str_hash));
             cJSON_AddItemToArray(json, cJSON_CreateNumber64(amount));
+            char *p_invoice = create_bolt11(preimage_hash, amount);
+            if (p_invoice != NULL) {
+                cJSON_AddItemToArray(json, cJSON_CreateString(p_invoice));
+                free(p_invoice);
+            }
             cJSON_AddItemToArray(result, json);
         }
     }
@@ -1132,6 +1117,32 @@ LABEL_EXIT:
         ctx->error_message = strdup(RPCERR_PARSE_STR);
     }
     return result;
+}
+
+
+static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount)
+{
+    uint8_t type;
+    ucoin_genesis_t gtype = ucoin_util_get_genesis(ln_get_genesishash());
+    switch (gtype) {
+    case UCOIN_GENESIS_BTCMAIN:
+        type = LN_INVOICE_MAINNET;
+        break;
+    case UCOIN_GENESIS_BTCTEST:
+        type = LN_INVOICE_TESTNET;
+        break;
+    case UCOIN_GENESIS_BTCREGTEST:
+        type = LN_INVOICE_REGTEST;
+        break;
+    default:
+        type = UCOIN_GENESIS_UNKNOWN;
+        break;
+    }
+    char *p_invoice = NULL;
+    if (type != UCOIN_GENESIS_UNKNOWN) {
+        ln_invoice_create(&p_invoice, type, pPayHash, Amount);
+    }
+    return p_invoice;
 }
 
 
