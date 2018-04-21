@@ -325,7 +325,7 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding)
  *******************************************/
 
 //初回ONIONパケット作成
-bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay)
+bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
 {
     if (!pAppConf->loop || !lnapp_is_inited(pAppConf)) {
         //DBG_PRINTF("This AppConf not working\n");
@@ -3372,6 +3372,10 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
     }
 }
 
+
+/*******************************************
+ * 送金情報リスト
+ *******************************************/
 
 /** 送金情報リストに追加
  *

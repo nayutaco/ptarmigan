@@ -179,7 +179,7 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding);
 /** [lnapp]送金開始
  *
  */
-bool lnapp_payment(lnapp_conf_t *pAppConf, payment_conf_t *pPay);
+bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 
 
 /** [lnapp]送金転送
