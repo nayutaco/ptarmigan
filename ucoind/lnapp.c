@@ -106,7 +106,9 @@
 #define M_ERRSTR_CANNOTSTART            "fail: can't start payment(our_msat=%" PRIu64 ", amt_to_forward=%" PRIu64 ")"
 
 //lnapp_conf_t.flag_ope
-#define OPE_COMSIG_SEND         (0x01)      ///< commitment_signed受信済み
+#define OPE_FULFILL_RECV        (0x02)      ///< update_fulfill_htlc受信済み
+                                                // その後、revoke_and_ack受信で「着金完了」とする
+#define OPE_COMSIG_SEND         (0x04)      ///< commitment_signed送信済み
 
 //lnapp_conf_t.flag_recv
 #define RECV_MSG_INIT           (0x01)      ///< init
