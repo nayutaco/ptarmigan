@@ -347,7 +347,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     DBGTRACE_BEGIN
 
     bool ret = false;
-    ucoin_buf_t buf_bolt;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
     uint8_t session_key[UCOIN_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
 

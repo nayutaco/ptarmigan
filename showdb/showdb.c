@@ -358,9 +358,8 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
             uint64_t short_channel_id;
             char type;
             uint32_t timestamp;
-            ucoin_buf_t buf;
+            ucoin_buf_t buf = UCOIN_BUF_INIT;
 
-            ucoin_buf_init(&buf);
             ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
             if ((ret == 0) && (short_channel_id != 0)) {
                 if (cnt1) {
@@ -399,11 +398,10 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
         int ret;
 
         do {
-            ucoin_buf_t buf;
+            ucoin_buf_t buf = UCOIN_BUF_INIT;
             uint32_t timestamp;
             uint8_t nodeid[UCOIN_SZ_PUBKEY];
 
-            ucoin_buf_init(&buf);
             ret = ln_lmdb_annonod_cur_load(cursor, &buf, &timestamp, nodeid);
             if (ret == 0) {
                 if (cnt2) {

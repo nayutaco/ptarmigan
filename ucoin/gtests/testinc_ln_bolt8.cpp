@@ -83,8 +83,7 @@ TEST_F(bolt8test, initiator)
     self.noise_recv.nonce = 10;
 
     //Act One send
-    ucoin_buf_t buf;
-    ucoin_buf_init(&buf);
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
     ASSERT_EQ(10, self.noise_send.nonce);
@@ -213,8 +212,7 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
 
     //Act One send
-    ucoin_buf_t buf;
-    ucoin_buf_init(&buf);
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
@@ -309,8 +307,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
 
     //Act One send
-    ucoin_buf_t buf;
-    ucoin_buf_init(&buf);
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
@@ -405,8 +402,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
 
     //Act One send
-    ucoin_buf_t buf;
-    ucoin_buf_init(&buf);
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
@@ -501,8 +497,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
 
     //Act One send
-    ucoin_buf_t buf;
-    ucoin_buf_init(&buf);
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
@@ -1438,12 +1433,11 @@ TEST_F(bolt8test, enc_dec)
     self_dec.noise_recv.nonce = 0;
 
     ucoin_buf_t bufin;
-    ucoin_buf_t buf;
+    ucoin_buf_t buf = UCOIN_BUF_INIT;
     ucoin_buf_t buf_dec;
     uint16_t len;
 
     ucoin_buf_alloccopy(&bufin, (const uint8_t *)"hello", 5);
-    ucoin_buf_init(&buf);
 
     // 0
     ret = ln_enc_auth_enc(&self, &buf, &bufin);

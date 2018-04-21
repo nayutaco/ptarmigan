@@ -755,8 +755,7 @@ TEST_F(tx, create_p2pkh)
         0x79, 0xef, 0xc3, 0x88, 0xac, 0x00, 0x00, 0x00,
         0x00,
     };
-    ucoin_buf_t txbuf;
-    ucoin_buf_init(&txbuf);
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
     ret = ucoin_tx_create(&txbuf, &tx);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
@@ -1021,8 +1020,7 @@ TEST_F(tx, create_p2sh)
         0xa9, 0x56, 0xc2, 0xfe, 0x6a, 0x9e, 0xff, 0x88,
         0xac, 0x00, 0x00, 0x00, 0x00,
     };
-    ucoin_buf_t txbuf;
-    ucoin_buf_init(&txbuf);
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
     ret = ucoin_tx_create(&txbuf, &tx);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));

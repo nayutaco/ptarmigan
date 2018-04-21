@@ -4228,6 +4228,8 @@ static bool check_create_add_htlc(
                 uint32_t cltv_value)
 {
     bool ret = false;
+    uint64_t max_htlc_value_in_flight_msat = 0;
+    uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_calc_max_closing_fee(self));
 
     //cltv_expiryは、500000000未満にしなくてはならない
     if (cltv_value >= 500000000) {
@@ -4242,7 +4244,6 @@ static bool check_create_add_htlc(
     }
 
     //現在のfeerate_per_kwで支払えないようなamount_msatを指定してはいけない
-    uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_calc_max_closing_fee(self));
     if (self->our_msat < amount_msat + close_fee_msat) {
         M_SET_ERR(self, LNERR_INV_VALUE, "our_msat - amount_msat < closing_fee_msat(%" PRIu64 ")", close_fee_msat);
         goto LABEL_EXIT;
@@ -4262,7 +4263,6 @@ static bool check_create_add_htlc(
     }
 
     //加算した結果が相手のmax_htlc_value_in_flight_msatを超えるなら、追加してはならない。
-    uint64_t max_htlc_value_in_flight_msat = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) {
             max_htlc_value_in_flight_msat += self->cnl_add_htlc[idx].amount_msat;

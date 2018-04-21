@@ -199,8 +199,7 @@ TEST_F(sw, read_tx_p2wpkh)
     ASSERT_EQ(0, memcmp(SCRIPTPK, vout->script.buf, sizeof(SCRIPTPK)));
     ASSERT_EQ(sizeof(SCRIPTPK), vout->script.len);
 
-    ucoin_buf_t txbuf;
-    ucoin_buf_init(&txbuf);
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
     ucoin_tx_create(&txbuf, &tx);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
@@ -352,8 +351,7 @@ TEST_F(sw, read_tx_p2wsh)
     ASSERT_EQ(0, memcmp(SCRIPTPK, vout->script.buf, sizeof(SCRIPTPK)));
     ASSERT_EQ(sizeof(SCRIPTPK), vout->script.len);
 
-    ucoin_buf_t txbuf;
-    ucoin_buf_init(&txbuf);
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
     ucoin_tx_create(&txbuf, &tx);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
@@ -400,8 +398,7 @@ TEST_F(sw, sighash_p2wpkh)
     ucoin_tx_init(&tx);
     ucoin_tx_read(&tx, TX, sizeof(TX));
 
-    ucoin_buf_t script_code;
-    ucoin_buf_init(&script_code);
+    ucoin_buf_t script_code = UCOIN_BUF_INIT;
     bool ret = ucoin_sw_scriptcode_p2wpkh_vin(&script_code, &tx.vin[0]);
     ASSERT_TRUE(ret);
     ucoin_sw_sighash(txhash, &tx, 0, UCOIN_BTC2SATOSHI(0.007), &script_code);
@@ -479,8 +476,7 @@ TEST_F(sw, sighash_p2wsh)
     ucoin_tx_init(&tx);
     ucoin_tx_read(&tx, TX, sizeof(TX));
 
-    ucoin_buf_t script_code;
-    ucoin_buf_init(&script_code);
+    ucoin_buf_t script_code = UCOIN_BUF_INIT;
     bool ret = ucoin_sw_scriptcode_p2wsh_vin(&script_code, &tx.vin[0]);
     ASSERT_TRUE(ret);
     //printf("script_code=\n");
@@ -728,8 +724,7 @@ TEST_F(sw, sign_p2wpkh)
     sw::DumpBin(PUB, sizeof(PUB));
     printf("txhash= ");
     uint8_t txhash[UCOIN_SZ_SIGHASH];
-    ucoin_buf_t script_code;
-    ucoin_buf_init(&script_code);
+    ucoin_buf_t script_code = UCOIN_BUF_INIT;
     ret = ucoin_sw_scriptcode_p2wpkh_vin(&script_code, &tx.vin[0]);
     ASSERT_TRUE(ret);
     ucoin_sw_sighash(txhash, &tx, 0, UCOIN_BTC2SATOSHI(0.007), &script_code);

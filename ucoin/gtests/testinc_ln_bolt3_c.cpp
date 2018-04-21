@@ -1187,8 +1187,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { 0,        2,          1,          3,          4 };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
@@ -1903,8 +1902,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
     //どのVOUTがどのHTLCなのかは、どうやって見つけるべきなのだろう？
     const int VOUTS[] = { 0, 2, 1, 3, 4 };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
@@ -2558,8 +2556,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { -1,       1,          0,          2,          3     };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
@@ -3213,8 +3210,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { -1,       1,          0,          2,          3     };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
@@ -3804,8 +3800,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { -1,       -1,         0,          1,          2     };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
@@ -4395,8 +4390,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { -1,       -1,         0,          1,          2     };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
@@ -4925,8 +4919,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { -1,       -1,         -1,         0,          1     };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
@@ -5455,8 +5448,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { -1,       -1,         -1,         0,          1     };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
@@ -5925,8 +5917,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { -1,       -1,         -1,         -1,         0     };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
@@ -6394,8 +6385,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
     //                    HTLC0     HTLC1       HTLC2       HTLC3       HTLC4
     const int VOUTS[] = { -1,       -1,         -1,         -1,         0     };
 
-    ucoin_buf_t local_sig;
-    ucoin_buf_init(&local_sig);
+    ucoin_buf_t local_sig = UCOIN_BUF_INIT;
     for (int lp = 0; lp < 5; lp++) {
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];

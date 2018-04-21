@@ -136,10 +136,9 @@ TEST_F(ln_bolt3_b, fuding3)
 
     bool ret;
     ucoin_tx_t tx;
-    ucoin_buf_t txbuf;
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
 
     ucoin_tx_init(&tx);
-    ucoin_buf_init(&txbuf);
 
     //output
     //vout#0
