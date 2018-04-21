@@ -1553,8 +1553,8 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
 
                 bwd_fail.id = p_fwd_add->prev_id;
                 bwd_fail.prev_short_channel_id = p_fwd_add->prev_short_channel_id;
-                bwd_fail.reason = p_fwd_add->reason;                //shallow copy
-                bwd_fail.shared_secret = p_fwd_add->shared_secret;  //shallow copy
+                memcpy(&bwd_fail.reason, &p_fwd_add->reason, sizeof(ucoin_buf_t));                //shallow copy
+                memcpy(&bwd_fail.shared_secret, &p_fwd_add->shared_secret, sizeof(ucoin_buf_t));  //shallow copy
                 bwd_fail.b_first = true;
                 ret = ucoind_backwind_fail(&bwd_fail);
             }
@@ -1932,8 +1932,8 @@ static void revackq_pop_and_exec(lnapp_conf_t *p_conf)
         if (p_fail_ss != NULL) {
             bwd_proc_fail_t bwd_fail;
             bwd_fail.id = fail_id;
-            bwd_fail.reason = fail_reason;              //shallow copy
-            bwd_fail.shared_secret = *p_fail_ss;        //shallow copy
+            memcpy(&bwd_fail.reason, &fail_reason, sizeof(ucoin_buf_t));        //shallow copy
+            memcpy(&bwd_fail.shared_secret, p_fail_ss, sizeof(ucoin_buf_t));    //shallow copy
             bwd_fail.prev_short_channel_id = 0;
             bwd_fail.b_first = true;
             DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", bwd_fail.id);
@@ -3386,7 +3386,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
  * リストにしたのは、複数の送金が行われることを考慮したため。
  *
  * @param[in,out]       p_conf
- * @param[in]           pPayConf        送金情報
+ * @param[in]           pPayConf        送金情報(内部でコピー)
  * @param[in]           HtlcId          HTLC id
  */
 static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId)
@@ -3394,7 +3394,7 @@ static void add_routelist(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, 
 #ifdef USE_LINUX_LIST
     routelist_t *rt = (routelist_t *)APP_MALLOC(sizeof(routelist_t));       //APP_FREE: del_routelist()
 
-    rt->route = *pPayConf;
+    memcpy(&rt->route, pPayConf, sizeof(payment_conf_t));
     rt->htlc_id = HtlcId;
     LIST_INSERT_HEAD(&p_conf->routing_head, rt, list);
     DBG_PRINTF("htlc_id: %" PRIu64 "\n", HtlcId);
