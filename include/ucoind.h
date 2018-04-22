@@ -169,6 +169,23 @@ typedef enum {
 } daemoncmd_t;
 
 
+/** @enum   recv_proc_t
+ *  @brief  処理要求
+ */
+typedef enum {
+    //外部用
+    FWD_PROC_NONE,                  ///< 要求無し
+
+    FWD_PROC_ADD,                   ///< update_add_htlc転送
+    FWD_PROC_FULFILL,               ///< update_fulfill_htlc転送
+    FWD_PROC_FAIL,                  ///< update_fail_htlc転送
+    PROC_PAY_RETRY,                 ///< 支払いのリトライ
+
+    //内部用
+    INNER_SEND_ANNO_SIGNS,          ///< announcement_signatures送信要求
+} recv_proc_t;
+
+
 typedef struct {
     //peer
     char        ipaddr[16];
@@ -277,9 +294,7 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  * prototypes
  ********************************************************************/
 
-bool ucoind_forward_payment(fwd_proc_add_t *pFwdAdd);
-bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *pBwdFulfill);
-bool ucoind_backwind_fail(bwd_proc_fail_t *pBwdFail);
+bool ucoind_transfer_channel(uint64_t ShortChannelId, recv_proc_t Cmd, ucoin_buf_t *pBuf);
 
 void ucoind_preimage_lock(void);
 void ucoind_preimage_unlock(void);

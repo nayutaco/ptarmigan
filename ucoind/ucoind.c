@@ -268,63 +268,22 @@ LABEL_EXIT:
  * public functions
  ********************************************************************/
 
-bool ucoind_forward_payment(fwd_proc_add_t *pFwdAdd)
+bool ucoind_transfer_channel(uint64_t ShortChannelId, recv_proc_t Cmd, ucoin_buf_t *pBuf)
 {
-    bool ret = false;
-    lnapp_conf_t *p_appconf;
+    lnapp_conf_t *p_appconf = NULL;
 
-    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pFwdAdd->next_short_channel_id);
+    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", ShortChannelId);
 
     //socketが開いているか検索
-    p_appconf = ucoind_search_connected_cnl(pFwdAdd->next_short_channel_id);
+    p_appconf = ucoind_search_connected_cnl(ShortChannelId);
     if (p_appconf != NULL) {
         DBG_PRINTF("AppConf found\n");
-        ret = lnapp_forward_payment(p_appconf, pFwdAdd);
+        lnapp_transfer_channel(p_appconf, Cmd, pBuf);
     } else {
         DBG_PRINTF("AppConf not found...\n");
     }
 
-    return ret;
-}
-
-
-bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *pBwdFulfill)
-{
-    bool ret = false;
-    lnapp_conf_t *p_appconf;
-
-    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pBwdFulfill->prev_short_channel_id);
-
-    //socketが開いているか検索
-    p_appconf = ucoind_search_connected_cnl(pBwdFulfill->prev_short_channel_id);
-    if (p_appconf != NULL) {
-        DBG_PRINTF("AppConf found\n");
-        ret = lnapp_backwind_fulfill(p_appconf, pBwdFulfill);
-    } else {
-        DBG_PRINTF("AppConf not found...\n");
-    }
-
-    return ret;
-}
-
-
-bool ucoind_backwind_fail(bwd_proc_fail_t *pBwdFail)
-{
-    bool ret = false;
-    lnapp_conf_t *p_appconf;
-
-    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", pBwdFail->prev_short_channel_id);
-
-    //socketが開いているか検索
-    p_appconf = ucoind_search_connected_cnl(pBwdFail->prev_short_channel_id);
-    if (p_appconf != NULL) {
-        DBG_PRINTF("AppConf found\n");
-        ret = lnapp_backwind_fail(p_appconf, pBwdFail);
-    } else {
-        DBG_PRINTF("AppConf not found...\n");
-    }
-
-    return ret;
+    return p_appconf != NULL;
 }
 
 

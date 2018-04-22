@@ -26,22 +26,10 @@
 #define LNAPP_H__
 
 #include <pthread.h>
-
-#define USE_LINUX_LIST
-#ifdef USE_LINUX_LIST
 #include <sys/queue.h>
-#endif  //USE_LINUX_LIST
 
 #include "ucoind.h"
 #include "conf.h"
-
-
-/**************************************************************************
- * macros
- **************************************************************************/
-
-#define APP_FWD_PROC_MAX        (5)         ///< 他スレッドからの処理要求キュー数
-                                            ///< TODO: オーバーフローチェックはしていない
 
 
 /********************************************************************
@@ -49,40 +37,37 @@
  ********************************************************************/
 
 typedef struct cJSON cJSON;
-typedef struct queue_revack_t queue_revack_t;
 
-
-/** @enum   recv_proc_t
- *  @brief  処理要求
+/** @struct     revacklist_t
+ *  @brief      update_add_htlc, update_fulfill_htlc, update_fail_htlcの転送リスト
  */
-typedef enum {
-    //外部用
-    FWD_PROC_NONE,                  ///< 要求無し
+typedef struct revacklist_t {
+    LIST_ENTRY(revacklist_t) list;
+    recv_proc_t     cmd;            ///< 要求
+    ucoin_buf_t     buf;            ///< 転送先で送信するパケット用パラメータ
+} revacklist_t;
 
-    FWD_PROC_ADD,                   ///< update_add_htlc転送
-    FWD_PROC_FULFILL,               ///< update_fulfill_htlc転送
-    FWD_PROC_FAIL,                  ///< update_fail_htlc転送
 
-    //内部用
-    INNER_SEND_ANNO_SIGNS,          ///< announcement_signatures送信要求
-} recv_proc_t;
+/** @struct     rcvidlelist_t
+ *  @brief      update_add_htlc, update_fulfill_htlc, update_fail_htlcの転送リスト
+ */
+typedef struct rcvidlelist_t {
+    LIST_ENTRY(rcvidlelist_t) list;
+    recv_proc_t     cmd;            ///< 要求
+    ucoin_buf_t     buf;            ///< 転送先で送信するパケット用パラメータ
+} rcvidlelist_t;
 
 
 typedef struct routelist_t {
-#ifdef USE_LINUX_LIST
     LIST_ENTRY(routelist_t) list;
     payment_conf_t          route;
-#else   //USE_LINUX_LIST
-    struct routelist_t      *p_next;    ///< list構造
-    payment_conf_t          *p_route;   ///< APP_MALLOC()にて確保
-#endif  //USE_LINUX_LIST
     uint64_t                htlc_id;    ///< 該当するhtlc id
 } routelist_t;
 
 
-#ifdef USE_LINUX_LIST
+LIST_HEAD(revacklisthead_t, revacklist_t);
+LIST_HEAD(rcvidlelisthead_t, rcvidlelist_t);
 LIST_HEAD(routelisthead_t, routelist_t);
-#endif
 
 
 /** @struct lnapp_conf_t
@@ -116,27 +101,9 @@ typedef struct lnapp_conf_t {
     pthread_mutex_t mux_send;       ///< socket送信中のmutex
     pthread_mutex_t mux_fulque;     ///< update_fulfill_htlcキュー用mutex
 
-    //他スレッドからの転送処理要求
-    struct {
-        uint8_t         rpnt;           ///< fwd_procの読込み位置
-        uint8_t         wpnt;           ///< fwd_procの書込み位置
-        struct {
-            recv_proc_t cmd;            ///< 要求
-            uint16_t    len;            ///< p_data長
-            void        *p_data;        ///< mallocで確保
-        } proc[APP_FWD_PROC_MAX];
-        int             retry;          ///< リトライ数
-    } rcvidle;
-
-    //revoke_and_ack後キュー
-    queue_revack_t  *p_revackq;
-
-    //payment
-#ifdef USE_LINUX_LIST
-    struct routelisthead_t routing_head;
-#else   //USE_LINUX_LIST
-    routelist_t     *p_routing;
-#endif  //USE_LINUX_LIST
+    struct revacklisthead_t revack_head;    //revoke_and_ack後キュー
+    struct rcvidlelisthead_t rcvidle_head;  //受信アイドル時キュー
+    struct routelisthead_t payroute_head;   //payment
 
     //last send announcement
     uint64_t        last_anno_cnl;                      ///< 最後にannouncementしたchannel
@@ -181,23 +148,10 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding);
  */
 bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 
-
-/** [lnapp]送金転送
+/** [lnapp]channel間処理転送
  *
  */
-bool lnapp_forward_payment(lnapp_conf_t *pAppConf, const fwd_proc_add_t *pAdd);
-
-
-/** [lnapp]送金反映
- *
- */
-bool lnapp_backwind_fulfill(lnapp_conf_t *pAppConf, const bwd_proc_fulfill_t *pFulFill);
-
-
-/** [lnapp]送金エラー
- *
- */
-bool lnapp_backwind_fail(lnapp_conf_t *pAppConf, const bwd_proc_fail_t *pFail);
+void lnapp_transfer_channel(lnapp_conf_t *pAppConf, recv_proc_t Cmd, ucoin_buf_t *pBuf);
 
 
 /** [lnapp]チャネル閉鎖
