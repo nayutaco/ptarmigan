@@ -209,6 +209,7 @@ static void *thread_anno_start(void *pArg);
 static void revack_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf);
 static void revack_pop_and_exec(lnapp_conf_t *p_conf);
 static void revack_clear(lnapp_conf_t *p_conf);
+
 static void rcvidle_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf);
 static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf);
 static void rcvidle_clear(lnapp_conf_t *p_conf);
@@ -808,7 +809,8 @@ static void *thread_main_start(void *pArg)
     pthread_mutex_init(&p_conf->mux, NULL);
     pthread_mutex_init(&p_conf->mux_proc, NULL);
     pthread_mutex_init(&p_conf->mux_send, NULL);
-    pthread_mutex_init(&p_conf->mux_fulque, NULL);
+    pthread_mutex_init(&p_conf->mux_revack, NULL);
+    pthread_mutex_init(&p_conf->mux_rcvidle, NULL);
 
     p_conf->loop = true;
 
@@ -1667,7 +1669,7 @@ static void *thread_anno_start(void *pArg)
  */
 static void revack_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf)
 {
-    pthread_mutex_lock(&p_conf->mux_fulque);
+    pthread_mutex_lock(&p_conf->mux_revack);
 
     revacklist_t *p_revack = (revacklist_t *)APP_MALLOC(sizeof(revacklist_t));       //APP_FREE: revack_pop_and_exec()
 
@@ -1675,7 +1677,7 @@ static void revack_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf
     memcpy(&p_revack->buf, pBuf, sizeof(ucoin_buf_t));
     LIST_INSERT_HEAD(&p_conf->revack_head, p_revack, list);
 
-    pthread_mutex_unlock(&p_conf->mux_fulque);
+    pthread_mutex_unlock(&p_conf->mux_revack);
 }
 
 
@@ -1684,10 +1686,13 @@ static void revack_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf
  */
 static void revack_pop_and_exec(lnapp_conf_t *p_conf)
 {
+    pthread_mutex_lock(&p_conf->mux_revack);
+
     struct revacklist_t *p_revack = LIST_FIRST(&p_conf->revack_head);
 
     if (p_revack == NULL) {
         //empty
+        pthread_mutex_unlock(&p_conf->mux_revack);
         return;
     }
 
@@ -1764,6 +1769,8 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
     LIST_REMOVE(p_revack, list);
     //ucoin_buf_free(&p_revack->buf);   //rcvidleに引き渡されたので解放しない
     APP_FREE(p_revack);
+
+    pthread_mutex_unlock(&p_conf->mux_revack);
 }
 
 
@@ -1783,6 +1790,15 @@ static void revack_clear(lnapp_conf_t *p_conf)
 }
 
 
+/**************************************************************************
+ * 受信アイドル時処理
+ *
+ *      - update_add_htlc受信によるupdate_add_htlcの転送(中継node)
+ *      - update_add_htlc受信によるupdate_fulfill_htlcの巻き戻し(last node)
+ *      - update_add_htlc受信によるupdate_fail_htlcの巻き戻し(last node)
+ *      - announcement_signatures
+ **************************************************************************/
+
 /** [受信アイドル]push
  *
  * 受信アイドル時に行いたい処理をリングバッファにためる。
@@ -1790,7 +1806,7 @@ static void revack_clear(lnapp_conf_t *p_conf)
  */
 static void rcvidle_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf)
 {
-    pthread_mutex_lock(&p_conf->mux_fulque);
+    pthread_mutex_lock(&p_conf->mux_rcvidle);
 
     rcvidlelist_t *p_rcvidle = (rcvidlelist_t *)APP_MALLOC(sizeof(rcvidlelist_t));       //APP_FREE: revack_pop_and_exec()
 
@@ -1798,7 +1814,7 @@ static void rcvidle_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBu
     memcpy(&p_rcvidle->buf, pBuf, sizeof(ucoin_buf_t));
     LIST_INSERT_HEAD(&p_conf->rcvidle_head, p_rcvidle, list);
 
-    pthread_mutex_unlock(&p_conf->mux_fulque);
+    pthread_mutex_unlock(&p_conf->mux_rcvidle);
 }
 
 
@@ -1808,9 +1824,12 @@ static void rcvidle_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBu
  */
 static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
 {
+    pthread_mutex_lock(&p_conf->mux_rcvidle);
+
     struct rcvidlelist_t *p_rcvidle = LIST_FIRST(&p_conf->rcvidle_head);
     if (p_rcvidle == NULL) {
         //empty
+        pthread_mutex_unlock(&p_conf->mux_rcvidle);
         return;
     }
 
@@ -1887,6 +1906,8 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
     } else {
         DBG_PRINTF("retry\n");
     }
+
+    pthread_mutex_unlock(&p_conf->mux_rcvidle);
 }
 
 
