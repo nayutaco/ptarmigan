@@ -2468,7 +2468,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             //forward add_htlc情報
             ucoin_buf_t buf;
             ucoin_buf_alloc(&buf, sizeof(fwd_proc_add_t));
-            fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)&buf.buf;
+            fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)buf.buf;
 
             memcpy(p_fwd_add->onion_route, p_addhtlc->p_onion_route, LN_SZ_ONION_ROUTE);
             p_fwd_add->amt_to_forward = p_addhtlc->p_hop->amt_to_forward;
@@ -2488,7 +2488,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //backwind fail情報
         ucoin_buf_t buf;
         ucoin_buf_alloc(&buf, sizeof(bwd_proc_fail_t));
-        bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)&buf.buf;
+        bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)buf.buf;
 
         p_bwd_fail->id = p_addhtlc->id;
         p_bwd_fail->prev_short_channel_id = 0;
