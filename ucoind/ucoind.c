@@ -268,7 +268,7 @@ LABEL_EXIT:
  * public functions
  ********************************************************************/
 
-bool ucoind_transfer_channel(uint64_t ShortChannelId, recv_proc_t Cmd, ucoin_buf_t *pBuf)
+bool ucoind_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, ucoin_buf_t *pBuf)
 {
     lnapp_conf_t *p_appconf = NULL;
 

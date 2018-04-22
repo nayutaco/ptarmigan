@@ -248,11 +248,11 @@ static void set_onionerr_str(char *pStr, const ln_onion_err_t *pOnionErr);
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
-static void revack_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf);
+static void revack_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, ucoin_buf_t *pBuf);
 static void revack_pop_and_exec(lnapp_conf_t *p_conf);
 static void revack_clear(lnapp_conf_t *p_conf);
 
-static void rcvidle_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf);
+static void rcvidle_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, ucoin_buf_t *pBuf);
 static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf);
 static void rcvidle_clear(lnapp_conf_t *p_conf);
 
@@ -474,7 +474,7 @@ LABEL_EXIT:
  *  - update_fail_htlc受信は、update_fail_htlc巻き戻し以外になることはあり得るか？
  *******************************************/
 
-void lnapp_transfer_channel(lnapp_conf_t *pAppConf, recv_proc_t Cmd, ucoin_buf_t *pBuf)
+void lnapp_transfer_channel(lnapp_conf_t *pAppConf, trans_cmd_t Cmd, ucoin_buf_t *pBuf)
 {
     DBGTRACE_BEGIN
 
@@ -1518,7 +1518,7 @@ static void *thread_poll_start(void *pArg)
             // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
             //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
             ucoin_buf_t buf = UCOIN_BUF_INIT;
-            rcvidle_push(p_conf, INNER_SEND_ANNO_SIGNS, &buf);
+            rcvidle_push(p_conf, TRANSCMD_ANNOSIGNS, &buf);
             ln_open_announce_channel_clr(p_conf->p_self);
         }
     }
@@ -2200,7 +2200,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 p_bwd_fulfill->id = p_addhtlc->id;
                 p_bwd_fulfill->prev_short_channel_id = 0;   //同一channelへの送信になるため、検索不要
                 memcpy(p_bwd_fulfill->preimage, p_addhtlc->p_payment, LN_SZ_PREIMAGE);
-                revack_push(p_conf, FWD_PROC_FULFILL, &buf);
+                revack_push(p_conf, TRANSCMD_FULFILL, &buf);
 
                 //preimageを使い終わったら消す
                 ln_db_preimg_del(p_addhtlc->p_payment);
@@ -2214,7 +2214,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             //forward add_htlc情報
             ucoin_buf_t buf;
             ucoin_buf_alloc(&buf, sizeof(fwd_proc_add_t));
-            fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)buf.buf;
+            fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)buf.buf;  //キュー処理後に解放
 
             memcpy(p_fwd_add->onion_route, p_addhtlc->p_onion_route, LN_SZ_ONION_ROUTE);
             p_fwd_add->amt_to_forward = p_addhtlc->p_hop->amt_to_forward;
@@ -2225,7 +2225,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             p_fwd_add->prev_short_channel_id = ln_short_channel_id(p_conf->p_self);
             p_fwd_add->prev_id = p_addhtlc->id;
             ucoin_buf_init(&p_fwd_add->reason);
-            revack_push(p_conf, FWD_PROC_ADD, &buf);
+            revack_push(p_conf, TRANSCMD_ADDHTLC, &buf);
         }
     } else {
         //同一channelにupdate_fail_htlcを折り返す
@@ -2234,14 +2234,14 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //backwind fail情報
         ucoin_buf_t buf;
         ucoin_buf_alloc(&buf, sizeof(bwd_proc_fail_t));
-        bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)buf.buf;
+        bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)buf.buf;  //キュー処理後に解放
 
         p_bwd_fail->id = p_addhtlc->id;
         p_bwd_fail->prev_short_channel_id = 0;
         ucoin_buf_alloccopy(&p_bwd_fail->shared_secret, p_addhtlc->p_shared_secret->buf, p_addhtlc->p_shared_secret->len);
         ucoin_buf_alloccopy(&p_bwd_fail->reason, p_addhtlc->reason.buf, p_addhtlc->reason.len);
         p_bwd_fail->b_first = true;
-        revack_push(p_conf, FWD_PROC_FAIL, &buf);
+        revack_push(p_conf, TRANSCMD_FAIL, &buf);
     }
     ucoind_preimage_unlock();
 
@@ -2282,7 +2282,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         p_bwd_fulfill->id = p_fulfill->id;
         p_bwd_fulfill->prev_short_channel_id = p_fulfill->prev_short_channel_id;
         memcpy(p_bwd_fulfill->preimage, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
-        bool ret = ucoind_transfer_channel(p_fulfill->prev_short_channel_id, FWD_PROC_FULFILL, &buf);
+        bool ret = ucoind_transfer_channel(p_fulfill->prev_short_channel_id, TRANSCMD_FULFILL, &buf);
         if (!ret) {
             //TODO:戻す先がない場合の処理(#366)
             DBG_PRINTF("fail: cannot backwind\n");
@@ -2336,7 +2336,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         ucoin_buf_alloccopy(&p_bwd_fail->reason, p_fail->p_reason->buf, p_fail->p_reason->len);
         ucoin_buf_alloccopy(&p_bwd_fail->shared_secret, p_fail->p_shared_secret->buf, p_fail->p_shared_secret->len);
         p_bwd_fail->b_first = false;
-        bool ret = ucoind_transfer_channel(p_fail->prev_short_channel_id, FWD_PROC_FAIL, &buf);
+        bool ret = ucoind_transfer_channel(p_fail->prev_short_channel_id, TRANSCMD_FAIL, &buf);
         if (!ret) {
             //TODO:戻す先がない場合の処理(#366)
             DBG_PRINTF("戻せない\n");
@@ -2415,8 +2415,8 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             DUMPBIN(p_fail->p_payment_hash, LN_SZ_HASH);
 
             ucoin_buf_t buf;
-            ucoin_buf_alloccopy(&buf, p_fail->p_payment_hash, LN_SZ_HASH);
-            revack_push(p_conf, PROC_PAY_RETRY, &buf);
+            ucoin_buf_alloccopy(&buf, p_fail->p_payment_hash, LN_SZ_HASH);  //キュー処理後に解放
+            revack_push(p_conf, TRANSCMD_PAYRETRY, &buf);
         } else {
             ln_db_annoskip_invoice_del(p_fail->p_payment_hash);
         }
@@ -3064,12 +3064,14 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
 
 /** [revoke_and_ack受信後]キューpush
  *
+ * @note
+ *      - pBufは処理後に解放するため、呼び元では解放しないこと
  */
-static void revack_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf)
+static void revack_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, ucoin_buf_t *pBuf)
 {
     pthread_mutex_lock(&p_conf->mux_revack);
 
-    revacklist_t *p_revack = (revacklist_t *)APP_MALLOC(sizeof(revacklist_t));       //APP_FREE: revack_pop_and_exec()
+    transferlist_t *p_revack = (transferlist_t *)APP_MALLOC(sizeof(transferlist_t));       //APP_FREE: revack_pop_and_exec()
 
     p_revack->cmd = Cmd;
     memcpy(&p_revack->buf, pBuf, sizeof(ucoin_buf_t));
@@ -3086,7 +3088,7 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
 {
     pthread_mutex_lock(&p_conf->mux_revack);
 
-    struct revacklist_t *p_revack = LIST_FIRST(&p_conf->revack_head);
+    struct transferlist_t *p_revack = LIST_FIRST(&p_conf->revack_head);
 
     if (p_revack == NULL) {
         //empty
@@ -3099,8 +3101,9 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
     ucoin_buf_t fail_reason = UCOIN_BUF_INIT;
 
     switch (p_revack->cmd) {
-    case FWD_PROC_ADD:
+    case TRANSCMD_ADDHTLC:
         {
+            //別チャネルの受信アイドル時キューにupdate_add_htlc要求する
             fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p_revack->buf.buf;
 
             bool ret = ucoind_transfer_channel(p_fwd_add->next_short_channel_id, p_revack->cmd, &p_revack->buf);
@@ -3116,10 +3119,16 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
             }
         }
         break;
-    case FWD_PROC_FULFILL:
-        lnapp_transfer_channel(p_conf, FWD_PROC_FULFILL, &p_revack->buf);
+    case TRANSCMD_FULFILL:
+        //自チャネルの受信アイドル時キューにupdate_fulfill_htlc要求する。
+        //revoke_and_ack後キューにupdate_fulfill_htlc要求が入るのは、last nodeの場合のみ。
+        //update_fulfill_htlcの巻き戻しは受信アイドル時キューに要求するため、ここは通らない。
+        lnapp_transfer_channel(p_conf, TRANSCMD_FULFILL, &p_revack->buf);
         break;
-    case FWD_PROC_FAIL:
+    case TRANSCMD_FAIL:
+        //自チャネルの受信アイドル時キューにupdate_fail_htlc要求する。
+        //このルートは、update_add_htlc受信をln.cがNG判定した場合となる。
+        //update_fail_htlcの巻き戻しは受信アイドル時キューに要求するため、ここは通らない。
         {
             bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)p_revack->buf.buf;
 
@@ -3129,9 +3138,9 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
             ucoin_buf_init(&p_bwd_fail->reason);
         }
         break;
-    case PROC_PAY_RETRY:
+    case TRANSCMD_PAYRETRY:
         {
-            //リトライ
+            //送金リトライ
             char *p_invoice;
             bool ret = ln_db_annoskip_invoice_load(&p_invoice, p_revack->buf.buf);     //p_invoiceはmalloc()
             if (ret) {
@@ -3151,6 +3160,7 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
         break;
     }
     if (p_fail_ss != NULL) {
+        //自チャネルの受信アイドル時キューにupdate_fail_htlc要求する
         ucoin_buf_t buf;
         ucoin_buf_alloc(&buf, sizeof(bwd_proc_fail_t));
         bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)buf.buf;
@@ -3161,7 +3171,8 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
         p_bwd_fail->prev_short_channel_id = 0;
         p_bwd_fail->b_first = true;
         DBG_PRINTF("  --> fail_htlc(id=%" PRIu64 ")\n", p_bwd_fail->id);
-        lnapp_transfer_channel(p_conf, FWD_PROC_FAIL, &buf);
+        lnapp_transfer_channel(p_conf, TRANSCMD_FAIL, &buf);
+        ucoin_buf_free(&p_revack->buf);     //もう使用しないため解放
     }
 
     LIST_REMOVE(p_revack, list);
@@ -3177,9 +3188,9 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
  */
 static void revack_clear(lnapp_conf_t *p_conf)
 {
-    revacklist_t *p = LIST_FIRST(&p_conf->revack_head);
+    transferlist_t *p = LIST_FIRST(&p_conf->revack_head);
     while (p != NULL) {
-        revacklist_t *tmp = LIST_NEXT(p, list);
+        transferlist_t *tmp = LIST_NEXT(p, list);
         LIST_REMOVE(p, list);
         ucoin_buf_free(&p->buf);
         APP_FREE(p);
@@ -3202,11 +3213,11 @@ static void revack_clear(lnapp_conf_t *p_conf)
  * 受信アイドル時に行いたい処理をリングバッファにためる。
  * 主に、update_add/fulfill/fail_htlcの転送・巻き戻し処理に使われる。
  */
-static void rcvidle_push(lnapp_conf_t *p_conf, recv_proc_t Cmd, ucoin_buf_t *pBuf)
+static void rcvidle_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, ucoin_buf_t *pBuf)
 {
     pthread_mutex_lock(&p_conf->mux_rcvidle);
 
-    rcvidlelist_t *p_rcvidle = (rcvidlelist_t *)APP_MALLOC(sizeof(rcvidlelist_t));       //APP_FREE: revack_pop_and_exec()
+    transferlist_t *p_rcvidle = (transferlist_t *)APP_MALLOC(sizeof(transferlist_t));       //APP_FREE: revack_pop_and_exec()
 
     p_rcvidle->cmd = Cmd;
     memcpy(&p_rcvidle->buf, pBuf, sizeof(ucoin_buf_t));
@@ -3224,7 +3235,7 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
 {
     pthread_mutex_lock(&p_conf->mux_rcvidle);
 
-    struct rcvidlelist_t *p_rcvidle = LIST_FIRST(&p_conf->rcvidle_head);
+    struct transferlist_t *p_rcvidle = LIST_FIRST(&p_conf->rcvidle_head);
     if (p_rcvidle == NULL) {
         //empty
         pthread_mutex_unlock(&p_conf->mux_rcvidle);
@@ -3234,9 +3245,9 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
     bool ret = false;
 
     switch (p_rcvidle->cmd) {
-    case FWD_PROC_ADD:
+    case TRANSCMD_ADDHTLC:
         //update_add_htlc送信
-        DBG_PRINTF("FWD_PROC_ADD\n");
+        DBG_PRINTF("TRANSCMD_ADDHTLC\n");
         {
             fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p_rcvidle->buf.buf;
             ret = fwd_payment_forward(p_conf, p_fwd_add);
@@ -3254,21 +3265,21 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
                 memcpy(&p_bwd_fail->reason, &p_fwd_add->reason, sizeof(ucoin_buf_t));                //shallow copy
                 memcpy(&p_bwd_fail->shared_secret, &p_fwd_add->shared_secret, sizeof(ucoin_buf_t));  //shallow copy
                 p_bwd_fail->b_first = true;
-                ret = ucoind_transfer_channel(p_fwd_add->prev_short_channel_id, FWD_PROC_FAIL, &buf);
+                ret = ucoind_transfer_channel(p_fwd_add->prev_short_channel_id, TRANSCMD_FAIL, &buf);
             }
         }
         break;
-    case FWD_PROC_FULFILL:
+    case TRANSCMD_FULFILL:
         //update_fulfill_htlc送信
-        DBG_PRINTF("FWD_PROC_FULFILL\n");
+        DBG_PRINTF("TRANSCMD_FULFILL\n");
         {
             bwd_proc_fulfill_t *p_bwd_fulfill = (bwd_proc_fulfill_t *)p_rcvidle->buf.buf;
             ret = fwd_fulfill_backwind(p_conf, p_bwd_fulfill);
         }
         break;
-    case FWD_PROC_FAIL:
+    case TRANSCMD_FAIL:
         //update_fail_htlc送信
-        DBG_PRINTF("FWD_PROC_FAIL\n");
+        DBG_PRINTF("TRANSCMD_FAIL\n");
         {
             bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)p_rcvidle->buf.buf;
             ret = fwd_fail_backwind(p_conf, p_bwd_fail);
@@ -3279,11 +3290,11 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
             }
         }
         break;
-    case INNER_SEND_ANNO_SIGNS:
+    case TRANSCMD_ANNOSIGNS:
         {
             ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-            DBG_PRINTF("INNER_SEND_ANNO_SIGNS\n");
+            DBG_PRINTF("TRANSCMD_ANNOSIGNS\n");
             ret = ln_create_announce_signs(p_conf->p_self, &buf_bolt);
             if (ret) {
                 send_peer_noise(p_conf, &buf_bolt);
@@ -3314,9 +3325,9 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
  */
 static void rcvidle_clear(lnapp_conf_t *p_conf)
 {
-    rcvidlelist_t *p = LIST_FIRST(&p_conf->rcvidle_head);
+    transferlist_t *p = LIST_FIRST(&p_conf->rcvidle_head);
     while (p != NULL) {
-        rcvidlelist_t *tmp = LIST_NEXT(p, list);
+        transferlist_t *tmp = LIST_NEXT(p, list);
         LIST_REMOVE(p, list);
         ucoin_buf_free(&p->buf);
         APP_FREE(p);

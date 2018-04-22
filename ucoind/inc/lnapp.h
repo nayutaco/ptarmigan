@@ -38,24 +38,14 @@
 
 typedef struct cJSON cJSON;
 
-/** @struct     revacklist_t
+/** @struct     transferlist_t
  *  @brief      update_add_htlc, update_fulfill_htlc, update_fail_htlcの転送リスト
  */
-typedef struct revacklist_t {
-    LIST_ENTRY(revacklist_t) list;
-    recv_proc_t     cmd;            ///< 要求
+typedef struct transferlist_t {
+    LIST_ENTRY(transferlist_t) list;
+    trans_cmd_t     cmd;            ///< 要求
     ucoin_buf_t     buf;            ///< 転送先で送信するパケット用パラメータ
-} revacklist_t;
-
-
-/** @struct     rcvidlelist_t
- *  @brief      update_add_htlc, update_fulfill_htlc, update_fail_htlcの転送リスト
- */
-typedef struct rcvidlelist_t {
-    LIST_ENTRY(rcvidlelist_t) list;
-    recv_proc_t     cmd;            ///< 要求
-    ucoin_buf_t     buf;            ///< 転送先で送信するパケット用パラメータ
-} rcvidlelist_t;
+} transferlist_t;
 
 
 typedef struct routelist_t {
@@ -65,8 +55,7 @@ typedef struct routelist_t {
 } routelist_t;
 
 
-LIST_HEAD(revacklisthead_t, revacklist_t);
-LIST_HEAD(rcvidlelisthead_t, rcvidlelist_t);
+LIST_HEAD(transferlisthead_t, transferlist_t);
 LIST_HEAD(routelisthead_t, routelist_t);
 
 
@@ -102,9 +91,9 @@ typedef struct lnapp_conf_t {
     pthread_mutex_t mux_revack;     ///< revoke_and_ack後キュー用mutex
     pthread_mutex_t mux_rcvidle;    ///< 受信アイドル時キュー用mutex
 
-    struct revacklisthead_t revack_head;    //revoke_and_ack後キュー
-    struct rcvidlelisthead_t rcvidle_head;  //受信アイドル時キュー
-    struct routelisthead_t payroute_head;   //payment
+    struct transferlisthead_t   revack_head;    //revoke_and_ack後キュー
+    struct transferlisthead_t   rcvidle_head;   //受信アイドル時キュー
+    struct routelisthead_t      payroute_head;  //payment
 
     //last send announcement
     uint64_t        last_anno_cnl;                      ///< 最後にannouncementしたchannel
@@ -152,7 +141,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 /** [lnapp]channel間処理転送
  *
  */
-void lnapp_transfer_channel(lnapp_conf_t *pAppConf, recv_proc_t Cmd, ucoin_buf_t *pBuf);
+void lnapp_transfer_channel(lnapp_conf_t *pAppConf, trans_cmd_t Cmd, ucoin_buf_t *pBuf);
 
 
 /** [lnapp]チャネル閉鎖
