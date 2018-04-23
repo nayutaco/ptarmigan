@@ -78,6 +78,7 @@
 #define M_WAIT_RECV_MSG_MSEC    (500)       //message受信監視周期[msec]
 #define M_WAIT_RECV_THREAD      (100)       //recv_thread開始待ち[msec]
 #define M_WAIT_RESPONSE_MSEC    (10000)     //受信待ち[msec]
+#define M_WAIT_CHANREEST_MSEC   (3600000)   //channel_reestablish受信待ち[msec]
 
 //デフォルト値
 //  announcement
@@ -1187,14 +1188,14 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
 
     //コールバックでのchannel_reestablish受信通知待ち
     DBG_PRINTF("wait: channel_reestablish\n");
-    uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
+    uint32_t count = M_WAIT_CHANREEST_MSEC / M_WAIT_RECV_MSG_MSEC;
     while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0)) {
         misc_msleep(M_WAIT_RECV_MSG_MSEC);
         count--;
     }
     ret = (count > 0);
     if (!ret) {
-        DBG_PRINTF("fail: channel_reestablish timeout\n");
+        DBG_PRINTF("fail: channel_reestablish timeout: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
     }
 
     return ret;
