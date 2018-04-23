@@ -2693,14 +2693,6 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 
     // add_htlc
     memcpy(pOutSelf->cnl_add_htlc,  pInSelf->cnl_add_htlc, M_SIZE(ln_self_t, cnl_add_htlc));
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        pOutSelf->cnl_add_htlc[idx].p_channel_id = NULL;
-        pOutSelf->cnl_add_htlc[idx].p_onion_route = NULL;
-
-        //shared_secret(shallow copy)
-        ucoin_buf_free(&pOutSelf->cnl_add_htlc[idx].shared_secret);
-        memcpy(&pOutSelf->cnl_add_htlc[idx].shared_secret, &pInSelf->cnl_add_htlc[idx].shared_secret, sizeof(ucoin_buf_t));
-    }
 
 
     //復元データ
@@ -2776,10 +2768,11 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb)
         key.mv_size = M_SZ_SHAREDSECRET;
         key.mv_data = M_KEY_SHAREDSECRET;
         retval = mdb_get(pDb->txn, dbi, &key, &data);
-        if (retval != 0) {
+        if (retval == 0) {
+            ucoin_buf_alloccopy(&self->cnl_add_htlc[lp].shared_secret, data.mv_data, data.mv_size);
+        } else {
             DBG_PRINTF("ERR: %s(shared_secret)\n", mdb_strerror(retval));
         }
-        ucoin_buf_alloccopy(&self->cnl_add_htlc[lp].shared_secret, data.mv_data, data.mv_size);
         mdb_dbi_close(mpDbSelf, dbi);
     }
 
