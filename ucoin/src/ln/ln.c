@@ -4493,6 +4493,8 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         //TODO: implement
         //
 
+        ret = false;
+
         //処理前呼び出し
         //  転送先取得(final nodeの場合はNULLが返る)
         ln_cb_add_htlc_recv_prev_t recv_prev;
@@ -4525,7 +4527,6 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         //      (report the amount of the incoming HTLC and the current channel setting for the outgoing channel.)
         if (pDataOut->amt_to_forward < recv_prev.p_next_self->commit_remote.htlc_minimum_msat) {
             M_SET_ERR(self, LNERR_INV_VALUE, "lower than htlc_minimum_msat : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, recv_prev.p_next_self->commit_remote.htlc_minimum_msat);
-            ret = false;
             ln_misc_push16be(&push_htlc, LNONION_AMT_BELOW_MIN);
             //[8:htlc_msat]
             //[2:len]
@@ -4539,7 +4540,6 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         uint64_t fwd_fee = ln_forward_fee(self, pDataOut->amt_to_forward);
         if (self->cnl_add_htlc[Index].amount_msat < pDataOut->amt_to_forward + fwd_fee) {
             M_SET_ERR(self, LNERR_INV_VALUE, "fee not enough : %" PRIu32 " < %" PRIu32, fwd_fee, self->cnl_add_htlc[Index].amount_msat - pDataOut->amt_to_forward);
-            ret = false;
             ln_misc_push16be(&push_htlc, LNONION_FEE_INSUFFICIENT);
             //[8:htlc_msat]
             //[2:len]
@@ -4553,7 +4553,6 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         if ( (self->cnl_add_htlc[Index].cltv_expiry <= pDataOut->outgoing_cltv_value) ||
              (self->cnl_add_htlc[Index].cltv_expiry + ln_cltv_expily_delta(recv_prev.p_next_self) < pDataOut->outgoing_cltv_value) ) {
             M_SET_ERR(self, LNERR_INV_VALUE, "cltv not enough : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
-            ret = false;
             ln_misc_push16be(&push_htlc, LNONION_INCORR_CLTV_EXPIRY);
             //[4:cltv_expiry]
             //[2:len]
@@ -4573,6 +4572,7 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
         //      (report the current channel setting for the outgoing channel.)
 
         *pp_payment = self->cnl_add_htlc[Index].payment_sha256;
+        ret = true;
     }
 
     //共通チェック
