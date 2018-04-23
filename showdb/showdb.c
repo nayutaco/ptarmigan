@@ -232,6 +232,9 @@ static void ln_print_self(const ln_self_t *self)
                 printf(M_QQ("payhash") ": \"");
                 ucoin_util_dumpbin(stdout, self->cnl_add_htlc[lp].payment_sha256, UCOIN_SZ_SHA256, false);
                 printf("\",\n");
+                printf(M_QQ("shared_secret") ": \"");
+                ucoin_util_dumpbin(stdout, self->cnl_add_htlc[lp].shared_secret.buf, self->cnl_add_htlc[lp].shared_secret.len, false);
+                printf("\",\n");
                 printf(M_QQ("index") ": %d\n", lp);
                 printf("}");
                 cnt++;

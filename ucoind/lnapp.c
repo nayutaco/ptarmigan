@@ -556,7 +556,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
         return false;
     }
 
-    SYSLOG_WARN("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
+    DBG_PRINTF("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
     misc_save_event(ln_channel_id(p_self), "close: bad way(local)");
     (void)monitor_close_unilateral_local(p_self, NULL);
     APP_FREE(p_self);
@@ -910,7 +910,7 @@ static void *thread_main_start(void *pArg)
     }
 
     if (!p_conf->loop) {
-        DBG_PRINTF("fail: loop ended\n");
+        DBG_PRINTF("fail: loop ended: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         goto LABEL_JOIN;
     }
 
@@ -978,7 +978,7 @@ LABEL_SHUTDOWN:
         SYSLOG_ERR("%s(): shutdown: %s", __func__, strerror(errno));
     }
 
-    SYSLOG_WARN("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(p_self));
+    DBG_PRINTF("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(p_self));
 
     //クリア
     APP_FREE(p_conf->p_errstr);
@@ -1316,7 +1316,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         ucoin_buf_free(&buf_bolt);
     } else {
-        SYSLOG_WARN("fail through: btcprc_getxout");
+        DBG_PRINTF("fail through: btcprc_getxout");
         DUMPTXID(pFunding->txid);
     }
 
@@ -1400,7 +1400,7 @@ static void *thread_recv_start(void *pArg)
         ucoin_buf_free(&buf_recv);
     }
 
-    SYSLOG_WARN("[exit]recv thread\n");
+    DBG_PRINTF("[exit]recv thread\n");
 
     return NULL;
 }
@@ -1444,7 +1444,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
             if (fds.revents & POLLIN) {
                 n = read(p_conf->sock, pBuf, Len);
                 if (n == 0) {
-                    SYSLOG_WARN("peer disconnected\n");
+                    DBG_PRINTF("peer disconnected: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
                     len = 0;
                     break;
                 }
@@ -1523,7 +1523,7 @@ static void *thread_poll_start(void *pArg)
         }
     }
 
-    SYSLOG_WARN("[exit]poll thread\n");
+    DBG_PRINTF("[exit]poll thread\n");
 
     return NULL;
 }
@@ -1608,7 +1608,7 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf)
     if (ret) {
         //DBG_PRINTF("bindex=%d, bheight=%d\n", bindex, bheight);
         ln_set_short_channel_id_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self));
-        DBG_PRINTF("short_channel_id = %016" PRIu64 "\n", ln_short_channel_id(p_conf->p_self));
+        DBG_PRINTF("short_channel_id = %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
     }
 
     return ret;
@@ -1646,7 +1646,7 @@ static void *thread_anno_start(void *pArg)
         send_node_anno(p_conf);
     }
 
-    SYSLOG_WARN("[exit]anno thread\n");
+    DBG_PRINTF("[exit]anno thread\n");
 
     return NULL;
 }
@@ -1851,8 +1851,6 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
 
     send_peer_noise(p_conf, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
-    ucoin_buf_free(&pBwdFail->reason);
-    ucoin_buf_free(&pBwdFail->shared_secret);
 
     //fail送信する場合はcommitment_signedも送信する
     ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
@@ -2617,7 +2615,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
         p_conf->loop = false;
         //mainloop待ち合わせ解除(*2)
         pthread_cond_signal(&p_conf->cond);
-        SYSLOG_WARN("close channel: %" PRIx64, ln_short_channel_id(p_conf->p_self));
+        DBG_PRINTF("disconnect channel: %" PRIx64, ln_short_channel_id(p_conf->p_self));
         DBG_PRINTF("===================================\n");
         DBG_PRINTF("=  CHANNEL THREAD END             =\n");
         DBG_PRINTF("===================================\n");

@@ -620,7 +620,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
             del = true;
         } else {
             //相手にrevoked transaction closeされた
-            SYSLOG_WARN("closed: ugly way\n");
+            DBG_PRINTF("closed: ugly way\n");
             ret = ln_close_ugly(self, &tx, pDbParam);
             if (ret) {
                 if (ln_revoked_cnt(self) > 0) {
