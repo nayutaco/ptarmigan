@@ -138,6 +138,33 @@ typedef enum {
 } event_t;
 
 
+/** @enum   node_flag_t
+ *  @brief  状態フラグ
+ *
+ * スレッド間で並列できない処理がある場合の排他用
+ * 現在、正しく動いていない(issue #373)。
+ *
+ * PAYMENT --> commitment_signed受信 : offered HTLC追加完了(payer)
+ * FORWRAD --> commitment_signed受信 : offered HTLC追加完了(転送)
+ * ADDHTLC_RECV --> COMSIG_RECV --> revoke_and_ack受信 : received HTLC追加完了
+ * FULFILL_SEND --> commitment_signed受信 : fulfill完了(received HTLC)
+ * FULFILL_RECV --> COMSIG_RECV --> revoke_nad_ack受信 : fulfill完了(offered HTLC)
+ * FAIL_SEND --> commitment_signed受信 : fail完了(received HTLC)
+ * FAIL_RECV --> COMSIG_RECV --> revoke_nad_ack受信 : fail完了(offered HTLC)
+ */
+typedef enum {
+    FLAGNODE_NONE,
+    FLAGNODE_PAYMENT        = 0x01,     ///< update_add_htlc送信(送金開始)
+    FLAGNODE_FORWARD        = 0x02,     ///< update_add_htlc送信(送金転送)
+    FLAGNODE_ADDHTLC_RECV   = 0x04,     ///< update_add_htlc受信
+    FLAGNODE_FULFILL_SEND   = 0x08,     ///< update_fulfill_htlc送信
+    FLAGNODE_FULFILL_RECV   = 0x10,     ///< update_fulfill_htlc受信
+    FLAGNODE_FAIL_SEND      = 0x20,     ///< update_fail_htlc送信
+    FLAGNODE_FAIL_RECV      = 0x40,     ///< update_fail_htlc受信
+    FLAGNODE_COMSIG_RECV    = 0x80,     ///< commitment_signed受信
+} node_flag_t;
+
+
 /********************************************************************
  * static variables
  ********************************************************************/
@@ -150,25 +177,7 @@ static ln_anno_prm_t        mAnnoPrm;       ///< announcementパラメータ
 //  PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NPでの初期化は関数内でしか行えない
 static pthread_mutexattr_t  mMuxAttr;
 static pthread_mutex_t      mMuxNode;
-/** 状態フラグ
- *
- * スレッド間で並列できない処理がある場合の排他用
- * 現在、正しく動いていない(issue #373)。
- *
- * PAYMENT --> FULFILL --> COMSIG --> revoke_and_ack受信 : 送金完了
- * FORWRAD --> COMSIG : HTLC追加完了
- */
-static volatile enum {
-    FLAGNODE_NONE,
-    FLAGNODE_PAYMENT        = 0x01,     ///< update_add_htlc送信(送金開始)
-    FLAGNODE_FORWARD        = 0x02,     ///< update_add_htlc送信(送金転送)
-    FLAGNODE_ADDHTLC_RECV   = 0x04,     ///< update_add_htlc受信
-    FLAGNODE_FULFILL_SEND   = 0x08,     ///< update_fulfill_htlc送信
-    FLAGNODE_FULFILL_RECV   = 0x10,     ///< update_fulfill_htlc受信
-    FLAGNODE_FAIL_SEND      = 0x20,     ///< update_fail_htlc送信
-    FLAGNODE_FAIL_RECV      = 0x40,     ///< update_fail_htlc受信
-    FLAGNODE_COMSIG_RECV    = 0x80,     ///< commitment_signed受信
-} mFlagNode;
+static volatile node_flag_t mFlagNode;
 
 
 static const char *M_SCRIPT[] = {
@@ -334,13 +343,13 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     }
 
     pthread_mutex_lock(&mMuxNode);
-    if (mFlagNode) {
+    if (mFlagNode != FLAGNODE_NONE) {
         //何かしているのであれば送金開始できない
         SYSLOG_ERR("%s(): now paying...[%x]", __func__, mFlagNode);
         pthread_mutex_unlock(&mMuxNode);
         return false;
     }
-    mFlagNode |= FLAGNODE_PAYMENT;
+    mFlagNode = FLAGNODE_PAYMENT;
     pthread_mutex_unlock(&mMuxNode);
 
     DBGTRACE_BEGIN
@@ -459,7 +468,7 @@ LABEL_EXIT:
             pay_retry(pPay->payment_hash);
             ret = true;         //再送はtrue
         }
-        mFlagNode = FLAGNODE_NONE;
+        wait_mutex_unlock(~FLAGNODE_NONE);
     }
 
     DBGTRACE_END
