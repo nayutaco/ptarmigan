@@ -244,6 +244,7 @@ int main(int argc, char *argv[])
 
     SYSLOG_INFO("end");
 
+    lnapp_term();
     btcprc_term();
     ln_db_term();
 

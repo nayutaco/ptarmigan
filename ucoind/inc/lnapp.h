@@ -84,9 +84,11 @@ typedef struct lnapp_conf_t {
     uint8_t         flag_ope;               ///< normal operation中フラグ
     uint8_t         flag_recv;              ///< 受信済み
 
+    //排他制御
+    //  これ以外に、ucoind全体として mMuxNode とフラグmFlagNode がある。
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
-    pthread_mutex_t mux_proc;       ///< 処理中のmutex
+    pthread_mutex_t mux_proc;       ///< BOLT受信処理中のmutex
     pthread_mutex_t mux_send;       ///< socket送信中のmutex
     pthread_mutex_t mux_revack;     ///< revoke_and_ack後キュー用mutex
     pthread_mutex_t mux_rcvidle;    ///< 受信アイドル時キュー用mutex
@@ -113,6 +115,12 @@ typedef struct lnapp_conf_t {
  *
  */
 void lnapp_init(void);
+
+
+/** [lnapp]解放
+ *
+ */
+void lnapp_term(void);
 
 
 /** [lnapp]開始
