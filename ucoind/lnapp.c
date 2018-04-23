@@ -154,12 +154,20 @@ static pthread_mutex_t      mMuxNode;
  *
  * スレッド間で並列できない処理がある場合の排他用
  * 現在、正しく動いていない(issue #373)。
+ *
+ * PAYMENT --> FULFILL --> COMSIG --> revoke_and_ack受信 : 送金完了
+ * FORWRAD --> COMSIG : HTLC追加完了
  */
 static volatile enum {
     FLAGNODE_NONE,
-    FLAGNODE_PAYMENT=0x01,          ///< 送金開始
-    FLAGNODE_CHG_HTLC=0x02,         ///< HTLC変更中
-    FLAGNODE_COMSIG=0x04,           ///< Commitment Signed処理中
+    FLAGNODE_PAYMENT        = 0x01,     ///< update_add_htlc送信(送金開始)
+    FLAGNODE_FORWARD        = 0x02,     ///< update_add_htlc送信(送金転送)
+    FLAGNODE_ADDHTLC_RECV   = 0x04,     ///< update_add_htlc受信
+    FLAGNODE_FULFILL_SEND   = 0x08,     ///< update_fulfill_htlc送信
+    FLAGNODE_FULFILL_RECV   = 0x10,     ///< update_fulfill_htlc受信
+    FLAGNODE_FAIL_SEND      = 0x20,     ///< update_fail_htlc送信
+    FLAGNODE_FAIL_RECV      = 0x40,     ///< update_fail_htlc受信
+    FLAGNODE_COMSIG_RECV    = 0x80,     ///< commitment_signed受信
 } mFlagNode;
 
 
@@ -332,7 +340,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         pthread_mutex_unlock(&mMuxNode);
         return false;
     }
-    mFlagNode |= FLAGNODE_PAYMENT | FLAGNODE_CHG_HTLC;
+    mFlagNode |= FLAGNODE_PAYMENT;
     pthread_mutex_unlock(&mMuxNode);
 
     DBGTRACE_BEGIN
@@ -1675,7 +1683,7 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd)
     bool ret;
     ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    wait_mutex_lock(FLAGNODE_CHG_HTLC);
+    wait_mutex_lock(FLAGNODE_FORWARD);
 
     uint64_t htlc_id;
     ret = ln_create_add_htlc(p_conf->p_self,
@@ -2182,7 +2190,6 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_add_htlc_recv_t *p_addhtlc = (ln_cb_add_htlc_recv_t *)p_param;
 
-    wait_mutex_lock(FLAGNODE_CHG_HTLC);
     DBG_PRINTF("mFlagNode %d\n", mFlagNode);
 
     ucoind_preimage_lock();
@@ -2247,8 +2254,6 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         revack_push(p_conf, TRANSCMD_FAIL, &buf);
     }
     ucoind_preimage_unlock();
-
-    wait_mutex_unlock(FLAGNODE_CHG_HTLC);
 
     DBGTRACE_END
 }
@@ -2436,7 +2441,7 @@ static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf; (void)p_param;
     DBGTRACE_BEGIN
-    wait_mutex_lock(FLAGNODE_COMSIG);
+    wait_mutex_lock(FLAGNODE_COMSIG_RECV);
     DBGTRACE_END
 }
 
@@ -2463,7 +2468,7 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
         ucoin_buf_free(&buf_bolt);
     }
 
-    mFlagNode &= ~(FLAGNODE_PAYMENT | FLAGNODE_COMSIG);
+    mFlagNode &= ~(FLAGNODE_PAYMENT | FLAGNODE_COMSIG_RECV);
     pthread_mutex_unlock(&mMuxNode);
     DBG_PRINTF("  -->mFlagNode %d\n", mFlagNode);
 }
@@ -2489,7 +2494,6 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
          * flag_ope & OPE_COMSIG_SEND が falseになる場合
          *      - commitment_signed受信
          */
-        mFlagNode &= ~FLAGNODE_CHG_HTLC;
         DBG_PRINTF("OPE_COMSIG_SEND\n");
     }
 
