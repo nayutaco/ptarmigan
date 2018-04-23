@@ -156,10 +156,10 @@ static pthread_mutex_t      mMuxNode;
  * 現在、正しく動いていない(issue #373)。
  */
 static volatile enum {
-    NODEFLAG_NONE,
-    NODEFLAG_PAYMENT=0x01,          ///< 送金開始
-    NODEFLAG_CHG_HTLC=0x02,         ///< HTLC変更中
-    NODEFLAG_COMSIG=0x04,           ///< Commitment Signed処理中
+    FLAGNODE_NONE,
+    FLAGNODE_PAYMENT=0x01,          ///< 送金開始
+    FLAGNODE_CHG_HTLC=0x02,         ///< HTLC変更中
+    FLAGNODE_COMSIG=0x04,           ///< Commitment Signed処理中
 } mFlagNode;
 
 
@@ -276,7 +276,7 @@ void lnapp_init(void)
     pthread_mutexattr_init(&mMuxAttr);
     pthread_mutexattr_settype(&mMuxAttr, PTHREAD_MUTEX_RECURSIVE_NP);
     pthread_mutex_init(&mMuxNode, &mMuxAttr);
-    mFlagNode = NODEFLAG_NONE;
+    mFlagNode = FLAGNODE_NONE;
 }
 
 
@@ -332,12 +332,13 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         pthread_mutex_unlock(&mMuxNode);
         return false;
     }
-    mFlagNode |= NODEFLAG_PAYMENT | NODEFLAG_CHG_HTLC;
+    mFlagNode |= FLAGNODE_PAYMENT | FLAGNODE_CHG_HTLC;
     pthread_mutex_unlock(&mMuxNode);
 
     DBGTRACE_BEGIN
 
     bool ret = false;
+    bool retry = false;
     ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
     uint8_t session_key[UCOIN_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
@@ -348,6 +349,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         fprintf(PRINTOUT, "    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         fprintf(PRINTOUT, "    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
         ln_db_annoskip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的
+        retry = true;
         goto LABEL_EXIT;
     }
 
@@ -375,7 +377,9 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     ucoin_buf_t secrets = UCOIN_BUF_INIT;
     ret = ln_onion_create_packet(onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
                         session_key, pPay->payment_hash, LN_SZ_HASH);
-    assert(ret);
+    if (!ret) {
+        goto LABEL_EXIT;
+    }
 
     show_self_param(p_self, PRINTOUT, __LINE__);
 
@@ -443,9 +447,11 @@ LABEL_EXIT:
         set_lasterror(pAppConf, RPCERR_PAYFAIL, errstr);
 
         ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
-        pay_retry(pPay->payment_hash);
-        mFlagNode = 0;
-        ret = true;         //再送はtrue
+        if (retry) {
+            pay_retry(pPay->payment_hash);
+            ret = true;         //再送はtrue
+        }
+        mFlagNode = FLAGNODE_NONE;
     }
 
     DBGTRACE_END
@@ -1669,7 +1675,7 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd)
     bool ret;
     ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    wait_mutex_lock(NODEFLAG_CHG_HTLC);
+    wait_mutex_lock(FLAGNODE_CHG_HTLC);
 
     uint64_t htlc_id;
     ret = ln_create_add_htlc(p_conf->p_self,
@@ -2176,7 +2182,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_add_htlc_recv_t *p_addhtlc = (ln_cb_add_htlc_recv_t *)p_param;
 
-    wait_mutex_lock(NODEFLAG_CHG_HTLC);
+    wait_mutex_lock(FLAGNODE_CHG_HTLC);
     DBG_PRINTF("mFlagNode %d\n", mFlagNode);
 
     ucoind_preimage_lock();
@@ -2242,7 +2248,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     }
     ucoind_preimage_unlock();
 
-    wait_mutex_unlock(NODEFLAG_CHG_HTLC);
+    wait_mutex_unlock(FLAGNODE_CHG_HTLC);
 
     DBGTRACE_END
 }
@@ -2261,7 +2267,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     while (p_conf->loop) {
         pthread_mutex_lock(&mMuxNode);
         //ここで PAYMENTがある場合もブロックすると、デッドロックする可能性あり
-        if ((mFlagNode & ~NODEFLAG_PAYMENT) == 0) {
+        if ((mFlagNode & ~FLAGNODE_PAYMENT) == 0) {
             break;
         }
         pthread_mutex_unlock(&mMuxNode);
@@ -2313,7 +2319,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     while (p_conf->loop) {
         pthread_mutex_lock(&mMuxNode);
         //ここで PAYMENTがある場合もブロックすると、デッドロックする可能性あり
-        if ((mFlagNode & ~NODEFLAG_PAYMENT) == 0) {
+        if ((mFlagNode & ~FLAGNODE_PAYMENT) == 0) {
             break;
         }
         pthread_mutex_unlock(&mMuxNode);
@@ -2340,7 +2346,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         }
     } else {
         DBG_PRINTF("ここまで\n");
-        mFlagNode &= ~NODEFLAG_PAYMENT;
+        mFlagNode &= ~FLAGNODE_PAYMENT;
 
         ucoin_buf_t reason = UCOIN_BUF_INIT;
         int hop;
@@ -2430,7 +2436,7 @@ static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf; (void)p_param;
     DBGTRACE_BEGIN
-    wait_mutex_lock(NODEFLAG_COMSIG);
+    wait_mutex_lock(FLAGNODE_COMSIG);
     DBGTRACE_END
 }
 
@@ -2457,7 +2463,7 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
         ucoin_buf_free(&buf_bolt);
     }
 
-    mFlagNode &= ~(NODEFLAG_PAYMENT | NODEFLAG_COMSIG);
+    mFlagNode &= ~(FLAGNODE_PAYMENT | FLAGNODE_COMSIG);
     pthread_mutex_unlock(&mMuxNode);
     DBG_PRINTF("  -->mFlagNode %d\n", mFlagNode);
 }
@@ -2483,7 +2489,7 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
          * flag_ope & OPE_COMSIG_SEND が falseになる場合
          *      - commitment_signed受信
          */
-        mFlagNode &= ~NODEFLAG_CHG_HTLC;
+        mFlagNode &= ~FLAGNODE_CHG_HTLC;
         DBG_PRINTF("OPE_COMSIG_SEND\n");
     }
 
@@ -2906,7 +2912,7 @@ static void set_establish_default(lnapp_conf_t *p_conf)
 
 /** mFlagNode フラグの変更(OR処理)
  *
- * NODEFLAG_PAYMENTが立っていないことを確認
+ * FLAGNODE_PAYMENTが立っていないことを確認
  */
 static void wait_mutex_lock(uint8_t Flag)
 {
@@ -2915,7 +2921,7 @@ static void wait_mutex_lock(uint8_t Flag)
     while (count) {
         pthread_mutex_lock(&mMuxNode);
         //ここで PAYMENTがある場合もブロックすると、デッドロックする可能性あり
-        if ((mFlagNode & ~NODEFLAG_PAYMENT) == 0) {
+        if ((mFlagNode & ~FLAGNODE_PAYMENT) == 0) {
             break;
         }
         pthread_mutex_unlock(&mMuxNode);
