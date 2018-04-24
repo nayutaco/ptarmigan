@@ -452,7 +452,7 @@ LABEL_EXIT:
                     hashstr);
         call_script(M_EVT_PAYMENT, param);
     } else {
-        DBG_PRINTF("fail\n");
+        DBG_PRINTF("fail --> retry\n");
         char errstr[512];
         sprintf(errstr, M_ERRSTR_CANNOTSTART,
                     ln_our_msat(pAppConf->p_self),

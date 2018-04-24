@@ -227,6 +227,7 @@ static void ln_print_self(const ln_self_t *self)
                 }
                 printf("{\n");
                 printf(M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
+                printf(M_QQ("flag") ": %s,\n", (LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[lp].flag)) ? "Received" : "Offered");
                 printf(M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
                 printf(M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
                 printf(M_QQ("payhash") ": \"");
