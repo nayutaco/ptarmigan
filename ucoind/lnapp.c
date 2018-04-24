@@ -2285,17 +2285,21 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         //巻き戻し
         DBG_PRINTF("backwind: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->id);
 
-        ucoin_buf_t buf;
-        ucoin_buf_alloc(&buf, sizeof(bwd_proc_fulfill_t));
-        bwd_proc_fulfill_t *p_bwd_fulfill = (bwd_proc_fulfill_t *)buf.buf;
+        if (LN_DBG_FULFILL()) {
+            ucoin_buf_t buf;
+            ucoin_buf_alloc(&buf, sizeof(bwd_proc_fulfill_t));
+            bwd_proc_fulfill_t *p_bwd_fulfill = (bwd_proc_fulfill_t *)buf.buf;
 
-        p_bwd_fulfill->id = p_fulfill->id;
-        p_bwd_fulfill->prev_short_channel_id = p_fulfill->prev_short_channel_id;
-        memcpy(p_bwd_fulfill->preimage, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
-        bool ret = ucoind_transfer_channel(p_fulfill->prev_short_channel_id, TRANSCMD_FULFILL, &buf);
-        if (!ret) {
-            //TODO:戻す先がない場合の処理(#366)
-            DBG_PRINTF("fail: cannot backwind\n");
+            p_bwd_fulfill->id = p_fulfill->id;
+            p_bwd_fulfill->prev_short_channel_id = p_fulfill->prev_short_channel_id;
+            memcpy(p_bwd_fulfill->preimage, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
+            bool ret = ucoind_transfer_channel(p_fulfill->prev_short_channel_id, TRANSCMD_FULFILL, &buf);
+            if (!ret) {
+                //TODO:戻す先がない場合の処理(#366)
+                DBG_PRINTF("fail: cannot backwind\n");
+            }
+        } else {
+            DBG_PRINTF("DBG: no fulfill mode\n");
         }
     } else {
         //送金元
