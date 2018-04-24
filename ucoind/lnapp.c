@@ -138,10 +138,10 @@ typedef enum {
 /** @enum   node_flag_t
  *  @brief  状態フラグ
  *
- * スレッド間で並列できない処理がある場合の排他用
- * 現在、正しく動いていない(issue #373)。
+ * BOLTメッセージの送受信でフラグを立てていく。
+ * スレッド間で並列できない処理がある場合の排他にも用いる。
  *
- * FLAGNODE_ADDHTLC_SEND --> commitment_signed受信 : offered HTLC追加完了
+ * ADDHTLC_SEND --> commitment_signed受信 : offered HTLC追加完了
  * ADDHTLC_RECV --> COMSIG_RECV --> revoke_and_ack受信 : received HTLC追加完了
  * FULFILL_SEND --> commitment_signed受信 : fulfill完了(received HTLC)
  * FULFILL_RECV --> COMSIG_RECV --> revoke_nad_ack受信 : fulfill完了(offered HTLC)
@@ -149,7 +149,7 @@ typedef enum {
  * FAIL_RECV --> COMSIG_RECV --> revoke_nad_ack受信 : fail完了(offered HTLC)
  */
 typedef enum {
-    FLAGNODE_NONE,
+    FLAGNODE_NONE           = 0x00,
     FLAGNODE_PAYMENT        = 0x01,     ///< 送金開始
 
     FLAGNODE_ADDHTLC_SEND   = 0x02,     ///< update_add_htlc送信
