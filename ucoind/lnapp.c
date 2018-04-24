@@ -353,7 +353,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     DBGTRACE_BEGIN
 
     bool ret = false;
-    bool retry = false;
     ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
     uint8_t session_key[UCOIN_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
@@ -364,7 +363,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         fprintf(PRINTOUT, "    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
         fprintf(PRINTOUT, "    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
         ln_db_annoskip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的
-        retry = true;
         goto LABEL_EXIT;
     }
 
@@ -415,6 +413,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         //再routing用に送金経路を保存
         payroute_push(pAppConf, pPay, htlc_id);
     } else {
+        //our_msatが足りない場合もこのルート
         goto LABEL_EXIT;
     }
     send_peer_noise(pAppConf, &buf_bolt);
@@ -460,11 +459,10 @@ LABEL_EXIT:
                     pPay->hop_datain[0].amt_to_forward);
         set_lasterror(pAppConf, RPCERR_PAYFAIL, errstr);
 
+        //ルートが見つからなくなるまでリトライする
         ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
-        if (retry) {
-            pay_retry(pPay->payment_hash);
-            ret = true;         //再送はtrue
-        }
+        pay_retry(pPay->payment_hash);
+        ret = true;         //再送はtrue
         nodeflag_unset(~FLAGNODE_NONE);
     }
 
