@@ -100,14 +100,22 @@
 #define M_INIT_FLAG_EXCHNAGED(flag)         (((flag) & (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV)) == (M_INIT_FLAG_SEND | M_INIT_FLAG_RECV))
 
 // ln_self_t.anno_flag
-#define M_ANNO_FLAG_SEND                    (0x01)          ///< 1:announcement_signatures送信あり
-#define M_ANNO_FLAG_RECV                    (0x02)          ///< 1:announcement_signatures受信あり
+#define M_ANNO_FLAG_SEND                    (0x01)          ///< announcement_signatures送信済み
+#define M_ANNO_FLAG_RECV                    (0x02)          ///< announcement_signatures受信済み
 #define M_ANNO_FLAG_END                     (0x80)          ///< 送受信完了後の処理済み
 
 // ln_self_t.shutdown_flag
-#define M_SHDN_FLAG_SEND                    (0x01)          ///< 1:shutdown送信あり
-#define M_SHDN_FLAG_RECV                    (0x02)          ///< 1:shutdown受信あり
+#define M_SHDN_FLAG_SEND                    (0x01)          ///< shutdown送信済み
+#define M_SHDN_FLAG_RECV                    (0x02)          ///< shutdown受信済み
 #define M_SHDN_FLAG_EXCHANGED(flag)         (((flag) & (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)) == (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV))
+
+// ln_self_t.comsig_flag
+#define M_COMISG_FLAG_SEND                  (0x01)          ///< commitment_signed送信済み
+#define M_COMISG_FLAG_RECV                  (0x02)          ///< commitment_signed受信済み
+
+// ln_self_t.revack_flag
+#define M_REVACK_FLAG_SEND                  (0x01)          ///< revoke_and_ack送信済み
+#define M_REVACK_FLAG_RECV                  (0x02)          ///< revoke_and_ack受信済み
 
 #define M_PONG_MISSING                      (50)            ///< pongが返ってこないエラー上限
 
@@ -243,7 +251,10 @@ static bool check_recv_add_htlc_bolt4(ln_self_t *self,
                     ucoin_buf_t *pReason,
                     int idx);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
-static bool proc_announce_sigsed(ln_self_t *self);
+
+static void proc_commitment_signed(ln_self_t *self, uint8_t Flag);
+static void proc_rev_and_ack(ln_self_t *self, uint8_t Flag);
+
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
@@ -620,8 +631,16 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
 
 void ln_flag_proc(ln_self_t *self)
 {
-    bool ret = proc_announce_sigsed(self);
-    if (ret) {
+    if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
+        //announcement_signatures送受信済み
+        DBG_PRINTF("announcement_signatures sent and recv\n");
+
+        ln_cb_anno_sigs_t anno;
+        anno.sort = sort_nodeid(self);
+        (*self->p_callback)(self, LN_CB_ANNO_SIGSED, &anno);
+
+        self->anno_flag |= M_ANNO_FLAG_END;
+        ucoin_buf_free(&self->cnl_anno);
         ln_db_self_save(self);
     }
 }
@@ -1315,6 +1334,8 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
     commsig.p_htlc_signature = p_htlc_sigs;
     ret = ln_msg_commit_signed_create(pCommSig, &commsig);
     M_FREE(p_htlc_sigs);
+
+    proc_commitment_signed(self, M_COMISG_FLAG_SEND);
 
     DBG_PRINTF("END\n");
     return ret;
@@ -2646,20 +2667,34 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     ln_db_self_save(self);
 
     //チェックOKであれば、revoke_and_ackを返す
-    //HTLCに変化がある場合、revoke_and_ack→commitment_signedの順で送信したい
+    //HTLCに変化がある場合、revoke_and_ack→commitment_signedの順で送信
 
-    ucoin_buf_t buf_revack = UCOIN_BUF_INIT;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     revack.p_channel_id = channel_id;
     revack.p_per_commit_secret = prev_secret;
     revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-    ret = ln_msg_revoke_and_ack_create(&buf_revack, &revack);
+    ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
     if (ret) {
-        (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_revack);
-        ucoin_buf_free(&buf_revack);
+        (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+        ucoin_buf_free(&buf_bolt);
 
+        if ((self->comsig_flag & M_COMISG_FLAG_SEND) == 0) {
+            //commitment_signed未送信
+            ret = ln_create_commit_signed(self, &buf_bolt);
+            if (ret) {
+                (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+                ucoin_buf_free(&buf_bolt);
+            }
+        }
+
+    }
+    if (ret) {
         //commitment_signed受信通知
         (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, NULL);
+
+        proc_commitment_signed(self, M_COMISG_FLAG_RECV);
+        proc_rev_and_ack(self, M_REVACK_FLAG_SEND);
     }
 
 LABEL_EXIT:
@@ -2735,8 +2770,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     ln_db_self_save(self);
 
-    //revoke_and_ack受信通知
-    (*self->p_callback)(self, LN_CB_REV_AND_ACK_RECV, NULL);
+    proc_rev_and_ack(self, M_REVACK_FLAG_RECV);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");
@@ -4634,28 +4668,31 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
 }
 
 
-/** announcement_signatures交換完了のチェックおよび処理実行
- *
- * announcement_signaturesの送受信処理に移動させてもよいかもしれない
+/** commitment_signed交換完了後
+ * 
  */
-static bool proc_announce_sigsed(ln_self_t *self)
+static void proc_commitment_signed(ln_self_t *self, uint8_t Flag)
 {
-    bool ret = false;
-
-    if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
-        //announcement_signatures送受信済み
-        DBG_PRINTF("announcement_signatures sent and recv\n");
-
-        ln_cb_anno_sigs_t anno;
-        anno.sort = sort_nodeid(self);
-        (*self->p_callback)(self, LN_CB_ANNO_SIGSED, &anno);
-
-        self->anno_flag |= M_ANNO_FLAG_END;
-        ucoin_buf_free(&self->cnl_anno);
-        ret = true;
+    self->comsig_flag |= Flag;
+    if (self->comsig_flag == (M_COMISG_FLAG_SEND | M_COMISG_FLAG_RECV)) {
+        self->comsig_flag = 0;
     }
+}
 
-    return ret;
+
+/** revoke_and_ack交換完了後
+ * 
+ */
+static void proc_rev_and_ack(ln_self_t *self, uint8_t Flag)
+{
+    self->revack_flag |= Flag;
+    if (self->revack_flag == (M_REVACK_FLAG_SEND | M_REVACK_FLAG_RECV)) {
+
+        //revoke_and_ack受信通知
+        (*self->p_callback)(self, LN_CB_REV_AND_ACK_RECV, NULL);
+
+        self->revack_flag = 0;
+    }
 }
 
 
