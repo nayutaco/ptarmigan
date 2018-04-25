@@ -58,6 +58,7 @@ static ln_node_t    mNode;
  **************************************************************************/
 
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
+static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_param);
 static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
 static void print_node(void);
 
@@ -201,6 +202,14 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 }
 
 
+uint64_t ln_node_total_msat(void)
+{
+    uint64_t amount = 0;
+    ln_db_self_search(comp_func_total_msat, &amount);
+    return amount;
+}
+
+
 /********************************************************************
  * HIDDEN
  ********************************************************************/
@@ -304,6 +313,25 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
         }
     }
     return ret;
+}
+
+
+/** #ln_node_search_channel()処理関数
+ * 
+ * our_msatの総額を求める。
+ *
+ * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
+ * @param[in,out]   p_param         uint64_t
+ */
+static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_param)
+{
+    (void)p_db_param;
+    uint64_t *p_amount = (uint64_t *)p_param;
+
+    //DBG_PRINTF("our_msat:%" PRIu64 "\n", ln_our_msat(self));
+    *p_amount += ln_our_msat(self);
+    return false;
 }
 
 
