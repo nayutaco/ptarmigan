@@ -1258,7 +1258,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
                 "%" PRIu64 " "
                 "%s",
                 ln_short_channel_id(p_conf->p_self), node_id,
-                ln_our_msat(p_conf->p_self),
+                ln_node_total_msat(),
                 txidstr);
     call_script(M_EVT_ESTABLISHED, param);
 
@@ -2539,7 +2539,7 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
                     "%" PRIu64 " "
                     "%d",
                     ln_short_channel_id(p_conf->p_self), node_id,
-                    ln_our_msat(p_conf->p_self),
+                    ln_node_total_msat(),
                     ln_htlc_num(p_conf->p_self));
         call_script(M_EVT_HTLCCHANGED, param);
     }
