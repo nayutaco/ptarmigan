@@ -1165,9 +1165,9 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
     fprintf(fp, "\n");
     fprintf(fp, "======================================\n");
     fprintf(fp, " version:%u\n\n", pTx->version);
-    fprintf(fp, " txin_cnt=%d\n", pTx->vin_cnt);
+    fprintf(fp, " txin_cnt=%u\n", pTx->vin_cnt);
     for(uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
-        fprintf(fp, " [vin #%d]\n", lp);
+        fprintf(fp, " [vin #%u]\n", lp);
         fprintf(fp, "  txid= ");
         ucoin_util_dumptxid(fp, pTx->vin[lp].txid);
         fprintf(fp, "\n");
@@ -1182,7 +1182,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
         fprintf(fp, "  sequence= 0x%08x\n\n", pTx->vin[lp].sequence);
         for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
-            fprintf(fp, "  witness[%d][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
+            fprintf(fp, "  witness[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
                 ucoin_util_dumpbin(fp, pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len, true);
                 if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
@@ -1195,9 +1195,9 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
             }
         }
     }
-    fprintf(fp, "\n txout_cnt= %d\n", pTx->vout_cnt);
+    fprintf(fp, "\n txout_cnt= %u\n", pTx->vout_cnt);
     for(uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
-        fprintf(fp, " [vout #%d]\n", lp);
+        fprintf(fp, " [vout #%u]\n", lp);
         fprintf(fp, "  value= %llu  ( ", (unsigned long long)pTx->vout[lp].value);
         ucoin_util_dumpbin(fp, ((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value), false);
         fprintf(fp, " )\n");

@@ -335,14 +335,14 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_inv
                     fee_base_msat <<= 8;
                     fee_base_msat |= *p++;
                 }
-                fprintf(stderr, "fee_base_msat= %d\n", fee_base_msat);
+                fprintf(stderr, "fee_base_msat= %u\n", fee_base_msat);
 
                 uint32_t fee_proportional_millionths = 0;
                 for (size_t lp = 0; lp < sizeof(uint32_t); lp++) {
                     fee_proportional_millionths <<= 8;
                     fee_proportional_millionths |= *p++;
                 }
-                fprintf(stderr, "fee_proportional_millionths= %d\n", fee_proportional_millionths);
+                fprintf(stderr, "fee_proportional_millionths= %u\n", fee_proportional_millionths);
 
                 uint16_t cltv_expiry_delta = 0;
                 for (size_t lp = 0; lp < sizeof(uint16_t); lp++) {

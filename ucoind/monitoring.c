@@ -662,10 +662,10 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         const ucoin_buf_t *p_vout = ln_revoked_vout(self);
 
-        DBG_PRINTF("vout[%d]=", lp);
+        DBG_PRINTF("vout[%u]=", lp);
         DUMPBIN(pTx->vout[lp].script.buf, pTx->vout[lp].script.len);
         if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOLOCAL])) {
-            DBG_PRINTF("[%d]to_local !\n", lp);
+            DBG_PRINTF("[%u]to_local !\n", lp);
 
             ret = close_revoked_tolocal(self, pTx, lp);
             if (ret) {
@@ -675,7 +675,7 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
                 save = false;
             }
         } else if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[LN_RCLOSE_IDX_TOREMOTE])) {
-            DBG_PRINTF("[%d]to_remote !\n", lp);
+            DBG_PRINTF("[%u]to_remote !\n", lp);
             ret = close_revoked_toremote(self, pTx, lp);
             if (ret) {
                 save = true;
@@ -685,7 +685,7 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
                 DBG_PRINTF("p_vout[%d]=", lp2);
                 DUMPBIN(p_vout[lp2].buf, p_vout[lp2].len);
                 if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[lp2])) {
-                    DBG_PRINTF("[%d]HTLC vout[%d] !\n", lp, lp2);
+                    DBG_PRINTF("[%d]HTLC vout[%u] !\n", lp, lp2);
 
                     ret = close_revoked_htlc(self, pTx, lp, lp2);
                     if (ret) {
