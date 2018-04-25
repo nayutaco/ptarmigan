@@ -268,7 +268,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, const u
                     bool bret = ln_db_annoskip_search(p_skip, p_self->short_channel_id);
                     if (bret) {
 #ifdef M_DEBUG
-                        fprintf(fp_err, "skip : %016" PRIx64 "\n", short_channel_id);
+                        fprintf(fp_err, "skip : %016" PRIx64 "\n", p_self->short_channel_id);
 #endif
                         goto LABEL_EXIT;
                     }
@@ -860,7 +860,8 @@ int main(int argc, char* argv[])
             printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
         } else {
             //JSON形式
-            printf("{\"method\":\"pay\",\"params\":[\"%s\",%d, [", payment_hash, hop);
+            //  JSON-RPCの "PAY" コマンドも付加している
+            printf("{\"method\":\"PAY\",\"params\":[\"%s\",%d, [", payment_hash, hop);
             for (int lp = 0; lp < hop - 1; lp++) {
                 const uint8_t *p_now  = g[route[lp]].p_node;
                 p_next = g[route[lp + 1]].p_node;

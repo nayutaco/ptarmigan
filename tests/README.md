@@ -52,7 +52,7 @@ cd install
         送金前と送金後に、拡張子が.cnlのファイル(チャネル情報)を作るので、額はそれを比較するとよい。
 
 ```bash
-./example_st4.sh
+./example_st4[c|d|e|f].sh
 ```
 
 7. チャネルを閉じる  

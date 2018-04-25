@@ -101,7 +101,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listinvoice, "listinvoice", NULL);
-    jrpc_register_procedure(&mJrpc, cmd_pay,         "pay", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_pay,         "PAY", NULL);
     jrpc_register_procedure(&mJrpc, cmd_routepay_first, "routepay", NULL);
     jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay_cont", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
@@ -752,6 +752,10 @@ LABEL_EXIT:
 }
 
 
+/** 送金開始
+ *
+ * 一時ルーティング除外リストをクリアしてから送金する
+ */
 static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     ln_db_annoskip_drop(true);
@@ -759,6 +763,11 @@ static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
 }
 
 
+/** 送金・再送金
+ *
+ * 内部で `routing`コマンドを実行して送金ルートを含めた "PAY"コマンド文字列取得し、
+ * localhostに対してJSON-RPCコマンド("PAY")を送信する。
+ */
 static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
@@ -827,6 +836,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     SYSLOG_INFO("routepay");
 
     // execute `routing` command
+    //      result: "PAY" method with paying route
     char cmd[512];
     sprintf(cmd, "%srouting -s %s -r %s -a %" PRIu64 " -e %d -p %s -j\n",
                 ucoind_get_exec_path(),
