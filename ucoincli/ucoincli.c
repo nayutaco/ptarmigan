@@ -531,7 +531,7 @@ static void optfunc_routepay(int *pOption, bool *pConn)
     printf("amount_msat=%" PRIu64 "\n", invoice_data.amount_msat);
     time_t tm = (time_t)invoice_data.timestamp;
     printf("timestamp= %" PRIu64 " : %s", (uint64_t)invoice_data.timestamp, ctime(&tm));
-    printf("min_final_cltv_expiry=%d\n", invoice_data.min_final_cltv_expiry);
+    printf("min_final_cltv_expiry=%u\n", invoice_data.min_final_cltv_expiry);
     printf("payee=");
     for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
         printf("%02x", invoice_data.pubkey[lp]);

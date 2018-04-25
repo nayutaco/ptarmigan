@@ -1999,6 +1999,13 @@ bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId);
 bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId);
 
 
+/** nodeが所有しているour_msatの合計
+ * 
+ * @return  our_msatの合計[msatoshis]
+ */
+uint64_t ln_node_total_msat(void);
+
+
 /********************************************************************
  * ONION
  ********************************************************************/

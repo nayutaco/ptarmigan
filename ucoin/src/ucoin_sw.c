@@ -414,7 +414,7 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
     wit = &wits[3];
     if (wit->len != 71) {
         //2-of-2 witnessScriptのサイズではない
-        DBG_PRINTF("witScript: invalid length: %d\n", wit->len);
+        DBG_PRINTF("witScript: invalid length: %u\n", wit->len);
         return false;
     }
     const uint8_t *p = wit->buf;

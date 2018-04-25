@@ -225,7 +225,7 @@ void print_invoice(const ln_invoice_t *p_invoice_data) {
     fprintf(stderr, "amount_msat=%" PRIu64 "\n", p_invoice_data->amount_msat);
     time_t tm = (time_t)p_invoice_data->timestamp;
     fprintf(stderr, "timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, ctime(&tm));
-    fprintf(stderr, "min_final_cltv_expiry=%d\n", p_invoice_data->min_final_cltv_expiry);
+    fprintf(stderr, "min_final_cltv_expiry=%u\n", p_invoice_data->min_final_cltv_expiry);
     fprintf(stderr, "pubkey=");
     for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
         fprintf(stderr, "%02x", p_invoice_data->pubkey[lp]);
