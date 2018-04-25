@@ -1,5 +1,6 @@
 #!/bin/sh
 # fulfillしない: 3333-->4444
+#	HTLCが+1され、333だけが支払った状態になる
 
 ROUTECONF=pay_route.conf
 AMOUNT=20000000
@@ -39,4 +40,4 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 sleep 2
 
 # 戻す
-./ucoincli -d 0 $PAYEE_PORT
+./ucoincli -d 1 $PAYEE_PORT

@@ -436,12 +436,10 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
             // <localsig>
             // <payment-preimage>(HTLC Success) or 0(HTLC Timeout)
             // <script>
-            ucoin_buf_t preimage;
+            ucoin_buf_t preimage = UCOIN_BUF_INIT;
             if (pPreImage != NULL) {
                 preimage.buf = (CONST_CAST uint8_t *)pPreImage;
                 preimage.len = LN_SZ_PREIMAGE;
-            } else {
-                ucoin_buf_init(&preimage);
             }
             const ucoin_buf_t *wits[] = {
                 &wit0,

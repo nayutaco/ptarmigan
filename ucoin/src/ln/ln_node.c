@@ -88,8 +88,7 @@ bool ln_node_init(uint8_t Features)
     bool ret;
     char wif[UCOIN_SZ_WIF_MAX];
     ucoin_chain_t chain;
-    ucoin_buf_t buf_node;
-    ucoin_buf_init(&buf_node);
+    ucoin_buf_t buf_node = UCOIN_BUF_INIT;
 
     mNode.features = Features;
 
@@ -185,9 +184,8 @@ bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
 
 bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId)
 {
-    ucoin_buf_t buf_anno;
+    ucoin_buf_t buf_anno = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&buf_anno);
     bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId);
     if (ret) {
         pNodeAnno->p_node_id = NULL;
@@ -292,9 +290,8 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
             ln_db_copy_channel(p->p_self, self);
 
             if (p->p_self->short_channel_id != 0) {
-                ucoin_buf_t buf;
+                ucoin_buf_t buf = UCOIN_BUF_INIT;
 
-                ucoin_buf_init(&buf);
                 bool bret2 = ln_db_annocnl_load(&p->p_self->cnl_anno, p->p_self->short_channel_id);
                 if (bret2) {
                     ucoin_buf_alloccopy(&p->p_self->cnl_anno, buf.buf, buf.len);

@@ -44,7 +44,6 @@ extern "C" {
  **************************************************************************/
 
 #define SYSLOG_ERR(format, ...)  { DBG_PRINTF(format, ##__VA_ARGS__); DBG_PRINTF2("\n"); syslog(LOG_ERR, format, ##__VA_ARGS__); }
-#define SYSLOG_WARN(format, ...) { DBG_PRINTF(format, ##__VA_ARGS__); DBG_PRINTF2("\n"); syslog(LOG_WARNING, format, ##__VA_ARGS__); }
 #define SYSLOG_INFO(format, ...) { DBG_PRINTF(format, ##__VA_ARGS__); DBG_PRINTF2("\n"); syslog(LOG_INFO, format, ##__VA_ARGS__); }
 
 #ifdef APP_DEBUG_MEM

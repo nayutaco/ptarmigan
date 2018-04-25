@@ -42,4 +42,4 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 sleep 2
 
 # 戻す
-./ucoincli -d 0 $PAYEE_PORT
+./ucoincli -d 1 $PAYEE_PORT

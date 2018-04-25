@@ -110,6 +110,11 @@ extern "C" {
                                                 //
                                                 // https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/policy/policy.cpp#L52-L55
 
+#define UCOIN_TX_VERSION_INIT   (2)
+
+#define UCOIN_BUF_INIT          { (uint8_t *)NULL, (uint32_t)0 }
+#define UCOIN_TX_INIT           { UCOIN_TX_VERSION_INIT, 0, (ucoin_vin_t *)NULL, 0, (ucoin_vout_t *)NULL, 0 }
+
 
 /**************************************************************************
  * macro functions

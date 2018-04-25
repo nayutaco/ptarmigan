@@ -227,10 +227,14 @@ static void ln_print_self(const ln_self_t *self)
                 }
                 printf("{\n");
                 printf(M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
+                printf(M_QQ("flag") ": " M_QQ("%s") ",\n", (LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[lp].flag)) ? "Received" : "Offered");
                 printf(M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
                 printf(M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
                 printf(M_QQ("payhash") ": \"");
                 ucoin_util_dumpbin(stdout, self->cnl_add_htlc[lp].payment_sha256, UCOIN_SZ_SHA256, false);
+                printf("\",\n");
+                printf(M_QQ("shared_secret") ": \"");
+                ucoin_util_dumpbin(stdout, self->cnl_add_htlc[lp].shared_secret.buf, self->cnl_add_htlc[lp].shared_secret.len, false);
                 printf("\",\n");
                 printf(M_QQ("index") ": %d\n", lp);
                 printf("}");
@@ -358,9 +362,8 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
             uint64_t short_channel_id;
             char type;
             uint32_t timestamp;
-            ucoin_buf_t buf;
+            ucoin_buf_t buf = UCOIN_BUF_INIT;
 
-            ucoin_buf_init(&buf);
             ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
             if ((ret == 0) && (short_channel_id != 0)) {
                 if (cnt1) {
@@ -399,11 +402,10 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
         int ret;
 
         do {
-            ucoin_buf_t buf;
+            ucoin_buf_t buf = UCOIN_BUF_INIT;
             uint32_t timestamp;
             uint8_t nodeid[UCOIN_SZ_PUBKEY];
 
-            ucoin_buf_init(&buf);
             ret = ln_lmdb_annonod_cur_load(cursor, &buf, &timestamp, nodeid);
             if (ret == 0) {
                 if (cnt2) {

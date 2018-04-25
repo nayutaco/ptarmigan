@@ -169,6 +169,26 @@ typedef enum {
 } daemoncmd_t;
 
 
+/** @enum   trans_cmd_t
+ *  @brief  時間差処理要求
+ *  @note
+ *      - 要求が発生するタイミングと実行するタイミングをずらす場合に使用する。
+ *      - 主に、BOLTメッセージ受信(update_add/fulfill/fail_htlc)を別チャネルに転送するために用いる。
+ */
+typedef enum {
+    //外部用
+    TRANSCMD_NONE,                  ///< 要求無し
+
+    TRANSCMD_ADDHTLC,               ///< update_add_htlc転送
+    TRANSCMD_FULFILL,               ///< update_fulfill_htlc転送
+    TRANSCMD_FAIL,                  ///< update_fail_htlc転送
+    TRANSCMD_PAYRETRY,              ///< 支払いのリトライ
+
+    //内部用
+    TRANSCMD_ANNOSIGNS,             ///< announcement_signatures送信要求
+} trans_cmd_t;
+
+
 typedef struct {
     //peer
     char        ipaddr[16];
@@ -277,9 +297,7 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  * prototypes
  ********************************************************************/
 
-bool ucoind_forward_payment(fwd_proc_add_t *pFwdAdd);
-bool ucoind_backwind_fulfill(bwd_proc_fulfill_t *pBwdFulfill);
-bool ucoind_backwind_fail(bwd_proc_fail_t *pBwdFail);
+bool ucoind_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, ucoin_buf_t *pBuf);
 
 void ucoind_preimage_lock(void);
 void ucoind_preimage_unlock(void);

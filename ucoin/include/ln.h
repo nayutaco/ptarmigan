@@ -954,12 +954,12 @@ struct ln_self_t {
     ucoin_buf_t                 cnl_anno;                       ///< 自channel_announcement
 
     //msg:init
-    uint8_t                     init_flag;                      ///< INIT_FLAG_xxx
+    uint8_t                     init_flag;                      ///< initフラグ(M_INIT_FLAG_xxx)
     uint8_t                     lfeature_remote;                ///< initで取得したlocalfeature
 
     //msg:close
     ucoin_tx_t                  tx_closing;                     ///< closing_tx
-    uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)。 b1:受信済み b0:送信済み
+    uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)
     uint64_t                    close_fee_sat;                  ///< closing_txのFEE
     uint64_t                    close_last_fee_sat;             ///< 最後に送信したclosing_txのFEE
     ucoin_buf_t                 shutdown_scriptpk_local;        ///< close時の送金先(local)
@@ -980,6 +980,8 @@ struct ln_self_t {
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< channel_id
     uint64_t                    short_channel_id;               ///< short_channel_id
     ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< 追加したHTLC
+    uint8_t                     comsig_flag;                    ///< commitment_signedフラグ(M_COMSIG_FLAG_xxx)
+    uint8_t                     revack_flag;                    ///< revoke_and_ackフラグ(M_REVACK_FLAG_xxx)
 
     //ping pong
     uint16_t                    missing_pong_cnt;               ///< ping送信に対してpongを受信しなかった回数

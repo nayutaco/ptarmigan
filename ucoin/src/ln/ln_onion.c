@@ -450,11 +450,10 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
 #endif  //M_DBG_FAIL
 
     ucoin_buf_t buf1;
-    ucoin_buf_t buf2;
+    ucoin_buf_t buf2 = UCOIN_BUF_INIT;
     ucoin_buf_t reason;
 
     ucoin_buf_alloccopy(&buf1, pPacket->buf, pPacket->len);
-    ucoin_buf_init(&buf2);
     const ucoin_buf_t *p_in = &buf1;
     ucoin_buf_t *p_out = &buf2;
     bool bend = false;

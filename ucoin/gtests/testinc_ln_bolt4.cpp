@@ -428,8 +428,7 @@ TEST_F(onion, testvector_failure)
     buf_failmsg.buf[0] = 0x20;
     buf_failmsg.buf[1] = 0x02;
 
-    ucoin_buf_t buf_fail4;
-    ucoin_buf_init(&buf_fail4);
+    ucoin_buf_t buf_fail4 = UCOIN_BUF_INIT;
 
     const uint8_t shared_secret4[] = {
         0xb5, 0x75, 0x6b, 0x9b, 0x54, 0x27, 0x27, 0xdb,
@@ -484,8 +483,7 @@ TEST_F(onion, testvector_failure)
     ASSERT_EQ(sizeof(ERR4), buf_fail4.len);
 
 
-    ucoin_buf_t buf_fail3;
-    ucoin_buf_init(&buf_fail3);
+    ucoin_buf_t buf_fail3 = UCOIN_BUF_INIT;
 
     const uint8_t shared_secret3[] = {
         0x21, 0xe1, 0x3c, 0x2d, 0x7c, 0xfe, 0x7e, 0x18,
@@ -540,8 +538,7 @@ TEST_F(onion, testvector_failure)
     ASSERT_EQ(sizeof(ERR3), buf_fail3.len);
 
 
-    ucoin_buf_t buf_fail2;
-    ucoin_buf_init(&buf_fail2);
+    ucoin_buf_t buf_fail2 = UCOIN_BUF_INIT;
 
     const uint8_t shared_secret2[] = {
         0x3a, 0x6b, 0x41, 0x25, 0x48, 0x76, 0x2f, 0x0d,
@@ -596,8 +593,7 @@ TEST_F(onion, testvector_failure)
     ASSERT_EQ(sizeof(ERR2), buf_fail2.len);
 
 
-    ucoin_buf_t buf_fail1;
-    ucoin_buf_init(&buf_fail1);
+    ucoin_buf_t buf_fail1 = UCOIN_BUF_INIT;
 
     const uint8_t shared_secret1[] = {
         0xa6, 0x51, 0x9e, 0x98, 0x83, 0x2a, 0x0b, 0x17,
@@ -652,8 +648,7 @@ TEST_F(onion, testvector_failure)
     ASSERT_EQ(sizeof(ERR1), buf_fail1.len);
 
 
-    ucoin_buf_t buf_fail0;
-    ucoin_buf_init(&buf_fail0);
+    ucoin_buf_t buf_fail0 = UCOIN_BUF_INIT;
 
     const uint8_t shared_secret0[] = {
         0x53, 0xeb, 0x63, 0xea, 0x8a, 0x3f, 0xec, 0x3b,
@@ -941,16 +936,11 @@ TEST_F(onion, testvector_failure_resolve)
         0x03, 0x12, 0x17, 0xe9, 0x07, 0x70, 0xc3, 0x28,
     };
 
-    ucoin_buf_t buf_fail1;
-    ucoin_buf_t buf_fail2;
-    ucoin_buf_t buf_fail3;
-    ucoin_buf_t buf_fail4;
-    ucoin_buf_t buf_fail;
-    ucoin_buf_init(&buf_fail1);
-    ucoin_buf_init(&buf_fail2);
-    ucoin_buf_init(&buf_fail3);
-    ucoin_buf_init(&buf_fail4);
-    ucoin_buf_init(&buf_fail);
+    ucoin_buf_t buf_fail1 = UCOIN_BUF_INIT;
+    ucoin_buf_t buf_fail2 = UCOIN_BUF_INIT;
+    ucoin_buf_t buf_fail3 = UCOIN_BUF_INIT;
+    ucoin_buf_t buf_fail4 = UCOIN_BUF_INIT;
+    ucoin_buf_t buf_fail = UCOIN_BUF_INIT;
 
     ucoin_buf_t err = { (CONST_CAST uint8_t *)ERR0, sizeof(ERR0) };
     const ucoin_buf_t buf_shared_secret0 = { (CONST_CAST uint8_t *)shared_secret0, sizeof(shared_secret0) };
@@ -1068,9 +1058,8 @@ TEST_F(onion, testvector_failure_resolve_api)
         hop_datain[lp].outgoing_cltv_value = 0;
         memcpy(hop_datain[lp].pubkey, PUB[lp], UCOIN_SZ_PUBKEY);
     }
-    ucoin_buf_t shared_secrets;
+    ucoin_buf_t shared_secrets = UCOIN_BUF_INIT;
 
-    ucoin_buf_init(&shared_secrets);
     bool ret = ln_onion_create_packet(packet, &shared_secrets, hop_datain, 5, SESSIONKEY, ASSOC, sizeof(ASSOC));
     ASSERT_TRUE(ret);
     ASSERT_EQ(5 * UCOIN_SZ_PRIVKEY, shared_secrets.len);
@@ -1117,9 +1106,8 @@ TEST_F(onion, testvector_failure_resolve_api)
     };
     ucoin_buf_t err = { (CONST_CAST uint8_t *)ERR0, sizeof(ERR0) };
 
-    ucoin_buf_t reason;
+    ucoin_buf_t reason = UCOIN_BUF_INIT;
     int hop;
-    ucoin_buf_init(&reason);
     ret = ln_onion_failure_read(&reason, &hop, &shared_secrets, &err);
     ASSERT_TRUE(ret);
     ucoin_buf_free(&shared_secrets);
@@ -1341,9 +1329,8 @@ printf("ln_onion_create_packet\n");
     memset(packet, 0, sizeof(packet));
     ln_hop_dataout_t dataout;
     ln_node_setkey(onion_privkey[0]);
-    ucoin_buf_t buf_rsn;
+    ucoin_buf_t buf_rsn = UCOIN_BUF_INIT;
     ucoin_push_t push_rsn;
-    ucoin_buf_init(&buf_rsn);
     ucoin_push_init(&push_rsn, &buf_rsn, 0);
     ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, PACKET, NULL, 0);
     ASSERT_TRUE(ret);
@@ -1558,9 +1545,8 @@ TEST_F(onion, test2)
 
     for (int lp = 0; lp < 20; lp++) {
         ln_node_setkey(onion_privkey[lp]);
-        ucoin_buf_t buf_rsn;
+        ucoin_buf_t buf_rsn = UCOIN_BUF_INIT;
         ucoin_push_t push_rsn;
-        ucoin_buf_init(&buf_rsn);
         ucoin_push_init(&push_rsn, &buf_rsn, 0);
         ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, NULL, 0);
         ASSERT_TRUE(ret);
@@ -1607,9 +1593,8 @@ TEST_F(onion, test3)
 
     for (int lp = 0; lp < 20; lp++) {
         ln_node_setkey(onion_privkey[lp]);
-        ucoin_buf_t buf_rsn;
+        ucoin_buf_t buf_rsn = UCOIN_BUF_INIT;
         ucoin_push_t push_rsn;
-        ucoin_buf_init(&buf_rsn);
         ucoin_push_init(&push_rsn, &buf_rsn, 0);
         ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, NULL, 0);
         ASSERT_TRUE(ret);
@@ -1655,9 +1640,8 @@ TEST_F(onion, test4)
 
     for (int lp = 0; lp < 20; lp++) {
         ln_node_setkey(onion_privkey[lp]);
-        ucoin_buf_t buf_rsn;
+        ucoin_buf_t buf_rsn = UCOIN_BUF_INIT;
         ucoin_push_t push_rsn;
-        ucoin_buf_init(&buf_rsn);
         ucoin_push_init(&push_rsn, &buf_rsn, 0);
         ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, ASSOC, sizeof(ASSOC));
         ASSERT_TRUE(ret);
