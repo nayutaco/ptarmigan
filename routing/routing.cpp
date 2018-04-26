@@ -543,7 +543,6 @@ int main(int argc, char* argv[])
     uint8_t recv_nodeid[UCOIN_SZ_PUBKEY];
     uint32_t cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     uint64_t amtmsat = 0;
-    bool only_graph = false;
     bool output_json = false;
     bool clear_skip_db = false;
     char *payment_hash = NULL;
@@ -646,42 +645,40 @@ int main(int argc, char* argv[])
     close(2);
 #endif  //M_SPOIL_STDERR
 
-    if (!only_graph) {
-        ret = loaddb(dbdir, send_nodeid, recv_nodeid, clear_skip_db, stop_after_dbclear);
-        if (!ret) {
-            return -1;
-        }
+    /********************************************************************
+     * 動作
+     *      1. ルート作成(JSON) : output_json=true
+     *      2. ルート作成(CSV) : output_json=false
+     *      3. routeスキップDB削除 : clear_skip_db=true
+     *
+     * send_nodeid, recv_nodeid
+     * cltv_expiry
+     * amtmsat
+     * payment_hash
+     * dbdir
+     ********************************************************************/
+
+    ret = loaddb(dbdir, send_nodeid, recv_nodeid, clear_skip_db, stop_after_dbclear);
+    if (!ret) {
+        return -1;
+    }
 
 #ifdef M_DEBUG
-        fprintf(fp_err, "start nodeid : ");
-        ucoin_util_dumpbin(fp_err, send_nodeid, UCOIN_SZ_PUBKEY, true);
-        fprintf(fp_err, "end nodeid   : ");
-        ucoin_util_dumpbin(fp_err, recv_nodeid, UCOIN_SZ_PUBKEY, true);
+    fprintf(fp_err, "start nodeid : ");
+    ucoin_util_dumpbin(fp_err, send_nodeid, UCOIN_SZ_PUBKEY, true);
+    fprintf(fp_err, "end nodeid   : ");
+    ucoin_util_dumpbin(fp_err, recv_nodeid, UCOIN_SZ_PUBKEY, true);
 #endif
-    } else {
-        ret = loaddb(dbdir, NULL, NULL, false, false);
-        if (!ret) {
-            return -1;
-        }
-    }
     if (stop_after_dbclear) {
         return -1;
     }
 
     graph_t g;
 
-    bool set_start;
-    bool set_goal;
+    bool set_start = false;
+    bool set_goal = false;
     graph_t::vertex_descriptor pnt_start = static_cast<graph_t::vertex_descriptor>(-1);
     graph_t::vertex_descriptor pnt_goal = static_cast<graph_t::vertex_descriptor>(-1);
-
-    if (only_graph) {
-        set_start = true;
-        set_goal = true;
-    } else {
-        set_start = false;
-        set_goal = false;
-    }
 
     //Edge追加
     for (int lp = 0; lp < mNodeNum; lp++) {
@@ -744,221 +741,162 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (!only_graph) {
 #ifdef M_DEBUG
-        fprintf(fp_err, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
+    fprintf(fp_err, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
 #endif
-        if (!set_start) {
-            fprintf(fp_err, "fail: no start node\n");
-            return -1;
+    if (!set_start) {
+        fprintf(fp_err, "fail: no start node\n");
+        return -1;
+    }
+    if (!set_goal) {
+        fprintf(fp_err, "fail: no goal node\n");
+        return -1;
+    }
+
+    std::vector<vertex_descriptor> p(num_vertices(g));      //parent
+    std::vector<int> d(num_vertices(g));
+    dijkstra_shortest_paths(g, pnt_start,
+                        weight_map(boost::get(&Fee::fee_base_msat, g)).
+                        predecessor_map(&p[0]).
+                        distance_map(&d[0]));
+
+    if (p[pnt_goal] == pnt_goal) {
+        fprintf(fp_err, "fail: cannot find route\n");
+        return -1;
+    }
+
+    //逆順に入っているので、並べ直す
+    //ついでに、min_final_cltv_expiryを足す
+    std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
+    std::deque<uint64_t> msat;
+    std::deque<uint32_t> cltv;
+
+    route.push_front(pnt_goal);
+    msat.push_front(amtmsat);
+    cltv.push_front(cltv_expiry);
+
+    for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
+
+        bool found;
+        graph_t::edge_descriptor e;
+        boost::tie(e, found) = edge(p[v], v, g);
+        if (!found) {
+            fprintf(fp_err, "not foooooooooound\n");
+            abort();
         }
-        if (!set_goal) {
-            fprintf(fp_err, "fail: no goal node\n");
-            return -1;
+
+#ifdef M_DEBUG
+        fprintf(fp_err, "node_id: ");
+        for (int llp = 0; llp < UCOIN_SZ_PUBKEY; llp++) {
+            fprintf(fp_err, "%02x", g[e].node_id[llp]);
         }
+        fprintf(fp_err, "\n");
 
-        std::vector<vertex_descriptor> p(num_vertices(g));      //parent
-        std::vector<int> d(num_vertices(g));
-        dijkstra_shortest_paths(g, pnt_start,
-                            weight_map(boost::get(&Fee::fee_base_msat, g)).
-                            predecessor_map(&p[0]).
-                            distance_map(&d[0]));
+        fprintf(fp_err, "amount_msat: %" PRIu64 "\n", amtmsat);
+        fprintf(fp_err, "cltv_expiry: %" PRIu32 "\n\n", cltv_expiry);
+#endif
 
-        if (p[pnt_goal] == pnt_goal) {
-            fprintf(fp_err, "fail: cannot find route\n");
-            return -1;
-        }
-
-        //逆順に入っているので、並べ直す
-        //ついでに、min_final_cltv_expiryを足す
-        std::deque<vertex_descriptor> route;        //std::vectorにはpush_front()がない
-        std::deque<uint64_t> msat;
-        std::deque<uint32_t> cltv;
-
-        route.push_front(pnt_goal);
+        route.push_front(p[v]);
         msat.push_front(amtmsat);
         cltv.push_front(cltv_expiry);
 
-        for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
+        amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
+        cltv_expiry += g[e].cltv_expiry_delta;
+    }
+    //std::cout << "distance: " << d[pnt_goal] << std::endl;
 
-            bool found;
-            graph_t::edge_descriptor e;
-            boost::tie(e, found) = edge(p[v], v, g);
-            if (!found) {
-                fprintf(fp_err, "not foooooooooound\n");
+    //pay.conf形式の出力
+    int hop = (int)route.size();
+    const uint8_t *p_next;
+    //nodeinfo_t ninfo;
+
+    //memset(&ninfo, 0, sizeof(ninfo));
+
+    if (!output_json) {
+        //CSV形式
+        printf("hop_num=%d\n", hop);
+        for (int lp = 0; lp < hop - 1; lp++) {
+            const uint8_t *p_now  = g[route[lp]].p_node;
+            p_next = g[route[lp + 1]].p_node;
+
+            const uint8_t *p_node_id1;
+            const uint8_t *p_node_id2;
+            int dir = direction(p_now, p_next);
+            if (dir == 0) {
+                p_node_id1 = p_now;
+                p_node_id2 = p_next;
+                dir = 0;
+            } else {
+                p_node_id1 = p_next;
+                p_node_id2 = p_now;
+                dir = 1;
+            }
+            uint64_t sci = 0;
+            for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
+                if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
+                    (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
+                    sci = mpNodes[lp3].short_channel_id;
+                    //ninfo = mpNodes[lp3].ninfo[dir];
+                    break;
+                }
+            }
+            if (sci == 0) {
+                fprintf(fp_err, "not match!\n");
                 abort();
             }
 
-#ifdef M_DEBUG
-            fprintf(fp_err, "node_id: ");
-            for (int llp = 0; llp < UCOIN_SZ_PUBKEY; llp++) {
-                fprintf(fp_err, "%02x", g[e].node_id[llp]);
-            }
-            fprintf(fp_err, "\n");
-
-            fprintf(fp_err, "amount_msat: %" PRIu64 "\n", amtmsat);
-            fprintf(fp_err, "cltv_expiry: %" PRIu32 "\n\n", cltv_expiry);
-#endif
-
-            route.push_front(p[v]);
-            msat.push_front(amtmsat);
-            cltv.push_front(cltv_expiry);
-
-            amtmsat = amtmsat + edgefee(amtmsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
-            cltv_expiry += g[e].cltv_expiry_delta;
+            printf("route%d=", lp);
+            ucoin_util_dumpbin(stdout, p_now, UCOIN_SZ_PUBKEY, false);
+            printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n", sci, msat[lp], cltv[lp]);
         }
-        //std::cout << "distance: " << d[pnt_goal] << std::endl;
 
-        //pay.conf形式の出力
-        int hop = (int)route.size();
-        const uint8_t *p_next;
-        //nodeinfo_t ninfo;
-
-        //memset(&ninfo, 0, sizeof(ninfo));
-
-        if (!output_json) {
-            //CSV形式
-            printf("hop_num=%d\n", hop);
-            for (int lp = 0; lp < hop - 1; lp++) {
-                const uint8_t *p_now  = g[route[lp]].p_node;
-                p_next = g[route[lp + 1]].p_node;
-
-                const uint8_t *p_node_id1;
-                const uint8_t *p_node_id2;
-                int dir = direction(p_now, p_next);
-                if (dir == 0) {
-                    p_node_id1 = p_now;
-                    p_node_id2 = p_next;
-                    dir = 0;
-                } else {
-                    p_node_id1 = p_next;
-                    p_node_id2 = p_now;
-                    dir = 1;
-                }
-                uint64_t sci = 0;
-                for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
-                    if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
-                        (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
-                        sci = mpNodes[lp3].short_channel_id;
-                        //ninfo = mpNodes[lp3].ninfo[dir];
-                        break;
-                    }
-                }
-                if (sci == 0) {
-                    fprintf(fp_err, "not match!\n");
-                    abort();
-                }
-
-                printf("route%d=", lp);
-                ucoin_util_dumpbin(stdout, p_now, UCOIN_SZ_PUBKEY, false);
-                printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n", sci, msat[lp], cltv[lp]);
-            }
-
-            //最後
-            printf("route%d=", hop - 1);
-            ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
-            printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
-        } else {
-            //JSON形式
-            //  JSON-RPCの "PAY" コマンドも付加している
-            printf("{\"method\":\"PAY\",\"params\":[\"%s\",%d, [", payment_hash, hop);
-            for (int lp = 0; lp < hop - 1; lp++) {
-                const uint8_t *p_now  = g[route[lp]].p_node;
-                p_next = g[route[lp + 1]].p_node;
-
-                const uint8_t *p_node_id1;
-                const uint8_t *p_node_id2;
-                int dir = direction(p_now, p_next);
-                if (dir == 0) {
-                    p_node_id1 = p_now;
-                    p_node_id2 = p_next;
-                    dir = 0;
-                } else {
-                    p_node_id1 = p_next;
-                    p_node_id2 = p_now;
-                    dir = 1;
-                }
-                uint64_t sci = 0;
-                for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
-                    if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
-                        (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
-                        sci = mpNodes[lp3].short_channel_id;
-                        //ninfo = mpNodes[lp3].ninfo[dir];
-                        break;
-                    }
-                }
-                if (sci == 0) {
-                    fprintf(fp_err, "not match!\n");
-                    abort();
-                }
-
-                printf("[\"");
-                ucoin_util_dumpbin(stdout, p_now, UCOIN_SZ_PUBKEY, false);
-                printf("\",\"%016" PRIx64 "\",%" PRIu64 ",%" PRIu32 "],", sci, msat[lp], cltv[lp]);
-            }
-
-            //最後
-            printf("[\"");
-            ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
-            printf("\",\"0\",%" PRIu64 ",%" PRIu32 "]]]}\n", msat[hop - 1], cltv[hop - 1]);
-        }
+        //最後
+        printf("route%d=", hop - 1);
+        ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
+        printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
     } else {
-        // http://www.boost.org/doc/libs/1_55_0/libs/graph/example/dijkstra-example.cpp
-        std::ofstream dot_file("routing.dot");
+        //JSON形式
+        //  JSON-RPCの "PAY" コマンドも付加している
+        printf("{\"method\":\"PAY\",\"params\":[\"%s\",%d, [", payment_hash, hop);
+        for (int lp = 0; lp < hop - 1; lp++) {
+            const uint8_t *p_now  = g[route[lp]].p_node;
+            p_next = g[route[lp + 1]].p_node;
 
-        dot_file << "digraph D {\n"
-                //<< "  rankdir=LR\n"
-                //<< "  ratio=\"fill\"\n"
-                << "  graph[layout=circo];\n"
-                //<< "  edge[style=\"bold\"];\n"
-                << "  node[style=\"solid,filled\", fillcolor=\"#8080ff\"];\n"
-                ;
-
-        graph_traits < graph_t >::edge_iterator ei, ei_end;
-        for (boost::tie(ei, ei_end) = edges(g); ei != ei_end; ++ei) {
-            graph_traits < graph_t >::edge_descriptor e = *ei;
-            graph_traits < graph_t >::vertex_descriptor u = source(e, g);
-            graph_traits < graph_t >::vertex_descriptor v = target(e, g);
-            if (u != v) {
-                char node1[68];
-                char node2[68];
-                node1[0] = '\"';
-                node1[1] = '\0';
-                node2[0] = '\"';
-                node2[1] = '\0';
-                const uint8_t *p_node1 = g[u].p_node;
-                const uint8_t *p_node2 = g[v].p_node;
-                //node_id先頭の数桁だけ使う
-                for (int lp = 0; lp < 3; lp++) {
-                    char s[3];
-                    sprintf(s, "%02x", p_node1[lp]);
-                    strcat(node1, s);
-                    sprintf(s, "%02x", p_node2[lp]);
-                    strcat(node2, s);
-                }
-                strcat(node1, "\"");
-                strcat(node2, "\"");
-                int col = memcmp(p_node1, p_node2, UCOIN_SZ_PUBKEY);
-                if (col > 0) {
-                    dot_file << node1 << " -> " << node2
-                            << "["
-                            << "label=\""
-                            << std::hex << g[e].short_channel_id << std::dec
-                            //<< ","
-                            //<< g[e].fee_base_msat
-                            //<< ","
-                            //<< g[e].fee_prop_millionths
-                            //<< ","
-                            //<< g[e].cltv_expiry_delta
-                            << "\""
-                            << ", color=\"black\""
-                            << ", fontcolor=\"#804040\""
-                            << ", arrowhead=\"none\""
-                            << "]" << std::endl;
+            const uint8_t *p_node_id1;
+            const uint8_t *p_node_id2;
+            int dir = direction(p_now, p_next);
+            if (dir == 0) {
+                p_node_id1 = p_now;
+                p_node_id2 = p_next;
+                dir = 0;
+            } else {
+                p_node_id1 = p_next;
+                p_node_id2 = p_now;
+                dir = 1;
+            }
+            uint64_t sci = 0;
+            for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
+                if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
+                    (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
+                    sci = mpNodes[lp3].short_channel_id;
+                    //ninfo = mpNodes[lp3].ninfo[dir];
+                    break;
                 }
             }
+            if (sci == 0) {
+                fprintf(fp_err, "not match!\n");
+                abort();
+            }
+
+            printf("[\"");
+            ucoin_util_dumpbin(stdout, p_now, UCOIN_SZ_PUBKEY, false);
+            printf("\",\"%016" PRIx64 "\",%" PRIu64 ",%" PRIu32 "],", sci, msat[lp], cltv[lp]);
         }
-        dot_file << "}";
+
+        //最後
+        printf("[\"");
+        ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
+        printf("\",\"0\",%" PRIu64 ",%" PRIu32 "]]]}\n", msat[hop - 1], cltv[hop - 1]);
     }
 
     free(dbdir);
