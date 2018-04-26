@@ -722,6 +722,28 @@ typedef struct {
 
 
 /**************************************************************************
+ * typedefs : routing
+ **************************************************************************/
+
+typedef struct {
+    uint64_t    short_channel_id;
+    struct {
+        uint8_t     node_id[UCOIN_SZ_PUBKEY];
+        uint16_t    cltv_expiry_delta;
+        uint64_t    htlc_minimum_msat;
+        uint32_t    fee_base_msat;
+        uint32_t    fee_prop_millionths;
+    } ninfo[2];
+} ln_routing_nodes_t;
+
+
+typedef struct {
+    uint32_t            node_num;
+    ln_routing_nodes_t  *p_nodes;
+} ln_routing_result_t;
+
+
+/**************************************************************************
  * typedefs : コールバック用
  **************************************************************************/
 
@@ -2082,6 +2104,7 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
  ********************************************************************/
 
 int ln_routing_calculate(
+        ln_routing_result_t *p_result,
         const uint8_t *send_nodeid,
         const uint8_t *recv_nodeid,
         uint32_t cltv_expiry,

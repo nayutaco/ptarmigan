@@ -169,8 +169,10 @@ int main(int argc, char* argv[])
     close(2);
 #endif  //M_SPOIL_STDERR
 
-    int ret = ln_routing_calculate(send_nodeid, recv_nodeid, cltv_expiry,
+    ln_routing_result_t result;
+    int ret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry,
                     amtmsat, payment_hash, dbdir, options & OPT_CLEARSDB);
+    free(result.p_nodes);
 
     free(dbdir);
     free(payment_hash);

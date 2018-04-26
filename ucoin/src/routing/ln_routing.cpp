@@ -68,14 +68,6 @@ extern "C" {
     bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 }
 
-struct nodeinfo_t {
-    uint8_t     node_id[UCOIN_SZ_PUBKEY];
-    uint16_t    cltv_expiry_delta;
-    uint64_t    htlc_minimum_msat;
-    uint32_t    fee_base_msat;
-    uint32_t    fee_prop_millionths;
-};
-
 
 struct Node {
     //std::string name;
@@ -102,17 +94,6 @@ typedef adjacency_list <
         > graph_t;
 typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
 typedef graph_traits < graph_t >::vertex_iterator vertex_iterator;
-
-
-/********************************************************************
- * static variables
- ********************************************************************/
-
-static struct nodes_t {
-    uint64_t    short_channel_id;
-    nodeinfo_t  ninfo[2];
-} *mpNodes = NULL;
-static int mNodeNum = 0;
 
 
 /********************************************************************
@@ -145,7 +126,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
+static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_routing_result_t *p_result)
 {
     int retval;
     MDB_cursor  *cursor;
@@ -176,36 +157,36 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
             }
             switch (type) {
             case LN_DB_CNLANNO_ANNO:
-                mNodeNum++;
-                mpNodes = (nodes_t *)realloc(mpNodes, sizeof(nodes_t) * mNodeNum);
+                p_result->node_num++;
+                p_result->p_nodes = (ln_routing_nodes_t *)realloc(p_result->p_nodes, sizeof(ln_routing_nodes_t) * p_result->node_num);
 
                 ln_getids_cnl_anno(
-                                    &mpNodes[mNodeNum - 1].short_channel_id,
-                                    mpNodes[mNodeNum - 1].ninfo[0].node_id,
-                                    mpNodes[mNodeNum - 1].ninfo[1].node_id,
+                                    &p_result->p_nodes[p_result->node_num - 1].short_channel_id,
+                                    p_result->p_nodes[p_result->node_num - 1].ninfo[0].node_id,
+                                    p_result->p_nodes[p_result->node_num - 1].ninfo[1].node_id,
                                     buf.buf, buf.len);
-                mpNodes[mNodeNum - 1].ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
-                mpNodes[mNodeNum - 1].ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
+                p_result->p_nodes[p_result->node_num - 1].ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
+                p_result->p_nodes[p_result->node_num - 1].ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
 #ifdef M_DEBUG
-                fprintf(stderr, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
+                fprintf(stderr, "channel_announce : %016" PRIx64 "\n", p_result->p_nodes[p_result->node_num - 1].short_channel_id);
                 ln_print_announce(buf.buf, buf.len);
 #endif
                 break;
             case LN_DB_CNLANNO_UPD1:
             case LN_DB_CNLANNO_UPD2:
-                if (mNodeNum > 0) {
+                if (p_result->node_num > 0) {
                     int idx = type - LN_DB_CNLANNO_UPD1;
                     bret = ln_getparams_cnl_upd(&upd, buf.buf, buf.len);
                     if ( bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0) &&
-                        (mpNodes[mNodeNum - 1].short_channel_id == upd.short_channel_id) ) {
+                        (p_result->p_nodes[p_result->node_num - 1].short_channel_id == upd.short_channel_id) ) {
                         //disable状態ではない && channel_announcement.short_channel_idと一致
-                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
-                        mpNodes[mNodeNum - 1].ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
-                        mpNodes[mNodeNum - 1].ninfo[idx].fee_base_msat = upd.fee_base_msat;
-                        mpNodes[mNodeNum - 1].ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
+                        p_result->p_nodes[p_result->node_num - 1].ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
+                        p_result->p_nodes[p_result->node_num - 1].ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
+                        p_result->p_nodes[p_result->node_num - 1].ninfo[idx].fee_base_msat = upd.fee_base_msat;
+                        p_result->p_nodes[p_result->node_num - 1].ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
                     } else {
                         //disableの場合は、対象外にされるよう初期値にしておく
-                        mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
+                        p_result->p_nodes[p_result->node_num - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
                     }
 #ifdef M_DEBUG
                     fprintf(stderr, "channel update : %c\n", type);
@@ -222,7 +203,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
     mdb_cursor_close(cursor);
 }
 
-static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, const uint8_t *p1, const uint8_t *p2)
+static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_routing_result_t *p_result, const uint8_t *p1, const uint8_t *p2)
 {
     int retval;
     MDB_cursor  *cursor;
@@ -265,21 +246,21 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, const u
                 fprintf(stderr, "p2= ");
                 dumpbin(p2, 33);
 #endif
-                mNodeNum++;
-                mpNodes = (nodes_t *)realloc(mpNodes, sizeof(nodes_t) * mNodeNum);
-                mpNodes[mNodeNum - 1].short_channel_id = p_self->short_channel_id;
+                p_result->node_num++;
+                p_result->p_nodes = (ln_routing_nodes_t *)realloc(p_result->p_nodes, sizeof(ln_routing_nodes_t) * p_result->node_num);
+                p_result->p_nodes[p_result->node_num - 1].short_channel_id = p_self->short_channel_id;
                 if (memcmp(p1, p2, UCOIN_SZ_PUBKEY) > 0) {
                     const uint8_t *p = p1;
                     p1 = p2;
                     p2 = p;
                 }
-                memcpy(mpNodes[mNodeNum - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
-                memcpy(mpNodes[mNodeNum - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
+                memcpy(p_result->p_nodes[p_result->node_num - 1].ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
+                memcpy(p_result->p_nodes[p_result->node_num - 1].ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
                 for (int lp = 0; lp < 2; lp++) {
-                    mpNodes[mNodeNum - 1].ninfo[lp].cltv_expiry_delta = 0;
-                    mpNodes[mNodeNum - 1].ninfo[lp].htlc_minimum_msat = 0;
-                    mpNodes[mNodeNum - 1].ninfo[lp].fee_base_msat = 0;
-                    mpNodes[mNodeNum - 1].ninfo[lp].fee_prop_millionths = 0;
+                    p_result->p_nodes[p_result->node_num - 1].ninfo[lp].cltv_expiry_delta = 0;
+                    p_result->p_nodes[p_result->node_num - 1].ninfo[lp].htlc_minimum_msat = 0;
+                    p_result->p_nodes[p_result->node_num - 1].ninfo[lp].fee_base_msat = 0;
+                    p_result->p_nodes[p_result->node_num - 1].ninfo[lp].fee_prop_millionths = 0;
                 }
             }
 
@@ -298,7 +279,7 @@ LABEL_EXIT:
  * @param[in]       p2      送金先node_id(NULLあり)
  * @param[in]       clear_skip_db       true:routing skip DBクリア
  */
-static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db)
+static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db)
 {
     int ret;
     bool bret;
@@ -422,7 +403,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
             } else {
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 if (dbtype == LN_LMDB_DBTYPE_SELF) {
-                    dumpit_self(txn_self, dbi2, &db_skip, p1, p2);
+                    dumpit_self(txn_self, dbi2, &db_skip, p_result, p1, p2);
                 }
             }
             mdb_close(mdb_txn_env(txn_self), dbi2);
@@ -457,7 +438,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
             } else {
                 ln_lmdb_dbtype_t dbtype = ln_lmdb_get_dbtype(name);
                 if (dbtype == LN_LMDB_DBTYPE_CHANNEL_ANNO) {
-                    dumpit_chan(txn_node, dbi2, &db_skip);
+                    dumpit_chan(txn_node, dbi2, &db_skip, p_result);
                 }
             }
             mdb_close(mdb_txn_env(txn_node), dbi2);
@@ -510,6 +491,7 @@ static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 
 
 int ln_routing_calculate(
+        ln_routing_result_t *p_result,
         const uint8_t *send_nodeid,
         const uint8_t *recv_nodeid,
         uint32_t cltv_expiry,
@@ -518,8 +500,10 @@ int ln_routing_calculate(
         const char *dbdir,
         bool clear_skip_db)
 {
+    p_result->node_num = 0;
+    p_result->p_nodes = NULL;
 
-    bool ret = loaddb(dbdir, send_nodeid, recv_nodeid, clear_skip_db);
+    bool ret = loaddb(p_result, dbdir, send_nodeid, recv_nodeid, clear_skip_db);
     if (!ret) {
         return -1;
     }
@@ -542,62 +526,62 @@ int ln_routing_calculate(
     graph_t::vertex_descriptor pnt_goal = static_cast<graph_t::vertex_descriptor>(-1);
 
     //Edge追加
-    for (int lp = 0; lp < mNodeNum; lp++) {
+    for (uint32_t lp = 0; lp < p_result->node_num; lp++) {
 #ifdef M_DEBUG
-        fprintf(stderr, "  short_channel_id=%016" PRIx64 "\n", mpNodes[lp].short_channel_id);
+        fprintf(stderr, "  short_channel_id=%016" PRIx64 "\n", p_result->p_nodes[lp].short_channel_id);
         fprintf(stderr, "    [1]");
-        ucoin_util_dumpbin(stderr, mpNodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
+        ucoin_util_dumpbin(stderr, p_result->p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
         fprintf(stderr, "    [2]");
-        ucoin_util_dumpbin(stderr, mpNodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
+        ucoin_util_dumpbin(stderr, p_result->p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
         fprintf(stderr, "\n");
 #endif
 
-        graph_t::vertex_descriptor node1 = ver_add(g, mpNodes[lp].ninfo[0].node_id);
-        graph_t::vertex_descriptor node2 = ver_add(g, mpNodes[lp].ninfo[1].node_id);
+        graph_t::vertex_descriptor node1 = ver_add(g, p_result->p_nodes[lp].ninfo[0].node_id);
+        graph_t::vertex_descriptor node2 = ver_add(g, p_result->p_nodes[lp].ninfo[1].node_id);
 
         if (!set_start) {
-            if (memcmp(mpNodes[lp].ninfo[0].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            if (memcmp(p_result->p_nodes[lp].ninfo[0].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_start = node1;
                 set_start = true;
-            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            } else if (memcmp(p_result->p_nodes[lp].ninfo[1].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_start = node2;
                 set_start = true;
             }
         }
         if (!set_goal) {
-            if (memcmp(mpNodes[lp].ninfo[0].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            if (memcmp(p_result->p_nodes[lp].ninfo[0].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_goal = node1;
                 set_goal = true;
-            } else if (memcmp(mpNodes[lp].ninfo[1].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            } else if (memcmp(p_result->p_nodes[lp].ninfo[1].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_goal = node2;
                 set_goal = true;
             }
         }
 
         if (node1 != node2) {
-            if (mpNodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) {
+            if (p_result->p_nodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) {
                 //channel_update1
                 bool inserted = false;
                 graph_t::edge_descriptor e1;
 
                 boost::tie(e1, inserted) = add_edge(node1, node2, g);
-                g[e1].short_channel_id = mpNodes[lp].short_channel_id;
-                g[e1].fee_base_msat = mpNodes[lp].ninfo[0].fee_base_msat;
-                g[e1].fee_prop_millionths = mpNodes[lp].ninfo[0].fee_prop_millionths;
-                g[e1].cltv_expiry_delta = mpNodes[lp].ninfo[0].cltv_expiry_delta;
-                g[e1].node_id = mpNodes[lp].ninfo[0].node_id;
+                g[e1].short_channel_id = p_result->p_nodes[lp].short_channel_id;
+                g[e1].fee_base_msat = p_result->p_nodes[lp].ninfo[0].fee_base_msat;
+                g[e1].fee_prop_millionths = p_result->p_nodes[lp].ninfo[0].fee_prop_millionths;
+                g[e1].cltv_expiry_delta = p_result->p_nodes[lp].ninfo[0].cltv_expiry_delta;
+                g[e1].node_id = p_result->p_nodes[lp].ninfo[0].node_id;
             }
-            if (mpNodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) {
+            if (p_result->p_nodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) {
                 //channel_update2
                 bool inserted = false;
                 graph_t::edge_descriptor e2;
 
                 boost::tie(e2, inserted) = add_edge(node2, node1, g);
-                g[e2].short_channel_id = mpNodes[lp].short_channel_id;
-                g[e2].fee_base_msat = mpNodes[lp].ninfo[1].fee_base_msat;
-                g[e2].fee_prop_millionths = mpNodes[lp].ninfo[1].fee_prop_millionths;
-                g[e2].cltv_expiry_delta = mpNodes[lp].ninfo[1].cltv_expiry_delta;
-                g[e2].node_id = mpNodes[lp].ninfo[1].node_id;
+                g[e2].short_channel_id = p_result->p_nodes[lp].short_channel_id;
+                g[e2].fee_base_msat = p_result->p_nodes[lp].ninfo[1].fee_base_msat;
+                g[e2].fee_prop_millionths = p_result->p_nodes[lp].ninfo[1].fee_prop_millionths;
+                g[e2].cltv_expiry_delta = p_result->p_nodes[lp].ninfo[1].cltv_expiry_delta;
+                g[e2].node_id = p_result->p_nodes[lp].ninfo[1].node_id;
             }
         }
     }
@@ -690,11 +674,10 @@ int ln_routing_calculate(
                 dir = 1;
             }
             uint64_t sci = 0;
-            for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
-                if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
-                    (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
-                    sci = mpNodes[lp3].short_channel_id;
-                    //ninfo = mpNodes[lp3].ninfo[dir];
+            for (uint32_t lp3 = 0; lp3 < p_result->node_num; lp3++) {
+                if ( (memcmp(p_node_id1, p_result->p_nodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
+                    (memcmp(p_node_id2, p_result->p_nodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
+                    sci = p_result->p_nodes[lp3].short_channel_id;
                     break;
                 }
             }
@@ -733,11 +716,10 @@ int ln_routing_calculate(
                 dir = 1;
             }
             uint64_t sci = 0;
-            for (int lp3 = 0; lp3 < mNodeNum; lp3++) {
-                if ( (memcmp(p_node_id1, mpNodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
-                    (memcmp(p_node_id2, mpNodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
-                    sci = mpNodes[lp3].short_channel_id;
-                    //ninfo = mpNodes[lp3].ninfo[dir];
+            for (uint32_t lp3 = 0; lp3 < p_result->node_num; lp3++) {
+                if ( (memcmp(p_node_id1, p_result->p_nodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
+                    (memcmp(p_node_id2, p_result->p_nodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
+                    sci = p_result->p_nodes[lp3].short_channel_id;
                     break;
                 }
             }
@@ -756,7 +738,6 @@ int ln_routing_calculate(
         ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
         printf("\",\"0\",%" PRIu64 ",%" PRIu32 "]]]}\n", msat[hop - 1], cltv[hop - 1]);
     }
-    free(mpNodes);
 
     return 0;
 }
