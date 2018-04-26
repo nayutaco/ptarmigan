@@ -75,6 +75,12 @@ using namespace boost;
 
 #define M_ROUTE_SKIP_DBNAME                 "route_skip"
 
+#define OPT_SENDER                          (0x01)  // -s指定あり
+#define OPT_RECVER                          (0x02)  // -r指定あり
+#define OPT_CLEARSDB                        (0x40)  // clear skip db
+#define OPT_HELP                            (0x80)  // help
+
+
 /**************************************************************************
  * typedefs
  **************************************************************************/
@@ -315,9 +321,8 @@ LABEL_EXIT:
  * @param[in]       p1      送金元node_id(NULLあり)
  * @param[in]       p2      送金先node_id(NULLあり)
  * @param[in]       clear_skip_db       true:routing skip DBクリア
- * @param[in]       stop_after_dbclear  true:routing skip DBクリア後、すぐにreturnする
  */
-static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db, bool stop_after_dbclear)
+static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db)
 {
     int ret;
     bool bret;
@@ -364,9 +369,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     if (clear_skip_db) {
         bret = ln_db_annoskip_drop(false);
         fprintf(fp_err, "%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
-        if (stop_after_dbclear) {
-            return false;
-        }
+        return true;
     }
 
     uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
@@ -530,137 +533,22 @@ static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 }
 
 
-/********************************************************************
- * main entry
- ********************************************************************/
-
-int main(int argc, char* argv[])
+static int routing_calculate(
+        const uint8_t *send_nodeid,
+        const uint8_t *recv_nodeid,
+        uint32_t cltv_expiry,
+        uint64_t amtmsat,
+        const char *payment_hash,
+        const char *dbdir,
+        bool clear_skip_db)
 {
-    bool ret;
-    fp_err = stderr;
-
-    uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
-    uint8_t recv_nodeid[UCOIN_SZ_PUBKEY];
-    uint32_t cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
-    uint64_t amtmsat = 0;
-    bool output_json = false;
-    bool clear_skip_db = false;
-    char *payment_hash = NULL;
-    char *dbdir = strdup(LNDB_DBDIR);
-
-    int opt;
-    int options = 0;
-    while ((opt = getopt(argc, argv, "hd:s:r:a:e:p:jc")) != -1) {
-        switch (opt) {
-        case 'd':
-            //db directory
-            free(dbdir);
-            dbdir = strdup(optarg);
-            break;
-        case 's':
-            //sender(payer)
-            ret = misc_str2bin(send_nodeid, sizeof(send_nodeid), optarg);
-            if (!ret) {
-                fprintf(fp_err, "invalid arg: payer node id\n");
-                return -1;
-            }
-            options |= 1;
-            break;
-        case 'r':
-            //receiver(payee)
-            ret = misc_str2bin(recv_nodeid, sizeof(recv_nodeid), optarg);
-            if (!ret) {
-                fprintf(fp_err, "invalid arg: payee node id\n");
-                return -1;
-            }
-            options |= 2;
-            break;
-        case 'a':
-            //amount
-            errno = 0;
-            amtmsat = (uint64_t)strtoull(optarg, NULL, 10);
-            if (errno) {
-                DBG_PRINTF("errno=%s\n", strerror(errno));
-                return -1;
-            }
-            break;
-        case 'e':
-            //min_final_expiry_delta
-            cltv_expiry = (uint32_t)atoi(optarg);
-            break;
-        case 'p':
-            //payment_hash
-            payment_hash = strdup(optarg);
-            break;
-        case 'j':
-            //JSON
-            output_json = true;
-            break;
-        case 'c':
-            //clear skip DB before routing
-            clear_skip_db = true;
-            break;
-        case 'h':
-            //help
-            fprintf(fp_err, "usage:");
-            fprintf(fp_err, "\t%s -s PAYER_NODEID -r PAYEE_NODEID [-d DB_DIR] [-a AMOUNT_MSAT] [-e MIN_FINAL_CLTV_EXPIRY] [-p PAYMENT_HASH] [-j] [-c]\n", argv[0]);
-            fprintf(fp_err, "\t\t-s : sender(payer) node_id\n");
-            fprintf(fp_err, "\t\t-r : receiver(payee) node_id\n");
-            fprintf(fp_err, "\t\t-d : db directory\n");
-            fprintf(fp_err, "\t\t-a : amount_msat\n");
-            fprintf(fp_err, "\t\t-e : min_final_cltv_expiry\n");
-            fprintf(fp_err, "\t\t-p : payment_hash\n");
-            fprintf(fp_err, "\t\t-j : output JSON format(default: CSV format)\n");
-            fprintf(fp_err, "\t\t-c : clear routing skip channel list\n");
-            return -1;
-        default:
-            break;
-        }
-    }
-
-    bool stop_after_dbclear = false;
-    if (options != 3) {
-        if (clear_skip_db) {
-            stop_after_dbclear = true;
-        } else {
-            fprintf(fp_err, "fail: need -s and -r\n");
-            return -1;
-        }
-    }
-    if (output_json && (payment_hash == NULL)) {
-        if (clear_skip_db) {
-            stop_after_dbclear = true;
-        } else {
-            fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
-            return -1;
-        }
-    }
-
-    cltv_expiry += M_SHADOW_ROUTE;
-
-#ifdef M_SPOIL_STDERR
-    //stderrを捨てる
-    int fd_err = dup(2);
-    fp_err = fdopen(fd_err, "w");
-    close(2);
-#endif  //M_SPOIL_STDERR
-
-    /********************************************************************
-     * 動作
-     *      1. ルート作成(JSON) : output_json=true
-     *      2. ルート作成(CSV) : output_json=false
-     *      3. routeスキップDB削除 : clear_skip_db=true
-     *
-     * send_nodeid, recv_nodeid
-     * cltv_expiry
-     * amtmsat
-     * payment_hash
-     * dbdir
-     ********************************************************************/
-
-    ret = loaddb(dbdir, send_nodeid, recv_nodeid, clear_skip_db, stop_after_dbclear);
+    
+    bool ret = loaddb(dbdir, send_nodeid, recv_nodeid, clear_skip_db);
     if (!ret) {
         return -1;
+    }
+    if (ret && clear_skip_db) {
+        return 0;
     }
 
 #ifdef M_DEBUG
@@ -669,9 +557,6 @@ int main(int argc, char* argv[])
     fprintf(fp_err, "end nodeid   : ");
     ucoin_util_dumpbin(fp_err, recv_nodeid, UCOIN_SZ_PUBKEY, true);
 #endif
-    if (stop_after_dbclear) {
-        return -1;
-    }
 
     graph_t g;
 
@@ -812,7 +697,7 @@ int main(int argc, char* argv[])
 
     //memset(&ninfo, 0, sizeof(ninfo));
 
-    if (!output_json) {
+    if (payment_hash == NULL) {
         //CSV形式
         printf("hop_num=%d\n", hop);
         for (int lp = 0; lp < hop - 1; lp++) {
@@ -899,9 +784,127 @@ int main(int argc, char* argv[])
         printf("\",\"0\",%" PRIu64 ",%" PRIu32 "]]]}\n", msat[hop - 1], cltv[hop - 1]);
     }
 
+    return 0;
+}
+
+
+/********************************************************************
+ * main entry
+ ********************************************************************/
+
+int main(int argc, char* argv[])
+{
+    bool bret;
+    fp_err = stderr;
+
+    uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
+    uint8_t recv_nodeid[UCOIN_SZ_PUBKEY];
+    uint32_t cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
+    uint64_t amtmsat = 0;
+    bool output_json = false;
+    char *payment_hash = NULL;
+    char *dbdir = strdup(LNDB_DBDIR);
+
+    int opt;
+    int options = 0;
+    while ((opt = getopt(argc, argv, "hd:s:r:a:e:p:jc")) != -1) {
+        switch (opt) {
+        case 'd':
+            //db directory
+            free(dbdir);
+            dbdir = strdup(optarg);
+            break;
+        case 's':
+            //sender(payer)
+            bret = misc_str2bin(send_nodeid, sizeof(send_nodeid), optarg);
+            if (!bret) {
+                fprintf(fp_err, "invalid arg: payer node id\n");
+                return -1;
+            }
+            options |= OPT_SENDER;
+            break;
+        case 'r':
+            //receiver(payee)
+            bret = misc_str2bin(recv_nodeid, sizeof(recv_nodeid), optarg);
+            if (!bret) {
+                fprintf(fp_err, "invalid arg: payee node id\n");
+                return -1;
+            }
+            options |= OPT_RECVER;
+            break;
+        case 'a':
+            //amount
+            errno = 0;
+            amtmsat = (uint64_t)strtoull(optarg, NULL, 10);
+            if (errno) {
+                DBG_PRINTF("errno=%s\n", strerror(errno));
+                return -1;
+            }
+            break;
+        case 'e':
+            //min_final_expiry_delta
+            cltv_expiry = (uint32_t)atoi(optarg);
+            break;
+        case 'p':
+            //payment_hash
+            payment_hash = strdup(optarg);
+            break;
+        case 'j':
+            //JSON
+            output_json = true;
+            break;
+        case 'c':
+            //clear skip DB
+            options |= OPT_CLEARSDB;
+            break;
+        case 'h':
+        default:
+            //help
+            options |= OPT_HELP;
+            break;
+        }
+    }
+
+    if ((options == 0) || (options & OPT_HELP)) {
+        fprintf(fp_err, "usage:");
+        fprintf(fp_err, "\t%s -s PAYER_NODEID -r PAYEE_NODEID [-d DB_DIR] [-a AMOUNT_MSAT] [-e MIN_FINAL_CLTV_EXPIRY] [-p PAYMENT_HASH] [-j] [-c]\n", argv[0]);
+        fprintf(fp_err, "\t\t-s : sender(payer) node_id\n");
+        fprintf(fp_err, "\t\t-r : receiver(payee) node_id\n");
+        fprintf(fp_err, "\t\t-d : db directory\n");
+        fprintf(fp_err, "\t\t-a : amount_msat\n");
+        fprintf(fp_err, "\t\t-e : min_final_cltv_expiry\n");
+        fprintf(fp_err, "\t\t-p : payment_hash\n");
+        fprintf(fp_err, "\t\t-j : output JSON format(default: CSV format)\n");
+        fprintf(fp_err, "\t\t-c : clear routing skip channel list\n");
+        return -1;
+    }
+
+    if ((options & OPT_CLEARSDB) == 0) {
+        if (options != (OPT_SENDER | OPT_RECVER)) {
+            fprintf(fp_err, "fail: need -s and -r\n");
+            return -1;
+        }
+        if (output_json && (payment_hash == NULL)) {
+            fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
+            return -1;
+        }
+    }
+
+    cltv_expiry += M_SHADOW_ROUTE;
+
+#ifdef M_SPOIL_STDERR
+    //stderrを捨てる
+    int fd_err = dup(2);
+    fp_err = fdopen(fd_err, "w");
+    close(2);
+#endif  //M_SPOIL_STDERR
+
+    int ret = routing_calculate(send_nodeid, recv_nodeid, cltv_expiry,
+                    amtmsat, payment_hash, dbdir, options & OPT_CLEARSDB);
+
     free(dbdir);
     free(payment_hash);
     free(mpNodes);
 
-    return 0;
+    return ret;
 }
