@@ -31,7 +31,7 @@
 #include <stdbool.h>
 #include <assert.h>
 
-#include "ln.h"
+#include "ln_local.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
 
@@ -96,6 +96,24 @@ typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
 typedef graph_traits < graph_t >::vertex_iterator vertex_iterator;
 
 
+struct nodes_t {
+    uint64_t    short_channel_id;
+    struct {
+        uint8_t     node_id[UCOIN_SZ_PUBKEY];
+        uint16_t    cltv_expiry_delta;
+        uint64_t    htlc_minimum_msat;
+        uint32_t    fee_base_msat;
+        uint32_t    fee_prop_millionths;
+    } ninfo[2];
+};
+
+
+struct nodes_result_t {
+    uint32_t    node_num;
+    nodes_t     *p_nodes;
+};
+
+
 /********************************************************************
  * external prototypes
  ********************************************************************/
@@ -113,9 +131,9 @@ void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
 static void dumpbin(const uint8_t *pData, int Len)
 {
     for (int lp = 0; lp < Len; lp++) {
-        fprintf(stderr, "%02x", pData[lp]);
+        DBG_PRINTF("%02x", pData[lp]);
     }
-    fprintf(stderr, "\n");
+    DBG_PRINTF("\n");
 }
 #endif
 
@@ -126,7 +144,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_routing_result_t *p_result)
+static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, nodes_result_t *p_result)
 {
     int retval;
     MDB_cursor  *cursor;
@@ -150,7 +168,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_rout
                 bret = ln_db_annoskip_search(p_skip, short_channel_id);
                 if (bret) {
 #ifdef M_DEBUG
-                    fprintf(stderr, "skip : %016" PRIx64 "\n", short_channel_id);
+                    DBG_PRINTF("skip : %016" PRIx64 "\n", short_channel_id);
 #endif
                     continue;
                 }
@@ -158,7 +176,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_rout
             switch (type) {
             case LN_DB_CNLANNO_ANNO:
                 p_result->node_num++;
-                p_result->p_nodes = (ln_routing_nodes_t *)realloc(p_result->p_nodes, sizeof(ln_routing_nodes_t) * p_result->node_num);
+                p_result->p_nodes = (nodes_t *)realloc(p_result->p_nodes, sizeof(nodes_t) * p_result->node_num);
 
                 ln_getids_cnl_anno(
                                     &p_result->p_nodes[p_result->node_num - 1].short_channel_id,
@@ -168,7 +186,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_rout
                 p_result->p_nodes[p_result->node_num - 1].ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
                 p_result->p_nodes[p_result->node_num - 1].ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
 #ifdef M_DEBUG
-                fprintf(stderr, "channel_announce : %016" PRIx64 "\n", p_result->p_nodes[p_result->node_num - 1].short_channel_id);
+                DBG_PRINTF("channel_announce : %016" PRIx64 "\n", p_result->p_nodes[p_result->node_num - 1].short_channel_id);
                 ln_print_announce(buf.buf, buf.len);
 #endif
                 break;
@@ -189,7 +207,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_rout
                         p_result->p_nodes[p_result->node_num - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
                     }
 #ifdef M_DEBUG
-                    fprintf(stderr, "channel update : %c\n", type);
+                    DBG_PRINTF("channel update : %c\n", type);
                     ln_print_announce(buf.buf, buf.len);
 #endif
                 }
@@ -203,7 +221,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_rout
     mdb_cursor_close(cursor);
 }
 
-static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_routing_result_t *p_result, const uint8_t *p1, const uint8_t *p2)
+static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, nodes_result_t *p_result, const uint8_t *p1, const uint8_t *p2)
 {
     int retval;
     MDB_cursor  *cursor;
@@ -231,7 +249,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_rout
                     bool bret = ln_db_annoskip_search(p_skip, p_self->short_channel_id);
                     if (bret) {
 #ifdef M_DEBUG
-                        fprintf(stderr, "skip : %016" PRIx64 "\n", p_self->short_channel_id);
+                        DBG_PRINTF("skip : %016" PRIx64 "\n", p_self->short_channel_id);
 #endif
                         goto LABEL_EXIT;
                     }
@@ -240,14 +258,14 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, ln_rout
                 p2 = p_self->peer_node_id;
 
 #ifdef M_DEBUG
-                fprintf(stderr, "p_self->short_channel_id: %" PRIx64 "\n", p_self->short_channel_id);
-                fprintf(stderr, "p1= ");
+                DBG_PRINTF("p_self->short_channel_id: %" PRIx64 "\n", p_self->short_channel_id);
+                DBG_PRINTF("p1= ");
                 dumpbin(p1, 33);
-                fprintf(stderr, "p2= ");
+                DBG_PRINTF("p2= ");
                 dumpbin(p2, 33);
 #endif
                 p_result->node_num++;
-                p_result->p_nodes = (ln_routing_nodes_t *)realloc(p_result->p_nodes, sizeof(ln_routing_nodes_t) * p_result->node_num);
+                p_result->p_nodes = (nodes_t *)realloc(p_result->p_nodes, sizeof(nodes_t) * p_result->node_num);
                 p_result->p_nodes[p_result->node_num - 1].short_channel_id = p_self->short_channel_id;
                 if (memcmp(p1, p2, UCOIN_SZ_PUBKEY) > 0) {
                     const uint8_t *p = p1;
@@ -279,7 +297,7 @@ LABEL_EXIT:
  * @param[in]       p2      送金先node_id(NULLあり)
  * @param[in]       clear_skip_db       true:routing skip DBクリア
  */
-static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db)
+static bool loaddb(nodes_result_t *p_result, const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bool clear_skip_db)
 {
     int ret;
     bool bret;
@@ -308,7 +326,7 @@ static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uin
     assert(ret == 0);
     ret = mdb_env_open(pDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", selfpath);
+        DBG_PRINTF("fail: cannot open[%s]\n", selfpath);
         return false;
     }
 
@@ -318,14 +336,14 @@ static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uin
     assert(ret == 0);
     ret = mdb_env_open(pDbNode, nodepath, 0, 0664);
     if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", nodepath);
+        DBG_PRINTF("fail: cannot open[%s]\n", nodepath);
         return false;
     }
     ln_lmdb_setenv(pDbSelf, pDbNode);
 
     if (clear_skip_db) {
         bret = ln_db_annoskip_drop(false);
-        fprintf(stderr, "%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
+        DBG_PRINTF("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
         return true;
     }
 
@@ -333,7 +351,7 @@ static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uin
     ucoin_genesis_t gtype;
     bret = ln_db_ver_check(my_nodeid, &gtype);
     if (!bret) {
-        fprintf(stderr, "fail: DB version mismatch\n");
+        DBG_PRINTF("fail: DB version mismatch\n");
         return false;
     }
 
@@ -347,12 +365,12 @@ static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uin
         ucoin_init(UCOIN_TESTNET, true);
         break;
     default:
-        fprintf(stderr, "fail: unknown chainhash in DB\n");
+        DBG_PRINTF("fail: unknown chainhash in DB\n");
         return false;
     }
 
 #ifdef M_DEBUG
-    fprintf(stderr, "my node_id: ");
+    DBG_PRINTF("my node_id: ");
     dumpbin(my_nodeid, sizeof(my_nodeid));
 #endif
     if (p1 && (memcmp(my_nodeid, p1, UCOIN_SZ_PUBKEY) != 0)) {
@@ -363,7 +381,7 @@ static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uin
     //node
     ret = mdb_txn_begin(pDbNode, NULL, MDB_RDONLY, &txn_node);
     if (ret != 0) {
-        fprintf(stderr, "fail: DB txn 2\n");
+        DBG_PRINTF("fail: DB txn 2\n");
         return false;
     }
     MDB_dbi dbi_skip;
@@ -378,7 +396,7 @@ static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uin
     //self
     ret = mdb_txn_begin(pDbSelf, NULL, MDB_RDONLY, &txn_self);
     if (ret != 0) {
-        fprintf(stderr, "fail: DB txn 1\n");
+        DBG_PRINTF("fail: DB txn 1\n");
         mdb_txn_abort(txn_node);
         return false;
     }
@@ -408,7 +426,7 @@ static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uin
             }
             mdb_close(mdb_txn_env(txn_self), dbi2);
         } else {
-            fprintf(stderr, "err1[%s]: %s\n",name, mdb_strerror(ret));
+            DBG_PRINTF("err1[%s]: %s\n",name, mdb_strerror(ret));
         }
         free(name);
     }
@@ -443,7 +461,7 @@ static bool loaddb(ln_routing_result_t *p_result, const char *pDbPath, const uin
             }
             mdb_close(mdb_txn_env(txn_node), dbi2);
         } else {
-            fprintf(stderr, "err2[%s]: %s\n", name, mdb_strerror(ret));
+            DBG_PRINTF("err2[%s]: %s\n", name, mdb_strerror(ret));
         }
         free(name);
     }
@@ -496,14 +514,16 @@ int ln_routing_calculate(
         const uint8_t *recv_nodeid,
         uint32_t cltv_expiry,
         uint64_t amtmsat,
-        const char *payment_hash,
         const char *dbdir,
         bool clear_skip_db)
 {
-    p_result->node_num = 0;
-    p_result->p_nodes = NULL;
+    p_result->hop_num = 0;
 
-    bool ret = loaddb(p_result, dbdir, send_nodeid, recv_nodeid, clear_skip_db);
+    nodes_result_t rt_res;
+    rt_res.node_num = 0;
+    rt_res.p_nodes = NULL;
+
+    bool ret = loaddb(&rt_res, dbdir, send_nodeid, recv_nodeid, clear_skip_db);
     if (!ret) {
         return -1;
     }
@@ -512,9 +532,9 @@ int ln_routing_calculate(
     }
 
 #ifdef M_DEBUG
-    fprintf(stderr, "start nodeid : ");
+    DBG_PRINTF("start nodeid : ");
     ucoin_util_dumpbin(stderr, send_nodeid, UCOIN_SZ_PUBKEY, true);
-    fprintf(stderr, "end nodeid   : ");
+    DBG_PRINTF("end nodeid   : ");
     ucoin_util_dumpbin(stderr, recv_nodeid, UCOIN_SZ_PUBKEY, true);
 #endif
 
@@ -526,75 +546,75 @@ int ln_routing_calculate(
     graph_t::vertex_descriptor pnt_goal = static_cast<graph_t::vertex_descriptor>(-1);
 
     //Edge追加
-    for (uint32_t lp = 0; lp < p_result->node_num; lp++) {
+    for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
 #ifdef M_DEBUG
-        fprintf(stderr, "  short_channel_id=%016" PRIx64 "\n", p_result->p_nodes[lp].short_channel_id);
-        fprintf(stderr, "    [1]");
-        ucoin_util_dumpbin(stderr, p_result->p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
-        fprintf(stderr, "    [2]");
-        ucoin_util_dumpbin(stderr, p_result->p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
-        fprintf(stderr, "\n");
+        DBG_PRINTF("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
+        DBG_PRINTF("    [1]");
+        ucoin_util_dumpbin(stderr, rt_res.p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
+        DBG_PRINTF("    [2]");
+        ucoin_util_dumpbin(stderr, rt_res.p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
+        DBG_PRINTF("\n");
 #endif
 
-        graph_t::vertex_descriptor node1 = ver_add(g, p_result->p_nodes[lp].ninfo[0].node_id);
-        graph_t::vertex_descriptor node2 = ver_add(g, p_result->p_nodes[lp].ninfo[1].node_id);
+        graph_t::vertex_descriptor node1 = ver_add(g, rt_res.p_nodes[lp].ninfo[0].node_id);
+        graph_t::vertex_descriptor node2 = ver_add(g, rt_res.p_nodes[lp].ninfo[1].node_id);
 
         if (!set_start) {
-            if (memcmp(p_result->p_nodes[lp].ninfo[0].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_start = node1;
                 set_start = true;
-            } else if (memcmp(p_result->p_nodes[lp].ninfo[1].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, send_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_start = node2;
                 set_start = true;
             }
         }
         if (!set_goal) {
-            if (memcmp(p_result->p_nodes[lp].ninfo[0].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_goal = node1;
                 set_goal = true;
-            } else if (memcmp(p_result->p_nodes[lp].ninfo[1].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
                 pnt_goal = node2;
                 set_goal = true;
             }
         }
 
         if (node1 != node2) {
-            if (p_result->p_nodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) {
+            if (rt_res.p_nodes[lp].ninfo[0].cltv_expiry_delta != M_CLTV_INIT) {
                 //channel_update1
                 bool inserted = false;
                 graph_t::edge_descriptor e1;
 
                 boost::tie(e1, inserted) = add_edge(node1, node2, g);
-                g[e1].short_channel_id = p_result->p_nodes[lp].short_channel_id;
-                g[e1].fee_base_msat = p_result->p_nodes[lp].ninfo[0].fee_base_msat;
-                g[e1].fee_prop_millionths = p_result->p_nodes[lp].ninfo[0].fee_prop_millionths;
-                g[e1].cltv_expiry_delta = p_result->p_nodes[lp].ninfo[0].cltv_expiry_delta;
-                g[e1].node_id = p_result->p_nodes[lp].ninfo[0].node_id;
+                g[e1].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
+                g[e1].fee_base_msat = rt_res.p_nodes[lp].ninfo[0].fee_base_msat;
+                g[e1].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[0].fee_prop_millionths;
+                g[e1].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[0].cltv_expiry_delta;
+                g[e1].node_id = rt_res.p_nodes[lp].ninfo[0].node_id;
             }
-            if (p_result->p_nodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) {
+            if (rt_res.p_nodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) {
                 //channel_update2
                 bool inserted = false;
                 graph_t::edge_descriptor e2;
 
                 boost::tie(e2, inserted) = add_edge(node2, node1, g);
-                g[e2].short_channel_id = p_result->p_nodes[lp].short_channel_id;
-                g[e2].fee_base_msat = p_result->p_nodes[lp].ninfo[1].fee_base_msat;
-                g[e2].fee_prop_millionths = p_result->p_nodes[lp].ninfo[1].fee_prop_millionths;
-                g[e2].cltv_expiry_delta = p_result->p_nodes[lp].ninfo[1].cltv_expiry_delta;
-                g[e2].node_id = p_result->p_nodes[lp].ninfo[1].node_id;
+                g[e2].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
+                g[e2].fee_base_msat = rt_res.p_nodes[lp].ninfo[1].fee_base_msat;
+                g[e2].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[1].fee_prop_millionths;
+                g[e2].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[1].cltv_expiry_delta;
+                g[e2].node_id = rt_res.p_nodes[lp].ninfo[1].node_id;
             }
         }
     }
 
 #ifdef M_DEBUG
-    fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
+    DBG_PRINTF("pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
 #endif
     if (!set_start) {
-        fprintf(stderr, "fail: no start node\n");
+        DBG_PRINTF("fail: no start node\n");
         return -1;
     }
     if (!set_goal) {
-        fprintf(stderr, "fail: no goal node\n");
+        DBG_PRINTF("fail: no goal node\n");
         return -1;
     }
 
@@ -606,7 +626,8 @@ int ln_routing_calculate(
                         distance_map(&d[0]));
 
     if (p[pnt_goal] == pnt_goal) {
-        fprintf(stderr, "fail: cannot find route\n");
+        DBG_PRINTF("fail: cannot find route\n");
+        free(rt_res.p_nodes);
         return -1;
     }
 
@@ -621,24 +642,23 @@ int ln_routing_calculate(
     cltv.push_front(cltv_expiry);
 
     for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
-
         bool found;
         graph_t::edge_descriptor e;
         boost::tie(e, found) = edge(p[v], v, g);
         if (!found) {
-            fprintf(stderr, "not foooooooooound\n");
+            DBG_PRINTF("not foooooooooound\n");
             abort();
         }
 
 #ifdef M_DEBUG
-        fprintf(stderr, "node_id: ");
+        DBG_PRINTF("node_id: ");
         for (int llp = 0; llp < UCOIN_SZ_PUBKEY; llp++) {
-            fprintf(stderr, "%02x", g[e].node_id[llp]);
+            DBG_PRINTF("%02x", g[e].node_id[llp]);
         }
-        fprintf(stderr, "\n");
+        DBG_PRINTF("\n");
 
-        fprintf(stderr, "amount_msat: %" PRIu64 "\n", amtmsat);
-        fprintf(stderr, "cltv_expiry: %" PRIu32 "\n\n", cltv_expiry);
+        DBG_PRINTF("amount_msat: %" PRIu64 "\n", amtmsat);
+        DBG_PRINTF("cltv_expiry: %" PRIu32 "\n\n", cltv_expiry);
 #endif
 
         route.push_front(p[v]);
@@ -650,94 +670,59 @@ int ln_routing_calculate(
     }
     //std::cout << "distance: " << d[pnt_goal] << std::endl;
 
-    //pay.conf形式の出力
-    int hop = (int)route.size();
+    if (route.size() > LN_HOP_MAX + 1) {
+        //先頭に自ノードが入るため+1
+        DBG_PRINTF("fail: too many hops\n");
+        free(rt_res.p_nodes);
+        return -1;
+    }
+
+    //戻り値の作成
+    p_result->hop_num = (uint8_t)route.size();
     const uint8_t *p_next;
 
-    if (payment_hash == NULL) {
-        //CSV形式
-        printf("hop_num=%d\n", hop);
-        for (int lp = 0; lp < hop - 1; lp++) {
-            const uint8_t *p_now  = g[route[lp]].p_node;
-            p_next = g[route[lp + 1]].p_node;
+    for (int lp = 0; lp < p_result->hop_num - 1; lp++) {
+        const uint8_t *p_now  = g[route[lp]].p_node;
+        p_next = g[route[lp + 1]].p_node;
 
-            const uint8_t *p_node_id1;
-            const uint8_t *p_node_id2;
-            int dir = direction(p_now, p_next);
-            if (dir == 0) {
-                p_node_id1 = p_now;
-                p_node_id2 = p_next;
-                dir = 0;
-            } else {
-                p_node_id1 = p_next;
-                p_node_id2 = p_now;
-                dir = 1;
+        const uint8_t *p_node_id1;
+        const uint8_t *p_node_id2;
+        int dir = direction(p_now, p_next);
+        if (dir == 0) {
+            p_node_id1 = p_now;
+            p_node_id2 = p_next;
+            dir = 0;
+        } else {
+            p_node_id1 = p_next;
+            p_node_id2 = p_now;
+            dir = 1;
+        }
+        uint64_t sci = 0;
+        for (uint32_t lp3 = 0; lp3 < rt_res.node_num; lp3++) {
+            if ( (memcmp(p_node_id1, rt_res.p_nodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
+                (memcmp(p_node_id2, rt_res.p_nodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
+                sci = rt_res.p_nodes[lp3].short_channel_id;
+                break;
             }
-            uint64_t sci = 0;
-            for (uint32_t lp3 = 0; lp3 < p_result->node_num; lp3++) {
-                if ( (memcmp(p_node_id1, p_result->p_nodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
-                    (memcmp(p_node_id2, p_result->p_nodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
-                    sci = p_result->p_nodes[lp3].short_channel_id;
-                    break;
-                }
-            }
-            if (sci == 0) {
-                fprintf(stderr, "not match!\n");
-                abort();
-            }
-
-            printf("route%d=", lp);
-            ucoin_util_dumpbin(stdout, p_now, UCOIN_SZ_PUBKEY, false);
-            printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n", sci, msat[lp], cltv[lp]);
+        }
+        if (sci == 0) {
+            DBG_PRINTF("not match!\n");
+            abort();
         }
 
-        //最後
-        printf("route%d=", hop - 1);
-        ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
-        printf(",0,%" PRIu64 ",%" PRIu32 "\n", msat[hop - 1], cltv[hop - 1]);
-    } else {
-        //JSON形式
-        //  JSON-RPCの "PAY" コマンドも付加している
-        printf("{\"method\":\"PAY\",\"params\":[\"%s\",%d, [", payment_hash, hop);
-        for (int lp = 0; lp < hop - 1; lp++) {
-            const uint8_t *p_now  = g[route[lp]].p_node;
-            p_next = g[route[lp + 1]].p_node;
-
-            const uint8_t *p_node_id1;
-            const uint8_t *p_node_id2;
-            int dir = direction(p_now, p_next);
-            if (dir == 0) {
-                p_node_id1 = p_now;
-                p_node_id2 = p_next;
-                dir = 0;
-            } else {
-                p_node_id1 = p_next;
-                p_node_id2 = p_now;
-                dir = 1;
-            }
-            uint64_t sci = 0;
-            for (uint32_t lp3 = 0; lp3 < p_result->node_num; lp3++) {
-                if ( (memcmp(p_node_id1, p_result->p_nodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
-                    (memcmp(p_node_id2, p_result->p_nodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
-                    sci = p_result->p_nodes[lp3].short_channel_id;
-                    break;
-                }
-            }
-            if (sci == 0) {
-                fprintf(stderr, "not match!\n");
-                abort();
-            }
-
-            printf("[\"");
-            ucoin_util_dumpbin(stdout, p_now, UCOIN_SZ_PUBKEY, false);
-            printf("\",\"%016" PRIx64 "\",%" PRIu64 ",%" PRIu32 "],", sci, msat[lp], cltv[lp]);
-        }
-
-        //最後
-        printf("[\"");
-        ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
-        printf("\",\"0\",%" PRIu64 ",%" PRIu32 "]]]}\n", msat[hop - 1], cltv[hop - 1]);
+        p_result->hop_datain[lp].short_channel_id = sci;
+        p_result->hop_datain[lp].amt_to_forward = msat[lp];
+        p_result->hop_datain[lp].outgoing_cltv_value = cltv[lp];
+        memcpy(p_result->hop_datain[lp].pubkey, p_now, UCOIN_SZ_PUBKEY);
     }
+
+    //最後
+    p_result->hop_datain[p_result->hop_num - 1].short_channel_id = 0;
+    p_result->hop_datain[p_result->hop_num - 1].amt_to_forward = msat[p_result->hop_num - 1];
+    p_result->hop_datain[p_result->hop_num - 1].outgoing_cltv_value = cltv[p_result->hop_num - 1];
+    memcpy(p_result->hop_datain[p_result->hop_num - 1].pubkey, p_next, UCOIN_SZ_PUBKEY);
+
+    free(rt_res.p_nodes);
 
     return 0;
 }

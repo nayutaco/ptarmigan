@@ -718,29 +718,16 @@ typedef struct {
     void                *p_data;
 } ln_onion_err_t;
 
-/// @}
 
-
-/**************************************************************************
- * typedefs : routing
- **************************************************************************/
-
+/** @struct     ln_routing_result_t
+ *  @brief      #ln_routing_calculate()戻り値
+ */
 typedef struct {
-    uint64_t    short_channel_id;
-    struct {
-        uint8_t     node_id[UCOIN_SZ_PUBKEY];
-        uint16_t    cltv_expiry_delta;
-        uint64_t    htlc_minimum_msat;
-        uint32_t    fee_base_msat;
-        uint32_t    fee_prop_millionths;
-    } ninfo[2];
-} ln_routing_nodes_t;
-
-
-typedef struct {
-    uint32_t            node_num;
-    ln_routing_nodes_t  *p_nodes;
+    uint8_t             hop_num;
+    ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
 } ln_routing_result_t;
+
+/// @}
 
 
 /**************************************************************************
@@ -2109,7 +2096,6 @@ int ln_routing_calculate(
         const uint8_t *recv_nodeid,
         uint32_t cltv_expiry,
         uint64_t amtmsat,
-        const char *payment_hash,
         const char *dbdir,
         bool clear_skip_db);
 

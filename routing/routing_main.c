@@ -38,12 +38,13 @@
 
 #include "misc.h"
 
+
 /**************************************************************************
  * macros
  **************************************************************************/
 
-//#define M_DEBUG
-#define M_SPOIL_STDERR
+#define M_DEBUG
+//#define M_SPOIL_STDERR
 
 #define M_SHADOW_ROUTE                      (0)     // shadow route extension
                                                     //  攪乱するためにオフセットとして加算するCLTV
@@ -171,8 +172,40 @@ int main(int argc, char* argv[])
 
     ln_routing_result_t result;
     int ret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry,
-                    amtmsat, payment_hash, dbdir, options & OPT_CLEARSDB);
-    free(result.p_nodes);
+                    amtmsat, dbdir, options & OPT_CLEARSDB);
+    if (ret == 0) {
+        //pay.conf形式の出力
+        if (payment_hash == NULL) {
+            //CSV形式
+            printf("hop_num=%d\n", result.hop_num);
+            for (int lp = 0; lp < result.hop_num; lp++) {
+                printf("route%d=", lp);
+                ucoin_util_dumpbin(stdout, result.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, false);
+                printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n",
+                            result.hop_datain[lp].short_channel_id,
+                            result.hop_datain[lp].amt_to_forward,
+                            result.hop_datain[lp].outgoing_cltv_value);
+            }
+        } else {
+            //JSON形式
+            //  JSON-RPCの "PAY" コマンドも付加している
+            printf("{\"method\":\"PAY\",\"params\":[\"%s\",%d, [", payment_hash, result.hop_num);
+            for (int lp = 0; lp < result.hop_num; lp++) {
+                if (lp != 0) {
+                    printf(",\n");
+                }
+                printf("[\"");
+                ucoin_util_dumpbin(stdout, result.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, false);
+                printf("\",\"%016" PRIx64 "\",%" PRIu64 ",%" PRIu32 "]",
+                            result.hop_datain[lp].short_channel_id,
+                            result.hop_datain[lp].amt_to_forward,
+                            result.hop_datain[lp].outgoing_cltv_value);
+            }
+            printf("]]}\n");
+        }
+    } else {
+        //error
+    }
 
     free(dbdir);
     free(payment_hash);
