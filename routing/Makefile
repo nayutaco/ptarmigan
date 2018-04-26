@@ -9,7 +9,7 @@ all: lnrouting routing
 routing: $(SRC)
 	gcc -c -W -Wall -ggdb $(CFLAGS) ../cmn/misc.c
 	gcc -c -W -Wall -ggdb $(CFLAGS) routing_main.c
-	g++ -o $(OBJ)  -W -Wall -ggdb $(CFLAGS) ln_routing.o misc.o routing_main.o $(LDFLAGS) -lgcc
+	gcc -o $(OBJ)  -W -Wall -ggdb $(CFLAGS) ln_routing.o misc.o routing_main.o $(LDFLAGS) -lstdc++
 
 lnrouting:
 	g++ -c -W -Wall -ggdb $(CFLAGS) $(SRC)
