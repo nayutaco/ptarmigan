@@ -67,7 +67,7 @@
 #define M_DBI_ANNOINFO_CNL      "channel_annoinfo"
 #define M_DBI_ANNO_NODE         "node_anno"
 #define M_DBI_ANNOINFO_NODE     "node_annoinfo"
-#define M_DBI_ANNO_SKIP         "route_skip"
+#define M_DBI_ANNO_SKIP         LNDB_DBI_ANNO_SKIP
 #define M_DBI_ANNO_INVOICE      "route_invoice"
 #define M_DBI_PREIMAGE          "preimage"
 #define M_DBI_PAYHASH           "payhash"

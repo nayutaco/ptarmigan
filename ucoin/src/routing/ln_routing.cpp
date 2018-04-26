@@ -56,7 +56,6 @@ using namespace boost;
 //#define M_DEBUG
 
 #define M_CLTV_INIT                         ((uint16_t)0xffff)
-#define M_ROUTE_SKIP_DBNAME                 "route_skip"
 
 
 /**************************************************************************
@@ -69,13 +68,13 @@ extern "C" {
     bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 }
 
-typedef struct {
+struct nodeinfo_t {
     uint8_t     node_id[UCOIN_SZ_PUBKEY];
     uint16_t    cltv_expiry_delta;
     uint64_t    htlc_minimum_msat;
     uint32_t    fee_base_msat;
     uint32_t    fee_prop_millionths;
-} nodeinfo_t;
+};
 
 
 struct Node {
@@ -178,7 +177,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
             switch (type) {
             case LN_DB_CNLANNO_ANNO:
                 mNodeNum++;
-                mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
+                mpNodes = (nodes_t *)realloc(mpNodes, sizeof(nodes_t) * mNodeNum);
 
                 ln_getids_cnl_anno(
                                     &mpNodes[mNodeNum - 1].short_channel_id,
@@ -267,7 +266,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, const u
                 dumpbin(p2, 33);
 #endif
                 mNodeNum++;
-                mpNodes = (struct nodes_t *)realloc(mpNodes, sizeof(struct nodes_t) * mNodeNum);
+                mpNodes = (nodes_t *)realloc(mpNodes, sizeof(nodes_t) * mNodeNum);
                 mpNodes[mNodeNum - 1].short_channel_id = p_self->short_channel_id;
                 if (memcmp(p1, p2, UCOIN_SZ_PUBKEY) > 0) {
                     const uint8_t *p = p1;
@@ -387,7 +386,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
         return false;
     }
     MDB_dbi dbi_skip;
-    ret = mdb_dbi_open(txn_node, M_ROUTE_SKIP_DBNAME, 0, &dbi_skip);
+    ret = mdb_dbi_open(txn_node, LNDB_DBI_ANNO_SKIP, 0, &dbi_skip);
     if (ret != 0) {
         dbi_skip = (MDB_dbi)-1;
     }
@@ -670,9 +669,6 @@ int ln_routing_calculate(
     //pay.conf形式の出力
     int hop = (int)route.size();
     const uint8_t *p_next;
-    //nodeinfo_t ninfo;
-
-    //memset(&ninfo, 0, sizeof(ninfo));
 
     if (payment_hash == NULL) {
         //CSV形式

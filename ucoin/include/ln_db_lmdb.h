@@ -58,6 +58,8 @@ extern "C" {
 #define LNDB_SELFENV            LNDB_DBDIR LNDB_SELFENV_DIR     ///< LMDB名(self)
 #define LNDB_NODEENV            LNDB_DBDIR LNDB_NODEENV_DIR     ///< LMDB名(self以外)
 
+#define LNDB_DBI_ANNO_SKIP      "route_skip"
+
 
 /**************************************************************************
  * typedefs
