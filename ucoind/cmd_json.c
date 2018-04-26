@@ -35,6 +35,7 @@
 
 #include "cmd_json.h"
 #include "ln_db.h"
+#include "ln_db_lmdb.h"
 #include "btcrpc.h"
 
 #include "p2p_svr.h"
@@ -835,6 +836,61 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("routepay");
 
+#if 1
+    bool bret;
+    uint8_t node_payee[UCOIN_SZ_PUBKEY];
+
+    bret = misc_str2bin(node_payee, sizeof(node_payee), str_payee);
+    if (!bret) {
+        DBG_PRINTF("invalid arg: payee node id\n");
+        ctx->error_code = RPCERR_ERROR;
+        ctx->error_message = strdup(RPCERR_ERROR_STR);
+        goto LABEL_EXIT;
+    }
+    ln_routing_result_t rt_ret;
+    int ret = ln_routing_calculate(&rt_ret, ln_node_getid(), node_payee,
+                    min_final_cltv_expiry, amount_msat, LNDB_DBDIR, false);
+    if (ret != 0) {
+        DBG_PRINTF("fail: popen(%s)\n", strerror(errno));
+        ctx->error_code = RPCERR_ERROR;
+        ctx->error_message = strdup(RPCERR_ERROR_STR);
+        goto LABEL_EXIT;
+    }
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp_node(rt_ret.hop_datain[1].pubkey);
+    if (p_appconf != NULL) {
+
+        bool inited = lnapp_is_inited(p_appconf);
+        if (inited) {
+            bool ret;
+            payment_conf_t payconf;
+
+            memcpy(payconf.payment_hash, payhash, LN_SZ_HASH);
+            payconf.hop_num = rt_ret.hop_num;
+            memcpy(payconf.hop_datain, rt_ret.hop_datain, sizeof(ln_hop_datain_t) * (1 + LN_HOP_MAX));
+
+            ret = lnapp_payment(p_appconf, &payconf);
+            if (ret) {
+                //再送のためにinvoice保存
+                char *p_invoice = cJSON_PrintUnformatted(params);
+                (void)ln_db_annoskip_invoice_save(p_invoice, payhash);
+                free(p_invoice);
+
+                result = cJSON_CreateString("Progressing");
+            } else {
+                ctx->error_code = RPCERR_PAY_STOP;
+                ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
+            }
+        } else {
+            //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
+            ctx->error_code = RPCERR_NOINIT;
+            ctx->error_message = strdup(RPCERR_NOINIT_STR);
+        }
+    } else {
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+    }
+#else
     // execute `routing` command
     //      result: "PAY" method with paying route
     char cmd[512];
@@ -884,6 +940,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_message = strdup(RPCERR_NOROUTE_STR);
     }
     APP_FREE(p_route);
+#endif
 
 LABEL_EXIT:
     if (index < 0) {
