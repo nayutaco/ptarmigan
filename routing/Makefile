@@ -1,12 +1,20 @@
+SRC = routing_main.c
 OBJ = routing
-CFLAGS = -I../include -I../ucoin/include -I../libs/install/include -I../ucoin/libs/install/include
+CFLAGS = --std=c99 -D_GNU_SOURCE -I../include -I../ucoin/include -I../ucoin/libs/install/include
 LDFLAGS = -L../libs/install/lib -L../ucoin/libs/install/lib -L../ucoin
-LDFLAGS += -linih -lucoin -lsodium -llmdb -lbase58 -lmbedcrypto -pthread -lstdc++
+LDFLAGS += -pthread -lucoin -llmdb -lsodium -lbase58 -lmbedcrypto -lstdc++
 
 all: routing
 
-routing:
-	gcc -o $(OBJ)  -W -Wall -ggdb $(CFLAGS) ../cmn/misc.c routing_main.c $(LDFLAGS)
+routing: ../ucoin/libucoin.a $(SRC)
+	gcc -W -Wall $(CFLAGS) -o $(OBJ) $(SRC) ../cmn/misc.c $(LDFLAGS)
 
 clean:
-	-rm -rf $(OBJ) *.o .Depend
+	-rm -rf $(OBJ) .Depend
+
+.Depend:
+ifneq ($(MAKECMDGOALS),clean)
+	@$(CC) $(CFLAGS) -MM -MT $(SRC:%.c=%) $(SRC) > .Depend
+endif
+
+-include .Depend

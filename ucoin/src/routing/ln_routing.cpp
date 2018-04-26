@@ -517,6 +517,7 @@ int ln_routing_calculate(
         const char *dbdir,
         bool clear_skip_db)
 {
+    DBG_PRINTF("dbdir: %s\n", dbdir);
     p_result->hop_num = 0;
 
     nodes_result_t rt_res;

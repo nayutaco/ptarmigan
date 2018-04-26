@@ -78,7 +78,7 @@ CFLAGS += -DNETKIND=$(NETKIND)
 #LDFLAGS += -mcpu=cortex-m0
 
 # keep every function in separate section. This will allow linker to dump unused functions
-#LDFLAGS += -Xlinker -Map=$(LISTING_DIRECTORY)/$(OUTPUT_FILENAME).map
+#LDFLAGS += -Xlinker -Map=$(OBJECT_DIRECTORY)/$(OUTPUT_FILENAME).map
 
 # let linker to dump unused sections
 LDFLAGS += -Wl,--gc-sections
@@ -94,7 +94,7 @@ LIBS += -lcurl
 LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
 LIBS += -L$(COMMON_PATH)/ucoin -lucoin
-LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium -llmdb
+LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto
 LIBS += -lstdc++
 
 
