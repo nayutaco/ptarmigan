@@ -41,6 +41,7 @@
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
 #include "conf.h"
+#include "ln_routing.h"
 
 #include <iostream>
 #include <fstream>
@@ -61,24 +62,9 @@ using namespace boost;
  **************************************************************************/
 
 //#define M_DEBUG
-#define M_SPOIL_STDERR
-
-#define ARGS_GRAPH                          (2)     ///< [引数の数]graphviz用ファイル出力のみ
-#define ARGS_PAYMENT                        (5)     ///< [引数の数]routing(min_final_cltv_expiryはデフォルト)
-#define ARGS_PAY_AND_EXPIRY                 (6)     ///< [引数の数]routing(min_final_cltv_expiryは指定)
-#define ARGS_ALL                            (7)     ///< [引数の数]routing(min_final_cltv_expiry, payment_hash指定)
 
 #define M_CLTV_INIT                         ((uint16_t)0xffff)
-#define M_SHADOW_ROUTE                      (0)     // shadow route extension
-                                                    //  攪乱するためにオフセットとして加算するCLTV
-                                                    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendations-for-routing
-
 #define M_ROUTE_SKIP_DBNAME                 "route_skip"
-
-#define OPT_SENDER                          (0x01)  // -s指定あり
-#define OPT_RECVER                          (0x02)  // -r指定あり
-#define OPT_CLEARSDB                        (0x40)  // clear skip db
-#define OPT_HELP                            (0x80)  // help
 
 
 /**************************************************************************
@@ -136,7 +122,6 @@ static struct nodes_t {
     nodeinfo_t  ninfo[2];
 } *mpNodes = NULL;
 static int mNodeNum = 0;
-static FILE *fp_err;
 
 
 /********************************************************************
@@ -156,9 +141,9 @@ void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
 static void dumpbin(const uint8_t *pData, int Len)
 {
     for (int lp = 0; lp < Len; lp++) {
-        fprintf(fp_err, "%02x", pData[lp]);
+        fprintf(stderr, "%02x", pData[lp]);
     }
-    fprintf(fp_err, "\n");
+    fprintf(stderr, "\n");
 }
 #endif
 
@@ -193,7 +178,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
                 bret = ln_db_annoskip_search(p_skip, short_channel_id);
                 if (bret) {
 #ifdef M_DEBUG
-                    fprintf(fp_err, "skip : %016" PRIx64 "\n", short_channel_id);
+                    fprintf(stderr, "skip : %016" PRIx64 "\n", short_channel_id);
 #endif
                     continue;
                 }
@@ -211,7 +196,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
                 mpNodes[mNodeNum - 1].ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
                 mpNodes[mNodeNum - 1].ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
 #ifdef M_DEBUG
-                fprintf(fp_err, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
+                fprintf(stderr, "channel_announce : %016" PRIx64 "\n", mpNodes[mNodeNum - 1].short_channel_id);
                 ln_print_announce(buf.buf, buf.len);
 #endif
                 break;
@@ -232,7 +217,7 @@ static void dumpit_chan(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip)
                         mpNodes[mNodeNum - 1].ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
                     }
 #ifdef M_DEBUG
-                    fprintf(fp_err, "channel update : %c\n", type);
+                    fprintf(stderr, "channel update : %c\n", type);
                     ln_print_announce(buf.buf, buf.len);
 #endif
                 }
@@ -274,7 +259,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, const u
                     bool bret = ln_db_annoskip_search(p_skip, p_self->short_channel_id);
                     if (bret) {
 #ifdef M_DEBUG
-                        fprintf(fp_err, "skip : %016" PRIx64 "\n", p_self->short_channel_id);
+                        fprintf(stderr, "skip : %016" PRIx64 "\n", p_self->short_channel_id);
 #endif
                         goto LABEL_EXIT;
                     }
@@ -283,10 +268,10 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_db_t *p_skip, const u
                 p2 = p_self->peer_node_id;
 
 #ifdef M_DEBUG
-                fprintf(fp_err, "p_self->short_channel_id: %" PRIx64 "\n", p_self->short_channel_id);
-                fprintf(fp_err, "p1= ");
+                fprintf(stderr, "p_self->short_channel_id: %" PRIx64 "\n", p_self->short_channel_id);
+                fprintf(stderr, "p1= ");
                 dumpbin(p1, 33);
-                fprintf(fp_err, "p2= ");
+                fprintf(stderr, "p2= ");
                 dumpbin(p2, 33);
 #endif
                 mNodeNum++;
@@ -351,7 +336,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     assert(ret == 0);
     ret = mdb_env_open(pDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", selfpath);
+        fprintf(stderr, "fail: cannot open[%s]\n", selfpath);
         return false;
     }
 
@@ -361,14 +346,14 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     assert(ret == 0);
     ret = mdb_env_open(pDbNode, nodepath, 0, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", nodepath);
+        fprintf(stderr, "fail: cannot open[%s]\n", nodepath);
         return false;
     }
     ln_lmdb_setenv(pDbSelf, pDbNode);
 
     if (clear_skip_db) {
         bret = ln_db_annoskip_drop(false);
-        fprintf(fp_err, "%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
+        fprintf(stderr, "%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
         return true;
     }
 
@@ -376,7 +361,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     ucoin_genesis_t gtype;
     bret = ln_db_ver_check(my_nodeid, &gtype);
     if (!bret) {
-        fprintf(fp_err, "fail: DB version mismatch\n");
+        fprintf(stderr, "fail: DB version mismatch\n");
         return false;
     }
 
@@ -390,12 +375,12 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
         ucoin_init(UCOIN_TESTNET, true);
         break;
     default:
-        fprintf(fp_err, "fail: unknown chainhash in DB\n");
+        fprintf(stderr, "fail: unknown chainhash in DB\n");
         return false;
     }
 
 #ifdef M_DEBUG
-    fprintf(fp_err, "my node_id: ");
+    fprintf(stderr, "my node_id: ");
     dumpbin(my_nodeid, sizeof(my_nodeid));
 #endif
     if (p1 && (memcmp(my_nodeid, p1, UCOIN_SZ_PUBKEY) != 0)) {
@@ -406,7 +391,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     //node
     ret = mdb_txn_begin(pDbNode, NULL, MDB_RDONLY, &txn_node);
     if (ret != 0) {
-        fprintf(fp_err, "fail: DB txn 2\n");
+        fprintf(stderr, "fail: DB txn 2\n");
         return false;
     }
     MDB_dbi dbi_skip;
@@ -421,7 +406,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
     //self
     ret = mdb_txn_begin(pDbSelf, NULL, MDB_RDONLY, &txn_self);
     if (ret != 0) {
-        fprintf(fp_err, "fail: DB txn 1\n");
+        fprintf(stderr, "fail: DB txn 1\n");
         mdb_txn_abort(txn_node);
         return false;
     }
@@ -451,7 +436,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
             }
             mdb_close(mdb_txn_env(txn_self), dbi2);
         } else {
-            fprintf(fp_err, "err1[%s]: %s\n",name, mdb_strerror(ret));
+            fprintf(stderr, "err1[%s]: %s\n",name, mdb_strerror(ret));
         }
         free(name);
     }
@@ -486,7 +471,7 @@ static bool loaddb(const char *pDbPath, const uint8_t *p1, const uint8_t *p2, bo
             }
             mdb_close(mdb_txn_env(txn_node), dbi2);
         } else {
-            fprintf(fp_err, "err2[%s]: %s\n", name, mdb_strerror(ret));
+            fprintf(stderr, "err2[%s]: %s\n", name, mdb_strerror(ret));
         }
         free(name);
     }
@@ -533,7 +518,7 @@ static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 }
 
 
-static int routing_calculate(
+int ln_routing_calculate(
         const uint8_t *send_nodeid,
         const uint8_t *recv_nodeid,
         uint32_t cltv_expiry,
@@ -542,7 +527,7 @@ static int routing_calculate(
         const char *dbdir,
         bool clear_skip_db)
 {
-    
+
     bool ret = loaddb(dbdir, send_nodeid, recv_nodeid, clear_skip_db);
     if (!ret) {
         return -1;
@@ -552,10 +537,10 @@ static int routing_calculate(
     }
 
 #ifdef M_DEBUG
-    fprintf(fp_err, "start nodeid : ");
-    ucoin_util_dumpbin(fp_err, send_nodeid, UCOIN_SZ_PUBKEY, true);
-    fprintf(fp_err, "end nodeid   : ");
-    ucoin_util_dumpbin(fp_err, recv_nodeid, UCOIN_SZ_PUBKEY, true);
+    fprintf(stderr, "start nodeid : ");
+    ucoin_util_dumpbin(stderr, send_nodeid, UCOIN_SZ_PUBKEY, true);
+    fprintf(stderr, "end nodeid   : ");
+    ucoin_util_dumpbin(stderr, recv_nodeid, UCOIN_SZ_PUBKEY, true);
 #endif
 
     graph_t g;
@@ -568,12 +553,12 @@ static int routing_calculate(
     //Edge追加
     for (int lp = 0; lp < mNodeNum; lp++) {
 #ifdef M_DEBUG
-        fprintf(fp_err, "  short_channel_id=%016" PRIx64 "\n", mpNodes[lp].short_channel_id);
-        fprintf(fp_err, "    [1]");
-        ucoin_util_dumpbin(fp_err, mpNodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
-        fprintf(fp_err, "    [2]");
-        ucoin_util_dumpbin(fp_err, mpNodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
-        fprintf(fp_err, "\n");
+        fprintf(stderr, "  short_channel_id=%016" PRIx64 "\n", mpNodes[lp].short_channel_id);
+        fprintf(stderr, "    [1]");
+        ucoin_util_dumpbin(stderr, mpNodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
+        fprintf(stderr, "    [2]");
+        ucoin_util_dumpbin(stderr, mpNodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
+        fprintf(stderr, "\n");
 #endif
 
         graph_t::vertex_descriptor node1 = ver_add(g, mpNodes[lp].ninfo[0].node_id);
@@ -627,14 +612,14 @@ static int routing_calculate(
     }
 
 #ifdef M_DEBUG
-    fprintf(fp_err, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
+    fprintf(stderr, "pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
 #endif
     if (!set_start) {
-        fprintf(fp_err, "fail: no start node\n");
+        fprintf(stderr, "fail: no start node\n");
         return -1;
     }
     if (!set_goal) {
-        fprintf(fp_err, "fail: no goal node\n");
+        fprintf(stderr, "fail: no goal node\n");
         return -1;
     }
 
@@ -646,7 +631,7 @@ static int routing_calculate(
                         distance_map(&d[0]));
 
     if (p[pnt_goal] == pnt_goal) {
-        fprintf(fp_err, "fail: cannot find route\n");
+        fprintf(stderr, "fail: cannot find route\n");
         return -1;
     }
 
@@ -666,19 +651,19 @@ static int routing_calculate(
         graph_t::edge_descriptor e;
         boost::tie(e, found) = edge(p[v], v, g);
         if (!found) {
-            fprintf(fp_err, "not foooooooooound\n");
+            fprintf(stderr, "not foooooooooound\n");
             abort();
         }
 
 #ifdef M_DEBUG
-        fprintf(fp_err, "node_id: ");
+        fprintf(stderr, "node_id: ");
         for (int llp = 0; llp < UCOIN_SZ_PUBKEY; llp++) {
-            fprintf(fp_err, "%02x", g[e].node_id[llp]);
+            fprintf(stderr, "%02x", g[e].node_id[llp]);
         }
-        fprintf(fp_err, "\n");
+        fprintf(stderr, "\n");
 
-        fprintf(fp_err, "amount_msat: %" PRIu64 "\n", amtmsat);
-        fprintf(fp_err, "cltv_expiry: %" PRIu32 "\n\n", cltv_expiry);
+        fprintf(stderr, "amount_msat: %" PRIu64 "\n", amtmsat);
+        fprintf(stderr, "cltv_expiry: %" PRIu32 "\n\n", cltv_expiry);
 #endif
 
         route.push_front(p[v]);
@@ -726,7 +711,7 @@ static int routing_calculate(
                 }
             }
             if (sci == 0) {
-                fprintf(fp_err, "not match!\n");
+                fprintf(stderr, "not match!\n");
                 abort();
             }
 
@@ -769,7 +754,7 @@ static int routing_calculate(
                 }
             }
             if (sci == 0) {
-                fprintf(fp_err, "not match!\n");
+                fprintf(stderr, "not match!\n");
                 abort();
             }
 
@@ -783,128 +768,7 @@ static int routing_calculate(
         ucoin_util_dumpbin(stdout, p_next, UCOIN_SZ_PUBKEY, false);
         printf("\",\"0\",%" PRIu64 ",%" PRIu32 "]]]}\n", msat[hop - 1], cltv[hop - 1]);
     }
-
-    return 0;
-}
-
-
-/********************************************************************
- * main entry
- ********************************************************************/
-
-int main(int argc, char* argv[])
-{
-    bool bret;
-    fp_err = stderr;
-
-    uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
-    uint8_t recv_nodeid[UCOIN_SZ_PUBKEY];
-    uint32_t cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
-    uint64_t amtmsat = 0;
-    bool output_json = false;
-    char *payment_hash = NULL;
-    char *dbdir = strdup(LNDB_DBDIR);
-
-    int opt;
-    int options = 0;
-    while ((opt = getopt(argc, argv, "hd:s:r:a:e:p:jc")) != -1) {
-        switch (opt) {
-        case 'd':
-            //db directory
-            free(dbdir);
-            dbdir = strdup(optarg);
-            break;
-        case 's':
-            //sender(payer)
-            bret = misc_str2bin(send_nodeid, sizeof(send_nodeid), optarg);
-            if (!bret) {
-                fprintf(fp_err, "invalid arg: payer node id\n");
-                return -1;
-            }
-            options |= OPT_SENDER;
-            break;
-        case 'r':
-            //receiver(payee)
-            bret = misc_str2bin(recv_nodeid, sizeof(recv_nodeid), optarg);
-            if (!bret) {
-                fprintf(fp_err, "invalid arg: payee node id\n");
-                return -1;
-            }
-            options |= OPT_RECVER;
-            break;
-        case 'a':
-            //amount
-            errno = 0;
-            amtmsat = (uint64_t)strtoull(optarg, NULL, 10);
-            if (errno) {
-                DBG_PRINTF("errno=%s\n", strerror(errno));
-                return -1;
-            }
-            break;
-        case 'e':
-            //min_final_expiry_delta
-            cltv_expiry = (uint32_t)atoi(optarg);
-            break;
-        case 'p':
-            //payment_hash
-            payment_hash = strdup(optarg);
-            break;
-        case 'j':
-            //JSON
-            output_json = true;
-            break;
-        case 'c':
-            //clear skip DB
-            options |= OPT_CLEARSDB;
-            break;
-        case 'h':
-        default:
-            //help
-            options |= OPT_HELP;
-            break;
-        }
-    }
-
-    if ((options == 0) || (options & OPT_HELP)) {
-        fprintf(fp_err, "usage:");
-        fprintf(fp_err, "\t%s -s PAYER_NODEID -r PAYEE_NODEID [-d DB_DIR] [-a AMOUNT_MSAT] [-e MIN_FINAL_CLTV_EXPIRY] [-p PAYMENT_HASH] [-j] [-c]\n", argv[0]);
-        fprintf(fp_err, "\t\t-s : sender(payer) node_id\n");
-        fprintf(fp_err, "\t\t-r : receiver(payee) node_id\n");
-        fprintf(fp_err, "\t\t-d : db directory\n");
-        fprintf(fp_err, "\t\t-a : amount_msat\n");
-        fprintf(fp_err, "\t\t-e : min_final_cltv_expiry\n");
-        fprintf(fp_err, "\t\t-p : payment_hash\n");
-        fprintf(fp_err, "\t\t-j : output JSON format(default: CSV format)\n");
-        fprintf(fp_err, "\t\t-c : clear routing skip channel list\n");
-        return -1;
-    }
-
-    if ((options & OPT_CLEARSDB) == 0) {
-        if (options != (OPT_SENDER | OPT_RECVER)) {
-            fprintf(fp_err, "fail: need -s and -r\n");
-            return -1;
-        }
-        if (output_json && (payment_hash == NULL)) {
-            fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
-            return -1;
-        }
-    }
-
-    cltv_expiry += M_SHADOW_ROUTE;
-
-#ifdef M_SPOIL_STDERR
-    //stderrを捨てる
-    int fd_err = dup(2);
-    fp_err = fdopen(fd_err, "w");
-    close(2);
-#endif  //M_SPOIL_STDERR
-
-    int ret = routing_calculate(send_nodeid, recv_nodeid, cltv_expiry,
-                    amtmsat, payment_hash, dbdir, options & OPT_CLEARSDB);
-
-    free(dbdir);
-    free(payment_hash);
     free(mpNodes);
 
-    return ret;
+    return 0;
 }
