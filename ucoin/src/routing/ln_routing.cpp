@@ -19,7 +19,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   routing.cpp
+/** @file   ln_routing.cpp
  *  @brief  routing計算
  *  @author ueno@nayuta.co
  */
@@ -27,21 +27,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <time.h>
+#include <inttypes.h>
 #include <stdbool.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <poll.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <getopt.h>
 #include <assert.h>
 
-#include "ucoind.h"
+#include "ln.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
-#include "conf.h"
-#include "ln_routing.h"
 
 #include <iostream>
 #include <fstream>

@@ -35,7 +35,6 @@
 #include "ln.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
-#include "ln_routing.h"
 
 #include "misc.h"
 

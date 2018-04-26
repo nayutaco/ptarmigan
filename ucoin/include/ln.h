@@ -1464,7 +1464,7 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
 /** set onion reaon: temporary node failure
- * 
+ *
  * @param[out]      pReason
  */
 void ln_create_reason_temp_node(ucoin_buf_t *pReason);
@@ -2000,7 +2000,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 
 
 /** nodeが所有しているour_msatの合計
- * 
+ *
  * @return  our_msatの合計[msatoshis]
  */
 uint64_t ln_node_total_msat(void);
@@ -2075,6 +2075,20 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
  * @retval  true    成功
  */
 bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
+
+
+/********************************************************************
+ * routing
+ ********************************************************************/
+
+int ln_routing_calculate(
+        const uint8_t *send_nodeid,
+        const uint8_t *recv_nodeid,
+        uint32_t cltv_expiry,
+        uint64_t amtmsat,
+        const char *payment_hash,
+        const char *dbdir,
+        bool clear_skip_db);
 
 
 /********************************************************************

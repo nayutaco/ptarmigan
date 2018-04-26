@@ -95,6 +95,7 @@ LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
 LIBS += -L$(COMMON_PATH)/ucoin -lucoin
 LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium -llmdb
+LIBS += -lstdc++
 
 
 ######################################

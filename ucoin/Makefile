@@ -26,6 +26,7 @@ endif
 
 # Toolchain commands
 CC       		:= "$(GNU_PREFIX)gcc"
+CXX      		:= "$(GNU_PREFIX)g++"
 AS       		:= "$(GNU_PREFIX)as"
 AR       		:= "$(GNU_PREFIX)ar" -r
 LD       		:= "$(GNU_PREFIX)ld"
@@ -63,6 +64,8 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_print.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_signer.c
 C_SOURCE_FILES += $(PRJ_PATH)/bech32/segwit_addr.c
 
+CPP_SOURCE_FILES += $(PRJ_PATH)/routing/ln_routing.cpp
+
 #includes common to all targets
 INC_PATHS += -Iinclude -Isrc/inc -Isrc/inc/ln
 INC_PATHS += -Ilibs/install/include
@@ -71,14 +74,13 @@ INC_PATHS += -Ilibs/install/include
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
 
 ######################################
-#CFLAGS
+#CFLAGS / CPPFLAGS common
 ######################################
 # cpu
 #CFLAGS += -mcpu=cortex-m0
 #CFLAGS += -mthumb -mabi=aapcs
 #CFLAGS += -mfloat-abi=soft
 
-CFLAGS += --std=c99
 CFLAGS += -W -Wall -Wno-error=unused-function -fno-common
 
 # keep every function in separate section. This will allow linker to dump unused functions
@@ -93,6 +95,16 @@ CFLAGS += -Ilibs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ucoin.h>'
 
 # others
 CFLAGS += $(CFLAGS_USER)
+
+CPPFLAGS := $(CFLAGS)
+
+
+######################################
+#CFLAGS only
+######################################
+
+CFLAGS += -std=gnu99
+
 
 ######################################
 #LDFLAGS
@@ -127,9 +139,14 @@ C_SOURCE_FILE_NAMES = $(notdir $(C_SOURCE_FILES))
 C_PATHS = $(call remduplicates, $(dir $(C_SOURCE_FILES) ) )
 C_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(C_SOURCE_FILE_NAMES:.c=.o) )
 
-vpath %.c $(C_PATHS)
+CPP_SOURCE_FILE_NAMES = $(notdir $(CPP_SOURCE_FILES))
+CPP_PATHS = $(call remduplicates, $(dir $(CPP_SOURCE_FILES) ) )
+CPP_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(CPP_SOURCE_FILE_NAMES:.cpp=.o) )
 
-OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
+vpath %.c $(C_PATHS)
+vpath %.cpp $(CPP_PATHS)
+
+OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS)
 
 lib:
 	make -C libs
@@ -166,10 +183,10 @@ $(OBJECT_DIRECTORY)/%.o: %.c
 	$(NO_ECHO)$(CC) $(CFLAGS) $(INC_PATHS) -c -o $@ $<
 
 
-# Assemble files
-$(OBJECT_DIRECTORY)/%.o: %.s
-	@echo Compiling ASM file: $(notdir $<)
-	$(NO_ECHO)$(CC) $(ASMFLAGS) $(INC_PATHS) -c -o $@ $<
+# Create objects from C++ SRC files
+$(OBJECT_DIRECTORY)/%.o: %.cpp
+	@echo Compiling C++ file: $(notdir $<)
+	$(NO_ECHO)$(CXX) $(CPPFLAGS) $(INC_PATHS) -c -o $@ $<
 
 
 # Link
@@ -188,6 +205,7 @@ clean:
 .Depend:
 ifneq ($(MAKECMDGOALS),clean)
 	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
+	@$(foreach SRC,$(CPP_SOURCE_FILES),$(CXX) $(CPPFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.cpp=%.o)) $(SRC) >> .Depend; )
 endif
 
 -include .Depend
