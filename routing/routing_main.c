@@ -51,6 +51,7 @@
 
 #define OPT_SENDER                          (0x01)  // -s指定あり
 #define OPT_RECVER                          (0x02)  // -r指定あり
+#define OPT_CLEARSDB                        (0x40)  // clear skip db
 #define OPT_HELP                            (0x80)  // help
 
 
@@ -133,7 +134,7 @@ int main(int argc, char* argv[])
             break;
         case 'c':
             //clear skip DB
-            ln_routing_clear_skipdb();
+            options |= OPT_CLEARSDB;
             return 0;
         case 'h':
         default:
@@ -157,17 +158,19 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    if (options != (OPT_SENDER | OPT_RECVER)) {
-        fprintf(fp_err, "fail: need -s and -r\n");
-        return -1;
-    }
-    if (memcmp(send_nodeid, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
-        fprintf(fp_err, "fail: same payer and payee\n");
-        return -1;
-    }
-    if (output_json && (payment_hash == NULL)) {
-        fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
-        return -1;
+    if ((options & OPT_CLEARSDB) == 0) {
+        if (options != (OPT_SENDER | OPT_RECVER)) {
+            fprintf(fp_err, "fail: need -s and -r\n");
+            return -1;
+        }
+        if (memcmp(send_nodeid, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            fprintf(fp_err, "fail: same payer and payee\n");
+            return -1;
+        }
+        if (output_json && (payment_hash == NULL)) {
+            fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
+            return -1;
+        }
     }
 
     cltv_expiry += M_SHADOW_ROUTE;
@@ -237,46 +240,50 @@ int main(int argc, char* argv[])
         return -4;
     }
 
-    ln_routing_result_t result;
-    ret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry,
-                    amtmsat);
-    if (ret == 0) {
-        //pay.conf形式の出力
-        if (payment_hash == NULL) {
-            //CSV形式
-            printf("hop_num=%d\n", result.hop_num);
-            for (int lp = 0; lp < result.hop_num; lp++) {
-                printf("route%d=", lp);
-                ucoin_util_dumpbin(stdout, result.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, false);
-                printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n",
-                            result.hop_datain[lp].short_channel_id,
-                            result.hop_datain[lp].amt_to_forward,
-                            result.hop_datain[lp].outgoing_cltv_value);
+    if ((options & OPT_CLEARSDB) == 0) {
+        ln_routing_result_t result;
+        ret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry,
+                        amtmsat);
+        if (ret == 0) {
+            //pay.conf形式の出力
+            if (payment_hash == NULL) {
+                //CSV形式
+                printf("hop_num=%d\n", result.hop_num);
+                for (int lp = 0; lp < result.hop_num; lp++) {
+                    printf("route%d=", lp);
+                    ucoin_util_dumpbin(stdout, result.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, false);
+                    printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n",
+                                result.hop_datain[lp].short_channel_id,
+                                result.hop_datain[lp].amt_to_forward,
+                                result.hop_datain[lp].outgoing_cltv_value);
+                }
+            } else {
+                //JSON形式
+                //  JSON-RPCの "PAY" コマンドも付加している
+                printf("{\"method\":\"PAY\",\"params\":[\"%s\",%d, [", payment_hash, result.hop_num);
+                for (int lp = 0; lp < result.hop_num; lp++) {
+                    if (lp != 0) {
+                        printf(",\n");
+                    }
+                    printf("[\"");
+                    ucoin_util_dumpbin(stdout, result.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, false);
+                    printf("\",\"%016" PRIx64 "\",%" PRIu64 ",%" PRIu32 "]",
+                                result.hop_datain[lp].short_channel_id,
+                                result.hop_datain[lp].amt_to_forward,
+                                result.hop_datain[lp].outgoing_cltv_value);
+                }
+                printf("]]}\n");
             }
         } else {
-            //JSON形式
-            //  JSON-RPCの "PAY" コマンドも付加している
-            printf("{\"method\":\"PAY\",\"params\":[\"%s\",%d, [", payment_hash, result.hop_num);
-            for (int lp = 0; lp < result.hop_num; lp++) {
-                if (lp != 0) {
-                    printf(",\n");
-                }
-                printf("[\"");
-                ucoin_util_dumpbin(stdout, result.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, false);
-                printf("\",\"%016" PRIx64 "\",%" PRIu64 ",%" PRIu32 "]",
-                            result.hop_datain[lp].short_channel_id,
-                            result.hop_datain[lp].amt_to_forward,
-                            result.hop_datain[lp].outgoing_cltv_value);
-            }
-            printf("]]}\n");
+            //error
+            fprintf(fp_err, "fail: %d\n", ret);
         }
-    } else {
-        //error
-        fprintf(fp_err, "fail: %d\n", ret);
-    }
 
-    free(dbdir);
-    free(payment_hash);
+        free(dbdir);
+        free(payment_hash);
+    } else {
+        ln_routing_clear_skipdb();
+    }
 
     ln_db_term();
 
