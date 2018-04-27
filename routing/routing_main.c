@@ -201,7 +201,7 @@ int main(int argc, char* argv[])
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(pDbSelf, 10);
     assert(ret == 0);
-    ret = mdb_env_open(pDbSelf, selfpath, 0, 0664);
+    ret = mdb_env_open(pDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
         fprintf(fp_err, "fail: cannot open[%s]\n", selfpath);
         return -2;
