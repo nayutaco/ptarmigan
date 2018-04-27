@@ -788,6 +788,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 
     retval = self_cursor_open(&cur);
     if (retval != 0) {
+        DBG_PRINTF("fail: open\n");
         goto LABEL_EXIT;
     }
 
@@ -2651,6 +2652,7 @@ bool ln_db_reset(void)
     lmdb_cursor_t cur;
     retval = self_cursor_open(&cur);
     if (retval != 0) {
+        DBG_PRINTF("fail: open\n");
         goto LABEL_EXIT;
     }
     ret = true;     //ここまで来たら成功と見なしてよい

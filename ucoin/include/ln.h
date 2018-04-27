@@ -1227,7 +1227,21 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl);
  */
 bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst);
 
+
+/** 接続直後のfunding_locked必要性チェック
+ * 
+ * @param[in]           self
+ * @retval  true    funding_lockedの送信必要あり
+ */
 bool ln_check_need_funding_locked(const ln_self_t *self);
+
+
+/**
+ * 
+ * @param[in,out]       self
+ * @param[out]          pLocked
+ * @retval  true    成功
+ */
 bool ln_create_funding_locked(ln_self_t *self, ucoin_buf_t *pLocked);
 
 
@@ -2090,14 +2104,23 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
  * routing
  ********************************************************************/
 
+/** 支払いルート作成
+ * 
+ * @param[out]  pResult
+ * @param[in]   pPayerId
+ * @param[in]   pPayeeId
+ * @param[in]   CltvExpiry
+ * @param[in]   AmountMsat
+ * @param[in]   bClearSkipDb
+ * @retval  0   成功
+ */
 int ln_routing_calculate(
-        ln_routing_result_t *p_result,
-        const uint8_t *send_nodeid,
-        const uint8_t *recv_nodeid,
-        uint32_t cltv_expiry,
-        uint64_t amtmsat,
-        const char *dbdir,
-        bool clear_skip_db);
+        ln_routing_result_t *pResult,
+        const uint8_t *pPayerId,
+        const uint8_t *pPayeeId,
+        uint32_t CltvExpiry,
+        uint64_t AmountMsat,
+        bool bClearSkipDb);
 
 
 /********************************************************************

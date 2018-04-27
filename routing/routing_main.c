@@ -59,12 +59,21 @@ static FILE *fp_err;
 
 
 /********************************************************************
+ * external prototypes
+ ********************************************************************/
+
+void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
+
+
+/********************************************************************
  * main entry
  ********************************************************************/
 
 int main(int argc, char* argv[])
 {
+    int ret;
     bool bret;
+
     fp_err = stderr;
 
     uint8_t send_nodeid[UCOIN_SZ_PUBKEY];
@@ -173,9 +182,67 @@ int main(int argc, char* argv[])
     close(2);
 #endif  //M_SPOIL_STDERR
 
+
+    MDB_env     *pDbSelf = NULL;
+    MDB_env     *pDbNode = NULL;
+    char        selfpath[256];
+    char        nodepath[256];
+
+    strcpy(selfpath, dbdir);
+    size_t len = strlen(selfpath);
+    if (selfpath[len - 1] == '/') {
+        selfpath[len - 1] = '\0';
+    }
+    strcpy(nodepath, selfpath);
+    strcat(selfpath, LNDB_SELFENV_DIR);
+    strcat(nodepath, LNDB_NODEENV_DIR);
+
+    ret = mdb_env_create(&pDbSelf);
+    assert(ret == 0);
+    ret = mdb_env_set_maxdbs(pDbSelf, 10);
+    assert(ret == 0);
+    ret = mdb_env_open(pDbSelf, selfpath, 0, 0664);
+    if (ret) {
+        fprintf(fp_err, "fail: cannot open[%s]\n", selfpath);
+        return -2;
+    }
+
+    ret = mdb_env_create(&pDbNode);
+    assert(ret == 0);
+    ret = mdb_env_set_maxdbs(pDbNode, 10);
+    assert(ret == 0);
+    ret = mdb_env_open(pDbNode, nodepath, 0, 0664);
+    if (ret) {
+        fprintf(fp_err, "fail: cannot open[%s]\n", nodepath);
+        return -2;
+    }
+    ln_lmdb_setenv(pDbSelf, pDbNode);
+
+    uint8_t my_nodeid[UCOIN_SZ_PUBKEY];
+    ucoin_genesis_t gtype;
+    bret = ln_db_ver_check(my_nodeid, &gtype);
+    if (!bret) {
+        fprintf(fp_err, "fail: DB version mismatch\n");
+        return -3;
+    }
+
+    ln_set_genesishash(ucoin_util_get_genesis_block(gtype));
+    switch (gtype) {
+    case UCOIN_GENESIS_BTCMAIN:
+        ucoin_init(UCOIN_MAINNET, true);
+        break;
+    case UCOIN_GENESIS_BTCTEST:
+    case UCOIN_GENESIS_BTCREGTEST:
+        ucoin_init(UCOIN_TESTNET, true);
+        break;
+    default:
+        fprintf(fp_err, "fail: unknown chainhash in DB\n");
+        return -4;
+    }
+
     ln_routing_result_t result;
-    int ret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry,
-                    amtmsat, dbdir, options & OPT_CLEARSDB);
+    ret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry,
+                    amtmsat, options & OPT_CLEARSDB);
     if (ret == 0) {
         //pay.conf形式の出力
         if (payment_hash == NULL) {
@@ -213,6 +280,8 @@ int main(int argc, char* argv[])
 
     free(dbdir);
     free(payment_hash);
+
+    ln_db_term();
 
 #ifdef M_SPOIL_STDERR
     fclose(fp_err);
