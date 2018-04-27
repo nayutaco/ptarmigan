@@ -343,12 +343,12 @@ int ln_routing_calculate(
 
     //Edge追加
     for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
-        DBG_PRINTF("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
-        DBG_PRINTF("    [1]");
-        ucoin_util_dumpbin(stderr, rt_res.p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
-        DBG_PRINTF("    [2]");
-        ucoin_util_dumpbin(stderr, rt_res.p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
-        DBG_PRINTF("\n");
+        // DBG_PRINTF("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
+        // DBG_PRINTF("    [1]");
+        // ucoin_util_dumpbin(stderr, rt_res.p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
+        // DBG_PRINTF("    [2]");
+        // ucoin_util_dumpbin(stderr, rt_res.p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
+        // DBG_PRINTF("\n");
 
         graph_t::vertex_descriptor node1 = ver_add(g, rt_res.p_nodes[lp].ninfo[0].node_id);
         graph_t::vertex_descriptor node2 = ver_add(g, rt_res.p_nodes[lp].ninfo[1].node_id);
