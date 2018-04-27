@@ -857,6 +857,16 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    DBG_PRINTF("-----------------------------------\n");
+    for (int lp = 0; lp < rt_ret.hop_num; lp++) {
+        DBG_PRINTF("node_id[%d]: ", lp);
+        DUMPBIN(rt_ret.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
+        DBG_PRINTF("  amount_msat: %" PRIu64 "\n", rt_ret.hop_datain[lp].amt_to_forward);
+        DBG_PRINTF("  cltv_expiry: %" PRIu32 "\n", rt_ret.hop_datain[lp].outgoing_cltv_value);
+        DBG_PRINTF("  short_channel_id: %" PRIx64 "\n", rt_ret.hop_datain[lp].short_channel_id);
+    }
+    DBG_PRINTF("-----------------------------------\n");
+
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(rt_ret.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
 

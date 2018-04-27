@@ -455,15 +455,6 @@ int ln_routing_calculate(
             abort();
         }
 
-        DBG_PRINTF("node_id: ");
-        for (int llp = 0; llp < UCOIN_SZ_PUBKEY; llp++) {
-            DBG_PRINTF("%02x", g[e].node_id[llp]);
-        }
-        DBG_PRINTF("\n");
-
-        DBG_PRINTF("amount_msat: %" PRIu64 "\n", AmountMsat);
-        DBG_PRINTF("CltvExpiry: %" PRIu32 "\n\n", CltvExpiry);
-
         route.push_front(p[v]);
         msat.push_front(AmountMsat);
         cltv.push_front(CltvExpiry);
