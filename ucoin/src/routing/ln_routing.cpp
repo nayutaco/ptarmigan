@@ -108,7 +108,6 @@ struct nodes_result_t {
 struct param_self_t {
     nodes_result_t  result;
     const uint8_t   *p_payer;
-    void            *skip_db;
 };
 
 
@@ -172,18 +171,25 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
 
+    bool bret;
     param_self_t *p_prm_self = (param_self_t *)p_param;
 
     if ((self->short_channel_id != 0) && ((self->fund_flag & LN_FUNDFLAG_CLOSE) == 0)) {
         //チャネルは開設している && close処理をしていない
 
-        if (p_prm_self->skip_db != NULL) {
-            bool bret = ln_db_annoskip_search(p_prm_self->skip_db, self->short_channel_id);
+        void *p_db_skip;
+        bret = ln_db_node_cur_transaction(&p_db_skip, LN_DB_TXN_SKIP, NULL);
+        if (bret) {
+            bret = ln_db_annoskip_search(p_db_skip, self->short_channel_id);
             if (bret) {
+                //skip DBに載っているchannelは使用しない
                 DBG_PRINTF("skip : %016" PRIx64 "\n", self->short_channel_id);
+                ln_db_node_cur_commit(p_db_skip);
                 return false;
             }
+            ln_db_node_cur_commit(p_db_skip);
         }
+
         if (memcmp(self->peer_node_id, p_prm_self->p_payer, UCOIN_SZ_PUBKEY) == 0) {
             return false;
         }
@@ -228,25 +234,19 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId, bool clear
         return true;
     }
 
-    void *p_db_skip;
-    bret = ln_db_node_cur_transaction(&p_db_skip, LN_DB_TXN_SKIP);
-    if (!bret) {
-        p_db_skip = NULL;
-    }
 
     //self
     param_self_t prm_self;
 
     memset(&prm_self.result, 0, sizeof(nodes_result_t));
     prm_self.p_payer = pPayerId;
-    prm_self.skip_db = p_db_skip;
     ln_db_self_search(comp_func_self, &prm_self);
 
     //channel_anno
     void *p_db_anno;
     void *p_cur;
 
-    ret = ln_db_node_cur_transaction(&p_db_anno, LN_DB_TXN_CNL);
+    ret = ln_db_node_cur_transaction(&p_db_anno, LN_DB_TXN_CNL, NULL);
     if (!ret) {
         DBG_PRINTF("fail\n");
         return false;
@@ -258,22 +258,22 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId, bool clear
         ucoin_buf_t buf_cnl = UCOIN_BUF_INIT;
 
         while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
-            if (p_db_skip != NULL) {
+            void *p_db_skip;
+            bret = ln_db_node_cur_transaction(&p_db_skip, LN_DB_TXN_SKIP, p_db_anno);
+            if (bret) {
                 bret = ln_db_annoskip_search(p_db_skip, short_channel_id);
                 if (bret) {
                     ucoin_buf_free(&buf_cnl);
                     continue;
                 }
             }
+
             dumpit_chan(p_result, type, &buf_cnl);
             ucoin_buf_free(&buf_cnl);
         }
     }
 
     ln_db_node_cur_commit(p_db_anno);
-    if (p_db_skip != NULL) {
-        ln_db_node_cur_commit(p_db_skip);
-    }
 
     return true;
 }

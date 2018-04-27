@@ -155,9 +155,10 @@ bool ln_db_secret_save(ln_self_t *self);
  *
  * @param[out]  ppDb        取得したDB情報(ln_dbで使用する)
  * @param[in]   Type        オープンするDB(LN_DB_TXN_xx)
+ * @param[in]   pLockedDb   #ln_db_node_cur_transaction()で既にトランザクションがある場合に指定する(ない場合はNULL)
  * @retval  true    成功
  */
-bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type);
+bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type, void *pLockedDb);
 
 
 /** #ln_db_node_cur_transaction()で取得したトランザクションのcommit

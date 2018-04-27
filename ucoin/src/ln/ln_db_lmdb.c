@@ -990,12 +990,21 @@ LABEL_EXIT:
  * node用DB
  ********************************************************************/
 
-bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type)
+bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type, void *pLockedDb)
 {
+    int retval;
     MDB_txn *txn = NULL;
     int opt = MDB_CREATE;
+    ln_lmdb_db_t *p_locked_db = NULL;
 
-    int retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    *ppDb = NULL;
+    if (pLockedDb != NULL) {
+        p_locked_db = (ln_lmdb_db_t *)pLockedDb;
+        retval = !(p_locked_db->txn != NULL);
+        txn = p_locked_db->txn;
+    } else {
+        retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    }
     if (retval == 0) {
         ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)M_MALLOC(sizeof(ln_lmdb_db_t));
         p_db->txn = txn;
@@ -1019,9 +1028,10 @@ bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type)
         }
         retval = mdb_dbi_open(txn, p_name, opt, &p_db->dbi);
     }
-    if (retval != 0) {
+    if ((retval != 0) && (p_locked_db == NULL)) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(txn);
+        M_FREE(*ppDb);
         *ppDb = NULL;
     }
     return retval == 0;
