@@ -836,7 +836,6 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("routepay");
 
-#if 1
     bool bret;
     uint8_t node_payee[UCOIN_SZ_PUBKEY];
 
@@ -879,13 +878,13 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
             payconf.hop_num = rt_ret.hop_num;
             memcpy(payconf.hop_datain, rt_ret.hop_datain, sizeof(ln_hop_datain_t) * (1 + LN_HOP_MAX));
 
+            //再送のためにinvoice保存
+            char *p_invoice = cJSON_PrintUnformatted(params);
+            (void)ln_db_annoskip_invoice_save(p_invoice, payhash);
+            free(p_invoice);
+
             ret = lnapp_payment(p_appconf, &payconf);
             if (ret) {
-                //再送のためにinvoice保存
-                char *p_invoice = cJSON_PrintUnformatted(params);
-                (void)ln_db_annoskip_invoice_save(p_invoice, payhash);
-                free(p_invoice);
-
                 result = cJSON_CreateString("Progressing");
             } else {
                 ctx->error_code = RPCERR_PAY_STOP;
@@ -900,57 +899,6 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_code = RPCERR_NOCONN;
         ctx->error_message = strdup(RPCERR_NOCONN_STR);
     }
-#else
-    // execute `routing` command
-    //      result: "PAY" method with paying route
-    char cmd[512];
-    sprintf(cmd, "%srouting -s %s -r %s -a %" PRIu64 " -e %d -p %s -j\n",
-                ucoind_get_exec_path(),
-                str_payer,      // -s
-                str_payee,      // -r
-                amount_msat,    // -a
-                min_final_cltv_expiry,  // -e
-                str_payhash);           // -p
-    //DBG_PRINTF("cmd=%s\n", cmd);
-    FILE *fp = popen(cmd, "r");
-    if (fp == NULL) {
-        DBG_PRINTF("fail: popen(%s)\n", strerror(errno));
-        ctx->error_code = RPCERR_ERROR;
-        ctx->error_message = strdup(RPCERR_ERROR_STR);
-        goto LABEL_EXIT;
-    }
-    char *p_route = (char *)APP_MALLOC(M_SZ_JSONSTR);
-    p_route[0] = '\0';
-    char *p_tmp = p_route;
-    while (!feof(fp)) {
-        fgets(p_tmp, M_SZ_JSONSTR, fp);
-        p_tmp += strlen(p_tmp);
-    }
-    pclose(fp);
-    if (strlen(p_route) > 0) {
-        //再送のためにinvoice保存
-        char *p_invoice = cJSON_PrintUnformatted(params);
-        (void)ln_db_annoskip_invoice_save(p_invoice, payhash);
-        free(p_invoice);
-
-        DBG_PRINTF("---------------\n");
-        DBG_PRINTF2("%s", p_route);
-        DBG_PRINTF("---------------\n");
-        int retval = misc_sendjson(p_route, "127.0.0.1", cmd_json_get_port());
-        if (retval == 0) {
-            //payment完了待ち
-            result = cJSON_CreateString("Progressing");
-        } else {
-            DBG_PRINTF("retval=%d\n", retval);
-            ctx->error_code = RPCERR_ERROR;
-            ctx->error_message = strdup(RPCERR_ERROR_STR);
-        }
-    } else {
-        ctx->error_code = RPCERR_NOROUTE;
-        ctx->error_message = strdup(RPCERR_NOROUTE_STR);
-    }
-    APP_FREE(p_route);
-#endif
 
 LABEL_EXIT:
     if (index < 0) {
