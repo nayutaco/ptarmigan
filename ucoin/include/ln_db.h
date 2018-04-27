@@ -289,7 +289,7 @@ bool ln_db_annoskip_save(uint64_t ShortChannelId, bool bTemp);
 
 /** "route_skip" short_channel_id検索
  *
- * @param[in,out]   pDb                 #ln_db_node_cur_transaction()取得したDB情報
+ * @param[in]       pDb                 #ln_db_node_cur_transaction()取得したDB情報
  * @param[in]       ShortChannelId      検索するshort_channel_id
  * @retval  true    検出
  */

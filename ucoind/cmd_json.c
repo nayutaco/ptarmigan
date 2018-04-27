@@ -849,7 +849,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
     ln_routing_result_t rt_ret;
     int ret = ln_routing_calculate(&rt_ret, ln_node_getid(), node_payee,
-                   min_final_cltv_expiry, amount_msat, LNDB_DBDIR, false);
+                   min_final_cltv_expiry, amount_msat, NULL, false);
     if (ret != 0) {
         DBG_PRINTF("fail: routing\n");
         ctx->error_code = RPCERR_ERROR;

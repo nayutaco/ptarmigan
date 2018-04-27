@@ -43,8 +43,7 @@
  * macros
  **************************************************************************/
 
-#define M_DEBUG
-//#define M_SPOIL_STDERR
+#define M_SPOIL_STDERR                      // stderrへの出力を破棄する
 
 #define M_SHADOW_ROUTE                      (0)     // shadow route extension
                                                     //  攪乱するためにオフセットとして加算するCLTV
@@ -155,6 +154,10 @@ int main(int argc, char* argv[])
             fprintf(fp_err, "fail: need -s and -r\n");
             return -1;
         }
+        if (memcmp(send_nodeid, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+            fprintf(fp_err, "fail: same payer and payee\n");
+            return -1;
+        }
         if (output_json && (payment_hash == NULL)) {
             fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
             return -1;
@@ -205,6 +208,7 @@ int main(int argc, char* argv[])
         }
     } else {
         //error
+        fprintf(fp_err, "fail: %d\n", ret);
     }
 
     free(dbdir);
