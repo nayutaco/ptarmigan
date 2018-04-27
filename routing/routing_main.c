@@ -51,7 +51,6 @@
 
 #define OPT_SENDER                          (0x01)  // -s指定あり
 #define OPT_RECVER                          (0x02)  // -r指定あり
-#define OPT_CLEARSDB                        (0x40)  // clear skip db
 #define OPT_HELP                            (0x80)  // help
 
 
@@ -134,8 +133,8 @@ int main(int argc, char* argv[])
             break;
         case 'c':
             //clear skip DB
-            options |= OPT_CLEARSDB;
-            break;
+            ln_routing_clear_skipdb();
+            return 0;
         case 'h':
         default:
             //help
@@ -158,19 +157,17 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    if ((options & OPT_CLEARSDB) == 0) {
-        if (options != (OPT_SENDER | OPT_RECVER)) {
-            fprintf(fp_err, "fail: need -s and -r\n");
-            return -1;
-        }
-        if (memcmp(send_nodeid, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
-            fprintf(fp_err, "fail: same payer and payee\n");
-            return -1;
-        }
-        if (output_json && (payment_hash == NULL)) {
-            fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
-            return -1;
-        }
+    if (options != (OPT_SENDER | OPT_RECVER)) {
+        fprintf(fp_err, "fail: need -s and -r\n");
+        return -1;
+    }
+    if (memcmp(send_nodeid, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
+        fprintf(fp_err, "fail: same payer and payee\n");
+        return -1;
+    }
+    if (output_json && (payment_hash == NULL)) {
+        fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
+        return -1;
     }
 
     cltv_expiry += M_SHADOW_ROUTE;
@@ -242,7 +239,7 @@ int main(int argc, char* argv[])
 
     ln_routing_result_t result;
     ret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry,
-                    amtmsat, options & OPT_CLEARSDB);
+                    amtmsat);
     if (ret == 0) {
         //pay.conf形式の出力
         if (payment_hash == NULL) {

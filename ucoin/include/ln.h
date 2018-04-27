@@ -2111,7 +2111,6 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
  * @param[in]   pPayeeId
  * @param[in]   CltvExpiry
  * @param[in]   AmountMsat
- * @param[in]   bClearSkipDb
  * @retval  0   成功
  */
 int ln_routing_calculate(
@@ -2119,8 +2118,14 @@ int ln_routing_calculate(
         const uint8_t *pPayerId,
         const uint8_t *pPayeeId,
         uint32_t CltvExpiry,
-        uint64_t AmountMsat,
-        bool bClearSkipDb);
+        uint64_t AmountMsat);
+
+
+/** routing skip DB削除
+ * 
+ * routingから除外するchannelリストを削除する。
+ */
+void ln_routing_clear_skipdb(void);
 
 
 /********************************************************************

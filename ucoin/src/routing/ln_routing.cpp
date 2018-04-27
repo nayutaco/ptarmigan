@@ -221,19 +221,11 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
 
 /**
  * @param[in]       pPayerId            送金元node_id
- * @param[in]       clear_skip_db       true:routing skip DBクリア
  */
-static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId, bool clear_skip_db)
+static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 {
     int ret;
     bool bret;
-
-    if (clear_skip_db) {
-        bret = ln_db_annoskip_drop(false);
-        DBG_PRINTF("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
-        return true;
-    }
-
 
     //self
     param_self_t prm_self;
@@ -318,8 +310,7 @@ int ln_routing_calculate(
         const uint8_t *pPayerId,
         const uint8_t *pPayeeId,
         uint32_t CltvExpiry,
-        uint64_t AmountMsat,
-        bool bClearSkipDb)
+        uint64_t AmountMsat)
 {
     pResult->hop_num = 0;
 
@@ -332,14 +323,10 @@ int ln_routing_calculate(
         return -1;
     }
 
-    bool ret = loaddb(&rt_res, pPayerId, bClearSkipDb);
+    bool ret = loaddb(&rt_res, pPayerId);
     if (!ret) {
         DBG_PRINTF("fail: loaddb\n");
         return -1;
-    }
-    if (ret && bClearSkipDb) {
-        DBG_PRINTF("clear skip db\n");
-        return 0;
     }
 
     DBG_PRINTF("start nodeid : ");
@@ -519,4 +506,16 @@ int ln_routing_calculate(
     free(rt_res.p_nodes);
 
     return 0;
+}
+
+
+void ln_routing_clear_skipdb(void)
+{
+    bool bret;
+    
+    bret = ln_db_annoskip_drop(false);
+    DBG_PRINTF("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
+
+    bret = ln_db_annoskip_invoice_drop();
+    DBG_PRINTF("%s: clear invoice DB\n", (bret) ? "OK" : "fail");
 }
