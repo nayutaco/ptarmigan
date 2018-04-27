@@ -759,6 +759,7 @@ LABEL_EXIT:
  */
 static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    SYSLOG_INFO("routepay_first");
     ln_db_annoskip_drop(true);
     return cmd_routepay(ctx, params, id);
 }
