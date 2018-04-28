@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -160,7 +161,7 @@ void misc_datetime(char *pDateTime, size_t Len)
 }
 
 
-void misc_save_event(const uint8_t *pChannelId, const char *pStr)
+void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
 {
     char fname[256];
     char chanid[LN_SZ_CHANNEL_ID * 2 + 1];
@@ -171,7 +172,12 @@ void misc_save_event(const uint8_t *pChannelId, const char *pStr)
     if (fp != NULL) {
         char date[50];
         misc_datetime(date, sizeof(date));
-        fprintf(fp, "[%s]%s\n", date, pStr);
+        fprintf(fp, "[%s]", date);
+
+        va_list ap;
+        va_start(ap, pFormat);
+        vfprintf(fp, pFormat, ap);
+        va_end(ap);
 
         fclose(fp);
     }

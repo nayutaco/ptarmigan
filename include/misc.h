@@ -126,9 +126,9 @@ void misc_datetime(char *pDateTime, size_t Len);
 /** イベントファイル保存
  * 
  * @param[in]       pChannelId          channel_id(ファイル名)
- * @param[in]       pStr                イベント文字列
+ * @param[in]       pFormat             イベント文字列
  */
-void misc_save_event(const uint8_t *pChannelId, const char *pStr);
+void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...);
 
 
 #ifdef APP_DEBUG_MEM
