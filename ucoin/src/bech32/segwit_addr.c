@@ -310,7 +310,7 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_inv
         //extra routing info
         if (!convert_bits(p_data, &d_len, 8, p_tag, len, 5, true)) return false;
         d_len =  (len * 5) / 8;
-        if (d_len < 102) return false;
+        if (d_len < 51) return false;
 
         fprintf(stderr, "\n");
         {
