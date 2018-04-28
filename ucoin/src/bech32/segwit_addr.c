@@ -255,38 +255,37 @@ static int convert64_to8(uint8_t *p_out, uint64_t val)
 
 static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_invoice_data)
 {
-    fprintf(stderr, "------------------\n");
+    DBG_PRINTF("------------------\n");
     uint8_t tag = *p_tag;
     switch (tag) {
     case 1:
-        fprintf(stderr, "[payment_hash]\n");
+        DBG_PRINTF("[payment_hash]\n");
         break;
     case 13:
-        fprintf(stderr, "[purpose of payment(ASCII)]\n");
+        DBG_PRINTF("[purpose of payment(ASCII)]\n");
         break;
     case 19:
-        fprintf(stderr, "[pubkey of payee node]\n");
+        DBG_PRINTF("[pubkey of payee node]\n");
         break;
     case 23:
-        fprintf(stderr, "[purpose of payment(SHA256)]\n");
+        DBG_PRINTF("[purpose of payment(SHA256)]\n");
         break;
     case 6:
-        fprintf(stderr, "[expiry second]\n");
+        DBG_PRINTF("[expiry second]\n");
         break;
     case 24:
-        fprintf(stderr, "[min_final_cltv_expiry]\n");
+        DBG_PRINTF("[min_final_cltv_expiry]\n");
         break;
     case 9:
-        fprintf(stderr, "[Fallback on-chain]\n");
+        DBG_PRINTF("[Fallback on-chain]\n");
         break;
     case 3:
-        fprintf(stderr, "[extra routing info]\n");
+        DBG_PRINTF("[extra routing info]\n");
         break;
     default:
-        fprintf(stderr, "unknown tag: %02x\n", *p_tag);
+        DBG_PRINTF("unknown tag: %02x\n", *p_tag);
         break;
     }
-    fprintf(stderr, "    ");
     int len = p_tag[1] * 0x20 + p_tag[2];
     p_tag += 3;
     uint8_t *p_data = (uint8_t *)malloc((len * 5 + 7) / 8); //確保サイズは切り上げ
@@ -296,61 +295,59 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_inv
         //expiry second
         {
             uint32_t expiry = (uint32_t)convert_be64(p_tag, len);
-            fprintf(stderr, "%" PRIu32 " seconds\n", expiry);
+            DBG_PRINTF("%" PRIu32 " seconds\n", expiry);
         }
         break;
     case 24:
         //min_final_cltv_expiry
         {
             p_invoice_data->min_final_cltv_expiry = convert_be64(p_tag, len);
-            fprintf(stderr, "%" PRIu32 " blocks\n", (uint32_t)p_invoice_data->min_final_cltv_expiry);
+            DBG_PRINTF("%" PRIu32 " blocks\n", (uint32_t)p_invoice_data->min_final_cltv_expiry);
         }
         break;
     case 3:
         //extra routing info
         if (!convert_bits(p_data, &d_len, 8, p_tag, len, 5, true)) return false;
         d_len =  (len * 5) / 8;
-        if (d_len < 102) return false;
+        if (d_len < 51) return false;
 
-        fprintf(stderr, "\n");
         {
             const uint8_t *p = p_data;
 
             for (size_t lp2 = 0; lp2 < d_len / 51; lp2++) {
-                fprintf(stderr, "-----------\npubkey= ");
-                for (size_t lp = 0; lp < 33; lp++) {
-                    fprintf(stderr, "%02x", *p++);
-                }
-                fprintf(stderr, "\n");
+                DBG_PRINTF("-----------\n");
+                DBG_PRINTF("pubkey= ");
+                DUMPBIN(p, UCOIN_SZ_PUBKEY);
 
                 uint64_t short_channel_id = 0;
                 for (size_t lp = 0; lp < sizeof(uint64_t); lp++) {
                     short_channel_id <<= 8;
                     short_channel_id |= *p++;
                 }
-                fprintf(stderr, "short_channel_id= %016" PRIx64 "\n", short_channel_id);
+                DBG_PRINTF("short_channel_id= %016" PRIx64 "\n", short_channel_id);
 
                 uint32_t fee_base_msat = 0;
                 for (size_t lp = 0; lp < sizeof(uint32_t); lp++) {
                     fee_base_msat <<= 8;
                     fee_base_msat |= *p++;
                 }
-                fprintf(stderr, "fee_base_msat= %u\n", fee_base_msat);
+                DBG_PRINTF("fee_base_msat= %u\n", fee_base_msat);
 
                 uint32_t fee_proportional_millionths = 0;
                 for (size_t lp = 0; lp < sizeof(uint32_t); lp++) {
                     fee_proportional_millionths <<= 8;
                     fee_proportional_millionths |= *p++;
                 }
-                fprintf(stderr, "fee_proportional_millionths= %u\n", fee_proportional_millionths);
+                DBG_PRINTF("fee_proportional_millionths= %u\n", fee_proportional_millionths);
 
                 uint16_t cltv_expiry_delta = 0;
                 for (size_t lp = 0; lp < sizeof(uint16_t); lp++) {
                     cltv_expiry_delta <<= 8;
                     cltv_expiry_delta |= *p++;
                 }
-                fprintf(stderr, "cltv_expiry_delta= %d\n", cltv_expiry_delta);
+                DBG_PRINTF("cltv_expiry_delta= %d\n", cltv_expiry_delta);
             }
+            DBG_PRINTF("-----------\n");
         }
         break;
     default:
@@ -361,15 +358,12 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_inv
         }
         if ((tag == 13)) {
             for (size_t lp = 0; lp < d_len; lp++) {
-                fprintf(stderr, "%c", p_data[lp]);
+                DBG_PRINTF2("%c", p_data[lp]);
             }
         } else {
-            for (size_t lp = 0; lp < d_len; lp++) {
-                fprintf(stderr, "%02x", p_data[lp]);
-            }
+            DUMPBIN(p_data, d_len);
         }
     }
-    fprintf(stderr, "\n\n");
     free(p_data);
 
     *p_len = 3 + len;
@@ -577,7 +571,7 @@ bool ln_invoice_decode(ln_invoice_t *p_invoice_data, const char* invoice) {
     //timestamp(7 chars)
     time_t tm = (time_t)convert_be64(data, 7);
     p_invoice_data->timestamp = (uint64_t)tm;
-    fprintf(stderr, "timestamp= %" PRIu64 " : %s", (uint64_t)tm, ctime(&tm));
+    DBG_PRINTF("timestamp= %" PRIu64 " : %s", (uint64_t)tm, ctime(&tm));
 
     //tagged fields
     ret = true;
