@@ -58,6 +58,7 @@
 
 static struct jrpc_server   mJrpc;
 static char                 mLastPayErr[M_SZ_PAYERR];       //最後に送金エラーが発生した時刻
+static int                  mPayTryCount = 0;               //送金トライ回数
 
 static const char *kOK = "OK";
 static const char *kNG = "NG";
@@ -761,6 +762,7 @@ static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     SYSLOG_INFO("routepay_first");
     ln_db_annoskip_drop(true);
+    mPayTryCount = 0;
     return cmd_routepay(ctx, params, id);
 }
 
@@ -886,8 +888,11 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
             ret = lnapp_payment(p_appconf, &payconf);
             if (ret) {
-                result = cJSON_CreateString("Progressing");
-                misc_save_event(NULL, "payment: payment_hash=%s payee=%s amount_msat=%" PRIu64, str_payhash, str_payee, amount_msat);
+                if (mPayTryCount == 0) {
+                    result = cJSON_CreateString("Progressing");
+                    misc_save_event(NULL, "payment: payment_hash=%s payee=%s amount_msat=%" PRIu64, str_payhash, str_payee, amount_msat);
+                }
+                mPayTryCount++;
             } else {
                 ctx->error_code = RPCERR_PAY_STOP;
                 ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
@@ -916,7 +921,7 @@ LABEL_EXIT:
         misc_datetime(date, sizeof(date));
         sprintf(mLastPayErr, "[%s]payment fail", date);
         DBG_PRINTF("%s\n", mLastPayErr);
-        misc_save_event(NULL, "payment fail: payment_hash=%s", str_payhash);
+        misc_save_event(NULL, "payment fail: payment_hash=%s, try=%d", str_payhash, mPayTryCount);
     }
 
     return result;
