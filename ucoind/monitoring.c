@@ -291,7 +291,9 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 
     bool spent = ln_is_spent(self);
     if (!spent) {
-        misc_save_event(ln_channel_id(self), "close: funding_tx spent");
+        char txid_str[UCOIN_SZ_TXID * 2 + 1];
+        misc_bin2str_rev(txid_str, ln_funding_txid(self), UCOIN_SZ_TXID);
+        misc_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
     }
 
     ln_goto_closing(self, p_db_param);

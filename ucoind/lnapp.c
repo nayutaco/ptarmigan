@@ -1581,6 +1581,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         bool ret = check_short_channel_id(p_conf);
         if (ret) {
             ret = exchange_funding_locked(p_conf);
+            misc_save_event(ln_channel_id(p_conf->p_self), "funding_locked: short_channel_id=%" PRIx64, ln_short_channel_id(p_conf->p_self));
             assert(ret);
         } else {
             DBG_PRINTF("fail: btcprc_get_short_channel_param()\n");
@@ -2216,6 +2217,11 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
                 //preimageを使い終わったら消す
                 ln_db_preimg_del(p_addhtlc->p_payment);
+
+                //
+                char str_payhash[LN_SZ_HASH * 2 + 1];
+                misc_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
+                misc_save_event(NULL, "payment fulfill: payment_hash=%s short_channel_id=%" PRIx64, str_payhash, ln_short_channel_id(p_conf->p_self));
             } else {
                 DBG_PRINTF("DBG: no fulfill mode\n");
             }
@@ -2484,6 +2490,8 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
           M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金完了
             DBG_PRINTF("PAYMENT: fulfill_htlc\n");
+            misc_save_event(NULL, "payment success: short_channel_id=%" PRIx64 " our_msat=%" PRIu64 " their_msat=%" PRIu64,
+                    ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV | FLAGNODE_COMSIG_RECV)) {

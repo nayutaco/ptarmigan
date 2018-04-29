@@ -915,6 +915,7 @@ LABEL_EXIT:
         misc_datetime(date, sizeof(date));
         sprintf(mLastPayErr, "[%s]payment fail", date);
         DBG_PRINTF("%s\n", mLastPayErr);
+        misc_save_event(NULL, "payment fail: payment_hash=%s", str_payhash);
     }
 
     return result;
