@@ -278,8 +278,6 @@ static void payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void payroute_clear(lnapp_conf_t *p_conf);
 static void payroute_print(lnapp_conf_t *p_conf);
 
-static void pay_retry(const uint8_t *pPayHash);
-
 
 /********************************************************************
  * public functions
@@ -461,7 +459,7 @@ LABEL_EXIT:
 
         //ルートが見つからなくなるまでリトライする
         ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
-        pay_retry(pPay->payment_hash);
+        cmd_json_pay_retry(pPay->payment_hash);
         ret = true;         //再送はtrue
         nodeflag_unset(~FLAGNODE_NONE);
     }
@@ -3179,22 +3177,7 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
         }
         break;
     case TRANSCMD_PAYRETRY:
-        {
-            //送金リトライ
-            char *p_invoice;
-            bool ret = ln_db_annoskip_invoice_load(&p_invoice, p_revack->buf.buf);     //p_invoiceはmalloc()
-            if (ret) {
-                DBG_PRINTF("invoice:%s\n", p_invoice);
-                char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
-                strcpy(json, "{\"method\":\"routepay_cont\",\"params\":");
-                strcat(json, p_invoice);
-                strcat(json, "}");
-                int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
-                DBG_PRINTF("retval=%d\n", retval);
-                APP_FREE(json);     //APP_MALLOC: この中
-                free(p_invoice);
-            }
-        }
+        cmd_json_pay_retry(p_revack->buf.buf);
         break;
     default:
         break;
@@ -3497,31 +3480,6 @@ static void payroute_print(lnapp_conf_t *p_conf)
         p = LIST_NEXT(p, list);
     }
     DBG_PRINTF("------------------------------------\n");
-}
-
-
-/** 送金リトライ要求
- *
- * @param[in]   pPayHash
- */
-static void pay_retry(const uint8_t *pPayHash)
-{
-    char *p_invoice;
-    bool ret = ln_db_annoskip_invoice_load(&p_invoice, pPayHash);     //p_invoiceはmalloc()される
-    if (ret) {
-        DBG_PRINTF("invoice:%s\n", p_invoice);
-        char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
-        strcpy(json, "{\"method\":\"routepay_cont\",\"params\":");
-        strcat(json, p_invoice);
-        strcat(json, "}");
-        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
-        DBG_PRINTF("retval=%d\n", retval);
-        APP_FREE(json);     //APP_MALLOC: この中
-        free(p_invoice);
-    } else {
-        DBG_PRINTF("fail: invoice not found\n");
-    }
-
 }
 
 

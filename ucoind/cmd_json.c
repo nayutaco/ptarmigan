@@ -124,6 +124,26 @@ uint16_t cmd_json_get_port(void)
 }
 
 
+void cmd_json_pay_retry(const uint8_t *pPayHash)
+{
+    char *p_invoice;
+    bool ret = ln_db_annoskip_invoice_load(&p_invoice, pPayHash);     //p_invoiceはmalloc()される
+    if (ret) {
+        DBG_PRINTF("invoice:%s\n", p_invoice);
+        char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
+        strcpy(json, "{\"method\":\"routepay_cont\",\"params\":");
+        strcat(json, p_invoice);
+        strcat(json, "}");
+        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+        DBG_PRINTF("retval=%d\n", retval);
+        APP_FREE(json);     //APP_MALLOC: この中
+        free(p_invoice);
+    } else {
+        DBG_PRINTF("fail: invoice not found\n");
+    }
+}
+
+
 /********************************************************************
  * private functions
  ********************************************************************/
@@ -890,7 +910,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
                 if (mPayTryCount == 0) {
                     result = cJSON_CreateString("Progressing");
                     misc_save_event(NULL, "payment: payment_hash=%s payee=%s amount_msat=%" PRIu64, str_payhash, str_payee, amount_msat);
-                   DBG_PRINTF("start payment\n");
+                    DBG_PRINTF("start payment\n");
                 }
                 mPayTryCount++;
             } else {
@@ -906,12 +926,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         }
     } else {
         ln_db_annoskip_save(rt_ret.hop_datain[0].short_channel_id, true);
-
-        char *p_invoice = cJSON_PrintUnformatted(params);
-        int retval = misc_sendjson(p_invoice, "127.0.0.1", cmd_json_get_port());
-        DBG_PRINTF("retval=%d(%s)\n", retval, p_invoice);
-        free(p_invoice);
-        DBG_PRINTF("fail: not connected: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
+        cmd_json_pay_retry(payhash);
+        DBG_PRINTF("retry: not connected: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
     }
 
 LABEL_EXIT:
