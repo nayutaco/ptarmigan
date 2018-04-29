@@ -903,8 +903,10 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
             ctx->error_message = strdup(RPCERR_NOINIT_STR);
         }
     } else {
-        ctx->error_code = RPCERR_NOCONN;
-        ctx->error_message = strdup(RPCERR_NOCONN_STR);
+        ln_db_annoskip_save(rt_ret.hop_datain[0].short_channel_id, true);
+
+        int retval = misc_sendjson(params->string, "127.0.0.1", cmd_json_get_port());
+        DBG_PRINTF("retval=%d(%s)\n", retval, params->string);
     }
 
 LABEL_EXIT:
