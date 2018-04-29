@@ -871,7 +871,6 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(rt_ret.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
-
         bool inited = lnapp_is_inited(p_appconf);
         if (inited) {
             bool ret;
@@ -905,8 +904,10 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     } else {
         ln_db_annoskip_save(rt_ret.hop_datain[0].short_channel_id, true);
 
-        int retval = misc_sendjson(params->string, "127.0.0.1", cmd_json_get_port());
-        DBG_PRINTF("retval=%d(%s)\n", retval, params->string);
+        char *p_invoice = cJSON_PrintUnformatted(params);
+        int retval = misc_sendjson(p_invoice, "127.0.0.1", cmd_json_get_port());
+        DBG_PRINTF("retval=%d(%s)\n", retval, p_invoice);
+        free(p_invoice);
     }
 
 LABEL_EXIT:
