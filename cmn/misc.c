@@ -164,10 +164,14 @@ void misc_datetime(char *pDateTime, size_t Len)
 void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
 {
     char fname[256];
-    char chanid[LN_SZ_CHANNEL_ID * 2 + 1];
 
-    misc_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
-    sprintf(fname, FNAME_EVENTCH_LOG, chanid);
+    if (pChannelId != NULL) {
+        char chanid[LN_SZ_CHANNEL_ID * 2 + 1];
+        misc_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
+        sprintf(fname, FNAME_EVENTCH_LOG, chanid);
+    } else {
+        sprintf(fname, FNAME_EVENTCH_LOG, "node");
+    }
     FILE *fp = fopen(fname, "a");
     if (fp != NULL) {
         char date[50];

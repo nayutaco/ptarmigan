@@ -125,7 +125,7 @@ void misc_datetime(char *pDateTime, size_t Len);
 
 /** イベントファイル保存
  * 
- * @param[in]       pChannelId          channel_id(ファイル名)
+ * @param[in]       pChannelId          channel_id(ファイル名)(NULL時: "node")
  * @param[in]       pFormat             イベント文字列
  */
 void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...);
