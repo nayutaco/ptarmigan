@@ -890,16 +890,19 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
                 if (mPayTryCount == 0) {
                     result = cJSON_CreateString("Progressing");
                     misc_save_event(NULL, "payment: payment_hash=%s payee=%s amount_msat=%" PRIu64, str_payhash, str_payee, amount_msat);
+                   DBG_PRINTF("start payment\n");
                 }
                 mPayTryCount++;
             } else {
                 ctx->error_code = RPCERR_PAY_STOP;
                 ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
+                DBG_PRINTF("fail: lnapp_payment\n");
             }
         } else {
             //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
             ctx->error_code = RPCERR_NOINIT;
             ctx->error_message = strdup(RPCERR_NOINIT_STR);
+            DBG_PRINTF("fail: not inited\n");
         }
     } else {
         ln_db_annoskip_save(rt_ret.hop_datain[0].short_channel_id, true);
@@ -908,6 +911,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         int retval = misc_sendjson(p_invoice, "127.0.0.1", cmd_json_get_port());
         DBG_PRINTF("retval=%d(%s)\n", retval, p_invoice);
         free(p_invoice);
+        DBG_PRINTF("fail: not connected: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
     }
 
 LABEL_EXIT:
