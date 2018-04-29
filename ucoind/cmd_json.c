@@ -35,6 +35,7 @@
 
 #include "cmd_json.h"
 #include "ln_db.h"
+#include "ln_db_lmdb.h"
 #include "btcrpc.h"
 
 #include "p2p_svr.h"
@@ -101,7 +102,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listinvoice, "listinvoice", NULL);
-    jrpc_register_procedure(&mJrpc, cmd_pay,         "pay", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_pay,         "PAY", NULL);
     jrpc_register_procedure(&mJrpc, cmd_routepay_first, "routepay", NULL);
     jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay_cont", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
@@ -752,13 +753,23 @@ LABEL_EXIT:
 }
 
 
+/** 送金開始
+ *
+ * 一時ルーティング除外リストをクリアしてから送金する
+ */
 static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
+    SYSLOG_INFO("routepay_first");
     ln_db_annoskip_drop(true);
     return cmd_routepay(ctx, params, id);
 }
 
 
+/** 送金・再送金
+ *
+ * 内部で `routing`コマンドを実行して送金ルートを含めた "PAY"コマンド文字列取得し、
+ * localhostに対してJSON-RPCコマンド("PAY")を送信する。
+ */
 static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
@@ -826,54 +837,69 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("routepay");
 
-    // execute `routing` command
-    char cmd[512];
-    sprintf(cmd, "%srouting -s %s -r %s -a %" PRIu64 " -e %d -p %s -j\n",
-                ucoind_get_exec_path(),
-                str_payer,      // -s
-                str_payee,      // -r
-                amount_msat,    // -a
-                min_final_cltv_expiry,  // -e
-                str_payhash);           // -p
-    //DBG_PRINTF("cmd=%s\n", cmd);
-    FILE *fp = popen(cmd, "r");
-    if (fp == NULL) {
-        DBG_PRINTF("fail: popen(%s)\n", strerror(errno));
+    bool bret;
+    uint8_t node_payee[UCOIN_SZ_PUBKEY];
+
+    bret = misc_str2bin(node_payee, sizeof(node_payee), str_payee);
+    if (!bret) {
+        DBG_PRINTF("invalid arg: payee node id\n");
         ctx->error_code = RPCERR_ERROR;
         ctx->error_message = strdup(RPCERR_ERROR_STR);
         goto LABEL_EXIT;
     }
-    char *p_route = (char *)APP_MALLOC(M_SZ_JSONSTR);
-    p_route[0] = '\0';
-    char *p_tmp = p_route;
-    while (!feof(fp)) {
-        fgets(p_tmp, M_SZ_JSONSTR, fp);
-        p_tmp += strlen(p_tmp);
+    ln_routing_result_t rt_ret;
+    int ret = ln_routing_calculate(&rt_ret, ln_node_getid(), node_payee,
+                   min_final_cltv_expiry, amount_msat);
+    if (ret != 0) {
+        DBG_PRINTF("fail: routing\n");
+        ctx->error_code = RPCERR_ERROR;
+        ctx->error_message = strdup(RPCERR_ERROR_STR);
+        goto LABEL_EXIT;
     }
-    pclose(fp);
-    if (strlen(p_route) > 0) {
-        //再送のためにinvoice保存
-        char *p_invoice = cJSON_PrintUnformatted(params);
-        (void)ln_db_annoskip_invoice_save(p_invoice, payhash);
-        free(p_invoice);
 
-        DBG_PRINTF("---------------\n");
-        DBG_PRINTF2("%s", p_route);
-        DBG_PRINTF("---------------\n");
-        int retval = misc_sendjson(p_route, "127.0.0.1", cmd_json_get_port());
-        if (retval == 0) {
-            //payment完了待ち
-            result = cJSON_CreateString("Progressing");
+    DBG_PRINTF("-----------------------------------\n");
+    for (int lp = 0; lp < rt_ret.hop_num; lp++) {
+        DBG_PRINTF("node_id[%d]: ", lp);
+        DUMPBIN(rt_ret.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
+        DBG_PRINTF("  amount_msat: %" PRIu64 "\n", rt_ret.hop_datain[lp].amt_to_forward);
+        DBG_PRINTF("  cltv_expiry: %" PRIu32 "\n", rt_ret.hop_datain[lp].outgoing_cltv_value);
+        DBG_PRINTF("  short_channel_id: %" PRIx64 "\n", rt_ret.hop_datain[lp].short_channel_id);
+    }
+    DBG_PRINTF("-----------------------------------\n");
+
+    lnapp_conf_t *p_appconf = search_connected_lnapp_node(rt_ret.hop_datain[1].pubkey);
+    if (p_appconf != NULL) {
+
+        bool inited = lnapp_is_inited(p_appconf);
+        if (inited) {
+            bool ret;
+            payment_conf_t payconf;
+
+            memcpy(payconf.payment_hash, payhash, LN_SZ_HASH);
+            payconf.hop_num = rt_ret.hop_num;
+            memcpy(payconf.hop_datain, rt_ret.hop_datain, sizeof(ln_hop_datain_t) * (1 + LN_HOP_MAX));
+
+            //再送のためにinvoice保存
+            char *p_invoice = cJSON_PrintUnformatted(params);
+            (void)ln_db_annoskip_invoice_save(p_invoice, payhash);
+            free(p_invoice);
+
+            ret = lnapp_payment(p_appconf, &payconf);
+            if (ret) {
+                result = cJSON_CreateString("Progressing");
+            } else {
+                ctx->error_code = RPCERR_PAY_STOP;
+                ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
+            }
         } else {
-            DBG_PRINTF("retval=%d\n", retval);
-            ctx->error_code = RPCERR_ERROR;
-            ctx->error_message = strdup(RPCERR_ERROR_STR);
+            //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
+            ctx->error_code = RPCERR_NOINIT;
+            ctx->error_message = strdup(RPCERR_NOINIT_STR);
         }
     } else {
-        ctx->error_code = RPCERR_NOROUTE;
-        ctx->error_message = strdup(RPCERR_NOROUTE_STR);
+        ctx->error_code = RPCERR_NOCONN;
+        ctx->error_message = strdup(RPCERR_NOCONN_STR);
     }
-    APP_FREE(p_route);
 
 LABEL_EXIT:
     if (index < 0) {

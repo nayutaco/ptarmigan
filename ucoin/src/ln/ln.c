@@ -1811,6 +1811,11 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         M_SET_ERR(self, LNERR_ALREADY_FUNDING, "already funding");
         return false;
     }
+    if (ln_short_channel_id(self) != 0) {
+        //establish済み
+        M_SET_ERR(self, LNERR_ALREADY_FUNDING, "already established");
+        return false;
+    }
 
     ln_open_channel_t *open_ch = &self->p_establish->cnl_open;
 

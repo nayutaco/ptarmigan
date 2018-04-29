@@ -718,6 +718,15 @@ typedef struct {
     void                *p_data;
 } ln_onion_err_t;
 
+
+/** @struct     ln_routing_result_t
+ *  @brief      #ln_routing_calculate()戻り値
+ */
+typedef struct {
+    uint8_t             hop_num;
+    ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
+} ln_routing_result_t;
+
 /// @}
 
 
@@ -1218,7 +1227,21 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl);
  */
 bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst);
 
+
+/** 接続直後のfunding_locked必要性チェック
+ * 
+ * @param[in]           self
+ * @retval  true    funding_lockedの送信必要あり
+ */
 bool ln_check_need_funding_locked(const ln_self_t *self);
+
+
+/**
+ * 
+ * @param[in,out]       self
+ * @param[out]          pLocked
+ * @retval  true    成功
+ */
 bool ln_create_funding_locked(ln_self_t *self, ucoin_buf_t *pLocked);
 
 
@@ -1464,7 +1487,7 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
 /** set onion reaon: temporary node failure
- * 
+ *
  * @param[out]      pReason
  */
 void ln_create_reason_temp_node(ucoin_buf_t *pReason);
@@ -2000,7 +2023,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 
 
 /** nodeが所有しているour_msatの合計
- * 
+ *
  * @return  our_msatの合計[msatoshis]
  */
 uint64_t ln_node_total_msat(void);
@@ -2075,6 +2098,34 @@ bool ln_onion_failure_read(ucoin_buf_t *pReason,
  * @retval  true    成功
  */
 bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
+
+
+/********************************************************************
+ * routing
+ ********************************************************************/
+
+/** 支払いルート作成
+ * 
+ * @param[out]  pResult
+ * @param[in]   pPayerId
+ * @param[in]   pPayeeId
+ * @param[in]   CltvExpiry
+ * @param[in]   AmountMsat
+ * @retval  0   成功
+ */
+int ln_routing_calculate(
+        ln_routing_result_t *pResult,
+        const uint8_t *pPayerId,
+        const uint8_t *pPayeeId,
+        uint32_t CltvExpiry,
+        uint64_t AmountMsat);
+
+
+/** routing skip DB削除
+ * 
+ * routingから除外するchannelリストを削除する。
+ */
+void ln_routing_clear_skipdb(void);
 
 
 /********************************************************************
