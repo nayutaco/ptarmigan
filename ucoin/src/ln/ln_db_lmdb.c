@@ -67,7 +67,7 @@
 #define M_DBI_ANNOINFO_CNL      "channel_annoinfo"
 #define M_DBI_ANNO_NODE         "node_anno"
 #define M_DBI_ANNOINFO_NODE     "node_annoinfo"
-#define M_DBI_ANNO_SKIP         "route_skip"
+#define M_DBI_ANNO_SKIP         LNDB_DBI_ANNO_SKIP
 #define M_DBI_ANNO_INVOICE      "route_invoice"
 #define M_DBI_PREIMAGE          "preimage"
 #define M_DBI_PAYHASH           "payhash"
@@ -136,7 +136,7 @@
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a)
 #define MDB_TXN_COMMIT(a)           int txn_retval = mdb_txn_commit(a); if (txn_retval) DBG_PRINTF("ERR: %s\n", mdb_strerror(txn_retval))
 #else
-static int g_cnt[2];
+static volatile int g_cnt[2];
 #define MDB_TXN_BEGIN(a,b,c,d)      my_mdb_txn_begin(a,b,c,d, __LINE__);
 #define MDB_TXN_ABORT(a)            my_mdb_txn_abort(a, __LINE__)
 #define MDB_TXN_COMMIT(a)           my_mdb_txn_commit(a, __LINE__)
@@ -788,6 +788,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 
     retval = self_cursor_open(&cur);
     if (retval != 0) {
+        DBG_PRINTF("fail: open\n");
         goto LABEL_EXIT;
     }
 
@@ -989,12 +990,21 @@ LABEL_EXIT:
  * node用DB
  ********************************************************************/
 
-bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type)
+bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type, void *pLockedDb)
 {
+    int retval;
     MDB_txn *txn = NULL;
     int opt = MDB_CREATE;
+    ln_lmdb_db_t *p_locked_db = NULL;
 
-    int retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    *ppDb = NULL;
+    if (pLockedDb != NULL) {
+        p_locked_db = (ln_lmdb_db_t *)pLockedDb;
+        retval = !(p_locked_db->txn != NULL);
+        txn = p_locked_db->txn;
+    } else {
+        retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    }
     if (retval == 0) {
         ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)M_MALLOC(sizeof(ln_lmdb_db_t));
         p_db->txn = txn;
@@ -1018,9 +1028,10 @@ bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type)
         }
         retval = mdb_dbi_open(txn, p_name, opt, &p_db->dbi);
     }
-    if (retval != 0) {
+    if ((retval != 0) && (p_locked_db == NULL)) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(txn);
+        M_FREE(*ppDb);
         *ppDb = NULL;
     }
     return retval == 0;
@@ -2651,6 +2662,7 @@ bool ln_db_reset(void)
     lmdb_cursor_t cur;
     retval = self_cursor_open(&cur);
     if (retval != 0) {
+        DBG_PRINTF("fail: open\n");
         goto LABEL_EXIT;
     }
     ret = true;     //ここまで来たら成功と見なしてよい

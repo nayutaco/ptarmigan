@@ -34,7 +34,6 @@ ucoincli [options] [JSON-RPC port number]
   * `-i [amount_msat]` : add invoice
   * `-e [payment_hash]` : erase a payment_hash
   * `-e ALL` : erase all payment_hashs
-  * `-p [pay config file],[payment_hash]` : payment
   * `-r [BOLT11 invoice]`  : payment with BOLT11 invoice format
 
 * `-x` : close channel(need `-c` option)
@@ -168,11 +167,11 @@ ucoincli -r lntb1u1pdgjjwwpp50h7wjfp56ye392ajz82grpkeyerkh9ssaq9z7pgceqfkj8enugv
 
 ```json
 {
-    "method": "routepay", 
+    "method": "routepay",
     "params": [
-        "7dfce92434d13312abb211d48186d926476b9610e80a2f0518c813691f33e218", 
-        100000, 
-        "039cc950286a8fa99218283d1adc2456e0d5e81be558da77dd6e85ba9a1fff5ad3", 
+        "7dfce92434d13312abb211d48186d926476b9610e80a2f0518c813691f33e218",
+        100000,
+        "039cc950286a8fa99218283d1adc2456e0d5e81be558da77dd6e85ba9a1fff5ad3",
         ""
     ]
 }
@@ -180,13 +179,9 @@ ucoincli -r lntb1u1pdgjjwwpp50h7wjfp56ye392ajz82grpkeyerkh9ssaq9z7pgceqfkj8enugv
 
 ----
 
-```bash
-ucoincli -p pay.conf,112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00
-```
-
 ```json
 {
-    "method":"pay",
+    "method":"PAY",
     "params":[
         "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
         2, [

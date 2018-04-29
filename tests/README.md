@@ -52,7 +52,7 @@ cd install
         送金前と送金後に、拡張子が.cnlのファイル(チャネル情報)を作るので、額はそれを比較するとよい。
 
 ```bash
-./example_st4.sh
+./example_st4[c|d|e|f].sh
 ```
 
 7. チャネルを閉じる  
@@ -82,15 +82,12 @@ cd install
 | `example_st1.sh` | (example用) `bitcoind` 起動 |
 | `example_st2.sh` | (example用) 各node作成および `ucoind` 起動 |
 | `example_st3.sh` | (example用) fundingおよびチャネル情報交換完了待ち |
-| `example_st4a.sh` | (example用) 送金実施 |
-| `example_st4b.sh` | (example用) 送金実施 |
 | `example_st4c.sh` | (example用) 送金実施 |
 | `example_st4d.sh` | (example用) 送金実施 |
 | `example_st4_fail1.sh` | (example用) 送金失敗(node_4444 --> node_6666 の送金直前にnode_5555を終了) |
 | `example_st4_fail2.sh` | (example用) 送金失敗(invoiceと送金額を不一致にさせる) |
 | `example_st4_fail2.sh` | (example用) 送金失敗(payment_hash不一致) |
 | `example_st4r.sh` | (example用) 送金実施スクリプト |
-| `example_st4p.sh` | (example用) 送金実施スクリプト |
 | `example_st5.sh` | (example用) mutual closeおよび `bitcoind` 停止 |
 | `fund-test-in.sh` | (example用) funding_txの inputとなる P2WPKHトランザクションへの送金 |
 | `pay_funding.sh` | funding_txの inputとなる P2WPKHトランザクションへの送金 |

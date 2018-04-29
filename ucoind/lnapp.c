@@ -2764,7 +2764,7 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
     //DBG_PRINTF("BEGIN\n");
 
     void *p_db;
-    ret = ln_db_node_cur_transaction(&p_db, LN_DB_TXN_CNL);
+    ret = ln_db_node_cur_transaction(&p_db, LN_DB_TXN_CNL, NULL);
     if (!ret) {
         DBG_PRINTF("fail\n");
         goto LABEL_EXIT;
@@ -2843,7 +2843,7 @@ static void send_node_anno(lnapp_conf_t *p_conf)
     //DBG_PRINTF("BEGIN\n");
 
     void *p_db;
-    ret = ln_db_node_cur_transaction(&p_db, LN_DB_TXN_NODE);
+    ret = ln_db_node_cur_transaction(&p_db, LN_DB_TXN_NODE, NULL);
     if (!ret) {
         DBG_PRINTF("fail\n");
         goto LABEL_EXIT;

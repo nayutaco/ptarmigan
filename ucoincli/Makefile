@@ -84,6 +84,7 @@ LDFLAGS += -pthread
 LIBS += -L$(COMMON_PATH)/libs/install/lib -ljansson -lcurl -linih
 LIBS += -L$(COMMON_PATH)/ucoin -lucoin
 LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -lbase58 -lmbedcrypto -lsodium
+LIBS += -lstdc++
 
 
 ######################################

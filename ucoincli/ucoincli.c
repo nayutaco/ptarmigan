@@ -467,7 +467,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
     misc_bin2str(payhash, payconf.payment_hash, LN_SZ_HASH);
     snprintf(mBuf, BUFFER_SIZE,
         "{"
-            M_STR("method", "pay") M_NEXT
+            M_STR("method", "PAY") M_NEXT
             M_QQ("params") ":[ "
                 //payment_hash, hop_num
                 M_QQ("%s") ",%d, [\n",

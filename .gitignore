@@ -12,6 +12,7 @@ showdb/showdb
 routing/routing
 
 .Depend
+*.o
 *.log
 GPATH
 GRTAGS
