@@ -887,6 +887,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
             ret = lnapp_payment(p_appconf, &payconf);
             if (ret) {
                 result = cJSON_CreateString("Progressing");
+                misc_save_event(NULL, "payment: payment_hash=%s payee=%s amount_msat=%" PRIu64, str_payhash, str_payee, amount_msat);
             } else {
                 ctx->error_code = RPCERR_PAY_STOP;
                 ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
