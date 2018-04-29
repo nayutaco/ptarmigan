@@ -183,6 +183,7 @@ void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
         vfprintf(fp, pFormat, ap);
         va_end(ap);
 
+        fprintf(fp, "\n");
         fclose(fp);
     }
 }
