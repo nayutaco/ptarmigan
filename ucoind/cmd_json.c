@@ -813,6 +813,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     uint64_t amount_msat = 0;
     uint32_t min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     uint8_t payhash[LN_SZ_HASH];
+    bool retry = false;
 
     if (params == NULL) {
         index = -1;
@@ -945,6 +946,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         cmd_json_pay_retry(payhash, p_invoice);
         free(p_invoice);
         DBG_PRINTF("retry: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
+        retry = true;
     }
 
 LABEL_EXIT:
@@ -952,7 +954,7 @@ LABEL_EXIT:
         ctx->error_code = RPCERR_PARSE;
         ctx->error_message = strdup(RPCERR_PARSE_STR);
     }
-    if (ctx->error_code != 0) {
+    if ((ctx->error_code != 0) && !retry) {
         ln_db_annoskip_invoice_del(payhash);
         ln_db_annoskip_drop(true);
 
