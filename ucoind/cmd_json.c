@@ -864,6 +864,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         if (retval == 0) {
             //payment完了待ち
             result = cJSON_CreateString("Progressing");
+
+            misc_save_event(NULL, "payment: payment_hash=%s payee=%s amount_msat=%" PRIu64, str_payhash, str_payee, amount_msat);
         } else {
             DBG_PRINTF("retval=%d\n", retval);
             ctx->error_code = RPCERR_ERROR;
@@ -889,6 +891,7 @@ LABEL_EXIT:
         misc_datetime(date, sizeof(date));
         sprintf(mLastPayErr, "[%s]payment fail", date);
         DBG_PRINTF("%s\n", mLastPayErr);
+        misc_save_event(NULL, "payment fail: payment_hash=%s", str_payhash);
     }
 
     return result;
