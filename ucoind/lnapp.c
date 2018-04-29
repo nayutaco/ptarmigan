@@ -450,17 +450,17 @@ LABEL_EXIT:
                     hashstr);
         call_script(M_EVT_PAYMENT, param);
     } else {
-        DBG_PRINTF("fail --> retry\n");
-        char errstr[512];
-        sprintf(errstr, M_ERRSTR_CANNOTSTART,
-                    ln_our_msat(pAppConf->p_self),
-                    pPay->hop_datain[0].amt_to_forward);
-        set_lasterror(pAppConf, RPCERR_PAYFAIL, errstr);
+        // DBG_PRINTF("fail --> retry\n");
+        // char errstr[512];
+        // sprintf(errstr, M_ERRSTR_CANNOTSTART,
+        //             ln_our_msat(pAppConf->p_self),
+        //             pPay->hop_datain[0].amt_to_forward);
+        // set_lasterror(pAppConf, RPCERR_PAYFAIL, errstr);
 
-        //ルートが見つからなくなるまでリトライする
-        ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
-        cmd_json_pay_retry(pPay->payment_hash, NULL);
-        ret = true;         //再送はtrue
+        // //ルートが見つからなくなるまでリトライする
+        // ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
+        // cmd_json_pay_retry(pPay->payment_hash, NULL);
+        // ret = true;         //再送はtrue
         nodeflag_unset(~FLAGNODE_NONE);
     }
 

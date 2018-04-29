@@ -922,8 +922,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
                 }
                 mPayTryCount++;
             } else {
-                ctx->error_code = RPCERR_PAY_STOP;
-                ctx->error_message = strdup(RPCERR_PAY_STOP_STR);
+                ctx->error_code = RPCERR_PAY_RETRY;
+                ctx->error_message = strdup(RPCERR_PAY_RETRY_STR);
                 DBG_PRINTF("fail: lnapp_payment\n");
             }
         } else {
@@ -933,12 +933,18 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
             DBG_PRINTF("fail: not inited\n");
         }
     } else {
+        ctx->error_code = RPCERR_PAY_RETRY;
+        ctx->error_message = strdup(RPCERR_PAY_RETRY_STR);
+        DBG_PRINTF("fail: not connect\n");
+    }
+
+    if (ctx->error_code != 0) {
         ln_db_annoskip_save(rt_ret.hop_datain[0].short_channel_id, true);
 
         char *p_invoice = cJSON_PrintUnformatted(params);
         cmd_json_pay_retry(payhash, p_invoice);
         free(p_invoice);
-        DBG_PRINTF("retry: not connected: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
+        DBG_PRINTF("retry: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
     }
 
 LABEL_EXIT:
