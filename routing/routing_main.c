@@ -242,9 +242,8 @@ int main(int argc, char* argv[])
 
     if ((options & OPT_CLEARSDB) == 0) {
         ln_routing_result_t result;
-        ret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry,
-                        amtmsat);
-        if (ret == 0) {
+        bret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry, amtmsat);
+        if (bret) {
             //pay.conf形式の出力
             if (payment_hash == NULL) {
                 //CSV形式
@@ -274,9 +273,11 @@ int main(int argc, char* argv[])
                 }
                 printf("]]}\n");
             }
+            ret = 0;
         } else {
             //error
-            fprintf(fp_err, "fail: %d\n", ret);
+            fprintf(fp_err, "fail\n");
+            ret = -1;
         }
 
         free(dbdir);

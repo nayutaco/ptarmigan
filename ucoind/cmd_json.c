@@ -813,6 +813,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     uint64_t amount_msat = 0;
     uint32_t min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     uint8_t payhash[LN_SZ_HASH];
+    bool ret = false;
     bool retry = false;
 
     if (params == NULL) {
@@ -868,25 +869,32 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     SYSLOG_INFO("routepay");
 
-    bool bret;
     uint8_t node_payee[UCOIN_SZ_PUBKEY];
 
-    bret = misc_str2bin(node_payee, sizeof(node_payee), str_payee);
-    if (!bret) {
+    ret = misc_str2bin(node_payee, sizeof(node_payee), str_payee);
+    if (!ret) {
         DBG_PRINTF("invalid arg: payee node id\n");
         ctx->error_code = RPCERR_ERROR;
         ctx->error_message = strdup(RPCERR_ERROR_STR);
         goto LABEL_EXIT;
     }
     ln_routing_result_t rt_ret;
-    int ret = ln_routing_calculate(&rt_ret, ln_node_getid(), node_payee,
+    ret = ln_routing_calculate(&rt_ret, ln_node_getid(), node_payee,
                    min_final_cltv_expiry, amount_msat);
-    if (ret != 0) {
+    if (!ret) {
         DBG_PRINTF("fail: routing\n");
         ctx->error_code = RPCERR_ERROR;
         ctx->error_message = strdup(RPCERR_ERROR_STR);
         goto LABEL_EXIT;
     }
+
+    // 送金開始
+    //      これ以降は失敗してもリトライする
+    ret = false;
+
+    //再送のためにinvoice保存
+    char *p_invoice = cJSON_PrintUnformatted(params);
+    (void)ln_db_annoskip_invoice_save(p_invoice, payhash);
 
     DBG_PRINTF("-----------------------------------\n");
     for (int lp = 0; lp < rt_ret.hop_num; lp++) {
@@ -902,59 +910,48 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (p_appconf != NULL) {
         bool inited = lnapp_is_inited(p_appconf);
         if (inited) {
-            bool ret;
             payment_conf_t payconf;
 
             memcpy(payconf.payment_hash, payhash, LN_SZ_HASH);
             payconf.hop_num = rt_ret.hop_num;
             memcpy(payconf.hop_datain, rt_ret.hop_datain, sizeof(ln_hop_datain_t) * (1 + LN_HOP_MAX));
 
-            //再送のためにinvoice保存
-            char *p_invoice = cJSON_PrintUnformatted(params);
-            (void)ln_db_annoskip_invoice_save(p_invoice, payhash);
-            free(p_invoice);
-
             ret = lnapp_payment(p_appconf, &payconf);
             if (ret) {
-                if (mPayTryCount == 0) {
-                    result = cJSON_CreateString("Progressing");
-                    misc_save_event(NULL, "payment: payment_hash=%s payee=%s amount_msat=%" PRIu64, str_payhash, str_payee, amount_msat);
-                    DBG_PRINTF("start payment\n");
-                }
-                mPayTryCount++;
+                DBG_PRINTF("start payment\n");
             } else {
-                ctx->error_code = RPCERR_PAY_RETRY;
-                ctx->error_message = strdup(RPCERR_PAY_RETRY_STR);
                 DBG_PRINTF("fail: lnapp_payment\n");
             }
         } else {
             //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
-            ctx->error_code = RPCERR_NOINIT;
-            ctx->error_message = strdup(RPCERR_NOINIT_STR);
             DBG_PRINTF("fail: not inited\n");
         }
     } else {
-        ctx->error_code = RPCERR_PAY_RETRY;
-        ctx->error_message = strdup(RPCERR_PAY_RETRY_STR);
         DBG_PRINTF("fail: not connect\n");
     }
 
-    if (ctx->error_code != 0) {
+    mPayTryCount++;
+    result = cJSON_CreateString("start payment");
+    if (mPayTryCount == 1) {
+        misc_save_event(NULL, "payment: payment_hash=%s payee=%s amount_msat=%" PRIu64, str_payhash, str_payee, amount_msat);
+    }
+    if (!ret) {
+        //送金リトライ
         ln_db_annoskip_save(rt_ret.hop_datain[0].short_channel_id, true);
 
-        char *p_invoice = cJSON_PrintUnformatted(params);
         cmd_json_pay_retry(payhash, p_invoice);
-        free(p_invoice);
         DBG_PRINTF("retry: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
         retry = true;
     }
+    free(p_invoice);
 
 LABEL_EXIT:
     if (index < 0) {
         ctx->error_code = RPCERR_PARSE;
         ctx->error_message = strdup(RPCERR_PARSE_STR);
     }
-    if ((ctx->error_code != 0) && !retry) {
+    if (!retry) {
+        //送金失敗
         ln_db_annoskip_invoice_del(payhash);
         ln_db_annoskip_drop(true);
 
