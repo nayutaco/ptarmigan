@@ -934,7 +934,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     result = cJSON_CreateString("start payment");
     if (mPayTryCount == 1) {
         //初回ログ
-        misc_save_event(NULL, "payment: payment_hash=%s payee=%s our_msat=%" PRIu64" amount_msat=%" PRIu64, str_payhash, str_payee, ln_our_msat(p_appconf->p_self), amount_msat);
+        uint64_t total_amount = ln_node_total_msat();
+        misc_save_event(NULL, "payment: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64, str_payhash, str_payee, total_amount, amount_msat);
     }
     if (!ret) {
         //送金リトライ
