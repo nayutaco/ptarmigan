@@ -2476,20 +2476,22 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
     pthread_mutex_lock(&mMuxNode);
     DBG_PRINTF("mFlagNode: %02x\n", mFlagNode);
 
+    uint64_t total_amount = ln_node_total_msat();
+
     if (mFlagNode & FLAGNODE_PAYMENT) {
         //payer
         mFlagNode &= ~FLAGNODE_PAYMENT;
         if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金中
-            DBG_PRINTF("PAYMENT: add_htlc\n");
+            DBG_PRINTF("PAYMENT: htlc added\n");
             mFlagNode = FLAGNODE_PAYMENT;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金完了
-            DBG_PRINTF("PAYMENT: fulfill_htlc\n");
-            misc_save_event(NULL, "payment success: short_channel_id=%" PRIx64 " our_msat=%" PRIu64 " their_msat=%" PRIu64,
-                    ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
+            DBG_PRINTF("PAYMENT: htlc fulfilled\n");
+            misc_save_event(NULL, "payment success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
+                    ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV | FLAGNODE_COMSIG_RECV)) {
@@ -2507,22 +2509,24 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
         if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金中
-            DBG_PRINTF("add_htlc\n");
+            DBG_PRINTF("FORWARD: htlc added\n");
             mFlagNode = FLAGNODE_NONE;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金完了
-            DBG_PRINTF("fulfill_htlc\n");
+            DBG_PRINTF("FORWARD: htlc fulfilled\n");
+            misc_save_event(NULL, "forward success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
+                    ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV | FLAGNODE_COMSIG_RECV)) {
             //送金失敗
-            DBG_PRINTF("fail_htlc\n");
+            DBG_PRINTF("FORWARD: fail_htlc\n");
             mFlagNode = FLAGNODE_NONE;
         } else {
             //それ以外
             scr = false;
-            DBG_PRINTF("other\n");
+            DBG_PRINTF("FORWARD: other\n");
             mFlagNode = FLAGNODE_NONE;
         }
     }
