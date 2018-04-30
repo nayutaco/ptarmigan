@@ -933,7 +933,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     mPayTryCount++;
     result = cJSON_CreateString("start payment");
     if (mPayTryCount == 1) {
-        misc_save_event(NULL, "payment: payment_hash=%s payee=%s amount_msat=%" PRIu64, str_payhash, str_payee, amount_msat);
+        //初回ログ
+        misc_save_event(NULL, "payment: payment_hash=%s payee=%s our_msat=%" PRIu64" amount_msat=%" PRIu64, str_payhash, str_payee, ln_our_msat(p_appconf->p_self), amount_msat);
     }
     if (!ret) {
         //送金リトライ
@@ -950,7 +951,7 @@ LABEL_EXIT:
         ctx->error_code = RPCERR_PARSE;
         ctx->error_message = strdup(RPCERR_PARSE_STR);
     }
-    if (!retry) {
+    if (!ret && !retry) {
         //送金失敗
         ln_db_annoskip_invoice_del(payhash);
         ln_db_annoskip_drop(true);
@@ -960,7 +961,7 @@ LABEL_EXIT:
         misc_datetime(date, sizeof(date));
         sprintf(mLastPayErr, "[%s]payment fail", date);
         DBG_PRINTF("%s\n", mLastPayErr);
-        misc_save_event(NULL, "payment fail: payment_hash=%s, try=%d", str_payhash, mPayTryCount);
+        misc_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
     }
 
     return result;
