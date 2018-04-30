@@ -2655,7 +2655,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
         p_conf->loop = false;
         //mainloop待ち合わせ解除(*2)
         pthread_cond_signal(&p_conf->cond);
-        DBG_PRINTF("disconnect channel: %" PRIx64, ln_short_channel_id(p_conf->p_self));
+        DBG_PRINTF("disconnect channel: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         DBG_PRINTF("===================================\n");
         DBG_PRINTF("=  CHANNEL THREAD END             =\n");
         DBG_PRINTF("===================================\n");
