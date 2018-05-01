@@ -316,3 +316,24 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id)
 // {
 //     return mExecPath;
 // }
+
+
+void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc)
+{
+    if (NodeDesc == LN_NODEDESC_IPV4) {
+        char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
+        DBG_PRINTF("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+    }
+}
+
+
+bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc)
+{
+    if (NodeDesc == LN_NODEDESC_IPV4) {
+        char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
+        DBG_PRINTF("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+    }
+    return false;
+}

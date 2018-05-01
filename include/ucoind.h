@@ -31,6 +31,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <arpa/inet.h>
 
 static inline int tid() {
     return (int)syscall(SYS_gettid);
@@ -51,8 +52,9 @@ static inline int tid() {
 #define SZ_SOCK_SERVER_MAX          (10)        ///< 接続可能max(server)
 #define SZ_SOCK_CLIENT_MAX          (10)        ///< 接続可能max(client)
 
-#define SZ_IPV4_LEN                 (15)        ///< IPv4長
-#define SZ_CONN_STR                 (SZ_IPV4_LEN + 1 + 5)   ///< <IPv4>:<port>
+#define SZ_IPV4_LEN                 INET_ADDRSTRLEN     ///< IPv4長
+#define SZ_IPV4_LEN_STR             "15"                ///< IPv4長(sprintf用)
+#define SZ_CONN_STR                 (INET6_ADDRSTRLEN + 1 + 5)   ///< <IP len>:<port>
 
 #define TM_WAIT_CONNECT             (10)        ///< client socket接続待ち[sec]
 
@@ -282,7 +284,9 @@ typedef struct {
  */
 typedef struct nodefaillist_t {
     LIST_ENTRY(nodefaillist_t) list;
-    peer_conf_t     conn;
+    
+    uint8_t     node_id[UCOIN_SZ_PUBKEY];
+    char        conn_str[SZ_CONN_STR + 1];
 } nodefaillist_t;
 
 
@@ -362,5 +366,18 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id);
  * 
  */
 // const char *ucoind_get_exec_path(void);
+
+
+/** ノード接続失敗リスト追加
+ * 
+ */
+void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc);
+
+
+/** ノード接続失敗リスト検索
+ * 
+ * @retval  true        リスト登録済み
+ */
+bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc);
 
 #endif /* UCOIND_H__ */

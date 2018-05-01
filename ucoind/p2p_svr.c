@@ -140,13 +140,14 @@ void *p2p_svr_start(void *pArg)
                 SYSLOG_ERR("%s(): accept: %s", __func__, strerror(errno));
                 goto LABEL_EXIT;
             }
-            fprintf(PRINTOUT, "connect from addr=%s, port=%d\n", inet_ntoa(cl_addr.sin_addr), ntohs(cl_addr.sin_port));
 
             //スレッド起動
             mAppConf[idx].initiator = false;        //Noise Protocolの Act One受信
             memset(mAppConf[idx].node_id, 0, UCOIN_SZ_PUBKEY);
             mAppConf[idx].cmd = DCMD_NONE;
-            sprintf(mAppConf[idx].conn_str, "%s:%d", inet_ntoa(cl_addr.sin_addr), ntohs(cl_addr.sin_port));
+            inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, mAppConf[idx].conn_str, SZ_CONN_STR);
+            mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
+            fprintf(PRINTOUT, "connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
 
             lnapp_start(&mAppConf[idx]);
         } else {

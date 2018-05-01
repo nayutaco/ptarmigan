@@ -243,7 +243,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
     } else if (optlen >= (UCOIN_SZ_PUBKEY * 2 + 1 + 7 + 1 + 1)) {
         // <pubkey>@<ipaddr>:<port>
         // (33 * 2)@x.x.x.x:x
-        int results = sscanf(optarg, "%66s@%15[^:]:%" SCNu16,
+        int results = sscanf(optarg, "%66s@%" SZ_IPV4_LEN_STR "[^:]:%" SCNu16,
             mPeerNodeId,
             mPeerAddr,
             &mPeerPort);
