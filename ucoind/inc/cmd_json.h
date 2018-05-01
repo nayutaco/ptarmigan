@@ -39,4 +39,7 @@ void cmd_json_start(uint16_t Port);
  */
 uint16_t cmd_json_get_port(void);
 
+
+void cmd_json_pay_retry(const uint8_t *pPayHash, const char *pInvoice);
+
 #endif  //CMD_JSON_H__

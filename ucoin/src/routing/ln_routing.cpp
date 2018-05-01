@@ -305,7 +305,7 @@ static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 }
 
 
-int ln_routing_calculate(
+bool ln_routing_calculate(
         ln_routing_result_t *pResult,
         const uint8_t *pPayerId,
         const uint8_t *pPayeeId,
@@ -320,13 +320,13 @@ int ln_routing_calculate(
 
     if ((pPayerId == NULL) || (pPayeeId == NULL)) {
         DBG_PRINTF("fail: null input\n");
-        return -1;
+        return false;
     }
 
     bool ret = loaddb(&rt_res, pPayerId);
     if (!ret) {
         DBG_PRINTF("fail: loaddb\n");
-        return -1;
+        return false;
     }
 
     DBG_PRINTF("start nodeid : ");
@@ -403,11 +403,11 @@ int ln_routing_calculate(
     //DBG_PRINTF("pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
     if (!set_start) {
         DBG_PRINTF("fail: no start node\n");
-        return -2;
+        return false;
     }
     if (!set_goal) {
         DBG_PRINTF("fail: no goal node\n");
-        return -3;
+        return false;
     }
 
     std::vector<vertex_descriptor> p(num_vertices(g));      //parent
@@ -420,7 +420,7 @@ int ln_routing_calculate(
     if (p[pnt_goal] == pnt_goal) {
         DBG_PRINTF("fail: cannot find route\n");
         free(rt_res.p_nodes);
-        return -4;
+        return false;
     }
 
     //逆順に入っているので、並べ直す
@@ -455,7 +455,7 @@ int ln_routing_calculate(
         //先頭に自ノードが入るため+1
         DBG_PRINTF("fail: too many hops\n");
         free(rt_res.p_nodes);
-        return -5;
+        return false;
     }
 
     //戻り値の作成
@@ -505,7 +505,7 @@ int ln_routing_calculate(
 
     free(rt_res.p_nodes);
 
-    return 0;
+    return true;
 }
 
 

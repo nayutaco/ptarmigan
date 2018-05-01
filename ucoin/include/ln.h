@@ -2111,9 +2111,9 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
  * @param[in]   pPayeeId
  * @param[in]   CltvExpiry
  * @param[in]   AmountMsat
- * @retval  0   成功
+ * @retval  true   成功
  */
-int ln_routing_calculate(
+bool ln_routing_calculate(
         ln_routing_result_t *pResult,
         const uint8_t *pPayerId,
         const uint8_t *pPayeeId,

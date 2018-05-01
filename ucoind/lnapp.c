@@ -278,8 +278,6 @@ static void payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void payroute_clear(lnapp_conf_t *p_conf);
 static void payroute_print(lnapp_conf_t *p_conf);
 
-static void pay_retry(const uint8_t *pPayHash);
-
 
 /********************************************************************
  * public functions
@@ -452,17 +450,17 @@ LABEL_EXIT:
                     hashstr);
         call_script(M_EVT_PAYMENT, param);
     } else {
-        DBG_PRINTF("fail --> retry\n");
-        char errstr[512];
-        sprintf(errstr, M_ERRSTR_CANNOTSTART,
-                    ln_our_msat(pAppConf->p_self),
-                    pPay->hop_datain[0].amt_to_forward);
-        set_lasterror(pAppConf, RPCERR_PAYFAIL, errstr);
+        // DBG_PRINTF("fail --> retry\n");
+        // char errstr[512];
+        // sprintf(errstr, M_ERRSTR_CANNOTSTART,
+        //             ln_our_msat(pAppConf->p_self),
+        //             pPay->hop_datain[0].amt_to_forward);
+        // set_lasterror(pAppConf, RPCERR_PAYFAIL, errstr);
 
-        //ルートが見つからなくなるまでリトライする
-        ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
-        pay_retry(pPay->payment_hash);
-        ret = true;         //再送はtrue
+        // //ルートが見つからなくなるまでリトライする
+        // ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
+        // cmd_json_pay_retry(pPay->payment_hash, NULL);
+        // ret = true;         //再送はtrue
         nodeflag_unset(~FLAGNODE_NONE);
     }
 
@@ -2480,20 +2478,22 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
     pthread_mutex_lock(&mMuxNode);
     DBG_PRINTF("mFlagNode: %02x\n", mFlagNode);
 
+    uint64_t total_amount = ln_node_total_msat();
+
     if (mFlagNode & FLAGNODE_PAYMENT) {
         //payer
         mFlagNode &= ~FLAGNODE_PAYMENT;
         if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金中
-            DBG_PRINTF("PAYMENT: add_htlc\n");
+            DBG_PRINTF("PAYMENT: htlc added\n");
             mFlagNode = FLAGNODE_PAYMENT;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金完了
-            DBG_PRINTF("PAYMENT: fulfill_htlc\n");
-            misc_save_event(NULL, "payment success: short_channel_id=%" PRIx64 " our_msat=%" PRIu64 " their_msat=%" PRIu64,
-                    ln_short_channel_id(p_conf->p_self), ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
+            DBG_PRINTF("PAYMENT: htlc fulfilled\n");
+            misc_save_event(NULL, "payment success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
+                    ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV | FLAGNODE_COMSIG_RECV)) {
@@ -2511,22 +2511,24 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
         if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金中
-            DBG_PRINTF("add_htlc\n");
+            DBG_PRINTF("FORWARD: htlc added\n");
             mFlagNode = FLAGNODE_NONE;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金完了
-            DBG_PRINTF("fulfill_htlc\n");
+            DBG_PRINTF("FORWARD: htlc fulfilled\n");
+            misc_save_event(NULL, "forward success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
+                    ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND | FLAGNODE_COMSIG_RECV) ||
           M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV | FLAGNODE_COMSIG_RECV)) {
             //送金失敗
-            DBG_PRINTF("fail_htlc\n");
+            DBG_PRINTF("FORWARD: fail_htlc\n");
             mFlagNode = FLAGNODE_NONE;
         } else {
             //それ以外
             scr = false;
-            DBG_PRINTF("other\n");
+            DBG_PRINTF("FORWARD: other\n");
             mFlagNode = FLAGNODE_NONE;
         }
     }
@@ -2659,7 +2661,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
         p_conf->loop = false;
         //mainloop待ち合わせ解除(*2)
         pthread_cond_signal(&p_conf->cond);
-        DBG_PRINTF("disconnect channel: %" PRIx64, ln_short_channel_id(p_conf->p_self));
+        DBG_PRINTF("disconnect channel: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         DBG_PRINTF("===================================\n");
         DBG_PRINTF("=  CHANNEL THREAD END             =\n");
         DBG_PRINTF("===================================\n");
@@ -3181,22 +3183,7 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
         }
         break;
     case TRANSCMD_PAYRETRY:
-        {
-            //送金リトライ
-            char *p_invoice;
-            bool ret = ln_db_annoskip_invoice_load(&p_invoice, p_revack->buf.buf);     //p_invoiceはmalloc()
-            if (ret) {
-                DBG_PRINTF("invoice:%s\n", p_invoice);
-                char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
-                strcpy(json, "{\"method\":\"routepay_cont\",\"params\":");
-                strcat(json, p_invoice);
-                strcat(json, "}");
-                int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
-                DBG_PRINTF("retval=%d\n", retval);
-                APP_FREE(json);     //APP_MALLOC: この中
-                free(p_invoice);
-            }
-        }
+        cmd_json_pay_retry(p_revack->buf.buf, NULL);
         break;
     default:
         break;
@@ -3499,30 +3486,6 @@ static void payroute_print(lnapp_conf_t *p_conf)
         p = LIST_NEXT(p, list);
     }
     DBG_PRINTF("------------------------------------\n");
-}
-
-
-/** 送金リトライ要求
- *
- * @param[in]   pPayHash
- */
-static void pay_retry(const uint8_t *pPayHash)
-{
-    char *p_invoice;
-    bool ret = ln_db_annoskip_invoice_load(&p_invoice, pPayHash);     //p_invoiceはmalloc()される
-    if (ret) {
-        DBG_PRINTF("invoice:%s\n", p_invoice);
-        char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
-        strcpy(json, "{\"method\":\"routepay_cont\",\"params\":");
-        strcat(json, p_invoice);
-        strcat(json, "}");
-        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
-        DBG_PRINTF("retval=%d\n", retval);
-        APP_FREE(json);     //APP_MALLOC: この中
-        free(p_invoice);
-    } else {
-        DBG_PRINTF("fail: invoice not found\n");
-    }
 }
 
 
