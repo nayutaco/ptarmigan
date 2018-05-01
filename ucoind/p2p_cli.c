@@ -140,6 +140,9 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
             fclose(fp);
         }
 
+        //ノード接続失敗リストに追加
+        ucoind_nodefail_add(pConn->node_id, pConn->ipaddr, pConn->port, LN_NODEDESC_IPV4);
+
         goto LABEL_EXIT;
     }
     DBG_PRINTF("connected: sock=%d\n", mAppConf[idx].sock);
