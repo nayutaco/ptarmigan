@@ -56,13 +56,30 @@
 #include "monitoring.h"
 #include "cmd_json.h"
 
+/********************************************************************
+ * typedefs
+ ********************************************************************/
+
+/** @struct     nodefaillist_t
+ *  @brief      接続失敗peer情報リスト
+ */
+typedef struct nodefaillist_t {
+    LIST_ENTRY(nodefaillist_t) list;
+    
+    uint8_t     node_id[UCOIN_SZ_PUBKEY];
+    char        ipaddr[SZ_IPV4_LEN + 1];
+    uint16_t    port;
+} nodefaillist_t;
+LIST_HEAD(nodefaillisthead_t, nodefaillist_t);
+
 
 /********************************************************************
  * static variables
  ********************************************************************/
 
 static pthread_mutex_t      mMuxPreimage;
-static char                 mExecPath[PATH_MAX];
+// static char                 mExecPath[PATH_MAX];
+static struct nodefaillisthead_t    mNodeFailListHead;
 
 
 /********************************************************************
@@ -151,13 +168,13 @@ int main(int argc, char *argv[])
     }
 
     //ucoindがあるパスを取る("routepay"用)
-    const char *p_delimit = strrchr(argv[0], '/');
-    if (p_delimit != NULL) {
-        memcpy(mExecPath, argv[0], p_delimit - argv[0] + 1);
-        mExecPath[p_delimit - argv[0] + 1] = '\0';
-    } else {
-        mExecPath[0] = '\0';
-    }
+    // const char *p_delimit = strrchr(argv[0], '/');
+    // if (p_delimit != NULL) {
+    //     memcpy(mExecPath, argv[0], p_delimit - argv[0] + 1);
+    //     mExecPath[p_delimit - argv[0] + 1] = '\0';
+    // } else {
+    //     mExecPath[0] = '\0';
+    // }
 
     signal(SIGPIPE , SIG_IGN);   //ignore SIGPIPE
     p2p_cli_init();
@@ -312,7 +329,50 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id)
 }
 
 
-const char *ucoind_get_exec_path(void)
+// const char *ucoind_get_exec_path(void)
+// {
+//     return mExecPath;
+// }
+
+
+// ucoind 起動中に接続失敗したnodeを登録していく。
+// リストに登録されているnodeに対しては、monitoring.c で自動接続しないようにする。
+// 再接続できるようになったか確認する方法を用意していないので、今のところリストから削除する方法はない。
+void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc)
 {
-    return mExecPath;
+    if (NodeDesc == LN_NODEDESC_IPV4) {
+        char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
+        DBG_PRINTF("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+
+        nodefaillist_t *nf = (nodefaillist_t *)APP_MALLOC(sizeof(nodefaillist_t));
+        memcpy(nf->node_id, pNodeId, UCOIN_SZ_PUBKEY);
+        strcpy(nf->ipaddr, pAddr);
+        nf->port = Port;
+        LIST_INSERT_HEAD(&mNodeFailListHead, nf, list);
+    }
+}
+
+
+bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc)
+{
+    bool detect = false;
+
+    if (NodeDesc == LN_NODEDESC_IPV4) {
+        char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
+        misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
+    
+        nodefaillist_t *p = LIST_FIRST(&mNodeFailListHead);
+        while (p != NULL) {
+            if ( (memcmp(p->node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) &&
+                 (strcmp(p->ipaddr, pAddr) == 0) &&
+                 (p->port == Port) ) {
+                //DBG_PRINTF("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+                detect = true;
+                break;
+            }
+            p = LIST_NEXT(p, list);
+        }
+    }
+    return detect;
 }

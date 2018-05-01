@@ -83,11 +83,11 @@ extern "C" {
 #define LN_HTLC_FLAG_RECV               (0x01)                      ///< Received HTLC(add_htlcを受信した)
 
 // node_announcement address descriptor
-#define LN_NODEDESC_NONE                (0)         ///< padding. data = none (length 0)
-#define LN_NODEDESC_IPV4                (1)         ///< ipv4. data = [4:ipv4_addr][2:port] (length 6)
-#define LN_NODEDESC_IPV6                (2)         ///< ipv6. data = [16:ipv6_addr][2:port] (length 18)
-#define LN_NODEDESC_ONIONV2             (3)         ///< tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
-#define LN_NODEDESC_ONIONV3             (4)         ///< tor v3 onion service. data [35:onion_addr][2:port] (length 37)
+#define LN_NODEDESC_NONE                ((uint8_t)0)    ///< padding. data = none (length 0)
+#define LN_NODEDESC_IPV4                ((uint8_t)1)    ///< ipv4. data = [4:ipv4_addr][2:port] (length 6)
+#define LN_NODEDESC_IPV6                ((uint8_t)2)    ///< ipv6. data = [16:ipv6_addr][2:port] (length 18)
+#define LN_NODEDESC_ONIONV2             ((uint8_t)3)    ///< tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
+#define LN_NODEDESC_ONIONV3             ((uint8_t)4)    ///< tor v3 onion service. data [35:onion_addr][2:port] (length 37)
 #define LN_NODEDESC_MAX                 LN_NODEDESC_ONIONV3
 
 // self->fund_flag

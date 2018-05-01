@@ -832,6 +832,8 @@ static void *thread_main_start(void *pArg)
     //noise protocol handshake
     ret = noise_handshake(p_conf);
     if (!ret) {
+        //ノード接続失敗リストに追加
+        ucoind_nodefail_add(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_NODEDESC_IPV4);
         goto LABEL_SHUTDOWN;
     }
 
@@ -965,7 +967,7 @@ static void *thread_main_start(void *pArg)
         if (fp) {
             char date[50];
             misc_datetime(date, sizeof(date));
-            fprintf(fp, "[%s]OK: %s@%s\n", date, peer_id, p_conf->conn_str);
+            fprintf(fp, "[%s]OK: %s@%s:%" PRIu16 "\n", date, peer_id, p_conf->conn_str, p_conf->conn_port);
             fclose(fp);
         }
     }
