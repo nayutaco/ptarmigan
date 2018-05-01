@@ -3523,7 +3523,6 @@ static void pay_retry(const uint8_t *pPayHash)
     } else {
         DBG_PRINTF("fail: invoice not found\n");
     }
-
 }
 
 

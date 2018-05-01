@@ -279,17 +279,6 @@ typedef struct {
 } establish_conf_t;
 
 
-/** @struct     nodefaillist_t
- *  @brief      接続失敗peer情報リスト
- */
-typedef struct nodefaillist_t {
-    LIST_ENTRY(nodefaillist_t) list;
-    
-    uint8_t     node_id[UCOIN_SZ_PUBKEY];
-    char        conn_str[SZ_CONN_STR + 1];
-} nodefaillist_t;
-
-
 /** @struct fwd_proc_add_t
  *  @brief  add_htlc転送データ
  *  @note

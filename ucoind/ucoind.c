@@ -56,6 +56,22 @@
 #include "monitoring.h"
 #include "cmd_json.h"
 
+/********************************************************************
+ * typedefs
+ ********************************************************************/
+
+/** @struct     nodefaillist_t
+ *  @brief      接続失敗peer情報リスト
+ */
+typedef struct nodefaillist_t {
+    LIST_ENTRY(nodefaillist_t) list;
+    
+    uint8_t     node_id[UCOIN_SZ_PUBKEY];
+    char        ipaddr[SZ_IPV4_LEN + 1];
+    uint16_t    port;
+} nodefaillist_t;
+LIST_HEAD(nodefaillisthead_t, nodefaillist_t);
+
 
 /********************************************************************
  * static variables
@@ -63,6 +79,7 @@
 
 static pthread_mutex_t      mMuxPreimage;
 // static char                 mExecPath[PATH_MAX];
+static struct nodefaillisthead_t    mNodeFailListHead;
 
 
 /********************************************************************
@@ -324,16 +341,33 @@ void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
         char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
         DBG_PRINTF("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+
+        nodefaillist_t *nf = (nodefaillist_t *)APP_MALLOC(sizeof(nodefaillist_t));
+        memcpy(nf->node_id, pNodeId, UCOIN_SZ_PUBKEY);
+        strcpy(nf->ipaddr, pAddr);
+        nf->port = Port;
+        LIST_INSERT_HEAD(&mNodeFailListHead, nf, list);
     }
 }
 
 
 bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc)
 {
+    bool detect = false;
+
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
-        DBG_PRINTF("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+    
+        nodefaillist_t *p = LIST_FIRST(&mNodeFailListHead);
+        while (p != NULL) {
+            if ( (memcmp(p->node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) &&
+                 (strcmp(p->ipaddr, pAddr) == 0) &&
+                 (p->port == Port) ) {
+                DBG_PRINTF("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+                detect = true;
+            }
+        }
     }
-    return false;
+    return detect;
 }
