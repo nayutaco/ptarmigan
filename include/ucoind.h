@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/queue.h>
 
 static inline int tid() {
     return (int)syscall(SYS_gettid);
@@ -49,6 +50,9 @@ static inline int tid() {
 
 #define SZ_SOCK_SERVER_MAX          (10)        ///< 接続可能max(server)
 #define SZ_SOCK_CLIENT_MAX          (10)        ///< 接続可能max(client)
+
+#define SZ_IPV4_LEN                 (15)        ///< IPv4長
+#define SZ_CONN_STR                 (SZ_IPV4_LEN + 1 + 5)   ///< <IPv4>:<port>
 
 #define TM_WAIT_CONNECT             (10)        ///< client socket接続待ち[sec]
 
@@ -108,7 +112,7 @@ static inline int tid() {
 #define RPCERR_PAYFAIL              (-26002)
 
 
-#define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数
+#define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数(server/clientそれぞれ)
 
 
 /********************************************************************
@@ -189,14 +193,22 @@ typedef enum {
 } trans_cmd_t;
 
 
+/** @struct     daemon_connect_t
+ *  @brief      daemon接続情報
+ *  @note
+ *      - #peer_conf_t と同じ構造だが、別にしておく(統合する可能性あり)
+ */
 typedef struct {
     //peer
-    char        ipaddr[16];
+    char        ipaddr[SZ_IPV4_LEN + 1];
     uint16_t    port;
     uint8_t     node_id[UCOIN_SZ_PUBKEY];
 } daemon_connect_t;
 
 
+/** @struct     funding_conf_t
+ *  @brief      funding情報
+ */
 typedef struct {
     uint8_t         txid[UCOIN_SZ_TXID];
     int             txindex;
@@ -207,6 +219,9 @@ typedef struct {
 } funding_conf_t;
 
 
+/** @struct     payment_conf_t
+ *  @brief      送金情報(test用)
+ */
 typedef struct {
     uint8_t             payment_hash[LN_SZ_HASH];
     uint8_t             hop_num;
@@ -214,6 +229,9 @@ typedef struct {
 } payment_conf_t;
 
 
+/** @struct     rpc_conf_t
+ *  @brief      bitcoind情報
+ */
 typedef struct {
     char            rpcuser[SZ_RPC_USER];
     char            rpcpasswd[SZ_RPC_PASSWD];
@@ -222,14 +240,21 @@ typedef struct {
 } rpc_conf_t;
 
 
+/** @struct     peer_conf_t
+ *  @brief      peer node接続情報
+ *  @note
+ *      - #daemon_connect_t と同じ構造だが、別にしておく
+ */
 typedef struct {
-    char            ipaddr[16];
+    char            ipaddr[SZ_IPV4_LEN + 1];
     uint16_t        port;
-    char            name[LN_SZ_ALIAS + 1];
     uint8_t         node_id[UCOIN_SZ_PUBKEY];
 } peer_conf_t;
 
 
+/** @struct     anno_conf_t
+ *  @brief      announcement情報
+ */
 typedef struct {
     uint16_t        cltv_expiry_delta;              ///< 2:  cltv_expiry_delta
     uint64_t        htlc_minimum_msat;              ///< 8:  htlc_minimum_msat
@@ -238,6 +263,9 @@ typedef struct {
 } anno_conf_t;
 
 
+/** @struct     establish_conf_t
+ *  @brief      establish channel情報
+ */
 typedef struct {
     uint64_t    dust_limit_sat;                     ///< 8 : dust-limit-satoshis
     uint64_t    max_htlc_value_in_flight_msat;      ///< 8 : max-htlc-value-in-flight-msat
@@ -247,6 +275,15 @@ typedef struct {
     uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
 } establish_conf_t;
+
+
+/** @struct     nodefaillist_t
+ *  @brief      接続失敗peer情報リスト
+ */
+typedef struct nodefaillist_t {
+    LIST_ENTRY(nodefaillist_t) list;
+    peer_conf_t     conn;
+} nodefaillist_t;
 
 
 /** @struct fwd_proc_add_t
@@ -297,13 +334,33 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  * prototypes
  ********************************************************************/
 
+/** ノード内転送
+ * 
+ */
 bool ucoind_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, ucoin_buf_t *pBuf);
 
+
+/** preimage操作排他開始
+ * 
+ */
 void ucoind_preimage_lock(void);
+
+
+/** preimage操作排他解除
+ * 
+ */
 void ucoind_preimage_unlock(void);
 
+
+/** 接続済みlnapp検索
+ * 
+ */
 lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id);
 
-const char *ucoind_get_exec_path(void);
+
+/** ucoind実行パス取得
+ * 
+ */
+// const char *ucoind_get_exec_path(void);
 
 #endif /* UCOIND_H__ */

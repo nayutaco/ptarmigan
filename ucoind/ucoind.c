@@ -62,7 +62,7 @@
  ********************************************************************/
 
 static pthread_mutex_t      mMuxPreimage;
-static char                 mExecPath[PATH_MAX];
+// static char                 mExecPath[PATH_MAX];
 
 
 /********************************************************************
@@ -151,13 +151,13 @@ int main(int argc, char *argv[])
     }
 
     //ucoindがあるパスを取る("routepay"用)
-    const char *p_delimit = strrchr(argv[0], '/');
-    if (p_delimit != NULL) {
-        memcpy(mExecPath, argv[0], p_delimit - argv[0] + 1);
-        mExecPath[p_delimit - argv[0] + 1] = '\0';
-    } else {
-        mExecPath[0] = '\0';
-    }
+    // const char *p_delimit = strrchr(argv[0], '/');
+    // if (p_delimit != NULL) {
+    //     memcpy(mExecPath, argv[0], p_delimit - argv[0] + 1);
+    //     mExecPath[p_delimit - argv[0] + 1] = '\0';
+    // } else {
+    //     mExecPath[0] = '\0';
+    // }
 
     signal(SIGPIPE , SIG_IGN);   //ignore SIGPIPE
     p2p_cli_init();
@@ -312,7 +312,7 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id)
 }
 
 
-const char *ucoind_get_exec_path(void)
-{
-    return mExecPath;
-}
+// const char *ucoind_get_exec_path(void)
+// {
+//     return mExecPath;
+// }

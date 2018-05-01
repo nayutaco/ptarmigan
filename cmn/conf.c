@@ -238,8 +238,6 @@ static int handler_peer_conf(void* user, const char* section, const char* name, 
         strcpy(pconfig->ipaddr, value);
     } else if (strcmp(name, "port") == 0) {
         pconfig->port = (uint16_t)atoi(value);
-    } else if (strcmp(name, "name") == 0) {
-        strcpy(pconfig->name, value);
     } else if (strcmp(name, "node_id") == 0) {
         misc_str2bin(pconfig->node_id, UCOIN_SZ_PUBKEY, value);
     } else {
