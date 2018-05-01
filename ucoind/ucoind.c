@@ -366,7 +366,9 @@ bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
                  (p->port == Port) ) {
                 DBG_PRINTF("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
                 detect = true;
+                break;
             }
+            p = LIST_NEXT(p, list);
         }
     }
     return detect;
