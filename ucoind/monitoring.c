@@ -337,10 +337,6 @@ static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param)
     lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
     if (p_app_conf == NULL) {
         const uint8_t *p_node_id = ln_their_node_id(self);
-        //node_id-->node_announcement-->接続先アドレス
-        // DBG_PRINTF("disconnecting: %0" PRIx64 "\n", ln_short_channel_id(self));
-        // DBG_PRINTF("  peer node_id: ");
-        // DUMPBIN(p_node_id, UCOIN_SZ_PUBKEY);
 
         ln_node_announce_t anno;
         bool ret = ln_node_search_nodeanno(&anno, p_node_id);
@@ -348,21 +344,25 @@ static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param)
             switch (anno.addr.type) {
             case LN_NODEDESC_IPV4:
                 {
-                    //自分に対して「接続要求」のJSON-RPCを送信する
-                    char ipaddr[15 + 1];
+                    char ipaddr[SZ_IPV4_LEN + 1];
                     sprintf(ipaddr, "%d.%d.%d.%d",
                                 anno.addr.addrinfo.ipv4.addr[0], anno.addr.addrinfo.ipv4.addr[1],
                                 anno.addr.addrinfo.ipv4.addr[2], anno.addr.addrinfo.ipv4.addr[3]);
 
-                    char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
-                    char json[256];
-                    misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
-                    sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
-                    DBG_PRINTF("%s\n", json);
+                    ret = ucoind_nodefail_get(p_node_id, ipaddr, anno.addr.port, LN_NODEDESC_IPV4);
+                    if (!ret) {
+                        //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
 
-                    misc_msleep(10 + rand() % 2000);    //双方が同時に接続しに行かないように時差を付ける(効果があるかは不明)
-                    int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
-                    DBG_PRINTF("retval=%d\n", retval);
+                        char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
+                        char json[256];
+                        misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
+                        sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
+                        DBG_PRINTF("%s\n", json);
+
+                        misc_msleep(10 + rand() % 2000);    //双方が同時に接続しに行かないように時差を付ける(効果があるかは不明)
+                        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+                        DBG_PRINTF("retval=%d\n", retval);
+                    }
                 }
                 break;
             default:

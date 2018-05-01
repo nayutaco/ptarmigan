@@ -148,7 +148,8 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
     memcpy(mAppConf[idx].node_id, pConn->node_id, UCOIN_SZ_PUBKEY);
     mAppConf[idx].cmd = DCMD_CONNECT;
-    sprintf(mAppConf[idx].conn_str, "%s:%" PRIu16, pConn->ipaddr, pConn->port);
+    strcpy(mAppConf[idx].conn_str, pConn->ipaddr);
+    mAppConf[idx].conn_port = pConn->port;
 
     lnapp_start(&mAppConf[idx]);
 
