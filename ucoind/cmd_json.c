@@ -892,9 +892,17 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_message = strdup(RPCERR_ERROR_STR);
         goto LABEL_EXIT;
     }
+
+    //blockcount
+    int blockcnt = btcprc_getblockcount();
+    DBG_PRINTF("blockcnt=%d\n", blockcnt);
+    if (blockcnt < 0) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
     ln_routing_result_t rt_ret;
     ret = ln_routing_calculate(&rt_ret, ln_node_getid(), node_payee,
-                   min_final_cltv_expiry, amount_msat);
+                   blockcnt + min_final_cltv_expiry, amount_msat);
     if (!ret) {
         DBG_PRINTF("fail: routing\n");
         ctx->error_code = RPCERR_ERROR;
