@@ -359,15 +359,29 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
     SYSLOG_INFO("connect");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
-    if (p_appconf == NULL) {
-        p2p_cli_start(&conn, ctx);
-        if (ctx->error_code == 0) {
-            result = cJSON_CreateString(kOK);
-        }
-    } else {
+    if (p_appconf != NULL) {
         ctx->error_code = RPCERR_ALCONN;
         ctx->error_message = strdup(RPCERR_ALCONN_STR);
+        goto LABEL_EXIT;
     }
+
+    p2p_cli_start(&conn, ctx);
+    if (ctx->error_code != 0) {
+        ctx->error_code = RPCERR_CONNECT;
+        ctx->error_message = strdup(RPCERR_CONNECT_STR);
+        goto LABEL_EXIT;
+    }
+
+    //チェック
+    sleep(2);
+
+    p_appconf = search_connected_lnapp_node(conn.node_id);
+    if ((p_appconf == NULL) || !lnapp_is_looping(p_appconf) || !lnapp_is_inited(p_appconf)) {
+        ctx->error_code = RPCERR_CONNECT;
+        ctx->error_message = strdup(RPCERR_CONNECT_STR);
+        goto LABEL_EXIT;
+    }
+    result = cJSON_CreateString(kOK);
 
 LABEL_EXIT:
     if (index < 0) {
