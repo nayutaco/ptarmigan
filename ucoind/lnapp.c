@@ -37,6 +37,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -1973,8 +1974,22 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     const ln_error_t *p_err = (const ln_error_t *)p_param;
 
-    set_lasterror(p_conf, RPCERR_PEER_ERROR, p_err->p_data);
-    misc_save_event(ln_channel_id(p_conf->p_self), p_err->p_data);
+    bool b_alloc = false;
+    char *p_msg = p_err->p_data;
+    for (uint16_t lp = 0; lp < p_err->len; lp++) {
+        if (!isprint(p_err->p_data[lp])) {
+            //表示できない文字が入っている場合はダンプ出力
+            b_alloc = true;
+            p_msg = (char *)APP_MALLOC(p_err->len * 2 + 1);
+            misc_bin2str(p_msg, (const uint8_t *)p_err->p_data, p_err->len);
+            break;
+        }
+    }
+    set_lasterror(p_conf, RPCERR_PEER_ERROR, p_msg);
+    misc_save_event(p_err->channel_id, "error message: %s", p_msg);
+    if (b_alloc) {
+        APP_FREE(p_msg);
+    }
 
     if (p_conf->funding_waiting) {
         DBG_PRINTF("stop funding by error\n");

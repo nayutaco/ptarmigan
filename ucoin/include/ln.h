@@ -546,8 +546,11 @@ typedef struct {
 
 /** @struct     ln_error_t
  *  @brief      error
+ *  @note
+ *      - p_dataはMALLOC()で確保するため、呼び出し元がMFREE()で解放すること
  */
 typedef struct {
+    uint8_t     channel_id[LN_SZ_CHANNEL_ID];       ///< 32: channel-id
     uint16_t    len;                                ///< 2: byteslen
     char        *p_data;                            ///< エラー文字列(\0あり)
 } ln_error_t;
