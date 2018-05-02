@@ -131,6 +131,15 @@ void misc_datetime(char *pDateTime, size_t Len);
 void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...);
 
 
+/** 全データが0x00かのチェック
+ * 
+ * @param[in]       pData               チェック対象
+ * @param[in]       Len                 pData長
+ * @retval  true    全データが0x00
+ */
+bool misc_all_zero(const void *pData, size_t Len);
+
+
 #ifdef APP_DEBUG_MEM
 void *misc_dbg_malloc(size_t size);
 //void *misc_dbg_realloc(void *ptr, size_t size);
