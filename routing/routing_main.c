@@ -135,7 +135,7 @@ int main(int argc, char* argv[])
         case 'c':
             //clear skip DB
             options |= OPT_CLEARSDB;
-            return 0;
+            break;
         case 'h':
         default:
             //help
