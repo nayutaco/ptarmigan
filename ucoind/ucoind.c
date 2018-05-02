@@ -340,6 +340,12 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id)
 // 再接続できるようになったか確認する方法を用意していないので、今のところリストから削除する方法はない。
 void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc)
 {
+    if ( misc_all_zero(pNodeId, UCOIN_SZ_PUBKEY) ||
+         !ucoind_nodefail_get(pNodeId, pAddr, Port, LN_NODEDESC_IPV4) ) {
+        //登録の必要なし
+        return;
+    }
+
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
