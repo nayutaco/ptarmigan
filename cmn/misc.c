@@ -189,6 +189,20 @@ void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
 }
 
 
+bool misc_all_zero(const void *pData, size_t Len)
+{
+    bool ret = true;
+    const uint8_t *p = (const uint8_t *)pData;
+    for (size_t lp = 0; lp < Len; lp++) {
+        if (p[lp] != 0x00) {
+            ret = false;
+            break;
+        }
+    }
+    return ret;
+}
+
+
 /**************************************************************************
  * debug functions
  **************************************************************************/
