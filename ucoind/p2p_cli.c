@@ -140,8 +140,10 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
             fclose(fp);
         }
 
-        //ノード接続失敗リストに追加
-        ucoind_nodefail_add(pConn->node_id, pConn->ipaddr, pConn->port, LN_NODEDESC_IPV4);
+        //ノード接続失敗リストに追加(自動接続回避用)
+        if (!ucoind_nodefail_get(pConn->node_id, pConn->ipaddr, pConn->port, LN_NODEDESC_IPV4)) {
+            ucoind_nodefail_add(pConn->node_id, pConn->ipaddr, pConn->port, LN_NODEDESC_IPV4);
+        }
 
         goto LABEL_EXIT;
     }
