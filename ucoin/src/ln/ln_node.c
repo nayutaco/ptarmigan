@@ -46,6 +46,15 @@ typedef struct {
 } comp_param_cnl_t;
 
 
+/** @struct comp_param_srcnodeid_t
+ *  @brief  #ln_node_search_nodeid()用
+ */
+typedef struct {
+    uint8_t *p_node_id;
+    uint64_t short_channel_id;
+} comp_param_srcnodeid_t;
+
+
 /**************************************************************************
  * private variables
  **************************************************************************/
@@ -59,6 +68,7 @@ static ln_node_t    mNode;
 
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_param);
+static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_param);
 static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAddr2);
 static void print_node(void);
 
@@ -214,7 +224,6 @@ uint64_t ln_node_total_msat(void)
  * HIDDEN
  ********************************************************************/
 
-
 void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
 {
     DBG_PRINTF("\n");
@@ -226,9 +235,6 @@ void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
 }
 
 
-/** node_announcement受信処理
- *
- */
 bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     //DBG_PRINTF("\n");
@@ -277,6 +283,17 @@ bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash)
 }
 
 
+bool HIDDEN ln_node_search_nodeid(uint8_t *pNodeId, uint64_t ShortChannelId)
+{
+    comp_param_srcnodeid_t param;
+    param.p_node_id = pNodeId;
+    param.short_channel_id = ShortChannelId;
+    bool ret = ln_db_self_search(comp_func_srch_nodeid, &param);
+    DBG_PRINTF("ret=%d\n", ret);
+    return ret;
+}
+
+
 /**************************************************************************
  * private functions
  **************************************************************************/
@@ -316,7 +333,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 }
 
 
-/** #ln_node_search_channel()処理関数
+/** #ln_node_total_msat()処理関数
  * 
  * our_msatの総額を求める。
  *
@@ -332,6 +349,28 @@ static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_para
     //DBG_PRINTF("our_msat:%" PRIu64 "\n", ln_our_msat(self));
     *p_amount += ln_our_msat(self);
     return false;
+}
+
+
+/** #ln_node_search_nodeid()処理関数
+ * 
+ * short_channel_idが一致した場合のnode_id(相手側)を返す。
+ *
+ * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
+ * @param[in,out]   p_param         comp_param_srcnodeid_t
+ */
+static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_param)
+{
+    (void)p_db_param;
+
+    comp_param_srcnodeid_t *p_srch = (comp_param_srcnodeid_t *)p_param;
+    bool ret = (ln_short_channel_id(self) == p_srch->short_channel_id);
+    if (ret) {
+        memcpy(p_srch->p_node_id, ln_their_node_id(self), UCOIN_SZ_PUBKEY);
+        ln_term(self);
+    }
+    return ret;
 }
 
 

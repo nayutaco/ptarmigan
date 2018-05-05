@@ -295,7 +295,6 @@ typedef struct {
     uint64_t    prev_short_channel_id;              ///< 転送元:short_channel_id
     uint64_t    prev_id;                            ///< 転送元:HTLC id
     ucoin_buf_t shared_secret;                      ///< add_htlc失敗:reason用
-    ucoin_buf_t reason;                             ///< add_htlc失敗:reason
 } fwd_proc_add_t;
 
 

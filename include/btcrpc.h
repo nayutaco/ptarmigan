@@ -54,7 +54,7 @@ void btcprc_term(void);
  * @retval      -1以外      現在のblock count
  * @retval      -1          取得失敗
  */
-int btcprc_getblockcount(void);
+int32_t btcprc_getblockcount(void);
 
 
 /** [bitcoin rpc]blockhash取得

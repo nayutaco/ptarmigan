@@ -193,6 +193,7 @@ typedef enum {
     LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
     LN_CB_SEND_REQ,             ///< peerへの送信要求
     LN_CB_FEERATE_REQ,          ///< feerate_per_kw更新要求
+    LN_CB_GETBLOCKCOUNT,        ///< getblockcount
     LN_CB_MAX,
 } ln_cb_t;
 
@@ -1232,7 +1233,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst);
 
 
 /** 接続直後のfunding_locked必要性チェック
- * 
+ *
  * @param[in]           self
  * @retval  true    funding_lockedの送信必要あり
  */
@@ -1240,7 +1241,7 @@ bool ln_check_need_funding_locked(const ln_self_t *self);
 
 
 /**
- * 
+ *
  * @param[in,out]       self
  * @param[out]          pLocked
  * @retval  true    成功
@@ -1375,7 +1376,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
  * @param[in]           cltv_value      CLTV値
  * @param[in]           pPaymentHash    PaymentHash(SHA256:32byte)
  * @param[in]           prev_short_channel_id   転送元short_channel_id(ない場合は0)
- * @param[in]           prev_id                 転送元id
+ * @param[in]           prev_id                 転送元HTLC id(ない場合は0)
  * @param[in]           pSharedSecrets  保存する共有秘密鍵集(NULL:未保存)
  * @retval      true    成功
  * @note
@@ -2108,7 +2109,7 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
  ********************************************************************/
 
 /** 支払いルート作成
- * 
+ *
  * @param[out]  pResult
  * @param[in]   pPayerId
  * @param[in]   pPayeeId
@@ -2125,7 +2126,7 @@ bool ln_routing_calculate(
 
 
 /** routing skip DB削除
- * 
+ *
  * routingから除外するchannelリストを削除する。
  */
 void ln_routing_clear_skipdb(void);

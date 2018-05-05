@@ -49,7 +49,7 @@ extern "C" {
 /** @typedef    ln_db_func_cmp_t
  *  @brief      比較関数(#ln_db_self_search())
  *
- * DB内からselfを順次取得しコールバックされる。
+ * DB内からselfを順次取得しコールバックされる(同期処理)。
  * trueを返すまでコールバックが続けられる。
  * 最後までfalseを返し、DBの走査が終わると、#ln_db_self_search()はfalseを返す。
  *
@@ -57,6 +57,7 @@ extern "C" {
  * @param[in]       p_db_param      DB情報(ln_dbで使用する)
  * @param[in]       p_param         #ln_db_self_search()に渡したデータポインタ
  * @retval  true    比較終了(#ln_db_self_search()の戻り値もtrue)
+ * @retval  false   比較継続
  */
 typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_param);
 
@@ -131,6 +132,8 @@ bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param);
  * @param[in,out]   pFuncParam  検索関数に渡す引数
  * @retval      true    検索関数がtrueを戻した
  * @retval      false   検索関数が最後までtrueを返さなかった
+ * @note
+ *      - 戻り値がtrueの場合、検索関数のselfは解放しない。必要があれば#ln_term()を実行すること。
  */
 bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
 

@@ -223,7 +223,7 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf);
 
 static void *thread_anno_start(void *pArg);
 
-static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd);
+static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd, ucoin_buf_t *pReason);
 static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdFulfill);
 static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail);
 
@@ -249,6 +249,7 @@ static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
 static void cb_feerate_req(lnapp_conf_t *p_conf, void *p_param);
+static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param);
 
 static void stop_threads(lnapp_conf_t *p_conf);
 static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
@@ -1681,8 +1682,12 @@ static void *thread_anno_start(void *pArg)
  * タイミングはrevoke_and_ack後になるため、受信時には lnapp.p_revackqにため、
  * revoke_and_ack後に #lnapp_forward_payment()で lnapp.rcvidleにためる。
  * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
+ * 
+ * @param[in,out]   p_conf
+ * @param[in,out]   pFwdAdd
+ * @param[out]      pReason
  */
-static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd)
+static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd, ucoin_buf_t *pReason)
 {
     DBGTRACE_BEGIN
 
@@ -1695,7 +1700,7 @@ static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd)
     ret = ln_create_add_htlc(p_conf->p_self,
                         &buf_bolt,
                         &htlc_id,
-                        &pFwdAdd->reason,
+                        pReason,
                         pFwdAdd->onion_route,
                         pFwdAdd->amt_to_forward,
                         pFwdAdd->outgoing_cltv_value,
@@ -1743,10 +1748,10 @@ LABEL_EXIT:
                     pFwdAdd->outgoing_cltv_value,
                     hashstr);
         call_script(M_EVT_FORWARD, param);
-    } else if (pFwdAdd->reason.len == 0) {
+    } else if (pReason->len == 0) {
         //エラーだがreasonが未設定
         DBG_PRINTF("fail: temporary_node_failure\n");
-        ln_create_reason_temp_node(&pFwdAdd->reason);
+        ln_create_reason_temp_node(pReason);
     } else {
         //none
         DBG_PRINTF("fail\n");
@@ -1932,6 +1937,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
         //    LN_CB_SEND_REQ,             ///< peerへの送信要求
         //    LN_CB_FEERATE_REQ,          ///< feerate_per_kw更新要求
+        //    LN_CB_GETBLOCKCOUNT,        ///< getblockcount
 
         { "  LN_CB_ERROR: エラー有り", cb_error_recv },
         { "  LN_CB_INIT_RECV: init受信", cb_init_recv },
@@ -1954,6 +1960,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_CLOSED: closing_signed受信(FEE一致)", cb_closed },
         { "  LN_CB_SEND_REQ: 送信要求", cb_send_req },
         { "  LN_CB_FEERATE_REQ: feerate_per_kw更新要求", cb_feerate_req },
+        { "  LN_CB_GETBLOCKCOUNT: getblockcount", cb_getblockcount },
     };
 
     if (reason < LN_CB_MAX) {
@@ -2257,7 +2264,6 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             ucoin_buf_alloccopy(&p_fwd_add->shared_secret, p_addhtlc->p_shared_secret->buf, p_addhtlc->p_shared_secret->len);   // freeなし: lnで管理
             p_fwd_add->prev_short_channel_id = ln_short_channel_id(p_conf->p_self);
             p_fwd_add->prev_id = p_addhtlc->id;
-            ucoin_buf_init(&p_fwd_add->reason);
             revack_push(p_conf, TRANSCMD_ADDHTLC, &buf);
         }
     } else {
@@ -2662,6 +2668,17 @@ static void cb_feerate_req(lnapp_conf_t *p_conf, void *p_param)
 
     uint32_t feerate_kw = get_latest_feerate_kw();
     ln_set_feerate_per_kw(p_conf->p_self, feerate_kw);
+}
+
+
+//LN_CB_GETBLOCKCOUNT
+static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param)
+{
+    (void)p_conf;
+
+    int32_t *p_height = (int32_t *)p_param;
+    *p_height = btcprc_getblockcount();
+    DBG_PRINTF("block count=%" PRId32 "\n", *p_height);
 }
 
 
@@ -3294,11 +3311,11 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
         DBG_PRINTF("TRANSCMD_ADDHTLC\n");
         {
             fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p_rcvidle->buf.buf;
-            ret = fwd_payment_forward(p_conf, p_fwd_add);
+            ucoin_buf_t reason = UCOIN_BUF_INIT;
+            ret = fwd_payment_forward(p_conf, p_fwd_add, &reason);
             if (ret) {
                 //解放
                 ucoin_buf_free(&p_fwd_add->shared_secret);
-                ucoin_buf_free(&p_fwd_add->reason);
             } else {
                 ucoin_buf_t buf;
                 ucoin_buf_alloc(&buf, sizeof(bwd_proc_fail_t));
@@ -3306,7 +3323,7 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
 
                 p_bwd_fail->id = p_fwd_add->prev_id;
                 p_bwd_fail->prev_short_channel_id = p_fwd_add->prev_short_channel_id;
-                memcpy(&p_bwd_fail->reason, &p_fwd_add->reason, sizeof(ucoin_buf_t));                //shallow copy
+                memcpy(&p_bwd_fail->reason, &reason, sizeof(ucoin_buf_t));                //shallow copy
                 memcpy(&p_bwd_fail->shared_secret, &p_fwd_add->shared_secret, sizeof(ucoin_buf_t));  //shallow copy
                 p_bwd_fail->b_first = true;
                 ret = ucoind_transfer_channel(p_fwd_add->prev_short_channel_id, TRANSCMD_FAIL, &buf);
