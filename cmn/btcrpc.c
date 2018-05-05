@@ -122,10 +122,10 @@ void btcprc_term(void)
 }
 
 
-int btcprc_getblockcount(void)
+int32_t btcprc_getblockcount(void)
 {
     bool retval;
-    int blocks = -1;
+    int32_t blocks = -1;
     char *p_json;
 
     pthread_mutex_lock(&mMux);
@@ -150,7 +150,7 @@ int btcprc_getblockcount(void)
             goto LABEL_DECREF;
         }
         if (json_is_integer(p_result)) {
-            blocks = (int)json_integer_value(p_result);
+            blocks = (int32_t)json_integer_value(p_result);
         } else {
             DBG_PRINTF("error: not integer\n");
         }

@@ -835,7 +835,7 @@ static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int
 static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index)
 {
     bool ret = false;
-    int height = btcprc_getblockcount();
+    int32_t height = btcprc_getblockcount();
 
     //現在からconfmの間に使用したtransactionがある
     if (height > 0) {
@@ -855,7 +855,7 @@ static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxi
 static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout)
 {
     bool ret = false;
-    int height = btcprc_getblockcount();
+    int32_t height = btcprc_getblockcount();
 
     //現在からconfmの間に使用したtransactionがある
     if (height > 0) {
