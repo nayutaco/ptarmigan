@@ -36,6 +36,10 @@ ucoincli [options] [JSON-RPC port number]
   * `-e ALL` : erase all payment_hashs
   * `-r [BOLT11 invoice]`  : payment with BOLT11 invoice format
 
+* fee
+  * `--setfeerate [feerate_per_kw]` : set feerate_per_kw
+    * if set not 0 value, send `update_fee`
+
 * `-x` : close channel(need `-c` option)
 
 * debug

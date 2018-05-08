@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2018/05/08
+
+* add `ucoincli --setfeerate`
+  * send `update_fee` if specified `feerate_per_kw` set
+
 ## 2018/04/09
 
 * DB version : -18
