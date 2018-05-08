@@ -452,9 +452,9 @@ void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t In
 }
 
 
-void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t short_channel_id)
+void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId)
 {
-    ln_misc_get_short_channel_id_param(pHeight, pIndex, pVIndex, short_channel_id);
+    ln_misc_get_short_channel_id_param(pHeight, pIndex, pVIndex, ShortChannelId);
 }
 
 
@@ -921,7 +921,7 @@ void ln_goto_closing(ln_self_t *self, void *pDbParam)
  *
  * 現在のcommitment_transactionを取得する場合にも呼び出されるため、値を元に戻す。
  */
-bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
+bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
 
@@ -943,7 +943,7 @@ bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose)
     //  +2: 現在のper_commitment_secret
     ln_signer_keys_update(self, 2);
     //commitment number(for obscured commitment number)
-    self->commit_local.commit_num--;        //create_to_local()内でインクリメントされるため、引いておく
+    self->commit_local.commit_num--;        //create_to_local()内で+1した値を使うため、引いておく
 
     //remote
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
@@ -988,6 +988,13 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     DBG_PRINTF("BEGIN\n");
 
+    //復元用
+    uint8_t bak_percommit[UCOIN_SZ_PRIVKEY];
+    uint8_t bak_remotecommit[UCOIN_SZ_PUBKEY];
+    memcpy(bak_percommit, self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], sizeof(bak_percommit));
+    memcpy(bak_remotecommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], sizeof(bak_remotecommit));
+    uint64_t bak_commit_num = self->commit_remote.commit_num;
+
     //local
     //  +0: 次に送信するnext_per_commitment_secret
     //  +1: 現在のnext_per_commitment_secret
@@ -998,7 +1005,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
             self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
     //commitment number(for obscured commitment number)
-    self->commit_remote.commit_num--;   //create_to_remote()内でインクリメントされるため、引いておく
+    self->commit_remote.commit_num--;   //create_to_remote()内で+1した値を使うため、引いておく
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -1014,6 +1021,16 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
         DBG_PRINTF("fail: create_to_remote\n");
         ln_free_close_force_tx(pClose);
     }
+
+    //元に戻す
+    self->commit_remote.commit_num = bak_commit_num;
+    memcpy(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT],
+            bak_percommit, sizeof(bak_percommit));
+    ucoin_keys_priv2pub(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+            self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT]);
+    memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
+            bak_remotecommit, sizeof(bak_remotecommit));
+    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     DBG_PRINTF("END\n");
     return ret;
@@ -1154,28 +1171,28 @@ bool ln_create_add_htlc(ln_self_t *self,
             uint64_t *pHtlcId,
             ucoin_buf_t *pReason,
             const uint8_t *pPacket,
-            uint64_t amount_msat,
-            uint32_t cltv_value,
+            uint64_t AmountMsat,
+            uint32_t CltvValue,
             const uint8_t *pPaymentHash,
-            uint64_t prev_short_channel_id,
-            uint64_t prev_id,
+            uint64_t PrevShortChannelId,
+            uint64_t PrevId,
             const ucoin_buf_t *pSharedSecrets)
 {
     DBG_PRINTF("BEGIN\n");
 
     bool ret;
     int idx;
-    ret = check_create_add_htlc(self, &idx, pReason, amount_msat, cltv_value);
+    ret = check_create_add_htlc(self, &idx, pReason, AmountMsat, CltvValue);
     if (ret) {
         self->cnl_add_htlc[idx].flag = LN_HTLC_FLAG_SEND;        //送信
         self->cnl_add_htlc[idx].p_channel_id = self->channel_id;
         self->cnl_add_htlc[idx].id = self->htlc_id_num;
-        self->cnl_add_htlc[idx].amount_msat = amount_msat;
-        self->cnl_add_htlc[idx].cltv_expiry = cltv_value;
+        self->cnl_add_htlc[idx].amount_msat = AmountMsat;
+        self->cnl_add_htlc[idx].cltv_expiry = CltvValue;
         memcpy(self->cnl_add_htlc[idx].payment_sha256, pPaymentHash, LN_SZ_HASH);
         self->cnl_add_htlc[idx].p_onion_route = (CONST_CAST uint8_t *)pPacket;
-        self->cnl_add_htlc[idx].prev_short_channel_id = prev_short_channel_id;
-        self->cnl_add_htlc[idx].prev_id = prev_id;
+        self->cnl_add_htlc[idx].prev_short_channel_id = PrevShortChannelId;
+        self->cnl_add_htlc[idx].prev_id = PrevId;
         ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
         if (pSharedSecrets) {
             ucoin_buf_alloccopy(&self->cnl_add_htlc[idx].shared_secret, pSharedSecrets->buf, pSharedSecrets->len);
@@ -1187,7 +1204,7 @@ bool ln_create_add_htlc(ln_self_t *self,
         }
     }
     if (ret) {
-        self->our_msat -= amount_msat;
+        self->our_msat -= AmountMsat;
         self->htlc_id_num++;        //offer時にインクリメント
         self->htlc_num++;
         *pHtlcId = self->cnl_add_htlc[idx].id;
@@ -1201,7 +1218,7 @@ bool ln_create_add_htlc(ln_self_t *self,
 }
 
 
-bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id, const uint8_t *pPreImage)
+bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t Id, const uint8_t *pPreImage)
 {
     DBG_PRINTF("BEGIN\n");
 
@@ -1211,7 +1228,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
     }
     uint8_t sha256[LN_SZ_HASH];
     ucoin_util_sha256(sha256, pPreImage, LN_SZ_PREIMAGE);
-    DBG_PRINTF("id= %" PRIu64 "\n", id);
+    DBG_PRINTF("id= %" PRIu64 "\n", Id);
     DBG_PRINTF("recv payment_sha256= ");
     DUMPBIN(sha256, LN_SZ_PREIMAGE);
     ln_update_add_htlc_t *p_add = NULL;
@@ -1223,7 +1240,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
             DBG_PRINTF("payment_sha256= ");
             DUMPBIN(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_PREIMAGE);
             if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
-                 (id == self->cnl_add_htlc[idx].id) &&
+                 (Id == self->cnl_add_htlc[idx].id) &&
                  (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) ) {
                 //
                 p_add = &self->cnl_add_htlc[idx];
@@ -1262,7 +1279,7 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id,
 }
 
 
-bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t id, const ucoin_buf_t *pReason)
+bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t Id, const ucoin_buf_t *pReason)
 {
     DBG_PRINTF("BEGIN\n");
 
@@ -1274,9 +1291,9 @@ bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t id, const
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //fulfill送信はReceived Outputに対して行う
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            DBG_PRINTF("id=%" PRIx64 ", htlc_id=%" PRIu64 "\n", id, self->cnl_add_htlc[idx].id);
+            DBG_PRINTF("id=%" PRIx64 ", htlc_id=%" PRIu64 "\n", Id, self->cnl_add_htlc[idx].id);
             if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
-                 (id == self->cnl_add_htlc[idx].id) ) {
+                 (Id == self->cnl_add_htlc[idx].id) ) {
                 p_add = &self->cnl_add_htlc[idx];
                 break;
             }
@@ -1348,8 +1365,29 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
 }
 
 
+bool ln_create_update_fee(ln_self_t *self, ucoin_buf_t *pUpdFee, uint32_t FeeratePerKw)
+{
+    DBG_PRINTF("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, FeeratePerKw);
+
+    bool ret;
+
+    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
+        return false;
+    }
+
+    ln_update_fee_t updfee;
+    updfee.p_channel_id = self->channel_id;
+    updfee.feerate_per_kw = FeeratePerKw;
+    ret = ln_msg_update_fee_create(pUpdFee, &updfee);
+
+    DBG_PRINTF("END\n");
+    return ret;
+}
+
+
 /********************************************************************
- * その他
+ * others
  ********************************************************************/
 
 bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
@@ -1836,7 +1874,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     }
 
     //feerate_per_kw更新
-    (*self->p_callback)(self, LN_CB_FEERATE_REQ, NULL);
+    (*self->p_callback)(self, LN_CB_SET_LATEST_FEERATE, NULL);
 
     //feerate_per_kwの許容チェック
     const uint32_t MARGIN = M_FEERATE_MARGIN(self->feerate_per_kw);
@@ -2840,8 +2878,12 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
+    uint32_t old_fee = self->feerate_per_kw;
     self->feerate_per_kw = upfee.feerate_per_kw;
-    ln_db_self_save(self);
+    //ln_db_self_save(self);    //確定するまでDB保存しない
+
+    //fee更新通知
+    (*self->p_callback)(self, LN_CB_UPDATE_FEE_RECV, &old_fee);
 
 LABEL_EXIT:
     DBG_PRINTF("END\n");

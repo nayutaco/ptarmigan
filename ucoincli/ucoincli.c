@@ -24,6 +24,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
@@ -87,10 +88,10 @@ static char         mAddr[256];
  * prototypes
  ********************************************************************/
 
-static void optfunc_conn_param(int *pOption, bool *pConn);
 static void optfunc_help(int *pOption, bool *pConn);
 static void optfunc_test(int *pOption, bool *pConn);
 static void optfunc_addr(int *pOption, bool *pConn);
+static void optfunc_conn_param(int *pOption, bool *pConn);
 static void optfunc_getinfo(int *pOption, bool *pConn);
 static void optfunc_disconnect(int *pOption, bool *pConn);
 static void optfunc_funding(int *pOption, bool *pConn);
@@ -105,6 +106,7 @@ static void optfunc_debug(int *pOption, bool *pConn);
 static void optfunc_getcommittx(int *pOption, bool *pConn);
 static void optfunc_disable_autoconn(int *pOption, bool *pConn);
 static void optfunc_remove_channel(int *pOption, bool *pConn);
+static void optfunc_setfeerate(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -119,21 +121,23 @@ static const struct {
     { 'h', optfunc_help },
     { 't', optfunc_test },
     { 'a', optfunc_addr },
-    { 'd', optfunc_debug },
-    { 'q', optfunc_disconnect },
+
+    { 'c', optfunc_conn_param },
     { 'l', optfunc_getinfo },
+    { 'q', optfunc_disconnect },
+    { 'f', optfunc_funding },
     { 'i', optfunc_invoice },
     { 'e', optfunc_erase },
     { 'm', optfunc_listinvoice },
     { 'p', optfunc_payment },
     { 'r', optfunc_routepay },
-    { 's', optfunc_disable_autoconn },
-    { 'X', optfunc_remove_channel },
-    { 'c', optfunc_conn_param },
-    { 'f', optfunc_funding },
     { 'x', optfunc_close },
     { 'w', optfunc_getlasterr },
+    { 'd', optfunc_debug },
     { 'g', optfunc_getcommittx },
+    { 's', optfunc_disable_autoconn },
+    { 'X', optfunc_remove_channel },
+    { 'b', optfunc_setfeerate },
 };
 
 
@@ -152,12 +156,17 @@ int main(int argc, char *argv[])
     ucoin_init(UCOIN_TESTNET, true);
 #endif
 
+    const struct option OPTIONS[] = {
+        { "setfeerate", required_argument, NULL, 'b' },
+        { 0, 0, 0, 0 }
+    };
+
     int option = M_OPTIONS_INIT;
     bool conn = false;
     mAddr[0] = '\0';
     mTcpSend = true;
     int opt;
-    while ((opt = getopt(argc, argv, "htq::lc:f:i:e:mp:r:xX:s:gwa:d:")) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:xwd:gs:X:b:", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -187,6 +196,8 @@ int main(int argc, char *argv[])
         printf("\t\t-c PEER NODE_ID or PEER.CONF -x : mutual/unilateral close channel\n");
         printf("\t\t-c PEER NODE_ID or PEER.CONF -w : get last error\n");
         printf("\t\t-c PEER NODE_ID or PEER.CONF -q : disconnect node\n");
+        printf("\n");
+        printf("\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
         printf("\n");
         // printf("\t\t-a <IP address> : [debug]JSON-RPC send address\n");
         printf("\t\t-d VALUE : [debug]debug option\n");
@@ -219,8 +230,32 @@ int main(int argc, char *argv[])
 
 
 /********************************************************************
- * private functions
+ * commands
  ********************************************************************/
+
+static void optfunc_help(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    *pOption = M_OPTIONS_HELP;
+}
+
+
+static void optfunc_test(int *pOption, bool *pConn)
+{
+    (void)pOption; (void)pConn;
+
+    mTcpSend = false;
+}
+
+
+static void optfunc_addr(int *pOption, bool *pConn)
+{
+    (void)pOption; (void)pConn;
+
+    strcpy(mAddr, optarg);
+}
+
 
 static void optfunc_conn_param(int *pOption, bool *pConn)
 {
@@ -267,30 +302,6 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         printf("fail: peer configuration file\n");
         *pOption = M_OPTIONS_HELP;
     }
-}
-
-
-static void optfunc_help(int *pOption, bool *pConn)
-{
-    (void)pConn;
-
-    *pOption = M_OPTIONS_HELP;
-}
-
-
-static void optfunc_test(int *pOption, bool *pConn)
-{
-    (void)pOption; (void)pConn;
-
-    mTcpSend = false;
-}
-
-
-static void optfunc_addr(int *pOption, bool *pConn)
-{
-    (void)pOption; (void)pConn;
-
-    strcpy(mAddr, optarg);
 }
 
 
@@ -715,6 +726,37 @@ static void optfunc_remove_channel(int *pOption, bool *pConn)
     *pOption = M_OPTIONS_EXEC;
 }
 
+
+static void optfunc_setfeerate(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    errno = 0;
+    uint32_t feerate_per_kw = (uint32_t)strtoull(optarg, NULL, 10);
+    if (errno == 0) {
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "setfeerate") M_NEXT
+                M_QQ("params") ":[ "
+                    //feerate_per_kw
+                    "%" PRIu32
+                " ]"
+            "}",
+                feerate_per_kw);
+
+        *pOption = M_OPTIONS_EXEC;
+    } else {
+        printf("fail: errno=%s\n", strerror(errno));
+        *pOption = M_OPTIONS_ERR;
+    }
+}
+
+
+/********************************************************************
+ * others
+ ********************************************************************/
 
 static void connect_rpc(void)
 {

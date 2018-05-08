@@ -64,7 +64,7 @@ static void create_script_received(ucoin_buf_t *pBuf,
  * public functions
  **************************************************************************/
 
-uint64_t HIDDEN ln_calc_obscured_txnum(const uint8_t *pLocalBasePt, const uint8_t *pRemoteBasePt)
+uint64_t HIDDEN ln_calc_obscured_txnum(const uint8_t *pOpenBasePt, const uint8_t *pAcceptBasePt)
 {
     uint64_t obs = 0;
     uint8_t base[32];
@@ -72,8 +72,8 @@ uint64_t HIDDEN ln_calc_obscured_txnum(const uint8_t *pLocalBasePt, const uint8_
 
     mbedtls_sha256_init(&ctx);
     mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pLocalBasePt, UCOIN_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pRemoteBasePt, UCOIN_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pOpenBasePt, UCOIN_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pAcceptBasePt, UCOIN_SZ_PUBKEY);
     mbedtls_sha256_finish(&ctx, base);
     mbedtls_sha256_free(&ctx);
 
