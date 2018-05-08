@@ -308,7 +308,8 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                 del = channel_reconnect(self, confm, p_db_param);
             } else if (p_app_conf != NULL) {
                 //socket接続済みであれば、feerate_per_kwチェック
-                if (ln_feerate_per_kw(self) != feerate_per_kw) {
+                //  当面、feerate_per_kwを手動で変更した場合のみとする
+                if ((mFeeratePerKw != 0) && (ln_feerate_per_kw(self) != feerate_per_kw)) {
                     DBG_PRINTF("differenct feerate_per_kw: %" PRIu32 " : %" PRIu32 "\n", ln_feerate_per_kw(self), feerate_per_kw);
                     lnapp_send_updatefee(p_app_conf, feerate_per_kw);
                 }
