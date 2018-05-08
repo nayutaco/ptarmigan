@@ -750,6 +750,7 @@ static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t 
         //fprintf(stderr, "%s\n", pSend);
         int sock = socket(PF_INET, SOCK_STREAM, 0);
         if (sock < 0) {
+            fprintf(stderr, "fail socket: %s\n", strerror(errno));
             return retval;
         }
         memset(&sv_addr, 0, sizeof(sv_addr));
@@ -762,6 +763,7 @@ static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t 
         sv_addr.sin_port = htons(Port);
         retval = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
         if (retval < 0) {
+            fprintf(stderr, "fail connect: %s\n", strerror(errno));
             close(sock);
             return retval;
         }
@@ -783,6 +785,8 @@ static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t 
                     retval = 0;
                 }
             }
+        } else if (len < 0) {
+            fprintf(stderr, "fail read: %s\n", strerror(errno));
         }
         close(sock);
     } else {
