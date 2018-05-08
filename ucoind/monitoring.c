@@ -54,8 +54,9 @@
  * private variables
  **************************************************************************/
 
-static volatile bool        mMonitoring;
+static volatile bool        mMonitoring;                ///< true:監視thread継続
 static bool                 mDisableAutoConn;           ///< true:channelのある他nodeへの自動接続停止
+static uint32_t             mFeeratePerKw;              ///< 0:bitcoind estimatesmartfee使用 / 非0:強制feerate_per_kw
 
 
 /********************************************************************
@@ -65,7 +66,7 @@ static bool                 mDisableAutoConn;           ///< true:channelのあ�
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 
 static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param);
-static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param);
+static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param);
 
 static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 static bool close_unilateral_local_received(bool spent);
@@ -94,7 +95,6 @@ void *monitor_thread_start(void *pArg)
     (void)pArg;
 
     mMonitoring = true;
-    ln_db_self_search(monfunc, NULL);
 
     while (mMonitoring) {
         //ループ解除まで時間が長くなるので、短くチェックする
@@ -105,7 +105,13 @@ void *monitor_thread_start(void *pArg)
             }
         }
 
-        ln_db_self_search(monfunc, NULL);
+        uint32_t feerate_per_kw;
+        if (mFeeratePerKw == 0) {
+            feerate_per_kw = monitoring_get_latest_feerate_kw();
+        } else {
+            feerate_per_kw = mFeeratePerKw;
+        }
+        ln_db_self_search(monfunc, &feerate_per_kw);
     }
     DBG_PRINTF("stop\n");
 
@@ -125,6 +131,39 @@ void monitor_disable_autoconn(bool bDisable)
 }
 
 
+uint32_t monitoring_get_latest_feerate_kw(void)
+{
+    //estimate fee
+    uint32_t feerate_kw;
+    uint64_t feerate_kb;
+    bool ret = btcprc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
+    if (ret) {
+        feerate_kw = ln_calc_feerate_per_kw(feerate_kb);
+    } else {
+        DBG_PRINTF("fail: estimatefee\n");
+        feerate_kw = LN_FEERATE_PER_KW;
+    }
+    //DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
+    if (feerate_kw < LN_FEERATE_PER_KW_MIN) {
+        // estimatesmartfeeは1000satoshisが下限のようだが、c-lightningは1000/4=250ではなく253を下限としている。
+        // 毎回変更が手間になるため、値を合わせる。
+        //      https://github.com/ElementsProject/lightning/issues/1443
+        //      https://github.com/ElementsProject/lightning/issues/1391
+        //DBG_PRINTF("FIX: calc feerate_per_kw(%" PRIu32 ") < MIN\n", feerate_kw);
+        feerate_kw = LN_FEERATE_PER_KW_MIN;
+    }
+
+    return feerate_kw;
+}
+
+
+void monitor_set_feerate_per_kw(uint32_t FeeratePerKw)
+{
+    DBG_PRINTF("feerate_per_kw: %" PRIu32 " --> %" PRIu32 "\n", mFeeratePerKw, FeeratePerKw);
+    mFeeratePerKw = FeeratePerKw;
+}
+
+
 /* unilateral closeを自分が行っていた場合の処理(localのcommit_txを展開)
  *
  */
@@ -134,7 +173,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
     bool ret;
 
     ln_close_force_t close_dat;
-    ret = ln_create_close_force_tx(self, &close_dat);
+    ret = ln_create_close_unilateral_tx(self, &close_dat);
     if (ret) {
         del = true;
         uint8_t txid[UCOIN_SZ_TXID];
@@ -250,7 +289,7 @@ LABEL_EXIT:
  */
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
-    (void)p_param;
+    uint32_t feerate_per_kw = *(uint32_t *)p_param;
 
     uint32_t confm = btcprc_get_confirmation(ln_funding_txid(self));
     if (confm > 0) {
@@ -263,8 +302,17 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             del = funding_spent(self, confm, p_db_param);
         } else {
             //funding_tx未使用
-            if (LN_DBG_NODE_AUTO_CONNECT() && !mDisableAutoConn) {
-                del = funding_unspent(self, confm, p_db_param);
+            lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
+            if ((p_app_conf == NULL) && LN_DBG_NODE_AUTO_CONNECT() && !mDisableAutoConn) {
+                //socket未接続であれば、再接続を試行
+                del = channel_reconnect(self, confm, p_db_param);
+            } else if (p_app_conf != NULL) {
+                //socket接続済みであれば、feerate_per_kwチェック
+                //  当面、feerate_per_kwを手動で変更した場合のみとする
+                if ((mFeeratePerKw != 0) && (ln_feerate_per_kw(self) != feerate_per_kw)) {
+                    DBG_PRINTF("differenct feerate_per_kw: %" PRIu32 " : %" PRIu32 "\n", ln_feerate_per_kw(self), feerate_per_kw);
+                    lnapp_send_updatefee(p_app_conf, feerate_per_kw);
+                }
             } else {
                 DBG_PRINTF("No Auto connect mode\n");
             }
@@ -289,8 +337,9 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
     bool del = false;
 
-    bool spent = ln_is_spent(self);
+    bool spent = ln_is_closing(self);
     if (!spent) {
+        //初めてclosing処理を行う(まだln_goto_closing()を呼び出していない)
         char txid_str[UCOIN_SZ_TXID * 2 + 1];
         misc_bin2str_rev(txid_str, ln_funding_txid(self), UCOIN_SZ_TXID);
         misc_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
@@ -324,57 +373,51 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 }
 
 
-static bool funding_unspent(ln_self_t *self, uint32_t confm, void *p_db_param)
+static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
     (void)confm; (void)p_db_param;
-
-    bool del = false;
 
     // DBG_PRINTF("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
     // DUMPTXID(ln_funding_txid(self));
 
-    //socket未接続であれば、接続しに行こうとする
-    lnapp_conf_t *p_app_conf = ucoind_search_connected_cnl(ln_short_channel_id(self));
-    if (p_app_conf == NULL) {
-        const uint8_t *p_node_id = ln_their_node_id(self);
+    const uint8_t *p_node_id = ln_their_node_id(self);
 
-        ln_node_announce_t anno;
-        bool ret = ln_node_search_nodeanno(&anno, p_node_id);
-        if (ret) {
-            switch (anno.addr.type) {
-            case LN_NODEDESC_IPV4:
-                {
-                    char ipaddr[SZ_IPV4_LEN + 1];
-                    sprintf(ipaddr, "%d.%d.%d.%d",
-                                anno.addr.addrinfo.ipv4.addr[0], anno.addr.addrinfo.ipv4.addr[1],
-                                anno.addr.addrinfo.ipv4.addr[2], anno.addr.addrinfo.ipv4.addr[3]);
+    ln_node_announce_t anno;
+    bool ret = ln_node_search_nodeanno(&anno, p_node_id);
+    if (ret) {
+        switch (anno.addr.type) {
+        case LN_NODEDESC_IPV4:
+            {
+                char ipaddr[SZ_IPV4_LEN + 1];
+                sprintf(ipaddr, "%d.%d.%d.%d",
+                            anno.addr.addrinfo.ipv4.addr[0], anno.addr.addrinfo.ipv4.addr[1],
+                            anno.addr.addrinfo.ipv4.addr[2], anno.addr.addrinfo.ipv4.addr[3]);
 
-                    ret = ucoind_nodefail_get(p_node_id, ipaddr, anno.addr.port, LN_NODEDESC_IPV4);
-                    if (!ret) {
-                        //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
+                ret = ucoind_nodefail_get(p_node_id, ipaddr, anno.addr.port, LN_NODEDESC_IPV4);
+                if (!ret) {
+                    //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
 
-                        char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
-                        char json[256];
-                        misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
-                        sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
-                        DBG_PRINTF("%s\n", json);
+                    char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
+                    char json[256];
+                    misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
+                    sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
+                    DBG_PRINTF("%s\n", json);
 
-                        misc_msleep(10 + rand() % 2000);    //双方が同時に接続しに行かないように時差を付ける(効果があるかは不明)
-                        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
-                        DBG_PRINTF("retval=%d\n", retval);
-                    }
+                    misc_msleep(10 + rand() % 2000);    //双方が同時に接続しに行かないように時差を付ける(効果があるかは不明)
+                    int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+                    DBG_PRINTF("retval=%d\n", retval);
                 }
-                break;
-            default:
-                //DBG_PRINTF("addrtype: %d\n", anno.addr.type);
-                break;
             }
-        } else {
-            DBG_PRINTF("  not found: node_announcement\n");
+            break;
+        default:
+            //DBG_PRINTF("addrtype: %d\n", anno.addr.type);
+            break;
         }
+    } else {
+        DBG_PRINTF("  not found: node_announcement\n");
     }
 
-    return del;
+    return false;
 }
 
 

@@ -188,11 +188,12 @@ typedef enum {
     LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_REV_AND_ACK_RECV,     ///< revoke_and_ack受信通知
+    LN_CB_UPDATE_FEE_RECV,      ///< update_fee受信通知
     LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
     LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
     LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
     LN_CB_SEND_REQ,             ///< peerへの送信要求
-    LN_CB_FEERATE_REQ,          ///< feerate_per_kw更新要求
+    LN_CB_SET_LATEST_FEERATE,   ///< feerate_per_kw更新要求
     LN_CB_GETBLOCKCOUNT,        ///< getblockcount
     LN_CB_MAX,
 } ln_cb_t;
@@ -1111,8 +1112,9 @@ void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t In
  * @param[out]          pHeight     funding_txが入ったブロック height
  * @param[out]          pIndex      funding_txのTXIDが入っているindex
  * @param[out]          pVIndex     funding_txとして使用するvout index
+ * @param[in]           ShortChannelId  short_channel_id
  */
-void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t short_channel_id);
+void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId);
 
 
 /** shutdown時の出力先設定(pubkey)
@@ -1297,6 +1299,10 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns);
 //bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd);
 
 
+/********************************************************************
+ * Close関係
+ ********************************************************************/
+
 /** closing transactionのFEE設定
  *
  * @param[in,out]       self            channel情報
@@ -1323,7 +1329,7 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown);
 void ln_goto_closing(ln_self_t *self, void *pDbParam);
 
 
-/** 送信用unilateral closeトランザクション作成
+/** local unilateral closeトランザクション作成
  *
  * @param[in]           self        channel情報
  * @param[out]          pClose      生成したトランザクション
@@ -1331,7 +1337,7 @@ void ln_goto_closing(ln_self_t *self, void *pDbParam);
  * @note
  *      - pCloseは @ln_free_close_force_tx()で解放すること
  */
-bool ln_create_close_force_tx(ln_self_t *self, ln_close_force_t *pClose);
+bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose);
 
 
 /** 相手からcloseされたcommit_txを復元
@@ -1347,7 +1353,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose);
 
 /** ln_close_force_tのメモリ解放
  *
- * @param[out]          pClose      ln_create_close_force_tx()やln_create_closed_tx()で生成したデータ
+ * @param[in,out]       pClose      ln_create_close_unilateral_tx()やln_create_closed_tx()で生成したデータ
  */
 void ln_free_close_force_tx(ln_close_force_t *pClose);
 
@@ -1365,6 +1371,10 @@ void ln_free_close_force_tx(ln_close_force_t *pClose);
 bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam);
 
 
+/********************************************************************
+ * Normal Operation関係
+ ********************************************************************/
+
 /** update_add_htlcメッセージ作成
  *
  * @param[in,out]       self            channel情報
@@ -1372,11 +1382,11 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
  * @param[out]          pHtlcId         生成したHTLCのid
  * @param[out]          pReason         (非NULLかつ戻り値がfalse)onion reason
  * @param[in]           pPacket         onion packet
- * @param[in]           amount_msat     送金額[msat]
- * @param[in]           cltv_value      CLTV値
+ * @param[in]           AmountMsat      送金額[msat]
+ * @param[in]           CltvValue       CLTV値(絶対値)
  * @param[in]           pPaymentHash    PaymentHash(SHA256:32byte)
- * @param[in]           prev_short_channel_id   転送元short_channel_id(ない場合は0)
- * @param[in]           prev_id                 転送元HTLC id(ない場合は0)
+ * @param[in]           PrevShortChannelId   転送元short_channel_id(ない場合は0)
+ * @param[in]           PrevId          転送元HTLC id(ない場合は0)
  * @param[in]           pSharedSecrets  保存する共有秘密鍵集(NULL:未保存)
  * @retval      true    成功
  * @note
@@ -1387,11 +1397,11 @@ bool ln_create_add_htlc(ln_self_t *self,
             uint64_t *pHtlcId,
             ucoin_buf_t *pReason,
             const uint8_t *pPacket,
-            uint64_t amount_msat,
-            uint32_t cltv_value,
+            uint64_t AmountMsat,
+            uint32_t CltvValue,
             const uint8_t *pPaymentHash,
-            uint64_t prev_short_channel_id,
-            uint64_t prev_id,
+            uint64_t PrevShortChannelId,
+            uint64_t PrevId,
             const ucoin_buf_t *pSharedSecrets);
 
 
@@ -1399,32 +1409,45 @@ bool ln_create_add_htlc(ln_self_t *self,
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pFulfill        生成したupdate_fulfill_htlcメッセージ
- * @param[in]           id              HTLC id
+ * @param[in]           Id              HTLC id
  * @param[in]           pPreImage       反映するHTLCのpayment-preimage
  * @retval      true    成功
  */
-bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t id, const uint8_t *pPreImage);
+bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t Id, const uint8_t *pPreImage);
 
 
 /** update_fail_htlcメッセージ作成
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
- * @param[in]           id              HTLC id
+ * @param[in]           Id              HTLC id
  * @param[in]           pReason         失敗理由
  * @retval      true    成功
  */
-bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t id, const ucoin_buf_t *pReason);
+bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t Id, const ucoin_buf_t *pReason);
 
 
-/** commitment_signature作成
+/** commitment_signedメッセージ作成
  *
  * @param[in,out]       self            channel情報
- * @param[out]          pCommSig        生成したcommitment_signatureメッセージ
+ * @param[out]          pCommSig        生成したcommitment_signedメッセージ
  * @retval      true    成功
  */
 bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig);
 
+
+/** update_feeメッセージ作成
+ * 
+ * @param[in,out]       self            channel情報
+ * @param[out]          pUpdFee         生成したupdate_feeメッセージ
+ * @param[in]           FeeratePerKw    更新後のfeerate_per_kw
+ */
+bool ln_create_update_fee(ln_self_t *self, ucoin_buf_t *pUpdFee, uint32_t FeeratePerKw);
+
+
+/********************************************************************
+ * others
+ ********************************************************************/
 
 /** ping作成
  *
@@ -1450,7 +1473,7 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
  * @param[in]           self            channel情報
  * @param[out]          pTx             生成結果
  * @param[in]           Value           vinとなるamount(ここからfeeを内部で引く)
- * @param[in]           to_self_delay   to_self_delay
+ * @param[in]           ToSelfDelay     to_self_delay
  * @param[in]           pScript         送金先スクリプト
  * @param[in]           pTxid           vinとなるoutpointのtxid
  * @param[in]           Index           vinとなるoutpointのindex
@@ -1458,7 +1481,7 @@ bool ln_create_pong(ln_self_t *self, ucoin_buf_t *pPong, uint16_t NumPongBytes);
  * @retval  true    成功
  *
  */
-bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
+bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
                 const ucoin_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
@@ -1624,13 +1647,15 @@ static inline bool ln_is_funding(const ln_self_t *self) {
 }
 
 
-/** spentかどうか
+/** closing中かどうか
+ *
+ * funding_txのvoutがspentになったことを認識しているかどうか。
  *
  * @param[in]           self            channel情報
  * @retval      true    #ln_goto_closing() が呼ばれた
  * @retval      false   まだ #ln_goto_closing() が呼ばれていない
  */
-static inline bool ln_is_spent(const ln_self_t *self) {
+static inline bool ln_is_closing(const ln_self_t *self) {
     return (self->fund_flag & LN_FUNDFLAG_CLOSE);
 }
 
@@ -1669,22 +1694,22 @@ static inline uint32_t ln_feerate_per_kw(ln_self_t *self) {
 /** feerate_per_kw設定
  *
  * @param[out]          self            channel情報
- * @param[in]           feerate         設定値
+ * @param[in]           FeeratePerKw    設定値
  */
-static inline void ln_set_feerate_per_kw(ln_self_t *self, uint32_t feerate) {
-    self->feerate_per_kw = feerate;
+static inline void ln_set_feerate_per_kw(ln_self_t *self, uint32_t FeeratePerKw) {
+    self->feerate_per_kw = FeeratePerKw;
 }
 
 
 /** funding_txの予想されるfee(+α)取得
  *
- * @param[in]   feerate_per_kw      feerate_per_kw(open_channelのパラメータと同じ)
+ * @param[in]   FeeratePerKw        feerate_per_kw(open_channelのパラメータと同じ)
  * @return  estimate fee[satoshis]
  * @note
  *      - 現在(2018/04/03)のptarmiganが生成するfunding_txは177byteで、それに+αしている
  */
-static inline uint64_t ln_estimate_fundingtx_fee(uint32_t feerate_per_kw) {
-    return ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, feerate_per_kw);
+static inline uint64_t ln_estimate_fundingtx_fee(uint32_t FeeratePerKw) {
+    return ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, FeeratePerKw);
 }
 
 

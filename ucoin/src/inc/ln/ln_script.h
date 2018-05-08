@@ -92,11 +92,11 @@ typedef struct {
 
 /** Obscured Commitment Number計算
  *
- * @param[in]       pLocalBasePt
- * @param[in]       pRemoteBasePt
+ * @param[in]       pOpenBasePt     payment_basepoint from open_channel
+ * @param[in]       pAcceptBasePt   payment_basepoint from accept_channel
  * @return      Obscured Commitment Number
  */
-uint64_t HIDDEN ln_calc_obscured_txnum(const uint8_t *pLocalBasePt, const uint8_t *pRemoteBasePt);
+uint64_t HIDDEN ln_calc_obscured_txnum(const uint8_t *pOpenBasePt, const uint8_t *pAcceptBasePt);
 
 
 /** To-Localスクリプト作成

@@ -141,6 +141,10 @@ void lnapp_stop(lnapp_conf_t *pAppConf);
 bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding);
 
 
+/*******************************************
+ * 送金
+ *******************************************/
+
 /** [lnapp]送金開始
  *
  */
@@ -151,6 +155,10 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
  */
 void lnapp_transfer_channel(lnapp_conf_t *pAppConf, trans_cmd_t Cmd, ucoin_buf_t *pBuf);
 
+
+/*******************************************
+ * close関連
+ *******************************************/
 
 /** [lnapp]チャネル閉鎖
  *
@@ -163,6 +171,23 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf);
  */
 bool lnapp_close_channel_force(const uint8_t *pNodeId);
 
+
+/*******************************************
+ * fee関連
+ *******************************************/
+
+/** [lnapp]update_fee送信
+ * 
+ * @param[in,out]   pAppConf
+ * @param[in]       FeeratePerKw
+ * @retval  true    成功
+ */
+bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw);
+
+
+/*******************************************
+ * その他
+ *******************************************/
 
 /** [lnapp]short_channel_idに対応するlnappか
  *

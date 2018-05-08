@@ -150,16 +150,20 @@ typedef enum {
  * FAIL_RECV --> COMSIG_RECV --> revoke_nad_ack受信 : fail完了(offered HTLC)
  */
 typedef enum {
-    FLAGNODE_NONE           = 0x00,
-    FLAGNODE_PAYMENT        = 0x01,     ///< 送金開始
+    FLAGNODE_NONE           = 0x0000,
+    FLAGNODE_PAYMENT        = 0x0001,   ///< 送金開始
 
-    FLAGNODE_ADDHTLC_SEND   = 0x02,     ///< update_add_htlc送信
-    FLAGNODE_ADDHTLC_RECV   = 0x04,     ///< update_add_htlc受信
-    FLAGNODE_FULFILL_SEND   = 0x08,     ///< update_fulfill_htlc送信
-    FLAGNODE_FULFILL_RECV   = 0x10,     ///< update_fulfill_htlc受信
-    FLAGNODE_FAIL_SEND      = 0x20,     ///< update_fail_htlc送信
-    FLAGNODE_FAIL_RECV      = 0x40,     ///< update_fail_htlc受信
-    FLAGNODE_COMSIG_RECV    = 0x80,     ///< commitment_signed受信
+    FLAGNODE_ADDHTLC_SEND   = 0x0002,   ///< update_add_htlc送信
+    FLAGNODE_ADDHTLC_RECV   = 0x0004,   ///< update_add_htlc受信
+    FLAGNODE_UPDFEE_SEND    = 0x0008,   ///< update_fee送信
+    FLAGNODE_UPDFEE_RECV    = 0x0010,   ///< update_fee受信
+
+    FLAGNODE_FULFILL_SEND   = 0x0100,   ///< update_fulfill_htlc送信
+    FLAGNODE_FULFILL_RECV   = 0x0200,   ///< update_fulfill_htlc受信
+    FLAGNODE_FAIL_SEND      = 0x0400,   ///< update_fail_htlc送信
+    FLAGNODE_FAIL_RECV      = 0x0800,   ///< update_fail_htlc受信
+
+    FLAGNODE_COMSIG_RECV    = 0x8000,   ///< commitment_signed受信
 } node_flag_t;
 
 
@@ -244,11 +248,12 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
-static void cb_feerate_req(lnapp_conf_t *p_conf, void *p_param);
+static void cb_set_latest_feerate(lnapp_conf_t *p_conf, void *p_param);
 static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param);
 
 static void stop_threads(lnapp_conf_t *p_conf);
@@ -256,7 +261,6 @@ static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static void send_channel_anno(lnapp_conf_t *p_conf);
 static void send_node_anno(lnapp_conf_t *p_conf);
-static uint32_t get_latest_feerate_kw(void);
 
 static void set_establish_default(lnapp_conf_t *p_conf);
 static void nodeflag_set(uint8_t Flag);
@@ -529,17 +533,17 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 
     show_self_param(p_self, PRINTOUT, __LINE__);
 
+    const char *p_str;
     ret = ln_create_shutdown(p_self, &buf_bolt);
     if (ret) {
         send_peer_noise(pAppConf, &buf_bolt);
         ucoin_buf_free(&buf_bolt);
 
-        if (ret) {
-            show_self_param(p_self, PRINTOUT, __LINE__);
-        }
+        p_str = "close: good way(local) start";
+    } else {
+        p_str = "fail close: good way(local) start";
     }
-
-    misc_save_event(ln_channel_id(p_self), "close: good way(local) start");
+    misc_save_event(ln_channel_id(p_self), p_str);
 
     DBGTRACE_END
 
@@ -579,6 +583,59 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     APP_FREE(p_self);
 
     return true;
+}
+
+
+/*******************************************
+ * fee関連
+ *******************************************/
+
+bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
+{
+    if (!pAppConf->loop) {
+        //DBG_PRINTF("This AppConf not working\n");
+        return false;
+    }
+
+    pthread_mutex_lock(&mMuxNode);
+    if (mFlagNode != FLAGNODE_NONE) {
+        //何かしているのであればupdate_feeできない
+        SYSLOG_ERR("%s(): now paying...[%x]", __func__, mFlagNode);
+        pthread_mutex_unlock(&mMuxNode);
+        return false;
+    }
+    mFlagNode = FLAGNODE_UPDFEE_SEND;
+    pthread_mutex_unlock(&mMuxNode);
+    DBG_PRINTF("  -->mFlagNode %02x\n", mFlagNode);
+
+    DBGTRACE_BEGIN
+
+    bool ret;
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
+    ln_self_t *p_self = pAppConf->p_self;
+
+    ret = ln_create_update_fee(p_self, &buf_bolt, FeeratePerKw);
+    if (ret) {
+        uint32_t oldrate = ln_feerate_per_kw(p_self);
+        ln_set_feerate_per_kw(p_self, FeeratePerKw);
+        send_peer_noise(pAppConf, &buf_bolt);
+        ucoin_buf_free(&buf_bolt);
+        misc_save_event(ln_channel_id(p_self), "updatefee send: %" PRIu32 " --> %" PRIu32, oldrate, FeeratePerKw);
+
+        //update_fee送信する場合はcommitment_signedも送信する
+        ret = ln_create_commit_signed(p_self, &buf_bolt);
+        if (ret) {
+            send_peer_noise(pAppConf, &buf_bolt);
+            ucoin_buf_free(&buf_bolt);
+        }
+
+    } else {
+        misc_save_event(ln_channel_id(p_self), "fail updatefee");
+    }
+
+    DBGTRACE_END
+
+    return ret;
 }
 
 
@@ -643,6 +700,10 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "feerate_per_kw", cJSON_CreateNumber(ln_feerate_per_kw(pAppConf->p_self)));
         //htlc
         cJSON_AddItemToObject(result, "htlc_num", cJSON_CreateNumber(ln_htlc_num(pAppConf->p_self)));
+        //commit_num(local)
+        cJSON_AddItemToObject(result, "our_commit_num", cJSON_CreateNumber(ln_commit_local(pAppConf->p_self)->commit_num));
+        //commit_num(remote)
+        cJSON_AddItemToObject(result, "their_commit_num", cJSON_CreateNumber(ln_commit_remote(pAppConf->p_self)->commit_num));
     } else if (p_self && pAppConf->funding_waiting) {
         char str[256];
 
@@ -705,7 +766,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
     }
 
     ln_close_force_t close_dat;
-    bool ret = ln_create_close_force_tx(pAppConf->p_self, &close_dat);
+    bool ret = ln_create_close_unilateral_tx(pAppConf->p_self, &close_dat);
     if (ret) {
         ucoin_buf_t buf = UCOIN_BUF_INIT;
 
@@ -805,7 +866,7 @@ static void *thread_main_start(void *pArg)
 
     //seed作成(後でDB読込により上書きされる可能性あり)
     uint8_t seed[LN_SZ_SEED];
-    DBG_PRINTF("ln_self_t initialize");
+    DBG_PRINTF("ln_self_t initialize\n");
     ucoin_util_random(seed, LN_SZ_SEED);
     ln_init(p_self, seed, &mAnnoPrm, notify_cb);
 
@@ -1295,17 +1356,11 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     if (ret && unspent) {
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
-            feerate_kw = get_latest_feerate_kw();
-            if (feerate_kw < LN_FEERATE_PER_KW_MIN) {
-                // estimatesmartfeeは1000satoshisが下限のようだが、c-lightningは1000/4=250ではなく253を下限としている。
-                // 毎回変更が手間になるため、値を合わせる。
-                DBG_PRINTF("FIX: calc feerate_per_kw(%" PRIu32 ") < MIN\n", feerate_kw);
-                feerate_kw = LN_FEERATE_PER_KW_MIN;
-            }
+            feerate_kw = monitoring_get_latest_feerate_kw();
         } else {
             feerate_kw = pFunding->feerate_per_kw;
         }
-        DBG_PRINTF2("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
+        DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
         uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
         DBG_PRINTF("estimate funding_tx fee: %" PRIu64 "\n", estfee);
@@ -1932,11 +1987,12 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
         //    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
         //    LN_CB_REV_AND_ACK_RECV,     ///< revoke_and_ack受信通知
+        //    LN_CB_UPDATE_FEE_RECV,      ///< update_fee受信通知
         //    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
         //    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
         //    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
         //    LN_CB_SEND_REQ,             ///< peerへの送信要求
-        //    LN_CB_FEERATE_REQ,          ///< feerate_per_kw更新要求
+        //    LN_CB_SET_LATEST_FEERATE,   ///< feerate_per_kw更新要求
         //    LN_CB_GETBLOCKCOUNT,        ///< getblockcount
 
         { "  LN_CB_ERROR: エラー有り", cb_error_recv },
@@ -1955,11 +2011,12 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed処理前", cb_commit_sig_recv_prev },
         { "  LN_CB_COMMIT_SIG_RECV: commitment_signed受信通知", cb_commit_sig_recv },
         { "  LN_CB_REV_AND_ACK_RECV: revoke_and_ack受信", cb_rev_and_ack_recv },
+        { "  LN_CB_UPDATE_FEE_RECV: update_fee受信", cb_update_fee_recv },
         { "  LN_CB_SHUTDOWN_RECV: shutdown受信", cb_shutdown_recv },
         { "  LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)", cb_closed_fee },
         { "  LN_CB_CLOSED: closing_signed受信(FEE一致)", cb_closed },
         { "  LN_CB_SEND_REQ: 送信要求", cb_send_req },
-        { "  LN_CB_FEERATE_REQ: feerate_per_kw更新要求", cb_feerate_req },
+        { "  LN_CB_SET_LATEST_FEERATE: feerate_per_kw更新", cb_set_latest_feerate },
         { "  LN_CB_GETBLOCKCOUNT: getblockcount", cb_getblockcount },
     };
 
@@ -2527,6 +2584,13 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
             DBG_PRINTF("PAYMENT: other\n");
             mFlagNode = FLAGNODE_NONE;
         }
+    } else if (mFlagNode & (FLAGNODE_UPDFEE_SEND | FLAGNODE_UPDFEE_RECV)) {
+        //update_fee
+        DBG_PRINTF("UPDATE_FEE\n");
+        misc_save_event(ln_channel_id(p_conf->p_self),
+                "fee updated: short_channel_id=%" PRIx64 " feerate_per_kw=%" PRIu32,
+                ln_short_channel_id(p_conf->p_self), ln_feerate_per_kw(p_conf->p_self));
+        mFlagNode = FLAGNODE_NONE;
     } else {
         //非payer
         if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND | FLAGNODE_COMSIG_RECV) ||
@@ -2578,6 +2642,29 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
     }
 
     DBGTRACE_END
+}
+
+
+//LN_CB_UPDATE_FEE_RECV: update_fee受信
+static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param)
+{
+    DBGTRACE_BEGIN
+
+    uint32_t oldrate = *(const uint32_t *)p_param;
+
+    DBG_PRINTF("mFlagNode %02x\n", mFlagNode);
+    while (p_conf->loop) {
+        pthread_mutex_lock(&mMuxNode);
+        //PAYMENT以外の状態がなくなるまで待つ
+        if ((mFlagNode & ~FLAGNODE_PAYMENT) == 0) {
+            mFlagNode |= FLAGNODE_UPDFEE_RECV;
+            break;
+        }
+        pthread_mutex_unlock(&mMuxNode);
+        misc_msleep(M_WAIT_MUTEX_MSEC);
+    }
+
+    misc_save_event(ln_channel_id(p_conf->p_self), "updatefee recv: feerate_per_kw=%" PRIu32 " --> %" PRIu32, oldrate, ln_feerate_per_kw(p_conf->p_self));
 }
 
 
@@ -2661,12 +2748,12 @@ static void cb_send_req(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_FEERATE_REQ
-static void cb_feerate_req(lnapp_conf_t *p_conf, void *p_param)
+//LN_CB_SET_LATEST_FEERATE: estimatesmartfeeによるfeerate_per_kw更新(DB保存しない)
+static void cb_set_latest_feerate(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
 
-    uint32_t feerate_kw = get_latest_feerate_kw();
+    uint32_t feerate_kw = monitoring_get_latest_feerate_kw();
     ln_set_feerate_per_kw(p_conf->p_self, feerate_kw);
 }
 
@@ -2759,24 +2846,6 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 
     //ping送信待ちカウンタ
     p_conf->ping_counter = 0;
-}
-
-
-//最新のfeerate_per_kw取得
-static uint32_t get_latest_feerate_kw(void)
-{
-    //estimate fee
-    uint32_t feerate_kw;
-    uint64_t feerate_kb;
-    bool ret = btcprc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
-    if (ret) {
-        feerate_kw = ln_calc_feerate_per_kw(feerate_kb);
-    } else {
-        DBG_PRINTF("fail: estimatefee\n");
-        feerate_kw = LN_FEERATE_PER_KW;
-    }
-    DBG_PRINTF2("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
-    return feerate_kw;
 }
 
 
