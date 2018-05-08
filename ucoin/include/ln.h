@@ -1427,10 +1427,10 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t Id,
 bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t Id, const ucoin_buf_t *pReason);
 
 
-/** commitment_signatureメッセージ作成
+/** commitment_signedメッセージ作成
  *
  * @param[in,out]       self            channel情報
- * @param[out]          pCommSig        生成したcommitment_signatureメッセージ
+ * @param[out]          pCommSig        生成したcommitment_signedメッセージ
  * @retval      true    成功
  */
 bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig);
