@@ -730,7 +730,7 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
                 DBG_PRINTF("p_vout[%d]=", lp2);
                 DUMPBIN(p_vout[lp2].buf, p_vout[lp2].len);
                 if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[lp2])) {
-                    DBG_PRINTF("[%d]HTLC vout[%u] !\n", lp, lp2);
+                    DBG_PRINTF("[%u]HTLC vout[%d] !\n", lp, lp2);
 
                     ret = close_revoked_htlc(self, pTx, lp, lp2);
                     if (ret) {

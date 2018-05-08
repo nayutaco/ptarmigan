@@ -58,6 +58,7 @@ extern "C" {
 #define LN_SZ_ERRMSG                    (256)       ///< サイズ:last error文字列
 
 
+#define LN_ANNOSIGS_CONFIRM             (6)         ///< announcement_signaturesを送信するconfirmation
 #define LN_FUNDIDX_MAX                  (6)         ///< 管理用
 #define LN_SCRIPTIDX_MAX                (5)         ///< 管理用
 #define LN_HTLC_MAX                     (6)         ///< 自分のHTLC数   TODO:暫定
@@ -81,20 +82,6 @@ extern "C" {
 #define LN_HTLC_FLAG_IS_RECV(f)         ((f) & LN_HTLC_FLAG_RECV)   ///< true:Received HTLC / false:Offered HTLC
 #define LN_HTLC_FLAG_SEND               (0x00)                      ///< Offered HTLC(add_htlcを送信した)
 #define LN_HTLC_FLAG_RECV               (0x01)                      ///< Received HTLC(add_htlcを受信した)
-
-// node_announcement address descriptor
-#define LN_NODEDESC_NONE                ((uint8_t)0)    ///< padding. data = none (length 0)
-#define LN_NODEDESC_IPV4                ((uint8_t)1)    ///< ipv4. data = [4:ipv4_addr][2:port] (length 6)
-#define LN_NODEDESC_IPV6                ((uint8_t)2)    ///< ipv6. data = [16:ipv6_addr][2:port] (length 18)
-#define LN_NODEDESC_ONIONV2             ((uint8_t)3)    ///< tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
-#define LN_NODEDESC_ONIONV3             ((uint8_t)4)    ///< tor v3 onion service. data [35:onion_addr][2:port] (length 37)
-#define LN_NODEDESC_MAX                 LN_NODEDESC_ONIONV3
-
-// self->fund_flag
-#define LN_FUNDFLAG_FUNDER              (0x01)      ///< true:funder / false:fundee
-#define LN_FUNDFLAG_ANNO_CH             (0x02)      ///< open_channel.channel_flags.announce_channel
-#define LN_FUNDFLAG_FUNDING             (0x04)      ///< 1:open_channel～funding_lockedまで
-#define LN_FUNDFLAG_CLOSE               (0x08)      ///< 1:funding_txがspentになっている
 
 // channel_update.flags
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
@@ -166,6 +153,26 @@ extern "C" {
 //forward definition
 struct ln_self_t;
 typedef struct ln_self_t ln_self_t;
+
+
+// node_announcement address descriptor
+typedef enum {
+    LN_NODEDESC_NONE,           ///< 0: padding. data = none (length 0)
+    LN_NODEDESC_IPV4,           ///< 1: ipv4. data = [4:ipv4_addr][2:port] (length 6)
+    LN_NODEDESC_IPV6,           ///< 2: ipv6. data = [16:ipv6_addr][2:port] (length 18)
+    LN_NODEDESC_ONIONV2,        ///< 3: tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
+    LN_NODEDESC_ONIONV3,        ///< 4: tor v3 onion service. data [35:onion_addr][2:port] (length 37)
+    LN_NODEDESC_MAX = LN_NODEDESC_ONIONV3
+} ln_nodedesc_t;
+
+
+// self->fund_flag
+typedef enum {
+    LN_FUNDFLAG_FUNDER      = 0x01,     ///< true:funder / false:fundee
+    LN_FUNDFLAG_ANNO_CH     = 0x02,     ///< open_channel.channel_flags.announce_channel
+    LN_FUNDFLAG_FUNDING     = 0x04,     ///< 1:open_channel～funding_lockedまで
+    LN_FUNDFLAG_CLOSE       = 0x08,     ///< 1:funding_txがspentになっている
+} ln_fundflag_t;
 
 
 /** @enum   ln_cb_t
@@ -605,7 +612,7 @@ typedef struct {
  *  @brief      node_announcementのアドレス情報
  */
 typedef struct {
-    uint8_t         type;                       ///< 1:address descriptor(LN_NODEDESC_xxx)
+    ln_nodedesc_t   type;                       ///< 1:address descriptor(LN_NODEDESC_xxx)
     uint16_t        port;
     union {
         uint8_t     addr[1];
@@ -951,7 +958,7 @@ struct ln_self_t {
     uint64_t                    peer_storage_index;             ///< 現在のindex(peer)
 
     //funding
-    uint8_t                     fund_flag;                      ///< none/funder/fundee
+    ln_fundflag_t               fund_flag;                      ///< none/funder/fundee
     ln_funding_local_data_t     funding_local;                  ///< funding情報:local
     ln_funding_remote_data_t    funding_remote;                 ///< funding情報:remote
     uint64_t                    obscured;                       ///< commitment numberをXORするとobscured commitment numberになる値。

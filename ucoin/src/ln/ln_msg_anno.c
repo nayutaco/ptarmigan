@@ -446,7 +446,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
     //        [33:bitcoin_key_2]
     DBG_PRINTF2("p_btc_key2: ");
     DUMPBIN(pData + pos, UCOIN_SZ_PUBKEY);
-    pos += UCOIN_SZ_PUBKEY;
+    //pos += UCOIN_SZ_PUBKEY;
     Len -= UCOIN_SZ_PUBKEY;
 
     if (Len != 0) {

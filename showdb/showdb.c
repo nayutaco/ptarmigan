@@ -555,11 +555,7 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
     if (showflag == SHOW_PREIMAGE) {
         printf(M_QQ("preimage") ": [");
 
-        struct {
-            MDB_txn     *txn;
-            MDB_dbi     dbi;
-            MDB_cursor  *cursor;
-        } cur;
+        lmdb_cursor_t cur;
 
         int retval = mdb_cursor_open(txn, dbi, &cur.cursor);
         if (retval != 0) {

@@ -172,21 +172,6 @@ typedef struct {
 } nodeinfo_t;
 
 
-/** @typedef    lmdb_cursor_t
- *  @brief      lmdbのcursor情報。外部へはvoid*でキャストして渡す。
- *  @attention
- *      - キャストしてln_lmdb_db_tと同等に使用できる(逆はできない)
- */
-typedef struct {
-    //ln_lmdb_db_t
-    MDB_txn     *txn;
-    MDB_dbi     dbi;
-
-    //cursor
-    MDB_cursor  *cursor;
-} lmdb_cursor_t;
-
-
 /** @typedef    preimage_info_t
  *  @brief      [preimage]に保存するpreimage情報
  */
@@ -2248,7 +2233,7 @@ LABEL_EXIT:
 bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpiry, const uint8_t *pVout, void *pDbParam)
 {
     int         retval;
-    MDB_txn     *txn = NULL;
+    MDB_txn     *txn;
     MDB_dbi     dbi;
     MDB_cursor  *cursor;
     MDB_val     key, data;
@@ -2679,9 +2664,11 @@ bool ln_db_reset(void)
 
             retval = mdb_dbi_open(cur.txn, name, 0, &dbi2);
             free(name);
-            retval = mdb_drop(cur.txn, dbi2, 1);
-            if (retval != 0) {
-                DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+            if (retval == 0) {
+                retval = mdb_drop(cur.txn, dbi2, 1);
+                if (retval != 0) {
+                    DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
+                }
             }
         }
     }

@@ -734,7 +734,11 @@ static void optfunc_setfeerate(int *pOption, bool *pConn)
     M_CHK_INIT
 
     errno = 0;
-    uint32_t feerate_per_kw = (uint32_t)strtoull(optarg, NULL, 10);
+    uint64_t feerate_per_kw = strtoull(optarg, NULL, 10);
+    if (feerate_per_kw > UINT32_MAX) {
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
     if (errno == 0) {
         snprintf(mBuf, BUFFER_SIZE,
             "{"
@@ -744,7 +748,7 @@ static void optfunc_setfeerate(int *pOption, bool *pConn)
                     "%" PRIu32
                 " ]"
             "}",
-                feerate_per_kw);
+                (uint32_t)feerate_per_kw);
 
         *pOption = M_OPTIONS_EXEC;
     } else {

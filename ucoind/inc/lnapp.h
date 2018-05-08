@@ -47,15 +47,18 @@ typedef struct transferlist_t {
     ucoin_buf_t     buf;            ///< 転送先で送信するパケット用パラメータ
 } transferlist_t;
 
+LIST_HEAD(transferlisthead_t, transferlist_t);
 
+
+/** @struct     routelist_t
+ *  @brief      送金情報リスト
+ */
 typedef struct routelist_t {
     LIST_ENTRY(routelist_t) list;
     payment_conf_t          route;
     uint64_t                htlc_id;    ///< 該当するhtlc id
 } routelist_t;
 
-
-LIST_HEAD(transferlisthead_t, transferlist_t);
 LIST_HEAD(routelisthead_t, routelist_t);
 
 
@@ -64,13 +67,13 @@ LIST_HEAD(routelisthead_t, routelist_t);
  */
 typedef struct lnapp_conf_t {
     //p2p_svr/cli用
-    volatile int    sock;
-    pthread_t       th;
-    char            conn_str[SZ_CONN_STR + 1];  ///< client
-    uint16_t        conn_port;                  ///< client
+    volatile int    sock;                       ///< -1:未接続
+    pthread_t       th;                         ///< pthread id
+    char            conn_str[SZ_CONN_STR + 1];  ///< 接続成功ログ/接続失敗リスト用
+    uint16_t        conn_port;                  ///< 接続成功ログ/接続失敗リスト用
 
     //制御内容通知
-    bool            initiator;                  ///< true:Noise Protocolのinitiator
+    bool            initiator;                  ///< true:Noise Protocol handshakeのinitiator
     uint8_t         node_id[UCOIN_SZ_PUBKEY];   ///< 接続先(initiator==true時)
     daemoncmd_t     cmd;                        ///< ucoincliからの処理要求
 
@@ -82,7 +85,7 @@ typedef struct lnapp_conf_t {
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
-    uint8_t         flag_recv;              ///< 受信済み
+    uint8_t         flag_recv;              ///< 受信フラグ(RECV_MSG_xxx)
 
     //排他制御
     //  これ以外に、ucoind全体として mMuxNode とフラグmFlagNode がある。
