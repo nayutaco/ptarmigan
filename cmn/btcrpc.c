@@ -1119,7 +1119,7 @@ static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid)
 {
     bool ret = false;
     bool retval;
-    char *p_json = NULL;
+    char *p_json;
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = getrawtransaction_rpc(p_json, txid, false);

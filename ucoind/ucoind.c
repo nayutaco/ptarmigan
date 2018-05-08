@@ -338,7 +338,7 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id)
 // ucoind 起動中に接続失敗したnodeを登録していく。
 // リストに登録されているnodeに対しては、monitoring.c で自動接続しないようにする。
 // 再接続できるようになったか確認する方法を用意していないので、今のところリストから削除する方法はない。
-void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc)
+void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc)
 {
     DBG_PRINTF("ipaddr(%d)=%s:%" PRIu16 " node_id: ", NodeDesc, pAddr, Port);
     DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
@@ -364,7 +364,7 @@ void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
 }
 
 
-bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc)
+bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc)
 {
     bool detect = false;
 

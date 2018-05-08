@@ -97,23 +97,15 @@
 #define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
 #define M_MIN_DEPTH                     (1)
 
-#define M_ANNOSIGS_CONFIRM      (6)         ///< announcement_signaturesを送信するconfirmation
+#define M_ANNO_UNIT             (3)         ///< 1回のsend_channel_anno()/send_node_anno()で送信する数
+#define M_RECVIDLE_RETRY_MAX    (5)         ///< 受信アイドル時キュー処理のリトライ最大
 
 #define M_ERRSTR_REASON                 "fail: %s (hop=%d)(suggest:%s)"
 #define M_ERRSTR_CANNOTDECODE           "fail: result cannot decode"
 #define M_ERRSTR_CANNOTSTART            "fail: can't start payment(our_msat=%" PRIu64 ", amt_to_forward=%" PRIu64 ")"
 
-//lnapp_conf_t.flag_recv
-#define RECV_MSG_INIT           (0x01)      ///< init
-#define RECV_MSG_REESTABLISH    (0x02)      ///< channel_reestablish
-#define RECV_MSG_FUNDINGLOCKED  (0x04)      ///< funding locked
-#define RECV_MSG_END            (0x80)      ///< 初期化完了
-
 #define M_SCRIPT_DIR            "./script/"
 
-#define M_ANNO_UNIT             (3)         ///< 1回のsend_channel_anno()/send_node_anno()で送信する数
-
-#define M_RECVIDLE_RETRY_MAX    (5)         ///< 受信アイドル時キュー処理のリトライ最大
 
 #define M_FLAG_MASK(flag, mask) (((flag) & (mask)) == (mask))
 
@@ -124,16 +116,25 @@
 
 //event
 typedef enum {
-    M_EVT_ERROR,
-    M_EVT_CONNECTED,
-    M_EVT_ESTABLISHED,
-    M_EVT_PAYMENT,
-    M_EVT_FORWARD,
-    M_EVT_FULFILL,
-    M_EVT_FAIL,
-    M_EVT_HTLCCHANGED,
-    M_EVT_CLOSED
+    EVT_ERROR,
+    EVT_CONNECTED,
+    EVT_ESTABLISHED,
+    EVT_PAYMENT,
+    EVT_FORWARD,
+    EVT_FULFILL,
+    EVT_FAIL,
+    EVT_HTLCCHANGED,
+    EVT_CLOSED
 } event_t;
+
+
+//lnapp_conf_t.flag_recv
+enum {
+    RECV_MSG_INIT           = 0x01,     ///< init
+    RECV_MSG_REESTABLISH    = 0x02,     ///< channel_reestablish
+    RECV_MSG_FUNDINGLOCKED  = 0x04,     ///< funding locked
+    RECV_MSG_END            = 0x80,     ///< 初期化完了
+};
 
 
 /** @enum   node_flag_t
@@ -182,24 +183,24 @@ static pthread_mutex_t      mMuxNode;
 static volatile node_flag_t mFlagNode;
 
 
-static const char *M_SCRIPT[] = {
-    //M_EVT_ERROR
+static const char *kSCRIPT[] = {
+    //EVT_ERROR
     M_SCRIPT_DIR "error.sh",
-    //M_EVT_CONNECTED
+    //EVT_CONNECTED
     M_SCRIPT_DIR "connected.sh",
-    //M_EVT_ESTABLISHED
+    //EVT_ESTABLISHED
     M_SCRIPT_DIR "established.sh",
-    //M_EVT_PAYMENT,
+    //EVT_PAYMENT,
     M_SCRIPT_DIR "payment.sh",
-    //M_EVT_FORWARD,
+    //EVT_FORWARD,
     M_SCRIPT_DIR "forward.sh",
-    //M_EVT_FULFILL,
+    //EVT_FULFILL,
     M_SCRIPT_DIR "fulfill.sh",
-    //M_EVT_FAIL,
+    //EVT_FAIL,
     M_SCRIPT_DIR "fail.sh",
-    //M_EVT_HTLCCHANGED,
+    //EVT_HTLCCHANGED,
     M_SCRIPT_DIR "htlcchanged.sh",
-    //M_EVT_CLOSED
+    //EVT_CLOSED
     M_SCRIPT_DIR "closed.sh"
 };
 
@@ -263,8 +264,8 @@ static void send_channel_anno(lnapp_conf_t *p_conf);
 static void send_node_anno(lnapp_conf_t *p_conf);
 
 static void set_establish_default(lnapp_conf_t *p_conf);
-static void nodeflag_set(uint8_t Flag);
-static void nodeflag_unset(uint8_t Flag);
+static void nodeflag_set(node_flag_t Flag);
+static void nodeflag_unset(node_flag_t Flag);
 static void call_script(event_t event, const char *param);
 static void set_onionerr_str(char *pStr, const ln_onion_err_t *pOnionErr);
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
@@ -454,7 +455,7 @@ LABEL_EXIT:
                     pPay->hop_datain[0].amt_to_forward,
                     pPay->hop_datain[0].outgoing_cltv_value,
                     hashstr);
-        call_script(M_EVT_PAYMENT, param);
+        call_script(EVT_PAYMENT, param);
     } else {
         // DBG_PRINTF("fail --> retry\n");
         // char errstr[512];
@@ -1024,7 +1025,7 @@ static void *thread_main_start(void *pArg)
                     ln_short_channel_id(p_self), node_id,
                     peer_id,
                     cmd_json_get_port());
-        call_script(M_EVT_CONNECTED, param);
+        call_script(EVT_CONNECTED, param);
 
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
         if (fp) {
@@ -1323,7 +1324,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
                 ln_short_channel_id(p_conf->p_self), node_id,
                 ln_node_total_msat(),
                 txidstr);
-    call_script(M_EVT_ESTABLISHED, param);
+    call_script(EVT_ESTABLISHED, param);
 
     return true;
 }
@@ -1587,7 +1588,7 @@ static void *thread_poll_start(void *pArg)
         //  監視周期によっては funding_confirmが minimum_depth と M_ANNOSIGS_CONFIRMの
         //  両方を満たす可能性があるため、先に poll_funding_wait()を行って self->cnl_anno の準備を済ませる。
         if ( ln_open_announce_channel(p_conf->p_self) &&
-             (p_conf->funding_confirm >= M_ANNOSIGS_CONFIRM) &&
+             (p_conf->funding_confirm >= LN_ANNOSIGS_CONFIRM) &&
              (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_self)) ) {
             // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
             //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
@@ -1802,7 +1803,7 @@ LABEL_EXIT:
                     pFwdAdd->amt_to_forward,
                     pFwdAdd->outgoing_cltv_value,
                     hashstr);
-        call_script(M_EVT_FORWARD, param);
+        call_script(EVT_FORWARD, param);
     } else if (pReason->len == 0) {
         //エラーだがreasonが未設定
         DBG_PRINTF("fail: temporary_node_failure\n");
@@ -1880,7 +1881,7 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdF
                     ln_short_channel_id(p_conf->p_self), node_id,
                     hashstr,
                     imgstr);
-        call_script(M_EVT_FULFILL, param);
+        call_script(EVT_FULFILL, param);
     }
 
     DBGTRACE_END
@@ -1947,7 +1948,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
         char param[256];
         sprintf(param, "%" PRIx64 " %s",
                     ln_short_channel_id(p_conf->p_self), node_id);
-        call_script(M_EVT_FAIL, param);
+        call_script(EVT_FAIL, param);
     }
 
     DBGTRACE_END
@@ -2638,7 +2639,7 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
                     ln_short_channel_id(p_conf->p_self), node_id,
                     ln_node_total_msat(),
                     ln_htlc_num(p_conf->p_self));
-        call_script(M_EVT_HTLCCHANGED, param);
+        call_script(EVT_HTLCCHANGED, param);
     }
 
     DBGTRACE_END
@@ -2652,17 +2653,7 @@ static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param)
 
     uint32_t oldrate = *(const uint32_t *)p_param;
 
-    DBG_PRINTF("mFlagNode %02x\n", mFlagNode);
-    while (p_conf->loop) {
-        pthread_mutex_lock(&mMuxNode);
-        //PAYMENT以外の状態がなくなるまで待つ
-        if ((mFlagNode & ~FLAGNODE_PAYMENT) == 0) {
-            mFlagNode |= FLAGNODE_UPDFEE_RECV;
-            break;
-        }
-        pthread_mutex_unlock(&mMuxNode);
-        misc_msleep(M_WAIT_MUTEX_MSEC);
-    }
+    nodeflag_set(FLAGNODE_UPDFEE_RECV);
 
     misc_save_event(ln_channel_id(p_conf->p_self), "updatefee recv: feerate_per_kw=%" PRIu32 " --> %" PRIu32, oldrate, ln_feerate_per_kw(p_conf->p_self));
 }
@@ -2730,7 +2721,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
                     "%s",
                     ln_short_channel_id(p_conf->p_self), node_id,
                     txidstr);
-        call_script(M_EVT_CLOSED, param);
+        call_script(EVT_CLOSED, param);
     } else {
         DBG_PRINTF("DBG: no send closing_tx mode\n");
     }
@@ -3056,7 +3047,7 @@ static void set_establish_default(lnapp_conf_t *p_conf)
  *
  * FLAGNODE_PAYMENTが立っていないことを確認
  */
-static void nodeflag_set(uint8_t Flag)
+static void nodeflag_set(node_flag_t Flag)
 {
     DBG_PRINTF("mFlagNode %d\n", mFlagNode);
     uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_MUTEX_MSEC;
@@ -3080,7 +3071,7 @@ static void nodeflag_set(uint8_t Flag)
  *
  *
  */
-static void nodeflag_unset(uint8_t Flag)
+static void nodeflag_unset(node_flag_t Flag)
 {
     pthread_mutex_lock(&mMuxNode);
     mFlagNode &= ~Flag;
@@ -3098,10 +3089,10 @@ static void call_script(event_t event, const char *param)
     DBG_PRINTF("event=0x%02x\n", (int)event);
 
     struct stat buf;
-    int ret = stat(M_SCRIPT[event], &buf);
+    int ret = stat(kSCRIPT[event], &buf);
     if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
         char *cmdline = (char *)APP_MALLOC(128 + strlen(param));    //APP_FREE: この中
-        sprintf(cmdline, "%s %s", M_SCRIPT[event], param);
+        sprintf(cmdline, "%s %s", kSCRIPT[event], param);
         DBG_PRINTF("cmdline: %s\n", cmdline);
         system(cmdline);
         APP_FREE(cmdline);      //APP_MALLOC: この中
@@ -3188,7 +3179,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
                     "\"%s\"",
                     ln_short_channel_id(p_conf->p_self), node_id,
                     p_conf->p_errstr);
-        call_script(M_EVT_ERROR, param);
+        call_script(EVT_ERROR, param);
         APP_FREE(param);        //APP_MALLOC: この中
     }
 }

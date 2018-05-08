@@ -361,13 +361,13 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id);
 /** ノード接続失敗リスト追加
  * 
  */
-void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc);
+void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc);
 
 
 /** ノード接続失敗リスト検索
  * 
  * @retval  true        リスト登録済み
  */
-bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, uint8_t NodeDesc);
+bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc);
 
 #endif /* UCOIND_H__ */

@@ -89,6 +89,21 @@ typedef struct {
 } ln_lmdb_db_t;
 
 
+/** @typedef    lmdb_cursor_t
+ *  @brief      lmdbのcursor情報。外部へはvoid*でキャストして渡す。
+ *  @attention
+ *      - キャストしてln_lmdb_db_tと同等に使用できる(逆はできない)
+ */
+typedef struct {
+    //ln_lmdb_db_t
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+
+    //cursor
+    MDB_cursor  *cursor;
+} lmdb_cursor_t;
+
+
 /**************************************************************************
  * public functions
  **************************************************************************/
@@ -107,7 +122,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi);
 
 
 /** closeしたDB("cn")を出力
- * 
+ *
  */
 void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi);
 

@@ -1210,8 +1210,8 @@ static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //feerate_per_kw
     json = cJSON_GetArrayItem(params, index++);
-    if (json && (json->type == cJSON_Number)) {
-        feerate_per_kw = json->valueu64;
+    if (json && (json->type == cJSON_Number) && (json->valueu64 <= UINT32_MAX)) {
+        feerate_per_kw = (uint32_t)json->valueu64;
         DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", feerate_per_kw);
     } else {
         index = -1;

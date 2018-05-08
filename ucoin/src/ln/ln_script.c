@@ -420,7 +420,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
         return false;
     }
 
-    bool ret = false;
+    bool ret;
     uint8_t sighash[UCOIN_SZ_SIGHASH];
     ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
     ret = ln_signer_p2wsh_force(pLocalSig, sighash, pKeys);

@@ -206,7 +206,7 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
         DUMPBIN((const uint8_t *)pMsg->p_data, len);
     }
 
-    pos += len;
+    //pos += len;
 
     return true;
 }
