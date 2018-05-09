@@ -318,6 +318,7 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_inv
                 DBG_PRINTF("-----------\n");
                 DBG_PRINTF("pubkey= ");
                 DUMPBIN(p, UCOIN_SZ_PUBKEY);
+                p += UCOIN_SZ_PUBKEY;
 
                 uint64_t short_channel_id = 0;
                 for (size_t lp = 0; lp < sizeof(uint64_t); lp++) {
