@@ -63,57 +63,35 @@ static inline int tid() {
 #define FNAME_EVENTCH_LOG           "evt_%s.log"
 #define FNAME_FMT_NODECONF          "ptarm_%s.conf"
 
-// JSON-RPCエラー
 
 #define RPCERR_ERROR                (-10000)
-#define RPCERR_ERROR_STR            "error"
 #define RPCERR_NOCONN               (-10001)
-#define RPCERR_NOCONN_STR           "not connected"
 #define RPCERR_ALCONN               (-10002)
-#define RPCERR_ALCONN_STR           "already connected"
 #define RPCERR_NOCHANN              (-10003)
-#define RPCERR_NOCHANN_STR          "no channel"
 #define RPCERR_PARSE                (-10004)
-#define RPCERR_PARSE_STR            "parse param"
 #define RPCERR_NOINIT               (-10005)
-#define RPCERR_NOINIT_STR           "no init or init not end"
 
 #define RPCERR_NODEID               (-20000)
-#define RPCERR_NODEID_STR           "invalid node_id"
 #define RPCERR_NOOPEN               (-20001)
-#define RPCERR_NOOPEN_STR           "channel not open"
 #define RPCERR_ALOPEN               (-20002)
-#define RPCERR_ALOPEN_STR           "channel already opened"
 #define RPCERR_FULLCLI              (-20003)
-#define RPCERR_FULLCLI_STR          "client full"
 #define RPCERR_SOCK                 (-20004)
-#define RPCERR_SOCK_STR             "socket"
 #define RPCERR_CONNECT              (-20005)
-#define RPCERR_CONNECT_STR          "connect"
 #define RPCERR_PEER_ERROR           (-20006)
 #define RPCERR_OPENING              (-20007)
-#define RPCERR_OPENING_STR          "funding now"
 
 #define RPCERR_FUNDING              (-21000)
-#define RPCERR_FUNDING_STR          "fail funding"
 
 #define RPCERR_INVOICE_FULL         (-22000)
-#define RPCERR_INVOICE_FULL_STR     "invoice full"
 #define RPCERR_INVOICE_ERASE        (-22001)
-#define RPCERR_INVOICE_ERASE_STR    "fail: erase invoice"
 
 #define RPCERR_CLOSE_START          (-25000)
-#define RPCERR_CLOSE_START_STR      "fail start closing"
 #define RPCERR_CLOSE_FAIL           (-25001)
-#define RPCERR_CLOSE_FAIL_STR       "fail unilateral close"
 
 #define RPCERR_PAY_STOP             (-26000)
-#define RPCERR_PAY_STOP_STR         "stop payment"
 #define RPCERR_NOROUTE              (-26001)
-#define RPCERR_NOROUTE_STR          "fail routing"
 #define RPCERR_PAYFAIL              (-26002)
 #define RPCERR_PAY_RETRY            (-26003)
-#define RPCERR_PAY_RETRY_STR        "retry payment"
 
 
 #define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数(server/clientそれぞれ)
@@ -329,45 +307,55 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  ********************************************************************/
 
 /** ノード内転送
- * 
+ *
  */
 bool ucoind_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, ucoin_buf_t *pBuf);
 
 
 /** preimage操作排他開始
- * 
+ *
  */
 void ucoind_preimage_lock(void);
 
 
 /** preimage操作排他解除
- * 
+ *
  */
 void ucoind_preimage_unlock(void);
 
 
 /** 接続済みlnapp検索
- * 
+ *
  */
 lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id);
 
 
 /** ucoind実行パス取得
- * 
+ *
  */
 // const char *ucoind_get_exec_path(void);
 
 
 /** ノード接続失敗リスト追加
- * 
+ *
  */
 void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc);
 
 
 /** ノード接続失敗リスト検索
- * 
+ *
  * @retval  true        リスト登録済み
  */
 bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc);
+
+
+/** エラー文字列取得
+ *
+ * @param[in]       ErrCode     エラー番号
+ * @return      エラー文字列
+ * @note
+ *      - エラー文字列はstrdup()しているため、呼び元でfree()すること
+ */
+char *ucoind_error_str(int ErrCode);
 
 #endif /* UCOIND_H__ */

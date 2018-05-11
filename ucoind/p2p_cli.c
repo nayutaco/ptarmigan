@@ -74,7 +74,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     if (!ucoin_keys_chkpub(pConn->node_id)) {
         SYSLOG_ERR("%s(): invalid node_id", __func__);
         ctx->error_code = RPCERR_NODEID;
-        ctx->error_message = strdup(RPCERR_NODEID_STR);
+        ctx->error_message = ucoind_error_str(RPCERR_NODEID);
         return;
     }
 
@@ -87,7 +87,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     if (idx >= (int)ARRAY_SIZE(mAppConf)) {
         SYSLOG_ERR("%s(): client full", __func__);
         ctx->error_code = RPCERR_FULLCLI;
-        ctx->error_message = strdup(RPCERR_FULLCLI_STR);
+        ctx->error_message = ucoind_error_str(RPCERR_FULLCLI);
         return;
     }
 
@@ -99,7 +99,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     if (mAppConf[idx].sock < 0) {
         SYSLOG_ERR("%s(): socket", __func__);
         ctx->error_code = RPCERR_SOCK;
-        ctx->error_message = strdup(RPCERR_SOCK_STR);
+        ctx->error_message = ucoind_error_str(RPCERR_SOCK);
         goto LABEL_EXIT;
     }
     fcntl(mAppConf[idx].sock, F_SETFL, O_NONBLOCK);
@@ -125,7 +125,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     if (ret < 0) {
         SYSLOG_ERR("%s(): connect(%s)", __func__, strerror(errno));
         ctx->error_code = RPCERR_CONNECT;
-        ctx->error_message = strdup(RPCERR_CONNECT_STR);
+        ctx->error_message = ucoind_error_str(RPCERR_CONNECT);
         close(mAppConf[idx].sock);
         mAppConf[idx].sock = -1;
 

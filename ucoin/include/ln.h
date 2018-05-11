@@ -2152,9 +2152,9 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
  * @param[in]   AmountMsat
  * @param[in]   AddNum          追加route数(invoiceのr fieldを想定)
  * @param[in]   pAddRoute       追加route(invoiceのr fieldを想定)
- * @retval  true   成功
+ * @return  LNERR_ROUTE_xxx
  */
-bool ln_routing_calculate(
+lnerr_route_t ln_routing_calculate(
         ln_routing_result_t *pResult,
         const uint8_t *pPayerId,
         const uint8_t *pPayeeId,
