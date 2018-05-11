@@ -34,6 +34,7 @@
 #include "ln_local.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
+#include "segwit_addr.h"
 
 #include <iostream>
 #include <fstream>
@@ -97,7 +98,7 @@ struct nodes_t {
         uint64_t    htlc_minimum_msat;
         uint32_t    fee_base_msat;
         uint32_t    fee_prop_millionths;
-    } ninfo[2];
+    } ninfo[2];         //[0]channel_updateのdir0, [1]channel_updateのdir1
 };
 
 struct nodes_result_t {
@@ -114,6 +115,26 @@ struct param_self_t {
 /********************************************************************
  * functions
  ********************************************************************/
+
+static int direction(const uint8_t **ppNode1, const uint8_t **ppNode2, const uint8_t *pNode1, const uint8_t *pNode2)
+{
+    int lp2;
+    for (lp2 = 0; lp2 < UCOIN_SZ_PUBKEY; lp2++) {
+        if (pNode1[lp2] != pNode2[lp2]) {
+            break;
+        }
+    }
+    int dir = (pNode1[lp2] < pNode2[lp2]) ? 0 : 1;
+    if (dir == 0) {
+        *ppNode1 = pNode1;
+        *ppNode2 = pNode2;
+    } else {
+        *ppNode2 = pNode1;
+        *ppNode1 = pNode2;
+    }
+    return dir;
+}
+
 
 static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_prop_millionths)
 {
@@ -137,7 +158,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const ucoin_buf_t *
                             p_nodes->ninfo[1].node_id,
                             p_buf->buf, p_buf->len);
         p_nodes->ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
-        p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定反映用
+        p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
         break;
     case LN_DB_CNLANNO_UPD1:
     case LN_DB_CNLANNO_UPD2:
@@ -205,8 +226,10 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
         p_prm_self->result.p_nodes[p_prm_self->result.node_num - 1].short_channel_id = self->short_channel_id;
 
         nodes_t *p_nodes_result = &p_prm_self->result.p_nodes[p_prm_self->result.node_num - 1];
-        memcpy(p_nodes_result->ninfo[0].node_id, p_prm_self->p_payer, UCOIN_SZ_PUBKEY);
-        memcpy(p_nodes_result->ninfo[1].node_id, self->peer_node_id, UCOIN_SZ_PUBKEY);
+        const uint8_t *p1, *p2;
+        direction(&p1, &p2, p_prm_self->p_payer, self->peer_node_id);
+        memcpy(p_nodes_result->ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
+        memcpy(p_nodes_result->ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
         for (int lp = 0; lp < 2; lp++) {
             p_nodes_result->ninfo[lp].cltv_expiry_delta = 0;
             p_nodes_result->ninfo[lp].htlc_minimum_msat = 0;
@@ -271,18 +294,6 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 }
 
 
-static int direction(const uint8_t *pNode1, const uint8_t *pNode2)
-{
-    int lp2;
-    for (lp2 = 0; lp2 < UCOIN_SZ_PUBKEY; lp2++) {
-        if (pNode1[lp2] != pNode2[lp2]) {
-            break;
-        }
-    }
-    return (pNode1[lp2] < pNode2[lp2]) ? 0 : 1;
-}
-
-
 static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 {
     graph_t::vertex_descriptor v = static_cast<graph_t::vertex_descriptor>(-1);
@@ -310,7 +321,9 @@ bool ln_routing_calculate(
         const uint8_t *pPayerId,
         const uint8_t *pPayeeId,
         uint32_t CltvExpiry,
-        uint64_t AmountMsat)
+        uint64_t AmountMsat,
+        uint8_t AddNum,
+        const ln_fieldr_t *pAddRoute)
 {
     pResult->hop_num = 0;
 
@@ -327,6 +340,30 @@ bool ln_routing_calculate(
     if (!ret) {
         DBG_PRINTF("fail: loaddb\n");
         return false;
+    }
+
+    if (AddNum > 0) {
+        int node_num = rt_res.node_num;
+        rt_res.node_num += AddNum;
+        rt_res.p_nodes = (nodes_t *)realloc(rt_res.p_nodes, sizeof(nodes_t) * rt_res.node_num);
+
+        for (uint8_t lp = 0; lp < AddNum; lp++) {
+            nodes_t *p_nodes = &rt_res.p_nodes[node_num - 1];
+
+            // add_node(0) --> payee(1)
+            p_nodes->short_channel_id = pAddRoute[lp].short_channel_id;
+            const uint8_t *p1, *p2;
+            int dir = direction(&p1, &p2, pAddRoute[lp].node_id, pPayeeId);
+            memcpy(p_nodes->ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
+            memcpy(p_nodes->ninfo[1].node_id, p2, UCOIN_SZ_PUBKEY);
+            p_nodes->ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定
+            p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定
+            p_nodes->ninfo[dir].fee_base_msat = pAddRoute[lp].fee_base_msat;
+            p_nodes->ninfo[dir].fee_prop_millionths = pAddRoute[lp].fee_prop_millionths;
+            p_nodes->ninfo[dir].cltv_expiry_delta = pAddRoute[lp].cltv_expiry_delta;
+            p_nodes->ninfo[dir].htlc_minimum_msat = 0;
+            node_num++;
+        }
     }
 
     DBG_PRINTF("start nodeid : ");
@@ -449,7 +486,6 @@ bool ln_routing_calculate(
         AmountMsat = AmountMsat + edgefee(AmountMsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
         CltvExpiry += g[e].cltv_expiry_delta;
     }
-    //std::cout << "distance: " << d[pnt_goal] << std::endl;
 
     if (route.size() > LN_HOP_MAX + 1) {
         //先頭に自ノードが入るため+1
@@ -468,20 +504,11 @@ bool ln_routing_calculate(
 
         const uint8_t *p_node_id1;
         const uint8_t *p_node_id2;
-        int dir = direction(p_now, p_next);
-        if (dir == 0) {
-            p_node_id1 = p_now;
-            p_node_id2 = p_next;
-            dir = 0;
-        } else {
-            p_node_id1 = p_next;
-            p_node_id2 = p_now;
-            dir = 1;
-        }
+        direction(&p_node_id1, &p_node_id2, p_now, p_next);
         uint64_t sci = 0;
         for (uint32_t lp3 = 0; lp3 < rt_res.node_num; lp3++) {
             if ( (memcmp(p_node_id1, rt_res.p_nodes[lp3].ninfo[0].node_id, UCOIN_SZ_PUBKEY) == 0) &&
-                (memcmp(p_node_id2, rt_res.p_nodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
+                 (memcmp(p_node_id2, rt_res.p_nodes[lp3].ninfo[1].node_id, UCOIN_SZ_PUBKEY) == 0) ) {
                 sci = rt_res.p_nodes[lp3].short_channel_id;
                 break;
             }
@@ -512,7 +539,7 @@ bool ln_routing_calculate(
 void ln_routing_clear_skipdb(void)
 {
     bool bret;
-    
+
     bret = ln_db_annoskip_drop(false);
     DBG_PRINTF("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
 

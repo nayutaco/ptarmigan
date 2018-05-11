@@ -77,6 +77,21 @@ bool segwit_addr_decode(
 );
 
 
+/** @struct ln_fieldr_t;
+ *  @brief  r field
+ */
+typedef struct ln_fieldr_t {
+    uint8_t     node_id[UCOIN_SZ_PUBKEY];           ///< node_id
+    uint64_t    short_channel_id;                   ///< short_channel_id
+    uint32_t    fee_base_msat;                      ///< fee_base_msat
+    uint32_t    fee_prop_millionths;                ///< fee_proportional_millionths
+    uint16_t    cltv_expiry_delta;                  ///< cltv_expiry_delta
+} ln_fieldr_t;
+
+
+/** @struct ln_invoice_t;
+ *  @brief  BOLT#11 invoice
+ */
 typedef struct ln_invoice_t {
     uint8_t     hrp_type;
     uint64_t    amount_msat;
@@ -84,6 +99,8 @@ typedef struct ln_invoice_t {
     uint32_t    min_final_cltv_expiry;
     uint8_t     pubkey[UCOIN_SZ_PUBKEY];
     uint8_t     payment_hash[LN_SZ_HASH];
+    uint8_t     r_field_num;
+    ln_fieldr_t r_field[];
 } ln_invoice_t;
 
 
@@ -99,11 +116,11 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data);
 
 /** Decode a BOLT11 invoice
  *
- * @param[out]      p_invoice_data
+ * @param[out]      pp_invoice_data
  * @param[in]       invoice
  * @return  true:success
  */
-bool ln_invoice_decode(ln_invoice_t *p_invoice_data, const char* invoice);
+bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice);
 
 /** BOLT11 形式invoice作成
  *

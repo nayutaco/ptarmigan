@@ -334,7 +334,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 
 
 /** #ln_node_total_msat()処理関数
- * 
+ *
  * our_msatの総額を求める。
  *
  * @param[in,out]   self            DBから取得したself
@@ -353,7 +353,7 @@ static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_para
 
 
 /** #ln_node_search_nodeid()処理関数
- * 
+ *
  * short_channel_idが一致した場合のnode_id(相手側)を返す。
  *
  * @param[in,out]   self            DBから取得したself
@@ -436,7 +436,7 @@ static void print_node(void)
 
 
 #ifdef UNITTEST
-static void ln_node_setkey(const uint8_t *pPrivKey)
+void ln_node_setkey(const uint8_t *pPrivKey)
 {
     memcpy(mNode.keys.priv, pPrivKey, UCOIN_SZ_PRIVKEY);
     ucoin_keys_priv2pub(mNode.keys.pub, mNode.keys.priv);

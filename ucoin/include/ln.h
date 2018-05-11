@@ -153,6 +153,7 @@ extern "C" {
 //forward definition
 struct ln_self_t;
 typedef struct ln_self_t ln_self_t;
+typedef struct ln_fieldr_t ln_fieldr_t;
 
 
 // node_announcement address descriptor
@@ -2149,6 +2150,8 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
  * @param[in]   pPayeeId
  * @param[in]   CltvExpiry
  * @param[in]   AmountMsat
+ * @param[in]   AddNum          追加route数(invoiceのr fieldを想定)
+ * @param[in]   pAddRoute       追加route(invoiceのr fieldを想定)
  * @retval  true   成功
  */
 bool ln_routing_calculate(
@@ -2156,7 +2159,9 @@ bool ln_routing_calculate(
         const uint8_t *pPayerId,
         const uint8_t *pPayeeId,
         uint32_t CltvExpiry,
-        uint64_t AmountMsat);
+        uint64_t AmountMsat,
+        uint8_t AddNum,
+        const ln_fieldr_t *pAddRoute);
 
 
 /** routing skip DB削除

@@ -1,12 +1,34 @@
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <assert.h>
+////////////////////////////////////////////////////////////////////////
+//FAKE関数
 
-#include "segwit_addr.h"
-#include "ucoin.h"
+//FAKE_VALUE_FUNC(int, external_function, int);
 
-#include "segwit_addr.c"
+////////////////////////////////////////////////////////////////////////
+
+class bech32: public testing::Test {
+protected:
+    virtual void SetUp() {
+        //RESET_FAKE(external_function)
+        ucoin_init(UCOIN_TESTNET, false);
+    }
+
+    virtual void TearDown() {
+        ASSERT_EQ(0, ucoin_dbg_malloc_cnt());
+        ucoin_term();
+    }
+
+public:
+    static void DumpBin(const uint8_t *pData, uint16_t Len)
+    {
+        for (uint16_t lp = 0; lp < Len; lp++) {
+            printf("%02x", pData[lp]);
+        }
+        printf("\n");
+    }
+};
+
+////////////////////////////////////////////////////////////////////////
+
 
 static int get_hrp_type(const char *hrp) {
     if (strcmp(hrp, "bc") == 0) {
@@ -26,7 +48,6 @@ static int get_hrp_type(const char *hrp) {
     return -1;
 }
 
-#if 1
 static const char* valid_checksum[] = {
     "A12UEL5L",
     "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs",
@@ -45,7 +66,6 @@ static const char* invalid_checksum[] = {
     "li1dgmt3",
     "de1lg7wt\xff",
 };
-#endif
 
 struct valid_address_data {
     const char* address;
@@ -195,7 +215,7 @@ static void segwit_scriptpubkey(uint8_t* scriptpubkey, size_t* scriptpubkeylen, 
     *scriptpubkeylen = witprog_len + 2;
 }
 
-int my_strncasecmp(const char *s1, const char *s2, size_t n) {
+static int my_strncasecmp(const char *s1, const char *s2, size_t n) {
     size_t i = 0;
     while (i < n) {
         char c1 = s1[i];
@@ -210,39 +230,41 @@ int my_strncasecmp(const char *s1, const char *s2, size_t n) {
     return 0;
 }
 
-void print_invoice(const ln_invoice_t *p_invoice_data) {
-    fprintf(stderr, "-----------------------------------------\n");
-    switch (p_invoice_data->hrp_type) {
-    case LN_INVOICE_MAINNET:
-        fprintf(stderr, "for mainnet\n");
-        break;
-    case LN_INVOICE_TESTNET:
-        fprintf(stderr, "for testnet\n");
-        break;
-    default:
-        fprintf(stderr, "unknown hrp_type\n");
-    }
-    fprintf(stderr, "amount_msat=%" PRIu64 "\n", p_invoice_data->amount_msat);
-    time_t tm = (time_t)p_invoice_data->timestamp;
-    fprintf(stderr, "timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, ctime(&tm));
-    fprintf(stderr, "min_final_cltv_expiry=%u\n", p_invoice_data->min_final_cltv_expiry);
-    fprintf(stderr, "pubkey=");
-    for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        fprintf(stderr, "%02x", p_invoice_data->pubkey[lp]);
-    }
-    fprintf(stderr, "\n");
-    fprintf(stderr, "payment_hash=");
-    for (int lp = 0; lp < LN_SZ_HASH; lp++) {
-        fprintf(stderr, "%02x", p_invoice_data->payment_hash[lp]);
-    }
-    fprintf(stderr, "\n");
-    fprintf(stderr, "-----------------------------------------\n");
-}
+// static void print_invoice(const ln_invoice_t *p_invoice_data) {
+//     fprintf(stderr, "-----------------------------------------\n");
+//     switch (p_invoice_data->hrp_type) {
+//     case LN_INVOICE_MAINNET:
+//         fprintf(stderr, "for mainnet\n");
+//         break;
+//     case LN_INVOICE_TESTNET:
+//         fprintf(stderr, "for testnet\n");
+//         break;
+//     default:
+//         fprintf(stderr, "unknown hrp_type\n");
+//     }
+//     fprintf(stderr, "amount_msat=%" PRIu64 "\n", p_invoice_data->amount_msat);
+//     time_t tm = (time_t)p_invoice_data->timestamp;
+//     fprintf(stderr, "timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, ctime(&tm));
+//     fprintf(stderr, "min_final_cltv_expiry=%u\n", p_invoice_data->min_final_cltv_expiry);
+//     fprintf(stderr, "pubkey=");
+//     for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
+//         fprintf(stderr, "%02x", p_invoice_data->pubkey[lp]);
+//     }
+//     fprintf(stderr, "\n");
+//     fprintf(stderr, "payment_hash=");
+//     for (int lp = 0; lp < LN_SZ_HASH; lp++) {
+//         fprintf(stderr, "%02x", p_invoice_data->payment_hash[lp]);
+//     }
+//     fprintf(stderr, "\n");
+//     fprintf(stderr, "-----------------------------------------\n");
+// }
 
-int main(void) {
+
+TEST_F(bech32, bech32_valid)
+{
     size_t i;
     int fail = 0;
-#if 1
+
     for (i = 0; i < sizeof(valid_checksum) / sizeof(valid_checksum[0]); ++i) {
         uint8_t data[82];
         char rebuild[92];
@@ -265,6 +287,14 @@ int main(void) {
         }
         fail += !ok;
     }
+}
+
+
+TEST_F(bech32, bech32_invalid)
+{
+    size_t i;
+    int fail = 0;
+
     for (i = 0; i < sizeof(invalid_checksum) / sizeof(invalid_checksum[0]); ++i) {
         uint8_t data[82];
         char hrp[84];
@@ -276,8 +306,14 @@ int main(void) {
         }
         fail += !ok;
     }
-#endif
-#if 1
+}
+
+
+TEST_F(bech32, segwit_valid)
+{
+    size_t i;
+    int fail = 0;
+
     for (i = 0; i < sizeof(valid_address) / sizeof(valid_address[0]); ++i) {
         uint8_t witprog[40];
         size_t witprog_len;
@@ -319,6 +355,14 @@ int main(void) {
         }
         fail += !ok;
     }
+}
+
+
+TEST_F(bech32, segwit_invalid_dec)
+{
+    size_t i;
+    int fail = 0;
+
     for (i = 0; i < sizeof(invalid_address) / sizeof(invalid_address[0]); ++i) {
         uint8_t witprog[40];
         size_t witprog_len;
@@ -334,6 +378,14 @@ int main(void) {
         }
         fail += !ok;
     }
+}
+
+
+TEST_F(bech32, segwit_invalid_enc)
+{
+    size_t i;
+    int fail = 0;
+
     for (i = 0; i < sizeof(invalid_address_enc) / sizeof(invalid_address_enc[0]); ++i) {
         char rebuild[93];
         static const uint8_t program[42] = {0};
@@ -342,56 +394,60 @@ int main(void) {
             ++fail;
         }
     }
-#endif
-    ln_node_t node;
-    ln_node_set(&node);
+}
+
+
+TEST_F(bech32, invoice_valid)
+{
+    size_t i;
+    int fail = 0;
+
     for (i = 0; i < sizeof(ln_valid_invoice) / sizeof(ln_valid_invoice[0]); ++i) {
-        printf("\n\n=[%d]=============================\n", (int)i);
+        //printf("\n\n=[%d]=============================\n", (int)i);
         int ok = 1;
-        ln_invoice_t invoice_data;
-        memcpy(node.keys.priv, ln_valid_invoice[i].privkey, UCOIN_SZ_PRIVKEY);
-        memcpy(node.keys.pub, ln_valid_invoice[i].pubkey, UCOIN_SZ_PUBKEY);
-        bool ret = ln_invoice_decode(&invoice_data, ln_valid_invoice[i].invoice);
-        if (ret && (memcmp(invoice_data.pubkey, ln_valid_invoice[i].pubkey, UCOIN_SZ_PUBKEY) == 0)) {
-            print_invoice(&invoice_data);
+        ln_invoice_t *p_invoice_data = NULL;
+        ln_node_setkey(ln_valid_invoice[i].privkey);
+        bool ret = ln_invoice_decode(&p_invoice_data, ln_valid_invoice[i].invoice);
+        if (ret && (memcmp(p_invoice_data->pubkey, ln_valid_invoice[i].pubkey, UCOIN_SZ_PUBKEY) == 0)) {
+            //print_invoice(p_invoice_data);
         } else {
             printf("ln_invoice_decode fails: '%s'\n", ln_valid_invoice[i].invoice);
             ok = 0;
         }
         char *p_invoice = NULL;
         if (ok) {
-            ret = ln_invoice_encode(&p_invoice, &invoice_data);
+            ret = ln_invoice_encode(&p_invoice, p_invoice_data);
             if (!ret) {
                 printf("ln_invoice_encode fails\n");
                 ok = 0;
             }
         }
         if (ok) {
-            ln_invoice_t invoice_data2;
-            ret = ln_invoice_decode(&invoice_data2, p_invoice);
+            ln_invoice_t *p_invoice_data2 = NULL;
+            ret = ln_invoice_decode(&p_invoice_data2, p_invoice);
             if (ret) {
-                print_invoice(&invoice_data2);
-                if (invoice_data.hrp_type != invoice_data2.hrp_type) {
+                //print_invoice(p_invoice_data2);
+                if (p_invoice_data->hrp_type != p_invoice_data2->hrp_type) {
                     printf("false: hrp mismatch\n");
                     ok = 0;
                 }
-                if (ok && (invoice_data.amount_msat != invoice_data2.amount_msat)) {
+                if (ok && (p_invoice_data->amount_msat != p_invoice_data2->amount_msat)) {
                     printf("false: amount_msat mismatch\n");
                     ok = 0;
                 }
-                //if (ok && (invoice_data.timestamp != invoice_data2.timestamp)) {
+                //if (ok && (p_invoice_data->timestamp != p_invoice_data2->timestamp)) {
                 //    printf("false: timestamp mismatch\n");
                 //    ok = 0;
                 //}
-                if (ok && (invoice_data.min_final_cltv_expiry != invoice_data2.min_final_cltv_expiry)) {
+                if (ok && (p_invoice_data->min_final_cltv_expiry != p_invoice_data2->min_final_cltv_expiry)) {
                     printf("false: min_final_cltv_expiry mismatch\n");
                     ok = 0;
                 }
-                if (ok && (memcmp(invoice_data.pubkey, invoice_data2.pubkey, UCOIN_SZ_PUBKEY) != 0)) {
+                if (ok && (memcmp(p_invoice_data->pubkey, p_invoice_data2->pubkey, UCOIN_SZ_PUBKEY) != 0)) {
                     printf("false: pubkey mismatch\n");
                     ok = 0;
                 }
-                if (ok && (memcmp(invoice_data.payment_hash, invoice_data2.payment_hash, LN_SZ_HASH) != 0)) {
+                if (ok && (memcmp(p_invoice_data->payment_hash, p_invoice_data2->payment_hash, LN_SZ_HASH) != 0)) {
                     printf("false: payment_hash mismatch\n");
                     ok = 0;
                 }
@@ -399,11 +455,10 @@ int main(void) {
                 printf("false: decode2\n");
                 ok = 0;
             }
+            free(p_invoice_data2);
         }
+        free(p_invoice_data);
         free(p_invoice);
         fail += !ok;
     }
-
-    printf("%i failures\n", fail);
-    return fail != 0;
 }

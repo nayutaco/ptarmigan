@@ -262,7 +262,7 @@ static void proc_commitment_signed(ln_self_t *self, uint8_t Flag);
 static void proc_rev_and_ack(ln_self_t *self, uint8_t Flag);
 
 static bool chk_peer_node(ln_self_t *self);
-static bool get_nodeid(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
+static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
@@ -749,7 +749,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     self->funding_sat = open_ch->funding_sat;
     self->feerate_per_kw = open_ch->feerate_per_kw;
 
-    self->fund_flag = LN_FUNDFLAG_FUNDER | ((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING;
+    self->fund_flag = (ln_fundflag_t)(LN_FUNDFLAG_FUNDER | ((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
 
     return true;
 }
@@ -757,7 +757,7 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
 
 void ln_open_announce_channel_clr(ln_self_t *self)
 {
-    self->fund_flag &= ~LN_FUNDFLAG_ANNO_CH;
+    self->fund_flag = (ln_fundflag_t)(self->fund_flag & ~LN_FUNDFLAG_ANNO_CH);
     ln_db_self_save(self);
 }
 
@@ -897,7 +897,7 @@ void ln_goto_closing(ln_self_t *self, void *pDbParam)
     DBG_PRINTF("BEGIN\n");
     if ((self->fund_flag & LN_FUNDFLAG_CLOSE) == 0) {
         //closing中フラグを立てる
-        self->fund_flag |= LN_FUNDFLAG_CLOSE;
+        self->fund_flag = (ln_fundflag_t)(self->fund_flag | LN_FUNDFLAG_CLOSE);
         ln_db_self_save_closeflg(self, pDbParam);
 
         //自分のchannel_updateをdisableにする(相手のは署名できないので、自分だけ)
@@ -1947,7 +1947,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
         self->htlc_num = 0;
-        self->fund_flag = ((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING;
+        self->fund_flag = (ln_fundflag_t)(((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
     } else {
         M_SET_ERR(self, LNERR_CREATE_2OF2, "create 2-of-2");
     }
@@ -2699,6 +2699,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     ln_revoke_and_ack_t revack;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
     uint8_t bak_sig[LN_SZ_SIGNATURE];
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     //処理前呼び出し
     (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV_PREV, NULL);
@@ -2745,8 +2746,6 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
     //チェックOKであれば、revoke_and_ackを返す
     //HTLCに変化がある場合、revoke_and_ack→commitment_signedの順で送信
-
-    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
     revack.p_channel_id = channel_id;
     revack.p_per_commit_secret = prev_secret;
@@ -2795,6 +2794,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
     uint8_t prev_secret[UCOIN_SZ_PRIVKEY];
     uint8_t new_commitpt[UCOIN_SZ_PUBKEY];
+    uint8_t prev_commitpt[UCOIN_SZ_PUBKEY];
 
     revack.p_channel_id = channel_id;
     revack.p_per_commit_secret = prev_secret;
@@ -2813,7 +2813,6 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     //prev_secretチェック
-    uint8_t prev_commitpt[UCOIN_SZ_PUBKEY];
     ret = ucoin_keys_priv2pub(prev_commitpt, prev_secret);
     if (!ret) {
         DBG_PRINTF("fail: prev_secret convert\n");
@@ -2862,6 +2861,7 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     bool ret;
     ln_update_fee_t upfee;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
+    uint32_t old_fee;
 
     upfee.p_channel_id = channel_id;
     ret = ln_msg_update_fee_read(&upfee, pData, Len);
@@ -2878,7 +2878,7 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
-    uint32_t old_fee = self->feerate_per_kw;
+    old_fee = self->feerate_per_kw;
     self->feerate_per_kw = upfee.feerate_per_kw;
     //ln_db_self_save(self);    //確定するまでDB保存しない
 
@@ -3080,14 +3080,18 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
 
-        ret = get_nodeid(self, node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
+        ret = get_nodeid_from_annocnl(self, node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
             if (!ret) {
                 DBG_PRINTF("fail: verify\n");
             }
         } else {
-            DBG_PRINTF("fail: maybe not found channel_announcement in DB\n");
+            //該当するchannel_announcementが見つからない
+            //  BOLT#11
+            //      r fieldでchannel_update相当のデータを送信したい場合に備えて保持する
+            //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
+            DBG_PRINTF("fail: not found channel_announcement in DB\n");
             ret = true;
         }
     } else {
@@ -4277,12 +4281,10 @@ static bool create_channel_update(
 {
     pUpd->short_channel_id = self->short_channel_id;
     pUpd->timestamp = TimeStamp;
-    //announce
     pUpd->cltv_expiry_delta = self->anno_prm.cltv_expiry_delta;
     pUpd->htlc_minimum_msat = self->anno_prm.htlc_minimum_msat;
     pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
     pUpd->fee_prop_millionths = self->anno_prm.fee_prop_millionths;
-    //署名
     pUpd->flags = Flag | sort_nodeid(self, NULL);
     bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
@@ -4817,8 +4819,8 @@ static bool chk_peer_node(ln_self_t *self)
 }
 
 
-//node_id取得
-static bool get_nodeid(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
+//channel_announcementからのnode_id取得
+static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir)
 {
     bool ret;
 
@@ -4960,7 +4962,7 @@ static void free_establish(ln_self_t *self, bool bEndEstablish)
             DBG_PRINTF("free\n");
         }
     }
-    self->fund_flag &= ~LN_FUNDFLAG_FUNDING;
+    self->fund_flag = (ln_fundflag_t)(self->fund_flag & ~LN_FUNDFLAG_FUNDING);
 }
 
 

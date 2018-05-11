@@ -634,7 +634,7 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
     //        [addrlen:addresses]
     if (addrlen > 0) {
         //addr type
-        pMsg->addr.type = *(pData + pos);
+        pMsg->addr.type = (ln_nodedesc_t)*(pData + pos);
         if (pMsg->addr.type > LN_NODEDESC_MAX) {
             DBG_PRINTF("fail: unknown address descriptor(%02x)\n", pMsg->addr.type);
             return false;
