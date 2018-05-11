@@ -1962,11 +1962,13 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
 /** 転送FEE計算
  *
  * @param[in]           self            channel情報
- * @param[in]           amount          転送amount_msat
+ * @param[in]           AmountMsat      転送amount_msat
  * @return      転送FEE(msat)
+ * @note
+ *      - fee_prop_millionthsの単位は[satoshi]だが、最終的に[msatoshi]の結果がほしいため、そのままmsatoshiで計算できる。
  */
-static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
-    return (uint64_t)self->anno_prm.fee_base_msat + (amount * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
+static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t AmountMsat) {
+    return (uint64_t)self->anno_prm.fee_base_msat + (AmountMsat * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
 }
 
 
