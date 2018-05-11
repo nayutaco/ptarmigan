@@ -505,29 +505,39 @@ static void optfunc_payment(int *pOption, bool *pConn)
 }
 
 
+/* BOLT#11 invoiceによる支払い
+ * 
+ * 
+ * 
+ */
 static void optfunc_routepay(int *pOption, bool *pConn)
 {
     (void)pConn;
 
     M_CHK_INIT
 
-    ln_invoice_t invoice_data;
+    ln_invoice_t *p_invoice_data = NULL;
     const char *invoice = strtok(optarg, ",");
     const char *amount_msat = strtok(NULL, ",");
     const char *cltv_offset = strtok(NULL, ",");
-    bool bret = ln_invoice_decode(&invoice_data, invoice);
+    bool bret = ln_invoice_decode(&p_invoice_data, invoice);
     if (!bret) {
         printf("fail: decode BOLT#11 invoice\n");
         *pOption = M_OPTIONS_ERR;
         return;
     }
+    if ( (p_invoice_data->hrp_type != LN_INVOICE_TESTNET) &&
+         (p_invoice_data->hrp_type != LN_INVOICE_REGTEST) ) {
+        printf("fail: payment not supported type.\n");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
 
+    //確認用のログ出力
     printf("---------------------------------\n");
-    switch (invoice_data.hrp_type) {
+    switch (p_invoice_data->hrp_type) {
     case LN_INVOICE_MAINNET:
         printf("blockchain: bitcoin mainnet\n");
-        printf("fail: mainnet payment not supported yet.\n");
-        *pOption = M_OPTIONS_ERR;
         break;
     case LN_INVOICE_TESTNET:
         printf("blockchain: bitcoin testnet\n");
@@ -537,46 +547,70 @@ static void optfunc_routepay(int *pOption, bool *pConn)
         break;
     default:
         printf("unknown hrp_type\n");
-        *pOption = M_OPTIONS_ERR;
     }
-    printf("amount_msat=%" PRIu64 "\n", invoice_data.amount_msat);
-    time_t tm = (time_t)invoice_data.timestamp;
-    printf("timestamp= %" PRIu64 " : %s", (uint64_t)invoice_data.timestamp, ctime(&tm));
-    printf("min_final_cltv_expiry=%u\n", invoice_data.min_final_cltv_expiry);
+    printf("amount_msat=%" PRIu64 "\n", p_invoice_data->amount_msat);
+    time_t tm = (time_t)p_invoice_data->timestamp;
+    printf("timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, ctime(&tm));
+    printf("min_final_cltv_expiry=%u\n", p_invoice_data->min_final_cltv_expiry);
     printf("payee=");
     for (int lp = 0; lp < UCOIN_SZ_PUBKEY; lp++) {
-        printf("%02x", invoice_data.pubkey[lp]);
+        printf("%02x", p_invoice_data->pubkey[lp]);
     }
     printf("\n");
     printf("payment_hash=");
     for (int lp = 0; lp < UCOIN_SZ_SHA256; lp++) {
-        printf("%02x", invoice_data.payment_hash[lp]);
+        printf("%02x", p_invoice_data->payment_hash[lp]);
     }
     printf("\n");
+    if (p_invoice_data->r_field_num > 0) {
+        for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
+            printf("    ------------------------\n");
+            printf("    ");
+            for (int lp2 = 0; lp2 < UCOIN_SZ_PUBKEY; lp2++) {
+                printf("%02x", p_invoice_data->r_field[lp].node_id[lp2]);
+            }
+            printf("\n");
+            printf("    short_channel_id=%" PRIx64 "\n", p_invoice_data->r_field[lp].short_channel_id);
+            printf("    fee_base_msat=%" PRIu32 "\n", p_invoice_data->r_field[lp].fee_base_msat);
+            printf("    fee_proportional_millionths=%" PRIu32 "\n", p_invoice_data->r_field[lp].fee_prop_millionths);
+            printf("    cltv_expiry_delta=%" PRIu16 "\n", p_invoice_data->r_field[lp].cltv_expiry_delta);
+        }
+        printf("    ------------------------\n");
+    }
     printf("---------------------------------\n");
+
+
     if (amount_msat != NULL) {
+        //additional amount_msat
+        //  invoiceで要求されたamountに追加で支払えるようにしている
         errno = 0;
         uint64_t add_msat = (uint64_t)strtoull(amount_msat, NULL, 10);
         if (errno == 0) {
-            invoice_data.amount_msat += add_msat;
+            p_invoice_data->amount_msat += add_msat;
             printf("additional amount_msat=%" PRIu64 "\n", add_msat);
             printf("---------------------------------\n");
         } else {
             printf("fail: errno=%s\n", strerror(errno));
             *pOption = M_OPTIONS_ERR;
         }
-        if (invoice_data.amount_msat & 0xffffffff00000000ULL) {
-            //BOLT#2
-            //  MUST set the four most significant bytes of amount_msat to 0.
-            printf("fail: amount_msat too large\n");
-            *pOption = M_OPTIONS_ERR;
-        }
+    }
+    if (p_invoice_data->amount_msat & 0xffffffff00000000ULL) {
+        //BOLT#2
+        //  MUST set the four most significant bytes of amount_msat to 0.
+        //  今のところBitcoinのみしか扱わないため、このままとしておく。
+        printf("fail: amount_msat too large\n");
+        *pOption = M_OPTIONS_ERR;
+    } else if (p_invoice_data->amount_msat == 0) {
+        printf("fail: pay amount_msat is 0\n");
+        *pOption = M_OPTIONS_ERR;
+    } else {
+        //チャネルが許容する範囲については、ucoindでチェックする
     }
     if (cltv_offset != NULL) {
         errno = 0;
         uint32_t add_cltv = (uint32_t)strtoull(cltv_offset, NULL, 10);
         if (errno == 0) {
-            invoice_data.min_final_cltv_expiry += add_cltv;
+            p_invoice_data->min_final_cltv_expiry += add_cltv;
             printf("additional min_final_cltv_expiry=%" PRIu32 "\n", add_cltv);
             printf("---------------------------------\n");
         } else {
@@ -585,27 +619,45 @@ static void optfunc_routepay(int *pOption, bool *pConn)
         }
     }
     if (*pOption != M_OPTIONS_ERR) {
-        if (invoice_data.amount_msat > 0) {
-            char payhash[LN_SZ_HASH * 2 + 1];
-            char payee[UCOIN_SZ_PUBKEY * 2 + 1];
+        char payhash[LN_SZ_HASH * 2 + 1];
+        char payee[UCOIN_SZ_PUBKEY * 2 + 1];
 
-            misc_bin2str(payhash, invoice_data.payment_hash, LN_SZ_HASH);
-            misc_bin2str(payee, invoice_data.pubkey, UCOIN_SZ_PUBKEY);
+        misc_bin2str(payhash, p_invoice_data->payment_hash, LN_SZ_HASH);
+        misc_bin2str(payee, p_invoice_data->pubkey, UCOIN_SZ_PUBKEY);
 
-            snprintf(mBuf, BUFFER_SIZE,
-                "{"
-                    M_STR("method", "routepay") M_NEXT
-                    M_QQ("params") ":[ "
-                        //payment_hash, amount_msat, payee, payer
-                        M_QQ("%s") ",%" PRIu64 "," M_QQ("%s") "," M_QQ("") ",%" PRIu32 "]}",
-                    payhash, invoice_data.amount_msat, payee, invoice_data.min_final_cltv_expiry);
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "routepay") M_NEXT
+                M_QQ("params") ":[ "
+                    //payment_hash, amount_msat, payee, payer
+                    M_QQ("%s") ",%" PRIu64 "," M_QQ("%s") "," M_QQ("") ",%" PRIu32 ",%d",
+                payhash, p_invoice_data->amount_msat, payee,
+                p_invoice_data->min_final_cltv_expiry, p_invoice_data->r_field_num);
+        if (p_invoice_data->r_field_num > 0) {
+            strcat(mBuf, ",[");
+            for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
+                if (lp != 0) {
+                    strcat(mBuf, ",");
+                }
+                char nodeid[UCOIN_SZ_PUBKEY * 2 + 1];
+                misc_bin2str(nodeid, p_invoice_data->r_field[lp].node_id, UCOIN_SZ_PUBKEY);
 
-            *pOption = M_OPTIONS_EXEC;
-        } else {
-            printf("fail: pay amount_msat is 0\n");
-            *pOption = M_OPTIONS_ERR;
+                char rfstr[256];
+                sprintf(rfstr, "[" M_QQ("%s") ",%" PRIu64 ",%" PRIu32 ",%" PRIu32 ",%" PRIu16 "]",
+                        nodeid, //66
+                        p_invoice_data->r_field[lp].short_channel_id, //16
+                        p_invoice_data->r_field[lp].fee_base_msat, //10
+                        p_invoice_data->r_field[lp].fee_prop_millionths, //10
+                        p_invoice_data->r_field[lp].cltv_expiry_delta); //5
+                strcat(mBuf, rfstr);
+            }
+            strcat(mBuf, "]");
         }
+        strcat(mBuf, "]}");
+
+        *pOption = M_OPTIONS_EXEC;
     }
+    free(p_invoice_data);
 }
 
 

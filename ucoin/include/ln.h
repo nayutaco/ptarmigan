@@ -153,6 +153,7 @@ extern "C" {
 //forward definition
 struct ln_self_t;
 typedef struct ln_self_t ln_self_t;
+typedef struct ln_fieldr_t ln_fieldr_t;
 
 
 // node_announcement address descriptor
@@ -1962,11 +1963,13 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
 /** 転送FEE計算
  *
  * @param[in]           self            channel情報
- * @param[in]           amount          転送amount_msat
+ * @param[in]           AmountMsat      転送amount_msat
  * @return      転送FEE(msat)
+ * @note
+ *      - fee_prop_millionthsの単位は[satoshi]だが、最終的に[msatoshi]の結果がほしいため、そのままmsatoshiで計算できる。
  */
-static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t amount) {
-    return (uint64_t)self->anno_prm.fee_base_msat + (amount * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
+static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t AmountMsat) {
+    return (uint64_t)self->anno_prm.fee_base_msat + (AmountMsat * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
 }
 
 
@@ -2147,6 +2150,8 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ucoin_buf_t *pReason);
  * @param[in]   pPayeeId
  * @param[in]   CltvExpiry
  * @param[in]   AmountMsat
+ * @param[in]   AddNum          追加route数(invoiceのr fieldを想定)
+ * @param[in]   pAddRoute       追加route(invoiceのr fieldを想定)
  * @retval  true   成功
  */
 bool ln_routing_calculate(
@@ -2154,7 +2159,9 @@ bool ln_routing_calculate(
         const uint8_t *pPayerId,
         const uint8_t *pPayeeId,
         uint32_t CltvExpiry,
-        uint64_t AmountMsat);
+        uint64_t AmountMsat,
+        uint8_t AddNum,
+        const ln_fieldr_t *pAddRoute);
 
 
 /** routing skip DB削除

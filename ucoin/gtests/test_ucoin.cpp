@@ -27,6 +27,7 @@ extern "C" {
 #include "ln_script.c"
 #include "ln_enc_auth.c"
 #include "ln_signer.c"
+#include "bech32/segwit_addr.c"
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -100,5 +101,5 @@ TEST_F(ucoin, ucoin_setnet_mainnet)
 #include "testinc_ln_bolt4.cpp"
 #include "testinc_ln_bolt8.cpp"
 #include "testinc_ln_misc.cpp"
-
 #include "testinc_recoverpub.cpp"
+#include "testinc_bech32.cpp"

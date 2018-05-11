@@ -242,7 +242,8 @@ int main(int argc, char* argv[])
 
     if ((options & OPT_CLEARSDB) == 0) {
         ln_routing_result_t result;
-        bret = ln_routing_calculate(&result, send_nodeid, recv_nodeid, cltv_expiry, amtmsat);
+        bret = ln_routing_calculate(&result, send_nodeid,
+                    recv_nodeid, cltv_expiry, amtmsat, 0, NULL);
         if (bret) {
             //pay.conf形式の出力
             if (payment_hash == NULL) {

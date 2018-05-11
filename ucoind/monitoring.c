@@ -284,8 +284,11 @@ LABEL_EXIT:
  * private functions
  ********************************************************************/
 
-/** 監視処理
+/** 監視処理(#ln_db_self_search()のコールバック)
  *
+ * @param[in,out]   self        チャネル情報
+ * @param[in,out]   p_db_param  DB情報
+ * @param[in,out]   p_param     パラメータ(未使用)
  */
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
@@ -333,6 +336,13 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 }
 
 
+/**
+ * 
+ * @param[in,out]   self        チャネル情報
+ * @param[in]       confm       confirmation数
+ * @param[in,out]   p_db_param  DB情報
+ * @retval      true    selfをDB削除可能
+ */
 static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
     bool del = false;

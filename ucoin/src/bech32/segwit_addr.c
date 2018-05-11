@@ -253,39 +253,41 @@ static int convert64_to8(uint8_t *p_out, uint64_t val)
 //    return ret;
 //}
 
-static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_invoice_data)
+static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_invoice_data)
 {
-    DBG_PRINTF("------------------\n");
+    ln_invoice_t *p_invoice_data = *pp_invoice_data;
+
+    //DBG_PRINTF("------------------\n");
     uint8_t tag = *p_tag;
-    switch (tag) {
-    case 1:
-        DBG_PRINTF("[payment_hash]\n");
-        break;
-    case 13:
-        DBG_PRINTF("[purpose of payment(ASCII)]\n");
-        break;
-    case 19:
-        DBG_PRINTF("[pubkey of payee node]\n");
-        break;
-    case 23:
-        DBG_PRINTF("[purpose of payment(SHA256)]\n");
-        break;
-    case 6:
-        DBG_PRINTF("[expiry second]\n");
-        break;
-    case 24:
-        DBG_PRINTF("[min_final_cltv_expiry]\n");
-        break;
-    case 9:
-        DBG_PRINTF("[Fallback on-chain]\n");
-        break;
-    case 3:
-        DBG_PRINTF("[extra routing info]\n");
-        break;
-    default:
-        DBG_PRINTF("unknown tag: %02x\n", *p_tag);
-        break;
-    }
+    //switch (tag) {
+    //case 1:
+    //    DBG_PRINTF("[payment_hash]\n");
+    //    break;
+    //case 13:
+    //    DBG_PRINTF("[purpose of payment(ASCII)]\n");
+    //    break;
+    //case 19:
+    //    DBG_PRINTF("[pubkey of payee node]\n");
+    //    break;
+    //case 23:
+    //    DBG_PRINTF("[purpose of payment(SHA256)]\n");
+    //    break;
+    //case 6:
+    //    DBG_PRINTF("[expiry second]\n");
+    //    break;
+    //case 24:
+    //    DBG_PRINTF("[min_final_cltv_expiry]\n");
+    //    break;
+    //case 9:
+    //    DBG_PRINTF("[Fallback on-chain]\n");
+    //    break;
+    //case 3:
+    //    DBG_PRINTF("[extra routing info]\n");
+    //    break;
+    //default:
+    //    DBG_PRINTF("unknown tag: %02x\n", *p_tag);
+    //    break;
+    //}
     int len = p_tag[1] * 0x20 + p_tag[2];
     p_tag += 3;
     uint8_t *p_data = (uint8_t *)malloc((len * 5 + 7) / 8); //確保サイズは切り上げ
@@ -294,15 +296,15 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_inv
     case 6:
         //expiry second
         {
-            uint32_t expiry = (uint32_t)convert_be64(p_tag, len);
-            DBG_PRINTF("%" PRIu32 " seconds\n", expiry);
+            //uint32_t expiry = (uint32_t)convert_be64(p_tag, len);
+            //DBG_PRINTF("%" PRIu32 " seconds\n", expiry);
         }
         break;
     case 24:
         //min_final_cltv_expiry
         {
             p_invoice_data->min_final_cltv_expiry = convert_be64(p_tag, len);
-            DBG_PRINTF("%" PRIu32 " blocks\n", (uint32_t)p_invoice_data->min_final_cltv_expiry);
+            //DBG_PRINTF("%" PRIu32 " blocks\n", (uint32_t)p_invoice_data->min_final_cltv_expiry);
         }
         break;
     case 3:
@@ -310,45 +312,52 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_inv
         if (!convert_bits(p_data, &d_len, 8, p_tag, len, 5, true)) return false;
         d_len =  (len * 5) / 8;
         if (d_len < 51) return false;
+        d_len /= 51;
+        p_invoice_data = (ln_invoice_t *)realloc(p_invoice_data, sizeof(ln_invoice_t) + sizeof(ln_fieldr_t) * d_len);
+        p_invoice_data->r_field_num = d_len;
 
         {
             const uint8_t *p = p_data;
 
-            for (size_t lp2 = 0; lp2 < d_len / 51; lp2++) {
-                DBG_PRINTF("-----------\n");
-                DBG_PRINTF("pubkey= ");
-                DUMPBIN(p, UCOIN_SZ_PUBKEY);
+            for (size_t lp2 = 0; lp2 < d_len; lp2++) {
+                ln_fieldr_t *p_fieldr = &p_invoice_data->r_field[lp2];
+
+                memcpy(p_fieldr->node_id, p, UCOIN_SZ_PUBKEY);
                 p += UCOIN_SZ_PUBKEY;
 
-                uint64_t short_channel_id = 0;
+                p_fieldr->short_channel_id = 0;
                 for (size_t lp = 0; lp < sizeof(uint64_t); lp++) {
-                    short_channel_id <<= 8;
-                    short_channel_id |= *p++;
+                    p_fieldr->short_channel_id <<= 8;
+                    p_fieldr->short_channel_id |= *p++;
                 }
-                DBG_PRINTF("short_channel_id= %016" PRIx64 "\n", short_channel_id);
 
-                uint32_t fee_base_msat = 0;
+                p_fieldr->fee_base_msat = 0;
                 for (size_t lp = 0; lp < sizeof(uint32_t); lp++) {
-                    fee_base_msat <<= 8;
-                    fee_base_msat |= *p++;
+                    p_fieldr->fee_base_msat <<= 8;
+                    p_fieldr->fee_base_msat |= *p++;
                 }
-                DBG_PRINTF("fee_base_msat= %u\n", fee_base_msat);
 
-                uint32_t fee_proportional_millionths = 0;
+                p_fieldr->fee_prop_millionths = 0;
                 for (size_t lp = 0; lp < sizeof(uint32_t); lp++) {
-                    fee_proportional_millionths <<= 8;
-                    fee_proportional_millionths |= *p++;
+                    p_fieldr->fee_prop_millionths <<= 8;
+                    p_fieldr->fee_prop_millionths |= *p++;
                 }
-                DBG_PRINTF("fee_proportional_millionths= %u\n", fee_proportional_millionths);
 
-                uint16_t cltv_expiry_delta = 0;
+                p_fieldr->cltv_expiry_delta = 0;
                 for (size_t lp = 0; lp < sizeof(uint16_t); lp++) {
-                    cltv_expiry_delta <<= 8;
-                    cltv_expiry_delta |= *p++;
+                    p_fieldr->cltv_expiry_delta <<= 8;
+                    p_fieldr->cltv_expiry_delta |= *p++;
                 }
-                DBG_PRINTF("cltv_expiry_delta= %d\n", cltv_expiry_delta);
+
+                //DBG_PRINTF("-----------\n");
+                //DBG_PRINTF("pubkey= ");
+                //DUMPBIN(p_fieldr->node_id, UCOIN_SZ_PUBKEY);
+                //DBG_PRINTF("short_channel_id= %016" PRIx64 "\n", p_fieldr->short_channel_id);
+                //DBG_PRINTF("fee_base_msat= %u\n", p_fieldr->fee_base_msat);
+                //DBG_PRINTF("fee_proportional_millionths= %u\n", p_fieldr->fee_prop_millionths);
+                //DBG_PRINTF("cltv_expiry_delta= %d\n", p_fieldr->cltv_expiry_delta);
             }
-            DBG_PRINTF("-----------\n");
+            //DBG_PRINTF("-----------\n");
         }
         break;
     default:
@@ -357,17 +366,18 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t *p_inv
         if (tag == 1) {
             memcpy(p_invoice_data->payment_hash, p_data, LN_SZ_HASH);
         }
-        if ((tag == 13)) {
-            for (size_t lp = 0; lp < d_len; lp++) {
-                DBG_PRINTF2("%c", p_data[lp]);
-            }
-        } else {
-            DUMPBIN(p_data, d_len);
-        }
+        //if ((tag == 13)) {
+        //    for (size_t lp = 0; lp < d_len; lp++) {
+        //        DBG_PRINTF2("%c", p_data[lp]);
+        //    }
+        //} else {
+        //    DUMPBIN(p_data, d_len);
+        //}
     }
     free(p_data);
 
     *p_len = 3 + len;
+    *pp_invoice_data = p_invoice_data;
     return true;
 }
 
@@ -484,13 +494,27 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
 }
 
 
-bool ln_invoice_decode(ln_invoice_t *p_invoice_data, const char* invoice) {
-    bool ret;
+bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
+    bool ret = false;
     uint8_t data[1024];
     char hrp_actual[86];
     size_t data_len;
     size_t len_hrp;
-    if (!bech32_decode(hrp_actual, data, &data_len, invoice, true)) return false;
+    size_t amt_len;
+    const uint8_t *p_tag;
+    const uint8_t *p_sig;
+    uint8_t *pdata;
+    size_t pdata_len = 0;
+    size_t total_len;
+    uint8_t *preimg;
+    uint8_t hash[LN_SZ_HASH];
+    time_t tm;
+    uint8_t sig[65];
+    size_t sig_len = 0;
+    ln_invoice_t *p_invoice_data = (ln_invoice_t *)malloc(sizeof(ln_invoice_t));
+    if (!bech32_decode(hrp_actual, data, &data_len, invoice, true)) {
+        goto LABEL_EXIT;
+    }
     if (memcmp(hrp_str[LN_INVOICE_REGTEST], hrp_actual, 6) == 0) {
         p_invoice_data->hrp_type = LN_INVOICE_REGTEST;
         len_hrp = 6;
@@ -501,15 +525,19 @@ bool ln_invoice_decode(ln_invoice_t *p_invoice_data, const char* invoice) {
         p_invoice_data->hrp_type = LN_INVOICE_TESTNET;
         len_hrp = 4;
     } else {
-        return false;
+        goto LABEL_EXIT;
     }
-    size_t amt_len = strlen(hrp_actual) - len_hrp;
+    amt_len = strlen(hrp_actual) - len_hrp;
     if (amt_len > 0) {
         char amount_str[20];
 
-        if ((hrp_actual[len_hrp] < '1') || ('9' < hrp_actual[len_hrp])) return false;
+        if ((hrp_actual[len_hrp] < '1') || ('9' < hrp_actual[len_hrp])) {
+            goto LABEL_EXIT;
+        }
         for (size_t lp = 1; lp < amt_len - 1; lp++) {
-            if (!isdigit(hrp_actual[len_hrp + lp])) return false;
+            if (!isdigit(hrp_actual[len_hrp + lp])) {
+                goto LABEL_EXIT;
+            }
         }
         memcpy(amount_str, hrp_actual + len_hrp, amt_len - 1);
         amount_str[amt_len - 1] = '\0';
@@ -520,7 +548,8 @@ bool ln_invoice_decode(ln_invoice_t *p_invoice_data, const char* invoice) {
             case 'u': amount_msat *= (uint64_t)100000; break;
             case 'n': amount_msat *= (uint64_t)100; break;
             case 'p': amount_msat = (uint64_t)(amount_msat * 0.1); break;
-            default: return false;
+            default:
+                goto LABEL_EXIT;
         };
         p_invoice_data->amount_msat = amount_msat;
     } else {
@@ -539,52 +568,61 @@ bool ln_invoice_decode(ln_invoice_t *p_invoice_data, const char* invoice) {
      * | checksum          |
      * +-------------------+
      */
-    const uint8_t *p_tag = data + 7;
-    const uint8_t *p_sig = data + data_len - 104;
+    p_tag = data + 7;
+    p_sig = data + data_len - 104;
 
     p_invoice_data->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
 
     //preimage
-    uint8_t *pdata = (uint8_t *)malloc(((data_len - 104) * 5 + 7) / 8);
-    size_t pdata_len = 0;
-    if (!convert_bits(pdata, &pdata_len, 8, data, data_len - 104, 5, true)) return false;
+    pdata = (uint8_t *)M_MALLOC(((data_len - 104) * 5 + 7) / 8);
+    if (!convert_bits(pdata, &pdata_len, 8, data, data_len - 104, 5, true)) {
+        M_FREE(pdata);
+        goto LABEL_EXIT;
+    }
     len_hrp = strlen(hrp_actual);
-    size_t total_len = len_hrp + pdata_len;
-    uint8_t *preimg = (uint8_t *)malloc(total_len);
+    total_len = len_hrp + pdata_len;
+    preimg = (uint8_t *)M_MALLOC(total_len);
     memcpy(preimg, hrp_actual, len_hrp);
     memcpy(preimg + len_hrp, pdata, pdata_len);
-    free(pdata);
+    M_FREE(pdata);
 
     //hash
-    uint8_t hash[LN_SZ_HASH];
     mbedtls_sha256((uint8_t *)preimg, total_len, hash, 0);
-    free(preimg);
+    M_FREE(preimg);
 
     //signature(104 chars)
-    uint8_t sig[65];
-    size_t sig_len = 0;
-    if (!convert_bits(sig, &sig_len, 8, p_sig, 104, 5, false)) return false;
+    if (!convert_bits(sig, &sig_len, 8, p_sig, 104, 5, false)) {
+        goto LABEL_EXIT;
+    }
     ret = ucoin_tx_recover_pubkey(p_invoice_data->pubkey, sig[UCOIN_SZ_SIGN_RS], sig, hash);
     if (!ret) {
-        return false;
+        goto LABEL_EXIT;
     }
 
     //timestamp(7 chars)
-    time_t tm = (time_t)convert_be64(data, 7);
+    tm = (time_t)convert_be64(data, 7);
     p_invoice_data->timestamp = (uint64_t)tm;
-    DBG_PRINTF("timestamp= %" PRIu64 " : %s", (uint64_t)tm, ctime(&tm));
+    //DBG_PRINTF("timestamp= %" PRIu64 " : %s", (uint64_t)tm, ctime(&tm));
 
     //tagged fields
     ret = true;
+    p_invoice_data->r_field_num = 0;
     while (p_tag < p_sig) {
         size_t len;
-        ret = analyze_tag(&len, p_tag, p_invoice_data);
+        ret = analyze_tag(&len, p_tag, &p_invoice_data);
         if (!ret) {
             break;
         }
         p_tag += len;
     }
 
+LABEL_EXIT:
+    if (ret) {
+        *pp_invoice_data = p_invoice_data;
+    } else {
+        free(p_invoice_data);
+        *pp_invoice_data = NULL;
+    }
     return ret;
 }
 
