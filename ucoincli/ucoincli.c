@@ -82,6 +82,7 @@ static char         mPeerNodeId[UCOIN_SZ_PUBKEY * 2 + 1];
 static char         mBuf[BUFFER_SIZE];
 static bool         mTcpSend;
 static char         mAddr[256];
+static char         mErrStr[256];
 
 
 /********************************************************************
@@ -176,6 +177,7 @@ int main(int argc, char *argv[])
     }
 
     if (option == M_OPTIONS_ERR) {
+        printf("{ " M_QQ("error") ": {" M_QQ("code") ": -1," M_QQ("message") ":" M_QQ("%s") "} }\n", mErrStr);
         return -1;
     }
     if ((option == M_OPTIONS_INIT) || (option == M_OPTIONS_HELP) || (!conn && (option == M_OPTIONS_CONN))) {
@@ -399,7 +401,7 @@ static void optfunc_invoice(int *pOption, bool *pConn)
 
         *pOption = M_OPTIONS_EXEC;
     } else {
-        printf("fail: errno=%s\n", strerror(errno));
+        sprintf(mErrStr, "%s", strerror(errno));
         *pOption = M_OPTIONS_ERR;
     }
 }
@@ -431,7 +433,7 @@ static void optfunc_erase(int *pOption, bool *pConn)
 
         *pOption = M_OPTIONS_EXEC;
     } else {
-        printf("fail: invalid param\n");
+        strcpy(mErrStr, "invalid param");
         *pOption = M_OPTIONS_ERR;
     }
 }
@@ -466,7 +468,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
         bret &= misc_str2bin(payconf.payment_hash, LN_SZ_HASH, hash);
     }
     if (!bret) {
-        printf("fail: payment configuration file\n");
+        strcpy(mErrStr, "payment configuration file");
         *pOption = M_OPTIONS_ERR;
         return;
     }
@@ -522,13 +524,13 @@ static void optfunc_routepay(int *pOption, bool *pConn)
     const char *cltv_offset = strtok(NULL, ",");
     bool bret = ln_invoice_decode(&p_invoice_data, invoice);
     if (!bret) {
-        printf("fail: decode BOLT#11 invoice\n");
+        strcpy(mErrStr, "decode BOLT#11 invoice");
         *pOption = M_OPTIONS_ERR;
         return;
     }
     if ( (p_invoice_data->hrp_type != LN_INVOICE_TESTNET) &&
          (p_invoice_data->hrp_type != LN_INVOICE_REGTEST) ) {
-        printf("fail: payment not supported type.\n");
+        strcpy(mErrStr, "payment not supported type");
         *pOption = M_OPTIONS_ERR;
         return;
     }
@@ -590,7 +592,7 @@ static void optfunc_routepay(int *pOption, bool *pConn)
             printf("additional amount_msat=%" PRIu64 "\n", add_msat);
             printf("---------------------------------\n");
         } else {
-            printf("fail: errno=%s\n", strerror(errno));
+            sprintf(mErrStr, "%s", strerror(errno));
             *pOption = M_OPTIONS_ERR;
         }
     }
@@ -598,10 +600,10 @@ static void optfunc_routepay(int *pOption, bool *pConn)
         //BOLT#2
         //  MUST set the four most significant bytes of amount_msat to 0.
         //  今のところBitcoinのみしか扱わないため、このままとしておく。
-        printf("fail: amount_msat too large\n");
+        strcpy(mErrStr, "amount_msat too large");
         *pOption = M_OPTIONS_ERR;
     } else if (p_invoice_data->amount_msat == 0) {
-        printf("fail: pay amount_msat is 0\n");
+        strcpy(mErrStr, "pay amount_msat is 0");
         *pOption = M_OPTIONS_ERR;
     } else {
         //チャネルが許容する範囲については、ucoindでチェックする
@@ -614,7 +616,7 @@ static void optfunc_routepay(int *pOption, bool *pConn)
             printf("additional min_final_cltv_expiry=%" PRIu32 "\n", add_cltv);
             printf("---------------------------------\n");
         } else {
-            printf("fail: errno=%s\n", strerror(errno));
+            sprintf(mErrStr, "%s", strerror(errno));
             *pOption = M_OPTIONS_ERR;
         }
     }
@@ -788,6 +790,7 @@ static void optfunc_setfeerate(int *pOption, bool *pConn)
     errno = 0;
     uint64_t feerate_per_kw = strtoull(optarg, NULL, 10);
     if (feerate_per_kw > UINT32_MAX) {
+        strcpy(mErrStr, "feerate_per_kw too high");
         *pOption = M_OPTIONS_ERR;
         return;
     }
@@ -804,7 +807,7 @@ static void optfunc_setfeerate(int *pOption, bool *pConn)
 
         *pOption = M_OPTIONS_EXEC;
     } else {
-        printf("fail: errno=%s\n", strerror(errno));
+        sprintf(mErrStr, "%s", strerror(errno));
         *pOption = M_OPTIONS_ERR;
     }
 }

@@ -65,7 +65,7 @@
  */
 typedef struct nodefaillist_t {
     LIST_ENTRY(nodefaillist_t) list;
-    
+
     uint8_t     node_id[UCOIN_SZ_PUBKEY];
     char        ipaddr[SZ_IPV4_LEN + 1];
     uint16_t    port;
@@ -371,7 +371,7 @@ bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
         misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
-    
+
         nodefaillist_t *p = LIST_FIRST(&mNodeFailListHead);
         while (p != NULL) {
             if ( (memcmp(p->node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) &&
@@ -385,4 +385,46 @@ bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
         }
     }
     return detect;
+}
+
+
+char *ucoind_error_str(int ErrCode)
+{
+    static const struct {
+        int             err;
+        const char      *p_str;
+    } kERR[] = {
+        { RPCERR_ERROR,                     "error" },
+        { RPCERR_NOCONN,                    "not connected" },
+        { RPCERR_ALCONN,                    "already connected" },
+        { RPCERR_NOCHANN,                   "no channel" },
+        { RPCERR_PARSE,                     "parse param" },
+        { RPCERR_NOINIT,                    "no init or init not end" },
+        { RPCERR_NODEID,                    "invalid node_id" },
+        { RPCERR_NOOPEN,                    "channel not open" },
+        { RPCERR_ALOPEN,                    "channel already opened" },
+        { RPCERR_FULLCLI,                   "client full" },
+        { RPCERR_SOCK,                      "socket" },
+        { RPCERR_CONNECT,                   "connect" },
+        { RPCERR_OPENING,                   "funding now" },
+        { RPCERR_FUNDING,                   "fail funding" },
+        { RPCERR_INVOICE_FULL,              "invoice full" },
+        { RPCERR_INVOICE_ERASE,             "fail: erase invoice" },
+        { RPCERR_CLOSE_START,               "fail start closing" },
+        { RPCERR_CLOSE_FAIL,                "fail unilateral close" },
+        { RPCERR_PAY_STOP,                  "stop payment" },
+        { RPCERR_NOROUTE,                   "fail routing" },
+        { RPCERR_PAYFAIL,                   "" },
+        { RPCERR_PAY_RETRY,                 "retry payment" }
+    };
+
+    const char *p_str = "";
+    for (size_t lp = 0; lp < ARRAY_SIZE(kERR); lp++) {
+        if (kERR[lp].err == ErrCode) {
+            p_str = kERR[lp].p_str;
+            break;
+        }
+    }
+
+    return strdup(p_str);
 }

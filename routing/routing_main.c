@@ -161,15 +161,15 @@ int main(int argc, char* argv[])
     if ((options & OPT_CLEARSDB) == 0) {
         if (options != (OPT_SENDER | OPT_RECVER)) {
             fprintf(fp_err, "fail: need -s and -r\n");
-            return -1;
+            return -2;
         }
         if (memcmp(send_nodeid, recv_nodeid, UCOIN_SZ_PUBKEY) == 0) {
             fprintf(fp_err, "fail: same payer and payee\n");
-            return -1;
+            return -3;
         }
         if (output_json && (payment_hash == NULL)) {
             fprintf(fp_err, "fail: need PAYMENT_HASH if JSON output\n");
-            return -1;
+            return -4;
         }
     }
 
@@ -204,7 +204,7 @@ int main(int argc, char* argv[])
     ret = mdb_env_open(pDbSelf, selfpath, MDB_RDONLY, 0664);
     if (ret) {
         fprintf(fp_err, "fail: cannot open[%s]\n", selfpath);
-        return -2;
+        return -5;
     }
 
     ret = mdb_env_create(&pDbNode);
@@ -214,7 +214,7 @@ int main(int argc, char* argv[])
     ret = mdb_env_open(pDbNode, nodepath, 0, 0664);
     if (ret) {
         fprintf(fp_err, "fail: cannot open[%s]\n", nodepath);
-        return -2;
+        return -6;
     }
     ln_lmdb_setenv(pDbSelf, pDbNode);
 
@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
     bret = ln_db_ver_check(my_nodeid, &gtype);
     if (!bret) {
         fprintf(fp_err, "fail: DB version mismatch\n");
-        return -3;
+        return -7;
     }
 
     ln_set_genesishash(ucoin_util_get_genesis_block(gtype));
@@ -237,14 +237,14 @@ int main(int argc, char* argv[])
         break;
     default:
         fprintf(fp_err, "fail: unknown chainhash in DB\n");
-        return -4;
+        return -8;
     }
 
     if ((options & OPT_CLEARSDB) == 0) {
         ln_routing_result_t result;
-        bret = ln_routing_calculate(&result, send_nodeid,
+        lnerr_route_t rerr = ln_routing_calculate(&result, send_nodeid,
                     recv_nodeid, cltv_expiry, amtmsat, 0, NULL);
-        if (bret) {
+        if (rerr == LNROUTE_NONE) {
             //pay.conf形式の出力
             if (payment_hash == NULL) {
                 //CSV形式
@@ -278,7 +278,7 @@ int main(int argc, char* argv[])
         } else {
             //error
             fprintf(fp_err, "fail\n");
-            ret = -1;
+            ret = -9;
         }
 
         free(dbdir);
