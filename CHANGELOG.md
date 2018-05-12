@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2018/05/11
+
+* support invoice `r` field decode
+  * encode is not supported yet
+
 ## 2018/05/08
 
 * add `ucoincli --setfeerate`
