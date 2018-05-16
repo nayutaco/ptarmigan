@@ -1749,7 +1749,15 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             //  bit0/1 : option-data-loss-protect
             //  bit3   : initial_routing_sync
             //  bit4/5 : option_upfront_shutdown_script
-            ret &= ((msg.localfeatures.buf[0] & (~INIT_LF_MASK)) == 0);
+            if (ret) {
+                //flagは未知のフラグ
+                uint8_t flag = (msg.localfeatures.buf[0] & (~INIT_LF_MASK));
+                if (flag & 0x55) {
+                    ret = false;
+                } else {
+                    //odd bitは未知でもスルー
+                }
+            }
             initial_routing_sync = (msg.localfeatures.buf[0] & INIT_LF_ROUTE_SYNC);
         }
     }
