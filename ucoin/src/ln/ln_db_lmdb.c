@@ -49,10 +49,11 @@
  ********************************************************************/
 
 #define M_LMDB_MAXDBS           (2 * 10)        ///< 同時オープンできるDB数
-#define M_LMDB_MAPSIZE          ((uint64_t)10485760)         // DB最大長[byte](LMDBのデフォルト値)
+#define M_LMDB_MAPSIZE          ((size_t)10485760)          // DB最大長[byte](LMDBのデフォルト値)
 
 #define M_LMDB_NODE_MAXDBS      (2 * 10)        ///< 同時オープンできるDB数
-#define M_LMDB_NODE_MAPSIZE     ((uint64_t)4294967296)      // DB最大長[byte](mdb_txn_commit()でMDB_MAP_FULLになったため拡張)
+#define M_LMDB_NODE_MAPSIZE     ((size_t)4294967295)        // DB最大長[byte](mdb_txn_commit()でMDB_MAP_FULLになったため拡張)
+                                                            // 32bit環境ではsize_tが4byteになるため、4294967295が最大になる
 
 #define M_SELF_BUFS             (3)             ///< DB保存する可変長データ数
 
