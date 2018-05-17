@@ -864,7 +864,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
     //locktime
     p += set_le32(p, pTx->locktime);
 
-    return (p - pBuf->buf == pBuf->len);
+    return ((uint32_t)(p - pBuf->buf) == pBuf->len);
 }
 
 
