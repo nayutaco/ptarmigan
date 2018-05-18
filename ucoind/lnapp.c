@@ -269,7 +269,6 @@ static void nodeflag_unset(node_flag_t Flag);
 static void call_script(event_t event, const char *param);
 static void set_onionerr_str(char *pStr, const ln_onion_err_t *pOnionErr);
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
-static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
 static void revack_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, ucoin_buf_t *pBuf);
 static void revack_pop_and_exec(lnapp_conf_t *p_conf);
@@ -284,6 +283,9 @@ static const payment_conf_t* payroute_get(lnapp_conf_t *p_conf, uint64_t HtlcId)
 static void payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void payroute_clear(lnapp_conf_t *p_conf);
 static void payroute_print(lnapp_conf_t *p_conf);
+static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
+
+static void show_self_param(const ln_self_t *self, FILE *fp, int line);
 
 
 /********************************************************************
@@ -2157,22 +2159,14 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 
 
 //LN_CB_CHANNEL_ANNO_RECV: channel_announcement受信
+//  short_channel_idがcloseしているかチェックする
 static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf;
     //DBGTRACE_BEGIN
 
     ln_cb_channel_anno_recv_t *p = (ln_cb_channel_anno_recv_t *)p_param;
-
-    uint32_t bheight;
-    uint32_t bindex;
-    uint32_t vindex;
-    ln_get_short_channel_id_param(&bheight, &bindex, &vindex, p->short_channel_id);
-
-    p->is_unspent = btcprc_is_short_channel_unspent(bheight, bindex, vindex);
-    if (!p->is_unspent) {
-        DBG_PRINTF("fail: already spent : %016" PRIx64 "\n", p->short_channel_id);
-    }
+    p->is_unspent = check_unspent_short_channel_id(p->short_channel_id);
 
     //DBGTRACE_END
 }
@@ -2890,6 +2884,12 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
             if (type == LN_DB_CNLANNO_ANNO) {
                 //DBはkey順にソートされているため、channel_announcement→channel_update1→channel_update2の順になる。
                 p_conf->last_annocnl_sci = short_channel_id;
+                bool unspent = check_unspent_short_channel_id(short_channel_id);
+                if (!unspent) {
+                    //使用済みのため、DBから削除
+                    (void)ln_db_annocnlall_del(short_channel_id);
+                    short_channel_id = 0;
+                }
             }
             //取得したchannel_announcementのshort_channel_idに一致するものは送信する
             if (p_conf->last_annocnl_sci == short_channel_id) {
@@ -3586,6 +3586,27 @@ static void payroute_print(lnapp_conf_t *p_conf)
         p = LIST_NEXT(p, list);
     }
     DBG_PRINTF("------------------------------------\n");
+}
+
+
+/** short_channel_idのfunding_tx未使用チェック
+ * 
+ * @param[in]   ShortChannelId      short_channel_id
+ * @retval  true    funding_tx未使用
+ */
+static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
+{
+    uint32_t bheight;
+    uint32_t bindex;
+    uint32_t vindex;
+    ln_get_short_channel_id_param(&bheight, &bindex, &vindex, ShortChannelId);
+
+    bool ret = btcprc_is_short_channel_unspent(bheight, bindex, vindex);
+    if (!ret) {
+        DBG_PRINTF("already spent : %016" PRIx64 "(height=%" PRIu32 ", bindex=%" PRIu32 ", txindex=%" PRIu32 ")\n", ShortChannelId, bheight, bindex, vindex);
+    }
+
+    return ret;
 }
 
 
