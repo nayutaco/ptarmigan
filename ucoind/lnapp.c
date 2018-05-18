@@ -2850,10 +2850,11 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
 {
     bool ret;
     int anno_cnt = 0;
+    uint64_t short_channel_id = 0;
 
     //DBG_PRINTF("BEGIN\n");
 
-    void *p_db;
+    void *p_db = NULL;
     ret = ln_db_node_cur_transaction(&p_db, LN_DB_TXN_CNL, NULL);
     if (!ret) {
         DBG_PRINTF("fail\n");
@@ -2863,7 +2864,6 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
     void *p_cur;
     ret = ln_db_annocnl_cur_open(&p_cur, p_db);
     if (ret) {
-        uint64_t short_channel_id;
         char type;
         ucoin_buf_t buf_cnl = UCOIN_BUF_INIT;
         if (p_conf->last_anno_cnl != 0) {
@@ -2887,8 +2887,8 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
                 bool unspent = check_unspent_short_channel_id(short_channel_id);
                 if (!unspent) {
                     //使用済みのため、DBから削除
-                    (void)ln_db_annocnlall_del(short_channel_id);
-                    short_channel_id = 0;
+                    DBG_PRINTF("remove from DB: %0" PRIx64 "\n", short_channel_id);
+                    goto LABEL_EXIT;
                 }
             }
             //取得したchannel_announcementのshort_channel_idに一致するものは送信する
@@ -2923,11 +2923,17 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
         ln_db_annocnl_cur_close(p_cur);
     }
 
-    ln_db_node_cur_commit(p_db);
+    short_channel_id = 0;
 
 LABEL_EXIT:
+    if (p_db != NULL) {
+        ln_db_node_cur_commit(p_db);
+    }
+    if (short_channel_id != 0) {
+        (void)ln_db_annocnlall_del(short_channel_id);
+    }
+
     //DBG_PRINTF("END\n");
-    ;
 }
 
 
