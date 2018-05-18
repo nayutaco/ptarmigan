@@ -101,8 +101,9 @@ typedef struct lnapp_conf_t {
     struct routelisthead_t      payroute_head;  //payment
 
     //last send announcement
-    uint64_t        last_anno_cnl;                      ///< 最後にannouncementしたchannel
-    uint8_t         last_anno_node[UCOIN_SZ_PUBKEY];    ///< 最後にannouncementしたnode
+    uint64_t        last_anno_cnl;                      ///< [#send_channel_anno()]最後にannouncementしたchannel
+    uint64_t        last_annocnl_sci;                   ///< [#send_channel_anno()]最後にcur_getしたchannel_announcementのshort_channel_id
+    uint8_t         last_anno_node[UCOIN_SZ_PUBKEY];    ///< [#send_node_anno()]最後にannouncementしたnode
 
     int             err;            ///< last error
     char            *p_errstr;      ///< last error string
