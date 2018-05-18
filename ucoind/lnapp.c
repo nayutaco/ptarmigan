@@ -2869,7 +2869,6 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
     void *p_cur;
     ret = ln_db_annocnl_cur_open(&p_cur, p_db);
     if (ret) {
-        uint64_t last_annocnl_sci = 0;      //最後にcur_getしたchannel_announcementのshort_channel_id
         uint64_t short_channel_id;
         char type;
         ucoin_buf_t buf_cnl = UCOIN_BUF_INIT;
@@ -2890,10 +2889,10 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
             }
             if (type == LN_DB_CNLANNO_ANNO) {
                 //DBはkey順にソートされているため、channel_announcement→channel_update1→channel_update2の順になる。
-                last_annocnl_sci = short_channel_id;
+                p_conf->last_annocnl_sci = short_channel_id;
             }
             //取得したchannel_announcementのshort_channel_idに一致するものは送信する
-            if (last_annocnl_sci == short_channel_id) {
+            if (p_conf->last_annocnl_sci == short_channel_id) {
                 bool chk = ln_db_annocnls_search_nodeid(p_db, short_channel_id, type, ln_their_node_id(p_conf->p_self));
                 if (!chk) {
                     DBG_PRINTF("send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
@@ -2902,6 +2901,8 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
                 } else {
                     //DBG_PRINTF("not send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
                 }
+            } else {
+                DBG_PRINTF("skip: last=%0" PRIx64 " / get=%0" PRIx64 "\n", p_conf->last_annocnl_sci, short_channel_id);
             }
             ucoin_buf_free(&buf_cnl);
 
