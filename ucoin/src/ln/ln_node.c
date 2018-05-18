@@ -252,8 +252,8 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
         return false;
     }
 
-    //DBG_PRINTF("node_id:");
-    //DUMPBIN(node_id, sizeof(node_id));
+    DBG_PRINTF("node_id:");
+    DUMPBIN(node_id, sizeof(node_id));
 
     ucoin_buf_t buf_ann;
     buf_ann.buf = (CONST_CAST uint8_t *)pData;

@@ -226,6 +226,8 @@ bool ln_db_annocnlall_del(uint64_t short_channel_id);
 
 /** channel_announcement系の送信元/先ノード追加
  *
+ * 
+ * 
  * @param[in,out]   pDb
  * @param[in]       ShortChannelId
  * @param[in]       Type
@@ -262,6 +264,11 @@ void ln_db_annocnl_cur_close(void *pCur);
 
 /** channel_announcement関連情報送信済み検索
  *
+ * @param[in]       pDb
+ * @param[in]       ShortChannelId      検索するshort_channel_id
+ * @param[in]       Type                検索するchannel_announcement/channel_update[1/2]
+ * @param[in]       pSendId             対象node_id
+ * @retval  true    pSendIdへ送信済み
  */
 bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId);
 

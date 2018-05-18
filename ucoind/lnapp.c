@@ -623,7 +623,9 @@ bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
         ln_set_feerate_per_kw(p_self, FeeratePerKw);
         send_peer_noise(pAppConf, &buf_bolt);
         ucoin_buf_free(&buf_bolt);
-        misc_save_event(ln_channel_id(p_self), "updatefee send: %" PRIu32 " --> %" PRIu32, oldrate, FeeratePerKw);
+        misc_save_event(ln_channel_id(p_self),
+                "updatefee send: %" PRIu32 " --> %" PRIu32,
+                oldrate, FeeratePerKw);
 
         //update_fee送信する場合はcommitment_signedも送信する
         ret = ln_create_commit_signed(p_self, &buf_bolt);
@@ -1521,7 +1523,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
             if (fds.revents & POLLIN) {
                 n = read(p_conf->sock, pBuf, Len);
                 if (n == 0) {
-                    DBG_PRINTF("peer disconnected: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
+                    DBG_PRINTF("fail: %s(%" PRIx64 ")\n", strerror(errno), ln_short_channel_id(p_conf->p_self));
                     len = 0;
                     break;
                 }
@@ -1641,7 +1643,9 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         bool ret = check_short_channel_id(p_conf);
         if (ret) {
             ret = exchange_funding_locked(p_conf);
-            misc_save_event(ln_channel_id(p_conf->p_self), "funding_locked: short_channel_id=%" PRIx64, ln_short_channel_id(p_conf->p_self));
+            misc_save_event(ln_channel_id(p_conf->p_self),
+                    "funding_locked: short_channel_id=%" PRIx64,
+                    ln_short_channel_id(p_conf->p_self));
             assert(ret);
         } else {
             DBG_PRINTF("fail: btcprc_get_short_channel_param()\n");
@@ -2132,11 +2136,15 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
     const char *p_str;
     if (ln_is_funder(p_conf->p_self)) {
-        p_str = "open: funding wait start(funder)";
+        p_str = "funder";
     } else {
-        p_str = "open: funding wait start(fundee)";
+        p_str = "fundee";
     }
-    misc_save_event(ln_channel_id(p_conf->p_self), p_str);
+    char str_peerid[UCOIN_SZ_PUBKEY * 2 + 1];
+    misc_bin2str(str_peerid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+    misc_save_event(ln_channel_id(p_conf->p_self),
+            "open: funding wait start(%s): peer_id=%s",
+            p_str, str_peerid);
 
     DBGTRACE_END
 }
@@ -2150,7 +2158,9 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 
     if ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
-        misc_save_event(ln_channel_id(p_conf->p_self), "open: recv funding_locked");
+        misc_save_event(ln_channel_id(p_conf->p_self),
+                "open: recv funding_locked shot_channel_id=%0" PRIx64,
+                ln_short_channel_id(p_conf->p_self));
     }
 
     //funding_locked受信待ち合わせ解除(*4)
@@ -2295,7 +2305,9 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 //
                 char str_payhash[LN_SZ_HASH * 2 + 1];
                 misc_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
-                misc_save_event(NULL, "payment fulfill: payment_hash=%s short_channel_id=%" PRIx64, str_payhash, ln_short_channel_id(p_conf->p_self));
+                misc_save_event(NULL,
+                        "payment fulfill: payment_hash=%s short_channel_id=%" PRIx64,
+                        str_payhash, ln_short_channel_id(p_conf->p_self));
             } else {
                 DBG_PRINTF("DBG: no fulfill mode\n");
             }
@@ -2565,7 +2577,8 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
           M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金完了
             DBG_PRINTF("PAYMENT: htlc fulfilled\n");
-            misc_save_event(NULL, "payment success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
+            misc_save_event(NULL,
+                    "payment success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
                     ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND | FLAGNODE_COMSIG_RECV) ||
@@ -2597,7 +2610,8 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
           M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV | FLAGNODE_COMSIG_RECV) ) {
             //送金完了
             DBG_PRINTF("FORWARD: htlc fulfilled\n");
-            misc_save_event(NULL, "forward success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
+            misc_save_event(NULL,
+                    "forward success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
                     ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND | FLAGNODE_COMSIG_RECV) ||
@@ -2649,7 +2663,9 @@ static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param)
 
     nodeflag_set(FLAGNODE_UPDFEE_RECV);
 
-    misc_save_event(ln_channel_id(p_conf->p_self), "updatefee recv: feerate_per_kw=%" PRIu32 " --> %" PRIu32, oldrate, ln_feerate_per_kw(p_conf->p_self));
+    misc_save_event(ln_channel_id(p_conf->p_self),
+            "updatefee recv: feerate_per_kw=%" PRIu32 " --> %" PRIu32,
+            oldrate, ln_feerate_per_kw(p_conf->p_self));
 }
 
 
@@ -2899,10 +2915,10 @@ static void send_channel_anno(lnapp_conf_t *p_conf)
                     send_peer_noise(p_conf, &buf_cnl);
                     ln_db_annocnls_add_nodeid(p_db, short_channel_id, type, false, ln_their_node_id(p_conf->p_self));
                 } else {
-                    //DBG_PRINTF("not send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
+                    DBG_PRINTF("not send channel_%c: %016" PRIx64 "\n", type, short_channel_id);
                 }
             } else {
-                DBG_PRINTF("skip: last=%0" PRIx64 " / get=%0" PRIx64 "\n", p_conf->last_annocnl_sci, short_channel_id);
+                DBG_PRINTF("skip channel_%c: last=%0" PRIx64 " / get=%0" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
             }
             ucoin_buf_free(&buf_cnl);
 

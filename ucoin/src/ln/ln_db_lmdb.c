@@ -1118,6 +1118,7 @@ bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, co
     ucoin_buf_t buf_ann = UCOIN_BUF_INIT;
     retval = annocnl_load(&db, &buf_ann, ShortChannelId);
     if (retval != 0) {
+        //DB保存されていない＝新規channel
         retval = annocnl_save(&db, pCnlAnno, ShortChannelId);
         if ((retval == 0) && (pSendId != NULL)) {
             bool ret = ln_db_annocnls_add_nodeid(&db_info, ShortChannelId, LN_DB_CNLANNO_ANNO, false, pSendId);
@@ -1319,6 +1320,13 @@ bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type,
 }
 
 
+/* channel_announcement/channel_updateの送信元/送信先登録
+ * 
+ * 既にchannel_announcement/channel_updateを送信したノードや、
+ * その情報をもらったノードへはannoundementを送信したくないため、登録しておく。
+ * 
+ * #ln_db_annocnls_search_nodeid()で、送信不要かどうかをチェックする。
+ */
 bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bool bClr, const uint8_t *pSendId)
 {
     bool ret = true;
@@ -1334,7 +1342,7 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bo
         if (retval == 0) {
             detect = annoinfo_search(&data, pSendId);
         } else {
-            DBG_PRINTF("new[%c] ", Type);
+            DBG_PRINTF("new reg[%" PRIx64 ":%c] ", ShortChannelId, Type);
             DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
             data.mv_size = 0;
         }
@@ -1825,18 +1833,18 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
     if (retval == 0) {
         if (timestamp > pAnno->timestamp) {
             //自分の方が新しければ、スルー
-            //DBG_PRINTF("my node_announcement is newer\n");
+            DBG_PRINTF("my node_announcement is newer\n");
             retval = 0;
         } else if (timestamp < pAnno->timestamp) {
             //自分の方が古いので、更新
-            //DBG_PRINTF("gotten node_announcement is newer\n");
+            DBG_PRINTF("gotten node_announcement is newer\n");
             upddb = true;
 
             //announceし直す必要があるため、クリアする
             clr = true;
         } else {
             if (ucoin_buf_cmp(&buf_node, pNodeAnno)) {
-                //DBG_PRINTF("same node_announcement\n");
+                DBG_PRINTF("same node_announcement\n");
             } else {
                 //日時が同じなのにデータが異なる
                 DBG_PRINTF("ERR: node_announcement mismatch !\n");
@@ -1848,7 +1856,7 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         }
     } else {
         //新規
-        //DBG_PRINTF("new node_announcement\n");
+        DBG_PRINTF("new node_announcement\n");
         upddb = true;
     }
     ucoin_buf_free(&buf_node);
@@ -1917,7 +1925,7 @@ bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, cons
         if (retval == 0) {
             detect = annoinfo_search(&data, pSendId);
         } else {
-            DBG_PRINTF("new ");
+            DBG_PRINTF("new from ");
             if (pSendId != NULL) {
                 DUMPBIN(pSendId, UCOIN_SZ_PUBKEY);
             } else {
@@ -3166,7 +3174,10 @@ static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData,
 
     pMdbData->mv_data = p_ids;
     int retval = mdb_put(pDb->txn, pDb->dbi, pMdbKey, pMdbData, 0);
-    if (retval != 0) {
+    if (retval == 0) {
+        DBG_PRINTF("add annoinfo: ");
+        DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+    } else {
         DBG_PRINTF("fail\n");
     }
     M_FREE(p_ids);
