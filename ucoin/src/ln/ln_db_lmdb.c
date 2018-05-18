@@ -2581,7 +2581,7 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
         dbtype = LN_LMDB_DBTYPE_NODE_ANNO;
     } else if (strcmp(pDbName, M_DBI_ANNOINFO_CNL) == 0) {
         //channel_announcement/channel_update information
-        dbtype = LN_LMDB_DBTYPE_NODE_ANNOINFO;
+        dbtype = LN_LMDB_DBTYPE_CHANNEL_ANNOINFO;
     } else if (strcmp(pDbName, M_DBI_ANNOINFO_NODE) == 0) {
         //node_announcement information
         dbtype = LN_LMDB_DBTYPE_NODE_ANNOINFO;
