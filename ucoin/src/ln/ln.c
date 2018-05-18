@@ -3057,9 +3057,8 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
             DBG_PRINTF("fail: db save\n");
         }
     } else {
-        //closeされたとみなして削除
-        ret = ln_db_annocnlall_del(ann.short_channel_id);
-        DBG_PRINTF("remove db: %0" PRIx64 "(ret=%d)\n", ann.short_channel_id, ret);
+        //closeされたとみなして、何もしない
+        DBG_PRINTF("closed channel: not save(%0" PRIx64 ")\n", ann.short_channel_id);
     }
 
     return true;
@@ -3082,6 +3081,18 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     memset(&upd, 0, sizeof(upd));
 
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
+    if (ret) {
+        //is_unspent更新
+        ln_cb_channel_anno_recv_t param;
+        param.is_unspent = true;
+        param.short_channel_id = upd.short_channel_id;
+        (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
+        ret = param.is_unspent;
+        //true時はcloseされたとみなして、何もしない
+        if (!param.is_unspent) {
+            DBG_PRINTF("closed channel: not save(%0" PRIx64 ")\n", upd.short_channel_id);
+        }
+    }
     if (ret) {
         DBG_PRINTF("recv channel_upd%d: %" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
 
