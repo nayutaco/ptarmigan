@@ -424,7 +424,8 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
             break;
         }
     } else {
-        DBG_PRINTF("  not found: node_announcement\n");
+        DBG_PRINTF("  not found: node_announcement: ");
+        DUMPBIN(p_node_id, UCOIN_SZ_PUBKEY);
     }
 
     return false;

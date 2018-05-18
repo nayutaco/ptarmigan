@@ -69,7 +69,7 @@ void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
     if (strlen(pStr) != BinLen * 2) {
-        DBG_PRINTF("fail: invalid buffer size: %lu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
+        DBG_PRINTF("fail: invalid buffer size: %zu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
         return false;
     }
 
