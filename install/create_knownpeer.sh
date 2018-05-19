@@ -13,3 +13,4 @@ fi
 echo node_id=$1
 echo ipaddr=$2
 echo port=$PORT
+echo "# $1@$2:$PORT"

@@ -34,6 +34,7 @@
 #include <poll.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <getopt.h>
 #include <assert.h>
 
 #include "ucoind.h"
@@ -586,15 +587,8 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
 {
     //version
     if (showflag == SHOW_VERSION) {
+        int retval;
         MDB_val key, data;
-
-        key.mv_size = LNDBK_LEN(LNDBK_VER);
-        key.mv_data = LNDBK_VER;
-        int retval = mdb_get(txn, dbi, &key, &data);
-        if (retval == 0) {
-            int version = *(int *)data.mv_data;
-            printf(M_QQ("version") ": %d", version);
-        }
 
         char wif[UCOIN_SZ_WIF_MAX];
         char alias[LN_SZ_ALIAS + 1];
@@ -602,14 +596,42 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         uint8_t genesis[LN_SZ_HASH];
         retval = ln_db_lmdb_get_mynodeid(txn, dbi, wif, alias, &port, genesis);
         if (retval == 0) {
-            printf(",\n");
+            //printf(M_QQ("wif") ": " M_QQ("%s") ",\n", wif);
+            ucoin_util_keys_t keys;
+            ucoin_chain_t chain;
+            ucoin_util_wif2keys(&keys, &chain, wif);
+            printf(M_QQ("node_id") ": \"");
+            ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, false);
+            printf("\",\n");
+            printf(M_QQ("alias") ": " M_QQ("%s") ",\n", alias);
+            printf(M_QQ("port") ": %" PRIu16 "\n,", port);
             printf(M_QQ("genesis") ": \"");
             ucoin_util_dumpbin(stdout, genesis, LN_SZ_HASH, false);
             printf("\",\n");
+            const char *p_net;
+            switch (chain) {
+            case UCOIN_MAINNET:
+                p_net = "mainnet";
+                break;
+            case UCOIN_TESTNET:
+                p_net = "testnet";
+                break;
+            default:
+                p_net = "unknown";
+            }
+            printf(M_QQ("network") ": " M_QQ("%s") ",\n", p_net);
+        } else {
+            printf(M_QQ("node_id") ": " M_QQ("fail") ",\n");
+        }
 
-            printf(M_QQ("wif") ": " M_QQ("%s") ",\n", wif);
-            printf(M_QQ("alias") ": " M_QQ("%s") ",\n", alias);
-            printf(M_QQ("port") ": %" PRIu16 "\n", port);
+        key.mv_size = LNDBK_LEN(LNDBK_VER);
+        key.mv_data = LNDBK_VER;
+        retval = mdb_get(txn, dbi, &key, &data);
+        if (retval == 0) {
+            int version = *(int *)data.mv_data;
+            printf(M_QQ("version") ": %d", version);
+        } else {
+            printf(M_QQ("version") ": " M_QQ("fail") "\n");
         }
     }
 }
@@ -619,6 +641,7 @@ int main(int argc, char *argv[])
     fp_err = stderr;
 
     int ret;
+    int env = -1;
     MDB_txn     *txn;
     MDB_dbi     dbi;
     MDB_val     key;
@@ -634,9 +657,25 @@ int main(int argc, char *argv[])
     strcpy(selfpath, LNDB_SELFENV);
     strcpy(nodepath, LNDB_NODEENV);
 
-    int env = -1;
-    if (argc >= 2) {
-        switch (argv[1][0]) {
+    const struct option OPTIONS[] = {
+        { "debug", no_argument, NULL, 'D' },
+        { 0, 0, 0, 0 }
+    };
+    int opt;
+    while ((opt = getopt_long(argc, argv, "d:Dswlqcnakiv9:", OPTIONS, NULL)) != -1) {
+        switch (opt) {
+        case 'd':
+            if (optarg[strlen(optarg) - 1] == '/') {
+                optarg[strlen(optarg) - 1] = '\0';
+            }
+            sprintf(selfpath, "%s%s", optarg, LNDB_SELFENV_DIR);
+            sprintf(nodepath, "%s%s", optarg, LNDB_NODEENV_DIR);
+            break;
+        case 'D':
+            //デバッグでstderrを出力させたい場合
+            spoil_stderr = false;
+            break;
+
         case 's':
             showflag = SHOW_SELF;
             env = 0;
@@ -678,7 +717,7 @@ int main(int argc, char *argv[])
             env = 0;
             break;
         case '9':
-            switch (argv[1][1]) {
+            switch (optarg[1]) {
             case '1':
                 showflag = SHOW_CNLANNO | SHOW_DEBUG;
                 spoil_stderr = false;
@@ -695,31 +734,101 @@ int main(int argc, char *argv[])
                 break;
             }
             break;
+        default:
+            break;
         }
+    }
 
-        if (argc >= 3) {
-            if (argv[2][strlen(argv[2]) - 1] == '/') {
-                argv[2][strlen(argv[2]) - 1] = '\0';
+    //TODO: 2018年6月に削除してgetopt()のみにする
+#if 1
+    if (optind == 1) {
+        if (argc >= 2) {
+            switch (argv[1][0]) {
+            case 's':
+                showflag = SHOW_SELF;
+                env = 0;
+                break;
+            case 'w':
+                showflag = SHOW_WALLET;
+                env = 0;
+                break;
+            case 'l':
+                showflag = SHOW_CH;
+                env = 0;
+                break;
+            case 'q':
+                showflag = SHOW_CLOSED_CH;
+                env = 0;
+                break;
+            case 'c':
+                showflag = SHOW_CNLANNO;
+                env = 1;
+                break;
+            case 'n':
+                showflag = SHOW_NODEANNO;
+                env = 1;
+                break;
+            case 'a':
+                showflag = SHOW_ANNOINFO;
+                env = 1;
+                break;
+            case 'k':
+                showflag = SHOW_ANNOSKIP;
+                env = 1;
+                break;
+            case 'i':
+                showflag = SHOW_ANNOINVOICE;
+                env = 1;
+                break;
+            case 'v':
+                showflag = SHOW_VERSION;
+                env = 0;
+                break;
+            case '9':
+                switch (argv[1][1]) {
+                case '1':
+                    showflag = SHOW_CNLANNO | SHOW_DEBUG;
+                    spoil_stderr = false;
+                    env = 1;
+                    break;
+                case '2':
+                    showflag = SHOW_NODEANNO | SHOW_DEBUG;
+                    spoil_stderr = false;
+                    env = 1;
+                    break;
+                case '3':
+                    showflag = SHOW_PREIMAGE;
+                    env = 0;
+                    break;
+                }
+                break;
             }
-            sprintf(selfpath, "%s%s", argv[2], LNDB_SELFENV_DIR);
-            sprintf(nodepath, "%s%s", argv[2], LNDB_NODEENV_DIR);
+
+            if (argc >= 3) {
+                if (argv[2][strlen(argv[2]) - 1] == '/') {
+                    argv[2][strlen(argv[2]) - 1] = '\0';
+                }
+                sprintf(selfpath, "%s%s", argv[2], LNDB_SELFENV_DIR);
+                sprintf(nodepath, "%s%s", argv[2], LNDB_NODEENV_DIR);
+            }
         }
-        if ((argc >= 4) && (argv[3][0] == 'e')) {
-            //デバッグでstderrを出力させたい場合
-            spoil_stderr = false;
-        }
-    } else {
+    }
+#endif
+
+    if (showflag == 0) {
         fprintf(stderr, "usage:\n");
-        fprintf(stderr, "\t%s <option> [<db dir>]\n", argv[0]);
-        fprintf(stderr, "\t\tw : wallet info\n");
-        fprintf(stderr, "\t\ts : self info\n");
-        fprintf(stderr, "\t\tq : closed self info\n");
-        fprintf(stderr, "\t\tc : channel_announcement/channel_update\n");
-        fprintf(stderr, "\t\tn : node_announcement\n");
-        fprintf(stderr, "\t\tv : DB version\n");
-        fprintf(stderr, "\t\ta : (internal)announcement received/sent node_id list\n");
-        fprintf(stderr, "\t\tk : (internal)skip routing channel list\n");
-        fprintf(stderr, "\t\ti : (internal)paying invoice\n");
+        fprintf(stderr, "\t%s <option>\n", argv[0]);
+        fprintf(stderr, "\t\t-v : node information\n");
+        fprintf(stderr, "\t\t-d : dbucoin directory(use current directory's dbucoin if not set)\n");
+        fprintf(stderr, "\t\t-w : wallet info\n");
+        fprintf(stderr, "\t\t-s : self info\n");
+        fprintf(stderr, "\t\t-l : channel list\n");
+        fprintf(stderr, "\t\t-q : closed self info\n");
+        fprintf(stderr, "\t\t-c : channel_announcement/channel_update\n");
+        fprintf(stderr, "\t\t-n : node_announcement\n");
+        fprintf(stderr, "\t\t-a : (internal)announcement received/sent node_id list\n");
+        fprintf(stderr, "\t\t-k : (internal)skip routing channel list\n");
+        fprintf(stderr, "\t\t-i : (internal)paying invoice\n");
         return -1;
     }
 
