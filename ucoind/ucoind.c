@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 
     int opt;
     int options = 0;
-    while ((opt = getopt(argc, argv, "p:n:a:c:ixh")) != -1) {
+    while ((opt = getopt(argc, argv, "p:n:a:c:xh")) != -1) {
         switch (opt) {
         case 'p':
             //port num
@@ -136,10 +136,10 @@ int main(int argc, char *argv[])
                 goto LABEL_EXIT;
             }
             break;
-        case 'i':
-            //show node_id
-            options |= 0x01;
-            break;
+        // case 'i':
+        //     //show node_id
+        //     options |= 0x01;
+        //     break;
         case 'x':
             //ノード情報を残してすべて削除
             options |= 0x80;
@@ -203,12 +203,12 @@ int main(int argc, char *argv[])
         return -2;
     }
 
-    if (options == 0x01) {
-        //node_id出力
-        ucoin_util_dumpbin(stdout, ln_node_getid(), UCOIN_SZ_PUBKEY, true);
-        ucoin_term();
-        return 0;
-    }
+    // if (options == 0x01) {
+    //     //node_id出力
+    //     ucoin_util_dumpbin(stdout, ln_node_getid(), UCOIN_SZ_PUBKEY, true);
+    //     ucoin_term();
+    //     return 0;
+    // }
 
     //syslog
     openlog("ucoind", LOG_CONS, LOG_USER);
@@ -276,8 +276,8 @@ LABEL_EXIT:
     fprintf(PRINTOUT, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\")\n");
     fprintf(PRINTOUT, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
     fprintf(PRINTOUT, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
-    fprintf(PRINTOUT, "\t\t-i : show node_id(not start node)\n");
-    fprintf(PRINTOUT, "\t\t-x : erase current DB(without node)\n");
+    // fprintf(PRINTOUT, "\t\t-i : show node_id(not start node)\n");
+    fprintf(PRINTOUT, "\t\t-x : erase current DB(without node_id)\n");
     return -1;
 }
 
