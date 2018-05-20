@@ -162,6 +162,7 @@ bool ln_node_init(uint8_t Features)
     }
 
     if (ret) {
+        ln_db_annoinfo_del(NULL);
         print_node();
     }
 
