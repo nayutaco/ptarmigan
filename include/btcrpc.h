@@ -40,13 +40,13 @@
 /** jsonrpc初期化
  *
  */
-void btcprc_init(const rpc_conf_t *pRpcConf);
+void btcrpc_init(const rpc_conf_t *pRpcConf);
 
 
 /** jsonrpc終了
  *
  */
-void btcprc_term(void);
+void btcrpc_term(void);
 
 
 /** [bitcoin rpc]getblockcount
@@ -54,7 +54,7 @@ void btcprc_term(void);
  * @retval      -1以外      現在のblock count
  * @retval      -1          取得失敗
  */
-int32_t btcprc_getblockcount(void);
+int32_t btcrpc_getblockcount(void);
 
 
 /** [bitcoin rpc]blockhash取得
@@ -63,7 +63,7 @@ int32_t btcprc_getblockcount(void);
  * @param[in]   Height      取得するBlock Height
  * @retval  true        取得成功
  */
-bool btcprc_getblockhash(uint8_t *pHash, int Height);
+bool btcrpc_getblockhash(uint8_t *pHash, int Height);
 
 
 /** [bitcoin rpc]confirmation数取得
@@ -73,7 +73,7 @@ bool btcprc_getblockhash(uint8_t *pHash, int Height);
  * @note
  *      - 取得自体が失敗した場合でも0を返す
  */
-uint32_t btcprc_get_confirmation(const uint8_t *pTxid);
+uint32_t btcrpc_get_confirmation(const uint8_t *pTxid);
 
 
 /** [bitcoin rpc]short_channel_idの計算に使用するパラメータ取得
@@ -83,18 +83,18 @@ uint32_t btcprc_get_confirmation(const uint8_t *pTxid);
  * @param[in]   pTxid       検索するTXID
  * @retval  true        取得成功
  */
-bool btcprc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid);
+bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid);
 
 
 /** [bitcoin rpc]short_channel_idパラメータから得たTXIDのunspent状態取得
  *
  * @param[in]   BHeight     block height
  * @param[in]   BIndex      block index
- * @param@in]   VIndex      vout index
- * @retval  true        unspent状態
+ * @param[in]   VIndex      vout index
+ * @retval  true        unspent状態 or bitcoindエラー
  * @retval  false       spent状態
  */
-bool btcprc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex);
+bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex);
 
 
 /** [bitcoin rpc]blockからvin[0]が一致するtransactionを検索
@@ -102,24 +102,32 @@ bool btcprc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex);
  * @param[out]  pTx         トランザクション情報
  * @param[in]   BHeight     block height
  * @param[in]   pTxid       検索するするTXID(バイト列)
- * @param@in]   VIndex      vout index
+ * @param[in]   VIndex      vout index
  * @retval  true        検索成功
  * @note
  *      - 検索するvinはvin_cnt==1のみ
  */
-bool btcprc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
+bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
 
 
 /** [bitcoin rpc]blockからvoutが一致するtransactionを検索
  * @param[out]  pTxBuf      トランザクション情報(ucoin_tx_tの配列を保存する)
  * @param[in]   BHeight     block height
- * @param@in]   pVout       vout
+ * @param[in]   pVout       vout
  * @retval  true        検索成功
  */
-bool btcprc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout);
+bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout);
 
 
-bool btcprc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len);
+/** [bitcoin rpc]signrawtransaction
+ * @param[out]  pTx         トランザクション情報
+ * @param[in]   pData       block height
+ * @param@in]   Len         pData長
+ * @retval  true        成功
+ * @note
+ *      - pTxは戻り値がtrueの場合のみ更新する
+ */
+bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len);
 
 
 /** [bitcoin rpc]sendrawtransaction
@@ -130,7 +138,7 @@ bool btcprc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len);
  * @param[in]   Len         pData長
  * @retval  true        送信成功
  */
-bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len);
+bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len);
 
 
 /** [bitcoin rpc]getrawtransaction
@@ -139,7 +147,7 @@ bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_
  * @param[in]   pTxid       取得するTXID(バイト列)
  * @retval  true        取得成功
  */
-bool btcprc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid);
+bool btcrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid);
 
 
 /** [bitcoin rpc]getrawtransaction
@@ -148,7 +156,7 @@ bool btcprc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid);
  * @param[in]   txid        取得するTXID(文字列)
  * @retval  true        取得成功
  */
-bool btcprc_getraw_txstr(ucoin_tx_t *pTx, const char *txid);
+bool btcrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid);
 
 
 /** [bitcoin rpc]gettxout
@@ -161,7 +169,7 @@ bool btcprc_getraw_txstr(ucoin_tx_t *pTx, const char *txid);
  * @note
  *      - gettxoutはunspentであるvoutのみ使用可能
  */
-bool btcprc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx);
+bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx);
 
 
 /** [bitcoin rpc]getnewaddress
@@ -169,7 +177,7 @@ bool btcprc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
  * @param[out]  pAddr       生成したアドレス
  * @retval  true        取得成功
  */
-bool btcprc_getnewaddress(char *pAddr);
+bool btcrpc_getnewaddress(char *pAddr);
 
 
 /** [bitcoin rpc]dumpprivkey
@@ -178,7 +186,7 @@ bool btcprc_getnewaddress(char *pAddr);
  * @param[in]   pAddr       アドレス
  * @retval  true        取得成功
  */
-//bool btcprc_dumpprivkey(char *pWif, const char *pAddr);
+//bool btcrpc_dumpprivkey(char *pWif, const char *pAddr);
 
 
 /** [bitcoin rpc]estimatefee
@@ -187,6 +195,6 @@ bool btcprc_getnewaddress(char *pAddr);
  * @param[in]   予想するブロック数
  * @retval  true        取得成功
  */
-bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
+bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
 
 #endif /* BTCRPC_H__ */

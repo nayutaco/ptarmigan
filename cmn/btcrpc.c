@@ -86,7 +86,7 @@ static bool getblockcount_rpc(char *pJson);
 static bool getnewaddress_rpc(char *pJson);
 static bool estimatefee_rpc(char *pJson, int nBlock);
 //static bool dumpprivkey_rpc(char *pJson, const char *pAddr);
-static int rpc_proc(CURL *curl, char *pJson, char *pData);
+static bool rpc_proc(char *pJson, char *pData);
 static int error_result(json_t *p_root);
 
 
@@ -97,16 +97,22 @@ static int error_result(json_t *p_root);
 static char     rpc_url[SZ_RPC_URL];
 static char     rpc_userpwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD];
 static pthread_mutex_t      mMux;
+static CURL     *mCurl;
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-void btcprc_init(const rpc_conf_t *pRpcConf)
+void btcrpc_init(const rpc_conf_t *pRpcConf)
 {
     pthread_mutex_init(&mMux, NULL);
     curl_global_init(CURL_GLOBAL_ALL);
+    mCurl = curl_easy_init();
+    if (mCurl == NULL) {
+        DBG_PRINTF("fatal: cannot init curl\n");
+        abort();
+    }
 
     sprintf(rpc_url, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
     sprintf(rpc_userpwd, "%s:%s", pRpcConf->rpcuser, pRpcConf->rpcpasswd);
@@ -116,19 +122,19 @@ void btcprc_init(const rpc_conf_t *pRpcConf)
 #endif //M_DBG_SHOWRPC
 }
 
-void btcprc_term(void)
+void btcrpc_term(void)
 {
+    curl_easy_cleanup(mCurl);
+    mCurl = NULL;
     curl_global_cleanup();
 }
 
 
-int32_t btcprc_getblockcount(void)
+int32_t btcrpc_getblockcount(void)
 {
     bool retval;
     int32_t blocks = -1;
     char *p_json;
-
-    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = getblockcount_rpc(p_json);
@@ -163,19 +169,15 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return blocks;
 }
 
 
-bool btcprc_getblockhash(uint8_t *pHash, int Height)
+bool btcrpc_getblockhash(uint8_t *pHash, int Height)
 {
     bool ret = false;
     bool retval;
     char *p_json;
-
-    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
 
@@ -209,20 +211,16 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return ret;
 }
 
 
-uint32_t btcprc_get_confirmation(const uint8_t *pTxid)
+uint32_t btcrpc_get_confirmation(const uint8_t *pTxid)
 {
     bool retval;
     int64_t confirmation = 0;
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1];
-
-    pthread_mutex_lock(&mMux);
 
     //TXIDはBE/LE変換
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
@@ -260,20 +258,16 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return (uint32_t)confirmation;
 }
 
 
-bool btcprc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid)
+bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid)
 {
     bool retval;
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1];
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
-
-    pthread_mutex_lock(&mMux);
 
     *pBHeight = -1;
     *pBIndex = -1;
@@ -358,21 +352,17 @@ LABEL_EXIT:
         retval = false;
     }
 
-    pthread_mutex_unlock(&mMux);
-
     return retval;
 }
 
 
-bool btcprc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
+bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
 {
-    bool ret = false;
+    bool ret = true;        //エラーでもunspentにしておく
     bool retval;
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1] = "";
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
-
-    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
 
@@ -477,21 +467,17 @@ LABEL_DECREF3:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return ret;
 }
 
 
-bool btcprc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex)
+bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex)
 {
     bool ret = false;
     bool retval;
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1] = "";
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
-
-    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
 
@@ -590,21 +576,17 @@ LABEL_DECREF2:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return ret;
 }
 
 
-bool btcprc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout)
+bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout)
 {
     bool ret = false;
     bool retval;
     char *p_json;
     char txid[UCOIN_SZ_TXID * 2 + 1] = "";
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
-
-    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
 
@@ -710,20 +692,16 @@ LABEL_DECREF2:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return ret;
 }
 
 
-bool btcprc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
+bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
 {
     bool ret = false;
     bool retval;
     char *p_json;
     char *transaction;
-
-    pthread_mutex_lock(&mMux);
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
     misc_bin2str(transaction, pData, Len);
@@ -772,20 +750,16 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return ret;
 }
 
 
-bool btcprc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len)
+bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len)
 {
     bool ret = false;
     bool retval;
     char *p_json;
     char *transaction;
-
-    pthread_mutex_lock(&mMux);
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
     misc_bin2str(transaction, pData, Len);
@@ -829,45 +803,37 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return ret;
 }
 
 
-bool btcprc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
+bool btcrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
 {
     char txid[UCOIN_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
-    return btcprc_getraw_txstr(pTx, txid);
+    return btcrpc_getraw_txstr(pTx, txid);
 }
 
 
-bool btcprc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
+bool btcrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
 {
     bool ret;
 
-    pthread_mutex_lock(&mMux);
-
     ret = getraw_txstr(pTx, txid);
-
-    pthread_mutex_unlock(&mMux);
 
     return ret;
 }
 
 
-bool btcprc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx)
+bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx)
 {
     bool retval;
     char *p_json = NULL;
     char txid[UCOIN_SZ_TXID * 2 + 1];
     *pUnspent = false;
-
-    pthread_mutex_lock(&mMux);
 
     //TXIDはBE/LE変換
     misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
@@ -913,19 +879,15 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return retval;
 }
 
 
-bool btcprc_getnewaddress(char *pAddr)
+bool btcrpc_getnewaddress(char *pAddr)
 {
     bool ret = false;
     bool retval;
     char *p_json;
-
-    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = getnewaddress_rpc(p_json);
@@ -959,19 +921,15 @@ LABEL_DECREF:
 LABEL_EXIT:
     APP_FREE(p_json);
 
-    pthread_mutex_unlock(&mMux);
-
     return ret;
 }
 
 
-// bool btcprc_dumpprivkey(char *pWif, const char *pAddr)
+// bool btcrpc_dumpprivkey(char *pWif, const char *pAddr)
 // {
 //     bool ret = false;
 //     bool retval;
 //     char *p_json;
-
-//     pthread_mutex_lock(&mMux);
 
 //     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
 //     retval = dumpprivkey_rpc(p_json, pAddr);
@@ -1005,13 +963,11 @@ LABEL_EXIT:
 // LABEL_EXIT:
 //     APP_FREE(p_json);
 
-//     pthread_mutex_unlock(&mMux);
-
 //     return ret;
 // }
 
 
-bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
+bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
 {
     bool ret = false;
     bool retval;
@@ -1021,8 +977,6 @@ bool btcprc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
         DBG_PRINTF("fail: nBlock < 2\n");
         return false;
     }
-
-    pthread_mutex_lock(&mMux);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = estimatefee_rpc(p_json, nBlocks);
@@ -1063,8 +1017,6 @@ LABEL_DECREF:
 
 LABEL_EXIT:
     APP_FREE(p_json);
-
-    pthread_mutex_unlock(&mMux);
 
     return ret;
 }
@@ -1115,6 +1067,11 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
 }
 
 
+/** getrawtransaction(TXID文字列)
+ *
+ * @retval  true    取得成功
+ * @retval  false   取得失敗 or bitcoindエラー
+ */
 static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid)
 {
     bool ret = false;
@@ -1175,27 +1132,22 @@ LABEL_EXIT:
  */
 static bool getrawtransaction_rpc(char *pJson, const char *pTxid, bool detail)
 {
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+    char *data = (char *)APP_MALLOC(BUFFER_SIZE);
+    snprintf(data, BUFFER_SIZE,
+        "{"
+            ///////////////////////////////////////////
+            M_1("jsonrpc", "1.0") M_NEXT
+            M_1("id", RPCID) M_NEXT
 
-    if (curl) {
-        char *data = (char *)APP_MALLOC(BUFFER_SIZE);
-        snprintf(data, BUFFER_SIZE,
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+            ///////////////////////////////////////////
+            M_1("method", "getrawtransaction") M_NEXT
+            M_QQ("params") ":[" M_QQ("%s") ", %s]"
+        "}", pTxid, (detail) ? "true" : "false");
 
-                ///////////////////////////////////////////
-                M_1("method", "getrawtransaction") M_NEXT
-                M_QQ("params") ":[" M_QQ("%s") ", %s]"
-            "}", pTxid, (detail) ? "true" : "false");
+    bool ret = rpc_proc(pJson, data);
+    APP_FREE(data);
 
-        retval = rpc_proc(curl, pJson, data);
-        APP_FREE(data);
-    }
-
-    return retval == 0;
+    return ret;
 }
 
 
@@ -1204,27 +1156,22 @@ static bool getrawtransaction_rpc(char *pJson, const char *pTxid, bool detail)
  */
 static bool signrawtransaction_rpc(char *pJson, const char *pTransaction)
 {
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+    char *data = (char *)APP_MALLOC(BUFFER_SIZE);
+    snprintf(data, BUFFER_SIZE,
+        "{"
+            ///////////////////////////////////////////
+            M_1("jsonrpc", "1.0") M_NEXT
+            M_1("id", RPCID) M_NEXT
 
-    if (curl) {
-        char *data = (char *)APP_MALLOC(BUFFER_SIZE);
-        snprintf(data, BUFFER_SIZE,
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+            ///////////////////////////////////////////
+            M_1("method", "signrawtransaction") M_NEXT
+            M_QQ("params") ":[" M_QQ("%s") "]"
+        "}", pTransaction);
 
-                ///////////////////////////////////////////
-                M_1("method", "signrawtransaction") M_NEXT
-                M_QQ("params") ":[" M_QQ("%s") "]"
-            "}", pTransaction);
+    bool ret = rpc_proc(pJson, data);
+    APP_FREE(data);
 
-        retval = rpc_proc(curl, pJson, data);
-        APP_FREE(data);
-    }
-
-    return retval == 0;
+    return ret;
 }
 
 
@@ -1233,102 +1180,82 @@ static bool signrawtransaction_rpc(char *pJson, const char *pTransaction)
  */
 static bool sendrawtransaction_rpc(char *pJson, const char *pTransaction)
 {
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+    char *data = (char *)APP_MALLOC(BUFFER_SIZE);
+    snprintf(data, BUFFER_SIZE,
+        "{"
+            ///////////////////////////////////////////
+            M_1("jsonrpc", "1.0") M_NEXT
+            M_1("id", RPCID) M_NEXT
 
-    if (curl) {
-        char *data = (char *)APP_MALLOC(BUFFER_SIZE);
-        snprintf(data, BUFFER_SIZE,
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+            ///////////////////////////////////////////
+            M_1("method", "sendrawtransaction") M_NEXT
+            M_QQ("params") ":[" M_QQ("%s") "]"
+        "}", pTransaction);
 
-                ///////////////////////////////////////////
-                M_1("method", "sendrawtransaction") M_NEXT
-                M_QQ("params") ":[" M_QQ("%s") "]"
-            "}", pTransaction);
+    bool ret = rpc_proc(pJson, data);
+    APP_FREE(data);
 
-        retval = rpc_proc(curl, pJson, data);
-        APP_FREE(data);
-    }
-
-    return retval == 0;
+    return ret;
 }
 
 
 static bool gettxout_rpc(char *pJson, const char *pTxid, int idx)
 {
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+    char data[512];
+    snprintf(data, sizeof(data),
+        "{"
+            ///////////////////////////////////////////
+            M_1("jsonrpc", "1.0") M_NEXT
+            M_1("id", RPCID) M_NEXT
 
-    if (curl) {
-        char data[512];
-        snprintf(data, sizeof(data),
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+            ///////////////////////////////////////////
+            M_1("method", "gettxout") M_NEXT
+            M_QQ("params") ":[" M_QQ("%s") ",%d]"
+        "}", pTxid, idx);
 
-                ///////////////////////////////////////////
-                M_1("method", "gettxout") M_NEXT
-                M_QQ("params") ":[" M_QQ("%s") ",%d]"
-            "}", pTxid, idx);
+    bool ret = rpc_proc(pJson, data);
 
-        retval = rpc_proc(curl, pJson, data);
-    }
-
-    return retval == 0;
+    return ret;
 }
 
 
 static bool getblock_rpc(char *pJson, const char *pBlock)
 {
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+    char data[512];
+    snprintf(data, sizeof(data),
+        "{"
+            ///////////////////////////////////////////
+            M_1("jsonrpc", "1.0") M_NEXT
+            M_1("id", RPCID) M_NEXT
 
-    if (curl) {
-        char data[512];
-        snprintf(data, sizeof(data),
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+            ///////////////////////////////////////////
+            M_1("method", "getblock") M_NEXT
+            M_QQ("params") ":[" M_QQ("%s") "]"
+        "}", pBlock);
 
-                ///////////////////////////////////////////
-                M_1("method", "getblock") M_NEXT
-                M_QQ("params") ":[" M_QQ("%s") "]"
-            "}", pBlock);
+    bool ret = rpc_proc(pJson, data);
 
-        retval = rpc_proc(curl, pJson, data);
-    }
-
-    return retval == 0;
+    return ret;
 }
 
 
 static bool getblockhash_rpc(char *pJson, int BHeight)
 {
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+    char data[512];
+    snprintf(data, sizeof(data),
+        "{"
+            ///////////////////////////////////////////
+            M_1("jsonrpc", "1.0") M_NEXT
+            M_1("id", RPCID) M_NEXT
 
-    if (curl) {
-        char data[512];
-        snprintf(data, sizeof(data),
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+            ///////////////////////////////////////////
+            M_1("method", "getblockhash") M_NEXT
+            M_QQ("params") ":[ %d ]"
+        "}", BHeight);
 
-                ///////////////////////////////////////////
-                M_1("method", "getblockhash") M_NEXT
-                M_QQ("params") ":[ %d ]"
-            "}", BHeight);
+    bool ret = rpc_proc(pJson, data);
 
-        retval = rpc_proc(curl, pJson, data);
-    }
-
-    return retval == 0;
+    return ret;
 }
 
 
@@ -1337,26 +1264,21 @@ static bool getblockhash_rpc(char *pJson, int BHeight)
  */
 static bool getblockcount_rpc(char *pJson)
 {
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+    char data[512];
+    snprintf(data, sizeof(data),
+        "{"
+            ///////////////////////////////////////////
+            M_1("jsonrpc", "1.0") M_NEXT
+            M_1("id", RPCID) M_NEXT
 
-    if (curl) {
-        char data[512];
-        snprintf(data, sizeof(data),
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+            ///////////////////////////////////////////
+            M_1("method", "getblockcount") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
 
-                ///////////////////////////////////////////
-                M_1("method", "getblockcount") M_NEXT
-                M_QQ("params") ":[]"
-            "}");
+    bool ret = rpc_proc(pJson, data);
 
-        retval = rpc_proc(curl, pJson, data);
-    }
-
-    return retval == 0;
+    return ret;
 }
 
 
@@ -1365,26 +1287,21 @@ static bool getblockcount_rpc(char *pJson)
  */
 static bool getnewaddress_rpc(char *pJson)
 {
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+    char data[512];
+    snprintf(data, sizeof(data),
+        "{"
+            ///////////////////////////////////////////
+            M_1("jsonrpc", "1.0") M_NEXT
+            M_1("id", RPCID) M_NEXT
 
-    if (curl) {
-        char data[512];
-        snprintf(data, sizeof(data),
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+            ///////////////////////////////////////////
+            M_1("method", "getnewaddress") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
 
-                ///////////////////////////////////////////
-                M_1("method", "getnewaddress") M_NEXT
-                M_QQ("params") ":[]"
-            "}");
+    bool ret = rpc_proc(pJson, data);
 
-        retval = rpc_proc(curl, pJson, data);
-    }
-
-    return retval == 0;
+    return ret;
 }
 
 
@@ -1393,26 +1310,21 @@ static bool getnewaddress_rpc(char *pJson)
  */
 static bool estimatefee_rpc(char *pJson, int nBlock)
 {
-    int retval = -1;
-    CURL *curl = curl_easy_init();
+    char data[512];
+    snprintf(data, sizeof(data),
+        "{"
+            ///////////////////////////////////////////
+            M_1("jsonrpc", "1.0") M_NEXT
+            M_1("id", RPCID) M_NEXT
 
-    if (curl) {
-        char data[512];
-        snprintf(data, sizeof(data),
-            "{"
-                ///////////////////////////////////////////
-                M_1("jsonrpc", "1.0") M_NEXT
-                M_1("id", RPCID) M_NEXT
+            ///////////////////////////////////////////
+            M_1("method", "estimatesmartfee") M_NEXT
+            M_QQ("params") ":[%d]"
+        "}", nBlock);
 
-                ///////////////////////////////////////////
-                M_1("method", "estimatesmartfee") M_NEXT
-                M_QQ("params") ":[%d]"
-            "}", nBlock);
+    bool ret = rpc_proc(pJson, data);
 
-        retval = rpc_proc(curl, pJson, data);
-    }
-
-    return retval == 0;
+    return ret;
 }
 
 
@@ -1421,56 +1333,67 @@ static bool estimatefee_rpc(char *pJson, int nBlock)
  */
 // static bool dumpprivkey_rpc(char *pJson, const char *pAddr)
 // {
-//     int retval = -1;
-//     CURL *curl = curl_easy_init();
+//     char data[512];
+//     snprintf(data, sizeof(data),
+//         "{"
+//             ///////////////////////////////////////////
+//             M_1("jsonrpc", "1.0") M_NEXT
+//             M_1("id", RPCID) M_NEXT
 
-//     if (curl) {
-//         char data[512];
-//         snprintf(data, sizeof(data),
-//             "{"
-//                 ///////////////////////////////////////////
-//                 M_1("jsonrpc", "1.0") M_NEXT
-//                 M_1("id", RPCID) M_NEXT
+//             ///////////////////////////////////////////
+//             M_1("method", "dumpprivkey") M_NEXT
+//             M_QQ("params") ":[" M_QQ("%s") "]"
+//         "}", pAddr);
 
-//                 ///////////////////////////////////////////
-//                 M_1("method", "dumpprivkey") M_NEXT
-//                 M_QQ("params") ":[" M_QQ("%s") "]"
-//             "}", pAddr);
+//     bool ret = rpc_proc(pJson, data);
 
-//         retval = rpc_proc(curl, pJson, data);
-//     }
-
-//     return retval == 0;
+//     return ret;
 // }
 
 
-static int rpc_proc(CURL *curl, char *pJson, char *pData)
+/** JSON-RPC処理
+ *
+ * @retval  true    成功
+ */
+static bool rpc_proc(char *pJson, char *pData)
 {
 #ifdef M_DBG_SHOWRPC
     DBG_PRINTF("%s\n", pData);
 #endif //M_DBG_SHOWRPC
 
+    pthread_mutex_lock(&mMux);
+
     struct curl_slist *headers = curl_slist_append(NULL, "content-type: text/plain;");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_URL, rpc_url);
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(pData));
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, pData);
-    curl_easy_setopt(curl, CURLOPT_USERPWD, rpc_userpwd);
-    curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
-    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+    curl_easy_setopt(mCurl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(mCurl, CURLOPT_URL, rpc_url);
+    curl_easy_setopt(mCurl, CURLOPT_POSTFIELDSIZE, (long)strlen(pData));
+    curl_easy_setopt(mCurl, CURLOPT_POSTFIELDS, pData);
+    curl_easy_setopt(mCurl, CURLOPT_USERPWD, rpc_userpwd);
+    curl_easy_setopt(mCurl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
+    curl_easy_setopt(mCurl, CURLOPT_NOSIGNAL, 1);
 
     //取得データはメモリに持つ
     write_result_t result;
     result.p_data = pJson;
     result.pos = 0;
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_response);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result);
+    curl_easy_setopt(mCurl, CURLOPT_WRITEFUNCTION, write_response);
+    curl_easy_setopt(mCurl, CURLOPT_WRITEDATA, &result);
 
-    int retval = curl_easy_perform(curl);
+    int retry = 3;
+    CURLcode retval;
+    do {
+        retval = curl_easy_perform(mCurl);
+        if (retval != CURLE_OK) {
+            DBG_PRINTF("curl err: %d(%s)\n", retval, curl_easy_strerror(retval));
+            retry--;
+            misc_msleep(500);
+        }
+    } while ((retval != CURLE_OK) && (retry > 0));
     curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
 
-    return retval;
+    pthread_mutex_unlock(&mMux);
+
+    return retval == CURLE_OK;
 }
 
 
@@ -1568,7 +1491,7 @@ int main(int argc, char *argv[])
     strcpy(rpc_conf.rpcuser, "bitcoinuser");
     strcpy(rpc_conf.rpcpasswd, "bitcoinpassword");
     strcpy(rpc_conf.rpcurl, "127.0.0.1");
-    btcprc_init(&rpc_conf);
+    btcrpc_init(&rpc_conf);
 
     bool ret;
 
@@ -1579,7 +1502,7 @@ int main(int argc, char *argv[])
 //    fprintf(PRINTOUT, "-[short_channel_info]-------------------------\n");
 //    int bindex;
 //    int bheight;
-//    ret = btcprc_get_short_channel_param(&bindex, &bheight, TXID);
+//    ret = btcrpc_get_short_channel_param(&bindex, &bheight, TXID);
 //    if (ret) {
 //        fprintf(PRINTOUT, "index = %d\n", bindex);
 //        fprintf(PRINTOUT, "height = %d\n", bheight);
@@ -1587,19 +1510,19 @@ int main(int argc, char *argv[])
 
 //    int conf;
 //    fprintf(PRINTOUT, "-conf-------------------------\n");
-//    conf = btcprc_get_confirmation(TXID);
+//    conf = btcrpc_get_confirmation(TXID);
 //    fprintf(PRINTOUT, "confirmations = %d\n", conf);
 
 //    fprintf(PRINTOUT, "-getnewaddress-------------------------\n");
 //    char addr[UCOIN_SZ_ADDR_MAX];
-//    ret = btcprc_getnewaddress(addr);
+//    ret = btcrpc_getnewaddress(addr);
 //    if (ret) {
 //        fprintf(PRINTOUT, "addr=%s\n", addr);
 //    }
 
 //    fprintf(PRINTOUT, "-dumpprivkey-------------------------\n");
 //    char wif[UCOIN_SZ_WIF_MAX];
-//    ret = btcprc_dumpprivkey(wif, addr);
+//    ret = btcrpc_dumpprivkey(wif, addr);
 //    if (ret) {
 //        fprintf(PRINTOUT, "wif=%s\n", wif);
 //    }
@@ -1607,14 +1530,14 @@ int main(int argc, char *argv[])
     //fprintf(PRINTOUT, "-gettxout-------------------------\n");
     //bool unspent;
     //uint64_t value;
-    //ret = btcprc_getxout(&unspent, &value, TXID, 1);
+    //ret = btcrpc_getxout(&unspent, &value, TXID, 1);
     //if (ret && unspent) {
     //    fprintf(PRINTOUT, "value=%" PRIu64 "\n", value);
     //}
 
 //    fprintf(PRINTOUT, "-getrawtx------------------------\n");
 //    ucoin_tx_t tx = UCOIN_TX_INIT;
-//    ret = btcprc_getraw_tx(&tx, TXID);
+//    ret = btcrpc_getraw_tx(&tx, TXID);
 //    if (ret) {
 //        ucoin_print_tx(&tx);
 //    }
@@ -1622,7 +1545,7 @@ int main(int argc, char *argv[])
 
 //    fprintf(PRINTOUT, "--------------------------\n");
 //    uint8_t txid[UCOIN_SZ_TXID];
-//    bool ret = btcprc_sendraw_tx(txid, NULL, TX, sizeof(TX));
+//    bool ret = btcrpc_sendraw_tx(txid, NULL, TX, sizeof(TX));
 //    if (ret) {
 //        for (int lp = 0; lp < sizeof(txid); lp++) {
 //            fprintf(PRINTOUT, "%02x", txid[lp]);
@@ -1640,19 +1563,19 @@ int main(int argc, char *argv[])
 
     //     short_channel_id = 0x11a7810000440000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
-    //     unspent = btcprc_is_short_channel_unspent(bheight, bindex, vindex);
+    //     unspent = btcrpc_is_short_channel_unspent(bheight, bindex, vindex);
     //     fprintf(PRINTOUT, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
 
     //     short_channel_id = 0x11a2eb0000210000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
-    //     unspent = btcprc_is_short_channel_unspent(bheight, bindex, vindex);
+    //     unspent = btcrpc_is_short_channel_unspent(bheight, bindex, vindex);
     //     fprintf(PRINTOUT, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
     // }
 
     fprintf(PRINTOUT, "--------------------------\n");
     {
         uint64_t feeperrate;
-        bool ret = btcprc_estimatefee(&feeperrate, 3);
+        bool ret = btcrpc_estimatefee(&feeperrate, 3);
         if (ret) {
             printf("feeperate=%"PRIu64"\n", feeperrate);
         } else {
@@ -1662,7 +1585,7 @@ int main(int argc, char *argv[])
 
     fprintf(PRINTOUT, "--------------------------\n");
 
-    btcprc_term();
+    btcrpc_term();
     ucoin_term();
 }
 #endif

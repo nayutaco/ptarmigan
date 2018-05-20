@@ -672,7 +672,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     //blockcount
-    int32_t blockcnt = btcprc_getblockcount();
+    int32_t blockcnt = btcrpc_getblockcount();
     DBG_PRINTF("blockcnt=%d\n", blockcnt);
     if (blockcnt < 0) {
         index = -1;
@@ -869,7 +869,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     //blockcount
-    int32_t blockcnt = btcprc_getblockcount();
+    int32_t blockcnt = btcrpc_getblockcount();
     DBG_PRINTF("blockcnt=%d\n", blockcnt);
     if (blockcnt < 0) {
         ctx->error_code = RPCERR_PARSE;
