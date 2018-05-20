@@ -1495,7 +1495,6 @@ static void *thread_recv_start(void *pArg)
  */
 static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uint32_t ToMsec)
 {
-    ssize_t n = 0;
     struct pollfd fds;
     uint16_t len = 0;
     ToMsec /= M_WAIT_RECV_TO_MSEC;
@@ -1525,15 +1524,19 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
             }
         } else {
             if (fds.revents & POLLIN) {
-                n = read(p_conf->sock, pBuf, Len);
-                if (n == 0) {
+                ssize_t n = read(p_conf->sock, pBuf, Len);
+                if (n > 0) {
+                    Len -= n;
+                    len += n;
+                    pBuf += n;
+                } else if (n == 0) {
+                    DBG_PRINTF("EOF(len=%d)\n", len);
+                    break;
+                } else {
                     DBG_PRINTF("fail: %s(%" PRIx64 ")\n", strerror(errno), ln_short_channel_id(p_conf->p_self));
                     len = 0;
                     break;
                 }
-                Len -= n;
-                len += n;
-                pBuf += n;
             }
         }
     }
