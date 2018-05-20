@@ -2515,17 +2515,20 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     if (ret) {
         int32_t height = 0;
         (*self->p_callback)(self, LN_CB_GETBLOCKCOUNT, &height);
-
-        if (hop_dataout.b_exit) {
-            ret = check_recv_add_htlc_bolt4_final(self, &hop_dataout, &push_htlc, p_htlc, preimage, height);
-            if (ret) {
-                p_payment = preimage;
+        if (height > 0) {
+            if (hop_dataout.b_exit) {
+                ret = check_recv_add_htlc_bolt4_final(self, &hop_dataout, &push_htlc, p_htlc, preimage, height);
+                if (ret) {
+                    p_payment = preimage;
+                }
+            } else {
+                ret = check_recv_add_htlc_bolt4_forward(self, &hop_dataout, &push_htlc, p_htlc, height);
+                if (ret) {
+                    p_payment = p_htlc->payment_sha256;
+                }
             }
         } else {
-            ret = check_recv_add_htlc_bolt4_forward(self, &hop_dataout, &push_htlc, p_htlc, height);
-            if (ret) {
-                p_payment = p_htlc->payment_sha256;
-            }
+            M_SET_ERR(self, LNERR_BITCOIND, "getblockcount");
         }
     } else {
         //A1. if the realm byte is unknown:
@@ -3297,7 +3300,11 @@ static bool create_funding_tx(ln_self_t *self)
     sig.p_tx =  &self->tx_funding;
     (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
     ret = sig.ret;
-    ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
+    if (ret) {
+        ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
+    } else {
+        DBG_PRINTF("fail: signature\n");
+    }
 
     DBG_PRINTF("\n***** funding_tx *****\n");
     M_DBG_PRINT_TX(&self->tx_funding);

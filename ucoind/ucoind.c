@@ -181,8 +181,8 @@ int main(int argc, char *argv[])
 
     //bitcoind起動確認
     uint8_t genesis[LN_SZ_HASH];
-    btcprc_init(&rpc_conf);
-    bret = btcprc_getblockhash(genesis, 0);
+    btcrpc_init(&rpc_conf);
+    bret = btcrpc_getblockhash(genesis, 0);
     if (!bret) {
         DBG_PRINTF("fail: bitcoin getblockhash(check bitcoind)\n");
         return -1;
@@ -262,7 +262,7 @@ int main(int argc, char *argv[])
     SYSLOG_INFO("end");
 
     lnapp_term();
-    btcprc_term();
+    btcrpc_term();
     ln_db_term();
 
     return 0;
