@@ -216,18 +216,20 @@ bool ln_db_annocnlupd_load(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t 
 bool ln_db_annocnlupd_save(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pSendId);
 
 
-/** channel_announcement削除
+/** channel_announcement系の送受信情報削除
  *
- * @param[in]       short_channel_id
+ * channel_announcement/channel_updateの送信先・受信元ノードIDを削除する。
+ *
+ * @param[in]       short_channel_id(0の場合、全削除)
  * @retval      true    成功
  */
 bool ln_db_annocnlall_del(uint64_t short_channel_id);
 
 
-/** channel_announcement系の送信元/先ノード追加
+/** channel_announcement系の送受信情報追加
  *
- * 
- * 
+ * channel_announcement/channel_updateの送信先・受信元ノードIDを追加する。
+ *
  * @param[in,out]   pDb
  * @param[in]       ShortChannelId
  * @param[in]       Type
@@ -283,6 +285,13 @@ bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type,
  * @retval  true    成功
  */
 bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ucoin_buf_t *pBuf);
+
+
+/** channel_announcementのないchannel_update削除
+ *
+ * 
+ */
+void ln_db_annocnl_del_orphan(void);
 
 
 ////////////////////
@@ -410,6 +419,17 @@ void ln_db_annonod_cur_close(void *pCur);
  * @retval      true    成功
  */
 bool ln_db_annonod_cur_get(void *pCur, ucoin_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
+
+
+////////////////////
+// annocnl, annonod共通
+////////////////////
+
+/** channel_announcement/channel_update/node_announcement送受信ノード情報削除
+ *
+ * @param[in]       pNodeId     削除対象のnode_id(NULL時は全削除)
+ */
+bool ln_db_annoinfo_del(const uint8_t *pNodeId);
 
 
 ////////////////////

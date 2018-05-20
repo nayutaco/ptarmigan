@@ -444,7 +444,6 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
 
     MDB_val key, data;
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-        size_t len;
         if ((dbtype == LN_LMDB_DBTYPE_CHANNEL_ANNOINFO) && (key.mv_size == M_SZ_ANNOINFO_CNL)) {
             const uint8_t *keyname = (const uint8_t *)key.mv_data;
             switch (keyname[M_SZ_ANNOINFO_CNL - 1]) {
@@ -461,15 +460,16 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
                 fprintf(stderr, "keyname=%02x: %d\n", keyname[M_SZ_ANNOINFO_CNL - 1], __LINE__);
                 exit(-1);
             }
-            len = M_SZ_ANNOINFO_CNL - 1;
+
+            uint64_t short_channel_id = *(uint64_t *)key.mv_data;
+            printf("%0" PRIx64 "\n", short_channel_id);
         } else if ((dbtype == LN_LMDB_DBTYPE_NODE_ANNOINFO) && (key.mv_size == M_SZ_ANNOINFO_NODE)) {
             printf("node_announcement: ");
-            len = M_SZ_ANNOINFO_NODE;
+            ucoin_util_dumpbin(stdout, key.mv_data, M_SZ_ANNOINFO_NODE, true);
         } else {
             //skip
             continue;
         }
-        ucoin_util_dumpbin(stdout, key.mv_data, len, true);
 
         int nums = data.mv_size / UCOIN_SZ_PUBKEY;
         const uint8_t *p_data = (const uint8_t *)data.mv_data;
