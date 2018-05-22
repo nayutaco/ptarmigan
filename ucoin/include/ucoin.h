@@ -741,11 +741,7 @@ bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScr
  *      - pSigは、成功かどうかにかかわらず#ucoin_buf_init()される
  *      - 成功時、pSigは #ucoin_buf_alloccopy() でメモリ確保するので、使用後は #ucoin_buf_free()で解放すること
  */
-bool ucoin_tx_sign_(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
-static inline bool ucoin_tx_sign__(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const char *fname, unsigned int line) {
-    return ucoin_tx_sign_(pSig, pTxHash, pPrivKey);
-}
-#define ucoin_tx_sign(a,b,c)  ucoin_tx_sign__(a,b,c, __FILE__, __LINE__)
+bool ucoin_tx_sign(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名計算(r/s)
@@ -755,11 +751,7 @@ static inline bool ucoin_tx_sign__(ucoin_buf_t *pSig, const uint8_t *pTxHash, co
  * @param[in]       pPrivKey    秘密鍵
  * @return          true        成功
  */
-bool ucoin_tx_sign_rs_(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
-static inline bool ucoin_tx_sign_rs__(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey, const char *fname, unsigned int line) {
-    return ucoin_tx_sign_rs_(pRS, pTxHash, pPrivKey);
-}
-#define ucoin_tx_sign_rs(a,b,c)  ucoin_tx_sign_rs__(a,b,c, __FILE__, __LINE__)
+bool ucoin_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名チェック
