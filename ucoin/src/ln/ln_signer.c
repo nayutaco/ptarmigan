@@ -37,8 +37,6 @@
 
 void HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 {
-    DBG_PRINTF("\n");
-
     if (pSeed) {
         memcpy(self->priv_data.storage_seed, pSeed, LN_SZ_SEED);
         ln_derkey_storage_init(&self->peer_storage);
@@ -48,16 +46,12 @@ void HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 
 void HIDDEN ln_signer_term(ln_self_t *self)
 {
-    //DBG_PRINTF("\n");
-
     memset(self->priv_data.storage_seed, 0, UCOIN_SZ_PRIVKEY);
 }
 
 
 bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
 {
-    DBG_PRINTF("\n");
-
     self->priv_data.storage_index = LN_SECINDEX_INIT;
     DBG_PRINTF("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
 
@@ -69,7 +63,7 @@ bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
             ucoin_keys_priv2pub(self->funding_local.pubkeys[lp], self->priv_data.priv[lp]);
         }
     }
-    ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+    ln_print_keys(&self->funding_local, &self->funding_remote);
 
     ln_signer_update_percommit_secret(self);
 
@@ -79,8 +73,6 @@ bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
 
 void HIDDEN ln_signer_update_percommit_secret(ln_self_t *self)
 {
-    DBG_PRINTF("\n");
-
     ln_signer_keys_update(self, 0);
 
     self->priv_data.storage_index--;
@@ -92,16 +84,12 @@ void HIDDEN ln_signer_update_percommit_secret(ln_self_t *self)
 
 void HIDDEN ln_signer_keys_update(ln_self_t *self, int64_t Offset)
 {
-    DBG_PRINTF("\n");
-
     ln_signer_keys_update_force(self, self->priv_data.storage_index + Offset);
 }
 
 
 void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 {
-    DBG_PRINTF("\n");
-
     ln_derkey_create_secret(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], self->priv_data.storage_seed, Index);
     ucoin_keys_priv2pub(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT]);
 
@@ -115,8 +103,6 @@ void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 
 void HIDDEN ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
 {
-    DBG_PRINTF("\n");
-
     //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
     //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
     //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
@@ -133,8 +119,6 @@ void HIDDEN ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
 
 void HIDDEN ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
 {
-    DBG_PRINTF("\n");
-
     ln_derkey_privkey(pKeys->priv,
                 self->funding_local.pubkeys[MsgFundIdx],
                 pPerCommit,
@@ -145,8 +129,6 @@ void HIDDEN ln_signer_get_secret(const ln_self_t *self, ucoin_util_keys_t *pKeys
 
 void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
 {
-    DBG_PRINTF("\n");
-
     ln_derkey_revocationprivkey(pKeys->priv,
                 self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION],
                 pPerCommit,
@@ -158,24 +140,18 @@ void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ucoin_util_keys_t *pK
 
 bool HIDDEN ln_signer_p2wsh(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex)
 {
-    DBG_PRINTF("\n");
-
     return ucoin_tx_sign(pSig, pTxHash, pPrivData->priv[PrivIndex]);
 }
 
 
 bool HIDDEN ln_signer_p2wsh_force(ucoin_buf_t *pSig, const uint8_t *pTxHash, const ucoin_util_keys_t *pKeys)
 {
-    DBG_PRINTF("\n");
-
     return ucoin_tx_sign(pSig, pTxHash, pKeys->priv);
 }
 
 
 bool HIDDEN ln_signer_p2wpkh(ucoin_tx_t *pTx, int Index, uint64_t Value, const ucoin_util_keys_t *pKeys)
 {
-    DBG_PRINTF("\n");
-
     bool ret;
     uint8_t txhash[UCOIN_SZ_HASH256];
     ucoin_buf_t sigbuf = UCOIN_BUF_INIT;

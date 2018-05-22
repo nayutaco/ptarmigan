@@ -109,6 +109,40 @@ static inline int tid() {
 #define DEBUGOUT        stderr
 #define DEBUGTRACE
 
+#ifdef UCOIN_USE_ZLOG
+#define DBG_PRINTF(...) {\
+    if (mZlogCatApp != NULL) {\
+        zlog(mZlogCatApp, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
+        ZLOG_LEVEL_DEBUG, __VA_ARGS__); \
+    }\
+}
+#define DBG_PRINTF2(...) {\
+    if (mZlogCatSimple != NULL) {\
+        zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
+        ZLOG_LEVEL_DEBUG, __VA_ARGS__); \
+    }\
+}
+#define DUMPBIN(dt,ln) {\
+    if (mZlogCatSimple != NULL) {\
+        char *p_str = (char *)malloc(ln * 2 + 1);   \
+        ucoin_misc_bin2str(p_str, dt, ln);          \
+        zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
+        ZLOG_LEVEL_DEBUG, "%s\n", p_str);   \
+        free(p_str); \
+    }\
+}
+#define DUMPTXID(dt) {\
+    if (mZlogCatSimple != NULL) {\
+        char *p_str = (char *)malloc(UCOIN_SZ_TXID * 2 + 1);   \
+        ucoin_misc_bin2str_rev(p_str, dt, UCOIN_SZ_TXID);      \
+        zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
+        ZLOG_LEVEL_DEBUG, "%s\n", p_str);   \
+        free(p_str);                \
+    }\
+}
+
+#else   //UCOIN_USE_ZLOG
+
 /// @def    DBG_PRINTF(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
 #define DBG_PRINTF(format, ...) {fprintf(DEBUGOUT, "%lu[%d]%s[%s:%d]", (unsigned long)time(NULL), tid(), __func__, __FILE__, __LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
@@ -118,6 +152,9 @@ static inline int tid() {
 /// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
 #define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
 #define DUMPTXID(dt)        {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
+
+#endif  //UCOIN_USE_ZLOG
+
 #ifdef DEBUGTRACE
 #define DBGTRACE_BEGIN      {fprintf(stderr, "[%d]%s[%s:%d]BEGIN\n", tid(), __func__, __FILE__, __LINE__);}
 #define DBGTRACE_END        {fprintf(stderr, "[%d]%s[%s:%d]END\n", tid(), __func__, __FILE__, __LINE__);}
@@ -131,6 +168,7 @@ static inline int tid() {
 #define DBG_PRINTF(...)     //none
 #define DBG_PRINTF2(...)    //none
 #define DUMPBIN(...)        //none
+#define DUMPTXID(...)       //none
 #define DBGTRACE_BEGIN
 #define DBGTRACE_END
 

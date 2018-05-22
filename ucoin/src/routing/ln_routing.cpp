@@ -385,7 +385,6 @@ lnerr_route_t ln_routing_calculate(
         // ucoin_util_dumpbin(stderr, rt_res.p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY, true);
         // DBG_PRINTF("    [2]");
         // ucoin_util_dumpbin(stderr, rt_res.p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY, true);
-        // DBG_PRINTF("\n");
 
         graph_t::vertex_descriptor node1 = ver_add(g, rt_res.p_nodes[lp].ninfo[0].node_id);
         graph_t::vertex_descriptor node2 = ver_add(g, rt_res.p_nodes[lp].ninfo[1].node_id);

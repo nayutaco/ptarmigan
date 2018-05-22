@@ -1,3 +1,7 @@
+[submodule "ucoin/libs/zlog"]
+	path = ucoin/libs/zlog
+	url = https://github.com/HardySimpson/zlog.git
+	ignore = dirty
 [submodule "ucoin/libs/mbedtls"]
 	path = ucoin/libs/mbedtls
 	url = https://github.com/ARMmbed/mbedtls.git

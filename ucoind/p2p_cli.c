@@ -72,7 +72,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     struct sockaddr_in sv_addr;
 
     if (!ucoin_keys_chkpub(pConn->node_id)) {
-        SYSLOG_ERR("%s(): invalid node_id", __func__);
+        DBG_PRINTF("invalid node_id\n");
         ctx->error_code = RPCERR_NODEID;
         ctx->error_message = ucoind_error_str(RPCERR_NODEID);
         return;
@@ -85,7 +85,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         }
     }
     if (idx >= (int)ARRAY_SIZE(mAppConf)) {
-        SYSLOG_ERR("%s(): client full", __func__);
+        DBG_PRINTF("client full\n");
         ctx->error_code = RPCERR_FULLCLI;
         ctx->error_message = ucoind_error_str(RPCERR_FULLCLI);
         return;
@@ -97,7 +97,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
 
     mAppConf[idx].sock = socket(PF_INET, SOCK_STREAM, 0);
     if (mAppConf[idx].sock < 0) {
-        SYSLOG_ERR("%s(): socket", __func__);
+        DBG_PRINTF("socket\n");
         ctx->error_code = RPCERR_SOCK;
         ctx->error_message = ucoind_error_str(RPCERR_SOCK);
         goto LABEL_EXIT;
@@ -119,11 +119,11 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         if (polr > 0) {
             ret = 0;
         } else {
-            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
+            DBG_PRINTF("poll: %s\n", strerror(errno));
         }
     }
     if (ret < 0) {
-        SYSLOG_ERR("%s(): connect(%s)", __func__, strerror(errno));
+        DBG_PRINTF("connect: %s\n", strerror(errno));
         ctx->error_code = RPCERR_CONNECT;
         ctx->error_message = ucoind_error_str(RPCERR_CONNECT);
         close(mAppConf[idx].sock);
@@ -132,7 +132,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
         if (fp) {
             char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
-            misc_bin2str(peer_id, pConn->node_id, UCOIN_SZ_PUBKEY);
+            ucoin_misc_bin2str(peer_id, pConn->node_id, UCOIN_SZ_PUBKEY);
 
             char date[50];
             misc_datetime(date, sizeof(date));

@@ -223,7 +223,7 @@ uint32_t btcrpc_get_confirmation(const uint8_t *pTxid)
     char txid[UCOIN_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
-    misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
+    ucoin_misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = getrawtransaction_rpc(p_json, txid, true);
@@ -273,7 +273,7 @@ bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *
     *pBIndex = -1;
 
     //TXIDはBE/LE変換
-    misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
+    ucoin_misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = getrawtransaction_rpc(p_json, txid, true);
@@ -704,7 +704,7 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
     char *transaction;
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
-    misc_bin2str(transaction, pData, Len);
+    ucoin_misc_bin2str(transaction, pData, Len);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = signrawtransaction_rpc(p_json, transaction);
@@ -762,7 +762,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_
     char *transaction;
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
-    misc_bin2str(transaction, pData, Len);
+    ucoin_misc_bin2str(transaction, pData, Len);
 
     p_json = (char *)APP_MALLOC(BUFFER_SIZE);
     retval = sendrawtransaction_rpc(p_json, transaction);
@@ -812,7 +812,7 @@ bool btcrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
     char txid[UCOIN_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
-    misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
+    ucoin_misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     return btcrpc_getraw_txstr(pTx, txid);
 }
@@ -836,7 +836,7 @@ bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
     *pUnspent = false;
 
     //TXIDはBE/LE変換
-    misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
+    ucoin_misc_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     //まずtxの存在確認を行う
     retval = getraw_txstr(NULL, txid);

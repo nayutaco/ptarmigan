@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2018/05/22
+
+* log system([zlog](http://hardysimpson.github.io/zlog/))
+  * MUST build libraries
+    * `make clean full`
+
 ## 2018/05/11
 
 * support invoice `r` field decode

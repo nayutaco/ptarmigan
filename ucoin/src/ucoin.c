@@ -23,6 +23,8 @@
  *  @brief  bitcoinトランザクション計算
  *  @author ueno@nayuta.co
  */
+#include <unistd.h>
+
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/version.h"
@@ -135,7 +137,6 @@ bool ucoin_init(ucoin_chain_t chain, bool bSegNative)
 void ucoin_term(void)
 {
     mPref[UCOIN_PREF_WIF] = UCOIN_UNKNOWN;
-    //DBG_PRINTF("\n");
 }
 
 

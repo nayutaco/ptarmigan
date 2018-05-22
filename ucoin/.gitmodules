@@ -1,3 +1,6 @@
+[submodule "libs/zlog"]
+	path = libs/zlog
+	url = https://github.com/HardySimpson/zlog.git
 [submodule "libs/mbedtls"]
 	path = libs/mbedtls
 	url = https://github.com/ARMmbed/mbedtls.git

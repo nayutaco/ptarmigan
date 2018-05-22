@@ -93,18 +93,24 @@ int main(int argc, char *argv[])
     ln_nodeaddr_t *p_addr = ln_node_addr();
     char *p_alias = ln_node_alias();
 
+    ucoin_misc_log_init();
+
     memset(&rpc_conf, 0, sizeof(rpc_conf_t));
 #ifndef NETKIND
 #error not define NETKIND
 #endif
 #if NETKIND==0
-    ucoin_init(UCOIN_MAINNET, true);
+    bret = ucoin_init(UCOIN_MAINNET, true);
     rpc_conf.rpcport = 8332;
 #elif NETKIND==1
-    ucoin_init(UCOIN_TESTNET, true);
+    bret = ucoin_init(UCOIN_TESTNET, true);
     rpc_conf.rpcport = 18332;
 #endif
     strcpy(rpc_conf.rpcurl, "127.0.0.1");
+    if (!bret) {
+        fprintf(stderr, "fail: ucoin_init()\n");
+        return -1;
+    }
 
     p_addr->type = LN_NODEDESC_NONE;
     p_addr->port = 9735;
@@ -210,9 +216,6 @@ int main(int argc, char *argv[])
     //     return 0;
     // }
 
-    //syslog
-    openlog("ucoind", LOG_CONS, LOG_USER);
-
     //peer config出力
     char fname[256];
     sprintf(fname, FNAME_FMT_NODECONF, p_alias);
@@ -246,9 +249,9 @@ int main(int argc, char *argv[])
     pthread_create(&th_poll, NULL, &monitor_thread_start, NULL);
 
 #if NETKIND==0
-    SYSLOG_INFO("start bitcoin mainnet");
+    DBG_PRINTF("start bitcoin mainnet\n");
 #elif NETKIND==1
-    SYSLOG_INFO("start bitcoin testnet/regtest");
+    DBG_PRINTF("start bitcoin testnet/regtest\n");
 #endif
 
     //ucoincli受信用
@@ -259,11 +262,12 @@ int main(int argc, char *argv[])
     pthread_join(th_poll, NULL);
     DBG_PRINTF("%s exit\n", argv[0]);
 
-    SYSLOG_INFO("end");
+    DBG_PRINTF("end\n");
 
     lnapp_term();
     btcrpc_term();
     ln_db_term();
+    ucoin_misc_log_term();
 
     return 0;
 
@@ -352,7 +356,7 @@ void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
+        ucoin_misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
         DBG_PRINTF("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
 
         nodefaillist_t *nf = (nodefaillist_t *)APP_MALLOC(sizeof(nodefaillist_t));
@@ -370,7 +374,7 @@ bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
-        misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
+        ucoin_misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
 
         nodefaillist_t *p = LIST_FIRST(&mNodeFailListHead);
         while (p != NULL) {

@@ -70,7 +70,7 @@ bool HIDDEN ln_msg_init_create(ucoin_buf_t *pBuf, const ln_init_t *pMsg)
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     init_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -146,7 +146,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     init_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -157,12 +157,12 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
 static void init_print(const ln_init_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[init]-------------------------------\n\n");
-    DBG_PRINTF2("globalfeatures(%d)= ", pMsg->globalfeatures.len);
+    DBG_PRINTF("-[init]-------------------------------\n");
+    DBG_PRINTF("globalfeatures(%d)= ", pMsg->globalfeatures.len);
     DUMPBIN(pMsg->globalfeatures.buf, pMsg->globalfeatures.len);
-    DBG_PRINTF2("localfeatures(%d)= ", pMsg->localfeatures.len);
+    DBG_PRINTF("localfeatures(%d)= ", pMsg->localfeatures.len);
     DUMPBIN(pMsg->localfeatures.buf, pMsg->localfeatures.len);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -232,7 +232,7 @@ bool HIDDEN ln_msg_ping_create(ucoin_buf_t *pBuf, const ln_ping_t *pMsg)
     }
 
 #ifdef DBG_PRINT_CREATE
-    //DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    //DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     //ping_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -285,7 +285,7 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
     }
 
 #ifdef DBG_PRINT_READ
-    //DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    //DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     //ping_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -308,10 +308,10 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
 static void ping_print(const ln_ping_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[ping]-------------------------------\n\n");
+    DBG_PRINTF2("-[ping]-------------------------------\n");
     DBG_PRINTF2("num_pong_bytes: %" PRIu16 "\n", pMsg->num_pong_bytes);
     DBG_PRINTF2("byteslen: %" PRIu16 "\n", pMsg->byteslen);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF2("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 #endif
@@ -336,7 +336,7 @@ bool HIDDEN ln_msg_pong_create(ucoin_buf_t *pBuf, const ln_pong_t *pMsg)
     }
 
 #ifdef DBG_PRINT_CREATE
-    //DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    //DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     //pong_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -384,7 +384,7 @@ bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len
     }
 
 #ifdef DBG_PRINT_READ
-    //DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    //DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     //pong_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -407,9 +407,9 @@ bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len
 static void pong_print(const ln_pong_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[pong]-------------------------------\n\n");
+    DBG_PRINTF2("-[pong]-------------------------------\n");
     DBG_PRINTF2("byteslen: %" PRIu16 "\n", pMsg->byteslen);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF2("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 #endif

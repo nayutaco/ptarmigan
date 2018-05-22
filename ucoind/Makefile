@@ -7,6 +7,7 @@ OUTPUT_BINARY_DIRECTORY = .
 ######################################
 #CFLAGS_USER
 #CFLAGS_USER += -DAPP_DEBUG_MEM
+CFLAGS_USER += -DUCOIN_USE_ZLOG
 ######################################
 
 
@@ -94,7 +95,7 @@ LIBS += -lcurl
 LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
 LIBS += -L$(COMMON_PATH)/ucoin -lucoin
-LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto
+LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto -lzlog
 LIBS += -lstdc++
 
 
@@ -129,6 +130,7 @@ debug: LDFLAGS += -ggdb3 -O0 --coverage
 debug: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo [DEBUG]Linking target: $(OUTPUT_FILENAME)
 	@echo [DEBUG]CFLAGS=$(CFLAGS)
+	@echo [DEBUG]LIBS=$(LIBS)
 	$(NO_ECHO)$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME)
 
 release: CFLAGS += $(CFLAGS_USER)

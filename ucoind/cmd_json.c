@@ -237,7 +237,7 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    SYSLOG_INFO("connect");
+    DBG_PRINTF("connect\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
@@ -284,7 +284,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //basic info
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+    ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
     cJSON_AddItemToObject(result, "jsonrpc_port", cJSON_CreateNumber(cmd_json_get_port()));
@@ -303,7 +303,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
         uint8_t *p = p_hash;
         for (int lp = 0; lp < cnt; lp++) {
             char hash_str[LN_SZ_HASH * 2 + 1];
-            misc_bin2str(hash_str, p, LN_SZ_HASH);
+            ucoin_misc_bin2str(hash_str, p, LN_SZ_HASH);
             p += LN_SZ_HASH;
             cJSON_AddItemToArray(result_hash, cJSON_CreateString(hash_str));
         }
@@ -335,7 +335,7 @@ static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    SYSLOG_INFO("disconnect");
+    DBG_PRINTF("disconnect\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
@@ -359,7 +359,7 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)ctx; (void)params; (void)id;
 
-    SYSLOG_INFO("stop");
+    DBG_PRINTF("stop\n");
     p2p_svr_stop_all();
     p2p_cli_stop_all();
     jrpc_server_stop(&mJrpc);
@@ -481,7 +481,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     print_funding_conf(&fundconf);
 
-    SYSLOG_INFO("fund");
+    DBG_PRINTF("fund\n");
 
     bool ret = lnapp_funding(p_appconf, &fundconf);
     if (ret) {
@@ -526,7 +526,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    SYSLOG_INFO("invoice");
+    DBG_PRINTF("invoice\n");
 
     result = cJSON_CreateObject();
     ucoind_preimage_lock();
@@ -539,10 +539,10 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     ln_db_preimg_save(preimage, amount, NULL);
     ln_calc_preimage_hash(preimage_hash, preimage);
 
-    misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
-    DBG_PRINTF("preimage=")
+    ucoin_misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+    DBG_PRINTF("preimage=");
     DUMPBIN(preimage, LN_SZ_PREIMAGE);
-    DBG_PRINTF("hash=")
+    DBG_PRINTF("hash=");
     DUMPBIN(preimage_hash, LN_SZ_HASH);
     cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
     cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
@@ -635,7 +635,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON *json = cJSON_CreateArray();
 
             char str_hash[LN_SZ_HASH * 2 + 1];
-            misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+            ucoin_misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
             cJSON_AddItemToArray(json, cJSON_CreateString(str_hash));
             cJSON_AddItemToArray(json, cJSON_CreateNumber64(amount));
             char *p_invoice = create_bolt11(preimage_hash, amount);
@@ -762,7 +762,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
         }
     }
 
-    SYSLOG_INFO("payment");
+    DBG_PRINTF("payment\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
@@ -808,7 +808,7 @@ LABEL_EXIT:
  */
 static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    SYSLOG_INFO("routepay_first");
+    DBG_PRINTF("routepay_first\n");
     ln_db_annoskip_drop(true);
     mPayTryCount = 0;
     return cmd_routepay(ctx, params, id);
@@ -901,7 +901,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     // 送金開始
     //      これ以降は失敗してもリトライする
-    SYSLOG_INFO("routepay");
+    DBG_PRINTF("routepay\n");
     ret = false;
 
     //再送のためにinvoice保存
@@ -997,7 +997,7 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    SYSLOG_INFO("close");
+    DBG_PRINTF("close\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if ((p_appconf != NULL) && (ln_htlc_num(p_appconf->p_self) == 0)) {
@@ -1063,7 +1063,7 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    SYSLOG_INFO("getlasterror");
+    DBG_PRINTF("getlasterror\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
@@ -1137,7 +1137,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    SYSLOG_INFO("getcommittx");
+    DBG_PRINTF("getcommittx\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
@@ -1237,7 +1237,7 @@ static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    SYSLOG_INFO("setfeerate");
+    DBG_PRINTF("setfeerate\n");
     monitor_set_feerate_per_kw(feerate_per_kw);
     result = cJSON_CreateString(kOK);
 
@@ -1293,7 +1293,7 @@ static bool routepay_param(cJSON *params, int index,
             strcpy(pStrPayer, json->valuestring);
         } else {
             //自分をpayerにする
-            misc_bin2str(pStrPayer, ln_node_getid(), UCOIN_SZ_PUBKEY);
+            ucoin_misc_bin2str(pStrPayer, ln_node_getid(), UCOIN_SZ_PUBKEY);
         }
         DBG_PRINTF("str_payer=%s\n", pStrPayer);
     } else {
