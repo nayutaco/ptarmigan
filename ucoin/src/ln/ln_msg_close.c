@@ -64,7 +64,7 @@ bool HIDDEN ln_msg_shutdown_create(ucoin_buf_t *pBuf, const ln_shutdown_t *pMsg)
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     shutdown_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -124,7 +124,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     shutdown_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -135,12 +135,12 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
 static void shutdown_print(const ln_shutdown_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[shutdown]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF("-[shutdown]-------------------------------\n");
+    DBG_PRINTF("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("p_scriptpk: ");
+    DBG_PRINTF("p_scriptpk: ");
     DUMPBIN(pMsg->p_scriptpk->buf, pMsg->p_scriptpk->len);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -160,7 +160,7 @@ bool HIDDEN ln_msg_closing_signed_create(ucoin_buf_t *pBuf, const ln_closing_sig
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     closing_signed_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -216,7 +216,7 @@ bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t 
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     closing_signed_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -227,12 +227,12 @@ bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t 
 static void closing_signed_print(const ln_closing_signed_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[closing_signed]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF("-[closing_signed]-------------------------------\n");
+    DBG_PRINTF("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("fee_sat= %llu\n", (unsigned long long)pMsg->fee_sat);
-    DBG_PRINTF2("signature: ");
+    DBG_PRINTF("fee_sat= %llu\n", (unsigned long long)pMsg->fee_sat);
+    DBG_PRINTF("signature: ");
     DUMPBIN(pMsg->p_signature, LN_SZ_SIGNATURE);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }

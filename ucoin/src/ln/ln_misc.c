@@ -348,7 +348,7 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
                 pLocal->pubkeys[MSG_FUNDIDX_HTLC], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
 
-    ln_print_keys(PRINTOUT, pLocal, pRemote);
+    ln_print_keys(pLocal, pRemote);
 }
 
 

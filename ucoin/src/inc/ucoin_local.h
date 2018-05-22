@@ -30,9 +30,12 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 
+#ifdef UCOIN_USE_ZLOG
+#else   //UCOIN_USE_ZLOG
 static inline int tid() {
     return (int)syscall(SYS_gettid);
 }
+#endif  //UCOIN_USE_ZLOG
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -101,9 +104,42 @@ static inline int tid() {
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
 #define PRINTOUT        stdout
+#define DEBUGOUT        stderr
 
 #ifdef UCOIN_DEBUG
-#define DEBUGOUT        stderr
+#ifdef UCOIN_USE_ZLOG
+#define DBG_PRINTF(...) {\
+    if (mZlogCatUcoin != NULL) {\
+        zlog(mZlogCatUcoin, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
+        ZLOG_LEVEL_DEBUG, __VA_ARGS__); \
+    }\
+}
+#define DBG_PRINTF2(...) {\
+    if (mZlogCatSimple != NULL) {\
+        zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
+        ZLOG_LEVEL_DEBUG, __VA_ARGS__); \
+    }\
+}
+#define DUMPBIN(dt,ln) {\
+    if (mZlogCatSimple != NULL) {\
+        char *p_str = (char *)malloc(ln * 2 + 1);   \
+        ucoin_misc_bin2str(p_str, dt, ln);          \
+        zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
+        ZLOG_LEVEL_DEBUG, "%s\n", p_str); \
+        free(p_str); \
+    }\
+}
+#define DUMPTXID(dt) {\
+    if (mZlogCatSimple != NULL) {\
+        char *p_str = (char *)malloc(UCOIN_SZ_TXID * 2 + 1);   \
+        ucoin_misc_bin2str_rev(p_str, dt, UCOIN_SZ_TXID);      \
+        zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
+        ZLOG_LEVEL_DEBUG, "%s\n", p_str); \
+        free(p_str); \
+    }\
+}
+
+#else   //UCOIN_USE_ZLOG
 
 /// @def    DBG_PRINTF(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
@@ -113,6 +149,8 @@ static inline int tid() {
 /// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
 #define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
 #define DUMPTXID(dt)        {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
+#endif  //UCOIN_USE_ZLOG
+
 #else //UCOIN_DEBUG
 #define DBG_PRINTF(...)     //none
 #define DBG_PRINTF2(...)     //none
@@ -142,6 +180,9 @@ extern bool     mNativeSegwit;
 #ifdef UCOIN_USE_RNG
 extern mbedtls_ctr_drbg_context mRng;
 #endif  //UCOIN_USE_RNG
+#ifdef UCOIN_USE_ZLOG
+extern zlog_category_t *mZlogCatUcoin;
+#endif  //UCOIN_USE_ZLOG
 
 
 /**************************************************************************

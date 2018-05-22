@@ -309,7 +309,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
     //  P2WPKH - remote
     if (pCmt->remote.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_remote) {
         DBG_PRINTF("  add P2WPKH remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCmt->remote.satoshi, fee_remote);
-        DBG_PRINTF2("    remote.pubkey: ");
+        DBG_PRINTF("    remote.pubkey: ");
         DUMPBIN(pCmt->remote.pubkey, UCOIN_SZ_PUBKEY);
         ucoin_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
         pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOREMOTE;

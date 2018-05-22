@@ -75,21 +75,21 @@ void *p2p_svr_start(void *pArg)
 
     sock = socket(PF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        SYSLOG_ERR("%s(): socket error: %s", __func__, strerror(errno));
+        DBG_PRINTF("socket error: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     int optval = 1;
 
     ret = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
     if (ret < 0) {
-        SYSLOG_ERR("%s(): setsockopt: %s", __func__, strerror(errno));
+        DBG_PRINTF("setsockopt: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
 
     socklen_t optlen = sizeof(optval);
     ret = getsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, &optlen);
     if (ret < 0) {
-        SYSLOG_ERR("%s(): getsokopt: %s", __func__, strerror(errno));
+        DBG_PRINTF("getsokopt: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     fcntl(sock, F_SETFL, O_NONBLOCK);
@@ -100,12 +100,12 @@ void *p2p_svr_start(void *pArg)
     sv_addr.sin_port = htons(ln_node_addr()->port);
     ret = bind(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if (ret < 0) {
-        SYSLOG_ERR("%s(): bind: %s", __func__, strerror(errno));
+        DBG_PRINTF("bind: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     ret = listen(sock, 1);
     if (ret < 0) {
-        SYSLOG_ERR("%s(): listen: %s", __func__, strerror(errno));
+        DBG_PRINTF("listen: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     fprintf(PRINTOUT, "listening...\n");
@@ -116,7 +116,7 @@ void *p2p_svr_start(void *pArg)
         fds.events = POLLIN;
         int polr = poll(&fds, 1, 500);
         if (polr < 0) {
-            SYSLOG_ERR("%s(): poll: %s", __func__, strerror(errno));
+            DBG_PRINTF("poll: %s\n", strerror(errno));
             continue;
         } else if (polr == 0) {
             //timeout
@@ -137,7 +137,7 @@ void *p2p_svr_start(void *pArg)
             mAppConf[idx].sock = accept(sock, (struct sockaddr *)&cl_addr, &cl_len);
             fprintf(PRINTOUT, "accepted[%d]\n", idx);
             if (mAppConf[idx].sock < 0) {
-                SYSLOG_ERR("%s(): accept: %s", __func__, strerror(errno));
+                DBG_PRINTF("accept: %s\n", strerror(errno));
                 goto LABEL_EXIT;
             }
 
@@ -147,14 +147,14 @@ void *p2p_svr_start(void *pArg)
             mAppConf[idx].cmd = DCMD_NONE;
             inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, mAppConf[idx].conn_str, SZ_CONN_STR);
             mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
-            fprintf(PRINTOUT, "connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
+            DBG_PRINTF("connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
 
             lnapp_start(&mAppConf[idx]);
         } else {
             //空き無し
             int delsock = accept(sock, NULL, NULL);
             close(delsock);
-            SYSLOG_ERR("no empty socket");
+            DBG_PRINTF("no empty socket\n");
         }
     }
 

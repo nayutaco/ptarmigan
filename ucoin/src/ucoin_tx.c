@@ -1155,56 +1155,51 @@ uint32_t ucoin_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
 #ifdef UCOIN_USE_PRINTFUNC
 void ucoin_print_tx(const ucoin_tx_t *pTx)
 {
-    FILE *fp = PRINTOUT;
-
-    fprintf(fp, "======================================\n");
+    DBG_PRINTF("======================================\n");
     uint8_t txid[UCOIN_SZ_TXID];
     ucoin_tx_txid(txid, pTx);
-    fprintf(fp, "txid= ");
-    ucoin_util_dumptxid(fp, txid);
-    fprintf(fp, "\n");
-    fprintf(fp, "======================================\n");
-    fprintf(fp, " version:%u\n\n", pTx->version);
-    fprintf(fp, " txin_cnt=%u\n", pTx->vin_cnt);
+    DBG_PRINTF("txid= ");
+    DUMPTXID(txid);
+    DBG_PRINTF("======================================\n");
+    DBG_PRINTF(" version:%u\n", pTx->version);
+    DBG_PRINTF(" txin_cnt=%u\n", pTx->vin_cnt);
     for(uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
-        fprintf(fp, " [vin #%u]\n", lp);
-        fprintf(fp, "  txid= ");
-        ucoin_util_dumptxid(fp, pTx->vin[lp].txid);
-        fprintf(fp, "\n");
-        fprintf(fp, "       LE: ");
-        ucoin_util_dumpbin(fp, pTx->vin[lp].txid, UCOIN_SZ_TXID, true);
-        fprintf(fp, "  index= %u\n", pTx->vin[lp].index);
-        fprintf(fp, "  scriptSig[%u]= ", pTx->vin[lp].script.len);
-        ucoin_util_dumpbin(fp, pTx->vin[lp].script.buf, pTx->vin[lp].script.len, true);
+        DBG_PRINTF(" [vin #%u]\n", lp);
+        DBG_PRINTF("  txid= ");
+        DUMPTXID(pTx->vin[lp].txid);
+        DBG_PRINTF("       LE: ");
+        DUMPBIN(pTx->vin[lp].txid, UCOIN_SZ_TXID);
+        DBG_PRINTF("  index= %u\n", pTx->vin[lp].index);
+        DBG_PRINTF("  scriptSig[%u]= ", pTx->vin[lp].script.len);
+        DUMPBIN(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         ucoin_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         //bool p2wsh = (pTx->vin[lp].script.len == 35) &&
         //             (pTx->vin[lp].script.buf[1] == 0x00) && (pTx->vin[lp].script.buf[2] == 0x20);
         bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
-        fprintf(fp, "  sequence= 0x%08x\n\n", pTx->vin[lp].sequence);
+        DBG_PRINTF("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
         for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
-            fprintf(fp, "  witness[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
+            DBG_PRINTF("  witness[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
-                ucoin_util_dumpbin(fp, pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len, true);
+                DUMPBIN(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
                     //P2WSHの最後はwitnessScript
                     //nativeのP2WSHでも表示させたかったが、識別する方法が思いつかない
                     ucoin_print_script(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 }
             } else {
-                fprintf(fp, "<none>\n");
+                DBG_PRINTF("<none>\n");
             }
         }
     }
-    fprintf(fp, "\n txout_cnt= %u\n", pTx->vout_cnt);
+    DBG_PRINTF(" txout_cnt= %u\n", pTx->vout_cnt);
     for(uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
-        fprintf(fp, " [vout #%u]\n", lp);
-        fprintf(fp, "  value= %llu  ( ", (unsigned long long)pTx->vout[lp].value);
-        ucoin_util_dumpbin(fp, ((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value), false);
-        fprintf(fp, " )\n");
-        fprintf(fp, "    %f mBTC, %f BTC\n", UCOIN_SATOSHI2MBTC(pTx->vout[lp].value), UCOIN_SATOSHI2BTC(pTx->vout[lp].value));
+        DBG_PRINTF(" [vout #%u]\n", lp);
+        DBG_PRINTF("  value= %llu  : ", (unsigned long long)pTx->vout[lp].value);
+        DUMPBIN(((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value));
+        DBG_PRINTF("    %f mBTC, %f BTC\n", UCOIN_SATOSHI2MBTC(pTx->vout[lp].value), UCOIN_SATOSHI2BTC(pTx->vout[lp].value));
         ucoin_buf_t *buf = &(pTx->vout[lp].script);
-        fprintf(fp, "  scriptPubKey[%u]= ", buf->len);
-        ucoin_util_dumpbin(fp, buf->buf, buf->len, true);
+        DBG_PRINTF("  scriptPubKey[%u]= ", buf->len);
+        DUMPBIN(buf->buf, buf->len);
         ucoin_print_script(buf->buf, buf->len);
         if ( (buf->len == 25) && (buf->buf[0] == 0x76) && (buf->buf[1] == 0xa9) &&
              (buf->buf[2] == 0x14) && (buf->buf[23] == 0x88) && (buf->buf[24] == 0xac) ) {
@@ -1214,19 +1209,19 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
             if (!ret) {
                 return;
             }
-            fprintf(fp, "    (%s)\n", addr);
+            DBG_PRINTF("    (%s)\n", addr);
         }
     }
-    fprintf(fp, "\n locktime= 0x%08x : ", pTx->locktime);
+    DBG_PRINTF("\n locktime= 0x%08x : ", pTx->locktime);
     if (pTx->locktime < 500000000L) {
         //ブロック高
-        fprintf(fp, "block height\n");
+        DBG_PRINTF2("block height\n");
     } else {
         //epoch second
         time_t tm = pTx->locktime;
-        fprintf(fp, "epoch second: %s\n", ctime(&tm));
+        DBG_PRINTF2("epoch second: %s\n", ctime(&tm));
     }
-    fprintf(fp, "======================================\n");
+    DBG_PRINTF("======================================\n");
 }
 
 
@@ -1246,8 +1241,6 @@ void ucoin_print_rawtx(const uint8_t *pData, uint32_t Len)
 
 void ucoin_print_script(const uint8_t *pData, uint16_t Len)
 {
-    FILE *fp = PRINTOUT;
-
     const struct {
         uint8_t         op;
         const char      *name;
@@ -1277,13 +1270,13 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
         if (*pData <= 0x4b) {
             //スタックに載せる
             int len = *pData;
-            fprintf(fp, "%s%02x ", INDENT, len);
+            DBG_PRINTF("%s%02x ", INDENT, len);
             pData++;
-            ucoin_util_dumpbin(fp, pData, len, true);
+            DUMPBIN(pData, len);
             pData += len;
         } else if ((OP_1 <= *pData) && (*pData <= OP_16)) {
             //OP_x
-            fprintf(fp, "%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_x);
+            DBG_PRINTF("%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_x);
             pData++;
         } else if ((*pData == OP_PUSHDATA1) || (*pData == OP_PUSHDATA2)) {
             //スタックに載せる
@@ -1295,8 +1288,8 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
                 len = *(pData + 1) | (*(pData + 2) << 8);
                 pData += 3;
             }
-            fprintf(fp, "%sOP_PUSHDATAx 0x%02x ", INDENT, len);
-            ucoin_util_dumpbin(fp, pData, len, true);
+            DBG_PRINTF("%sOP_PUSHDATAx 0x%02x ", INDENT, len);
+            DUMPBIN(pData, len);
             pData += len;
         } else {
             int op;
@@ -1307,10 +1300,10 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
             }
             if (op != ARRAY_SIZE(OP_DIC)) {
                 //知っているOP code
-                fprintf(fp, "%s%02x [%s]\n", INDENT, OP_DIC[op].op, OP_DIC[op].name);
+                DBG_PRINTF("%s%02x [%s]\n", INDENT, OP_DIC[op].op, OP_DIC[op].name);
             } else {
                 //unknown
-                fprintf(fp, "%s%02x [??]\n", INDENT, *pData);
+                DBG_PRINTF("%s%02x [??]\n", INDENT, *pData);
             }
             pData++;
         }
@@ -1615,7 +1608,7 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
         is_zero = mbedtls_ecp_is_zero(&nR);
         mbedtls_ecp_point_free(&nR);
         if ((ret == 0) || !is_zero) {
-            DBG_PRINTF2("[%d]1.4 error(ret=%04x)\n", j, ret);
+            DBG_PRINTF("[%d]1.4 error(ret=%04x)\n", j, ret);
             goto SKIP_LOOP;
         }
 

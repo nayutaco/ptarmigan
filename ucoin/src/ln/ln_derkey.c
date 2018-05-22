@@ -70,7 +70,6 @@ bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
     DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
     DBG_PRINTF2(" ==> ");
     DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2("\n\n");
 #endif
 
     return ret == 0;
@@ -123,7 +122,6 @@ bool HIDDEN ln_derkey_privkey(uint8_t *pPrivKey,
     DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
     DBG_PRINTF2(" ==> (priv)");
     DUMPBIN(pBaseSecret, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF2("\n\n");
 #endif
 
 LABEL_EXIT:
@@ -201,7 +199,6 @@ bool HIDDEN ln_derkey_revocationkey(uint8_t *pRevPubKey,
     DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
     DBG_PRINTF2(" ==> ");
     DUMPBIN(pRevPubKey, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2("\n\n");
 #endif
 
 LABEL_EXIT:
@@ -288,7 +285,6 @@ bool HIDDEN ln_derkey_revocationprivkey(uint8_t *pRevPrivKey,
     DUMPBIN(pPerCommitSecret, UCOIN_SZ_PRIVKEY);
     DBG_PRINTF2(" ==> (priv)");
     DUMPBIN(pRevPrivKey, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF2("\n\n");
 #endif
 
 LABEL_EXIT:

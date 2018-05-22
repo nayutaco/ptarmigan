@@ -1691,10 +1691,6 @@ void HIDDEN ln_free_revoked_buf(ln_self_t *self)
  */
 static void channel_clear(ln_self_t *self)
 {
-    //DBG_PRINTF2("***************************************************\n");
-    //DBG_PRINTF("\n");
-    //DBG_PRINTF2("***************************************************\n");
-
     ucoin_buf_free(&self->shutdown_scriptpk_local);
     ucoin_buf_free(&self->shutdown_scriptpk_remote);
     ucoin_buf_free(&self->redeem_fund);
@@ -1778,8 +1774,6 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
 static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("\n");
-
     if (ln_is_funding(self)) {
         DBG_PRINTF("stop funding\n");
         free_establish(self, false);    //切断せずに継続する場合もあるため、残す
@@ -2550,20 +2544,20 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     self->htlc_num++;
     DBG_PRINTF("HTLC add : htlc_num=%d, id=%" PRIx64 ", amount_msat=%" PRIu64 "\n", self->htlc_num, p_htlc->id, p_htlc->amount_msat);
 
-    DBG_PRINTF2("  ret=%d\n", ret);
-    DBG_PRINTF2("  id=%" PRIu64 "\n", p_htlc->id);
+    DBG_PRINTF("  ret=%d\n", ret);
+    DBG_PRINTF("  id=%" PRIu64 "\n", p_htlc->id);
 
-    DBG_PRINTF2("  %s\n", (hop_dataout.b_exit) ? "intended recipient" : "forwarding HTLCs");
+    DBG_PRINTF("  %s\n", (hop_dataout.b_exit) ? "intended recipient" : "forwarding HTLCs");
     //転送先
-    DBG_PRINTF2("  FWD: short_channel_id: %" PRIx64 "\n", hop_dataout.short_channel_id);
-    DBG_PRINTF2("  FWD: amt_to_forward: %" PRIu64 "\n", hop_dataout.amt_to_forward);
-    DBG_PRINTF2("  FWD: outgoing_cltv_value: %d\n", hop_dataout.outgoing_cltv_value);
-    DBG_PRINTF2("  -------\n");
+    DBG_PRINTF("  FWD: short_channel_id: %" PRIx64 "\n", hop_dataout.short_channel_id);
+    DBG_PRINTF("  FWD: amt_to_forward: %" PRIu64 "\n", hop_dataout.amt_to_forward);
+    DBG_PRINTF("  FWD: outgoing_cltv_value: %d\n", hop_dataout.outgoing_cltv_value);
+    DBG_PRINTF("  -------\n");
     //自分への通知
-    DBG_PRINTF2("  amount_msat: %" PRIu64 "\n", p_htlc->amount_msat);
-    DBG_PRINTF2("  cltv_expiry: %d\n", p_htlc->cltv_expiry);
-    DBG_PRINTF2("  my fee : %" PRIu64 "\n", (uint64_t)(p_htlc->amount_msat - hop_dataout.amt_to_forward));
-    DBG_PRINTF2("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",  hop_dataout.outgoing_cltv_value, p_htlc->cltv_expiry - hop_dataout.outgoing_cltv_value);
+    DBG_PRINTF("  amount_msat: %" PRIu64 "\n", p_htlc->amount_msat);
+    DBG_PRINTF("  cltv_expiry: %d\n", p_htlc->cltv_expiry);
+    DBG_PRINTF("  my fee : %" PRIu64 "\n", (uint64_t)(p_htlc->amount_msat - hop_dataout.amt_to_forward));
+    DBG_PRINTF("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",  hop_dataout.outgoing_cltv_value, p_htlc->cltv_expiry - hop_dataout.outgoing_cltv_value);
 
     //update_add_htlc受信通知
     add_htlc.ok = ret;
@@ -3033,8 +3027,6 @@ LABEL_EXIT:
  */
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("\n");
-
     ln_cnl_announce_read_t ann;
     ln_cb_channel_anno_recv_t param;
 
@@ -3078,7 +3070,6 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     (void)self;
-    DBG_PRINTF("\n");
 
     ln_cnl_update_t upd;
     memset(&upd, 0, sizeof(upd));
@@ -3149,8 +3140,6 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
  */
 static void start_funding_wait(ln_self_t *self, bool bSendTx)
 {
-    DBG_PRINTF("\n");
-
     ln_cb_funding_t funding;
 
     //commitment numberは0から始まる
@@ -3256,7 +3245,7 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_buf_t txbuf = UCOIN_BUF_INIT;
     ucoin_tx_create(&txbuf, &self->tx_funding);
 
-    DBG_PRINTF("\n***** funding_tx(no signature) *****\n");
+    DBG_PRINTF("***** funding_tx(no signature) *****\n");
     M_DBG_PRINT_TX(&self->tx_funding);
 
     // LEN+署名(72) + LEN+公開鍵(33)
@@ -3306,7 +3295,7 @@ static bool create_funding_tx(ln_self_t *self)
         DBG_PRINTF("fail: signature\n");
     }
 
-    DBG_PRINTF("\n***** funding_tx *****\n");
+    DBG_PRINTF("***** funding_tx *****\n");
     M_DBG_PRINT_TX(&self->tx_funding);
 
     return ret;
@@ -4942,9 +4931,9 @@ static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id)
     bool ret = (memcmp(recv_id, mine_id, LN_SZ_CHANNEL_ID) == 0);
     if (!ret) {
         DBG_PRINTF("channel-id mismatch\n");
-        DBG_PRINTF2("mine:");
+        DBG_PRINTF("mine:");
         DUMPBIN(mine_id, LN_SZ_CHANNEL_ID);
-        DBG_PRINTF2("get :");
+        DBG_PRINTF("get :");
         DUMPBIN(recv_id, LN_SZ_CHANNEL_ID);
         return false;
     }

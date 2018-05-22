@@ -2218,11 +2218,10 @@ unsigned long ln_get_debug(void);
 
 /** [デバッグ用]鍵情報出力
  *
- * @param[in]   fp
  * @param[in]   pLocal
  * @param[in]   pRemote
  */
-void ln_print_keys(FILE *fp, const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote);
+void ln_print_keys(const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote);
 #endif
 
 #ifdef __cplusplus

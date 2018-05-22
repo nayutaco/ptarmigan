@@ -44,28 +44,6 @@ static int mcount = 0;
  * public functions
  **************************************************************************/
 
-void misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
-{
-    *pStr = '\0';
-    for (uint32_t lp = 0; lp < BinLen; lp++) {
-        char str[3];
-        sprintf(str, "%02x", pBin[lp]);
-        strcat(pStr, str);
-    }
-}
-
-
-void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
-{
-    *pStr = '\0';
-    for (uint32_t lp = 0; lp < BinLen; lp++) {
-        char str[3];
-        sprintf(str, "%02x", pBin[BinLen - lp - 1]);
-        strcat(pStr, str);
-    }
-}
-
-
 bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
     if (strlen(pStr) != BinLen * 2) {
@@ -167,7 +145,7 @@ void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
 
     if (pChannelId != NULL) {
         char chanid[LN_SZ_CHANNEL_ID * 2 + 1];
-        misc_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
+        ucoin_misc_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
         sprintf(fname, FNAME_EVENTCH_LOG, chanid);
     } else {
         sprintf(fname, FNAME_EVENTCH_LOG, "node");

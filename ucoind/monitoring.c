@@ -179,16 +179,16 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
         uint8_t txid[UCOIN_SZ_TXID];
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == LN_CLOSE_IDX_COMMIT) {
-                DBG_PRINTF2("\n$$$ commit_tx\n");
+                DBG_PRINTF("\n$$$ commit_tx\n");
                 //for (int lp2 = 0; lp2 < close_dat.p_tx[lp].vout_cnt; lp2++) {
                 //    DBG_PRINTF("vout[%d]=%x\n", lp2, close_dat.p_tx[lp].vout[lp2].opt);
                 //}
             } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
-                DBG_PRINTF2("\n$$$ to_local tx\n");
+                DBG_PRINTF("\n$$$ to_local tx\n");
             } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
-                DBG_PRINTF2("\n$$$ to_remote tx\n");
+                DBG_PRINTF("\n$$$ to_remote tx\n");
             } else {
-                DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
+                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //自分のtxを展開済みかチェック
@@ -351,7 +351,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
     if (!spent) {
         //初めてclosing処理を行う(まだln_goto_closing()を呼び出していない)
         char txid_str[UCOIN_SZ_TXID * 2 + 1];
-        misc_bin2str_rev(txid_str, ln_funding_txid(self), UCOIN_SZ_TXID);
+        ucoin_misc_bin2str_rev(txid_str, ln_funding_txid(self), UCOIN_SZ_TXID);
         misc_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
     }
 
@@ -409,7 +409,7 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
 
                     char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
                     char json[256];
-                    misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
+                    ucoin_misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
                     sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
                     DBG_PRINTF("%s\n", json);
 
@@ -512,15 +512,15 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
         uint8_t txid[UCOIN_SZ_TXID];
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == LN_CLOSE_IDX_COMMIT) {
-                DBG_PRINTF2("\n$$$ commit_tx\n");
+                DBG_PRINTF("\n$$$ commit_tx\n");
                 continue;
             } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
-                DBG_PRINTF2("\n$$$ to_local tx\n");
+                DBG_PRINTF("\n$$$ to_local tx\n");
                 continue;
             } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
-                DBG_PRINTF2("\n$$$ to_remote tx\n");
+                DBG_PRINTF("\n$$$ to_remote tx\n");
             } else {
-                DBG_PRINTF2("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
+                DBG_PRINTF("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //自分のtxを展開済みかチェック
@@ -791,7 +791,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
             DBG_PRINTF("find! %d\n", num);
             ucoin_tx_t *pTx = (ucoin_tx_t *)txbuf.buf;
             for (int lp = 0; lp < num; lp++) {
-                DBG_PRINTF2("-------- %d ----------\n", lp);
+                DBG_PRINTF("-------- %d ----------\n", lp);
                 ucoin_print_tx(&pTx[lp]);
 
                 ret = close_revoked_tolocal(self, &pTx[lp], 0);

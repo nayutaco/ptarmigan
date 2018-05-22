@@ -74,7 +74,7 @@ bool HIDDEN ln_msg_update_add_htlc_create(ucoin_buf_t *pBuf, const ln_update_add
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -158,7 +158,7 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -169,17 +169,17 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
 static void update_add_htlc_print(const ln_update_add_htlc_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[update_add_htlc]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF("-[update_add_htlc]-------------------------------\n");
+    DBG_PRINTF("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("id: %" PRIx64 "\n", pMsg->id);
-    DBG_PRINTF2("amount_msat: %" PRIu64 "\n", pMsg->amount_msat);
-    DBG_PRINTF2("cltv_expiry: %u\n", pMsg->cltv_expiry);
-    DBG_PRINTF2("payment_sha256: ");
+    DBG_PRINTF("id: %" PRIx64 "\n", pMsg->id);
+    DBG_PRINTF("amount_msat: %" PRIu64 "\n", pMsg->amount_msat);
+    DBG_PRINTF("cltv_expiry: %u\n", pMsg->cltv_expiry);
+    DBG_PRINTF("payment_sha256: ");
     DUMPBIN(pMsg->payment_sha256, LN_SZ_HASH);
-    DBG_PRINTF2("p_onion_route: ");
+    DBG_PRINTF("p_onion_route: ");
     DUMPBIN(pMsg->p_onion_route, 30);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -199,7 +199,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_create(ucoin_buf_t *pBuf, const ln_update
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_fulfill_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -255,7 +255,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_fulfill_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -266,17 +266,17 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
 static void update_fulfill_htlc_print(const ln_update_fulfill_htlc_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[update_fulfill_htlc]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF("-[update_fulfill_htlc]-------------------------------\n");
+    DBG_PRINTF("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("id: %" PRIx64 "\n", pMsg->id);
-    DBG_PRINTF2("p_payment_preimage: ");
+    DBG_PRINTF("id: %" PRIx64 "\n", pMsg->id);
+    DBG_PRINTF("p_payment_preimage: ");
     DUMPBIN(pMsg->p_payment_preimage, UCOIN_SZ_PRIVKEY);
     uint8_t sha[UCOIN_SZ_SHA256];
     ucoin_util_sha256(sha, pMsg->p_payment_preimage, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF2("              hash: ");
+    DBG_PRINTF("              hash: ");
     DUMPBIN(sha, sizeof(sha));
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -297,7 +297,7 @@ bool HIDDEN ln_msg_update_fail_htlc_create(ucoin_buf_t *pBuf, const ln_update_fa
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_fail_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -364,7 +364,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_fail_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -375,14 +375,14 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
 static void update_fail_htlc_print(const ln_update_fail_htlc_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[update_fail_htlc]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF("-[update_fail_htlc]-------------------------------\n");
+    DBG_PRINTF("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("id: %" PRIx64 "\n", pMsg->id);
-    DBG_PRINTF2("len= %lu\n", (unsigned long)pMsg->p_reason->len);
-    DBG_PRINTF2("reason: ");
+    DBG_PRINTF("id: %" PRIx64 "\n", pMsg->id);
+    DBG_PRINTF("len= %lu\n", (unsigned long)pMsg->p_reason->len);
+    DBG_PRINTF("reason: ");
     DUMPBIN(pMsg->p_reason->buf, pMsg->p_reason->len);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -403,7 +403,7 @@ bool HIDDEN ln_msg_commit_signed_create(ucoin_buf_t *pBuf, const ln_commit_signe
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     commit_signed_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -468,7 +468,7 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     commit_signed_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -479,17 +479,17 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
 static void commit_signed_print(const ln_commit_signed_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[commitment_signed]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF("-[commitment_signed]-------------------------------\n");
+    DBG_PRINTF("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("signature: ");
+    DBG_PRINTF("signature: ");
     DUMPBIN(pMsg->p_signature, LN_SZ_SIGNATURE);
-    DBG_PRINTF2("num_htlcs= %lu\n", (unsigned long)pMsg->num_htlcs);
+    DBG_PRINTF("num_htlcs= %lu\n", (unsigned long)pMsg->num_htlcs);
     for (int lp = 0; lp < pMsg->num_htlcs; lp++) {
-        DBG_PRINTF2("htlc-signature[%d]: ", lp);
+        DBG_PRINTF("htlc-signature[%d]: ", lp);
         DUMPBIN(pMsg->p_htlc_signature + lp * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
     }
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -509,7 +509,7 @@ bool HIDDEN ln_msg_revoke_and_ack_create(ucoin_buf_t *pBuf, const ln_revoke_and_
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     revoke_and_ack_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -565,7 +565,7 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     revoke_and_ack_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -576,14 +576,14 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
 static void revoke_and_ack_print(const ln_revoke_and_ack_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[revoke_and_ack]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF("-[revoke_and_ack]-------------------------------\n");
+    DBG_PRINTF("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("per-commitment-secret: ");
+    DBG_PRINTF("per-commitment-secret: ");
     DUMPBIN(pMsg->p_per_commit_secret, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF2("next-per-commitment-point: ");
+    DBG_PRINTF("next-per-commitment-point: ");
     DUMPBIN(pMsg->p_per_commitpt, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -602,7 +602,7 @@ bool HIDDEN ln_msg_update_fee_create(ucoin_buf_t *pBuf, const ln_update_fee_t *p
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_fee_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -651,7 +651,7 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_fee_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -662,11 +662,11 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
 static void update_fee_print(const ln_update_fee_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[update_fee]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF("-[update_fee]-------------------------------\n");
+    DBG_PRINTF("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("feerate_per_kw= %lu\n", (unsigned long)pMsg->feerate_per_kw);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("feerate_per_kw= %lu\n", (unsigned long)pMsg->feerate_per_kw);
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -687,7 +687,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_create(ucoin_buf_t *pBuf, const ln
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_fail_malformed_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -750,7 +750,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("\n@@@@@ %s @@@@@\n", __func__);
+    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
     update_fail_malformed_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -761,13 +761,13 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
 static void update_fail_malformed_htlc_print(const ln_update_fail_malformed_htlc_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF2("-[update_fail_malformed_htlc]-------------------------------\n\n");
-    DBG_PRINTF2("channel-id: ");
+    DBG_PRINTF("-[update_fail_malformed_htlc]-------------------------------\n");
+    DBG_PRINTF("channel-id: ");
     DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF2("id: %" PRIx64 "\n", pMsg->id);
-    DBG_PRINTF2("p_sha256_onion: ");
+    DBG_PRINTF("id: %" PRIx64 "\n", pMsg->id);
+    DBG_PRINTF("p_sha256_onion: ");
     DUMPBIN(pMsg->p_sha256_onion, LN_SZ_HASH);
-    DBG_PRINTF2("failure_code: %04x\n", pMsg->failure_code);
-    DBG_PRINTF2("--------------------------------\n\n\n");
+    DBG_PRINTF("failure_code: %04x\n", pMsg->failure_code);
+    DBG_PRINTF("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }

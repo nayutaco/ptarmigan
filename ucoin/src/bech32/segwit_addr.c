@@ -367,9 +367,11 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_i
             memcpy(p_invoice_data->payment_hash, p_data, LN_SZ_HASH);
         }
         //if ((tag == 13)) {
-        //    for (size_t lp = 0; lp < d_len; lp++) {
-        //        DBG_PRINTF2("%c", p_data[lp]);
-        //    }
+        //    char *p_str = (char *)M_ALLOC(d_len + 1);
+        //    memcpy(p_str, p_data, d_len);
+        //    p_str[d_len - 1] = '\0';
+        //    DBG_PRINTF("%s\n", p_str);
+        //    M_FREE(p_str);
         //} else {
         //    DUMPBIN(p_data, d_len);
         //}

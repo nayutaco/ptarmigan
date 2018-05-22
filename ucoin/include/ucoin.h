@@ -36,6 +36,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef UCOIN_USE_ZLOG
+#include "zlog.h"
+extern zlog_category_t *mZlogCatApp;
+extern zlog_category_t *mZlogCatSimple;
+#endif  //UCOIN_USE_ZLOG
+
 #ifdef __cplusplus
 extern "C" {
 #endif //__cplusplus
@@ -923,7 +929,7 @@ bool ucoin_tx_txid_raw(uint8_t *pTxId, const ucoin_buf_t *pTxRaw);
 
 
 /** vsize取得
- * 
+ *
  * @param[in]   pData
  * @param[in]   Len
  * @retval  != 0    vbyte
@@ -1323,6 +1329,37 @@ ucoin_genesis_t ucoin_util_get_genesis(const uint8_t *pGenesisHash);
  */
 const uint8_t *ucoin_util_get_genesis_block(ucoin_genesis_t Kind);
 
+
+/** 16進数文字列に変換
+ *
+ * @param[out]      pStr        変換結果
+ * @param[in]       pBin        元データ
+ * @param[in]       BinLen      pBin長
+ */
+void ucoin_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+
+
+/** 16進数文字列に変換(エンディアン反転)
+ *
+ * @param[out]      pStr        変換結果(エンディアン反転)
+ * @param[in]       pBin        元データ
+ * @param[in]       BinLen      pBin長
+ */
+void ucoin_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+
+
+/** log出力開始(zlog)
+ *
+ */
+bool ucoin_misc_log_init(void);
+
+
+/** log出力停止
+ *
+ * @note
+ *      - アプリ層
+ */
+void ucoin_misc_log_term(void);
 
 #if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
 void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);

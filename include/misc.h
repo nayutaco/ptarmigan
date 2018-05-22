@@ -32,8 +32,6 @@
 #include <time.h>
 #include <errno.h>
 
-#include <syslog.h>
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,9 +40,6 @@ extern "C" {
 /**************************************************************************
  * macros
  **************************************************************************/
-
-#define SYSLOG_ERR(format, ...)  { DBG_PRINTF(format, ##__VA_ARGS__); DBG_PRINTF2("\n"); syslog(LOG_ERR, format, ##__VA_ARGS__); }
-#define SYSLOG_INFO(format, ...) { DBG_PRINTF(format, ##__VA_ARGS__); DBG_PRINTF2("\n"); syslog(LOG_INFO, format, ##__VA_ARGS__); }
 
 #ifdef APP_DEBUG_MEM
 #define APP_MALLOC(a)       misc_dbg_malloc(a); DBG_PRINTF("APP_MALLOC:%d\n", misc_dbg_malloc_cnt());          ///< malloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
@@ -71,24 +66,6 @@ static inline void misc_msleep(unsigned long slp) {
     struct timespec req = { 0, (long)(slp * 1000000UL) };
     nanosleep(&req, NULL);
 }
-
-
-/** 16進数文字列に変換
- *
- * @param[out]      pStr        変換結果
- * @param[in]       pBin        元データ
- * @param[in]       BinLen      pBin長
- */
-void misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
-
-
-/** 16進数文字列に変換(エンディアン反転)
- *
- * @param[out]      pStr        変換結果(エンディアン反転)
- * @param[in]       pBin        元データ
- * @param[in]       BinLen      pBin長
- */
-void misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
 /** 16進数文字列から変換

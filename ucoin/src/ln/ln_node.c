@@ -227,8 +227,6 @@ uint64_t ln_node_total_msat(void)
 
 void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
 {
-    DBG_PRINTF("\n");
-
     ucoin_util_keys_t keys;
     ucoin_util_createkeys(&keys);
     memcpy(pPubKey, keys.pub, UCOIN_SZ_PUBKEY);
@@ -238,8 +236,6 @@ void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
 
 bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    //DBG_PRINTF("\n");
-
     bool ret;
     ln_node_announce_t anno;
     uint8_t node_id[UCOIN_SZ_PUBKEY];
@@ -270,8 +266,6 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
 
 void HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey)
 {
-    DBG_PRINTF("\n");
-
     uint8_t pub[UCOIN_SZ_PUBKEY];
     ucoin_util_mul_pubkey(pub, pPubKey, mNode.keys.priv, UCOIN_SZ_PRIVKEY);
     ucoin_util_sha256(pResult, pub, sizeof(pub));
@@ -432,7 +426,7 @@ static void print_node(void)
     } else {
         printf("port=%d\n", mNode.addr.port);
     }
-    printf("=============================================\n\n\n");
+    printf("=============================================\n");
 }
 
 
