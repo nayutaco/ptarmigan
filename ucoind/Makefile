@@ -7,9 +7,9 @@ OUTPUT_BINARY_DIRECTORY = .
 ######################################
 #CFLAGS_USER
 #CFLAGS_USER += -DAPP_DEBUG_MEM
-CFLAGS_USER += -DUCOIN_USE_ZLOG
 ######################################
 
+include ../common.mak
 
 #echo suspend
 ifeq ("$(VERBOSE)","1")
@@ -55,10 +55,6 @@ BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
 ######################################
 #CFLAGS
 ######################################
-# cpu
-#CFLAGS += -mcpu=cortex-m0
-#CFLAGS += -mthumb -mabi=aapcs
-#CFLAGS += -mfloat-abi=soft
 
 CFLAGS += -std=gnu99
 CFLAGS += -W -Wall -Wextra
@@ -70,13 +66,13 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 # others
 CFLAGS += $(INC_PATHS)
 CFLAGS += -DNETKIND=$(NETKIND)
-
+ifeq ($(USE_ZLOG_UCOIND),1)
+CFLAGS += -DUCOIN_USE_ZLOG
+endif
 
 ######################################
 #LDFLAGS
 ######################################
-# cpu
-#LDFLAGS += -mcpu=cortex-m0
 
 # keep every function in separate section. This will allow linker to dump unused functions
 #LDFLAGS += -Xlinker -Map=$(OBJECT_DIRECTORY)/$(OUTPUT_FILENAME).map
@@ -85,17 +81,17 @@ CFLAGS += -DNETKIND=$(NETKIND)
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -pthread
 
-# use newlib in nano version
-#LDFLAGS += --specs=nano.specs -lc -lnosys
-
 #Link Library
-LIBS += -L$(COMMON_PATH)/libs/install/lib
+LIBS += -L$(COMMON_PATH)libs/install/lib
 LIBS += -ljansson
 LIBS += -lcurl
 LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
-LIBS += -L$(COMMON_PATH)/ucoin -lucoin
-LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto -lzlog
+LIBS += -L$(COMMON_PATH)ucoin -lucoin
+LIBS += -L$(COMMON_PATH)ucoin/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto
+ifeq ($(findstring 1,$(USE_ZLOG_UCOIND) $(USE_ZLOG_UCOINLIB)),1)
+LIBS += -lzlog
+endif
 LIBS += -lstdc++
 
 
@@ -112,6 +108,7 @@ help:
 	@echo 	debug release
 
 
+C_SOURCE_FILES := $(abspath $(C_SOURCE_FILES))
 C_SOURCE_FILE_NAMES = $(notdir $(C_SOURCE_FILES))
 C_PATHS = $(call remduplicates, $(dir $(C_SOURCE_FILES) ) )
 C_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(C_SOURCE_FILE_NAMES:.c=.o) )

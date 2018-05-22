@@ -1,14 +1,11 @@
 INSTALL_DIR = $(CURDIR)/install
 
-# 0:mainnet, 1:testnet
-NETKIND=1
-
 default:
-	make -C ucoin NETKIND=$(NETKIND)
-	make -C ucoind NETKIND=$(NETKIND)
-	make -C ucoincli NETKIND=$(NETKIND)
-	make -C showdb NETKIND=$(NETKIND)
-	make -C routing NETKIND=$(NETKIND)
+	make -C ucoin
+	make -C ucoind
+	make -C ucoincli
+	make -C showdb
+	make -C routing
 	mkdir -p $(INSTALL_DIR)
 	-@rm -rf $(INSTALL_DIR)/ucoind $(INSTALL_DIR)/ucoincli $(INSTALL_DIR)/showdb
 	cp ucoind/ucoind $(INSTALL_DIR)/
@@ -38,7 +35,7 @@ update:
 lib:
 	make -C ucoin/libs
 	make -C libs
-	make -C ucoin NETKIND=$(NETKIND)
+	make -C ucoin
 
 lib_clean:
 	make -C ucoin/libs clean
