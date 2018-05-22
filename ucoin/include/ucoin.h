@@ -743,7 +743,6 @@ bool ucoin_tx_sighash(uint8_t *pTxHash, ucoin_tx_t *pTx, const ucoin_buf_t *pScr
  */
 bool ucoin_tx_sign_(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 static inline bool ucoin_tx_sign__(ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey, const char *fname, unsigned int line) {
-    fprintf(stderr, "[%s][%u]ucoin_tx_sign:GOGO\n", fname, line);
     return ucoin_tx_sign_(pSig, pTxHash, pPrivKey);
 }
 #define ucoin_tx_sign(a,b,c)  ucoin_tx_sign__(a,b,c, __FILE__, __LINE__)
@@ -758,7 +757,6 @@ static inline bool ucoin_tx_sign__(ucoin_buf_t *pSig, const uint8_t *pTxHash, co
  */
 bool ucoin_tx_sign_rs_(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 static inline bool ucoin_tx_sign_rs__(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey, const char *fname, unsigned int line) {
-    fprintf(stderr, "[%s][%u]ucoin_tx_sign_rs:GOGO\n", fname, line);
     return ucoin_tx_sign_rs_(pRS, pTxHash, pPrivKey);
 }
 #define ucoin_tx_sign_rs(a,b,c)  ucoin_tx_sign_rs__(a,b,c, __FILE__, __LINE__)
