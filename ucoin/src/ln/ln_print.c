@@ -45,12 +45,15 @@
 #define M_STR(item,value)   M_QQ(item) ":" M_QQ(value)
 #define M_VAL(item,value)   M_QQ(item) ":" value
 
+#ifdef UCOIN_USE_PRINTFUNC
 static const char *KEYS_STR[LN_FUNDIDX_MAX] = {
     "bp_funding", "bp_revocation", "bp_payment", "bp_delayed", "bp_htlc", "bp_per_commit"
 };
 static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
     "remotekey", "delayedkey", "revocationkey", "local_htlckey", "remote_htlckey"
 };
+#endif  //UCOIN_USE_PRINTFUNC
+
 
 /**************************************************************************
  * public functions

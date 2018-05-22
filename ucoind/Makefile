@@ -70,6 +70,10 @@ ifeq ($(USE_ZLOG_UCOIND),1)
 CFLAGS += -DUCOIN_USE_ZLOG
 endif
 
+ifeq ($(DISABLE_PRINTFUND),0)
+CFLAGS += -DUCOIN_USE_PRINTFUNC
+endif
+
 ######################################
 #LDFLAGS
 ######################################

@@ -76,8 +76,13 @@
  * prototypes
  ********************************************************************/
 
+#ifdef UCOIN_USE_PRINTFUNC
 void ln_print_announce(const uint8_t *pData, uint16_t Len);
 void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
+#else
+#define ln_print_announce(...)          //nothing
+#define ln_print_announce_short(...)    //nothing
+#endif  //UCOIN_USE_PRINTFUNC
 void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
 void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
 

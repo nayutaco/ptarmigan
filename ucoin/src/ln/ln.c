@@ -123,7 +123,7 @@
 
 #define M_FEERATE_MARGIN(fr)                ((fr) * 0.1)    ///< feerate_per_kwの許容範囲[kw]
 
-#ifndef M_DBG_VERBOSE
+#if !defined(M_DBG_VERBOSE) && !defined(UCOIN_USE_PRINTFUNC)
 //#define M_DBG_PRINT_TX(tx)      //NONE
 #define M_DBG_PRINT_TX(tx)      fprintf(DEBUGOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
 #define M_DBG_PRINT_TX2(tx)     //NONE

@@ -114,7 +114,7 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
     ucoin_push_data(&wscript, UCOIN_OP_ENDIF UCOIN_OP_CHECKSIG, 2);
     ucoin_push_trim(&wscript);
 
-#ifdef M_DBG_VERBOSE
+#if defined(M_DBG_VERBOSE) && defined(UCOIN_USE_PRINTFUNC)
     DBG_PRINTF("script:\n");
     ucoin_print_script(pBuf->buf, pBuf->len);
     uint8_t prog[LNL_SZ_WITPROG_WSH];
@@ -620,7 +620,7 @@ static void create_script_offered(ucoin_buf_t *pBuf,
     ucoin_push_data(&wscript, UCOIN_OP_EQUALVERIFY UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 4);
     ucoin_push_trim(&wscript);
 
-#ifdef M_DBG_VERBOSE
+#if defined(M_DBG_VERBOSE) && defined(UCOIN_USE_PRINTFUNC)
     DBG_PRINTF("script:\n");
     ucoin_print_script(pBuf->buf, pBuf->len);
 #endif  //M_DBG_VERBOSE
@@ -682,7 +682,7 @@ static void create_script_received(ucoin_buf_t *pBuf,
     ucoin_push_data(&wscript, UCOIN_OP_CLTV UCOIN_OP_DROP UCOIN_OP_CHECKSIG UCOIN_OP_ENDIF UCOIN_OP_ENDIF, 5);
     ucoin_push_trim(&wscript);
 
-#ifdef M_DBG_VERBOSE
+#if defined(M_DBG_VERBOSE) && defined(UCOIN_USE_PRINTFUNC)
     DBG_PRINTF("script:\n");
     ucoin_print_script(pBuf->buf, pBuf->len);
     //DBG_PRINTF("revocation=");

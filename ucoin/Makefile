@@ -100,6 +100,10 @@ ifeq ($(USE_ZLOG_UCOINLIB),1)
 CFLAGS_CMN += -DUCOIN_USE_ZLOG
 endif
 
+ifeq ($(DISABLE_PRINTFUND),0)
+CFLAGS_CMN += -DUCOIN_USE_PRINTFUNC
+endif
+
 ######################################
 #CFLAGS only
 ######################################
