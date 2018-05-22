@@ -7,11 +7,10 @@ OUTPUT_FILENAME := $(PROJECT_NAME)
 ######################################
 #CFLAGS_USER
 CFLAGS_USER = -DUCOIN_USE_RNG
-CFLAGS_USER += -DNETKIND=$(NETKIND)
 #CFLAGS_USER += -DUCOIN_DEBUG_MEM
-CFLAGS_USER += -DUCOIN_USE_ZLOG
 ######################################
 
+include ../common.mak
 
 #GNU_PREFIX := arm-none-eabi-
 
@@ -96,7 +95,10 @@ CFLAGS_CMN += -Ilibs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ucoin.h>'
 
 # others
 CFLAGS_CMN += $(CFLAGS_USER)
-
+CFLAGS_CMN += -DNETKIND=$(NETKIND)
+ifeq ($(USE_ZLOG_UCOINLIB),1)
+CFLAGS_CMN += -DUCOIN_USE_ZLOG
+endif
 
 ######################################
 #CFLAGS only
@@ -108,17 +110,16 @@ CFLAGS += -std=gnu99
 ######################################
 #LDFLAGS
 ######################################
-# cpu
-#LDFLAGS += -mcpu=cortex-m0
-
 # keep every function in separate section. This will allow linker to dump unused functions
 #LDFLAGS += -Xlinker -Map=$(OBJECT_DIRECTORY)/$(OUTPUT_FILENAME).map
 
 # let linker to dump unused sections
 LDFLAGS += -Wl,--gc-sections
 
-# use newlib in nano version
-#LDFLAGS += --specs=nano.specs -lc -lnosys
+
+######################################
+#target
+######################################
 
 #default target - first one defined
 default: debug
@@ -134,6 +135,7 @@ help:
 	@echo 	debug release
 
 
+C_SOURCE_FILES := $(abspath $(C_SOURCE_FILES))
 C_SOURCE_FILE_NAMES = $(notdir $(C_SOURCE_FILES))
 C_PATHS = $(call remduplicates, $(dir $(C_SOURCE_FILES) ) )
 C_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(C_SOURCE_FILE_NAMES:.c=.o) )

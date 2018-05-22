@@ -10,11 +10,4 @@ showdb: ../ucoin/libucoin.a $(SRC)
 	gcc -W -Wall $(CFLAGS) -o $(OBJ) $(SRC) ../cmn/misc.c $(LDFLAGS)
 
 clean:
-	-rm -rf $(OBJ) .Depend
-
-.Depend:
-ifneq ($(MAKECMDGOALS),clean)
-	@$(CC) $(CFLAGS) -MM -MT $(SRC:%.c=%) $(SRC) > .Depend
-endif
-
--include .Depend
+	-rm -rf $(OBJ)
