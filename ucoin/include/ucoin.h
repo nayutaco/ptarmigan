@@ -50,8 +50,6 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#define UCOIN_USE_PRINTFUNC     //出力有効
-
 #define UCOIN_SZ_FIELD          (32)            ///< secp256k1の世界
 #define UCOIN_SZ_RIPEMD160      (20)            ///< サイズ:RIPEMD160
 #define UCOIN_SZ_HASH160        (20)            ///< サイズ:HASH160
@@ -1354,6 +1352,9 @@ void ucoin_misc_log_term(void);
 #if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
 void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);
 void ucoin_util_dumptxid(FILE *fp, const uint8_t *pTxid);
+#else
+#define ucoin_util_dumpbin(...)     //nothing
+#define ucoin_util_dumptxid(...)    //nothing
 #endif  //UCOIN_USE_PRINTFUNC
 
 
@@ -1390,6 +1391,11 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len);
  * @param[in]       pEKey       拡張鍵構造体
  */
 void ucoin_print_extendedkey(const ucoin_ekey_t *pEKey);
+#else
+#define ucoin_print_tx(...)             //nothing
+#define ucoin_print_rawtx(...)          //nothing
+#define ucoin_print_script(...)         //nothing
+#define ucoin_print_extendedkey(...)    //nothing
 #endif  //UCOIN_USE_PRINTFUNC
 
 

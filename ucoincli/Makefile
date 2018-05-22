@@ -63,6 +63,9 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += $(INC_PATHS)
 CFLAGS += -DNETKIND=$(NETKIND)
 
+ifeq ($(DISABLE_PRINTFUND),0)
+CFLAGS += -DUCOIN_USE_PRINTFUNC
+endif
 
 ######################################
 #LDFLAGS

@@ -2222,6 +2222,8 @@ unsigned long ln_get_debug(void);
  * @param[in]   pRemote
  */
 void ln_print_keys(const ln_funding_local_data_t *pLocal, const ln_funding_remote_data_t *pRemote);
+#else
+#define ln_print_keys(...)      //nothing
 #endif
 
 #ifdef __cplusplus
