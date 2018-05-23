@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     ln_nodeaddr_t *p_addr = ln_node_addr();
     char *p_alias = ln_node_alias();
 
-    ucoin_misc_log_init();
+    ucoin_util_log_init();
 
     memset(&rpc_conf, 0, sizeof(rpc_conf_t));
 #ifndef NETKIND
@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
     lnapp_term();
     btcrpc_term();
     ln_db_term();
-    ucoin_misc_log_term();
+    ucoin_util_log_term();
 
     return 0;
 
@@ -356,7 +356,7 @@ void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
         DBG_PRINTF("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
 
         nodefaillist_t *nf = (nodefaillist_t *)APP_MALLOC(sizeof(nodefaillist_t));
@@ -374,7 +374,7 @@ bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
 
         nodefaillist_t *p = LIST_FIRST(&mNodeFailListHead);
         while (p != NULL) {

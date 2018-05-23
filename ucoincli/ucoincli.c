@@ -279,7 +279,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         *pConn = true;
         strcpy(mPeerAddr, peer.ipaddr);
         mPeerPort = peer.port;
-        ucoin_misc_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(mPeerNodeId, peer.node_id, UCOIN_SZ_PUBKEY);
         *pOption = M_OPTIONS_CONN;
     } else if (optlen >= (UCOIN_SZ_PUBKEY * 2 + 1 + 7 + 1 + 1)) {
         // <pubkey>@<ipaddr>:<port>
@@ -360,7 +360,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
     if (bret) {
         char txid[UCOIN_SZ_TXID * 2 + 1];
 
-        ucoin_misc_bin2str_rev(txid, fundconf.txid, UCOIN_SZ_TXID);
+        ucoin_util_bin2str_rev(txid, fundconf.txid, UCOIN_SZ_TXID);
         snprintf(mBuf, BUFFER_SIZE,
             "{"
                 M_STR("method", "fund") M_NEXT
@@ -481,7 +481,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
     //node_id(33*2),short_channel_id(8*2),amount(21),cltv(5)
     char forward[UCOIN_SZ_PUBKEY*2 + sizeof(uint64_t)*2 + 21 + 5 + 50];
 
-    ucoin_misc_bin2str(payhash, payconf.payment_hash, LN_SZ_HASH);
+    ucoin_util_bin2str(payhash, payconf.payment_hash, LN_SZ_HASH);
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "PAY") M_NEXT
@@ -493,7 +493,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
     for (int lp = 0; lp < payconf.hop_num; lp++) {
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
 
-        ucoin_misc_bin2str(node_id, payconf.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(node_id, payconf.hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
         snprintf(forward, sizeof(forward), "[" M_QQ("%s") "," M_QQ("%" PRIx64) ",%" PRIu64 ",%d]",
                 node_id,
                 payconf.hop_datain[lp].short_channel_id,
@@ -829,8 +829,8 @@ static void routepay(int *pOption, bool bPrevSkip)
         char payhash[LN_SZ_HASH * 2 + 1];
         char payee[UCOIN_SZ_PUBKEY * 2 + 1];
 
-        ucoin_misc_bin2str(payhash, p_invoice_data->payment_hash, LN_SZ_HASH);
-        ucoin_misc_bin2str(payee, p_invoice_data->pubkey, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(payhash, p_invoice_data->payment_hash, LN_SZ_HASH);
+        ucoin_util_bin2str(payee, p_invoice_data->pubkey, UCOIN_SZ_PUBKEY);
 
         const char *p_method;
         if (bPrevSkip) {
@@ -854,7 +854,7 @@ static void routepay(int *pOption, bool bPrevSkip)
                     strcat(mBuf, ",");
                 }
                 char nodeid[UCOIN_SZ_PUBKEY * 2 + 1];
-                ucoin_misc_bin2str(nodeid, p_invoice_data->r_field[lp].node_id, UCOIN_SZ_PUBKEY);
+                ucoin_util_bin2str(nodeid, p_invoice_data->r_field[lp].node_id, UCOIN_SZ_PUBKEY);
 
                 char rfstr[256];
                 sprintf(rfstr, "[" M_QQ("%s") ",%" PRIu64 ",%" PRIu32 ",%" PRIu32 ",%" PRIu16 "]",

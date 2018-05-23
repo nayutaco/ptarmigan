@@ -1324,7 +1324,7 @@ const uint8_t *ucoin_util_get_genesis_block(ucoin_genesis_t Kind);
  * @param[in]       pBin        元データ
  * @param[in]       BinLen      pBin長
  */
-void ucoin_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+void ucoin_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
 /** 16進数文字列に変換(エンディアン反転)
@@ -1333,13 +1333,13 @@ void ucoin_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
  * @param[in]       pBin        元データ
  * @param[in]       BinLen      pBin長
  */
-void ucoin_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+void ucoin_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
 /** log出力開始(zlog)
  *
  */
-bool ucoin_misc_log_init(void);
+bool ucoin_util_log_init(void);
 
 
 /** log出力停止
@@ -1347,7 +1347,7 @@ bool ucoin_misc_log_init(void);
  * @note
  *      - アプリ層
  */
-void ucoin_misc_log_term(void);
+void ucoin_util_log_term(void);
 
 #if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
 void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);

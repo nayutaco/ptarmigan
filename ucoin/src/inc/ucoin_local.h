@@ -123,7 +123,7 @@ static inline int tid() {
 #define DUMPBIN(dt,ln) {\
     if (mZlogCatSimple != NULL) {\
         char *p_str = (char *)malloc(ln * 2 + 1);   \
-        ucoin_misc_bin2str(p_str, dt, ln);          \
+        ucoin_util_bin2str(p_str, dt, ln);          \
         zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
         ZLOG_LEVEL_DEBUG, "%s\n", p_str); \
         free(p_str); \
@@ -132,7 +132,7 @@ static inline int tid() {
 #define DUMPTXID(dt) {\
     if (mZlogCatSimple != NULL) {\
         char *p_str = (char *)malloc(UCOIN_SZ_TXID * 2 + 1);   \
-        ucoin_misc_bin2str_rev(p_str, dt, UCOIN_SZ_TXID);      \
+        ucoin_util_bin2str_rev(p_str, dt, UCOIN_SZ_TXID);      \
         zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
         ZLOG_LEVEL_DEBUG, "%s\n", p_str); \
         free(p_str); \
