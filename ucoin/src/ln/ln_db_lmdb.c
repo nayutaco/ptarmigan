@@ -135,7 +135,7 @@
 #ifndef M_DB_DEBUG
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d)
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a)
-#define MDB_TXN_COMMIT(a)           int txn_retval = mdb_txn_commit(a); if (txn_retval) DBG_PRINTF("ERR: %s\n", mdb_strerror(txn_retval))
+#define MDB_TXN_COMMIT(a)           int txn_retval = mdb_txn_commit(a); if (txn_retval) {DBG_PRINTF("ERR: %s\n", mdb_strerror(txn_retval));}
 #else
 static volatile int g_cnt[2];
 #define MDB_TXN_BEGIN(a,b,c,d)      my_mdb_txn_begin(a,b,c,d, __LINE__);
