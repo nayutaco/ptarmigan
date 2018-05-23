@@ -446,9 +446,9 @@ LABEL_EXIT:
         // $4: outgoing_cltv_value
         // $5: payment_hash
         char hashstr[LN_SZ_HASH * 2 + 1];
-        ucoin_misc_bin2str(hashstr, pPay->payment_hash, LN_SZ_HASH);
+        ucoin_util_bin2str(hashstr, pPay->payment_hash, LN_SZ_HASH);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
@@ -683,16 +683,16 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
 
         //peer node_id
-        ucoin_misc_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //channel_id
-        ucoin_misc_bin2str(str, ln_channel_id(pAppConf->p_self), LN_SZ_CHANNEL_ID);
+        ucoin_util_bin2str(str, ln_channel_id(pAppConf->p_self), LN_SZ_CHANNEL_ID);
         cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
         //short_channel_id
         sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
         cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
         //funding_tx
-        ucoin_misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
+        ucoin_util_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
@@ -718,10 +718,10 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));
 
         //peer node_id
-        ucoin_misc_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(str, p_self->peer_node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //funding_tx
-        ucoin_misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
+        ucoin_util_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), UCOIN_SZ_TXID);
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
@@ -739,7 +739,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("fund_waiting"));
 
         //peer node_id
-        ucoin_misc_bin2str(str, pAppConf->node_id, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(str, pAppConf->node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
     } else if (ucoin_keys_chkpub(pAppConf->node_id)) {
         char str[256];
@@ -753,7 +753,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_conn));
 
         //peer node_id
-        ucoin_misc_bin2str(str, pAppConf->node_id, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(str, pAppConf->node_id, UCOIN_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
     } else {
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
@@ -784,7 +784,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
             if (close_dat.p_tx[lp].vout_cnt > 0) {
                 ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
                 char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);        //APP_FREE: この中
-                ucoin_misc_bin2str(transaction, buf.buf, buf.len);
+                ucoin_util_bin2str(transaction, buf.buf, buf.len);
                 ucoin_buf_free(&buf);
 
                 char title[10];
@@ -805,7 +805,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
         for (int lp = 0; lp < num; lp++) {
             ucoin_tx_create(&buf, &p_tx[lp]);
             char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);    //APP_FREE: この中
-            ucoin_misc_bin2str(transaction, buf.buf, buf.len);
+            ucoin_util_bin2str(transaction, buf.buf, buf.len);
             ucoin_buf_free(&buf);
 
             cJSON_AddItemToObject(pResult, "htlc_out", cJSON_CreateString(transaction));
@@ -1027,9 +1027,9 @@ static void *thread_main_start(void *pArg)
         // $3: peer_id
         // $4: JSON-RPC port
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%s "
@@ -1327,9 +1327,9 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     // $3: our_msat
     // $4: funding_txid
     char txidstr[UCOIN_SZ_TXID * 2 + 1];
-    ucoin_misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
+    ucoin_util_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), UCOIN_SZ_TXID);
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+    ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     char param[256];
     sprintf(param, "%" PRIx64 " %s "
                 "%" PRIu64 " "
@@ -1822,9 +1822,9 @@ LABEL_EXIT:
         // $4: outgoing_cltv_value
         // $5: payment_hash
         char hashstr[LN_SZ_HASH * 2 + 1];
-        ucoin_misc_bin2str(hashstr, pFwdAdd->payment_hash, LN_SZ_HASH);
+        ucoin_util_bin2str(hashstr, pFwdAdd->payment_hash, LN_SZ_HASH);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
@@ -1900,11 +1900,11 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdF
         char hashstr[LN_SZ_HASH * 2 + 1];
         uint8_t payment_hash[LN_SZ_HASH];
         ln_calc_preimage_hash(payment_hash, pBwdFulfill->preimage);
-        ucoin_misc_bin2str(hashstr, payment_hash, LN_SZ_HASH);
+        ucoin_util_bin2str(hashstr, payment_hash, LN_SZ_HASH);
         char imgstr[LN_SZ_PREIMAGE * 2 + 1];
-        ucoin_misc_bin2str(imgstr, pBwdFulfill->preimage, LN_SZ_PREIMAGE);
+        ucoin_util_bin2str(imgstr, pBwdFulfill->preimage, LN_SZ_PREIMAGE);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%s "
@@ -1975,7 +1975,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
         // $1: short_channel_id
         // $2: node_id
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s",
                     ln_short_channel_id(p_conf->p_self), node_id);
@@ -2077,7 +2077,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
             //表示できない文字が入っている場合はダンプ出力
             b_alloc = true;
             p_msg = (char *)APP_MALLOC(p_err->len * 2 + 1);
-            ucoin_misc_bin2str(p_msg, (const uint8_t *)p_err->p_data, p_err->len);
+            ucoin_util_bin2str(p_msg, (const uint8_t *)p_err->p_data, p_err->len);
             break;
         }
     }
@@ -2166,7 +2166,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         p_str = "fundee";
     }
     char str_peerid[UCOIN_SZ_PUBKEY * 2 + 1];
-    ucoin_misc_bin2str(str_peerid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+    ucoin_util_bin2str(str_peerid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
     misc_save_event(ln_channel_id(p_conf->p_self),
             "open: funding wait start(%s): peer_id=%s",
             p_str, str_peerid);
@@ -2216,7 +2216,7 @@ static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param)
     ////peer config file
     //char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
 
-    //ucoin_misc_bin2str(node_id, p_nodeanno->p_node_id, UCOIN_SZ_PUBKEY);
+    //ucoin_util_bin2str(node_id, p_nodeanno->p_node_id, UCOIN_SZ_PUBKEY);
 
     //FILE *fp = fopen(node_id, "w");
     //if (fp) {
@@ -2329,7 +2329,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
                 //
                 char str_payhash[LN_SZ_HASH * 2 + 1];
-                ucoin_misc_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
+                ucoin_util_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
                 misc_save_event(NULL,
                         "payment fulfill: payment_hash=%s short_channel_id=%" PRIx64,
                         str_payhash, ln_short_channel_id(p_conf->p_self));
@@ -2665,7 +2665,7 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
         // $4: htlc_num
         char param[256];
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
                     "%d",
@@ -2749,9 +2749,9 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         // $3: closing_txid
         char param[256];
         char txidstr[UCOIN_SZ_TXID * 2 + 1];
-        ucoin_misc_bin2str_rev(txidstr, txid, UCOIN_SZ_TXID);
+        ucoin_util_bin2str_rev(txidstr, txid, UCOIN_SZ_TXID);
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "%s",
                     ln_short_channel_id(p_conf->p_self), node_id,
@@ -3242,7 +3242,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         // $3: err_str
         char *param = (char *)APP_MALLOC(len_max);      //APP_FREE: この中
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-        ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+        ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "\"%s\"",
                     ln_short_channel_id(p_conf->p_self), node_id,

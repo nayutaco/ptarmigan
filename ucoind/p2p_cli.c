@@ -132,7 +132,7 @@ void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
         if (fp) {
             char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
-            ucoin_misc_bin2str(peer_id, pConn->node_id, UCOIN_SZ_PUBKEY);
+            ucoin_util_bin2str(peer_id, pConn->node_id, UCOIN_SZ_PUBKEY);
 
             char date[50];
             misc_datetime(date, sizeof(date));

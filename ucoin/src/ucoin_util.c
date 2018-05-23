@@ -355,7 +355,7 @@ const uint8_t *ucoin_util_get_genesis_block(ucoin_genesis_t kind)
 }
 
 
-void ucoin_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
+void ucoin_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 {
     *pStr = '\0';
     for (uint32_t lp = 0; lp < BinLen; lp++) {
@@ -366,7 +366,7 @@ void ucoin_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 }
 
 
-void ucoin_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
+void ucoin_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 {
     *pStr = '\0';
     for (uint32_t lp = 0; lp < BinLen; lp++) {
@@ -377,7 +377,7 @@ void ucoin_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 }
 
 
-bool ucoin_misc_log_init(void)
+bool ucoin_util_log_init(void)
 {
 #ifdef UCOIN_USE_ZLOG
     if ( (mZlogCatUcoin != NULL) || (mZlogCatApp != NULL) || (mZlogCatSimple != NULL) ) {
@@ -432,7 +432,7 @@ bool ucoin_misc_log_init(void)
 }
 
 
-void ucoin_misc_log_term(void)
+void ucoin_util_log_term(void)
 {
 #ifdef UCOIN_USE_ZLOG
     zlog_fini();

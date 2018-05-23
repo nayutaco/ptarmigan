@@ -351,7 +351,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
     if (!spent) {
         //初めてclosing処理を行う(まだln_goto_closing()を呼び出していない)
         char txid_str[UCOIN_SZ_TXID * 2 + 1];
-        ucoin_misc_bin2str_rev(txid_str, ln_funding_txid(self), UCOIN_SZ_TXID);
+        ucoin_util_bin2str_rev(txid_str, ln_funding_txid(self), UCOIN_SZ_TXID);
         misc_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
     }
 
@@ -409,7 +409,7 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
 
                     char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
                     char json[256];
-                    ucoin_misc_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
+                    ucoin_util_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
                     sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
                     DBG_PRINTF("%s\n", json);
 

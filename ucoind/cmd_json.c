@@ -284,7 +284,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //basic info
     char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-    ucoin_misc_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
+    ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
     cJSON_AddItemToObject(result, "jsonrpc_port", cJSON_CreateNumber(cmd_json_get_port()));
@@ -303,7 +303,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
         uint8_t *p = p_hash;
         for (int lp = 0; lp < cnt; lp++) {
             char hash_str[LN_SZ_HASH * 2 + 1];
-            ucoin_misc_bin2str(hash_str, p, LN_SZ_HASH);
+            ucoin_util_bin2str(hash_str, p, LN_SZ_HASH);
             p += LN_SZ_HASH;
             cJSON_AddItemToArray(result_hash, cJSON_CreateString(hash_str));
         }
@@ -539,7 +539,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     ln_db_preimg_save(preimage, amount, NULL);
     ln_calc_preimage_hash(preimage_hash, preimage);
 
-    ucoin_misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+    ucoin_util_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
     DBG_PRINTF("preimage=");
     DUMPBIN(preimage, LN_SZ_PREIMAGE);
     DBG_PRINTF("hash=");
@@ -635,7 +635,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON *json = cJSON_CreateArray();
 
             char str_hash[LN_SZ_HASH * 2 + 1];
-            ucoin_misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+            ucoin_util_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
             cJSON_AddItemToArray(json, cJSON_CreateString(str_hash));
             cJSON_AddItemToArray(json, cJSON_CreateNumber64(amount));
             char *p_invoice = create_bolt11(preimage_hash, amount);
@@ -1293,7 +1293,7 @@ static bool routepay_param(cJSON *params, int index,
             strcpy(pStrPayer, json->valuestring);
         } else {
             //自分をpayerにする
-            ucoin_misc_bin2str(pStrPayer, ln_node_getid(), UCOIN_SZ_PUBKEY);
+            ucoin_util_bin2str(pStrPayer, ln_node_getid(), UCOIN_SZ_PUBKEY);
         }
         DBG_PRINTF("str_payer=%s\n", pStrPayer);
     } else {
