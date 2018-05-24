@@ -48,6 +48,7 @@
 #include "conf.h"
 #include "misc.h"
 #include "ln_db.h"
+#include "ln_db_lmdb.h"
 
 #include "ucoind.h"
 #include "p2p_svr.h"
@@ -117,8 +118,12 @@ int main(int argc, char *argv[])
 
     int opt;
     int options = 0;
-    while ((opt = getopt(argc, argv, "p:n:a:c:xh")) != -1) {
+    while ((opt = getopt(argc, argv, "p:n:a:c:d:xh")) != -1) {
         switch (opt) {
+        case 'd':
+            //db directory
+            ln_lmdb_set_path(optarg);
+            break;
         case 'p':
             //port num
             p_addr->port = (uint16_t)atoi(optarg);

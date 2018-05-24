@@ -651,21 +651,19 @@ int main(int argc, char *argv[])
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
-    char        selfpath[256];
-    char        nodepath[256];
 #ifdef M_SPOIL_STDERR
     bool        spoil_stderr = true;
 #else
     bool        spoil_stderr = false;
 #endif  //M_SPOIL_STDERR
 
-    strcpy(selfpath, LNDB_SELFENV);
-    strcpy(nodepath, LNDB_NODEENV);
-
     const struct option OPTIONS[] = {
         { "debug", no_argument, NULL, 'D' },
         { 0, 0, 0, 0 }
     };
+
+    ln_lmdb_set_path(".");
+
     int opt;
     while ((opt = getopt_long(argc, argv, "d:Dswlqcnakiv9:", OPTIONS, NULL)) != -1) {
         switch (opt) {
@@ -673,8 +671,7 @@ int main(int argc, char *argv[])
             if (optarg[strlen(optarg) - 1] == '/') {
                 optarg[strlen(optarg) - 1] = '\0';
             }
-            sprintf(selfpath, "%s%s", optarg, LNDB_SELFENV_DIR);
-            sprintf(nodepath, "%s%s", optarg, LNDB_NODEENV_DIR);
+            ln_lmdb_set_path(optarg);
             break;
         case 'D':
             //デバッグでstderrを出力させたい場合
@@ -813,8 +810,7 @@ int main(int argc, char *argv[])
                 if (argv[2][strlen(argv[2]) - 1] == '/') {
                     argv[2][strlen(argv[2]) - 1] = '\0';
                 }
-                sprintf(selfpath, "%s%s", argv[2], LNDB_SELFENV_DIR);
-                sprintf(nodepath, "%s%s", argv[2], LNDB_NODEENV_DIR);
+                ln_lmdb_set_path(argv[2]);
             }
         }
     }
@@ -841,18 +837,18 @@ int main(int argc, char *argv[])
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(mpDbSelf, 10);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbSelf, selfpath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(mpDbSelf, ln_lmdb_get_selfpath(), MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", selfpath);
+        fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_selfpath());
         return -1;
     }
     ret = mdb_env_create(&mpDbNode);
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(mpDbNode, 10);
     assert(ret == 0);
-    ret = mdb_env_open(mpDbNode, nodepath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(mpDbNode, ln_lmdb_get_nodepath(), MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(stderr, "fail: cannot open[%s]\n", nodepath);
+        fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_nodepath());
         return -1;
     }
     ln_lmdb_setenv(mpDbSelf, mpDbNode);
