@@ -54,6 +54,11 @@
 #define M_LMDB_NODE_MAXDBS      (2 * 10)        ///< 同時オープンできるDB数
 #define M_LMDB_NODE_MAPSIZE     ((size_t)134217728)         // DB最大長[byte](mdb_txn_commit()でMDB_MAP_FULLになったため拡張)
                                                             // 32bit環境ではsize_tが4byteになるため、4294967295が最大になる
+#define M_DBPATH_MAX            (256)
+#define M_DBDIR                 "dbucoin"
+#define M_SELFENV_DIR           "dbucoin_self"
+#define M_NODEENV_DIR           "dbucoin_node"
+
 
 #define M_SELF_BUFS             (3)             ///< DB保存する可変長データ数
 
@@ -192,6 +197,9 @@ typedef struct {
 //LMDB
 static MDB_env      *mpDbSelf = NULL;           // channel
 static MDB_env      *mpDbNode = NULL;           // node
+static char         mPath[M_DBPATH_MAX];
+static char         mPathSelf[M_DBPATH_MAX];
+static char         mPathNode[M_DBPATH_MAX];
 
 
 static const backup_param_t DBSELF_SECRET[] = {
@@ -422,10 +430,45 @@ static inline void my_mdb_txn_abort(MDB_txn *txn, int line) {
  * public functions
  ********************************************************************/
 
+void ln_lmdb_set_path(const char *pPath)
+{
+    char path[M_DBPATH_MAX];
+
+    strcpy(path, pPath);
+    size_t len = strlen(path);
+    if (path[len - 1] == '/') {
+        path[len - 1] = '\0';
+    }
+    sprintf(mPath, "%s/%s", path, M_DBDIR);
+    sprintf(mPathSelf, "%s/%s", mPath, M_SELFENV_DIR);
+    sprintf(mPathNode, "%s/%s", mPath, M_NODEENV_DIR);
+
+    DBG_PRINTF("db dir: %s\n", mPath);
+    DBG_PRINTF("  self: %s\n", mPathSelf);
+    DBG_PRINTF("  node: %s\n", mPathNode);
+}
+
+
+const char *ln_lmdb_get_selfpath(void)
+{
+    return mPathSelf;
+}
+
+
+const char *ln_lmdb_get_nodepath(void)
+{
+    return mPathNode;
+}
+
+
 bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
 {
     int         retval;
     ln_lmdb_db_t   db;
+
+    if (mPath[0] == '\0') {
+        ln_lmdb_set_path(".");
+    }
 
     //lmdbのopenは複数呼ばないでenvを共有する
     if (mpDbSelf == NULL) {
@@ -447,11 +490,11 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
             goto LABEL_EXIT;
         }
 
-        mkdir(LNDB_DBDIR, 0755);
-        mkdir(LNDB_SELFENV, 0755);
-        mkdir(LNDB_NODEENV, 0755);
+        mkdir(mPath, 0755);
+        mkdir(ln_lmdb_get_selfpath(), 0755);
+        mkdir(ln_lmdb_get_nodepath(), 0755);
 
-        retval = mdb_env_open(mpDbSelf, LNDB_SELFENV, 0, 0644);
+        retval = mdb_env_open(mpDbSelf, ln_lmdb_get_selfpath(), 0, 0644);
         if (retval != 0) {
             DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
@@ -475,7 +518,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
             goto LABEL_EXIT;
         }
 
-        retval = mdb_env_open(mpDbNode, LNDB_NODEENV, 0, 0644);
+        retval = mdb_env_open(mpDbNode, ln_lmdb_get_nodepath(), 0, 0644);
         if (retval != 0) {
             DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
@@ -2769,7 +2812,7 @@ bool ln_db_reset(void)
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = mdb_env_open(mpDbSelf, LNDB_SELFENV, 0, 0644);
+    retval = mdb_env_open(mpDbSelf, ln_lmdb_get_selfpath(), 0, 0644);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -2806,7 +2849,9 @@ bool ln_db_reset(void)
     self_cursor_close(&cur);
 
     //node側はディレクトリごと削除
-    system("rm -rf " LNDB_NODEENV);
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", ln_lmdb_get_nodepath());
+    system(cmd);
 
 LABEL_EXIT:
     return ret;

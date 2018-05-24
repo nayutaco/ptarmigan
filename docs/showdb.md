@@ -6,19 +6,20 @@
 
 ## SYNOPSIS
 
-    swhodb [options] [(db dir)]
+    swhodb [options]
 
 ### options
 
-* `w` : wallet info
-* `s` : self info
-* `q` : closed self info
-* `c` : channel_announcement/channel_update
-* `n` : node_announcement
-* `v` : DB version
-* `a` : (internal)announcement received/sent node_id list
-* `k` : (internal)routing skip channel list
-* `i` : (internal)paying invoice list
+* `-d` : DB directory(= contain `dbucoin` directory). use current directory if not specified.
+* `-w` : wallet info
+* `-s` : self info
+* `-q` : closed self info
+* `-c` : channel_announcement/channel_update
+* `-n` : node_announcement
+* `-v` : DB version
+* `-a` : (internal)announcement received/sent node_id list
+* `-k` : (internal)routing skip channel list
+* `-i` : (internal)paying invoice list
 
 ## DESCRIPTION
 

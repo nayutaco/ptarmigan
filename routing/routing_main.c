@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
     uint64_t amtmsat = 0;
     bool output_json = false;
     char *payment_hash = NULL;
-    char *dbdir = strdup(LNDB_DBDIR);
+    ln_lmdb_set_path(".");
 
     int opt;
     int options = 0;
@@ -90,8 +90,7 @@ int main(int argc, char* argv[])
         switch (opt) {
         case 'd':
             //db directory
-            free(dbdir);
-            dbdir = strdup(optarg);
+            ln_lmdb_set_path(optarg);
             break;
         case 's':
             //sender(payer)
@@ -185,25 +184,14 @@ int main(int argc, char* argv[])
 
     MDB_env     *pDbSelf = NULL;
     MDB_env     *pDbNode = NULL;
-    char        selfpath[256];
-    char        nodepath[256];
-
-    strcpy(selfpath, dbdir);
-    size_t len = strlen(selfpath);
-    if (selfpath[len - 1] == '/') {
-        selfpath[len - 1] = '\0';
-    }
-    strcpy(nodepath, selfpath);
-    strcat(selfpath, LNDB_SELFENV_DIR);
-    strcat(nodepath, LNDB_NODEENV_DIR);
 
     ret = mdb_env_create(&pDbSelf);
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(pDbSelf, 10);
     assert(ret == 0);
-    ret = mdb_env_open(pDbSelf, selfpath, MDB_RDONLY, 0664);
+    ret = mdb_env_open(pDbSelf, ln_lmdb_get_selfpath(), MDB_RDONLY, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", selfpath);
+        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_selfpath());
         return -5;
     }
 
@@ -211,9 +199,9 @@ int main(int argc, char* argv[])
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(pDbNode, 10);
     assert(ret == 0);
-    ret = mdb_env_open(pDbNode, nodepath, 0, 0664);
+    ret = mdb_env_open(pDbNode, ln_lmdb_get_nodepath(), 0, 0664);
     if (ret) {
-        fprintf(fp_err, "fail: cannot open[%s]\n", nodepath);
+        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_nodepath());
         return -6;
     }
     ln_lmdb_setenv(pDbSelf, pDbNode);
@@ -281,7 +269,6 @@ int main(int argc, char* argv[])
             ret = -9;
         }
 
-        free(dbdir);
         free(payment_hash);
     } else {
         ln_routing_clear_skipdb();

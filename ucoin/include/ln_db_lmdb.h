@@ -52,12 +52,6 @@ extern "C" {
 #define LNDBK_LEN(key)          (sizeof(key) - 1)       ///< key長
 #define LNDBK_RLEN              (3)                     ///< [revoked]key長
 
-#define LNDB_DBDIR              "./dbucoin"
-#define LNDB_SELFENV_DIR        "/dbucoin_self"
-#define LNDB_NODEENV_DIR        "/dbucoin_node"
-#define LNDB_SELFENV            LNDB_DBDIR LNDB_SELFENV_DIR     ///< LMDB名(self)
-#define LNDB_NODEENV            LNDB_DBDIR LNDB_NODEENV_DIR     ///< LMDB名(self以外)
-
 #define LNDB_DBI_ANNO_SKIP      "route_skip"
 
 
@@ -107,6 +101,30 @@ typedef struct {
 /**************************************************************************
  * public functions
  **************************************************************************/
+
+/** LMDBパス設定
+ * 
+ * LMDBのenvironmentを格納するパスを指定する。
+ * 指定したパスの中に、dbself/ と dbnode/ を作成する。
+ * 
+ * @param[in]   pPath       DBを作成するディレクトリ
+ */
+void ln_lmdb_set_path(const char *pPath);
+
+
+/** LMDB selfパス取得
+ * 
+ * @return  dbselfパス
+ */
+const char *ln_lmdb_get_selfpath(void);
+
+
+/** LMDB nodeパス取得
+ * 
+ * @return  dbnodeパス
+ */
+const char *ln_lmdb_get_nodepath(void);
+
 
 /** channel情報読込み
  *
