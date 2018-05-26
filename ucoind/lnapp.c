@@ -1066,9 +1066,9 @@ LABEL_JOIN:
     DBG_PRINTF("loop end\n");
 
 LABEL_SHUTDOWN:
-    retval = shutdown(p_conf->sock, SHUT_RDWR);
+    retval = close(p_conf->sock);
     if (retval < 0) {
-        DBG_PRINTF("shutdown: %s", strerror(errno));
+        DBG_PRINTF("socket close: %s", strerror(errno));
     }
 
     DBG_PRINTF("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(p_self));
