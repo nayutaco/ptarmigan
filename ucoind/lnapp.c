@@ -259,8 +259,8 @@ static void cb_set_latest_feerate(lnapp_conf_t *p_conf, void *p_param);
 static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param);
 
 static void stop_threads(lnapp_conf_t *p_conf);
-static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
-static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
+static bool send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
+static bool send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static bool send_channel_anno(lnapp_conf_t *p_conf);
 static bool send_node_anno(lnapp_conf_t *p_conf);
 
@@ -1109,7 +1109,11 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
             goto LABEL_FAIL;
         }
         DBG_PRINTF("** SEND act one **\n");
-        send_peer_raw(p_conf, &buf);
+        ret = send_peer_raw(p_conf, &buf);
+        if (!ret) {
+            DBG_PRINTF("fail: socket write\n");
+            goto LABEL_FAIL;
+        }
 
         //recv: act two
         DBG_PRINTF("** RECV act two... **\n");
@@ -1130,7 +1134,11 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         }
         //send: act three
         DBG_PRINTF("** SEND act three **\n");
-        send_peer_raw(p_conf, &buf);
+        ret = send_peer_raw(p_conf, &buf);
+        if (!ret) {
+            DBG_PRINTF("fail: socket write\n");
+            goto LABEL_FAIL;
+        }
         ucoin_buf_free(&buf);
    } else {
         //responderはnode_idを知らない
@@ -1158,7 +1166,11 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         }
         //send: act two
         DBG_PRINTF("** SEND act two **\n");
-        send_peer_raw(p_conf, &buf);
+        ret = send_peer_raw(p_conf, &buf);
+        if (!ret) {
+            DBG_PRINTF("fail: socket write\n");
+            goto LABEL_FAIL;
+        }
 
         //recv: act three
         DBG_PRINTF("** RECV act three... **\n");
@@ -2815,7 +2827,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
 
 
 //peer送信(そのまま送信)
-static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
+static bool send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 {
     struct pollfd fds;
     ssize_t len = pBuf->len;
@@ -2829,17 +2841,19 @@ static void send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
         }
         ssize_t sz = write(p_conf->sock, pBuf->buf, len);
         if (sz < 0) {
-            DBG_PRINTF("poll: %s\n", strerror(errno));
+            DBG_PRINTF("write: %s\n", strerror(errno));
             break;
         }
         len -= sz;
         misc_msleep(M_WAIT_SEND_WAIT_MSEC);
     }
+
+    return len == 0;
 }
 
 
 //peer送信(Noise Protocol送信)
-static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
+static bool send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 {
     uint16_t type = ln_misc_get16be(pBuf->buf);
     DBG_PRINTF("[SEND]type=%04x(%s): sock=%d, Len=%d\n", type, ln_misc_msgname(type), p_conf->sock, pBuf->len);
@@ -2862,7 +2876,8 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
         }
         ssize_t sz = write(p_conf->sock, buf_enc.buf, len);
         if (sz < 0) {
-            DBG_PRINTF("poll: %s\n", strerror(errno));
+            DBG_PRINTF("write: %s\n", strerror(errno));
+            stop_threads(p_conf);
             break;
         }
         len -= sz;
@@ -2872,6 +2887,8 @@ static void send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
 
     //ping送信待ちカウンタ
     p_conf->ping_counter = 0;
+
+    return len == 0;
 }
 
 
