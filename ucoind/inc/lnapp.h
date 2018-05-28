@@ -75,7 +75,6 @@ typedef struct lnapp_conf_t {
     //制御内容通知
     bool            initiator;                  ///< true:Noise Protocol handshakeのinitiator
     uint8_t         node_id[UCOIN_SZ_PUBKEY];   ///< 接続先(initiator==true時)
-    daemoncmd_t     cmd;                        ///< ucoincliからの処理要求
 
     //lnappワーク
     volatile bool   loop;                   ///< true:channel動作中

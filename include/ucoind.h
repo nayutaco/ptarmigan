@@ -179,20 +179,6 @@ static inline int tid() {
  * typedefs
  ********************************************************************/
 
-//daemonへの指示
-typedef enum {
-    DCMD_NONE,
-    DCMD_CONNECT,       ///< チャネル接続
-    DCMD_CREATE,        ///< チャネル作成
-    DCMD_CLOSE,         ///< チャネル閉鎖
-    DCMD_PREIMAGE,      ///< payment_preimage作成
-    DCMD_PAYMENT_HASH,  ///< payment_hash表示
-    DCMD_PAYMENT,       ///< payment
-    DCMD_SHOW_LIST,     ///< channel一覧
-    DCMD_STOP,          ///< ucoind停止
-} daemoncmd_t;
-
-
 /** @enum   trans_cmd_t
  *  @brief  時間差処理要求
  *  @note
