@@ -1,6 +1,6 @@
 OUTPUT_FILENAME := ucoind
-PRJ_PATH =
-COMMON_PATH = ../
+PRJ_PATH = .
+COMMON_PATH = ..
 OBJECT_DIRECTORY = _build
 OUTPUT_BINARY_DIRECTORY = .
 
@@ -34,20 +34,20 @@ RM              := rm -rf
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
 
 #sources project
-C_SOURCE_FILES += $(PRJ_PATH)ucoind.c
-C_SOURCE_FILES += $(PRJ_PATH)p2p_svr.c
-C_SOURCE_FILES += $(PRJ_PATH)p2p_cli.c
-C_SOURCE_FILES += $(PRJ_PATH)lnapp.c
-C_SOURCE_FILES += $(PRJ_PATH)cmd_json.c
-C_SOURCE_FILES += $(PRJ_PATH)monitoring.c
-C_SOURCE_FILES += $(COMMON_PATH)cmn/conf.c
-C_SOURCE_FILES += $(COMMON_PATH)cmn/misc.c
-C_SOURCE_FILES += $(COMMON_PATH)cmn/btcrpc.c
+C_SOURCE_FILES += $(PRJ_PATH)/ucoind.c
+C_SOURCE_FILES += $(PRJ_PATH)/p2p_svr.c
+C_SOURCE_FILES += $(PRJ_PATH)/p2p_cli.c
+C_SOURCE_FILES += $(PRJ_PATH)/lnapp.c
+C_SOURCE_FILES += $(PRJ_PATH)/cmd_json.c
+C_SOURCE_FILES += $(PRJ_PATH)/monitoring.c
+C_SOURCE_FILES += $(COMMON_PATH)/cmn/conf.c
+C_SOURCE_FILES += $(COMMON_PATH)/cmn/misc.c
+C_SOURCE_FILES += $(COMMON_PATH)/cmn/btcrpc.c
 
 #includes common to all targets
-INC_PATHS += -I$(COMMON_PATH)include -I$(PRJ_PATH)inc
-INC_PATHS += -I$(COMMON_PATH)libs/install/include
-INC_PATHS += -I$(COMMON_PATH)ucoin/include -I$(COMMON_PATH)ucoin/libs/install/include
+INC_PATHS += -I$(COMMON_PATH)/include -I$(PRJ_PATH)/inc
+INC_PATHS += -I$(COMMON_PATH)/libs/install/include
+INC_PATHS += -I$(COMMON_PATH)/ucoin/include -I$(COMMON_PATH)/ucoin/libs/install/include
 
 # Sorting removes duplicates
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
@@ -86,13 +86,13 @@ LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -pthread
 
 #Link Library
-LIBS += -L$(COMMON_PATH)libs/install/lib
+LIBS += -L$(COMMON_PATH)/libs/install/lib
 LIBS += -ljansson
 LIBS += -lcurl
 LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
-LIBS += -L$(COMMON_PATH)ucoin -lucoin
-LIBS += -L$(COMMON_PATH)ucoin/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto
+LIBS += -L$(COMMON_PATH)/ucoin -lucoin
+LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto
 ifeq ($(findstring 1,$(USE_ZLOG_UCOIND) $(USE_ZLOG_UCOINLIB)),1)
 LIBS += -lzlog
 endif
@@ -112,14 +112,9 @@ help:
 	@echo 	debug release
 
 
-C_SOURCE_FILES := $(abspath $(C_SOURCE_FILES))
 C_SOURCE_FILE_NAMES = $(notdir $(C_SOURCE_FILES))
 C_PATHS = $(call remduplicates, $(dir $(C_SOURCE_FILES) ) )
 C_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(C_SOURCE_FILE_NAMES:.c=.o) )
-
-#ASM_SOURCE_FILE_NAMES = $(notdir $(ASM_SOURCE_FILES))
-#ASM_PATHS = $(call remduplicates, $(dir $(ASM_SOURCE_FILES) ))
-#ASM_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(ASM_SOURCE_FILE_NAMES:.s=.o) )
 
 vpath %.c $(C_PATHS)
 
@@ -166,7 +161,7 @@ lcov:
 
 .Depend:
 ifneq ($(MAKECMDGOALS),clean)
-	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) -MM -MT $(SRC:$(PRJ_PATH)%.c=$(OBJECT_DIRECTORY)/%.o) $(SRC) >> .Depend;)
+	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend;)
 endif
 
 -include .Depend
