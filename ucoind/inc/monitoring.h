@@ -30,6 +30,11 @@ struct ln_self_t;
 typedef struct ln_self_t ln_self_t;
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
@@ -77,5 +82,10 @@ void monitor_set_feerate_per_kw(uint32_t FeeratePerKw);
  * @param[in,out]       pDbParam    DB情報
  */
 bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  //MONITORING_H__

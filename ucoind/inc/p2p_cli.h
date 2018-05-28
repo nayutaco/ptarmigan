@@ -31,6 +31,10 @@
 
 #include "lnapp.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /********************************************************************
  * prototypes
@@ -45,7 +49,7 @@ void p2p_cli_init(void);
 /** [p2p_cli]開始
  *
  */
-void p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx);
+bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx);
 
 
 /** [p2p_cli]全停止
@@ -76,5 +80,10 @@ void p2p_cli_show_self(cJSON *pResult);
  *
  */
 bool p2p_cli_is_looping(void);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* P2P_CLI_H__ */
