@@ -33,6 +33,11 @@
 #include <sys/queue.h>
 #include <arpa/inet.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 static inline int tid() {
     return (int)syscall(SYS_gettid);
 }
@@ -381,5 +386,10 @@ bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
  *      - エラー文字列はstrdup()しているため、呼び元でfree()すること
  */
 char *ucoind_error_str(int ErrCode);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* UCOIND_H__ */

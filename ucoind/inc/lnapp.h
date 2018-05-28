@@ -32,6 +32,11 @@
 #include "conf.h"
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /********************************************************************
  * typedefs
  ********************************************************************/
@@ -220,5 +225,10 @@ bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
  *
  */
 bool lnapp_is_inited(const lnapp_conf_t *pAppConf);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* LNAPP_H__ */
