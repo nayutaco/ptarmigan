@@ -144,7 +144,6 @@ void *p2p_svr_start(void *pArg)
             //スレッド起動
             mAppConf[idx].initiator = false;        //Noise Protocolの Act One受信
             memset(mAppConf[idx].node_id, 0, UCOIN_SZ_PUBKEY);
-            mAppConf[idx].cmd = DCMD_NONE;
             inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, mAppConf[idx].conn_str, SZ_CONN_STR);
             mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
             DBG_PRINTF("connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
