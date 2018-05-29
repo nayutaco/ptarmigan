@@ -91,7 +91,7 @@ void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
  * static variables
  ********************************************************************/
 
-static uint16_t     showflag = SHOW_DEFAULT;
+static uint16_t     showflag;
 static int          cnt0;
 static int          cnt1;
 static int          cnt2;
@@ -664,8 +664,9 @@ int main(int argc, char *argv[])
 
     ln_lmdb_set_path(".");
 
+    bool loop = true;
     int opt;
-    while ((opt = getopt_long(argc, argv, "d:Dswlqcnakiv9:", OPTIONS, NULL)) != -1) {
+    while (loop && ((opt = getopt_long(argc, argv, "hd:Dswlqcnakiv9:", OPTIONS, NULL)) != -1)) {
         switch (opt) {
         case 'd':
             if (optarg[strlen(optarg) - 1] == '/') {
@@ -736,7 +737,11 @@ int main(int argc, char *argv[])
                 break;
             }
             break;
+
+        case 'h':
         default:
+            loop = false;
+            showflag = 0;
             break;
         }
     }
