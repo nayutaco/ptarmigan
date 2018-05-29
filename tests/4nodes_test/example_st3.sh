@@ -92,10 +92,10 @@ bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 6
 echo wait............
 while :
 do
-    ./showdb c node_3333/dbucoin/ | jq '.' > n3.txt
-    ./showdb c node_4444/dbucoin/ | jq '.' > n4.txt
-    ./showdb c node_5555/dbucoin/ | jq '.' > n5.txt
-    ./showdb c node_6666/dbucoin/ | jq '.' > n6.txt
+    ./showdb -c -d node_3333 | jq '.' > n3.txt
+    ./showdb -c -d node_4444 | jq '.' > n4.txt
+    ./showdb -c -d node_5555 | jq '.' > n5.txt
+    ./showdb -c -d node_6666 | jq '.' > n6.txt
     cmp n3.txt n4.txt
     RES1=$?
     cmp n3.txt n5.txt
