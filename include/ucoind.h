@@ -75,6 +75,7 @@ static inline int tid() {
 #define RPCERR_NOCHANN              (-10003)
 #define RPCERR_PARSE                (-10004)
 #define RPCERR_NOINIT               (-10005)
+#define RPCERR_BLOCKCHAIN           (-10006)
 
 #define RPCERR_NODEID               (-20000)
 #define RPCERR_NOOPEN               (-20001)
@@ -89,6 +90,7 @@ static inline int tid() {
 
 #define RPCERR_INVOICE_FULL         (-22000)
 #define RPCERR_INVOICE_ERASE        (-22001)
+#define RPCERR_INVOICE_FAIL         (-22002)
 
 #define RPCERR_CLOSE_START          (-25000)
 #define RPCERR_CLOSE_FAIL           (-25001)

@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
     if (options & 0x80) {
         //
         bret = ln_db_reset();
-        DBG_PRINTF("db_reset: %d\n", bret);
+        fprintf(stderr, "db_reset: %d\n", bret);
         return 0;
     }
 

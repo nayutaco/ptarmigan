@@ -542,6 +542,6 @@ void ln_routing_clear_skipdb(void)
     bret = ln_db_annoskip_drop(false);
     DBG_PRINTF("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
 
-    bret = ln_db_annoskip_invoice_drop();
+    bret = ln_db_invoice_drop();
     DBG_PRINTF("%s: clear invoice DB\n", (bret) ? "OK" : "fail");
 }

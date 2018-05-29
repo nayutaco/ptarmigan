@@ -590,7 +590,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         DBG_PRINTF("FAIL: check version db\n");
         goto LABEL_EXIT;
     }
-    ln_db_annoskip_invoice_drop();
+    ln_db_invoice_drop();
     ln_db_annocnl_del_orphan();
 
 LABEL_EXIT:
@@ -1111,7 +1111,7 @@ bool ln_db_annocnl_load(ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1189,7 +1189,7 @@ bool ln_db_annocnlupd_load(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t 
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1676,7 +1676,11 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_annoskip_invoice_save(const char *pInvoice, const uint8_t *pPayHash)
+/********************************************************************
+ * invoice
+ ********************************************************************/
+
+bool ln_db_invoice_save(const char *pInvoice, const uint8_t *pPayHash)
 {
     int         retval;
     MDB_txn     *txn;
@@ -1711,7 +1715,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
+bool ln_db_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
 {
     int         retval;
     MDB_txn     *txn;
@@ -1720,7 +1724,7 @@ bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
 
     *ppInvoice = NULL;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1745,7 +1749,7 @@ LABEL_EXIT:
 }
 
 
-int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
+int ln_db_invoice_get(uint8_t **ppPayHash)
 {
     int         retval;
     MDB_txn     *txn = NULL;
@@ -1756,7 +1760,7 @@ int ln_db_annoskip_invoice_get(uint8_t **ppPayHash)
     *ppPayHash = NULL;
     int cnt = 0;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1788,7 +1792,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash)
+bool ln_db_invoice_del(const uint8_t *pPayHash)
 {
     int         retval;
     MDB_txn     *txn;
@@ -1825,7 +1829,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_annoskip_invoice_drop(void)
+bool ln_db_invoice_drop(void)
 {
     int         retval;
     MDB_txn     *txn;
@@ -1865,7 +1869,7 @@ bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -2798,6 +2802,10 @@ bool ln_db_reset(void)
     if (mpDbSelf != NULL) {
         DBG_PRINTF("fail: already initialized\n");
         return false;
+    }
+
+    if (mPath[0] == '\0') {
+        ln_lmdb_set_path(".");
     }
 
     bool ret = false;

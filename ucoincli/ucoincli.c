@@ -723,24 +723,22 @@ static void stop_rpc(void)
  */
 static void routepay(int *pOption, bool bPrevSkip)
 {
-    ln_invoice_t *p_invoice_data = NULL;
     const char *invoice = strtok(optarg, ",");
-    const char *amount_msat = strtok(NULL, ",");
-    const char *cltv_offset = strtok(NULL, ",");
+    const char *add_amount_str = strtok(NULL, ",");
+    const char *cltv_offset_str = strtok(NULL, ",");
+
+
+/////////////////////
+
+    //確認用のログ出力
+    ln_invoice_t *p_invoice_data = NULL;
     bool bret = ln_invoice_decode(&p_invoice_data, invoice);
     if (!bret) {
-        strcpy(mErrStr, "decode BOLT#11 invoice");
-        *pOption = M_OPTIONS_ERR;
-        return;
-    }
-    if ( (p_invoice_data->hrp_type != LN_INVOICE_TESTNET) &&
-         (p_invoice_data->hrp_type != LN_INVOICE_REGTEST) ) {
-        strcpy(mErrStr, "payment not supported type");
+        sprintf(mErrStr, "fail decode invoice");
         *pOption = M_OPTIONS_ERR;
         return;
     }
 
-    //確認用のログ出力
     printf("---------------------------------\n");
     switch (p_invoice_data->hrp_type) {
     case LN_INVOICE_MAINNET:
@@ -786,52 +784,31 @@ static void routepay(int *pOption, bool bPrevSkip)
     }
     printf("---------------------------------\n");
 
+////////////////////
 
-    if (amount_msat != NULL) {
+    uint64_t add_amount_msat = 0;
+    if (add_amount_str != NULL) {
         //additional amount_msat
         //  invoiceで要求されたamountに追加で支払えるようにしている
         errno = 0;
-        uint64_t add_msat = (uint64_t)strtoull(amount_msat, NULL, 10);
-        if (errno == 0) {
-            p_invoice_data->amount_msat += add_msat;
-            printf("additional amount_msat=%" PRIu64 "\n", add_msat);
-            printf("---------------------------------\n");
-        } else {
+        add_amount_msat = (uint64_t)strtoull(add_amount_str, NULL, 10);
+        if (errno != 0) {
             sprintf(mErrStr, "%s", strerror(errno));
             *pOption = M_OPTIONS_ERR;
         }
     }
-    if (p_invoice_data->amount_msat & 0xffffffff00000000ULL) {
-        //BOLT#2
-        //  MUST set the four most significant bytes of amount_msat to 0.
-        //  今のところBitcoinのみしか扱わないため、このままとしておく。
-        strcpy(mErrStr, "amount_msat too large");
-        *pOption = M_OPTIONS_ERR;
-    } else if (p_invoice_data->amount_msat == 0) {
-        strcpy(mErrStr, "pay amount_msat is 0");
-        *pOption = M_OPTIONS_ERR;
-    } else {
-        //チャネルが許容する範囲については、ucoindでチェックする
-    }
-    if (cltv_offset != NULL) {
+
+    uint32_t cltv_offset = 0;
+    if (cltv_offset_str != NULL) {
         errno = 0;
-        uint32_t add_cltv = (uint32_t)strtoull(cltv_offset, NULL, 10);
-        if (errno == 0) {
-            p_invoice_data->min_final_cltv_expiry += add_cltv;
-            printf("additional min_final_cltv_expiry=%" PRIu32 "\n", add_cltv);
-            printf("---------------------------------\n");
-        } else {
+        cltv_offset = (uint32_t)strtoull(cltv_offset_str, NULL, 10);
+        if (errno != 0) {
             sprintf(mErrStr, "%s", strerror(errno));
             *pOption = M_OPTIONS_ERR;
         }
     }
+
     if (*pOption != M_OPTIONS_ERR) {
-        char payhash[LN_SZ_HASH * 2 + 1];
-        char payee[UCOIN_SZ_PUBKEY * 2 + 1];
-
-        ucoin_util_bin2str(payhash, p_invoice_data->payment_hash, LN_SZ_HASH);
-        ucoin_util_bin2str(payee, p_invoice_data->pubkey, UCOIN_SZ_PUBKEY);
-
         const char *p_method;
         if (bPrevSkip) {
             p_method = "routepay_cont";
@@ -842,36 +819,13 @@ static void routepay(int *pOption, bool bPrevSkip)
             "{"
                 M_STR("method", "%s") M_NEXT
                 M_QQ("params") ":[ "
-                    //payment_hash, amount_msat, payee, payer
-                    M_QQ("%s") ",%" PRIu64 "," M_QQ("%s") "," M_QQ("") ",%" PRIu32 ",%d",
+                    //bolt11, add_amount_msat, cltv_offset
+                    M_QQ("%s") ",%" PRIu64 ", %" PRIu32 "]}",
                 p_method,
-                payhash, p_invoice_data->amount_msat, payee,
-                p_invoice_data->min_final_cltv_expiry, p_invoice_data->r_field_num);
-        if (p_invoice_data->r_field_num > 0) {
-            strcat(mBuf, ",[");
-            for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
-                if (lp != 0) {
-                    strcat(mBuf, ",");
-                }
-                char nodeid[UCOIN_SZ_PUBKEY * 2 + 1];
-                ucoin_util_bin2str(nodeid, p_invoice_data->r_field[lp].node_id, UCOIN_SZ_PUBKEY);
-
-                char rfstr[256];
-                sprintf(rfstr, "[" M_QQ("%s") ",%" PRIu64 ",%" PRIu32 ",%" PRIu32 ",%" PRIu16 "]",
-                        nodeid, //66
-                        p_invoice_data->r_field[lp].short_channel_id, //16
-                        p_invoice_data->r_field[lp].fee_base_msat, //10
-                        p_invoice_data->r_field[lp].fee_prop_millionths, //10
-                        p_invoice_data->r_field[lp].cltv_expiry_delta); //5
-                strcat(mBuf, rfstr);
-            }
-            strcat(mBuf, "]");
-        }
-        strcat(mBuf, "]}");
+                invoice, add_amount_msat, cltv_offset);
 
         *pOption = M_OPTIONS_EXEC;
     }
-    free(p_invoice_data);
 }
 
 
