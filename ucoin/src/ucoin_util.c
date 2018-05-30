@@ -41,11 +41,6 @@
  * macros
  **************************************************************************/
 
-#define M_ZLOG_DIR      "logs"
-#define M_ZLOG_CONF     M_ZLOG_DIR "/.zlog.conf"
-#define M_ZLOG_LOG      M_ZLOG_DIR "/ptarm.log"
-
-
 /**************************************************************************
  * private variables
  **************************************************************************/
@@ -373,9 +368,9 @@ bool ucoin_util_log_init(void)
 {
 #ifdef UCOIN_USE_ULOG
     bool ret = ulog_init();
-#else
+#else   //UCOIN_USE_ULOG
     bool ret = true;
-#endif  //UCOIN_USE_ZLOG
+#endif  //UCOIN_USE_ULOG
 
     return ret;
 }
@@ -385,7 +380,7 @@ void ucoin_util_log_term(void)
 {
 #ifdef UCOIN_USE_ULOG
     ulog_term();
-#endif  //UCOIN_USE_ZLOG
+#endif  //UCOIN_USE_ULOG
 }
 
 #if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)

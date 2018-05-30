@@ -1330,7 +1330,7 @@ void ucoin_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 void ucoin_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
-/** log出力開始(zlog)
+/** log出力開始(ulog)
  *
  */
 bool ucoin_util_log_init(void);
