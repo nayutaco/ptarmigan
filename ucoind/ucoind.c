@@ -259,6 +259,10 @@ int main(int argc, char *argv[])
     DBG_PRINTF("start bitcoin testnet/regtest\n");
 #endif
 
+    uint64_t total_amount = ln_node_total_msat();
+    misc_save_event(NULL,
+            "ucoind start: total_msat=%" PRIu64 "\n", total_amount);
+
     //ucoincli受信用
     cmd_json_start(p_addr->port + 1);
 
