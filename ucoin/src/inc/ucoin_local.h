@@ -107,36 +107,21 @@ static inline int tid() {
 #define DEBUGOUT        stderr
 
 #ifdef UCOIN_DEBUG
-#ifdef UCOIN_USE_ZLOG
-#define DBG_PRINTF(...) {\
-    if (mZlogCatUcoin != NULL) {\
-        zlog(mZlogCatUcoin, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
-        ZLOG_LEVEL_DEBUG, __VA_ARGS__); \
-    }\
-}
-#define DBG_PRINTF2(...) {\
-    if (mZlogCatSimple != NULL) {\
-        zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
-        ZLOG_LEVEL_DEBUG, __VA_ARGS__); \
-    }\
-}
+#ifdef UCOIN_USE_ULOG
+#include "ulog.h"
+#define DBG_PRINTF(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, "LIB", __VA_ARGS__)
+#define DBG_PRINTF2(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, "LIB", __VA_ARGS__)
 #define DUMPBIN(dt,ln) {\
-    if (mZlogCatSimple != NULL) {\
-        char *p_str = (char *)malloc(ln * 2 + 1);   \
-        ucoin_util_bin2str(p_str, dt, ln);          \
-        zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
-        ZLOG_LEVEL_DEBUG, "%s\n", p_str); \
-        free(p_str); \
-    }\
+    char *p_str = (char *)malloc(ln * 2 + 1);   \
+    ucoin_util_bin2str(p_str, dt, ln);          \
+    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, "LIB", "%s\n", p_str);  \
+    free(p_str); \
 }
 #define DUMPTXID(dt) {\
-    if (mZlogCatSimple != NULL) {\
-        char *p_str = (char *)malloc(UCOIN_SZ_TXID * 2 + 1);   \
-        ucoin_util_bin2str_rev(p_str, dt, UCOIN_SZ_TXID);      \
-        zlog(mZlogCatSimple, __FILE__, sizeof(__FILE__)-1, __func__, sizeof(__func__)-1, __LINE__, \
-        ZLOG_LEVEL_DEBUG, "%s\n", p_str); \
-        free(p_str); \
-    }\
+    char *p_str = (char *)malloc(UCOIN_SZ_TXID * 2 + 1);   \
+    ucoin_util_bin2str_rev(p_str, dt, UCOIN_SZ_TXID);      \
+    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, "LIB", "%s\n", p_str);  \
+    free(p_str);                \
 }
 
 #else   //UCOIN_USE_ZLOG

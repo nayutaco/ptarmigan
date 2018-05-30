@@ -33,6 +33,9 @@
 
 #include "libbase58.h"
 
+#ifdef UCOIN_USE_ULOG
+#include "ulog.h"
+#endif  //UCOIN_USE_ULOG
 
 /**************************************************************************
  * macros
@@ -50,17 +53,6 @@
 #ifdef UCOIN_DEBUG_MEM
 static int mcount = 0;
 #endif  //UCOIN_DEBUG_MEM
-
-
-/********************************************************************
- * package variables
- ********************************************************************/
-
-#ifdef UCOIN_USE_ZLOG
-zlog_category_t HIDDEN          *mZlogCatUcoin;
-zlog_category_t                 *mZlogCatApp;
-zlog_category_t                 *mZlogCatSimple;
-#endif  //UCOIN_USE_ZLOG
 
 
 /**************************************************************************
@@ -379,66 +371,20 @@ void ucoin_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 
 bool ucoin_util_log_init(void)
 {
-#ifdef UCOIN_USE_ZLOG
-    if ( (mZlogCatUcoin != NULL) || (mZlogCatApp != NULL) || (mZlogCatSimple != NULL) ) {
-        fprintf(DEBUGOUT, "already init\n");
-        return true;
-    }
-
-    mkdir(M_ZLOG_DIR, 0755);
-
-    if (access(M_ZLOG_CONF, R_OK) != 0) {
-        FILE *fp = fopen(M_ZLOG_CONF, "w");
-        if (fp == NULL) {
-            fprintf(DEBUGOUT, "init failed\n");
-            return false;
-        }
-        fprintf(fp, "[formats]\n");
-        fprintf(fp, "ucoin  = \"%%d(%%F %%T).%%T:LIB %%V [%%F:%%L] %%m\"\n");
-        fprintf(fp, "app    = \"%%d(%%F %%T).%%T:APP %%V [%%F:%%L] %%m\"\n");
-        fprintf(fp, "simple = \"%%m\"\n");
-        fprintf(fp, "[rules]\n");
-        fprintf(fp, "my_cat_ucoin.DEBUG \"./" M_ZLOG_LOG "\",1MB * 20; ucoin\n");
-        fprintf(fp, "my_cat_app.DEBUG \"./" M_ZLOG_LOG "\",1MB * 20; app\n");
-        fprintf(fp, "my_cat_simple.DEBUG \"./" M_ZLOG_LOG "\",1MB * 20; simple\n");
-        fclose(fp);
-    }
-    int retval = zlog_init(M_ZLOG_CONF);
-    if (retval != 0) {
-        fprintf(DEBUGOUT, "init failed\n");
-        return false;
-    }
-    mZlogCatUcoin = zlog_get_category("my_cat_ucoin");
-    if (mZlogCatUcoin == NULL) {
-        fprintf(DEBUGOUT, "get cat_ucoin fail\n");
-        zlog_fini();
-        return false;
-    }
-    mZlogCatApp = zlog_get_category("my_cat_app");
-    if (mZlogCatApp == NULL) {
-        fprintf(DEBUGOUT, "get cat_app fail\n");
-        zlog_fini();
-        return false;
-    }
-    mZlogCatSimple = zlog_get_category("my_cat_simple");
-    if (mZlogCatSimple == NULL) {
-        fprintf(DEBUGOUT, "get cat_simple fail\n");
-        zlog_fini();
-        return false;
-    }
+#ifdef UCOIN_USE_ULOG
+    bool ret = ulog_init();
+#else
+    bool ret = true;
 #endif  //UCOIN_USE_ZLOG
 
-    return true;
+    return ret;
 }
 
 
 void ucoin_util_log_term(void)
 {
-#ifdef UCOIN_USE_ZLOG
-    zlog_fini();
-    mZlogCatSimple = NULL;
-    mZlogCatApp = NULL;
-    mZlogCatUcoin = NULL;
+#ifdef UCOIN_USE_ULOG
+    ulog_term();
 #endif  //UCOIN_USE_ZLOG
 }
 

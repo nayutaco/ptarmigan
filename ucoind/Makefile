@@ -66,8 +66,8 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 # others
 CFLAGS += $(INC_PATHS)
 CFLAGS += -DNETKIND=$(NETKIND)
-ifeq ($(USE_ZLOG_UCOIND),1)
-CFLAGS += -DUCOIN_USE_ZLOG
+ifeq ($(USE_ULOG_UCOIND),1)
+CFLAGS += -DUCOIN_USE_ULOG
 endif
 
 ifeq ($(DISABLE_PRINTFUND),0)
@@ -93,9 +93,6 @@ LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
 LIBS += -L$(COMMON_PATH)/ucoin -lucoin
 LIBS += -L$(COMMON_PATH)/ucoin/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto
-ifeq ($(findstring 1,$(USE_ZLOG_UCOIND) $(USE_ZLOG_UCOINLIB)),1)
-LIBS += -lzlog
-endif
 LIBS += -lstdc++
 
 
