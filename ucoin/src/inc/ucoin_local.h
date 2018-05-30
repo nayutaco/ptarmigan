@@ -104,7 +104,6 @@ static inline int tid() {
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
 #define PRINTOUT        stdout
-#define DEBUGOUT        stderr
 
 #ifdef UCOIN_DEBUG
 #ifdef UCOIN_USE_ULOG
@@ -125,6 +124,8 @@ static inline int tid() {
 }
 
 #else   //UCOIN_USE_ULOG
+
+#define DEBUGOUT        stderr
 
 /// @def    DBG_PRINTF(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
