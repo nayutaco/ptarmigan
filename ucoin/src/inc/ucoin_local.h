@@ -30,12 +30,12 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 
-#ifdef UCOIN_USE_ZLOG
-#else   //UCOIN_USE_ZLOG
+#ifdef UCOIN_USE_ULOG
+#else   //UCOIN_USE_ULOG
 static inline int tid() {
     return (int)syscall(SYS_gettid);
 }
-#endif  //UCOIN_USE_ZLOG
+#endif  //UCOIN_USE_ULOG
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -124,7 +124,7 @@ static inline int tid() {
     free(p_str);                \
 }
 
-#else   //UCOIN_USE_ZLOG
+#else   //UCOIN_USE_ULOG
 
 /// @def    DBG_PRINTF(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
@@ -134,7 +134,7 @@ static inline int tid() {
 /// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
 #define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
 #define DUMPTXID(dt)        {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
-#endif  //UCOIN_USE_ZLOG
+#endif  //UCOIN_USE_ULOG
 
 #else //UCOIN_DEBUG
 #define DBG_PRINTF(...)     //none
@@ -165,9 +165,6 @@ extern bool     mNativeSegwit;
 #ifdef UCOIN_USE_RNG
 extern mbedtls_ctr_drbg_context mRng;
 #endif  //UCOIN_USE_RNG
-#ifdef UCOIN_USE_ZLOG
-extern zlog_category_t *mZlogCatUcoin;
-#endif  //UCOIN_USE_ZLOG
 
 
 /**************************************************************************
