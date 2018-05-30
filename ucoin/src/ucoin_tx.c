@@ -1212,7 +1212,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
             DBG_PRINTF("    (%s)\n", addr);
         }
     }
-    DBG_PRINTF("\n locktime= 0x%08x : ", pTx->locktime);
+    DBG_PRINTF(" locktime= 0x%08x : ", pTx->locktime);
     if (pTx->locktime < 500000000L) {
         //ブロック高
         DBG_PRINTF2("block height\n");

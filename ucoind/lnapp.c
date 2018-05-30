@@ -2436,7 +2436,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
         uint8_t hash[LN_SZ_HASH];
         ln_calc_preimage_hash(hash, p_fulfill->p_preimage);
-        ln_db_annoskip_invoice_del(hash);
+        ln_db_invoice_del(hash);
     }
     pthread_mutex_unlock(&mMuxNode);
     DBG_PRINTF("  -->mFlagNode %02x\n", mFlagNode);
@@ -2559,7 +2559,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             ucoin_buf_alloccopy(&buf, p_fail->p_payment_hash, LN_SZ_HASH);  //キュー処理後に解放
             revack_push(p_conf, TRANSCMD_PAYRETRY, &buf);
         } else {
-            ln_db_annoskip_invoice_del(p_fail->p_payment_hash);
+            ln_db_invoice_del(p_fail->p_payment_hash);
         }
     }
     pthread_mutex_unlock(&mMuxNode);

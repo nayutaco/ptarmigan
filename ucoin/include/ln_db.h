@@ -295,7 +295,7 @@ void ln_db_annocnl_del_orphan(void);
 
 
 ////////////////////
-// channel_announcement
+// skip routing
 ////////////////////
 
 /** "route_skip" short_channel_id登録
@@ -323,16 +323,20 @@ bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId);
 bool ln_db_annoskip_drop(bool bTemp);
 
 
+////////////////////
+// invoice
+////////////////////
+
 /** "routepay" invoice保存
  *
  */
-bool ln_db_annoskip_invoice_save(const char *pInvoice, const uint8_t *pPayHash);
+bool ln_db_invoice_save(const char *pInvoice, const uint8_t *pPayHash);
 
 
 /** "routepay" invoice取得
  *
  */
-bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash);
+bool ln_db_invoice_load(char **ppInvoice, const uint8_t *pPayHash);
 
 
 /** "routepay" 全payment_hash取得
@@ -340,19 +344,19 @@ bool ln_db_annoskip_invoice_load(char **ppInvoice, const uint8_t *pPayHash);
  * @attention
  *      - 内部で realloc()するため、使用後に free()すること
  */
-int ln_db_annoskip_invoice_get(uint8_t **ppPayHash);
+int ln_db_invoice_get(uint8_t **ppPayHash);
 
 
 /** "routepay" invoice削除
  *
  */
-bool ln_db_annoskip_invoice_del(const uint8_t *pPayHash);
+bool ln_db_invoice_del(const uint8_t *pPayHash);
 
 
 /** "routepay" DB削除
  *
  */
-bool ln_db_annoskip_invoice_drop(void);
+bool ln_db_invoice_drop(void);
 
 
 ////////////////////
