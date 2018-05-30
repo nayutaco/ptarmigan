@@ -94,8 +94,8 @@ static int error_result(json_t *p_root);
  * static variables
  **************************************************************************/
 
-static char     rpc_url[SZ_RPC_URL];
-static char     rpc_userpwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD];
+static char     rpc_url[SZ_RPC_URL + 1 + 5 + 2];
+static char     rpc_userpwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD + 1];
 static pthread_mutex_t      mMux;
 static CURL     *mCurl;
 
