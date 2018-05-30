@@ -178,7 +178,7 @@ void cmd_json_pay_retry(const uint8_t *pPayHash, const char *pInvoice)
  ********************************************************************/
 
 /** 接続 : ucoincli -c
- * 
+ *
  */
 static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -209,7 +209,7 @@ LABEL_EXIT:
 
 
 /** 状態出力 : ucoincli -l
- * 
+ *
  */
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -255,7 +255,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 
 /** 指定channel切断 : ucoincli -q xxxxx
- * 
+ *
  */
 static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -286,7 +286,7 @@ LABEL_EXIT:
 
 
 /** ノード終了 : ucoincli -q
- * 
+ *
  */
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -308,7 +308,7 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 
 /** channel establish開始 : ucoincli -f
- * 
+ *
  */
 static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -394,7 +394,7 @@ LABEL_EXIT:
 
 
 /** invoice作成 : ucoincli -i
- * 
+ *
  */
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -450,7 +450,7 @@ LABEL_EXIT:
 
 
 /** invice削除 : ucoincli -e
- * 
+ *
  */
 static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -490,7 +490,7 @@ LABEL_EXIT:
 
 
 /** invoice一覧出力 : ucoincli -m
- * 
+ *
  */
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -530,7 +530,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 
 /** 送金開始(テスト用) : "PAY"
- * 
+ *
  */
 static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -793,7 +793,7 @@ LABEL_EXIT:
 
 
 /** channel close開始 : ucoincli -x
- * 
+ *
  */
 static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -832,7 +832,7 @@ LABEL_EXIT:
 
 
 /** 最後に発生したエラー出力 : ucoincli -w
- * 
+ *
  */
 static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -871,7 +871,7 @@ LABEL_EXIT:
 
 
 /** デバッグフラグのトグル : ucoincli -d
- * 
+ *
  */
 static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -921,7 +921,7 @@ LABEL_EXIT:
 
 
 /** commitment transaction出力 : ucoincli -g
- * 
+ *
  * commitment transactionおよび関連するtransactionを16進数文字列出力する。
  */
 static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
@@ -931,11 +931,6 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     daemon_connect_t conn;
     cJSON *result = NULL;
     int index = 0;
-
-    if (params == NULL) {
-        index = -1;
-        goto LABEL_EXIT;
-    }
 
     //connect parameter
     bool ret = json_connect(params, &index, &conn);
@@ -970,7 +965,7 @@ LABEL_EXIT:
 
 
 /** チャネル自動接続設定 : ucoincli -s
- * 
+ *
  * チャネル開設済みのノードに対してはucoindから自動的に接続しようとするが、その動作を制御する。
  */
 static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id)
@@ -1002,7 +997,7 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 
 /** チャネル情報削除 : ucoincli -X
- * 
+ *
  * DBから強制的にチャネル情報を削除する。
  */
 static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id)
@@ -1028,7 +1023,7 @@ static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 
 /** feerate_per_kw手動設定 : ucoincli --setfeerate
- * 
+ *
  */
 static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
@@ -1072,7 +1067,7 @@ LABEL_EXIT:
  ********************************************************************/
 
 /** peer接続
- * 
+ *
  * @param[in]       pConn
  * @param[in,out]   ctx
  * @retval  エラーコード
@@ -1109,7 +1104,7 @@ static int cmd_connect_proc(const daemon_connect_t *pConn, jrpc_context *ctx)
 
 
 /** peer切断
- * 
+ *
  * @param[in]       pNodeId
  * @retval  エラーコード
  */
@@ -1131,7 +1126,7 @@ static int cmd_disconnect_proc(const uint8_t *pNodeId)
 
 
 /** node終了
- * 
+ *
  * @retval  エラーコード
  */
 static int cmd_stop_proc(void)
@@ -1147,7 +1142,7 @@ static int cmd_stop_proc(void)
 
 
 /** channel establish開始
- * 
+ *
  * @param[in]   pNodeId
  * @param[in]   pFund
  * @retval  エラーコード
@@ -1190,7 +1185,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund)
 
 
 /** invoice作成
- * 
+ *
  * @param[out]  pPayHash
  * @param[in]   AmountMsat
  * @retval  エラーコード
@@ -1213,7 +1208,7 @@ static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
 
 
 /** invoice削除
- * 
+ *
  * @param[in]   pPayHash
  * @retval  エラーコード
  */
@@ -1235,7 +1230,7 @@ static int cmd_eraseinvoice_proc(const uint8_t *pPayHash)
 
 /** 送金開始1
  * 送金経路作成
- * 
+ *
  * @param[out]      ppInvoiceData
  * @param[out]      pRouteResult
  * @param[in]       pInvoice
@@ -1293,7 +1288,7 @@ static int cmd_routepay_proc1(
 
 /** 送金開始2
  * 送金
- * 
+ *
  * @param[in]       pInvoiceData
  * @param[in]       pRouteResult
  * @param[in]       pInvoiceStr
@@ -1346,7 +1341,7 @@ static int cmd_routepay_proc2(
     }
 
     mPayTryCount++;
-    
+
     if (mPayTryCount == 1) {
         //初回ログ
         uint64_t total_amount = ln_node_total_msat();
@@ -1364,7 +1359,7 @@ static int cmd_routepay_proc2(
 
 
 /** channel close開始
- * 
+ *
  * @param[out]      bMutual         true:Mutual Close開始 / false:Unilateral Close開始
  * @param[in]       pNodeId
  * @retval  エラーコード
@@ -1468,7 +1463,7 @@ static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn)
 
 
 /** BOLT11文字列生成
- * 
+ *
  */
 static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount)
 {
@@ -1497,7 +1492,7 @@ static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount)
 
 
 /** 接続済みlnapp_conf_t取得
- * 
+ *
  */
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id)
 {
