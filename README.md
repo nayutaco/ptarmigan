@@ -72,7 +72,6 @@ make distclean
   * [libsodium](https://download.libsodium.org/doc/) ([github](https://github.com/jedisct1/libsodium))
   * [lmdb](https://symas.com/lightning-memory-mapped-database/) ([github](https://github.com/LMDB/lmdb))
   * [jsonrpc-c](https://github.com/nayutaco/jsonrpc-c) - forked from [hmng/jsonrpc-c](https://github.com/hmng/jsonrpc-c)
-  * [zlog](http://hardysimpson.github.io/zlog/) ([github](https://github.com/HardySimpson/zlog))
 
 * install
   * [curl](https://curl.haxx.se/)

@@ -63,6 +63,10 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_enc_auth.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_print.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln/ln_signer.c
 C_SOURCE_FILES += $(PRJ_PATH)/bech32/segwit_addr.c
+ifeq ($(findstring 1,$(USE_ULOG_UCOIND) $(USE_ULOG_UCOINLIB)), 1)
+C_SOURCE_FILES += $(PRJ_PATH)/log/ulog.c
+endif
+
 
 CPP_SOURCE_FILES += $(PRJ_PATH)/routing/ln_routing.cpp
 
@@ -96,8 +100,8 @@ CFLAGS_CMN += -Ilibs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ucoin.h>'
 # others
 CFLAGS_CMN += $(CFLAGS_USER)
 CFLAGS_CMN += -DNETKIND=$(NETKIND)
-ifeq ($(USE_ZLOG_UCOINLIB),1)
-CFLAGS_CMN += -DUCOIN_USE_ZLOG
+ifeq ($(USE_ULOG_UCOINLIB),1)
+CFLAGS_CMN += -DUCOIN_USE_ULOG
 endif
 
 ifeq ($(DISABLE_PRINTFUND),0)

@@ -36,12 +36,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef UCOIN_USE_ZLOG
-#include "zlog.h"
-extern zlog_category_t *mZlogCatApp;
-extern zlog_category_t *mZlogCatSimple;
-#endif  //UCOIN_USE_ZLOG
-
 #ifdef __cplusplus
 extern "C" {
 #endif //__cplusplus

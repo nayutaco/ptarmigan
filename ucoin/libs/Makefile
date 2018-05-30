@@ -2,7 +2,7 @@ INSTALL_DIR = $(CURDIR)/install
 
 all: lib
 
-lib: mk_install mk_base58 mk_mbedtls mk_sodium mk_lmdb mk_zlog
+lib: mk_install mk_base58 mk_mbedtls mk_sodium mk_lmdb
 
 mk_install:
 	@mkdir -p $(INSTALL_DIR)
@@ -26,15 +26,9 @@ mk_mbedtls:
 	cp mbedtls/library/libmbedcrypto.a $(INSTALL_DIR)/lib/
 	cp -ra mbedtls/include/* $(INSTALL_DIR)/include/
 
-mk_zlog:
-	make -C zlog PREFIX=$(INSTALL_DIR)
-	make -C zlog PREFIX=$(INSTALL_DIR) install
-	@rm -rf $(INSTALL_DIR)/lib/libzlog.so*
-
 clean:
 	-make -C libbase58 clean
 	-make -C libsodium clean
 	-make -C lmdb/libraries/liblmdb clean
 	-make -C mbedtls clean
-	-make -C zlog clean
 	-rm -rf $(INSTALL_DIR) bech32
