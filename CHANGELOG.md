@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2018/05/30
+
+* remove zlog
+* add local log system(ulog)
+
 ## 2018/05/22
 
 * log system([zlog](http://hardysimpson.github.io/zlog/))
