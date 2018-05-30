@@ -124,15 +124,15 @@
 #define M_FEERATE_MARGIN(fr)                ((fr) * 0.1)    ///< feerate_per_kwの許容範囲[kw]
 
 #if !defined(M_DBG_VERBOSE) && !defined(UCOIN_USE_PRINTFUNC)
-//#define M_DBG_PRINT_TX(tx)      //NONE
-#define M_DBG_PRINT_TX(tx)      fprintf(DEBUGOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX(tx)      //NONE
+//#define M_DBG_PRINT_TX(tx)      fprintf(PRINTOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
 #define M_DBG_PRINT_TX2(tx)     //NONE
 #else
-#define M_DBG_PRINT_TX(tx)      fprintf(DEBUGOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
-#define M_DBG_PRINT_TX2(tx)     fprintf(DEBUGOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX(tx)      DBG_PRINTF("\n"); ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX2(tx)     DBG_PRINTF("\n"); ucoin_print_tx(tx)
 #endif  //M_DBG_VERBOSE
 
-#define M_SET_ERR(self,err,fmt,...)     set_err(self,err,fmt,##__VA_ARGS__); fprintf(DEBUGOUT, "[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg)
+#define M_SET_ERR(self,err,fmt,...)     set_err(self,err,fmt,##__VA_ARGS__); fprintf(PRINTOUT, "[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg)
 
 
 /**************************************************************************

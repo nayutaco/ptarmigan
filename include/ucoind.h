@@ -113,8 +113,7 @@ static inline int tid() {
 #define PRINTOUT        stderr
 
 #if 1
-#define DEBUGOUT        stderr
-#define DEBUGTRACE
+//#define DEBUGTRACE
 
 #ifdef UCOIN_USE_ULOG
 #include "ulog.h"
@@ -134,6 +133,7 @@ static inline int tid() {
 }
 
 #else   //UCOIN_USE_ULOG
+#define DEBUGOUT        stderr
 
 /// @def    DBG_PRINTF(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
