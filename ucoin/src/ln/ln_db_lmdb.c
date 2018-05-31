@@ -1111,7 +1111,7 @@ bool ln_db_annocnl_load(ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1189,7 +1189,7 @@ bool ln_db_annocnlupd_load(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t 
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1730,7 +1730,7 @@ bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_
 
     *ppInvoice = NULL;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1773,7 +1773,7 @@ int ln_db_invoice_get(uint8_t **ppPayHash)
     *ppPayHash = NULL;
     int cnt = 0;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -1882,7 +1882,7 @@ bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
