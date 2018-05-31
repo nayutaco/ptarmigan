@@ -97,11 +97,11 @@ static int cmd_eraseinvoice_proc(const uint8_t *pPayHash);
 static int cmd_routepay_proc1(
                 ln_invoice_t **ppInvoiceData,
                 ln_routing_result_t *pRouteResult,
-                const char *pInvoice, uint64_t AddAmountMsat, uint32_t CltvOffset);
+                const char *pInvoice, uint64_t AddAmountMsat);
 static int cmd_routepay_proc2(
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
-                const char *pInvoiceStr);
+                const char *pInvoiceStr, uint64_t AddAmountMsat);
 static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId);
 
 static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn);
@@ -145,12 +145,12 @@ uint16_t cmd_json_get_port(void)
 }
 
 
-void cmd_json_pay_retry(const uint8_t *pPayHash, const char *pInvoice)
+void cmd_json_pay_retry(const uint8_t *pPayHash, const char *pInvoice, uint64_t AddAmountMsat)
 {
     bool ret;
     char *p_invoice;
     if (pInvoice == NULL) {
-        ret = ln_db_invoice_load(&p_invoice, pPayHash);     //p_invoiceはmalloc()される
+        ret = ln_db_invoice_load(&p_invoice, &AddAmountMsat, pPayHash);     //p_invoiceはmalloc()される
     } else {
         p_invoice = (char *)pInvoice;   //constはずし
         ret = true;
@@ -158,9 +158,8 @@ void cmd_json_pay_retry(const uint8_t *pPayHash, const char *pInvoice)
     if (ret) {
         DBG_PRINTF("invoice:%s\n", p_invoice);
         char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
-        strcpy(json, "{\"method\":\"routepay_cont\",\"params\":");
-        strcat(json, p_invoice);
-        strcat(json, "}");
+        snprintf(json, 8192, 
+            "{\"method\":\"routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", p_invoice, AddAmountMsat);
         int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
         DBG_PRINTF("retval=%d\n", retval);
         APP_FREE(json);     //APP_MALLOC: この中
@@ -705,7 +704,6 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     char *p_invoice = NULL;
     uint64_t add_amount_msat = 0;
-    uint32_t cltv_offset = 0;
 
     ln_invoice_t *p_invoice_data = NULL;
     ln_routing_result_t rt_ret;
@@ -730,16 +728,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    json = cJSON_GetArrayItem(params, index++);
-    if (json && (json->type == cJSON_Number)) {
-        cltv_offset = json->valueint;
-    } else {
-        DBG_PRINTF("fail: invalid min_final_cltv_expiry\n");
-        goto LABEL_EXIT;
-    }
-
     err = cmd_routepay_proc1(&p_invoice_data, &rt_ret,
-                    p_invoice, add_amount_msat, cltv_offset);
+                    p_invoice, add_amount_msat);
     if (err != 0) {
         DBG_PRINTF("fail: pay1\n");
         goto LABEL_EXIT;
@@ -754,10 +744,10 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     //再送のためにinvoice保存
     char *p_invoice_str = cJSON_PrintUnformatted(params);
 
-    err = cmd_routepay_proc2(p_invoice_data, &rt_ret, p_invoice_str);
+    err = cmd_routepay_proc2(p_invoice_data, &rt_ret, p_invoice_str, add_amount_msat);
     if (err == RPCERR_PAY_RETRY) {
         //送金リトライ
-        cmd_json_pay_retry(p_invoice_data->payment_hash, p_invoice_str);
+        cmd_json_pay_retry(p_invoice_data->payment_hash, p_invoice_str, add_amount_msat);
         DBG_PRINTF("retry: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
     }
     free(p_invoice_str);
@@ -1235,13 +1225,12 @@ static int cmd_eraseinvoice_proc(const uint8_t *pPayHash)
  * @param[out]      pRouteResult
  * @param[in]       pInvoice
  * @param[in]       AddAmountMsat
- * @param[in]       CltvOffset
  * @retval  エラーコード
  */
 static int cmd_routepay_proc1(
                 ln_invoice_t **ppInvoiceData,
                 ln_routing_result_t *pRouteResult,
-                const char *pInvoice, uint64_t AddAmountMsat, uint32_t CltvOffset)
+                const char *pInvoice, uint64_t AddAmountMsat)
 {
     bool bret = ln_invoice_decode(ppInvoiceData, pInvoice);
     if (!bret) {
@@ -1254,8 +1243,6 @@ static int cmd_routepay_proc1(
         return RPCERR_INVOICE_FAIL;
     }
     p_invoice_data->amount_msat += AddAmountMsat;
-    p_invoice_data->min_final_cltv_expiry += CltvOffset;
-
 
     //blockcount
     int32_t blockcnt = btcrpc_getblockcount();
@@ -1292,17 +1279,18 @@ static int cmd_routepay_proc1(
  * @param[in]       pInvoiceData
  * @param[in]       pRouteResult
  * @param[in]       pInvoiceStr
+ * @param[in]       AddAmountMsat
  * @retval  エラーコード
  */
 static int cmd_routepay_proc2(
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
-                const char *pInvoiceStr)
+                const char *pInvoiceStr, uint64_t AddAmountMsat)
 {
     int err = RPCERR_PAY_RETRY;
 
     //再送のためにinvoice保存
-    (void)ln_db_invoice_save(pInvoiceStr, pInvoiceData->payment_hash);
+    (void)ln_db_invoice_save(pInvoiceStr, AddAmountMsat, pInvoiceData->payment_hash);
 
     DBG_PRINTF("-----------------------------------\n");
     for (int lp = 0; lp < pRouteResult->hop_num; lp++) {

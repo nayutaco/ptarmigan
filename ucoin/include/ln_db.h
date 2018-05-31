@@ -330,13 +330,13 @@ bool ln_db_annoskip_drop(bool bTemp);
 /** "routepay" invoice保存
  *
  */
-bool ln_db_invoice_save(const char *pInvoice, const uint8_t *pPayHash);
+bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint8_t *pPayHash);
 
 
 /** "routepay" invoice取得
  *
  */
-bool ln_db_invoice_load(char **ppInvoice, const uint8_t *pPayHash);
+bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_t *pPayHash);
 
 
 /** "routepay" 全payment_hash取得
