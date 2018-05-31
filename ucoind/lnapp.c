@@ -286,7 +286,7 @@ static void payroute_clear(lnapp_conf_t *p_conf);
 static void payroute_print(lnapp_conf_t *p_conf);
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
 
-static void show_self_param(const ln_self_t *self, FILE *fp, int line);
+static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, int line);
 
 
 /********************************************************************
@@ -402,7 +402,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         goto LABEL_EXIT;
     }
 
-    show_self_param(p_self, PRINTOUT, __LINE__);
+    show_self_param(p_self, PRINTOUT, "prev payment", __LINE__);
 
     uint64_t htlc_id;
     ret = ln_create_add_htlc(p_self,
@@ -437,7 +437,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
 LABEL_EXIT:
     ucoin_buf_free(&buf_bolt);
     if (ret) {
-        show_self_param(p_self, PRINTOUT, __LINE__);
+        show_self_param(p_self, PRINTOUT, "payment start", __LINE__);
 
         // method: payment
         // $1: short_channel_id
@@ -535,7 +535,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     //feeと送金先
     cb_shutdown_recv(pAppConf, NULL);
 
-    show_self_param(p_self, PRINTOUT, __LINE__);
+    show_self_param(p_self, PRINTOUT, "close channel", __LINE__);
 
     const char *p_str;
     ret = ln_create_shutdown(p_self, &buf_bolt);
@@ -1050,7 +1050,6 @@ static void *thread_main_start(void *pArg)
 
     while (p_conf->loop) {
         DBG_PRINTF("loop...\n");
-        show_self_param(p_self, PRINTOUT, __LINE__);
         pthread_mutex_lock(&p_conf->mux);
 
         //mainloop待ち合わせ(*2)
@@ -1882,7 +1881,7 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdF
     bool ret;
     ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
+    show_self_param(p_conf->p_self, PRINTOUT, "prev fulfill_htlc", __LINE__);
 
     DBG_PRINTF("id= %" PRIu64 "\n", pBwdFulfill->id);
     DBG_PRINTF("preimage= ");
@@ -1902,7 +1901,7 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdF
     ucoin_buf_free(&buf_bolt);
 
     if (ret) {
-        show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
+        show_self_param(p_conf->p_self, PRINTOUT, "fulfill_htlc send", __LINE__);
 
         // method: fulfill
         // $1: short_channel_id
@@ -1953,7 +1952,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
     bool ret = false;
     ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
 
-    show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
+    show_self_param(p_conf->p_self, PRINTOUT, "prev fail_htlc", __LINE__);
 
     DBG_PRINTF("id= %" PRIx64 "\n", pBwdFail->id);
     DBG_PRINTF("reason= ");
@@ -1981,7 +1980,7 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
         ucoin_buf_free(&buf_bolt);
         nodeflag_set(FLAGNODE_FAIL_SEND);
 
-        show_self_param(p_conf->p_self, PRINTOUT, __LINE__);
+        show_self_param(p_conf->p_self, PRINTOUT, "fail_htlc send", __LINE__);
 
         // method: fail
         // $1: short_channel_id
@@ -2686,6 +2685,8 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
                     ln_htlc_num(p_conf->p_self));
         call_script(EVT_HTLCCHANGED, param);
     }
+
+    show_self_param(p_conf->p_self, PRINTOUT, "revoke_and_ack", __LINE__);
 
     DBGTRACE_END
 }
@@ -3690,9 +3691,9 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
 /** ln_self_t内容表示(デバッグ用)
  *
  */
-static void show_self_param(const ln_self_t *self, FILE *fp, int line)
+static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, int line)
 {
-    DBG_PRINTF("=(%d)=============================================\n", line);
+    DBG_PRINTF("=(%s:%d)=============================================\n", msg, line);
     if (ln_short_channel_id(self)) {
         DBG_PRINTF("short_channel_id: %0" PRIx64 "\n", ln_short_channel_id(self));
         DBG_PRINTF("our_msat:   %" PRIu64 "\n", ln_our_msat(self));
@@ -3712,12 +3713,13 @@ static void show_self_param(const ln_self_t *self, FILE *fp, int line)
         }
 
         //コンソールログ
+        fprintf(fp, "=%s:%d==================\n", msg, line);
         fprintf(fp, "short_channel_id: %0" PRIx64 "\n", ln_short_channel_id(self));
         fprintf(fp, "our_msat:   %" PRIu64 "\n", ln_our_msat(self));
         fprintf(fp, "their_msat: %" PRIu64 "\n", ln_their_msat(self));
-        fprintf(fp, "HTLC num: %" PRIu16 "\n", ln_htlc_num(self));
+        fprintf(fp, "HTLC num: %" PRIu16 "\n\n\n", ln_htlc_num(self));
     } else {
         DBG_PRINTF("no channel\n");
     }
-    DBG_PRINTF("=(%d)=============================================\n", line);
+    DBG_PRINTF("=(%s:%d)=============================================\n", msg, line);
 }
