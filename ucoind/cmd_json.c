@@ -696,6 +696,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
+    DBG_PRINTF("routepay\n");
+
     int err = RPCERR_PARSE;
     cJSON *result = NULL;
     bool retry = false;
@@ -738,7 +740,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     // 送金開始
     //      ここまでで送金ルートは作成済み
     //      これ以降は失敗してもリトライする
-    DBG_PRINTF("routepay\n");
+    DBG_PRINTF("routepay: pay1\n");
     retry = true;
 
     //再送のためにinvoice保存

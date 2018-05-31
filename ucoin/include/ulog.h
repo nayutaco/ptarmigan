@@ -20,7 +20,7 @@ extern "C" {
 
 bool ulog_init(void);
 void ulog_term(void);
-void ulog_write(int Pri, const char* pFname, int Line, const char *pTag, const char *pFmt, ...);
+void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFmt, ...);
 
 
 #ifdef __cplusplus

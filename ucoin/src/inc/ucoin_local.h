@@ -108,18 +108,18 @@ static inline int tid() {
 #ifdef UCOIN_DEBUG
 #ifdef UCOIN_USE_ULOG
 #include "ulog.h"
-#define DBG_PRINTF(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, "LIB", __VA_ARGS__)
-#define DBG_PRINTF2(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, "LIB", __VA_ARGS__)
+#define DBG_PRINTF(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 1, "LIB", __VA_ARGS__)
+#define DBG_PRINTF2(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", __VA_ARGS__)
 #define DUMPBIN(dt,ln) {\
     char *p_str = (char *)malloc(ln * 2 + 1);   \
     ucoin_util_bin2str(p_str, dt, ln);          \
-    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, "LIB", "%s\n", p_str);  \
+    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", "%s\n", p_str);  \
     free(p_str); \
 }
 #define DUMPTXID(dt) {\
     char *p_str = (char *)malloc(UCOIN_SZ_TXID * 2 + 1);   \
     ucoin_util_bin2str_rev(p_str, dt, UCOIN_SZ_TXID);      \
-    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, "LIB", "%s\n", p_str);  \
+    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", "%s\n", p_str);  \
     free(p_str);                \
 }
 

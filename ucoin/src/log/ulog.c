@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
 #include <stdarg.h>
 
 #include <pthread.h>
@@ -38,7 +39,7 @@ bool ulog_init(void)
 
     pthread_mutex_init(&mMux, NULL);
 
-    ulog_write(ULOG_PRI_INFO, __FILE__, __LINE__, "ULOG", "=== ULOG START ===\n");
+    ulog_write(ULOG_PRI_INFO, __FILE__, __LINE__, 1, "ULOG", "=== ULOG START ===\n");
 
     return true;
 }
@@ -53,7 +54,7 @@ void ulog_term(void)
 }
 
 
-void ulog_write(int Pri, const char* pFname, int Line, const char *pTag, const char *pFmt, ...)
+void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFmt, ...)
 {
     if ((mFp == NULL) || (Pri > ULOG_PRI)) {
         return;
@@ -62,9 +63,14 @@ void ulog_write(int Pri, const char* pFname, int Line, const char *pTag, const c
     pthread_mutex_lock(&mMux);
 
     va_list ap;
+    time_t now = time(NULL);
+    char tmstr[50];
+    strftime(tmstr, sizeof(tmstr), "%m/%d %H:%M:%S", localtime(&now)); 
 
     va_start(ap, pFmt);
-    fprintf(mFp, "%lu(%d)[%s:%d][%s]", (unsigned long)time(NULL), (int)tid(), pFname, Line, pTag);
+    if (Flag) {
+        fprintf(mFp, "%s(%d)[%s:%d][%s]", tmstr, (int)tid(), pFname, Line, pTag);
+    }
     vfprintf(mFp, pFmt, ap);
     va_end(ap);
 
