@@ -193,8 +193,8 @@ int main(int argc, char *argv[])
         printf("\t\t-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
         printf("\t\t-e PAYMENT_HASH : erase payment_hash\n");
         printf("\t\t-e ALL : erase all payment_hash\n");
-        printf("\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT][,ADDITIONAL MIN_FINAL_CLTV_EXPIRY] : payment(don't put a space before or after the comma)\n");
-        printf("\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT][,ADDITIONAL MIN_FINAL_CLTV_EXPIRY] : payment keep prev skip channel(don't put a space before or after the comma)\n");
+        printf("\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
+        printf("\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment keep prev skip channel(don't put a space before or after the comma)\n");
         printf("\t\t-m : show payment_hashs\n");
         printf("\t\t-s<1 or 0> : 1=stop auto channel connect\n");
         printf("\t\t-c PEER.CONF : connect node\n");
@@ -725,7 +725,6 @@ static void routepay(int *pOption, bool bPrevSkip)
 {
     const char *invoice = strtok(optarg, ",");
     const char *add_amount_str = strtok(NULL, ",");
-    const char *cltv_offset_str = strtok(NULL, ",");
 
 
 /////////////////////
@@ -798,16 +797,6 @@ static void routepay(int *pOption, bool bPrevSkip)
         }
     }
 
-    uint32_t cltv_offset = 0;
-    if (cltv_offset_str != NULL) {
-        errno = 0;
-        cltv_offset = (uint32_t)strtoull(cltv_offset_str, NULL, 10);
-        if (errno != 0) {
-            sprintf(mErrStr, "%s", strerror(errno));
-            *pOption = M_OPTIONS_ERR;
-        }
-    }
-
     if (*pOption != M_OPTIONS_ERR) {
         const char *p_method;
         if (bPrevSkip) {
@@ -819,10 +808,10 @@ static void routepay(int *pOption, bool bPrevSkip)
             "{"
                 M_STR("method", "%s") M_NEXT
                 M_QQ("params") ":[ "
-                    //bolt11, add_amount_msat, cltv_offset
-                    M_QQ("%s") ",%" PRIu64 ", %" PRIu32 "]}",
+                    //bolt11, add_amount_msat
+                    M_QQ("%s") ",%" PRIu64 "]}",
                 p_method,
-                invoice, add_amount_msat, cltv_offset);
+                invoice, add_amount_msat);
 
         *pOption = M_OPTIONS_EXEC;
     }

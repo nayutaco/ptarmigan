@@ -17,12 +17,12 @@ ucoind [-p PORT] [-n ALIAS NAME] [-a IPv4 ADDRESS] [-c BITCOIN.CONF] [-i]
     * default: 9735(if DB don't have data)
   * _NOTICE_: this value is witten to DB at first time
 
-* -n ALIAS NAME
+* -n ALIAS_NAME
   * node alias name
     * default: `node_` + node_id first 6byte(if DB don't have data)
   * _NOTICE_: this value is witten to DB at first time
 
-* -a IPv4 ADDRESS
+* -a IPv4_ADDRESS
   * node announcement ip address
     * default: no ip address(if DB don't have data)
   * _NOTICE_: this value is witten to DB at first time
@@ -30,10 +30,6 @@ ucoind [-p PORT] [-n ALIAS NAME] [-a IPv4 ADDRESS] [-c BITCOIN.CONF] [-i]
 * -c BITCOIN.CONF
   * current bitcoin.conf
     * default: ~/.bitcoin/bitcoin.conf
-
-* -i
-  * show node_id, and exit
-  * not start node
 
 ## DESCRIPTION
 

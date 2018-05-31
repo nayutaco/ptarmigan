@@ -1680,7 +1680,7 @@ LABEL_EXIT:
  * invoice
  ********************************************************************/
 
-bool ln_db_invoice_save(const char *pInvoice, const uint8_t *pPayHash)
+bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint8_t *pPayHash)
 {
     int         retval;
     MDB_txn     *txn;
@@ -1701,12 +1701,18 @@ bool ln_db_invoice_save(const char *pInvoice, const uint8_t *pPayHash)
 
     key.mv_size = LN_SZ_HASH;
     key.mv_data = (CONST_CAST uint8_t *)pPayHash;
-    data.mv_size = strlen(pInvoice) + 1;    //\0含む
-    data.mv_data = (CONST_CAST char *)pInvoice;
+    size_t len = strlen(pInvoice);
+    data.mv_size = len + 1 + sizeof(AddAmountMsat);    //invoice(\0含む) + uint64_t
+    uint8_t *p_data = (uint8_t *)M_MALLOC(data.mv_size);
+    data.mv_data = p_data;
+    memcpy(p_data, pInvoice, len + 1);  //\0までコピー
+    p_data += len + 1;
+    memcpy(p_data, &AddAmountMsat, sizeof(AddAmountMsat));
     retval = mdb_put(txn, dbi, &key, &data, 0);
     if (retval != 0) {
         DBG_PRINTF("ERR: %s\n", mdb_strerror(retval));
     }
+    M_FREE(data.mv_data);
 
     MDB_TXN_COMMIT(txn);
 
@@ -1715,7 +1721,7 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
+bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_t *pPayHash)
 {
     int         retval;
     MDB_txn     *txn;
@@ -1741,6 +1747,13 @@ bool ln_db_invoice_load(char **ppInvoice, const uint8_t *pPayHash)
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval == 0) {
         *ppInvoice = strdup(data.mv_data);
+        size_t len = strlen(*ppInvoice);
+        data.mv_size -= len;
+        if (data.mv_size > sizeof(uint64_t)) {
+            memcpy(pAddAmountMsat, data.mv_data + len + 1, sizeof(uint64_t));
+        } else {
+            *pAddAmountMsat = 0;
+        }
     }
     MDB_TXN_ABORT(txn);
 
