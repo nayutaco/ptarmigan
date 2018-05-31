@@ -139,8 +139,9 @@ static inline int tid() {
 
 #else //UCOIN_DEBUG
 #define DBG_PRINTF(...)     //none
-#define DBG_PRINTF2(...)     //none
-#define DUMPBIN(...)
+#define DBG_PRINTF2(...)    //none
+#define DUMPBIN(...)        //none
+#define DUMPTXID(...)       //none
 #endif //UCOIN_DEBUG
 
 
