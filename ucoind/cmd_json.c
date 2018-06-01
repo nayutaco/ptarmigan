@@ -145,30 +145,31 @@ uint16_t cmd_json_get_port(void)
 }
 
 
-void cmd_json_pay_retry(const uint8_t *pPayHash, const char *pInvoice, uint64_t AddAmountMsat)
+void cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat)
+{
+    DBG_PRINTF("invoice:%s\n", pInvoice);
+    char *json = (char *)APP_MALLOC(M_SZ_JSONSTR);      //APP_FREE: この中
+    snprintf(json, M_SZ_JSONSTR,
+        "{\"method\":\"routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", pInvoice, AddAmountMsat);
+    int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+    DBG_PRINTF("retval=%d\n", retval);
+    APP_FREE(json);     //APP_MALLOC: この中
+}
+
+
+void cmd_json_pay_retry(const uint8_t *pPayHash)
 {
     bool ret;
-    char *p_invoice;
-    if (pInvoice == NULL) {
-        ret = ln_db_invoice_load(&p_invoice, &AddAmountMsat, pPayHash);     //p_invoiceはmalloc()される
-    } else {
-        p_invoice = (char *)pInvoice;   //constはずし
-        ret = true;
-    }
+    char *p_invoice = NULL;
+    uint64_t add_amount_msat;
+
+    ret = ln_db_invoice_load(&p_invoice, &add_amount_msat, pPayHash);   //p_invoiceはmalloc()される
     if (ret) {
-        DBG_PRINTF("invoice:%s\n", p_invoice);
-        char *json = (char *)APP_MALLOC(M_SZ_JSONSTR);      //APP_FREE: この中
-        snprintf(json, M_SZ_JSONSTR,
-            "{\"method\":\"routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", p_invoice, AddAmountMsat);
-        int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
-        DBG_PRINTF("retval=%d\n", retval);
-        APP_FREE(json);     //APP_MALLOC: この中
+        cmd_json_pay(p_invoice, add_amount_msat);
     } else {
         DBG_PRINTF("fail: invoice not found\n");
     }
-    if (pInvoice == NULL) {
-        free(p_invoice);
-    }
+    free(p_invoice);
 }
 
 
@@ -748,8 +749,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     err = cmd_routepay_proc2(p_invoice_data, &rt_ret, p_invoice_str, add_amount_msat);
     if (err == RPCERR_PAY_RETRY) {
-        //送金リトライ
-        cmd_json_pay_retry(p_invoice_data->payment_hash, p_invoice_str, add_amount_msat);
+        //送金
+        cmd_json_pay(p_invoice_str, add_amount_msat);
         DBG_PRINTF("retry: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
     }
     free(p_invoice_str);
