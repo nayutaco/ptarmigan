@@ -107,6 +107,7 @@ static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId);
 static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn);
 static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
+static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 
 
 /********************************************************************
@@ -148,7 +149,7 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
     sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}",
                         nodestr, pIpAddr, Port);
 
-    int retval = misc_sendjson(json, "127.0.0.1", mJrpc.port_number);
+    int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
     DBG_PRINTF("retval=%d\n", retval);
 
     return retval;
@@ -161,7 +162,7 @@ int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat)
     char *json = (char *)APP_MALLOC(M_SZ_JSONSTR);      //APP_FREE: この中
     snprintf(json, M_SZ_JSONSTR,
         "{\"method\":\"routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", pInvoice, AddAmountMsat);
-    int retval = misc_sendjson(json, "127.0.0.1", mJrpc.port_number);
+    int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
     DBG_PRINTF("retval=%d\n", retval);
     APP_FREE(json);     //APP_MALLOC: この中
 
@@ -1505,4 +1506,35 @@ static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id)
         p_appconf = p2p_svr_search_node(p_node_id);
     }
     return p_appconf;
+}
+
+
+/** JSON-RPC送信
+ *
+ */
+static int send_json(const char *pSend, const char *pAddr, uint16_t Port)
+{
+    int retval = -1;
+    struct sockaddr_in sv_addr;
+
+    int sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        return retval;
+    }
+    memset(&sv_addr, 0, sizeof(sv_addr));
+    sv_addr.sin_family = AF_INET;
+    sv_addr.sin_addr.s_addr = inet_addr(pAddr);
+    sv_addr.sin_port = htons(Port);
+    retval = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+    if (retval < 0) {
+        close(sock);
+        return retval;
+    }
+    write(sock, pSend, strlen(pSend));
+
+    //受信を待つとDBの都合でロックしてしまうため、すぐに閉じる
+
+    close(sock);
+
+    return 0;
 }

@@ -86,12 +86,6 @@ bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 
 
-/** JSON-RPC送信
- *
- */
-int misc_sendjson(const char *pSend, const char *pAddr, uint16_t Port);
-
-
 /** 現在日時取得
  *
  * @param[out]      pDateTime       現在日時
