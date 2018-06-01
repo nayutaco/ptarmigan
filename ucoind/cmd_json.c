@@ -107,6 +107,7 @@ static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId);
 static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn);
 static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
+static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 
 
 /********************************************************************
@@ -139,37 +140,52 @@ void cmd_json_start(uint16_t Port)
 }
 
 
-uint16_t cmd_json_get_port(void)
+int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
 {
-    return (uint16_t)mJrpc.port_number;
+    char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
+    char json[256];
+
+    ucoin_util_bin2str(nodestr, pNodeId, UCOIN_SZ_PUBKEY);
+    sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}",
+                        nodestr, pIpAddr, Port);
+
+    int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
+    DBG_PRINTF("retval=%d\n", retval);
+
+    return retval;
 }
 
 
-void cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat)
+int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat)
 {
     DBG_PRINTF("invoice:%s\n", pInvoice);
     char *json = (char *)APP_MALLOC(M_SZ_JSONSTR);      //APP_FREE: この中
     snprintf(json, M_SZ_JSONSTR,
         "{\"method\":\"routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", pInvoice, AddAmountMsat);
-    int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+    int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
     DBG_PRINTF("retval=%d\n", retval);
     APP_FREE(json);     //APP_MALLOC: この中
+
+    return retval;
 }
 
 
-void cmd_json_pay_retry(const uint8_t *pPayHash)
+int cmd_json_pay_retry(const uint8_t *pPayHash)
 {
     bool ret;
+    int retval = ENOENT;
     char *p_invoice = NULL;
     uint64_t add_amount_msat;
 
     ret = ln_db_invoice_load(&p_invoice, &add_amount_msat, pPayHash);   //p_invoiceはmalloc()される
     if (ret) {
-        cmd_json_pay(p_invoice, add_amount_msat);
+        retval = cmd_json_pay(p_invoice, add_amount_msat);
     } else {
         DBG_PRINTF("fail: invoice not found\n");
     }
     free(p_invoice);
+
+    return retval;
 }
 
 
@@ -225,7 +241,6 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
-    cJSON_AddItemToObject(result, "jsonrpc_port", cJSON_CreateNumber(cmd_json_get_port()));
     cJSON_AddNumber64ToObject(result, "total_our_msat", amount);
 
     //peer info
@@ -745,15 +760,12 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     retry = true;
 
     //再送のためにinvoice保存
-    char *p_invoice_str = cJSON_PrintUnformatted(params);
-
-    err = cmd_routepay_proc2(p_invoice_data, &rt_ret, p_invoice_str, add_amount_msat);
+    err = cmd_routepay_proc2(p_invoice_data, &rt_ret, p_invoice, add_amount_msat);
     if (err == RPCERR_PAY_RETRY) {
         //送金
-        cmd_json_pay(p_invoice_str, add_amount_msat);
+        cmd_json_pay(p_invoice, add_amount_msat);
         DBG_PRINTF("retry: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
     }
-    free(p_invoice_str);
 
 LABEL_EXIT:
     if (err == 0) {
@@ -1494,4 +1506,35 @@ static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id)
         p_appconf = p2p_svr_search_node(p_node_id);
     }
     return p_appconf;
+}
+
+
+/** JSON-RPC送信
+ *
+ */
+static int send_json(const char *pSend, const char *pAddr, uint16_t Port)
+{
+    int retval = -1;
+    struct sockaddr_in sv_addr;
+
+    int sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        return retval;
+    }
+    memset(&sv_addr, 0, sizeof(sv_addr));
+    sv_addr.sin_family = AF_INET;
+    sv_addr.sin_addr.s_addr = inet_addr(pAddr);
+    sv_addr.sin_port = htons(Port);
+    retval = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
+    if (retval < 0) {
+        close(sock);
+        return retval;
+    }
+    write(sock, pSend, strlen(pSend));
+
+    //受信を待つとDBの都合でロックしてしまうため、すぐに閉じる
+
+    close(sock);
+
+    return 0;
 }

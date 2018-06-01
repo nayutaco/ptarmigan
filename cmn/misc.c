@@ -99,37 +99,6 @@ bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 }
 
 
-/** JSON-RPC送信
- *
- */
-int misc_sendjson(const char *pSend, const char *pAddr, uint16_t Port)
-{
-    int retval = -1;
-    struct sockaddr_in sv_addr;
-
-    int sock = socket(PF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-        return retval;
-    }
-    memset(&sv_addr, 0, sizeof(sv_addr));
-    sv_addr.sin_family = AF_INET;
-    sv_addr.sin_addr.s_addr = inet_addr(pAddr);
-    sv_addr.sin_port = htons(Port);
-    retval = connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
-    if (retval < 0) {
-        close(sock);
-        return retval;
-    }
-    write(sock, pSend, strlen(pSend));
-
-    //受信を待つとDBの都合でロックしてしまうため、すぐに閉じる
-
-    close(sock);
-
-    return 0;
-}
-
-
 void misc_datetime(char *pDateTime, size_t Len)
 {
     struct tm tmval;

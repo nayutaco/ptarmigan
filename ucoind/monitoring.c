@@ -406,15 +406,8 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
                 ret = ucoind_nodefail_get(p_node_id, ipaddr, anno.addr.port, LN_NODEDESC_IPV4);
                 if (!ret) {
                     //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
-
-                    char nodestr[UCOIN_SZ_PUBKEY * 2 + 1];
-                    char json[256];
-                    ucoin_util_bin2str(nodestr, p_node_id, UCOIN_SZ_PUBKEY);
-                    sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}", nodestr, ipaddr, anno.addr.port);
-                    DBG_PRINTF("%s\n", json);
-
                     misc_msleep(10 + rand() % 2000);    //双方が同時に接続しに行かないように時差を付ける(効果があるかは不明)
-                    int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
+                    int retval = cmd_json_connect(p_node_id, ipaddr, anno.addr.port);
                     DBG_PRINTF("retval=%d\n", retval);
                 }
             }

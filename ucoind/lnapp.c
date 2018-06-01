@@ -1025,18 +1025,15 @@ static void *thread_main_start(void *pArg)
         // $1: short_channel_id
         // $2: node_id
         // $3: peer_id
-        // $4: JSON-RPC port
         char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
         ucoin_util_bin2str(node_id, ln_node_getid(), UCOIN_SZ_PUBKEY);
         char peer_id[UCOIN_SZ_PUBKEY * 2 + 1];
         ucoin_util_bin2str(peer_id, p_conf->node_id, UCOIN_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
-                    "%s "
-                    "%" PRIu16,
+                    "%s",
                     ln_short_channel_id(p_self), node_id,
-                    peer_id,
-                    cmd_json_get_port());
+                    peer_id);
         call_script(EVT_CONNECTED, param);
 
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
