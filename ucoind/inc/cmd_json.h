@@ -40,12 +40,17 @@ void cmd_json_start(uint16_t Port);
 uint16_t cmd_json_get_port(void);
 
 
-/** 再送依頼
+/** 送金依頼
  *
- * @param[in]       pPayHash
  * @param[in]       pInvoice        (NULL時はDBから取得)
  * @param[in]       AddAmountMsat   (pInvoiceがNULL時はDBから取得)
  */
-void cmd_json_pay_retry(const uint8_t *pPayHash, const char *pInvoice, uint64_t AddAmountMsat);
+void cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat);
+
+/** 再送
+ *
+ * @param[in]       pPayHash
+ */
+void cmd_json_pay_retry(const uint8_t *pPayHash);
 
 #endif  //CMD_JSON_H__

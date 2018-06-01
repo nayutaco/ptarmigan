@@ -469,7 +469,7 @@ LABEL_EXIT:
 
         // //ルートが見つからなくなるまでリトライする
         // ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
-        // cmd_json_pay_retry(pPay->payment_hash, NULL, 0);
+        // cmd_json_pay_retry(pPay->payment_hash);
         // ret = true;         //再送はtrue
         nodeflag_unset(~FLAGNODE_NONE);
     }
@@ -3361,7 +3361,7 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
         }
         break;
     case TRANSCMD_PAYRETRY:
-        cmd_json_pay_retry(p_revack->buf.buf, NULL, 0);
+        cmd_json_pay_retry(p_revack->buf.buf);
         break;
     default:
         break;
