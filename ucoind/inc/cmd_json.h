@@ -41,7 +41,7 @@ uint16_t cmd_json_get_port(void);
 
 
 /** 再送依頼
- * 
+ *
  * @param[in]       pPayHash
  * @param[in]       pInvoice        (NULL時はDBから取得)
  * @param[in]       AddAmountMsat   (pInvoiceがNULL時はDBから取得)

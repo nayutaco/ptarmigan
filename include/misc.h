@@ -93,7 +93,7 @@ int misc_sendjson(const char *pSend, const char *pAddr, uint16_t Port);
 
 
 /** 現在日時取得
- * 
+ *
  * @param[out]      pDateTime       現在日時
  * @param[in]       Len             pDataTimeバッファサイズ
  */
@@ -101,7 +101,7 @@ void misc_datetime(char *pDateTime, size_t Len);
 
 
 /** イベントファイル保存
- * 
+ *
  * @param[in]       pChannelId          channel_id(ファイル名)(NULL時: "node")
  * @param[in]       pFormat             イベント文字列
  */
@@ -109,7 +109,7 @@ void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...);
 
 
 /** 全データが0x00かのチェック
- * 
+ *
  * @param[in]       pData               チェック対象
  * @param[in]       Len                 pData長
  * @retval  true    全データが0x00

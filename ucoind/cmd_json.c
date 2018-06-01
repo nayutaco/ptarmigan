@@ -157,8 +157,8 @@ void cmd_json_pay_retry(const uint8_t *pPayHash, const char *pInvoice, uint64_t 
     }
     if (ret) {
         DBG_PRINTF("invoice:%s\n", p_invoice);
-        char *json = (char *)APP_MALLOC(8192);      //APP_FREE: この中
-        snprintf(json, 8192, 
+        char *json = (char *)APP_MALLOC(M_SZ_JSONSTR);      //APP_FREE: この中
+        snprintf(json, M_SZ_JSONSTR,
             "{\"method\":\"routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", p_invoice, AddAmountMsat);
         int retval = misc_sendjson(json, "127.0.0.1", cmd_json_get_port());
         DBG_PRINTF("retval=%d\n", retval);
