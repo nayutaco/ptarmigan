@@ -54,14 +54,14 @@ void monitor_stop(void);
 
 
 /** チャネルありnodeへの自動接続停止設定
- * 
+ *
  * @param[in]   bDisable        true:自動接続停止
  */
 void monitor_disable_autoconn(bool bDisable);
 
 
 /** 最新のfeerate_per_kw取得
- * 
+ *
  * @return      bitcoind estimatesmartfeeから算出したfeerate_per_kw
  */
 uint32_t monitoring_get_latest_feerate_kw(void);
@@ -70,7 +70,7 @@ uint32_t monitoring_get_latest_feerate_kw(void);
 /** feerate_per_kw設定
  * 次回のfeerate更新周期で使用するfeerate_per_kwを手動設定する。
  * 0を指定した場合、bitcoind estimatesmartfeeから自動計算する。
- * 
+ *
  * @param[in]   FeeratePerKw    feerate_per_kw
  */
 void monitor_set_feerate_per_kw(uint32_t FeeratePerKw);

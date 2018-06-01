@@ -185,7 +185,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId);
  *******************************************/
 
 /** [lnapp]update_fee送信
- * 
+ *
  * @param[in,out]   pAppConf
  * @param[in]       FeeratePerKw
  * @retval  true    成功
