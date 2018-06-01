@@ -34,23 +34,29 @@
 void cmd_json_start(uint16_t Port);
 
 
-/**
- * @retval  ポート番号
+/** ノード接続
+ *
+ * @param[in]       pNodeId     接続先ノードID
+ * @param[in]       pIpAddr     接続先IPv4
+ * @param[in]       Port        接続先ポート番号
+ * @return  Linuxエラーコード
  */
-uint16_t cmd_json_get_port(void);
+int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
 
 /** 送金依頼
  *
  * @param[in]       pInvoice        (NULL時はDBから取得)
  * @param[in]       AddAmountMsat   (pInvoiceがNULL時はDBから取得)
+ * @return  Linuxエラーコード
  */
-void cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat);
+int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat);
 
 /** 再送
  *
  * @param[in]       pPayHash
+ * @return  Linuxエラーコード
  */
-void cmd_json_pay_retry(const uint8_t *pPayHash);
+int cmd_json_pay_retry(const uint8_t *pPayHash);
 
 #endif  //CMD_JSON_H__
