@@ -52,8 +52,8 @@ extern "C" {
 #define UCOIN_SZ_PRIVKEY        (32)            ///< サイズ:非公開鍵
 #define UCOIN_SZ_PUBKEY         (33)            ///< サイズ:圧縮された公開鍵
 #define UCOIN_SZ_PUBKEY_UNCOMP  (64)            ///< サイズ:圧縮されていない公開鍵
-#define UCOIN_SZ_PUBKEYHASH     (20)            ///< サイズ:PubKeyHash
-#define UCOIN_SZ_ADDR_MAX       (35 + 1)        ///< サイズ:Bitcoinアドレス(26-35)
+#define UCOIN_SZ_PUBKEYHASH     (32)            ///< サイズ:PubKeyHashの最大値
+#define UCOIN_SZ_ADDR_MAX       (90 + 1)        ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
 #define UCOIN_SZ_WIF_MAX        (55 + 1)        ///< サイズ:秘密鍵のWIF(上限不明)
 #define UCOIN_SZ_TXID           (32)            ///< サイズ:TXID
 #define UCOIN_SZ_SIGHASH        (32)            ///< サイズ:Signature計算用のトランザクションHASH
@@ -924,20 +924,29 @@ uint32_t ucoin_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
 //SW
 //////////////////////
 
-/** P2WPKHのvout追加
+/** P2WPKHのvout追加(pubkey)
  *
+ * @param[in,out]   pTx
+ * @param[in]       Value
+ * @param[in]       pPubKey
  */
 void ucoin_sw_add_vout_p2wpkh_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey);
 
 
-/** P2WPKHのvout追加
+/** P2WPKHのvout追加(pubKeyHash)
  *
+ * @param[in,out]   pTx
+ * @param[in]       Value
+ * @param[in]       pPubKeyHash
  */
 void ucoin_sw_add_vout_p2wpkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
 
 
 /** P2WSHのvout追加(witnessScript)
  *
+ * @param[in,out]   pTx
+ * @param[in]       Value
+ * @param[in]       pWitScript
  *
  */
 void ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pWitScript);

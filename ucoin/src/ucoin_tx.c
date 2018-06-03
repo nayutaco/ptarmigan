@@ -213,12 +213,12 @@ bool ucoin_tx_add_vout_p2pkh_addr(ucoin_tx_t *pTx, uint64_t Value, const char *p
 bool ucoin_tx_add_vout_p2sh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
     ucoin_vout_t *vout = ucoin_tx_add_vout(pTx, Value);
-    ucoin_buf_alloc(&vout->script, 2 + UCOIN_SZ_PUBKEYHASH + 1);
+    ucoin_buf_alloc(&vout->script, 2 + UCOIN_SZ_HASH160 + 1);
     uint8_t *p = vout->script.buf;
 
     p[0] = OP_HASH160;
-    p[1] = UCOIN_SZ_PUBKEYHASH;
-    memcpy(p + 2, pPubKeyHash, UCOIN_SZ_PUBKEYHASH);
+    p[1] = UCOIN_SZ_HASH160;
+    memcpy(p + 2, pPubKeyHash, UCOIN_SZ_HASH160);
     p[22] = OP_EQUAL;
     return true;
 }
@@ -815,7 +815,7 @@ bool ucoin_tx_verify_p2pkh(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxH
     if (ret) {
         uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
         ucoin_util_hash160(pkh, p, UCOIN_SZ_PUBKEY);
-        ret = (memcmp(pkh, pPubKeyHash, sizeof(pkh)) == 0);
+        ret = (memcmp(pkh, pPubKeyHash, UCOIN_SZ_HASH160) == 0);
     }
 
 LABEL_EXIT:
@@ -829,15 +829,15 @@ bool ucoin_tx_verify_p2pkh_spk(const ucoin_tx_t *pTx, int Index, const uint8_t *
 
     //P2PKHのscriptPubKey
     //  DUP HASH160 0x14 <20 bytes> EQUALVERIFY CHECKSIG
-    if (pScriptPk->len != 3 + UCOIN_SZ_PUBKEYHASH + 2) {
+    if (pScriptPk->len != 3 + UCOIN_SZ_HASH160 + 2) {
         assert(0);
         goto LABEL_EXIT;
     }
     if ( (pScriptPk->buf[0] != OP_DUP) ||
          (pScriptPk->buf[1] != OP_HASH160) ||
-         (pScriptPk->buf[2] != UCOIN_SZ_PUBKEYHASH) ||
-         (pScriptPk->buf[3 + UCOIN_SZ_PUBKEYHASH] != OP_EQUALVERIFY) ||
-         (pScriptPk->buf[3 + UCOIN_SZ_PUBKEYHASH + 1] != OP_CHECKSIG) ) {
+         (pScriptPk->buf[2] != UCOIN_SZ_HASH160) ||
+         (pScriptPk->buf[3 + UCOIN_SZ_HASH160] != OP_EQUALVERIFY) ||
+         (pScriptPk->buf[3 + UCOIN_SZ_HASH160 + 1] != OP_CHECKSIG) ) {
         assert(0);
         goto LABEL_EXIT;
     }
@@ -944,7 +944,7 @@ bool ucoin_tx_verify_multisig(const ucoin_tx_t *pTx, int Index, const uint8_t *p
     //pubkeyhashチェック
     uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
     ucoin_util_hash160(pkh, p_scriptsig->buf + pubpos - 1, p_scriptsig->len - pubpos + 1);
-    bool ret = (memcmp(pkh, pPubKeyHash, sizeof(pkh)) == 0);
+    bool ret = (memcmp(pkh, pPubKeyHash, UCOIN_SZ_HASH160) == 0);
     if (!ret) {
         DBG_PRINTF("pubkeyhash mismatch.\n");
         return false;
@@ -1014,13 +1014,13 @@ bool ucoin_tx_verify_p2sh_spk(const ucoin_tx_t *pTx, int Index, const uint8_t *p
 
     //P2SHのscriptPubKey
     //  HASH160 0x14 <20 bytes> EQUAL
-    if (pScriptPk->len != 2 + UCOIN_SZ_PUBKEYHASH + 1) {
+    if (pScriptPk->len != 2 + UCOIN_SZ_HASH160 + 1) {
         assert(0);
         goto LABEL_EXIT;
     }
     if ( (pScriptPk->buf[0] != OP_HASH160) ||
-         (pScriptPk->buf[1] != UCOIN_SZ_PUBKEYHASH) ||
-         (pScriptPk->buf[2 + UCOIN_SZ_PUBKEYHASH] != OP_EQUAL) ) {
+         (pScriptPk->buf[1] != UCOIN_SZ_HASH160) ||
+         (pScriptPk->buf[2 + UCOIN_SZ_HASH160] != OP_EQUAL) ) {
         assert(0);
         goto LABEL_EXIT;
     }
