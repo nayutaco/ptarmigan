@@ -225,7 +225,7 @@ void ucoin_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1
 
 int ucoin_util_set_keypair(mbedtls_ecp_keypair *pKeyPair, const uint8_t *pPubKey);
 int ucoin_util_ecp_point_read_binary2(mbedtls_ecp_point *point, const uint8_t *pPubKey);
-void ucoin_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash);
+void ucoin_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash, bool bNative);
 void ucoin_util_create_scriptpk(ucoin_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix);
 bool ucoin_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix);
 int ucoin_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const mbedtls_mpi *pA);

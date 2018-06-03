@@ -311,7 +311,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
         DBG_PRINTF("  add P2WPKH remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCmt->remote.satoshi, fee_remote);
         DBG_PRINTF("    remote.pubkey: ");
         DUMPBIN(pCmt->remote.pubkey, UCOIN_SZ_PUBKEY);
-        ucoin_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
+        ucoin_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey, true);
         pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOREMOTE;
     } else {
         DBG_PRINTF("  output P2WPKH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
@@ -319,7 +319,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
     //  P2WSH - local(commitment txのFEEはlocalが払う)
     if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
         DBG_PRINTF("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
-        ucoin_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
+        ucoin_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script, true);
         pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOLOCAL;
     } else {
         DBG_PRINTF("  output P2WSH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
@@ -345,7 +345,7 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
         if (LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat) >= pCmt->p_feeinfo->dust_limit_satoshi + fee) {
             ucoin_sw_add_vout_p2wsh(pTx,
                     LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat),
-                    &pCmt->pp_htlcinfo[lp]->script);
+                    &pCmt->pp_htlcinfo[lp]->script, true);
             pTx->vout[pTx->vout_cnt - 1].opt = (uint8_t)lp;
             DBG_PRINTF("scirpt.len=%d\n", pCmt->pp_htlcinfo[lp]->script.len);
             //ucoin_print_script(pCmt->pp_htlcinfo[lp]->script.buf, pCmt->pp_htlcinfo[lp]->script.len);
@@ -380,7 +380,7 @@ void HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t
                 ln_htlctype_t Type, uint32_t CltvExpiry, const uint8_t *pTxid, int Index)
 {
     //vout
-    ucoin_sw_add_vout_p2wsh(pTx, Value, pScript);
+    ucoin_sw_add_vout_p2wsh(pTx, Value, pScript, true);
     pTx->vout[0].opt = (uint8_t)Type;
     switch (Type) {
     case LN_HTLCTYPE_RECEIVED:

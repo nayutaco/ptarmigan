@@ -2084,7 +2084,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
         //処理の都合上、voutの位置を調整している
         ucoin_tx_add_vout(&self->tx_funding, 0);
     }
-    ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
+    ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund, true);
     //TODO: 実装上、vinが0、voutが1だった場合にsegwitと誤認してしまう
     ucoin_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
 
@@ -3231,7 +3231,7 @@ static bool create_funding_tx(ln_self_t *self)
 
     //output
     //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
-    ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
+    ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund, true);
 
     //vout#1:P2WPKH - change(amountは後で代入)
     ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->change_addr);

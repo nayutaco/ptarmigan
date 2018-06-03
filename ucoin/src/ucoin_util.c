@@ -599,15 +599,15 @@ LABEL_EXIT:
  * @param[out]      pWPubKeyHash    変換後データ(UCOIN_SZ_PUBKEYHASH以上のサイズを想定)
  * @param[in]       pPubKeyHash     対象データ(UCOIN_SZ_PUBKEYHASH)
  */
-void HIDDEN ucoin_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
+void HIDDEN ucoin_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash, bool bNative)
 {
-    if (!mNativeSegwit) {
-        uint8_t wit_prog[2 + UCOIN_SZ_PUBKEYHASH];
+    if (!bNative) {
+        uint8_t wit_prog[LNL_SZ_WITPROG_WPKH];
 
         wit_prog[0] = 0x00;
-        wit_prog[1] = (uint8_t)UCOIN_SZ_PUBKEYHASH;
-        memcpy(wit_prog + 2, pPubKeyHash, UCOIN_SZ_PUBKEYHASH);
-        ucoin_util_hash160(pWPubKeyHash, wit_prog, sizeof(wit_prog));
+        wit_prog[1] = (uint8_t)UCOIN_SZ_HASH160;
+        memcpy(wit_prog + 2, pPubKeyHash, UCOIN_SZ_HASH160);
+        ucoin_util_hash160(pWPubKeyHash, wit_prog, LNL_SZ_WITPROG_WPKH);
     } else {
         //nested in P2SH用
         assert(false);
@@ -626,18 +626,18 @@ void HIDDEN ucoin_util_create_scriptpk(ucoin_buf_t *pBuf, const uint8_t *pPubKey
     switch (Prefix) {
     case UCOIN_PREF_P2PKH:
         //DBG_PRINTF("UCOIN_PREF_P2PKH\n");
-        ucoin_buf_alloc(pBuf, 3 + UCOIN_SZ_PUBKEYHASH + 2);
+        ucoin_buf_alloc(pBuf, 3 + UCOIN_SZ_HASH160 + 2);
         create_scriptpk_p2pkh(pBuf->buf, pPubKeyHash);
         break;
     case UCOIN_PREF_P2SH:
         //DBG_PRINTF("UCOIN_PREF_P2SH\n");
-        ucoin_buf_alloc(pBuf, 2 + UCOIN_SZ_PUBKEYHASH + 1);
+        ucoin_buf_alloc(pBuf, 2 + UCOIN_SZ_HASH160 + 1);
         create_scriptpk_p2sh(pBuf->buf, pPubKeyHash);
         break;
     case UCOIN_PREF_NATIVE:
         //DBG_PRINTF("UCOIN_PREF_NATIVE\n");
-        ucoin_buf_alloc(pBuf, 2 + UCOIN_SZ_PUBKEYHASH);
-        create_scriptpk_native(pBuf->buf, pPubKeyHash, UCOIN_SZ_PUBKEYHASH);
+        ucoin_buf_alloc(pBuf, 2 + UCOIN_SZ_HASH160);
+        create_scriptpk_native(pBuf->buf, pPubKeyHash, UCOIN_SZ_HASH160);
         break;
     case UCOIN_PREF_NATIVE_SH:
         //DBG_PRINTF("UCOIN_PREF_NATIVE_SH\n");
@@ -664,25 +664,14 @@ bool HIDDEN ucoin_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, ui
     if (Prefix == UCOIN_PREF_NATIVE) {
         DBG_PRINTF("FATAL: not BECH32 supported\n");
         assert(false);
-
-        // uint8_t pkh[3 + UCOIN_SZ_PUBKEYHASH + 4];
-        // size_t sz = UCOIN_SZ_ADDR_MAX;
-
-        // pkh[0] = mPref[UCOIN_PREF_ADDRVER];
-        // pkh[1] = 0x00;
-        // pkh[2] = 0x00;
-        // memcpy(pkh + 3, pPubKeyHash, UCOIN_SZ_PUBKEYHASH);
-        // ucoin_util_hash256(buf_sha256, pkh, 3 + UCOIN_SZ_PUBKEYHASH);
-        // memcpy(pkh + 3 + UCOIN_SZ_PUBKEYHASH, buf_sha256, 4);
-        // ret = b58enc(pAddr, &sz, pkh, sizeof(pkh));
     } else {
-        uint8_t pkh[1 + UCOIN_SZ_PUBKEYHASH + 4];
+        uint8_t pkh[1 + UCOIN_SZ_HASH160 + 4];
         size_t sz = UCOIN_SZ_ADDR_MAX;
 
         pkh[0] = mPref[Prefix];
-        memcpy(pkh + 1, pPubKeyHash, UCOIN_SZ_PUBKEYHASH);
-        ucoin_util_hash256(buf_sha256, pkh, 1 + UCOIN_SZ_PUBKEYHASH);
-        memcpy(pkh + 1 + UCOIN_SZ_PUBKEYHASH, buf_sha256, 4);
+        memcpy(pkh + 1, pPubKeyHash, UCOIN_SZ_HASH160);
+        ucoin_util_hash256(buf_sha256, pkh, 1 + UCOIN_SZ_HASH160);
+        memcpy(pkh + 1 + UCOIN_SZ_HASH160, buf_sha256, 4);
         ret = b58enc(pAddr, &sz, pkh, sizeof(pkh));
     }
 
@@ -1154,8 +1143,8 @@ static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pPubKeyHash)
 {
     p[0] = OP_DUP;
     p[1] = OP_HASH160;
-    p[2] = UCOIN_SZ_PUBKEYHASH;
-    memcpy(p + 3, pPubKeyHash, UCOIN_SZ_PUBKEYHASH);
+    p[2] = UCOIN_SZ_HASH160;
+    memcpy(p + 3, pPubKeyHash, UCOIN_SZ_HASH160);
     p[23] = OP_EQUALVERIFY;
     p[24] = OP_CHECKSIG;
 }
@@ -1168,8 +1157,8 @@ static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pPubKeyHash)
 static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pPubKeyHash)
 {
     p[0] = OP_HASH160;
-    p[1] = UCOIN_SZ_PUBKEYHASH;
-    memcpy(p + 2, pPubKeyHash, UCOIN_SZ_PUBKEYHASH);
+    p[1] = UCOIN_SZ_HASH160;
+    memcpy(p + 2, pPubKeyHash, UCOIN_SZ_HASH160);
     p[22] = OP_EQUAL;
 }
 

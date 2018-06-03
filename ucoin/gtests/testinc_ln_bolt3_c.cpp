@@ -390,10 +390,10 @@ TEST_F(ln_bolt3_c, committx2)
 
     //output
     //vout#0:P2WKH - remote
-    ucoin_sw_add_vout_p2wpkh_pub(&tx, LN_MSAT2SATOSHI(MSAT_REMOTE), REMOTE_KEY);
+    ucoin_sw_add_vout_p2wpkh_pub(&tx, LN_MSAT2SATOSHI(MSAT_REMOTE), REMOTE_KEY, true);
     //vout#1:P2WSH - local
     if (LN_MSAT2SATOSHI(MSAT_LOCAL) >= feeinfo.dust_limit_satoshi + feeinfo.commit) {
-        ucoin_sw_add_vout_p2wsh(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - feeinfo.commit, &ws_local_buf);
+        ucoin_sw_add_vout_p2wsh(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - feeinfo.commit, &ws_local_buf, true);
     }
 
     //input

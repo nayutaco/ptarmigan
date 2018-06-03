@@ -31,6 +31,7 @@
 #include "mbedtls/asn1write.h"
 #include "mbedtls/ecdsa.h"
 #include "libbase58.h"
+#include "segwit_addr.h"
 
 #include "ucoin_local.h"
 
@@ -151,7 +152,7 @@ bool ucoin_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey)
 }
 
 
-bool ucoin_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
+bool ucoin_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey, bool bNative)
 {
     bool ret;
     uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
@@ -159,10 +160,10 @@ bool ucoin_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
 
     //BIP142のテストデータが非圧縮公開鍵だったので、やむなくこうした
     ucoin_util_hash160(pkh, pPubKey, (pPubKey[0] == 0x04) ? UCOIN_SZ_PUBKEY_UNCOMP+1 : UCOIN_SZ_PUBKEY);
-    if (mNativeSegwit) {
+    if (bNative) {
         pref = UCOIN_PREF_NATIVE;
     } else {
-        ucoin_util_create_pkh2wpkh(pkh, pkh);
+        ucoin_util_create_pkh2wpkh(pkh, pkh, false);
         pref = UCOIN_PREF_P2SH;
     }
     ret = ucoin_util_keys_pkh2addr(pWAddr, pkh, pref);
@@ -170,66 +171,58 @@ bool ucoin_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
 }
 
 
-bool ucoin_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
+bool ucoin_keys_addr2p2wpkh(char *pWAddr, const char *pAddr, bool bNative)
 {
     bool ret;
+    uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
+    int pref;
 
-    if (mNativeSegwit) {
-        DBG_PRINTF("FATAL: not BECH32 supported\n");
-        assert(false);
+    ret = ucoin_keys_addr2pkh(pkh, &pref, pAddr);
+    if (!ret || (pref != UCOIN_PREF_P2PKH)) {
+        return false;
+    }
 
-        // uint8_t pkh[3 + UCOIN_SZ_PUBKEYHASH + 4];
-        // size_t sz = UCOIN_SZ_ADDR_MAX;
-        // int pref;
-
-        // pkh[0] = mPref[UCOIN_PREF_ADDRVER];
-        // pkh[1] = 0x00;
-        // pkh[2] = 0x00;
-        // ret = ucoin_keys_addr2pkh(pkh + 3, &pref, pAddr);
-        // if (ret && (pref == UCOIN_PREF_P2PKH)) {
-        //     uint8_t buf_sha256[UCOIN_SZ_HASH256];
-
-        //     ucoin_util_hash256(buf_sha256, pkh, 3 + UCOIN_SZ_PUBKEYHASH);
-        //     memcpy(pkh + 3 + UCOIN_SZ_PUBKEYHASH, buf_sha256, 4);
-        //     ret = b58enc(pWAddr, &sz, pkh, sizeof(pkh));
-        // } else {
-        //     ret = false;
-        // }
-    } else {
-        uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
-        int pref;
-
-        ret = ucoin_keys_addr2pkh(pkh, &pref, pAddr);
-        if (ret && (pref == UCOIN_PREF_P2PKH)) {
-            ucoin_util_create_pkh2wpkh(pkh, pkh);
-            ret = ucoin_util_keys_pkh2addr(pWAddr, pkh, UCOIN_PREF_P2SH);
-        } else {
-            ret = false;
+    if (bNative) {
+        uint8_t hrp_type;
+        switch (ucoin_get_chain()) {
+        case UCOIN_MAINNET:
+            hrp_type = SEGWIT_ADDR_MAINNET;
+            break;
+        case UCOIN_TESTNET:
+            hrp_type = SEGWIT_ADDR_TESTNET;
+            break;
+        default:
+            return false;
         }
+        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, pkh, UCOIN_SZ_HASH160);
+    } else {
+
+        ucoin_util_create_pkh2wpkh(pkh, pkh, false);
+        ret = ucoin_util_keys_pkh2addr(pWAddr, pkh, UCOIN_PREF_P2SH);
     }
     return ret;
 }
 
 
-bool ucoin_keys_wit2waddr(char *pWAddr, const ucoin_buf_t *pWitScript)
+bool ucoin_keys_wit2waddr(char *pWAddr, const ucoin_buf_t *pWitScript, bool bNative)
 {
     bool ret;
 
-    if (mNativeSegwit) {
-        DBG_PRINTF("FATAL: not BECH32 supported\n");
-        assert(false);
-
-        // uint8_t buf_sha256[UCOIN_SZ_HASH256];
-        // uint8_t shash[3 + UCOIN_SZ_HASH256 + 4];
-        // size_t sz = UCOIN_SZ_ADDR_MAX;
-
-        // shash[0] = mPref[UCOIN_PREF_ADDRVER_SH];
-        // shash[1] = 0x00;
-        // shash[2] = 0x00;
-        // ucoin_util_sha256(shash + 3, pWitScript->buf, pWitScript->len);
-        // ucoin_util_hash256(buf_sha256, pWitScript->buf, pWitScript->len);
-        // memcpy(shash + 3 + UCOIN_SZ_HASH256, buf_sha256, 4);
-        // ret = b58enc(pWAddr, &sz, shash, sizeof(shash));
+    if (bNative) {
+        uint8_t sha[UCOIN_SZ_SHA256];
+        uint8_t hrp_type;
+        switch (ucoin_get_chain()) {
+        case UCOIN_MAINNET:
+            hrp_type = SEGWIT_ADDR_MAINNET;
+            break;
+        case UCOIN_TESTNET:
+            hrp_type = SEGWIT_ADDR_TESTNET;
+            break;
+        default:
+            return false;
+        }
+        ucoin_util_sha256(sha, pWitScript->buf, pWitScript->len);
+        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, sha, UCOIN_SZ_SHA256);
     } else {
         uint8_t wit_prog[LNL_SZ_WITPROG_WSH];
         uint8_t pkh[UCOIN_SZ_PUBKEYHASH];
@@ -352,17 +345,13 @@ bool ucoin_keys_createmulti(ucoin_buf_t *pRedeem, const uint8_t *pPubKeys[], int
 
 bool ucoin_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
 {
-    uint8_t bin[3 + UCOIN_SZ_PUBKEYHASH + 4];
+    uint8_t bin[3 + UCOIN_SZ_HASH160 + 4];
     uint8_t *p_bin;
     uint8_t *p_pkh;
     size_t sz = sizeof(bin);
     bool ret = b58tobin(bin, &sz, pAddr, strlen(pAddr));
     if (ret) {
-        if ((sz == 3 + UCOIN_SZ_PUBKEYHASH + 4) && (bin[0] == mPref[UCOIN_PREF_ADDRVER]) && (bin[1] == 0x00) && (bin[2] == 0x00)) {
-            p_bin = bin;
-            p_pkh = p_bin + 3;
-            *pPrefix = UCOIN_PREF_NATIVE;
-        } else if (sz == 1 + UCOIN_SZ_PUBKEYHASH + 4) {
+        if (sz == 1 + UCOIN_SZ_HASH160 + 4) {
             p_bin = bin + 2;
             p_pkh = p_bin + 1;
             if (p_bin[0] == mPref[UCOIN_PREF_P2PKH]) {
@@ -375,15 +364,48 @@ bool ucoin_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
         } else {
             ret = false;
         }
-    }
-    if (ret) {
-        //CRC check
-        uint8_t buf_sha256[UCOIN_SZ_HASH256];
-        ucoin_util_hash256(buf_sha256, p_bin, sz - 4);
-        ret = memcmp(buf_sha256, p_bin + sz - 4, 4) == 0;
-    }
-    if (ret) {
-        memcpy(pPubKeyHash, p_pkh, UCOIN_SZ_PUBKEYHASH);
+        if (ret) {
+            //CRC check
+            uint8_t buf_sha256[UCOIN_SZ_HASH256];
+            ucoin_util_hash256(buf_sha256, p_bin, sz - 4);
+            ret = memcmp(buf_sha256, p_bin + sz - 4, 4) == 0;
+        }
+        if (ret) {
+            memcpy(pPubKeyHash, p_pkh, UCOIN_SZ_HASH160);
+        }
+    } else {
+        //BECH32?
+        uint8_t witprog[40];
+        size_t witprog_len;
+        int witver;
+        uint8_t hrp_type;
+        switch (ucoin_get_chain()) {
+        case UCOIN_MAINNET:
+            hrp_type = SEGWIT_ADDR_MAINNET;
+            break;
+        case UCOIN_TESTNET:
+            hrp_type = SEGWIT_ADDR_TESTNET;
+            break;
+        default:
+            return false;
+        }
+        ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, pAddr);
+        if (ret && (witver == 0x00)) {
+            //witver==0ではwitness programとpubKeyHashは同じ
+            if (witprog_len == UCOIN_SZ_HASH160) {
+                *pPrefix = UCOIN_PREF_NATIVE;
+            } else if (witprog_len == UCOIN_SZ_SHA256) {
+                *pPrefix = UCOIN_PREF_NATIVE_SH;
+            } else {
+                ret = false;
+            }
+            if (ret) {
+                memcpy(pPubKeyHash, witprog, witprog_len);
+            }
+        } else {
+            //witver!=0は未サポート
+            ret = false;
+        }
     }
 
     return ret;

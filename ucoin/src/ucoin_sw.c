@@ -30,24 +30,24 @@
  * public functions
  **************************************************************************/
 
-void ucoin_sw_add_vout_p2wpkh_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
+void ucoin_sw_add_vout_p2wpkh_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, bool bNative)
 {
-    ucoin_util_add_vout_pub(pTx, Value, pPubKey, (mNativeSegwit) ? UCOIN_PREF_NATIVE : UCOIN_PREF_P2SH);
+    ucoin_util_add_vout_pub(pTx, Value, pPubKey, (bNative) ? UCOIN_PREF_NATIVE : UCOIN_PREF_P2SH);
 }
 
 
-void ucoin_sw_add_vout_p2wpkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
+void ucoin_sw_add_vout_p2wpkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, bool bNative)
 {
-    ucoin_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? UCOIN_PREF_NATIVE : UCOIN_PREF_P2SH);
+    ucoin_util_add_vout_pkh(pTx, Value, pPubKeyHash, (bNative) ? UCOIN_PREF_NATIVE : UCOIN_PREF_P2SH);
 }
 
 
-void ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pWitScript)
+void ucoin_sw_add_vout_p2wsh(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pWitScript, bool bNative)
 {
     uint8_t wit_prog[LNL_SZ_WITPROG_WSH];
 
     ucoin_sw_wit2prog_p2wsh(wit_prog, pWitScript);
-    if (mNativeSegwit) {
+    if (bNative) {
         ucoin_vout_t *vout = ucoin_tx_add_vout(pTx, Value);
         ucoin_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog));
     } else {
@@ -70,8 +70,8 @@ void ucoin_sw_scriptcode_p2wpkh(ucoin_buf_t *pScriptCode, const uint8_t *pPubKey
     memcpy(pScriptCode->buf, HEAD, sizeof(HEAD));
     pos += sizeof(HEAD);
     ucoin_util_hash160(pkh, pPubKey, UCOIN_SZ_PUBKEY);
-    memcpy(&(pScriptCode->buf[pos]), pkh, UCOIN_SZ_PUBKEYHASH);
-    pos += UCOIN_SZ_PUBKEYHASH;
+    memcpy(&(pScriptCode->buf[pos]), pkh, UCOIN_SZ_HASH160);
+    pos += UCOIN_SZ_HASH160;
     memcpy(&(pScriptCode->buf[pos]), TAIL, sizeof(TAIL));
 }
 
@@ -247,12 +247,12 @@ bool ucoin_sw_set_vin_p2wpkh(ucoin_tx_t *pTx, int Index, const ucoin_buf_t *pSig
     } else {
         //vin
         //  len + <witness program>
-        p_buf->len = 3 + UCOIN_SZ_PUBKEYHASH;
+        p_buf->len = 3 + UCOIN_SZ_HASH160;
         p_buf->buf = (uint8_t *)M_REALLOC(p_buf->buf, p_buf->len);
         p_buf->buf[0] = 0x16;
         //witness program
         p_buf->buf[1] = 0x00;
-        p_buf->buf[2] = (uint8_t)UCOIN_SZ_PUBKEYHASH;
+        p_buf->buf[2] = (uint8_t)UCOIN_SZ_HASH160;
         ucoin_util_hash160(&p_buf->buf[3], pPubKey, UCOIN_SZ_PUBKEY);
     }
 
@@ -343,9 +343,9 @@ bool ucoin_sw_verify_p2wpkh(const ucoin_tx_t *pTx, int Index, uint64_t Value, co
 
         ucoin_util_hash160(pkh, p_pub->buf, UCOIN_SZ_PUBKEY);
         if (!mNativeSegwit) {
-            ucoin_util_create_pkh2wpkh(pkh, pkh);
+            ucoin_util_create_pkh2wpkh(pkh, pkh, false);
         }
-        ret = (memcmp(pkh, pPubKeyHash, sizeof(pkh)) == 0);
+        ret = (memcmp(pkh, pPubKeyHash, UCOIN_SZ_HASH160) == 0);
     }
 
     ucoin_buf_free(&script_code);
@@ -443,7 +443,7 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
         //native P2WSH
         uint8_t pkh[UCOIN_SZ_SHA256];
         ucoin_util_sha256(pkh, wit->buf, wit->len);
-        bool ret = (memcmp(pkh, &pVout->buf[2], sizeof(pkh)) == 0);
+        bool ret = (memcmp(pkh, &pVout->buf[2], UCOIN_SZ_SHA256) == 0);
         if (!ret) {
             DBG_PRINTF("pubkeyhash mismatch.\n");
             return false;

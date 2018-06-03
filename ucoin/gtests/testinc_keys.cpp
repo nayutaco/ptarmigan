@@ -145,7 +145,7 @@ TEST_F(keys, keys_1)
     ASSERT_TRUE(ret);
     ASSERT_STREQ(ADDR, addr);
 
-    ret = ucoin_keys_pub2p2wpkh(waddr, pub);
+    ret = ucoin_keys_pub2p2wpkh(waddr, pub, false);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(WADDR, waddr);
 
@@ -233,14 +233,14 @@ TEST_F(keys, p2wpkh_addr)
     bool ret;
     const char ADDR[] = "mtLLAiafrhzcjSZqp2Ts86Gv7PupWnXKUc";
     char waddr[UCOIN_SZ_ADDR_MAX];
-    ret = ucoin_keys_addr2p2wpkh(waddr, ADDR);
+    ret = ucoin_keys_addr2p2wpkh(waddr, ADDR, false);
     ASSERT_TRUE(ret);
     ASSERT_STREQ("2NCFo5oZuEbXgZdMDzLMA2qQiroHrU6oXSU", waddr);     //bitcoindで計算した値
     printf(" addr= %s\n", ADDR);
     printf("waddr= %s\n", waddr);
 
     const char ADDR2[] = "mmsgPUnoceq7er7f9HuaZV2ktMkaVD3Za1";
-    ret = ucoin_keys_addr2p2wpkh(waddr, ADDR2);
+    ret = ucoin_keys_addr2p2wpkh(waddr, ADDR2, false);
     ASSERT_TRUE(ret);
     ASSERT_STREQ("2NDxM8795n9HsLiniWowcn6gwSemNKzsN7a", waddr);     //bitcoindで計算した値
     printf(" addr= %s\n", ADDR2);
@@ -423,7 +423,7 @@ TEST_F(keys, wit2p2wsh)
     const char ADDR[] = "2Mt8fd67GgFMQpeKqn9mZ6VRWHnK6MAzGbD";
 
     char addr[UCOIN_SZ_ADDR_MAX];
-    bool ret = ucoin_keys_wit2waddr(addr, &wit);
+    bool ret = ucoin_keys_wit2waddr(addr, &wit, false);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(ADDR, addr);
 }
