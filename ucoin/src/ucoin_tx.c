@@ -1196,7 +1196,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
         DBG_PRINTF(" [vout #%u]\n", lp);
         DBG_PRINTF("  value= %llu  : ", (unsigned long long)pTx->vout[lp].value);
         DUMPBIN(((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value));
-        DBG_PRINTF("    %f mBTC, %f BTC\n", UCOIN_SATOSHI2MBTC(pTx->vout[lp].value), UCOIN_SATOSHI2BTC(pTx->vout[lp].value));
+        DBG_PRINTF("    %10.5f mBTC, %10.8f BTC\n", UCOIN_SATOSHI2MBTC(pTx->vout[lp].value), UCOIN_SATOSHI2BTC(pTx->vout[lp].value));
         ucoin_buf_t *buf = &(pTx->vout[lp].script);
         DBG_PRINTF("  scriptPubKey[%u]= ", buf->len);
         DUMPBIN(buf->buf, buf->len);
