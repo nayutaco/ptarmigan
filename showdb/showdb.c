@@ -282,6 +282,16 @@ static void ln_print_self(const ln_self_t *self)
     printf(M_QQ("funding_sat") ": %" PRIu64 ",\n", self->funding_sat);
     printf(M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", self->feerate_per_kw);
 
+    //shutdown
+    printf(M_QQ("shutdown") ": {\n");
+    printf(M_QQ("scriptpk_local") ": \"");
+    ucoin_util_dumpbin(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
+    printf("\",\n");
+    printf(M_QQ("scriptpk_remote") ": \"");
+    ucoin_util_dumpbin(stdout, self->shutdown_scriptpk_remote.buf, self->shutdown_scriptpk_remote.len, false);
+    printf("\"\n");
+    printf("},\n");
+
     printf(M_QQ("err") ": %d\n", self->err);
 
     printf("}\n");

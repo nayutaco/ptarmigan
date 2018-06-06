@@ -2316,6 +2316,9 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             self->close_last_fee_sat = self->close_fee_sat;
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
             ucoin_buf_free(&buf_bolt);
+
+            //署名送信により相手がbroadcastできるようになるので、一度保存する
+            ln_db_self_save(self);
         } else {
             DBG_PRINTF("fail\n");
         }
