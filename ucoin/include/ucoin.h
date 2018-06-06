@@ -449,7 +449,7 @@ bool ucoin_keys_addr2spk(ucoin_buf_t *pScriptPk, const char *pAddr);
  * @param[in]   pScriptPk   scriptPubKey
  * @return      true:成功
  */
-bool ucoin_keys_spk2addr(char *pAddr, ucoin_buf_t *pScriptPk);
+bool ucoin_keys_spk2addr(char *pAddr, const ucoin_buf_t *pScriptPk);
 
 
 //////////////////////
