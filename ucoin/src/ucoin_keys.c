@@ -35,6 +35,13 @@
 #include "ucoin_local.h"
 
 
+/********************************************************************
+ * prototypes
+ ********************************************************************/
+
+static int spk2prefix(const uint8_t **ppPkh, const ucoin_buf_t *pScriptPk);
+
+
 /**************************************************************************
  * public functions
  **************************************************************************/
@@ -402,4 +409,60 @@ bool ucoin_keys_addr2spk(ucoin_buf_t *pScriptPk, const char *pAddr)
     }
 
     return ret;
+}
+
+
+bool ucoin_keys_spk2addr(char *pAddr, const ucoin_buf_t *pScriptPk)
+{
+    bool ret;
+    const uint8_t *pkh;
+    int prefix = spk2prefix(&pkh, pScriptPk);
+    if (prefix != UCOIN_PREF_MAX) {
+        ucoin_util_keys_pkh2addr(pAddr, pkh, prefix);
+        ret = true;
+    } else {
+        ret = false;
+    }
+    return ret;
+}
+
+
+/********************************************************************
+ * private functions
+ ********************************************************************/
+
+/** scriptPubKeyからPREF変換
+ *
+ */
+static int spk2prefix(const uint8_t **ppPkh, const ucoin_buf_t *pScriptPk)
+{
+    if ( (pScriptPk->len == 25) &&
+         (pScriptPk->buf[0] == OP_DUP) &&
+         (pScriptPk->buf[1] == OP_HASH160) &&
+         (pScriptPk->buf[2] == UCOIN_SZ_HASH160) &&
+         (pScriptPk->buf[23] == OP_EQUALVERIFY) &&
+         (pScriptPk->buf[24] == OP_CHECKSIG) ) {
+        *ppPkh = pScriptPk->buf + 3;
+        return UCOIN_PREF_P2PKH;
+    }
+    else if ( (pScriptPk->len == 23) &&
+         (pScriptPk->buf[0] == OP_HASH160) &&
+         (pScriptPk->buf[1] == UCOIN_SZ_HASH160) &&
+         (pScriptPk->buf[22] == OP_EQUAL) ) {
+        *ppPkh = pScriptPk->buf + 2;
+        return UCOIN_PREF_P2SH;
+    }
+    else if ( (pScriptPk->len == 22) &&
+         (pScriptPk->buf[0] == 0x00) &&
+         (pScriptPk->buf[1] == UCOIN_SZ_HASH160) ) {
+        *ppPkh = pScriptPk->buf + 2;
+        return UCOIN_PREF_NATIVE;
+    }
+    else if ( (pScriptPk->len == 34) &&
+         (pScriptPk->buf[0] == 0x00) &&
+         (pScriptPk->buf[1] == UCOIN_SZ_SHA256) ) {
+        *ppPkh = pScriptPk->buf + 2;
+        return UCOIN_PREF_NATIVE_SH;
+    }
+    return UCOIN_PREF_MAX;
 }
