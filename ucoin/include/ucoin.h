@@ -443,6 +443,15 @@ bool ucoin_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr);
 bool ucoin_keys_addr2spk(ucoin_buf_t *pScriptPk, const char *pAddr);
 
 
+/** scriptPubKeyからBitcoinアドレスを求める
+ *
+ * @param[out]  pAddr       Bitcoinアドレス
+ * @param[in]   pScriptPk   scriptPubKey
+ * @return      true:成功
+ */
+bool ucoin_keys_spk2addr(char *pAddr, const ucoin_buf_t *pScriptPk);
+
+
 //////////////////////
 //BUF
 //////////////////////

@@ -960,9 +960,11 @@ static void *thread_main_start(void *pArg)
     ln_db_annoinfo_del(p_conf->node_id);
 
     //送金先
-    char payaddr[UCOIN_SZ_ADDR_MAX];
-    btcrpc_getnewaddress(payaddr);
-    ln_set_shutdown_vout_addr(p_self, payaddr);
+    if (ln_shutdown_scriptpk_local(p_self)->len == 0) {
+        char payaddr[UCOIN_SZ_ADDR_MAX];
+        btcrpc_getnewaddress(payaddr);
+        ln_set_shutdown_vout_addr(p_self, payaddr);
+    }
 
     // Establishチェック
     if (detect) {
@@ -1668,10 +1670,19 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         bool ret = check_short_channel_id(p_conf);
         if (ret) {
             ret = exchange_funding_locked(p_conf);
-            misc_save_event(ln_channel_id(p_conf->p_self),
-                    "funding_locked: short_channel_id=%" PRIx64,
-                    ln_short_channel_id(p_conf->p_self));
             assert(ret);
+
+            char close_addr[UCOIN_SZ_ADDR_MAX];
+            ret = ucoin_keys_spk2addr(close_addr, ln_shutdown_scriptpk_local(p_conf->p_self));
+            if (!ret) {
+                ucoin_util_bin2str(close_addr,
+                        ln_shutdown_scriptpk_local(p_conf->p_self)->buf,
+                        ln_shutdown_scriptpk_local(p_conf->p_self)->len);
+            }
+
+            misc_save_event(ln_channel_id(p_conf->p_self),
+                    "funding_locked: short_channel_id=%" PRIx64 ", close_addr=%s",
+                    ln_short_channel_id(p_conf->p_self), close_addr);
         } else {
             DBG_PRINTF("fail: btcrpc_get_short_channel_param()\n");
         }
