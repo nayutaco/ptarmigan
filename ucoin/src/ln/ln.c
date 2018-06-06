@@ -458,6 +458,7 @@ void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t
 }
 
 
+#if 0
 bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey, int ShutdownPref)
 {
     bool ret = false;
@@ -467,6 +468,7 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
         ucoin_buf_t spk;
 
         ln_create_scriptpkh(&spk, &pub, ShutdownPref);
+        ucoin_buf_free(&self->shutdown_scriptpk_local);
         ucoin_buf_alloccopy(&self->shutdown_scriptpk_local, spk.buf, spk.len);
         ucoin_buf_free(&spk);
 
@@ -477,6 +479,7 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
 
     return ret;
 }
+#endif
 
 
 bool ln_set_shutdown_vout_addr(ln_self_t *self, const char *pAddr)
@@ -485,6 +488,8 @@ bool ln_set_shutdown_vout_addr(ln_self_t *self, const char *pAddr)
 
     bool ret = ucoin_keys_addr2spk(&spk, pAddr);
     if (ret) {
+        DBG_PRINTF("set close addr: %s\n", pAddr);
+        ucoin_buf_free(&self->shutdown_scriptpk_local);
         ucoin_buf_alloccopy(&self->shutdown_scriptpk_local, spk.buf, spk.len);
     } else {
         M_SET_ERR(self, LNERR_INV_ADDR, "invalid address");
@@ -2316,6 +2321,9 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             self->close_last_fee_sat = self->close_fee_sat;
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
             ucoin_buf_free(&buf_bolt);
+
+            //署名送信により相手がbroadcastできるようになるので、一度保存する
+            ln_db_self_save(self);
         } else {
             DBG_PRINTF("fail\n");
         }

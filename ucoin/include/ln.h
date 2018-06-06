@@ -1134,7 +1134,7 @@ void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t
  * @note
  *      - #ln_set_shutdown_vout_pubkey()か #ln_set_shutdown_vout_addr()のどちらかを設定する。
  */
-bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey, int ShutdownPref);
+//bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey, int ShutdownPref);
 
 
 /** shutdown時の出力先設定(address)
@@ -1445,7 +1445,7 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig);
 
 
 /** update_feeメッセージ作成
- * 
+ *
  * @param[in,out]       self            channel情報
  * @param[out]          pUpdFee         生成したupdate_feeメッセージ
  * @param[in]           FeeratePerKw    更新後のfeerate_per_kw
