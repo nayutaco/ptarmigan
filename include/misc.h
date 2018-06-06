@@ -43,12 +43,12 @@ extern "C" {
 
 #ifdef APP_DEBUG_MEM
 #define APP_MALLOC(a)       misc_dbg_malloc(a); DBG_PRINTF("APP_MALLOC:%d\n", misc_dbg_malloc_cnt());          ///< malloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
-//#define APP_REALLOC         misc_dbg_realloc        ///< realloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
+#define APP_REALLOC         misc_dbg_realloc        ///< realloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
 //#define APP_CALLOC          misc_dbg_calloc         ///< realloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
 #define APP_FREE(ptr)       { misc_dbg_free(ptr); ptr = NULL; DBG_PRINTF("APP_FREE:%d\n", misc_dbg_malloc_cnt());}        ///< free(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
 #else   //APP_DEBUG_MEM
 #define APP_MALLOC          malloc
-//#define APP_REALLOC         realloc
+#define APP_REALLOC         realloc
 //#define APP_CALLOC          calloc
 #define APP_FREE(ptr)       { free(ptr); ptr = NULL; }
 #endif  //APP_DEBUG_MEM
