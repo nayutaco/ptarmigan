@@ -2156,39 +2156,42 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
 
-    const ln_cb_funding_t *p = (const ln_cb_funding_t *)p_param;
+    ln_cb_funding_t *p = (ln_cb_funding_t *)p_param;
 
     if (p->b_send) {
         uint8_t txid[UCOIN_SZ_TXID];
         ucoin_buf_t buf_tx = UCOIN_BUF_INIT;
 
         ucoin_tx_create(&buf_tx, p->p_tx_funding);
-        bool ret = btcrpc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
-        if (ret) {
-            DBG_PRINTF("OK\n");
-        } else {
-            DBG_PRINTF("NG\n");
-            stop_threads(p_conf);
-        }
+        p->b_result = btcrpc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
         ucoin_buf_free(&buf_tx);
-    }
-
-    //fundingの監視は thread_poll_start()に任せる
-    DBG_PRINTF("funding_tx監視開始\n");
-    DUMPTXID(ln_funding_txid(p_conf->p_self));
-    p_conf->funding_waiting = true;
-
-    const char *p_str;
-    if (ln_is_funder(p_conf->p_self)) {
-        p_str = "funder";
     } else {
-        p_str = "fundee";
+        p->b_result = true;
     }
-    char str_peerid[UCOIN_SZ_PUBKEY * 2 + 1];
-    ucoin_util_bin2str(str_peerid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
-    misc_save_event(ln_channel_id(p_conf->p_self),
-            "open: funding wait start(%s): peer_id=%s",
-            p_str, str_peerid);
+
+    if (p->b_result) {
+        //fundingの監視は thread_poll_start()に任せる
+        DBG_PRINTF("funding_tx監視開始\n");
+        DUMPTXID(ln_funding_txid(p_conf->p_self));
+        p_conf->funding_waiting = true;
+
+        const char *p_str;
+        if (ln_is_funder(p_conf->p_self)) {
+            p_str = "funder";
+        } else {
+            p_str = "fundee";
+        }
+        char str_peerid[UCOIN_SZ_PUBKEY * 2 + 1];
+        ucoin_util_bin2str(str_peerid, ln_their_node_id(p_conf->p_self), UCOIN_SZ_PUBKEY);
+        misc_save_event(ln_channel_id(p_conf->p_self),
+                "open: funding wait start(%s): peer_id=%s",
+                p_str, str_peerid);
+    } else {
+        DBG_PRINTF("fail: send funding_tx\n");
+        misc_save_event(ln_channel_id(p_conf->p_self),
+                "fail: sendrawtransaction\n");
+        stop_threads(p_conf);
+    }
 
     DBGTRACE_END
 }

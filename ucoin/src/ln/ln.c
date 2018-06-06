@@ -3168,10 +3168,15 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     if (bSendTx) {
         funding.p_tx_funding = &self->tx_funding;
     }
+    funding.b_result = false;
     (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
-    ln_db_secret_save(self);
-    ln_db_self_save(self);
+    if (funding.b_result) {
+        ln_db_secret_save(self);
+        ln_db_self_save(self);
+    } else {
+        //上位で停止される
+    }
 }
 
 
