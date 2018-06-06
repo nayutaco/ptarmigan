@@ -764,6 +764,7 @@ typedef struct {
     const uint8_t           *p_txid;                    ///< funding txid
     bool                    b_send;                     ///< true:funding_txを送信する
     bool                    annosigs;                   ///< true:announce_signaturesを送信する
+    bool                    b_result;                   ///< true:funding_tx送信成功
 } ln_cb_funding_t;
 
 
