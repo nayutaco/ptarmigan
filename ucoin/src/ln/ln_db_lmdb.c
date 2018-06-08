@@ -1935,11 +1935,11 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
     if (retval == 0) {
         if (timestamp > pAnno->timestamp) {
             //自分の方が新しければ、スルー
-            LOGD("my node_announcement is newer\n");
+            LOGV("my node_announcement is newer\n");
             retval = 0;
         } else if (timestamp < pAnno->timestamp) {
             //自分の方が古いので、更新
-            LOGD("gotten node_announcement is newer\n");
+            LOGV("gotten node_announcement is newer\n");
             upddb = true;
 
             //announceし直す必要があるため、クリアする
@@ -3140,7 +3140,7 @@ static int annocnl_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlAnno, uint64_t Short
  */
 static int annocnl_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId)
 {
-    LOGD("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
+    LOGV("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
@@ -3248,7 +3248,7 @@ static int annocnlupd_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlUpd, uint32_t *pT
  */
 static int annocnlupd_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd)
 {
-    LOGD("short_channel_id=%016" PRIx64 ", dir=%d\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
+    LOGV("short_channel_id=%016" PRIx64 ", dir=%d\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
