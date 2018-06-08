@@ -204,7 +204,7 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
             bret = ln_db_annoskip_search(p_db_skip, self->short_channel_id);
             if (bret) {
                 //skip DBに載っているchannelは使用しない
-                DBG_PRINTF("skip : %016" PRIx64 "\n", self->short_channel_id);
+                LOGD("skip : %016" PRIx64 "\n", self->short_channel_id);
                 ln_db_node_cur_commit(p_db_skip);
                 return false;
             }
@@ -215,11 +215,11 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
             return false;
         }
 
-        // DBG_PRINTF("p_self->short_channel_id: %" PRIx64 "\n", self->short_channel_id);
-        // DBG_PRINTF("p_payer= ");
-        // DUMPBIN(p_prm_self->p_payer, UCOIN_SZ_PUBKEY);
-        // DBG_PRINTF("self->peer_node_id= ");
-        // DUMPBIN(self->peer_node_id, UCOIN_SZ_PUBKEY);
+        // LOGD("p_self->short_channel_id: %" PRIx64 "\n", self->short_channel_id);
+        // LOGD("p_payer= ");
+        // DUMPD(p_prm_self->p_payer, UCOIN_SZ_PUBKEY);
+        // LOGD("self->peer_node_id= ");
+        // DUMPD(self->peer_node_id, UCOIN_SZ_PUBKEY);
 
         p_prm_self->result.node_num++;
         p_prm_self->result.p_nodes = (nodes_t *)realloc(p_prm_self->result.p_nodes, sizeof(nodes_t) * p_prm_self->result.node_num);
@@ -263,7 +263,7 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 
     ret = ln_db_node_cur_transaction(&p_db_anno, LN_DB_TXN_CNL, NULL);
     if (!ret) {
-        DBG_PRINTF("fail\n");
+        LOGD("fail\n");
         return false;
     }
     ret = ln_db_annocnl_cur_open(&p_cur, p_db_anno);
@@ -332,13 +332,13 @@ lnerr_route_t ln_routing_calculate(
     rt_res.p_nodes = NULL;
 
     if ((pPayerId == NULL) || (pPayeeId == NULL)) {
-        DBG_PRINTF("fail: null input\n");
+        LOGD("fail: null input\n");
         return LNROUTE_PARAM;
     }
 
     bool ret = loaddb(&rt_res, pPayerId);
     if (!ret) {
-        DBG_PRINTF("fail: loaddb\n");
+        LOGD("fail: loaddb\n");
         return LNROUTE_LOADDB;
     }
 
@@ -366,10 +366,10 @@ lnerr_route_t ln_routing_calculate(
         }
     }
 
-    DBG_PRINTF("start nodeid : ");
-    DUMPBIN(pPayerId, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("end nodeid   : ");
-    DUMPBIN(pPayeeId, UCOIN_SZ_PUBKEY);
+    LOGD("start nodeid : ");
+    DUMPD(pPayerId, UCOIN_SZ_PUBKEY);
+    LOGD("end nodeid   : ");
+    DUMPD(pPayeeId, UCOIN_SZ_PUBKEY);
 
     graph_t g;
 
@@ -380,11 +380,11 @@ lnerr_route_t ln_routing_calculate(
 
     //Edge追加
     for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
-        // DBG_PRINTF("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
-        // DBG_PRINTF("    [1]");
-        // DUMPBIN(rt_res.p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY);
-        // DBG_PRINTF("    [2]");
-        // DUMPBIN(rt_res.p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY);
+        // LOGD("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
+        // LOGD("    [1]");
+        // DUMPD(rt_res.p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY);
+        // LOGD("    [2]");
+        // DUMPD(rt_res.p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY);
 
         graph_t::vertex_descriptor node1 = ver_add(g, rt_res.p_nodes[lp].ninfo[0].node_id);
         graph_t::vertex_descriptor node2 = ver_add(g, rt_res.p_nodes[lp].ninfo[1].node_id);
@@ -436,13 +436,13 @@ lnerr_route_t ln_routing_calculate(
         }
     }
 
-    //DBG_PRINTF("pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
+    //LOGD("pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
     if (!set_start) {
-        DBG_PRINTF("fail: no start node\n");
+        LOGD("fail: no start node\n");
         return LNROUTE_NOSTART;
     }
     if (!set_goal) {
-        DBG_PRINTF("fail: no goal node\n");
+        LOGD("fail: no goal node\n");
         return LNROUTE_NOGOAL;
     }
 
@@ -454,7 +454,7 @@ lnerr_route_t ln_routing_calculate(
                         distance_map(&d[0]));
 
     if (p[pnt_goal] == pnt_goal) {
-        DBG_PRINTF("fail: cannot find route\n");
+        LOGD("fail: cannot find route\n");
         free(rt_res.p_nodes);
         return LNROUTE_NOTFOUND;
     }
@@ -474,7 +474,7 @@ lnerr_route_t ln_routing_calculate(
         graph_t::edge_descriptor e;
         boost::tie(e, found) = edge(p[v], v, g);
         if (!found) {
-            DBG_PRINTF("not foooooooooound\n");
+            LOGD("not foooooooooound\n");
             abort();
         }
 
@@ -488,7 +488,7 @@ lnerr_route_t ln_routing_calculate(
 
     if (route.size() > LN_HOP_MAX + 1) {
         //先頭に自ノードが入るため+1
-        DBG_PRINTF("fail: too many hops\n");
+        LOGD("fail: too many hops\n");
         free(rt_res.p_nodes);
         return LNROUTE_TOOMANYHOP;
     }
@@ -513,7 +513,7 @@ lnerr_route_t ln_routing_calculate(
             }
         }
         if (sci == 0) {
-            DBG_PRINTF("not match!\n");
+            LOGD("not match!\n");
             abort();
         }
 
@@ -540,8 +540,8 @@ void ln_routing_clear_skipdb(void)
     bool bret;
 
     bret = ln_db_annoskip_drop(false);
-    DBG_PRINTF("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
+    LOGD("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
 
     bret = ln_db_invoice_drop();
-    DBG_PRINTF("%s: clear invoice DB\n", (bret) ? "OK" : "fail");
+    LOGD("%s: clear invoice DB\n", (bret) ? "OK" : "fail");
 }

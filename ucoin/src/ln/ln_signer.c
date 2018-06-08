@@ -53,7 +53,7 @@ void HIDDEN ln_signer_term(ln_self_t *self)
 bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
 {
     self->priv_data.storage_index = LN_SECINDEX_INIT;
-    DBG_PRINTF("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
+    LOGD("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
 
     //鍵生成
     //  open_channel/accept_channelの鍵は ln_signer_update_percommit_secret()で生成
@@ -76,7 +76,7 @@ void HIDDEN ln_signer_update_percommit_secret(ln_self_t *self)
     ln_signer_keys_update(self, 0);
 
     self->priv_data.storage_index--;
-    DBG_PRINTF("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
+    LOGD("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
 
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 }
@@ -93,11 +93,11 @@ void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
     ln_derkey_create_secret(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], self->priv_data.storage_seed, Index);
     ucoin_keys_priv2pub(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT]);
 
-    DBG_PRINTF("Index = %" PRIx64 "\n", Index);
-    DBG_PRINTF("PER_COMMIT_SEC: ");
-    DUMPBIN(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF("PER_COMMIT_PT : ");
-    DUMPBIN(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    LOGD("Index = %" PRIx64 "\n", Index);
+    LOGD("PER_COMMIT_SEC: ");
+    DUMPD(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PRIVKEY);
+    LOGD("PER_COMMIT_PT : ");
+    DUMPD(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 }
 
 
@@ -108,12 +108,12 @@ void HIDDEN ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
     //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
     ln_derkey_create_secret(pSecret, self->priv_data.storage_seed, self->priv_data.storage_index + 2);
 
-    DBG_PRINTF("prev_secret(%" PRIx64 "): ", self->priv_data.storage_index + 2);
-    DUMPBIN(pSecret, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF("       pub: ");
+    LOGD("prev_secret(%" PRIx64 "): ", self->priv_data.storage_index + 2);
+    DUMPD(pSecret, UCOIN_SZ_PRIVKEY);
+    LOGD("       pub: ");
     uint8_t pub[UCOIN_SZ_PUBKEY];
     ucoin_keys_priv2pub(pub, pSecret);
-    DUMPBIN(pub, UCOIN_SZ_PUBKEY);
+    DUMPD(pub, UCOIN_SZ_PUBKEY);
 }
 
 
@@ -184,7 +184,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ucoin_tx_t *pTx,
                     const ucoin_buf_t *pWitScript, bool bRevoked)
 {
     if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
-        DBG_PRINTF("fail: invalid vin/vout\n");
+        LOGD("fail: invalid vin/vout\n");
         return false;
     }
 
@@ -199,10 +199,10 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ucoin_tx_t *pTx,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
                     self->revoked_sec.buf);
     }
-    //DBG_PRINTF("key-priv: ");
-    //DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
-    //DBG_PRINTF("key-pub : ");
-    //DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
+    //LOGD("key-priv: ");
+    //DUMPD(signkey.priv, UCOIN_SZ_PRIVKEY);
+    //LOGD("key-pub : ");
+    //DUMPD(signkey.pub, UCOIN_SZ_PUBKEY);
 
     ucoin_buf_t sig = UCOIN_BUF_INIT;
     bool ret;

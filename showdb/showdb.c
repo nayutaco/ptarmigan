@@ -507,7 +507,7 @@ static void dumpit_annoskip(MDB_txn *txn, MDB_dbi dbi)
 
         int retval = mdb_cursor_open(txn, dbi, &cursor);
         if (retval != 0) {
-            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            LOGD("err: %s\n", mdb_strerror(retval));
             mdb_txn_abort(txn);
         }
 
@@ -543,7 +543,7 @@ static void dumpit_annoinvoice(MDB_txn *txn, MDB_dbi dbi)
 
         int retval = mdb_cursor_open(txn, dbi, &cursor);
         if (retval != 0) {
-            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            LOGD("err: %s\n", mdb_strerror(retval));
             mdb_txn_abort(txn);
         }
 
@@ -575,7 +575,7 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
 
         int retval = mdb_cursor_open(txn, dbi, &cur.cursor);
         if (retval != 0) {
-            DBG_PRINTF("err: %s\n", mdb_strerror(retval));
+            LOGD("err: %s\n", mdb_strerror(retval));
             mdb_txn_abort(txn);
         }
 

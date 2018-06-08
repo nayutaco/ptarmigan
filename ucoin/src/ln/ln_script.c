@@ -115,12 +115,12 @@ void HIDDEN ln_create_script_local(ucoin_buf_t *pBuf,
     ucoin_push_trim(&wscript);
 
 #if defined(M_DBG_VERBOSE) && defined(UCOIN_USE_PRINTFUNC)
-    DBG_PRINTF("script:\n");
+    LOGD("script:\n");
     ucoin_print_script(pBuf->buf, pBuf->len);
     uint8_t prog[LNL_SZ_WITPROG_WSH];
     ucoin_sw_wit2prog_p2wsh(prog, pBuf);
-    DBG_PRINTF("vout: ");
-    DUMPBIN(prog, LNL_SZ_WITPROG_WSH);
+    LOGD("vout: ");
+    DUMPD(prog, LNL_SZ_WITPROG_WSH);
 #endif  //M_DBG_VERBOSE
 }
 
@@ -287,7 +287,7 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
         }
     }
     pFeeInfo->commit = pFeeInfo->commit * pFeeInfo->feerate_per_kw / 1000;
-    DBG_PRINTF("pFeeInfo->commit= %" PRIu64 "(%" PRIu32 ")\n", pFeeInfo->commit, pFeeInfo->feerate_per_kw);
+    LOGD("pFeeInfo->commit= %" PRIu64 "(%" PRIu32 ")\n", pFeeInfo->commit, pFeeInfo->feerate_per_kw);
 
     return pFeeInfo->commit + dusts;
 }
@@ -308,37 +308,37 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
     //output
     //  P2WPKH - remote
     if (pCmt->remote.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_remote) {
-        DBG_PRINTF("  add P2WPKH remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCmt->remote.satoshi, fee_remote);
-        DBG_PRINTF("    remote.pubkey: ");
-        DUMPBIN(pCmt->remote.pubkey, UCOIN_SZ_PUBKEY);
+        LOGD("  add P2WPKH remote: %" PRIu64 " sat - %" PRIu64 " sat\n", pCmt->remote.satoshi, fee_remote);
+        LOGD("    remote.pubkey: ");
+        DUMPD(pCmt->remote.pubkey, UCOIN_SZ_PUBKEY);
         ucoin_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
         pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOREMOTE;
     } else {
-        DBG_PRINTF("  output P2WPKH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
+        LOGD("  output P2WPKH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
     }
     //  P2WSH - local(commitment txのFEEはlocalが払う)
     if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
-        DBG_PRINTF("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
+        LOGD("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
         ucoin_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
         pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOLOCAL;
     } else {
-        DBG_PRINTF("  output P2WSH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
+        LOGD("  output P2WSH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
     }
     //  HTLCs
     for (int lp = 0; lp < pCmt->htlcinfo_num; lp++) {
         uint64_t fee;
-        DBG_PRINTF("lp=%d\n", lp);
+        LOGD("lp=%d\n", lp);
         switch (pCmt->pp_htlcinfo[lp]->type) {
         case LN_HTLCTYPE_OFFERED:
-            DBG_PRINTF("  HTLC: offered: %" PRIu64 " sat\n", LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat));
+            LOGD("  HTLC: offered: %" PRIu64 " sat\n", LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat));
             fee = pCmt->p_feeinfo->htlc_timeout;
             break;
         case LN_HTLCTYPE_RECEIVED:
-            DBG_PRINTF("  HTLC: received: %" PRIu64 " sat\n", LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat));
+            LOGD("  HTLC: received: %" PRIu64 " sat\n", LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat));
             fee = pCmt->p_feeinfo->htlc_success;
             break;
         default:
-            DBG_PRINTF("  HTLC: type=%d ???\n", pCmt->pp_htlcinfo[lp]->type);
+            LOGD("  HTLC: type=%d ???\n", pCmt->pp_htlcinfo[lp]->type);
             fee = 0;
             break;
         }
@@ -347,14 +347,14 @@ bool HIDDEN ln_create_commit_tx(ucoin_tx_t *pTx, ucoin_buf_t *pSig, const ln_tx_
                     LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat),
                     &pCmt->pp_htlcinfo[lp]->script);
             pTx->vout[pTx->vout_cnt - 1].opt = (uint8_t)lp;
-            DBG_PRINTF("scirpt.len=%d\n", pCmt->pp_htlcinfo[lp]->script.len);
+            LOGD("scirpt.len=%d\n", pCmt->pp_htlcinfo[lp]->script.len);
             //ucoin_print_script(pCmt->pp_htlcinfo[lp]->script.buf, pCmt->pp_htlcinfo[lp]->script.len);
         } else {
-            DBG_PRINTF("    --> not add: %" PRIu64 " < %" PRIu64 "\n", LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat), pCmt->p_feeinfo->dust_limit_satoshi + fee);
+            LOGD("    --> not add: %" PRIu64 " < %" PRIu64 "\n", LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat), pCmt->p_feeinfo->dust_limit_satoshi + fee);
         }
     }
 
-    //DBG_PRINTF("pCmt->obscured=%" PRIx64 "\n", pCmt->obscured);
+    //LOGD("pCmt->obscured=%" PRIx64 "\n", pCmt->obscured);
 
     //input
     ucoin_vin_t *vin = ucoin_tx_add_vin(pTx, pCmt->fund.txid, pCmt->fund.txid_index);
@@ -385,16 +385,16 @@ void HIDDEN ln_create_htlc_tx(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t
     switch (Type) {
     case LN_HTLCTYPE_RECEIVED:
         //HTLC-success
-        DBG_PRINTF("HTLC Success\n");
+        LOGD("HTLC Success\n");
         pTx->locktime = 0;
         break;
     case LN_HTLCTYPE_OFFERED:
         //HTLC-timeout
-        DBG_PRINTF("HTLC Timeout\n");
+        LOGD("HTLC Timeout\n");
         pTx->locktime = CltvExpiry;
         break;
     default:
-        DBG_PRINTF("fail: opt not set\n");
+        LOGD("fail: opt not set\n");
         assert(0);
         break;
     }
@@ -416,7 +416,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
 
     if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
-        DBG_PRINTF("fail: invalid vin/vout\n");
+        LOGD("fail: invalid vin/vout\n");
         return false;
     }
 
@@ -451,7 +451,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
             pp_wits = (const ucoin_buf_t **)wits;
             wits_num = ARRAY_SIZE(wits);
         }
-        DBG_PRINTF("HTLC Timeout/Success Tx sign: wits_num=%d\n", wits_num);
+        LOGD("HTLC Timeout/Success Tx sign: wits_num=%d\n", wits_num);
         break;
 
     case HTLCSIGN_OF_PREIMG:
@@ -474,7 +474,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
             pp_wits = (const ucoin_buf_t **)wits;
             wits_num = ARRAY_SIZE(wits);
         }
-        DBG_PRINTF("Offered HTLC + preimage sign: wits_num=%d\n", wits_num);
+        LOGD("Offered HTLC + preimage sign: wits_num=%d\n", wits_num);
         break;
 
     case HTLCSIGN_RV_TIMEOUT:
@@ -490,7 +490,7 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
             pp_wits = (const ucoin_buf_t **)wits;
             wits_num = ARRAY_SIZE(wits);
         }
-        DBG_PRINTF("Received HTLC sign: wits_num=%d\n", wits_num);
+        LOGD("Received HTLC sign: wits_num=%d\n", wits_num);
         break;
 
     case HTLCSIGN_RV_RECEIVED:
@@ -507,11 +507,11 @@ bool HIDDEN ln_sign_htlc_tx(ucoin_tx_t *pTx, ucoin_buf_t *pLocalSig,
             pp_wits = (const ucoin_buf_t **)wits;
             wits_num = ARRAY_SIZE(wits);
         }
-        DBG_PRINTF("revoked HTLC sign: wits_num=%d\n", wits_num);
+        LOGD("revoked HTLC sign: wits_num=%d\n", wits_num);
         break;
 
     default:
-        DBG_PRINTF("HtlcSign=%d\n", (int)HtlcSign);
+        LOGD("HtlcSign=%d\n", (int)HtlcSign);
         assert(0);
         break;
     }
@@ -531,11 +531,11 @@ bool HIDDEN ln_verify_htlc_tx(const ucoin_tx_t *pTx,
                     const ucoin_buf_t *pWitScript)
 {
     if (!pLocalPubKey && !pLocalSig && !pRemotePubKey && !pRemoteSig) {
-        DBG_PRINTF("fail: invalid arguments\n");
+        LOGD("fail: invalid arguments\n");
         return false;
     }
     if ((pTx->vin_cnt != 1) || (pTx->vout_cnt != 1)) {
-        DBG_PRINTF("fail: invalid vin/vout\n");
+        LOGD("fail: invalid vin/vout\n");
         return false;
     }
 
@@ -544,23 +544,23 @@ bool HIDDEN ln_verify_htlc_tx(const ucoin_tx_t *pTx,
 
     //vinは1つしかないので、Indexは0固定
     ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
-    //DBG_PRINTF("sighash: ");
-    //DUMPBIN(sighash, UCOIN_SZ_SIGHASH);
+    //LOGD("sighash: ");
+    //DUMPD(sighash, UCOIN_SZ_SIGHASH);
     if (pLocalPubKey && pLocalSig) {
         ret = ucoin_tx_verify(pLocalSig, sighash, pLocalPubKey);
-        //DBG_PRINTF("ucoin_tx_verify(local)=%d\n", ret);
-        //DBG_PRINTF("localkey: ");
-        //DUMPBIN(pLocalPubKey, UCOIN_SZ_PUBKEY);
+        //LOGD("ucoin_tx_verify(local)=%d\n", ret);
+        //LOGD("localkey: ");
+        //DUMPD(pLocalPubKey, UCOIN_SZ_PUBKEY);
     }
     if (ret) {
         ret = ucoin_tx_verify(pRemoteSig, sighash, pRemotePubKey);
-        //DBG_PRINTF("ucoin_tx_verify(remote)=%d\n", ret);
-        //DBG_PRINTF("remotekey: ");
-        //DUMPBIN(pRemotePubKey, UCOIN_SZ_PUBKEY);
+        //LOGD("ucoin_tx_verify(remote)=%d\n", ret);
+        //LOGD("remotekey: ");
+        //DUMPD(pRemotePubKey, UCOIN_SZ_PUBKEY);
     }
 
-    //DBG_PRINTF("wscript: ");
-    //DUMPBIN(pWitScript->buf, pWitScript->len);
+    //LOGD("wscript: ");
+    //DUMPD(pWitScript->buf, pWitScript->len);
 
     return ret;
 }
@@ -621,7 +621,7 @@ static void create_script_offered(ucoin_buf_t *pBuf,
     ucoin_push_trim(&wscript);
 
 #if defined(M_DBG_VERBOSE) && defined(UCOIN_USE_PRINTFUNC)
-    DBG_PRINTF("script:\n");
+    LOGD("script:\n");
     ucoin_print_script(pBuf->buf, pBuf->len);
 #endif  //M_DBG_VERBOSE
 }
@@ -683,9 +683,9 @@ static void create_script_received(ucoin_buf_t *pBuf,
     ucoin_push_trim(&wscript);
 
 #if defined(M_DBG_VERBOSE) && defined(UCOIN_USE_PRINTFUNC)
-    DBG_PRINTF("script:\n");
+    LOGD("script:\n");
     ucoin_print_script(pBuf->buf, pBuf->len);
-    //DBG_PRINTF("revocation=");
-    //DUMPBIN(pLocalRevoKey, UCOIN_SZ_PUBKEY);
+    //LOGD("revocation=");
+    //DUMPD(pLocalRevoKey, UCOIN_SZ_PUBKEY);
 #endif  //M_DBG_VERBOSE
 }

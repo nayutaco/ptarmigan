@@ -257,35 +257,35 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_i
 {
     ln_invoice_t *p_invoice_data = *pp_invoice_data;
 
-    //DBG_PRINTF("------------------\n");
+    //LOGD("------------------\n");
     uint8_t tag = *p_tag;
     //switch (tag) {
     //case 1:
-    //    DBG_PRINTF("[payment_hash]\n");
+    //    LOGD("[payment_hash]\n");
     //    break;
     //case 13:
-    //    DBG_PRINTF("[purpose of payment(ASCII)]\n");
+    //    LOGD("[purpose of payment(ASCII)]\n");
     //    break;
     //case 19:
-    //    DBG_PRINTF("[pubkey of payee node]\n");
+    //    LOGD("[pubkey of payee node]\n");
     //    break;
     //case 23:
-    //    DBG_PRINTF("[purpose of payment(SHA256)]\n");
+    //    LOGD("[purpose of payment(SHA256)]\n");
     //    break;
     //case 6:
-    //    DBG_PRINTF("[expiry second]\n");
+    //    LOGD("[expiry second]\n");
     //    break;
     //case 24:
-    //    DBG_PRINTF("[min_final_cltv_expiry]\n");
+    //    LOGD("[min_final_cltv_expiry]\n");
     //    break;
     //case 9:
-    //    DBG_PRINTF("[Fallback on-chain]\n");
+    //    LOGD("[Fallback on-chain]\n");
     //    break;
     //case 3:
-    //    DBG_PRINTF("[extra routing info]\n");
+    //    LOGD("[extra routing info]\n");
     //    break;
     //default:
-    //    DBG_PRINTF("unknown tag: %02x\n", *p_tag);
+    //    LOGD("unknown tag: %02x\n", *p_tag);
     //    break;
     //}
     int len = p_tag[1] * 0x20 + p_tag[2];
@@ -297,14 +297,14 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_i
         //expiry second
         {
             //uint32_t expiry = (uint32_t)convert_be64(p_tag, len);
-            //DBG_PRINTF("%" PRIu32 " seconds\n", expiry);
+            //LOGD("%" PRIu32 " seconds\n", expiry);
         }
         break;
     case 24:
         //min_final_cltv_expiry
         {
             p_invoice_data->min_final_cltv_expiry = convert_be64(p_tag, len);
-            //DBG_PRINTF("%" PRIu32 " blocks\n", (uint32_t)p_invoice_data->min_final_cltv_expiry);
+            //LOGD("%" PRIu32 " blocks\n", (uint32_t)p_invoice_data->min_final_cltv_expiry);
         }
         break;
     case 3:
@@ -349,15 +349,15 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_i
                     p_fieldr->cltv_expiry_delta |= *p++;
                 }
 
-                //DBG_PRINTF("-----------\n");
-                //DBG_PRINTF("pubkey= ");
-                //DUMPBIN(p_fieldr->node_id, UCOIN_SZ_PUBKEY);
-                //DBG_PRINTF("short_channel_id= %016" PRIx64 "\n", p_fieldr->short_channel_id);
-                //DBG_PRINTF("fee_base_msat= %u\n", p_fieldr->fee_base_msat);
-                //DBG_PRINTF("fee_proportional_millionths= %u\n", p_fieldr->fee_prop_millionths);
-                //DBG_PRINTF("cltv_expiry_delta= %d\n", p_fieldr->cltv_expiry_delta);
+                //LOGD("-----------\n");
+                //LOGD("pubkey= ");
+                //DUMPD(p_fieldr->node_id, UCOIN_SZ_PUBKEY);
+                //LOGD("short_channel_id= %016" PRIx64 "\n", p_fieldr->short_channel_id);
+                //LOGD("fee_base_msat= %u\n", p_fieldr->fee_base_msat);
+                //LOGD("fee_proportional_millionths= %u\n", p_fieldr->fee_prop_millionths);
+                //LOGD("cltv_expiry_delta= %d\n", p_fieldr->cltv_expiry_delta);
             }
-            //DBG_PRINTF("-----------\n");
+            //LOGD("-----------\n");
         }
         break;
     default:
@@ -370,10 +370,10 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_i
         //    char *p_str = (char *)M_ALLOC(d_len + 1);
         //    memcpy(p_str, p_data, d_len);
         //    p_str[d_len - 1] = '\0';
-        //    DBG_PRINTF("%s\n", p_str);
+        //    LOGD("%s\n", p_str);
         //    M_FREE(p_str);
         //} else {
-        //    DUMPBIN(p_data, d_len);
+        //    DUMPD(p_data, d_len);
         //}
     }
     free(p_data);
@@ -604,7 +604,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     //timestamp(7 chars)
     tm = (time_t)convert_be64(data, 7);
     p_invoice_data->timestamp = (uint64_t)tm;
-    //DBG_PRINTF("timestamp= %" PRIu64 " : %s", (uint64_t)tm, ctime(&tm));
+    //LOGD("timestamp= %" PRIu64 " : %s", (uint64_t)tm, ctime(&tm));
 
     //tagged fields
     ret = true;

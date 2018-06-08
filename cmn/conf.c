@@ -64,7 +64,7 @@ bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
     memset(pPeerConf, 0, sizeof(peer_conf_t));
 
     if (ini_parse(pConfFile, handler_peer_conf, pPeerConf) != 0) {
-        //DBG_PRINTF("fail peer parse[%s]", pConfFile);
+        //LOGD("fail peer parse[%s]", pConfFile);
         return false;
     }
 
@@ -96,7 +96,7 @@ bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
     memset(pFundConf, 0, sizeof(funding_conf_t));
 
     if (ini_parse(pConfFile, handler_fund_conf, pFundConf) != 0) {
-        //DBG_PRINTF("fail fund parse[%s]", pConfFile);
+        //LOGD("fail fund parse[%s]", pConfFile);
         return false;
     }
 
@@ -129,12 +129,12 @@ void print_funding_conf(const funding_conf_t *pFundConf)
 bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
     if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
-        DBG_PRINTF("fail bitcoin.conf parse[%s]", pConfFile);
+        LOGD("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
     }
 
     if ((strlen(pRpcConf->rpcuser) == 0) || (strlen(pRpcConf->rpcpasswd) == 0)) {
-        DBG_PRINTF("fail: no rpcuser or rpcpassword[%s]", pConfFile);
+        LOGD("fail: no rpcuser or rpcpassword[%s]", pConfFile);
         return false;
     }
 
@@ -165,7 +165,7 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
     memset(pPayConf, 0, sizeof(payment_conf_t));
 
     if (ini_parse(pConfFile, handler_pay_conf, pPayConf) != 0) {
-        DBG_PRINTF("fail pay parse[%s]", pConfFile);
+        LOGD("fail pay parse[%s]", pConfFile);
         return false;
     }
 
@@ -203,7 +203,7 @@ bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf)
     memset(pAnnoConf, 0, sizeof(anno_conf_t));
 
     if (ini_parse(pConfFile, handler_anno_conf, pAnnoConf) != 0) {
-        //DBG_PRINTF("fail anno parse[%s]", pConfFile);
+        //LOGD("fail anno parse[%s]", pConfFile);
         return false;
     }
 
@@ -216,7 +216,7 @@ bool load_establish_conf(const char *pConfFile, establish_conf_t *pEstConf)
     memset(pEstConf, 0, sizeof(establish_conf_t));
 
     if (ini_parse(pConfFile, handler_establish_conf, pEstConf) != 0) {
-        //DBG_PRINTF("fail establish parse[%s]", pConfFile);
+        //LOGD("fail establish parse[%s]", pConfFile);
         return false;
     }
 
@@ -270,7 +270,7 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
         return 0;  /* unknown section/name, error */
     }
     if (errno) {
-        DBG_PRINTF("errno=%s\n", strerror(errno));
+        LOGD("errno=%s\n", strerror(errno));
         return 0;
     }
     return 1;
@@ -342,7 +342,7 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
         return 0;  /* unknown section/name, error */
     }
     if (!ret) {
-        DBG_PRINTF("fail: %s\n", name);
+        LOGD("fail: %s\n", name);
     }
     return (ret) ? 1 : 0;
 }
@@ -369,10 +369,10 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
         return 0;  /* unknown section/name, error */
     }
     if (!ret) {
-        DBG_PRINTF("fail: %s\n", name);
+        LOGD("fail: %s\n", name);
     }
     if (errno) {
-        DBG_PRINTF("errno=%s\n", strerror(errno));
+        LOGD("errno=%s\n", strerror(errno));
         return 0;
     }
     return (ret) ? 1 : 0;
@@ -409,10 +409,10 @@ static int handler_establish_conf(void* user, const char* section, const char* n
         return 0;  /* unknown section/name, error */
     }
     if (!ret) {
-        DBG_PRINTF("fail: %s\n", name);
+        LOGD("fail: %s\n", name);
     }
     if (errno) {
-        DBG_PRINTF("errno=%s\n", strerror(errno));
+        LOGD("errno=%s\n", strerror(errno));
         return 0;
     }
     return (ret) ? 1 : 0;

@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
     btcrpc_init(&rpc_conf);
     bret = btcrpc_getblockhash(genesis, 0);
     if (!bret) {
-        DBG_PRINTF("fail: bitcoin getblockhash(check bitcoind)\n");
+        LOGD("fail: bitcoin getblockhash(check bitcoind)\n");
         return -1;
     }
 
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
     //node情報読込み
     bret = ln_node_init(0);
     if (!bret) {
-        DBG_PRINTF("fail: node init\n");
+        LOGD("fail: node init\n");
         return -2;
     }
 
@@ -254,9 +254,9 @@ int main(int argc, char *argv[])
     pthread_create(&th_poll, NULL, &monitor_thread_start, NULL);
 
 #if NETKIND==0
-    DBG_PRINTF("start bitcoin mainnet\n");
+    LOGD("start bitcoin mainnet\n");
 #elif NETKIND==1
-    DBG_PRINTF("start bitcoin testnet/regtest\n");
+    LOGD("start bitcoin testnet/regtest\n");
 #endif
 
     uint64_t total_amount = ln_node_total_msat();
@@ -269,9 +269,9 @@ int main(int argc, char *argv[])
     //待ち合わせ
     pthread_join(th_svr, NULL);
     pthread_join(th_poll, NULL);
-    DBG_PRINTF("%s exit\n", argv[0]);
+    LOGD("%s exit\n", argv[0]);
 
-    DBG_PRINTF("end\n");
+    LOGD("end\n");
 
     lnapp_term();
     btcrpc_term();
@@ -303,15 +303,15 @@ bool ucoind_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, ucoin_buf
 {
     lnapp_conf_t *p_appconf = NULL;
 
-    DBG_PRINTF("  search short_channel_id : %" PRIx64 "\n", ShortChannelId);
+    LOGD("  search short_channel_id : %" PRIx64 "\n", ShortChannelId);
 
     //socketが開いているか検索
     p_appconf = ucoind_search_connected_cnl(ShortChannelId);
     if (p_appconf != NULL) {
-        DBG_PRINTF("AppConf found\n");
+        LOGD("AppConf found\n");
         lnapp_transfer_channel(p_appconf, Cmd, pBuf);
     } else {
-        DBG_PRINTF("AppConf not found...\n");
+        LOGD("AppConf not found...\n");
     }
 
     return p_appconf != NULL;
@@ -353,20 +353,20 @@ lnapp_conf_t *ucoind_search_connected_cnl(uint64_t short_channel_id)
 // 再接続できるようになったか確認する方法を用意していないので、今のところリストから削除する方法はない。
 void ucoind_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc)
 {
-    DBG_PRINTF("ipaddr(%d)=%s:%" PRIu16 " node_id: ", NodeDesc, pAddr, Port);
-    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
+    LOGD("ipaddr(%d)=%s:%" PRIu16 " node_id: ", NodeDesc, pAddr, Port);
+    DUMPD(pNodeId, UCOIN_SZ_PUBKEY);
 
     if ( misc_all_zero(pNodeId, UCOIN_SZ_PUBKEY) ||
          ucoind_nodefail_get(pNodeId, pAddr, Port, LN_NODEDESC_IPV4) ) {
         //登録の必要なし
-        DBG_PRINTF("no save\n");
+        LOGD("no save\n");
         return;
     }
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[UCOIN_SZ_PUBKEY * 2 + 1];
         ucoin_util_bin2str(nodeid_str, pNodeId, UCOIN_SZ_PUBKEY);
-        DBG_PRINTF("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+        LOGD("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
 
         nodefaillist_t *nf = (nodefaillist_t *)APP_MALLOC(sizeof(nodefaillist_t));
         memcpy(nf->node_id, pNodeId, UCOIN_SZ_PUBKEY);
@@ -390,7 +390,7 @@ bool ucoind_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
             if ( (memcmp(p->node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) &&
                  (strcmp(p->ipaddr, pAddr) == 0) &&
                  (p->port == Port) ) {
-                //DBG_PRINTF("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+                //LOGD("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
                 detect = true;
                 break;
             }

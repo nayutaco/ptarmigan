@@ -286,34 +286,34 @@ void HIDDEN ln_misc_sigexpand(ucoin_buf_t *pSig, const uint8_t *pBuf)
 //
 void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_remote_data_t *pRemote)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     //
     //local
     //
 
     //remotekey = local per_commitment_point & remote payment
-    //DBG_PRINTF("local: remotekey\n");
+    //LOGD("local: remotekey\n");
     ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
                 pRemote->pubkeys[MSG_FUNDIDX_PAYMENT], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //delayedkey = local per_commitment_point & local delayed_payment
-    //DBG_PRINTF("local: delayedkey\n");
+    //LOGD("local: delayedkey\n");
     ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 pLocal->pubkeys[MSG_FUNDIDX_DELAYED], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //revocationkey = remote per_commitment_point & local revocation_basepoint
-    //DBG_PRINTF("local: revocationkey\n");
+    //LOGD("local: revocationkey\n");
     ln_derkey_revocationkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 pRemote->pubkeys[MSG_FUNDIDX_REVOCATION], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //local_htlckey = local per_commitment_point & local htlc_basepoint
-    //DBG_PRINTF("local: local_htlckey\n");
+    //LOGD("local: local_htlckey\n");
     ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                 pLocal->pubkeys[MSG_FUNDIDX_HTLC], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //remote_htlckey = local per_commitment_point & remote htlc_basepoint
-    //DBG_PRINTF("local: remote_htlckey\n");
+    //LOGD("local: remote_htlckey\n");
     ln_derkey_pubkey(pLocal->scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                 pRemote->pubkeys[MSG_FUNDIDX_HTLC], pLocal->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
@@ -323,27 +323,27 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
     //
 
     //remotekey = remote per_commitment_point & local payment
-    //DBG_PRINTF("remote: remotekey\n");
+    //LOGD("remote: remotekey\n");
     ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY],
                 pLocal->pubkeys[MSG_FUNDIDX_PAYMENT], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //delayedkey = remote per_commitment_point & remote delayed_payment
-    //DBG_PRINTF("remote: delayedkey\n");
+    //LOGD("remote: delayedkey\n");
     ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 pRemote->pubkeys[MSG_FUNDIDX_DELAYED], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //revocationkey = local per_commitment_point & remote revocation_basepoint
-    //DBG_PRINTF("remote: revocationkey\n");
+    //LOGD("remote: revocationkey\n");
     ln_derkey_revocationkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 pLocal->pubkeys[MSG_FUNDIDX_REVOCATION], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //local_htlckey = remote per_commitment_point & remote htlc_basepoint
-    //DBG_PRINTF("remote: local_htlckey\n");
+    //LOGD("remote: local_htlckey\n");
     ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                 pRemote->pubkeys[MSG_FUNDIDX_HTLC], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
     //remote_htlckey = remote per_commitment_point & local htlc_basepoint
-    //DBG_PRINTF("remote: remote_htlckey\n");
+    //LOGD("remote: remote_htlckey\n");
     ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                 pLocal->pubkeys[MSG_FUNDIDX_HTLC], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 
@@ -367,7 +367,7 @@ uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, 
     //[3～5]そのブロック中のIndex
     //[6～7]チャネルに支払ったvout index
     uint64_t id = ((uint64_t)(Height & 0xffffff) << 40) | (uint64_t)(BIndex & 0xffffff) << 16 | (uint64_t)(VIndex & 0xffff);
-    //DBG_PRINTF("short_channel_id= %" PRIx64 "(height=%u, bindex=%u, vindex=%u)\n", id, Height, BIndex, VIndex);
+    //LOGD("short_channel_id= %" PRIx64 "(height=%u, bindex=%u, vindex=%u)\n", id, Height, BIndex, VIndex);
     return id;
 }
 

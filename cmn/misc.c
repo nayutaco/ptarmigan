@@ -47,7 +47,7 @@ static int mcount = 0;
 bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
     if (strlen(pStr) != BinLen * 2) {
-        DBG_PRINTF("fail: invalid buffer size: %zu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
+        LOGD("fail: invalid buffer size: %zu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
         return false;
     }
 
@@ -65,7 +65,7 @@ bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
         }
         if (!str[1]) {
             //奇数文字で\0ならばNG
-            DBG_PRINTF("fail: odd length\n");
+            LOGD("fail: odd length\n");
             ret = false;
             break;
         }
@@ -73,7 +73,7 @@ bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
         uint8_t bin = (uint8_t)strtoul(str, &endp, 16);
         if ((endp != NULL) && (*endp != 0x00)) {
             //変換失敗
-            DBG_PRINTF("fail: *endp = %p(%02x)\n", endp, *endp);
+            LOGD("fail: *endp = %p(%02x)\n", endp, *endp);
             ret = false;
             break;
         }

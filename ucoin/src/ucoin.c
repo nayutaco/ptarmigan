@@ -74,7 +74,7 @@ bool ucoin_init(ucoin_chain_t chain, bool bSegNative)
     bool ret = false;
 
     if (mPref[UCOIN_PREF_WIF]) {
-        DBG_PRINTF("multiple init\n");
+        LOGD("multiple init\n");
         assert(0);
         return false;
     }
@@ -82,7 +82,7 @@ bool ucoin_init(ucoin_chain_t chain, bool bSegNative)
     mPref[UCOIN_PREF] = (uint8_t)chain;
     switch (chain) {
     case UCOIN_TESTNET:
-        //DBG_PRINTF("[testnet]\n");
+        //LOGD("[testnet]\n");
         mPref[UCOIN_PREF_WIF] = 0xef;
         mPref[UCOIN_PREF_P2PKH] = 0x6f;
         mPref[UCOIN_PREF_P2SH] = 0xc4;
@@ -91,7 +91,7 @@ bool ucoin_init(ucoin_chain_t chain, bool bSegNative)
         ret = true;
         break;
     case UCOIN_MAINNET:
-        DBG_PRINTF("[mainnet]\n");
+        LOGD("[mainnet]\n");
         mPref[UCOIN_PREF_WIF] = 0x80;
         mPref[UCOIN_PREF_P2PKH] = 0x00;
         mPref[UCOIN_PREF_P2SH] = 0x05;
@@ -100,7 +100,7 @@ bool ucoin_init(ucoin_chain_t chain, bool bSegNative)
         ret = true;
         break;
     default:
-        DBG_PRINTF("unknown chain\n");
+        LOGD("unknown chain\n");
         assert(0);
     }
 
@@ -122,7 +122,7 @@ bool ucoin_init(ucoin_chain_t chain, bool bSegNative)
 //#ifdef UCOIN_DEBUG
 //    char mbedver[18];
 //    mbedtls_version_get_string_full(mbedver);
-//    DBG_PRINTF("%s\n", mbedver);
+//    LOGD("%s\n", mbedver);
 
 //    //TODO: テスト用
 //    if (!ret) {

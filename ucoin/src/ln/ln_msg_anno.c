@@ -117,18 +117,18 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ucoin_buf_t *pBuf,
     ucoin_push_t    proto;
 
 #if 0
-    DBG_PRINTF("--------------------------\n");
-    DBG_PRINTF("short_channel_id: %" PRIx64 "\n", pMsg->short_channel_id);
-    DBG_PRINTF("p_my_node_pub: ");
-    DUMPBIN(pMsg->p_my_node_pub, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("p_peer_node_pub: ");
-    DUMPBIN(pMsg->p_peer_node_pub, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("p_my_funding_pub: ");
-    DUMPBIN(pMsg->p_my_funding_pub, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("p_peer_funding_pub: ");
-    DUMPBIN(pMsg->p_peer_funding_pub, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("sort: %d\n", (int)pMsg->sort);
-    DBG_PRINTF("--------------------------\n");
+    LOGD("--------------------------\n");
+    LOGD("short_channel_id: %" PRIx64 "\n", pMsg->short_channel_id);
+    LOGD("p_my_node_pub: ");
+    DUMPD(pMsg->p_my_node_pub, UCOIN_SZ_PUBKEY);
+    LOGD("p_peer_node_pub: ");
+    DUMPD(pMsg->p_peer_node_pub, UCOIN_SZ_PUBKEY);
+    LOGD("p_my_funding_pub: ");
+    DUMPD(pMsg->p_my_funding_pub, UCOIN_SZ_PUBKEY);
+    LOGD("p_peer_funding_pub: ");
+    DUMPD(pMsg->p_peer_funding_pub, UCOIN_SZ_PUBKEY);
+    LOGD("sort: %d\n", (int)pMsg->sort);
+    LOGD("--------------------------\n");
 #endif
 
     //len=0
@@ -197,12 +197,12 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ucoin_buf_t *pBuf,
 
     ucoin_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
                                 pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
-    //DBG_PRINTF("hash=");
-    //DUMPBIN(hash, UCOIN_SZ_HASH256);
+    //LOGD("hash=");
+    //DUMPD(hash, UCOIN_SZ_HASH256);
 
     ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t) + offset_sig, hash);
     if (!ret) {
-        DBG_PRINTF("fail: sign node\n");
+        LOGD("fail: sign node\n");
         goto LABEL_EXIT;
     }
 
@@ -210,17 +210,17 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ucoin_buf_t *pBuf,
     ret = ln_signer_sign_rs(pBuf->buf + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
                     hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     if (!ret) {
-        DBG_PRINTF("fail: sign btc\n");
+        LOGD("fail: sign btc\n");
         goto LABEL_EXIT;
     }
 
 LABEL_EXIT:
 #ifdef DBG_PRINT_CREATE_CNL
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     if (ret) {
         ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
     } else {
-        DBG_PRINTF("something error\n");
+        LOGD("something error\n");
     }
 #endif  //DBG_PRINT_CREATE_CNL
 
@@ -232,13 +232,13 @@ bool HIDDEN ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t
 {
     //len=0
     if (Len < sizeof(uint16_t) + 430) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_CHANNEL_ANNOUNCEMENT) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -270,8 +270,8 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len)
 
     ucoin_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
                                 Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
-    DBG_PRINTF("hash=");
-    DUMPBIN(hash, UCOIN_SZ_HASH256);
+    // LOGD("hash=");
+    // DUMPD(hash, UCOIN_SZ_HASH256);
 
     ret = ucoin_tx_verify_rs(ptr.p_node_signature1, hash, ptr.p_node_id1);
     assert(ret);
@@ -319,19 +319,19 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
 
     //        [len:features]
     if (len > 0) {
-        DBG_PRINTF("features(%d): ", len);
-        DUMPBIN(pData + pos, len);
+        LOGD("features(%d): ", len);
+        DUMPD(pData + pos, len);
         pos += len;
     }
 
     //    [32:chain_hash]
     int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
     if (cmp != 0) {
-        DBG_PRINTF("fail: chain_hash mismatch\n");
-        DBG_PRINTF("node: ");
-        DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
-        DBG_PRINTF("msg:  ");
-        DUMPBIN(pData + pos, LN_SZ_HASH);
+        LOGD("fail: chain_hash mismatch\n");
+        LOGD("node: ");
+        DUMPD(gGenesisChainHash, LN_SZ_HASH);
+        LOGD("msg:  ");
+        DUMPD(pData + pos, LN_SZ_HASH);
         return false;
     }
     pos += sizeof(gGenesisChainHash);
@@ -339,7 +339,7 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
     //        [8:short_channel_id]
     pPtr->short_channel_id = ln_misc_get64be(pData + pos);
     if (pPtr->short_channel_id == 0) {
-        DBG_PRINTF("fail: short_channel_id == 0\n");
+        LOGD("fail: short_channel_id == 0\n");
         return false;
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;
@@ -367,92 +367,92 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
 void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[channel_announcement]-------------------------------\n");
+    LOGD("-[channel_announcement]-------------------------------\n");
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_CHANNEL_ANNOUNCEMENT) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return;
     }
     int pos = sizeof(uint16_t);
     Len -= sizeof(uint16_t);
 
     //        [64:node_signature_1]
-    DBG_PRINTF("p_node_signature1: ");
-    DUMPBIN(pData + pos, LN_SZ_SIGNATURE);
+    LOGD("p_node_signature1: ");
+    DUMPD(pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
     Len -= LN_SZ_SIGNATURE;
 
     //        [64:node_signature_2]
-    DBG_PRINTF("p_node_signature2: ");
-    DUMPBIN(pData + pos, LN_SZ_SIGNATURE);
+    LOGD("p_node_signature2: ");
+    DUMPD(pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
     Len -= LN_SZ_SIGNATURE;
 
     //        [64:bitcoin_signature_1]
-    DBG_PRINTF("p_btc_signature1: ");
-    DUMPBIN(pData + pos, LN_SZ_SIGNATURE);
+    LOGD("p_btc_signature1: ");
+    DUMPD(pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
     Len -= LN_SZ_SIGNATURE;
 
     //        [64:bitcoin_signature_2]
-    DBG_PRINTF("p_btc_signature2: ");
-    DUMPBIN(pData + pos, LN_SZ_SIGNATURE);
+    LOGD("p_btc_signature2: ");
+    DUMPD(pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
     Len -= LN_SZ_SIGNATURE;
 
     //        [2:len]
     uint16_t len = ln_misc_get16be(pData + pos);
-    DBG_PRINTF("len= %d\n", len);
+    LOGD("len= %d\n", len);
     pos += sizeof(uint16_t);
     Len -= sizeof(uint16_t);
 
     //        [len:features]
     if (len > 0) {
-        DUMPBIN(pData + pos, len);
+        DUMPD(pData + pos, len);
         pos += len;
         Len -= len;
     }
 
     //    [32:chain_hash]
-    DBG_PRINTF("chain_hash: ");
-    DUMPBIN(pData + pos, UCOIN_SZ_HASH256);
+    LOGD("chain_hash: ");
+    DUMPD(pData + pos, UCOIN_SZ_HASH256);
     pos += UCOIN_SZ_HASH256;
     Len -= UCOIN_SZ_HASH256;
 
     //        [8:short_channel_id]
-    DBG_PRINTF("short_channel_id= %016" PRIx64 "\n", ln_misc_get64be(pData + pos));
+    LOGD("short_channel_id= %016" PRIx64 "\n", ln_misc_get64be(pData + pos));
     pos += LN_SZ_SHORT_CHANNEL_ID;
     Len -= LN_SZ_SHORT_CHANNEL_ID;
 
     //        [33:node_id_1]
-    DBG_PRINTF("p_node_id1: ");
-    DUMPBIN(pData + pos, UCOIN_SZ_PUBKEY);
+    LOGD("p_node_id1: ");
+    DUMPD(pData + pos, UCOIN_SZ_PUBKEY);
     pos += UCOIN_SZ_PUBKEY;
     Len -= UCOIN_SZ_PUBKEY;
 
     //        [33:node_id_2]
-    DBG_PRINTF("p_node_id2: ");
-    DUMPBIN(pData + pos, UCOIN_SZ_PUBKEY);
+    LOGD("p_node_id2: ");
+    DUMPD(pData + pos, UCOIN_SZ_PUBKEY);
     pos += UCOIN_SZ_PUBKEY;
     Len -= UCOIN_SZ_PUBKEY;
 
     //        [33:bitcoin_key_1]
-    DBG_PRINTF("p_btc_key1: ");
-    DUMPBIN(pData + pos, UCOIN_SZ_PUBKEY);
+    LOGD("p_btc_key1: ");
+    DUMPD(pData + pos, UCOIN_SZ_PUBKEY);
     pos += UCOIN_SZ_PUBKEY;
     Len -= UCOIN_SZ_PUBKEY;
 
     //        [33:bitcoin_key_2]
-    DBG_PRINTF("p_btc_key2: ");
-    DUMPBIN(pData + pos, UCOIN_SZ_PUBKEY);
+    LOGD("p_btc_key2: ");
+    DUMPD(pData + pos, UCOIN_SZ_PUBKEY);
     //pos += UCOIN_SZ_PUBKEY;
     Len -= UCOIN_SZ_PUBKEY;
 
     if (Len != 0) {
-        DBG_PRINTF("remain Length = %d\n", Len);
+        LOGD("remain Length = %d\n", Len);
     }
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -461,10 +461,10 @@ void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_
 {
     if ( ((Sort == UCOIN_KEYS_SORT_ASC) && bLocal) ||
          ((Sort != UCOIN_KEYS_SORT_ASC) && !bLocal) ) {
-        DBG_PRINTF("addr: 1\n");
+        LOGD("addr: 1\n");
         *pp_sig_node = self->cnl_anno.buf + sizeof(uint16_t);
     } else {
-        DBG_PRINTF("addr: 2\n");
+        LOGD("addr: 2\n");
         *pp_sig_node = self->cnl_anno.buf + sizeof(uint16_t) + LN_SZ_SIGNATURE;
     }
     *pp_sig_btc = *pp_sig_node + LN_SZ_SIGNATURE * 2;
@@ -494,7 +494,7 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE_NOD
-   DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+   LOGD("@@@@@ %s @@@@@\n", __func__);
    node_announce_print(pMsg);
 #endif  //DBG_PRINT_CREATE_NOD
 
@@ -563,10 +563,10 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
 
     ucoin_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                 pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-    //DBG_PRINTF("data=");
-    //DUMPBIN(pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE, pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-    //DBG_PRINTF("hash=");
-    //DUMPBIN(hash, UCOIN_SZ_HASH256);
+    //LOGD("data=");
+    //DUMPD(pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE, pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
+    //LOGD("hash=");
+    //DUMPD(hash, UCOIN_SZ_HASH256);
 
     bool ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t), hash);
 
@@ -578,13 +578,13 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 {
     //flen=0, addrlen=0
     if (Len < sizeof(uint16_t) + 140) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_NODE_ANNOUNCEMENT) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
     int pos = sizeof(uint16_t);
@@ -599,8 +599,8 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 
     //        [flen:features]
     if (flen > 0) {
-        DBG_PRINTF("features(%d)=", flen);
-        DUMPBIN(pData + pos, flen);
+        LOGD("features(%d)=", flen);
+        DUMPD(pData + pos, flen);
 
         //pMsg->features = *(pData + pos);
         pos += flen;
@@ -636,12 +636,12 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
         //addr type
         pMsg->addr.type = (ln_nodedesc_t)*(pData + pos);
         if (pMsg->addr.type > LN_NODEDESC_MAX) {
-            DBG_PRINTF("fail: unknown address descriptor(%02x)\n", pMsg->addr.type);
+            LOGD("fail: unknown address descriptor(%02x)\n", pMsg->addr.type);
             return false;
         }
         addrlen--;
         if (addrlen < M_ADDRLEN2[pMsg->addr.type]) {
-            DBG_PRINTF("fail: less addrlen(%02x:%d)\n", pMsg->addr.type, addrlen);
+            LOGD("fail: less addrlen(%02x:%d)\n", pMsg->addr.type, addrlen);
             return false;
         }
         pos++;
@@ -660,11 +660,11 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 
     //assert(Len == pos);
     if (Len != pos) {
-        DBG_PRINTF("length not match: Len=%d, pos=%d\n", Len, pos);
+        LOGD("length not match: Len=%d, pos=%d\n", Len, pos);
     }
 
 #ifdef DBG_PRINT_READ_NOD
-  DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+  LOGD("@@@@@ %s @@@@@\n", __func__);
   node_announce_print(pMsg);
 #endif  //DBG_PRINT_READ_NOD
 
@@ -675,14 +675,14 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 
         ucoin_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                     pos - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-        //DBG_PRINTF("data=");
-        //DUMPBIN(pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-        //DBG_PRINTF("hash=");
-        //DUMPBIN(hash, UCOIN_SZ_HASH256);
+        //LOGD("data=");
+        //DUMPD(pData + sizeof(uint16_t) + LN_SZ_SIGNATURE, Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
+        //LOGD("hash=");
+        //DUMPD(hash, UCOIN_SZ_HASH256);
 
         ret = ucoin_tx_verify_rs(p_signature, hash, pMsg->p_node_id);
         if (!ret) {
-            DBG_PRINTF("fail: verify\n");
+            LOGD("fail: verify\n");
         }
     }
 
@@ -694,27 +694,27 @@ bool HIDDEN ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *p
 static void node_announce_print(const ln_node_announce_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[node_announcement]-------------------------------\n");
+    LOGD("-[node_announcement]-------------------------------\n");
     time_t t = (time_t)pMsg->timestamp;
-    DBG_PRINTF("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
+    LOGD("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
     if (pMsg->p_node_id != NULL) {
-        DBG_PRINTF("p_node_id: ");
-        DUMPBIN(pMsg->p_node_id, UCOIN_SZ_PUBKEY);
+        LOGD("p_node_id: ");
+        DUMPD(pMsg->p_node_id, UCOIN_SZ_PUBKEY);
     }
     if (pMsg->p_alias != NULL) {
         char alias[LN_SZ_ALIAS + 1];
         memset(alias, 0, sizeof(alias));
         memcpy(alias, pMsg->p_alias, LN_SZ_ALIAS);
-        DBG_PRINTF("alias=%s\n", alias);
+        LOGD("alias=%s\n", alias);
     }
-//    DBG_PRINTF("features= %u\n", pMsg->features);
-    DBG_PRINTF("addr desc: %02x\n", pMsg->addr.type);
+//    LOGD("features= %u\n", pMsg->features);
+    LOGD("addr desc: %02x\n", pMsg->addr.type);
     if (pMsg->addr.type != LN_NODEDESC_NONE) {
-        DBG_PRINTF("port=%d\n", pMsg->addr.port);
-        DBG_PRINTF("addr=");
-        DUMPBIN(pMsg->addr.addrinfo.addr, M_ADDRLEN[pMsg->addr.type]);
+        LOGD("port=%d\n", pMsg->addr.port);
+        LOGD("addr=");
+        DUMPD(pMsg->addr.addrinfo.addr, M_ADDRLEN[pMsg->addr.type]);
     }
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 #endif
@@ -741,7 +741,7 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE_UPD
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     ln_msg_cnl_update_print(pMsg);
 #endif  //DBG_PRINT_CREATE_UPD
 
@@ -786,14 +786,14 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
 
     ucoin_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                 pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-    DBG_PRINTF("hash=");
-    DUMPBIN(hash, UCOIN_SZ_HASH256);
+    LOGD("hash=");
+    DUMPD(hash, UCOIN_SZ_HASH256);
 
     ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t), hash);
     if (ret) {
         ucoin_push_trim(&proto);
     } else {
-        DBG_PRINTF("fail: sign\n");
+        LOGD("fail: sign\n");
     }
 
     return ret;
@@ -803,13 +803,13 @@ bool HIDDEN ln_msg_cnl_update_create(ucoin_buf_t *pBuf, const ln_cnl_update_t *p
 bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 128) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_CHANNEL_UPDATE) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
     int pos = sizeof(uint16_t);
@@ -821,18 +821,18 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
     //    [32:chain_hash]
     bool chain_match = (memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash)) == 0);
     if (!chain_match) {
-        DBG_PRINTF("fail: chain_hash mismatch\n");
-        DBG_PRINTF("node: ");
-        DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
-        DBG_PRINTF("msg:  ");
-        DUMPBIN(pData + pos, LN_SZ_HASH);
+        LOGD("fail: chain_hash mismatch\n");
+        LOGD("node: ");
+        DUMPD(gGenesisChainHash, LN_SZ_HASH);
+        LOGD("msg:  ");
+        DUMPD(pData + pos, LN_SZ_HASH);
     }
     pos += sizeof(gGenesisChainHash);
 
     //        [8:short_channel_id]
     pMsg->short_channel_id = ln_misc_get64be(pData + pos);
     if (pMsg->short_channel_id == 0) {
-        DBG_PRINTF("fail: short_channel_id == 0\n");
+        LOGD("fail: short_channel_id == 0\n");
         return false;
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;
@@ -864,7 +864,7 @@ bool HIDDEN ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, 
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ_UPD
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     ln_msg_cnl_update_print(pMsg);
 #endif  //DBG_PRINT_READ_UPD
 
@@ -881,8 +881,8 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
     // channel_updateからsignatureを除いたサイズ
     ucoin_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE,
                                 Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE));
-    //DBG_PRINTF("hash=");
-    //DUMPBIN(hash, UCOIN_SZ_HASH256);
+    //LOGD("hash=");
+    //DUMPD(hash, UCOIN_SZ_HASH256);
 
     ret = ucoin_tx_verify_rs(pData + sizeof(uint16_t), hash, pPubkey);
 
@@ -893,20 +893,20 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
 void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[channel_update]-------------------------------\n");
-    //DBG_PRINTF("p_node_signature: ");
-    //DUMPBIN(pMsg->signature, LN_SZ_SIGNATURE);
-    DBG_PRINTF("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
+    LOGD("-[channel_update]-------------------------------\n");
+    //LOGD("p_node_signature: ");
+    //DUMPD(pMsg->signature, LN_SZ_SIGNATURE);
+    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
     time_t t = (time_t)pMsg->timestamp;
-    DBG_PRINTF("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
-    DBG_PRINTF("flags= 0x%04x\n", pMsg->flags);
-    DBG_PRINTF("    direction: %s\n", ln_cnlupd_direction(pMsg) ? "node_2" : "node_1");
-    DBG_PRINTF("    %s\n", ln_cnlupd_enable(pMsg) ? "enable" : "disable");
-    DBG_PRINTF("cltv_expiry_delta= %u\n", pMsg->cltv_expiry_delta);
-    DBG_PRINTF("htlc_minimum_msat= %" PRIu64 "\n", pMsg->htlc_minimum_msat);
-    DBG_PRINTF("fee_base_msat= %u\n", pMsg->fee_base_msat);
-    DBG_PRINTF("fee_prop_millionths= %u\n", pMsg->fee_prop_millionths);
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
+    LOGD("flags= 0x%04x\n", pMsg->flags);
+    LOGD("    direction: %s\n", ln_cnlupd_direction(pMsg) ? "node_2" : "node_1");
+    LOGD("    %s\n", ln_cnlupd_enable(pMsg) ? "enable" : "disable");
+    LOGD("cltv_expiry_delta= %u\n", pMsg->cltv_expiry_delta);
+    LOGD("htlc_minimum_msat= %" PRIu64 "\n", pMsg->htlc_minimum_msat);
+    LOGD("fee_base_msat= %u\n", pMsg->fee_base_msat);
+    LOGD("fee_prop_millionths= %u\n", pMsg->fee_prop_millionths);
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -927,7 +927,7 @@ bool HIDDEN ln_msg_announce_signs_create(ucoin_buf_t *pBuf, const ln_announce_si
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE_SIG
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     announce_signs_print(pMsg);
 #endif  //DBG_PRINT_CREATE_SIG
 
@@ -961,13 +961,13 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
 {
     //len=1
     if (Len < sizeof(uint16_t) + 168) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return 0;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_ANNOUNCEMENT_SIGNATURES) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return 0;
     }
     int pos = sizeof(uint16_t);
@@ -975,7 +975,7 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
     //        [32:channel-id]
     int cmp = memcmp(pChannelId, pData + pos, LN_SZ_CHANNEL_ID);
     if (cmp != 0) {
-        DBG_PRINTF("fail: channel_id mismatch\n");
+        LOGD("fail: channel_id mismatch\n");
         return 0;
     }
     pos += LN_SZ_CHANNEL_ID;
@@ -988,13 +988,13 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 {
     //len=1
     if (Len < sizeof(uint16_t) + 168) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_ANNOUNCEMENT_SIGNATURES) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
     int pos = sizeof(uint16_t);
@@ -1018,7 +1018,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ_SIG
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     announce_signs_print(pMsg);
 #endif  //DBG_PRINT_READ_SIG
 
@@ -1030,15 +1030,15 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 static void announce_signs_print(const ln_announce_signs_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[announcement_signatures]-------------------------------\n");
-    DBG_PRINTF("channel_id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
-    DBG_PRINTF("p_node_signature: ");
-    DUMPBIN(pMsg->p_node_signature, LN_SZ_SIGNATURE);
-    DBG_PRINTF("p_btc_signature: ");
-    DUMPBIN(pMsg->p_btc_signature, LN_SZ_SIGNATURE);
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("-[announcement_signatures]-------------------------------\n");
+    LOGD("channel_id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
+    LOGD("p_node_signature: ");
+    DUMPD(pMsg->p_node_signature, LN_SZ_SIGNATURE);
+    LOGD("p_btc_signature: ");
+    DUMPD(pMsg->p_btc_signature, LN_SZ_SIGNATURE);
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 #endif

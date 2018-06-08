@@ -128,8 +128,8 @@
 //#define M_DBG_PRINT_TX(tx)      fprintf(PRINTOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
 #define M_DBG_PRINT_TX2(tx)     //NONE
 #else
-#define M_DBG_PRINT_TX(tx)      DBG_PRINTF("\n"); ucoin_print_tx(tx)
-#define M_DBG_PRINT_TX2(tx)     DBG_PRINTF("\n"); ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX(tx)      LOGD("\n"); ucoin_print_tx(tx)
+#define M_DBG_PRINT_TX2(tx)     LOGD("\n"); ucoin_print_tx(tx)
 #endif  //M_DBG_VERBOSE
 
 #define M_SET_ERR(self,err,fmt,...)     set_err(self,err,fmt,##__VA_ARGS__); fprintf(PRINTOUT, "[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg)
@@ -319,7 +319,7 @@ static unsigned long mDebug;
 
 bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPrm, ln_callback_t pFunc)
 {
-    DBG_PRINTF("BEGIN : pSeed=%p\n", pSeed);
+    LOGD("BEGIN : pSeed=%p\n", pSeed);
 
     ln_noise_t noise_sbak;
     ln_noise_t noise_rbak;
@@ -356,10 +356,10 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
     self->p_callback = pFunc;
 
     memcpy(&self->anno_prm, pAnnoPrm, sizeof(ln_anno_prm_t));
-    DBG_PRINTF("cltv_expiry_delta=%" PRIu16 "\n", self->anno_prm.cltv_expiry_delta);
-    DBG_PRINTF("htlc_minimum_msat=%" PRIu64 "\n", self->anno_prm.htlc_minimum_msat);
-    DBG_PRINTF("fee_base_msat=%" PRIu32 "\n", self->anno_prm.fee_base_msat);
-    DBG_PRINTF("fee_prop_millionths=%" PRIu32 "\n", self->anno_prm.fee_prop_millionths);
+    LOGD("cltv_expiry_delta=%" PRIu16 "\n", self->anno_prm.cltv_expiry_delta);
+    LOGD("htlc_minimum_msat=%" PRIu64 "\n", self->anno_prm.htlc_minimum_msat);
+    LOGD("fee_base_msat=%" PRIu32 "\n", self->anno_prm.fee_base_msat);
+    LOGD("fee_prop_millionths=%" PRIu32 "\n", self->anno_prm.fee_prop_millionths);
 
     //seed
     ln_signer_init(self, pSeed);
@@ -368,7 +368,7 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
     self->commit_local.commit_num = (uint64_t)-1;
     self->commit_remote.commit_num = (uint64_t)-1;
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
 
     return true;
 }
@@ -383,15 +383,15 @@ void ln_term(ln_self_t *self)
         self->cnl_add_htlc[idx].p_onion_route = NULL;
         ucoin_buf_free(&self->cnl_add_htlc[idx].shared_secret);
     }
-    //DBG_PRINTF("END\n");
+    //LOGD("END\n");
 }
 
 
 void ln_set_genesishash(const uint8_t *pHash)
 {
     memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
-    //DBG_PRINTF("genesis=");
-    //DUMPBIN(gGenesisChainHash, LN_SZ_HASH);
+    //LOGD("genesis=");
+    //DUMPD(gGenesisChainHash, LN_SZ_HASH);
 }
 
 
@@ -409,10 +409,10 @@ void ln_set_peer_nodeid(ln_self_t *self, const uint8_t *pNodeId)
 
 bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     if (self->p_establish != 0) {
-        DBG_PRINTF("already set\n");
+        LOGD("already set\n");
         return true;
     }
 
@@ -421,16 +421,16 @@ bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
     if (pEstPrm != NULL) {
         self->p_establish->p_fundin = NULL;       //open_channel送信側が設定する
         memcpy(&self->p_establish->estprm, pEstPrm, sizeof(ln_establish_prm_t));
-        DBG_PRINTF("dust_limit_sat= %" PRIu64 "\n", self->p_establish->estprm.dust_limit_sat);
-        DBG_PRINTF("max_htlc_value_in_flight_msat= %" PRIu64 "\n", self->p_establish->estprm.max_htlc_value_in_flight_msat);
-        DBG_PRINTF("channel_reserve_sat= %" PRIu64 "\n", self->p_establish->estprm.channel_reserve_sat);
-        DBG_PRINTF("htlc_minimum_msat= %" PRIu64 "\n", self->p_establish->estprm.htlc_minimum_msat);
-        DBG_PRINTF("to_self_delay= %" PRIu16 "\n", self->p_establish->estprm.to_self_delay);
-        DBG_PRINTF("max_accepted_htlcs= %" PRIu16 "\n", self->p_establish->estprm.max_accepted_htlcs);
-        DBG_PRINTF("min_depth= %" PRIu16 "\n", self->p_establish->estprm.min_depth);
+        LOGD("dust_limit_sat= %" PRIu64 "\n", self->p_establish->estprm.dust_limit_sat);
+        LOGD("max_htlc_value_in_flight_msat= %" PRIu64 "\n", self->p_establish->estprm.max_htlc_value_in_flight_msat);
+        LOGD("channel_reserve_sat= %" PRIu64 "\n", self->p_establish->estprm.channel_reserve_sat);
+        LOGD("htlc_minimum_msat= %" PRIu64 "\n", self->p_establish->estprm.htlc_minimum_msat);
+        LOGD("to_self_delay= %" PRIu16 "\n", self->p_establish->estprm.to_self_delay);
+        LOGD("max_accepted_htlcs= %" PRIu16 "\n", self->p_establish->estprm.max_accepted_htlcs);
+        LOGD("min_depth= %" PRIu16 "\n", self->p_establish->estprm.min_depth);
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
 
     return true;
 }
@@ -488,7 +488,7 @@ bool ln_set_shutdown_vout_addr(ln_self_t *self, const char *pAddr)
 
     bool ret = ucoin_keys_addr2spk(&spk, pAddr);
     if (ret) {
-        DBG_PRINTF("set close addr: %s\n", pAddr);
+        LOGD("set close addr: %s\n", pAddr);
         ucoin_buf_free(&self->shutdown_scriptpk_local);
         ucoin_buf_alloccopy(&self->shutdown_scriptpk_local, spk.buf, spk.len);
     } else {
@@ -556,7 +556,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     bool ret = false;
     uint16_t type = ln_misc_get16be(pData);
 
-    //DBG_PRINTF("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
+    //LOGD("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
     if ((type != MSGTYPE_INIT) && (!M_INIT_FLAG_EXCHNAGED(self->init_flag))) {
         M_SET_ERR(self, LNERR_INV_STATE, "no init received : %04x", type);
         return false;
@@ -572,16 +572,16 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     size_t lp;
     for (lp = 0; lp < ARRAY_SIZE(RECV_FUNC); lp++) {
         if (type == RECV_FUNC[lp].type) {
-            //DBG_PRINTF("type=%04x: Len=%d\n", type, Len);
+            //LOGD("type=%04x: Len=%d\n", type, Len);
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);
             if (!ret) {
-                DBG_PRINTF("fail: type=%04x\n", type);
+                LOGD("fail: type=%04x\n", type);
             }
             break;
         }
     }
     if (lp == ARRAY_SIZE(RECV_FUNC)) {
-        DBG_PRINTF("not match: type=%04x\n", type);
+        LOGD("not match: type=%04x\n", type);
     }
 
     return ret;
@@ -644,7 +644,7 @@ void ln_flag_proc(ln_self_t *self)
 {
     if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
         //announcement_signatures送受信済み
-        DBG_PRINTF("announcement_signatures sent and recv\n");
+        LOGD("announcement_signatures sent and recv\n");
 
         ln_cb_anno_sigs_t anno;
         anno.sort = sort_nodeid(self, NULL);
@@ -820,7 +820,7 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
              (upd.htlc_minimum_msat != self->anno_prm.htlc_minimum_msat) ||
              (upd.fee_base_msat != self->anno_prm.fee_base_msat) ||
              (upd.fee_prop_millionths != self->anno_prm.fee_prop_millionths) ) {
-            DBG_PRINTF("update channel_update\n");
+            LOGD("update channel_update\n");
 
             uint32_t now = (uint32_t)time(NULL);
             ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
@@ -829,11 +829,11 @@ bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
             bool dbret = ln_db_annocnlupd_save(pCnlUpd, &upd, ln_their_node_id(self));
             assert(dbret);
         } else {
-            //DBG_PRINTF("same channel_update\n");
+            //LOGD("same channel_update\n");
             ret = false;
         }
     } else {
-        DBG_PRINTF("fail\n");
+        LOGD("fail\n");
     }
 
     ucoin_buf_free(&buf_upd);
@@ -854,18 +854,18 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee)
     //      of the final commitment transaction as calculated in BOLT #3.
     uint64_t feemax = ln_calc_max_closing_fee(self);
     if (Fee > feemax) {
-        DBG_PRINTF("closing fee limit(%" PRIu64 " > %" PRIu64 ")\n", Fee, feemax);
+        LOGD("closing fee limit(%" PRIu64 " > %" PRIu64 ")\n", Fee, feemax);
         Fee = feemax;
     }
 
     self->close_fee_sat = Fee;
-    DBG_PRINTF("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
+    LOGD("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
 }
 
 
 bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
@@ -892,14 +892,14 @@ bool ln_create_shutdown(ln_self_t *self, ucoin_buf_t *pShutdown)
         self->shutdown_flag |= M_SHDN_FLAG_SEND;
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 void ln_goto_closing(ln_self_t *self, void *pDbParam)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
     if ((self->fund_flag & LN_FUNDFLAG_CLOSE) == 0) {
         //closing中フラグを立てる
         self->fund_flag = (ln_fundflag_t)(self->fund_flag | LN_FUNDFLAG_CLOSE);
@@ -915,7 +915,7 @@ void ln_goto_closing(ln_self_t *self, void *pDbParam)
             ucoin_buf_free(&buf_upd);
         }
     }
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
 }
 
 
@@ -928,7 +928,7 @@ void ln_goto_closing(ln_self_t *self, void *pDbParam)
  */
 bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
@@ -965,7 +965,7 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
                 self->commit_remote.to_self_delay,
                 self->commit_local.dust_limit_sat);
     if (!ret) {
-        DBG_PRINTF("fail: create_to_local\n");
+        LOGD("fail: create_to_local\n");
         ln_free_close_force_tx(pClose);
     }
 
@@ -979,7 +979,7 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
             bak_remotecommit, sizeof(bak_remotecommit));
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
-    DBG_PRINTF("END: %d\n", ret);
+    LOGD("END: %d\n", ret);
 
     return ret;
 }
@@ -991,7 +991,7 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
  */
 bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     //復元用
     uint8_t bak_percommit[UCOIN_SZ_PRIVKEY];
@@ -1023,7 +1023,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
                 self->commit_local.to_self_delay,
                 self->commit_remote.dust_limit_sat);
     if (!ret) {
-        DBG_PRINTF("fail: create_to_remote\n");
+        LOGD("fail: create_to_remote\n");
         ln_free_close_force_tx(pClose);
     }
 
@@ -1037,7 +1037,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
             bak_remotecommit, sizeof(bak_remotecommit));
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
@@ -1081,7 +1081,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
             self->revoked_cnt++;
         }
     }
-    DBG_PRINTF("revoked_cnt=%d\n", self->revoked_cnt);
+    LOGD("revoked_cnt=%d\n", self->revoked_cnt);
     self->revoked_num = LN_RCLOSE_IDX_HTLC + self->revoked_cnt;  //[0]to_local, [1]to_remote, [2-]HTLC
     ln_alloc_revoked_buf(self);
 
@@ -1093,17 +1093,17 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
     uint64_t commit_num = ((uint64_t)(pRevokedTx->vin[0].sequence & 0xffffff)) << 24;
     commit_num |= (uint64_t)(pRevokedTx->locktime & 0xffffff);
     commit_num ^= self->obscured;
-    DBG_PRINTF("commit_num=%" PRIx64 "\n", commit_num);
+    LOGD("commit_num=%" PRIx64 "\n", commit_num);
 
     //remote per_commitment_secretの復元
     ucoin_buf_alloc(&self->revoked_sec, UCOIN_SZ_PRIVKEY);
     bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(LN_SECINDEX_INIT - commit_num));
     assert(ret);
     ucoin_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
-    //DBG_PRINTF2("  pri:");
-    //DUMPBIN(self->revoked_sec.buf, UCOIN_SZ_PRIVKEY);
-    //DBG_PRINTF2("  pub:");
-    //DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    //LOGD2("  pri:");
+    //DUMPD(self->revoked_sec.buf, UCOIN_SZ_PRIVKEY);
+    //LOGD2("  pub:");
+    //DUMPD(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
 
     //local per_commitment_secretの復元
     ln_signer_keys_update_force(self, (uint64_t)(LN_SECINDEX_INIT - commit_num));
@@ -1121,20 +1121,20 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
                 self->commit_local.to_self_delay);
     ucoin_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], LNL_SZ_WITPROG_WSH);
     ucoin_sw_wit2prog_p2wsh(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
-    DBG_PRINTF("calc to_local vout: ");
-    DUMPBIN(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
+    LOGD("calc to_local vout: ");
+    DUMPD(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
 
     for (uint32_t lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
-        DBG_PRINTF("vout[%d]: ", lp);
-        DUMPBIN(pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
+        LOGD("vout[%d]: ", lp);
+        DUMPD(pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
         if (pRevokedTx->vout[lp].script.len == LNL_SZ_WITPROG_WPKH) {
             //to_remote output
-            DBG_PRINTF("[%d]to_remote_output\n", lp);
+            LOGD("[%d]to_remote_output\n", lp);
             ucoin_buf_init(&self->p_revoked_wit[LN_RCLOSE_IDX_TOREMOTE]);
             ucoin_buf_alloccopy(&self->p_revoked_vout[LN_RCLOSE_IDX_TOREMOTE], pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
         } else if (ucoin_buf_cmp(&pRevokedTx->vout[lp].script, &self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL])) {
             //to_local output
-            DBG_PRINTF("[%d]to_local_output\n", lp);
+            LOGD("[%d]to_local_output\n", lp);
         } else {
             //HTLC Tx
             //  DBには、vout(SHA256後)をkeyにして、payment_hashを保存している。
@@ -1144,7 +1144,7 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
             bool srch = ln_db_phash_search(payhash, &type, &expiry,
                             pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
-                DBG_PRINTF("[%d]detect!\n", lp);
+                LOGD("[%d]detect!\n", lp);
 
                 ln_create_htlcinfo(&self->p_revoked_wit[LN_RCLOSE_IDX_HTLC + lp],
                         type,
@@ -1157,12 +1157,12 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
                 ucoin_sw_wit2prog_p2wsh(self->p_revoked_vout[LN_RCLOSE_IDX_HTLC + lp].buf, &self->p_revoked_wit[LN_RCLOSE_IDX_HTLC + lp]);
                 self->p_revoked_type[LN_RCLOSE_IDX_HTLC + lp] = type;
             } else {
-                DBG_PRINTF("[%d]not detect\n", lp);
+                LOGD("[%d]not detect\n", lp);
             }
         }
     }
 
-    DBG_PRINTF("ret=%d\n", ret);
+    LOGD("ret=%d\n", ret);
     return ret;
 }
 
@@ -1183,7 +1183,7 @@ bool ln_create_add_htlc(ln_self_t *self,
             uint64_t PrevId,
             const ucoin_buf_t *pSharedSecrets)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     int idx;
@@ -1204,7 +1204,7 @@ bool ln_create_add_htlc(ln_self_t *self,
         }
         ret = ln_msg_update_add_htlc_create(pAdd, &self->cnl_add_htlc[idx]);
         if (!ret && (pReason != NULL)) {
-            DBG_PRINTF("fail: temporary_node_failure\n");
+            LOGD("fail: temporary_node_failure\n");
             ln_create_reason_temp_node(pReason);
         }
     }
@@ -1213,19 +1213,19 @@ bool ln_create_add_htlc(ln_self_t *self,
         self->htlc_id_num++;        //offer時にインクリメント
         self->htlc_num++;
         *pHtlcId = self->cnl_add_htlc[idx].id;
-        DBG_PRINTF("HTLC add : htlc_num=%d, prev_short_channel_id=%" PRIu64 "\n", self->htlc_num, self->cnl_add_htlc[idx].prev_short_channel_id);
+        LOGD("HTLC add : htlc_num=%d, prev_short_channel_id=%" PRIu64 "\n", self->htlc_num, self->cnl_add_htlc[idx].prev_short_channel_id);
     } else {
         M_SET_ERR(self, LNERR_MSG_ERROR, "create update_add_htlc");
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t Id, const uint8_t *pPreImage)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
@@ -1233,17 +1233,17 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t Id,
     }
     uint8_t sha256[LN_SZ_HASH];
     ucoin_util_sha256(sha256, pPreImage, LN_SZ_PREIMAGE);
-    DBG_PRINTF("id= %" PRIu64 "\n", Id);
-    DBG_PRINTF("recv payment_sha256= ");
-    DUMPBIN(sha256, LN_SZ_PREIMAGE);
+    LOGD("id= %" PRIu64 "\n", Id);
+    LOGD("recv payment_sha256= ");
+    DUMPD(sha256, LN_SZ_PREIMAGE);
     ln_update_add_htlc_t *p_add = NULL;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //fulfill送信はReceived Outputに対して行う
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            DBG_PRINTF("LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)=%d\n", LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag));
-            DBG_PRINTF("htlc_id=%" PRIu64 "\n", self->cnl_add_htlc[idx].id);
-            DBG_PRINTF("payment_sha256= ");
-            DUMPBIN(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_PREIMAGE);
+            LOGD("LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)=%d\n", LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag));
+            LOGD("htlc_id=%" PRIu64 "\n", self->cnl_add_htlc[idx].id);
+            LOGD("payment_sha256= ");
+            DUMPD(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_PREIMAGE);
             if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
                  (Id == self->cnl_add_htlc[idx].id) &&
                  (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) ) {
@@ -1279,14 +1279,14 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ucoin_buf_t *pFulfill, uint64_t Id,
         M_SET_ERR(self, LNERR_MSG_ERROR, "create update_fulfill_htlc");
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t Id, const ucoin_buf_t *pReason)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
         M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
@@ -1296,7 +1296,7 @@ bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t Id, const
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //fulfill送信はReceived Outputに対して行う
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            DBG_PRINTF("id=%" PRIx64 ", htlc_id=%" PRIu64 "\n", Id, self->cnl_add_htlc[idx].id);
+            LOGD("id=%" PRIx64 ", htlc_id=%" PRIu64 "\n", Id, self->cnl_add_htlc[idx].id);
             if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
                  (Id == self->cnl_add_htlc[idx].id) ) {
                 p_add = &self->cnl_add_htlc[idx];
@@ -1329,14 +1329,14 @@ bool ln_create_fail_htlc(ln_self_t *self, ucoin_buf_t *pFail, uint64_t Id, const
         M_SET_ERR(self, LNERR_MSG_ERROR, "create update_fail_htlc");
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
 
@@ -1365,14 +1365,14 @@ bool ln_create_commit_signed(ln_self_t *self, ucoin_buf_t *pCommSig)
 
     proc_commitment_signed(self, M_COMISG_FLAG_SEND);
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 bool ln_create_update_fee(ln_self_t *self, ucoin_buf_t *pUpdFee, uint32_t FeeratePerKw)
 {
-    DBG_PRINTF("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, FeeratePerKw);
+    LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, FeeratePerKw);
 
     bool ret;
 
@@ -1386,7 +1386,7 @@ bool ln_create_update_fee(ln_self_t *self, ucoin_buf_t *pUpdFee, uint32_t Feerat
     updfee.feerate_per_kw = FeeratePerKw;
     ret = ln_msg_update_fee_create(pUpdFee, &updfee);
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
@@ -1400,7 +1400,7 @@ bool ln_create_ping(ln_self_t *self, ucoin_buf_t *pPing)
     ln_ping_t ping;
 
     // if (self->last_num_pong_bytes != 0) {
-    //     DBG_PRINTF("not receive pong(last_num_pong_bytes=%d)\n", self->last_num_pong_bytes);
+    //     LOGD("not receive pong(last_num_pong_bytes=%d)\n", self->last_num_pong_bytes);
     //     return false;
     // }
 
@@ -1450,9 +1450,9 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t Va
 
     //to_localのFEE
     uint64_t fee_tolocal = ln_calc_fee(M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
-    DBG_PRINTF("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
+    LOGD("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
     if (Value < UCOIN_DUST_LIMIT + fee_tolocal) {
-        DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_tolocal);
+        LOGD("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_tolocal);
         goto LABEL_EXIT;
     }
     ret = ln_create_tolocal_tx(pTx, Value - fee_tolocal,
@@ -1476,7 +1476,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     //to_remoteのFEE
     uint64_t fee_toremote = ln_calc_fee(M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
     if (Value < UCOIN_DUST_LIMIT + fee_toremote) {
-        DBG_PRINTF("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_toremote);
+        LOGD("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_toremote);
         ret = false;
         goto LABEL_EXIT;
     }
@@ -1489,7 +1489,7 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     ret = ln_create_tolocal_tx(pTx, Value - fee_toremote,
             &self->shutdown_scriptpk_local, 0, pTxid, Index, false);
     if (!ret) {
-        DBG_PRINTF("fail: create to_remote tx\n");
+        LOGD("fail: create to_remote tx\n");
         goto LABEL_EXIT;
     }
     //<remotesecretkey>
@@ -1497,10 +1497,10 @@ bool ln_create_toremote_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_t V
     ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_PAYMENT,
         self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
     assert(memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], UCOIN_SZ_PUBKEY) == 0);
-    //DBG_PRINTF("key-priv: ");
-    //DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
-    //DBG_PRINTF("key-pub : ");
-    //DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
+    //LOGD("key-priv: ");
+    //DUMPD(signkey.priv, UCOIN_SZ_PRIVKEY);
+    //LOGD("key-pub : ");
+    //DUMPD(signkey.pub, UCOIN_SZ_PUBKEY);
 
     //vinは1つしかない
     ret = ln_signer_p2wpkh(pTx, 0, Value, &signkey);
@@ -1517,7 +1517,7 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
     feeinfo.feerate_per_kw = self->feerate_per_kw;
     ln_fee_calc(&feeinfo, NULL, 0);
     uint64_t fee = (self->p_revoked_type[WitIndex] == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
-    DBG_PRINTF("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
+    LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
     ln_create_htlc_tx(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
     M_DBG_PRINT_TX2(pTx);
@@ -1526,10 +1526,10 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
     ln_signer_get_revokesec(self, &signkey,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
                     self->revoked_sec.buf);
-    // DBG_PRINTF("key-priv: ");
-    // DUMPBIN(signkey.priv, UCOIN_SZ_PRIVKEY);
-    // DBG_PRINTF("key-pub : ");
-    // DUMPBIN(signkey.pub, UCOIN_SZ_PUBKEY);
+    // LOGD("key-priv: ");
+    // DUMPD(signkey.priv, UCOIN_SZ_PRIVKEY);
+    // LOGD("key-pub : ");
+    // DUMPD(signkey.pub, UCOIN_SZ_PUBKEY);
 
     ucoin_buf_t buf_sig;
     ln_htlcsign_t htlcsign = HTLCSIGN_NONE;
@@ -1541,7 +1541,7 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, ucoin_tx_t *pTx, uint64_
         htlcsign = HTLCSIGN_RV_RECEIVED;
         break;
     default:
-        DBG_PRINTF("index=%d, %d\n", WitIndex, self->p_revoked_type[WitIndex]);
+        LOGD("index=%d, %d\n", WitIndex, self->p_revoked_type[WitIndex]);
         assert(0);
     }
     bool ret;
@@ -1622,11 +1622,11 @@ bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t 
 void ln_set_debug(unsigned long debug)
 {
     mDebug = debug;
-    DBG_PRINTF("debug flag: 0x%lx\n", mDebug);
-    if (!mDebug) DBG_PRINTF("normal mode\n");
-    if (!LN_DBG_FULFILL()) DBG_PRINTF("no fulfill\n");
-    if (!LN_DBG_CLOSING_TX()) DBG_PRINTF("no send closing_tx\n");
-    if (!LN_DBG_MATCH_PREIMAGE()) DBG_PRINTF("HTLC preimage mismatch\n");
+    LOGD("debug flag: 0x%lx\n", mDebug);
+    if (!mDebug) LOGD("normal mode\n");
+    if (!LN_DBG_FULFILL()) LOGD("no fulfill\n");
+    if (!LN_DBG_CLOSING_TX()) LOGD("no send closing_tx\n");
+    if (!LN_DBG_MATCH_PREIMAGE()) LOGD("HTLC preimage mismatch\n");
 }
 
 
@@ -1648,7 +1648,7 @@ unsigned long ln_get_debug(void)
  */
 void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
 {
-    DBG_PRINTF("alloc(%d)\n", self->revoked_num);
+    LOGD("alloc(%d)\n", self->revoked_num);
 
     self->p_revoked_vout = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
     self->p_revoked_wit = (ucoin_buf_t *)M_MALLOC(sizeof(ucoin_buf_t) * self->revoked_num);
@@ -1680,7 +1680,7 @@ void HIDDEN ln_free_revoked_buf(ln_self_t *self)
     self->revoked_num = 0;
     self->revoked_cnt = 0;
 
-    DBG_PRINTF("free\n");
+    LOGD("free\n");
 }
 
 
@@ -1729,7 +1729,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     if (self->init_flag & M_INIT_FLAG_RECV) {
         //TODO: 2回init受信した場合はどうする？
-        DBG_PRINTF("???: multiple init received.\n");
+        LOGD("???: multiple init received.\n");
     }
 
     ln_init_t msg;
@@ -1780,7 +1780,7 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     if (ln_is_funding(self)) {
-        DBG_PRINTF("stop funding\n");
+        LOGD("stop funding\n");
         free_establish(self, false);    //切断せずに継続する場合もあるため、残す
     }
 
@@ -1796,7 +1796,7 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
 static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    //DBG_PRINTF("BEGIN\n");
+    //LOGD("BEGIN\n");
 
     bool ret;
 
@@ -1813,14 +1813,14 @@ static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
-    //DBG_PRINTF("END\n");
+    //LOGD("END\n");
     return ret;
 }
 
 
 static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    //DBG_PRINTF("BEGIN\n");
+    //LOGD("BEGIN\n");
 
     bool ret;
 
@@ -1835,20 +1835,20 @@ static bool recv_pong(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     ret = (pong.byteslen == self->last_num_pong_bytes);
     if (ret) {
         self->missing_pong_cnt--;
-        //DBG_PRINTF("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
+        //LOGD("missing_pong_cnt: %d / last_num_pong_bytes: %d\n", self->missing_pong_cnt, self->last_num_pong_bytes);
         self->last_num_pong_bytes = 0;
     } else {
-        DBG_PRINTF("fail: pong.byteslen(%" PRIu16 ") != self->last_num_pong_bytes(%" PRIu16 ")\n", pong.byteslen, self->last_num_pong_bytes);
+        LOGD("fail: pong.byteslen(%" PRIu16 ") != self->last_num_pong_bytes(%" PRIu16 ")\n", pong.byteslen, self->last_num_pong_bytes);
     }
 
-    //DBG_PRINTF("END\n");
+    //LOGD("END\n");
     return true;
 }
 
 
 static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
 
@@ -1886,11 +1886,11 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     //feerate_per_kwの許容チェック
     const uint32_t MARGIN = M_FEERATE_MARGIN(self->feerate_per_kw);
     if (self->feerate_per_kw - MARGIN > open_ch->feerate_per_kw) {
-        DBG_PRINTF("fail: feerate_per_kw is too short\n");
+        LOGD("fail: feerate_per_kw is too short\n");
         return false;
     }
     if (self->feerate_per_kw + MARGIN < open_ch->feerate_per_kw) {
-        DBG_PRINTF("fail: feerate_per_kw is too large\n");
+        LOGD("fail: feerate_per_kw is too large\n");
         return false;
     }
 
@@ -1912,7 +1912,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     //鍵生成 && スクリプト用鍵生成
     ret = ln_signer_create_channelkeys(self);
     if (!ret) {
-        DBG_PRINTF("fail: ln_signer_create_channelkeys\n");
+        LOGD("fail: ln_signer_create_channelkeys\n");
         return false;
     }
 
@@ -1947,7 +1947,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     self->obscured = ln_calc_obscured_txnum(
                                 open_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT],
                                 acc_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT]);
-    DBG_PRINTF("obscured=0x%" PRIx64 "\n", self->obscured);
+    LOGD("obscured=0x%" PRIx64 "\n", self->obscured);
 
     //vout 2-of-2
     ret = ucoin_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
@@ -1959,14 +1959,14 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         M_SET_ERR(self, LNERR_CREATE_2OF2, "create 2-of-2");
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
 
@@ -2024,7 +2024,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->obscured = ln_calc_obscured_txnum(
                                 self->p_establish->cnl_open.p_pubkeys[MSG_FUNDIDX_PAYMENT],
                                 acc_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT]);
-    DBG_PRINTF("obscured=0x%" PRIx64 "\n", self->obscured);
+    LOGD("obscured=0x%" PRIx64 "\n", self->obscured);
 
     //
     // initial commit tx(Remoteが持つTo-Local)
@@ -2046,14 +2046,14 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
         ucoin_buf_free(&buf_bolt);
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
 
@@ -2100,7 +2100,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     ret = create_to_local(self, NULL, NULL, 0,
                 self->p_establish->cnl_open.to_self_delay, self->p_establish->cnl_accept.dust_limit_sat);
     if (!ret) {
-        DBG_PRINTF("fail: create_to_local\n");
+        LOGD("fail: create_to_local\n");
         return false;
     }
 
@@ -2110,7 +2110,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     ret = create_to_remote(self, NULL, NULL,
                 self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat);
     if (!ret) {
-        DBG_PRINTF("fail: create_to_remote\n");
+        LOGD("fail: create_to_remote\n");
         return false;
     }
 
@@ -2129,14 +2129,14 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
     start_funding_wait(self, false);
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return true;
 }
 
 
 static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
 
@@ -2172,14 +2172,14 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     ret = create_to_local(self, NULL, NULL, 0,
                 self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat);
     if (!ret) {
-        DBG_PRINTF("fail: create_to_local\n");
+        LOGD("fail: create_to_local\n");
         return false;
     }
 
     //funding_tx安定待ち(シーケンスの再開はアプリ指示)
     start_funding_wait(self, true);
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
@@ -2193,7 +2193,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
  */
 static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
@@ -2215,10 +2215,10 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    DBG_PRINTF("prev: ");
-    DUMPBIN(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("next: ");
-    DUMPBIN(per_commitpt, UCOIN_SZ_PUBKEY);
+    LOGV("prev:\n");
+    DUMPV(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    LOGV("next:\n");
+    DUMPV(per_commitpt, UCOIN_SZ_PUBKEY);
 
     //prev_percommitはrevoke_and_ackでのみ更新する
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, UCOIN_SZ_PUBKEY);
@@ -2231,14 +2231,14 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     (*self->p_callback)(self, LN_CB_FUNDINGLOCKED_RECV, NULL);
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return true;
 }
 
 
 static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
 
@@ -2303,7 +2303,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) && ln_is_funder(self)) {
         //shutdown交換完了 && funder --> 最初のclosing_signed送信
-        DBG_PRINTF("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
+        LOGD("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
         ln_closing_signed_t cnl_close;
         cnl_close.p_channel_id = self->channel_id;
         cnl_close.fee_sat = self->close_fee_sat;
@@ -2315,7 +2315,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         if (ret) {
             ret = ln_msg_closing_signed_create(&buf_bolt, &cnl_close);
         } else {
-            DBG_PRINTF("fail: create close_t\n");
+            LOGD("fail: create close_t\n");
         }
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
@@ -2325,18 +2325,18 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             //署名送信により相手がbroadcastできるようになるので、一度保存する
             ln_db_self_save(self);
         } else {
-            DBG_PRINTF("fail\n");
+            LOGD("fail\n");
         }
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     if (!M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
         M_SET_ERR(self, LNERR_INV_STATE, "shutdown status : %02x", self->shutdown_flag);
@@ -2366,7 +2366,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     //      of the final commitment transaction as calculated in BOLT #3.
     uint64_t feemax = ln_calc_max_closing_fee(self);
     if (cnl_close.fee_sat > feemax) {
-        DBG_PRINTF("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", cnl_close.fee_sat, feemax);
+        LOGD("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", cnl_close.fee_sat, feemax);
         return false;
     }
 
@@ -2374,7 +2374,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     ucoin_tx_free(&self->tx_closing);
     ret = create_closing_tx(self, &self->tx_closing, cnl_close.fee_sat, true);
     if (!ret) {
-        DBG_PRINTF("fail: create close_t\n");
+        LOGD("fail: create close_t\n");
         assert(false);
     }
 
@@ -2394,13 +2394,13 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     ucoin_tx_free(&self->tx_closing);
     ret = create_closing_tx(self, &self->tx_closing, self->close_fee_sat, need_closetx);
     if (!ret) {
-        DBG_PRINTF("fail: create close_t\n");
+        LOGD("fail: create close_t\n");
         assert(false);
     }
 
     if (need_closetx) {
         //closing_txを展開する
-        DBG_PRINTF("same fee!\n");
+        LOGD("same fee!\n");
         ucoin_buf_t txbuf = UCOIN_BUF_INIT;
         ret = ucoin_tx_create(&txbuf, &self->tx_closing);
         if (ret) {
@@ -2412,20 +2412,20 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
             //clearはDB削除に任せる
             //channel_clear(self);
         } else {
-            DBG_PRINTF("fail: create closeing_tx\n");
+            LOGD("fail: create closeing_tx\n");
             assert(0);
         }
         ucoin_buf_free(&txbuf);
     } else {
         //closing_singnedを送信する
-        DBG_PRINTF("different fee!\n");
+        LOGD("different fee!\n");
         ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
         ret = ln_msg_closing_signed_create(&buf_bolt, &cnl_close);
         if (ret) {
             self->close_last_fee_sat = self->close_fee_sat;
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
         } else {
-            DBG_PRINTF("fail: create closeing_signed\n");
+            LOGD("fail: create closeing_signed\n");
             assert(0);
         }
         ucoin_buf_free(&buf_bolt);
@@ -2433,19 +2433,19 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //closing_signedの交換を1度でも行っていたら、obscuredを0にしてしまう(フラグ代わり)
     if (!ln_is_closing_signed_recvd(self)) {
-        DBG_PRINTF("closing_signed exchanged\n");
+        LOGD("closing_signed exchanged\n");
         self->obscured = 0;
         ln_db_self_save(self);
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     int idx;
@@ -2491,7 +2491,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //
     ret = check_recv_add_htlc_bolt2(self, p_htlc);
     if (!ret) {
-        DBG_PRINTF("fail: BOLT2 check\n");
+        LOGD("fail: BOLT2 check\n");
         return false;
     }
 
@@ -2550,22 +2550,22 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //相手のamountから差し引いて、HTLC追加
     self->their_msat -= p_htlc->amount_msat;
     self->htlc_num++;
-    DBG_PRINTF("HTLC add : htlc_num=%d, id=%" PRIx64 ", amount_msat=%" PRIu64 "\n", self->htlc_num, p_htlc->id, p_htlc->amount_msat);
+    LOGD("HTLC add : htlc_num=%d, id=%" PRIx64 ", amount_msat=%" PRIu64 "\n", self->htlc_num, p_htlc->id, p_htlc->amount_msat);
 
-    DBG_PRINTF("  ret=%d\n", ret);
-    DBG_PRINTF("  id=%" PRIu64 "\n", p_htlc->id);
+    LOGD("  ret=%d\n", ret);
+    LOGD("  id=%" PRIu64 "\n", p_htlc->id);
 
-    DBG_PRINTF("  %s\n", (hop_dataout.b_exit) ? "intended recipient" : "forwarding HTLCs");
+    LOGD("  %s\n", (hop_dataout.b_exit) ? "intended recipient" : "forwarding HTLCs");
     //転送先
-    DBG_PRINTF("  FWD: short_channel_id: %" PRIx64 "\n", hop_dataout.short_channel_id);
-    DBG_PRINTF("  FWD: amt_to_forward: %" PRIu64 "\n", hop_dataout.amt_to_forward);
-    DBG_PRINTF("  FWD: outgoing_cltv_value: %d\n", hop_dataout.outgoing_cltv_value);
-    DBG_PRINTF("  -------\n");
+    LOGD("  FWD: short_channel_id: %" PRIx64 "\n", hop_dataout.short_channel_id);
+    LOGD("  FWD: amt_to_forward: %" PRIu64 "\n", hop_dataout.amt_to_forward);
+    LOGD("  FWD: outgoing_cltv_value: %d\n", hop_dataout.outgoing_cltv_value);
+    LOGD("  -------\n");
     //自分への通知
-    DBG_PRINTF("  amount_msat: %" PRIu64 "\n", p_htlc->amount_msat);
-    DBG_PRINTF("  cltv_expiry: %d\n", p_htlc->cltv_expiry);
-    DBG_PRINTF("  my fee : %" PRIu64 "\n", (uint64_t)(p_htlc->amount_msat - hop_dataout.amt_to_forward));
-    DBG_PRINTF("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",  hop_dataout.outgoing_cltv_value, p_htlc->cltv_expiry - hop_dataout.outgoing_cltv_value);
+    LOGD("  amount_msat: %" PRIu64 "\n", p_htlc->amount_msat);
+    LOGD("  cltv_expiry: %d\n", p_htlc->cltv_expiry);
+    LOGD("  my fee : %" PRIu64 "\n", (uint64_t)(p_htlc->amount_msat - hop_dataout.amt_to_forward));
+    LOGD("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",  hop_dataout.outgoing_cltv_value, p_htlc->cltv_expiry - hop_dataout.outgoing_cltv_value);
 
     //update_add_htlc受信通知
     add_htlc.ok = ret;
@@ -2579,14 +2579,14 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV, &add_htlc);
     ucoin_buf_free(&add_htlc.reason);
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return true;
 }
 
 
 static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     ln_update_fulfill_htlc_t    fulfill_htlc;
@@ -2620,7 +2620,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
                 p_add = &self->cnl_add_htlc[idx];
                 ret = true;
             } else {
-                DBG_PRINTF("fail: match id, but fail payment_hash\n");
+                LOGD("fail: match id, but fail payment_hash\n");
             }
             break;
         }
@@ -2646,14 +2646,14 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         M_SET_ERR(self, LNERR_INV_ID, "fulfill");
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     ln_update_fail_htlc_t    fail_htlc;
@@ -2705,7 +2705,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
 
 static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     ln_commit_signed_t commsig;
@@ -2739,13 +2739,13 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
                 self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
     M_FREE(commsig.p_htlc_signature);
     if (!ret) {
-        DBG_PRINTF("fail: create_to_local\n");
+        LOGD("fail: create_to_local\n");
         goto LABEL_EXIT;
     }
 
     //自分のcommitment_numberをインクリメント
     self->commit_local.commit_num++;
-    DBG_PRINTF("self->commit_local.commit_num=%" PRIx64 "\n", self->commit_local.commit_num);
+    LOGD("self->commit_local.commit_num=%" PRIx64 "\n", self->commit_local.commit_num);
 
     uint8_t prev_secret[UCOIN_SZ_PRIVKEY];
     ln_signer_get_prevkey(self, prev_secret);
@@ -2789,18 +2789,18 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 LABEL_EXIT:
     //戻す
     if (!ret) {
-        DBG_PRINTF("fail restore\n");
+        LOGD("fail restore\n");
         memcpy(self->commit_remote.signature, bak_sig, LN_SZ_SIGNATURE);
     }
 
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     ln_revoke_and_ack_t revack;
@@ -2828,27 +2828,27 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     //prev_secretチェック
     ret = ucoin_keys_priv2pub(prev_commitpt, prev_secret);
     if (!ret) {
-        DBG_PRINTF("fail: prev_secret convert\n");
+        LOGD("fail: prev_secret convert\n");
         goto LABEL_EXIT;
     }
     if (memcmp(prev_commitpt, self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY) != 0) {
-        DBG_PRINTF("fail: prev_secret mismatch\n");
-        DBG_PRINTF("recv prev: ");
-        DUMPBIN(prev_commitpt, UCOIN_SZ_PUBKEY);
-        DBG_PRINTF("my prev:   ");
-        DUMPBIN(self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
+        LOGD("fail: prev_secret mismatch\n");
+        LOGD("recv prev: ");
+        DUMPD(prev_commitpt, UCOIN_SZ_PUBKEY);
+        LOGD("my prev:   ");
+        DUMPD(self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY);
         ret = false;
         goto LABEL_EXIT;
     }
 
     //相手のcommitment_numberをインクリメント(channel_reestablish用)
     self->commit_remote.commit_num++;
-    DBG_PRINTF("self->commit_remote.commit_num=%" PRIx64 "\n", self->commit_remote.commit_num);
+    LOGD("self->commit_remote.commit_num=%" PRIx64 "\n", self->commit_remote.commit_num);
 
     //prev_secret保存
     ret = store_peer_percommit_secret(self, prev_secret);
     if (!ret) {
-        DBG_PRINTF("fail: store prev secret\n");
+        LOGD("fail: store prev secret\n");
         goto LABEL_EXIT;
     }
 
@@ -2862,14 +2862,14 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     proc_rev_and_ack(self, M_REVACK_FLAG_RECV);
 
 LABEL_EXIT:
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
 
 static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     ln_update_fee_t upfee;
@@ -2890,7 +2890,7 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         goto LABEL_EXIT;
     }
 
-    DBG_PRINTF("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
+    LOGD("change fee: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, upfee.feerate_per_kw);
     old_fee = self->feerate_per_kw;
     self->feerate_per_kw = upfee.feerate_per_kw;
     //ln_db_self_save(self);    //確定するまでDB保存しない
@@ -2899,7 +2899,7 @@ static bool recv_update_fee(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     (*self->p_callback)(self, LN_CB_UPDATE_FEE_RECV, &old_fee);
 
 LABEL_EXIT:
-    DBG_PRINTF("END\n");
+    LOGD("END\n");
     return ret;
 }
 
@@ -2907,7 +2907,7 @@ LABEL_EXIT:
 static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     (void)self; (void)pData; (void)Len;
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 #warning not implemented
     return true;
 }
@@ -2917,7 +2917,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 {
     bool ret;
 
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     ln_channel_reestablish_t reest;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
@@ -2937,14 +2937,14 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     }
 
     if (self->commit_remote.commit_num + 1 != reest.next_local_commitment_number) {
-        DBG_PRINTF("number mismatch : update remote commit_num\n");
-        DBG_PRINTF("  next_local_commitment_number: %" PRIu64 "(own) != %" PRIu64 "(recv)\n", self->commit_remote.commit_num, reest.next_local_commitment_number);
+        LOGD("number mismatch : update remote commit_num\n");
+        LOGD("  next_local_commitment_number: %" PRIu64 "(own) != %" PRIu64 "(recv)\n", self->commit_remote.commit_num, reest.next_local_commitment_number);
         self->commit_remote.commit_num = reest.next_local_commitment_number - 1;
         ln_db_self_save(self);
     }
     if (self->commit_local.commit_num != reest.next_remote_revocation_number) {
-        DBG_PRINTF("number mismatch\n");
-        DBG_PRINTF("  next_remote_revocation_number:%" PRIu64 "(own) <- %" PRIu64 "(recv)\n", self->commit_local.commit_num, reest.next_remote_revocation_number);
+        LOGD("number mismatch\n");
+        LOGD("  next_remote_revocation_number:%" PRIu64 "(own) <- %" PRIu64 "(recv)\n", self->commit_local.commit_num, reest.next_remote_revocation_number);
         return false;
     }
 
@@ -2965,7 +2965,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     //short_channel_idで検索
     uint64_t short_channel_id = ln_msg_announce_signs_read_short_cnl_id(pData, Len, self->channel_id);
     if (short_channel_id == 0) {
-        DBG_PRINTF("fail: invalid packet\n");
+        LOGD("fail: invalid packet\n");
         return false;
     }
     if (self->cnl_anno.buf == NULL) {
@@ -2993,7 +2993,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         return false;
     }
 
-    DBG_PRINTF("+++ channel_announcement[%" PRIx64 "] +++\n", self->short_channel_id);
+    LOGD("+++ channel_announcement[%" PRIx64 "] +++\n", self->short_channel_id);
     ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
 
     //channel_update
@@ -3002,17 +3002,17 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     ln_cnl_update_t upd;
     ret = create_channel_update(self, &upd, &buf_upd, now, 0);
     if (!ret) {
-        DBG_PRINTF("fail\n");
+        LOGD("fail\n");
         goto LABEL_EXIT;
     }
     ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
     if (!ret) {
-        DBG_PRINTF("fail: ln_db_annocnl_save\n");
+        LOGD("fail: ln_db_annocnl_save\n");
         //goto LABEL_EXIT;
     }
     ret = ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));
     if (!ret) {
-        DBG_PRINTF("fail: but through\n");
+        LOGD("fail: but through\n");
     }
     ret = true;
 
@@ -3045,7 +3045,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         param.short_channel_id = ann.short_channel_id;
         (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
     } else {
-        DBG_PRINTF("fail: do nothing\n");
+        LOGD("fail: do nothing\n");
         return true;
     }
 
@@ -3057,11 +3057,11 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         //DB保存
         ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self));
         if (!ret) {
-            DBG_PRINTF("fail: db save\n");
+            LOGD("fail: db save\n");
         }
     } else {
         //closeされたとみなして、何もしない
-        DBG_PRINTF("closed channel: not save(%0" PRIx64 ")\n", ann.short_channel_id);
+        LOGD("closed channel: not save(%0" PRIx64 ")\n", ann.short_channel_id);
     }
 
     return true;
@@ -3092,11 +3092,11 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         ret = param.is_unspent;
         //true時はcloseされたとみなして、何もしない
         if (!param.is_unspent) {
-            DBG_PRINTF("closed channel: not save(%0" PRIx64 ")\n", upd.short_channel_id);
+            LOGD("closed channel: not save(%0" PRIx64 ")\n", upd.short_channel_id);
         }
     }
     if (ret) {
-        DBG_PRINTF("recv channel_upd%d: %" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
+        LOGV("recv channel_upd%d: %" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
 
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[UCOIN_SZ_PUBKEY];
@@ -3105,18 +3105,18 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         if (ret && ucoin_keys_chkpub(node_id)) {
             ret = ln_msg_cnl_update_verify(node_id, pData, Len);
             if (!ret) {
-                DBG_PRINTF("fail: verify\n");
+                LOGD("fail: verify\n");
             }
         } else {
             //該当するchannel_announcementが見つからない
             //  BOLT#11
             //      r fieldでchannel_update相当のデータを送信したい場合に備えて保持する
             //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
-            DBG_PRINTF("fail: not found channel_announcement in DB\n");
+            LOGD("fail: not found channel_announcement in DB\n");
             ret = true;
         }
     } else {
-        DBG_PRINTF("fail: channel_update\n");
+        LOGD("fail: channel_update\n");
     }
 
     if (ret) {
@@ -3126,7 +3126,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.len = Len;
         ret = ln_db_annocnlupd_save(&buf, &upd, ln_their_node_id(self));
         if (!ret) {
-            DBG_PRINTF("fail: db save\n");
+            LOGD("fail: db save\n");
         }
         ret = true;
     } else {
@@ -3258,7 +3258,7 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_buf_t txbuf = UCOIN_BUF_INIT;
     ucoin_tx_create(&txbuf, &self->tx_funding);
 
-    DBG_PRINTF("***** funding_tx(no signature) *****\n");
+    LOGD("***** funding_tx(no signature) *****\n");
     M_DBG_PRINT_TX(&self->tx_funding);
 
     // LEN+署名(72) + LEN+公開鍵(33)
@@ -3283,14 +3283,14 @@ static bool create_funding_tx(ln_self_t *self)
     //      locktime: 4
 #warning issue #344: nested in BIP16 size
     uint64_t fee = ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, self->p_establish->cnl_open.feerate_per_kw);
-    DBG_PRINTF("fee=%" PRIu64 "\n", fee);
+    LOGD("fee=%" PRIu64 "\n", fee);
     if (self->p_establish->p_fundin->amount >= self->p_establish->cnl_open.funding_sat + fee) {
         self->tx_funding.vout[1].value = self->p_establish->p_fundin->amount - self->p_establish->cnl_open.funding_sat - fee;
     } else {
-        DBG_PRINTF("fail: amount too short:\n");
-        DBG_PRINTF("    amount=%" PRIu64 "\n", self->p_establish->p_fundin->amount);
-        DBG_PRINTF("    funding_sat=%" PRIu64 "\n", self->p_establish->cnl_open.funding_sat);
-        DBG_PRINTF("    fee=%" PRIu64 "\n", fee);
+        LOGD("fail: amount too short:\n");
+        LOGD("    amount=%" PRIu64 "\n", self->p_establish->p_fundin->amount);
+        LOGD("    funding_sat=%" PRIu64 "\n", self->p_establish->cnl_open.funding_sat);
+        LOGD("    fee=%" PRIu64 "\n", fee);
         return false;
     }
     ucoin_buf_free(&txbuf);
@@ -3305,10 +3305,10 @@ static bool create_funding_tx(ln_self_t *self)
     if (ret) {
         ucoin_tx_txid(self->funding_local.txid, &self->tx_funding);
     } else {
-        DBG_PRINTF("fail: signature\n");
+        LOGD("fail: signature\n");
     }
 
-    DBG_PRINTF("***** funding_tx *****\n");
+    LOGD("***** funding_tx *****\n");
     M_DBG_PRINT_TX(&self->tx_funding);
 
     return ret;
@@ -3351,7 +3351,7 @@ static bool create_to_local(ln_self_t *self,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     ucoin_buf_t buf_ws = UCOIN_BUF_INIT;
@@ -3381,18 +3381,18 @@ static bool create_to_local(ln_self_t *self,
             pp_htlcinfo[cnt]->expiry = self->cnl_add_htlc[idx].cltv_expiry;
             pp_htlcinfo[cnt]->amount_msat = self->cnl_add_htlc[idx].amount_msat;
             pp_htlcinfo[cnt]->preimage_hash = self->cnl_add_htlc[idx].payment_sha256;
-            DBG_PRINTF(" [%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].amount_msat);
+            LOGD(" [%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].amount_msat);
             cnt++;
         }
     }
-    DBG_PRINTF("-------\n");
-    DBG_PRINTF("cnt=%d, htlc_num=%d\n", cnt, self->htlc_num);
-    DBG_PRINTF("our_msat   %" PRIu64 " --> %" PRIu64 "\n", self->our_msat, self->our_msat);
-    DBG_PRINTF("their_msat %" PRIu64 " --> %" PRIu64 "\n", self->their_msat, self->their_msat);
+    LOGD("-------\n");
+    LOGD("cnt=%d, htlc_num=%d\n", cnt, self->htlc_num);
+    LOGD("our_msat   %" PRIu64 " --> %" PRIu64 "\n", self->our_msat, self->our_msat);
+    LOGD("their_msat %" PRIu64 " --> %" PRIu64 "\n", self->their_msat, self->their_msat);
     for (int lp = 0; lp < cnt; lp++) {
-        DBG_PRINTF("  [%d] %" PRIu64 " (%s)\n", lp, pp_htlcinfo[lp]->amount_msat, (pp_htlcinfo[lp]->type == LN_HTLCTYPE_RECEIVED) ? "received" : "offered");
+        LOGD("  [%d] %" PRIu64 " (%s)\n", lp, pp_htlcinfo[lp]->amount_msat, (pp_htlcinfo[lp]->type == LN_HTLCTYPE_RECEIVED) ? "received" : "offered");
     }
-    DBG_PRINTF("-------\n");
+    LOGD("-------\n");
 
     //FEE
     feeinfo.feerate_per_kw = self->feerate_per_kw;
@@ -3424,12 +3424,12 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    DBG_PRINTF("self->commit_local.commit_num=%" PRIx64 "\n", self->commit_local.commit_num + 1);
+    LOGD("self->commit_local.commit_num=%" PRIx64 "\n", self->commit_local.commit_num + 1);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->priv_data);
     if (ret) {
         ret = create_to_local_sign(self, &tx_commit, &buf_sig);
     } else {
-        DBG_PRINTF("fail\n");
+        LOGD("fail\n");
     }
     if (ret) {
         ret = ucoin_tx_txid(self->commit_local.txid, &tx_commit);
@@ -3449,7 +3449,7 @@ static bool create_to_local(ln_self_t *self,
     }
 
 
-    DBG_PRINTF("free: ret=%d\n", ret);
+    LOGD("free: ret=%d\n", ret);
     ucoin_buf_free(&buf_ws);
     for (int lp = 0; lp < cnt; lp++) {
         ln_htlcinfo_free(pp_htlcinfo[lp]);
@@ -3479,7 +3479,7 @@ static bool create_to_local_sign(ln_self_t *self,
                     ucoin_tx_t *pTxCommit,
                     const ucoin_buf_t *pBufSig)
 {
-    DBG_PRINTF("local sign\n");
+    LOGD("local sign\n");
 
     bool ret;
     ucoin_buf_t buf_sig_from_remote = UCOIN_BUF_INIT;
@@ -3492,7 +3492,7 @@ static bool create_to_local_sign(ln_self_t *self,
                             pBufSig,
                             &buf_sig_from_remote,
                             &self->redeem_fund);
-    DBG_PRINTF("++++++++++++++ 自分のcommit txに署名: [%" PRIx64 "]\n", self->short_channel_id);
+    LOGD("++++++++++++++ 自分のcommit txに署名: [%" PRIx64 "]\n", self->short_channel_id);
     M_DBG_PRINT_TX(pTxCommit);
 
     // 署名verify
@@ -3501,9 +3501,9 @@ static bool create_to_local_sign(ln_self_t *self,
     ret = ucoin_sw_verify_2of2(pTxCommit, 0, sighash,
                 &self->tx_funding.vout[self->funding_local.txindex].script);
     if (ret) {
-        DBG_PRINTF("verify OK\n");
+        LOGD("verify OK\n");
     } else {
-        DBG_PRINTF("fail: ucoin_sw_verify_2of2\n");
+        LOGD("fail: ucoin_sw_verify_2of2\n");
     }
 
     ucoin_buf_free(&buf_sig_from_remote);
@@ -3567,7 +3567,7 @@ static bool create_to_local_spent(ln_self_t *self,
     ucoin_push_t push;
     ucoin_util_keys_t htlckey;
 
-    DBG_PRINTF("local spent\n");
+    LOGD("local spent\n");
 
     if (pClose != NULL) {
         pTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
@@ -3586,7 +3586,7 @@ static bool create_to_local_spent(ln_self_t *self,
     for (uint32_t vout_idx = 0; vout_idx < pTxCommit->vout_cnt; vout_idx++) {
         uint8_t htlc_idx = pTxCommit->vout[vout_idx].opt;
         if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
-            DBG_PRINTF("+++[%d]to_local\n", vout_idx);
+            LOGD("+++[%d]to_local\n", vout_idx);
             if (pTxToLocal != NULL) {
                 ucoin_tx_t tx = UCOIN_TX_INIT;
 
@@ -3601,12 +3601,12 @@ static bool create_to_local_spent(ln_self_t *self,
                 }
             }
         } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
-            DBG_PRINTF("+++[%d]to_remote\n", vout_idx);
+            LOGD("+++[%d]to_remote\n", vout_idx);
         } else {
             const ln_htlcinfo_t *p_htlcinfo = pp_htlcinfo[htlc_idx];
             uint64_t fee_sat = (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? p_feeinfo->htlc_timeout : p_feeinfo->htlc_success;
             if (pTxCommit->vout[vout_idx].value >= p_feeinfo->dust_limit_satoshi + fee_sat) {
-                DBG_PRINTF("+++[%d]%s HTLC\n", vout_idx, (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
+                LOGD("+++[%d]%s HTLC\n", vout_idx, (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
                 ucoin_tx_t tx = UCOIN_TX_INIT;
 
                 ln_create_htlc_tx(&tx, pTxCommit->vout[vout_idx].value - fee_sat, pBufWs,
@@ -3627,7 +3627,7 @@ static bool create_to_local_spent(ln_self_t *self,
                                 &p_htlcinfo->script);
                     ucoin_buf_free(&buf_sig);
                     if (!ret) {
-                        DBG_PRINTF("fail: verify vout[%d]\n", vout_idx);
+                        LOGD("fail: verify vout[%d]\n", vout_idx);
                         ucoin_tx_free(&tx);
                         break;
                     }
@@ -3647,7 +3647,7 @@ static bool create_to_local_spent(ln_self_t *self,
                     if (ret) {
                         pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
                     } else {
-                        DBG_PRINTF("fail: sign vout[%d]\n", vout_idx);
+                        LOGD("fail: sign vout[%d]\n", vout_idx);
                         break;
                     }
                 }
@@ -3655,7 +3655,7 @@ static bool create_to_local_spent(ln_self_t *self,
 
                 htlc_num++;
             } else {
-                DBG_PRINTF("cut HTLC[%d] %" PRIu64 " > %" PRIu64 "\n",
+                LOGD("cut HTLC[%d] %" PRIu64 " > %" PRIu64 "\n",
                             vout_idx, pTxCommit->vout[vout_idx].value,
                             p_feeinfo->dust_limit_satoshi + fee_sat);
             }
@@ -3663,7 +3663,7 @@ static bool create_to_local_spent(ln_self_t *self,
     }
 
     if ((p_htlc_sigs != NULL) && (htlc_num != htlc_sigs_num)) {
-        DBG_PRINTF("署名数不一致: %d, %d\n", htlc_num, htlc_sigs_num);
+        LOGD("署名数不一致: %d, %d\n", htlc_num, htlc_sigs_num);
         ret = false;
     }
 
@@ -3720,10 +3720,10 @@ static bool create_to_local_close(ln_self_t *self,
     if (p_htlcinfo->type == LN_HTLCTYPE_RECEIVED) {
         //Receivedであればpreimageを所持している可能性がある
         ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
-        DBG_PRINTF("[received]%d\n", ret_img);
+        LOGD("[received]%d\n", ret_img);
     } else {
         ret_img = false;
-        DBG_PRINTF("[offered]%d\n", ret_img);
+        LOGD("[offered]%d\n", ret_img);
     }
 
     //署名:HTLC Success/Timeout Transaction
@@ -3739,13 +3739,13 @@ static bool create_to_local_close(ln_self_t *self,
     ucoin_buf_free(&buf_sig);
     ucoin_buf_free(&buf_local_sig);
     if (!ret) {
-        DBG_PRINTF("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
+        LOGD("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
         return false;
     }
 
     if ( ((p_htlcinfo->type == LN_HTLCTYPE_RECEIVED) && ret_img) ||
             (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ) {
-        DBG_PRINTF("create HTLC tx[%d]\n", htlc_num);
+        LOGD("create HTLC tx[%d]\n", htlc_num);
         M_DBG_PRINT_TX2(pTxHtlc);
         memcpy(&pTxHtlcs[htlc_num], pTxHtlc, sizeof(ucoin_tx_t));
 
@@ -3757,7 +3757,7 @@ static bool create_to_local_close(ln_self_t *self,
                     pTxHtlc->vout[0].value, to_self_delay,
                     pBufWs, txid, 0, false);
         if (ret) {
-            DBG_PRINTF("*** HTLC out Tx ***\n");
+            LOGD("*** HTLC out Tx ***\n");
             M_DBG_PRINT_TX2(&tx);
 
             //HTLC txから取り戻すtxをキューに積む
@@ -3767,7 +3767,7 @@ static bool create_to_local_close(ln_self_t *self,
         }
         ucoin_tx_init(pTxHtlc);     //txはfreeさせない(pTxHtlcsに任せる)
     } else {
-        DBG_PRINTF("skip create HTLC tx[%d]\n", htlc_num);
+        LOGD("skip create HTLC tx[%d]\n", htlc_num);
         ucoin_tx_init(&pTxHtlcs[htlc_num]);
     }
 
@@ -3806,7 +3806,7 @@ static bool create_to_remote(ln_self_t *self,
                     uint32_t to_self_delay,
                     uint64_t dust_limit_sat)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     bool ret;
     ucoin_buf_t buf_ws = UCOIN_BUF_INIT;
@@ -3837,18 +3837,18 @@ static bool create_to_remote(ln_self_t *self,
             pp_htlcinfo[cnt]->expiry = self->cnl_add_htlc[idx].cltv_expiry;
             pp_htlcinfo[cnt]->amount_msat = self->cnl_add_htlc[idx].amount_msat;
             pp_htlcinfo[cnt]->preimage_hash = self->cnl_add_htlc[idx].payment_sha256;
-            DBG_PRINTF(" [%d][id=%" PRIx64 "](%p)\n", idx, self->cnl_add_htlc[idx].id, self);
+            LOGD(" [%d][id=%" PRIx64 "](%p)\n", idx, self->cnl_add_htlc[idx].id, self);
             cnt++;
         }
     }
-    DBG_PRINTF("-------\n");
-    DBG_PRINTF("cnt=%d, htlc_num=%d\n", cnt, self->htlc_num);
-    DBG_PRINTF("(remote)our_msat   %" PRIu64 " --> %" PRIu64 "\n", self->their_msat, self->their_msat);
-    DBG_PRINTF("(remote)their_msat %" PRIu64 " --> %" PRIu64 "\n", self->our_msat, self->our_msat);
+    LOGD("-------\n");
+    LOGD("cnt=%d, htlc_num=%d\n", cnt, self->htlc_num);
+    LOGD("(remote)our_msat   %" PRIu64 " --> %" PRIu64 "\n", self->their_msat, self->their_msat);
+    LOGD("(remote)their_msat %" PRIu64 " --> %" PRIu64 "\n", self->our_msat, self->our_msat);
     for (int lp = 0; lp < cnt; lp++) {
-        DBG_PRINTF("  have HTLC[%d] %" PRIu64 " (%s)\n", lp, pp_htlcinfo[lp]->amount_msat, (pp_htlcinfo[lp]->type != LN_HTLCTYPE_RECEIVED) ? "received" : "offered");
+        LOGD("  have HTLC[%d] %" PRIu64 " (%s)\n", lp, pp_htlcinfo[lp]->amount_msat, (pp_htlcinfo[lp]->type != LN_HTLCTYPE_RECEIVED) ? "received" : "offered");
     }
-    DBG_PRINTF("-------\n");
+    LOGD("-------\n");
 
     //FEE(Remote)
     feeinfo.feerate_per_kw = self->feerate_per_kw;
@@ -3890,10 +3890,10 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    DBG_PRINTF("self->commit_remote.commit_num=%" PRIx64 "\n", self->commit_remote.commit_num + 1);
+    LOGD("self->commit_remote.commit_num=%" PRIx64 "\n", self->commit_remote.commit_num + 1);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->priv_data);
     if (ret) {
-        DBG_PRINTF("++++++++++++++ 相手のcommit tx: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
+        LOGD("++++++++++++++ 相手のcommit tx: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
         M_DBG_PRINT_TX(&tx_commit);
 
         ret = ucoin_tx_txid(self->commit_remote.txid, &tx_commit);
@@ -3922,7 +3922,7 @@ static bool create_to_remote(ln_self_t *self,
         }
     }
 
-    DBG_PRINTF("free: ret=%d\n", ret);
+    LOGD("free: ret=%d\n", ret);
     ucoin_buf_free(&buf_ws);
     for (int lp = 0; lp < cnt; lp++) {
         ln_htlcinfo_free(pp_htlcinfo[lp]);
@@ -3976,7 +3976,7 @@ static bool create_to_remote_spent(ln_self_t *self,
     bool ret = true;
     uint8_t htlc_num = 0;
 
-    DBG_PRINTF("remote spent\n");
+    LOGD("remote spent\n");
 
     ucoin_tx_t *pTxHtlcs = NULL;
     if (pClose != NULL) {
@@ -3997,9 +3997,9 @@ static bool create_to_remote_spent(ln_self_t *self,
         uint8_t htlc_idx = pTxCommit->vout[vout_idx].opt;
 
         if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
-            DBG_PRINTF("---[%d]to_local\n", vout_idx);
+            LOGD("---[%d]to_local\n", vout_idx);
         } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
-            DBG_PRINTF("---[%d]to_remote\n", vout_idx);
+            LOGD("---[%d]to_remote\n", vout_idx);
             if (pClose != NULL) {
                 ucoin_tx_t tx = UCOIN_TX_INIT;
 
@@ -4010,7 +4010,7 @@ static bool create_to_remote_spent(ln_self_t *self,
                     memcpy(&pClose->p_tx[LN_CLOSE_IDX_TOREMOTE], &tx, sizeof(tx));
                     ucoin_tx_init(&tx);     //txはfreeさせない
                 } else {
-                    DBG_PRINTF("no to_remote output\n");
+                    LOGD("no to_remote output\n");
                     ucoin_tx_free(&tx);
                     ret = true;     //継続する
                 }
@@ -4030,13 +4030,13 @@ static bool create_to_remote_spent(ln_self_t *self,
                         pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
                     }
                 } else {
-                    DBG_PRINTF("fail: sign vout[%d]\n", vout_idx);
+                    LOGD("fail: sign vout[%d]\n", vout_idx);
                     break;
                 }
 
                 htlc_num++;
             } else {
-                DBG_PRINTF("cut HTLC[%d] %" PRIu64 " > %" PRIu64 "\n",
+                LOGD("cut HTLC[%d] %" PRIu64 " > %" PRIu64 "\n",
                             vout_idx, pTxCommit->vout[vout_idx].value,
                             p_feeinfo->dust_limit_satoshi + fee_sat);
             }
@@ -4096,7 +4096,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
     bool ret;
     ucoin_tx_t tx = UCOIN_TX_INIT;
 
-    DBG_PRINTF("---[%d]%s HTLC\n", vout_idx, (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
+    LOGD("---[%d]%s HTLC\n", vout_idx, (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
     ln_create_htlc_tx(&tx, pTxCommit->vout[vout_idx].value - fee, pBufWs,
                 p_htlcinfo->type, p_htlcinfo->expiry,
                 self->commit_remote.txid, vout_idx);
@@ -4108,7 +4108,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
     if (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) {
         //remoteのoffered=localのreceivedなのでpreimageを所持している可能性がある
         ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
-        DBG_PRINTF("[offered]%d\n", ret_img);
+        LOGD("[offered]%d\n", ret_img);
         if (ret_img && (pTxHtlcs != NULL)) {
             //offeredかつpreimageがあるので、即時使用可能
             ucoin_buf_free(&tx.vout[0].script);      //HTLC Success Txを止める
@@ -4120,7 +4120,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
         }
     } else {
         ret_img = false;
-        DBG_PRINTF("[received]%d\n", ret_img);
+        LOGD("[received]%d\n", ret_img);
         if (pTxHtlcs != NULL) {
             //タイムアウト待ち
             ucoin_buf_free(&tx.vout[0].script);      //HTLC Success Txを止める
@@ -4147,19 +4147,19 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
     }
     ucoin_buf_free(&buf_sig);
     if (!ret) {
-        DBG_PRINTF("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
+        LOGD("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
         goto LABEL_EXIT;
     }
 
     if (pTxHtlcs != NULL) {
         if ( ((p_htlcinfo->type == LN_HTLCTYPE_OFFERED) && ret_img) ||
                 (p_htlcinfo->type == LN_HTLCTYPE_RECEIVED) ) {
-            DBG_PRINTF("create HTLC tx[%d]\n", htlc_num);
+            LOGD("create HTLC tx[%d]\n", htlc_num);
             M_DBG_PRINT_TX2(&tx);
             memcpy(&pTxHtlcs[htlc_num], &tx, sizeof(tx));
             ucoin_tx_init(&tx);     //txはfreeさせない(pTxHtlcsに任せる)
         } else {
-            DBG_PRINTF("skip create HTLC tx[%d]\n", htlc_num);
+            LOGD("skip create HTLC tx[%d]\n", htlc_num);
             ucoin_tx_init(&pTxHtlcs[htlc_num]);
         }
     }
@@ -4186,10 +4186,10 @@ LABEL_EXIT:
  */
 static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat, bool bVerify)
 {
-    DBG_PRINTF("BEGIN\n");
+    LOGD("BEGIN\n");
 
     if ((self->shutdown_scriptpk_local.len == 0) || (self->shutdown_scriptpk_remote.len == 0)) {
-        DBG_PRINTF("not mutual output set\n");
+        LOGD("not mutual output set\n");
         return false;
     }
 
@@ -4234,7 +4234,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat,
     ucoin_util_calc_sighash_p2wsh(sighash, pTx, 0, self->funding_sat, &self->redeem_fund);
     ret = ln_signer_p2wsh(&buf_sig, sighash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     if (!ret) {
-        DBG_PRINTF("fail: sign p2wsh\n");
+        LOGD("fail: sign p2wsh\n");
         ucoin_tx_free(pTx);
         return false;
     }
@@ -4258,14 +4258,14 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat,
         ret = ucoin_sw_verify_2of2(pTx, 0, sighash,
                         &self->tx_funding.vout[self->funding_local.txindex].script);
     } else {
-        DBG_PRINTF("no verify\n");
+        LOGD("no verify\n");
     }
     ucoin_buf_free(&buf_sig);
 
-    DBG_PRINTF("+++++++++++++ closing_tx[%" PRIx64 "]\n", self->short_channel_id);
+    LOGD("+++++++++++++ closing_tx[%" PRIx64 "]\n", self->short_channel_id);
     M_DBG_PRINT_TX(pTx);
 
-    DBG_PRINTF("END ret=%d\n", ret);
+    LOGD("END ret=%d\n", ret);
     return ret;
 }
 
@@ -4274,7 +4274,7 @@ static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat,
 //  short_channel_id決定後に呼び出す
 static bool create_local_channel_announcement(ln_self_t *self)
 {
-    DBG_PRINTF("short_channel_id=%016" PRIu64 "\n", self->short_channel_id);
+    LOGD("short_channel_id=%016" PRIu64 "\n", self->short_channel_id);
     ucoin_buf_free(&self->cnl_anno);
 
     ln_cnl_announce_create_t anno;
@@ -4411,14 +4411,14 @@ LABEL_EXIT:
         if (b) {
             //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
             //      temporary_channel_failure
-            DBG_PRINTF("fail: temporary_channel_failure\n");
+            LOGD("fail: temporary_channel_failure\n");
             ucoin_push_init(&push_htlc, pReason,
                                 sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
             ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
             ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
             ucoin_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
         } else {
-            DBG_PRINTF("fail: temporary_node_failure\n");
+            LOGD("fail: temporary_node_failure\n");
             ln_create_reason_temp_node(pReason);
         }
     }
@@ -4534,8 +4534,8 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
             ln_calc_preimage_hash(preimage_hash, pPreimage);
             if (memcmp(preimage_hash, pAddHtlc->payment_sha256, LN_SZ_HASH) == 0) {
                 //一致
-                DBG_PRINTF("match preimage: ");
-                DUMPBIN(pPreimage, LN_SZ_PREIMAGE);
+                LOGD("match preimage: ");
+                DUMPD(pPreimage, LN_SZ_PREIMAGE);
                 break;
             }
         }
@@ -4580,9 +4580,9 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     //C5. if the cltv_expiry value is unreasonably near the present:
     //      final_expiry_too_soon
     //          今のところ、min_final_cltv_expiryは固定値(#LN_MIN_FINAL_CLTV_EXPIRY)しかない。
-    DBG_PRINTF("outgoing_cltv_value=%" PRIu32 ", min_final_cltv_expiry=%" PRIu16 ", height=%" PRId32 "\n", pDataOut->outgoing_cltv_value, LN_MIN_FINAL_CLTV_EXPIRY, Height);
+    LOGD("outgoing_cltv_value=%" PRIu32 ", min_final_cltv_expiry=%" PRIu16 ", height=%" PRId32 "\n", pDataOut->outgoing_cltv_value, LN_MIN_FINAL_CLTV_EXPIRY, Height);
     if (pDataOut->outgoing_cltv_value < (uint32_t)Height + LN_MIN_FINAL_CLTV_EXPIRY) {
-        DBG_PRINTF("%" PRIu32 " < %" PRId32 "\n", pDataOut->outgoing_cltv_value, Height);
+        LOGD("%" PRIu32 " < %" PRId32 "\n", pDataOut->outgoing_cltv_value, Height);
         M_SET_ERR(self, LNERR_INV_VALUE, "cltv_expiry too soon(final)");
         ln_misc_push16be(pPushReason, LNONION_FINAL_EXPIRY_TOO_SOON);
 
@@ -4592,7 +4592,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     //C6. if the outgoing_cltv_value does NOT correspond with the cltv_expiry from the final node's HTLC:
     //      final_incorrect_cltv_expiry
     if (pDataOut->outgoing_cltv_value != pAddHtlc->cltv_expiry) {
-        DBG_PRINTF("%" PRIu32 " --- %" PRIu32 "\n", pDataOut->outgoing_cltv_value, ln_cltv_expily_delta(self));
+        LOGD("%" PRIu32 " --- %" PRIu32 "\n", pDataOut->outgoing_cltv_value, ln_cltv_expily_delta(self));
         M_SET_ERR(self, LNERR_INV_VALUE, "incorrect cltv expiry(final)");
         ln_misc_push16be(pPushReason, LNONION_FINAL_INCORR_CLTV_EXP);
         //[4:cltv_expiry]
@@ -4604,7 +4604,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     //C7. if the amt_to_forward is greater than the incoming_htlc_amt from the final node's HTLC:
     //      final_incorrect_htlc_amount
     if (pDataOut->amt_to_forward > pAddHtlc->amount_msat) {
-        DBG_PRINTF("%" PRIu64 " --- %" PRIu64 "\n", pDataOut->amt_to_forward, pAddHtlc->amount_msat);
+        LOGD("%" PRIu64 " --- %" PRIu64 "\n", pDataOut->amt_to_forward, pAddHtlc->amount_msat);
         M_SET_ERR(self, LNERR_INV_VALUE, "incorrect_payment_amount(final)");
         ln_misc_push16be(pPushReason, LNONION_FINAL_INCORR_HTLC_AMT);
         //[4:incoming_htlc_amt]
@@ -4681,7 +4681,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
 
         return false;
     }
-    DBG_PRINTF("short_channel_id=%" PRIx64 "\n", pDataOut->short_channel_id);
+    LOGD("short_channel_id=%" PRIx64 "\n", pDataOut->short_channel_id);
 
     //B8. if the HTLC amount is less than the currently specified minimum amount:
     //      amount_below_minimum
@@ -4733,9 +4733,9 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     //B11. if the cltv_expiry is unreasonably near the present:
     //      expiry_too_soon
     //      (report the current channel setting for the outgoing channel.)
-    DBG_PRINTF("cltv_value=%" PRIu32 ", expiry_delta=%" PRIu16 ", height=%" PRId32 "\n", pAddHtlc->cltv_expiry, cnlupd.cltv_expiry_delta, Height);
+    LOGD("cltv_value=%" PRIu32 ", expiry_delta=%" PRIu16 ", height=%" PRId32 "\n", pAddHtlc->cltv_expiry, cnlupd.cltv_expiry_delta, Height);
     if (pAddHtlc->cltv_expiry < (uint32_t)Height + cnlupd.cltv_expiry_delta) {
-        DBG_PRINTF("%" PRIu32 " < %" PRId32 " + %" PRIu16 "\n", pDataOut->outgoing_cltv_value, Height, cnlupd.cltv_expiry_delta);
+        LOGD("%" PRIu32 " < %" PRId32 " + %" PRIu16 "\n", pDataOut->outgoing_cltv_value, Height, cnlupd.cltv_expiry_delta);
         M_SET_ERR(self, LNERR_INV_VALUE, "expiry too soon : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
         ln_misc_push16be(pPushReason, LNONION_EXPIRY_TOO_SOON);
         //[2:len]
@@ -4783,28 +4783,28 @@ static bool check_recv_add_htlc_bolt4_common(ucoin_push_t *pPushReason)
  */
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret)
 {
-    //DBG_PRINTF("I=%" PRIx64 "\n", self->peer_storage_index);
-    //DUMPBIN(p_prev_secret, UCOIN_SZ_PRIVKEY);
+    //LOGD("I=%" PRIx64 "\n", self->peer_storage_index);
+    //DUMPD(p_prev_secret, UCOIN_SZ_PRIVKEY);
     uint8_t pub[UCOIN_SZ_PUBKEY];
     ucoin_keys_priv2pub(pub, p_prev_secret);
-    //DUMPBIN(pub, UCOIN_SZ_PUBKEY);
+    //DUMPD(pub, UCOIN_SZ_PUBKEY);
     bool ret = ln_derkey_storage_insert_secret(&self->peer_storage, p_prev_secret, self->peer_storage_index);
     if (ret) {
         self->peer_storage_index--;
         //ln_db_self_save(self);    //保存は呼び出し元で行う
-        DBG_PRINTF("I=%" PRIx64 " --> %" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
+        LOGD("I=%" PRIx64 " --> %" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
 
         //for (uint64_t idx = LN_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
-        //    DBG_PRINTF("I=%" PRIx64 "\n", idx);
-        //    DBG_PRINTF2("  ");
+        //    LOGD("I=%" PRIx64 "\n", idx);
+        //    LOGD2("  ");
         //    uint8_t sec[UCOIN_SZ_PRIVKEY];
         //    ret = ln_derkey_storage_get_secret(sec, &self->peer_storage, idx);
         //    assert(ret);
-        //    DBG_PRINTF2("  pri:");
-        //    DUMPBIN(sec, UCOIN_SZ_PRIVKEY);
-        //    DBG_PRINTF2("  pub:");
+        //    LOGD2("  pri:");
+        //    DUMPD(sec, UCOIN_SZ_PRIVKEY);
+        //    LOGD2("  pub:");
         //    ucoin_keys_priv2pub(pub, sec);
-        //    DUMPBIN(pub, UCOIN_SZ_PUBKEY);
+        //    DUMPD(pub, UCOIN_SZ_PUBKEY);
         //}
     } else {
         assert(0);
@@ -4869,7 +4869,7 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
             }
             memcpy(pNodeId, p_node_id, UCOIN_SZ_PUBKEY);
         } else {
-            DBG_PRINTF("ret=%d\n", ret);
+            LOGD("ret=%d\n", ret);
         }
     } else {
         if (short_channel_id == self->short_channel_id) {
@@ -4878,11 +4878,11 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
             if ( ((mydir == UCOIN_KEYS_SORT_ASC) && (Dir == 0)) ||
                  ((mydir == UCOIN_KEYS_SORT_OTHER) && (Dir == 1)) ) {
                 //自ノード
-                DBG_PRINTF("this channel: my node\n");
+                LOGD("this channel: my node\n");
                 memcpy(pNodeId, ln_node_getid(), UCOIN_SZ_PUBKEY);
             } else {
                 //相手ノード
-                DBG_PRINTF("this channel: peer node\n");
+                LOGD("this channel: peer node\n");
                 memcpy(pNodeId, self->peer_node_id, UCOIN_SZ_PUBKEY);
             }
             ret = true;
@@ -4897,20 +4897,20 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
 //HTLC削除
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add)
 {
-    DBG_PRINTF("HTLC remove prev: htlc_num=%d\n", self->htlc_num);
+    LOGD("HTLC remove prev: htlc_num=%d\n", self->htlc_num);
     assert(self->htlc_num > 0);
 
     ucoin_buf_free(&p_add->shared_secret);
     memset(p_add, 0, sizeof(ln_update_add_htlc_t));
     self->htlc_num--;
-    DBG_PRINTF("   --> htlc_num=%d\n", self->htlc_num);
+    LOGD("   --> htlc_num=%d\n", self->htlc_num);
 }
 
 
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
 {
     if (!LN_DBG_MATCH_PREIMAGE()) {
-        DBG_PRINTF("DBG: HTLC preimage mismatch\n");
+        LOGD("DBG: HTLC preimage mismatch\n");
         return false;
     }
 
@@ -4919,16 +4919,16 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
     void *p_cur;
     bool ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        DBG_PRINTF("ret=%d\n", ret);
+        LOGD("ret=%d\n", ret);
         ret = ln_db_preimg_cur_get(p_cur, pPreImage, &amount);
         if (ret) {
-            DBG_PRINTF("compare preimage : ");
-            DUMPBIN(pPreImage, UCOIN_SZ_PRIVKEY);
+            LOGD("compare preimage : ");
+            DUMPD(pPreImage, UCOIN_SZ_PRIVKEY);
             ln_calc_preimage_hash(preimage_hash, pPreImage);
             if (memcmp(preimage_hash, pHtlcHash, LN_SZ_HASH) == 0) {
                 //一致
-                DBG_PRINTF("preimage match!: ");
-                DUMPBIN(pPreImage, UCOIN_SZ_PRIVKEY);
+                LOGD("preimage match!: ");
+                DUMPD(pPreImage, UCOIN_SZ_PRIVKEY);
                 break;
             }
         }
@@ -4943,11 +4943,11 @@ static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id)
 {
     bool ret = (memcmp(recv_id, mine_id, LN_SZ_CHANNEL_ID) == 0);
     if (!ret) {
-        DBG_PRINTF("channel-id mismatch\n");
-        DBG_PRINTF("mine:");
-        DUMPBIN(mine_id, LN_SZ_CHANNEL_ID);
-        DBG_PRINTF("get :");
-        DUMPBIN(recv_id, LN_SZ_CHANNEL_ID);
+        LOGD("channel-id mismatch\n");
+        LOGD("mine:");
+        DUMPD(mine_id, LN_SZ_CHANNEL_ID);
+        LOGD("get :");
+        DUMPD(recv_id, LN_SZ_CHANNEL_ID);
         return false;
     }
 
@@ -4969,7 +4969,7 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
         pClose->p_htlc_idx[lp] = LN_CLOSE_IDX_NONE;
     }
     ucoin_buf_init(&pClose->tx_buf);
-    DBG_PRINTF("TX num: %d\n", pClose->num);
+    LOGD("TX num: %d\n", pClose->num);
 }
 
 
@@ -4981,13 +4981,13 @@ static void free_establish(ln_self_t *self, bool bEndEstablish)
 {
     if (self->p_establish != NULL) {
         if (self->p_establish->p_fundin != NULL) {
-            DBG_PRINTF("self->p_establish->p_fundin=%p\n", self->p_establish->p_fundin);
+            LOGD("self->p_establish->p_fundin=%p\n", self->p_establish->p_fundin);
             M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
-            DBG_PRINTF("free\n");
+            LOGD("free\n");
         }
         if (bEndEstablish) {
             M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
-            DBG_PRINTF("free\n");
+            LOGD("free\n");
         }
     }
     self->fund_flag = (ln_fundflag_t)(self->fund_flag & ~LN_FUNDFLAG_FUNDING);
@@ -5019,10 +5019,10 @@ static ucoin_keys_sort_t sort_nodeid(ln_self_t *self, const uint8_t *pNodeId)
         }
     }
     if ((lp < UCOIN_SZ_PUBKEY) && (p_nodeid[lp] < p_peerid[lp])) {
-        DBG_PRINTF("my node= first\n");
+        LOGD("my node= first\n");
         sort = UCOIN_KEYS_SORT_ASC;
     } else {
-        DBG_PRINTF("my node= second\n");
+        LOGD("my node= second\n");
         sort = UCOIN_KEYS_SORT_OTHER;
     }
 

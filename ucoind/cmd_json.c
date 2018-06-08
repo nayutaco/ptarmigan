@@ -150,7 +150,7 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
                         nodestr, pIpAddr, Port);
 
     int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
-    DBG_PRINTF("retval=%d\n", retval);
+    LOGD("retval=%d\n", retval);
 
     return retval;
 }
@@ -158,12 +158,12 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
 
 int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat)
 {
-    DBG_PRINTF("invoice:%s\n", pInvoice);
+    LOGD("invoice:%s\n", pInvoice);
     char *json = (char *)APP_MALLOC(M_SZ_JSONSTR);      //APP_FREE: この中
     snprintf(json, M_SZ_JSONSTR,
         "{\"method\":\"routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", pInvoice, AddAmountMsat);
     int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
-    DBG_PRINTF("retval=%d\n", retval);
+    LOGD("retval=%d\n", retval);
     APP_FREE(json);     //APP_MALLOC: この中
 
     return retval;
@@ -181,7 +181,7 @@ int cmd_json_pay_retry(const uint8_t *pPayHash)
     if (ret) {
         retval = cmd_json_pay(p_invoice, add_amount_msat);
     } else {
-        DBG_PRINTF("fail: invoice not found\n");
+        LOGD("fail: invoice not found\n");
     }
     free(p_invoice);
 
@@ -347,7 +347,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
         misc_str2bin_rev(fundconf.txid, UCOIN_SZ_TXID, json->valuestring);
-        DBG_PRINTF("txid=%s\n", json->valuestring);
+        LOGD("txid=%s\n", json->valuestring);
     } else {
         goto LABEL_EXIT;
     }
@@ -355,7 +355,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
         fundconf.txindex = json->valueint;
-        DBG_PRINTF("txindex=%d\n", json->valueint);
+        LOGD("txindex=%d\n", json->valueint);
     } else {
         goto LABEL_EXIT;
     }
@@ -363,7 +363,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
         strcpy(fundconf.signaddr, json->valuestring);
-        DBG_PRINTF("signaddr=%s\n", json->valuestring);
+        LOGD("signaddr=%s\n", json->valuestring);
     } else {
         goto LABEL_EXIT;
     }
@@ -371,7 +371,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
         fundconf.funding_sat = json->valueu64;
-        DBG_PRINTF("funding_sat=%" PRIu64 "\n", fundconf.funding_sat);
+        LOGD("funding_sat=%" PRIu64 "\n", fundconf.funding_sat);
     } else {
         goto LABEL_EXIT;
     }
@@ -379,7 +379,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
         fundconf.push_sat = json->valueu64;
-        DBG_PRINTF("push_sat=%" PRIu64 "\n", fundconf.push_sat);
+        LOGD("push_sat=%" PRIu64 "\n", fundconf.push_sat);
     } else {
         goto LABEL_EXIT;
     }
@@ -387,7 +387,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
         fundconf.feerate_per_kw = (uint32_t)json->valueu64;
-        DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", fundconf.feerate_per_kw);
+        LOGD("feerate_per_kw=%" PRIu32 "\n", fundconf.feerate_per_kw);
     } else {
         //スルー
     }
@@ -429,7 +429,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
         amount = json->valueu64;
-        DBG_PRINTF("amount=%" PRIu64 "\n", amount);
+        LOGD("amount=%" PRIu64 "\n", amount);
     } else {
         goto LABEL_EXIT;
     }
@@ -452,7 +452,7 @@ LABEL_EXIT:
 
             free(p_invoice);
         } else {
-            DBG_PRINTF("fail: BOLT11 format\n");
+            LOGD("fail: BOLT11 format\n");
             err = RPCERR_PARSE;
         }
     }
@@ -486,7 +486,7 @@ static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
     if (strlen(json->valuestring) > 0) {
-        DBG_PRINTF("erase hash: %s\n", json->valuestring);
+        LOGD("erase hash: %s\n", json->valuestring);
         misc_str2bin(preimage_hash, sizeof(preimage_hash), json->valuestring);
         err = cmd_eraseinvoice_proc(preimage_hash);
     } else {
@@ -563,7 +563,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     //blockcount
     int32_t blockcnt = btcrpc_getblockcount();
-    DBG_PRINTF("blockcnt=%d\n", blockcnt);
+    LOGD("blockcnt=%d\n", blockcnt);
     if (blockcnt < 0) {
         index = -1;
         goto LABEL_EXIT;
@@ -573,7 +573,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
         misc_str2bin(payconf.payment_hash, LN_SZ_HASH, json->valuestring);
-        DBG_PRINTF("payment_hash=%s\n", json->valuestring);
+        LOGD("payment_hash=%s\n", json->valuestring);
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -581,7 +581,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
         payconf.hop_num = json->valueint;
-        DBG_PRINTF("hop_num=%d\n", json->valueint);
+        LOGD("hop_num=%d\n", json->valueint);
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -589,7 +589,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
     //array
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Array)) {
-        DBG_PRINTF("trace array\n");
+        LOGD("trace array\n");
     } else {
         index = -1;
         goto LABEL_EXIT;
@@ -598,20 +598,20 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
     for (int lp = 0; lp < payconf.hop_num; lp++) {
         ln_hop_datain_t *p = &payconf.hop_datain[lp];
 
-        DBG_PRINTF("loop=%d\n", lp);
+        LOGD("loop=%d\n", lp);
         cJSON *jarray = cJSON_GetArrayItem(json, lp);
         if (jarray && (jarray->type == cJSON_Array)) {
             //[node_id, short_channel_id, amt_to_forward, outgoing_cltv_value]
 
             //node_id
             cJSON *jprm = cJSON_GetArrayItem(jarray, 0);
-            DBG_PRINTF("jprm=%p\n", jprm);
+            LOGD("jprm=%p\n", jprm);
             if (jprm && (jprm->type == cJSON_String)) {
                 misc_str2bin(p->pubkey, UCOIN_SZ_PUBKEY, jprm->valuestring);
-                DBG_PRINTF("  node_id=");
-                DUMPBIN(p->pubkey, UCOIN_SZ_PUBKEY);
+                LOGD("  node_id=");
+                DUMPD(p->pubkey, UCOIN_SZ_PUBKEY);
             } else {
-                DBG_PRINTF("fail: p=%p\n", jprm);
+                LOGD("fail: p=%p\n", jprm);
                 index = -1;
                 goto LABEL_EXIT;
             }
@@ -619,9 +619,9 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
             jprm = cJSON_GetArrayItem(jarray, 1);
             if (jprm && (jprm->type == cJSON_String)) {
                 p->short_channel_id = strtoull(jprm->valuestring, NULL, 16);
-                DBG_PRINTF("  short_channel_id=%016" PRIx64 "\n", p->short_channel_id);
+                LOGD("  short_channel_id=%016" PRIx64 "\n", p->short_channel_id);
             } else {
-                DBG_PRINTF("fail: p=%p\n", jprm);
+                LOGD("fail: p=%p\n", jprm);
                 index = -1;
                 goto LABEL_EXIT;
             }
@@ -629,9 +629,9 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
             jprm = cJSON_GetArrayItem(jarray, 2);
             if (jprm && (jprm->type == cJSON_Number)) {
                 p->amt_to_forward = jprm->valueu64;
-                DBG_PRINTF("  amt_to_forward=%" PRIu64 "\n", p->amt_to_forward);
+                LOGD("  amt_to_forward=%" PRIu64 "\n", p->amt_to_forward);
             } else {
-                DBG_PRINTF("fail: p=%p\n", jprm);
+                LOGD("fail: p=%p\n", jprm);
                 index = -1;
                 goto LABEL_EXIT;
             }
@@ -639,20 +639,20 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
             jprm = cJSON_GetArrayItem(jarray, 3);
             if (jprm && (jprm->type == cJSON_Number)) {
                 p->outgoing_cltv_value = jprm->valueint + blockcnt;
-                DBG_PRINTF("  outgoing_cltv_value=%u\n", p->outgoing_cltv_value);
+                LOGD("  outgoing_cltv_value=%u\n", p->outgoing_cltv_value);
             } else {
-                DBG_PRINTF("fail: p=%p\n", jprm);
+                LOGD("fail: p=%p\n", jprm);
                 index = -1;
                 goto LABEL_EXIT;
             }
         } else {
-            DBG_PRINTF("fail: p=%p\n", jarray);
+            LOGD("fail: p=%p\n", jarray);
             index = -1;
             goto LABEL_EXIT;
         }
     }
 
-    DBG_PRINTF("payment\n");
+    LOGD("payment\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
@@ -698,7 +698,7 @@ LABEL_EXIT:
  */
 static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    DBG_PRINTF("routepay_first\n");
+    LOGD("routepay_first\n");
     ln_db_annoskip_drop(true);
     mPayTryCount = 0;
     return cmd_routepay(ctx, params, id);
@@ -712,7 +712,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
-    DBG_PRINTF("routepay\n");
+    LOGD("routepay\n");
 
     int err = RPCERR_PARSE;
     cJSON *result = NULL;
@@ -734,7 +734,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (json && (json->type == cJSON_String)) {
         p_invoice = strdup(json->valuestring);
     } else {
-        DBG_PRINTF("fail: invalid invoice string\n");
+        LOGD("fail: invalid invoice string\n");
         goto LABEL_EXIT;
     }
 
@@ -742,21 +742,21 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (json && (json->type == cJSON_Number)) {
         add_amount_msat = json->valueu64;
     } else {
-        DBG_PRINTF("fail: invalid add amount_msat\n");
+        LOGD("fail: invalid add amount_msat\n");
         goto LABEL_EXIT;
     }
 
     err = cmd_routepay_proc1(&p_invoice_data, &rt_ret,
                     p_invoice, add_amount_msat);
     if (err != 0) {
-        DBG_PRINTF("fail: pay1\n");
+        LOGD("fail: pay1\n");
         goto LABEL_EXIT;
     }
 
     // 送金開始
     //      ここまでで送金ルートは作成済み
     //      これ以降は失敗してもリトライする
-    DBG_PRINTF("routepay: pay1\n");
+    LOGD("routepay: pay1\n");
     retry = true;
 
     //再送のためにinvoice保存
@@ -764,7 +764,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (err == RPCERR_PAY_RETRY) {
         //送金
         cmd_json_pay(p_invoice, add_amount_msat);
-        DBG_PRINTF("retry: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
+        LOGD("retry: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
     }
 
 LABEL_EXIT:
@@ -782,7 +782,7 @@ LABEL_EXIT:
         ucoin_util_bin2str(str_payhash, p_invoice_data->payment_hash, LN_SZ_HASH);
 
         sprintf(mLastPayErr, "[%s]payment fail", date);
-        DBG_PRINTF("%s\n", mLastPayErr);
+        LOGD("%s\n", mLastPayErr);
         misc_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
 
         ctx->error_code = err;
@@ -854,15 +854,15 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    DBG_PRINTF("getlasterror\n");
+    LOGD("getlasterror\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
         //接続中
-        DBG_PRINTF("error code: %d\n", p_appconf->err);
+        LOGD("error code: %d\n", p_appconf->err);
         ctx->error_code = p_appconf->err;
         if (p_appconf->p_errstr != NULL) {
-            DBG_PRINTF("error msg: %s\n", p_appconf->p_errstr);
+            LOGD("error msg: %s\n", p_appconf->p_errstr);
             ctx->error_message = p_appconf->p_errstr;
         }
     } else {
@@ -903,16 +903,16 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
         ln_set_debug(dbg);
         sprintf(str, "%08lx", dbg);
         if (!LN_DBG_FULFILL()) {
-            DBG_PRINTF("no fulfill return\n");
+            LOGD("no fulfill return\n");
         }
         if (!LN_DBG_CLOSING_TX()) {
-            DBG_PRINTF("no closing tx\n");
+            LOGD("no closing tx\n");
         }
         if (!LN_DBG_MATCH_PREIMAGE()) {
-            DBG_PRINTF("force preimage mismatch\n");
+            LOGD("force preimage mismatch\n");
         }
         if (!LN_DBG_NODE_AUTO_CONNECT()) {
-            DBG_PRINTF("no node Auto connect\n");
+            LOGD("no node Auto connect\n");
         }
         cJSON_AddItemToObject(result, "new", cJSON_CreateString(str));
     } else {
@@ -943,7 +943,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    DBG_PRINTF("getcommittx\n");
+    LOGD("getcommittx\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
     if (p_appconf != NULL) {
@@ -1048,13 +1048,13 @@ static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id)
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number) && (json->valueu64 <= UINT32_MAX)) {
         feerate_per_kw = (uint32_t)json->valueu64;
-        DBG_PRINTF("feerate_per_kw=%" PRIu32 "\n", feerate_per_kw);
+        LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_per_kw);
     } else {
         index = -1;
         goto LABEL_EXIT;
     }
 
-    DBG_PRINTF("setfeerate\n");
+    LOGD("setfeerate\n");
     monitor_set_feerate_per_kw(feerate_per_kw);
     result = cJSON_CreateString(kOK);
 
@@ -1079,7 +1079,7 @@ LABEL_EXIT:
  */
 static int cmd_connect_proc(const daemon_connect_t *pConn, jrpc_context *ctx)
 {
-    DBG_PRINTF("connect\n");
+    LOGD("connect\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(pConn->node_id);
     if (p_appconf != NULL) {
@@ -1115,7 +1115,7 @@ static int cmd_connect_proc(const daemon_connect_t *pConn, jrpc_context *ctx)
  */
 static int cmd_disconnect_proc(const uint8_t *pNodeId)
 {
-    DBG_PRINTF("disconnect\n");
+    LOGD("disconnect\n");
 
     int err;
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(pNodeId);
@@ -1136,7 +1136,7 @@ static int cmd_disconnect_proc(const uint8_t *pNodeId)
  */
 static int cmd_stop_proc(void)
 {
-    DBG_PRINTF("stop\n");
+    LOGD("stop\n");
 
     p2p_svr_stop_all();
     p2p_cli_stop_all();
@@ -1154,7 +1154,7 @@ static int cmd_stop_proc(void)
  */
 static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund)
 {
-    DBG_PRINTF("fund\n");
+    LOGD("fund\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(pNodeId);
     if (p_appconf == NULL) {
@@ -1197,7 +1197,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund)
  */
 static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
 {
-    DBG_PRINTF("invoice\n");
+    LOGD("invoice\n");
 
     uint8_t preimage[LN_SZ_PREIMAGE];
 
@@ -1261,7 +1261,7 @@ static int cmd_routepay_proc1(
 
     //blockcount
     int32_t blockcnt = btcrpc_getblockcount();
-    DBG_PRINTF("blockcnt=%d\n", blockcnt);
+    LOGD("blockcnt=%d\n", blockcnt);
     if (blockcnt < 0) {
         return RPCERR_BLOCKCHAIN;
     }
@@ -1273,7 +1273,7 @@ static int cmd_routepay_proc1(
                     p_invoice_data->amount_msat,
                     p_invoice_data->r_field_num, p_invoice_data->r_field);
     if (rerr != LNROUTE_NONE) {
-        DBG_PRINTF("fail: routing\n");
+        LOGD("fail: routing\n");
         switch (rerr) {
         case LNROUTE_NOTFOUND:
             return LNERR_ROUTE_NOTFOUND;
@@ -1307,15 +1307,15 @@ static int cmd_routepay_proc2(
     //再送のためにinvoice保存
     (void)ln_db_invoice_save(pInvoiceStr, AddAmountMsat, pInvoiceData->payment_hash);
 
-    DBG_PRINTF("-----------------------------------\n");
+    LOGD("-----------------------------------\n");
     for (int lp = 0; lp < pRouteResult->hop_num; lp++) {
-        DBG_PRINTF("node_id[%d]: ", lp);
-        DUMPBIN(pRouteResult->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
-        DBG_PRINTF("  amount_msat: %" PRIu64 "\n", pRouteResult->hop_datain[lp].amt_to_forward);
-        DBG_PRINTF("  cltv_expiry: %" PRIu32 "\n", pRouteResult->hop_datain[lp].outgoing_cltv_value);
-        DBG_PRINTF("  short_channel_id: %" PRIx64 "\n", pRouteResult->hop_datain[lp].short_channel_id);
+        LOGD("node_id[%d]: ", lp);
+        DUMPD(pRouteResult->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY);
+        LOGD("  amount_msat: %" PRIu64 "\n", pRouteResult->hop_datain[lp].amt_to_forward);
+        LOGD("  cltv_expiry: %" PRIu32 "\n", pRouteResult->hop_datain[lp].outgoing_cltv_value);
+        LOGD("  short_channel_id: %" PRIx64 "\n", pRouteResult->hop_datain[lp].short_channel_id);
     }
-    DBG_PRINTF("-----------------------------------\n");
+    LOGD("-----------------------------------\n");
 
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(pRouteResult->hop_datain[1].pubkey);
     if (p_appconf != NULL) {
@@ -1329,18 +1329,18 @@ static int cmd_routepay_proc2(
 
             bool ret = lnapp_payment(p_appconf, &payconf);
             if (ret) {
-                DBG_PRINTF("start payment\n");
+                LOGD("start payment\n");
                 err = 0;
             } else {
-                DBG_PRINTF("fail: lnapp_payment\n");
+                LOGD("fail: lnapp_payment\n");
                 ln_db_annoskip_save(pRouteResult->hop_datain[0].short_channel_id, true);
             }
         } else {
             //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
-            DBG_PRINTF("fail: not inited\n");
+            LOGD("fail: not inited\n");
         }
     } else {
-        DBG_PRINTF("fail: not connect\n");
+        LOGD("fail: not connect\n");
     }
 
     mPayTryCount++;
@@ -1369,7 +1369,7 @@ static int cmd_routepay_proc2(
  */
 static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId)
 {
-    DBG_PRINTF("close\n");
+    LOGD("close\n");
 
     int err;
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(pNodeId);
@@ -1380,7 +1380,7 @@ static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId)
             err = 0;
             *bMutual = true;
         } else {
-            DBG_PRINTF("fail: mutual  close\n");
+            LOGD("fail: mutual  close\n");
             err = RPCERR_CLOSE_START;
         }
     } else {
@@ -1391,13 +1391,13 @@ static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId)
             //  相手とのチャネルがあるので、接続自体は可能かもしれない。
             //  closeの仕方については、仕様や運用とも関係が深いので、後で変更することになるだろう。
             //  今は、未接続の場合は mutual close以外で閉じることにする。
-            DBG_PRINTF("チャネルはあるが接続していない\n");
+            LOGD("チャネルはあるが接続していない\n");
             bool ret = lnapp_close_channel_force(pNodeId);
             if (ret) {
                 err = 0;
                 *bMutual = false;
             } else {
-                DBG_PRINTF("fail: unilateral close\n");
+                LOGD("fail: unilateral close\n");
                 err = RPCERR_CLOSE_FAIL;
             }
         } else {
@@ -1430,34 +1430,34 @@ static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn)
     if (json && (json->type == cJSON_String)) {
         bool ret = misc_str2bin(pConn->node_id, UCOIN_SZ_PUBKEY, json->valuestring);
         if (ret) {
-            DBG_PRINTF("pConn->node_id=%s\n", json->valuestring);
+            LOGD("pConn->node_id=%s\n", json->valuestring);
         } else {
-            DBG_PRINTF("fail: invalid node_id string\n");
+            LOGD("fail: invalid node_id string\n");
             return false;
         }
     } else {
-        DBG_PRINTF("fail: node_id\n");
+        LOGD("fail: node_id\n");
         return false;
     }
     if (memcmp(ln_node_getid(), pConn->node_id, UCOIN_SZ_PUBKEY) == 0) {
         //node_idが自分と同じ
-        DBG_PRINTF("fail: same own node_id\n");
+        LOGD("fail: same own node_id\n");
         return false;
     }
     json = cJSON_GetArrayItem(params, (*pIndex)++);
     if (json && (json->type == cJSON_String)) {
         strcpy(pConn->ipaddr, json->valuestring);
-        DBG_PRINTF("pConn->ipaddr=%s\n", json->valuestring);
+        LOGD("pConn->ipaddr=%s\n", json->valuestring);
     } else {
-        DBG_PRINTF("fail: ipaddr\n");
+        LOGD("fail: ipaddr\n");
         return false;
     }
     json = cJSON_GetArrayItem(params, (*pIndex)++);
     if (json && (json->type == cJSON_Number)) {
         pConn->port = json->valueint;
-        DBG_PRINTF("pConn->port=%d\n", json->valueint);
+        LOGD("pConn->port=%d\n", json->valueint);
     } else {
-        DBG_PRINTF("fail: port\n");
+        LOGD("fail: port\n");
         return false;
     }
 

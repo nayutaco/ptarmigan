@@ -319,7 +319,7 @@ ucoin_genesis_t ucoin_util_get_genesis(const uint8_t *pGenesisHash)
     } else if (memcmp(pGenesisHash, M_BTC_GENESIS_REGTEST, UCOIN_SZ_HASH256) == 0) {
         ret = UCOIN_GENESIS_BTCREGTEST;
     } else {
-        DBG_PRINTF("unknown genesis hash\n");
+        LOGD("unknown genesis hash\n");
         ret = UCOIN_GENESIS_UNKNOWN;
     }
     return ret;
@@ -336,7 +336,7 @@ const uint8_t *ucoin_util_get_genesis_block(ucoin_genesis_t kind)
     case UCOIN_GENESIS_BTCREGTEST:
         return M_BTC_GENESIS_REGTEST;
     default:
-        DBG_PRINTF("unknown kind: %02x\n", kind);
+        LOGD("unknown kind: %02x\n", kind);
     }
 
     return NULL;
@@ -626,22 +626,22 @@ void HIDDEN ucoin_util_create_scriptpk(ucoin_buf_t *pBuf, const uint8_t *pPubKey
 {
     switch (Prefix) {
     case UCOIN_PREF_P2PKH:
-        //DBG_PRINTF("UCOIN_PREF_P2PKH\n");
+        //LOGD("UCOIN_PREF_P2PKH\n");
         ucoin_buf_alloc(pBuf, 3 + UCOIN_SZ_HASH160 + 2);
         create_scriptpk_p2pkh(pBuf->buf, pPubKeyHash);
         break;
     case UCOIN_PREF_P2SH:
-        //DBG_PRINTF("UCOIN_PREF_P2SH\n");
+        //LOGD("UCOIN_PREF_P2SH\n");
         ucoin_buf_alloc(pBuf, 2 + UCOIN_SZ_HASH160 + 1);
         create_scriptpk_p2sh(pBuf->buf, pPubKeyHash);
         break;
     case UCOIN_PREF_NATIVE:
-        //DBG_PRINTF("UCOIN_PREF_NATIVE\n");
+        //LOGD("UCOIN_PREF_NATIVE\n");
         ucoin_buf_alloc(pBuf, 2 + UCOIN_SZ_HASH160);
         create_scriptpk_native(pBuf->buf, pPubKeyHash, UCOIN_SZ_HASH160);
         break;
     case UCOIN_PREF_NATIVE_SH:
-        //DBG_PRINTF("UCOIN_PREF_NATIVE_SH\n");
+        //LOGD("UCOIN_PREF_NATIVE_SH\n");
         ucoin_buf_alloc(pBuf, 2 + UCOIN_SZ_SHA256);
         create_scriptpk_native(pBuf->buf, pPubKeyHash, UCOIN_SZ_SHA256);
         break;
@@ -871,7 +871,7 @@ bool HIDDEN ucoin_util_create_tx(ucoin_buf_t *pBuf, const ucoin_tx_t *pTx, bool 
     //locktime
     len += sizeof(uint32_t);
 
-    //DBG_PRINTF("len=%d\n", len);
+    //LOGD("len=%d\n", len);
 
     pBuf->len = len;
     pBuf->buf = (uint8_t *)M_MALLOC(len);
