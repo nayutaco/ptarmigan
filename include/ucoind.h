@@ -117,33 +117,27 @@ static inline int tid() {
 
 #ifdef UCOIN_USE_ULOG
 #include "ulog.h"
-#define DBG_PRINTF(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 1, "APP", __VA_ARGS__)
-#define DBG_PRINTF2(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __VA_ARGS__)
-#define DUMPBIN(dt,ln) {\
-    char *p_str = (char *)malloc(ln * 2 + 1);   \
-    ucoin_util_bin2str(p_str, dt, ln);          \
-    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", "%s\n", p_str);  \
-    free(p_str); \
-}
-#define DUMPTXID(dt) {\
-    char *p_str = (char *)malloc(UCOIN_SZ_TXID * 2 + 1);   \
-    ucoin_util_bin2str_rev(p_str, dt, UCOIN_SZ_TXID);      \
-    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", "%s\n", p_str);  \
-    free(p_str);                \
-}
+#define LOGV(...)       ulog_write(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 1, "APP", __VA_ARGS__)
+#define DUMPV(dt,ln)    ulog_dump(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, "APP", dt, ln)
+#define TXIDV(dt)       ulog_dump_rev(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, "APP", dt, UCOIN_SZ_TXID)
+
+#define LOGD(...)       ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 1, "APP", __VA_ARGS__)
+#define LOGD2(...)      ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __VA_ARGS__)
+#define DUMPD(dt,ln)    ulog_dump(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", dt, ln)
+#define TXIDD(dt)       ulog_dump_rev(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", dt, UCOIN_SZ_TXID)
 
 #else   //UCOIN_USE_ULOG
 #define DEBUGOUT        stderr
 
-/// @def    DBG_PRINTF(format, ...)
+/// @def    LOGD(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
-#define DBG_PRINTF(format, ...) {fprintf(DEBUGOUT, "%lu[%d]%s[%s:%d]", (unsigned long)time(NULL), tid(), __func__, __FILE__, __LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
-#define DBG_PRINTF2(format, ...) {fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
+#define LOGD(format, ...) {fprintf(DEBUGOUT, "%lu[%d]%s[%s:%d]", (unsigned long)time(NULL), tid(), __func__, __FILE__, __LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
+#define LOGD2(format, ...) {fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
 
-/// @def    DUMPBIN(dt,ln)
+/// @def    DUMPD(dt,ln)
 /// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
-#define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
-#define DUMPTXID(dt)        {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
+#define DUMPD(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
+#define TXIDD(dt)        {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
 
 #endif  //UCOIN_USE_ULOG
 
@@ -157,10 +151,10 @@ static inline int tid() {
 
 #else //UCOIN_DEBUG
 
-#define DBG_PRINTF(...)     //none
-#define DBG_PRINTF2(...)    //none
-#define DUMPBIN(...)        //none
-#define DUMPTXID(...)       //none
+#define LOGD(...)     //none
+#define LOGD2(...)    //none
+#define DUMPD(...)        //none
+#define TXIDD(...)       //none
 #define DBGTRACE_BEGIN
 #define DBGTRACE_END
 

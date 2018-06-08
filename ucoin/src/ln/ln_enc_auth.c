@@ -110,7 +110,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     //ephemeral key
     ret = ucoin_util_createkeys(&pBolt->e);
     if (!ret) {
-        DBG_PRINTF("fail: ephemeral key\n");
+        LOGD("fail: ephemeral key\n");
         return false;
     }
 
@@ -123,11 +123,11 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
 
     if (pNodeId != NULL) {
         //noise handshake initiator
-        DBG_PRINTF("initiator\n");
+        LOGD("initiator\n");
         pBolt->state = START_INITIATOR;
     } else {
         //nose handshake responder
-        DBG_PRINTF("responder\n");
+        LOGD("responder\n");
         pNodeId = ln_node_getid();
         pBolt->state = WAIT_ACT_ONE;
     }
@@ -143,7 +143,7 @@ bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, cons
     struct bolt8 *pBolt = (struct bolt8 *)self->p_handshake;
 
     if ((pBolt == NULL) || (pBolt->state != START_INITIATOR)) {
-        DBG_PRINTF("fail: not initiator\n");
+        LOGD("fail: not initiator\n");
         return false;
     }
 
@@ -166,7 +166,7 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf)
     bool ret;
 
     if (pBolt == NULL) {
-        DBG_PRINTF("fail: handshake ended\n");
+        LOGD("fail: handshake ended\n");
         return false;
     }
 
@@ -239,12 +239,12 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_b
                     NULL,                       //combined modeではNULL
                     nonce, self->noise_send.key);     //nonce, key
     if ((rc != 0) || (cllen != sizeof(l) + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
     self->noise_send.nonce++;
     if (self->noise_send.nonce == 1000) {
-        DBG_PRINTF("???: This root shall not in.\n");
+        LOGD("???: This root shall not in.\n");
         goto LABEL_EXIT;
     }
     memcpy(nonce + 4, &self->noise_send.nonce, sizeof(uint64_t));
@@ -256,7 +256,7 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_b
                     NULL,                       //combined modeではNULL
                     nonce, self->noise_send.key);     //nonce, key
     if ((rc != 0) || (cmlen != pBufIn->len + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
     self->noise_send.nonce++;
@@ -301,15 +301,15 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
                     NULL, 0,  //additional data
                     nonce, self->noise_recv.key);      //nonce, key
     if ((rc != 0) || (pllen != sizeof(uint16_t))) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
-        DBG_PRINTF("sn=%" PRIu64 ", rn=%" PRIu64 "\n", self->noise_send.nonce, self->noise_recv.nonce);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGD("sn=%" PRIu64 ", rn=%" PRIu64 "\n", self->noise_send.nonce, self->noise_recv.nonce);
         goto LABEL_EXIT;
     }
     self->noise_recv.nonce++;
     if (self->noise_recv.nonce == 1000) {
         //key rotation
         //ck', k' = HKDF(ck, k)
-        DBG_PRINTF("???: This root shall not in.\n");
+        LOGD("???: This root shall not in.\n");
         goto LABEL_EXIT;
     }
 
@@ -339,7 +339,7 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, ucoin_buf_t *pBuf)
                     NULL, 0,  //additional data
                     nonce, self->noise_recv.key);      //nonce, key
     if ((rc != 0) || (pmlen != l)) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
     self->noise_recv.nonce++;
@@ -376,7 +376,7 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
     uint8_t ikm_len = (pIkm) ? UCOIN_SZ_SHA256 : 0;
     ret = ucoin_util_calc_mac(prk, pSalt, UCOIN_SZ_SHA256, pIkm, ikm_len);
     if (!ret) {
-        DBG_PRINTF("fail: calc_mac\n");
+        LOGD("fail: calc_mac\n");
         return false;
     }
 
@@ -426,7 +426,7 @@ static bool actone_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRS
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (clen != sizeof(c))) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 
@@ -459,8 +459,8 @@ static bool actone_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     int rc;
 
     if ((pBuf->len != 50) || (pBuf->buf[0] != 0x00)) {
-        DBG_PRINTF("fail: invalid length=%d\n", pBuf->len);
-        DUMPBIN(pBuf->buf, pBuf->len);
+        LOGD("fail: invalid length=%d\n", pBuf->len);
+        DUMPD(pBuf->buf, pBuf->len);
         goto LABEL_EXIT;
     }
     memcpy(re, pBuf->buf + 1, sizeof(re));
@@ -484,7 +484,7 @@ static bool actone_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
                     pBolt->h, UCOIN_SZ_SHA256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (plen != 0)) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 
@@ -526,7 +526,7 @@ static bool acttwo_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pRE
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (clen != sizeof(c))) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 
@@ -559,7 +559,7 @@ static bool acttwo_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     int rc;
 
     if ((pBuf->len != 50) || (pBuf->buf[0] != 0x00)) {
-        DBG_PRINTF("fail: invalid length : len=%d, ver=%02x\n", pBuf->len, pBuf->buf[0]);
+        LOGD("fail: invalid length : len=%d, ver=%02x\n", pBuf->len, pBuf->buf[0]);
         goto LABEL_EXIT;
     }
     memcpy(re, pBuf->buf + 1, sizeof(re));
@@ -583,7 +583,7 @@ static bool acttwo_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
                     pBolt->h, UCOIN_SZ_SHA256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (plen != 0)) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 
@@ -619,7 +619,7 @@ static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *p
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (clen != sizeof(c))) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 
@@ -641,7 +641,7 @@ static bool actthree_sender(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *p
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (tlen != sizeof(t))) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 
@@ -676,7 +676,7 @@ static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
     int rc;
 
     if ((pBuf->len != 66) || (pBuf->buf[0] != 0x00)) {
-        DBG_PRINTF("fail: invalid length\n");
+        LOGD("fail: invalid length\n");
         goto LABEL_EXIT;
     }
     memcpy(c, pBuf->buf + 1, sizeof(c));
@@ -692,11 +692,11 @@ static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
                     pBolt->h, UCOIN_SZ_SHA256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (rslen != sizeof(rs))) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
-    DBG_PRINTF("rs=");
-    DUMPBIN(rs, sizeof(rs));
+    LOGD("rs=");
+    DUMPD(rs, sizeof(rs));
 
     // h = SHA-256(h || c)
     ucoin_util_sha256cat(pBolt->h, pBolt->h, UCOIN_SZ_SHA256, c, sizeof(c));
@@ -716,7 +716,7 @@ static bool actthree_receiver(ln_self_t *self, ucoin_buf_t *pBuf)
                     pBolt->h, UCOIN_SZ_SHA256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (plen != 0)) {
-        DBG_PRINTF("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
         goto LABEL_EXIT;
     }
 

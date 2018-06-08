@@ -331,15 +331,15 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
     uint32_t pos;
     if ((mark == 0x00) && (flag == 0x01)) {
         //BIP-144
-        //DBG_PRINTF("segwit\n");
+        //LOGD("segwit\n");
         segwit = true;
         pos = 6;
     } else {
-        //DBG_PRINTF("not segwit\n");
+        //LOGD("not segwit\n");
         segwit = false;
         pos = 4;
     }
-    //DBG_PRINTF("  version:%d\n", pTx->version);
+    //LOGD("  version:%d\n", pTx->version);
 
     int state = 0;
     uint32_t tx_cnt = 0;
@@ -354,7 +354,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
         if(prev_pos == pos) {
             pos_cnt++;
             if(pos_cnt > 5) {
-                DBG_PRINTF("???\n");
+                LOGD("???\n");
                 break;
             }
         }
@@ -365,7 +365,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             //txin count
             pos += get_varint(&var, pData + pos);
             pTx->vin_cnt = var;
-            //DBG_PRINTF("state0: pos=%d, vin_cnt=%d\n", pos, pTx->vin_cnt);
+            //LOGD("state0: pos=%d, vin_cnt=%d\n", pos, pTx->vin_cnt);
             if (pTx->vin_cnt == 0) {
                 //txin無し
                 pTx->vin = NULL;
@@ -379,7 +379,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             break;
         case 1:
             //txin
-            //DBG_PRINTF("state1: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
+            //LOGD("state1: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
             if (pos + 41 + 1 + 4 <= Len) {       // vin_min(41) + vout_cnt(1) + locktime(4)
                 //scriptSig長
                 tmp = pos + UCOIN_SZ_TXID + sizeof(uint32_t);
@@ -396,12 +396,12 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 //txid
                 memcpy(vin->txid, pData + pos, UCOIN_SZ_TXID);
                 pos += UCOIN_SZ_TXID;
-                //DBG_PRINTF("  txid:");
-                //DUMPBIN(vin->txid, UCOIN_SZ_TXID);
+                //LOGD("  txid:");
+                //DUMPD(vin->txid, UCOIN_SZ_TXID);
                 //index
                 vin->index = get_le32(pData + pos);
                 pos += sizeof(uint32_t);
-                //DBG_PRINTF("  index=%u\n", vin->index);
+                //LOGD("  index=%u\n", vin->index);
                 //scriptSig
                 pos += tmp;
                 if (var != 0) {
@@ -410,12 +410,12 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 } else {
                     ucoin_buf_init(&vin->script);
                 }
-                //DBG_PRINTF("  script[%d]:", vin->script.len);
-                //DUMPBIN(vin->script.buf, vin->script.len);
+                //LOGD("  script[%d]:", vin->script.len);
+                //DUMPD(vin->script.buf, vin->script.len);
                 //sequence
                 vin->sequence = get_le32(pData + pos);
                 pos += sizeof(uint32_t);
-                //DBG_PRINTF("  sequence:%08x\n", vin->sequence);
+                //LOGD("  sequence:%08x\n", vin->sequence);
                 //witnessは後で取得
                 vin->wit_cnt = 0;
                 vin->witness = NULL;
@@ -429,7 +429,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             //txout count
             pos += get_varint(&var, pData + pos);
             pTx->vout_cnt = var;
-            //DBG_PRINTF("state2: pos=%d, vout_cnt=%d\n", pos, pTx->vout_cnt);
+            //LOGD("state2: pos=%d, vout_cnt=%d\n", pos, pTx->vout_cnt);
             if (pTx->vout_cnt == 0) {
                 //txout無し
                 pTx->vout = NULL;
@@ -448,7 +448,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             break;
         case 3:
             //txout
-            //DBG_PRINTF("state3: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
+            //LOGD("state3: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
             if (pos + 9 + 4 <= Len) {       // vout_min(9) + locktime(4)
                 //scriptPubKey長
                 tmp = pos + sizeof(uint64_t);
@@ -471,7 +471,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 //value:仕様上はint64_t
                 vout->value = get_le64(pData + pos);
                 pos += sizeof(uint64_t);
-                //DBG_PRINTF("  value:%llu\n", (long long unsigned int)vout->value);
+                //LOGD("  value:%llu\n", (long long unsigned int)vout->value);
                 //scriptPubKey
                 pos += tmp;
                 if (var != 0) {
@@ -480,10 +480,10 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 } else {
                     ucoin_buf_init(&vout->script);
                 }
-                //DBG_PRINTF("  script[%d]:", vout->script.len);
-                //DUMPBIN(vout->script.buf, vout->script.len);
+                //LOGD("  script[%d]:", vout->script.len);
+                //DUMPD(vout->script.buf, vout->script.len);
             } else {
-                //DBG_PRINTF("out: tmp=%d, var=%d\n", tmp, var);
+                //LOGD("out: tmp=%d, var=%d\n", tmp, var);
             }
             if (tx_cnt >= pTx->vout_cnt) {
                 if (segwit) {
@@ -495,12 +495,12 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 }
                 tx_cnt = 0;
             } else {
-                //DBG_PRINTF("  continue\n");
+                //LOGD("  continue\n");
             }
             break;
         case 4:
             //witness
-            //DBG_PRINTF("state4: pos=%d, tx_cnt=%d\n", pos, tx_cnt);
+            //LOGD("state4: pos=%d, tx_cnt=%d\n", pos, tx_cnt);
             if ((pos + 4 <= Len) && (tx_cnt < pTx->vin_cnt)) {
                 pos += get_varint(&var, pData + pos);   //item数
                 pTx->vin[tx_cnt].wit_cnt = var;
@@ -509,16 +509,16 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 state = 5;
                 break;
             }
-            //DBG_PRINTF("  wit_cnt=%d\n", pTx->vin[tx_cnt].wit_cnt);
+            //LOGD("  wit_cnt=%d\n", pTx->vin[tx_cnt].wit_cnt);
             for(uint32_t lp = 0; lp < pTx->vin[tx_cnt].wit_cnt; lp++) {
                 pos += get_varint(&var, pData + pos);   //データ長
-                //DBG_PRINTF("   var=%d\n", var);
+                //LOGD("   var=%d\n", var);
                 if (pos + var + 4 <= Len) {
                     ucoin_buf_t *wit = &(pTx->vin[tx_cnt].witness[lp]);
                     ucoin_buf_alloccopy(wit, pData + pos, var);
                     pos += wit->len;
                 } else {
-                    DBG_PRINTF("  out\n");
+                    LOGD("  out\n");
                 }
             }
             tx_cnt++;
@@ -531,7 +531,7 @@ bool ucoin_tx_read(ucoin_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             //locktime
             pTx->locktime = get_le32(pData + pos);
             pos += sizeof(uint32_t);
-            //DBG_PRINTF("state5: locktime=%08x\n", pTx->locktime);
+            //LOGD("state5: locktime=%08x\n", pTx->locktime);
             break;
         default:
             assert(0);
@@ -636,7 +636,7 @@ LABEL_EXIT:
     mbedtls_mpi_free( &s );
 
     if (ret) {
-        DBG_PRINTF("fail\n");
+        LOGD("fail\n");
     }
     return ret == 0;
 }
@@ -669,7 +669,7 @@ LABEL_EXIT:
     mbedtls_mpi_free( &s );
 
     if (ret) {
-        DBG_PRINTF("fail\n");
+        LOGD("fail\n");
     }
     return ret == 0;
 }
@@ -685,14 +685,14 @@ bool ucoin_tx_verify(const ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint
 
     if (pSig->buf[pSig->len - 1] != SIGHASH_ALL) {
         //assert(0);
-        DBG_PRINTF("fail: not SIGHASH_ALL\n");
+        LOGD("fail: not SIGHASH_ALL\n");
         ret = -1;
         goto LABEL_EXIT;
     }
     bret = is_valid_signature_encoding(pSig->buf, pSig->len);
     if (!bret) {
         //assert(0);
-        DBG_PRINTF("fail: invalid signature\n");
+        LOGD("fail: invalid signature\n");
         ret = -1;
         goto LABEL_EXIT;
     }
@@ -703,22 +703,22 @@ bool ucoin_tx_verify(const ucoin_buf_t *pSig, const uint8_t *pTxHash, const uint
                     pTxHash, UCOIN_SZ_HASH256,
                     pSig->buf, pSig->len - 1);
     } else {
-        DBG_PRINTF("fail keypair\n");
+        LOGD("fail keypair\n");
     }
 
 LABEL_EXIT:
     mbedtls_ecp_keypair_free(&keypair);
 
     if (ret == 0) {
-        DBG_PRINTF("ok: verify\n");
+        LOGD("ok: verify\n");
     } else {
-        DBG_PRINTF("fail ret=%d\n", ret);
-        DBG_PRINTF("pSig: ");
-        DUMPBIN(pSig->buf, pSig->len);
-        DBG_PRINTF("txhash: ");
-        DUMPBIN(pTxHash, UCOIN_SZ_SIGHASH);
-        DBG_PRINTF("pub: ");
-        DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+        LOGD("fail ret=%d\n", ret);
+        LOGD("pSig: ");
+        DUMPD(pSig->buf, pSig->len);
+        LOGD("txhash: ");
+        DUMPD(pTxHash, UCOIN_SZ_SIGHASH);
+        LOGD("pub: ");
+        DUMPD(pPubKey, UCOIN_SZ_PUBKEY);
     }
     return ret == 0;
 }
@@ -748,7 +748,7 @@ bool ucoin_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_
     if (!ret) {
         ret = mbedtls_ecdsa_verify(&keypair.grp, pTxHash, UCOIN_SZ_HASH256, &keypair.Q, &r, &s);
     } else {
-        DBG_PRINTF("fail keypair\n");
+        LOGD("fail keypair\n");
     }
 
 LABEL_EXIT:
@@ -757,13 +757,13 @@ LABEL_EXIT:
     mbedtls_mpi_free( &s );
 
     if (ret == 0) {
-        //DBG_PRINTF("ok: verify\n");
+        //LOGD("ok: verify\n");
     } else {
-        DBG_PRINTF("fail ret=%d\n", ret);
-        DBG_PRINTF("txhash: ");
-        DUMPBIN(pTxHash, UCOIN_SZ_SIGHASH);
-        DBG_PRINTF("pub: ");
-        DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+        LOGD("fail ret=%d\n", ret);
+        LOGD("txhash: ");
+        DUMPD(pTxHash, UCOIN_SZ_SIGHASH);
+        LOGD("pub: ");
+        DUMPD(pPubKey, UCOIN_SZ_PUBKEY);
     }
     return ret == 0;
 }
@@ -879,7 +879,7 @@ bool ucoin_tx_verify_multisig(const ucoin_tx_t *pTx, int Index, const uint8_t *p
     //  pushデータ長
     //  redeemScript
     if (*p != OP_0) {
-        DBG_PRINTF("top isnot OP_0\n");
+        LOGD("top isnot OP_0\n");
         return false;
     }
 
@@ -896,14 +896,14 @@ bool ucoin_tx_verify_multisig(const ucoin_tx_t *pTx, int Index, const uint8_t *p
         pos += 1 + len;
     }
     if (pos >= p_scriptsig->len) {
-        DBG_PRINTF("no OP_PUSHDATAx(sign)\n");
+        LOGD("no OP_PUSHDATAx(sign)\n");
         return false;
     }
     pos++;
     uint16_t redm_len;  //OP_PUSHDATAxの引数
     pos += get_varint(&redm_len, p + pos);
     if (signum != (*(p + pos) - OP_x)) {
-        DBG_PRINTF("OP_x mismatch(sign): signum=%d, OP_x=%d\n", signum, *(p + pos) - OP_x);
+        LOGD("OP_x mismatch(sign): signum=%d, OP_x=%d\n", signum, *(p + pos) - OP_x);
         return false;
     }
     pos++;
@@ -916,28 +916,28 @@ bool ucoin_tx_verify_multisig(const ucoin_tx_t *pTx, int Index, const uint8_t *p
             break;
         }
         if (len != UCOIN_SZ_PUBKEY) {
-            DBG_PRINTF("invalid pubkey len(%d)\n", len);
+            LOGD("invalid pubkey len(%d)\n", len);
             return false;
         }
         pubnum++;
         pos += 1 + len;
     }
     if (pos >= p_scriptsig->len) {
-        DBG_PRINTF("no OP_PUSHDATAx(pubkey)\n");
+        LOGD("no OP_PUSHDATAx(pubkey)\n");
         return false;
     }
     if (pubnum != (*(p + pos) - OP_x)) {
-        DBG_PRINTF("OP_x mismatch(pubkey): signum=%d, OP_x=%d\n", pubnum, *(p + pos) - OP_x);
+        LOGD("OP_x mismatch(pubkey): signum=%d, OP_x=%d\n", pubnum, *(p + pos) - OP_x);
         return false;
     }
     pos++;
     if (*(p + pos) != OP_CHECKMULTISIG) {
-        DBG_PRINTF("not OP_CHECKMULTISIG\n");
+        LOGD("not OP_CHECKMULTISIG\n");
         return false;
     }
     pos++;
     if (pos != p_scriptsig->len) {
-        DBG_PRINTF("invalid data length\n");
+        LOGD("invalid data length\n");
         return false;
     }
 
@@ -946,7 +946,7 @@ bool ucoin_tx_verify_multisig(const ucoin_tx_t *pTx, int Index, const uint8_t *p
     ucoin_util_hash160(pkh, p_scriptsig->buf + pubpos - 1, p_scriptsig->len - pubpos + 1);
     bool ret = (memcmp(pkh, pPubKeyHash, UCOIN_SZ_HASH160) == 0);
     if (!ret) {
-        DBG_PRINTF("pubkeyhash mismatch.\n");
+        LOGD("pubkeyhash mismatch.\n");
         return false;
     }
 
@@ -959,7 +959,7 @@ bool ucoin_tx_verify_multisig(const ucoin_tx_t *pTx, int Index, const uint8_t *p
             const uint8_t *p2 = p_scriptsig->buf + pubpos + (1 + UCOIN_SZ_PUBKEY) * lp2;
             ret = (memcmp(p1, p2, 1 + UCOIN_SZ_PUBKEY) == 0);
             if (ret) {
-                DBG_PRINTF("same pubkey(%d, %d)\n", lp, lp2);
+                LOGD("same pubkey(%d, %d)\n", lp, lp2);
                 return false;
             }
         }
@@ -986,7 +986,7 @@ bool ucoin_tx_verify_multisig(const ucoin_tx_t *pTx, int Index, const uint8_t *p
                 if (ret) {
                     ok_cnt++;
                     chk_pos |= (1 << (lp2 + 1)) - 1;    //以下を全部1にする(NG最短)
-                    DBG_PRINTF("   verify ok: sig=%d, pub=%d\n", lp, lp2);
+                    LOGD("   verify ok: sig=%d, pub=%d\n", lp, lp2);
                     break;
                 } else {
                     ng_cnt--;
@@ -1002,7 +1002,7 @@ bool ucoin_tx_verify_multisig(const ucoin_tx_t *pTx, int Index, const uint8_t *p
         }
         sigpos += *(p_scriptsig->buf + sigpos) + 1;
     }
-    DBG_PRINTF("ok_cnt=%d, ng_cnt=%d, signum=%d, pubnum=%d\n", ok_cnt, ng_cnt, signum, pubnum);
+    LOGD("ok_cnt=%d, ng_cnt=%d, signum=%d, pubnum=%d\n", ok_cnt, ng_cnt, signum, pubnum);
 
     return ok_cnt == signum;
 }
@@ -1050,7 +1050,7 @@ bool ucoin_tx_verify_p2sh_addr(const ucoin_tx_t *pTx, int Index, const uint8_t *
 bool ucoin_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash)
 {
     if ((RecId < 0) || (3 < RecId)) {
-        DBG_PRINTF("fail: invalid recid\n");
+        LOGD("fail: invalid recid\n");
         return false;
     }
 
@@ -1066,7 +1066,7 @@ bool ucoin_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8
     *pRecId = -1;       //負の数にすると自動で求める
     ret = recover_pubkey(pub, pRecId, pRS, pTxHash, pPubKey);
     if (!ret) {
-        DBG_PRINTF("not pubkey\n");
+        LOGD("not pubkey\n");
     }
 
     return ret;
@@ -1140,14 +1140,14 @@ uint32_t ucoin_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
             uint32_t fmt_new = Len;
             len = (fmt_old * 3 + fmt_new + 3) / 4;
         } else {
-            DBG_PRINTF("fail: vbyte\n");
+            LOGD("fail: vbyte\n");
             len = 0;
         }
     } else {
         len = Len;
     }
 
-    DBG_PRINTF("vbyte=%" PRIu32 "\n", len);
+    LOGD("vbyte=%" PRIu32 "\n", len);
     return len;
 }
 
@@ -1155,51 +1155,51 @@ uint32_t ucoin_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
 #ifdef UCOIN_USE_PRINTFUNC
 void ucoin_print_tx(const ucoin_tx_t *pTx)
 {
-    DBG_PRINTF("======================================\n");
+    LOGD("======================================\n");
     uint8_t txid[UCOIN_SZ_TXID];
     ucoin_tx_txid(txid, pTx);
-    DBG_PRINTF("txid= ");
-    DUMPTXID(txid);
-    DBG_PRINTF("======================================\n");
-    DBG_PRINTF(" version:%u\n", pTx->version);
-    DBG_PRINTF(" txin_cnt=%u\n", pTx->vin_cnt);
+    LOGD("txid= ");
+    TXIDD(txid);
+    LOGD("======================================\n");
+    LOGD(" version:%u\n", pTx->version);
+    LOGD(" txin_cnt=%u\n", pTx->vin_cnt);
     for(uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
-        DBG_PRINTF(" [vin #%u]\n", lp);
-        DBG_PRINTF("  txid= ");
-        DUMPTXID(pTx->vin[lp].txid);
-        DBG_PRINTF("       LE: ");
-        DUMPBIN(pTx->vin[lp].txid, UCOIN_SZ_TXID);
-        DBG_PRINTF("  index= %u\n", pTx->vin[lp].index);
-        DBG_PRINTF("  scriptSig[%u]= ", pTx->vin[lp].script.len);
-        DUMPBIN(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
+        LOGD(" [vin #%u]\n", lp);
+        LOGD("  txid= ");
+        TXIDD(pTx->vin[lp].txid);
+        LOGD("       LE: ");
+        DUMPD(pTx->vin[lp].txid, UCOIN_SZ_TXID);
+        LOGD("  index= %u\n", pTx->vin[lp].index);
+        LOGD("  scriptSig[%u]= ", pTx->vin[lp].script.len);
+        DUMPD(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         ucoin_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         //bool p2wsh = (pTx->vin[lp].script.len == 35) &&
         //             (pTx->vin[lp].script.buf[1] == 0x00) && (pTx->vin[lp].script.buf[2] == 0x20);
         bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
-        DBG_PRINTF("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
+        LOGD("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
         for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
-            DBG_PRINTF("  witness[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
+            LOGD("  witness[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
-                DUMPBIN(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
+                DUMPD(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
                     //P2WSHの最後はwitnessScript
                     //nativeのP2WSHでも表示させたかったが、識別する方法が思いつかない
                     ucoin_print_script(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 }
             } else {
-                DBG_PRINTF("<none>\n");
+                LOGD("<none>\n");
             }
         }
     }
-    DBG_PRINTF(" txout_cnt= %u\n", pTx->vout_cnt);
+    LOGD(" txout_cnt= %u\n", pTx->vout_cnt);
     for(uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
-        DBG_PRINTF(" [vout #%u]\n", lp);
-        DBG_PRINTF("  value= %llu  : ", (unsigned long long)pTx->vout[lp].value);
-        DUMPBIN(((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value));
-        DBG_PRINTF("    %10.5f mBTC, %10.8f BTC\n", UCOIN_SATOSHI2MBTC(pTx->vout[lp].value), UCOIN_SATOSHI2BTC(pTx->vout[lp].value));
+        LOGD(" [vout #%u]\n", lp);
+        LOGD("  value= %llu  : ", (unsigned long long)pTx->vout[lp].value);
+        DUMPD(((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value));
+        LOGD("    %10.5f mBTC, %10.8f BTC\n", UCOIN_SATOSHI2MBTC(pTx->vout[lp].value), UCOIN_SATOSHI2BTC(pTx->vout[lp].value));
         ucoin_buf_t *buf = &(pTx->vout[lp].script);
-        DBG_PRINTF("  scriptPubKey[%u]= ", buf->len);
-        DUMPBIN(buf->buf, buf->len);
+        LOGD("  scriptPubKey[%u]= ", buf->len);
+        DUMPD(buf->buf, buf->len);
         ucoin_print_script(buf->buf, buf->len);
         if ( (buf->len == 25) && (buf->buf[0] == 0x76) && (buf->buf[1] == 0xa9) &&
              (buf->buf[2] == 0x14) && (buf->buf[23] == 0x88) && (buf->buf[24] == 0xac) ) {
@@ -1209,19 +1209,19 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
             if (!ret) {
                 return;
             }
-            DBG_PRINTF("    (%s)\n", addr);
+            LOGD("    (%s)\n", addr);
         }
     }
-    DBG_PRINTF(" locktime= 0x%08x : ", pTx->locktime);
+    LOGD(" locktime= 0x%08x : ", pTx->locktime);
     if (pTx->locktime < 500000000L) {
         //ブロック高
-        DBG_PRINTF2("block height\n");
+        LOGD2("block height\n");
     } else {
         //epoch second
         time_t tm = pTx->locktime;
-        DBG_PRINTF2("epoch second: %s\n", ctime(&tm));
+        LOGD2("epoch second: %s\n", ctime(&tm));
     }
-    DBG_PRINTF("======================================\n");
+    LOGD("======================================\n");
 }
 
 
@@ -1270,13 +1270,13 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
         if (*pData <= 0x4b) {
             //スタックに載せる
             int len = *pData;
-            DBG_PRINTF("%s%02x ", INDENT, len);
+            LOGD("%s%02x ", INDENT, len);
             pData++;
-            DUMPBIN(pData, len);
+            DUMPD(pData, len);
             pData += len;
         } else if ((OP_1 <= *pData) && (*pData <= OP_16)) {
             //OP_x
-            DBG_PRINTF("%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_x);
+            LOGD("%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_x);
             pData++;
         } else if ((*pData == OP_PUSHDATA1) || (*pData == OP_PUSHDATA2)) {
             //スタックに載せる
@@ -1288,8 +1288,8 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
                 len = *(pData + 1) | (*(pData + 2) << 8);
                 pData += 3;
             }
-            DBG_PRINTF("%sOP_PUSHDATAx 0x%02x ", INDENT, len);
-            DUMPBIN(pData, len);
+            LOGD("%sOP_PUSHDATAx 0x%02x ", INDENT, len);
+            DUMPD(pData, len);
             pData += len;
         } else {
             int op;
@@ -1300,10 +1300,10 @@ void ucoin_print_script(const uint8_t *pData, uint16_t Len)
             }
             if (op != ARRAY_SIZE(OP_DIC)) {
                 //知っているOP code
-                DBG_PRINTF("%s%02x [%s]\n", INDENT, OP_DIC[op].op, OP_DIC[op].name);
+                LOGD("%s%02x [%s]\n", INDENT, OP_DIC[op].op, OP_DIC[op].name);
             } else {
                 //unknown
-                DBG_PRINTF("%s%02x [??]\n", INDENT, *pData);
+                LOGD("%s%02x [??]\n", INDENT, *pData);
             }
             pData++;
         }
@@ -1341,23 +1341,23 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size)
 
     // Minimum and maximum size constraints.
     if (size < 9) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
     if (size > 73) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
     // A signature is of type 0x30 (compound).
     if (sig[0] != 0x30) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d - %02x)\n" ,__LINE__, sig[0]);
+        LOGD("fail: is_valid_signature_encoding(%d - %02x)\n" ,__LINE__, sig[0]);
         return false;
     }
 
     // Make sure the length covers the entire signature.
     if (sig[1] != size - 3) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
@@ -1366,7 +1366,7 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size)
 
     // Make sure the length of the S element is still inside the signature.
     if (5 + lenR >= size) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
@@ -1376,57 +1376,57 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size)
     // Verify that the length of the signature matches the sum of the length
     // of the elements.
     if ((size_t)(lenR + lenS + 7) != size) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
     // Check whether the R element is an integer.
     if (sig[2] != 0x02) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
     // Zero-length integers are not allowed for R.
     if (lenR == 0) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
     // Negative numbers are not allowed for R.
     if (sig[4] & 0x80) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
     // Null bytes at the start of R are not allowed, unless R would
     // otherwise be interpreted as a negative number.
     if (lenR > 1 && (sig[4] == 0x00) && !(sig[5] & 0x80)) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
     // Check whether the S element is an integer.
     if (sig[lenR + 4] != 0x02) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
     // Zero-length integers are not allowed for S.
     if (lenS == 0) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
     // Negative numbers are not allowed for S.
     if (sig[lenR + 6] & 0x80) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
     // Null bytes at the start of S are not allowed, unless S would otherwise be
     // interpreted as a negative number.
     if (lenS > 1 && (sig[lenR + 6] == 0x00) && !(sig[lenR + 7] & 0x80)) {
-        DBG_PRINTF("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
+        LOGD("fail: is_valid_signature_encoding(%d)\n" ,__LINE__);
         return false;
     }
 
@@ -1448,7 +1448,7 @@ static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, c
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
     ret = mbedtls_mpi_read_binary(&keypair.d, pPrivKey, UCOIN_SZ_PRIVKEY);
     if (ret) {
-        DBG_PRINTF("FAIL: ecdsa_sign: %d\n", ret);
+        LOGD("FAIL: ecdsa_sign: %d\n", ret);
         assert(0);
         goto LABEL_EXIT;
     }
@@ -1457,7 +1457,7 @@ static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, c
     ret = mbedtls_ecdsa_sign_det(&keypair.grp, p_r, p_s, &keypair.d,
                     pTxHash, UCOIN_SZ_HASH256, MBEDTLS_MD_SHA256);
     if (ret) {
-        DBG_PRINTF("FAIL: ecdsa_sign: %d\n", ret);
+        LOGD("FAIL: ecdsa_sign: %d\n", ret);
         assert(0);
         goto LABEL_EXIT;
     }
@@ -1608,7 +1608,7 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
         is_zero = mbedtls_ecp_is_zero(&nR);
         mbedtls_ecp_point_free(&nR);
         if ((ret == 0) || !is_zero) {
-            DBG_PRINTF("[%d]1.4 error(ret=%04x)\n", j, ret);
+            LOGD("[%d]1.4 error(ret=%04x)\n", j, ret);
             goto SKIP_LOOP;
         }
 
@@ -1636,8 +1636,8 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
                     bret = (memcmp(pOrgPubKey, pPubKey, UCOIN_SZ_PUBKEY) == 0);
                 }
                 if (bret) {
-                    //DBG_PRINTF("recover= ");
-                    //DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+                    //LOGD("recover= ");
+                    //DUMPD(pPubKey, UCOIN_SZ_PUBKEY);
                     if (*pRecId < 0) {
                         *pRecId = (j << 1) | k;
                     }
@@ -1645,10 +1645,10 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
                     k = 2;
                     break;
                 } else {
-                    //DBG_PRINTF("not match\n");
+                    //LOGD("not match\n");
                 }
             } else {
-                DBG_PRINTF("fail\n");
+                LOGD("fail\n");
             }
             if (*pRecId >= 0) {
                 break;

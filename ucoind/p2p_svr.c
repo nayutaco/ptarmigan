@@ -75,21 +75,21 @@ void *p2p_svr_start(void *pArg)
 
     sock = socket(PF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        DBG_PRINTF("socket error: %s\n", strerror(errno));
+        LOGD("socket error: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     int optval = 1;
 
     ret = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
     if (ret < 0) {
-        DBG_PRINTF("setsockopt: %s\n", strerror(errno));
+        LOGD("setsockopt: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
 
     socklen_t optlen = sizeof(optval);
     ret = getsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, &optlen);
     if (ret < 0) {
-        DBG_PRINTF("getsokopt: %s\n", strerror(errno));
+        LOGD("getsokopt: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     fcntl(sock, F_SETFL, O_NONBLOCK);
@@ -100,12 +100,12 @@ void *p2p_svr_start(void *pArg)
     sv_addr.sin_port = htons(ln_node_addr()->port);
     ret = bind(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr));
     if (ret < 0) {
-        DBG_PRINTF("bind: %s\n", strerror(errno));
+        LOGD("bind: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     ret = listen(sock, 1);
     if (ret < 0) {
-        DBG_PRINTF("listen: %s\n", strerror(errno));
+        LOGD("listen: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
     fprintf(PRINTOUT, "listening...\n");
@@ -116,7 +116,7 @@ void *p2p_svr_start(void *pArg)
         fds.events = POLLIN;
         int polr = poll(&fds, 1, 500);
         if (polr < 0) {
-            DBG_PRINTF("poll: %s\n", strerror(errno));
+            LOGD("poll: %s\n", strerror(errno));
             continue;
         } else if (polr == 0) {
             //timeout
@@ -133,11 +133,10 @@ void *p2p_svr_start(void *pArg)
         }
         if (idx < (int)ARRAY_SIZE(mAppConf)) {
             socklen_t cl_len = sizeof(cl_addr);
-            fprintf(PRINTOUT, "accept...\n");
+            //fprintf(PRINTOUT, "accept...\n");
             mAppConf[idx].sock = accept(sock, (struct sockaddr *)&cl_addr, &cl_len);
-            fprintf(PRINTOUT, "accepted[%d]\n", idx);
             if (mAppConf[idx].sock < 0) {
-                DBG_PRINTF("accept: %s\n", strerror(errno));
+                LOGD("accept: %s\n", strerror(errno));
                 goto LABEL_EXIT;
             }
 
@@ -146,14 +145,16 @@ void *p2p_svr_start(void *pArg)
             memset(mAppConf[idx].node_id, 0, UCOIN_SZ_PUBKEY);
             inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, mAppConf[idx].conn_str, SZ_CONN_STR);
             mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
-            DBG_PRINTF("connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
+
+            LOGD("[server]connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
+            fprintf(PRINTOUT, "[server]accepted(%d) socket=%d, addr=%s, port=%d\n", idx, mAppConf[idx].sock, mAppConf[idx].conn_str, mAppConf[idx].conn_port);
 
             lnapp_start(&mAppConf[idx]);
         } else {
             //空き無し
             int delsock = accept(sock, NULL, NULL);
             close(delsock);
-            DBG_PRINTF("no empty socket\n");
+            LOGD("no empty socket\n");
         }
     }
 
@@ -179,7 +180,7 @@ lnapp_conf_t *p2p_svr_search_node(const uint8_t *pNodeId)
     int lp;
     for (lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
         if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, UCOIN_SZ_PUBKEY) == 0)) {
-            //DBG_PRINTF("found: server %d\n", lp);
+            //LOGD("found: server %d\n", lp);
             p_appconf = &mAppConf[lp];
             break;
         }
@@ -194,12 +195,12 @@ lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id)
     lnapp_conf_t *p_appconf = NULL;
     for (int lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
         if (mAppConf[lp].loop && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
-            //DBG_PRINTF("found: server[%" PRIx64 "] %d\n", short_channel_id, lp);
+            //LOGD("found: server[%" PRIx64 "] %d\n", short_channel_id, lp);
             p_appconf = &mAppConf[lp];
             break;
         }
     }
-    //DBG_PRINTF("p_appconf= %p\n", p_appconf);
+    //LOGD("p_appconf= %p\n", p_appconf);
 
     return p_appconf;
 }

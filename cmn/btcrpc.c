@@ -111,15 +111,15 @@ void btcrpc_init(const rpc_conf_t *pRpcConf)
     curl_global_init(CURL_GLOBAL_ALL);
     mCurl = curl_easy_init();
     if (mCurl == NULL) {
-        DBG_PRINTF("fatal: cannot init curl\n");
+        LOGD("fatal: cannot init curl\n");
         abort();
     }
 
     sprintf(rpc_url, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
     sprintf(rpc_userpwd, "%s:%s", pRpcConf->rpcuser, pRpcConf->rpcpasswd);
-    DBG_PRINTF("URL=%s\n", rpc_url);
+    LOGD("URL=%s\n", rpc_url);
 #ifdef M_DBG_SHOWRPC
-    DBG_PRINTF("rpcuser=%s\n", rpc_userpwd);
+    LOGD("rpcuser=%s\n", rpc_userpwd);
 #endif //M_DBG_SHOWRPC
 }
 
@@ -145,25 +145,25 @@ int32_t btcrpc_getblockcount(void)
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         if (json_is_integer(p_result)) {
             blocks = (int32_t)json_integer_value(p_result);
         } else {
-            DBG_PRINTF("error: not integer\n");
+            LOGD("error: not integer\n");
         }
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getblockcount_rpc\n");
+        LOGD("fail: getblockcount_rpc\n");
     }
 
 LABEL_EXIT:
@@ -187,14 +187,14 @@ bool btcrpc_getblockhash(uint8_t *pHash, int Height)
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         if (json_is_string(p_result)) {
@@ -203,7 +203,7 @@ bool btcrpc_getblockhash(uint8_t *pHash, int Height)
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getblockhash_rpc\n");
+        LOGD("fail: getblockhash_rpc\n");
     }
 
 LABEL_EXIT:
@@ -232,14 +232,14 @@ uint32_t btcrpc_get_confirmation(const uint8_t *pTxid)
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         p_confirm = json_object_get(p_result, M_CONFIRMATION);
@@ -249,7 +249,7 @@ uint32_t btcrpc_get_confirmation(const uint8_t *pTxid)
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getrawtransaction_rpc\n");
+        LOGD("fail: getrawtransaction_rpc\n");
     }
 
 LABEL_EXIT:
@@ -281,14 +281,14 @@ bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         p_bhash = json_object_get(p_result, M_BLOCKHASH);
@@ -298,7 +298,7 @@ bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getrawtransaction_rpc\n");
+        LOGD("fail: getrawtransaction_rpc\n");
         goto LABEL_EXIT;
     }
     APP_FREE(p_json);
@@ -313,14 +313,14 @@ LABEL_DECREF:
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF2;
         }
         p_height = json_object_get(p_result, M_HEIGHT);
@@ -339,7 +339,7 @@ LABEL_DECREF:
 LABEL_DECREF2:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getblock_rpc\n");
+        LOGD("fail: getblock_rpc\n");
     }
 
 LABEL_EXIT:
@@ -370,14 +370,14 @@ bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         if (json_is_string(p_result)) {
@@ -386,7 +386,7 @@ bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getblockhash_rpc\n");
+        LOGD("fail: getblockhash_rpc\n");
         goto LABEL_EXIT;
     }
     APP_FREE(p_json);
@@ -402,20 +402,20 @@ LABEL_DECREF:
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF2;
         }
         p_height = json_object_get(p_result, M_HEIGHT);
         if (json_is_integer(p_height)) {
             if ((int)json_integer_value(p_height) != BHeight) {
-                DBG_PRINTF("error: M_HEIGHT\n");
+                LOGD("error: M_HEIGHT\n");
                 goto LABEL_DECREF2;
             }
         }
@@ -431,7 +431,7 @@ LABEL_DECREF:
 LABEL_DECREF2:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getblock_rpc\n");
+        LOGD("fail: getblock_rpc\n");
         goto LABEL_EXIT;
     }
     APP_FREE(p_json);
@@ -445,20 +445,20 @@ LABEL_DECREF2:
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF3;
         }
         ret = !json_is_null(p_result);
 LABEL_DECREF3:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: gettxout_rpc\n");
+        LOGD("fail: gettxout_rpc\n");
     }
 
 LABEL_EXIT:
@@ -485,14 +485,14 @@ bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         if (json_is_string(p_result)) {
@@ -501,7 +501,7 @@ bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getblockhash_rpc\n");
+        LOGD("fail: getblockhash_rpc\n");
         goto LABEL_EXIT;
     }
     APP_FREE(p_json);
@@ -517,20 +517,20 @@ LABEL_DECREF:
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF2;
         }
         p_height = json_object_get(p_result, M_HEIGHT);
         if (json_is_integer(p_height)) {
             if ((int)json_integer_value(p_height) != BHeight) {
-                DBG_PRINTF("error: M_HEIGHT\n");
+                LOGD("error: M_HEIGHT\n");
                 goto LABEL_DECREF2;
             }
         }
@@ -543,7 +543,7 @@ LABEL_DECREF:
             ucoin_tx_t tx = UCOIN_TX_INIT;
 
             bool bret = getraw_txstr(&tx, txid);
-            //DBG_PRINTF("txid=%s\n", txid);
+            //LOGD("txid=%s\n", txid);
             if ( bret &&
                  (tx.vin_cnt == 1) &&
                  (memcmp(tx.vin[0].txid, pTxid, UCOIN_SZ_TXID) == 0) &&
@@ -557,15 +557,15 @@ LABEL_DECREF:
             ucoin_tx_free(&tx);
         }
         //if (ret) {
-        //    DBG_PRINTF("match!\n");
+        //    LOGD("match!\n");
         //    ucoin_print_tx(pTx);
         //} else {
-        //    DBG_PRINTF("not match\n");
+        //    LOGD("not match\n");
         //}
 LABEL_DECREF2:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getblock_rpc\n");
+        LOGD("fail: getblock_rpc\n");
         goto LABEL_EXIT;
     }
 
@@ -593,14 +593,14 @@ bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         if (json_is_string(p_result)) {
@@ -609,7 +609,7 @@ bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getblockhash_rpc\n");
+        LOGD("fail: getblockhash_rpc\n");
         goto LABEL_EXIT;
     }
     APP_FREE(p_json);
@@ -625,20 +625,20 @@ LABEL_DECREF:
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF2;
         }
         p_height = json_object_get(p_result, M_HEIGHT);
         if (json_is_integer(p_height)) {
             if ((int)json_integer_value(p_height) != BHeight) {
-                DBG_PRINTF("error: M_HEIGHT\n");
+                LOGD("error: M_HEIGHT\n");
                 goto LABEL_DECREF2;
             }
         }
@@ -667,9 +667,9 @@ LABEL_DECREF:
             for (uint32_t lp = 0; lp < tx.vout_cnt; lp++) {
                 if (ucoin_buf_cmp(&tx.vout[0].script, pVout)) {
                     //一致
-                    DBG_PRINTF("match: %s\n", txid);
+                    LOGD("match: %s\n", txid);
                     ucoin_push_data(&push, &tx, sizeof(ucoin_tx_t));
-                    DBG_PRINTF("len=%u\n", pTxBuf->len);
+                    LOGD("len=%u\n", pTxBuf->len);
                     ucoin_tx_init(&tx);     //freeさせない
                     ret = true;
                     break;
@@ -680,7 +680,7 @@ LABEL_DECREF:
 LABEL_DECREF2:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getblock_rpc\n");
+        LOGD("fail: getblock_rpc\n");
         goto LABEL_EXIT;
     }
 
@@ -702,7 +702,7 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
     ucoin_util_bin2str(transaction, pData, Len);
 
     retval = signrawtransaction_rpc(&p_json, transaction);
-DBG_PRINTF("%s\n", p_json);
+LOGD("%s\n", p_json);
     APP_FREE(transaction);
     if (retval) {
         json_t *p_root;
@@ -712,14 +712,14 @@ DBG_PRINTF("%s\n", p_json);
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         p_hex = json_object_get(p_result, M_HEX);
@@ -733,12 +733,12 @@ DBG_PRINTF("%s\n", p_json);
             APP_FREE(p_buf);
         } else {
             int code = error_result(p_root);
-            DBG_PRINTF("err code=%d\n", code);
+            LOGD("err code=%d\n", code);
         }
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: signrawtransaction_rpc()\n");
+        LOGD("fail: signrawtransaction_rpc()\n");
     }
 
 LABEL_EXIT:
@@ -767,14 +767,14 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         if (json_is_string(p_result)) {
@@ -790,7 +790,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: sendrawtransaction_rpc()\n");
+        LOGD("fail: sendrawtransaction_rpc()\n");
     }
 
 LABEL_EXIT:
@@ -834,7 +834,7 @@ bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
     //まずtxの存在確認を行う
     retval = getraw_txstr(NULL, txid);
     if (!retval) {
-        //DBG_PRINTF("fail: maybe not broadcasted\n");
+        //LOGD("fail: maybe not broadcasted\n");
         goto LABEL_EXIT;
     }
 
@@ -847,13 +847,13 @@ bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         p_value = json_object_get(p_result, M_VALUE);
@@ -865,7 +865,7 @@ bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: gettxout_rpc()\n");
+        LOGD("fail: gettxout_rpc()\n");
     }
 
 LABEL_EXIT:
@@ -889,14 +889,14 @@ bool btcrpc_getnewaddress(char *pAddr)
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         if (json_is_string(p_result)) {
@@ -906,7 +906,7 @@ bool btcrpc_getnewaddress(char *pAddr)
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: getnewaddress_rpc()\n");
+        LOGD("fail: getnewaddress_rpc()\n");
     }
 
 LABEL_EXIT:
@@ -930,14 +930,14 @@ LABEL_EXIT:
 
 //         p_root = json_loads(p_json, 0, &error);
 //         if (!p_root) {
-//             DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+//             LOGD("error: on line %d: %s\n", error.line, error.text);
 //             goto LABEL_EXIT;
 //         }
 
 //         //これ以降は終了時に json_decref()で参照を減らすこと
 //         p_result = json_object_get(p_root, M_RESULT);
 //         if (!p_result) {
-//             DBG_PRINTF("error: M_RESULT\n");
+//             LOGD("error: M_RESULT\n");
 //             goto LABEL_DECREF;
 //         }
 //         if (json_is_string(p_result)) {
@@ -947,7 +947,7 @@ LABEL_EXIT:
 // LABEL_DECREF:
 //         json_decref(p_root);
 //     } else {
-//         DBG_PRINTF("fail: dumpprivkey_rpc()\n");
+//         LOGD("fail: dumpprivkey_rpc()\n");
 //     }
 
 // LABEL_EXIT:
@@ -964,7 +964,7 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     char *p_json = NULL;
 
     if (nBlocks < 2) {
-        DBG_PRINTF("fail: nBlock < 2\n");
+        LOGD("fail: nBlock < 2\n");
         return false;
     }
 
@@ -977,14 +977,14 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
 
         p_root = json_loads(p_json, 0, &error);
         if (!p_root) {
-            DBG_PRINTF("error: on line %d: %s\n", error.line, error.text);
+            LOGD("error: on line %d: %s\n", error.line, error.text);
             goto LABEL_EXIT;
         }
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         p_feerate = json_object_get(p_result, M_FEERATE);
@@ -993,15 +993,15 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
             //-1のときは失敗と見なす
             ret = (*pFeeSatoshi + 1.0) > DBL_EPSILON;
             if (!ret) {
-                DBG_PRINTF("fail: Unable to estimate fee\n");
+                LOGD("fail: Unable to estimate fee\n");
             }
         } else {
-            DBG_PRINTF("fail: not real value\n");
+            LOGD("fail: not real value\n");
         }
 LABEL_DECREF:
         json_decref(p_root);
     } else {
-        DBG_PRINTF("fail: estimatefee_rpc()\n");
+        LOGD("fail: estimatefee_rpc()\n");
     }
 
 LABEL_EXIT:
@@ -1042,7 +1042,7 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
     *(*result->pp_data + result->pos) = 0;       //\0
 
 #ifdef M_DBG_SHOWREPLY
-    DBG_PRINTF2("\n\n@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, result->p_data + pos);
+    LOGD2("\n\n@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, result->p_data + pos);
 #endif //M_DBG_SHOWREPLY
 
     return size * nmemb;
@@ -1077,7 +1077,7 @@ static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid)
 
         p_result = json_object_get(p_root, M_RESULT);
         if (!p_result) {
-            DBG_PRINTF("error: M_RESULT\n");
+            LOGD("error: M_RESULT\n");
             goto LABEL_DECREF;
         }
         str_hex = (const char *)json_string_value(p_result);
@@ -1087,7 +1087,7 @@ static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid)
         }
         len = strlen(str_hex);
         if (len & 1) {
-            DBG_PRINTF("error: len\n");
+            LOGD("error: len\n");
             goto LABEL_DECREF;
         }
         if (pTx) {
@@ -1339,7 +1339,7 @@ static bool estimatefee_rpc(char **ppJson, int nBlock)
 static bool rpc_proc(char **ppJson, char *pData)
 {
 #ifdef M_DBG_SHOWRPC
-    DBG_PRINTF("%s\n", pData);
+    LOGD("%s\n", pData);
 #endif //M_DBG_SHOWRPC
 
     pthread_mutex_lock(&mMux);
@@ -1365,7 +1365,7 @@ static bool rpc_proc(char **ppJson, char *pData)
     CURLcode retval;
     retval = curl_easy_perform(mCurl);
     if (retval != CURLE_OK) {
-        DBG_PRINTF("curl err: %d(%s)\n", retval, curl_easy_strerror(retval));
+        LOGD("curl err: %d(%s)\n", retval, curl_easy_strerror(retval));
     }
     curl_slist_free_all(headers);
 
@@ -1386,14 +1386,14 @@ static int error_result(json_t *p_root)
         p_code = json_object_get(p_err, M_CODE);
     }
     if (p_msg) {
-        DBG_PRINTF("message=[%s]\n", (const char *)json_string_value(p_msg));
+        LOGD("message=[%s]\n", (const char *)json_string_value(p_msg));
     }
     if (p_code) {
         err = (int)json_integer_value(p_code);
-        DBG_PRINTF("code=%d\n", err);
+        LOGD("code=%d\n", err);
     }
     if (!p_msg && !p_code) {
-        DBG_PRINTF("fail: json_is_string\n");
+        LOGD("fail: json_is_string\n");
     }
 
     return err;

@@ -108,48 +108,52 @@ static inline int tid() {
 #ifdef UCOIN_DEBUG
 #ifdef UCOIN_USE_ULOG
 #include "ulog.h"
-#define DBG_PRINTF(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 1, "LIB", __VA_ARGS__)
-#define DBG_PRINTF2(...) ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", __VA_ARGS__)
-#define DUMPBIN(dt,ln) {\
-    char *p_str = (char *)malloc(ln * 2 + 1);   \
-    ucoin_util_bin2str(p_str, dt, ln);          \
-    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", "%s\n", p_str);  \
-    free(p_str); \
-}
-#define DUMPTXID(dt) {\
-    char *p_str = (char *)malloc(UCOIN_SZ_TXID * 2 + 1);   \
-    ucoin_util_bin2str_rev(p_str, dt, UCOIN_SZ_TXID);      \
-    ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", "%s\n", p_str);  \
-    free(p_str);                \
-}
+
+#define LOGV(...)       ulog_write(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 1, "LIB", __VA_ARGS__)
+#define DUMPV(dt,ln)    ulog_dump(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, "LIB", dt, ln)
+#define TXIDV(dt)       ulog_dump_rev(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, "LIB", dt, UCOIN_SZ_TXID)
+
+#define LOGD(...)       ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 1, "LIB", __VA_ARGS__)
+#define LOGD2(...)      ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", __VA_ARGS__)
+#define DUMPD(dt,ln)    ulog_dump(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", dt, ln)
+#define TXIDD(dt)       ulog_dump_rev(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", dt, UCOIN_SZ_TXID)
 
 #else   //UCOIN_USE_ULOG
 
 #define DEBUGOUT        stderr
 
-/// @def    DBG_PRINTF(format, ...)
+/// @def    LOGD(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
-#define DBG_PRINTF(format, ...) {fprintf(DEBUGOUT, "%lu (%d)[%s:%d]", (unsigned long)time(NULL), (int)tid(), __func__, (int)__LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
-#define DBG_PRINTF2(format, ...) {fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
-/// @def    DUMPBIN(dt,ln)
+#define LOGV(format, ...)   {fprintf(DEBUGOUT, "%lu (%d)[%s:%d]", (unsigned long)time(NULL), (int)tid(), __func__, (int)__LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
+#define DUMPV(dt,ln)        ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
+#define TXIDV(dt)           {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
+/// @def    LOGD(format, ...)
+/// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
+#define LOGD(format, ...)   {fprintf(DEBUGOUT, "%lu (%d)[%s:%d]", (unsigned long)time(NULL), (int)tid(), __func__, (int)__LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
+#define LOGD2(format, ...)  {fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
+/// @def    DUMPD(dt,ln)
 /// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
-#define DUMPBIN(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
-#define DUMPTXID(dt)        {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
+#define DUMPD(dt,ln)        ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
+#define TXIDD(dt)           {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
 #endif  //UCOIN_USE_ULOG
 
 #else //UCOIN_DEBUG
-#define DBG_PRINTF(...)     //none
-#define DBG_PRINTF2(...)    //none
-#define DUMPBIN(...)        //none
-#define DUMPTXID(...)       //none
+#define LOGV(...)       //none
+#define DUMPV(...)      //none
+#define TXIDV(...)      //none
+
+#define LOGD(...)       //none
+#define LOGD2(...)      //none
+#define DUMPD(...)      //none
+#define TXIDD(...)      //none
 #endif //UCOIN_DEBUG
 
 
 #ifdef UCOIN_DEBUG_MEM
-#define M_MALLOC(a)         ucoin_dbg_malloc(a); DBG_PRINTF("M_MALLOC:%d\n", ucoin_dbg_malloc_cnt());       ///< malloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
-#define M_REALLOC(a,b)      ucoin_dbg_realloc(a,b); DBG_PRINTF("M_REALLOC:%d\n", ucoin_dbg_malloc_cnt());   ///< realloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
-#define M_CALLOC(a,b)       ucoin_dbg_calloc(a,b); DBG_PRINTF("M_CALLOC:%d\n", ucoin_dbg_malloc_cnt());       ///< realloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
-#define M_FREE(ptr)         { ucoin_dbg_free(ptr); ptr = NULL; DBG_PRINTF("M_FREE:%d\n", ucoin_dbg_malloc_cnt()); }     ///< free(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
+#define M_MALLOC(a)         ucoin_dbg_malloc(a); LOGD("M_MALLOC:%d\n", ucoin_dbg_malloc_cnt());       ///< malloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
+#define M_REALLOC(a,b)      ucoin_dbg_realloc(a,b); LOGD("M_REALLOC:%d\n", ucoin_dbg_malloc_cnt());   ///< realloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
+#define M_CALLOC(a,b)       ucoin_dbg_calloc(a,b); LOGD("M_CALLOC:%d\n", ucoin_dbg_malloc_cnt());       ///< realloc(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
+#define M_FREE(ptr)         { ucoin_dbg_free(ptr); ptr = NULL; LOGD("M_FREE:%d\n", ucoin_dbg_malloc_cnt()); }     ///< free(カウント付き)(UCOIN_DEBUG_MEM定義時のみ有効)
 #else   //UCOIN_DEBUG_MEM
 #define M_MALLOC            malloc
 #define M_REALLOC           realloc

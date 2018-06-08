@@ -205,31 +205,31 @@ void ln_print_keys(const ln_funding_local_data_t *pLocal, const ln_funding_remot
 {
 //#ifdef M_DBG_VERBOSE
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("local keys\n");
-    DBG_PRINTF("  funding_txid: ");
-    DUMPTXID(pLocal->txid);
-    DBG_PRINTF("  funding_txindex: %" PRIu16 "\n", pLocal->txindex);
+    LOGD("local keys\n");
+    LOGD("  funding_txid: ");
+    TXIDD(pLocal->txid);
+    LOGD("  funding_txindex: %" PRIu16 "\n", pLocal->txindex);
 
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        DBG_PRINTF("    %s: ", KEYS_STR[lp]);
-        DUMPBIN(pLocal->pubkeys[lp], UCOIN_SZ_PUBKEY);
+        LOGD("    %s: ", KEYS_STR[lp]);
+        DUMPD(pLocal->pubkeys[lp], UCOIN_SZ_PUBKEY);
     }
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
-        DBG_PRINTF("    %s: ", SCR_STR[lp]);
-        DUMPBIN(pLocal->scriptpubkeys[lp], UCOIN_SZ_PUBKEY);
+        LOGD("    %s: ", SCR_STR[lp]);
+        DUMPD(pLocal->scriptpubkeys[lp], UCOIN_SZ_PUBKEY);
     }
 
-    DBG_PRINTF("remote keys\n");
+    LOGD("remote keys\n");
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        DBG_PRINTF("    %s: ", KEYS_STR[lp]);
-        DUMPBIN(pRemote->pubkeys[lp], UCOIN_SZ_PUBKEY);
+        LOGD("    %s: ", KEYS_STR[lp]);
+        DUMPD(pRemote->pubkeys[lp], UCOIN_SZ_PUBKEY);
     }
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
-        DBG_PRINTF("    %s: ", SCR_STR[lp]);
-        DUMPBIN(pRemote->scriptpubkeys[lp], UCOIN_SZ_PUBKEY);
+        LOGD("    %s: ", SCR_STR[lp]);
+        DUMPD(pRemote->scriptpubkeys[lp], UCOIN_SZ_PUBKEY);
     }
-    DBG_PRINTF("prev_percommit: ");
-    DUMPBIN(pRemote->prev_percommit, UCOIN_SZ_PUBKEY);
+    LOGD("prev_percommit: ");
+    DUMPD(pRemote->prev_percommit, UCOIN_SZ_PUBKEY);
 #endif
 //#else
 //    (void)fp; (void)pLocal; (void)pRemote;

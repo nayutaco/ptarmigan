@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #include <pthread.h>
 #include <unistd.h>
@@ -11,6 +12,7 @@
 #include <sys/stat.h>
 
 #include "ulog.h"
+#include "ucoin.h"
 
 #define FNAME_MAX       (50)
 
@@ -81,7 +83,7 @@ void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTa
     va_list ap;
     time_t now = time(NULL);
     char tmstr[50];
-    strftime(tmstr, sizeof(tmstr), "%m/%d %H:%M:%S", localtime(&now)); 
+    strftime(tmstr, sizeof(tmstr), "%m/%d %H:%M:%S", localtime(&now));
 
     va_start(ap, pFmt);
     if (Flag) {
@@ -112,4 +114,22 @@ void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTa
     }
 
     pthread_mutex_unlock(&mMux);
+}
+
+
+void ulog_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const void *pData, size_t Len)
+{
+    char *p_str = (char *)malloc(Len * 2 + 1);
+    ucoin_util_bin2str(p_str, pData, Len);
+    ulog_write(Pri, pFname, Line, Flag, pTag, "%s\n", p_str);
+    free(p_str);
+}
+
+
+void ulog_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const void *pData, size_t Len)
+{
+    char *p_str = (char *)malloc(Len * 2 + 1);
+    ucoin_util_bin2str_rev(p_str, pData, Len);
+    ulog_write(Pri, pFname, Line, Flag, pTag, "%s\n", p_str);
+    free(p_str);
 }

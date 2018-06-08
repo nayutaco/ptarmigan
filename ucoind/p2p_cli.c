@@ -74,7 +74,7 @@ bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     struct sockaddr_in sv_addr;
 
     if (!ucoin_keys_chkpub(pConn->node_id)) {
-        DBG_PRINTF("invalid node_id\n");
+        LOGD("invalid node_id\n");
         ctx->error_code = RPCERR_NODEID;
         ctx->error_message = ucoind_error_str(RPCERR_NODEID);
         goto LABEL_EXIT;
@@ -86,19 +86,15 @@ bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         }
     }
     if (idx >= (int)ARRAY_SIZE(mAppConf)) {
-        DBG_PRINTF("client full\n");
+        LOGD("client full\n");
         ctx->error_code = RPCERR_FULLCLI;
         ctx->error_message = ucoind_error_str(RPCERR_FULLCLI);
         goto LABEL_EXIT;
     }
 
-    fprintf(PRINTOUT, "connect: %s:%d\n", pConn->ipaddr, pConn->port);
-    fprintf(PRINTOUT, "node_id=");
-    ucoin_util_dumpbin(PRINTOUT, pConn->node_id, UCOIN_SZ_PUBKEY, true);
-
     mAppConf[idx].sock = socket(PF_INET, SOCK_STREAM, 0);
     if (mAppConf[idx].sock < 0) {
-        DBG_PRINTF("socket\n");
+        LOGD("socket\n");
         ctx->error_code = RPCERR_SOCK;
         ctx->error_message = ucoind_error_str(RPCERR_SOCK);
         goto LABEL_EXIT;
@@ -120,11 +116,11 @@ bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
         if (polr > 0) {
             ret = 0;
         } else {
-            DBG_PRINTF("poll: %s\n", strerror(errno));
+            LOGD("poll: %s\n", strerror(errno));
         }
     }
     if (ret < 0) {
-        DBG_PRINTF("connect: %s\n", strerror(errno));
+        LOGD("connect: %s\n", strerror(errno));
         ctx->error_code = RPCERR_CONNECT;
         ctx->error_message = ucoind_error_str(RPCERR_CONNECT);
         close(mAppConf[idx].sock);
@@ -146,7 +142,11 @@ bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
 
         goto LABEL_EXIT;
     }
-    DBG_PRINTF("connected: sock=%d\n", mAppConf[idx].sock);
+    LOGD("connected: sock=%d\n", mAppConf[idx].sock);
+
+    fprintf(PRINTOUT, "[client]connected: %s:%d\n", pConn->ipaddr, pConn->port);
+    fprintf(PRINTOUT, "[client]node_id=");
+    ucoin_util_dumpbin(PRINTOUT, pConn->node_id, UCOIN_SZ_PUBKEY, true);
 
     //スレッド起動
     mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
@@ -179,7 +179,7 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId)
     int lp;
     for (lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, UCOIN_SZ_PUBKEY) == 0)) {
-            //DBG_PRINTF("found: client %d\n", lp);
+            //LOGD("found: client %d\n", lp);
             p_appconf = &mAppConf[lp];
             break;
         }
@@ -194,12 +194,12 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
     lnapp_conf_t *p_appconf = NULL;
     for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
         if (mAppConf[lp].loop && (lnapp_match_short_channel_id(&mAppConf[lp], short_channel_id))) {
-            //DBG_PRINTF("found: client[%" PRIx64 "] %d\n", short_channel_id, lp);
+            //LOGD("found: client[%" PRIx64 "] %d\n", short_channel_id, lp);
             p_appconf = &mAppConf[lp];
             break;
         }
     }
-    //DBG_PRINTF("p_appconf= %p\n", p_appconf);
+    //LOGD("p_appconf= %p\n", p_appconf);
 
     return p_appconf;
 }

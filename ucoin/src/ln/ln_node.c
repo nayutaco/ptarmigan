@@ -111,7 +111,7 @@ bool ln_node_init(uint8_t Features)
             goto LABEL_EXIT;
         }
     } else {
-        DBG_PRINTF("fail: db init\n");
+        LOGD("fail: db init\n");
         goto LABEL_EXIT;
     }
 
@@ -133,11 +133,11 @@ bool ln_node_init(uint8_t Features)
                  (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
                  (!comp_node_addr(&anno.addr, &mNode.addr) && (mNode.addr.type != LN_NODEDESC_NONE)) ) {
                 //保持している情報と不一致(IPアドレスは引数で指定された場合のみチェック)
-                DBG_PRINTF("fail: node info not match\n");
+                LOGD("fail: node info not match\n");
                 ret = false;
                 goto LABEL_EXIT;
             } else {
-                DBG_PRINTF("same node.conf\n");
+                LOGD("same node.conf\n");
                 uint16_t bak = mNode.addr.port; //node_announcementにはポート番号が載らないことがあり得る
                 memcpy(&mNode.addr, &anno.addr, sizeof(anno.addr));
                 mNode.addr.port = bak;
@@ -145,7 +145,7 @@ bool ln_node_init(uint8_t Features)
         }
     } else {
         //自node_announcement無し
-        DBG_PRINTF("new\n");
+        LOGD("new\n");
 
         anno.timestamp = (uint32_t)time(NULL);
         anno.p_node_id = mNode.keys.pub;
@@ -186,9 +186,9 @@ bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
     prm.p_self = self;
     bool detect = ln_db_self_search(comp_func_cnl, &prm);
 
-    DBG_PRINTF("search id:");
-    DUMPBIN(pNodeId, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("  --> detect=%d\n", detect);
+    LOGD("search id:");
+    DUMPD(pNodeId, UCOIN_SZ_PUBKEY);
+    LOGD("  --> detect=%d\n", detect);
 
     return detect;
 }
@@ -204,7 +204,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
         pNodeAnno->p_alias = NULL;
         ret = ln_msg_node_announce_read(pNodeAnno, buf_anno.buf, buf_anno.len);
         if (!ret) {
-            DBG_PRINTF("fail: read node_announcement\n");
+            LOGD("fail: read node_announcement\n");
         }
     }
     ucoin_buf_free(&buf_anno);
@@ -245,12 +245,12 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     anno.p_alias = node_alias;
     ret = ln_msg_node_announce_read(&anno, pData, Len);
     if (!ret) {
-        DBG_PRINTF("fail: read message\n");
+        LOGD("fail: read message\n");
         return false;
     }
 
-    DBG_PRINTF("node_id:");
-    DUMPBIN(node_id, sizeof(node_id));
+    LOGV("node_id:");
+    DUMPV(node_id, sizeof(node_id));
 
     ucoin_buf_t buf_ann;
     buf_ann.buf = (CONST_CAST uint8_t *)pData;
@@ -284,7 +284,7 @@ bool HIDDEN ln_node_search_nodeid(uint8_t *pNodeId, uint64_t ShortChannelId)
     param.p_node_id = pNodeId;
     param.short_channel_id = ShortChannelId;
     bool ret = ln_db_self_search(comp_func_srch_nodeid, &param);
-    DBG_PRINTF("ret=%d\n", ret);
+    LOGD("ret=%d\n", ret);
     return ret;
 }
 
@@ -341,7 +341,7 @@ static bool comp_func_total_msat(ln_self_t *self, void *p_db_param, void *p_para
     (void)p_db_param;
     uint64_t *p_amount = (uint64_t *)p_param;
 
-    //DBG_PRINTF("our_msat:%" PRIu64 "\n", ln_our_msat(self));
+    //LOGD("our_msat:%" PRIu64 "\n", ln_our_msat(self));
     *p_amount += ln_our_msat(self);
     return false;
 }
@@ -386,20 +386,20 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
     };
 
     if (pAddr1->type != pAddr2->type) {
-        DBG_PRINTF("not match: type\n");
+        LOGD("not match: type\n");
         return false;
     }
     if ((pAddr1->type != LN_NODEDESC_NONE) && (pAddr1->port != pAddr2->port)) {
-        DBG_PRINTF("not match: port, %d, %d\n", pAddr1->port, pAddr2->port);
+        LOGD("not match: port, %d, %d\n", pAddr1->port, pAddr2->port);
         return false;
     }
     if (pAddr1->type <= LN_NODEDESC_ONIONV3) {
         if (memcmp(pAddr1->addrinfo.addr, pAddr2->addrinfo.addr, SZ[pAddr1->type]) != 0) {
-            DBG_PRINTF("not match: addr\n");
+            LOGD("not match: addr\n");
             return false;
         }
     } else {
-        DBG_PRINTF("invalid: type\n");
+        LOGD("invalid: type\n");
         return false;
     }
     return true;

@@ -373,7 +373,7 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
 {
     if (pTx->vin[Index].wit_cnt != 4) {
         //2-of-2は4項目
-        DBG_PRINTF("items not 4.n");
+        LOGD("items not 4.n");
         return false;
     }
 
@@ -392,7 +392,7 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
     //none
     wit = &wits[0];
     if (wit->len != 0) {
-        DBG_PRINTF("top isnot none\n");
+        LOGD("top isnot none\n");
         return false;
     }
 
@@ -400,13 +400,13 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
     const ucoin_buf_t *sig1 = &wits[1];
     if ((sig1->len == 0) || (sig1->buf[sig1->len - 1] != SIGHASH_ALL)) {
         //SIGHASH_ALLではない
-        DBG_PRINTF("SIG1: not SIGHASH_ALL\n");
+        LOGD("SIG1: not SIGHASH_ALL\n");
         return false;
     }
     const ucoin_buf_t *sig2 = &wits[2];
     if ((sig2->len == 0) || (sig2->buf[sig2->len - 1] != SIGHASH_ALL)) {
         //SIGHASH_ALLではない
-        DBG_PRINTF("SIG2: not SIGHASH_ALL\n");
+        LOGD("SIG2: not SIGHASH_ALL\n");
         return false;
     }
 
@@ -414,19 +414,19 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
     wit = &wits[3];
     if (wit->len != 71) {
         //2-of-2 witnessScriptのサイズではない
-        DBG_PRINTF("witScript: invalid length: %u\n", wit->len);
+        LOGD("witScript: invalid length: %u\n", wit->len);
         return false;
     }
     const uint8_t *p = wit->buf;
     if ( (*p != OP_2) || (*(p + 1) != UCOIN_SZ_PUBKEY) || (*(p + 35) != UCOIN_SZ_PUBKEY) ||
          (*(p + 69) != OP_2) || (*(p + 70) != OP_CHECKMULTISIG) ) {
         //2-of-2のredeemScriptではない
-        DBG_PRINTF("witScript: invalid script\n");
-        DBG_PRINTF("1: %d\n", (*p != OP_2));
-        DBG_PRINTF("2: %d\n", (*(p + 1) != UCOIN_SZ_PUBKEY));
-        DBG_PRINTF("3: %d\n", (*(p + 35) != UCOIN_SZ_PUBKEY));
-        DBG_PRINTF("4: %d\n", (*(p + 69) != OP_2));
-        DBG_PRINTF("5: %d\n", (*(p + 70) != OP_CHECKMULTISIG));
+        LOGD("witScript: invalid script\n");
+        LOGD("1: %d\n", (*p != OP_2));
+        LOGD("2: %d\n", (*(p + 1) != UCOIN_SZ_PUBKEY));
+        LOGD("3: %d\n", (*(p + 35) != UCOIN_SZ_PUBKEY));
+        LOGD("4: %d\n", (*(p + 69) != OP_2));
+        LOGD("5: %d\n", (*(p + 70) != OP_CHECKMULTISIG));
         return false;
     }
     const uint8_t *pub1 = p + 2;
@@ -436,7 +436,7 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
     //  native segwit
     //      00 [len] [pubkeyHash/scriptHash]
     if (pVout->buf[0] != 0x00) {
-        DBG_PRINTF("invalid previous vout(not native segwit)\n");
+        LOGD("invalid previous vout(not native segwit)\n");
         return false;
     }
     if (pVout->buf[1] == UCOIN_SZ_HASH256) {
@@ -445,11 +445,11 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
         ucoin_util_sha256(pkh, wit->buf, wit->len);
         bool ret = (memcmp(pkh, &pVout->buf[2], UCOIN_SZ_SHA256) == 0);
         if (!ret) {
-            DBG_PRINTF("pubkeyhash mismatch.\n");
+            LOGD("pubkeyhash mismatch.\n");
             return false;
         }
     } else {
-        DBG_PRINTF("invalid previous vout length(not P2WSH)\n");
+        LOGD("invalid previous vout length(not P2WSH)\n");
         return false;
     }
 
@@ -460,10 +460,10 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
     if (ret) {
         ret = ucoin_tx_verify(sig2, pTxHash, pub2);
         if (!ret) {
-            DBG_PRINTF("fail: ucoin_tx_verify(sig2)\n");
+            LOGD("fail: ucoin_tx_verify(sig2)\n");
         }
     } else {
-        DBG_PRINTF("fail: ucoin_tx_verify(sig1)\n");
+        LOGD("fail: ucoin_tx_verify(sig1)\n");
     }
 #else
     bool ret1 = ucoin_tx_verify(sig1, pTxHash, pub1);
@@ -472,7 +472,7 @@ bool ucoin_sw_verify_2of2(const ucoin_tx_t *pTx, int Index, const uint8_t *pTxHa
     bool ret4 = ucoin_tx_verify(sig2, pTxHash, pub1);
     bool ret = ret1 && ret2;
     printf("txhash=");
-    DUMPBIN(pTxHash, UCOIN_SZ_SIGHASH);
+    DUMPD(pTxHash, UCOIN_SZ_SIGHASH);
     printf("ret1=%d\n", ret1);
     printf("ret2=%d\n", ret2);
     printf("ret3=%d\n", ret3);

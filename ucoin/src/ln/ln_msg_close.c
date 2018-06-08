@@ -64,7 +64,7 @@ bool HIDDEN ln_msg_shutdown_create(ucoin_buf_t *pBuf, const ln_shutdown_t *pMsg)
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     shutdown_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -93,13 +93,13 @@ bool HIDDEN ln_msg_shutdown_create(ucoin_buf_t *pBuf, const ln_shutdown_t *pMsg)
 bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 34) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_SHUTDOWN) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -113,7 +113,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
     uint16_t len = ln_misc_get16be(pData + pos);
     pos += sizeof(uint16_t);
     if (Len - pos < len) {
-        DBG_PRINTF("fail: invalid scriptpubkey length: %d\n", Len);
+        LOGD("fail: invalid scriptpubkey length: %d\n", Len);
         return false;
     }
 
@@ -124,7 +124,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     shutdown_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -135,12 +135,12 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
 static void shutdown_print(const ln_shutdown_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[shutdown]-------------------------------\n");
-    DBG_PRINTF("channel-id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("p_scriptpk: ");
-    DUMPBIN(pMsg->p_scriptpk->buf, pMsg->p_scriptpk->len);
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("-[shutdown]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("p_scriptpk: ");
+    DUMPD(pMsg->p_scriptpk->buf, pMsg->p_scriptpk->len);
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -160,7 +160,7 @@ bool HIDDEN ln_msg_closing_signed_create(ucoin_buf_t *pBuf, const ln_closing_sig
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     closing_signed_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -189,13 +189,13 @@ bool HIDDEN ln_msg_closing_signed_create(ucoin_buf_t *pBuf, const ln_closing_sig
 bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 104) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_CLOSING_SIGNED) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -216,7 +216,7 @@ bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t 
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     closing_signed_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -227,12 +227,12 @@ bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t 
 static void closing_signed_print(const ln_closing_signed_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[closing_signed]-------------------------------\n");
-    DBG_PRINTF("channel-id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("fee_sat= %llu\n", (unsigned long long)pMsg->fee_sat);
-    DBG_PRINTF("signature: ");
-    DUMPBIN(pMsg->p_signature, LN_SZ_SIGNATURE);
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("-[closing_signed]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("fee_sat= %llu\n", (unsigned long long)pMsg->fee_sat);
+    LOGD("signature: ");
+    DUMPD(pMsg->p_signature, LN_SZ_SIGNATURE);
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }

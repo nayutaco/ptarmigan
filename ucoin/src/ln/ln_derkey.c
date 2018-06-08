@@ -64,12 +64,12 @@ bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
     mbedtls_mpi_free(&bp);
 
 #ifdef M_DBG_PRINT
-    DBG_PRINTF("SHA256(per_commitment_point |+ basepoint)\n=> SHA256(");
-    DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2(" |+ ");
-    DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2(" ==> ");
-    DUMPBIN(pPubKey, UCOIN_SZ_PUBKEY);
+    LOGD("SHA256(per_commitment_point |+ basepoint)\n=> SHA256(");
+    DUMPD(pPerCommitPoint, UCOIN_SZ_PUBKEY);
+    LOGD2(" |+ ");
+    DUMPD(pBasePoint, UCOIN_SZ_PUBKEY);
+    LOGD2(" ==> ");
+    DUMPD(pPubKey, UCOIN_SZ_PUBKEY);
 #endif
 
     return ret == 0;
@@ -116,12 +116,12 @@ bool HIDDEN ln_derkey_privkey(uint8_t *pPrivKey,
     }
 
 #ifdef M_DBG_PRINT
-    DBG_PRINTF("(priv)SHA256(per_commitment_point |+ basepoint)\n=> SHA256(");
-    DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2(" |+ ");
-    DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2(" ==> (priv)");
-    DUMPBIN(pBaseSecret, UCOIN_SZ_PRIVKEY);
+    LOGD("(priv)SHA256(per_commitment_point |+ basepoint)\n=> SHA256(");
+    DUMPD(pPerCommitPoint, UCOIN_SZ_PUBKEY);
+    LOGD2(" |+ ");
+    DUMPD(pBasePoint, UCOIN_SZ_PUBKEY);
+    LOGD2(" ==> (priv)");
+    DUMPD(pBaseSecret, UCOIN_SZ_PRIVKEY);
 #endif
 
 LABEL_EXIT:
@@ -193,12 +193,12 @@ bool HIDDEN ln_derkey_revocationkey(uint8_t *pRevPubKey,
     ret = mbedtls_ecp_point_write_binary(&keypair.grp, &S, MBEDTLS_ECP_PF_COMPRESSED, &sz, pRevPubKey, UCOIN_SZ_PUBKEY);
 
 #ifdef M_DBG_PRINT
-    DBG_PRINTF("SHA256(revocation_basepoint |x per_commitment_point)\n=> SHA256(");
-    DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2(" |x ");
-    DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2(" ==> ");
-    DUMPBIN(pRevPubKey, UCOIN_SZ_PUBKEY);
+    LOGD("SHA256(revocation_basepoint |x per_commitment_point)\n=> SHA256(");
+    DUMPD(pBasePoint, UCOIN_SZ_PUBKEY);
+    LOGD2(" |x ");
+    DUMPD(pPerCommitPoint, UCOIN_SZ_PUBKEY);
+    LOGD2(" ==> ");
+    DUMPD(pRevPubKey, UCOIN_SZ_PUBKEY);
 #endif
 
 LABEL_EXIT:
@@ -277,14 +277,14 @@ bool HIDDEN ln_derkey_revocationprivkey(uint8_t *pRevPrivKey,
     }
 
 #ifdef M_DBG_PRINT
-    DBG_PRINTF("(priv)SHA256(revocation_basepoint |x per_commitment_point) x per_commitment_secret\n=>SHA256(");
-    DUMPBIN(pBasePoint, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2(" x ");
-    DUMPBIN(pPerCommitPoint, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF2(" x ");
-    DUMPBIN(pPerCommitSecret, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF2(" ==> (priv)");
-    DUMPBIN(pRevPrivKey, UCOIN_SZ_PRIVKEY);
+    LOGD("(priv)SHA256(revocation_basepoint |x per_commitment_point) x per_commitment_secret\n=>SHA256(");
+    DUMPD(pBasePoint, UCOIN_SZ_PUBKEY);
+    LOGD2(" x ");
+    DUMPD(pPerCommitPoint, UCOIN_SZ_PUBKEY);
+    LOGD2(" x ");
+    DUMPD(pPerCommitSecret, UCOIN_SZ_PRIVKEY);
+    LOGD2(" ==> (priv)");
+    DUMPD(pRevPrivKey, UCOIN_SZ_PRIVKEY);
 #endif
 
 LABEL_EXIT:
@@ -302,7 +302,7 @@ LABEL_EXIT:
 //      https://github.com/rustyrussell/ccan/tree/master/ccan/crypto/shachain
 void HIDDEN ln_derkey_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uint64_t Index)
 {
-    DBG_PRINTF("index=%" PRIx64 "\n", Index);
+    LOGD("index=%" PRIx64 "\n", Index);
 
     derive_secret(pPrivKey, pSeed, 47, Index);
 }
@@ -335,12 +335,12 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const u
     uint8_t output[UCOIN_SZ_PRIVKEY];
 
     int bit = where_to_put_secret(Index);
-    DBG_PRINTF("I=%" PRIx64 ", bit=%d\n", Index, bit);
+    LOGD("I=%" PRIx64 ", bit=%d\n", Index, bit);
     for (int lp = 0; lp < bit; lp++) {
         derive_secret(output, pSecret, bit-1, pStorage->storage[lp].index);
         if (memcmp(output, pStorage->storage[lp].secret, UCOIN_SZ_PRIVKEY) != 0) {
             //error
-            DBG_PRINTF("fail: secret mismatch(I=%" PRIx64 "), bit=%d\n", Index, bit);
+            LOGD("fail: secret mismatch(I=%" PRIx64 "), bit=%d\n", Index, bit);
             assert(0);
             return false;
         }
@@ -354,7 +354,7 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const u
 
 bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_storage *pStorage, uint64_t Index)
 {
-    DBG_PRINTF("index=%" PRIx64 "\n", Index);
+    LOGD("index=%" PRIx64 "\n", Index);
 
     //derive_old_secret(I):
     //    for b in 0 to len(secrets):

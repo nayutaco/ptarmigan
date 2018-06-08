@@ -74,12 +74,12 @@ bool HIDDEN ln_msg_update_add_htlc_create(ucoin_buf_t *pBuf, const ln_update_add
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
     if (pMsg->cltv_expiry >= (uint32_t)500000000) {
-        DBG_PRINTF("fail: expiry >= 500000000\n");
+        LOGD("fail: expiry >= 500000000\n");
         return false;
     }
 
@@ -117,13 +117,13 @@ bool HIDDEN ln_msg_update_add_htlc_create(ucoin_buf_t *pBuf, const ln_update_add
 bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 1450) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_ADD_HTLC) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -158,7 +158,7 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -169,17 +169,17 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
 static void update_add_htlc_print(const ln_update_add_htlc_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[update_add_htlc]-------------------------------\n");
-    DBG_PRINTF("channel-id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("id: %" PRIx64 "\n", pMsg->id);
-    DBG_PRINTF("amount_msat: %" PRIu64 "\n", pMsg->amount_msat);
-    DBG_PRINTF("cltv_expiry: %u\n", pMsg->cltv_expiry);
-    DBG_PRINTF("payment_sha256: ");
-    DUMPBIN(pMsg->payment_sha256, LN_SZ_HASH);
-    DBG_PRINTF("p_onion_route: ");
-    DUMPBIN(pMsg->p_onion_route, 30);
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("-[update_add_htlc]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("id: %" PRIx64 "\n", pMsg->id);
+    LOGD("amount_msat: %" PRIu64 "\n", pMsg->amount_msat);
+    LOGD("cltv_expiry: %u\n", pMsg->cltv_expiry);
+    LOGD("payment_sha256: ");
+    DUMPD(pMsg->payment_sha256, LN_SZ_HASH);
+    LOGD("p_onion_route: ");
+    DUMPD(pMsg->p_onion_route, 30);
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -199,7 +199,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_create(ucoin_buf_t *pBuf, const ln_update
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fulfill_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -228,13 +228,13 @@ bool HIDDEN ln_msg_update_fulfill_htlc_create(ucoin_buf_t *pBuf, const ln_update
 bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 72) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_FULFILL_HTLC) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -255,7 +255,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fulfill_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -266,17 +266,17 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
 static void update_fulfill_htlc_print(const ln_update_fulfill_htlc_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[update_fulfill_htlc]-------------------------------\n");
-    DBG_PRINTF("channel-id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("id: %" PRIx64 "\n", pMsg->id);
-    DBG_PRINTF("p_payment_preimage: ");
-    DUMPBIN(pMsg->p_payment_preimage, UCOIN_SZ_PRIVKEY);
+    LOGD("-[update_fulfill_htlc]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("id: %" PRIx64 "\n", pMsg->id);
+    LOGD("p_payment_preimage: ");
+    DUMPD(pMsg->p_payment_preimage, UCOIN_SZ_PRIVKEY);
     uint8_t sha[UCOIN_SZ_SHA256];
     ucoin_util_sha256(sha, pMsg->p_payment_preimage, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF("              hash: ");
-    DUMPBIN(sha, sizeof(sha));
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("              hash: ");
+    DUMPD(sha, sizeof(sha));
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -297,7 +297,7 @@ bool HIDDEN ln_msg_update_fail_htlc_create(ucoin_buf_t *pBuf, const ln_update_fa
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fail_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -329,13 +329,13 @@ bool HIDDEN ln_msg_update_fail_htlc_create(ucoin_buf_t *pBuf, const ln_update_fa
 bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 42) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_FAIL_HTLC) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -353,7 +353,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
     uint16_t len = ln_misc_get16be(pData + pos);
     pos += sizeof(uint16_t);
     if (Len - pos < len) {
-        DBG_PRINTF("fail: invalid reason length: %d\n", Len);
+        LOGD("fail: invalid reason length: %d\n", Len);
         return false;
     }
 
@@ -364,7 +364,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fail_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -375,14 +375,14 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
 static void update_fail_htlc_print(const ln_update_fail_htlc_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[update_fail_htlc]-------------------------------\n");
-    DBG_PRINTF("channel-id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("id: %" PRIx64 "\n", pMsg->id);
-    DBG_PRINTF("len= %lu\n", (unsigned long)pMsg->p_reason->len);
-    DBG_PRINTF("reason: ");
-    DUMPBIN(pMsg->p_reason->buf, pMsg->p_reason->len);
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("-[update_fail_htlc]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("id: %" PRIx64 "\n", pMsg->id);
+    LOGD("len= %lu\n", (unsigned long)pMsg->p_reason->len);
+    LOGD("reason: ");
+    DUMPD(pMsg->p_reason->buf, pMsg->p_reason->len);
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -403,7 +403,7 @@ bool HIDDEN ln_msg_commit_signed_create(ucoin_buf_t *pBuf, const ln_commit_signe
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     commit_signed_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -435,13 +435,13 @@ bool HIDDEN ln_msg_commit_signed_create(ucoin_buf_t *pBuf, const ln_commit_signe
 bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 98) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_COMMITMENT_SIGNED) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -468,7 +468,7 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     commit_signed_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -479,17 +479,17 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
 static void commit_signed_print(const ln_commit_signed_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[commitment_signed]-------------------------------\n");
-    DBG_PRINTF("channel-id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("signature: ");
-    DUMPBIN(pMsg->p_signature, LN_SZ_SIGNATURE);
-    DBG_PRINTF("num_htlcs= %lu\n", (unsigned long)pMsg->num_htlcs);
+    LOGD("-[commitment_signed]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("signature: ");
+    DUMPD(pMsg->p_signature, LN_SZ_SIGNATURE);
+    LOGD("num_htlcs= %lu\n", (unsigned long)pMsg->num_htlcs);
     for (int lp = 0; lp < pMsg->num_htlcs; lp++) {
-        DBG_PRINTF("htlc-signature[%d]: ", lp);
-        DUMPBIN(pMsg->p_htlc_signature + lp * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
+        LOGD("htlc-signature[%d]: ", lp);
+        DUMPD(pMsg->p_htlc_signature + lp * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
     }
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -509,7 +509,7 @@ bool HIDDEN ln_msg_revoke_and_ack_create(ucoin_buf_t *pBuf, const ln_revoke_and_
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     revoke_and_ack_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -538,13 +538,13 @@ bool HIDDEN ln_msg_revoke_and_ack_create(ucoin_buf_t *pBuf, const ln_revoke_and_
 bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 97) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_REVOKE_AND_ACK) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -565,7 +565,7 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     revoke_and_ack_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -576,14 +576,14 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
 static void revoke_and_ack_print(const ln_revoke_and_ack_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[revoke_and_ack]-------------------------------\n");
-    DBG_PRINTF("channel-id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("per-commitment-secret: ");
-    DUMPBIN(pMsg->p_per_commit_secret, UCOIN_SZ_PRIVKEY);
-    DBG_PRINTF("next-per-commitment-point: ");
-    DUMPBIN(pMsg->p_per_commitpt, UCOIN_SZ_PUBKEY);
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("-[revoke_and_ack]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("per-commitment-secret: ");
+    DUMPD(pMsg->p_per_commit_secret, UCOIN_SZ_PRIVKEY);
+    LOGD("next-per-commitment-point: ");
+    DUMPD(pMsg->p_per_commitpt, UCOIN_SZ_PUBKEY);
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -602,7 +602,7 @@ bool HIDDEN ln_msg_update_fee_create(ucoin_buf_t *pBuf, const ln_update_fee_t *p
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fee_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -628,13 +628,13 @@ bool HIDDEN ln_msg_update_fee_create(ucoin_buf_t *pBuf, const ln_update_fee_t *p
 bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 36) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_FEE) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -651,7 +651,7 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fee_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -662,11 +662,11 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
 static void update_fee_print(const ln_update_fee_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[update_fee]-------------------------------\n");
-    DBG_PRINTF("channel-id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("feerate_per_kw= %lu\n", (unsigned long)pMsg->feerate_per_kw);
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("-[update_fee]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("feerate_per_kw= %lu\n", (unsigned long)pMsg->feerate_per_kw);
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
 
@@ -687,7 +687,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_create(ucoin_buf_t *pBuf, const ln
     ucoin_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fail_malformed_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
@@ -719,13 +719,13 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_create(ucoin_buf_t *pBuf, const ln
 bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 74) {
-        DBG_PRINTF("fail: invalid length: %d\n", Len);
+        LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC) {
-        DBG_PRINTF("fail: type not match: %04x\n", type);
+        LOGD("fail: type not match: %04x\n", type);
         return false;
     }
 
@@ -750,7 +750,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
     assert(Len == pos);
 
 #ifdef DBG_PRINT_READ
-    DBG_PRINTF("@@@@@ %s @@@@@\n", __func__);
+    LOGD("@@@@@ %s @@@@@\n", __func__);
     update_fail_malformed_htlc_print(pMsg);
 #endif  //DBG_PRINT_READ
 
@@ -761,13 +761,13 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
 static void update_fail_malformed_htlc_print(const ln_update_fail_malformed_htlc_t *pMsg)
 {
 #ifdef UCOIN_DEBUG
-    DBG_PRINTF("-[update_fail_malformed_htlc]-------------------------------\n");
-    DBG_PRINTF("channel-id: ");
-    DUMPBIN(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    DBG_PRINTF("id: %" PRIx64 "\n", pMsg->id);
-    DBG_PRINTF("p_sha256_onion: ");
-    DUMPBIN(pMsg->p_sha256_onion, LN_SZ_HASH);
-    DBG_PRINTF("failure_code: %04x\n", pMsg->failure_code);
-    DBG_PRINTF("--------------------------------\n");
+    LOGD("-[update_fail_malformed_htlc]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("id: %" PRIx64 "\n", pMsg->id);
+    LOGD("p_sha256_onion: ");
+    DUMPD(pMsg->p_sha256_onion, LN_SZ_HASH);
+    LOGD("failure_code: %04x\n", pMsg->failure_code);
+    LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }
