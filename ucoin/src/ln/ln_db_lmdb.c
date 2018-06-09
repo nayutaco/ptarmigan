@@ -902,7 +902,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                 fprintf(PRINTOUT, ",\n");
             }
             if (DBCOPY_IDX[lp].disp) {
-                fprintf(PRINTOUT, "\"%s\": ", DBCOPY_KEYS[lp].name);
+                fprintf(PRINTOUT, "      \"%s\": ", DBCOPY_KEYS[lp].name);
             }
             switch (DBCOPY_IDX[lp].type) {
             case ETYPE_BYTEPTR: //const uint8_t*
@@ -972,7 +972,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
 #ifdef M_DEBUG_KEYS
     if ( ((local.pubkeys[0][0] == 0x02) || (local.pubkeys[0][0] == 0x03)) &&
          ((remote.pubkeys[0][0] == 0x02) || (remote.pubkeys[0][0] == 0x03))) {
-        fprintf(PRINTOUT, ",\n");
+        fprintf(PRINTOUT, "\n");
         ln_misc_update_scriptkeys(&local, &remote);
         //ln_print_keys(&local, &remote);
     }
