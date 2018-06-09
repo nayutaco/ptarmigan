@@ -69,7 +69,18 @@
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
 #define M_SZ_ANNOINFO_NODE      (UCOIN_SZ_PUBKEY)
 
-#define SHOW_DEFAULT        (SHOW_SELF)
+//BOLT message
+#define MSGTYPE_CHANNEL_ANNOUNCEMENT        ((uint16_t)0x0100)
+#define MSGTYPE_NODE_ANNOUNCEMENT           ((uint16_t)0x0101)
+#define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
+#define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
+
+
+#define INDENT1                 "  "
+#define INDENT2                 "    "
+#define INDENT3                 "      "
+#define INDENT4                 "        "
+#define INDENT5                 "          "
 
 
 /********************************************************************
@@ -78,13 +89,15 @@
 
 #ifdef UCOIN_USE_PRINTFUNC
 void ln_print_announce(const uint8_t *pData, uint16_t Len);
-void ln_print_announce_short(const uint8_t *pData, uint16_t Len);
 #else
 #define ln_print_announce(...)          //nothing
-#define ln_print_announce_short(...)    //nothing
 #endif  //UCOIN_USE_PRINTFUNC
 void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
 void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
+
+bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
+bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
 /********************************************************************
@@ -116,115 +129,116 @@ static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
 
 static void ln_print_wallet(const ln_self_t *self)
 {
-    printf("{\n");
-    printf(M_QQ("node_id") ": \"");
+    printf(INDENT2 "{\n");
+    printf(INDENT3 M_QQ("node_id") ": \"");
     ucoin_util_dumpbin(stdout, self->peer_node_id, UCOIN_SZ_PUBKEY, false);
     printf("\",\n");
-    printf(M_QQ("channel_id") ": \"");
+    printf(INDENT3 M_QQ("channel_id") ": \"");
     ucoin_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
     printf("\",\n");
-    printf(M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", self->short_channel_id);
+    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", self->short_channel_id);
     if (self->htlc_num != 0) {
-        printf(M_QQ("htlc_num") ": %d,", self->htlc_num);
+        printf(INDENT3 M_QQ("htlc_num") ": %d,", self->htlc_num);
     }
-    printf(M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
-    printf(M_QQ("their_msat") ": %" PRIu64 "\n", self->their_msat);
-    printf("}\n");
+    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
+    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", self->their_msat);
+    printf(INDENT2 "}");
 }
 
 static void ln_print_self(const ln_self_t *self)
 {
-    printf("{\n");
+    printf(INDENT2 "{\n");
 
     //peer_node
-    printf(M_QQ("peer_node_id") ": \"");
+    printf(INDENT3 M_QQ("peer_node_id") ": \"");
     ucoin_util_dumpbin(stdout, self->peer_node_id, UCOIN_SZ_PUBKEY, false);
-    printf("\",");
+    printf("\",\n");
 
     //key storage
     // printf(M_QQ("storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->priv_data.storage_index);
     // printf(M_QQ("storage_seed") ": \"");
     // ucoin_util_dumpbin(stdout, self->priv_data.storage_seed, UCOIN_SZ_PRIVKEY, false);
     // printf("\",\n");
-    printf(M_QQ("peer_storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->peer_storage_index);
+    printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->peer_storage_index);
 
     //funding
-    printf(M_QQ("fund_flag") ": " M_QQ("%02x") ",", self->fund_flag);
-    printf(M_QQ("funding_local") ": {\n");
-    printf(M_QQ("funding_txid") ": \"");
+    printf(INDENT3 M_QQ("fund_flag") ": " M_QQ("%02x") ",\n", self->fund_flag);
+    printf(INDENT3 M_QQ("funding_local") ": {\n");
+    printf(INDENT4 M_QQ("funding_txid") ": \"");
     ucoin_util_dumptxid(stdout, self->funding_local.txid);
     printf("\",\n");
-    printf(M_QQ("funding_txindex") ": %d,\n", self->funding_local.txindex);
+    printf(INDENT4 M_QQ("funding_txindex") ": %d,\n", self->funding_local.txindex);
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        printf(M_QQ("%s") ": ", KEYS_STR[lp]);
-        printf("{");
-        // printf(M_QQ("priv") ": \"");
+        printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
+        // printf(INDENT4 M_QQ("priv") ": \"");
         // ucoin_util_dumpbin(stdout, self->funding_local.keys[lp].priv, UCOIN_SZ_PRIVKEY, false);
         // printf("\",");
-        printf(M_QQ("pub") ": \"");
+        printf(INDENT5 M_QQ("pub") ": \"");
         ucoin_util_dumpbin(stdout, self->funding_local.pubkeys[lp], UCOIN_SZ_PUBKEY, false);
-        printf("\"},\n");
+        printf("\"\n");
+        printf(INDENT4 "},\n");
     }
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
-        printf(M_QQ("%s") ": ", SCR_STR[lp]);
-        printf("{");
-        printf(M_QQ("pub") ": \"");
-        ucoin_util_dumpbin(stdout, self->funding_local.scriptpubkeys[lp], UCOIN_SZ_PUBKEY, false);
-        if (lp != LN_SCRIPTIDX_MAX - 1) {
-            printf("\"},\n");
-        } else {
-            printf("\"}\n");
+        if (lp != 0) {
+            printf(",\n");
         }
+        printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
+        printf(INDENT5 M_QQ("pub") ": \"");
+        ucoin_util_dumpbin(stdout, self->funding_local.scriptpubkeys[lp], UCOIN_SZ_PUBKEY, false);
+        printf("\"\n");
+        printf(INDENT4 "}");
     }
-    printf("},\n");
-    printf(M_QQ("funding_remote") ": {\n");
+    printf("\n");
+    printf(INDENT3 "},\n");
+
+    printf(INDENT3 M_QQ("funding_remote") ": {\n");
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
-        printf(M_QQ("%s") ": ", KEYS_STR[lp]);
-        printf("{");
-        printf(M_QQ("pub") ": \"");
+        printf(INDENT4 M_QQ("%s") ": {\n", KEYS_STR[lp]);
+        printf(INDENT5 M_QQ("pub") ": \"");
         ucoin_util_dumpbin(stdout, self->funding_remote.pubkeys[lp], UCOIN_SZ_PUBKEY, false);
-        printf("\"},\n");
+        printf("\"\n");
+        printf(INDENT4 "},\n");
     }
-    printf(M_QQ("%s") ": \"", "prev_percommit");
+    printf(INDENT4 M_QQ("%s") ": \"", "prev_percommit");
     ucoin_util_dumpbin(stdout, self->funding_remote.prev_percommit, UCOIN_SZ_PUBKEY, false);
     printf("\",\n");
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
-        printf(M_QQ("%s") ": ", SCR_STR[lp]);
-        printf("{");
-        printf(M_QQ("pub") ": \"");
-        ucoin_util_dumpbin(stdout, self->funding_remote.scriptpubkeys[lp], UCOIN_SZ_PUBKEY, false);
-        if (lp != LN_SCRIPTIDX_MAX - 1) {
-            printf("\"},\n");
-        } else {
-            printf("\"}\n");
+        if (lp != 0) {
+            printf(",\n");
         }
+        printf(INDENT4 M_QQ("%s") ": {\n", SCR_STR[lp]);
+        printf(INDENT5 M_QQ("pub") ": \"");
+        ucoin_util_dumpbin(stdout, self->funding_remote.scriptpubkeys[lp], UCOIN_SZ_PUBKEY, false);
+        printf("\"\n");
+        printf(INDENT4 "}");
     }
-    printf("},\n");
-    printf(M_QQ("obscured") ": " M_QQ("%016" PRIx64) ",\n", self->obscured);
-    printf(M_QQ("redeem_fund") ": \"");
-    ucoin_util_dumpbin(stdout, self->redeem_fund.buf, self->redeem_fund.len, false);
-    printf("\",\n");
-    printf(M_QQ("key_fund_sort") ": " M_QQ("%s") ",\n", (self->key_fund_sort == UCOIN_KEYS_SORT_ASC) ? "first" : "second");
-    printf(M_QQ("min_depth") ": %" PRIu32 ",\n", self->min_depth);
+    printf("\n");
+    printf(INDENT3 "},\n");
+    printf(INDENT3 M_QQ("obscured") ": " M_QQ("%016" PRIx64) ",\n", self->obscured);
+    // printf(INDENT3 M_QQ("redeem_fund") ": \"");
+    // ucoin_util_dumpbin(stdout, self->redeem_fund.buf, self->redeem_fund.len, false);
+    // printf("\",\n");
+    printf(INDENT3 M_QQ("key_fund_sort") ": " M_QQ("%s") ",\n", (self->key_fund_sort == UCOIN_KEYS_SORT_ASC) ? "first" : "second");
+    printf(INDENT3 M_QQ("min_depth") ": %" PRIu32 ",\n", self->min_depth);
 
     //announce
-    printf(M_QQ("anno_flag") ": " M_QQ("%02x") ",\n", self->anno_flag);
+    printf(INDENT3 M_QQ("anno_flag") ": " M_QQ("%02x") ",\n", self->anno_flag);
 
     //init
-    printf(M_QQ("lfeature_remote") ": " M_QQ("%02x") ",\n", self->lfeature_remote);
+    printf(INDENT3 M_QQ("lfeature_remote") ": " M_QQ("%02x") ",\n", self->lfeature_remote);
 
     //normal operation
-    printf(M_QQ("htlc_num") ": %d,\n", self->htlc_num);
-    printf(M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);
-    printf(M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
-    printf(M_QQ("their_msat") ": %" PRIu64 ",\n", self->their_msat);
-    printf(M_QQ("channel_id") ": \"");
+    printf(INDENT3 M_QQ("htlc_num") ": %d,\n", self->htlc_num);
+    printf(INDENT3 M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);
+    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
+    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 ",\n", self->their_msat);
+    printf(INDENT3 M_QQ("channel_id") ": \"");
     ucoin_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
     printf("\",\n");
-    printf(M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", self->short_channel_id);
+    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", self->short_channel_id);
 
     if (self->htlc_num > 0) {
-        printf(M_QQ("add_htlc") ": [\n");
+        printf(INDENT3 M_QQ("add_htlc") ": [\n");
         int cnt = 0;
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
             if (self->cnl_add_htlc[lp].amount_msat > 0) {
@@ -250,52 +264,130 @@ static void ln_print_self(const ln_self_t *self)
         printf("],\n");
     }
 
-    printf(M_QQ("commit_local") ": {\n");
-    printf(M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_local.dust_limit_sat);
-    printf(M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_local.max_htlc_value_in_flight_msat);
-    printf(M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_local.channel_reserve_sat);
-    printf(M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->commit_local.htlc_minimum_msat);
-    printf(M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_local.to_self_delay);
-    printf(M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_local.max_accepted_htlcs);
-    printf(M_QQ("commit_txid") ": \"");
+    printf(INDENT3 M_QQ("commit_local") ": {\n");
+    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_local.dust_limit_sat);
+    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_local.max_htlc_value_in_flight_msat);
+    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_local.channel_reserve_sat);
+    printf(INDENT4 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", self->commit_local.htlc_minimum_msat);
+    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_local.to_self_delay);
+    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_local.max_accepted_htlcs);
+    printf(INDENT4 M_QQ("commit_txid") ": \"");
     ucoin_util_dumptxid(stdout, self->commit_local.txid);
     printf("\",\n");
-    printf(M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_local.htlc_num);
-    printf(M_QQ("commit_num") ": %" PRIu64 "\n", self->commit_local.commit_num);
+    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_local.htlc_num);
+    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 "\n", self->commit_local.commit_num);
 
-    printf("},\n");
+    printf(INDENT3 "},\n");
 
-    printf(M_QQ("commit_remote") ": {\n");
-    printf(M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_remote.dust_limit_sat);
-    printf(M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_remote.max_htlc_value_in_flight_msat);
-    printf(M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_remote.channel_reserve_sat);
-    printf(M_QQ("htlc_minimum_msat")  ":%" PRIu64 ",\n", self->commit_remote.htlc_minimum_msat);
-    printf(M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_remote.to_self_delay);
-    printf(M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_remote.max_accepted_htlcs);
-    printf(M_QQ("commit_txid") ": \"");
+    printf(INDENT3 M_QQ("commit_remote") ": {\n");
+    printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_remote.dust_limit_sat);
+    printf(INDENT4 M_QQ("max_htlc_value_in_flight_msat") ": %" PRIu64 ",\n", self->commit_remote.max_htlc_value_in_flight_msat);
+    printf(INDENT4 M_QQ("channel_reserve_sat") ": %" PRIu64 ",\n", self->commit_remote.channel_reserve_sat);
+    printf(INDENT4 M_QQ("htlc_minimum_msat")  ":%" PRIu64 ",\n", self->commit_remote.htlc_minimum_msat);
+    printf(INDENT4 M_QQ("to_self_delay") ": %" PRIu16 ",\n", self->commit_remote.to_self_delay);
+    printf(INDENT4 M_QQ("max_accepted_htlcs") ": %" PRIu16 ",\n", self->commit_remote.max_accepted_htlcs);
+    printf(INDENT4 M_QQ("commit_txid") ": \"");
     ucoin_util_dumptxid(stdout, self->commit_remote.txid);
     printf("\",\n");
-    printf(M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_remote.htlc_num);
-    printf(M_QQ("commit_num") ": %" PRIu64 "\n", self->commit_remote.commit_num);
-    printf("},\n");
+    printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_remote.htlc_num);
+    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 "\n", self->commit_remote.commit_num);
+    printf(INDENT3 "},\n");
 
-    printf(M_QQ("funding_sat") ": %" PRIu64 ",\n", self->funding_sat);
-    printf(M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", self->feerate_per_kw);
+    printf(INDENT3 M_QQ("funding_sat") ": %" PRIu64 ",\n", self->funding_sat);
+    printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", self->feerate_per_kw);
 
     //shutdown
-    printf(M_QQ("shutdown") ": {\n");
-    printf(M_QQ("scriptpk_local") ": \"");
+    printf(INDENT3 M_QQ("shutdown") ": {\n");
+    printf(INDENT4 M_QQ("scriptpk_local") ": \"");
     ucoin_util_dumpbin(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
     printf("\",\n");
-    printf(M_QQ("scriptpk_remote") ": \"");
+    printf(INDENT4 M_QQ("scriptpk_remote") ": \"");
     ucoin_util_dumpbin(stdout, self->shutdown_scriptpk_remote.buf, self->shutdown_scriptpk_remote.len, false);
     printf("\"\n");
-    printf("},\n");
+    printf(INDENT3 "},\n");
 
-    printf(M_QQ("err") ": %d\n", self->err);
+    printf(INDENT3 M_QQ("err") ": %d\n", self->err);
 
-    printf("}\n");
+    printf(INDENT2 "}");
 }
+
+
+static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
+{
+    uint16_t type = ln_misc_get16be(pData);
+
+    printf(INDENT2 "{\n");
+    switch (type) {
+    case MSGTYPE_CHANNEL_ANNOUNCEMENT:
+        {
+            ln_cnl_announce_read_t ann;
+
+            bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
+            if (ret) {
+                printf(INDENT3 M_QQ("type") ": " M_QQ("channel_announcement") ",\n");
+                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", ann.short_channel_id);
+                printf(INDENT3 M_QQ("node1") ": \"");
+                ucoin_util_dumpbin(stdout, ann.node_id1, UCOIN_SZ_PUBKEY, false);
+                printf("\",\n");
+                printf(INDENT3 M_QQ("node2") ": \"");
+                ucoin_util_dumpbin(stdout, ann.node_id2, UCOIN_SZ_PUBKEY, false);
+                printf("\"\n");
+            }
+        }
+        break;
+    case MSGTYPE_NODE_ANNOUNCEMENT:
+        {
+            ln_node_announce_t msg;
+            uint8_t node_pub[UCOIN_SZ_PUBKEY];
+            char node_alias[LN_SZ_ALIAS + 1];
+            msg.p_node_id = node_pub;
+            msg.p_alias = node_alias;
+            bool ret = ln_msg_node_announce_read(&msg, pData, Len);
+            if (ret) {
+                printf(INDENT3 M_QQ("node") ": \"");
+                ucoin_util_dumpbin(stdout, node_pub, UCOIN_SZ_PUBKEY, false);
+                printf("\",\n");
+                printf(INDENT3 M_QQ("alias") ": " M_QQ("%s") ",\n", node_alias);
+                printf(INDENT3 M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.rgbcolor[0], msg.rgbcolor[1], msg.rgbcolor[2]);
+                if (msg.addr.type == LN_NODEDESC_IPV4) {
+                    printf(INDENT3 M_QQ("addr") ": " M_QQ("%d.%d.%d.%d:%d") ",\n",
+                            msg.addr.addrinfo.ipv4.addr[0],
+                            msg.addr.addrinfo.ipv4.addr[1],
+                            msg.addr.addrinfo.ipv4.addr[2],
+                            msg.addr.addrinfo.ipv4.addr[3],
+                            msg.addr.port);
+                } else {
+                    printf(INDENT3 M_QQ("addrtype") ": %d,\n", msg.addr.type);
+                }
+                printf(INDENT3 M_QQ("timestamp") ": %" PRIu32 "\n", msg.timestamp);
+            }
+        }
+        break;
+    case MSGTYPE_CHANNEL_UPDATE:
+        {
+            ln_cnl_update_t ann;
+            bool ret = ln_msg_cnl_update_read(&ann, pData, Len);
+            if (ret) {
+                printf(INDENT3 M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (ann.flags & 1) ? "2" : "1");
+                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("%016" PRIx64) ",\n", ann.short_channel_id);
+                //printf(INDENT3 M_QQ("node_sort") ": " M_QQ("%s") ",\n", (ann.flags & 1) ? "second" : "first");
+                printf(INDENT3 M_QQ("flags") ": " M_QQ("%04x") ",\n", ann.flags);
+                printf(INDENT3 M_QQ("cltv_expiry_delta") ": %d,\n", ann.cltv_expiry_delta);
+                printf(INDENT3 M_QQ("htlc_minimum_msat") ": %" PRIu64 ",\n", ann.htlc_minimum_msat);
+                printf(INDENT3 M_QQ("fee_base_msat") ": %" PRIu32 ",\n", ann.fee_base_msat);
+                printf(INDENT3 M_QQ("fee_prop_millionths") ": %" PRIu32 ",\n", ann.fee_prop_millionths);
+                printf(INDENT3 M_QQ("timestamp") ": %" PRIu32 "\n", ann.timestamp);
+            }
+        }
+        break;
+    }
+    printf(INDENT2 "}");
+}
+
+
+/********************************************************************
+ *
+ ********************************************************************/
 
 static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
 {
@@ -321,9 +413,9 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         }
 
         if (cnt0) {
-            printf(",");
+            printf(",\n");
         } else {
-            printf(M_QQ("%s") ": [", p_title);
+            printf(INDENT1 M_QQ("%s") ": [\n", p_title);
         }
 
         if (showflag & SHOW_SELF) {
@@ -333,7 +425,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
             ln_print_wallet(p_self);
         }
         if (showflag & SHOW_CH) {
-            printf("\"");
+            printf(INDENT2 "\"");
             ucoin_util_dumpbin(stdout, p_self->peer_node_id, UCOIN_SZ_PUBKEY, false);
             printf("\"");
         }
@@ -350,11 +442,11 @@ static void dumpit_bkself(MDB_txn *txn, MDB_dbi dbi)
         if (cnt5) {
             printf(",\n");
         } else {
-            printf(M_QQ("closed_self") ": [");
+            printf(INDENT1 M_QQ("closed_self") ": [\n");
         }
-        printf("{");
+        printf(INDENT2 "{\n");
         ln_lmdb_bkself_show(txn, dbi);
-        printf("}");
+        printf(INDENT2 "}");
         cnt5++;
     }
 }
@@ -373,7 +465,7 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
         assert(retval == 0);
         int ret;
 
-        printf(M_QQ("channel_announcement_list") ": [");
+        printf(INDENT1 M_QQ("channel_announcement_list") ": [\n");
         do {
             uint64_t short_channel_id;
             char type;
@@ -383,7 +475,7 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
             ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
             if ((ret == 0) && (short_channel_id != 0)) {
                 if (cnt1) {
-                    printf(",");
+                    printf(",\n");
                 }
                 if (!(showflag & SHOW_DEBUG)) {
                     ln_print_announce_short(buf.buf, buf.len);
@@ -407,7 +499,7 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
         if (cnt2) {
             printf(",");
         } else {
-            printf(M_QQ("node_announcement_list") ": [");
+            printf(INDENT1 M_QQ("node_announcement_list") ": [\n");
         }
 
         MDB_cursor  *cursor;
@@ -609,18 +701,21 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         char alias[LN_SZ_ALIAS + 1];
         uint16_t port;
         uint8_t genesis[LN_SZ_HASH];
+
+        printf(INDENT1 M_QQ("version") ": {\n");
+
         retval = ln_db_lmdb_get_mynodeid(txn, dbi, wif, alias, &port, genesis);
         if (retval == 0) {
             //printf(M_QQ("wif") ": " M_QQ("%s") ",\n", wif);
             ucoin_util_keys_t keys;
             ucoin_chain_t chain;
             ucoin_util_wif2keys(&keys, &chain, wif);
-            printf(M_QQ("node_id") ": \"");
+            printf(INDENT2 M_QQ("node_id") ": \"");
             ucoin_util_dumpbin(stdout, keys.pub, UCOIN_SZ_PUBKEY, false);
             printf("\",\n");
-            printf(M_QQ("alias") ": " M_QQ("%s") ",\n", alias);
-            printf(M_QQ("port") ": %" PRIu16 "\n,", port);
-            printf(M_QQ("genesis") ": \"");
+            printf(INDENT2 M_QQ("alias") ": " M_QQ("%s") ",\n", alias);
+            printf(INDENT2 M_QQ("port") ": %" PRIu16 ",\n", port);
+            printf(INDENT2 M_QQ("genesis") ": \"");
             ucoin_util_dumpbin(stdout, genesis, LN_SZ_HASH, false);
             printf("\",\n");
             const char *p_net;
@@ -634,9 +729,9 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
             default:
                 p_net = "unknown";
             }
-            printf(M_QQ("network") ": " M_QQ("%s") ",\n", p_net);
+            printf(INDENT2 M_QQ("network") ": " M_QQ("%s") ",\n", p_net);
         } else {
-            printf(M_QQ("node_id") ": " M_QQ("fail") ",\n");
+            printf(INDENT2 M_QQ("node_id") ": " M_QQ("fail") ",\n");
         }
 
         key.mv_size = LNDBK_LEN(LNDBK_VER);
@@ -644,10 +739,11 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         retval = mdb_get(txn, dbi, &key, &data);
         if (retval == 0) {
             int version = *(int *)data.mv_data;
-            printf(M_QQ("version") ": %d", version);
+            printf(INDENT2 M_QQ("version") ": %d\n", version);
         } else {
-            printf(M_QQ("version") ": " M_QQ("fail") "\n");
+            printf(INDENT2 M_QQ("version") ": " M_QQ("fail") "\n");
         }
+        printf(INDENT1 "}\n");
     }
 }
 
@@ -785,10 +881,10 @@ int main(int argc, char *argv[])
                 showflag = SHOW_NODEANNO;
                 env = 1;
                 break;
-            case 'a':
-                showflag = SHOW_ANNOINFO;
-                env = 1;
-                break;
+            // case 'a':
+            //     showflag = SHOW_ANNOINFO;
+            //     env = 1;
+            //     break;
             case 'k':
                 showflag = SHOW_ANNOSKIP;
                 env = 1;
@@ -842,7 +938,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-q : closed self info\n");
         fprintf(stderr, "\t\t-c : channel_announcement/channel_update\n");
         fprintf(stderr, "\t\t-n : node_announcement\n");
-        fprintf(stderr, "\t\t-a : (internal)announcement received/sent node_id list\n");
+        //fprintf(stderr, "\t\t-a : (internal)announcement received/sent node_id list\n");
         fprintf(stderr, "\t\t-k : (internal)skip routing channel list\n");
         fprintf(stderr, "\t\t-i : (internal)paying invoice\n");
         return -1;
@@ -969,7 +1065,7 @@ int main(int argc, char *argv[])
         free(name);
     }
     if (cnt0 || cnt2 || cnt4 || cnt5) {
-        printf("]");
+        printf("\n" INDENT1 "]\n");
     }
     printf("}\n");
     mdb_cursor_close(cursor);
