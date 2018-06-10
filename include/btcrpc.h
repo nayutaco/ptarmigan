@@ -180,15 +180,6 @@ bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
 bool btcrpc_getnewaddress(char *pAddr);
 
 
-/** [bitcoin rpc]dumpprivkey
- *
- * @param[out]  pWif        取得したWIF形式
- * @param[in]   pAddr       アドレス
- * @retval  true        取得成功
- */
-//bool btcrpc_dumpprivkey(char *pWif, const char *pAddr);
-
-
 /** [bitcoin rpc]estimatefee
  *
  * @param[out]  pFeeSatoshi estimated fee-per-kilobytes[satoshi]
