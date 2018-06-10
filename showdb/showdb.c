@@ -350,12 +350,17 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 printf(INDENT3 M_QQ("alias") ": " M_QQ("%s") ",\n", node_alias);
                 printf(INDENT3 M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.rgbcolor[0], msg.rgbcolor[1], msg.rgbcolor[2]);
                 if (msg.addr.type == LN_NODEDESC_IPV4) {
-                    printf(INDENT3 M_QQ("addr") ": " M_QQ("%d.%d.%d.%d:%d") ",\n",
+                    char addr[50];
+                    sprintf(addr, "%d.%d.%d.%d:%d",
                             msg.addr.addrinfo.ipv4.addr[0],
                             msg.addr.addrinfo.ipv4.addr[1],
                             msg.addr.addrinfo.ipv4.addr[2],
                             msg.addr.addrinfo.ipv4.addr[3],
                             msg.addr.port);
+                    printf(INDENT3 M_QQ("addr") ": " M_QQ("%s") ",\n", addr);
+                    printf(INDENT3 M_QQ("connect") ": \"");
+                    ucoin_util_dumpbin(stdout, node_pub, UCOIN_SZ_PUBKEY, false);
+                    printf("@%s\",\n", addr);
                 } else {
                     printf(INDENT3 M_QQ("addrtype") ": %d,\n", msg.addr.type);
                 }
