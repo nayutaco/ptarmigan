@@ -151,16 +151,15 @@ int32_t btcrpc_getblockcount(void)
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
-            LOGD("error: M_RESULT\n");
-            goto LABEL_DECREF;
-        }
-        if (json_is_integer(p_result)) {
-            blocks = (int32_t)json_integer_value(p_result);
+        if (p_result) {
+            if (json_is_integer(p_result)) {
+                blocks = (int32_t)json_integer_value(p_result);
+            } else {
+                LOGD("error: not integer\n");
+            }
         } else {
-            LOGD("error: not integer\n");
+            LOGD("error: M_RESULT\n");
         }
-LABEL_DECREF:
         json_decref(p_root);
     } else {
         LOGD("fail: getblockcount_rpc\n");
@@ -193,14 +192,13 @@ bool btcrpc_getblockhash(uint8_t *pHash, int Height)
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
+        if (p_result) {
+            if (json_is_string(p_result)) {
+                ret = misc_str2bin(pHash, LN_SZ_HASH, (const char *)json_string_value(p_result));
+            }
+        } else {
             LOGD("error: M_RESULT\n");
-            goto LABEL_DECREF;
         }
-        if (json_is_string(p_result)) {
-            ret = misc_str2bin(pHash, LN_SZ_HASH, (const char *)json_string_value(p_result));
-        }
-LABEL_DECREF:
         json_decref(p_root);
     } else {
         LOGD("fail: getblockhash_rpc\n");
@@ -238,15 +236,14 @@ uint32_t btcrpc_get_confirmation(const uint8_t *pTxid)
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
+        if (p_result) {
+            p_confirm = json_object_get(p_result, M_CONFIRMATION);
+            if (json_is_integer(p_confirm)) {
+                confirmation = (int64_t)json_integer_value(p_confirm);
+            }
+        } else {
             LOGD("error: M_RESULT\n");
-            goto LABEL_DECREF;
         }
-        p_confirm = json_object_get(p_result, M_CONFIRMATION);
-        if (json_is_integer(p_confirm)) {
-            confirmation = (int64_t)json_integer_value(p_confirm);
-        }
-LABEL_DECREF:
         json_decref(p_root);
     } else {
         LOGD("fail: getrawtransaction_rpc\n");
@@ -287,15 +284,14 @@ bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
+        if (p_result) {
+            p_bhash = json_object_get(p_result, M_BLOCKHASH);
+            if (json_is_string(p_bhash)) {
+                strcpy(blockhash, (const char *)json_string_value(p_bhash));
+            }
+        } else {
             LOGD("error: M_RESULT\n");
-            goto LABEL_DECREF;
         }
-        p_bhash = json_object_get(p_result, M_BLOCKHASH);
-        if (json_is_string(p_bhash)) {
-            strcpy(blockhash, (const char *)json_string_value(p_bhash));
-        }
-LABEL_DECREF:
         json_decref(p_root);
     } else {
         LOGD("fail: getrawtransaction_rpc\n");
@@ -319,24 +315,23 @@ LABEL_DECREF:
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
-            LOGD("error: M_RESULT\n");
-            goto LABEL_DECREF2;
-        }
-        p_height = json_object_get(p_result, M_HEIGHT);
-        if (json_is_integer(p_height)) {
-            *pBHeight = (int)json_integer_value(p_height);
-        }
-        p_tx = json_object_get(p_result, M_TX);
-        size_t index = 0;
-        json_t *p_value = NULL;
-        json_array_foreach(p_tx, index, p_value) {
-            if (strcmp(txid, (const char *)json_string_value(p_value)) == 0) {
-                *pBIndex = (int)index;
-                break;
+        if (p_result) {
+            p_height = json_object_get(p_result, M_HEIGHT);
+            if (json_is_integer(p_height)) {
+                *pBHeight = (int)json_integer_value(p_height);
             }
+            p_tx = json_object_get(p_result, M_TX);
+            size_t index = 0;
+            json_t *p_value = NULL;
+            json_array_foreach(p_tx, index, p_value) {
+                if (strcmp(txid, (const char *)json_string_value(p_value)) == 0) {
+                    *pBIndex = (int)index;
+                    break;
+                }
+            }
+        } else {
+            LOGD("error: M_RESULT\n");
         }
-LABEL_DECREF2:
         json_decref(p_root);
     } else {
         LOGD("fail: getblock_rpc\n");
@@ -376,14 +371,13 @@ bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
+        if (p_result) {
+            if (json_is_string(p_result)) {
+                strcpy(blockhash, (const char *)json_string_value(p_result));
+            }
+        } else {
             LOGD("error: M_RESULT\n");
-            goto LABEL_DECREF;
         }
-        if (json_is_string(p_result)) {
-            strcpy(blockhash, (const char *)json_string_value(p_result));
-        }
-LABEL_DECREF:
         json_decref(p_root);
     } else {
         LOGD("fail: getblockhash_rpc\n");
@@ -413,13 +407,17 @@ LABEL_DECREF:
             goto LABEL_DECREF2;
         }
         p_height = json_object_get(p_result, M_HEIGHT);
-        if (json_is_integer(p_height)) {
-            if ((int)json_integer_value(p_height) != BHeight) {
-                LOGD("error: M_HEIGHT\n");
-                goto LABEL_DECREF2;
-            }
+        if ( !p_height || !json_is_integer(p_height) ||
+             ((int)json_integer_value(p_height) != BHeight) ) {
+            LOGD("error: M_HEIGHT\n");
+            goto LABEL_DECREF2;
         }
         p_tx = json_object_get(p_result, M_TX);
+        if (!p_tx) {
+            LOGD("error: M_TX\n");
+            goto LABEL_DECREF2;
+        }
+
         size_t index = 0;
         json_t *p_value = NULL;
         json_array_foreach(p_tx, index, p_value) {
@@ -450,12 +448,11 @@ LABEL_DECREF2:
         }
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
+        if (p_result) {
+            ret = !json_is_null(p_result);
+        } else {
             LOGD("error: M_RESULT\n");
-            goto LABEL_DECREF3;
         }
-        ret = !json_is_null(p_result);
-LABEL_DECREF3:
         json_decref(p_root);
     } else {
         LOGD("fail: gettxout_rpc\n");
@@ -491,14 +488,11 @@ bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid
 
         //これ以降は終了時に json_decref()で参照を減らすこと
         p_result = json_object_get(p_root, M_RESULT);
-        if (!p_result) {
-            LOGD("error: M_RESULT\n");
-            goto LABEL_DECREF;
-        }
-        if (json_is_string(p_result)) {
+        if (p_result && json_is_string(p_result)) {
             strcpy(blockhash, (const char *)json_string_value(p_result));
+        } else {
+            LOGD("error: M_RESULT\n");
         }
-LABEL_DECREF:
         json_decref(p_root);
     } else {
         LOGD("fail: getblockhash_rpc\n");
@@ -528,14 +522,18 @@ LABEL_DECREF:
             goto LABEL_DECREF2;
         }
         p_height = json_object_get(p_result, M_HEIGHT);
-        if (json_is_integer(p_height)) {
-            if ((int)json_integer_value(p_height) != BHeight) {
-                LOGD("error: M_HEIGHT\n");
-                goto LABEL_DECREF2;
-            }
+        if ( !p_height || !json_is_integer(p_height) ||
+             ((int)json_integer_value(p_height) != BHeight) ) {
+            LOGD("error: M_HEIGHT\n");
+            goto LABEL_DECREF2;
         }
-        //検索
         p_tx = json_object_get(p_result, M_TX);
+        if (!p_tx) {
+            LOGD("error: M_TX\n");
+            goto LABEL_DECREF2;
+        }
+
+        //検索
         size_t index = 0;
         json_t *p_value = NULL;
         json_array_foreach(p_tx, index, p_value) {
@@ -556,12 +554,6 @@ LABEL_DECREF:
             }
             ucoin_tx_free(&tx);
         }
-        //if (ret) {
-        //    LOGD("match!\n");
-        //    ucoin_print_tx(pTx);
-        //} else {
-        //    LOGD("not match\n");
-        //}
 LABEL_DECREF2:
         json_decref(p_root);
     } else {
