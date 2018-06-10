@@ -147,7 +147,7 @@ void *p2p_svr_start(void *pArg)
             mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
 
             LOGD("[server]connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
-            fprintf(PRINTOUT, "[server]accepted(%d) socket=%d, addr=%s, port=%d\n", idx, mAppConf[idx].sock, mAppConf[idx].conn_str, mAppConf[idx].conn_port);
+            //fprintf(PRINTOUT, "[server]accepted(%d) socket=%d, addr=%s, port=%d\n", idx, mAppConf[idx].sock, mAppConf[idx].conn_str, mAppConf[idx].conn_port);
 
             lnapp_start(&mAppConf[idx]);
         } else {

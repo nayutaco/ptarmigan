@@ -915,6 +915,8 @@ static void *thread_main_start(void *pArg)
 
     LOGD("connected peer: ");
     DUMPD(p_conf->node_id, UCOIN_SZ_PUBKEY);
+    fprintf(PRINTOUT, "connected peer: ");
+    ucoin_util_dumpbin(PRINTOUT, p_conf->node_id, UCOIN_SZ_PUBKEY, true);
 
     //init交換前に設定する(open_channelの受信に間に合わない場合あり issue #351)
     ln_set_peer_nodeid(p_conf->p_self, p_conf->node_id);
