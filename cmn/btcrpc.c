@@ -430,8 +430,8 @@ bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_
 
 bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
 {
-    bool ret = false;
-    bool retval;
+    bool result = false;
+    bool ret;
     char *p_json = NULL;
     char *transaction;
     json_t *p_root = NULL;
@@ -440,9 +440,9 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
     ucoin_util_bin2str(transaction, pData, Len);
 
-    retval = signrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
+    ret = signrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
     APP_FREE(transaction);
-    if (retval) {
+    if (ret) {
         json_t *p_hex;
 
         p_hex = json_object_get(p_result, M_HEX);
@@ -452,7 +452,7 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
             uint8_t *p_buf = APP_MALLOC(len);
             misc_str2bin(p_buf, len, p_sigtx);
             ucoin_tx_free(pTx);
-            ret = ucoin_tx_read(pTx, p_buf, len);
+            result = ucoin_tx_read(pTx, p_buf, len);
             APP_FREE(p_buf);
         } else {
             int code = error_result(p_root);
@@ -466,14 +466,14 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
     }
     APP_FREE(p_json);
 
-    return ret;
+    return result;
 }
 
 
 bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len)
 {
-    bool ret = false;
-    bool retval;
+    bool result = false;
+    bool ret;
     char *p_json = NULL;
     char *transaction;
     json_t *p_root = NULL;
@@ -482,13 +482,13 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
     ucoin_util_bin2str(transaction, pData, Len);
 
-    retval = sendrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
+    ret = sendrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
     APP_FREE(transaction);
-    if (retval) {
+    if (ret) {
         if (json_is_string(p_result)) {
             //TXIDはLE/BE変換
             misc_str2bin_rev(pTxid, UCOIN_SZ_TXID, (const char *)json_string_value(p_result));
-            ret = true;
+            result = true;
         } else {
             int code = error_result(p_root);
             if (pCode) {
@@ -503,7 +503,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_
     }
     APP_FREE(p_json);
 
-    return ret;
+    return result;
 }
 
 
@@ -520,17 +520,13 @@ bool btcrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
 
 bool btcrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
 {
-    bool ret;
-
-    ret = getraw_txstr(pTx, txid);
-
-    return ret;
+    return getraw_txstr(pTx, txid);
 }
 
 
 bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx)
 {
-    bool retval;
+    bool ret;
     char *p_json = NULL;
     char txid[UCOIN_SZ_TXID * 2 + 1];
     *pUnspent = false;
@@ -541,14 +537,14 @@ bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
     ucoin_util_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
     //まずtxの存在確認を行う
-    retval = getraw_txstr(NULL, txid);
-    if (!retval) {
+    ret = getraw_txstr(NULL, txid);
+    if (!ret) {
         //LOGD("fail: maybe not broadcasted\n");
         goto LABEL_EXIT;
     }
 
-    retval = gettxout_rpc(&p_root, &p_result, &p_json, txid, Txidx);
-    if (retval) {
+    ret = gettxout_rpc(&p_root, &p_result, &p_json, txid, Txidx);
+    if (ret) {
         json_t *p_value;
 
         p_value = json_object_get(p_result, M_VALUE);
@@ -567,23 +563,23 @@ LABEL_EXIT:
     }
     APP_FREE(p_json);
 
-    return retval;
+    return ret;
 }
 
 
 bool btcrpc_getnewaddress(char *pAddr)
 {
-    bool ret = false;
-    bool retval;
+    bool result = false;
+    bool ret;
     char *p_json = NULL;
     json_t *p_root = NULL;
     json_t *p_result;
 
-    retval = getnewaddress_rpc(&p_root, &p_result, &p_json);
-    if (retval) {
+    ret = getnewaddress_rpc(&p_root, &p_result, &p_json);
+    if (ret) {
         if (json_is_string(p_result)) {
             strcpy(pAddr,  (const char *)json_string_value(p_result));
-            ret = true;
+            result = true;
         }
     } else {
         LOGD("fail: getnewaddress_rpc()\n");
@@ -593,14 +589,14 @@ bool btcrpc_getnewaddress(char *pAddr)
     }
     APP_FREE(p_json);
 
-    return ret;
+    return result;
 }
 
 
 bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
 {
-    bool ret = false;
-    bool retval;
+    bool result = false;
+    bool ret;
     char *p_json = NULL;
     json_t *p_root = NULL;
     json_t *p_result;
@@ -610,16 +606,16 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
         return false;
     }
 
-    retval = estimatefee_rpc(&p_root, &p_result, &p_json, nBlocks);
-    if (retval) {
+    ret = estimatefee_rpc(&p_root, &p_result, &p_json, nBlocks);
+    if (ret) {
         json_t *p_feerate;
 
         p_feerate = json_object_get(p_result, M_FEERATE);
         if (p_feerate && json_is_real(p_feerate)) {
             *pFeeSatoshi = UCOIN_BTC2SATOSHI(json_real_value(p_feerate));
             //-1のときは失敗と見なす
-            ret = (*pFeeSatoshi + 1.0) > DBL_EPSILON;
-            if (!ret) {
+            result = (*pFeeSatoshi + 1.0) > DBL_EPSILON;
+            if (!result) {
                 LOGD("fail: Unable to estimate fee\n");
             }
         } else {
@@ -633,7 +629,7 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     }
     APP_FREE(p_json);
 
-    return ret;
+    return result;
 }
 
 
@@ -643,7 +639,7 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
 
 static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int BHeight)
 {
-    int retval;
+    bool ret;
     json_t *p_root = NULL;
     json_t *p_result;
     json_t *p_height;
@@ -653,8 +649,8 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
     *ppRoot = NULL;
 
     //ブロック高→ブロックハッシュ
-    retval = getblockhash_rpc(&p_root, &p_result, ppBufJson, BHeight);
-    if (retval != 0) {
+    ret = getblockhash_rpc(&p_root, &p_result, ppBufJson, BHeight);
+    if (!ret) {
         LOGD("fail: getblockhash_rpc\n");
         return false;
     }
@@ -671,8 +667,8 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
 
 
     //ブロックハッシュ→TXIDs
-    retval = getblock_rpc(ppRoot, &p_result, ppBufJson, blockhash);
-    if (retval != 0) {
+    ret = getblock_rpc(ppRoot, &p_result, ppBufJson, blockhash);
+    if (!ret) {
         LOGD("fail: getblock_rpc\n");
         return false;
     }
@@ -714,14 +710,14 @@ static bool getraw_tx(json_t **ppRoot, json_t **ppResult, char **ppJson, const u
  */
 static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid)
 {
-    bool ret = false;
-    bool retval;
+    bool result = false;
+    bool ret;
     char *p_json = NULL;
     json_t *p_root = NULL;
     json_t *p_result;
 
-    retval = getrawtransaction_rpc(&p_root, &p_result, &p_json, txid, false);
-    if (retval) {
+    ret = getrawtransaction_rpc(&p_root, &p_result, &p_json, txid, false);
+    if (ret) {
         uint8_t *p_hex;
         const char *str_hex;
         uint32_t len;
@@ -743,7 +739,7 @@ static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid)
             ucoin_tx_read(pTx, p_hex, len);
             APP_FREE(p_hex);
         }
-        ret = true;
+        result = true;
     }
 LABEL_EXIT:
     if (p_root) {
@@ -751,7 +747,7 @@ LABEL_EXIT:
     }
     APP_FREE(p_json);
 
-    return ret;
+    return result;
 }
 
 
