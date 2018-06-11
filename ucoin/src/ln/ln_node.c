@@ -307,7 +307,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     bool ret = (memcmp(self->peer_node_id, p->p_node_id, UCOIN_SZ_PUBKEY) == 0);
     if (ret) {
         if (p->p_self) {
-            //DBから復元
+            //DBから復元(selfからshallow copyするので、selfは解放しない)
             ln_db_copy_channel(p->p_self, self);
 
             if (p->p_self->short_channel_id != 0) {
@@ -319,10 +319,10 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
                 }
                 ucoin_buf_free(&buf);
             }
+        } else {
+            //true時は呼び元では解放しないので、ここで解放する
+            ln_term(self);
         }
-
-        //true時は呼び元では解放しないので、ここで解放する
-        ln_term(self);
     }
     return ret;
 }

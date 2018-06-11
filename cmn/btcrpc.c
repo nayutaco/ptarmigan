@@ -328,6 +328,7 @@ LABEL_EXIT:
 
 bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex)
 {
+    bool result = false;
     bool ret;
     char *p_json = NULL;
     json_t *p_root = NULL;
@@ -344,16 +345,16 @@ bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid
             strcpy(txid, (const char *)json_string_value(p_value));
             ucoin_tx_t tx = UCOIN_TX_INIT;
 
-            bool bret = getraw_txstr(&tx, txid);
+            ret = getraw_txstr(&tx, txid);
             //LOGD("txid=%s\n", txid);
-            if ( bret &&
+            if ( ret &&
                  (tx.vin_cnt == 1) &&
                  (memcmp(tx.vin[0].txid, pTxid, UCOIN_SZ_TXID) == 0) &&
                  (tx.vin[0].index == VIndex) ) {
                 //一致
                 memcpy(pTx, &tx, sizeof(ucoin_tx_t));
                 ucoin_tx_init(&tx);     //freeさせない
-                ret = true;
+                result = true;
                 break;
             }
             ucoin_tx_free(&tx);
@@ -366,12 +367,13 @@ bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid
     }
     APP_FREE(p_json);
 
-    return ret;
+    return result;
 }
 
 
 bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout)
 {
+    bool result = true;
     bool ret;
     char *p_json = NULL;
     json_t *p_root = NULL;
@@ -390,8 +392,8 @@ bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_
             strcpy(txid, (const char *)json_string_value(p_value));
             ucoin_tx_t tx = UCOIN_TX_INIT;
 
-            bool bret = getraw_txstr(&tx, txid);
-            if (!bret) {
+            ret = getraw_txstr(&tx, txid);
+            if (!ret) {
                 int cnt = pTxBuf->len / sizeof(ucoin_tx_t);
                 ucoin_tx_t *p_txptr = (ucoin_tx_t *)pTxBuf->buf;
                 for (int lp = 0; lp < cnt; lp++) {
@@ -399,7 +401,6 @@ bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_
                 }
                 ucoin_buf_free(pTxBuf);
                 ucoin_tx_free(&tx);
-                ret = false;
                 break;
             }
             for (uint32_t lp = 0; lp < tx.vout_cnt; lp++) {
@@ -409,7 +410,7 @@ bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_
                     ucoin_push_data(&push, &tx, sizeof(ucoin_tx_t));
                     LOGD("len=%u\n", pTxBuf->len);
                     ucoin_tx_init(&tx);     //freeさせない
-                    ret = true;
+                    result = true;
                     break;
                 }
             }
@@ -423,7 +424,7 @@ bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_
     }
     APP_FREE(p_json);
 
-    return ret;
+    return result;
 }
 
 
