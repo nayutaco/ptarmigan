@@ -1268,8 +1268,6 @@ static bool exchange_init(lnapp_conf_t *p_conf)
     ucoin_buf_free(&buf_bolt);
 
     //コールバックでのINIT受信通知待ち
-    pthread_mutex_lock(&p_conf->mux);
-
     LOGD("wait: init\n");
     uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
     while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
