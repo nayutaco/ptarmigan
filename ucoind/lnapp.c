@@ -1095,6 +1095,7 @@ LABEL_SHUTDOWN:
  */
 static bool noise_handshake(lnapp_conf_t *p_conf)
 {
+    bool result = false;
     bool ret;
     ucoin_buf_t buf = UCOIN_BUF_INIT;
     uint8_t rbuf[66];
@@ -1109,13 +1110,13 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         ret = ln_handshake_start(p_conf->p_self, &buf, p_conf->node_id);
         if (!ret) {
             LOGD("fail: ln_handshake_start\n");
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
         LOGD("** SEND act one **\n");
         ret = send_peer_raw(p_conf, &buf);
         if (!ret) {
             LOGD("fail: socket write\n");
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
 
         //recv: act two
@@ -1125,7 +1126,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
             //peerから切断された
             LOGD("DISC: loop end\n");
             stop_threads(p_conf);
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
         LOGD("** RECV act two ! **\n");
         ucoin_buf_free(&buf);
@@ -1133,16 +1134,17 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
         if (!ret || b_cont) {
             LOGD("fail: ln_handshake_recv1\n");
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
         //send: act three
         LOGD("** SEND act three **\n");
         ret = send_peer_raw(p_conf, &buf);
         if (!ret) {
             LOGD("fail: socket write\n");
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
-        ucoin_buf_free(&buf);
+
+        result = true;
    } else {
         //responderはnode_idを知らない
 
@@ -1150,7 +1152,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         ret = ln_handshake_start(p_conf->p_self, &buf, NULL);
         if (!ret) {
             LOGD("fail: ln_handshake_start\n");
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
         LOGD("** RECV act one... **\n");
         len_msg = recv_peer(p_conf, rbuf, 50, M_WAIT_RESPONSE_MSEC);
@@ -1158,21 +1160,21 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
             //peerから切断された
             LOGD("DISC: loop end\n");
             stop_threads(p_conf);
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
         LOGD("** RECV act one ! **\n");
         ucoin_buf_alloccopy(&buf, rbuf, 50);
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
         if (!ret || !b_cont) {
             LOGD("fail: ln_handshake_recv1\n");
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
         //send: act two
         LOGD("** SEND act two **\n");
         ret = send_peer_raw(p_conf, &buf);
         if (!ret) {
             LOGD("fail: socket write\n");
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
 
         //recv: act three
@@ -1182,7 +1184,7 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
             //peerから切断された
             LOGD("DISC: loop end\n");
             stop_threads(p_conf);
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
         LOGD("** RECV act three ! **\n");
         ucoin_buf_free(&buf);
@@ -1190,22 +1192,22 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         ret = ln_handshake_recv(p_conf->p_self, &b_cont, &buf);
         if (!ret || b_cont) {
             LOGD("fail: ln_handshake_recv2\n");
-            goto LABEL_FAIL;
+            goto LABEL_EXIT;
         }
 
         //bufには相手のnode_idが返ってくる
         assert(buf.len == UCOIN_SZ_PUBKEY);
         memcpy(p_conf->node_id, buf.buf, UCOIN_SZ_PUBKEY);
 
-        ucoin_buf_free(&buf);
+        result = true;
     }
 
-    LOGD("noise handshaked\n");
-    return true;
+LABEL_EXIT:
+    LOGD("noise handshake: %d\n", result);
+    ucoin_buf_free(&buf);
+    ln_handshake_free(p_conf->p_self);
 
-LABEL_FAIL:
-    LOGD("fail: noise handshaked\n");
-    return false;
+    return result;
 }
 
 
@@ -2937,11 +2939,11 @@ static bool send_channel_anno(lnapp_conf_t *p_conf)
         goto LABEL_EXIT;
     }
 
+    ucoin_buf_t buf_cnl = UCOIN_BUF_INIT;
     void *p_cur;
     ret = ln_db_annocnl_cur_open(&p_cur, p_db);
     if (ret) {
         char type;
-        ucoin_buf_t buf_cnl = UCOIN_BUF_INIT;
         if (p_conf->last_anno_cnl != 0) {
             //前回のところまで検索する
             while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
@@ -3000,13 +3002,14 @@ static bool send_channel_anno(lnapp_conf_t *p_conf)
     } else {
         //LOGD("no channel_announce DB\n");
     }
-    if (p_cur) {
-        ln_db_annocnl_cur_close(p_cur);
-    }
 
     short_channel_id = 0;
 
 LABEL_EXIT:
+    ucoin_buf_free(&buf_cnl);
+    if (p_cur != NULL) {
+        ln_db_annocnl_cur_close(p_cur);
+    }
     if (p_db != NULL) {
         ln_db_node_cur_commit(p_db);
     }
@@ -3084,6 +3087,7 @@ static bool send_node_anno(lnapp_conf_t *p_conf)
             }
             ucoin_buf_free(&buf_node);
         }
+        ucoin_buf_free(&buf_node);
         if (ret) {
             //次回は続きから始める
             memcpy(p_conf->last_anno_node, nodeid, UCOIN_SZ_PUBKEY);
@@ -3095,7 +3099,7 @@ static bool send_node_anno(lnapp_conf_t *p_conf)
     } else {
         LOGD("no node_announce DB\n");
     }
-    if (p_cur) {
+    if (p_cur != NULL) {
         ln_db_annonod_cur_close(p_cur);
     }
 
@@ -3535,6 +3539,7 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
         //解放
         LIST_REMOVE(p_rcvidle, list);
         ucoin_buf_free(&p_rcvidle->buf);       //APP_MALLOC: change_context()
+        APP_FREE(p_rcvidle);            //APP_MALLOC: rcvidle_push
     } else {
         LOGD("retry\n");
     }

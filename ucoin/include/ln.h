@@ -1169,6 +1169,14 @@ bool ln_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, const uint8_t *pNode
 bool ln_handshake_recv(ln_self_t *self, bool *pCont, ucoin_buf_t *pBuf);
 
 
+/** noise handshakeメモリ解放
+ *
+ * @note
+ *      - handshakeを中断した場合に呼び出す
+ */
+void ln_handshake_free(ln_self_t *self);
+
+
 /** noise protocol encode
  *
  * @param[in,out]       self        channel情報

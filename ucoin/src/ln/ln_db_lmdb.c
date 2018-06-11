@@ -1169,6 +1169,7 @@ bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, co
             retval = -1;
         }
     }
+    ucoin_buf_free(&buf_ann);
     //annoinfo channel
     if ((retval == 0) && (pSendId != NULL)) {
         bool ret = ln_db_annocnls_add_nodeid(&db_info, ShortChannelId, LN_DB_CNLANNO_ANNO, false, pSendId);
@@ -1958,7 +1959,7 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         }
     } else {
         //新規
-        LOGD("new node_announcement\n");
+        LOGV("new node_announcement\n");
         upddb = true;
     }
     ucoin_buf_free(&buf_node);
@@ -3313,8 +3314,8 @@ static int annonod_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *pTi
  */
 static int annonod_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno)
 {
-    LOGD("node_id=");
-    DUMPD(pAnno->p_node_id, UCOIN_SZ_PUBKEY);
+    LOGV("node_id=");
+    DUMPV(pAnno->p_node_id, UCOIN_SZ_PUBKEY);
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_NODE];

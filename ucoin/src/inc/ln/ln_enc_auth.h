@@ -74,6 +74,14 @@ bool ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf);
 bool ln_enc_auth_handshake_state(ln_self_t *self);
 
 
+/** noise handshakeメモリ解放
+ *
+ * @note
+ *      - handshakeを中断した場合に呼び出す
+ */
+void ln_enc_auth_handshake_free(ln_self_t *self);
+
+
 /**
  *
  */
