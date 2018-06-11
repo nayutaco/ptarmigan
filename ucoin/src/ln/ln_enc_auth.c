@@ -111,6 +111,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     ret = ucoin_util_createkeys(&pBolt->e);
     if (!ret) {
         LOGD("fail: ephemeral key\n");
+        M_FREE(self->p_handshake);
         return false;
     }
 
@@ -153,7 +154,6 @@ bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, ucoin_buf_t *pBuf, cons
     } else {
         //失敗したら最初からやり直す
         M_FREE(self->p_handshake);
-        self->p_handshake = NULL;
     }
 
     return ret;
@@ -178,7 +178,6 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf)
         memcpy(self->noise_send.ck, pBolt->ck, UCOIN_SZ_SHA256);
         memcpy(self->noise_recv.ck, pBolt->ck, UCOIN_SZ_SHA256);
         M_FREE(self->p_handshake);
-        self->p_handshake = NULL;
         self->noise_send.nonce = 0;
         self->noise_recv.nonce = 0;
         break;
@@ -195,7 +194,6 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf)
         memcpy(self->noise_send.ck, pBolt->ck, UCOIN_SZ_SHA256);
         memcpy(self->noise_recv.ck, pBolt->ck, UCOIN_SZ_SHA256);
         M_FREE(self->p_handshake);
-        self->p_handshake = NULL;
         self->noise_send.nonce = 0;
         self->noise_recv.nonce = 0;
         break;
@@ -206,7 +204,6 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf)
     if (!ret) {
         //失敗したら最初からやり直す
         M_FREE(self->p_handshake);
-        self->p_handshake = NULL;
     }
 
     return ret;
@@ -216,6 +213,12 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ucoin_buf_t *pBuf)
 bool ln_enc_auth_handshake_state(ln_self_t *self)
 {
     return self->p_handshake != NULL;
+}
+
+
+void ln_enc_auth_handshake_free(ln_self_t *self)
+{
+    M_FREE(self->p_handshake);
 }
 
 

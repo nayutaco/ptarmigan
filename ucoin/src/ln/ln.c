@@ -527,6 +527,12 @@ bool ln_handshake_recv(ln_self_t *self, bool *pCont, ucoin_buf_t *pBuf)
 }
 
 
+void ln_handshake_free(ln_self_t *self)
+{
+    ln_enc_auth_handshake_free(self);
+}
+
+
 bool ln_noise_enc(ln_self_t *self, ucoin_buf_t *pBufEnc, const ucoin_buf_t *pBufIn)
 {
     return ln_enc_auth_enc(self, pBufEnc, pBufIn);
@@ -1714,6 +1720,8 @@ static void channel_clear(ln_self_t *self)
     memset(self->peer_node_id, 0, UCOIN_SZ_PUBKEY);
     self->anno_flag = 0;
     self->shutdown_flag = 0;
+
+    ln_enc_auth_handshake_free(self);
 
     free_establish(self, true);
 }

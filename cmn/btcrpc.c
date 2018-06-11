@@ -148,7 +148,7 @@ int32_t btcrpc_getblockcount(void)
     } else {
         LOGD("fail: getblockcount_rpc\n");
     }
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
@@ -170,7 +170,7 @@ bool btcrpc_getblockhash(uint8_t *pHash, int Height)
     } else {
         LOGD("fail: getblockhash_rpc\n");
     }
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
@@ -198,7 +198,7 @@ uint32_t btcrpc_get_confirmation(const uint8_t *pTxid)
     } else {
         LOGD("fail: getrawtransaction_rpc\n");
     }
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
@@ -230,12 +230,12 @@ bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *
         LOGD("fail: getrawtransaction_rpc\n");
         goto LABEL_EXIT;
     }
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
+        p_root = NULL;
     }
     APP_FREE(p_json);
 
-    p_root = NULL;
     ret = getblock_rpc(&p_root, &p_result, &p_json, blockhash);
     if (ret) {
         json_t *p_height;
@@ -263,7 +263,7 @@ bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *
     }
 
 LABEL_EXIT:
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
@@ -302,17 +302,16 @@ bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
         LOGD("fail: getblock_rpc\n");
         goto LABEL_EXIT;
     }
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
+        p_root = NULL;
     }
     APP_FREE(p_json);
 
     //TXID→spent/unspent
-    p_root = NULL;
     ret = gettxout_rpc(&p_root, &p_result, &p_json, txid, VIndex);
     if (ret) {
         unspent = !json_is_null(p_result);
-        json_decref(p_root);
     } else {
         LOGD("fail: gettxout_rpc\n");
     }
@@ -461,7 +460,7 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
     } else {
         LOGD("fail: signrawtransaction_rpc()\n");
     }
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
@@ -498,7 +497,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_
     } else {
         LOGD("fail: sendrawtransaction_rpc()\n");
     }
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
@@ -558,7 +557,7 @@ bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
     }
 
 LABEL_EXIT:
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
@@ -584,7 +583,7 @@ bool btcrpc_getnewaddress(char *pAddr)
     } else {
         LOGD("fail: getnewaddress_rpc()\n");
     }
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
@@ -624,7 +623,7 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     } else {
         LOGD("fail: estimatefee_rpc()\n");
     }
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
@@ -643,13 +642,14 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
     json_t *p_root = NULL;
     json_t *p_result;
     json_t *p_height;
+    char *p_json = NULL;
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1];
 
     *ppJsonTx = NULL;
     *ppRoot = NULL;
 
     //ブロック高→ブロックハッシュ
-    ret = getblockhash_rpc(&p_root, &p_result, ppBufJson, BHeight);
+    ret = getblockhash_rpc(&p_root, &p_result, &p_json, BHeight);
     if (!ret) {
         LOGD("fail: getblockhash_rpc\n");
         return false;
@@ -661,6 +661,7 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
         blockhash[0] = '\0';
     }
     json_decref(p_root);
+    APP_FREE(p_json);
     if (blockhash[0] == '\0') {
         return false;
     }
@@ -742,7 +743,7 @@ static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid)
         result = true;
     }
 LABEL_EXIT:
-    if (p_root) {
+    if (p_root != NULL) {
         json_decref(p_root);
     }
     APP_FREE(p_json);
