@@ -312,6 +312,19 @@ static void ln_print_self(const ln_self_t *self)
 }
 
 
+static void escape_json_string(char *pOut, const char *pIn)
+{
+    char *p = pOut;
+    while (*pIn) {
+        if (*pIn == '\"') {
+            *p++ = '\\';
+        }
+        *p++ = *pIn++;
+    }
+    *p = '\0';
+}
+
+
 static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
 {
     uint16_t type = ln_misc_get16be(pData);
@@ -347,7 +360,9 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
                 printf(INDENT3 M_QQ("node") ": \"");
                 ucoin_util_dumpbin(stdout, node_pub, UCOIN_SZ_PUBKEY, false);
                 printf("\",\n");
-                printf(INDENT3 M_QQ("alias") ": " M_QQ("%s") ",\n", node_alias);
+                char esc_alias[LN_SZ_ALIAS * 2];
+                escape_json_string(esc_alias, node_alias);
+                printf(INDENT3 M_QQ("alias") ": " M_QQ("%s") ",\n", esc_alias);
                 printf(INDENT3 M_QQ("rgbcolor") ": \"#%02x%02x%02x\",\n", msg.rgbcolor[0], msg.rgbcolor[1], msg.rgbcolor[2]);
                 if (msg.addr.type == LN_NODEDESC_IPV4) {
                     char addr[50];
