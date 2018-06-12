@@ -31,9 +31,15 @@ ucoind [-p PORT] [-n ALIAS NAME] [-a IPv4 ADDRESS] [-c BITCOIN.CONF] [-i]
   * current bitcoin.conf
     * default: ~/.bitcoin/bitcoin.conf
 
+* -x
+  * erase current DB(without node_id)(TEST)
+
+* -N
+  * erase node_announcement DB(TEST)
+
 ## DESCRIPTION
 
-Start ucoin lightning daemon.  
+Start ucoin lightning daemon.
 
 ### related config file
 

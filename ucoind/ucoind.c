@@ -300,7 +300,8 @@ LABEL_EXIT:
     fprintf(PRINTOUT, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
     fprintf(PRINTOUT, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
     // fprintf(PRINTOUT, "\t\t-i : show node_id(not start node)\n");
-    fprintf(PRINTOUT, "\t\t-x : erase current DB(without node_id)\n");
+    fprintf(PRINTOUT, "\t\t-x : erase current DB(without node_id)(TEST)\n");
+    fprintf(PRINTOUT, "\t\t-N : erase node_announcement DB(TEST)\n");
     return -1;
 }
 
