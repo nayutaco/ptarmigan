@@ -2960,7 +2960,8 @@ static bool send_channel_anno(lnapp_conf_t *p_conf)
         }
         ucoin_buf_free(&buf_cnl);
 
-        while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
+        uint32_t timestamp;
+        while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, &timestamp, &buf_cnl))) {
             if (!p_conf->loop) {
                 break;
             }
@@ -2973,6 +2974,18 @@ static bool send_channel_anno(lnapp_conf_t *p_conf)
                     LOGD("closed channel: %0" PRIx64 "\n", short_channel_id);
                     goto LABEL_EXIT;
                 }
+            } else if ((type == LN_DB_CNLANNO_UPD1) || (type == LN_DB_CNLANNO_UPD2)) {
+                //BOLT#7: Pruning the Network View
+                time_t now = time(NULL);
+                if (ln_db_annocnlupd_is_prune((uint32_t)now, timestamp)) {
+                    //古いため、DBから削除
+                    char tmstr[UCOIN_SZ_DTSTR + 1];
+                    ucoin_util_strftime(tmstr, timestamp);
+                    LOGD("older channel: prune(%0" PRIx64 "): %s\n", short_channel_id, tmstr);
+                    goto LABEL_EXIT;
+                }
+            } else {
+                //nothing
             }
             //取得したchannel_announcementのshort_channel_idに一致するものは送信する
             if (p_conf->last_annocnl_sci == short_channel_id) {

@@ -61,6 +61,7 @@ extern "C" {
 #define UCOIN_SZ_EKEY           (82)            ///< サイズ:拡張鍵
 #define UCOIN_SZ_CHAINCODE      (32)            ///< サイズ:拡張鍵chaincode
 #define UCOIN_SZ_EKEY_ADDR_MAX  (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
+#define UCOIN_SZ_DTSTR          (14)            ///< サイズ:ucoin_util_strftime()  //06/12 09:36:36
 
 #define UCOIN_PREF              (0)             ///< Prefix: 1:mainnet, 2:testnet
 #define UCOIN_PREF_WIF          (1)             ///< Prefix: WIF
@@ -1346,6 +1347,12 @@ void ucoin_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
  * @param[in]       BinLen      pBin長
  */
 void ucoin_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+
+
+/** 日時文字列
+ *
+ */
+void ucoin_util_strftime(char *pTmStr, time_t tm);
 
 
 /** log出力開始(ulog)
