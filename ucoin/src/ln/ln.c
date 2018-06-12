@@ -3092,14 +3092,23 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
     if (ret) {
+        //timestamp check
+        time_t now = time(NULL);
+        if (ln_db_annocnlupd_is_prune((uint32_t)now, upd.timestamp)) {
+            ret = false;
+            char tmstr[UCOIN_SZ_DTSTR + 1];
+            ucoin_util_strftime(tmstr, upd.timestamp);
+            LOGD("older channel: not save(%0" PRIx64 "): %s\n", upd.short_channel_id, tmstr);
+        }
+    }
+    if (ret) {
         //is_unspent更新
         ln_cb_channel_anno_recv_t param;
         param.is_unspent = true;
         param.short_channel_id = upd.short_channel_id;
         (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
         ret = param.is_unspent;
-        //true時はcloseされたとみなして、何もしない
-        if (!param.is_unspent) {
+        if (!ret) {
             LOGD("closed channel: not save(%0" PRIx64 ")\n", upd.short_channel_id);
         }
     }
