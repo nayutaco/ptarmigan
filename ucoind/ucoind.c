@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 
     int opt;
     int options = 0;
-    while ((opt = getopt(argc, argv, "p:n:a:c:d:xh")) != -1) {
+    while ((opt = getopt(argc, argv, "p:n:a:c:d:xNh")) != -1) {
         switch (opt) {
         case 'd':
             //db directory
@@ -155,12 +155,22 @@ int main(int argc, char *argv[])
             //ノード情報を残してすべて削除
             options |= 0x80;
             break;
+        case 'N':
+            //node_announcementを全削除
+            options |= 0x40;
+            break;
         case 'h':
             //help
             goto LABEL_EXIT;
         default:
             break;
         }
+    }
+
+    if (options & 0x40) {
+        bret = ln_db_annonod_drop();
+        fprintf(stderr, "db_annonod_drop: %d\n", bret);
+        return 0;
     }
 
     if (options & 0x80) {

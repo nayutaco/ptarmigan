@@ -82,8 +82,8 @@ void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTa
 
     va_list ap;
     time_t now = time(NULL);
-    char tmstr[50];
-    strftime(tmstr, sizeof(tmstr), "%m/%d %H:%M:%S", localtime(&now));
+    char tmstr[UCOIN_SZ_DTSTR + 1];
+    ucoin_util_strftime(tmstr, now);
 
     va_start(ap, pFmt);
     if (Flag) {
