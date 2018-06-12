@@ -216,6 +216,21 @@ bool ln_db_annocnlupd_load(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t 
 bool ln_db_annocnlupd_save(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pSendId);
 
 
+/** channel pruning判定
+ *
+ * @param[in]       Now             現在時刻(EPOCH)
+ * @param[in]       TimeStamp       channel_updateの時刻(EPOCH)
+ * @retval      true    削除してよし
+ */
+static inline bool ln_db_annocnlupd_is_prune(uint32_t Now, uint32_t TimesStamp) {
+    //BOLT#7: Pruning the Network View
+    //  if a channel's latest channel_updates timestamp is older than two weeks (1209600 seconds):
+    //      MAY prune the channel.
+    //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendation-on-pruning-stale-entries
+    return TimesStamp + 1209600 < Now;
+}
+
+
 /** channel_announcement系の送受信情報削除
  *
  * channel_announcement/channel_updateの送信先・受信元ノードIDを削除する。
@@ -289,7 +304,7 @@ bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, u
 
 /** channel_announcementのないchannel_update削除
  *
- * 
+ *
  */
 void ln_db_annocnl_del_orphan(void);
 
@@ -383,6 +398,12 @@ bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint
  *      - タイムスタンプはAPI呼び出し時の値が保存される
  */
 bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId);
+
+
+/** node_announcement全削除
+ *
+ */
+bool ln_db_annonod_drop(void);
 
 
 /** node_announcement送信済み検索

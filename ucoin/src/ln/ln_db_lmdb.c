@@ -371,7 +371,7 @@ static int annocnlupd_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlUpd, uint32_t *pT
 static int annocnlupd_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd);
 
 static int annonod_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
-static int annonod_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno);
+static int annonod_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const uint8_t *pNodeId, uint32_t Timestamp);
 static bool annonod_cur_open(lmdb_cursor_t *pCur);
 
 static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId);
@@ -385,7 +385,7 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
 static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
 
 static void addhtlc_dbname(char *pDbName, int num);
-static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
+static bool comp_func_cnldel(ln_self_t *self, void *p_db_param, void *p_param);
 
 static int self_cursor_open(lmdb_cursor_t *pCur);
 static void self_cursor_close(lmdb_cursor_t *pCur);
@@ -393,6 +393,8 @@ static void self_cursor_close(lmdb_cursor_t *pCur);
 static int backup_param_load(void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
 static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
 
+static int initialize_dbself(void);
+static int initialize_dbnode(void);
 
 #ifdef M_DB_DEBUG
 static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **txn, int line) {
@@ -466,63 +468,22 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
     int         retval;
     ln_lmdb_db_t   db;
 
-    if (mPath[0] == '\0') {
-        ln_lmdb_set_path(".");
-    }
-
     //lmdbのopenは複数呼ばないでenvを共有する
     if (mpDbSelf == NULL) {
-        retval = mdb_env_create(&mpDbSelf);
+        retval = initialize_dbself();
         if (retval != 0) {
             LOGD("ERR: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
 
-        retval = mdb_env_set_maxdbs(mpDbSelf, M_LMDB_MAXDBS);
+        retval = initialize_dbnode();
         if (retval != 0) {
             LOGD("ERR: %s\n", mdb_strerror(retval));
             goto LABEL_EXIT;
         }
-
-        retval = mdb_env_set_mapsize(mpDbSelf, M_LMDB_MAPSIZE);
-        if (retval != 0) {
-            LOGD("ERR: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
-
-        mkdir(mPath, 0755);
-        mkdir(ln_lmdb_get_selfpath(), 0755);
-        mkdir(ln_lmdb_get_nodepath(), 0755);
-
-        retval = mdb_env_open(mpDbSelf, ln_lmdb_get_selfpath(), 0, 0644);
-        if (retval != 0) {
-            LOGD("ERR: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
-
-        retval = mdb_env_create(&mpDbNode);
-        if (retval != 0) {
-            LOGD("ERR: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
-
-        retval = mdb_env_set_maxdbs(mpDbNode, M_LMDB_NODE_MAXDBS);
-        if (retval != 0) {
-            LOGD("ERR: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
-
-        retval = mdb_env_set_mapsize(mpDbNode, M_LMDB_NODE_MAPSIZE);
-        if (retval != 0) {
-            LOGD("ERR: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
-
-        retval = mdb_env_open(mpDbNode, ln_lmdb_get_nodepath(), 0, 0644);
-        if (retval != 0) {
-            LOGD("ERR: %s\n", mdb_strerror(retval));
-            goto LABEL_EXIT;
-        }
+    } else {
+        LOGD("FATAL: already initialized\n");
+        abort();
     }
 
     retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
@@ -733,7 +694,7 @@ LABEL_EXIT:
 
 bool ln_db_self_del(const uint8_t *pChannelId)
 {
-    return ln_db_self_search(comp_func_cnl, (CONST_CAST void *)pChannelId);
+    return ln_db_self_search(comp_func_cnldel, (CONST_CAST void *)pChannelId);
 }
 
 
@@ -1529,6 +1490,7 @@ void ln_db_annocnl_del_orphan(void)
         return;
     }
 
+    time_t now = time(NULL);
     void *p_cur;
     ret = ln_db_annocnl_cur_open(&p_cur, p_db);
     if (ret) {
@@ -1536,12 +1498,14 @@ void ln_db_annocnl_del_orphan(void)
         uint64_t last_short_chennel_id = 0;
         char type;
         ucoin_buf_t buf_cnl = UCOIN_BUF_INIT;
-        while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
+        uint32_t timestamp;
+        while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, &timestamp, &buf_cnl))) {
             ucoin_buf_free(&buf_cnl);
             if (type == LN_DB_CNLANNO_ANNO) {
                 last_short_chennel_id = short_channel_id;
             }
-            if ((type != LN_DB_CNLANNO_ANNO) && (last_short_chennel_id != short_channel_id)) {
+            if ( (type != LN_DB_CNLANNO_ANNO) &&
+                 ( (last_short_chennel_id != short_channel_id) || (ln_db_annocnlupd_is_prune(now, timestamp))) ) {
                 //
                 MDB_cursor *cursor = ((lmdb_cursor_t *)p_cur)->cursor;
                 int retval = mdb_cursor_del(cursor, 0);
@@ -1965,7 +1929,7 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
     ucoin_buf_free(&buf_node);
 
     if (upddb) {
-        retval = annonod_save(&db, pNodeAnno, pAnno);
+        retval = annonod_save(&db, pNodeAnno, pAnno->p_node_id, pAnno->timestamp);
         if ((retval == 0) && ((pSendId != NULL) || (clr && (pSendId == NULL)))) {
             bool ret = ln_db_annonod_add_nodeid(&db_info, pAnno->p_node_id, clr, pSendId);
             if (!ret) {
@@ -1977,6 +1941,107 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
     MDB_TXN_COMMIT(db.txn);
 
 LABEL_EXIT:
+    return retval == 0;
+}
+
+
+bool ln_db_annonod_drop(void)
+{
+    int             retval;
+    ln_lmdb_db_t    db, db_self;
+
+    db.txn = NULL;
+    db_self.txn = NULL;
+
+    if (mpDbSelf != NULL) {
+        LOGD("fail: already started\n");
+        return false;
+    }
+
+    retval = initialize_dbnode();
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = initialize_dbself();
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(db.txn, M_DBI_ANNO_NODE, 0, &db.dbi);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db_self.txn);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(db_self.txn, M_DBI_VERSION, 0, &db_self.dbi);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    char wif[UCOIN_SZ_WIF_MAX];
+    char nodename[LN_SZ_ALIAS];
+    uint8_t genesis[LN_SZ_HASH];
+    uint16_t port;
+    retval = ver_check(&db_self, wif, nodename, &port, genesis);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    ucoin_buf_t bufnod = UCOIN_BUF_INIT;
+    uint32_t timestamp;
+    ucoin_util_keys_t keys;
+    ucoin_chain_t chain;
+    ucoin_util_wif2keys(&keys, &chain, wif);
+    retval = annonod_load(&db, &bufnod, &timestamp, keys.pub);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = mdb_drop(db.txn, db.dbi, 0);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(db.txn, M_DBI_ANNO_NODE, 0, &db.dbi);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    if (retval == 0) {
+        //自ノード再登録
+        annonod_save(&db, &bufnod, keys.pub, timestamp);
+    } else {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+    }
+
+    ucoin_buf_free(&bufnod);
+
+    MDB_TXN_COMMIT(db.txn);
+    db.txn = NULL;
+
+LABEL_EXIT:
+    if (db_self.txn != NULL) {
+        MDB_TXN_ABORT(db_self.txn);
+    }
+    if (db.txn != NULL) {
+        MDB_TXN_ABORT(db.txn);
+    }
+
     return retval == 0;
 }
 
@@ -2813,33 +2878,20 @@ void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno)
 
 bool ln_db_reset(void)
 {
+    int retval;
+
     if (mpDbSelf != NULL) {
-        LOGD("fail: already initialized\n");
+        LOGD("fail: already started\n");
         return false;
     }
 
-    if (mPath[0] == '\0') {
-        ln_lmdb_set_path(".");
+    retval = initialize_dbself();
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
     }
 
     bool ret = false;
-    int retval;
-    retval = mdb_env_create(&mpDbSelf);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = mdb_env_set_maxdbs(mpDbSelf, M_LMDB_MAXDBS);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = mdb_env_open(mpDbSelf, ln_lmdb_get_selfpath(), 0, 0644);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
     lmdb_cursor_t cur;
     retval = self_cursor_open(&cur);
     if (retval != 0) {
@@ -3309,23 +3361,24 @@ static int annonod_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pNodeAnno, uint32_t *pTi
  *
  * @param[in,out]   pDb
  * @param[in]       pNodeAnno       node_announcementパケット
- * @param[in]       pAnno           node_announcement構造体
+ * @param[in]       pNodeId         node_announcementのnode_id
+ * @param[in]       Timestamp       保存時間
  * @retval      true
  */
-static int annonod_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno)
+static int annonod_save(ln_lmdb_db_t *pDb, const ucoin_buf_t *pNodeAnno, const uint8_t *pNodeId, uint32_t Timestamp)
 {
     LOGV("node_id=");
-    DUMPV(pAnno->p_node_id, UCOIN_SZ_PUBKEY);
+    DUMPV(pNodeId, UCOIN_SZ_PUBKEY);
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_NODE];
 
-    M_ANNOINFO_NODE_SET(keydata, key, pAnno->p_node_id);
+    M_ANNOINFO_NODE_SET(keydata, key, pNodeId);
     ucoin_buf_t buf;
     ucoin_buf_alloc(&buf, sizeof(uint32_t) + pNodeAnno->len);
 
     //timestamp + node_announcement
-    memcpy(buf.buf, &pAnno->timestamp, sizeof(uint32_t));
+    memcpy(buf.buf, &Timestamp, sizeof(uint32_t));
     memcpy(buf.buf + sizeof(uint32_t), pNodeAnno->buf, pNodeAnno->len);
     data.mv_size = buf.len;
     data.mv_data = buf.buf;
@@ -3610,7 +3663,7 @@ static void addhtlc_dbname(char *pDbName, int num)
  * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
  * @param[in,out]   p_param         comp_param_cnl_t構造体
  */
-static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
+static bool comp_func_cnldel(ln_self_t *self, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
     const uint8_t *p_channel_id = (const uint8_t *)p_param;
@@ -3727,4 +3780,77 @@ static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_
     }
 
     return retval;
+}
+
+
+static int initialize_dbself(void)
+{
+    int retval;
+
+    if (mPath[0] == '\0') {
+        ln_lmdb_set_path(".");
+    }
+    mkdir(mPath, 0755);
+    mkdir(ln_lmdb_get_selfpath(), 0755);
+
+    retval = mdb_env_create(&mpDbSelf);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        return -1;
+    }
+    retval = mdb_env_set_maxdbs(mpDbSelf, M_LMDB_MAXDBS);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        return -1;
+    }
+    retval = mdb_env_set_mapsize(mpDbSelf, M_LMDB_MAPSIZE);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        return -1;
+    }
+    retval = mdb_env_open(mpDbSelf, ln_lmdb_get_selfpath(), 0, 0644);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int initialize_dbnode(void)
+{
+    int retval;
+
+    if (mPath[0] == '\0') {
+        ln_lmdb_set_path(".");
+    }
+    mkdir(mPath, 0755);
+    mkdir(ln_lmdb_get_nodepath(), 0755);
+
+    retval = mdb_env_create(&mpDbNode);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        return -1;
+    }
+
+    retval = mdb_env_set_maxdbs(mpDbNode, M_LMDB_NODE_MAXDBS);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        return -1;
+    }
+
+    retval = mdb_env_set_mapsize(mpDbNode, M_LMDB_NODE_MAPSIZE);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        return -1;
+    }
+
+    retval = mdb_env_open(mpDbNode, ln_lmdb_get_nodepath(), 0, 0644);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        return -1;
+    }
+
+    return 0;
 }
