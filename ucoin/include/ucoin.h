@@ -1352,7 +1352,7 @@ void ucoin_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 /** 日時文字列
  *
  */
-void ucoin_util_strftime(char *pTmStr, time_t tm);
+void ucoin_util_strftime(char *pTmStr, uint32_t Tm);
 
 
 /** log出力開始(ulog)
