@@ -317,7 +317,12 @@ void lnapp_start(lnapp_conf_t *pAppConf)
 
 void lnapp_stop(lnapp_conf_t *pAppConf)
 {
-    pAppConf->loop = false;
+    fprintf(PRINTOUT, "stop: ");
+    ucoin_util_dumpbin(PRINTOUT, pAppConf->node_id, UCOIN_SZ_PUBKEY, true);
+
+    stop_threads(pAppConf);
+    pthread_join(pAppConf->th, NULL);
+    fprintf(PRINTOUT, "joined\n");
 }
 
 
