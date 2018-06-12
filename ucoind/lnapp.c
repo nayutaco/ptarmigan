@@ -881,6 +881,7 @@ static void *thread_main_start(void *pArg)
     //スレッド
     pthread_t   th_peer;        //peer受信
     pthread_t   th_poll;        //トランザクション監視
+    pthread_t   th_anno;        //announce
 
     //seed作成(後でDB読込により上書きされる可能性あり)
     uint8_t seed[LN_SZ_SEED];
@@ -947,7 +948,7 @@ static void *thread_main_start(void *pArg)
     pthread_create(&th_poll, NULL, &thread_poll_start, p_conf);
 
     //announceスレッド
-    pthread_create(&th_poll, NULL, &thread_anno_start, p_conf);
+    pthread_create(&th_anno, NULL, &thread_anno_start, p_conf);
 
     //BOLTメッセージ
     //  以下のパターンがあり得る
@@ -1071,6 +1072,7 @@ LABEL_JOIN:
     stop_threads(p_conf);
     pthread_join(th_peer, NULL);
     pthread_join(th_poll, NULL);
+    pthread_join(th_anno, NULL);
     LOGD("loop end\n");
 
 LABEL_SHUTDOWN:
@@ -1268,8 +1270,6 @@ static bool exchange_init(lnapp_conf_t *p_conf)
     ucoin_buf_free(&buf_bolt);
 
     //コールバックでのINIT受信通知待ち
-    pthread_mutex_lock(&p_conf->mux);
-
     LOGD("wait: init\n");
     uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
     while (p_conf->loop && (count > 0) && ((p_conf->flag_recv & RECV_MSG_INIT) == 0)) {
