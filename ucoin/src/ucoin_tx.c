@@ -1187,7 +1187,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
                     ucoin_print_script(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 }
             } else {
-                LOGD("<none>\n");
+                LOGD2("<none>\n");
             }
         }
     }
