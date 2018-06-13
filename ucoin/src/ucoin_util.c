@@ -425,10 +425,11 @@ int ucoin_dbg_malloc_cnt(void)
 #endif  //UCOIN_DEBUG_MEM
 
 
-void ucoin_util_strftime(char *pTmStr, time_t tm)
+void ucoin_util_strftime(char *pTmStr, uint32_t Tm)
 {
-    strftime(pTmStr, UCOIN_SZ_DTSTR + 1, "%m/%d %H:%M:%S", localtime(&tm));
+    strftime(pTmStr, UCOIN_SZ_DTSTR + 1, "%m/%d %H:%M:%S", localtime((time_t *)&Tm));
 }
+
 
 /**************************************************************************
  * package functions
