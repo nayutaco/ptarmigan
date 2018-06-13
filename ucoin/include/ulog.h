@@ -24,9 +24,9 @@ extern "C" {
 
 bool ulog_init(void);
 void ulog_term(void);
-void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFmt, ...);
-void ulog_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const void *pData, size_t Len);
-void ulog_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const void *pData, size_t Len);
+void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const char *pFmt, ...);
+void ulog_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len);
+void ulog_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len);
 
 
 #ifdef __cplusplus

@@ -41,7 +41,7 @@ bool ulog_init(void)
 
     pthread_mutex_init(&mMux, NULL);
 
-    ulog_write(ULOG_PRI_INFO, __FILE__, __LINE__, 1, "ULOG", "=== ULOG START ===\n");
+    ulog_write(ULOG_PRI_INFO, __FILE__, __LINE__, 1, "ULOG", "INIT", "=== ULOG START ===\n");
 
     return true;
 }
@@ -57,7 +57,7 @@ bool ulog_init_stderr(void)
 
     pthread_mutex_init(&mMux, NULL);
 
-    ulog_write(ULOG_PRI_INFO, __FILE__, __LINE__, 1, "ULOG", "=== ULOG START ===\n");
+    ulog_write(ULOG_PRI_INFO, __FILE__, __LINE__, 1, "ULOG", "INIT", "=== ULOG START ===\n");
 
     return true;
 }
@@ -72,7 +72,7 @@ void ulog_term(void)
 }
 
 
-void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFmt, ...)
+void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const char *pFmt, ...)
 {
     if ((mFp == NULL) || (Pri > ULOG_PRI)) {
         return;
@@ -87,7 +87,7 @@ void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTa
 
     va_start(ap, pFmt);
     if (Flag) {
-        fprintf(mFp, "%s(%d)[%s:%d][%s]", tmstr, (int)tid(), pFname, Line, pTag);
+        fprintf(mFp, "%s(%d)[%s:%d:%s][%s]", tmstr, (int)tid(), pFname, Line, pFunc, pTag);
     }
     vfprintf(mFp, pFmt, ap);
     va_end(ap);
@@ -117,19 +117,19 @@ void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTa
 }
 
 
-void ulog_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const void *pData, size_t Len)
+void ulog_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len)
 {
     char *p_str = (char *)malloc(Len * 2 + 1);
     ucoin_util_bin2str(p_str, pData, Len);
-    ulog_write(Pri, pFname, Line, Flag, pTag, "%s\n", p_str);
+    ulog_write(Pri, pFname, Line, Flag, pTag, pFunc, "%s\n", p_str);
     free(p_str);
 }
 
 
-void ulog_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const void *pData, size_t Len)
+void ulog_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len)
 {
     char *p_str = (char *)malloc(Len * 2 + 1);
     ucoin_util_bin2str_rev(p_str, pData, Len);
-    ulog_write(Pri, pFname, Line, Flag, pTag, "%s\n", p_str);
+    ulog_write(Pri, pFname, Line, Flag, pTag, pFunc, "%s\n", p_str);
     free(p_str);
 }
