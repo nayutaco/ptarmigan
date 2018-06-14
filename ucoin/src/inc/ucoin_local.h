@@ -122,7 +122,7 @@ static inline int tid() {
 
 #define DEBUGOUT        stderr
 
-/// @def    LOGD(format, ...)
+/// @def    LOGV(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
 #define LOGV(format, ...)   {fprintf(DEBUGOUT, "%lu (%d)[%s:%d]", (unsigned long)time(NULL), (int)tid(), __func__, (int)__LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
 #define DUMPV(dt,ln)        ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
