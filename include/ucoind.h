@@ -129,6 +129,11 @@ static inline int tid() {
 #else   //UCOIN_USE_ULOG
 #define DEBUGOUT        stderr
 
+/// @def    LOGV(format, ...)
+/// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
+#define LOGV(format, ...) {fprintf(DEBUGOUT, "%lu[%d]%s[%s:%d]", (unsigned long)time(NULL), tid(), __func__, __FILE__, __LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
+#define DUMPV(dt,ln)        ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
+#define TXIDV(dt)           {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
 /// @def    LOGD(format, ...)
 /// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
 #define LOGD(format, ...) {fprintf(DEBUGOUT, "%lu[%d]%s[%s:%d]", (unsigned long)time(NULL), tid(), __func__, __FILE__, __LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
@@ -150,6 +155,9 @@ static inline int tid() {
 #endif
 
 #else //UCOIN_DEBUG
+#define LOGV(...)       //none
+#define DUMPV(...)      //none
+#define TXIDV(...)      //none
 
 #define LOGD(...)     //none
 #define LOGD2(...)    //none
