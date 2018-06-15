@@ -245,23 +245,23 @@ static void ln_print_self(const ln_self_t *self)
                 if (cnt > 0) {
                     printf(",\n");
                 }
-                printf("{\n");
-                printf(M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
-                printf(M_QQ("flag") ": " M_QQ("%s") ",\n", (LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[lp].flag)) ? "Received" : "Offered");
-                printf(M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
-                printf(M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
-                printf(M_QQ("payhash") ": \"");
+                printf(INDENT4 "{\n");
+                printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
+                printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(%02x)") ",\n", ((LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[lp].flag)) ? "Received" : "Offered"), self->cnl_add_htlc[lp].flag);
+                printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
+                printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
+                printf(INDENT5 M_QQ("payhash") ": \"");
                 ucoin_util_dumpbin(stdout, self->cnl_add_htlc[lp].payment_sha256, UCOIN_SZ_SHA256, false);
                 printf("\",\n");
-                printf(M_QQ("shared_secret") ": \"");
+                printf(INDENT5 M_QQ("shared_secret") ": \"");
                 ucoin_util_dumpbin(stdout, self->cnl_add_htlc[lp].shared_secret.buf, self->cnl_add_htlc[lp].shared_secret.len, false);
                 printf("\",\n");
-                printf(M_QQ("index") ": %d\n", lp);
-                printf("}");
+                printf(INDENT5 M_QQ("index") ": %d\n", lp);
+                printf(INDENT4 "}");
                 cnt++;
             }
         }
-        printf("],\n");
+        printf(INDENT3 "],\n");
     }
 
     printf(INDENT3 M_QQ("commit_local") ": {\n");

@@ -55,6 +55,16 @@
 
 
 /********************************************************************
+ * typedefs
+ ********************************************************************/
+
+typedef struct {
+    const uint8_t *p_nodeid;
+    cJSON *result;
+} getcommittx_t;
+
+
+/********************************************************************
  * static variables
  ********************************************************************/
 
@@ -108,6 +118,7 @@ static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn);
 static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
+static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_param);
 
 
 /********************************************************************
@@ -934,7 +945,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     daemon_connect_t conn;
-    cJSON *result = NULL;
+    cJSON *result = cJSON_CreateObject();
     int index = 0;
 
     //connect parameter
@@ -945,20 +956,10 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("getcommittx\n");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
-    if (p_appconf != NULL) {
-        //接続中
-        result = cJSON_CreateObject();
-        bool ret = lnapp_get_committx(p_appconf, result);
-        if (!ret) {
-            ctx->error_code = RPCERR_ERROR;
-            ctx->error_message = ucoind_error_str(RPCERR_ERROR);
-        }
-    } else {
-        //未接続
-        ctx->error_code = RPCERR_NOCHANN;
-        ctx->error_message = ucoind_error_str(RPCERR_NOCHANN);
-    }
+    getcommittx_t prm;
+    prm.p_nodeid = conn.node_id;
+    prm.result = result;
+    ln_db_self_search(comp_func_getcommittx, &prm);
 
 LABEL_EXIT:
     if (index < 0) {
@@ -1537,4 +1538,23 @@ static int send_json(const char *pSend, const char *pAddr, uint16_t Port)
     close(sock);
 
     return 0;
+}
+
+
+/** getcommittx処理
+ *
+ */
+static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_param)
+{
+    (void)p_db_param;
+
+    getcommittx_t *prm = (getcommittx_t *)p_param;
+
+    if (memcmp(prm->p_nodeid, ln_their_node_id(self), UCOIN_SZ_PUBKEY) == 0) {
+        lnapp_conf_t appconf;
+        appconf.p_self= self;
+        lnapp_get_committx(&appconf, prm->result);
+    }
+
+    return false;
 }

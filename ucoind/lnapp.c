@@ -778,14 +778,10 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
 
 bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
 {
-    if (!pAppConf->loop) {
-        //LOGD("This AppConf not working\n");
-        return false;
-    }
-
     ln_close_force_t close_dat;
     bool ret = ln_create_close_unilateral_tx(pAppConf->p_self, &close_dat);
     if (ret) {
+        cJSON *result_local = cJSON_CreateObject();
         ucoin_buf_t buf = UCOIN_BUF_INIT;
 
         for (int lp = 0; lp < close_dat.num; lp++) {
@@ -803,7 +799,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
                 } else {
                     sprintf(title, "htlc%d", lp - 1);
                 }
-                cJSON_AddItemToObject(pResult, title, cJSON_CreateString(transaction));
+                cJSON_AddItemToObject(result_local, title, cJSON_CreateString(transaction));
                 APP_FREE(transaction);
             }
         }
@@ -816,12 +812,44 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
             ucoin_util_bin2str(transaction, buf.buf, buf.len);
             ucoin_buf_free(&buf);
 
-            cJSON_AddItemToObject(pResult, "htlc_out", cJSON_CreateString(transaction));
+            cJSON_AddItemToObject(result_local, "htlc_out", cJSON_CreateString(transaction));
             APP_FREE(transaction);
         }
+        cJSON_AddItemToObject(pResult, "local", result_local);
 
         ln_free_close_force_tx(&close_dat);
     }
+
+#if 0   //相手側のcommit_txは署名を持たないため正しく出力できない
+    ret = ln_create_closed_tx(pAppConf->p_self, &close_dat);
+    if (ret) {
+        cJSON *result_remote = cJSON_CreateObject();
+        ucoin_buf_t buf = UCOIN_BUF_INIT;
+
+        for (int lp = 0; lp < close_dat.num; lp++) {
+            if (close_dat.p_tx[lp].vout_cnt > 0) {
+                ucoin_tx_create(&buf, &close_dat.p_tx[lp]);
+                char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);        //APP_FREE: この中
+                ucoin_util_bin2str(transaction, buf.buf, buf.len);
+                ucoin_buf_free(&buf);
+
+                char title[10];
+                if (lp == 0) {
+                    strcpy(title, "committx");
+                } else if (lp == 1) {
+                    strcpy(title, "to_local");
+                } else {
+                    sprintf(title, "htlc%d", lp - 1);
+                }
+                cJSON_AddItemToObject(result_remote, title, cJSON_CreateString(transaction));
+                APP_FREE(transaction);
+            }
+        }
+        cJSON_AddItemToObject(pResult, "remote", result_remote);
+
+        ln_free_close_force_tx(&close_dat);
+    }
+#endif
 
     return ret;
 }
