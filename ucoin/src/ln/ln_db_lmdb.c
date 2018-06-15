@@ -687,7 +687,6 @@ LABEL_EXIT:
         LOGD("abort\n");
         MDB_TXN_ABORT(db.txn);
     }
-    LOGD("retval=%d\n", retval);
     return retval == 0;
 }
 
@@ -968,7 +967,6 @@ bool ln_db_secret_save(ln_self_t *self)
     } else {
         MDB_TXN_ABORT(db.txn);
     }
-    LOGD("retval=%d\n", retval);
 
 LABEL_EXIT:
     return retval == 0;

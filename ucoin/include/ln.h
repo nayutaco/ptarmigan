@@ -80,8 +80,10 @@ extern "C" {
 
 // ln_update_add_htlc_t.flag用
 #define LN_HTLC_FLAG_IS_RECV(f)         ((f) & LN_HTLC_FLAG_RECV)   ///< true:Received HTLC / false:Offered HTLC
+#define LN_HTLC_FLAG_IS_COMMITTED(f)    ((f) & LN_HTLC_FLAG_COMMIT) ///< true:このHTLCに関するcommitment_signed受信済み
 #define LN_HTLC_FLAG_SEND               (0x00)                      ///< Offered HTLC(add_htlcを送信した)
 #define LN_HTLC_FLAG_RECV               (0x01)                      ///< Received HTLC(add_htlcを受信した)
+#define LN_HTLC_FLAG_COMMIT             (0x80)                      ///< commitment_signed受信済み
 
 // channel_update.flags
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
