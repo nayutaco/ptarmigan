@@ -107,7 +107,7 @@ struct nodes_result_t {
 };
 
 struct param_self_t {
-    nodes_result_t  result;
+    nodes_result_t  *p_result;
     const uint8_t   *p_payer;
 };
 
@@ -221,11 +221,11 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
         // LOGD("self->peer_node_id= ");
         // DUMPD(self->peer_node_id, UCOIN_SZ_PUBKEY);
 
-        p_prm_self->result.node_num++;
-        p_prm_self->result.p_nodes = (nodes_t *)realloc(p_prm_self->result.p_nodes, sizeof(nodes_t) * p_prm_self->result.node_num);
-        p_prm_self->result.p_nodes[p_prm_self->result.node_num - 1].short_channel_id = self->short_channel_id;
+        p_prm_self->p_result->node_num++;
+        p_prm_self->p_result->p_nodes = (nodes_t *)realloc(p_prm_self->p_result->p_nodes, sizeof(nodes_t) * p_prm_self->p_result->node_num);
+        p_prm_self->p_result->p_nodes[p_prm_self->p_result->node_num - 1].short_channel_id = self->short_channel_id;
 
-        nodes_t *p_nodes_result = &p_prm_self->result.p_nodes[p_prm_self->result.node_num - 1];
+        nodes_t *p_nodes_result = &p_prm_self->p_result->p_nodes[p_prm_self->p_result->node_num - 1];
         const uint8_t *p1, *p2;
         direction(&p1, &p2, p_prm_self->p_payer, self->peer_node_id);
         memcpy(p_nodes_result->ninfo[0].node_id, p1, UCOIN_SZ_PUBKEY);
@@ -253,7 +253,7 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
     //self
     param_self_t prm_self;
 
-    memset(&prm_self.result, 0, sizeof(nodes_result_t));
+    prm_self.p_result = p_result;
     prm_self.p_payer = pPayerId;
     ln_db_self_search(comp_func_self, &prm_self);
 
@@ -263,8 +263,8 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 
     ret = ln_db_node_cur_transaction(&p_db_anno, LN_DB_TXN_CNL, NULL);
     if (!ret) {
-        LOGD("fail\n");
-        return false;
+        //channel_announcementを1回も受信せずにDBが存在しない場合もあるため、trueで返す
+        return true;
     }
     ret = ln_db_annocnl_cur_open(&p_cur, p_db_anno);
     if (ret) {
