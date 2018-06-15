@@ -427,7 +427,8 @@ int ucoin_dbg_malloc_cnt(void)
 
 void ucoin_util_strftime(char *pTmStr, uint32_t Tm)
 {
-    strftime(pTmStr, UCOIN_SZ_DTSTR + 1, "%m/%d %H:%M:%S", localtime((time_t *)&Tm));
+    time_t tm = (time_t)Tm;
+    strftime(pTmStr, UCOIN_SZ_DTSTR + 1, "%m/%d %H:%M:%S", localtime(&tm));
 }
 
 
