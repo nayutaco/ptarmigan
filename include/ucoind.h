@@ -99,6 +99,7 @@ static inline int tid() {
 #define RPCERR_NOROUTE              (-26001)
 #define RPCERR_PAYFAIL              (-26002)
 #define RPCERR_PAY_RETRY            (-26003)
+#define RPCERR_TOOMANYHOP           (-26004)
 
 
 #define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数(server/clientそれぞれ)
