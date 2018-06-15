@@ -1276,11 +1276,11 @@ static int cmd_routepay_proc1(
         LOGD("fail: routing\n");
         switch (rerr) {
         case LNROUTE_NOTFOUND:
-            return LNERR_ROUTE_NOTFOUND;
+            return RPCERR_NOROUTE;
         case LNROUTE_TOOMANYHOP:
-            return LNERR_ROUTE_TOOMANYHOP;
+            return RPCERR_TOOMANYHOP;
         default:
-            return LNERR_ROUTE_ERROR;
+            return RPCERR_PAYFAIL;
         }
     }
 
