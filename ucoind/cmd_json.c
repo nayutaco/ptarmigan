@@ -254,6 +254,16 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
     cJSON_AddNumber64ToObject(result, "total_our_msat", amount);
 
+#ifdef DEVELOPER_MODE
+    //blockcount
+    int32_t blockcnt = btcrpc_getblockcount();
+    if (blockcnt < 0) {
+        LOGD("fail btcrpc_getblockcount()\n");
+    } else {
+        cJSON_AddItemToObject(result, "block_count", cJSON_CreateNumber(blockcnt));
+    }
+#endif
+
     //peer info
     p2p_svr_show_self(result_peer);
     p2p_cli_show_self(result_peer);
