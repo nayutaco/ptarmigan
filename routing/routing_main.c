@@ -189,7 +189,7 @@ int main(int argc, char* argv[])
     assert(ret == 0);
     ret = mdb_env_set_maxdbs(pDbSelf, 10);
     assert(ret == 0);
-    ret = mdb_env_open(pDbSelf, ln_lmdb_get_selfpath(), MDB_RDONLY, 0664);
+    ret = mdb_env_open(pDbSelf, ln_lmdb_get_selfpath(), 0, 0664);
     if (ret) {
         fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_selfpath());
         return -5;

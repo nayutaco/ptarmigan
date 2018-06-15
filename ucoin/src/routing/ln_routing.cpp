@@ -263,8 +263,8 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 
     ret = ln_db_node_cur_transaction(&p_db_anno, LN_DB_TXN_CNL, NULL);
     if (!ret) {
-        LOGD("fail\n");
-        return false;
+        //channel_announcementを1回も受信せずにDBが存在しない場合もあるため、trueで返す
+        return true;
     }
     ret = ln_db_annocnl_cur_open(&p_cur, p_db_anno);
     if (ret) {
