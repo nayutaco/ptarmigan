@@ -410,7 +410,8 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         fundconf.feerate_per_kw = (uint32_t)json->valueu64;
         LOGD("feerate_per_kw=%" PRIu32 "\n", fundconf.feerate_per_kw);
     } else {
-        //スルー
+        //デフォルト値
+        fundconf.feerate_per_kw = 0;
     }
     print_funding_conf(&fundconf);
 
