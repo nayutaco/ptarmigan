@@ -418,7 +418,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
 
         int retval = ln_lmdb_self_load(p_self, txn, dbi);
         if (retval != 0) {
-            printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
+            //printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
             return;
         }
         const char *p_title;
