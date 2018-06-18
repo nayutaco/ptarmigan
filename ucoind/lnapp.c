@@ -1620,7 +1620,7 @@ static void *thread_poll_start(void *pArg)
                 break;
             }
         }
-        if (!p_conf->loop || (p_conf->p_self == NULL)) {
+        if (p_conf->p_self == NULL) {
             break;
         }
 
@@ -1788,10 +1788,12 @@ static void *thread_anno_start(void *pArg)
     int slp = M_WAIT_ANNO_SEC;
 
     while (p_conf->loop) {
-        sleep(slp);
-
-        if (!p_conf->loop) {
-            break;
+        //ループ解除まで時間が長くなるので、短くチェックする
+        for (int lp = 0; lp < slp; lp++) {
+            sleep(1);
+            if (!p_conf->loop) {
+                break;
+            }
         }
 
         if ((p_conf->flag_recv & RECV_MSG_END) == 0) {
