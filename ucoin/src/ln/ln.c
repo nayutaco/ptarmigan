@@ -3088,7 +3088,8 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         LOGD("fail\n");
         goto LABEL_EXIT;
     }
-    ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self));
+    ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self),
+                            ln_their_node_id(self), ln_node_getid());
     if (!ret) {
         LOGD("fail: ln_db_annocnl_save\n");
         //goto LABEL_EXIT;
@@ -3138,7 +3139,8 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 
     if (param.is_unspent) {
         //DB保存
-        ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self));
+        ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self),
+                                    ann.node_id1, ann.node_id2);
         if (!ret) {
             LOGD("fail: db save\n");
         }

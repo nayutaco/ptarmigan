@@ -190,9 +190,12 @@ bool ln_db_annocnl_load(ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId);
  * @param[in]       pCnlAnno
  * @param[in]       ShortChannelId  pCnlAnnoのshort_channel_id
  * @param[in]       pSendId         pCnlAnnoの送信元/先node_id
+ * @param[in]       pChan1          channel_announcementのnode1
+ * @param[in]       pChan2          channel_announcementのnode2
  * @retval      true    成功
  */
-bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId);
+bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId,
+                        const uint8_t *pChan1, const uint8_t *pChan2);
 
 
 /** channel_update読込み
