@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2018/06/19
+
+* DB version : -18
+  * add "annoinfo_chan" for skip `node_announcement` from unknown node_id
+
 ## 2018/05/30
 
 * remove zlog
@@ -23,7 +28,7 @@
 
 ## 2018/04/09
 
-* DB version : -18
+* DB version : -18 --> not changed !! -17
   * privkey move other database
 * bugfix
 

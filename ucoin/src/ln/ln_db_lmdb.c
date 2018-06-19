@@ -73,6 +73,7 @@
 #define M_DBI_ANNOINFO_CNL      "channel_annoinfo"
 #define M_DBI_ANNO_NODE         "node_anno"
 #define M_DBI_ANNOINFO_NODE     "node_annoinfo"
+#define M_DBI_ANNOINFO_CHAN     "chan_annoinfo"
 #define M_DBI_ANNO_SKIP         LNDB_DBI_ANNO_SKIP
 #define M_DBI_ANNO_INVOICE      "route_invoice"
 #define M_DBI_PREIMAGE          "preimage"
@@ -89,7 +90,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-17)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-18)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -108,7 +109,8 @@
     -15: node.conf情報をversionに追加
     -16: selfはmpDbEnv、それ以外はmpDbNodeEnvにする
     -17: selfの構造体を個別に保存する
-    -18: selfのsecret情報をself.priv_dataに集約
+         selfのsecret情報をself.priv_dataに集約
+    -18: node_announcement除外用DB追加(annoinfo_chan)
  */
 
 
@@ -1091,10 +1093,12 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId)
+bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId,
+                        const uint8_t *pChan1, const uint8_t *pChan2)
 {
     int         retval;
-    ln_lmdb_db_t   db, db_info;
+    ln_lmdb_db_t   db, db_info, db_aichan;
+    MDB_val     key, data;
 
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -1102,6 +1106,7 @@ bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, co
         goto LABEL_EXIT;
     }
     db_info.txn = db.txn;
+    db_aichan.txn = db.txn;
     retval = mdb_dbi_open(db.txn, M_DBI_ANNO_CNL, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
@@ -1111,6 +1116,34 @@ bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, co
     retval = mdb_dbi_open(db.txn, M_DBI_ANNOINFO_CNL, MDB_CREATE, &db_info.dbi);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.txn);
+        goto LABEL_EXIT;
+    }
+
+    //BOLT#07
+    //  * if node_id is NOT previously known from a channel_announcement message, OR if timestamp is NOT greater than the last-received node_announcement from this node_id:
+    //    * SHOULD ignore the message.
+    //  channel_announcementで受信していないnode_idは無視する
+    retval = mdb_dbi_open(db.txn, M_DBI_ANNOINFO_CHAN, MDB_CREATE, &db_aichan.dbi);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.txn);
+        goto LABEL_EXIT;
+    }
+    data.mv_size = 0;
+    data.mv_data = NULL;
+    key.mv_size = UCOIN_SZ_PUBKEY;
+    key.mv_data = (CONST_CAST uint8_t *)pChan1;
+    retval = mdb_put(db_aichan.txn, db_aichan.dbi, &key, &data, 0);
+    if (retval != 0) {
+        LOGD("ERR: channel_announcement node_id 1\n");
+        MDB_TXN_ABORT(db.txn);
+        goto LABEL_EXIT;
+    }
+    key.mv_data = (CONST_CAST uint8_t *)pChan2;
+    retval = mdb_put(db_aichan.txn, db_aichan.dbi, &key, &data, 0);
+    if (retval != 0) {
+        LOGD("ERR: channel_announcement node_id 2\n");
         MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
@@ -1868,7 +1901,12 @@ LABEL_EXIT:
 bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId)
 {
     int             retval;
-    ln_lmdb_db_t    db, db_info;
+    ln_lmdb_db_t    db, db_info, db_aichan;
+    ucoin_buf_t buf_node = UCOIN_BUF_INIT;
+    uint32_t    timestamp;
+    bool        upddb = false;
+    bool        clr = false;
+    MDB_val     key, data;
 
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -1876,6 +1914,7 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         goto LABEL_EXIT;
     }
     db_info.txn = db.txn;
+    db_aichan.txn = db.txn;
     retval = mdb_dbi_open(db.txn, M_DBI_ANNO_NODE, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
@@ -1889,10 +1928,28 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         goto LABEL_EXIT;
     }
 
-    ucoin_buf_t buf_node = UCOIN_BUF_INIT;
-    uint32_t    timestamp;
-    bool        upddb = false;
-    bool        clr = false;
+    if (memcmp(pAnno->p_node_id, ln_node_getid(), UCOIN_SZ_PUBKEY) != 0) {
+        //BOLT#07
+        //  * if node_id is NOT previously known from a channel_announcement message, OR if timestamp is NOT greater than the last-received node_announcement from this node_id:
+        //    * SHOULD ignore the message.
+        //  channel_announcementで受信していないnode_idは無視する
+        retval = mdb_dbi_open(db.txn, M_DBI_ANNOINFO_CHAN, 0, &db_aichan.dbi);
+        if (retval != 0) {
+            LOGD("ERR: %s\n", mdb_strerror(retval));
+            MDB_TXN_ABORT(db.txn);
+            goto LABEL_EXIT;
+        }
+        if (retval == 0) {
+            key.mv_size = UCOIN_SZ_PUBKEY;
+            key.mv_data = pAnno->p_node_id;
+            retval = mdb_get(db_aichan.txn, db_aichan.dbi, &key, &data);
+            if (retval != 0) {
+                LOGD("skip: not have channel_announcement node_id\n");
+                MDB_TXN_ABORT(db.txn);
+                goto LABEL_EXIT;
+            }
+        }
+    }
 
     retval = annonod_load(&db, &buf_node, &timestamp, pAnno->p_node_id);
     if (retval == 0) {

@@ -2321,6 +2321,16 @@ static void cb_anno_signsed(lnapp_conf_t *p_conf, void *p_param)
     }
     ucoin_buf_free(&buf_bolt);
 
+    //node_announcement
+    ret = ln_db_annonod_load(&buf_bolt, NULL, ln_node_getid());
+    if (ret) {
+        LOGD("send: my node_announcement\n");
+        send_peer_noise(p_conf, &buf_bolt);
+    } else {
+        LOGD("err\n");
+    }
+    ucoin_buf_free(&buf_bolt);
+
     DBGTRACE_END
 }
 
