@@ -16,7 +16,7 @@ nodeid() {
 	cat conf/peer$1.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
 }
 
-./routing -d $PAYER/dbucoin -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT
+./routing -d $PAYER -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
@@ -29,7 +29,7 @@ if [ $? -ne 0 ]; then
 fi
 HASH=`echo $INVOICE | jq -r '.result.hash'`
 
-./routing -d $PAYER/dbucoin -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT > $ROUTECONF
+./routing -d $PAYER -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT > $ROUTECONF
 
 # fulfillしない
 ./ucoincli -d 1 $PAYEE_PORT

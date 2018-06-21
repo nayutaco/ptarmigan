@@ -19,7 +19,7 @@ nodeid() {
 	cat conf/peer$1.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
 }
 
-./routing -d $PAYER/dbucoin -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT
+./routing -d $PAYER -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT
 if [ $? -ne 0 ]; then
 	echo no routing
 	exit -1
@@ -27,7 +27,7 @@ fi
 
 echo -n hash= > $ROUTECONF
 echo `./ucoincli -i $AMOUNT $PAYEE_PORT` | jq -r '.result.hash' >> $ROUTECONF
-./routing -d $PAYER/dbucoin -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT >> $ROUTECONF
+./routing -d $PAYER -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT >> $ROUTECONF
 
 # 強制的に中間のノードを終了させる
 ./ucoincli -q 5556
