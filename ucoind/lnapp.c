@@ -792,12 +792,14 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
                 ucoin_buf_free(&buf);
 
                 char title[10];
-                if (lp == 0) {
+                if (lp == LN_CLOSE_IDX_COMMIT) {
                     strcpy(title, "committx");
-                } else if (lp == 1) {
+                } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
                     strcpy(title, "to_local");
+                } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
+                    strcpy(title, "to_remote???");
                 } else {
-                    sprintf(title, "htlc%d", lp - 1);
+                    sprintf(title, "htlc%d", lp - LN_CLOSE_IDX_HTLC);
                 }
                 cJSON_AddItemToObject(result_local, title, cJSON_CreateString(transaction));
                 APP_FREE(transaction);
