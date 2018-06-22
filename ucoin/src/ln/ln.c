@@ -1111,7 +1111,8 @@ bool ln_close_ugly(ln_self_t *self, const ucoin_tx_t *pRevokedTx, void *pDbParam
         }
     }
     LOGD("revoked_cnt=%d\n", self->revoked_cnt);
-    self->revoked_num = LN_RCLOSE_IDX_HTLC + self->revoked_cnt;  //[0]to_local, [1]to_remote, [2-]HTLC
+    self->revoked_num = 1 + self->revoked_cnt;      //p_revoked_vout[0]にto_local系を必ず入れるため、+1しておく
+                                                    //(to_local自体が無くても、HTLC txの送金先がto_localと同じtxになるため)
     ln_alloc_revoked_buf(self);
 
     //
