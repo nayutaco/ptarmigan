@@ -1456,7 +1456,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         ucoin_buf_free(&buf_bolt);
     } else {
-        LOGD("fail through: btcrpc_check_unspent");
+        LOGD("fail through: btcrpc_check_unspent: ");
         TXIDD(pFunding->txid);
     }
 

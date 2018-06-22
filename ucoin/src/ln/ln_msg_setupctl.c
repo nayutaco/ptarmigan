@@ -171,6 +171,40 @@ static void init_print(const ln_init_t *pMsg)
  * error
  ********************************************************************/
 
+bool HIDDEN ln_msg_error_create(ucoin_buf_t *pBuf, const ln_error_t *pMsg)
+{
+    //    type: 17 (error)
+    //    data:
+    //        [32:channel_id]
+    //        [2:len]
+    //        [len:data]
+
+    ucoin_push_t    proto;
+
+    ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + LN_SZ_CHANNEL_ID + sizeof(uint16_t) + pMsg->len);
+
+    //    type: 17 (error)
+    ln_misc_push16be(&proto, MSGTYPE_ERROR);
+
+    //        [32:channel_id]
+    ucoin_push_data(&proto, pMsg->channel_id, LN_SZ_CHANNEL_ID);
+
+    //        [2:len]
+    ln_misc_push16be(&proto, pMsg->len);
+
+    //        [len:data]
+    if (pMsg->len > 0) {
+        ucoin_push_data(&proto, pMsg->p_data, pMsg->len);
+    }
+
+    assert(sizeof(uint16_t) + LN_SZ_CHANNEL_ID + sizeof(uint16_t) + pMsg->len == pBuf->len);
+
+    ucoin_push_trim(&proto);
+
+    return true;
+}
+
+
 bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     if (Len < sizeof(uint16_t) + 4) {
