@@ -993,7 +993,7 @@ struct ln_self_t {
     ucoin_buf_t                 *p_revoked_wit;                 ///< revoked transaction close時のwitnessスクリプト
     ln_htlctype_t               *p_revoked_type;                ///< p_revoked_vout/p_revoked_witに対応するtype
     ucoin_buf_t                 revoked_sec;                    ///< revoked transaction close時のremote per_commit_sec
-    uint16_t                    revoked_num;                    ///< revoked_cntの初期値+1([0]にto_local系を入れるため)
+    uint16_t                    revoked_num;                    ///< revoked_cnt+1([0]にto_local系を入れるため)
     uint16_t                    revoked_cnt;                    ///< 取り戻す必要があるvout数
     uint32_t                    revoked_chk;                    ///< 最後にチェックしたfunding_txのconfirmation数
 
@@ -1896,6 +1896,16 @@ static inline uint16_t ln_revoked_cnt(const ln_self_t *self) {
 static inline bool ln_revoked_cnt_dec(ln_self_t *self) {
     self->revoked_cnt--;
     return self->revoked_cnt == 0;
+}
+
+
+/** revoked transaction closeされた後の取り戻し数
+ *
+ * @param[in]           self            channel情報
+ * @return      取り戻し数
+ */
+static inline uint16_t ln_revoked_num(const ln_self_t *self) {
+    return self->revoked_num;
 }
 
 

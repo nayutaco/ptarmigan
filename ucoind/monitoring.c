@@ -82,9 +82,6 @@ static bool close_revoked_tolocal(const ln_self_t *self, const ucoin_tx_t *pTx, 
 static bool close_revoked_toremote(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex);
 static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int VIndex, int WitIndex);
 
-static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index);
-static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout);
-
 
 /**************************************************************************
  * public functions
@@ -195,7 +192,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 LOGD("txid[%d]= ", lp);
                 TXIDD(txid);
-                bool broad = btcrpc_getraw_tx(NULL, txid);
+                bool broad = btcrpc_is_tx_broadcasted(txid);
                 if (broad) {
                     LOGD("already broadcasted[%d]\n", lp);
                     LOGD("-->OK\n");
@@ -207,7 +204,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                 //展開済みチェック
                 bool unspent;
                 uint64_t sat;
-                bool ret = btcrpc_getxout(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                bool ret = btcrpc_check_unspent(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
                 if (!ret) {
                     goto LABEL_EXIT;
                 }
@@ -299,7 +296,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         bool del = false;
         bool unspent;
         uint64_t sat;
-        bool ret = btcrpc_getxout(&unspent, &sat, ln_funding_txid(self), ln_funding_txindex(self));
+        bool ret = btcrpc_check_unspent(&unspent, &sat, ln_funding_txid(self), ln_funding_txindex(self));
         if (ret && !unspent) {
             //funding_tx使用済み
             del = funding_spent(self, confm, p_db_param);
@@ -327,7 +324,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                 misc_save_event(ln_channel_id(self), "close: finish");
             } else {
                 LOGD("fail: del channel: ");
-                DUMPD(self->channel_id, LN_SZ_CHANNEL_ID);
+                DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
             }
         }
     }
@@ -361,19 +358,16 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
     const ucoin_buf_t *p_vout = ln_revoked_vout(self);
     if (p_vout == NULL) {
         //展開されているのが最新のcommit_txか
-        ucoin_tx_t tx_commit = UCOIN_TX_INIT;
-
-        if (btcrpc_getraw_tx(&tx_commit, ln_commit_local(self)->txid)) {
+        if (btcrpc_is_tx_broadcasted(ln_commit_local(self)->txid)) {
             //最新のlocal commit_tx --> unilateral close(local)
             del = monitor_close_unilateral_local(self, p_db_param);
-        } else if (btcrpc_getraw_tx(&tx_commit, ln_commit_remote(self)->txid)) {
+        } else if (btcrpc_is_tx_broadcasted(ln_commit_remote(self)->txid)) {
             //最新のremote commit_tx --> unilateral close(remote)
             del = close_unilateral_remote(self, p_db_param);
         } else {
             //最新のcommit_txではない --> mutual close or revoked transaction close
             del = close_others(self, confm, p_db_param);
         }
-        ucoin_tx_free(&tx_commit);
     } else {
         // revoked transaction close
         del = close_revoked_after(self, confm, p_db_param);
@@ -441,7 +435,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
                 ucoin_tx_t tx = UCOIN_TX_INIT;
                 uint8_t txid[UCOIN_SZ_TXID];
                 ucoin_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
-                bool ret = search_spent_tx(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
+                bool ret = btcrpc_search_outpoint(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
                 if (ret) {
                     //preimageを登録(自分が持っているのと同じ状態にする)
                     const ucoin_buf_t *p_buf = ln_preimage_remote(&tx);
@@ -520,7 +514,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 LOGD("txid[%d]= ", lp);
                 TXIDD(txid);
-                bool broad = btcrpc_getraw_tx(NULL, txid);
+                bool broad = btcrpc_is_tx_broadcasted(txid);
                 if (broad) {
                     LOGD("already broadcasted[%d]\n", lp);
                     LOGD("-->OK\n");
@@ -533,7 +527,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 //  to_remoteはcommit_txが展開された時点で使用可能なので、チェック不要
                 bool unspent;
                 uint64_t sat;
-                bool ret = btcrpc_getxout(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                bool ret = btcrpc_check_unspent(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
                 if (lp == LN_CLOSE_IDX_TOREMOTE) {
                     send_req = !ret;
                     //LOGD("to_remote: %d\n", send_req);
@@ -627,7 +621,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
                 ucoin_tx_t tx = UCOIN_TX_INIT;
                 uint8_t txid[UCOIN_SZ_TXID];
                 ucoin_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
-                bool ret = search_spent_tx(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
+                bool ret = btcrpc_search_outpoint(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
                 if (ret) {
                     //preimageを登録(自分が持っているのと同じ状態にする)
                     const ucoin_buf_t *p_buf = ln_preimage_remote(&tx);
@@ -662,9 +656,9 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
     (void)pDbParam;
     bool del = false;
-    ucoin_tx_t tx = UCOIN_TX_INIT;
+    ucoin_tx_t tx = UCOIN_TX_INIT;      //funding_txをINPUTにもつtx
 
-    bool ret = search_spent_tx(&tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
+    bool ret = btcrpc_search_outpoint(&tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
     if (ret) {
         LOGD("find!\n");
         ucoin_print_tx(&tx);
@@ -738,7 +732,7 @@ static bool close_revoked_first(ln_self_t *self, ucoin_tx_t *pTx, uint32_t confm
                 save = true;
             }
         } else {
-            for (int lp2 = LN_RCLOSE_IDX_HTLC; lp2 < self->revoked_num; lp2++) {
+            for (int lp2 = LN_RCLOSE_IDX_HTLC; lp2 < ln_revoked_num(self); lp2++) {
                 LOGD("p_vout[%d]=", lp2);
                 DUMPD(p_vout[lp2].buf, p_vout[lp2].len);
                 if (ucoin_buf_cmp(&pTx->vout[lp].script, &p_vout[lp2])) {
@@ -777,7 +771,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
         //HTLC Timeout/Success Txのvoutと一致するトランザクションを検索
         ucoin_buf_t txbuf;
         const ucoin_buf_t *p_vout = ln_revoked_vout(self);
-        bool ret = search_vout(&txbuf, confm - ln_revoked_confm(self), &p_vout[0]);
+        bool ret = btcrpc_search_vout(&txbuf, confm - ln_revoked_confm(self), &p_vout[0]);
         if (ret) {
             bool sendret = true;
             int num = txbuf.len / sizeof(ucoin_tx_t);
@@ -881,55 +875,6 @@ static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int
     ucoin_tx_free(&tx);
     bool ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
     ucoin_buf_free(&buf);
-
-    return ret;
-}
-
-
-/** 該当するoutpointをvinに持つトランザクションを検索
- *
- * @retval  true    検索成功
- * @retval  false   検索失敗 or bitcoindエラー
- */
-static bool search_spent_tx(ucoin_tx_t *pTx, uint32_t confm, const uint8_t *pTxid, int Index)
-{
-    bool ret = false;
-    int32_t height = btcrpc_getblockcount();
-
-    //現在からconfmの間に使用したtransactionがある
-    if (height > 0) {
-        for (uint32_t lp = 0; lp < confm; lp++) {
-            ret = btcrpc_search_txid_block(pTx, height - lp, pTxid, Index);
-            if (ret) {
-                break;
-            }
-        }
-    }
-
-    return ret;
-}
-
-
-/** 該当するscriptPubKeyを vout[0]に持つトランザクション検索
- *
- * @retval  true    検索成功
- * @retval  false   検索失敗 or bitcoindエラー
- */
-static bool search_vout(ucoin_buf_t *pTxBuf, uint32_t confm, const ucoin_buf_t *pVout)
-{
-    bool ret = false;
-    int32_t height = btcrpc_getblockcount();
-
-    //現在からconfmの間に使用したtransactionがある
-    if (height > 0) {
-        for (uint32_t lp = 0; lp < confm; lp++) {
-            ret = btcrpc_search_vout_block(pTxBuf, height - lp, pVout);
-            if (ret) {
-                LOGD("buf.len=%u\n", pTxBuf->len);
-                break;
-            }
-        }
-    }
 
     return ret;
 }

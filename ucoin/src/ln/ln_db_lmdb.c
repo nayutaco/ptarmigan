@@ -652,9 +652,20 @@ LABEL_EXIT:
 
 bool ln_db_self_save(const ln_self_t *self)
 {
-    int             retval;
+    int             retval = -1;
     ln_lmdb_db_t    db;
     char            dbname[M_SZ_DBNAME_LEN + 1];
+
+    for (int lp = 0; lp < LN_SZ_CHANNEL_ID; lp++) {
+        if (self->channel_id[lp] != 0) {
+            retval = 0;
+            break;
+        }
+    }
+    if (retval != 0) {
+        LOGD("fail: channel_id is 0\n");
+        return false;
+    }
 
     retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -2551,7 +2562,12 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
     MDB_val     key, data;
     bool found = false;
 
-    txn = ((ln_lmdb_db_t *)pDbParam)->txn;
+    MDB_txn *txn_tmp = ((ln_lmdb_db_t *)pDbParam)->txn;
+    if (mdb_txn_env(txn_tmp) == mpDbNode) {
+        txn = txn_tmp;
+    } else {
+        MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    }
 
     retval = mdb_dbi_open(txn, M_DBI_PAYHASH, 0, &dbi);
     if (retval != 0) {
@@ -2578,6 +2594,9 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
     mdb_cursor_close(cursor);
 
 LABEL_EXIT:
+    if (txn != txn_tmp) {
+        MDB_TXN_ABORT(txn);
+    }
     return found;
 }
 
@@ -3195,9 +3214,9 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     retval = mdb_dbi_open(pDb->txn, dbname, 0, &pDb->dbi);
     if (retval == 0) {
         retval = backup_param_load(&self->priv_data, pDb, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
-    }
+    }       
     if (retval != 0) {
-        LOGD("ERR\n");
+        LOGD("ERR: %s(backup_param_load)\n", mdb_strerror(retval));
     }
     // LOGD("[priv]storage_index: %" PRIx64 "\n", self->priv_data.storage_index);
     // LOGD("[priv]storage_seed: ");

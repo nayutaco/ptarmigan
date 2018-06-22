@@ -37,7 +37,8 @@
 
 #define RPCID           "ucoindrpc"
 
-#define BUFFER_SIZE     (256 * 1024)
+#define TXJSON_SIZE     (1024)              //rawtx JSON-RPC送信用バッファ
+#define BUFFER_SIZE     (256 * 1024)        //JSON-RPCレスポンスバッファの初期サイズ
 
 #define M_NEXT              ","
 #define M_QQ(str)           "\"" str "\""
@@ -78,6 +79,8 @@ typedef struct {
 static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int BHeight);
 static bool getraw_tx(json_t **ppRoot, json_t **ppResult, char **ppJson, const uint8_t *pTxid);
 static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid);
+static bool search_outpoint(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
+static bool search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout);
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
 static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, bool detail);
@@ -276,7 +279,7 @@ LABEL_EXIT:
 }
 
 
-bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex)
+bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, uint32_t VIndex)
 {
     bool unspent = true;        //エラーでもunspentにしておく
     bool ret;
@@ -326,105 +329,41 @@ LABEL_EXIT:
 }
 
 
-bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex)
+bool btcrpc_search_outpoint(ucoin_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {
-    bool result = false;
-    bool ret;
-    char *p_json = NULL;
-    json_t *p_root = NULL;
-    json_t *p_tx = NULL;
+    bool ret = false;
+    int32_t height = btcrpc_getblockcount();
 
-    ret = getblocktx(&p_root, &p_tx, &p_json, BHeight);
-    if (ret) {
-        //検索
-        size_t index = 0;
-        json_t *p_value = NULL;
-        char txid[UCOIN_SZ_TXID * 2 + 1] = "";
-
-        json_array_foreach(p_tx, index, p_value) {
-            strcpy(txid, (const char *)json_string_value(p_value));
-            ucoin_tx_t tx = UCOIN_TX_INIT;
-
-            ret = getraw_txstr(&tx, txid);
-            //LOGD("txid=%s\n", txid);
-            if ( ret &&
-                 (tx.vin_cnt == 1) &&
-                 (memcmp(tx.vin[0].txid, pTxid, UCOIN_SZ_TXID) == 0) &&
-                 (tx.vin[0].index == VIndex) ) {
-                //一致
-                memcpy(pTx, &tx, sizeof(ucoin_tx_t));
-                ucoin_tx_init(&tx);     //freeさせない
-                result = true;
+    //現在からBlksの間に、使用したtransactionがあるかどうか
+    if (height > 0) {
+        for (uint32_t lp = 0; lp < Blks; lp++) {
+            ret = search_outpoint(pTx, height - lp, pTxid, VIndex);
+            if (ret) {
                 break;
             }
-            ucoin_tx_free(&tx);
         }
-    } else {
-        LOGD("fail: getblock_rpc\n");
     }
-    if (p_root != NULL) {
-        json_decref(p_root);
-    }
-    APP_FREE(p_json);
 
-    return result;
+    return ret;
 }
 
 
-bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout)
+bool btcrpc_search_vout(ucoin_buf_t *pTxBuf, uint32_t Blks, const ucoin_buf_t *pVout)
 {
-    bool result = true;
-    bool ret;
-    char *p_json = NULL;
-    json_t *p_root = NULL;
-    json_t *p_tx = NULL;
+    bool ret = false;
+    int32_t height = btcrpc_getblockcount();
 
-    ret = getblocktx(&p_root, &p_tx, &p_json, BHeight);
-    if (ret) {
-        //検索
-        ucoin_push_t push;
-        ucoin_push_init(&push, pTxBuf, 0);
-        size_t index = 0;
-        json_t *p_value = NULL;
-        char txid[UCOIN_SZ_TXID * 2 + 1] = "";
-
-        json_array_foreach(p_tx, index, p_value) {
-            strcpy(txid, (const char *)json_string_value(p_value));
-            ucoin_tx_t tx = UCOIN_TX_INIT;
-
-            ret = getraw_txstr(&tx, txid);
-            if (!ret) {
-                int cnt = pTxBuf->len / sizeof(ucoin_tx_t);
-                ucoin_tx_t *p_txptr = (ucoin_tx_t *)pTxBuf->buf;
-                for (int lp = 0; lp < cnt; lp++) {
-                    ucoin_tx_free(&p_txptr[lp]);
-                }
-                ucoin_buf_free(pTxBuf);
-                ucoin_tx_free(&tx);
+    //現在からBlksの間に使用したtransactionがあるかどうか
+    if (height > 0) {
+        for (uint32_t lp = 0; lp < Blks; lp++) {
+            ret = search_vout_block(pTxBuf, height - lp, pVout);
+            if (ret) {
                 break;
             }
-            for (uint32_t lp = 0; lp < tx.vout_cnt; lp++) {
-                if (ucoin_buf_cmp(&tx.vout[0].script, pVout)) {
-                    //一致
-                    LOGD("match: %s\n", txid);
-                    ucoin_push_data(&push, &tx, sizeof(ucoin_tx_t));
-                    LOGD("len=%u\n", pTxBuf->len);
-                    ucoin_tx_init(&tx);     //freeさせない
-                    result = true;
-                    break;
-                }
-            }
-            ucoin_tx_free(&tx);
         }
-    } else {
-        LOGD("fail: getblock_rpc\n");
     }
-    if (p_root != NULL) {
-        json_decref(p_root);
-    }
-    APP_FREE(p_json);
 
-    return result;
+    return ret;
 }
 
 
@@ -507,24 +446,18 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_
 }
 
 
-bool btcrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid)
+bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
 {
     char txid[UCOIN_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
     ucoin_util_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
 
-    return btcrpc_getraw_txstr(pTx, txid);
+    return getraw_txstr(NULL, txid);
 }
 
 
-bool btcrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid)
-{
-    return getraw_txstr(pTx, txid);
-}
-
-
-bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx)
+bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
 {
     bool ret;
     char *p_json = NULL;
@@ -543,7 +476,7 @@ bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Tx
         goto LABEL_EXIT;
     }
 
-    ret = gettxout_rpc(&p_root, &p_result, &p_json, txid, Txidx);
+    ret = gettxout_rpc(&p_root, &p_result, &p_json, txid, VIndex);
     if (ret) {
         json_t *p_value;
 
@@ -753,6 +686,126 @@ LABEL_EXIT:
 }
 
 
+/** [bitcoin rpc]blockからvin[0]のoutpointが一致するトランザクションを検索
+ *
+ * @param[out]  pTx         トランザクション情報
+ * @param[in]   BHeight     block height
+ * @param[in]   pTxid       検索するTXID
+ * @param[in]   VIndex      vout index
+ * @retval  true        検索成功
+ * @note
+ *      - 検索するvinはvin_cnt==1のみ
+ *      - 内部処理(getrawtransaction)に失敗した場合でも、処理を継続する
+ */
+static bool search_outpoint(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex)
+{
+    bool result = false;
+    bool ret;
+    char *p_json = NULL;
+    json_t *p_root = NULL;
+    json_t *p_tx = NULL;
+
+    ret = getblocktx(&p_root, &p_tx, &p_json, BHeight);
+    if (ret) {
+        //検索
+        size_t index = 0;
+        json_t *p_value = NULL;
+        char txid[UCOIN_SZ_TXID * 2 + 1] = "";
+
+        json_array_foreach(p_tx, index, p_value) {
+            strcpy(txid, (const char *)json_string_value(p_value));
+            ucoin_tx_t tx = UCOIN_TX_INIT;
+
+            ret = getraw_txstr(&tx, txid);
+            //LOGD("txid=%s\n", txid);
+            if ( ret &&
+                 (tx.vin_cnt == 1) &&
+                 (memcmp(tx.vin[0].txid, pTxid, UCOIN_SZ_TXID) == 0) &&
+                 (tx.vin[0].index == VIndex) ) {
+                //一致
+                memcpy(pTx, &tx, sizeof(ucoin_tx_t));
+                ucoin_tx_init(&tx);     //freeさせない
+                result = true;
+                break;
+            }
+            ucoin_tx_free(&tx);
+        }
+    } else {
+        LOGD("fail: getblock_rpc\n");
+    }
+    if (p_root != NULL) {
+        json_decref(p_root);
+    }
+    APP_FREE(p_json);
+
+    return result;
+}
+
+
+/** [bitcoin rpc]blockからvoutが一致するtransactionを検索
+ * @param[out]  pTxBuf      トランザクション情報(ucoin_tx_tの配列を保存する)
+ * @param[in]   BHeight     block height
+ * @param[in]   pVout       vout
+ * @retval  true        検索成功(1つでも見つかった)
+ * @note
+ *      - pTxBufの扱いに注意すること
+ *          - 成功時、ucoin_tx_tが複数入っている可能性がある(個数は、pTxBuf->len / sizeof(ucoin_tx_t))
+ *          - クリアする場合、各ucoin_tx_tをクリア後、ucoin_buf_tをクリアすること
+ *      - 内部処理(getrawtransaction)に失敗した場合でも、処理を継続する
+ */
+static bool search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout)
+{
+    bool result = false;
+    bool ret;
+    char *p_json = NULL;
+    json_t *p_root = NULL;
+    json_t *p_tx = NULL;
+    int vout_num = pVout->len / sizeof(ucoin_buf_t);
+    //LOGD("vout_num: %d\n", vout_num);
+
+    ret = getblocktx(&p_root, &p_tx, &p_json, BHeight);
+    if (ret) {
+        //検索
+        ucoin_push_t push;
+        ucoin_push_init(&push, pTxBuf, 0);
+        size_t index = 0;
+        json_t *p_value = NULL;
+        char txid[UCOIN_SZ_TXID * 2 + 1] = "";
+
+        json_array_foreach(p_tx, index, p_value) {
+            strcpy(txid, (const char *)json_string_value(p_value));
+            ucoin_tx_t tx = UCOIN_TX_INIT;
+
+            ret = getraw_txstr(&tx, txid);
+            if (ret) {
+                for (uint32_t lp = 0; lp < tx.vout_cnt; lp++) {
+                    for (int lp2 = 0; lp2 < vout_num; lp2++) {
+                        if (ucoin_buf_cmp(&tx.vout[0].script, &pVout[lp2])) {
+                            //一致
+                            LOGD("match: %s\n", txid);
+                            ucoin_push_data(&push, &tx, sizeof(ucoin_tx_t));
+                            LOGD("len=%u\n", pTxBuf->len);
+                            ucoin_tx_init(&tx);     //freeさせない
+                            result = true;
+                            break;
+                        }
+                    }
+                }
+                ucoin_tx_free(&tx);
+            }
+        }
+    } else {
+        LOGD("fail: getblock_rpc\n");
+    }
+    if (p_root != NULL) {
+        json_decref(p_root);
+    }
+    APP_FREE(p_json);
+
+    return result;
+}
+
+
 /**************************************************************************
  * private functions: JSON-RPC
  **************************************************************************/
@@ -796,8 +849,8 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
  */
 static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, bool detail)
 {
-    char *data = (char *)APP_MALLOC(BUFFER_SIZE);
-    snprintf(data, BUFFER_SIZE,
+    char *data = (char *)APP_MALLOC(TXJSON_SIZE);
+    snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
             M_1("jsonrpc", "1.0") M_NEXT
@@ -820,8 +873,8 @@ static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJ
  */
 static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction)
 {
-    char *data = (char *)APP_MALLOC(BUFFER_SIZE);
-    snprintf(data, BUFFER_SIZE,
+    char *data = (char *)APP_MALLOC(TXJSON_SIZE);
+    snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
             M_1("jsonrpc", "1.0") M_NEXT
@@ -844,8 +897,8 @@ static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **pp
  */
 static bool sendrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction)
 {
-    char *data = (char *)APP_MALLOC(BUFFER_SIZE);
-    snprintf(data, BUFFER_SIZE,
+    char *data = (char *)APP_MALLOC(TXJSON_SIZE);
+    snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
             M_1("jsonrpc", "1.0") M_NEXT
@@ -1213,18 +1266,14 @@ int main(int argc, char *argv[])
     //fprintf(PRINTOUT, "-gettxout-------------------------\n");
     //bool unspent;
     //uint64_t value;
-    //ret = btcrpc_getxout(&unspent, &value, TXID, 1);
+    //ret = btcrpc_check_unspent(&unspent, &value, TXID, 1);
     //if (ret && unspent) {
     //    fprintf(PRINTOUT, "value=%" PRIu64 "\n", value);
     //}
 
 //    fprintf(PRINTOUT, "-getrawtx------------------------\n");
-//    ucoin_tx_t tx = UCOIN_TX_INIT;
-//    ret = btcrpc_getraw_tx(&tx, TXID);
-//    if (ret) {
-//        ucoin_print_tx(&tx);
-//    }
-//    ucoin_tx_free(&tx);
+//    ret = btcrpc_is_tx_broadcasted(TXID);
+//    fprintf(PRINTOUT, "ret=%d\n", ret);
 
 //    fprintf(PRINTOUT, "--------------------------\n");
 //    uint8_t txid[UCOIN_SZ_TXID];
