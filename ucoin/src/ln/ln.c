@@ -121,8 +121,10 @@
 
 #define M_FUNDING_INDEX                     (0)             ///< funding_txのvout
 
-#define M_FEERATE_CHK_MIN_OK(our,their)     ( 0.5 * (our) > 1.0 * (their))  ///< feerate_per_kwのmin判定
-#define M_FEERATE_CHK_MAX_OK(our,their)     (10.0 * (our) > 1.0 * (their))  ///< feerate_per_kwのmax判定
+// #define M_FEERATE_CHK_MIN_OK(our,their)     ( 0.5 * (our) < 1.0 * (their))  ///< feerate_per_kwのmin判定
+// #define M_FEERATE_CHK_MAX_OK(our,their)     (10.0 * (our) > 1.0 * (their))  ///< feerate_per_kwのmax判定
+#define M_FEERATE_CHK_MIN_OK(our,their)     (true)  ///< feerate_per_kwのmin判定(ALL OK)
+#define M_FEERATE_CHK_MAX_OK(our,their)     (true)  ///< feerate_per_kwのmax判定(ALL OK)
 
 #if !defined(M_DBG_VERBOSE) && !defined(UCOIN_USE_PRINTFUNC)
 #define M_DBG_PRINT_TX(tx)      //NONE
@@ -1919,7 +1921,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     //feerate_per_kwの許容チェック
     const char *p_err = NULL;
     if ( (open_ch->feerate_per_kw < LN_FEERATE_PER_KW_MIN) ||
-         (!M_FEERATE_CHK_MIN_OK(self->feerate_per_kw, open_ch->feerate_per_kw)) ) {
+         !M_FEERATE_CHK_MIN_OK(self->feerate_per_kw, open_ch->feerate_per_kw) ) {
         p_err = "fail: feerate_per_kw is too short";
     } else if (!M_FEERATE_CHK_MAX_OK(self->feerate_per_kw, open_ch->feerate_per_kw)) {
         p_err = "fail: feerate_per_kw is too large";
