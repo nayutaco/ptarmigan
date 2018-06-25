@@ -148,6 +148,16 @@
 typedef bool (*pRecvFunc_t)(ln_self_t *self,const uint8_t *pData, uint16_t Len);
 
 
+/** #search_preimage()用
+ * 
+ */
+typedef struct {
+    uint8_t         *image;             ///< [out]preimage
+    const uint8_t   *hash;              ///< [in]payment_hash
+    bool            b_closing;          ///< true:一致したexpiryをUINT32_MAXに変更する
+} preimg_t;
+
+
 /**************************************************************************
  * prototypes
  **************************************************************************/
@@ -234,7 +244,8 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
                     uint64_t fee,
                     uint8_t htlc_num,
                     int vout_idx,
-                    uint8_t htlc_idx);
+                    uint8_t htlc_idx,
+                    bool bClosing);
 static bool create_closing_tx(ln_self_t *self, ucoin_tx_t *pTx, uint64_t FeeSat, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
 static bool create_channel_update(
@@ -270,7 +281,8 @@ static void proc_rev_and_ack(ln_self_t *self, uint8_t Flag);
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
-static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash);
+static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bClosing);
+static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 static void close_alloc(ln_close_force_t *pClose, int Num);
 static void free_establish(ln_self_t *self, bool bEndEstablish);
@@ -3172,7 +3184,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 
 /** channel_update受信
  *
- * @param[in,out]       self            channel情報
+ * @params[in,out]       self            channel情報
  * @param[in]           pData           受信データ
  * @param[in]           Len             pData長
  * @retval      true    解析成功
@@ -3187,8 +3199,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
     if (ret) {
         //timestamp check
-        time_t now = time(NULL);
-        if (ln_db_annocnlupd_is_prune((uint32_t)now, upd.timestamp)) {
+        uint64_t now = (uint64_t)time(NULL);
+        if (ln_db_annocnlupd_is_prune(now, upd.timestamp)) {
             ret = false;
             char tmstr[UCOIN_SZ_DTSTR + 1];
             ucoin_util_strftime(tmstr, upd.timestamp);
@@ -3830,7 +3842,7 @@ static bool create_to_local_close(ln_self_t *self,
     bool ret_img;
     if (p_htlcinfo->type == LN_HTLCTYPE_RECEIVED) {
         //Receivedであればpreimageを所持している可能性がある
-        ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
+        ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256, true);
         LOGD("[received]%d\n", ret_img);
     } else {
         ret_img = false;
@@ -4135,7 +4147,8 @@ static bool create_to_remote_spent(ln_self_t *self,
                                 pTxCommit, pBufWs,
                                 p_htlcinfo, &htlckey,
                                 &buf_remotesig, fee_sat,
-                                htlc_num, vout_idx, htlc_idx);
+                                htlc_num, vout_idx, htlc_idx,
+                                (pClose != NULL));
                 if (ret) {
                     if (pClose != NULL) {
                         pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
@@ -4189,6 +4202,7 @@ static bool create_to_remote_spent(ln_self_t *self,
  * @param[in]       htlc_num
  * @param[in]       vout_idx
  * @param[in]       htlc_idx
+ * @param[in]       bClosing        true:close処理
  * @retval  true    成功
  */
 static bool create_to_remote_htlcsign(ln_self_t *self,
@@ -4202,7 +4216,8 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
                     uint64_t fee,
                     uint8_t htlc_num,
                     int vout_idx,
-                    uint8_t htlc_idx)
+                    uint8_t htlc_idx,
+                    bool bClosing)
 {
     bool ret;
     ucoin_tx_t tx = UCOIN_TX_INIT;
@@ -4218,7 +4233,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
     ln_htlcsign_t htlcsign = HTLCSIGN_TO_SUCCESS;
     if (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) {
         //remoteのoffered=localのreceivedなのでpreimageを所持している可能性がある
-        ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256);
+        ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256, bClosing);
         LOGD("[offered]%d\n", ret_img);
         if (ret_img && (pTxHtlcs != NULL)) {
             //offeredかつpreimageがあるので、即時使用可能
@@ -4635,12 +4650,13 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
 
     //preimage検索
     uint64_t inv_amount = (uint64_t)-1;
+    uint32_t inv_expiry = 0;
     uint8_t preimage_hash[LN_SZ_HASH];
 
     void *p_cur;
     ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        ret = ln_db_preimg_cur_get(p_cur, pPreimage, &inv_amount);     //from invoice
+        ret = ln_db_preimg_cur_get(p_cur, pPreimage, &inv_amount, &inv_expiry);     //from invoice
         if (ret) {
             ln_calc_preimage_hash(preimage_hash, pPreimage);
             if (memcmp(preimage_hash, pAddHtlc->payment_sha256, LN_SZ_HASH) == 0) {
@@ -5004,7 +5020,6 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
     return ret;
 }
 
-
 //HTLC削除
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add)
 {
@@ -5018,33 +5033,58 @@ static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add)
 }
 
 
-static bool search_preimage(uint8_t *pPreImage, const uint8_t *pHtlcHash)
+/** payment_hashと一致するpreimage検索
+ * 
+ * @param[out]      pPreImage
+ * @param[in]       pPayHash        payment_hash
+ * @param[in]       bClosing        true:一致したexpiryをUINT32_MAXに変更する
+ * @retval  true    検索成功
+ */
+static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bClosing)
 {
     if (!LN_DBG_MATCH_PREIMAGE()) {
         LOGD("DBG: HTLC preimage mismatch\n");
         return false;
     }
+    //LOGD("bClosing=%d\n", bClosing);
 
-    uint64_t amount;
+    preimg_t prm;
+    prm.image = pPreImage;
+    prm.hash = pPayHash;
+    prm.b_closing = bClosing;
+    bool ret = ln_db_preimg_search(search_preimage_func, &prm);
+
+    return ret;
+}
+
+
+/** search_preimage用処理関数
+ * 
+ * SHA256(preimage)がpayment_hashと一致した場合にtrueを返す。
+ * bClosingがtrueの場合、該当するpreimageのexpiryをUINT32_MAXにする(自動削除させないため)。
+ */
+static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
+{
+    (void)Amount; (void)Expiry;
+
+    preimg_t *prm = (preimg_t *)p_param;
     uint8_t preimage_hash[LN_SZ_HASH];
-    void *p_cur;
-    bool ret = ln_db_preimg_cur_open(&p_cur);
-    while (ret) {
-        LOGD("ret=%d\n", ret);
-        ret = ln_db_preimg_cur_get(p_cur, pPreImage, &amount);
-        if (ret) {
-            LOGD("compare preimage : ");
-            DUMPD(pPreImage, UCOIN_SZ_PRIVKEY);
-            ln_calc_preimage_hash(preimage_hash, pPreImage);
-            if (memcmp(preimage_hash, pHtlcHash, LN_SZ_HASH) == 0) {
-                //一致
-                LOGD("preimage match!: ");
-                DUMPD(pPreImage, UCOIN_SZ_PRIVKEY);
-                break;
-            }
+    bool ret = false;
+
+    //LOGD("compare preimage : ");
+    //DUMPD(pPreImage, LN_SZ_PREIMAGE);
+    ln_calc_preimage_hash(preimage_hash, pPreImage);
+    if (memcmp(preimage_hash, prm->hash, LN_SZ_HASH) == 0) {
+        //一致
+        //LOGD("preimage match!: ");
+        //DUMPD(pPreImage, LN_SZ_PREIMAGE);
+        memcpy(prm->image, pPreImage, LN_SZ_PREIMAGE);
+        if ((prm->b_closing) && (Expiry != UINT32_MAX)) {
+            //期限切れによる自動削除をしない
+            ln_db_preimg_set_expiry(p_db_param, UINT32_MAX);
         }
+        ret = true;
     }
-    ln_db_preimg_cur_close(p_cur);
 
     return ret;
 }

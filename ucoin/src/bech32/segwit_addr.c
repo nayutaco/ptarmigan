@@ -514,6 +514,9 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     uint8_t sig[65];
     size_t sig_len = 0;
     ln_invoice_t *p_invoice_data = (ln_invoice_t *)malloc(sizeof(ln_invoice_t));
+
+    //TODO: 固定値
+    p_invoice_data->expiry = LN_INVOICE_EXPIRY;
     if (!bech32_decode(hrp_actual, data, &data_len, invoice, true)) {
         goto LABEL_EXIT;
     }
@@ -629,12 +632,13 @@ LABEL_EXIT:
 }
 
 
-bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount)
+bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry)
 {
     ln_invoice_t invoice_data;
 
     invoice_data.hrp_type = Type;
     invoice_data.amount_msat = Amount;
+    invoice_data.expiry = Expiry;   //TODO: 未使用
     invoice_data.min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     memcpy(invoice_data.pubkey, ln_node_getid(), UCOIN_SZ_PUBKEY);
     memcpy(invoice_data.payment_hash, pPayHash, LN_SZ_HASH);

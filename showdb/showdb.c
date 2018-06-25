@@ -695,14 +695,19 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
         while (ret) {
             uint8_t preimage[LN_SZ_PREIMAGE];
             uint64_t amount;
-            ret = ln_db_preimg_cur_get(&cur, preimage, &amount);
+            uint32_t expiry;
+            ret = ln_db_preimg_cur_get(&cur, preimage, &amount, &expiry);
             if (ret) {
                 if (cnt4) {
                     printf(",");
                 }
-                printf("[\"");
+                printf("{\n");
+                printf(INDENT1 "\"");
                 ucoin_util_dumpbin(stdout, preimage, LN_SZ_PREIMAGE, false);
-                printf("\", %" PRIu64 "]", amount);
+                printf("\",\n");
+                printf(INDENT1 M_QQ("amount") ": %" PRIu64 ",\n", amount);
+                printf(INDENT1 M_QQ("expiry") ": %" PRIu32 "\n", expiry);
+                printf("}");
                 cnt4++;
             }
         }

@@ -115,7 +115,7 @@ static int cmd_routepay_proc2(
 static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId);
 
 static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn);
-static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount);
+static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_param);
@@ -461,7 +461,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 LABEL_EXIT:
     if (err == 0) {
-        char *p_invoice = create_bolt11(preimage_hash, amount);
+        char *p_invoice = create_bolt11(preimage_hash, amount, LN_INVOICE_EXPIRY);
 
         if (p_invoice != NULL) {
             char str_hash[LN_SZ_HASH * 2 + 1];
@@ -537,25 +537,31 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     uint8_t preimage[LN_SZ_PREIMAGE];
     uint8_t preimage_hash[LN_SZ_HASH];
     uint64_t amount;
+    uint32_t expiry;
     void *p_cur;
     bool ret;
 
     result = cJSON_CreateArray();
     ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        ret = ln_db_preimg_cur_get(p_cur, preimage, &amount);
+        ret = ln_db_preimg_cur_get(p_cur, preimage, &amount, &expiry);
         if (ret) {
             ln_calc_preimage_hash(preimage_hash, preimage);
-            cJSON *json = cJSON_CreateArray();
+            cJSON *json = cJSON_CreateObject();
 
             char str_hash[LN_SZ_HASH * 2 + 1];
             ucoin_util_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
-            cJSON_AddItemToArray(json, cJSON_CreateString(str_hash));
-            cJSON_AddItemToArray(json, cJSON_CreateNumber64(amount));
-            char *p_invoice = create_bolt11(preimage_hash, amount);
-            if (p_invoice != NULL) {
-                cJSON_AddItemToArray(json, cJSON_CreateString(p_invoice));
-                free(p_invoice);
+            cJSON_AddItemToObject(json, "hash", cJSON_CreateString(str_hash));
+            cJSON_AddItemToObject(json, "amount_msat", cJSON_CreateNumber64(amount));
+            if (expiry != UINT32_MAX) {
+                cJSON_AddItemToObject(json, "expiry", cJSON_CreateNumber(expiry));
+                char *p_invoice = create_bolt11(preimage_hash, amount, expiry);
+                if (p_invoice != NULL) {
+                    cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
+                    free(p_invoice);
+                }
+            } else {
+                cJSON_AddItemToObject(json, "expiry", cJSON_CreateString("remove after close"));
             }
             cJSON_AddItemToArray(result, json);
         }
@@ -1216,7 +1222,7 @@ static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
     ucoin_util_random(preimage, LN_SZ_PREIMAGE);
 
     ucoind_preimage_lock();
-    ln_db_preimg_save(preimage, AmountMsat, NULL);
+    ln_db_preimg_save(preimage, AmountMsat, LN_INVOICE_EXPIRY, NULL);
     ucoind_preimage_unlock();
 
     ln_calc_preimage_hash(pPayHash, preimage);
@@ -1480,7 +1486,7 @@ static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn)
 /** BOLT11文字列生成
  *
  */
-static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount)
+static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry)
 {
     uint8_t type;
     ucoin_genesis_t gtype = ucoin_util_get_genesis(ln_get_genesishash());
@@ -1500,7 +1506,7 @@ static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount)
     }
     char *p_invoice = NULL;
     if (type != UCOIN_GENESIS_UNKNOWN) {
-        ln_invoice_create(&p_invoice, type, pPayHash, Amount);
+        ln_invoice_create(&p_invoice, type, pPayHash, Amount, Expiry);
     }
     return p_invoice;
 }

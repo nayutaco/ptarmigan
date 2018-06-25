@@ -62,6 +62,18 @@ extern "C" {
 typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_param);
 
 
+/** @typedef    ln_db_preimg_t
+ *  @brief      比較関数(#ln_db_preimg_search())
+ *
+ * @param[in]       self            DBから取得したself
+ * @param[in]       p_db_param      DB情報(ln_dbで使用する)
+ * @param[in]       p_param         #ln_db_preimg_search()に渡したデータポインタ
+ * @retval  true    比較終了
+ * @retval  false   比較継続
+ */
+typedef bool (*ln_db_preimg_t)(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+
+
 /** @typedef    ln_db_txn_t
  *  @brief      announcement種別
  */
@@ -225,7 +237,7 @@ bool ln_db_annocnlupd_save(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pU
  * @param[in]       TimeStamp       channel_updateの時刻(EPOCH)
  * @retval      true    削除してよし
  */
-static inline bool ln_db_annocnlupd_is_prune(uint32_t Now, uint32_t TimesStamp) {
+static inline bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp) {
     //BOLT#7: Pruning the Network View
     //  if a channel's latest channel_updates timestamp is older than two weeks (1209600 seconds):
     //      MAY prune the channel.
@@ -468,10 +480,11 @@ bool ln_db_annoinfo_del(const uint8_t *pNodeId);
  *
  * @param[in]       pPreImage
  * @param[in]       Amount
+ * @param[in]       Expiry          invoice expiry
  * @param[in,out]   pDb
  * @retval  true
  */
-bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb);
+bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *pDb);
 
 
 /** preimage削除
@@ -480,6 +493,15 @@ bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb);
  * @retval  true
  */
 bool ln_db_preimg_del(const uint8_t *pPreImage);
+
+
+/** preimage検索
+ *
+ * @param[in]       pFunc
+ * @param[in,out]   p_param
+ * @retval  true    pFuncがtrueを返した(その時点で検索を中断している)
+ */
+bool ln_db_preimg_search(ln_db_preimg_t pFunc, void *p_param);
 
 
 /** preimage削除(payment_hash検索)
@@ -511,9 +533,16 @@ void ln_db_preimg_cur_close(void *pCur);
  * @param[in]       pCur
  * @param[out]      pPreImage
  * @param[out]      pAmount
+ * @param[out]      pExpiry
  * @retval  true
  */
-bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
+bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount, uint32_t *pExpiry);
+
+
+/** preimage expiry更新
+ *
+ */
+bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry);
 
 
 #ifdef LN_UGLY_NORMAL
