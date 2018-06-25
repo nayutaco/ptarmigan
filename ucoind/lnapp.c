@@ -1400,26 +1400,22 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
  */
 static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFunding)
 {
+    ln_fundin_t fundin;
+
     //Establish開始
     LOGD("  signaddr: %s\n", pFunding->signaddr);
     LOGD("  funding_sat: %" PRIu64 "\n", pFunding->funding_sat);
     LOGD("  push_sat: %" PRIu64 "\n", pFunding->push_sat);
 
-    //open_channel
-    char changeaddr[UCOIN_SZ_ADDR_MAX];
-    uint64_t fundin_sat;
-
-    bool ret = btcrpc_getnewaddress(changeaddr);
-    assert(ret);
-
-    bool unspent = true;
-    if (ret) {
-        ret = btcrpc_check_unspent(&unspent, &fundin_sat, pFunding->txid, pFunding->txindex);
-        LOGD("ret=%d, unspent=%d\n", ret, unspent);
-    } else {
-        LOGD("btcrpc_getnewaddress\n");
+    bool ret = btcrpc_getnewaddress(fundin.change_addr);
+    if (!ret) {
+        LOGD("fail: getnewaddress\n");
+        return false;
     }
-    if (ret && unspent) {
+
+    ret = btcrpc_check_outpoint(&fundin.amount, pFunding->txid, pFunding->txindex);
+    LOGD("ret=%d, fundin.amount=%" PRIu64 "\n", ret, fundin.amount);
+    if (ret && (fundin.amount > 0)) {
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
             feerate_kw = monitoring_get_latest_feerate_kw();
@@ -1430,20 +1426,17 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
         uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
         LOGD("estimate funding_tx fee: %" PRIu64 "\n", estfee);
-        if (fundin_sat < pFunding->funding_sat + estfee) {
+        if (fundin.amount < pFunding->funding_sat + estfee) {
             //amountが足りないと思われる
             LOGD("fail: amount too short\n");
-            LOGD("  %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", fundin_sat, pFunding->funding_sat, estfee);
+            LOGD("  %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", fundin.amount, pFunding->funding_sat, estfee);
             return false;
         }
 
-        ln_fundin_t fundin;
         memcpy(fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
         fundin.index = pFunding->txindex;
-        fundin.amount = fundin_sat;
-        strcpy(fundin.change_addr, changeaddr);
 
-        LOGD("open_channel: fund_in amount=%" PRIu64 "\n", fundin_sat);
+        LOGD("open_channel: fund_in amount=%" PRIu64 "\n", fundin.amount);
         ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
                         &fundin,
@@ -1745,8 +1738,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 
     //funding_tx使用チェック
     bool unspent;
-    uint64_t sat;
-    bool ret = btcrpc_check_unspent(&unspent, &sat, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
+    bool ret = btcrpc_check_unspent(&unspent, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
     if (ret && !unspent) {
         //ループ解除
         LOGD("funding_tx is spent.\n");

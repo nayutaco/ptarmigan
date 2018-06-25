@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
     //bitcoind起動確認
     uint8_t genesis[LN_SZ_HASH];
     btcrpc_init(&rpc_conf);
-    bret = btcrpc_getblockhash(genesis, 0);
+    bret = btcrpc_getgenesisblock(genesis);
     if (!bret) {
         LOGD("fail: bitcoin getblockhash(check bitcoind)\n");
         return -1;

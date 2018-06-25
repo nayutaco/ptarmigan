@@ -79,6 +79,7 @@ typedef struct {
 static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int BHeight);
 static bool getraw_tx(json_t **ppRoot, json_t **ppResult, char **ppJson, const uint8_t *pTxid);
 static bool getraw_txstr(ucoin_tx_t *pTx, const char *txid);
+static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_outpoint(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout);
 
@@ -160,14 +161,14 @@ int32_t btcrpc_getblockcount(void)
 }
 
 
-bool btcrpc_getblockhash(uint8_t *pHash, int Height)
+bool btcrpc_getgenesisblock(uint8_t *pHash)
 {
     bool ret;
     char *p_json = NULL;
     json_t *p_root = NULL;
     json_t *p_result;
 
-    ret = getblockhash_rpc(&p_root, &p_result, &p_json, Height);
+    ret = getblockhash_rpc(&p_root, &p_result, &p_json, 0);
     if (ret && json_is_string(p_result)) {
         ret = misc_str2bin(pHash, LN_SZ_HASH, (const char *)json_string_value(p_result));
     } else {
@@ -457,44 +458,19 @@ bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
 }
 
 
-bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
+bool btcrpc_check_unspent(bool *pUnspent, const uint8_t *pTxid, uint32_t VIndex)
 {
-    bool ret;
-    char *p_json = NULL;
-    char txid[UCOIN_SZ_TXID * 2 + 1];
-    *pUnspent = false;
-    json_t *p_root = NULL;
-    json_t *p_result;
+    uint64_t sat;
+    bool ret = gettxout(pUnspent, &sat, pTxid, VIndex);
 
-    //TXIDはBE/LE変換
-    ucoin_util_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
+    return ret;
+}
 
-    //まずtxの存在確認を行う
-    ret = getraw_txstr(NULL, txid);
-    if (!ret) {
-        //LOGD("fail: maybe not broadcasted\n");
-        goto LABEL_EXIT;
-    }
 
-    ret = gettxout_rpc(&p_root, &p_result, &p_json, txid, VIndex);
-    if (ret) {
-        json_t *p_value;
-
-        p_value = json_object_get(p_result, M_VALUE);
-        if (p_value && json_is_real(p_value)) {
-            double dval = json_real_value(p_value);
-            *pSat = UCOIN_BTC2SATOSHI(dval);
-            *pUnspent = true;
-        }
-    } else {
-        LOGD("fail: gettxout_rpc()\n");
-    }
-
-LABEL_EXIT:
-    if (p_root != NULL) {
-        json_decref(p_root);
-    }
-    APP_FREE(p_json);
+bool btcrpc_check_outpoint(uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
+{
+    bool unspent;
+    bool ret = gettxout(&unspent, pSat, pTxid, VIndex);
 
     return ret;
 }
@@ -683,6 +659,51 @@ LABEL_EXIT:
     APP_FREE(p_json);
 
     return result;
+}
+
+
+static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
+{
+    bool ret;
+    char *p_json = NULL;
+    char txid[UCOIN_SZ_TXID * 2 + 1];
+    *pUnspent = true;
+    *pSat = 0;
+    json_t *p_root = NULL;
+    json_t *p_result;
+
+    //TXIDはBE/LE変換
+    ucoin_util_bin2str_rev(txid, pTxid, UCOIN_SZ_TXID);
+
+    //まずtxの存在確認を行う
+    ret = getraw_txstr(NULL, txid);
+    if (!ret) {
+        //LOGD("fail: maybe not broadcasted\n");
+        goto LABEL_EXIT;
+    }
+
+    ret = gettxout_rpc(&p_root, &p_result, &p_json, txid, VIndex);
+    if (ret) {
+        json_t *p_value;
+
+        p_value = json_object_get(p_result, M_VALUE);
+        if (p_value && json_is_real(p_value)) {
+            double dval = json_real_value(p_value);
+            *pSat = UCOIN_BTC2SATOSHI(dval);
+        } else {
+            *pUnspent = false;
+        }
+    } else {
+        LOGD("fail: gettxout_rpc()\n");
+    }
+
+LABEL_EXIT:
+    if (p_root != NULL) {
+        json_decref(p_root);
+    }
+    APP_FREE(p_json);
+
+    return ret;
 }
 
 

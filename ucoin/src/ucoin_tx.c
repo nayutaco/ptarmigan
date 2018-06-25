@@ -1219,7 +1219,7 @@ void ucoin_print_tx(const ucoin_tx_t *pTx)
     } else {
         //epoch second
         time_t tm = pTx->locktime;
-        LOGD2("epoch second: %s\n", ctime(&tm));
+        LOGD2("epoch second: %s", ctime(&tm));
     }
     LOGD("======================================\n");
 }

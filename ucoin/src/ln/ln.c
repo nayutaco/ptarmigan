@@ -1931,7 +1931,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
 
         ln_error_t err;
         memcpy(err.channel_id, self->channel_id, LN_SZ_CHANNEL_ID);
-        err.p_data = p_err;
+        err.p_data = (CONST_CAST char *)p_err;
         err.len = (uint16_t)strlen(err.p_data);
 
         ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
