@@ -168,24 +168,26 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
 {
     bool del;
     bool ret;
-
     ln_close_force_t close_dat;
+
+    LOGD("unilateral close[local]\n");
+
     ret = ln_create_close_unilateral_tx(self, &close_dat);
     if (ret) {
         del = true;
         uint8_t txid[UCOIN_SZ_TXID];
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == LN_CLOSE_IDX_COMMIT) {
-                LOGD("\n$$$ commit_tx\n");
+                LOGD("$$$ commit_tx\n");
                 //for (int lp2 = 0; lp2 < close_dat.p_tx[lp].vout_cnt; lp2++) {
                 //    LOGD("vout[%d]=%x\n", lp2, close_dat.p_tx[lp].vout[lp2].opt);
                 //}
             } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
-                LOGD("\n$$$ to_local tx\n");
+                LOGD("$$$ to_local tx\n");
             } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
-                LOGD("\n$$$ to_remote tx\n");
+                LOGD("$$$ to_remote tx\n");
             } else {
-                LOGD("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
+                LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //自分のtxを展開済みかチェック
@@ -203,8 +205,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
 
                 //展開済みチェック
                 bool unspent;
-                uint64_t sat;
-                bool ret = btcrpc_check_unspent(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                bool ret = btcrpc_check_unspent(&unspent, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
                 if (!ret) {
                     goto LABEL_EXIT;
                 }
@@ -295,8 +296,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
     if (confm > 0) {
         bool del = false;
         bool unspent;
-        uint64_t sat;
-        bool ret = btcrpc_check_unspent(&unspent, &sat, ln_funding_txid(self), ln_funding_txindex(self));
+        bool ret = btcrpc_check_unspent(&unspent, ln_funding_txid(self), ln_funding_txindex(self));
         if (ret && !unspent) {
             //funding_tx使用済み
             del = funding_spent(self, confm, p_db_param);
@@ -343,6 +343,8 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
     bool del = false;
+
+    LOGD("close: confirm=%" PRIu32 "\n", confm);
 
     bool spent = ln_is_closing(self);
     if (!spent) {
@@ -458,7 +460,8 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             }
         }
     } else {
-        //タイムアウト用Txを展開(non-BIP68-finalの可能性あり)
+        //タイムアウト用Txを展開
+        //  おそらく"Missing inputs"になる→意味あるのか？
         send_req = true;
     }
 
@@ -492,22 +495,24 @@ static bool close_unilateral_local_received(bool spent)
 static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 {
     bool del = true;
-
     ln_close_force_t close_dat;
+
+    LOGD("unilateral close[remote]\n");
+
     bool ret = ln_create_closed_tx(self, &close_dat);
     if (ret) {
         uint8_t txid[UCOIN_SZ_TXID];
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == LN_CLOSE_IDX_COMMIT) {
-                LOGD("\n$$$ commit_tx\n");
+                LOGD("$$$ commit_tx\n");
                 continue;
             } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
-                LOGD("\n$$$ to_local tx\n");
+                LOGD("$$$ to_local tx\n");
                 continue;
             } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
-                LOGD("\n$$$ to_remote tx\n");
+                LOGD("$$$ to_remote tx\n");
             } else {
-                LOGD("\n$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
+                LOGD("$$$ HTLC[%d]\n", lp - LN_CLOSE_IDX_HTLC);
             }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //自分のtxを展開済みかチェック
@@ -524,13 +529,18 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 bool send_req = false;
 
                 //展開済みチェック
-                //  to_remoteはcommit_txが展開された時点で使用可能なので、チェック不要
                 bool unspent;
-                uint64_t sat;
-                bool ret = btcrpc_check_unspent(&unspent, &sat, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                bool ret = btcrpc_check_unspent(&unspent, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
                 if (lp == LN_CLOSE_IDX_TOREMOTE) {
-                    send_req = !ret;
-                    //LOGD("to_remote: %d\n", send_req);
+                    //to_remoteは自分へのP2WPKH(remotekey)をbitcoind walletに送金する
+                    send_req = ret && unspent;
+                    if (!ret) {
+                        //del
+                        //  send_req == true: 送信結果次第
+                        //  ret == false: まだDB削除しない
+                        del = false;
+                    }
+                    LOGD("to_remote sendto local wallet: %d\n", send_req);
                     //ucoin_print_tx(&close_dat.p_tx[lp]);
                 } else  if (!ret) {
                     del = false;

@@ -57,13 +57,12 @@ void btcrpc_term(void);
 int32_t btcrpc_getblockcount(void);
 
 
-/** [bitcoin rpc]blockhash取得
+/** [bitcoin rpc]genesis blockhash取得
  *
  * @param[out]  pHash       取得したBlockHash
- * @param[in]   Height      取得するBlock Height
  * @retval  true        取得成功
  */
-bool btcrpc_getblockhash(uint8_t *pHash, int Height);
+bool btcrpc_getgenesisblock(uint8_t *pHash);
 
 
 /** [bitcoin rpc]confirmation数取得
@@ -159,15 +158,22 @@ bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid);
 
 /** [bitcoin rpc]vout unspent確認
  *
- * @param[out]  pUnspent        true:未使用
- * @param[out]  pSat            UINT64_MAX以外:取得したamount[satoshi], UINT64_MAX:取得失敗
+ * @param[out]  pUnspent        true:unspent
  * @param[in]   pTxid
  * @param[in]   VIndex
  * @retval  true        取得成功
- * @note
- *      - gettxoutはunspentであるvoutのみ使用可能
  */
-bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
+bool btcrpc_check_unspent(bool *pUnspent, const uint8_t *pTxid, uint32_t VIndex);
+
+
+/** [bitcoin rpc]vout amount取得
+ *
+ * @param[out]  pSat            取得したamount[satoshi]
+ * @param[in]   pTxid
+ * @param[in]   VIndex
+ * @retval  true        取得成功
+ */
+bool btcrpc_check_outpoint(uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 
 
 /** [bitcoin rpc]getnewaddress
