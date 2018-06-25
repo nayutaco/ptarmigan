@@ -233,7 +233,8 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                     LOGD("code=%d\n", code);
                     ucoin_buf_free(&buf);
                     if (ret) {
-                        LOGD("broadcast txid[%d]\n", lp);
+                        LOGD("broadcast txid[%d]: ", lp);
+                        TXIDD(txid);
                         LOGD("-->OK\n");
                     } else {
                         del = false;
@@ -256,7 +257,8 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
             LOGD("code=%d\n", code);
             ucoin_buf_free(&buf);
             if (ret) {
-                LOGD("broadcast after tx[%d]\n", lp);
+                LOGD("broadcast after tx[%d]: ", lp);
+                TXIDD(txid);
                 LOGD("-->OK\n");
             } else if ((code == BTCRPC_ERR_MISSING_INPUT) || (code == BTCRPC_ERR_ALREADY_BLOCK)) {
                 LOGD("through[%d]: already spent vin\n", lp);
@@ -444,7 +446,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
                     if (p_buf != NULL) {
                         LOGD("backwind preimage: ");
                         DUMPD(p_buf->buf, p_buf->len);
-                        ln_db_preimg_save(p_buf->buf, 0, pDbParam);
+                        ln_db_preimg_save(p_buf->buf, 0, UINT32_MAX, pDbParam);
                     } else {
                         assert(0);
                     }
@@ -638,7 +640,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
                     if (p_buf != NULL) {
                         LOGD("backwind preimage: ");
                         DUMPD(p_buf->buf, p_buf->len);
-                        ln_db_preimg_save(p_buf->buf, 0, pDbParam);
+                        ln_db_preimg_save(p_buf->buf, 0, UINT32_MAX, pDbParam);
                     } else {
                         assert(0);
                     }
@@ -842,6 +844,10 @@ static bool close_revoked_tolocal(const ln_self_t *self, const ucoin_tx_t *pTx, 
         ucoin_tx_create(&buf, &tx);
         ucoin_tx_free(&tx);
         ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
+        if (ret) {
+            LOGD("broadcast OK: ");
+            TXIDD(txid);
+        }
         ucoin_buf_free(&buf);
     }
 
@@ -864,6 +870,10 @@ static bool close_revoked_toremote(const ln_self_t *self, const ucoin_tx_t *pTx,
         ucoin_tx_create(&buf, &tx);
         ucoin_tx_free(&tx);
         ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
+        if (ret) {
+            LOGD("broadcast OK: ");
+            TXIDD(txid);
+        }
         ucoin_buf_free(&buf);
     }
 
@@ -884,6 +894,10 @@ static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int
     ucoin_tx_create(&buf, &tx);
     ucoin_tx_free(&tx);
     bool ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
+    if (ret) {
+        LOGD("broadcast OK: ");
+        TXIDD(txid);
+    }
     ucoin_buf_free(&buf);
 
     return ret;

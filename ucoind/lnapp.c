@@ -3010,8 +3010,8 @@ static bool send_channel_anno(lnapp_conf_t *p_conf)
                 }
             } else if ((type == LN_DB_CNLANNO_UPD1) || (type == LN_DB_CNLANNO_UPD2)) {
                 //BOLT#7: Pruning the Network View
-                time_t now = time(NULL);
-                if (ln_db_annocnlupd_is_prune((uint32_t)now, timestamp)) {
+                uint64_t now = (uint64_t)time(NULL);
+                if (ln_db_annocnlupd_is_prune(now, timestamp)) {
                     //古いため、DBから削除
                     char tmstr[UCOIN_SZ_DTSTR + 1];
                     ucoin_util_strftime(tmstr, timestamp);
