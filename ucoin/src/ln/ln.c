@@ -149,7 +149,7 @@ typedef bool (*pRecvFunc_t)(ln_self_t *self,const uint8_t *pData, uint16_t Len);
 
 
 /** #search_preimage()用
- * 
+ *
  */
 typedef struct {
     uint8_t         *image;             ///< [out]preimage
@@ -275,6 +275,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
 static bool check_recv_add_htlc_bolt4_common(ucoin_push_t *pPushReason);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 
+static void proc_anno_sigs(ln_self_t *self);
 static void proc_commitment_signed(ln_self_t *self, uint8_t Flag);
 static void proc_rev_and_ack(ln_self_t *self, uint8_t Flag);
 
@@ -679,23 +680,6 @@ bool ln_create_init(ln_self_t *self, ucoin_buf_t *pInit, bool bHaveCnl)
 }
 
 
-void ln_flag_proc(ln_self_t *self)
-{
-    if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
-        //announcement_signatures送受信済み
-        LOGD("announcement_signatures sent and recv\n");
-
-        ln_cb_anno_sigs_t anno;
-        anno.sort = sort_nodeid(self, NULL);
-        (*self->p_callback)(self, LN_CB_ANNO_SIGSED, &anno);
-
-        self->anno_flag |= M_ANNO_FLAG_END;
-        ucoin_buf_free(&self->cnl_anno);
-        M_DB_SELF_SAVE(self);
-    }
-}
-
-
 //channel_reestablish作成
 bool ln_create_channel_reestablish(ln_self_t *self, ucoin_buf_t *pReEst)
 {
@@ -837,6 +821,7 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
     ret = ln_msg_announce_signs_create(pBufAnnoSigns, &anno_signs);
     if (ret) {
         self->anno_flag |= M_ANNO_FLAG_SEND;
+        proc_anno_sigs(self);
         M_DB_SELF_SAVE(self);
     }
 
@@ -3130,6 +3115,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     ret = true;
 
     self->anno_flag |= M_ANNO_FLAG_RECV;
+    proc_anno_sigs(self);
     M_DB_SELF_SAVE(self);
 
 LABEL_EXIT:
@@ -4940,6 +4926,19 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
 }
 
 
+static void proc_anno_sigs(ln_self_t *self)
+{
+    if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
+        //announcement_signatures送受信済み
+        LOGD("announcement_signatures sent and recv\n");
+
+        self->anno_flag |= M_ANNO_FLAG_END;
+        ucoin_buf_free(&self->cnl_anno);
+        M_DB_SELF_SAVE(self);
+    }
+}
+
+
 /** commitment_signed交換完了後
  *
  */
@@ -5034,7 +5033,7 @@ static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add)
 
 
 /** payment_hashと一致するpreimage検索
- * 
+ *
  * @param[out]      pPreImage
  * @param[in]       pPayHash        payment_hash
  * @param[in]       bClosing        true:一致したexpiryをUINT32_MAXに変更する
@@ -5059,7 +5058,7 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bC
 
 
 /** search_preimage用処理関数
- * 
+ *
  * SHA256(preimage)がpayment_hashと一致した場合にtrueを返す。
  * bClosingがtrueの場合、該当するpreimageのexpiryをUINT32_MAXにする(自動削除させないため)。
  */

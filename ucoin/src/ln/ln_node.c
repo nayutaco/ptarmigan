@@ -117,7 +117,7 @@ bool ln_node_init(uint8_t Features)
 
     ln_node_announce_t anno;
 
-    ret = ln_db_annonod_load(&buf_node, NULL, mNode.keys.pub);
+    ret = ln_db_annonod_load(&buf_node, NULL, mNode.keys.pub, NULL);
     if (ret) {
         //ノード設定が変更されていないかチェック
         //  少なくともnode_idは変更されていない
@@ -198,7 +198,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 {
     ucoin_buf_t buf_anno = UCOIN_BUF_INIT;
 
-    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId);
+    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId, NULL);
     if (ret) {
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;

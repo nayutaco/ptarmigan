@@ -400,7 +400,7 @@ bool ln_db_invoice_drop(void);
  * @param[in]       pNodeId         検索するnode_id
  * @retval      true    成功
  */
-bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
+bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDb);
 
 
 /** node_announcement書込み
@@ -423,6 +423,7 @@ bool ln_db_annonod_drop(void);
 
 /** node_announcement送信済み検索
  *
+ * @retval  true        送信済み
  */
 bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId);
 
