@@ -1910,15 +1910,20 @@ LABEL_EXIT:
  * node_announcement
  ********************************************************************/
 
-bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId)
+bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDb)
 {
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
+    if (pDb == NULL) {
+        retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
+        if (retval != 0) {
+            LOGD("ERR: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+    } else {
+        ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
+        db.txn = p_db->txn;
     }
     retval = mdb_dbi_open(db.txn, M_DBI_ANNO_NODE, 0, &db.dbi);
     if (retval != 0) {
@@ -1928,7 +1933,9 @@ bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint
     }
     retval = annonod_load(&db, pNodeAnno, pTimeStamp, pNodeId);
 
-    MDB_TXN_ABORT(db.txn);
+    if (pDb == NULL) {
+        MDB_TXN_ABORT(db.txn);
+    }
 
 LABEL_EXIT:
     return retval == 0;
