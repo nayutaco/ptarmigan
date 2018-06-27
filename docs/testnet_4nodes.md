@@ -108,7 +108,7 @@ watch -n 10 "../ucoincli -l | jq .result.peers[].status"
 * Waiting for gathering 6 `channel_update`s(total 12messages) by observing with watch command
 
 ```bash
-watch -n 30 "../showdb c | jq .channel_announcement_list[].type | grep -c channel_update"
+watch -n 30 "../showdb -c | jq .channel_announcement_list[].type | grep -c channel_update"
 ```
 
 ## Sending payment (`ecliar`-->`c-lightning`)

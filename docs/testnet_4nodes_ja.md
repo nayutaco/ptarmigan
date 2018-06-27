@@ -117,7 +117,7 @@ watch -n 10 "../ucoincli -l | jq .result.peers[].status"
 * watchコマンドで監視し、`channel_update` が6セット(1セット2メッセージとして、計12メッセージ)集まるのを待つ
 
 ```bash
-watch -n 30 "../showdb c | jq .channel_announcement_list[].type | grep -c channel_update"
+watch -n 30 "../showdb -c | jq .channel_announcement_list[].type | grep -c channel_update"
 ```
 
 ## `ecliar`-->`c-lightning`の送金

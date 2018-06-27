@@ -169,7 +169,7 @@ lncli --no-macaroons addinvoice --amt 100000
 3. [ptarmigan] Confirming the amount after running it
 
 ```bash
-../showdb w | jq
+../showdb -w | jq
 ```
 
 * If successful, our_msat will be 700000000 and their_masat will be 10000000.
