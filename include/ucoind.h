@@ -213,7 +213,6 @@ typedef struct {
 typedef struct {
     uint8_t         txid[UCOIN_SZ_TXID];
     int             txindex;
-    char            signaddr[UCOIN_SZ_ADDR_MAX];
     uint64_t        funding_sat;
     uint64_t        push_sat;
     uint32_t        feerate_per_kw;

@@ -367,13 +367,12 @@ static void optfunc_funding(int *pOption, bool *pConn)
                 M_QQ("params") ":[ "
                     //peer_nodeid, peer_addr, peer_port
                     M_QQ("%s") "," M_QQ("%s") ",%d,"
-                    //txid, txindex, signaddr, funding_sat, push_sat
-                    M_QQ("%s") ",%d," M_QQ("%s") ",%" PRIu64 ",%" PRIu64 ",%" PRIu32
+                    //txid, txindex, funding_sat, push_sat
+                    M_QQ("%s") ",%d,%" PRIu64 ",%" PRIu64 ",%" PRIu32
                 " ]"
             "}",
                 mPeerNodeId, mPeerAddr, mPeerPort,
-                txid, fundconf.txindex, fundconf.signaddr,
-                fundconf.funding_sat, fundconf.push_sat, fundconf.feerate_per_kw);
+                txid, fundconf.txindex, fundconf.funding_sat, fundconf.push_sat, fundconf.feerate_per_kw);
 
         *pConn = false;
         *pOption = M_OPTIONS_EXEC;

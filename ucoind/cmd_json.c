@@ -380,14 +380,6 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     } else {
         goto LABEL_EXIT;
     }
-    //signaddr
-    json = cJSON_GetArrayItem(params, index++);
-    if (json && (json->type == cJSON_String)) {
-        strcpy(fundconf.signaddr, json->valuestring);
-        LOGD("signaddr=%s\n", json->valuestring);
-    } else {
-        goto LABEL_EXIT;
-    }
     //funding_sat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {

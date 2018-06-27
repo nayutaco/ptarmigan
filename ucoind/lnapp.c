@@ -1404,7 +1404,6 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     ln_fundin_t fundin;
 
     //Establish開始
-    LOGD("  signaddr: %s\n", pFunding->signaddr);
     LOGD("  funding_sat: %" PRIu64 "\n", pFunding->funding_sat);
     LOGD("  push_sat: %" PRIu64 "\n", pFunding->push_sat);
 
