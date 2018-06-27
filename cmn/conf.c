@@ -116,7 +116,6 @@ void print_funding_conf(const funding_conf_t *pFundConf)
     ucoin_util_dumptxid(PRINTOUT, pFundConf->txid);
     fprintf(PRINTOUT, "\n");
     fprintf(PRINTOUT, "txindex=%d\n", pFundConf->txindex);
-    fprintf(PRINTOUT, "signaddr=%s\n", pFundConf->signaddr);
     fprintf(PRINTOUT, "funding_sat=%" PRIu64 "\n", pFundConf->funding_sat);
     fprintf(PRINTOUT, "push_sat=%" PRIu64 "\n\n", pFundConf->push_sat);
 }
@@ -258,8 +257,6 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
         misc_str2bin_rev(pconfig->txid, UCOIN_SZ_TXID, value);
     } else if (strcmp(name, "txindex") == 0) {
         pconfig->txindex = atoi(value);
-    } else if (strcmp(name, "signaddr") == 0) {
-        strcpy(pconfig->signaddr, value);
     } else if (strcmp(name, "funding_sat") == 0) {
         pconfig->funding_sat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "push_sat") == 0) {
@@ -267,7 +264,7 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
     } else if (strcmp(name, "feerate_per_kw") == 0) {
         pconfig->feerate_per_kw = strtoull(value, NULL, 10);
     } else {
-        return 0;  /* unknown section/name, error */
+        //skip unknown option
     }
     if (errno) {
         LOGD("errno=%s\n", strerror(errno));
