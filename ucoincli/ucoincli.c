@@ -137,11 +137,13 @@ static const struct {
     { 'R', optfunc_routepay_prevskip },
     { 'x', optfunc_close },
     { 'w', optfunc_getlasterr },
-    { 'd', optfunc_debug },
     { 'g', optfunc_getcommittx },
     { 's', optfunc_disable_autoconn },
     { 'X', optfunc_remove_channel },
+
+    //long opt
     { 'b', optfunc_setfeerate },
+    { 'j', optfunc_debug },
 };
 
 
@@ -162,6 +164,7 @@ int main(int argc, char *argv[])
 
     const struct option OPTIONS[] = {
         { "setfeerate", required_argument, NULL, 'b' },
+        { "debug", required_argument, NULL, 'j' },
         { 0, 0, 0, 0 }
     };
 
@@ -170,7 +173,7 @@ int main(int argc, char *argv[])
     mAddr[0] = '\0';
     mTcpSend = true;
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:xwd:gs:X:b:", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:xwgs:X:", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -206,7 +209,7 @@ int main(int argc, char *argv[])
         printf("\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
         printf("\n");
         // printf("\t\t-a <IP address> : [debug]JSON-RPC send address\n");
-        printf("\t\t-d VALUE : [debug]debug option\n");
+        printf("\t\t--debug VALUE : [debug]debug option\n");
         printf("\t\t\tb0 ... no update_fulfill_htlc\n");
         printf("\t\t\tb1 ... no closing transaction\n");
         printf("\t\t\tb2 ... force payment_preimage mismatch\n");

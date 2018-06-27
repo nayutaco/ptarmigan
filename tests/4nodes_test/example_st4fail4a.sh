@@ -34,7 +34,7 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 ./routing -d $PAYER -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT > $ROUTECONF
 
 # fulfillしない
-./ucoincli -d 1 $ACCIDENT_PORT
+./ucoincli --debug 1 $ACCIDENT_PORT
 
 # 送金実施
 ./ucoincli -p $ROUTECONF,$HASH $PAYER_PORT
@@ -42,4 +42,4 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 sleep 2
 
 # 戻す
-./ucoincli -d 1 $PAYEE_PORT
+./ucoincli --debug 1 $PAYEE_PORT
