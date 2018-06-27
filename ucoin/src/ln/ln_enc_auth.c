@@ -34,6 +34,7 @@
 #include "ln_signer.h"
 
 #include "mbedtls/md.h"
+#include "mbedtls/hkdf.h"
 #include "sodium/crypto_aead_chacha20poly1305.h"
 
 
@@ -369,9 +370,27 @@ LABEL_EXIT:
  * private functions
  ********************************************************************/
 
-//ccanの実装を参考にしていたが、noise protocolでは回数が決まっているので、独自実装になった
+//BOLT#8
+//  HKDF(salt,ikm): a function defined in RFC 58693, evaluated with a zero-length info field
+//      All invocations of HKDF implicitly return 64 bytes of cryptographic randomness
+//          using the extract-and-expand component of the HKDF
 static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint8_t *pIkm)
 {
+#if 1
+    size_t ikm_len = (pIkm) ? UCOIN_SZ_SHA256 : 0;
+    uint8_t okm[64];
+    int retval = mbedtls_hkdf(
+                    mbedtls_md_info_from_type(MBEDTLS_MD_SHA256),
+                    pSalt, UCOIN_SZ_SHA256,
+                    pIkm, ikm_len,
+                    NULL, 0,
+                    okm, sizeof(okm));
+    if (retval == 0) {
+        memcpy(ck, okm, 32);
+        memcpy(k, okm + 32, 32);
+    }
+    return retval == 0;
+#else
     bool ret;
     uint8_t prk[UCOIN_SZ_SHA256];
     mbedtls_md_context_t ctx;
@@ -398,6 +417,7 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
     mbedtls_md_free(&ctx);
 
     return true;
+#endif
 }
 
 
