@@ -3102,13 +3102,13 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         LOGD("fail\n");
         goto LABEL_EXIT;
     }
-    ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), ln_their_node_id(self),
+    ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), NULL,
                             ln_their_node_id(self), ln_node_getid());
     if (!ret) {
         LOGD("fail: ln_db_annocnl_save\n");
         //goto LABEL_EXIT;
     }
-    ret = ln_db_annocnlupd_save(&buf_upd, &upd, ln_their_node_id(self));
+    ret = ln_db_annocnlupd_save(&buf_upd, &upd, NULL);
     if (!ret) {
         LOGD("fail: but through\n");
     }
