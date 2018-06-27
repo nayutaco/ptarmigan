@@ -386,8 +386,8 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
                     NULL, 0,
                     okm, sizeof(okm));
     if (retval == 0) {
-        memcpy(ck, okm, 32);
-        memcpy(k, okm + 32, 32);
+        memcpy(ck, okm, UCOIN_SZ_SHA256);
+        memcpy(k, okm + UCOIN_SZ_SHA256, UCOIN_SZ_SHA256);
     }
     return retval == 0;
 #else
