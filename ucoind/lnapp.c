@@ -265,6 +265,7 @@ static bool send_anno_pre_chan(uint64_t short_channel_id);
 static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp);
 static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const ucoin_buf_t *p_buf_cnl);
 static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const ucoin_buf_t *p_buf_cnl);
+static void send_cnlupd_before_announce(lnapp_conf_t *p_conf);
 
 static void set_establish_default(lnapp_conf_t *p_conf);
 static void nodeflag_set(node_flag_t Flag);
@@ -956,7 +957,7 @@ static void *thread_main_start(void *pArg)
     ucoin_util_dumpbin(PRINTOUT, p_conf->node_id, UCOIN_SZ_PUBKEY, true);
 
     //init交換前に設定する(open_channelの受信に間に合わない場合あり issue #351)
-    ln_set_peer_nodeid(p_conf->p_self, p_conf->node_id);
+    ln_set_peer_nodeid(p_self, p_conf->node_id);
     set_establish_default(p_conf);
 
     /////////////////////////
@@ -1047,7 +1048,7 @@ static void *thread_main_start(void *pArg)
     }
 
     if (!p_conf->loop) {
-        LOGD("fail: loop ended: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
+        LOGD("fail: loop ended: %" PRIx64 "\n", ln_short_channel_id(p_self));
         goto LABEL_JOIN;
     }
 
@@ -1055,7 +1056,7 @@ static void *thread_main_start(void *pArg)
     LOGD("*** message inited ***\n");
     p_conf->flag_recv |= RECV_MSG_END;
 
-    if (ln_check_need_funding_locked(p_conf->p_self)) {
+    if (ln_check_need_funding_locked(p_self)) {
         //funding_locked交換
         ret = exchange_funding_locked(p_conf);
         if (!ret) {
@@ -1063,6 +1064,9 @@ static void *thread_main_start(void *pArg)
             goto LABEL_JOIN;
         }
     }
+
+    // send `channel_update` for private/before publish channel
+    send_cnlupd_before_announce(p_conf);
 
     {
         // method: connected
@@ -1704,6 +1708,9 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
         if (ret) {
             ret = exchange_funding_locked(p_conf);
             assert(ret);
+
+            // send `channel_update` for private/before publish channel
+            send_cnlupd_before_announce(p_conf);
 
             char close_addr[UCOIN_SZ_ADDR_MAX];
             ret = ucoin_keys_spk2addr(close_addr, ln_shutdown_scriptpk_local(p_conf->p_self));
@@ -2905,7 +2912,7 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf)
  * 接続先へ未送信のchannel_announcement/channel_updateを送信する。
  * 一度にすべて送信するとDBのロック期間が長くなるため、
  * 最大M_ANNO_UNITパケットまで送信を行い、残りは次回呼び出しに行う。
- * 
+ *
  * channel_announcementに含まれていないnode_announcementは
  *
  * @param[in,out]   p_conf  lnapp情報
@@ -3078,7 +3085,7 @@ static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const ucoin_buf_t *
     }
 
     ucoin_buf_t buf_node = UCOIN_BUF_INIT;
-    
+
     for (int lp = 0; lp < 2; lp++) {
         ret = ln_db_annonod_search_nodeid(p_db, node[lp], ln_their_node_id(p_conf->p_self));
         if (!ret) {
@@ -3091,6 +3098,26 @@ static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const ucoin_buf_t *
 
                 ln_db_annonod_add_nodeid(p_db, node[lp], false, ln_their_node_id(p_conf->p_self));
             }
+        }
+    }
+}
+
+
+/** announcement前のchannel_update送信
+ *      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
+ *
+ */
+static void send_cnlupd_before_announce(lnapp_conf_t *p_conf)
+{
+    ln_self_t *p_self = p_conf->p_self;
+
+    if ((ln_short_channel_id(p_self) != 0) && !ln_is_announced(p_self)) {
+        //チャネル作成済み && announcement未交換
+        ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
+        bool ret = ln_create_channel_update(p_self, &buf_bolt);
+        if (ret) {
+            send_peer_noise(p_conf, &buf_bolt);
+            ucoin_buf_free(&buf_bolt);
         }
     }
 }

@@ -102,7 +102,7 @@
 // ln_self_t.anno_flag
 #define M_ANNO_FLAG_SEND                    (0x01)          ///< announcement_signatures送信済み
 #define M_ANNO_FLAG_RECV                    (0x02)          ///< announcement_signatures受信済み
-#define M_ANNO_FLAG_END                     (0x80)          ///< 送受信完了後の処理済み
+//#define LN_ANNO_FLAG_END
 
 // ln_self_t.shutdown_flag
 #define M_SHDN_FLAG_SEND                    (0x01)          ///< shutdown送信済み
@@ -828,6 +828,25 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
     return ret;
 }
 
+
+bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
+{
+    bool ret;
+
+    ucoin_keys_sort_t sort = sort_nodeid(self, NULL);
+    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, ln_short_channel_id(self), sort);
+    if (!ret) {
+        //first
+        uint32_t now = (uint32_t)time(NULL);
+        ln_cnl_update_t upd;
+        ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
+        if (!ret) {
+            LOGD("fail: create channel_update\n");
+        }
+    }
+
+    return ret;
+}
 
 #if 0
 bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
@@ -2260,9 +2279,9 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    LOGV("prev:\n");
+    LOGV("prev: ");
     DUMPV(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
-    LOGV("next:\n");
+    LOGV("next: ");
     DUMPV(per_commitpt, UCOIN_SZ_PUBKEY);
 
     //prev_percommitはrevoke_and_ackでのみ更新する
@@ -4932,7 +4951,7 @@ static void proc_anno_sigs(ln_self_t *self)
         //announcement_signatures送受信済み
         LOGD("announcement_signatures sent and recv\n");
 
-        self->anno_flag |= M_ANNO_FLAG_END;
+        self->anno_flag |= LN_ANNO_FLAG_END;
         ucoin_buf_free(&self->cnl_anno);
         M_DB_SELF_SAVE(self);
     }
