@@ -96,6 +96,9 @@ extern "C" {
 #define LN_CLOSE_IDX_HTLC               (3)         ///< HTLC tx
 #define LN_CLOSE_IDX_NONE               ((uint8_t)0xff)
 
+// self.anno_flag
+#define LN_ANNO_FLAG_END                (0x80)      ///< 1:announcement_signatures交換済み
+
 // revoked transaction closeされたときの self->p_revoked_vout, p_revoked_witのインデックス値
 #define LN_RCLOSE_IDX_TOLOCAL           (0)         ///< to_local
 #define LN_RCLOSE_IDX_TOREMOTE          (1)         ///< to_remote
@@ -1296,6 +1299,17 @@ void ln_open_announce_channel_clr(ln_self_t *self);
 bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns);
 
 
+/** channel_update作成
+ * 
+ * DBから検索し、見つからなければ新規作成する(作成してもDB保存しない)。
+ * 
+ * @param[in]   self
+ * @param[out]  pCnlUpd
+ * @retval      ture    成功
+ */
+bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd);
+
+
 /** channel_update更新
  * 送信済みのchannel_updateと現在のパラメータを比較し、相違があれば作成する
  *
@@ -1673,6 +1687,17 @@ static inline bool ln_is_funder(const ln_self_t *self) {
  */
 static inline bool ln_is_funding(const ln_self_t *self) {
     return (self->fund_flag & LN_FUNDFLAG_FUNDING);
+}
+
+
+/** announcement_signatures交換済みかどうか
+ *
+ * @param[in]           self            channel情報
+ * @retval      true    announcement_signatures交換済み
+ * @retval      false   announcement_signatures未交換
+ */
+static inline bool ln_is_announced(const ln_self_t *self) {
+    return (self->anno_flag & LN_ANNO_FLAG_END);
 }
 
 

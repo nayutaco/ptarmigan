@@ -3415,7 +3415,7 @@ static bool annocnl_search(lmdb_cursor_t *pCur, uint64_t ShortChannelId, ucoin_b
  *
  * @param[in]       pDb
  * @param[out]      pCnlAnno
- * @param[out]      pTimeStamp          保存しているchannel_updateのTimeStamp
+ * @param[out]      pTimeStamp          (非NULL)保存しているchannel_updateのTimeStamp
  * @param[in]       ShortChannelId
  * @param[in]       Dir                 0:node_1, 1:node_2
  * @retval      true    成功
@@ -3430,7 +3430,9 @@ static int annocnlupd_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlUpd, uint32_t *pT
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, ((Dir) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
     int retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
     if (retval == 0) {
-        *pTimeStamp = *(uint32_t *)data.mv_data;
+        if (pTimeStamp != NULL) {
+            *pTimeStamp = *(uint32_t *)data.mv_data;
+        }
         ucoin_buf_alloccopy(pCnlUpd, (uint8_t *)data.mv_data + sizeof(uint32_t), data.mv_size - sizeof(uint32_t));
     } else {
         if (retval != MDB_NOTFOUND) {
