@@ -591,7 +591,8 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
          (type != MSGTYPE_ERROR) &&
          M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) ) {
         M_SET_ERR(self, LNERR_INV_STATE, "not closing_signed received : %04x", type);
-        return false;
+        ret = type & 1;     //ok to be odd rule --> 奇数ならエラーにしない
+        goto LABEL_EXIT;
     }
 
     size_t lp;
@@ -601,6 +602,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);
             if (!ret) {
                 LOGD("fail: type=%04x\n", type);
+                ret = type & 1;     //ok to be odd rule --> 奇数ならエラーにしない
             }
             break;
         }
@@ -609,6 +611,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         LOGD("not match: type=%04x\n", type);
     }
 
+LABEL_EXIT:
     return ret;
 }
 
