@@ -602,13 +602,13 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
             ret = (*RECV_FUNC[lp].func)(self, pData, Len);
             if (!ret) {
                 LOGD("fail: type=%04x\n", type);
-                ret = type & 1;     //ok to be odd rule --> 奇数ならエラーにしない
             }
             break;
         }
     }
     if (lp == ARRAY_SIZE(RECV_FUNC)) {
         LOGD("not match: type=%04x\n", type);
+        ret = type & 1;     //ok to be odd rule --> 奇数ならエラーにしない
     }
 
 LABEL_EXIT:
