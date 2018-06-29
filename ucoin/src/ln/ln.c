@@ -138,7 +138,7 @@
 #define M_DB_SELF_SAVE(self)    { bool ret = ln_db_self_save(self); LOGD("ln_db_self_save()=%d\n", ret); }
 #define M_DB_SECRET_SAVE(self)  { bool ret = ln_db_secret_save(self); LOGD("ln_db_secret_save()=%d\n", ret); }
 
-#define M_SET_ERR(self,err,fmt,...)     set_err(self,err,fmt,##__VA_ARGS__); fprintf(PRINTOUT, "[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg)
+#define M_SET_ERR(self,err,fmt,...)     set_err(self,err,fmt,##__VA_ARGS__); LOGD("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg)
 
 
 /**************************************************************************
@@ -287,7 +287,8 @@ static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
 static void close_alloc(ln_close_force_t *pClose, int Num);
 static void free_establish(ln_self_t *self, bool bEndEstablish);
-static ucoin_keys_sort_t sort_nodeid(ln_self_t *self, const uint8_t *pNodeId);
+static ucoin_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId);
+static inline uint8_t ln_sort_to_dir(ucoin_keys_sort_t Sort);
 static void set_err(ln_self_t *self, int Err, const char *pFormat, ...);
 
 
@@ -812,8 +813,8 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
 
     //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
     //  localのsignature
-    ucoin_keys_sort_t sort = sort_nodeid(self, NULL);
-    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true, sort);
+    uint8_t dir = ln_sort_to_dir(sort_nodeid(self, NULL));
+    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true, dir);
 
     ln_announce_signs_t anno_signs;
 
@@ -836,62 +837,32 @@ bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
 {
     bool ret;
 
-    ucoin_keys_sort_t sort = sort_nodeid(self, NULL);
-    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, ln_short_channel_id(self), sort);
-    if (!ret) {
-        //first
-        uint32_t now = (uint32_t)time(NULL);
-        ln_cnl_update_t upd;
-        ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
-        if (!ret) {
-            LOGD("fail: create channel_update\n");
-        }
+    uint32_t now = (uint32_t)time(NULL);
+    ln_cnl_update_t upd;
+    ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
+    if (ret) {
+        ret = ln_db_annocnlupd_save(pCnlUpd, &upd, NULL);
+    } else {
+        LOGD("fail: create channel_update\n");
     }
 
     return ret;
 }
 
-#if 0
-bool ln_update_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
+
+bool ln_get_channel_update_peer(const ln_self_t *self, ucoin_buf_t *pCnlUpd, ln_cnl_update_t *pMsg)
 {
     bool ret;
-    ucoin_buf_t buf_upd = UCOIN_BUF_INIT;
-    ln_cnl_update_t upd;
 
-    uint32_t timestamp;
     ucoin_keys_sort_t sort = sort_nodeid(self, NULL);
-    ret = ln_db_annocnlupd_load(&buf_upd, &timestamp, ln_short_channel_id(self), sort);
-    if (ret) {
-        ret = ln_msg_cnl_update_read(&upd, buf_upd.buf, buf_upd.len);
+    uint8_t dir = (sort == UCOIN_KEYS_SORT_OTHER) ? 0 : 1;  //相手のchannel_update
+    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, ln_short_channel_id(self), dir);
+    if (ret && (pMsg != NULL)) {
+        ret = ln_msg_cnl_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
     }
-    if (ret) {
-        ln_msg_cnl_update_print(&upd);
-
-        if ( (upd.cltv_expiry_delta != self->anno_prm.cltv_expiry_delta) ||
-             (upd.htlc_minimum_msat != self->anno_prm.htlc_minimum_msat) ||
-             (upd.fee_base_msat != self->anno_prm.fee_base_msat) ||
-             (upd.fee_prop_millionths != self->anno_prm.fee_prop_millionths) ) {
-            LOGD("update channel_update\n");
-
-            uint32_t now = (uint32_t)time(NULL);
-            ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
-
-            //DB保存
-            bool dbret = ln_db_annocnlupd_save(pCnlUpd, &upd, ln_their_node_id(self));
-            assert(dbret);
-        } else {
-            //LOGD("same channel_update\n");
-            ret = false;
-        }
-    } else {
-        LOGD("fail\n");
-    }
-
-    ucoin_buf_free(&buf_upd);
 
     return ret;
 }
-#endif
 
 
 /********************************************************************
@@ -4447,7 +4418,7 @@ static bool create_channel_update(
     pUpd->htlc_minimum_msat = self->anno_prm.htlc_minimum_msat;
     pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
     pUpd->fee_prop_millionths = self->anno_prm.fee_prop_millionths;
-    pUpd->flags = Flag | sort_nodeid(self, NULL);
+    pUpd->flags = Flag | ln_sort_to_dir(sort_nodeid(self, NULL));
     bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
     return ret;
@@ -4536,16 +4507,14 @@ LABEL_EXIT:
     if (!ret && (pReason != NULL)) {
         //channel_update
         ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
-        uint32_t timestamp;
-        ucoin_keys_sort_t sort = sort_nodeid(self, NULL);
-        uint8_t dir = (sort == UCOIN_KEYS_SORT_OTHER) ? 0 : 1;  //相手のchannel_update
 
-        bool b = ln_db_annocnlupd_load(&buf_bolt, &timestamp, ln_short_channel_id(self), dir);
-        ucoin_push_t push_htlc;
+        bool b = ln_get_channel_update_peer(self, &buf_bolt, NULL);
         if (b) {
             //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
             //      temporary_channel_failure
             LOGD("fail: temporary_channel_failure\n");
+
+            ucoin_push_t push_htlc;
             ucoin_push_init(&push_htlc, pReason,
                                 sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
             ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
@@ -4657,15 +4626,17 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     bool ret;
 
     //preimage検索
-    uint64_t inv_amount = (uint64_t)-1;
-    uint32_t inv_expiry = 0;
+    ln_db_preimg_t preimg;
     uint8_t preimage_hash[LN_SZ_HASH];
 
+    preimg.amount_msat = (uint64_t)-1;
+    preimg.expiry = 0;
     void *p_cur;
     ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        ret = ln_db_preimg_cur_get(p_cur, pPreimage, &inv_amount, &inv_expiry);     //from invoice
+        ret = ln_db_preimg_cur_get(p_cur, &preimg);     //from invoice
         if (ret) {
+            memcpy(pPreimage, preimg.preimage, LN_SZ_PREIMAGE);
             ln_calc_preimage_hash(preimage_hash, pPreimage);
             if (memcmp(preimage_hash, pAddHtlc->payment_sha256, LN_SZ_HASH) == 0) {
                 //一致
@@ -4692,8 +4663,8 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
 
     //C2. if the amount paid is less than the amount expected:
     //      incorrect_payment_amount
-    if (pAddHtlc->amount_msat < inv_amount) {
-        M_SET_ERR(self, LNERR_INV_VALUE, "incorrect_payment_amount(final) : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, inv_amount);
+    if (pAddHtlc->amount_msat < preimg.amount_msat) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "incorrect_payment_amount(final) : %" PRIu64 " < %" PRIu64, pDataOut->amt_to_forward, preimg.amount_msat);
         ret = false;
         ln_misc_push16be(pPushReason, LNONION_INCORR_PAY_AMT);
         //no data
@@ -4703,8 +4674,8 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
 
     //C4. if the amount paid is more than twice the amount expected:
     //      incorrect_payment_amount
-    if (inv_amount * 2 < pAddHtlc->amount_msat) {
-        M_SET_ERR(self, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, inv_amount * 2, pDataOut->amt_to_forward);
+    if (preimg.amount_msat * 2 < pAddHtlc->amount_msat) {
+        M_SET_ERR(self, LNERR_INV_VALUE, "large amount_msat : %" PRIu64 " < %" PRIu64, preimg.amount_msat * 2, pDataOut->amt_to_forward);
         ret = false;
         ln_misc_push16be(pPushReason, LNONION_INCORR_PAY_AMT);
         //no data
@@ -4801,12 +4772,19 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     uint8_t peer_id[UCOIN_SZ_PUBKEY];
     bool ret = ln_node_search_nodeid(peer_id, pDataOut->short_channel_id);
     if (ret) {
-        ucoin_keys_sort_t sort = sort_nodeid(self, peer_id);
-        uint32_t timestamp;
-        ret = ln_db_annocnlupd_load(&cnlupd_buf, &timestamp, pDataOut->short_channel_id, sort);
+        uint8_t dir = ln_sort_to_dir(sort_nodeid(self, peer_id));
+        ret = ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir);
+        if (!ret) {
+            LOGD("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n", pDataOut->short_channel_id, dir);
+        }
+    } else {
+        LOGD("fail: ln_node_search_nodeid\n");
     }
     if (ret) {
         ret = ln_msg_cnl_update_read(&cnlupd, cnlupd_buf.buf, cnlupd_buf.len);
+        if (!ret) {
+            LOGD("fail: ln_msg_cnl_update_read\n");
+        }
     }
     if (!ret) {
         //channel_updateがない
@@ -5022,9 +5000,9 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
     } else {
         if (short_channel_id == self->short_channel_id) {
             // DBには無いが、このchannelの情報
-            ucoin_keys_sort_t mydir = sort_nodeid(self, NULL);
-            if ( ((mydir == UCOIN_KEYS_SORT_ASC) && (Dir == 0)) ||
-                 ((mydir == UCOIN_KEYS_SORT_OTHER) && (Dir == 1)) ) {
+            ucoin_keys_sort_t mysort = sort_nodeid(self, NULL);
+            if ( ((mysort == UCOIN_KEYS_SORT_ASC) && (Dir == 0)) ||
+                 ((mysort == UCOIN_KEYS_SORT_OTHER) && (Dir == 1)) ) {
                 //自ノード
                 LOGD("this channel: my node\n");
                 memcpy(pNodeId, ln_node_getid(), UCOIN_SZ_PUBKEY);
@@ -5173,7 +5151,7 @@ static void free_establish(ln_self_t *self, bool bEndEstablish)
  * @retval      UCOIN_KEYS_SORT_ASC     自ノードが先
  * @retval      UCOIN_KEYS_SORT_OTHER   相手ノードが先
  */
-static ucoin_keys_sort_t sort_nodeid(ln_self_t *self, const uint8_t *pNodeId)
+static ucoin_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId)
 {
     ucoin_keys_sort_t sort;
 
@@ -5199,6 +5177,15 @@ static ucoin_keys_sort_t sort_nodeid(ln_self_t *self, const uint8_t *pNodeId)
     }
 
     return sort;
+}
+
+
+/** ucoin_keys_sort_t --> Direction変換
+ *
+ */
+static inline uint8_t ln_sort_to_dir(ucoin_keys_sort_t Sort)
+{
+    return (uint8_t)Sort;
 }
 
 

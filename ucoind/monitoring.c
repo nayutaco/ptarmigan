@@ -446,7 +446,12 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
                     if (p_buf != NULL) {
                         LOGD("backwind preimage: ");
                         DUMPD(p_buf->buf, p_buf->len);
-                        ln_db_preimg_save(p_buf->buf, 0, UINT32_MAX, pDbParam);
+
+                        ln_db_preimg_t preimg;
+                        memcpy(preimg.preimage, p_buf->buf, LN_SZ_PREIMAGE);
+                        preimg.amount_msat = 0;
+                        preimg.expiry = UINT32_MAX;
+                        ln_db_preimg_save(&preimg, pDbParam);
                     } else {
                         assert(0);
                     }
@@ -640,7 +645,12 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
                     if (p_buf != NULL) {
                         LOGD("backwind preimage: ");
                         DUMPD(p_buf->buf, p_buf->len);
-                        ln_db_preimg_save(p_buf->buf, 0, UINT32_MAX, pDbParam);
+
+                        ln_db_preimg_t preimg;
+                        memcpy(preimg.preimage, p_buf->buf, LN_SZ_PREIMAGE);
+                        preimg.amount_msat = 0;
+                        preimg.expiry = UINT32_MAX;
+                        ln_db_preimg_save(&preimg, pDbParam);
                     } else {
                         assert(0);
                     }

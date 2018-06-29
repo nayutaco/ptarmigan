@@ -30,7 +30,10 @@
 #include "mbedtls/sha256.h"
 
 #include "ln_node.h"
+#include "ln_misc.h"
 #include "segwit_addr.h"
+
+#define M_INVOICE_DESCRIPTION       "ptarmigan"
 
 uint32_t bech32_polymod_step(uint32_t pre) {
     uint8_t b = pre >> 25;
@@ -77,14 +80,14 @@ static bool bech32_encode(char *output, const char *hrp, const uint8_t *data, si
     while (hrp[i] != 0) {
         int ch = hrp[i];
         if (ch < 33 || ch > 126) {
-            return 0;
+            return false;
         }
 
-        if (ch >= 'A' && ch <= 'Z') return 0;
+        if (ch >= 'A' && ch <= 'Z') return false;
         chk = bech32_polymod_step(chk) ^ (ch >> 5);
         ++i;
     }
-    if (!ln && (i + 7 + data_len > 90)) return 0;
+    if (!ln && (i + 7 + data_len > 90)) return false;
     chk = bech32_polymod_step(chk);
     while (*hrp != '\0') {
         chk = bech32_polymod_step(chk) ^ (*hrp & 0x1f);
@@ -234,7 +237,10 @@ static int convert64_to8(uint8_t *p_out, uint64_t val)
         }
     }
     //swap endian
-    for (size_t lp2 = 0; lp2 < lp / 2; lp2++) {
+    for (size_t lp2 = 0; lp2 < lp; lp2++) {
+        if (lp2 > lp - lp2) {
+            break;
+        }
         uint8_t tmp = p_out[lp2];
         p_out[lp2] = p_out[lp - lp2];
         p_out[lp - lp2] = tmp;
@@ -296,8 +302,8 @@ static bool analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **pp_i
     case 6:
         //expiry second
         {
-            //uint32_t expiry = (uint32_t)convert_be64(p_tag, len);
-            //LOGD("%" PRIu32 " seconds\n", expiry);
+            p_invoice_data->expiry = (uint32_t)convert_be64(p_tag, len);
+            //LOGD("%" PRIu32 " seconds\n", p_invoice_data->expiry);
         }
         break;
     case 24:
@@ -451,23 +457,66 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     time_t now = time(NULL);
     datalen = convert64_to8(data, now);
 
-    //tagged field(payee pubkey)
-    data[datalen++] = 0x13; // 33-byte public key of the payee node
-    data[datalen++] = 1;  // 264bit --> 53(5bit)
-    data[datalen++] = 21;
+    //tagged field
+    //  1. type (5bits)
+    //  2. data_length (10bits, big-endian) [32進数]
+    //  3. data (data_length x 5bits)
+
+    //payee pubkey
+    data[datalen++] = 19;   // 33-byte public key of the payee node
+    data[datalen++] = 1;    // 264bit ÷ 5 ≒ 53
+    data[datalen++] = 21;   //      53 --(32進数)--> 32*1 + 21
     if (!convert_bits(data, &datalen, 5, p_invoice_data->pubkey, UCOIN_SZ_PUBKEY, 8, true)) return false;
 
-    //tagged field(payment_hash)
-    data[datalen++] = 0x01; // 256-bit SHA256 payment_hash
-    data[datalen++] = 1;    // 256bit --> 52(5bit)
-    data[datalen++] = 20;
+    //payment_hash
+    data[datalen++] = 1;    // 256-bit SHA256 payment_hash
+    data[datalen++] = 1;    // 256bit ÷ 5 ≒ 52
+    data[datalen++] = 20;   //      52 --(32進数)--> 32*1 + 20
     if (!convert_bits(data, &datalen, 5, p_invoice_data->payment_hash, LN_SZ_HASH, 8, true)) return false;
 
     //short description
-    data[datalen++] = 13; // short description
-    data[datalen++] = 0;
-    data[datalen++] = 15;
-    if (!convert_bits(data, &datalen, 5, (const uint8_t *)"ptarmigan", 9, 8, true)) return false;
+    data[datalen++] = 13;   // short description
+    data[datalen++] = 0;    // "ptarmigan": 72bit ÷ 5 ≒ 15
+    data[datalen++] = 15;   //      15 --(32進数)--> 32*0 + 15
+    if (!convert_bits(data, &datalen, 5, (const uint8_t *)M_INVOICE_DESCRIPTION, 9, 8, true)) return false;
+
+    //expiry
+    if (p_invoice_data->expiry != LN_INVOICE_EXPIRY) {
+        data[datalen++] = 6;    // expiry
+        data[datalen++] = 0;    // 最大32bitなので、ここは0になる
+        //data[datalen++] = 7;
+        datalen++;
+
+        int len = convert64_to8(data + datalen, p_invoice_data->expiry);
+        data[datalen - 1] = (uint8_t)len;
+        datalen += len;
+    }
+
+    //r field
+    if (p_invoice_data->r_field_num > 0) {
+        // 1項目=408bit
+        int bits = 408 * p_invoice_data->r_field_num;
+        bits = (bits + 4) / 5;
+        int p32 = bits / 32;
+
+        data[datalen++] = 3;    // r field
+        data[datalen++] = (uint8_t)p32;
+        data[datalen++] = (uint8_t)(bits - p32 * 32);
+        uint8_t rfield[51];     //408bit分
+        ucoin_buf_t buf = { rfield, sizeof(rfield) };
+        ucoin_push_t push = { 0, &buf };
+        for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
+            const ln_fieldr_t *r = &p_invoice_data->r_field[lp];
+
+            push.pos = 0;
+            ucoin_push_data(&push, r->node_id, UCOIN_SZ_PUBKEY);
+            ln_misc_push64be(&push, r->short_channel_id);
+            ln_misc_push32be(&push, r->fee_base_msat);
+            ln_misc_push32be(&push, r->fee_prop_millionths);
+            ln_misc_push16be(&push, r->cltv_expiry_delta);
+            if (!convert_bits(data, &datalen, 5, rfield, sizeof(rfield), 8, true)) return false;
+        }
+    }
 
     //ここまで、data[0～datalen-1]に1byteずつ5bitデータが入っている
     //署名は、これを詰めて8bitにしてhashを取っている
@@ -515,8 +564,6 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     size_t sig_len = 0;
     ln_invoice_t *p_invoice_data = (ln_invoice_t *)malloc(sizeof(ln_invoice_t));
 
-    //TODO: 固定値
-    p_invoice_data->expiry = LN_INVOICE_EXPIRY;
     if (!bech32_decode(hrp_actual, data, &data_len, invoice, true)) {
         goto LABEL_EXIT;
     }
@@ -576,8 +623,6 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     p_tag = data + 7;
     p_sig = data + data_len - 104;
 
-    p_invoice_data->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
-
     //preimage
     pdata = (uint8_t *)M_MALLOC(((data_len - 104) * 5 + 7) / 8);
     if (!convert_bits(pdata, &pdata_len, 8, data, data_len - 104, 5, true)) {
@@ -611,6 +656,8 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
 
     //tagged fields
     ret = true;
+    p_invoice_data->expiry = LN_INVOICE_EXPIRY;
+    p_invoice_data->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     p_invoice_data->r_field_num = 0;
     while (p_tag < p_sig) {
         size_t len;
@@ -632,16 +679,27 @@ LABEL_EXIT:
 }
 
 
-bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry)
+bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry,
+                        const ln_fieldr_t *pFieldR, uint8_t FieldRNum)
 {
-    ln_invoice_t invoice_data;
+    ln_invoice_t *p_invoice_data;
 
-    invoice_data.hrp_type = Type;
-    invoice_data.amount_msat = Amount;
-    invoice_data.expiry = Expiry;   //TODO: 未使用
-    invoice_data.min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
-    memcpy(invoice_data.pubkey, ln_node_getid(), UCOIN_SZ_PUBKEY);
-    memcpy(invoice_data.payment_hash, pPayHash, LN_SZ_HASH);
-    bool ret = ln_invoice_encode(ppInvoice, &invoice_data);
+    size_t sz = sizeof(ln_invoice_t);
+    if (pFieldR != NULL) {
+        sz += sizeof(ln_fieldr_t) * FieldRNum;
+    }
+    p_invoice_data = (ln_invoice_t *)M_MALLOC(sz);
+    p_invoice_data->hrp_type = Type;
+    p_invoice_data->amount_msat = Amount;
+    p_invoice_data->expiry = Expiry;
+    p_invoice_data->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
+    memcpy(p_invoice_data->pubkey, ln_node_getid(), UCOIN_SZ_PUBKEY);
+    memcpy(p_invoice_data->payment_hash, pPayHash, LN_SZ_HASH);
+    p_invoice_data->r_field_num = FieldRNum;
+    memcpy(p_invoice_data->r_field, pFieldR, sizeof(ln_fieldr_t) * FieldRNum);
+
+    bool ret = ln_invoice_encode(ppInvoice, p_invoice_data);
+    M_FREE(p_invoice_data);
+
     return ret;
 }

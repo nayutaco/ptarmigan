@@ -64,6 +64,12 @@ typedef struct {
 } getcommittx_t;
 
 
+typedef struct {
+    ln_fieldr_t     **pp_field;
+    uint8_t         *p_fieldnum;
+} rfield_prm_t;
+
+
 /********************************************************************
  * static variables
  ********************************************************************/
@@ -115,7 +121,9 @@ static int cmd_routepay_proc2(
 static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId);
 
 static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn);
-static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry);
+static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry, const ln_fieldr_t *pFieldR, uint8_t FieldRNum);
+static void create_bolt11_rfield(ln_fieldr_t **ppFieldR, uint8_t *pFieldRNum);
+static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
 static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_param);
@@ -453,7 +461,10 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 LABEL_EXIT:
     if (err == 0) {
-        char *p_invoice = create_bolt11(preimage_hash, amount, LN_INVOICE_EXPIRY);
+        ln_fieldr_t *p_rfield = NULL;
+        uint8_t rfieldnum = 0;
+        create_bolt11_rfield(&p_rfield, &rfieldnum);
+        char *p_invoice = create_bolt11(preimage_hash, amount, LN_INVOICE_EXPIRY, p_rfield, rfieldnum);
 
         if (p_invoice != NULL) {
             char str_hash[LN_SZ_HASH * 2 + 1];
@@ -469,6 +480,7 @@ LABEL_EXIT:
             LOGD("fail: BOLT11 format\n");
             err = RPCERR_PARSE;
         }
+        APP_FREE(p_rfield);
     }
     if (err != 0) {
         ctx->error_code = err;
@@ -526,32 +538,33 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)ctx; (void)params; (void)id;
 
     cJSON *result = NULL;
-    uint8_t preimage[LN_SZ_PREIMAGE];
     uint8_t preimage_hash[LN_SZ_HASH];
-    uint64_t amount;
-    uint32_t expiry;
+    ln_db_preimg_t preimg;
     void *p_cur;
     bool ret;
 
     result = cJSON_CreateArray();
     ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        ret = ln_db_preimg_cur_get(p_cur, preimage, &amount, &expiry);
+        ret = ln_db_preimg_cur_get(p_cur, &preimg);
         if (ret) {
-            ln_calc_preimage_hash(preimage_hash, preimage);
+            ln_calc_preimage_hash(preimage_hash, preimg.preimage);
             cJSON *json = cJSON_CreateObject();
 
             char str_hash[LN_SZ_HASH * 2 + 1];
             ucoin_util_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
             cJSON_AddItemToObject(json, "hash", cJSON_CreateString(str_hash));
-            cJSON_AddItemToObject(json, "amount_msat", cJSON_CreateNumber64(amount));
-            if (expiry != UINT32_MAX) {
-                cJSON_AddItemToObject(json, "expiry", cJSON_CreateNumber(expiry));
-                char *p_invoice = create_bolt11(preimage_hash, amount, expiry);
-                if (p_invoice != NULL) {
-                    cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
-                    free(p_invoice);
-                }
+            cJSON_AddItemToObject(json, "amount_msat", cJSON_CreateNumber64(preimg.amount_msat));
+            char dtstr[UCOIN_SZ_DTSTR];
+            ucoin_util_strftime(dtstr, preimg.creation_time);
+            cJSON_AddItemToObject(json, "creation_time", cJSON_CreateString(dtstr));
+            if (preimg.expiry != UINT32_MAX) {
+                cJSON_AddItemToObject(json, "expiry", cJSON_CreateNumber(preimg.expiry));
+                // char *p_invoice = create_bolt11(preimage_hash, preimg.amount_msat, preimg.expiry, NULL, 0);
+                // if (p_invoice != NULL) {
+                //     cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
+                //     free(p_invoice);
+                // }
             } else {
                 cJSON_AddItemToObject(json, "expiry", cJSON_CreateString("remove after close"));
             }
@@ -1209,15 +1222,18 @@ static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
 {
     LOGD("invoice\n");
 
-    uint8_t preimage[LN_SZ_PREIMAGE];
+    ln_db_preimg_t preimg;
 
-    ucoin_util_random(preimage, LN_SZ_PREIMAGE);
+    ucoin_util_random(preimg.preimage, LN_SZ_PREIMAGE);
 
     ucoind_preimage_lock();
-    ln_db_preimg_save(preimage, AmountMsat, LN_INVOICE_EXPIRY, NULL);
+    preimg.amount_msat = AmountMsat;
+    preimg.expiry = LN_INVOICE_EXPIRY;
+    preimg.creation_time = 0;
+    ln_db_preimg_save(&preimg, NULL);
     ucoind_preimage_unlock();
 
-    ln_calc_preimage_hash(pPayHash, preimage);
+    ln_calc_preimage_hash(pPayHash, preimg.preimage);
     return 0;
 }
 
@@ -1475,10 +1491,72 @@ static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn)
 }
 
 
+/** not public channel情報からr field情報を作成
+ * 
+ * channel_announcementする前や、channel_announcementしない場合、invoiceのr fieldに経路情報を追加することで、
+ * announcementしていない部分の経路を知らせることができる。
+ * ただ、その経路は自分へ向いているため、channelの相手が送信するchannel_updateの情報を追加することになる。
+ * 現在接続していなくても、送金時には接続している可能性があるため、r fieldに追加する。
+ */
+static void create_bolt11_rfield(ln_fieldr_t **ppFieldR, uint8_t *pFieldRNum)
+{
+    rfield_prm_t prm;
+
+    *ppFieldR = NULL;
+    *pFieldRNum = 0;
+
+    prm.pp_field = ppFieldR;
+    prm.p_fieldnum = pFieldRNum;
+    ln_db_self_search(comp_func_cnl, &prm);
+
+    if (*pFieldRNum != 0) {
+        LOGD("add r_field: %d\n", *pFieldRNum);
+    } else {
+        LOGD("no r_field\n");
+    }
+}
+
+
+/** #ln_node_search_channel()処理関数
+ *
+ * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
+ * @param[in,out]   p_param         rfield_prm_t構造体
+ */
+static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
+{
+    (void)p_db_param;
+
+    bool ret;
+    rfield_prm_t *prm = (rfield_prm_t *)p_param;
+
+    ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
+    ln_cnl_update_t msg;
+    ret = ln_get_channel_update_peer(self, &buf_bolt, &msg);
+    if (ret) {
+        size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_fieldr_t);
+        *prm->pp_field = (ln_fieldr_t *)APP_REALLOC(*prm->pp_field, sz);
+
+        ln_fieldr_t *pfield = *prm->pp_field + *prm->p_fieldnum;
+        memcpy(pfield->node_id, ln_their_node_id(self), UCOIN_SZ_PUBKEY);
+        pfield->short_channel_id = ln_short_channel_id(self);
+        pfield->fee_base_msat = msg.fee_base_msat;
+        pfield->fee_prop_millionths = msg.fee_prop_millionths;
+        pfield->cltv_expiry_delta = msg.cltv_expiry_delta;
+
+        (*prm->p_fieldnum)++;
+        LOGD("r_field num=%d\n", *prm->p_fieldnum);
+    }
+    ucoin_buf_free(&buf_bolt);
+
+    return false;
+}
+
+
 /** BOLT11文字列生成
  *
  */
-static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry)
+static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry, const ln_fieldr_t *pFieldR, uint8_t FieldRNum)
 {
     uint8_t type;
     ucoin_genesis_t gtype = ucoin_util_get_genesis(ln_get_genesishash());
@@ -1498,7 +1576,7 @@ static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Ex
     }
     char *p_invoice = NULL;
     if (type != UCOIN_GENESIS_UNKNOWN) {
-        ln_invoice_create(&p_invoice, type, pPayHash, Amount, Expiry);
+        ln_invoice_create(&p_invoice, type, pPayHash, Amount, Expiry, pFieldR, FieldRNum);
     }
     return p_invoice;
 }

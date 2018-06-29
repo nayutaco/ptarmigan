@@ -2367,7 +2367,7 @@ LABEL_EXIT:
  * payment preimage
  ********************************************************************/
 
-bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *pDb)
+bool ln_db_preimg_save(ln_db_preimg_t *pPreImg, void *pDb)
 {
     bool ret;
     ln_lmdb_db_t db;
@@ -2385,14 +2385,16 @@ bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expir
     }
 
     key.mv_size = LN_SZ_PREIMAGE;
-    key.mv_data = (CONST_CAST uint8_t *)pPreImage;
+    key.mv_data = pPreImg->preimage;
     data.mv_size = sizeof(info);
-    info.amount = Amount;
+    info.amount = pPreImg->amount_msat;
     info.creation = (uint64_t)time(NULL);
-    info.expiry = Expiry;
+    info.expiry = pPreImg->expiry;
     data.mv_data = &info;
     int retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
-    if (retval != 0) {
+    if (retval == 0) {
+        pPreImg->creation_time = info.creation;
+    } else {
         LOGD("ERR: %s\n", mdb_strerror(retval));
     }
 
@@ -2439,17 +2441,15 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_preimg_search(ln_db_preimg_t pFunc, void *p_param)
+bool ln_db_preimg_search(ln_db_func_preimg_t pFunc, void *p_param)
 {
-    uint8_t preimage[LN_SZ_PREIMAGE];
-    uint64_t amount;
-    uint32_t expiry;
     void *p_cur;
     bool ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        ret = ln_db_preimg_cur_get(p_cur, preimage, &amount, &expiry);
+        ln_db_preimg_t preimg;
+        ret = ln_db_preimg_cur_get(p_cur, &preimg);
         if (ret) {
-            ret = (*pFunc)(preimage, amount, expiry, p_cur, p_param);
+            ret = (*pFunc)(preimg.preimage, preimg.amount_msat, preimg.expiry, p_cur, p_param);
             if (ret) {
                 break;
             }
@@ -2513,7 +2513,7 @@ void ln_db_preimg_cur_close(void *pCur)
 }
 
 
-bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount, uint32_t *pExpiry)
+bool ln_db_preimg_cur_get(void *pCur, ln_db_preimg_t *pPreImg)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     int retval;
@@ -2526,16 +2526,17 @@ bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount, uin
         LOGD("time: %lu\n", p_info->creation);
         //TODO: DB ver -19以降になったら削除する
         if (data.mv_size >= sizeof(preimg_info_t)) {
-            *pExpiry = p_info->expiry;
+            pPreImg->expiry = p_info->expiry;
         } else {
-            *pExpiry = LN_INVOICE_EXPIRY;
+            pPreImg->expiry = LN_INVOICE_EXPIRY;
         }
+        pPreImg->creation_time = p_info->creation;
         if ((p_info->expiry == UINT32_MAX) || (now <= p_info->creation + p_info->expiry)) {
-            memcpy(pPreImage, key.mv_data, key.mv_size);
-            *pAmount = p_info->amount;
+            memcpy(pPreImg->preimage, key.mv_data, key.mv_size);
+            pPreImg->amount_msat = p_info->amount;
 
             uint8_t hash[LN_SZ_HASH];
-            ln_calc_preimage_hash(hash, pPreImage);
+            ln_calc_preimage_hash(hash, pPreImg->preimage);
             LOGD("invoice hash: ");
             DUMPD(hash, LN_SZ_HASH);
         } else {

@@ -1300,14 +1300,26 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns);
 
 
 /** channel_update作成
- * 
- * DBから検索し、見つからなければ新規作成する(作成してもDB保存しない)。
- * 
+ *
+ * 現在時刻でchannel_updateを新規作成し、DB保存する。
+ *
  * @param[in]   self
  * @param[out]  pCnlUpd
  * @retval      ture    成功
  */
 bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd);
+
+
+/** 相手のchannel_update取得
+ *
+ * DBから検索し、見つからなければfalseを返す
+ *
+ * @param[in]   self
+ * @param[out]  pCnlUpd     検索したchannel_updateパケット
+ * @param[out]  pMsg        (非NULL)pCnlUpdデコード結果
+ * @retval      ture    成功
+ */
+bool ln_get_channel_update_peer(const ln_self_t *self, ucoin_buf_t *pCnlUpd, ln_cnl_update_t *pMsg);
 
 
 /** channel_update更新
