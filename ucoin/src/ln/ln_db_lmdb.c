@@ -2447,8 +2447,9 @@ bool ln_db_preimg_search(ln_db_func_preimg_t pFunc, void *p_param)
     bool ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
         ln_db_preimg_t preimg;
-        ret = ln_db_preimg_cur_get(p_cur, &preimg);
-        if (ret) {
+        bool detect;
+        ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);
+        if (detect) {
             ret = (*pFunc)(preimg.preimage, preimg.amount_msat, preimg.expiry, p_cur, p_param);
             if (ret) {
                 break;
@@ -2513,12 +2514,14 @@ void ln_db_preimg_cur_close(void *pCur)
 }
 
 
-bool ln_db_preimg_cur_get(void *pCur, ln_db_preimg_t *pPreImg)
+bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     int retval;
     MDB_val key, data;
     uint64_t now = (uint64_t)time(NULL);
+
+    *pDetect = false;
 
     if ((retval = mdb_cursor_get(p_cur->cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
         preimg_info_t *p_info = (preimg_info_t *)data.mv_data;
@@ -2534,6 +2537,7 @@ bool ln_db_preimg_cur_get(void *pCur, ln_db_preimg_t *pPreImg)
         if ((p_info->expiry == UINT32_MAX) || (now <= p_info->creation + p_info->expiry)) {
             memcpy(pPreImg->preimage, key.mv_data, key.mv_size);
             pPreImg->amount_msat = p_info->amount;
+            *pDetect = true;
 
             uint8_t hash[LN_SZ_HASH];
             ln_calc_preimage_hash(hash, pPreImg->preimage);
@@ -2544,7 +2548,6 @@ bool ln_db_preimg_cur_get(void *pCur, ln_db_preimg_t *pPreImg)
             LOGD("invoice timeout del: ");
             DUMPD(key.mv_data, key.mv_size);
             mdb_cursor_del(p_cur->cursor, 0);
-            retval = MDB_NOTFOUND;  //見つからなかったことにする
         }
     }
 

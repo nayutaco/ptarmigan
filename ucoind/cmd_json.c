@@ -546,8 +546,9 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     result = cJSON_CreateArray();
     ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        ret = ln_db_preimg_cur_get(p_cur, &preimg);
-        if (ret) {
+        bool detect;
+        ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);
+        if (detect) {
             ln_calc_preimage_hash(preimage_hash, preimg.preimage);
             cJSON *json = cJSON_CreateObject();
 

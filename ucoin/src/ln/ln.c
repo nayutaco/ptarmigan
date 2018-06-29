@@ -4634,8 +4634,9 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     void *p_cur;
     ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        ret = ln_db_preimg_cur_get(p_cur, &preimg);     //from invoice
-        if (ret) {
+        bool detect;
+        ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);     //from invoice
+        if (detect) {
             memcpy(pPreimage, preimg.preimage, LN_SZ_PREIMAGE);
             ln_calc_preimage_hash(preimage_hash, pPreimage);
             if (memcmp(preimage_hash, pAddHtlc->payment_sha256, LN_SZ_HASH) == 0) {

@@ -694,8 +694,9 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
         bool ret = true;
         while (ret) {
             ln_db_preimg_t preimg;
-            ret = ln_db_preimg_cur_get(&cur, &preimg);
-            if (ret) {
+            bool detect;
+            ret = ln_db_preimg_cur_get(&cur, &detect, &preimg);
+            if (detect) {
                 if (cnt4) {
                     printf(",");
                 }
