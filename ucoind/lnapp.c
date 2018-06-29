@@ -3356,6 +3356,7 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
 
     switch (p_revack->cmd) {
     case TRANSCMD_ADDHTLC:
+        LOGD("TRANSCMD_ADDHTLC\n");
         {
             //別チャネルの受信アイドル時キューにupdate_add_htlc要求する
             fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p_revack->buf.buf;
@@ -3377,12 +3378,14 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
         //自チャネルの受信アイドル時キューにupdate_fulfill_htlc要求する。
         //revoke_and_ack後キューにupdate_fulfill_htlc要求が入るのは、last nodeの場合のみ。
         //update_fulfill_htlcの巻き戻しは受信アイドル時キューに要求するため、ここは通らない。
+        LOGD("TRANSCMD_FULFILL\n");
         lnapp_transfer_channel(p_conf, TRANSCMD_FULFILL, &p_revack->buf);
         break;
     case TRANSCMD_FAIL:
         //自チャネルの受信アイドル時キューにupdate_fail_htlc要求する。
         //このルートは、update_add_htlc受信をln.cがNG判定した場合となる。
         //update_fail_htlcの巻き戻しは受信アイドル時キューに要求するため、ここは通らない。
+        LOGD("TRANSCMD_FAIL\n");
         {
             bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)p_revack->buf.buf;
 
@@ -3393,6 +3396,7 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
         }
         break;
     case TRANSCMD_PAYRETRY:
+        LOGD("TRANSCMD_PAYRETRY\n");
         cmd_json_pay_retry(p_revack->buf.buf);
         break;
     default:
@@ -3495,6 +3499,7 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
                 //解放
                 ucoin_buf_free(&p_fwd_add->shared_secret);
             } else {
+                LOGD("fail forward\n");
                 ucoin_buf_t buf;
                 ucoin_buf_alloc(&buf, sizeof(bwd_proc_fail_t));
                 bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)buf.buf;
