@@ -484,10 +484,20 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     if (p_invoice_data->expiry != LN_INVOICE_EXPIRY) {
         data[datalen++] = 6;    // expiry
         data[datalen++] = 0;    // 最大32bitなので、ここは0になる
-        //data[datalen++] = 7;
         datalen++;
 
         int len = convert64_to8(data + datalen, p_invoice_data->expiry);
+        data[datalen - 1] = (uint8_t)len;
+        datalen += len;
+    }
+
+    //min_final_cltv_expiry
+    if (p_invoice_data->min_final_cltv_expiry != LN_MIN_FINAL_CLTV_EXPIRY) {
+        data[datalen++] = 24;   // min_final_cltv_expiry
+        data[datalen++] = 0;    // 最大32bitなので、ここは0になる
+        datalen++;
+
+        int len = convert64_to8(data + datalen, p_invoice_data->min_final_cltv_expiry);
         data[datalen - 1] = (uint8_t)len;
         datalen += len;
     }

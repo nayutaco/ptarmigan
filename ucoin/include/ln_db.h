@@ -541,10 +541,11 @@ void ln_db_preimg_cur_close(void *pCur);
 /** preimage取得
  *
  * @param[in]       pCur
+ * @param[out]      pDetect     true:取得成功
  * @param[out]      pPreImg
- * @retval  true
+ * @retval  true        エラーでは無い
  */
-bool ln_db_preimg_cur_get(void *pCur, ln_db_preimg_t *pPreImg);
+bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg);
 
 
 /** preimage expiry更新
