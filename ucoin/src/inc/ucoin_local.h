@@ -30,13 +30,6 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 
-#ifdef UCOIN_USE_ULOG
-#else   //UCOIN_USE_ULOG
-static inline int tid() {
-    return (int)syscall(SYS_gettid);
-}
-#endif  //UCOIN_USE_ULOG
-
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdint.h>
@@ -106,7 +99,6 @@ static inline int tid() {
 #define PRINTOUT        stdout
 
 #ifdef UCOIN_DEBUG
-#ifdef UCOIN_USE_ULOG
 #include "ulog.h"
 
 #define LOGV(...)       ulog_write(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 1, "LIB", __func__, __VA_ARGS__)
@@ -117,25 +109,6 @@ static inline int tid() {
 #define LOGD2(...)      ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", __func__, __VA_ARGS__)
 #define DUMPD(dt,ln)    ulog_dump(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", __func__, dt, ln)
 #define TXIDD(dt)       ulog_dump_rev(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "LIB", __func__, dt, UCOIN_SZ_TXID)
-
-#else   //UCOIN_USE_ULOG
-
-#define DEBUGOUT        stderr
-
-/// @def    LOGV(format, ...)
-/// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
-#define LOGV(format, ...)   {fprintf(DEBUGOUT, "%lu (%d)[%s:%d]", (unsigned long)time(NULL), (int)tid(), __func__, (int)__LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
-#define DUMPV(dt,ln)        ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
-#define TXIDV(dt)           {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
-/// @def    LOGD(format, ...)
-/// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
-#define LOGD(format, ...)   {fprintf(DEBUGOUT, "%lu (%d)[%s:%d]", (unsigned long)time(NULL), (int)tid(), __func__, (int)__LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
-#define LOGD2(format, ...)  {fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
-/// @def    DUMPD(dt,ln)
-/// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
-#define DUMPD(dt,ln)        ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
-#define TXIDD(dt)           {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
-#endif  //UCOIN_USE_ULOG
 
 #else //UCOIN_DEBUG
 #define LOGV(...)       //none
