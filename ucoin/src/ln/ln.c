@@ -955,7 +955,7 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
 
-    //ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+    //ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //復元用
     uint8_t bak_percommit[UCOIN_SZ_PRIVKEY];
