@@ -95,7 +95,11 @@ int main(int argc, char *argv[])
     ln_nodeaddr_t *p_addr = ln_node_addr();
     char *p_alias = ln_node_alias();
 
+#ifdef ENABLE_ULOG_TO_STDOUT
+    ulog_init_stdout();
+#else
     ulog_init();
+#endif
 
     memset(&rpc_conf, 0, sizeof(rpc_conf_t));
 #ifndef NETKIND

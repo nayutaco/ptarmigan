@@ -63,6 +63,22 @@ bool ulog_init_stderr(void)
 }
 
 
+bool ulog_init_stdout(void)
+{
+    if (mFp != NULL) {
+        return true;
+    }
+
+    mFp = stdout;
+
+    pthread_mutex_init(&mMux, NULL);
+
+    ulog_write(ULOG_PRI_INFO, __FILE__, __LINE__, 1, "ULOG", "INIT", "=== ULOG START ===\n");
+
+    return true;
+}
+
+
 void ulog_term(void)
 {
     if (mFp != NULL) {
