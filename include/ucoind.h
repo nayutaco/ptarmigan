@@ -111,8 +111,6 @@ static inline int tid() {
 
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))
 
-#define PRINTOUT        stderr
-
 #if 1
 #include "ulog.h"
 #define LOG_TAG "APP"

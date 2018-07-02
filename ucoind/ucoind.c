@@ -292,17 +292,17 @@ int main(int argc, char *argv[])
     return 0;
 
 LABEL_EXIT:
-    fprintf(PRINTOUT, "[usage]\n");
-    fprintf(PRINTOUT, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
-    fprintf(PRINTOUT, "\n");
-    fprintf(PRINTOUT, "\t\t-h : help\n");
-    fprintf(PRINTOUT, "\t\t-p PORT : node port(default: 9735)\n");
-    fprintf(PRINTOUT, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\")\n");
-    fprintf(PRINTOUT, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
-    fprintf(PRINTOUT, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
-    // fprintf(PRINTOUT, "\t\t-i : show node_id(not start node)\n");
-    fprintf(PRINTOUT, "\t\t-x : erase current DB(without node_id)(TEST)\n");
-    fprintf(PRINTOUT, "\t\t-N : erase node_announcement DB(TEST)\n");
+    fprintf(stderr, "[usage]\n");
+    fprintf(stderr, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "\t\t-h : help\n");
+    fprintf(stderr, "\t\t-p PORT : node port(default: 9735)\n");
+    fprintf(stderr, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\")\n");
+    fprintf(stderr, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
+    fprintf(stderr, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
+    // fprintf(stderr, "\t\t-i : show node_id(not start node)\n");
+    fprintf(stderr, "\t\t-x : erase current DB(without node_id)(TEST)\n");
+    fprintf(stderr, "\t\t-N : erase node_announcement DB(TEST)\n");
     return -1;
 }
 

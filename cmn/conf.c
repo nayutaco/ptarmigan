@@ -69,7 +69,7 @@ bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
     }
 
 #ifdef M_DEBUG
-    fprintf(PRINTOUT, "\n--- [%s] ---\n", pConfFile);
+    fprintf(stderr, "\n--- [%s] ---\n", pConfFile);
     print_peer_conf(pPeerConf);
 #endif
 
@@ -79,11 +79,11 @@ bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
 
 void print_peer_conf(const peer_conf_t *pPeerConf)
 {
-    fprintf(PRINTOUT, "\n--- peer ---\n");
-    fprintf(PRINTOUT, "ipaddr=%s\n", pPeerConf->ipaddr);
-    fprintf(PRINTOUT, "port=%d\n", pPeerConf->port);
-    fprintf(PRINTOUT, "node_id=");
-    ucoin_util_dumpbin(PRINTOUT, pPeerConf->node_id, UCOIN_SZ_PUBKEY, true);
+    fprintf(stderr, "\n--- peer ---\n");
+    fprintf(stderr, "ipaddr=%s\n", pPeerConf->ipaddr);
+    fprintf(stderr, "port=%d\n", pPeerConf->port);
+    fprintf(stderr, "node_id=");
+    ucoin_util_dumpbin(stderr, pPeerConf->node_id, UCOIN_SZ_PUBKEY, true);
 }
 
 
@@ -101,7 +101,7 @@ bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
     }
 
 #ifdef M_DEBUG
-    fprintf(PRINTOUT, "\n--- [%s] ---\n", pConfFile);
+    fprintf(stderr, "\n--- [%s] ---\n", pConfFile);
     print_funding_conf(pFundConf);
 #endif
 
@@ -111,13 +111,13 @@ bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
 
 void print_funding_conf(const funding_conf_t *pFundConf)
 {
-    fprintf(PRINTOUT, "\n--- funding ---\n");
-    fprintf(PRINTOUT, "txid=");
-    ucoin_util_dumptxid(PRINTOUT, pFundConf->txid);
-    fprintf(PRINTOUT, "\n");
-    fprintf(PRINTOUT, "txindex=%d\n", pFundConf->txindex);
-    fprintf(PRINTOUT, "funding_sat=%" PRIu64 "\n", pFundConf->funding_sat);
-    fprintf(PRINTOUT, "push_sat=%" PRIu64 "\n\n", pFundConf->push_sat);
+    fprintf(stderr, "\n--- funding ---\n");
+    fprintf(stderr, "txid=");
+    ucoin_util_dumptxid(stderr, pFundConf->txid);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "txindex=%d\n", pFundConf->txindex);
+    fprintf(stderr, "funding_sat=%" PRIu64 "\n", pFundConf->funding_sat);
+    fprintf(stderr, "push_sat=%" PRIu64 "\n\n", pFundConf->push_sat);
 }
 
 
@@ -138,9 +138,9 @@ bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
     }
 
 #ifdef M_DEBUG
-    fprintf(PRINTOUT, "rpcuser=%s\n", pRpcConf->rpcuser);
-    fprintf(PRINTOUT, "rpcport=%d\n", pRpcConf->rpcport);
-    fprintf(PRINTOUT, "rpcurl=%s\n", pRpcConf->rpcurl);
+    fprintf(stderr, "rpcuser=%s\n", pRpcConf->rpcuser);
+    fprintf(stderr, "rpcport=%d\n", pRpcConf->rpcport);
+    fprintf(stderr, "rpcurl=%s\n", pRpcConf->rpcurl);
 #endif
 
     return true;
@@ -169,7 +169,7 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
     }
 
 #ifdef M_DEBUG
-    fprintf(PRINTOUT, "\n--- [%s] ---\n", pConfFile);
+    fprintf(stderr, "\n--- [%s] ---\n", pConfFile);
     print_payment_conf(pPayConf);
 #endif
 
@@ -182,17 +182,17 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
 
 void print_payment_conf(const payment_conf_t *pPayConf)
 {
-    fprintf(PRINTOUT, "\n--- payment ---\n");
-    fprintf(PRINTOUT, "payment_hash=");
-    ucoin_util_dumpbin(PRINTOUT, pPayConf->payment_hash, LN_SZ_HASH, true);
-    fprintf(PRINTOUT, "hop_num=%d\n", pPayConf->hop_num);
+    fprintf(stderr, "\n--- payment ---\n");
+    fprintf(stderr, "payment_hash=");
+    ucoin_util_dumpbin(stderr, pPayConf->payment_hash, LN_SZ_HASH, true);
+    fprintf(stderr, "hop_num=%d\n", pPayConf->hop_num);
     for (int lp = 0; lp < pPayConf->hop_num; lp++) {
-        fprintf(PRINTOUT, " [%d]:\n", lp);
-        fprintf(PRINTOUT, "  node_id= ");
-        ucoin_util_dumpbin(PRINTOUT, pPayConf->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, true);
-        fprintf(PRINTOUT, "  short_channel_id= %" PRIx64 "\n", pPayConf->hop_datain[lp].short_channel_id);
-        fprintf(PRINTOUT, "  amount_msat= %" PRIu64 "\n", pPayConf->hop_datain[lp].amt_to_forward);
-        fprintf(PRINTOUT, "  cltv_expiry: %u\n", pPayConf->hop_datain[lp].outgoing_cltv_value);
+        fprintf(stderr, " [%d]:\n", lp);
+        fprintf(stderr, "  node_id= ");
+        ucoin_util_dumpbin(stderr, pPayConf->hop_datain[lp].pubkey, UCOIN_SZ_PUBKEY, true);
+        fprintf(stderr, "  short_channel_id= %" PRIx64 "\n", pPayConf->hop_datain[lp].short_channel_id);
+        fprintf(stderr, "  amount_msat= %" PRIu64 "\n", pPayConf->hop_datain[lp].amt_to_forward);
+        fprintf(stderr, "  cltv_expiry: %u\n", pPayConf->hop_datain[lp].outgoing_cltv_value);
     }
 }
 

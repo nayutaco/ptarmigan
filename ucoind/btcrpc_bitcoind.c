@@ -1252,61 +1252,61 @@ int main(int argc, char *argv[])
 
     bool ret;
 
-//    fprintf(PRINTOUT, "-[getblockcount]-------------------------\n");
+//    fprintf(stderr, "-[getblockcount]-------------------------\n");
 //    int blocks = getblockcount();
-//    fprintf(PRINTOUT, "blocks = %d\n", blocks);
+//    fprintf(stderr, "blocks = %d\n", blocks);
 
-//    fprintf(PRINTOUT, "-[short_channel_info]-------------------------\n");
+//    fprintf(stderr, "-[short_channel_info]-------------------------\n");
 //    int bindex;
 //    int bheight;
 //    ret = btcrpc_get_short_channel_param(&bindex, &bheight, TXID);
 //    if (ret) {
-//        fprintf(PRINTOUT, "index = %d\n", bindex);
-//        fprintf(PRINTOUT, "height = %d\n", bheight);
+//        fprintf(stderr, "index = %d\n", bindex);
+//        fprintf(stderr, "height = %d\n", bheight);
 //    }
 
 //    int conf;
-//    fprintf(PRINTOUT, "-conf-------------------------\n");
+//    fprintf(stderr, "-conf-------------------------\n");
 //    conf = btcrpc_get_confirmation(TXID);
-//    fprintf(PRINTOUT, "confirmations = %d\n", conf);
+//    fprintf(stderr, "confirmations = %d\n", conf);
 
-//    fprintf(PRINTOUT, "-getnewaddress-------------------------\n");
+//    fprintf(stderr, "-getnewaddress-------------------------\n");
 //    char addr[UCOIN_SZ_ADDR_MAX];
 //    ret = btcrpc_getnewaddress(addr);
 //    if (ret) {
-//        fprintf(PRINTOUT, "addr=%s\n", addr);
+//        fprintf(stderr, "addr=%s\n", addr);
 //    }
 
-//    fprintf(PRINTOUT, "-dumpprivkey-------------------------\n");
+//    fprintf(stderr, "-dumpprivkey-------------------------\n");
 //    char wif[UCOIN_SZ_WIF_MAX];
 //    ret = btcrpc_dumpprivkey(wif, addr);
 //    if (ret) {
-//        fprintf(PRINTOUT, "wif=%s\n", wif);
+//        fprintf(stderr, "wif=%s\n", wif);
 //    }
 
-    //fprintf(PRINTOUT, "-gettxout-------------------------\n");
+    //fprintf(stderr, "-gettxout-------------------------\n");
     //bool unspent;
     //uint64_t value;
     //ret = btcrpc_check_unspent(&unspent, &value, TXID, 1);
     //if (ret && unspent) {
-    //    fprintf(PRINTOUT, "value=%" PRIu64 "\n", value);
+    //    fprintf(stderr, "value=%" PRIu64 "\n", value);
     //}
 
-//    fprintf(PRINTOUT, "-getrawtx------------------------\n");
+//    fprintf(stderr, "-getrawtx------------------------\n");
 //    ret = btcrpc_is_tx_broadcasted(TXID);
-//    fprintf(PRINTOUT, "ret=%d\n", ret);
+//    fprintf(stderr, "ret=%d\n", ret);
 
-//    fprintf(PRINTOUT, "--------------------------\n");
+//    fprintf(stderr, "--------------------------\n");
 //    uint8_t txid[UCOIN_SZ_TXID];
 //    bool ret = btcrpc_sendraw_tx(txid, NULL, TX, sizeof(TX));
 //    if (ret) {
 //        for (int lp = 0; lp < sizeof(txid); lp++) {
-//            fprintf(PRINTOUT, "%02x", txid[lp]);
+//            fprintf(stderr, "%02x", txid[lp]);
 //        }
-//        fprintf(PRINTOUT, "\n");
+//        fprintf(stderr, "\n");
 //    }
 
-    // fprintf(PRINTOUT, "--------------------------\n");
+    // fprintf(stderr, "--------------------------\n");
     // {
     //     uint32_t bheight;
     //     uint32_t bindex;
@@ -1317,15 +1317,15 @@ int main(int argc, char *argv[])
     //     short_channel_id = 0x11a7810000440000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
     //     unspent = btcrpc_is_short_channel_unspent(bheight, bindex, vindex);
-    //     fprintf(PRINTOUT, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
+    //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
 
     //     short_channel_id = 0x11a2eb0000210000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
     //     unspent = btcrpc_is_short_channel_unspent(bheight, bindex, vindex);
-    //     fprintf(PRINTOUT, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
+    //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
     // }
 
-    fprintf(PRINTOUT, "--------------------------\n");
+    fprintf(stderr, "--------------------------\n");
     {
         uint64_t feeperrate;
         bool ret = btcrpc_estimatefee(&feeperrate, 3);
@@ -1336,7 +1336,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    fprintf(PRINTOUT, "--------------------------\n");
+    fprintf(stderr, "--------------------------\n");
 
     btcrpc_term();
     ucoin_term();

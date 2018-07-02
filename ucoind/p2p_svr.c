@@ -108,7 +108,7 @@ void *p2p_svr_start(void *pArg)
         LOGD("listen: %s\n", strerror(errno));
         goto LABEL_EXIT;
     }
-    fprintf(PRINTOUT, "listening...\n");
+    fprintf(stderr, "listening...\n");
 
     struct pollfd fds;
     while (mLoop) {
@@ -133,7 +133,7 @@ void *p2p_svr_start(void *pArg)
         }
         if (idx < (int)ARRAY_SIZE(mAppConf)) {
             socklen_t cl_len = sizeof(cl_addr);
-            //fprintf(PRINTOUT, "accept...\n");
+            //fprintf(stderr, "accept...\n");
             mAppConf[idx].sock = accept(sock, (struct sockaddr *)&cl_addr, &cl_len);
             if (mAppConf[idx].sock < 0) {
                 LOGD("accept: %s\n", strerror(errno));
@@ -147,7 +147,7 @@ void *p2p_svr_start(void *pArg)
             mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
 
             LOGD("[server]connect from addr=%s, port=%d\n", mAppConf[idx].conn_str, mAppConf[idx].conn_port);
-            //fprintf(PRINTOUT, "[server]accepted(%d) socket=%d, addr=%s, port=%d\n", idx, mAppConf[idx].sock, mAppConf[idx].conn_str, mAppConf[idx].conn_port);
+            //fprintf(stderr, "[server]accepted(%d) socket=%d, addr=%s, port=%d\n", idx, mAppConf[idx].sock, mAppConf[idx].conn_str, mAppConf[idx].conn_port);
 
             lnapp_start(&mAppConf[idx]);
         } else {
