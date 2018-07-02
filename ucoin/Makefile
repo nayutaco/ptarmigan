@@ -10,7 +10,7 @@ CFLAGS_USER = -DUCOIN_USE_RNG
 #CFLAGS_USER += -DUCOIN_DEBUG_MEM
 ######################################
 
-include ../common.mak
+include ../options.mak
 
 #GNU_PREFIX := arm-none-eabi-
 
