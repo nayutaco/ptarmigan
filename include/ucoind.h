@@ -115,26 +115,28 @@ static inline int tid() {
 
 #if 1
 #include "ulog.h"
-#define LOGV(...)       ulog_write(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 1, "APP", __func__, __VA_ARGS__)
-#define DUMPV(dt,ln)    ulog_dump(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, "APP", __func__, dt, ln)
-#define TXIDV(dt)       ulog_dump_rev(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, "APP", __func__, dt, UCOIN_SZ_TXID)
+#define LOG_TAG "APP"
 
-#define LOGD(...)       ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 1, "APP", __func__, __VA_ARGS__)
-#define LOGD2(...)      ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __func__, __VA_ARGS__)
-#define DUMPD(dt,ln)    ulog_dump(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __func__, dt, ln)
-#define TXIDD(dt)       ulog_dump_rev(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __func__, dt, UCOIN_SZ_TXID)
+#define LOGV(...)       ulog_write(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
+#define DUMPV(dt,ln)    ulog_dump(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
+#define TXIDV(dt)       ulog_dump_rev(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, UCOIN_SZ_TXID)
 
-#else //UCOIN_DEBUG
+#define LOGD(...)       ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
+#define LOGD2(...)      ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, __VA_ARGS__)
+#define DUMPD(dt,ln)    ulog_dump(ULOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
+#define TXIDD(dt)       ulog_dump_rev(ULOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, UCOIN_SZ_TXID)
+
+#else
 #define LOGV(...)       //none
 #define DUMPV(...)      //none
 #define TXIDV(...)      //none
 
-#define LOGD(...)     //none
-#define LOGD2(...)    //none
-#define DUMPD(...)        //none
-#define TXIDD(...)       //none
+#define LOGD(...)       //none
+#define LOGD2(...)      //none
+#define DUMPD(...)      //none
+#define TXIDD(...)      //none
 
-#endif //UCOIN_DEBUG
+#endif
 
 
 /********************************************************************
