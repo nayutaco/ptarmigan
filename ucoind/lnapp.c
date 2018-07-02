@@ -107,8 +107,15 @@
 
 #define M_SCRIPT_DIR            "./script/"
 
-
 #define M_FLAG_MASK(flag, mask) (((flag) & (mask)) == (mask))
+
+#ifdef DEBUGTRACE
+#define DBGTRACE_BEGIN  LOGD("BEGIN\n");
+#define DBGTRACE_END    LOGD("END\n");
+#else
+#define DBGTRACE_BEGIN
+#define DBGTRACE_END
+#endif
 
 
 /********************************************************************

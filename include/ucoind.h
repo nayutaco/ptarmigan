@@ -114,8 +114,6 @@ static inline int tid() {
 #define PRINTOUT        stderr
 
 #if 1
-//#define DEBUGTRACE
-
 #include "ulog.h"
 #define LOGV(...)       ulog_write(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 1, "APP", __func__, __VA_ARGS__)
 #define DUMPV(dt,ln)    ulog_dump(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, "APP", __func__, dt, ln)
@@ -126,14 +124,6 @@ static inline int tid() {
 #define DUMPD(dt,ln)    ulog_dump(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __func__, dt, ln)
 #define TXIDD(dt)       ulog_dump_rev(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __func__, dt, UCOIN_SZ_TXID)
 
-#ifdef DEBUGTRACE
-#define DBGTRACE_BEGIN      {fprintf(stderr, "[%d]%s[%s:%d]BEGIN\n", tid(), __func__, __FILE__, __LINE__);}
-#define DBGTRACE_END        {fprintf(stderr, "[%d]%s[%s:%d]END\n", tid(), __func__, __FILE__, __LINE__);}
-#else
-#define DBGTRACE_BEGIN
-#define DBGTRACE_END
-#endif
-
 #else //UCOIN_DEBUG
 #define LOGV(...)       //none
 #define DUMPV(...)      //none
@@ -143,8 +133,6 @@ static inline int tid() {
 #define LOGD2(...)    //none
 #define DUMPD(...)        //none
 #define TXIDD(...)       //none
-#define DBGTRACE_BEGIN
-#define DBGTRACE_END
 
 #endif //UCOIN_DEBUG
 
