@@ -96,8 +96,6 @@
 
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
-#define PRINTOUT        stdout
-
 #ifdef UCOIN_DEBUG
 #include "ulog.h"
 #define LOG_TAG "LIB"

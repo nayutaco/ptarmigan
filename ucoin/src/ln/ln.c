@@ -128,7 +128,7 @@
 
 #if !defined(M_DBG_VERBOSE) && !defined(UCOIN_USE_PRINTFUNC)
 #define M_DBG_PRINT_TX(tx)      //NONE
-//#define M_DBG_PRINT_TX(tx)      fprintf(PRINTOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
+//#define M_DBG_PRINT_TX(tx)    LOGD(""); ucoin_print_tx(tx)
 #define M_DBG_PRINT_TX2(tx)     //NONE
 #else
 #define M_DBG_PRINT_TX(tx)      LOGD("\n"); ucoin_print_tx(tx)
