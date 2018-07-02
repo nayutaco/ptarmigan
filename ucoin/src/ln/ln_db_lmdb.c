@@ -898,18 +898,18 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
         if (retval == 0) {
             const uint8_t *p = (const uint8_t *)data.mv_data;
             if ((lp != 0) && (DBCOPY_IDX[lp].disp)) {
-                fprintf(PRINTOUT, ",\n");
+                printf(",\n");
             }
             if (DBCOPY_IDX[lp].disp) {
-                fprintf(PRINTOUT, "      \"%s\": ", DBCOPY_KEYS[lp].name);
+                printf("      \"%s\": ", DBCOPY_KEYS[lp].name);
             }
             switch (DBCOPY_IDX[lp].type) {
             case ETYPE_BYTEPTR: //const uint8_t*
             case ETYPE_REMOTECOMM:
                 if (DBCOPY_IDX[lp].disp) {
-                    fprintf(PRINTOUT, "\"");
-                    ucoin_util_dumpbin(PRINTOUT, p, DBCOPY_IDX[lp].length, false);
-                    fprintf(PRINTOUT, "\"");
+                    printf("\"");
+                    ucoin_util_dumpbin(stdout, p, DBCOPY_IDX[lp].length, false);
+                    printf("\"");
                 }
 #ifdef M_DEBUG_KEYS
                 if (DBCOPY_IDX[lp].type == ETYPE_REMOTECOMM) {
@@ -919,13 +919,13 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                 break;
             case ETYPE_UINT64:
                 if (DBCOPY_IDX[lp].disp) {
-                    fprintf(PRINTOUT, "\"%" PRIx64 "\"", *(const uint64_t *)p);
+                    printf("\"%" PRIx64 "\"", *(const uint64_t *)p);
                 }
                 break;
             case ETYPE_UINT16:
             case ETYPE_FUNDTXIDX:
                 if (DBCOPY_IDX[lp].disp) {
-                    fprintf(PRINTOUT, "%" PRIu16, *(const uint16_t *)p);
+                    printf("%" PRIu16, *(const uint16_t *)p);
                 }
 #ifdef M_DEBUG_KEYS
                 if (DBCOPY_IDX[lp].type == ETYPE_FUNDTXIDX) {
@@ -936,9 +936,9 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
             case ETYPE_TXID: //txid
             case ETYPE_FUNDTXID:
                 if (DBCOPY_IDX[lp].disp) {
-                    fprintf(PRINTOUT, "\"");
-                    ucoin_util_dumptxid(PRINTOUT, p);
-                    fprintf(PRINTOUT, "\"");
+                    printf("\"");
+                    ucoin_util_dumptxid(stdout, p);
+                    printf("\"");
                 }
 #ifdef M_DEBUG_KEYS
                 if (DBCOPY_IDX[lp].type == ETYPE_FUNDTXID) {
@@ -971,7 +971,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
 #ifdef M_DEBUG_KEYS
     if ( ((local.pubkeys[0][0] == 0x02) || (local.pubkeys[0][0] == 0x03)) &&
          ((remote.pubkeys[0][0] == 0x02) || (remote.pubkeys[0][0] == 0x03))) {
-        fprintf(PRINTOUT, "\n");
+        printf("\n");
         ln_misc_update_scriptkeys(&local, &remote);
         //ln_print_keys(&local, &remote);
     }

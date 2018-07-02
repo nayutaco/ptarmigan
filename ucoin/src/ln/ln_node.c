@@ -410,9 +410,9 @@ static void print_node(void)
 {
     printf("=NODE=============================================\n");
     // printf("node_key: ");
-    // ucoin_util_dumpbin(PRINTOUT, mNode.keys.priv, UCOIN_SZ_PRIVKEY, true);
+    // ucoin_util_dumpbin(stdout, mNode.keys.priv, UCOIN_SZ_PRIVKEY, true);
     printf("node_id: ");
-    ucoin_util_dumpbin(PRINTOUT, mNode.keys.pub, UCOIN_SZ_PUBKEY, true);
+    ucoin_util_dumpbin(stdout, mNode.keys.pub, UCOIN_SZ_PUBKEY, true);
     printf("features= %02x\n", mNode.features);
     printf("alias= %s\n", mNode.alias);
     printf("addr.type=%d\n", mNode.addr.type);
