@@ -34,10 +34,6 @@
 #include "segwit_addr.h"
 
 
-#ifdef UCOIN_USE_ULOG
-#include "ulog.h"
-#endif  //UCOIN_USE_ULOG
-
 /**************************************************************************
  * macros
  **************************************************************************/
@@ -364,25 +360,6 @@ void ucoin_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
     }
 }
 
-
-bool ucoin_util_log_init(void)
-{
-#ifdef UCOIN_USE_ULOG
-    bool ret = ulog_init();
-#else   //UCOIN_USE_ULOG
-    bool ret = true;
-#endif  //UCOIN_USE_ULOG
-
-    return ret;
-}
-
-
-void ucoin_util_log_term(void)
-{
-#ifdef UCOIN_USE_ULOG
-    ulog_term();
-#endif  //UCOIN_USE_ULOG
-}
 
 #if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
 /** uint8[]の内容をFILE*出力
