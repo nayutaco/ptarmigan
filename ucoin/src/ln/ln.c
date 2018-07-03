@@ -128,7 +128,7 @@
 
 #if !defined(M_DBG_VERBOSE) && !defined(UCOIN_USE_PRINTFUNC)
 #define M_DBG_PRINT_TX(tx)      //NONE
-//#define M_DBG_PRINT_TX(tx)      fprintf(PRINTOUT, "[%s:%d]", __func__, (int)__LINE__); ucoin_print_tx(tx)
+//#define M_DBG_PRINT_TX(tx)    LOGD(""); ucoin_print_tx(tx)
 #define M_DBG_PRINT_TX2(tx)     //NONE
 #else
 #define M_DBG_PRINT_TX(tx)      LOGD("\n"); ucoin_print_tx(tx)
@@ -955,7 +955,7 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     //to_local送金先設定確認
     assert(self->shutdown_scriptpk_local.len > 0);
 
-    //ln_print_keys(PRINTOUT, &self->funding_local, &self->funding_remote);
+    //ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //復元用
     uint8_t bak_percommit[UCOIN_SZ_PRIVKEY];

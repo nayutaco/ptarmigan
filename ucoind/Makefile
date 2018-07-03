@@ -9,7 +9,7 @@ OUTPUT_BINARY_DIRECTORY = .
 #CFLAGS_USER += -DAPP_DEBUG_MEM
 ######################################
 
-include ../common.mak
+include ../options.mak
 
 #echo suspend
 ifeq ("$(VERBOSE)","1")
@@ -66,9 +66,6 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 # others
 CFLAGS += $(INC_PATHS)
 CFLAGS += -DNETKIND=$(NETKIND)
-ifeq ($(USE_ULOG_UCOIND),1)
-CFLAGS += -DUCOIN_USE_ULOG
-endif
 
 ifeq ($(DISABLE_PRINTFUND),0)
 CFLAGS += -DUCOIN_USE_PRINTFUNC
@@ -76,6 +73,10 @@ endif
 
 ifeq ($(ENABLE_DEVELOPER_MODE),1)
 CFLAGS += -DDEVELOPER_MODE
+endif
+
+ifeq ($(ENABLE_ULOG_TO_STDOUT_UCOIND),1)
+CFLAGS += -DENABLE_ULOG_TO_STDOUT
 endif
 
 ######################################

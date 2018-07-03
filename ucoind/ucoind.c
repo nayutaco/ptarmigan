@@ -49,6 +49,7 @@
 #include "misc.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
+#include "ulog.h"
 
 #include "ucoind.h"
 #include "p2p_svr.h"
@@ -94,7 +95,11 @@ int main(int argc, char *argv[])
     ln_nodeaddr_t *p_addr = ln_node_addr();
     char *p_alias = ln_node_alias();
 
-    ucoin_util_log_init();
+#ifdef ENABLE_ULOG_TO_STDOUT
+    ulog_init_stdout();
+#else
+    ulog_init();
+#endif
 
     memset(&rpc_conf, 0, sizeof(rpc_conf_t));
 #ifndef NETKIND
@@ -286,22 +291,22 @@ int main(int argc, char *argv[])
     lnapp_term();
     btcrpc_term();
     ln_db_term();
-    ucoin_util_log_term();
+    ulog_term();
 
     return 0;
 
 LABEL_EXIT:
-    fprintf(PRINTOUT, "[usage]\n");
-    fprintf(PRINTOUT, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
-    fprintf(PRINTOUT, "\n");
-    fprintf(PRINTOUT, "\t\t-h : help\n");
-    fprintf(PRINTOUT, "\t\t-p PORT : node port(default: 9735)\n");
-    fprintf(PRINTOUT, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\")\n");
-    fprintf(PRINTOUT, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
-    fprintf(PRINTOUT, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
-    // fprintf(PRINTOUT, "\t\t-i : show node_id(not start node)\n");
-    fprintf(PRINTOUT, "\t\t-x : erase current DB(without node_id)(TEST)\n");
-    fprintf(PRINTOUT, "\t\t-N : erase node_announcement DB(TEST)\n");
+    fprintf(stderr, "[usage]\n");
+    fprintf(stderr, "\t%s [-p PORT NUM] [-n ALIAS NAME] [-c BITCOIN.CONF] [-a IPv4 ADDRESS] [-i]\n", argv[0]);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "\t\t-h : help\n");
+    fprintf(stderr, "\t\t-p PORT : node port(default: 9735)\n");
+    fprintf(stderr, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\")\n");
+    fprintf(stderr, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
+    fprintf(stderr, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
+    // fprintf(stderr, "\t\t-i : show node_id(not start node)\n");
+    fprintf(stderr, "\t\t-x : erase current DB(without node_id)(TEST)\n");
+    fprintf(stderr, "\t\t-N : erase node_announcement DB(TEST)\n");
     return -1;
 }
 

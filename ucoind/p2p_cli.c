@@ -144,9 +144,9 @@ bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     }
     LOGD("connected: sock=%d\n", mAppConf[idx].sock);
 
-    fprintf(PRINTOUT, "[client]connected: %s:%d\n", pConn->ipaddr, pConn->port);
-    fprintf(PRINTOUT, "[client]node_id=");
-    ucoin_util_dumpbin(PRINTOUT, pConn->node_id, UCOIN_SZ_PUBKEY, true);
+    fprintf(stderr, "[client]connected: %s:%d\n", pConn->ipaddr, pConn->port);
+    fprintf(stderr, "[client]node_id=");
+    ucoin_util_dumpbin(stderr, pConn->node_id, UCOIN_SZ_PUBKEY, true);
 
     //スレッド起動
     mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信

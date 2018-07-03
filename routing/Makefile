@@ -1,7 +1,7 @@
 SRC = routing_main.c
 OBJ = routing
 
-include ../common.mak
+include ../options.mak
 
 CFLAGS = --std=c99 -D_GNU_SOURCE -I../include -I../ucoin/include -I../ucoin/libs/install/include
 LDFLAGS = -L../libs/install/lib -L../ucoin/libs/install/lib -L../ucoin

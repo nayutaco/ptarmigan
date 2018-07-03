@@ -9,7 +9,7 @@ OUTPUT_BINARY_DIRECTORY = .
 #CFLAGS_USER += -DAPP_DEBUG_MEM
 ######################################
 
-include ../common.mak
+include ../options.mak
 
 #echo suspend
 ifeq ("$(VERBOSE)","1")
