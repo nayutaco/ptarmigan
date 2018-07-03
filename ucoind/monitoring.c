@@ -434,6 +434,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
         if (p_htlc->prev_short_channel_id != 0) {
             //転送元がある場合、preimageを抽出する
             LOGD("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
+
             uint32_t confm = btcrpc_get_confirmation(ln_funding_txid(self));
             if (confm > 0) {
                 ucoin_tx_t tx = UCOIN_TX_INIT;
@@ -660,13 +661,14 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
                     LOGD("index=%d\n", pCloseDat->p_htlc_idx[lp]);
                     *pDel = false;
                 }
+                ucoin_tx_free(&tx);
             } else {
-                LOGD("fail: get confirm\n");
+                LOGD("fail: get confirmation\n");
             }
         }
     } else {
-        //タイムアウト用Txを展開(non-BIP68-finalの可能性あり)
-        send_req = true;
+        //タイムアウト用Txを展開
+        //  おそらく"Missing inputs"になる→意味あるのか？
     }
 
     return send_req;

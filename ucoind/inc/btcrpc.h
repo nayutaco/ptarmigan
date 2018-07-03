@@ -128,24 +128,25 @@ bool btcrpc_search_vout(ucoin_buf_t *pTxBuf, uint32_t Blks, const ucoin_buf_t *p
 
 /** [bitcoin rpc]signrawtransaction
  * @param[out]  pTx         トランザクション情報
- * @param[in]   pData       block height
- * @param@in]   Len         pData長
+ * @param[in]   pRawData    トランザクションRAWデータ
+ * @param[in]   Len         pRawData長
  * @retval  true        成功
  * @note
+ *      - funding_txへの署名を想定
  *      - pTxは戻り値がtrueの場合のみ更新する
  */
-bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len);
+bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pRawData, size_t Len);
 
 
 /** [bitcoin rpc]sendrawtransaction
  *
  * @param[out]  pTxid       取得したTXID(戻り値がtrue時)
  * @param[out]  pCode       結果コード
- * @param[in]   pData       送信データ
- * @param[in]   Len         pData長
+ * @param[in]   pRawData    トランザクションRAWデータ
+ * @param[in]   Len         pRawData長
  * @retval  true        送信成功
  */
-bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len);
+bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint32_t Len);
 
 
 /** [bitcoin rpc]トランザクション展開済み確認

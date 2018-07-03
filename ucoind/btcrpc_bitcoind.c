@@ -368,7 +368,7 @@ bool btcrpc_search_vout(ucoin_buf_t *pTxBuf, uint32_t Blks, const ucoin_buf_t *p
 }
 
 
-bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
+bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pRawData, size_t Len)
 {
     bool result = false;
     bool ret;
@@ -378,7 +378,7 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
     json_t *p_result;
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
-    ucoin_util_bin2str(transaction, pData, Len);
+    ucoin_util_bin2str(transaction, pRawData, Len);
 
     ret = signrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
     APP_FREE(transaction);
@@ -410,7 +410,7 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len)
 }
 
 
-bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len)
+bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint32_t Len)
 {
     bool result = false;
     bool ret;
@@ -420,7 +420,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_
     json_t *p_result;
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
-    ucoin_util_bin2str(transaction, pData, Len);
+    ucoin_util_bin2str(transaction, pRawData, Len);
 
     ret = sendrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
     APP_FREE(transaction);
