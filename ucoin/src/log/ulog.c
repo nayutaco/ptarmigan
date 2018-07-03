@@ -136,7 +136,7 @@ void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTa
 void ulog_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len)
 {
     char *p_str = (char *)malloc(Len * 2 + 1);
-    ucoin_util_bin2str(p_str, pData, Len);
+    ucoin_util_bin2str(p_str, (const uint8_t *)pData, Len);
     ulog_write(Pri, pFname, Line, Flag, pTag, pFunc, "%s\n", p_str);
     free(p_str);
 }
@@ -145,7 +145,7 @@ void ulog_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag
 void ulog_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len)
 {
     char *p_str = (char *)malloc(Len * 2 + 1);
-    ucoin_util_bin2str_rev(p_str, pData, Len);
+    ucoin_util_bin2str_rev(p_str, (const uint8_t *)pData, Len);
     ulog_write(Pri, pFname, Line, Flag, pTag, pFunc, "%s\n", p_str);
     free(p_str);
 }

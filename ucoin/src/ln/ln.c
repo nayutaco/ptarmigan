@@ -813,8 +813,7 @@ bool ln_create_announce_signs(ln_self_t *self, ucoin_buf_t *pBufAnnoSigns)
 
     //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
     //  localのsignature
-    uint8_t dir = ln_sort_to_dir(sort_nodeid(self, NULL));
-    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true, dir);
+    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true, sort_nodeid(self, NULL));
 
     ln_announce_signs_t anno_signs;
 
