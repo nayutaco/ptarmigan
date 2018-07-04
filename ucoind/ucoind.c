@@ -58,6 +58,13 @@
 #include "monitoring.h"
 #include "cmd_json.h"
 
+
+/**************************************************************************
+ * macros
+ **************************************************************************/
+#define M_OPTSTRING     "p:n:a:c:d:xNh"
+
+
 /********************************************************************
  * typedefs
  ********************************************************************/
@@ -85,6 +92,13 @@ static struct nodefaillisthead_t    mNodeFailListHead;
 
 
 /********************************************************************
+ * prototypes
+ ********************************************************************/
+
+static void reset_getopt();
+
+
+/********************************************************************
  * entry point
  ********************************************************************/
 
@@ -92,8 +106,28 @@ int main(int argc, char *argv[])
 {
     bool bret;
     rpc_conf_t rpc_conf;
-    ln_nodeaddr_t *p_addr = ln_node_addr();
-    char *p_alias = ln_node_alias();
+    ln_nodeaddr_t *p_addr;
+    char *p_alias;
+    int opt;
+
+    //`d` option is used to change working directory.
+    // It is done at the beginning of this process.
+    while ((opt = getopt(argc, argv, M_OPTSTRING)) != -1) {
+        switch (opt) {
+        case 'd':
+            if (chdir(optarg) != 0) {
+                fprintf(stderr, "fail: change the working directory\n");
+                return -1;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+    reset_getopt();
+
+    p_addr = ln_node_addr();
+    p_alias = ln_node_alias();
 
 #ifdef ENABLE_ULOG_TO_STDOUT
     ulog_init_stdout();
@@ -121,14 +155,13 @@ int main(int argc, char *argv[])
     p_addr->type = LN_NODEDESC_NONE;
     p_addr->port = 9735;
 
-    int opt;
     int options = 0;
-    while ((opt = getopt(argc, argv, "p:n:a:c:d:xNh")) != -1) {
+    while ((opt = getopt(argc, argv, M_OPTSTRING)) != -1) {
         switch (opt) {
-        case 'd':
-            //db directory
-            ln_lmdb_set_path(optarg);
-            break;
+        //case 'd':
+        //    //`d` option is used to change working directory.
+        //    // It is done at the beginning of this process.
+        //    break;
         case 'p':
             //port num
             p_addr->port = (uint16_t)atoi(optarg);
@@ -457,3 +490,18 @@ char *ucoind_error_str(int ErrCode)
 
     return strdup(p_str);
 }
+
+
+/********************************************************************
+ * private functions
+ ********************************************************************/
+
+static void reset_getopt()
+{
+    //optreset = 1;
+    //optind = 1;
+
+    //ref. http://man7.org/linux/man-pages/man3/getopt.3.html#NOTES
+    optind = 0;
+}
+
