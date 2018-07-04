@@ -280,15 +280,13 @@ LABEL_EXIT:
 }
 
 
-bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, uint32_t VIndex)
+bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
 {
     bool unspent = true;        //エラーでもunspentにしておく
     bool ret;
     char *p_json = NULL;
     json_t *p_root = NULL;
     json_t *p_tx = NULL;
-    json_t *p_result;
-    char txid[UCOIN_SZ_TXID * 2 + 1] = "";
 
     ret = getblocktx(&p_root, &p_tx, &p_json, BHeight);
     if (ret) {
@@ -298,31 +296,17 @@ bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, uint32_t VIndex)
 
         json_array_foreach(p_tx, index, p_value) {
             if ((int)index == BIndex) {
-                strcpy(txid, (const char *)json_string_value(p_value));
+                //TXIDはLE/BE変換
+                misc_str2bin_rev(pTxid, UCOIN_SZ_TXID, (const char *)json_string_value(p_value));
                 break;
             }
         }
     } else {
-        LOGD("fail: getblock_rpc\n");
-        goto LABEL_EXIT;
+        LOGD("fail: getblocktx\n");
     }
     if (p_root != NULL) {
         json_decref(p_root);
         p_root = NULL;
-    }
-    APP_FREE(p_json);
-
-    //TXID→spent/unspent
-    ret = gettxout_rpc(&p_root, &p_result, &p_json, txid, VIndex);
-    if (ret) {
-        unspent = !json_is_null(p_result);
-    } else {
-        LOGD("fail: gettxout_rpc\n");
-    }
-
-LABEL_EXIT:
-    if (p_root != NULL) {
-        json_decref(p_root);
     }
     APP_FREE(p_json);
 
@@ -458,19 +442,17 @@ bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
 }
 
 
-bool btcrpc_check_unspent(bool *pUnspent, const uint8_t *pTxid, uint32_t VIndex)
+bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
 {
-    uint64_t sat;
-    bool ret = gettxout(pUnspent, &sat, pTxid, VIndex);
-
-    return ret;
-}
-
-
-bool btcrpc_check_outpoint(uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
-{
-    bool unspent;
-    bool ret = gettxout(&unspent, pSat, pTxid, VIndex);
+    bool unspent = true;
+    uint64_t sat = 0;
+    bool ret = gettxout(&unspent, &sat, pTxid, VIndex);
+    if (pUnspent != NULL) {
+        *pUnspent = unspent;
+    }
+    if (pSat != NULL) {
+        *pSat = sat;
+    }
 
     return ret;
 }
@@ -1313,15 +1295,16 @@ int main(int argc, char *argv[])
     //     uint32_t vindex;
     //     bool unspent;
     //     uint64_t short_channel_id;
+    //     uint8_t txid[UCOIN_SZ_TXID];
 
     //     short_channel_id = 0x11a7810000440000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
-    //     unspent = btcrpc_is_short_channel_unspent(bheight, bindex, vindex);
+    //     unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
     //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
 
     //     short_channel_id = 0x11a2eb0000210000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
-    //     unspent = btcrpc_is_short_channel_unspent(bheight, bindex, vindex);
+    //     unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
     //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
     // }
 
