@@ -1,12 +1,10 @@
 #!/bin/sh
 
 killall ucoind
-cd node_3333
-../ucoind -c ../regtest.conf&
-cd .. 
-cd node_4444
-../ucoind -c ../regtest.conf&
-cd ..
+for i in 3333 4444
+do
+    ./ucoind -d ./node_$i -c ../regtest.conf &
+done
 
 sleep 1
 
