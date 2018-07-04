@@ -205,7 +205,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
 
                 //展開済みチェック
                 bool unspent;
-                bool ret = btcrpc_check_unspent(&unspent, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                bool ret = btcrpc_check_unspent(&unspent, NULL, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
                 if (!ret) {
                     goto LABEL_EXIT;
                 }
@@ -233,7 +233,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                     LOGD("code=%d\n", code);
                     ucoin_buf_free(&buf);
                     if (ret) {
-                        LOGD("broadcast txid[%d]: ", lp);
+                        LOGD("broadcast now tx[%d]: ", lp);
                         TXIDD(txid);
                         LOGD("-->OK\n");
                     } else {
@@ -257,7 +257,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
             LOGD("code=%d\n", code);
             ucoin_buf_free(&buf);
             if (ret) {
-                LOGD("broadcast after tx[%d]: ", lp);
+                LOGD("broadcast now tx[%d]: ", lp);
                 TXIDD(txid);
                 LOGD("-->OK\n");
             } else if ((code == BTCRPC_ERR_MISSING_INPUT) || (code == BTCRPC_ERR_ALREADY_BLOCK)) {
@@ -298,7 +298,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
     if (confm > 0) {
         bool del = false;
         bool unspent;
-        bool ret = btcrpc_check_unspent(&unspent, ln_funding_txid(self), ln_funding_txindex(self));
+        bool ret = btcrpc_check_unspent(&unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
         if (ret && !unspent) {
             //funding_tx使用済み
             del = funding_spent(self, confm, p_db_param);
@@ -538,7 +538,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 
                 //展開済みチェック
                 bool unspent;
-                bool ret = btcrpc_check_unspent(&unspent, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
+                bool ret = btcrpc_check_unspent(&unspent, NULL, close_dat.p_tx[lp].vin[0].txid, close_dat.p_tx[lp].vin[0].index);
                 if (lp == LN_CLOSE_IDX_TOREMOTE) {
                     //to_remoteは自分へのP2WPKH(remotekey)をbitcoind walletに送金する
                     send_req = ret && unspent;
@@ -575,7 +575,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                     ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
                     ucoin_buf_free(&buf);
                     if (ret) {
-                        LOGD("broadcast txid[%d]: ", lp);
+                        LOGD("broadcast now tx[%d]: ", lp);
                         TXIDD(txid);
                         LOGD("-->OK\n");
                     } else {
@@ -857,7 +857,7 @@ static bool close_revoked_tolocal(const ln_self_t *self, const ucoin_tx_t *pTx, 
         ucoin_tx_free(&tx);
         ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
         if (ret) {
-            LOGD("broadcast OK: ");
+            LOGD("broadcast now: ");
             TXIDD(txid);
         }
         ucoin_buf_free(&buf);
@@ -883,7 +883,7 @@ static bool close_revoked_toremote(const ln_self_t *self, const ucoin_tx_t *pTx,
         ucoin_tx_free(&tx);
         ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
         if (ret) {
-            LOGD("broadcast OK: ");
+            LOGD("broadcast now: ");
             TXIDD(txid);
         }
         ucoin_buf_free(&buf);
@@ -907,7 +907,7 @@ static bool close_revoked_htlc(const ln_self_t *self, const ucoin_tx_t *pTx, int
     ucoin_tx_free(&tx);
     bool ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
     if (ret) {
-        LOGD("broadcast OK: ");
+        LOGD("broadcast now: ");
         TXIDD(txid);
     }
     ucoin_buf_free(&buf);

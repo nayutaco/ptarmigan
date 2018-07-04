@@ -1424,9 +1424,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         return false;
     }
 
-    ret = btcrpc_check_outpoint(&fundin.amount, pFunding->txid, pFunding->txindex);
-    LOGD("ret=%d, fundin.amount=%" PRIu64 "\n", ret, fundin.amount);
-    if (ret && (fundin.amount > 0)) {
+    bool unspent;
+    ret = btcrpc_check_unspent(&unspent, &fundin.amount, pFunding->txid, pFunding->txindex);
+    LOGD("ret=%d, unspent=%d, fundin.amount=%" PRIu64 "\n", ret, unspent, fundin.amount);
+    if (ret && unspent) {
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
             feerate_kw = monitoring_get_latest_feerate_kw();
@@ -1750,7 +1751,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 
     //funding_tx使用チェック
     bool unspent;
-    bool ret = btcrpc_check_unspent(&unspent, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
+    bool ret = btcrpc_check_unspent(&unspent, NULL, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
     if (ret && !unspent) {
         //ループ解除
         LOGD("funding_tx is spent.\n");
@@ -3719,17 +3720,23 @@ static void payroute_print(lnapp_conf_t *p_conf)
  */
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
 {
+    bool ret;
     uint32_t bheight;
     uint32_t bindex;
     uint32_t vindex;
-    ln_get_short_channel_id_param(&bheight, &bindex, &vindex, ShortChannelId);
+    bool unspent;
+    uint8_t txid[UCOIN_SZ_TXID];
 
-    bool ret = btcrpc_is_short_channel_unspent(bheight, bindex, vindex);
-    if (!ret) {
+    ln_get_short_channel_id_param(&bheight, &bindex, &vindex, ShortChannelId);
+    ret = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
+    if (ret) {
+        ret = btcrpc_check_unspent(&unspent, NULL, txid, vindex);
+    }
+    if (!(ret && unspent)) {
         LOGD("already spent : %016" PRIx64 "(height=%" PRIu32 ", bindex=%" PRIu32 ", txindex=%" PRIu32 ")\n", ShortChannelId, bheight, bindex, vindex);
     }
 
-    return ret;
+    return ret && unspent;
 }
 
 
