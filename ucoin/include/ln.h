@@ -756,6 +756,7 @@ typedef struct {
  */
 typedef struct {
     ucoin_tx_t              *p_tx;
+    uint64_t                amount;     //送金額[satoshi]
     bool                    ret;        //署名結果
 } ln_cb_funding_sign_t;
 

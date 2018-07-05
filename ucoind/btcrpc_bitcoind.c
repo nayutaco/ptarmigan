@@ -352,8 +352,10 @@ bool btcrpc_search_vout(ucoin_buf_t *pTxBuf, uint32_t Blks, const ucoin_buf_t *p
 }
 
 
-bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pRawData, size_t Len)
+bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount)
 {
+    (void)Amount;
+
     bool result = false;
     bool ret;
     char *p_json = NULL;
@@ -362,7 +364,7 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pRawData, size_t Len)
     json_t *p_result;
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
-    ucoin_util_bin2str(transaction, pRawData, Len);
+    ucoin_util_bin2str(transaction, pData, Len);
 
     ret = signrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
     APP_FREE(transaction);
@@ -748,7 +750,7 @@ static bool search_outpoint(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, 
 /** [bitcoin rpc]blockからvoutが一致するtransactionを検索
  * @param[out]  pTxBuf      トランザクション情報(ucoin_tx_tの配列を保存する)
  * @param[in]   BHeight     block height
- * @param[in]   pVout       vout
+ * @param[in]   pVout       vout(ucoin_buf_tの配列)
  * @retval  true        検索成功(1つでも見つかった)
  * @note
  *      - pTxBufの扱いに注意すること
