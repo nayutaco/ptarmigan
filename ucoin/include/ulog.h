@@ -19,7 +19,11 @@ extern "C" {
 #define ULOG_PRI_INFO       (2)
 #define ULOG_PRI_DBG        (3)
 #define ULOG_PRI_VERBOSE    (4)
+#ifdef DEVELOPER_MODE
+#define ULOG_PRI            ULOG_PRI_VERBOSE
+#else
 #define ULOG_PRI            ULOG_PRI_DBG
+#endif
 
 
 bool ulog_init(void);

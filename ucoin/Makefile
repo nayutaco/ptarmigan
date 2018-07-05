@@ -105,6 +105,10 @@ ifeq ($(DISABLE_PRINTFUND),0)
 CFLAGS_CMN += -DUCOIN_USE_PRINTFUNC
 endif
 
+ifeq ($(ENABLE_DEVELOPER_MODE),1)
+CFLAGS_CMN += -DDEVELOPER_MODE
+endif
+
 ######################################
 #CFLAGS only
 ######################################
