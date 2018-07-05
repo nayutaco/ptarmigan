@@ -127,12 +127,12 @@ bool btcrpc_search_vout(ucoin_buf_t *pTxBuf, uint32_t Blks, const ucoin_buf_t *p
 
 /** [bitcoin rpc]signrawtransaction
  * @param[out]  pTx         トランザクション情報
- * @param[in]   pData       [bitcoind]トランザクションRAWデータ, [SPV]送金先Hash
+ * @param[in]   pData       [bitcoind]トランザクションRAWデータ, [SPV]scriptPubKey
  * @param[in]   Len         pData長
  * @param[in]   Amount      送金額(bitcoindの場合は無視)
  * @retval  true        成功
  * @note
- *      - funding_txへの署名を想定
+ *      - funding_txへの署名を想定(scriptPubKeyは2-of-2)
  *      - pTxは戻り値がtrueの場合のみ更新する
  */
 bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
