@@ -2188,7 +2188,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
 
     ucoin_buf_t buf_tx = UCOIN_BUF_INIT;
     ucoin_tx_create(&buf_tx, p_sig->p_tx);
-    p_sig->ret = btcrpc_signraw_tx(p_sig->p_tx, buf_tx.buf, buf_tx.len);
+    p_sig->ret = btcrpc_signraw_tx(p_sig->p_tx, buf_tx.buf, buf_tx.len, p_sig->amount);
     ucoin_buf_free(&buf_tx);
 }
 

@@ -113,7 +113,7 @@ bool btcrpc_search_outpoint(ucoin_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid
  *
  * @param[out]  pTxBuf      トランザクション情報(ucoin_tx_tの配列を保存する)
  * @param[in]   Blks        検索対象とする過去ブロック数
- * @param[in]   pVout       検索するvout
+ * @param[in]   pVout       検索するscriptPubKey配列(ucoin_buf_tの配列)
  * @retval  true    検索成功
  * @retval  false   検索失敗 or bitcoindエラー
  * @note
@@ -127,14 +127,15 @@ bool btcrpc_search_vout(ucoin_buf_t *pTxBuf, uint32_t Blks, const ucoin_buf_t *p
 
 /** [bitcoin rpc]signrawtransaction
  * @param[out]  pTx         トランザクション情報
- * @param[in]   pRawData    トランザクションRAWデータ
- * @param[in]   Len         pRawData長
+ * @param[in]   pData       [bitcoind]トランザクションRAWデータ, [SPV]送金先Hash
+ * @param[in]   Len         pData長
+ * @param[in]   Amount      送金額(bitcoindの場合は無視)
  * @retval  true        成功
  * @note
  *      - funding_txへの署名を想定
  *      - pTxは戻り値がtrueの場合のみ更新する
  */
-bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pRawData, size_t Len);
+bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
 
 
 /** [bitcoin rpc]sendrawtransaction

@@ -3401,6 +3401,7 @@ static bool create_funding_tx(ln_self_t *self)
     bool ret;
     ln_cb_funding_sign_t sig;
     sig.p_tx =  &self->tx_funding;
+    sig.amount = self->p_establish->p_fundin->amount;
     (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
     ret = sig.ret;
     if (ret) {
