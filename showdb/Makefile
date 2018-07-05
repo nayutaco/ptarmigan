@@ -11,6 +11,10 @@ ifeq ($(DISABLE_PRINTFUND),0)
 CFLAGS += -DUCOIN_USE_PRINTFUNC
 endif
 
+ifeq ($(ENABLE_DEVELOPER_MODE),1)
+CFLAGS += -DDEVELOPER_MODE
+endif
+
 all: showdb
 
 showdb: ../ucoin/libucoin.a $(SRC)
