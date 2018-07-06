@@ -65,24 +65,25 @@ int32_t btcrpc_getblockcount(void);
 bool btcrpc_getgenesisblock(uint8_t *pHash);
 
 
-/** [bitcoin rpc]confirmation数取得
+/** [bitcoin rpc]funding_txのconfirmation数取得
  *
- * @param[in]   pTxid
+ * @param[in]   self        取得対象のchannel
  * @return      confirmation数
  * @note
  *      - 取得自体が失敗した場合でも0を返す
  */
-uint32_t btcrpc_get_confirmation(const uint8_t *pTxid);
+uint32_t btcrpc_get_funding_confirm(const ln_self_t *self);
 
 
 /** [bitcoin rpc]short_channel_idの計算に使用するパラメータ取得
  *
+ * @param[in]   self
  * @param[out]  pBHeight    block height
  * @param[out]  pBIndex     block index(pTxidの位置)
  * @param[in]   pTxid       検索するTXID
  * @retval  true        取得成功
  */
-bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid);
+bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, const uint8_t *pTxid);
 
 
 /** [bitcoin rpc]short_channel_idパラメータからtxid取得
@@ -154,7 +155,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
  * @param[in]   pTxid       取得するTXID(バイト列)
  * @retval  true        トランザクション展開済み(mempool含む)
  */
-bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid);
+bool btcrpc_is_tx_broadcasted(const ln_self_t *self, const uint8_t *pTxid);
 
 
 /** [bitcoin rpc]vout unspent確認

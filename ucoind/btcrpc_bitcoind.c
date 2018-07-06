@@ -183,8 +183,9 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 }
 
 
-uint32_t btcrpc_get_confirmation(const uint8_t *pTxid)
+uint32_t btcrpc_get_funding_confirm(const ln_self_t *self)
 {
+    const uint8_t *pTxid = ln_funding_txid(self);
     bool ret;
     int64_t confirmation = 0;
     char *p_json = NULL;
@@ -211,8 +212,10 @@ uint32_t btcrpc_get_confirmation(const uint8_t *pTxid)
 }
 
 
-bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid)
+bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, const uint8_t *pTxid)
 {
+    (void)self;
+
     bool ret;
     char *p_json = NULL;
     char blockhash[UCOIN_SZ_SHA256 * 2 + 1] = "NG";
@@ -433,8 +436,10 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
 }
 
 
-bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
+bool btcrpc_is_tx_broadcasted(const ln_self_t *self, const uint8_t *pTxid)
 {
+    (void)self;
+
     char txid[UCOIN_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
@@ -1243,7 +1248,7 @@ int main(int argc, char *argv[])
 //    fprintf(stderr, "-[short_channel_info]-------------------------\n");
 //    int bindex;
 //    int bheight;
-//    ret = btcrpc_get_short_channel_param(&bindex, &bheight, TXID);
+//    ret = btcrpc_get_short_channel_param(NULL, &bindex, &bheight, TXID);
 //    if (ret) {
 //        fprintf(stderr, "index = %d\n", bindex);
 //        fprintf(stderr, "height = %d\n", bheight);
@@ -1251,7 +1256,7 @@ int main(int argc, char *argv[])
 
 //    int conf;
 //    fprintf(stderr, "-conf-------------------------\n");
-//    conf = btcrpc_get_confirmation(TXID);
+//    conf = btcrpc_get_funding_confirm(TXID);
 //    fprintf(stderr, "confirmations = %d\n", conf);
 
 //    fprintf(stderr, "-getnewaddress-------------------------\n");
@@ -1277,7 +1282,7 @@ int main(int argc, char *argv[])
     //}
 
 //    fprintf(stderr, "-getrawtx------------------------\n");
-//    ret = btcrpc_is_tx_broadcasted(TXID);
+//    ret = btcrpc_is_tx_broadcasted(NULL, TXID);
 //    fprintf(stderr, "ret=%d\n", ret);
 
 //    fprintf(stderr, "--------------------------\n");

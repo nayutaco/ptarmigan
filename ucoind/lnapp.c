@@ -711,7 +711,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
-        uint32_t confirm = btcrpc_get_confirmation(ln_funding_txid(pAppConf->p_self));
+        uint32_t confirm = btcrpc_get_funding_confirm(pAppConf->p_self);
         if (confirm != 0) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
         }
@@ -743,7 +743,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
-        uint32_t confirm = btcrpc_get_confirmation(ln_funding_txid(pAppConf->p_self));
+        uint32_t confirm = btcrpc_get_funding_confirm(pAppConf->p_self);
         if (confirm > 0) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
         }
@@ -1270,7 +1270,7 @@ static bool check_short_channel_id(lnapp_conf_t *p_conf)
 {
     bool ret = true;
 
-    uint32_t confirm = btcrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
+    uint32_t confirm = btcrpc_get_funding_confirm(p_conf->p_self);
     if (confirm > 0) {
         p_conf->funding_confirm = confirm;
         uint64_t short_channel_id = ln_short_channel_id(p_conf->p_self);
@@ -1637,7 +1637,7 @@ static void *thread_poll_start(void *pArg)
         poll_ping(p_conf);
 
         uint32_t bak_conf = p_conf->funding_confirm;
-        uint32_t confirm = btcrpc_get_confirmation(ln_funding_txid(p_conf->p_self));
+        uint32_t confirm = btcrpc_get_funding_confirm(p_conf->p_self);
         if (confirm > 0) {
             p_conf->funding_confirm = confirm;
             if (bak_conf != p_conf->funding_confirm) {
@@ -1770,7 +1770,7 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf)
 {
     int bheight = 0;
     int bindex = 0;
-    bool ret = btcrpc_get_short_channel_param(&bheight, &bindex, ln_funding_txid(p_conf->p_self));
+    bool ret = btcrpc_get_short_channel_param(p_conf->p_self, &bheight, &bindex, ln_funding_txid(p_conf->p_self));
     if (ret) {
         //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ln_set_short_channel_id_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self));

@@ -194,7 +194,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 LOGD("txid[%d]= ", lp);
                 TXIDD(txid);
-                bool broad = btcrpc_is_tx_broadcasted(txid);
+                bool broad = btcrpc_is_tx_broadcasted(self, txid);
                 if (broad) {
                     LOGD("already broadcasted[%d]\n", lp);
                     LOGD("-->OK\n");
@@ -294,7 +294,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     uint32_t feerate_per_kw = *(uint32_t *)p_param;
 
-    uint32_t confm = btcrpc_get_confirmation(ln_funding_txid(self));
+    uint32_t confm = btcrpc_get_funding_confirm(self);
     if (confm > 0) {
         bool del = false;
         bool unspent;
@@ -362,10 +362,10 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
     const ucoin_buf_t *p_vout = ln_revoked_vout(self);
     if (p_vout == NULL) {
         //展開されているのが最新のcommit_txか
-        if (btcrpc_is_tx_broadcasted(ln_commit_local(self)->txid)) {
+        if (btcrpc_is_tx_broadcasted(self, ln_commit_local(self)->txid)) {
             //最新のlocal commit_tx --> unilateral close(local)
             del = monitor_close_unilateral_local(self, p_db_param);
-        } else if (btcrpc_is_tx_broadcasted(ln_commit_remote(self)->txid)) {
+        } else if (btcrpc_is_tx_broadcasted(self, ln_commit_remote(self)->txid)) {
             //最新のremote commit_tx --> unilateral close(remote)
             del = close_unilateral_remote(self, p_db_param);
         } else {
@@ -435,7 +435,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             //転送元がある場合、preimageを抽出する
             LOGD("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
-            uint32_t confm = btcrpc_get_confirmation(ln_funding_txid(self));
+            uint32_t confm = btcrpc_get_funding_confirm(self);
             if (confm > 0) {
                 ucoin_tx_t tx = UCOIN_TX_INIT;
                 uint8_t txid[UCOIN_SZ_TXID];
@@ -527,7 +527,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 LOGD("txid[%d]= ", lp);
                 TXIDD(txid);
-                bool broad = btcrpc_is_tx_broadcasted(txid);
+                bool broad = btcrpc_is_tx_broadcasted(self, txid);
                 if (broad) {
                     LOGD("already broadcasted[%d]\n", lp);
                     LOGD("-->OK\n");
@@ -634,7 +634,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
             //転送元がある場合、preimageを抽出する
             LOGD("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
-            uint32_t confm = btcrpc_get_confirmation(ln_funding_txid(self));
+            uint32_t confm = btcrpc_get_funding_confirm(self);
             if (confm > 0) {
                 ucoin_tx_t tx = UCOIN_TX_INIT;
                 uint8_t txid[UCOIN_SZ_TXID];
