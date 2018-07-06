@@ -194,7 +194,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 LOGD("txid[%d]= ", lp);
                 TXIDD(txid);
-                bool broad = btcrpc_is_tx_broadcasted(txid);
+                bool broad = btcrpc_is_tx_broadcasted(self, txid);
                 if (broad) {
                     LOGD("already broadcasted[%d]\n", lp);
                     LOGD("-->OK\n");
@@ -362,10 +362,10 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
     const ucoin_buf_t *p_vout = ln_revoked_vout(self);
     if (p_vout == NULL) {
         //展開されているのが最新のcommit_txか
-        if (btcrpc_is_tx_broadcasted(ln_commit_local(self)->txid)) {
+        if (btcrpc_is_tx_broadcasted(self, ln_commit_local(self)->txid)) {
             //最新のlocal commit_tx --> unilateral close(local)
             del = monitor_close_unilateral_local(self, p_db_param);
-        } else if (btcrpc_is_tx_broadcasted(ln_commit_remote(self)->txid)) {
+        } else if (btcrpc_is_tx_broadcasted(self, ln_commit_remote(self)->txid)) {
             //最新のremote commit_tx --> unilateral close(remote)
             del = close_unilateral_remote(self, p_db_param);
         } else {
@@ -527,7 +527,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 ucoin_tx_txid(txid, &close_dat.p_tx[lp]);
                 LOGD("txid[%d]= ", lp);
                 TXIDD(txid);
-                bool broad = btcrpc_is_tx_broadcasted(txid);
+                bool broad = btcrpc_is_tx_broadcasted(self, txid);
                 if (broad) {
                     LOGD("already broadcasted[%d]\n", lp);
                     LOGD("-->OK\n");

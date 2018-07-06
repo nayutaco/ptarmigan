@@ -155,7 +155,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
  * @param[in]   pTxid       取得するTXID(バイト列)
  * @retval  true        トランザクション展開済み(mempool含む)
  */
-bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid);
+bool btcrpc_is_tx_broadcasted(const ln_self_t *self, const uint8_t *pTxid);
 
 
 /** [bitcoin rpc]vout unspent確認
