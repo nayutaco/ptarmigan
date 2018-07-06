@@ -294,7 +294,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     uint32_t feerate_per_kw = *(uint32_t *)p_param;
 
-    uint32_t confm = btcrpc_get_confirmation(ln_funding_txid(self));
+    uint32_t confm = btcrpc_get_funding_confirm(self);
     if (confm > 0) {
         bool del = false;
         bool unspent;
@@ -435,7 +435,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             //転送元がある場合、preimageを抽出する
             LOGD("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
-            uint32_t confm = btcrpc_get_confirmation(ln_funding_txid(self));
+            uint32_t confm = btcrpc_get_funding_confirm(self);
             if (confm > 0) {
                 ucoin_tx_t tx = UCOIN_TX_INIT;
                 uint8_t txid[UCOIN_SZ_TXID];
@@ -634,7 +634,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
             //転送元がある場合、preimageを抽出する
             LOGD("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
-            uint32_t confm = btcrpc_get_confirmation(ln_funding_txid(self));
+            uint32_t confm = btcrpc_get_funding_confirm(self);
             if (confm > 0) {
                 ucoin_tx_t tx = UCOIN_TX_INIT;
                 uint8_t txid[UCOIN_SZ_TXID];

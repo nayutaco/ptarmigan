@@ -183,8 +183,9 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 }
 
 
-uint32_t btcrpc_get_confirmation(const uint8_t *pTxid)
+uint32_t btcrpc_get_funding_confirm(const ln_self_t *self)
 {
+    const uint8_t *pTxid = ln_funding_txid(self);
     bool ret;
     int64_t confirmation = 0;
     char *p_json = NULL;
@@ -1251,7 +1252,7 @@ int main(int argc, char *argv[])
 
 //    int conf;
 //    fprintf(stderr, "-conf-------------------------\n");
-//    conf = btcrpc_get_confirmation(TXID);
+//    conf = btcrpc_get_funding_confirm(TXID);
 //    fprintf(stderr, "confirmations = %d\n", conf);
 
 //    fprintf(stderr, "-getnewaddress-------------------------\n");

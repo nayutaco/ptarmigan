@@ -72,7 +72,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash);
  * @note
  *      - 取得自体が失敗した場合でも0を返す
  */
-uint32_t btcrpc_get_confirmation(const uint8_t *pTxid);
+uint32_t btcrpc_get_funding_confirm(const ln_self_t *self);
 
 
 /** [bitcoin rpc]short_channel_idの計算に使用するパラメータ取得
