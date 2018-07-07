@@ -33,6 +33,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "cJSON.h"
 
@@ -46,6 +47,9 @@
  ********************************************************************/
 
 static lnapp_conf_t     mAppConf[SZ_SOCK_CLIENT_MAX];
+
+static daemon_connect_t mLastPeerConn;
+pthread_mutex_t mMuxLastPeerConn = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 
 /********************************************************************
@@ -155,6 +159,11 @@ bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     strcpy(mAppConf[idx].conn_str, pConn->ipaddr);
     mAppConf[idx].conn_port = pConn->port;
 
+    //store for reconnection
+    if (!p2p_cli_store_peer_conn(pConn)) {
+        LOGD("fail: store peer conn");
+    }
+
     lnapp_start(&mAppConf[idx]);
     bret = true;
 
@@ -233,3 +242,29 @@ bool p2p_cli_is_looping(void)
 
     return ret;
 }
+
+
+bool p2p_cli_store_peer_conn(const daemon_connect_t* pPeerConn)
+{
+    pthread_mutex_lock(&mMuxLastPeerConn);
+    mLastPeerConn = *pPeerConn;
+    pthread_mutex_unlock(&mMuxLastPeerConn);
+
+    return true;
+}
+
+
+bool p2p_cli_load_peer_conn(daemon_connect_t* pPeerConn, const uint8_t *pNodeId)
+{
+    bool ret = false;
+
+    pthread_mutex_lock(&mMuxLastPeerConn);
+    if (memcmp(mLastPeerConn.node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
+        *pPeerConn = mLastPeerConn;
+        ret = true;
+    }
+    pthread_mutex_unlock(&mMuxLastPeerConn);
+
+    return ret;
+}
+

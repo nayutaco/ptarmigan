@@ -82,6 +82,17 @@ void p2p_cli_show_self(cJSON *pResult);
 bool p2p_cli_is_looping(void);
 
 
+/** [p2p_cli] 接続情報を保存
+ *
+ */
+bool p2p_cli_store_peer_conn(const daemon_connect_t* pPeerConn);
+
+/** [p2p_cli] 接続情報を復元
+ *
+ */
+bool p2p_cli_load_peer_conn(daemon_connect_t* pPeerConn, const uint8_t *pNodeId);
+
+
 #ifdef __cplusplus
 }
 #endif
