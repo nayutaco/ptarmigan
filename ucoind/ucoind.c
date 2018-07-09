@@ -109,10 +109,16 @@ int main(int argc, char *argv[])
     ln_nodeaddr_t *p_addr;
     char *p_alias;
     int opt;
+    uint16_t my_rpcport = 0;
+
+    const struct option OPTIONS[] = {
+        { "rpcport", required_argument, NULL, 'P' },
+        { 0, 0, 0, 0 }
+    };
 
     //`d` option is used to change working directory.
     // It is done at the beginning of this process.
-    while ((opt = getopt(argc, argv, M_OPTSTRING)) != -1) {
+    while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
         switch (opt) {
         case 'd':
             if (chdir(optarg) != 0) {
@@ -156,7 +162,7 @@ int main(int argc, char *argv[])
     p_addr->port = 9735;
 
     int options = 0;
-    while ((opt = getopt(argc, argv, M_OPTSTRING)) != -1) {
+    while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
         switch (opt) {
         //case 'd':
         //    //`d` option is used to change working directory.
@@ -184,6 +190,10 @@ int main(int argc, char *argv[])
             if (!bret) {
                 goto LABEL_EXIT;
             }
+            break;
+        case 'P':
+            //my rpcport num
+            my_rpcport = (uint16_t)atoi(optarg);
             break;
         // case 'i':
         //     //show node_id
@@ -312,7 +322,7 @@ int main(int argc, char *argv[])
             "ucoind start: total_msat=%" PRIu64 "\n", total_amount);
 
     //ucoincli受信用
-    cmd_json_start(p_addr->port + 1);
+    cmd_json_start(my_rpcport ? my_rpcport : p_addr->port + 1);
 
     //待ち合わせ
     pthread_join(th_svr, NULL);
@@ -339,6 +349,7 @@ LABEL_EXIT:
     fprintf(stderr, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
     // fprintf(stderr, "\t\t-i : show node_id(not start node)\n");
     fprintf(stderr, "\t\t-d : change working directory\n");
+    fprintf(stderr, "\t\t--rpcport : JSON-RPC port\n");
     fprintf(stderr, "\t\t-x : erase current DB(without node_id)(TEST)\n");
     fprintf(stderr, "\t\t-N : erase node_announcement DB(TEST)\n");
     return -1;
