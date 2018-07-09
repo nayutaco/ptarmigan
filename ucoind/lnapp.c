@@ -265,6 +265,7 @@ static void cb_set_latest_feerate(lnapp_conf_t *p_conf, void *p_param);
 static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param);
 
 static void stop_threads(lnapp_conf_t *p_conf);
+static bool wait_peer_connected(lnapp_conf_t *p_conf);
 static bool send_peer_raw(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static bool send_peer_noise(lnapp_conf_t *p_conf, const ucoin_buf_t *pBuf);
 static bool send_announcement(lnapp_conf_t *p_conf);
@@ -949,6 +950,12 @@ static void *thread_main_start(void *pArg)
     pthread_mutex_init(&p_conf->mux_rcvidle, NULL);
 
     p_conf->loop = true;
+
+    LOGD("wait peer connected...");
+    ret = wait_peer_connected(p_conf);
+    if (!ret) {
+        goto LABEL_SHUTDOWN;
+    }
 
     //noise protocol handshake
     ret = noise_handshake(p_conf);
@@ -2842,6 +2849,37 @@ static void stop_threads(lnapp_conf_t *p_conf)
         LOGD("=  CHANNEL THREAD END             =\n");
         LOGD("===================================\n");
     }
+}
+
+
+//peer(server)への接続確立を待つ
+static bool wait_peer_connected(lnapp_conf_t *p_conf)
+{
+    //socketへの書き込みが可能になり、かつ
+    // エラーが発生していないことを確認する
+
+    struct pollfd fds;
+    fds.fd = p_conf->sock;
+    fds.events = POLLOUT;
+    int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
+    if (polr <= 0) {
+        LOGD("poll: %s\n", strerror(errno));
+        return false;
+    }
+
+    int optval;
+    socklen_t optlen = sizeof(optval);
+    int retval = getsockopt(p_conf->sock, SOL_SOCKET, SO_ERROR, &optval, &optlen);
+    if (retval != 0) {
+        LOGD("getsockopt: %s\n", strerror(errno));
+        return false;
+    }
+    if (optval) {
+        LOGD("getsockopt: optval: %s\n", strerror(optval));
+        return false;
+    }
+
+    return true;
 }
 
 
