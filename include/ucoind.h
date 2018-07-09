@@ -161,8 +161,8 @@ typedef enum {
 } trans_cmd_t;
 
 
-/** @struct     daemon_connect_t
- *  @brief      daemon接続情報
+/** @struct     peer_conn_t
+ *  @brief      peer接続情報
  *  @note
  *      - #peer_conf_t と同じ構造だが、別にしておく(統合する可能性あり)
  */
@@ -171,7 +171,7 @@ typedef struct {
     char        ipaddr[SZ_IPV4_LEN + 1];
     uint16_t    port;
     uint8_t     node_id[UCOIN_SZ_PUBKEY];
-} daemon_connect_t;
+} peer_conn_t;
 
 
 /** @struct     funding_conf_t
@@ -210,7 +210,7 @@ typedef struct {
 /** @struct     peer_conf_t
  *  @brief      peer node接続情報
  *  @note
- *      - #daemon_connect_t と同じ構造だが、別にしておく
+ *      - #peer_conn_t と同じ構造だが、別にしておく
  */
 typedef struct {
     char            ipaddr[SZ_IPV4_LEN + 1];

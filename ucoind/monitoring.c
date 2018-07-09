@@ -390,6 +390,21 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
 
     const uint8_t *p_node_id = ln_their_node_id(self);
 
+    //clientとして接続したときの接続先情報があれば、そこに接続する
+    peer_conn_t last_peer_conn;
+    if (p2p_cli_load_peer_conn(&last_peer_conn, p_node_id)) {
+        bool ret = ucoind_nodefail_get(last_peer_conn.node_id, last_peer_conn.ipaddr, last_peer_conn.port, LN_NODEDESC_IPV4);
+        if (!ret) {
+            misc_msleep(10 + rand() % 2000);
+            int retval = cmd_json_connect(last_peer_conn.node_id, last_peer_conn.ipaddr, last_peer_conn.port);
+            LOGD("retval=%d\n", retval);
+            if (retval == 0) {
+                return false;
+            }
+        }
+    }
+
+    //node_announcementで通知されたアドレスに接続する
     ln_node_announce_t anno;
     bool ret = ln_node_search_nodeanno(&anno, p_node_id);
     if (ret) {

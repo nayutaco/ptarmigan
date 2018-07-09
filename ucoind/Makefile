@@ -63,6 +63,9 @@ CFLAGS += -W -Wall -Wextra
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 #CFLAGS += -flto -fno-builtin
 
+# for syscall() and others
+CFLAGS += -D_GNU_SOURCE
+
 # others
 CFLAGS += $(INC_PATHS)
 CFLAGS += -DNETKIND=$(NETKIND)
