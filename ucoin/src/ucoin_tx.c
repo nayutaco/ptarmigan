@@ -153,6 +153,13 @@ bool ucoin_tx_add_vout_addr(ucoin_tx_t *pTx, uint64_t Value, const char *pAddr)
 }
 
 
+void ucoin_tx_add_vout_spk(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScriptPk)
+{
+    ucoin_vout_t *vout = ucoin_tx_add_vout(pTx, Value);
+    ucoin_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
+}
+
+
 bool ucoin_tx_add_vout_p2pkh_pub(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
     ucoin_util_add_vout_pub(pTx, Value, pPubKey, UCOIN_PREF_P2PKH);

@@ -295,8 +295,9 @@ static const payment_conf_t* payroute_get(lnapp_conf_t *p_conf, uint64_t HtlcId)
 static void payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId);
 static void payroute_clear(lnapp_conf_t *p_conf);
 static void payroute_print(lnapp_conf_t *p_conf);
+#ifndef USE_SPV
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
-
+#endif
 static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, int line);
 
 
@@ -1018,9 +1019,14 @@ static void *thread_main_start(void *pArg)
 
     //送金先
     if (ln_shutdown_scriptpk_local(p_self)->len == 0) {
-        char payaddr[UCOIN_SZ_ADDR_MAX];
-        btcrpc_getnewaddress(payaddr);
-        ln_set_shutdown_vout_addr(p_self, payaddr);
+        ucoin_buf_t buf = UCOIN_BUF_INIT;
+        ret = btcrpc_getnewaddress(&buf);
+        if (!ret) {
+            LOGD("fail: create address\n");
+            goto LABEL_JOIN;
+        }
+        ln_set_shutdown_vout_addr(p_self, &buf);
+        ucoin_buf_free(&buf);
     }
 
     // Establishチェック
@@ -1420,12 +1426,13 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFunding)
 {
     ln_fundin_t fundin;
+    ucoin_buf_init(&fundin.change_spk);
 
     //Establish開始
     LOGD("  funding_sat: %" PRIu64 "\n", pFunding->funding_sat);
     LOGD("  push_sat: %" PRIu64 "\n", pFunding->push_sat);
 
-    bool ret = btcrpc_getnewaddress(fundin.change_addr);
+    bool ret = btcrpc_getnewaddress(&fundin.change_spk);
     if (!ret) {
         LOGD("fail: getnewaddress\n");
         return false;
@@ -2271,8 +2278,10 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
     (void)p_conf;
     //DBGTRACE_BEGIN
 
+#ifndef USE_SPV
     ln_cb_channel_anno_recv_t *p = (ln_cb_channel_anno_recv_t *)p_param;
     p->is_unspent = check_unspent_short_channel_id(p->short_channel_id);
+#endif
 
     //DBGTRACE_END
 }
@@ -3083,13 +3092,14 @@ static bool send_anno_pre_chan(uint64_t short_channel_id)
 {
     bool ret = true;
 
-    //DBはkey順にソートされているため、channel_announcement→channel_update1→channel_update2の順になる。
+#ifndef USE_SPV
     bool unspent = check_unspent_short_channel_id(short_channel_id);
     if (!unspent) {
         //使用済みのため、DBから削除
         LOGD("closed channel: %0" PRIx64 "\n", short_channel_id);
         ret = false;
     }
+#endif
 
     return ret;
 }
@@ -3751,6 +3761,7 @@ static void payroute_print(lnapp_conf_t *p_conf)
 }
 
 
+#ifndef USE_SPV
 /** short_channel_idのfunding_tx未使用チェック
  *
  * @param[in]   ShortChannelId      short_channel_id
@@ -3776,6 +3787,7 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
 
     return ret && unspent;
 }
+#endif
 
 
 /** ln_self_t内容表示(デバッグ用)

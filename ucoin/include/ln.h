@@ -338,7 +338,7 @@ typedef struct {
     uint8_t                     txid[UCOIN_SZ_TXID];            ///< 2-of-2へ入金するTXID
     int32_t                     index;                          ///< 未設定時(channelを開かれる方)は-1
     uint64_t                    amount;                         ///< 2-of-2へ入金するtxのvout amount
-    char                        change_addr[UCOIN_SZ_ADDR_MAX]; ///< 2-of-2へ入金したお釣りの送金先アドレス(未使用時:NULL)
+    ucoin_buf_t                 change_spk;                     ///< 2-of-2へ入金したお釣りの送金先ScriptPubkey
 } ln_fundin_t;
 
 
@@ -1131,27 +1131,12 @@ void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t In
 void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId);
 
 
-/** shutdown時の出力先設定(pubkey)
- *
- * @param[in,out]       self            channel情報
- * @param[in]           pShutdownPubkey shutdown時のscriptPubKey用公開鍵
- * @param[in]           ShutdownPref    pShutdownPubkey用(UCOIN_PREF_P2PKH or UCOIN_PREF_NATIVE)
- * @retval      true    成功
- * @note
- *      - #ln_set_shutdown_vout_pubkey()か #ln_set_shutdown_vout_addr()のどちらかを設定する。
- */
-//bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey, int ShutdownPref);
-
-
 /** shutdown時の出力先設定(address)
  *
  * @param[in,out]       self            channel情報
- * @param[in]           pAddr           shutdown時のアドレス
- * @retval      true    成功
- * @note
- *      - #ln_set_shutdown_vout_pubkey()か #ln_set_shutdown_vout_addr()のどちらかを設定する。
+ * @param[in]           pScriptPk       shutdown時の送金先ScriptPubKey
  */
-bool ln_set_shutdown_vout_addr(ln_self_t *self, const char *pAddr);
+void ln_set_shutdown_vout_addr(ln_self_t *self, const ucoin_buf_t *pScriptPk);
 
 
 /** noise handshake開始

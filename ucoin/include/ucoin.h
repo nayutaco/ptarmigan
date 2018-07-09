@@ -589,11 +589,10 @@ bool ucoin_tx_add_vout_addr(ucoin_tx_t *pTx, uint64_t Value, const char *pAddr);
  *
  * @param[in,out]       pTx
  * @param[in]           Value
- * @param[in]           pPubKeyHash
- * @param[in]           Pref
+ * @param[in]           pScriptPk
  * @return      trueのみ
  */
-bool ucoin_tx_add_vout_pkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
+void ucoin_tx_add_vout_spk(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScriptPk);
 
 
 /** 標準P2PKHのvout追加
