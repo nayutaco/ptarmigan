@@ -104,7 +104,7 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id);
 
-static int cmd_connect_proc(const daemon_connect_t *pConn, jrpc_context *ctx);
+static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx);
 static int cmd_disconnect_proc(const uint8_t *pNodeId);
 static int cmd_stop_proc(void);
 static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund);
@@ -120,7 +120,7 @@ static int cmd_routepay_proc2(
                 const char *pInvoiceStr, uint64_t AddAmountMsat);
 static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId);
 
-static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn);
+static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn);
 static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry, const ln_fieldr_t *pFieldR, uint8_t FieldRNum);
 static void create_bolt11_rfield(ln_fieldr_t **ppFieldR, uint8_t *pFieldRNum);
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
@@ -220,7 +220,7 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     int err = RPCERR_PARSE;
-    daemon_connect_t conn;
+    peer_conn_t conn;
     cJSON *result = NULL;
     int index = 0;
 
@@ -306,7 +306,7 @@ static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     int err = RPCERR_PARSE;
-    daemon_connect_t conn;
+    peer_conn_t conn;
     cJSON *result = NULL;
     int index = 0;
 
@@ -360,7 +360,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     int err = RPCERR_PARSE;
     cJSON *json;
-    daemon_connect_t conn;
+    peer_conn_t conn;
     funding_conf_t fundconf;
     cJSON *result = NULL;
     int index = 0;
@@ -839,7 +839,7 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     int err = RPCERR_PARSE;
-    daemon_connect_t conn;
+    peer_conn_t conn;
     cJSON *result = NULL;
     int index = 0;
     bool b_mutual;
@@ -877,7 +877,7 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
-    daemon_connect_t conn;
+    peer_conn_t conn;
     int index = 0;
 
     //connect parameter
@@ -967,7 +967,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
-    daemon_connect_t conn;
+    peer_conn_t conn;
     cJSON *result = cJSON_CreateObject();
     int index = 0;
 
@@ -1101,7 +1101,7 @@ LABEL_EXIT:
  * @param[in,out]   ctx
  * @retval  エラーコード
  */
-static int cmd_connect_proc(const daemon_connect_t *pConn, jrpc_context *ctx)
+static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx)
 {
     LOGD("connect\n");
 
@@ -1444,7 +1444,7 @@ static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId)
 /** ucoincli -c解析
  *
  */
-static bool json_connect(cJSON *params, int *pIndex, daemon_connect_t *pConn)
+static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
 {
     cJSON *json;
 

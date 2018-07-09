@@ -48,7 +48,7 @@
 
 static lnapp_conf_t     mAppConf[SZ_SOCK_CLIENT_MAX];
 
-static daemon_connect_t mLastPeerConn;
+static peer_conn_t mLastPeerConn;
 pthread_mutex_t mMuxLastPeerConn = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 
@@ -70,7 +70,7 @@ void p2p_cli_init(void)
 }
 
 
-bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
+bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
 {
     bool bret = false;
     int ret;
@@ -244,7 +244,7 @@ bool p2p_cli_is_looping(void)
 }
 
 
-bool p2p_cli_store_peer_conn(const daemon_connect_t* pPeerConn)
+bool p2p_cli_store_peer_conn(const peer_conn_t* pPeerConn)
 {
     pthread_mutex_lock(&mMuxLastPeerConn);
     mLastPeerConn = *pPeerConn;
@@ -254,7 +254,7 @@ bool p2p_cli_store_peer_conn(const daemon_connect_t* pPeerConn)
 }
 
 
-bool p2p_cli_load_peer_conn(daemon_connect_t* pPeerConn, const uint8_t *pNodeId)
+bool p2p_cli_load_peer_conn(peer_conn_t* pPeerConn, const uint8_t *pNodeId)
 {
     bool ret = false;
 
