@@ -338,6 +338,7 @@ LABEL_EXIT:
     fprintf(stderr, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
     fprintf(stderr, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
     // fprintf(stderr, "\t\t-i : show node_id(not start node)\n");
+    fprintf(stderr, "\t\t-d : change working directory\n");
     fprintf(stderr, "\t\t-x : erase current DB(without node_id)(TEST)\n");
     fprintf(stderr, "\t\t-N : erase node_announcement DB(TEST)\n");
     return -1;
