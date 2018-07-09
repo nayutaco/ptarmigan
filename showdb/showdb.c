@@ -227,6 +227,14 @@ static void ln_print_self(const ln_self_t *self)
     //init
     printf(INDENT3 M_QQ("lfeature_remote") ": " M_QQ("%02x") ",\n", self->lfeature_remote);
 
+    //close
+    printf(INDENT3 M_QQ("close local scriptPubKey") ": \"");
+    ucoin_util_dumpbin(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
+    printf("\",\n");
+    printf(INDENT3 M_QQ("close remote scriptPubKey") ": \"");
+    ucoin_util_dumpbin(stdout, self->shutdown_scriptpk_remote.buf, self->shutdown_scriptpk_remote.len, false);
+    printf("\",\n");
+
     //normal operation
     printf(INDENT3 M_QQ("htlc_num") ": %d,\n", self->htlc_num);
     printf(INDENT3 M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);

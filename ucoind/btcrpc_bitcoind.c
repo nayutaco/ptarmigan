@@ -283,6 +283,7 @@ LABEL_EXIT:
 }
 
 
+//bitcoindのみ
 bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
 {
     bool unspent = true;        //エラーでもunspentにしておく
@@ -465,7 +466,7 @@ bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, 
 }
 
 
-bool btcrpc_getnewaddress(char *pAddr)
+bool btcrpc_getnewaddress(ucoin_buf_t *pBuf)
 {
     bool result = false;
     bool ret;
@@ -476,8 +477,9 @@ bool btcrpc_getnewaddress(char *pAddr)
     ret = getnewaddress_rpc(&p_root, &p_result, &p_json);
     if (ret) {
         if (json_is_string(p_result)) {
-            strcpy(pAddr,  (const char *)json_string_value(p_result));
-            result = true;
+            char addr[UCOIN_SZ_ADDR_MAX];
+            strcpy(addr,  (const char *)json_string_value(p_result));
+            result = ucoin_keys_addr2spk(pBuf, addr);
         }
     } else {
         LOGD("fail: getnewaddress_rpc()\n");

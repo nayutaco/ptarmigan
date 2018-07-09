@@ -502,21 +502,12 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
 #endif
 
 
-bool ln_set_shutdown_vout_addr(ln_self_t *self, const char *pAddr)
+void ln_set_shutdown_vout_addr(ln_self_t *self, const ucoin_buf_t *pScriptPk)
 {
-    ucoin_buf_t spk = UCOIN_BUF_INIT;
-
-    bool ret = ucoin_keys_addr2spk(&spk, pAddr);
-    if (ret) {
-        LOGD("set close addr: %s\n", pAddr);
-        ucoin_buf_free(&self->shutdown_scriptpk_local);
-        ucoin_buf_alloccopy(&self->shutdown_scriptpk_local, spk.buf, spk.len);
-    } else {
-        M_SET_ERR(self, LNERR_INV_ADDR, "invalid address");
-    }
-    ucoin_buf_free(&spk);
-
-    return ret;
+    LOGD("set close addr: ");
+    DUMPD(pScriptPk->buf, pScriptPk->len);
+    ucoin_buf_free(&self->shutdown_scriptpk_local);
+    ucoin_buf_alloccopy(&self->shutdown_scriptpk_local, pScriptPk->buf, pScriptPk->len);
 }
 
 
@@ -3348,7 +3339,7 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
 
     //vout#1:P2WPKH - change(amountは後で代入)
-    ucoin_tx_add_vout_addr(&self->tx_funding, (uint64_t)-1, self->p_establish->p_fundin->change_addr);
+    ucoin_tx_add_vout_spk(&self->tx_funding, (uint64_t)-1, &self->p_establish->p_fundin->change_spk);
 
     //input
     //vin#0

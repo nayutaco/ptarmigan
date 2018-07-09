@@ -86,6 +86,7 @@ uint32_t btcrpc_get_funding_confirm(const ln_self_t *self);
 bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, const uint8_t *pTxid);
 
 
+#ifndef USE_SPV
 /** [bitcoin rpc]short_channel_idパラメータからtxid取得
  *
  * @param[out]  pTxid       該当するtxid
@@ -94,6 +95,7 @@ bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *p
  * @retval  true        取得成功
  */
 bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex);
+#endif
 
 
 /** [bitcoin rpc]複数blockからvin[0]のoutpointが一致するトランザクションを検索
@@ -171,10 +173,10 @@ bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, 
 
 /** [bitcoin rpc]getnewaddress
  *
- * @param[out]  pAddr       生成したアドレス
+ * @param[out]  pBuf        生成したScriptPubKey
  * @retval  true        取得成功
  */
-bool btcrpc_getnewaddress(char *pAddr);
+bool btcrpc_getnewaddress(ucoin_buf_t *pBuf);
 
 
 /** [bitcoin rpc]estimatefee
