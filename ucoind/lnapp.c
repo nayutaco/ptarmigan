@@ -549,6 +549,11 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
     ln_self_t *p_self = pAppConf->p_self;
 
+    if (ln_is_closing(p_self)) {
+        LOGD("fail: already closing\n");
+        return false;
+    }
+
     //feeと送金先
     cb_shutdown_recv(pAppConf, NULL);
 
