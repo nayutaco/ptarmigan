@@ -832,6 +832,13 @@ bool ln_create_channel_update(ln_self_t *self, ucoin_buf_t *pCnlUpd)
     ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
     if (ret) {
         ret = ln_db_annocnlupd_save(pCnlUpd, &upd, NULL);
+        if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
+            //announcement_signatures後であればコールバックする
+            //そうでない場合は、announcement前のprivate channel通知をしている
+            ln_cb_update_annodb_t anno;
+            anno.anno = MSGTYPE_CHANNEL_UPDATE;
+            (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+        }
     } else {
         LOGD("fail: create channel_update\n");
     }
@@ -3092,10 +3099,14 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         //goto LABEL_EXIT;
     }
     ret = ln_db_annocnlupd_save(&buf_upd, &upd, NULL);
-    if (!ret) {
+    if (ret) {
+        ln_cb_update_annodb_t anno;
+        anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
+        (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+    } else {
         LOGD("fail: but through\n");
+        ret = true;
     }
-    ret = true;
 
     self->anno_flag |= M_ANNO_FLAG_RECV;
     proc_anno_sigs(self);
