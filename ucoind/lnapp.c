@@ -947,6 +947,7 @@ static void *thread_main_start(void *pArg)
     p_conf->funding_confirm = 0;
     p_conf->flag_recv = 0;
     p_conf->last_anno_cnl = 0;
+    p_conf->annodb_updated = false;
     p_conf->err = 0;
     p_conf->p_errstr = NULL;
     LIST_INIT(&p_conf->revack_head);
@@ -1825,6 +1826,9 @@ static void *thread_anno_start(void *pArg)
             if (!p_conf->loop) {
                 break;
             }
+            if (p_conf->annodb_updated) {
+                break;
+            }
         }
 
         if ((p_conf->flag_recv & RECV_MSG_END) == 0) {
@@ -1834,7 +1838,14 @@ static void *thread_anno_start(void *pArg)
 
         bool retcnl = send_announcement(p_conf);
         if (retcnl) {
-            slp = M_WAIT_ANNO_LONG_SEC;
+            if (p_conf->annodb_updated) {
+                //annodb was updated, so send_announcement() will be done again.
+                // since updating annodb may have been in the middle of send_announcement().
+                p_conf->annodb_updated = false;
+                slp = M_WAIT_ANNO_SEC;
+            } else {
+                slp = M_WAIT_ANNO_LONG_SEC;
+            }
         } else {
             slp = M_WAIT_ANNO_SEC;
         }
@@ -2301,6 +2312,9 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf; (void)p_param;
+
+    LOGD("update anno db\n");
+    p_conf->annodb_updated = true;
 }
 
 
@@ -2977,7 +2991,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
     int anno_cnt = 0;
     uint64_t short_channel_id = 0;
 
-    //LOGD("BEGIN\n");
+    LOGD("BEGIN\n");
 
     void *p_db_cnl = NULL;
     void *p_db_node = NULL;
@@ -3081,7 +3095,7 @@ LABEL_EXIT:
         (void)ln_db_annocnlall_del(short_channel_id);
     }
 
-    //LOGD("END\n");
+    LOGD("END\n");
     return p_conf->last_anno_cnl == 0;
 }
 
