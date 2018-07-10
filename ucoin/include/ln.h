@@ -192,7 +192,7 @@ typedef enum {
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
     LN_CB_FUNDINGLOCKED_RECV,   ///< funding_locked受信通知
     LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信通知
-    LN_CB_NODE_ANNO_RECV,       ///< node_announcement受信通知
+    LN_CB_UPDATE_ANNODB,        ///< announcement DB更新通知
     LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
     LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
@@ -854,6 +854,14 @@ typedef struct {
     uint64_t                short_channel_id;
     bool                    is_unspent;
 } ln_cb_channel_anno_recv_t;
+
+
+/** @struct ln_cb_update_annodb_t
+ *  @brief  announcement DB更新通知(#LN_CB_UPDATE_ANNODB)
+ */
+typedef struct {
+    uint16_t                anno;       //BOLT message type
+} ln_cb_update_annodb_t;
 
 
 /**************************************************************************

@@ -257,7 +257,9 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     buf_ann.len = Len;
     ret = ln_db_annonod_save(&buf_ann, &anno, ln_their_node_id(self));
     if (ret) {
-        (*self->p_callback)(self, LN_CB_NODE_ANNO_RECV, &anno);
+        ln_cb_update_annodb_t anno;
+        anno.anno = MSGTYPE_NODE_ANNOUNCEMENT;
+        (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
     }
 
     return true;

@@ -248,7 +248,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param);
 static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param);
-static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -2097,7 +2097,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
         //    LN_CB_FUNDINGLOCKED_RECV,   ///< funding_locked受信通知
         //    LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信
-        //    LN_CB_NODE_ANNO_RECV,       ///< node_announcement受信通知
+        //    LN_CB_UPDATE_ANNODB,        ///< announcement DB更新通知
         //    LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
         //    LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
         //    LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
@@ -2120,7 +2120,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_FUNDINGTX_WAIT: funding_tx confirmation待ち要求", cb_funding_tx_wait },
         { "  LN_CB_FUNDINGLOCKED_RECV: funding_locked受信通知", cb_funding_locked },
         { NULL/*"  LN_CB_CHANNEL_ANNO_RECV: channel_announcement受信"*/, cb_channel_anno_recv },
-        { NULL/*"  LN_CB_NODE_ANNO_RECV: node_announcement受信通知"*/, cb_node_anno_recv },
+        { NULL/*"  LN_CB_UPDATE_ANNODB: announcement DB更新通知"*/, cb_update_anno_db },
         { "  LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc処理前", cb_add_htlc_recv_prev },
         { "  LN_CB_ADD_HTLC_RECV: update_add_htlc受信", cb_add_htlc_recv },
         { "  LN_CB_FULFILL_HTLC_RECV: update_fulfill_htlc受信", cb_fulfill_htlc_recv },
@@ -2297,22 +2297,10 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-//LN_CB_NODE_ANNO_RECV: node_announcement受信
-static void cb_node_anno_recv(lnapp_conf_t *p_conf, void *p_param)
+//LN_CB_UPDATE_ANNODB: announcement DB更新通知
+static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf; (void)p_param;
-    //const ln_node_announce_t *p_nodeanno = (const ln_node_announce_t *)p_param;
-
-    ////peer config file
-    //char node_id[UCOIN_SZ_PUBKEY * 2 + 1];
-
-    //ucoin_util_bin2str(node_id, p_nodeanno->p_node_id, UCOIN_SZ_PUBKEY);
-
-    //FILE *fp = fopen(node_id, "w");
-    //if (fp) {
-
-    //    fclose(fp);
-    //}
 }
 
 
