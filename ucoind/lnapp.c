@@ -597,6 +597,11 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     if (!ret) {
         return false;
     }
+    if (ln_is_closing(p_self)) {
+        LOGD("fail: already closing\n");
+        APP_FREE(p_self);
+        return false;
+    }
 
     LOGD("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
     misc_save_event(ln_channel_id(p_self), "close: bad way(local)");
