@@ -3139,7 +3139,11 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         //DB保存
         ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self),
                                     ann.node_id1, ann.node_id2);
-        if (!ret) {
+        if (ret) {
+            ln_cb_update_annodb_t anno;
+            anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
+            (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+        } else {
             LOGD("fail: db save\n");
         }
     } else {
@@ -3217,7 +3221,11 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.buf = (CONST_CAST uint8_t *)pData;
         buf.len = Len;
         ret = ln_db_annocnlupd_save(&buf, &upd, ln_their_node_id(self));
-        if (!ret) {
+        if (ret) {
+            ln_cb_update_annodb_t anno;
+            anno.anno = MSGTYPE_CHANNEL_UPDATE;
+            (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+        } else {
             LOGD("fail: db save\n");
         }
         ret = true;
