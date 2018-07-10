@@ -337,7 +337,9 @@ typedef struct {
 typedef struct {
     uint8_t                     txid[UCOIN_SZ_TXID];            ///< 2-of-2へ入金するTXID
     int32_t                     index;                          ///< 未設定時(channelを開かれる方)は-1
+#ifndef USE_SPV
     uint64_t                    amount;                         ///< 2-of-2へ入金するtxのvout amount
+#endif
     ucoin_buf_t                 change_spk;                     ///< 2-of-2へ入金したお釣りの送金先ScriptPubkey
 } ln_fundin_t;
 

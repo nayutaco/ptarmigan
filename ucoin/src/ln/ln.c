@@ -3354,6 +3354,7 @@ static bool create_funding_tx(ln_self_t *self)
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
     //output
+    self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
     //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
     ucoin_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
 
@@ -3364,14 +3365,8 @@ static bool create_funding_tx(ln_self_t *self)
     //vin#0
     ucoin_tx_add_vin(&self->tx_funding, self->p_establish->p_fundin->txid, self->p_establish->p_fundin->index);
 
-
+#ifndef USE_SPV
     //FEE計算
-    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
-    ucoin_tx_create(&txbuf, &self->tx_funding);
-
-    LOGD("***** funding_tx(no signature) *****\n");
-    M_DBG_PRINT_TX(&self->tx_funding);
-
     // LEN+署名(72) + LEN+公開鍵(33)
     //  この時点では、self->tx_funding に scriptSig(23byte)とwitness(1+72+1+33)が入っていない。
     //  feeを決めるためにvsizeを算出したいが、
@@ -3404,8 +3399,9 @@ static bool create_funding_tx(ln_self_t *self)
         LOGD("    fee=%" PRIu64 "\n", fee);
         return false;
     }
-    ucoin_buf_free(&txbuf);
-    self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
+#else
+    //SPVの場合、fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
+#endif
 
     //署名
     bool ret;

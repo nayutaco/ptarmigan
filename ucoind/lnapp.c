@@ -1449,8 +1449,14 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     }
 
     bool unspent;
+#ifndef USE_SPV
     ret = btcrpc_check_unspent(&unspent, &fundin.amount, pFunding->txid, pFunding->txindex);
     LOGD("ret=%d, unspent=%d, fundin.amount=%" PRIu64 "\n", ret, unspent, fundin.amount);
+#else
+    //SPVの場合、内部でfund-in txを生成するため、チェック不要
+    unspent = true;
+    ret = true;
+#endif
     if (ret && unspent) {
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
@@ -1460,6 +1466,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
+#ifndef USE_SPV
         uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
         LOGD("estimate funding_tx fee: %" PRIu64 "\n", estfee);
         if (fundin.amount < pFunding->funding_sat + estfee) {
@@ -1471,6 +1478,13 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
         memcpy(fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
         fundin.index = pFunding->txindex;
+#else
+        //SPVの場合、ここでfund-in txを作る
+        //fee計算はSPVに任せ
+        fundin.txid
+        fundin.index
+        fundin.amount
+#endif
 
         LOGD("open_channel: fund_in amount=%" PRIu64 "\n", fundin.amount);
         ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
