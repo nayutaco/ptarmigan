@@ -369,7 +369,9 @@ typedef struct {
     ln_funding_created_t        cnl_funding_created;            ///< 送信 or 受信したfunding_created
     ln_funding_signed_t         cnl_funding_signed;             ///< 送信 or 受信したfunding_signed
 
+#ifndef USE_SPV
     ln_fundin_t                 *p_fundin;                      ///< 非NULL:open_channel側
+#endif
     ln_establish_prm_t          estprm;                         ///< channel establish parameter
 } ln_establish_t;
 

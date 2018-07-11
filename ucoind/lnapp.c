@@ -1451,6 +1451,8 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
     bool unspent;
 #ifndef USE_SPV
+    //事前にfund-in txがunspentかどうかチェックしようとしている。
+    //SPVの場合は1st Layerの処理も内部で行うので、チェック不要。
     ret = btcrpc_check_unspent(&unspent, &fundin.amount, pFunding->txid, pFunding->txindex);
     LOGD("ret=%d, unspent=%d, fundin.amount=%" PRIu64 "\n", ret, unspent, fundin.amount);
 #else
@@ -1468,6 +1470,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
 #ifndef USE_SPV
+        //bitcoindはucoindがfunding_txを作るため、fee計算する
         uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
         LOGD("estimate funding_tx fee: %" PRIu64 "\n", estfee);
         if (fundin.amount < pFunding->funding_sat + estfee) {
@@ -1480,14 +1483,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         memcpy(fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
         fundin.index = pFunding->txindex;
 #else
-        //SPVの場合、ここでfund-in txを作る
-        //fee計算はSPVに任せ
-        fundin.txid
-        fundin.index
-        fundin.amount
+        //SPVの場合、funding_txをSPVが作るため、fundin未使用
+        memset(&fundin, 0, sizeof(fundin));
 #endif
 
-        LOGD("open_channel: fund_in amount=%" PRIu64 "\n", fundin.amount);
         ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
                         &fundin,
@@ -3792,6 +3791,9 @@ static void payroute_print(lnapp_conf_t *p_conf)
  *
  * @param[in]   ShortChannelId      short_channel_id
  * @retval  true    funding_tx未使用
+ * @note
+ *      - close済みのchannelについてはannouncementしない方がよいのでは無いかと考えて行っている処理。
+ *      - SPVでは処理負荷が重たいため、やらない。
  */
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
 {

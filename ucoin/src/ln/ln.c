@@ -439,7 +439,9 @@ bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
     self->p_establish = (ln_establish_t *)M_MALLOC(sizeof(ln_establish_t));   //M_FREE:proc_established()
 
     if (pEstPrm != NULL) {
+#ifndef USE_SPV
         self->p_establish->p_fundin = NULL;       //open_channel送信側が設定する
+#endif
         memcpy(&self->p_establish->estprm, pEstPrm, sizeof(ln_establish_prm_t));
         LOGD("dust_limit_sat= %" PRIu64 "\n", self->p_establish->estprm.dust_limit_sat);
         LOGD("max_htlc_value_in_flight_msat= %" PRIu64 "\n", self->p_establish->estprm.max_htlc_value_in_flight_msat);
@@ -743,10 +745,12 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
         return false;
     }
 
+#ifndef USE_SPV
     //funding_tx作成用に保持
     assert(self->p_establish->p_fundin == NULL);
     self->p_establish->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
     memcpy(self->p_establish->p_fundin, pFundin, sizeof(ln_fundin_t));
+#endif
 
     //open_channel
     ln_open_channel_t *open_ch = &self->p_establish->cnl_open;
@@ -3353,6 +3357,7 @@ static bool create_funding_tx(ln_self_t *self)
     ucoin_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
+#ifndef USE_SPV
     //output
     self->funding_local.txindex = M_FUNDING_INDEX;      //TODO: vout#0は2-of-2、vout#1はchangeにしている
     //vout#0:P2WSH - 2-of-2 : M_FUNDING_INDEX
@@ -3365,7 +3370,6 @@ static bool create_funding_tx(ln_self_t *self)
     //vin#0
     ucoin_tx_add_vin(&self->tx_funding, self->p_establish->p_fundin->txid, self->p_establish->p_fundin->index);
 
-#ifndef USE_SPV
     //FEE計算
     // LEN+署名(72) + LEN+公開鍵(33)
     //  この時点では、self->tx_funding に scriptSig(23byte)とwitness(1+72+1+33)が入っていない。
@@ -3401,13 +3405,19 @@ static bool create_funding_tx(ln_self_t *self)
     }
 #else
     //SPVの場合、fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
+    //その代わり、self->funding_local.txindexは固定値にならない。
 #endif
 
     //署名
     bool ret;
     ln_cb_funding_sign_t sig;
     sig.p_tx =  &self->tx_funding;
+#ifndef USE_SPV
     sig.amount = self->p_establish->p_fundin->amount;
+#else
+    //SPVは未使用
+    sig.amount = 0;
+#endif
     (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
     ret = sig.ret;
     if (ret) {
