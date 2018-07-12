@@ -52,6 +52,15 @@ bool HIDDEN ln_msg_init_create(ucoin_buf_t *pBuf, const ln_init_t *pMsg);
 bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len);
 
 
+/** error生成
+ *
+ * @param[out]      pBuf    生成データ
+ * @param[in]       pMsg    元データ
+ * retval   true    成功
+ */
+bool HIDDEN ln_msg_error_create(ucoin_buf_t *pBuf, const ln_error_t *pMsg);
+
+
 /** error読込み
  *
  * @param[out]      pMsg    読込み結果

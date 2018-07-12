@@ -330,7 +330,7 @@ bool ucoin_ekey_read_addr(ucoin_ekey_t *pEKey, const char *pXAddr)
 #ifdef UCOIN_USE_PRINTFUNC
 void ucoin_print_extendedkey(const ucoin_ekey_t *pEKey)
 {
-    FILE *fp = PRINTOUT;
+    FILE *fp = stderr;
 
     fprintf(fp, "------------------------\n");
     fprintf(fp, "type: ");

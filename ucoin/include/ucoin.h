@@ -589,11 +589,10 @@ bool ucoin_tx_add_vout_addr(ucoin_tx_t *pTx, uint64_t Value, const char *pAddr);
  *
  * @param[in,out]       pTx
  * @param[in]           Value
- * @param[in]           pPubKeyHash
- * @param[in]           Pref
+ * @param[in]           pScriptPk
  * @return      trueのみ
  */
-bool ucoin_tx_add_vout_pkh(ucoin_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
+void ucoin_tx_add_vout_spk(ucoin_tx_t *pTx, uint64_t Value, const ucoin_buf_t *pScriptPk);
 
 
 /** 標準P2PKHのvout追加
@@ -1354,19 +1353,6 @@ void ucoin_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
  */
 void ucoin_util_strftime(char *pTmStr, uint32_t Tm);
 
-
-/** log出力開始(ulog)
- *
- */
-bool ucoin_util_log_init(void);
-
-
-/** log出力停止
- *
- * @note
- *      - アプリ層
- */
-void ucoin_util_log_term(void);
 
 #if defined(UCOIN_USE_PRINTFUNC) || defined(UCOIN_DEBUG)
 void ucoin_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);

@@ -4,7 +4,7 @@
  * \brief Consistency checks for configuration options
  */
 /*
- *  Copyright (C) 2006-2016, ARM Limited, All Rights Reserved
+ *  Copyright (C) 2006-2018, ARM Limited, All Rights Reserved
  *  SPDX-License-Identifier: Apache-2.0
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -76,6 +76,10 @@
 
 #if defined(MBEDTLS_DHM_C) && !defined(MBEDTLS_BIGNUM_C)
 #error "MBEDTLS_DHM_C defined, but not all prerequisites"
+#endif
+
+#if defined(MBEDTLS_SSL_TRUNCATED_HMAC_COMPAT) && !defined(MBEDTLS_SSL_TRUNCATED_HMAC)
+#error "MBEDTLS_SSL_TRUNCATED_HMAC_COMPAT defined, but not all prerequisites"
 #endif
 
 #if defined(MBEDTLS_CMAC_C) && \
@@ -185,6 +189,10 @@
 
 #if defined(MBEDTLS_HAVEGE_C) && !defined(MBEDTLS_TIMING_C)
 #error "MBEDTLS_HAVEGE_C defined, but not all prerequisites"
+#endif
+
+#if defined(MBEDTLS_HKDF_C) && !defined(MBEDTLS_MD_C)
+#error "MBEDTLS_HKDF_C defined, but not all prerequisites"
 #endif
 
 #if defined(MBEDTLS_HMAC_DRBG_C) && !defined(MBEDTLS_MD_C)

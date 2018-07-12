@@ -125,7 +125,7 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 3. [ptarm]実施後のamountを確認
 
 ```bash
-../showdb w | jq
+../showdb -w | jq
 ```
 
 * 成功した場合、`our_msat`が700000000、`their_msat`が100000000になる
@@ -278,7 +278,7 @@ watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
 3. [ptarm]実施後のamountを確認
 
 ```bash
-../showdb w | jq
+../showdb -w | jq
 ```
 
 * 成功した場合、`our_msat`が700000000、`their_msat`が100000000になる

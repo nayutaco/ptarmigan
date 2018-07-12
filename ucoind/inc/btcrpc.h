@@ -57,127 +57,126 @@ void btcrpc_term(void);
 int32_t btcrpc_getblockcount(void);
 
 
-/** [bitcoin rpc]blockhash取得
+/** [bitcoin rpc]genesis blockhash取得
  *
  * @param[out]  pHash       取得したBlockHash
- * @param[in]   Height      取得するBlock Height
  * @retval  true        取得成功
  */
-bool btcrpc_getblockhash(uint8_t *pHash, int Height);
+bool btcrpc_getgenesisblock(uint8_t *pHash);
 
 
-/** [bitcoin rpc]confirmation数取得
+/** [bitcoin rpc]funding_txのconfirmation数取得
  *
- * @param[in]   pTxid
+ * @param[in]   self        取得対象のchannel
  * @return      confirmation数
  * @note
  *      - 取得自体が失敗した場合でも0を返す
  */
-uint32_t btcrpc_get_confirmation(const uint8_t *pTxid);
+uint32_t btcrpc_get_funding_confirm(const ln_self_t *self);
 
 
 /** [bitcoin rpc]short_channel_idの計算に使用するパラメータ取得
  *
+ * @param[in]   self
  * @param[out]  pBHeight    block height
  * @param[out]  pBIndex     block index(pTxidの位置)
  * @param[in]   pTxid       検索するTXID
  * @retval  true        取得成功
  */
-bool btcrpc_get_short_channel_param(int *pBHeight, int *pBIndex, const uint8_t *pTxid);
+bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, const uint8_t *pTxid);
 
 
-/** [bitcoin rpc]short_channel_idパラメータから得たTXIDのunspent状態取得
+#ifndef USE_SPV
+/** [bitcoin rpc]short_channel_idパラメータからtxid取得
  *
+ * @param[out]  pTxid       該当するtxid
  * @param[in]   BHeight     block height
  * @param[in]   BIndex      block index
- * @param[in]   VIndex      vout index
- * @retval  true        unspent状態 or bitcoindエラー
- * @retval  false       spent状態
+ * @retval  true        取得成功
  */
-bool btcrpc_is_short_channel_unspent(int BHeight, int BIndex, int VIndex);
+bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex);
+#endif
 
 
-/** [bitcoin rpc]blockからvin[0]が一致するtransactionを検索
+/** [bitcoin rpc]複数blockからvin[0]のoutpointが一致するトランザクションを検索
  *
  * @param[out]  pTx         トランザクション情報
- * @param[in]   BHeight     block height
- * @param[in]   pTxid       検索するするTXID(バイト列)
+ * @param[in]   Blks        検索対象とする過去ブロック数
+ * @param[in]   pTxid       検索するTXID
  * @param[in]   VIndex      vout index
- * @retval  true        検索成功
+ * @retval  true    検索成功
+ * @retval  false   検索失敗 or bitcoindエラー
  * @note
  *      - 検索するvinはvin_cnt==1のみ
  */
-bool btcrpc_search_txid_block(ucoin_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
+bool btcrpc_search_outpoint(ucoin_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex);
 
 
-/** [bitcoin rpc]blockからvoutが一致するtransactionを検索
+/** [bitcoin rpc]複数blockからvout[0]のscriptPubKeyが一致するトランザクションを検索
+ *
  * @param[out]  pTxBuf      トランザクション情報(ucoin_tx_tの配列を保存する)
- * @param[in]   BHeight     block height
- * @param[in]   pVout       vout
- * @retval  true        検索成功
+ * @param[in]   Blks        検索対象とする過去ブロック数
+ * @param[in]   pVout       検索するscriptPubKey配列(ucoin_buf_tの配列)
+ * @retval  true    検索成功
+ * @retval  false   検索失敗 or bitcoindエラー
+ * @note
+ *      - pTxBufの扱いに注意すること
+ *          - 成功時、ucoin_tx_tが複数入っている可能性がある(個数は、pTxBuf->len / sizeof(ucoin_tx_t))
+ *          - クリアする場合、各ucoin_tx_tをクリア後、ucoin_buf_tをクリアすること
+ *      - 内部処理(getrawtransaction)に失敗した場合でも、処理を継続する
  */
-bool btcrpc_search_vout_block(ucoin_buf_t *pTxBuf, int BHeight, const ucoin_buf_t *pVout);
+bool btcrpc_search_vout(ucoin_buf_t *pTxBuf, uint32_t Blks, const ucoin_buf_t *pVout);
 
 
 /** [bitcoin rpc]signrawtransaction
  * @param[out]  pTx         トランザクション情報
- * @param[in]   pData       block height
- * @param@in]   Len         pData長
+ * @param[in]   pData       [bitcoind]トランザクションRAWデータ, [SPV]scriptPubKey
+ * @param[in]   Len         pData長
+ * @param[in]   Amount      送金額(bitcoindの場合は無視)
  * @retval  true        成功
  * @note
+ *      - funding_txへの署名を想定(scriptPubKeyは2-of-2)
  *      - pTxは戻り値がtrueの場合のみ更新する
  */
-bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len);
+bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
 
 
 /** [bitcoin rpc]sendrawtransaction
  *
  * @param[out]  pTxid       取得したTXID(戻り値がtrue時)
- * @param[out]  pCode       結果コード
- * @param[in]   pData       送信データ
- * @param[in]   Len         pData長
+ * @param[out]  pCode       結果コード(BTCRPC_ERR_xxx)
+ * @param[in]   pRawData    トランザクションRAWデータ
+ * @param[in]   Len         pRawData長
  * @retval  true        送信成功
  */
-bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pData, uint32_t Len);
+bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint32_t Len);
 
 
-/** [bitcoin rpc]getrawtransaction
+/** [bitcoin rpc]トランザクション展開済み確認
  *
- * @param[out]  pTx         トランザクション情報
  * @param[in]   pTxid       取得するTXID(バイト列)
- * @retval  true        取得成功
+ * @retval  true        トランザクション展開済み(mempool含む)
  */
-bool btcrpc_getraw_tx(ucoin_tx_t *pTx, const uint8_t *pTxid);
+bool btcrpc_is_tx_broadcasted(const ln_self_t *self, const uint8_t *pTxid);
 
 
-/** [bitcoin rpc]getrawtransaction
+/** [bitcoin rpc]vout unspent確認
  *
- * @param[out]  pTx         トランザクション情報
- * @param[in]   txid        取得するTXID(文字列)
- * @retval  true        取得成功
- */
-bool btcrpc_getraw_txstr(ucoin_tx_t *pTx, const char *txid);
-
-
-/** [bitcoin rpc]gettxout
- *
- * @param[out]  pUnspent        true:未使用
- * @param[out]  pSat            UINT64_MAX以外:取得したamount[satoshi], UINT64_MAX:取得失敗
+ * @param[out]  pUnspent        (成功 and 非NULL時)true:unspent
+ * @param[out]  pSat            (成功 and 非NULL時)取得したamount[satoshi]
  * @param[in]   pTxid
- * @param[in]   Txidx
+ * @param[in]   VIndex
  * @retval  true        取得成功
- * @note
- *      - gettxoutはunspentであるvoutのみ使用可能
  */
-bool btcrpc_getxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, int Txidx);
+bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 
 
 /** [bitcoin rpc]getnewaddress
  *
- * @param[out]  pAddr       生成したアドレス
+ * @param[out]  pBuf        生成したScriptPubKey
  * @retval  true        取得成功
  */
-bool btcrpc_getnewaddress(char *pAddr);
+bool btcrpc_getnewaddress(ucoin_buf_t *pBuf);
 
 
 /** [bitcoin rpc]estimatefee

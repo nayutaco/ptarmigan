@@ -56,19 +56,19 @@
 
 
 #define M_CHK_INIT      {\
-    if (*pOption != M_OPTIONS_INIT) {           \
-        printf("fail: too many options\n");     \
-        *pOption = M_OPTIONS_HELP;              \
-        return;                                 \
-    }                                           \
+    if (*pOption != M_OPTIONS_INIT) {           	\
+        fprintf(stderr, "fail: too many options\n");   	\
+        *pOption = M_OPTIONS_HELP;              	\
+        return;                                 	\
+    }                                           	\
 }
 
 #define M_CHK_CONN      {\
-    if (*pOption != M_OPTIONS_CONN) {           \
-        printf("need -c option first\n");       \
-        *pOption = M_OPTIONS_HELP;              \
-        return;                                 \
-    }                                           \
+    if (*pOption != M_OPTIONS_CONN) {           	\
+        fprintf(stderr, "fail: need -c option first\n");\
+        *pOption = M_OPTIONS_HELP;              	\
+        return;                                 	\
+    }                                           	\
 }
 
 
@@ -137,11 +137,13 @@ static const struct {
     { 'R', optfunc_routepay_prevskip },
     { 'x', optfunc_close },
     { 'w', optfunc_getlasterr },
-    { 'd', optfunc_debug },
     { 'g', optfunc_getcommittx },
     { 's', optfunc_disable_autoconn },
     { 'X', optfunc_remove_channel },
+
+    //long opt
     { 'b', optfunc_setfeerate },
+    { 'j', optfunc_debug },
 };
 
 
@@ -162,6 +164,7 @@ int main(int argc, char *argv[])
 
     const struct option OPTIONS[] = {
         { "setfeerate", required_argument, NULL, 'b' },
+        { "debug", required_argument, NULL, 'j' },
         { 0, 0, 0, 0 }
     };
 
@@ -170,7 +173,7 @@ int main(int argc, char *argv[])
     mAddr[0] = '\0';
     mTcpSend = true;
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:xwd:gs:X:b:", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:xwgs:X:", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -180,39 +183,39 @@ int main(int argc, char *argv[])
     }
 
     if (option == M_OPTIONS_ERR) {
-        printf("{ " M_QQ("error") ": {" M_QQ("code") ": -1," M_QQ("message") ":" M_QQ("%s") "} }\n", mErrStr);
+        fprintf(stderr, "{ " M_QQ("error") ": {" M_QQ("code") ": -1," M_QQ("message") ":" M_QQ("%s") "} }\n", mErrStr);
         return -1;
     }
     if ((option == M_OPTIONS_INIT) || (option == M_OPTIONS_HELP) || (!conn && (option == M_OPTIONS_CONN))) {
-        printf("[usage]\n");
-        printf("\t%s [-t] [OPTIONS...] [JSON-RPC port(not ucoind port)]\n", argv[0]);
-        printf("\t\t-h : help\n");
-        printf("\t\t-t : test(not send command)\n");
-        printf("\t\t-q : quit ucoind\n");
-        printf("\t\t-l : list channels\n");
-        printf("\t\t-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
-        printf("\t\t-e PAYMENT_HASH : erase payment_hash\n");
-        printf("\t\t-e ALL : erase all payment_hash\n");
-        printf("\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
-        printf("\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment keep prev skip channel(don't put a space before or after the comma)\n");
-        printf("\t\t-m : show payment_hashs\n");
-        printf("\t\t-s<1 or 0> : 1=stop auto channel connect\n");
-        printf("\t\t-c PEER.CONF : connect node\n");
-        printf("\t\t-c PEER NODE_ID or PEER.CONF -f FUND.CONF : funding\n");
-        printf("\t\t-c PEER NODE_ID or PEER.CONF -x : mutual/unilateral close channel\n");
-        printf("\t\t-c PEER NODE_ID or PEER.CONF -w : get last error\n");
-        printf("\t\t-c PEER NODE_ID or PEER.CONF -q : disconnect node\n");
-        printf("\n");
-        printf("\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
-        printf("\n");
-        // printf("\t\t-a <IP address> : [debug]JSON-RPC send address\n");
-        printf("\t\t-d VALUE : [debug]debug option\n");
-        printf("\t\t\tb0 ... no update_fulfill_htlc\n");
-        printf("\t\t\tb1 ... no closing transaction\n");
-        printf("\t\t\tb2 ... force payment_preimage mismatch\n");
-        printf("\t\t\tb3 ... no node auto connect\n");
-        printf("\t\t-c PEER NODE_ID or PEER.CONF -g : [debug]get commitment transaction\n");
-        printf("\t\t-X CHANNEL_ID : [debug]delete channel from DB\n");
+        fprintf(stderr, "[usage]\n");
+        fprintf(stderr, "\t%s [-t] [OPTIONS...] [JSON-RPC port(not ucoind port)]\n", argv[0]);
+        fprintf(stderr, "\t\t-h : help\n");
+        fprintf(stderr, "\t\t-t : test(not send command)\n");
+        fprintf(stderr, "\t\t-q : quit ucoind\n");
+        fprintf(stderr, "\t\t-l : list channels\n");
+        fprintf(stderr, "\t\t-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
+        fprintf(stderr, "\t\t-e PAYMENT_HASH : erase payment_hash\n");
+        fprintf(stderr, "\t\t-e ALL : erase all payment_hash\n");
+        fprintf(stderr, "\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
+        fprintf(stderr, "\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment keep prev skip channel(don't put a space before or after the comma)\n");
+        fprintf(stderr, "\t\t-m : show payment_hashs\n");
+        fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
+        fprintf(stderr, "\t\t-c PEER.CONF : connect node\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -f FUND.CONF : funding\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -x : mutual/unilateral close channel\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -w : get last error\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -q : disconnect node\n");
+        fprintf(stderr, "\n");
+        fprintf(stderr, "\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
+        fprintf(stderr, "\n");
+        // fprintf(stderr, "\t\t-a <IP address> : [debug]JSON-RPC send address\n");
+        fprintf(stderr, "\t\t--debug VALUE : [debug]debug option\n");
+        fprintf(stderr, "\t\t\tb0 ... no update_fulfill_htlc\n");
+        fprintf(stderr, "\t\t\tb1 ... no closing transaction\n");
+        fprintf(stderr, "\t\t\tb2 ... force payment_preimage mismatch\n");
+        fprintf(stderr, "\t\t\tb3 ... no node auto connect\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -g : [debug]get commitment transaction\n");
+        fprintf(stderr, "\t\t-X CHANNEL_ID : [debug]delete channel from DB\n");
         return -1;
     }
 
@@ -266,7 +269,7 @@ static void optfunc_addr(int *pOption, bool *pConn)
 static void optfunc_conn_param(int *pOption, bool *pConn)
 {
     if (*pOption != M_OPTIONS_INIT) {
-        printf("fail: '-c' must first\n");
+        fprintf(stderr, "fail: '-c' must first\n");
         *pOption = M_OPTIONS_HELP;
         return;
     }
@@ -295,7 +298,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
             *pConn = true;
             *pOption = M_OPTIONS_CONN;
         } else {
-            printf("fail: peer configuration file\n");
+            fprintf(stderr, "fail: peer configuration file\n");
             *pOption = M_OPTIONS_HELP;
         }
     } else if (optlen == UCOIN_SZ_PUBKEY * 2) {
@@ -305,7 +308,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         strcpy(mPeerNodeId, optarg);
         *pOption = M_OPTIONS_CONN;
     } else {
-        printf("fail: peer configuration file\n");
+        fprintf(stderr, "fail: peer configuration file\n");
         *pOption = M_OPTIONS_HELP;
     }
 }
@@ -367,18 +370,17 @@ static void optfunc_funding(int *pOption, bool *pConn)
                 M_QQ("params") ":[ "
                     //peer_nodeid, peer_addr, peer_port
                     M_QQ("%s") "," M_QQ("%s") ",%d,"
-                    //txid, txindex, signaddr, funding_sat, push_sat
-                    M_QQ("%s") ",%d," M_QQ("%s") ",%" PRIu64 ",%" PRIu64 ",%" PRIu32
+                    //txid, txindex, funding_sat, push_sat
+                    M_QQ("%s") ",%d,%" PRIu64 ",%" PRIu64 ",%" PRIu32
                 " ]"
             "}",
                 mPeerNodeId, mPeerAddr, mPeerPort,
-                txid, fundconf.txindex, fundconf.signaddr,
-                fundconf.funding_sat, fundconf.push_sat, fundconf.feerate_per_kw);
+                txid, fundconf.txindex, fundconf.funding_sat, fundconf.push_sat, fundconf.feerate_per_kw);
 
         *pConn = false;
         *pOption = M_OPTIONS_EXEC;
     } else {
-        printf("fail: funding configuration file\n");
+        fprintf(stderr, "fail: funding configuration file\n");
         *pOption = M_OPTIONS_HELP;
     }
 }
@@ -626,7 +628,7 @@ static void optfunc_disable_autoconn(int *pOption, bool *pConn)
 
         *pOption = M_OPTIONS_EXEC;
     } else {
-        printf("fail: invalid option\n");
+        fprintf(stderr, "fail: invalid option\n");
         *pOption = M_OPTIONS_HELP;
     }
 }
@@ -639,7 +641,7 @@ static void optfunc_remove_channel(int *pOption, bool *pConn)
     M_CHK_INIT
 
     if (strlen(optarg) != LN_SZ_CHANNEL_ID * 2) {
-        printf("fail: invalid option: %s\n", optarg);
+        fprintf(stderr, "fail: invalid option: %s\n", optarg);
         *pOption = M_OPTIONS_HELP;
         return;
     }
@@ -868,8 +870,8 @@ static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t 
         }
         close(sock);
     } else {
-        fprintf(stdout, "sendto: %s:%" PRIu16 "\n", (strlen(pAddr) != 0) ? pAddr : "localhost", Port);
-        fprintf(stdout, "%s\n", pSend);
+        printf("sendto: %s:%" PRIu16 "\n", (strlen(pAddr) != 0) ? pAddr : "localhost", Port);
+        printf("%s\n", pSend);
         retval = 0;
     }
 

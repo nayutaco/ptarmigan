@@ -19,10 +19,16 @@ extern "C" {
 #define ULOG_PRI_INFO       (2)
 #define ULOG_PRI_DBG        (3)
 #define ULOG_PRI_VERBOSE    (4)
+#ifdef DEVELOPER_MODE
+#define ULOG_PRI            ULOG_PRI_VERBOSE
+#else
 #define ULOG_PRI            ULOG_PRI_DBG
+#endif
 
 
 bool ulog_init(void);
+bool ulog_init_stderr(void);
+bool ulog_init_stdout(void);
 void ulog_term(void);
 void ulog_write(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const char *pFmt, ...);
 void ulog_dump(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len);

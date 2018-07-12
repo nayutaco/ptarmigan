@@ -117,7 +117,7 @@ bool ln_node_init(uint8_t Features)
 
     ln_node_announce_t anno;
 
-    ret = ln_db_annonod_load(&buf_node, NULL, mNode.keys.pub);
+    ret = ln_db_annonod_load(&buf_node, NULL, mNode.keys.pub, NULL);
     if (ret) {
         //ノード設定が変更されていないかチェック
         //  少なくともnode_idは変更されていない
@@ -198,7 +198,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 {
     ucoin_buf_t buf_anno = UCOIN_BUF_INIT;
 
-    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId);
+    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId, NULL);
     if (ret) {
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;
@@ -257,7 +257,9 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     buf_ann.len = Len;
     ret = ln_db_annonod_save(&buf_ann, &anno, ln_their_node_id(self));
     if (ret) {
-        (*self->p_callback)(self, LN_CB_NODE_ANNO_RECV, &anno);
+        ln_cb_update_annodb_t anno;
+        anno.anno = MSGTYPE_NODE_ANNOUNCEMENT;
+        (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
     }
 
     return true;
@@ -410,9 +412,9 @@ static void print_node(void)
 {
     printf("=NODE=============================================\n");
     // printf("node_key: ");
-    // ucoin_util_dumpbin(PRINTOUT, mNode.keys.priv, UCOIN_SZ_PRIVKEY, true);
+    // ucoin_util_dumpbin(stdout, mNode.keys.priv, UCOIN_SZ_PRIVKEY, true);
     printf("node_id: ");
-    ucoin_util_dumpbin(PRINTOUT, mNode.keys.pub, UCOIN_SZ_PUBKEY, true);
+    ucoin_util_dumpbin(stdout, mNode.keys.pub, UCOIN_SZ_PUBKEY, true);
     printf("features= %02x\n", mNode.features);
     printf("alias= %s\n", mNode.alias);
     printf("addr.type=%d\n", mNode.addr.type);

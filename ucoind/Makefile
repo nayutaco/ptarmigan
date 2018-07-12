@@ -9,7 +9,7 @@ OUTPUT_BINARY_DIRECTORY = .
 #CFLAGS_USER += -DAPP_DEBUG_MEM
 ######################################
 
-include ../common.mak
+include ../options.mak
 
 #echo suspend
 ifeq ("$(VERBOSE)","1")
@@ -40,9 +40,9 @@ C_SOURCE_FILES += $(PRJ_PATH)/p2p_cli.c
 C_SOURCE_FILES += $(PRJ_PATH)/lnapp.c
 C_SOURCE_FILES += $(PRJ_PATH)/cmd_json.c
 C_SOURCE_FILES += $(PRJ_PATH)/monitoring.c
+C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
 C_SOURCE_FILES += $(COMMON_PATH)/cmn/conf.c
 C_SOURCE_FILES += $(COMMON_PATH)/cmn/misc.c
-C_SOURCE_FILES += $(COMMON_PATH)/cmn/btcrpc.c
 
 #includes common to all targets
 INC_PATHS += -I$(COMMON_PATH)/include -I$(PRJ_PATH)/inc
@@ -63,11 +63,15 @@ CFLAGS += -W -Wall -Wextra
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 #CFLAGS += -flto -fno-builtin
 
+# for syscall() and others
+CFLAGS += -D_GNU_SOURCE
+
 # others
 CFLAGS += $(INC_PATHS)
 CFLAGS += -DNETKIND=$(NETKIND)
-ifeq ($(USE_ULOG_UCOIND),1)
-CFLAGS += -DUCOIN_USE_ULOG
+
+ifeq ($(USE_SPV),1)
+CFLAGS += -DUSE_SPV
 endif
 
 ifeq ($(DISABLE_PRINTFUND),0)
@@ -76,6 +80,10 @@ endif
 
 ifeq ($(ENABLE_DEVELOPER_MODE),1)
 CFLAGS += -DDEVELOPER_MODE
+endif
+
+ifeq ($(ENABLE_ULOG_TO_STDOUT_UCOIND),1)
+CFLAGS += -DENABLE_ULOG_TO_STDOUT
 endif
 
 ######################################

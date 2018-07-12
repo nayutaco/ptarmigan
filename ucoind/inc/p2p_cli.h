@@ -49,7 +49,7 @@ void p2p_cli_init(void);
 /** [p2p_cli]開始
  *
  */
-bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx);
+bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx);
 
 
 /** [p2p_cli]全停止
@@ -80,6 +80,17 @@ void p2p_cli_show_self(cJSON *pResult);
  *
  */
 bool p2p_cli_is_looping(void);
+
+
+/** [p2p_cli] 接続情報を保存
+ *
+ */
+bool p2p_cli_store_peer_conn(const peer_conn_t* pPeerConn);
+
+/** [p2p_cli] 接続情報を復元
+ *
+ */
+bool p2p_cli_load_peer_conn(peer_conn_t* pPeerConn, const uint8_t *pNodeId);
 
 
 #ifdef __cplusplus

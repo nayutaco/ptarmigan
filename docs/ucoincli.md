@@ -71,7 +71,6 @@ port=[port number]
 ```text
 txid=[fund-in txid]
 txindex=[fund-in outpoint index]
-signaddr=[address for sign funding transaction(internally use `bitcoin-cli dumpprivkey`)]
 funding_sat=[funding satoshis in txid amount]
 push_sat=[push satoshis for peer node]
 feerate_per_kw=[feerate_per_kw for `open_channel`]

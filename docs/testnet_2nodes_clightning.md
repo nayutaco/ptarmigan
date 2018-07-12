@@ -128,7 +128,7 @@ Now, we will move on how to send payment.
 3. [ptarmigan] Confirming the amount after running it
 
 ```bash
-../showdb w | jq
+../showdb -w | jq
 ```
 
 * If successful, `our_msat` will be 700000000 and `their_msat` will be 100000000.

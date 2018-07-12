@@ -263,29 +263,20 @@ static int my_strncasecmp(const char *s1, const char *s2, size_t n) {
 TEST_F(bech32, bech32_valid)
 {
     size_t i;
-    int fail = 0;
 
     for (i = 0; i < sizeof(valid_checksum) / sizeof(valid_checksum[0]); ++i) {
         uint8_t data[82];
         char rebuild[92];
         char hrp[84];
         size_t data_len;
-        int ok = 1;
-        if (!bech32_decode(hrp, data, &data_len, valid_checksum[i], false)) {
-            printf("bech32_decode fails: '%s'\n", valid_checksum[i]);
-            ok = 0;
-        }
-        if (ok) {
-            if (!bech32_encode(rebuild, hrp, data, data_len, false)) {
-                printf("bech32_encode fails: '%s'\n", valid_checksum[i]);
-                ok = 0;
-            }
-        }
-        if (ok && my_strncasecmp(rebuild, valid_checksum[i], 92)) {
-            printf("bech32_encode produces incorrect result: '%s'\n", valid_checksum[i]);
-            ok = 0;
-        }
-        fail += !ok;
+        bool ret;
+        ret = bech32_decode(hrp, data, &data_len, valid_checksum[i], false);
+        ASSERT_TRUE(ret);
+
+        ret = bech32_encode(rebuild, hrp, data, data_len, false);
+        ASSERT_TRUE(ret);
+
+        ASSERT_EQ(0, my_strncasecmp(rebuild, valid_checksum[i], 92));
     }
 }
 
@@ -293,18 +284,14 @@ TEST_F(bech32, bech32_valid)
 TEST_F(bech32, bech32_invalid)
 {
     size_t i;
-    int fail = 0;
 
     for (i = 0; i < sizeof(invalid_checksum) / sizeof(invalid_checksum[0]); ++i) {
         uint8_t data[82];
         char hrp[84];
         size_t data_len;
-        int ok = 1;
-        if (bech32_decode(hrp, data, &data_len, invalid_checksum[i], false)) {
-            printf("bech32_decode succeeds on invalid string: '%s'\n", invalid_checksum[i]);
-            ok = 0;
-        }
-        fail += !ok;
+        bool ret;
+        ret = bech32_decode(hrp, data, &data_len, invalid_checksum[i], false);
+        ASSERT_FALSE(ret);
     }
 }
 
@@ -312,18 +299,19 @@ TEST_F(bech32, bech32_invalid)
 TEST_F(bech32, segwit_valid)
 {
     size_t i;
-    int fail = 0;
 
     for (i = 0; i < sizeof(valid_address) / sizeof(valid_address[0]); ++i) {
         uint8_t witprog[40];
         size_t witprog_len;
         int witver;
-        int hrp_type = SEGWIT_ADDR_MAINNET;
-        int ok = 1;
+        int hrp_type;
         uint8_t scriptpubkey[42];
         size_t scriptpubkey_len;
         char rebuild[93];
-        int ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+        bool ret;
+
+        hrp_type = SEGWIT_ADDR_MAINNET;
+        ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
         if (!ret) {
             hrp_type = SEGWIT_ADDR_TESTNET;
             ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
@@ -336,24 +324,16 @@ TEST_F(bech32, segwit_valid)
             hrp_type = SEGWIT_ADDR_TESTNET2;
             ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
         }
-        if (!ret) {
-            printf("segwit_addr_decode fails: '%s'\n", valid_address[i].address);
-            ok = 0;
-        }
-        if (ok) segwit_scriptpubkey(scriptpubkey, &scriptpubkey_len, witver, witprog, witprog_len);
-        if (ok && (scriptpubkey_len != valid_address[i].scriptPubKeyLen || memcmp(scriptpubkey, valid_address[i].scriptPubKey, scriptpubkey_len))) {
-            printf("segwit_addr_decode produces wrong result: '%s'\n", valid_address[i].address);
-            ok = 0;
-        }
-        if (ok && !segwit_addr_encode(rebuild, hrp_type, witver, witprog, witprog_len)) {
-            printf("segwit_addr_encode fails: '%s'\n", valid_address[i].address);
-            ok = 0;
-        }
-        if (ok && my_strncasecmp(valid_address[i].address, rebuild, 93)) {
-            printf("segwit_addr_encode produces wrong result: '%s'\n", valid_address[i].address);
-            ok = 0;
-        }
-        fail += !ok;
+        ASSERT_TRUE(ret);
+
+        segwit_scriptpubkey(scriptpubkey, &scriptpubkey_len, witver, witprog, witprog_len);
+        ASSERT_EQ(scriptpubkey_len, valid_address[i].scriptPubKeyLen);
+        ASSERT_EQ(0, memcmp(scriptpubkey, valid_address[i].scriptPubKey, scriptpubkey_len));
+
+        ret = segwit_addr_encode(rebuild, hrp_type, witver, witprog, witprog_len);
+        ASSERT_TRUE(ret);
+
+        ASSERT_EQ(0, my_strncasecmp(valid_address[i].address, rebuild, 93));
     }
 }
 
@@ -361,22 +341,18 @@ TEST_F(bech32, segwit_valid)
 TEST_F(bech32, segwit_invalid_dec)
 {
     size_t i;
-    int fail = 0;
 
     for (i = 0; i < sizeof(invalid_address) / sizeof(invalid_address[0]); ++i) {
         uint8_t witprog[40];
         size_t witprog_len;
         int witver;
-        int ok = 1;
-        if (segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_MAINNET, invalid_address[i])) {
-            printf("segwit_addr_decode succeeds on invalid address '%s'\n", invalid_address[i]);
-            ok = 0;
-        }
-        if (segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_TESTNET, invalid_address[i])) {
-            printf("segwit_addr_decode succeeds on invalid address '%s'\n", invalid_address[i]);
-            ok = 0;
-        }
-        fail += !ok;
+        bool ret;
+
+        ret = segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_MAINNET, invalid_address[i]);
+        ASSERT_FALSE(ret);
+
+        ret = segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_TESTNET, invalid_address[i]);
+        ASSERT_FALSE(ret);
     }
 }
 
@@ -384,15 +360,13 @@ TEST_F(bech32, segwit_invalid_dec)
 TEST_F(bech32, segwit_invalid_enc)
 {
     size_t i;
-    int fail = 0;
 
     for (i = 0; i < sizeof(invalid_address_enc) / sizeof(invalid_address_enc[0]); ++i) {
         char rebuild[93];
         static const uint8_t program[42] = {0};
-        if (segwit_addr_encode(rebuild, get_hrp_type(invalid_address_enc[i].hrp), invalid_address_enc[i].version, program, invalid_address_enc[i].program_length)) {
-            printf("segwit_addr_encode succeeds on invalid input '%s'\n", rebuild);
-            ++fail;
-        }
+
+        bool ret = segwit_addr_encode(rebuild, get_hrp_type(invalid_address_enc[i].hrp), invalid_address_enc[i].version, program, invalid_address_enc[i].program_length);
+        ASSERT_FALSE(ret);
     }
 }
 
@@ -400,65 +374,36 @@ TEST_F(bech32, segwit_invalid_enc)
 TEST_F(bech32, invoice_valid)
 {
     size_t i;
-    int fail = 0;
 
     for (i = 0; i < sizeof(ln_valid_invoice) / sizeof(ln_valid_invoice[0]); ++i) {
         //printf("\n\n=[%d]=============================\n", (int)i);
-        int ok = 1;
         ln_invoice_t *p_invoice_data = NULL;
+        bool ret;
+
         ln_node_setkey(ln_valid_invoice[i].privkey);
-        bool ret = ln_invoice_decode(&p_invoice_data, ln_valid_invoice[i].invoice);
-        if (ret && (memcmp(p_invoice_data->pubkey, ln_valid_invoice[i].pubkey, UCOIN_SZ_PUBKEY) == 0)) {
-            //print_invoice(p_invoice_data);
-        } else {
-            printf("ln_invoice_decode fails: '%s'\n", ln_valid_invoice[i].invoice);
-            ok = 0;
-        }
+        ret = ln_invoice_decode(&p_invoice_data, ln_valid_invoice[i].invoice);
+        ASSERT_TRUE(ret);
+        ASSERT_EQ(0, memcmp(p_invoice_data->pubkey, ln_valid_invoice[i].pubkey, UCOIN_SZ_PUBKEY));
+
         char *p_invoice = NULL;
-        if (ok) {
-            ret = ln_invoice_encode(&p_invoice, p_invoice_data);
-            if (!ret) {
-                printf("ln_invoice_encode fails\n");
-                ok = 0;
-            }
-        }
-        if (ok) {
-            ln_invoice_t *p_invoice_data2 = NULL;
-            ret = ln_invoice_decode(&p_invoice_data2, p_invoice);
-            if (ret) {
-                //print_invoice(p_invoice_data2);
-                if (p_invoice_data->hrp_type != p_invoice_data2->hrp_type) {
-                    printf("false: hrp mismatch\n");
-                    ok = 0;
-                }
-                if (ok && (p_invoice_data->amount_msat != p_invoice_data2->amount_msat)) {
-                    printf("false: amount_msat mismatch\n");
-                    ok = 0;
-                }
-                //if (ok && (p_invoice_data->timestamp != p_invoice_data2->timestamp)) {
-                //    printf("false: timestamp mismatch\n");
-                //    ok = 0;
-                //}
-                if (ok && (p_invoice_data->min_final_cltv_expiry != p_invoice_data2->min_final_cltv_expiry)) {
-                    printf("false: min_final_cltv_expiry mismatch\n");
-                    ok = 0;
-                }
-                if (ok && (memcmp(p_invoice_data->pubkey, p_invoice_data2->pubkey, UCOIN_SZ_PUBKEY) != 0)) {
-                    printf("false: pubkey mismatch\n");
-                    ok = 0;
-                }
-                if (ok && (memcmp(p_invoice_data->payment_hash, p_invoice_data2->payment_hash, LN_SZ_HASH) != 0)) {
-                    printf("false: payment_hash mismatch\n");
-                    ok = 0;
-                }
-            } else {
-                printf("false: decode2\n");
-                ok = 0;
-            }
-            free(p_invoice_data2);
-        }
+        ret = ln_invoice_encode(&p_invoice, p_invoice_data);
+        ASSERT_TRUE(ret);
+
+        ln_invoice_t *p_invoice_data2 = NULL;
+        ret = ln_invoice_decode(&p_invoice_data2, p_invoice);
+        ASSERT_TRUE(ret);
+
+        //print_invoice(p_invoice_data2);
+        ASSERT_EQ(p_invoice_data->hrp_type, p_invoice_data2->hrp_type);
+        ASSERT_EQ(p_invoice_data->amount_msat, p_invoice_data2->amount_msat);
+        ASSERT_NE(p_invoice_data->timestamp, p_invoice_data2->timestamp);       //時刻は更新するので、変化する
+        ASSERT_EQ(p_invoice_data->min_final_cltv_expiry, p_invoice_data2->min_final_cltv_expiry);
+        ASSERT_EQ(0, memcmp(p_invoice_data->pubkey, p_invoice_data2->pubkey, UCOIN_SZ_PUBKEY));
+        ASSERT_EQ(0, memcmp(p_invoice_data->payment_hash, p_invoice_data2->payment_hash, LN_SZ_HASH));
+        ASSERT_EQ(p_invoice_data->expiry, p_invoice_data2->expiry);
+
+        free(p_invoice_data2);
         free(p_invoice_data);
         free(p_invoice);
-        fail += !ok;
     }
 }

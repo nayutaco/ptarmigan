@@ -227,6 +227,14 @@ static void ln_print_self(const ln_self_t *self)
     //init
     printf(INDENT3 M_QQ("lfeature_remote") ": " M_QQ("%02x") ",\n", self->lfeature_remote);
 
+    //close
+    printf(INDENT3 M_QQ("close local scriptPubKey") ": \"");
+    ucoin_util_dumpbin(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
+    printf("\",\n");
+    printf(INDENT3 M_QQ("close remote scriptPubKey") ": \"");
+    ucoin_util_dumpbin(stdout, self->shutdown_scriptpk_remote.buf, self->shutdown_scriptpk_remote.len, false);
+    printf("\",\n");
+
     //normal operation
     printf(INDENT3 M_QQ("htlc_num") ": %d,\n", self->htlc_num);
     printf(INDENT3 M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);
@@ -418,7 +426,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
 
         int retval = ln_lmdb_self_load(p_self, txn, dbi);
         if (retval != 0) {
-            printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
+            //printf(M_QQ("load") ":" M_QQ("%s"), mdb_strerror(retval));
             return;
         }
         const char *p_title;
@@ -693,16 +701,23 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
 
         bool ret = true;
         while (ret) {
-            uint8_t preimage[LN_SZ_PREIMAGE];
-            uint64_t amount;
-            ret = ln_db_preimg_cur_get(&cur, preimage, &amount);
-            if (ret) {
+            ln_db_preimg_t preimg;
+            bool detect;
+            ret = ln_db_preimg_cur_get(&cur, &detect, &preimg);
+            if (detect) {
                 if (cnt4) {
                     printf(",");
                 }
-                printf("[\"");
-                ucoin_util_dumpbin(stdout, preimage, LN_SZ_PREIMAGE, false);
-                printf("\", %" PRIu64 "]", amount);
+                printf("{\n");
+                printf(INDENT1 "\"");
+                ucoin_util_dumpbin(stdout, preimg.preimage, LN_SZ_PREIMAGE, false);
+                printf("\",\n");
+                printf(INDENT1 M_QQ("amount") ": %" PRIu64 ",\n", preimg.amount_msat);
+                printf(INDENT1 M_QQ("expiry") ": %" PRIu32 "\n", preimg.expiry);
+                char dtstr[UCOIN_SZ_DTSTR];
+                ucoin_util_strftime(dtstr, preimg.creation_time);
+                printf(INDENT1 M_QQ("creation") ": %s\n", dtstr);
+                printf("}");
                 cnt4++;
             }
         }
@@ -792,7 +807,7 @@ int main(int argc, char *argv[])
 
     bool loop = true;
     int opt;
-    while (loop && ((opt = getopt_long(argc, argv, "hd:Dswlqcnakiv9:", OPTIONS, NULL)) != -1)) {
+    while (loop && ((opt = getopt_long(argc, argv, "hd:swlqcnakiv9:", OPTIONS, NULL)) != -1)) {
         switch (opt) {
         case 'd':
             if (optarg[strlen(optarg) - 1] == '/') {
@@ -871,81 +886,6 @@ int main(int argc, char *argv[])
             break;
         }
     }
-
-    //TODO: 2018年6月に削除してgetopt()のみにする
-#if 1
-    if (optind == 1) {
-        if (argc >= 2) {
-            switch (argv[1][0]) {
-            case 's':
-                showflag = SHOW_SELF;
-                env = 0;
-                break;
-            case 'w':
-                showflag = SHOW_WALLET;
-                env = 0;
-                break;
-            case 'l':
-                showflag = SHOW_CH;
-                env = 0;
-                break;
-            case 'q':
-                showflag = SHOW_CLOSED_CH;
-                env = 0;
-                break;
-            case 'c':
-                showflag = SHOW_CNLANNO;
-                env = 1;
-                break;
-            case 'n':
-                showflag = SHOW_NODEANNO;
-                env = 1;
-                break;
-            // case 'a':
-            //     showflag = SHOW_ANNOINFO;
-            //     env = 1;
-            //     break;
-            case 'k':
-                showflag = SHOW_ANNOSKIP;
-                env = 1;
-                break;
-            case 'i':
-                showflag = SHOW_ANNOINVOICE;
-                env = 1;
-                break;
-            case 'v':
-                showflag = SHOW_VERSION;
-                env = 0;
-                break;
-            case '9':
-                switch (argv[1][1]) {
-                case '1':
-                    showflag = SHOW_CNLANNO | SHOW_DEBUG;
-                    spoil_stderr = false;
-                    env = 1;
-                    break;
-                case '2':
-                    showflag = SHOW_NODEANNO | SHOW_DEBUG;
-                    spoil_stderr = false;
-                    env = 1;
-                    break;
-                case '3':
-                    showflag = SHOW_PREIMAGE;
-                    env = 0;
-                    break;
-                }
-                break;
-            }
-
-            if (argc >= 3) {
-                if (argv[2][strlen(argv[2]) - 1] == '/') {
-                    argv[2][strlen(argv[2]) - 1] = '\0';
-                }
-                ln_lmdb_set_path(argv[2]);
-            }
-        }
-    }
-#endif
 
     if (showflag == 0) {
         fprintf(stderr, "usage:\n");

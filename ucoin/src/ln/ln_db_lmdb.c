@@ -73,6 +73,7 @@
 #define M_DBI_ANNOINFO_CNL      "channel_annoinfo"
 #define M_DBI_ANNO_NODE         "node_anno"
 #define M_DBI_ANNOINFO_NODE     "node_annoinfo"
+#define M_DBI_ANNOINFO_CHAN     "chan_annoinfo"
 #define M_DBI_ANNO_SKIP         LNDB_DBI_ANNO_SKIP
 #define M_DBI_ANNO_INVOICE      "route_invoice"
 #define M_DBI_PREIMAGE          "preimage"
@@ -89,7 +90,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-17)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-18)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -108,7 +109,8 @@
     -15: node.conf情報をversionに追加
     -16: selfはmpDbEnv、それ以外はmpDbNodeEnvにする
     -17: selfの構造体を個別に保存する
-    -18: selfのsecret情報をself.priv_dataに集約
+         selfのsecret情報をself.priv_dataに集約
+    -18: node_announcement除外用DB追加(annoinfo_chan)
  */
 
 
@@ -181,13 +183,24 @@ typedef struct {
 } nodeinfo_t;
 
 
-/** @typedef    preimage_info_t
+/** @typedef    preimg_info_t
  *  @brief      [preimage]に保存するpreimage情報
  */
 typedef struct {
-    uint64_t amount;
-    time_t creation;
-} preimage_info_t;
+    uint64_t amount;            ///< amount[satoshi]
+    uint64_t creation;          ///< invoice creation epoch
+    uint32_t expiry;            ///< expiry[sec]
+                                //      0: 3600s=1h(BOLT#11のデフォルト値)
+                                //      UINT32_MAX: expiryによる自動削除禁止
+} preimg_info_t;
+
+
+/** #ln_db_self_del_prm()用(ln_db_preimg_search)
+ * 
+ */
+typedef struct {
+    const ln_update_add_htlc_t  *add_htlc;
+} preimg_close_t;
 
 
 /********************************************************************
@@ -302,11 +315,15 @@ static const backup_param_t DBCOPY_KEYS[] = {
     M_ITEM(ln_self_t, peer_node_id),
     M_ITEM(ln_self_t, channel_id),
     M_ITEM(ln_self_t, short_channel_id),
+    M_ITEM(ln_self_t, our_msat),
+    M_ITEM(ln_self_t, their_msat),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),
 };
 static const struct {
     enum {
@@ -326,11 +343,15 @@ static const struct {
     { ETYPE_BYTEPTR,    UCOIN_SZ_PUBKEY, true },    // peer_node_id
     { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
     { ETYPE_UINT64,     1, true },                  // short_channel_id
-    { ETYPE_FUNDTXID,   UCOIN_SZ_TXID, false },     // funding_local.txid
-    { ETYPE_FUNDTXIDX,  1, false },                 // funding_local.txindex
+    { ETYPE_UINT64,     1, true },                  // our_msat
+    { ETYPE_UINT64,     1, true },                  // their_msat
+    { ETYPE_FUNDTXID,   UCOIN_SZ_TXID, true },      // funding_local.txid
+    { ETYPE_FUNDTXIDX,  1, true },                  // funding_local.txindex
     { ETYPE_LOCALKEYS,  1, false },                 // funding_local.pubkeys
     { ETYPE_REMOTEKEYS, 1, false },                 // funding_remote.pubkeys
     { ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
+    { ETYPE_UINT64,     1, true },                  // commit_local.commit_num
+    { ETYPE_UINT64,     1, true },                  // commit_remote.commit_num
 };
 
 
@@ -380,6 +401,8 @@ static void annoinfo_trim(MDB_cursor *pCursor, const uint8_t *pNodeId);
 
 static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
 static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
+static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port);
 static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
@@ -650,9 +673,20 @@ LABEL_EXIT:
 
 bool ln_db_self_save(const ln_self_t *self)
 {
-    int             retval;
+    int             retval = -1;
     ln_lmdb_db_t    db;
     char            dbname[M_SZ_DBNAME_LEN + 1];
+
+    for (int lp = 0; lp < LN_SZ_CHANNEL_ID; lp++) {
+        if (self->channel_id[lp] != 0) {
+            retval = 0;
+            break;
+        }
+    }
+    if (retval != 0) {
+        LOGD("fail: channel_id is 0\n");
+        return false;
+    }
 
     retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -703,6 +737,11 @@ bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param)
     MDB_dbi     dbi;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
+
+    //add_htlcと関連するpreimage削除
+    preimg_close_t prm;
+    prm.add_htlc = self->cnl_add_htlc;
+    ln_db_preimg_search(preimg_close_func, &prm);
 
     //add_htlc
     ucoin_util_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
@@ -859,18 +898,18 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
         if (retval == 0) {
             const uint8_t *p = (const uint8_t *)data.mv_data;
             if ((lp != 0) && (DBCOPY_IDX[lp].disp)) {
-                fprintf(PRINTOUT, ",\n");
+                printf(",\n");
             }
             if (DBCOPY_IDX[lp].disp) {
-                fprintf(PRINTOUT, "      \"%s\": ", DBCOPY_KEYS[lp].name);
+                printf("      \"%s\": ", DBCOPY_KEYS[lp].name);
             }
             switch (DBCOPY_IDX[lp].type) {
             case ETYPE_BYTEPTR: //const uint8_t*
             case ETYPE_REMOTECOMM:
                 if (DBCOPY_IDX[lp].disp) {
-                    fprintf(PRINTOUT, "\"");
-                    ucoin_util_dumpbin(PRINTOUT, p, DBCOPY_IDX[lp].length, false);
-                    fprintf(PRINTOUT, "\"");
+                    printf("\"");
+                    ucoin_util_dumpbin(stdout, p, DBCOPY_IDX[lp].length, false);
+                    printf("\"");
                 }
 #ifdef M_DEBUG_KEYS
                 if (DBCOPY_IDX[lp].type == ETYPE_REMOTECOMM) {
@@ -880,13 +919,13 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                 break;
             case ETYPE_UINT64:
                 if (DBCOPY_IDX[lp].disp) {
-                    fprintf(PRINTOUT, "\"%" PRIx64 "\"", *(const uint64_t *)p);
+                    printf("\"%" PRIx64 "\"", *(const uint64_t *)p);
                 }
                 break;
             case ETYPE_UINT16:
             case ETYPE_FUNDTXIDX:
                 if (DBCOPY_IDX[lp].disp) {
-                    fprintf(PRINTOUT, "%" PRIu16, *(const uint16_t *)p);
+                    printf("%" PRIu16, *(const uint16_t *)p);
                 }
 #ifdef M_DEBUG_KEYS
                 if (DBCOPY_IDX[lp].type == ETYPE_FUNDTXIDX) {
@@ -897,9 +936,9 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
             case ETYPE_TXID: //txid
             case ETYPE_FUNDTXID:
                 if (DBCOPY_IDX[lp].disp) {
-                    fprintf(PRINTOUT, "\"");
-                    ucoin_util_dumptxid(PRINTOUT, p);
-                    fprintf(PRINTOUT, "\"");
+                    printf("\"");
+                    ucoin_util_dumptxid(stdout, p);
+                    printf("\"");
                 }
 #ifdef M_DEBUG_KEYS
                 if (DBCOPY_IDX[lp].type == ETYPE_FUNDTXID) {
@@ -932,7 +971,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
 #ifdef M_DEBUG_KEYS
     if ( ((local.pubkeys[0][0] == 0x02) || (local.pubkeys[0][0] == 0x03)) &&
          ((remote.pubkeys[0][0] == 0x02) || (remote.pubkeys[0][0] == 0x03))) {
-        fprintf(PRINTOUT, "\n");
+        printf("\n");
         ln_misc_update_scriptkeys(&local, &remote);
         //ln_print_keys(&local, &remote);
     }
@@ -1091,10 +1130,12 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId)
+bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId,
+                        const uint8_t *pChan1, const uint8_t *pChan2)
 {
     int         retval;
-    ln_lmdb_db_t   db, db_info;
+    ln_lmdb_db_t   db, db_info, db_aichan;
+    MDB_val     key, data;
 
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -1102,6 +1143,7 @@ bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, co
         goto LABEL_EXIT;
     }
     db_info.txn = db.txn;
+    db_aichan.txn = db.txn;
     retval = mdb_dbi_open(db.txn, M_DBI_ANNO_CNL, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
@@ -1111,6 +1153,34 @@ bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, co
     retval = mdb_dbi_open(db.txn, M_DBI_ANNOINFO_CNL, MDB_CREATE, &db_info.dbi);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.txn);
+        goto LABEL_EXIT;
+    }
+
+    //BOLT#07
+    //  * if node_id is NOT previously known from a channel_announcement message, OR if timestamp is NOT greater than the last-received node_announcement from this node_id:
+    //    * SHOULD ignore the message.
+    //  channel_announcementで受信していないnode_idは無視する
+    retval = mdb_dbi_open(db.txn, M_DBI_ANNOINFO_CHAN, MDB_CREATE, &db_aichan.dbi);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(db.txn);
+        goto LABEL_EXIT;
+    }
+    data.mv_size = 0;
+    data.mv_data = NULL;
+    key.mv_size = UCOIN_SZ_PUBKEY;
+    key.mv_data = (CONST_CAST uint8_t *)pChan1;
+    retval = mdb_put(db_aichan.txn, db_aichan.dbi, &key, &data, 0);
+    if (retval != 0) {
+        LOGD("ERR: channel_announcement node_id 1\n");
+        MDB_TXN_ABORT(db.txn);
+        goto LABEL_EXIT;
+    }
+    key.mv_data = (CONST_CAST uint8_t *)pChan2;
+    retval = mdb_put(db_aichan.txn, db_aichan.dbi, &key, &data, 0);
+    if (retval != 0) {
+        LOGD("ERR: channel_announcement node_id 2\n");
         MDB_TXN_ABORT(db.txn);
         goto LABEL_EXIT;
     }
@@ -1488,7 +1558,7 @@ void ln_db_annocnl_del_orphan(void)
         return;
     }
 
-    time_t now = time(NULL);
+    uint64_t now = (uint64_t)time(NULL);
     void *p_cur;
     ret = ln_db_annocnl_cur_open(&p_cur, p_db);
     if (ret) {
@@ -1840,15 +1910,20 @@ LABEL_EXIT:
  * node_announcement
  ********************************************************************/
 
-bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId)
+bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDb)
 {
     int         retval;
     ln_lmdb_db_t   db;
 
-    retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
+    if (pDb == NULL) {
+        retval = MDB_TXN_BEGIN(mpDbNode, NULL, MDB_RDONLY, &db.txn);
+        if (retval != 0) {
+            LOGD("ERR: %s\n", mdb_strerror(retval));
+            goto LABEL_EXIT;
+        }
+    } else {
+        ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
+        db.txn = p_db->txn;
     }
     retval = mdb_dbi_open(db.txn, M_DBI_ANNO_NODE, 0, &db.dbi);
     if (retval != 0) {
@@ -1858,7 +1933,9 @@ bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint
     }
     retval = annonod_load(&db, pNodeAnno, pTimeStamp, pNodeId);
 
-    MDB_TXN_ABORT(db.txn);
+    if (pDb == NULL) {
+        MDB_TXN_ABORT(db.txn);
+    }
 
 LABEL_EXIT:
     return retval == 0;
@@ -1868,7 +1945,12 @@ LABEL_EXIT:
 bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId)
 {
     int             retval;
-    ln_lmdb_db_t    db, db_info;
+    ln_lmdb_db_t    db, db_info, db_aichan;
+    ucoin_buf_t buf_node = UCOIN_BUF_INIT;
+    uint32_t    timestamp;
+    bool        upddb = false;
+    bool        clr = false;
+    MDB_val     key, data;
 
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -1876,6 +1958,7 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         goto LABEL_EXIT;
     }
     db_info.txn = db.txn;
+    db_aichan.txn = db.txn;
     retval = mdb_dbi_open(db.txn, M_DBI_ANNO_NODE, MDB_CREATE, &db.dbi);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
@@ -1889,10 +1972,28 @@ bool ln_db_annonod_save(const ucoin_buf_t *pNodeAnno, const ln_node_announce_t *
         goto LABEL_EXIT;
     }
 
-    ucoin_buf_t buf_node = UCOIN_BUF_INIT;
-    uint32_t    timestamp;
-    bool        upddb = false;
-    bool        clr = false;
+    if (memcmp(pAnno->p_node_id, ln_node_getid(), UCOIN_SZ_PUBKEY) != 0) {
+        //BOLT#07
+        //  * if node_id is NOT previously known from a channel_announcement message, OR if timestamp is NOT greater than the last-received node_announcement from this node_id:
+        //    * SHOULD ignore the message.
+        //  channel_announcementで受信していないnode_idは無視する
+        retval = mdb_dbi_open(db.txn, M_DBI_ANNOINFO_CHAN, 0, &db_aichan.dbi);
+        if (retval != 0) {
+            LOGD("ERR: %s\n", mdb_strerror(retval));
+            MDB_TXN_ABORT(db.txn);
+            goto LABEL_EXIT;
+        }
+        if (retval == 0) {
+            key.mv_size = UCOIN_SZ_PUBKEY;
+            key.mv_data = pAnno->p_node_id;
+            retval = mdb_get(db_aichan.txn, db_aichan.dbi, &key, &data);
+            if (retval != 0) {
+                LOGD("skip: not have channel_announcement node_id\n");
+                MDB_TXN_ABORT(db.txn);
+                goto LABEL_EXIT;
+            }
+        }
+    }
 
     retval = annonod_load(&db, &buf_node, &timestamp, pAnno->p_node_id);
     if (retval == 0) {
@@ -2266,13 +2367,13 @@ LABEL_EXIT:
  * payment preimage
  ********************************************************************/
 
-bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb)
+bool ln_db_preimg_save(ln_db_preimg_t *pPreImg, void *pDb)
 {
     bool ret;
     ln_lmdb_db_t db;
     MDB_val key, data;
     MDB_txn *txn = NULL;
-    preimage_info_t info;
+    preimg_info_t info;
 
     if (pDb != NULL) {
         txn = ((ln_lmdb_db_t *)pDb)->txn;
@@ -2284,13 +2385,16 @@ bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb)
     }
 
     key.mv_size = LN_SZ_PREIMAGE;
-    key.mv_data = (CONST_CAST uint8_t *)pPreImage;
+    key.mv_data = pPreImg->preimage;
     data.mv_size = sizeof(info);
-    info.amount = Amount;
-    info.creation = time(NULL);
+    info.amount = pPreImg->amount_msat;
+    info.creation = (uint64_t)time(NULL);
+    info.expiry = pPreImg->expiry;
     data.mv_data = &info;
     int retval = mdb_put(db.txn, db.dbi, &key, &data, 0);
-    if (retval != 0) {
+    if (retval == 0) {
+        pPreImg->creation_time = info.creation;
+    } else {
         LOGD("ERR: %s\n", mdb_strerror(retval));
     }
 
@@ -2320,12 +2424,14 @@ bool ln_db_preimg_del(const uint8_t *pPreImage)
         key.mv_size = LN_SZ_PREIMAGE;
         key.mv_data = (CONST_CAST uint8_t *)pPreImage;
         retval = mdb_del(db.txn, db.dbi, &key, NULL);
-        if ((retval != 0) && (retval != MDB_NOTFOUND)) {
-            LOGD("ERR: %s\n", mdb_strerror(retval));
-        }
     } else {
         LOGD("remove all\n");
         retval = mdb_drop(db.txn, db.dbi, 1);
+    }
+    if (retval == 0) {
+        LOGD("success\n");
+    } else {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
     }
 
     preimg_close(&db, NULL);
@@ -2335,29 +2441,32 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash)
+bool ln_db_preimg_search(ln_db_func_preimg_t pFunc, void *p_param)
 {
-    int retval = -1;
-    bool ret;
-    lmdb_cursor_t *p_cur;
-    uint8_t preimage[LN_SZ_PREIMAGE];
-    uint8_t preimage_hash[LN_SZ_HASH];
-    uint64_t amount;
-
-    ret = ln_db_preimg_cur_open((void **)&p_cur);
+    void *p_cur;
+    bool ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        ret = ln_db_preimg_cur_get(p_cur, preimage, &amount);
-        if (ret) {
-            ln_calc_preimage_hash(preimage_hash, preimage);
-            if (memcmp(preimage_hash, pPreImageHash, LN_SZ_HASH) == 0) {
-                retval = mdb_cursor_del(p_cur->cursor, 0);
+        ln_db_preimg_t preimg;
+        bool detect;
+        ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);
+        if (detect) {
+            ret = (*pFunc)(preimg.preimage, preimg.amount_msat, preimg.expiry, p_cur, p_param);
+            if (ret) {
                 break;
             }
+            ret = true;
         }
     }
     ln_db_preimg_cur_close(p_cur);
 
-    return retval == 0;
+    return ret;
+}
+
+
+bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash)
+{
+    bool ret = ln_db_preimg_search(preimg_del_func, (CONST_CAST uint8_t *)pPreImageHash);
+    return ret;
 }
 
 
@@ -2405,31 +2514,70 @@ void ln_db_preimg_cur_close(void *pCur)
 }
 
 
-bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount)
+bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
     int retval;
     MDB_val key, data;
-    time_t now = time(NULL);
+    uint64_t now = (uint64_t)time(NULL);
+
+    *pDetect = false;
 
     if ((retval = mdb_cursor_get(p_cur->cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-        preimage_info_t *p_info = (preimage_info_t *)data.mv_data;
+        preimg_info_t *p_info = (preimg_info_t *)data.mv_data;
         LOGD("amount: %" PRIu64"\n", p_info->amount);
         LOGD("time: %lu\n", p_info->creation);
-        if (now <= p_info->creation + LN_INVOICE_EXPIRY) {
-            memcpy(pPreImage, key.mv_data, key.mv_size);
-            *pAmount = p_info->amount;
+        //TODO: DB ver -19以降になったら削除する
+        if (data.mv_size >= sizeof(preimg_info_t)) {
+            pPreImg->expiry = p_info->expiry;
+        } else {
+            pPreImg->expiry = LN_INVOICE_EXPIRY;
+        }
+        pPreImg->creation_time = p_info->creation;
+        if ((p_info->expiry == UINT32_MAX) || (now <= p_info->creation + p_info->expiry)) {
+            memcpy(pPreImg->preimage, key.mv_data, key.mv_size);
+            pPreImg->amount_msat = p_info->amount;
+            *pDetect = true;
 
             uint8_t hash[LN_SZ_HASH];
-            ln_calc_preimage_hash(hash, pPreImage);
+            ln_calc_preimage_hash(hash, pPreImg->preimage);
+            LOGD("invoice hash: ");
             DUMPD(hash, LN_SZ_HASH);
         } else {
             //期限切れ
             LOGD("invoice timeout del: ");
             DUMPD(key.mv_data, key.mv_size);
             mdb_cursor_del(p_cur->cursor, 0);
-            retval = MDB_NOTFOUND;  //見つからなかったことにする
         }
+    }
+
+    return retval == 0;
+}
+
+
+bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+    int retval;
+    MDB_val key, data;
+
+    retval = mdb_cursor_get(p_cur->cursor, &key, &data, MDB_GET_CURRENT);
+    if (retval == 0) {
+        preimg_info_t *p_info = (preimg_info_t *)data.mv_data;
+        LOGD("amount: %" PRIu64"\n", p_info->amount);
+        LOGD("time: %lu\n", p_info->creation);
+        
+        preimg_info_t info;
+        memcpy(&info, p_info, data.mv_size);
+        info.expiry = Expiry;
+        data.mv_data = &info;
+        data.mv_size = sizeof(preimg_info_t);
+        retval = mdb_cursor_put(p_cur->cursor, &key, &data, MDB_CURRENT);
+    }
+    if (retval == 0) {
+        LOGD("  change expiry: %" PRIu32 "\n", Expiry);
+    } else {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
     }
 
     return retval == 0;
@@ -2494,7 +2642,12 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
     MDB_val     key, data;
     bool found = false;
 
-    txn = ((ln_lmdb_db_t *)pDbParam)->txn;
+    MDB_txn *txn_tmp = ((ln_lmdb_db_t *)pDbParam)->txn;
+    if (mdb_txn_env(txn_tmp) == mpDbNode) {
+        txn = txn_tmp;
+    } else {
+        MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    }
 
     retval = mdb_dbi_open(txn, M_DBI_PAYHASH, 0, &dbi);
     if (retval != 0) {
@@ -2521,6 +2674,9 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
     mdb_cursor_close(cursor);
 
 LABEL_EXIT:
+    if (txn != txn_tmp) {
+        MDB_TXN_ABORT(txn);
+    }
     return found;
 }
 
@@ -3138,9 +3294,9 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     retval = mdb_dbi_open(pDb->txn, dbname, 0, &pDb->dbi);
     if (retval == 0) {
         retval = backup_param_load(&self->priv_data, pDb, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
-    }
+    }       
     if (retval != 0) {
-        LOGD("ERR\n");
+        LOGD("ERR: %s(backup_param_load)\n", mdb_strerror(retval));
     }
     // LOGD("[priv]storage_index: %" PRIx64 "\n", self->priv_data.storage_index);
     // LOGD("[priv]storage_seed: ");
@@ -3263,7 +3419,7 @@ static bool annocnl_search(lmdb_cursor_t *pCur, uint64_t ShortChannelId, ucoin_b
  *
  * @param[in]       pDb
  * @param[out]      pCnlAnno
- * @param[out]      pTimeStamp          保存しているchannel_updateのTimeStamp
+ * @param[out]      pTimeStamp          (非NULL)保存しているchannel_updateのTimeStamp
  * @param[in]       ShortChannelId
  * @param[in]       Dir                 0:node_1, 1:node_2
  * @retval      true    成功
@@ -3278,7 +3434,9 @@ static int annocnlupd_load(ln_lmdb_db_t *pDb, ucoin_buf_t *pCnlUpd, uint32_t *pT
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, ((Dir) ?  LN_DB_CNLANNO_UPD2 : LN_DB_CNLANNO_UPD1));
     int retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
     if (retval == 0) {
-        *pTimeStamp = *(uint32_t *)data.mv_data;
+        if (pTimeStamp != NULL) {
+            *pTimeStamp = *(uint32_t *)data.mv_data;
+        }
         ucoin_buf_alloccopy(pCnlUpd, (uint8_t *)data.mv_data + sizeof(uint32_t), data.mv_size - sizeof(uint32_t));
     } else {
         if (retval != MDB_NOTFOUND) {
@@ -3535,6 +3693,59 @@ static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn)
     if (txn == NULL) {
         MDB_TXN_COMMIT(p_db->txn);
     }
+}
+
+
+/** #ln_db_preimg_del_hash()用処理関数
+ * 
+ * SHA256(preimage)がpayment_hashと一致した場合にDBから削除する。
+ */
+static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
+{
+    (void)Amount; (void)Expiry;
+
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
+    const uint8_t *hash = (const uint8_t *)p_param;
+    uint8_t preimage_hash[LN_SZ_HASH];
+    int retval = MDB_NOTFOUND;
+
+    LOGD("compare preimage : ");
+    DUMPD(pPreImage, LN_SZ_PREIMAGE);
+    ln_calc_preimage_hash(preimage_hash, pPreImage);
+    if (memcmp(preimage_hash, hash, LN_SZ_HASH) == 0) {
+        retval = mdb_cursor_del(p_cur->cursor, 0);
+        LOGD("  remove from DB: %s\n", mdb_strerror(retval));
+    }
+
+    return retval == 0;
+}
+
+
+/** ln_db_self_del_prm用処理関数
+ * 
+ * SHA256(preimage)がpayment_hashと一致した場合、DBから削除する。
+ */
+static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
+{
+    (void)Amount; (void)Expiry;
+
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
+    preimg_close_t *prm = (preimg_close_t *)p_param;
+    uint8_t preimage_hash[LN_SZ_HASH];
+
+    LOGD("compare preimage : ");
+    DUMPD(pPreImage, LN_SZ_PREIMAGE);
+    ln_calc_preimage_hash(preimage_hash, pPreImage);
+
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        if (memcmp(preimage_hash, prm->add_htlc[lp].payment_sha256, LN_SZ_HASH) == 0) {
+            //一致
+            int retval = mdb_cursor_del(p_cur->cursor, 0);
+            LOGD("  remove from DB: %s\n", mdb_strerror(retval));
+        }
+    }
+
+    return false;
 }
 
 

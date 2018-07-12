@@ -9,7 +9,7 @@ OUTPUT_BINARY_DIRECTORY = .
 #CFLAGS_USER += -DAPP_DEBUG_MEM
 ######################################
 
-include ../common.mak
+include ../options.mak
 
 #echo suspend
 ifeq ("$(VERBOSE)","1")
@@ -37,7 +37,6 @@ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-ou
 C_SOURCE_FILES += $(PRJ_PATH)/ucoincli.c
 C_SOURCE_FILES += $(COMMON_PATH)/cmn/conf.c
 C_SOURCE_FILES += $(COMMON_PATH)/cmn/misc.c
-C_SOURCE_FILES += $(COMMON_PATH)/cmn/btcrpc.c
 
 #includes common to all targets
 INC_PATHS += -I$(COMMON_PATH)/include
@@ -65,6 +64,10 @@ CFLAGS += -DNETKIND=$(NETKIND)
 
 ifeq ($(DISABLE_PRINTFUND),0)
 CFLAGS += -DUCOIN_USE_PRINTFUNC
+endif
+
+ifeq ($(ENABLE_DEVELOPER_MODE),1)
+CFLAGS += -DDEVELOPER_MODE
 endif
 
 ######################################

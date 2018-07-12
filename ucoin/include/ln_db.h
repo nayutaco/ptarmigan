@@ -62,6 +62,18 @@ extern "C" {
 typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_param);
 
 
+/** @typedef    ln_db_func_preimg_t
+ *  @brief      比較関数(#ln_db_preimg_search())
+ *
+ * @param[in]       self            DBから取得したself
+ * @param[in]       p_db_param      DB情報(ln_dbで使用する)
+ * @param[in]       p_param         #ln_db_preimg_search()に渡したデータポインタ
+ * @retval  true    比較終了
+ * @retval  false   比較継続
+ */
+typedef bool (*ln_db_func_preimg_t)(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
+
+
 /** @typedef    ln_db_txn_t
  *  @brief      announcement種別
  */
@@ -70,6 +82,17 @@ typedef enum {
     LN_DB_TXN_NODE,         ///< node_announcement
     LN_DB_TXN_SKIP          ///< routing skip channel
 } ln_db_txn_t;
+
+
+/** @typedef    ln_db_preimg_t
+ *  @brief      preimage/invoice
+ */
+typedef struct {
+    uint8_t     preimage[LN_SZ_PREIMAGE];
+    uint64_t    amount_msat;
+    uint64_t    creation_time;
+    uint32_t    expiry;
+} ln_db_preimg_t;
 
 
 /********************************************************************
@@ -190,17 +213,20 @@ bool ln_db_annocnl_load(ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId);
  * @param[in]       pCnlAnno
  * @param[in]       ShortChannelId  pCnlAnnoのshort_channel_id
  * @param[in]       pSendId         pCnlAnnoの送信元/先node_id
+ * @param[in]       pChan1          channel_announcementのnode1
+ * @param[in]       pChan2          channel_announcementのnode2
  * @retval      true    成功
  */
-bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId);
+bool ln_db_annocnl_save(const ucoin_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId,
+                        const uint8_t *pChan1, const uint8_t *pChan2);
 
 
 /** channel_update読込み
  *
  * @param[out]      pCnlAnno            channel_updateパケット
  * @param[out]      pTimeStamp          pCnlAnnoのTimeStamp
- * @param[in]       ShortChannelId
- * @param[in]       Dir
+ * @param[in]       ShortChannelId      読み込むshort_channel_id
+ * @param[in]       Dir                 0:node1, 1:node2
  * @retval      true    成功
  */
 bool ln_db_annocnlupd_load(ucoin_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir);
@@ -222,7 +248,7 @@ bool ln_db_annocnlupd_save(const ucoin_buf_t *pCnlUpd, const ln_cnl_update_t *pU
  * @param[in]       TimeStamp       channel_updateの時刻(EPOCH)
  * @retval      true    削除してよし
  */
-static inline bool ln_db_annocnlupd_is_prune(uint32_t Now, uint32_t TimesStamp) {
+static inline bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp) {
     //BOLT#7: Pruning the Network View
     //  if a channel's latest channel_updates timestamp is older than two weeks (1209600 seconds):
     //      MAY prune the channel.
@@ -385,7 +411,7 @@ bool ln_db_invoice_drop(void);
  * @param[in]       pNodeId         検索するnode_id
  * @retval      true    成功
  */
-bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
+bool ln_db_annonod_load(ucoin_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDb);
 
 
 /** node_announcement書込み
@@ -408,6 +434,7 @@ bool ln_db_annonod_drop(void);
 
 /** node_announcement送信済み検索
  *
+ * @retval  true        送信済み
  */
 bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId);
 
@@ -463,12 +490,11 @@ bool ln_db_annoinfo_del(const uint8_t *pNodeId);
 
 /** preimage保存
  *
- * @param[in]       pPreImage
- * @param[in]       Amount
+ * @param[in,out]   pPreImg     creation_timeのみoutput
  * @param[in,out]   pDb
  * @retval  true
  */
-bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb);
+bool ln_db_preimg_save(ln_db_preimg_t *pPreImg, void *pDb);
 
 
 /** preimage削除
@@ -477,6 +503,15 @@ bool ln_db_preimg_save(const uint8_t *pPreImage, uint64_t Amount, void *pDb);
  * @retval  true
  */
 bool ln_db_preimg_del(const uint8_t *pPreImage);
+
+
+/** preimage検索
+ *
+ * @param[in]       pFunc
+ * @param[in,out]   p_param
+ * @retval  true    pFuncがtrueを返した(その時点で検索を中断している)
+ */
+bool ln_db_preimg_search(ln_db_func_preimg_t pFunc, void *p_param);
 
 
 /** preimage削除(payment_hash検索)
@@ -506,11 +541,17 @@ void ln_db_preimg_cur_close(void *pCur);
 /** preimage取得
  *
  * @param[in]       pCur
- * @param[out]      pPreImage
- * @param[out]      pAmount
- * @retval  true
+ * @param[out]      pDetect     true:取得成功
+ * @param[out]      pPreImg
+ * @retval  true        エラーでは無い
  */
-bool ln_db_preimg_cur_get(void *pCur, uint8_t *pPreImage, uint64_t *pAmount);
+bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg);
+
+
+/** preimage expiry更新
+ *
+ */
+bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry);
 
 
 #ifdef LN_UGLY_NORMAL

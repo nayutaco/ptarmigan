@@ -56,6 +56,14 @@ using namespace boost;
 
 #define M_CLTV_INIT                         ((uint16_t)0xffff)
 
+#if 1
+#define M_DBGLOG(...)
+#define M_DBGDUMPG(...)
+#else
+#define M_DBGLOG                            LOGD
+#define M_DBGDUMPG                          DUMPD
+#endif
+
 
 /**************************************************************************
  * typedefs
@@ -146,6 +154,17 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const ucoin_buf_t *
 {
     nodes_t *p_nodes;
 
+    /*
+     * channel_announcementとchannel_updateの存在パターンとして、以下がある。
+     *      a) channel_announcementのみ
+     *      b) channel_updateのみ
+     *      c) 両方
+     *
+     * 通常、channel_announcementとchannel_updateは両方存在するが、announcement前は相手からchannel_updateだけ送信することがある。
+     *      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
+     * ただし、channelのnodeidはchannel_announcementが保持しているため、自分が持つshort_chennl_idと一致する場合のみroutingに加える。
+     */
+
     switch (type) {
     case LN_DB_CNLANNO_ANNO:
         p_result->node_num++;
@@ -159,6 +178,13 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const ucoin_buf_t *
                             p_buf->buf, p_buf->len);
         p_nodes->ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
         p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
+
+        M_DBGLOG("[cnl]nodenum=%d\n", p_result->node_num);
+        M_DBGLOG("[cnl]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
+        M_DBGLOG("[cnl]node1= ");
+        M_DBGDUMPG(p_nodes->ninfo[0].node_id, UCOIN_SZ_PUBKEY);
+        M_DBGLOG("[cnl]node2= ");
+        M_DBGDUMPG(p_nodes->ninfo[1].node_id, UCOIN_SZ_PUBKEY);
         break;
     case LN_DB_CNLANNO_UPD1:
     case LN_DB_CNLANNO_UPD2:
@@ -168,17 +194,28 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const ucoin_buf_t *
             ln_cnl_update_t upd;
             int idx = type - LN_DB_CNLANNO_UPD1;
             bool bret = ln_getparams_cnl_upd(&upd, p_buf->buf, p_buf->len);
-            if ( bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0) &&
-                 (p_nodes->short_channel_id == upd.short_channel_id) ) {
-                //disable状態ではない && channel_announcement.short_channel_idと一致
-                p_nodes->ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
-                p_nodes->ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
-                p_nodes->ninfo[idx].fee_base_msat = upd.fee_base_msat;
-                p_nodes->ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
+            if (bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0)) {
+                if (p_nodes->short_channel_id == upd.short_channel_id) {
+                    //disable状態ではない && channel_announcement.short_channel_idと一致
+                    p_nodes->ninfo[idx].cltv_expiry_delta = upd.cltv_expiry_delta;
+                    p_nodes->ninfo[idx].htlc_minimum_msat = upd.htlc_minimum_msat;
+                    p_nodes->ninfo[idx].fee_base_msat = upd.fee_base_msat;
+                    p_nodes->ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
+
+                    M_DBGLOG("[upd]nodenum=%d\n", p_result->node_num);
+                    M_DBGLOG("[upd]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
+                    M_DBGLOG("[upd]node1= ");
+                    M_DBGDUMPG(p_nodes->ninfo[0].node_id, UCOIN_SZ_PUBKEY);
+                    M_DBGLOG("[upd]node2= ");
+                    M_DBGDUMPG(p_nodes->ninfo[1].node_id, UCOIN_SZ_PUBKEY);
+                }
             } else {
                 //disableの場合は、対象外にされるよう初期値にしておく
+                M_DBGLOG("[upd]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
+                M_DBGLOG("[upd]skip[%c]\n", type);
                 p_nodes->ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
             }
+
         }
         break;
     default:
@@ -215,12 +252,6 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
             return false;
         }
 
-        // LOGD("p_self->short_channel_id: %" PRIx64 "\n", self->short_channel_id);
-        // LOGD("p_payer= ");
-        // DUMPD(p_prm_self->p_payer, UCOIN_SZ_PUBKEY);
-        // LOGD("self->peer_node_id= ");
-        // DUMPD(self->peer_node_id, UCOIN_SZ_PUBKEY);
-
         p_prm_self->p_result->node_num++;
         p_prm_self->p_result->p_nodes = (nodes_t *)realloc(p_prm_self->p_result->p_nodes, sizeof(nodes_t) * p_prm_self->p_result->node_num);
         p_prm_self->p_result->p_nodes[p_prm_self->p_result->node_num - 1].short_channel_id = self->short_channel_id;
@@ -236,6 +267,13 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
             p_nodes_result->ninfo[lp].fee_base_msat = 0;
             p_nodes_result->ninfo[lp].fee_prop_millionths = 0;
         }
+
+        M_DBGLOG("[self]nodenum=%d\n",  p_prm_self->p_result->node_num);
+        M_DBGLOG("[self]short_channel_id: %" PRIx64 "\n", self->short_channel_id);
+        M_DBGLOG("[self]p_payer= ");
+        M_DBGDUMPG(p_prm_self->p_payer, UCOIN_SZ_PUBKEY);
+        M_DBGLOG("[self]self->peer_node_id= ");
+        M_DBGDUMPG(self->peer_node_id, UCOIN_SZ_PUBKEY);
     }
 
     return false;   //false=検索継続
@@ -348,7 +386,7 @@ lnerr_route_t ln_routing_calculate(
         rt_res.p_nodes = (nodes_t *)realloc(rt_res.p_nodes, sizeof(nodes_t) * rt_res.node_num);
 
         for (uint8_t lp = 0; lp < AddNum; lp++) {
-            nodes_t *p_nodes = &rt_res.p_nodes[node_num - 1];
+            nodes_t *p_nodes = &rt_res.p_nodes[node_num];
 
             // add_node(0) --> payee(1)
             p_nodes->short_channel_id = pAddRoute[lp].short_channel_id;
@@ -363,8 +401,15 @@ lnerr_route_t ln_routing_calculate(
             p_nodes->ninfo[dir].cltv_expiry_delta = pAddRoute[lp].cltv_expiry_delta;
             p_nodes->ninfo[dir].htlc_minimum_msat = 0;
             node_num++;
+
+            M_DBGLOG("  [add]short_channel_id=%016" PRIx64 "\n", pAddRoute[lp].short_channel_id);
+            M_DBGLOG("  [add]  [1]");
+            M_DBGDUMPG(p1, UCOIN_SZ_PUBKEY);
+            M_DBGLOG("  [add]  [2]");
+            M_DBGDUMPG(p2, UCOIN_SZ_PUBKEY);
         }
     }
+    LOGD("node_num: %d\n", rt_res.node_num);
 
     LOGD("start nodeid : ");
     DUMPD(pPayerId, UCOIN_SZ_PUBKEY);
@@ -380,11 +425,11 @@ lnerr_route_t ln_routing_calculate(
 
     //Edge追加
     for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
-        // LOGD("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
-        // LOGD("    [1]");
-        // DUMPD(rt_res.p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY);
-        // LOGD("    [2]");
-        // DUMPD(rt_res.p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY);
+        M_DBGLOG("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
+        M_DBGLOG("    [1]");
+        M_DBGDUMPG(rt_res.p_nodes[lp].ninfo[0].node_id, UCOIN_SZ_PUBKEY);
+        M_DBGLOG("    [2]");
+        M_DBGDUMPG(rt_res.p_nodes[lp].ninfo[1].node_id, UCOIN_SZ_PUBKEY);
 
         graph_t::vertex_descriptor node1 = ver_add(g, rt_res.p_nodes[lp].ninfo[0].node_id);
         graph_t::vertex_descriptor node2 = ver_add(g, rt_res.p_nodes[lp].ninfo[1].node_id);

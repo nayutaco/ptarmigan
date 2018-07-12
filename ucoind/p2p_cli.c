@@ -33,6 +33,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <pthread.h>
 
 #include "cJSON.h"
 
@@ -46,6 +47,9 @@
  ********************************************************************/
 
 static lnapp_conf_t     mAppConf[SZ_SOCK_CLIENT_MAX];
+
+static peer_conn_t mLastPeerConn;
+pthread_mutex_t mMuxLastPeerConn = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
 
 
 /********************************************************************
@@ -66,7 +70,7 @@ void p2p_cli_init(void)
 }
 
 
-bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
+bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
 {
     bool bret = false;
     int ret;
@@ -144,9 +148,9 @@ bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     }
     LOGD("connected: sock=%d\n", mAppConf[idx].sock);
 
-    fprintf(PRINTOUT, "[client]connected: %s:%d\n", pConn->ipaddr, pConn->port);
-    fprintf(PRINTOUT, "[client]node_id=");
-    ucoin_util_dumpbin(PRINTOUT, pConn->node_id, UCOIN_SZ_PUBKEY, true);
+    fprintf(stderr, "[client]connected: %s:%d\n", pConn->ipaddr, pConn->port);
+    fprintf(stderr, "[client]node_id=");
+    ucoin_util_dumpbin(stderr, pConn->node_id, UCOIN_SZ_PUBKEY, true);
 
     //スレッド起動
     mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
@@ -154,6 +158,11 @@ bool p2p_cli_start(const daemon_connect_t *pConn, jrpc_context *ctx)
     //mAppConf[idx].cmd = DCMD_CONNECT;
     strcpy(mAppConf[idx].conn_str, pConn->ipaddr);
     mAppConf[idx].conn_port = pConn->port;
+
+    //store for reconnection
+    if (!p2p_cli_store_peer_conn(pConn)) {
+        LOGD("fail: store peer conn");
+    }
 
     lnapp_start(&mAppConf[idx]);
     bret = true;
@@ -233,3 +242,29 @@ bool p2p_cli_is_looping(void)
 
     return ret;
 }
+
+
+bool p2p_cli_store_peer_conn(const peer_conn_t* pPeerConn)
+{
+    pthread_mutex_lock(&mMuxLastPeerConn);
+    mLastPeerConn = *pPeerConn;
+    pthread_mutex_unlock(&mMuxLastPeerConn);
+
+    return true;
+}
+
+
+bool p2p_cli_load_peer_conn(peer_conn_t* pPeerConn, const uint8_t *pNodeId)
+{
+    bool ret = false;
+
+    pthread_mutex_lock(&mMuxLastPeerConn);
+    if (memcmp(mLastPeerConn.node_id, pNodeId, UCOIN_SZ_PUBKEY) == 0) {
+        *pPeerConn = mLastPeerConn;
+        ret = true;
+    }
+    pthread_mutex_unlock(&mMuxLastPeerConn);
+
+    return ret;
+}
+

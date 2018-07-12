@@ -111,63 +111,30 @@ static inline int tid() {
 
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))
 
-#define PRINTOUT        stderr
-
 #if 1
-//#define DEBUGTRACE
-
-#ifdef UCOIN_USE_ULOG
 #include "ulog.h"
-#define LOGV(...)       ulog_write(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 1, "APP", __func__, __VA_ARGS__)
-#define DUMPV(dt,ln)    ulog_dump(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, "APP", __func__, dt, ln)
-#define TXIDV(dt)       ulog_dump_rev(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, "APP", __func__, dt, UCOIN_SZ_TXID)
+#define LOG_TAG "APP"
 
-#define LOGD(...)       ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 1, "APP", __func__, __VA_ARGS__)
-#define LOGD2(...)      ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __func__, __VA_ARGS__)
-#define DUMPD(dt,ln)    ulog_dump(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __func__, dt, ln)
-#define TXIDD(dt)       ulog_dump_rev(ULOG_PRI_DBG, __FILE__, __LINE__, 0, "APP", __func__, dt, UCOIN_SZ_TXID)
+#define LOGV(...)       ulog_write(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
+#define DUMPV(dt,ln)    ulog_dump(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
+#define TXIDV(dt)       ulog_dump_rev(ULOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, UCOIN_SZ_TXID)
 
-#else   //UCOIN_USE_ULOG
-#define DEBUGOUT        stderr
+#define LOGD(...)       ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
+#define LOGD2(...)      ulog_write(ULOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, __VA_ARGS__)
+#define DUMPD(dt,ln)    ulog_dump(ULOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
+#define TXIDD(dt)       ulog_dump_rev(ULOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, UCOIN_SZ_TXID)
 
-/// @def    LOGV(format, ...)
-/// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
-#define LOGV(format, ...) {fprintf(DEBUGOUT, "%lu[%d]%s[%s:%d]", (unsigned long)time(NULL), tid(), __func__, __FILE__, __LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
-#define DUMPV(dt,ln)        ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
-#define TXIDV(dt)           {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
-/// @def    LOGD(format, ...)
-/// @brief  デバッグ出力(UCOIN_DEBUG定義時のみ有効)
-#define LOGD(format, ...) {fprintf(DEBUGOUT, "%lu[%d]%s[%s:%d]", (unsigned long)time(NULL), tid(), __func__, __FILE__, __LINE__); fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
-#define LOGD2(format, ...) {fprintf(DEBUGOUT, format, ##__VA_ARGS__);}
-
-/// @def    DUMPD(dt,ln)
-/// @brief  ダンプ出力(UCOIN_DEBUG定義時のみ有効)
-#define DUMPD(dt,ln)      ucoin_util_dumpbin(DEBUGOUT, dt, ln, true)
-#define TXIDD(dt)        {ucoin_util_dumptxid(DEBUGOUT, dt); fprintf(DEBUGOUT, "\n");}
-
-#endif  //UCOIN_USE_ULOG
-
-#ifdef DEBUGTRACE
-#define DBGTRACE_BEGIN      {fprintf(stderr, "[%d]%s[%s:%d]BEGIN\n", tid(), __func__, __FILE__, __LINE__);}
-#define DBGTRACE_END        {fprintf(stderr, "[%d]%s[%s:%d]END\n", tid(), __func__, __FILE__, __LINE__);}
 #else
-#define DBGTRACE_BEGIN
-#define DBGTRACE_END
-#endif
-
-#else //UCOIN_DEBUG
 #define LOGV(...)       //none
 #define DUMPV(...)      //none
 #define TXIDV(...)      //none
 
-#define LOGD(...)     //none
-#define LOGD2(...)    //none
-#define DUMPD(...)        //none
-#define TXIDD(...)       //none
-#define DBGTRACE_BEGIN
-#define DBGTRACE_END
+#define LOGD(...)       //none
+#define LOGD2(...)      //none
+#define DUMPD(...)      //none
+#define TXIDD(...)      //none
 
-#endif //UCOIN_DEBUG
+#endif
 
 
 /********************************************************************
@@ -194,8 +161,8 @@ typedef enum {
 } trans_cmd_t;
 
 
-/** @struct     daemon_connect_t
- *  @brief      daemon接続情報
+/** @struct     peer_conn_t
+ *  @brief      peer接続情報
  *  @note
  *      - #peer_conf_t と同じ構造だが、別にしておく(統合する可能性あり)
  */
@@ -204,7 +171,7 @@ typedef struct {
     char        ipaddr[SZ_IPV4_LEN + 1];
     uint16_t    port;
     uint8_t     node_id[UCOIN_SZ_PUBKEY];
-} daemon_connect_t;
+} peer_conn_t;
 
 
 /** @struct     funding_conf_t
@@ -213,7 +180,6 @@ typedef struct {
 typedef struct {
     uint8_t         txid[UCOIN_SZ_TXID];
     int             txindex;
-    char            signaddr[UCOIN_SZ_ADDR_MAX];
     uint64_t        funding_sat;
     uint64_t        push_sat;
     uint32_t        feerate_per_kw;
@@ -244,7 +210,7 @@ typedef struct {
 /** @struct     peer_conf_t
  *  @brief      peer node接続情報
  *  @note
- *      - #daemon_connect_t と同じ構造だが、別にしておく
+ *      - #peer_conn_t と同じ構造だが、別にしておく
  */
 typedef struct {
     char            ipaddr[SZ_IPV4_LEN + 1];
