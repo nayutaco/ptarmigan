@@ -101,6 +101,10 @@ CFLAGS_CMN += -Ilibs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ucoin.h>'
 CFLAGS_CMN += $(CFLAGS_USER)
 CFLAGS_CMN += -DNETKIND=$(NETKIND)
 
+ifeq ($(USE_SPV),1)
+CFLAGS += -DUSE_SPV
+endif
+
 ifeq ($(DISABLE_PRINTFUND),0)
 CFLAGS_CMN += -DUCOIN_USE_PRINTFUNC
 endif

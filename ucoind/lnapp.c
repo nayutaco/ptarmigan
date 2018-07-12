@@ -986,6 +986,17 @@ static void *thread_main_start(void *pArg)
     ln_set_peer_nodeid(p_self, p_conf->node_id);
     set_establish_default(p_conf);
 
+#ifndef USE_SPV
+#else
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
+    const uint8_t *p_bhash;
+
+    ucoin_tx_create(&txbuf, ln_funding_tx(p_conf->p_self));
+    p_bhash = ln_funding_blockhash(p_conf->p_self);
+    btcrpc_add_channel(p_conf->p_self, ln_short_channel_id(p_conf->p_self), txbuf.buf, txbuf.len, !ln_is_closing(p_conf->p_self), p_bhash);
+    ucoin_buf_free(&txbuf);
+#endif
+
     /////////////////////////
     // handshake完了
     //      server動作時、p_conf->node_idに相手node_idが入っている
@@ -1450,8 +1461,16 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     }
 
     bool unspent;
+#ifndef USE_SPV
+    //事前にfund-in txがunspentかどうかチェックしようとしている。
+    //SPVの場合は1st Layerの処理も内部で行うので、チェック不要。
     ret = btcrpc_check_unspent(&unspent, &fundin.amount, pFunding->txid, pFunding->txindex);
     LOGD("ret=%d, unspent=%d, fundin.amount=%" PRIu64 "\n", ret, unspent, fundin.amount);
+#else
+    //SPVの場合、内部でfund-in txを生成するため、チェック不要
+    unspent = true;
+    ret = true;
+#endif
     if (ret && unspent) {
         uint32_t feerate_kw;
         if (pFunding->feerate_per_kw == 0) {
@@ -1461,6 +1480,8 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_kw);
 
+#ifndef USE_SPV
+        //bitcoindはucoindがfunding_txを作るため、fee計算する
         uint64_t estfee = ln_estimate_fundingtx_fee(feerate_kw);
         LOGD("estimate funding_tx fee: %" PRIu64 "\n", estfee);
         if (fundin.amount < pFunding->funding_sat + estfee) {
@@ -1472,8 +1493,11 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
         memcpy(fundin.txid, pFunding->txid, UCOIN_SZ_TXID);
         fundin.index = pFunding->txindex;
+#else
+        //SPVの場合、funding_txをSPVが作るため、fundin未使用
+        memset(&fundin, 0, sizeof(fundin));
+#endif
 
-        LOGD("open_channel: fund_in amount=%" PRIu64 "\n", fundin.amount);
         ucoin_buf_t buf_bolt = UCOIN_BUF_INIT;
         ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
                         &fundin,
@@ -2241,6 +2265,9 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
         ucoin_tx_create(&buf_tx, p->p_tx_funding);
         p->b_result = btcrpc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
+        if (p->b_result) {
+            btcrpc_set_fundingtx(p_conf->p_self, buf_tx.buf, buf_tx.len);
+        }
         ucoin_buf_free(&buf_tx);
     } else {
         p->b_result = true;
@@ -2302,6 +2329,8 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 #ifndef USE_SPV
     ln_cb_channel_anno_recv_t *p = (ln_cb_channel_anno_recv_t *)p_param;
     p->is_unspent = check_unspent_short_channel_id(p->short_channel_id);
+#else
+    (void)p_param;
 #endif
 
     //DBGTRACE_END
@@ -3111,6 +3140,8 @@ static bool send_anno_pre_chan(uint64_t short_channel_id)
         LOGD("closed channel: %0" PRIx64 "\n", short_channel_id);
         ret = false;
     }
+#else
+    (void)short_channel_id;
 #endif
 
     return ret;
@@ -3778,6 +3809,9 @@ static void payroute_print(lnapp_conf_t *p_conf)
  *
  * @param[in]   ShortChannelId      short_channel_id
  * @retval  true    funding_tx未使用
+ * @note
+ *      - close済みのchannelについてはannouncementしない方がよいのでは無いかと考えて行っている処理。
+ *      - SPVでは処理負荷が重たいため、やらない。
  */
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
 {

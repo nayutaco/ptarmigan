@@ -49,7 +49,7 @@ void btcrpc_init(const rpc_conf_t *pRpcConf);
 void btcrpc_term(void);
 
 
-/** [bitcoin rpc]getblockcount
+/** [bitcoin IF]getblockcount
  *
  * @retval      -1以外      現在のblock count
  * @retval      -1          取得失敗
@@ -57,7 +57,7 @@ void btcrpc_term(void);
 int32_t btcrpc_getblockcount(void);
 
 
-/** [bitcoin rpc]genesis blockhash取得
+/** [bitcoin IF]genesis blockhash取得
  *
  * @param[out]  pHash       取得したBlockHash
  * @retval  true        取得成功
@@ -65,7 +65,7 @@ int32_t btcrpc_getblockcount(void);
 bool btcrpc_getgenesisblock(uint8_t *pHash);
 
 
-/** [bitcoin rpc]funding_txのconfirmation数取得
+/** [bitcoin IF]funding_txのconfirmation数取得
  *
  * @param[in]   self        取得対象のchannel
  * @return      confirmation数
@@ -75,7 +75,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash);
 uint32_t btcrpc_get_funding_confirm(const ln_self_t *self);
 
 
-/** [bitcoin rpc]short_channel_idの計算に使用するパラメータ取得
+/** [bitcoin IF]short_channel_idの計算に使用するパラメータ取得
  *
  * @param[in]   self
  * @param[out]  pBHeight    block height
@@ -87,7 +87,7 @@ bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *p
 
 
 #ifndef USE_SPV
-/** [bitcoin rpc]short_channel_idパラメータからtxid取得
+/** [bitcoin IF]short_channel_idパラメータからtxid取得
  *
  * @param[out]  pTxid       該当するtxid
  * @param[in]   BHeight     block height
@@ -98,7 +98,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex);
 #endif
 
 
-/** [bitcoin rpc]複数blockからvin[0]のoutpointが一致するトランザクションを検索
+/** [bitcoin IF]複数blockからvin[0]のoutpointが一致するトランザクションを検索
  *
  * @param[out]  pTx         トランザクション情報
  * @param[in]   Blks        検索対象とする過去ブロック数
@@ -112,7 +112,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex);
 bool btcrpc_search_outpoint(ucoin_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex);
 
 
-/** [bitcoin rpc]複数blockからvout[0]のscriptPubKeyが一致するトランザクションを検索
+/** [bitcoin IF]複数blockからvout[0]のscriptPubKeyが一致するトランザクションを検索
  *
  * @param[out]  pTxBuf      トランザクション情報(ucoin_tx_tの配列を保存する)
  * @param[in]   Blks        検索対象とする過去ブロック数
@@ -128,7 +128,7 @@ bool btcrpc_search_outpoint(ucoin_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid
 bool btcrpc_search_vout(ucoin_buf_t *pTxBuf, uint32_t Blks, const ucoin_buf_t *pVout);
 
 
-/** [bitcoin rpc]signrawtransaction
+/** [bitcoin IF]signrawtransaction
  * @param[out]  pTx         トランザクション情報
  * @param[in]   pData       [bitcoind]トランザクションRAWデータ, [SPV]scriptPubKey
  * @param[in]   Len         pData長
@@ -141,7 +141,7 @@ bool btcrpc_search_vout(ucoin_buf_t *pTxBuf, uint32_t Blks, const ucoin_buf_t *p
 bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
 
 
-/** [bitcoin rpc]sendrawtransaction
+/** [bitcoin IF]sendrawtransaction
  *
  * @param[out]  pTxid       取得したTXID(戻り値がtrue時)
  * @param[out]  pCode       結果コード(BTCRPC_ERR_xxx)
@@ -152,7 +152,7 @@ bool btcrpc_signraw_tx(ucoin_tx_t *pTx, const uint8_t *pData, size_t Len, uint64
 bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint32_t Len);
 
 
-/** [bitcoin rpc]トランザクション展開済み確認
+/** [bitcoin IF]トランザクション展開済み確認
  *
  * @param[in]   pTxid       取得するTXID(バイト列)
  * @retval  true        トランザクション展開済み(mempool含む)
@@ -160,7 +160,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
 bool btcrpc_is_tx_broadcasted(const ln_self_t *self, const uint8_t *pTxid);
 
 
-/** [bitcoin rpc]vout unspent確認
+/** [bitcoin IF]vout unspent確認
  *
  * @param[out]  pUnspent        (成功 and 非NULL時)true:unspent
  * @param[out]  pSat            (成功 and 非NULL時)取得したamount[satoshi]
@@ -171,7 +171,7 @@ bool btcrpc_is_tx_broadcasted(const ln_self_t *self, const uint8_t *pTxid);
 bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 
 
-/** [bitcoin rpc]getnewaddress
+/** [bitcoin IF]getnewaddress
  *
  * @param[out]  pBuf        生成したScriptPubKey
  * @retval  true        取得成功
@@ -179,12 +179,42 @@ bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, 
 bool btcrpc_getnewaddress(ucoin_buf_t *pBuf);
 
 
-/** [bitcoin rpc]estimatefee
+/** [bitcoin IF]estimatefee
  *
  * @param[out]  pFeeSatoshi estimated fee-per-kilobytes[satoshi]
  * @param[in]   予想するブロック数
  * @retval  true        取得成功
  */
 bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
+
+
+/** [bitcoin IF]channel追加
+ * DBから復元することを想定している。
+ * 必要であればbtcrpc_set_fundingtx()を内部で呼び出す。
+ * 
+ * @param[in]   self
+ * @param[in]   shortChannelId  short_channel_id(-1:デフォルト値)
+ * @param[in]   pTxBuf          raw funding_tx(NULL:デフォルト値)
+ * @param[in]   Len             pTx長(pTxBuf==NULL:デフォルト値)
+ * @param[in]   bUnspent        true:funding_txがunspent(pTxBuf==NULL:デフォルト値)
+ * @param[in]   pMinedHash      funding_txがマイニングされたblock hash(NULL:デフォルト値)
+ */
+void btcrpc_add_channel(const ln_self_t *self, uint64_t shortChannelId, const uint8_t *pTxBuf, uint32_t Len, bool bUnspent, const uint8_t *pMinedHash);
+
+
+/** [bitcoin IF]funding_tx通知
+ * funding_tx展開直後に呼び出す。
+ * 
+ * @param[in]   pTxBuf
+ * @param[in]   Len
+ */
+void btcrpc_set_fundingtx(const ln_self_t *self, const uint8_t *pTxBuf, uint32_t Len);
+
+
+/** [bitcoin IF]監視TXID設定
+ * 
+ * @param[in]   self
+ */
+void btcrpc_set_committxid(const ln_self_t *self);
 
 #endif /* BTCRPC_H__ */
