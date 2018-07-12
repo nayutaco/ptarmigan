@@ -111,6 +111,7 @@
     -17: selfの構造体を個別に保存する
          selfのsecret情報をself.priv_dataに集約
     -18: node_announcement除外用DB追加(annoinfo_chan)
+    -18: [SPVのみ]funding_txのblock hash追加
  */
 
 
@@ -248,6 +249,10 @@ static const backup_param_t DBSELF_KEYS[] = {
     //redeem_fund --> none
     //key_fund_sort --> none
     //tx_funding --> script
+#ifndef USE_SPV
+#else
+    M_ITEM(ln_self_t, funding_bhash),
+#endif
     //flck_flag: none
     //p_establish: none
     M_ITEM(ln_self_t, min_depth),
