@@ -750,6 +750,8 @@ bool ln_create_open_channel(ln_self_t *self, ucoin_buf_t *pOpen,
     assert(self->p_establish->p_fundin == NULL);
     self->p_establish->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
     memcpy(self->p_establish->p_fundin, pFundin, sizeof(ln_fundin_t));
+#else
+    (void)pFundin;
 #endif
 
     //open_channel
@@ -5147,11 +5149,13 @@ static void close_alloc(ln_close_force_t *pClose, int Num)
 static void free_establish(ln_self_t *self, bool bEndEstablish)
 {
     if (self->p_establish != NULL) {
+#ifndef USE_SPV
         if (self->p_establish->p_fundin != NULL) {
             LOGD("self->p_establish->p_fundin=%p\n", self->p_establish->p_fundin);
             M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
             LOGD("free\n");
         }
+#endif
         if (bEndEstablish) {
             M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
             LOGD("free\n");

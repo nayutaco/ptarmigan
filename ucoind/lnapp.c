@@ -986,6 +986,17 @@ static void *thread_main_start(void *pArg)
     ln_set_peer_nodeid(p_self, p_conf->node_id);
     set_establish_default(p_conf);
 
+#ifndef USE_SPV
+#else
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
+    const uint8_t *p_bhash;
+
+    ucoin_tx_create(&txbuf, ln_funding_tx(p_conf->p_self));
+    p_bhash = ln_funding_blockhash(p_conf->p_self);
+    btcrpc_add_channel(p_conf->p_self, ln_short_channel_id(p_conf->p_self), txbuf.buf, txbuf.len, !ln_is_closing(p_conf->p_self), p_bhash);
+    ucoin_buf_free(&txbuf);
+#endif
+
     /////////////////////////
     // handshake完了
     //      server動作時、p_conf->node_idに相手node_idが入っている
@@ -2254,6 +2265,9 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
         ucoin_tx_create(&buf_tx, p->p_tx_funding);
         p->b_result = btcrpc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
+        if (p->b_result) {
+            btcrpc_set_fundingtx(p_conf->p_self, buf_tx.buf, buf_tx.len);
+        }
         ucoin_buf_free(&buf_tx);
     } else {
         p->b_result = true;
@@ -2315,6 +2329,8 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
 #ifndef USE_SPV
     ln_cb_channel_anno_recv_t *p = (ln_cb_channel_anno_recv_t *)p_param;
     p->is_unspent = check_unspent_short_channel_id(p->short_channel_id);
+#else
+    (void)p_param;
 #endif
 
     //DBGTRACE_END
@@ -3124,6 +3140,8 @@ static bool send_anno_pre_chan(uint64_t short_channel_id)
         LOGD("closed channel: %0" PRIx64 "\n", short_channel_id);
         ret = false;
     }
+#else
+    (void)short_channel_id;
 #endif
 
     return ret;

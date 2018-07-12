@@ -985,6 +985,10 @@ struct ln_self_t {
     ucoin_buf_t                 redeem_fund;                    ///< 2-of-2のredeemScript
     ucoin_keys_sort_t           key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
     ucoin_tx_t                  tx_funding;                     ///< funding_tx
+#ifndef USE_SPV
+#else
+    uint8_t                     funding_bhash[UCOIN_SZ_SHA256]; ///< funding_txがマイニングされたblock hash
+#endif
     ln_establish_t              *p_establish;                   ///< Establishワーク領域
     uint32_t                    min_depth;                      ///< minimum_depth
 
@@ -1698,6 +1702,29 @@ static inline bool ln_is_funder(const ln_self_t *self) {
 static inline bool ln_is_funding(const ln_self_t *self) {
     return (self->fund_flag & LN_FUNDFLAG_FUNDING);
 }
+
+
+#ifndef USE_SPV
+#else
+/** funding_tx
+ *
+ * @param[in]           self            channel情報
+ * @return      funding_tx
+ */
+static inline const ucoin_tx_t *ln_funding_tx(const ln_self_t *self) {
+    return &self->tx_funding;
+}
+
+
+/** funding_txがマイニングされたblock hash
+ *
+ * @param[in]           self            channel情報
+ * @return      block hash
+ */
+static inline const uint8_t *ln_funding_blockhash(const ln_self_t *self) {
+    return self->funding_bhash;
+}
+#endif
 
 
 /** announcement_signatures交換済みかどうか
