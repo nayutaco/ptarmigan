@@ -342,13 +342,215 @@ int tx_create3(void)
 }
 
 
+/* P2PKH --> P2PKH
+ *
+ * bitcoind v0.16
+ *      $ bitcoin-cli listunspent
+ *      {
+ *        "txid": "364451d26ede19bf9af66766c73dad221410a52bb7ab2601cd26ac91f23a1c9a",
+ *        "vout": 1,
+ *        "address": "mmDa4rjGk1YcD5jFN6kNkHADYF6UorPjHK",
+ *        "account": "",
+ *        "scriptPubKey": "76a9143e8720f6486b4e6681e802a955be61b46fbb6e5788ac",
+ *        "amount": 0.01000000,
+ *        "confirmations": 2,
+ *        "spendable": true,
+ *        "solvable": true,
+ *        "safe": true
+ *      }
+ *
+ *      $ bitcoin-cli dumpprivkey mmDa4rjGk1YcD5jFN6kNkHADYF6UorPjHK
+ *      cRo5gaLGYFcYrdhhj4BQsrhYXVBXNRwCBNvJoPRzdLFxvaLUUUfr
+ *
+ *      $ bitcoin-cli getnewaddress
+ *      mnfEszuxt3SmhwetCTBDNaQpEj5RC6nWb3
+ */
+int tx_create4(void)
+{
+    ucoin_init(UCOIN_TESTNET, false);       //VIN: not native
+
+    //
+    //previous vout
+    //      P2WPKH nested in BIP16 P2SH
+    //
+    const char PREV_TXID_STR[] = "364451d26ede19bf9af66766c73dad221410a52bb7ab2601cd26ac91f23a1c9a";
+    const int PREV_TXINDEX = 1;
+    const uint64_t PREV_AMOUNT = (uint64_t)1000000;
+    const char PREV_WIF[] = "cRo5gaLGYFcYrdhhj4BQsrhYXVBXNRwCBNvJoPRzdLFxvaLUUUfr";
+
+
+    //
+    //vout
+    //
+    const char NEW_VOUT_ADDR[] = "mnfEszuxt3SmhwetCTBDNaQpEj5RC6nWb3";
+    const uint64_t FEE = 1000;
+
+
+    uint8_t PREV_TXID[UCOIN_SZ_TXID];
+    misc_str2bin_rev(PREV_TXID, sizeof(PREV_TXID), PREV_TXID_STR);
+
+
+    ucoin_tx_t tx = UCOIN_TX_INIT;
+
+    ucoin_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
+    ucoin_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
+
+    ucoin_util_keys_t prev_keys;
+    ucoin_chain_t chain;
+    ucoin_util_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool ret = ucoin_util_sign_p2pkh(&tx, 0, &prev_keys);
+    printf("ret=%d\n", ret);
+
+    ucoin_print_tx(&tx);
+    // ======================================
+    // txid= b072d8eab1580dae2047c0b92df54c3e5cc33825440e5e4f278e8e62e5575089
+    // ======================================
+    //  version:2
+    //  txin_cnt=1
+    //  [vin #0]
+    //   txid= 364451d26ede19bf9af66766c73dad221410a52bb7ab2601cd26ac91f23a1c9a
+    //        LE: 9a1c3af291ac26cd0126abb72ba5101422ad3dc76667f69abf19de6ed2514436
+    //   index= 1
+    //   scriptSig[106]= 47304402200ec4abd2df761092961cdfe1fe26200a60e41dadc934b0a212214fc01158dbd302201cc8b0d5c0e31eccf17a248133d97f79b33a66781e251422a8f4ea6983dd4245012102167d244d4230ad06c4b7871d3cb78238b3f5c069c808e7aa4ddbf610bcdfcd33
+    //       47 304402200ec4abd2df761092961cdfe1fe26200a60e41dadc934b0a212214fc01158dbd302201cc8b0d5c0e31eccf17a248133d97f79b33a66781e251422a8f4ea6983dd424501
+    //       21 02167d244d4230ad06c4b7871d3cb78238b3f5c069c808e7aa4ddbf610bcdfcd33
+    //   sequence= 0xffffffff
+    //  txout_cnt= 1
+    //  [vout #0]
+    //   value= 999000  : 583e0f0000000000
+    //        9.99000 mBTC, 0.00999000 BTC
+    //   scriptPubKey[25]= 76a9144e5a0d8858c484747bccf427c8ab3a017c3c75c788ac
+    //       76 [OP_DUP]
+    //       a9 [OP_HASH160]
+    //       14 4e5a0d8858c484747bccf427c8ab3a017c3c75c7
+    //       88 [OP_EQUALVERIFY]
+    //       ac [OP_CHECKSIG]
+    //     (mnfEszuxt3SmhwetCTBDNaQpEj5RC6nWb3)
+    //  locktime= 0x00000000 : block height
+    // ======================================
+
+
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
+    ucoin_tx_create(&txbuf, &tx);
+    ucoin_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
+    ucoin_buf_free(&txbuf);
+
+    // $ bitcoin-cli sendrawtransaction 02000000019a1c3af291ac26cd0126abb72ba5101422ad3dc76667f69abf19de6ed2514436010000006a47304402200ec4abd2df761092961cdfe1fe26200a60e41dadc934b0a212214fc01158dbd302201cc8b0d5c0e31eccf17a248133d97f79b33a66781e251422a8f4ea6983dd4245012102167d244d4230ad06c4b7871d3cb78238b3f5c069c808e7aa4ddbf610bcdfcd33ffffffff01583e0f00000000001976a9144e5a0d8858c484747bccf427c8ab3a017c3c75c788ac00000000
+    // b072d8eab1580dae2047c0b92df54c3e5cc33825440e5e4f278e8e62e5575089
+
+    ucoin_tx_free(&tx);
+
+    ucoin_term();
+
+    return 0;
+}
+
+
+/* P2PKH --> P2PKH
+ *
+ * bitcoind v0.16
+ *      $ bitcoin-cli listunspent
+ *      {
+ *        "txid": "b072d8eab1580dae2047c0b92df54c3e5cc33825440e5e4f278e8e62e5575089",
+ *        "vout": 0,
+ *        "address": "mnfEszuxt3SmhwetCTBDNaQpEj5RC6nWb3",
+ *        "account": "",
+ *        "scriptPubKey": "76a9144e5a0d8858c484747bccf427c8ab3a017c3c75c788ac",
+ *        "amount": 0.00999000,
+ *        "confirmations": 7,
+ *        "spendable": true,
+ *        "solvable": true,
+ *        "safe": true
+ *      },
+ *
+ *      $ bitcoin-cli dumpprivkey mnfEszuxt3SmhwetCTBDNaQpEj5RC6nWb3
+ *      cUFWuAMEYjkC4o9K57FMM4hLdgnaQUZmdmANgGxcEKA6b8pn5w2L
+ *
+ *      $ bitcoin-cli getnewaddress "" bech32
+ *      tb1qrywlrzhykppaa77jjzcyvv5vkjr8an8ldq3m5y
+ */
+int tx_create5(void)
+{
+    ucoin_init(UCOIN_TESTNET, false);       //VIN: not native
+
+    //
+    //previous vout
+    //      P2WPKH nested in BIP16 P2SH
+    //
+    const char PREV_TXID_STR[] = "b072d8eab1580dae2047c0b92df54c3e5cc33825440e5e4f278e8e62e5575089";
+    const int PREV_TXINDEX = 0;
+    const uint64_t PREV_AMOUNT = (uint64_t)999000;
+    const char PREV_WIF[] = "cUFWuAMEYjkC4o9K57FMM4hLdgnaQUZmdmANgGxcEKA6b8pn5w2L";
+
+
+    //
+    //vout
+    //
+    const char NEW_VOUT_ADDR[] = "tb1qrywlrzhykppaa77jjzcyvv5vkjr8an8ldq3m5y";
+    const uint64_t FEE = 1000;
+
+
+    uint8_t PREV_TXID[UCOIN_SZ_TXID];
+    misc_str2bin_rev(PREV_TXID, sizeof(PREV_TXID), PREV_TXID_STR);
+
+
+    ucoin_tx_t tx = UCOIN_TX_INIT;
+
+    ucoin_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
+    ucoin_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
+
+    ucoin_util_keys_t prev_keys;
+    ucoin_chain_t chain;
+    ucoin_util_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool ret = ucoin_util_sign_p2pkh(&tx, 0, &prev_keys);
+    printf("ret=%d\n", ret);
+
+    ucoin_print_tx(&tx);
+    // ======================================
+    // txid= f2cff303c3f08882604dcfc8bf9a4c5ae26b2a2c23fa10c87db089492a0ba5aa
+    // ======================================
+    //  version:2
+    //  txin_cnt=1
+    //  [vin #0]
+    //   txid= b072d8eab1580dae2047c0b92df54c3e5cc33825440e5e4f278e8e62e5575089
+    //        LE: 895057e5628e8e274f5e0e442538c35c3e4cf52db9c04720ae0d58b1ead872b0
+    //   index= 0
+    //   scriptSig[106]= 473044022013953d643b12ab2f24ec6b822f7e634dc82c0454a72508ccf47f405c7696692902207dcd6083cf5ec7c8a57bf432056d1a744fc652f814edfeec54869dd241a9a899012102b9caeb43d35763f199b8617c541249392925112a40097a0666cd64d462258bed
+    //       47 3044022013953d643b12ab2f24ec6b822f7e634dc82c0454a72508ccf47f405c7696692902207dcd6083cf5ec7c8a57bf432056d1a744fc652f814edfeec54869dd241a9a89901
+    //       21 02b9caeb43d35763f199b8617c541249392925112a40097a0666cd64d462258bed
+    //   sequence= 0xffffffff
+    //  txout_cnt= 1
+    //  [vout #0]
+    //   value= 998000  : 703a0f0000000000
+    //        9.98000 mBTC, 0.00998000 BTC
+    //   scriptPubKey[22]= 0014191df18ae4b043defbd290b046328cb4867eccff
+    //       00
+    //       14 191df18ae4b043defbd290b046328cb4867eccff
+    //  locktime= 0x00000000 : block height
+    // ======================================
+
+
+    ucoin_buf_t txbuf = UCOIN_BUF_INIT;
+    ucoin_tx_create(&txbuf, &tx);
+    ucoin_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
+    ucoin_buf_free(&txbuf);
+
+    ucoin_tx_free(&tx);
+
+    ucoin_term();
+
+    return 0;
+}
+
 int main(void)
 {
     ulog_init_stderr();
 
-    //tx_create1();
-    //tx_create2();
+    tx_create1();
+    tx_create2();
     tx_create3();
+    tx_create4();
+    tx_create5();
 
     return 0;
 }
