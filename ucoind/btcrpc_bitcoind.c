@@ -212,9 +212,10 @@ uint32_t btcrpc_get_funding_confirm(const ln_self_t *self)
 }
 
 
-bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, const uint8_t *pTxid)
+bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid)
 {
     (void)self;
+    (void)pMinedHash;
 
     bool ret;
     char *p_json = NULL;
@@ -1268,7 +1269,7 @@ int main(int argc, char *argv[])
 //    fprintf(stderr, "-[short_channel_info]-------------------------\n");
 //    int bindex;
 //    int bheight;
-//    ret = btcrpc_get_short_channel_param(NULL, &bindex, &bheight, TXID);
+//    ret = btcrpc_get_short_channel_param(NULL, &bindex, &bheight, NULL, TXID);
 //    if (ret) {
 //        fprintf(stderr, "index = %d\n", bindex);
 //        fprintf(stderr, "height = %d\n", bheight);
