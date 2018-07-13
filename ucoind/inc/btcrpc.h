@@ -80,10 +80,11 @@ uint32_t btcrpc_get_funding_confirm(const ln_self_t *self);
  * @param[in]   self
  * @param[out]  pBHeight    block height
  * @param[out]  pBIndex     block index(pTxidの位置)
+ * @param[out]  pMinedHash  miningされたblock hash
  * @param[in]   pTxid       検索するTXID
  * @retval  true        取得成功
  */
-bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, const uint8_t *pTxid);
+bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid);
 
 
 #ifndef USE_SPV
