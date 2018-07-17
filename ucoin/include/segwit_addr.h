@@ -132,12 +132,13 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice);
  * @param[in]       Expiry          invoice expiry
  * @param[in]       pFieldR
  * @param[in]       FieldRNum       pFieldR数
+ * @param[in]       MinFinalCltvExpiry  min_final_cltv_expiry
  * @retval      true        成功
  * @attention
  *      - ppInoviceはmalloc()で確保するため、、使用後にfree()すること
  */
 bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry,
-                        const ln_fieldr_t *pFieldR, uint8_t FieldRNum);
+                        const ln_fieldr_t *pFieldR, uint8_t FieldRNum, uint32_t MinFinalCltvExpiry);
 
 #ifdef __cplusplus
 }
