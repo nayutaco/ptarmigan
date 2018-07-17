@@ -690,7 +690,7 @@ LABEL_EXIT:
 
 
 bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry,
-                        const ln_fieldr_t *pFieldR, uint8_t FieldRNum)
+                        const ln_fieldr_t *pFieldR, uint8_t FieldRNum, uint32_t MinFinalCltvExpiry)
 {
     ln_invoice_t *p_invoice_data;
 
@@ -702,7 +702,7 @@ bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, 
     p_invoice_data->hrp_type = Type;
     p_invoice_data->amount_msat = Amount;
     p_invoice_data->expiry = Expiry;
-    p_invoice_data->min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
+    p_invoice_data->min_final_cltv_expiry = MinFinalCltvExpiry;
     memcpy(p_invoice_data->pubkey, ln_node_getid(), UCOIN_SZ_PUBKEY);
     memcpy(p_invoice_data->payment_hash, pPayHash, LN_SZ_HASH);
     p_invoice_data->r_field_num = FieldRNum;

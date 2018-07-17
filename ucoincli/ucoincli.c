@@ -393,17 +393,23 @@ static void optfunc_invoice(int *pOption, bool *pConn)
     M_CHK_INIT
 
     errno = 0;
-    uint64_t amount = (uint64_t)strtoull(optarg, NULL, 10);
+    const char *param = strtok(optarg, ",");
+    uint64_t amount = (uint64_t)strtoull(param, NULL, 10);
+    uint32_t min_final_cltv_expiry = 0;
     if (errno == 0) {
+        param = strtok(NULL, ",");
+        if ((param != NULL) && (*param != '\0')) {
+            min_final_cltv_expiry = (uint32_t)strtoul(param, NULL, 10);
+        }
         snprintf(mBuf, BUFFER_SIZE,
             "{"
                 M_STR("method", "invoice") M_NEXT
                 M_QQ("params") ":[ "
                     //invoice
-                    "%" PRIu64
+                    "%" PRIu64 ",%" PRIu32
                 " ]"
             "}",
-                amount);
+                amount, min_final_cltv_expiry);
 
         *pOption = M_OPTIONS_EXEC;
     } else {
