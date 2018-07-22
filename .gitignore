@@ -1,6 +1,6 @@
 _build/
 _ggtest/
-/libs/
+/libs/*/
 /ucoin/libs/
 /install/
 /tests/
