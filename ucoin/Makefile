@@ -162,7 +162,7 @@ vpath %.cpp $(CPP_PATHS)
 OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS)
 
 lib:
-	make -C libs
+	$(MAKE) -C libs
 
 debug: CFLAGS_CMN += -DDEBUG -DUCOIN_DEBUG
 debug: CFLAGS_CMN += -ggdb3 -O0
