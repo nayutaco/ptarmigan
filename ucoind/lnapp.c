@@ -349,6 +349,10 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         //LOGD("This AppConf not working\n");
         return false;
     }
+    if (ln_get_status(pAppConf->p_self) != LN_STATUS_NORMAL) {
+        LOGD("not Normal Operation status\n");
+        return false;
+    }
 
     pthread_mutex_lock(&mMuxNode);
     if (mFlagNode != FLAGNODE_NONE) {
@@ -676,10 +680,20 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         char str[256];
 
         const char *p_status;
-        if (p_self->fund_flag & LN_FUNDFLAG_CLOSE) {
-            p_status = "closing";
-        } else {
+        ln_status_t stat = ln_get_status(p_self);
+        switch (stat) {
+        case LN_STATUS_ESTABLISH:
+            p_status = "establishing";
+            break;
+        case LN_STATUS_NORMAL:
             p_status = "established";
+            break;
+        case LN_STATUS_CLOSING:
+            p_status = "closing";
+            break;
+        default:
+            p_status = "none";
+            break;
         }
         cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
 
