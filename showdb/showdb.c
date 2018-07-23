@@ -154,6 +154,9 @@ static void ln_print_self(const ln_self_t *self)
     ucoin_util_dumpbin(stdout, self->peer_node_id, UCOIN_SZ_PUBKEY, false);
     printf("\",\n");
 
+    //status
+    printf(INDENT3 M_QQ("status") ": \"%02x\",\n", self->status);
+
     //key storage
     printf(M_QQ("storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->priv_data.storage_index);
     // printf(M_QQ("storage_seed") ": \"");

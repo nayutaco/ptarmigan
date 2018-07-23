@@ -226,6 +226,7 @@ static const backup_param_t DBSELF_SECRET[] = {
 
 static const backup_param_t DBSELF_KEYS[] = {
     M_ITEM(ln_self_t, peer_node_id),
+    M_ITEM(ln_self_t, status),
     M_ITEM(ln_self_t, peer_storage),            //ln_derkey_storage
                                                 //      {
                                                 //          uint8[]

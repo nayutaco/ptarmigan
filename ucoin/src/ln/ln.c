@@ -429,6 +429,19 @@ void ln_term(ln_self_t *self)
 }
 
 
+void ln_set_status(ln_self_t *self, ln_status_t Status)
+{
+    self->status = Status;
+    M_DB_SELF_SAVE(self);
+}
+
+
+ln_status_t ln_get_status(const ln_self_t *self)
+{
+    return self->status;
+}
+
+
 void ln_set_genesishash(const uint8_t *pHash)
 {
     memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
