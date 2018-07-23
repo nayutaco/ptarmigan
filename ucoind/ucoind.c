@@ -141,23 +141,20 @@ int main(int argc, char *argv[])
     ulog_init();
 #endif
 
-    memset(&rpc_conf, 0, sizeof(rpc_conf_t));
 #ifndef NETKIND
 #error not define NETKIND
 #endif
 #if NETKIND==0
     bret = ucoin_init(UCOIN_MAINNET, true);
-    rpc_conf.rpcport = 8332;
 #elif NETKIND==1
     bret = ucoin_init(UCOIN_TESTNET, true);
-    rpc_conf.rpcport = 18332;
 #endif
-    strcpy(rpc_conf.rpcurl, "127.0.0.1");
     if (!bret) {
         fprintf(stderr, "fail: ucoin_init()\n");
         return -1;
     }
 
+    conf_btcrpc_init(&rpc_conf);
     p_addr->type = LN_NODEDESC_NONE;
     p_addr->port = 9735;
 
@@ -186,7 +183,7 @@ int main(int argc, char *argv[])
             break;
         case 'c':
             //load btcconf file
-            bret = load_btcrpc_conf(optarg, &rpc_conf);
+            bret = conf_btcrpc_load(optarg, &rpc_conf);
             if (!bret) {
                 goto LABEL_EXIT;
             }
@@ -230,7 +227,7 @@ int main(int argc, char *argv[])
 
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
         //bitcoin.confから読込む
-        bret = load_btcrpc_default_conf(&rpc_conf);
+        bret = conf_btcrpc_load_default(&rpc_conf);
         if (!bret) {
             goto LABEL_EXIT;
         }

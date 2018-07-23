@@ -30,6 +30,29 @@
 #include "misc.h"
 #include "ln.h"
 
+/**************************************************************************
+ * macros
+ **************************************************************************/
+
+//デフォルト値
+//  announcement
+#define M_CLTV_EXPIRY_DELTA             (36)
+#define M_HTLC_MINIMUM_MSAT_ANNO        (0)
+#define M_FEE_BASE_MSAT                 (10)
+#define M_FEE_PROP_MILLIONTHS           (100)
+
+//  establish
+#define M_DUST_LIMIT_SAT                (546)
+#define M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT (INT64_MAX)
+#define M_CHANNEL_RESERVE_SAT           (700)
+#define M_HTLC_MINIMUM_MSAT_EST         (0)
+#define M_TO_SELF_DELAY                 (40)
+#define M_MAX_ACCEPTED_HTLCS            (LN_HTLC_MAX)
+#define M_MIN_DEPTH                     (1)
+
+//  init
+#define M_LOCALFEATURES                 (LN_INIT_LF_ROUTE_SYNC | LN_INIT_LF_OPT_DATALOSS_OPT)
+
 //#define M_DEBUG
 
 #define M_CHK_RET(ret)      \
@@ -42,12 +65,18 @@
  * prototypes
  **************************************************************************/
 
+#ifdef M_DEBUG
+static void print_peer_conf(const peer_conf_t *pPeerConf);
+static void print_funding_conf(const funding_conf_t *pFundConf);
+static void print_payment_conf(const payment_conf_t *pPayConf);
+#endif
+
 static int handler_peer_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_fund_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_btcrpc_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_pay_conf(void* user, const char* section, const char* name, const char* value);
 static int handler_anno_conf(void* user, const char* section, const char* name, const char* value);
-static int handler_establish_conf(void* user, const char* section, const char* name, const char* value);
+static int handler_channel_conf(void* user, const char* section, const char* name, const char* value);
 static bool chk_nonzero(const uint8_t *pData, int Len);
 
 
@@ -59,10 +88,14 @@ static bool chk_nonzero(const uint8_t *pData, int Len);
  * peer.conf
  ********************/
 
-bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
+void conf_peer_init(peer_conf_t *pPeerConf)
 {
     memset(pPeerConf, 0, sizeof(peer_conf_t));
+}
 
+
+bool conf_peer_load(const char *pConfFile, peer_conf_t *pPeerConf)
+{
     if (ini_parse(pConfFile, handler_peer_conf, pPeerConf) != 0) {
         //LOGD("fail peer parse[%s]", pConfFile);
         return false;
@@ -77,7 +110,8 @@ bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf)
 }
 
 
-void print_peer_conf(const peer_conf_t *pPeerConf)
+#ifdef M_DEBUG
+static void print_peer_conf(const peer_conf_t *pPeerConf)
 {
     fprintf(stderr, "\n--- peer ---\n");
     fprintf(stderr, "ipaddr=%s\n", pPeerConf->ipaddr);
@@ -85,16 +119,21 @@ void print_peer_conf(const peer_conf_t *pPeerConf)
     fprintf(stderr, "node_id=");
     ucoin_util_dumpbin(stderr, pPeerConf->node_id, UCOIN_SZ_PUBKEY, true);
 }
+#endif
 
 
 /********************
  * fund.conf
  ********************/
 
-bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
+void conf_funding_init(funding_conf_t *pFundConf)
 {
     memset(pFundConf, 0, sizeof(funding_conf_t));
+}
 
+
+bool conf_funding_load(const char *pConfFile, funding_conf_t *pFundConf)
+{
     if (ini_parse(pConfFile, handler_fund_conf, pFundConf) != 0) {
         //LOGD("fail fund parse[%s]", pConfFile);
         return false;
@@ -109,7 +148,8 @@ bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf)
 }
 
 
-void print_funding_conf(const funding_conf_t *pFundConf)
+#ifdef M_DEBUG
+static void print_funding_conf(const funding_conf_t *pFundConf)
 {
     fprintf(stderr, "\n--- funding ---\n");
     fprintf(stderr, "txid=");
@@ -119,13 +159,29 @@ void print_funding_conf(const funding_conf_t *pFundConf)
     fprintf(stderr, "funding_sat=%" PRIu64 "\n", pFundConf->funding_sat);
     fprintf(stderr, "push_sat=%" PRIu64 "\n\n", pFundConf->push_sat);
 }
+#endif
 
 
 /********************
  * bitcoin.conf
  ********************/
 
-bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
+void conf_btcrpc_init(rpc_conf_t *pRpcConf)
+{
+    memset(pRpcConf, 0, sizeof(rpc_conf_t));
+#ifndef NETKIND
+#error not define NETKIND
+#endif
+#if NETKIND==0
+    pRpcConf->rpcport = 8332;
+#elif NETKIND==1
+    pRpcConf->rpcport = 18332;
+#endif
+    strcpy(pRpcConf->rpcurl, "127.0.0.1");
+}
+
+
+bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
 {
     if (ini_parse(pConfFile, handler_btcrpc_conf, pRpcConf) != 0) {
         LOGD("fail bitcoin.conf parse[%s]", pConfFile);
@@ -147,11 +203,11 @@ bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf)
 }
 
 
-bool load_btcrpc_default_conf(rpc_conf_t *pRpcConf)
+bool conf_btcrpc_load_default(rpc_conf_t *pRpcConf)
 {
     char path[512];
     sprintf(path, "%s/.bitcoin/bitcoin.conf", getenv("HOME"));
-    return load_btcrpc_conf(path, pRpcConf);
+    return conf_btcrpc_load(path, pRpcConf);
 }
 
 
@@ -159,10 +215,14 @@ bool load_btcrpc_default_conf(rpc_conf_t *pRpcConf)
  * pay.conf
  ********************/
 
-bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
+void conf_payment_init(payment_conf_t *pPayConf)
 {
     memset(pPayConf, 0, sizeof(payment_conf_t));
+}
 
+
+bool conf_payment_load(const char *pConfFile, payment_conf_t *pPayConf)
+{
     if (ini_parse(pConfFile, handler_pay_conf, pPayConf) != 0) {
         LOGD("fail pay parse[%s]", pConfFile);
         return false;
@@ -180,7 +240,8 @@ bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf)
 }
 
 
-void print_payment_conf(const payment_conf_t *pPayConf)
+#ifdef M_DEBUG
+static void print_payment_conf(const payment_conf_t *pPayConf)
 {
     fprintf(stderr, "\n--- payment ---\n");
     fprintf(stderr, "payment_hash=");
@@ -195,12 +256,22 @@ void print_payment_conf(const payment_conf_t *pPayConf)
         fprintf(stderr, "  cltv_expiry: %u\n", pPayConf->hop_datain[lp].outgoing_cltv_value);
     }
 }
+#endif
 
 
-bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf)
+void conf_anno_init(anno_conf_t *pAnnoConf)
 {
     memset(pAnnoConf, 0, sizeof(anno_conf_t));
 
+    pAnnoConf->cltv_expiry_delta = M_CLTV_EXPIRY_DELTA;
+    pAnnoConf->htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_ANNO;
+    pAnnoConf->fee_base_msat = M_FEE_BASE_MSAT;
+    pAnnoConf->fee_prop_millionths = M_FEE_PROP_MILLIONTHS;
+}
+
+
+bool conf_anno_load(const char *pConfFile, anno_conf_t *pAnnoConf)
+{
     if (ini_parse(pConfFile, handler_anno_conf, pAnnoConf) != 0) {
         //LOGD("fail anno parse[%s]", pConfFile);
         return false;
@@ -210,12 +281,25 @@ bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf)
 }
 
 
-bool load_establish_conf(const char *pConfFile, establish_conf_t *pEstConf)
+void conf_channel_init(channel_conf_t *pChannConf)
 {
-    memset(pEstConf, 0, sizeof(establish_conf_t));
+    memset(pChannConf, 0, sizeof(channel_conf_t));
 
-    if (ini_parse(pConfFile, handler_establish_conf, pEstConf) != 0) {
-        //LOGD("fail establish parse[%s]", pConfFile);
+    pChannConf->dust_limit_sat = M_DUST_LIMIT_SAT;
+    pChannConf->max_htlc_value_in_flight_msat = M_MAX_HTLC_VALUE_IN_FLIGHT_MSAT;
+    pChannConf->channel_reserve_sat = M_CHANNEL_RESERVE_SAT;
+    pChannConf->htlc_minimum_msat = M_HTLC_MINIMUM_MSAT_EST;
+    pChannConf->to_self_delay = M_TO_SELF_DELAY;
+    pChannConf->max_accepted_htlcs = M_MAX_ACCEPTED_HTLCS;
+    pChannConf->min_depth = M_MIN_DEPTH;
+    pChannConf->localfeatures = M_LOCALFEATURES;
+}
+
+
+bool conf_channel_load(const char *pConfFile, channel_conf_t *pChannConf)
+{
+    if (ini_parse(pConfFile, handler_channel_conf, pChannConf) != 0) {
+        //LOGD("fail channel parse[%s]", pConfFile);
         return false;
     }
 
@@ -376,43 +460,55 @@ static int handler_anno_conf(void* user, const char* section, const char* name, 
 }
 
 
-static int handler_establish_conf(void* user, const char* section, const char* name, const char* value)
+/** channel.conf解析
+ * 設定できない値の場合は、エラーにせずスルーする。
+ * そのため、 #conf_channel_init() での初期化を忘れないこと。
+ */
+static int handler_channel_conf(void* user, const char* section, const char* name, const char* value)
 {
     (void)section;
 
-    bool ret = true;
-    establish_conf_t* pconfig = (establish_conf_t *)user;
+    channel_conf_t* pconfig = (channel_conf_t *)user;
 
     errno = 0;
     if (strcmp(name, "dust_limit_sat") == 0) {
         pconfig->dust_limit_sat = strtoull(value, NULL, 10);
     } else if (strcmp(name, "max_htlc_value_in_flight_msat") == 0) {
-        pconfig->max_htlc_value_in_flight_msat = strtoull(value, NULL, 10);
-        ret = (pconfig->max_htlc_value_in_flight_msat > 0);
+        unsigned long long val = strtoull(value, NULL, 10);
+        if ((errno == 0) && (val > 0)) {
+            pconfig->max_htlc_value_in_flight_msat = (uint64_t)val;
+        }
     } else if (strcmp(name, "channel_reserve_sat") == 0) {
-        pconfig->channel_reserve_sat = strtoull(value, NULL, 10);
+        unsigned long long val = strtoull(value, NULL, 10);
+        if ((errno == 0) && (val > 0)) {
+            pconfig->channel_reserve_sat = val;
+        }
     } else if (strcmp(name, "htlc_minimum_msat") == 0) {
-        pconfig->htlc_minimum_msat = strtoull(value, NULL, 10);
+        unsigned long long val = strtoull(value, NULL, 10);
+        if ((errno == 0)) {
+            pconfig->htlc_minimum_msat = val;
+        }
     } else if (strcmp(name, "to_self_delay") == 0) {
-        pconfig->to_self_delay = atoi(value);
-        ret = (pconfig->to_self_delay > 0);
+        int val = atoi(value);
+        if (val > 0) {
+            pconfig->to_self_delay = (uint16_t)val;
+        }
     } else if (strcmp(name, "max_accepted_htlcs") == 0) {
-        pconfig->max_accepted_htlcs = atoi(value);
-        ret = (pconfig->max_accepted_htlcs > 0);
+        int val = atoi(value);
+        if (val > 0) {
+            pconfig->max_accepted_htlcs = (uint16_t)val;
+        }
     } else if (strcmp(name, "min_depth") == 0) {
-        pconfig->min_depth = strtoul(value, NULL, 10);
-        ret = (pconfig->min_depth > 0);
+        unsigned long val = strtoul(value, NULL, 10);
+        if (val > 0) {
+            pconfig->min_depth = val;
+        }
+    } else if (strcmp(name, "localfeatures") == 0) {
+        pconfig->localfeatures = (uint8_t)strtoul(value, NULL, 10);
     } else {
-        return 0;  /* unknown section/name, error */
+        /* unknown section/name */
     }
-    if (!ret) {
-        LOGD("fail: %s\n", name);
-    }
-    if (errno) {
-        LOGD("errno=%s\n", strerror(errno));
-        return 0;
-    }
-    return (ret) ? 1 : 0;
+    return 1;
 }
 
 

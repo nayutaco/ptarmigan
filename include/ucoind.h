@@ -230,8 +230,8 @@ typedef struct {
 } anno_conf_t;
 
 
-/** @struct     establish_conf_t
- *  @brief      establish channel情報
+/** @struct     channel_conf_t
+ *  @brief      channel設定情報
  */
 typedef struct {
     uint64_t    dust_limit_sat;                     ///< 8 : dust-limit-satoshis
@@ -241,7 +241,9 @@ typedef struct {
     uint16_t    to_self_delay;                      ///< 2 : to-self-delay
     uint16_t    max_accepted_htlcs;                 ///< 2 : max-accepted-htlcs
     uint32_t    min_depth;                          ///< 4 : minimum-depth(acceptのみ)
-} establish_conf_t;
+
+    uint8_t     localfeatures;                      ///< init.localfeatures
+} channel_conf_t;
 
 
 /** @struct fwd_proc_add_t

@@ -32,6 +32,13 @@
 
 
 /**************************************************************************
+ * prototypes
+ **************************************************************************/
+
+static void create_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Offset);
+
+
+/**************************************************************************
  * library functions
  **************************************************************************/
 
@@ -50,13 +57,13 @@ void HIDDEN ln_signer_term(ln_self_t *self)
 }
 
 
-bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
+void HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
 {
     self->priv_data.storage_index = LN_SECINDEX_INIT;
     LOGD("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
 
     //鍵生成
-    //  open_channel/accept_channelの鍵は ln_signer_update_percommit_secret()で生成
+    //  open_channel/accept_channelの鍵は ln_signer_keys_update_storage()で生成
     for (int lp = MSG_FUNDIDX_FUNDING; lp < LN_FUNDIDX_MAX; lp++) {
         if (lp != MSG_FUNDIDX_PER_COMMIT) {
             ucoin_util_createprivkey(self->priv_data.priv[lp]);
@@ -65,55 +72,34 @@ bool HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
     }
     ln_print_keys(&self->funding_local, &self->funding_remote);
 
-    ln_signer_update_percommit_secret(self);
-
-    return true;
+    ln_signer_keys_update_storage(self);
 }
 
 
-void HIDDEN ln_signer_update_percommit_secret(ln_self_t *self)
+void HIDDEN ln_signer_keys_update_storage(ln_self_t *self)
 {
-    ln_signer_keys_update(self, 0);
+    ln_signer_keys_update_force(self, self->priv_data.storage_index);
 
     self->priv_data.storage_index--;
-    LOGD("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
-
-    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-}
-
-
-void HIDDEN ln_signer_keys_update(ln_self_t *self, int64_t Offset)
-{
-    ln_signer_keys_update_force(self, self->priv_data.storage_index + Offset);
+    LOGD("update storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
 }
 
 
 void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 {
-    ln_derkey_create_secret(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], self->priv_data.storage_seed, Index);
-    ucoin_keys_priv2pub(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT]);
-
-    LOGD("Index = %" PRIx64 "\n", Index);
-    LOGD("PER_COMMIT_SEC: ");
-    DUMPD(self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PRIVKEY);
-    LOGD("PER_COMMIT_PT : ");
-    DUMPD(self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], UCOIN_SZ_PUBKEY);
+    create_percommitsec(self, self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], Index);
 }
 
 
-void HIDDEN ln_signer_get_prevkey(const ln_self_t *self, uint8_t *pSecret)
+void HIDDEN ln_signer_create_prev_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt)
 {
     //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
     //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
     //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
-    ln_derkey_create_secret(pSecret, self->priv_data.storage_seed, self->priv_data.storage_index + 2);
-
-    LOGD("prev_secret(%" PRIx64 "): ", self->priv_data.storage_index + 2);
-    DUMPD(pSecret, UCOIN_SZ_PRIVKEY);
-    LOGD("       pub: ");
-    uint8_t pub[UCOIN_SZ_PUBKEY];
-    ucoin_keys_priv2pub(pub, pSecret);
-    DUMPD(pub, UCOIN_SZ_PUBKEY);
+    //      +0: 次に送信するnext_per_commitment_secret
+    //      +1: 現在のnext_per_commitment_secret
+    //      +2: 現在のper_commitment_secret
+    create_percommitsec(self, pSecret, pPerCommitPt, self->priv_data.storage_index + 2);
 }
 
 
@@ -232,4 +218,30 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ucoin_tx_t *pTx,
     ucoin_buf_free(&sig);
 
     return ret;
+}
+
+
+/**************************************************************************
+ * private functions
+ **************************************************************************/
+
+/** 指定したper_commit_secret取得
+ *
+ * @param[in,out]   self            チャネル情報
+ * @param[out]      pSecret         per_commit_secret
+ * @param[in]       Offset          storage_indexからのオフセット値
+ */
+static void create_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Index)
+{
+    ln_derkey_create_secret(pSecret, self->priv_data.storage_seed, Index);
+    uint8_t pub[UCOIN_SZ_PUBKEY];
+    ucoin_keys_priv2pub(pub, pSecret);
+    if (pPerCommitPt != NULL) {
+        memcpy(pPerCommitPt, pub, UCOIN_SZ_PUBKEY);
+    }
+
+    LOGD("PER_COMMIT_SEC(%" PRIx64 "): ", Index);
+    DUMPD(pSecret, UCOIN_SZ_PRIVKEY);
+    LOGD("       PER_COMMIT_PT: ");
+    DUMPD(pub, UCOIN_SZ_PUBKEY);
 }

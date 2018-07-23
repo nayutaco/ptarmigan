@@ -90,7 +90,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-18)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-19)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -112,6 +112,7 @@
          selfのsecret情報をself.priv_dataに集約
     -18: node_announcement除外用DB追加(annoinfo_chan)
     -18: [SPVのみ]funding_txのblock hash追加
+    -19: revocation_number追加
  */
 
 
@@ -298,6 +299,7 @@ static const backup_param_t DBSELF_KEYS[] = {
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, txid),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_num),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),
     //M_ITEM(ln_self_t, commit_remote),           //ln_commit_data_t
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, dust_limit_sat),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, max_htlc_value_in_flight_msat),
@@ -309,6 +311,7 @@ static const backup_param_t DBSELF_KEYS[] = {
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, txid),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_num),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, revoke_num),
 
     M_ITEM(ln_self_t, funding_sat),
     M_ITEM(ln_self_t, feerate_per_kw),
@@ -328,7 +331,9 @@ static const backup_param_t DBCOPY_KEYS[] = {
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, revoke_num),
 };
 static const struct {
     enum {
@@ -356,7 +361,9 @@ static const struct {
     { ETYPE_REMOTEKEYS, 1, false },                 // funding_remote.pubkeys
     { ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
     { ETYPE_UINT64,     1, true },                  // commit_local.commit_num
+    { ETYPE_UINT64,     1, true },                  // commit_local.revoke_num
     { ETYPE_UINT64,     1, true },                  // commit_remote.commit_num
+    { ETYPE_UINT64,     1, true },                  // commit_remote.revoke_num
 };
 
 
@@ -529,7 +536,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         uint8_t pub[UCOIN_SZ_PUBKEY];
         ln_node_create_key(pWif, pub);
 
-        char nodename[LN_SZ_ALIAS];
+        char nodename[LN_SZ_ALIAS + 1];
         if (pNodeName == NULL) {
             pNodeName = nodename;
             nodename[0] = '\0';
@@ -2096,7 +2103,7 @@ bool ln_db_annonod_drop(void)
     }
 
     char wif[UCOIN_SZ_WIF_MAX];
-    char nodename[LN_SZ_ALIAS];
+    char nodename[LN_SZ_ALIAS + 1];
     uint8_t genesis[LN_SZ_HASH];
     uint16_t port;
     retval = ver_check(&db_self, wif, nodename, &port, genesis);
@@ -2532,12 +2539,7 @@ bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
         preimg_info_t *p_info = (preimg_info_t *)data.mv_data;
         LOGD("amount: %" PRIu64"\n", p_info->amount);
         LOGD("time: %lu\n", p_info->creation);
-        //TODO: DB ver -19以降になったら削除する
-        if (data.mv_size >= sizeof(preimg_info_t)) {
-            pPreImg->expiry = p_info->expiry;
-        } else {
-            pPreImg->expiry = LN_INVOICE_EXPIRY;
-        }
+        pPreImg->expiry = p_info->expiry;
         pPreImg->creation_time = p_info->creation;
         if ((p_info->expiry == UINT32_MAX) || (now <= p_info->creation + p_info->expiry)) {
             memcpy(pPreImg->preimage, key.mv_data, key.mv_size);
