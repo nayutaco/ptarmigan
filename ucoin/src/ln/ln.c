@@ -429,6 +429,20 @@ void ln_term(ln_self_t *self)
 }
 
 
+void ln_set_status(ln_self_t *self, ln_status_t Status)
+{
+    LOGD("status: %02x --> %02x\n", self->status, Status);
+    self->status = Status;
+    M_DB_SELF_SAVE(self);
+}
+
+
+ln_status_t ln_get_status(const ln_self_t *self)
+{
+    return self->status;
+}
+
+
 void ln_set_genesishash(const uint8_t *pHash)
 {
     memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
@@ -2193,8 +2207,9 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     ucoin_buf_free(&buf_bolt);
 
-    //funding_tx安定待ち(シーケンスの再開はアプリ指示)
+    //funding_tx安定待ち
     start_funding_wait(self, false);
+    ln_set_status(self, LN_STATUS_ESTABLISH);
 
     LOGD("END\n");
     return true;
@@ -2244,8 +2259,9 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         return false;
     }
 
-    //funding_tx安定待ち(シーケンスの再開はアプリ指示)
+    //funding_tx安定待ち
     start_funding_wait(self, true);
+    ln_set_status(self, LN_STATUS_ESTABLISH);
 
     LOGD("END\n");
     return ret;
@@ -2497,13 +2513,6 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
             assert(0);
         }
         ucoin_buf_free(&buf_bolt);
-    }
-
-    //closing_signedの交換を1度でも行っていたら、obscuredを0にしてしまう(フラグ代わり)
-    if (!ln_is_closing_signed_recvd(self)) {
-        LOGD("closing_signed exchanged\n");
-        self->obscured = 0;
-        M_DB_SELF_SAVE(self);
     }
 
     LOGD("END\n");

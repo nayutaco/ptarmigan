@@ -167,6 +167,15 @@ typedef struct ln_self_t ln_self_t;
 typedef struct ln_fieldr_t ln_fieldr_t;
 
 
+// ln_self_t.status
+typedef enum {
+    LN_STATUS_NONE,
+    LN_STATUS_ESTABLISH,
+    LN_STATUS_NORMAL,
+    LN_STATUS_CLOSING,
+} ln_status_t;
+
+
 // node_announcement address descriptor
 typedef enum {
     LN_NODEDESC_NONE,           ///< 0: padding. data = none (length 0)
@@ -983,6 +992,7 @@ typedef struct {
  */
 struct ln_self_t {
     uint8_t                     peer_node_id[UCOIN_SZ_PUBKEY];  ///< 接続先ノード
+    uint8_t                     status;
 
     ln_self_priv_t              priv_data;
 
@@ -1096,6 +1106,22 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
 void ln_term(ln_self_t *self);
 
 
+/** status設定
+ *
+ * @param[in,out]       self            channel情報
+ * @param[in]           Status          設定値
+ */
+void ln_set_status(ln_self_t *self, ln_status_t Status);
+
+
+/** status設定
+ *
+ * @param[in,out]       self            channel情報
+ * @param[in]           Status          設定値
+ */
+ln_status_t ln_get_status(const ln_self_t *self);
+
+
 /** Genesis Block Hash設定
  *
  * @param[in]       pHash               Genesis Block Hash
@@ -1122,7 +1148,7 @@ void ln_set_peer_nodeid(ln_self_t *self, const uint8_t *pNodeId);
 
 /** init.localfeatures設定
  * 未設定の場合はデフォルト値が使用される。
- * 
+ *
  */
 void ln_set_init_localfeatures(uint8_t lf);
 
@@ -1834,16 +1860,6 @@ static inline uint64_t ln_estimate_fundingtx_fee(uint32_t FeeratePerKw) {
  */
 static inline uint64_t ln_calc_max_closing_fee(const ln_self_t *self) {
     return (LN_FEE_COMMIT_BASE * self->feerate_per_kw / 1000);
-}
-
-
-/** closing_signed受信歴取得
- *
- * @param[in]           self            channel情報
- * @retval      true    closing_signedを受信したことがある
- */
-static inline bool ln_is_closing_signed_recvd(const ln_self_t *self) {
-    return (self->obscured == 0);
 }
 
 

@@ -349,6 +349,10 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         //LOGD("This AppConf not working\n");
         return false;
     }
+    if (ln_get_status(pAppConf->p_self) != LN_STATUS_NORMAL) {
+        LOGD("not Normal Operation status\n");
+        return false;
+    }
 
     pthread_mutex_lock(&mMuxNode);
     if (mFlagNode != FLAGNODE_NONE) {
@@ -676,10 +680,20 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         char str[256];
 
         const char *p_status;
-        if (p_self->fund_flag & LN_FUNDFLAG_CLOSE) {
-            p_status = "closing";
-        } else {
+        ln_status_t stat = ln_get_status(p_self);
+        switch (stat) {
+        case LN_STATUS_ESTABLISH:
+            p_status = "establishing";
+            break;
+        case LN_STATUS_NORMAL:
             p_status = "established";
+            break;
+        case LN_STATUS_CLOSING:
+            p_status = "closing";
+            break;
+        default:
+            p_status = "none";
+            break;
         }
         cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
 
@@ -1379,6 +1393,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
         misc_msleep(M_WAIT_RECV_MSG_MSEC);
     }
     LOGD("exchange: funding_locked\n");
+    ln_set_status(p_conf->p_self, LN_STATUS_NORMAL);
 
     check_short_channel_id(p_conf);
 
@@ -1766,6 +1781,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     if (ret && !unspent) {
         //ループ解除
         LOGD("funding_tx is spent.\n");
+        ln_set_status(p_conf->p_self, LN_STATUS_CLOSING);
         stop_threads(p_conf);
     }
 
@@ -3215,7 +3231,7 @@ static void load_channel_settings(lnapp_conf_t *p_conf)
 
 
 /** Announcement初期値
- * 
+ *
  */
 static void load_announce_settings(void)
 {
