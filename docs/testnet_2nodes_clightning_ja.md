@@ -6,7 +6,7 @@
   * commit: 74a444eb7aa29ffca693a3ae5fed43dfdcc722e0
 * [ptarmigan](https://github.com/nayutaco/ptarmigan)
   * tag: 2018-03-13
-  * ptarmiganバージョンアップでDBの変更が行われた場合、DBクリーン(`rm -rf dbucoin`)が必要となる。
+  * ptarmiganバージョンアップでDBの変更が行われた場合、DBクリーン(`rm -rf dbptarm`)が必要となる。
 
 ----
 
@@ -42,7 +42,7 @@ bitcoind -daemon
 cd install
 mkdir node
 cd node
-../ucoind
+../ptarmd
 ```
 
 5. [c-lightning]起動
@@ -87,8 +87,8 @@ cd install/node
 9. [ptarm]Establish開始
 
 ```bash
-../ucoincli -c peer_cln.conf
-../ucoincli -c peer_cln.conf -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c peer_cln.conf
+../ptarmcli -c peer_cln.conf -f fund_yyyymmddhhmmss.conf
 ```
 
 10. [btc]block生成待ち
@@ -99,7 +99,7 @@ cd install/node
 `watch`と`jq`を組み合わせて監視しても良い。
 
 ```bash
-watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
+watch -n 10 "../ptarmcli -l | jq '.result.client[].status'"
 ```
 
 #### 送金(ptarmigan --> c-lightning)
@@ -119,7 +119,7 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 2. [ptarm]送金
 
 ```bash
-../ucoincli -r <BOLT11 invoice>
+../ptarmcli -r <BOLT11 invoice>
 ```
 
 3. [ptarm]実施後のamountを確認
@@ -135,7 +135,7 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 1. [ptarm]invoice作成
 
 ```bash
-../ucoincli -i 20000
+../ptarmcli -i 20000
 ```
 
 * 単位はmsatoshi。
@@ -180,13 +180,13 @@ testnet=1
 
 3. [btc] (同期待ち)  
 
-4. [ptarm node]ucoind起動
+4. [ptarm node]ptarmd起動
 
 ```bash
 cd install
 mkdir node
 cd node
-../ucoind -p 8888
+../ptarmd -p 8888
 ```
 
 5. [c-lightning]c-lightningビルドおよび起動
@@ -240,8 +240,8 @@ cd install/node
 9. [ptarm]Establish開始
 
 ```bash
-../ucoincli -c peer_cln.conf 8889
-../ucoincli -c peer_cln.conf -f fund_yyyymmddhhmmss.conf 8889
+../ptarmcli -c peer_cln.conf 8889
+../ptarmcli -c peer_cln.conf -f fund_yyyymmddhhmmss.conf 8889
 ```
 
 10. [btc]block生成待ち
@@ -252,7 +252,7 @@ cd install/node
 `watch`と`jq`を組み合わせて監視しても良い。
 
 ```bash
-watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
+watch -n 10 "../ptarmcli -l 8889 | jq '.result.client[].status'"
 ```
 
 #### 送金(ptarmigan --> c-lightning)
@@ -272,7 +272,7 @@ watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
 2. [ptarm]送金
 
 ```bash
-../ucoincli -r <BOLT11 invoice> 8889
+../ptarmcli -r <BOLT11 invoice> 8889
 ```
 
 3. [ptarm]実施後のamountを確認
@@ -288,7 +288,7 @@ watch -n 10 "../ucoincli -l 8889 | jq '.result.client[].status'"
 1. [ptarm]invoice作成
 
 ```bash
-../ucoincli -i 20000 8889
+../ptarmcli -i 20000 8889
 ```
 
 * 単位はmsatoshi。

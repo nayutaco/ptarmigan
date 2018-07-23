@@ -2,8 +2,8 @@
 
 ## command
 
-* [`ucoind`](ucoind.md)
-* [`ucoincli`](ucoincli.md)
+* [`ptarmd`](ptarmd.md)
+* [`ptarmcli`](ptarmcli.md)
 * [`showdb`](showdb.md)
 * [`routing`](routing.md)
 

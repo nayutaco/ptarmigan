@@ -2,27 +2,27 @@
 <project version="1">
     <includedir>
         <dir name="include/"/>
-        <dir name="ucoin/include/"/>
-        <dir name="ucoin/src/inc/"/>
-        <dir name="ucoind/inc/"/>
+        <dir name="ptarm/include/"/>
+        <dir name="ptarm/src/inc/"/>
+        <dir name="ptarmd/inc/"/>
     </includedir>
     <defines>
         <define name="NETKIND=1"/>
-        <define name="UCOIN_DEBUG=1"/>
+        <define name="PTARM_DEBUG=1"/>
         <define name="__ORDER_LITTLE_ENDIAN__=1"/>
     </defines>
     <paths>
         <dir name="cmn"/>
         <dir name="routing"/>
         <dir name="showdb"/>
-        <dir name="ucoin"/>
-        <dir name="ucoincli"/>
-        <dir name="ucoind"/>
+        <dir name="ptarm"/>
+        <dir name="ptarmcli"/>
+        <dir name="ptarmd"/>
     </paths>
     <exclude>
-        <path name="ucoin/gtests/"/>
+        <path name="ptarm/gtests/"/>
         <path name="libs/"/>
-        <path name="ucoin/libs/"/>
+        <path name="ptarm/libs/"/>
     </exclude>
     <libraries>
         <library>posix</library>

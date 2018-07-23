@@ -6,7 +6,7 @@
   * [Eclair v0.2-alpha10]((https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar))
 * [ptarmigan](https://github.com/nayutaco/ptarmigan)
   * tag 2018-03-13
-  * ptarmiganバージョンアップでDBの変更が行われた場合、DBクリーン(`rm -rf dbucoin`)が必要となる。  
+  * ptarmiganバージョンアップでDBの変更が行われた場合、DBクリーン(`rm -rf dbptarm`)が必要となる。  
 
 ----
 
@@ -67,7 +67,7 @@ bitcoind -daemon
 cd install
 mkdir node
 cd node
-../ucoind
+../ptarmd
 ```
 
 5. [eclair]起動
@@ -127,8 +127,8 @@ cd install/node
   * 最終行に`feerate_per_kw=zzzzz`(zzzzzはエラーメッセージの`localFeeratePerKw`に近い値)を追加する
 
 ```bash
-../ucoincli -c peer_eclr.conf
-../ucoincli -c peer_eclr.conf -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c peer_eclr.conf
+../ptarmcli -c peer_eclr.conf -f fund_yyyymmddhhmmss.conf
 ```
 
 10. [btc]block生成待ち
@@ -139,7 +139,7 @@ cd install/node
 `watch`と`jq`を組み合わせて監視しても良い。
 
 ```bash
-watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
+watch -n 10 "../ptarmcli -l | jq '.result.client[].status'"
 ```
 
 #### 送金(ptarmigan --> eclair)
@@ -157,7 +157,7 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 2. [ptarm]送金
 
 ```bash
-../ucoincli -r <BOLT11 invoice>
+../ptarmcli -r <BOLT11 invoice>
 ```
 
 3. [ptarm]実施後のamountを確認
@@ -173,7 +173,7 @@ watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
 1. [ptarm]invoice作成
 
 ```bash
-../ucoincli -i 20000
+../ptarmcli -i 20000
 ```
 
 * 単位はmsatoshi。

@@ -1,13 +1,13 @@
 _build/
 _ggtest/
 /libs/*/
-/ucoin/libs/
+/ptarm/libs/
 /install/
 /tests/
 .vscode/
 
-ucoind/ucoind
-ucoincli/ucoincli
+ptarmd/ptarmd
+ptarmcli/ptarmcli
 showdb/showdb
 routing/routing
 

@@ -21,7 +21,7 @@ if [ $? -ne 0 ]; then
 	exit -1
 fi
 
-INVOICE=`./ucoincli -i $AMOUNT $PAYEE_PORT`
+INVOICE=`./ptarmcli -i $AMOUNT $PAYEE_PORT`
 if [ $? -ne 0 ]; then
 	echo fail get invoice
 	exit -1
@@ -33,4 +33,4 @@ INVOICE=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff
 ./routing -d $PAYER -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT > $ROUTECONF
 
 # 送金実施
-./ucoincli -p $ROUTECONF,$INVOICE $PAYER_PORT
+./ptarmcli -p $ROUTECONF,$INVOICE $PAYER_PORT

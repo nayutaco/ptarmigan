@@ -26,12 +26,12 @@ if [ $? -ne 0 ]; then
 fi
 
 echo -n hash= > $ROUTECONF
-echo `./ucoincli -i $AMOUNT $PAYEE_PORT` | jq -r '.result.hash' >> $ROUTECONF
+echo `./ptarmcli -i $AMOUNT $PAYEE_PORT` | jq -r '.result.hash' >> $ROUTECONF
 ./routing -d $PAYER -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT >> $ROUTECONF
 
 # 強制的に中間のノードを終了させる
-./ucoincli -q 5556
+./ptarmcli -q 5556
 sleep 3
 
 # 送金実施
-./ucoincli -p $ROUTECONF $PAYER_PORT
+./ptarmcli -p $ROUTECONF $PAYER_PORT

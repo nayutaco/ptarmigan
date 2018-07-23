@@ -2,7 +2,7 @@
 
 ## NAME
 
-`showdb` - show database using `ucoind`
+`showdb` - show database using `ptarmd`
 
 ## SYNOPSIS
 
@@ -10,7 +10,7 @@
 
 ### options
 
-* `-d` : DB directory(= contain `dbucoin` directory). use current directory if not specified.
+* `-d` : DB directory(= contain `dbptarm` directory). use current directory if not specified.
 * `-w` : wallet info
 * `-s` : self info
 * `-q` : closed self info
@@ -23,7 +23,7 @@
 
 ## DESCRIPTION
 
-Show information in `ucoind` database.
+Show information in `ptarmd` database.
 
 ## SEE ALSO
 

@@ -57,7 +57,7 @@ cd install
 
 7. チャネルを閉じる  
         すぐにブロックチェーンに公開するが、内部情報はブロックに取り込まれるまで保持している。  
-        その前に ucoind を停止させると使えないチャネル情報が残ってしまう。  
+        その前に ptarmd を停止させると使えないチャネル情報が残ってしまう。  
         `example_st1.sh` で起動した `bitcoind` を停止する処理も行っている。
 
 ```bash
@@ -76,11 +76,11 @@ cd install
 | filename | 概要 |
 |----------|------|
 | `clean.sh` | (example用) `bitcoind` 停止、一時ファイル削除 |
-| `default_conf.sh` | `ucoind` が読込む設定ファイルをデフォルト値で作成 |
-| `example_st_conn.sh` | (example用) チャネル作成済みの `ucoind` を起動して再接続する |
-| `example_st_quit.sh` | (example用) 起動している `ucoind` を終了させる |
+| `default_conf.sh` | `ptarmd` が読込む設定ファイルをデフォルト値で作成 |
+| `example_st_conn.sh` | (example用) チャネル作成済みの `ptarmd` を起動して再接続する |
+| `example_st_quit.sh` | (example用) 起動している `ptarmd` を終了させる |
 | `example_st1.sh` | (example用) `bitcoind` 起動 |
-| `example_st2.sh` | (example用) 各node作成および `ucoind` 起動 |
+| `example_st2.sh` | (example用) 各node作成および `ptarmd` 起動 |
 | `example_st3.sh` | (example用) fundingおよびチャネル情報交換完了待ち |
 | `example_st4c.sh` | (example用) 送金実施 |
 | `example_st4d.sh` | (example用) 送金実施 |
@@ -96,5 +96,5 @@ cd install
 
 | filename | 概要 |
 |----------|------|
-| `script/` | `ucoind` がイベント時に実行するスクリプトファイル。 `ucoind` と同じ場所にフォルダごとコピーし、ファイルの中身は適当に編集する想定。 |
+| `script/` | `ptarmd` がイベント時に実行するスクリプトファイル。 `ptarmd` と同じ場所にフォルダごとコピーし、ファイルの中身は適当に編集する想定。 |
 | `regtest.conf` | (example用) `bitcoind` 用設定ファイル。 `example_st1.sh` で使用する。 |

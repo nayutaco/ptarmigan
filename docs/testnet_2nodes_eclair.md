@@ -6,7 +6,7 @@
   * [Eclair v0.2-alpha10]((https://github.com/ACINQ/eclair/releases/download/v0.2-alpha10/eclair-node-0.2-alpha10-0beca13.jar))
 * [ptarmigan](https://github.com/nayutaco/ptarmigan)
   * tag 2018-03-13
-  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`).
+  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbptarm`).
 
 ----
 
@@ -61,13 +61,13 @@ bitcoind -daemon
 
 3. Waiting for synchronization
 
-4. [ptarmigan] Running `ucoind`
+4. [ptarmigan] Running `ptarmd`
 
 ```bash
 cd install
 mkdir node
 cd node
-../ucoind
+../ptarmd
 ```
 
 5. [eclair] Running `eclair`
@@ -124,8 +124,8 @@ cd install/node
   * Add `feerate_per_kw=zzzzz`(zzzzz is an approximate value to an error message `localFeeratePerKw`) in the last line.
 
 ```bash
-../ucoincli -c peer_eclr.conf
-../ucoincli -c peer_eclr.conf -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c peer_eclr.conf
+../ptarmcli -c peer_eclr.conf -f fund_yyyymmddhhmmss.conf
 ```
 
 10. [btc] Waiting for generating a block
@@ -136,7 +136,7 @@ When status is established in a result of -l, we can confirm that if the channel
 Combining `watch` and `jq` is also available for observing it.
 
 ```bash
-watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
+watch -n 10 "../ptarmcli -l | jq '.result.client[].status'"
 ```
 
 Now, we will move on how to send payment.
@@ -156,7 +156,7 @@ Now, we will move on how to send payment.
 2. [ptarmigan] Sending payment
 
 ```bash
-../ucoincli -r <BOLT11 invoice>
+../ptarmcli -r <BOLT11 invoice>
 ```
 
 3. [ptarmigan] Confirming the amount after running it
@@ -172,7 +172,7 @@ Now, we will move on how to send payment.
 1. [ptarmigan] Cenerating an invoice
 
 ```bash
-../ucoincli -i 20000
+../ptarmcli -i 20000
 ```
 
 * A unit is msatoshi.

@@ -13,13 +13,13 @@ mv node_3333/ptarm_*.conf conf/peer3333.conf
 mv node_4444/ptarm_*.conf conf/peer4444.conf
 
 # connect
-./ucoincli -c conf/peer3333.conf 4445
+./ptarmcli -c conf/peer3333.conf 4445
 
 sleep 5
 
 # node_4444からnode_3333へチャネルを開く。
 ./fund-test-in.sh > node_4444/fund4444_3333.conf
-./ucoincli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4445
+./ptarmcli -c conf/peer3333.conf -f node_4444/fund4444_3333.conf 4445
 
 # 少し待つ
 echo wait...

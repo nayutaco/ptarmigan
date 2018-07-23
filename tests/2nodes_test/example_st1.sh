@@ -19,8 +19,8 @@ if [ $? -ne 0 ]; then
 	exit -1
 fi
 
-ln -s $INSTALL_DIR/ucoincli ucoincli
-ln -s $INSTALL_DIR/ucoind ucoind
+ln -s $INSTALL_DIR/ptarmcli ptarmcli
+ln -s $INSTALL_DIR/ptarmd ptarmd
 ln -s $INSTALL_DIR/showdb showdb
 ln -s $INSTALL_DIR/routing routing
 ln -s ../testfiles/fund-test-in.sh fund-test-in.sh

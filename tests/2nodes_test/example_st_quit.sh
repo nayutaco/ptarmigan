@@ -2,5 +2,5 @@
 
 # ノードの停止
 #
-./ucoincli -q 3334
-./ucoincli -q 4445
+./ptarmcli -q 3334
+./ptarmcli -q 4445
