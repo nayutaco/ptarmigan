@@ -524,7 +524,7 @@ bool HIDDEN ln_msg_node_announce_create(ucoin_buf_t *pBuf, const ln_node_announc
     ucoin_push_data(&proto, pMsg->rgbcolor, 3);
 
     //        [32:alias]
-    char alias[LN_SZ_ALIAS];
+    char alias[LN_SZ_ALIAS + 1];
     size_t len_alias = strlen(pMsg->p_alias);
     if (len_alias >= LN_SZ_ALIAS) {
         memcpy(alias, pMsg->p_alias, LN_SZ_ALIAS);

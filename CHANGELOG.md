@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2018/07/xx
+
+* rename: establish config file(`establish.conf`) --> channel config file(`channel.conf`)
+
 ## 2018/06/19
 
 * DB version : -18

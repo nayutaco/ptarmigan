@@ -52,7 +52,7 @@ fee_base_msat=[(channel_update) fee_base_msat]
 fee_prop_millionths=[(channel_update) fee_prop_millionths]
 ```
 
-* establish config file(`establish.conf`) format
+* channel config file(`channel.conf`) format
 
 ```text
 dust_limit_sat=[dust_lmit_satoshis]

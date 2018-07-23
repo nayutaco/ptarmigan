@@ -819,6 +819,8 @@ bool HIDDEN ln_msg_channel_reestablish_create(ucoin_buf_t *pBuf, const ln_channe
     //        [32:channel_id]
     //        [8:next_local_commitment_number]
     //        [8:next_remote_revocation_number]
+    //        [32:your_last_per_commitment_secret] (option_data_loss_protect)
+    //        [33:my_current_per_commitment_point] (option_data_loss_protect)
 
     ucoin_push_t    proto;
 
@@ -826,8 +828,12 @@ bool HIDDEN ln_msg_channel_reestablish_create(ucoin_buf_t *pBuf, const ln_channe
     LOGD("@@@@@ %s @@@@@\n", __func__);
     channel_reestablish_print(pMsg);
 #endif  //DBG_PRINT_CREATE
+    uint32_t len = sizeof(uint16_t) + 48;
+    if (pMsg->option_data_loss_protect) {
+        len += 65;
+    }
 
-    ucoin_push_init(&proto, pBuf, sizeof(uint16_t) + 48);
+    ucoin_push_init(&proto, pBuf, len);
 
     //    type: 136 (channel_reestablish)
     ln_misc_push16be(&proto, MSGTYPE_CHANNEL_REESTABLISH);
@@ -841,7 +847,14 @@ bool HIDDEN ln_msg_channel_reestablish_create(ucoin_buf_t *pBuf, const ln_channe
     //        [8:next_remote_revocation_number]
     ln_misc_push64be(&proto, pMsg->next_remote_revocation_number);
 
-    assert(sizeof(uint16_t) + 48 == pBuf->len);
+    if (pMsg->option_data_loss_protect) {
+        //        [32:your_last_per_commitment_secret]
+        ucoin_push_data(&proto, pMsg->your_last_per_commitment_secret, UCOIN_SZ_PRIVKEY);
+        //        [33:my_current_per_commitment_point]
+        ucoin_push_data(&proto, pMsg->my_current_per_commitment_point, UCOIN_SZ_PUBKEY);
+    }
+
+    assert(len == pBuf->len);
 
     ucoin_push_trim(&proto);
 
@@ -855,6 +868,7 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, cons
         LOGD("fail: invalid length: %d\n", Len);
         return false;
     }
+    pMsg->option_data_loss_protect = (Len >= sizeof(uint16_t) + 113);
 
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_CHANNEL_REESTABLISH) {
@@ -876,18 +890,18 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, cons
     pMsg->next_remote_revocation_number = ln_misc_get64be(pData + pos);
     pos += sizeof(uint64_t);
 
-    //[32:your_last_per_commitment_secret] (option-data-loss-protect)
-    if (Len >= pos + UCOIN_SZ_PRIVKEY) {
-        LOGD("your_last_per_commitment_secret: ");
-        DUMPD(pData + pos, UCOIN_SZ_PRIVKEY);
-        pos += UCOIN_SZ_PRIVKEY;
-    }
+    if (pMsg->option_data_loss_protect) {
+        //[32:your_last_per_commitment_secret] (option_data_loss_protect)
+        if (Len >= pos + UCOIN_SZ_PRIVKEY) {
+            memcpy(pMsg->your_last_per_commitment_secret, pData + pos, UCOIN_SZ_PRIVKEY);
+            pos += UCOIN_SZ_PRIVKEY;
+        }
 
-    //[33:my_current_per_commitment_point] (option-data-loss-protect)
-    if (Len >= pos + UCOIN_SZ_PUBKEY) {
-        LOGD("my_current_per_commitment_point: ");
-        DUMPD(pData + pos, UCOIN_SZ_PUBKEY);
-        pos += UCOIN_SZ_PUBKEY;
+        //[33:my_current_per_commitment_point] (option_data_loss_protect)
+        if (Len >= pos + UCOIN_SZ_PUBKEY) {
+            memcpy(pMsg->my_current_per_commitment_point, pData + pos, UCOIN_SZ_PUBKEY);
+            pos += UCOIN_SZ_PUBKEY;
+        }
     }
 
     assert(Len >= pos);
@@ -909,6 +923,12 @@ static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg)
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("next_local_commitment_number: %" PRIu64 "\n", pMsg->next_local_commitment_number);
     LOGD("next_remote_revocation_number: %" PRIu64 "\n", pMsg->next_remote_revocation_number);
+    if (pMsg->option_data_loss_protect) {
+        LOGD("your_last_per_commitment_secret: ");
+        DUMPD(pMsg->your_last_per_commitment_secret, UCOIN_SZ_PRIVKEY);
+        LOGD("my_current_per_commitment_point: ");
+        DUMPD(pMsg->my_current_per_commitment_point, UCOIN_SZ_PUBKEY);
+    }
     LOGD("--------------------------------\n");
 #endif  //UCOIN_DEBUG
 }

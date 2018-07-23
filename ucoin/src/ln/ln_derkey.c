@@ -377,7 +377,6 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
             break;
         }
     }
-    assert(ret);
     return ret;
 }
 

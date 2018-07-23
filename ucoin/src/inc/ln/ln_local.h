@@ -97,16 +97,10 @@
 #define MSGTYPE_IS_ANNOUNCE(type)           ((MSGTYPE_CHANNEL_ANNOUNCEMENT <= (type)) && ((type) <= MSGTYPE_CHANNEL_UPDATE))
 
 // init.localfeatures
-#define INIT_LF_OPT_DATALOSS_REQ    (1 << 0)    ///< option-data-loss-protect
-#define INIT_LF_OPT_DATALOSS_OPT    (1 << 1)    ///< option-data-loss-protect
-#define INIT_LF_OPT_DATALOSS        (INIT_LF_OPT_DATALOSS_REQ | INIT_LF_OPT_DATALOSS_OPT)
-#define INIT_LF_ROUTE_SYNC          (1 << 3)    ///< initial_routing_sync
-#define INIT_LF_OPT_UPF_SHDN_REQ    (1 << 4)    ///< option_upfront_shutdown_script
-#define INIT_LF_OPT_UPF_SHDN_OPT    (1 << 5)    ///< option_upfront_shutdown_script
-#define INIT_LF_OPT_UPF_SHDN        (INIT_LF_OPT_UPF_SHDN_REQ | INIT_LF_OPT_UPF_SHDN_OPT)
-#define INIT_LF_MASK                (INIT_LF_OPT_DATALOSS | INIT_LF_ROUTE_SYNC | INIT_LF_OPT_UPF_SHDN)
-#define INIT_LF_VALUE               { INIT_LF_ROUTE_SYNC }
-#define INIT_LF_SZ_VALUE            (1)
+#define INIT_LF_MASK_DATALOSS       (LN_INIT_LF_OPT_DATALOSS_REQ | LN_INIT_LF_OPT_DATALOSS_OPT)
+#define INIT_LF_MASK_UPF_SHDN       (LN_INIT_LF_OPT_UPF_SHDN_REQ | LN_INIT_LF_OPT_UPF_SHDN_OPT)
+#define INIT_LF_MASK_GSP_QUERY      (LN_INIT_LF_OPT_GSP_QUERY_REQ | LN_INIT_LF_OPT_GSP_QUERY_OPT)
+#define INIT_LF_MASK                (INIT_LF_MASK_DATALOSS | LN_INIT_LF_ROUTE_SYNC | INIT_LF_MASK_UPF_SHDN | INIT_LF_MASK_GSP_QUERY)
 
 #define CHANNEL_FLAGS_ANNOCNL       (1 << 0)
 #define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり

@@ -276,7 +276,8 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
 
     size_t optlen = strlen(optarg);
     peer_conf_t peer;
-    bool bret = load_peer_conf(optarg, &peer);
+    conf_peer_init(&peer);
+    bool bret = conf_peer_load(optarg, &peer);
     if (bret) {
         //peer.conf
         *pConn = true;
@@ -359,7 +360,8 @@ static void optfunc_funding(int *pOption, bool *pConn)
     M_CHK_CONN
 
     funding_conf_t fundconf;
-    bool bret = load_funding_conf(optarg, &fundconf);
+    conf_funding_init(&fundconf);
+    bool bret = conf_funding_load(optarg, &fundconf);
     if (bret) {
         char txid[UCOIN_SZ_TXID * 2 + 1];
 
@@ -475,7 +477,8 @@ static void optfunc_payment(int *pOption, bool *pConn)
     payment_conf_t payconf;
     const char *path = strtok(optarg, ",");
     const char *hash = strtok(NULL, ",");
-    bool bret = load_payment_conf(path, &payconf);
+    conf_payment_init(&payconf);
+    bool bret = conf_payment_load(path, &payconf);
     if (hash) {
         bret &= misc_str2bin(payconf.payment_hash, LN_SZ_HASH, hash);
     }

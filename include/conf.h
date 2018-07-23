@@ -30,21 +30,24 @@ extern "C" {
 #endif  //__cplusplus
 
 
-bool load_peer_conf(const char *pConfFile, peer_conf_t *pPeerConf);
-void print_peer_conf(const peer_conf_t *pPeerConf);
+void conf_peer_init(peer_conf_t *pPeerConf);
+bool conf_peer_load(const char *pConfFile, peer_conf_t *pPeerConf);
 
-bool load_funding_conf(const char *pConfFile, funding_conf_t *pFundConf);
-void print_funding_conf(const funding_conf_t *pFundConf);
+void conf_funding_init(funding_conf_t *pFundConf);
+bool conf_funding_load(const char *pConfFile, funding_conf_t *pFundConf);
 
-bool load_btcrpc_conf(const char *pConfFile, rpc_conf_t *pRpcConf);
-bool load_btcrpc_default_conf(rpc_conf_t *pRpcConf);
+void conf_btcrpc_init(rpc_conf_t *pRpcConf);
+bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf);
+bool conf_btcrpc_load_default(rpc_conf_t *pRpcConf);
 
-bool load_payment_conf(const char *pConfFile, payment_conf_t *pPayConf);
-void print_payment_conf(const payment_conf_t *pPayConf);
+void conf_payment_init(payment_conf_t *pPayConf);
+bool conf_payment_load(const char *pConfFile, payment_conf_t *pPayConf);
 
-bool load_anno_conf(const char *pConfFile, anno_conf_t *pAnnoConf);
+void conf_anno_init(anno_conf_t *pAnnoConf);
+bool conf_anno_load(const char *pConfFile, anno_conf_t *pAnnoConf);
 
-bool load_establish_conf(const char *pConfFile, establish_conf_t *pEstConf);
+void conf_channel_init(channel_conf_t *pEstConf);
+bool conf_channel_load(const char *pConfFile, channel_conf_t *pEstConf);
 
 #ifdef __cplusplus
 }

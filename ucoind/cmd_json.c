@@ -413,7 +413,6 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         //デフォルト値
         fundconf.feerate_per_kw = 0;
     }
-    print_funding_conf(&fundconf);
 
 
     err = cmd_fund_proc(conn.node_id, &fundconf);
