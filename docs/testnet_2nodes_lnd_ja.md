@@ -6,7 +6,7 @@
   * commit: 45eaa70814e8f94a569bc277c52a79a5c4351c43
 * [ptarmigan](https://github.com/nayutaco/ptarmigan)
   * tag: 2018-03-13
-  * ptarmiganバージョンアップでDBの変更が行われた場合、DBクリーン(`rm -rf dbucoin`)が必要となる。
+  * ptarmiganバージョンアップでDBの変更が行われた場合、DBクリーン(`rm -rf dbptarm`)が必要となる。
 
 ----
 
@@ -80,7 +80,7 @@ btcd&
 cd install
 mkdir node
 cd node
-../ucoind
+../ptarmd
 ```
 
 5. [lnd]起動
@@ -132,8 +132,8 @@ cd install/node
 9. [ptarm]Establish開始
 
 ```bash
-../ucoincli -c peer_lnd.conf
-../ucoincli -c peer_lnd.conf -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c peer_lnd.conf
+../ptarmcli -c peer_lnd.conf -f fund_yyyymmddhhmmss.conf
 ```
 
 10. [btc]block生成待ち
@@ -144,7 +144,7 @@ cd install/node
 `watch`と`jq`を組み合わせて監視しても良い。
 
 ```bash
-watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
+watch -n 10 "../ptarmcli -l | jq '.result.client[].status'"
 ```
 
 #### 送金(ptarmigan --> lnd)
@@ -161,7 +161,7 @@ lncli --no-macaroons addinvoice --amt 100000
 2. [ptarm]送金
 
 ```bash
-../ucoincli -r <BOLT11 invoice>
+../ptarmcli -r <BOLT11 invoice>
 ```
 
 3. [ptarm]実施後のamountを確認
@@ -177,7 +177,7 @@ lncli --no-macaroons addinvoice --amt 100000
 1. [ptarm]invoice作成
 
 ```bash
-../ucoincli -i 20000
+../ptarmcli -i 20000
 ```
 
 * 単位はmsatoshi。

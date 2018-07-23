@@ -6,7 +6,7 @@
   * commit: 45eaa70814e8f94a569bc277c52a79a5c4351c43
 * [ptarmigan](https://github.com/nayutaco/ptarmigan/)
   * tag: 2018-03-13
-  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbucoin`).
+  * When ptarmigan version up with DB change is done, you need DB clean(`rm -rf dbptarm`).
 
 ----
 
@@ -74,13 +74,13 @@ btcd&
 
 3. Waiting for synchronization
 
-4. [ptarmigan] Running `ucoind`
+4. [ptarmigan] Running `ptarmd`
 
 ```bash
 cd install
 mkdir node
 cd node
-../ucoind
+../ptarmd
 ```
 
 5. [lnd] Running `lnd`
@@ -132,19 +132,19 @@ cd install/node
 9. [ptarmigan] Starting Channel Establishment
 
 ```bash
-../ucoincli -c peer_lnd.conf
-../ucoincli -c peer_lnd.conf -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c peer_lnd.conf
+../ptarmcli -c peer_lnd.conf -f fund_yyyymmddhhmmss.conf
 ```
 
 10. [btc] Waiting for generating a block
 
 The channel is gererated after reaching three blocks.  
 
-When status is established in a result of `ucoincli -l`, we can confirm that if the channel is generated.  
+When status is established in a result of `ptarmcli -l`, we can confirm that if the channel is generated.  
 Combining `watch` and `jq` is also available for observing it.
 
 ```bash
-watch -n 10 "../ucoincli -l | jq '.result.client[].status'"
+watch -n 10 "../ptarmcli -l | jq '.result.client[].status'"
 ```
 
 Now we will move on how to send payment.
@@ -163,7 +163,7 @@ lncli --no-macaroons addinvoice --amt 100000
 2. [ptarmigan] Sending payment
 
 ```bash
-../ucoincli -r <BOLT11 invoice>
+../ptarmcli -r <BOLT11 invoice>
 ```
 
 3. [ptarmigan] Confirming the amount after running it
@@ -179,7 +179,7 @@ lncli --no-macaroons addinvoice --amt 100000
 1. [ptarmigan] Cenerating an invoice
 
 ```bash
-../ucoincli -i 20000
+../ptarmcli -i 20000
 ```
 
 * A unit is msatoshi.

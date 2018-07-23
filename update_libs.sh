@@ -30,7 +30,7 @@ cd libs
 func_upd jsonrpc-c https://github.com/nayutaco/jsonrpc-c.git localonly
 func_tag inih https://github.com/benhoyt/inih.git master refs/tags/r42
 
-cd ../ucoin/libs
+cd ../ptarm/libs
 func_upd libbase58 https://github.com/luke-jr/libbase58.git master
 func_tag libsodium https://github.com/jedisct1/libsodium.git master 1.0.16
 func_tag lmdb https://github.com/LMDB/lmdb.git mdb.master LMDB_0.9.22

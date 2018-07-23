@@ -19,7 +19,7 @@ routing -s PAYER_NODEID -r PAYEE_NODEID -d DB_DIR -a AMOUNT_MSAT -e MIN_FINAL_CL
   * payee node_id
 
 * -d DB_DIR
-  * DB directory(= contain `dbucoin`)
+  * DB directory(= contain `dbptarm`)
     * default: current directory
 
 * -a AMOUNT_MSAT
@@ -41,12 +41,12 @@ routing -s PAYER_NODEID -r PAYEE_NODEID -d DB_DIR -a AMOUNT_MSAT -e MIN_FINAL_CL
 
 * -c
   * clear routing skip channel list
-  * _NOTE_ : need restart `ucoind`
+  * _NOTE_ : need restart `ptarmd`
 
 ## DESCRIPTION
 
 Calculate payment route using dijkstra shortest path.  
-This output is same as pay config file format(`ucoincli -p`).
+This output is same as pay config file format(`ptarmcli -p`).
 
 ## SEE ALSO
 

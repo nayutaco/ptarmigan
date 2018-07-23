@@ -34,7 +34,7 @@ lncli --no-macaroons getinfo
 * `ptarmigan`
 
 ```bash
-../ucoincli -l
+../ptarmcli -l
 ```
 
 ## Creating a peer CONF file
@@ -51,9 +51,9 @@ lncli --no-macaroons getinfo
 ## Connecting
 
 ```bash
-../ucoincli -c peer_cln.conf
-../ucoincli -c peer_eclr.conf
-../ucoincli -c peer_lnd.conf
+../ptarmcli -c peer_cln.conf
+../ptarmcli -c peer_eclr.conf
+../ptarmcli -c peer_lnd.conf
 ```
 
 ## Creating channels
@@ -63,20 +63,20 @@ lncli --no-macaroons getinfo
 
 ```bash
 ../pay_fundin.sh 1000000 800000 300000000
-../ucoincli -c peer_cln.conf -f fund_yyyymmddhhddss.conf
-../ucoincli -l
+../ptarmcli -c peer_cln.conf -f fund_yyyymmddhhddss.conf
+../ptarmcli -l
 (wait... status: "wait_minimum_depth")
 rm fund_yyyymmddhhddss.conf
 
 ../pay_fundin.sh 1000000 800000 400000000
-../ucoincli -c peer_eclr.conf -f fund_yyyymmddhhddss.conf
-../ucoincli -l
+../ptarmcli -c peer_eclr.conf -f fund_yyyymmddhhddss.conf
+../ptarmcli -l
 (wait... status: "wait_minimum_depth")
 rm fund_yyyymmddhhddss.conf
 
 ../pay_fundin.sh 1000000 800000 500000000
-../ucoincli -c peer_lnd.conf -f fund_yyyymmddhhddss.conf
-../ucoincli -l
+../ptarmcli -c peer_lnd.conf -f fund_yyyymmddhhddss.conf
+../ptarmcli -l
 (wait... status: "wait_minimum_depth")
 rm fund_yyyymmddhhddss.conf
 ```
@@ -86,7 +86,7 @@ rm fund_yyyymmddhhddss.conf
 * Waiting 3 nodes change into `"established"` by observing with watch command every 10 seconds.
 
 ```bash
-watch -n 10 "../ucoincli -l | jq .result.peers[].status"
+watch -n 10 "../ptarmcli -l | jq .result.peers[].status"
 ```
 
 ```text
@@ -280,7 +280,7 @@ lncli --no-macaroons addinvoice --amt 10000
 ## Closing channels
 
 ```bash
-../ucoincli -c peer_lnd.conf -x
-../ucoincli -c peer_eclr.conf -x
-../ucoincli -c peer_cln.conf -x
+../ptarmcli -c peer_lnd.conf -x
+../ptarmcli -c peer_eclr.conf -x
+../ptarmcli -c peer_cln.conf -x
 ```

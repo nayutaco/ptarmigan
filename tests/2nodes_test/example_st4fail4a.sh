@@ -22,7 +22,7 @@ if [ $? -ne 0 ]; then
 	exit -1
 fi
 
-INVOICE=`./ucoincli -i $AMOUNT $PAYEE_PORT`
+INVOICE=`./ptarmcli -i $AMOUNT $PAYEE_PORT`
 if [ $? -ne 0 ]; then
 	echo fail get invoice
 	exit -1
@@ -32,12 +32,12 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 ./routing -d $PAYER -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT > $ROUTECONF
 
 # fulfillしない
-./ucoincli --debug 1 $PAYEE_PORT
+./ptarmcli --debug 1 $PAYEE_PORT
 
 # 送金実施
-./ucoincli -p $ROUTECONF,$HASH $PAYER_PORT
+./ptarmcli -p $ROUTECONF,$HASH $PAYER_PORT
 
 sleep 2
 
 # 戻す
-./ucoincli --debug 1 $PAYEE_PORT
+./ptarmcli --debug 1 $PAYEE_PORT

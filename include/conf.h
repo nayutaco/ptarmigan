@@ -23,7 +23,7 @@
 #define CONF_H__
 
 #include <stdbool.h>
-#include "ucoind.h"
+#include "ptarmd.h"
 
 #ifdef __cplusplus
 extern "C" {

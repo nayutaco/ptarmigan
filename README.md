@@ -45,7 +45,7 @@ make
 #### NOTICE
 
 * Updating `ptarmigan` sometimes changes the version of internal DB data.  
-  In that case, delete previous `dbucoin` directory(if you need close, execute `ucoincli -x`).
+  In that case, delete previous `dbptarm` directory(if you need close, execute `ptarmcli -x`).
 
 ### update libraries
 

@@ -1,14 +1,14 @@
-[submodule "ucoin/libs/mbedtls"]
-	path = ucoin/libs/mbedtls
+[submodule "ptarm/libs/mbedtls"]
+	path = ptarm/libs/mbedtls
 	url = https://github.com/ARMmbed/mbedtls.git
-[submodule "ucoin/libs/libbase58"]
-	path = ucoin/libs/libbase58
+[submodule "ptarm/libs/libbase58"]
+	path = ptarm/libs/libbase58
 	url = https://github.com/luke-jr/libbase58.git
-[submodule "ucoin/libs/libsodium"]
-	path = ucoin/libs/libsodium
+[submodule "ptarm/libs/libsodium"]
+	path = ptarm/libs/libsodium
 	url = https://github.com/jedisct1/libsodium.git
-[submodule "ucoin/libs/lmdb"]
-	path = ucoin/libs/lmdb
+[submodule "ptarm/libs/lmdb"]
+	path = ptarm/libs/lmdb
 	url = https://github.com/LMDB/lmdb.git
 [submodule "libs/jsonrpc-c"]
 	path = libs/jsonrpc-c

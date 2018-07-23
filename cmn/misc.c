@@ -28,7 +28,7 @@
 #include <arpa/inet.h>
 
 #include "misc.h"
-#include "ucoind.h"
+#include "ptarmd.h"
 
 
 /**************************************************************************
@@ -114,7 +114,7 @@ void misc_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
 
     if (pChannelId != NULL) {
         char chanid[LN_SZ_CHANNEL_ID * 2 + 1];
-        ucoin_util_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
+        ptarm_util_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
         sprintf(fname, FNAME_EVENTCH_LOG, chanid);
     } else {
         sprintf(fname, FNAME_EVENTCH_LOG, "node");

@@ -6,17 +6,17 @@
   The "visible" node on testnet is displayed in [Lightning Network Explorer(TESTNET)](https://explorer.acinq.co/#/)
   As to connect the channels of the Lightning Network, the id, IP address, and port number of node with in this site are required(some nodes don't disclose IP address, and some nodes is not operating).
 - Because Lightning Network makes payments on the P2P network, it is necessary for all node on payment path to operate correctly. Even if only one node on payment path returns an error, payment will not be completed.
-- Node software is `ucoind`. Use `ucoincli` to operate `ucoind`.
-- It is necessary that `bitcoind` completely synchroninzed with testnet is running on the same local host on which `ucoind` is running. It is necessary to have testnet bitcoin.
-- Current user interface of `ucoincli` is not easy understandable. It is improving.
+- Node software is `ptarmd`. Use `ptarmcli` to operate `ptarmd`.
+- It is necessary that `bitcoind` completely synchroninzed with testnet is running on the same local host on which `ptarmd` is running. It is necessary to have testnet bitcoin.
+- Current user interface of `ptarmcli` is not easy understandable. It is improving.
   Specify command option by mixture of file and commandline.
-  i.e. "run option file generation program -> use ucoincli with commandline option and that file"
+  i.e. "run option file generation program -> use ptarmcli with commandline option and that file"
 - Currently, the number of simultaneous connections is limited to a total of 20 (10 connections from the peer node, 10 connections from yourself).
 - JSON-RPC port number is the specified Lightning Network protocol port number + 1.
-- When executed according to the following procedure, `ptarmigan / install / node` is the directory where the node information is stored and `ptarmigan / install / node / dbucoin` is the database directory.
-  Even if you exit `ucoind` software, re-running `ucoind` in the `ptarmigan / install / node` directory will start up as the same Lightning Network node.
-  If re-startup is not successful, remove the `dbucoin` directory and run it as a new node (if you do not change the `node.conf` file, the node ID will not be changed).
-- When version up with DB change is done, you need DB clean(`rm -rf dbucoin`).
+- When executed according to the following procedure, `ptarmigan / install / node` is the directory where the node information is stored and `ptarmigan / install / node / dbptarm` is the database directory.
+  Even if you exit `ptarmd` software, re-running `ptarmd` in the `ptarmigan / install / node` directory will start up as the same Lightning Network node.
+  If re-startup is not successful, remove the `dbptarm` directory and run it as a new node (if you do not change the `node.conf` file, the node ID will not be changed).
+- When version up with DB change is done, you need DB clean(`rm -rf dbptarm`).
 
 ## Overview of Payment for Starblocks/Y'alls
 
@@ -24,8 +24,8 @@
 - Install `bitcoind`
 - Start `bitcoind`with testnet. Get some bitcoin from testnet faucet
 - Install ptarmigan
-- Start `ucoind`
-- Connect `ucoind` with other testnet Lightning Network node
+- Start `ptarmd`
+- Connect `ptarmd` with other testnet Lightning Network node
 - Create payment channel from ptarmigan to connected node
 - Issue invoice from starblocks/Y'alls WEB
 - Make payment from ptarmigan with invoice
@@ -82,19 +82,19 @@ git checkout -b test refs/tags/2018-03-03
 make full
 ```
 
-6. Start node daemon `ucoind`
+6. Start node daemon `ptarmd`
 
 ```bash
 cd install
 mkdir node
 cd node
-../ucoind
+../ptarmd
 ```
 
 Default mode is private node in which mode node does not announce IP address.  
-Open another Ubuntu window and control `ucoind` from such window, because `ucoind` is daemon.
+Open another Ubuntu window and control `ptarmd` from such window, because `ptarmd` is daemon.
 
-7. Generate peer node config file for `ucoind`
+7. Generate peer node config file for `ptarmd`
 
 ```bash
 cd ptarmigan/install/node
@@ -103,22 +103,22 @@ cd ptarmigan/install/node
 
 When `Lightning node port` is 9735, it can be ommited.
 
-8. Connect other lightning network node from `ucoind`
+8. Connect other lightning network node from `ptarmd`
 
 ```bash
-../ucoincli -c peer_xxx.conf
+../ptarmcli -c peer_xxx.conf
 ```
 
-When ucoind successfully connect other node, you receive the large amount of node information from peer node.  
+When ptarmd successfully connect other node, you receive the large amount of node information from peer node.  
 You should wait untill finishing log output.
 
-9. Confirm connection between  `ucoind` and peer
+9. Confirm connection between  `ptarmd` and peer
 
 ```bash
-../ucoincli -l | jq
+../ptarmcli -l | jq
 ```
 
-`ucoincli` shows current connection information.  
+`ptarmcli` shows current connection information.  
 Connected node `status` is `"connected"` in the log.  
 Go back 7 when connection is failed.
 
@@ -142,20 +142,20 @@ Note that unit is satoshi.
 11. Fund payment channel
 
 ```bash
-../ucoincli -c peer.conf -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c peer.conf -f fund_yyyymmddhhmmss.conf
 ```
 
 12. Wait until funding transaction get into bitcoin testnet block (it will take time)
 
 ```bash
-../ucoincli -l | jq
+../ptarmcli -l | jq
 ```
 
 Number of comfirmation is depend on peer node(`c-lightning` default value is 1. `lnd` default value is 3).  
 Display node status.  
 When channel is established, status change from `"wait_minimum_depth"` to `"established"`.  
 You should wait 6 confirmation, because broadcasting of channel start after 6 confirmation.  
-You can check current number of confirmationn by command `ucoincli -l`.
+You can check current number of confirmationn by command `ptarmcli -l`.
 
 13. Generate invoice on Starblocks/Y'alls Web
 
@@ -172,14 +172,14 @@ Long strings like `lntb********************.....` is invoice number.
 14. Execute payment from ptarmigan
 
 ```bash
-../ucoincli -l | jq
+../ptarmcli -l | jq
 ```
 
 Display the node status. Comfirm the number of payment channel confirmation is more than 6.  
 (When the number is less than 6, you must wait.)  
 
 ```bash
-../ucoincli -r [invoice number]
+../ptarmcli -r [invoice number]
 ```
 
 Execute payment from ptarmigan.  
@@ -190,10 +190,10 @@ Because Lightning Network is P2P payment, payment does not complete if even one 
 When payment is not completed, ptarmigan execute path re-serach.
 
 - register estimated error payment channel into avoidance node DB.
-- re-execute `ucoincli -r` internally until ptarmigan finish paymennt
+- re-execute `ptarmcli -r` internally until ptarmigan finish paymennt
 
 It may take time.  
-When ptarmigan is retrying payment, `ucoincli -l` shows "paying" message.  
+When ptarmigan is retrying payment, `ptarmcli -l` shows "paying" message.  
 
 When ptarmigan can not find route finally, it output "fail routing" error message.  
 This mean that ptarmigan can not find route from current local channel network view.

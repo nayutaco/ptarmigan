@@ -16,7 +16,7 @@ echo { \"method\": \"connected\", \"short_channel_id\": \"$1\", \"node_id\": \"$
 ## FUND_BTCのうち、funding_txに送金する額(satoshi)
 #FUND_SAT=600000
 
-#if [ ! -e ./dbucoin ]; then
+#if [ ! -e ./dbptarm ]; then
 #    echo no DB directory
 #    exit 1
 #fi

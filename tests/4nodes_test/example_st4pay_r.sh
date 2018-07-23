@@ -19,7 +19,7 @@ PAYEE_PORT=$(( ${PAY_END} + 1 ))
 pay() {
 	echo "payment ${PAYER} --> ${PAYEE}"
 
-	INVOICE=`./ucoincli -i $AMOUNT $PAYEE_PORT`
+	INVOICE=`./ptarmcli -i $AMOUNT $PAYEE_PORT`
 	if [ $? -ne 0 ]; then
 		echo fail get invoice
 		exit 2
@@ -28,7 +28,7 @@ pay() {
 	ROUTEPAY=`echo $INVOICE | jq -r '.result.bolt11'`
 
 	# 送金実施
-	./ucoincli -r $ROUTEPAY $PAYER_PORT
+	./ptarmcli -r $ROUTEPAY $PAYER_PORT
 	if [ $? -ne 0 ]; then
 		echo fail payment
 		exit 3

@@ -26,7 +26,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # invoiceだけ amountに 0を足して不一致にさせる
-INVOICE=`./ucoincli -i ${AMOUNT}0 $PAYEE_PORT`
+INVOICE=`./ptarmcli -i ${AMOUNT}0 $PAYEE_PORT`
 if [ $? -ne 0 ]; then
 	echo fail get invoice
 	exit -1
@@ -37,4 +37,4 @@ echo $INVOICE | jq -r '.result.hash' >> $ROUTECONF
 ./routing -d $PAYER -s `nodeid $PAY_BEGIN` -r `nodeid $PAY_END` -a $AMOUNT >> $ROUTECONF
 
 # 送金実施
-./ucoincli -p $ROUTECONF $PAYER_PORT
+./ptarmcli -p $ROUTECONF $PAYER_PORT

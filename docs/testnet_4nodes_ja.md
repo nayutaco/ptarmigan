@@ -43,7 +43,7 @@ lncli --no-macaroons getinfo
 * `ptarmigan`
 
 ```bash
-../ucoincli -l
+../ptarmcli -l
 ```
 
 ## 接続先CONFファイル作成
@@ -60,9 +60,9 @@ lncli --no-macaroons getinfo
 ## 接続
 
 ```bash
-../ucoincli -c peer_cln.conf
-../ucoincli -c peer_eclr.conf
-../ucoincli -c peer_lnd.conf
+../ptarmcli -c peer_cln.conf
+../ptarmcli -c peer_eclr.conf
+../ptarmcli -c peer_lnd.conf
 ```
 
 ## チャネル作成
@@ -72,20 +72,20 @@ lncli --no-macaroons getinfo
 
 ```bash
 ../pay_fundin.sh 1000000 800000 300000
-../ucoincli -c peer_cln.conf -f fund_yyyymmddhhddss.conf
-../ucoincli -l
+../ptarmcli -c peer_cln.conf -f fund_yyyymmddhhddss.conf
+../ptarmcli -l
 (statusが"wait_minimum_depth"になるのを確認する)
 rm fund_yyyymmddhhddss.conf
 
 ../pay_fundin.sh 1000000 800000 400000
-../ucoincli -c peer_eclr.conf -f fund_yyyymmddhhddss.conf
-../ucoincli -l
+../ptarmcli -c peer_eclr.conf -f fund_yyyymmddhhddss.conf
+../ptarmcli -l
 (statusが"wait_minimum_depth"になるのを確認する)
 rm fund_yyyymmddhhddss.conf
 
 ../pay_fundin.sh 1000000 800000 500000
-../ucoincli -c peer_lnd.conf -f fund_yyyymmddhhddss.conf
-../ucoincli -l
+../ptarmcli -c peer_lnd.conf -f fund_yyyymmddhhddss.conf
+../ptarmcli -l
 (statusが"wait_minimum_depth"になるのを確認する)
 rm fund_yyyymmddhhddss.conf
 ```
@@ -95,7 +95,7 @@ rm fund_yyyymmddhhddss.conf
 * watchコマンドで10秒間隔で監視し、3つとも"established"になるまで待つ
 
 ```bash
-watch -n 10 "../ucoincli -l | jq .result.peers[].status"
+watch -n 10 "../ptarmcli -l | jq .result.peers[].status"
 ```
 
 ```text
@@ -291,7 +291,7 @@ lncli --no-macaroons addinvoice --amt 10000
 ## チャネル閉鎖
 
 ```bash
-../ucoincli -c peer_lnd.conf -x
-../ucoincli -c peer_eclr.conf -x
-../ucoincli -c peer_cln.conf -x
+../ptarmcli -c peer_lnd.conf -x
+../ptarmcli -c peer_eclr.conf -x
+../ptarmcli -c peer_cln.conf -x
 ```
