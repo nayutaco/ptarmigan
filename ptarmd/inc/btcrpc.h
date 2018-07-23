@@ -39,8 +39,9 @@
 
 /** jsonrpc初期化
  *
+ * @retval  true        初期化成功
  */
-void btcrpc_init(const rpc_conf_t *pRpcConf);
+bool btcrpc_init(const rpc_conf_t *pRpcConf);
 
 
 /** jsonrpc終了

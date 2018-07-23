@@ -117,7 +117,7 @@ static CURL     *mCurl;
  * public functions
  **************************************************************************/
 
-void btcrpc_init(const rpc_conf_t *pRpcConf)
+bool btcrpc_init(const rpc_conf_t *pRpcConf)
 {
     pthread_mutex_init(&mMux, NULL);
     curl_global_init(CURL_GLOBAL_ALL);
@@ -133,6 +133,8 @@ void btcrpc_init(const rpc_conf_t *pRpcConf)
 #ifdef M_DBG_SHOWRPC
     LOGD("rpcuser=%s\n", rpc_userpwd);
 #endif //M_DBG_SHOWRPC
+
+    return true;
 }
 
 void btcrpc_term(void)
