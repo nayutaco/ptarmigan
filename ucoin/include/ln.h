@@ -1863,16 +1863,6 @@ static inline uint64_t ln_calc_max_closing_fee(const ln_self_t *self) {
 }
 
 
-/** closing_signed受信歴取得
- *
- * @param[in]           self            channel情報
- * @retval      true    closing_signedを受信したことがある
- */
-static inline bool ln_is_closing_signed_recvd(const ln_self_t *self) {
-    return (self->obscured == 0);
-}
-
-
 /** commit_local取得
  *
  * @param[in]           self            channel情報
