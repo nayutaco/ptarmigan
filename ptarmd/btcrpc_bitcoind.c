@@ -35,27 +35,15 @@
  * macros
  **************************************************************************/
 
-#define RPCID           "ptarmdrpc"
-
 #define TXJSON_SIZE     (1024)              //rawtx JSON-RPC送信用バッファ
 #define BUFFER_SIZE     (256 * 1024)        //JSON-RPCレスポンスバッファの初期サイズ
 
+#define M_RPCHEADER         "\"jsonrpc\": \"1.0\", \"id\": \"ptarmdrpc\""
 #define M_NEXT              ","
 #define M_QQ(str)           "\"" str "\""
 #define M_1(item,value)     M_QQ(item) ":" M_QQ(value)
 
-
-#define M_RESULT            "result"
-#define M_CONFIRMATION      "confirmations"
-#define M_HEX               "hex"
-#define M_BLOCKHASH         "blockhash"
-#define M_HEIGHT            "height"
-#define M_VALUE             "value"
-#define M_TX                "tx"
-#define M_ERROR             "error"
-#define M_MESSAGE           "message"
-#define M_CODE              "code"
-#define M_FEERATE           "feerate"
+#define M_MIN_UCOIND_VERSION    (150000)        //必要とするバージョン
 
 //#define M_DBG_SHOWRPC       //RPCの命令
 //#define M_DBG_SHOWREPLY     //RPCの応答
@@ -86,6 +74,7 @@ static bool signraw_tx_with_wallet(ptarm_tx_t *pTx, const uint8_t *pData, size_t
 static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_outpoint(ptarm_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_vout_block(ptarm_buf_t *pTxBuf, int BHeight, const ptarm_buf_t *pVout);
+static bool getversion(int64_t *pVersion);
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
 static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, bool detail);
@@ -98,6 +87,7 @@ static bool getblockhash_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, 
 static bool getblockcount_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
 static bool getnewaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
 static bool estimatefee_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, int nBlock);
+static bool getnetworkinfo_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson);
 //static bool dumpprivkey_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pAddr);
 static bool rpc_proc(json_t **ppRoot, json_t **ppResult, char **ppJson, char *pData);
 static int error_result(json_t *p_root);
@@ -112,6 +102,18 @@ static char     rpc_userpwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD + 1];
 static pthread_mutex_t      mMux;
 static CURL     *mCurl;
 
+static const char *M_RESULT       =    "result";
+static const char *M_CONFIRMATION =    "confirmations";
+static const char *M_HEX          =    "hex";
+static const char *M_BLOCKHASH    =    "blockhash";
+static const char *M_HEIGHT       =    "height";
+static const char *M_VALUE        =    "value";
+static const char *M_TX           =    "tx";
+static const char *M_ERROR        =    "error";
+static const char *M_MESSAGE      =    "message";
+static const char *M_CODE         =    "code";
+static const char *M_FEERATE      =    "feerate";
+
 
 /**************************************************************************
  * public functions
@@ -124,7 +126,7 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     mCurl = curl_easy_init();
     if (mCurl == NULL) {
         LOGD("fatal: cannot init curl\n");
-        abort();
+        return false;
     }
 
     sprintf(rpc_url, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
@@ -134,8 +136,21 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     LOGD("rpcuser=%s\n", rpc_userpwd);
 #endif //M_DBG_SHOWRPC
 
-    return true;
+    int64_t version = -1;
+    bool ret = getversion(&version);
+    if (ret) {
+        LOGD("bitcoind version: %" PRId64 "\n", version);
+        if (version < M_MIN_UCOIND_VERSION) {
+            LOGD("fatal: minimum bitcoind version: %" PRId64 "\n", M_MIN_UCOIND_VERSION);
+            ret = false;
+        }
+    } else {
+        LOGD("fatal: fail getnetworkinfo\n");
+    }
+
+    return ret;
 }
+
 
 void btcrpc_term(void)
 {
@@ -900,6 +915,39 @@ static bool search_vout_block(ptarm_buf_t *pTxBuf, int BHeight, const ptarm_buf_
 }
 
 
+/** bitcoind version取得(getnetworkinfo version)
+ *
+ * @param[out]  pVersion        bitcoind version
+ */
+static bool getversion(int64_t *pVersion)
+{
+    bool ret;
+    char *p_json = NULL;
+    json_t *p_root = NULL;
+    json_t *p_result;
+
+    ret = getnetworkinfo_rpc(&p_root, &p_result, &p_json);
+    if (ret) {
+        json_t *p_version;
+
+        p_version = json_object_get(p_result, "version");
+        if (json_is_integer(p_version)) {
+            *pVersion = (int64_t)json_integer_value(p_version);
+        } else {
+            ret = false;
+        }
+    } else {
+        LOGD("fail: getnetworkinfo_rpc\n");
+    }
+    if (p_root != NULL) {
+        json_decref(p_root);
+    }
+    APP_FREE(p_json);
+
+    return ret;
+}
+
+
 /**************************************************************************
  * private functions: JSON-RPC
  **************************************************************************/
@@ -931,7 +979,7 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
     *(*result->pp_data + result->pos) = 0;       //\0
 
 #ifdef M_DBG_SHOWREPLY
-    LOGD2("\n\n@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, result->p_data + pos);
+    LOGD("@@@[%lu, %lu=%lu]\n%s@@@\n\n", size, nmemb, size * nmemb, *result->pp_data + pos);
 #endif //M_DBG_SHOWREPLY
 
     return size * nmemb;
@@ -947,8 +995,7 @@ static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJ
     snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "getrawtransaction") M_NEXT
@@ -971,8 +1018,7 @@ static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **pp
     snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "signrawtransaction") M_NEXT
@@ -995,8 +1041,7 @@ static bool signrawtransactionwithwallet_rpc(json_t **ppRoot, json_t **ppResult,
     snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "signrawtransactionwithwallet") M_NEXT
@@ -1019,8 +1064,7 @@ static bool sendrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **pp
     snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "sendrawtransaction") M_NEXT
@@ -1040,8 +1084,7 @@ static bool gettxout_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, cons
     snprintf(data, sizeof(data),
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "gettxout") M_NEXT
@@ -1060,8 +1103,7 @@ static bool getblock_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, cons
     snprintf(data, sizeof(data),
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "getblock") M_NEXT
@@ -1080,8 +1122,7 @@ static bool getblockhash_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, 
     snprintf(data, sizeof(data),
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "getblockhash") M_NEXT
@@ -1103,8 +1144,7 @@ static bool getblockcount_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
     snprintf(data, sizeof(data),
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "getblockcount") M_NEXT
@@ -1126,8 +1166,7 @@ static bool getnewaddress_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
     snprintf(data, sizeof(data),
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "getnewaddress") M_NEXT
@@ -1149,13 +1188,34 @@ static bool estimatefee_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, i
     snprintf(data, sizeof(data),
         "{"
             ///////////////////////////////////////////
-            M_1("jsonrpc", "1.0") M_NEXT
-            M_1("id", RPCID) M_NEXT
+            M_RPCHEADER M_NEXT
 
             ///////////////////////////////////////////
             M_1("method", "estimatesmartfee") M_NEXT
             M_QQ("params") ":[%d]"
         "}", nBlock);
+
+    bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
+
+    return ret;
+}
+
+
+/** [cURL]getbnetworkinfo
+ *
+ */
+static bool getnetworkinfo_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson)
+{
+    char data[512];
+    snprintf(data, sizeof(data),
+        "{"
+            ///////////////////////////////////////////
+            M_RPCHEADER M_NEXT
+
+            ///////////////////////////////////////////
+            M_1("method", "getnetworkinfo") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
 
@@ -1172,9 +1232,8 @@ static bool estimatefee_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, i
 //     snprintf(data, sizeof(data),
 //         "{"
 //             ///////////////////////////////////////////
-//             M_1("jsonrpc", "1.0") M_NEXT
-//             M_1("id", RPCID) M_NEXT
-
+//             M_RPCHEADER M_NEXT
+//
 //             ///////////////////////////////////////////
 //             M_1("method", "dumpprivkey") M_NEXT
 //             M_QQ("params") ":[" M_QQ("%s") "]"

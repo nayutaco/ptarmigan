@@ -249,12 +249,12 @@ int main(int argc, char *argv[])
     uint8_t genesis[LN_SZ_HASH];
     bret = btcrpc_init(&rpc_conf);
     if (!bret) {
-        LOGD("fail: initialize btcrpc\n");
+        fprintf(stderr, "fail: initialize btcrpc\n");
         return -1;
     }
     bret = btcrpc_getgenesisblock(genesis);
     if (!bret) {
-        LOGD("fail: bitcoin getblockhash\n");
+        fprintf(stderr, "fail: bitcoin getblockhash\n");
         return -1;
     }
 
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
     //node情報読込み
     bret = ln_node_init(0);
     if (!bret) {
-        LOGD("fail: node init\n");
+        fprintf(stderr, "fail: node init\n");
         return -2;
     }
 
