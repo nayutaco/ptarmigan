@@ -43,7 +43,7 @@
 #define M_QQ(str)           "\"" str "\""
 #define M_1(item,value)     M_QQ(item) ":" M_QQ(value)
 
-#define M_MIN_UCOIND_VERSION    (150000)        //必要とするバージョン
+#define M_MIN_BITCOIND_VERSION  (150000)        //必要とするバージョン
 
 //#define M_DBG_SHOWRPC       //RPCの命令
 //#define M_DBG_SHOWREPLY     //RPCの応答
@@ -140,8 +140,8 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     bool ret = getversion(&version);
     if (ret) {
         LOGD("bitcoind version: %" PRId64 "\n", version);
-        if (version < M_MIN_UCOIND_VERSION) {
-            LOGD("fatal: minimum bitcoind version: %" PRId64 "\n", M_MIN_UCOIND_VERSION);
+        if (version < M_MIN_BITCOIND_VERSION) {
+            LOGD("fatal: minimum bitcoind version: %" PRId64 "\n", M_MIN_BITCOIND_VERSION);
             ret = false;
         }
     } else {
