@@ -297,6 +297,8 @@ bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, ptarm_buf_t *pSig, const ln_tx_
 {
     uint64_t fee_local;
     uint64_t fee_remote;
+    //commitment txのFEEはfunderが払う
+    //  Base commitment transaction fees are extracted from the funder's amount; if that amount is insufficient, the entire amount of the funder's output is used.
     if (Local) {
         fee_local = pCmt->p_feeinfo->commit;
         fee_remote = 0;
@@ -316,7 +318,7 @@ bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, ptarm_buf_t *pSig, const ln_tx_
     } else {
         LOGD("  output P2WPKH dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
     }
-    //  P2WSH - local(commitment txのFEEはlocalが払う)
+    //  P2WSH - local
     if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
         LOGD("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
         ptarm_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
@@ -327,30 +329,31 @@ bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, ptarm_buf_t *pSig, const ln_tx_
     //  HTLCs
     for (int lp = 0; lp < pCmt->htlcinfo_num; lp++) {
         uint64_t fee;
+        uint64_t output_sat = LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat);
         LOGD("lp=%d\n", lp);
         switch (pCmt->pp_htlcinfo[lp]->type) {
         case LN_HTLCTYPE_OFFERED:
-            LOGD("  HTLC: offered: %" PRIu64 " sat\n", LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat));
             fee = pCmt->p_feeinfo->htlc_timeout;
+            LOGD("  HTLC: offered=%" PRIu64 " sat, fee=%" PRIu64 "\n", output_sat, fee);
             break;
         case LN_HTLCTYPE_RECEIVED:
-            LOGD("  HTLC: received: %" PRIu64 " sat\n", LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat));
             fee = pCmt->p_feeinfo->htlc_success;
+            LOGD("  HTLC: received=%" PRIu64 " sat, fee=%" PRIu64 "\n", output_sat, fee);
             break;
         default:
             LOGD("  HTLC: type=%d ???\n", pCmt->pp_htlcinfo[lp]->type);
             fee = 0;
             break;
         }
-        if (LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat) >= pCmt->p_feeinfo->dust_limit_satoshi + fee) {
+        if (output_sat >= pCmt->p_feeinfo->dust_limit_satoshi + fee) {
             ptarm_sw_add_vout_p2wsh(pTx,
-                    LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat),
+                    output_sat,
                     &pCmt->pp_htlcinfo[lp]->script);
             pTx->vout[pTx->vout_cnt - 1].opt = (uint8_t)lp;
             LOGD("scirpt.len=%d\n", pCmt->pp_htlcinfo[lp]->script.len);
             //ptarm_print_script(pCmt->pp_htlcinfo[lp]->script.buf, pCmt->pp_htlcinfo[lp]->script.len);
         } else {
-            LOGD("    --> not add: %" PRIu64 " < %" PRIu64 "\n", LN_MSAT2SATOSHI(pCmt->pp_htlcinfo[lp]->amount_msat), pCmt->p_feeinfo->dust_limit_satoshi + fee);
+            LOGD("    --> not add: %" PRIu64 " < %" PRIu64 "\n", output_sat, pCmt->p_feeinfo->dust_limit_satoshi + fee);
         }
     }
 

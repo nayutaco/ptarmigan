@@ -158,7 +158,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("status") ": \"%02x\",\n", self->status);
 
     //key storage
-    printf(M_QQ("storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->priv_data.storage_index);
+    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("%016" PRIx64) ",\n", self->priv_data.storage_index);
     // printf(M_QQ("storage_seed") ": \"");
     // ptarm_util_dumpbin(stdout, self->priv_data.storage_seed, PTARM_SZ_PRIVKEY, false);
     // printf("\",\n");

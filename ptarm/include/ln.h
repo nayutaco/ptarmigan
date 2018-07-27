@@ -220,6 +220,7 @@ typedef enum {
     LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
     LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
     LN_CB_SEND_REQ,             ///< peerへの送信要求
+    LN_CB_SEND_QUEUE,           ///< 送信キュー保存
     LN_CB_SET_LATEST_FEERATE,   ///< feerate_per_kw更新要求
     LN_CB_GETBLOCKCOUNT,        ///< getblockcount
     LN_CB_MAX,
@@ -929,6 +930,7 @@ typedef struct {
     uint8_t             pubkeys[LN_FUNDIDX_MAX][PTARM_SZ_PUBKEY];   ///< 自分の公開鍵
     //MSG_SCRIPTIDX_xxx
     uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][PTARM_SZ_PUBKEY];   ///< script用PubKey
+    uint64_t            current_commit_num;                     ///< pubkeys[MSG_FUNDIDX_PER_COMMIT]の世代
 } ln_funding_local_data_t;
 
 
@@ -941,6 +943,7 @@ typedef struct {
     uint8_t             prev_percommit[PTARM_SZ_PUBKEY];            ///< 1つ前のper_commit_point
     //MSG_SCRIPTIDX_xxx
     uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][PTARM_SZ_PUBKEY];   ///< script用PubKey
+    uint64_t            current_commit_num;                         ///< pubkeys[MSG_FUNDIDX_PER_COMMIT]の世代
 } ln_funding_remote_data_t;
 
 

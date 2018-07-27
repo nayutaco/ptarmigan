@@ -1179,20 +1179,20 @@ void ptarm_print_tx(const ptarm_tx_t *pTx)
         LOGD("  index= %u\n", pTx->vin[lp].index);
         LOGD("  scriptSig[%u]= ", pTx->vin[lp].script.len);
         DUMPD(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
-        ptarm_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
+        //ptarm_print_scriptptarm_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         //bool p2wsh = (pTx->vin[lp].script.len == 35) &&
         //             (pTx->vin[lp].script.buf[1] == 0x00) && (pTx->vin[lp].script.buf[2] == 0x20);
-        bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
+        //bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
         LOGD("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
         for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
             LOGD("  witness[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
                 DUMPD(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
-                if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
-                    //P2WSHの最後はwitnessScript
-                    //nativeのP2WSHでも表示させたかったが、識別する方法が思いつかない
-                    ptarm_print_script(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
-                }
+                // if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
+                //     //P2WSHの最後はwitnessScript
+                //     //nativeのP2WSHでも表示させたかったが、識別する方法が思いつかない
+                //     ptarm_print_script(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
+                // }
             } else {
                 LOGD2("<none>\n");
             }
@@ -1207,7 +1207,7 @@ void ptarm_print_tx(const ptarm_tx_t *pTx)
         ptarm_buf_t *buf = &(pTx->vout[lp].script);
         LOGD("  scriptPubKey[%u]= ", buf->len);
         DUMPD(buf->buf, buf->len);
-        ptarm_print_script(buf->buf, buf->len);
+        //ptarm_print_script(buf->buf, buf->len);
         if ( (buf->len == 25) && (buf->buf[0] == 0x76) && (buf->buf[1] == 0xa9) &&
              (buf->buf[2] == 0x14) && (buf->buf[23] == 0x88) && (buf->buf[24] == 0xac) ) {
             char addr[PTARM_SZ_ADDR_MAX];

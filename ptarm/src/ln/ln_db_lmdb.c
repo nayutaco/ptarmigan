@@ -90,7 +90,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-19)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-20)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -113,6 +113,7 @@
     -18: node_announcement除外用DB追加(annoinfo_chan)
     -18: [SPVのみ]funding_txのblock hash追加
     -19: revocation_number追加
+    -20: current_commit_num追加、scriptpubkeys削除
  */
 
 
@@ -240,12 +241,14 @@ static const backup_param_t DBSELF_KEYS[] = {
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
     // MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
-    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, scriptpubkeys),
+    //MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, scriptpubkeys),
+    MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, current_commit_num),
 
     //M_ITEM(ln_self_t, funding_remote),          //ln_funding_remote_data_t(pubkey, percommit)
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
-    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, scriptpubkeys),
+    //MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, scriptpubkeys),
+    MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, current_commit_num),
 
     M_ITEM(ln_self_t, obscured),
     //redeem_fund --> none
@@ -339,7 +342,8 @@ static const backup_param_t DBCOPY_KEYS[] = {
 static const struct {
     enum {
         ETYPE_BYTEPTR,      //const uint8_t*
-        ETYPE_UINT64,       //uint64_t
+        ETYPE_UINT64U,      //uint64_t(unsigned decimal)
+        ETYPE_UINT64X,      //uint64_t(unsigned hex)
         ETYPE_UINT16,       //uint16_t
         ETYPE_TXID,         //txid
         ETYPE_FUNDTXID,     //funding_local.txid
@@ -353,18 +357,18 @@ static const struct {
 } DBCOPY_IDX[] = {
     { ETYPE_BYTEPTR,    PTARM_SZ_PUBKEY, true },    // peer_node_id
     { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
-    { ETYPE_UINT64,     1, true },                  // short_channel_id
-    { ETYPE_UINT64,     1, true },                  // our_msat
-    { ETYPE_UINT64,     1, true },                  // their_msat
+    { ETYPE_UINT64X,    1, true },                  // short_channel_id
+    { ETYPE_UINT64U,    1, true },                  // our_msat
+    { ETYPE_UINT64U,    1, true },                  // their_msat
     { ETYPE_FUNDTXID,   PTARM_SZ_TXID, true },      // funding_local.txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_local.txindex
     { ETYPE_LOCALKEYS,  1, false },                 // funding_local.pubkeys
     { ETYPE_REMOTEKEYS, 1, false },                 // funding_remote.pubkeys
     { ETYPE_REMOTECOMM, 1, false },                 // funding_remote.prev_percommit
-    { ETYPE_UINT64,     1, true },                  // commit_local.commit_num
-    { ETYPE_UINT64,     1, true },                  // commit_local.revoke_num
-    { ETYPE_UINT64,     1, true },                  // commit_remote.commit_num
-    { ETYPE_UINT64,     1, true },                  // commit_remote.revoke_num
+    { ETYPE_UINT64U,    1, true },                  // commit_local.commit_num
+    { ETYPE_UINT64U,    1, true },                  // commit_local.revoke_num
+    { ETYPE_UINT64U,    1, true },                  // commit_remote.commit_num
+    { ETYPE_UINT64U,    1, true },                  // commit_remote.revoke_num
 };
 
 
@@ -633,7 +637,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     }
 
     //復元データからさらに復元
-    //ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
     ptarm_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
             self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING],
             self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
@@ -930,7 +934,12 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                 }
 #endif  //M_DEBUG_KEYS
                 break;
-            case ETYPE_UINT64:
+            case ETYPE_UINT64U:
+                if (DBCOPY_IDX[lp].disp) {
+                    printf("%" PRIu64 "", *(const uint64_t *)p);
+                }
+                break;
+            case ETYPE_UINT64X:
                 if (DBCOPY_IDX[lp].disp) {
                     printf("\"%" PRIx64 "\"", *(const uint64_t *)p);
                 }

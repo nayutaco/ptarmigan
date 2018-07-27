@@ -245,6 +245,7 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed(lnapp_conf_t *p_conf, void *p_param);
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param);
+static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param);
 static void cb_set_latest_feerate(lnapp_conf_t *p_conf, void *p_param);
 static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param);
 
@@ -284,6 +285,11 @@ static void payroute_print(lnapp_conf_t *p_conf);
 #ifndef USE_SPV
 static bool check_unspent_short_channel_id(uint64_t ShortChannelId);
 #endif
+
+static void send_queue_push(lnapp_conf_t *p_conf, const ptarm_buf_t *pBuf);
+static void send_queue_flush(lnapp_conf_t *p_conf);
+static void send_queue_clear(lnapp_conf_t *p_conf);
+
 static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, int line);
 
 
@@ -786,12 +792,17 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
 }
 
 
-bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
+bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
 {
     ln_close_force_t close_dat;
-    bool ret = ln_create_close_unilateral_tx(pAppConf->p_self, &close_dat);
+    bool ret;
+    if (bLocal) {
+        ret = ln_create_close_unilateral_tx(pAppConf->p_self, &close_dat);
+    } else {
+        ret = ln_create_closed_tx(pAppConf->p_self, &close_dat);
+    }
     if (ret) {
-        cJSON *result_local = cJSON_CreateObject();
+        cJSON *result = cJSON_CreateObject();
         ptarm_buf_t buf = PTARM_BUF_INIT;
 
         for (int lp = 0; lp < close_dat.num; lp++) {
@@ -811,7 +822,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
                 } else {
                     sprintf(title, "htlc%d", lp - LN_CLOSE_IDX_HTLC);
                 }
-                cJSON_AddItemToObject(result_local, title, cJSON_CreateString(transaction));
+                cJSON_AddItemToObject(result, title, cJSON_CreateString(transaction));
                 APP_FREE(transaction);
             }
         }
@@ -824,10 +835,11 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult)
             ptarm_util_bin2str(transaction, buf.buf, buf.len);
             ptarm_buf_free(&buf);
 
-            cJSON_AddItemToObject(result_local, "htlc_out", cJSON_CreateString(transaction));
+            cJSON_AddItemToObject(result, "htlc_out", cJSON_CreateString(transaction));
             APP_FREE(transaction);
         }
-        cJSON_AddItemToObject(pResult, "local", result_local);
+        const char *p_title = (bLocal) ? "local" : "remote";
+        cJSON_AddItemToObject(pResult, p_title, result);
 
         ln_free_close_force_tx(&close_dat);
     }
@@ -926,6 +938,7 @@ static void *thread_main_start(void *pArg)
     p_conf->annodb_updated = false;
     p_conf->err = 0;
     p_conf->p_errstr = NULL;
+    ptarm_buf_init(&p_conf->buf_sendque);
     LIST_INIT(&p_conf->revack_head);
     LIST_INIT(&p_conf->rcvidle_head);
     LIST_INIT(&p_conf->payroute_head);
@@ -936,6 +949,7 @@ static void *thread_main_start(void *pArg)
     pthread_mutex_init(&p_conf->mux_send, NULL);
     pthread_mutex_init(&p_conf->mux_revack, NULL);
     pthread_mutex_init(&p_conf->mux_rcvidle, NULL);
+    pthread_mutex_init(&p_conf->mux_sendque, NULL);
 
     p_conf->loop = true;
 
@@ -1006,7 +1020,7 @@ static void *thread_main_start(void *pArg)
 
     //init送受信
     ret = exchange_init(p_conf);
-    if (!ret) {
+    if (!ret || (!p_conf->loop)) {
         LOGD("fail: exchange init\n");
         goto LABEL_JOIN;
     }
@@ -1083,6 +1097,9 @@ static void *thread_main_start(void *pArg)
         }
     }
 
+    // flush buffered BOLT message
+    send_queue_flush(p_conf);
+
     // send `channel_update` for private/before publish channel
     send_cnlupd_before_announce(p_conf);
 
@@ -1142,6 +1159,7 @@ LABEL_SHUTDOWN:
     payroute_clear(p_conf);
     rcvidle_clear(p_conf);
     revack_clear(p_conf);
+    send_queue_clear(p_conf);
     memset(p_conf, 0, sizeof(lnapp_conf_t));
     p_conf->sock = -1;
     APP_FREE(p_self);
@@ -2124,6 +2142,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
         //    LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
         //    LN_CB_SEND_REQ,             ///< peerへの送信要求
+        //    LN_CB_SEND_QUEUE,           ///< 送信データをキュー保存
         //    LN_CB_SET_LATEST_FEERATE,   ///< feerate_per_kw更新要求
         //    LN_CB_GETBLOCKCOUNT,        ///< getblockcount
 
@@ -2147,6 +2166,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)", cb_closed_fee },
         { "  LN_CB_CLOSED: closing_signed受信(FEE一致)", cb_closed },
         { "  LN_CB_SEND_REQ: 送信要求", cb_send_req },
+        { "  LN_CB_SEND_QUEUE: 送信キュー", cb_send_queue },
         { "  LN_CB_SET_LATEST_FEERATE: feerate_per_kw更新", cb_set_latest_feerate },
         { "  LN_CB_GETBLOCKCOUNT: getblockcount", cb_getblockcount },
     };
@@ -2190,6 +2210,8 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
         LOGD("stop funding by error\n");
         p_conf->funding_waiting = false;
     }
+
+    stop_threads(p_conf);
 }
 
 
@@ -2254,7 +2276,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
     if (p->b_result) {
         //fundingの監視は thread_poll_start()に任せる
-        LOGD("funding_tx監視開始\n");
+        LOGD("funding_tx監視開始: ");
         TXIDD(ln_funding_txid(p_conf->p_self));
         p_conf->funding_waiting = true;
 
@@ -2784,7 +2806,7 @@ static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param)
     const ln_cb_closed_fee_t *p_closed_fee = (const ln_cb_closed_fee_t *)p_param;
     LOGD("received fee: %" PRIu64 "\n", p_closed_fee->fee_sat);
 
-#warning FEEの決め方
+#warning How to decide shutdown fee
     ln_update_shutdown_fee(p_conf->p_self, p_closed_fee->fee_sat);
 }
 
@@ -2838,6 +2860,17 @@ static void cb_send_req(lnapp_conf_t *p_conf, void *p_param)
 {
     ptarm_buf_t *p_buf = (ptarm_buf_t *)p_param;
     send_peer_noise(p_conf, p_buf);
+}
+
+
+//LN_CB_SEND_QUEUE: BOLTメッセージをキュー保存
+static void cb_send_queue(lnapp_conf_t *p_conf, void *p_param)
+{
+    ptarm_buf_t *p_buf = (ptarm_buf_t *)p_param;
+
+    pthread_mutex_lock(&p_conf->mux_sendque);
+    send_queue_push(p_conf, p_buf);
+    pthread_mutex_unlock(&p_conf->mux_sendque);
 }
 
 
@@ -2945,13 +2978,18 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const ptarm_buf_t *pBuf)
     LOGV("[SEND]type=%04x(%s): sock=%d, Len=%d\n", type, ln_misc_msgname(type), p_conf->sock, pBuf->len);
 
     pthread_mutex_lock(&p_conf->mux_send);
-    ptarm_buf_t buf_enc;
-    bool ret = ln_noise_enc(p_conf->p_self, &buf_enc, pBuf);
-    pthread_mutex_unlock(&p_conf->mux_send);
-    assert(ret);
 
+    ptarm_buf_t buf_enc;
     struct pollfd fds;
-    ssize_t len = buf_enc.len;
+    ssize_t len = -1;
+
+    bool ret = ln_noise_enc(p_conf->p_self, &buf_enc, pBuf);
+    if (!ret) {
+        LOGD("fail: noise encode\n");
+        goto LABEL_EXIT;
+    }
+
+    len = buf_enc.len;
     while ((p_conf->loop) && (len > 0)) {
         fds.fd = p_conf->sock;
         fds.events = POLLOUT;
@@ -2974,6 +3012,8 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const ptarm_buf_t *pBuf)
     //ping送信待ちカウンタ
     p_conf->ping_counter = 0;
 
+LABEL_EXIT:
+    pthread_mutex_unlock(&p_conf->mux_send);
     return len == 0;
 }
 
@@ -3362,12 +3402,9 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         p_conf->p_errstr = NULL;
     }
     if ((Err != 0) && (pErrStr != NULL)) {
-        char date[50];
-        misc_datetime(date, sizeof(date));
-
-        size_t len_max = sizeof(date) + strlen(pErrStr) + 128;
+        size_t len_max = strlen(pErrStr) + 128;
         p_conf->p_errstr = (char *)APP_MALLOC(len_max);        //APP_FREE: thread_main_start()
-        sprintf(p_conf->p_errstr, "[%s]%s", date, pErrStr);
+        strcpy(p_conf->p_errstr, pErrStr);
         LOGD("%s\n", p_conf->p_errstr);
 
         // method: error
@@ -3786,6 +3823,53 @@ static void payroute_print(lnapp_conf_t *p_conf)
         p = LIST_NEXT(p, list);
     }
     LOGD("------------------------------------\n");
+}
+
+
+/**
+ * 
+ * @param[in,out]       p_conf
+ * @param[in]           pBuf        追加対象
+ * @note
+ *      - pBufはshallow copyするため、呼び元でfreeしないこと
+ */
+static void send_queue_push(lnapp_conf_t *p_conf, const ptarm_buf_t *pBuf)
+{
+    //add queue before noise encoded data
+    size_t len = p_conf->buf_sendque.len / sizeof(ptarm_buf_t);
+    ptarm_buf_realloc(&p_conf->buf_sendque, sizeof(ptarm_buf_t) * (len + 1));
+    memcpy(p_conf->buf_sendque.buf + sizeof(ptarm_buf_t) * len, pBuf->buf, pBuf->len);
+}
+
+
+static void send_queue_flush(lnapp_conf_t *p_conf)
+{
+    if (p_conf->buf_sendque.len == 0) {
+        return;
+    }
+
+    size_t len = p_conf->buf_sendque.len / sizeof(ptarm_buf_t);
+    for (size_t lp = 0; lp < len; lp++) {
+        uint8_t *p = p_conf->buf_sendque.buf + sizeof(ptarm_buf_t) * lp;
+        send_peer_noise(p_conf, (ptarm_buf_t *)p);
+        ptarm_buf_free((ptarm_buf_t *)p);
+    }
+    ptarm_buf_free(&p_conf->buf_sendque);
+}
+
+
+static void send_queue_clear(lnapp_conf_t *p_conf)
+{
+    if (p_conf->buf_sendque.len == 0) {
+        return;
+    }
+
+    size_t len = p_conf->buf_sendque.len / sizeof(ptarm_buf_t);
+    for (size_t lp = 0; lp < len; lp++) {
+        uint8_t *p = p_conf->buf_sendque.buf + sizeof(ptarm_buf_t) * lp;
+        ptarm_buf_free((ptarm_buf_t *)p);
+    }
+    ptarm_buf_free(&p_conf->buf_sendque);
 }
 
 

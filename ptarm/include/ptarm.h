@@ -483,6 +483,14 @@ void ptarm_buf_free(ptarm_buf_t *pBuf);
 void ptarm_buf_alloc(ptarm_buf_t *pBuf, uint32_t Size);
 
 
+/** #ptarm_buf_t へのメモリ再確保
+ *
+ * @param[out]      pBuf        処理対象
+ * @param[in]       Size        確保するメモリサイズ
+ */
+void ptarm_buf_realloc(ptarm_buf_t *pBuf, uint32_t Size);
+
+
 /** #ptarm_buf_t へのメモリ確保及びデータコピー
  *
  * @param[out]      pBuf        処理対象

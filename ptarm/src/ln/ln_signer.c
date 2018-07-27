@@ -88,6 +88,8 @@ void HIDDEN ln_signer_keys_update_storage(ln_self_t *self)
 void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 {
     create_percommitsec(self, self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT], self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], Index);
+    self->funding_local.current_commit_num = LN_SECINDEX_INIT - Index;
+    LOGD("     funding_local.current_commit_num=%" PRIu64 "\n", self->funding_local.current_commit_num);
 }
 
 
