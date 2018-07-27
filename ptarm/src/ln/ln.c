@@ -210,8 +210,7 @@ static bool create_to_local(ln_self_t *self,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
                     uint32_t to_self_delay,
-                    uint64_t dust_limit_sat,
-                    uint64_t commit_num);
+                    uint64_t dust_limit_sat);
 static bool create_to_local_sign(ln_self_t *self,
                     ptarm_tx_t *pTxCommit,
                     const ptarm_buf_t *pBufSig);
@@ -240,8 +239,7 @@ static bool create_to_remote(ln_self_t *self,
                     ln_close_force_t *pClose,
                     uint8_t **pp_htlc_sigs,
                     uint32_t to_self_delay,
-                    uint64_t dust_limit_sat,
-                    uint64_t commit_num);
+                    uint64_t dust_limit_sat);
 static bool create_to_remote_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
                     uint8_t *p_htlc_sigs,
@@ -306,6 +304,7 @@ static void free_establish(ln_self_t *self, bool bEndEstablish);
 static ptarm_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId);
 static inline uint8_t ln_sort_to_dir(ptarm_keys_sort_t Sort);
 static void set_error(ln_self_t *self, int Err, const char *pFormat, ...);
+static void dbg_commitnum(const ln_self_t *self);
 
 
 /**************************************************************************
@@ -704,10 +703,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, ptarm_buf_t *pReEst)
     ln_channel_reestablish_t msg;
     msg.p_channel_id = self->channel_id;
 
-    LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);
-    LOGD("local.revoke_num  = %" PRIu64 "\n", self->commit_local.revoke_num);
-    LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_remote.commit_num);
-    LOGD("remote.revoke_num = %" PRIu64 "\n", self->commit_remote.revoke_num);
+    dbg_commitnum(self);
 
     //MUST set next_local_commitment_number to the commitment number
     //  of the next commitment_signed it expects to receive.
@@ -733,6 +729,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, ptarm_buf_t *pReEst)
         }
         memcpy(msg.my_current_per_commitment_point,
                     self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY);
+        LOGD("  my_current_per_commitment_point=%" PRIu64 "\n", self->funding_local.current_commit_num);
     } else {
         msg.option_data_loss_protect = false;
     }
@@ -754,6 +751,7 @@ bool ln_create_funding_locked(ln_self_t *self, ptarm_buf_t *pLocked)
     ln_funding_locked_t cnl_funding_locked;
     cnl_funding_locked.p_channel_id = self->channel_id;
     cnl_funding_locked.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+    LOGD("  next_per_commitment_point=%" PRIu64 "\n", self->funding_local.current_commit_num);
     bool ret = ln_msg_funding_locked_create(pLocked, &cnl_funding_locked);
 
     return ret;
@@ -1012,10 +1010,12 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     ln_signer_create_prev_percommitsec(self,
                 self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT],
                 self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+    self->funding_local.current_commit_num = self->commit_local.commit_num;
 
     //remote
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
             self->funding_remote.prev_percommit, PTARM_SZ_PUBKEY);
+    self->funding_remote.current_commit_num = self->commit_remote.commit_num;
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -1026,8 +1026,7 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     //local commit_tx
     bool ret = create_to_local(self, pClose, NULL, 0,
                 self->commit_remote.to_self_delay,
-                self->commit_local.dust_limit_sat,
-                self->commit_local.commit_num);
+                self->commit_local.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         ln_free_close_force_tx(pClose);
@@ -1066,10 +1065,12 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     ln_signer_create_prev_percommitsec(self,
                 self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT],
                 self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+    self->funding_local.current_commit_num = self->commit_local.commit_num;
 
     //remote
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
             self->funding_remote.prev_percommit, PTARM_SZ_PUBKEY);
+    self->funding_remote.current_commit_num = self->commit_remote.commit_num;
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -1080,8 +1081,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     //remote commit_tx
     bool ret = create_to_remote(self, pClose, NULL,
                 self->commit_local.to_self_delay,
-                self->commit_remote.dust_limit_sat,
-                self->commit_remote.commit_num);
+                self->commit_remote.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_remote\n");
         ln_free_close_force_tx(pClose);
@@ -1158,7 +1158,10 @@ bool ln_close_ugly(ln_self_t *self, const ptarm_tx_t *pRevokedTx, void *pDbParam
     //remote per_commitment_secretの復元
     ptarm_buf_alloc(&self->revoked_sec, PTARM_SZ_PRIVKEY);
     bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(LN_SECINDEX_INIT - commit_num));
-    assert(ret);
+    if (!ret) {
+        LOGD("FATAL: ln_derkey_storage_get_secret()\n");
+        abort();
+    }
     ptarm_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
     //LOGD2("  pri:");
     //DUMPD(self->revoked_sec.buf, PTARM_SZ_PRIVKEY);
@@ -1408,8 +1411,7 @@ bool ln_create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig)
     //相手に送る署名を作成
     uint8_t *p_htlc_sigs = NULL;    //必要があればcreate_to_remote()でMALLOC()する
     ret = create_to_remote(self, NULL, &p_htlc_sigs,
-                self->commit_local.to_self_delay, self->commit_remote.dust_limit_sat,
-                self->commit_remote.commit_num + 1);
+                self->commit_local.to_self_delay, self->commit_remote.dust_limit_sat);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_ERROR, "create remote commit_tx");
         return false;
@@ -1429,7 +1431,8 @@ bool ln_create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig)
 
         //相手のcommitment_numberをインクリメント(channel_reestablish用)
         self->commit_remote.commit_num++;
-        LOGD("self->commit_remote.commit_num=%" PRIx64 "\n", self->commit_remote.commit_num);
+        dbg_commitnum(self);
+        M_DB_SELF_SAVE(self);
     }
 
     LOGD("END\n");
@@ -1514,15 +1517,21 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ptarm_tx_t *pTx, uint64_t Va
                 const ptarm_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked)
 {
     bool ret;
+    uint64_t val;
 
     //to_localのFEE
-    uint64_t fee_tolocal = ln_calc_fee(M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
-    LOGD("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
-    if (Value < PTARM_DUST_LIMIT + fee_tolocal) {
-        LOGD("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_tolocal);
-        goto LABEL_EXIT;
+    if (bRevoked) {
+        uint64_t fee_tolocal = ln_calc_fee(M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
+        LOGD("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
+        if (Value < PTARM_DUST_LIMIT + fee_tolocal) {
+            LOGD("fail: vout below dust: value=%" PRIu64 "< DUST(%" PRIu64 ")+fee(%" PRIu64 ")\n", Value, PTARM_DUST_LIMIT, fee_tolocal);
+            goto LABEL_EXIT;
+        }
+        val = Value - fee_tolocal;
+    } else {
+        val = Value;
     }
-    ret = ln_create_tolocal_tx(pTx, Value - fee_tolocal,
+    ret = ln_create_tolocal_tx(pTx, val,
             &self->shutdown_scriptpk_local, to_self_delay, pTxid, Index, bRevoked);
     if (!ret) {
         goto LABEL_EXIT;
@@ -1563,7 +1572,10 @@ bool ln_create_toremote_spent(const ln_self_t *self, ptarm_tx_t *pTx, uint64_t V
     //  revoked transaction close後はremotekeyも当時のものになっているため、同じ処理でよい
     ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_PAYMENT,
         self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-    assert(memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], PTARM_SZ_PUBKEY) == 0);
+    if (memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], PTARM_SZ_PUBKEY) != 0) {
+        LOGD("FATAL: pubkey mismatch\n");
+        abort();
+    }
     //LOGD("key-priv: ");
     //DUMPD(signkey.priv, PTARM_SZ_PRIVKEY);
     //LOGD("key-pub : ");
@@ -1866,7 +1878,6 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     err.channel_id = channel_id;
     ln_msg_error_read(&err, pData, Len);
     (*self->p_callback)(self, LN_CB_ERROR, &err);
-    M_SET_ERR(self, LNERR_MSG_ERROR, err.p_data);
     M_FREE(err.p_data);
 
     return true;
@@ -1984,6 +1995,8 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY);
+    self->funding_remote.current_commit_num = 0;
+    LOGD("  funding_remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
 
     self->funding_sat = open_ch->funding_sat;
     self->feerate_per_kw = open_ch->feerate_per_kw;
@@ -2083,6 +2096,8 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY);
+    self->funding_remote.current_commit_num = 0;
+    LOGD("  funding_remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
 
     //スクリプト用鍵生成
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -2109,8 +2124,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
     ret = create_to_remote(self, NULL, NULL,
-                self->p_establish->cnl_open.to_self_delay, acc_ch->dust_limit_sat,
-                self->commit_remote.commit_num);
+                self->p_establish->cnl_open.to_self_delay, acc_ch->dust_limit_sat);
     if (ret) {
         //funding_created
         ln_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
@@ -2177,8 +2191,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     //      to-self-delayは自分の値(open_channel)を使う
     //      HTLCは存在しない
     ret = create_to_local(self, NULL, NULL, 0,
-                self->p_establish->cnl_open.to_self_delay, self->p_establish->cnl_accept.dust_limit_sat,
-                self->commit_local.commit_num);
+                self->p_establish->cnl_open.to_self_delay, self->p_establish->cnl_accept.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         return false;
@@ -2188,8 +2201,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
     ret = create_to_remote(self, NULL, NULL,
-                self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat,
-                self->commit_remote.commit_num);
+                self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_remote\n");
         return false;
@@ -2252,8 +2264,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     //      to-self-delayは相手の値(accept_channel)を使う
     //      HTLCは存在しない
     ret = create_to_local(self, NULL, NULL, 0,
-                self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat,
-                self->commit_local.commit_num);
+                self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         return false;
@@ -2306,6 +2317,8 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //prev_percommitはrevoke_and_ackでのみ更新する
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, PTARM_SZ_PUBKEY);
+    self->funding_remote.current_commit_num = 1;
+    LOGD("  funding_remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
 
     //funding中終了
     free_establish(self, true);
@@ -2813,8 +2826,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
     //署名チェック＋保存: To-Local
     ret = create_to_local(self, NULL, commsig.p_htlc_signature, commsig.num_htlcs,
-                self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat,
-                self->commit_local.commit_num + 1);
+                self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
     M_FREE(commsig.p_htlc_signature);
     if (!ret) {
         LOGD("fail: create_to_local\n");
@@ -2823,7 +2835,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
     //自分のcommitment_numberをインクリメント
     self->commit_local.commit_num++;
-    LOGD("new self->commit_local.commit_num=%" PRIx64 "\n", self->commit_local.commit_num);
+    dbg_commitnum(self);
 
     //HTLC確定フラグ
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -2857,6 +2869,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     revack.p_channel_id = channel_id;
     revack.p_per_commit_secret = prev_secret;
     revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+    LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.current_commit_num);
     ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
     if (ret) {
         (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
@@ -2864,8 +2877,8 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
         //最後に送信したrevoke_and_ackでのcommitment_numberを保持(channel_reestablish)
         self->commit_local.revoke_num = self->commit_local.commit_num - 1;
+        dbg_commitnum(self);
         M_DB_SELF_SAVE(self);
-        LOGD("new local revocation_number: %" PRIu64 "\n", self->commit_local.revoke_num);
 
         if ((self->comsig_flag & M_COMISG_FLAG_SEND) == 0) {
             //commitment_signed未送信
@@ -2953,11 +2966,19 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     if (memcmp(prev_commitpt, self->funding_remote.prev_percommit, PTARM_SZ_PUBKEY) != 0) {
         LOGD("fail: prev_secret mismatch\n");
-        LOGD("recv secret: ");
-        DUMPD(prev_commitpt, PTARM_SZ_PUBKEY);
-        LOGD("my secret: ");
-        DUMPD(self->funding_remote.prev_percommit, PTARM_SZ_PUBKEY);
-        ret = false;
+
+        //check re-send
+        if (memcmp(new_commitpt, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY) == 0) {
+            //current per_commitment_point
+            LOGD("skip: same as previous next_per_commitment_point\n");
+            ret = true;
+        } else {
+            LOGD("recv secret: ");
+            DUMPD(prev_commitpt, PTARM_SZ_PUBKEY);
+            LOGD("my secret: ");
+            DUMPD(self->funding_remote.prev_percommit, PTARM_SZ_PUBKEY);
+            ret = false;
+        }
         goto LABEL_EXIT;
     }
 
@@ -2971,10 +2992,12 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     //per_commitment_point更新
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], new_commitpt, PTARM_SZ_PUBKEY);
+    self->funding_remote.current_commit_num++;
+    LOGD("  funding_remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
 
     self->commit_remote.revoke_num = self->commit_remote.commit_num - 1;
-
+    dbg_commitnum(self);
     M_DB_SELF_SAVE(self);
 
     proc_rev_and_ack(self, M_REVACK_FLAG_RECV);
@@ -3054,10 +3077,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         return false;
     }
 
-    LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);
-    LOGD("local.revoke_num  = %" PRIu64 "\n", self->commit_local.revoke_num);
-    LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_remote.commit_num);
-    LOGD("remote.revoke_num = %" PRIu64 "\n", self->commit_remote.revoke_num);
+    dbg_commitnum(self);
 
     //BOLT#02
     //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
@@ -3071,8 +3091,16 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         LOGD("next_local_commitment_number == local commit_num: reuse\n");
-        self->commit_remote.commit_num = reest.next_local_commitment_number - 1;
-        M_DB_SELF_SAVE(self);
+
+        //remote.per_commitment_pointを1つ戻して、commitment_signedを再送する
+        ptarm_buf_t buf_bolt = PTARM_BUF_INIT;
+        bool ret = ln_create_commit_signed(self, &buf_bolt);
+        if (ret) {
+            (*self->p_callback)(self, LN_CB_SEND_QUEUE, &buf_bolt);
+            LOGD("OK: re-send commigment_signed\n");
+        } else {
+            LOGD("fail: re-send commitment_signed\n");
+        }
     } else {
         // if next_local_commitment_number is not 1 greater than the commitment number of the last commitment_signed message the receiving node has sent:
         //      * SHOULD fail the channel.
@@ -3098,9 +3126,10 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         revack.p_channel_id = channel_id;
         revack.p_per_commit_secret = prev_secret;
         revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
         ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
         if (ret) {
-            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+            (*self->p_callback)(self, LN_CB_SEND_QUEUE, &buf_bolt);
             LOGD("OK: re-send revoke_and_ack\n");
         } else {
             LOGD("fail: re-send revoke_and_ack\n");
@@ -3609,21 +3638,16 @@ static bool create_funding_tx(ln_self_t *self)
  * @param[in]           htlc_sigs_num       p_htlc_sigsの署名数
  * @param[in]           to_self_delay       remoteのto_self_delay
  * @param[in]           dust_limit_sat      localのdust_limit_sat
- * @param[in]           commit_num          commitment_number
  * @retval      true    成功
  * @note
- *      - pubkeys[MSG_FUNDIDX_PER_COMMIT]には次のper_commitment_pointが入っている前提。
- *          self->commit_local.commit_num + 1して commitment transactionを作成する。
- *      - funding_created/funding_signed時は、pubkeys[MSG_FUNDIDX_PER_COMMIT]にfirst_per_commitment_pointを入れ、
- *          self->commit_local.commit_num に (uint64_t)-1 を入れること(+1され、commitment_number==0になる)
+ *      - pubkeys[MSG_FUNDIDX_PER_COMMIT]にはself->funding_local.current_commit_numに対応するper_commitment_pointが入っている前提。
  */
 static bool create_to_local(ln_self_t *self,
                     ln_close_force_t *pClose,
                     const uint8_t *p_htlc_sigs,
                     uint8_t htlc_sigs_num,
                     uint32_t to_self_delay,
-                    uint64_t dust_limit_sat,
-                    uint64_t commit_num)
+                    uint64_t dust_limit_sat)
 {
     LOGD("BEGIN\n");
 
@@ -3693,12 +3717,12 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->their_msat);
     lntx_commit.remote.pubkey = self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
-    lntx_commit.obscured = self->obscured ^ commit_num;
+    lntx_commit.obscured = self->obscured ^ self->funding_local.current_commit_num;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    LOGD("local commitment_number=%" PRIx64 "\n", commit_num);
+    LOGD("local commitment_number=%" PRIx64 "\n", self->funding_local.current_commit_num);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->priv_data);
     if (ret) {
         ret = create_to_local_sign(self, &tx_commit, &buf_sig);
@@ -3841,7 +3865,7 @@ static bool create_to_local_spent(ln_self_t *self,
     ptarm_push_t push;
     ptarm_util_keys_t htlckey;
 
-    LOGD("local spent\n");
+    LOGD("local spent: local.current_commit_num=%" PRIu64 "\n", self->funding_local.current_commit_num);
 
     if (pClose != NULL) {
         pTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
@@ -3864,6 +3888,7 @@ static bool create_to_local_spent(ln_self_t *self,
             if (pTxToLocal != NULL) {
                 ptarm_tx_t tx = PTARM_TX_INIT;
 
+                //vout.valueはfeeが引かれた値
                 ret = ln_create_tolocal_spent(self, &tx, pTxCommit->vout[vout_idx].value, to_self_delay,
                         pBufWs, self->commit_local.txid, vout_idx, false);
                 if (ret) {
@@ -4027,6 +4052,7 @@ static bool create_to_local_close(ln_self_t *self,
         ptarm_tx_t tx = PTARM_TX_INIT;
         uint8_t txid[PTARM_SZ_TXID];
         ptarm_tx_txid(txid, pTxHtlc);
+        //pTxHtlc->vout[0].valueはfeeが引かれた値
         ret = ln_create_tolocal_spent(self, &tx,
                     pTxHtlc->vout[0].value, to_self_delay,
                     pBufWs, txid, 0, false);
@@ -4038,6 +4064,7 @@ static bool create_to_local_close(ln_self_t *self,
             ptarm_push_data(pPush, &tx, sizeof(ptarm_tx_t));
         } else {
             ptarm_tx_free(&tx);
+            ret = true;     //no to_local
         }
         ptarm_tx_init(pTxHtlc);     //txはfreeさせない(pTxHtlcsに任せる)
     } else {
@@ -4072,15 +4099,13 @@ static bool create_to_local_close(ln_self_t *self,
  * @param[out]          pp_htlc_sigs        commitment_signed送信用署名(NULLの場合は代入しない)
  * @param[in]           to_self_delay       localのto_self_delay
  * @param[in]           dust_limit_sat      remoteのdust_limit_sat
- * @param[in]           commit_num          作成するcommitment_number
  * @retval  true    成功
  */
 static bool create_to_remote(ln_self_t *self,
                     ln_close_force_t *pClose,
                     uint8_t **pp_htlc_sigs,
                     uint32_t to_self_delay,
-                    uint64_t dust_limit_sat,
-                    uint64_t commit_num)
+                    uint64_t dust_limit_sat)
 {
     LOGD("BEGIN\n");
 
@@ -4161,12 +4186,12 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(self->our_msat);
     lntx_commit.remote.pubkey = self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
-    lntx_commit.obscured = self->obscured ^ commit_num;
+    lntx_commit.obscured = self->obscured ^ self->funding_remote.current_commit_num;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    LOGD("remote commitment_number=%" PRIx64 "\n", commit_num);
+    LOGD("remote commitment_number=%" PRIx64 "\n", self->funding_remote.current_commit_num);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->priv_data);
     if (ret) {
         LOGD("++++++++++++++ 相手のcommit tx: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
@@ -4252,7 +4277,7 @@ static bool create_to_remote_spent(ln_self_t *self,
     bool ret = true;
     uint8_t htlc_num = 0;
 
-    LOGD("remote spent\n");
+    LOGD("remote spent: remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
 
     ptarm_tx_t *pTxHtlcs = NULL;
     if (pClose != NULL) {
@@ -5375,6 +5400,74 @@ static void set_error(ln_self_t *self, int Err, const char *pFormat, ...)
     self->err = Err;
 
     va_start(ap, pFormat);
-    vsprintf(self->err_msg, pFormat, ap);
+    vsnprintf(self->err_msg, LN_SZ_ERRMSG, pFormat, ap);
     va_end(ap);
+}
+
+
+/** commitment_number debug output
+ *
+ */
+static void dbg_commitnum(const ln_self_t *self)
+{
+    LOGD("------------------------------------------\n");
+    LOGD("local.current_commit_num  = %" PRIu64 "\n", self->funding_local.current_commit_num);
+    LOGD("remote.current_commit_num = %" PRIu64 "\n", self->funding_remote.current_commit_num);
+    LOGD("------------------------------------------\n");
+    LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);
+    LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_remote.commit_num);
+    //state-A: local.commit_num <  remote.commit_num
+    //state-B: local.commit_num >  remote.commit_num
+    //state-C: local.commit_num == remote.commit_num
+    int commit_stat;
+    if ((int64_t)self->commit_local.commit_num < (int64_t)self->commit_remote.commit_num) {
+        commit_stat = 0;
+    } else if ((int64_t)self->commit_local.commit_num > (int64_t)self->commit_remote.commit_num) {
+        commit_stat = 1;
+    } else {
+        commit_stat = 2;
+    }
+    LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)self->commit_local.revoke_num);
+    LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)self->commit_remote.revoke_num);
+    //state-a: local.revoke_num <  remote.revoke_num
+    //state-b: local.revoke_num >  remote.revoke_num
+    //state-c: local.revoke_num == remote.revoke_num
+    int revoke_stat;
+    if ((int64_t)self->commit_local.revoke_num < (int64_t)self->commit_remote.revoke_num) {
+        revoke_stat = 0;
+    } else if ((int64_t)self->commit_local.revoke_num > (int64_t)self->commit_remote.revoke_num) {
+        revoke_stat = 1;
+    } else {
+        revoke_stat = 2;
+    }
+    //update message sender  :
+    //      0: C-c (stable)
+    //      1: A-c
+    //      2: A-a
+    //      3: C-a
+    //      4: C-c (stable)
+    //update message receiver:
+    //      0: C-c (stable)
+    //      1: B-c
+    //      2: B-b
+    //      3: C-b
+    //      4: C-c (stable)
+    if ((commit_stat == 2) && (revoke_stat == 2)) {
+        LOGD("----> stable\n");
+    } else if ((commit_stat == 0) && (revoke_stat == 2)) {
+        LOGD("----> update message sender-1\n");
+    } else if ((commit_stat == 0) && (revoke_stat == 0)) {
+        LOGD("----> update message sender-2\n");
+    } else if ((commit_stat == 2) && (revoke_stat == 0)) {
+        LOGD("----> update message sender-3\n");
+    } else if ((commit_stat == 1) && (revoke_stat == 2)) {
+        LOGD("----> update message receiver-1\n");
+    } else if ((commit_stat == 1) && (revoke_stat == 1)) {
+        LOGD("----> update message receiver-2\n");
+    } else if ((commit_stat == 2) && (revoke_stat == 1)) {
+        LOGD("----> update message receiver-3\n");
+    } else {
+        LOGD("----> ???\n");
+    }
+    LOGD("------------------------------------------\n");
 }

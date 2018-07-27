@@ -59,6 +59,7 @@
  ********************************************************************/
 
 typedef struct {
+    bool b_local;
     const uint8_t *p_nodeid;
     cJSON *result;
 } getcommittx_t;
@@ -981,6 +982,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     peer_conn_t conn;
     cJSON *result = cJSON_CreateObject();
     int index = 0;
+    cJSON *json;
 
     //connect parameter
     bool ret = json_connect(params, &index, &conn);
@@ -991,6 +993,8 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     LOGD("getcommittx\n");
 
     getcommittx_t prm;
+    json = cJSON_GetArrayItem(params, 0);
+    prm.b_local = (json == NULL);
     prm.p_nodeid = conn.node_id;
     prm.result = result;
     ln_db_self_search(comp_func_getcommittx, &prm);
@@ -1653,7 +1657,7 @@ static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_par
     if (memcmp(prm->p_nodeid, ln_their_node_id(self), PTARM_SZ_PUBKEY) == 0) {
         lnapp_conf_t appconf;
         appconf.p_self= self;
-        lnapp_get_committx(&appconf, prm->result);
+        lnapp_get_committx(&appconf, prm->result, prm->b_local);
     }
 
     return false;

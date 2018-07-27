@@ -128,7 +128,7 @@ void ln_print_keys(const ln_funding_local_data_t *pLocal, const ln_funding_remot
 {
 //#ifdef M_DBG_VERBOSE
 #ifdef PTARM_DEBUG
-    LOGD("local keys\n");
+    LOGD("local keys: commit_num=%" PRIu64 "\n", pLocal->current_commit_num);
     LOGD("  funding_txid: ");
     TXIDD(pLocal->txid);
     LOGD("  funding_txindex: %" PRIu16 "\n", pLocal->txindex);
@@ -142,7 +142,7 @@ void ln_print_keys(const ln_funding_local_data_t *pLocal, const ln_funding_remot
         DUMPD(pLocal->scriptpubkeys[lp], PTARM_SZ_PUBKEY);
     }
 
-    LOGD("remote keys\n");
+    LOGD("remote keys: commit_num=%" PRIu64 "\n", pRemote->current_commit_num);
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
         DUMPD(pRemote->pubkeys[lp], PTARM_SZ_PUBKEY);

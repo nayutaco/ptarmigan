@@ -58,6 +58,13 @@ void ptarm_buf_alloc(ptarm_buf_t *pBuf, uint32_t Size)
 }
 
 
+void ptarm_buf_realloc(ptarm_buf_t *pBuf, uint32_t Size)
+{
+    pBuf->len = Size;
+    pBuf->buf = (uint8_t *)M_REALLOC(pBuf->buf, Size);
+}
+
+
 void ptarm_buf_alloccopy(ptarm_buf_t *pBuf, const uint8_t *pData, uint32_t Len)
 {
     if (Len > 0) {

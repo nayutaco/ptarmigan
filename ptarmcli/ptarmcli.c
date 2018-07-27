@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
     mAddr[0] = '\0';
     mTcpSend = true;
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:xwgs:X:", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:xwg::s:X:", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -607,15 +607,26 @@ static void optfunc_getcommittx(int *pOption, bool *pConn)
 {
     M_CHK_CONN
 
+    int val = 0;
+    if (optarg != NULL) {
+        val = (int)strtol(optarg, NULL, 10);
+    }
+    const char *p_opt;
+    if (val == 0) {
+        p_opt = "";
+    } else {
+        p_opt = ",1";
+    }
+
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "getcommittx") M_NEXT
             M_QQ("params") ":[ "
                 //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d"
+                M_QQ("%s") "," M_QQ("%s") ",%d%s"
             " ]"
         "}",
-            mPeerNodeId, mPeerAddr, mPeerPort);
+            mPeerNodeId, mPeerAddr, mPeerPort, p_opt);
 
     *pConn = false;
     *pOption = M_OPTIONS_EXEC;

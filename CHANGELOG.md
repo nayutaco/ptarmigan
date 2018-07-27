@@ -1,6 +1,13 @@
 # CHANGELOG
 
+## 2018/07/27
+
+* DB version : -20
+  * add `current_commit_num`
+  * remove `scriptpubkey`
+
 ## 2018/07/23
+
 * rename:
   * `ucoin` -> `ptarm`
   * `UCOIN` -> `PTARM`
@@ -8,8 +15,9 @@
   * `ULOG` -> `ULOG`
 
 ## 2018/07/22
+
 * DB version : -19
-  * add "revoke_num
+  * add "revoke_num"
 * rename: establish config file(`establish.conf`) --> channel config file(`channel.conf`)
 
 ## 2018/06/19

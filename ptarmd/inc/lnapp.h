@@ -91,6 +91,9 @@ typedef struct lnapp_conf_t {
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
     uint8_t         flag_recv;              ///< 受信フラグ(RECV_MSG_xxx)
 
+    //BOLT送信キュー
+    ptarm_buf_t     buf_sendque;            ///< send data array before noise encode
+
     //排他制御
     //  これ以外に、ptarmd全体として mMuxNode とフラグmFlagNode がある。
     pthread_cond_t  cond;           ///< muxの待ち合わせ
@@ -99,6 +102,7 @@ typedef struct lnapp_conf_t {
     pthread_mutex_t mux_send;       ///< socket送信中のmutex
     pthread_mutex_t mux_revack;     ///< revoke_and_ack後キュー用mutex
     pthread_mutex_t mux_rcvidle;    ///< 受信アイドル時キュー用mutex
+    pthread_mutex_t mux_sendque;    ///< BOLT送信キュー用mutex
 
     struct transferlisthead_t   revack_head;    //revoke_and_ack後キュー
     struct transferlisthead_t   rcvidle_head;   //受信アイドル時キュー
@@ -211,8 +215,9 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
 
 /** [lnapp]現在のcommit_tx出力
  *
+ * @param[in]   bLocal      true:local unilateral close
  */
-bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult);
+bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal);
 
 
 /** [lnapp]ループ状態取得
