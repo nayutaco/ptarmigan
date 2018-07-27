@@ -26,6 +26,11 @@ mk_mbedtls:
 	cp mbedtls/library/libmbedcrypto.a $(INSTALL_DIR)/lib/
 	cp -ra mbedtls/include/* $(INSTALL_DIR)/include/
 
+clean_mbedtls:
+	-make -C mbedtls clean
+
+mbedtls_all: clean_mbedtls mk_mbedtls
+
 clean:
 	-make -C libbase58 clean
 	-make -C libsodium clean

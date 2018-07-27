@@ -33,6 +33,18 @@
  * prototypes
  ********************************************************************/
 
+/** noise protocol初期化
+ * 
+ */
+void HIDDEN ln_enc_auth_init(ln_self_t *self);
+
+
+/** noise protocol停止
+ * 
+ */
+void HIDDEN ln_enc_auth_term(ln_self_t *self);
+
+
 /** noise handshake初期化
  *
  * @param[in,out]       self        channel情報

@@ -89,6 +89,28 @@
 //#define MBEDTLS_NO_UDBL_DIVISION
 
 /**
+ * \def MBEDTLS_NO_64BIT_MULTIPLICATION
+ *
+ * The platform lacks support for 32x32 -> 64-bit multiplication.
+ *
+ * Used in:
+ *      library/poly1305.c
+ *
+ * Some parts of the library may use multiplication of two unsigned 32-bit
+ * operands with a 64-bit result in order to speed up computations. On some
+ * platforms, this is not available in hardware and has to be implemented in
+ * software, usually in a library provided by the toolchain.
+ *
+ * Sometimes it is not desirable to have to link to that library. This option
+ * removes the dependency of that library on platforms that lack a hardware
+ * 64-bit multiplier by embedding a software implementation in Mbed TLS.
+ *
+ * Note that depending on the compiler, this may decrease performance compared
+ * to using the library function provided by the toolchain.
+ */
+#define MBEDTLS_NO_64BIT_MULTIPLICATION
+
+/**
  * \def MBEDTLS_HAVE_SSE2
  *
  * CPU supports SSE2 instruction set.
@@ -279,14 +301,18 @@
 //#define MBEDTLS_BLOWFISH_ALT
 //#define MBEDTLS_CAMELLIA_ALT
 //#define MBEDTLS_CCM_ALT
+//#define MBEDTLS_CHACHA20_ALT
+//#define MBEDTLS_CHACHAPOLY_ALT
 //#define MBEDTLS_CMAC_ALT
 //#define MBEDTLS_DES_ALT
 //#define MBEDTLS_DHM_ALT
 //#define MBEDTLS_ECJPAKE_ALT
 //#define MBEDTLS_GCM_ALT
+//#define MBEDTLS_NIST_KW_ALT
 //#define MBEDTLS_MD2_ALT
 //#define MBEDTLS_MD4_ALT
 //#define MBEDTLS_MD5_ALT
+//#define MBEDTLS_POLY1305_ALT
 //#define MBEDTLS_RIPEMD160_ALT
 //#define MBEDTLS_RSA_ALT
 //#define MBEDTLS_SHA1_ALT
@@ -1945,6 +1971,26 @@
 #define MBEDTLS_CERTS_C
 
 /**
+ * \def MBEDTLS_CHACHA20_C
+ *
+ * Enable the ChaCha20 stream cipher.
+ *
+ * Module:  library/chacha20.c
+ */
+#define MBEDTLS_CHACHA20_C
+
+/**
+ * \def MBEDTLS_CHACHAPOLY_C
+ *
+ * Enable the ChaCha20-Poly1305 AEAD algorithm.
+ *
+ * Module:  library/chachapoly.c
+ *
+ * This module requires: MBEDTLS_CHACHA20_C, MBEDTLS_POLY1305_C
+ */
+#define MBEDTLS_CHACHAPOLY_C
+
+/**
  * \def MBEDTLS_CIPHER_C
  *
  * Enable the generic cipher layer.
@@ -2202,6 +2248,19 @@
  * Uncomment to enable the HMAC_DRBG random number geerator.
  */
 #define MBEDTLS_HMAC_DRBG_C
+
+/**
+ * \def MBEDTLS_NIST_KW_C
+ *
+ * Enable the Key Wrapping mode for 128-bit block ciphers,
+ * as defined in NIST SP 800-38F. Only KW and KWP modes
+ * are supported. At the moment, only AES is approved by NIST.
+ *
+ * Module:  library/nist_kw.c
+ *
+ * Requires: MBEDTLS_AES_C and MBEDTLS_CIPHER_C
+ */
+//#define MBEDTLS_NIST_KW_C
 
 /**
  * \def MBEDTLS_MD_C
@@ -2485,6 +2544,16 @@
  * This module enables abstraction of common (libc) functions.
  */
 #define MBEDTLS_PLATFORM_C
+
+/**
+ * \def MBEDTLS_POLY1305_C
+ *
+ * Enable the Poly1305 MAC algorithm.
+ *
+ * Module:  library/poly1305.c
+ * Caller:  library/chachapoly.c
+ */
+#define MBEDTLS_POLY1305_C
 
 /**
  * \def MBEDTLS_RIPEMD160_C
@@ -2896,7 +2965,51 @@
 //#define MBEDTLS_SSL_CACHE_DEFAULT_MAX_ENTRIES      50 /**< Maximum entries in cache */
 
 /* SSL options */
-//#define MBEDTLS_SSL_MAX_CONTENT_LEN             16384 /**< Maxium fragment length in bytes, determines the size of each of the two internal I/O buffers */
+
+/** \def MBEDTLS_SSL_MAX_CONTENT_LEN
+ *
+ * Maximum fragment length in bytes.
+ *
+ * Determines the size of both the incoming and outgoing TLS I/O buffers.
+ *
+ * Uncommenting MBEDTLS_SSL_IN_CONTENT_LEN and/or MBEDTLS_SSL_OUT_CONTENT_LEN
+ * will override this length by setting maximum incoming and/or outgoing
+ * fragment length, respectively.
+ */
+//#define MBEDTLS_SSL_MAX_CONTENT_LEN             16384
+
+/** \def MBEDTLS_SSL_IN_CONTENT_LEN
+ *
+ * Maximum incoming fragment length in bytes.
+ *
+ * Uncomment to set the size of the inward TLS buffer independently of the
+ * outward buffer.
+ */
+//#define MBEDTLS_SSL_IN_CONTENT_LEN              16384
+
+/** \def MBEDTLS_SSL_OUT_CONTENT_LEN
+ *
+ * Maximum outgoing fragment length in bytes.
+ *
+ * Uncomment to set the size of the outward TLS buffer independently of the
+ * inward buffer.
+ *
+ * It is possible to save RAM by setting a smaller outward buffer, while keeping
+ * the default inward 16384 byte buffer to conform to the TLS specification.
+ *
+ * The minimum required outward buffer size is determined by the handshake
+ * protocol's usage. Handshaking will fail if the outward buffer is too small.
+ * The specific size requirement depends on the configured ciphers and any
+ * certificate data which is sent during the handshake.
+ *
+ * For absolute minimum RAM usage, it's best to enable
+ * MBEDTLS_SSL_MAX_FRAGMENT_LENGTH and reduce MBEDTLS_SSL_MAX_CONTENT_LEN. This
+ * reduces both incoming and outgoing buffer sizes. However this is only
+ * guaranteed if the other end of the connection also supports the TLS
+ * max_fragment_len extension. Otherwise the connection may fail.
+ */
+//#define MBEDTLS_SSL_OUT_CONTENT_LEN             16384
+
 //#define MBEDTLS_SSL_DEFAULT_TICKET_LIFETIME     86400 /**< Lifetime of session tickets (if enabled) */
 //#define MBEDTLS_PSK_MAX_LEN               32 /**< Max size of TLS pre-shared keys, in bytes (default 256 bits) */
 //#define MBEDTLS_SSL_COOKIE_TIMEOUT        60 /**< Default expiration delay of DTLS cookies, in seconds if HAVE_TIME, or in number of cookies issued */
@@ -2973,7 +3086,7 @@
 /* \} name SECTION: Customisation configuration options */
 
 /* Target and application specific configurations */
-//#define YOTTA_CFG_MBEDTLS_TARGET_CONFIG_FILE "mbedtls/target_config.h"
+//#define YOTTA_CFG_MBEDTLS_TARGET_CONFIG_FILE "target_config.h"
 
 #if defined(TARGET_LIKE_MBED) && defined(YOTTA_CFG_MBEDTLS_TARGET_CONFIG_FILE)
 #include YOTTA_CFG_MBEDTLS_TARGET_CONFIG_FILE
