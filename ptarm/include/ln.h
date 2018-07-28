@@ -995,7 +995,7 @@ typedef struct {
  */
 struct ln_self_t {
     uint8_t                     peer_node_id[PTARM_SZ_PUBKEY];  ///< 接続先ノード
-    uint8_t                     status;
+    ln_status_t                 status;
 
     ln_self_priv_t              priv_data;
 
@@ -1072,6 +1072,7 @@ struct ln_self_t {
     ln_noise_t                  noise_send;                     ///< noise protocol
     ln_noise_t                  noise_recv;                     ///< noise protocol
     void                        *p_handshake;
+    void                        *p_chacha_poly;                 ///< ChaCha20-Poly1305 context
 
     //last error
     int                         err;                            ///< error code(ln_err.h)

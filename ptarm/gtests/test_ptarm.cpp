@@ -43,6 +43,11 @@ class ptarm: public testing::Test {
 
 ////////////////////////////////////////////////////////////////////////
 
+TEST_F(ptarm, first)
+{
+    //plog_init_stderr();
+}
+
 TEST_F(ptarm, ptarm_setnet_testnet_false)
 {
     bool ret = ptarm_init(PTARM_TESTNET, false);

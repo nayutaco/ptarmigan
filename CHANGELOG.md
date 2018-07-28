@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2018/07/28
+
+* library update
+  * MbedTLS v2.12.0
+
 ## 2018/07/27
 
 * DB version : -20

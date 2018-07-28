@@ -409,6 +409,8 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
     self->commit_local.commit_num = 0;
     self->commit_remote.commit_num = 0;
 
+    ln_enc_auth_init(self);
+
     LOGD("END\n");
 
     return true;
@@ -424,13 +426,14 @@ void ln_term(ln_self_t *self)
         self->cnl_add_htlc[idx].p_onion_route = NULL;
         ptarm_buf_free(&self->cnl_add_htlc[idx].shared_secret);
     }
+    ln_enc_auth_term(self);
     //LOGD("END\n");
 }
 
 
 void ln_set_status(ln_self_t *self, ln_status_t Status)
 {
-    LOGD("status: %02x --> %02x\n", self->status, Status);
+    LOGD("status: %02x --> %02x\n", (uint8_t)self->status, Status);
     self->status = Status;
     M_DB_SELF_SAVE(self);
 }
