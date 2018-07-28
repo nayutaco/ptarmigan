@@ -86,7 +86,7 @@ LDFLAGS += -pthread
 #Link Library
 LIBS += -L$(COMMON_PATH)/libs/install/lib -ljansson -lcurl -linih
 LIBS += -L$(COMMON_PATH)/ptarm -lptarm
-LIBS += -L$(COMMON_PATH)/ptarm/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto -lstdc++
+LIBS += -L$(COMMON_PATH)/ptarm/libs/install/lib -llmdb -lbase58 -lmbedcrypto -lstdc++
 
 
 ######################################
