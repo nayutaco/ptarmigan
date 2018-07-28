@@ -628,6 +628,7 @@ static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Le
     uint8_t *dummy = (uint8_t *)M_CALLOC(1, Len);
     int ret = mbedtls_chacha20_crypt(pKey, nonce, 0, Len, dummy, pResult);
     assert(ret == 0);
+    M_FREE(dummy);
 }
 
 
