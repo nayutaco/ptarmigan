@@ -346,9 +346,6 @@ void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_fundin
     //LOGD("remote: remote_htlckey\n");
     ln_derkey_pubkey(pRemote->scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                 pLocal->pubkeys[MSG_FUNDIDX_HTLC], pRemote->pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-
-
-    ln_print_keys(pLocal, pRemote);
 }
 
 

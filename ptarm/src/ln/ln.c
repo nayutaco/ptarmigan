@@ -1043,6 +1043,7 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
             bak_remotecommit, sizeof(bak_remotecommit));
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_print_keys(&self->funding_local, &self->funding_remote);
 
     LOGD("END: %d\n", ret);
 
@@ -1077,6 +1078,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //[0]commit_tx, [1]to_local, [2]to_remote, [3...]HTLC
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_remote.htlc_num);
@@ -1176,6 +1178,7 @@ bool ln_close_ugly(ln_self_t *self, const ptarm_tx_t *pRevokedTx, void *pDbParam
 
     //鍵の復元
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_print_keys(&self->funding_local, &self->funding_remote);
     //commitment number(for obscured commitment number)
     //self->commit_remote.commit_num = commit_num;
 
@@ -2009,6 +2012,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     //鍵生成 && スクリプト用鍵生成
     ln_signer_create_channelkeys(self);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_print_keys(&self->funding_local, &self->funding_remote);
 
     ln_accept_channel_t *acc_ch = &self->p_establish->cnl_accept;
     acc_ch->dust_limit_sat = self->p_establish->estprm.dust_limit_sat;
@@ -2104,6 +2108,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //スクリプト用鍵生成
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_print_keys(&self->funding_local, &self->funding_remote);
 
     self->htlc_num = 0;
 
@@ -2327,6 +2332,7 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
     free_establish(self, true);
 
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_print_keys(&self->funding_local, &self->funding_remote);
     M_DB_SELF_SAVE(self);
 
     (*self->p_callback)(self, LN_CB_FUNDINGLOCKED_RECV, NULL);
@@ -2853,6 +2859,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     //storage_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_storage(self);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_print_keys(&self->funding_local, &self->funding_remote);
     M_DB_SECRET_SAVE(self);
 
     //commitment_signed受信により、自分のcommit_txが確定する
@@ -2998,6 +3005,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->funding_remote.current_commit_num++;
     LOGD("  funding_remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
+    ln_print_keys(&self->funding_local, &self->funding_remote);
 
     self->commit_remote.revoke_num = self->commit_remote.commit_num - 1;
     dbg_commitnum(self);

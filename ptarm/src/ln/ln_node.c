@@ -310,6 +310,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     if (ret) {
         if (p->p_self) {
             //DBから復元(selfからshallow copyするので、selfは解放しない)
+            LOGD("recover self from DB...\n");
             ln_db_copy_channel(p->p_self, self);
 
             if (p->p_self->short_channel_id != 0) {
@@ -321,6 +322,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
                 }
                 ptarm_buf_free(&buf);
             }
+            ln_print_keys(&p->p_self->funding_local, &p->p_self->funding_remote);
         } else {
             //true時は呼び元では解放しないので、ここで解放する
             ln_term(self);
