@@ -70,7 +70,6 @@ void HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
             ptarm_keys_priv2pub(self->funding_local.pubkeys[lp], self->priv_data.priv[lp]);
         }
     }
-    ln_print_keys(&self->funding_local, &self->funding_remote);
 
     ln_signer_keys_update_storage(self);
 }

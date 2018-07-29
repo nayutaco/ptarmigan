@@ -199,7 +199,7 @@ typedef struct {
 
 
 /** #ln_db_self_del_prm()用(ln_db_preimg_search)
- * 
+ *
  */
 typedef struct {
     const ln_update_add_htlc_t  *add_htlc;
@@ -239,7 +239,6 @@ static const backup_param_t DBSELF_KEYS[] = {
     //M_ITEM(ln_self_t, funding_local),           //ln_funding_local_data_t(outpoint, privkey)
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
-    // MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, keys),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
     //MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, scriptpubkeys),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, current_commit_num),
@@ -2583,7 +2582,7 @@ bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry)
         preimg_info_t *p_info = (preimg_info_t *)data.mv_data;
         LOGD("amount: %" PRIu64"\n", p_info->amount);
         LOGD("time: %lu\n", p_info->creation);
-        
+
         preimg_info_t info;
         memcpy(&info, p_info, data.mv_size);
         info.expiry = Expiry;
@@ -3105,6 +3104,7 @@ LABEL_EXIT:
 
 void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 {
+    LOGD("recover\n");
     //固定サイズ
 
     for (size_t lp = 0; lp < ARRAY_SIZE(DBSELF_KEYS); lp++) {
@@ -3113,7 +3113,11 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 
     // add_htlc
     memcpy(pOutSelf->cnl_add_htlc,  pInSelf->cnl_add_htlc, M_SIZE(ln_self_t, cnl_add_htlc));
-
+    // scriptpubkeys
+    memcpy(pOutSelf->funding_local.scriptpubkeys, pInSelf->funding_local.scriptpubkeys,
+                                            M_SIZE(ln_funding_local_data_t, scriptpubkeys));
+    memcpy(pOutSelf->funding_remote.scriptpubkeys, pInSelf->funding_remote.scriptpubkeys,
+                                            M_SIZE(ln_funding_remote_data_t, scriptpubkeys));
 
     //復元データ
     ptarm_buf_alloccopy(&pOutSelf->redeem_fund, pInSelf->redeem_fund.buf, pInSelf->redeem_fund.len);
@@ -3311,7 +3315,7 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     retval = mdb_dbi_open(pDb->txn, dbname, 0, &pDb->dbi);
     if (retval == 0) {
         retval = backup_param_load(&self->priv_data, pDb, DBSELF_SECRET, ARRAY_SIZE(DBSELF_SECRET));
-    }       
+    }
     if (retval != 0) {
         LOGD("ERR: %s(backup_param_load)\n", mdb_strerror(retval));
     }
@@ -3714,7 +3718,7 @@ static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn)
 
 
 /** #ln_db_preimg_del_hash()用処理関数
- * 
+ *
  * SHA256(preimage)がpayment_hashと一致した場合にDBから削除する。
  */
 static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
@@ -3739,7 +3743,7 @@ static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t 
 
 
 /** ln_db_self_del_prm用処理関数
- * 
+ *
  * SHA256(preimage)がpayment_hashと一致した場合、DBから削除する。
  */
 static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param)
