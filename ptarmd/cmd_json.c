@@ -1549,7 +1549,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     ptarm_buf_t buf_bolt = PTARM_BUF_INIT;
     ln_cnl_update_t msg;
     ret = ln_get_channel_update_peer(self, &buf_bolt, &msg);
-    if (ret) {
+    if (ret && !ln_is_announced(self)) {
         size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_fieldr_t);
         *prm->pp_field = (ln_fieldr_t *)APP_REALLOC(*prm->pp_field, sz);
 
