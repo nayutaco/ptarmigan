@@ -1337,7 +1337,7 @@ static int error_result(json_t *p_root)
 
 #ifdef JSONRPC_TEST
 /**************************************************************************
-	gcc -o tst -I.. -I../include -I../libs/install/include -I../ptarm/include -DNETKIND=1 -DJSONRPC_TEST misc.c btcrpc.c -L../libs/install/lib -lcurl -ljansson -L../ptarm -lptarm -L../ptarm/libs/install/lib -lbase58 -lmbedcrypto -lsodium -llmdb -pthread
+	gcc -o tst -I.. -I../include -I../libs/install/include -I../ptarm/include -DNETKIND=1 -DJSONRPC_TEST misc.c btcrpc.c -L../libs/install/lib -lcurl -ljansson -L../ptarm -lptarm -L../ptarm/libs/install/lib -lbase58 -lmbedcrypto -llmdb -pthread
  **************************************************************************/
 
 #include <inttypes.h>

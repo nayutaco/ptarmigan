@@ -4,6 +4,8 @@
 
 * library update
   * MbedTLS v2.12.0
+* remove libsodium
+  * replace MbedTLS APIs
 
 ## 2018/07/27
 
