@@ -1011,7 +1011,13 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:short_channel_id]
-    pMsg->short_channel_id = ln_misc_get64be(pData + pos);
+    uint64_t short_channel_id = ln_misc_get64be(pData + pos);
+    if (pMsg->short_channel_id == 0) {
+        pMsg->short_channel_id = short_channel_id;
+    } else if (pMsg->short_channel_id != short_channel_id) {
+        LOGD("fail: short_channel_id mismatch: %" PRIx64 " != %" PRIx64 "\n", pMsg->short_channel_id, short_channel_id);
+        return false;
+    }
     pos += LN_SZ_SHORT_CHANNEL_ID;
 
     //        [64:node_signature]

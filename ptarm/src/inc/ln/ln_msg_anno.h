@@ -146,6 +146,8 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
  * @param[in]       pData   対象データ
  * @param[in]       Len     pData長
  * @retval  true    成功
+ * @note
+ *      pMsg->short_channel_idに0以外を設定しておくと、不一致時にfalseを返す
  */
 bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t *pData, uint16_t Len);
 
