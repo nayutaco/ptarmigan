@@ -42,12 +42,12 @@
  * macros
  ********************************************************************/
 
-//#define DBG_PRINT_CREATE_CNL
-//#define DBG_PRINT_READ_CNL
-//#define DBG_PRINT_CREATE_NOD
-//#define DBG_PRINT_READ_NOD
-//#define DBG_PRINT_CREATE_UPD
-//#define DBG_PRINT_READ_UPD
+// #define DBG_PRINT_CREATE_CNL
+// #define DBG_PRINT_READ_CNL
+// #define DBG_PRINT_CREATE_NOD
+// #define DBG_PRINT_READ_NOD
+// #define DBG_PRINT_CREATE_UPD
+// #define DBG_PRINT_READ_UPD
 #define DBG_PRINT_CREATE_SIG
 #define DBG_PRINT_READ_SIG
 
@@ -228,6 +228,22 @@ LABEL_EXIT:
 }
 
 
+void HIDDEN ln_msg_cnl_announce_update_short_cnl_id(uint8_t *pData, uint64_t ShortChannelId)
+{
+    int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
+
+    //        [2:len]
+    uint16_t len = ln_misc_get16be(pData + pos);
+    pos += sizeof(len) + len + PTARM_SZ_SHA256;
+
+    //        [8:short_channel_id]
+    for (int lp = 0; lp < sizeof(uint64_t); lp++) {
+        *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
+        ShortChannelId >>= 8;
+    }
+}
+
+
 bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     //len=0
@@ -340,7 +356,6 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
     pPtr->short_channel_id = ln_misc_get64be(pData + pos);
     if (pPtr->short_channel_id == 0) {
         LOGD("fail: short_channel_id == 0\n");
-        return false;
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;
 

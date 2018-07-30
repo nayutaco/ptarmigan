@@ -43,6 +43,14 @@
 bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg);
 
 
+/** channel_announcementのshort_channel_id更新
+ *
+ * @param[out]      pBuf            channel_annnouncement RAWデータ
+ * @param[in]       ShortChannelId  short_channel_id
+ */
+void HIDDEN ln_msg_cnl_announce_update_short_cnl_id(uint8_t *pData, uint64_t ShortChannelId);
+
+
 /** channel_announcement読込み(verify無し)
  *
  * @param[out]      pMsg    読込み結果

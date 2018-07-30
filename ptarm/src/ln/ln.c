@@ -854,12 +854,11 @@ bool ln_create_announce_signs(ln_self_t *self, ptarm_buf_t *pBufAnnoSigns)
         create_local_channel_announcement(self);
     }
 
-    //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
     //  localのsignature
-    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true, sort_nodeid(self, NULL));
+    ptarm_keys_sort_t sort = sort_nodeid(self, NULL);
+    ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true, sort);
 
     ln_announce_signs_t anno_signs;
-
     anno_signs.p_channel_id = self->channel_id;
     anno_signs.short_channel_id = self->short_channel_id;
     anno_signs.p_node_signature = p_sig_node;
@@ -905,7 +904,7 @@ bool ln_get_channel_update_peer(const ln_self_t *self, ptarm_buf_t *pCnlUpd, ln_
 
     ptarm_keys_sort_t sort = sort_nodeid(self, NULL);
     uint8_t dir = (sort == PTARM_KEYS_SORT_OTHER) ? 0 : 1;  //相手のchannel_update
-    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, ln_short_channel_id(self), dir);
+    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, self->short_channel_id, dir);
     if (ret && (pMsg != NULL)) {
         ret = ln_msg_cnl_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
     }
@@ -1966,7 +1965,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         M_SET_ERR(self, LNERR_ALREADY_FUNDING, "already funding");
         return false;
     }
-    if (ln_short_channel_id(self) != 0) {
+    if (self->short_channel_id != 0) {
         //establish済み
         M_SET_ERR(self, LNERR_ALREADY_FUNDING, "already established");
         return false;
@@ -3247,7 +3246,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         create_local_channel_announcement(self);
     }
 
-    //channel_announcementを埋める
+    //  localのsignature
     ptarm_keys_sort_t sort = sort_nodeid(self, NULL);
     ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, false, sort);
 
@@ -3268,37 +3267,9 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         return false;
     }
 
-    //channel_update
-    ptarm_buf_t buf_upd = PTARM_BUF_INIT;
-    uint32_t now = (uint32_t)time(NULL);
-    ln_cnl_update_t upd;
-    ret = create_channel_update(self, &upd, &buf_upd, now, 0);
-    if (!ret) {
-        LOGD("fail\n");
-        goto LABEL_EXIT;
-    }
-    ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), NULL,
-                            ln_their_node_id(self), ln_node_getid());
-    if (!ret) {
-        LOGD("fail: ln_db_annocnl_save\n");
-        //goto LABEL_EXIT;
-    }
-    ret = ln_db_annocnlupd_save(&buf_upd, &upd, NULL);
-    if (ret) {
-        ln_cb_update_annodb_t anno;
-        anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
-        (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
-    } else {
-        LOGD("fail: but through\n");
-        ret = true;
-    }
-
     self->anno_flag |= M_ANNO_FLAG_RECV;
     proc_anno_sigs(self);
     M_DB_SELF_SAVE(self);
-
-LABEL_EXIT:
-    ptarm_buf_free(&buf_upd);
 
     return ret;
 }
@@ -5138,16 +5109,45 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
 }
 
 
+/** announcement_signatures交換完了後
+ *
+ */
 static void proc_anno_sigs(ln_self_t *self)
 {
-    if ( (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) &&
-         (self->short_channel_id != 0) ) {
+    if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
         //announcement_signatures送受信済み
-        LOGD("announcement_signatures sent and recv\n");
+        LOGD("announcement_signatures sent and recv: %" PRIx64 "\n", self->short_channel_id);
 
-        self->anno_flag |= LN_ANNO_FLAG_END;
-        ptarm_buf_free(&self->cnl_anno);
-        M_DB_SELF_SAVE(self);
+        //channel_announcement
+        ln_msg_cnl_announce_update_short_cnl_id(self->cnl_anno.buf, self->short_channel_id);
+        ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
+
+        //channel_update
+        ptarm_buf_t buf_upd = PTARM_BUF_INIT;
+        uint32_t now = (uint32_t)time(NULL);
+        ln_cnl_update_t upd;
+        bool ret = create_channel_update(self, &upd, &buf_upd, now, 0);
+        if (ret) {
+            ret = ln_db_annocnl_save(&self->cnl_anno, self->short_channel_id, NULL,
+                                    ln_their_node_id(self), ln_node_getid());
+            if (!ret) {
+                LOGD("fail: ln_db_annocnl_save(fall throw)\n");
+            }
+            ret = ln_db_annocnlupd_save(&buf_upd, &upd, NULL);
+            if (ret) {
+                ln_cb_update_annodb_t anno;
+                anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
+                (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+            } else {
+                LOGD("fail: ln_db_annocnlupd_save(fall throw)\n");
+            }
+
+            self->anno_flag |= LN_ANNO_FLAG_END;
+            ptarm_buf_free(&self->cnl_anno);
+        } else {
+            LOGD("fail\n");
+        }
+        ptarm_buf_free(&buf_upd);
     }
 }
 
