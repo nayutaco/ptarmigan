@@ -42,12 +42,14 @@
  * macros
  ********************************************************************/
 
-//#define DBG_PRINT_CREATE_CNL
-//#define DBG_PRINT_READ_CNL
-//#define DBG_PRINT_CREATE_NOD
-//#define DBG_PRINT_READ_NOD
-//#define DBG_PRINT_CREATE_UPD
-//#define DBG_PRINT_READ_UPD
+#ifdef DEVELOPER_MODE
+#define DBG_PRINT_CREATE_CNL
+#define DBG_PRINT_READ_CNL
+#define DBG_PRINT_CREATE_NOD
+#define DBG_PRINT_READ_NOD
+#define DBG_PRINT_CREATE_UPD
+#define DBG_PRINT_READ_UPD
+#endif
 #define DBG_PRINT_CREATE_SIG
 #define DBG_PRINT_READ_SIG
 
@@ -215,14 +217,14 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
     }
 
 LABEL_EXIT:
-#ifdef DBG_PRINT_CREATE_CNL
-    LOGD("@@@@@ %s @@@@@\n", __func__);
     if (ret) {
+#ifdef DBG_PRINT_CREATE_CNL
+        LOGD("short_channel_id=%" PRIx64 "\n", pMsg->short_channel_id);
         ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
+#endif  //DBG_PRINT_CREATE_CNL
     } else {
         LOGD("something error\n");
     }
-#endif  //DBG_PRINT_CREATE_CNL
 
     return ret;
 }
@@ -250,6 +252,12 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData
         memcpy(pMsg->btc_key1, ptr.p_btc_key1, PTARM_SZ_PUBKEY);
         memcpy(pMsg->btc_key2, ptr.p_btc_key2, PTARM_SZ_PUBKEY);
         pMsg->short_channel_id = ptr.short_channel_id;
+#ifdef DBG_PRINT_READ_CNL
+        LOGD("short_channel_id=%" PRIx64 "\n", pMsg->short_channel_id);
+        ln_msg_cnl_announce_print(pData, Len);
+#endif
+    } else {
+        LOGD("something error\n");
     }
 
     return ret;
@@ -340,7 +348,6 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
     pPtr->short_channel_id = ln_misc_get64be(pData + pos);
     if (pPtr->short_channel_id == 0) {
         LOGD("fail: short_channel_id == 0\n");
-        return false;
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;
 

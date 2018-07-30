@@ -1685,10 +1685,12 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
     ln_cnl_announce_read_t ann;
 
     bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
-    if (ret) {
+    if (ret && (ann.short_channel_id != 0)) {
         *p_short_channel_id = ann.short_channel_id;
         memcpy(pNodeId1, ann.node_id1, PTARM_SZ_PUBKEY);
         memcpy(pNodeId2, ann.node_id2, PTARM_SZ_PUBKEY);
+    } else {
+        LOGD("fail\n");
     }
 
     return ret;
@@ -3318,7 +3320,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
 
     param.is_unspent = true;
     bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
-    if (ret) {
+    if (ret && (ann.short_channel_id != 0)) {
         //is_unspent更新
         param.short_channel_id = ann.short_channel_id;
         (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
@@ -5208,7 +5210,7 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
             }
             memcpy(pNodeId, p_node_id, PTARM_SZ_PUBKEY);
         } else {
-            LOGD("ret=%d\n", ret);
+            LOGD("fail\n");
         }
     } else {
         if (short_channel_id == self->short_channel_id) {
