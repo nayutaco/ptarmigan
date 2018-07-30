@@ -155,8 +155,6 @@ typedef enum {
     FLAGNODE_FULFILL_RECV   = 0x0200,   ///< update_fulfill_htlc受信
     FLAGNODE_FAIL_SEND      = 0x0400,   ///< update_fail_htlc送信
     FLAGNODE_FAIL_RECV      = 0x0800,   ///< update_fail_htlc受信
-
-    FLAGNODE_COMSIG_RECV    = 0x8000,   ///< commitment_signed受信
 } node_flag_t;
 
 
@@ -2657,7 +2655,6 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
     (void)p_conf; (void)p_param;
 
     pthread_mutex_lock(&mMuxNode);
-    mFlagNode |= FLAGNODE_COMSIG_RECV;
     pthread_mutex_unlock(&mMuxNode);
     LOGD("  -->mFlagNode %02x\n", mFlagNode);
 }
@@ -2680,21 +2677,18 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
     if (mFlagNode & FLAGNODE_PAYMENT) {
         //payer
         mFlagNode &= ~FLAGNODE_PAYMENT;
-        if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND | FLAGNODE_COMSIG_RECV) ||
-          M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV | FLAGNODE_COMSIG_RECV) ) {
+        if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV) ) {
             //送金中
             LOGD("PAYMENT: htlc added\n");
             mFlagNode = FLAGNODE_PAYMENT;
-        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND | FLAGNODE_COMSIG_RECV) ||
-          M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV | FLAGNODE_COMSIG_RECV) ) {
+        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV) ) {
             //送金完了
             LOGD("PAYMENT: htlc fulfilled\n");
             misc_save_event(NULL,
                     "payment success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
                     ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
-        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND | FLAGNODE_COMSIG_RECV) ||
-          M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV | FLAGNODE_COMSIG_RECV)) {
+        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV)) {
             //送金失敗
             LOGD("PAYMENT: fail_htlc\n");
             mFlagNode = FLAGNODE_NONE;
@@ -2713,21 +2707,18 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
         mFlagNode = FLAGNODE_NONE;
     } else {
         //非payer
-        if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND | FLAGNODE_COMSIG_RECV) ||
-          M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV | FLAGNODE_COMSIG_RECV) ) {
+        if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV) ) {
             //送金中
             LOGD("FORWARD: htlc added\n");
             mFlagNode = FLAGNODE_NONE;
-        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND | FLAGNODE_COMSIG_RECV) ||
-          M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV | FLAGNODE_COMSIG_RECV) ) {
+        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV) ) {
             //送金完了
             LOGD("FORWARD: htlc fulfilled\n");
             misc_save_event(NULL,
                     "forward success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
                     ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
-        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND | FLAGNODE_COMSIG_RECV) ||
-          M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV | FLAGNODE_COMSIG_RECV)) {
+        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV)) {
             //送金失敗
             LOGD("FORWARD: fail_htlc\n");
             mFlagNode = FLAGNODE_NONE;
@@ -3827,7 +3818,7 @@ static void payroute_print(lnapp_conf_t *p_conf)
 
 
 /**
- * 
+ *
  * @param[in,out]       p_conf
  * @param[in]           pBuf        追加対象
  * @note
