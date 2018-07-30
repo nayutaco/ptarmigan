@@ -907,7 +907,7 @@ bool ln_get_channel_update_peer(const ln_self_t *self, ptarm_buf_t *pCnlUpd, ln_
 
     ptarm_keys_sort_t sort = sort_nodeid(self, NULL);
     uint8_t dir = (sort == PTARM_KEYS_SORT_OTHER) ? 0 : 1;  //相手のchannel_update
-    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, ln_short_channel_id(self), dir);
+    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, self->short_channel_id, dir);
     if (ret && (pMsg != NULL)) {
         ret = ln_msg_cnl_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
     }
@@ -1970,7 +1970,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         M_SET_ERR(self, LNERR_ALREADY_FUNDING, "already funding");
         return false;
     }
-    if (ln_short_channel_id(self) != 0) {
+    if (self->short_channel_id != 0) {
         //establish済み
         M_SET_ERR(self, LNERR_ALREADY_FUNDING, "already established");
         return false;
@@ -3277,7 +3277,7 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     //0以外だった場合はln_msg_announce_signs_read()で一致していることを確認済み
     self->short_channel_id = anno_signs.short_channel_id;
 
-    ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), NULL,
+    ret = ln_db_annocnl_save(&self->cnl_anno, self->short_channel_id, NULL,
                             ln_their_node_id(self), ln_node_getid());
     if (ret) {
         self->anno_flag |= M_ANNO_FLAG_RECV;
