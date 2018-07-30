@@ -5108,10 +5108,11 @@ static void proc_anno_sigs(ln_self_t *self)
 {
     if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
         //announcement_signatures送受信済み
-        LOGD("announcement_signatures sent and recv\n");
+        LOGD("announcement_signatures sent and recv: %" PRIx64 "\n", self->short_channel_id);
 
         //channel_announcement
         ln_msg_cnl_announce_update_short_cnl_id(self->cnl_anno.buf, self->short_channel_id);
+        ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
 
         //channel_update
         ptarm_buf_t buf_upd = PTARM_BUF_INIT;

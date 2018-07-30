@@ -42,12 +42,12 @@
  * macros
  ********************************************************************/
 
-//#define DBG_PRINT_CREATE_CNL
-//#define DBG_PRINT_READ_CNL
-//#define DBG_PRINT_CREATE_NOD
-//#define DBG_PRINT_READ_NOD
-//#define DBG_PRINT_CREATE_UPD
-//#define DBG_PRINT_READ_UPD
+// #define DBG_PRINT_CREATE_CNL
+// #define DBG_PRINT_READ_CNL
+// #define DBG_PRINT_CREATE_NOD
+// #define DBG_PRINT_READ_NOD
+// #define DBG_PRINT_CREATE_UPD
+// #define DBG_PRINT_READ_UPD
 #define DBG_PRINT_CREATE_SIG
 #define DBG_PRINT_READ_SIG
 
@@ -237,10 +237,10 @@ void HIDDEN ln_msg_cnl_announce_update_short_cnl_id(uint8_t *pData, uint64_t Sho
     pos += sizeof(len) + len + PTARM_SZ_SHA256;
 
     //        [8:short_channel_id]
-    *(pData + pos + 3) = (uint8_t)ShortChannelId;
-    *(pData + pos + 2) = (uint8_t)(ShortChannelId >>= 8);
-    *(pData + pos + 1) = (uint8_t)(ShortChannelId >>= 8);
-    *(pData + pos + 0) = (uint8_t)(ShortChannelId >> 8);
+    for (int lp = 0; lp < sizeof(uint64_t); lp++) {
+        *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
+        ShortChannelId >>= 8;
+    }
 }
 
 
