@@ -903,7 +903,7 @@ bool ln_get_channel_update_peer(const ln_self_t *self, ptarm_buf_t *pCnlUpd, ln_
 
     ptarm_keys_sort_t sort = sort_nodeid(self, NULL);
     uint8_t dir = (sort == PTARM_KEYS_SORT_OTHER) ? 0 : 1;  //相手のchannel_update
-    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, ln_short_channel_id(self), dir);
+    ret = ln_db_annocnlupd_load(pCnlUpd, NULL, self->short_channel_id, dir);
     if (ret && (pMsg != NULL)) {
         ret = ln_msg_cnl_update_read(pMsg, pCnlUpd->buf, pCnlUpd->len);
     }
@@ -1957,7 +1957,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         M_SET_ERR(self, LNERR_ALREADY_FUNDING, "already funding");
         return false;
     }
-    if (ln_short_channel_id(self) != 0) {
+    if (self->short_channel_id != 0) {
         //establish済み
         M_SET_ERR(self, LNERR_ALREADY_FUNDING, "already established");
         return false;
@@ -5106,10 +5106,12 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
  */
 static void proc_anno_sigs(ln_self_t *self)
 {
-    if ( (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) &&
-         (self->short_channel_id != 0) ) {
+    if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
         //announcement_signatures送受信済み
         LOGD("announcement_signatures sent and recv\n");
+
+        //channel_announcement
+        ln_msg_cnl_announce_update_short_cnl_id(self->cnl_anno.buf, self->short_channel_id);
 
         //channel_update
         ptarm_buf_t buf_upd = PTARM_BUF_INIT;
@@ -5117,7 +5119,7 @@ static void proc_anno_sigs(ln_self_t *self)
         ln_cnl_update_t upd;
         bool ret = create_channel_update(self, &upd, &buf_upd, now, 0);
         if (ret) {
-            ret = ln_db_annocnl_save(&self->cnl_anno, ln_short_channel_id(self), NULL,
+            ret = ln_db_annocnl_save(&self->cnl_anno, self->short_channel_id, NULL,
                                     ln_their_node_id(self), ln_node_getid());
             if (!ret) {
                 LOGD("fail: ln_db_annocnl_save(fall throw)\n");

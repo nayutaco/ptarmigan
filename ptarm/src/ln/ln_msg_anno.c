@@ -228,6 +228,22 @@ LABEL_EXIT:
 }
 
 
+void HIDDEN ln_msg_cnl_announce_update_short_cnl_id(uint8_t *pData, uint64_t ShortChannelId)
+{
+    int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
+
+    //        [2:len]
+    uint16_t len = ln_misc_get16be(pData + pos);
+    pos += sizeof(len) + len + PTARM_SZ_SHA256;
+
+    //        [8:short_channel_id]
+    *(pData + pos + 3) = (uint8_t)ShortChannelId;
+    *(pData + pos + 2) = (uint8_t)(ShortChannelId >>= 8);
+    *(pData + pos + 1) = (uint8_t)(ShortChannelId >>= 8);
+    *(pData + pos + 0) = (uint8_t)(ShortChannelId >> 8);
+}
+
+
 bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData, uint16_t Len)
 {
     //len=0
@@ -340,7 +356,6 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
     pPtr->short_channel_id = ln_misc_get64be(pData + pos);
     if (pPtr->short_channel_id == 0) {
         LOGD("fail: short_channel_id == 0\n");
-        return false;
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;
 
