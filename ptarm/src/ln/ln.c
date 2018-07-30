@@ -152,6 +152,7 @@
         send_error(self, &err);\
         LOGD("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
     }
+#define M_DBG_COMMITNUM(self) { LOGD("----- debug commit_num -----\n"); dbg_commitnum(self); }
 
 
 /**************************************************************************
@@ -687,7 +688,7 @@ bool ln_create_init(ln_self_t *self, ptarm_buf_t *pInit, bool bHaveCnl)
              !LN_HTLC_FLAG_IS_COMMITTED(self->cnl_add_htlc[idx].flag) ) {
             if (!LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)) {
                 //offeredであれば、amountを戻す
-                //LOGD("[%d]flag=%02x, amount_msat=%" PRIu64 "\n", idx, self->cnl_add_htlc[idx].flag, self->cnl_add_htlc[idx].amount_msat);
+                LOGD("[%d]remove add_htlc: flag=%02x, amount_msat=%" PRIu64 "\n", idx, self->cnl_add_htlc[idx].flag, self->cnl_add_htlc[idx].amount_msat);
                 self->our_msat += self->cnl_add_htlc[idx].amount_msat;
             }
             ptarm_buf_free(&self->cnl_add_htlc[idx].shared_secret);
@@ -706,7 +707,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, ptarm_buf_t *pReEst)
     ln_channel_reestablish_t msg;
     msg.p_channel_id = self->channel_id;
 
-    dbg_commitnum(self);
+    M_DBG_COMMITNUM(self);
 
     //MUST set next_local_commitment_number to the commitment number
     //  of the next commitment_signed it expects to receive.
@@ -1435,9 +1436,16 @@ bool ln_create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig)
     if (ret) {
         proc_commitment_signed(self, M_COMISG_FLAG_SEND);
 
+        //HTLC確定フラグ
+        for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+            if (self->cnl_add_htlc[idx].amount_msat != 0) {
+                self->cnl_add_htlc[idx].flag |= LN_HTLC_FLAG_COMMIT;
+            }
+        }
+
         //相手のcommitment_numberをインクリメント(channel_reestablish用)
         self->commit_remote.commit_num++;
-        dbg_commitnum(self);
+        M_DBG_COMMITNUM(self);
         M_DB_SELF_SAVE(self);
     }
 
@@ -2844,7 +2852,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
     //自分のcommitment_numberをインクリメント
     self->commit_local.commit_num++;
-    dbg_commitnum(self);
+    M_DBG_COMMITNUM(self);
 
     //HTLC確定フラグ
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -2887,10 +2895,10 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
         //最後に送信したrevoke_and_ackでのcommitment_numberを保持(channel_reestablish)
         self->commit_local.revoke_num = self->commit_local.commit_num - 1;
-        dbg_commitnum(self);
+        M_DBG_COMMITNUM(self);
         M_DB_SELF_SAVE(self);
 
-        if ((self->comsig_flag & M_COMISG_FLAG_SEND) == 0) {
+        if (self->funding_local.current_commit_num != self->funding_remote.current_commit_num) {
             //commitment_signed未送信
             ret = ln_create_commit_signed(self, &buf_bolt);
             if (ret) {
@@ -3008,7 +3016,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     ln_print_keys(&self->funding_local, &self->funding_remote);
 
     self->commit_remote.revoke_num = self->commit_remote.commit_num - 1;
-    dbg_commitnum(self);
+    M_DBG_COMMITNUM(self);
     M_DB_SELF_SAVE(self);
 
     proc_rev_and_ack(self, M_REVACK_FLAG_RECV);
@@ -3088,7 +3096,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         return false;
     }
 
-    dbg_commitnum(self);
+    M_DBG_COMMITNUM(self);
 
     //BOLT#02
     //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
