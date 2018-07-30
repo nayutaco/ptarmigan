@@ -3243,12 +3243,6 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
 
-    //short_channel_idで検索
-    uint64_t short_channel_id = ln_msg_announce_signs_read_short_cnl_id(pData, Len, self->channel_id);
-    if (short_channel_id == 0) {
-        LOGD("fail: invalid packet\n");
-        return false;
-    }
     if (self->cnl_anno.buf == NULL) {
         create_local_channel_announcement(self);
     }
@@ -3273,9 +3267,6 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
         M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
         return false;
     }
-
-    LOGD("+++ channel_announcement[%" PRIx64 "] +++\n", self->short_channel_id);
-    ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
 
     //channel_update
     ptarm_buf_t buf_upd = PTARM_BUF_INIT;
@@ -5149,7 +5140,8 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
 
 static void proc_anno_sigs(ln_self_t *self)
 {
-    if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
+    if ( (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) &&
+         (self->short_channel_id != 0) ) {
         //announcement_signatures送受信済み
         LOGD("announcement_signatures sent and recv\n");
 
