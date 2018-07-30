@@ -510,7 +510,7 @@ void ln_free_establish(ln_self_t *self)
 }
 
 
-void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex, const uint8_t *pMinedHash)
+bool ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex, const uint8_t *pMinedHash)
 {
     uint64_t short_channel_id = ln_misc_calc_short_channel_id(Height, Index, FundingIndex);
     if (self->short_channel_id == 0) {
@@ -522,6 +522,8 @@ void ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t In
 #endif
         M_DB_SELF_SAVE(self);
     }
+
+    return (short_channel_id != 0) && (self->short_channel_id == short_channel_id);
 }
 
 
