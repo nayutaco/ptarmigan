@@ -371,7 +371,7 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
 }
 
 
-void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
+void ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[channel_announcement]-------------------------------\n");

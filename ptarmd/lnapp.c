@@ -3175,6 +3175,7 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp)
     return ret;
 }
 
+void ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
 
 static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const ptarm_buf_t *p_buf_cnl)
 {

@@ -65,7 +65,7 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len);
 /** [デバッグ]channel_announcementデバッグ出力
  *
  */
-void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
+void ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
 
 
 /** [デバッグ]channel_updateデバッグ出力
