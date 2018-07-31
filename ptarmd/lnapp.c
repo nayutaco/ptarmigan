@@ -2897,7 +2897,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
         p_conf->loop = false;
         //mainloop待ち合わせ解除(*2)
         pthread_cond_signal(&p_conf->cond);
-        LOGD("disconnect channel: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
+        LOGD("disconnect channel: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         LOGD("===================================\n");
         LOGD("=  CHANNEL THREAD END             =\n");
         LOGD("===================================\n");
@@ -3107,7 +3107,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
             }
         } else {
             //channel_announcementが無いchannel_updateの場合
-            LOGD("skip channel_%c: last=%0" PRIx64 " / get=%0" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
+            LOGD("skip channel_%c: last=%016" PRIx64 " / get=%016" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
         }
         ptarm_buf_free(&buf_cnl);
     }
@@ -3179,6 +3179,9 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp)
 static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const ptarm_buf_t *p_buf_cnl)
 {
     LOGV("send channel_%c: %016" PRIx64 "\n", type, p_conf->last_annocnl_sci);
+#ifdef DEVELOPER_MODE
+    ln_msg_cnl_announce_print(p_buf_cnl->buf, p_buf_cnl->len);
+#endif
     send_peer_noise(p_conf, p_buf_cnl);
     ln_db_annocnls_add_nodeid(p_db, p_conf->last_annocnl_sci, type, false, ln_their_node_id(p_conf->p_self));
 }

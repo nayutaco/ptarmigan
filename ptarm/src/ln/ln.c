@@ -3373,7 +3373,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         }
     }
     if (ret) {
-        LOGV("recv channel_upd%d: %" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
+        LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
 
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[PTARM_SZ_PUBKEY];
@@ -5155,7 +5155,7 @@ static void proc_anno_sigs(ln_self_t *self)
 
         self->anno_flag |= LN_ANNO_FLAG_END;
     } else {
-        LOGD("yet: anno_flag=%02x, short_channel_id=%" PRIx64 "\n", self->anno_flag, self->short_channel_id);
+        LOGD("yet: anno_flag=%02x, short_channel_id=%016" PRIx64 "\n", self->anno_flag, self->short_channel_id);
     }
 
 }
