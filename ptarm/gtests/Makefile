@@ -30,7 +30,7 @@ CXXFLAGS += -I../libs/install/include
 CXXFLAGS += -I../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
 
 CXXFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing -fstack-protector -D_FORTIFY_SOURCE=1
-LDFLAGS  += -L../libs/install/lib -lmbedcrypto -lbase58
+LDFLAGS  += -L../libs/install/lib -lmbedcrypto -lbase58 -lsodium
 LDFLAGS  += -Wl,--gc-sections
 
 

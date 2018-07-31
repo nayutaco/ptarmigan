@@ -104,7 +104,7 @@ LIBS += -lcurl
 LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
 LIBS += -L$(COMMON_PATH)/ptarm -lptarm
-LIBS += -L$(COMMON_PATH)/ptarm/libs/install/lib -llmdb -lbase58 -lmbedcrypto
+LIBS += -L$(COMMON_PATH)/ptarm/libs/install/lib -llmdb -lsodium -lbase58 -lmbedcrypto
 LIBS += -lstdc++
 
 

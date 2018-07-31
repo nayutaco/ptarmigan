@@ -2,7 +2,7 @@ INSTALL_DIR = $(CURDIR)/install
 
 all: lib
 
-lib: mk_install mk_base58 mk_mbedtls mk_lmdb
+lib: mk_install mk_base58 mk_mbedtls mk_sodium mk_lmdb
 
 mk_install:
 	@mkdir -p $(INSTALL_DIR)
@@ -12,6 +12,9 @@ mk_install:
 mk_base58:
 	cd libbase58; autoreconf -i ; ./configure --prefix=$(INSTALL_DIR) --disable-shared ; make ; make install ; cd ..
 	@rm -rf libbase58/compile
+
+mk_sodium:
+	cd libsodium; autoreconf -i ; ./configure --prefix=$(INSTALL_DIR) --disable-shared ; make ; make install ; cd ..
 
 mk_lmdb:
 	make -C lmdb/libraries/liblmdb
@@ -30,6 +33,7 @@ mbedtls_all: clean_mbedtls mk_mbedtls
 
 clean:
 	-make -C libbase58 clean
+	-make -C libsodium clean
 	-make -C lmdb/libraries/liblmdb clean
 	-make -C mbedtls clean
 	-rm -rf $(INSTALL_DIR) bech32
