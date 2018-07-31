@@ -90,7 +90,7 @@ LDFLAGS += -pthread
 
 #Link Library
 LIBS += $(LD_PATHS)
-LIBS += -lptarm -llmdb -lmbedcrypto -lbase58 -lstdc++
+LIBS += -lptarm -llmdb -lmbedcrypto -lsodium -lbase58 -lstdc++
 
 
 #default target - first one defined
