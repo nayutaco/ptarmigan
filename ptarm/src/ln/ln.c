@@ -3275,16 +3275,20 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     //0だった場合はfunding_lockedまでの値
     //0以外だった場合はln_msg_announce_signs_read()で一致していることを確認済み
     self->short_channel_id = anno_signs.short_channel_id;
-    ln_msg_cnl_announce_update_short_cnl_id(self, self->short_channel_id);
+    ret = ln_msg_cnl_announce_update_short_cnl_id(self, self->short_channel_id, sort);
+    if (ret) {
 #ifdef DEVELOPER_MODE
-    ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
+        ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
 #endif
 
-    self->anno_flag |= M_ANNO_FLAG_RECV;
-    proc_anno_sigs(self);
-    M_DB_SELF_SAVE(self);
+        self->anno_flag |= M_ANNO_FLAG_RECV;
+        proc_anno_sigs(self);
+        M_DB_SELF_SAVE(self);
+    } else {
+        LOGD("fail: update short_channel_id\n");
+    }
 
-    return true;
+    return ret;
 }
 
 

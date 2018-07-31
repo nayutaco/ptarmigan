@@ -85,7 +85,7 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
  * prototypes
  **************************************************************************/
 
-static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, int OffsetSig);
+static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, ptarm_keys_sort_t Sort);
 static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len);
 
 #if defined(DBG_PRINT_CREATE_NOD) || defined(DBG_PRINT_READ_NOD)
@@ -163,20 +163,17 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
     const uint8_t *p_node_2;
     const uint8_t *p_btc_1;
     const uint8_t *p_btc_2;
-    int offset_sig;
     if (pMsg->sort == PTARM_KEYS_SORT_ASC) {
         //自ノードが先
         p_node_1 = pMsg->p_my_node_pub;
         p_node_2 = pMsg->p_peer_node_pub;
         p_btc_1 = pMsg->p_my_funding_pub;
         p_btc_2 = pMsg->p_peer_funding_pub;
-        offset_sig = 0;
     } else {
         p_node_1 = pMsg->p_peer_node_pub;
         p_node_2 = pMsg->p_my_node_pub;
         p_btc_1 = pMsg->p_peer_funding_pub;
         p_btc_2 = pMsg->p_my_funding_pub;
-        offset_sig = LN_SZ_SIGNATURE;
     }
     //        [33:node_id_1]
     ptarm_push_data(&proto, p_node_1, PTARM_SZ_PUBKEY);
@@ -194,7 +191,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
 
     ptarm_push_trim(&proto);
 
-    bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, offset_sig);
+    bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, pMsg->sort);
     if (ret) {
 #ifdef DBG_PRINT_CREATE_CNL
         LOGD("short_channel_id=%" PRIx64 "\n", pMsg->short_channel_id);
@@ -389,7 +386,7 @@ void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_
 }
 
 
-void HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId)
+bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, ptarm_keys_sort_t Sort)
 {
     uint8_t *pData = self->cnl_anno.buf;
     int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
@@ -401,11 +398,21 @@ void HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t Sh
         *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
         ShortChannelId >>= 8;
     }
+
+    return cnl_announce_sign(self, self->cnl_anno.buf, self->cnl_anno.len, Sort);
 }
 
 
-static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, int OffsetSig)
+static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, ptarm_keys_sort_t Sort)
 {
+    int offset_sig;
+    if (Sort == PTARM_KEYS_SORT_ASC) {
+        //自ノードが先
+        offset_sig = 0;
+    } else {
+        offset_sig = LN_SZ_SIGNATURE;
+    }
+
     //署名-node
     uint8_t hash[PTARM_SZ_HASH256];
     bool ret;
@@ -415,14 +422,14 @@ static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Le
     //LOGD("hash=");
     //DUMPD(hash, PTARM_SZ_HASH256);
 
-    ret = ln_node_sign_nodekey(pData + sizeof(uint16_t) + OffsetSig, hash);
+    ret = ln_node_sign_nodekey(pData + sizeof(uint16_t) + offset_sig, hash);
     if (!ret) {
         LOGD("fail: sign node\n");
         goto LABEL_EXIT;
     }
 
     //署名-btc
-    ret = ln_signer_sign_rs(pData + sizeof(uint16_t) + OffsetSig + LN_SZ_SIGNATURE * 2,
+    ret = ln_signer_sign_rs(pData + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
                     hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
     if (!ret) {
         LOGD("fail: sign btc\n");

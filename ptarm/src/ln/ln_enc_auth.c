@@ -111,6 +111,7 @@ static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf);
 void HIDDEN ln_enc_auth_init(ln_self_t *self)
 {
 #ifdef M_USE_SODIUM
+    (void)self;
 #else
     self->p_chacha_poly = M_MALLOC(sizeof(mbedtls_chachapoly_context));
     mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
@@ -122,6 +123,7 @@ void HIDDEN ln_enc_auth_init(ln_self_t *self)
 void HIDDEN ln_enc_auth_term(ln_self_t *self)
 {
 #ifdef M_USE_SODIUM
+    (void)self;
 #else
     mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
     mbedtls_chachapoly_free(p_ctx);
