@@ -476,7 +476,22 @@ void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_
     }
     *pp_sig_btc = *pp_sig_node + LN_SZ_SIGNATURE * 2;
 
-    ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
+    // ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
+}
+
+
+void HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId)
+{
+    uint8_t *pData = self->cnl_anno.buf;
+    int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
+    //        [2:len]
+    uint16_t len = ln_misc_get16be(pData + pos);
+    pos += sizeof(len) + len + PTARM_SZ_SHA256;
+    //        [8:short_channel_id]
+    for (int lp = 0; lp < sizeof(uint64_t); lp++) {
+        *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
+        ShortChannelId >>= 8;
+    }
 }
 
 

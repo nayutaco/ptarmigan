@@ -3276,6 +3276,10 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     //0だった場合はfunding_lockedまでの値
     //0以外だった場合はln_msg_announce_signs_read()で一致していることを確認済み
     self->short_channel_id = anno_signs.short_channel_id;
+    ln_msg_cnl_announce_update_short_cnl_id(self, self->short_channel_id);
+#ifdef DEVELOPER_MODE
+    ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
+#endif
 
     self->anno_flag |= M_ANNO_FLAG_RECV;
     proc_anno_sigs(self);
@@ -4566,10 +4570,9 @@ static bool create_closing_tx(ln_self_t *self, ptarm_tx_t *pTx, uint64_t FeeSat,
 
 
 // channel_announcement用データ(自分の枠)
-//  short_channel_id決定後に呼び出す
 static bool create_local_channel_announcement(ln_self_t *self)
 {
-    LOGD("short_channel_id=%016" PRIu64 "\n", self->short_channel_id);
+    LOGD("short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
     ptarm_buf_free(&self->cnl_anno);
 
     ln_cnl_announce_create_t anno;
