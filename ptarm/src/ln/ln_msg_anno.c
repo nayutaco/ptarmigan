@@ -379,6 +379,7 @@ void ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_CHANNEL_ANNOUNCEMENT) {
         LOGD("fail: type not match: %04x\n", type);
+        DUMPD(pData, Len);
         return;
     }
     int pos = sizeof(uint16_t);
@@ -488,7 +489,7 @@ void HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t Sh
     uint16_t len = ln_misc_get16be(pData + pos);
     pos += sizeof(len) + len + PTARM_SZ_SHA256;
     //        [8:short_channel_id]
-    for (int lp = 0; lp < sizeof(uint64_t); lp++) {
+    for (size_t lp = 0; lp < sizeof(uint64_t); lp++) {
         *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
         ShortChannelId >>= 8;
     }
