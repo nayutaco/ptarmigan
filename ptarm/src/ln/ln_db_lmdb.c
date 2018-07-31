@@ -3373,6 +3373,10 @@ static int annocnl_save(ln_lmdb_db_t *pDb, const ptarm_buf_t *pCnlAnno, uint64_t
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
 
+#ifdef DEVELOPER_MODE
+    ln_msg_cnl_announce_print(pCnlAnno->buf, pCnlAnno->len);    
+#endif
+
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, LN_DB_CNLANNO_ANNO);
     data.mv_size = pCnlAnno->len;
     data.mv_data = pCnlAnno->buf;

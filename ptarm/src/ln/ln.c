@@ -3277,21 +3277,11 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     //0以外だった場合はln_msg_announce_signs_read()で一致していることを確認済み
     self->short_channel_id = anno_signs.short_channel_id;
 
-    ret = ln_db_annocnl_save(&self->cnl_anno, self->short_channel_id, NULL,
-                            ln_their_node_id(self), ln_node_getid());
-    if (ret) {
-        self->anno_flag |= M_ANNO_FLAG_RECV;
-        proc_anno_sigs(self);
-        M_DB_SELF_SAVE(self);
+    self->anno_flag |= M_ANNO_FLAG_RECV;
+    proc_anno_sigs(self);
+    M_DB_SELF_SAVE(self);
 
-        ln_cb_update_annodb_t anno;
-        anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
-        (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
-    } else {
-        LOGD("fail\n");
-    }
-
-    return ret;
+    return true;
 }
 
 
@@ -5134,24 +5124,33 @@ static void proc_anno_sigs(ln_self_t *self)
     if ( (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) &&
          (self->short_channel_id != 0) ) {
         //announcement_signatures送受信済み
-        LOGD("announcement_signatures sent and recv\n");
+        LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", self->short_channel_id);
 
-        bool ret;
+        //channel_announcement
+        bool ret1 = ln_db_annocnl_save(&self->cnl_anno, self->short_channel_id, NULL,
+                                ln_their_node_id(self), ln_node_getid());
+        if (ret1) {
+            ln_cb_update_annodb_t anno;
+            anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
+            (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+            ptarm_buf_free(&self->cnl_anno);
+        } else {
+            LOGD("fail\n");
+        }
 
         //channel_update
         ptarm_buf_t buf_upd = PTARM_BUF_INIT;
         uint32_t now = (uint32_t)time(NULL);
         ln_cnl_update_t upd;
-        ret = create_channel_update(self, &upd, &buf_upd, now, 0);
-        if (ret) {
-            ret = ln_db_annocnlupd_save(&buf_upd, &upd, NULL);
+        bool ret2 = create_channel_update(self, &upd, &buf_upd, now, 0);
+        if (ret2) {
+            ln_db_annocnlupd_save(&buf_upd, &upd, NULL);
         } else {
             LOGD("fail\n");
         }
         ptarm_buf_free(&buf_upd);
 
         self->anno_flag |= LN_ANNO_FLAG_END;
-        ptarm_buf_free(&self->cnl_anno);
     } else {
         LOGD("yet: anno_flag=%02x, short_channel_id=%" PRIx64 "\n", self->anno_flag, self->short_channel_id);
     }
