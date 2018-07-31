@@ -24,7 +24,9 @@
  *  @author ueno@nayuta.co
  *  @sa     https://github.com/cdecker/lightning-onion/blob/sphinx-hop-data/sphinx.go
  */
-#include "mbedtls/chacha20.h"
+#include <sodium/crypto_stream_chacha20.h>
+#include <sodium/randombytes.h>
+
 #include "mbedtls/md.h"
 
 #include "ln_onion.h"
@@ -624,11 +626,13 @@ static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, c
  */
 static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Len)
 {
-    uint8_t nonce[12] = {0};
-    uint8_t *dummy = (uint8_t *)M_CALLOC(1, Len);
-    int ret = mbedtls_chacha20_crypt(pKey, nonce, 0, Len, dummy, pResult);
-    assert(ret == 0);
-    M_FREE(dummy);
+    // uint8_t nonce[12] = {0};
+    // uint8_t *dummy = (uint8_t *)M_CALLOC(1, Len);
+    // int ret = mbedtls_chacha20_crypt(pKey, nonce, 0, Len, dummy, pResult);
+    // assert(ret == 0);
+    // M_FREE(dummy);
+    uint8_t nonce[8] = {0};
+    crypto_stream_chacha20(pResult, Len, nonce, pKey);
 }
 
 
