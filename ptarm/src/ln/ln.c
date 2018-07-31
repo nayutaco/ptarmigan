@@ -856,8 +856,7 @@ bool ln_create_announce_signs(ln_self_t *self, ptarm_buf_t *pBufAnnoSigns)
         create_local_channel_announcement(self);
     }
 
-    //  self->cnl_annoはfundindg_lockedメッセージ作成時に行っている
-    //  localのsignature
+    // localのsignature
     ln_msg_get_anno_signs(self, &p_sig_node, &p_sig_btc, true, sort_nodeid(self, NULL));
 
     ln_announce_signs_t anno_signs;

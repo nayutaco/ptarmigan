@@ -3180,9 +3180,6 @@ void ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
 static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const ptarm_buf_t *p_buf_cnl)
 {
     LOGV("send channel_%c: %016" PRIx64 "\n", type, p_conf->last_annocnl_sci);
-#ifdef DEVELOPER_MODE
-    ln_msg_cnl_announce_print(p_buf_cnl->buf, p_buf_cnl->len);
-#endif
     send_peer_noise(p_conf, p_buf_cnl);
     ln_db_annocnls_add_nodeid(p_db, p_conf->last_annocnl_sci, type, false, ln_their_node_id(p_conf->p_self));
 }
