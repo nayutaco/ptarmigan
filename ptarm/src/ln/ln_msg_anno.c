@@ -85,6 +85,7 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
  * prototypes
  **************************************************************************/
 
+static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, int OffsetSig);
 static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len);
 
 #if defined(DBG_PRINT_CREATE_NOD) || defined(DBG_PRINT_READ_NOD)
@@ -193,30 +194,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
 
     ptarm_push_trim(&proto);
 
-    //署名-node
-    uint8_t hash[PTARM_SZ_HASH256];
-    bool ret;
-
-    ptarm_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
-                                pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
-    //LOGD("hash=");
-    //DUMPD(hash, PTARM_SZ_HASH256);
-
-    ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t) + offset_sig, hash);
-    if (!ret) {
-        LOGD("fail: sign node\n");
-        goto LABEL_EXIT;
-    }
-
-    //署名-btc
-    ret = ln_signer_sign_rs(pBuf->buf + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
-                    hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
-    if (!ret) {
-        LOGD("fail: sign btc\n");
-        goto LABEL_EXIT;
-    }
-
-LABEL_EXIT:
+    bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, offset_sig);
     if (ret) {
 #ifdef DBG_PRINT_CREATE_CNL
         LOGD("short_channel_id=%" PRIx64 "\n", pMsg->short_channel_id);
@@ -298,76 +276,6 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len)
     }
 
     return ret;
-}
-
-
-static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len)
-{
-    int pos = sizeof(uint16_t);
-
-    //        [64:node_signature_1]
-    pPtr->p_node_signature1 = pData + pos;
-    pos += LN_SZ_SIGNATURE;
-
-    //        [64:node_signature_2]
-    pPtr->p_node_signature2 = pData + pos;
-    pos += LN_SZ_SIGNATURE;
-
-    //        [64:bitcoin_signature_1]
-    pPtr->p_btc_signature1 = pData + pos;
-    pos += LN_SZ_SIGNATURE;
-
-    //        [64:bitcoin_signature_2]
-    pPtr->p_btc_signature2 = pData + pos;
-    pos += LN_SZ_SIGNATURE;
-
-    //        [2:len]
-    uint16_t len = ln_misc_get16be(pData + pos);
-    pos += sizeof(len);
-
-    //        [len:features]
-    if (len > 0) {
-        LOGD("features(%d): ", len);
-        DUMPD(pData + pos, len);
-        pos += len;
-    }
-
-    //    [32:chain_hash]
-    int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
-    if (cmp != 0) {
-        LOGD("fail: chain_hash mismatch\n");
-        LOGD("node: ");
-        DUMPD(gGenesisChainHash, LN_SZ_HASH);
-        LOGD("msg:  ");
-        DUMPD(pData + pos, LN_SZ_HASH);
-        return false;
-    }
-    pos += sizeof(gGenesisChainHash);
-
-    //        [8:short_channel_id]
-    pPtr->short_channel_id = ln_misc_get64be(pData + pos);
-    if (pPtr->short_channel_id == 0) {
-        LOGD("fail: short_channel_id == 0\n");
-    }
-    pos += LN_SZ_SHORT_CHANNEL_ID;
-
-    //        [33:node_id_1]
-    pPtr->p_node_id1 = pData + pos;
-    pos += PTARM_SZ_PUBKEY;
-
-    //        [33:node_id_2]
-    pPtr->p_node_id2 = pData + pos;
-    pos += PTARM_SZ_PUBKEY;
-
-    //        [33:bitcoin_key_1]
-    pPtr->p_btc_key1 = pData + pos;
-    pos += PTARM_SZ_PUBKEY;
-
-    //        [33:bitcoin_key_2]
-    pPtr->p_btc_key2 = pData + pos;
-    pos += PTARM_SZ_PUBKEY;
-
-    return Len == pos;
 }
 
 
@@ -493,6 +401,106 @@ void HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t Sh
         *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
         ShortChannelId >>= 8;
     }
+}
+
+
+static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, int OffsetSig)
+{
+    //署名-node
+    uint8_t hash[PTARM_SZ_HASH256];
+    bool ret;
+
+    ptarm_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
+                                Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
+    //LOGD("hash=");
+    //DUMPD(hash, PTARM_SZ_HASH256);
+
+    ret = ln_node_sign_nodekey(pData + sizeof(uint16_t) + OffsetSig, hash);
+    if (!ret) {
+        LOGD("fail: sign node\n");
+        goto LABEL_EXIT;
+    }
+
+    //署名-btc
+    ret = ln_signer_sign_rs(pData + sizeof(uint16_t) + OffsetSig + LN_SZ_SIGNATURE * 2,
+                    hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
+    if (!ret) {
+        LOGD("fail: sign btc\n");
+        //goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    return ret;
+}
+
+
+static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len)
+{
+    int pos = sizeof(uint16_t);
+
+    //        [64:node_signature_1]
+    pPtr->p_node_signature1 = pData + pos;
+    pos += LN_SZ_SIGNATURE;
+
+    //        [64:node_signature_2]
+    pPtr->p_node_signature2 = pData + pos;
+    pos += LN_SZ_SIGNATURE;
+
+    //        [64:bitcoin_signature_1]
+    pPtr->p_btc_signature1 = pData + pos;
+    pos += LN_SZ_SIGNATURE;
+
+    //        [64:bitcoin_signature_2]
+    pPtr->p_btc_signature2 = pData + pos;
+    pos += LN_SZ_SIGNATURE;
+
+    //        [2:len]
+    uint16_t len = ln_misc_get16be(pData + pos);
+    pos += sizeof(len);
+
+    //        [len:features]
+    if (len > 0) {
+        LOGD("features(%d): ", len);
+        DUMPD(pData + pos, len);
+        pos += len;
+    }
+
+    //    [32:chain_hash]
+    int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
+    if (cmp != 0) {
+        LOGD("fail: chain_hash mismatch\n");
+        LOGD("node: ");
+        DUMPD(gGenesisChainHash, LN_SZ_HASH);
+        LOGD("msg:  ");
+        DUMPD(pData + pos, LN_SZ_HASH);
+        return false;
+    }
+    pos += sizeof(gGenesisChainHash);
+
+    //        [8:short_channel_id]
+    pPtr->short_channel_id = ln_misc_get64be(pData + pos);
+    if (pPtr->short_channel_id == 0) {
+        LOGD("fail: short_channel_id == 0\n");
+    }
+    pos += LN_SZ_SHORT_CHANNEL_ID;
+
+    //        [33:node_id_1]
+    pPtr->p_node_id1 = pData + pos;
+    pos += PTARM_SZ_PUBKEY;
+
+    //        [33:node_id_2]
+    pPtr->p_node_id2 = pData + pos;
+    pos += PTARM_SZ_PUBKEY;
+
+    //        [33:bitcoin_key_1]
+    pPtr->p_btc_key1 = pData + pos;
+    pos += PTARM_SZ_PUBKEY;
+
+    //        [33:bitcoin_key_2]
+    pPtr->p_btc_key2 = pData + pos;
+    pos += PTARM_SZ_PUBKEY;
+
+    return Len == pos;
 }
 
 
