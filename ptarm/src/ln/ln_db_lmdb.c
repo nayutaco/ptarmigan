@@ -1213,7 +1213,7 @@ bool ln_db_annocnl_save(const ptarm_buf_t *pCnlAnno, uint64_t ShortChannelId, co
         //DB保存されていない＝新規channel
         retval = annocnl_save(&db, pCnlAnno, ShortChannelId);
     } else {
-        LOGV("exist channel_announcement: %0" PRIx64 "\n", ShortChannelId);
+        LOGV("exist channel_announcement: %016" PRIx64 "\n", ShortChannelId);
         if (!ptarm_buf_cmp(&buf_ann, pCnlAnno)) {
             LOGD("fail: different channel_announcement\n");
             retval = -1;
@@ -1437,7 +1437,7 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bo
         if (retval == 0) {
             detect = annoinfo_search(&data, pSendId);
         } else {
-            LOGV("new reg[%" PRIx64 ":%c] ", ShortChannelId, Type);
+            LOGV("new reg[%016" PRIx64 ":%c] ", ShortChannelId, Type);
             DUMPV(pSendId, PTARM_SZ_PUBKEY);
             data.mv_size = 0;
         }
@@ -3372,6 +3372,10 @@ static int annocnl_save(ln_lmdb_db_t *pDb, const ptarm_buf_t *pCnlAnno, uint64_t
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
+
+#ifdef DEVELOPER_MODE
+    ln_msg_cnl_announce_print(pCnlAnno->buf, pCnlAnno->len);    
+#endif
 
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, LN_DB_CNLANNO_ANNO);
     data.mv_size = pCnlAnno->len;

@@ -42,12 +42,14 @@
  * macros
  ********************************************************************/
 
-//#define DBG_PRINT_CREATE_CNL
-//#define DBG_PRINT_READ_CNL
-//#define DBG_PRINT_CREATE_NOD
-//#define DBG_PRINT_READ_NOD
-//#define DBG_PRINT_CREATE_UPD
-//#define DBG_PRINT_READ_UPD
+#ifdef DEVELOPER_MODE
+#define DBG_PRINT_CREATE_CNL
+#define DBG_PRINT_READ_CNL
+#define DBG_PRINT_CREATE_NOD
+#define DBG_PRINT_READ_NOD
+#define DBG_PRINT_CREATE_UPD
+#define DBG_PRINT_READ_UPD
+#endif
 #define DBG_PRINT_CREATE_SIG
 #define DBG_PRINT_READ_SIG
 
@@ -83,6 +85,7 @@ static const uint8_t M_ADDRLEN2[] = { 0, 6, 18, 12, 37 };    //port考慮
  * prototypes
  **************************************************************************/
 
+static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, ptarm_keys_sort_t Sort);
 static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len);
 
 #if defined(DBG_PRINT_CREATE_NOD) || defined(DBG_PRINT_READ_NOD)
@@ -160,20 +163,17 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
     const uint8_t *p_node_2;
     const uint8_t *p_btc_1;
     const uint8_t *p_btc_2;
-    int offset_sig;
     if (pMsg->sort == PTARM_KEYS_SORT_ASC) {
         //自ノードが先
         p_node_1 = pMsg->p_my_node_pub;
         p_node_2 = pMsg->p_peer_node_pub;
         p_btc_1 = pMsg->p_my_funding_pub;
         p_btc_2 = pMsg->p_peer_funding_pub;
-        offset_sig = 0;
     } else {
         p_node_1 = pMsg->p_peer_node_pub;
         p_node_2 = pMsg->p_my_node_pub;
         p_btc_1 = pMsg->p_peer_funding_pub;
         p_btc_2 = pMsg->p_my_funding_pub;
-        offset_sig = LN_SZ_SIGNATURE;
     }
     //        [33:node_id_1]
     ptarm_push_data(&proto, p_node_1, PTARM_SZ_PUBKEY);
@@ -191,38 +191,15 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
 
     ptarm_push_trim(&proto);
 
-    //署名-node
-    uint8_t hash[PTARM_SZ_HASH256];
-    bool ret;
-
-    ptarm_util_hash256(hash, pBuf->buf + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
-                                pBuf->len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
-    //LOGD("hash=");
-    //DUMPD(hash, PTARM_SZ_HASH256);
-
-    ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t) + offset_sig, hash);
-    if (!ret) {
-        LOGD("fail: sign node\n");
-        goto LABEL_EXIT;
-    }
-
-    //署名-btc
-    ret = ln_signer_sign_rs(pBuf->buf + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
-                    hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
-    if (!ret) {
-        LOGD("fail: sign btc\n");
-        goto LABEL_EXIT;
-    }
-
-LABEL_EXIT:
-#ifdef DBG_PRINT_CREATE_CNL
-    LOGD("@@@@@ %s @@@@@\n", __func__);
+    bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, pMsg->sort);
     if (ret) {
+#ifdef DBG_PRINT_CREATE_CNL
+        LOGD("short_channel_id=%" PRIx64 "\n", pMsg->short_channel_id);
         ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
+#endif  //DBG_PRINT_CREATE_CNL
     } else {
         LOGD("something error\n");
     }
-#endif  //DBG_PRINT_CREATE_CNL
 
     return ret;
 }
@@ -250,6 +227,12 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData
         memcpy(pMsg->btc_key1, ptr.p_btc_key1, PTARM_SZ_PUBKEY);
         memcpy(pMsg->btc_key2, ptr.p_btc_key2, PTARM_SZ_PUBKEY);
         pMsg->short_channel_id = ptr.short_channel_id;
+#ifdef DBG_PRINT_READ_CNL
+        LOGD("short_channel_id=%" PRIx64 "\n", pMsg->short_channel_id);
+        ln_msg_cnl_announce_print(pData, Len);
+#endif
+    } else {
+        LOGD("something error\n");
     }
 
     return ret;
@@ -293,78 +276,7 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len)
 }
 
 
-static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len)
-{
-    int pos = sizeof(uint16_t);
-
-    //        [64:node_signature_1]
-    pPtr->p_node_signature1 = pData + pos;
-    pos += LN_SZ_SIGNATURE;
-
-    //        [64:node_signature_2]
-    pPtr->p_node_signature2 = pData + pos;
-    pos += LN_SZ_SIGNATURE;
-
-    //        [64:bitcoin_signature_1]
-    pPtr->p_btc_signature1 = pData + pos;
-    pos += LN_SZ_SIGNATURE;
-
-    //        [64:bitcoin_signature_2]
-    pPtr->p_btc_signature2 = pData + pos;
-    pos += LN_SZ_SIGNATURE;
-
-    //        [2:len]
-    uint16_t len = ln_misc_get16be(pData + pos);
-    pos += sizeof(len);
-
-    //        [len:features]
-    if (len > 0) {
-        LOGD("features(%d): ", len);
-        DUMPD(pData + pos, len);
-        pos += len;
-    }
-
-    //    [32:chain_hash]
-    int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
-    if (cmp != 0) {
-        LOGD("fail: chain_hash mismatch\n");
-        LOGD("node: ");
-        DUMPD(gGenesisChainHash, LN_SZ_HASH);
-        LOGD("msg:  ");
-        DUMPD(pData + pos, LN_SZ_HASH);
-        return false;
-    }
-    pos += sizeof(gGenesisChainHash);
-
-    //        [8:short_channel_id]
-    pPtr->short_channel_id = ln_misc_get64be(pData + pos);
-    if (pPtr->short_channel_id == 0) {
-        LOGD("fail: short_channel_id == 0\n");
-        return false;
-    }
-    pos += LN_SZ_SHORT_CHANNEL_ID;
-
-    //        [33:node_id_1]
-    pPtr->p_node_id1 = pData + pos;
-    pos += PTARM_SZ_PUBKEY;
-
-    //        [33:node_id_2]
-    pPtr->p_node_id2 = pData + pos;
-    pos += PTARM_SZ_PUBKEY;
-
-    //        [33:bitcoin_key_1]
-    pPtr->p_btc_key1 = pData + pos;
-    pos += PTARM_SZ_PUBKEY;
-
-    //        [33:bitcoin_key_2]
-    pPtr->p_btc_key2 = pData + pos;
-    pos += PTARM_SZ_PUBKEY;
-
-    return Len == pos;
-}
-
-
-void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
+void ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
 {
 #ifdef PTARM_DEBUG
     LOGD("-[channel_announcement]-------------------------------\n");
@@ -372,6 +284,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
     uint16_t type = ln_misc_get16be(pData);
     if (type != MSGTYPE_CHANNEL_ANNOUNCEMENT) {
         LOGD("fail: type not match: %04x\n", type);
+        DUMPD(pData, Len);
         return;
     }
     int pos = sizeof(uint16_t);
@@ -469,7 +382,132 @@ void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_
     }
     *pp_sig_btc = *pp_sig_node + LN_SZ_SIGNATURE * 2;
 
-    ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
+    // ln_msg_cnl_announce_print(self->cnl_anno.buf, self->cnl_anno.len);
+}
+
+
+bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, ptarm_keys_sort_t Sort)
+{
+    uint8_t *pData = self->cnl_anno.buf;
+    int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
+    //        [2:len]
+    uint16_t len = ln_misc_get16be(pData + pos);
+    pos += sizeof(len) + len + PTARM_SZ_SHA256;
+    //        [8:short_channel_id]
+    for (size_t lp = 0; lp < sizeof(uint64_t); lp++) {
+        *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
+        ShortChannelId >>= 8;
+    }
+
+    return cnl_announce_sign(self, self->cnl_anno.buf, self->cnl_anno.len, Sort);
+}
+
+
+static bool cnl_announce_sign(const ln_self_t *self, uint8_t *pData, uint16_t Len, ptarm_keys_sort_t Sort)
+{
+    int offset_sig;
+    if (Sort == PTARM_KEYS_SORT_ASC) {
+        //自ノードが先
+        offset_sig = 0;
+    } else {
+        offset_sig = LN_SZ_SIGNATURE;
+    }
+
+    //署名-node
+    uint8_t hash[PTARM_SZ_HASH256];
+    bool ret;
+
+    ptarm_util_hash256(hash, pData + sizeof(uint16_t) + LN_SZ_SIGNATURE * 4,
+                                Len - (sizeof(uint16_t) + LN_SZ_SIGNATURE * 4));
+    //LOGD("hash=");
+    //DUMPD(hash, PTARM_SZ_HASH256);
+
+    ret = ln_node_sign_nodekey(pData + sizeof(uint16_t) + offset_sig, hash);
+    if (!ret) {
+        LOGD("fail: sign node\n");
+        goto LABEL_EXIT;
+    }
+
+    //署名-btc
+    ret = ln_signer_sign_rs(pData + sizeof(uint16_t) + offset_sig + LN_SZ_SIGNATURE * 2,
+                    hash, &self->priv_data, MSG_FUNDIDX_FUNDING);
+    if (!ret) {
+        LOGD("fail: sign btc\n");
+        //goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    return ret;
+}
+
+
+static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uint16_t Len)
+{
+    int pos = sizeof(uint16_t);
+
+    //        [64:node_signature_1]
+    pPtr->p_node_signature1 = pData + pos;
+    pos += LN_SZ_SIGNATURE;
+
+    //        [64:node_signature_2]
+    pPtr->p_node_signature2 = pData + pos;
+    pos += LN_SZ_SIGNATURE;
+
+    //        [64:bitcoin_signature_1]
+    pPtr->p_btc_signature1 = pData + pos;
+    pos += LN_SZ_SIGNATURE;
+
+    //        [64:bitcoin_signature_2]
+    pPtr->p_btc_signature2 = pData + pos;
+    pos += LN_SZ_SIGNATURE;
+
+    //        [2:len]
+    uint16_t len = ln_misc_get16be(pData + pos);
+    pos += sizeof(len);
+
+    //        [len:features]
+    if (len > 0) {
+        LOGD("features(%d): ", len);
+        DUMPD(pData + pos, len);
+        pos += len;
+    }
+
+    //    [32:chain_hash]
+    int cmp = memcmp(gGenesisChainHash, pData + pos, sizeof(gGenesisChainHash));
+    if (cmp != 0) {
+        LOGD("fail: chain_hash mismatch\n");
+        LOGD("node: ");
+        DUMPD(gGenesisChainHash, LN_SZ_HASH);
+        LOGD("msg:  ");
+        DUMPD(pData + pos, LN_SZ_HASH);
+        return false;
+    }
+    pos += sizeof(gGenesisChainHash);
+
+    //        [8:short_channel_id]
+    pPtr->short_channel_id = ln_misc_get64be(pData + pos);
+    if (pPtr->short_channel_id == 0) {
+        LOGD("fail: short_channel_id == 0\n");
+    }
+    pos += LN_SZ_SHORT_CHANNEL_ID;
+
+    //        [33:node_id_1]
+    pPtr->p_node_id1 = pData + pos;
+    pos += PTARM_SZ_PUBKEY;
+
+    //        [33:node_id_2]
+    pPtr->p_node_id2 = pData + pos;
+    pos += PTARM_SZ_PUBKEY;
+
+    //        [33:bitcoin_key_1]
+    pPtr->p_btc_key1 = pData + pos;
+    pos += PTARM_SZ_PUBKEY;
+
+    //        [33:bitcoin_key_2]
+    pPtr->p_btc_key2 = pData + pos;
+    pos += PTARM_SZ_PUBKEY;
+
+    return Len == pos;
 }
 
 
@@ -1004,7 +1042,13 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     pos += LN_SZ_CHANNEL_ID;
 
     //        [8:short_channel_id]
-    pMsg->short_channel_id = ln_misc_get64be(pData + pos);
+    uint64_t short_channel_id = ln_misc_get64be(pData + pos);
+    if (pMsg->short_channel_id == 0) {
+        pMsg->short_channel_id = short_channel_id;
+    } else if (pMsg->short_channel_id != short_channel_id) {
+        LOGD("fail: short_channel_id mismatch: %" PRIx64 " != %" PRIx64 "\n", pMsg->short_channel_id, short_channel_id);
+        return false;
+    }
     pos += LN_SZ_SHORT_CHANNEL_ID;
 
     //        [64:node_signature]
