@@ -1301,7 +1301,7 @@ bool ln_db_annocnlupd_save(const ptarm_buf_t *pCnlUpd, const ln_cnl_update_t *pU
             //LOGD("my channel_update is newer\n");
         } else if (timestamp < pUpd->timestamp) {
             //自分の方が古いので、更新
-            //LOGD("gotten channel_update is newer\n");
+            LOGD("update: short_channel_id=%016" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
             upddb = true;
 
             //announceし直す必要があるため、クリアする
@@ -1324,6 +1324,7 @@ bool ln_db_annocnlupd_save(const ptarm_buf_t *pCnlUpd, const ln_cnl_update_t *pU
         }
     } else {
         //新規
+        LOGD("new: short_channel_id=%016" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
         upddb = true;
     }
     ptarm_buf_free(&buf_upd);
