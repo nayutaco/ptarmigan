@@ -146,6 +146,8 @@ uint64_t HIDDEN ln_msg_announce_signs_read_short_cnl_id(const uint8_t *pData, ui
  * @param[in]       pData   対象データ
  * @param[in]       Len     pData長
  * @retval  true    成功
+ * @note
+ *      pMsg->short_channel_idに0以外を設定しておくと、不一致時にfalseを返す
  */
 bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t *pData, uint16_t Len);
 
@@ -154,5 +156,11 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
  *
  */
 void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, ptarm_keys_sort_t Sort);
+
+
+/** short_channel_id書き換え
+ * 
+ */
+bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, ptarm_keys_sort_t Sort);
 
 #endif /* LN_MSG_ANNO_H__ */

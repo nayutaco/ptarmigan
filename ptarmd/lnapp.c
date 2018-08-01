@@ -1817,8 +1817,8 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf)
     bool ret = btcrpc_get_short_channel_param(p_conf->p_self, &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
     if (ret) {
         //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
-        ln_set_short_channel_id_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self), mined_hash);
-        LOGD("short_channel_id = %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
+        ret = ln_set_short_channel_id_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self), mined_hash);
+        LOGD("short_channel_id = %016" PRIx64 "(%d)\n", ln_short_channel_id(p_conf->p_self), ret);
     }
 
     return ret;
@@ -2897,7 +2897,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
         p_conf->loop = false;
         //mainloop待ち合わせ解除(*2)
         pthread_cond_signal(&p_conf->cond);
-        LOGD("disconnect channel: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
+        LOGD("disconnect channel: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         LOGD("===================================\n");
         LOGD("=  CHANNEL THREAD END             =\n");
         LOGD("===================================\n");
@@ -3107,7 +3107,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
             }
         } else {
             //channel_announcementが無いchannel_updateの場合
-            LOGD("skip channel_%c: last=%0" PRIx64 " / get=%0" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
+            LOGD("skip channel_%c: last=%016" PRIx64 " / get=%016" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
         }
         ptarm_buf_free(&buf_cnl);
     }
