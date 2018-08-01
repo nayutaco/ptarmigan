@@ -339,6 +339,7 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     cJSON *result = NULL;
 
+    monitor_disable_autoconn(true);
     int err = cmd_stop_proc();
     if (err == 0) {
         result = cJSON_CreateString("OK");
