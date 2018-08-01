@@ -35,7 +35,12 @@
 
 #include "mbedtls/md.h"
 #include "mbedtls/hkdf.h"
+//#define M_USE_SODIUM
+#ifdef M_USE_SODIUM
+#include "sodium/crypto_aead_chacha20poly1305.h"
+#else
 #include "mbedtls/chachapoly.h"
+#endif
 
 
 /********************************************************************
@@ -101,18 +106,6 @@ static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf);
 /********************************************************************
  * public functions
  ********************************************************************/
-
-void HIDDEN ln_enc_auth_init(ln_self_t *self)
-{
-    (void)self;
-}
-
-
-void HIDDEN ln_enc_auth_term(ln_self_t *self)
-{
-    (void)self;
-}
-
 
 bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
 {
@@ -245,26 +238,46 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ptarm_buf_t *pBufEnc, const ptarm_b
     uint8_t *cl = (uint8_t *)M_MALLOC(sizeof(l) + M_CHACHAPOLY_MAC);
     uint8_t *cm = (uint8_t *)M_MALLOC(pBufIn->len + M_CHACHAPOLY_MAC);
     int rc;
-    mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
 
     memset(nonce, 0, 4);
     memcpy(nonce + 4, &self->noise_send.nonce, sizeof(uint64_t));
-    rc = mbedtls_chachapoly_setkey(p_ctx, self->noise_send.key);
+#ifdef M_USE_SODIUM
+    unsigned long long cllen;
+    unsigned long long cmlen;
+
+    rc = crypto_aead_chacha20poly1305_ietf_encrypt(
+                    cl, &cllen,
+                    (uint8_t *)&l, sizeof(l),   //message length
+                    NULL, 0,                    //additional data
+                    NULL,                       //combined modeではNULL
+                    nonce, self->noise_send.key);     //nonce, key
+    if ((rc != 0) || (cllen != sizeof(l) + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_context ctx;
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, self->noise_send.key);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_encrypt_and_tag(p_ctx,
+    rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     sizeof(l),          //in length
                     nonce,              //12byte
                     NULL, 0,            //AAD
                     (const uint8_t *)&l,    //input
                     cl,                 //output
                     cl + sizeof(l));    //MAC
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
+
     self->noise_send.nonce++;
     if (self->noise_send.nonce == 1000) {
         LOGD("???: This root shall not in.\n");
@@ -272,22 +285,39 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ptarm_buf_t *pBufEnc, const ptarm_b
     }
     memcpy(nonce + 4, &self->noise_send.nonce, sizeof(uint64_t));
 
-    rc = mbedtls_chachapoly_setkey(p_ctx, self->noise_send.key);
+#ifdef M_USE_SODIUM
+    rc = crypto_aead_chacha20poly1305_ietf_encrypt(
+                    cm, &cmlen,
+                    pBufIn->buf, pBufIn->len,       //message length
+                    NULL, 0,                    //additional data
+                    NULL,                       //combined modeではNULL
+                    nonce, self->noise_send.key);     //nonce, key
+    if ((rc != 0) || (cmlen != pBufIn->len + crypto_aead_chacha20poly1305_IETF_ABYTES)) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, self->noise_send.key);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_encrypt_and_tag(p_ctx,
+    rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     pBufIn->len,        //in length
                     nonce,              //12byte
                     NULL, 0,            //AAD
                     pBufIn->buf,        //input
                     cm,                 //output
                     cm + pBufIn->len);  //MAC
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
+
     self->noise_send.nonce++;
     if (self->noise_send.nonce == 1000) {
         //key rotation
@@ -315,7 +345,6 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
     uint8_t pl[sizeof(uint16_t)];
     uint16_t l = 0;
     int rc;
-    mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
 
     if (Len != LN_SZ_NOISE_HEADER) {
         return 0;
@@ -323,22 +352,40 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
 
     memset(nonce, 0, 4);
     memcpy(nonce + 4, &self->noise_recv.nonce, sizeof(uint64_t));
-    rc = mbedtls_chachapoly_setkey(p_ctx, self->noise_recv.key);
+#ifdef M_USE_SODIUM
+    unsigned long long pllen;
+    rc = crypto_aead_chacha20poly1305_ietf_decrypt(
+                    pl, &pllen,
+                    NULL,                       //combined modeではNULL
+                    pData, LN_SZ_NOISE_HEADER,
+                    NULL, 0,  //additional data
+                    nonce, self->noise_recv.key);      //nonce, key
+    if ((rc != 0) || (pllen != sizeof(uint16_t))) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        LOGD("sn=%" PRIu64 ", rn=%" PRIu64 "\n", self->noise_send.nonce, self->noise_recv.nonce);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_context ctx;
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, self->noise_recv.key);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_auth_decrypt(p_ctx,
+    rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     sizeof(pl),             //in length
                     nonce,                  //12byte
                     NULL, 0,                //AAD
                     pData + sizeof(pl),     //MAC
                     pData,                  //input
                     pl);                    //output
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
+#endif
 
     self->noise_recv.nonce++;
     if (self->noise_recv.nonce == 1000) {
@@ -363,26 +410,42 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, ptarm_buf_t *pBuf)
     uint8_t nonce[12];
     uint8_t *pm = (uint8_t *)M_MALLOC(l);
     int rc;
-    mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
 
     memset(nonce, 0, 4);
     memcpy(nonce + 4, &self->noise_recv.nonce, sizeof(uint64_t));
-    rc = mbedtls_chachapoly_setkey(p_ctx, self->noise_recv.key);
+#ifdef M_USE_SODIUM
+    unsigned long long pmlen;
+    rc = crypto_aead_chacha20poly1305_ietf_decrypt(
+                    pm, &pmlen,
+                    NULL,                       //combined modeではNULL
+                    pBuf->buf, pBuf->len,
+                    NULL, 0,  //additional data
+                    nonce, self->noise_recv.key);      //nonce, key
+    if ((rc != 0) || (pmlen != l)) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_context ctx;
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, self->noise_recv.key);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_auth_decrypt(p_ctx,
+    rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     l,                  //in length
                     nonce,              //12byte
                     NULL, 0,            //AAD
                     pBuf->buf + l,      //MAC
                     pBuf->buf,          //input
                     pm);                //output
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
+#endif
 
     self->noise_recv.nonce++;
     if (self->noise_recv.nonce == 1000) {
@@ -467,7 +530,6 @@ static bool actone_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRS
     uint8_t c[M_CHACHAPOLY_MAC];
     uint8_t nonce[12];
     int rc;
-    mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
 
     // h = SHA-256(h || e.pub.serializeCompressed())
     ptarm_util_sha256cat(pBolt->h, pBolt->h, PTARM_SZ_SHA256, pBolt->e.pub, PTARM_SZ_PUBKEY);
@@ -480,22 +542,40 @@ static bool actone_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRS
 
     // c = encryptWithAD(temp_k1, 0, h, zero)
     memset(nonce, 0, sizeof(nonce));
-    rc = mbedtls_chachapoly_setkey(p_ctx, pBolt->temp_k);
+#ifdef M_USE_SODIUM
+    unsigned long long clen;
+    rc = crypto_aead_chacha20poly1305_ietf_encrypt(
+                    c, &clen,
+                    NULL, 0,                    //zero length data
+                    pBolt->h, PTARM_SZ_SHA256,  //additional data
+                    NULL,                       //combined modeではNULL
+                    nonce, pBolt->temp_k);      //nonce, key
+    if ((rc != 0) || (clen != sizeof(c))) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_context ctx;
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_encrypt_and_tag(p_ctx,
+    rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     0,                              //in length
                     nonce,                          //12byte
                     pBolt->h, PTARM_SZ_SHA256,      //AAD
                     NULL,                           //input
                     NULL,                           //output
                     c);                             //MAC
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
 
     // h = SHA-256(h || c)
     ptarm_util_sha256cat(pBolt->h, pBolt->h, PTARM_SZ_SHA256, c, sizeof(c));
@@ -523,7 +603,6 @@ static bool actone_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
     uint8_t p[PTARM_SZ_SHA256 + M_CHACHAPOLY_MAC];
     uint8_t nonce[12];
     int rc;
-    mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
 
     if ((pBuf->len != 50) || (pBuf->buf[0] != 0x00)) {
         LOGD("fail: invalid length=%d\n", pBuf->len);
@@ -544,22 +623,40 @@ static bool actone_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
 
     // p = decryptWithAD(temp_k1, 0, h, c)
     memset(nonce, 0, sizeof(nonce));
-    rc = mbedtls_chachapoly_setkey(p_ctx, pBolt->temp_k);
+#ifdef M_USE_SODIUM
+    unsigned long long plen;
+    rc = crypto_aead_chacha20poly1305_ietf_decrypt(
+                    p, &plen,
+                    NULL,                       //combined modeではNULL
+                    c, sizeof(c),               //ciphertext
+                    pBolt->h, PTARM_SZ_SHA256,  //additional data
+                    nonce, pBolt->temp_k);      //nonce, key
+    if ((rc != 0) || (plen != 0)) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_context ctx;
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_auth_decrypt(p_ctx,
+    rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     0,                  //in length
                     nonce,              //12byte
                     pBolt->h, PTARM_SZ_SHA256,  //additional data
                     c,                  //MAC
                     NULL,               //input
                     p);                 //output
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
 
     // h = SHA-256(h || c)
     ptarm_util_sha256cat(pBolt->h, pBolt->h, PTARM_SZ_SHA256, c, sizeof(c));
@@ -579,7 +676,6 @@ static bool acttwo_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRE
     uint8_t c[M_CHACHAPOLY_MAC];
     uint8_t nonce[12];
     int rc;
-    mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
 
     // h = SHA-256(h || e.pub.serializeCompressed())
     ptarm_util_sha256cat(pBolt->h, pBolt->h, PTARM_SZ_SHA256, pBolt->e.pub, PTARM_SZ_PUBKEY);
@@ -592,22 +688,40 @@ static bool acttwo_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRE
 
     // c = encryptWithAD(temp_k2, 0, h, zero)
     memset(nonce, 0, sizeof(nonce));
-    rc = mbedtls_chachapoly_setkey(p_ctx, pBolt->temp_k);
+#ifdef M_USE_SODIUM
+    unsigned long long clen;
+    rc = crypto_aead_chacha20poly1305_ietf_encrypt(
+                    c, &clen,
+                    NULL, 0,                    //zero length data
+                    pBolt->h, PTARM_SZ_SHA256,  //additional data
+                    NULL,                       //combined modeではNULL
+                    nonce, pBolt->temp_k);      //nonce, key
+    if ((rc != 0) || (clen != sizeof(c))) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_context ctx;
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_encrypt_and_tag(p_ctx,
+    rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     0,                              //in length
                     nonce,                          //12byte
                     pBolt->h, PTARM_SZ_SHA256,      //AAD
                     NULL,                           //input
                     NULL,                           //output
                     c);                             //MAC
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
 
     // h = SHA-256(h || c)
     ptarm_util_sha256cat(pBolt->h, pBolt->h, PTARM_SZ_SHA256, c, sizeof(c));
@@ -635,7 +749,6 @@ static bool acttwo_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
     uint8_t p[PTARM_SZ_SHA256 + M_CHACHAPOLY_MAC];
     uint8_t nonce[12];
     int rc;
-    mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
 
     if ((pBuf->len != 50) || (pBuf->buf[0] != 0x00)) {
         LOGD("fail: invalid length : len=%d, ver=%02x\n", pBuf->len, pBuf->buf[0]);
@@ -655,23 +768,41 @@ static bool acttwo_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
 
     // p = decryptWithAD(temp_k2, 0, h, c)
     memset(nonce, 0, sizeof(nonce));
-    rc = mbedtls_chachapoly_setkey(p_ctx, pBolt->temp_k);
+#ifdef M_USE_SODIUM
+    unsigned long long plen;
+    rc = crypto_aead_chacha20poly1305_ietf_decrypt(
+                    p, &plen,
+                    NULL,                       //combined modeではNULL
+                    c, sizeof(c),               //ciphertext
+                    pBolt->h, PTARM_SZ_SHA256,  //additional data
+                    nonce, pBolt->temp_k);      //nonce, key
+    if ((rc != 0) || (plen != 0)) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_context ctx;
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
     memset(p, 0, sizeof(p));
-    rc = mbedtls_chachapoly_auth_decrypt(p_ctx,
+    rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     0,                          //in length
                     nonce,                      //12byte
                     pBolt->h, PTARM_SZ_SHA256,  //additional data
                     c,                          //MAC
                     NULL,                       //input
                     p);                         //output
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
 
     // h = SHA-256(h || c)
     ptarm_util_sha256cat(pBolt->h, pBolt->h, PTARM_SZ_SHA256, c, sizeof(c));
@@ -692,27 +823,45 @@ static bool actthree_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *p
     uint8_t ss[PTARM_SZ_PRIVKEY];
     uint8_t t[M_CHACHAPOLY_MAC];
     int rc;
-    mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
 
     // c = encryptWithAD(temp_k2, 1, h, s.pub.serializeCompressed())
     memset(nonce, 0, sizeof(nonce));
     nonce[4] = 0x01;
-    rc = mbedtls_chachapoly_setkey(p_ctx, pBolt->temp_k);
+#ifdef M_USE_SODIUM
+    unsigned long long clen;
+    unsigned long long tlen;
+    rc = crypto_aead_chacha20poly1305_ietf_encrypt(
+                    c, &clen,
+                    ln_node_getid(), PTARM_SZ_PUBKEY,   //s.pub.serializeCompressed()
+                    pBolt->h, PTARM_SZ_SHA256,  //additional data
+                    NULL,                       //combined modeではNULL
+                    nonce, pBolt->temp_k);      //nonce, key
+    if ((rc != 0) || (clen != sizeof(c))) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_context ctx;
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_encrypt_and_tag(p_ctx,
+    rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     PTARM_SZ_PUBKEY,                //in length
                     nonce,                          //12byte
                     pBolt->h, PTARM_SZ_SHA256,      //AAD
                     ln_node_getid(),                //input
                     c,                              //output
                     c + PTARM_SZ_PUBKEY);           //MAC
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
 
     // h = SHA-256(h || c)
     ptarm_util_sha256cat(pBolt->h, pBolt->h, PTARM_SZ_SHA256, c, sizeof(c));
@@ -725,22 +874,38 @@ static bool actthree_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *p
 
     // t = encryptWithAD(temp_k3, 0, h, zero)
     memset(nonce, 0, sizeof(nonce));
-    rc = mbedtls_chachapoly_setkey(p_ctx, pBolt->temp_k);
+#ifdef M_USE_SODIUM
+    rc = crypto_aead_chacha20poly1305_ietf_encrypt(
+                    t, &tlen,
+                    NULL, 0,                    //zero length data
+                    pBolt->h, PTARM_SZ_SHA256,  //additional data
+                    NULL,                       //combined modeではNULL
+                    nonce, pBolt->temp_k);      //nonce, key
+    if ((rc != 0) || (tlen != sizeof(t))) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_encrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_encrypt_and_tag(p_ctx,
+    rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     0,                              //in length
                     nonce,                          //12byte
                     pBolt->h, PTARM_SZ_SHA256,      //AAD
                     NULL,                           //input
                     NULL,                           //output
                     t);                             //MAC
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
 
     // sk, rk = HKDF(ck, zero)
     noise_hkdf(self->noise_send.key, self->noise_recv.key, pBolt->ck, NULL);
@@ -769,7 +934,6 @@ static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
     uint8_t ss[PTARM_SZ_PRIVKEY];
     uint8_t p[PTARM_SZ_SHA256 + M_CHACHAPOLY_MAC];
     int rc;
-    mbedtls_chachapoly_context *p_ctx = (mbedtls_chachapoly_context *)self->p_chacha_poly;
 
     if ((pBuf->len != 66) || (pBuf->buf[0] != 0x00)) {
         LOGD("fail: invalid length\n");
@@ -781,22 +945,42 @@ static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
     // rs = decryptWithAD(temp_k2, 1, h, c)
     memset(nonce, 0, sizeof(nonce));
     nonce[4] = 0x01;
-    rc = mbedtls_chachapoly_setkey(p_ctx, pBolt->temp_k);
+#ifdef M_USE_SODIUM
+    unsigned long long rslen;
+    unsigned long long plen;
+    rc = crypto_aead_chacha20poly1305_ietf_decrypt(
+                    rs, &rslen,
+                    NULL,                       //combined modeではNULL
+                    c, sizeof(c),               //ciphertext
+                    pBolt->h, PTARM_SZ_SHA256,  //additional data
+                    nonce, pBolt->temp_k);      //nonce, key
+    if ((rc != 0) || (rslen != sizeof(rs))) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_context ctx;
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_auth_decrypt(p_ctx,
+    rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     PTARM_SZ_PUBKEY,            //in length
                     nonce,                      //12byte
                     pBolt->h, PTARM_SZ_SHA256,  //additional data
                     c + PTARM_SZ_PUBKEY,        //MAC
                     c,                          //input
                     rs);                        //output
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
+
     LOGD("rs=");
     DUMPD(rs, sizeof(rs));
 
@@ -811,22 +995,38 @@ static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
 
     // p = decryptWithAD(temp_k3, 0, h, t)
     nonce[4] = 0x00;
-    rc = mbedtls_chachapoly_setkey(p_ctx, pBolt->temp_k);
+#ifdef M_USE_SODIUM
+    rc = crypto_aead_chacha20poly1305_ietf_decrypt(
+                    p, &plen,
+                    NULL,                       //combined modeではNULL
+                    t, sizeof(t),               //ciphertext
+                    pBolt->h, PTARM_SZ_SHA256,  //additional data
+                    nonce, pBolt->temp_k);      //nonce, key
+    if ((rc != 0) || (plen != 0)) {
+        LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
+        goto LABEL_EXIT;
+    }
+#else
+    mbedtls_chachapoly_init(&ctx);
+    rc = mbedtls_chachapoly_setkey(&ctx, pBolt->temp_k);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_setkey rc=-%04x\n", -rc);
         goto LABEL_EXIT;
     }
-    rc = mbedtls_chachapoly_auth_decrypt(p_ctx,
+    rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     0,                          //in length
                     nonce,                      //12byte
                     pBolt->h, PTARM_SZ_SHA256,  //additional data
                     t,                          //MAC
                     NULL,                       //input
                     p);                         //output
+    mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
+        assert(0);
         goto LABEL_EXIT;
     }
+#endif
 
     // rk, sk = HKDF(ck, zero)
     noise_hkdf(self->noise_recv.key, self->noise_send.key, pBolt->ck, NULL);
