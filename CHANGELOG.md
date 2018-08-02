@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2018/08/02
+
+* DB version : -21
+  * fix alias length
+
 ## 2018/07/28
 
 * library update
