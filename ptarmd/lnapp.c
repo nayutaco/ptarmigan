@@ -3049,7 +3049,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
     void *p_cur;
     ret = ln_db_annocnl_cur_open(&p_cur, p_db_cnl);
     if (!ret) {
-        LOGD("fail\n");
+        //LOGD("no channel DB\n");
         goto LABEL_EXIT;
     }
 
@@ -3076,11 +3076,13 @@ static bool send_announcement(lnapp_conf_t *p_conf)
             p_conf->last_annocnl_sci = short_channel_id;    //channel_updateだけを送信しないようにするため
             ret = send_anno_pre_chan(short_channel_id);
             if (!ret) {
+                LOGD("pre_chan: %016" PRIx64 "\n", short_channel_id);
                 goto LABEL_EXIT;
             }
         } else if ((type == LN_DB_CNLANNO_UPD1) || (type == LN_DB_CNLANNO_UPD2)) {
             ret = send_anno_pre_upd(short_channel_id, timestamp);
             if (!ret) {
+                LOGD("pre_upd: %c\n", (char)type);
                 goto LABEL_EXIT;
             }
         } else {
@@ -3091,10 +3093,13 @@ static bool send_announcement(lnapp_conf_t *p_conf)
         if (p_conf->last_annocnl_sci == short_channel_id) {
             bool chk = ln_db_annocnls_search_nodeid(p_db_cnl, short_channel_id, type, ln_their_node_id(p_conf->p_self));
             if (!chk) {
+                //channel_announcement, channel_update
                 send_anno_cnl(p_conf, type, p_db_cnl, &buf_cnl);
 
                 //送信数カウント
                 anno_cnt++;
+            } else {
+                LOGV("already sent: short_channel_id=%016" PRIx64 ", type:%c\n", short_channel_id, type);
             }
             if (type == LN_DB_CNLANNO_ANNO) {
                 //channel_announcementの送信にかかわらず、未送信のnode_announcementは送信する
@@ -3107,7 +3112,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
             }
         } else {
             //channel_announcementが無いchannel_updateの場合
-            LOGD("skip channel_%c: last=%016" PRIx64 " / get=%016" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
+            LOGV("skip channel_%c: last=%016" PRIx64 " / get=%016" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
         }
         ptarm_buf_free(&buf_cnl);
     }

@@ -880,6 +880,7 @@ bool ln_create_channel_update(ln_self_t *self, ptarm_buf_t *pCnlUpd)
     ln_cnl_update_t upd;
     ret = create_channel_update(self, &upd, pCnlUpd, now, 0);
     if (ret) {
+        LOGD("create: channel_update\n");
         ret = ln_db_annocnlupd_save(pCnlUpd, &upd, NULL);
         if (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) {
             //announcement_signatures後であればコールバックする
