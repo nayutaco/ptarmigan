@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
 
     conf_btcrpc_init(&rpc_conf);
     p_addr->type = LN_NODEDESC_NONE;
-    p_addr->port = 9735;
+    p_addr->port = 0;
 
     int options = 0;
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
             break;
         case 'n':
             //node name(alias)
-            strncpy(p_alias, optarg, LN_SZ_ALIAS - 1);
+            strncpy(p_alias, optarg, LN_SZ_ALIAS);
             p_alias[LN_SZ_ALIAS] = '\0';
             break;
         case 'a':
