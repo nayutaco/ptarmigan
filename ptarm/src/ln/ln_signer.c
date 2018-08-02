@@ -94,13 +94,17 @@ void HIDDEN ln_signer_keys_update_force(ln_self_t *self, uint64_t Index)
 
 void HIDDEN ln_signer_create_prev_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt)
 {
-    //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
-    //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
-    //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
-    //      +0: 次に送信するnext_per_commitment_secret
-    //      +1: 現在のnext_per_commitment_secret
-    //      +2: 現在のper_commitment_secret
-    create_percommitsec(self, pSecret, pPerCommitPt, self->priv_data.storage_index + 2);
+    if (self->priv_data.storage_index + 2 <= LN_SECINDEX_INIT) {
+        //  現在の funding_local.keys[MSG_FUNDIDX_PER_COMMIT]はself->storage_indexから生成されていて、「次のper_commitment_secret」になる。
+        //  最後に使用した値は self->storage_index + 1で、これが「現在のper_commitment_secret」になる。
+        //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
+        create_percommitsec(self, pSecret, pPerCommitPt, self->priv_data.storage_index + 2);
+    } else {
+        memset(pSecret, 0, PTARM_SZ_PRIVKEY);
+        if (pPerCommitPt != NULL) {
+            memcpy(pPerCommitPt, self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY);
+        }
+    }
 }
 
 

@@ -730,9 +730,9 @@ bool ln_create_channel_reestablish(ln_self_t *self, ptarm_buf_t *pReEst)
                 memset(msg.your_last_per_commitment_secret, 0, PTARM_SZ_PRIVKEY);
             }
         }
-        memcpy(msg.my_current_per_commitment_point,
-                    self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY);
-        LOGD("  my_current_per_commitment_point=%" PRIu64 "\n", self->funding_local.current_commit_num);
+
+        uint8_t secret[PTARM_SZ_PRIVKEY];
+        ln_signer_create_prev_percommitsec(self, secret, msg.my_current_per_commitment_point);
     } else {
         msg.option_data_loss_protect = false;
     }
