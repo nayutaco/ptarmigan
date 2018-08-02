@@ -51,7 +51,7 @@
 #define M_MIN_DEPTH                     (1)
 
 //  init
-#define M_LOCALFEATURES                 (LN_INIT_LF_ROUTE_SYNC | LN_INIT_LF_OPT_DATALOSS_OPT)
+#define M_LOCALFEATURES                 (LN_INIT_LF_ROUTE_SYNC)
 
 //#define M_DEBUG
 
