@@ -90,7 +90,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-20)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-21)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -114,6 +114,7 @@
     -18: [SPVのみ]funding_txのblock hash追加
     -19: revocation_number追加
     -20: current_commit_num追加、scriptpubkeys削除
+    -21: fix: alias length
  */
 
 
@@ -181,7 +182,7 @@ typedef struct backup_buf_t {
 typedef struct {
     uint8_t     genesis[LN_SZ_HASH];
     char        wif[PTARM_SZ_WIF_MAX];
-    char        name[LN_SZ_ALIAS];
+    char        name[LN_SZ_ALIAS + 1];
     uint16_t    port;
 } nodeinfo_t;
 
@@ -549,6 +550,9 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
             sprintf(pNodeName, "node_%02x%02x%02x%02x%02x%02x",
                         pub[0], pub[1], pub[2], pub[3], pub[4], pub[5]);
         }
+        if (*pPort == 0) {
+            *pPort = 9735;
+        }
         //LOGD("wif=%s\n", pWif);
         LOGD("aliase=%s\n", pNodeName);
         LOGD("port=%d\n", *pPort);
@@ -565,7 +569,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
     MDB_TXN_COMMIT(db.txn);
     if (retval == 0) {
         //LOGD("wif=%s\n", pWif);
-        LOGD("aliase=%s\n", pNodeName);
+        LOGD("alias=%s\n", pNodeName);
         LOGD("port=%d\n", *pPort);
 
         retval = memcmp(gGenesisChainHash, genesis, LN_SZ_HASH);
@@ -2930,9 +2934,9 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ptarm_genesis_t *pGType)
         goto LABEL_EXIT;
     }
 
-    char wif[PTARM_SZ_WIF_MAX];
-    char alias[LN_SZ_ALIAS + 1];
-    uint16_t port;
+    char wif[PTARM_SZ_WIF_MAX] = "";
+    char alias[LN_SZ_ALIAS + 1] = "";
+    uint16_t port = 0;
     uint8_t genesis[LN_SZ_HASH];
     retval = ver_check(&db, wif, alias, &port, genesis);
     if (retval == 0) {
@@ -3848,8 +3852,22 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
             const nodeinfo_t *p_nodeinfo = (const nodeinfo_t*)data.mv_data;
 
             strcpy(pWif, p_nodeinfo->wif);
-            strcpy(pNodeName, p_nodeinfo->name);
-            *pPort = p_nodeinfo->port;
+            if (pNodeName[0] != '\0') {
+                if (strcmp(pNodeName, p_nodeinfo->name) != 0) {
+                    fprintf(stderr, "fail: alias not match(DB)[%s][%s]\n", pNodeName, p_nodeinfo->name);
+                    retval = -1;
+                }
+            } else {
+                strcpy(pNodeName, p_nodeinfo->name);
+            }
+            if (*pPort != 0) {
+                if (*pPort != p_nodeinfo->port) {
+                    fprintf(stderr, "fail: port not match(DB)[%" PRIu16 "][%" PRIu16 "]\n", *pPort, p_nodeinfo->port);
+                    retval = -2;
+                }
+            } else {
+                *pPort = p_nodeinfo->port;
+            }
             if (pGenesis != NULL) {
                 memcpy(pGenesis, p_nodeinfo->genesis, LN_SZ_HASH);
             }

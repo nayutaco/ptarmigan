@@ -133,7 +133,7 @@ bool ln_node_init(uint8_t Features)
                  (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
                  (!comp_node_addr(&anno.addr, &mNode.addr) && (mNode.addr.type != LN_NODEDESC_NONE)) ) {
                 //保持している情報と不一致(IPアドレスは引数で指定された場合のみチェック)
-                LOGD("fail: node info not match\n");
+                fprintf(stderr, "fail: node info not match(DB)\n");
                 ret = false;
                 goto LABEL_EXIT;
             } else {
