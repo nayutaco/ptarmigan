@@ -1072,7 +1072,6 @@ struct ln_self_t {
     ln_noise_t                  noise_send;                     ///< noise protocol
     ln_noise_t                  noise_recv;                     ///< noise protocol
     void                        *p_handshake;
-    void                        *p_chacha_poly;                 ///< ChaCha20-Poly1305 context
 
     //last error
     int                         err;                            ///< error code(ln_err.h)
