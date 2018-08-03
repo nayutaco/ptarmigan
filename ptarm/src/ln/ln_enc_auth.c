@@ -653,7 +653,6 @@ static bool actone_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
-        assert(0);
         goto LABEL_EXIT;
     }
 #endif
@@ -718,7 +717,6 @@ static bool acttwo_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRE
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
-        assert(0);
         goto LABEL_EXIT;
     }
 #endif
@@ -799,7 +797,6 @@ static bool acttwo_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
-        assert(0);
         goto LABEL_EXIT;
     }
 #endif
@@ -858,7 +855,6 @@ static bool actthree_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *p
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
-        assert(0);
         goto LABEL_EXIT;
     }
 #endif
@@ -902,7 +898,6 @@ static bool actthree_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *p
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_encrypt_and_tag rc=-%04x\n", -rc);
-        assert(0);
         goto LABEL_EXIT;
     }
 #endif
@@ -976,7 +971,6 @@ static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
-        assert(0);
         goto LABEL_EXIT;
     }
 #endif
@@ -1023,7 +1017,6 @@ static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
     mbedtls_chachapoly_free(&ctx);
     if (rc != 0) {
         LOGD("fail: mbedtls_chachapoly_auth_decrypt rc=-%04x\n", -rc);
-        assert(0);
         goto LABEL_EXIT;
     }
 #endif
