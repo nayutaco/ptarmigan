@@ -31,6 +31,7 @@
 #include <jansson.h>
 
 #include "ptarmd.h"
+#include "ln_db_lmdb.h"
 #include "conf.h"
 #include "misc.h"
 #include "segwit_addr.h"
@@ -222,13 +223,21 @@ int main(int argc, char *argv[])
     if (conn) {
         connect_rpc();
     }
-
-    uint16_t port;
+    uint16_t port = 0;
     if (optind == argc) {
-        port = 9736;
+        if (ln_lmdb_have_dbdir()) {
+            (void)ln_node_init(0);
+            if (ln_node_addr()->port != 0) {
+                port = ln_node_addr()->port + 1;
+            }
+        }
+        if (port == 0) {
+            port = 9736;
+        }
     } else {
         port = (uint16_t)atoi(argv[optind]);
     }
+    fprintf(stderr, "RPC port=%d\n", port);
 
     int ret = msg_send(mBuf, mBuf, mAddr, port, mTcpSend);
 

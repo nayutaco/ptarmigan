@@ -112,6 +112,13 @@ typedef struct {
 void ln_lmdb_set_path(const char *pPath);
 
 
+/**　DBディレクトリの存在チェック
+ * 
+ * @retval  true    カレントディレクトリにDBディレクトリがある
+ */
+bool ln_lmdb_have_dbdir(void);
+
+
 /** LMDB selfパス取得
  * 
  * @return  dbselfパス
