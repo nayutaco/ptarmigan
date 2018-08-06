@@ -1078,7 +1078,7 @@ static void *thread_main_start(void *pArg)
     }
 
     if (!p_conf->loop) {
-        LOGD("fail: loop ended: %" PRIx64 "\n", ln_short_channel_id(p_self));
+        LOGD("fail: loop ended: %016" PRIx64 "\n", ln_short_channel_id(p_self));
         goto LABEL_JOIN;
     }
 
@@ -3831,10 +3831,21 @@ static void payroute_print(lnapp_conf_t *p_conf)
  */
 static void send_queue_push(lnapp_conf_t *p_conf, const ptarm_buf_t *pBuf)
 {
+    LOGD("data=");
+    DUMPD(pBuf->buf, pBuf->len);
+
     //add queue before noise encoded data
     size_t len = p_conf->buf_sendque.len / sizeof(ptarm_buf_t);
+    LOGD("que=%p, bytes=%d\n", p_conf->buf_sendque.buf, p_conf->buf_sendque.len);
     ptarm_buf_realloc(&p_conf->buf_sendque, sizeof(ptarm_buf_t) * (len + 1));
-    memcpy(p_conf->buf_sendque.buf + sizeof(ptarm_buf_t) * len, pBuf->buf, pBuf->len);
+    memcpy(p_conf->buf_sendque.buf + sizeof(ptarm_buf_t) * len, pBuf, sizeof(ptarm_buf_t));
+    LOGD("que=%p, bytes=%d\n", p_conf->buf_sendque.buf, p_conf->buf_sendque.len);
+
+    for (size_t lp = 0; lp < p_conf->buf_sendque.len / sizeof(ptarm_buf_t); lp++) {
+        const ptarm_buf_t *p = (const ptarm_buf_t *)(p_conf->buf_sendque.buf + lp * sizeof(ptarm_buf_t));
+        LOGD("buf[%d]=", lp);
+        DUMPD(p->buf, p->len);
+    }
 }
 
 
@@ -3917,7 +3928,8 @@ static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, in
             if (p_add->amount_msat > 0) {
                 LOGD("  HTLC[%d]\n", lp);
                 LOGD("    flag= %02x\n", p_add->flag);
-                LOGD("      id= %" PRIx64 "\n", p_add->id);
+                LOGD("    htlc id= %" PRIx64 "\n", p_add->id);
+                LOGD("    cltv_expiry= %" PRIu32 "\n", p_add->cltv_expiry);
                 LOGD("    amount_msat= %" PRIu64 "\n", p_add->amount_msat);
                 if (p_add->prev_short_channel_id) {
                     LOGD("    from:        %" PRIx64 ": %" PRIu64 "\n", p_add->prev_short_channel_id, p_add->prev_id);

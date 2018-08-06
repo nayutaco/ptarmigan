@@ -261,6 +261,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
                     int vout_idx,
                     uint8_t htlc_idx,
                     bool bClosing);
+static bool create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig, bool bResend);
 static bool create_closing_tx(ln_self_t *self, ptarm_tx_t *pTx, uint64_t FeeSat, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
 static bool create_channel_update(
@@ -713,7 +714,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, ptarm_buf_t *pReEst)
     msg.next_local_commitment_number = self->commit_local.commit_num + 1;
     //MUST set next_remote_revocation_number to the commitment number
     //  of the next revoke_and_ack message it expects to receive.
-    msg.next_remote_revocation_number = self->commit_remote.commit_num;
+    msg.next_remote_revocation_number = self->commit_remote.revoke_num + 1;
 
     //option_data_loss_protect
     if (mInitLocalFeatures[0] & INIT_LF_MASK_DATALOSS) {
@@ -756,6 +757,8 @@ bool ln_create_funding_locked(ln_self_t *self, ptarm_buf_t *pLocked)
     cnl_funding_locked.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
     LOGD("  next_per_commitment_point=%" PRIu64 "\n", self->funding_local.current_commit_num);
     bool ret = ln_msg_funding_locked_create(pLocked, &cnl_funding_locked);
+
+    M_DBG_COMMITNUM(self);
 
     return ret;
 }
@@ -1405,50 +1408,7 @@ bool ln_create_fail_htlc(ln_self_t *self, ptarm_buf_t *pFail, uint64_t Id, const
 bool ln_create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig)
 {
     LOGD("BEGIN\n");
-
-    bool ret;
-
-    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
-        M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
-        return false;
-    }
-
-    //相手に送る署名を作成
-    uint8_t *p_htlc_sigs = NULL;    //必要があればcreate_to_remote()でMALLOC()する
-    ret = create_to_remote(self, NULL, &p_htlc_sigs,
-                self->commit_local.to_self_delay, self->commit_remote.dust_limit_sat);
-    if (!ret) {
-        M_SET_ERR(self, LNERR_MSG_ERROR, "create remote commit_tx");
-        return false;
-    }
-
-    ln_commit_signed_t commsig;
-
-    commsig.p_channel_id = self->channel_id;
-    commsig.p_signature = self->commit_local.signature;     //相手commit_txに行った自分の署名
-    commsig.num_htlcs = self->commit_remote.htlc_num;
-    commsig.p_htlc_signature = p_htlc_sigs;
-    ret = ln_msg_commit_signed_create(pCommSig, &commsig);
-    M_FREE(p_htlc_sigs);
-
-    if (ret) {
-        proc_commitment_signed(self, M_COMISG_FLAG_SEND);
-
-        //HTLC確定フラグ
-        for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-            if (self->cnl_add_htlc[idx].amount_msat != 0) {
-                self->cnl_add_htlc[idx].flag |= LN_HTLC_FLAG_COMMIT;
-            }
-        }
-
-        //相手のcommitment_numberをインクリメント(channel_reestablish用)
-        self->commit_remote.commit_num++;
-        M_DBG_COMMITNUM(self);
-        M_DB_SELF_SAVE(self);
-    }
-
-    LOGD("END\n");
-    return ret;
+    return create_commit_signed(self, pCommSig, false);
 }
 
 
@@ -2345,6 +2305,8 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     (*self->p_callback)(self, LN_CB_FUNDINGLOCKED_RECV, NULL);
 
+    M_DBG_COMMITNUM(self);
+
     LOGD("END\n");
     return true;
 }
@@ -2900,7 +2862,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
         if (self->funding_local.current_commit_num != self->funding_remote.current_commit_num) {
             //commitment_signed未送信
-            ret = ln_create_commit_signed(self, &buf_bolt);
+            ret = create_commit_signed(self, &buf_bolt, false);
             if (ret) {
                 (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
                 ptarm_buf_free(&buf_bolt);
@@ -2960,6 +2922,15 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     if (!ret) {
         LOGD("fail: prev_secret convert\n");
         goto LABEL_EXIT;
+    }
+
+    proc_commitment_signed(self, M_COMISG_FLAG_SEND);
+
+    //HTLC確定フラグ
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        if (self->cnl_add_htlc[idx].amount_msat != 0) {
+            self->cnl_add_htlc[idx].flag |= LN_HTLC_FLAG_COMMIT;
+        }
     }
 
     uint8_t old_secret[PTARM_SZ_PRIVKEY];
@@ -3106,19 +3077,21 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     bool chk_commit_num = true;
     if (self->commit_remote.commit_num + 1 == reest.next_local_commitment_number) {
         LOGD("next_local_commitment_number: OK\n");
-    } else if (self->commit_remote.commit_num == reest.next_local_commitment_number) {
+    } else if (self->commit_local.commit_num == reest.next_local_commitment_number) {
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         LOGD("next_local_commitment_number == local commit_num: reuse\n");
 
         //remote.per_commitment_pointを1つ戻して、commitment_signedを再送する
         ptarm_buf_t buf_bolt = PTARM_BUF_INIT;
-        bool ret = ln_create_commit_signed(self, &buf_bolt);
+        bool ret = create_commit_signed(self, &buf_bolt, true);
         if (ret) {
             (*self->p_callback)(self, LN_CB_SEND_QUEUE, &buf_bolt);
             LOGD("OK: re-send commigment_signed\n");
+            //ptarm_buf_free(&buf_bolt);    //そのまま使うのでfreeしない
         } else {
             LOGD("fail: re-send commitment_signed\n");
+            ptarm_buf_free(&buf_bolt);
         }
     } else {
         // if next_local_commitment_number is not 1 greater than the commitment number of the last commitment_signed message the receiving node has sent:
@@ -3150,8 +3123,10 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         if (ret) {
             (*self->p_callback)(self, LN_CB_SEND_QUEUE, &buf_bolt);
             LOGD("OK: re-send revoke_and_ack\n");
+            //ptarm_buf_free(&buf_bolt);    //そのまま使うのでfreeしない
         } else {
             LOGD("fail: re-send revoke_and_ack\n");
+            ptarm_buf_free(&buf_bolt);
         }
         ptarm_buf_free(&buf_bolt);
     } else {
@@ -3466,6 +3441,8 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     } else {
         //上位で停止される
     }
+
+    M_DBG_COMMITNUM(self);
 }
 
 
@@ -4466,6 +4443,49 @@ LABEL_EXIT:
 }
 
 
+static bool create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig, bool bResend)
+{
+    LOGD("BEGIN\n");
+
+    bool ret;
+
+    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
+        return false;
+    }
+
+    //相手に送る署名を作成
+    uint8_t *p_htlc_sigs = NULL;    //必要があればcreate_to_remote()でMALLOC()する
+    ret = create_to_remote(self, NULL, &p_htlc_sigs,
+                self->commit_local.to_self_delay, self->commit_remote.dust_limit_sat);
+    if (!ret) {
+        M_SET_ERR(self, LNERR_MSG_ERROR, "create remote commit_tx");
+        return false;
+    }
+
+    ln_commit_signed_t commsig;
+
+    commsig.p_channel_id = self->channel_id;
+    commsig.p_signature = self->commit_local.signature;     //相手commit_txに行った自分の署名
+    commsig.num_htlcs = self->commit_remote.htlc_num;
+    commsig.p_htlc_signature = p_htlc_sigs;
+    ret = ln_msg_commit_signed_create(pCommSig, &commsig);
+    M_FREE(p_htlc_sigs);
+
+    if (ret) {
+        if (!bResend) {
+            //相手のcommitment_numberをインクリメント(channel_reestablish用)
+            self->commit_remote.commit_num++;
+            M_DBG_COMMITNUM(self);
+            M_DB_SELF_SAVE(self);
+        }
+    }
+
+    LOGD("END\n");
+    return ret;
+}
+
+
 /** closing tx作成
  *
  * @param[in]   FeeSat
@@ -5426,6 +5446,9 @@ static void set_error(ln_self_t *self, int Err, const char *pFormat, ...)
 static void dbg_commitnum(const ln_self_t *self)
 {
     LOGD("------------------------------------------\n");
+    LOGD("storage_index      = %" PRIx64 "\n", self->priv_data.storage_index);
+    LOGD("peer_storage_index = %" PRIx64 "\n", self->peer_storage_index);
+    LOGD("------------------------------------------\n");
     LOGD("local.current_commit_num  = %" PRIu64 "\n", self->funding_local.current_commit_num);
     LOGD("remote.current_commit_num = %" PRIu64 "\n", self->funding_remote.current_commit_num);
     LOGD("------------------------------------------\n");
@@ -5436,11 +5459,11 @@ static void dbg_commitnum(const ln_self_t *self)
     //state-C: local.commit_num == remote.commit_num
     int commit_stat;
     if ((int64_t)self->commit_local.commit_num < (int64_t)self->commit_remote.commit_num) {
-        commit_stat = 0;
+        commit_stat = 0;    //A
     } else if ((int64_t)self->commit_local.commit_num > (int64_t)self->commit_remote.commit_num) {
-        commit_stat = 1;
+        commit_stat = 1;    //B
     } else {
-        commit_stat = 2;
+        commit_stat = 2;    //C
     }
     LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)self->commit_local.revoke_num);
     LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)self->commit_remote.revoke_num);
@@ -5449,11 +5472,11 @@ static void dbg_commitnum(const ln_self_t *self)
     //state-c: local.revoke_num == remote.revoke_num
     int revoke_stat;
     if ((int64_t)self->commit_local.revoke_num < (int64_t)self->commit_remote.revoke_num) {
-        revoke_stat = 0;
+        revoke_stat = 0;    //a
     } else if ((int64_t)self->commit_local.revoke_num > (int64_t)self->commit_remote.revoke_num) {
-        revoke_stat = 1;
+        revoke_stat = 1;    //b
     } else {
-        revoke_stat = 2;
+        revoke_stat = 2;    //c
     }
     //update message sender  :
     //      0: C-c (stable)
@@ -5468,19 +5491,19 @@ static void dbg_commitnum(const ln_self_t *self)
     //      3: C-b
     //      4: C-c (stable)
     if ((commit_stat == 2) && (revoke_stat == 2)) {
-        LOGD("----> stable\n");
+        LOGD("----> stable(C-c)\n");
     } else if ((commit_stat == 0) && (revoke_stat == 2)) {
-        LOGD("----> update message sender-1\n");
+        LOGD("----> update message sender-1(A-c)\n");
     } else if ((commit_stat == 0) && (revoke_stat == 0)) {
-        LOGD("----> update message sender-2\n");
+        LOGD("----> update message sender-2(A-a)\n");
     } else if ((commit_stat == 2) && (revoke_stat == 0)) {
-        LOGD("----> update message sender-3\n");
+        LOGD("----> update message sender-3(C-a)\n");
     } else if ((commit_stat == 1) && (revoke_stat == 2)) {
-        LOGD("----> update message receiver-1\n");
+        LOGD("----> update message receiver-1(B-c)\n");
     } else if ((commit_stat == 1) && (revoke_stat == 1)) {
-        LOGD("----> update message receiver-2\n");
+        LOGD("----> update message receiver-2(B-b)\n");
     } else if ((commit_stat == 2) && (revoke_stat == 1)) {
-        LOGD("----> update message receiver-3\n");
+        LOGD("----> update message receiver-3(C-b)\n");
     } else {
         LOGD("----> ???\n");
     }
