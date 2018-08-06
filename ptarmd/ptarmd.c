@@ -87,7 +87,6 @@ LIST_HEAD(nodefaillisthead_t, nodefaillist_t);
  ********************************************************************/
 
 static pthread_mutex_t      mMuxPreimage;
-// static char                 mExecPath[PATH_MAX];
 static struct nodefaillisthead_t    mNodeFailListHead;
 
 
@@ -232,15 +231,6 @@ int main(int argc, char *argv[])
             goto LABEL_EXIT;
         }
     }
-
-    //ptarmdがあるパスを取る("routepay"用)
-    // const char *p_delimit = strrchr(argv[0], '/');
-    // if (p_delimit != NULL) {
-    //     memcpy(mExecPath, argv[0], p_delimit - argv[0] + 1);
-    //     mExecPath[p_delimit - argv[0] + 1] = '\0';
-    // } else {
-    //     mExecPath[0] = '\0';
-    // }
 
     signal(SIGPIPE , SIG_IGN);   //ignore SIGPIPE
     p2p_cli_init();
@@ -402,12 +392,6 @@ lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
     }
     return p_appconf;
 }
-
-
-// const char *ptarmd_get_exec_path(void)
-// {
-//     return mExecPath;
-// }
 
 
 // ptarmd 起動中に接続失敗したnodeを登録していく。
