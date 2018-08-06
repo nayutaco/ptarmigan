@@ -964,8 +964,11 @@ typedef struct {
     uint8_t             txid[PTARM_SZ_TXID];            ///< txid
     uint16_t            htlc_num;                       ///< commit_tx中のHTLC数
     uint64_t            commit_num;                     ///< commitment_number
-                                                        //      commitment_signed送受信でインクリメントする
+                                                        //      commit_local:  commitment_signed受信後、インクリメント
+                                                        //      commit_remote: commitment_signed送信後、インクリメント
     uint64_t            revoke_num;                     ///< 最後にrevoke_and_ack送信した時のcommitment_number
+                                                        //      commit_local:  revoke_and_ack送信後、commit_local.commit_num - 1を代入
+                                                        //      commit_remote: revoke_and_ack受信後、self->commit_remote.commit_num - 1を代入
 } ln_commit_data_t;
 
 
