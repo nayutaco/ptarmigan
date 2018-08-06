@@ -317,12 +317,6 @@ void ptarmd_preimage_unlock(void);
 lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id);
 
 
-/** ptarmd実行パス取得
- *
- */
-// const char *ptarmd_get_exec_path(void);
-
-
 /** ノード接続失敗リスト追加
  *
  */
