@@ -737,9 +737,9 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         int retval;
         MDB_val key, data;
 
-        char wif[PTARM_SZ_WIF_MAX];
-        char alias[LN_SZ_ALIAS + 1];
-        uint16_t port;
+        char wif[PTARM_SZ_WIF_MAX] = "";
+        char alias[LN_SZ_ALIAS + 1] = "";
+        uint16_t port = 0;
         uint8_t genesis[LN_SZ_HASH];
 
         printf(INDENT1 M_QQ("version") ": {\n");
