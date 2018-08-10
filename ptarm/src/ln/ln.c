@@ -3218,6 +3218,11 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
     uint8_t *p_sig_node;
     uint8_t *p_sig_btc;
 
+    if (self->fund_flag == 0) {
+        LOGD("fail: not open peer\n");
+        return false;
+    }
+
     if (self->cnl_anno.buf == NULL) {
         create_local_channel_announcement(self);
     }
