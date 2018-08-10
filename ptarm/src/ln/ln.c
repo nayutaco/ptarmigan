@@ -2838,13 +2838,13 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     //チェックOKであれば、revoke_and_ackを返す
     //HTLCに変化がある場合、revoke_and_ack→commitment_signedの順で送信
 
-    //revokeするsecret
-    for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
-        uint8_t old_secret[PTARM_SZ_PRIVKEY];
-        ln_derkey_create_secret(old_secret, self->priv_data.storage_seed, LN_SECINDEX_INIT - index);
-        LOGD("$$$ old_secret(%" PRIx64 "): ", LN_SECINDEX_INIT -index);
-        DUMPD(old_secret, sizeof(old_secret));
-    }
+    // //revokeするsecret
+    // for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
+    //     uint8_t old_secret[PTARM_SZ_PRIVKEY];
+    //     ln_derkey_create_secret(old_secret, self->priv_data.storage_seed, LN_SECINDEX_INIT - index);
+    //     LOGD("$$$ old_secret(%" PRIx64 "): ", LN_SECINDEX_INIT -index);
+    //     DUMPD(old_secret, sizeof(old_secret));
+    // }
 
     revack.p_channel_id = channel_id;
     revack.p_per_commit_secret = prev_secret;
@@ -2933,25 +2933,25 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
         }
     }
 
-    uint8_t old_secret[PTARM_SZ_PRIVKEY];
     LOGD("$$$ revoke_num: %" PRIu64 "\n", self->commit_local.revoke_num);
     LOGD("$$$ prev per_commit_pt: ");
     DUMPD(prev_commitpt, PTARM_SZ_PUBKEY);
-    for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
-        ret = ln_derkey_storage_get_secret(old_secret, &self->peer_storage, LN_SECINDEX_INIT - index);
-        if (ret) {
-            uint8_t pubkey[PTARM_SZ_PUBKEY];
-            ptarm_keys_priv2pub(pubkey, old_secret);
-            //M_DB_SELF_SAVE(self);
-            LOGD("$$$ old_secret(%" PRIx64 "): ", LN_SECINDEX_INIT - index);
-            DUMPD(old_secret, sizeof(old_secret));
-            LOGD("$$$ pubkey: ");
-            DUMPD(pubkey, sizeof(pubkey));
-        } else {
-            LOGD("$$$ fail: get last secret\n");
-            //goto LABEL_EXIT;
-        }
-    }
+    // uint8_t old_secret[PTARM_SZ_PRIVKEY];
+    // for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
+    //     ret = ln_derkey_storage_get_secret(old_secret, &self->peer_storage, LN_SECINDEX_INIT - index);
+    //     if (ret) {
+    //         uint8_t pubkey[PTARM_SZ_PUBKEY];
+    //         ptarm_keys_priv2pub(pubkey, old_secret);
+    //         //M_DB_SELF_SAVE(self);
+    //         LOGD("$$$ old_secret(%" PRIx64 "): ", LN_SECINDEX_INIT - index);
+    //         DUMPD(old_secret, sizeof(old_secret));
+    //         LOGD("$$$ pubkey: ");
+    //         DUMPD(pubkey, sizeof(pubkey));
+    //     } else {
+    //         LOGD("$$$ fail: get last secret\n");
+    //         //goto LABEL_EXIT;
+    //     }
+    // }
 
     if (memcmp(prev_commitpt, self->funding_remote.prev_percommit, PTARM_SZ_PUBKEY) != 0) {
         LOGD("fail: prev_secret mismatch\n");
