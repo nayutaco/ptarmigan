@@ -2985,7 +2985,12 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const ptarm_buf_t *pBuf)
         fds.fd = p_conf->sock;
         fds.events = POLLOUT;
         int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
-        if (polr <= 0) {
+        if (polr == 0) {
+            LOGD("timeout: %s\n", strerror(errno));
+            misc_msleep(M_WAIT_SEND_WAIT_MSEC);
+            continue;
+        }
+        if (polr < 0) {
             LOGD("poll: %s\n", strerror(errno));
             break;
         }
