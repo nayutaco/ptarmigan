@@ -51,6 +51,16 @@
 
 
 /**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+typedef struct {
+    uint32_t feerate_per_kw;
+    int32_t height;
+} monparam_t;
+
+
+/**************************************************************************
  * private variables
  **************************************************************************/
 
@@ -102,13 +112,14 @@ void *monitor_thread_start(void *pArg)
             }
         }
 
-        uint32_t feerate_per_kw;
+        monparam_t param;
         if (mFeeratePerKw == 0) {
-            feerate_per_kw = monitoring_get_latest_feerate_kw();
+            param.feerate_per_kw = monitoring_get_latest_feerate_kw();
         } else {
-            feerate_per_kw = mFeeratePerKw;
+            param.feerate_per_kw = mFeeratePerKw;
         }
-        ln_db_self_search(monfunc, &feerate_per_kw);
+        param.height = btcrpc_getblockcount();
+        ln_db_self_search(monfunc, &param);
     }
     LOGD("stop\n");
 
@@ -292,7 +303,7 @@ LABEL_EXIT:
  */
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
-    uint32_t feerate_per_kw = *(uint32_t *)p_param;
+    monparam_t *p_prm = (monparam_t *)p_param;
 
     uint32_t confm = btcrpc_get_funding_confirm(self);
     if (confm > 0) {
@@ -311,9 +322,9 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             } else if (p_app_conf != NULL) {
                 //socket接続済みであれば、feerate_per_kwチェック
                 //  当面、feerate_per_kwを手動で変更した場合のみとする
-                if ((mFeeratePerKw != 0) && (ln_feerate_per_kw(self) != feerate_per_kw)) {
-                    LOGD("differenct feerate_per_kw: %" PRIu32 " : %" PRIu32 "\n", ln_feerate_per_kw(self), feerate_per_kw);
-                    lnapp_send_updatefee(p_app_conf, feerate_per_kw);
+                if ((mFeeratePerKw != 0) && (ln_feerate_per_kw(self) != p_prm->feerate_per_kw)) {
+                    LOGD("differenct feerate_per_kw: %" PRIu32 " : %" PRIu32 "\n", ln_feerate_per_kw(self), p_prm->feerate_per_kw);
+                    lnapp_send_updatefee(p_app_conf, p_prm->feerate_per_kw);
                 }
             } else {
                 LOGD("No Auto connect mode\n");

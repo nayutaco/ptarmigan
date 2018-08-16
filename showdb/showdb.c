@@ -258,7 +258,7 @@ static void ln_print_self(const ln_self_t *self)
                 }
                 printf(INDENT4 "{\n");
                 printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
-                printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(%02x)") ",\n", ((LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[lp].flag)) ? "Received" : "Offered"), self->cnl_add_htlc[lp].flag);
+                printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(%02x)") ",\n", ((self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_RECV) ? "Received" : "Offered"), self->cnl_add_htlc[lp].flag);
                 printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
                 printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
                 printf(INDENT5 M_QQ("payhash") ": \"");

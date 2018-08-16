@@ -110,8 +110,8 @@
 #define M_SHDN_FLAG_EXCHANGED(flag)         (((flag) & (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)) == (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV))
 
 // ln_self_t.comsig_flag
-#define M_COMISG_FLAG_SEND                  (0x01)          ///< commitment_signed送信済み
-#define M_COMISG_FLAG_RECV                  (0x02)          ///< commitment_signed受信済み
+#define M_COMSIG_FLAG_SEND                  (0x01)          ///< commitment_signed送信済み
+#define M_COMSIG_FLAG_RECV                  (0x02)          ///< commitment_signed受信済み
 
 // ln_self_t.revack_flag
 #define M_REVACK_FLAG_SEND                  (0x01)          ///< revoke_and_ack送信済み
@@ -152,7 +152,13 @@
         send_error(self, &err);\
         LOGD("[%s:%d]fail: %s\n", __func__, (int)__LINE__, self->err_msg);\
     }
+
+#define M_DBG_COMMITHTLC
+#ifdef M_DBG_COMMITHTLC
 #define M_DBG_COMMITNUM(self) { LOGD("----- debug commit_num -----\n"); dbg_commitnum(self); }
+#else
+#define M_DBG_COMMITNUM(self)   //none
+#endif
 
 
 /**************************************************************************
@@ -234,7 +240,8 @@ static bool create_to_local_close(ln_self_t *self,
                     const ptarm_util_keys_t *pHtlcKey,
                     uint8_t htlc_num,
                     int vout_idx,
-                    uint8_t htlc_idx,
+                    const uint8_t *pPayHash,
+                    const uint8_t *pSig,
                     uint32_t to_self_delay);
 static bool create_to_remote(ln_self_t *self,
                     ln_close_force_t *pClose,
@@ -259,9 +266,9 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
                     uint64_t fee,
                     uint8_t htlc_num,
                     int vout_idx,
-                    uint8_t htlc_idx,
+                    const uint8_t *pPayHash,
                     bool bClosing);
-static bool create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig, bool bResend);
+static bool create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig);
 static bool create_closing_tx(ln_self_t *self, ptarm_tx_t *pTx, uint64_t FeeSat, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
 static bool create_channel_update(
@@ -281,7 +288,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
                     ln_hop_dataout_t *pDataOut,
                     ptarm_push_t *pPushReason,
                     ln_update_add_htlc_t *pAddHtlc,
-                    uint8_t *pPreimage,
+                    uint8_t *pPreImage,
                     int32_t Height);
 static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
                     ln_hop_dataout_t *pDataOut,
@@ -289,6 +296,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
                     ln_update_add_htlc_t *pAddHtlc,
                     int32_t Height);
 static bool check_recv_add_htlc_bolt4_common(ptarm_push_t *pPushReason);
+static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8_t *pPreImage);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 
 static void proc_anno_sigs(ln_self_t *self);
@@ -306,7 +314,12 @@ static void free_establish(ln_self_t *self, bool bEndEstablish);
 static ptarm_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId);
 static inline uint8_t ln_sort_to_dir(ptarm_keys_sort_t Sort);
 static void set_error(ln_self_t *self, int Err, const char *pFormat, ...);
+static int commitment_state(const ln_self_t *self);
+static int revocation_state(const ln_self_t *self);
+static int comrev_state(const ln_self_t *self);
+#ifdef M_DBG_COMMITNUM
 static void dbg_commitnum(const ln_self_t *self);
+#endif
 
 
 /**************************************************************************
@@ -517,6 +530,7 @@ bool ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t In
         (void)pMinedHash;
 #else
         memcpy(self->funding_bhash, pMinedHash, PTARM_SZ_SHA256);
+        self->funding_bheight = Height;
 #endif
         M_DB_SELF_SAVE(self);
     }
@@ -684,15 +698,20 @@ bool ln_create_init(ln_self_t *self, ptarm_buf_t *pInit, bool bHaveCnl)
 
     //HTLC確定フラグが立っていないHTLCがあれば、消す
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if ( (self->cnl_add_htlc[idx].amount_msat != 0) &&
-             !LN_HTLC_FLAG_IS_COMMITTED(self->cnl_add_htlc[idx].flag) ) {
-            if (!LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)) {
-                //offeredであれば、amountを戻す
-                LOGD("[%d]remove add_htlc: flag=%02x, amount_msat=%" PRIu64 "\n", idx, self->cnl_add_htlc[idx].flag, self->cnl_add_htlc[idx].amount_msat);
-                self->our_msat += self->cnl_add_htlc[idx].amount_msat;
+        if (self->cnl_add_htlc[idx].amount_msat != 0) {
+            LOGD("[%d]HTLC(num=%d): id=%" PRIu64 ", flag=%02x, amount_msat=%" PRIu64 "\n", idx, self->htlc_num, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].flag, self->cnl_add_htlc[idx].amount_msat);
+            if ((self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_COMMIT) == 0) {
+                //未確定ならば、消す
+                if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) {
+                    //offeredならば、amountを戻す
+                    self->our_msat += self->cnl_add_htlc[idx].amount_msat;
+                    self->htlc_num--;
+                    self->htlc_id_num--;
+                }
+                ptarm_buf_free(&self->cnl_add_htlc[idx].shared_secret);
+                memset(&self->cnl_add_htlc[idx], 0x00, sizeof(ln_update_add_htlc_t));
+                LOGD("  -->remove\n");
             }
-            ptarm_buf_free(&self->cnl_add_htlc[idx].shared_secret);
-            memset(&self->cnl_add_htlc[idx], 0x00, sizeof(ln_update_add_htlc_t));
         }
     }
     M_DB_SELF_SAVE(self);
@@ -1311,11 +1330,11 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ptarm_buf_t *pFulfill, uint64_t Id,
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //fulfill送信はReceived Outputに対して行う
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            LOGD("LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)=%d\n", LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag));
+            LOGD("self->cnl_add_htlc[%d].flag=%02x\n", idx, self->cnl_add_htlc[idx].flag);
             LOGD("htlc_id=%" PRIu64 "\n", self->cnl_add_htlc[idx].id);
             LOGD("payment_sha256= ");
             DUMPD(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_PREIMAGE);
-            if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
+            if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_RECV) &&
                  (Id == self->cnl_add_htlc[idx].id) &&
                  (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) ) {
                 //
@@ -1368,7 +1387,7 @@ bool ln_create_fail_htlc(ln_self_t *self, ptarm_buf_t *pFail, uint64_t Id, const
         //fulfill送信はReceived Outputに対して行う
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
             LOGD("id=%" PRIx64 ", htlc_id=%" PRIu64 "\n", Id, self->cnl_add_htlc[idx].id);
-            if ( LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) &&
+            if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_RECV) &&
                  (Id == self->cnl_add_htlc[idx].id) ) {
                 p_add = &self->cnl_add_htlc[idx];
                 break;
@@ -1408,7 +1427,7 @@ bool ln_create_fail_htlc(ln_self_t *self, ptarm_buf_t *pFail, uint64_t Id, const
 bool ln_create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig)
 {
     LOGD("BEGIN\n");
-    return create_commit_signed(self, pCommSig, false);
+    return create_commit_signed(self, pCommSig);
 }
 
 
@@ -2677,14 +2696,17 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         return false;
     }
 
+    uint8_t sha256[LN_SZ_HASH];
+    ptarm_util_sha256(sha256, preimage, sizeof(preimage));
+
     ln_update_add_htlc_t *p_add = NULL;
     ret = false;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //受信したfulfillは、Offered HTLCについてチェックする
-        if ((self->cnl_add_htlc[idx].id == fulfill_htlc.id) && !LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)) {
-            uint8_t sha256[LN_SZ_HASH];
-
-            ptarm_util_sha256(sha256, preimage, sizeof(preimage));
+        LOGD("HTLC%d: id=%" PRIu64 ", flag=%02x: ", idx, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].flag);
+        DUMPD(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH);
+        if ( (self->cnl_add_htlc[idx].id == fulfill_htlc.id) &&
+             (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) ) {
             if (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) {
                 p_add = &self->cnl_add_htlc[idx];
                 ret = true;
@@ -2748,7 +2770,8 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //受信したfail_htlcは、Offered HTLCについてチェックする
-        if (!LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag) && (self->cnl_add_htlc[idx].id == fail_htlc.id)) {
+        if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) &&
+             (self->cnl_add_htlc[idx].id == fail_htlc.id)) {
             //id一致
             self->our_msat += self->cnl_add_htlc[idx].amount_msat;
 
@@ -2862,7 +2885,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
 
         if (self->funding_local.current_commit_num != self->funding_remote.current_commit_num) {
             //commitment_signed未送信
-            ret = create_commit_signed(self, &buf_bolt, false);
+            ret = create_commit_signed(self, &buf_bolt);
             if (ret) {
                 (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
                 ptarm_buf_free(&buf_bolt);
@@ -2873,7 +2896,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
         //commitment_signed受信通知
         (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, NULL);
 
-        proc_commitment_signed(self, M_COMISG_FLAG_RECV);
+        proc_commitment_signed(self, M_COMSIG_FLAG_RECV);
         proc_rev_and_ack(self, M_REVACK_FLAG_SEND);
     }
 
@@ -2924,7 +2947,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
         goto LABEL_EXIT;
     }
 
-    proc_commitment_signed(self, M_COMISG_FLAG_SEND);
+    proc_commitment_signed(self, M_COMSIG_FLAG_SEND);
 
     //HTLC確定フラグ
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -3068,6 +3091,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     }
 
     M_DBG_COMMITNUM(self);
+    int stat = comrev_state(self);
 
     //BOLT#02
     //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
@@ -3077,21 +3101,30 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     bool chk_commit_num = true;
     if (self->commit_remote.commit_num + 1 == reest.next_local_commitment_number) {
         LOGD("next_local_commitment_number: OK\n");
-    } else if (self->commit_local.commit_num == reest.next_local_commitment_number) {
+    } else if (self->commit_remote.commit_num == reest.next_local_commitment_number) {
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
         LOGD("next_local_commitment_number == local commit_num: reuse\n");
 
         //remote.per_commitment_pointを1つ戻して、commitment_signedを再送する
-        ptarm_buf_t buf_bolt = PTARM_BUF_INIT;
-        bool ret = create_commit_signed(self, &buf_bolt, true);
-        if (ret) {
-            (*self->p_callback)(self, LN_CB_SEND_QUEUE, &buf_bolt);
-            LOGD("OK: re-send commigment_signed\n");
-            //ptarm_buf_free(&buf_bolt);    //そのまま使うのでfreeしない
+        self->commit_remote.commit_num--;
+        M_DBG_COMMITNUM(self);
+
+        //1回以上commitment_signedを返している
+        if ((stat & 0x0f) >= 2) {
+            LOGD("resend: commitment_signed\n");
+            ptarm_buf_t buf_bolt = PTARM_BUF_INIT;
+            bool ret = create_commit_signed(self, &buf_bolt);
+            if (ret) {
+                (*self->p_callback)(self, LN_CB_SEND_QUEUE, &buf_bolt);
+                LOGD("OK: re-send commigment_signed\n");
+                //ptarm_buf_free(&buf_bolt);    //そのまま使うのでfreeしない
+            } else {
+                LOGD("fail: re-send commitment_signed\n");
+                ptarm_buf_free(&buf_bolt);
+            }
         } else {
-            LOGD("fail: re-send commitment_signed\n");
-            ptarm_buf_free(&buf_bolt);
+            LOGD("reuse: commitment_number\n");
         }
     } else {
         // if next_local_commitment_number is not 1 greater than the commitment number of the last commitment_signed message the receiving node has sent:
@@ -3644,7 +3677,7 @@ static bool create_to_local(ln_self_t *self,
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
             pp_htlcinfo[cnt] = (ln_htlcinfo_t *)M_MALLOC(sizeof(ln_htlcinfo_t));
             ln_htlcinfo_init(pp_htlcinfo[cnt]);
-            if (LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)) {
+            if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_RECV) {
                 pp_htlcinfo[cnt]->type = LN_HTLCTYPE_RECEIVED;
             } else {
                 pp_htlcinfo[cnt]->type = LN_HTLCTYPE_OFFERED;
@@ -3910,11 +3943,14 @@ static bool create_to_local_spent(ln_self_t *self,
                 }
 
                 if (pClose != NULL) {
+                    const uint8_t *p_payhash = self->cnl_add_htlc[htlc_idx].payment_sha256;
+                    const uint8_t *p_sig = self->cnl_add_htlc[htlc_idx].signature;
                     ret = create_to_local_close(self,
                                     pTxHtlcs, &tx, &push,
                                     pTxCommit, pBufWs,
                                     p_htlcinfo, &htlckey,
-                                    htlc_num, vout_idx, htlc_idx,
+                                    htlc_num, vout_idx,
+                                    p_payhash, p_sig,
                                     to_self_delay);
                     if (ret) {
                         pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
@@ -3965,7 +4001,8 @@ static bool create_to_local_spent(ln_self_t *self,
  * @param[in]       pHtlcKey
  * @param[in]       htlc_num
  * @param[in]       vout_idx
- * @param[in]       htlc_idx
+ * @param[in]       pPayHash
+ * @param[in]       pSig
  * @param[in]       to_self_delay
  * @retval  true    成功
  */
@@ -3979,19 +4016,20 @@ static bool create_to_local_close(ln_self_t *self,
                     const ptarm_util_keys_t *pHtlcKey,
                     uint8_t htlc_num,
                     int vout_idx,
-                    uint8_t htlc_idx,
+                    const uint8_t *pPayHash,
+                    const uint8_t *pSig,
                     uint32_t to_self_delay)
 {
     bool ret;
 
     ptarm_buf_t buf_sig;
-    ln_misc_sigexpand(&buf_sig, self->cnl_add_htlc[htlc_idx].signature);
+    ln_misc_sigexpand(&buf_sig, pSig);
 
     uint8_t preimage[LN_SZ_PREIMAGE];
     bool ret_img;
     if (p_htlcinfo->type == LN_HTLCTYPE_RECEIVED) {
         //Receivedであればpreimageを所持している可能性がある
-        ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256, true);
+        ret_img = search_preimage(preimage, pPayHash, true);
         LOGD("[received]%d\n", ret_img);
     } else {
         ret_img = false;
@@ -4102,8 +4140,8 @@ static bool create_to_remote(ln_self_t *self,
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
             pp_htlcinfo[cnt] = (ln_htlcinfo_t *)M_MALLOC(sizeof(ln_htlcinfo_t));
             ln_htlcinfo_init(pp_htlcinfo[cnt]);
-            //localとは逆になる
-            if (LN_HTLC_FLAG_IS_RECV(self->cnl_add_htlc[idx].flag)) {
+            //OFFEREDとRECEIVEDが逆になる
+            if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_RECV) {
                 pp_htlcinfo[cnt]->type = LN_HTLCTYPE_OFFERED;
             } else {
                 pp_htlcinfo[cnt]->type = LN_HTLCTYPE_RECEIVED;
@@ -4291,6 +4329,7 @@ static bool create_to_remote_spent(ln_self_t *self,
             }
         } else {
             const ln_htlcinfo_t *p_htlcinfo = pp_htlcinfo[htlc_idx];
+            const uint8_t *p_payhash = self->cnl_add_htlc[htlc_idx].payment_sha256;
             uint64_t fee_sat = (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? p_feeinfo->htlc_timeout : p_feeinfo->htlc_success;
             if (pTxCommit->vout[vout_idx].value >= p_feeinfo->dust_limit_satoshi + fee_sat) {
                 ret = create_to_remote_htlcsign(self,
@@ -4298,7 +4337,7 @@ static bool create_to_remote_spent(ln_self_t *self,
                                 pTxCommit, pBufWs,
                                 p_htlcinfo, &htlckey,
                                 &buf_remotesig, fee_sat,
-                                htlc_num, vout_idx, htlc_idx,
+                                htlc_num, vout_idx, p_payhash,
                                 (pClose != NULL));
                 if (ret) {
                     if (pClose != NULL) {
@@ -4352,7 +4391,7 @@ static bool create_to_remote_spent(ln_self_t *self,
  * @param[in]       fee
  * @param[in]       htlc_num
  * @param[in]       vout_idx
- * @param[in]       htlc_idx
+ * @param[in]       pPayHash
  * @param[in]       bClosing        true:close処理
  * @retval  true    成功
  */
@@ -4367,7 +4406,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
                     uint64_t fee,
                     uint8_t htlc_num,
                     int vout_idx,
-                    uint8_t htlc_idx,
+                    const uint8_t *pPayHash,
                     bool bClosing)
 {
     bool ret;
@@ -4384,7 +4423,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
     ln_htlcsign_t htlcsign = HTLCSIGN_TO_SUCCESS;
     if (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) {
         //remoteのoffered=localのreceivedなのでpreimageを所持している可能性がある
-        ret_img = search_preimage(preimage, self->cnl_add_htlc[htlc_idx].payment_sha256, bClosing);
+        ret_img = search_preimage(preimage, pPayHash, bClosing);
         LOGD("[offered]%d\n", ret_img);
         if (ret_img && (pTxHtlcs != NULL)) {
             //offeredかつpreimageがあるので、即時使用可能
@@ -4448,7 +4487,7 @@ LABEL_EXIT:
 }
 
 
-static bool create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig, bool bResend)
+static bool create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig)
 {
     LOGD("BEGIN\n");
 
@@ -4478,12 +4517,10 @@ static bool create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig, bool bR
     M_FREE(p_htlc_sigs);
 
     if (ret) {
-        if (!bResend) {
-            //相手のcommitment_numberをインクリメント(channel_reestablish用)
-            self->commit_remote.commit_num++;
-            M_DBG_COMMITNUM(self);
-            M_DB_SELF_SAVE(self);
-        }
+        //相手のcommitment_numberをインクリメント(channel_reestablish用)
+        self->commit_remote.commit_num++;
+        M_DBG_COMMITNUM(self);
+        M_DB_SELF_SAVE(self);
     }
 
     LOGD("END\n");
@@ -4826,7 +4863,7 @@ static bool check_recv_add_htlc_bolt2(ln_self_t *self, ln_update_add_htlc_t *p_h
  * @param[out]          pDataOut        onion packetデコード結果
  * @param[out]          pPushReason     error reason
  * @param[in,out]       pAddHtlc        activeなself->cnl_add_htlc[Index]
- * @param[out]          pPreimage       pAddHtlc->payment_sha256に該当するpreimage
+ * @param[out]          pPreImage       pAddHtlc->payment_sha256に該当するpreimage
  * @param[in]           Height          current block height
  * @retval  true    成功
  */
@@ -4834,7 +4871,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
                     ln_hop_dataout_t *pDataOut,
                     ptarm_push_t *pPushReason,
                     ln_update_add_htlc_t *pAddHtlc,
-                    uint8_t *pPreimage,
+                    uint8_t *pPreImage,
                     int32_t Height)
 {
     bool ret;
@@ -4851,12 +4888,12 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
         bool detect;
         ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);     //from invoice
         if (detect) {
-            memcpy(pPreimage, preimg.preimage, LN_SZ_PREIMAGE);
-            ln_calc_preimage_hash(preimage_hash, pPreimage);
+            memcpy(pPreImage, preimg.preimage, LN_SZ_PREIMAGE);
+            ln_calc_preimage_hash(preimage_hash, pPreImage);
             if (memcmp(preimage_hash, pAddHtlc->payment_sha256, LN_SZ_HASH) == 0) {
                 //一致
                 LOGD("match preimage: ");
-                DUMPD(pPreimage, LN_SZ_PREIMAGE);
+                DUMPD(pPreImage, LN_SZ_PREIMAGE);
                 break;
             }
         }
@@ -5101,6 +5138,53 @@ static bool check_recv_add_htlc_bolt4_common(ptarm_push_t *pPushReason)
 }
 
 
+/** 保持しているpreimageに合致するHTLCを検索(最初にヒットしたもの)
+ *
+ * @param[in]           self
+ * @param[out]          pHtlcIdx        一致したself->cnl_add_htlc[]の添字(戻り値がtrueの場合)
+ * @retval      true    検索成功
+ */
+static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8_t *pPreImage)
+{
+    bool ret;
+
+    //preimage検索
+    ln_db_preimg_t preimg;
+    uint8_t preimage_hash[LN_SZ_HASH];
+
+    if (self->htlc_num == 0) {
+        //no HTLCs
+        return false;
+    }
+
+    preimg.amount_msat = (uint64_t)-1;
+    preimg.expiry = 0;
+    void *p_cur;
+    ret = ln_db_preimg_cur_open(&p_cur);
+    while (ret) {
+        bool detect;
+        ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);     //from invoice
+        if (detect) {
+            ln_calc_preimage_hash(preimage_hash, preimg.preimage);
+            for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+                if ( (self->cnl_add_htlc[lp].amount_msat != 0) &&
+                     (memcmp(preimage_hash, self->cnl_add_htlc[lp].payment_sha256, LN_SZ_HASH) == 0) ) {
+                    //一致
+                    *pHtlcIdx = (uint16_t)lp;
+                    memcpy(pPreImage, preimg.preimage, LN_SZ_PREIMAGE);
+                    LOGD("match preimage[%d]: ", lp);
+                    DUMPD(preimg.preimage, LN_SZ_PREIMAGE);
+                    break;
+                }
+            }
+        }
+    }
+    ln_db_preimg_cur_close(p_cur);
+
+    return ret;
+}
+
+
 /** peerから受信したper_commitment_secret保存
  *
  * self->peer_storage_indexに保存後、self->peer_storage_indexをデクリメントする。
@@ -5187,7 +5271,7 @@ static void proc_anno_sigs(ln_self_t *self)
 static void proc_commitment_signed(ln_self_t *self, uint8_t Flag)
 {
     self->comsig_flag |= Flag;
-    if (self->comsig_flag == (M_COMISG_FLAG_SEND | M_COMISG_FLAG_RECV)) {
+    if (self->comsig_flag == (M_COMSIG_FLAG_SEND | M_COMSIG_FLAG_RECV)) {
         self->comsig_flag = 0;
     }
 }
@@ -5205,6 +5289,22 @@ static void proc_rev_and_ack(ln_self_t *self, uint8_t Flag)
         (*self->p_callback)(self, LN_CB_REV_AND_ACK_RECV, NULL);
 
         self->revack_flag = 0;
+
+        uint16_t idx;
+        uint8_t preimage[LN_SZ_PREIMAGE];
+        bool ret = search_fulfill_htlc(self, &idx, preimage);
+        if (ret) {
+            //fulfill(final node)
+            ln_hop_dataout_t hop;
+            hop.b_exit = true;      //final
+
+            ln_cb_add_htlc_recv_t add_htlc;
+            add_htlc.ok = true;
+            add_htlc.id = self->cnl_add_htlc[idx].id;
+            add_htlc.p_payment = preimage;
+            add_htlc.p_hop = &hop;
+            (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV, &add_htlc);
+        }
     }
 }
 
@@ -5445,33 +5545,31 @@ static void set_error(ln_self_t *self, int Err, const char *pFormat, ...)
 }
 
 
-/** commitment_number debug output
+/** commitment_number状態
  *
  */
-static void dbg_commitnum(const ln_self_t *self)
+static int commitment_state(const ln_self_t *self)
 {
-    LOGD("------------------------------------------\n");
-    LOGD("storage_index      = %" PRIx64 "\n", self->priv_data.storage_index);
-    LOGD("peer_storage_index = %" PRIx64 "\n", self->peer_storage_index);
-    LOGD("------------------------------------------\n");
-    LOGD("local.current_commit_num  = %" PRIu64 "\n", self->funding_local.current_commit_num);
-    LOGD("remote.current_commit_num = %" PRIu64 "\n", self->funding_remote.current_commit_num);
-    LOGD("------------------------------------------\n");
-    LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);
-    LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_remote.commit_num);
     //state-A: local.commit_num <  remote.commit_num
     //state-B: local.commit_num >  remote.commit_num
     //state-C: local.commit_num == remote.commit_num
     int commit_stat;
-    if ((int64_t)self->commit_local.commit_num < (int64_t)self->commit_remote.commit_num) {
+    if (self->commit_local.commit_num < self->commit_remote.commit_num) {
         commit_stat = 0;    //A
-    } else if ((int64_t)self->commit_local.commit_num > (int64_t)self->commit_remote.commit_num) {
+    } else if (self->commit_local.commit_num > self->commit_remote.commit_num) {
         commit_stat = 1;    //B
     } else {
         commit_stat = 2;    //C
     }
-    LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)self->commit_local.revoke_num);
-    LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)self->commit_remote.revoke_num);
+    return commit_stat;
+}
+
+
+/** revocation_number状態
+ *
+ */
+static int revocation_state(const ln_self_t *self)
+{
     //state-a: local.revoke_num <  remote.revoke_num
     //state-b: local.revoke_num >  remote.revoke_num
     //state-c: local.revoke_num == remote.revoke_num
@@ -5483,6 +5581,33 @@ static void dbg_commitnum(const ln_self_t *self)
     } else {
         revoke_stat = 2;    //c
     }
+    return revoke_stat;
+}
+
+
+/** commitment/revocation状態
+ *
+ * #commitment_state(), #revocation_state()とセットになっている。
+ *
+ *      * 安定
+ *      * 状態1: A→B: commitment_signed後
+ *          * A送信-B未受信:
+ *          * A送信-B受信:
+ *      * 状態2: A←B: revoke_and_ack後
+ *          * B送信-A未受信:
+ *          * B送信-A受信:
+ *      * 状態3: A←B: commitment_signed後
+ *          * B送信-A未受信:
+ *          * B送信-A受信:
+ *      * 安定 : A→B: revoke_and_ack後
+ *          * A送信-B未受信:
+ *          * A送信-B受信:
+ */
+static int comrev_state(const ln_self_t *self)
+{
+    int stat;
+    int commit_stat = commitment_state(self);
+    int revoke_stat = revocation_state(self);
     //update message sender  :
     //      0: C-c (stable)
     //      1: A-c
@@ -5496,21 +5621,81 @@ static void dbg_commitnum(const ln_self_t *self)
     //      3: C-b
     //      4: C-c (stable)
     if ((commit_stat == 2) && (revoke_stat == 2)) {
-        LOGD("----> stable(C-c)\n");
+        stat = 0;
     } else if ((commit_stat == 0) && (revoke_stat == 2)) {
-        LOGD("----> update message sender-1(A-c)\n");
+        //      sender-1: A-c
+        stat = 0x01;
     } else if ((commit_stat == 0) && (revoke_stat == 0)) {
-        LOGD("----> update message sender-2(A-a)\n");
+        //      sender-2: A-a
+        stat = 0x02;
     } else if ((commit_stat == 2) && (revoke_stat == 0)) {
-        LOGD("----> update message sender-3(C-a)\n");
+        //      sender-3: C-a
+        stat = 0x03;
     } else if ((commit_stat == 1) && (revoke_stat == 2)) {
-        LOGD("----> update message receiver-1(B-c)\n");
+        //      receiver-1: B-c
+        stat = 0x81;
     } else if ((commit_stat == 1) && (revoke_stat == 1)) {
-        LOGD("----> update message receiver-2(B-b)\n");
+        //      receiver-2: B-b
+        stat = 0x82;
     } else if ((commit_stat == 2) && (revoke_stat == 1)) {
-        LOGD("----> update message receiver-3(C-b)\n");
+        //      receiver-3: C-b
+        stat = 0x83;
     } else {
+        stat = -1;
+    }
+    return stat;
+}
+
+
+#ifdef M_DBG_COMMITHTLC
+/** commitment_number debug output
+ *
+ */
+static void dbg_commitnum(const ln_self_t *self)
+{
+    int stat = comrev_state(self);
+    LOGD("------------------------------------------\n");
+    LOGD("storage_index      = %" PRIx64 "\n", self->priv_data.storage_index);
+    LOGD("peer_storage_index = %" PRIx64 "\n", self->peer_storage_index);
+    LOGD("------------------------------------------\n");
+    LOGD("local.current_commit_num  = %" PRIu64 "\n", self->funding_local.current_commit_num);
+    LOGD("remote.current_commit_num = %" PRIu64 "\n", self->funding_remote.current_commit_num);
+    LOGD("------------------------------------------\n");
+    LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);
+    LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_remote.commit_num);
+    LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)self->commit_local.revoke_num);
+    LOGD("remote.revoke_num = %" PRId64 "\n", (int64_t)self->commit_remote.revoke_num);
+    LOGD("------------------------------------------\n");
+    LOGD("htlc_num: %" PRIu64 "\n", self->htlc_num);
+    LOGD("htlc_id_num: %" PRIu64 "\n", self->htlc_id_num);
+    LOGD("------------------------------------------\n");
+
+
+    switch (stat) {
+    case 0x00:
+        LOGD("----> stable(C-c)\n");
+        break;
+    case 0x01:
+        LOGD("----> update message sender-1(A-c)\n");
+        break;
+    case 0x02:
+        LOGD("----> update message sender-2(A-a)\n");
+        break;
+    case 0x03:
+        LOGD("----> update message sender-3(C-a)\n");
+        break;
+    case 0x81:
+        LOGD("----> update message receiver-1(B-c)\n");
+        break;
+    case 0x82:
+        LOGD("----> update message receiver-2(B-b)\n");
+        break;
+    case 0x83:
+        LOGD("----> update message receiver-3(C-b)\n");
+        break;
+    default:
         LOGD("----> ???\n");
     }
     LOGD("------------------------------------------\n");
 }
+#endif
