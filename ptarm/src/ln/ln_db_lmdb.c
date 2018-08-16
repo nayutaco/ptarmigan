@@ -257,6 +257,7 @@ static const backup_param_t DBSELF_KEYS[] = {
 #ifndef USE_SPV
 #else
     M_ITEM(ln_self_t, funding_bhash),
+    M_ITEM(ln_self_t, funding_bheight),
 #endif
     //flck_flag: none
     //p_establish: none
@@ -602,7 +603,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         LOGD("FAIL: check version db\n");
         goto LABEL_EXIT;
     }
-    ln_db_invoice_drop();
+    //ln_db_invoice_drop();
     ln_db_annocnl_del_orphan();
 
 LABEL_EXIT:
@@ -1766,6 +1767,7 @@ bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint
         goto LABEL_EXIT;
     }
 
+    LOGD("\n");
     key.mv_size = LN_SZ_HASH;
     key.mv_data = (CONST_CAST uint8_t *)pPayHash;
     size_t len = strlen(pInvoice);
@@ -1928,6 +1930,7 @@ bool ln_db_invoice_drop(void)
         goto LABEL_EXIT;
     }
 
+    LOGD("\n");
     retval = mdb_drop(txn, dbi, 1);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));

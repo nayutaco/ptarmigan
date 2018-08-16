@@ -77,10 +77,8 @@ extern "C" {
 #define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
 
 // ln_update_add_htlc_t.flag用
-#define LN_HTLC_FLAG_IS_RECV(f)         ((f) & LN_HTLC_FLAG_RECV)   ///< true:Received HTLC / false:Offered HTLC
-#define LN_HTLC_FLAG_IS_COMMITTED(f)    ((f) & LN_HTLC_FLAG_COMMIT) ///< true:このHTLCに関するcommitment_signed受信済み
-#define LN_HTLC_FLAG_SEND               (0x00)                      ///< Offered HTLC(add_htlcを送信した)
-#define LN_HTLC_FLAG_RECV               (0x01)                      ///< Received HTLC(add_htlcを受信した)
+#define LN_HTLC_FLAG_SEND               (0x01)                      ///< Offered HTLC(add_htlcを送信した)
+#define LN_HTLC_FLAG_RECV               (0x02)                      ///< Received HTLC(add_htlcを受信した)
 #define LN_HTLC_FLAG_COMMIT             (0x80)                      ///< commitment_signed受信済み
 
 // channel_update.flags
@@ -1019,6 +1017,7 @@ struct ln_self_t {
 #ifndef USE_SPV
 #else
     uint8_t                     funding_bhash[PTARM_SZ_SHA256]; ///< funding_txがマイニングされたblock hash
+    uint32_t                    funding_bheight;                ///< funding_txがマイニングされたblock height
 #endif
     ln_establish_t              *p_establish;                   ///< Establishワーク領域
     uint32_t                    min_depth;                      ///< minimum_depth
@@ -1535,6 +1534,15 @@ bool ln_create_commit_signed(ln_self_t *self, ptarm_buf_t *pCommSig);
  * @param[in]           FeeratePerKw    更新後のfeerate_per_kw
  */
 bool ln_create_update_fee(ln_self_t *self, ptarm_buf_t *pUpdFee, uint32_t FeeratePerKw);
+
+
+/** HTLCを完了させる
+ *
+ * HTLCが残っている場合、解消に向けて動く。
+ *
+ * @param[in,out]       self            channel情報
+ */
+void ln_htlc_fulfillment(ln_self_t *self);
 
 
 /********************************************************************
