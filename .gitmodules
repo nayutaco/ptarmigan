@@ -1,12 +1,3 @@
-[submodule "ptarm/libs/mbedtls"]
-	path = ptarm/libs/mbedtls
-	url = https://github.com/ARMmbed/mbedtls.git
-[submodule "ptarm/libs/libbase58"]
-	path = ptarm/libs/libbase58
-	url = https://github.com/luke-jr/libbase58.git
-[submodule "ptarm/libs/lmdb"]
-	path = ptarm/libs/lmdb
-	url = https://github.com/LMDB/lmdb.git
 [submodule "libs/jsonrpc-c"]
 	path = libs/jsonrpc-c
 	url = https://github.com/nayutaco/jsonrpc-c.git
@@ -14,3 +5,12 @@
 	path = libs/inih
 	url = https://github.com/benhoyt/inih.git
 	ignore = dirty
+[submodule "libs/mbedtls"]
+	path = libs/mbedtls
+	url = https://github.com/ARMmbed/mbedtls.git
+[submodule "libs/libbase58"]
+	path = libs/libbase58
+	url = https://github.com/luke-jr/libbase58.git
+[submodule "libs/lmdb"]
+	path = libs/lmdb
+	url = https://github.com/LMDB/lmdb.git

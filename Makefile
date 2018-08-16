@@ -33,12 +33,10 @@ update:
 	$(MAKE) default
 
 lib:
-	$(MAKE) -C ptarm/libs
 	$(MAKE) -C libs
 	$(MAKE) -C ptarm
 
 lib_clean:
-	$(MAKE) -C ptarm/libs clean
 	$(MAKE) -C libs clean
 	$(MAKE) -C ptarm clean
 

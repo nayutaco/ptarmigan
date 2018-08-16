@@ -22,7 +22,6 @@
     <exclude>
         <path name="ptarm/gtests/"/>
         <path name="libs/"/>
-        <path name="ptarm/libs/"/>
     </exclude>
     <libraries>
         <library>posix</library>

@@ -47,7 +47,7 @@ C_SOURCE_FILES += $(COMMON_PATH)/cmn/misc.c
 #includes common to all targets
 INC_PATHS += -I$(COMMON_PATH)/include -I$(PRJ_PATH)/inc
 INC_PATHS += -I$(COMMON_PATH)/libs/install/include
-INC_PATHS += -I$(COMMON_PATH)/ptarm/include -I$(COMMON_PATH)/ptarm/libs/install/include
+INC_PATHS += -I$(COMMON_PATH)/ptarm/include
 
 # Sorting removes duplicates
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
@@ -104,7 +104,7 @@ LIBS += -lcurl
 LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
 LIBS += -L$(COMMON_PATH)/ptarm -lptarm
-LIBS += -L$(COMMON_PATH)/ptarm/libs/install/lib -llmdb -lbase58 -lmbedcrypto
+LIBS += -llmdb -lbase58 -lmbedcrypto
 LIBS += -lstdc++
 
 

@@ -72,7 +72,7 @@ CPP_SOURCE_FILES += $(PRJ_PATH)/routing/ln_routing.cpp
 
 #includes common to all targets
 INC_PATHS += -Iinclude -Isrc/inc -Isrc/inc/ln
-INC_PATHS += -Ilibs/install/include
+INC_PATHS += -I../libs/install/include
 
 # Sorting removes duplicates
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
@@ -95,7 +95,7 @@ CFLAGS_CMN += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS_CMN += -D_GNU_SOURCE
 
 # for mbedtls
-CFLAGS_CMN += -Ilibs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
+CFLAGS_CMN += -I../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
 
 # others
 CFLAGS_CMN += $(CFLAGS_USER)
@@ -162,7 +162,7 @@ vpath %.cpp $(CPP_PATHS)
 OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS)
 
 lib:
-	$(MAKE) -C libs
+	$(MAKE) -C ../libs
 
 debug: CFLAGS_CMN += -DDEBUG -DPTARM_DEBUG
 debug: CFLAGS_CMN += -ggdb3 -O0

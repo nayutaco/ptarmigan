@@ -26,11 +26,11 @@ CXXFLAGS += -g -Wall -Wextra -pthread -Wno-unused-parameter -Wno-sign-compare --
 #CXXFLAGS += -fsanitize=leak
 #CXXFLAGS += -fsanitize=address
 CXXFLAGS += -I../include -I../src/inc -I../src/inc/ln -I../src -I../src/ln -I../src/ln
-CXXFLAGS += -I../libs/install/include
-CXXFLAGS += -I../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
+CXXFLAGS += -I../../libs/install/include
+CXXFLAGS += -I../../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
 
 CXXFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing -fstack-protector -D_FORTIFY_SOURCE=1
-LDFLAGS  += -L../libs/install/lib -lmbedcrypto -lbase58
+LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58
 LDFLAGS  += -Wl,--gc-sections
 
 
