@@ -1,4 +1,4 @@
-SRC = routing_main.c
+SRC = routing.c
 OBJ = routing
 
 include ../options.mak
