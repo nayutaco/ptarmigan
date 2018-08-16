@@ -41,12 +41,10 @@ C_SOURCE_FILES += $(PRJ_PATH)/lnapp.c
 C_SOURCE_FILES += $(PRJ_PATH)/cmd_json.c
 C_SOURCE_FILES += $(PRJ_PATH)/monitoring.c
 C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
-C_SOURCE_FILES += $(COMMON_PATH)/cmn/conf.c
-C_SOURCE_FILES += $(COMMON_PATH)/cmn/misc.c
+C_SOURCE_FILES += $(PRJ_PATH)/conf.c
 
 #includes common to all targets
 INC_PATHS += -I$(PRJ_PATH)
-INC_PATHS += -I$(COMMON_PATH)/cmn
 INC_PATHS += -I$(COMMON_PATH)/ptarm
 INC_PATHS += -I$(COMMON_PATH)/libs/install/include
 

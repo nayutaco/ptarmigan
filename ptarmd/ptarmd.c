@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
 #endif
 
     uint64_t total_amount = ln_node_total_msat();
-    misc_save_event(NULL,
+    lnapp_save_event(NULL,
             "ptarmd start: total_msat=%" PRIu64 "\n", total_amount);
 
     //ptarmcli受信用

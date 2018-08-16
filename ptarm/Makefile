@@ -63,6 +63,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln_enc_auth.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_print.c
 C_SOURCE_FILES += $(PRJ_PATH)/ln_signer.c
 C_SOURCE_FILES += $(PRJ_PATH)/segwit_addr.c
+C_SOURCE_FILES += $(PRJ_PATH)/misc.c
 #ifeq ($(findstring 1,$(USE_PLOG_PTARMD) $(USE_PLOG_PTARMLIB)), 1)
 C_SOURCE_FILES += $(PRJ_PATH)/plog.c
 #endif

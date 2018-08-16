@@ -830,7 +830,7 @@ LABEL_EXIT:
 
         sprintf(mLastPayErr, "[%s]payment fail", date);
         LOGD("%s\n", mLastPayErr);
-        misc_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
+        lnapp_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
 
         ctx->error_code = err;
         ctx->error_message = ptarmd_error_str(err);
@@ -1396,7 +1396,7 @@ static int cmd_routepay_proc2(
         char str_payee[PTARM_SZ_PUBKEY * 2 + 1];
         ptarm_util_bin2str(str_payee, pInvoiceData->pubkey, PTARM_SZ_PUBKEY);
 
-        misc_save_event(NULL, "payment: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
+        lnapp_save_event(NULL, "payment: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
                     str_payhash, str_payee, total_amount, pInvoiceData->amount_msat);
     }
 
