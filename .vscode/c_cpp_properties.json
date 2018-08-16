@@ -11,7 +11,6 @@
                 "${workspaceRoot}/ptarm/src/inc",
                 "${workspaceRoot}/ptarm/src/inc/ln",
                 "${workspaceRoot}/libs/install/include",
-                "${workspaceRoot}/ptarm/libs/install/include",
                 "${workspaceRoot}/ptarmd/inc",
                 "${workspaceRoot}/ptarmcli/inc"
             ],
@@ -54,7 +53,6 @@
                 "${workspaceRoot}/ptarm/src/inc",
                 "${workspaceRoot}/ptarm/src/inc/ln",
                 "${workspaceRoot}/libs/install/include",
-                "${workspaceRoot}/ptarm/libs/install/include",
                 "${workspaceRoot}/ptarmd/inc",
                 "${workspaceRoot}/ptarmcli/inc"
             ],
@@ -95,7 +93,6 @@
                 "${workspaceRoot}/ptarm/src/inc",
                 "${workspaceRoot}/ptarm/src/inc/ln",
                 "${workspaceRoot}/libs/install/include",
-                "${workspaceRoot}/ptarm/libs/install/include",
                 "${workspaceRoot}/ptarmd/inc",
                 "${workspaceRoot}/ptarmcli/inc"
             ],

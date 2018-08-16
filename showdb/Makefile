@@ -3,8 +3,8 @@ OBJ = showdb
 
 include ../options.mak
 
-CFLAGS = --std=c99 -D_GNU_SOURCE -I../include -I../ptarm/include -I../ptarm/libs/install/include
-LDFLAGS = -L../libs/install/lib -L../ptarm/libs/install/lib -L../ptarm
+CFLAGS = --std=c99 -D_GNU_SOURCE -I../include -I../ptarm/include -I../libs/install/include
+LDFLAGS = -L../libs/install/lib -L../ptarm
 LDFLAGS += -pthread -lptarm -llmdb -lbase58 -lmbedcrypto -lstdc++
 
 ifeq ($(DISABLE_PRINTFUND),0)

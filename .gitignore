@@ -1,7 +1,6 @@
 _build/
 _ggtest/
 /libs/*/
-/ptarm/libs/
 /install/
 /tests/
 .vscode/
