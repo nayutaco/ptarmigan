@@ -1511,17 +1511,13 @@ bool ln_create_tolocal_spent(const ln_self_t *self, ptarm_tx_t *pTx, uint64_t Va
     uint64_t val;
 
     //to_localのFEE
-    if (bRevoked) {
-        uint64_t fee_tolocal = ln_calc_fee(M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
-        LOGD("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
-        if (Value < PTARM_DUST_LIMIT + fee_tolocal) {
-            LOGD("fail: vout below dust: value=%" PRIu64 "< DUST(%" PRIu64 ")+fee(%" PRIu64 ")\n", Value, PTARM_DUST_LIMIT, fee_tolocal);
-            goto LABEL_EXIT;
-        }
-        val = Value - fee_tolocal;
-    } else {
-        val = Value;
+    uint64_t fee_tolocal = ln_calc_fee(M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
+    LOGD("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
+    if (Value < PTARM_DUST_LIMIT + fee_tolocal) {
+        LOGD("fail: vout below dust: value=%" PRIu64 "< DUST(%" PRIu64 ")+fee(%" PRIu64 ")\n", Value, PTARM_DUST_LIMIT, fee_tolocal);
+        goto LABEL_EXIT;
     }
+    val = Value - fee_tolocal;
     ret = ln_create_tolocal_tx(pTx, val,
             &self->shutdown_scriptpk_local, to_self_delay, pTxid, Index, bRevoked);
     if (!ret) {
