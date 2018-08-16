@@ -12,7 +12,6 @@
         <define name="__ORDER_LITTLE_ENDIAN__=1"/>
     </defines>
     <paths>
-        <dir name="cmn"/>
         <dir name="routing"/>
         <dir name="showdb"/>
         <dir name="ptarm"/>

@@ -334,7 +334,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
             LOGD("delete from DB\n");
             ret = ln_db_self_del_prm(self, p_db_param);
             if (ret) {
-                misc_save_event(ln_channel_id(self), "close: finish");
+                lnapp_save_event(ln_channel_id(self), "close: finish");
             } else {
                 LOGD("fail: del channel: ");
                 DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
@@ -364,7 +364,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
         //初めてclosing処理を行う(まだln_goto_closing()を呼び出していない)
         char txid_str[PTARM_SZ_TXID * 2 + 1];
         ptarm_util_bin2str_rev(txid_str, ln_funding_txid(self), PTARM_SZ_TXID);
-        misc_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
+        lnapp_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
     }
 
     ln_goto_closing(self, p_db_param);
@@ -758,7 +758,7 @@ static bool close_revoked_first(ln_self_t *self, ptarm_tx_t *pTx, uint32_t confm
     bool save = true;
     bool ret;
 
-    misc_save_event(ln_channel_id(self), "close: ugly way(remote)");
+    lnapp_save_event(ln_channel_id(self), "close: ugly way(remote)");
 
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         const ptarm_buf_t *p_vout = ln_revoked_vout(self);

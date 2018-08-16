@@ -40,6 +40,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <inttypes.h>
 #include <time.h>
 #include <stdbool.h>
@@ -563,7 +564,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     } else {
         p_str = "fail close: good way(local) start";
     }
-    misc_save_event(ln_channel_id(p_self), p_str);
+    lnapp_save_event(ln_channel_id(p_self), p_str);
 
     DBGTRACE_END
 
@@ -591,7 +592,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
 
     LOGD("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
-    misc_save_event(ln_channel_id(p_self), "close: bad way(local)");
+    lnapp_save_event(ln_channel_id(p_self), "close: bad way(local)");
     (void)monitor_close_unilateral_local(p_self, NULL);
     APP_FREE(p_self);
 
@@ -633,7 +634,7 @@ bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
         ln_set_feerate_per_kw(p_self, FeeratePerKw);
         send_peer_noise(pAppConf, &buf_bolt);
         ptarm_buf_free(&buf_bolt);
-        misc_save_event(ln_channel_id(p_self),
+        lnapp_save_event(ln_channel_id(p_self),
                 "updatefee send: %" PRIu32 " --> %" PRIu32,
                 oldrate, FeeratePerKw);
 
@@ -645,7 +646,7 @@ bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
         }
 
     } else {
-        misc_save_event(ln_channel_id(p_self), "fail updatefee");
+        lnapp_save_event(ln_channel_id(p_self), "fail updatefee");
     }
 
     DBGTRACE_END
@@ -886,6 +887,34 @@ bool lnapp_is_looping(const lnapp_conf_t *pAppConf)
 bool lnapp_is_inited(const lnapp_conf_t *pAppConf)
 {
     return (pAppConf->flag_recv & RECV_MSG_END) == RECV_MSG_END;
+}
+
+
+void lnapp_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
+{
+    char fname[256];
+
+    if (pChannelId != NULL) {
+        char chanid[LN_SZ_CHANNEL_ID * 2 + 1];
+        ptarm_util_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
+        sprintf(fname, FNAME_EVENTCH_LOG, chanid);
+    } else {
+        sprintf(fname, FNAME_EVENTCH_LOG, "node");
+    }
+    FILE *fp = fopen(fname, "a");
+    if (fp != NULL) {
+        char date[50];
+        misc_datetime(date, sizeof(date));
+        fprintf(fp, "[%s]", date);
+
+        va_list ap;
+        va_start(ap, pFormat);
+        vfprintf(fp, pFormat, ap);
+        va_end(ap);
+
+        fprintf(fp, "\n");
+        fclose(fp);
+    }
 }
 
 
@@ -1770,7 +1799,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
                         ln_shutdown_scriptpk_local(p_conf->p_self)->len);
             }
 
-            misc_save_event(ln_channel_id(p_conf->p_self),
+            lnapp_save_event(ln_channel_id(p_conf->p_self),
                     "funding_locked: short_channel_id=%" PRIx64 ", close_addr=%s",
                     ln_short_channel_id(p_conf->p_self), close_addr);
         } else {
@@ -2199,7 +2228,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
         }
     }
     set_lasterror(p_conf, RPCERR_PEER_ERROR, p_msg);
-    misc_save_event(p_err->channel_id, "error message: %s", p_msg);
+    lnapp_save_event(p_err->channel_id, "error message: %s", p_msg);
     if (b_alloc) {
         APP_FREE(p_msg);
     }
@@ -2286,12 +2315,12 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         }
         char str_peerid[PTARM_SZ_PUBKEY * 2 + 1];
         ptarm_util_bin2str(str_peerid, ln_their_node_id(p_conf->p_self), PTARM_SZ_PUBKEY);
-        misc_save_event(ln_channel_id(p_conf->p_self),
+        lnapp_save_event(ln_channel_id(p_conf->p_self),
                 "open: funding wait start(%s): peer_id=%s",
                 p_str, str_peerid);
     } else {
         LOGD("fail: send funding_tx\n");
-        misc_save_event(ln_channel_id(p_conf->p_self),
+        lnapp_save_event(ln_channel_id(p_conf->p_self),
                 "fail: sendrawtransaction\n");
         stop_threads(p_conf);
     }
@@ -2308,7 +2337,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 
     if ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
-        misc_save_event(ln_channel_id(p_conf->p_self),
+        lnapp_save_event(ln_channel_id(p_conf->p_self),
                 "open: recv funding_locked short_channel_id=%0" PRIx64,
                 ln_short_channel_id(p_conf->p_self));
     }
@@ -2415,7 +2444,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
                 //
                 char str_payhash[LN_SZ_HASH * 2 + 1];
                 ptarm_util_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
-                misc_save_event(NULL,
+                lnapp_save_event(NULL,
                         "payment fulfill: payment_hash=%s short_channel_id=%" PRIx64,
                         str_payhash, ln_short_channel_id(p_conf->p_self));
             } else {
@@ -2684,7 +2713,7 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV) ) {
             //送金完了
             LOGD("PAYMENT: htlc fulfilled\n");
-            misc_save_event(NULL,
+            lnapp_save_event(NULL,
                     "payment success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
                     ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
@@ -2701,7 +2730,7 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
     } else if (mFlagNode & (FLAGNODE_UPDFEE_SEND | FLAGNODE_UPDFEE_RECV)) {
         //update_fee
         LOGD("UPDATE_FEE\n");
-        misc_save_event(ln_channel_id(p_conf->p_self),
+        lnapp_save_event(ln_channel_id(p_conf->p_self),
                 "fee updated: short_channel_id=%" PRIx64 " feerate_per_kw=%" PRIu32,
                 ln_short_channel_id(p_conf->p_self), ln_feerate_per_kw(p_conf->p_self));
         mFlagNode = FLAGNODE_NONE;
@@ -2714,7 +2743,7 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
         } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV) ) {
             //送金完了
             LOGD("FORWARD: htlc fulfilled\n");
-            misc_save_event(NULL,
+            lnapp_save_event(NULL,
                     "forward success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
                     ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
             mFlagNode = FLAGNODE_NONE;
@@ -2768,7 +2797,7 @@ static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param)
 
     nodeflag_set(FLAGNODE_UPDFEE_RECV);
 
-    misc_save_event(ln_channel_id(p_conf->p_self),
+    lnapp_save_event(ln_channel_id(p_conf->p_self),
             "updatefee recv: feerate_per_kw=%" PRIu32 " --> %" PRIu32,
             oldrate, ln_feerate_per_kw(p_conf->p_self));
 }
@@ -2785,7 +2814,7 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
     uint64_t commit_fee = ln_calc_max_closing_fee(p_conf->p_self);
     ln_update_shutdown_fee(p_conf->p_self, commit_fee);
 
-    misc_save_event(ln_channel_id(p_conf->p_self), "close: recv shutdown");
+    lnapp_save_event(ln_channel_id(p_conf->p_self), "close: recv shutdown");
 }
 
 
@@ -2840,7 +2869,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
     } else {
         LOGD("DBG: no send closing_tx mode\n");
     }
-    misc_save_event(ln_channel_id(p_conf->p_self), "close: good way: end");
+    lnapp_save_event(ln_channel_id(p_conf->p_self), "close: good way: end");
 
     DBGTRACE_END
 }

@@ -27,8 +27,8 @@ extern "C" {
 #include "ln_script.c"
 #include "ln_enc_auth.c"
 #include "ln_signer.c"
-#include "bech32/segwit_addr.c"
-#include "log/plog.c"
+#include "segwit_addr.c"
+#include "plog.c"
 }
 
 ////////////////////////////////////////////////////////////////////////

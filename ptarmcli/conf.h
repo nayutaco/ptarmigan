@@ -36,18 +36,8 @@ bool conf_peer_load(const char *pConfFile, peer_conf_t *pPeerConf);
 void conf_funding_init(funding_conf_t *pFundConf);
 bool conf_funding_load(const char *pConfFile, funding_conf_t *pFundConf);
 
-void conf_btcrpc_init(rpc_conf_t *pRpcConf);
-bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf);
-bool conf_btcrpc_load_default(rpc_conf_t *pRpcConf);
-
 void conf_payment_init(payment_conf_t *pPayConf);
 bool conf_payment_load(const char *pConfFile, payment_conf_t *pPayConf);
-
-void conf_anno_init(anno_conf_t *pAnnoConf);
-bool conf_anno_load(const char *pConfFile, anno_conf_t *pAnnoConf);
-
-void conf_channel_init(channel_conf_t *pEstConf);
-bool conf_channel_load(const char *pConfFile, channel_conf_t *pEstConf);
 
 #ifdef __cplusplus
 }

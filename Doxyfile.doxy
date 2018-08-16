@@ -772,11 +772,9 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = . \
-                         include/ \
                          routing/ \
                          showdb/ \
-                         ptarm/src \
-                         ptarm/include \
+                         ptarm/ \
                          ptarmcli/ \
                          ptarmd/
 

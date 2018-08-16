@@ -232,6 +232,14 @@ bool lnapp_is_looping(const lnapp_conf_t *pAppConf);
 bool lnapp_is_inited(const lnapp_conf_t *pAppConf);
 
 
+/** [lnapp]イベントファイル保存
+ *
+ * @param[in]       pChannelId          channel_id(ファイル名)(NULL時: "node")
+ * @param[in]       pFormat             イベント文字列
+ */
+void lnapp_save_event(const uint8_t *pChannelId, const char *pFormat, ...);
+
+
 #ifdef __cplusplus
 }
 #endif
