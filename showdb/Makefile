@@ -3,7 +3,7 @@ OBJ = showdb
 
 include ../options.mak
 
-CFLAGS = --std=c99 -D_GNU_SOURCE -I../include -I../ptarm/include -I../libs/install/include
+CFLAGS = --std=c99 -D_GNU_SOURCE -I../cmn -I../ptarm -I../ptarmd -I../libs/install/include
 LDFLAGS = -L../libs/install/lib -L../ptarm
 LDFLAGS += -pthread -lptarm -llmdb -lbase58 -lmbedcrypto -lstdc++
 

@@ -31,9 +31,9 @@
 #include <assert.h>
 
 #include "ln_db.h"
-#include "ln/ln_misc.h"
-#include "ln/ln_msg_anno.h"
-#include "ln/ln_node.h"
+#include "ln_misc.h"
+#include "ln_msg_anno.h"
+#include "ln_node.h"
 
 
 /**************************************************************************
