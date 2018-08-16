@@ -191,6 +191,7 @@ typedef enum {
     LN_FUNDFLAG_ANNO_CH     = 0x02,     ///< open_channel.channel_flags.announce_channel
     LN_FUNDFLAG_FUNDING     = 0x04,     ///< 1:open_channel～funding_lockedまで
     LN_FUNDFLAG_CLOSE       = 0x08,     ///< 1:funding_txがspentになっている
+    LN_FUNDFLAG_OPENED      = 0x80      ///< 1:opened
 } ln_fundflag_t;
 
 

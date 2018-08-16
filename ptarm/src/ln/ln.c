@@ -5484,7 +5484,7 @@ static void free_establish(ln_self_t *self, bool bEndEstablish)
             LOGD("free\n");
         }
     }
-    self->fund_flag = (ln_fundflag_t)(self->fund_flag & ~LN_FUNDFLAG_FUNDING);
+    self->fund_flag = (ln_fundflag_t)((self->fund_flag & ~LN_FUNDFLAG_FUNDING) | LN_FUNDFLAG_OPENED);
 }
 
 
