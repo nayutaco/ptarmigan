@@ -19,7 +19,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   routing.cpp
+/** @file   routing.c
  *  @brief  routing計算アプリ
  *  @author ueno@nayuta.co
  */

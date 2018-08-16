@@ -15,8 +15,8 @@ INC_PATHS +=
 #COMMANDS
 ######################################
 
-INC_PATHS += -I../include -I../libs/install/include
-LD_PATHS += -L.. -L../libs/install/lib
+INC_PATHS += -I.. -I../../libs/install/include
+LD_PATHS += -L.. -L../../libs/install/lib
 
 OBJECT_DIRECTORY = _build
 OUTPUT_BINARY_DIRECTORY = .
