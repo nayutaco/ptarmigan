@@ -255,6 +255,8 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     const uint8_t *p_hmac = p_route + M_SZ_ROUTING_INFO;
 
     ret = ptarm_keys_chkpub(p_dhkey);
+    LOGD("XXX: pubkey\n");
+    DUMPD(p_dhkey, PTARM_SZ_PUBKEY);
     if (!ret) {
         LOGD("fail: invalid pubkey\n");
 
