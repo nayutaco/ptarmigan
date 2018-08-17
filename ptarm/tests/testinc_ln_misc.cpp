@@ -9,6 +9,7 @@ class misc: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
+        ptarm_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, false);
     }
 

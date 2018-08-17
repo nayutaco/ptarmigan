@@ -213,6 +213,11 @@ cppcheck:
 
 clean:
 	$(RM) $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME) .Depend
+	$(MAKE) -C tests clean
+
+test:
+	$(MAKE) -C tests
+	$(MAKE) -C tests exec
 
 ################################
 
