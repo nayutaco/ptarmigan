@@ -125,6 +125,8 @@ bool ln_onion_create_packet(uint8_t *pPacket,
 
     //セッション鍵のpubkey --> eph_pubkeys[0]
     ptarm_keys_priv2pub(eph_pubkeys, pSessionKey);
+    LOGD("XXX:  eph_pubkeys[0]\n");
+    DUMPD(eph_pubkeys, PTARM_SZ_PUBKEY);
 
     //セッション鍵とpaymentPathの先頭から作った共有鍵のSHA256 --> shd_secrets[0]
     ptarm_util_generate_shared_secret(shd_secrets, pHopData[0].pubkey, pSessionKey);
