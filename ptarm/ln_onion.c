@@ -124,6 +124,8 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     //[0]は最初に作る
 
     //セッション鍵のpubkey --> eph_pubkeys[0]
+    LOGD("XXX:  pSessionKey\n");
+    DUMPD(pSessionKey, PTARM_SZ_PRIVKEY);
     ptarm_keys_priv2pub(eph_pubkeys, pSessionKey);
     LOGD("XXX:  eph_pubkeys[0]\n");
     DUMPD(eph_pubkeys, PTARM_SZ_PUBKEY);
