@@ -50,6 +50,7 @@ TEST_F(ptarm, first)
 
 TEST_F(ptarm, ptarm_setnet_testnet_false)
 {
+    ptarm_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_TESTNET, false);
     ASSERT_TRUE(ret);
     ASSERT_EQ(2, mPref[PTARM_PREF]);
@@ -63,6 +64,7 @@ TEST_F(ptarm, ptarm_setnet_testnet_false)
 
 TEST_F(ptarm, ptarm_setnet_testnet_true)
 {
+    ptarm_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_TESTNET, true);
     ASSERT_TRUE(ret);
     ASSERT_EQ(2, mPref[PTARM_PREF]);
@@ -76,6 +78,7 @@ TEST_F(ptarm, ptarm_setnet_testnet_true)
 
 TEST_F(ptarm, ptarm_setnet_mainnet)
 {
+    ptarm_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_MAINNET, false);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, mPref[PTARM_PREF]);

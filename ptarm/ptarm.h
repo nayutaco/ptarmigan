@@ -1424,6 +1424,8 @@ void ptarm_print_extendedkey(const ptarm_ekey_t *pEKey);
  * @return  malloc残数
  */
 int ptarm_dbg_malloc_cnt(void);
+
+void ptarm_dbg_malloc_cnt_reset(void);
 #endif  //PTARM_DEBUG_MEM
 
 #ifdef __cplusplus

@@ -1,4 +1,4 @@
-GTEST_DIR = ./gtest
+GTEST_DIR = ../../gtest
 OBJECT_DIRECTORY = _ggtest
 
 CXX=g++
@@ -15,7 +15,7 @@ TEST_TARGET_SRC += test_ptarm.cpp
 # Flags passed to the preprocessor.
 # Set Google Test's header directory as a system directory, such that
 # the compiler doesn't generate warnings in Google Test headers.
-CPPFLAGS += -isystem -I$(GTEST_DIR) -DUNITTEST -D_GLIBCXX_USE_CXX11_ABI=1
+CPPFLAGS += -isystem $(GTEST_DIR)/.. -DUNITTEST -D_GLIBCXX_USE_CXX11_ABI=1
 CPPFLAGS += -DNDEBUG
 CPPFLAGS += -DPTARM_DEBUG
 CPPFLAGS += -DPTARM_DEBUG_MEM
@@ -44,7 +44,7 @@ vpath %.cpp $(TEST_PATHS)
 
 all: .Depend unittest
 
-unittest : $(OBJECT_DIRECTORY) $(GTEST_DIR)/gtest_main.a $(TEST_OBJECTS)
+unittest: $(OBJECT_DIRECTORY) $(GTEST_DIR)/gtest_main.a $(TEST_OBJECTS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(TEST_OBJECTS) $(GTEST_DIR)/gtest_main.a -o $(OBJECT_DIRECTORY)/$@ $(LDFLAGS)
 
 $(OBJECT_DIRECTORY):
@@ -62,15 +62,17 @@ $(GTEST_DIR)/gtest_main.a:
 	make -C $(GTEST_DIR)
 
 .Depend:
+ifneq ($(MAKECMDGOALS),clean)
 	$(foreach SRC,$(TEST_TARGET_SRC),$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MM -MT $(OBJECT_DIRECTORY)/$(SRC:.cpp=.o) $(SRC) >> .Depend;)
+endif
 
-rmlcov :
+rmlcov:
 	$(RM) $(OBJECT_DIRECTORY)/*.gcda
 
-clean :
+clean:
 	@$(RM) $(OBJECT_DIRECTORY) .Depend
 
-clobber : clean
+clobber: clean
 	make -C $(GTEST_DIR) clean
 
 exec: rmlcov

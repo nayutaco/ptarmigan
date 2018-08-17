@@ -42,6 +42,7 @@ ptarm_util_keys_t    ln_bolt3_b::keys;
 
 TEST_F(ln_bolt3_b, fuding1)
 {
+    ptarm_dbg_malloc_cnt_reset();
     ptarm_init(PTARM_TESTNET, true);
 
 

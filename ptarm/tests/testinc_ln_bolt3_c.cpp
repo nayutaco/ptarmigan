@@ -264,6 +264,7 @@ ln_htlcinfo_t** ln_bolt3_c::pp_htlcinfos;
 
 TEST_F(ln_bolt3_c, start)
 {
+    ptarm_dbg_malloc_cnt_reset();
     ptarm_init(PTARM_TESTNET, true);
 }
 

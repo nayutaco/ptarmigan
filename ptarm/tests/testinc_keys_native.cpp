@@ -5,10 +5,11 @@
 
 ////////////////////////////////////////////////////////////////////////
 
-class ln: public testing::Test {
+class keys_native: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
+        ptarm_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, true);
     }
 
@@ -28,13 +29,3 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////
-
-//TEST_F(ln, init)
-//{
-//    ptarm_ln_init();
-//}
-//
-//TEST_F(ln, term)
-//{
-//    ptarm_ln_term();
-//}

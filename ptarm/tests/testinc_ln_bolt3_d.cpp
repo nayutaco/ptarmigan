@@ -14,6 +14,7 @@ class ln_bolt3_d: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
+        ptarm_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, true);
     }
 

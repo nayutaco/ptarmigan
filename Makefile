@@ -42,3 +42,8 @@ lib_clean:
 
 git_subs:
 	git submodule update --init --recursive
+
+test:
+	$(MAKE) -C gtest
+	$(MAKE) -C ptarm test
+

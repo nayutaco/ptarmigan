@@ -34,3 +34,5 @@ addons:
   
 script:
   - make full
+  - make test
+

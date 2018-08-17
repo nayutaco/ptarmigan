@@ -399,6 +399,10 @@ int ptarm_dbg_malloc_cnt(void)
     return mcount;
 }
 
+void ptarm_dbg_malloc_cnt_reset(void)
+{
+    mcount = 0;
+}
 #endif  //PTARM_DEBUG_MEM
 
 
