@@ -18,7 +18,9 @@ protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
         ptarm_dbg_malloc_cnt_reset();
+        plog_init_stdout();
         ptarm_init(PTARM_TESTNET, true);
+      
         ptarm_buf_init(&sOnionBuffer);
         spEphPubkey = NULL;
         spShdSecret = NULL;
