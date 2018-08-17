@@ -1,4 +1,4 @@
-GTEST_DIR = ./gtest
+GTEST_DIR = ../../gtest
 OBJECT_DIRECTORY = _ggtest
 
 CXX=g++
@@ -15,7 +15,7 @@ TEST_TARGET_SRC += test_ptarm.cpp
 # Flags passed to the preprocessor.
 # Set Google Test's header directory as a system directory, such that
 # the compiler doesn't generate warnings in Google Test headers.
-CPPFLAGS += -isystem -I$(GTEST_DIR) -DUNITTEST -D_GLIBCXX_USE_CXX11_ABI=1
+CPPFLAGS += -isystem $(GTEST_DIR)/.. -DUNITTEST -D_GLIBCXX_USE_CXX11_ABI=1
 CPPFLAGS += -DNDEBUG
 CPPFLAGS += -DPTARM_DEBUG
 CPPFLAGS += -DPTARM_DEBUG_MEM
