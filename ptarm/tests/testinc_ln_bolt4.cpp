@@ -1146,10 +1146,8 @@ TEST_F(onion, test1)
 
     uint8_t pub[PTARM_SZ_PUBKEY];
     ptarm_keys_priv2pub(pub, session_key);
-printf("ln_onion_create_packet\n");
     bool ret = ln_onion_create_packet(packet, NULL, datain, 1, session_key, NULL, 0);
     ASSERT_TRUE(ret);
-printf("ln_onion_create_packet\n");
 
     const uint8_t PACKET[] = {
         0x00, 0x02, 0xee, 0xc7, 0x24, 0x5d, 0x6b, 0x7d,
@@ -1619,6 +1617,9 @@ TEST_F(onion, test4)
     ln_hop_datain_t datain[20];
     uint8_t packet[LN_SZ_ONION_ROUTE];
 
+    for (int lp = 0; lp < sizeof(session_key); lp++) {
+        session_key[lp] = (uint8_t)'A';
+    }
     for (int lp = 0; lp < ARRAY_SIZE(datain); lp++) {
         datain[lp].short_channel_id = (((uint64_t)lp << 56) | ((uint64_t)(lp+1) << 48) | ((uint64_t)(lp+2) << 40) | ((uint64_t)(lp+3) << 32) | ((uint64_t)(lp+4) << 24) | ((uint64_t)(lp+5) << 16) | ((uint64_t)(lp+6) << 8) | (uint64_t)(lp+7));
         //amt_to_forwardが64bitになったため、位置がずれる
