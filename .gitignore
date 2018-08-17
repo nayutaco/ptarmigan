@@ -12,6 +12,7 @@ routing/routing
 
 .Depend
 *.o
+*.a
 *.log
 GPATH
 GRTAGS
