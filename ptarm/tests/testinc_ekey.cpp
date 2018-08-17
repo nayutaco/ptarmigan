@@ -9,6 +9,7 @@ class extendedkey: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
+        ptarm_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_MAINNET, false);
     }
 
@@ -501,6 +502,7 @@ TEST_F(extendedkey, chain_m_master2)
 
 TEST_F(extendedkey, chain_testnet)
 {
+    ptarm_dbg_malloc_cnt_reset();
     ptarm_init(PTARM_TESTNET, false);
 
     uint8_t buf_ekey[PTARM_SZ_EKEY];

@@ -17,7 +17,10 @@ class onion: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
+        ptarm_dbg_malloc_cnt_reset();
+        plog_init_stdout();
         ptarm_init(PTARM_TESTNET, true);
+      
         ptarm_buf_init(&sOnionBuffer);
         spEphPubkey = NULL;
         spShdSecret = NULL;
@@ -1616,8 +1619,11 @@ TEST_F(onion, test4)
     uint8_t session_key[PTARM_SZ_PRIVKEY];
     uint8_t onion_privkey[20][PTARM_SZ_PRIVKEY];
     ln_hop_datain_t datain[20];
-    uint8_t packet[LN_SZ_ONION_ROUTE];
+    uint8_t packet[LN_SZ_ONION_ROUTE] = {0};
 
+    for (int lp = 0; lp < sizeof(session_key); lp++) {
+        session_key[lp] = (uint8_t)'A';
+    }
     for (int lp = 0; lp < ARRAY_SIZE(datain); lp++) {
         datain[lp].short_channel_id = (((uint64_t)lp << 56) | ((uint64_t)(lp+1) << 48) | ((uint64_t)(lp+2) << 40) | ((uint64_t)(lp+3) << 32) | ((uint64_t)(lp+4) << 24) | ((uint64_t)(lp+5) << 16) | ((uint64_t)(lp+6) << 8) | (uint64_t)(lp+7));
         //amt_to_forwardが64bitになったため、位置がずれる
@@ -1643,6 +1649,8 @@ TEST_F(onion, test4)
         ptarm_buf_t buf_rsn = PTARM_BUF_INIT;
         ptarm_push_t push_rsn;
         ptarm_push_init(&push_rsn, &buf_rsn, 0);
+        LOGD("XXX: packet=%d\n", lp);
+        DUMPD(packet, sizeof(packet));
         ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, ASSOC, sizeof(ASSOC));
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);

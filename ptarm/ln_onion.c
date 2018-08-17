@@ -124,7 +124,11 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     //[0]は最初に作る
 
     //セッション鍵のpubkey --> eph_pubkeys[0]
+    LOGD("XXX:  pSessionKey\n");
+    DUMPD(pSessionKey, PTARM_SZ_PRIVKEY);
     ptarm_keys_priv2pub(eph_pubkeys, pSessionKey);
+    LOGD("XXX:  eph_pubkeys[0]\n");
+    DUMPD(eph_pubkeys, PTARM_SZ_PUBKEY);
 
     //セッション鍵とpaymentPathの先頭から作った共有鍵のSHA256 --> shd_secrets[0]
     ptarm_util_generate_shared_secret(shd_secrets, pHopData[0].pubkey, pSessionKey);
@@ -255,6 +259,8 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     const uint8_t *p_hmac = p_route + M_SZ_ROUTING_INFO;
 
     ret = ptarm_keys_chkpub(p_dhkey);
+    LOGD("XXX: pubkey\n");
+    DUMPD(p_dhkey, PTARM_SZ_PUBKEY);
     if (!ret) {
         LOGD("fail: invalid pubkey\n");
 

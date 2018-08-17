@@ -50,6 +50,7 @@ TEST_F(ptarm, first)
 
 TEST_F(ptarm, ptarm_setnet_testnet_false)
 {
+    ptarm_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_TESTNET, false);
     ASSERT_TRUE(ret);
     ASSERT_EQ(2, mPref[PTARM_PREF]);
@@ -63,6 +64,7 @@ TEST_F(ptarm, ptarm_setnet_testnet_false)
 
 TEST_F(ptarm, ptarm_setnet_testnet_true)
 {
+    ptarm_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_TESTNET, true);
     ASSERT_TRUE(ret);
     ASSERT_EQ(2, mPref[PTARM_PREF]);
@@ -76,6 +78,7 @@ TEST_F(ptarm, ptarm_setnet_testnet_true)
 
 TEST_F(ptarm, ptarm_setnet_mainnet)
 {
+    ptarm_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_MAINNET, false);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, mPref[PTARM_PREF]);
@@ -88,24 +91,4 @@ TEST_F(ptarm, ptarm_setnet_mainnet)
 }
 
 
-#include "testinc_hash.cpp"
-#include "testinc_keys.cpp"
-#include "testinc_keys_native.cpp"
-#include "testinc_buf.cpp"
-#include "testinc_tx.cpp"
-#include "testinc_tx_native.cpp"
-#include "testinc_segwit.cpp"
-#include "testinc_sw_native.cpp"
-#include "testinc_send.cpp"
-#include "testinc_push.cpp"
-#include "testinc_ekey.cpp"
-#include "testinc_ln.cpp"
-#include "testinc_ln_bolt3_b.cpp"
-#include "testinc_ln_bolt3_c.cpp"
-#include "testinc_ln_bolt3_d.cpp"
-#include "testinc_ln_bolt3_e.cpp"
 #include "testinc_ln_bolt4.cpp"
-#include "testinc_ln_bolt8.cpp"
-#include "testinc_ln_misc.cpp"
-#include "testinc_recoverpub.cpp"
-#include "testinc_bech32.cpp"
