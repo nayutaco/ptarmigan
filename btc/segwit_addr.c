@@ -210,40 +210,6 @@ static bool convert_bits(uint8_t* out, size_t* outlen, int outbits, const uint8_
     return true;
 }
 
-//inbits:5, outbits:8で64bitまで変換可能
-static uint64_t convert_be64(const uint8_t *p_data, size_t dlen)
-{
-    uint64_t ret = 0;
-    for (size_t lp = 0; lp < dlen; lp++) {
-        ret <<= 5;
-        ret |= p_data[lp];
-    }
-    return ret;
-}
-
-//inbits:8, outbits:5で64bitまで変換可能
-static int convert64_to8(uint8_t *p_out, uint64_t val)
-{
-    size_t lp;
-    for (lp = 0; lp < sizeof(val); lp++) {
-        p_out[lp] = val & 0x1f;
-        val >>= 5;
-        if (val == 0) {
-            break;
-        }
-    }
-    //swap endian
-    for (size_t lp2 = 0; lp2 < lp; lp2++) {
-        if (lp2 > lp - lp2) {
-            break;
-        }
-        uint8_t tmp = p_out[lp2];
-        p_out[lp2] = p_out[lp - lp2];
-        p_out[lp - lp2] = tmp;
-    }
-    return lp + 1;
-}
-
 ////32進数→10進数変換
 //static uint64_t convert_32(const uint8_t *p_data, size_t dlen)
 //{
