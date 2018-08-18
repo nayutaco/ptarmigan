@@ -3678,6 +3678,7 @@ static bool create_to_local(ln_self_t *self,
             } else {
                 pp_htlcinfo[cnt]->type = LN_HTLCTYPE_OFFERED;
             }
+            pp_htlcinfo[cnt]->add_htlc_idx = idx;
             pp_htlcinfo[cnt]->expiry = self->cnl_add_htlc[idx].cltv_expiry;
             pp_htlcinfo[cnt]->amount_msat = self->cnl_add_htlc[idx].amount_msat;
             pp_htlcinfo[cnt]->preimage_hash = self->cnl_add_htlc[idx].payment_sha256;
@@ -3820,7 +3821,7 @@ static bool create_to_local_sign(ln_self_t *self,
  *
  *  1. [close]HTLC署名用local_htlcsecret取得
  *  2. voutごとの処理
- *      2.1. vout indexから対応するself->cnl_add_htlc[]を得る --> htlc_idx
+ *      2.1. vout indexから対応するpp_htlcinfo[]を得る --> htlc_idx
  *      2.2. htlc_idxで分岐
  *          2.2.1. [to_local]
  *              -# [close]to_local tx作成 + 署名 --> 戻り値
@@ -3935,12 +3936,12 @@ static bool create_to_local_spent(ln_self_t *self,
 
                     //OKなら各HTLCに保持
                     //  相手がunilateral closeした後に送信しなかったら、この署名を使う
-                    memcpy(self->cnl_add_htlc[htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
+                    memcpy(self->cnl_add_htlc[p_htlcinfo->add_htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
                 }
 
                 if (pClose != NULL) {
-                    const uint8_t *p_payhash = self->cnl_add_htlc[htlc_idx].payment_sha256;
-                    const uint8_t *p_sig = self->cnl_add_htlc[htlc_idx].signature;
+                    const uint8_t *p_payhash = self->cnl_add_htlc[p_htlcinfo->add_htlc_idx].payment_sha256;
+                    const uint8_t *p_sig = self->cnl_add_htlc[p_htlcinfo->add_htlc_idx].signature;
                     ret = create_to_local_close(self,
                                     pTxHtlcs, &tx, &push,
                                     pTxCommit, pBufWs,
@@ -4142,6 +4143,7 @@ static bool create_to_remote(ln_self_t *self,
             } else {
                 pp_htlcinfo[cnt]->type = LN_HTLCTYPE_RECEIVED;
             }
+            pp_htlcinfo[cnt]->add_htlc_idx = idx;
             pp_htlcinfo[cnt]->expiry = self->cnl_add_htlc[idx].cltv_expiry;
             pp_htlcinfo[cnt]->amount_msat = self->cnl_add_htlc[idx].amount_msat;
             pp_htlcinfo[cnt]->preimage_hash = self->cnl_add_htlc[idx].payment_sha256;
@@ -4253,7 +4255,7 @@ static bool create_to_remote(ln_self_t *self,
  *
  *  1. [close]HTLC署名用local_htlcsecret取得
  *  2. voutごとの処理
- *      2.1. vout indexから対応するself->cnl_add_htlc[]を得る --> htlc_idx
+ *      2.1. vout indexから対応するpp_htlcinfo[]を得る --> htlc_idx
  *      2.2. htlc_idxで分岐
  *          2.2.1. [to_local]
  *              -# 処理なし
@@ -4325,7 +4327,7 @@ static bool create_to_remote_spent(ln_self_t *self,
             }
         } else {
             const ln_htlcinfo_t *p_htlcinfo = pp_htlcinfo[htlc_idx];
-            const uint8_t *p_payhash = self->cnl_add_htlc[htlc_idx].payment_sha256;
+            const uint8_t *p_payhash = self->cnl_add_htlc[p_htlcinfo->add_htlc_idx].payment_sha256;
             uint64_t fee_sat = (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? p_feeinfo->htlc_timeout : p_feeinfo->htlc_success;
             if (pTxCommit->vout[vout_idx].value >= p_feeinfo->dust_limit_satoshi + fee_sat) {
                 ret = create_to_remote_htlcsign(self,

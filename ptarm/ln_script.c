@@ -212,6 +212,7 @@ bool HIDDEN ln_check_scriptpkh(const ptarm_buf_t *pBuf)
 void HIDDEN ln_htlcinfo_init(ln_htlcinfo_t *pHtlcInfo)
 {
     pHtlcInfo->type = LN_HTLCTYPE_NONE;
+    pHtlcInfo->add_htlc_idx = (uint16_t)-1;
     pHtlcInfo->expiry = 0;
     pHtlcInfo->amount_msat = 0;
     pHtlcInfo->preimage_hash = NULL;
