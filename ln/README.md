@@ -1,4 +1,6 @@
-# ptarm
+# LN Lib
+
+Lightning Network Library
 
 ## dependency libraries
 

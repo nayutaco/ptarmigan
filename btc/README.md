@@ -1,5 +1,9 @@
-# BECH32
+# BTC Lib
 
-## original
+Bitcoin Library
+
+## BECH32
+
+### original
 
 [sipa/bech32](https://github.com/sipa/bech32)
