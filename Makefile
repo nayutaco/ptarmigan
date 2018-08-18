@@ -17,6 +17,7 @@ default:
 all: lib default
 
 clean:
+	$(MAKE) -C gtest clean
 	$(MAKE) -C util clean
 	$(MAKE) -C ptarm clean
 	$(MAKE) -C ptarmd clean
