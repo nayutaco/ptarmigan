@@ -2,7 +2,8 @@ INSTALL_DIR = $(CURDIR)/install
 
 default:
 	$(MAKE) -C util
-	$(MAKE) -C ptarm
+	$(MAKE) -C btc
+	$(MAKE) -C ln
 	$(MAKE) -C ptarmd
 	$(MAKE) -C ptarmcli
 	$(MAKE) -C showdb
@@ -19,7 +20,8 @@ all: lib default
 clean:
 	$(MAKE) -C gtest clean
 	$(MAKE) -C util clean
-	$(MAKE) -C ptarm clean
+	$(MAKE) -C btc clean
+	$(MAKE) -C ln clean
 	$(MAKE) -C ptarmd clean
 	$(MAKE) -C ptarmcli clean
 	$(MAKE) -C showdb clean
@@ -32,19 +34,22 @@ distclean: lib_clean clean
 
 update:
 	$(MAKE) -C util clean
-	$(MAKE) -C ptarm clean
+	$(MAKE) -C btc clean
+	$(MAKE) -C ln clean
 	$(MAKE) clean
 	$(MAKE) default
 
 lib:
 	$(MAKE) -C libs
 	$(MAKE) -C util
-	$(MAKE) -C ptarm
+	$(MAKE) -C btc
+	$(MAKE) -C ln
 
 lib_clean:
 	$(MAKE) -C libs clean
 	$(MAKE) -C util clean
-	$(MAKE) -C ptarm clean
+	$(MAKE) -C btc clean
+	$(MAKE) -C ln clean
 
 git_subs:
 	git submodule update --init --recursive
@@ -52,5 +57,6 @@ git_subs:
 test:
 	$(MAKE) -C gtest
 	$(MAKE) -C util test
-	$(MAKE) -C ptarm test
+	$(MAKE) -C btc test
+	$(MAKE) -C ln test
 

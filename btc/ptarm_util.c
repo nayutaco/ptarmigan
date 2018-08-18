@@ -386,7 +386,7 @@ void ptarm_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len)
 }
 
 
-void HIDDEN ptarm_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2)
+void ptarm_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2)
 {
     mbedtls_sha256_context ctx;
 
@@ -426,7 +426,7 @@ int HIDDEN ptarm_util_set_keypair(mbedtls_ecp_keypair *pKeyPair, const uint8_t *
  * @note
  *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
  */
-int HIDDEN ptarm_util_ecp_point_read_binary2(mbedtls_ecp_point *point, const uint8_t *pPubKey)
+int ptarm_util_ecp_point_read_binary2(mbedtls_ecp_point *point, const uint8_t *pPubKey)
 {
     int ret;
     uint8_t parity;
@@ -563,7 +563,7 @@ void HIDDEN ptarm_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPu
  * @param[in]       pPubKeyHash
  * @param[in]       Prefix
  */
-void HIDDEN ptarm_util_create_scriptpk(ptarm_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix)
+void ptarm_util_create_scriptpk(ptarm_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix)
 {
     switch (Prefix) {
     case PTARM_PREF_P2PKH:
@@ -654,7 +654,7 @@ bool HIDDEN ptarm_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, ui
  * pPubKeyOut = pPubKeyIn + pA * G
  *
  */
-int HIDDEN ptarm_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const mbedtls_mpi *pA)
+int ptarm_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const mbedtls_mpi *pA)
 {
     int ret;
     mbedtls_ecp_point P1;
@@ -705,7 +705,7 @@ LABEL_EXIT:
 }
 
 
-bool HIDDEN ptarm_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen)
+bool ptarm_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen)
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
@@ -736,7 +736,7 @@ bool HIDDEN ptarm_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, cons
 }
 
 
-void HIDDEN ptarm_util_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey)
+void ptarm_util_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey)
 {
     uint8_t pub[PTARM_SZ_PUBKEY];
     ptarm_util_mul_pubkey(pub, pPubKey, pPrivKey, PTARM_SZ_PRIVKEY);
@@ -744,7 +744,7 @@ void HIDDEN ptarm_util_generate_shared_secret(uint8_t *pResult, const uint8_t *p
 }
 
 
-bool HIDDEN ptarm_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen)
+bool ptarm_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen)
 {
     //HMAC(SHA256)
     const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);

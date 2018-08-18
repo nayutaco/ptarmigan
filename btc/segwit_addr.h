@@ -24,19 +24,51 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "ln.h"
 
 #define SEGWIT_ADDR_MAINNET     ((uint8_t)0)
 #define SEGWIT_ADDR_TESTNET     ((uint8_t)1)
 #define SEGWIT_ADDR_MAINNET2    ((uint8_t)2)
 #define SEGWIT_ADDR_TESTNET2    ((uint8_t)3)
-#define LN_INVOICE_MAINNET      ((uint8_t)4)
-#define LN_INVOICE_TESTNET      ((uint8_t)5)
-#define LN_INVOICE_REGTEST      ((uint8_t)6)
 
 #ifdef __cplusplus
 extern "C" {
 #endif //__cplusplus
+
+/** Encode a Bech32 string
+ *
+ *  Out: output:  Pointer to a buffer of size strlen(hrp) + data_len + 8 that
+ *                will be updated to contain the null-terminated Bech32 string.
+ *  In: hrp :     Pointer to the non-null-terminated human readable part(length=2).
+ *      data :    Pointer to an array of 5-bit values.
+ *      data_len: Length of the data array.
+ *  Returns true if successful.
+ */
+bool bech32_encode(
+    char *output,
+    const char *hrp,
+    const uint8_t *data,
+    size_t data_len,
+    bool ln
+);
+
+/** Decode a Bech32 string
+ *
+ *  Out: hrp:      Pointer to a buffer of size strlen(input) - 6. Will be
+ *                 updated to contain the null-terminated human readable part.
+ *       data:     Pointer to a buffer of size strlen(input) - 8 that will
+ *                 hold the encoded 5-bit data values.
+ *       data_len: Pointer to a size_t that will be updated to be the number
+ *                 of entries in data.
+ *  In: input:     Pointer to a null-terminated Bech32 string.
+ *  Returns true if succesful.
+ */
+bool bech32_decode(
+    char* hrp,
+    uint8_t *data,
+    size_t *data_len,
+    const char *input,
+    bool ln
+);
 
 /** Encode a SegWit address
  *
@@ -75,70 +107,6 @@ bool segwit_addr_decode(
     uint8_t hrp_type,
     const char* addr
 );
-
-
-/** @struct ln_fieldr_t;
- *  @brief  r field
- */
-typedef struct ln_fieldr_t {
-    uint8_t     node_id[PTARM_SZ_PUBKEY];           ///< node_id
-    uint64_t    short_channel_id;                   ///< short_channel_id
-    uint32_t    fee_base_msat;                      ///< fee_base_msat
-    uint32_t    fee_prop_millionths;                ///< fee_proportional_millionths
-    uint16_t    cltv_expiry_delta;                  ///< cltv_expiry_delta
-} ln_fieldr_t;
-
-
-/** @struct ln_invoice_t;
- *  @brief  BOLT#11 invoice
- */
-typedef struct ln_invoice_t {
-    uint8_t     hrp_type;
-    uint64_t    amount_msat;
-    uint64_t    timestamp;
-    uint32_t    expiry;
-    uint32_t    min_final_cltv_expiry;
-    uint8_t     pubkey[PTARM_SZ_PUBKEY];
-    uint8_t     payment_hash[LN_SZ_HASH];
-    uint8_t     r_field_num;
-    ln_fieldr_t r_field[];
-} ln_invoice_t;
-
-
-/** Encode a BOLT11 invoice
- *
- * @param[out]      pp_invoice
- * @param[in]       p_invoice_data
- * @return  true:success
- * @note
- *      - need `free(pp_invoice)' if don't use it.
- */
-bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data);
-
-/** Decode a BOLT11 invoice
- *
- * @param[out]      pp_invoice_data
- * @param[in]       invoice
- * @return  true:success
- */
-bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice);
-
-/** BOLT11 形式invoice作成
- *
- * @param[out]      ppInvoice
- * @param[in]       Type            LN_INVOICE_xxx
- * @param[in]       pPayHash
- * @param[in]       Amount
- * @param[in]       Expiry          invoice expiry
- * @param[in]       pFieldR
- * @param[in]       FieldRNum       pFieldR数
- * @param[in]       MinFinalCltvExpiry  min_final_cltv_expiry
- * @retval      true        成功
- * @attention
- *      - ppInoviceはmalloc()で確保するため、、使用後にfree()すること
- */
-bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry,
-                        const ln_fieldr_t *pFieldR, uint8_t FieldRNum, uint32_t MinFinalCltvExpiry);
 
 #ifdef __cplusplus
 }

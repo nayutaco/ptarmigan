@@ -34,7 +34,7 @@
 #include "ln_local.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
-#include "segwit_addr.h"
+#include "ln_segwit_addr.h"
 
 #include <iostream>
 #include <fstream>

@@ -25,6 +25,7 @@
  *  @note
  *      - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
  */
+#include "ptarm.h"
 #include "ln_derkey.h"
 //#define M_DBG_PRINT
 

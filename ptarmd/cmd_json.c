@@ -31,7 +31,7 @@
 #include <assert.h>
 
 #include "jsonrpc-c.h"
-#include "segwit_addr.h"
+#include "ln_segwit_addr.h"
 
 #include "cmd_json.h"
 #include "ln_db.h"

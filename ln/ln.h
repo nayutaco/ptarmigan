@@ -162,6 +162,7 @@ extern "C" {
 //forward definition
 struct ln_self_t;
 typedef struct ln_self_t ln_self_t;
+struct ln_fieldr_t;
 typedef struct ln_fieldr_t ln_fieldr_t;
 
 

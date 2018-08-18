@@ -1,4 +1,4 @@
-PROJECT_NAME := libptarm.a
+PROJECT_NAME := libbtc.a
 OBJECT_DIRECTORY = _build
 PRJ_PATH = .
 OUTPUT_BINARY_DIRECTORY = .
@@ -45,24 +45,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/ptarm_util.c
 C_SOURCE_FILES += $(PRJ_PATH)/ptarm_keys.c
 C_SOURCE_FILES += $(PRJ_PATH)/ptarm_tx.c
 C_SOURCE_FILES += $(PRJ_PATH)/ptarm_sw.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_script.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_derkey.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_establish.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_close.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_normalope.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_setupctl.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_msg_anno.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_node.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_misc.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_onion.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_db_lmdb.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_enc_auth.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_print.c
-C_SOURCE_FILES += $(PRJ_PATH)/ln_signer.c
 C_SOURCE_FILES += $(PRJ_PATH)/segwit_addr.c
-
-CPP_SOURCE_FILES += $(PRJ_PATH)/ln_routing.cpp
 
 #includes common to all targets
 INC_PATHS += -I../util

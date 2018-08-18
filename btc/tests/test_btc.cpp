@@ -17,19 +17,6 @@ extern "C" {
 #include "ptarm_sw.c"
 #include "ptarm_tx.c"
 #include "ptarm_util.c"
-#include "ln.c"
-#include "ln_derkey.c"
-#include "ln_misc.c"
-#include "ln_msg_anno.c"
-#include "ln_msg_close.c"
-#include "ln_msg_establish.c"
-#include "ln_msg_normalope.c"
-#include "ln_msg_setupctl.c"
-#include "ln_node.c"
-#include "ln_onion.c"
-#include "ln_script.c"
-#include "ln_enc_auth.c"
-#include "ln_signer.c"
 #include "segwit_addr.c"
 }
 
@@ -39,18 +26,18 @@ extern "C" {
 
 ////////////////////////////////////////////////////////////////////////
 
-class ptarm: public testing::Test {
+class btc: public testing::Test {
 };
 
 
 ////////////////////////////////////////////////////////////////////////
 
-TEST_F(ptarm, first)
+TEST_F(btc, first)
 {
     //plog_init_stderr();
 }
 
-TEST_F(ptarm, ptarm_setnet_testnet_false)
+TEST_F(btc, ptarm_setnet_testnet_false)
 {
     ptarm_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_TESTNET, false);
@@ -64,7 +51,7 @@ TEST_F(ptarm, ptarm_setnet_testnet_false)
     ptarm_term();
 }
 
-TEST_F(ptarm, ptarm_setnet_testnet_true)
+TEST_F(btc, ptarm_setnet_testnet_true)
 {
     ptarm_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_TESTNET, true);
@@ -78,7 +65,7 @@ TEST_F(ptarm, ptarm_setnet_testnet_true)
     ptarm_term();
 }
 
-TEST_F(ptarm, ptarm_setnet_mainnet)
+TEST_F(btc, ptarm_setnet_mainnet)
 {
     ptarm_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_MAINNET, false);
@@ -102,13 +89,5 @@ TEST_F(ptarm, ptarm_setnet_mainnet)
 #include "testinc_sw_native.cpp"
 #include "testinc_send.cpp"
 #include "testinc_ekey.cpp"
-#include "testinc_ln.cpp"
-#include "testinc_ln_bolt3_b.cpp"
-#include "testinc_ln_bolt3_c.cpp"
-#include "testinc_ln_bolt3_d.cpp"
-#include "testinc_ln_bolt3_e.cpp"
-#include "testinc_ln_bolt4.cpp"
-#include "testinc_ln_bolt8.cpp"
-#include "testinc_ln_misc.cpp"
 #include "testinc_recoverpub.cpp"
 #include "testinc_bech32.cpp"
