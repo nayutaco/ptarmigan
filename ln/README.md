@@ -1,4 +1,4 @@
-# LN Lib
+# libln
 
 Lightning Network Library
 

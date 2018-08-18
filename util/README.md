@@ -1,4 +1,4 @@
-# UTIL Lib
+# libutil
 
 Utility Library
 
