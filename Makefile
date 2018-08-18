@@ -1,6 +1,7 @@
 INSTALL_DIR = $(CURDIR)/install
 
 default:
+	$(MAKE) -C util
 	$(MAKE) -C ptarm
 	$(MAKE) -C ptarmd
 	$(MAKE) -C ptarmcli
@@ -16,6 +17,7 @@ default:
 all: lib default
 
 clean:
+	$(MAKE) -C util clean
 	$(MAKE) -C ptarm clean
 	$(MAKE) -C ptarmd clean
 	$(MAKE) -C ptarmcli clean
@@ -28,16 +30,19 @@ full: git_subs lib default
 distclean: lib_clean clean
 
 update:
+	$(MAKE) -C util clean
 	$(MAKE) -C ptarm clean
 	$(MAKE) clean
 	$(MAKE) default
 
 lib:
 	$(MAKE) -C libs
+	$(MAKE) -C util
 	$(MAKE) -C ptarm
 
 lib_clean:
 	$(MAKE) -C libs clean
+	$(MAKE) -C util clean
 	$(MAKE) -C ptarm clean
 
 git_subs:
@@ -45,5 +50,6 @@ git_subs:
 
 test:
 	$(MAKE) -C gtest
+	$(MAKE) -C util test
 	$(MAKE) -C ptarm test
 

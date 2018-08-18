@@ -31,6 +31,9 @@
 #include <stdarg.h>
 #include <assert.h>
 
+#include "misc.h"
+#include "ptarm_buf.h"
+
 #include "ln_db.h"
 #include "ln_misc.h"
 #include "ln_msg_setupctl.h"

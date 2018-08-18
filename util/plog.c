@@ -11,8 +11,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "misc.h"
 #include "plog.h"
-#include "ptarm.h"
 
 #define FNAME_MAX       (50)
 

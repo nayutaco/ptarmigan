@@ -53,6 +53,8 @@ extern "C" {
 #define APP_FREE(ptr)       { free(ptr); ptr = NULL; }
 #endif  //APP_DEBUG_MEM
 
+#define PTARM_SZ_DTSTR          (14)            ///< サイズ:ptarm_util_strftime()  //06/12 09:36:36
+
 
 /**************************************************************************
  * prototypes
@@ -66,7 +68,6 @@ static inline void misc_msleep(unsigned long slp) {
     struct timespec req = { 0, (long)(slp * 1000000UL) };
     nanosleep(&req, NULL);
 }
-
 
 /** 16進数文字列から変換
  *
@@ -101,6 +102,30 @@ void misc_datetime(char *pDateTime, size_t Len);
  * @retval  true    全データが0x00
  */
 bool misc_all_zero(const void *pData, size_t Len);
+
+
+/** 16進数文字列に変換
+ *
+ * @param[out]      pStr        変換結果
+ * @param[in]       pBin        元データ
+ * @param[in]       BinLen      pBin長
+ */
+void ptarm_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+
+
+/** 16進数文字列に変換(エンディアン反転)
+ *
+ * @param[out]      pStr        変換結果(エンディアン反転)
+ * @param[in]       pBin        元データ
+ * @param[in]       BinLen      pBin長
+ */
+void ptarm_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+
+
+/** 日時文字列
+ *
+ */
+void ptarm_util_strftime(char *pTmStr, uint32_t Tm);
 
 
 #ifdef APP_DEBUG_MEM

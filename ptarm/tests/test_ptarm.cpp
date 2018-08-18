@@ -7,10 +7,13 @@
 extern "C" {
 //評価対象本体
 #include "ptarm.c"
-#include "ptarm_buf.c"
+#include "../../util/misc.c"
+#include "../../util/plog.c"
+#include "../../util/ptarm_dbg.c"
+#include "../../util/ptarm_buf.c"
+#include "../../util/ptarm_push.c"
 #include "ptarm_ekey.c"
 #include "ptarm_keys.c"
-#include "ptarm_push.c"
 #include "ptarm_sw.c"
 #include "ptarm_tx.c"
 #include "ptarm_util.c"
@@ -28,7 +31,6 @@ extern "C" {
 #include "ln_enc_auth.c"
 #include "ln_signer.c"
 #include "segwit_addr.c"
-#include "plog.c"
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -94,13 +96,11 @@ TEST_F(ptarm, ptarm_setnet_mainnet)
 #include "testinc_hash.cpp"
 #include "testinc_keys.cpp"
 #include "testinc_keys_native.cpp"
-#include "testinc_buf.cpp"
 #include "testinc_tx.cpp"
 #include "testinc_tx_native.cpp"
 #include "testinc_segwit.cpp"
 #include "testinc_sw_native.cpp"
 #include "testinc_send.cpp"
-#include "testinc_push.cpp"
 #include "testinc_ekey.cpp"
 #include "testinc_ln.cpp"
 #include "testinc_ln_bolt3_b.cpp"

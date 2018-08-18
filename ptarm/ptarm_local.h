@@ -214,12 +214,5 @@ void ptarm_util_add_vout_pkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPu
 int ptarm_util_get_varint_len(uint32_t Len);
 int ptarm_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript);
 
-#ifdef PTARM_DEBUG_MEM
-void* ptarm_dbg_malloc(size_t);
-void* ptarm_dbg_realloc(void*, size_t);
-void* ptarm_dbg_calloc(size_t, size_t);
-void  ptarm_dbg_free(void*);
-#endif  //PTARM_DEBUG_MEM
-
 
 #endif /* PTARM_LOCAL_H__ */

@@ -32,6 +32,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "misc.h"
+
 #include "ln_local.h"
 #include "ln_msg_anno.h"
 #include "ln_misc.h"

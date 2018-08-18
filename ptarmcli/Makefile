@@ -39,6 +39,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/conf.c
 
 #includes common to all targets
 INC_PATHS += -I$(PRJ_PATH)
+INC_PATHS += -I$(COMMON_PATH)/util
 INC_PATHS += -I$(COMMON_PATH)/ptarm
 INC_PATHS += -I$(COMMON_PATH)/ptarmd
 INC_PATHS += -I$(COMMON_PATH)/libs/install/include
@@ -85,6 +86,7 @@ LDFLAGS += -pthread
 #Link Library
 LIBS += -L$(COMMON_PATH)/libs/install/lib -ljansson -lcurl -linih
 LIBS += -L$(COMMON_PATH)/ptarm -lptarm
+LIBS += -L$(COMMON_PATH)/util -lutil
 LIBS += -llmdb -lbase58 -lmbedcrypto -lstdc++
 
 

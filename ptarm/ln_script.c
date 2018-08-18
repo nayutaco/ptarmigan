@@ -25,6 +25,8 @@
  */
 #include <inttypes.h>
 
+#include "ptarm_push.h"
+
 #include "ln_script.h"
 #include "ln_signer.h"
 

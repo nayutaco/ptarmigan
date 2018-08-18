@@ -23,7 +23,9 @@
  *  @brief  可変サイズバッファ
  *  @author ueno@nayuta.co
  */
-#include "ptarm_local.h"
+#include "util_local.h"
+
+#include "ptarm_buf.h"
 
 
 /**************************************************************************

@@ -23,7 +23,9 @@
  *  @brief  bitcoinスクリプト作成
  *  @author ueno@nayuta.co
  */
-#include "ptarm_local.h"
+#include "util_local.h"
+
+#include "ptarm_push.h"
 
 
 /**************************************************************************

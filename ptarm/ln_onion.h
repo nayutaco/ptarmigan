@@ -27,6 +27,8 @@
 #define LN_ONION_H__
 
 
+#include "ptarm_push.h"
+
 #include "ln_local.h"
 
 

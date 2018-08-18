@@ -27,8 +27,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#include "util_local.h"
 #include "misc.h"
-#include "ptarm_local.h"
 
 
 /**************************************************************************
@@ -119,6 +119,35 @@ bool misc_all_zero(const void *pData, size_t Len)
         }
     }
     return ret;
+}
+
+
+void ptarm_util_strftime(char *pTmStr, uint32_t Tm)
+{
+    time_t tm = (time_t)Tm;
+    strftime(pTmStr, PTARM_SZ_DTSTR + 1, "%m/%d %H:%M:%S", localtime(&tm));
+}
+
+
+void ptarm_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
+{
+    *pStr = '\0';
+    for (uint32_t lp = 0; lp < BinLen; lp++) {
+        char str[3];
+        sprintf(str, "%02x", pBin[lp]);
+        strcat(pStr, str);
+    }
+}
+
+
+void ptarm_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
+{
+    *pStr = '\0';
+    for (uint32_t lp = 0; lp < BinLen; lp++) {
+        char str[3];
+        sprintf(str, "%02x", pBin[BinLen - lp - 1]);
+        strcat(pStr, str);
+    }
 }
 
 

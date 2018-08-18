@@ -36,6 +36,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "ptarm_buf.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif //__cplusplus
@@ -61,7 +63,6 @@ extern "C" {
 #define PTARM_SZ_EKEY           (82)            ///< サイズ:拡張鍵
 #define PTARM_SZ_CHAINCODE      (32)            ///< サイズ:拡張鍵chaincode
 #define PTARM_SZ_EKEY_ADDR_MAX  (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
-#define PTARM_SZ_DTSTR          (14)            ///< サイズ:ptarm_util_strftime()  //06/12 09:36:36
 
 #define PTARM_PREF              (0)             ///< Prefix: 1:mainnet, 2:testnet
 #define PTARM_PREF_WIF          (1)             ///< Prefix: WIF
@@ -110,8 +111,6 @@ extern "C" {
                                                 // https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/policy/policy.cpp#L52-L55
 
 #define PTARM_TX_VERSION_INIT   (2)
-
-#define PTARM_BUF_INIT          { (uint8_t *)NULL, (uint32_t)0 }
 #define PTARM_TX_INIT           { PTARM_TX_VERSION_INIT, 0, (ptarm_vin_t *)NULL, 0, (ptarm_vout_t *)NULL, 0 }
 
 
@@ -167,25 +166,6 @@ typedef enum {
     PTARM_MAINNET,          ///< mainnet
     PTARM_TESTNET           ///< testnet, regtest
 } ptarm_chain_t;
-
-
-/** @struct ptarm_buf_t
- *  @brief  バッファ管理構造体
- *
- */
-typedef struct {
-    uint8_t         *buf;       ///< バッファ(malloc前提)
-    uint32_t        len;        ///< bufサイズ
-} ptarm_buf_t;
-
-
-/** @struct     ptarm_push_t
- *  @brief      PUSH管理構造体
- */
-typedef struct {
-    uint32_t        pos;            ///< 次書込み位置
-    ptarm_buf_t     *data;          ///< 更新対象
-} ptarm_push_t;
 
 
 /** @struct     ptarm_ekey_t
@@ -451,65 +431,6 @@ bool ptarm_keys_addr2spk(ptarm_buf_t *pScriptPk, const char *pAddr);
  * @return      true:成功
  */
 bool ptarm_keys_spk2addr(char *pAddr, const ptarm_buf_t *pScriptPk);
-
-
-//////////////////////
-//BUF
-//////////////////////
-
-
-/** #ptarm_buf_t 初期化
- *
- * @param[in,out]   pBuf    処理対象
- */
-void ptarm_buf_init(ptarm_buf_t *pBuf);
-
-
-/** #ptarm_buf_t のメモリ解放
- *
- * @param[in,out]   pBuf    処理対象
- */
-void ptarm_buf_free(ptarm_buf_t *pBuf);
-
-
-/** #ptarm_buf_t へのメモリ確保
- *
- * @param[out]      pBuf        処理対象
- * @param[in]       Size        確保するメモリサイズ
- *
- * @note
- *      - #ptarm_buf_init()の代わりに使用できるが、元の領域は解放しない
- */
-void ptarm_buf_alloc(ptarm_buf_t *pBuf, uint32_t Size);
-
-
-/** #ptarm_buf_t へのメモリ再確保
- *
- * @param[out]      pBuf        処理対象
- * @param[in]       Size        確保するメモリサイズ
- */
-void ptarm_buf_realloc(ptarm_buf_t *pBuf, uint32_t Size);
-
-
-/** #ptarm_buf_t へのメモリ確保及びデータコピー
- *
- * @param[out]      pBuf        処理対象
- * @param[in]       pData       対象データ
- * @param[in]       Len         pData長
- *
- * @note
- *      - #ptarm_buf_init()の代わりに使用できるが、元の領域は解放しない
- */
-void ptarm_buf_alloccopy(ptarm_buf_t *pBuf, const uint8_t *pData, uint32_t Len);
-
-
-/** #ptarm_buf_t の比較
- *
- * @param[in]       pBuf1       比較対象1
- * @param[in]       pBuf2       比較対象2
- * @retval      true        一致
- */
-bool ptarm_buf_cmp(const ptarm_buf_t *pBuf1, const ptarm_buf_t *pBuf2);
 
 
 //////////////////////
@@ -1098,60 +1019,6 @@ void ptarm_sw_wit2prog_p2wsh(uint8_t *pWitProg, const ptarm_buf_t *pWitScript);
 
 
 //////////////////////
-//PUSH
-//////////////////////
-
-/** ptarm_push_t初期化
- *
- * @param[out]  pPush       処理対象
- * @param[in]   pBuf        更新していくptarm_buf_t
- * @param[in]   Size        初期サイズ
- *
- * @note
- *      - データ追加時に初期サイズより領域が必要になれば拡張しているが、
- *          realloc()を繰り返すことになるので、必要なサイズ以上を確保した方が望ましい。
- *      - pDataは解放せず初期化して使用するため、必要なら先に解放すること。
- */
-void ptarm_push_init(ptarm_push_t *pPush, ptarm_buf_t *pBuf, uint32_t Size);
-
-
-/** データ追加
- *
- * @param[out]  pPush       処理対象
- * @param[in]   pData       追加データ
- * @param[in]   Len         pData長
- *
- * @note
- *      - 初期化時のサイズからあふれる場合、realloc()して拡張する。
- *      - そのまま追加するため、OP_PUSHDATAxなどは呼び出し元で行うこと。
- */
-void ptarm_push_data(ptarm_push_t *pPush, const void *pData, uint32_t Len);
-
-
-/** スタックへの値追加(符号無し)
- *
- * 1～5バイトの範囲で値を追加する。<br/>
- * スタックの値は符号ありとして処理されるが、Valueは符号無しのみとする。
- *
- * @param[out]  pPush       処理対象
- * @param[in]   Value       追加データ(符号無し)
- *
- * @attention
- *      - 符号ありの値をキャストしても符号無しとして扱う。
- */
-void ptarm_push_value(ptarm_push_t *pPush, uint64_t Value);
-
-
-/** サイズ調整
- *
- * ptarm_buf_tのサイズをptarm_push_tで管理しているサイズにあわせる。
- *
- * @param[out]  pPush       処理対象
- */
-void ptarm_push_trim(ptarm_push_t *pPush);
-
-
-//////////////////////
 //EKEY
 //////////////////////
 
@@ -1338,30 +1205,6 @@ ptarm_genesis_t ptarm_util_get_genesis(const uint8_t *pGenesisHash);
 const uint8_t *ptarm_util_get_genesis_block(ptarm_genesis_t Kind);
 
 
-/** 16進数文字列に変換
- *
- * @param[out]      pStr        変換結果
- * @param[in]       pBin        元データ
- * @param[in]       BinLen      pBin長
- */
-void ptarm_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
-
-
-/** 16進数文字列に変換(エンディアン反転)
- *
- * @param[out]      pStr        変換結果(エンディアン反転)
- * @param[in]       pBin        元データ
- * @param[in]       BinLen      pBin長
- */
-void ptarm_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
-
-
-/** 日時文字列
- *
- */
-void ptarm_util_strftime(char *pTmStr, uint32_t Tm);
-
-
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
 void ptarm_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);
 void ptarm_util_dumptxid(FILE *fp, const uint8_t *pTxid);
@@ -1411,22 +1254,6 @@ void ptarm_print_extendedkey(const ptarm_ekey_t *pEKey);
 #define ptarm_print_extendedkey(...)    //nothing
 #endif  //PTARM_USE_PRINTFUNC
 
-
-#ifdef PTARM_DEBUG_MEM
-//////////////////////
-//DBG
-//////////////////////
-
-/** (デバッグ用)malloc残数取得
- * ptarmライブラリ内でmalloc()した回数からfree()した回数を返す。<br/>
- * PTARM_DEBUG_MEM 定義時のみ有効で、未定義の場合は常に-1を返す。
- *
- * @return  malloc残数
- */
-int ptarm_dbg_malloc_cnt(void);
-
-void ptarm_dbg_malloc_cnt_reset(void);
-#endif  //PTARM_DEBUG_MEM
 
 #ifdef __cplusplus
 }

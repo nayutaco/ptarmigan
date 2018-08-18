@@ -3,9 +3,9 @@ OBJ = routing
 
 include ../options.mak
 
-CFLAGS = --std=c99 -D_GNU_SOURCE -I../ptarm -I../ptarmd -I../libs/install/include
-LDFLAGS = -L../libs/install/lib -L../ptarm
-LDFLAGS += -pthread -lptarm -llmdb -lbase58 -lmbedcrypto -lstdc++
+CFLAGS = --std=c99 -D_GNU_SOURCE -I../util -I../ptarm -I../ptarmd -I../libs/install/include
+LDFLAGS = -L../libs/install/lib -L../ptarm -L../util
+LDFLAGS += -pthread -lptarm -lutil -llmdb -lbase58 -lmbedcrypto -lstdc++
 
 ifeq ($(DISABLE_PRINTFUND),0)
 CFLAGS += -DPTARM_USE_PRINTFUNC

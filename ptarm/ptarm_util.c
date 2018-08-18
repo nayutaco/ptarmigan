@@ -42,11 +42,6 @@
  * private variables
  **************************************************************************/
 
-#ifdef PTARM_DEBUG_MEM
-static int mcount = 0;
-#endif  //PTARM_DEBUG_MEM
-
-
 /**************************************************************************
  * prototypes
  **************************************************************************/
@@ -339,28 +334,6 @@ const uint8_t *ptarm_util_get_genesis_block(ptarm_genesis_t kind)
 }
 
 
-void ptarm_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
-{
-    *pStr = '\0';
-    for (uint32_t lp = 0; lp < BinLen; lp++) {
-        char str[3];
-        sprintf(str, "%02x", pBin[lp]);
-        strcat(pStr, str);
-    }
-}
-
-
-void ptarm_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
-{
-    *pStr = '\0';
-    for (uint32_t lp = 0; lp < BinLen; lp++) {
-        char str[3];
-        sprintf(str, "%02x", pBin[BinLen - lp - 1]);
-        strcat(pStr, str);
-    }
-}
-
-
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
 /** uint8[]の内容をFILE*出力
  *
@@ -391,26 +364,6 @@ void ptarm_util_dumptxid(FILE *fp, const uint8_t *pTxid)
     }
 }
 #endif  //PTARM_USE_PRINTFUNC || PTARM_DEBUG
-
-
-#ifdef PTARM_DEBUG_MEM
-int ptarm_dbg_malloc_cnt(void)
-{
-    return mcount;
-}
-
-void ptarm_dbg_malloc_cnt_reset(void)
-{
-    mcount = 0;
-}
-#endif  //PTARM_DEBUG_MEM
-
-
-void ptarm_util_strftime(char *pTmStr, uint32_t Tm)
-{
-    time_t tm = (time_t)Tm;
-    strftime(pTmStr, PTARM_SZ_DTSTR + 1, "%m/%d %H:%M:%S", localtime(&tm));
-}
 
 
 /**************************************************************************
@@ -997,156 +950,6 @@ int HIDDEN ptarm_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32
 
     return retval;
 }
-
-
-#ifdef PTARM_DEBUG_MEM
-
-#if 1
-void HIDDEN *ptarm_dbg_malloc(size_t size)
-{
-    void *p = malloc(size);
-    if (p) {
-        mcount++;
-    }
-    return p;
-}
-
-
-void HIDDEN *ptarm_dbg_realloc(void *ptr, size_t size)
-{
-    void *p = realloc(ptr, size);
-    if ((ptr == NULL) && p) {
-        mcount++;
-    }
-    return p;
-}
-
-
-void HIDDEN *ptarm_dbg_calloc(size_t blk, size_t size)
-{
-    void *p = calloc(blk, size);
-    if (p) {
-        mcount++;
-    }
-    return p;
-}
-
-
-void HIDDEN ptarm_dbg_free(void *ptr)
-{
-    //NULL代入してfree()だけするパターンもあるため、NULLチェックする
-    if (ptr) {
-        mcount--;
-    }
-    free(ptr);
-}
-
-
-#else
-
-static struct {
-    int allocs;
-    void *p;
-} mem[100];
-
-void HIDDEN *ptarm_dbg_malloc(size_t size)
-{
-    void *p = malloc(size);
-    if (p) {
-        for (int lp = 0; lp < 100; lp++) {
-            if (mem[lp].p == 0) {
-                mem[lp].allocs++;
-                mem[lp].p = p;
-                break;
-            }
-        }
-        mcount++;
-    } else {
-        printf("0 malloc\n");
-    }
-    printf("%s(%u)[%d] = %p\n", __func__, size, mcount, p);
-    return p;
-}
-
-
-void HIDDEN *ptarm_dbg_realloc(void *ptr, size_t size)
-{
-    void *p = realloc(ptr, size);
-    if (ptr && (ptr != p)) {
-        for (int lp = 0; lp < 100; lp++) {
-            if (mem[lp].p == ptr) {
-                printf("   realloc update\n");
-                mem[lp].p = p;
-                break;
-            }
-        }
-    } else if ((ptr == NULL) && p) {
-        mcount++;
-        for (int lp = 0; lp < 100; lp++) {
-            if (mem[lp].p == 0) {
-                mem[lp].allocs++;
-                mem[lp].p = p;
-                break;
-            }
-        }
-    } else {
-        printf("   realloc same\n");
-    }
-    printf("%s(%p, %u)[%d] = %p\n", __func__, ptr, size, mcount, p);
-    return p;
-}
-
-
-void HIDDEN *ptarm_dbg_calloc(size_t blk, size_t size)
-{
-    void *p = calloc(blk, size);
-    if (p) {
-        mcount++;
-        for (int lp = 0; lp < 100; lp++) {
-            if (mem[lp].p == 0) {
-                mem[lp].allocs++;
-                mem[lp].p = p;
-                break;
-            }
-        }
-    }
-    printf("%s(%u, %u)[%d] = %p\n", __func__, blk, size, mcount, p);
-    return p;
-}
-
-
-void HIDDEN ptarm_dbg_free(void *ptr)
-{
-    //NULL代入してfree()だけするパターンもあるため、NULLチェックする
-    if (ptr) {
-        mcount--;
-        for (int lp = 0; lp < 100; lp++) {
-            if (mem[lp].p == ptr) {
-                mem[lp].allocs--;
-                if (mem[lp].allocs == 0) {
-                    mem[lp].p = NULL;
-                }
-                printf("%s(%p) allocs:%d\n", __func__, ptr, mem[lp].allocs);
-                break;
-            }
-        }
-    }
-    printf("%s(%p)[%d]\n", __func__, ptr, mcount);
-    free(ptr);
-}
-
-void ptarm_dbg_show_mem(void)
-{
-    for (int lp = 0; lp < 100; lp++) {
-        if (mem[lp].p) {
-            printf("[%2d]allocs=%d, p=%p\n", lp, mem[lp].allocs, mem[lp].p);
-        }
-
-    }
-}
-#endif
-
-#endif  //PTARM_DEBUG_MEM
 
 
 /**************************************************************************
