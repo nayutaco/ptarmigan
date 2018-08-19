@@ -158,6 +158,7 @@ typedef enum {
 
     //内部用
     TRANSCMD_ANNOSIGNS,             ///< announcement_signatures送信要求
+    TRANSCMD_HTLCCHECK,             ///< HTLC check(消化できていないHTLCを反映する)
 } trans_cmd_t;
 
 

@@ -129,8 +129,6 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
 
     int pos = sizeof(uint16_t);
 
-    pMsg->flag = LN_HTLC_FLAG_RECV;
-
     //        [32:channel-id]
     memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
     pos += LN_SZ_CHANNEL_ID;
