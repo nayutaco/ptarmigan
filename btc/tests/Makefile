@@ -25,7 +25,7 @@ CPPFLAGS += -DPTARM_DEBUG_MEM
 CXXFLAGS += -g -Wall -Wextra -pthread -Wno-unused-parameter -Wno-sign-compare --coverage -fpermissive
 #CXXFLAGS += -fsanitize=leak
 #CXXFLAGS += -fsanitize=address
-CXXFLAGS += -I../../util
+CXXFLAGS += -I../../utl
 CXXFLAGS += -I..
 CXXFLAGS += -I../../libs/install/include
 CXXFLAGS += -I../../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'

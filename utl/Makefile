@@ -1,4 +1,4 @@
-PROJECT_NAME := libutil.a
+PROJECT_NAME := libutl.a
 OBJECT_DIRECTORY = _build
 PRJ_PATH = .
 OUTPUT_BINARY_DIRECTORY = .

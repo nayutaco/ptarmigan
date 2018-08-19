@@ -59,7 +59,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/ln_segwit_addr.c
 CPP_SOURCE_FILES += $(PRJ_PATH)/ln_routing.cpp
 
 #includes common to all targets
-INC_PATHS += -I../util
+INC_PATHS += -I../utl
 INC_PATHS += -I../btc
 INC_PATHS += -I.
 INC_PATHS += -I../libs/install/include

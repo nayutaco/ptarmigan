@@ -45,7 +45,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/conf.c
 
 #includes common to all targets
 INC_PATHS += -I$(PRJ_PATH)
-INC_PATHS += -I$(COMMON_PATH)/util
+INC_PATHS += -I$(COMMON_PATH)/utl
 INC_PATHS += -I$(COMMON_PATH)/btc
 INC_PATHS += -I$(COMMON_PATH)/ln
 INC_PATHS += -I$(COMMON_PATH)/libs/install/include
@@ -106,7 +106,7 @@ LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
 LIBS += -L$(COMMON_PATH)/ln -lln
 LIBS += -L$(COMMON_PATH)/btc -lbtc
-LIBS += -L$(COMMON_PATH)/util -lutil
+LIBS += -L$(COMMON_PATH)/utl -lutl
 LIBS += -llmdb -lbase58 -lmbedcrypto
 LIBS += -lstdc++
 

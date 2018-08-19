@@ -20,13 +20,13 @@
  *  under the License.
  */
 /** @file   ptarm_dbg.c
- *  @brief  util処理: 汎用処理
+ *  @brief  utl処理: 汎用処理
  *  @author ueno@nayuta.co
  */
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "util_local.h"
+#include "utl_local.h"
 #include "ptarm_dbg.h"
 
 
