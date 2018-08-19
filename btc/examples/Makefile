@@ -1,15 +1,37 @@
-OUTPUT_FILENAME := ptarmd
+######################################
+#SOURCES
+######################################
+
+OUTPUT_FILENAME := tst
 PRJ_PATH = .
-COMMON_PATH = ..
+
+C_SOURCE_FILES += $(PRJ_PATH)/tx_create.c
+
+#CFLAGS += -DUNITTEST
+INC_PATHS +=
+
+
+######################################
+#COMMANDS
+######################################
+
+INC_PATHS += -I../../util -I.. -I../../libs/install/include
+LD_PATHS += -L.. -L../../util -L../../libs/install/lib
+
 OBJECT_DIRECTORY = _build
 OUTPUT_BINARY_DIRECTORY = .
 
-######################################
-#CFLAGS_USER
-#CFLAGS_USER += -DAPP_DEBUG_MEM
-######################################
+export OUTPUT_FILENAME
+MAKEFILE_NAME := $(MAKEFILE_LIST)
+MAKEFILE_DIR := $(dir $(MAKEFILE_NAME) )
 
-include ../options.mak
+LISTING_DIRECTORY = $(OBJECT_DIRECTORY)
+
+# Sorting removes duplicates
+BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY) $(LISTING_DIRECTORY) )
+
+MK := mkdir
+RM := rm -rf
 
 #echo suspend
 ifeq ("$(VERBOSE)","1")
@@ -19,104 +41,65 @@ NO_ECHO := @
 endif
 
 # Toolchain commands
-CC              := "$(GNU_PREFIX)gcc"
-AS              := "$(GNU_PREFIX)as"
-AR              := "$(GNU_PREFIX)ar" -r
-LD              := "$(GNU_PREFIX)ld"
-NM              := "$(GNU_PREFIX)nm"
-OBJDUMP         := "$(GNU_PREFIX)objdump"
-OBJCOPY         := "$(GNU_PREFIX)objcopy"
-SIZE            := "$(GNU_PREFIX)size"
-MK              := mkdir
-RM              := rm -rf
+CC       		:= "$(GNU_PREFIX)gcc"
+AS       		:= "$(GNU_PREFIX)as"
+AR       		:= "$(GNU_PREFIX)ar" -r
+LD       		:= "$(GNU_PREFIX)ld"
+NM       		:= "$(GNU_PREFIX)nm"
+OBJDUMP  		:= "$(GNU_PREFIX)objdump"
+OBJCOPY  		:= "$(GNU_PREFIX)objcopy"
+SIZE    		:= "$(GNU_PREFIX)size"
 
 #function for removing duplicates in a list
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
 
-#sources project
-C_SOURCE_FILES += $(PRJ_PATH)/ptarmd.c
-C_SOURCE_FILES += $(PRJ_PATH)/p2p_svr.c
-C_SOURCE_FILES += $(PRJ_PATH)/p2p_cli.c
-C_SOURCE_FILES += $(PRJ_PATH)/lnapp.c
-C_SOURCE_FILES += $(PRJ_PATH)/cmd_json.c
-C_SOURCE_FILES += $(PRJ_PATH)/monitoring.c
-C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
-C_SOURCE_FILES += $(PRJ_PATH)/conf.c
-
-#includes common to all targets
-INC_PATHS += -I$(PRJ_PATH)
-INC_PATHS += -I$(COMMON_PATH)/util
-INC_PATHS += -I$(COMMON_PATH)/btc
-INC_PATHS += -I$(COMMON_PATH)/ln
-INC_PATHS += -I$(COMMON_PATH)/libs/install/include
-
-# Sorting removes duplicates
-BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
 
 ######################################
 #CFLAGS
 ######################################
+# cpu
+#CFLAGS += -mcpu=cortex-m0
+#CFLAGS += -mthumb -mabi=aapcs
+#CFLAGS += -mfloat-abi=soft
 
-CFLAGS += -std=gnu99
-CFLAGS += -W -Wall -Wextra
+CFLAGS += --std=gnu99
+CFLAGS += -Wall
 
 # keep every function in separate section. This will allow linker to dump unused functions
-CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
+#CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 #CFLAGS += -flto -fno-builtin
 
-# for syscall() and others
-CFLAGS += -D_GNU_SOURCE
-
-# others
-CFLAGS += $(INC_PATHS)
-CFLAGS += -DNETKIND=$(NETKIND)
-
-ifeq ($(USE_SPV),1)
-CFLAGS += -DUSE_SPV
-endif
-
-ifeq ($(DISABLE_PRINTFUND),0)
-CFLAGS += -DPTARM_USE_PRINTFUNC
-endif
-
-ifeq ($(ENABLE_DEVELOPER_MODE),1)
-CFLAGS += -DDEVELOPER_MODE
-endif
-
-ifeq ($(ENABLE_PLOG_TO_STDOUT_PTARMD),1)
-CFLAGS += -DENABLE_PLOG_TO_STDOUT
-endif
 
 ######################################
 #LDFLAGS
 ######################################
 
-# keep every function in separate section. This will allow linker to dump unused functions
-#LDFLAGS += -Xlinker -Map=$(OBJECT_DIRECTORY)/$(OUTPUT_FILENAME).map
-
-# let linker to dump unused sections
-LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -pthread
 
+# keep every function in separate section. This will allow linker to dump unused functions
+#LDFLAGS += -Xlinker -Map=$(LISTING_DIRECTORY)/$(OUTPUT_FILENAME).map
+
+# let linker to dump unused sections
+#LDFLAGS += -Wl,--gc-sections 
+
+# use newlib in nano version
+#LDFLAGS += --specs=nano.specs -lc -lnosys
+
+# Assembler flags
+#ASMFLAGS += -x assembler-with-cpp
+
 #Link Library
-LIBS += -L$(COMMON_PATH)/libs/install/lib
-LIBS += -ljansson
-LIBS += -lcurl
-LIBS += -ljsonrpcc -lev -lm
-LIBS += -linih
-LIBS += -L$(COMMON_PATH)/ln -lln
-LIBS += -L$(COMMON_PATH)/btc -lbtc
-LIBS += -L$(COMMON_PATH)/util -lutil
-LIBS += -llmdb -lbase58 -lmbedcrypto
-LIBS += -lstdc++
+LIBS += $(LD_PATHS)
+LIBS += -lbtc -lutil -llmdb -lmbedcrypto -lbase58 -lstdc++
 
-
-######################################
-#target
-######################################
 
 #default target - first one defined
-default: debug
+default: .Depend debug
+
+#building all targets
+all:
+	$(NO_ECHO)$(MAKE) -f $(MAKEFILE_NAME) -C $(MAKEFILE_DIR) -e cleanobj
+	$(NO_ECHO)$(MAKE) -f $(MAKEFILE_NAME) -C $(MAKEFILE_DIR) -e debug
 
 #target for printing all targets
 help:
@@ -132,16 +115,14 @@ vpath %.c $(C_PATHS)
 
 OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 
-debug: CFLAGS += $(CFLAGS_USER)
+debug: CFLAGS += -DDEBUG -DPTARM_DEBUG -DPTARM_USE_PRINTFUNC -DPTARM_DEBUG_MEM
 debug: CFLAGS += -ggdb3 -O0 --coverage
 debug: LDFLAGS += -ggdb3 -O0 --coverage
 debug: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo [DEBUG]Linking target: $(OUTPUT_FILENAME)
 	@echo [DEBUG]CFLAGS=$(CFLAGS)
-	@echo [DEBUG]LIBS=$(LIBS)
 	$(NO_ECHO)$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME)
 
-release: CFLAGS += $(CFLAGS_USER)
 release: CFLAGS += -DNDEBUG -O3
 release: LDFLAGS += -O3
 release: $(BUILD_DIRECTORIES) $(OBJECTS)
@@ -155,7 +136,9 @@ $(BUILD_DIRECTORIES):
 # Create objects from C SRC files
 $(OBJECT_DIRECTORY)/%.o: %.c
 	@echo Compiling C file: $(notdir $<)
+#	@echo Compiling C file: $(notdir $<): $(CFLAGS)
 	$(NO_ECHO)$(CC) $(CFLAGS) $(INC_PATHS) -c -o $@ $<
+
 
 # Link
 $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME): $(BUILD_DIRECTORIES) $(OBJECTS)
@@ -172,8 +155,6 @@ lcov:
 ################################
 
 .Depend:
-ifneq ($(MAKECMDGOALS),clean)
-	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend;)
-endif
+	$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
 
 -include .Depend

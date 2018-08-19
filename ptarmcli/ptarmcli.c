@@ -34,7 +34,7 @@
 #include "ln_db_lmdb.h"
 #include "conf.h"
 #include "misc.h"
-#include "segwit_addr.h"
+#include "ln_segwit_addr.h"
 
 
 /**************************************************************************

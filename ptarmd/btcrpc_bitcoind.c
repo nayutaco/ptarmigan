@@ -27,8 +27,10 @@
 #include <pthread.h>
 #include "jansson.h"
 
-#include "btcrpc.h"
 #include "misc.h"
+#include "ptarm_push.h"
+
+#include "btcrpc.h"
 
 
 /**************************************************************************
