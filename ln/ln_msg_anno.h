@@ -40,7 +40,7 @@
  * @param[in]       pMsg        元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg);
+bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg);
 
 
 /** channel_announcement読込み(verify無し)
@@ -80,7 +80,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len);
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_node_announce_create(ptarm_buf_t *pBuf, const ln_node_announce_t *pMsg);
+bool HIDDEN ln_msg_node_announce_create(utl_buf_t *pBuf, const ln_node_announce_t *pMsg);
 
 
 /** node_announcement読込み
@@ -99,7 +99,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_cnl_update_create(ptarm_buf_t *pBuf, const ln_cnl_update_t *pMsg);
+bool HIDDEN ln_msg_cnl_update_create(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg);
 
 
 /** channel_update読込み(verify無し)
@@ -128,7 +128,7 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_announce_signs_create(ptarm_buf_t *pBuf, const ln_announce_signs_t *pMsg);
+bool HIDDEN ln_msg_announce_signs_create(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg);
 
 
 /** announcement_signaturesのshort_channel_idのみ取得
@@ -155,12 +155,12 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 /** announcement_signaturesの署名アドレス取得
  *
  */
-void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, ptarm_keys_sort_t Sort);
+void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_keys_sort_t Sort);
 
 
 /** short_channel_id書き換え
  * 
  */
-bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, ptarm_keys_sort_t Sort);
+bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, btc_keys_sort_t Sort);
 
 #endif /* LN_MSG_ANNO_H__ */

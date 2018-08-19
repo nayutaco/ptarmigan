@@ -9,13 +9,13 @@ class tx: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, false);
+        utl_dbg_malloc_cnt_reset();
+        btc_init(BTC_TESTNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
-        ptarm_term();
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
+        btc_term();
     }
 
 public:
@@ -32,11 +32,11 @@ public:
 
 TEST_F(tx, init)
 {
-    ptarm_tx_t tx;
+    btc_tx_t tx;
 
     memset(&tx, 0xff, sizeof(tx));
 
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     ASSERT_EQ(2, tx.version);
     ASSERT_EQ(0, tx.vin_cnt);
@@ -45,14 +45,14 @@ TEST_F(tx, init)
     ASSERT_TRUE(NULL == tx.vout);
     ASSERT_EQ(0, tx.locktime);
 
-    ptarm_print_tx(&tx);
+    btc_print_tx(&tx);
 }
 
 
 TEST_F(tx, add_vin1)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //2ebe872b03e0a78a614ba162283dc973e56454a08d3d6ba791a617c7f6e6fa30
     const uint8_t TXID_LE[] = {
@@ -61,8 +61,8 @@ TEST_F(tx, add_vin1)
         0x73, 0xc9, 0x3d, 0x28, 0x62, 0xa1, 0x4b, 0x61,
         0x8a, 0xa7, 0xe0, 0x03, 0x2b, 0x87, 0xbe, 0x2e,
     };
-    ptarm_vin_t *vin;
-    ptarm_tx_add_vin(&tx, TXID_LE, 2);
+    btc_vin_t *vin;
+    btc_tx_add_vin(&tx, TXID_LE, 2);
     vin = &tx.vin[0];
 
     ASSERT_EQ(2, tx.version);
@@ -82,36 +82,36 @@ TEST_F(tx, add_vin1)
     ASSERT_EQ(0xffffffff, vin->sequence);
 
     //wit
-    ptarm_buf_t *wit1 = ptarm_tx_add_wit(vin);
+    utl_buf_t *wit1 = btc_tx_add_wit(vin);
     ASSERT_EQ(1, vin->wit_cnt);
     ASSERT_TRUE(wit1 == &vin->witness[0]);
     ASSERT_EQ(0, wit1->len);
     ASSERT_TRUE(NULL == wit1->buf);
     const uint8_t WIT1[] = { 1, 2, 3 };
-    ptarm_buf_alloccopy(wit1, WIT1, sizeof(WIT1));
+    utl_buf_alloccopy(wit1, WIT1, sizeof(WIT1));
 
-    ptarm_buf_t *wit2 = ptarm_tx_add_wit(vin);
+    utl_buf_t *wit2 = btc_tx_add_wit(vin);
     ASSERT_EQ(2, vin->wit_cnt);
     ASSERT_TRUE(wit2 == &vin->witness[1]);
     ASSERT_EQ(0, wit2->len);
     ASSERT_TRUE(NULL == wit2->buf);
     const uint8_t WIT2[] = { 5, 6, 7, 8, 9 };
-    ptarm_buf_alloccopy(wit2, WIT2, sizeof(WIT2));
+    utl_buf_alloccopy(wit2, WIT2, sizeof(WIT2));
 
     ASSERT_EQ(0, memcmp(WIT1, vin->witness[0].buf, sizeof(WIT1)));
     ASSERT_EQ(sizeof(WIT1), vin->witness[0].len);
     ASSERT_EQ(0, memcmp(WIT2, vin->witness[1].buf, sizeof(WIT2)));
     ASSERT_EQ(sizeof(WIT2), vin->witness[1].len);
 
-    ptarm_print_tx(&tx);
-    ptarm_tx_free(&tx);
+    btc_print_tx(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vin2)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //vin
     //2ebe872b03e0a78a614ba162283dc973e56454a08d3d6ba791a617c7f6e6fa30
@@ -121,8 +121,8 @@ TEST_F(tx, add_vin2)
         0x73, 0xc9, 0x3d, 0x28, 0x62, 0xa1, 0x4b, 0x61,
         0x8a, 0xa7, 0xe0, 0x03, 0x2b, 0x87, 0xbe, 0x2e,
     };
-    ptarm_vin_t *vin;
-    ptarm_tx_add_vin(&tx, TXID_LE, 2);
+    btc_vin_t *vin;
+    btc_tx_add_vin(&tx, TXID_LE, 2);
     vin = &tx.vin[0];
 
     ASSERT_EQ(2, tx.version);
@@ -141,21 +141,21 @@ TEST_F(tx, add_vin2)
     ASSERT_EQ(0xffffffff, vin->sequence);
 
     //wit
-    ptarm_buf_t *wit01 = ptarm_tx_add_wit(vin);
+    utl_buf_t *wit01 = btc_tx_add_wit(vin);
     ASSERT_EQ(1, vin->wit_cnt);
     ASSERT_TRUE(wit01 == &vin->witness[0]);
     ASSERT_EQ(0, wit01->len);
     ASSERT_TRUE(NULL == wit01->buf);
     const uint8_t WIT01[] = { 1, 2, 3 };
-    ptarm_buf_alloccopy(wit01, WIT01, sizeof(WIT01));
+    utl_buf_alloccopy(wit01, WIT01, sizeof(WIT01));
 
-    ptarm_buf_t *wit02 = ptarm_tx_add_wit(vin);
+    utl_buf_t *wit02 = btc_tx_add_wit(vin);
     ASSERT_EQ(2, vin->wit_cnt);
     ASSERT_TRUE(wit02 == &vin->witness[1]);
     ASSERT_EQ(0, wit02->len);
     ASSERT_TRUE(NULL == wit02->buf);
     const uint8_t WIT02[] = { 5, 6, 7, 8, 9 };
-    ptarm_buf_alloccopy(wit02, WIT02, sizeof(WIT02));
+    utl_buf_alloccopy(wit02, WIT02, sizeof(WIT02));
 
     //vin
     //03dae0bff963e1dca328b43c703f2db5a344ef1b6e1eb6b6a7782328c8199ee4
@@ -165,7 +165,7 @@ TEST_F(tx, add_vin2)
         0xb5, 0x2d, 0x3f, 0x70, 0x3c, 0xb4, 0x28, 0xa3,
         0xdc, 0xe1, 0x63, 0xf9, 0xbf, 0xe0, 0xda, 0x03,
     };
-    ptarm_tx_add_vin(&tx, TXID2_LE, 5);
+    btc_tx_add_vin(&tx, TXID2_LE, 5);
     vin = &tx.vin[1];
 
     ASSERT_EQ(2, tx.version);
@@ -184,29 +184,29 @@ TEST_F(tx, add_vin2)
     ASSERT_EQ(0xffffffff, vin->sequence);
 
     //wit
-    ptarm_buf_t *wit11 = ptarm_tx_add_wit(vin);
+    utl_buf_t *wit11 = btc_tx_add_wit(vin);
     ASSERT_EQ(1, vin->wit_cnt);
     ASSERT_TRUE(wit11 == &vin->witness[0]);
     ASSERT_EQ(0, wit11->len);
     ASSERT_TRUE(NULL == wit11->buf);
     const uint8_t WIT11[] = { 10, 11 };
-    ptarm_buf_alloccopy(wit11, WIT11, sizeof(WIT11));
+    utl_buf_alloccopy(wit11, WIT11, sizeof(WIT11));
 
-    ptarm_buf_t *wit12 = ptarm_tx_add_wit(vin);
+    utl_buf_t *wit12 = btc_tx_add_wit(vin);
     ASSERT_EQ(2, vin->wit_cnt);
     ASSERT_TRUE(wit12 == &vin->witness[1]);
     ASSERT_EQ(0, wit12->len);
     ASSERT_TRUE(NULL == wit12->buf);
     const uint8_t WIT12[] = { 12, 13, 14 };
-    ptarm_buf_alloccopy(wit12, WIT12, sizeof(WIT12));
+    utl_buf_alloccopy(wit12, WIT12, sizeof(WIT12));
 
-    ptarm_buf_t *wit13 = ptarm_tx_add_wit(vin);
+    utl_buf_t *wit13 = btc_tx_add_wit(vin);
     ASSERT_EQ(3, vin->wit_cnt);
     ASSERT_TRUE(wit13 == &vin->witness[2]);
     ASSERT_EQ(0, wit13->len);
     ASSERT_TRUE(NULL == wit13->buf);
     const uint8_t WIT13[] = { 3, 16, 17, 18 };
-    ptarm_buf_alloccopy(wit13, WIT13, sizeof(WIT13));
+    utl_buf_alloccopy(wit13, WIT13, sizeof(WIT13));
 
 
     ASSERT_EQ(0, memcmp(WIT01, tx.vin[0].witness[0].buf, sizeof(WIT01)));
@@ -220,15 +220,15 @@ TEST_F(tx, add_vin2)
     ASSERT_EQ(0, memcmp(WIT13, tx.vin[1].witness[2].buf, sizeof(WIT13)));
     ASSERT_EQ(sizeof(WIT13), tx.vin[1].witness[2].len);
 
-    ptarm_print_tx(&tx);
-    ptarm_tx_free(&tx);
+    btc_print_tx(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vin_vinmax)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //今回はvarint型で1byte分までしか対応しないつもりだったが、そうもいかなくなった
     tx.vin_cnt = 0xfc;      //既に0xfcある
@@ -240,7 +240,7 @@ TEST_F(tx, add_vin_vinmax)
         0x73, 0xc9, 0x3d, 0x28, 0x62, 0xa1, 0x4b, 0x61,
         0x8a, 0xa7, 0xe0, 0x03, 0x2b, 0x87, 0xbe, 0x2e,
     };
-    ptarm_tx_add_vin(&tx, TXID_LE, 2);
+    btc_tx_add_vin(&tx, TXID_LE, 2);
     ASSERT_EQ(0xfd, tx.vin_cnt);        //追加OK
 
     //vin_cntを操作したので、解放できるよう変更
@@ -248,14 +248,14 @@ TEST_F(tx, add_vin_vinmax)
     tx.vin[0].wit_cnt = 0;
     tx.vin[0].script.len = 0;
     tx.vin[0].script.buf = NULL;
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vin_witmax)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //2ebe872b03e0a78a614ba162283dc973e56454a08d3d6ba791a617c7f6e6fa30
     const uint8_t TXID_LE[] = {
@@ -264,29 +264,29 @@ TEST_F(tx, add_vin_witmax)
         0x73, 0xc9, 0x3d, 0x28, 0x62, 0xa1, 0x4b, 0x61,
         0x8a, 0xa7, 0xe0, 0x03, 0x2b, 0x87, 0xbe, 0x2e,
     };
-    ptarm_tx_add_vin(&tx, TXID_LE, 2);
+    btc_tx_add_vin(&tx, TXID_LE, 2);
     //今回はvarint型で1byte分までしか対応しないつもりだったが、そうもいかなくなった
-    ptarm_vin_t *vin = &tx.vin[0];
+    btc_vin_t *vin = &tx.vin[0];
     vin->wit_cnt = 0xfc;
 
-    ptarm_buf_t *wit = ptarm_tx_add_wit(vin);
+    utl_buf_t *wit = btc_tx_add_wit(vin);
     ASSERT_TRUE(wit != NULL);
     ASSERT_EQ(0xfd, vin->wit_cnt);
 
     //tx_freeのために初期化
     for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
-        ptarm_buf_init(&(vin->witness[lp2]));
+        utl_buf_init(&(vin->witness[lp2]));
     }
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vout1)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
-    ptarm_vout_t *vout = ptarm_tx_add_vout(&tx, (uint64_t)0x123456789abcdef0);
+    btc_vout_t *vout = btc_tx_add_vout(&tx, (uint64_t)0x123456789abcdef0);
 
     ASSERT_EQ(2, tx.version);
     ASSERT_EQ(0, tx.vin_cnt);
@@ -300,17 +300,17 @@ TEST_F(tx, add_vout1)
     ASSERT_EQ(0, vout->script.len);
     ASSERT_TRUE(NULL == vout->script.buf);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vout2)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //vout0
-    ptarm_vout_t *vout0 = ptarm_tx_add_vout(&tx, (uint64_t)0x123456789abcdef0);
+    btc_vout_t *vout0 = btc_tx_add_vout(&tx, (uint64_t)0x123456789abcdef0);
 
     ASSERT_EQ(2, tx.version);
     ASSERT_EQ(0, tx.vin_cnt);
@@ -325,10 +325,10 @@ TEST_F(tx, add_vout2)
     ASSERT_TRUE(NULL == vout0->script.buf);
 
     const uint8_t VOUT0[] = { 1, 3, 5, 7 };
-    ptarm_buf_alloccopy(&vout0->script, VOUT0, sizeof(VOUT0));
+    utl_buf_alloccopy(&vout0->script, VOUT0, sizeof(VOUT0));
 
     //vout1
-    ptarm_vout_t *vout1 = ptarm_tx_add_vout(&tx, (uint64_t)0x9abcdef012345678);
+    btc_vout_t *vout1 = btc_tx_add_vout(&tx, (uint64_t)0x9abcdef012345678);
 
     ASSERT_EQ(2, tx.version);
     ASSERT_EQ(0, tx.vin_cnt);
@@ -343,38 +343,38 @@ TEST_F(tx, add_vout2)
     ASSERT_TRUE(NULL == vout1->script.buf);
 
     const uint8_t VOUT1[] = { 2, 4, 6, 8, 10 };
-    ptarm_buf_alloccopy(&vout1->script, VOUT1, sizeof(VOUT1));
+    utl_buf_alloccopy(&vout1->script, VOUT1, sizeof(VOUT1));
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vout_max)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //今回はvarint型で1byte分までしか対応しない、というわけにもいかなくなった
     tx.vout_cnt = 0xfc;      //既に0xfcある
 
-    ptarm_vout_t *vout0 = ptarm_tx_add_vout(&tx, (uint64_t)0x123456789abcdef0);
+    btc_vout_t *vout0 = btc_tx_add_vout(&tx, (uint64_t)0x123456789abcdef0);
     ASSERT_TRUE(vout0 != NULL);
     ASSERT_EQ(0xfd, tx.vout_cnt);
 
     for (int lp = 0; lp < tx.vout_cnt; lp++) {
-        ptarm_buf_init(&tx.vout[lp].script);
+        utl_buf_init(&tx.vout[lp].script);
     }
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vout_p2pkh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685
-    const uint8_t PKH[PTARM_SZ_PUBKEYHASH] = {
+    const uint8_t PKH[BTC_SZ_PUBKEYHASH] = {
         0xad, 0x3d, 0xc2, 0xf5, 0x22, 0x96, 0xf9, 0x3c,
         0x78, 0x98, 0xeb, 0x63, 0x8b, 0x0d, 0x74, 0xf2,
         0x7d, 0x79, 0xef, 0xc3,
@@ -386,7 +386,7 @@ TEST_F(tx, add_vout_p2pkh)
         0xac,
     };
 
-    bool ret = ptarm_tx_add_vout_p2pkh(&tx, (uint64_t)0x9abcdef012345678, PKH);
+    bool ret = btc_tx_add_vout_p2pkh(&tx, (uint64_t)0x9abcdef012345678, PKH);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, tx.vout_cnt);
     ASSERT_TRUE(NULL != tx.vout[0].script.buf);
@@ -394,14 +394,14 @@ TEST_F(tx, add_vout_p2pkh)
     ASSERT_EQ(sizeof(SPK), tx.vout[0].script.len);
     ASSERT_EQ((uint64_t)0x9abcdef012345678, tx.vout[0].value);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vout_p2pkh_addr)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     const char ADDR[] = "mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685";
     const uint8_t SPK[] = {
@@ -411,7 +411,7 @@ TEST_F(tx, add_vout_p2pkh_addr)
         0xac,
     };
 
-    bool ret = ptarm_tx_add_vout_p2pkh_addr(&tx, (uint64_t)0x9abcdef012345678, ADDR);
+    bool ret = btc_tx_add_vout_p2pkh_addr(&tx, (uint64_t)0x9abcdef012345678, ADDR);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, tx.vout_cnt);
     ASSERT_TRUE(NULL != tx.vout[0].script.buf);
@@ -419,18 +419,18 @@ TEST_F(tx, add_vout_p2pkh_addr)
     ASSERT_EQ(sizeof(SPK), tx.vout[0].script.len);
     ASSERT_EQ((uint64_t)0x9abcdef012345678, tx.vout[0].value);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vout_p2sh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //522103240bc79a6479851abe776465500a9ff2f880940b227bfcbcb6d479886a318fa02103921b524e16b81c813baf062a2844ff6842073cc0ec609231a0e33700dd24b5f3210329bd4a08250b6aef97581b36412c9be28c84bab77d7a518a88003a180afcfcdc53ae
     //2NFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT
-    const uint8_t PKH[PTARM_SZ_PUBKEYHASH] = {
+    const uint8_t PKH[BTC_SZ_PUBKEYHASH] = {
         0xf3, 0xf0, 0xc3, 0x8f, 0x7f, 0x4b, 0xa7, 0x02,
         0x5d, 0xd7, 0x83, 0xad, 0xc3, 0x67, 0x4f, 0xa6,
         0x5b, 0x2d, 0x55, 0xbf,
@@ -441,7 +441,7 @@ TEST_F(tx, add_vout_p2sh)
         0x4f, 0xa6, 0x5b, 0x2d, 0x55, 0xbf, 0x87,
     };
 
-    bool ret = ptarm_tx_add_vout_p2sh(&tx, (uint64_t)0x9abcdef012345678, PKH);
+    bool ret = btc_tx_add_vout_p2sh(&tx, (uint64_t)0x9abcdef012345678, PKH);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, tx.vout_cnt);
     ASSERT_TRUE(NULL != tx.vout[0].script.buf);
@@ -449,14 +449,14 @@ TEST_F(tx, add_vout_p2sh)
     ASSERT_EQ(sizeof(SPK), tx.vout[0].script.len);
     ASSERT_EQ((uint64_t)0x9abcdef012345678, tx.vout[0].value);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vout_p2sh_addr)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //522103240bc79a6479851abe776465500a9ff2f880940b227bfcbcb6d479886a318fa02103921b524e16b81c813baf062a2844ff6842073cc0ec609231a0e33700dd24b5f3210329bd4a08250b6aef97581b36412c9be28c84bab77d7a518a88003a180afcfcdc53ae
     //2NFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT
@@ -467,7 +467,7 @@ TEST_F(tx, add_vout_p2sh_addr)
         0x4f, 0xa6, 0x5b, 0x2d, 0x55, 0xbf, 0x87,
     };
 
-    bool ret = ptarm_tx_add_vout_p2sh_addr(&tx, (uint64_t)0x9abcdef012345678, ADDR);
+    bool ret = btc_tx_add_vout_p2sh_addr(&tx, (uint64_t)0x9abcdef012345678, ADDR);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, tx.vout_cnt);
     ASSERT_TRUE(NULL != tx.vout[0].script.buf);
@@ -475,14 +475,14 @@ TEST_F(tx, add_vout_p2sh_addr)
     ASSERT_EQ(sizeof(SPK), tx.vout[0].script.len);
     ASSERT_EQ((uint64_t)0x9abcdef012345678, tx.vout[0].value);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, add_vout_p2sh_redeem)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //522103240bc79a6479851abe776465500a9ff2f880940b227bfcbcb6d479886a318fa02103921b524e16b81c813baf062a2844ff6842073cc0ec609231a0e33700dd24b5f3210329bd4a08250b6aef97581b36412c9be28c84bab77d7a518a88003a180afcfcdc53ae
     //2NFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT
@@ -502,14 +502,14 @@ TEST_F(tx, add_vout_p2sh_redeem)
         0x00, 0x3a, 0x18, 0x0a, 0xfc, 0xfc, 0xdc, 0x53,
         0xae,
     };
-    const ptarm_buf_t redeem = { (uint8_t *)REDEEM, sizeof(REDEEM) };
+    const utl_buf_t redeem = { (uint8_t *)REDEEM, sizeof(REDEEM) };
     const uint8_t SPK[] = {
         0xa9, 0x14, 0xf3, 0xf0, 0xc3, 0x8f, 0x7f, 0x4b,
         0xa7, 0x02, 0x5d, 0xd7, 0x83, 0xad, 0xc3, 0x67,
         0x4f, 0xa6, 0x5b, 0x2d, 0x55, 0xbf, 0x87,
     };
 
-    bool ret = ptarm_tx_add_vout_p2sh_redeem(&tx, (uint64_t)0x9abcdef012345678, &redeem);
+    bool ret = btc_tx_add_vout_p2sh_redeem(&tx, (uint64_t)0x9abcdef012345678, &redeem);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, tx.vout_cnt);
     ASSERT_TRUE(NULL != tx.vout[0].script.buf);
@@ -517,14 +517,14 @@ TEST_F(tx, add_vout_p2sh_redeem)
     ASSERT_EQ(sizeof(SPK), tx.vout[0].script.len);
     ASSERT_EQ((uint64_t)0x9abcdef012345678, tx.vout[0].value);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, script_p2pkh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //トランザクション:2ebe872b03e0a78a614ba162283dc973e56454a08d3d6ba791a617c7f6e6fa30
 
@@ -534,7 +534,7 @@ TEST_F(tx, script_p2pkh)
         0x4b, 0xf9, 0x0e, 0xfd, 0x2a, 0xc3, 0x0c, 0x6e,
         0x35, 0xcb, 0xd0, 0x0a, 0x51, 0x6b, 0xe4, 0x4c,
     };
-    ptarm_tx_add_vin(&tx, TXID, 1);
+    btc_tx_add_vin(&tx, TXID, 1);
     const uint8_t SIG[] = {
         0x30, 0x44, 0x02, 0x20, 0x04, 0x7c, 0x1b, 0x11,
         0x11, 0xbb, 0xe0, 0xfc, 0x09, 0xcf, 0x2e, 0xd2,
@@ -546,7 +546,7 @@ TEST_F(tx, script_p2pkh)
         0x1c, 0x40, 0x2e, 0xc5, 0xfd, 0x29, 0xd9, 0xe1,
         0x34, 0x8a, 0xb0, 0x58, 0x4f, 0xa2, 0x01,
     };
-    const ptarm_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
+    const utl_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
     const uint8_t PUB[] = {
         0x03, 0xbe, 0xce, 0xc4, 0x1f, 0x68, 0xd7, 0x7f,
         0xde, 0x9e, 0x97, 0x2c, 0x79, 0xaa, 0x0e, 0x6e,
@@ -571,19 +571,19 @@ TEST_F(tx, script_p2pkh)
         0xa4, 0x59,
     };
 
-    bool ret = ptarm_tx_set_vin_p2pkh(&tx, 0, &sig, PUB);
+    bool ret = btc_tx_set_vin_p2pkh(&tx, 0, &sig, PUB);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, tx.vin[0].script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), tx.vin[0].script.len);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, script_p2sh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //トランザクション:7359a2e1c945d1daf8ead20f51f74508ce8b463261643931b17b8099d0f2090c
 
@@ -593,7 +593,7 @@ TEST_F(tx, script_p2sh)
         0x97, 0xec, 0x2d, 0xe4, 0x8a, 0x3c, 0x1e, 0x41,
         0x51, 0xac, 0xa6, 0xda, 0xf0, 0x6c, 0x84, 0x89,
     };
-    ptarm_tx_add_vin(&tx, TXID, 0);
+    btc_tx_add_vin(&tx, TXID, 0);
     const uint8_t SIG1[] = {
         0x30, 0x45, 0x02, 0x21, 0x00, 0xd1, 0x8a, 0xc1,
         0x9e, 0x45, 0x57, 0xe0, 0x25, 0xaa, 0x90, 0x0b,
@@ -605,7 +605,7 @@ TEST_F(tx, script_p2sh)
         0x6d, 0xb5, 0xbc, 0x03, 0x83, 0xf0, 0xb5, 0x52,
         0x9d, 0xde, 0xaa, 0xec, 0x08, 0x3f, 0x02, 0x01,
     };
-    const ptarm_buf_t sig1 = { (uint8_t *)SIG1, sizeof(SIG1) };
+    const utl_buf_t sig1 = { (uint8_t *)SIG1, sizeof(SIG1) };
     const uint8_t SIG2[] = {
         0x30, 0x45, 0x02, 0x21, 0x00, 0xe1, 0x1f, 0xd5,
         0xcc, 0xf8, 0x8d, 0x90, 0x16, 0x57, 0xb3, 0xce,
@@ -617,8 +617,8 @@ TEST_F(tx, script_p2sh)
         0x2c, 0x75, 0xcd, 0x14, 0x6a, 0xe8, 0xd8, 0x3f,
         0x0d, 0x99, 0x1e, 0x21, 0xc6, 0x97, 0xd2, 0x01,
     };
-    const ptarm_buf_t sig2 = { (uint8_t *)SIG2, sizeof(SIG2) };
-    const ptarm_buf_t *sigs[] = { &sig1, &sig2 };
+    const utl_buf_t sig2 = { (uint8_t *)SIG2, sizeof(SIG2) };
+    const utl_buf_t *sigs[] = { &sig1, &sig2 };
     const uint8_t REDEEM[] = {
         0x52, 0x21, 0x03, 0x24, 0x0b, 0xc7, 0x9a, 0x64,
         0x79, 0x85, 0x1a, 0xbe, 0x77, 0x64, 0x65, 0x50,
@@ -635,7 +635,7 @@ TEST_F(tx, script_p2sh)
         0x00, 0x3a, 0x18, 0x0a, 0xfc, 0xfc, 0xdc, 0x53,
         0xae,
     };
-    const ptarm_buf_t redeem = { (uint8_t *)REDEEM, sizeof(REDEEM) };
+    const utl_buf_t redeem = { (uint8_t *)REDEEM, sizeof(REDEEM) };
     const uint8_t SCRIPTSIG[] = {
         0x00, 0x48, 0x30, 0x45, 0x02, 0x21, 0x00, 0xd1,
         0x8a, 0xc1, 0x9e, 0x45, 0x57, 0xe0, 0x25, 0xaa,
@@ -671,19 +671,19 @@ TEST_F(tx, script_p2sh)
         0x0a, 0xfc, 0xfc, 0xdc, 0x53, 0xae,
     };
 
-    bool ret = ptarm_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
+    bool ret = btc_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, tx.vin[0].script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), tx.vin[0].script.len);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, create_p2pkh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //トランザクション:2ebe872b03e0a78a614ba162283dc973e56454a08d3d6ba791a617c7f6e6fa30
 
@@ -697,7 +697,7 @@ TEST_F(tx, create_p2pkh)
         0x4b, 0xf9, 0x0e, 0xfd, 0x2a, 0xc3, 0x0c, 0x6e,
         0x35, 0xcb, 0xd0, 0x0a, 0x51, 0x6b, 0xe4, 0x4c,
     };
-    ptarm_tx_add_vin(&tx, TXID, 1);
+    btc_tx_add_vin(&tx, TXID, 1);
     const uint8_t SIG[] = {
         0x30, 0x44, 0x02, 0x20, 0x04, 0x7c, 0x1b, 0x11,
         0x11, 0xbb, 0xe0, 0xfc, 0x09, 0xcf, 0x2e, 0xd2,
@@ -709,7 +709,7 @@ TEST_F(tx, create_p2pkh)
         0x1c, 0x40, 0x2e, 0xc5, 0xfd, 0x29, 0xd9, 0xe1,
         0x34, 0x8a, 0xb0, 0x58, 0x4f, 0xa2, 0x01,
     };
-    const ptarm_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
+    const utl_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
     const uint8_t PUB[] = {
         0x03, 0xbe, 0xce, 0xc4, 0x1f, 0x68, 0xd7, 0x7f,
         0xde, 0x9e, 0x97, 0x2c, 0x79, 0xaa, 0x0e, 0x6e,
@@ -717,12 +717,12 @@ TEST_F(tx, create_p2pkh)
         0x9e, 0x79, 0x37, 0x4e, 0xc0, 0x56, 0x1b, 0xa4,
         0x59,
     };
-    bool ret = ptarm_tx_set_vin_p2pkh(&tx, 0, &sig, PUB);
+    bool ret = btc_tx_set_vin_p2pkh(&tx, 0, &sig, PUB);
     ASSERT_TRUE(ret);
 
     //vout
-    ret = ptarm_tx_add_vout_p2pkh_addr(&tx, PTARM_BTC2SATOSHI(0.001), "mr8wpGyZErik2DezKZtvTCFrYb6t6L69pc");
-    ret = ptarm_tx_add_vout_p2pkh_addr(&tx, PTARM_BTC2SATOSHI(0.492), "mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685");
+    ret = btc_tx_add_vout_p2pkh_addr(&tx, BTC_BTC2SATOSHI(0.001), "mr8wpGyZErik2DezKZtvTCFrYb6t6L69pc");
+    ret = btc_tx_add_vout_p2pkh_addr(&tx, BTC_BTC2SATOSHI(0.492), "mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685");
 
     //tx
     const uint8_t TX[] = {
@@ -756,8 +756,8 @@ TEST_F(tx, create_p2pkh)
         0x79, 0xef, 0xc3, 0x88, 0xac, 0x00, 0x00, 0x00,
         0x00,
     };
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
-    ret = ptarm_tx_create(&txbuf, &tx);
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    ret = btc_tx_create(&txbuf, &tx);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
@@ -770,28 +770,28 @@ TEST_F(tx, create_p2pkh)
         0x73, 0xc9, 0x3d, 0x28, 0x62, 0xa1, 0x4b, 0x61,
         0x8a, 0xa7, 0xe0, 0x03, 0x2b, 0x87, 0xbe, 0x2e,
     };
-    uint8_t txid[PTARM_SZ_TXID];
-    ret = ptarm_tx_txid_raw(txid, &txbuf);
+    uint8_t txid[BTC_SZ_TXID];
+    ret = btc_tx_txid_raw(txid, &txbuf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(NEW_TXID, txid, sizeof(NEW_TXID)));
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
 
     //versionを変えると不一致になる
     tx.version = 2;
-    ret = ptarm_tx_create(&txbuf, &tx);
+    ret = btc_tx_create(&txbuf, &tx);
     ASSERT_TRUE(ret);
     ASSERT_NE(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(2, txbuf.buf[0]);     //バージョンは先頭
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, read_p2pkh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //トランザクション:2ebe872b03e0a78a614ba162283dc973e56454a08d3d6ba791a617c7f6e6fa30
     //tx
@@ -827,7 +827,7 @@ TEST_F(tx, read_p2pkh)
         0x00,
     };
 
-    bool ret = ptarm_tx_read(&tx, TX, sizeof(TX));
+    bool ret = btc_tx_read(&tx, TX, sizeof(TX));
     ASSERT_TRUE(ret);
 
     ASSERT_EQ(1, tx.version);
@@ -860,8 +860,8 @@ TEST_F(tx, read_p2pkh)
         0x96, 0x9e, 0x79, 0x37, 0x4e, 0xc0, 0x56, 0x1b,
         0xa4, 0x59,
     };
-    const ptarm_vin_t *vin = &tx.vin[0];
-    ASSERT_EQ(0, memcmp(TXID, vin->txid, PTARM_SZ_TXID));
+    const btc_vin_t *vin = &tx.vin[0];
+    ASSERT_EQ(0, memcmp(TXID, vin->txid, BTC_SZ_TXID));
     ASSERT_EQ(1, vin->index);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, vin->script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), vin->script.len);
@@ -882,12 +882,12 @@ TEST_F(tx, read_p2pkh)
         0x0d, 0x74, 0xf2, 0x7d, 0x79, 0xef, 0xc3, 0x88,
         0xac,
     };
-    const ptarm_vout_t *vout = &tx.vout[0];
-    ASSERT_EQ(PTARM_BTC2SATOSHI(0.001), vout->value);
+    const btc_vout_t *vout = &tx.vout[0];
+    ASSERT_EQ(BTC_BTC2SATOSHI(0.001), vout->value);
     ASSERT_EQ(0, memcmp(SCRIPTPK0, vout->script.buf, sizeof(SCRIPTPK0)));
     ASSERT_EQ(sizeof(SCRIPTPK0), vout->script.len);
     vout = &tx.vout[1];
-    ASSERT_EQ(PTARM_BTC2SATOSHI(0.492), vout->value);
+    ASSERT_EQ(BTC_BTC2SATOSHI(0.492), vout->value);
     ASSERT_EQ(0, memcmp(SCRIPTPK1, vout->script.buf, sizeof(SCRIPTPK1)));
     ASSERT_EQ(sizeof(SCRIPTPK1), vout->script.len);
 
@@ -899,19 +899,19 @@ TEST_F(tx, read_p2pkh)
         0x73, 0xc9, 0x3d, 0x28, 0x62, 0xa1, 0x4b, 0x61,
         0x8a, 0xa7, 0xe0, 0x03, 0x2b, 0x87, 0xbe, 0x2e,
     };
-    uint8_t txid[PTARM_SZ_TXID];
-    ret = ptarm_tx_txid(txid, &tx);
+    uint8_t txid[BTC_SZ_TXID];
+    ret = btc_tx_txid(txid, &tx);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(NEW_TXID, txid, sizeof(NEW_TXID)));
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, create_p2sh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //トランザクション:7359a2e1c945d1daf8ead20f51f74508ce8b463261643931b17b8099d0f2090c
 
@@ -925,7 +925,7 @@ TEST_F(tx, create_p2sh)
         0x97, 0xec, 0x2d, 0xe4, 0x8a, 0x3c, 0x1e, 0x41,
         0x51, 0xac, 0xa6, 0xda, 0xf0, 0x6c, 0x84, 0x89,
     };
-    ptarm_tx_add_vin(&tx, TXID, 0);
+    btc_tx_add_vin(&tx, TXID, 0);
     const uint8_t SIG1[] = {
         0x30, 0x45, 0x02, 0x21, 0x00, 0xd1, 0x8a, 0xc1,
         0x9e, 0x45, 0x57, 0xe0, 0x25, 0xaa, 0x90, 0x0b,
@@ -937,7 +937,7 @@ TEST_F(tx, create_p2sh)
         0x6d, 0xb5, 0xbc, 0x03, 0x83, 0xf0, 0xb5, 0x52,
         0x9d, 0xde, 0xaa, 0xec, 0x08, 0x3f, 0x02, 0x01,
     };
-    const ptarm_buf_t sig1 = { (uint8_t *)SIG1, sizeof(SIG1) };
+    const utl_buf_t sig1 = { (uint8_t *)SIG1, sizeof(SIG1) };
     const uint8_t SIG2[] = {
         0x30, 0x45, 0x02, 0x21, 0x00, 0xe1, 0x1f, 0xd5,
         0xcc, 0xf8, 0x8d, 0x90, 0x16, 0x57, 0xb3, 0xce,
@@ -949,8 +949,8 @@ TEST_F(tx, create_p2sh)
         0x2c, 0x75, 0xcd, 0x14, 0x6a, 0xe8, 0xd8, 0x3f,
         0x0d, 0x99, 0x1e, 0x21, 0xc6, 0x97, 0xd2, 0x01,
     };
-    const ptarm_buf_t sig2 = { (uint8_t *)SIG2, sizeof(SIG2) };
-    const ptarm_buf_t *sigs[] = { &sig1, &sig2 };
+    const utl_buf_t sig2 = { (uint8_t *)SIG2, sizeof(SIG2) };
+    const utl_buf_t *sigs[] = { &sig1, &sig2 };
     const uint8_t REDEEM[] = {
         0x52, 0x21, 0x03, 0x24, 0x0b, 0xc7, 0x9a, 0x64,
         0x79, 0x85, 0x1a, 0xbe, 0x77, 0x64, 0x65, 0x50,
@@ -967,12 +967,12 @@ TEST_F(tx, create_p2sh)
         0x00, 0x3a, 0x18, 0x0a, 0xfc, 0xfc, 0xdc, 0x53,
         0xae,
     };
-    const ptarm_buf_t redeem = { (uint8_t *)REDEEM, sizeof(REDEEM) };
-    bool ret = ptarm_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
+    const utl_buf_t redeem = { (uint8_t *)REDEEM, sizeof(REDEEM) };
+    bool ret = btc_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
 
     //vout
-    ret = ptarm_tx_add_vout_p2pkh_addr(&tx, PTARM_BTC2SATOSHI(0.007), "n2eMqTT929pb1RDNuqEnxdaLau1rxy3efi");
+    ret = btc_tx_add_vout_p2pkh_addr(&tx, BTC_BTC2SATOSHI(0.007), "n2eMqTT929pb1RDNuqEnxdaLau1rxy3efi");
     ASSERT_TRUE(ret);
 
     //tx
@@ -1021,8 +1021,8 @@ TEST_F(tx, create_p2sh)
         0xa9, 0x56, 0xc2, 0xfe, 0x6a, 0x9e, 0xff, 0x88,
         0xac, 0x00, 0x00, 0x00, 0x00,
     };
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
-    ret = ptarm_tx_create(&txbuf, &tx);
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    ret = btc_tx_create(&txbuf, &tx);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
@@ -1035,28 +1035,28 @@ TEST_F(tx, create_p2sh)
         0x08, 0x45, 0xf7, 0x51, 0x0f, 0xd2, 0xea, 0xf8,
         0xda, 0xd1, 0x45, 0xc9, 0xe1, 0xa2, 0x59, 0x73,
     };
-    uint8_t txid[PTARM_SZ_TXID];
-    ret = ptarm_tx_txid_raw(txid, &txbuf);
+    uint8_t txid[BTC_SZ_TXID];
+    ret = btc_tx_txid_raw(txid, &txbuf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(NEW_TXID, txid, sizeof(NEW_TXID)));
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
 
     //versionを変えると不一致になる
     tx.version = 2;
-    ret = ptarm_tx_create(&txbuf, &tx);
+    ret = btc_tx_create(&txbuf, &tx);
     ASSERT_TRUE(ret);
     ASSERT_NE(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(2, txbuf.buf[0]);     //バージョンは先頭
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, read_p2sh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //トランザクション:7359a2e1c945d1daf8ead20f51f74508ce8b463261643931b17b8099d0f2090c
     //tx
@@ -1106,7 +1106,7 @@ TEST_F(tx, read_p2sh)
         0xac, 0x00, 0x00, 0x00, 0x00,
     };
 
-    bool ret = ptarm_tx_read(&tx, TX, sizeof(TX));
+    bool ret = btc_tx_read(&tx, TX, sizeof(TX));
     ASSERT_TRUE(ret);
 
     ASSERT_EQ(1, tx.version);
@@ -1157,8 +1157,8 @@ TEST_F(tx, read_p2sh)
         0x7d, 0x7a, 0x51, 0x8a, 0x88, 0x00, 0x3a, 0x18,
         0x0a, 0xfc, 0xfc, 0xdc, 0x53, 0xae,
     };
-    const ptarm_vin_t *vin = &tx.vin[0];
-    ASSERT_EQ(0, memcmp(TXID, vin->txid, PTARM_SZ_TXID));
+    const btc_vin_t *vin = &tx.vin[0];
+    ASSERT_EQ(0, memcmp(TXID, vin->txid, BTC_SZ_TXID));
     ASSERT_EQ(0, vin->index);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, vin->script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), vin->script.len);
@@ -1173,8 +1173,8 @@ TEST_F(tx, read_p2sh)
         0xa9, 0x56, 0xc2, 0xfe, 0x6a, 0x9e, 0xff, 0x88,
         0xac,
     };
-    const ptarm_vout_t *vout = &tx.vout[0];
-    ASSERT_EQ(PTARM_BTC2SATOSHI(0.007), vout->value);
+    const btc_vout_t *vout = &tx.vout[0];
+    ASSERT_EQ(BTC_BTC2SATOSHI(0.007), vout->value);
     ASSERT_EQ(0, memcmp(SCRIPTPK0, vout->script.buf, sizeof(SCRIPTPK0)));
     ASSERT_EQ(sizeof(SCRIPTPK0), vout->script.len);
 
@@ -1186,19 +1186,19 @@ TEST_F(tx, read_p2sh)
         0x08, 0x45, 0xf7, 0x51, 0x0f, 0xd2, 0xea, 0xf8,
         0xda, 0xd1, 0x45, 0xc9, 0xe1, 0xa2, 0x59, 0x73,
     };
-    uint8_t txid[PTARM_SZ_TXID];
-    ret = ptarm_tx_txid(txid, &tx);
+    uint8_t txid[BTC_SZ_TXID];
+    ret = btc_tx_txid(txid, &tx);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(NEW_TXID, txid, sizeof(NEW_TXID)));
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, sighash_p2pkh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //$ bitcoin-cli createrawtransaction '[{"txid" : "4ce46b510ad0cb356e0cc32afd0ef94bb0a7b2f8a6c456d3b4b26d0b0281bfe5", "vout" : 1}]' '{"mr8wpGyZErik2DezKZtvTCFrYb6t6L69pc" : 0.001, "mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685" : 0.492}'
     const uint8_t TX_EMPTY[] = {
@@ -1219,7 +1219,7 @@ TEST_F(tx, sighash_p2pkh)
         0xc3, 0x88, 0xac, 0x00, 0x00, 0x00, 0x00,
     };
 
-    bool ret = ptarm_tx_read(&tx, TX_EMPTY, sizeof(TX_EMPTY));
+    bool ret = btc_tx_read(&tx, TX_EMPTY, sizeof(TX_EMPTY));
     ASSERT_TRUE(ret);
 
     const uint8_t PREV_SCRIPTPK[] = {
@@ -1228,18 +1228,18 @@ TEST_F(tx, sighash_p2pkh)
         0x0d, 0x74, 0xf2, 0x7d, 0x79, 0xef, 0xc3, 0x88,
         0xac,
     };
-    const ptarm_buf_t pk0 = { (uint8_t *)PREV_SCRIPTPK, sizeof(PREV_SCRIPTPK) };
-    const ptarm_buf_t *pks[] = { &pk0 };
+    const utl_buf_t pk0 = { (uint8_t *)PREV_SCRIPTPK, sizeof(PREV_SCRIPTPK) };
+    const utl_buf_t *pks[] = { &pk0 };
     const uint8_t TXHASH[] = {
         0xb8, 0x81, 0xab, 0x3c, 0x47, 0x0b, 0x93, 0x98,
         0xad, 0xb5, 0xea, 0x6c, 0xb3, 0x60, 0xd1, 0x45,
         0xdf, 0x70, 0x2f, 0xa0, 0xbc, 0x0a, 0x6c, 0x01,
         0x22, 0x19, 0xfa, 0x93, 0xe7, 0x09, 0xad, 0xad,
     };
-    uint8_t txhash[PTARM_SZ_HASH256];
-    ret = ptarm_tx_sighash(txhash, &tx, pks, 1);
+    uint8_t txhash[BTC_SZ_HASH256];
+    ret = btc_tx_sighash(txhash, &tx, pks, 1);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(TXHASH, txhash, PTARM_SZ_HASH256));
+    ASSERT_EQ(0, memcmp(TXHASH, txhash, BTC_SZ_HASH256));
     ASSERT_EQ(1, tx.vin_cnt);
     ASSERT_EQ(NULL, tx.vin[0].script.buf);
     ASSERT_EQ(0, tx.vin[0].script.len);
@@ -1253,60 +1253,60 @@ TEST_F(tx, sighash_p2pkh)
         0xd2, 0xaf, 0x54, 0x66, 0x82, 0xcf, 0xed, 0xe6,
         0x5f, 0x9e, 0xd8, 0x48, 0xa8, 0x1d, 0xfa, 0xc6,
     };
-    ptarm_buf_t sig;
-    ret = ptarm_tx_sign(&sig, txhash, PRIV);
+    utl_buf_t sig;
+    ret = btc_tx_sign(&sig, txhash, PRIV);
     ASSERT_TRUE(ret);
 
     //送信可能なtxだが、使用済みTXIDなので送信確認はできない
-    uint8_t pubkey[PTARM_SZ_PUBKEY];
-    ptarm_keys_priv2pub(pubkey, PRIV);
-    ret = ptarm_tx_set_vin_p2pkh(&tx, 0, &sig, pubkey);
+    uint8_t pubkey[BTC_SZ_PUBKEY];
+    btc_keys_priv2pub(pubkey, PRIV);
+    ret = btc_tx_set_vin_p2pkh(&tx, 0, &sig, pubkey);
     ASSERT_TRUE(ret);
-    ptarm_buf_t txall;
-    ptarm_tx_create(&txall, &tx);
+    utl_buf_t txall;
+    btc_tx_create(&txall, &tx);
 //    printf("P2PKH tx=\n");
 //    tx::DumpBin(txall.buf, txall.len);
 
-    ret = ptarm_tx_sign_p2pkh(&tx, 0, txhash, PRIV, pubkey);
+    ret = btc_tx_sign_p2pkh(&tx, 0, txhash, PRIV, pubkey);
     ASSERT_TRUE(ret);
-    ptarm_buf_t txall2;
-    ptarm_tx_create(&txall2, &tx);
+    utl_buf_t txall2;
+    btc_tx_create(&txall2, &tx);
     ASSERT_EQ(0, memcmp(txall.buf, txall2.buf, txall.len));
     ASSERT_EQ(txall.len, txall2.len);
-    ptarm_buf_free(&txall2);
+    utl_buf_free(&txall2);
     //pubkey==NULL
-    ret = ptarm_tx_sign_p2pkh(&tx, 0, txhash, PRIV, NULL);
+    ret = btc_tx_sign_p2pkh(&tx, 0, txhash, PRIV, NULL);
     ASSERT_TRUE(ret);
-    ptarm_tx_create(&txall2, &tx);
+    btc_tx_create(&txall2, &tx);
     ASSERT_EQ(0, memcmp(txall.buf, txall2.buf, txall.len));
     ASSERT_EQ(txall.len, txall2.len);
-    ptarm_buf_free(&txall2);
+    utl_buf_free(&txall2);
 
     //verify
-    ret = ptarm_tx_verify(&sig, txhash, pubkey);
+    ret = btc_tx_verify(&sig, txhash, pubkey);
     ASSERT_TRUE(ret);
     sig.buf[sig.len - 1] = 0x00;
-    ret = ptarm_tx_verify(&sig, txhash, pubkey);
+    ret = btc_tx_verify(&sig, txhash, pubkey);
     ASSERT_FALSE(ret);
     sig.buf[sig.len - 1] = 0x01;
     uint8_t bak = sig.buf[20];      //20は根拠無し
     sig.buf[20] = ~sig.buf[20];
-    ret = ptarm_tx_verify(&sig, txhash, pubkey);
+    ret = btc_tx_verify(&sig, txhash, pubkey);
     ASSERT_FALSE(ret);
     sig.buf[20] = bak;
 
     //verify(readしたデータ)
-    ptarm_tx_t tx_read;
-    ptarm_tx_init(&tx_read);
-    ptarm_tx_read(&tx_read, txall.buf, txall.len);
-    ptarm_buf_free(&txall);
-    ret = ptarm_tx_verify_p2pkh_spk(&tx_read, 0, txhash, &pk0);
+    btc_tx_t tx_read;
+    btc_tx_init(&tx_read);
+    btc_tx_read(&tx_read, txall.buf, txall.len);
+    utl_buf_free(&txall);
+    ret = btc_tx_verify_p2pkh_spk(&tx_read, 0, txhash, &pk0);
     ASSERT_TRUE(ret);
-    ret = ptarm_tx_verify_p2pkh_addr(&tx_read, 0, txhash, "mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685");
+    ret = btc_tx_verify_p2pkh_addr(&tx_read, 0, txhash, "mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685");
     ASSERT_TRUE(ret);
-    ret = ptarm_tx_verify_p2pkh_addr(&tx_read, 0, txhash, "mwJyBWTEUYMdJ22JWwK3eXff48pxQU6685");
+    ret = btc_tx_verify_p2pkh_addr(&tx_read, 0, txhash, "mwJyBWTEUYMdJ22JWwK3eXff48pxQU6685");
     ASSERT_FALSE(ret);
-    ptarm_tx_free(&tx_read);
+    btc_tx_free(&tx_read);
 
     //他でチェックするための出力
     printf("pubkey= 03becec41f68d77fde9e972c79aa0e6e4e818bd3046276969e79374ec0561ba459");
@@ -1315,15 +1315,15 @@ TEST_F(tx, sighash_p2pkh)
     printf("sigData= ");
     tx::DumpBin(sig.buf, sig.len);
 
-    ptarm_buf_free(&sig);
-    ptarm_tx_free(&tx);
+    utl_buf_free(&sig);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, sighash_p2sh)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //2-of-3
     //$ bitcoin-cli createrawtransaction '[{"txid":"89846cf0daa6ac51411e3c8ae42dec97fb0f1d8f6eb9eeb010e962b5b4bf6933","vout":0}]' '{"n2eMqTT929pb1RDNuqEnxdaLau1rxy3efi":0.007}'
@@ -1341,7 +1341,7 @@ TEST_F(tx, sighash_p2sh)
         0xac, 0x00, 0x00, 0x00, 0x00,
     };
 
-    bool ret = ptarm_tx_read(&tx, TX_EMPTY, sizeof(TX_EMPTY));
+    bool ret = btc_tx_read(&tx, TX_EMPTY, sizeof(TX_EMPTY));
     ASSERT_TRUE(ret);
 
     const uint8_t PREV_REDEEM[] = {
@@ -1360,18 +1360,18 @@ TEST_F(tx, sighash_p2sh)
         0x00, 0x3a, 0x18, 0x0a, 0xfc, 0xfc, 0xdc, 0x53,
         0xae,
     };
-    const ptarm_buf_t redeem0 = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
-    const ptarm_buf_t *pks[] = { &redeem0 };
+    const utl_buf_t redeem0 = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
+    const utl_buf_t *pks[] = { &redeem0 };
     const uint8_t TXHASH[] = {
         0xc3, 0x00, 0x8f, 0x64, 0xac, 0x71, 0x05, 0x9c,
         0xd3, 0x1f, 0xaf, 0x84, 0x9c, 0x02, 0x3c, 0xc5,
         0xc9, 0xe7, 0x8d, 0x02, 0x88, 0x71, 0xc7, 0x31,
         0x84, 0x45, 0x0d, 0x0f, 0xd3, 0x3f, 0x63, 0x04,
     };
-    uint8_t txhash[PTARM_SZ_HASH256];
-    ret = ptarm_tx_sighash(txhash, &tx, pks, 1);
+    uint8_t txhash[BTC_SZ_HASH256];
+    ret = btc_tx_sighash(txhash, &tx, pks, 1);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(TXHASH, txhash, PTARM_SZ_HASH256));
+    ASSERT_EQ(0, memcmp(TXHASH, txhash, BTC_SZ_HASH256));
     ASSERT_EQ(1, tx.vin_cnt);
     ASSERT_EQ(NULL, tx.vin[0].script.buf);
     ASSERT_EQ(0, tx.vin[0].script.len);
@@ -1416,23 +1416,23 @@ TEST_F(tx, sighash_p2sh)
         0x8a, 0x88, 0x00, 0x3a, 0x18, 0x0a, 0xfc, 0xfc,
         0xdc,
     };
-    ptarm_buf_t sig1;
-    ptarm_buf_t sig2;
-    ret = ptarm_tx_sign(&sig1, txhash, PRIV1);
+    utl_buf_t sig1;
+    utl_buf_t sig2;
+    ret = btc_tx_sign(&sig1, txhash, PRIV1);
     ASSERT_TRUE(ret);
-    ret = ptarm_tx_sign(&sig2, txhash, PRIV3);
+    ret = btc_tx_sign(&sig2, txhash, PRIV3);
     ASSERT_TRUE(ret);
 
     //送信可能なtxだが、使用済みTXIDなので送信確認はできない
-    const ptarm_buf_t *sigs[] = { &sig1, &sig2 };
-    const ptarm_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
-    ret = ptarm_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
+    const utl_buf_t *sigs[] = { &sig1, &sig2 };
+    const utl_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
+    ret = btc_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
-    ptarm_buf_t txall;
-    ptarm_tx_create(&txall, &tx);
+    utl_buf_t txall;
+    btc_tx_create(&txall, &tx);
     printf("P2SH tx=\n");
     tx::DumpBin(txall.buf, txall.len);
-    ptarm_buf_free(&txall);
+    utl_buf_free(&txall);
 
 //    printf("priv1= ");
 //    tx::DumpBin(PRIV1, sizeof(PRIV1));
@@ -1448,11 +1448,11 @@ TEST_F(tx, sighash_p2sh)
 //    tx::DumpBin(PUB3, sizeof(PUB3));
 
     //verify
-    ret = ptarm_tx_verify(&sig1, txhash, PUB1);
+    ret = btc_tx_verify(&sig1, txhash, PUB1);
     ASSERT_TRUE(ret);
-    ret = ptarm_tx_verify(&sig2, txhash, PUB2);
+    ret = btc_tx_verify(&sig2, txhash, PUB2);
     ASSERT_FALSE(ret);
-    ret = ptarm_tx_verify(&sig2, txhash, PUB3);
+    ret = btc_tx_verify(&sig2, txhash, PUB3);
     ASSERT_TRUE(ret);
 
     const uint8_t SCRIPTPK0[] = {
@@ -1460,19 +1460,19 @@ TEST_F(tx, sighash_p2sh)
         0xa7, 0x02, 0x5d, 0xd7, 0x83, 0xad, 0xc3, 0x67,
         0x4f, 0xa6, 0x5b, 0x2d, 0x55, 0xbf, 0x87,
     };
-    const ptarm_buf_t spk = { (uint8_t *)SCRIPTPK0, sizeof(SCRIPTPK0) };
-    ret = ptarm_tx_verify_multisig(&tx, 0, txhash, PTARM_VOUT2PKH_P2SH(SCRIPTPK0));
+    const utl_buf_t spk = { (uint8_t *)SCRIPTPK0, sizeof(SCRIPTPK0) };
+    ret = btc_tx_verify_multisig(&tx, 0, txhash, BTC_VOUT2PKH_P2SH(SCRIPTPK0));
     ASSERT_TRUE(ret);
-    ret = ptarm_tx_verify_p2sh_spk(&tx, 0, txhash, &spk);
+    ret = btc_tx_verify_p2sh_spk(&tx, 0, txhash, &spk);
     ASSERT_TRUE(ret);
-    ret = ptarm_tx_verify_p2sh_addr(&tx, 0, txhash, "2NFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT");
+    ret = btc_tx_verify_p2sh_addr(&tx, 0, txhash, "2NFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT");
     ASSERT_TRUE(ret);
-    ret = ptarm_tx_verify_p2sh_addr(&tx, 0, txhash, "2MFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT");
+    ret = btc_tx_verify_p2sh_addr(&tx, 0, txhash, "2MFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT");
     ASSERT_FALSE(ret);
 
-    ptarm_buf_free(&sig2);
-    ptarm_buf_free(&sig1);
-    ptarm_tx_free(&tx);
+    utl_buf_free(&sig2);
+    utl_buf_free(&sig1);
+    btc_tx_free(&tx);
 }
 
 
@@ -1480,8 +1480,8 @@ TEST_F(tx, sighash_p2sh_ng)
 {
     //sighash_p2shとほとんど同じだが、署名の順番が逆
 
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     //2-of-3
     //$ bitcoin-cli createrawtransaction '[{"txid":"89846cf0daa6ac51411e3c8ae42dec97fb0f1d8f6eb9eeb010e962b5b4bf6933","vout":0}]' '{"n2eMqTT929pb1RDNuqEnxdaLau1rxy3efi":0.007}'
@@ -1499,7 +1499,7 @@ TEST_F(tx, sighash_p2sh_ng)
         0xac, 0x00, 0x00, 0x00, 0x00,
     };
 
-    bool ret = ptarm_tx_read(&tx, TX_EMPTY, sizeof(TX_EMPTY));
+    bool ret = btc_tx_read(&tx, TX_EMPTY, sizeof(TX_EMPTY));
     ASSERT_TRUE(ret);
 
     const uint8_t PREV_REDEEM[] = {
@@ -1518,18 +1518,18 @@ TEST_F(tx, sighash_p2sh_ng)
         0x00, 0x3a, 0x18, 0x0a, 0xfc, 0xfc, 0xdc, 0x53,
         0xae,
     };
-    const ptarm_buf_t redeem0 = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
-    const ptarm_buf_t *pks[] = { &redeem0 };
+    const utl_buf_t redeem0 = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
+    const utl_buf_t *pks[] = { &redeem0 };
     const uint8_t TXHASH[] = {
         0xc3, 0x00, 0x8f, 0x64, 0xac, 0x71, 0x05, 0x9c,
         0xd3, 0x1f, 0xaf, 0x84, 0x9c, 0x02, 0x3c, 0xc5,
         0xc9, 0xe7, 0x8d, 0x02, 0x88, 0x71, 0xc7, 0x31,
         0x84, 0x45, 0x0d, 0x0f, 0xd3, 0x3f, 0x63, 0x04,
     };
-    uint8_t txhash[PTARM_SZ_HASH256];
-    ret = ptarm_tx_sighash(txhash, &tx, pks, 1);
+    uint8_t txhash[BTC_SZ_HASH256];
+    ret = btc_tx_sighash(txhash, &tx, pks, 1);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(TXHASH, txhash, PTARM_SZ_HASH256));
+    ASSERT_EQ(0, memcmp(TXHASH, txhash, BTC_SZ_HASH256));
     ASSERT_EQ(1, tx.vin_cnt);
     ASSERT_EQ(NULL, tx.vin[0].script.buf);
     ASSERT_EQ(0, tx.vin[0].script.len);
@@ -1574,23 +1574,23 @@ TEST_F(tx, sighash_p2sh_ng)
         0x8a, 0x88, 0x00, 0x3a, 0x18, 0x0a, 0xfc, 0xfc,
         0xdc,
     };
-    ptarm_buf_t sig1;
-    ptarm_buf_t sig2;
-    ret = ptarm_tx_sign(&sig1, txhash, PRIV1);
+    utl_buf_t sig1;
+    utl_buf_t sig2;
+    ret = btc_tx_sign(&sig1, txhash, PRIV1);
     ASSERT_TRUE(ret);
-    ret = ptarm_tx_sign(&sig2, txhash, PRIV3);
+    ret = btc_tx_sign(&sig2, txhash, PRIV3);
     ASSERT_TRUE(ret);
 
     //送信可能なtxだが、使用済みTXIDなので送信確認はできない
-    const ptarm_buf_t *sigs[] = { &sig2, &sig1 };   //逆
-    const ptarm_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
-    ret = ptarm_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
+    const utl_buf_t *sigs[] = { &sig2, &sig1 };   //逆
+    const utl_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
+    ret = btc_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
-    ptarm_buf_t txall;
-    ptarm_tx_create(&txall, &tx);
+    utl_buf_t txall;
+    btc_tx_create(&txall, &tx);
     printf("P2SH tx=\n");
     tx::DumpBin(txall.buf, txall.len);
-    ptarm_buf_free(&txall);
+    utl_buf_free(&txall);
 
 //    printf("priv1= ");
 //    tx::DumpBin(PRIV1, sizeof(PRIV1));
@@ -1606,11 +1606,11 @@ TEST_F(tx, sighash_p2sh_ng)
 //    tx::DumpBin(PUB3, sizeof(PUB3));
 
     //verify
-    ret = ptarm_tx_verify(&sig1, txhash, PUB1);
+    ret = btc_tx_verify(&sig1, txhash, PUB1);
     ASSERT_TRUE(ret);
-    ret = ptarm_tx_verify(&sig2, txhash, PUB2);
+    ret = btc_tx_verify(&sig2, txhash, PUB2);
     ASSERT_FALSE(ret);
-    ret = ptarm_tx_verify(&sig2, txhash, PUB3);
+    ret = btc_tx_verify(&sig2, txhash, PUB3);
     ASSERT_TRUE(ret);
 
     const uint8_t SCRIPTPK0[] = {
@@ -1618,12 +1618,12 @@ TEST_F(tx, sighash_p2sh_ng)
         0xa7, 0x02, 0x5d, 0xd7, 0x83, 0xad, 0xc3, 0x67,
         0x4f, 0xa6, 0x5b, 0x2d, 0x55, 0xbf, 0x87,
     };
-    ret = ptarm_tx_verify_multisig(&tx, 0, txhash, PTARM_VOUT2PKH_P2SH(SCRIPTPK0));
+    ret = btc_tx_verify_multisig(&tx, 0, txhash, BTC_VOUT2PKH_P2SH(SCRIPTPK0));
     ASSERT_FALSE(ret);
 
-    ptarm_buf_free(&sig2);
-    ptarm_buf_free(&sig1);
-    ptarm_tx_free(&tx);
+    utl_buf_free(&sig2);
+    utl_buf_free(&sig1);
+    btc_tx_free(&tx);
 }
 
 
@@ -1639,24 +1639,24 @@ TEST_F(tx, create_vout_p2pkh)
         0xac,
     };
 
-    ptarm_buf_t scr;
-    ret = ptarm_tx_create_vout_p2pkh(&scr, ADDR1);
+    utl_buf_t scr;
+    ret = btc_tx_create_vout_p2pkh(&scr, ADDR1);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SCRPK1, scr.buf, sizeof(SCRPK1)));
     ASSERT_EQ(sizeof(SCRPK1), scr.len);
-    ptarm_buf_free(&scr);
+    utl_buf_free(&scr);
 
 
     const char ADDR2[] = "2N9J6uZssXpQJkiSVR5v4hbNimcLnQtGjrm";
-    ret = ptarm_tx_create_vout_p2pkh(&scr, ADDR2);
+    ret = btc_tx_create_vout_p2pkh(&scr, ADDR2);
     ASSERT_FALSE(ret);
 }
 
 
 TEST_F(tx, tx_sighash)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
     const uint8_t TX[] = {
         0x02, 0x00, 0x00, 0x00, 0x01, 0x85, 0x17, 0x66,
         0x96, 0x7f, 0xf2, 0xe1, 0xaa, 0xf6, 0x53, 0x83,
@@ -1683,7 +1683,7 @@ TEST_F(tx, tx_sighash)
         0x05, 0x49, 0xb9, 0xd0, 0x92, 0x47, 0x12, 0x98,
         0x97, 0x88, 0xac, 0x00, 0x00, 0x00, 0x00,
     };
-    bool ret = ptarm_tx_read(&tx, TX, sizeof(TX));
+    bool ret = btc_tx_read(&tx, TX, sizeof(TX));
     ASSERT_TRUE(ret);
 
     const uint8_t SIGHASH[] = {
@@ -1714,24 +1714,24 @@ TEST_F(tx, tx_sighash)
         0x7c, 0x9e, 0x74, 0x94, 0x1e, 0x69, 0x95, 0x88,
         0xac,
     };
-    const ptarm_buf_t scriptpk0 = { (uint8_t *)SCRIPTPK, sizeof(SCRIPTPK) };
-    const ptarm_buf_t *pks[] = { &scriptpk0 };
-    uint8_t sighash[PTARM_SZ_SIGHASH];
-    ret = ptarm_tx_sighash(sighash, &tx, pks, 1);
+    const utl_buf_t scriptpk0 = { (uint8_t *)SCRIPTPK, sizeof(SCRIPTPK) };
+    const utl_buf_t *pks[] = { &scriptpk0 };
+    uint8_t sighash[BTC_SZ_SIGHASH];
+    ret = btc_tx_sighash(sighash, &tx, pks, 1);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(SIGHASH, sighash, PTARM_SZ_HASH256));
+    ASSERT_EQ(0, memcmp(SIGHASH, sighash, BTC_SZ_HASH256));
     ASSERT_EQ(1, tx.vin_cnt);
     //元に戻っていることの確認
     ASSERT_EQ(0, memcmp(tx.vin[0].script.buf, SCRIPTSIG, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), tx.vin[0].script.len);
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(tx, tx_sighash2)
 {
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
     const uint8_t TXID1[] = {
         0, 0, 0, 0, 0, 0, 0, 0,
@@ -1745,8 +1745,8 @@ TEST_F(tx, tx_sighash2)
         4, 4, 4, 4, 4, 4, 4, 4,
         5, 5, 5, 5, 5, 5, 5, 5,
     };
-    ptarm_tx_add_vin(&tx, TXID1, 5);
-    ptarm_tx_add_vin(&tx, TXID2, 10);
+    btc_tx_add_vin(&tx, TXID1, 5);
+    btc_tx_add_vin(&tx, TXID2, 10);
 
     const uint8_t SC1[] = {
         6, 7, 8
@@ -1754,8 +1754,8 @@ TEST_F(tx, tx_sighash2)
     const uint8_t SC2[] = {
         9, 10, 11
     };
-    ptarm_buf_alloccopy(&tx.vin[0].script, SC1, sizeof(SC1));
-    ptarm_buf_alloccopy(&tx.vin[1].script, SC2, sizeof(SC2));
+    utl_buf_alloccopy(&tx.vin[0].script, SC1, sizeof(SC1));
+    utl_buf_alloccopy(&tx.vin[1].script, SC2, sizeof(SC2));
     ASSERT_EQ(0, memcmp(tx.vin[0].script.buf, SC1, sizeof(SC1)));
     ASSERT_EQ(sizeof(SC1), tx.vin[0].script.len);
     ASSERT_EQ(0, memcmp(tx.vin[1].script.buf, SC2, sizeof(SC2)));
@@ -1767,12 +1767,12 @@ TEST_F(tx, tx_sighash2)
     const uint8_t SCRIPTPK1[] = {
         17
     };
-    const ptarm_buf_t scriptpk0 = { (uint8_t *)SCRIPTPK0, sizeof(SCRIPTPK0) };
-    const ptarm_buf_t scriptpk1 = { (uint8_t *)SCRIPTPK1, sizeof(SCRIPTPK1) };
-    const ptarm_buf_t *pks[] = { &scriptpk0, &scriptpk1 };
+    const utl_buf_t scriptpk0 = { (uint8_t *)SCRIPTPK0, sizeof(SCRIPTPK0) };
+    const utl_buf_t scriptpk1 = { (uint8_t *)SCRIPTPK1, sizeof(SCRIPTPK1) };
+    const utl_buf_t *pks[] = { &scriptpk0, &scriptpk1 };
 
-    uint8_t sighash[PTARM_SZ_SIGHASH];
-    bool ret = ptarm_tx_sighash(sighash, &tx, pks, 2);
+    uint8_t sighash[BTC_SZ_SIGHASH];
+    bool ret = btc_tx_sighash(sighash, &tx, pks, 2);
     ASSERT_TRUE(ret);
     ASSERT_EQ(2, tx.vin_cnt);
 
@@ -1781,6 +1781,6 @@ TEST_F(tx, tx_sighash2)
     ASSERT_EQ(sizeof(SC1), tx.vin[0].script.len);
     ASSERT_EQ(0, memcmp(tx.vin[1].script.buf, SC2, sizeof(SC2)));
     ASSERT_EQ(sizeof(SC2), tx.vin[1].script.len);
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 

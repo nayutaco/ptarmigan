@@ -76,7 +76,7 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len)
     case MSGTYPE_NODE_ANNOUNCEMENT:
         {
             ln_node_announce_t msg;
-            uint8_t node_pub[PTARM_SZ_PUBKEY];
+            uint8_t node_pub[BTC_SZ_PUBKEY];
             char node_alias[LN_SZ_ALIAS + 1];
             msg.p_node_id = node_pub;
             msg.p_alias = node_alias;
@@ -100,7 +100,7 @@ void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
 
     if (type == MSGTYPE_NODE_ANNOUNCEMENT) {
         ln_node_announce_t msg;
-        uint8_t node_pub[PTARM_SZ_PUBKEY];
+        uint8_t node_pub[BTC_SZ_PUBKEY];
         char node_alias[LN_SZ_ALIAS + 1];
         msg.p_node_id = node_pub;
         msg.p_alias = node_alias;
@@ -117,7 +117,7 @@ void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len)
             }
             fprintf(fp, "port=%d\n", msg.addr.port);
             fprintf(fp, "node_id=");
-            ptarm_util_dumpbin(fp, node_pub, PTARM_SZ_PUBKEY, true);
+            btc_util_dumpbin(fp, node_pub, BTC_SZ_PUBKEY, true);
         }
     }
 
@@ -135,24 +135,24 @@ void ln_print_keys(const ln_funding_local_data_t *pLocal, const ln_funding_remot
 
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
-        DUMPD(pLocal->pubkeys[lp], PTARM_SZ_PUBKEY);
+        DUMPD(pLocal->pubkeys[lp], BTC_SZ_PUBKEY);
     }
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
         LOGD("    %s: ", SCR_STR[lp]);
-        DUMPD(pLocal->scriptpubkeys[lp], PTARM_SZ_PUBKEY);
+        DUMPD(pLocal->scriptpubkeys[lp], BTC_SZ_PUBKEY);
     }
 
     LOGD("remote keys: commit_num=%" PRIu64 "\n", pRemote->current_commit_num);
     for (int lp = 0; lp < LN_FUNDIDX_MAX; lp++) {
         LOGD("    %s: ", KEYS_STR[lp]);
-        DUMPD(pRemote->pubkeys[lp], PTARM_SZ_PUBKEY);
+        DUMPD(pRemote->pubkeys[lp], BTC_SZ_PUBKEY);
     }
     for (int lp = 0; lp < LN_SCRIPTIDX_MAX; lp++) {
         LOGD("    %s: ", SCR_STR[lp]);
-        DUMPD(pRemote->scriptpubkeys[lp], PTARM_SZ_PUBKEY);
+        DUMPD(pRemote->scriptpubkeys[lp], BTC_SZ_PUBKEY);
     }
     LOGD("prev_percommit: ");
-    DUMPD(pRemote->prev_percommit, PTARM_SZ_PUBKEY);
+    DUMPD(pRemote->prev_percommit, BTC_SZ_PUBKEY);
 #endif
 //#else
 //    (void)fp; (void)pLocal; (void)pRemote;

@@ -6,11 +6,11 @@
 
 extern "C" {
 //評価対象本体
-#include "misc.c"
-#include "ptarm_dbg.c"
-#include "ptarm_buf.c"
-#include "ptarm_push.c"
-#include "plog.c"
+#include "utl_misc.c"
+#include "utl_dbg.c"
+#include "utl_buf.c"
+#include "utl_push.c"
+#include "utl_log.c"
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -27,7 +27,7 @@ class utl: public testing::Test {
 
 TEST_F(utl, first)
 {
-    //plog_init_stderr();
+    //utl_log_init_stderr();
 }
 
 

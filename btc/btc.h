@@ -19,7 +19,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ptarm.h
+/** @file   btc.h
  *  @brief  bitcoinトランザクション計算
  *  @author ueno@nayuta.co
  *
@@ -30,8 +30,8 @@
  *          - あまりエラーを返さず、abortする
  *          - vinなどvarint型のものは、だいたい1byte分(スクリプトは受け付けるつもり)
  */
-#ifndef PTARM_H__
-#define PTARM_H__
+#ifndef BTC_H__
+#define BTC_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -43,7 +43,7 @@
 #include "mbedtls/ctr_drbg.h"
 #endif  //PTARM_USE_RNG
 
-#include "ptarm_buf.h"
+#include "utl_buf.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,76 +53,76 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#define PTARM_SZ_FIELD          (32)            ///< secp256k1の世界
-#define PTARM_SZ_RIPEMD160      (20)            ///< サイズ:RIPEMD160
-#define PTARM_SZ_HASH160        (20)            ///< サイズ:HASH160
-#define PTARM_SZ_SHA256         (32)            ///< サイズ:SHA256
-#define PTARM_SZ_HASH256        (32)            ///< サイズ:HASH256
-#define PTARM_SZ_PRIVKEY        (32)            ///< サイズ:非公開鍵
-#define PTARM_SZ_PUBKEY         (33)            ///< サイズ:圧縮された公開鍵
-#define PTARM_SZ_PUBKEY_UNCOMP  (64)            ///< サイズ:圧縮されていない公開鍵
-#define PTARM_SZ_PUBKEYHASH     (32)            ///< サイズ:PubKeyHashの最大値
-#define PTARM_SZ_ADDR_MAX       (90 + 1)        ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
-#define PTARM_SZ_WIF_MAX        (55 + 1)        ///< サイズ:秘密鍵のWIF(上限不明)
-#define PTARM_SZ_TXID           (32)            ///< サイズ:TXID
-#define PTARM_SZ_SIGHASH        (32)            ///< サイズ:Signature計算用のトランザクションHASH
-#define PTARM_SZ_SIGN_RS        (64)            ///< サイズ:RS形式の署名
-#define PTARM_SZ_EKEY           (82)            ///< サイズ:拡張鍵
-#define PTARM_SZ_CHAINCODE      (32)            ///< サイズ:拡張鍵chaincode
-#define PTARM_SZ_EKEY_ADDR_MAX  (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
+#define BTC_SZ_FIELD          (32)            ///< secp256k1の世界
+#define BTC_SZ_RIPEMD160      (20)            ///< サイズ:RIPEMD160
+#define BTC_SZ_HASH160        (20)            ///< サイズ:HASH160
+#define BTC_SZ_SHA256         (32)            ///< サイズ:SHA256
+#define BTC_SZ_HASH256        (32)            ///< サイズ:HASH256
+#define BTC_SZ_PRIVKEY        (32)            ///< サイズ:非公開鍵
+#define BTC_SZ_PUBKEY         (33)            ///< サイズ:圧縮された公開鍵
+#define BTC_SZ_PUBKEY_UNCOMP  (64)            ///< サイズ:圧縮されていない公開鍵
+#define BTC_SZ_PUBKEYHASH     (32)            ///< サイズ:PubKeyHashの最大値
+#define BTC_SZ_ADDR_MAX       (90 + 1)        ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
+#define BTC_SZ_WIF_MAX        (55 + 1)        ///< サイズ:秘密鍵のWIF(上限不明)
+#define BTC_SZ_TXID           (32)            ///< サイズ:TXID
+#define BTC_SZ_SIGHASH        (32)            ///< サイズ:Signature計算用のトランザクションHASH
+#define BTC_SZ_SIGN_RS        (64)            ///< サイズ:RS形式の署名
+#define BTC_SZ_EKEY           (82)            ///< サイズ:拡張鍵
+#define BTC_SZ_CHAINCODE      (32)            ///< サイズ:拡張鍵chaincode
+#define BTC_SZ_EKEY_ADDR_MAX  (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
 
-#define PTARM_PREF              (0)             ///< Prefix: 1:mainnet, 2:testnet
-#define PTARM_PREF_WIF          (1)             ///< Prefix: WIF
-#define PTARM_PREF_P2PKH        (2)             ///< Prefix: P2PKH
-#define PTARM_PREF_P2SH         (3)             ///< Prefix: P2SH
-#define PTARM_PREF_ADDRVER      (4)             ///< Prefix: Address Version
-#define PTARM_PREF_ADDRVER_SH   (5)             ///< Prefix: Address Version(Script)
-#define PTARM_PREF_MAX          (6)             ///< 内部管理用
-#define PTARM_PREF_NATIVE       (7)             ///< Prefix: native Witness
-#define PTARM_PREF_NATIVE_SH    (8)             ///< Prefix: native Witness(Script)
+#define BTC_PREF              (0)             ///< Prefix: 1:mainnet, 2:testnet
+#define BTC_PREF_WIF          (1)             ///< Prefix: WIF
+#define BTC_PREF_P2PKH        (2)             ///< Prefix: P2PKH
+#define BTC_PREF_P2SH         (3)             ///< Prefix: P2SH
+#define BTC_PREF_ADDRVER      (4)             ///< Prefix: Address Version
+#define BTC_PREF_ADDRVER_SH   (5)             ///< Prefix: Address Version(Script)
+#define BTC_PREF_MAX          (6)             ///< 内部管理用
+#define BTC_PREF_NATIVE       (7)             ///< Prefix: native Witness
+#define BTC_PREF_NATIVE_SH    (8)             ///< Prefix: native Witness(Script)
 
-#define PTARM_EKEY_PRIV         (0)             ///< 拡張鍵種別:秘密鍵
-#define PTARM_EKEY_PUB          (1)             ///< 拡張鍵種別:公開鍵
-#define PTARM_EKEY_HARDENED     ((uint32_t)0x80000000)  ///< 拡張鍵:hardened
+#define BTC_EKEY_PRIV         (0)             ///< 拡張鍵種別:秘密鍵
+#define BTC_EKEY_PUB          (1)             ///< 拡張鍵種別:公開鍵
+#define BTC_EKEY_HARDENED     ((uint32_t)0x80000000)  ///< 拡張鍵:hardened
 
-#define PTARM_OP_0              "\x00"          ///< OP_0
-#define PTARM_OP_2              "\x52"          ///< OP_2
-#define PTARM_OP_HASH160        "\xa9"          ///< OP_HASH160
-#define PTARM_OP_EQUAL          "\x87"          ///< OP_EQUAL
-#define PTARM_OP_EQUALVERIFY    "\x88"          ///< OP_EQUALVERIFY
-#define PTARM_OP_PUSHDATA1      "\x4c"          ///< OP_PUSHDATA1
-#define PTARM_OP_PUSHDATA2      "\x4d"          ///< OP_PUSHDATA2
-#define PTARM_OP_CHECKSIG       "\xac"          ///< OP_CHECKSIG
-#define PTARM_OP_CHECKMULTISIG  "\xae"          ///< OP_CHECKMULTISIG
-#define PTARM_OP_CLTV           "\xb1"          ///< OP_CHECKLOCKTIMEVERIFY
-#define PTARM_OP_CSV            "\xb2"          ///< OP_CHECKSEQUENCEVERIFY
-#define PTARM_OP_DROP           "\x75"          ///< OP_DROP
-#define PTARM_OP_2DROP          "\x6d"          ///< OP_2DROP
-#define PTARM_OP_DUP            "\x76"          ///< OP_DUP
-#define PTARM_OP_IF             "\x63"          ///< OP_IF
-#define PTARM_OP_NOTIF          "\x64"          ///< OP_NOTIF
-#define PTARM_OP_ELSE           "\x67"          ///< OP_ELSE
-#define PTARM_OP_ENDIF          "\x68"          ///< OP_ENDIF
-#define PTARM_OP_SWAP           "\x7c"          ///< OP_SWAP
-#define PTARM_OP_ADD            "\x93"          ///< OP_ADD
-#define PTARM_OP_SIZE           "\x82"          ///< OP_SIZE
-#define PTARM_OP_SZ1            "\x01"          ///< 1byte値
-#define PTARM_OP_SZ20           "\x14"          ///< 20byte値
-#define PTARM_OP_SZ32           "\x20"          ///< 32byte値
-#define PTARM_OP_SZ_PUBKEY      "\x21"          ///< 33byte値
+#define BTC_OP_0              "\x00"          ///< OP_0
+#define BTC_OP_2              "\x52"          ///< OP_2
+#define BTC_OP_HASH160        "\xa9"          ///< OP_HASH160
+#define BTC_OP_EQUAL          "\x87"          ///< OP_EQUAL
+#define BTC_OP_EQUALVERIFY    "\x88"          ///< OP_EQUALVERIFY
+#define BTC_OP_PUSHDATA1      "\x4c"          ///< OP_PUSHDATA1
+#define BTC_OP_PUSHDATA2      "\x4d"          ///< OP_PUSHDATA2
+#define BTC_OP_CHECKSIG       "\xac"          ///< OP_CHECKSIG
+#define BTC_OP_CHECKMULTISIG  "\xae"          ///< OP_CHECKMULTISIG
+#define BTC_OP_CLTV           "\xb1"          ///< OP_CHECKLOCKTIMEVERIFY
+#define BTC_OP_CSV            "\xb2"          ///< OP_CHECKSEQUENCEVERIFY
+#define BTC_OP_DROP           "\x75"          ///< OP_DROP
+#define BTC_OP_2DROP          "\x6d"          ///< OP_2DROP
+#define BTC_OP_DUP            "\x76"          ///< OP_DUP
+#define BTC_OP_IF             "\x63"          ///< OP_IF
+#define BTC_OP_NOTIF          "\x64"          ///< OP_NOTIF
+#define BTC_OP_ELSE           "\x67"          ///< OP_ELSE
+#define BTC_OP_ENDIF          "\x68"          ///< OP_ENDIF
+#define BTC_OP_SWAP           "\x7c"          ///< OP_SWAP
+#define BTC_OP_ADD            "\x93"          ///< OP_ADD
+#define BTC_OP_SIZE           "\x82"          ///< OP_SIZE
+#define BTC_OP_SZ1            "\x01"          ///< 1byte値
+#define BTC_OP_SZ20           "\x14"          ///< 20byte値
+#define BTC_OP_SZ32           "\x20"          ///< 32byte値
+#define BTC_OP_SZ_PUBKEY      "\x21"          ///< 33byte値
 
-#define PTARM_DUST_LIMIT        ((uint64_t)546) ///< voutに指定できるamountの下限[satoshis]
+#define BTC_DUST_LIMIT        ((uint64_t)546) ///< voutに指定できるamountの下限[satoshis]
                                                 // 2018/02/11 17:54(JST)
                                                 // https://github.com/bitcoin/bitcoin/blob/fe53d5f3636aed064823bc220d828c7ff08d1d52/src/test/transaction_tests.cpp#L695
                                                 //
                                                 // https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/policy/policy.cpp#L52-L55
 
-#define PTARM_TX_VERSION_INIT   (2)
-#define PTARM_TX_INIT           { PTARM_TX_VERSION_INIT, 0, (ptarm_vin_t *)NULL, 0, (ptarm_vout_t *)NULL, 0 }
+#define BTC_TX_VERSION_INIT   (2)
+#define BTC_TX_INIT           { BTC_TX_VERSION_INIT, 0, (btc_vin_t *)NULL, 0, (btc_vout_t *)NULL, 0 }
 
 #define LNL_SZ_2OF2             (1 + 34 + 34 + 2)           ///< OP_m 21 [pub1] 21 [pub2] OP_n OP_CHKMULTISIG
-#define LNL_SZ_WITPROG_WPKH     (2 + PTARM_SZ_HASH160)      ///< P2WPKHのwitnessProgramサイズ
-#define LNL_SZ_WITPROG_WSH      (2 + PTARM_SZ_HASH256)      ///< P2WSHのwitnessProgramサイズ
+#define LNL_SZ_WITPROG_WPKH     (2 + BTC_SZ_HASH160)      ///< P2WPKHのwitnessProgramサイズ
+#define LNL_SZ_WITPROG_WSH      (2 + BTC_SZ_HASH256)      ///< P2WSHのwitnessProgramサイズ
 
 #define OP_0                    (0x00)
 #define OP_HASH160              (0xa9)
@@ -159,57 +159,57 @@ extern "C" {
  * macro functions
  **************************************************************************/
 
-/** @def    PTARM_MBTC2SATOSHI
+/** @def    BTC_MBTC2SATOSHI
  *  @brief  mBTCをsatochi変換
  */
-#define PTARM_MBTC2SATOSHI(mbtc)        ((uint64_t)((mbtc) * 100000 + 0.5))
+#define BTC_MBTC2SATOSHI(mbtc)        ((uint64_t)((mbtc) * 100000 + 0.5))
 
-/** @def    PTARM_BTC2SATOSHI
+/** @def    BTC_BTC2SATOSHI
  *  @brief  BTCをsatochi変換
  */
-#define PTARM_BTC2SATOSHI(mbtc)         ((uint64_t)((mbtc) * (uint64_t)100000000 + 0.5))
+#define BTC_BTC2SATOSHI(mbtc)         ((uint64_t)((mbtc) * (uint64_t)100000000 + 0.5))
 
-/** @def    PTARM_SATOSHI2MBTC
+/** @def    BTC_SATOSHI2MBTC
  *  @brief  satoshiをmBTC変換
  */
-#define PTARM_SATOSHI2MBTC(stc)         ((double)(stc) / 100000)
+#define BTC_SATOSHI2MBTC(stc)         ((double)(stc) / 100000)
 
-/** @def    PTARM_SATOSHI2BTC
+/** @def    BTC_SATOSHI2BTC
  *  @brief  satoshiをBTC変換
  */
-#define PTARM_SATOSHI2BTC(stc)          ((double)(stc) / (double)100000000)
+#define BTC_SATOSHI2BTC(stc)          ((double)(stc) / (double)100000000)
 
-/** @def    PTARM_VOUT2PKH_P2PKH
+/** @def    BTC_VOUT2PKH_P2PKH
  *  @brief  scriptPubKey(P2PKH)からPubKeyHashアドレス位置算出
  */
-#define PTARM_VOUT2PKH_P2PKH(script)    ((script) + 4)
+#define BTC_VOUT2PKH_P2PKH(script)    ((script) + 4)
 
-/** @def    PTARM_VOUT2PKH_P2SH
+/** @def    BTC_VOUT2PKH_P2SH
  *  @brief  scriptPubKey(P2SH)からPubKeyHashアドレス位置算出
  */
-#define PTARM_VOUT2PKH_P2SH(script)     ((script) + 2)
+#define BTC_VOUT2PKH_P2SH(script)     ((script) + 2)
 
-/** @def    PTARM_IS_DUST
+/** @def    BTC_IS_DUST
  *  @brief  amountが支払いに使用できないDUSTかどうかチェックする(true:支払えない)
  */
-#define PTARM_IS_DUST(amount)           (PTARM_DUST_LIMIT > (amount))
+#define BTC_IS_DUST(amount)           (BTC_DUST_LIMIT > (amount))
 
 
 /**************************************************************************
  * types
  **************************************************************************/
 
-/** @enum   ptarm_chain_t
+/** @enum   btc_chain_t
  *  @brief  blockchain種別
  */
 typedef enum {
-    PTARM_UNKNOWN,
-    PTARM_MAINNET,          ///< mainnet
-    PTARM_TESTNET           ///< testnet, regtest
-} ptarm_chain_t;
+    BTC_UNKNOWN,
+    BTC_MAINNET,          ///< mainnet
+    BTC_TESTNET           ///< testnet, regtest
+} btc_chain_t;
 
 
-/** @struct     ptarm_ekey_t
+/** @struct     btc_ekey_t
  *  @brief      Extended Key管理構造体
  */
 typedef struct {
@@ -217,77 +217,77 @@ typedef struct {
     uint8_t     depth;                              ///<
     uint32_t    fingerprint;                        ///<
     uint32_t    child_number;                       ///<
-    uint8_t     chain_code[PTARM_SZ_CHAINCODE];     ///<
-    uint8_t     key[PTARM_SZ_PUBKEY];               ///<
-} ptarm_ekey_t;
+    uint8_t     chain_code[BTC_SZ_CHAINCODE];     ///<
+    uint8_t     key[BTC_SZ_PUBKEY];               ///<
+} btc_ekey_t;
 
 
-/** @struct     ptarm_util_keys_t
+/** @struct     btc_util_keys_t
  *  @brief      鍵情報
  */
 typedef struct {
-    uint8_t     priv[PTARM_SZ_PRIVKEY];             ///< 秘密鍵
-    uint8_t     pub[PTARM_SZ_PUBKEY];               ///< 公開鍵
-} ptarm_util_keys_t;
+    uint8_t     priv[BTC_SZ_PRIVKEY];             ///< 秘密鍵
+    uint8_t     pub[BTC_SZ_PUBKEY];               ///< 公開鍵
+} btc_util_keys_t;
 
 
-/** @struct ptarm_vin_t
+/** @struct btc_vin_t
  *  @brief  VIN管理構造体
  */
 typedef struct {
-    uint8_t         txid[PTARM_SZ_TXID];    ///< [outpoint]TXID
+    uint8_t         txid[BTC_SZ_TXID];    ///< [outpoint]TXID
     uint32_t        index;                  ///< [outpoint]index
-    ptarm_buf_t     script;                 ///< scriptSig
+    utl_buf_t     script;                 ///< scriptSig
     uint32_t        wit_cnt;                ///< witness数(0のとき、witnessは無視)
-    ptarm_buf_t     *witness;               ///< witness(配列的に使用する)
+    utl_buf_t     *witness;               ///< witness(配列的に使用する)
     uint32_t        sequence;               ///< sequence
-} ptarm_vin_t;
+} btc_vin_t;
 
 
-/** @struct ptarm_vout_t
+/** @struct btc_vout_t
  *  @brief  VOUT管理構造体
  */
 typedef struct {
     uint64_t        value;                  ///< value[単位:satoshi]
-    ptarm_buf_t     script;                 ///< scriptPubKey
+    utl_buf_t     script;                 ///< scriptPubKey
     uint8_t         opt;                    ///< 付加情報(ln用)
                                             //      ln_create_htlc_tx()でln_htlctype_tに設定
                                             //      ln_create_commit_tx()でln_tx_cmt_t.pp_htlcinfo[]のindex値(or LN_HTLCTYPE_TOLOCAL/REMOTE)に設定
-} ptarm_vout_t;
+} btc_vout_t;
 
 
-/** @struct ptarm_tx_t
+/** @struct btc_tx_t
  *  @brief  TX管理構造体
  */
 typedef struct {
     uint32_t        version;        ///< TX version
 
     uint32_t        vin_cnt;        ///< vin数(0のとき、vinは無視)
-    ptarm_vin_t     *vin;           ///< vin(配列的に使用する)
+    btc_vin_t     *vin;           ///< vin(配列的に使用する)
 
     uint32_t        vout_cnt;       ///< vout数(0のとき、voutは無視)
-    ptarm_vout_t    *vout;          ///< vout(配列的に使用する)
+    btc_vout_t    *vout;          ///< vout(配列的に使用する)
 
     uint32_t        locktime;       ///< locktime
-} ptarm_tx_t;
+} btc_tx_t;
 
 
-/** @enum   ptarm_keys_sort_t
+/** @enum   btc_keys_sort_t
  *  @brief  鍵ソート結果
  */
 typedef enum {
-    PTARM_KEYS_SORT_ASC,            ///< 順番が昇順
-    PTARM_KEYS_SORT_OTHER           ///< それ以外
-} ptarm_keys_sort_t;
+    BTC_KEYS_SORT_ASC,            ///< 順番が昇順
+    BTC_KEYS_SORT_OTHER           ///< それ以外
+} btc_keys_sort_t;
 
 
-/** @enum ptarm_genesis_t */
+/** @enum btc_genesis_t */
 typedef enum {
-    PTARM_GENESIS_UNKNOWN,          ///< 不明
-    PTARM_GENESIS_BTCMAIN,          ///< Bitcoin mainnet
-    PTARM_GENESIS_BTCTEST,          ///< Bitcoin testnet
-    PTARM_GENESIS_BTCREGTEST,       ///< Bitcoin regtest
-} ptarm_genesis_t;
+    BTC_GENESIS_UNKNOWN,          ///< 不明
+    BTC_GENESIS_BTCMAIN,          ///< Bitcoin mainnet
+    BTC_GENESIS_BTCTEST,          ///< Bitcoin testnet
+    BTC_GENESIS_BTCREGTEST,       ///< Bitcoin regtest
+} btc_genesis_t;
 
 
 /**************************************************************************
@@ -296,23 +296,23 @@ typedef enum {
 
 /** 初期化
  *
- * @param[in]       chain           PTARM_MAINNET / PTARM_TESTNET
+ * @param[in]       chain           BTC_MAINNET / BTC_TESTNET
  * @param[in]       bSegNative      true:segwit native transaction
  */
-bool ptarm_init(ptarm_chain_t net, bool bSegNative);
+bool btc_init(btc_chain_t net, bool bSegNative);
 
 
 /** 終了
  *
  *
  */
-void ptarm_term(void);
+void btc_term(void);
 
 
 /** blockchain種別取得
  *
  */
-ptarm_chain_t ptarm_get_chain(void);
+btc_chain_t btc_get_chain(void);
 
 
 //////////////////////
@@ -321,15 +321,15 @@ ptarm_chain_t ptarm_get_chain(void);
 
 /** WIF形式秘密鍵をRAW形式に変換
  *
- * @param[out]      pPrivKey        変換後データ(PTARM_SZ_PRIVKEY以上のサイズが必要)
+ * @param[out]      pPrivKey        変換後データ(BTC_SZ_PRIVKEY以上のサイズが必要)
  * @param[out]      pChain          WIFのblockchain種別
  * @param[in]       pWifPriv        対象データ(\0 terminate)
  * @return      true:成功
  *
  * @note
- *      - #ptarm_init()の設定と一致しない場合、abortする
+ *      - #btc_init()の設定と一致しない場合、abortする
  */
-bool ptarm_keys_wif2priv(uint8_t *pPrivKey, ptarm_chain_t *pChain, const char *pWifPriv);
+bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifPriv);
 
 
 /** RAW秘密鍵をWI形式秘密鍵に変換
@@ -338,34 +338,34 @@ bool ptarm_keys_wif2priv(uint8_t *pPrivKey, ptarm_chain_t *pChain, const char *p
  * @param[in]       pPrivKey
  * @return      true:成功
  */
-bool ptarm_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey);
+bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey);
 
 
 /** 秘密鍵を公開鍵に変換
  *
- * @param[out]      pPubKey         変換後データ(PTARM_SZ_PUBKEY以上のサイズが必要)
- * @param[in]       pPrivKey        対象データ(PTARM_SZ_PRIVKEY)
+ * @param[out]      pPubKey         変換後データ(BTC_SZ_PUBKEY以上のサイズが必要)
+ * @param[in]       pPrivKey        対象データ(BTC_SZ_PRIVKEY)
  *
  * @note
  *      - pPubKeyは圧縮された公開鍵になる
  */
-bool ptarm_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey);
+bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey);
 
 
 /** 公開鍵をBitcoinアドレス(P2PKH)に変換
  *
- * @param[out]      pAddr           変換後データ(#PTARM_SZ_ADDR_MAX 以上のサイズを想定)
- * @param[in]       pPubKey         対象データ(PTARM_SZ_PUBKEY)
+ * @param[out]      pAddr           変換後データ(#BTC_SZ_ADDR_MAX 以上のサイズを想定)
+ * @param[in]       pPubKey         対象データ(BTC_SZ_PUBKEY)
  */
-bool ptarm_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey);
+bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey);
 
 
 /** 公開鍵をBitcoinアドレス(P2WPKH)に変換
  *
- * @param[out]      pWAddr          変換後データ(PTARM_SZ_WPKHADDR以上のサイズを想定)
- * @param[in]       pPubKey         対象データ(PTARM_SZ_PUBKEY)
+ * @param[out]      pWAddr          変換後データ(BTC_SZ_WPKHADDR以上のサイズを想定)
+ * @param[in]       pPubKey         対象データ(BTC_SZ_PUBKEY)
  */
-bool ptarm_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);
+bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);
 
 
 /** P2PKHからP2WPKHへの変換
@@ -373,7 +373,7 @@ bool ptarm_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);
  * @param[out]      pWAddr
  * @param[in]       pAddr
  */
-bool ptarm_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
+bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
 
 
 /** witnessScriptをBitcoinアドレスに変換
@@ -382,9 +382,9 @@ bool ptarm_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
  * @param[in]       pWitScript      対象データ
  *
  * @note
- *      - pWAddrのサイズは、native=#PTARM_SZ_WSHADDR, 非native=#PTARM_SZ_ADDR_MAX 以上にすること
+ *      - pWAddrのサイズは、native=#BTC_SZ_WSHADDR, 非native=#BTC_SZ_ADDR_MAX 以上にすること
  */
-bool ptarm_keys_wit2waddr(char *pWAddr, const ptarm_buf_t *pWitScript);
+bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript);
 
 
 /** 圧縮された公開鍵を展開
@@ -393,9 +393,9 @@ bool ptarm_keys_wit2waddr(char *pWAddr, const ptarm_buf_t *pWitScript);
  * @param[in]   pPubKey     圧縮された公開鍵
  *
  * @note
- *      - pUncompは使用後に #ptarm_buf_free()で解放すること
+ *      - pUncompは使用後に #utl_buf_free()で解放すること
  */
-bool ptarm_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey);
+bool btc_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey);
 
 
 /** 秘密鍵の範囲チェック
@@ -403,7 +403,7 @@ bool ptarm_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey);
  * @param[in]   pPrivKey    チェック対象
  * @retval  true    正常
  */
-bool ptarm_keys_chkpriv(const uint8_t *pPrivKey);
+bool btc_keys_chkpriv(const uint8_t *pPrivKey);
 
 
 /** 公開鍵のチェック
@@ -411,7 +411,7 @@ bool ptarm_keys_chkpriv(const uint8_t *pPrivKey);
  * @param[in]       pPubKey     チェック対象
  * @return      true:SECP256K1の公開鍵としては正当
  */
-bool ptarm_keys_chkpub(const uint8_t *pPubKey);
+bool btc_keys_chkpub(const uint8_t *pPubKey);
 
 
 /** MultiSig 2-of-2スキームのredeem scriptを作成
@@ -430,7 +430,7 @@ bool ptarm_keys_chkpub(const uint8_t *pPubKey);
  * @note
  *      - 公開鍵の順番は pPubKey1, pPubKey2 の順
  */
-bool ptarm_keys_create2of2(ptarm_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 /** M-of-Nスキームのredeem script作成
@@ -443,17 +443,17 @@ bool ptarm_keys_create2of2(ptarm_buf_t *pRedeem, const uint8_t *pPubKey1, const 
  * @note
  *      - 公開鍵はソートしない
  */
-bool ptarm_keys_createmulti(ptarm_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M);
+bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M);
 
 
 /** BitcoinアドレスからPubKeyHashを求める
  *
  * @param[out]      pPubKeyHash     PubKeyHash
- * @param[out]      pPrefix         pAddrの種類(PTARM_PREF_xxx)
+ * @param[out]      pPrefix         pAddrの種類(BTC_PREF_xxx)
  * @param[in]       pAddr           Bitcoinアドレス
  * @return      true:成功
  */
-bool ptarm_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr);
+bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr);
 
 
 /** BitcoinアドレスからscriptPubKeyを求める
@@ -462,7 +462,7 @@ bool ptarm_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr);
  * @param[in]   pAddr       Bitcoinアドレス
  * @return      true:成功
  */
-bool ptarm_keys_addr2spk(ptarm_buf_t *pScriptPk, const char *pAddr);
+bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr);
 
 
 /** scriptPubKeyからBitcoinアドレスを求める
@@ -471,24 +471,24 @@ bool ptarm_keys_addr2spk(ptarm_buf_t *pScriptPk, const char *pAddr);
  * @param[in]   pScriptPk   scriptPubKey
  * @return      true:成功
  */
-bool ptarm_keys_spk2addr(char *pAddr, const ptarm_buf_t *pScriptPk);
+bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk);
 
 
 //////////////////////
 //TX
 //////////////////////
 
-/** #ptarm_tx_t の初期化
+/** #btc_tx_t の初期化
  *
  * @param[out]      pTx         対象データ
  *
  * @note
  *      - versionは2で初期化する(OP_CSVやOP_CLTVを使用する場合が多いため)
  */
-void ptarm_tx_init(ptarm_tx_t *pTx);
+void btc_tx_init(btc_tx_t *pTx);
 
 
-/** #ptarm_tx_t のメモリ解放
+/** #btc_tx_t のメモリ解放
  *
  * @param[in,out]   pTx     処理対象
  *
@@ -496,25 +496,25 @@ void ptarm_tx_init(ptarm_tx_t *pTx);
  *      - vin, vout, witnessに確保されたメモリを解放する
  *      - メモリ解放以外の値(version, locktime)は維持する。
  */
-void ptarm_tx_free(ptarm_tx_t *pTx);
+void btc_tx_free(btc_tx_t *pTx);
 
 
-/** #ptarm_vin_t の追加
+/** #btc_vin_t の追加
  *
  * @param[in,out]   pTx         追加対象
  * @param[in]       pTxId       追加するvinのTXID(Little Endian)
  * @param[in]       Index       追加するvinのindex
- * @return          追加した #ptarm_vin_t のアドレス
+ * @return          追加した #btc_vin_t のアドレス
  *
  * @attention
- *      - realloc()するため、取得したアドレスは次に #ptarm_tx_add_vin()しても有効なのか確実ではない。
+ *      - realloc()するため、取得したアドレスは次に #btc_tx_add_vin()しても有効なのか確実ではない。
  *          すぐに使用してアドレスは保持しないこと。
  * @note
  *      - realloc()するため、事前のfree処理は不要
  *      - sequenceは0xFFFFFFFFで初期化している
- *      - scriptSigは空のため、戻り値を使って #ptarm_buf_alloccopy()でコピーすることを想定している
+ *      - scriptSigは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
-ptarm_vin_t *ptarm_tx_add_vin(ptarm_tx_t *pTx, const uint8_t *pTxId, int Index);
+btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, int Index);
 
 
 /** witnessの追加
@@ -524,22 +524,22 @@ ptarm_vin_t *ptarm_tx_add_vin(ptarm_tx_t *pTx, const uint8_t *pTxId, int Index);
  *
  * @note
  *      - realloc()するため、事前のfree処理は不要
- *      - witnessは空のため、戻り値を使って #ptarm_buf_alloccopy()でコピーすることを想定している
+ *      - witnessは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
-ptarm_buf_t *ptarm_tx_add_wit(ptarm_vin_t *pVin);
+utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin);
 
 
-/** #ptarm_vout_t の追加
+/** #btc_vout_t の追加
  *
  * @param[in,out]   pTx         追加対象
  * @param[in]       Value       追加したvoutのvalue(単位:satoshi)
- * @return          追加した #ptarm_vout_t のアドレス
+ * @return          追加した #btc_vout_t のアドレス
  *
  * @note
  *      - realloc()するため、事前のfree処理は不要
- *      - scriptPubKeyは空のため、戻り値を使って #ptarm_buf_alloccopy()でコピーすることを想定している
+ *      - scriptPubKeyは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
-ptarm_vout_t *ptarm_tx_add_vout(ptarm_tx_t *pTx, uint64_t Value);
+btc_vout_t *btc_tx_add_vout(btc_tx_t *pTx, uint64_t Value);
 
 
 /** vout追加
@@ -552,7 +552,7 @@ ptarm_vout_t *ptarm_tx_add_vout(ptarm_tx_t *pTx, uint64_t Value);
  * @note
  *      - pAddrで自動判別(P2PKH, P2SH, P2WPKH)
  */
-bool ptarm_tx_add_vout_addr(ptarm_tx_t *pTx, uint64_t Value, const char *pAddr);
+bool btc_tx_add_vout_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr);
 
 
 /** vout追加
@@ -562,7 +562,7 @@ bool ptarm_tx_add_vout_addr(ptarm_tx_t *pTx, uint64_t Value, const char *pAddr);
  * @param[in]           pScriptPk
  * @return      trueのみ
  */
-void ptarm_tx_add_vout_spk(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pScriptPk);
+void btc_tx_add_vout_spk(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk);
 
 
 /** 標準P2PKHのvout追加
@@ -572,7 +572,7 @@ void ptarm_tx_add_vout_spk(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *p
  * @param[in]           pPubKeyHash
  * @return      trueのみ
  */
-bool ptarm_tx_add_vout_p2pkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
+bool btc_tx_add_vout_p2pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
 
 
 /** scriptPubKeyのデータを設定する
@@ -581,7 +581,7 @@ bool ptarm_tx_add_vout_p2pkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPu
  * @param[in]       pAddr       Bitcoinアドレス
  * @return      true:成功
  */
-bool ptarm_tx_create_vout(ptarm_buf_t *pBuf, const char *pAddr);
+bool btc_tx_create_vout(utl_buf_t *pBuf, const char *pAddr);
 
 
 /** scriptPubKey(P2PKH)のデータを設定する
@@ -593,7 +593,7 @@ bool ptarm_tx_create_vout(ptarm_buf_t *pBuf, const char *pAddr);
  * @note
  *      - 署名用にINPUT txのscriptPubKeyが必要だが、TXデータを持たず、P2PKHだからBitcoinアドレスから生成しよう、という場合に使用する
  */
-bool ptarm_tx_create_vout_p2pkh(ptarm_buf_t *pBuf, const char *pAddr);
+bool btc_tx_create_vout_p2pkh(utl_buf_t *pBuf, const char *pAddr);
 
 
 /** 標準P2PKHのvout追加(アドレス)
@@ -602,7 +602,7 @@ bool ptarm_tx_create_vout_p2pkh(ptarm_buf_t *pBuf, const char *pAddr);
  * @param[in]           Value
  * @param[in]           pAddr       Bitcoinアドレス(P2PKH)
  */
-bool ptarm_tx_add_vout_p2pkh_addr(ptarm_tx_t *pTx, uint64_t Value, const char *pAddr);
+bool btc_tx_add_vout_p2pkh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr);
 
 
 /** 標準P2SHのvout追加
@@ -612,7 +612,7 @@ bool ptarm_tx_add_vout_p2pkh_addr(ptarm_tx_t *pTx, uint64_t Value, const char *p
  * @param[in]           pPubKeyHash
  *
  */
-bool ptarm_tx_add_vout_p2sh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
+bool btc_tx_add_vout_p2sh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
 
 
 /** 標準P2SHのvout追加(アドレス)
@@ -621,7 +621,7 @@ bool ptarm_tx_add_vout_p2sh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPub
  * @param[in]           Value
  * @param[in]           pAddr       Bitcoinアドレス(P2SH)
  */
-bool ptarm_tx_add_vout_p2sh_addr(ptarm_tx_t *pTx, uint64_t Value, const char *pAddr);
+bool btc_tx_add_vout_p2sh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr);
 
 
 /** 標準P2SHのvout追加(redeemScript)
@@ -630,7 +630,7 @@ bool ptarm_tx_add_vout_p2sh_addr(ptarm_tx_t *pTx, uint64_t Value, const char *pA
  * @param[in]           Value
  * @param[in]           pRedeem     redeemScript
  */
-bool ptarm_tx_add_vout_p2sh_redeem(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pRedeem);
+bool btc_tx_add_vout_p2sh_redeem(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pRedeem);
 
 
 /** P2PKHのscriptSig作成
@@ -643,7 +643,7 @@ bool ptarm_tx_add_vout_p2sh_redeem(ptarm_tx_t *pTx, uint64_t Value, const ptarm_
  * @note
  *      - 対象のvinは既に追加されていること(addではなく、置き換える動作)
  */
-bool ptarm_tx_set_vin_p2pkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig, const uint8_t *pPubKey);
+bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey);
 
 
 /** P2SHのscriptSig作成
@@ -657,10 +657,10 @@ bool ptarm_tx_set_vin_p2pkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig,
  * @note
  *      - 対象のvinは既に追加されていること(addではなく、置き換える動作)
  */
-bool ptarm_tx_set_vin_p2sh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSigs[], int Num, const ptarm_buf_t *pRedeem);
+bool btc_tx_set_vin_p2sh(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], int Num, const utl_buf_t *pRedeem);
 
 
-/** トランザクションデータを #ptarm_tx_t に変換
+/** トランザクションデータを #btc_tx_t に変換
  *
  * @param[out]      pTx         変換後データ
  * @param[in]       pData       トランザクションデータ
@@ -668,9 +668,9 @@ bool ptarm_tx_set_vin_p2sh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSigs[
  * @return          変換結果
  *
  * @note
- *      - 動的にメモリ確保するため、#ptarm_tx_free()を呼ぶこと
+ *      - 動的にメモリ確保するため、#btc_tx_free()を呼ぶこと
  */
-bool ptarm_tx_read(ptarm_tx_t *pTx, const uint8_t *pData, uint32_t Len);
+bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len);
 
 
 /** トランザクションデータ作成
@@ -679,26 +679,26 @@ bool ptarm_tx_read(ptarm_tx_t *pTx, const uint8_t *pData, uint32_t Len);
  * @param[in]       pTx         対象データ
  *
  * @note
- *      - 動的にメモリ確保するため、pBufは使用後 #ptarm_buf_free()で解放すること
+ *      - 動的にメモリ確保するため、pBufは使用後 #utl_buf_free()で解放すること
  *      - vin cntおよびvout cntは 252までしか対応しない(varint型の1byteまで)
  */
-bool ptarm_tx_create(ptarm_buf_t *pBuf, const ptarm_tx_t *pTx);
+bool btc_tx_create(utl_buf_t *pBuf, const btc_tx_t *pTx);
 
 
 /** 非segwitトランザクション署名用ハッシュ値計算
  *
- * @param[out]      pTxHash         ハッシュ値[PTARM_SZ_SIGHASH]
+ * @param[out]      pTxHash         ハッシュ値[BTC_SZ_SIGHASH]
  * @param[in,out]   pTx             元になるトランザクション
  * @param[in]       pScriptPks      [P2PKH]scriptPubKeyの配列, [P2SH]redeemScriptの配列
  * @param[in]       Num             pScriptPkの要素数(pTxのvin_cntと同じ)
  *
  * @note
  *      - pTxは一時的に内部で更新される
- *      - pTxのvin[x].scriptは #ptarm_tx_free()で解放される
+ *      - pTxのvin[x].scriptは #btc_tx_free()で解放される
  *      - ハッシュはSIGHASHALL
- *      - vinにscriptPubKeyを記入するので、先に #ptarm_tx_add_vin()しておくこと
+ *      - vinにscriptPubKeyを記入するので、先に #btc_tx_add_vin()しておくこと
  */
-bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const ptarm_buf_t *pScriptPks[], uint32_t Num);
+bool btc_tx_sighash(uint8_t *pTxHash, btc_tx_t *pTx, const utl_buf_t *pScriptPks[], uint32_t Num);
 
 
 /** 署名計算
@@ -709,10 +709,10 @@ bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const ptarm_buf_t *pScr
  * @return          true        成功
  *
  * @note
- *      - pSigは、成功かどうかにかかわらず#ptarm_buf_init()される
- *      - 成功時、pSigは #ptarm_buf_alloccopy() でメモリ確保するので、使用後は #ptarm_buf_free()で解放すること
+ *      - pSigは、成功かどうかにかかわらず#utl_buf_init()される
+ *      - 成功時、pSigは #utl_buf_alloccopy() でメモリ確保するので、使用後は #utl_buf_free()で解放すること
  */
-bool ptarm_tx_sign(ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+bool btc_tx_sign(utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名計算(r/s)
@@ -722,7 +722,7 @@ bool ptarm_tx_sign(ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPr
  * @param[in]       pPrivKey    秘密鍵
  * @return          true        成功
  */
-bool ptarm_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+bool btc_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名チェック
@@ -735,7 +735,7 @@ bool ptarm_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPriv
  * @note
  *      - pSigの末尾にハッシュタイプが入っていること
  */
-bool ptarm_tx_verify(const ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey);
+bool btc_tx_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey);
 
 
 /** 署名チェック(r/s)
@@ -745,7 +745,7 @@ bool ptarm_tx_verify(const ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint
  * @param[in]       pPubKey     公開鍵
  * @return          true:チェックOK
  */
-bool ptarm_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey);
+bool btc_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey);
 
 
 /** P2PKH署名書込み
@@ -758,11 +758,11 @@ bool ptarm_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_
  * @return      true    成功
  *
  * @note
- *      - #ptarm_tx_sign()と#ptarm_tx_set_vin_p2pkh()をまとめて実施
+ *      - #btc_tx_sign()と#btc_tx_set_vin_p2pkh()をまとめて実施
  *      - pPubKeyは、既にあるなら計算を省略したいので引数にしている
  *          - 使ってみて、計算済みになることが少ないなら、引数から削除する予定
  */
-bool ptarm_tx_sign_p2pkh(ptarm_tx_t *pTx, int Index,
+bool btc_tx_sign_p2pkh(btc_tx_t *pTx, int Index,
         const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey);
 
 
@@ -778,7 +778,7 @@ bool ptarm_tx_sign_p2pkh(ptarm_tx_t *pTx, int Index,
  *      - pPubKeyHashは署名とセットになっている公開鍵がvinのTXID/indexのものかをチェックするためのもの。
  *          よって、署名されたトランザクションから計算して引数にするのはよくない。
  */
-bool ptarm_tx_verify_p2pkh(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
+bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
 
 
 /** P2PKH署名チェック(scriptPubKey)
@@ -793,7 +793,7 @@ bool ptarm_tx_verify_p2pkh(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxH
  *      - pScriptPkは署名とセットになっている公開鍵がvinのTXID/indexのものかをチェックするためのもの。
  *          よって、署名されたトランザクションから計算して引数にするのはよくない。
  */
-bool ptarm_tx_verify_p2pkh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const ptarm_buf_t *pScriptPk);
+bool btc_tx_verify_p2pkh_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 /** P2PKH署名チェック(アドレス)
@@ -808,7 +808,7 @@ bool ptarm_tx_verify_p2pkh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *
  *      - pAddrは署名とセットになっている公開鍵がvinのTXID/indexのものかをチェックするためのもの。
  *          よって、署名されたトランザクションから計算して引数にするのはよくない。
  */
-bool ptarm_tx_verify_p2pkh_addr(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
+bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
 
 
 /** MultiSig(P2SH)署名チェック
@@ -819,7 +819,7 @@ bool ptarm_tx_verify_p2pkh_addr(const ptarm_tx_t *pTx, int Index, const uint8_t 
  * @param[in]       pPubKeyHash     PubKeyHash
  * @return      true:チェックOK
  */
-bool ptarm_tx_verify_multisig(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
+bool btc_tx_verify_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
 
 
 /** P2SH署名チェック(scriptPubKey)
@@ -830,7 +830,7 @@ bool ptarm_tx_verify_multisig(const ptarm_tx_t *pTx, int Index, const uint8_t *p
  * @param[in]       pScriptPk       scriptPubKey
  * @return      true:チェックOK
  */
-bool ptarm_tx_verify_p2sh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const ptarm_buf_t *pScriptPk);
+bool btc_tx_verify_p2sh_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 /** P2SH署名チェック(アドレス)
@@ -841,7 +841,7 @@ bool ptarm_tx_verify_p2sh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *p
  * @param[in]       pAddr           Bitcoinアドレス
  * @return      true:チェックOK
  */
-bool ptarm_tx_verify_p2sh_addr(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
+bool btc_tx_verify_p2sh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
 
 
 /** 公開鍵復元
@@ -852,7 +852,7 @@ bool ptarm_tx_verify_p2sh_addr(const ptarm_tx_t *pTx, int Index, const uint8_t *
  * @param[in]       pTxHash
  * @retval      true    成功
  */
-bool ptarm_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash);
+bool btc_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash);
 
 
 /** 公開鍵復元ID取得
@@ -863,7 +863,7 @@ bool ptarm_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, co
  * @param[in]       pTxHash
  * @retval      true    成功
  */
-bool ptarm_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
+bool btc_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
 
 /** TXID計算
  *
@@ -874,7 +874,7 @@ bool ptarm_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8
  *      - pTxIdにはLittleEndianで出力される
  *      - pTxがsegwitの場合もTXIDが出力される
  */
-bool ptarm_tx_txid(uint8_t *pTxId, const ptarm_tx_t *pTx);
+bool btc_tx_txid(uint8_t *pTxId, const btc_tx_t *pTx);
 
 
 /** TXID計算(raw data)
@@ -886,7 +886,7 @@ bool ptarm_tx_txid(uint8_t *pTxId, const ptarm_tx_t *pTx);
  *      - pTxIdにはLittleEndianで出力される
  *      - pTxがsegwitの場合、WTXIDで出力される
  */
-bool ptarm_tx_txid_raw(uint8_t *pTxId, const ptarm_buf_t *pTxRaw);
+bool btc_tx_txid_raw(uint8_t *pTxId, const utl_buf_t *pTxRaw);
 
 
 /** vsize取得
@@ -896,7 +896,7 @@ bool ptarm_tx_txid_raw(uint8_t *pTxId, const ptarm_buf_t *pTxRaw);
  * @retval  != 0    vbyte
  * @retval  == 0    エラー
  */
-uint32_t ptarm_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
+uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
 
 
 //////////////////////
@@ -909,7 +909,7 @@ uint32_t ptarm_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
  * @param[in]       Value
  * @param[in]       pPubKey
  */
-void ptarm_sw_add_vout_p2wpkh_pub(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey);
+void btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey);
 
 
 /** P2WPKHのvout追加(pubKeyHash)
@@ -918,7 +918,7 @@ void ptarm_sw_add_vout_p2wpkh_pub(ptarm_tx_t *pTx, uint64_t Value, const uint8_t
  * @param[in]       Value
  * @param[in]       pPubKeyHash
  */
-void ptarm_sw_add_vout_p2wpkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
+void btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
 
 
 /** P2WSHのvout追加(witnessScript)
@@ -928,7 +928,7 @@ void ptarm_sw_add_vout_p2wpkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pP
  * @param[in]       pWitScript
  *
  */
-void ptarm_sw_add_vout_p2wsh(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pWitScript);
+void btc_sw_add_vout_p2wsh(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript);
 
 
 /** P2WPKH署名計算で使用するScript Code取得
@@ -937,9 +937,9 @@ void ptarm_sw_add_vout_p2wsh(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t 
  * @param[in]       pPubKey         公開鍵
  *
  * @note
- *      - pScriptCodeは使用後に #ptarm_buf_free()で解放すること
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-void ptarm_sw_scriptcode_p2wpkh(ptarm_buf_t *pScriptCode, const uint8_t *pPubKey);
+void btc_sw_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
 
 
 /** P2WPKH署名計算で使用するScript Code取得(vin)
@@ -948,9 +948,9 @@ void ptarm_sw_scriptcode_p2wpkh(ptarm_buf_t *pScriptCode, const uint8_t *pPubKey
  * @param[in]       pVin            対象vin
  *
  * @note
- *      - pScriptCodeは使用後に #ptarm_buf_free()で解放すること
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-bool ptarm_sw_scriptcode_p2wpkh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t *pVin);
+bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin);
 
 
 /** P2WSH署名計算で使用するScript Code取得
@@ -959,9 +959,9 @@ bool ptarm_sw_scriptcode_p2wpkh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t 
  * @param[in]       pWit            witnessScript
  *
  * @note
- *      - pScriptCodeは使用後に #ptarm_buf_free()で解放すること
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-void ptarm_sw_scriptcode_p2wsh(ptarm_buf_t *pScriptCode, const ptarm_buf_t *pWit);
+void btc_sw_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWit);
 
 
 /** P2WSH署名計算で使用するScript Code取得(vin)
@@ -970,22 +970,22 @@ void ptarm_sw_scriptcode_p2wsh(ptarm_buf_t *pScriptCode, const ptarm_buf_t *pWit
  * @param[in]       pVin            対象vin
  *
  * @note
- *      - pScriptCodeは使用後に #ptarm_buf_free()で解放すること
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-bool ptarm_sw_scriptcode_p2wsh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t *pVin);
+bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin);
 
 
 /** segwitトランザクション署名用ハッシュ値計算
  *
- * @param[out]      pTxHash             署名に使用するハッシュ値(PTARM_SZ_HASH256)
+ * @param[out]      pTxHash             署名に使用するハッシュ値(BTC_SZ_HASH256)
  * @param[in]       pTx                 署名対象のトランザクションデータ
  * @param[in]       Index               署名するINPUTのindex番号
  * @param[in]       Value               署名するINPUTのvalue[単位:satoshi]
  * @param[in]       pScriptCode         Script Code
  *
  */
-void ptarm_sw_sighash(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64_t Value,
-                const ptarm_buf_t *pScriptCode);
+void btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+                const utl_buf_t *pScriptCode);
 
 
 /** P2WPKHのwitness作成
@@ -999,7 +999,7 @@ void ptarm_sw_sighash(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64
  *      - pSigはコピーするため解放はpTxで管理しない。
  *      - mNativeSegwitがfalseの場合、scriptSigへの追加も行う
  */
-bool ptarm_sw_set_vin_p2wpkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig, const uint8_t *pPubKey);
+bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey);
 
 
 /** P2WPSHのscriptSig作成
@@ -1012,7 +1012,7 @@ bool ptarm_sw_set_vin_p2wpkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig
  * @note
  *      - pWitはコピーするため解放はpTxで管理しない。
  */
-bool ptarm_sw_set_vin_p2wsh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pWits[], int Num);
+bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, int Index, const utl_buf_t *pWits[], int Num);
 
 
 /** P2WPKH署名チェック
@@ -1026,7 +1026,7 @@ bool ptarm_sw_set_vin_p2wsh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pWits
  * @note
  *      - pPubKeyHashは、pTxの署名部分が持つ公開鍵から生成したPubKeyHashと比較する
  */
-bool ptarm_sw_verify_p2wpkh(const ptarm_tx_t *pTx, int Index, uint64_t Value, const uint8_t *pPubKeyHash);
+bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const uint8_t *pPubKeyHash);
 
 
 /** P2WPKH署名チェック(アドレス)
@@ -1037,18 +1037,18 @@ bool ptarm_sw_verify_p2wpkh(const ptarm_tx_t *pTx, int Index, uint64_t Value, co
  * @param[in]       pAddr   Bitcoinアドレス
  * @return      true:チェックOK
  */
-bool ptarm_sw_verify_p2wpkh_addr(const ptarm_tx_t *pTx, int Index, uint64_t Value, const char *pAddr);
+bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, int Index, uint64_t Value, const char *pAddr);
 
 
 /** 2-of-2 multisigの署名チェック
  *
  */
-bool ptarm_sw_verify_2of2(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const ptarm_buf_t *pVout);
+bool btc_sw_verify_2of2(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pVout);
 
 
 #if 0   //今のところ使い道がない
-bool ptarm_sw_wtxid(uint8_t *pWTxId, const ptarm_tx_t *pTx);
-bool ptarm_sw_is_segwit(const ptarm_tx_t *pTx);
+bool btc_sw_wtxid(uint8_t *pWTxId, const btc_tx_t *pTx);
+bool btc_sw_is_segwit(const btc_tx_t *pTx);
 #endif  //0
 
 
@@ -1056,7 +1056,7 @@ bool ptarm_sw_is_segwit(const ptarm_tx_t *pTx);
  *
  *
  */
-void ptarm_sw_wit2prog_p2wsh(uint8_t *pWitProg, const ptarm_buf_t *pWitScript);
+void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 
 
 //////////////////////
@@ -1065,10 +1065,10 @@ void ptarm_sw_wit2prog_p2wsh(uint8_t *pWitProg, const ptarm_buf_t *pWitScript);
 
 /** 拡張鍵作成準備
  *
- * pPrivKeyが非NULL かつ pEKey->typeが #PTARM_EKEY_PRIV の場合、以下のいずれかを行う。<br/>
+ * pPrivKeyが非NULL かつ pEKey->typeが #BTC_EKEY_PRIV の場合、以下のいずれかを行う。<br/>
  *      - pSeedが非NULL: Master秘密鍵とMaster公開鍵を生成<br/>
  *      - pSeedがNULL: 子秘密鍵と子公開鍵を生成<br/>
- * pEKey->typeが #PTARM_EKEY_PUB の場合、子公開鍵を生成する。
+ * pEKey->typeが #BTC_EKEY_PUB の場合、子公開鍵を生成する。
  *
  * @param[in,out]   pEKey           拡張鍵構造体(type, depth, child_numberを設定しておく)
  * @param[in]       pPrivKey        親秘密鍵(NULL: 子公開鍵)
@@ -1077,7 +1077,7 @@ void ptarm_sw_wit2prog_p2wsh(uint8_t *pWitProg, const ptarm_buf_t *pWitScript);
  * @param[in]       SzSeed          pSeedサイズ
  * @return      true:成功
  */
-bool ptarm_ekey_prepare(ptarm_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, const uint8_t *pSeed, int SzSeed);
+bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, const uint8_t *pSeed, int SzSeed);
 
 
 /** 拡張鍵生成
@@ -1086,7 +1086,7 @@ bool ptarm_ekey_prepare(ptarm_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey
  * @param[out]      pAddr       非NULL:鍵アドレス文字列(NULL時は生成しない)
  * @param[in]       pEKey       生成元情報
  */
-bool ptarm_ekey_create(uint8_t *pData, char *pAddr, const ptarm_ekey_t *pEKey);
+bool btc_ekey_create(uint8_t *pData, char *pAddr, const btc_ekey_t *pEKey);
 
 
 /** 拡張鍵読込み
@@ -1096,7 +1096,7 @@ bool ptarm_ekey_create(uint8_t *pData, char *pAddr, const ptarm_ekey_t *pEKey);
  * @param[in]   Len         pData長
  * @return      true:成功
  */
-bool ptarm_ekey_read(ptarm_ekey_t *pEKey, const uint8_t *pData, int Len);
+bool btc_ekey_read(btc_ekey_t *pEKey, const uint8_t *pData, int Len);
 
 
 /** 拡張鍵読込み
@@ -1105,7 +1105,7 @@ bool ptarm_ekey_read(ptarm_ekey_t *pEKey, const uint8_t *pData, int Len);
  * @param[in]   pXAddr      鍵データ(Base58CHK文字列)
  * @return      true:成功
  */
-bool ptarm_ekey_read_addr(ptarm_ekey_t *pEKey, const char *pXAddr);
+bool btc_ekey_read_addr(btc_ekey_t *pEKey, const char *pXAddr);
 
 
 //////////////////////
@@ -1117,7 +1117,7 @@ bool ptarm_ekey_read_addr(ptarm_ekey_t *pEKey, const char *pXAddr);
  * @param[out]      pData
  * @param[in]       Len         生成するサイズ
  */
-void ptarm_util_random(uint8_t *pData, uint16_t Len);
+void btc_util_random(uint8_t *pData, uint16_t Len);
 
 
 /** WIFからの鍵生成
@@ -1127,14 +1127,14 @@ void ptarm_util_random(uint8_t *pData, uint16_t Len);
  * @param[in]       pWifPriv        WIF形式秘密鍵
  * @return      true    成功
  */
-bool ptarm_util_wif2keys(ptarm_util_keys_t *pKeys, ptarm_chain_t *pChain, const char *pWifPriv);
+bool btc_util_wif2keys(btc_util_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv);
 
 
 /** 乱数での秘密鍵生成
  *
  * @param[out]      pPriv           秘密鍵
  */
-void ptarm_util_createprivkey(uint8_t *pPriv);
+void btc_util_createprivkey(uint8_t *pPriv);
 
 
 /** 乱数での鍵生成
@@ -1142,10 +1142,10 @@ void ptarm_util_createprivkey(uint8_t *pPriv);
  * @param[out]      pKeys           鍵情報
  * @return      true    成功
  */
-bool ptarm_util_createkeys(ptarm_util_keys_t *pKeys);
+bool btc_util_createkeys(btc_util_keys_t *pKeys);
 
 
-/** #ptarm_keys_create2of2()のソートあり版
+/** #btc_keys_create2of2()のソートあり版
  *
  * @param[out]      pRedeem     2-of-2 redeem script
  * @param[out]      pSort       ソート結果
@@ -1155,7 +1155,7 @@ bool ptarm_util_createkeys(ptarm_util_keys_t *pKeys);
  * @note
  *      - 公開鍵の順番は昇順
  */
-bool ptarm_util_create2of2(ptarm_buf_t *pRedeem, ptarm_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool btc_util_create2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 /** P2PKH署名
@@ -1165,7 +1165,7 @@ bool ptarm_util_create2of2(ptarm_buf_t *pRedeem, ptarm_keys_sort_t *pSort, const
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool ptarm_util_sign_p2pkh(ptarm_tx_t *pTx, int Index, const ptarm_util_keys_t *pKeys);
+bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_util_keys_t *pKeys);
 
 
 /** P2PKH署名チェック
@@ -1175,7 +1175,7 @@ bool ptarm_util_sign_p2pkh(ptarm_tx_t *pTx, int Index, const ptarm_util_keys_t *
  * @param[in]       pAddrVout   チェック用
  * @return      true:成功
  */
-bool ptarm_util_verify_p2pkh(ptarm_tx_t *pTx, int Index, const char *pAddrVout);
+bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout);
 
 
 /** P2WPKH署名
@@ -1186,9 +1186,9 @@ bool ptarm_util_verify_p2pkh(ptarm_tx_t *pTx, int Index, const char *pAddrVout);
  * @param[in]       pKeys
  * @return      true:成功
  * @note
- *      - #ptarm_init()の設定で署名する
+ *      - #btc_init()の設定で署名する
  */
-bool ptarm_util_sign_p2wpkh(ptarm_tx_t *pTx, int Index, uint64_t Value, const ptarm_util_keys_t *pKeys);
+bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_util_keys_t *pKeys);
 
 
 /** P2WSH署名 - Phase1: トランザクションハッシュ作成
@@ -1199,8 +1199,8 @@ bool ptarm_util_sign_p2wpkh(ptarm_tx_t *pTx, int Index, uint64_t Value, const pt
  * @param[in]       Value
  * @param[in]       pWitScript
  */
-void ptarm_util_calc_sighash_p2wsh(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64_t Value,
-                    const ptarm_buf_t *pWitScript);
+void btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+                    const utl_buf_t *pWitScript);
 
 
 /** P2WSH署名 - Phase2: 署名作成
@@ -1210,7 +1210,7 @@ void ptarm_util_calc_sighash_p2wsh(uint8_t *pTxHash, const ptarm_tx_t *pTx, int 
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool ptarm_util_sign_p2wsh(ptarm_buf_t *pSig, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys);
+bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_util_keys_t *pKeys);
 
 
 /** P2WSH署名 - Phase2: 署名作成(R/S)
@@ -1220,14 +1220,14 @@ bool ptarm_util_sign_p2wsh(ptarm_buf_t *pSig, const uint8_t *pTxHash, const ptar
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool ptarm_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys);
+bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_util_keys_t *pKeys);
 
 
 /** トランザクションをBIP69に従ってソートする
  *
  * @param[in,out]   pTx     処理対象のトランザクション
  */
-void ptarm_util_sort_bip69(ptarm_tx_t *pTx);
+void btc_util_sort_bip69(btc_tx_t *pTx);
 
 
 /** ブロックチェーン種別取得
@@ -1235,7 +1235,7 @@ void ptarm_util_sort_bip69(ptarm_tx_t *pTx);
  * @param[in]       pGenesisHash
  * @return      ブロックチェーン種別
  */
-ptarm_genesis_t ptarm_util_get_genesis(const uint8_t *pGenesisHash);
+btc_genesis_t btc_util_get_genesis(const uint8_t *pGenesisHash);
 
 
 /** ブロックチェーンハッシュ取得
@@ -1243,82 +1243,82 @@ ptarm_genesis_t ptarm_util_get_genesis(const uint8_t *pGenesisHash);
  * @param[in]       Kind
  * @return      ブロックチェーンハッシュ(未知のKindの場合はNULL)
  */
-const uint8_t *ptarm_util_get_genesis_block(ptarm_genesis_t Kind);
+const uint8_t *btc_util_get_genesis_block(btc_genesis_t Kind);
 
 
 /** RIPMED160計算
  *
- * @param[out]      pRipemd160      演算結果(PTARM_SZ_RIPEMD160以上のサイズが必要)
+ * @param[out]      pRipemd160      演算結果(BTC_SZ_RIPEMD160以上のサイズが必要)
  * @param[in]       pData           対象データ
  * @param[in]       Len             pDatat長
  */
-static inline void ptarm_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len) {
+static inline void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len) {
     mbedtls_ripemd160(pData, Len, pRipemd160);
 }
 
 
 /** SHA256計算
  *
- * @param[out]      pSha256         演算結果(PTARM_SZ_SHA256以上のサイズが必要)
+ * @param[out]      pSha256         演算結果(BTC_SZ_SHA256以上のサイズが必要)
  * @param[in]       pData           元データ
  * @param[in]       Len             pData長
  */
-static inline void ptarm_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len) {
+static inline void btc_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len) {
     mbedtls_sha256(pData, Len, pSha256, 0);
 }
 
 
 /** HASH160計算
  *
- * @param[out]      pHash160        演算結果(PTARM_SZ_HASH160以上のサイズが必要)
+ * @param[out]      pHash160        演算結果(BTC_SZ_HASH160以上のサイズが必要)
  * @param[in]       pData           対象データ
  * @param[in]       Len             pDatat長
  */
-void ptarm_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len);
+void btc_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len);
 
 
 /** HASH256計算
  *
- * @param[out]      pHash256        演算結果(PTARM_SZ_HASH256以上のサイズが必要)
+ * @param[out]      pHash256        演算結果(BTC_SZ_HASH256以上のサイズが必要)
  * @param[in]       pData           対象データ
  * @param[in]       Len             pDatat長
  */
-void ptarm_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len);
+void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len);
 
 
 /** HASH256計算(連結)
  *
- * @param[out]      pHash256        演算結果(PTARM_SZ_HASH256以上のサイズが必要)
+ * @param[out]      pHash256        演算結果(BTC_SZ_HASH256以上のサイズが必要)
  * @param[in]       pData1          対象データ1
  * @param[in]       Len1            pData1長
  * @param[in]       pData2          対象データ2
  * @param[in]       Len2            pData2長
  */
-void ptarm_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2);
+void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2);
 
 
-int ptarm_util_set_keypair(mbedtls_ecp_keypair *pKeyPair, const uint8_t *pPubKey);
-int ptarm_util_ecp_point_read_binary2(mbedtls_ecp_point *point, const uint8_t *pPubKey);
-void ptarm_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash);
-void ptarm_util_create_scriptpk(ptarm_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix);
-bool ptarm_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix);
-int ptarm_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const mbedtls_mpi *pA);
-bool ptarm_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
-void ptarm_util_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey);
-bool ptarm_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen);
-bool ptarm_util_create_tx(ptarm_buf_t *pBuf, const ptarm_tx_t *pTx, bool enableSegWit);
-void ptarm_util_add_vout_pub(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref);
-void ptarm_util_add_vout_pkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
-int ptarm_util_get_varint_len(uint32_t Len);
-int ptarm_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript);
+int btc_util_set_keypair(mbedtls_ecp_keypair *pKeyPair, const uint8_t *pPubKey);
+int btc_util_ecp_point_read_binary2(mbedtls_ecp_point *point, const uint8_t *pPubKey);
+void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash);
+void btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix);
+bool btc_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix);
+int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const mbedtls_mpi *pA);
+bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
+void btc_util_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey);
+bool btc_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen);
+bool btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit);
+void btc_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref);
+void btc_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
+int btc_util_get_varint_len(uint32_t Len);
+int btc_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript);
 
 
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
-void ptarm_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);
-void ptarm_util_dumptxid(FILE *fp, const uint8_t *pTxid);
+void btc_util_dumpbin(FILE *fp, const uint8_t *pData, uint32_t Len, bool bLf);
+void btc_util_dumptxid(FILE *fp, const uint8_t *pTxid);
 #else
-#define ptarm_util_dumpbin(...)     //nothing
-#define ptarm_util_dumptxid(...)    //nothing
+#define btc_util_dumpbin(...)     //nothing
+#define btc_util_dumptxid(...)    //nothing
 #endif  //PTARM_USE_PRINTFUNC
 
 
@@ -1327,11 +1327,11 @@ void ptarm_util_dumptxid(FILE *fp, const uint8_t *pTxid);
 //PRINT
 //////////////////////
 
-/** #ptarm_tx_t の内容表示
+/** #btc_tx_t の内容表示
  *
  * @param[in]       pTx     表示対象
  */
-void ptarm_print_tx(const ptarm_tx_t *pTx);
+void btc_print_tx(const btc_tx_t *pTx);
 
 
 /** トランザクションの内容表示
@@ -1339,7 +1339,7 @@ void ptarm_print_tx(const ptarm_tx_t *pTx);
  * @param[in]       pData       表示対象
  * @param[in]       Len         pDatat長
  */
-void ptarm_print_rawtx(const uint8_t *pData, uint32_t Len);
+void btc_print_rawtx(const uint8_t *pData, uint32_t Len);
 
 
 /** スクリプトの内容表示
@@ -1347,19 +1347,19 @@ void ptarm_print_rawtx(const uint8_t *pData, uint32_t Len);
  * @param[in]       pData       表示対象
  * @param[in]       Len         pData長
  */
-void ptarm_print_script(const uint8_t *pData, uint16_t Len);
+void btc_print_script(const uint8_t *pData, uint16_t Len);
 
 
 /** 拡張鍵の内容表示
  *
  * @param[in]       pEKey       拡張鍵構造体
  */
-void ptarm_print_extendedkey(const ptarm_ekey_t *pEKey);
+void btc_print_extendedkey(const btc_ekey_t *pEKey);
 #else
-#define ptarm_print_tx(...)             //nothing
-#define ptarm_print_rawtx(...)          //nothing
-#define ptarm_print_script(...)         //nothing
-#define ptarm_print_extendedkey(...)    //nothing
+#define btc_print_tx(...)             //nothing
+#define btc_print_rawtx(...)          //nothing
+#define btc_print_script(...)         //nothing
+#define btc_print_extendedkey(...)    //nothing
 #endif  //PTARM_USE_PRINTFUNC
 
 
@@ -1367,4 +1367,4 @@ void ptarm_print_extendedkey(const ptarm_ekey_t *pEKey);
 }
 #endif //__cplusplus
 
-#endif /* PTARM_H__ */
+#endif /* BTC_H__ */

@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2018/08/19
+
+* separate `libptarm` into three libraries
+  * `libutl`
+    * Utility Library
+    * prefix: `utl_` and `UTL_`
+  * `libbtc`
+    * Bitcoin(1st layer) Library
+    * prefix: `btc_` and `BTC_`
+  * `libln`
+    * Lightning Network(2nd layer) Library
+    * prefix: `ln_` and `LN_`
+
 ## 2018/08/02
 
 * DB version : -21

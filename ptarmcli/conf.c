@@ -27,7 +27,7 @@
 #include "inih/ini.h"
 
 #include "conf.h"
-#include "misc.h"
+#include "utl_misc.h"
 #include "ln.h"
 
 /**************************************************************************
@@ -79,7 +79,7 @@ bool conf_peer_load(const char *pConfFile, peer_conf_t *pPeerConf)
     print_peer_conf(pPeerConf);
 #endif
 
-    return ptarm_keys_chkpub(pPeerConf->node_id);
+    return btc_keys_chkpub(pPeerConf->node_id);
 }
 
 
@@ -90,7 +90,7 @@ static void print_peer_conf(const peer_conf_t *pPeerConf)
     fprintf(stderr, "ipaddr=%s\n", pPeerConf->ipaddr);
     fprintf(stderr, "port=%d\n", pPeerConf->port);
     fprintf(stderr, "node_id=");
-    ptarm_util_dumpbin(stderr, pPeerConf->node_id, PTARM_SZ_PUBKEY, true);
+    btc_util_dumpbin(stderr, pPeerConf->node_id, BTC_SZ_PUBKEY, true);
 }
 #endif
 
@@ -117,7 +117,7 @@ bool conf_funding_load(const char *pConfFile, funding_conf_t *pFundConf)
     print_funding_conf(pFundConf);
 #endif
 
-    return chk_nonzero(pFundConf->txid, PTARM_SZ_TXID);
+    return chk_nonzero(pFundConf->txid, BTC_SZ_TXID);
 }
 
 
@@ -126,7 +126,7 @@ static void print_funding_conf(const funding_conf_t *pFundConf)
 {
     fprintf(stderr, "\n--- funding ---\n");
     fprintf(stderr, "txid=");
-    ptarm_util_dumptxid(stderr, pFundConf->txid);
+    btc_util_dumptxid(stderr, pFundConf->txid);
     fprintf(stderr, "\n");
     fprintf(stderr, "txindex=%d\n", pFundConf->txindex);
     fprintf(stderr, "funding_sat=%" PRIu64 "\n", pFundConf->funding_sat);
@@ -169,12 +169,12 @@ static void print_payment_conf(const payment_conf_t *pPayConf)
 {
     fprintf(stderr, "\n--- payment ---\n");
     fprintf(stderr, "payment_hash=");
-    ptarm_util_dumpbin(stderr, pPayConf->payment_hash, LN_SZ_HASH, true);
+    btc_util_dumpbin(stderr, pPayConf->payment_hash, LN_SZ_HASH, true);
     fprintf(stderr, "hop_num=%d\n", pPayConf->hop_num);
     for (int lp = 0; lp < pPayConf->hop_num; lp++) {
         fprintf(stderr, " [%d]:\n", lp);
         fprintf(stderr, "  node_id= ");
-        ptarm_util_dumpbin(stderr, pPayConf->hop_datain[lp].pubkey, PTARM_SZ_PUBKEY, true);
+        btc_util_dumpbin(stderr, pPayConf->hop_datain[lp].pubkey, BTC_SZ_PUBKEY, true);
         fprintf(stderr, "  short_channel_id= %" PRIx64 "\n", pPayConf->hop_datain[lp].short_channel_id);
         fprintf(stderr, "  amount_msat= %" PRIu64 "\n", pPayConf->hop_datain[lp].amt_to_forward);
         fprintf(stderr, "  cltv_expiry: %u\n", pPayConf->hop_datain[lp].outgoing_cltv_value);
@@ -198,7 +198,7 @@ static int handler_peer_conf(void* user, const char* section, const char* name, 
     } else if (strcmp(name, "port") == 0) {
         pconfig->port = (uint16_t)atoi(value);
     } else if (strcmp(name, "node_id") == 0) {
-        misc_str2bin(pconfig->node_id, PTARM_SZ_PUBKEY, value);
+        utl_misc_str2bin(pconfig->node_id, BTC_SZ_PUBKEY, value);
     } else {
         return 0;  /* unknown section/name, error */
     }
@@ -214,7 +214,7 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
 
     errno = 0;
     if (strcmp(name, "txid") == 0) {
-        misc_str2bin_rev(pconfig->txid, PTARM_SZ_TXID, value);
+        utl_misc_str2bin_rev(pconfig->txid, BTC_SZ_TXID, value);
     } else if (strcmp(name, "txindex") == 0) {
         pconfig->txindex = atoi(value);
     } else if (strcmp(name, "funding_sat") == 0) {
@@ -237,7 +237,7 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
 static bool pay_root(ln_hop_datain_t *pHop, const char *Value)
 {
     bool ret;
-    char node_id[PTARM_SZ_PUBKEY * 2 + 1];
+    char node_id[BTC_SZ_PUBKEY * 2 + 1];
 
     int results = sscanf(Value, "%66s,%" SCNx64 ",%" SCNu64 ",%u\n",
         node_id,
@@ -248,7 +248,7 @@ static bool pay_root(ln_hop_datain_t *pHop, const char *Value)
         ret = false;
         goto LABEL_EXIT;
     }
-    ret = misc_str2bin(pHop->pubkey, PTARM_SZ_PUBKEY, node_id);
+    ret = utl_misc_str2bin(pHop->pubkey, BTC_SZ_PUBKEY, node_id);
 
 LABEL_EXIT:
     return ret;
@@ -263,7 +263,7 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
     payment_conf_t* pconfig = (payment_conf_t *)user;
 
     if (strcmp(name, "hash") == 0) {
-        ret = misc_str2bin(pconfig->payment_hash, LN_SZ_HASH, value);
+        ret = utl_misc_str2bin(pconfig->payment_hash, LN_SZ_HASH, value);
     } else if (strcmp(name, "hop_num") == 0) {
         pconfig->hop_num = atoi(value);
         ret = (2 <= pconfig->hop_num) && (pconfig->hop_num <= LN_HOP_MAX + 1);

@@ -53,7 +53,7 @@ static void closing_signed_print(const ln_closing_signed_t *pMsg);
  * shutdown
  ********************************************************************/
 
-bool HIDDEN ln_msg_shutdown_create(ptarm_buf_t *pBuf, const ln_shutdown_t *pMsg)
+bool HIDDEN ln_msg_shutdown_create(utl_buf_t *pBuf, const ln_shutdown_t *pMsg)
 {
     //    type: 38 (shutdown)
     //    data:
@@ -61,30 +61,30 @@ bool HIDDEN ln_msg_shutdown_create(ptarm_buf_t *pBuf, const ln_shutdown_t *pMsg)
     //        [2:len]
     //        [len:scriptpubkey]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     shutdown_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 34 + pMsg->p_scriptpk->len);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 34 + pMsg->p_scriptpk->len);
 
     //    type: 38 (shutdown)
     ln_misc_push16be(&proto, MSGTYPE_SHUTDOWN);
 
     //        [32:channel-id]
-    ptarm_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [2:len]
     ln_misc_push16be(&proto, pMsg->p_scriptpk->len);
 
     //        [len:scriptpubkey]
-    ptarm_push_data(&proto, pMsg->p_scriptpk->buf, pMsg->p_scriptpk->len);
+    utl_push_data(&proto, pMsg->p_scriptpk->buf, pMsg->p_scriptpk->len);
 
     assert(sizeof(uint16_t) + 34 + pMsg->p_scriptpk->len == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }
@@ -118,7 +118,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
     }
 
     //        [len:scriptpubkey]
-    ptarm_buf_alloccopy(pMsg->p_scriptpk, pData + pos, len);
+    utl_buf_alloccopy(pMsg->p_scriptpk, pData + pos, len);
     pos += len;
 
     assert(Len == pos);
@@ -149,7 +149,7 @@ static void shutdown_print(const ln_shutdown_t *pMsg)
  * closing_signed
  ********************************************************************/
 
-bool HIDDEN ln_msg_closing_signed_create(ptarm_buf_t *pBuf, const ln_closing_signed_t *pMsg)
+bool HIDDEN ln_msg_closing_signed_create(utl_buf_t *pBuf, const ln_closing_signed_t *pMsg)
 {
     //    type: 39 (closing_signed)
     //    data:
@@ -157,30 +157,30 @@ bool HIDDEN ln_msg_closing_signed_create(ptarm_buf_t *pBuf, const ln_closing_sig
     //        [8:fee-satoshis]
     //        [64:signature]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     closing_signed_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 104);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 104);
 
     //    type: 39 (closing_signed)
     ln_misc_push16be(&proto, MSGTYPE_CLOSING_SIGNED);
 
     //        [32:channel-id]
-    ptarm_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [8:fee-satoshis]
     ln_misc_push64be(&proto, pMsg->fee_sat);
 
     //        [64:signature]
-    ptarm_push_data(&proto, pMsg->p_signature, LN_SZ_SIGNATURE);
+    utl_push_data(&proto, pMsg->p_signature, LN_SZ_SIGNATURE);
 
     assert(sizeof(uint16_t) + 104 == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }

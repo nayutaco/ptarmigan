@@ -28,7 +28,7 @@
 
 #include "ln_local.h"
 
-#include "ptarm_push.h"
+#include "utl_push.h"
 
 
 /**************************************************************************
@@ -41,7 +41,7 @@
  * @param[out]      pPush       書込み先
  * @param[in]       Value       8bit値
  */
-void HIDDEN ln_misc_push8(ptarm_push_t *pPush, uint8_t Value);
+void HIDDEN ln_misc_push8(utl_push_t *pPush, uint8_t Value);
 
 
 /** 16bit BE値の書込み
@@ -49,7 +49,7 @@ void HIDDEN ln_misc_push8(ptarm_push_t *pPush, uint8_t Value);
  * @param[out]      pPush       書込み先
  * @param[in]       Value       16bit値
  */
-void HIDDEN ln_misc_push16be(ptarm_push_t *pPush, uint16_t Value);
+void HIDDEN ln_misc_push16be(utl_push_t *pPush, uint16_t Value);
 
 
 /** 32bit BE値の書込み
@@ -57,7 +57,7 @@ void HIDDEN ln_misc_push16be(ptarm_push_t *pPush, uint16_t Value);
  * @param[out]      pPush       書込み先
  * @param[in]       Value       32bit値
  */
-void HIDDEN ln_misc_push32be(ptarm_push_t *pPush, uint32_t Value);
+void HIDDEN ln_misc_push32be(utl_push_t *pPush, uint32_t Value);
 
 
 /** 64bit BE値の書込み
@@ -65,7 +65,7 @@ void HIDDEN ln_misc_push32be(ptarm_push_t *pPush, uint32_t Value);
  * @param[out]      pPush       書込み先
  * @param[in]       Value       64bit値
  */
-void HIDDEN ln_misc_push64be(ptarm_push_t *pPush, uint64_t Value);
+void HIDDEN ln_misc_push64be(utl_push_t *pPush, uint64_t Value);
 
 
 /** LenバイトをBigEndianで書込む
@@ -93,7 +93,7 @@ bool HIDDEN ln_misc_sigtrim(uint8_t *pSig, const uint8_t *pBuf);
  * @note
  *      - SIGHASH_ALLを付加する
  */
-void HIDDEN ln_misc_sigexpand(ptarm_buf_t *pSig, const uint8_t *pBuf);
+void HIDDEN ln_misc_sigexpand(utl_buf_t *pSig, const uint8_t *pBuf);
 
 
 /** スクリプト用鍵生成/更新

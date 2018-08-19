@@ -9,21 +9,21 @@ class extendedkey: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_MAINNET, false);
+        utl_dbg_malloc_cnt_reset();
+        btc_init(BTC_MAINNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
-        ptarm_term();
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
+        btc_term();
     }
 
 public:
-    static ptarm_ekey_t ekey;
-    static ptarm_ekey_t ekey_prev;
-    static uint8_t priv[PTARM_SZ_PRIVKEY];
-    static uint8_t pub[PTARM_SZ_PUBKEY];
-    static uint8_t pub_prev[PTARM_SZ_PUBKEY];
+    static btc_ekey_t ekey;
+    static btc_ekey_t ekey_prev;
+    static uint8_t priv[BTC_SZ_PRIVKEY];
+    static uint8_t pub[BTC_SZ_PUBKEY];
+    static uint8_t pub_prev[BTC_SZ_PUBKEY];
 
 public:
     static void DumpBin(const uint8_t *pData, uint16_t Len)
@@ -35,11 +35,11 @@ public:
     }
 };
 
-ptarm_ekey_t extendedkey::ekey;
-ptarm_ekey_t extendedkey::ekey_prev;
-uint8_t extendedkey::priv[PTARM_SZ_PRIVKEY];
-uint8_t extendedkey::pub[PTARM_SZ_PUBKEY];
-uint8_t extendedkey::pub_prev[PTARM_SZ_PUBKEY];
+btc_ekey_t extendedkey::ekey;
+btc_ekey_t extendedkey::ekey_prev;
+uint8_t extendedkey::priv[BTC_SZ_PRIVKEY];
+uint8_t extendedkey::pub[BTC_SZ_PUBKEY];
+uint8_t extendedkey::pub_prev[BTC_SZ_PUBKEY];
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -54,44 +54,44 @@ TEST_F(extendedkey, chain_m)
     const char XPRIV0[] = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
     const char XPUB0[] = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey.type = PTARM_EKEY_PRIV;
+    ekey.type = BTC_EKEY_PRIV;
     ekey.depth = 0;
     ekey.child_number = 0;
-    bool b = ptarm_ekey_prepare(&ekey, priv, pub, SEED, sizeof(SEED));
+    bool b = btc_ekey_prepare(&ekey, priv, pub, SEED, sizeof(SEED));
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
     memcpy(ekey.key, priv, sizeof(priv));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
-    ekey.type = PTARM_EKEY_PUB;
+    ekey.type = BTC_EKEY_PUB;
     memcpy(ekey.key, pub, sizeof(pub));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
 
-    ptarm_ekey_t ekey2;
+    btc_ekey_t ekey2;
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPRIV0);
+    b = btc_ekey_read_addr(&ekey2, XPRIV0);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PRIV, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PRIV, ekey2.type);
     ASSERT_EQ(0, ekey2.depth);
     ASSERT_EQ(0, ekey2.child_number);
     ASSERT_EQ(0, memcmp(priv, ekey2.key, sizeof(priv)));
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPUB0);
+    b = btc_ekey_read_addr(&ekey2, XPUB0);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PUB, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PUB, ekey2.type);
     ASSERT_EQ(0, ekey2.depth);
     ASSERT_EQ(0, ekey2.child_number);
     ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
@@ -103,47 +103,47 @@ TEST_F(extendedkey, chain_m_0H)
     const char XPRIV0H[] = "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7";
     const char XPUB0H[] = "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = PTARM_EKEY_PRIV;
+    ekey.type = BTC_EKEY_PRIV;
     ekey.depth++;
-    ekey.child_number = PTARM_EKEY_HARDENED | 0;
-    bool b = ptarm_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    ekey.child_number = BTC_EKEY_HARDENED | 0;
+    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
     memcpy(ekey.key, priv, sizeof(priv));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
-    ekey.type = PTARM_EKEY_PUB;
+    ekey.type = BTC_EKEY_PUB;
     memcpy(ekey.key, pub, sizeof(pub));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
 
-    ptarm_ekey_t ekey2;
+    btc_ekey_t ekey2;
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPRIV0H);
+    b = btc_ekey_read_addr(&ekey2, XPRIV0H);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PRIV, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PRIV, ekey2.type);
     ASSERT_EQ(1, ekey2.depth);
     ASSERT_EQ(0, memcmp(priv, ekey2.key, sizeof(priv)));
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPUB0H);
+    b = btc_ekey_read_addr(&ekey2, XPUB0H);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PUB, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PUB, ekey2.type);
     ASSERT_EQ(1, ekey2.depth);
     ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
 }
@@ -153,11 +153,11 @@ TEST_F(extendedkey, chain_m_0Hpub)
 {
     //const char XPUB0H[] = "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw";
 
-    ekey_prev.type = PTARM_EKEY_PUB;
+    ekey_prev.type = BTC_EKEY_PUB;
     ekey_prev.depth++;
-    ekey_prev.child_number = PTARM_EKEY_HARDENED | 0;
+    ekey_prev.child_number = BTC_EKEY_HARDENED | 0;
     memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    bool b = ptarm_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
     ASSERT_FALSE(b);
 }
 
@@ -167,47 +167,47 @@ TEST_F(extendedkey, chain_m_0H_1)
     const char XPRIV0H1[] = "xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs";
     const char XPUB0H1[] = "xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = PTARM_EKEY_PRIV;
+    ekey.type = BTC_EKEY_PRIV;
     ekey.depth++;
     ekey.child_number = 1;
-    bool b = ptarm_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
     memcpy(ekey.key, priv, sizeof(priv));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H1, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
-    ekey.type = PTARM_EKEY_PUB;
+    ekey.type = BTC_EKEY_PUB;
     memcpy(ekey.key, pub, sizeof(pub));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H1, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
 
-    ptarm_ekey_t ekey2;
+    btc_ekey_t ekey2;
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPRIV0H1);
+    b = btc_ekey_read_addr(&ekey2, XPRIV0H1);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PRIV, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PRIV, ekey2.type);
     ASSERT_EQ(2, ekey2.depth);
     ASSERT_EQ(0, memcmp(priv, ekey2.key, sizeof(priv)));
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPUB0H1);
+    b = btc_ekey_read_addr(&ekey2, XPUB0H1);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PUB, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PUB, ekey2.type);
     ASSERT_EQ(2, ekey2.depth);
     ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
 }
@@ -217,21 +217,21 @@ TEST_F(extendedkey, chain_m_0H_1pub)
 {
     const char XPUB0H1[] = "xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey_prev.type = PTARM_EKEY_PUB;
+    ekey_prev.type = BTC_EKEY_PUB;
     ekey_prev.depth++;
     ekey_prev.child_number = 1;
-    bool b = ptarm_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey_prev);
+    btc_print_extendedkey(&ekey_prev);
 
     memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey_prev);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey_prev);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H1, xaddr);
-    ptarm_print_extendedkey(&ekey_prev);
+    btc_print_extendedkey(&ekey_prev);
 }
 
 
@@ -240,47 +240,47 @@ TEST_F(extendedkey, chain_m_0H_1_2H)
     const char XPRIV0H12H[] = "xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM";
     const char XPUB0H12H[] = "xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = PTARM_EKEY_PRIV;
+    ekey.type = BTC_EKEY_PRIV;
     ekey.depth++;
-    ekey.child_number = PTARM_EKEY_HARDENED | 2;
-    bool b = ptarm_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    ekey.child_number = BTC_EKEY_HARDENED | 2;
+    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
     memcpy(ekey.key, priv, sizeof(priv));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H12H, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
-    ekey.type = PTARM_EKEY_PUB;
+    ekey.type = BTC_EKEY_PUB;
     memcpy(ekey.key, pub, sizeof(pub));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
 
-    ptarm_ekey_t ekey2;
+    btc_ekey_t ekey2;
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPRIV0H12H);
+    b = btc_ekey_read_addr(&ekey2, XPRIV0H12H);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PRIV, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PRIV, ekey2.type);
     ASSERT_EQ(3, ekey2.depth);
     ASSERT_EQ(0, memcmp(priv, ekey2.key, sizeof(priv)));
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPUB0H12H);
+    b = btc_ekey_read_addr(&ekey2, XPUB0H12H);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PUB, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PUB, ekey2.type);
     ASSERT_EQ(3, ekey2.depth);
     ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
 }
@@ -290,11 +290,11 @@ TEST_F(extendedkey, chain_m_0H_1_2Hpub)
 {
     //const char XPUB0H12H[] = "xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5";
 
-    ekey_prev.type = PTARM_EKEY_PUB;
+    ekey_prev.type = BTC_EKEY_PUB;
     ekey_prev.depth++;
-    ekey_prev.child_number = PTARM_EKEY_HARDENED | 2;
+    ekey_prev.child_number = BTC_EKEY_HARDENED | 2;
     memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    bool b = ptarm_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
     ASSERT_FALSE(b);
 }
 
@@ -304,47 +304,47 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2)
     const char XPRIV0H12H2[] = "xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334";
     const char XPUB0H12H2[] = "xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = PTARM_EKEY_PRIV;
+    ekey.type = BTC_EKEY_PRIV;
     ekey.depth++;
     ekey.child_number = 2;
-    bool b = ptarm_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
     memcpy(ekey.key, priv, sizeof(priv));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H12H2, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
-    ekey.type = PTARM_EKEY_PUB;
+    ekey.type = BTC_EKEY_PUB;
     memcpy(ekey.key, pub, sizeof(pub));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H2, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
 
-    ptarm_ekey_t ekey2;
+    btc_ekey_t ekey2;
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPRIV0H12H2);
+    b = btc_ekey_read_addr(&ekey2, XPRIV0H12H2);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PRIV, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PRIV, ekey2.type);
     ASSERT_EQ(4, ekey2.depth);
     ASSERT_EQ(0, memcmp(priv, ekey2.key, sizeof(priv)));
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPUB0H12H2);
+    b = btc_ekey_read_addr(&ekey2, XPUB0H12H2);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PUB, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PUB, ekey2.type);
     ASSERT_EQ(4, ekey2.depth);
     ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
 }
@@ -354,21 +354,21 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2pub)
 {
     const char XPUB0H12H2[] = "xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey_prev.type = PTARM_EKEY_PUB;
+    ekey_prev.type = BTC_EKEY_PUB;
     ekey_prev.depth++;
     ekey_prev.child_number = 2;
-    bool b = ptarm_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey_prev);
+    btc_print_extendedkey(&ekey_prev);
 
     memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey_prev);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey_prev);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H2, xaddr);
-    ptarm_print_extendedkey(&ekey_prev);
+    btc_print_extendedkey(&ekey_prev);
 }
 
 
@@ -377,47 +377,47 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2_1)
     const char XPRIV0H12H21[] = "xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76";
     const char XPUB0H12H21[] = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = PTARM_EKEY_PRIV;
+    ekey.type = BTC_EKEY_PRIV;
     ekey.depth++;
     ekey.child_number = 1000000000;
-    bool b = ptarm_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
     memcpy(ekey.key, priv, sizeof(priv));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H12H21, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
-    ekey.type = PTARM_EKEY_PUB;
+    ekey.type = BTC_EKEY_PUB;
     memcpy(ekey.key, pub, sizeof(pub));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H21, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
 
-    ptarm_ekey_t ekey2;
+    btc_ekey_t ekey2;
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPRIV0H12H21);
+    b = btc_ekey_read_addr(&ekey2, XPRIV0H12H21);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PRIV, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PRIV, ekey2.type);
     ASSERT_EQ(5, ekey2.depth);
     ASSERT_EQ(0, memcmp(priv, ekey2.key, sizeof(priv)));
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPUB0H12H21);
+    b = btc_ekey_read_addr(&ekey2, XPUB0H12H21);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PUB, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PUB, ekey2.type);
     ASSERT_EQ(5, ekey2.depth);
     ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
 }
@@ -427,21 +427,21 @@ TEST_F(extendedkey, chain_m_0H_1_2H_21pub)
 {
     const char XPUB0H12H21[] = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey_prev.type = PTARM_EKEY_PUB;
+    ekey_prev.type = BTC_EKEY_PUB;
     ekey_prev.depth++;
     ekey_prev.child_number = 1000000000;
-    bool b = ptarm_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey_prev);
+    btc_print_extendedkey(&ekey_prev);
 
     memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey_prev);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey_prev);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H21, xaddr);
-    ptarm_print_extendedkey(&ekey_prev);
+    btc_print_extendedkey(&ekey_prev);
 }
 
 
@@ -456,44 +456,44 @@ TEST_F(extendedkey, chain_m_master2)
     const char XPRIV0[] = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
     const char XPUB0[] = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xaddr[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey.type = PTARM_EKEY_PRIV;
+    ekey.type = BTC_EKEY_PRIV;
     ekey.depth = 0;
     ekey.child_number = 0;
-    bool b = ptarm_ekey_prepare(&ekey, priv, pub, SEED, sizeof(SEED));
+    bool b = btc_ekey_prepare(&ekey, priv, pub, SEED, sizeof(SEED));
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
     memcpy(ekey.key, priv, sizeof(priv));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
-    ekey.type = PTARM_EKEY_PUB;
+    ekey.type = BTC_EKEY_PUB;
     memcpy(ekey.key, pub, sizeof(pub));
-    b = ptarm_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0, xaddr);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
 
-    ptarm_ekey_t ekey2;
+    btc_ekey_t ekey2;
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPRIV0);
+    b = btc_ekey_read_addr(&ekey2, XPRIV0);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PRIV, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PRIV, ekey2.type);
     ASSERT_EQ(0, ekey2.depth);
     ASSERT_EQ(0, ekey2.child_number);
     ASSERT_EQ(0, memcmp(priv, ekey2.key, sizeof(priv)));
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, XPUB0);
+    b = btc_ekey_read_addr(&ekey2, XPUB0);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PUB, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PUB, ekey2.type);
     ASSERT_EQ(0, ekey2.depth);
     ASSERT_EQ(0, ekey2.child_number);
     ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
@@ -502,45 +502,45 @@ TEST_F(extendedkey, chain_m_master2)
 
 TEST_F(extendedkey, chain_testnet)
 {
-    ptarm_dbg_malloc_cnt_reset();
-    ptarm_init(PTARM_TESTNET, false);
+    utl_dbg_malloc_cnt_reset();
+    btc_init(BTC_TESTNET, false);
 
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
-    char xpriv[PTARM_SZ_EKEY_ADDR_MAX];
-    char xpub[PTARM_SZ_EKEY_ADDR_MAX];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
+    char xpriv[BTC_SZ_EKEY_ADDR_MAX];
+    char xpub[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey.type = PTARM_EKEY_PRIV;
+    ekey.type = BTC_EKEY_PRIV;
     ekey.depth = 5;
     ekey.child_number = 1000000000;
-    bool b = ptarm_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
     memcpy(ekey.key, priv, sizeof(priv));
-    b = ptarm_ekey_create(buf_ekey, xpriv, &ekey);
+    b = btc_ekey_create(buf_ekey, xpriv, &ekey);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
-    ekey.type = PTARM_EKEY_PUB;
+    ekey.type = BTC_EKEY_PUB;
     memcpy(ekey.key, pub, sizeof(pub));
-    b = ptarm_ekey_create(buf_ekey, xpub, &ekey);
+    b = btc_ekey_create(buf_ekey, xpub, &ekey);
     ASSERT_TRUE(b);
-    ptarm_print_extendedkey(&ekey);
+    btc_print_extendedkey(&ekey);
 
 
-    ptarm_ekey_t ekey2;
+    btc_ekey_t ekey2;
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, xpriv);
+    b = btc_ekey_read_addr(&ekey2, xpriv);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PRIV, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PRIV, ekey2.type);
     ASSERT_EQ(5, ekey2.depth);
     ASSERT_EQ(0, memcmp(priv, ekey2.key, sizeof(priv)));
 
     memset(&ekey2, 0, sizeof(ekey2));
-    b = ptarm_ekey_read_addr(&ekey2, xpub);
+    b = btc_ekey_read_addr(&ekey2, xpub);
     ASSERT_TRUE(b);
-    ASSERT_EQ(PTARM_EKEY_PUB, ekey2.type);
+    ASSERT_EQ(BTC_EKEY_PUB, ekey2.type);
     ASSERT_EQ(5, ekey2.depth);
     ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
 }
@@ -553,7 +553,7 @@ TEST_F(extendedkey, read_addr_fail)
     //長い
     const char XPUB0H12H21_LONG[] = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHyaa";
 
-    b = ptarm_ekey_read_addr(&ekey, XPUB0H12H21_LONG);
+    b = btc_ekey_read_addr(&ekey, XPUB0H12H21_LONG);
     ASSERT_FALSE(b);
 }
 
@@ -561,13 +561,13 @@ TEST_F(extendedkey, read_addr_fail)
 TEST_F(extendedkey, read_fail_len)
 {
     bool b;
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
 
-    b = ptarm_ekey_create(buf_ekey, NULL, &ekey);
+    b = btc_ekey_create(buf_ekey, NULL, &ekey);
     ASSERT_TRUE(b);
 
     //短い
-    b = ptarm_ekey_read(&ekey, buf_ekey, sizeof(buf_ekey) - 1);
+    b = btc_ekey_read(&ekey, buf_ekey, sizeof(buf_ekey) - 1);
     ASSERT_FALSE(b);
 }
 
@@ -575,13 +575,13 @@ TEST_F(extendedkey, read_fail_len)
 TEST_F(extendedkey, read_fail_data)
 {
     bool b;
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
 
-    b = ptarm_ekey_create(buf_ekey, NULL, &ekey);
+    b = btc_ekey_create(buf_ekey, NULL, &ekey);
     ASSERT_TRUE(b);
 
     buf_ekey[3] = ~buf_ekey[3]; //書き換え
-    b = ptarm_ekey_read(&ekey, buf_ekey, sizeof(buf_ekey));
+    b = btc_ekey_read(&ekey, buf_ekey, sizeof(buf_ekey));
     ASSERT_FALSE(b);
 }
 
@@ -589,13 +589,13 @@ TEST_F(extendedkey, read_fail_data)
 TEST_F(extendedkey, read_fail_init)
 {
     bool b;
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
 
-    b = ptarm_ekey_create(buf_ekey, NULL, &ekey);
+    b = btc_ekey_create(buf_ekey, NULL, &ekey);
     ASSERT_TRUE(b);
 
-    mPref[PTARM_PREF] = 0;
-    b = ptarm_ekey_read(&ekey, buf_ekey, sizeof(buf_ekey));
+    mPref[BTC_PREF] = 0;
+    b = btc_ekey_read(&ekey, buf_ekey, sizeof(buf_ekey));
     ASSERT_FALSE(b);
 }
 
@@ -603,9 +603,9 @@ TEST_F(extendedkey, read_fail_init)
 TEST_F(extendedkey, create_fail)
 {
     bool b;
-    uint8_t buf_ekey[PTARM_SZ_EKEY];
+    uint8_t buf_ekey[BTC_SZ_EKEY];
 
-    mPref[PTARM_PREF] = 0;
-    b = ptarm_ekey_create(buf_ekey, NULL, &ekey);
+    mPref[BTC_PREF] = 0;
+    b = btc_ekey_create(buf_ekey, NULL, &ekey);
     ASSERT_FALSE(b);
 }

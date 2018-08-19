@@ -14,13 +14,13 @@ class ln_bolt3_d: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, true);
+        utl_dbg_malloc_cnt_reset();
+        btc_init(BTC_TESTNET, true);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
-        ptarm_term();
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
+        btc_term();
     }
 
     static ln_derkey_storage storage;
@@ -62,10 +62,10 @@ TEST_F(ln_bolt3_d, gene1)
         0x7c, 0x40, 0x73, 0xd5, 0xe4, 0x2e, 0x31, 0x48,
     };
 
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
     ln_derkey_create_secret(output, SEED, I);
-    //DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT, output, PTARM_SZ_PRIVKEY));
+    //DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT, output, BTC_SZ_PRIVKEY));
 }
 
 
@@ -86,10 +86,10 @@ TEST_F(ln_bolt3_d, gene2)
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
 
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
     ln_derkey_create_secret(output, SEED, I);
-    //DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT, output, PTARM_SZ_PRIVKEY));
+    //DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT, output, BTC_SZ_PRIVKEY));
 }
 
 
@@ -110,10 +110,10 @@ TEST_F(ln_bolt3_d, gene3)
         0xdb, 0xae, 0xd7, 0x0d, 0x1c, 0x13, 0xa5, 0x28,
     };
 
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
     ln_derkey_create_secret(output, SEED, I);
-    //DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT, output, PTARM_SZ_PRIVKEY));
+    //DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT, output, BTC_SZ_PRIVKEY));
 }
 
 
@@ -134,10 +134,10 @@ TEST_F(ln_bolt3_d, gene4)
         0xd3, 0xc5, 0xac, 0x2e, 0x62, 0x32, 0x7d, 0x31,
     };
 
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
     ln_derkey_create_secret(output, SEED, I);
-    //DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT, output, PTARM_SZ_PRIVKEY));
+    //DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT, output, BTC_SZ_PRIVKEY));
 }
 
 
@@ -158,10 +158,10 @@ TEST_F(ln_bolt3_d, gene5)
         0x8b, 0x57, 0xf6, 0xba, 0x7b, 0xfe, 0xaa, 0x9c,
     };
 
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
     ln_derkey_create_secret(output, SEED, I);
-    //DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT, output, PTARM_SZ_PRIVKEY));
+    //DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT, output, BTC_SZ_PRIVKEY));
 }
 
 
@@ -202,7 +202,7 @@ TEST_F(ln_bolt3_d, where)
 TEST_F(ln_bolt3_d, storage0)
 {
     bool ret;
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
 
@@ -222,7 +222,7 @@ TEST_F(ln_bolt3_d, storage0)
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -237,7 +237,7 @@ TEST_F(ln_bolt3_d, storage0)
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -251,7 +251,7 @@ TEST_F(ln_bolt3_d, storage0)
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -265,7 +265,7 @@ TEST_F(ln_bolt3_d, storage0)
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT4, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -279,7 +279,7 @@ TEST_F(ln_bolt3_d, storage0)
         0x79, 0xff, 0x80, 0xe6, 0xbd, 0x0c, 0x41, 0xdd,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT5, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -293,7 +293,7 @@ TEST_F(ln_bolt3_d, storage0)
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT6, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -307,7 +307,7 @@ TEST_F(ln_bolt3_d, storage0)
         0x33, 0xe3, 0x31, 0x98, 0x0a, 0x22, 0x0f, 0x32,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT7, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -321,7 +321,7 @@ TEST_F(ln_bolt3_d, storage0)
         0x2e, 0x1f, 0x7a, 0xc4, 0x4b, 0x65, 0x0e, 0x17,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT8, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -330,7 +330,7 @@ TEST_F(ln_bolt3_d, storage0)
 //        if (storage.storage[lp].index != 0x0000123456789abcULL) {
 //            printf("[%2d]I=%016llx\n", lp, (unsigned long long)storage.storage[lp].index);
 //            printf("    S:");
-//            DumpBin(storage.storage[lp].secret, PTARM_SZ_PRIVKEY);
+//            DumpBin(storage.storage[lp].secret, BTC_SZ_PRIVKEY);
 //            printf("\n");
 //        }
 //    }
@@ -338,43 +338,43 @@ TEST_F(ln_bolt3_d, storage0)
     //
     ret = ln_derkey_storage_get_secret(output, &storage, 281474976710648ULL);
     ASSERT_TRUE(ret);
-    DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT8, output, PTARM_SZ_PRIVKEY));
+    DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
     //
     ret = ln_derkey_storage_get_secret(output, &storage, 281474976710649ULL);
     ASSERT_TRUE(ret);
-    DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT7, output, PTARM_SZ_PRIVKEY));
+    DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
     //
     ret = ln_derkey_storage_get_secret(output, &storage, 281474976710650ULL);
     ASSERT_TRUE(ret);
-    DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT6, output, PTARM_SZ_PRIVKEY));
+    DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
     //
     ret = ln_derkey_storage_get_secret(output, &storage, 281474976710651ULL);
     ASSERT_TRUE(ret);
-    DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT5, output, PTARM_SZ_PRIVKEY));
+    DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
     //
     ret = ln_derkey_storage_get_secret(output, &storage, 281474976710652ULL);
     ASSERT_TRUE(ret);
-    DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT4, output, PTARM_SZ_PRIVKEY));
+    DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
     //
     ret = ln_derkey_storage_get_secret(output, &storage, 281474976710653ULL);
     ASSERT_TRUE(ret);
-    DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
     //
     ret = ln_derkey_storage_get_secret(output, &storage, 281474976710654ULL);
     ASSERT_TRUE(ret);
-    DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
     //
     ret = ln_derkey_storage_get_secret(output, &storage, 281474976710655ULL);
     ASSERT_TRUE(ret);
-    DumpBin(output, PTARM_SZ_PRIVKEY);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    DumpBin(output, BTC_SZ_PRIVKEY);
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 }
 
 
@@ -382,7 +382,7 @@ TEST_F(ln_bolt3_d, storage0)
 TEST_F(ln_bolt3_d, storage1)
 {
     bool ret;
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -405,7 +405,7 @@ TEST_F(ln_bolt3_d, storage1)
         0x7c, 0x40, 0x73, 0xd5, 0xe4, 0x2e, 0x31, 0x48,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -418,7 +418,7 @@ TEST_F(ln_bolt3_d, storage1)
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
 
@@ -430,7 +430,7 @@ TEST_F(ln_bolt3_d, storage1)
 TEST_F(ln_bolt3_d, storage2)
 {
     bool ret;
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -453,7 +453,7 @@ TEST_F(ln_bolt3_d, storage2)
         0x7c, 0x40, 0x73, 0xd5, 0xe4, 0x2e, 0x31, 0x48,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -466,7 +466,7 @@ TEST_F(ln_bolt3_d, storage2)
         0xd5, 0xeb, 0xb4, 0xab, 0x6b, 0xd8, 0x66, 0xa3,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -479,7 +479,7 @@ TEST_F(ln_bolt3_d, storage2)
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -492,7 +492,7 @@ TEST_F(ln_bolt3_d, storage2)
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT4, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
 
@@ -504,7 +504,7 @@ TEST_F(ln_bolt3_d, storage2)
 TEST_F(ln_bolt3_d, storage3)
 {
     bool ret;
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -527,7 +527,7 @@ TEST_F(ln_bolt3_d, storage3)
         0x7c, 0x40, 0x73, 0xd5, 0xe4, 0x2e, 0x31, 0x48,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -540,7 +540,7 @@ TEST_F(ln_bolt3_d, storage3)
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
 
@@ -552,7 +552,7 @@ TEST_F(ln_bolt3_d, storage3)
 TEST_F(ln_bolt3_d, storage4)
 {
     bool ret;
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     const uint8_t SEED[32] = {
         0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -575,7 +575,7 @@ TEST_F(ln_bolt3_d, storage4)
         0x7c, 0x40, 0x73, 0xd5, 0xe4, 0x2e, 0x31, 0x48,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -588,7 +588,7 @@ TEST_F(ln_bolt3_d, storage4)
         0xd5, 0xeb, 0xb4, 0xab, 0x6b, 0xd8, 0x66, 0xa3,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -601,7 +601,7 @@ TEST_F(ln_bolt3_d, storage4)
         0x77, 0xda, 0xe5, 0x9e, 0x87, 0xed, 0x42, 0x3a,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -614,7 +614,7 @@ TEST_F(ln_bolt3_d, storage4)
         0x16, 0x69, 0xc7, 0x9b, 0x37, 0xb9, 0x36, 0xf4,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT4, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -627,7 +627,7 @@ TEST_F(ln_bolt3_d, storage4)
         0x79, 0xff, 0x80, 0xe6, 0xbd, 0x0c, 0x41, 0xdd,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT5, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -640,7 +640,7 @@ TEST_F(ln_bolt3_d, storage4)
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT6, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -653,7 +653,7 @@ TEST_F(ln_bolt3_d, storage4)
         0x33, 0xe3, 0x31, 0x98, 0x0a, 0x22, 0x0f, 0x32,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT7, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
 
@@ -666,7 +666,7 @@ TEST_F(ln_bolt3_d, storage4)
         0x2e, 0x1f, 0x7a, 0xc4, 0x4b, 0x65, 0x0e, 0x17,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT8, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
 
@@ -678,7 +678,7 @@ TEST_F(ln_bolt3_d, storage4)
 TEST_F(ln_bolt3_d, storage5)
 {
     bool ret;
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
 
@@ -704,7 +704,7 @@ TEST_F(ln_bolt3_d, storage5)
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -718,7 +718,7 @@ TEST_F(ln_bolt3_d, storage5)
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -732,7 +732,7 @@ TEST_F(ln_bolt3_d, storage5)
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -746,7 +746,7 @@ TEST_F(ln_bolt3_d, storage5)
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT4, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -760,7 +760,7 @@ TEST_F(ln_bolt3_d, storage5)
         0xd6, 0x8e, 0x3c, 0xc4, 0x7e, 0x2f, 0xf6, 0xa6,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT5, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -774,7 +774,7 @@ TEST_F(ln_bolt3_d, storage5)
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT6, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
@@ -787,7 +787,7 @@ TEST_F(ln_bolt3_d, storage5)
 TEST_F(ln_bolt3_d, storage6)
 {
     bool ret;
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
 
@@ -813,7 +813,7 @@ TEST_F(ln_bolt3_d, storage6)
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -827,7 +827,7 @@ TEST_F(ln_bolt3_d, storage6)
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -841,7 +841,7 @@ TEST_F(ln_bolt3_d, storage6)
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -855,7 +855,7 @@ TEST_F(ln_bolt3_d, storage6)
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT4, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -869,7 +869,7 @@ TEST_F(ln_bolt3_d, storage6)
         0xd6, 0x8e, 0x3c, 0xc4, 0x7e, 0x2f, 0xf6, 0xa6,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT5, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -883,7 +883,7 @@ TEST_F(ln_bolt3_d, storage6)
         0xf9, 0x04, 0xa2, 0x37, 0x31, 0x22, 0x4b, 0xb1,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT6, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -897,7 +897,7 @@ TEST_F(ln_bolt3_d, storage6)
         0x33, 0xe3, 0x31, 0x98, 0x0a, 0x22, 0x0f, 0x32,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT7, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -911,7 +911,7 @@ TEST_F(ln_bolt3_d, storage6)
         0x2e, 0x1f, 0x7a, 0xc4, 0x4b, 0x65, 0x0e, 0x17,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT8, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
@@ -924,7 +924,7 @@ TEST_F(ln_bolt3_d, storage6)
 TEST_F(ln_bolt3_d, storage7)
 {
     bool ret;
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
 
@@ -950,7 +950,7 @@ TEST_F(ln_bolt3_d, storage7)
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -964,7 +964,7 @@ TEST_F(ln_bolt3_d, storage7)
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -978,7 +978,7 @@ TEST_F(ln_bolt3_d, storage7)
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -992,7 +992,7 @@ TEST_F(ln_bolt3_d, storage7)
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT4, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1006,7 +1006,7 @@ TEST_F(ln_bolt3_d, storage7)
         0x79, 0xff, 0x80, 0xe6, 0xbd, 0x0c, 0x41, 0xdd,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT5, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1020,7 +1020,7 @@ TEST_F(ln_bolt3_d, storage7)
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT6, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1034,7 +1034,7 @@ TEST_F(ln_bolt3_d, storage7)
         0x19, 0x4f, 0xe8, 0xea, 0x8a, 0xf6, 0xc0, 0xa3,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT7, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1048,7 +1048,7 @@ TEST_F(ln_bolt3_d, storage7)
         0x2e, 0x1f, 0x7a, 0xc4, 0x4b, 0x65, 0x0e, 0x17,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT8, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
@@ -1061,7 +1061,7 @@ TEST_F(ln_bolt3_d, storage7)
 TEST_F(ln_bolt3_d, storage8)
 {
     bool ret;
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_storage_init(&storage);
 
@@ -1087,7 +1087,7 @@ TEST_F(ln_bolt3_d, storage8)
         0x4c, 0x47, 0x56, 0x21, 0xe0, 0x07, 0xa5, 0xdc,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1101,7 +1101,7 @@ TEST_F(ln_bolt3_d, storage8)
         0xb8, 0x72, 0xab, 0xeb, 0xa4, 0xcb, 0x89, 0x64,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1115,7 +1115,7 @@ TEST_F(ln_bolt3_d, storage8)
         0x7d, 0x64, 0x56, 0xb7, 0xfc, 0x27, 0x5a, 0xd8,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1129,7 +1129,7 @@ TEST_F(ln_bolt3_d, storage8)
         0x8a, 0x51, 0xd5, 0x45, 0x02, 0xe9, 0x91, 0x16,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT4, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT4, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1143,7 +1143,7 @@ TEST_F(ln_bolt3_d, storage8)
         0x79, 0xff, 0x80, 0xe6, 0xbd, 0x0c, 0x41, 0xdd,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT5, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT5, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1157,7 +1157,7 @@ TEST_F(ln_bolt3_d, storage8)
         0x5a, 0x8a, 0x5a, 0x47, 0xe1, 0x9c, 0xe3, 0xf2,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT6, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT6, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1171,7 +1171,7 @@ TEST_F(ln_bolt3_d, storage8)
         0x33, 0xe3, 0x31, 0x98, 0x0a, 0x22, 0x0f, 0x32,
     };
     ln_derkey_create_secret(output, SEED, I);
-    ASSERT_EQ(0, memcmp(OUTPUT7, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT7, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_TRUE(ret);
@@ -1185,7 +1185,7 @@ TEST_F(ln_bolt3_d, storage8)
         0x00, 0x9b, 0xda, 0x87, 0x5e, 0xc8, 0x8f, 0xa4,
     };
     ln_derkey_create_secret(output, SEED_FAIL, I);
-    ASSERT_EQ(0, memcmp(OUTPUT8, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT8, output, BTC_SZ_PRIVKEY));
 
     ret = ln_derkey_storage_insert_secret(&storage, output, I);
     ASSERT_FALSE(ret);
@@ -1228,24 +1228,24 @@ TEST_F(ln_bolt3_d, seedFF_multi)
         0xd3, 0xc5, 0xac, 0x2e, 0x62, 0x32, 0x7d, 0x31,
     };
 
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     ln_derkey_create_secret(output, SEED, I1);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
     ln_derkey_create_secret(output, SEED, I2);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
     ln_derkey_create_secret(output, SEED, I3);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 
     ln_derkey_create_secret(output, SEED, I1);
-    ASSERT_EQ(0, memcmp(OUTPUT1, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT1, output, BTC_SZ_PRIVKEY));
 
     ln_derkey_create_secret(output, SEED, I2);
-    ASSERT_EQ(0, memcmp(OUTPUT2, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT2, output, BTC_SZ_PRIVKEY));
 
     ln_derkey_create_secret(output, SEED, I3);
-    ASSERT_EQ(0, memcmp(OUTPUT3, output, PTARM_SZ_PRIVKEY));
+    ASSERT_EQ(0, memcmp(OUTPUT3, output, BTC_SZ_PRIVKEY));
 }
 

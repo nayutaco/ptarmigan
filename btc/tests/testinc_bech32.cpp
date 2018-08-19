@@ -9,13 +9,13 @@ class bech32: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, false);
+        utl_dbg_malloc_cnt_reset();
+        btc_init(BTC_TESTNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
-        ptarm_term();
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
+        btc_term();
     }
 
 public:
@@ -154,9 +154,9 @@ static struct invalid_address_data invalid_address_enc[] = {
 // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#examples
 struct valid_invoice_data {
     const char* invoice;
-    const uint8_t privkey[PTARM_SZ_PRIVKEY];
-    const uint8_t pubkey[PTARM_SZ_PUBKEY];
-    const uint8_t payment_hash[PTARM_SZ_SHA256];
+    const uint8_t privkey[BTC_SZ_PRIVKEY];
+    const uint8_t pubkey[BTC_SZ_PUBKEY];
+    const uint8_t payment_hash[BTC_SZ_SHA256];
 };
 
 static void segwit_scriptpubkey(uint8_t* scriptpubkey, size_t* scriptpubkeylen, int witver, const uint8_t* witprog, size_t witprog_len) {

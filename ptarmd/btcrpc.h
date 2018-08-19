@@ -111,23 +111,23 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex);
  * @note
  *      - 検索するvinはvin_cnt==1のみ
  */
-bool btcrpc_search_outpoint(ptarm_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex);
+bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex);
 
 
 /** [bitcoin IF]複数blockからvout[0]のscriptPubKeyが一致するトランザクションを検索
  *
- * @param[out]  pTxBuf      トランザクション情報(ptarm_tx_tの配列を保存する)
+ * @param[out]  pTxBuf      トランザクション情報(btc_tx_tの配列を保存する)
  * @param[in]   Blks        検索対象とする過去ブロック数
- * @param[in]   pVout       検索するscriptPubKey配列(ptarm_buf_tの配列)
+ * @param[in]   pVout       検索するscriptPubKey配列(utl_buf_tの配列)
  * @retval  true    検索成功
  * @retval  false   検索失敗 or bitcoindエラー
  * @note
  *      - pTxBufの扱いに注意すること
- *          - 成功時、ptarm_tx_tが複数入っている可能性がある(個数は、pTxBuf->len / sizeof(ptarm_tx_t))
- *          - クリアする場合、各ptarm_tx_tをクリア後、ptarm_buf_tをクリアすること
+ *          - 成功時、btc_tx_tが複数入っている可能性がある(個数は、pTxBuf->len / sizeof(btc_tx_t))
+ *          - クリアする場合、各btc_tx_tをクリア後、utl_buf_tをクリアすること
  *      - 内部処理(getrawtransaction)に失敗した場合でも、処理を継続する
  */
-bool btcrpc_search_vout(ptarm_buf_t *pTxBuf, uint32_t Blks, const ptarm_buf_t *pVout);
+bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout);
 
 
 /** [bitcoin IF]signrawtransaction
@@ -140,7 +140,7 @@ bool btcrpc_search_vout(ptarm_buf_t *pTxBuf, uint32_t Blks, const ptarm_buf_t *p
  *      - funding_txへの署名を想定(scriptPubKeyは2-of-2)
  *      - pTxは戻り値がtrueの場合のみ更新する
  */
-bool btcrpc_signraw_tx(ptarm_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
+bool btcrpc_signraw_tx(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
 
 
 /** [bitcoin IF]sendrawtransaction
@@ -178,7 +178,7 @@ bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, 
  * @param[out]  pBuf        生成したScriptPubKey
  * @retval  true        取得成功
  */
-bool btcrpc_getnewaddress(ptarm_buf_t *pBuf);
+bool btcrpc_getnewaddress(utl_buf_t *pBuf);
 
 
 /** [bitcoin IF]estimatefee

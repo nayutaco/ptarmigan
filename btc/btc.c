@@ -19,7 +19,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ptarm.c
+/** @file   btc.c
  *  @brief  bitcoinトランザクション計算
  *  @author ueno@nayuta.co
  */
@@ -29,7 +29,7 @@
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/version.h"
 
-#include "ptarm_local.h"
+#include "btc_local.h"
 
 #ifndef __ORDER_LITTLE_ENDIAN__
 #error Only Little Endian
@@ -40,14 +40,14 @@
  * macros
  **************************************************************************/
 
-#define M_RNG_INIT      (const unsigned char *)"ptarm_personalization", 21
+#define M_RNG_INIT      (const unsigned char *)"btc_personalization", 19
 
 
 /**************************************************************************
  * package variables
  **************************************************************************/
 
-uint8_t HIDDEN  mPref[PTARM_PREF_MAX];      ///< prefix関連
+uint8_t HIDDEN  mPref[BTC_PREF_MAX];      ///< prefix関連
 bool HIDDEN     mNativeSegwit;              ///< true:segwitのトランザクションをnativeで生成
 
 //この辺りはグローバル変数にしておくとマルチスレッドで危険かもしれない
@@ -69,34 +69,34 @@ static mbedtls_entropy_context mEntropy;
  * public functions
  **************************************************************************/
 
-bool ptarm_init(ptarm_chain_t chain, bool bSegNative)
+bool btc_init(btc_chain_t chain, bool bSegNative)
 {
     bool ret = false;
 
-    if (mPref[PTARM_PREF_WIF]) {
+    if (mPref[BTC_PREF_WIF]) {
         LOGD("multiple init\n");
         assert(0);
         return false;
     }
 
-    mPref[PTARM_PREF] = (uint8_t)chain;
+    mPref[BTC_PREF] = (uint8_t)chain;
     switch (chain) {
-    case PTARM_TESTNET:
+    case BTC_TESTNET:
         //LOGD("[testnet]\n");
-        mPref[PTARM_PREF_WIF] = 0xef;
-        mPref[PTARM_PREF_P2PKH] = 0x6f;
-        mPref[PTARM_PREF_P2SH] = 0xc4;
-        mPref[PTARM_PREF_ADDRVER] = 0x03;
-        mPref[PTARM_PREF_ADDRVER_SH] = 0x28;
+        mPref[BTC_PREF_WIF] = 0xef;
+        mPref[BTC_PREF_P2PKH] = 0x6f;
+        mPref[BTC_PREF_P2SH] = 0xc4;
+        mPref[BTC_PREF_ADDRVER] = 0x03;
+        mPref[BTC_PREF_ADDRVER_SH] = 0x28;
         ret = true;
         break;
-    case PTARM_MAINNET:
+    case BTC_MAINNET:
         LOGD("[mainnet]\n");
-        mPref[PTARM_PREF_WIF] = 0x80;
-        mPref[PTARM_PREF_P2PKH] = 0x00;
-        mPref[PTARM_PREF_P2SH] = 0x05;
-        mPref[PTARM_PREF_ADDRVER] = 0x06;
-        mPref[PTARM_PREF_ADDRVER_SH] = 0x0a;
+        mPref[BTC_PREF_WIF] = 0x80;
+        mPref[BTC_PREF_P2PKH] = 0x00;
+        mPref[BTC_PREF_P2SH] = 0x05;
+        mPref[BTC_PREF_ADDRVER] = 0x06;
+        mPref[BTC_PREF_ADDRVER_SH] = 0x0a;
         ret = true;
         break;
     default:
@@ -134,13 +134,13 @@ bool ptarm_init(ptarm_chain_t chain, bool bSegNative)
 }
 
 
-void ptarm_term(void)
+void btc_term(void)
 {
-    mPref[PTARM_PREF_WIF] = PTARM_UNKNOWN;
+    mPref[BTC_PREF_WIF] = BTC_UNKNOWN;
 }
 
 
-ptarm_chain_t ptarm_get_chain(void)
+btc_chain_t btc_get_chain(void)
 {
-    return (ptarm_chain_t)mPref[PTARM_PREF];
+    return (btc_chain_t)mPref[BTC_PREF];
 }

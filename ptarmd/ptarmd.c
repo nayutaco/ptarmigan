@@ -46,10 +46,10 @@
 
 #include "btcrpc.h"
 #include "conf.h"
-#include "misc.h"
+#include "utl_misc.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
-#include "plog.h"
+#include "utl_log.h"
 
 #include "ptarmd.h"
 #include "p2p_svr.h"
@@ -75,7 +75,7 @@
 typedef struct nodefaillist_t {
     LIST_ENTRY(nodefaillist_t) list;
 
-    uint8_t     node_id[PTARM_SZ_PUBKEY];
+    uint8_t     node_id[BTC_SZ_PUBKEY];
     char        ipaddr[SZ_IPV4_LEN + 1];
     uint16_t    port;
 } nodefaillist_t;
@@ -135,21 +135,21 @@ int main(int argc, char *argv[])
     p_alias = ln_node_alias();
 
 #ifdef ENABLE_PLOG_TO_STDOUT
-    plog_init_stdout();
+    utl_log_init_stdout();
 #else
-    plog_init();
+    utl_log_init();
 #endif
 
 #ifndef NETKIND
 #error not define NETKIND
 #endif
 #if NETKIND==0
-    bret = ptarm_init(PTARM_MAINNET, true);
+    bret = btc_init(BTC_MAINNET, true);
 #elif NETKIND==1
-    bret = ptarm_init(PTARM_TESTNET, true);
+    bret = btc_init(BTC_TESTNET, true);
 #endif
     if (!bret) {
-        fprintf(stderr, "fail: ptarm_init()\n");
+        fprintf(stderr, "fail: btc_init()\n");
         return -1;
     }
 
@@ -265,8 +265,8 @@ int main(int argc, char *argv[])
 
     // if (options == 0x01) {
     //     //node_id出力
-    //     ptarm_util_dumpbin(stdout, ln_node_getid(), PTARM_SZ_PUBKEY, true);
-    //     ptarm_term();
+    //     btc_util_dumpbin(stdout, ln_node_getid(), BTC_SZ_PUBKEY, true);
+    //     btc_term();
     //     return 0;
     // }
 
@@ -286,7 +286,7 @@ int main(int argc, char *argv[])
         }
         fprintf(fp, "port=%d\n", p_addr->port);
         fprintf(fp, "node_id=");
-        ptarm_util_dumpbin(fp, ln_node_getid(), PTARM_SZ_PUBKEY, true);
+        btc_util_dumpbin(fp, ln_node_getid(), BTC_SZ_PUBKEY, true);
         fclose(fp);
     }
 
@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
     lnapp_term();
     btcrpc_term();
     ln_db_term();
-    plog_term();
+    utl_log_term();
 
     return 0;
 
@@ -351,7 +351,7 @@ LABEL_EXIT:
  * public functions
  ********************************************************************/
 
-bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, ptarm_buf_t *pBuf)
+bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, utl_buf_t *pBuf)
 {
     lnapp_conf_t *p_appconf = NULL;
 
@@ -400,9 +400,9 @@ lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
 void ptarmd_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc)
 {
     LOGD("ipaddr(%d)=%s:%" PRIu16 " node_id: ", NodeDesc, pAddr, Port);
-    DUMPD(pNodeId, PTARM_SZ_PUBKEY);
+    DUMPD(pNodeId, BTC_SZ_PUBKEY);
 
-    if ( misc_all_zero(pNodeId, PTARM_SZ_PUBKEY) ||
+    if ( utl_misc_all_zero(pNodeId, BTC_SZ_PUBKEY) ||
          ptarmd_nodefail_get(pNodeId, pAddr, Port, LN_NODEDESC_IPV4) ) {
         //登録の必要なし
         LOGD("no save\n");
@@ -410,12 +410,12 @@ void ptarmd_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
     }
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
-        char nodeid_str[PTARM_SZ_PUBKEY * 2 + 1];
-        ptarm_util_bin2str(nodeid_str, pNodeId, PTARM_SZ_PUBKEY);
+        char nodeid_str[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
         LOGD("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
 
         nodefaillist_t *nf = (nodefaillist_t *)APP_MALLOC(sizeof(nodefaillist_t));
-        memcpy(nf->node_id, pNodeId, PTARM_SZ_PUBKEY);
+        memcpy(nf->node_id, pNodeId, BTC_SZ_PUBKEY);
         strcpy(nf->ipaddr, pAddr);
         nf->port = Port;
         LIST_INSERT_HEAD(&mNodeFailListHead, nf, list);
@@ -428,12 +428,12 @@ bool ptarmd_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
     bool detect = false;
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
-        char nodeid_str[PTARM_SZ_PUBKEY * 2 + 1];
-        ptarm_util_bin2str(nodeid_str, pNodeId, PTARM_SZ_PUBKEY);
+        char nodeid_str[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
 
         nodefaillist_t *p = LIST_FIRST(&mNodeFailListHead);
         while (p != NULL) {
-            if ( (memcmp(p->node_id, pNodeId, PTARM_SZ_PUBKEY) == 0) &&
+            if ( (memcmp(p->node_id, pNodeId, BTC_SZ_PUBKEY) == 0) &&
                  (strcmp(p->ipaddr, pAddr) == 0) &&
                  (p->port == Port) ) {
                 //LOGD("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);

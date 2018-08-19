@@ -9,13 +9,13 @@ class xxx: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, false);
+        utl_dbg_malloc_cnt_reset();
+        btc_init(BTC_TESTNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
-        ptarm_term();
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
+        btc_term();
     }
 
 public:

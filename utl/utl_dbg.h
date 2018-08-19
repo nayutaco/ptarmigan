@@ -19,15 +19,15 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ptarm_dbg.h
- *  @brief  ptarm_dbg
+/** @file   utl_dbg.h
+ *  @brief  utl_dbg
  *  @author ueno@nayuta.co
  *
  * @note
- *      - ptarm_dbg
+ *      - utl_dbg
  */
-#ifndef PTARM_DBG_H__
-#define PTARM_DBG_H__
+#ifndef UTL_DBG_H__
+#define UTL_DBG_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -41,20 +41,20 @@ extern "C" {
  **************************************************************************/
 
 #ifdef PTARM_DEBUG_MEM
-void* ptarm_dbg_malloc(size_t);
-void* ptarm_dbg_realloc(void*, size_t);
-void* ptarm_dbg_calloc(size_t, size_t);
-void  ptarm_dbg_free(void*);
+void* utl_dbg_malloc(size_t);
+void* utl_dbg_realloc(void*, size_t);
+void* utl_dbg_calloc(size_t, size_t);
+void  utl_dbg_free(void*);
 
 /** (デバッグ用)malloc残数取得
- * ptarmライブラリ内でmalloc()した回数からfree()した回数を返す。<br/>
+ * utlライブラリ内でmalloc()した回数からfree()した回数を返す。<br/>
  * PTARM_DEBUG_MEM 定義時のみ有効で、未定義の場合は常に-1を返す。
  *
  * @return  malloc残数
  */
-int ptarm_dbg_malloc_cnt(void);
+int utl_dbg_malloc_cnt(void);
 
-void ptarm_dbg_malloc_cnt_reset(void);
+void utl_dbg_malloc_cnt_reset(void);
 #endif  //PTARM_DEBUG_MEM
 
 
@@ -62,4 +62,4 @@ void ptarm_dbg_malloc_cnt_reset(void);
 }
 #endif //__cplusplus
 
-#endif /* PTARM_DBG_H__ */
+#endif /* UTL_DBG_H__ */

@@ -9,13 +9,13 @@ class bech32: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, false);
+        utl_dbg_malloc_cnt_reset();
+        btc_init(BTC_TESTNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
-        ptarm_term();
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
+        btc_term();
     }
 
 public:
@@ -33,9 +33,9 @@ public:
 // https://github.com/lightningnetwork/lightning-rfc/blob/master/11-payment-encoding.md#examples
 struct valid_invoice_data {
     const char* invoice;
-    const uint8_t privkey[PTARM_SZ_PRIVKEY];
-    const uint8_t pubkey[PTARM_SZ_PUBKEY];
-    const uint8_t payment_hash[PTARM_SZ_SHA256];
+    const uint8_t privkey[BTC_SZ_PRIVKEY];
+    const uint8_t pubkey[BTC_SZ_PUBKEY];
+    const uint8_t payment_hash[BTC_SZ_SHA256];
 };
 static struct valid_invoice_data ln_valid_invoice[] = {
     {
@@ -105,7 +105,7 @@ static struct valid_invoice_data ln_valid_invoice[] = {
 //     fprintf(stderr, "timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, ctime(&tm));
 //     fprintf(stderr, "min_final_cltv_expiry=%u\n", p_invoice_data->min_final_cltv_expiry);
 //     fprintf(stderr, "pubkey=");
-//     for (int lp = 0; lp < PTARM_SZ_PUBKEY; lp++) {
+//     for (int lp = 0; lp < BTC_SZ_PUBKEY; lp++) {
 //         fprintf(stderr, "%02x", p_invoice_data->pubkey[lp]);
 //     }
 //     fprintf(stderr, "\n");
@@ -131,7 +131,7 @@ TEST_F(bech32, invoice_valid)
         ln_node_setkey(ln_valid_invoice[i].privkey);
         ret = ln_invoice_decode(&p_invoice_data, ln_valid_invoice[i].invoice);
         ASSERT_TRUE(ret);
-        ASSERT_EQ(0, memcmp(p_invoice_data->pubkey, ln_valid_invoice[i].pubkey, PTARM_SZ_PUBKEY));
+        ASSERT_EQ(0, memcmp(p_invoice_data->pubkey, ln_valid_invoice[i].pubkey, BTC_SZ_PUBKEY));
 
         char *p_invoice = NULL;
         ret = ln_invoice_encode(&p_invoice, p_invoice_data);
@@ -146,7 +146,7 @@ TEST_F(bech32, invoice_valid)
         ASSERT_EQ(p_invoice_data->amount_msat, p_invoice_data2->amount_msat);
         ASSERT_NE(p_invoice_data->timestamp, p_invoice_data2->timestamp);       //時刻は更新するので、変化する
         ASSERT_EQ(p_invoice_data->min_final_cltv_expiry, p_invoice_data2->min_final_cltv_expiry);
-        ASSERT_EQ(0, memcmp(p_invoice_data->pubkey, p_invoice_data2->pubkey, PTARM_SZ_PUBKEY));
+        ASSERT_EQ(0, memcmp(p_invoice_data->pubkey, p_invoice_data2->pubkey, BTC_SZ_PUBKEY));
         ASSERT_EQ(0, memcmp(p_invoice_data->payment_hash, p_invoice_data2->payment_hash, LN_SZ_HASH));
         ASSERT_EQ(p_invoice_data->expiry, p_invoice_data2->expiry);
 

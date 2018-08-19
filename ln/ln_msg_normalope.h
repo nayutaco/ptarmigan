@@ -39,7 +39,7 @@
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_add_htlc_create(ptarm_buf_t *pBuf, const ln_update_add_htlc_t *pMsg);
+bool HIDDEN ln_msg_update_add_htlc_create(utl_buf_t *pBuf, const ln_update_add_htlc_t *pMsg);
 
 
 /** update_add_htlc読込み
@@ -58,7 +58,7 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fulfill_htlc_create(ptarm_buf_t *pBuf, const ln_update_fulfill_htlc_t *pMsg);
+bool HIDDEN ln_msg_update_fulfill_htlc_create(utl_buf_t *pBuf, const ln_update_fulfill_htlc_t *pMsg);
 
 
 /** update_fulfill_htlc読込み
@@ -77,7 +77,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fail_htlc_create(ptarm_buf_t *pBuf, const ln_update_fail_htlc_t *pMsg);
+bool HIDDEN ln_msg_update_fail_htlc_create(utl_buf_t *pBuf, const ln_update_fail_htlc_t *pMsg);
 
 
 /** update_fail_htlc読込み
@@ -96,7 +96,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_commit_signed_create(ptarm_buf_t *pBuf, const ln_commit_signed_t *pMsg);
+bool HIDDEN ln_msg_commit_signed_create(utl_buf_t *pBuf, const ln_commit_signed_t *pMsg);
 
 
 /** commit_signed読込み
@@ -115,7 +115,7 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_revoke_and_ack_create(ptarm_buf_t *pBuf, const ln_revoke_and_ack_t *pMsg);
+bool HIDDEN ln_msg_revoke_and_ack_create(utl_buf_t *pBuf, const ln_revoke_and_ack_t *pMsg);
 
 
 /** revoke_and_ack読込み
@@ -134,7 +134,7 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fee_create(ptarm_buf_t *pBuf, const ln_update_fee_t *pMsg);
+bool HIDDEN ln_msg_update_fee_create(utl_buf_t *pBuf, const ln_update_fee_t *pMsg);
 
 
 /** update_fee読込み
@@ -153,7 +153,7 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_update_fail_malformed_htlc_create(ptarm_buf_t *pBuf, const ln_update_fail_malformed_htlc_t *pMsg);
+bool HIDDEN ln_msg_update_fail_malformed_htlc_create(utl_buf_t *pBuf, const ln_update_fail_malformed_htlc_t *pMsg);
 
 
 /** update_fail_malformed_htlc読込み

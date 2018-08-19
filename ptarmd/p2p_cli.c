@@ -77,7 +77,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
     int idx;
     struct sockaddr_in sv_addr;
 
-    if (!ptarm_keys_chkpub(pConn->node_id)) {
+    if (!btc_keys_chkpub(pConn->node_id)) {
         LOGD("invalid node_id\n");
         ctx->error_code = RPCERR_NODEID;
         ctx->error_message = ptarmd_error_str(RPCERR_NODEID);
@@ -132,11 +132,11 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
 
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
         if (fp) {
-            char peer_id[PTARM_SZ_PUBKEY * 2 + 1];
-            ptarm_util_bin2str(peer_id, pConn->node_id, PTARM_SZ_PUBKEY);
+            char peer_id[BTC_SZ_PUBKEY * 2 + 1];
+            utl_misc_bin2str(peer_id, pConn->node_id, BTC_SZ_PUBKEY);
 
             char date[50];
-            misc_datetime(date, sizeof(date));
+            utl_misc_datetime(date, sizeof(date));
             fprintf(fp, "[%s]fail: %s@%s:%" PRIu16 "\n", date, peer_id, pConn->ipaddr, pConn->port);
             fclose(fp);
         }
@@ -150,11 +150,11 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
 
     fprintf(stderr, "[client]connected: %s:%d\n", pConn->ipaddr, pConn->port);
     fprintf(stderr, "[client]node_id=");
-    ptarm_util_dumpbin(stderr, pConn->node_id, PTARM_SZ_PUBKEY, true);
+    btc_util_dumpbin(stderr, pConn->node_id, BTC_SZ_PUBKEY, true);
 
     //スレッド起動
     mAppConf[idx].initiator = true;         //Noise Protocolの Act One送信
-    memcpy(mAppConf[idx].node_id, pConn->node_id, PTARM_SZ_PUBKEY);
+    memcpy(mAppConf[idx].node_id, pConn->node_id, BTC_SZ_PUBKEY);
     //mAppConf[idx].cmd = DCMD_CONNECT;
     strcpy(mAppConf[idx].conn_str, pConn->ipaddr);
     mAppConf[idx].conn_port = pConn->port;
@@ -187,7 +187,7 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId)
     lnapp_conf_t *p_appconf = NULL;
     int lp;
     for (lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
-        if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, PTARM_SZ_PUBKEY) == 0)) {
+        if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, BTC_SZ_PUBKEY) == 0)) {
             //LOGD("found: client %d\n", lp);
             p_appconf = &mAppConf[lp];
             break;
@@ -259,7 +259,7 @@ bool p2p_cli_load_peer_conn(peer_conn_t* pPeerConn, const uint8_t *pNodeId)
     bool ret = false;
 
     pthread_mutex_lock(&mMuxLastPeerConn);
-    if (memcmp(mLastPeerConn.node_id, pNodeId, PTARM_SZ_PUBKEY) == 0) {
+    if (memcmp(mLastPeerConn.node_id, pNodeId, BTC_SZ_PUBKEY) == 0) {
         *pPeerConn = mLastPeerConn;
         ret = true;
     }

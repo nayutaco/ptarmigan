@@ -19,7 +19,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ptarm_dbg.c
+/** @file   utl_dbg.c
  *  @brief  utl処理: 汎用処理
  *  @author ueno@nayuta.co
  */
@@ -27,7 +27,7 @@
 #include <sys/types.h>
 
 #include "utl_local.h"
-#include "ptarm_dbg.h"
+#include "utl_dbg.h"
 
 
 /**************************************************************************
@@ -48,12 +48,12 @@ static int mcount = 0;
  **************************************************************************/
 
 #ifdef PTARM_DEBUG_MEM
-int ptarm_dbg_malloc_cnt(void)
+int utl_dbg_malloc_cnt(void)
 {
     return mcount;
 }
 
-void ptarm_dbg_malloc_cnt_reset(void)
+void utl_dbg_malloc_cnt_reset(void)
 {
     mcount = 0;
 }
@@ -67,7 +67,7 @@ void ptarm_dbg_malloc_cnt_reset(void)
 #ifdef PTARM_DEBUG_MEM
 
 #if 1
-void HIDDEN *ptarm_dbg_malloc(size_t size)
+void HIDDEN *utl_dbg_malloc(size_t size)
 {
     void *p = malloc(size);
     if (p) {
@@ -77,7 +77,7 @@ void HIDDEN *ptarm_dbg_malloc(size_t size)
 }
 
 
-void HIDDEN *ptarm_dbg_realloc(void *ptr, size_t size)
+void HIDDEN *utl_dbg_realloc(void *ptr, size_t size)
 {
     void *p = realloc(ptr, size);
     if ((ptr == NULL) && p) {
@@ -87,7 +87,7 @@ void HIDDEN *ptarm_dbg_realloc(void *ptr, size_t size)
 }
 
 
-void HIDDEN *ptarm_dbg_calloc(size_t blk, size_t size)
+void HIDDEN *utl_dbg_calloc(size_t blk, size_t size)
 {
     void *p = calloc(blk, size);
     if (p) {
@@ -97,7 +97,7 @@ void HIDDEN *ptarm_dbg_calloc(size_t blk, size_t size)
 }
 
 
-void HIDDEN ptarm_dbg_free(void *ptr)
+void HIDDEN utl_dbg_free(void *ptr)
 {
     //NULL代入してfree()だけするパターンもあるため、NULLチェックする
     if (ptr) {
@@ -114,7 +114,7 @@ static struct {
     void *p;
 } mem[100];
 
-void HIDDEN *ptarm_dbg_malloc(size_t size)
+void HIDDEN *utl_dbg_malloc(size_t size)
 {
     void *p = malloc(size);
     if (p) {
@@ -134,7 +134,7 @@ void HIDDEN *ptarm_dbg_malloc(size_t size)
 }
 
 
-void HIDDEN *ptarm_dbg_realloc(void *ptr, size_t size)
+void HIDDEN *utl_dbg_realloc(void *ptr, size_t size)
 {
     void *p = realloc(ptr, size);
     if (ptr && (ptr != p)) {
@@ -162,7 +162,7 @@ void HIDDEN *ptarm_dbg_realloc(void *ptr, size_t size)
 }
 
 
-void HIDDEN *ptarm_dbg_calloc(size_t blk, size_t size)
+void HIDDEN *utl_dbg_calloc(size_t blk, size_t size)
 {
     void *p = calloc(blk, size);
     if (p) {
@@ -180,7 +180,7 @@ void HIDDEN *ptarm_dbg_calloc(size_t blk, size_t size)
 }
 
 
-void HIDDEN ptarm_dbg_free(void *ptr)
+void HIDDEN utl_dbg_free(void *ptr)
 {
     //NULL代入してfree()だけするパターンもあるため、NULLチェックする
     if (ptr) {
@@ -200,7 +200,7 @@ void HIDDEN ptarm_dbg_free(void *ptr)
     free(ptr);
 }
 
-void ptarm_dbg_show_mem(void)
+void utl_dbg_show_mem(void)
 {
     for (int lp = 0; lp < 100; lp++) {
         if (mem[lp].p) {

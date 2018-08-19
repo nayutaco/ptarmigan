@@ -25,7 +25,7 @@
  *  @note
  *      - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
  */
-#include "ptarm.h"
+#include "btc.h"
 #include "ln_derkey.h"
 //#define M_DBG_PRINT
 
@@ -46,14 +46,14 @@ bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
             const uint8_t *pBasePoint, const uint8_t *pPerCommitPoint)
 {
     int ret;
-    uint8_t base[PTARM_SZ_HASH256];
+    uint8_t base[BTC_SZ_HASH256];
     mbedtls_sha256_context ctx;
 
     //sha256(per-commitment-point || basepoint)
     mbedtls_sha256_init(&ctx);
     mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, PTARM_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pBasePoint, PTARM_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
     mbedtls_sha256_finish(&ctx, base);
     mbedtls_sha256_free(&ctx);
 
@@ -61,16 +61,16 @@ bool HIDDEN ln_derkey_pubkey(uint8_t *pPubKey,
 
     mbedtls_mpi_init(&bp);
     mbedtls_mpi_read_binary(&bp, base, sizeof(base));
-    ret = ptarm_util_ecp_muladd(pPubKey, pBasePoint, &bp);
+    ret = btc_util_ecp_muladd(pPubKey, pBasePoint, &bp);
     mbedtls_mpi_free(&bp);
 
 #ifdef M_DBG_PRINT
     LOGD("SHA256(per_commitment_point |+ basepoint)\n=> SHA256(");
-    DUMPD(pPerCommitPoint, PTARM_SZ_PUBKEY);
+    DUMPD(pPerCommitPoint, BTC_SZ_PUBKEY);
     LOGD2(" |+ ");
-    DUMPD(pBasePoint, PTARM_SZ_PUBKEY);
+    DUMPD(pBasePoint, BTC_SZ_PUBKEY);
     LOGD2(" ==> ");
-    DUMPD(pPubKey, PTARM_SZ_PUBKEY);
+    DUMPD(pPubKey, BTC_SZ_PUBKEY);
 #endif
 
     return ret == 0;
@@ -90,8 +90,8 @@ bool HIDDEN ln_derkey_privkey(uint8_t *pPrivKey,
     //sha256(per-commitment-point || basepoint)
     mbedtls_sha256_init(&ctx);
     mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, PTARM_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pBasePoint, PTARM_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
     mbedtls_sha256_finish(&ctx, pPrivKey);
     mbedtls_sha256_free(&ctx);
 
@@ -100,8 +100,8 @@ bool HIDDEN ln_derkey_privkey(uint8_t *pPrivKey,
     mbedtls_mpi_init(&a);
     mbedtls_mpi_init(&b);
     mbedtls_ecp_keypair_init(&keypair);
-    mbedtls_mpi_read_binary(&a, pPrivKey, PTARM_SZ_PRIVKEY);
-    mbedtls_mpi_read_binary(&b, pBaseSecret, PTARM_SZ_PRIVKEY);
+    mbedtls_mpi_read_binary(&a, pPrivKey, BTC_SZ_PRIVKEY);
+    mbedtls_mpi_read_binary(&b, pBaseSecret, BTC_SZ_PRIVKEY);
     ret = mbedtls_mpi_add_mpi(&a, &a, &b);
     if (ret) {
         goto LABEL_EXIT;
@@ -111,18 +111,18 @@ bool HIDDEN ln_derkey_privkey(uint8_t *pPrivKey,
     if (ret) {
         goto LABEL_EXIT;
     }
-    ret = mbedtls_mpi_write_binary(&a, pPrivKey, PTARM_SZ_PRIVKEY);
+    ret = mbedtls_mpi_write_binary(&a, pPrivKey, BTC_SZ_PRIVKEY);
     if (ret) {
         goto LABEL_EXIT;
     }
 
 #ifdef M_DBG_PRINT
     LOGD("(priv)SHA256(per_commitment_point |+ basepoint)\n=> SHA256(");
-    DUMPD(pPerCommitPoint, PTARM_SZ_PUBKEY);
+    DUMPD(pPerCommitPoint, BTC_SZ_PUBKEY);
     LOGD2(" |+ ");
-    DUMPD(pBasePoint, PTARM_SZ_PUBKEY);
+    DUMPD(pBasePoint, BTC_SZ_PUBKEY);
     LOGD2(" ==> (priv)");
-    DUMPD(pBaseSecret, PTARM_SZ_PRIVKEY);
+    DUMPD(pBaseSecret, BTC_SZ_PRIVKEY);
 #endif
 
 LABEL_EXIT:
@@ -141,24 +141,24 @@ bool HIDDEN ln_derkey_revocationkey(uint8_t *pRevPubKey,
             const uint8_t *pBasePoint, const uint8_t *pPerCommitPoint)
 {
     int ret;
-    uint8_t base1[PTARM_SZ_HASH256];
-    uint8_t base2[PTARM_SZ_HASH256];
+    uint8_t base1[BTC_SZ_HASH256];
+    uint8_t base2[BTC_SZ_HASH256];
     mbedtls_sha256_context ctx;
     mbedtls_ecp_keypair keypair;
 
     //sha256(revocation-basepoint || per-commitment-point)
     mbedtls_sha256_init(&ctx);
     mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pBasePoint, PTARM_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, PTARM_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
     mbedtls_sha256_finish(&ctx, base1);
     mbedtls_sha256_free(&ctx);
 
     //sha256(per-commitment-point || revocation-basepoint)
     mbedtls_sha256_init(&ctx);
     mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, PTARM_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pBasePoint, PTARM_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
     mbedtls_sha256_finish(&ctx, base2);
     mbedtls_sha256_free(&ctx);
 
@@ -177,12 +177,12 @@ bool HIDDEN ln_derkey_revocationkey(uint8_t *pRevPubKey,
     mbedtls_ecp_keypair_init(&keypair);
 
     mbedtls_mpi_read_binary(&bp1, base1, sizeof(base1));
-    ret = ptarm_util_ecp_point_read_binary2(&S1, pBasePoint);
+    ret = btc_util_ecp_point_read_binary2(&S1, pBasePoint);
     if (ret) {
         goto LABEL_EXIT;
     }
     mbedtls_mpi_read_binary(&bp2, base2, sizeof(base2));
-    ret = ptarm_util_ecp_point_read_binary2(&S2, pPerCommitPoint);
+    ret = btc_util_ecp_point_read_binary2(&S2, pPerCommitPoint);
     if (ret) {
         goto LABEL_EXIT;
     }
@@ -191,15 +191,15 @@ bool HIDDEN ln_derkey_revocationkey(uint8_t *pRevPubKey,
     if (ret) {
         goto LABEL_EXIT;
     }
-    ret = mbedtls_ecp_point_write_binary(&keypair.grp, &S, MBEDTLS_ECP_PF_COMPRESSED, &sz, pRevPubKey, PTARM_SZ_PUBKEY);
+    ret = mbedtls_ecp_point_write_binary(&keypair.grp, &S, MBEDTLS_ECP_PF_COMPRESSED, &sz, pRevPubKey, BTC_SZ_PUBKEY);
 
 #ifdef M_DBG_PRINT
     LOGD("SHA256(revocation_basepoint |x per_commitment_point)\n=> SHA256(");
-    DUMPD(pBasePoint, PTARM_SZ_PUBKEY);
+    DUMPD(pBasePoint, BTC_SZ_PUBKEY);
     LOGD2(" |x ");
-    DUMPD(pPerCommitPoint, PTARM_SZ_PUBKEY);
+    DUMPD(pPerCommitPoint, BTC_SZ_PUBKEY);
     LOGD2(" ==> ");
-    DUMPD(pRevPubKey, PTARM_SZ_PUBKEY);
+    DUMPD(pRevPubKey, BTC_SZ_PUBKEY);
 #endif
 
 LABEL_EXIT:
@@ -222,15 +222,15 @@ bool HIDDEN ln_derkey_revocationprivkey(uint8_t *pRevPrivKey,
             const uint8_t *pBaseSecret, const uint8_t *pPerCommitSecret)
 {
     int ret;
-    uint8_t base2[PTARM_SZ_HASH256];
+    uint8_t base2[BTC_SZ_HASH256];
     mbedtls_sha256_context ctx;
     mbedtls_ecp_keypair keypair;
 
     //sha256(revocation-basepoint || per-commitment-point)
     mbedtls_sha256_init(&ctx);
     mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pBasePoint, PTARM_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, PTARM_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
     mbedtls_sha256_finish(&ctx, pRevPrivKey);
     mbedtls_sha256_free(&ctx);
 
@@ -242,8 +242,8 @@ bool HIDDEN ln_derkey_revocationprivkey(uint8_t *pRevPrivKey,
     mbedtls_mpi_init(&c);
     mbedtls_ecp_keypair_init(&keypair);
 
-    mbedtls_mpi_read_binary(&a, pRevPrivKey, PTARM_SZ_PRIVKEY);
-    mbedtls_mpi_read_binary(&b, pBaseSecret, PTARM_SZ_PRIVKEY);
+    mbedtls_mpi_read_binary(&a, pRevPrivKey, BTC_SZ_PRIVKEY);
+    mbedtls_mpi_read_binary(&b, pBaseSecret, BTC_SZ_PRIVKEY);
     ret = mbedtls_mpi_mul_mpi(&a, &a, &b);
     if (ret) {
         goto LABEL_EXIT;
@@ -252,13 +252,13 @@ bool HIDDEN ln_derkey_revocationprivkey(uint8_t *pRevPrivKey,
     //sha256(per-commitment-point || revocation-basepoint)
     mbedtls_sha256_init(&ctx);
     mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, pPerCommitPoint, PTARM_SZ_PUBKEY);
-    mbedtls_sha256_update(&ctx, pBasePoint, PTARM_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pPerCommitPoint, BTC_SZ_PUBKEY);
+    mbedtls_sha256_update(&ctx, pBasePoint, BTC_SZ_PUBKEY);
     mbedtls_sha256_finish(&ctx, base2);
     mbedtls_sha256_free(&ctx);
 
-    mbedtls_mpi_read_binary(&b, base2, PTARM_SZ_PRIVKEY);
-    mbedtls_mpi_read_binary(&c, pPerCommitSecret, PTARM_SZ_PRIVKEY);
+    mbedtls_mpi_read_binary(&b, base2, BTC_SZ_PRIVKEY);
+    mbedtls_mpi_read_binary(&c, pPerCommitSecret, BTC_SZ_PRIVKEY);
     ret = mbedtls_mpi_mul_mpi(&b, &b, &c);
     if (ret) {
         goto LABEL_EXIT;
@@ -272,20 +272,20 @@ bool HIDDEN ln_derkey_revocationprivkey(uint8_t *pRevPrivKey,
     if (ret) {
         goto LABEL_EXIT;
     }
-    ret = mbedtls_mpi_write_binary(&a, pRevPrivKey, PTARM_SZ_PRIVKEY);
+    ret = mbedtls_mpi_write_binary(&a, pRevPrivKey, BTC_SZ_PRIVKEY);
     if (ret) {
         goto LABEL_EXIT;
     }
 
 #ifdef M_DBG_PRINT
     LOGD("(priv)SHA256(revocation_basepoint |x per_commitment_point) x per_commitment_secret\n=>SHA256(");
-    DUMPD(pBasePoint, PTARM_SZ_PUBKEY);
+    DUMPD(pBasePoint, BTC_SZ_PUBKEY);
     LOGD2(" x ");
-    DUMPD(pPerCommitPoint, PTARM_SZ_PUBKEY);
+    DUMPD(pPerCommitPoint, BTC_SZ_PUBKEY);
     LOGD2(" x ");
-    DUMPD(pPerCommitSecret, PTARM_SZ_PRIVKEY);
+    DUMPD(pPerCommitSecret, BTC_SZ_PRIVKEY);
     LOGD2(" ==> (priv)");
-    DUMPD(pRevPrivKey, PTARM_SZ_PRIVKEY);
+    DUMPD(pRevPrivKey, BTC_SZ_PRIVKEY);
 #endif
 
 LABEL_EXIT:
@@ -312,7 +312,7 @@ void HIDDEN ln_derkey_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uin
 void HIDDEN ln_derkey_storage_init(ln_derkey_storage *pStorage)
 {
     for (int lp = 0; lp < 49; lp++) {
-        memset(pStorage->storage[lp].secret, 0xcc, PTARM_SZ_PRIVKEY);
+        memset(pStorage->storage[lp].secret, 0xcc, BTC_SZ_PRIVKEY);
         pStorage->storage[lp].index = 0x123456789abc;
     }
 }
@@ -333,20 +333,20 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const u
     //    known[B].index = I
     //    known[B].secret = secret
     //
-    uint8_t output[PTARM_SZ_PRIVKEY];
+    uint8_t output[BTC_SZ_PRIVKEY];
 
     int bit = where_to_put_secret(Index);
     LOGD("I=%" PRIx64 ", bit=%d\n", Index, bit);
     for (int lp = 0; lp < bit; lp++) {
         derive_secret(output, pSecret, bit-1, pStorage->storage[lp].index);
-        if (memcmp(output, pStorage->storage[lp].secret, PTARM_SZ_PRIVKEY) != 0) {
+        if (memcmp(output, pStorage->storage[lp].secret, BTC_SZ_PRIVKEY) != 0) {
             //error
             LOGD("fail: secret mismatch(I=%" PRIx64 "), bit=%d\n", Index, bit);
             assert(0);
             return false;
         }
     }
-    memcpy(pStorage->storage[bit].secret, pSecret, PTARM_SZ_PRIVKEY);
+    memcpy(pStorage->storage[bit].secret, pSecret, BTC_SZ_PRIVKEY);
     pStorage->storage[bit].index = Index;
 
     return true;
@@ -369,7 +369,7 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
         const uint64_t MASK = ~(((uint64_t)1 << lp) - (uint64_t)1);
         if ((uint64_t)(Index & MASK) == pStorage->storage[lp].index) {
             if (Index == pStorage->storage[lp].index) {
-                memcpy(pSecret, pStorage->storage[lp].secret, PTARM_SZ_PRIVKEY);
+                memcpy(pSecret, pStorage->storage[lp].secret, BTC_SZ_PRIVKEY);
             } else {
                 uint64_t diff = Index - pStorage->storage[lp].index;
                 derive_secret(pSecret, pStorage->storage[lp].secret, lp, diff);
@@ -391,7 +391,7 @@ bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_stora
  */
 static void derive_secret(uint8_t *pOutput, const uint8_t *pBase, int bit, uint64_t Index)
 {
-    uint8_t output[PTARM_SZ_SHA256];
+    uint8_t output[BTC_SZ_SHA256];
 
     //generate_from_seed(seed, I):
     //    P = seed
@@ -400,14 +400,14 @@ static void derive_secret(uint8_t *pOutput, const uint8_t *pBase, int bit, uint6
     //            flip(B) in P
     //            P = SHA256(P)
     //    return P
-    memcpy(output, pBase, PTARM_SZ_SHA256);
+    memcpy(output, pBase, BTC_SZ_SHA256);
     for (int lp = bit; lp >= 0; lp--) {
         if (Index & ((uint64_t)1 << lp)) {
             output[lp / 8] ^= (1 << (lp % 8));
-            ptarm_util_sha256(output, output, PTARM_SZ_SHA256);
+            btc_util_sha256(output, output, BTC_SZ_SHA256);
         }
     }
-    memcpy(pOutput, output, PTARM_SZ_SHA256);
+    memcpy(pOutput, output, BTC_SZ_SHA256);
 }
 
 

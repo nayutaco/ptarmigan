@@ -9,13 +9,13 @@ class bolt8test: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, true);
+        utl_dbg_malloc_cnt_reset();
+        btc_init(BTC_TESTNET, true);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
-        ptarm_term();
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
+        btc_term();
     }
 
 public:
@@ -84,7 +84,7 @@ TEST_F(bolt8test, initiator)
     self.noise_recv.nonce = 10;
 
     //Act One send
-    ptarm_buf_t buf = PTARM_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
     ASSERT_EQ(10, self.noise_send.nonce);
@@ -103,7 +103,7 @@ TEST_F(bolt8test, initiator)
     ASSERT_EQ(sizeof(OUTPUT_1S), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1S, buf.buf, sizeof(OUTPUT_1S)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
 
     //Act Two Receivce and Act Three Send
@@ -117,7 +117,7 @@ TEST_F(bolt8test, initiator)
         0x58, 0x3c, 0x9e, 0xf6, 0xea, 0xfc, 0xa3, 0xf7,
         0x30, 0xae,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
+    utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
@@ -136,7 +136,7 @@ TEST_F(bolt8test, initiator)
     ASSERT_EQ(sizeof(OUTPUT_2S), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_2S, buf.buf, sizeof(OUTPUT_2S)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     const uint8_t SK[] = {
         0x96, 0x9a, 0xb3, 0x1b, 0x4d, 0x28, 0x8c, 0xed,
@@ -213,7 +213,7 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
 
     //Act One send
-    ptarm_buf_t buf = PTARM_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
@@ -229,7 +229,7 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
     ASSERT_EQ(sizeof(OUTPUT_1S), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1S, buf.buf, sizeof(OUTPUT_1S)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
 
     //Act Two Receivce
@@ -243,13 +243,13 @@ TEST_F(bolt8test, initiator_fail_act2_short_read)
         0x58, 0x3c, 0x9e, 0xf6, 0xea, 0xfc, 0xa3, 0xf7,
         0x30,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
+    utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -308,7 +308,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
 
     //Act One send
-    ptarm_buf_t buf = PTARM_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
@@ -324,7 +324,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
     ASSERT_EQ(sizeof(OUTPUT_1S), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1S, buf.buf, sizeof(OUTPUT_1S)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
 
     //Act Two Receivce
@@ -338,13 +338,13 @@ TEST_F(bolt8test, initiator_fail_act2_bad_version)
         0x58, 0x3c, 0x9e, 0xf6, 0xea, 0xfc, 0xa3, 0xf7,
         0x30, 0xae,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
+    utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -403,7 +403,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
 
     //Act One send
-    ptarm_buf_t buf = PTARM_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
@@ -419,7 +419,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
     ASSERT_EQ(sizeof(OUTPUT_1S), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1S, buf.buf, sizeof(OUTPUT_1S)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
 
     //Act Two Receivce
@@ -433,13 +433,13 @@ TEST_F(bolt8test, initiator_fail_act2_bad_key_serialization)
         0x58, 0x3c, 0x9e, 0xf6, 0xea, 0xfc, 0xa3, 0xf7,
         0x30, 0xae,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
+    utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -498,7 +498,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
     memcpy(pBolt->e.pub, EPUB, sizeof(EPUB));
 
     //Act One send
-    ptarm_buf_t buf = PTARM_BUF_INIT;
+    utl_buf_t buf = UTL_BUF_INIT;
     ret = ln_enc_auth_handshake_start(&self, &buf, RS_PUB);
     ASSERT_TRUE(ret);
 
@@ -514,7 +514,7 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
     ASSERT_EQ(sizeof(OUTPUT_1S), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1S, buf.buf, sizeof(OUTPUT_1S)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
 
     //Act Two Receivce
@@ -528,13 +528,13 @@ TEST_F(bolt8test, initiator_fail_act2_bad_mac)
         0x58, 0x3c, 0x9e, 0xf6, 0xea, 0xfc, 0xa3, 0xf7,
         0x30, 0xaf,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
+    utl_buf_alloccopy(&buf, INPUT_2S, sizeof(INPUT_2S));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -592,8 +592,8 @@ TEST_F(bolt8test, responder)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
@@ -614,7 +614,7 @@ TEST_F(bolt8test, responder)
     ASSERT_EQ(sizeof(OUTPUT_1R), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1R, buf.buf, sizeof(OUTPUT_1R)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //Act Three Receive
     //input: 0x00b9e3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa22355361aa02e55a8fc28fef5bd6d71ad0c38228dc68b1c466263b47fdf31e560e139ba
@@ -629,7 +629,7 @@ TEST_F(bolt8test, responder)
         0x63, 0xb4, 0x7f, 0xdf, 0x31, 0xe5, 0x60, 0xe1,
         0x39, 0xba,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
+    utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
@@ -652,7 +652,7 @@ TEST_F(bolt8test, responder)
     ASSERT_EQ(0, self.noise_recv.nonce);
     ASSERT_EQ(0, self.p_handshake);
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -708,13 +708,13 @@ TEST_F(bolt8test, responder_act1_short_read)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -770,14 +770,14 @@ TEST_F(bolt8test, responder_act1_bad_version)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -833,14 +833,14 @@ TEST_F(bolt8test, responder_act1_bad_key_serialization)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -896,14 +896,14 @@ TEST_F(bolt8test, responder_act1_bad_mac)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6b,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -959,8 +959,8 @@ TEST_F(bolt8test, responder_act3_bad_version)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
@@ -979,7 +979,7 @@ TEST_F(bolt8test, responder_act3_bad_version)
     ASSERT_EQ(sizeof(OUTPUT_1R), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1R, buf.buf, sizeof(OUTPUT_1R)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //Act Three Receive
     //input: 0x01b9e3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa22355361aa02e55a8fc28fef5bd6d71ad0c38228dc68b1c466263b47fdf31e560e139ba
@@ -994,13 +994,13 @@ TEST_F(bolt8test, responder_act3_bad_version)
        0x63, 0xb4, 0x7f, 0xdf, 0x31, 0xe5, 0x60, 0xe1,
        0x39, 0xba,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
+    utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -1056,8 +1056,8 @@ TEST_F(bolt8test, responder_act3_short_read)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
@@ -1076,7 +1076,7 @@ TEST_F(bolt8test, responder_act3_short_read)
     ASSERT_EQ(sizeof(OUTPUT_1R), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1R, buf.buf, sizeof(OUTPUT_1R)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //Act Three Receive
     //input: 0x00b9e3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa22355361aa02e55a8fc28fef5bd6d71ad0c38228dc68b1c466263b47fdf31e560e139
@@ -1091,13 +1091,13 @@ TEST_F(bolt8test, responder_act3_short_read)
        0x63, 0xb4, 0x7f, 0xdf, 0x31, 0xe5, 0x60, 0xe1,
        0x39,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
+    utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -1153,8 +1153,8 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
@@ -1173,7 +1173,7 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
     ASSERT_EQ(sizeof(OUTPUT_1R), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1R, buf.buf, sizeof(OUTPUT_1R)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //Act Three Receive
     //input: 0x00c9e3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa22355361aa02e55a8fc28fef5bd6d71ad0c38228dc68b1c466263b47fdf31e560e139ba
@@ -1188,13 +1188,13 @@ TEST_F(bolt8test, responder_act3_bad_mac_cipher)
        0x63, 0xb4, 0x7f, 0xdf, 0x31, 0xe5, 0x60, 0xe1,
        0x39, 0xba,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
+    utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -1250,8 +1250,8 @@ TEST_F(bolt8test, responder_act3_bad_rs)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
@@ -1270,7 +1270,7 @@ TEST_F(bolt8test, responder_act3_bad_rs)
     ASSERT_EQ(0, memcmp(OUTPUT_1R, buf.buf, sizeof(OUTPUT_1R)));
     ASSERT_TRUE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //Act Three Receive
     //input: 0x00bfe3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa2235536ad09a8ee351870c2bb7f78b754a26c6cef79a98d25139c856d7efd252c2ae73c
@@ -1285,13 +1285,13 @@ TEST_F(bolt8test, responder_act3_bad_rs)
        0x9c, 0x85, 0x6d, 0x7e, 0xfd, 0x25, 0x2c, 0x2a,
        0xe7, 0x3c,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
+    utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -1347,8 +1347,8 @@ TEST_F(bolt8test, responder_act3_bad_mac)
         0x1f, 0x58, 0xb8, 0xaf, 0xe6, 0xc1, 0x95, 0x78,
         0x2c, 0x6a,
     };
-    ptarm_buf_t buf;
-    ptarm_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
+    utl_buf_t buf;
+    utl_buf_alloccopy(&buf, INPUT_1R, sizeof(INPUT_1R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(WAIT_ACT_THREE, pBolt->state);
@@ -1367,7 +1367,7 @@ TEST_F(bolt8test, responder_act3_bad_mac)
     ASSERT_EQ(sizeof(OUTPUT_1R), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT_1R, buf.buf, sizeof(OUTPUT_1R)));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //Act Three Receive
     //input: 0x00b9e3a702e93e3a9948c2ed6e5fd7590a6e1c3a0344cfc9d5b57357049aa22355361aa02e55a8fc28fef5bd6d71ad0c38228dc68b1c466263b47fdf31e560e139bb
@@ -1382,13 +1382,13 @@ TEST_F(bolt8test, responder_act3_bad_mac)
        0x63, 0xb4, 0x7f, 0xdf, 0x31, 0xe5, 0x60, 0xe1,
        0x39, 0xbb,
     };
-    ptarm_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
+    utl_buf_alloccopy(&buf, INPUT_3R, sizeof(INPUT_3R));
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
     ASSERT_EQ(0, self.p_handshake);
     ASSERT_FALSE(ln_enc_auth_handshake_state(&self));
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     ret = ln_enc_auth_handshake_recv(&self, &buf);
     ASSERT_FALSE(ret);
@@ -1434,12 +1434,12 @@ TEST_F(bolt8test, enc_dec)
     self_dec.noise_send.nonce = 0;
     self_dec.noise_recv.nonce = 0;
 
-    ptarm_buf_t bufin;
-    ptarm_buf_t buf = PTARM_BUF_INIT;
-    ptarm_buf_t buf_dec;
+    utl_buf_t bufin;
+    utl_buf_t buf = UTL_BUF_INIT;
+    utl_buf_t buf_dec;
     uint16_t len;
 
-    ptarm_buf_alloccopy(&bufin, (const uint8_t *)"hello", 5);
+    utl_buf_alloccopy(&bufin, (const uint8_t *)"hello", 5);
 
     // 0
     ret = ln_enc_auth_enc(&self, &buf, &bufin);
@@ -1454,17 +1454,17 @@ TEST_F(bolt8test, enc_dec)
     };
     ASSERT_EQ(sizeof(OUTPUT0), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT0, buf.buf, sizeof(OUTPUT0)));
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //dec
     len = ln_enc_auth_dec_len(&self_dec, OUTPUT0, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
-    ptarm_buf_alloccopy(&buf_dec, OUTPUT0 + LN_SZ_NOISE_HEADER, len);
+    utl_buf_alloccopy(&buf_dec, OUTPUT0 + LN_SZ_NOISE_HEADER, len);
     ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
-    ptarm_buf_free(&buf_dec);
+    utl_buf_free(&buf_dec);
 
 
     int count = 0;
@@ -1482,17 +1482,17 @@ TEST_F(bolt8test, enc_dec)
     };
     ASSERT_EQ(sizeof(OUTPUT1), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT1, buf.buf, sizeof(OUTPUT1)));
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //dec
     len = ln_enc_auth_dec_len(&self_dec, OUTPUT1, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
-    ptarm_buf_alloccopy(&buf_dec, OUTPUT1 + LN_SZ_NOISE_HEADER, len);
+    utl_buf_alloccopy(&buf_dec, OUTPUT1 + LN_SZ_NOISE_HEADER, len);
     ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
-    ptarm_buf_free(&buf_dec);
+    utl_buf_free(&buf_dec);
 
     count++;
     ASSERT_EQ(1, count);
@@ -1505,14 +1505,14 @@ TEST_F(bolt8test, enc_dec)
         //dec
         len = ln_enc_auth_dec_len(&self_dec, buf.buf, LN_SZ_NOISE_HEADER);
         ASSERT_EQ(5 + 16, len);
-        ptarm_buf_alloccopy(&buf_dec, buf.buf + LN_SZ_NOISE_HEADER, len);
+        utl_buf_alloccopy(&buf_dec, buf.buf + LN_SZ_NOISE_HEADER, len);
         ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
         ASSERT_TRUE(ret);
         ASSERT_EQ(5, buf_dec.len);
         ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
-        ptarm_buf_free(&buf_dec);
+        utl_buf_free(&buf_dec);
 
-        ptarm_buf_free(&buf);
+        utl_buf_free(&buf);
         count++;
     }
 
@@ -1536,17 +1536,17 @@ TEST_F(bolt8test, enc_dec)
     };
     ASSERT_EQ(sizeof(OUTPUT500), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT500, buf.buf, sizeof(OUTPUT500)));
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //dec
     len = ln_enc_auth_dec_len(&self_dec, OUTPUT500, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
-    ptarm_buf_alloccopy(&buf_dec, OUTPUT500 + LN_SZ_NOISE_HEADER, len);
+    utl_buf_alloccopy(&buf_dec, OUTPUT500 + LN_SZ_NOISE_HEADER, len);
     ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
-    ptarm_buf_free(&buf_dec);
+    utl_buf_free(&buf_dec);
 
     count++;
     ASSERT_EQ(500, count);
@@ -1564,17 +1564,17 @@ TEST_F(bolt8test, enc_dec)
     };
     ASSERT_EQ(sizeof(OUTPUT501), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT501, buf.buf, sizeof(OUTPUT501)));
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //dec
     len = ln_enc_auth_dec_len(&self_dec, OUTPUT501, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
-    ptarm_buf_alloccopy(&buf_dec, OUTPUT501 + LN_SZ_NOISE_HEADER, len);
+    utl_buf_alloccopy(&buf_dec, OUTPUT501 + LN_SZ_NOISE_HEADER, len);
     ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
-    ptarm_buf_free(&buf_dec);
+    utl_buf_free(&buf_dec);
 
     count++;
     ASSERT_EQ(501, count);
@@ -1587,14 +1587,14 @@ TEST_F(bolt8test, enc_dec)
         //dec
         len = ln_enc_auth_dec_len(&self_dec, buf.buf, LN_SZ_NOISE_HEADER);
         ASSERT_EQ(5 + 16, len);
-        ptarm_buf_alloccopy(&buf_dec, buf.buf + LN_SZ_NOISE_HEADER, len);
+        utl_buf_alloccopy(&buf_dec, buf.buf + LN_SZ_NOISE_HEADER, len);
         ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
         ASSERT_TRUE(ret);
         ASSERT_EQ(5, buf_dec.len);
         ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
-        ptarm_buf_free(&buf_dec);
+        utl_buf_free(&buf_dec);
 
-        ptarm_buf_free(&buf);
+        utl_buf_free(&buf);
         count++;
     }
 
@@ -1616,17 +1616,17 @@ TEST_F(bolt8test, enc_dec)
     };
     ASSERT_EQ(sizeof(OUTPUT1000), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT1000, buf.buf, sizeof(OUTPUT1000)));
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //dec
     len = ln_enc_auth_dec_len(&self_dec, OUTPUT1000, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
-    ptarm_buf_alloccopy(&buf_dec, OUTPUT1000 + LN_SZ_NOISE_HEADER, len);
+    utl_buf_alloccopy(&buf_dec, OUTPUT1000 + LN_SZ_NOISE_HEADER, len);
     ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
-    ptarm_buf_free(&buf_dec);
+    utl_buf_free(&buf_dec);
 
     count++;
     ASSERT_EQ(1000, count);
@@ -1644,20 +1644,20 @@ TEST_F(bolt8test, enc_dec)
     };
     ASSERT_EQ(sizeof(OUTPUT1001), buf.len);
     ASSERT_EQ(0, memcmp(OUTPUT1001, buf.buf, sizeof(OUTPUT1001)));
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 
     //dec
     len = ln_enc_auth_dec_len(&self_dec, OUTPUT1001, LN_SZ_NOISE_HEADER);
     ASSERT_EQ(5 + 16, len);
-    ptarm_buf_alloccopy(&buf_dec, OUTPUT1001 + LN_SZ_NOISE_HEADER, len);
+    utl_buf_alloccopy(&buf_dec, OUTPUT1001 + LN_SZ_NOISE_HEADER, len);
     ret = ln_enc_auth_dec_msg(&self_dec, &buf_dec);
     ASSERT_TRUE(ret);
     ASSERT_EQ(5, buf_dec.len);
     ASSERT_EQ(0, memcmp(buf_dec.buf, "hello", 5));
-    ptarm_buf_free(&buf_dec);
+    utl_buf_free(&buf_dec);
 
     count++;
     ASSERT_EQ(1001, count);
 
-    ptarm_buf_free(&bufin);
+    utl_buf_free(&bufin);
 }

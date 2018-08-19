@@ -9,13 +9,13 @@ class sw_native: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, true);
+        utl_dbg_malloc_cnt_reset();
+        btc_init(BTC_TESTNET, true);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
-        ptarm_term();
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
+        btc_term();
     }
 
 public:
@@ -49,7 +49,7 @@ TEST_F(sw_native, init)
         0x71, 0x95, 0xb6, 0xf4, 0x6b, 0x14, 0x73, 0x26,
         0xef, 0x9c, 0x55, 0xaa, 0x09, 0x05, 0x6e, 0x01,
     };
-    const ptarm_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
+    const utl_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
     const uint8_t PUB[] = {
         0x02, 0x81, 0x00, 0xca, 0x14, 0xc4, 0x4e, 0x2f,
         0xe3, 0x63, 0xf9, 0x6c, 0xff, 0x64, 0x98, 0x5d,
@@ -57,12 +57,12 @@ TEST_F(sw_native, init)
         0x59, 0x1b, 0xd1, 0x41, 0xde, 0x27, 0x65, 0x66,
         0x24,
     };
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
-    ptarm_vin_t *vin;
-    ptarm_tx_add_vin(&tx, TXID, 5);
-    bool ret = ptarm_sw_set_vin_p2wpkh(&tx, 0, &sig, PUB);
+    btc_vin_t *vin;
+    btc_tx_add_vin(&tx, TXID, 5);
+    bool ret = btc_sw_set_vin_p2wpkh(&tx, 0, &sig, PUB);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, tx.vin_cnt);
     vin = &tx.vin[0];
@@ -73,5 +73,5 @@ TEST_F(sw_native, init)
     ASSERT_EQ(0, memcmp(PUB, vin->witness[1].buf, sizeof(PUB)));
     ASSERT_EQ(sizeof(PUB), vin->witness[1].len);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }

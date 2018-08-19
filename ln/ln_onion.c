@@ -88,7 +88,7 @@ static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, c
 static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Len);
 static void right_shift(uint8_t *pData);
 static void xor_bytes(uint8_t *pResult, const uint8_t *pSrc1, const uint8_t *pSrc2, int Len);
-static void set_reason_sha256(ptarm_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code);
+static void set_reason_sha256(utl_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code);
 
 
 /**************************************************************************
@@ -96,7 +96,7 @@ static void set_reason_sha256(ptarm_push_t *pPushReason, const uint8_t *pPacket,
  **************************************************************************/
 
 bool ln_onion_create_packet(uint8_t *pPacket,
-            ptarm_buf_t *pSecrets,
+            utl_buf_t *pSecrets,
             const ln_hop_datain_t *pHopData,
             int NumHops,
             const uint8_t *pSessionKey,
@@ -113,7 +113,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     uint8_t mu_key[M_SZ_KEYLEN];
 
     //メモリ確保
-    uint8_t *eph_pubkeys = (uint8_t *)M_MALLOC(PTARM_SZ_PUBKEY * NumHops);
+    uint8_t *eph_pubkeys = (uint8_t *)M_MALLOC(BTC_SZ_PUBKEY * NumHops);
     uint8_t *shd_secrets = (uint8_t *)M_MALLOC(M_SZ_SHARED_SECRET * NumHops);
     uint8_t *blind_factors = (uint8_t *)M_MALLOC(M_SZ_BLINDING_FACT * NumHops);
     uint8_t *filler = (uint8_t *)M_MALLOC(M_SZ_HOP_DATA * (LN_HOP_MAX - 1));
@@ -124,32 +124,32 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     //[0]は最初に作る
 
     //セッション鍵のpubkey --> eph_pubkeys[0]
-    ptarm_keys_priv2pub(eph_pubkeys, pSessionKey);
+    btc_keys_priv2pub(eph_pubkeys, pSessionKey);
 
     //セッション鍵とpaymentPathの先頭から作った共有鍵のSHA256 --> shd_secrets[0]
-    ptarm_util_generate_shared_secret(shd_secrets, pHopData[0].pubkey, pSessionKey);
+    btc_util_generate_shared_secret(shd_secrets, pHopData[0].pubkey, pSessionKey);
 
     //eph_pubkeys[0]とshd_secrets[0]から計算 --> blind_factors[0]
     compute_blinding_factor(blind_factors, eph_pubkeys, shd_secrets);
 
     for (int lp = 1; lp < NumHops; lp++) {
         //eph_pubkeys[lp-1] * blind_factors[lp - 1] --> eph_pubkeys[lp]
-        blind_group_element(eph_pubkeys + PTARM_SZ_PUBKEY * lp,
-                            eph_pubkeys + PTARM_SZ_PUBKEY * (lp - 1),
+        blind_group_element(eph_pubkeys + BTC_SZ_PUBKEY * lp,
+                            eph_pubkeys + BTC_SZ_PUBKEY * (lp - 1),
                             blind_factors + M_SZ_BLINDING_FACT * (lp - 1));
 
         //paymentPath[lp] * セッション鍵 --> yToX(公開鍵)
         //yToXにblind_factors[0～lp]までを掛けていった結果をSHA256 --> shd_secrets[lp]
-        uint8_t yToX[PTARM_SZ_PUBKEY];
-        uint8_t buf[PTARM_SZ_PUBKEY];
+        uint8_t yToX[BTC_SZ_PUBKEY];
+        uint8_t buf[BTC_SZ_PUBKEY];
 
         blind_group_element(yToX, pHopData[lp].pubkey, pSessionKey);
         multi_scalar_mul(buf, yToX, blind_factors, lp);
-        ptarm_util_sha256(shd_secrets + M_SZ_SHARED_SECRET * lp, buf, sizeof(buf));
+        btc_util_sha256(shd_secrets + M_SZ_SHARED_SECRET * lp, buf, sizeof(buf));
 
         //SHA256(eph_pubkeys[lp] || shd_secrets[lp]) --> blind_factors[lp]
         compute_blinding_factor(blind_factors + M_SZ_BLINDING_FACT * lp,
-                            eph_pubkeys + PTARM_SZ_PUBKEY * lp,
+                            eph_pubkeys + BTC_SZ_PUBKEY * lp,
                             shd_secrets + M_SZ_SHARED_SECRET * lp);
     }
 
@@ -158,15 +158,15 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     extern uint8_t *spEphPubkey;
     extern uint8_t *spShdSecret;
     extern uint8_t *spBlindFactor;
-    spEphPubkey = (uint8_t *)M_MALLOC(PTARM_SZ_PUBKEY * NumHops);
+    spEphPubkey = (uint8_t *)M_MALLOC(BTC_SZ_PUBKEY * NumHops);
     spShdSecret = (uint8_t *)M_MALLOC(M_SZ_SHARED_SECRET * NumHops);
     spBlindFactor = (uint8_t *)M_MALLOC(M_SZ_BLINDING_FACT * NumHops);
-    memcpy(spEphPubkey, eph_pubkeys, PTARM_SZ_PUBKEY * NumHops);
+    memcpy(spEphPubkey, eph_pubkeys, BTC_SZ_PUBKEY * NumHops);
     memcpy(spShdSecret, shd_secrets, M_SZ_SHARED_SECRET * NumHops);
     memcpy(spBlindFactor, blind_factors, M_SZ_BLINDING_FACT * NumHops);
 
-    extern ptarm_buf_t sOnionBuffer;
-    ptarm_buf_alloccopy(&sOnionBuffer, filler, filler_len);
+    extern utl_buf_t sOnionBuffer;
+    utl_buf_alloccopy(&sOnionBuffer, filler, filler_len);
 #endif  //UNITTEST
 
     memset(next_hmac, 0, sizeof(next_hmac));
@@ -209,16 +209,16 @@ bool ln_onion_create_packet(uint8_t *pPacket,
         if (AssocLen != 0) {
             memcpy(pPacket + M_SZ_ROUTING_INFO, pAssocData, AssocLen);
         }
-        ptarm_util_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, pPacket, M_SZ_ROUTING_INFO + AssocLen);
+        btc_util_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, pPacket, M_SZ_ROUTING_INFO + AssocLen);
     }
 
     pPacket[0] = M_VERSION;
-    memcpy(pPacket + 1, eph_pubkeys, PTARM_SZ_PUBKEY);
-    memcpy(pPacket + 1 + PTARM_SZ_PUBKEY, mix_header, M_SZ_ROUTING_INFO);
-    memcpy(pPacket + 1 + PTARM_SZ_PUBKEY + M_SZ_ROUTING_INFO, next_hmac, M_SZ_HMAC);
+    memcpy(pPacket + 1, eph_pubkeys, BTC_SZ_PUBKEY);
+    memcpy(pPacket + 1 + BTC_SZ_PUBKEY, mix_header, M_SZ_ROUTING_INFO);
+    memcpy(pPacket + 1 + BTC_SZ_PUBKEY + M_SZ_ROUTING_INFO, next_hmac, M_SZ_HMAC);
 
     if (pSecrets) {
-        ptarm_buf_alloccopy(pSecrets, shd_secrets, M_SZ_SHARED_SECRET * NumHops);
+        utl_buf_alloccopy(pSecrets, shd_secrets, M_SZ_SHARED_SECRET * NumHops);
     }
 
     //メモリ解放
@@ -234,8 +234,8 @@ bool ln_onion_create_packet(uint8_t *pPacket,
 
 
 bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
-            ptarm_buf_t *pSharedSecret,
-            ptarm_push_t *pPushReason,
+            utl_buf_t *pSharedSecret,
+            utl_push_t *pPushReason,
             const uint8_t *pPacket,
             const uint8_t *pAssocData, int AssocLen)
 {
@@ -251,10 +251,10 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     }
 
     const uint8_t *p_dhkey = pPacket + 1;
-    const uint8_t *p_route = p_dhkey + PTARM_SZ_PUBKEY;
+    const uint8_t *p_route = p_dhkey + BTC_SZ_PUBKEY;
     const uint8_t *p_hmac = p_route + M_SZ_ROUTING_INFO;
 
-    ret = ptarm_keys_chkpub(p_dhkey);
+    ret = btc_keys_chkpub(p_dhkey);
     if (!ret) {
         LOGD("fail: invalid pubkey\n");
 
@@ -278,7 +278,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     if (AssocLen != 0) {
         memcpy(p_msg + M_SZ_ROUTING_INFO, pAssocData, AssocLen);
     }
-    ptarm_util_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
+    btc_util_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
     if (memcmp(next_hmac, p_hmac, M_SZ_HMAC) != 0) {
         LOGD("fail: hmac not match\n");
         M_FREE(p_msg);
@@ -314,15 +314,15 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     uint8_t blind_factor[M_SZ_BLINDING_FACT];
     compute_blinding_factor(blind_factor, p_dhkey, shared_secret);
 
-    uint8_t eph_pubkey[PTARM_SZ_PUBKEY];
+    uint8_t eph_pubkey[BTC_SZ_PUBKEY];
     blind_group_element(eph_pubkey, p_dhkey, blind_factor);
 
     // [   0]version
     *pNextPacket = *pPacket;
     pNextPacket++;
     // [   1]pubkey
-    memcpy(pNextPacket, eph_pubkey, PTARM_SZ_PUBKEY);
-    pNextPacket += PTARM_SZ_PUBKEY;
+    memcpy(pNextPacket, eph_pubkey, BTC_SZ_PUBKEY);
+    pNextPacket += BTC_SZ_PUBKEY;
     // [  34]route info
     memcpy(pNextPacket, stream_bytes + M_SZ_HOP_DATA, M_SZ_ROUTING_INFO);
     pNextPacket += M_SZ_ROUTING_INFO - M_SZ_HOP_DATA;
@@ -346,16 +346,16 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
         //BOLT#4
         //  Intermediate hops store the shared secret from the forward path
         //      and reuse it to obfuscate the error packet on each hop.
-        ptarm_buf_alloccopy(pSharedSecret, shared_secret, sizeof(shared_secret));
+        utl_buf_alloccopy(pSharedSecret, shared_secret, sizeof(shared_secret));
     }
 
     return true;
 }
 
 
-void ln_onion_failure_create(ptarm_buf_t *pNextPacket,
-            const ptarm_buf_t *pSharedSecret,
-            const ptarm_buf_t *pReason)
+void ln_onion_failure_create(utl_buf_t *pNextPacket,
+            const utl_buf_t *pSharedSecret,
+            const utl_buf_t *pReason)
 {
     //data:
 
@@ -372,12 +372,12 @@ void ln_onion_failure_create(ptarm_buf_t *pNextPacket,
     uint8_t um_key[M_SZ_KEYLEN];
     const int DATALEN = 256;
 
-    ptarm_buf_t     buf_fail;
-    ptarm_push_t    proto;
+    utl_buf_t     buf_fail;
+    utl_push_t    proto;
 
     generate_key(um_key, UM, sizeof(UM), pSharedSecret->buf);
 
-    ptarm_push_init(&proto, &buf_fail, M_SZ_HMAC + 2 + 2 + DATALEN);
+    utl_push_init(&proto, &buf_fail, M_SZ_HMAC + 2 + 2 + DATALEN);
 
     //    [32:hmac]
     proto.pos = M_SZ_HMAC;
@@ -386,7 +386,7 @@ void ln_onion_failure_create(ptarm_buf_t *pNextPacket,
     ln_misc_push16be(&proto, pReason->len);
 
     //    [failure_len:failuremsg]
-    ptarm_push_data(&proto, pReason->buf, pReason->len);
+    utl_push_data(&proto, pReason->buf, pReason->len);
 
     //    [2:pad_len]
     ln_misc_push16be(&proto, DATALEN - pReason->len);
@@ -396,7 +396,7 @@ void ln_onion_failure_create(ptarm_buf_t *pNextPacket,
     proto.pos += DATALEN - pReason->len;
 
     //HMAC
-    ptarm_util_calc_mac(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
+    btc_util_calc_mac(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
 
 #ifdef M_DBG_FAIL
     LOGD("um_key=");
@@ -406,13 +406,13 @@ void ln_onion_failure_create(ptarm_buf_t *pNextPacket,
 #endif  //M_DBG_FAIL
 
     ln_onion_failure_forward(pNextPacket, pSharedSecret, &buf_fail);
-    ptarm_buf_free(&buf_fail);
+    utl_buf_free(&buf_fail);
 }
 
 
-void ln_onion_failure_forward(ptarm_buf_t *pNextPacket,
-            const ptarm_buf_t *pSharedSecret,
-            const ptarm_buf_t *pPacket)
+void ln_onion_failure_forward(utl_buf_t *pNextPacket,
+            const utl_buf_t *pSharedSecret,
+            const utl_buf_t *pPacket)
 {
     uint8_t ammag_key[M_SZ_KEYLEN];
     uint8_t *stream_bytes = (uint8_t *)M_CALLOC(1, pPacket->len);
@@ -423,7 +423,7 @@ void ln_onion_failure_forward(ptarm_buf_t *pNextPacket,
 #endif  //M_DBG_FAIL
 
     generate_key(ammag_key, AMMAG, sizeof(AMMAG), pSharedSecret->buf);
-    ptarm_buf_alloc(pNextPacket, pPacket->len);
+    utl_buf_alloc(pNextPacket, pPacket->len);
     generate_cipher_stream(stream_bytes, ammag_key, pPacket->len);
     xor_bytes(pNextPacket->buf, pPacket->buf, stream_bytes, pPacket->len);
     M_FREE(stream_bytes);
@@ -435,14 +435,14 @@ void ln_onion_failure_forward(ptarm_buf_t *pNextPacket,
 }
 
 
-bool ln_onion_failure_read(ptarm_buf_t *pReason,
+bool ln_onion_failure_read(utl_buf_t *pReason,
             int *pHop,
-            const ptarm_buf_t *pSharedSecrets,
-            const ptarm_buf_t *pPacket)
+            const utl_buf_t *pSharedSecrets,
+            const utl_buf_t *pPacket)
 {
     const uint32_t DATALEN = 256;
 
-    int NumHops = pSharedSecrets->len / PTARM_SZ_PRIVKEY;
+    int NumHops = pSharedSecrets->len / BTC_SZ_PRIVKEY;
     if (pHop != NULL) {
         *pHop = -1;
     }
@@ -453,16 +453,16 @@ bool ln_onion_failure_read(ptarm_buf_t *pReason,
     DUMPD(pSharedSecrets->buf, pSharedSecrets->len);
 #endif  //M_DBG_FAIL
 
-    ptarm_buf_t buf1;
-    ptarm_buf_t buf2 = PTARM_BUF_INIT;
-    ptarm_buf_t reason;
+    utl_buf_t buf1;
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_buf_t reason;
 
-    ptarm_buf_alloccopy(&buf1, pPacket->buf, pPacket->len);
-    const ptarm_buf_t *p_in = &buf1;
-    ptarm_buf_t *p_out = &buf2;
+    utl_buf_alloccopy(&buf1, pPacket->buf, pPacket->len);
+    const utl_buf_t *p_in = &buf1;
+    utl_buf_t *p_out = &buf2;
     bool bend = false;
     for (int lp = 0; lp < NumHops; lp++) {
-        const ptarm_buf_t sharedsecret = { pSharedSecrets->buf + PTARM_SZ_PRIVKEY * lp, PTARM_SZ_PRIVKEY };
+        const utl_buf_t sharedsecret = { pSharedSecrets->buf + BTC_SZ_PRIVKEY * lp, BTC_SZ_PRIVKEY };
         ln_onion_failure_forward(p_out, &sharedsecret, p_in);
         reason.buf = p_out->buf + M_SZ_HMAC + 2;
         reason.len = ln_misc_get16be(p_out->buf + M_SZ_HMAC);
@@ -481,7 +481,7 @@ bool ln_onion_failure_read(ptarm_buf_t *pReason,
                     generate_key(um_key, UM, sizeof(UM), sharedsecret.buf);
 
                     uint8_t hmac[M_SZ_HMAC];
-                    ptarm_util_calc_mac(hmac, um_key, M_SZ_KEYLEN,
+                    btc_util_calc_mac(hmac, um_key, M_SZ_KEYLEN,
                                     p_out->buf + M_SZ_HMAC, p_out->len - M_SZ_HMAC);
 
 #ifdef M_DBG_FAIL
@@ -497,7 +497,7 @@ bool ln_onion_failure_read(ptarm_buf_t *pReason,
                         if (pHop != NULL) {
                             *pHop = lp;
                         }
-                        ptarm_buf_alloccopy(pReason, reason.buf, reason.len);
+                        utl_buf_alloccopy(pReason, reason.buf, reason.len);
                     } else {
                         LOGD("fail: HMAC not match!\n");
 #ifdef M_DBG_FAIL
@@ -516,21 +516,21 @@ bool ln_onion_failure_read(ptarm_buf_t *pReason,
             p_in  = &buf1;
             p_out = &buf2;
         }
-        ptarm_buf_free(p_out);
+        utl_buf_free(p_out);
     }
 
     if (!bend) {
         LOGD("fail reason\n");
     }
 
-    ptarm_buf_free(&buf1);
-    ptarm_buf_free(&buf2);
+    utl_buf_free(&buf1);
+    utl_buf_free(&buf2);
 
     return bend;
 }
 
 
-bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ptarm_buf_t *pReason)
+bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const utl_buf_t *pReason)
 {
     pOnionErr->reason = ((uint16_t)pReason->buf[0] << 8) | pReason->buf[1];
     pOnionErr->p_data = NULL;   //TODO:reasonに応じた結果をmallocして代入
@@ -544,11 +544,11 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ptarm_buf_t *pReason)
 
 /** loop{ PubKey * BlindingFactor[lp] } --> pOutput
  *
- * @param[out]      pResult         PTARM_SZ_PUBKEY
+ * @param[out]      pResult         BTC_SZ_PUBKEY
  */
 static void multi_scalar_mul(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pBlindingFactors, int NumHops)
 {
-    memcpy(pResult, pPubKey, PTARM_SZ_PUBKEY);
+    memcpy(pResult, pPubKey, BTC_SZ_PUBKEY);
     for (int lp = 0; lp < NumHops; lp++) {
         //前の結果公開鍵 * pBlindingFactors[lp] --> 結果公開鍵
         blind_group_element(pResult, pResult, pBlindingFactors + M_SZ_BLINDING_FACT * lp);
@@ -558,11 +558,11 @@ static void multi_scalar_mul(uint8_t *pResult, const uint8_t *pPubKey, const uin
 
 /** PubKey * BlindingFactor --> pResult
  *
- * @param[out]      pResult         PTARM_SZ_PUBKEY
+ * @param[out]      pResult         BTC_SZ_PUBKEY
  */
 static bool blind_group_element(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pBlindingFactor)
 {
-    bool ret = ptarm_util_mul_pubkey(pResult, pPubKey, pBlindingFactor, M_SZ_BLINDING_FACT);
+    bool ret = btc_util_mul_pubkey(pResult, pPubKey, pBlindingFactor, M_SZ_BLINDING_FACT);
     return ret;
 }
 
@@ -573,12 +573,12 @@ static bool blind_group_element(uint8_t *pResult, const uint8_t *pPubKey, const 
  */
 static void compute_blinding_factor(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pSharedSecret)
 {
-    uint8_t array[PTARM_SZ_PUBKEY + M_SZ_SHARED_SECRET];
+    uint8_t array[BTC_SZ_PUBKEY + M_SZ_SHARED_SECRET];
 
     //SHA256: PUBKEY || SharedSecret
-    memcpy(array, pPubKey, PTARM_SZ_PUBKEY);
-    memcpy(array + PTARM_SZ_PUBKEY, pSharedSecret, M_SZ_SHARED_SECRET);
-    ptarm_util_sha256(pResult, array, sizeof(array));
+    memcpy(array, pPubKey, BTC_SZ_PUBKEY);
+    memcpy(array + BTC_SZ_PUBKEY, pSharedSecret, M_SZ_SHARED_SECRET);
+    btc_util_sha256(pResult, array, sizeof(array));
 }
 
 
@@ -617,7 +617,7 @@ static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, c
     //const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
     //int ret = mbedtls_md_hmac(mdinfo, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET, pResult);
     //return ret == 0;
-    return ptarm_util_calc_mac(pResult, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET);
+    return btc_util_calc_mac(pResult, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET);
 }
 
 
@@ -665,11 +665,11 @@ static void xor_bytes(uint8_t *pResult, const uint8_t *pSrc1, const uint8_t *pSr
 /** reason設定()
  *
  */
-static void set_reason_sha256(ptarm_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code)
+static void set_reason_sha256(utl_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code)
 {
     ln_misc_push16be(pPushReason, Code);
     //[32:sha256_of_onion]
-    uint8_t sha256_of_onion[PTARM_SZ_SHA256];
-    ptarm_util_sha256(sha256_of_onion, pPacket, LN_SZ_ONION_ROUTE);
-    ptarm_push_data(pPushReason, sha256_of_onion, sizeof(sha256_of_onion));
+    uint8_t sha256_of_onion[BTC_SZ_SHA256];
+    btc_util_sha256(sha256_of_onion, pPacket, LN_SZ_ONION_ROUTE);
+    utl_push_data(pPushReason, sha256_of_onion, sizeof(sha256_of_onion));
 }

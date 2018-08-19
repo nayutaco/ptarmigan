@@ -205,7 +205,7 @@ void ln_db_node_cur_commit(void *pDb);
  * @param[in]       ShortChannelId
  * @retval      true    成功
  */
-bool ln_db_annocnl_load(ptarm_buf_t *pCnlAnno, uint64_t ShortChannelId);
+bool ln_db_annocnl_load(utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
 
 
 /** channel_announcement書込み
@@ -217,7 +217,7 @@ bool ln_db_annocnl_load(ptarm_buf_t *pCnlAnno, uint64_t ShortChannelId);
  * @param[in]       pChan2          channel_announcementのnode2
  * @retval      true    成功
  */
-bool ln_db_annocnl_save(const ptarm_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId,
+bool ln_db_annocnl_save(const utl_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId,
                         const uint8_t *pChan1, const uint8_t *pChan2);
 
 
@@ -229,7 +229,7 @@ bool ln_db_annocnl_save(const ptarm_buf_t *pCnlAnno, uint64_t ShortChannelId, co
  * @param[in]       Dir                 0:node1, 1:node2
  * @retval      true    成功
  */
-bool ln_db_annocnlupd_load(ptarm_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir);
+bool ln_db_annocnlupd_load(utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir);
 
 
 /** channel_update書込み
@@ -239,7 +239,7 @@ bool ln_db_annocnlupd_load(ptarm_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t 
  * @param[in]       pSendId             channel_updateの送信元/先ノード
  * @retval      true    成功
  */
-bool ln_db_annocnlupd_save(const ptarm_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pSendId);
+bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd, const uint8_t *pSendId);
 
 
 /** channel pruning判定
@@ -325,7 +325,7 @@ bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type,
  * @param[out]      pBuf                    取得したデータ(p_typeに応じて内容は変わる)
  * @retval  true    成功
  */
-bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ptarm_buf_t *pBuf);
+bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
 
 
 /** channel_announcementのないchannel_update削除
@@ -411,7 +411,7 @@ bool ln_db_invoice_drop(void);
  * @param[in]       pNodeId         検索するnode_id
  * @retval      true    成功
  */
-bool ln_db_annonod_load(ptarm_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDb);
+bool ln_db_annonod_load(utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDb);
 
 
 /** node_announcement書込み
@@ -423,7 +423,7 @@ bool ln_db_annonod_load(ptarm_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint
  * @note
  *      - タイムスタンプはAPI呼び出し時の値が保存される
  */
-bool ln_db_annonod_save(const ptarm_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId);
+bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId);
 
 
 /** node_announcement全削除
@@ -470,7 +470,7 @@ void ln_db_annonod_cur_close(void *pCur);
  * @param[out]      pNodeId         node_announcementのnode_id
  * @retval      true    成功
  */
-bool ln_db_annonod_cur_get(void *pCur, ptarm_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
+bool ln_db_annonod_cur_get(void *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
 
 
 ////////////////////
@@ -562,7 +562,7 @@ bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry);
 /** payment_hash保存
  *
  * @param[in]       pPayHash        保存するpayment_hash
- * @param[in]       pVout           pPayHashを含むvoutスクリプトを#ptarm_sw_wit2prog_p2wsh()した結果。大きさはLNL_SZ_WITPROG_WSH。
+ * @param[in]       pVout           pPayHashを含むvoutスクリプトを#btc_sw_wit2prog_p2wsh()した結果。大きさはLNL_SZ_WITPROG_WSH。
  * @param[in]       Type            pVout先のHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
  * @param[in]       Expiry          Expiry
  * @retval  true
@@ -617,7 +617,7 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
  * @param[out]      pGType          (非NULL時)genesis hash type
  * @retval  true    チェックOK
  */
-bool ln_db_ver_check(uint8_t *pMyNodeId, ptarm_genesis_t *pGType);
+bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType);
 
 
 ////////////////////

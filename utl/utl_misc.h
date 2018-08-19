@@ -20,11 +20,11 @@
  *  under the License.
  */
 /**
- * @file    misc.h
- * @brief   miscellaneous
+ * @file    utl_misc.h
+ * @brief   utl_miscellaneous
  */
-#ifndef MISC_H__
-#define MISC_H__
+#ifndef UTL_MISC_H__
+#define UTL_MISC_H__
 
 #include <stdint.h>
 #include <inttypes.h>
@@ -42,10 +42,10 @@ extern "C" {
  **************************************************************************/
 
 #ifdef APP_DEBUG_MEM
-#define APP_MALLOC(a)       misc_dbg_malloc(a); LOGD("APP_MALLOC:%d\n", misc_dbg_malloc_cnt());          ///< malloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
-#define APP_REALLOC         misc_dbg_realloc        ///< realloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
-//#define APP_CALLOC          misc_dbg_calloc         ///< realloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
-#define APP_FREE(ptr)       { misc_dbg_free(ptr); ptr = NULL; LOGD("APP_FREE:%d\n", misc_dbg_malloc_cnt());}        ///< free(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
+#define APP_MALLOC(a)       utl_misc_dbg_malloc(a); LOGD("APP_MALLOC:%d\n", utl_misc_dbg_malloc_cnt());          ///< malloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
+#define APP_REALLOC         utl_misc_dbg_realloc        ///< realloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
+//#define APP_CALLOC          utl_misc_dbg_calloc         ///< realloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
+#define APP_FREE(ptr)       { utl_misc_dbg_free(ptr); ptr = NULL; LOGD("APP_FREE:%d\n", utl_misc_dbg_malloc_cnt());}        ///< free(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
 #else   //APP_DEBUG_MEM
 #define APP_MALLOC          malloc
 #define APP_REALLOC         realloc
@@ -53,7 +53,7 @@ extern "C" {
 #define APP_FREE(ptr)       { free(ptr); ptr = NULL; }
 #endif  //APP_DEBUG_MEM
 
-#define PTARM_SZ_DTSTR          (14)            ///< サイズ:ptarm_util_strftime()  //06/12 09:36:36
+#define UTL_SZ_DTSTR          (14)            ///< サイズ:utl_misc_strftime()  //06/12 09:36:36
 
 
 /**************************************************************************
@@ -64,7 +64,7 @@ extern "C" {
  *
  * @param[in]   slp     スリープする時間[msec]
  */
-static inline void misc_msleep(unsigned long slp) {
+static inline void utl_misc_msleep(unsigned long slp) {
     struct timespec req = { 0, (long)(slp * 1000000UL) };
     nanosleep(&req, NULL);
 }
@@ -75,7 +75,7 @@ static inline void misc_msleep(unsigned long slp) {
  * @param[out]      BinLen      pBin長
  * @param[out]      pStr        元データ
  */
-bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
+bool utl_misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 
 
 /** 16進数文字列から変換(エンディアン反転)
@@ -84,7 +84,7 @@ bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
  * @param[out]      BinLen      pBin長
  * @param[out]      pStr        元データ
  */
-bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
+bool utl_misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 
 
 /** 現在日時取得
@@ -92,7 +92,7 @@ bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
  * @param[out]      pDateTime       現在日時
  * @param[in]       Len             pDataTimeバッファサイズ
  */
-void misc_datetime(char *pDateTime, size_t Len);
+void utl_misc_datetime(char *pDateTime, size_t Len);
 
 
 /** 全データが0x00かのチェック
@@ -101,7 +101,7 @@ void misc_datetime(char *pDateTime, size_t Len);
  * @param[in]       Len                 pData長
  * @retval  true    全データが0x00
  */
-bool misc_all_zero(const void *pData, size_t Len);
+bool utl_misc_all_zero(const void *pData, size_t Len);
 
 
 /** 16進数文字列に変換
@@ -110,7 +110,7 @@ bool misc_all_zero(const void *pData, size_t Len);
  * @param[in]       pBin        元データ
  * @param[in]       BinLen      pBin長
  */
-void ptarm_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+void utl_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
 /** 16進数文字列に変換(エンディアン反転)
@@ -119,25 +119,25 @@ void ptarm_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
  * @param[in]       pBin        元データ
  * @param[in]       BinLen      pBin長
  */
-void ptarm_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
+void utl_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
 
 
 /** 日時文字列
  *
  */
-void ptarm_util_strftime(char *pTmStr, uint32_t Tm);
+void utl_misc_strftime(char *pTmStr, uint32_t Tm);
 
 
 #ifdef APP_DEBUG_MEM
-void *misc_dbg_malloc(size_t size);
-//void *misc_dbg_realloc(void *ptr, size_t size);
-//void *misc_dbg_calloc(size_t blk, size_t size);
-void misc_dbg_free(void *ptr);
-int misc_dbg_malloc_cnt(void);
+void *utl_misc_dbg_malloc(size_t size);
+//void *utl_misc_dbg_realloc(void *ptr, size_t size);
+//void *utl_misc_dbg_calloc(size_t blk, size_t size);
+void utl_misc_dbg_free(void *ptr);
+int utl_misc_dbg_malloc_cnt(void);
 #endif  //APP_DEBUG_MEM
 
 #ifdef __cplusplus
 }
 #endif  //__cplusplus
 
-#endif /* MISC_H__ */
+#endif /* UTL_MISC_H__ */

@@ -56,7 +56,7 @@ typedef struct {
     uint32_t                expiry;                 ///< Expiry
     uint64_t                amount_msat;            ///< amount_msat
     const uint8_t           *preimage_hash;         ///< preimageをHASH160したデータ
-    ptarm_buf_t             script;                 ///< スクリプト
+    utl_buf_t             script;                 ///< スクリプト
 } ln_htlcinfo_t;
 
 
@@ -68,12 +68,12 @@ typedef struct {
         const uint8_t       *txid;              ///< funding txid
         uint32_t            txid_index;         ///< funding txid index
         uint64_t            satoshi;            ///< funding satoshi
-        const ptarm_buf_t   *p_script;          ///< funding script
+        const utl_buf_t   *p_script;          ///< funding script
     } fund;
 
     struct {
         uint64_t            satoshi;            ///< local satoshi
-        const ptarm_buf_t   *p_script;          ///< to-local script
+        const utl_buf_t   *p_script;          ///< to-local script
     } local;
     struct {
         uint64_t            satoshi;            ///< remote satoshi
@@ -110,7 +110,7 @@ uint64_t HIDDEN ln_calc_obscured_txnum(const uint8_t *pOpenBasePt, const uint8_t
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
-void HIDDEN ln_create_script_local(ptarm_buf_t *pBuf,
+void HIDDEN ln_create_script_local(utl_buf_t *pBuf,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalDelayedKey,
                     uint32_t LocalDelay);
@@ -119,8 +119,8 @@ void HIDDEN ln_create_script_local(ptarm_buf_t *pBuf,
 /**
  *
  */
-bool HIDDEN ln_create_tolocal_tx(ptarm_tx_t *pTx,
-                uint64_t Value, const ptarm_buf_t *pScriptPk, uint32_t LockTime,
+bool HIDDEN ln_create_tolocal_tx(btc_tx_t *pTx,
+                uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime,
                 const uint8_t *pTxid, int Index, bool bRevoked);
 
 
@@ -133,7 +133,7 @@ bool HIDDEN ln_create_tolocal_tx(ptarm_tx_t *pTx,
  * @note
  *      - ln_create_script_local()と同じ
  */
-static inline void ln_create_script_success(ptarm_buf_t *pBuf,
+static inline void ln_create_script_success(utl_buf_t *pBuf,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalDelayedKey,
                     uint32_t LocalDelay) {
@@ -150,7 +150,7 @@ static inline void ln_create_script_success(ptarm_buf_t *pBuf,
  * @note
  *      - ln_create_script_local()と同じ
  */
-static inline void ln_create_script_timeout(ptarm_buf_t *pBuf,
+static inline void ln_create_script_timeout(utl_buf_t *pBuf,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalDelayedKey,
                     uint32_t LocalDelay) {
@@ -162,13 +162,13 @@ static inline void ln_create_script_timeout(ptarm_buf_t *pBuf,
  *
  * @param[out]      pBuf
  * @param[in]       pPub        公開鍵 or witnessScript
- * @param[in]       Prefix      PTARM_PREF_xxx
+ * @param[in]       Prefix      BTC_PREF_xxx
  * @retval      true    成功
  * @retval      false   Prefix範囲外
  * @note
  *      - shutdownメッセージ用
  */
-bool HIDDEN ln_create_scriptpkh(ptarm_buf_t *pBuf, const ptarm_buf_t *pPub, int Prefix);
+bool HIDDEN ln_create_scriptpkh(utl_buf_t *pBuf, const utl_buf_t *pPub, int Prefix);
 
 
 /** scriptPubKeyのチェック(P2PKH/P2SH/P2WPKH/P2WSH)
@@ -178,7 +178,7 @@ bool HIDDEN ln_create_scriptpkh(ptarm_buf_t *pBuf, const ptarm_buf_t *pPub, int 
  * @note
  *      - shutdownメッセージ受信用
  */
-bool HIDDEN ln_check_scriptpkh(const ptarm_buf_t *pBuf);
+bool HIDDEN ln_check_scriptpkh(const utl_buf_t *pBuf);
 
 
 /** HTLC情報初期化
@@ -205,7 +205,7 @@ void HIDDEN ln_htlcinfo_free(ln_htlcinfo_t *pHtlcInfo);
  * @param[in]       pPaymentHash        payment_hash[32]
  * @param[in]       Expiry              expiry(HTLC-Success用)
  */
-void HIDDEN ln_create_htlcinfo(ptarm_buf_t *pScript, ln_htlctype_t Type,
+void HIDDEN ln_create_htlcinfo(utl_buf_t *pScript, ln_htlctype_t Type,
                     const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pRemoteHtlcKey,
@@ -237,7 +237,7 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
  * @param[in]       pPrivData
  * @return      true:成功
  */
-bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, ptarm_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local, const ln_self_priv_t *pPrivData);
+bool HIDDEN ln_create_commit_tx(btc_tx_t *pTx, utl_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local, const ln_self_priv_t *pPrivData);
 
 
 /** Offered/Receveid HTLC Transaction作成
@@ -250,7 +250,7 @@ bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, ptarm_buf_t *pSig, const ln_tx_
  * @param[in]       pTxid       vin TXID
  * @param[in]       Index       vin index
  */
-void HIDDEN ln_create_htlc_tx(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pScript,
+void HIDDEN ln_create_htlc_tx(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScript,
                 ln_htlctype_t Type, uint32_t CltvExpiry, const uint8_t *pTxid, int Index);
 
 
@@ -266,12 +266,12 @@ void HIDDEN ln_create_htlc_tx(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t
  * @param[in]       HtlcSign        HTLCSIGN_xxx
  * @return      true:成功
  */
-bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, ptarm_buf_t *pLocalSig,
+bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
                     uint64_t Value,
-                    const ptarm_util_keys_t *pKeys,
-                    const ptarm_buf_t *pRemoteSig,
+                    const btc_util_keys_t *pKeys,
+                    const utl_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
-                    const ptarm_buf_t *pWitScript,
+                    const utl_buf_t *pWitScript,
                     ln_htlcsign_t HtlcSign);
 
 
@@ -286,12 +286,12 @@ bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, ptarm_buf_t *pLocalSig,
  * @param[in]       pWitScript      voutとなるスクリプト
  * @return      true:成功
  */
-bool HIDDEN ln_verify_htlc_tx(const ptarm_tx_t *pTx,
+bool HIDDEN ln_verify_htlc_tx(const btc_tx_t *pTx,
                     uint64_t Value,
                     const uint8_t *pLocalPubKey,
                     const uint8_t *pRemotePubKey,
-                    const ptarm_buf_t *pLocalSig,
-                    const ptarm_buf_t *pRemoteSig,
-                    const ptarm_buf_t *pWitScript);
+                    const utl_buf_t *pLocalSig,
+                    const utl_buf_t *pRemoteSig,
+                    const utl_buf_t *pWitScript);
 
 #endif /* LN_SCRIPT_H__ */

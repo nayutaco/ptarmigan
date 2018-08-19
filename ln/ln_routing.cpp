@@ -101,7 +101,7 @@ typedef graph_traits < graph_t >::vertex_iterator vertex_iterator;
 struct nodes_t {
     uint64_t    short_channel_id;
     struct {
-        uint8_t     node_id[PTARM_SZ_PUBKEY];
+        uint8_t     node_id[BTC_SZ_PUBKEY];
         uint16_t    cltv_expiry_delta;
         uint64_t    htlc_minimum_msat;
         uint32_t    fee_base_msat;
@@ -127,7 +127,7 @@ struct param_self_t {
 static int direction(const uint8_t **ppNode1, const uint8_t **ppNode2, const uint8_t *pNode1, const uint8_t *pNode2)
 {
     int lp2;
-    for (lp2 = 0; lp2 < PTARM_SZ_PUBKEY; lp2++) {
+    for (lp2 = 0; lp2 < BTC_SZ_PUBKEY; lp2++) {
         if (pNode1[lp2] != pNode2[lp2]) {
             break;
         }
@@ -150,7 +150,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-static void dumpit_chan(nodes_result_t *p_result, char type, const ptarm_buf_t *p_buf)
+static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_buf)
 {
     nodes_t *p_nodes;
 
@@ -182,9 +182,9 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const ptarm_buf_t *
         M_DBGLOG("[cnl]nodenum=%d\n", p_result->node_num);
         M_DBGLOG("[cnl]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
         M_DBGLOG("[cnl]node1= ");
-        M_DBGDUMPG(p_nodes->ninfo[0].node_id, PTARM_SZ_PUBKEY);
+        M_DBGDUMPG(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
         M_DBGLOG("[cnl]node2= ");
-        M_DBGDUMPG(p_nodes->ninfo[1].node_id, PTARM_SZ_PUBKEY);
+        M_DBGDUMPG(p_nodes->ninfo[1].node_id, BTC_SZ_PUBKEY);
         break;
     case LN_DB_CNLANNO_UPD1:
     case LN_DB_CNLANNO_UPD2:
@@ -205,9 +205,9 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const ptarm_buf_t *
                     M_DBGLOG("[upd]nodenum=%d\n", p_result->node_num);
                     M_DBGLOG("[upd]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
                     M_DBGLOG("[upd]node1= ");
-                    M_DBGDUMPG(p_nodes->ninfo[0].node_id, PTARM_SZ_PUBKEY);
+                    M_DBGDUMPG(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
                     M_DBGLOG("[upd]node2= ");
-                    M_DBGDUMPG(p_nodes->ninfo[1].node_id, PTARM_SZ_PUBKEY);
+                    M_DBGDUMPG(p_nodes->ninfo[1].node_id, BTC_SZ_PUBKEY);
                 }
             } else {
                 //disableの場合は、対象外にされるよう初期値にしておく
@@ -248,7 +248,7 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
             ln_db_node_cur_commit(p_db_skip);
         }
 
-        if (memcmp(self->peer_node_id, p_prm_self->p_payer, PTARM_SZ_PUBKEY) == 0) {
+        if (memcmp(self->peer_node_id, p_prm_self->p_payer, BTC_SZ_PUBKEY) == 0) {
             return false;
         }
 
@@ -259,8 +259,8 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
         nodes_t *p_nodes_result = &p_prm_self->p_result->p_nodes[p_prm_self->p_result->node_num - 1];
         const uint8_t *p1, *p2;
         direction(&p1, &p2, p_prm_self->p_payer, self->peer_node_id);
-        memcpy(p_nodes_result->ninfo[0].node_id, p1, PTARM_SZ_PUBKEY);
-        memcpy(p_nodes_result->ninfo[1].node_id, p2, PTARM_SZ_PUBKEY);
+        memcpy(p_nodes_result->ninfo[0].node_id, p1, BTC_SZ_PUBKEY);
+        memcpy(p_nodes_result->ninfo[1].node_id, p2, BTC_SZ_PUBKEY);
         for (int lp = 0; lp < 2; lp++) {
             p_nodes_result->ninfo[lp].cltv_expiry_delta = 0;
             p_nodes_result->ninfo[lp].htlc_minimum_msat = 0;
@@ -271,9 +271,9 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
         M_DBGLOG("[self]nodenum=%d\n",  p_prm_self->p_result->node_num);
         M_DBGLOG("[self]short_channel_id: %" PRIx64 "\n", self->short_channel_id);
         M_DBGLOG("[self]p_payer= ");
-        M_DBGDUMPG(p_prm_self->p_payer, PTARM_SZ_PUBKEY);
+        M_DBGDUMPG(p_prm_self->p_payer, BTC_SZ_PUBKEY);
         M_DBGLOG("[self]self->peer_node_id= ");
-        M_DBGDUMPG(self->peer_node_id, PTARM_SZ_PUBKEY);
+        M_DBGDUMPG(self->peer_node_id, BTC_SZ_PUBKEY);
     }
 
     return false;   //false=検索継続
@@ -308,7 +308,7 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
     if (ret) {
         uint64_t short_channel_id;
         char type;
-        ptarm_buf_t buf_cnl = PTARM_BUF_INIT;
+        utl_buf_t buf_cnl = UTL_BUF_INIT;
 
         while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
             void *p_db_skip;
@@ -316,13 +316,13 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
             if (bret) {
                 bret = ln_db_annoskip_search(p_db_skip, short_channel_id);
                 if (bret) {
-                    ptarm_buf_free(&buf_cnl);
+                    utl_buf_free(&buf_cnl);
                     continue;
                 }
             }
 
             dumpit_chan(p_result, type, &buf_cnl);
-            ptarm_buf_free(&buf_cnl);
+            utl_buf_free(&buf_cnl);
         }
     }
 
@@ -339,7 +339,7 @@ static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
 
     std::pair<graph_t::vertex_iterator, graph_t::vertex_iterator> ver_its = vertices(g);
     for (graph_t::vertex_iterator st = ver_its.first, et = ver_its.second; st != et; st++) {
-        if (memcmp(g[*st].p_node, pNodeId, PTARM_SZ_PUBKEY) == 0) {
+        if (memcmp(g[*st].p_node, pNodeId, BTC_SZ_PUBKEY) == 0) {
             ret = true;
             v = *st;
             break;
@@ -392,8 +392,8 @@ lnerr_route_t ln_routing_calculate(
             p_nodes->short_channel_id = pAddRoute[lp].short_channel_id;
             const uint8_t *p1, *p2;
             int dir = direction(&p1, &p2, pAddRoute[lp].node_id, pPayeeId);
-            memcpy(p_nodes->ninfo[0].node_id, p1, PTARM_SZ_PUBKEY);
-            memcpy(p_nodes->ninfo[1].node_id, p2, PTARM_SZ_PUBKEY);
+            memcpy(p_nodes->ninfo[0].node_id, p1, BTC_SZ_PUBKEY);
+            memcpy(p_nodes->ninfo[1].node_id, p2, BTC_SZ_PUBKEY);
             p_nodes->ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定
             p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定
             p_nodes->ninfo[dir].fee_base_msat = pAddRoute[lp].fee_base_msat;
@@ -404,17 +404,17 @@ lnerr_route_t ln_routing_calculate(
 
             M_DBGLOG("  [add]short_channel_id=%016" PRIx64 "\n", pAddRoute[lp].short_channel_id);
             M_DBGLOG("  [add]  [1]");
-            M_DBGDUMPG(p1, PTARM_SZ_PUBKEY);
+            M_DBGDUMPG(p1, BTC_SZ_PUBKEY);
             M_DBGLOG("  [add]  [2]");
-            M_DBGDUMPG(p2, PTARM_SZ_PUBKEY);
+            M_DBGDUMPG(p2, BTC_SZ_PUBKEY);
         }
     }
     LOGD("node_num: %d\n", rt_res.node_num);
 
     LOGD("start nodeid : ");
-    DUMPD(pPayerId, PTARM_SZ_PUBKEY);
+    DUMPD(pPayerId, BTC_SZ_PUBKEY);
     LOGD("end nodeid   : ");
-    DUMPD(pPayeeId, PTARM_SZ_PUBKEY);
+    DUMPD(pPayeeId, BTC_SZ_PUBKEY);
 
     graph_t g;
 
@@ -427,27 +427,27 @@ lnerr_route_t ln_routing_calculate(
     for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
         M_DBGLOG("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
         M_DBGLOG("    [1]");
-        M_DBGDUMPG(rt_res.p_nodes[lp].ninfo[0].node_id, PTARM_SZ_PUBKEY);
+        M_DBGDUMPG(rt_res.p_nodes[lp].ninfo[0].node_id, BTC_SZ_PUBKEY);
         M_DBGLOG("    [2]");
-        M_DBGDUMPG(rt_res.p_nodes[lp].ninfo[1].node_id, PTARM_SZ_PUBKEY);
+        M_DBGDUMPG(rt_res.p_nodes[lp].ninfo[1].node_id, BTC_SZ_PUBKEY);
 
         graph_t::vertex_descriptor node1 = ver_add(g, rt_res.p_nodes[lp].ninfo[0].node_id);
         graph_t::vertex_descriptor node2 = ver_add(g, rt_res.p_nodes[lp].ninfo[1].node_id);
 
         if (!set_start) {
-            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, pPayerId, PTARM_SZ_PUBKEY) == 0) {
+            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, pPayerId, BTC_SZ_PUBKEY) == 0) {
                 pnt_start = node1;
                 set_start = true;
-            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, pPayerId, PTARM_SZ_PUBKEY) == 0) {
+            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, pPayerId, BTC_SZ_PUBKEY) == 0) {
                 pnt_start = node2;
                 set_start = true;
             }
         }
         if (!set_goal) {
-            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, pPayeeId, PTARM_SZ_PUBKEY) == 0) {
+            if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, pPayeeId, BTC_SZ_PUBKEY) == 0) {
                 pnt_goal = node1;
                 set_goal = true;
-            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, pPayeeId, PTARM_SZ_PUBKEY) == 0) {
+            } else if (memcmp(rt_res.p_nodes[lp].ninfo[1].node_id, pPayeeId, BTC_SZ_PUBKEY) == 0) {
                 pnt_goal = node2;
                 set_goal = true;
             }
@@ -551,8 +551,8 @@ lnerr_route_t ln_routing_calculate(
         direction(&p_node_id1, &p_node_id2, p_now, p_next);
         uint64_t sci = 0;
         for (uint32_t lp3 = 0; lp3 < rt_res.node_num; lp3++) {
-            if ( (memcmp(p_node_id1, rt_res.p_nodes[lp3].ninfo[0].node_id, PTARM_SZ_PUBKEY) == 0) &&
-                 (memcmp(p_node_id2, rt_res.p_nodes[lp3].ninfo[1].node_id, PTARM_SZ_PUBKEY) == 0) ) {
+            if ( (memcmp(p_node_id1, rt_res.p_nodes[lp3].ninfo[0].node_id, BTC_SZ_PUBKEY) == 0) &&
+                 (memcmp(p_node_id2, rt_res.p_nodes[lp3].ninfo[1].node_id, BTC_SZ_PUBKEY) == 0) ) {
                 sci = rt_res.p_nodes[lp3].short_channel_id;
                 break;
             }
@@ -565,14 +565,14 @@ lnerr_route_t ln_routing_calculate(
         pResult->hop_datain[lp].short_channel_id = sci;
         pResult->hop_datain[lp].amt_to_forward = msat[lp];
         pResult->hop_datain[lp].outgoing_cltv_value = cltv[lp];
-        memcpy(pResult->hop_datain[lp].pubkey, p_now, PTARM_SZ_PUBKEY);
+        memcpy(pResult->hop_datain[lp].pubkey, p_now, BTC_SZ_PUBKEY);
     }
 
     //最後
     pResult->hop_datain[pResult->hop_num - 1].short_channel_id = 0;
     pResult->hop_datain[pResult->hop_num - 1].amt_to_forward = msat[pResult->hop_num - 1];
     pResult->hop_datain[pResult->hop_num - 1].outgoing_cltv_value = cltv[pResult->hop_num - 1];
-    memcpy(pResult->hop_datain[pResult->hop_num - 1].pubkey, p_next, PTARM_SZ_PUBKEY);
+    memcpy(pResult->hop_datain[pResult->hop_num - 1].pubkey, p_next, BTC_SZ_PUBKEY);
 
     free(rt_res.p_nodes);
 
