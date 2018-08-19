@@ -76,10 +76,12 @@ extern "C" {
 
 #define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
 
-// ln_update_add_htlc_t.flag用
-#define LN_HTLC_FLAG_SEND               (0x01)                      ///< Offered HTLC(add_htlcを送信した)
-#define LN_HTLC_FLAG_RECV               (0x02)                      ///< Received HTLC(add_htlcを受信した)
-#define LN_HTLC_FLAG_COMMIT             (0x80)                      ///< commitment_signed受信済み
+// self.htlc_flag, ln_update_add_htlc_t.flag
+#define LN_HTLC_FLAG_SEND               (0x01)      ///< Offered HTLC(add_htlcを送信した)
+#define LN_HTLC_FLAG_RECV               (0x02)      ///< Received HTLC(add_htlcを受信した)
+#define LN_HTLC_FLAG_COMMIT_SEND        (0x40)      ///< commitment_signed受信済み
+#define LN_HTLC_FLAG_COMMIT_RECV        (0x80)      ///< commitment_signed受信済み
+#define LN_HTLC_FLAG_COMMIT_MASK        (LN_HTLC_FLAG_COMMIT_SEND | LN_HTLC_FLAG_COMMIT_RECV)
 
 // channel_update.flags
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
@@ -142,7 +144,7 @@ extern "C" {
 
 
 //
-// [ptarmcli -d]マクロがtrueになるのが通常動作とする
+// [ptarmcli --debug]true:通常動作(false:デバッグ動作)
 //
 
 // 1: update_fulfill_htlcを返さない
@@ -214,7 +216,7 @@ typedef enum {
     LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
     LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
-    LN_CB_REV_AND_ACK_RECV,     ///< revoke_and_ack受信通知
+    LN_CB_REV_AND_ACK_EXCG,     ///< revoke_and_ack交換通知
     LN_CB_UPDATE_FEE_RECV,      ///< update_fee受信通知
     LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
     LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
@@ -1056,8 +1058,6 @@ struct ln_self_t {
     uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< channel_id
     uint64_t                    short_channel_id;               ///< short_channel_id
     ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< 追加したHTLC
-    uint8_t                     comsig_flag;                    ///< commitment_signedフラグ(M_COMSIG_FLAG_xxx)
-    uint8_t                     revack_flag;                    ///< revoke_and_ackフラグ(M_REVACK_FLAG_xxx)
 
     //ping pong
     uint16_t                    missing_pong_cnt;               ///< ping送信に対してpongを受信しなかった回数
@@ -1548,7 +1548,7 @@ void ln_htlc_fulfillment(ln_self_t *self);
 
 
 /********************************************************************
- * others
+ * ping/pong
  ********************************************************************/
 
 /** ping作成
@@ -1568,6 +1568,27 @@ bool ln_create_ping(ln_self_t *self, ptarm_buf_t *pPing);
  * @retval      true    成功
  */
 bool ln_create_pong(ln_self_t *self, ptarm_buf_t *pPong, uint16_t NumPongBytes);
+
+
+/********************************************************************
+ * others
+ ********************************************************************/
+
+/** 未commit HTLCがあるかどうか
+ *
+ * @param[in]           self            channel情報
+ * @retval  true    commitment_signedを送信していないHTLCあり
+ */
+bool ln_have_needcommit_htlc(const ln_self_t *self);
+
+
+/** HTLCの中に時間切れがあるかどうか
+ *
+ * @param[in]           self            channel情報
+ * @param[in]           Height          現在のブロック高
+ * @retval  true    自分がofferedの時間切れHTLCあり
+ */
+bool ln_have_outdated_htlc(const ln_self_t *self, int32_t Height);
 
 
 /** to_localをINPUTとするトランザクション作成(署名まで実施)

@@ -112,13 +112,18 @@
 #define M_SHDN_FLAG_RECV                    (0x02)          ///< shutdown受信済み
 #define M_SHDN_FLAG_EXCHANGED(flag)         (((flag) & (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)) == (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV))
 
-// ln_self_t.comsig_flag
-#define M_COMSIG_FLAG_SEND                  (0x01)          ///< commitment_signed送信済み
-#define M_COMSIG_FLAG_RECV                  (0x02)          ///< commitment_signed受信済み
-
-// ln_self_t.revack_flag
-#define M_REVACK_FLAG_SEND                  (0x01)          ///< revoke_and_ack送信済み
-#define M_REVACK_FLAG_RECV                  (0x02)          ///< revoke_and_ack受信済み
+// comrev_state()
+#define M_STAT_STABLE                       (0x00)
+#define M_STAT_SENDER                       (0x40)
+#define M_STAT_RECEIVER                     (0x80)
+#define M_STAT_MASK_DIR(f)                  ((f) & 0xf0)
+#define M_STAT_MASK_NUM(f)                  ((f) & 0x0f)
+#define M_STAT_SEND1                        ((uint8_t)(M_STAT_SENDER | 1))
+#define M_STAT_SEND2                        ((uint8_t)(M_STAT_SENDER | 2))
+#define M_STAT_SEND3                        ((uint8_t)(M_STAT_SENDER | 3))
+#define M_STAT_RECV1                        ((uint8_t)(M_STAT_RECEIVER | 1))
+#define M_STAT_RECV2                        ((uint8_t)(M_STAT_RECEIVER | 2))
+#define M_STAT_RECV3                        ((uint8_t)(M_STAT_RECEIVER | 3))
 
 #define M_PONG_MISSING                      (50)            ///< pongが返ってこないエラー上限
 
@@ -303,8 +308,7 @@ static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 
 static void proc_anno_sigs(ln_self_t *self);
-static void proc_commitment_signed(ln_self_t *self, uint8_t Flag);
-static void proc_rev_and_ack(ln_self_t *self, uint8_t Flag);
+static void proc_rev_and_ack(ln_self_t *self);
 
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
@@ -319,7 +323,7 @@ static inline uint8_t ln_sort_to_dir(ptarm_keys_sort_t Sort);
 static void set_error(ln_self_t *self, int Err, const char *pFormat, ...);
 static int commitment_state(const ln_self_t *self);
 static int revocation_state(const ln_self_t *self);
-static int comrev_state(const ln_self_t *self);
+static uint8_t comrev_state(const ln_self_t *self);
 #ifdef M_DBG_COMMITNUM
 static void dbg_commitnum(const ln_self_t *self);
 #endif
@@ -700,13 +704,14 @@ bool ln_create_init(ln_self_t *self, ptarm_buf_t *pInit, bool bHaveCnl)
     ptarm_buf_free(&msg.globalfeatures);
 
     //HTLC確定フラグが立っていないHTLCがあれば、消す
+    M_DBG_COMMITNUM(self);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         if (self->cnl_add_htlc[idx].amount_msat != 0) {
             LOGD("[%d]HTLC(num=%d): id=%" PRIu64 ", flag=%02x, amount_msat=%" PRIu64 "\n", idx, self->htlc_num, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].flag, self->cnl_add_htlc[idx].amount_msat);
-            if ((self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_COMMIT) == 0) {
+            if ((self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_COMMIT_MASK) == 0) {
                 //未確定ならば、消す
                 if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) {
-                    //offeredならば、amountを戻す
+                    //offeredならば、amountを戻し、HTLC idも戻す
                     self->our_msat += self->cnl_add_htlc[idx].amount_msat;
                     self->htlc_num--;
                     self->htlc_id_num--;
@@ -1282,7 +1287,7 @@ bool ln_create_add_htlc(ln_self_t *self,
     int idx;
     ret = check_create_add_htlc(self, &idx, pReason, AmountMsat, CltvValue);
     if (ret) {
-        self->cnl_add_htlc[idx].flag = LN_HTLC_FLAG_SEND;        //送信
+        self->cnl_add_htlc[idx].flag = LN_HTLC_FLAG_SEND;        //送信=offered HTLC
         self->cnl_add_htlc[idx].p_channel_id = self->channel_id;
         self->cnl_add_htlc[idx].id = self->htlc_id_num;
         self->cnl_add_htlc[idx].amount_msat = AmountMsat;
@@ -1340,7 +1345,6 @@ bool ln_create_fulfill_htlc(ln_self_t *self, ptarm_buf_t *pFulfill, uint64_t Id,
             if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_RECV) &&
                  (Id == self->cnl_add_htlc[idx].id) &&
                  (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) ) {
-                //
                 p_add = &self->cnl_add_htlc[idx];
                 break;
             }
@@ -1456,7 +1460,7 @@ bool ln_create_update_fee(ln_self_t *self, ptarm_buf_t *pUpdFee, uint32_t Feerat
 
 
 /********************************************************************
- * others
+ * ping/pong
  ********************************************************************/
 
 bool ln_create_ping(ln_self_t *self, ptarm_buf_t *pPing)
@@ -1502,6 +1506,52 @@ bool ln_create_pong(ln_self_t *self, ptarm_buf_t *pPong, uint16_t NumPongBytes)
 
     pong.byteslen = NumPongBytes;
     bool ret = ln_msg_pong_create(pPong, &pong);
+
+    return ret;
+}
+
+
+/********************************************************************
+ * others
+ ********************************************************************/
+
+/*
+ * cnl_add_htlc[].flagのLN_HTLC_FLAG_COMMITは、以下の場合に立つ
+ *      - commitment_signed受信
+ *      - revoke_and_ack受信
+ */
+bool ln_have_needcommit_htlc(const ln_self_t *self)
+{
+    bool ret = false;
+
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        if ( (self->cnl_add_htlc[lp].amount_msat > 0) &&
+             (self->cnl_add_htlc[lp].flag == LN_HTLC_FLAG_RECV) ) {
+            LOGD("HTLC not commit[%d]\n", lp);
+            ret = true;
+            break;
+        }
+    }
+
+    return ret;
+}
+
+
+bool ln_have_outdated_htlc(const ln_self_t *self, int32_t Height)
+{
+    bool ret = false;
+
+    if (Height > 0) {
+        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+            if ( (self->cnl_add_htlc[lp].amount_msat > 0) &&
+                 (self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_SEND) &&
+                 (self->cnl_add_htlc[lp].cltv_expiry <= (uint32_t)Height) ) {
+                LOGD("HTLC timeouted[%d] expiry:%" PRIu32 " <= height:%" PRId32 "\n", lp, self->cnl_add_htlc[lp].cltv_expiry, Height);
+                ret = true;
+                break;
+            }
+        }
+    }
 
     return ret;
 }
@@ -2637,6 +2687,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //相手のamountから差し引いて、HTLC追加
     self->their_msat -= p_htlc->amount_msat;
     self->htlc_num++;
+    p_htlc->flag = LN_HTLC_FLAG_RECV;       //受信=received HTLC
     LOGD("HTLC add : htlc_num=%d, id=%" PRIx64 ", amount_msat=%" PRIu64 "\n", self->htlc_num, p_htlc->id, p_htlc->amount_msat);
 
     LOGD("  ret=%d\n", ret);
@@ -2838,10 +2889,10 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     self->commit_local.commit_num++;
     M_DBG_COMMITNUM(self);
 
-    //HTLC確定フラグ
+    //commitment_signed受信フラグ
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         if (self->cnl_add_htlc[idx].amount_msat != 0) {
-            self->cnl_add_htlc[idx].flag |= LN_HTLC_FLAG_COMMIT;
+            self->cnl_add_htlc[idx].flag |= LN_HTLC_FLAG_COMMIT_RECV;
         }
     }
 
@@ -2895,8 +2946,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
         //commitment_signed受信通知
         (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, NULL);
 
-        proc_commitment_signed(self, M_COMSIG_FLAG_RECV);
-        proc_rev_and_ack(self, M_REVACK_FLAG_SEND);
+        proc_rev_and_ack(self);
     }
 
 LABEL_EXIT:
@@ -2946,12 +2996,11 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
         goto LABEL_EXIT;
     }
 
-    proc_commitment_signed(self, M_COMSIG_FLAG_SEND);
-
-    //HTLC確定フラグ
+    //commitment_signed送信済みフラグ
+    //  TODO: revoke_and_ack受信＝相手がcommitment_signedを受信したことになるが、送信時に立てるべきか？
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         if (self->cnl_add_htlc[idx].amount_msat != 0) {
-            self->cnl_add_htlc[idx].flag |= LN_HTLC_FLAG_COMMIT;
+            self->cnl_add_htlc[idx].flag |= LN_HTLC_FLAG_COMMIT_SEND;
         }
     }
 
@@ -3012,7 +3061,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     M_DBG_COMMITNUM(self);
     M_DB_SELF_SAVE(self);
 
-    proc_rev_and_ack(self, M_REVACK_FLAG_RECV);
+    proc_rev_and_ack(self);
 
 LABEL_EXIT:
     LOGD("END\n");
@@ -3090,7 +3139,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     }
 
     M_DBG_COMMITNUM(self);
-    int stat = comrev_state(self);
+    uint8_t stat = comrev_state(self);
 
     //BOLT#02
     //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
@@ -3110,7 +3159,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
         M_DBG_COMMITNUM(self);
 
         //1回以上commitment_signedを返している
-        if ((stat & 0x0f) >= 2) {
+        if (M_STAT_MASK_NUM(stat) >= 2) {
             LOGD("resend: commitment_signed\n");
             ptarm_buf_t buf_bolt = PTARM_BUF_INIT;
             bool ret = create_commit_signed(self, &buf_bolt);
@@ -5155,6 +5204,7 @@ static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8
 
     if (self->htlc_num == 0) {
         //no HTLCs
+        LOGD("no htlc\n");
         return false;
     }
 
@@ -5165,7 +5215,7 @@ static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8
     while (ret) {
         bool detect;
         ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);     //from invoice
-        if (detect) {
+        if (ret && detect) {
             ln_calc_preimage_hash(preimage_hash, preimg.preimage);
             for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
                 if ( (self->cnl_add_htlc[lp].amount_msat != 0) &&
@@ -5266,30 +5316,15 @@ static void proc_anno_sigs(ln_self_t *self)
 }
 
 
-/** commitment_signed交換完了後
- *
- */
-static void proc_commitment_signed(ln_self_t *self, uint8_t Flag)
-{
-    self->comsig_flag |= Flag;
-    if (self->comsig_flag == (M_COMSIG_FLAG_SEND | M_COMSIG_FLAG_RECV)) {
-        self->comsig_flag = 0;
-    }
-}
-
-
 /** revoke_and_ack交換完了後
  *
  */
-static void proc_rev_and_ack(ln_self_t *self, uint8_t Flag)
+static void proc_rev_and_ack(ln_self_t *self)
 {
-    self->revack_flag |= Flag;
-    if (self->revack_flag == (M_REVACK_FLAG_SEND | M_REVACK_FLAG_RECV)) {
-
+    uint8_t stat = comrev_state(self);
+    if (stat == M_STAT_STABLE) {
         //revoke_and_ack受信通知
-        (*self->p_callback)(self, LN_CB_REV_AND_ACK_RECV, NULL);
-
-        self->revack_flag = 0;
+        (*self->p_callback)(self, LN_CB_REV_AND_ACK_EXCG, NULL);
 
         uint16_t idx;
         uint8_t preimage[LN_SZ_PREIMAGE];
@@ -5362,7 +5397,8 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
     return ret;
 }
 
-//HTLC削除
+
+//HTLC削除(HTLC idは維持する)
 static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add)
 {
     LOGD("HTLC remove prev: htlc_num=%d\n", self->htlc_num);
@@ -5555,12 +5591,15 @@ static int commitment_state(const ln_self_t *self)
     //state-B: local.commit_num >  remote.commit_num
     //state-C: local.commit_num == remote.commit_num
     int commit_stat;
-    if (self->commit_local.commit_num < self->commit_remote.commit_num) {
+    if (self->commit_local.commit_num == self->commit_remote.commit_num) {
+        commit_stat = 2;    //C
+    } else if (self->commit_local.commit_num + (uint64_t)1 == self->commit_remote.commit_num) {
         commit_stat = 0;    //A
-    } else if (self->commit_local.commit_num > self->commit_remote.commit_num) {
+    } else if (self->commit_local.commit_num > self->commit_remote.commit_num + (uint64_t)1) {
         commit_stat = 1;    //B
     } else {
-        commit_stat = 2;    //C
+        LOGD("err: invalid commit_num\n");
+        commit_stat = -1;
     }
     return commit_stat;
 }
@@ -5575,12 +5614,15 @@ static int revocation_state(const ln_self_t *self)
     //state-b: local.revoke_num >  remote.revoke_num
     //state-c: local.revoke_num == remote.revoke_num
     int revoke_stat;
-    if ((int64_t)self->commit_local.revoke_num < (int64_t)self->commit_remote.revoke_num) {
+    if (self->commit_local.revoke_num == self->commit_remote.revoke_num) {
+        revoke_stat = 2;    //c
+    } else if (self->commit_local.revoke_num + (uint64_t)1 == self->commit_remote.revoke_num) {
         revoke_stat = 0;    //a
-    } else if ((int64_t)self->commit_local.revoke_num > (int64_t)self->commit_remote.revoke_num) {
+    } else if (self->commit_local.revoke_num == self->commit_remote.revoke_num + (uint64_t)1) {
         revoke_stat = 1;    //b
     } else {
-        revoke_stat = 2;    //c
+        LOGD("err: invalid revoke_num\n");
+        revoke_stat = -1;
     }
     return revoke_stat;
 }
@@ -5604,7 +5646,7 @@ static int revocation_state(const ln_self_t *self)
  *          * A送信-B未受信:
  *          * A送信-B受信:
  */
-static int comrev_state(const ln_self_t *self)
+static uint8_t comrev_state(const ln_self_t *self)
 {
     int stat;
     int commit_stat = commitment_state(self);
@@ -5622,27 +5664,27 @@ static int comrev_state(const ln_self_t *self)
     //      3: C-b
     //      4: C-c (stable)
     if ((commit_stat == 2) && (revoke_stat == 2)) {
-        stat = 0;
+        stat = M_STAT_STABLE;
     } else if ((commit_stat == 0) && (revoke_stat == 2)) {
         //      sender-1: A-c
-        stat = 0x01;
+        stat = M_STAT_SEND1;
     } else if ((commit_stat == 0) && (revoke_stat == 0)) {
         //      sender-2: A-a
-        stat = 0x02;
+        stat = M_STAT_SEND2;
     } else if ((commit_stat == 2) && (revoke_stat == 0)) {
         //      sender-3: C-a
-        stat = 0x03;
+        stat = M_STAT_SEND3;
     } else if ((commit_stat == 1) && (revoke_stat == 2)) {
         //      receiver-1: B-c
-        stat = 0x81;
+        stat = M_STAT_RECV1;
     } else if ((commit_stat == 1) && (revoke_stat == 1)) {
         //      receiver-2: B-b
-        stat = 0x82;
+        stat = M_STAT_RECV2;
     } else if ((commit_stat == 2) && (revoke_stat == 1)) {
         //      receiver-3: C-b
-        stat = 0x83;
+        stat = M_STAT_RECV3;
     } else {
-        stat = -1;
+        stat = 0xff;
     }
     return stat;
 }
@@ -5654,7 +5696,7 @@ static int comrev_state(const ln_self_t *self)
  */
 static void dbg_commitnum(const ln_self_t *self)
 {
-    int stat = comrev_state(self);
+    uint8_t stat = comrev_state(self);
     LOGD("------------------------------------------\n");
     LOGD("storage_index      = %" PRIx64 "\n", self->priv_data.storage_index);
     LOGD("peer_storage_index = %" PRIx64 "\n", self->peer_storage_index);
@@ -5671,31 +5713,24 @@ static void dbg_commitnum(const ln_self_t *self)
     LOGD("htlc_id_num: %" PRIu64 "\n", self->htlc_id_num);
     LOGD("------------------------------------------\n");
 
-
-    switch (stat) {
-    case 0x00:
-        LOGD("----> stable(C-c)\n");
-        break;
-    case 0x01:
-        LOGD("----> update message sender-1(A-c)\n");
-        break;
-    case 0x02:
-        LOGD("----> update message sender-2(A-a)\n");
-        break;
-    case 0x03:
-        LOGD("----> update message sender-3(C-a)\n");
-        break;
-    case 0x81:
-        LOGD("----> update message receiver-1(B-c)\n");
-        break;
-    case 0x82:
-        LOGD("----> update message receiver-2(B-b)\n");
-        break;
-    case 0x83:
-        LOGD("----> update message receiver-3(C-b)\n");
-        break;
-    default:
-        LOGD("----> ???\n");
+    if (stat == M_STAT_STABLE) {
+        LOGD("    stable\n");
+    } else {
+        int dir = M_STAT_MASK_DIR(stat);
+        int num = M_STAT_MASK_NUM(stat);
+        switch (dir) {
+        case 0:
+            break;
+        case M_STAT_SENDER:
+            LOGD("    sender-");
+            break;
+        case M_STAT_RECEIVER:
+            LOGD("    receiver-");
+            break;
+        default:
+            LOGD("    ???? ");
+        }
+        LOGD2("%d\n", num);
     }
     LOGD("------------------------------------------\n");
 }

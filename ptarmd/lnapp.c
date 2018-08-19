@@ -513,8 +513,8 @@ LABEL_EXIT:
  * それ以降はrevoke_and_ackを待つ必要がないため、以下のAPIを直接呼び出す。
  *
  * TODO:
- *  - update_fulfill_htlc受信によって、update_fail_htlcを巻き戻す可能性はあるか？
  *  - update_fail_htlc受信は、update_fail_htlc巻き戻し以外になることはあり得るか？
+ *      - update_malformed_htlcを受信した場合、それ以降はupdate_fail_htlcを返すことになる。
  *******************************************/
 
 void lnapp_transfer_channel(lnapp_conf_t *pAppConf, trans_cmd_t Cmd, ptarm_buf_t *pBuf)
@@ -703,7 +703,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
 
         //peer node_id
-        ptarm_util_bin2str(str, p_self->peer_node_id, PTARM_SZ_PUBKEY);
+        ptarm_util_bin2str(str, ln_their_node_id(p_self), PTARM_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //channel_id
         ptarm_util_bin2str(str, ln_channel_id(pAppConf->p_self), LN_SZ_CHANNEL_ID);
@@ -738,7 +738,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));
 
         //peer node_id
-        ptarm_util_bin2str(str, p_self->peer_node_id, PTARM_SZ_PUBKEY);
+        ptarm_util_bin2str(str, ln_their_node_id(p_self), PTARM_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //channel_id
         ptarm_util_bin2str(str, ln_channel_id(pAppConf->p_self), LN_SZ_CHANNEL_ID);
@@ -1828,6 +1828,19 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
         LOGD("funding_tx is spent.\n");
         ln_set_status(p_conf->p_self, LN_STATUS_CLOSING);
         stop_threads(p_conf);
+        return;
+    }
+
+    //HTLC preimage
+//    ln_fulfill_preimage(p_conf->p_self);
+
+    //HTLC outdated
+    int32_t height = btcrpc_getblockcount();
+    bool outdated = ln_have_outdated_htlc(p_conf->p_self, height);
+    if (outdated) {
+        lnapp_save_event(ln_channel_id(p_conf->p_self), "close: bad way(local) by outdated HTLC");
+        (void)monitor_close_unilateral_local(p_conf->p_self, NULL);
+        return;
     }
 
     //DBGTRACE_END
@@ -2163,7 +2176,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
         //    LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
         //    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
-        //    LN_CB_REV_AND_ACK_RECV,     ///< revoke_and_ack受信通知
+        //    LN_CB_REV_AND_ACK_EXCG,     ///< revoke_and_ack受信通知
         //    LN_CB_UPDATE_FEE_RECV,      ///< update_fee受信通知
         //    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
         //    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
@@ -2173,28 +2186,28 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_SET_LATEST_FEERATE,   ///< feerate_per_kw更新要求
         //    LN_CB_GETBLOCKCOUNT,        ///< getblockcount
 
-        { "  LN_CB_ERROR: エラー有り", cb_error_recv },
-        { "  LN_CB_INIT_RECV: init受信", cb_init_recv },
-        { "  LN_CB_REESTABLISH_RECV: channel_reestablish受信", cb_channel_reestablish_recv },
-        { "  LN_CB_SIGN_FUNDINGTX_REQ: funding_tx署名要求", cb_funding_tx_sign },
-        { "  LN_CB_FUNDINGTX_WAIT: funding_tx confirmation待ち要求", cb_funding_tx_wait },
-        { "  LN_CB_FUNDINGLOCKED_RECV: funding_locked受信通知", cb_funding_locked },
-        { NULL/*"  LN_CB_CHANNEL_ANNO_RECV: channel_announcement受信"*/, cb_channel_anno_recv },
-        { NULL/*"  LN_CB_UPDATE_ANNODB: announcement DB更新通知"*/, cb_update_anno_db },
-        { "  LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc処理前", cb_add_htlc_recv_prev },
-        { "  LN_CB_ADD_HTLC_RECV: update_add_htlc受信", cb_add_htlc_recv },
-        { "  LN_CB_FULFILL_HTLC_RECV: update_fulfill_htlc受信", cb_fulfill_htlc_recv },
-        { "  LN_CB_FAIL_HTLC_RECV: update_fail_htlc受信", cb_fail_htlc_recv },
-        { "  LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed処理前", cb_commit_sig_recv_prev },
-        { "  LN_CB_COMMIT_SIG_RECV: commitment_signed受信通知", cb_commit_sig_recv },
-        { "  LN_CB_REV_AND_ACK_RECV: revoke_and_ack受信", cb_rev_and_ack_recv },
-        { "  LN_CB_UPDATE_FEE_RECV: update_fee受信", cb_update_fee_recv },
-        { "  LN_CB_SHUTDOWN_RECV: shutdown受信", cb_shutdown_recv },
-        { "  LN_CB_CLOSED_FEE: closing_signed受信(FEE不一致)", cb_closed_fee },
-        { "  LN_CB_CLOSED: closing_signed受信(FEE一致)", cb_closed },
-        { "  LN_CB_SEND_REQ: 送信要求", cb_send_req },
-        { "  LN_CB_SEND_QUEUE: 送信キュー", cb_send_queue },
-        { "  LN_CB_SET_LATEST_FEERATE: feerate_per_kw更新", cb_set_latest_feerate },
+        { "  LN_CB_ERROR: error receive", cb_error_recv },
+        { "  LN_CB_INIT_RECV: init receive", cb_init_recv },
+        { "  LN_CB_REESTABLISH_RECV: channel_reestablish receive", cb_channel_reestablish_recv },
+        { "  LN_CB_SIGN_FUNDINGTX_REQ: funding_tx sign request", cb_funding_tx_sign },
+        { "  LN_CB_FUNDINGTX_WAIT: funding_tx confirmation wait request", cb_funding_tx_wait },
+        { "  LN_CB_FUNDINGLOCKED_RECV: funding_locked receive", cb_funding_locked },
+        { NULL/*"  LN_CB_CHANNEL_ANNO_RECV: channel_announcement receive"*/, cb_channel_anno_recv },
+        { NULL/*"  LN_CB_UPDATE_ANNODB: announcement DB update"*/, cb_update_anno_db },
+        { "  LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc pre-process", cb_add_htlc_recv_prev },
+        { "  LN_CB_ADD_HTLC_RECV: update_add_htlc receive", cb_add_htlc_recv },
+        { "  LN_CB_FULFILL_HTLC_RECV: update_fulfill_htlc receive", cb_fulfill_htlc_recv },
+        { "  LN_CB_FAIL_HTLC_RECV: update_fail_htlc receive", cb_fail_htlc_recv },
+        { "  LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed pre-process", cb_commit_sig_recv_prev },
+        { "  LN_CB_COMMIT_SIG_RECV: commitment_signed receive", cb_commit_sig_recv },
+        { "  LN_CB_REV_AND_ACK_EXCG: revoke_and_ack exchange", cb_rev_and_ack_recv },
+        { "  LN_CB_UPDATE_FEE_RECV: update_fee receive", cb_update_fee_recv },
+        { "  LN_CB_SHUTDOWN_RECV: shutdown receive", cb_shutdown_recv },
+        { "  LN_CB_CLOSED_FEE: closing_signed receive(not same fee)", cb_closed_fee },
+        { "  LN_CB_CLOSED: closing_signed receive(same fee)", cb_closed },
+        { "  LN_CB_SEND_REQ: send request", cb_send_req },
+        { "  LN_CB_SEND_QUEUE: add send queue", cb_send_queue },
+        { "  LN_CB_SET_LATEST_FEERATE: feerate_per_kw update", cb_set_latest_feerate },
         { "  LN_CB_GETBLOCKCOUNT: getblockcount", cb_getblockcount },
     };
 
@@ -2689,7 +2702,7 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
-/** LN_CB_REV_AND_ACK_RECV: revoke_and_ack受信通知
+/** LN_CB_REV_AND_ACK_EXCG: revoke_and_ack受信通知
  */
 static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
 {
@@ -3958,7 +3971,7 @@ static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, in
         LOGD("their_msat: %" PRIu64 "\n", ln_their_msat(self));
         LOGD("HTLC num: %" PRIu16 "\n", ln_htlc_num(self));
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            const ln_update_add_htlc_t *p_add = &self->cnl_add_htlc[lp];
+            const ln_update_add_htlc_t *p_add = ln_update_add_htlc(self, lp);
             if (p_add->amount_msat > 0) {
                 LOGD("  HTLC[%d]\n", lp);
                 LOGD("    flag= %02x\n", p_add->flag);
