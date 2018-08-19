@@ -5,15 +5,6 @@
 [![Build Status](https://travis-ci.org/nayutaco/ptarmigan.svg?branch=development)](https://travis-ci.org/nayutaco/ptarmigan)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/15128/badge.svg)](https://scan.coverity.com/projects/nayutaco-ptarmigan)
 
-## NOTICE
-
-* 2018/07/23
-  * **rename process name**
-    * `ucoind` --> `ptarmd`
-    * `ucoincli` --> `ptarmcli`
-  * rename many directory names and file names
-    * `ucoin` --> `ptarm`
-
 ## About
 
 * [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
@@ -21,7 +12,7 @@
 
 ## Setup
 
-* bitcoind v0.15/v0.16
+* bitcoind v0.16
   * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
   * nested in BIP16 P2SH
 * Ubuntu 16.04
@@ -88,15 +79,14 @@ make distclean
   * [boost](http://www.boost.org/) (for dijkstra shortest paths)
   * [jq](https://stedolan.github.io/jq/) (for test scripts)
 
-* include
-  * [bech32](https://github.com/nayutaco/bech32) - forked from [sipa/bech32](https://github.com/sipa/bech32)
+* reference code
+  * [sipa/bech32](https://github.com/sipa/bech32)
 
 ### application
 
 * [bitcoind](https://github.com/bitcoin/bitcoin)
   * bitcoin-cli
     * `getnewaddress`
-    * `addwitnessaddress` (only bitcoind v0.15.x)
     * `sendtoaddress`
     * `gettxout`
   * JSON-RPC

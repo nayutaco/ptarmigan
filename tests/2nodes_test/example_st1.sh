@@ -7,7 +7,6 @@ BITCOIND_OPT=
 BITCOIND_VER=`bitcoind --version | grep "Bitcoin Core Daemon" | sed -e 's/Bitcoin Core Daemon version v//' -e 's/\(0.1[5-6]\).*/\1/'`
 if [ "$BITCOIND_VER" = "0.16" ]; then
 	SLEEP_TM=6
-	BITCOIND_OPT="-addresstype=legacy -deprecatedrpc=addwitnessaddress"
 fi
 
 cli() {

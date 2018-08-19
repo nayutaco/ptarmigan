@@ -16,15 +16,13 @@ cli() {
 # fi
 
 ADDR=`cli getnewaddress`
-SEG=`cli addwitnessaddress $ADDR`
-TXID=`cli sendtoaddress $SEG $FUNDIN_BTC`
+TXID=`cli sendtoaddress $ADDR $FUNDIN_BTC`
 echo txid=$TXID
-CNT=`cli gettxout $TXID 0 | grep $SEG | wc -c`
+CNT=`cli gettxout $TXID 0 | grep $ADDR | wc -c`
 if [ $CNT -gt 0 ]; then
 	echo txindex=0
 else
 	echo txindex=1
 fi
-echo signaddr=$ADDR
 echo funding_sat=$FUND_SAT
 echo push_sat=$PUSH_SAT
