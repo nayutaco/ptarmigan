@@ -9,12 +9,12 @@ class recoverpub: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
+        utl_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
         ptarm_term();
     }
 

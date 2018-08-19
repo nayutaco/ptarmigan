@@ -69,9 +69,9 @@ void ptarm_tx_free(ptarm_tx_t *pTx)
     //vin
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ptarm_vin_t *vin = &(pTx->vin[lp]);
-        ptarm_buf_free(&(vin->script));
+        utl_buf_free(&(vin->script));
         for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
-            ptarm_buf_free(&(vin->witness[lp2]));
+            utl_buf_free(&(vin->witness[lp2]));
         }
         if (vin->wit_cnt) {
             M_FREE(vin->witness);
@@ -85,7 +85,7 @@ void ptarm_tx_free(ptarm_tx_t *pTx)
     //vout
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         ptarm_vout_t *vout = &(pTx->vout[lp]);
-        ptarm_buf_free(&(vout->script));
+        utl_buf_free(&(vout->script));
     }
     if (pTx->vout_cnt) {
         M_FREE(pTx->vout);
@@ -106,7 +106,7 @@ ptarm_vin_t *ptarm_tx_add_vin(ptarm_tx_t *pTx, const uint8_t *pTxId, int Index)
 
     memcpy(vin->txid, pTxId, PTARM_SZ_TXID);
     vin->index = Index;
-    ptarm_buf_init(&vin->script);
+    utl_buf_init(&vin->script);
     vin->wit_cnt = 0;
     vin->witness = NULL;
     vin->sequence = 0xffffffff;
@@ -114,13 +114,13 @@ ptarm_vin_t *ptarm_tx_add_vin(ptarm_tx_t *pTx, const uint8_t *pTxId, int Index)
 }
 
 
-ptarm_buf_t *ptarm_tx_add_wit(ptarm_vin_t *pVin)
+utl_buf_t *ptarm_tx_add_wit(ptarm_vin_t *pVin)
 {
-    pVin->witness = (ptarm_buf_t *)M_REALLOC(pVin->witness, sizeof(ptarm_buf_t) * (pVin->wit_cnt + 1));
-    ptarm_buf_t *p_buf = &(pVin->witness[pVin->wit_cnt]);
+    pVin->witness = (utl_buf_t *)M_REALLOC(pVin->witness, sizeof(utl_buf_t) * (pVin->wit_cnt + 1));
+    utl_buf_t *p_buf = &(pVin->witness[pVin->wit_cnt]);
     pVin->wit_cnt++;
 
-    ptarm_buf_init(p_buf);
+    utl_buf_init(p_buf);
     return p_buf;
 }
 
@@ -132,7 +132,7 @@ ptarm_vout_t *ptarm_tx_add_vout(ptarm_tx_t *pTx, uint64_t Value)
     pTx->vout_cnt++;
 
     vout->value = Value;
-    ptarm_buf_init(&vout->script);
+    utl_buf_init(&vout->script);
     vout->opt = 0;
     return vout;
 }
@@ -153,10 +153,10 @@ bool ptarm_tx_add_vout_addr(ptarm_tx_t *pTx, uint64_t Value, const char *pAddr)
 }
 
 
-void ptarm_tx_add_vout_spk(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pScriptPk)
+void ptarm_tx_add_vout_spk(ptarm_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk)
 {
     ptarm_vout_t *vout = ptarm_tx_add_vout(pTx, Value);
-    ptarm_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
+    utl_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
 }
 
 
@@ -174,7 +174,7 @@ bool ptarm_tx_add_vout_p2pkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPu
 }
 
 
-bool ptarm_tx_create_vout(ptarm_buf_t *pBuf, const char *pAddr)
+bool ptarm_tx_create_vout(utl_buf_t *pBuf, const char *pAddr)
 {
     uint8_t pkh[PTARM_SZ_PUBKEYHASH];
     int pref;
@@ -187,7 +187,7 @@ bool ptarm_tx_create_vout(ptarm_buf_t *pBuf, const char *pAddr)
 }
 
 
-bool ptarm_tx_create_vout_p2pkh(ptarm_buf_t *pBuf, const char *pAddr)
+bool ptarm_tx_create_vout_p2pkh(utl_buf_t *pBuf, const char *pAddr)
 {
     uint8_t pkh[PTARM_SZ_PUBKEYHASH];
     int pref;
@@ -220,7 +220,7 @@ bool ptarm_tx_add_vout_p2pkh_addr(ptarm_tx_t *pTx, uint64_t Value, const char *p
 bool ptarm_tx_add_vout_p2sh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
     ptarm_vout_t *vout = ptarm_tx_add_vout(pTx, Value);
-    ptarm_buf_alloc(&vout->script, 2 + PTARM_SZ_HASH160 + 1);
+    utl_buf_alloc(&vout->script, 2 + PTARM_SZ_HASH160 + 1);
     uint8_t *p = vout->script.buf;
 
     p[0] = OP_HASH160;
@@ -246,7 +246,7 @@ bool ptarm_tx_add_vout_p2sh_addr(ptarm_tx_t *pTx, uint64_t Value, const char *pA
 }
 
 
-bool ptarm_tx_add_vout_p2sh_redeem(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pRedeem)
+bool ptarm_tx_add_vout_p2sh_redeem(ptarm_tx_t *pTx, uint64_t Value, const utl_buf_t *pRedeem)
 {
     uint8_t pkh[PTARM_SZ_PUBKEYHASH];
     ptarm_util_hash160(pkh, pRedeem->buf, pRedeem->len);
@@ -255,10 +255,10 @@ bool ptarm_tx_add_vout_p2sh_redeem(ptarm_tx_t *pTx, uint64_t Value, const ptarm_
 }
 
 
-bool ptarm_tx_set_vin_p2pkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig, const uint8_t *pPubKey)
+bool ptarm_tx_set_vin_p2pkh(ptarm_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
     ptarm_vin_t *vin = &(pTx->vin[Index]);
-    ptarm_buf_t *p_buf = &vin->script;
+    utl_buf_t *p_buf = &vin->script;
 
     p_buf->len = 1 + pSig->len + 1 + PTARM_SZ_PUBKEY;
     p_buf->buf = (uint8_t *)M_REALLOC(p_buf->buf, p_buf->len);
@@ -275,10 +275,10 @@ bool ptarm_tx_set_vin_p2pkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig,
 }
 
 
-bool ptarm_tx_set_vin_p2sh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSigs[], int Num, const ptarm_buf_t *pRedeem)
+bool ptarm_tx_set_vin_p2sh(ptarm_tx_t *pTx, int Index, const utl_buf_t *pSigs[], int Num, const utl_buf_t *pRedeem)
 {
     ptarm_vin_t *vin = &(pTx->vin[Index]);
-    ptarm_buf_t *p_buf = &vin->script;
+    utl_buf_t *p_buf = &vin->script;
 
     //OP_0
     //(len + 署名) * 署名数
@@ -412,10 +412,10 @@ bool ptarm_tx_read(ptarm_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 //scriptSig
                 pos += tmp;
                 if (var != 0) {
-                    ptarm_buf_alloccopy(&vin->script, pData + pos, var);
+                    utl_buf_alloccopy(&vin->script, pData + pos, var);
                     pos += vin->script.len;
                 } else {
-                    ptarm_buf_init(&vin->script);
+                    utl_buf_init(&vin->script);
                 }
                 //LOGD("  script[%d]:", vin->script.len);
                 //DUMPD(vin->script.buf, vin->script.len);
@@ -482,10 +482,10 @@ bool ptarm_tx_read(ptarm_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 //scriptPubKey
                 pos += tmp;
                 if (var != 0) {
-                    ptarm_buf_alloccopy(&vout->script, pData + pos, var);
+                    utl_buf_alloccopy(&vout->script, pData + pos, var);
                     pos += vout->script.len;
                 } else {
-                    ptarm_buf_init(&vout->script);
+                    utl_buf_init(&vout->script);
                 }
                 //LOGD("  script[%d]:", vout->script.len);
                 //DUMPD(vout->script.buf, vout->script.len);
@@ -511,7 +511,7 @@ bool ptarm_tx_read(ptarm_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             if ((pos + 4 <= Len) && (tx_cnt < pTx->vin_cnt)) {
                 pos += get_varint(&var, pData + pos);   //item数
                 pTx->vin[tx_cnt].wit_cnt = var;
-                pTx->vin[tx_cnt].witness = (ptarm_buf_t *)M_MALLOC(pTx->vin[tx_cnt].wit_cnt * sizeof(ptarm_buf_t));
+                pTx->vin[tx_cnt].witness = (utl_buf_t *)M_MALLOC(pTx->vin[tx_cnt].wit_cnt * sizeof(utl_buf_t));
             } else {
                 state = 5;
                 break;
@@ -521,8 +521,8 @@ bool ptarm_tx_read(ptarm_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 pos += get_varint(&var, pData + pos);   //データ長
                 //LOGD("   var=%d\n", var);
                 if (pos + var + 4 <= Len) {
-                    ptarm_buf_t *wit = &(pTx->vin[tx_cnt].witness[lp]);
-                    ptarm_buf_alloccopy(wit, pData + pos, var);
+                    utl_buf_t *wit = &(pTx->vin[tx_cnt].witness[lp]);
+                    utl_buf_alloccopy(wit, pData + pos, var);
                     pos += wit->len;
                 } else {
                     LOGD("  out\n");
@@ -551,13 +551,13 @@ bool ptarm_tx_read(ptarm_tx_t *pTx, const uint8_t *pData, uint32_t Len)
 }
 
 
-bool ptarm_tx_create(ptarm_buf_t *pBuf, const ptarm_tx_t *pTx)
+bool ptarm_tx_create(utl_buf_t *pBuf, const ptarm_tx_t *pTx)
 {
     return ptarm_util_create_tx(pBuf, pTx, true);
 }
 
 
-bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const ptarm_buf_t *pScriptPks[], uint32_t Num)
+bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const utl_buf_t *pScriptPks[], uint32_t Num)
 {
     const uint32_t sigtype = (uint32_t)SIGHASH_ALL;
 
@@ -567,7 +567,7 @@ bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const ptarm_buf_t *pScr
     }
 
     //scriptSigをscriptPubKeyで置き換える
-    ptarm_buf_t *tmp_vinbuf = (ptarm_buf_t *)M_MALLOC(sizeof(ptarm_buf_t) * pTx->vin_cnt);
+    utl_buf_t *tmp_vinbuf = (utl_buf_t *)M_MALLOC(sizeof(utl_buf_t) * pTx->vin_cnt);
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ptarm_vin_t *vin = &pTx->vin[lp];
 
@@ -578,7 +578,7 @@ bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const ptarm_buf_t *pScr
         memcpy(vin->script.buf, pScriptPks[lp]->buf, vin->script.len);
     }
 
-    ptarm_buf_t tx;
+    utl_buf_t tx;
     bool ret = ptarm_tx_create(&tx, pTx);
     if (!ret) {
         assert(0);
@@ -588,13 +588,13 @@ bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const ptarm_buf_t *pScr
     memcpy(tx.buf + tx.len, &sigtype, sizeof(sigtype));
     tx.len += sizeof(sigtype);
     ptarm_util_hash256(pTxHash, tx.buf, tx.len);
-    ptarm_buf_free(&tx);
+    utl_buf_free(&tx);
 
     //scriptSigを元に戻す
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         ptarm_vin_t *vin = &pTx->vin[lp];
 
-        ptarm_buf_free(&vin->script);
+        utl_buf_free(&vin->script);
         vin->script.buf = tmp_vinbuf[lp].buf;
         vin->script.len = tmp_vinbuf[lp].len;
     }
@@ -605,7 +605,7 @@ LABEL_EXIT:
 }
 
 
-bool ptarm_tx_sign(ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey)
+bool ptarm_tx_sign(utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey)
 {
     int ret;
     bool bret;
@@ -613,7 +613,7 @@ bool ptarm_tx_sign(ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPr
     unsigned char sig[MBEDTLS_ECDSA_MAX_LEN + 1];   //141 + 1 byte
     size_t slen = 0;
 
-    ptarm_buf_init(pSig);
+    utl_buf_init(pSig);
 
     ret = sign_rs(&r, &s, pTxHash, pPrivKey);
     if (ret) {
@@ -636,7 +636,7 @@ bool ptarm_tx_sign(ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPr
         ret = -1;
         goto LABEL_EXIT;
     }
-    ptarm_buf_alloccopy(pSig, sig, slen);
+    utl_buf_alloccopy(pSig, sig, slen);
 
 LABEL_EXIT:
     mbedtls_mpi_free( &r );
@@ -682,7 +682,7 @@ LABEL_EXIT:
 }
 
 
-bool ptarm_tx_verify(const ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey)
+bool ptarm_tx_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey)
 {
     int ret;
     bool bret;
@@ -781,7 +781,7 @@ bool ptarm_tx_sign_p2pkh(ptarm_tx_t *pTx, int Index,
 {
     bool ret;
     uint8_t pubkey[PTARM_SZ_PUBKEY];
-    ptarm_buf_t sigbuf = PTARM_BUF_INIT;
+    utl_buf_t sigbuf = UTL_BUF_INIT;
 
     if (pPubKey == NULL) {
         ret = ptarm_keys_priv2pub(pubkey, pPrivKey);
@@ -798,7 +798,7 @@ bool ptarm_tx_sign_p2pkh(ptarm_tx_t *pTx, int Index,
     }
 
 LABEL_EXIT:
-    ptarm_buf_free(&sigbuf);
+    utl_buf_free(&sigbuf);
 
     return ret;
 }
@@ -808,9 +808,9 @@ bool ptarm_tx_verify_p2pkh(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxH
 {
     bool ret;
 
-    const ptarm_buf_t *p_scriptsig = (const ptarm_buf_t *)&(pTx->vin[Index].script);
+    const utl_buf_t *p_scriptsig = (const utl_buf_t *)&(pTx->vin[Index].script);
     const uint8_t *p = p_scriptsig->buf;
-    const ptarm_buf_t sig = { (CONST_CAST uint8_t *)(p + 1), *p };      //P2PKHの署名は1byte長で収まる
+    const utl_buf_t sig = { (CONST_CAST uint8_t *)(p + 1), *p };      //P2PKHの署名は1byte長で収まる
     p += *p + 1;
     if (*p != PTARM_SZ_PUBKEY) {
         assert(0);
@@ -830,7 +830,7 @@ LABEL_EXIT:
 }
 
 
-bool ptarm_tx_verify_p2pkh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const ptarm_buf_t *pScriptPk)
+bool ptarm_tx_verify_p2pkh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
     bool ret = false;
 
@@ -873,7 +873,7 @@ bool ptarm_tx_verify_p2pkh_addr(const ptarm_tx_t *pTx, int Index, const uint8_t 
 
 bool ptarm_tx_verify_multisig(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
 {
-    const ptarm_buf_t *p_scriptsig = (const ptarm_buf_t *)&(pTx->vin[Index].script);
+    const utl_buf_t *p_scriptsig = (const utl_buf_t *)&(pTx->vin[Index].script);
     const uint8_t *p = p_scriptsig->buf;
 
     //このvinはP2SHの予定
@@ -985,7 +985,7 @@ bool ptarm_tx_verify_multisig(const ptarm_tx_t *pTx, int Index, const uint8_t *p
         for (int lp2 = 0; lp2 < pubnum; lp2++) {
             if ((chk_pos & (1 << lp2)) == 0) {
                 //未チェック公開鍵
-                const ptarm_buf_t sig = { p_scriptsig->buf + sigpos + 1, *(p_scriptsig->buf + sigpos) };
+                const utl_buf_t sig = { p_scriptsig->buf + sigpos + 1, *(p_scriptsig->buf + sigpos) };
                 ret = *(p_scriptsig->buf + pubpos_now) == PTARM_SZ_PUBKEY;
                 if (ret) {
                     ret = ptarm_tx_verify(&sig, pTxHash, p_scriptsig->buf + pubpos_now + 1);
@@ -1015,7 +1015,7 @@ bool ptarm_tx_verify_multisig(const ptarm_tx_t *pTx, int Index, const uint8_t *p
 }
 
 
-bool ptarm_tx_verify_p2sh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const ptarm_buf_t *pScriptPk)
+bool ptarm_tx_verify_p2sh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
     bool ret = false;
 
@@ -1082,7 +1082,7 @@ bool ptarm_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8
 
 bool ptarm_tx_txid(uint8_t *pTxId, const ptarm_tx_t *pTx)
 {
-    ptarm_buf_t txbuf;
+    utl_buf_t txbuf;
 
     bool ret = ptarm_util_create_tx(&txbuf, pTx, false);
     if (!ret) {
@@ -1090,14 +1090,14 @@ bool ptarm_tx_txid(uint8_t *pTxId, const ptarm_tx_t *pTx)
         goto LABEL_EXIT;
     }
     ptarm_util_hash256(pTxId, txbuf.buf, txbuf.len);
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
 
 LABEL_EXIT:
     return ret;
 }
 
 
-bool ptarm_tx_txid_raw(uint8_t *pTxId, const ptarm_buf_t *pTxRaw)
+bool ptarm_tx_txid_raw(uint8_t *pTxId, const utl_buf_t *pTxRaw)
 {
     ptarm_util_hash256(pTxId, pTxRaw->buf, pTxRaw->len);
     return true;
@@ -1137,7 +1137,7 @@ uint32_t ptarm_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
         //  旧: nVersion            |txins|txouts        |nLockTim
         //  新: nVersion|marker|flag|txins|txouts|witness|nLockTime
         ptarm_tx_t txold = PTARM_TX_INIT;
-        ptarm_buf_t txbuf_old = PTARM_BUF_INIT;
+        utl_buf_t txbuf_old = UTL_BUF_INIT;
 
         ptarm_tx_read(&txold, pData, Len);
 
@@ -1204,7 +1204,7 @@ void ptarm_print_tx(const ptarm_tx_t *pTx)
         LOGD("  value= %llu  : ", (unsigned long long)pTx->vout[lp].value);
         DUMPD(((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value));
         LOGD("    %10.5f mBTC, %10.8f BTC\n", PTARM_SATOSHI2MBTC(pTx->vout[lp].value), PTARM_SATOSHI2BTC(pTx->vout[lp].value));
-        ptarm_buf_t *buf = &(pTx->vout[lp].script);
+        utl_buf_t *buf = &(pTx->vout[lp].script);
         LOGD("  scriptPubKey[%u]= ", buf->len);
         DUMPD(buf->buf, buf->len);
         //ptarm_print_script(buf->buf, buf->len);

@@ -64,7 +64,7 @@ static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg);
  * open_channel
  ********************************************************************/
 
-bool HIDDEN ln_msg_open_channel_create(ptarm_buf_t *pBuf, const ln_open_channel_t *pMsg)
+bool HIDDEN ln_msg_open_channel_create(utl_buf_t *pBuf, const ln_open_channel_t *pMsg)
 {
     //    type: 32 (open_channel)
     //    data:
@@ -87,7 +87,7 @@ bool HIDDEN ln_msg_open_channel_create(ptarm_buf_t *pBuf, const ln_open_channel_
     //        [33:first_per_commitment_point]
     //        [1:channel_flags]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -101,16 +101,16 @@ bool HIDDEN ln_msg_open_channel_create(ptarm_buf_t *pBuf, const ln_open_channel_
         return false;
     }
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 319);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 319);
 
     //type: 0x20 (open_channel)
     ln_misc_push16be(&proto, MSGTYPE_OPEN_CHANNEL);
 
     //        [32:chain_hash]
-    ptarm_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
+    utl_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
 
     //        [32:temporary_channel_id]
-    ptarm_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [8:funding_satoshis]
     ln_misc_push64be(&proto, pMsg->funding_sat);
@@ -150,7 +150,7 @@ bool HIDDEN ln_msg_open_channel_create(ptarm_buf_t *pBuf, const ln_open_channel_
             LOGD("fail: check pubkey\n");
             return false;
         }
-        ptarm_push_data(&proto, pMsg->p_pubkeys[lp], PTARM_SZ_PUBKEY);
+        utl_push_data(&proto, pMsg->p_pubkeys[lp], PTARM_SZ_PUBKEY);
     }
 
     //        [1:channel_flags]
@@ -158,7 +158,7 @@ bool HIDDEN ln_msg_open_channel_create(ptarm_buf_t *pBuf, const ln_open_channel_
 
     assert(sizeof(uint16_t) + 319 == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }
@@ -325,7 +325,7 @@ static void open_channel_print(const ln_open_channel_t *pMsg)
  * accept_channel
  ********************************************************************/
 
-bool HIDDEN ln_msg_accept_channel_create(ptarm_buf_t *pBuf, const ln_accept_channel_t *pMsg)
+bool HIDDEN ln_msg_accept_channel_create(utl_buf_t *pBuf, const ln_accept_channel_t *pMsg)
 {
     //    type: 33 (accept_channel)
     //    data:
@@ -344,20 +344,20 @@ bool HIDDEN ln_msg_accept_channel_create(ptarm_buf_t *pBuf, const ln_accept_chan
     //        [33:htlc_basepoint]
     //        [33:first_per_commitment_point]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     accept_channel_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 270);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 270);
 
     //type: 0x21 (accept_channel)
     ln_misc_push16be(&proto, MSGTYPE_ACCEPT_CHANNEL);
 
     //        [32:temporary_channel_id]
-    ptarm_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [8:dust_limit_satoshis]
     ln_misc_push64be(&proto, pMsg->dust_limit_sat);
@@ -391,12 +391,12 @@ bool HIDDEN ln_msg_accept_channel_create(ptarm_buf_t *pBuf, const ln_accept_chan
             LOGD("fail: check pubkey\n");
             return false;
         }
-        ptarm_push_data(&proto, pMsg->p_pubkeys[lp], PTARM_SZ_PUBKEY);
+        utl_push_data(&proto, pMsg->p_pubkeys[lp], PTARM_SZ_PUBKEY);
     }
 
     assert(sizeof(uint16_t) + 270 == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }
@@ -523,7 +523,7 @@ static void accept_channel_print(const ln_accept_channel_t *pMsg)
  * funding_created
  ********************************************************************/
 
-bool HIDDEN ln_msg_funding_created_create(ptarm_buf_t *pBuf, const ln_funding_created_t *pMsg)
+bool HIDDEN ln_msg_funding_created_create(utl_buf_t *pBuf, const ln_funding_created_t *pMsg)
 {
     //    type: 34 (funding_created)
     //    data:
@@ -532,20 +532,20 @@ bool HIDDEN ln_msg_funding_created_create(ptarm_buf_t *pBuf, const ln_funding_cr
     //        [2:funding_output_index]
     //        [64:signature]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     funding_created_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 130);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 130);
 
     //    type: 0x22 (funding_created)
     ln_misc_push16be(&proto, MSGTYPE_FUNDING_CREATED);
 
     //        [32:temporary_channel_id]
-    ptarm_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_temp_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [32:funding_txid]
     // BE変換
@@ -554,21 +554,21 @@ bool HIDDEN ln_msg_funding_created_create(ptarm_buf_t *pBuf, const ln_funding_cr
     for (int lp = 0; lp < PTARM_SZ_TXID; lp++) {
         txid[lp] = pMsg->p_funding_txid[PTARM_SZ_TXID - lp - 1];
     }
-    ptarm_push_data(&proto, txid, PTARM_SZ_TXID);
+    utl_push_data(&proto, txid, PTARM_SZ_TXID);
 #else
     //そのまま
-    ptarm_push_data(&proto, pMsg->p_funding_txid, PTARM_SZ_TXID);
+    utl_push_data(&proto, pMsg->p_funding_txid, PTARM_SZ_TXID);
 #endif
 
     //        [2:funding_output_index]
     ln_misc_push16be(&proto, pMsg->funding_output_idx);
 
     //        [64:signature]
-    ptarm_push_data(&proto, pMsg->p_signature, LN_SZ_SIGNATURE);
+    utl_push_data(&proto, pMsg->p_signature, LN_SZ_SIGNATURE);
 
     assert(sizeof(uint16_t) + 130 == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }
@@ -644,34 +644,34 @@ static void funding_created_print(const ln_funding_created_t *pMsg)
  * funding_signed
  ********************************************************************/
 
-bool HIDDEN ln_msg_funding_signed_create(ptarm_buf_t *pBuf, const ln_funding_signed_t *pMsg)
+bool HIDDEN ln_msg_funding_signed_create(utl_buf_t *pBuf, const ln_funding_signed_t *pMsg)
 {
     //    type: 35 (funding_signed)
     //    data:
     //        [32:channel_id]
     //        [64:signature]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     funding_signed_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 96);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 96);
 
     //    type: 0x23 (funding_signed)
     ln_misc_push16be(&proto, MSGTYPE_FUNDING_SIGNED);
 
     //        [32:channel_id]
-    ptarm_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [64:signature]
-    ptarm_push_data(&proto, pMsg->p_signature, LN_SZ_SIGNATURE);
+    utl_push_data(&proto, pMsg->p_signature, LN_SZ_SIGNATURE);
 
     assert(sizeof(uint16_t) + 96 == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }
@@ -728,34 +728,34 @@ static void funding_signed_print(const ln_funding_signed_t *pMsg)
  * funding_locked
  ********************************************************************/
 
-bool HIDDEN ln_msg_funding_locked_create(ptarm_buf_t *pBuf, const ln_funding_locked_t *pMsg)
+bool HIDDEN ln_msg_funding_locked_create(utl_buf_t *pBuf, const ln_funding_locked_t *pMsg)
 {
     //    type: 36 (funding_locked)
     //    data:
     //        [32:channel_id]
     //        [33:next_per_commitment_point]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     LOGD("@@@@@ %s @@@@@\n", __func__);
     funding_locked_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 65);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 65);
 
     //    type: 0x24 (funding_locked)
     ln_misc_push16be(&proto, MSGTYPE_FUNDING_LOCKED);
 
     //        [32:channel_id]
-    ptarm_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [33:next_per_commitment_point]
-    ptarm_push_data(&proto, pMsg->p_per_commitpt, PTARM_SZ_PUBKEY);
+    utl_push_data(&proto, pMsg->p_per_commitpt, PTARM_SZ_PUBKEY);
 
     assert(sizeof(uint16_t) + 65 == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }
@@ -812,7 +812,7 @@ static void funding_locked_print(const ln_funding_locked_t *pMsg)
  * channel_reestablish
  ********************************************************************/
 
-bool HIDDEN ln_msg_channel_reestablish_create(ptarm_buf_t *pBuf, const ln_channel_reestablish_t *pMsg)
+bool HIDDEN ln_msg_channel_reestablish_create(utl_buf_t *pBuf, const ln_channel_reestablish_t *pMsg)
 {
     //    type: 136 (channel_reestablish)
     //    data:
@@ -822,7 +822,7 @@ bool HIDDEN ln_msg_channel_reestablish_create(ptarm_buf_t *pBuf, const ln_channe
     //        [32:your_last_per_commitment_secret] (option_data_loss_protect)
     //        [33:my_current_per_commitment_point] (option_data_loss_protect)
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -833,13 +833,13 @@ bool HIDDEN ln_msg_channel_reestablish_create(ptarm_buf_t *pBuf, const ln_channe
         len += 65;
     }
 
-    ptarm_push_init(&proto, pBuf, len);
+    utl_push_init(&proto, pBuf, len);
 
     //    type: 136 (channel_reestablish)
     ln_misc_push16be(&proto, MSGTYPE_CHANNEL_REESTABLISH);
 
     //        [32:channel_id]
-    ptarm_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [8:next_local_commitment_number]
     ln_misc_push64be(&proto, pMsg->next_local_commitment_number);
@@ -849,14 +849,14 @@ bool HIDDEN ln_msg_channel_reestablish_create(ptarm_buf_t *pBuf, const ln_channe
 
     if (pMsg->option_data_loss_protect) {
         //        [32:your_last_per_commitment_secret]
-        ptarm_push_data(&proto, pMsg->your_last_per_commitment_secret, PTARM_SZ_PRIVKEY);
+        utl_push_data(&proto, pMsg->your_last_per_commitment_secret, PTARM_SZ_PRIVKEY);
         //        [33:my_current_per_commitment_point]
-        ptarm_push_data(&proto, pMsg->my_current_per_commitment_point, PTARM_SZ_PUBKEY);
+        utl_push_data(&proto, pMsg->my_current_per_commitment_point, PTARM_SZ_PUBKEY);
     }
 
     assert(len == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }

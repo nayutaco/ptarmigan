@@ -28,7 +28,7 @@
 #include <arpa/inet.h>
 
 #include "utl_local.h"
-#include "misc.h"
+#include "utl_misc.h"
 
 
 /**************************************************************************
@@ -44,7 +44,7 @@ static int mcount = 0;
  * public functions
  **************************************************************************/
 
-bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
+bool utl_misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
     if (strlen(pStr) != BinLen * 2) {
         LOGD("fail: invalid buffer size: %zu != %" PRIu32 " * 2\n", strlen(pStr), BinLen);
@@ -84,9 +84,9 @@ bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 }
 
 
-bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr)
+bool utl_misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
-    bool ret = misc_str2bin(pBin, BinLen, pStr);
+    bool ret = utl_misc_str2bin(pBin, BinLen, pStr);
     if (ret) {
         for (uint32_t lp = 0; lp < BinLen / 2; lp++) {
             uint8_t tmp = pBin[lp];
@@ -99,7 +99,7 @@ bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 }
 
 
-void misc_datetime(char *pDateTime, size_t Len)
+void utl_misc_datetime(char *pDateTime, size_t Len)
 {
     struct tm tmval;
     time_t now = time(NULL);
@@ -108,7 +108,7 @@ void misc_datetime(char *pDateTime, size_t Len)
 }
 
 
-bool misc_all_zero(const void *pData, size_t Len)
+bool utl_misc_all_zero(const void *pData, size_t Len)
 {
     bool ret = true;
     const uint8_t *p = (const uint8_t *)pData;
@@ -122,14 +122,14 @@ bool misc_all_zero(const void *pData, size_t Len)
 }
 
 
-void ptarm_util_strftime(char *pTmStr, uint32_t Tm)
+void utl_misc_strftime(char *pTmStr, uint32_t Tm)
 {
     time_t tm = (time_t)Tm;
-    strftime(pTmStr, PTARM_SZ_DTSTR + 1, "%m/%d %H:%M:%S", localtime(&tm));
+    strftime(pTmStr, UTL_SZ_DTSTR + 1, "%m/%d %H:%M:%S", localtime(&tm));
 }
 
 
-void ptarm_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
+void utl_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 {
     *pStr = '\0';
     for (uint32_t lp = 0; lp < BinLen; lp++) {
@@ -140,7 +140,7 @@ void ptarm_util_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 }
 
 
-void ptarm_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
+void utl_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 {
     *pStr = '\0';
     for (uint32_t lp = 0; lp < BinLen; lp++) {
@@ -157,7 +157,7 @@ void ptarm_util_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
 
 #ifdef APP_DEBUG_MEM
 
-void *misc_dbg_malloc(size_t size)
+void *utl_misc_dbg_malloc(size_t size)
 {
     void *p = malloc(size);
     if (p) {
@@ -167,7 +167,7 @@ void *misc_dbg_malloc(size_t size)
 }
 
 
-//void *misc_dbg_realloc(void *ptr, size_t size)
+//void *utl_misc_dbg_realloc(void *ptr, size_t size)
 //{
 //    void *p = realloc(ptr, size);
 //    if ((ptr == NULL) && p) {
@@ -177,7 +177,7 @@ void *misc_dbg_malloc(size_t size)
 //}
 
 
-//void *misc_dbg_calloc(size_t blk, size_t size)
+//void *utl_misc_dbg_calloc(size_t blk, size_t size)
 //{
 //    void *p = calloc(blk, size);
 //    if (p) {
@@ -187,7 +187,7 @@ void *misc_dbg_malloc(size_t size)
 //}
 
 
-void misc_dbg_free(void *ptr)
+void utl_misc_dbg_free(void *ptr)
 {
     //NULL代入してfree()だけするパターンもあるため、NULLチェックする
     if (ptr) {
@@ -197,7 +197,7 @@ void misc_dbg_free(void *ptr)
 }
 
 
-int misc_dbg_malloc_cnt(void)
+int utl_misc_dbg_malloc_cnt(void)
 {
     return mcount;
 }

@@ -9,12 +9,12 @@ class keys: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
+        utl_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
         ptarm_term();
     }
 
@@ -278,13 +278,13 @@ TEST_F(keys, multi_2of2_1)
     };
 
     bool ret;
-    ptarm_buf_t bufredeem;
+    utl_buf_t bufredeem;
     ret = ptarm_keys_create2of2(&bufredeem, PUB1, PUB2);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);
     ASSERT_EQ(0, memcmp(REDEEM, bufredeem.buf, sizeof(REDEEM)));
-    ptarm_buf_free(&bufredeem);
+    utl_buf_free(&bufredeem);
 }
 
 
@@ -319,13 +319,13 @@ TEST_F(keys, multi_2of2_2)
     };
 
     bool ret;
-    ptarm_buf_t bufredeem;
+    utl_buf_t bufredeem;
     ret = ptarm_keys_create2of2(&bufredeem, PUB2, PUB1);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);
     ASSERT_EQ(0, memcmp(REDEEM, bufredeem.buf, sizeof(REDEEM)));
-    ptarm_buf_free(&bufredeem);
+    utl_buf_free(&bufredeem);
 }
 
 
@@ -341,10 +341,10 @@ TEST_F(keys, multi_2of2_same)
     };
 
     bool ret;
-    ptarm_buf_t bufredeem;
+    utl_buf_t bufredeem;
     ret = ptarm_keys_create2of2(&bufredeem, PUB1, PUB1);
     ASSERT_FALSE(ret);
-    //ptarm_buf_free(&bufredeem);
+    //utl_buf_free(&bufredeem);
 }
 #endif
 
@@ -392,13 +392,13 @@ TEST_F(keys, multi_2of3)
         0xae,
     };
 
-    ptarm_buf_t bufredeem;
+    utl_buf_t bufredeem;
     bool ret = ptarm_keys_createmulti(&bufredeem, PUBS, 3, 2);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);
     ASSERT_EQ(0, memcmp(REDEEM, bufredeem.buf, sizeof(REDEEM)));
-    ptarm_buf_free(&bufredeem);
+    utl_buf_free(&bufredeem);
 }
 
 
@@ -420,7 +420,7 @@ TEST_F(keys, wit2p2wsh)
         0x18, 0x2e, 0x82, 0x04, 0x95, 0x3e, 0x74, 0x53,
         0xae,
     };
-    const ptarm_buf_t wit = { (uint8_t *)REDEEM, sizeof(REDEEM) };
+    const utl_buf_t wit = { (uint8_t *)REDEEM, sizeof(REDEEM) };
     const char ADDR[] = "2Mt8fd67GgFMQpeKqn9mZ6VRWHnK6MAzGbD";
 
     char addr[PTARM_SZ_ADDR_MAX];

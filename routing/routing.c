@@ -36,7 +36,7 @@
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
 
-#include "misc.h"
+#include "utl_misc.h"
 
 
 /**************************************************************************
@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
             break;
         case 's':
             //sender(payer)
-            bret = misc_str2bin(send_nodeid, sizeof(send_nodeid), optarg);
+            bret = utl_misc_str2bin(send_nodeid, sizeof(send_nodeid), optarg);
             if (!bret) {
                 fprintf(fp_err, "invalid arg: payer node id\n");
                 return -1;
@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
             break;
         case 'r':
             //receiver(payee)
-            bret = misc_str2bin(recv_nodeid, sizeof(recv_nodeid), optarg);
+            bret = utl_misc_str2bin(recv_nodeid, sizeof(recv_nodeid), optarg);
             if (!bret) {
                 fprintf(fp_err, "invalid arg: payee node id\n");
                 return -1;

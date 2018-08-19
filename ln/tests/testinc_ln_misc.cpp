@@ -9,12 +9,12 @@ class misc: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
+        utl_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
         ptarm_term();
     }
 
@@ -32,38 +32,38 @@ public:
 
 TEST_F(misc, push8)
 {
-    ptarm_buf_t buf;
-    ptarm_push_t ps;
-    ptarm_push_init(&ps, &buf, 13);
+    utl_buf_t buf;
+    utl_push_t ps;
+    utl_push_init(&ps, &buf, 13);
 
     ln_misc_push8(&ps, 0x34);
     ASSERT_EQ(0x34, buf.buf[0]);
     ASSERT_EQ(1, ps.pos);
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 }
 
 
 TEST_F(misc, push16)
 {
-    ptarm_buf_t buf;
-    ptarm_push_t ps;
-    ptarm_push_init(&ps, &buf, 13);
+    utl_buf_t buf;
+    utl_push_t ps;
+    utl_push_init(&ps, &buf, 13);
 
     ln_misc_push16be(&ps, 0x3456);
     ASSERT_EQ(0x34, buf.buf[0]);
     ASSERT_EQ(0x56, buf.buf[1]);
     ASSERT_EQ(2, ps.pos);
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 }
 
 
 TEST_F(misc, push32)
 {
-    ptarm_buf_t buf;
-    ptarm_push_t ps;
-    ptarm_push_init(&ps, &buf, 13);
+    utl_buf_t buf;
+    utl_push_t ps;
+    utl_push_init(&ps, &buf, 13);
 
     ln_misc_push32be(&ps, 0x3456789a);
     ASSERT_EQ(0x34, buf.buf[0]);
@@ -72,15 +72,15 @@ TEST_F(misc, push32)
     ASSERT_EQ(0x9a, buf.buf[3]);
     ASSERT_EQ(4, ps.pos);
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 }
 
 
 TEST_F(misc, push64)
 {
-    ptarm_buf_t buf;
-    ptarm_push_t ps;
-    ptarm_push_init(&ps, &buf, 13);
+    utl_buf_t buf;
+    utl_push_t ps;
+    utl_push_init(&ps, &buf, 13);
 
     ln_misc_push64be(&ps, 0x3456789abcdef012LL);
     ASSERT_EQ(0x34, buf.buf[0]);
@@ -93,7 +93,7 @@ TEST_F(misc, push64)
     ASSERT_EQ(0x12, buf.buf[7]);
     ASSERT_EQ(8, ps.pos);
 
-    ptarm_buf_free(&buf);
+    utl_buf_free(&buf);
 }
 
 
@@ -115,11 +115,11 @@ TEST_F(misc, sigtrim1)
     ASSERT_TRUE(ret);
 
     //復元
-    ptarm_buf_t buf_sig = PTARM_BUF_INIT;
+    utl_buf_t buf_sig = UTL_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG1, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG1), buf_sig.len);
-    ptarm_buf_free(&buf_sig);
+    utl_buf_free(&buf_sig);
 }
 
 
@@ -158,11 +158,11 @@ TEST_F(misc, sigtrim3)
     ASSERT_TRUE(ret);
 
     //復元
-    ptarm_buf_t buf_sig = PTARM_BUF_INIT;
+    utl_buf_t buf_sig = UTL_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG3, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG3), buf_sig.len);
-    ptarm_buf_free(&buf_sig);
+    utl_buf_free(&buf_sig);
 }
 
 
@@ -201,11 +201,11 @@ TEST_F(misc, sigtrim5)
     ASSERT_TRUE(ret);
 
     //復元
-    ptarm_buf_t buf_sig = PTARM_BUF_INIT;
+    utl_buf_t buf_sig = UTL_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG5, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG5), buf_sig.len);
-    ptarm_buf_free(&buf_sig);
+    utl_buf_free(&buf_sig);
 }
 
 
@@ -226,11 +226,11 @@ TEST_F(misc, sigtrim6)
     ASSERT_TRUE(ret);
 
     //復元
-    ptarm_buf_t buf_sig = PTARM_BUF_INIT;
+    utl_buf_t buf_sig = UTL_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG6, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG6), buf_sig.len);
-    ptarm_buf_free(&buf_sig);
+    utl_buf_free(&buf_sig);
 }
 
 
@@ -248,12 +248,12 @@ TEST_F(misc, sigexp1)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG1, sizeof(SIG1)));
 
-    ptarm_buf_t     sig;
+    utl_buf_t     sig;
 
     ln_misc_sigexpand(&sig, SIG_1);
     ASSERT_EQ(0, memcmp(SIG1, sig.buf, sizeof(SIG1)));
     ASSERT_EQ(sizeof(SIG1), sig.len);
-    ptarm_buf_free(&sig);
+    utl_buf_free(&sig);
 }
 
 
@@ -271,12 +271,12 @@ TEST_F(misc, sigexp2)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG3, sizeof(SIG3)));
 
-    ptarm_buf_t     sig;
+    utl_buf_t     sig;
 
     ln_misc_sigexpand(&sig, SIG_3);
     ASSERT_EQ(0, memcmp(SIG3, sig.buf, sizeof(SIG3)));
     ASSERT_EQ(sizeof(SIG3), sig.len);
-    ptarm_buf_free(&sig);
+    utl_buf_free(&sig);
 }
 
 
@@ -294,12 +294,12 @@ TEST_F(misc, sigexp3)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG5, sizeof(SIG5)));
 
-    ptarm_buf_t     sig;
+    utl_buf_t     sig;
 
     ln_misc_sigexpand(&sig, SIG_5);
     ASSERT_EQ(0, memcmp(SIG5, sig.buf, sizeof(SIG5)));
     ASSERT_EQ(sizeof(SIG5), sig.len);
-    ptarm_buf_free(&sig);
+    utl_buf_free(&sig);
 }
 
 
@@ -317,12 +317,12 @@ TEST_F(misc, sigexp4)
     };
     ASSERT_TRUE(is_valid_signature_encoding(SIG6, sizeof(SIG6)));
 
-    ptarm_buf_t     sig;
+    utl_buf_t     sig;
 
     ln_misc_sigexpand(&sig, SIG_6);
     ASSERT_EQ(0, memcmp(SIG6, sig.buf, sizeof(SIG6)));
     ASSERT_EQ(sizeof(SIG6), sig.len);
-    ptarm_buf_free(&sig);
+    utl_buf_free(&sig);
 }
 
 
@@ -348,11 +348,11 @@ TEST_F(misc, sigtrimexp1)
     ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
 
     //復元
-    ptarm_buf_t buf_sig = PTARM_BUF_INIT;
+    utl_buf_t buf_sig = UTL_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
-    ptarm_buf_free(&buf_sig);
+    utl_buf_free(&buf_sig);
 }
 
 
@@ -378,11 +378,11 @@ TEST_F(misc, sigtrimexp2)
     ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
 
     //復元
-    ptarm_buf_t buf_sig = PTARM_BUF_INIT;
+    utl_buf_t buf_sig = UTL_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
-    ptarm_buf_free(&buf_sig);
+    utl_buf_free(&buf_sig);
 }
 
 
@@ -408,11 +408,11 @@ TEST_F(misc, sigtrimexp3)
     ASSERT_EQ(0, memcmp(SIGEX, sig, LN_SZ_SIGNATURE));
 
     //復元
-    ptarm_buf_t buf_sig = PTARM_BUF_INIT;
+    utl_buf_t buf_sig = UTL_BUF_INIT;
     ln_misc_sigexpand(&buf_sig, sig);
     ASSERT_EQ(0, memcmp(SIG, buf_sig.buf, buf_sig.len));
     ASSERT_EQ(sizeof(SIG), buf_sig.len);
-    ptarm_buf_free(&buf_sig);
+    utl_buf_free(&buf_sig);
 }
 
 

@@ -9,12 +9,12 @@ class tx_native: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
+        utl_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, true);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
         ptarm_term();
     }
 
@@ -83,7 +83,7 @@ TEST_F(tx_native, add_vout_addr_p2wsh)
 TEST_F(tx_native, addr2spk_p2wpkh)
 {
     bool ret;
-    ptarm_buf_t spk;
+    utl_buf_t spk;
 
     const char WADDR[] = "tb1q29ccnsx40wsam5lesxfx4w6ttmgz52q8qrpgla";
     const uint8_t SCRIPT_PK[] = {
@@ -97,14 +97,14 @@ TEST_F(tx_native, addr2spk_p2wpkh)
     ASSERT_EQ(0, memcmp(SCRIPT_PK, spk.buf, sizeof(SCRIPT_PK)));
     ASSERT_EQ(sizeof(SCRIPT_PK), spk.len);
 
-    ptarm_buf_free(&spk);
+    utl_buf_free(&spk);
 }
 
 
 TEST_F(tx_native, addr2spk_p2wsh)
 {
     bool ret;
-    ptarm_buf_t spk;
+    utl_buf_t spk;
 
     const char WADDR[] = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7";
     const uint8_t SCRIPT_PK[] = {
@@ -120,5 +120,5 @@ TEST_F(tx_native, addr2spk_p2wsh)
     ASSERT_EQ(0, memcmp(SCRIPT_PK, spk.buf, sizeof(SCRIPT_PK)));
     ASSERT_EQ(sizeof(SCRIPT_PK), spk.len);
 
-    ptarm_buf_free(&spk);
+    utl_buf_free(&spk);
 }

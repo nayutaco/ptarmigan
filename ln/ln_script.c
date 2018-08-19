@@ -25,7 +25,7 @@
  */
 #include <inttypes.h>
 
-#include "ptarm_push.h"
+#include "utl_push.h"
 
 #include "ln_script.h"
 #include "ln_signer.h"
@@ -47,14 +47,14 @@
  * prototypes
  ********************************************************************/
 
-static void create_script_offered(ptarm_buf_t *pBuf,
+static void create_script_offered(utl_buf_t *pBuf,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pLocalPreImageHash160,
     const uint8_t *pRemoteHtlcKey);
 
 
-static void create_script_received(ptarm_buf_t *pBuf,
+static void create_script_received(utl_buf_t *pBuf,
     const uint8_t *pLocalHtlcKey,
     const uint8_t *pLocalRevoKey,
     const uint8_t *pRemoteHtlcKey,
@@ -88,12 +88,12 @@ uint64_t HIDDEN ln_calc_obscured_txnum(const uint8_t *pOpenBasePt, const uint8_t
 }
 
 
-void HIDDEN ln_create_script_local(ptarm_buf_t *pBuf,
+void HIDDEN ln_create_script_local(utl_buf_t *pBuf,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalDelayedKey,
                     uint32_t LocalDelay)
 {
-    ptarm_push_t wscript;
+    utl_push_t wscript;
 
     //local script
     //    OP_IF
@@ -106,15 +106,15 @@ void HIDDEN ln_create_script_local(ptarm_buf_t *pBuf,
     //        <local_delayedkey>
     //    OP_ENDIF
     //    OP_CHECKSIG
-    ptarm_push_init(&wscript, pBuf, 77);        //to_self_delayが2byteの場合
-    ptarm_push_data(&wscript, PTARM_OP_IF PTARM_OP_SZ_PUBKEY, 2);
-    ptarm_push_data(&wscript, pLocalRevoKey, PTARM_SZ_PUBKEY);
-    ptarm_push_data(&wscript, PTARM_OP_ELSE, 1);
-    ptarm_push_value(&wscript, LocalDelay);
-    ptarm_push_data(&wscript, PTARM_OP_CSV PTARM_OP_DROP PTARM_OP_SZ_PUBKEY, 3);
-    ptarm_push_data(&wscript, pLocalDelayedKey, PTARM_SZ_PUBKEY);
-    ptarm_push_data(&wscript, PTARM_OP_ENDIF PTARM_OP_CHECKSIG, 2);
-    ptarm_push_trim(&wscript);
+    utl_push_init(&wscript, pBuf, 77);        //to_self_delayが2byteの場合
+    utl_push_data(&wscript, PTARM_OP_IF PTARM_OP_SZ_PUBKEY, 2);
+    utl_push_data(&wscript, pLocalRevoKey, PTARM_SZ_PUBKEY);
+    utl_push_data(&wscript, PTARM_OP_ELSE, 1);
+    utl_push_value(&wscript, LocalDelay);
+    utl_push_data(&wscript, PTARM_OP_CSV PTARM_OP_DROP PTARM_OP_SZ_PUBKEY, 3);
+    utl_push_data(&wscript, pLocalDelayedKey, PTARM_SZ_PUBKEY);
+    utl_push_data(&wscript, PTARM_OP_ENDIF PTARM_OP_CHECKSIG, 2);
+    utl_push_trim(&wscript);
 
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
     LOGD("script:\n");
@@ -135,12 +135,12 @@ void HIDDEN ln_create_script_local(ptarm_buf_t *pBuf,
  *
  */
 bool HIDDEN ln_create_tolocal_tx(ptarm_tx_t *pTx,
-                uint64_t Value, const ptarm_buf_t *pScriptPk, uint32_t LockTime,
+                uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime,
                 const uint8_t *pTxid, int Index, bool bRevoked)
 {
     //vout
     ptarm_vout_t* vout = ptarm_tx_add_vout(pTx, Value);
-    ptarm_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
+    utl_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
 
     //vin
     ptarm_tx_add_vin(pTx, pTxid, Index);
@@ -152,7 +152,7 @@ bool HIDDEN ln_create_tolocal_tx(ptarm_tx_t *pTx,
 }
 
 
-bool HIDDEN ln_create_scriptpkh(ptarm_buf_t *pBuf, const ptarm_buf_t *pPub, int Prefix)
+bool HIDDEN ln_create_scriptpkh(utl_buf_t *pBuf, const utl_buf_t *pPub, int Prefix)
 {
     bool ret = true;
     uint8_t pkh[PTARM_SZ_HASH256];      //一番長いサイズにしておく
@@ -176,7 +176,7 @@ bool HIDDEN ln_create_scriptpkh(ptarm_buf_t *pBuf, const ptarm_buf_t *pPub, int 
 }
 
 
-bool HIDDEN ln_check_scriptpkh(const ptarm_buf_t *pBuf)
+bool HIDDEN ln_check_scriptpkh(const utl_buf_t *pBuf)
 {
     bool ret;
     const uint8_t *p = pBuf->buf;
@@ -218,17 +218,17 @@ void HIDDEN ln_htlcinfo_init(ln_htlcinfo_t *pHtlcInfo)
     pHtlcInfo->expiry = 0;
     pHtlcInfo->amount_msat = 0;
     pHtlcInfo->preimage_hash = NULL;
-    ptarm_buf_init(&pHtlcInfo->script);
+    utl_buf_init(&pHtlcInfo->script);
 }
 
 
 void HIDDEN ln_htlcinfo_free(ln_htlcinfo_t *pHtlcInfo)
 {
-    ptarm_buf_free(&pHtlcInfo->script);
+    utl_buf_free(&pHtlcInfo->script);
 }
 
 
-void HIDDEN ln_create_htlcinfo(ptarm_buf_t *pScript, ln_htlctype_t Type,
+void HIDDEN ln_create_htlcinfo(utl_buf_t *pScript, ln_htlctype_t Type,
                     const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pRemoteHtlcKey,
@@ -296,7 +296,7 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
 }
 
 
-bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, ptarm_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local, const ln_self_priv_t *pPrivData)
+bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, utl_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local, const ln_self_priv_t *pPrivData)
 {
     uint64_t fee_local;
     uint64_t fee_remote;
@@ -382,7 +382,7 @@ bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, ptarm_buf_t *pSig, const ln_tx_
 }
 
 
-void HIDDEN ln_create_htlc_tx(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pScript,
+void HIDDEN ln_create_htlc_tx(ptarm_tx_t *pTx, uint64_t Value, const utl_buf_t *pScript,
                 ln_htlctype_t Type, uint32_t CltvExpiry, const uint8_t *pTxid, int Index)
 {
     //vout
@@ -411,12 +411,12 @@ void HIDDEN ln_create_htlc_tx(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t
 }
 
 
-bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, ptarm_buf_t *pLocalSig,
+bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, utl_buf_t *pLocalSig,
                     uint64_t Value,
                     const ptarm_util_keys_t *pKeys,
-                    const ptarm_buf_t *pRemoteSig,
+                    const utl_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
-                    const ptarm_buf_t *pWitScript,
+                    const utl_buf_t *pWitScript,
                     ln_htlcsign_t HtlcSign)
 {
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
@@ -431,8 +431,8 @@ bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, ptarm_buf_t *pLocalSig,
     ptarm_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
     ret = ln_signer_p2wsh_force(pLocalSig, sighash, pKeys);
 
-    const ptarm_buf_t wit0 = { NULL, 0 };
-    const ptarm_buf_t **pp_wits = NULL;
+    const utl_buf_t wit0 = { NULL, 0 };
+    const utl_buf_t **pp_wits = NULL;
     int wits_num = 0;
     switch (HtlcSign) {
     case HTLCSIGN_TO_SUCCESS:
@@ -442,19 +442,19 @@ bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, ptarm_buf_t *pLocalSig,
             // <localsig>
             // <payment-preimage>(HTLC Success) or 0(HTLC Timeout)
             // <script>
-            ptarm_buf_t preimage = PTARM_BUF_INIT;
+            utl_buf_t preimage = UTL_BUF_INIT;
             if (pPreImage != NULL) {
                 preimage.buf = (CONST_CAST uint8_t *)pPreImage;
                 preimage.len = LN_SZ_PREIMAGE;
             }
-            const ptarm_buf_t *wits[] = {
+            const utl_buf_t *wits[] = {
                 &wit0,
                 pRemoteSig,
                 pLocalSig,
                 &preimage,
                 pWitScript
             };
-            pp_wits = (const ptarm_buf_t **)wits;
+            pp_wits = (const utl_buf_t **)wits;
             wits_num = ARRAY_SIZE(wits);
         }
         LOGD("HTLC Timeout/Success Tx sign: wits_num=%d\n", wits_num);
@@ -465,19 +465,19 @@ bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, ptarm_buf_t *pLocalSig,
             // <remotesig>
             // <payment-preimage>
             // <script>
-            ptarm_buf_t preimage;
+            utl_buf_t preimage;
             if (pPreImage != NULL) {
                 preimage.buf = (CONST_CAST uint8_t *)pPreImage;
                 preimage.len = LN_SZ_PREIMAGE;
             } else {
                 assert(0);
             }
-            const ptarm_buf_t *wits[] = {
+            const utl_buf_t *wits[] = {
                 pLocalSig,
                 &preimage,
                 pWitScript
             };
-            pp_wits = (const ptarm_buf_t **)wits;
+            pp_wits = (const utl_buf_t **)wits;
             wits_num = ARRAY_SIZE(wits);
         }
         LOGD("Offered HTLC + preimage sign: wits_num=%d\n", wits_num);
@@ -488,12 +488,12 @@ bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, ptarm_buf_t *pLocalSig,
             // <remotesig>
             // 0
             // <script>
-            const ptarm_buf_t *wits[] = {
+            const utl_buf_t *wits[] = {
                 pLocalSig,
                 &wit0,
                 pWitScript
             };
-            pp_wits = (const ptarm_buf_t **)wits;
+            pp_wits = (const utl_buf_t **)wits;
             wits_num = ARRAY_SIZE(wits);
         }
         LOGD("Received HTLC sign: wits_num=%d\n", wits_num);
@@ -504,13 +504,13 @@ bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, ptarm_buf_t *pLocalSig,
         {
             // <revocation_sig>
             // <revocationkey>
-            const ptarm_buf_t revokey = { (CONST_CAST uint8_t *)pKeys->pub, PTARM_SZ_PUBKEY };
-            const ptarm_buf_t *wits[] = {
+            const utl_buf_t revokey = { (CONST_CAST uint8_t *)pKeys->pub, PTARM_SZ_PUBKEY };
+            const utl_buf_t *wits[] = {
                 pLocalSig,
                 &revokey,
                 pWitScript
             };
-            pp_wits = (const ptarm_buf_t **)wits;
+            pp_wits = (const utl_buf_t **)wits;
             wits_num = ARRAY_SIZE(wits);
         }
         LOGD("revoked HTLC sign: wits_num=%d\n", wits_num);
@@ -532,9 +532,9 @@ bool HIDDEN ln_verify_htlc_tx(const ptarm_tx_t *pTx,
                     uint64_t Value,
                     const uint8_t *pLocalPubKey,
                     const uint8_t *pRemotePubKey,
-                    const ptarm_buf_t *pLocalSig,
-                    const ptarm_buf_t *pRemoteSig,
-                    const ptarm_buf_t *pWitScript)
+                    const utl_buf_t *pLocalSig,
+                    const utl_buf_t *pRemoteSig,
+                    const utl_buf_t *pWitScript)
 {
     if (!pLocalPubKey && !pLocalSig && !pRemotePubKey && !pRemoteSig) {
         LOGD("fail: invalid arguments\n");
@@ -587,13 +587,13 @@ bool HIDDEN ln_verify_htlc_tx(const ptarm_tx_t *pTx,
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
-static void create_script_offered(ptarm_buf_t *pBuf,
+static void create_script_offered(utl_buf_t *pBuf,
                     const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalPreImageHash160,
                     const uint8_t *pRemoteHtlcKey)
 {
-    ptarm_push_t wscript;
+    utl_push_t wscript;
     uint8_t h160[PTARM_SZ_HASH160];
 
     //offered HTLC script
@@ -613,18 +613,18 @@ static void create_script_offered(ptarm_buf_t *pBuf,
     //    OP_ENDIF
     //
     // payment-hash: payment-preimageをSHA256
-    ptarm_push_init(&wscript, pBuf, 133);
-    ptarm_push_data(&wscript, PTARM_OP_DUP PTARM_OP_HASH160 PTARM_OP_SZ20, 3);
+    utl_push_init(&wscript, pBuf, 133);
+    utl_push_data(&wscript, PTARM_OP_DUP PTARM_OP_HASH160 PTARM_OP_SZ20, 3);
     ptarm_util_hash160(h160, pLocalRevoKey, PTARM_SZ_PUBKEY);
-    ptarm_push_data(&wscript, h160, PTARM_SZ_HASH160);
-    ptarm_push_data(&wscript, PTARM_OP_EQUAL PTARM_OP_IF PTARM_OP_CHECKSIG PTARM_OP_ELSE PTARM_OP_SZ_PUBKEY, 5);
-    ptarm_push_data(&wscript, pRemoteHtlcKey, PTARM_SZ_PUBKEY);
-    ptarm_push_data(&wscript, PTARM_OP_SWAP PTARM_OP_SIZE PTARM_OP_SZ1 PTARM_OP_SZ32 PTARM_OP_EQUAL PTARM_OP_NOTIF PTARM_OP_DROP PTARM_OP_2 PTARM_OP_SWAP PTARM_OP_SZ_PUBKEY, 10);
-    ptarm_push_data(&wscript, pLocalHtlcKey, PTARM_SZ_PUBKEY);
-    ptarm_push_data(&wscript, PTARM_OP_2 PTARM_OP_CHECKMULTISIG PTARM_OP_ELSE PTARM_OP_HASH160 PTARM_OP_SZ20, 5);
-    ptarm_push_data(&wscript, pLocalPreImageHash160, PTARM_SZ_HASH160);
-    ptarm_push_data(&wscript, PTARM_OP_EQUALVERIFY PTARM_OP_CHECKSIG PTARM_OP_ENDIF PTARM_OP_ENDIF, 4);
-    ptarm_push_trim(&wscript);
+    utl_push_data(&wscript, h160, PTARM_SZ_HASH160);
+    utl_push_data(&wscript, PTARM_OP_EQUAL PTARM_OP_IF PTARM_OP_CHECKSIG PTARM_OP_ELSE PTARM_OP_SZ_PUBKEY, 5);
+    utl_push_data(&wscript, pRemoteHtlcKey, PTARM_SZ_PUBKEY);
+    utl_push_data(&wscript, PTARM_OP_SWAP PTARM_OP_SIZE PTARM_OP_SZ1 PTARM_OP_SZ32 PTARM_OP_EQUAL PTARM_OP_NOTIF PTARM_OP_DROP PTARM_OP_2 PTARM_OP_SWAP PTARM_OP_SZ_PUBKEY, 10);
+    utl_push_data(&wscript, pLocalHtlcKey, PTARM_SZ_PUBKEY);
+    utl_push_data(&wscript, PTARM_OP_2 PTARM_OP_CHECKMULTISIG PTARM_OP_ELSE PTARM_OP_HASH160 PTARM_OP_SZ20, 5);
+    utl_push_data(&wscript, pLocalPreImageHash160, PTARM_SZ_HASH160);
+    utl_push_data(&wscript, PTARM_OP_EQUALVERIFY PTARM_OP_CHECKSIG PTARM_OP_ENDIF PTARM_OP_ENDIF, 4);
+    utl_push_trim(&wscript);
 
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
     LOGD("script:\n");
@@ -645,14 +645,14 @@ static void create_script_offered(ptarm_buf_t *pBuf,
  * @note
  *      - 相手署名計算時は、LocalとRemoteを入れ替える
  */
-static void create_script_received(ptarm_buf_t *pBuf,
+static void create_script_received(utl_buf_t *pBuf,
                     const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pRemoteHtlcKey,
                     const uint8_t *pRemotePreImageHash160,
                     uint32_t RemoteExpiry)
 {
-    ptarm_push_t wscript;
+    utl_push_t wscript;
     uint8_t h160[PTARM_SZ_HASH160];
 
     //received HTLC script
@@ -673,20 +673,20 @@ static void create_script_received(ptarm_buf_t *pBuf,
     //    OP_ENDIF
     //
     // payment-hash: payment-preimageをSHA256
-    ptarm_push_init(&wscript, pBuf, 138);
-    ptarm_push_data(&wscript, PTARM_OP_DUP PTARM_OP_HASH160 PTARM_OP_SZ20, 3);
+    utl_push_init(&wscript, pBuf, 138);
+    utl_push_data(&wscript, PTARM_OP_DUP PTARM_OP_HASH160 PTARM_OP_SZ20, 3);
     ptarm_util_hash160(h160, pLocalRevoKey, PTARM_SZ_PUBKEY);
-    ptarm_push_data(&wscript, h160, PTARM_SZ_HASH160);
-    ptarm_push_data(&wscript, PTARM_OP_EQUAL PTARM_OP_IF PTARM_OP_CHECKSIG PTARM_OP_ELSE PTARM_OP_SZ_PUBKEY, 5);
-    ptarm_push_data(&wscript, pRemoteHtlcKey, PTARM_SZ_PUBKEY);
-    ptarm_push_data(&wscript, PTARM_OP_SWAP PTARM_OP_SIZE PTARM_OP_SZ1 PTARM_OP_SZ32 PTARM_OP_EQUAL PTARM_OP_IF PTARM_OP_HASH160 PTARM_OP_SZ20, 8);
-    ptarm_push_data(&wscript, pRemotePreImageHash160, PTARM_SZ_HASH160);
-    ptarm_push_data(&wscript, PTARM_OP_EQUALVERIFY PTARM_OP_2 PTARM_OP_SWAP PTARM_OP_SZ_PUBKEY, 4);
-    ptarm_push_data(&wscript, pLocalHtlcKey, PTARM_SZ_PUBKEY);
-    ptarm_push_data(&wscript, PTARM_OP_2 PTARM_OP_CHECKMULTISIG PTARM_OP_ELSE PTARM_OP_DROP, 4);
-    ptarm_push_value(&wscript, RemoteExpiry);
-    ptarm_push_data(&wscript, PTARM_OP_CLTV PTARM_OP_DROP PTARM_OP_CHECKSIG PTARM_OP_ENDIF PTARM_OP_ENDIF, 5);
-    ptarm_push_trim(&wscript);
+    utl_push_data(&wscript, h160, PTARM_SZ_HASH160);
+    utl_push_data(&wscript, PTARM_OP_EQUAL PTARM_OP_IF PTARM_OP_CHECKSIG PTARM_OP_ELSE PTARM_OP_SZ_PUBKEY, 5);
+    utl_push_data(&wscript, pRemoteHtlcKey, PTARM_SZ_PUBKEY);
+    utl_push_data(&wscript, PTARM_OP_SWAP PTARM_OP_SIZE PTARM_OP_SZ1 PTARM_OP_SZ32 PTARM_OP_EQUAL PTARM_OP_IF PTARM_OP_HASH160 PTARM_OP_SZ20, 8);
+    utl_push_data(&wscript, pRemotePreImageHash160, PTARM_SZ_HASH160);
+    utl_push_data(&wscript, PTARM_OP_EQUALVERIFY PTARM_OP_2 PTARM_OP_SWAP PTARM_OP_SZ_PUBKEY, 4);
+    utl_push_data(&wscript, pLocalHtlcKey, PTARM_SZ_PUBKEY);
+    utl_push_data(&wscript, PTARM_OP_2 PTARM_OP_CHECKMULTISIG PTARM_OP_ELSE PTARM_OP_DROP, 4);
+    utl_push_value(&wscript, RemoteExpiry);
+    utl_push_data(&wscript, PTARM_OP_CLTV PTARM_OP_DROP PTARM_OP_CHECKSIG PTARM_OP_ENDIF PTARM_OP_ENDIF, 5);
+    utl_push_trim(&wscript);
 
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
     LOGD("script:\n");

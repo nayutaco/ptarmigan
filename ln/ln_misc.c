@@ -99,33 +99,33 @@ uint64_t ln_misc_get64be(const uint8_t *pData)
  * functions
  ********************************************************************/
 
-void HIDDEN ln_misc_push8(ptarm_push_t *pPush, uint8_t Value)
+void HIDDEN ln_misc_push8(utl_push_t *pPush, uint8_t Value)
 {
-    ptarm_push_data(pPush, &Value, sizeof(Value));
+    utl_push_data(pPush, &Value, sizeof(Value));
 }
 
 
-void HIDDEN ln_misc_push16be(ptarm_push_t *pPush, uint16_t Value)
+void HIDDEN ln_misc_push16be(utl_push_t *pPush, uint16_t Value)
 {
     uint8_t data[sizeof(Value)];
     data[1] = (uint8_t)Value;
     data[0] = (uint8_t)(Value >> 8);
-    ptarm_push_data(pPush, data, sizeof(data));
+    utl_push_data(pPush, data, sizeof(data));
 }
 
 
-void HIDDEN ln_misc_push32be(ptarm_push_t *pPush, uint32_t Value)
+void HIDDEN ln_misc_push32be(utl_push_t *pPush, uint32_t Value)
 {
     uint8_t data[sizeof(Value)];
     data[3] = (uint8_t)Value;
     data[2] = (uint8_t)(Value >>= 8);
     data[1] = (uint8_t)(Value >>= 8);
     data[0] = (uint8_t)(Value >> 8);
-    ptarm_push_data(pPush, data, sizeof(data));
+    utl_push_data(pPush, data, sizeof(data));
 }
 
 
-void HIDDEN ln_misc_push64be(ptarm_push_t *pPush, uint64_t Value)
+void HIDDEN ln_misc_push64be(utl_push_t *pPush, uint64_t Value)
 {
     uint8_t data[sizeof(Value)];
     data[7] = (uint8_t)Value;
@@ -136,7 +136,7 @@ void HIDDEN ln_misc_push64be(ptarm_push_t *pPush, uint64_t Value)
     data[2] = (uint8_t)(Value >>= 8);
     data[1] = (uint8_t)(Value >>= 8);
     data[0] = (uint8_t)(Value >> 8);
-    ptarm_push_data(pPush, data, sizeof(data));
+    utl_push_data(pPush, data, sizeof(data));
 }
 
 
@@ -213,9 +213,9 @@ bool HIDDEN ln_misc_sigtrim(uint8_t *pSig, const uint8_t *pBuf)
 }
 
 
-void HIDDEN ln_misc_sigexpand(ptarm_buf_t *pSig, const uint8_t *pBuf)
+void HIDDEN ln_misc_sigexpand(utl_buf_t *pSig, const uint8_t *pBuf)
 {
-    ptarm_push_t    push;
+    utl_push_t    push;
     uint8_t r_len = 32;
     uint8_t s_len = 32;
     const uint8_t *r_p;
@@ -247,7 +247,7 @@ void HIDDEN ln_misc_sigexpand(ptarm_buf_t *pSig, const uint8_t *pBuf)
 
     //署名
     //  [30][4+r_len+s_len][02][r len][...][02][s_len][...][01]
-    ptarm_push_init(&push, pSig, 7 + r_len + s_len);
+    utl_push_init(&push, pSig, 7 + r_len + s_len);
 
     uint8_t buf[6];
     buf[0] = 0x30;
@@ -256,25 +256,25 @@ void HIDDEN ln_misc_sigexpand(ptarm_buf_t *pSig, const uint8_t *pBuf)
     buf[3] = r_len;
     buf[4] = 0x00;
     buf[5] = 0x01;
-    ptarm_push_data(&push, buf, 4);
+    utl_push_data(&push, buf, 4);
     if (*r_p & 0x80) {
         buf[0] = 0x00;
-        ptarm_push_data(&push, buf, 1);
+        utl_push_data(&push, buf, 1);
         r_len--;
     }
-    ptarm_push_data(&push, r_p, r_len);
+    utl_push_data(&push, r_p, r_len);
 
     buf[0] = 0x02;
     buf[1] = s_len;
-    ptarm_push_data(&push, buf, 2);
+    utl_push_data(&push, buf, 2);
     if (*s_p & 0x80) {
         buf[0] = 0x00;
-        ptarm_push_data(&push, buf, 1);
+        utl_push_data(&push, buf, 1);
         s_len--;
     }
-    ptarm_push_data(&push, s_p, s_len);
+    utl_push_data(&push, s_p, s_len);
     buf[0] = 0x01;
-    ptarm_push_data(&push, buf, 1);        //SIGHASH_ALL
+    utl_push_data(&push, buf, 1);        //SIGHASH_ALL
 }
 
 

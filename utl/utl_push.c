@@ -19,32 +19,32 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ptarm_push.c
+/** @file   utl_push.c
  *  @brief  bitcoinスクリプト作成
  *  @author ueno@nayuta.co
  */
 #include "utl_local.h"
 
-#include "ptarm_push.h"
+#include "utl_push.h"
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-void ptarm_push_init(ptarm_push_t *pPush, ptarm_buf_t *pBuf, uint32_t Size)
+void utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size)
 {
     pPush->pos = 0;
     pPush->data = pBuf;
     if (Size) {
-        ptarm_buf_alloc(pPush->data, Size);
+        utl_buf_alloc(pPush->data, Size);
     } else {
-        ptarm_buf_init(pPush->data);
+        utl_buf_init(pPush->data);
     }
 }
 
 
-void ptarm_push_data(ptarm_push_t *pPush, const void *pData, uint32_t Len)
+void utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len)
 {
     int rest = pPush->data->len - pPush->pos - Len;
     if (rest < 0) {
@@ -57,7 +57,7 @@ void ptarm_push_data(ptarm_push_t *pPush, const void *pData, uint32_t Len)
 }
 
 
-void ptarm_push_value(ptarm_push_t *pPush, uint64_t Value)
+void utl_push_value(utl_push_t *pPush, uint64_t Value)
 {
     int len;
     uint8_t buf[7];
@@ -81,15 +81,15 @@ void ptarm_push_value(ptarm_push_t *pPush, uint64_t Value)
             }
         }
     }
-    ptarm_push_data(pPush, buf, len);
+    utl_push_data(pPush, buf, len);
 }
 
 
-void ptarm_push_trim(ptarm_push_t *pPush)
+void utl_push_trim(utl_push_t *pPush)
 {
     if (pPush->data->len != pPush->pos) {
         if (pPush->pos == 0) {
-            ptarm_buf_free(pPush->data);
+            utl_buf_free(pPush->data);
         } else {
             pPush->data->len = pPush->pos;
             pPush->data->buf = (uint8_t *)M_REALLOC(pPush->data->buf, pPush->pos);

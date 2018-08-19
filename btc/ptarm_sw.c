@@ -42,14 +42,14 @@ void ptarm_sw_add_vout_p2wpkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pP
 }
 
 
-void ptarm_sw_add_vout_p2wsh(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pWitScript)
+void ptarm_sw_add_vout_p2wsh(ptarm_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript)
 {
     uint8_t wit_prog[LNL_SZ_WITPROG_WSH];
 
     ptarm_sw_wit2prog_p2wsh(wit_prog, pWitScript);
     if (mNativeSegwit) {
         ptarm_vout_t *vout = ptarm_tx_add_vout(pTx, Value);
-        ptarm_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog));
+        utl_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog));
     } else {
         uint8_t pkh[PTARM_SZ_PUBKEYHASH];
 
@@ -59,14 +59,14 @@ void ptarm_sw_add_vout_p2wsh(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t 
 }
 
 
-void ptarm_sw_scriptcode_p2wpkh(ptarm_buf_t *pScriptCode, const uint8_t *pPubKey)
+void ptarm_sw_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
     const uint8_t HEAD[] = { 0x19, OP_DUP, OP_HASH160, PTARM_SZ_HASH160 };
     const uint8_t TAIL[] = { OP_EQUALVERIFY, OP_CHECKSIG };
     uint8_t pkh[PTARM_SZ_PUBKEYHASH];
     int pos = 0;
 
-    ptarm_buf_alloc(pScriptCode, 1 + 0x19);
+    utl_buf_alloc(pScriptCode, 1 + 0x19);
     memcpy(pScriptCode->buf, HEAD, sizeof(HEAD));
     pos += sizeof(HEAD);
     ptarm_util_hash160(pkh, pPubKey, PTARM_SZ_PUBKEY);
@@ -76,7 +76,7 @@ void ptarm_sw_scriptcode_p2wpkh(ptarm_buf_t *pScriptCode, const uint8_t *pPubKey
 }
 
 
-bool ptarm_sw_scriptcode_p2wpkh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t *pVin)
+bool ptarm_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const ptarm_vin_t *pVin)
 {
     //P2WPKHのwitness
     //      0:<signature>
@@ -90,16 +90,16 @@ bool ptarm_sw_scriptcode_p2wpkh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t 
 }
 
 
-void ptarm_sw_scriptcode_p2wsh(ptarm_buf_t *pScriptCode, const ptarm_buf_t *pWit)
+void ptarm_sw_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWit)
 {
-    ptarm_buf_alloc(pScriptCode, ptarm_util_get_varint_len(pWit->len) + pWit->len);
+    utl_buf_alloc(pScriptCode, ptarm_util_get_varint_len(pWit->len) + pWit->len);
     uint8_t *p = pScriptCode->buf;
     p += ptarm_util_set_varint_len(p, NULL, pWit->len, false);
     memcpy(p, pWit->buf, pWit->len);
 }
 
 
-bool ptarm_sw_scriptcode_p2wsh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t *pVin)
+bool ptarm_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const ptarm_vin_t *pVin)
 {
     //P2WSHのwitness
     //      0:OP_0
@@ -117,7 +117,7 @@ bool ptarm_sw_scriptcode_p2wsh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t *
 
 
 void ptarm_sw_sighash(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64_t Value,
-                const ptarm_buf_t *pScriptCode)
+                const utl_buf_t *pScriptCode)
 {
     // [transaction version : 4]
     // [hash_prevouts : 32]
@@ -130,12 +130,12 @@ void ptarm_sw_sighash(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64
     // [locktime : 4]
     // [hash_type : 4]
 
-    ptarm_buf_t preimg;
-    ptarm_buf_t hash_prevouts;
-    ptarm_buf_t hash_sequence;
-    ptarm_buf_t hash_outputs;
+    utl_buf_t preimg;
+    utl_buf_t hash_prevouts;
+    utl_buf_t hash_sequence;
+    utl_buf_t hash_outputs;
 
-    ptarm_buf_alloc(&preimg, 156 + pScriptCode->len);
+    utl_buf_alloc(&preimg, 156 + pScriptCode->len);
     uint8_t *p = preimg.buf;
 
     ptarm_vin_t *vin_now = &pTx->vin[Index];
@@ -147,8 +147,8 @@ void ptarm_sw_sighash(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64
     //vin:
     //  txid(32) + index(4)を連結した SHA256
     //  sequence(4)を連結した SHA256
-    ptarm_buf_alloc(&hash_prevouts, pTx->vin_cnt * (32 + 4));
-    ptarm_buf_alloc(&hash_sequence, pTx->vin_cnt * 4);
+    utl_buf_alloc(&hash_prevouts, pTx->vin_cnt * (32 + 4));
+    utl_buf_alloc(&hash_sequence, pTx->vin_cnt * 4);
     uint8_t *p_prevouts = hash_prevouts.buf;
     uint8_t *p_sequence = hash_sequence.buf;
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
@@ -194,7 +194,7 @@ void ptarm_sw_sighash(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         len += pTx->vout[lp].script.len;
     }
-    ptarm_buf_alloc(&hash_outputs, pTx->vout_cnt * (8 + 1) + len);
+    utl_buf_alloc(&hash_outputs, pTx->vout_cnt * (8 + 1) + len);
     uint8_t *p_outputs = hash_outputs.buf;
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         ptarm_vout_t *vout = &pTx->vout[lp];
@@ -220,14 +220,14 @@ void ptarm_sw_sighash(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64
 
     ptarm_util_hash256(pTxHash, preimg.buf, preimg.len);
 
-    ptarm_buf_free(&hash_outputs);
-    ptarm_buf_free(&hash_sequence);
-    ptarm_buf_free(&hash_prevouts);
-    ptarm_buf_free(&preimg);
+    utl_buf_free(&hash_outputs);
+    utl_buf_free(&hash_sequence);
+    utl_buf_free(&hash_prevouts);
+    utl_buf_free(&preimg);
 }
 
 
-bool ptarm_sw_set_vin_p2wpkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig, const uint8_t *pPubKey)
+bool ptarm_sw_set_vin_p2wpkh(ptarm_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
     //P2WPKH:
     //witness
@@ -235,10 +235,10 @@ bool ptarm_sw_set_vin_p2wpkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig
     //  item[1]=pubkey
 
     ptarm_vin_t *vin = &(pTx->vin[Index]);
-    ptarm_buf_t *p_buf = &vin->script;
+    utl_buf_t *p_buf = &vin->script;
 
     if (p_buf->len != 0) {
-        ptarm_buf_free(p_buf);
+        utl_buf_free(p_buf);
     }
 
     if (mNativeSegwit) {
@@ -259,21 +259,21 @@ bool ptarm_sw_set_vin_p2wpkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig
     if (vin->wit_cnt != 0) {
         //一度解放する
         for (uint32_t lp = 0; lp < vin->wit_cnt; lp++) {
-            ptarm_buf_free(&vin->witness[lp]);
+            utl_buf_free(&vin->witness[lp]);
         }
         vin->wit_cnt = 0;
     }
     //[0]signature
-    ptarm_buf_t *p_sig = ptarm_tx_add_wit(vin);
-    ptarm_buf_alloccopy(p_sig, pSig->buf, pSig->len);
+    utl_buf_t *p_sig = ptarm_tx_add_wit(vin);
+    utl_buf_alloccopy(p_sig, pSig->buf, pSig->len);
     //[1]pubkey
-    ptarm_buf_t *p_pub = ptarm_tx_add_wit(vin);
-    ptarm_buf_alloccopy(p_pub, pPubKey, PTARM_SZ_PUBKEY);
+    utl_buf_t *p_pub = ptarm_tx_add_wit(vin);
+    utl_buf_alloccopy(p_pub, pPubKey, PTARM_SZ_PUBKEY);
     return true;
 }
 
 
-bool ptarm_sw_set_vin_p2wsh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pWits[], int Num)
+bool ptarm_sw_set_vin_p2wsh(ptarm_tx_t *pTx, int Index, const utl_buf_t *pWits[], int Num)
 {
     //P2WSH:
     //vin
@@ -281,7 +281,7 @@ bool ptarm_sw_set_vin_p2wsh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pWits
     //witness
     //  パターンが固定できないので、pWitsに作ってあるものをそのまま載せる。
     ptarm_vin_t *vin = &(pTx->vin[Index]);
-    ptarm_buf_t *p_buf = &vin->script;
+    utl_buf_t *p_buf = &vin->script;
 
     if(mNativeSegwit) {
         //vin
@@ -303,13 +303,13 @@ bool ptarm_sw_set_vin_p2wsh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pWits
     if (vin->wit_cnt != 0) {
         //一度解放する
         for (uint32_t lp = 0; lp < vin->wit_cnt; lp++) {
-            ptarm_buf_free(&vin->witness[lp]);
+            utl_buf_free(&vin->witness[lp]);
         }
         vin->wit_cnt = 0;
     }
     for (int lp = 0; lp < Num; lp++) {
-        ptarm_buf_t *p = ptarm_tx_add_wit(vin);
-        ptarm_buf_alloccopy(p, pWits[lp]->buf, pWits[lp]->len);
+        utl_buf_t *p = ptarm_tx_add_wit(vin);
+        utl_buf_alloccopy(p, pWits[lp]->buf, pWits[lp]->len);
     }
     return true;
 }
@@ -323,14 +323,14 @@ bool ptarm_sw_verify_p2wpkh(const ptarm_tx_t *pTx, int Index, uint64_t Value, co
         return false;
     }
 
-    const ptarm_buf_t *p_sig = &vin->witness[0];
-    const ptarm_buf_t *p_pub = &vin->witness[1];
+    const utl_buf_t *p_sig = &vin->witness[0];
+    const utl_buf_t *p_pub = &vin->witness[1];
 
     if (p_pub->len != PTARM_SZ_PUBKEY) {
         return false;
     }
 
-    ptarm_buf_t script_code;
+    utl_buf_t script_code;
     ptarm_sw_scriptcode_p2wpkh(&script_code, p_pub->buf);
 
     uint8_t txhash[PTARM_SZ_HASH256];
@@ -348,7 +348,7 @@ bool ptarm_sw_verify_p2wpkh(const ptarm_tx_t *pTx, int Index, uint64_t Value, co
         ret = (memcmp(pkh, pPubKeyHash, PTARM_SZ_HASH160) == 0);
     }
 
-    ptarm_buf_free(&script_code);
+    utl_buf_free(&script_code);
 
     return ret;
 }
@@ -369,7 +369,7 @@ bool ptarm_sw_verify_p2wpkh_addr(const ptarm_tx_t *pTx, int Index, uint64_t Valu
 }
 
 
-bool ptarm_sw_verify_2of2(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const ptarm_buf_t *pVout)
+bool ptarm_sw_verify_2of2(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pVout)
 {
     if (pTx->vin[Index].wit_cnt != 4) {
         //2-of-2は4項目
@@ -377,8 +377,8 @@ bool ptarm_sw_verify_2of2(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHa
         return false;
     }
 
-    ptarm_buf_t *wits = pTx->vin[Index].witness;
-    ptarm_buf_t *wit;
+    utl_buf_t *wits = pTx->vin[Index].witness;
+    utl_buf_t *wit;
 
     //このvinはP2SHの予定
     //      1. 前のvoutのpubKeyHashが、redeemScriptから計算したpubKeyHashと一致するか確認
@@ -397,13 +397,13 @@ bool ptarm_sw_verify_2of2(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHa
     }
 
     //署名
-    const ptarm_buf_t *sig1 = &wits[1];
+    const utl_buf_t *sig1 = &wits[1];
     if ((sig1->len == 0) || (sig1->buf[sig1->len - 1] != SIGHASH_ALL)) {
         //SIGHASH_ALLではない
         LOGD("SIG1: not SIGHASH_ALL\n");
         return false;
     }
-    const ptarm_buf_t *sig2 = &wits[2];
+    const utl_buf_t *sig2 = &wits[2];
     if ((sig2->len == 0) || (sig2->buf[sig2->len - 1] != SIGHASH_ALL)) {
         //SIGHASH_ALLではない
         LOGD("SIG2: not SIGHASH_ALL\n");
@@ -494,7 +494,7 @@ bool ptarm_sw_verify_2of2(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHa
  */
 bool ptarm_sw_wtxid(uint8_t *pWTxId, const ptarm_tx_t *pTx)
 {
-    ptarm_buf_t txbuf;
+    utl_buf_t txbuf;
 
     if (!ptarm_sw_is_segwit(pTx)) {
         assert(0);
@@ -507,7 +507,7 @@ bool ptarm_sw_wtxid(uint8_t *pWTxId, const ptarm_tx_t *pTx)
         goto LABEL_EXIT;
     }
     ptarm_util_hash256(pWTxId, txbuf.buf, txbuf.len);
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
 
 LABEL_EXIT:
     return ret;
@@ -530,7 +530,7 @@ bool ptarm_sw_is_segwit(const ptarm_tx_t *pTx)
 #endif
 
 
-void ptarm_sw_wit2prog_p2wsh(uint8_t *pWitProg, const ptarm_buf_t *pWitScript)
+void ptarm_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript)
 {
     pWitProg[0] = 0x00;
     pWitProg[1] = PTARM_SZ_SHA256;

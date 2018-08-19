@@ -130,7 +130,7 @@ bool ptarm_util_createkeys(ptarm_util_keys_t *pKeys)
 }
 
 
-bool ptarm_util_create2of2(ptarm_buf_t *pRedeem, ptarm_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+bool ptarm_util_create2of2(utl_buf_t *pRedeem, ptarm_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
     bool ret;
     const uint8_t *p1;
@@ -144,19 +144,19 @@ bool ptarm_util_create2of2(ptarm_buf_t *pRedeem, ptarm_keys_sort_t *pSort, const
 
 bool ptarm_util_sign_p2pkh(ptarm_tx_t *pTx, int Index, const ptarm_util_keys_t *pKeys)
 {
-    ptarm_buf_t scrpk;
+    utl_buf_t scrpk;
     uint8_t pkh[PTARM_SZ_PUBKEYHASH];
     ptarm_util_hash160(pkh, pKeys->pub, PTARM_SZ_PUBKEY);
     ptarm_util_create_scriptpk(&scrpk, pkh, PTARM_PREF_P2PKH);
 
-    const ptarm_buf_t *scrpks[] = { &scrpk };
+    const utl_buf_t *scrpks[] = { &scrpk };
 
     uint8_t txhash[PTARM_SZ_SIGHASH];
-    bool ret = ptarm_tx_sighash(txhash, pTx, (const ptarm_buf_t **)scrpks, 1);
+    bool ret = ptarm_tx_sighash(txhash, pTx, (const utl_buf_t **)scrpks, 1);
     assert(ret);
     ret = ptarm_tx_sign_p2pkh(pTx, Index, txhash, pKeys->priv, pKeys->pub);
     assert(ret);
-    ptarm_buf_free(&scrpk);
+    utl_buf_free(&scrpk);
 
     return ret;
 }
@@ -167,17 +167,17 @@ bool ptarm_util_verify_p2pkh(ptarm_tx_t *pTx, int Index, const char *pAddrVout)
     //公開鍵(署名サイズ[1],署名[sz],公開鍵サイズ[1], 公開鍵、の順になっている)
     const uint8_t *p_pubkey = pTx->vin[Index].script.buf + 1 + pTx->vin[Index].script.buf[0] + 1;
     uint8_t pkh[PTARM_SZ_PUBKEYHASH];
-    ptarm_buf_t scrpk;
+    utl_buf_t scrpk;
     ptarm_util_hash160(pkh, p_pubkey, PTARM_SZ_PUBKEY);
     ptarm_util_create_scriptpk(&scrpk, pkh, PTARM_PREF_P2PKH);
-    const ptarm_buf_t *scrpks[] = { &scrpk };
+    const utl_buf_t *scrpks[] = { &scrpk };
 
     uint8_t txhash[PTARM_SZ_SIGHASH];
-    bool ret = ptarm_tx_sighash(txhash, pTx, (const ptarm_buf_t **)scrpks, 1);
+    bool ret = ptarm_tx_sighash(txhash, pTx, (const utl_buf_t **)scrpks, 1);
     assert(ret);
     ret = ptarm_tx_verify_p2pkh_addr(pTx, Index, txhash, pAddrVout);
     assert(ret);
-    ptarm_buf_free(&scrpk);
+    utl_buf_free(&scrpk);
 
     return ret;
 }
@@ -187,8 +187,8 @@ bool ptarm_util_sign_p2wpkh(ptarm_tx_t *pTx, int Index, uint64_t Value, const pt
 {
     bool ret;
     uint8_t txhash[PTARM_SZ_HASH256];
-    ptarm_buf_t sigbuf = PTARM_BUF_INIT;
-    ptarm_buf_t script_code = PTARM_BUF_INIT;
+    utl_buf_t sigbuf = UTL_BUF_INIT;
+    utl_buf_t script_code = UTL_BUF_INIT;
 
     ptarm_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
 
@@ -199,25 +199,25 @@ bool ptarm_util_sign_p2wpkh(ptarm_tx_t *pTx, int Index, uint64_t Value, const pt
         ptarm_sw_set_vin_p2wpkh(pTx, Index, &sigbuf, pKeys->pub);
     }
 
-    ptarm_buf_free(&sigbuf);
-    ptarm_buf_free(&script_code);
+    utl_buf_free(&sigbuf);
+    utl_buf_free(&script_code);
 
     return ret;
 }
 
 
 void ptarm_util_calc_sighash_p2wsh(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64_t Value,
-                    const ptarm_buf_t *pWitScript)
+                    const utl_buf_t *pWitScript)
 {
-    ptarm_buf_t script_code = PTARM_BUF_INIT;
+    utl_buf_t script_code = UTL_BUF_INIT;
 
     ptarm_sw_scriptcode_p2wsh(&script_code, pWitScript);
     ptarm_sw_sighash(pTxHash, pTx, Index, Value, &script_code);
-    ptarm_buf_free(&script_code);
+    utl_buf_free(&script_code);
 }
 
 
-bool ptarm_util_sign_p2wsh(ptarm_buf_t *pSig, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys)
+bool ptarm_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys)
 {
     return ptarm_tx_sign(pSig, pTxHash, pKeys->priv);
 }
@@ -563,27 +563,27 @@ void HIDDEN ptarm_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPu
  * @param[in]       pPubKeyHash
  * @param[in]       Prefix
  */
-void ptarm_util_create_scriptpk(ptarm_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix)
+void ptarm_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix)
 {
     switch (Prefix) {
     case PTARM_PREF_P2PKH:
         //LOGD("PTARM_PREF_P2PKH\n");
-        ptarm_buf_alloc(pBuf, 3 + PTARM_SZ_HASH160 + 2);
+        utl_buf_alloc(pBuf, 3 + PTARM_SZ_HASH160 + 2);
         create_scriptpk_p2pkh(pBuf->buf, pPubKeyHash);
         break;
     case PTARM_PREF_P2SH:
         //LOGD("PTARM_PREF_P2SH\n");
-        ptarm_buf_alloc(pBuf, 2 + PTARM_SZ_HASH160 + 1);
+        utl_buf_alloc(pBuf, 2 + PTARM_SZ_HASH160 + 1);
         create_scriptpk_p2sh(pBuf->buf, pPubKeyHash);
         break;
     case PTARM_PREF_NATIVE:
         //LOGD("PTARM_PREF_NATIVE\n");
-        ptarm_buf_alloc(pBuf, 2 + PTARM_SZ_HASH160);
+        utl_buf_alloc(pBuf, 2 + PTARM_SZ_HASH160);
         create_scriptpk_native(pBuf->buf, pPubKeyHash, PTARM_SZ_HASH160);
         break;
     case PTARM_PREF_NATIVE_SH:
         //LOGD("PTARM_PREF_NATIVE_SH\n");
-        ptarm_buf_alloc(pBuf, 2 + PTARM_SZ_SHA256);
+        utl_buf_alloc(pBuf, 2 + PTARM_SZ_SHA256);
         create_scriptpk_native(pBuf->buf, pPubKeyHash, PTARM_SZ_SHA256);
         break;
     default:
@@ -760,10 +760,10 @@ bool ptarm_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  con
  * @param[in]       enableSegWit    false:pTxがsegwitでも、witnessを作らない(TXID計算用)
  *
  * @note
- *      - 動的にメモリ確保するため、pBufは使用後 #ptarm_buf_free()で解放すること
+ *      - 動的にメモリ確保するため、pBufは使用後 #utl_buf_free()で解放すること
  *      - vin cntおよびvout cntは 252までしか対応しない(varint型の1byteまで)
  */
-bool HIDDEN ptarm_util_create_tx(ptarm_buf_t *pBuf, const ptarm_tx_t *pTx, bool enableSegWit)
+bool HIDDEN ptarm_util_create_tx(utl_buf_t *pBuf, const ptarm_tx_t *pTx, bool enableSegWit)
 {
     //version[4]
     //mark[1]...wit
@@ -793,7 +793,7 @@ bool HIDDEN ptarm_util_create_tx(ptarm_buf_t *pBuf, const ptarm_tx_t *pTx, bool 
             segwit = true;
             len++;          //wit_cnt
             for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
-                ptarm_buf_t *buf = &(vin->witness[lp2]);
+                utl_buf_t *buf = &(vin->witness[lp2]);
                 len += buf->len;
                 len += ptarm_util_get_varint_len(buf->len);
             }
@@ -863,7 +863,7 @@ bool HIDDEN ptarm_util_create_tx(ptarm_buf_t *pBuf, const ptarm_tx_t *pTx, bool 
 
             p += ptarm_util_set_varint_len(p, NULL, vin->wit_cnt, false);
             for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
-                ptarm_buf_t *buf = &(vin->witness[lp2]);
+                utl_buf_t *buf = &(vin->witness[lp2]);
 
                 p += ptarm_util_set_varint_len(p, buf->buf, buf->len, false);
                 memcpy(p, buf->buf, buf->len);

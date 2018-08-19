@@ -6,11 +6,11 @@
 
 extern "C" {
 //評価対象本体
-#include "../../utl/misc.c"
-#include "../../utl/plog.c"
-#include "../../utl/ptarm_dbg.c"
-#include "../../utl/ptarm_buf.c"
-#include "../../utl/ptarm_push.c"
+#include "../../utl/utl_misc.c"
+#include "../../utl/utl_log.c"
+#include "../../utl/utl_dbg.c"
+#include "../../utl/utl_buf.c"
+#include "../../utl/utl_push.c"
 #include "../../btc/ptarm.c"
 #include "../../btc/ptarm_ekey.c"
 #include "../../btc/ptarm_keys.c"

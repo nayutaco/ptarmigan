@@ -155,14 +155,14 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi);
 /**
  *
  */
-int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, ptarm_buf_t *pBuf);
+int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
 
 
 /**
  *
  *
  */
-int ln_lmdb_annonod_cur_load(MDB_cursor *cur, ptarm_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
+int ln_lmdb_annonod_cur_load(MDB_cursor *cur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
 
 
 ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);

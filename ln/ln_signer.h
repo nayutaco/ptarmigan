@@ -103,7 +103,7 @@ void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ptarm_util_keys_t *pK
  *      - #ptarm_util_sign_p2wsh()
  *      - 中身は #ptarm_tx_sign()
  */
-bool HIDDEN ln_signer_p2wsh(ptarm_buf_t *pSig, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex);
+bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex);
 
 
 /** P2WSH署名 - Phase2: 署名作成(key指定)
@@ -116,7 +116,7 @@ bool HIDDEN ln_signer_p2wsh(ptarm_buf_t *pSig, const uint8_t *pTxHash, const ln_
  *      - #ptarm_util_sign_p2wsh()
  *      - 中身は #ptarm_tx_sign()
  */
-bool HIDDEN ln_signer_p2wsh_force(ptarm_buf_t *pSig, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys);
+bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys);
 
 
 /** P2WPKH署名
@@ -150,6 +150,6 @@ bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_sel
  */
 bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ptarm_tx_t *pTx,
                     uint64_t Value,
-                    const ptarm_buf_t *pWitScript, bool bRevoked);
+                    const utl_buf_t *pWitScript, bool bRevoked);
 
 #endif /* LN_SIGNER_H__ */

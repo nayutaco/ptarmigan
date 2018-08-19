@@ -43,7 +43,7 @@
 #include "mbedtls/ctr_drbg.h"
 #endif  //PTARM_USE_RNG
 
-#include "ptarm_buf.h"
+#include "utl_buf.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -237,9 +237,9 @@ typedef struct {
 typedef struct {
     uint8_t         txid[PTARM_SZ_TXID];    ///< [outpoint]TXID
     uint32_t        index;                  ///< [outpoint]index
-    ptarm_buf_t     script;                 ///< scriptSig
+    utl_buf_t     script;                 ///< scriptSig
     uint32_t        wit_cnt;                ///< witness数(0のとき、witnessは無視)
-    ptarm_buf_t     *witness;               ///< witness(配列的に使用する)
+    utl_buf_t     *witness;               ///< witness(配列的に使用する)
     uint32_t        sequence;               ///< sequence
 } ptarm_vin_t;
 
@@ -249,7 +249,7 @@ typedef struct {
  */
 typedef struct {
     uint64_t        value;                  ///< value[単位:satoshi]
-    ptarm_buf_t     script;                 ///< scriptPubKey
+    utl_buf_t     script;                 ///< scriptPubKey
     uint8_t         opt;                    ///< 付加情報(ln用)
                                             //      ln_create_htlc_tx()でln_htlctype_tに設定
                                             //      ln_create_commit_tx()でln_tx_cmt_t.pp_htlcinfo[]のindex値(or LN_HTLCTYPE_TOLOCAL/REMOTE)に設定
@@ -384,7 +384,7 @@ bool ptarm_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
  * @note
  *      - pWAddrのサイズは、native=#PTARM_SZ_WSHADDR, 非native=#PTARM_SZ_ADDR_MAX 以上にすること
  */
-bool ptarm_keys_wit2waddr(char *pWAddr, const ptarm_buf_t *pWitScript);
+bool ptarm_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript);
 
 
 /** 圧縮された公開鍵を展開
@@ -393,7 +393,7 @@ bool ptarm_keys_wit2waddr(char *pWAddr, const ptarm_buf_t *pWitScript);
  * @param[in]   pPubKey     圧縮された公開鍵
  *
  * @note
- *      - pUncompは使用後に #ptarm_buf_free()で解放すること
+ *      - pUncompは使用後に #utl_buf_free()で解放すること
  */
 bool ptarm_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey);
 
@@ -430,7 +430,7 @@ bool ptarm_keys_chkpub(const uint8_t *pPubKey);
  * @note
  *      - 公開鍵の順番は pPubKey1, pPubKey2 の順
  */
-bool ptarm_keys_create2of2(ptarm_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool ptarm_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 /** M-of-Nスキームのredeem script作成
@@ -443,7 +443,7 @@ bool ptarm_keys_create2of2(ptarm_buf_t *pRedeem, const uint8_t *pPubKey1, const 
  * @note
  *      - 公開鍵はソートしない
  */
-bool ptarm_keys_createmulti(ptarm_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M);
+bool ptarm_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M);
 
 
 /** BitcoinアドレスからPubKeyHashを求める
@@ -462,7 +462,7 @@ bool ptarm_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr);
  * @param[in]   pAddr       Bitcoinアドレス
  * @return      true:成功
  */
-bool ptarm_keys_addr2spk(ptarm_buf_t *pScriptPk, const char *pAddr);
+bool ptarm_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr);
 
 
 /** scriptPubKeyからBitcoinアドレスを求める
@@ -471,7 +471,7 @@ bool ptarm_keys_addr2spk(ptarm_buf_t *pScriptPk, const char *pAddr);
  * @param[in]   pScriptPk   scriptPubKey
  * @return      true:成功
  */
-bool ptarm_keys_spk2addr(char *pAddr, const ptarm_buf_t *pScriptPk);
+bool ptarm_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk);
 
 
 //////////////////////
@@ -512,7 +512,7 @@ void ptarm_tx_free(ptarm_tx_t *pTx);
  * @note
  *      - realloc()するため、事前のfree処理は不要
  *      - sequenceは0xFFFFFFFFで初期化している
- *      - scriptSigは空のため、戻り値を使って #ptarm_buf_alloccopy()でコピーすることを想定している
+ *      - scriptSigは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
 ptarm_vin_t *ptarm_tx_add_vin(ptarm_tx_t *pTx, const uint8_t *pTxId, int Index);
 
@@ -524,9 +524,9 @@ ptarm_vin_t *ptarm_tx_add_vin(ptarm_tx_t *pTx, const uint8_t *pTxId, int Index);
  *
  * @note
  *      - realloc()するため、事前のfree処理は不要
- *      - witnessは空のため、戻り値を使って #ptarm_buf_alloccopy()でコピーすることを想定している
+ *      - witnessは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
-ptarm_buf_t *ptarm_tx_add_wit(ptarm_vin_t *pVin);
+utl_buf_t *ptarm_tx_add_wit(ptarm_vin_t *pVin);
 
 
 /** #ptarm_vout_t の追加
@@ -537,7 +537,7 @@ ptarm_buf_t *ptarm_tx_add_wit(ptarm_vin_t *pVin);
  *
  * @note
  *      - realloc()するため、事前のfree処理は不要
- *      - scriptPubKeyは空のため、戻り値を使って #ptarm_buf_alloccopy()でコピーすることを想定している
+ *      - scriptPubKeyは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
 ptarm_vout_t *ptarm_tx_add_vout(ptarm_tx_t *pTx, uint64_t Value);
 
@@ -562,7 +562,7 @@ bool ptarm_tx_add_vout_addr(ptarm_tx_t *pTx, uint64_t Value, const char *pAddr);
  * @param[in]           pScriptPk
  * @return      trueのみ
  */
-void ptarm_tx_add_vout_spk(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pScriptPk);
+void ptarm_tx_add_vout_spk(ptarm_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk);
 
 
 /** 標準P2PKHのvout追加
@@ -581,7 +581,7 @@ bool ptarm_tx_add_vout_p2pkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPu
  * @param[in]       pAddr       Bitcoinアドレス
  * @return      true:成功
  */
-bool ptarm_tx_create_vout(ptarm_buf_t *pBuf, const char *pAddr);
+bool ptarm_tx_create_vout(utl_buf_t *pBuf, const char *pAddr);
 
 
 /** scriptPubKey(P2PKH)のデータを設定する
@@ -593,7 +593,7 @@ bool ptarm_tx_create_vout(ptarm_buf_t *pBuf, const char *pAddr);
  * @note
  *      - 署名用にINPUT txのscriptPubKeyが必要だが、TXデータを持たず、P2PKHだからBitcoinアドレスから生成しよう、という場合に使用する
  */
-bool ptarm_tx_create_vout_p2pkh(ptarm_buf_t *pBuf, const char *pAddr);
+bool ptarm_tx_create_vout_p2pkh(utl_buf_t *pBuf, const char *pAddr);
 
 
 /** 標準P2PKHのvout追加(アドレス)
@@ -630,7 +630,7 @@ bool ptarm_tx_add_vout_p2sh_addr(ptarm_tx_t *pTx, uint64_t Value, const char *pA
  * @param[in]           Value
  * @param[in]           pRedeem     redeemScript
  */
-bool ptarm_tx_add_vout_p2sh_redeem(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pRedeem);
+bool ptarm_tx_add_vout_p2sh_redeem(ptarm_tx_t *pTx, uint64_t Value, const utl_buf_t *pRedeem);
 
 
 /** P2PKHのscriptSig作成
@@ -643,7 +643,7 @@ bool ptarm_tx_add_vout_p2sh_redeem(ptarm_tx_t *pTx, uint64_t Value, const ptarm_
  * @note
  *      - 対象のvinは既に追加されていること(addではなく、置き換える動作)
  */
-bool ptarm_tx_set_vin_p2pkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig, const uint8_t *pPubKey);
+bool ptarm_tx_set_vin_p2pkh(ptarm_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey);
 
 
 /** P2SHのscriptSig作成
@@ -657,7 +657,7 @@ bool ptarm_tx_set_vin_p2pkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig,
  * @note
  *      - 対象のvinは既に追加されていること(addではなく、置き換える動作)
  */
-bool ptarm_tx_set_vin_p2sh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSigs[], int Num, const ptarm_buf_t *pRedeem);
+bool ptarm_tx_set_vin_p2sh(ptarm_tx_t *pTx, int Index, const utl_buf_t *pSigs[], int Num, const utl_buf_t *pRedeem);
 
 
 /** トランザクションデータを #ptarm_tx_t に変換
@@ -679,10 +679,10 @@ bool ptarm_tx_read(ptarm_tx_t *pTx, const uint8_t *pData, uint32_t Len);
  * @param[in]       pTx         対象データ
  *
  * @note
- *      - 動的にメモリ確保するため、pBufは使用後 #ptarm_buf_free()で解放すること
+ *      - 動的にメモリ確保するため、pBufは使用後 #utl_buf_free()で解放すること
  *      - vin cntおよびvout cntは 252までしか対応しない(varint型の1byteまで)
  */
-bool ptarm_tx_create(ptarm_buf_t *pBuf, const ptarm_tx_t *pTx);
+bool ptarm_tx_create(utl_buf_t *pBuf, const ptarm_tx_t *pTx);
 
 
 /** 非segwitトランザクション署名用ハッシュ値計算
@@ -698,7 +698,7 @@ bool ptarm_tx_create(ptarm_buf_t *pBuf, const ptarm_tx_t *pTx);
  *      - ハッシュはSIGHASHALL
  *      - vinにscriptPubKeyを記入するので、先に #ptarm_tx_add_vin()しておくこと
  */
-bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const ptarm_buf_t *pScriptPks[], uint32_t Num);
+bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const utl_buf_t *pScriptPks[], uint32_t Num);
 
 
 /** 署名計算
@@ -709,10 +709,10 @@ bool ptarm_tx_sighash(uint8_t *pTxHash, ptarm_tx_t *pTx, const ptarm_buf_t *pScr
  * @return          true        成功
  *
  * @note
- *      - pSigは、成功かどうかにかかわらず#ptarm_buf_init()される
- *      - 成功時、pSigは #ptarm_buf_alloccopy() でメモリ確保するので、使用後は #ptarm_buf_free()で解放すること
+ *      - pSigは、成功かどうかにかかわらず#utl_buf_init()される
+ *      - 成功時、pSigは #utl_buf_alloccopy() でメモリ確保するので、使用後は #utl_buf_free()で解放すること
  */
-bool ptarm_tx_sign(ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+bool ptarm_tx_sign(utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名計算(r/s)
@@ -735,7 +735,7 @@ bool ptarm_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPriv
  * @note
  *      - pSigの末尾にハッシュタイプが入っていること
  */
-bool ptarm_tx_verify(const ptarm_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey);
+bool ptarm_tx_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey);
 
 
 /** 署名チェック(r/s)
@@ -793,7 +793,7 @@ bool ptarm_tx_verify_p2pkh(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxH
  *      - pScriptPkは署名とセットになっている公開鍵がvinのTXID/indexのものかをチェックするためのもの。
  *          よって、署名されたトランザクションから計算して引数にするのはよくない。
  */
-bool ptarm_tx_verify_p2pkh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const ptarm_buf_t *pScriptPk);
+bool ptarm_tx_verify_p2pkh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 /** P2PKH署名チェック(アドレス)
@@ -830,7 +830,7 @@ bool ptarm_tx_verify_multisig(const ptarm_tx_t *pTx, int Index, const uint8_t *p
  * @param[in]       pScriptPk       scriptPubKey
  * @return      true:チェックOK
  */
-bool ptarm_tx_verify_p2sh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const ptarm_buf_t *pScriptPk);
+bool ptarm_tx_verify_p2sh_spk(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 /** P2SH署名チェック(アドレス)
@@ -886,7 +886,7 @@ bool ptarm_tx_txid(uint8_t *pTxId, const ptarm_tx_t *pTx);
  *      - pTxIdにはLittleEndianで出力される
  *      - pTxがsegwitの場合、WTXIDで出力される
  */
-bool ptarm_tx_txid_raw(uint8_t *pTxId, const ptarm_buf_t *pTxRaw);
+bool ptarm_tx_txid_raw(uint8_t *pTxId, const utl_buf_t *pTxRaw);
 
 
 /** vsize取得
@@ -928,7 +928,7 @@ void ptarm_sw_add_vout_p2wpkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pP
  * @param[in]       pWitScript
  *
  */
-void ptarm_sw_add_vout_p2wsh(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t *pWitScript);
+void ptarm_sw_add_vout_p2wsh(ptarm_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript);
 
 
 /** P2WPKH署名計算で使用するScript Code取得
@@ -937,9 +937,9 @@ void ptarm_sw_add_vout_p2wsh(ptarm_tx_t *pTx, uint64_t Value, const ptarm_buf_t 
  * @param[in]       pPubKey         公開鍵
  *
  * @note
- *      - pScriptCodeは使用後に #ptarm_buf_free()で解放すること
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-void ptarm_sw_scriptcode_p2wpkh(ptarm_buf_t *pScriptCode, const uint8_t *pPubKey);
+void ptarm_sw_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
 
 
 /** P2WPKH署名計算で使用するScript Code取得(vin)
@@ -948,9 +948,9 @@ void ptarm_sw_scriptcode_p2wpkh(ptarm_buf_t *pScriptCode, const uint8_t *pPubKey
  * @param[in]       pVin            対象vin
  *
  * @note
- *      - pScriptCodeは使用後に #ptarm_buf_free()で解放すること
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-bool ptarm_sw_scriptcode_p2wpkh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t *pVin);
+bool ptarm_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const ptarm_vin_t *pVin);
 
 
 /** P2WSH署名計算で使用するScript Code取得
@@ -959,9 +959,9 @@ bool ptarm_sw_scriptcode_p2wpkh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t 
  * @param[in]       pWit            witnessScript
  *
  * @note
- *      - pScriptCodeは使用後に #ptarm_buf_free()で解放すること
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-void ptarm_sw_scriptcode_p2wsh(ptarm_buf_t *pScriptCode, const ptarm_buf_t *pWit);
+void ptarm_sw_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWit);
 
 
 /** P2WSH署名計算で使用するScript Code取得(vin)
@@ -970,9 +970,9 @@ void ptarm_sw_scriptcode_p2wsh(ptarm_buf_t *pScriptCode, const ptarm_buf_t *pWit
  * @param[in]       pVin            対象vin
  *
  * @note
- *      - pScriptCodeは使用後に #ptarm_buf_free()で解放すること
+ *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-bool ptarm_sw_scriptcode_p2wsh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t *pVin);
+bool ptarm_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const ptarm_vin_t *pVin);
 
 
 /** segwitトランザクション署名用ハッシュ値計算
@@ -985,7 +985,7 @@ bool ptarm_sw_scriptcode_p2wsh_vin(ptarm_buf_t *pScriptCode, const ptarm_vin_t *
  *
  */
 void ptarm_sw_sighash(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64_t Value,
-                const ptarm_buf_t *pScriptCode);
+                const utl_buf_t *pScriptCode);
 
 
 /** P2WPKHのwitness作成
@@ -999,7 +999,7 @@ void ptarm_sw_sighash(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64
  *      - pSigはコピーするため解放はpTxで管理しない。
  *      - mNativeSegwitがfalseの場合、scriptSigへの追加も行う
  */
-bool ptarm_sw_set_vin_p2wpkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig, const uint8_t *pPubKey);
+bool ptarm_sw_set_vin_p2wpkh(ptarm_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey);
 
 
 /** P2WPSHのscriptSig作成
@@ -1012,7 +1012,7 @@ bool ptarm_sw_set_vin_p2wpkh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pSig
  * @note
  *      - pWitはコピーするため解放はpTxで管理しない。
  */
-bool ptarm_sw_set_vin_p2wsh(ptarm_tx_t *pTx, int Index, const ptarm_buf_t *pWits[], int Num);
+bool ptarm_sw_set_vin_p2wsh(ptarm_tx_t *pTx, int Index, const utl_buf_t *pWits[], int Num);
 
 
 /** P2WPKH署名チェック
@@ -1043,7 +1043,7 @@ bool ptarm_sw_verify_p2wpkh_addr(const ptarm_tx_t *pTx, int Index, uint64_t Valu
 /** 2-of-2 multisigの署名チェック
  *
  */
-bool ptarm_sw_verify_2of2(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const ptarm_buf_t *pVout);
+bool ptarm_sw_verify_2of2(const ptarm_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pVout);
 
 
 #if 0   //今のところ使い道がない
@@ -1056,7 +1056,7 @@ bool ptarm_sw_is_segwit(const ptarm_tx_t *pTx);
  *
  *
  */
-void ptarm_sw_wit2prog_p2wsh(uint8_t *pWitProg, const ptarm_buf_t *pWitScript);
+void ptarm_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 
 
 //////////////////////
@@ -1155,7 +1155,7 @@ bool ptarm_util_createkeys(ptarm_util_keys_t *pKeys);
  * @note
  *      - 公開鍵の順番は昇順
  */
-bool ptarm_util_create2of2(ptarm_buf_t *pRedeem, ptarm_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool ptarm_util_create2of2(utl_buf_t *pRedeem, ptarm_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 /** P2PKH署名
@@ -1200,7 +1200,7 @@ bool ptarm_util_sign_p2wpkh(ptarm_tx_t *pTx, int Index, uint64_t Value, const pt
  * @param[in]       pWitScript
  */
 void ptarm_util_calc_sighash_p2wsh(uint8_t *pTxHash, const ptarm_tx_t *pTx, int Index, uint64_t Value,
-                    const ptarm_buf_t *pWitScript);
+                    const utl_buf_t *pWitScript);
 
 
 /** P2WSH署名 - Phase2: 署名作成
@@ -1210,7 +1210,7 @@ void ptarm_util_calc_sighash_p2wsh(uint8_t *pTxHash, const ptarm_tx_t *pTx, int 
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool ptarm_util_sign_p2wsh(ptarm_buf_t *pSig, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys);
+bool ptarm_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys);
 
 
 /** P2WSH署名 - Phase2: 署名作成(R/S)
@@ -1300,13 +1300,13 @@ void ptarm_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1
 int ptarm_util_set_keypair(mbedtls_ecp_keypair *pKeyPair, const uint8_t *pPubKey);
 int ptarm_util_ecp_point_read_binary2(mbedtls_ecp_point *point, const uint8_t *pPubKey);
 void ptarm_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash);
-void ptarm_util_create_scriptpk(ptarm_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix);
+void ptarm_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix);
 bool ptarm_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix);
 int ptarm_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const mbedtls_mpi *pA);
 bool ptarm_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
 void ptarm_util_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey);
 bool ptarm_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen);
-bool ptarm_util_create_tx(ptarm_buf_t *pBuf, const ptarm_tx_t *pTx, bool enableSegWit);
+bool ptarm_util_create_tx(utl_buf_t *pBuf, const ptarm_tx_t *pTx, bool enableSegWit);
 void ptarm_util_add_vout_pub(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref);
 void ptarm_util_add_vout_pkh(ptarm_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
 int ptarm_util_get_varint_len(uint32_t Len);

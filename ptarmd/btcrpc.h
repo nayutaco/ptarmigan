@@ -118,16 +118,16 @@ bool btcrpc_search_outpoint(ptarm_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid
  *
  * @param[out]  pTxBuf      トランザクション情報(ptarm_tx_tの配列を保存する)
  * @param[in]   Blks        検索対象とする過去ブロック数
- * @param[in]   pVout       検索するscriptPubKey配列(ptarm_buf_tの配列)
+ * @param[in]   pVout       検索するscriptPubKey配列(utl_buf_tの配列)
  * @retval  true    検索成功
  * @retval  false   検索失敗 or bitcoindエラー
  * @note
  *      - pTxBufの扱いに注意すること
  *          - 成功時、ptarm_tx_tが複数入っている可能性がある(個数は、pTxBuf->len / sizeof(ptarm_tx_t))
- *          - クリアする場合、各ptarm_tx_tをクリア後、ptarm_buf_tをクリアすること
+ *          - クリアする場合、各ptarm_tx_tをクリア後、utl_buf_tをクリアすること
  *      - 内部処理(getrawtransaction)に失敗した場合でも、処理を継続する
  */
-bool btcrpc_search_vout(ptarm_buf_t *pTxBuf, uint32_t Blks, const ptarm_buf_t *pVout);
+bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout);
 
 
 /** [bitcoin IF]signrawtransaction
@@ -178,7 +178,7 @@ bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, 
  * @param[out]  pBuf        生成したScriptPubKey
  * @retval  true        取得成功
  */
-bool btcrpc_getnewaddress(ptarm_buf_t *pBuf);
+bool btcrpc_getnewaddress(utl_buf_t *pBuf);
 
 
 /** [bitcoin IF]estimatefee

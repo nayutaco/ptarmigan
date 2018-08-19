@@ -95,12 +95,12 @@ struct bolt8_t {
  **************************************************************************/
 
 static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint8_t *pIkm);
-static bool actone_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRS);
-static bool actone_receiver(ln_self_t *self, ptarm_buf_t *pBuf);
-static bool acttwo_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRE);
-static bool acttwo_receiver(ln_self_t *self, ptarm_buf_t *pBuf);
-static bool actthree_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRE);
-static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf);
+static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS);
+static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf);
+static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE);
+static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf);
+static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE);
+static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf);
 
 
 /********************************************************************
@@ -147,7 +147,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
 }
 
 
-bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pNodeId)
+bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId)
 {
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
 
@@ -168,7 +168,7 @@ bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, ptarm_buf_t *pBuf, cons
 }
 
 
-bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, ptarm_buf_t *pBuf)
+bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
 {
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
     bool ret;
@@ -230,7 +230,7 @@ void ln_enc_auth_handshake_free(ln_self_t *self)
 }
 
 
-bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ptarm_buf_t *pBufEnc, const ptarm_buf_t *pBufIn)
+bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn)
 {
     bool ret = false;
     uint8_t nonce[12];
@@ -326,7 +326,7 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, ptarm_buf_t *pBufEnc, const ptarm_b
         self->noise_send.nonce = 0;
     }
 
-    ptarm_buf_alloc(pBufEnc, sizeof(l) + pBufIn->len + 2 * M_CHACHAPOLY_MAC);
+    utl_buf_alloc(pBufEnc, sizeof(l) + pBufIn->len + 2 * M_CHACHAPOLY_MAC);
     memcpy(pBufEnc->buf, cl, sizeof(l) + M_CHACHAPOLY_MAC);
     memcpy(pBufEnc->buf + sizeof(l) + M_CHACHAPOLY_MAC, cm, pBufIn->len + M_CHACHAPOLY_MAC);
     ret = true;
@@ -403,7 +403,7 @@ LABEL_EXIT:
 }
 
 
-bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, ptarm_buf_t *pBuf)
+bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
 {
     bool ret = false;
     uint16_t l = pBuf->len - M_CHACHAPOLY_MAC;
@@ -455,8 +455,8 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, ptarm_buf_t *pBuf)
         self->noise_recv.nonce = 0;
     }
 
-    ptarm_buf_free(pBuf);
-    ptarm_buf_alloc(pBuf, l);
+    utl_buf_free(pBuf);
+    utl_buf_alloc(pBuf, l);
     memcpy(pBuf->buf, pm, l);
     ret = true;
 
@@ -522,7 +522,7 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
 }
 
 
-static bool actone_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRS)
+static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
 {
     bool ret = false;
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
@@ -581,8 +581,8 @@ static bool actone_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRS
     ptarm_util_sha256cat(pBolt->h, pBolt->h, PTARM_SZ_SHA256, c, sizeof(c));
 
     // SEND: m = 0 || e.pub.serializeCompressed() || c to the responder over the network buffer.
-    ptarm_buf_free(pBuf);
-    ptarm_buf_alloc(pBuf, 1 + PTARM_SZ_PUBKEY + sizeof(c));
+    utl_buf_free(pBuf);
+    utl_buf_alloc(pBuf, 1 + PTARM_SZ_PUBKEY + sizeof(c));
     pBuf->buf[0] = 0x00;       //m=0
     memcpy(pBuf->buf + 1, pBolt->e.pub, PTARM_SZ_PUBKEY);
     memcpy(pBuf->buf + 1 + PTARM_SZ_PUBKEY, c, sizeof(c));
@@ -593,7 +593,7 @@ LABEL_EXIT:
 }
 
 
-static bool actone_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
+static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
 {
     bool ret = false;
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
@@ -667,7 +667,7 @@ LABEL_EXIT:
 }
 
 
-static bool acttwo_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRE)
+static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
 {
     bool ret = false;
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
@@ -725,8 +725,8 @@ static bool acttwo_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRE
     ptarm_util_sha256cat(pBolt->h, pBolt->h, PTARM_SZ_SHA256, c, sizeof(c));
 
     // SEND: m = 0 || e.pub.serializeCompressed() || c to the responder over the network buffer.
-    ptarm_buf_free(pBuf);
-    ptarm_buf_alloc(pBuf, 1 + PTARM_SZ_PUBKEY + sizeof(c));
+    utl_buf_free(pBuf);
+    utl_buf_alloc(pBuf, 1 + PTARM_SZ_PUBKEY + sizeof(c));
     pBuf->buf[0] = 0x00;       //m=0
     memcpy(pBuf->buf + 1, pBolt->e.pub, PTARM_SZ_PUBKEY);
     memcpy(pBuf->buf + 1 + PTARM_SZ_PUBKEY, c, sizeof(c));
@@ -737,7 +737,7 @@ LABEL_EXIT:
 }
 
 
-static bool acttwo_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
+static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
 {
     bool ret = false;
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
@@ -811,7 +811,7 @@ LABEL_EXIT:
 }
 
 
-static bool actthree_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pRE)
+static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
 {
     bool ret = false;
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
@@ -906,8 +906,8 @@ static bool actthree_sender(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *p
     noise_hkdf(self->noise_send.key, self->noise_recv.key, pBolt->ck, NULL);
 
     // SEND: m = 0 || c || t   over the network buffer.
-    ptarm_buf_free(pBuf);
-    ptarm_buf_alloc(pBuf, 1 + sizeof(c) + sizeof(t));
+    utl_buf_free(pBuf);
+    utl_buf_alloc(pBuf, 1 + sizeof(c) + sizeof(t));
     pBuf->buf[0] = 0x00;       //m=0
     memcpy(pBuf->buf + 1, c, sizeof(c));
     memcpy(pBuf->buf + 1 + sizeof(c), t, sizeof(t));
@@ -918,7 +918,7 @@ LABEL_EXIT:
 }
 
 
-static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
+static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
 {
     bool ret = false;
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
@@ -1025,8 +1025,8 @@ static bool actthree_receiver(ln_self_t *self, ptarm_buf_t *pBuf)
     noise_hkdf(self->noise_recv.key, self->noise_send.key, pBolt->ck, NULL);
 
     //Act Treeでは相手のnode_idを返す
-    ptarm_buf_free(pBuf);
-    ptarm_buf_alloccopy(pBuf, rs, sizeof(rs));
+    utl_buf_free(pBuf);
+    utl_buf_alloccopy(pBuf, rs, sizeof(rs));
 
     ret = true;
 

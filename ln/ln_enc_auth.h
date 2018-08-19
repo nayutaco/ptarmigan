@@ -51,7 +51,7 @@ bool ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId);
  * @attention
  *      - #ln_enc_auth_handshake_init() で送信側になっていること
  */
-bool ln_enc_auth_handshake_start(ln_self_t *self, ptarm_buf_t *pBuf, const uint8_t *pNodeId);
+bool ln_enc_auth_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pNodeId);
 
 
 /** noise handshake受信
@@ -60,7 +60,7 @@ bool ln_enc_auth_handshake_start(ln_self_t *self, ptarm_buf_t *pBuf, const uint8
  * @param[out]          pBuf        送信データ(Act Two/Three)
  * @retval      true    成功
  */
-bool ln_enc_auth_handshake_recv(ln_self_t *self, ptarm_buf_t *pBuf);
+bool ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf);
 
 
 /** noise handshake状態取得
@@ -85,7 +85,7 @@ void ln_enc_auth_handshake_free(ln_self_t *self);
 /**
  *
  */
-bool ln_enc_auth_enc(ln_self_t *self, ptarm_buf_t *pBufEnc, const ptarm_buf_t *pBufIn);
+bool ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t *pBufIn);
 
 
 /**
@@ -97,6 +97,6 @@ uint16_t ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint16_t Len
 /**
  *
  */
-bool ln_enc_auth_dec_msg(ln_self_t *self, ptarm_buf_t *pBuf);
+bool ln_enc_auth_dec_msg(ln_self_t *self, utl_buf_t *pBuf);
 
 #endif /* LN_ENC_AUTH_H__ */

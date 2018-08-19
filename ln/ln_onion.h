@@ -27,7 +27,7 @@
 #define LN_ONION_H__
 
 
-#include "ptarm_push.h"
+#include "utl_push.h"
 
 #include "ln_local.h"
 
@@ -52,8 +52,8 @@
  *      - pNextPacketとpPacketに同じアドレスを指定できる
  */
 bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
-            ptarm_buf_t *pSharedSecret,
-            ptarm_push_t *pPushReason,
+            utl_buf_t *pSharedSecret,
+            utl_push_t *pPushReason,
             const uint8_t *pPacket,
             const uint8_t *pAssocData, int AssocLen);
 

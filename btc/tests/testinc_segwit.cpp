@@ -9,12 +9,12 @@ class sw: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
+        utl_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
         ptarm_term();
     }
 
@@ -32,7 +32,7 @@ public:
 
 TEST_F(sw, scriptcode_p2wpkh)
 {
-    ptarm_buf_t code;
+    utl_buf_t code;
 
     //wif: cV7N1pozd3SNCkXYJAWeTUvoGpq9gcbvjWuWn8S2SCWy8W3zKmhk
     //pri: e0a29cfd87bf70e5f4e8c9bbf347d0185cd2057c7af1f19f2c13d264a7678189
@@ -52,13 +52,13 @@ TEST_F(sw, scriptcode_p2wpkh)
     ptarm_sw_scriptcode_p2wpkh(&code, PUB);
     ASSERT_EQ(0, memcmp(CODE, code.buf, sizeof(CODE)));
     ASSERT_EQ(sizeof(CODE), code.len);
-    ptarm_buf_free(&code);
+    utl_buf_free(&code);
 }
 
 
 TEST_F(sw, scriptcode_p2wsh)
 {
-    ptarm_buf_t code;
+    utl_buf_t code;
 
     //wif: cV7N1pozd3SNCkXYJAWeTUvoGpq9gcbvjWuWn8S2SCWy8W3zKmhk
     //pri: e0a29cfd87bf70e5f4e8c9bbf347d0185cd2057c7af1f19f2c13d264a7678189
@@ -78,7 +78,7 @@ TEST_F(sw, scriptcode_p2wsh)
         0x18, 0x2e, 0x82, 0x04, 0x95, 0x3e, 0x74, 0x53,
         0xae,
     };
-    const ptarm_buf_t wit = { (uint8_t *)WIT, sizeof(WIT) };
+    const utl_buf_t wit = { (uint8_t *)WIT, sizeof(WIT) };
     const uint8_t CODE[] = {
         0x69,
         0x52, 0x21, 0x03, 0xd7, 0x98, 0x23, 0x4d, 0xf0,
@@ -99,7 +99,7 @@ TEST_F(sw, scriptcode_p2wsh)
     ptarm_sw_scriptcode_p2wsh(&code, &wit);
     ASSERT_EQ(0, memcmp(CODE, code.buf, sizeof(CODE)));
     ASSERT_EQ(sizeof(CODE), code.len);
-    ptarm_buf_free(&code);
+    utl_buf_free(&code);
 }
 
 
@@ -200,12 +200,12 @@ TEST_F(sw, read_tx_p2wpkh)
     ASSERT_EQ(0, memcmp(SCRIPTPK, vout->script.buf, sizeof(SCRIPTPK)));
     ASSERT_EQ(sizeof(SCRIPTPK), vout->script.len);
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
+    utl_buf_t txbuf = UTL_BUF_INIT;
     ptarm_tx_create(&txbuf, &tx);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
     ptarm_print_rawtx(txbuf.buf, txbuf.len);
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
 
     ptarm_print_tx(&tx);
     ptarm_tx_free(&tx);
@@ -352,11 +352,11 @@ TEST_F(sw, read_tx_p2wsh)
     ASSERT_EQ(0, memcmp(SCRIPTPK, vout->script.buf, sizeof(SCRIPTPK)));
     ASSERT_EQ(sizeof(SCRIPTPK), vout->script.len);
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
+    utl_buf_t txbuf = UTL_BUF_INIT;
     ptarm_tx_create(&txbuf, &tx);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
     ptarm_tx_free(&tx);
 }
 
@@ -399,7 +399,7 @@ TEST_F(sw, sighash_p2wpkh)
     ptarm_tx_init(&tx);
     ptarm_tx_read(&tx, TX, sizeof(TX));
 
-    ptarm_buf_t script_code = PTARM_BUF_INIT;
+    utl_buf_t script_code = UTL_BUF_INIT;
     bool ret = ptarm_sw_scriptcode_p2wpkh_vin(&script_code, &tx.vin[0]);
     ASSERT_TRUE(ret);
     ptarm_sw_sighash(txhash, &tx, 0, PTARM_BTC2SATOSHI(0.007), &script_code);
@@ -414,7 +414,7 @@ TEST_F(sw, sighash_p2wpkh)
     };
     ASSERT_EQ(0, memcmp(TXHASH, txhash, sizeof(TXHASH)));
 
-    ptarm_buf_free(&script_code);
+    utl_buf_free(&script_code);
     ptarm_tx_free(&tx);
 }
 
@@ -477,7 +477,7 @@ TEST_F(sw, sighash_p2wsh)
     ptarm_tx_init(&tx);
     ptarm_tx_read(&tx, TX, sizeof(TX));
 
-    ptarm_buf_t script_code = PTARM_BUF_INIT;
+    utl_buf_t script_code = UTL_BUF_INIT;
     bool ret = ptarm_sw_scriptcode_p2wsh_vin(&script_code, &tx.vin[0]);
     ASSERT_TRUE(ret);
     //printf("script_code=\n");
@@ -494,7 +494,7 @@ TEST_F(sw, sighash_p2wsh)
     };
     ASSERT_EQ(0, memcmp(TXHASH, txhash, sizeof(TXHASH)));
 
-    ptarm_buf_free(&script_code);
+    utl_buf_free(&script_code);
     ptarm_tx_free(&tx);
 }
 
@@ -527,7 +527,7 @@ TEST_F(sw, set_vin_p2wpkh)
         0x71, 0x95, 0xb6, 0xf4, 0x6b, 0x14, 0x73, 0x26,
         0xef, 0x9c, 0x55, 0xaa, 0x09, 0x05, 0x6e, 0x01,
     };
-    const ptarm_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
+    const utl_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
     const uint8_t PUB[] = {
         0x02, 0x81, 0x00, 0xca, 0x14, 0xc4, 0x4e, 0x2f,
         0xe3, 0x63, 0xf9, 0x6c, 0xff, 0x64, 0x98, 0x5d,
@@ -626,12 +626,12 @@ TEST_F(sw, set_vin_p2wsh)
         0x88, 0x93, 0xd2, 0x78, 0x75, 0x44, 0xb6, 0x5f,
         0x3f, 0x71, 0x7e,
     };
-    const ptarm_buf_t wit0 = { NULL, 0 };
-    const ptarm_buf_t wit1 = { (uint8_t *)SIG1, sizeof(SIG1) };
-    const ptarm_buf_t wit2 = { (uint8_t *)SIG2, sizeof(SIG2) };
-    const ptarm_buf_t wit3 = { (uint8_t *)WIT,  sizeof(WIT)  };
-    const ptarm_buf_t *wits[] = { &wit0, &wit1, &wit2, &wit3 };
-    bool ret = ptarm_sw_set_vin_p2wsh(&tx, 0, (const ptarm_buf_t **)wits, 4);
+    const utl_buf_t wit0 = { NULL, 0 };
+    const utl_buf_t wit1 = { (uint8_t *)SIG1, sizeof(SIG1) };
+    const utl_buf_t wit2 = { (uint8_t *)SIG2, sizeof(SIG2) };
+    const utl_buf_t wit3 = { (uint8_t *)WIT,  sizeof(WIT)  };
+    const utl_buf_t *wits[] = { &wit0, &wit1, &wit2, &wit3 };
+    bool ret = ptarm_sw_set_vin_p2wsh(&tx, 0, (const utl_buf_t **)wits, 4);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, tx.vin_cnt);
     const ptarm_vin_t *vin = &tx.vin[0];
@@ -725,12 +725,12 @@ TEST_F(sw, sign_p2wpkh)
     sw::DumpBin(PUB, sizeof(PUB));
     printf("txhash= ");
     uint8_t txhash[PTARM_SZ_SIGHASH];
-    ptarm_buf_t script_code = PTARM_BUF_INIT;
+    utl_buf_t script_code = UTL_BUF_INIT;
     ret = ptarm_sw_scriptcode_p2wpkh_vin(&script_code, &tx.vin[0]);
     ASSERT_TRUE(ret);
     ptarm_sw_sighash(txhash, &tx, 0, PTARM_BTC2SATOSHI(0.007), &script_code);
     sw::DumpBin(txhash, sizeof(txhash));
-    ptarm_buf_free(&script_code);
+    utl_buf_free(&script_code);
     printf("sigData= ");
     sw::DumpBin(vin->witness[0].buf, vin->witness[0].len);
 

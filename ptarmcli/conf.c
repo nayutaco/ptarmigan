@@ -27,7 +27,7 @@
 #include "inih/ini.h"
 
 #include "conf.h"
-#include "misc.h"
+#include "utl_misc.h"
 #include "ln.h"
 
 /**************************************************************************
@@ -198,7 +198,7 @@ static int handler_peer_conf(void* user, const char* section, const char* name, 
     } else if (strcmp(name, "port") == 0) {
         pconfig->port = (uint16_t)atoi(value);
     } else if (strcmp(name, "node_id") == 0) {
-        misc_str2bin(pconfig->node_id, PTARM_SZ_PUBKEY, value);
+        utl_misc_str2bin(pconfig->node_id, PTARM_SZ_PUBKEY, value);
     } else {
         return 0;  /* unknown section/name, error */
     }
@@ -214,7 +214,7 @@ static int handler_fund_conf(void* user, const char* section, const char* name, 
 
     errno = 0;
     if (strcmp(name, "txid") == 0) {
-        misc_str2bin_rev(pconfig->txid, PTARM_SZ_TXID, value);
+        utl_misc_str2bin_rev(pconfig->txid, PTARM_SZ_TXID, value);
     } else if (strcmp(name, "txindex") == 0) {
         pconfig->txindex = atoi(value);
     } else if (strcmp(name, "funding_sat") == 0) {
@@ -248,7 +248,7 @@ static bool pay_root(ln_hop_datain_t *pHop, const char *Value)
         ret = false;
         goto LABEL_EXIT;
     }
-    ret = misc_str2bin(pHop->pubkey, PTARM_SZ_PUBKEY, node_id);
+    ret = utl_misc_str2bin(pHop->pubkey, PTARM_SZ_PUBKEY, node_id);
 
 LABEL_EXIT:
     return ret;
@@ -263,7 +263,7 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
     payment_conf_t* pconfig = (payment_conf_t *)user;
 
     if (strcmp(name, "hash") == 0) {
-        ret = misc_str2bin(pconfig->payment_hash, LN_SZ_HASH, value);
+        ret = utl_misc_str2bin(pconfig->payment_hash, LN_SZ_HASH, value);
     } else if (strcmp(name, "hop_num") == 0) {
         pconfig->hop_num = atoi(value);
         ret = (2 <= pconfig->hop_num) && (pconfig->hop_num <= LN_HOP_MAX + 1);

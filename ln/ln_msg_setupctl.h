@@ -39,7 +39,7 @@
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_init_create(ptarm_buf_t *pBuf, const ln_init_t *pMsg);
+bool HIDDEN ln_msg_init_create(utl_buf_t *pBuf, const ln_init_t *pMsg);
 
 
 /** init読込み
@@ -58,7 +58,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_error_create(ptarm_buf_t *pBuf, const ln_error_t *pMsg);
+bool HIDDEN ln_msg_error_create(utl_buf_t *pBuf, const ln_error_t *pMsg);
 
 
 /** error読込み
@@ -77,7 +77,7 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_ping_create(ptarm_buf_t *pBuf, const ln_ping_t *pMsg);
+bool HIDDEN ln_msg_ping_create(utl_buf_t *pBuf, const ln_ping_t *pMsg);
 
 
 /** ping読込み
@@ -96,7 +96,7 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_pong_create(ptarm_buf_t *pBuf, const ln_pong_t *pMsg);
+bool HIDDEN ln_msg_pong_create(utl_buf_t *pBuf, const ln_pong_t *pMsg);
 
 
 /** pong読込み

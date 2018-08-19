@@ -133,10 +133,10 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
         if (fp) {
             char peer_id[PTARM_SZ_PUBKEY * 2 + 1];
-            ptarm_util_bin2str(peer_id, pConn->node_id, PTARM_SZ_PUBKEY);
+            utl_misc_bin2str(peer_id, pConn->node_id, PTARM_SZ_PUBKEY);
 
             char date[50];
-            misc_datetime(date, sizeof(date));
+            utl_misc_datetime(date, sizeof(date));
             fprintf(fp, "[%s]fail: %s@%s:%" PRIu16 "\n", date, peer_id, pConn->ipaddr, pConn->port);
             fclose(fp);
         }

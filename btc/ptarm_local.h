@@ -56,17 +56,17 @@
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
 #ifdef PTARM_DEBUG
-#include "plog.h"
+#include "utl_log.h"
 #define LOG_TAG "BTC"
 
-#define LOGV(...)       plog_write(PLOG_PRI_VERBOSE, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
-#define DUMPV(dt,ln)    plog_dump(PLOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
-#define TXIDV(dt)       plog_dump_rev(PLOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
+#define LOGV(...)       utl_log_write(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
+#define DUMPV(dt,ln)    utl_log_dump(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
+#define TXIDV(dt)       utl_log_dump_rev(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
 
-#define LOGD(...)       plog_write(PLOG_PRI_DBG, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
-#define LOGD2(...)      plog_write(PLOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, __VA_ARGS__)
-#define DUMPD(dt,ln)    plog_dump(PLOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
-#define TXIDD(dt)       plog_dump_rev(PLOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
+#define LOGD(...)       utl_log_write(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
+#define LOGD2(...)      utl_log_write(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, __VA_ARGS__)
+#define DUMPD(dt,ln)    utl_log_dump(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
+#define TXIDD(dt)       utl_log_dump_rev(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
 
 #else //PTARM_DEBUG
 #define LOGV(...)       //none
@@ -81,10 +81,10 @@
 
 
 #ifdef PTARM_DEBUG_MEM
-#define M_MALLOC(a)         ptarm_dbg_malloc(a); LOGD("M_MALLOC:%d\n", ptarm_dbg_malloc_cnt());       ///< malloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define M_REALLOC(a,b)      ptarm_dbg_realloc(a,b); LOGD("M_REALLOC:%d\n", ptarm_dbg_malloc_cnt());   ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define M_CALLOC(a,b)       ptarm_dbg_calloc(a,b); LOGD("M_CALLOC:%d\n", ptarm_dbg_malloc_cnt());       ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define M_FREE(ptr)         { ptarm_dbg_free(ptr); ptr = NULL; LOGD("M_FREE:%d\n", ptarm_dbg_malloc_cnt()); }     ///< free(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define M_MALLOC(a)         utl_dbg_malloc(a); LOGD("M_MALLOC:%d\n", utl_dbg_malloc_cnt());       ///< malloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define M_REALLOC(a,b)      utl_dbg_realloc(a,b); LOGD("M_REALLOC:%d\n", utl_dbg_malloc_cnt());   ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define M_CALLOC(a,b)       utl_dbg_calloc(a,b); LOGD("M_CALLOC:%d\n", utl_dbg_malloc_cnt());       ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define M_FREE(ptr)         { utl_dbg_free(ptr); ptr = NULL; LOGD("M_FREE:%d\n", utl_dbg_malloc_cnt()); }     ///< free(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
 #else   //PTARM_DEBUG_MEM
 #define M_MALLOC            malloc
 #define M_REALLOC           realloc

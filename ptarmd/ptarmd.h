@@ -42,7 +42,7 @@ static inline int tid() {
     return (int)syscall(SYS_gettid);
 }
 
-#include "misc.h"
+#include "utl_misc.h"
 #include "ln.h"
 
 
@@ -112,17 +112,17 @@ static inline int tid() {
 #define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))
 
 #if 1
-#include "plog.h"
+#include "utl_log.h"
 #define LOG_TAG "APP"
 
-#define LOGV(...)       plog_write(PLOG_PRI_VERBOSE, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
-#define DUMPV(dt,ln)    plog_dump(PLOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
-#define TXIDV(dt)       plog_dump_rev(PLOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
+#define LOGV(...)       utl_log_write(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
+#define DUMPV(dt,ln)    utl_log_dump(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
+#define TXIDV(dt)       utl_log_dump_rev(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
 
-#define LOGD(...)       plog_write(PLOG_PRI_DBG, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
-#define LOGD2(...)      plog_write(PLOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, __VA_ARGS__)
-#define DUMPD(dt,ln)    plog_dump(PLOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
-#define TXIDD(dt)       plog_dump_rev(PLOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
+#define LOGD(...)       utl_log_write(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
+#define LOGD2(...)      utl_log_write(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, __VA_ARGS__)
+#define DUMPD(dt,ln)    utl_log_dump(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
+#define TXIDD(dt)       utl_log_dump_rev(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
 
 #else
 #define LOGV(...)       //none
@@ -260,7 +260,7 @@ typedef struct {
     uint64_t    next_short_channel_id;              ///< 送信:short_chennl_id
     uint64_t    prev_short_channel_id;              ///< 転送元:short_channel_id
     uint64_t    prev_id;                            ///< 転送元:HTLC id
-    ptarm_buf_t shared_secret;                      ///< add_htlc失敗:reason用
+    utl_buf_t shared_secret;                      ///< add_htlc失敗:reason用
 } fwd_proc_add_t;
 
 
@@ -280,8 +280,8 @@ typedef struct {
 typedef struct {
     uint64_t    id;
     uint64_t    prev_short_channel_id;
-    ptarm_buf_t reason;
-    ptarm_buf_t shared_secret;
+    utl_buf_t reason;
+    utl_buf_t shared_secret;
     bool        b_first;            ///< true:fail発生元
 } bwd_proc_fail_t;
 
@@ -297,7 +297,7 @@ typedef struct lnapp_conf_t lnapp_conf_t;
 /** ノード内転送
  *
  */
-bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, ptarm_buf_t *pBuf);
+bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, utl_buf_t *pBuf);
 
 
 /** preimage操作排他開始

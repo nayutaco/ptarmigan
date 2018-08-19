@@ -49,7 +49,7 @@ typedef struct cJSON cJSON;
 typedef struct transferlist_t {
     LIST_ENTRY(transferlist_t) list;
     trans_cmd_t     cmd;            ///< 要求
-    ptarm_buf_t     buf;            ///< 転送先で送信するパケット用パラメータ
+    utl_buf_t     buf;            ///< 転送先で送信するパケット用パラメータ
 } transferlist_t;
 
 LIST_HEAD(transferlisthead_t, transferlist_t);
@@ -92,7 +92,7 @@ typedef struct lnapp_conf_t {
     uint8_t         flag_recv;              ///< 受信フラグ(RECV_MSG_xxx)
 
     //BOLT送信キュー
-    ptarm_buf_t     buf_sendque;            ///< send data array before noise encode
+    utl_buf_t     buf_sendque;            ///< send data array before noise encode
 
     //排他制御
     //  これ以外に、ptarmd全体として mMuxNode とフラグmFlagNode がある。
@@ -165,7 +165,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 /** [lnapp]channel間処理転送
  *
  */
-void lnapp_transfer_channel(lnapp_conf_t *pAppConf, trans_cmd_t Cmd, ptarm_buf_t *pBuf);
+void lnapp_transfer_channel(lnapp_conf_t *pAppConf, trans_cmd_t Cmd, utl_buf_t *pBuf);
 
 
 /*******************************************

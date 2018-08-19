@@ -319,13 +319,13 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         data[datalen++] = (uint8_t)p32;
         data[datalen++] = (uint8_t)(bits - p32 * 32);
         uint8_t rfield[51];     //408bit分
-        ptarm_buf_t buf = { rfield, sizeof(rfield) };
-        ptarm_push_t push = { 0, &buf };
+        utl_buf_t buf = { rfield, sizeof(rfield) };
+        utl_push_t push = { 0, &buf };
         for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
             const ln_fieldr_t *r = &p_invoice_data->r_field[lp];
 
             push.pos = 0;
-            ptarm_push_data(&push, r->node_id, PTARM_SZ_PUBKEY);
+            utl_push_data(&push, r->node_id, PTARM_SZ_PUBKEY);
             ln_misc_push64be(&push, r->short_channel_id);
             ln_misc_push32be(&push, r->fee_base_msat);
             ln_misc_push32be(&push, r->fee_prop_millionths);

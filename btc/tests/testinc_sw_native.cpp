@@ -9,12 +9,12 @@ class sw_native: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
+        utl_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, true);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
         ptarm_term();
     }
 
@@ -49,7 +49,7 @@ TEST_F(sw_native, init)
         0x71, 0x95, 0xb6, 0xf4, 0x6b, 0x14, 0x73, 0x26,
         0xef, 0x9c, 0x55, 0xaa, 0x09, 0x05, 0x6e, 0x01,
     };
-    const ptarm_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
+    const utl_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
     const uint8_t PUB[] = {
         0x02, 0x81, 0x00, 0xca, 0x14, 0xc4, 0x4e, 0x2f,
         0xe3, 0x63, 0xf9, 0x6c, 0xff, 0x64, 0x98, 0x5d,

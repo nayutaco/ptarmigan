@@ -58,7 +58,7 @@ static void init_print(const ln_init_t *pMsg);
  * init
  ********************************************************************/
 
-bool HIDDEN ln_msg_init_create(ptarm_buf_t *pBuf, const ln_init_t *pMsg)
+bool HIDDEN ln_msg_init_create(utl_buf_t *pBuf, const ln_init_t *pMsg)
 {
     //    type: 16 (init)
     //    data:
@@ -67,7 +67,7 @@ bool HIDDEN ln_msg_init_create(ptarm_buf_t *pBuf, const ln_init_t *pMsg)
     //        [2:lflen]
     //        [lflen:localfeatures]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -75,7 +75,7 @@ bool HIDDEN ln_msg_init_create(ptarm_buf_t *pBuf, const ln_init_t *pMsg)
 #endif  //DBG_PRINT_CREATE
 
     //gflen=0, lflen=0
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->globalfeatures.len + pMsg->localfeatures.len);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->globalfeatures.len + pMsg->localfeatures.len);
 
     //    type: 16 (init)
     ln_misc_push16be(&proto, MSGTYPE_INIT);
@@ -85,7 +85,7 @@ bool HIDDEN ln_msg_init_create(ptarm_buf_t *pBuf, const ln_init_t *pMsg)
 
     //        [gflen:globalfeatures]
     if (pMsg->globalfeatures.len > 0) {
-        ptarm_push_data(&proto, pMsg->globalfeatures.buf, pMsg->globalfeatures.len);
+        utl_push_data(&proto, pMsg->globalfeatures.buf, pMsg->globalfeatures.len);
     }
 
     //        [2:lflen]
@@ -93,12 +93,12 @@ bool HIDDEN ln_msg_init_create(ptarm_buf_t *pBuf, const ln_init_t *pMsg)
 
     //        [lflen:localfeatures]
     if (pMsg->localfeatures.len > 0) {
-        ptarm_push_data(&proto, pMsg->localfeatures.buf, pMsg->localfeatures.len);
+        utl_push_data(&proto, pMsg->localfeatures.buf, pMsg->localfeatures.len);
     }
 
     assert(sizeof(uint16_t) + 4 + pMsg->globalfeatures.len + pMsg->localfeatures.len == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }
@@ -128,7 +128,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
     pos += sizeof(uint16_t);
 
     //        [gflen:globalfeatures]
-    ptarm_buf_alloccopy(&pMsg->globalfeatures, pData + pos, gflen);
+    utl_buf_alloccopy(&pMsg->globalfeatures, pData + pos, gflen);
     pos += gflen;
 
     //        [2:lflen]
@@ -140,7 +140,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
     pos += sizeof(uint16_t);
 
     //        [lflen:localfeatures]
-    ptarm_buf_alloccopy(&pMsg->localfeatures, pData + pos, lflen);
+    utl_buf_alloccopy(&pMsg->localfeatures, pData + pos, lflen);
     pos += lflen;
 
     assert(Len == pos);
@@ -171,7 +171,7 @@ static void init_print(const ln_init_t *pMsg)
  * error
  ********************************************************************/
 
-bool HIDDEN ln_msg_error_create(ptarm_buf_t *pBuf, const ln_error_t *pMsg)
+bool HIDDEN ln_msg_error_create(utl_buf_t *pBuf, const ln_error_t *pMsg)
 {
     //    type: 17 (error)
     //    data:
@@ -179,27 +179,27 @@ bool HIDDEN ln_msg_error_create(ptarm_buf_t *pBuf, const ln_error_t *pMsg)
     //        [2:len]
     //        [len:data]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + LN_SZ_CHANNEL_ID + sizeof(uint16_t) + pMsg->len);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + LN_SZ_CHANNEL_ID + sizeof(uint16_t) + pMsg->len);
 
     //    type: 17 (error)
     ln_misc_push16be(&proto, MSGTYPE_ERROR);
 
     //        [32:channel_id]
-    ptarm_push_data(&proto, pMsg->channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->channel_id, LN_SZ_CHANNEL_ID);
 
     //        [2:len]
     ln_misc_push16be(&proto, pMsg->len);
 
     //        [len:data]
     if (pMsg->len > 0) {
-        ptarm_push_data(&proto, pMsg->p_data, pMsg->len);
+        utl_push_data(&proto, pMsg->p_data, pMsg->len);
     }
 
     assert(sizeof(uint16_t) + LN_SZ_CHANNEL_ID + sizeof(uint16_t) + pMsg->len == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }
@@ -250,7 +250,7 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
  * ping
  ********************************************************************/
 
-bool HIDDEN ln_msg_ping_create(ptarm_buf_t *pBuf, const ln_ping_t *pMsg)
+bool HIDDEN ln_msg_ping_create(utl_buf_t *pBuf, const ln_ping_t *pMsg)
 {
     //        type: 18 (ping)
     //        data:
@@ -258,7 +258,7 @@ bool HIDDEN ln_msg_ping_create(ptarm_buf_t *pBuf, const ln_ping_t *pMsg)
     //            [2:byteslen]
     //            [byteslen:ignored]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
     if (pMsg->num_pong_bytes >= 65532) {
         LOGD("fail: num_pong_bytes: %d\n", pMsg->num_pong_bytes);
@@ -270,7 +270,7 @@ bool HIDDEN ln_msg_ping_create(ptarm_buf_t *pBuf, const ln_ping_t *pMsg)
     //ping_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->byteslen);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 4 + pMsg->byteslen);
 
     //        type: 18 (ping)
     ln_misc_push16be(&proto, MSGTYPE_PING);
@@ -287,7 +287,7 @@ bool HIDDEN ln_msg_ping_create(ptarm_buf_t *pBuf, const ln_ping_t *pMsg)
 
     assert(sizeof(uint16_t) + 4 + pMsg->byteslen == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }
@@ -355,14 +355,14 @@ static void ping_print(const ln_ping_t *pMsg)
  * pong
  ********************************************************************/
 
-bool HIDDEN ln_msg_pong_create(ptarm_buf_t *pBuf, const ln_pong_t *pMsg)
+bool HIDDEN ln_msg_pong_create(utl_buf_t *pBuf, const ln_pong_t *pMsg)
 {
     //        type: 19 (pong)
     //        data:
     //            [2:byteslen]
     //            [byteslen:ignored]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
     if (pMsg->byteslen >= 65532) {
         LOGD("fail: byteslen: %d\n", pMsg->byteslen);
@@ -374,7 +374,7 @@ bool HIDDEN ln_msg_pong_create(ptarm_buf_t *pBuf, const ln_pong_t *pMsg)
     //pong_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 2 + pMsg->byteslen);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 2 + pMsg->byteslen);
 
     //        type: 19 (pong)
     ln_misc_push16be(&proto, MSGTYPE_PONG);
@@ -388,7 +388,7 @@ bool HIDDEN ln_msg_pong_create(ptarm_buf_t *pBuf, const ln_pong_t *pMsg)
 
     assert(sizeof(uint16_t) + 2 + pMsg->byteslen == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }

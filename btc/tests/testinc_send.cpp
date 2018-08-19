@@ -9,12 +9,12 @@ class send: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
+        utl_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, false);
     }
 
     virtual void TearDown() {
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
         ptarm_term();
     }
 
@@ -73,11 +73,11 @@ TEST_F(send, p2pkh)
     ASSERT_TRUE(ret);
 
     uint8_t txhash[PTARM_SZ_SIGHASH];
-    ptarm_buf_t script_pk;
+    utl_buf_t script_pk;
     ret = ptarm_keys_addr2spk(&script_pk, "mmsgPUnoceq7er7f9HuaZV2ktMkaVD3Za1");
     ASSERT_TRUE(ret);
-    const ptarm_buf_t *spks[] = { &script_pk };
-    ret = ptarm_tx_sighash(txhash, &tx, (const ptarm_buf_t **)spks, 1);
+    const utl_buf_t *spks[] = { &script_pk };
+    ret = ptarm_tx_sighash(txhash, &tx, (const utl_buf_t **)spks, 1);
     ASSERT_TRUE(ret);
     uint8_t priv[PTARM_SZ_PRIVKEY];
     const char WIF[] = "cR645M2xZJnE5mDWw5LpAghNLudXGZsCs4ZEUvRMr2NrHqU3rLWa";
@@ -88,7 +88,7 @@ TEST_F(send, p2pkh)
     ret = ptarm_tx_sign_p2pkh(&tx, 0, txhash, priv, NULL);
     ASSERT_TRUE(ret);
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
+    utl_buf_t txbuf = UTL_BUF_INIT;
     ptarm_tx_create(&txbuf, &tx);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);
@@ -132,8 +132,8 @@ TEST_F(send, p2pkh)
     ret = ptarm_tx_txid(txid, &tx);
     send::DumpTxid(txid);
 
-    ptarm_buf_free(&txbuf);
-    ptarm_buf_free(&script_pk);
+    utl_buf_free(&txbuf);
+    utl_buf_free(&script_pk);
     ptarm_tx_free(&tx);
 }
 
@@ -179,7 +179,7 @@ TEST_F(send, p2wpkh)
     ret = ptarm_util_sign_p2wpkh(&tx, 0, PTARM_MBTC2SATOSHI(3), &keys);
     ASSERT_TRUE(ret);
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
+    utl_buf_t txbuf = UTL_BUF_INIT;
     ptarm_tx_create(&txbuf, &tx);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);
@@ -227,7 +227,7 @@ TEST_F(send, p2wpkh)
     ret = ptarm_tx_txid(txid, &tx);
     send::DumpTxid(txid);
 
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
     ptarm_tx_free(&tx);
 }
 
@@ -284,7 +284,7 @@ TEST_F(send, p2wsh)
     ASSERT_EQ(PTARM_TESTNET, chain);
 
     //2-of-2
-    ptarm_buf_t wit = PTARM_BUF_INIT;
+    utl_buf_t wit = UTL_BUF_INIT;
     ret = ptarm_keys_create2of2(&wit, keys2.pub, keys1.pub);      //ソートしないようにしたので順番をあわせる
     ASSERT_TRUE(ret);
     printf("wit= \n");
@@ -296,7 +296,7 @@ TEST_F(send, p2wsh)
     ptarm_keys_wit2waddr(addr_2of2, &wit);
     ASSERT_STREQ(ADDR_2OF2, addr_2of2);
     printf("addr 2of2= %s\n", addr_2of2);
-    ptarm_buf_free(&wit);
+    utl_buf_free(&wit);
 
     //vinの順番は、2-of-2の順番と関係が無い
     ret = ptarm_util_sign_p2wpkh(&tx, 0, PTARM_MBTC2SATOSHI(1.9), &keys1);
@@ -305,7 +305,7 @@ TEST_F(send, p2wsh)
     ASSERT_TRUE(ret);
 
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
+    utl_buf_t txbuf = UTL_BUF_INIT;
     ptarm_tx_create(&txbuf, &tx);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);
@@ -369,6 +369,6 @@ TEST_F(send, p2wsh)
     ret = ptarm_tx_txid(txid, &tx);
     send::DumpTxid(txid);
 
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
     ptarm_tx_free(&tx);
 }

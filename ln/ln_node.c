@@ -99,7 +99,7 @@ bool ln_node_init(uint8_t Features)
     bool ret;
     char wif[PTARM_SZ_WIF_MAX];
     ptarm_chain_t chain;
-    ptarm_buf_t buf_node = PTARM_BUF_INIT;
+    utl_buf_t buf_node = UTL_BUF_INIT;
 
     mNode.features = Features;
 
@@ -167,7 +167,7 @@ bool ln_node_init(uint8_t Features)
     }
 
 LABEL_EXIT:
-    ptarm_buf_free(&buf_node);
+    utl_buf_free(&buf_node);
     return ret;
 }
 
@@ -196,7 +196,7 @@ bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
 
 bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNodeId)
 {
-    ptarm_buf_t buf_anno = PTARM_BUF_INIT;
+    utl_buf_t buf_anno = UTL_BUF_INIT;
 
     bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId, NULL);
     if (ret) {
@@ -207,7 +207,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
             LOGD("fail: read node_announcement\n");
         }
     }
-    ptarm_buf_free(&buf_anno);
+    utl_buf_free(&buf_anno);
 
     return ret;
 }
@@ -252,7 +252,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     LOGV("node_id:");
     DUMPV(node_id, sizeof(node_id));
 
-    ptarm_buf_t buf_ann;
+    utl_buf_t buf_ann;
     buf_ann.buf = (CONST_CAST uint8_t *)pData;
     buf_ann.len = Len;
     ret = ln_db_annonod_save(&buf_ann, &anno, ln_their_node_id(self));
@@ -314,13 +314,13 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
             ln_db_copy_channel(p->p_self, self);
 
             if (p->p_self->short_channel_id != 0) {
-                ptarm_buf_t buf = PTARM_BUF_INIT;
+                utl_buf_t buf = UTL_BUF_INIT;
 
                 bool bret2 = ln_db_annocnl_load(&p->p_self->cnl_anno, p->p_self->short_channel_id);
                 if (bret2) {
-                    ptarm_buf_alloccopy(&p->p_self->cnl_anno, buf.buf, buf.len);
+                    utl_buf_alloccopy(&p->p_self->cnl_anno, buf.buf, buf.len);
                 }
-                ptarm_buf_free(&buf);
+                utl_buf_free(&buf);
             }
             ln_print_keys(&p->p_self->funding_local, &p->p_self->funding_remote);
         } else {

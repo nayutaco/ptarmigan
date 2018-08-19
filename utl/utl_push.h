@@ -19,21 +19,21 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ptarm_push.h
- *  @brief  ptarm_push
+/** @file   utl_push.h
+ *  @brief  utl_push
  *  @author ueno@nayuta.co
  *
  * @note
- *      - ptarm_push
+ *      - utl_push
  *
  */
-#ifndef PTARM_PUSH_H__
-#define PTARM_PUSH_H__
+#ifndef UTL_PUSH_H__
+#define UTL_PUSH_H__
 
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <ptarm_buf.h>
+#include <utl_buf.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,23 +43,23 @@ extern "C" {
  * types
  **************************************************************************/
 
-/** @struct     ptarm_push_t
+/** @struct     utl_push_t
  *  @brief      PUSH管理構造体
  */
 typedef struct {
     uint32_t        pos;            ///< 次書込み位置
-    ptarm_buf_t     *data;          ///< 更新対象
-} ptarm_push_t;
+    utl_buf_t     *data;          ///< 更新対象
+} utl_push_t;
 
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
 
-/** ptarm_push_t初期化
+/** utl_push_t初期化
  *
  * @param[out]  pPush       処理対象
- * @param[in]   pBuf        更新していくptarm_buf_t
+ * @param[in]   pBuf        更新していくutl_buf_t
  * @param[in]   Size        初期サイズ
  *
  * @note
@@ -67,7 +67,7 @@ typedef struct {
  *          realloc()を繰り返すことになるので、必要なサイズ以上を確保した方が望ましい。
  *      - pDataは解放せず初期化して使用するため、必要なら先に解放すること。
  */
-void ptarm_push_init(ptarm_push_t *pPush, ptarm_buf_t *pBuf, uint32_t Size);
+void utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size);
 
 
 /** データ追加
@@ -80,7 +80,7 @@ void ptarm_push_init(ptarm_push_t *pPush, ptarm_buf_t *pBuf, uint32_t Size);
  *      - 初期化時のサイズからあふれる場合、realloc()して拡張する。
  *      - そのまま追加するため、OP_PUSHDATAxなどは呼び出し元で行うこと。
  */
-void ptarm_push_data(ptarm_push_t *pPush, const void *pData, uint32_t Len);
+void utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len);
 
 
 /** スタックへの値追加(符号無し)
@@ -94,20 +94,20 @@ void ptarm_push_data(ptarm_push_t *pPush, const void *pData, uint32_t Len);
  * @attention
  *      - 符号ありの値をキャストしても符号無しとして扱う。
  */
-void ptarm_push_value(ptarm_push_t *pPush, uint64_t Value);
+void utl_push_value(utl_push_t *pPush, uint64_t Value);
 
 
 /** サイズ調整
  *
- * ptarm_buf_tのサイズをptarm_push_tで管理しているサイズにあわせる。
+ * utl_buf_tのサイズをutl_push_tで管理しているサイズにあわせる。
  *
  * @param[out]  pPush       処理対象
  */
-void ptarm_push_trim(ptarm_push_t *pPush);
+void utl_push_trim(utl_push_t *pPush);
 
 
 #ifdef __cplusplus
 }
 #endif //__cplusplus
 
-#endif /* PTARM_PUSH_H__ */
+#endif /* UTL_PUSH_H__ */

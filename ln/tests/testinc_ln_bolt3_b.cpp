@@ -21,7 +21,7 @@ protected:
     virtual void TearDown() {
     }
 
-    static ptarm_buf_t redeem_fund;
+    static utl_buf_t redeem_fund;
     static ptarm_util_keys_t    keys;
 
 public:
@@ -34,7 +34,7 @@ public:
     }
 };
 
-ptarm_buf_t ln_bolt3_b::redeem_fund;
+utl_buf_t ln_bolt3_b::redeem_fund;
 ptarm_util_keys_t    ln_bolt3_b::keys;
 
 
@@ -42,7 +42,7 @@ ptarm_util_keys_t    ln_bolt3_b::keys;
 
 TEST_F(ln_bolt3_b, fuding1)
 {
-    ptarm_dbg_malloc_cnt_reset();
+    utl_dbg_malloc_cnt_reset();
     ptarm_init(PTARM_TESTNET, true);
 
 
@@ -81,7 +81,7 @@ TEST_F(ln_bolt3_b, fuding1)
     ASSERT_EQ(0, memcmp(FUNDING_WSCRIPT, redeem_fund.buf, sizeof(FUNDING_WSCRIPT)));
     ASSERT_EQ(sizeof(FUNDING_WSCRIPT), redeem_fund.len);
 
-    ptarm_buf_free(&redeem_fund);
+    utl_buf_free(&redeem_fund);
 
     //逆順
     ret = ptarm_util_create2of2(&redeem_fund, &sort, REMOTE_FUNDING_PUBKEY, LOCAL_FUNDING_PUBKEY);
@@ -137,7 +137,7 @@ TEST_F(ln_bolt3_b, fuding3)
 
     bool ret;
     ptarm_tx_t tx = PTARM_TX_INIT;
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
+    utl_buf_t txbuf = UTL_BUF_INIT;
 
     //output
     //vout#0
@@ -160,7 +160,7 @@ TEST_F(ln_bolt3_b, fuding3)
     // LEN+署名(72) + LEN+公開鍵(33)
     uint64_t fee = (txbuf.len + 1 + 72 + 1 + 33) * 4 * FEERATE_PER_KW / 1000;
     tx.vout[1].value = IN_SATOSHI - FUND_SATOSHI - fee;
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
 
 
     //署名
@@ -203,7 +203,7 @@ TEST_F(ln_bolt3_b, fuding3)
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(FUNDING_TX, txbuf.buf, sizeof(FUNDING_TX)));
     ASSERT_EQ(sizeof(FUNDING_TX), txbuf.len);
-    ptarm_buf_free(&txbuf);
+    utl_buf_free(&txbuf);
 
     uint8_t txid[PTARM_SZ_TXID];
     ptarm_tx_txid(txid, &tx);
@@ -217,9 +217,9 @@ TEST_F(ln_bolt3_b, fuding3)
     ASSERT_EQ(0, memcmp(TXID_FUND, txid, PTARM_SZ_TXID));
 
     ptarm_tx_free(&tx);
-    ptarm_buf_free(&redeem_fund);
+    utl_buf_free(&redeem_fund);
 
     ptarm_term();
 
-    ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
+    ASSERT_EQ(0, utl_dbg_malloc_cnt());
 }

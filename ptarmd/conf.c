@@ -27,7 +27,7 @@
 #include "inih/ini.h"
 
 #include "conf.h"
-#include "misc.h"
+#include "utl_misc.h"
 #include "ln.h"
 
 /**************************************************************************

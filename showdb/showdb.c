@@ -503,7 +503,7 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
             uint64_t short_channel_id;
             char type;
             uint32_t timestamp;
-            ptarm_buf_t buf = PTARM_BUF_INIT;
+            utl_buf_t buf = UTL_BUF_INIT;
 
             ret = ln_lmdb_annocnl_cur_load(cursor, &short_channel_id, &type, &timestamp, &buf);
             if ((ret == 0) && (short_channel_id != 0)) {
@@ -516,7 +516,7 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
                     ln_print_announce(buf.buf, buf.len);
                 }
                 cnt1++;
-                ptarm_buf_free(&buf);
+                utl_buf_free(&buf);
             } else {
                 //printf("end of announce\n");
             }
@@ -543,7 +543,7 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
         int ret;
 
         do {
-            ptarm_buf_t buf = PTARM_BUF_INIT;
+            utl_buf_t buf = UTL_BUF_INIT;
             uint32_t timestamp;
             uint8_t nodeid[PTARM_SZ_PUBKEY];
 
@@ -557,7 +557,7 @@ static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
                 } else {
                     ln_print_announce(buf.buf, buf.len);
                 }
-                ptarm_buf_free(&buf);
+                utl_buf_free(&buf);
                 cnt2++;
             } else {
                 //printf("end of announce\n");
@@ -719,8 +719,8 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
                 printf("\",\n");
                 printf(INDENT1 M_QQ("amount") ": %" PRIu64 ",\n", preimg.amount_msat);
                 printf(INDENT1 M_QQ("expiry") ": %" PRIu32 "\n", preimg.expiry);
-                char dtstr[PTARM_SZ_DTSTR];
-                ptarm_util_strftime(dtstr, preimg.creation_time);
+                char dtstr[UTL_SZ_DTSTR];
+                utl_misc_strftime(dtstr, preimg.creation_time);
                 printf(INDENT1 M_QQ("creation") ": %s\n", dtstr);
                 printf("}");
                 cnt4++;

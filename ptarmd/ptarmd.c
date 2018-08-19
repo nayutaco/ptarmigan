@@ -46,10 +46,10 @@
 
 #include "btcrpc.h"
 #include "conf.h"
-#include "misc.h"
+#include "utl_misc.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
-#include "plog.h"
+#include "utl_log.h"
 
 #include "ptarmd.h"
 #include "p2p_svr.h"
@@ -135,9 +135,9 @@ int main(int argc, char *argv[])
     p_alias = ln_node_alias();
 
 #ifdef ENABLE_PLOG_TO_STDOUT
-    plog_init_stdout();
+    utl_log_init_stdout();
 #else
-    plog_init();
+    utl_log_init();
 #endif
 
 #ifndef NETKIND
@@ -325,7 +325,7 @@ int main(int argc, char *argv[])
     lnapp_term();
     btcrpc_term();
     ln_db_term();
-    plog_term();
+    utl_log_term();
 
     return 0;
 
@@ -351,7 +351,7 @@ LABEL_EXIT:
  * public functions
  ********************************************************************/
 
-bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, ptarm_buf_t *pBuf)
+bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, utl_buf_t *pBuf)
 {
     lnapp_conf_t *p_appconf = NULL;
 
@@ -402,7 +402,7 @@ void ptarmd_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
     LOGD("ipaddr(%d)=%s:%" PRIu16 " node_id: ", NodeDesc, pAddr, Port);
     DUMPD(pNodeId, PTARM_SZ_PUBKEY);
 
-    if ( misc_all_zero(pNodeId, PTARM_SZ_PUBKEY) ||
+    if ( utl_misc_all_zero(pNodeId, PTARM_SZ_PUBKEY) ||
          ptarmd_nodefail_get(pNodeId, pAddr, Port, LN_NODEDESC_IPV4) ) {
         //登録の必要なし
         LOGD("no save\n");
@@ -411,7 +411,7 @@ void ptarmd_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[PTARM_SZ_PUBKEY * 2 + 1];
-        ptarm_util_bin2str(nodeid_str, pNodeId, PTARM_SZ_PUBKEY);
+        utl_misc_bin2str(nodeid_str, pNodeId, PTARM_SZ_PUBKEY);
         LOGD("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
 
         nodefaillist_t *nf = (nodefaillist_t *)APP_MALLOC(sizeof(nodefaillist_t));
@@ -429,7 +429,7 @@ bool ptarmd_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
 
     if (NodeDesc == LN_NODEDESC_IPV4) {
         char nodeid_str[PTARM_SZ_PUBKEY * 2 + 1];
-        ptarm_util_bin2str(nodeid_str, pNodeId, PTARM_SZ_PUBKEY);
+        utl_misc_bin2str(nodeid_str, pNodeId, PTARM_SZ_PUBKEY);
 
         nodefaillist_t *p = LIST_FIRST(&mNodeFailListHead);
         while (p != NULL) {

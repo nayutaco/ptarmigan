@@ -39,7 +39,7 @@
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_shutdown_create(ptarm_buf_t *pBuf, const ln_shutdown_t *pMsg);
+bool HIDDEN ln_msg_shutdown_create(utl_buf_t *pBuf, const ln_shutdown_t *pMsg);
 
 
 /** shutdown読込み
@@ -58,7 +58,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
  * @param[in]       pMsg    元データ
  * retval   true    成功
  */
-bool HIDDEN ln_msg_closing_signed_create(ptarm_buf_t *pBuf, const ln_closing_signed_t *pMsg);
+bool HIDDEN ln_msg_closing_signed_create(utl_buf_t *pBuf, const ln_closing_signed_t *pMsg);
 
 
 /** closing_signed読込み

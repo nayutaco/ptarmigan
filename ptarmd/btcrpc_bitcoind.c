@@ -27,8 +27,8 @@
 #include <pthread.h>
 #include "jansson.h"
 
-#include "misc.h"
-#include "ptarm_push.h"
+#include "utl_misc.h"
+#include "utl_push.h"
 
 #include "btcrpc.h"
 
@@ -75,7 +75,7 @@ static bool signraw_tx(ptarm_tx_t *pTx, const uint8_t *pData, size_t Len, uint64
 static bool signraw_tx_with_wallet(ptarm_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
 static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_outpoint(ptarm_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
-static bool search_vout_block(ptarm_buf_t *pTxBuf, int BHeight, const ptarm_buf_t *pVout);
+static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *pVout);
 static bool getversion(int64_t *pVersion);
 
 static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream);
@@ -194,7 +194,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 
     ret = getblockhash_rpc(&p_root, &p_result, &p_json, 0);
     if (ret && json_is_string(p_result)) {
-        ret = misc_str2bin(pHash, LN_SZ_HASH, (const char *)json_string_value(p_result));
+        ret = utl_misc_str2bin(pHash, LN_SZ_HASH, (const char *)json_string_value(p_result));
     } else {
         LOGD("fail: getblockhash_rpc\n");
     }
@@ -280,7 +280,7 @@ bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *p
         p_tx = json_object_get(p_result, M_TX);
 
         char txid[PTARM_SZ_TXID * 2 + 1];
-        ptarm_util_bin2str_rev(txid, pTxid, PTARM_SZ_TXID);
+        utl_misc_bin2str_rev(txid, pTxid, PTARM_SZ_TXID);
 
         size_t index = 0;
         json_t *p_value = NULL;
@@ -326,7 +326,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
         json_array_foreach(p_tx, index, p_value) {
             if ((int)index == BIndex) {
                 //TXIDはLE/BE変換
-                misc_str2bin_rev(pTxid, PTARM_SZ_TXID, (const char *)json_string_value(p_value));
+                utl_misc_str2bin_rev(pTxid, PTARM_SZ_TXID, (const char *)json_string_value(p_value));
                 break;
             }
         }
@@ -362,7 +362,7 @@ bool btcrpc_search_outpoint(ptarm_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid
 }
 
 
-bool btcrpc_search_vout(ptarm_buf_t *pTxBuf, uint32_t Blks, const ptarm_buf_t *pVout)
+bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout)
 {
     bool ret = false;
     int32_t height = btcrpc_getblockcount();
@@ -401,14 +401,14 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
     json_t *p_result;
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
-    ptarm_util_bin2str(transaction, pRawData, Len);
+    utl_misc_bin2str(transaction, pRawData, Len);
 
     ret = sendrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
     APP_FREE(transaction);
     if (ret) {
         if (json_is_string(p_result)) {
             //TXIDはLE/BE変換
-            misc_str2bin_rev(pTxid, PTARM_SZ_TXID, (const char *)json_string_value(p_result));
+            utl_misc_str2bin_rev(pTxid, PTARM_SZ_TXID, (const char *)json_string_value(p_result));
             result = true;
         } else {
             int code = error_result(p_root);
@@ -435,7 +435,7 @@ bool btcrpc_is_tx_broadcasted(const ln_self_t *self, const uint8_t *pTxid)
     char txid[PTARM_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
-    ptarm_util_bin2str_rev(txid, pTxid, PTARM_SZ_TXID);
+    utl_misc_bin2str_rev(txid, pTxid, PTARM_SZ_TXID);
 
     return getraw_txstr(NULL, txid);
 }
@@ -457,7 +457,7 @@ bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, 
 }
 
 
-bool btcrpc_getnewaddress(ptarm_buf_t *pBuf)
+bool btcrpc_getnewaddress(utl_buf_t *pBuf)
 {
     bool result = false;
     bool ret;
@@ -607,7 +607,7 @@ static bool getraw_tx(json_t **ppRoot, json_t **ppResult, char **ppJson, const u
     char txid[PTARM_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
-    ptarm_util_bin2str_rev(txid, pTxid, PTARM_SZ_TXID);
+    utl_misc_bin2str_rev(txid, pTxid, PTARM_SZ_TXID);
 
     bool ret = getrawtransaction_rpc(ppRoot, ppResult, ppJson, txid, true);
     return ret;
@@ -646,7 +646,7 @@ static bool getraw_txstr(ptarm_tx_t *pTx, const char *txid)
         if (pTx) {
             len >>= 1;
             p_hex = (uint8_t *)APP_MALLOC(len);
-            misc_str2bin(p_hex, len, str_hex);
+            utl_misc_str2bin(p_hex, len, str_hex);
             ptarm_tx_read(pTx, p_hex, len);
             APP_FREE(p_hex);
         }
@@ -675,7 +675,7 @@ static bool signraw_tx(ptarm_tx_t *pTx, const uint8_t *pData, size_t Len, uint64
 
     *pCode = 0;
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
-    ptarm_util_bin2str(transaction, pData, Len);
+    utl_misc_bin2str(transaction, pData, Len);
 
     ret = signrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
     APP_FREE(transaction);
@@ -687,7 +687,7 @@ static bool signraw_tx(ptarm_tx_t *pTx, const uint8_t *pData, size_t Len, uint64
             const char *p_sigtx = (const char *)json_string_value(p_hex);
             size_t len = strlen(p_sigtx) / 2;
             uint8_t *p_buf = APP_MALLOC(len);
-            misc_str2bin(p_buf, len, p_sigtx);
+            utl_misc_str2bin(p_buf, len, p_sigtx);
             ptarm_tx_free(pTx);
             result = ptarm_tx_read(pTx, p_buf, len);
             APP_FREE(p_buf);
@@ -720,7 +720,7 @@ static bool signraw_tx_with_wallet(ptarm_tx_t *pTx, const uint8_t *pData, size_t
     json_t *p_result;
 
     transaction = (char *)APP_MALLOC(Len * 2 + 1);
-    ptarm_util_bin2str(transaction, pData, Len);
+    utl_misc_bin2str(transaction, pData, Len);
 
     ret = signrawtransactionwithwallet_rpc(&p_root, &p_result, &p_json, transaction);
     APP_FREE(transaction);
@@ -732,7 +732,7 @@ static bool signraw_tx_with_wallet(ptarm_tx_t *pTx, const uint8_t *pData, size_t
             const char *p_sigtx = (const char *)json_string_value(p_hex);
             size_t len = strlen(p_sigtx) / 2;
             uint8_t *p_buf = APP_MALLOC(len);
-            misc_str2bin(p_buf, len, p_sigtx);
+            utl_misc_str2bin(p_buf, len, p_sigtx);
             ptarm_tx_free(pTx);
             result = ptarm_tx_read(pTx, p_buf, len);
             APP_FREE(p_buf);
@@ -763,7 +763,7 @@ static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint3
     json_t *p_result;
 
     //TXIDはBE/LE変換
-    ptarm_util_bin2str_rev(txid, pTxid, PTARM_SZ_TXID);
+    utl_misc_bin2str_rev(txid, pTxid, PTARM_SZ_TXID);
 
     //まずtxの存在確認を行う
     ret = getraw_txstr(NULL, txid);
@@ -856,29 +856,29 @@ static bool search_outpoint(ptarm_tx_t *pTx, int BHeight, const uint8_t *pTxid, 
 /** [bitcoin rpc]blockからvoutが一致するtransactionを検索
  * @param[out]  pTxBuf      トランザクション情報(ptarm_tx_tの配列を保存する)
  * @param[in]   BHeight     block height
- * @param[in]   pVout       vout(ptarm_buf_tの配列)
+ * @param[in]   pVout       vout(utl_buf_tの配列)
  * @retval  true        検索成功(1つでも見つかった)
  * @note
  *      - pTxBufの扱いに注意すること
  *          - 成功時、ptarm_tx_tが複数入っている可能性がある(個数は、pTxBuf->len / sizeof(ptarm_tx_t))
- *          - クリアする場合、各ptarm_tx_tをクリア後、ptarm_buf_tをクリアすること
+ *          - クリアする場合、各ptarm_tx_tをクリア後、utl_buf_tをクリアすること
  *      - 内部処理(getrawtransaction)に失敗した場合でも、処理を継続する
  */
-static bool search_vout_block(ptarm_buf_t *pTxBuf, int BHeight, const ptarm_buf_t *pVout)
+static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *pVout)
 {
     bool result = false;
     bool ret;
     char *p_json = NULL;
     json_t *p_root = NULL;
     json_t *p_tx = NULL;
-    int vout_num = pVout->len / sizeof(ptarm_buf_t);
+    int vout_num = pVout->len / sizeof(utl_buf_t);
     //LOGD("vout_num: %d\n", vout_num);
 
     ret = getblocktx(&p_root, &p_tx, &p_json, BHeight);
     if (ret) {
         //検索
-        ptarm_push_t push;
-        ptarm_push_init(&push, pTxBuf, 0);
+        utl_push_t push;
+        utl_push_init(&push, pTxBuf, 0);
         size_t index = 0;
         json_t *p_value = NULL;
         char txid[PTARM_SZ_TXID * 2 + 1] = "";
@@ -891,10 +891,10 @@ static bool search_vout_block(ptarm_buf_t *pTxBuf, int BHeight, const ptarm_buf_
             if (ret) {
                 for (uint32_t lp = 0; lp < tx.vout_cnt; lp++) {
                     for (int lp2 = 0; lp2 < vout_num; lp2++) {
-                        if (ptarm_buf_cmp(&tx.vout[0].script, &pVout[lp2])) {
+                        if (utl_buf_cmp(&tx.vout[0].script, &pVout[lp2])) {
                             //一致
                             LOGD("match: %s\n", txid);
-                            ptarm_push_data(&push, &tx, sizeof(ptarm_tx_t));
+                            utl_push_data(&push, &tx, sizeof(ptarm_tx_t));
                             LOGD("len=%u\n", pTxBuf->len);
                             ptarm_tx_init(&tx);     //freeさせない
                             result = true;

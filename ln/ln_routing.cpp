@@ -150,7 +150,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-static void dumpit_chan(nodes_result_t *p_result, char type, const ptarm_buf_t *p_buf)
+static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_buf)
 {
     nodes_t *p_nodes;
 
@@ -308,7 +308,7 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
     if (ret) {
         uint64_t short_channel_id;
         char type;
-        ptarm_buf_t buf_cnl = PTARM_BUF_INIT;
+        utl_buf_t buf_cnl = UTL_BUF_INIT;
 
         while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
             void *p_db_skip;
@@ -316,13 +316,13 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
             if (bret) {
                 bret = ln_db_annoskip_search(p_db_skip, short_channel_id);
                 if (bret) {
-                    ptarm_buf_free(&buf_cnl);
+                    utl_buf_free(&buf_cnl);
                     continue;
                 }
             }
 
             dumpit_chan(p_result, type, &buf_cnl);
-            ptarm_buf_free(&buf_cnl);
+            utl_buf_free(&buf_cnl);
         }
     }
 

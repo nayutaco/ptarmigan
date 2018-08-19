@@ -6,12 +6,12 @@
 
 extern "C" {
 //評価対象本体
+#include "../../utl/utl_misc.c"
+#include "../../utl/utl_log.c"
+#include "../../utl/utl_dbg.c"
+#include "../../utl/utl_buf.c"
+#include "../../utl/utl_push.c"
 #include "ptarm.c"
-#include "../../utl/misc.c"
-#include "../../utl/plog.c"
-#include "../../utl/ptarm_dbg.c"
-#include "../../utl/ptarm_buf.c"
-#include "../../utl/ptarm_push.c"
 #include "ptarm_ekey.c"
 #include "ptarm_keys.c"
 #include "ptarm_sw.c"
@@ -39,7 +39,7 @@ TEST_F(btc, first)
 
 TEST_F(btc, ptarm_setnet_testnet_false)
 {
-    ptarm_dbg_malloc_cnt_reset();
+    utl_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_TESTNET, false);
     ASSERT_TRUE(ret);
     ASSERT_EQ(2, mPref[PTARM_PREF]);
@@ -53,7 +53,7 @@ TEST_F(btc, ptarm_setnet_testnet_false)
 
 TEST_F(btc, ptarm_setnet_testnet_true)
 {
-    ptarm_dbg_malloc_cnt_reset();
+    utl_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_TESTNET, true);
     ASSERT_TRUE(ret);
     ASSERT_EQ(2, mPref[PTARM_PREF]);
@@ -67,7 +67,7 @@ TEST_F(btc, ptarm_setnet_testnet_true)
 
 TEST_F(btc, ptarm_setnet_mainnet)
 {
-    ptarm_dbg_malloc_cnt_reset();
+    utl_dbg_malloc_cnt_reset();
     bool ret = ptarm_init(PTARM_MAINNET, false);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, mPref[PTARM_PREF]);

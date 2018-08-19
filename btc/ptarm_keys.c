@@ -40,7 +40,7 @@
  * prototypes
  ********************************************************************/
 
-static int spk2prefix(const uint8_t **ppPkh, const ptarm_buf_t *pScriptPk);
+static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk);
 
 
 /**************************************************************************
@@ -211,7 +211,7 @@ bool ptarm_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
 }
 
 
-bool ptarm_keys_wit2waddr(char *pWAddr, const ptarm_buf_t *pWitScript)
+bool ptarm_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
 {
     bool ret;
 
@@ -299,9 +299,9 @@ bool ptarm_keys_chkpub(const uint8_t *pPubKey)
 }
 
 
-bool ptarm_keys_create2of2(ptarm_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+bool ptarm_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
-    ptarm_buf_alloc(pRedeem, LNL_SZ_2OF2);
+    utl_buf_alloc(pRedeem, LNL_SZ_2OF2);
 
     uint8_t *p = pRedeem->buf;
 
@@ -325,9 +325,9 @@ bool ptarm_keys_create2of2(ptarm_buf_t *pRedeem, const uint8_t *pPubKey1, const 
 }
 
 
-bool ptarm_keys_createmulti(ptarm_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M)
+bool ptarm_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M)
 {
-    ptarm_buf_alloc(pRedeem, 3 + Num * (PTARM_SZ_PUBKEY + 1));
+    utl_buf_alloc(pRedeem, 3 + Num * (PTARM_SZ_PUBKEY + 1));
 
     uint8_t *p = pRedeem->buf;
 
@@ -420,7 +420,7 @@ bool ptarm_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
 }
 
 
-bool ptarm_keys_addr2spk(ptarm_buf_t *pScriptPk, const char *pAddr)
+bool ptarm_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
 {
     bool ret;
     uint8_t pkh[PTARM_SZ_PUBKEYHASH];
@@ -435,7 +435,7 @@ bool ptarm_keys_addr2spk(ptarm_buf_t *pScriptPk, const char *pAddr)
 }
 
 
-bool ptarm_keys_spk2addr(char *pAddr, const ptarm_buf_t *pScriptPk)
+bool ptarm_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 {
     bool ret;
     const uint8_t *pkh;
@@ -457,7 +457,7 @@ bool ptarm_keys_spk2addr(char *pAddr, const ptarm_buf_t *pScriptPk)
 /** scriptPubKeyからPREF変換
  *
  */
-static int spk2prefix(const uint8_t **ppPkh, const ptarm_buf_t *pScriptPk)
+static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk)
 {
     if ( (pScriptPk->len == 25) &&
          (pScriptPk->buf[0] == OP_DUP) &&

@@ -100,7 +100,7 @@ static void announce_signs_print(const ln_announce_signs_t *pMsg);
  * channel_announcement
  ********************************************************************/
 
-bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg)
+bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, const ln_cnl_announce_create_t *pMsg)
 {
     //    type: 256 (channel_announcement)
     //    data:
@@ -117,7 +117,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
     //        [33:bitcoin_key_1]
     //        [33:bitcoin_key_2]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #if 0
     LOGD("--------------------------\n");
@@ -135,7 +135,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
 #endif
 
     //len=0
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 430);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 430);
 
     //    type: 256 (channel_announcement)
     ln_misc_push16be(&proto, MSGTYPE_CHANNEL_ANNOUNCEMENT);
@@ -154,7 +154,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
 //    ln_misc_push8(&proto, pMsg->features);
 
     //        [32:chain_hash]
-    ptarm_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
+    utl_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
 
     //        [8:short_channel_id]
     ln_misc_push64be(&proto, pMsg->short_channel_id);
@@ -176,20 +176,20 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, ptarm_buf_t *pBuf,
         p_btc_2 = pMsg->p_my_funding_pub;
     }
     //        [33:node_id_1]
-    ptarm_push_data(&proto, p_node_1, PTARM_SZ_PUBKEY);
+    utl_push_data(&proto, p_node_1, PTARM_SZ_PUBKEY);
 
     //        [33:node_id_2]
-    ptarm_push_data(&proto, p_node_2, PTARM_SZ_PUBKEY);
+    utl_push_data(&proto, p_node_2, PTARM_SZ_PUBKEY);
 
     //        [33:bitcoin_key_1]
-    ptarm_push_data(&proto, p_btc_1, PTARM_SZ_PUBKEY);
+    utl_push_data(&proto, p_btc_1, PTARM_SZ_PUBKEY);
 
     //        [33:bitcoin_key_2]
-    ptarm_push_data(&proto, p_btc_2, PTARM_SZ_PUBKEY);
+    utl_push_data(&proto, p_btc_2, PTARM_SZ_PUBKEY);
 
     assert(sizeof(uint16_t) + 430 == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, pMsg->sort);
     if (ret) {
@@ -515,7 +515,7 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
  * node_announcement
  ********************************************************************/
 
-bool HIDDEN ln_msg_node_announce_create(ptarm_buf_t *pBuf, const ln_node_announce_t *pMsg)
+bool HIDDEN ln_msg_node_announce_create(utl_buf_t *pBuf, const ln_node_announce_t *pMsg)
 {
     //    type: 257 (node_announcement)
     //    data:
@@ -529,7 +529,7 @@ bool HIDDEN ln_msg_node_announce_create(ptarm_buf_t *pBuf, const ln_node_announc
     //        [2:addrlen]
     //        [addrlen:addresses]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE_NOD
    LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -537,13 +537,13 @@ bool HIDDEN ln_msg_node_announce_create(ptarm_buf_t *pBuf, const ln_node_announc
 #endif  //DBG_PRINT_CREATE_NOD
 
     //flen=0
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 141 + M_ADDRLEN2[pMsg->addr.type]);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 141 + M_ADDRLEN2[pMsg->addr.type]);
 
     //    type: 257 (node_announcement)
     ln_misc_push16be(&proto, MSGTYPE_NODE_ANNOUNCEMENT);
 
     //        [64:signature]
-    //ptarm_push_data(&proto, pMsg->p_signature, LN_SZ_SIGNATURE);
+    //utl_push_data(&proto, pMsg->p_signature, LN_SZ_SIGNATURE);
     proto.pos += LN_SZ_SIGNATURE;
 
     //        [2:flen]
@@ -556,10 +556,10 @@ bool HIDDEN ln_msg_node_announce_create(ptarm_buf_t *pBuf, const ln_node_announc
     ln_misc_push32be(&proto, pMsg->timestamp);
 
     //        [33:node_id]
-    ptarm_push_data(&proto, pMsg->p_node_id, PTARM_SZ_PUBKEY);
+    utl_push_data(&proto, pMsg->p_node_id, PTARM_SZ_PUBKEY);
 
     //        [3:rgb_color]
-    ptarm_push_data(&proto, pMsg->rgbcolor, 3);
+    utl_push_data(&proto, pMsg->rgbcolor, 3);
 
     //        [32:alias]
     char alias[LN_SZ_ALIAS + 1];
@@ -570,7 +570,7 @@ bool HIDDEN ln_msg_node_announce_create(ptarm_buf_t *pBuf, const ln_node_announc
         memcpy(alias, pMsg->p_alias, len_alias);
         memset(alias + len_alias, 0, LN_SZ_ALIAS - len_alias);
     }
-    ptarm_push_data(&proto, pMsg->p_alias, LN_SZ_ALIAS);
+    utl_push_data(&proto, pMsg->p_alias, LN_SZ_ALIAS);
 
     //        [2:addrlen]
     //        [addrlen:addresses]
@@ -585,7 +585,7 @@ bool HIDDEN ln_msg_node_announce_create(ptarm_buf_t *pBuf, const ln_node_announc
     case LN_NODEDESC_ONIONV3:
         ln_misc_push16be(&proto, 1 + M_ADDRLEN2[pMsg->addr.type]);
         ln_misc_push8(&proto, pMsg->addr.type);
-        ptarm_push_data(&proto, pMsg->addr.addrinfo.addr, M_ADDRLEN[pMsg->addr.type]);
+        utl_push_data(&proto, pMsg->addr.addrinfo.addr, M_ADDRLEN[pMsg->addr.type]);
         ln_misc_push16be(&proto, pMsg->addr.port);
         break;
     default:
@@ -594,7 +594,7 @@ bool HIDDEN ln_msg_node_announce_create(ptarm_buf_t *pBuf, const ln_node_announc
 
     assert(sizeof(uint16_t) + 141 + M_ADDRLEN2[pMsg->addr.type] == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     //署名
     uint8_t hash[PTARM_SZ_HASH256];
@@ -762,7 +762,7 @@ static void node_announce_print(const ln_node_announce_t *pMsg)
  * channel_update
  ********************************************************************/
 
-bool HIDDEN ln_msg_cnl_update_create(ptarm_buf_t *pBuf, const ln_cnl_update_t *pMsg)
+bool HIDDEN ln_msg_cnl_update_create(utl_buf_t *pBuf, const ln_cnl_update_t *pMsg)
 {
     //    type: 258 (channel_update)
     //    data:
@@ -776,24 +776,24 @@ bool HIDDEN ln_msg_cnl_update_create(ptarm_buf_t *pBuf, const ln_cnl_update_t *p
     //        [4:fee_base_msat]
     //        [4:fee_proportional_millionths]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE_UPD
     LOGD("@@@@@ %s @@@@@\n", __func__);
     ln_msg_cnl_update_print(pMsg);
 #endif  //DBG_PRINT_CREATE_UPD
 
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 128);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 128);
 
     //    type: 258 (channel_update)
     ln_misc_push16be(&proto, MSGTYPE_CHANNEL_UPDATE);
 
     //        [64:signature]
-    //ptarm_push_data(&proto, pMsg->signature, LN_SZ_SIGNATURE);
+    //utl_push_data(&proto, pMsg->signature, LN_SZ_SIGNATURE);
     proto.pos += LN_SZ_SIGNATURE;
 
     //        [32:chain_hash]
-    ptarm_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
+    utl_push_data(&proto, gGenesisChainHash, sizeof(gGenesisChainHash));
 
     //        [8:short_channel_id]
     ln_misc_push64be(&proto, pMsg->short_channel_id);
@@ -829,7 +829,7 @@ bool HIDDEN ln_msg_cnl_update_create(ptarm_buf_t *pBuf, const ln_cnl_update_t *p
 
     ret = ln_node_sign_nodekey(pBuf->buf + sizeof(uint16_t), hash);
     if (ret) {
-        ptarm_push_trim(&proto);
+        utl_push_trim(&proto);
     } else {
         LOGD("fail: sign\n");
     }
@@ -953,7 +953,7 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
  * announcement_signatures
  ********************************************************************/
 
-bool HIDDEN ln_msg_announce_signs_create(ptarm_buf_t *pBuf, const ln_announce_signs_t *pMsg)
+bool HIDDEN ln_msg_announce_signs_create(utl_buf_t *pBuf, const ln_announce_signs_t *pMsg)
 {
     //    type: 259 (announcement_signatures)
     //    data:
@@ -962,7 +962,7 @@ bool HIDDEN ln_msg_announce_signs_create(ptarm_buf_t *pBuf, const ln_announce_si
     //        [64:node_signature]
     //        [64:bitcoin_signature]
 
-    ptarm_push_t    proto;
+    utl_push_t    proto;
 
 #ifdef DBG_PRINT_CREATE_SIG
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -970,26 +970,26 @@ bool HIDDEN ln_msg_announce_signs_create(ptarm_buf_t *pBuf, const ln_announce_si
 #endif  //DBG_PRINT_CREATE_SIG
 
     //len=1
-    ptarm_push_init(&proto, pBuf, sizeof(uint16_t) + 168);
+    utl_push_init(&proto, pBuf, sizeof(uint16_t) + 168);
 
     //    type: 259 (announcement_signatures)
     ln_misc_push16be(&proto, MSGTYPE_ANNOUNCEMENT_SIGNATURES);
 
     //        [32:channel-id]
-    ptarm_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [8:short_channel_id]
     ln_misc_push64be(&proto, pMsg->short_channel_id);
 
     //        [64:node_signature]
-    ptarm_push_data(&proto, pMsg->p_node_signature, LN_SZ_SIGNATURE);
+    utl_push_data(&proto, pMsg->p_node_signature, LN_SZ_SIGNATURE);
 
     //        [64:bitcoin_signature]
-    ptarm_push_data(&proto, pMsg->p_btc_signature, LN_SZ_SIGNATURE);
+    utl_push_data(&proto, pMsg->p_btc_signature, LN_SZ_SIGNATURE);
 
     assert(sizeof(uint16_t) + 168 == pBuf->len);
 
-    ptarm_push_trim(&proto);
+    utl_push_trim(&proto);
 
     return true;
 }

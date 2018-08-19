@@ -88,7 +88,7 @@ static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, c
 static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Len);
 static void right_shift(uint8_t *pData);
 static void xor_bytes(uint8_t *pResult, const uint8_t *pSrc1, const uint8_t *pSrc2, int Len);
-static void set_reason_sha256(ptarm_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code);
+static void set_reason_sha256(utl_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code);
 
 
 /**************************************************************************
@@ -96,7 +96,7 @@ static void set_reason_sha256(ptarm_push_t *pPushReason, const uint8_t *pPacket,
  **************************************************************************/
 
 bool ln_onion_create_packet(uint8_t *pPacket,
-            ptarm_buf_t *pSecrets,
+            utl_buf_t *pSecrets,
             const ln_hop_datain_t *pHopData,
             int NumHops,
             const uint8_t *pSessionKey,
@@ -165,8 +165,8 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     memcpy(spShdSecret, shd_secrets, M_SZ_SHARED_SECRET * NumHops);
     memcpy(spBlindFactor, blind_factors, M_SZ_BLINDING_FACT * NumHops);
 
-    extern ptarm_buf_t sOnionBuffer;
-    ptarm_buf_alloccopy(&sOnionBuffer, filler, filler_len);
+    extern utl_buf_t sOnionBuffer;
+    utl_buf_alloccopy(&sOnionBuffer, filler, filler_len);
 #endif  //UNITTEST
 
     memset(next_hmac, 0, sizeof(next_hmac));
@@ -218,7 +218,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     memcpy(pPacket + 1 + PTARM_SZ_PUBKEY + M_SZ_ROUTING_INFO, next_hmac, M_SZ_HMAC);
 
     if (pSecrets) {
-        ptarm_buf_alloccopy(pSecrets, shd_secrets, M_SZ_SHARED_SECRET * NumHops);
+        utl_buf_alloccopy(pSecrets, shd_secrets, M_SZ_SHARED_SECRET * NumHops);
     }
 
     //メモリ解放
@@ -234,8 +234,8 @@ bool ln_onion_create_packet(uint8_t *pPacket,
 
 
 bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextData,
-            ptarm_buf_t *pSharedSecret,
-            ptarm_push_t *pPushReason,
+            utl_buf_t *pSharedSecret,
+            utl_push_t *pPushReason,
             const uint8_t *pPacket,
             const uint8_t *pAssocData, int AssocLen)
 {
@@ -346,16 +346,16 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
         //BOLT#4
         //  Intermediate hops store the shared secret from the forward path
         //      and reuse it to obfuscate the error packet on each hop.
-        ptarm_buf_alloccopy(pSharedSecret, shared_secret, sizeof(shared_secret));
+        utl_buf_alloccopy(pSharedSecret, shared_secret, sizeof(shared_secret));
     }
 
     return true;
 }
 
 
-void ln_onion_failure_create(ptarm_buf_t *pNextPacket,
-            const ptarm_buf_t *pSharedSecret,
-            const ptarm_buf_t *pReason)
+void ln_onion_failure_create(utl_buf_t *pNextPacket,
+            const utl_buf_t *pSharedSecret,
+            const utl_buf_t *pReason)
 {
     //data:
 
@@ -372,12 +372,12 @@ void ln_onion_failure_create(ptarm_buf_t *pNextPacket,
     uint8_t um_key[M_SZ_KEYLEN];
     const int DATALEN = 256;
 
-    ptarm_buf_t     buf_fail;
-    ptarm_push_t    proto;
+    utl_buf_t     buf_fail;
+    utl_push_t    proto;
 
     generate_key(um_key, UM, sizeof(UM), pSharedSecret->buf);
 
-    ptarm_push_init(&proto, &buf_fail, M_SZ_HMAC + 2 + 2 + DATALEN);
+    utl_push_init(&proto, &buf_fail, M_SZ_HMAC + 2 + 2 + DATALEN);
 
     //    [32:hmac]
     proto.pos = M_SZ_HMAC;
@@ -386,7 +386,7 @@ void ln_onion_failure_create(ptarm_buf_t *pNextPacket,
     ln_misc_push16be(&proto, pReason->len);
 
     //    [failure_len:failuremsg]
-    ptarm_push_data(&proto, pReason->buf, pReason->len);
+    utl_push_data(&proto, pReason->buf, pReason->len);
 
     //    [2:pad_len]
     ln_misc_push16be(&proto, DATALEN - pReason->len);
@@ -406,13 +406,13 @@ void ln_onion_failure_create(ptarm_buf_t *pNextPacket,
 #endif  //M_DBG_FAIL
 
     ln_onion_failure_forward(pNextPacket, pSharedSecret, &buf_fail);
-    ptarm_buf_free(&buf_fail);
+    utl_buf_free(&buf_fail);
 }
 
 
-void ln_onion_failure_forward(ptarm_buf_t *pNextPacket,
-            const ptarm_buf_t *pSharedSecret,
-            const ptarm_buf_t *pPacket)
+void ln_onion_failure_forward(utl_buf_t *pNextPacket,
+            const utl_buf_t *pSharedSecret,
+            const utl_buf_t *pPacket)
 {
     uint8_t ammag_key[M_SZ_KEYLEN];
     uint8_t *stream_bytes = (uint8_t *)M_CALLOC(1, pPacket->len);
@@ -423,7 +423,7 @@ void ln_onion_failure_forward(ptarm_buf_t *pNextPacket,
 #endif  //M_DBG_FAIL
 
     generate_key(ammag_key, AMMAG, sizeof(AMMAG), pSharedSecret->buf);
-    ptarm_buf_alloc(pNextPacket, pPacket->len);
+    utl_buf_alloc(pNextPacket, pPacket->len);
     generate_cipher_stream(stream_bytes, ammag_key, pPacket->len);
     xor_bytes(pNextPacket->buf, pPacket->buf, stream_bytes, pPacket->len);
     M_FREE(stream_bytes);
@@ -435,10 +435,10 @@ void ln_onion_failure_forward(ptarm_buf_t *pNextPacket,
 }
 
 
-bool ln_onion_failure_read(ptarm_buf_t *pReason,
+bool ln_onion_failure_read(utl_buf_t *pReason,
             int *pHop,
-            const ptarm_buf_t *pSharedSecrets,
-            const ptarm_buf_t *pPacket)
+            const utl_buf_t *pSharedSecrets,
+            const utl_buf_t *pPacket)
 {
     const uint32_t DATALEN = 256;
 
@@ -453,16 +453,16 @@ bool ln_onion_failure_read(ptarm_buf_t *pReason,
     DUMPD(pSharedSecrets->buf, pSharedSecrets->len);
 #endif  //M_DBG_FAIL
 
-    ptarm_buf_t buf1;
-    ptarm_buf_t buf2 = PTARM_BUF_INIT;
-    ptarm_buf_t reason;
+    utl_buf_t buf1;
+    utl_buf_t buf2 = UTL_BUF_INIT;
+    utl_buf_t reason;
 
-    ptarm_buf_alloccopy(&buf1, pPacket->buf, pPacket->len);
-    const ptarm_buf_t *p_in = &buf1;
-    ptarm_buf_t *p_out = &buf2;
+    utl_buf_alloccopy(&buf1, pPacket->buf, pPacket->len);
+    const utl_buf_t *p_in = &buf1;
+    utl_buf_t *p_out = &buf2;
     bool bend = false;
     for (int lp = 0; lp < NumHops; lp++) {
-        const ptarm_buf_t sharedsecret = { pSharedSecrets->buf + PTARM_SZ_PRIVKEY * lp, PTARM_SZ_PRIVKEY };
+        const utl_buf_t sharedsecret = { pSharedSecrets->buf + PTARM_SZ_PRIVKEY * lp, PTARM_SZ_PRIVKEY };
         ln_onion_failure_forward(p_out, &sharedsecret, p_in);
         reason.buf = p_out->buf + M_SZ_HMAC + 2;
         reason.len = ln_misc_get16be(p_out->buf + M_SZ_HMAC);
@@ -497,7 +497,7 @@ bool ln_onion_failure_read(ptarm_buf_t *pReason,
                         if (pHop != NULL) {
                             *pHop = lp;
                         }
-                        ptarm_buf_alloccopy(pReason, reason.buf, reason.len);
+                        utl_buf_alloccopy(pReason, reason.buf, reason.len);
                     } else {
                         LOGD("fail: HMAC not match!\n");
 #ifdef M_DBG_FAIL
@@ -516,21 +516,21 @@ bool ln_onion_failure_read(ptarm_buf_t *pReason,
             p_in  = &buf1;
             p_out = &buf2;
         }
-        ptarm_buf_free(p_out);
+        utl_buf_free(p_out);
     }
 
     if (!bend) {
         LOGD("fail reason\n");
     }
 
-    ptarm_buf_free(&buf1);
-    ptarm_buf_free(&buf2);
+    utl_buf_free(&buf1);
+    utl_buf_free(&buf2);
 
     return bend;
 }
 
 
-bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const ptarm_buf_t *pReason)
+bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const utl_buf_t *pReason)
 {
     pOnionErr->reason = ((uint16_t)pReason->buf[0] << 8) | pReason->buf[1];
     pOnionErr->p_data = NULL;   //TODO:reasonに応じた結果をmallocして代入
@@ -665,11 +665,11 @@ static void xor_bytes(uint8_t *pResult, const uint8_t *pSrc1, const uint8_t *pSr
 /** reason設定()
  *
  */
-static void set_reason_sha256(ptarm_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code)
+static void set_reason_sha256(utl_push_t *pPushReason, const uint8_t *pPacket, uint16_t Code)
 {
     ln_misc_push16be(pPushReason, Code);
     //[32:sha256_of_onion]
     uint8_t sha256_of_onion[PTARM_SZ_SHA256];
     ptarm_util_sha256(sha256_of_onion, pPacket, LN_SZ_ONION_ROUTE);
-    ptarm_push_data(pPushReason, sha256_of_onion, sizeof(sha256_of_onion));
+    utl_push_data(pPushReason, sha256_of_onion, sizeof(sha256_of_onion));
 }

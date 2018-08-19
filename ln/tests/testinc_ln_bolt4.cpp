@@ -7,7 +7,7 @@
 
 ////////////////////////////////////////////////////////////////////////
 
-ptarm_buf_t sOnionBuffer;
+utl_buf_t sOnionBuffer;
 uint8_t *spEphPubkey = NULL;
 uint8_t *spShdSecret = NULL;
 uint8_t *spBlindFactor = NULL;
@@ -17,21 +17,21 @@ class onion: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
-        ptarm_dbg_malloc_cnt_reset();
+        utl_dbg_malloc_cnt_reset();
         ptarm_init(PTARM_TESTNET, true);
-        ptarm_buf_init(&sOnionBuffer);
+        utl_buf_init(&sOnionBuffer);
         spEphPubkey = NULL;
         spShdSecret = NULL;
         spBlindFactor = NULL;
     }
 
     virtual void TearDown() {
-        ptarm_buf_free(&sOnionBuffer);
+        utl_buf_free(&sOnionBuffer);
         M_FREE(spEphPubkey);
         M_FREE(spShdSecret);
         M_FREE(spBlindFactor);
 
-        ASSERT_EQ(0, ptarm_dbg_malloc_cnt());
+        ASSERT_EQ(0, utl_dbg_malloc_cnt());
         ptarm_term();
     }
 
@@ -242,8 +242,8 @@ TEST_F(onion, testvector)
         0x85, 0x13, 0x91, 0x37, 0x7d, 0x34, 0x06, 0xa3,
         0x5a, 0x9a, 0xf3, 0xac,
     };
-    const ptarm_buf_t buffil = { (CONST_CAST uint8_t *)FILLER, sizeof(FILLER) };
-    ASSERT_TRUE(ptarm_buf_cmp(&buffil, &sOnionBuffer));
+    const utl_buf_t buffil = { (CONST_CAST uint8_t *)FILLER, sizeof(FILLER) };
+    ASSERT_TRUE(utl_buf_cmp(&buffil, &sOnionBuffer));
 
     const uint8_t PACKET[] = {
         0x00, 0x02, 0xee, 0xc7, 0x24, 0x5d, 0x6b, 0x7d,
@@ -424,12 +424,12 @@ TEST_F(onion, testvector)
 
 TEST_F(onion, testvector_failure)
 {
-    ptarm_buf_t buf_failmsg;
-    ptarm_buf_alloc(&buf_failmsg, 2);
+    utl_buf_t buf_failmsg;
+    utl_buf_alloc(&buf_failmsg, 2);
     buf_failmsg.buf[0] = 0x20;
     buf_failmsg.buf[1] = 0x02;
 
-    ptarm_buf_t buf_fail4 = PTARM_BUF_INIT;
+    utl_buf_t buf_fail4 = UTL_BUF_INIT;
 
     const uint8_t shared_secret4[] = {
         0xb5, 0x75, 0x6b, 0x9b, 0x54, 0x27, 0x27, 0xdb,
@@ -437,9 +437,9 @@ TEST_F(onion, testvector_failure)
         0x3a, 0x72, 0x5d, 0x63, 0x1a, 0xf6, 0x88, 0xfc,
         0x03, 0x12, 0x17, 0xe9, 0x07, 0x70, 0xc3, 0x28,
     };
-    const ptarm_buf_t buf_shared_secret4 = { (CONST_CAST uint8_t *)shared_secret4, sizeof(shared_secret4) };
+    const utl_buf_t buf_shared_secret4 = { (CONST_CAST uint8_t *)shared_secret4, sizeof(shared_secret4) };
     ln_onion_failure_create(&buf_fail4, &buf_shared_secret4, &buf_failmsg);
-    ptarm_buf_free(&buf_failmsg);
+    utl_buf_free(&buf_failmsg);
 
     const uint8_t ERR4[] = {
         0xa5, 0xe6, 0xbd, 0x0c, 0x74, 0xcb, 0x34, 0x7f,
@@ -484,7 +484,7 @@ TEST_F(onion, testvector_failure)
     ASSERT_EQ(sizeof(ERR4), buf_fail4.len);
 
 
-    ptarm_buf_t buf_fail3 = PTARM_BUF_INIT;
+    utl_buf_t buf_fail3 = UTL_BUF_INIT;
 
     const uint8_t shared_secret3[] = {
         0x21, 0xe1, 0x3c, 0x2d, 0x7c, 0xfe, 0x7e, 0x18,
@@ -492,9 +492,9 @@ TEST_F(onion, testvector_failure)
         0xa2, 0x95, 0x78, 0x3a, 0xb8, 0xaa, 0xb0, 0xe7,
         0xec, 0xc8, 0xc7, 0x25, 0x50, 0x3a, 0xd0, 0x2d,
     };
-    const ptarm_buf_t buf_shared_secret3 = { (CONST_CAST uint8_t *)shared_secret3, sizeof(shared_secret3) };
+    const utl_buf_t buf_shared_secret3 = { (CONST_CAST uint8_t *)shared_secret3, sizeof(shared_secret3) };
     ln_onion_failure_forward(&buf_fail3, &buf_shared_secret3, &buf_fail4);
-    ptarm_buf_free(&buf_fail4);
+    utl_buf_free(&buf_fail4);
 
     const uint8_t ERR3[] = {
         0xc4, 0x9a, 0x1c, 0xe8, 0x16, 0x80, 0xf7, 0x8f,
@@ -539,7 +539,7 @@ TEST_F(onion, testvector_failure)
     ASSERT_EQ(sizeof(ERR3), buf_fail3.len);
 
 
-    ptarm_buf_t buf_fail2 = PTARM_BUF_INIT;
+    utl_buf_t buf_fail2 = UTL_BUF_INIT;
 
     const uint8_t shared_secret2[] = {
         0x3a, 0x6b, 0x41, 0x25, 0x48, 0x76, 0x2f, 0x0d,
@@ -547,9 +547,9 @@ TEST_F(onion, testvector_failure)
         0x7d, 0x1c, 0xaf, 0x9b, 0x54, 0x71, 0xc3, 0x41,
         0x20, 0xb3, 0x0b, 0xc9, 0xc0, 0x48, 0x91, 0xcc,
     };
-    const ptarm_buf_t buf_shared_secret2 = { (CONST_CAST uint8_t *)shared_secret2, sizeof(shared_secret2) };
+    const utl_buf_t buf_shared_secret2 = { (CONST_CAST uint8_t *)shared_secret2, sizeof(shared_secret2) };
     ln_onion_failure_forward(&buf_fail2, &buf_shared_secret2, &buf_fail3);
-    ptarm_buf_free(&buf_fail3);
+    utl_buf_free(&buf_fail3);
 
     const uint8_t ERR2[] = {
         0xa5, 0xd3, 0xe8, 0x63, 0x4c, 0xfe, 0x78, 0xb2,
@@ -594,7 +594,7 @@ TEST_F(onion, testvector_failure)
     ASSERT_EQ(sizeof(ERR2), buf_fail2.len);
 
 
-    ptarm_buf_t buf_fail1 = PTARM_BUF_INIT;
+    utl_buf_t buf_fail1 = UTL_BUF_INIT;
 
     const uint8_t shared_secret1[] = {
         0xa6, 0x51, 0x9e, 0x98, 0x83, 0x2a, 0x0b, 0x17,
@@ -602,9 +602,9 @@ TEST_F(onion, testvector_failure)
         0xdb, 0x99, 0xee, 0x37, 0xbe, 0xf0, 0x36, 0xe7,
         0x83, 0x26, 0x36, 0x02, 0xf3, 0x48, 0x8f, 0xae,
     };
-    const ptarm_buf_t buf_shared_secret1 = { (CONST_CAST uint8_t *)shared_secret1, sizeof(shared_secret1) };
+    const utl_buf_t buf_shared_secret1 = { (CONST_CAST uint8_t *)shared_secret1, sizeof(shared_secret1) };
     ln_onion_failure_forward(&buf_fail1, &buf_shared_secret1, &buf_fail2);
-    ptarm_buf_free(&buf_fail2);
+    utl_buf_free(&buf_fail2);
 
     const uint8_t ERR1[] = {
         0xaa, 0xc3, 0x20, 0x0c, 0x49, 0x68, 0xf5, 0x6b,
@@ -649,7 +649,7 @@ TEST_F(onion, testvector_failure)
     ASSERT_EQ(sizeof(ERR1), buf_fail1.len);
 
 
-    ptarm_buf_t buf_fail0 = PTARM_BUF_INIT;
+    utl_buf_t buf_fail0 = UTL_BUF_INIT;
 
     const uint8_t shared_secret0[] = {
         0x53, 0xeb, 0x63, 0xea, 0x8a, 0x3f, 0xec, 0x3b,
@@ -657,9 +657,9 @@ TEST_F(onion, testvector_failure)
         0x14, 0x5e, 0x1d, 0xda, 0x09, 0x39, 0x1b, 0x34,
         0x8c, 0x4e, 0x1c, 0xd3, 0x6a, 0x03, 0xea, 0x66,
     };
-    const ptarm_buf_t buf_shared_secret0 = { (CONST_CAST uint8_t *)shared_secret0, sizeof(shared_secret0) };
+    const utl_buf_t buf_shared_secret0 = { (CONST_CAST uint8_t *)shared_secret0, sizeof(shared_secret0) };
     ln_onion_failure_forward(&buf_fail0, &buf_shared_secret0, &buf_fail1);
-    ptarm_buf_free(&buf_fail1);
+    utl_buf_free(&buf_fail1);
 
     const uint8_t ERR0[] = {
         0x9c, 0x5a, 0xdd, 0x39, 0x63, 0xfc, 0x7f, 0x6e,
@@ -704,7 +704,7 @@ TEST_F(onion, testvector_failure)
     ASSERT_EQ(sizeof(ERR0), buf_fail0.len);
 
 
-    ptarm_buf_free(&buf_fail0);
+    utl_buf_free(&buf_fail0);
 }
 
 
@@ -937,47 +937,47 @@ TEST_F(onion, testvector_failure_resolve)
         0x03, 0x12, 0x17, 0xe9, 0x07, 0x70, 0xc3, 0x28,
     };
 
-    ptarm_buf_t buf_fail1 = PTARM_BUF_INIT;
-    ptarm_buf_t buf_fail2 = PTARM_BUF_INIT;
-    ptarm_buf_t buf_fail3 = PTARM_BUF_INIT;
-    ptarm_buf_t buf_fail4 = PTARM_BUF_INIT;
-    ptarm_buf_t buf_fail = PTARM_BUF_INIT;
+    utl_buf_t buf_fail1 = UTL_BUF_INIT;
+    utl_buf_t buf_fail2 = UTL_BUF_INIT;
+    utl_buf_t buf_fail3 = UTL_BUF_INIT;
+    utl_buf_t buf_fail4 = UTL_BUF_INIT;
+    utl_buf_t buf_fail = UTL_BUF_INIT;
 
-    ptarm_buf_t err = { (CONST_CAST uint8_t *)ERR0, sizeof(ERR0) };
-    const ptarm_buf_t buf_shared_secret0 = { (CONST_CAST uint8_t *)shared_secret0, sizeof(shared_secret0) };
+    utl_buf_t err = { (CONST_CAST uint8_t *)ERR0, sizeof(ERR0) };
+    const utl_buf_t buf_shared_secret0 = { (CONST_CAST uint8_t *)shared_secret0, sizeof(shared_secret0) };
     ln_onion_failure_forward(&buf_fail1, &buf_shared_secret0, &err);
     ASSERT_EQ(0, memcmp(ERR1, buf_fail1.buf, sizeof(ERR1)));
     ASSERT_EQ(sizeof(ERR1), buf_fail1.len);
 
     err.buf = (CONST_CAST uint8_t *)ERR1;
     err.len = sizeof(ERR1);
-    const ptarm_buf_t buf_shared_secret1 = { (CONST_CAST uint8_t *)shared_secret1, sizeof(shared_secret1) };
+    const utl_buf_t buf_shared_secret1 = { (CONST_CAST uint8_t *)shared_secret1, sizeof(shared_secret1) };
     ln_onion_failure_forward(&buf_fail2, &buf_shared_secret1, &err);
-    ptarm_buf_free(&buf_fail1);
+    utl_buf_free(&buf_fail1);
     ASSERT_EQ(0, memcmp(ERR2, buf_fail2.buf, sizeof(ERR2)));
     ASSERT_EQ(sizeof(ERR2), buf_fail2.len);
 
     err.buf = (CONST_CAST uint8_t *)ERR2;
     err.len = sizeof(ERR2);
-    const ptarm_buf_t buf_shared_secret2 = { (CONST_CAST uint8_t *)shared_secret2, sizeof(shared_secret2) };
+    const utl_buf_t buf_shared_secret2 = { (CONST_CAST uint8_t *)shared_secret2, sizeof(shared_secret2) };
     ln_onion_failure_forward(&buf_fail3, &buf_shared_secret2, &err);
-    ptarm_buf_free(&buf_fail2);
+    utl_buf_free(&buf_fail2);
     ASSERT_EQ(0, memcmp(ERR3, buf_fail3.buf, sizeof(ERR3)));
     ASSERT_EQ(sizeof(ERR3), buf_fail3.len);
 
     err.buf = (CONST_CAST uint8_t *)ERR3;
     err.len = sizeof(ERR3);
-    const ptarm_buf_t buf_shared_secret3 = { (CONST_CAST uint8_t *)shared_secret3, sizeof(shared_secret3) };
+    const utl_buf_t buf_shared_secret3 = { (CONST_CAST uint8_t *)shared_secret3, sizeof(shared_secret3) };
     ln_onion_failure_forward(&buf_fail4, &buf_shared_secret3, &err);
-    ptarm_buf_free(&buf_fail3);
+    utl_buf_free(&buf_fail3);
     ASSERT_EQ(0, memcmp(ERR4, buf_fail4.buf, sizeof(ERR4)));
     ASSERT_EQ(sizeof(ERR4), buf_fail4.len);
 
     err.buf = (CONST_CAST uint8_t *)ERR4;
     err.len = sizeof(ERR4);
-    const ptarm_buf_t buf_shared_secret4 = { (CONST_CAST uint8_t *)shared_secret4, sizeof(shared_secret4) };
+    const utl_buf_t buf_shared_secret4 = { (CONST_CAST uint8_t *)shared_secret4, sizeof(shared_secret4) };
     ln_onion_failure_forward(&buf_fail, &buf_shared_secret4, &err);
-    ptarm_buf_free(&buf_fail4);
+    utl_buf_free(&buf_fail4);
 
     uint16_t failure_len = ln_misc_get16be(buf_fail.buf + 32);
     ASSERT_EQ(2, failure_len);
@@ -989,7 +989,7 @@ TEST_F(onion, testvector_failure_resolve)
         ASSERT_EQ(0, buf_fail.buf[38 + lp]);
     }
 
-    ptarm_buf_free(&buf_fail);
+    utl_buf_free(&buf_fail);
 }
 
 
@@ -1059,7 +1059,7 @@ TEST_F(onion, testvector_failure_resolve_api)
         hop_datain[lp].outgoing_cltv_value = 0;
         memcpy(hop_datain[lp].pubkey, PUB[lp], PTARM_SZ_PUBKEY);
     }
-    ptarm_buf_t shared_secrets = PTARM_BUF_INIT;
+    utl_buf_t shared_secrets = UTL_BUF_INIT;
 
     bool ret = ln_onion_create_packet(packet, &shared_secrets, hop_datain, 5, SESSIONKEY, ASSOC, sizeof(ASSOC));
     ASSERT_TRUE(ret);
@@ -1105,19 +1105,19 @@ TEST_F(onion, testvector_failure_resolve_api)
         0xa5, 0x9b, 0xa7, 0xf2, 0xc8, 0xd1, 0x14, 0x48,
         0xb6, 0x04, 0xd1, 0x2d,
     };
-    ptarm_buf_t err = { (CONST_CAST uint8_t *)ERR0, sizeof(ERR0) };
+    utl_buf_t err = { (CONST_CAST uint8_t *)ERR0, sizeof(ERR0) };
 
-    ptarm_buf_t reason = PTARM_BUF_INIT;
+    utl_buf_t reason = UTL_BUF_INIT;
     int hop;
     ret = ln_onion_failure_read(&reason, &hop, &shared_secrets, &err);
     ASSERT_TRUE(ret);
-    ptarm_buf_free(&shared_secrets);
+    utl_buf_free(&shared_secrets);
 
     ASSERT_EQ(2, reason.len);
     ASSERT_EQ(0x20, reason.buf[0]);
     ASSERT_EQ(0x02, reason.buf[1]);
     ASSERT_EQ(4, hop);
-    ptarm_buf_free(&reason);
+    utl_buf_free(&reason);
 }
 
 
@@ -1328,13 +1328,13 @@ TEST_F(onion, test1)
     memset(packet, 0, sizeof(packet));
     ln_hop_dataout_t dataout;
     ln_node_setkey(onion_privkey[0]);
-    ptarm_buf_t buf_rsn = PTARM_BUF_INIT;
-    ptarm_push_t push_rsn;
-    ptarm_push_init(&push_rsn, &buf_rsn, 0);
+    utl_buf_t buf_rsn = UTL_BUF_INIT;
+    utl_push_t push_rsn;
+    utl_push_init(&push_rsn, &buf_rsn, 0);
     ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, PACKET, NULL, 0);
     ASSERT_TRUE(ret);
     ASSERT_TRUE(dataout.b_exit);      //1つなのでここでexit
-    ptarm_buf_free(&buf_rsn);
+    utl_buf_free(&buf_rsn);
 }
 
 
@@ -1544,13 +1544,13 @@ TEST_F(onion, test2)
 
     for (int lp = 0; lp < 20; lp++) {
         ln_node_setkey(onion_privkey[lp]);
-        ptarm_buf_t buf_rsn = PTARM_BUF_INIT;
-        ptarm_push_t push_rsn;
-        ptarm_push_init(&push_rsn, &buf_rsn, 0);
+        utl_buf_t buf_rsn = UTL_BUF_INIT;
+        utl_push_t push_rsn;
+        utl_push_init(&push_rsn, &buf_rsn, 0);
         ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, NULL, 0);
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);
-        ptarm_buf_free(&buf_rsn);
+        utl_buf_free(&buf_rsn);
 
         if (lp == 19) {
             ASSERT_TRUE(dataout.b_exit);
@@ -1592,13 +1592,13 @@ TEST_F(onion, test3)
 
     for (int lp = 0; lp < 20; lp++) {
         ln_node_setkey(onion_privkey[lp]);
-        ptarm_buf_t buf_rsn = PTARM_BUF_INIT;
-        ptarm_push_t push_rsn;
-        ptarm_push_init(&push_rsn, &buf_rsn, 0);
+        utl_buf_t buf_rsn = UTL_BUF_INIT;
+        utl_push_t push_rsn;
+        utl_push_init(&push_rsn, &buf_rsn, 0);
         ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, NULL, 0);
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);
-        ptarm_buf_free(&buf_rsn);
+        utl_buf_free(&buf_rsn);
 
         if (lp == 19) {
             ASSERT_TRUE(dataout.b_exit);
@@ -1642,13 +1642,13 @@ TEST_F(onion, test4)
 
     for (int lp = 0; lp < 20; lp++) {
         ln_node_setkey(onion_privkey[lp]);
-        ptarm_buf_t buf_rsn = PTARM_BUF_INIT;
-        ptarm_push_t push_rsn;
-        ptarm_push_init(&push_rsn, &buf_rsn, 0);
+        utl_buf_t buf_rsn = UTL_BUF_INIT;
+        utl_push_t push_rsn;
+        utl_push_init(&push_rsn, &buf_rsn, 0);
         ret = ln_onion_read_packet(packet, &dataout, NULL, &push_rsn, packet, ASSOC, sizeof(ASSOC));
         ASSERT_TRUE(ret);
         ASSERT_EQ(datain[lp].short_channel_id, dataout.short_channel_id);
-        ptarm_buf_free(&buf_rsn);
+        utl_buf_free(&buf_rsn);
 
         if (lp == 19) {
             ASSERT_TRUE(dataout.b_exit);
