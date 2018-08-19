@@ -18,7 +18,7 @@ extern "C" {
  *  @brief  r field
  */
 typedef struct ln_fieldr_t {
-    uint8_t     node_id[PTARM_SZ_PUBKEY];           ///< node_id
+    uint8_t     node_id[BTC_SZ_PUBKEY];           ///< node_id
     uint64_t    short_channel_id;                   ///< short_channel_id
     uint32_t    fee_base_msat;                      ///< fee_base_msat
     uint32_t    fee_prop_millionths;                ///< fee_proportional_millionths
@@ -35,7 +35,7 @@ typedef struct ln_invoice_t {
     uint64_t    timestamp;
     uint32_t    expiry;
     uint32_t    min_final_cltv_expiry;
-    uint8_t     pubkey[PTARM_SZ_PUBKEY];
+    uint8_t     pubkey[BTC_SZ_PUBKEY];
     uint8_t     payment_hash[LN_SZ_HASH];
     uint8_t     r_field_num;
     ln_fieldr_t r_field[];

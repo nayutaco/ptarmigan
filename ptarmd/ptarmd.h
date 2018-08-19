@@ -117,12 +117,12 @@ static inline int tid() {
 
 #define LOGV(...)       utl_log_write(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
 #define DUMPV(dt,ln)    utl_log_dump(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
-#define TXIDV(dt)       utl_log_dump_rev(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
+#define TXIDV(dt)       utl_log_dump_rev(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, BTC_SZ_TXID)
 
 #define LOGD(...)       utl_log_write(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
 #define LOGD2(...)      utl_log_write(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, __VA_ARGS__)
 #define DUMPD(dt,ln)    utl_log_dump(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
-#define TXIDD(dt)       utl_log_dump_rev(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
+#define TXIDD(dt)       utl_log_dump_rev(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, BTC_SZ_TXID)
 
 #else
 #define LOGV(...)       //none
@@ -171,7 +171,7 @@ typedef struct {
     //peer
     char        ipaddr[SZ_IPV4_LEN + 1];
     uint16_t    port;
-    uint8_t     node_id[PTARM_SZ_PUBKEY];
+    uint8_t     node_id[BTC_SZ_PUBKEY];
 } peer_conn_t;
 
 
@@ -179,7 +179,7 @@ typedef struct {
  *  @brief      funding情報
  */
 typedef struct {
-    uint8_t         txid[PTARM_SZ_TXID];
+    uint8_t         txid[BTC_SZ_TXID];
     int             txindex;
     uint64_t        funding_sat;
     uint64_t        push_sat;
@@ -216,7 +216,7 @@ typedef struct {
 typedef struct {
     char            ipaddr[SZ_IPV4_LEN + 1];
     uint16_t        port;
-    uint8_t         node_id[PTARM_SZ_PUBKEY];
+    uint8_t         node_id[BTC_SZ_PUBKEY];
 } peer_conf_t;
 
 

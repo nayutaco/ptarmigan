@@ -79,7 +79,7 @@
 
 static char         mPeerAddr[INET6_ADDRSTRLEN];
 static uint16_t     mPeerPort;
-static char         mPeerNodeId[PTARM_SZ_PUBKEY * 2 + 1];
+static char         mPeerNodeId[BTC_SZ_PUBKEY * 2 + 1];
 static char         mBuf[BUFFER_SIZE];
 static bool         mTcpSend;
 static char         mAddr[256];
@@ -158,9 +158,9 @@ int main(int argc, char *argv[])
 #error not define NETKIND
 #endif
 #if NETKIND==0
-    ptarm_init(PTARM_MAINNET, true);
+    btc_init(BTC_MAINNET, true);
 #elif NETKIND==1
-    ptarm_init(PTARM_TESTNET, true);
+    btc_init(BTC_TESTNET, true);
 #endif
 
     const struct option OPTIONS[] = {
@@ -241,7 +241,7 @@ int main(int argc, char *argv[])
 
     int ret = msg_send(mBuf, mBuf, mAddr, port, mTcpSend);
 
-    ptarm_term();
+    btc_term();
 
     return ret;
 }
@@ -292,9 +292,9 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
         *pConn = true;
         strcpy(mPeerAddr, peer.ipaddr);
         mPeerPort = peer.port;
-        utl_misc_bin2str(mPeerNodeId, peer.node_id, PTARM_SZ_PUBKEY);
+        utl_misc_bin2str(mPeerNodeId, peer.node_id, BTC_SZ_PUBKEY);
         *pOption = M_OPTIONS_CONN;
-    } else if (optlen >= (PTARM_SZ_PUBKEY * 2 + 1 + 7 + 1 + 1)) {
+    } else if (optlen >= (BTC_SZ_PUBKEY * 2 + 1 + 7 + 1 + 1)) {
         // <pubkey>@<ipaddr>:<port>
         // (33 * 2)@x.x.x.x:x
         int results = sscanf(optarg, "%66s@%" SZ_IPV4_LEN_STR "[^:]:%" SCNu16,
@@ -311,7 +311,7 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
             fprintf(stderr, "fail: peer configuration file\n");
             *pOption = M_OPTIONS_HELP;
         }
-    } else if (optlen == PTARM_SZ_PUBKEY * 2) {
+    } else if (optlen == BTC_SZ_PUBKEY * 2) {
         //node_idを直で指定した可能性あり(connectとしては使用できない)
         strcpy(mPeerAddr, "0.0.0.0");
         mPeerPort = 0;
@@ -372,9 +372,9 @@ static void optfunc_funding(int *pOption, bool *pConn)
     conf_funding_init(&fundconf);
     bool bret = conf_funding_load(optarg, &fundconf);
     if (bret) {
-        char txid[PTARM_SZ_TXID * 2 + 1];
+        char txid[BTC_SZ_TXID * 2 + 1];
 
-        utl_misc_bin2str_rev(txid, fundconf.txid, PTARM_SZ_TXID);
+        utl_misc_bin2str_rev(txid, fundconf.txid, BTC_SZ_TXID);
         snprintf(mBuf, BUFFER_SIZE,
             "{"
                 M_STR("method", "fund") M_NEXT
@@ -499,7 +499,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
 
     char payhash[LN_SZ_HASH * 2 + 1];
     //node_id(33*2),short_channel_id(8*2),amount(21),cltv(5)
-    char forward[PTARM_SZ_PUBKEY*2 + sizeof(uint64_t)*2 + 21 + 5 + 50];
+    char forward[BTC_SZ_PUBKEY*2 + sizeof(uint64_t)*2 + 21 + 5 + 50];
 
     utl_misc_bin2str(payhash, payconf.payment_hash, LN_SZ_HASH);
     snprintf(mBuf, BUFFER_SIZE,
@@ -511,9 +511,9 @@ static void optfunc_payment(int *pOption, bool *pConn)
             payhash, payconf.hop_num);
 
     for (int lp = 0; lp < payconf.hop_num; lp++) {
-        char node_id[PTARM_SZ_PUBKEY * 2 + 1];
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
 
-        utl_misc_bin2str(node_id, payconf.hop_datain[lp].pubkey, PTARM_SZ_PUBKEY);
+        utl_misc_bin2str(node_id, payconf.hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
         snprintf(forward, sizeof(forward), "[" M_QQ("%s") "," M_QQ("%" PRIx64) ",%" PRIu64 ",%d]",
                 node_id,
                 payconf.hop_datain[lp].short_channel_id,
@@ -788,12 +788,12 @@ static void routepay(int *pOption, bool bPrevSkip)
     printf("timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, ctime(&tm));
     printf("min_final_cltv_expiry=%u\n", p_invoice_data->min_final_cltv_expiry);
     printf("payee=");
-    for (int lp = 0; lp < PTARM_SZ_PUBKEY; lp++) {
+    for (int lp = 0; lp < BTC_SZ_PUBKEY; lp++) {
         printf("%02x", p_invoice_data->pubkey[lp]);
     }
     printf("\n");
     printf("payment_hash=");
-    for (int lp = 0; lp < PTARM_SZ_SHA256; lp++) {
+    for (int lp = 0; lp < BTC_SZ_SHA256; lp++) {
         printf("%02x", p_invoice_data->payment_hash[lp]);
     }
     printf("\n");
@@ -801,7 +801,7 @@ static void routepay(int *pOption, bool bPrevSkip)
         for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
             printf("    ------------------------\n");
             printf("    ");
-            for (int lp2 = 0; lp2 < PTARM_SZ_PUBKEY; lp2++) {
+            for (int lp2 = 0; lp2 < BTC_SZ_PUBKEY; lp2++) {
                 printf("%02x", p_invoice_data->r_field[lp].node_id[lp2]);
             }
             printf("\n");

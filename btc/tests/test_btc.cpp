@@ -11,12 +11,12 @@ extern "C" {
 #include "../../utl/utl_dbg.c"
 #include "../../utl/utl_buf.c"
 #include "../../utl/utl_push.c"
-#include "ptarm.c"
-#include "ptarm_ekey.c"
-#include "ptarm_keys.c"
-#include "ptarm_sw.c"
-#include "ptarm_tx.c"
-#include "ptarm_util.c"
+#include "btc.c"
+#include "btc_ekey.c"
+#include "btc_keys.c"
+#include "btc_sw.c"
+#include "btc_tx.c"
+#include "btc_util.c"
 #include "segwit_addr.c"
 }
 
@@ -37,46 +37,46 @@ TEST_F(btc, first)
     //plog_init_stderr();
 }
 
-TEST_F(btc, ptarm_setnet_testnet_false)
+TEST_F(btc, btc_setnet_testnet_false)
 {
     utl_dbg_malloc_cnt_reset();
-    bool ret = ptarm_init(PTARM_TESTNET, false);
+    bool ret = btc_init(BTC_TESTNET, false);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(2, mPref[PTARM_PREF]);
-    ASSERT_EQ(0xef, mPref[PTARM_PREF_WIF]);
-    ASSERT_EQ(0x6f, mPref[PTARM_PREF_P2PKH]);
-    ASSERT_EQ(0xc4, mPref[PTARM_PREF_P2SH]);
-    ASSERT_EQ(0x03, mPref[PTARM_PREF_ADDRVER]);
+    ASSERT_EQ(2, mPref[BTC_PREF]);
+    ASSERT_EQ(0xef, mPref[BTC_PREF_WIF]);
+    ASSERT_EQ(0x6f, mPref[BTC_PREF_P2PKH]);
+    ASSERT_EQ(0xc4, mPref[BTC_PREF_P2SH]);
+    ASSERT_EQ(0x03, mPref[BTC_PREF_ADDRVER]);
     ASSERT_FALSE(mNativeSegwit);
-    ptarm_term();
+    btc_term();
 }
 
-TEST_F(btc, ptarm_setnet_testnet_true)
+TEST_F(btc, btc_setnet_testnet_true)
 {
     utl_dbg_malloc_cnt_reset();
-    bool ret = ptarm_init(PTARM_TESTNET, true);
+    bool ret = btc_init(BTC_TESTNET, true);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(2, mPref[PTARM_PREF]);
-    ASSERT_EQ(0xef, mPref[PTARM_PREF_WIF]);
-    ASSERT_EQ(0x6f, mPref[PTARM_PREF_P2PKH]);
-    ASSERT_EQ(0xc4, mPref[PTARM_PREF_P2SH]);
-    ASSERT_EQ(0x03, mPref[PTARM_PREF_ADDRVER]);
+    ASSERT_EQ(2, mPref[BTC_PREF]);
+    ASSERT_EQ(0xef, mPref[BTC_PREF_WIF]);
+    ASSERT_EQ(0x6f, mPref[BTC_PREF_P2PKH]);
+    ASSERT_EQ(0xc4, mPref[BTC_PREF_P2SH]);
+    ASSERT_EQ(0x03, mPref[BTC_PREF_ADDRVER]);
     ASSERT_TRUE(mNativeSegwit);
-    ptarm_term();
+    btc_term();
 }
 
-TEST_F(btc, ptarm_setnet_mainnet)
+TEST_F(btc, btc_setnet_mainnet)
 {
     utl_dbg_malloc_cnt_reset();
-    bool ret = ptarm_init(PTARM_MAINNET, false);
+    bool ret = btc_init(BTC_MAINNET, false);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(1, mPref[PTARM_PREF]);
-    ASSERT_EQ(0x80, mPref[PTARM_PREF_WIF]);
-    ASSERT_EQ(0x00, mPref[PTARM_PREF_P2PKH]);
-    ASSERT_EQ(0x05, mPref[PTARM_PREF_P2SH]);
-    ASSERT_EQ(0x06, mPref[PTARM_PREF_ADDRVER]);
+    ASSERT_EQ(1, mPref[BTC_PREF]);
+    ASSERT_EQ(0x80, mPref[BTC_PREF_WIF]);
+    ASSERT_EQ(0x00, mPref[BTC_PREF_P2PKH]);
+    ASSERT_EQ(0x05, mPref[BTC_PREF_P2SH]);
+    ASSERT_EQ(0x06, mPref[BTC_PREF_ADDRVER]);
     ASSERT_FALSE(mNativeSegwit);
-    ptarm_term();
+    btc_term();
 }
 
 

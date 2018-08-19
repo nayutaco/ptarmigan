@@ -15,7 +15,7 @@
 #include "ln_misc.h"
 #include "ln_segwit_addr.h"
 
-#define M_INVOICE_DESCRIPTION       "ptarmigan"
+#define M_INVOICE_DESCRIPTION       "btcigan"
 
 static const char *ln_hrp_str[] = {
     "bc", "tb", "BC", "TB", "lnbc", "lntb", "lnbcrt"
@@ -165,8 +165,8 @@ static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **p
             for (size_t lp2 = 0; lp2 < d_len; lp2++) {
                 ln_fieldr_t *p_fieldr = &p_invoice_data->r_field[lp2];
 
-                memcpy(p_fieldr->node_id, p, PTARM_SZ_PUBKEY);
-                p += PTARM_SZ_PUBKEY;
+                memcpy(p_fieldr->node_id, p, BTC_SZ_PUBKEY);
+                p += BTC_SZ_PUBKEY;
 
                 p_fieldr->short_channel_id = 0;
                 for (size_t lp = 0; lp < sizeof(uint64_t); lp++) {
@@ -194,7 +194,7 @@ static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **p
 
                 //LOGD("-----------\n");
                 //LOGD("pubkey= ");
-                //DUMPD(p_fieldr->node_id, PTARM_SZ_PUBKEY);
+                //DUMPD(p_fieldr->node_id, BTC_SZ_PUBKEY);
                 //LOGD("short_channel_id= %016" PRIx64 "\n", p_fieldr->short_channel_id);
                 //LOGD("fee_base_msat= %u\n", p_fieldr->fee_base_msat);
                 //LOGD("fee_proportional_millionths= %u\n", p_fieldr->fee_prop_millionths);
@@ -272,7 +272,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     data[datalen++] = 19;   // 33-byte public key of the payee node
     data[datalen++] = 1;    // 264bit ÷ 5 ≒ 53
     data[datalen++] = 21;   //      53 --(32進数)--> 32*1 + 21
-    if (!ln_convert_bits(data, &datalen, 5, p_invoice_data->pubkey, PTARM_SZ_PUBKEY, 8, true)) return false;
+    if (!ln_convert_bits(data, &datalen, 5, p_invoice_data->pubkey, BTC_SZ_PUBKEY, 8, true)) return false;
 
     //payment_hash
     data[datalen++] = 1;    // 256-bit SHA256 payment_hash
@@ -282,7 +282,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
 
     //short description
     data[datalen++] = 13;   // short description
-    data[datalen++] = 0;    // "ptarmigan": 72bit ÷ 5 ≒ 15
+    data[datalen++] = 0;    // "btcigan": 72bit ÷ 5 ≒ 15
     data[datalen++] = 15;   //      15 --(32進数)--> 32*0 + 15
     if (!ln_convert_bits(data, &datalen, 5, (const uint8_t *)M_INVOICE_DESCRIPTION, 9, 8, true)) return false;
 
@@ -325,7 +325,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
             const ln_fieldr_t *r = &p_invoice_data->r_field[lp];
 
             push.pos = 0;
-            utl_push_data(&push, r->node_id, PTARM_SZ_PUBKEY);
+            utl_push_data(&push, r->node_id, BTC_SZ_PUBKEY);
             ln_misc_push64be(&push, r->short_channel_id);
             ln_misc_push32be(&push, r->fee_base_msat);
             ln_misc_push32be(&push, r->fee_prop_millionths);
@@ -346,14 +346,14 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     uint8_t hash[LN_SZ_HASH];
     mbedtls_sha256(hashdata, hashdatalen + hrp_len, hash, 0);
 
-    uint8_t sign[PTARM_SZ_SIGN_RS + 1];
+    uint8_t sign[BTC_SZ_SIGN_RS + 1];
     bool ret = ln_node_sign_nodekey(sign, hash);
     if (!ret) return false;
 
     int recid;
-    ret = ptarm_tx_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash);
+    ret = btc_tx_recover_pubkey_id(&recid, p_invoice_data->pubkey, sign, hash);
     if (!ret) return false;
-    sign[PTARM_SZ_SIGN_RS] = (uint8_t)recid;
+    sign[BTC_SZ_SIGN_RS] = (uint8_t)recid;
     if (!ln_convert_bits(data, &datalen, 5, sign, sizeof(sign), 8, true)) return false;
 
     *pp_invoice = (char *)malloc(2048);
@@ -460,7 +460,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     if (!ln_convert_bits(sig, &sig_len, 8, p_sig, 104, 5, false)) {
         goto LABEL_EXIT;
     }
-    ret = ptarm_tx_recover_pubkey(p_invoice_data->pubkey, sig[PTARM_SZ_SIGN_RS], sig, hash);
+    ret = btc_tx_recover_pubkey(p_invoice_data->pubkey, sig[BTC_SZ_SIGN_RS], sig, hash);
     if (!ret) {
         goto LABEL_EXIT;
     }
@@ -509,7 +509,7 @@ bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, 
     p_invoice_data->amount_msat = Amount;
     p_invoice_data->expiry = Expiry;
     p_invoice_data->min_final_cltv_expiry = MinFinalCltvExpiry;
-    memcpy(p_invoice_data->pubkey, ln_node_getid(), PTARM_SZ_PUBKEY);
+    memcpy(p_invoice_data->pubkey, ln_node_getid(), BTC_SZ_PUBKEY);
     memcpy(p_invoice_data->payment_hash, pPayHash, LN_SZ_HASH);
     p_invoice_data->r_field_num = FieldRNum;
     memcpy(p_invoice_data->r_field, pFieldR, sizeof(ln_fieldr_t) * FieldRNum);

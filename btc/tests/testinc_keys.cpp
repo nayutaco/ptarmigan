@@ -10,12 +10,12 @@ protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
         utl_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, false);
+        btc_init(BTC_TESTNET, false);
     }
 
     virtual void TearDown() {
         ASSERT_EQ(0, utl_dbg_malloc_cnt());
-        ptarm_term();
+        btc_term();
     }
 
 public:
@@ -38,7 +38,7 @@ TEST_F(keys, keys_is_valid_priv1)
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     };
-    bool ret = ptarm_keys_chkpriv(PRIV);
+    bool ret = btc_keys_chkpriv(PRIV);
     ASSERT_FALSE(ret);
 }
 
@@ -50,7 +50,7 @@ TEST_F(keys, keys_is_valid_priv2)
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,1,
     };
-    bool ret = ptarm_keys_chkpriv(PRIV);
+    bool ret = btc_keys_chkpriv(PRIV);
     ASSERT_TRUE(ret);
 }
 
@@ -62,7 +62,7 @@ TEST_F(keys, keys_is_valid_priv3)
         0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B,
         0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x40,
     };
-    bool ret = ptarm_keys_chkpriv(PRIV);
+    bool ret = btc_keys_chkpriv(PRIV);
     ASSERT_TRUE(ret);
 }
 
@@ -74,7 +74,7 @@ TEST_F(keys, keys_is_valid_priv4)
         0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B,
         0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x41,
     };
-    bool ret = ptarm_keys_chkpriv(PRIV);
+    bool ret = btc_keys_chkpriv(PRIV);
     ASSERT_FALSE(ret);
 }
 
@@ -114,53 +114,53 @@ TEST_F(keys, keys_1)
     const char WADDR[] = "2NFqpHBHpWfbL2b4wuBekAsCWv12UerQXiR";
 
     bool ret;
-    uint8_t priv[PTARM_SZ_PRIVKEY];
-    uint8_t pub[PTARM_SZ_PUBKEY];
-    uint8_t uncomppub[PTARM_SZ_PUBKEY_UNCOMP];
-    uint8_t pkh2[PTARM_SZ_PUBKEYHASH];
-    char addr[PTARM_SZ_ADDR_MAX];
-    char waddr[PTARM_SZ_ADDR_MAX];
-    ptarm_chain_t chain;
+    uint8_t priv[BTC_SZ_PRIVKEY];
+    uint8_t pub[BTC_SZ_PUBKEY];
+    uint8_t uncomppub[BTC_SZ_PUBKEY_UNCOMP];
+    uint8_t pkh2[BTC_SZ_PUBKEYHASH];
+    char addr[BTC_SZ_ADDR_MAX];
+    char waddr[BTC_SZ_ADDR_MAX];
+    btc_chain_t chain;
 
-    ret = ptarm_keys_wif2priv(priv, &chain, WIF);
+    ret = btc_keys_wif2priv(priv, &chain, WIF);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PRIV, priv, sizeof(PRIV)));
-    ASSERT_EQ(PTARM_TESTNET, chain);
+    ASSERT_EQ(BTC_TESTNET, chain);
 
-    char wif[PTARM_SZ_WIF_MAX];
-    ret = ptarm_keys_priv2wif(wif, priv);
+    char wif[BTC_SZ_WIF_MAX];
+    ret = btc_keys_priv2wif(wif, priv);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(WIF, wif);
 
-    ret = ptarm_keys_priv2pub(pub, priv);
+    ret = btc_keys_priv2pub(pub, priv);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PUB, pub, sizeof(PUB)));
 
-    ASSERT_TRUE(ptarm_keys_chkpub(pub));
+    ASSERT_TRUE(btc_keys_chkpub(pub));
 
-    ret = ptarm_keys_pubuncomp(uncomppub, pub);
+    ret = btc_keys_pubuncomp(uncomppub, pub);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(UNCOMPPUB, uncomppub, sizeof(UNCOMPPUB)));
 
-    ret = ptarm_keys_pub2p2pkh(addr, pub);
+    ret = btc_keys_pub2p2pkh(addr, pub);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(ADDR, addr);
 
-    ret = ptarm_keys_pub2p2wpkh(waddr, pub);
+    ret = btc_keys_pub2p2wpkh(waddr, pub);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(WADDR, waddr);
 
     int pref;
-    ret = ptarm_keys_addr2pkh(pkh2, &pref, addr);
+    ret = btc_keys_addr2pkh(pkh2, &pref, addr);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PKH, pkh2, sizeof(PKH)));
-    ASSERT_EQ(PTARM_PREF_P2PKH, pref);
+    ASSERT_EQ(BTC_PREF_P2PKH, pref);
 }
 
 
 TEST_F(keys, pub2uncomp)
 {
-    uint8_t uncomppub[PTARM_SZ_PUBKEY_UNCOMP];
+    uint8_t uncomppub[BTC_SZ_PUBKEY_UNCOMP];
 
     //https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
     const uint8_t COMP[][33] = {
@@ -178,7 +178,7 @@ TEST_F(keys, pub2uncomp)
     };
 
     for (int lp = 0; lp < 4; lp++) {
-        bool ret = ptarm_keys_pubuncomp(uncomppub, COMP[lp]);
+        bool ret = btc_keys_pubuncomp(uncomppub, COMP[lp]);
         ASSERT_TRUE(ret);
         ASSERT_EQ(0, memcmp(UNCOMP[lp], uncomppub, sizeof(uncomppub)));
     }
@@ -188,7 +188,7 @@ TEST_F(keys, pub2uncomp)
 #if 0
 TEST_F(keys, pub2uncomp2)
 {
-    uint8_t uncomppub[PTARM_SZ_PUBKEY_UNCOMP];
+    uint8_t uncomppub[BTC_SZ_PUBKEY_UNCOMP];
 
     //http://bitcoin.stackexchange.com/questions/21974/need-sample-compressed-and-uncompressed-public-private-key-pairs-for-bigintege
     const uint8_t COMP[][33] = {
@@ -207,7 +207,7 @@ TEST_F(keys, pub2uncomp2)
 //    };
 
     for (int lp = 0; lp < 1; lp++) {
-        bool ret = ptarm_keys_pubuncomp(uncomppub, COMP[lp]);
+        bool ret = btc_keys_pubuncomp(uncomppub, COMP[lp]);
         ASSERT_TRUE(ret);
         //ASSERT_EQ(0, memcmp(UNCOMP[lp], uncomppub, sizeof(uncomppub)));
         keys::DumpBin(uncomppub, sizeof(uncomppub));
@@ -221,10 +221,10 @@ TEST_F(keys, addr2pkh_fail1)
     //Base58ではない文字列
     const char ADDR[] = "*wJyBWTEUYMdJ12JWwK3eXff48pxQU6685";
 
-    uint8_t pkh[PTARM_SZ_PUBKEYHASH];
+    uint8_t pkh[BTC_SZ_PUBKEYHASH];
 
     int pref;
-    bool ret = ptarm_keys_addr2pkh(pkh, &pref, ADDR);
+    bool ret = btc_keys_addr2pkh(pkh, &pref, ADDR);
     ASSERT_FALSE(ret);
 }
 
@@ -233,15 +233,15 @@ TEST_F(keys, p2wpkh_addr)
 {
     bool ret;
     const char ADDR[] = "mtLLAiafrhzcjSZqp2Ts86Gv7PupWnXKUc";
-    char waddr[PTARM_SZ_ADDR_MAX];
-    ret = ptarm_keys_addr2p2wpkh(waddr, ADDR);
+    char waddr[BTC_SZ_ADDR_MAX];
+    ret = btc_keys_addr2p2wpkh(waddr, ADDR);
     ASSERT_TRUE(ret);
     ASSERT_STREQ("2NCFo5oZuEbXgZdMDzLMA2qQiroHrU6oXSU", waddr);     //bitcoindで計算した値
     printf(" addr= %s\n", ADDR);
     printf("waddr= %s\n", waddr);
 
     const char ADDR2[] = "mmsgPUnoceq7er7f9HuaZV2ktMkaVD3Za1";
-    ret = ptarm_keys_addr2p2wpkh(waddr, ADDR2);
+    ret = btc_keys_addr2p2wpkh(waddr, ADDR2);
     ASSERT_TRUE(ret);
     ASSERT_STREQ("2NDxM8795n9HsLiniWowcn6gwSemNKzsN7a", waddr);     //bitcoindで計算した値
     printf(" addr= %s\n", ADDR2);
@@ -279,7 +279,7 @@ TEST_F(keys, multi_2of2_1)
 
     bool ret;
     utl_buf_t bufredeem;
-    ret = ptarm_keys_create2of2(&bufredeem, PUB1, PUB2);
+    ret = btc_keys_create2of2(&bufredeem, PUB1, PUB2);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);
@@ -320,7 +320,7 @@ TEST_F(keys, multi_2of2_2)
 
     bool ret;
     utl_buf_t bufredeem;
-    ret = ptarm_keys_create2of2(&bufredeem, PUB2, PUB1);
+    ret = btc_keys_create2of2(&bufredeem, PUB2, PUB1);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);
@@ -342,7 +342,7 @@ TEST_F(keys, multi_2of2_same)
 
     bool ret;
     utl_buf_t bufredeem;
-    ret = ptarm_keys_create2of2(&bufredeem, PUB1, PUB1);
+    ret = btc_keys_create2of2(&bufredeem, PUB1, PUB1);
     ASSERT_FALSE(ret);
     //utl_buf_free(&bufredeem);
 }
@@ -393,7 +393,7 @@ TEST_F(keys, multi_2of3)
     };
 
     utl_buf_t bufredeem;
-    bool ret = ptarm_keys_createmulti(&bufredeem, PUBS, 3, 2);
+    bool ret = btc_keys_createmulti(&bufredeem, PUBS, 3, 2);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);
@@ -423,8 +423,8 @@ TEST_F(keys, wit2p2wsh)
     const utl_buf_t wit = { (uint8_t *)REDEEM, sizeof(REDEEM) };
     const char ADDR[] = "2Mt8fd67GgFMQpeKqn9mZ6VRWHnK6MAzGbD";
 
-    char addr[PTARM_SZ_ADDR_MAX];
-    bool ret = ptarm_keys_wit2waddr(addr, &wit);
+    char addr[BTC_SZ_ADDR_MAX];
+    bool ret = btc_keys_wit2waddr(addr, &wit);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(ADDR, addr);
 }
@@ -439,10 +439,10 @@ TEST_F(keys, uncomp1)
         0x79, 0xBE, 0x66, 0x7E, 0xF9, 0xDC, 0xBB, 0xAC, 0x55, 0xA0, 0x62, 0x95, 0xCE, 0x87, 0x0B, 0x07, 0x02, 0x9B, 0xFC, 0xDB, 0x2D, 0xCE, 0x28, 0xD9, 0x59, 0xF2, 0x81, 0x5B, 0x16, 0xF8, 0x17, 0x98, 0x48, 0x3A, 0xDA, 0x77, 0x26, 0xA3, 0xC4, 0x65, 0x5D, 0xA4, 0xFB, 0xFC, 0x0E, 0x11, 0x08, 0xA8, 0xFD, 0x17, 0xB4, 0x48, 0xA6, 0x85, 0x54, 0x19, 0x9C, 0x47, 0xD0, 0x8F, 0xFB, 0x10, 0xD4, 0xB8
     };
     mbedtls_ecp_point unpnt;
-    uint8_t uncomp[PTARM_SZ_PUBKEY_UNCOMP];
+    uint8_t uncomp[BTC_SZ_PUBKEY_UNCOMP];
 
     mbedtls_ecp_point_init(&unpnt);
-    int ret = ptarm_util_ecp_point_read_binary2(&unpnt, COMP);
+    int ret = btc_util_ecp_point_read_binary2(&unpnt, COMP);
     ASSERT_EQ(0, ret);
     mbedtls_mpi_write_binary(&unpnt.X, uncomp, 32);
     mbedtls_mpi_write_binary(&unpnt.Y, uncomp + 32, 32);
@@ -460,10 +460,10 @@ TEST_F(keys, uncomp2)
         0xF2, 0x87, 0x73, 0xC2, 0xD9, 0x75, 0x28, 0x8B, 0xC7, 0xD1, 0xD2, 0x05, 0xC3, 0x74, 0x86, 0x51, 0xB0, 0x75, 0xFB, 0xC6, 0x61, 0x0E, 0x58, 0xCD, 0xDE, 0xED, 0xDF, 0x8F, 0x19, 0x40, 0x5A, 0xA8, 0x0A, 0xB0, 0x90, 0x2E, 0x8D, 0x88, 0x0A, 0x89, 0x75, 0x82, 0x12, 0xEB, 0x65, 0xCD, 0xAF, 0x47, 0x3A, 0x1A, 0x06, 0xDA, 0x52, 0x1F, 0xA9, 0x1F, 0x29, 0xB5, 0xCB, 0x52, 0xDB, 0x03, 0xED, 0x81
     };
     mbedtls_ecp_point unpnt;
-    uint8_t uncomp[PTARM_SZ_PUBKEY_UNCOMP];
+    uint8_t uncomp[BTC_SZ_PUBKEY_UNCOMP];
 
     mbedtls_ecp_point_init(&unpnt);
-    int ret = ptarm_util_ecp_point_read_binary2(&unpnt, COMP);
+    int ret = btc_util_ecp_point_read_binary2(&unpnt, COMP);
     ASSERT_EQ(0, ret);
     mbedtls_mpi_write_binary(&unpnt.X, uncomp, 32);
     mbedtls_mpi_write_binary(&unpnt.Y, uncomp + 32, 32);
@@ -481,10 +481,10 @@ TEST_F(keys, uncomp3)
         0xFE, 0x8D, 0x1E, 0xB1, 0xBC, 0xB3, 0x43, 0x2B, 0x1D, 0xB5, 0x83, 0x3F, 0xF5, 0xF2, 0x22, 0x6D, 0x9C, 0xB5, 0xE6, 0x5C, 0xEE, 0x43, 0x05, 0x58, 0xC1, 0x8E, 0xD3, 0xA3, 0xC8, 0x6C, 0xE1, 0xAF, 0x07, 0xB1, 0x58, 0xF2, 0x44, 0xCD, 0x0D, 0xE2, 0x13, 0x4A, 0xC7, 0xC1, 0xD3, 0x71, 0xCF, 0xFB, 0xFA, 0xE4, 0xDB, 0x40, 0x80, 0x1A, 0x25, 0x72, 0xE5, 0x31, 0xC5, 0x73, 0xCD, 0xA9, 0xB5, 0xB4
     };
     mbedtls_ecp_point unpnt;
-    uint8_t uncomp[PTARM_SZ_PUBKEY_UNCOMP];
+    uint8_t uncomp[BTC_SZ_PUBKEY_UNCOMP];
 
     mbedtls_ecp_point_init(&unpnt);
-    int ret = ptarm_util_ecp_point_read_binary2(&unpnt, COMP);
+    int ret = btc_util_ecp_point_read_binary2(&unpnt, COMP);
     ASSERT_EQ(0, ret);
     mbedtls_mpi_write_binary(&unpnt.X, uncomp, 32);
     mbedtls_mpi_write_binary(&unpnt.Y, uncomp + 32, 32);
@@ -502,10 +502,10 @@ TEST_F(keys, uncomp4)
         0x07, 0x92, 0x64, 0xC4, 0xB4, 0xBF, 0xCD, 0x7F, 0xE3, 0xA7, 0xB7, 0xB9, 0x2B, 0x6C, 0x43, 0x9F, 0x3A, 0x5B, 0x3A, 0xBC, 0xD2, 0x91, 0x89, 0xBF, 0x7B, 0x54, 0xD7, 0x81, 0xFF, 0x03, 0xD7, 0x22, 0x6F, 0x6F, 0x0E, 0x07, 0x84, 0xEA, 0xDA, 0x9F, 0x92, 0x99, 0x9E, 0xE9, 0xC4, 0x38, 0xD4, 0x7E, 0xAA, 0x2C, 0x80, 0x68, 0xF1, 0x84, 0x51, 0x97, 0xE3, 0x07, 0x1C, 0x74, 0xB0, 0x63, 0xC5, 0xE1
     };
     mbedtls_ecp_point unpnt;
-    uint8_t uncomp[PTARM_SZ_PUBKEY_UNCOMP];
+    uint8_t uncomp[BTC_SZ_PUBKEY_UNCOMP];
 
     mbedtls_ecp_point_init(&unpnt);
-    int ret = ptarm_util_ecp_point_read_binary2(&unpnt, COMP);
+    int ret = btc_util_ecp_point_read_binary2(&unpnt, COMP);
     ASSERT_EQ(0, ret);
     mbedtls_mpi_write_binary(&unpnt.X, uncomp, 32);
     mbedtls_mpi_write_binary(&unpnt.Y, uncomp + 32, 32);

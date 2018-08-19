@@ -146,11 +146,11 @@ bool HIDDEN ln_msg_open_channel_create(utl_buf_t *pBuf, const ln_open_channel_t 
         //        [33:delayed_payment_basepoint]
         //        [33:htlc_basepoint]
         //        [33:first_per_commitment_point]
-        if (!ptarm_keys_chkpub(pMsg->p_pubkeys[lp])) {
+        if (!btc_keys_chkpub(pMsg->p_pubkeys[lp])) {
             LOGD("fail: check pubkey\n");
             return false;
         }
-        utl_push_data(&proto, pMsg->p_pubkeys[lp], PTARM_SZ_PUBKEY);
+        utl_push_data(&proto, pMsg->p_pubkeys[lp], BTC_SZ_PUBKEY);
     }
 
     //        [1:channel_flags]
@@ -246,13 +246,13 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
         //        [33:delayed_payment_basepoint]
         //        [33:htlc_basepoint]
         //        [33:first_per_commitment_point]
-        if (!ptarm_keys_chkpub(pData + pos)) {
+        if (!btc_keys_chkpub(pData + pos)) {
             LOGD("fail: check pubkey: %d\n", lp);
-            DUMPD(pData + pos, PTARM_SZ_PUBKEY);
+            DUMPD(pData + pos, BTC_SZ_PUBKEY);
             return false;
         }
-        memcpy(pMsg->p_pubkeys[lp], pData + pos, PTARM_SZ_PUBKEY);
-        pos += PTARM_SZ_PUBKEY;
+        memcpy(pMsg->p_pubkeys[lp], pData + pos, BTC_SZ_PUBKEY);
+        pos += BTC_SZ_PUBKEY;
     }
 
     //        [1:channel_flags]
@@ -304,17 +304,17 @@ static void open_channel_print(const ln_open_channel_t *pMsg)
     LOGD("to_self_delay= %u\n", pMsg->to_self_delay);
     LOGD("max_accepted_htlcs= %u\n", pMsg->max_accepted_htlcs);
     LOGD("p_funding_pubkey        : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_FUNDING], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_FUNDING], BTC_SZ_PUBKEY);
     LOGD("p_revocation_basept     : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_REVOCATION], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_REVOCATION], BTC_SZ_PUBKEY);
     LOGD("p_payment_basept        : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PAYMENT], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PAYMENT], BTC_SZ_PUBKEY);
     LOGD("p_delayed_payment_basept: ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED], BTC_SZ_PUBKEY);
     LOGD("p_htlc_basept           : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_HTLC], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_HTLC], BTC_SZ_PUBKEY);
     LOGD("p_first_per_commitpt    : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
     LOGD("channel_flags           : %02x\n", pMsg->channel_flags);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
@@ -387,11 +387,11 @@ bool HIDDEN ln_msg_accept_channel_create(utl_buf_t *pBuf, const ln_accept_channe
         //        [33:delayed_payment_basepoint]
         //        [33:htlc_basepoint]
         //        [33:first_per_commitment_point]
-        if (!ptarm_keys_chkpub(pMsg->p_pubkeys[lp])) {
+        if (!btc_keys_chkpub(pMsg->p_pubkeys[lp])) {
             LOGD("fail: check pubkey\n");
             return false;
         }
-        utl_push_data(&proto, pMsg->p_pubkeys[lp], PTARM_SZ_PUBKEY);
+        utl_push_data(&proto, pMsg->p_pubkeys[lp], BTC_SZ_PUBKEY);
     }
 
     assert(sizeof(uint16_t) + 270 == pBuf->len);
@@ -456,12 +456,12 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
         //        [33:delayed_payment_basepoint]
         //        [33:htlc_basepoint]
         //        [33:first_per_commitment_point]
-        if (!ptarm_keys_chkpub(pData + pos)) {
+        if (!btc_keys_chkpub(pData + pos)) {
             LOGD("fail: check pubkey\n");
             return false;
         }
-        memcpy(pMsg->p_pubkeys[lp], pData + pos, PTARM_SZ_PUBKEY);
-        pos += PTARM_SZ_PUBKEY;
+        memcpy(pMsg->p_pubkeys[lp], pData + pos, BTC_SZ_PUBKEY);
+        pos += BTC_SZ_PUBKEY;
     }
 
     //        [2:shutdown_len] (option_upfront_shutdown_script)
@@ -503,17 +503,17 @@ static void accept_channel_print(const ln_accept_channel_t *pMsg)
     LOGD("to_self_delay= %u\n", pMsg->to_self_delay);
     LOGD("max_accepted_htlcs= %u\n", pMsg->max_accepted_htlcs);
     LOGD("p_funding_pubkey        : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_FUNDING], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_FUNDING], BTC_SZ_PUBKEY);
     LOGD("p_revocation_basept     : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_REVOCATION], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_REVOCATION], BTC_SZ_PUBKEY);
     LOGD("p_payment_basept        : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PAYMENT], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PAYMENT], BTC_SZ_PUBKEY);
     LOGD("p_delayed_payment_basept: ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_DELAYED], BTC_SZ_PUBKEY);
     LOGD("p_htlc_basept           : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_HTLC], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_HTLC], BTC_SZ_PUBKEY);
     LOGD("p_first_per_commitpt    : ");
-    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
@@ -550,14 +550,14 @@ bool HIDDEN ln_msg_funding_created_create(utl_buf_t *pBuf, const ln_funding_crea
     //        [32:funding_txid]
     // BE変換
 #if 0
-    uint8_t txid[PTARM_SZ_TXID];
-    for (int lp = 0; lp < PTARM_SZ_TXID; lp++) {
-        txid[lp] = pMsg->p_funding_txid[PTARM_SZ_TXID - lp - 1];
+    uint8_t txid[BTC_SZ_TXID];
+    for (int lp = 0; lp < BTC_SZ_TXID; lp++) {
+        txid[lp] = pMsg->p_funding_txid[BTC_SZ_TXID - lp - 1];
     }
-    utl_push_data(&proto, txid, PTARM_SZ_TXID);
+    utl_push_data(&proto, txid, BTC_SZ_TXID);
 #else
     //そのまま
-    utl_push_data(&proto, pMsg->p_funding_txid, PTARM_SZ_TXID);
+    utl_push_data(&proto, pMsg->p_funding_txid, BTC_SZ_TXID);
 #endif
 
     //        [2:funding_output_index]
@@ -596,14 +596,14 @@ bool HIDDEN ln_msg_funding_created_read(ln_funding_created_t *pMsg, const uint8_
     //        [32:funding_txid]
 #if 0
     // LE変換
-    for (int lp = 0; lp < PTARM_SZ_TXID; lp++) {
-        pMsg->p_funding_txid[lp] = *(pData + pos + PTARM_SZ_TXID - lp - 1);
+    for (int lp = 0; lp < BTC_SZ_TXID; lp++) {
+        pMsg->p_funding_txid[lp] = *(pData + pos + BTC_SZ_TXID - lp - 1);
     }
 #else
     //そのまま
-    memcpy(pMsg->p_funding_txid, pData + pos, PTARM_SZ_TXID);
+    memcpy(pMsg->p_funding_txid, pData + pos, BTC_SZ_TXID);
 #endif
-    pos += PTARM_SZ_TXID;
+    pos += BTC_SZ_TXID;
 
     //        [2:funding_output_index]
     pMsg->funding_output_idx = ln_misc_get16be(pData + pos);
@@ -751,7 +751,7 @@ bool HIDDEN ln_msg_funding_locked_create(utl_buf_t *pBuf, const ln_funding_locke
     utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [33:next_per_commitment_point]
-    utl_push_data(&proto, pMsg->p_per_commitpt, PTARM_SZ_PUBKEY);
+    utl_push_data(&proto, pMsg->p_per_commitpt, BTC_SZ_PUBKEY);
 
     assert(sizeof(uint16_t) + 65 == pBuf->len);
 
@@ -781,8 +781,8 @@ bool HIDDEN ln_msg_funding_locked_read(ln_funding_locked_t *pMsg, const uint8_t 
     pos += LN_SZ_CHANNEL_ID;
 
     //        [33:next_per_commitment_point]
-    memcpy(pMsg->p_per_commitpt, pData + pos, PTARM_SZ_PUBKEY);
-    pos += PTARM_SZ_PUBKEY;
+    memcpy(pMsg->p_per_commitpt, pData + pos, BTC_SZ_PUBKEY);
+    pos += BTC_SZ_PUBKEY;
 
     assert(Len >= pos);
 
@@ -802,7 +802,7 @@ static void funding_locked_print(const ln_funding_locked_t *pMsg)
     LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("p_per_commitpt: ");
-    DUMPD(pMsg->p_per_commitpt, PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_per_commitpt, BTC_SZ_PUBKEY);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
@@ -849,9 +849,9 @@ bool HIDDEN ln_msg_channel_reestablish_create(utl_buf_t *pBuf, const ln_channel_
 
     if (pMsg->option_data_loss_protect) {
         //        [32:your_last_per_commitment_secret]
-        utl_push_data(&proto, pMsg->your_last_per_commitment_secret, PTARM_SZ_PRIVKEY);
+        utl_push_data(&proto, pMsg->your_last_per_commitment_secret, BTC_SZ_PRIVKEY);
         //        [33:my_current_per_commitment_point]
-        utl_push_data(&proto, pMsg->my_current_per_commitment_point, PTARM_SZ_PUBKEY);
+        utl_push_data(&proto, pMsg->my_current_per_commitment_point, BTC_SZ_PUBKEY);
     }
 
     assert(len == pBuf->len);
@@ -892,15 +892,15 @@ bool HIDDEN ln_msg_channel_reestablish_read(ln_channel_reestablish_t *pMsg, cons
 
     if (pMsg->option_data_loss_protect) {
         //[32:your_last_per_commitment_secret] (option_data_loss_protect)
-        if (Len >= pos + PTARM_SZ_PRIVKEY) {
-            memcpy(pMsg->your_last_per_commitment_secret, pData + pos, PTARM_SZ_PRIVKEY);
-            pos += PTARM_SZ_PRIVKEY;
+        if (Len >= pos + BTC_SZ_PRIVKEY) {
+            memcpy(pMsg->your_last_per_commitment_secret, pData + pos, BTC_SZ_PRIVKEY);
+            pos += BTC_SZ_PRIVKEY;
         }
 
         //[33:my_current_per_commitment_point] (option_data_loss_protect)
-        if (Len >= pos + PTARM_SZ_PUBKEY) {
-            memcpy(pMsg->my_current_per_commitment_point, pData + pos, PTARM_SZ_PUBKEY);
-            pos += PTARM_SZ_PUBKEY;
+        if (Len >= pos + BTC_SZ_PUBKEY) {
+            memcpy(pMsg->my_current_per_commitment_point, pData + pos, BTC_SZ_PUBKEY);
+            pos += BTC_SZ_PUBKEY;
         }
     }
 
@@ -925,9 +925,9 @@ static void channel_reestablish_print(const ln_channel_reestablish_t *pMsg)
     LOGD("next_remote_revocation_number: %" PRIu64 "\n", pMsg->next_remote_revocation_number);
     if (pMsg->option_data_loss_protect) {
         LOGD("your_last_per_commitment_secret: ");
-        DUMPD(pMsg->your_last_per_commitment_secret, PTARM_SZ_PRIVKEY);
+        DUMPD(pMsg->your_last_per_commitment_secret, BTC_SZ_PRIVKEY);
         LOGD("my_current_per_commitment_point: ");
-        DUMPD(pMsg->my_current_per_commitment_point, PTARM_SZ_PUBKEY);
+        DUMPD(pMsg->my_current_per_commitment_point, BTC_SZ_PUBKEY);
     }
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG

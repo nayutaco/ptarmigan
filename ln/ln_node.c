@@ -97,8 +97,8 @@ char *ln_node_alias(void)
 bool ln_node_init(uint8_t Features)
 {
     bool ret;
-    char wif[PTARM_SZ_WIF_MAX];
-    ptarm_chain_t chain;
+    char wif[BTC_SZ_WIF_MAX];
+    btc_chain_t chain;
     utl_buf_t buf_node = UTL_BUF_INIT;
 
     mNode.features = Features;
@@ -106,7 +106,7 @@ bool ln_node_init(uint8_t Features)
     ret = ln_db_init(wif, mNode.alias, &mNode.addr.port);
     if (ret) {
         //新規設定 or DBから読み込み
-        ret = ptarm_util_wif2keys(&mNode.keys, &chain, wif);
+        ret = btc_util_wif2keys(&mNode.keys, &chain, wif);
         if (!ret) {
             goto LABEL_EXIT;
         }
@@ -121,14 +121,14 @@ bool ln_node_init(uint8_t Features)
     if (ret) {
         //ノード設定が変更されていないかチェック
         //  少なくともnode_idは変更されていない
-        uint8_t node_id[PTARM_SZ_PUBKEY];
+        uint8_t node_id[BTC_SZ_PUBKEY];
         char node_alias[LN_SZ_ALIAS + 1];
 
         anno.p_node_id = node_id;
         anno.p_alias = node_alias;
         ret = ln_msg_node_announce_read(&anno, buf_node.buf, buf_node.len);
         if (ret) {
-            if ( (memcmp(anno.p_node_id, mNode.keys.pub, PTARM_SZ_PUBKEY) != 0) ||
+            if ( (memcmp(anno.p_node_id, mNode.keys.pub, BTC_SZ_PUBKEY) != 0) ||
                  (strcmp(anno.p_alias, mNode.alias) != 0) ||
                  (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
                  (!comp_node_addr(&anno.addr, &mNode.addr) && (mNode.addr.type != LN_NODEDESC_NONE)) ) {
@@ -187,7 +187,7 @@ bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
     bool detect = ln_db_self_search(comp_func_cnl, &prm);
 
     LOGD("search id:");
-    DUMPD(pNodeId, PTARM_SZ_PUBKEY);
+    DUMPD(pNodeId, BTC_SZ_PUBKEY);
     LOGD("  --> detect=%d\n", detect);
 
     return detect;
@@ -227,10 +227,10 @@ uint64_t ln_node_total_msat(void)
 
 void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
 {
-    ptarm_util_keys_t keys;
-    ptarm_util_createkeys(&keys);
-    memcpy(pPubKey, keys.pub, PTARM_SZ_PUBKEY);
-    ptarm_keys_priv2wif(pWif, keys.priv);
+    btc_util_keys_t keys;
+    btc_util_createkeys(&keys);
+    memcpy(pPubKey, keys.pub, BTC_SZ_PUBKEY);
+    btc_keys_priv2wif(pWif, keys.priv);
 }
 
 
@@ -238,7 +238,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
 {
     bool ret;
     ln_node_announce_t anno;
-    uint8_t node_id[PTARM_SZ_PUBKEY];
+    uint8_t node_id[BTC_SZ_PUBKEY];
     char node_alias[LN_SZ_ALIAS + 1];
 
     anno.p_node_id = node_id;
@@ -268,15 +268,15 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
 
 void HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey)
 {
-    uint8_t pub[PTARM_SZ_PUBKEY];
-    ptarm_util_mul_pubkey(pub, pPubKey, mNode.keys.priv, PTARM_SZ_PRIVKEY);
-    ptarm_util_sha256(pResult, pub, sizeof(pub));
+    uint8_t pub[BTC_SZ_PUBKEY];
+    btc_util_mul_pubkey(pub, pPubKey, mNode.keys.priv, BTC_SZ_PRIVKEY);
+    btc_util_sha256(pResult, pub, sizeof(pub));
 }
 
 
 bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash)
 {
-    return ptarm_tx_sign_rs(pRS, pHash, mNode.keys.priv);
+    return btc_tx_sign_rs(pRS, pHash, mNode.keys.priv);
 }
 
 
@@ -306,7 +306,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     (void)p_db_param;
     comp_param_cnl_t *p = (comp_param_cnl_t *)p_param;
 
-    bool ret = (memcmp(self->peer_node_id, p->p_node_id, PTARM_SZ_PUBKEY) == 0);
+    bool ret = (memcmp(self->peer_node_id, p->p_node_id, BTC_SZ_PUBKEY) == 0);
     if (ret) {
         if (p->p_self) {
             //DBから復元(selfからshallow copyするので、selfは解放しない)
@@ -366,7 +366,7 @@ static bool comp_func_srch_nodeid(ln_self_t *self, void *p_db_param, void *p_par
     comp_param_srcnodeid_t *p_srch = (comp_param_srcnodeid_t *)p_param;
     bool ret = (ln_short_channel_id(self) == p_srch->short_channel_id);
     if (ret) {
-        memcpy(p_srch->p_node_id, ln_their_node_id(self), PTARM_SZ_PUBKEY);
+        memcpy(p_srch->p_node_id, ln_their_node_id(self), BTC_SZ_PUBKEY);
         ln_term(self);
     }
     return ret;
@@ -414,9 +414,9 @@ static void print_node(void)
 {
     printf("=NODE=============================================\n");
     // printf("node_key: ");
-    // ptarm_util_dumpbin(stdout, mNode.keys.priv, PTARM_SZ_PRIVKEY, true);
+    // btc_util_dumpbin(stdout, mNode.keys.priv, BTC_SZ_PRIVKEY, true);
     printf("node_id: ");
-    ptarm_util_dumpbin(stdout, mNode.keys.pub, PTARM_SZ_PUBKEY, true);
+    btc_util_dumpbin(stdout, mNode.keys.pub, BTC_SZ_PUBKEY, true);
     printf("features= %02x\n", mNode.features);
     printf("alias= %s\n", mNode.alias);
     printf("addr.type=%d\n", mNode.addr.type);
@@ -437,7 +437,7 @@ static void print_node(void)
 #ifdef UNITTEST
 void ln_node_setkey(const uint8_t *pPrivKey)
 {
-    memcpy(mNode.keys.priv, pPrivKey, PTARM_SZ_PRIVKEY);
-    ptarm_keys_priv2pub(mNode.keys.pub, mNode.keys.priv);
+    memcpy(mNode.keys.priv, pPrivKey, BTC_SZ_PRIVKEY);
+    btc_keys_priv2pub(mNode.keys.pub, mNode.keys.priv);
 }
 #endif  //UNITTEST

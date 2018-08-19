@@ -22,7 +22,7 @@ protected:
     }
 
     static utl_buf_t redeem_fund;
-    static ptarm_util_keys_t    keys;
+    static btc_util_keys_t    keys;
 
 public:
     static void DumpBin(const uint8_t *pData, uint16_t Len)
@@ -35,7 +35,7 @@ public:
 };
 
 utl_buf_t ln_bolt3_b::redeem_fund;
-ptarm_util_keys_t    ln_bolt3_b::keys;
+btc_util_keys_t    ln_bolt3_b::keys;
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -43,7 +43,7 @@ ptarm_util_keys_t    ln_bolt3_b::keys;
 TEST_F(ln_bolt3_b, fuding1)
 {
     utl_dbg_malloc_cnt_reset();
-    ptarm_init(PTARM_TESTNET, true);
+    btc_init(BTC_TESTNET, true);
 
 
     static const uint8_t LOCAL_FUNDING_PUBKEY[] = {
@@ -73,20 +73,20 @@ TEST_F(ln_bolt3_b, fuding1)
     };
 
     bool ret;
-    ptarm_keys_sort_t sort;
+    btc_keys_sort_t sort;
 
-    ret = ptarm_util_create2of2(&redeem_fund, &sort, LOCAL_FUNDING_PUBKEY, REMOTE_FUNDING_PUBKEY);
+    ret = btc_util_create2of2(&redeem_fund, &sort, LOCAL_FUNDING_PUBKEY, REMOTE_FUNDING_PUBKEY);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(PTARM_KEYS_SORT_ASC, sort);
+    ASSERT_EQ(BTC_KEYS_SORT_ASC, sort);
     ASSERT_EQ(0, memcmp(FUNDING_WSCRIPT, redeem_fund.buf, sizeof(FUNDING_WSCRIPT)));
     ASSERT_EQ(sizeof(FUNDING_WSCRIPT), redeem_fund.len);
 
     utl_buf_free(&redeem_fund);
 
     //逆順
-    ret = ptarm_util_create2of2(&redeem_fund, &sort, REMOTE_FUNDING_PUBKEY, LOCAL_FUNDING_PUBKEY);
+    ret = btc_util_create2of2(&redeem_fund, &sort, REMOTE_FUNDING_PUBKEY, LOCAL_FUNDING_PUBKEY);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(PTARM_KEYS_SORT_OTHER, sort);
+    ASSERT_EQ(BTC_KEYS_SORT_OTHER, sort);
     ASSERT_EQ(0, memcmp(FUNDING_WSCRIPT, redeem_fund.buf, sizeof(FUNDING_WSCRIPT)));
     ASSERT_EQ(sizeof(FUNDING_WSCRIPT), redeem_fund.len);
 }
@@ -105,12 +105,12 @@ TEST_F(ln_bolt3_b, fuding2)
     };
 
     bool ret;
-    ptarm_chain_t chain;
+    btc_chain_t chain;
 
-    ret = ptarm_util_wif2keys(&keys, &chain, WIF_PRIV);
+    ret = btc_util_wif2keys(&keys, &chain, WIF_PRIV);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PRIV, keys.priv, sizeof(PRIV)));
-    ASSERT_EQ(PTARM_TESTNET, chain);
+    ASSERT_EQ(BTC_TESTNET, chain);
 }
 
 
@@ -136,26 +136,26 @@ TEST_F(ln_bolt3_b, fuding3)
 
 
     bool ret;
-    ptarm_tx_t tx = PTARM_TX_INIT;
+    btc_tx_t tx = BTC_TX_INIT;
     utl_buf_t txbuf = UTL_BUF_INIT;
 
     //output
     //vout#0
-    ptarm_sw_add_vout_p2wsh(&tx, FUND_SATOSHI, &redeem_fund);
+    btc_sw_add_vout_p2wsh(&tx, FUND_SATOSHI, &redeem_fund);
 
     //vout#1
     //      feeを計算した後で額を決定する
-    ptarm_sw_add_vout_p2wpkh_pub(&tx, 0, keys.pub);
+    btc_sw_add_vout_p2wpkh_pub(&tx, 0, keys.pub);
 
     //input
     //vin#0
-    ptarm_tx_add_vin(&tx, IN_TXID, IN_TXID_INDEX);
+    btc_tx_add_vin(&tx, IN_TXID, IN_TXID_INDEX);
 
 
     //FEE計算
     //      txサイズに署名の中間サイズと公開鍵サイズを加えたサイズにする
     //          http://bitcoin.stackexchange.com/questions/1195/how-to-calculate-transaction-size-before-sending
-    ret = ptarm_tx_create(&txbuf, &tx);
+    ret = btc_tx_create(&txbuf, &tx);
     ASSERT_TRUE(ret);
     // LEN+署名(72) + LEN+公開鍵(33)
     uint64_t fee = (txbuf.len + 1 + 72 + 1 + 33) * 4 * FEERATE_PER_KW / 1000;
@@ -164,9 +164,9 @@ TEST_F(ln_bolt3_b, fuding3)
 
 
     //署名
-    ret = ptarm_util_sign_p2pkh(&tx, 0, &keys);
+    ret = btc_util_sign_p2pkh(&tx, 0, &keys);
     ASSERT_TRUE(ret);
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     const uint8_t FUNDING_TX[] = {
         0x02, 0x00, 0x00, 0x00, 0x01, 0xad, 0xbb, 0x20,
@@ -199,14 +199,14 @@ TEST_F(ln_bolt3_b, fuding3)
         0x05, 0xf2, 0x3c, 0x80, 0xdf, 0x8a, 0xd1, 0xaf,
         0xdc, 0xf6, 0x52, 0xf9, 0x00, 0x00, 0x00, 0x00,
     };
-    ret = ptarm_tx_create(&txbuf, &tx);
+    ret = btc_tx_create(&txbuf, &tx);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(FUNDING_TX, txbuf.buf, sizeof(FUNDING_TX)));
     ASSERT_EQ(sizeof(FUNDING_TX), txbuf.len);
     utl_buf_free(&txbuf);
 
-    uint8_t txid[PTARM_SZ_TXID];
-    ptarm_tx_txid(txid, &tx);
+    uint8_t txid[BTC_SZ_TXID];
+    btc_tx_txid(txid, &tx);
 
     const uint8_t TXID_FUND[] = {
         0xbe, 0xf6, 0x7e, 0x4e, 0x2f, 0xb9, 0xdd, 0xee,
@@ -214,12 +214,12 @@ TEST_F(ln_bolt3_b, fuding3)
         0xb3, 0x50, 0x50, 0xb1, 0xad, 0xd7, 0x72, 0x99,
         0x5b, 0x82, 0x0b, 0x58, 0x4a, 0x48, 0x84, 0x89,
     };
-    ASSERT_EQ(0, memcmp(TXID_FUND, txid, PTARM_SZ_TXID));
+    ASSERT_EQ(0, memcmp(TXID_FUND, txid, BTC_SZ_TXID));
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
     utl_buf_free(&redeem_fund);
 
-    ptarm_term();
+    btc_term();
 
     ASSERT_EQ(0, utl_dbg_malloc_cnt());
 }

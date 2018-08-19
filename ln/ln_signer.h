@@ -83,13 +83,13 @@ void HIDDEN ln_signer_create_prev_percommitsec(const ln_self_t *self, uint8_t *p
 /**
  *
  */
-void HIDDEN ln_signer_get_secret(const ln_self_t *self, ptarm_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
+void HIDDEN ln_signer_get_secret(const ln_self_t *self, btc_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
 
 
 /**
  *
  */
-void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ptarm_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
+void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, btc_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec);
 
 
 /** P2WSH署名 - Phase2: 署名作成
@@ -100,8 +100,8 @@ void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ptarm_util_keys_t *pK
  * @param[in]       PrivIndex
  * @return      true:成功
  * @note
- *      - #ptarm_util_sign_p2wsh()
- *      - 中身は #ptarm_tx_sign()
+ *      - #btc_util_sign_p2wsh()
+ *      - 中身は #btc_tx_sign()
  */
 bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex);
 
@@ -113,10 +113,10 @@ bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_se
  * @param[in]       pKeys
  * @return      true:成功
  * @note
- *      - #ptarm_util_sign_p2wsh()
- *      - 中身は #ptarm_tx_sign()
+ *      - #btc_util_sign_p2wsh()
+ *      - 中身は #btc_tx_sign()
  */
-bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys);
+bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_util_keys_t *pKeys);
 
 
 /** P2WPKH署名
@@ -127,9 +127,9 @@ bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const
  * @param[in]       pKeys
  * @return      true:成功
  * @note
- *      - #ptarm_init()の設定で署名する
+ *      - #btc_init()の設定で署名する
  */
-bool HIDDEN ln_signer_p2wpkh(ptarm_tx_t *pTx, int Index, uint64_t Value, const ptarm_util_keys_t *pKeys);
+bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_util_keys_t *pKeys);
 
 
 /** 署名(R/S)
@@ -140,7 +140,7 @@ bool HIDDEN ln_signer_p2wpkh(ptarm_tx_t *pTx, int Index, uint64_t Value, const p
  * @param[in]       PrivIndex
  * @return      true:成功
  * @note
- *      - #ptarm_init()の設定で署名する
+ *      - #btc_init()の設定で署名する
  */
 bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex);
 
@@ -148,7 +148,7 @@ bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_sel
 /**
  *
  */
-bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ptarm_tx_t *pTx,
+bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
                     uint64_t Value,
                     const utl_buf_t *pWitScript, bool bRevoked);
 

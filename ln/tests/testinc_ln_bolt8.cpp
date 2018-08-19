@@ -10,12 +10,12 @@ protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
         utl_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, true);
+        btc_init(BTC_TESTNET, true);
     }
 
     virtual void TearDown() {
         ASSERT_EQ(0, utl_dbg_malloc_cnt());
-        ptarm_term();
+        btc_term();
     }
 
 public:

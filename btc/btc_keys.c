@@ -19,7 +19,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ptarm_keys.c
+/** @file   btc_keys.c
  *  @brief  bitcoin処理: 鍵関連
  *  @author ueno@nayuta.co
  */
@@ -33,7 +33,7 @@
 #include "libbase58.h"
 #include "segwit_addr.h"
 
-#include "ptarm_local.h"
+#include "btc_local.h"
 
 
 /********************************************************************
@@ -47,72 +47,72 @@ static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk);
  * public functions
  **************************************************************************/
 
-bool ptarm_keys_wif2priv(uint8_t *pPrivKey, ptarm_chain_t *pChain, const char *pWifPriv)
+bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifPriv)
 {
     // [1byte][32bytes:privkey][1byte][4bytes]
     // プレフィクスの1byteは「圧縮された秘密鍵」
-    uint8_t b58dec[1 + PTARM_SZ_PRIVKEY + 1 + 4];
+    uint8_t b58dec[1 + BTC_SZ_PRIVKEY + 1 + 4];
     size_t sz_priv = sizeof(b58dec);
     bool ret = b58tobin(b58dec, &sz_priv, pWifPriv, strlen(pWifPriv));
     if (ret) {
         //chain
         switch (b58dec[0]) {
         case 0x80:
-            *pChain = PTARM_MAINNET;
+            *pChain = BTC_MAINNET;
             break;
         case 0xef:
-            *pChain = PTARM_TESTNET;
+            *pChain = BTC_TESTNET;
             break;
         default:
-            *pChain = PTARM_UNKNOWN;
+            *pChain = BTC_UNKNOWN;
         }
         //checksum
-        uint8_t buf_sha256[PTARM_SZ_HASH256];
+        uint8_t buf_sha256[BTC_SZ_HASH256];
         int tail = (sz_priv == sizeof(b58dec)) ? 1 : 0;
-        ptarm_util_hash256(buf_sha256, b58dec, 1 + PTARM_SZ_PRIVKEY + tail);
-        ret = (memcmp(buf_sha256, b58dec + 1 + PTARM_SZ_PRIVKEY + tail, 4) == 0);
+        btc_util_hash256(buf_sha256, b58dec, 1 + BTC_SZ_PRIVKEY + tail);
+        ret = (memcmp(buf_sha256, b58dec + 1 + BTC_SZ_PRIVKEY + tail, 4) == 0);
     } else {
         ret = false;
         assert(0);
     }
     if (ret) {
-        memcpy(pPrivKey, b58dec + 1, PTARM_SZ_PRIVKEY);
+        memcpy(pPrivKey, b58dec + 1, BTC_SZ_PRIVKEY);
     }
     memset(b58dec, 0, sizeof(b58dec));      //clear for security
 
     if (ret) {
-        ret = ptarm_keys_chkpriv(pPrivKey);
+        ret = btc_keys_chkpriv(pPrivKey);
     }
 
     return ret;
 }
 
 
-bool ptarm_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey)
+bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey)
 {
     bool ret;
-    uint8_t b58[1 + PTARM_SZ_PRIVKEY + 1 + 4];
-    uint8_t buf_sha256[PTARM_SZ_HASH256];
+    uint8_t b58[1 + BTC_SZ_PRIVKEY + 1 + 4];
+    uint8_t buf_sha256[BTC_SZ_HASH256];
 
-    ret = ptarm_keys_chkpriv(pPrivKey);
+    ret = btc_keys_chkpriv(pPrivKey);
     if (!ret) {
         return false;
     }
 
-    b58[0] = mPref[PTARM_PREF_WIF];
-    memcpy(b58 + 1, pPrivKey, PTARM_SZ_PRIVKEY);
-    b58[1 + PTARM_SZ_PRIVKEY] = 0x01;        //圧縮された秘密鍵のみ対応
-    ptarm_util_hash256(buf_sha256, b58, 1 + PTARM_SZ_PRIVKEY + 1);
-    memcpy(b58 + 1 + PTARM_SZ_PRIVKEY + 1, buf_sha256, 4);
+    b58[0] = mPref[BTC_PREF_WIF];
+    memcpy(b58 + 1, pPrivKey, BTC_SZ_PRIVKEY);
+    b58[1 + BTC_SZ_PRIVKEY] = 0x01;        //圧縮された秘密鍵のみ対応
+    btc_util_hash256(buf_sha256, b58, 1 + BTC_SZ_PRIVKEY + 1);
+    memcpy(b58 + 1 + BTC_SZ_PRIVKEY + 1, buf_sha256, 4);
 
-    size_t sz = PTARM_SZ_WIF_MAX;
+    size_t sz = BTC_SZ_WIF_MAX;
     ret = b58enc(pWifPriv, &sz, b58, sizeof(b58));
     memset(b58, 0, sizeof(b58));        //clear for security
     return ret;
 }
 
 
-bool ptarm_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey)
+bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey)
 {
     int ret;
 
@@ -126,7 +126,7 @@ bool ptarm_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey)
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
     //P:result, m:掛ける数値, grp.G:point
-    ret = mbedtls_mpi_read_binary(&m, pPrivKey, PTARM_SZ_PRIVKEY);
+    ret = mbedtls_mpi_read_binary(&m, pPrivKey, BTC_SZ_PRIVKEY);
     if (ret) {
         assert(0);
         goto LABEL_EXIT;
@@ -138,7 +138,7 @@ bool ptarm_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey)
     }
 
     size_t sz;
-    ret = mbedtls_ecp_point_write_binary(&keypair.grp, &P, MBEDTLS_ECP_PF_COMPRESSED, &sz, pPubKey, PTARM_SZ_PUBKEY);
+    ret = mbedtls_ecp_point_write_binary(&keypair.grp, &P, MBEDTLS_ECP_PF_COMPRESSED, &sz, pPubKey, BTC_SZ_PUBKEY);
 
 LABEL_EXIT:
     mbedtls_ecp_keypair_free(&keypair);
@@ -150,111 +150,111 @@ LABEL_EXIT:
 }
 
 
-bool ptarm_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey)
+bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey)
 {
-    uint8_t pkh[PTARM_SZ_PUBKEYHASH];
+    uint8_t pkh[BTC_SZ_PUBKEYHASH];
 
-    ptarm_util_hash160(pkh, pPubKey, PTARM_SZ_PUBKEY);
-    return ptarm_util_keys_pkh2addr(pAddr, pkh, PTARM_PREF_P2PKH);
+    btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
+    return btc_util_keys_pkh2addr(pAddr, pkh, BTC_PREF_P2PKH);
 }
 
 
-bool ptarm_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
+bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
 {
     bool ret;
-    uint8_t pkh[PTARM_SZ_PUBKEYHASH];
+    uint8_t pkh[BTC_SZ_PUBKEYHASH];
     uint8_t pref;
 
     //BIP142のテストデータが非圧縮公開鍵だったので、やむなくこうした
-    ptarm_util_hash160(pkh, pPubKey, (pPubKey[0] == 0x04) ? PTARM_SZ_PUBKEY_UNCOMP+1 : PTARM_SZ_PUBKEY);
+    btc_util_hash160(pkh, pPubKey, (pPubKey[0] == 0x04) ? BTC_SZ_PUBKEY_UNCOMP+1 : BTC_SZ_PUBKEY);
     if (mNativeSegwit) {
-        pref = PTARM_PREF_NATIVE;
+        pref = BTC_PREF_NATIVE;
     } else {
-        ptarm_util_create_pkh2wpkh(pkh, pkh);
-        pref = PTARM_PREF_P2SH;
+        btc_util_create_pkh2wpkh(pkh, pkh);
+        pref = BTC_PREF_P2SH;
     }
-    ret = ptarm_util_keys_pkh2addr(pWAddr, pkh, pref);
+    ret = btc_util_keys_pkh2addr(pWAddr, pkh, pref);
     return ret;
 }
 
 
-bool ptarm_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
+bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
 {
     bool ret;
-        uint8_t pkh[PTARM_SZ_PUBKEYHASH];
+        uint8_t pkh[BTC_SZ_PUBKEYHASH];
         int pref;
 
-        ret = ptarm_keys_addr2pkh(pkh, &pref, pAddr);
-    if (!ret || (pref != PTARM_PREF_P2PKH)) {
+        ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
+    if (!ret || (pref != BTC_PREF_P2PKH)) {
         return false;
         }
 
     if (mNativeSegwit) {
         uint8_t hrp_type;
 
-        switch (ptarm_get_chain()) {
-        case PTARM_MAINNET:
+        switch (btc_get_chain()) {
+        case BTC_MAINNET:
             hrp_type = SEGWIT_ADDR_MAINNET;
             break;
-        case PTARM_TESTNET:
+        case BTC_TESTNET:
             hrp_type = SEGWIT_ADDR_TESTNET;
             break;
         default:
             return false;
         }
-        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, pkh, PTARM_SZ_HASH160);
+        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, pkh, BTC_SZ_HASH160);
     } else {
-        ptarm_util_create_pkh2wpkh(pkh, pkh);
-        ret = ptarm_util_keys_pkh2addr(pWAddr, pkh, PTARM_PREF_P2SH);
+        btc_util_create_pkh2wpkh(pkh, pkh);
+        ret = btc_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
     }
     return ret;
 }
 
 
-bool ptarm_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
+bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
 {
     bool ret;
 
     if (mNativeSegwit) {
-        uint8_t sha[PTARM_SZ_SHA256];
+        uint8_t sha[BTC_SZ_SHA256];
         uint8_t hrp_type;
 
-        switch (ptarm_get_chain()) {
-        case PTARM_MAINNET:
+        switch (btc_get_chain()) {
+        case BTC_MAINNET:
             hrp_type = SEGWIT_ADDR_MAINNET;
             break;
-        case PTARM_TESTNET:
+        case BTC_TESTNET:
             hrp_type = SEGWIT_ADDR_TESTNET;
             break;
         default:
             return false;
         }
-        ptarm_util_sha256(sha, pWitScript->buf, pWitScript->len);
-        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, sha, PTARM_SZ_SHA256);
+        btc_util_sha256(sha, pWitScript->buf, pWitScript->len);
+        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, sha, BTC_SZ_SHA256);
     } else {
         uint8_t wit_prog[LNL_SZ_WITPROG_WSH];
-        uint8_t pkh[PTARM_SZ_PUBKEYHASH];
+        uint8_t pkh[BTC_SZ_PUBKEYHASH];
 
         wit_prog[0] = 0x00;
-        wit_prog[1] = PTARM_SZ_HASH256;
-        ptarm_util_sha256(wit_prog + 2, pWitScript->buf, pWitScript->len);
-        ptarm_util_hash160(pkh, wit_prog, sizeof(wit_prog));
-        ret = ptarm_util_keys_pkh2addr(pWAddr, pkh, PTARM_PREF_P2SH);
+        wit_prog[1] = BTC_SZ_HASH256;
+        btc_util_sha256(wit_prog + 2, pWitScript->buf, pWitScript->len);
+        btc_util_hash160(pkh, wit_prog, sizeof(wit_prog));
+        ret = btc_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
     }
     return ret;
 }
 
 
-bool ptarm_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey)
+bool btc_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey)
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
-    int ret = ptarm_util_set_keypair(&keypair, pPubKey);
+    int ret = btc_util_set_keypair(&keypair, pPubKey);
     if (!ret) {
-        mbedtls_mpi_write_binary(&(keypair.Q.X), pUncomp, PTARM_SZ_PUBKEY - 1);
-        mbedtls_mpi_write_binary(&(keypair.Q.Y), pUncomp + PTARM_SZ_PUBKEY - 1, PTARM_SZ_PUBKEY - 1);
+        mbedtls_mpi_write_binary(&(keypair.Q.X), pUncomp, BTC_SZ_PUBKEY - 1);
+        mbedtls_mpi_write_binary(&(keypair.Q.Y), pUncomp + BTC_SZ_PUBKEY - 1, BTC_SZ_PUBKEY - 1);
     }
     mbedtls_ecp_keypair_free(&keypair);
 
@@ -262,7 +262,7 @@ bool ptarm_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey)
 }
 
 
-bool ptarm_keys_chkpriv(const uint8_t *pPrivKey)
+bool btc_keys_chkpriv(const uint8_t *pPrivKey)
 {
     bool cmp;
     mbedtls_mpi priv;
@@ -271,7 +271,7 @@ bool ptarm_keys_chkpriv(const uint8_t *pPrivKey)
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
     mbedtls_mpi_init(&priv);
-    mbedtls_mpi_read_binary(&priv, pPrivKey, PTARM_SZ_PRIVKEY);
+    mbedtls_mpi_read_binary(&priv, pPrivKey, BTC_SZ_PRIVKEY);
 
     //pPrivKey = [0x01,  0xFFFF FFFF FFFF FFFF FFFF FFFF FFFF FFFE BAAE DCE6 AF48 A03B BFD2 5E8C D036 4140]
     cmp = (mbedtls_mpi_cmp_int(&priv, (mbedtls_mpi_sint)0) == 1);
@@ -286,20 +286,20 @@ bool ptarm_keys_chkpriv(const uint8_t *pPrivKey)
 }
 
 
-bool ptarm_keys_chkpub(const uint8_t *pPubKey)
+bool btc_keys_chkpub(const uint8_t *pPubKey)
 {
     mbedtls_ecp_keypair keypair;
     mbedtls_ecp_keypair_init(&keypair);
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
-    int ret = ptarm_util_set_keypair(&keypair, pPubKey);
+    int ret = btc_util_set_keypair(&keypair, pPubKey);
     mbedtls_ecp_keypair_free(&keypair);
 
     return ret == 0;
 }
 
 
-bool ptarm_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
     utl_buf_alloc(pRedeem, LNL_SZ_2OF2);
 
@@ -313,21 +313,21 @@ bool ptarm_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const ui
      * OP_CHECKMULTISIG
      */
     *p++ = OP_2;
-    *p++ = (uint8_t)PTARM_SZ_PUBKEY;
-    memcpy(p, pPubKey1, PTARM_SZ_PUBKEY);
-    p += PTARM_SZ_PUBKEY;
-    *p++ = (uint8_t)PTARM_SZ_PUBKEY;
-    memcpy(p, pPubKey2, PTARM_SZ_PUBKEY);
-    p += PTARM_SZ_PUBKEY;
+    *p++ = (uint8_t)BTC_SZ_PUBKEY;
+    memcpy(p, pPubKey1, BTC_SZ_PUBKEY);
+    p += BTC_SZ_PUBKEY;
+    *p++ = (uint8_t)BTC_SZ_PUBKEY;
+    memcpy(p, pPubKey2, BTC_SZ_PUBKEY);
+    p += BTC_SZ_PUBKEY;
     *p++ = OP_2;
     *p++ = OP_CHECKMULTISIG;
     return true;
 }
 
 
-bool ptarm_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M)
+bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M)
 {
-    utl_buf_alloc(pRedeem, 3 + Num * (PTARM_SZ_PUBKEY + 1));
+    utl_buf_alloc(pRedeem, 3 + Num * (BTC_SZ_PUBKEY + 1));
 
     uint8_t *p = pRedeem->buf;
 
@@ -341,9 +341,9 @@ bool ptarm_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int N
      */
     *p++ = OP_x + M;
     for (int lp = 0; lp < Num; lp++) {
-        *p++ = (uint8_t)PTARM_SZ_PUBKEY;
-        memcpy(p, pPubKeys[lp], PTARM_SZ_PUBKEY);
-        p += PTARM_SZ_PUBKEY;
+        *p++ = (uint8_t)BTC_SZ_PUBKEY;
+        memcpy(p, pPubKeys[lp], BTC_SZ_PUBKEY);
+        p += BTC_SZ_PUBKEY;
     }
     *p++ = OP_x + Num;
     *p++ = OP_CHECKMULTISIG;
@@ -351,21 +351,21 @@ bool ptarm_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int N
 }
 
 
-bool ptarm_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
+bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
 {
-    uint8_t bin[3 + PTARM_SZ_HASH160 + 4];
+    uint8_t bin[3 + BTC_SZ_HASH160 + 4];
     uint8_t *p_bin;
     uint8_t *p_pkh;
     size_t sz = sizeof(bin);
     bool ret = b58tobin(bin, &sz, pAddr, strlen(pAddr));
     if (ret) {
-        if (sz == 1 + PTARM_SZ_HASH160 + 4) {
+        if (sz == 1 + BTC_SZ_HASH160 + 4) {
             p_bin = bin + 2;
             p_pkh = p_bin + 1;
-            if (p_bin[0] == mPref[PTARM_PREF_P2PKH]) {
-                *pPrefix = PTARM_PREF_P2PKH;
-            } else if (p_bin[0] == mPref[PTARM_PREF_P2SH]) {
-                *pPrefix = PTARM_PREF_P2SH;
+            if (p_bin[0] == mPref[BTC_PREF_P2PKH]) {
+                *pPrefix = BTC_PREF_P2PKH;
+            } else if (p_bin[0] == mPref[BTC_PREF_P2SH]) {
+                *pPrefix = BTC_PREF_P2SH;
             } else {
                 ret = false;
             }
@@ -374,12 +374,12 @@ bool ptarm_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
         }
     if (ret) {
         //CRC check
-        uint8_t buf_sha256[PTARM_SZ_HASH256];
-        ptarm_util_hash256(buf_sha256, p_bin, sz - 4);
+        uint8_t buf_sha256[BTC_SZ_HASH256];
+        btc_util_hash256(buf_sha256, p_bin, sz - 4);
         ret = memcmp(buf_sha256, p_bin + sz - 4, 4) == 0;
     }
     if (ret) {
-            memcpy(pPubKeyHash, p_pkh, PTARM_SZ_HASH160);
+            memcpy(pPubKeyHash, p_pkh, BTC_SZ_HASH160);
         }
     } else {
         //BECH32?
@@ -387,11 +387,11 @@ bool ptarm_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
         size_t witprog_len;
         int witver;
         uint8_t hrp_type;
-        switch (ptarm_get_chain()) {
-        case PTARM_MAINNET:
+        switch (btc_get_chain()) {
+        case BTC_MAINNET:
             hrp_type = SEGWIT_ADDR_MAINNET;
             break;
-        case PTARM_TESTNET:
+        case BTC_TESTNET:
             hrp_type = SEGWIT_ADDR_TESTNET;
             break;
         default:
@@ -400,10 +400,10 @@ bool ptarm_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
         ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, pAddr);
         if (ret && (witver == 0x00)) {
             //witver==0ではwitness programとpubKeyHashは同じ
-            if (witprog_len == PTARM_SZ_HASH160) {
-                *pPrefix = PTARM_PREF_NATIVE;
-            } else if (witprog_len == PTARM_SZ_SHA256) {
-                *pPrefix = PTARM_PREF_NATIVE_SH;
+            if (witprog_len == BTC_SZ_HASH160) {
+                *pPrefix = BTC_PREF_NATIVE;
+            } else if (witprog_len == BTC_SZ_SHA256) {
+                *pPrefix = BTC_PREF_NATIVE_SH;
             } else {
                 ret = false;
             }
@@ -420,28 +420,28 @@ bool ptarm_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
 }
 
 
-bool ptarm_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
+bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr)
 {
     bool ret;
-    uint8_t pkh[PTARM_SZ_PUBKEYHASH];
+    uint8_t pkh[BTC_SZ_PUBKEYHASH];
 
     int pref;
-    ret = ptarm_keys_addr2pkh(pkh, &pref, pAddr);
+    ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
     if (ret) {
-        ptarm_util_create_scriptpk(pScriptPk, pkh, pref);
+        btc_util_create_scriptpk(pScriptPk, pkh, pref);
     }
 
     return ret;
 }
 
 
-bool ptarm_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
+bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
 {
     bool ret;
     const uint8_t *pkh;
     int prefix = spk2prefix(&pkh, pScriptPk);
-    if (prefix != PTARM_PREF_MAX) {
-        ptarm_util_keys_pkh2addr(pAddr, pkh, prefix);
+    if (prefix != BTC_PREF_MAX) {
+        btc_util_keys_pkh2addr(pAddr, pkh, prefix);
         ret = true;
     } else {
         ret = false;
@@ -462,30 +462,30 @@ static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk)
     if ( (pScriptPk->len == 25) &&
          (pScriptPk->buf[0] == OP_DUP) &&
          (pScriptPk->buf[1] == OP_HASH160) &&
-         (pScriptPk->buf[2] == PTARM_SZ_HASH160) &&
+         (pScriptPk->buf[2] == BTC_SZ_HASH160) &&
          (pScriptPk->buf[23] == OP_EQUALVERIFY) &&
          (pScriptPk->buf[24] == OP_CHECKSIG) ) {
         *ppPkh = pScriptPk->buf + 3;
-        return PTARM_PREF_P2PKH;
+        return BTC_PREF_P2PKH;
     }
     else if ( (pScriptPk->len == 23) &&
          (pScriptPk->buf[0] == OP_HASH160) &&
-         (pScriptPk->buf[1] == PTARM_SZ_HASH160) &&
+         (pScriptPk->buf[1] == BTC_SZ_HASH160) &&
          (pScriptPk->buf[22] == OP_EQUAL) ) {
         *ppPkh = pScriptPk->buf + 2;
-        return PTARM_PREF_P2SH;
+        return BTC_PREF_P2SH;
     }
     else if ( (pScriptPk->len == 22) &&
          (pScriptPk->buf[0] == 0x00) &&
-         (pScriptPk->buf[1] == PTARM_SZ_HASH160) ) {
+         (pScriptPk->buf[1] == BTC_SZ_HASH160) ) {
         *ppPkh = pScriptPk->buf + 2;
-        return PTARM_PREF_NATIVE;
+        return BTC_PREF_NATIVE;
     }
     else if ( (pScriptPk->len == 34) &&
          (pScriptPk->buf[0] == 0x00) &&
-         (pScriptPk->buf[1] == PTARM_SZ_SHA256) ) {
+         (pScriptPk->buf[1] == BTC_SZ_SHA256) ) {
         *ppPkh = pScriptPk->buf + 2;
-        return PTARM_PREF_NATIVE_SH;
+        return BTC_PREF_NATIVE_SH;
     }
-    return PTARM_PREF_MAX;
+    return BTC_PREF_MAX;
 }

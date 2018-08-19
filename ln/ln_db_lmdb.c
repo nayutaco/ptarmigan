@@ -85,7 +85,7 @@
 #define M_SZ_DBNAME_LEN         (M_PREFIX_LEN + LN_SZ_CHANNEL_ID * 2)
 #define M_SZ_HTLC_STR           (3)
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t))
-#define M_SZ_ANNOINFO_NODE      (PTARM_SZ_PUBKEY)
+#define M_SZ_ANNOINFO_NODE      (BTC_SZ_PUBKEY)
 
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
@@ -134,7 +134,7 @@
 #define M_ANNOINFO_NODE_SET(keydata, key, node_id) {\
     key.mv_size = sizeof(keydata);\
     key.mv_data = keydata;\
-    memcpy(keydata, node_id, PTARM_SZ_PUBKEY);\
+    memcpy(keydata, node_id, BTC_SZ_PUBKEY);\
 }
 
 #define M_SIZE(type, mem)       (sizeof(((type *)0)->mem))
@@ -183,7 +183,7 @@ typedef struct backup_buf_t {
  */
 typedef struct {
     uint8_t     genesis[LN_SZ_HASH];
-    char        wif[PTARM_SZ_WIF_MAX];
+    char        wif[BTC_SZ_WIF_MAX];
     char        name[LN_SZ_ALIAS + 1];
     uint16_t    port;
 } nodeinfo_t;
@@ -358,12 +358,12 @@ static const struct {
     int length;
     bool disp;
 } DBCOPY_IDX[] = {
-    { ETYPE_BYTEPTR,    PTARM_SZ_PUBKEY, true },    // peer_node_id
+    { ETYPE_BYTEPTR,    BTC_SZ_PUBKEY, true },    // peer_node_id
     { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
     { ETYPE_UINT64X,    1, true },                  // short_channel_id
     { ETYPE_UINT64U,    1, true },                  // our_msat
     { ETYPE_UINT64U,    1, true },                  // their_msat
-    { ETYPE_FUNDTXID,   PTARM_SZ_TXID, true },      // funding_local.txid
+    { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },      // funding_local.txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_local.txindex
     { ETYPE_LOCALKEYS,  1, false },                 // funding_local.pubkeys
     { ETYPE_REMOTEKEYS, 1, false },                 // funding_remote.pubkeys
@@ -549,7 +549,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         //      aliase : 指定が無ければ生成
         //      port : 指定された値
         LOGD("create node DB\n");
-        uint8_t pub[PTARM_SZ_PUBKEY];
+        uint8_t pub[BTC_SZ_PUBKEY];
         ln_node_create_key(pWif, pub);
 
         char nodename[LN_SZ_ALIAS + 1];
@@ -586,15 +586,15 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         retval = memcmp(gGenesisChainHash, genesis, LN_SZ_HASH);
     }
     if (retval == 0) {
-        ptarm_genesis_t gtype = ptarm_util_get_genesis(genesis);
+        btc_genesis_t gtype = btc_util_get_genesis(genesis);
         switch (gtype) {
-        case PTARM_GENESIS_BTCMAIN:
+        case BTC_GENESIS_BTCMAIN:
             LOGD("chainhash: bitcoin mainnet\n");
             break;
-        case PTARM_GENESIS_BTCTEST:
+        case BTC_GENESIS_BTCTEST:
             LOGD("chainhash: bitcoin testnet\n");
             break;
-        case PTARM_GENESIS_BTCREGTEST:
+        case BTC_GENESIS_BTCREGTEST:
             LOGD("chainhash: bitcoin regtest\n");
             break;
         default:
@@ -652,7 +652,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 
     //復元データからさらに復元
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    ptarm_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
+    btc_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
             self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING],
             self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
@@ -680,7 +680,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
         }
     }
 
-    ptarm_tx_read(&self->tx_funding, buf_funding.buf, buf_funding.len);
+    btc_tx_read(&self->tx_funding, buf_funding.buf, buf_funding.len);
     utl_buf_free(&buf_funding);
     M_FREE(p_dbscript_keys);
 
@@ -939,7 +939,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
             case ETYPE_REMOTECOMM:
                 if (DBCOPY_IDX[lp].disp) {
                     printf("\"");
-                    ptarm_util_dumpbin(stdout, p, DBCOPY_IDX[lp].length, false);
+                    btc_util_dumpbin(stdout, p, DBCOPY_IDX[lp].length, false);
                     printf("\"");
                 }
 #ifdef M_DEBUG_KEYS
@@ -973,7 +973,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
             case ETYPE_FUNDTXID:
                 if (DBCOPY_IDX[lp].disp) {
                     printf("\"");
-                    ptarm_util_dumptxid(stdout, p);
+                    btc_util_dumptxid(stdout, p);
                     printf("\"");
                 }
 #ifdef M_DEBUG_KEYS
@@ -985,7 +985,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
             case ETYPE_LOCALKEYS: //funding_local.keys
 #ifdef M_DEBUG_KEYS
                 {
-                    const ptarm_util_keys_t *p_keys = (const ptarm_util_keys_t *)p;
+                    const btc_util_keys_t *p_keys = (const btc_util_keys_t *)p;
                     memcpy(local.pubkeys, p_keys, M_SIZE(ln_funding_local_data_t, pubkeys));
                 }
 #endif  //M_DEBUG_KEYS
@@ -1205,7 +1205,7 @@ bool ln_db_annocnl_save(const utl_buf_t *pCnlAnno, uint64_t ShortChannelId, cons
     }
     data.mv_size = 0;
     data.mv_data = NULL;
-    key.mv_size = PTARM_SZ_PUBKEY;
+    key.mv_size = BTC_SZ_PUBKEY;
     key.mv_data = (CONST_CAST uint8_t *)pChan1;
     retval = mdb_put(db_aichan.txn, db_aichan.dbi, &key, &data, 0);
     if (retval != 0) {
@@ -1421,7 +1421,7 @@ bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type,
     if (retval == 0) {
         //LOGD("short_channel_id[%c]= %" PRIx64 "\n", Type, ShortChannelId);
         //LOGD("send_id= ");
-        //DUMPD(pSendId, PTARM_SZ_PUBKEY);
+        //DUMPD(pSendId, BTC_SZ_PUBKEY);
         ret = annoinfo_search(&data, pSendId);
     } else {
         //LOGD("ERR: %s\n", mdb_strerror(retval));
@@ -1454,7 +1454,7 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bo
             detect = annoinfo_search(&data, pSendId);
         } else {
             LOGV("new reg[%016" PRIx64 ":%c] ", ShortChannelId, Type);
-            DUMPV(pSendId, PTARM_SZ_PUBKEY);
+            DUMPV(pSendId, BTC_SZ_PUBKEY);
             data.mv_size = 0;
         }
     } else {
@@ -1490,8 +1490,8 @@ uint64_t ln_db_annocnlall_search_channel_short_channel_id(const uint8_t *pNodeId
 
                 ret = ln_msg_cnl_announce_read(&ann, data.mv_data, data.mv_size);
                 if (ret && (
-                            (memcmp(ann.node_id1, pNodeId1, PTARM_SZ_PUBKEY) == 0) &&
-                            (memcmp(ann.node_id2, pNodeId2, PTARM_SZ_PUBKEY) == 0)
+                            (memcmp(ann.node_id1, pNodeId1, BTC_SZ_PUBKEY) == 0) &&
+                            (memcmp(ann.node_id2, pNodeId2, BTC_SZ_PUBKEY) == 0)
                            ) ) {
                     memcpy(&short_channel_id, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
                     break;
@@ -2011,7 +2011,7 @@ bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_node_announce_t *pA
         goto LABEL_EXIT;
     }
 
-    if (memcmp(pAnno->p_node_id, ln_node_getid(), PTARM_SZ_PUBKEY) != 0) {
+    if (memcmp(pAnno->p_node_id, ln_node_getid(), BTC_SZ_PUBKEY) != 0) {
         //BOLT#07
         //  * if node_id is NOT previously known from a channel_announcement message, OR if timestamp is NOT greater than the last-received node_announcement from this node_id:
         //    * SHOULD ignore the message.
@@ -2023,7 +2023,7 @@ bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_node_announce_t *pA
             goto LABEL_EXIT;
         }
         if (retval == 0) {
-            key.mv_size = PTARM_SZ_PUBKEY;
+            key.mv_size = BTC_SZ_PUBKEY;
             key.mv_data = pAnno->p_node_id;
             retval = mdb_get(db_aichan.txn, db_aichan.dbi, &key, &data);
             if (retval != 0) {
@@ -2129,7 +2129,7 @@ bool ln_db_annonod_drop(void)
         goto LABEL_EXIT;
     }
 
-    char wif[PTARM_SZ_WIF_MAX];
+    char wif[BTC_SZ_WIF_MAX];
     char nodename[LN_SZ_ALIAS + 1];
     uint8_t genesis[LN_SZ_HASH];
     uint16_t port;
@@ -2141,9 +2141,9 @@ bool ln_db_annonod_drop(void)
 
     utl_buf_t bufnod = UTL_BUF_INIT;
     uint32_t timestamp;
-    ptarm_util_keys_t keys;
-    ptarm_chain_t chain;
-    ptarm_util_wif2keys(&keys, &chain, wif);
+    btc_util_keys_t keys;
+    btc_chain_t chain;
+    btc_util_wif2keys(&keys, &chain, wif);
     retval = annonod_load(&db, &bufnod, &timestamp, keys.pub);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
@@ -2187,9 +2187,9 @@ LABEL_EXIT:
 bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId)
 {
     //LOGD("node_id= ");
-    //DUMPD(pNodeId, PTARM_SZ_PUBKEY);
+    //DUMPD(pNodeId, BTC_SZ_PUBKEY);
     //LOGD("send_id= ");
-    //DUMPD(pSendId, PTARM_SZ_PUBKEY);
+    //DUMPD(pSendId, BTC_SZ_PUBKEY);
 
     bool ret = false;
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
@@ -2235,7 +2235,7 @@ bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, cons
         } else {
             LOGV("new from ");
             if (pSendId != NULL) {
-                DUMPV(pSendId, PTARM_SZ_PUBKEY);
+                DUMPV(pSendId, BTC_SZ_PUBKEY);
             } else {
                 LOGV(": only clear\n");
             }
@@ -2388,7 +2388,7 @@ bool ln_db_annoinfo_del(const uint8_t *pNodeId)
 
     if (pNodeId != NULL) {
         LOGD("remove annoinfo: ");
-        DUMPD(pNodeId, PTARM_SZ_PUBKEY);
+        DUMPD(pNodeId, BTC_SZ_PUBKEY);
     } else {
         LOGD("remove annoinfo: ALL\n");
     }
@@ -2931,7 +2931,7 @@ LABEL_EXIT:
  * version
  ********************************************************************/
 
-bool ln_db_ver_check(uint8_t *pMyNodeId, ptarm_genesis_t *pGType)
+bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType)
 {
     int             retval;
     ln_lmdb_db_t    db;
@@ -2948,28 +2948,28 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, ptarm_genesis_t *pGType)
         goto LABEL_EXIT;
     }
 
-    char wif[PTARM_SZ_WIF_MAX] = "";
+    char wif[BTC_SZ_WIF_MAX] = "";
     char alias[LN_SZ_ALIAS + 1] = "";
     uint16_t port = 0;
     uint8_t genesis[LN_SZ_HASH];
     retval = ver_check(&db, wif, alias, &port, genesis);
     if (retval == 0) {
-        ptarm_util_keys_t key;
-        ptarm_chain_t chain;
+        btc_util_keys_t key;
+        btc_chain_t chain;
 
-        ptarm_genesis_t gtype = ptarm_util_get_genesis(genesis);
-        bool ret = ptarm_util_wif2keys(&key, &chain, wif);
+        btc_genesis_t gtype = btc_util_get_genesis(genesis);
+        bool ret = btc_util_wif2keys(&key, &chain, wif);
         if (
-          ((chain == PTARM_MAINNET) && (gtype == PTARM_GENESIS_BTCMAIN)) ||
-          ((chain == PTARM_TESTNET) && (
-                (gtype == PTARM_GENESIS_BTCTEST) || (gtype == PTARM_GENESIS_BTCREGTEST)) ) ) {
+          ((chain == BTC_MAINNET) && (gtype == BTC_GENESIS_BTCMAIN)) ||
+          ((chain == BTC_TESTNET) && (
+                (gtype == BTC_GENESIS_BTCTEST) || (gtype == BTC_GENESIS_BTCREGTEST)) ) ) {
             //ok
         } else {
             ret = false;
         }
         if (ret) {
             if (pMyNodeId != NULL) {
-                memcpy(pMyNodeId, key.pub, PTARM_SZ_PUBKEY);
+                memcpy(pMyNodeId, key.pub, BTC_SZ_PUBKEY);
             }
             if (pGType != NULL) {
                 *pGType = gtype;
@@ -3054,7 +3054,7 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
 }
 
 
-/* ptarmのDB動作を借りたいために、showdb/routingから使用される。
+/* btcのDB動作を借りたいために、showdb/routingから使用される。
  *
  */
 void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno)
@@ -3145,8 +3145,8 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
     //可変サイズ(shallow copy)
 
     //tx_funding
-    ptarm_tx_free(&pOutSelf->tx_funding);
-    memcpy(&pOutSelf->tx_funding, &pInSelf->tx_funding, sizeof(ptarm_tx_t));
+    btc_tx_free(&pOutSelf->tx_funding);
+    memcpy(&pOutSelf->tx_funding, &pInSelf->tx_funding, sizeof(btc_tx_t));
 
     //shutdown_scriptpk_local
     utl_buf_free(&pOutSelf->shutdown_scriptpk_local);
@@ -3291,7 +3291,7 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
 
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
-    ptarm_tx_create(&buf_funding, &self->tx_funding);
+    btc_tx_create(&buf_funding, &self->tx_funding);
     //
     backup_buf_t *p_dbscript_keys = (backup_buf_t *)M_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
     int index = 0;
@@ -3339,10 +3339,10 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     }
     // LOGD("[priv]storage_index: %" PRIx64 "\n", self->priv_data.storage_index);
     // LOGD("[priv]storage_seed: ");
-    // DUMPD(self->priv_data.storage_seed, PTARM_SZ_PRIVKEY);
+    // DUMPD(self->priv_data.storage_seed, BTC_SZ_PRIVKEY);
     // for (size_t lp = 0; lp < MSG_FUNDIDX_MAX; lp++) {
     //     LOGD("[priv][%lu] ", lp);
-    //     DUMPD(self->priv_data.priv[lp], PTARM_SZ_PRIVKEY);
+    //     DUMPD(self->priv_data.priv[lp], BTC_SZ_PRIVKEY);
     // }
 
     return retval;
@@ -3563,7 +3563,7 @@ static int annonod_load(ln_lmdb_db_t *pDb, utl_buf_t *pNodeAnno, uint32_t *pTime
 static int annonod_save(ln_lmdb_db_t *pDb, const utl_buf_t *pNodeAnno, const uint8_t *pNodeId, uint32_t Timestamp)
 {
     LOGV("node_id=");
-    DUMPV(pNodeId, PTARM_SZ_PUBKEY);
+    DUMPV(pNodeId, BTC_SZ_PUBKEY);
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_NODE];
@@ -3599,11 +3599,11 @@ static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData,
     uint8_t *p_ids;
 
     if (pNodeId != NULL) {
-        int nums = pMdbData->mv_size / PTARM_SZ_PUBKEY;
-        p_ids = (uint8_t *)M_MALLOC((nums + 1) * PTARM_SZ_PUBKEY);
+        int nums = pMdbData->mv_size / BTC_SZ_PUBKEY;
+        p_ids = (uint8_t *)M_MALLOC((nums + 1) * BTC_SZ_PUBKEY);
         memcpy(p_ids, pMdbData->mv_data, pMdbData->mv_size);
-        memcpy(p_ids + pMdbData->mv_size, pNodeId, PTARM_SZ_PUBKEY);
-        pMdbData->mv_size += PTARM_SZ_PUBKEY;
+        memcpy(p_ids + pMdbData->mv_size, pNodeId, BTC_SZ_PUBKEY);
+        pMdbData->mv_size += BTC_SZ_PUBKEY;
     } else {
         pMdbData->mv_size = 0;
         p_ids = NULL;
@@ -3613,7 +3613,7 @@ static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData,
     int retval = mdb_put(pDb->txn, pDb->dbi, pMdbKey, pMdbData, 0);
     if (retval == 0) {
         LOGV("add annoinfo: ");
-        DUMPV(pNodeId, PTARM_SZ_PUBKEY);
+        DUMPV(pNodeId, BTC_SZ_PUBKEY);
     } else {
         LOGD("fail\n");
     }
@@ -3631,15 +3631,15 @@ static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData,
  */
 static bool annoinfo_search(MDB_val *pMdbData, const uint8_t *pNodeId)
 {
-    int nums = pMdbData->mv_size / PTARM_SZ_PUBKEY;
+    int nums = pMdbData->mv_size / BTC_SZ_PUBKEY;
     //LOGD("nums=%d\n", nums);
     //LOGD("search id: ");
-    //DUMPD(pNodeId, PTARM_SZ_PUBKEY);
+    //DUMPD(pNodeId, BTC_SZ_PUBKEY);
     int lp;
     for (lp = 0; lp < nums; lp++) {
         //LOGD("  node_id[%d]= ", lp);
-        //DUMPD(pMdbData->mv_data + PTARM_SZ_PUBKEY * lp, PTARM_SZ_PUBKEY);
-        if (memcmp((uint8_t *)pMdbData->mv_data + PTARM_SZ_PUBKEY * lp, pNodeId, PTARM_SZ_PUBKEY) == 0) {
+        //DUMPD(pMdbData->mv_data + BTC_SZ_PUBKEY * lp, BTC_SZ_PUBKEY);
+        if (memcmp((uint8_t *)pMdbData->mv_data + BTC_SZ_PUBKEY * lp, pNodeId, BTC_SZ_PUBKEY) == 0) {
             break;
         }
     }
@@ -3653,20 +3653,20 @@ static void annoinfo_trim(MDB_cursor *pCursor, const uint8_t *pNodeId)
     MDB_val     key, data;
 
     while (mdb_cursor_get(pCursor, &key, &data, MDB_NEXT) == 0) {
-        int nums = data.mv_size / PTARM_SZ_PUBKEY;
+        int nums = data.mv_size / BTC_SZ_PUBKEY;
         for (int lp = 0; lp < nums; lp++) {
-            if (memcmp((uint8_t *)data.mv_data + PTARM_SZ_PUBKEY * lp, pNodeId, PTARM_SZ_PUBKEY) == 0) {
+            if (memcmp((uint8_t *)data.mv_data + BTC_SZ_PUBKEY * lp, pNodeId, BTC_SZ_PUBKEY) == 0) {
                 nums--;
                 if (nums > 0) {
-                    uint8_t *p_data = (uint8_t *)M_MALLOC(PTARM_SZ_PUBKEY * nums);
-                    data.mv_size = PTARM_SZ_PUBKEY * nums;
+                    uint8_t *p_data = (uint8_t *)M_MALLOC(BTC_SZ_PUBKEY * nums);
+                    data.mv_size = BTC_SZ_PUBKEY * nums;
                     data.mv_data = p_data;
                     memcpy(p_data,
                                 (uint8_t *)data.mv_data,
-                                PTARM_SZ_PUBKEY * lp);
-                    memcpy(p_data + PTARM_SZ_PUBKEY * lp,
-                                (uint8_t *)data.mv_data + PTARM_SZ_PUBKEY * (lp + 1),
-                                PTARM_SZ_PUBKEY * (nums - lp));
+                                BTC_SZ_PUBKEY * lp);
+                    memcpy(p_data + BTC_SZ_PUBKEY * lp,
+                                (uint8_t *)data.mv_data + BTC_SZ_PUBKEY * (lp + 1),
+                                BTC_SZ_PUBKEY * (nums - lp));
                     mdb_cursor_put(pCursor, &key, &data, MDB_CURRENT);
                     M_FREE(data.mv_data);
                 } else {

@@ -10,12 +10,12 @@ protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
         utl_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, true);
+        btc_init(BTC_TESTNET, true);
     }
 
     virtual void TearDown() {
         ASSERT_EQ(0, utl_dbg_malloc_cnt());
-        ptarm_term();
+        btc_term();
     }
 
 public:
@@ -70,7 +70,7 @@ static const uint8_t PER_COMMITMENT_POINT[] = {
 
 TEST_F(ln_derkey, pubkey)
 {
-    uint8_t localkey[PTARM_SZ_PUBKEY];
+    uint8_t localkey[BTC_SZ_PUBKEY];
 
     bool ret = ln_derkey_pubkey(localkey, BASE_POINT, PER_COMMITMENT_POINT);
     ASSERT_TRUE(ret);
@@ -87,7 +87,7 @@ TEST_F(ln_derkey, pubkey)
 
 TEST_F(ln_derkey, privkey)
 {
-    uint8_t localprivkey[PTARM_SZ_PRIVKEY];
+    uint8_t localprivkey[BTC_SZ_PRIVKEY];
 
     bool ret = ln_derkey_privkey(localprivkey,
             BASE_POINT, PER_COMMITMENT_POINT, BASE_SECRET);
@@ -104,7 +104,7 @@ TEST_F(ln_derkey, privkey)
 
 TEST_F(ln_derkey, revopubkey)
 {
-    uint8_t localkey[PTARM_SZ_PUBKEY];
+    uint8_t localkey[BTC_SZ_PUBKEY];
 
     bool ret = ln_derkey_revocationkey(localkey, BASE_POINT, PER_COMMITMENT_POINT);
     ASSERT_TRUE(ret);
@@ -121,7 +121,7 @@ TEST_F(ln_derkey, revopubkey)
 
 TEST_F(ln_derkey, revoprivkey)
 {
-    uint8_t privkey[PTARM_SZ_HASH256];
+    uint8_t privkey[BTC_SZ_HASH256];
 
     bool ret = ln_derkey_revocationprivkey(privkey, BASE_POINT, PER_COMMITMENT_POINT, BASE_SECRET, PER_COMMIT_SECRET);
     ASSERT_TRUE(ret);

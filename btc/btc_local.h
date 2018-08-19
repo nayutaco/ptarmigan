@@ -19,12 +19,12 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   ptarm_local.h
+/** @file   btc_local.h
  *  @brief  libbtc内インターフェース
  *  @author ueno@nayuta.co
  */
-#ifndef PTARM_LOCAL_H__
-#define PTARM_LOCAL_H__
+#ifndef BTC_LOCAL_H__
+#define BTC_LOCAL_H__
 
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -38,7 +38,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "ptarm.h"
+#include "btc.h"
 
 
 /**************************************************************************
@@ -61,12 +61,12 @@
 
 #define LOGV(...)       utl_log_write(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
 #define DUMPV(dt,ln)    utl_log_dump(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
-#define TXIDV(dt)       utl_log_dump_rev(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
+#define TXIDV(dt)       utl_log_dump_rev(UTL_LOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, BTC_SZ_TXID)
 
 #define LOGD(...)       utl_log_write(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
 #define LOGD2(...)      utl_log_write(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, __VA_ARGS__)
 #define DUMPD(dt,ln)    utl_log_dump(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
-#define TXIDD(dt)       utl_log_dump_rev(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, PTARM_SZ_TXID)
+#define TXIDD(dt)       utl_log_dump_rev(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, BTC_SZ_TXID)
 
 #else //PTARM_DEBUG
 #define LOGV(...)       //none
@@ -97,7 +97,7 @@
  * package variables
  **************************************************************************/
 
-extern uint8_t  mPref[PTARM_PREF_MAX];
+extern uint8_t  mPref[BTC_PREF_MAX];
 extern bool     mNativeSegwit;
 #ifdef PTARM_USE_RNG
 extern mbedtls_ctr_drbg_context mRng;
@@ -109,4 +109,4 @@ extern mbedtls_ctr_drbg_context mRng;
  **************************************************************************/
 
 
-#endif /* PTARM_LOCAL_H__ */
+#endif /* BTC_LOCAL_H__ */

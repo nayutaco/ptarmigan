@@ -562,7 +562,7 @@ bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry);
 /** payment_hash保存
  *
  * @param[in]       pPayHash        保存するpayment_hash
- * @param[in]       pVout           pPayHashを含むvoutスクリプトを#ptarm_sw_wit2prog_p2wsh()した結果。大きさはLNL_SZ_WITPROG_WSH。
+ * @param[in]       pVout           pPayHashを含むvoutスクリプトを#btc_sw_wit2prog_p2wsh()した結果。大きさはLNL_SZ_WITPROG_WSH。
  * @param[in]       Type            pVout先のHTLC種別(LN_HTLCTYPE_OFFERED / LN_HTLCTYPE_RECEIVED)
  * @param[in]       Expiry          Expiry
  * @retval  true
@@ -617,7 +617,7 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
  * @param[out]      pGType          (非NULL時)genesis hash type
  * @retval  true    チェックOK
  */
-bool ln_db_ver_check(uint8_t *pMyNodeId, ptarm_genesis_t *pGType);
+bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType);
 
 
 ////////////////////

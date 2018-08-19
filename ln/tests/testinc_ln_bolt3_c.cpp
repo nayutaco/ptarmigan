@@ -195,11 +195,11 @@ static const uint8_t PREIMAGE_HTLC4[] = {
 static const uint32_t EXPIRY4 = 504;
 static const uint64_t SATOSHI_HTLC4 = 4000LL;
 
-static uint8_t preimage_hash_htlc0[PTARM_SZ_HASH256];
-static uint8_t preimage_hash_htlc1[PTARM_SZ_HASH256];
-static uint8_t preimage_hash_htlc2[PTARM_SZ_HASH256];
-static uint8_t preimage_hash_htlc3[PTARM_SZ_HASH256];
-static uint8_t preimage_hash_htlc4[PTARM_SZ_HASH256];
+static uint8_t preimage_hash_htlc0[BTC_SZ_HASH256];
+static uint8_t preimage_hash_htlc1[BTC_SZ_HASH256];
+static uint8_t preimage_hash_htlc2[BTC_SZ_HASH256];
+static uint8_t preimage_hash_htlc3[BTC_SZ_HASH256];
+static uint8_t preimage_hash_htlc4[BTC_SZ_HASH256];
 
 static const uint8_t *PREIMAGES[] = {
     PREIMAGE_HTLC0,
@@ -220,16 +220,16 @@ protected:
     }
 
     static ln_self_priv_t    priv_data;
-    static ptarm_util_keys_t keys_local_funding;
-    static ptarm_util_keys_t keys_local_commit;
-    static uint8_t remote_funding_pubkey[PTARM_SZ_PUBKEY];
+    static btc_util_keys_t keys_local_funding;
+    static btc_util_keys_t keys_local_commit;
+    static uint8_t remote_funding_pubkey[BTC_SZ_PUBKEY];
 
     static uint64_t obscured;
     static utl_buf_t funding2of2;
-    static ptarm_keys_sort_t key_fund_sort;
+    static btc_keys_sort_t key_fund_sort;
 
-    static ptarm_tx_t tx;
-    static uint8_t txid_commit[PTARM_SZ_TXID];
+    static btc_tx_t tx;
+    static uint8_t txid_commit[BTC_SZ_TXID];
     static ln_feeinfo_t   feeinfo;
     static ln_htlcinfo_t htlcinfos[5];
     static ln_htlcinfo_t **pp_htlcinfos;
@@ -245,16 +245,16 @@ public:
 };
 
 ln_self_priv_t    ln_bolt3_c::priv_data;
-ptarm_util_keys_t ln_bolt3_c::keys_local_funding;
-ptarm_util_keys_t ln_bolt3_c::keys_local_commit;
-uint8_t ln_bolt3_c::remote_funding_pubkey[PTARM_SZ_PUBKEY];
+btc_util_keys_t ln_bolt3_c::keys_local_funding;
+btc_util_keys_t ln_bolt3_c::keys_local_commit;
+uint8_t ln_bolt3_c::remote_funding_pubkey[BTC_SZ_PUBKEY];
 
 uint64_t ln_bolt3_c::obscured;
 utl_buf_t ln_bolt3_c::funding2of2;
-ptarm_keys_sort_t ln_bolt3_c::key_fund_sort;
+btc_keys_sort_t ln_bolt3_c::key_fund_sort;
 
-ptarm_tx_t ln_bolt3_c::tx;
-uint8_t ln_bolt3_c::txid_commit[PTARM_SZ_TXID];
+btc_tx_t ln_bolt3_c::tx;
+uint8_t ln_bolt3_c::txid_commit[BTC_SZ_TXID];
 ln_feeinfo_t   ln_bolt3_c::feeinfo;
 ln_htlcinfo_t ln_bolt3_c::htlcinfos[5];
 ln_htlcinfo_t** ln_bolt3_c::pp_htlcinfos;
@@ -265,7 +265,7 @@ ln_htlcinfo_t** ln_bolt3_c::pp_htlcinfos;
 TEST_F(ln_bolt3_c, start)
 {
     utl_dbg_malloc_cnt_reset();
-    ptarm_init(PTARM_TESTNET, true);
+    btc_init(BTC_TESTNET, true);
 }
 
 
@@ -279,29 +279,29 @@ TEST_F(ln_bolt3_c, committx1)
     obscured = obscured_base ^ COMMITMENT_NUMBER;
 
     //keys
-    memcpy(keys_local_funding.priv, LOCAL_FUNDING_PRIVKEY, PTARM_SZ_PRIVKEY);
-    ret = ptarm_keys_priv2pub(keys_local_funding.pub, keys_local_funding.priv);
+    memcpy(keys_local_funding.priv, LOCAL_FUNDING_PRIVKEY, BTC_SZ_PRIVKEY);
+    ret = btc_keys_priv2pub(keys_local_funding.pub, keys_local_funding.priv);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(keys_local_funding.pub, LOCAL_FUNDING_PUBKEY, PTARM_SZ_PUBKEY));
-    memcpy(remote_funding_pubkey, REMOTE_FUNDING_PUBKEY, PTARM_SZ_PUBKEY);
+    ASSERT_EQ(0, memcmp(keys_local_funding.pub, LOCAL_FUNDING_PUBKEY, BTC_SZ_PUBKEY));
+    memcpy(remote_funding_pubkey, REMOTE_FUNDING_PUBKEY, BTC_SZ_PUBKEY);
 
-    memcpy(priv_data.priv[MSG_FUNDIDX_FUNDING], LOCAL_FUNDING_PRIVKEY, PTARM_SZ_PRIVKEY);
+    memcpy(priv_data.priv[MSG_FUNDIDX_FUNDING], LOCAL_FUNDING_PRIVKEY, BTC_SZ_PRIVKEY);
 
-    memcpy(keys_local_commit.priv, LOCAL_SECRETKEY, PTARM_SZ_PRIVKEY);
-    ret = ptarm_keys_priv2pub(keys_local_commit.pub, keys_local_commit.priv);
+    memcpy(keys_local_commit.priv, LOCAL_SECRETKEY, BTC_SZ_PRIVKEY);
+    ret = btc_keys_priv2pub(keys_local_commit.pub, keys_local_commit.priv);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(keys_local_commit.pub, LOCAL_KEY, PTARM_SZ_PUBKEY));
+    ASSERT_EQ(0, memcmp(keys_local_commit.pub, LOCAL_KEY, BTC_SZ_PUBKEY));
 
     //input script
-    ret = ptarm_util_create2of2(&funding2of2, &key_fund_sort, keys_local_funding.pub, remote_funding_pubkey);
+    ret = btc_util_create2of2(&funding2of2, &key_fund_sort, keys_local_funding.pub, remote_funding_pubkey);
     ASSERT_TRUE(ret);
 
     //preimage-hash
-    ptarm_util_sha256(preimage_hash_htlc0, PREIMAGE_HTLC0, PTARM_SZ_HASH256);
-    ptarm_util_sha256(preimage_hash_htlc1, PREIMAGE_HTLC1, PTARM_SZ_HASH256);
-    ptarm_util_sha256(preimage_hash_htlc2, PREIMAGE_HTLC2, PTARM_SZ_HASH256);
-    ptarm_util_sha256(preimage_hash_htlc3, PREIMAGE_HTLC3, PTARM_SZ_HASH256);
-    ptarm_util_sha256(preimage_hash_htlc4, PREIMAGE_HTLC4, PTARM_SZ_HASH256);
+    btc_util_sha256(preimage_hash_htlc0, PREIMAGE_HTLC0, BTC_SZ_HASH256);
+    btc_util_sha256(preimage_hash_htlc1, PREIMAGE_HTLC1, BTC_SZ_HASH256);
+    btc_util_sha256(preimage_hash_htlc2, PREIMAGE_HTLC2, BTC_SZ_HASH256);
+    btc_util_sha256(preimage_hash_htlc3, PREIMAGE_HTLC3, BTC_SZ_HASH256);
+    btc_util_sha256(preimage_hash_htlc4, PREIMAGE_HTLC4, BTC_SZ_HASH256);
 
     //fee
     feeinfo.dust_limit_satoshi = DUST_LIMIT_SATOSHIS;
@@ -368,7 +368,7 @@ TEST_F(ln_bolt3_c, committx2)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
     //dumpbin(ws_local_buf.buf, ws_local_buf.len);
     //printf("-[to-local]---------------------\n");
-    //ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+    //btc_print_script(ws_local_buf.buf, ws_local_buf.len);
     //printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -387,25 +387,25 @@ TEST_F(ln_bolt3_c, committx2)
 
 
     //tx
-    ptarm_tx_t tx = PTARM_TX_INIT;
+    btc_tx_t tx = BTC_TX_INIT;
 
     //output
     //vout#0:P2WKH - remote
-    ptarm_sw_add_vout_p2wpkh_pub(&tx, LN_MSAT2SATOSHI(MSAT_REMOTE), REMOTE_KEY);
+    btc_sw_add_vout_p2wpkh_pub(&tx, LN_MSAT2SATOSHI(MSAT_REMOTE), REMOTE_KEY);
     //vout#1:P2WSH - local
     if (LN_MSAT2SATOSHI(MSAT_LOCAL) >= feeinfo.dust_limit_satoshi + feeinfo.commit) {
-        ptarm_sw_add_vout_p2wsh(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - feeinfo.commit, &ws_local_buf);
+        btc_sw_add_vout_p2wsh(&tx, LN_MSAT2SATOSHI(MSAT_LOCAL) - feeinfo.commit, &ws_local_buf);
     }
 
     //input
-    ptarm_vin_t *vin = ptarm_tx_add_vin(&tx, TXID_FUND, TXID_FUND_INDEX);
+    btc_vin_t *vin = btc_tx_add_vin(&tx, TXID_FUND, TXID_FUND_INDEX);
     vin->sequence = LN_SEQUENCE(obscured);
 
     //locktime
     tx.locktime = LN_LOCKTIME(obscured);
 
     //BIP69
-    ptarm_util_sort_bip69(&tx);
+    btc_util_sort_bip69(&tx);
 
     //署名
     const uint8_t REMOTE_SIGNATURE[] = {
@@ -419,11 +419,11 @@ TEST_F(ln_bolt3_c, committx2)
         0x87, 0x63, 0x00, 0x7d, 0xf9, 0x77, 0x25, 0x3e,
         0xf4, 0x5a, 0x4c, 0xa3, 0xbd, 0xb7, 0xc0, 0x01,
     };
-    uint8_t txhash[PTARM_SZ_SIGHASH];
-    ptarm_util_calc_sighash_p2wsh(txhash, &tx, 0, PTARM_MBTC2SATOSHI(100), &funding2of2);
+    uint8_t txhash[BTC_SZ_SIGHASH];
+    btc_util_calc_sighash_p2wsh(txhash, &tx, 0, BTC_MBTC2SATOSHI(100), &funding2of2);
     utl_buf_t buf_sig_local;
     utl_buf_t buf_sig_remote;
-    ret = ptarm_util_sign_p2wsh(&buf_sig_local, txhash, &keys_local_funding);
+    ret = btc_util_sign_p2wsh(&buf_sig_local, txhash, &keys_local_funding);
     ASSERT_TRUE(ret);
     const uint8_t LOCAL_SIGNATURE[] = {
         0x30, 0x44, 0x02, 0x20, 0x51, 0xb7, 0x5c, 0x73,
@@ -448,7 +448,7 @@ TEST_F(ln_bolt3_c, committx2)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -498,13 +498,13 @@ TEST_F(ln_bolt3_c, committx2)
         0x52, 0x20,
     };
     utl_buf_t tx_buf;
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
     utl_buf_free(&tx_buf);
 
     utl_buf_free(&ws_local_buf);
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -512,7 +512,7 @@ TEST_F(ln_bolt3_c, committx2)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx5untrim_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -665,7 +665,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -688,7 +688,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -738,7 +738,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -815,10 +815,10 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     };
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -1177,7 +1177,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
 
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -1192,7 +1192,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -1207,14 +1207,14 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -1222,9 +1222,9 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -1232,7 +1232,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx7max_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -1381,7 +1381,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -1404,7 +1404,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -1454,7 +1454,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -1530,13 +1530,13 @@ TEST_F(ln_bolt3_c, committx7max_commit)
         0x9f, 0xa7, 0x11, 0xc1, 0x52, 0xae, 0x3e, 0x19,
         0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -1894,7 +1894,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
     int index;
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -1907,7 +1907,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -1922,14 +1922,14 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -1937,9 +1937,9 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -1947,7 +1947,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx6min_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -2096,7 +2096,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -2119,7 +2119,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -2170,7 +2170,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -2240,13 +2240,13 @@ TEST_F(ln_bolt3_c, committx6min_commit)
         0xce, 0xc6, 0xd3, 0xc3, 0x9f, 0xa7, 0x11, 0xc1,
         0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -2546,7 +2546,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
 
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -2561,7 +2561,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -2576,14 +2576,14 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -2591,9 +2591,9 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -2601,7 +2601,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx6max_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -2750,7 +2750,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -2773,7 +2773,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -2824,7 +2824,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -2894,13 +2894,13 @@ TEST_F(ln_bolt3_c, committx6max_commit)
         0xc6, 0xd3, 0xc3, 0x9f, 0xa7, 0x11, 0xc1, 0x52,
         0xae, 0x3e, 0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -3200,7 +3200,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
 
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -3215,7 +3215,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -3230,14 +3230,14 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -3245,9 +3245,9 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -3255,7 +3255,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx5min_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -3404,7 +3404,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -3427,7 +3427,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -3478,7 +3478,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -3543,13 +3543,13 @@ TEST_F(ln_bolt3_c, committx5min_commit)
         0xc3, 0x9f, 0xa7, 0x11, 0xc1, 0x52, 0xae, 0x3e,
         0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -3790,7 +3790,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
 
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -3805,7 +3805,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -3820,14 +3820,14 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -3835,9 +3835,9 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -3845,7 +3845,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx5max_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -3994,7 +3994,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -4017,7 +4017,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -4068,7 +4068,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -4133,13 +4133,13 @@ TEST_F(ln_bolt3_c, committx5max_commit)
         0xc3, 0x9f, 0xa7, 0x11, 0xc1, 0x52, 0xae, 0x3e,
         0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -4380,7 +4380,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
 
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -4395,7 +4395,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -4410,14 +4410,14 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -4425,9 +4425,9 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -4435,7 +4435,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx4min_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -4584,7 +4584,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -4607,7 +4607,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -4658,7 +4658,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -4717,13 +4717,13 @@ TEST_F(ln_bolt3_c, committx4min_commit)
         0x32, 0xce, 0xc6, 0xd3, 0xc3, 0x9f, 0xa7, 0x11,
         0xc1, 0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -4909,7 +4909,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
 
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -4924,7 +4924,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -4939,14 +4939,14 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -4954,9 +4954,9 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -4964,7 +4964,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx4max_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -5113,7 +5113,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -5136,7 +5136,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -5187,7 +5187,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -5246,13 +5246,13 @@ TEST_F(ln_bolt3_c, committx4max_commit)
         0xa1, 0x32, 0xce, 0xc6, 0xd3, 0xc3, 0x9f, 0xa7,
         0x11, 0xc1, 0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -5438,7 +5438,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
 
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -5453,7 +5453,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -5468,14 +5468,14 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -5483,9 +5483,9 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -5493,7 +5493,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx3min_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -5642,7 +5642,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -5665,7 +5665,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -5716,7 +5716,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -5770,13 +5770,13 @@ TEST_F(ln_bolt3_c, committx3min_commit)
         0xc6, 0xd3, 0xc3, 0x9f, 0xa7, 0x11, 0xc1, 0x52,
         0xae, 0x3e, 0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -5907,7 +5907,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
 
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -5922,7 +5922,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -5937,14 +5937,14 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -5952,9 +5952,9 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -5962,7 +5962,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx3max_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -6110,7 +6110,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -6133,7 +6133,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -6184,7 +6184,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -6238,13 +6238,13 @@ TEST_F(ln_bolt3_c, committx3max_commit)
         0xd3, 0xc3, 0x9f, 0xa7, 0x11, 0xc1, 0x52, 0xae,
         0x3e, 0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -6375,7 +6375,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
 
 
     //各HTLCのsuccess transaction作成
-    ptarm_tx_t tx2;
+    btc_tx_t tx2;
 
     utl_buf_t ws_buf;
     ln_create_script_success(&ws_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
@@ -6390,7 +6390,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
         uint64_t fee = (htlcinfos[lp].type == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
         index = VOUTS[lp];
         if ((index >= 0) && (tx.vout[index].value >= feeinfo.dust_limit_satoshi + fee)) {
-            ptarm_tx_init(&tx2);
+            btc_tx_init(&tx2);
             ln_create_htlc_tx(&tx2, tx.vout[index].value - fee, &ws_buf, htlcinfos[lp].type, htlcinfos[lp].expiry, txid_commit, index);
 
             const utl_buf_t remote_sig = { (uint8_t *)REMOTE_SIGS[lp].sig, (uint16_t)REMOTE_SIGS[lp].len };
@@ -6405,14 +6405,14 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
                         HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
-            ptarm_tx_create(&hs, &tx2);
-            //ptarm_print_tx(&tx2);
-            //ptarm_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
+            btc_tx_create(&hs, &tx2);
+            //btc_print_tx(&tx2);
+            //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
             utl_buf_free(&local_sig);
             utl_buf_free(&hs);
-            ptarm_tx_free(&tx2);
+            btc_tx_free(&tx2);
         }
     }
 
@@ -6420,9 +6420,9 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
     utl_buf_free(&ws_buf);
-    ptarm_tx_free(&tx2);
+    btc_tx_free(&tx2);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -6430,7 +6430,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx2min_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -6579,7 +6579,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -6602,7 +6602,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -6653,7 +6653,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -6702,13 +6702,13 @@ TEST_F(ln_bolt3_c, committx2min_commit)
         0x9f, 0xa7, 0x11, 0xc1, 0x52, 0xae, 0x3e, 0x19,
         0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -6718,7 +6718,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     for (int lp = 0; lp < 5; lp++) {
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -6726,7 +6726,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx2max_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -6875,7 +6875,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -6898,7 +6898,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -6949,7 +6949,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -6998,13 +6998,13 @@ TEST_F(ln_bolt3_c, committx2max_commit)
         0xa7, 0x11, 0xc1, 0x52, 0xae, 0x3e, 0x19, 0x52,
         0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -7014,7 +7014,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     for (int lp = 0; lp < 5; lp++) {
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -7022,7 +7022,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx1min_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -7172,7 +7172,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -7195,7 +7195,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -7246,7 +7246,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -7289,13 +7289,13 @@ TEST_F(ln_bolt3_c, committx1min_commit)
         0xce, 0xc6, 0xd3, 0xc3, 0x9f, 0xa7, 0x11, 0xc1,
         0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -7305,7 +7305,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     for (int lp = 0; lp < 5; lp++) {
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
@@ -7313,7 +7313,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
 //      Commitment Transaction
 TEST_F(ln_bolt3_c, committx_commit)
 {
-    ptarm_tx_init(&tx);
+    btc_tx_init(&tx);
 
     bool ret;
 
@@ -7462,7 +7462,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     ln_create_script_local(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    ptarm_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -7485,7 +7485,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     ln_tx_cmt_t lntx_commit;
     lntx_commit.fund.txid = TXID_FUND;
     lntx_commit.fund.txid_index = TXID_FUND_INDEX;
-    lntx_commit.fund.satoshi = PTARM_MBTC2SATOSHI(100);
+    lntx_commit.fund.satoshi = BTC_MBTC2SATOSHI(100);
     lntx_commit.fund.p_script = &funding2of2;
     lntx_commit.local.satoshi = LN_MSAT2SATOSHI(MSAT_LOCAL);
     lntx_commit.local.p_script = &ws_local_buf;
@@ -7536,7 +7536,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //ptarm_print_tx(&tx);
+    //btc_print_tx(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -7579,13 +7579,13 @@ TEST_F(ln_bolt3_c, committx_commit)
         0xce, 0xc6, 0xd3, 0xc3, 0x9f, 0xa7, 0x11, 0xc1,
         0x52, 0xae, 0x3e, 0x19, 0x52, 0x20,
     };
-    //ptarm_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
+    //btc_print_rawtx(COMMIT_TX, sizeof(COMMIT_TX));
     utl_buf_t tx_buf;
 
-    ptarm_tx_create(&tx_buf, &tx);
+    btc_tx_create(&tx_buf, &tx);
     ASSERT_EQ(0, memcmp(COMMIT_TX, tx_buf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), tx_buf.len);
-    ret = ptarm_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(txid_commit, &tx);
     ASSERT_TRUE(ret);
     utl_buf_free(&tx_buf);
 
@@ -7595,14 +7595,14 @@ TEST_F(ln_bolt3_c, committx_commit)
     for (int lp = 0; lp < 5; lp++) {
         utl_buf_free((utl_buf_t *)&htlcinfos[lp].script);
     }
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }
 
 
 TEST_F(ln_bolt3_c, fin)
 {
     utl_buf_free(&funding2of2);
-    ptarm_term();
+    btc_term();
 
     free(pp_htlcinfos);
 

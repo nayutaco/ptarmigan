@@ -11,12 +11,12 @@ extern "C" {
 #include "../../utl/utl_dbg.c"
 #include "../../utl/utl_buf.c"
 #include "../../utl/utl_push.c"
-#include "../../btc/ptarm.c"
-#include "../../btc/ptarm_ekey.c"
-#include "../../btc/ptarm_keys.c"
-#include "../../btc/ptarm_sw.c"
-#include "../../btc/ptarm_tx.c"
-#include "../../btc/ptarm_util.c"
+#include "../../btc/btc.c"
+#include "../../btc/btc_ekey.c"
+#include "../../btc/btc_keys.c"
+#include "../../btc/btc_sw.c"
+#include "../../btc/btc_tx.c"
+#include "../../btc/btc_util.c"
 #include "../../btc/segwit_addr.c"
 #include "ln.c"
 #include "ln_derkey.c"
@@ -53,12 +53,12 @@ TEST_F(ln, first)
 
 //TEST_F(ln, init)
 //{
-//    ptarm_ln_init();
+//    btc_ln_init();
 //}
 //
 //TEST_F(ln, term)
 //{
-//    ptarm_ln_term();
+//    btc_ln_term();
 //}
 
 

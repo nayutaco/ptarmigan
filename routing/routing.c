@@ -76,8 +76,8 @@ int main(int argc, char* argv[])
 
     fp_err = stderr;
 
-    uint8_t send_nodeid[PTARM_SZ_PUBKEY];
-    uint8_t recv_nodeid[PTARM_SZ_PUBKEY];
+    uint8_t send_nodeid[BTC_SZ_PUBKEY];
+    uint8_t recv_nodeid[BTC_SZ_PUBKEY];
     uint32_t cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     uint64_t amtmsat = 0;
     bool output_json = false;
@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
             fprintf(fp_err, "fail: need -s and -r\n");
             return -2;
         }
-        if (memcmp(send_nodeid, recv_nodeid, PTARM_SZ_PUBKEY) == 0) {
+        if (memcmp(send_nodeid, recv_nodeid, BTC_SZ_PUBKEY) == 0) {
             fprintf(fp_err, "fail: same payer and payee\n");
             return -3;
         }
@@ -206,22 +206,22 @@ int main(int argc, char* argv[])
     }
     ln_lmdb_setenv(pDbSelf, pDbNode);
 
-    uint8_t my_nodeid[PTARM_SZ_PUBKEY];
-    ptarm_genesis_t gtype;
+    uint8_t my_nodeid[BTC_SZ_PUBKEY];
+    btc_genesis_t gtype;
     bret = ln_db_ver_check(my_nodeid, &gtype);
     if (!bret) {
         fprintf(fp_err, "fail: DB version mismatch\n");
         return -7;
     }
 
-    ln_set_genesishash(ptarm_util_get_genesis_block(gtype));
+    ln_set_genesishash(btc_util_get_genesis_block(gtype));
     switch (gtype) {
-    case PTARM_GENESIS_BTCMAIN:
-        ptarm_init(PTARM_MAINNET, true);
+    case BTC_GENESIS_BTCMAIN:
+        btc_init(BTC_MAINNET, true);
         break;
-    case PTARM_GENESIS_BTCTEST:
-    case PTARM_GENESIS_BTCREGTEST:
-        ptarm_init(PTARM_TESTNET, true);
+    case BTC_GENESIS_BTCTEST:
+    case BTC_GENESIS_BTCREGTEST:
+        btc_init(BTC_TESTNET, true);
         break;
     default:
         fprintf(fp_err, "fail: unknown chainhash in DB\n");
@@ -239,7 +239,7 @@ int main(int argc, char* argv[])
                 printf("hop_num=%d\n", result.hop_num);
                 for (int lp = 0; lp < result.hop_num; lp++) {
                     printf("route%d=", lp);
-                    ptarm_util_dumpbin(stdout, result.hop_datain[lp].pubkey, PTARM_SZ_PUBKEY, false);
+                    btc_util_dumpbin(stdout, result.hop_datain[lp].pubkey, BTC_SZ_PUBKEY, false);
                     printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n",
                                 result.hop_datain[lp].short_channel_id,
                                 result.hop_datain[lp].amt_to_forward,
@@ -254,7 +254,7 @@ int main(int argc, char* argv[])
                         printf(",\n");
                     }
                     printf("[\"");
-                    ptarm_util_dumpbin(stdout, result.hop_datain[lp].pubkey, PTARM_SZ_PUBKEY, false);
+                    btc_util_dumpbin(stdout, result.hop_datain[lp].pubkey, BTC_SZ_PUBKEY, false);
                     printf("\",\"%016" PRIx64 "\",%" PRIu64 ",%" PRIu32 "]",
                                 result.hop_datain[lp].short_channel_id,
                                 result.hop_datain[lp].amt_to_forward,

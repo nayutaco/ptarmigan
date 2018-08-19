@@ -321,7 +321,7 @@ void lnapp_start(lnapp_conf_t *pAppConf)
 void lnapp_stop(lnapp_conf_t *pAppConf)
 {
     fprintf(stderr, "stop: ");
-    ptarm_util_dumpbin(stderr, pAppConf->node_id, PTARM_SZ_PUBKEY, true);
+    btc_util_dumpbin(stderr, pAppConf->node_id, BTC_SZ_PUBKEY, true);
 
     stop_threads(pAppConf);
     pthread_join(pAppConf->th, NULL);
@@ -374,7 +374,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
 
     bool ret = false;
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-    uint8_t session_key[PTARM_SZ_PRIVKEY];
+    uint8_t session_key[BTC_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
 
     if (pPay->hop_datain[0].short_channel_id != ln_short_channel_id(p_self)) {
@@ -404,7 +404,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         }
     }
 
-    ptarm_util_random(session_key, sizeof(session_key));
+    btc_util_random(session_key, sizeof(session_key));
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
     uint8_t onion[LN_SZ_ONION_ROUTE];
     utl_buf_t secrets = UTL_BUF_INIT;
@@ -459,8 +459,8 @@ LABEL_EXIT:
         // $5: payment_hash
         char hashstr[LN_SZ_HASH * 2 + 1];
         utl_misc_bin2str(hashstr, pPay->payment_hash, LN_SZ_HASH);
-        char node_id[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), PTARM_SZ_PUBKEY);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
@@ -703,7 +703,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
 
         //peer node_id
-        utl_misc_bin2str(str, ln_their_node_id(p_self), PTARM_SZ_PUBKEY);
+        utl_misc_bin2str(str, ln_their_node_id(p_self), BTC_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //channel_id
         utl_misc_bin2str(str, ln_channel_id(pAppConf->p_self), LN_SZ_CHANNEL_ID);
@@ -712,7 +712,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
         cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
         //funding_tx
-        utl_misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), PTARM_SZ_TXID);
+        utl_misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), BTC_SZ_TXID);
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
@@ -738,13 +738,13 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("wait_minimum_depth"));
 
         //peer node_id
-        utl_misc_bin2str(str, ln_their_node_id(p_self), PTARM_SZ_PUBKEY);
+        utl_misc_bin2str(str, ln_their_node_id(p_self), BTC_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
         //channel_id
         utl_misc_bin2str(str, ln_channel_id(pAppConf->p_self), LN_SZ_CHANNEL_ID);
         cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
         //funding_tx
-        utl_misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), PTARM_SZ_TXID);
+        utl_misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), BTC_SZ_TXID);
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
@@ -762,9 +762,9 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("fund_waiting"));
 
         //peer node_id
-        utl_misc_bin2str(str, pAppConf->node_id, PTARM_SZ_PUBKEY);
+        utl_misc_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
-    } else if (ptarm_keys_chkpub(pAppConf->node_id)) {
+    } else if (btc_keys_chkpub(pAppConf->node_id)) {
         char str[256];
 
         const char *p_conn;
@@ -776,7 +776,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_conn));
 
         //peer node_id
-        utl_misc_bin2str(str, pAppConf->node_id, PTARM_SZ_PUBKEY);
+        utl_misc_bin2str(str, pAppConf->node_id, BTC_SZ_PUBKEY);
         cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(str));
     } else {
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("disconnected"));
@@ -806,7 +806,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
 
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
-                ptarm_tx_create(&buf, &close_dat.p_tx[lp]);
+                btc_tx_create(&buf, &close_dat.p_tx[lp]);
                 char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);        //APP_FREE: この中
                 utl_misc_bin2str(transaction, buf.buf, buf.len);
                 utl_buf_free(&buf);
@@ -826,10 +826,10 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
             }
         }
 
-        int num = close_dat.tx_buf.len / sizeof(ptarm_tx_t);
-        ptarm_tx_t *p_tx = (ptarm_tx_t *)close_dat.tx_buf.buf;
+        int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
+        btc_tx_t *p_tx = (btc_tx_t *)close_dat.tx_buf.buf;
         for (int lp = 0; lp < num; lp++) {
-            ptarm_tx_create(&buf, &p_tx[lp]);
+            btc_tx_create(&buf, &p_tx[lp]);
             char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);    //APP_FREE: この中
             utl_misc_bin2str(transaction, buf.buf, buf.len);
             utl_buf_free(&buf);
@@ -851,7 +851,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
 
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
-                ptarm_tx_create(&buf, &close_dat.p_tx[lp]);
+                btc_tx_create(&buf, &close_dat.p_tx[lp]);
                 char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);        //APP_FREE: この中
                 utl_misc_bin2str(transaction, buf.buf, buf.len);
                 utl_buf_free(&buf);
@@ -953,7 +953,7 @@ static void *thread_main_start(void *pArg)
     //seed作成(後でDB読込により上書きされる可能性あり)
     uint8_t seed[LN_SZ_SEED];
     LOGD("ln_self_t initialize\n");
-    ptarm_util_random(seed, LN_SZ_SEED);
+    btc_util_random(seed, LN_SZ_SEED);
     ln_init(p_self, seed, &mAnnoPrm, notify_cb);
 
     p_conf->p_self = p_self;
@@ -995,9 +995,9 @@ static void *thread_main_start(void *pArg)
     }
 
     LOGD("connected peer: ");
-    DUMPD(p_conf->node_id, PTARM_SZ_PUBKEY);
+    DUMPD(p_conf->node_id, BTC_SZ_PUBKEY);
     fprintf(stderr, "connected peer: ");
-    ptarm_util_dumpbin(stderr, p_conf->node_id, PTARM_SZ_PUBKEY, true);
+    btc_util_dumpbin(stderr, p_conf->node_id, BTC_SZ_PUBKEY, true);
 
     //init交換前に設定する(open_channelの受信に間に合わない場合あり issue #351)
     ln_set_peer_nodeid(p_self, p_conf->node_id);
@@ -1008,7 +1008,7 @@ static void *thread_main_start(void *pArg)
     utl_buf_t txbuf = UTL_BUF_INIT;
     const uint8_t *p_bhash;
 
-    ptarm_tx_create(&txbuf, ln_funding_tx(p_conf->p_self));
+    btc_tx_create(&txbuf, ln_funding_tx(p_conf->p_self));
     p_bhash = ln_funding_blockhash(p_conf->p_self);
     btcrpc_add_channel(p_conf->p_self, ln_short_channel_id(p_conf->p_self), txbuf.buf, txbuf.len, !ln_is_closing(p_conf->p_self), p_bhash);
     utl_buf_free(&txbuf);
@@ -1135,10 +1135,10 @@ static void *thread_main_start(void *pArg)
         // $1: short_channel_id
         // $2: node_id
         // $3: peer_id
-        char node_id[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), PTARM_SZ_PUBKEY);
-        char peer_id[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(peer_id, p_conf->node_id, PTARM_SZ_PUBKEY);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        char peer_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%s",
@@ -1301,8 +1301,8 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         }
 
         //bufには相手のnode_idが返ってくる
-        assert(buf.len == PTARM_SZ_PUBKEY);
-        memcpy(p_conf->node_id, buf.buf, PTARM_SZ_PUBKEY);
+        assert(buf.len == BTC_SZ_PUBKEY);
+        memcpy(p_conf->node_id, buf.buf, BTC_SZ_PUBKEY);
 
         result = true;
     }
@@ -1447,10 +1447,10 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     // $2: node_id
     // $3: our_msat
     // $4: funding_txid
-    char txidstr[PTARM_SZ_TXID * 2 + 1];
-    utl_misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), PTARM_SZ_TXID);
-    char node_id[PTARM_SZ_PUBKEY * 2 + 1];
-    utl_misc_bin2str(node_id, ln_node_getid(), PTARM_SZ_PUBKEY);
+    char txidstr[BTC_SZ_TXID * 2 + 1];
+    utl_misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), BTC_SZ_TXID);
+    char node_id[BTC_SZ_PUBKEY * 2 + 1];
+    utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
     char param[256];
     sprintf(param, "%" PRIx64 " %s "
                 "%" PRIu64 " "
@@ -1513,7 +1513,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
             return false;
         }
 
-        memcpy(fundin.txid, pFunding->txid, PTARM_SZ_TXID);
+        memcpy(fundin.txid, pFunding->txid, BTC_SZ_TXID);
         fundin.index = pFunding->txindex;
 #else
         //SPVの場合、funding_txをSPVが作るため、fundin未使用
@@ -1791,8 +1791,8 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
             // send `channel_update` for private/before publish channel
             send_cnlupd_before_announce(p_conf);
 
-            char close_addr[PTARM_SZ_ADDR_MAX];
-            ret = ptarm_keys_spk2addr(close_addr, ln_shutdown_scriptpk_local(p_conf->p_self));
+            char close_addr[BTC_SZ_ADDR_MAX];
+            ret = btc_keys_spk2addr(close_addr, ln_shutdown_scriptpk_local(p_conf->p_self));
             if (!ret) {
                 utl_misc_bin2str(close_addr,
                         ln_shutdown_scriptpk_local(p_conf->p_self)->buf,
@@ -1855,7 +1855,7 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf)
 {
     int bheight = 0;
     int bindex = 0;
-    uint8_t mined_hash[PTARM_SZ_SHA256];
+    uint8_t mined_hash[BTC_SZ_SHA256];
     bool ret = btcrpc_get_short_channel_param(p_conf->p_self, &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
     if (ret) {
         //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
@@ -1982,8 +1982,8 @@ LABEL_EXIT:
         // $5: payment_hash
         char hashstr[LN_SZ_HASH * 2 + 1];
         utl_misc_bin2str(hashstr, pFwdAdd->payment_hash, LN_SZ_HASH);
-        char node_id[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), PTARM_SZ_PUBKEY);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
@@ -2062,8 +2062,8 @@ static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdF
         utl_misc_bin2str(hashstr, payment_hash, LN_SZ_HASH);
         char imgstr[LN_SZ_PREIMAGE * 2 + 1];
         utl_misc_bin2str(imgstr, pBwdFulfill->preimage, LN_SZ_PREIMAGE);
-        char node_id[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), PTARM_SZ_PUBKEY);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s "
                     "%s "
@@ -2133,8 +2133,8 @@ static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
         // method: fail
         // $1: short_channel_id
         // $2: node_id
-        char node_id[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), PTARM_SZ_PUBKEY);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
         sprintf(param, "%" PRIx64 " %s",
                     ln_short_channel_id(p_conf->p_self), node_id);
@@ -2287,7 +2287,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
     ln_cb_funding_sign_t *p_sig = (ln_cb_funding_sign_t *)p_param;
 
     utl_buf_t buf_tx = UTL_BUF_INIT;
-    ptarm_tx_create(&buf_tx, p_sig->p_tx);
+    btc_tx_create(&buf_tx, p_sig->p_tx);
     p_sig->ret = btcrpc_signraw_tx(p_sig->p_tx, buf_tx.buf, buf_tx.len, p_sig->amount);
     utl_buf_free(&buf_tx);
 }
@@ -2301,10 +2301,10 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
     ln_cb_funding_t *p = (ln_cb_funding_t *)p_param;
 
     if (p->b_send) {
-        uint8_t txid[PTARM_SZ_TXID];
+        uint8_t txid[BTC_SZ_TXID];
         utl_buf_t buf_tx = UTL_BUF_INIT;
 
-        ptarm_tx_create(&buf_tx, p->p_tx_funding);
+        btc_tx_create(&buf_tx, p->p_tx_funding);
         p->b_result = btcrpc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
         if (p->b_result) {
             btcrpc_set_fundingtx(p_conf->p_self, buf_tx.buf, buf_tx.len);
@@ -2326,8 +2326,8 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         } else {
             p_str = "fundee";
         }
-        char str_peerid[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(str_peerid, ln_their_node_id(p_conf->p_self), PTARM_SZ_PUBKEY);
+        char str_peerid[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(str_peerid, ln_their_node_id(p_conf->p_self), BTC_SZ_PUBKEY);
         lnapp_save_event(ln_channel_id(p_conf->p_self),
                 "open: funding wait start(%s): peer_id=%s",
                 p_str, str_peerid);
@@ -2784,8 +2784,8 @@ static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
         // $3: our_msat
         // $4: htlc_num
         char param[256];
-        char node_id[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), PTARM_SZ_PUBKEY);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "%" PRIu64 " "
                     "%d",
@@ -2856,7 +2856,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         //closing_txを展開
         LOGD("send closing tx\n");
 
-        uint8_t txid[PTARM_SZ_TXID];
+        uint8_t txid[BTC_SZ_TXID];
         bool ret = btcrpc_sendraw_tx(txid, NULL, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
         if (!ret) {
             LOGD("btcrpc_sendraw_tx\n");
@@ -2870,10 +2870,10 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         // $2: node_id
         // $3: closing_txid
         char param[256];
-        char txidstr[PTARM_SZ_TXID * 2 + 1];
-        utl_misc_bin2str_rev(txidstr, txid, PTARM_SZ_TXID);
-        char node_id[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), PTARM_SZ_PUBKEY);
+        char txidstr[BTC_SZ_TXID * 2 + 1];
+        utl_misc_bin2str_rev(txidstr, txid, BTC_SZ_TXID);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "%s",
                     ln_short_channel_id(p_conf->p_self), node_id,
@@ -3239,7 +3239,7 @@ static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const utl
 static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const utl_buf_t *p_buf_cnl)
 {
     uint64_t short_channel_id;
-    uint8_t node[2][PTARM_SZ_PUBKEY];
+    uint8_t node[2][BTC_SZ_PUBKEY];
     bool ret = ln_getids_cnl_anno(&short_channel_id, node[0], node[1], p_buf_cnl->buf, p_buf_cnl->len);
     if (!ret) {
         return;
@@ -3253,7 +3253,7 @@ static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const utl_buf_t *p_
             ret = ln_db_annonod_load(&buf_node, NULL, node[lp], p_db);
             if (ret) {
                 LOGV("send node_anno: ");
-                DUMPV(node[lp], PTARM_SZ_PUBKEY);
+                DUMPV(node[lp], BTC_SZ_PUBKEY);
                 send_peer_noise(p_conf, &buf_node);
                 utl_buf_free(&buf_node);
 
@@ -3455,8 +3455,8 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         // $2: node_id
         // $3: err_str
         char *param = (char *)APP_MALLOC(len_max);      //APP_FREE: この中
-        char node_id[PTARM_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), PTARM_SZ_PUBKEY);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
                     "\"%s\"",
                     ln_short_channel_id(p_conf->p_self), node_id,
@@ -3943,7 +3943,7 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
     uint32_t bindex;
     uint32_t vindex;
     bool unspent;
-    uint8_t txid[PTARM_SZ_TXID];
+    uint8_t txid[BTC_SZ_TXID];
 
     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, ShortChannelId);
     ret = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);

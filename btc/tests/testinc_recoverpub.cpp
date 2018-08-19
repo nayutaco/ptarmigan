@@ -10,12 +10,12 @@ protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
         utl_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, false);
+        btc_init(BTC_TESTNET, false);
     }
 
     virtual void TearDown() {
         ASSERT_EQ(0, utl_dbg_malloc_cnt());
-        ptarm_term();
+        btc_term();
     }
 
 public:
@@ -60,13 +60,13 @@ TEST_F(recoverpub, rec1)
     };
 
     int recid;
-    ret = ptarm_tx_recover_pubkey_id(&recid, PUBKEY, SIG_RS, TXHASH);
+    ret = btc_tx_recover_pubkey_id(&recid, PUBKEY, SIG_RS, TXHASH);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, recid);
     //printf("recid=%d\n", recid);
 
-    uint8_t recov_pub[PTARM_SZ_PUBKEY];
-    ret = ptarm_tx_recover_pubkey(recov_pub, recid, SIG_RS, TXHASH);
+    uint8_t recov_pub[BTC_SZ_PUBKEY];
+    ret = btc_tx_recover_pubkey(recov_pub, recid, SIG_RS, TXHASH);
     ASSERT_TRUE(ret);
     //printf("pubkey= ");
     //recoverpub::DumpBin(recov_pub, sizeof(recov_pub));

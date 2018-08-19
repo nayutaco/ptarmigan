@@ -119,7 +119,7 @@ void HIDDEN ln_create_script_local(utl_buf_t *pBuf,
 /**
  *
  */
-bool HIDDEN ln_create_tolocal_tx(ptarm_tx_t *pTx,
+bool HIDDEN ln_create_tolocal_tx(btc_tx_t *pTx,
                 uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime,
                 const uint8_t *pTxid, int Index, bool bRevoked);
 
@@ -162,7 +162,7 @@ static inline void ln_create_script_timeout(utl_buf_t *pBuf,
  *
  * @param[out]      pBuf
  * @param[in]       pPub        公開鍵 or witnessScript
- * @param[in]       Prefix      PTARM_PREF_xxx
+ * @param[in]       Prefix      BTC_PREF_xxx
  * @retval      true    成功
  * @retval      false   Prefix範囲外
  * @note
@@ -237,7 +237,7 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
  * @param[in]       pPrivData
  * @return      true:成功
  */
-bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, utl_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local, const ln_self_priv_t *pPrivData);
+bool HIDDEN ln_create_commit_tx(btc_tx_t *pTx, utl_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local, const ln_self_priv_t *pPrivData);
 
 
 /** Offered/Receveid HTLC Transaction作成
@@ -250,7 +250,7 @@ bool HIDDEN ln_create_commit_tx(ptarm_tx_t *pTx, utl_buf_t *pSig, const ln_tx_cm
  * @param[in]       pTxid       vin TXID
  * @param[in]       Index       vin index
  */
-void HIDDEN ln_create_htlc_tx(ptarm_tx_t *pTx, uint64_t Value, const utl_buf_t *pScript,
+void HIDDEN ln_create_htlc_tx(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScript,
                 ln_htlctype_t Type, uint32_t CltvExpiry, const uint8_t *pTxid, int Index);
 
 
@@ -266,9 +266,9 @@ void HIDDEN ln_create_htlc_tx(ptarm_tx_t *pTx, uint64_t Value, const utl_buf_t *
  * @param[in]       HtlcSign        HTLCSIGN_xxx
  * @return      true:成功
  */
-bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, utl_buf_t *pLocalSig,
+bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
                     uint64_t Value,
-                    const ptarm_util_keys_t *pKeys,
+                    const btc_util_keys_t *pKeys,
                     const utl_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
                     const utl_buf_t *pWitScript,
@@ -286,7 +286,7 @@ bool HIDDEN ln_sign_htlc_tx(ptarm_tx_t *pTx, utl_buf_t *pLocalSig,
  * @param[in]       pWitScript      voutとなるスクリプト
  * @return      true:成功
  */
-bool HIDDEN ln_verify_htlc_tx(const ptarm_tx_t *pTx,
+bool HIDDEN ln_verify_htlc_tx(const btc_tx_t *pTx,
                     uint64_t Value,
                     const uint8_t *pLocalPubKey,
                     const uint8_t *pRemotePubKey,

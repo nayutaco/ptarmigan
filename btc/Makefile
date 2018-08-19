@@ -39,12 +39,12 @@ SIZE    		:= "$(GNU_PREFIX)size"
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
 
 #sources project
-C_SOURCE_FILES += $(PRJ_PATH)/ptarm.c
-C_SOURCE_FILES += $(PRJ_PATH)/ptarm_ekey.c
-C_SOURCE_FILES += $(PRJ_PATH)/ptarm_util.c
-C_SOURCE_FILES += $(PRJ_PATH)/ptarm_keys.c
-C_SOURCE_FILES += $(PRJ_PATH)/ptarm_tx.c
-C_SOURCE_FILES += $(PRJ_PATH)/ptarm_sw.c
+C_SOURCE_FILES += $(PRJ_PATH)/btc.c
+C_SOURCE_FILES += $(PRJ_PATH)/btc_ekey.c
+C_SOURCE_FILES += $(PRJ_PATH)/btc_util.c
+C_SOURCE_FILES += $(PRJ_PATH)/btc_keys.c
+C_SOURCE_FILES += $(PRJ_PATH)/btc_tx.c
+C_SOURCE_FILES += $(PRJ_PATH)/btc_sw.c
 C_SOURCE_FILES += $(PRJ_PATH)/segwit_addr.c
 
 #includes common to all targets

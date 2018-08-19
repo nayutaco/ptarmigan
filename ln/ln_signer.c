@@ -53,7 +53,7 @@ void HIDDEN ln_signer_init(ln_self_t *self, const uint8_t *pSeed)
 
 void HIDDEN ln_signer_term(ln_self_t *self)
 {
-    memset(self->priv_data.storage_seed, 0, PTARM_SZ_PRIVKEY);
+    memset(self->priv_data.storage_seed, 0, BTC_SZ_PRIVKEY);
 }
 
 
@@ -66,8 +66,8 @@ void HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
     //  open_channel/accept_channelの鍵は ln_signer_keys_update_storage()で生成
     for (int lp = MSG_FUNDIDX_FUNDING; lp < LN_FUNDIDX_MAX; lp++) {
         if (lp != MSG_FUNDIDX_PER_COMMIT) {
-            ptarm_util_createprivkey(self->priv_data.priv[lp]);
-            ptarm_keys_priv2pub(self->funding_local.pubkeys[lp], self->priv_data.priv[lp]);
+            btc_util_createprivkey(self->priv_data.priv[lp]);
+            btc_keys_priv2pub(self->funding_local.pubkeys[lp], self->priv_data.priv[lp]);
         }
     }
 
@@ -100,61 +100,61 @@ void HIDDEN ln_signer_create_prev_percommitsec(const ln_self_t *self, uint8_t *p
         //  そのため、「1つ前のper_commitment_secret」は self->storage_index + 2 となる。
         create_percommitsec(self, pSecret, pPerCommitPt, self->priv_data.storage_index + 2);
     } else {
-        memset(pSecret, 0, PTARM_SZ_PRIVKEY);
+        memset(pSecret, 0, BTC_SZ_PRIVKEY);
         if (pPerCommitPt != NULL) {
-            memcpy(pPerCommitPt, self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], PTARM_SZ_PUBKEY);
+            memcpy(pPerCommitPt, self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
         }
     }
 }
 
 
-void HIDDEN ln_signer_get_secret(const ln_self_t *self, ptarm_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
+void HIDDEN ln_signer_get_secret(const ln_self_t *self, btc_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
 {
     ln_derkey_privkey(pKeys->priv,
                 self->funding_local.pubkeys[MsgFundIdx],
                 pPerCommit,
                 self->priv_data.priv[MsgFundIdx]);
-    ptarm_keys_priv2pub(pKeys->pub, pKeys->priv);
+    btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
 
 
-void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, ptarm_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
+void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, btc_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
 {
     ln_derkey_revocationprivkey(pKeys->priv,
                 self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION],
                 pPerCommit,
                 self->priv_data.priv[MSG_FUNDIDX_REVOCATION],
                 pRevokedSec);
-    ptarm_keys_priv2pub(pKeys->pub, pKeys->priv);
+    btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
 
 
 bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex)
 {
-    return ptarm_tx_sign(pSig, pTxHash, pPrivData->priv[PrivIndex]);
+    return btc_tx_sign(pSig, pTxHash, pPrivData->priv[PrivIndex]);
 }
 
 
-bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const ptarm_util_keys_t *pKeys)
+bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_util_keys_t *pKeys)
 {
-    return ptarm_tx_sign(pSig, pTxHash, pKeys->priv);
+    return btc_tx_sign(pSig, pTxHash, pKeys->priv);
 }
 
 
-bool HIDDEN ln_signer_p2wpkh(ptarm_tx_t *pTx, int Index, uint64_t Value, const ptarm_util_keys_t *pKeys)
+bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_util_keys_t *pKeys)
 {
     bool ret;
-    uint8_t txhash[PTARM_SZ_HASH256];
+    uint8_t txhash[BTC_SZ_HASH256];
     utl_buf_t sigbuf = UTL_BUF_INIT;
     utl_buf_t script_code = UTL_BUF_INIT;
 
-    ptarm_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
+    btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
 
-    ptarm_sw_sighash(txhash, pTx, Index, Value, &script_code);
-    ret = ptarm_tx_sign(&sigbuf, txhash, pKeys->priv);
+    btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
+    ret = btc_tx_sign(&sigbuf, txhash, pKeys->priv);
     if (ret) {
         //mNativeSegwitがfalseの場合はscriptSigへの追加も行う
-        ptarm_sw_set_vin_p2wpkh(pTx, Index, &sigbuf, pKeys->pub);
+        btc_sw_set_vin_p2wpkh(pTx, Index, &sigbuf, pKeys->pub);
     }
 
     utl_buf_free(&sigbuf);
@@ -166,11 +166,11 @@ bool HIDDEN ln_signer_p2wpkh(ptarm_tx_t *pTx, int Index, uint64_t Value, const p
 
 bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex)
 {
-    return ptarm_tx_sign_rs(pRS, pTxHash, pPrivData->priv[PrivIndex]);
+    return btc_tx_sign_rs(pRS, pTxHash, pPrivData->priv[PrivIndex]);
 }
 
 
-bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ptarm_tx_t *pTx,
+bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
                     uint64_t Value,
                     const utl_buf_t *pWitScript, bool bRevoked)
 {
@@ -179,7 +179,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ptarm_tx_t *pTx,
         return false;
     }
 
-    ptarm_util_keys_t signkey;
+    btc_util_keys_t signkey;
     if (!bRevoked) {
         //<delayed_secretkey>
         ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_DELAYED,
@@ -191,18 +191,18 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ptarm_tx_t *pTx,
                     self->revoked_sec.buf);
     }
     //LOGD("key-priv: ");
-    //DUMPD(signkey.priv, PTARM_SZ_PRIVKEY);
+    //DUMPD(signkey.priv, BTC_SZ_PRIVKEY);
     //LOGD("key-pub : ");
-    //DUMPD(signkey.pub, PTARM_SZ_PUBKEY);
+    //DUMPD(signkey.pub, BTC_SZ_PUBKEY);
 
     utl_buf_t sig = UTL_BUF_INIT;
     bool ret;
-    uint8_t sighash[PTARM_SZ_SIGHASH];
+    uint8_t sighash[BTC_SZ_SIGHASH];
 
     //vinは1つしかないので、Indexは0固定
-    ptarm_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
+    btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
 
-    ret = ptarm_tx_sign(&sig, sighash, signkey.priv);
+    ret = btc_tx_sign(&sig, sighash, signkey.priv);
     if (ret) {
         // <delayedsig>
         // 0
@@ -217,7 +217,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ptarm_tx_t *pTx,
         };
         wits[1] = (bRevoked) ? &wit1 : &wit0;
 
-        ret = ptarm_sw_set_vin_p2wsh(pTx, 0, (const utl_buf_t **)wits, ARRAY_SIZE(wits));
+        ret = btc_sw_set_vin_p2wsh(pTx, 0, (const utl_buf_t **)wits, ARRAY_SIZE(wits));
     }
 
     utl_buf_free(&sig);
@@ -239,14 +239,14 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, ptarm_tx_t *pTx,
 static void create_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Index)
 {
     ln_derkey_create_secret(pSecret, self->priv_data.storage_seed, Index);
-    uint8_t pub[PTARM_SZ_PUBKEY];
-    ptarm_keys_priv2pub(pub, pSecret);
+    uint8_t pub[BTC_SZ_PUBKEY];
+    btc_keys_priv2pub(pub, pSecret);
     if (pPerCommitPt != NULL) {
-        memcpy(pPerCommitPt, pub, PTARM_SZ_PUBKEY);
+        memcpy(pPerCommitPt, pub, BTC_SZ_PUBKEY);
     }
 
     LOGD("PER_COMMIT_SEC(%" PRIx64 "): ", Index);
-    DUMPD(pSecret, PTARM_SZ_PRIVKEY);
+    DUMPD(pSecret, BTC_SZ_PRIVKEY);
     LOGD("       PER_COMMIT_PT: ");
-    DUMPD(pub, PTARM_SZ_PUBKEY);
+    DUMPD(pub, BTC_SZ_PUBKEY);
 }

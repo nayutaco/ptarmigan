@@ -10,12 +10,12 @@ protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
         utl_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, true);
+        btc_init(BTC_TESTNET, true);
     }
 
     virtual void TearDown() {
         ASSERT_EQ(0, utl_dbg_malloc_cnt());
-        ptarm_term();
+        btc_term();
     }
 
 public:
@@ -57,12 +57,12 @@ TEST_F(sw_native, init)
         0x59, 0x1b, 0xd1, 0x41, 0xde, 0x27, 0x65, 0x66,
         0x24,
     };
-    ptarm_tx_t tx;
-    ptarm_tx_init(&tx);
+    btc_tx_t tx;
+    btc_tx_init(&tx);
 
-    ptarm_vin_t *vin;
-    ptarm_tx_add_vin(&tx, TXID, 5);
-    bool ret = ptarm_sw_set_vin_p2wpkh(&tx, 0, &sig, PUB);
+    btc_vin_t *vin;
+    btc_tx_add_vin(&tx, TXID, 5);
+    bool ret = btc_sw_set_vin_p2wpkh(&tx, 0, &sig, PUB);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, tx.vin_cnt);
     vin = &tx.vin[0];
@@ -73,5 +73,5 @@ TEST_F(sw_native, init)
     ASSERT_EQ(0, memcmp(PUB, vin->witness[1].buf, sizeof(PUB)));
     ASSERT_EQ(sizeof(PUB), vin->witness[1].len);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 }

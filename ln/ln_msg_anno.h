@@ -155,12 +155,12 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
 /** announcement_signaturesの署名アドレス取得
  *
  */
-void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, ptarm_keys_sort_t Sort);
+void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_t **pp_sig_btc, bool bLocal, btc_keys_sort_t Sort);
 
 
 /** short_channel_id書き換え
  * 
  */
-bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, ptarm_keys_sort_t Sort);
+bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, btc_keys_sort_t Sort);
 
 #endif /* LN_MSG_ANNO_H__ */

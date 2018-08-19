@@ -18,7 +18,7 @@ protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
         utl_dbg_malloc_cnt_reset();
-        ptarm_init(PTARM_TESTNET, true);
+        btc_init(BTC_TESTNET, true);
         utl_buf_init(&sOnionBuffer);
         spEphPubkey = NULL;
         spShdSecret = NULL;
@@ -32,7 +32,7 @@ protected:
         M_FREE(spBlindFactor);
 
         ASSERT_EQ(0, utl_dbg_malloc_cnt());
-        ptarm_term();
+        btc_term();
     }
 
 public:
@@ -50,7 +50,7 @@ public:
 
 TEST_F(onion, testvector)
 {
-    const uint8_t PUB[][PTARM_SZ_PUBKEY] = {
+    const uint8_t PUB[][BTC_SZ_PUBKEY] = {
         {
             0x02, 0xee, 0xc7, 0x24, 0x5d, 0x6b, 0x7d, 0x2c,
             0xcb, 0x30, 0x38, 0x0b, 0xfb, 0xe2, 0xa3, 0x64,
@@ -112,7 +112,7 @@ TEST_F(onion, testvector)
         //hop_datain[lp].outgoing_cltv_value = lp;
         hop_datain[lp].amt_to_forward = ((uint64_t)lp << 32) | lp;
         hop_datain[lp].outgoing_cltv_value = 0;
-        memcpy(hop_datain[lp].pubkey, PUB[lp], PTARM_SZ_PUBKEY);
+        memcpy(hop_datain[lp].pubkey, PUB[lp], BTC_SZ_PUBKEY);
     }
     bool ret = ln_onion_create_packet(packet, NULL, hop_datain, 5, SESSIONKEY, ASSOC, sizeof(ASSOC));
     ASSERT_TRUE(ret);
@@ -995,7 +995,7 @@ TEST_F(onion, testvector_failure_resolve)
 
 TEST_F(onion, testvector_failure_resolve_api)
 {
-    const uint8_t PUB[][PTARM_SZ_PUBKEY] = {
+    const uint8_t PUB[][BTC_SZ_PUBKEY] = {
         {
             0x02, 0xee, 0xc7, 0x24, 0x5d, 0x6b, 0x7d, 0x2c,
             0xcb, 0x30, 0x38, 0x0b, 0xfb, 0xe2, 0xa3, 0x64,
@@ -1057,13 +1057,13 @@ TEST_F(onion, testvector_failure_resolve_api)
         //hop_datain[lp].outgoing_cltv_value = lp;
         hop_datain[lp].amt_to_forward = ((uint64_t)lp << 32) | lp;
         hop_datain[lp].outgoing_cltv_value = 0;
-        memcpy(hop_datain[lp].pubkey, PUB[lp], PTARM_SZ_PUBKEY);
+        memcpy(hop_datain[lp].pubkey, PUB[lp], BTC_SZ_PUBKEY);
     }
     utl_buf_t shared_secrets = UTL_BUF_INIT;
 
     bool ret = ln_onion_create_packet(packet, &shared_secrets, hop_datain, 5, SESSIONKEY, ASSOC, sizeof(ASSOC));
     ASSERT_TRUE(ret);
-    ASSERT_EQ(5 * PTARM_SZ_PRIVKEY, shared_secrets.len);
+    ASSERT_EQ(5 * BTC_SZ_PRIVKEY, shared_secrets.len);
 
 
     const uint8_t ERR0[] = {
@@ -1123,8 +1123,8 @@ TEST_F(onion, testvector_failure_resolve_api)
 
 TEST_F(onion, test1)
 {
-    uint8_t session_key[PTARM_SZ_PRIVKEY];
-    uint8_t onion_privkey[20][PTARM_SZ_PRIVKEY];
+    uint8_t session_key[BTC_SZ_PRIVKEY];
+    uint8_t onion_privkey[20][BTC_SZ_PRIVKEY];
     ln_hop_datain_t datain[20];
     uint8_t packet[LN_SZ_ONION_ROUTE];
 
@@ -1140,12 +1140,12 @@ TEST_F(onion, test1)
         //datain[lp].outgoing_cltv_value = lp;
         datain[lp].amt_to_forward = (uint64_t)lp << 32 | lp;
         datain[lp].outgoing_cltv_value = 0;
-        memset(onion_privkey[lp], lp + 1, PTARM_SZ_PRIVKEY);
-        ptarm_keys_priv2pub(datain[lp].pubkey, onion_privkey[lp]);
+        memset(onion_privkey[lp], lp + 1, BTC_SZ_PRIVKEY);
+        btc_keys_priv2pub(datain[lp].pubkey, onion_privkey[lp]);
     }
 
-    uint8_t pub[PTARM_SZ_PUBKEY];
-    ptarm_keys_priv2pub(pub, session_key);
+    uint8_t pub[BTC_SZ_PUBKEY];
+    btc_keys_priv2pub(pub, session_key);
     bool ret = ln_onion_create_packet(packet, NULL, datain, 1, session_key, NULL, 0);
     ASSERT_TRUE(ret);
 
@@ -1340,8 +1340,8 @@ TEST_F(onion, test1)
 
 TEST_F(onion, test2)
 {
-    uint8_t session_key[PTARM_SZ_PRIVKEY];
-    uint8_t onion_privkey[20][PTARM_SZ_PRIVKEY];
+    uint8_t session_key[BTC_SZ_PRIVKEY];
+    uint8_t onion_privkey[20][BTC_SZ_PRIVKEY];
     ln_hop_datain_t datain[20];
     uint8_t packet[LN_SZ_ONION_ROUTE];
 
@@ -1357,8 +1357,8 @@ TEST_F(onion, test2)
         //datain[lp].outgoing_cltv_value = lp;
         datain[lp].amt_to_forward = (uint64_t)lp << 32 | lp;
         datain[lp].outgoing_cltv_value = 0;
-        memset(onion_privkey[lp], lp + 1, PTARM_SZ_PRIVKEY);
-        ptarm_keys_priv2pub(datain[lp].pubkey, onion_privkey[lp]);
+        memset(onion_privkey[lp], lp + 1, BTC_SZ_PRIVKEY);
+        btc_keys_priv2pub(datain[lp].pubkey, onion_privkey[lp]);
     }
 
     bool ret = ln_onion_create_packet(packet, NULL, datain, 20, session_key, NULL, 0);
@@ -1564,8 +1564,8 @@ TEST_F(onion, test2)
 //channel-idはちゃんと復元できているのだろうか？
 TEST_F(onion, test3)
 {
-    uint8_t session_key[PTARM_SZ_PRIVKEY];
-    uint8_t onion_privkey[20][PTARM_SZ_PRIVKEY];
+    uint8_t session_key[BTC_SZ_PRIVKEY];
+    uint8_t onion_privkey[20][BTC_SZ_PRIVKEY];
     ln_hop_datain_t datain[20];
     uint8_t packet[LN_SZ_ONION_ROUTE];
 
@@ -1581,8 +1581,8 @@ TEST_F(onion, test3)
         //datain[lp].outgoing_cltv_value = lp;
         datain[lp].amt_to_forward = (uint64_t)lp << 32 | lp;
         datain[lp].outgoing_cltv_value = 0;
-        memset(onion_privkey[lp], lp + 1, PTARM_SZ_PRIVKEY);
-        ptarm_keys_priv2pub(datain[lp].pubkey, onion_privkey[lp]);
+        memset(onion_privkey[lp], lp + 1, BTC_SZ_PRIVKEY);
+        btc_keys_priv2pub(datain[lp].pubkey, onion_privkey[lp]);
     }
 
     bool ret = ln_onion_create_packet(packet, NULL, datain, 20, session_key, NULL, 0);
@@ -1612,8 +1612,8 @@ TEST_F(onion, test3)
 //test3で、assocがあるとどうなるのか？
 TEST_F(onion, test4)
 {
-    uint8_t session_key[PTARM_SZ_PRIVKEY];
-    uint8_t onion_privkey[20][PTARM_SZ_PRIVKEY];
+    uint8_t session_key[BTC_SZ_PRIVKEY];
+    uint8_t onion_privkey[20][BTC_SZ_PRIVKEY];
     ln_hop_datain_t datain[20];
     uint8_t packet[LN_SZ_ONION_ROUTE];
 
@@ -1629,8 +1629,8 @@ TEST_F(onion, test4)
         //datain[lp].outgoing_cltv_value = lp;
         datain[lp].amt_to_forward = (uint64_t)lp << 32 | lp;
         datain[lp].outgoing_cltv_value = 0;
-        memset(onion_privkey[lp], lp + 1, PTARM_SZ_PRIVKEY);
-        ptarm_keys_priv2pub(datain[lp].pubkey, onion_privkey[lp]);
+        memset(onion_privkey[lp], lp + 1, BTC_SZ_PRIVKEY);
+        btc_keys_priv2pub(datain[lp].pubkey, onion_privkey[lp]);
     }
 
     const uint8_t ASSOC[] = { 'A', 'b', 'C', 'd', 'E' };

@@ -86,11 +86,11 @@ static bool close_unilateral_remote_offered(bool spent);
 static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 
 static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
-static bool close_revoked_first(ln_self_t *self, ptarm_tx_t *pTx, uint32_t confm, void *pDbParam);
+static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, void *pDbParam);
 static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam);
-static bool close_revoked_tolocal(const ln_self_t *self, const ptarm_tx_t *pTx, int VIndex);
-static bool close_revoked_toremote(const ln_self_t *self, const ptarm_tx_t *pTx, int VIndex);
-static bool close_revoked_htlc(const ln_self_t *self, const ptarm_tx_t *pTx, int VIndex, int WitIndex);
+static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, int VIndex);
+static bool close_revoked_toremote(const ln_self_t *self, const btc_tx_t *pTx, int VIndex);
+static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int VIndex, int WitIndex);
 
 
 /**************************************************************************
@@ -186,7 +186,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
     ret = ln_create_close_unilateral_tx(self, &close_dat);
     if (ret) {
         del = true;
-        uint8_t txid[PTARM_SZ_TXID];
+        uint8_t txid[BTC_SZ_TXID];
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == LN_CLOSE_IDX_COMMIT) {
                 LOGD("$$$ commit_tx\n");
@@ -202,7 +202,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
             }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //自分のtxを展開済みかチェック
-                ptarm_tx_txid(txid, &close_dat.p_tx[lp]);
+                btc_tx_txid(txid, &close_dat.p_tx[lp]);
                 LOGD("txid[%d]= ", lp);
                 TXIDD(txid);
                 bool broad = btcrpc_is_tx_broadcasted(self, txid);
@@ -238,7 +238,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
 
                 if (send_req) {
                     utl_buf_t buf;
-                    ptarm_tx_create(&buf, &close_dat.p_tx[lp]);
+                    btc_tx_create(&buf, &close_dat.p_tx[lp]);
                     int code = 0;
                     ret = btcrpc_sendraw_tx(txid, &code, buf.buf, buf.len);
                     LOGD("code=%d\n", code);
@@ -258,11 +258,11 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
         }
 
         //自分が展開した場合には、HTLC Timeout/Success Txからの出力も行う
-        ptarm_tx_t *p_tx = (ptarm_tx_t *)close_dat.tx_buf.buf;
-        int num = close_dat.tx_buf.len / sizeof(ptarm_tx_t);
+        btc_tx_t *p_tx = (btc_tx_t *)close_dat.tx_buf.buf;
+        int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
         for (int lp = 0; lp < num; lp++) {
             utl_buf_t buf;
-            ptarm_tx_create(&buf, &p_tx[lp]);
+            btc_tx_create(&buf, &p_tx[lp]);
             int code = 0;
             ret = btcrpc_sendraw_tx(txid, &code, buf.buf, buf.len);
             LOGD("code=%d\n", code);
@@ -362,8 +362,8 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
     bool spent = ln_is_closing(self);
     if (!spent) {
         //初めてclosing処理を行う(まだln_goto_closing()を呼び出していない)
-        char txid_str[PTARM_SZ_TXID * 2 + 1];
-        utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), PTARM_SZ_TXID);
+        char txid_str[BTC_SZ_TXID * 2 + 1];
+        utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
         lnapp_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
     }
 
@@ -442,7 +442,7 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
         }
     } else {
         LOGD("  not found: node_announcement: ");
-        DUMPD(p_node_id, PTARM_SZ_PUBKEY);
+        DUMPD(p_node_id, BTC_SZ_PUBKEY);
     }
 
     return false;
@@ -463,9 +463,9 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
 
             uint32_t confm = btcrpc_get_funding_confirm(self);
             if (confm > 0) {
-                ptarm_tx_t tx = PTARM_TX_INIT;
-                uint8_t txid[PTARM_SZ_TXID];
-                ptarm_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
+                btc_tx_t tx = BTC_TX_INIT;
+                uint8_t txid[BTC_SZ_TXID];
+                btc_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
                 bool ret = btcrpc_search_outpoint(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
                 if (ret) {
                     //preimageを登録(自分が持っているのと同じ状態にする)
@@ -488,7 +488,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
                     LOGD("index=%d\n", pCloseDat->p_htlc_idx[lp]);
                     *pDel = false;
                 }
-                ptarm_tx_free(&tx);
+                btc_tx_free(&tx);
             } else {
                 LOGD("fail: get confirmation\n");
             }
@@ -535,7 +535,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 
     bool ret = ln_create_closed_tx(self, &close_dat);
     if (ret) {
-        uint8_t txid[PTARM_SZ_TXID];
+        uint8_t txid[BTC_SZ_TXID];
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (lp == LN_CLOSE_IDX_COMMIT) {
                 LOGD("$$$ commit_tx\n");
@@ -550,7 +550,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
             }
             if (close_dat.p_tx[lp].vin_cnt > 0) {
                 //自分のtxを展開済みかチェック
-                ptarm_tx_txid(txid, &close_dat.p_tx[lp]);
+                btc_tx_txid(txid, &close_dat.p_tx[lp]);
                 LOGD("txid[%d]= ", lp);
                 TXIDD(txid);
                 bool broad = btcrpc_is_tx_broadcasted(self, txid);
@@ -575,7 +575,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                         del = false;
                     }
                     LOGD("to_remote sendto local wallet: %d\n", send_req);
-                    //ptarm_print_tx(&close_dat.p_tx[lp]);
+                    //btc_print_tx(&close_dat.p_tx[lp]);
                 } else  if (!ret) {
                     del = false;
                     goto LABEL_EXIT;
@@ -597,7 +597,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 
                 if (send_req) {
                     utl_buf_t buf;
-                    ptarm_tx_create(&buf, &close_dat.p_tx[lp]);
+                    btc_tx_create(&buf, &close_dat.p_tx[lp]);
                     ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
                     utl_buf_free(&buf);
                     if (ret) {
@@ -662,9 +662,9 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
 
             uint32_t confm = btcrpc_get_funding_confirm(self);
             if (confm > 0) {
-                ptarm_tx_t tx = PTARM_TX_INIT;
-                uint8_t txid[PTARM_SZ_TXID];
-                ptarm_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
+                btc_tx_t tx = BTC_TX_INIT;
+                uint8_t txid[BTC_SZ_TXID];
+                btc_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
                 bool ret = btcrpc_search_outpoint(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
                 if (ret) {
                     //preimageを登録(自分が持っているのと同じ状態にする)
@@ -687,7 +687,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
                     LOGD("index=%d\n", pCloseDat->p_htlc_idx[lp]);
                     *pDel = false;
                 }
-                ptarm_tx_free(&tx);
+                btc_tx_free(&tx);
             } else {
                 LOGD("fail: get confirmation\n");
             }
@@ -706,12 +706,12 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
 {
     (void)pDbParam;
     bool del = false;
-    ptarm_tx_t tx = PTARM_TX_INIT;      //funding_txをINPUTにもつtx
+    btc_tx_t tx = BTC_TX_INIT;      //funding_txをINPUTにもつtx
 
     bool ret = btcrpc_search_outpoint(&tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
     if (ret) {
         LOGD("find!\n");
-        ptarm_print_tx(&tx);
+        btc_print_tx(&tx);
         utl_buf_t *p_buf_pk = &tx.vout[0].script;
         if ( (tx.vout_cnt <= 2) &&
              (utl_buf_cmp(p_buf_pk, ln_shutdown_scriptpk_local(self)) ||
@@ -739,7 +739,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
     } else {
         LOGD("just closed: wait mining...\n");
     }
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 
     return del;
 }
@@ -752,7 +752,7 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
  * @param[in]       confm       confirmation
  * @param[in]       pDbParam    DB parameter
  */
-static bool close_revoked_first(ln_self_t *self, ptarm_tx_t *pTx, uint32_t confm, void *pDbParam)
+static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, void *pDbParam)
 {
     bool del = false;
     bool save = true;
@@ -824,15 +824,15 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
         bool ret = btcrpc_search_vout(&txbuf, confm - ln_revoked_confm(self), &p_vout[0]);
         if (ret) {
             bool sendret = true;
-            int num = txbuf.len / sizeof(ptarm_tx_t);
+            int num = txbuf.len / sizeof(btc_tx_t);
             LOGD("find! %d\n", num);
-            ptarm_tx_t *pTx = (ptarm_tx_t *)txbuf.buf;
+            btc_tx_t *pTx = (btc_tx_t *)txbuf.buf;
             for (int lp = 0; lp < num; lp++) {
                 LOGD("-------- %d ----------\n", lp);
-                ptarm_print_tx(&pTx[lp]);
+                btc_print_tx(&pTx[lp]);
 
                 ret = close_revoked_tolocal(self, &pTx[lp], 0);
-                ptarm_tx_free(&pTx[lp]);
+                btc_tx_free(&pTx[lp]);
                 if (ret) {
                     del = ln_revoked_cnt_dec(self);
                     LOGD("del=%d, revoked_cnt=%d\n", del, ln_revoked_cnt(self));
@@ -865,11 +865,11 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
 
 
 //revoked to_local output/HTLC Timeout/Success Txを取り戻す
-static bool close_revoked_tolocal(const ln_self_t *self, const ptarm_tx_t *pTx, int VIndex)
+static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, int VIndex)
 {
-    ptarm_tx_t tx = PTARM_TX_INIT;
-    uint8_t txid[PTARM_SZ_TXID];
-    ptarm_tx_txid(txid, pTx);
+    btc_tx_t tx = BTC_TX_INIT;
+    uint8_t txid[BTC_SZ_TXID];
+    btc_tx_txid(txid, pTx);
 
     const utl_buf_t *p_wit = ln_revoked_wit(self);
 
@@ -877,10 +877,10 @@ static bool close_revoked_tolocal(const ln_self_t *self, const ptarm_tx_t *pTx, 
                 ln_commit_local(self)->to_self_delay,
                 &p_wit[0], txid, VIndex, true);
     if (ret) {
-        ptarm_print_tx(&tx);
+        btc_print_tx(&tx);
         utl_buf_t buf;
-        ptarm_tx_create(&buf, &tx);
-        ptarm_tx_free(&tx);
+        btc_tx_create(&buf, &tx);
+        btc_tx_free(&tx);
         ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
         if (ret) {
             LOGD("broadcast now: ");
@@ -895,18 +895,18 @@ static bool close_revoked_tolocal(const ln_self_t *self, const ptarm_tx_t *pTx, 
 
 //revoked to_remote outputを取り戻す
 //  to_remoteはP2WPKHで支払い済みだが、bitcoindがremotekeyを知らないため、転送する
-static bool close_revoked_toremote(const ln_self_t *self, const ptarm_tx_t *pTx, int VIndex)
+static bool close_revoked_toremote(const ln_self_t *self, const btc_tx_t *pTx, int VIndex)
 {
-    ptarm_tx_t tx = PTARM_TX_INIT;
-    uint8_t txid[PTARM_SZ_TXID];
-    ptarm_tx_txid(txid, pTx);
+    btc_tx_t tx = BTC_TX_INIT;
+    uint8_t txid[BTC_SZ_TXID];
+    btc_tx_txid(txid, pTx);
 
     bool ret = ln_create_toremote_spent(self, &tx, pTx->vout[VIndex].value, txid, VIndex);
     if (ret) {
-        ptarm_print_tx(&tx);
+        btc_print_tx(&tx);
         utl_buf_t buf;
-        ptarm_tx_create(&buf, &tx);
-        ptarm_tx_free(&tx);
+        btc_tx_create(&buf, &tx);
+        btc_tx_free(&tx);
         ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
         if (ret) {
             LOGD("broadcast now: ");
@@ -920,17 +920,17 @@ static bool close_revoked_toremote(const ln_self_t *self, const ptarm_tx_t *pTx,
 
 
 //Offered/Recieved HTLCを取り戻す
-static bool close_revoked_htlc(const ln_self_t *self, const ptarm_tx_t *pTx, int VIndex, int WitIndex)
+static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int VIndex, int WitIndex)
 {
-    ptarm_tx_t tx = PTARM_TX_INIT;
-    uint8_t txid[PTARM_SZ_TXID];
-    ptarm_tx_txid(txid, pTx);
+    btc_tx_t tx = BTC_TX_INIT;
+    uint8_t txid[BTC_SZ_TXID];
+    btc_tx_txid(txid, pTx);
 
     ln_create_revokedhtlc_spent(self, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
-    ptarm_print_tx(&tx);
+    btc_print_tx(&tx);
     utl_buf_t buf;
-    ptarm_tx_create(&buf, &tx);
-    ptarm_tx_free(&tx);
+    btc_tx_create(&buf, &tx);
+    btc_tx_free(&tx);
     bool ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
     if (ret) {
         LOGD("broadcast now: ");

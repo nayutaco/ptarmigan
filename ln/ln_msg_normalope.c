@@ -213,7 +213,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_create(utl_buf_t *pBuf, const ln_update_f
     ln_misc_push64be(&proto, pMsg->id);
 
     //        [32:payment-preimage]
-    utl_push_data(&proto, pMsg->p_payment_preimage, PTARM_SZ_PRIVKEY);
+    utl_push_data(&proto, pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
 
     assert(sizeof(uint16_t) + 72 == pBuf->len);
 
@@ -247,8 +247,8 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
     pos += sizeof(uint64_t);
 
 //        [32:payment-preimage]
-    memcpy(pMsg->p_payment_preimage, pData + pos, PTARM_SZ_PRIVKEY);
-    pos += PTARM_SZ_PRIVKEY;
+    memcpy(pMsg->p_payment_preimage, pData + pos, BTC_SZ_PRIVKEY);
+    pos += BTC_SZ_PRIVKEY;
 
     assert(Len == pos);
 
@@ -269,9 +269,9 @@ static void update_fulfill_htlc_print(const ln_update_fulfill_htlc_t *pMsg)
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("id: %" PRIx64 "\n", pMsg->id);
     LOGD("p_payment_preimage: ");
-    DUMPD(pMsg->p_payment_preimage, PTARM_SZ_PRIVKEY);
-    uint8_t sha[PTARM_SZ_SHA256];
-    ptarm_util_sha256(sha, pMsg->p_payment_preimage, PTARM_SZ_PRIVKEY);
+    DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
+    uint8_t sha[BTC_SZ_SHA256];
+    btc_util_sha256(sha, pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
     LOGD("              hash: ");
     DUMPD(sha, sizeof(sha));
     LOGD("--------------------------------\n");
@@ -520,10 +520,10 @@ bool HIDDEN ln_msg_revoke_and_ack_create(utl_buf_t *pBuf, const ln_revoke_and_ac
     utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [32:per-commitment-secret]
-    utl_push_data(&proto, pMsg->p_per_commit_secret, PTARM_SZ_PRIVKEY);
+    utl_push_data(&proto, pMsg->p_per_commit_secret, BTC_SZ_PRIVKEY);
 
     //        [33:next-per-commitment-point]
-    utl_push_data(&proto, pMsg->p_per_commitpt, PTARM_SZ_PUBKEY);
+    utl_push_data(&proto, pMsg->p_per_commitpt, BTC_SZ_PUBKEY);
 
     assert(sizeof(uint16_t) + 97 == pBuf->len);
 
@@ -553,12 +553,12 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
     pos += LN_SZ_CHANNEL_ID;
 
     //        [32:per-commitment-secret]
-    memcpy(pMsg->p_per_commit_secret, pData + pos, PTARM_SZ_PRIVKEY);
-    pos += PTARM_SZ_PRIVKEY;
+    memcpy(pMsg->p_per_commit_secret, pData + pos, BTC_SZ_PRIVKEY);
+    pos += BTC_SZ_PRIVKEY;
 
     //        [33:next-per-commitment-point]
-    memcpy(pMsg->p_per_commitpt, pData + pos, PTARM_SZ_PUBKEY);
-    pos += PTARM_SZ_PUBKEY;
+    memcpy(pMsg->p_per_commitpt, pData + pos, BTC_SZ_PUBKEY);
+    pos += BTC_SZ_PUBKEY;
 
     assert(Len == pos);
 
@@ -578,9 +578,9 @@ static void revoke_and_ack_print(const ln_revoke_and_ack_t *pMsg)
     LOGD("channel-id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("per-commitment-secret: ");
-    DUMPD(pMsg->p_per_commit_secret, PTARM_SZ_PRIVKEY);
+    DUMPD(pMsg->p_per_commit_secret, BTC_SZ_PRIVKEY);
     LOGD("next-per-commitment-point: ");
-    DUMPD(pMsg->p_per_commitpt, PTARM_SZ_PUBKEY);
+    DUMPD(pMsg->p_per_commitpt, BTC_SZ_PUBKEY);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }

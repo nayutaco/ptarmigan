@@ -142,7 +142,7 @@ void *p2p_svr_start(void *pArg)
 
             //スレッド起動
             mAppConf[idx].initiator = false;        //Noise Protocolの Act One受信
-            memset(mAppConf[idx].node_id, 0, PTARM_SZ_PUBKEY);
+            memset(mAppConf[idx].node_id, 0, BTC_SZ_PUBKEY);
             inet_ntop(AF_INET, (struct in_addr *)&cl_addr.sin_addr, mAppConf[idx].conn_str, SZ_CONN_STR);
             mAppConf[idx].conn_port = ntohs(cl_addr.sin_port);
 
@@ -179,7 +179,7 @@ lnapp_conf_t *p2p_svr_search_node(const uint8_t *pNodeId)
     lnapp_conf_t *p_appconf = NULL;
     int lp;
     for (lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
-        if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, PTARM_SZ_PUBKEY) == 0)) {
+        if (mAppConf[lp].loop && (memcmp(pNodeId, mAppConf[lp].node_id, BTC_SZ_PUBKEY) == 0)) {
             //LOGD("found: server %d\n", lp);
             p_appconf = &mAppConf[lp];
             break;
