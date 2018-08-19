@@ -19,12 +19,12 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   util_local.h
- *  @brief  libutil内インターフェース
+/** @file   utl_local.h
+ *  @brief  libutl内インターフェース
  *  @author ueno@nayuta.co
  */
-#ifndef UTIL_LOCAL_H__
-#define UTIL_LOCAL_H__
+#ifndef UTL_LOCAL_H__
+#define UTL_LOCAL_H__
 
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -55,7 +55,7 @@
 
 #ifdef PTARM_DEBUG
 #include "plog.h"
-#define LOG_TAG "UTIL"
+#define LOG_TAG "UTL"
 
 #define LOGV(...)       plog_write(PLOG_PRI_VERBOSE, __FILE__, __LINE__, 1, LOG_TAG, __func__, __VA_ARGS__)
 #define DUMPV(dt,ln)    plog_dump(PLOG_PRI_VERBOSE, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
@@ -91,4 +91,4 @@
 #endif  //PTARM_DEBUG_MEM
 
 
-#endif /* UTIL_LOCAL_H__ */
+#endif /* UTL_LOCAL_H__ */

@@ -1,7 +1,7 @@
 INSTALL_DIR = $(CURDIR)/install
 
 default:
-	$(MAKE) -C util
+	$(MAKE) -C utl
 	$(MAKE) -C btc
 	$(MAKE) -C ln
 	$(MAKE) -C ptarmd
@@ -19,7 +19,7 @@ all: lib default
 
 clean:
 	$(MAKE) -C gtest clean
-	$(MAKE) -C util clean
+	$(MAKE) -C utl clean
 	$(MAKE) -C btc clean
 	$(MAKE) -C ln clean
 	$(MAKE) -C ptarmd clean
@@ -33,7 +33,7 @@ full: git_subs lib default
 distclean: lib_clean clean
 
 update:
-	$(MAKE) -C util clean
+	$(MAKE) -C utl clean
 	$(MAKE) -C btc clean
 	$(MAKE) -C ln clean
 	$(MAKE) clean
@@ -41,13 +41,13 @@ update:
 
 lib:
 	$(MAKE) -C libs
-	$(MAKE) -C util
+	$(MAKE) -C utl
 	$(MAKE) -C btc
 	$(MAKE) -C ln
 
 lib_clean:
 	$(MAKE) -C libs clean
-	$(MAKE) -C util clean
+	$(MAKE) -C utl clean
 	$(MAKE) -C btc clean
 	$(MAKE) -C ln clean
 
@@ -56,7 +56,7 @@ git_subs:
 
 test:
 	$(MAKE) -C gtest
-	$(MAKE) -C util test
+	$(MAKE) -C utl test
 	$(MAKE) -C btc test
 	$(MAKE) -C ln test
 
