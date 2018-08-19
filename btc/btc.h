@@ -53,72 +53,72 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#define BTC_SZ_FIELD          (32)            ///< secp256k1の世界
-#define BTC_SZ_RIPEMD160      (20)            ///< サイズ:RIPEMD160
-#define BTC_SZ_HASH160        (20)            ///< サイズ:HASH160
-#define BTC_SZ_SHA256         (32)            ///< サイズ:SHA256
-#define BTC_SZ_HASH256        (32)            ///< サイズ:HASH256
-#define BTC_SZ_PRIVKEY        (32)            ///< サイズ:非公開鍵
-#define BTC_SZ_PUBKEY         (33)            ///< サイズ:圧縮された公開鍵
-#define BTC_SZ_PUBKEY_UNCOMP  (64)            ///< サイズ:圧縮されていない公開鍵
-#define BTC_SZ_PUBKEYHASH     (32)            ///< サイズ:PubKeyHashの最大値
-#define BTC_SZ_ADDR_MAX       (90 + 1)        ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
-#define BTC_SZ_WIF_MAX        (55 + 1)        ///< サイズ:秘密鍵のWIF(上限不明)
-#define BTC_SZ_TXID           (32)            ///< サイズ:TXID
-#define BTC_SZ_SIGHASH        (32)            ///< サイズ:Signature計算用のトランザクションHASH
-#define BTC_SZ_SIGN_RS        (64)            ///< サイズ:RS形式の署名
-#define BTC_SZ_EKEY           (82)            ///< サイズ:拡張鍵
-#define BTC_SZ_CHAINCODE      (32)            ///< サイズ:拡張鍵chaincode
-#define BTC_SZ_EKEY_ADDR_MAX  (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
+#define BTC_SZ_FIELD            (32)            ///< secp256k1の世界
+#define BTC_SZ_RIPEMD160        (20)            ///< サイズ:RIPEMD160
+#define BTC_SZ_HASH160          (20)            ///< サイズ:HASH160
+#define BTC_SZ_SHA256           (32)            ///< サイズ:SHA256
+#define BTC_SZ_HASH256          (32)            ///< サイズ:HASH256
+#define BTC_SZ_PRIVKEY          (32)            ///< サイズ:非公開鍵
+#define BTC_SZ_PUBKEY           (33)            ///< サイズ:圧縮された公開鍵
+#define BTC_SZ_PUBKEY_UNCOMP    (64)            ///< サイズ:圧縮されていない公開鍵
+#define BTC_SZ_PUBKEYHASH       (32)            ///< サイズ:PubKeyHashの最大値
+#define BTC_SZ_ADDR_MAX         (90 + 1)        ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
+#define BTC_SZ_WIF_MAX          (55 + 1)        ///< サイズ:秘密鍵のWIF(上限不明)
+#define BTC_SZ_TXID             (32)            ///< サイズ:TXID
+#define BTC_SZ_SIGHASH          (32)            ///< サイズ:Signature計算用のトランザクションHASH
+#define BTC_SZ_SIGN_RS          (64)            ///< サイズ:RS形式の署名
+#define BTC_SZ_EKEY             (82)            ///< サイズ:拡張鍵
+#define BTC_SZ_CHAINCODE        (32)            ///< サイズ:拡張鍵chaincode
+#define BTC_SZ_EKEY_ADDR_MAX    (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
 
-#define BTC_PREF              (0)             ///< Prefix: 1:mainnet, 2:testnet
-#define BTC_PREF_WIF          (1)             ///< Prefix: WIF
-#define BTC_PREF_P2PKH        (2)             ///< Prefix: P2PKH
-#define BTC_PREF_P2SH         (3)             ///< Prefix: P2SH
-#define BTC_PREF_ADDRVER      (4)             ///< Prefix: Address Version
-#define BTC_PREF_ADDRVER_SH   (5)             ///< Prefix: Address Version(Script)
-#define BTC_PREF_MAX          (6)             ///< 内部管理用
-#define BTC_PREF_NATIVE       (7)             ///< Prefix: native Witness
-#define BTC_PREF_NATIVE_SH    (8)             ///< Prefix: native Witness(Script)
+#define BTC_PREF                (0)             ///< Prefix: 1:mainnet, 2:testnet
+#define BTC_PREF_WIF            (1)             ///< Prefix: WIF
+#define BTC_PREF_P2PKH          (2)             ///< Prefix: P2PKH
+#define BTC_PREF_P2SH           (3)             ///< Prefix: P2SH
+#define BTC_PREF_ADDRVER        (4)             ///< Prefix: Address Version
+#define BTC_PREF_ADDRVER_SH     (5)             ///< Prefix: Address Version(Script)
+#define BTC_PREF_MAX            (6)             ///< 内部管理用
+#define BTC_PREF_NATIVE         (7)             ///< Prefix: native Witness
+#define BTC_PREF_NATIVE_SH      (8)             ///< Prefix: native Witness(Script)
 
-#define BTC_EKEY_PRIV         (0)             ///< 拡張鍵種別:秘密鍵
-#define BTC_EKEY_PUB          (1)             ///< 拡張鍵種別:公開鍵
-#define BTC_EKEY_HARDENED     ((uint32_t)0x80000000)  ///< 拡張鍵:hardened
+#define BTC_EKEY_PRIV           (0)             ///< 拡張鍵種別:秘密鍵
+#define BTC_EKEY_PUB            (1)             ///< 拡張鍵種別:公開鍵
+#define BTC_EKEY_HARDENED       ((uint32_t)0x80000000)  ///< 拡張鍵:hardened
 
-#define BTC_OP_0              "\x00"          ///< OP_0
-#define BTC_OP_2              "\x52"          ///< OP_2
-#define BTC_OP_HASH160        "\xa9"          ///< OP_HASH160
-#define BTC_OP_EQUAL          "\x87"          ///< OP_EQUAL
-#define BTC_OP_EQUALVERIFY    "\x88"          ///< OP_EQUALVERIFY
-#define BTC_OP_PUSHDATA1      "\x4c"          ///< OP_PUSHDATA1
-#define BTC_OP_PUSHDATA2      "\x4d"          ///< OP_PUSHDATA2
-#define BTC_OP_CHECKSIG       "\xac"          ///< OP_CHECKSIG
-#define BTC_OP_CHECKMULTISIG  "\xae"          ///< OP_CHECKMULTISIG
-#define BTC_OP_CLTV           "\xb1"          ///< OP_CHECKLOCKTIMEVERIFY
-#define BTC_OP_CSV            "\xb2"          ///< OP_CHECKSEQUENCEVERIFY
-#define BTC_OP_DROP           "\x75"          ///< OP_DROP
-#define BTC_OP_2DROP          "\x6d"          ///< OP_2DROP
-#define BTC_OP_DUP            "\x76"          ///< OP_DUP
-#define BTC_OP_IF             "\x63"          ///< OP_IF
-#define BTC_OP_NOTIF          "\x64"          ///< OP_NOTIF
-#define BTC_OP_ELSE           "\x67"          ///< OP_ELSE
-#define BTC_OP_ENDIF          "\x68"          ///< OP_ENDIF
-#define BTC_OP_SWAP           "\x7c"          ///< OP_SWAP
-#define BTC_OP_ADD            "\x93"          ///< OP_ADD
-#define BTC_OP_SIZE           "\x82"          ///< OP_SIZE
-#define BTC_OP_SZ1            "\x01"          ///< 1byte値
-#define BTC_OP_SZ20           "\x14"          ///< 20byte値
-#define BTC_OP_SZ32           "\x20"          ///< 32byte値
-#define BTC_OP_SZ_PUBKEY      "\x21"          ///< 33byte値
+#define BTC_OP_0                "\x00"          ///< OP_0
+#define BTC_OP_2                "\x52"          ///< OP_2
+#define BTC_OP_HASH160          "\xa9"          ///< OP_HASH160
+#define BTC_OP_EQUAL            "\x87"          ///< OP_EQUAL
+#define BTC_OP_EQUALVERIFY      "\x88"          ///< OP_EQUALVERIFY
+#define BTC_OP_PUSHDATA1        "\x4c"          ///< OP_PUSHDATA1
+#define BTC_OP_PUSHDATA2        "\x4d"          ///< OP_PUSHDATA2
+#define BTC_OP_CHECKSIG         "\xac"          ///< OP_CHECKSIG
+#define BTC_OP_CHECKMULTISIG    "\xae"          ///< OP_CHECKMULTISIG
+#define BTC_OP_CLTV             "\xb1"          ///< OP_CHECKLOCKTIMEVERIFY
+#define BTC_OP_CSV              "\xb2"          ///< OP_CHECKSEQUENCEVERIFY
+#define BTC_OP_DROP             "\x75"          ///< OP_DROP
+#define BTC_OP_2DROP            "\x6d"          ///< OP_2DROP
+#define BTC_OP_DUP              "\x76"          ///< OP_DUP
+#define BTC_OP_IF               "\x63"          ///< OP_IF
+#define BTC_OP_NOTIF            "\x64"          ///< OP_NOTIF
+#define BTC_OP_ELSE             "\x67"          ///< OP_ELSE
+#define BTC_OP_ENDIF            "\x68"          ///< OP_ENDIF
+#define BTC_OP_SWAP             "\x7c"          ///< OP_SWAP
+#define BTC_OP_ADD              "\x93"          ///< OP_ADD
+#define BTC_OP_SIZE             "\x82"          ///< OP_SIZE
+#define BTC_OP_SZ1              "\x01"          ///< 1byte値
+#define BTC_OP_SZ20             "\x14"          ///< 20byte値
+#define BTC_OP_SZ32             "\x20"          ///< 32byte値
+#define BTC_OP_SZ_PUBKEY        "\x21"          ///< 33byte値
 
-#define BTC_DUST_LIMIT        ((uint64_t)546) ///< voutに指定できるamountの下限[satoshis]
+#define BTC_DUST_LIMIT          ((uint64_t)546) ///< voutに指定できるamountの下限[satoshis]
                                                 // 2018/02/11 17:54(JST)
                                                 // https://github.com/bitcoin/bitcoin/blob/fe53d5f3636aed064823bc220d828c7ff08d1d52/src/test/transaction_tests.cpp#L695
                                                 //
                                                 // https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/policy/policy.cpp#L52-L55
 
-#define BTC_TX_VERSION_INIT   (2)
-#define BTC_TX_INIT           { BTC_TX_VERSION_INIT, 0, (btc_vin_t *)NULL, 0, (btc_vout_t *)NULL, 0 }
+#define BTC_TX_VERSION_INIT     (2)
+#define BTC_TX_INIT             { BTC_TX_VERSION_INIT, 0, (btc_vin_t *)NULL, 0, (btc_vout_t *)NULL, 0 }
 
 #define LNL_SZ_2OF2             (1 + 34 + 34 + 2)           ///< OP_m 21 [pub1] 21 [pub2] OP_n OP_CHKMULTISIG
 #define LNL_SZ_WITPROG_WPKH     (2 + BTC_SZ_HASH160)      ///< P2WPKHのwitnessProgramサイズ
@@ -162,37 +162,37 @@ extern "C" {
 /** @def    BTC_MBTC2SATOSHI
  *  @brief  mBTCをsatochi変換
  */
-#define BTC_MBTC2SATOSHI(mbtc)        ((uint64_t)((mbtc) * 100000 + 0.5))
+#define BTC_MBTC2SATOSHI(mbtc)      ((uint64_t)((mbtc) * 100000 + 0.5))
 
 /** @def    BTC_BTC2SATOSHI
  *  @brief  BTCをsatochi変換
  */
-#define BTC_BTC2SATOSHI(mbtc)         ((uint64_t)((mbtc) * (uint64_t)100000000 + 0.5))
+#define BTC_BTC2SATOSHI(mbtc)       ((uint64_t)((mbtc) * (uint64_t)100000000 + 0.5))
 
 /** @def    BTC_SATOSHI2MBTC
  *  @brief  satoshiをmBTC変換
  */
-#define BTC_SATOSHI2MBTC(stc)         ((double)(stc) / 100000)
+#define BTC_SATOSHI2MBTC(stc)       ((double)(stc) / 100000)
 
 /** @def    BTC_SATOSHI2BTC
  *  @brief  satoshiをBTC変換
  */
-#define BTC_SATOSHI2BTC(stc)          ((double)(stc) / (double)100000000)
+#define BTC_SATOSHI2BTC(stc)        ((double)(stc) / (double)100000000)
 
 /** @def    BTC_VOUT2PKH_P2PKH
  *  @brief  scriptPubKey(P2PKH)からPubKeyHashアドレス位置算出
  */
-#define BTC_VOUT2PKH_P2PKH(script)    ((script) + 4)
+#define BTC_VOUT2PKH_P2PKH(script)  ((script) + 4)
 
 /** @def    BTC_VOUT2PKH_P2SH
  *  @brief  scriptPubKey(P2SH)からPubKeyHashアドレス位置算出
  */
-#define BTC_VOUT2PKH_P2SH(script)     ((script) + 2)
+#define BTC_VOUT2PKH_P2SH(script)   ((script) + 2)
 
 /** @def    BTC_IS_DUST
  *  @brief  amountが支払いに使用できないDUSTかどうかチェックする(true:支払えない)
  */
-#define BTC_IS_DUST(amount)           (BTC_DUST_LIMIT > (amount))
+#define BTC_IS_DUST(amount)         (BTC_DUST_LIMIT > (amount))
 
 
 /**************************************************************************
@@ -213,12 +213,12 @@ typedef enum {
  *  @brief      Extended Key管理構造体
  */
 typedef struct {
-    uint8_t     type;                               ///<
-    uint8_t     depth;                              ///<
-    uint32_t    fingerprint;                        ///<
-    uint32_t    child_number;                       ///<
-    uint8_t     chain_code[BTC_SZ_CHAINCODE];     ///<
-    uint8_t     key[BTC_SZ_PUBKEY];               ///<
+    uint8_t     type;                           ///<
+    uint8_t     depth;                          ///<
+    uint32_t    fingerprint;                    ///<
+    uint32_t    child_number;                   ///<
+    uint8_t     chain_code[BTC_SZ_CHAINCODE];   ///<
+    uint8_t     key[BTC_SZ_PUBKEY];             ///<
 } btc_ekey_t;
 
 
@@ -235,12 +235,12 @@ typedef struct {
  *  @brief  VIN管理構造体
  */
 typedef struct {
-    uint8_t         txid[BTC_SZ_TXID];    ///< [outpoint]TXID
-    uint32_t        index;                  ///< [outpoint]index
-    utl_buf_t     script;                 ///< scriptSig
-    uint32_t        wit_cnt;                ///< witness数(0のとき、witnessは無視)
-    utl_buf_t     *witness;               ///< witness(配列的に使用する)
-    uint32_t        sequence;               ///< sequence
+    uint8_t     txid[BTC_SZ_TXID];      ///< [outpoint]TXID
+    uint32_t    index;                  ///< [outpoint]index
+    utl_buf_t   script;                 ///< scriptSig
+    uint32_t    wit_cnt;                ///< witness数(0のとき、witnessは無視)
+    utl_buf_t   *witness;               ///< witness(配列的に使用する)
+    uint32_t    sequence;               ///< sequence
 } btc_vin_t;
 
 
@@ -248,11 +248,11 @@ typedef struct {
  *  @brief  VOUT管理構造体
  */
 typedef struct {
-    uint64_t        value;                  ///< value[単位:satoshi]
-    utl_buf_t     script;                 ///< scriptPubKey
-    uint8_t         opt;                    ///< 付加情報(ln用)
-                                            //      ln_create_htlc_tx()でln_htlctype_tに設定
-                                            //      ln_create_commit_tx()でln_tx_cmt_t.pp_htlcinfo[]のindex値(or LN_HTLCTYPE_TOLOCAL/REMOTE)に設定
+    uint64_t    value;                  ///< value[単位:satoshi]
+    utl_buf_t   script;                 ///< scriptPubKey
+    uint8_t     opt;                    ///< 付加情報(ln用)
+                                        //      ln_create_htlc_tx()でln_htlctype_tに設定
+                                        //      ln_create_commit_tx()でln_tx_cmt_t.pp_htlcinfo[]のindex値(or LN_HTLCTYPE_TOLOCAL/REMOTE)に設定
 } btc_vout_t;
 
 
@@ -260,15 +260,15 @@ typedef struct {
  *  @brief  TX管理構造体
  */
 typedef struct {
-    uint32_t        version;        ///< TX version
+    uint32_t    version;        ///< TX version
 
-    uint32_t        vin_cnt;        ///< vin数(0のとき、vinは無視)
-    btc_vin_t     *vin;           ///< vin(配列的に使用する)
+    uint32_t    vin_cnt;        ///< vin数(0のとき、vinは無視)
+    btc_vin_t   *vin;           ///< vin(配列的に使用する)
 
-    uint32_t        vout_cnt;       ///< vout数(0のとき、voutは無視)
-    btc_vout_t    *vout;          ///< vout(配列的に使用する)
+    uint32_t    vout_cnt;       ///< vout数(0のとき、voutは無視)
+    btc_vout_t  *vout;          ///< vout(配列的に使用する)
 
-    uint32_t        locktime;       ///< locktime
+    uint32_t    locktime;       ///< locktime
 } btc_tx_t;
 
 
