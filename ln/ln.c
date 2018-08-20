@@ -2445,6 +2445,11 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         }
     }
 
+    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
+        //shutdown交換完了
+        M_DB_SELF_SAVE(self);
+    }
+
     if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) && ln_is_funder(self)) {
         //shutdown交換完了 && funder --> 最初のclosing_signed送信
         LOGD("fee_sat: %" PRIu64 "\n", self->close_fee_sat);
