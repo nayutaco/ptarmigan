@@ -33,6 +33,7 @@
 
 #include "utl_misc.h"
 #include "utl_buf.h"
+#include "utl_dbg.h"
 
 #include "ln_db.h"
 #include "ln_misc.h"
@@ -500,7 +501,7 @@ bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
         return true;
     }
 
-    self->p_establish = (ln_establish_t *)M_MALLOC(sizeof(ln_establish_t));   //M_FREE:proc_established()
+    self->p_establish = (ln_establish_t *)UTL_DBG_MALLOC(sizeof(ln_establish_t));   //UTL_DBG_FREE:proc_established()
 
     if (pEstPrm != NULL) {
 #ifndef USE_SPV
@@ -823,7 +824,7 @@ bool ln_create_open_channel(ln_self_t *self, utl_buf_t *pOpen,
 #ifndef USE_SPV
     //funding_tx作成用に保持
     assert(self->p_establish->p_fundin == NULL);
-    self->p_establish->p_fundin = (ln_fundin_t *)M_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
+    self->p_establish->p_fundin = (ln_fundin_t *)UTL_DBG_MALLOC(sizeof(ln_fundin_t));     //free: free_establish()
     memcpy(self->p_establish->p_fundin, pFundin, sizeof(ln_fundin_t));
 #else
     (void)pFundin;
@@ -1141,9 +1142,9 @@ void ln_free_close_force_tx(ln_close_force_t *pClose)
         btc_tx_free(&pClose->p_tx[lp]);
     }
     pClose->num = 0;
-    M_FREE(pClose->p_tx);
+    UTL_DBG_FREE(pClose->p_tx);
     pClose->p_tx = NULL;
-    M_FREE(pClose->p_htlc_idx);
+    UTL_DBG_FREE(pClose->p_htlc_idx);
     pClose->p_htlc_idx = NULL;
 
     int num = pClose->tx_buf.len / sizeof(btc_tx_t);
@@ -1771,9 +1772,9 @@ void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
 {
     LOGD("alloc(%d)\n", self->revoked_num);
 
-    self->p_revoked_vout = (utl_buf_t *)M_MALLOC(sizeof(utl_buf_t) * self->revoked_num);
-    self->p_revoked_wit = (utl_buf_t *)M_MALLOC(sizeof(utl_buf_t) * self->revoked_num);
-    self->p_revoked_type = (ln_htlctype_t *)M_MALLOC(sizeof(ln_htlctype_t) * self->revoked_num);
+    self->p_revoked_vout = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * self->revoked_num);
+    self->p_revoked_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * self->revoked_num);
+    self->p_revoked_type = (ln_htlctype_t *)UTL_DBG_MALLOC(sizeof(ln_htlctype_t) * self->revoked_num);
     for (int lp = 0; lp < self->revoked_num; lp++) {
         utl_buf_init(&self->p_revoked_vout[lp]);
         utl_buf_init(&self->p_revoked_wit[lp]);
@@ -1795,9 +1796,9 @@ void HIDDEN ln_free_revoked_buf(ln_self_t *self)
         utl_buf_free(&self->p_revoked_vout[lp]);
         utl_buf_free(&self->p_revoked_wit[lp]);
     }
-    M_FREE(self->p_revoked_vout);
-    M_FREE(self->p_revoked_wit);
-    M_FREE(self->p_revoked_type);
+    UTL_DBG_FREE(self->p_revoked_vout);
+    UTL_DBG_FREE(self->p_revoked_wit);
+    UTL_DBG_FREE(self->p_revoked_type);
     self->revoked_num = 0;
     self->revoked_cnt = 0;
 
@@ -1920,7 +1921,7 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     err.channel_id = channel_id;
     ln_msg_error_read(&err, pData, Len);
     (*self->p_callback)(self, LN_CB_ERROR, &err);
-    M_FREE(err.p_data);
+    UTL_DBG_FREE(err.p_data);
 
     return true;
 }
@@ -2884,7 +2885,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     //署名チェック＋保存: To-Local
     ret = create_to_local(self, NULL, commsig.p_htlc_signature, commsig.num_htlcs,
                 self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
-    M_FREE(commsig.p_htlc_signature);
+    UTL_DBG_FREE(commsig.p_htlc_signature);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         goto LABEL_EXIT;
@@ -3724,11 +3725,11 @@ static bool create_to_local(ln_self_t *self,
                 to_self_delay);
 
     //HTLC
-    ln_htlcinfo_t **pp_htlcinfo = (ln_htlcinfo_t **)M_MALLOC(sizeof(ln_htlcinfo_t*) * LN_HTLC_MAX);
+    ln_htlcinfo_t **pp_htlcinfo = (ln_htlcinfo_t **)UTL_DBG_MALLOC(sizeof(ln_htlcinfo_t*) * LN_HTLC_MAX);
     int cnt = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            pp_htlcinfo[cnt] = (ln_htlcinfo_t *)M_MALLOC(sizeof(ln_htlcinfo_t));
+            pp_htlcinfo[cnt] = (ln_htlcinfo_t *)UTL_DBG_MALLOC(sizeof(ln_htlcinfo_t));
             ln_htlcinfo_init(pp_htlcinfo[cnt]);
             if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_RECV) {
                 pp_htlcinfo[cnt]->type = LN_HTLCTYPE_RECEIVED;
@@ -3811,9 +3812,9 @@ static bool create_to_local(ln_self_t *self,
     utl_buf_free(&buf_ws);
     for (int lp = 0; lp < cnt; lp++) {
         ln_htlcinfo_free(pp_htlcinfo[lp]);
-        M_FREE(pp_htlcinfo[lp]);
+        UTL_DBG_FREE(pp_htlcinfo[lp]);
     }
-    M_FREE(pp_htlcinfo);
+    UTL_DBG_FREE(pp_htlcinfo);
 
     utl_buf_free(&buf_sig);
     if (pClose != NULL) {
@@ -4188,11 +4189,11 @@ static bool create_to_remote(ln_self_t *self,
                 to_self_delay);
 
     //HTLC(Remote)
-    ln_htlcinfo_t **pp_htlcinfo = (ln_htlcinfo_t **)M_MALLOC(sizeof(ln_htlcinfo_t*) * LN_HTLC_MAX);
+    ln_htlcinfo_t **pp_htlcinfo = (ln_htlcinfo_t **)UTL_DBG_MALLOC(sizeof(ln_htlcinfo_t*) * LN_HTLC_MAX);
     int cnt = 0;    //commit_txのvout数
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            pp_htlcinfo[cnt] = (ln_htlcinfo_t *)M_MALLOC(sizeof(ln_htlcinfo_t));
+            pp_htlcinfo[cnt] = (ln_htlcinfo_t *)UTL_DBG_MALLOC(sizeof(ln_htlcinfo_t));
             ln_htlcinfo_init(pp_htlcinfo[cnt]);
             //OFFEREDとRECEIVEDが逆になる
             if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_RECV) {
@@ -4276,7 +4277,7 @@ static bool create_to_remote(ln_self_t *self,
             uint8_t *p_htlc_sigs = NULL;;
             if (pp_htlc_sigs != NULL) {
                 //送信用 commitment_signed.htlc_signature
-                *pp_htlc_sigs = (uint8_t *)M_MALLOC(LN_SZ_SIGNATURE * cnt);
+                *pp_htlc_sigs = (uint8_t *)UTL_DBG_MALLOC(LN_SZ_SIGNATURE * cnt);
                 p_htlc_sigs = *pp_htlc_sigs;
             }
             ret = create_to_remote_spent(self, pClose,
@@ -4293,9 +4294,9 @@ static bool create_to_remote(ln_self_t *self,
     utl_buf_free(&buf_ws);
     for (int lp = 0; lp < cnt; lp++) {
         ln_htlcinfo_free(pp_htlcinfo[lp]);
-        M_FREE(pp_htlcinfo[lp]);
+        UTL_DBG_FREE(pp_htlcinfo[lp]);
     }
-    M_FREE(pp_htlcinfo);
+    UTL_DBG_FREE(pp_htlcinfo);
 
     utl_buf_free(&buf_sig);
     if (pClose != NULL) {
@@ -4569,7 +4570,7 @@ static bool create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig)
     commsig.num_htlcs = self->commit_remote.htlc_num;
     commsig.p_htlc_signature = p_htlc_sigs;
     ret = ln_msg_commit_signed_create(pCommSig, &commsig);
-    M_FREE(p_htlc_sigs);
+    UTL_DBG_FREE(p_htlc_sigs);
 
     if (ret) {
         //相手のcommitment_numberをインクリメント(channel_reestablish用)
@@ -5496,8 +5497,8 @@ static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id)
 static void close_alloc(ln_close_force_t *pClose, int Num)
 {
     pClose->num = Num;
-    pClose->p_tx = (btc_tx_t *)M_MALLOC(sizeof(btc_tx_t) * pClose->num);
-    pClose->p_htlc_idx = (uint8_t *)M_MALLOC(sizeof(uint8_t) * pClose->num);
+    pClose->p_tx = (btc_tx_t *)UTL_DBG_MALLOC(sizeof(btc_tx_t) * pClose->num);
+    pClose->p_htlc_idx = (uint8_t *)UTL_DBG_MALLOC(sizeof(uint8_t) * pClose->num);
     for (int lp = 0; lp < pClose->num; lp++) {
         btc_tx_init(&pClose->p_tx[lp]);
         pClose->p_htlc_idx[lp] = LN_CLOSE_IDX_NONE;
@@ -5517,12 +5518,12 @@ static void free_establish(ln_self_t *self, bool bEndEstablish)
 #ifndef USE_SPV
         if (self->p_establish->p_fundin != NULL) {
             LOGD("self->p_establish->p_fundin=%p\n", self->p_establish->p_fundin);
-            M_FREE(self->p_establish->p_fundin);  //M_MALLOC: ln_create_open_channel()
+            UTL_DBG_FREE(self->p_establish->p_fundin);  //UTL_DBG_MALLOC: ln_create_open_channel()
             LOGD("free\n");
         }
 #endif
         if (bEndEstablish) {
-            M_FREE(self->p_establish);        //M_MALLOC: ln_set_establish()
+            UTL_DBG_FREE(self->p_establish);        //UTL_DBG_MALLOC: ln_set_establish()
             LOGD("free\n");
         }
     }

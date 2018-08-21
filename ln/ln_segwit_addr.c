@@ -11,6 +11,8 @@
 
 #include "segwit_addr.h"
 
+#include "utl_dbg.h"
+
 #include "ln_node.h"
 #include "ln_misc.h"
 #include "ln_segwit_addr.h"
@@ -215,7 +217,7 @@ static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **p
         //    memcpy(p_str, p_data, d_len);
         //    p_str[d_len - 1] = '\0';
         //    LOGD("%s\n", p_str);
-        //    M_FREE(p_str);
+        //    UTL_DBG_FREE(p_str);
         //} else {
         //    DUMPD(p_data, d_len);
         //}
@@ -441,21 +443,21 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     p_sig = data + data_len - 104;
 
     //preimage
-    pdata = (uint8_t *)M_MALLOC(((data_len - 104) * 5 + 7) / 8);
+    pdata = (uint8_t *)UTL_DBG_MALLOC(((data_len - 104) * 5 + 7) / 8);
     if (!ln_convert_bits(pdata, &pdata_len, 8, data, data_len - 104, 5, true)) {
-        M_FREE(pdata);
+        UTL_DBG_FREE(pdata);
         goto LABEL_EXIT;
     }
     len_hrp = strlen(hrp_actual);
     total_len = len_hrp + pdata_len;
-    preimg = (uint8_t *)M_MALLOC(total_len);
+    preimg = (uint8_t *)UTL_DBG_MALLOC(total_len);
     memcpy(preimg, hrp_actual, len_hrp);
     memcpy(preimg + len_hrp, pdata, pdata_len);
-    M_FREE(pdata);
+    UTL_DBG_FREE(pdata);
 
     //hash
     mbedtls_sha256((uint8_t *)preimg, total_len, hash, 0);
-    M_FREE(preimg);
+    UTL_DBG_FREE(preimg);
 
     //signature(104 chars)
     if (!ln_convert_bits(sig, &sig_len, 8, p_sig, 104, 5, false)) {
@@ -505,7 +507,7 @@ bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, 
     if (pFieldR != NULL) {
         sz += sizeof(ln_fieldr_t) * FieldRNum;
     }
-    p_invoice_data = (ln_invoice_t *)M_MALLOC(sz);
+    p_invoice_data = (ln_invoice_t *)UTL_DBG_MALLOC(sz);
     p_invoice_data->hrp_type = Type;
     p_invoice_data->amount_msat = Amount;
     p_invoice_data->expiry = Expiry;
@@ -516,7 +518,7 @@ bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, 
     memcpy(p_invoice_data->r_field, pFieldR, sizeof(ln_fieldr_t) * FieldRNum);
 
     bool ret = ln_invoice_encode(ppInvoice, p_invoice_data);
-    M_FREE(p_invoice_data);
+    UTL_DBG_FREE(p_invoice_data);
 
     return ret;
 }

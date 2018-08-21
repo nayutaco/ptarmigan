@@ -575,7 +575,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
 bool lnapp_close_channel_force(const uint8_t *pNodeId)
 {
     bool ret;
-    ln_self_t *p_self = (ln_self_t *)APP_MALLOC(sizeof(ln_self_t));
+    ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
 
     //announcementデフォルト値
     load_announce_settings();
@@ -587,14 +587,14 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
     if (ln_is_closing(p_self)) {
         LOGD("fail: already closing\n");
-        APP_FREE(p_self);
+        UTL_DBG_FREE(p_self);
         return false;
     }
 
     LOGD("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
     lnapp_save_event(ln_channel_id(p_self), "close: bad way(local)");
     (void)monitor_close_unilateral_local(p_self, NULL);
-    APP_FREE(p_self);
+    UTL_DBG_FREE(p_self);
 
     return true;
 }
@@ -807,7 +807,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
                 btc_tx_create(&buf, &close_dat.p_tx[lp]);
-                char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);        //APP_FREE: この中
+                char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);        //UTL_DBG_FREE: この中
                 utl_misc_bin2str(transaction, buf.buf, buf.len);
                 utl_buf_free(&buf);
 
@@ -822,7 +822,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
                     sprintf(title, "htlc%d", lp - LN_CLOSE_IDX_HTLC);
                 }
                 cJSON_AddItemToObject(result, title, cJSON_CreateString(transaction));
-                APP_FREE(transaction);
+                UTL_DBG_FREE(transaction);
             }
         }
 
@@ -830,12 +830,12 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
         btc_tx_t *p_tx = (btc_tx_t *)close_dat.tx_buf.buf;
         for (int lp = 0; lp < num; lp++) {
             btc_tx_create(&buf, &p_tx[lp]);
-            char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);    //APP_FREE: この中
+            char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);    //UTL_DBG_FREE: この中
             utl_misc_bin2str(transaction, buf.buf, buf.len);
             utl_buf_free(&buf);
 
             cJSON_AddItemToObject(result, "htlc_out", cJSON_CreateString(transaction));
-            APP_FREE(transaction);
+            UTL_DBG_FREE(transaction);
         }
         const char *p_title = (bLocal) ? "local" : "remote";
         cJSON_AddItemToObject(pResult, p_title, result);
@@ -852,7 +852,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
                 btc_tx_create(&buf, &close_dat.p_tx[lp]);
-                char *transaction = (char *)APP_MALLOC(buf.len * 2 + 1);        //APP_FREE: この中
+                char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);        //UTL_DBG_FREE: この中
                 utl_misc_bin2str(transaction, buf.buf, buf.len);
                 utl_buf_free(&buf);
 
@@ -865,7 +865,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
                     sprintf(title, "htlc%d", lp - 1);
                 }
                 cJSON_AddItemToObject(result_remote, title, cJSON_CreateString(transaction));
-                APP_FREE(transaction);
+                UTL_DBG_FREE(transaction);
             }
         }
         cJSON_AddItemToObject(pResult, "remote", result_remote);
@@ -939,7 +939,7 @@ static void *thread_main_start(void *pArg)
     int retval;
 
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
-    ln_self_t *p_self = (ln_self_t *)APP_MALLOC(sizeof(ln_self_t));
+    ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
 
     p_self->p_param = p_conf;
 
@@ -1181,7 +1181,7 @@ LABEL_SHUTDOWN:
     LOGD("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(p_self));
 
     //クリア
-    APP_FREE(p_conf->p_errstr);
+    UTL_DBG_FREE(p_conf->p_errstr);
     ln_term(p_self);
     payroute_clear(p_conf);
     rcvidle_clear(p_conf);
@@ -1189,7 +1189,7 @@ LABEL_SHUTDOWN:
     send_queue_clear(p_conf);
     memset(p_conf, 0, sizeof(lnapp_conf_t));
     p_conf->sock = -1;
-    APP_FREE(p_self);
+    UTL_DBG_FREE(p_self);
 
     return NULL;
 }
@@ -2235,7 +2235,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
         if (!isprint(p_err->p_data[lp])) {
             //表示できない文字が入っている場合はダンプ出力
             b_alloc = true;
-            p_msg = (char *)APP_MALLOC(p_err->len * 2 + 1);
+            p_msg = (char *)UTL_DBG_MALLOC(p_err->len * 2 + 1);
             utl_misc_bin2str(p_msg, (const uint8_t *)p_err->p_data, p_err->len);
             break;
         }
@@ -2243,7 +2243,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
     set_lasterror(p_conf, RPCERR_PEER_ERROR, p_msg);
     lnapp_save_event(p_err->channel_id, "error message: %s", p_msg);
     if (b_alloc) {
-        APP_FREE(p_msg);
+        UTL_DBG_FREE(p_msg);
     }
 
     if (p_conf->funding_waiting) {
@@ -3376,11 +3376,11 @@ static void call_script(event_t event, const char *param)
     struct stat buf;
     int ret = stat(kSCRIPT[event], &buf);
     if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
-        char *cmdline = (char *)APP_MALLOC(128 + strlen(param));    //APP_FREE: この中
+        char *cmdline = (char *)UTL_DBG_MALLOC(128 + strlen(param));    //UTL_DBG_FREE: この中
         sprintf(cmdline, "%s %s", kSCRIPT[event], param);
         LOGD("cmdline: %s\n", cmdline);
         system(cmdline);
-        APP_FREE(cmdline);      //APP_MALLOC: この中
+        UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
     }
 }
 
@@ -3446,7 +3446,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
     }
     if ((Err != 0) && (pErrStr != NULL)) {
         size_t len_max = strlen(pErrStr) + 128;
-        p_conf->p_errstr = (char *)APP_MALLOC(len_max);        //APP_FREE: thread_main_start()
+        p_conf->p_errstr = (char *)UTL_DBG_MALLOC(len_max);        //UTL_DBG_FREE: thread_main_start()
         strcpy(p_conf->p_errstr, pErrStr);
         LOGD("%s\n", p_conf->p_errstr);
 
@@ -3454,7 +3454,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         // $1: short_channel_id
         // $2: node_id
         // $3: err_str
-        char *param = (char *)APP_MALLOC(len_max);      //APP_FREE: この中
+        char *param = (char *)UTL_DBG_MALLOC(len_max);      //UTL_DBG_FREE: この中
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         sprintf(param, "%" PRIx64 " %s "
@@ -3462,7 +3462,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
                     ln_short_channel_id(p_conf->p_self), node_id,
                     p_conf->p_errstr);
         call_script(EVT_ERROR, param);
-        APP_FREE(param);        //APP_MALLOC: この中
+        UTL_DBG_FREE(param);        //UTL_DBG_MALLOC: この中
     }
 }
 
@@ -3489,7 +3489,7 @@ static void revack_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, utl_buf_t *pBuf)
 {
     pthread_mutex_lock(&p_conf->mux_revack);
 
-    transferlist_t *p_revack = (transferlist_t *)APP_MALLOC(sizeof(transferlist_t));       //APP_FREE: revack_pop_and_exec()
+    transferlist_t *p_revack = (transferlist_t *)UTL_DBG_MALLOC(sizeof(transferlist_t));       //UTL_DBG_FREE: revack_pop_and_exec()
 
     p_revack->cmd = Cmd;
     memcpy(&p_revack->buf, pBuf, sizeof(utl_buf_t));
@@ -3584,7 +3584,7 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
 
     LIST_REMOVE(p_revack, list);
     //utl_buf_free(&p_revack->buf);   //rcvidleに引き渡されたので解放しない
-    APP_FREE(p_revack);
+    UTL_DBG_FREE(p_revack);
 
     pthread_mutex_unlock(&p_conf->mux_revack);
 }
@@ -3600,7 +3600,7 @@ static void revack_clear(lnapp_conf_t *p_conf)
         transferlist_t *tmp = LIST_NEXT(p, list);
         LIST_REMOVE(p, list);
         utl_buf_free(&p->buf);
-        APP_FREE(p);
+        UTL_DBG_FREE(p);
         p = tmp;
     }
 }
@@ -3624,7 +3624,7 @@ static void rcvidle_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, utl_buf_t *pBuf)
 {
     pthread_mutex_lock(&p_conf->mux_rcvidle);
 
-    transferlist_t *p_rcvidle = (transferlist_t *)APP_MALLOC(sizeof(transferlist_t));       //APP_FREE: revack_pop_and_exec()
+    transferlist_t *p_rcvidle = (transferlist_t *)UTL_DBG_MALLOC(sizeof(transferlist_t));       //UTL_DBG_FREE: revack_pop_and_exec()
 
     p_rcvidle->cmd = Cmd;
     memcpy(&p_rcvidle->buf, pBuf, sizeof(utl_buf_t));
@@ -3719,8 +3719,8 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
     if (ret) {
         //解放
         LIST_REMOVE(p_rcvidle, list);
-        utl_buf_free(&p_rcvidle->buf);       //APP_MALLOC: change_context()
-        APP_FREE(p_rcvidle);            //APP_MALLOC: rcvidle_push
+        utl_buf_free(&p_rcvidle->buf);       //UTL_DBG_MALLOC: change_context()
+        UTL_DBG_FREE(p_rcvidle);            //UTL_DBG_MALLOC: rcvidle_push
     } else {
         LOGD("retry\n");
     }
@@ -3739,7 +3739,7 @@ static void rcvidle_clear(lnapp_conf_t *p_conf)
         transferlist_t *tmp = LIST_NEXT(p, list);
         LIST_REMOVE(p, list);
         utl_buf_free(&p->buf);
-        APP_FREE(p);
+        UTL_DBG_FREE(p);
         p = tmp;
     }
 }
@@ -3763,7 +3763,7 @@ static void rcvidle_clear(lnapp_conf_t *p_conf)
  */
 static void payroute_push(lnapp_conf_t *p_conf, const payment_conf_t *pPayConf, uint64_t HtlcId)
 {
-    routelist_t *rt = (routelist_t *)APP_MALLOC(sizeof(routelist_t));       //APP_FREE: payroute_del()
+    routelist_t *rt = (routelist_t *)UTL_DBG_MALLOC(sizeof(routelist_t));       //UTL_DBG_FREE: payroute_del()
 
     memcpy(&rt->route, pPayConf, sizeof(payment_conf_t));
     rt->htlc_id = HtlcId;
@@ -3827,7 +3827,7 @@ static void payroute_del(lnapp_conf_t *p_conf, uint64_t HtlcId)
     }
     if (p != NULL) {
         LIST_REMOVE(p, list);
-        APP_FREE(p);
+        UTL_DBG_FREE(p);
     }
 
     payroute_print(p_conf);
@@ -3846,7 +3846,7 @@ static void payroute_clear(lnapp_conf_t *p_conf)
         LOGD("[%d]htlc_id: %" PRIu64 "\n", __LINE__, p->htlc_id);
         routelist_t *tmp = LIST_NEXT(p, list);
         LIST_REMOVE(p, list);
-        APP_FREE(p);
+        UTL_DBG_FREE(p);
         p = tmp;
     }
 }

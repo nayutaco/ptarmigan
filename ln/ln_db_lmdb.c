@@ -33,6 +33,7 @@
 #include <sys/types.h>
 
 #include "utl_misc.h"
+#include "utl_dbg.h"
 
 #include "ln_local.h"
 #include "ln_msg_anno.h"
@@ -659,7 +660,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
     //
-    backup_buf_t *p_dbscript_keys = (backup_buf_t *)M_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
+    backup_buf_t *p_dbscript_keys = (backup_buf_t *)UTL_DBG_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
     int index = 0;
     p_dbscript_keys[index].name = "buf_funding";
     p_dbscript_keys[index].p_buf = &buf_funding;
@@ -682,7 +683,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 
     btc_tx_read(&self->tx_funding, buf_funding.buf, buf_funding.len);
     utl_buf_free(&buf_funding);
-    M_FREE(p_dbscript_keys);
+    UTL_DBG_FREE(p_dbscript_keys);
 
     //add_htlc
     retval = self_addhtlc_load(self, &db);
@@ -854,7 +855,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
         goto LABEL_EXIT;
     }
 
-    ln_self_t *p_self = (ln_self_t *)M_MALLOC(sizeof(ln_self_t));
+    ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
     bool ret;
     MDB_val     key;
     char name[M_SZ_DBNAME_LEN + 1];
@@ -882,7 +883,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
         }
     }
     self_cursor_close(&cur);
-    M_FREE(p_self);
+    UTL_DBG_FREE(p_self);
 
 LABEL_EXIT:
     return result;
@@ -1068,7 +1069,7 @@ bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type, void *pLockedDb)
         retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     }
     if (retval == 0) {
-        ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)M_MALLOC(sizeof(ln_lmdb_db_t));
+        ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)UTL_DBG_MALLOC(sizeof(ln_lmdb_db_t));
         p_db->txn = txn;
         *ppDb = p_db;
 
@@ -1093,7 +1094,7 @@ bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type, void *pLockedDb)
     if ((retval != 0) && (p_locked_db == NULL)) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
         MDB_TXN_ABORT(txn);
-        M_FREE(*ppDb);
+        UTL_DBG_FREE(*ppDb);
         *ppDb = NULL;
     }
     return retval == 0;
@@ -1105,7 +1106,7 @@ void ln_db_node_cur_commit(void *pDb)
     if (pDb != NULL) {
         ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
         MDB_TXN_COMMIT(p_db->txn);
-        M_FREE(pDb);
+        UTL_DBG_FREE(pDb);
     }
 }
 
@@ -1511,7 +1512,7 @@ LABEL_EXIT:
 
 bool ln_db_annocnl_cur_open(void **ppCur, void *pDb)
 {
-    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)UTL_DBG_MALLOC(sizeof(lmdb_cursor_t));
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
     p_cur->txn = p_db->txn;
@@ -1520,7 +1521,7 @@ bool ln_db_annocnl_cur_open(void **ppCur, void *pDb)
         *ppCur = p_cur;
     } else {
         //LOGD("ERR: cursor open\n");
-        M_FREE(p_cur);
+        UTL_DBG_FREE(p_cur);
         *ppCur = NULL;
     }
 
@@ -1533,7 +1534,7 @@ void ln_db_annocnl_cur_close(void *pCur)
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
     mdb_cursor_close(p_cur->cursor);
-    M_FREE(p_cur);
+    UTL_DBG_FREE(p_cur);
 }
 
 
@@ -1774,7 +1775,7 @@ bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint
     key.mv_data = (CONST_CAST uint8_t *)pPayHash;
     size_t len = strlen(pInvoice);
     data.mv_size = len + 1 + sizeof(AddAmountMsat);    //invoice(\0含む) + uint64_t
-    uint8_t *p_data = (uint8_t *)M_MALLOC(data.mv_size);
+    uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC(data.mv_size);
     data.mv_data = p_data;
     memcpy(p_data, pInvoice, len + 1);  //\0までコピー
     p_data += len + 1;
@@ -1783,7 +1784,7 @@ bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
     }
-    M_FREE(data.mv_data);
+    UTL_DBG_FREE(data.mv_data);
 
     MDB_TXN_COMMIT(txn);
 
@@ -2254,7 +2255,7 @@ bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, cons
 
 bool ln_db_annonod_cur_open(void **ppCur, void *pDb)
 {
-    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)UTL_DBG_MALLOC(sizeof(lmdb_cursor_t));
     ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDb;
 
     p_cur->txn = p_db->txn;
@@ -2263,7 +2264,7 @@ bool ln_db_annonod_cur_open(void **ppCur, void *pDb)
         *ppCur = p_cur;
     } else {
         LOGD("ERR: cursor open\n");
-        M_FREE(p_cur);
+        UTL_DBG_FREE(p_cur);
         *ppCur = NULL;
     }
 
@@ -2276,7 +2277,7 @@ void ln_db_annonod_cur_close(void *pCur)
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
     mdb_cursor_close(p_cur->cursor);
-    M_FREE(p_cur);
+    UTL_DBG_FREE(p_cur);
 }
 
 
@@ -2512,7 +2513,7 @@ bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash)
 bool ln_db_preimg_cur_open(void **ppCur)
 {
     int         retval;
-    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)M_MALLOC(sizeof(lmdb_cursor_t));
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)UTL_DBG_MALLOC(sizeof(lmdb_cursor_t));
 
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &p_cur->txn);
     if (retval != 0) {
@@ -2534,7 +2535,7 @@ LABEL_EXIT:
     if (retval == 0) {
         *ppCur = p_cur;
     } else {
-        M_FREE(p_cur);
+        UTL_DBG_FREE(p_cur);
         *ppCur = NULL;
     }
     return retval == 0;
@@ -3293,7 +3294,7 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     utl_buf_t buf_funding = UTL_BUF_INIT;
     btc_tx_create(&buf_funding, &self->tx_funding);
     //
-    backup_buf_t *p_dbscript_keys = (backup_buf_t *)M_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
+    backup_buf_t *p_dbscript_keys = (backup_buf_t *)UTL_DBG_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
     int index = 0;
     p_dbscript_keys[index].name = "buf_funding";
     p_dbscript_keys[index].p_buf = &buf_funding;
@@ -3316,7 +3317,7 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     }
 
     utl_buf_free(&buf_funding);
-    M_FREE(p_dbscript_keys);
+    UTL_DBG_FREE(p_dbscript_keys);
 
 LABEL_EXIT:
     return retval;
@@ -3600,7 +3601,7 @@ static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData,
 
     if (pNodeId != NULL) {
         int nums = pMdbData->mv_size / BTC_SZ_PUBKEY;
-        p_ids = (uint8_t *)M_MALLOC((nums + 1) * BTC_SZ_PUBKEY);
+        p_ids = (uint8_t *)UTL_DBG_MALLOC((nums + 1) * BTC_SZ_PUBKEY);
         memcpy(p_ids, pMdbData->mv_data, pMdbData->mv_size);
         memcpy(p_ids + pMdbData->mv_size, pNodeId, BTC_SZ_PUBKEY);
         pMdbData->mv_size += BTC_SZ_PUBKEY;
@@ -3617,7 +3618,7 @@ static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData,
     } else {
         LOGD("fail\n");
     }
-    M_FREE(p_ids);
+    UTL_DBG_FREE(p_ids);
 
     return retval == 0;
 }
@@ -3658,7 +3659,7 @@ static void annoinfo_trim(MDB_cursor *pCursor, const uint8_t *pNodeId)
             if (memcmp((uint8_t *)data.mv_data + BTC_SZ_PUBKEY * lp, pNodeId, BTC_SZ_PUBKEY) == 0) {
                 nums--;
                 if (nums > 0) {
-                    uint8_t *p_data = (uint8_t *)M_MALLOC(BTC_SZ_PUBKEY * nums);
+                    uint8_t *p_data = (uint8_t *)UTL_DBG_MALLOC(BTC_SZ_PUBKEY * nums);
                     data.mv_size = BTC_SZ_PUBKEY * nums;
                     data.mv_data = p_data;
                     memcpy(p_data,
@@ -3668,7 +3669,7 @@ static void annoinfo_trim(MDB_cursor *pCursor, const uint8_t *pNodeId)
                                 (uint8_t *)data.mv_data + BTC_SZ_PUBKEY * (lp + 1),
                                 BTC_SZ_PUBKEY * (nums - lp));
                     mdb_cursor_put(pCursor, &key, &data, MDB_CURRENT);
-                    M_FREE(data.mv_data);
+                    UTL_DBG_FREE(data.mv_data);
                 } else {
                     mdb_cursor_del(pCursor, 0);
                 }

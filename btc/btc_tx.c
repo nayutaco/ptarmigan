@@ -23,14 +23,16 @@
  *  @brief  bitcoin処理: トランザクション生成関連
  *  @author ueno@nayuta.co
  */
-#include "btc_local.h"
+#ifdef PTARM_USE_PRINTFUNC
+#include <time.h>
+#endif  //PTARM_USE_PRINTFUNC
 
 #include "mbedtls/asn1write.h"
 #include "mbedtls/ecdsa.h"
 
-#ifdef PTARM_USE_PRINTFUNC
-#include <time.h>
-#endif  //PTARM_USE_PRINTFUNC
+#include "utl_dbg.h"
+
+#include "btc_local.h"
 
 
 /**************************************************************************
@@ -74,12 +76,12 @@ void btc_tx_free(btc_tx_t *pTx)
             utl_buf_free(&(vin->witness[lp2]));
         }
         if (vin->wit_cnt) {
-            M_FREE(vin->witness);
+            UTL_DBG_FREE(vin->witness);
             vin->wit_cnt = 0;
         }
     }
     if (pTx->vin_cnt) {
-        M_FREE(pTx->vin);
+        UTL_DBG_FREE(pTx->vin);
         pTx->vin_cnt = 0;
     }
     //vout
@@ -88,7 +90,7 @@ void btc_tx_free(btc_tx_t *pTx)
         utl_buf_free(&(vout->script));
     }
     if (pTx->vout_cnt) {
-        M_FREE(pTx->vout);
+        UTL_DBG_FREE(pTx->vout);
         pTx->vout_cnt = 0;
     }
 #ifdef PTARM_DEBUG
@@ -100,7 +102,7 @@ void btc_tx_free(btc_tx_t *pTx)
 
 btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, int Index)
 {
-    pTx->vin = (btc_vin_t *)M_REALLOC(pTx->vin, sizeof(btc_vin_t) * (pTx->vin_cnt + 1));
+    pTx->vin = (btc_vin_t *)UTL_DBG_REALLOC(pTx->vin, sizeof(btc_vin_t) * (pTx->vin_cnt + 1));
     btc_vin_t *vin = &(pTx->vin[pTx->vin_cnt]);
     pTx->vin_cnt++;
 
@@ -116,7 +118,7 @@ btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, int Index)
 
 utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin)
 {
-    pVin->witness = (utl_buf_t *)M_REALLOC(pVin->witness, sizeof(utl_buf_t) * (pVin->wit_cnt + 1));
+    pVin->witness = (utl_buf_t *)UTL_DBG_REALLOC(pVin->witness, sizeof(utl_buf_t) * (pVin->wit_cnt + 1));
     utl_buf_t *p_buf = &(pVin->witness[pVin->wit_cnt]);
     pVin->wit_cnt++;
 
@@ -127,7 +129,7 @@ utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin)
 
 btc_vout_t *btc_tx_add_vout(btc_tx_t *pTx, uint64_t Value)
 {
-    pTx->vout = (btc_vout_t *)M_REALLOC(pTx->vout, sizeof(btc_vout_t) * (pTx->vout_cnt + 1));
+    pTx->vout = (btc_vout_t *)UTL_DBG_REALLOC(pTx->vout, sizeof(btc_vout_t) * (pTx->vout_cnt + 1));
     btc_vout_t *vout = &(pTx->vout[pTx->vout_cnt]);
     pTx->vout_cnt++;
 
@@ -261,7 +263,7 @@ bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const
     utl_buf_t *p_buf = &vin->script;
 
     p_buf->len = 1 + pSig->len + 1 + BTC_SZ_PUBKEY;
-    p_buf->buf = (uint8_t *)M_REALLOC(p_buf->buf, p_buf->len);
+    p_buf->buf = (uint8_t *)UTL_DBG_REALLOC(p_buf->buf, p_buf->len);
     uint8_t *p = pTx->vin[Index].script.buf;
 
     *p = pSig->len;
@@ -295,7 +297,7 @@ bool btc_tx_set_vin_p2sh(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], int
     for (int lp = 0; lp < Num; lp++) {
          p_buf->len += pSigs[lp]->len;
     }
-    p_buf->buf = (uint8_t *)M_REALLOC(p_buf->buf, p_buf->len);
+    p_buf->buf = (uint8_t *)UTL_DBG_REALLOC(p_buf->buf, p_buf->len);
     uint8_t *p = pTx->vin[Index].script.buf;
 
     *p++ = OP_0;
@@ -379,7 +381,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 // --> txout count
                 state = 2;
             } else {
-                pTx->vin = (btc_vin_t *)M_MALLOC(sizeof(btc_vin_t) * pTx->vin_cnt);
+                pTx->vin = (btc_vin_t *)UTL_DBG_MALLOC(sizeof(btc_vin_t) * pTx->vin_cnt);
                 // --> txin
                 state = 1;
             }
@@ -448,7 +450,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                     state = 5;
                 }
             } else {
-                pTx->vout = (btc_vout_t *)M_MALLOC(sizeof(btc_vout_t) * pTx->vout_cnt);
+                pTx->vout = (btc_vout_t *)UTL_DBG_MALLOC(sizeof(btc_vout_t) * pTx->vout_cnt);
                 state = 3;
             }
             tx_cnt = 0;
@@ -511,7 +513,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             if ((pos + 4 <= Len) && (tx_cnt < pTx->vin_cnt)) {
                 pos += get_varint(&var, pData + pos);   //item数
                 pTx->vin[tx_cnt].wit_cnt = var;
-                pTx->vin[tx_cnt].witness = (utl_buf_t *)M_MALLOC(pTx->vin[tx_cnt].wit_cnt * sizeof(utl_buf_t));
+                pTx->vin[tx_cnt].witness = (utl_buf_t *)UTL_DBG_MALLOC(pTx->vin[tx_cnt].wit_cnt * sizeof(utl_buf_t));
             } else {
                 state = 5;
                 break;
@@ -567,14 +569,14 @@ bool btc_tx_sighash(uint8_t *pTxHash, btc_tx_t *pTx, const utl_buf_t *pScriptPks
     }
 
     //scriptSigをscriptPubKeyで置き換える
-    utl_buf_t *tmp_vinbuf = (utl_buf_t *)M_MALLOC(sizeof(utl_buf_t) * pTx->vin_cnt);
+    utl_buf_t *tmp_vinbuf = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pTx->vin_cnt);
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &pTx->vin[lp];
 
         tmp_vinbuf[lp].buf = vin->script.buf;
         tmp_vinbuf[lp].len = vin->script.len;
         vin->script.len = pScriptPks[lp]->len;
-        vin->script.buf = (uint8_t *)M_MALLOC(vin->script.len);
+        vin->script.buf = (uint8_t *)UTL_DBG_MALLOC(vin->script.len);
         memcpy(vin->script.buf, pScriptPks[lp]->buf, vin->script.len);
     }
 
@@ -584,7 +586,7 @@ bool btc_tx_sighash(uint8_t *pTxHash, btc_tx_t *pTx, const utl_buf_t *pScriptPks
         assert(0);
         goto LABEL_EXIT;
     }
-    tx.buf = (uint8_t *)M_REALLOC(tx.buf, tx.len + sizeof(sigtype));
+    tx.buf = (uint8_t *)UTL_DBG_REALLOC(tx.buf, tx.len + sizeof(sigtype));
     memcpy(tx.buf + tx.len, &sigtype, sizeof(sigtype));
     tx.len += sizeof(sigtype);
     btc_util_hash256(pTxHash, tx.buf, tx.len);
@@ -598,7 +600,7 @@ bool btc_tx_sighash(uint8_t *pTxHash, btc_tx_t *pTx, const utl_buf_t *pScriptPks
         vin->script.buf = tmp_vinbuf[lp].buf;
         vin->script.len = tmp_vinbuf[lp].len;
     }
-    M_FREE(tmp_vinbuf);
+    UTL_DBG_FREE(tmp_vinbuf);
 
 LABEL_EXIT:
     return ret;

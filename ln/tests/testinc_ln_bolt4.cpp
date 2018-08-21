@@ -27,9 +27,9 @@ protected:
 
     virtual void TearDown() {
         utl_buf_free(&sOnionBuffer);
-        M_FREE(spEphPubkey);
-        M_FREE(spShdSecret);
-        M_FREE(spBlindFactor);
+        UTL_DBG_FREE(spEphPubkey);
+        UTL_DBG_FREE(spShdSecret);
+        UTL_DBG_FREE(spBlindFactor);
 
         ASSERT_EQ(0, utl_dbg_malloc_cnt());
         btc_term();

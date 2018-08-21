@@ -28,12 +28,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ln_enc_auth.h"
-#include "ln_misc.h"
-#include "ln_node.h"
-#include "ln_signer.h"
-#include "ln_local.h"
-
 #include "mbedtls/md.h"
 #include "mbedtls/hkdf.h"
 //#define M_USE_SODIUM
@@ -42,6 +36,14 @@
 #else
 #include "mbedtls/chachapoly.h"
 #endif
+
+#include "utl_dbg.h"
+
+#include "ln_enc_auth.h"
+#include "ln_misc.h"
+#include "ln_node.h"
+#include "ln_signer.h"
+#include "ln_local.h"
 
 
 /********************************************************************
@@ -113,14 +115,14 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     bool ret;
 
     //handshake完了後にFREEする
-    self->p_handshake = M_MALLOC(sizeof(struct bolt8_t));
+    self->p_handshake = UTL_DBG_MALLOC(sizeof(struct bolt8_t));
     struct bolt8_t *pBolt = (struct bolt8_t *)self->p_handshake;
 
     //ephemeral key
     ret = btc_util_createkeys(&pBolt->e);
     if (!ret) {
         LOGD("fail: ephemeral key\n");
-        M_FREE(self->p_handshake);
+        UTL_DBG_FREE(self->p_handshake);
         return false;
     }
 
@@ -162,7 +164,7 @@ bool HIDDEN ln_enc_auth_handshake_start(ln_self_t *self, utl_buf_t *pBuf, const 
         pBolt->state = WAIT_ACT_TWO;
     } else {
         //失敗したら最初からやり直す
-        M_FREE(self->p_handshake);
+        UTL_DBG_FREE(self->p_handshake);
     }
 
     return ret;
@@ -186,7 +188,7 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
         ret = acttwo_receiver(self, pBuf);
         memcpy(self->noise_send.ck, pBolt->ck, BTC_SZ_SHA256);
         memcpy(self->noise_recv.ck, pBolt->ck, BTC_SZ_SHA256);
-        M_FREE(self->p_handshake);
+        UTL_DBG_FREE(self->p_handshake);
         self->noise_send.nonce = 0;
         self->noise_recv.nonce = 0;
         break;
@@ -202,7 +204,7 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
         ret = actthree_receiver(self, pBuf);
         memcpy(self->noise_send.ck, pBolt->ck, BTC_SZ_SHA256);
         memcpy(self->noise_recv.ck, pBolt->ck, BTC_SZ_SHA256);
-        M_FREE(self->p_handshake);
+        UTL_DBG_FREE(self->p_handshake);
         self->noise_send.nonce = 0;
         self->noise_recv.nonce = 0;
         break;
@@ -212,7 +214,7 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
     }
     if (!ret) {
         //失敗したら最初からやり直す
-        M_FREE(self->p_handshake);
+        UTL_DBG_FREE(self->p_handshake);
     }
 
     return ret;
@@ -227,7 +229,7 @@ bool ln_enc_auth_handshake_state(ln_self_t *self)
 
 void ln_enc_auth_handshake_free(ln_self_t *self)
 {
-    M_FREE(self->p_handshake);
+    UTL_DBG_FREE(self->p_handshake);
 }
 
 
@@ -236,8 +238,8 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t
     bool ret = false;
     uint8_t nonce[12];
     uint16_t l = (pBufIn->len >> 8) | (pBufIn->len << 8);
-    uint8_t *cl = (uint8_t *)M_MALLOC(sizeof(l) + M_CHACHAPOLY_MAC);
-    uint8_t *cm = (uint8_t *)M_MALLOC(pBufIn->len + M_CHACHAPOLY_MAC);
+    uint8_t *cl = (uint8_t *)UTL_DBG_MALLOC(sizeof(l) + M_CHACHAPOLY_MAC);
+    uint8_t *cm = (uint8_t *)UTL_DBG_MALLOC(pBufIn->len + M_CHACHAPOLY_MAC);
     int rc;
 
     memset(nonce, 0, 4);
@@ -333,8 +335,8 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t
     ret = true;
 
 LABEL_EXIT:
-    M_FREE(cl);
-    M_FREE(cm);
+    UTL_DBG_FREE(cl);
+    UTL_DBG_FREE(cm);
 
     return ret;
 }
@@ -409,7 +411,7 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
     bool ret = false;
     uint16_t l = pBuf->len - M_CHACHAPOLY_MAC;
     uint8_t nonce[12];
-    uint8_t *pm = (uint8_t *)M_MALLOC(l);
+    uint8_t *pm = (uint8_t *)UTL_DBG_MALLOC(l);
     int rc;
 
     memset(nonce, 0, 4);
@@ -462,7 +464,7 @@ bool HIDDEN ln_enc_auth_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
     ret = true;
 
 LABEL_EXIT:
-    M_FREE(pm);
+    UTL_DBG_FREE(pm);
 
     return ret;
 }

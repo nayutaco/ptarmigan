@@ -45,6 +45,7 @@ static inline int tid() {
 #include "utl_misc.h"
 #define LOG_TAG "APP"
 #include "utl_log.h"
+#include "utl_dbg.h"
 #include "ln.h"
 
 

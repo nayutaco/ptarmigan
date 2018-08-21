@@ -179,7 +179,7 @@ int32_t btcrpc_getblockcount(void)
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return blocks;
 }
@@ -201,7 +201,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return ret;
 }
@@ -230,7 +230,7 @@ uint32_t btcrpc_get_funding_confirm(const ln_self_t *self)
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return (uint32_t)confirmation;
 }
@@ -266,7 +266,7 @@ bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *p
         json_decref(p_root);
         p_root = NULL;
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     ret = getblock_rpc(&p_root, &p_result, &p_json, blockhash);
     if (ret) {
@@ -298,7 +298,7 @@ LABEL_EXIT:
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     if ((*pBIndex == -1) || (*pBHeight == -1)) {
         ret = false;
@@ -337,7 +337,7 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
         json_decref(p_root);
         p_root = NULL;
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return unspent;
 }
@@ -400,11 +400,11 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
     json_t *p_root = NULL;
     json_t *p_result;
 
-    transaction = (char *)APP_MALLOC(Len * 2 + 1);
+    transaction = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
     utl_misc_bin2str(transaction, pRawData, Len);
 
     ret = sendrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
-    APP_FREE(transaction);
+    UTL_DBG_FREE(transaction);
     if (ret) {
         if (json_is_string(p_result)) {
             //TXIDはLE/BE変換
@@ -422,7 +422,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return result;
 }
@@ -478,7 +478,7 @@ bool btcrpc_getnewaddress(utl_buf_t *pBuf)
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return result;
 }
@@ -518,7 +518,7 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return result;
 }
@@ -571,7 +571,7 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
         blockhash[0] = '\0';
     }
     json_decref(p_root);
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
     if (blockhash[0] == '\0') {
         return false;
     }
@@ -645,10 +645,10 @@ static bool getraw_txstr(btc_tx_t *pTx, const char *txid)
         }
         if (pTx) {
             len >>= 1;
-            p_hex = (uint8_t *)APP_MALLOC(len);
+            p_hex = (uint8_t *)UTL_DBG_MALLOC(len);
             utl_misc_str2bin(p_hex, len, str_hex);
             btc_tx_read(pTx, p_hex, len);
-            APP_FREE(p_hex);
+            UTL_DBG_FREE(p_hex);
         }
         result = true;
     }
@@ -656,7 +656,7 @@ LABEL_EXIT:
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return result;
 }
@@ -674,11 +674,11 @@ static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t
     json_t *p_result;
 
     *pCode = 0;
-    transaction = (char *)APP_MALLOC(Len * 2 + 1);
+    transaction = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
     utl_misc_bin2str(transaction, pData, Len);
 
     ret = signrawtransaction_rpc(&p_root, &p_result, &p_json, transaction);
-    APP_FREE(transaction);
+    UTL_DBG_FREE(transaction);
     if (ret) {
         json_t *p_hex;
 
@@ -686,11 +686,11 @@ static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t
         if (json_is_string(p_hex)) {
             const char *p_sigtx = (const char *)json_string_value(p_hex);
             size_t len = strlen(p_sigtx) / 2;
-            uint8_t *p_buf = APP_MALLOC(len);
+            uint8_t *p_buf = UTL_DBG_MALLOC(len);
             utl_misc_str2bin(p_buf, len, p_sigtx);
             btc_tx_free(pTx);
             result = btc_tx_read(pTx, p_buf, len);
-            APP_FREE(p_buf);
+            UTL_DBG_FREE(p_buf);
         } else {
             int code = error_result(p_root);
             LOGD("err code=%d\n", code);
@@ -702,7 +702,7 @@ static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return result;
 }
@@ -719,11 +719,11 @@ static bool signraw_tx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t L
     json_t *p_root = NULL;
     json_t *p_result;
 
-    transaction = (char *)APP_MALLOC(Len * 2 + 1);
+    transaction = (char *)UTL_DBG_MALLOC(Len * 2 + 1);
     utl_misc_bin2str(transaction, pData, Len);
 
     ret = signrawtransactionwithwallet_rpc(&p_root, &p_result, &p_json, transaction);
-    APP_FREE(transaction);
+    UTL_DBG_FREE(transaction);
     if (ret) {
         json_t *p_hex;
 
@@ -731,11 +731,11 @@ static bool signraw_tx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t L
         if (json_is_string(p_hex)) {
             const char *p_sigtx = (const char *)json_string_value(p_hex);
             size_t len = strlen(p_sigtx) / 2;
-            uint8_t *p_buf = APP_MALLOC(len);
+            uint8_t *p_buf = UTL_DBG_MALLOC(len);
             utl_misc_str2bin(p_buf, len, p_sigtx);
             btc_tx_free(pTx);
             result = btc_tx_read(pTx, p_buf, len);
-            APP_FREE(p_buf);
+            UTL_DBG_FREE(p_buf);
         } else {
             int code = error_result(p_root);
             LOGD("err code=%d\n", code);
@@ -746,7 +746,7 @@ static bool signraw_tx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t L
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return result;
 }
@@ -791,7 +791,7 @@ LABEL_EXIT:
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return ret;
 }
@@ -847,7 +847,7 @@ static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, ui
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return result;
 }
@@ -911,7 +911,7 @@ static bool search_vout_block(utl_buf_t *pTxBuf, int BHeight, const utl_buf_t *p
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return result;
 }
@@ -944,7 +944,7 @@ static bool getversion(int64_t *pVersion)
     if (p_root != NULL) {
         json_decref(p_root);
     }
-    APP_FREE(p_json);
+    UTL_DBG_FREE(p_json);
 
     return ret;
 }
@@ -967,7 +967,7 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
     if (result->pos + size * nmemb >= result->sz - 1) {
         //enlarge
         result->sz += size * nmemb * 2;   //倍程度確保する
-        *result->pp_data = (char *)APP_REALLOC(*result->pp_data, result->sz);
+        *result->pp_data = (char *)UTL_DBG_REALLOC(*result->pp_data, result->sz);
     }
 #ifdef M_DBG_SHOWREPLY
     int pos = result->pos;
@@ -993,7 +993,7 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *stream)
  */
 static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTxid, bool detail)
 {
-    char *data = (char *)APP_MALLOC(TXJSON_SIZE);
+    char *data = (char *)UTL_DBG_MALLOC(TXJSON_SIZE);
     snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
@@ -1005,7 +1005,7 @@ static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJ
         "}", pTxid, (detail) ? "true" : "false");
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
-    APP_FREE(data);
+    UTL_DBG_FREE(data);
 
     return ret;
 }
@@ -1016,7 +1016,7 @@ static bool getrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJ
  */
 static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction)
 {
-    char *data = (char *)APP_MALLOC(TXJSON_SIZE);
+    char *data = (char *)UTL_DBG_MALLOC(TXJSON_SIZE);
     snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
@@ -1028,7 +1028,7 @@ static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **pp
         "}", pTransaction);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
-    APP_FREE(data);
+    UTL_DBG_FREE(data);
 
     return ret;
 }
@@ -1039,7 +1039,7 @@ static bool signrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **pp
  */
 static bool signrawtransactionwithwallet_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction)
 {
-    char *data = (char *)APP_MALLOC(TXJSON_SIZE);
+    char *data = (char *)UTL_DBG_MALLOC(TXJSON_SIZE);
     snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
@@ -1051,7 +1051,7 @@ static bool signrawtransactionwithwallet_rpc(json_t **ppRoot, json_t **ppResult,
         "}", pTransaction);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
-    APP_FREE(data);
+    UTL_DBG_FREE(data);
 
     return ret;
 }
@@ -1062,7 +1062,7 @@ static bool signrawtransactionwithwallet_rpc(json_t **ppRoot, json_t **ppResult,
  */
 static bool sendrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **ppJson, const char *pTransaction)
 {
-    char *data = (char *)APP_MALLOC(TXJSON_SIZE);
+    char *data = (char *)UTL_DBG_MALLOC(TXJSON_SIZE);
     snprintf(data, TXJSON_SIZE,
         "{"
             ///////////////////////////////////////////
@@ -1074,7 +1074,7 @@ static bool sendrawtransaction_rpc(json_t **ppRoot, json_t **ppResult, char **pp
         "}", pTransaction);
 
     bool ret = rpc_proc(ppRoot, ppResult, ppJson, data);
-    APP_FREE(data);
+    UTL_DBG_FREE(data);
 
     return ret;
 }
@@ -1272,7 +1272,7 @@ static bool rpc_proc(json_t **ppRoot, json_t **ppResult, char **ppJson, char *pD
     //取得データはメモリに持つ
     write_result_t result;
     result.sz = BUFFER_SIZE;
-    *ppJson = (char *)APP_MALLOC(result.sz);
+    *ppJson = (char *)UTL_DBG_MALLOC(result.sz);
     result.pp_data = ppJson;
     result.pos = 0;
     curl_easy_setopt(mCurl, CURLOPT_WRITEFUNCTION, write_response);
@@ -1304,7 +1304,7 @@ static bool rpc_proc(json_t **ppRoot, json_t **ppResult, char **ppJson, char *pD
             LOGD("error: on line %d: %s\n", error.line, error.text);
         }
         if (!ret) {
-            APP_FREE(*ppJson);
+            UTL_DBG_FREE(*ppJson);
         }
     }
 

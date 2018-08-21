@@ -179,12 +179,12 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
 int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat)
 {
     LOGD("invoice:%s\n", pInvoice);
-    char *json = (char *)APP_MALLOC(M_SZ_JSONSTR);      //APP_FREE: この中
+    char *json = (char *)UTL_DBG_MALLOC(M_SZ_JSONSTR);      //UTL_DBG_FREE: この中
     snprintf(json, M_SZ_JSONSTR,
         "{\"method\":\"routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", pInvoice, AddAmountMsat);
     int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
     LOGD("retval=%d\n", retval);
-    APP_FREE(json);     //APP_MALLOC: この中
+    UTL_DBG_FREE(json);     //UTL_DBG_MALLOC: この中
 
     return retval;
 }
@@ -493,7 +493,7 @@ LABEL_EXIT:
             LOGD("fail: BOLT11 format\n");
             err = RPCERR_PARSE;
         }
-        APP_FREE(p_rfield);
+        UTL_DBG_FREE(p_rfield);
     }
     if (err != 0) {
         ctx->error_code = err;
@@ -1552,7 +1552,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
     ret = ln_get_channel_update_peer(self, &buf_bolt, &msg);
     if (ret && !ln_is_announced(self)) {
         size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_fieldr_t);
-        *prm->pp_field = (ln_fieldr_t *)APP_REALLOC(*prm->pp_field, sz);
+        *prm->pp_field = (ln_fieldr_t *)UTL_DBG_REALLOC(*prm->pp_field, sz);
 
         ln_fieldr_t *pfield = *prm->pp_field + *prm->p_fieldnum;
         memcpy(pfield->node_id, ln_their_node_id(self), BTC_SZ_PUBKEY);

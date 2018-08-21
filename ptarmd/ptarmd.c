@@ -414,7 +414,7 @@ void ptarmd_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
         utl_misc_bin2str(nodeid_str, pNodeId, BTC_SZ_PUBKEY);
         LOGD("add nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
 
-        nodefaillist_t *nf = (nodefaillist_t *)APP_MALLOC(sizeof(nodefaillist_t));
+        nodefaillist_t *nf = (nodefaillist_t *)UTL_DBG_MALLOC(sizeof(nodefaillist_t));
         memcpy(nf->node_id, pNodeId, BTC_SZ_PUBKEY);
         strcpy(nf->ipaddr, pAddr);
         nf->port = Port;

@@ -6,7 +6,7 @@ OUTPUT_BINARY_DIRECTORY = .
 
 ######################################
 #CFLAGS_USER
-#CFLAGS_USER += -DAPP_DEBUG_MEM
+#CFLAGS_USER += -DPTARM_DEBUG_MEM
 ######################################
 
 include ../options.mak

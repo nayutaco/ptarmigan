@@ -35,10 +35,6 @@
  * private variables
  **************************************************************************/
 
-#ifdef APP_DEBUG_MEM
-static int mcount = 0;
-#endif  //APP_DEBUG_MEM
-
 
 /**************************************************************************
  * public functions
@@ -150,56 +146,3 @@ void utl_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
     }
 }
 
-
-/**************************************************************************
- * debug functions
- **************************************************************************/
-
-#ifdef APP_DEBUG_MEM
-
-void *utl_misc_dbg_malloc(size_t size)
-{
-    void *p = malloc(size);
-    if (p) {
-        mcount++;
-    }
-    return p;
-}
-
-
-//void *utl_misc_dbg_realloc(void *ptr, size_t size)
-//{
-//    void *p = realloc(ptr, size);
-//    if ((ptr == NULL) && p) {
-//        mcount++;
-//    }
-//    return p;
-//}
-
-
-//void *utl_misc_dbg_calloc(size_t blk, size_t size)
-//{
-//    void *p = calloc(blk, size);
-//    if (p) {
-//        mcount++;
-//    }
-//    return p;
-//}
-
-
-void utl_misc_dbg_free(void *ptr)
-{
-    //NULL代入してfree()だけするパターンもあるため、NULLチェックする
-    if (ptr) {
-        mcount--;
-    }
-    free(ptr);
-}
-
-
-int utl_misc_dbg_malloc_cnt(void)
-{
-    return mcount;
-}
-
-#endif

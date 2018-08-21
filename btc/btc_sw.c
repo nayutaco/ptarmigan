@@ -23,6 +23,8 @@
  *  @brief  bitcoin処理: Segwitトランザクション生成関連
  *  @author ueno@nayuta.co
  */
+#include "utl_dbg.h"
+
 #include "btc_local.h"
 
 
@@ -248,7 +250,7 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, cons
         //vin
         //  len + <witness program>
         p_buf->len = 3 + BTC_SZ_HASH160;
-        p_buf->buf = (uint8_t *)M_REALLOC(p_buf->buf, p_buf->len);
+        p_buf->buf = (uint8_t *)UTL_DBG_REALLOC(p_buf->buf, p_buf->len);
         p_buf->buf[0] = 0x16;
         //witness program
         p_buf->buf[1] = 0x00;
@@ -290,7 +292,7 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, int Index, const utl_buf_t *pWits[], in
         //vin
         //  len + <witness program>
         p_buf->len = 3 + BTC_SZ_HASH256;
-        p_buf->buf = (uint8_t *)M_REALLOC(p_buf->buf, p_buf->len);
+        p_buf->buf = (uint8_t *)UTL_DBG_REALLOC(p_buf->buf, p_buf->len);
         p_buf->buf[0] = 0x22;
         //witness program
         p_buf->buf[1] = 0x00;

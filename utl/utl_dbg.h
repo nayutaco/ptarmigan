@@ -56,8 +56,19 @@ void  utl_dbg_free(void*);
  * @return  malloc残数
  */
 int utl_dbg_malloc_cnt(void);
-
 void utl_dbg_malloc_cnt_reset(void);
+
+
+#define UTL_DBG_MALLOC(a)         utl_dbg_malloc(a); LOGD("UTL_DBG_MALLOC:%d\n", utl_dbg_malloc_cnt());       ///< malloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define UTL_DBG_REALLOC(a,b)      utl_dbg_realloc(a,b); LOGD("UTL_DBG_REALLOC:%d\n", utl_dbg_malloc_cnt());   ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define UTL_DBG_CALLOC(a,b)       utl_dbg_calloc(a,b); LOGD("UTL_DBG_CALLOC:%d\n", utl_dbg_malloc_cnt());       ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define UTL_DBG_FREE(ptr)         { utl_dbg_free(ptr); ptr = NULL; LOGD("UTL_DBG_FREE:%d\n", utl_dbg_malloc_cnt()); }     ///< free(カウン>ト付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#else   //PTARM_DEBUG_MEM
+#define UTL_DBG_MALLOC            malloc
+#define UTL_DBG_REALLOC           realloc
+#define UTL_DBG_CALLOC            calloc
+#define UTL_DBG_FREE(ptr)         { free(ptr); ptr = NULL; }
+
 #endif  //PTARM_DEBUG_MEM
 
 

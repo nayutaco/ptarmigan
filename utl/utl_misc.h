@@ -41,18 +41,6 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#ifdef APP_DEBUG_MEM
-#define APP_MALLOC(a)       utl_misc_dbg_malloc(a); LOGD("APP_MALLOC:%d\n", utl_misc_dbg_malloc_cnt());          ///< malloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
-#define APP_REALLOC         utl_misc_dbg_realloc        ///< realloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
-//#define APP_CALLOC          utl_misc_dbg_calloc         ///< realloc(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
-#define APP_FREE(ptr)       { utl_misc_dbg_free(ptr); ptr = NULL; LOGD("APP_FREE:%d\n", utl_misc_dbg_malloc_cnt());}        ///< free(カウント付き)(APP_DEBUG_MEM定義時のみ有効)
-#else   //APP_DEBUG_MEM
-#define APP_MALLOC          malloc
-#define APP_REALLOC         realloc
-//#define APP_CALLOC          calloc
-#define APP_FREE(ptr)       { free(ptr); ptr = NULL; }
-#endif  //APP_DEBUG_MEM
-
 #define UTL_SZ_DTSTR          (14)            ///< サイズ:utl_misc_strftime()  //06/12 09:36:36
 
 
@@ -127,14 +115,6 @@ void utl_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
  */
 void utl_misc_strftime(char *pTmStr, uint32_t Tm);
 
-
-#ifdef APP_DEBUG_MEM
-void *utl_misc_dbg_malloc(size_t size);
-//void *utl_misc_dbg_realloc(void *ptr, size_t size);
-//void *utl_misc_dbg_calloc(size_t blk, size_t size);
-void utl_misc_dbg_free(void *ptr);
-int utl_misc_dbg_malloc_cnt(void);
-#endif  //APP_DEBUG_MEM
 
 #ifdef __cplusplus
 }
