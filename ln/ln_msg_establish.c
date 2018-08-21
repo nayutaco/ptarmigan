@@ -33,6 +33,7 @@
 
 #include "ln_msg_establish.h"
 #include "ln_misc.h"
+#include "ln_local.h"
 
 
 /********************************************************************

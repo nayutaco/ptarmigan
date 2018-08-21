@@ -45,15 +45,9 @@
  * macros
  **************************************************************************/
 
-#define HIDDEN __attribute__((visibility("hidden")))
-#define CONST_CAST      /* const外しキャストを検索しやすくするため */
-
-
 /**************************************************************************
  * macro functions
  **************************************************************************/
-
-#define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
 #ifdef PTARM_DEBUG
 #include "utl_log.h"

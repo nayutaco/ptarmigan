@@ -26,8 +26,7 @@
 #ifndef LN_SCRIPT_H__
 #define LN_SCRIPT_H__
 
-
-#include "ln_local.h"
+#include "ln.h"
 
 
 /**************************************************************************
@@ -85,6 +84,19 @@ typedef struct {
     ln_htlcinfo_t           **pp_htlcinfo;      ///< HTLC情報ポインタ配列(htlcinfo_num個分)
     uint8_t                 htlcinfo_num;       ///< HTLC数
 } ln_tx_cmt_t;
+
+
+/** @struct ln_htlcsign_t
+ *  @brief  ln_htlcsign_t
+ */
+typedef enum {
+    LN_HTLCSIGN_NONE,              ///< 未設定
+    LN_HTLCSIGN_TO_SUCCESS,        ///< HTLC Success
+    LN_HTLCSIGN_OF_PREIMG,         ///< 相手が送信したcommit_txのOffered HTLC
+    LN_HTLCSIGN_RV_TIMEOUT,        ///< 相手が送信したcommit_txのReceived HTLC
+    LN_HTLCSIGN_RV_RECEIVED,       ///< revoked transactionのreceived HTLC output
+    LN_HTLCSIGN_RV_OFFERED,        ///< revoked transactionのoffered HTLC output
+} ln_htlcsign_t;
 
 
 /**************************************************************************

@@ -23,12 +23,14 @@
  *  @brief  [LN]秘密鍵管理
  *  @author ueno@nayuta.co
  */
+
+#include "segwit_addr.h"
+
 #include "ln_signer.h"
 #include "ln_derkey.h"
 #include "ln_node.h"
 #include "ln_misc.h"
-
-#include "segwit_addr.h"
+#include "ln_local.h"
 
 
 /**************************************************************************

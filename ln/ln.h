@@ -31,6 +31,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "utl_common.h"
 #include "btc.h"
 #include "ln_err.h"
 

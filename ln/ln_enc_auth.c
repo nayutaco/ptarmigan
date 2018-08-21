@@ -32,6 +32,7 @@
 #include "ln_misc.h"
 #include "ln_node.h"
 #include "ln_signer.h"
+#include "ln_local.h"
 
 #include "mbedtls/md.h"
 #include "mbedtls/hkdf.h"

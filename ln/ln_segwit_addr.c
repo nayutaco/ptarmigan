@@ -14,6 +14,7 @@
 #include "ln_node.h"
 #include "ln_misc.h"
 #include "ln_segwit_addr.h"
+#include "ln_local.h"
 
 #define M_INVOICE_DESCRIPTION       "btcigan"
 

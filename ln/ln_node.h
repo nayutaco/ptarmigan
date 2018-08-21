@@ -26,7 +26,7 @@
 #ifndef LN_NODE_H__
 #define LN_NODE_H__
 
-#include "ln_local.h"
+#include "ln.h"
 
 
 /********************************************************************

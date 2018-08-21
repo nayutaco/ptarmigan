@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #define SEGWIT_ADDR_MAINNET     ((uint8_t)0)
 #define SEGWIT_ADDR_TESTNET     ((uint8_t)1)

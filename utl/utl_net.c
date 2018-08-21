@@ -19,6 +19,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
+#include "utl_common.h"
 #include "utl_local.h"
 #include "utl_net.h"
 

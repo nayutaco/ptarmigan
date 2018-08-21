@@ -1204,7 +1204,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);
@@ -1919,7 +1919,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);
@@ -2573,7 +2573,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);
@@ -3227,7 +3227,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);
@@ -3817,7 +3817,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);
@@ -4407,7 +4407,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);
@@ -4936,7 +4936,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);
@@ -5465,7 +5465,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);
@@ -5934,7 +5934,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);
@@ -6402,7 +6402,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
-                        HTLCSIGN_TO_SUCCESS);
+                        LN_HTLCSIGN_TO_SUCCESS);
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_create(&hs, &tx2);

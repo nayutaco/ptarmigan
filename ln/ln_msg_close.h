@@ -26,7 +26,9 @@
 #ifndef LN_MSG_CLOSE_H__
 #define LN_MSG_CLOSE_H__
 
-#include "ln_local.h"
+#include <stdbool.h>
+
+#include "ln.h"
 
 
 /********************************************************************
