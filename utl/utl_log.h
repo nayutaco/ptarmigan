@@ -35,7 +35,49 @@ void utl_log_dump(int Pri, const char* pFname, int Line, int Flag, const char *p
 void utl_log_dump_rev(int Pri, const char* pFname, int Line, int Flag, const char *pTag, const char *pFunc, const void *pData, size_t Len);
 
 
-#ifndef PTARM_UTL_LOG_MACRO_DISABLED
+#ifdef PTARM_UTL_LOG_MACRO_DISABLED
+#define LOGV(...)       //none
+#define DUMPV(...)      //none
+#define TXIDV(...)      //none
+
+#define LOGD(...)       //none
+#define LOGD2(...)      //none
+#define DUMPD(...)      //none
+#define TXIDD(...)      //none
+
+#elif defined(ANDROID) //PTARM_UTL_LOG_MACRO_DISABLED
+#include <android/log.h>
+
+#define LOGV            ((void)__android_log_print(ANDROID_LOG_VERBOSE, "ptarm::", __VA_ARGS__))
+#define DUMPV(dt,ln) {\
+    char *p_str = (char *)malloc(ln * 2 + 1);   \
+    utl_misc_bin2str(p_str, dt, ln);          \
+    __android_log_print(ANDROID_LOG_VERBOSE, "ptarm::", "%s", p_str);  \
+    free(p_str); \
+}
+#define TXIDV(dt) {\
+    char *p_str = (char *)malloc(BTC_SZ_TXID * 2 + 1);   \
+    utl_misc_bin2str_rev(p_str, dt, BTC_SZ_TXID);      \
+    __android_log_print(ANDROID_LOG_VERBOSE, "ptarm::", "%s", p_str);  \
+    free(p_str); \
+}
+
+#define LOGD(...)       ((void)__android_log_print(ANDROID_LOG_DEBUG, "ptarm::", __VA_ARGS__))
+#define LOGD2(...)      ((void)__android_log_print(ANDROID_LOG_DEBUG, "ptarm::", __VA_ARGS__))
+#define DUMPD(dt,ln) {\
+    char *p_str = (char *)malloc(ln * 2 + 1);   \
+    utl_misc_bin2str(p_str, dt, ln);          \
+    __android_log_print(ANDROID_LOG_DEBUG, "ptarm::", "%s", p_str);  \
+    free(p_str); \
+}
+#define TXIDD(dt) {\
+    char *p_str = (char *)malloc(BTC_SZ_TXID * 2 + 1);   \
+    utl_misc_bin2str_rev(p_str, dt, BTC_SZ_TXID);      \
+    __android_log_print(ANDROID_LOG_DEBUG, "ptarm::", "%s", p_str);  \
+    free(p_str); \
+}
+
+#else //PTARM_UTL_LOG_MACRO_DISABLED
 #ifndef LOG_TAG
 #error "LOG_TAG needs to be defined"
 #endif
@@ -48,16 +90,6 @@ void utl_log_dump_rev(int Pri, const char* pFname, int Line, int Flag, const cha
 #define LOGD2(...)      utl_log_write(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, __VA_ARGS__)
 #define DUMPD(dt,ln)    utl_log_dump(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, ln)
 #define TXIDD(dt)       utl_log_dump_rev(UTL_LOG_PRI_DBG, __FILE__, __LINE__, 0, LOG_TAG, __func__, dt, BTC_SZ_TXID)
-
-#else //PTARM_UTL_LOG_MACRO_DISABLED
-#define LOGV(...)       //none
-#define DUMPV(...)      //none
-#define TXIDV(...)      //none
-
-#define LOGD(...)       //none
-#define LOGD2(...)      //none
-#define DUMPD(...)      //none
-#define TXIDD(...)      //none
 
 #endif //PTARM_UTL_LOG_MACRO_DISABLED
 
