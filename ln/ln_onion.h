@@ -26,10 +26,9 @@
 #ifndef LN_ONION_H__
 #define LN_ONION_H__
 
-
 #include "utl_push.h"
 
-#include "ln_local.h"
+#include "ln.h"
 
 
 /**************************************************************************

@@ -19,50 +19,39 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-/** @file   utl_dbg.h
- *  @brief  utl_dbg
+/** @file   utl_common.h
+ *  @brief  common
  *  @author ueno@nayuta.co
- *
- * @note
- *      - utl_dbg
  */
-#ifndef UTL_DBG_H__
-#define UTL_DBG_H__
+#ifndef UTL_COMMON_H__
+#define UTL_COMMON_H__
 
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+
+#include <stdio.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
-#include "utl_common.h"
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif //__cplusplus
 
 /**************************************************************************
- * prototypes
+ * macros
  **************************************************************************/
 
-#ifdef PTARM_DEBUG_MEM
-void* utl_dbg_malloc(size_t);
-void* utl_dbg_realloc(void*, size_t);
-void* utl_dbg_calloc(size_t, size_t);
-void  utl_dbg_free(void*);
-
-/** (デバッグ用)malloc残数取得
- * utlライブラリ内でmalloc()した回数からfree()した回数を返す。<br/>
- * PTARM_DEBUG_MEM 定義時のみ有効で、未定義の場合は常に-1を返す。
- *
- * @return  malloc残数
- */
-int utl_dbg_malloc_cnt(void);
-
-void utl_dbg_malloc_cnt_reset(void);
-#endif  //PTARM_DEBUG_MEM
+#define HIDDEN __attribute__((visibility("hidden")))
+#define CONST_CAST      /* const外しキャストを検索しやすくするため */
 
 
-#ifdef __cplusplus
-}
-#endif //__cplusplus
+/**************************************************************************
+ * macro functions
+ **************************************************************************/
 
-#endif /* UTL_DBG_H__ */
+#define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
+
+
+#endif /* UTL_COMMON_H__ */

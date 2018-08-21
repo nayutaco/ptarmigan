@@ -26,7 +26,7 @@
 #ifndef LN_ENC_AUTH_H__
 #define LN_ENC_AUTH_H__
 
-#include "ln_local.h"
+#include "ln.h"
 
 
 /********************************************************************

@@ -26,8 +26,7 @@
 #ifndef LN_SCRIPT_H__
 #define LN_SCRIPT_H__
 
-
-#include "ln_local.h"
+#include "ln.h"
 
 
 /**************************************************************************

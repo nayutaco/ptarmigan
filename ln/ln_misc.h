@@ -26,9 +26,9 @@
 #ifndef LN_MISC_H__
 #define LN_MISC_H__
 
-#include "ln_local.h"
-
 #include "utl_push.h"
+
+#include "ln.h"
 
 
 /**************************************************************************

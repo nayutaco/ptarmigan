@@ -47,14 +47,14 @@
 #include "ln_script.h"
 #include "ln_derkey.h"
 #include "ln_signer.h"
+#include "ln_local.h"
 
 #define M_DBG_VERBOSE
+
 
 /**************************************************************************
  * macros
  **************************************************************************/
-
-#define ARRAY_SIZE(a)       (sizeof(a) / sizeof(a[0]))  ///< 配列要素数
 
 #define M_SZ_TO_LOCAL_TX(len)                   (213+len)   ///< to_local transaction長[byte]
                                                             // <version> 4

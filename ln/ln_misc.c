@@ -30,6 +30,8 @@
 
 #include "ln_misc.h"
 #include "ln_derkey.h"
+#include "ln_local.h"
+
 
 /********************************************************************
  * public functions

@@ -27,6 +27,7 @@
  */
 #include "btc.h"
 #include "ln_derkey.h"
+#include "ln_local.h"
 //#define M_DBG_PRINT
 
 /**************************************************************************

@@ -26,7 +26,11 @@
 #ifndef LN_MSG_NORMALOPE_H__
 #define LN_MSG_NORMALOPE_H__
 
-#include "ln_local.h"
+#include <stdbool.h>
+
+#include "utl_buf.h"
+
+#include "ln.h"
 
 
 /********************************************************************

@@ -26,7 +26,8 @@
 #ifndef LN_SIGNER_H__
 #define LN_SIGNER_H__
 
-#include "ln_local.h"
+#include "ln.h"
+
 
 /**************************************************************************
  * macros

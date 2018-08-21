@@ -26,7 +26,7 @@
 #ifndef LN_MSG_ANNO_H__
 #define LN_MSG_ANNO_H__
 
-#include "ln_local.h"
+#include "ln.h"
 
 
 /********************************************************************

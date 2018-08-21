@@ -28,8 +28,8 @@
 #ifndef LN_DERKEY_H__
 #define LN_DERKEY_H__
 
+#include "ln.h"
 
-#include "ln_local.h"
 
 /**************************************************************************
  * Key Derivation

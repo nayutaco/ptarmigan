@@ -29,6 +29,7 @@
 
 #include "ln_script.h"
 #include "ln_signer.h"
+#include "ln_local.h"
 
 #define M_DBG_VERBOSE
 

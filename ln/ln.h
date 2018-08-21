@@ -31,6 +31,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "utl_common.h"
 #include "btc.h"
 #include "ln_err.h"
 
@@ -1087,6 +1088,20 @@ struct ln_self_t {
 };
 
 /// @}
+
+
+/**************************************************************************
+ * const variables
+ **************************************************************************/
+
+typedef enum {
+    HTLCSIGN_NONE,              ///< 未設定
+    HTLCSIGN_TO_SUCCESS,        ///< HTLC Success
+    HTLCSIGN_OF_PREIMG,         ///< 相手が送信したcommit_txのOffered HTLC
+    HTLCSIGN_RV_TIMEOUT,        ///< 相手が送信したcommit_txのReceived HTLC
+    HTLCSIGN_RV_RECEIVED,       ///< revoked transactionのreceived HTLC output
+    HTLCSIGN_RV_OFFERED,        ///< revoked transactionのoffered HTLC output
+} ln_htlcsign_t;
 
 
 /**************************************************************************

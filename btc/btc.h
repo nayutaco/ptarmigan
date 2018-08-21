@@ -43,6 +43,7 @@
 #include "mbedtls/ctr_drbg.h"
 #endif  //PTARM_USE_RNG
 
+#include "utl_common.h"
 #include "utl_buf.h"
 
 #ifdef __cplusplus

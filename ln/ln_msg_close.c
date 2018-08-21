@@ -31,6 +31,7 @@
 
 #include "ln_msg_close.h"
 #include "ln_misc.h"
+#include "ln_local.h"
 
 
 /********************************************************************
