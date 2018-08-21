@@ -1651,20 +1651,20 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t 
     // DUMPD(signkey.pub, BTC_SZ_PUBKEY);
 
     utl_buf_t buf_sig;
-    ln_htlcsign_t htlcsign = HTLCSIGN_NONE;
+    ln_htlcsign_t htlcsign = LN_HTLCSIGN_NONE;
     switch (self->p_revoked_type[WitIndex]) {
     case LN_HTLCTYPE_OFFERED:
-        htlcsign = HTLCSIGN_RV_OFFERED;
+        htlcsign = LN_HTLCSIGN_RV_OFFERED;
         break;
     case LN_HTLCTYPE_RECEIVED:
-        htlcsign = HTLCSIGN_RV_RECEIVED;
+        htlcsign = LN_HTLCSIGN_RV_RECEIVED;
         break;
     default:
         LOGD("index=%d, %d\n", WitIndex, self->p_revoked_type[WitIndex]);
         assert(0);
     }
     bool ret;
-    if (htlcsign != HTLCSIGN_NONE) {
+    if (htlcsign != LN_HTLCSIGN_NONE) {
         ret = ln_sign_htlc_tx(pTx,
                 &buf_sig,
                 Value,
@@ -4099,7 +4099,7 @@ static bool create_to_local_close(ln_self_t *self,
                 &buf_sig,                       //<remotesig>
                 (ret_img) ? preimage : NULL,
                 &p_htlcinfo->script,
-                HTLCSIGN_TO_SUCCESS);
+                LN_HTLCSIGN_TO_SUCCESS);
     utl_buf_free(&buf_sig);
     utl_buf_free(&buf_local_sig);
     if (!ret) {
@@ -4475,7 +4475,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
 
     uint8_t preimage[LN_SZ_PREIMAGE];
     bool ret_img;
-    ln_htlcsign_t htlcsign = HTLCSIGN_TO_SUCCESS;
+    ln_htlcsign_t htlcsign = LN_HTLCSIGN_TO_SUCCESS;
     if (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) {
         //remoteのoffered=localのreceivedなのでpreimageを所持している可能性がある
         ret_img = search_preimage(preimage, pPayHash, bClosing);
@@ -4487,7 +4487,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
             utl_buf_alloccopy(&tx.vout[0].script,
                     self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
             tx.locktime = 0;
-            htlcsign = HTLCSIGN_OF_PREIMG;
+            htlcsign = LN_HTLCSIGN_OF_PREIMG;
         }
     } else {
         ret_img = false;
@@ -4499,7 +4499,7 @@ static bool create_to_remote_htlcsign(ln_self_t *self,
             utl_buf_alloccopy(&tx.vout[0].script,
                     self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
             tx.locktime = p_htlcinfo->expiry;
-            htlcsign = HTLCSIGN_RV_TIMEOUT;
+            htlcsign = LN_HTLCSIGN_RV_TIMEOUT;
         }
     }
 

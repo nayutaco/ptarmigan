@@ -436,7 +436,7 @@ bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
     const utl_buf_t **pp_wits = NULL;
     int wits_num = 0;
     switch (HtlcSign) {
-    case HTLCSIGN_TO_SUCCESS:
+    case LN_HTLCSIGN_TO_SUCCESS:
         if (pRemoteSig != NULL) {
             // 0
             // <remotesig>
@@ -461,7 +461,7 @@ bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
         LOGD("HTLC Timeout/Success Tx sign: wits_num=%d\n", wits_num);
         break;
 
-    case HTLCSIGN_OF_PREIMG:
+    case LN_HTLCSIGN_OF_PREIMG:
         {
             // <remotesig>
             // <payment-preimage>
@@ -484,7 +484,7 @@ bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
         LOGD("Offered HTLC + preimage sign: wits_num=%d\n", wits_num);
         break;
 
-    case HTLCSIGN_RV_TIMEOUT:
+    case LN_HTLCSIGN_RV_TIMEOUT:
         {
             // <remotesig>
             // 0
@@ -500,8 +500,8 @@ bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
         LOGD("Received HTLC sign: wits_num=%d\n", wits_num);
         break;
 
-    case HTLCSIGN_RV_RECEIVED:
-    case HTLCSIGN_RV_OFFERED:
+    case LN_HTLCSIGN_RV_RECEIVED:
+    case LN_HTLCSIGN_RV_OFFERED:
         {
             // <revocation_sig>
             // <revocationkey>
