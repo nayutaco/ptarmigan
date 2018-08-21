@@ -13,4 +13,4 @@ fi
 if [ -n "$PTARMTEST" ]; then
     cat j.json | curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d @- http://${PTARMTEST}/reports/
 fi
-rm j.json
+rm -f j.json
