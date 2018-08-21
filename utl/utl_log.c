@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 
 #include "utl_misc.h"
+#define LOG_TAG "dummy"
 #include "utl_log.h"
 
 #define FNAME_MAX       (50)
