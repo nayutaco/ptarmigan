@@ -26,6 +26,7 @@
 #include "utl_local.h"
 
 #include "utl_buf.h"
+#include "utl_dbg.h"
 
 
 /**************************************************************************
@@ -45,10 +46,10 @@ void utl_buf_free(utl_buf_t *pBuf)
 #ifdef PTARM_DEBUG
         memset(pBuf->buf, 0, pBuf->len);
 #endif  //PTARM_DEBUG
-        M_FREE(pBuf->buf);
+        UTL_DBG_FREE(pBuf->buf);
         pBuf->len = 0;
     } else {
-        //LOGD("no M_FREE memory\n");
+        //LOGD("no UTL_DBG_FREE memory\n");
     }
 }
 
@@ -56,14 +57,14 @@ void utl_buf_free(utl_buf_t *pBuf)
 void utl_buf_alloc(utl_buf_t *pBuf, uint32_t Size)
 {
     pBuf->len = Size;
-    pBuf->buf = (uint8_t *)M_MALLOC(Size);
+    pBuf->buf = (uint8_t *)UTL_DBG_MALLOC(Size);
 }
 
 
 void utl_buf_realloc(utl_buf_t *pBuf, uint32_t Size)
 {
     pBuf->len = Size;
-    pBuf->buf = (uint8_t *)M_REALLOC(pBuf->buf, Size);
+    pBuf->buf = (uint8_t *)UTL_DBG_REALLOC(pBuf->buf, Size);
 }
 
 

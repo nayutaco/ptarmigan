@@ -26,6 +26,7 @@
 #include "utl_local.h"
 
 #include "utl_push.h"
+#include "utl_dbg.h"
 
 
 /**************************************************************************
@@ -49,7 +50,7 @@ void utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len)
     int rest = pPush->data->len - pPush->pos - Len;
     if (rest < 0) {
         //足りない分を拡張
-        pPush->data->buf = (uint8_t *)M_REALLOC(pPush->data->buf, pPush->data->len - rest);
+        pPush->data->buf = (uint8_t *)UTL_DBG_REALLOC(pPush->data->buf, pPush->data->len - rest);
         pPush->data->len = pPush->data->len - rest;
     }
     memcpy(&pPush->data->buf[pPush->pos], pData, Len);
@@ -92,7 +93,7 @@ void utl_push_trim(utl_push_t *pPush)
             utl_buf_free(pPush->data);
         } else {
             pPush->data->len = pPush->pos;
-            pPush->data->buf = (uint8_t *)M_REALLOC(pPush->data->buf, pPush->pos);
+            pPush->data->buf = (uint8_t *)UTL_DBG_REALLOC(pPush->data->buf, pPush->pos);
         }
     }
 }

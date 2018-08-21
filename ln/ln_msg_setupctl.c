@@ -30,6 +30,8 @@
 #include <unistd.h>
 #include <assert.h>
 
+#include "utl_dbg.h"
+
 #include "ln_msg_setupctl.h"
 #include "ln_misc.h"
 #include "ln_local.h"
@@ -234,7 +236,7 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
     //        [len:data]
     if (pMsg != NULL) {
         pMsg->len = len;
-        pMsg->p_data = (char *)M_MALLOC(len + 1);
+        pMsg->p_data = (char *)UTL_DBG_MALLOC(len + 1);
         memcpy(pMsg->p_data, pData + pos, len);
         pMsg->p_data[len] = '\0';
         LOGD("data: ");

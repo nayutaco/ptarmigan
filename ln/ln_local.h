@@ -137,18 +137,6 @@
  * macro functions
  **************************************************************************/
 
-#ifdef PTARM_DEBUG_MEM
-#define M_MALLOC(a)         utl_dbg_malloc(a); LOGD("M_MALLOC:%d\n", utl_dbg_malloc_cnt());       ///< malloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define M_REALLOC(a,b)      utl_dbg_realloc(a,b); LOGD("M_REALLOC:%d\n", utl_dbg_malloc_cnt());   ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define M_CALLOC(a,b)       utl_dbg_calloc(a,b); LOGD("M_CALLOC:%d\n", utl_dbg_malloc_cnt());       ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define M_FREE(ptr)         { utl_dbg_free(ptr); ptr = NULL; LOGD("M_FREE:%d\n", utl_dbg_malloc_cnt()); }     ///< free(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#else   //PTARM_DEBUG_MEM
-#define M_MALLOC            malloc
-#define M_REALLOC           realloc
-#define M_CALLOC            calloc
-#define M_FREE(ptr)         { free(ptr); ptr = NULL; }
-#endif  //PTARM_DEBUG_MEM
-
 
 /**************************************************************************
  * const variables(ln.c)

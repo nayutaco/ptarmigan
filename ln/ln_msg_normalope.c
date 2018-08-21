@@ -31,6 +31,8 @@
 #include <unistd.h>
 #include <assert.h>
 
+#include "utl_dbg.h"
+
 #include "ln_msg_normalope.h"
 #include "ln_misc.h"
 #include "ln_local.h"
@@ -460,7 +462,7 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
 
 
     //        [num-htlcs*64:htlc-signature]
-    pMsg->p_htlc_signature = (uint8_t *)M_MALLOC(pMsg->num_htlcs * LN_SZ_SIGNATURE);
+    pMsg->p_htlc_signature = (uint8_t *)UTL_DBG_MALLOC(pMsg->num_htlcs * LN_SZ_SIGNATURE);
     memcpy(pMsg->p_htlc_signature, pData + pos, pMsg->num_htlcs * LN_SZ_SIGNATURE);
     pos += pMsg->num_htlcs * LN_SZ_SIGNATURE;
 

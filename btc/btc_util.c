@@ -30,6 +30,8 @@
 #include "mbedtls/md.h"
 #include "libbase58.h"
 
+#include "utl_dbg.h"
+
 #include "btc_local.h"
 #include "segwit_addr.h"
 
@@ -815,7 +817,7 @@ bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enable
     //LOGD("len=%d\n", len);
 
     pBuf->len = len;
-    pBuf->buf = (uint8_t *)M_MALLOC(len);
+    pBuf->buf = (uint8_t *)UTL_DBG_MALLOC(len);
 
     uint8_t *p = pBuf->buf;
 

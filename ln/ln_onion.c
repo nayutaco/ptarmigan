@@ -33,6 +33,8 @@
 #endif
 #include "mbedtls/md.h"
 
+#include "utl_dbg.h"
+
 #include "ln_onion.h"
 #include "ln_misc.h"
 #include "ln_node.h"
@@ -115,13 +117,13 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     uint8_t mu_key[M_SZ_KEYLEN];
 
     //メモリ確保
-    uint8_t *eph_pubkeys = (uint8_t *)M_MALLOC(BTC_SZ_PUBKEY * NumHops);
-    uint8_t *shd_secrets = (uint8_t *)M_MALLOC(M_SZ_SHARED_SECRET * NumHops);
-    uint8_t *blind_factors = (uint8_t *)M_MALLOC(M_SZ_BLINDING_FACT * NumHops);
-    uint8_t *filler = (uint8_t *)M_MALLOC(M_SZ_HOP_DATA * (LN_HOP_MAX - 1));
+    uint8_t *eph_pubkeys = (uint8_t *)UTL_DBG_MALLOC(BTC_SZ_PUBKEY * NumHops);
+    uint8_t *shd_secrets = (uint8_t *)UTL_DBG_MALLOC(M_SZ_SHARED_SECRET * NumHops);
+    uint8_t *blind_factors = (uint8_t *)UTL_DBG_MALLOC(M_SZ_BLINDING_FACT * NumHops);
+    uint8_t *filler = (uint8_t *)UTL_DBG_MALLOC(M_SZ_HOP_DATA * (LN_HOP_MAX - 1));
     //メモリ確保(初期値0)
-    uint8_t *mix_header = (uint8_t *)M_CALLOC(1, M_SZ_ROUTING_INFO);
-    uint8_t *stream_bytes = (uint8_t *)M_CALLOC(1, M_SZ_STREAM_BYTES);
+    uint8_t *mix_header = (uint8_t *)UTL_DBG_CALLOC(1, M_SZ_ROUTING_INFO);
+    uint8_t *stream_bytes = (uint8_t *)UTL_DBG_CALLOC(1, M_SZ_STREAM_BYTES);
 
     //[0]は最初に作る
 
@@ -160,9 +162,9 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     extern uint8_t *spEphPubkey;
     extern uint8_t *spShdSecret;
     extern uint8_t *spBlindFactor;
-    spEphPubkey = (uint8_t *)M_MALLOC(BTC_SZ_PUBKEY * NumHops);
-    spShdSecret = (uint8_t *)M_MALLOC(M_SZ_SHARED_SECRET * NumHops);
-    spBlindFactor = (uint8_t *)M_MALLOC(M_SZ_BLINDING_FACT * NumHops);
+    spEphPubkey = (uint8_t *)UTL_DBG_MALLOC(BTC_SZ_PUBKEY * NumHops);
+    spShdSecret = (uint8_t *)UTL_DBG_MALLOC(M_SZ_SHARED_SECRET * NumHops);
+    spBlindFactor = (uint8_t *)UTL_DBG_MALLOC(M_SZ_BLINDING_FACT * NumHops);
     memcpy(spEphPubkey, eph_pubkeys, BTC_SZ_PUBKEY * NumHops);
     memcpy(spShdSecret, shd_secrets, M_SZ_SHARED_SECRET * NumHops);
     memcpy(spBlindFactor, blind_factors, M_SZ_BLINDING_FACT * NumHops);
@@ -224,12 +226,12 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     }
 
     //メモリ解放
-    M_FREE(stream_bytes);
-    M_FREE(mix_header);
-    M_FREE(filler);
-    M_FREE(blind_factors);
-    M_FREE(shd_secrets);
-    M_FREE(eph_pubkeys);
+    UTL_DBG_FREE(stream_bytes);
+    UTL_DBG_FREE(mix_header);
+    UTL_DBG_FREE(filler);
+    UTL_DBG_FREE(blind_factors);
+    UTL_DBG_FREE(shd_secrets);
+    UTL_DBG_FREE(eph_pubkeys);
 
     return true;
 }
@@ -274,7 +276,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     ln_node_generate_shared_secret(shared_secret, p_dhkey);
 
     int len = (M_SZ_HOP_DATA > AssocLen) ? M_SZ_HOP_DATA : AssocLen;
-    uint8_t *p_msg = (uint8_t *)M_CALLOC(1, M_SZ_ROUTING_INFO + len);
+    uint8_t *p_msg = (uint8_t *)UTL_DBG_CALLOC(1, M_SZ_ROUTING_INFO + len);
     generate_key(mu_key, MU, sizeof(MU), shared_secret);
     memcpy(p_msg, p_route, M_SZ_ROUTING_INFO);
     if (AssocLen != 0) {
@@ -283,7 +285,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     btc_util_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
     if (memcmp(next_hmac, p_hmac, M_SZ_HMAC) != 0) {
         LOGD("fail: hmac not match\n");
-        M_FREE(p_msg);
+        UTL_DBG_FREE(p_msg);
 
         //B2. if the onion HMAC is incorrect:
         //      invalid_onion_hmac
@@ -291,7 +293,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
         return false;
     }
 
-    uint8_t *stream_bytes = (uint8_t *)M_CALLOC(1, M_SZ_STREAM_BYTES);
+    uint8_t *stream_bytes = (uint8_t *)UTL_DBG_CALLOC(1, M_SZ_STREAM_BYTES);
 
     generate_key(rho_key, RHO, sizeof(RHO), shared_secret);
     generate_cipher_stream(stream_bytes, rho_key, M_SZ_STREAM_BYTES);
@@ -300,8 +302,8 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
 
     if (*stream_bytes != M_REALM_VAL) {
         LOGD("fail: invalid realm\n");
-        M_FREE(stream_bytes);
-        M_FREE(p_msg);
+        UTL_DBG_FREE(stream_bytes);
+        UTL_DBG_FREE(p_msg);
 
         //A1. if the realm byte is unknown:
         //      invalid_realm
@@ -332,8 +334,8 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     pNextPacket += M_SZ_HOP_DATA;
     memcpy(pNextPacket, stream_bytes + M_SZ_HOP_DATA - M_SZ_HMAC, M_SZ_HMAC);
 
-    M_FREE(stream_bytes);
-    M_FREE(p_msg);
+    UTL_DBG_FREE(stream_bytes);
+    UTL_DBG_FREE(p_msg);
 
     //check
     pNextData->b_exit = true;
@@ -417,7 +419,7 @@ void ln_onion_failure_forward(utl_buf_t *pNextPacket,
             const utl_buf_t *pPacket)
 {
     uint8_t ammag_key[M_SZ_KEYLEN];
-    uint8_t *stream_bytes = (uint8_t *)M_CALLOC(1, pPacket->len);
+    uint8_t *stream_bytes = (uint8_t *)UTL_DBG_CALLOC(1, pPacket->len);
 
 #ifdef M_DBG_FAIL
     LOGD("oni_shared_secret=");
@@ -428,7 +430,7 @@ void ln_onion_failure_forward(utl_buf_t *pNextPacket,
     utl_buf_alloc(pNextPacket, pPacket->len);
     generate_cipher_stream(stream_bytes, ammag_key, pPacket->len);
     xor_bytes(pNextPacket->buf, pPacket->buf, stream_bytes, pPacket->len);
-    M_FREE(stream_bytes);
+    UTL_DBG_FREE(stream_bytes);
 
 #ifdef M_DBG_FAIL
     LOGD("pNextPacket=");
@@ -590,7 +592,7 @@ static void compute_blinding_factor(uint8_t *pResult, const uint8_t *pPubKey, co
  */
 static int generate_header_padding(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, int NumHops, const uint8_t *pSharedSecrets)
 {
-    uint8_t *streamBytes = (uint8_t *)M_MALLOC(M_SZ_STREAM_BYTES);
+    uint8_t *streamBytes = (uint8_t *)UTL_DBG_MALLOC(M_SZ_STREAM_BYTES);
     uint8_t streamKey[M_SZ_KEYLEN];
     int len = 0;
 
@@ -608,7 +610,7 @@ static int generate_header_padding(uint8_t *pResult, const uint8_t *pKeyStr, int
         xor_bytes(pResult, pResult, streamBytes + sz, len);
     }
 
-    M_FREE(streamBytes);
+    UTL_DBG_FREE(streamBytes);
 
     return len;
 }
@@ -637,10 +639,10 @@ static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Le
     crypto_stream_chacha20(pResult, Len, nonce, pKey);
 #else
     uint8_t nonce[12] = {0};
-    uint8_t *dummy = (uint8_t *)M_CALLOC(1, Len);
+    uint8_t *dummy = (uint8_t *)UTL_DBG_CALLOC(1, Len);
     int ret = mbedtls_chacha20_crypt(pKey, nonce, 0, Len, dummy, pResult);
     assert(ret == 0);
-    M_FREE(dummy);
+    UTL_DBG_FREE(dummy);
 #endif
 }
 
