@@ -366,7 +366,7 @@ uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, 
     //[3～5]そのブロック中のIndex
     //[6～7]チャネルに支払ったvout index
     uint64_t id = ((uint64_t)(Height & 0xffffff) << 40) | (uint64_t)(BIndex & 0xffffff) << 16 | (uint64_t)(VIndex & 0xffff);
-    //LOGD("short_channel_id= %" PRIx64 "(height=%u, bindex=%u, vindex=%u)\n", id, Height, BIndex, VIndex);
+    //LOGD("short_channel_id= %016" PRIx64 "(height=%u, bindex=%u, vindex=%u)\n", id, Height, BIndex, VIndex);
     return id;
 }
 

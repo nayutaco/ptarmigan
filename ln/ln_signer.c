@@ -62,7 +62,7 @@ void HIDDEN ln_signer_term(ln_self_t *self)
 void HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
 {
     self->priv_data.storage_index = LN_SECINDEX_INIT;
-    LOGD("storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
+    LOGD("storage_index = %016" PRIx64 "\n", self->priv_data.storage_index);
 
     //鍵生成
     //  open_channel/accept_channelの鍵は ln_signer_keys_update_storage()で生成
@@ -82,7 +82,7 @@ void HIDDEN ln_signer_keys_update_storage(ln_self_t *self)
     ln_signer_keys_update_force(self, self->priv_data.storage_index);
 
     self->priv_data.storage_index--;
-    LOGD("update storage_index = %" PRIx64 "\n", self->priv_data.storage_index);
+    LOGD("update storage_index = %016" PRIx64 "\n", self->priv_data.storage_index);
 }
 
 
@@ -247,7 +247,7 @@ static void create_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t
         memcpy(pPerCommitPt, pub, BTC_SZ_PUBKEY);
     }
 
-    LOGD("PER_COMMIT_SEC(%" PRIx64 "): ", Index);
+    LOGD("PER_COMMIT_SEC(%016" PRIx64 "): ", Index);
     DUMPD(pSecret, BTC_SZ_PRIVKEY);
     LOGD("       PER_COMMIT_PT: ");
     DUMPD(pub, BTC_SZ_PUBKEY);

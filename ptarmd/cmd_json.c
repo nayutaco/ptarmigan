@@ -670,7 +670,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
             jprm = cJSON_GetArrayItem(jarray, 1);
             if (jprm && (jprm->type == cJSON_String)) {
                 p->short_channel_id = strtoull(jprm->valuestring, NULL, 16);
-                LOGD("  short_channel_id=%" PRIx64 "\n", p->short_channel_id);
+                LOGD("  short_channel_id=%016" PRIx64 "\n", p->short_channel_id);
             } else {
                 LOGD("fail: p=%p\n", jprm);
                 index = -1;
@@ -815,7 +815,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (err == RPCERR_PAY_RETRY) {
         //送金
         cmd_json_pay(p_invoice, add_amount_msat);
-        LOGD("retry: %" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
+        LOGD("retry: %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
     }
 
 LABEL_EXIT:
@@ -1360,7 +1360,7 @@ static int cmd_routepay_proc2(
         DUMPD(pRouteResult->hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
         LOGD("  amount_msat: %" PRIu64 "\n", pRouteResult->hop_datain[lp].amt_to_forward);
         LOGD("  cltv_expiry: %" PRIu32 "\n", pRouteResult->hop_datain[lp].outgoing_cltv_value);
-        LOGD("  short_channel_id: %" PRIx64 "\n", pRouteResult->hop_datain[lp].short_channel_id);
+        LOGD("  short_channel_id: %016" PRIx64 "\n", pRouteResult->hop_datain[lp].short_channel_id);
     }
     LOGD("-----------------------------------\n");
 

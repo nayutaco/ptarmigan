@@ -962,7 +962,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                 break;
             case ETYPE_UINT64X:
                 if (DBCOPY_IDX[lp].disp) {
-                    printf("\"%" PRIx64 "\"", *(const uint64_t *)p);
+                    printf("\"%016" PRIx64 "\"", *(const uint64_t *)p);
                 }
                 break;
             case ETYPE_UINT16:
@@ -1235,7 +1235,7 @@ bool ln_db_annocnl_save(const utl_buf_t *pCnlAnno, uint64_t ShortChannelId, cons
         //DB保存されていない＝新規channel
         retval = annocnl_save(&db, pCnlAnno, ShortChannelId);
     } else {
-        LOGV("exist channel_announcement: %" PRIx64 "\n", ShortChannelId);
+        LOGV("exist channel_announcement: %016" PRIx64 "\n", ShortChannelId);
         if (!utl_buf_cmp(&buf_ann, pCnlAnno)) {
             LOGD("fail: different channel_announcement\n");
             retval = -1;
@@ -1319,7 +1319,7 @@ bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd
             //LOGD("my channel_update is newer\n");
         } else if (timestamp < pUpd->timestamp) {
             //自分の方が古いので、更新
-            LOGD("update: short_channel_id=%" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
+            LOGD("update: short_channel_id=%016" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
             upddb = true;
 
             //announceし直す必要があるため、クリアする
@@ -1342,7 +1342,7 @@ bool ln_db_annocnlupd_save(const utl_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd
         }
     } else {
         //新規
-        LOGD("new: short_channel_id=%" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
+        LOGD("new: short_channel_id=%016" PRIx64 "(dir=%d)\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
         upddb = true;
     }
     utl_buf_free(&buf_upd);
@@ -1426,7 +1426,7 @@ bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type,
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, Type);
     int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
     if (retval == 0) {
-        //LOGD("short_channel_id[%c]= %" PRIx64 "\n", Type, ShortChannelId);
+        //LOGD("short_channel_id[%c]= %016" PRIx64 "\n", Type, ShortChannelId);
         //LOGD("send_id= ");
         //DUMPD(pSendId, BTC_SZ_PUBKEY);
         ret = annoinfo_search(&data, pSendId);
@@ -1460,7 +1460,7 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bo
         if (retval == 0) {
             detect = annoinfo_search(&data, pSendId);
         } else {
-            LOGV("new reg[%" PRIx64 ":%c] ", ShortChannelId, Type);
+            LOGV("new reg[%016" PRIx64 ":%c] ", ShortChannelId, Type);
             DUMPV(pSendId, BTC_SZ_PUBKEY);
             data.mv_size = 0;
         }
@@ -1670,7 +1670,7 @@ bool ln_db_annoskip_save(uint64_t ShortChannelId, bool bTemp)
     }
     retval = mdb_put(txn, dbi, &key, &data, 0);
     if (retval == 0) {
-        LOGD("add skip[%d]: %" PRIx64 "\n", bTemp, ShortChannelId);
+        LOGD("add skip[%d]: %016" PRIx64 "\n", bTemp, ShortChannelId);
     } else {
         LOGD("ERR: %s\n", mdb_strerror(retval));
     }
@@ -1731,7 +1731,7 @@ bool ln_db_annoskip_drop(bool bTemp)
                  (*(uint8_t *)data.mv_data == M_SKIP_TEMP) ) {
                     int ret = mdb_cursor_del(cursor, 0);
                     if (ret == 0) {
-                        LOGD("del skip: %" PRIx64 "\n", *(uint64_t *)key.mv_data);
+                        LOGD("del skip: %016" PRIx64 "\n", *(uint64_t *)key.mv_data);
                     } else {
                         LOGD("ERR: %s\n", mdb_strerror(ret));
                     }
@@ -3392,7 +3392,7 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     if (retval != 0) {
         LOGD("ERR: %s(backup_param_load)\n", mdb_strerror(retval));
     }
-    // LOGD("[priv]storage_index: %" PRIx64 "\n", self->priv_data.storage_index);
+    // LOGD("[priv]storage_index: %016" PRIx64 "\n", self->priv_data.storage_index);
     // LOGD("[priv]storage_seed: ");
     // DUMPD(self->priv_data.storage_seed, BTC_SZ_PRIVKEY);
     // for (size_t lp = 0; lp < MSG_FUNDIDX_MAX; lp++) {
@@ -3413,7 +3413,7 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
  */
 static int annocnl_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortChannelId)
 {
-    LOGV("short_channel_id=%" PRIx64 "\n", ShortChannelId);
+    LOGV("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
@@ -3441,7 +3441,7 @@ static int annocnl_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortCh
  */
 static int annocnl_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlAnno, uint64_t ShortChannelId)
 {
-    LOGV("short_channel_id=%" PRIx64 "\n", ShortChannelId);
+    LOGV("short_channel_id=%016" PRIx64 "\n", ShortChannelId);
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
@@ -3520,7 +3520,7 @@ static bool annocnl_search(lmdb_cursor_t *pCur, uint64_t ShortChannelId, utl_buf
  */
 static int annocnlupd_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir)
 {
-    LOGV("short_channel_id=%" PRIx64 ", dir=%d\n", ShortChannelId, Dir);
+    LOGV("short_channel_id=%016" PRIx64 ", dir=%d\n", ShortChannelId, Dir);
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];
@@ -3551,7 +3551,7 @@ static int annocnlupd_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlUpd, uint32_t *pTim
  */
 static int annocnlupd_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd)
 {
-    LOGV("short_channel_id=%" PRIx64 ", dir=%d\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
+    LOGV("short_channel_id=%016" PRIx64 ", dir=%d\n", pUpd->short_channel_id, ln_cnlupd_direction(pUpd));
 
     MDB_val key, data;
     uint8_t keydata[M_SZ_ANNOINFO_CNL + 1];

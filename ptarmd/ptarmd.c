@@ -355,7 +355,7 @@ bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, utl_buf_t
 {
     lnapp_conf_t *p_appconf = NULL;
 
-    LOGD("  search short_channel_id : %" PRIx64 "\n", ShortChannelId);
+    LOGD("  search short_channel_id : %016" PRIx64 "\n", ShortChannelId);
 
     //socketが開いているか検索
     p_appconf = ptarmd_search_connected_cnl(ShortChannelId);

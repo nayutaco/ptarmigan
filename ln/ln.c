@@ -649,7 +649,7 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     bool ret = false;
     uint16_t type = ln_misc_get16be(pData);
 
-    //LOGD("short_channel_id= %" PRIx64 "\n", self->short_channel_id);
+    //LOGD("short_channel_id= %016" PRIx64 "\n", self->short_channel_id);
     if ((type != MSGTYPE_INIT) && (!M_INIT_FLAG_EXCHNAGED(self->init_flag))) {
         M_SET_ERR(self, LNERR_INV_STATE, "no init received : %04x", type);
         return false;
@@ -1191,7 +1191,7 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
     uint64_t commit_num = ((uint64_t)(pRevokedTx->vin[0].sequence & 0xffffff)) << 24;
     commit_num |= (uint64_t)(pRevokedTx->locktime & 0xffffff);
     commit_num ^= self->obscured;
-    LOGD("commit_num=%" PRIx64 "\n", commit_num);
+    LOGD("commit_num=%" PRIu64 "\n", commit_num);
 
     //remote per_commitment_secretの復元
     utl_buf_alloc(&self->revoked_sec, BTC_SZ_PRIVKEY);
@@ -2040,7 +2040,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     self->obscured = ln_calc_obscured_txnum(
                                 open_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT],
                                 acc_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT]);
-    LOGD("obscured=0x%" PRIx64 "\n", self->obscured);
+    LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
 
     //vout 2-of-2
     ret = btc_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
@@ -2120,7 +2120,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->obscured = ln_calc_obscured_txnum(
                                 self->p_establish->cnl_open.p_pubkeys[MSG_FUNDIDX_PAYMENT],
                                 acc_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT]);
-    LOGD("obscured=0x%" PRIx64 "\n", self->obscured);
+    LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
 
     //
     // initial commit tx(Remoteが持つTo-Local)
@@ -2650,14 +2650,14 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     self->their_msat -= p_htlc->amount_msat;
     self->htlc_num++;
     p_htlc->flag = LN_HTLC_FLAG_RECV;       //受信=received HTLC
-    LOGD("HTLC add : htlc_num=%d, id=%" PRIx64 ", amount_msat=%" PRIu64 "\n", self->htlc_num, p_htlc->id, p_htlc->amount_msat);
+    LOGD("HTLC add : htlc_num=%d, id=%" PRIu64 ", amount_msat=%" PRIu64 "\n", self->htlc_num, p_htlc->id, p_htlc->amount_msat);
 
     LOGD("  ret=%d\n", ret);
     LOGD("  id=%" PRIu64 "\n", p_htlc->id);
 
     LOGD("  %s\n", (hop_dataout.b_exit) ? "intended recipient" : "forwarding HTLCs");
     //転送先
-    LOGD("  FWD: short_channel_id: %" PRIx64 "\n", hop_dataout.short_channel_id);
+    LOGD("  FWD: short_channel_id: %016" PRIx64 "\n", hop_dataout.short_channel_id);
     LOGD("  FWD: amt_to_forward: %" PRIu64 "\n", hop_dataout.amt_to_forward);
     LOGD("  FWD: outgoing_cltv_value: %d\n", hop_dataout.outgoing_cltv_value);
     LOGD("  -------\n");
@@ -2896,7 +2896,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     // for (uint64_t index = 0; index <= self->commit_local.revoke_num + 1; index++) {
     //     uint8_t old_secret[BTC_SZ_PRIVKEY];
     //     ln_derkey_create_secret(old_secret, self->priv_data.storage_seed, LN_SECINDEX_INIT - index);
-    //     LOGD("$$$ old_secret(%" PRIx64 "): ", LN_SECINDEX_INIT -index);
+    //     LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECINDEX_INIT -index);
     //     DUMPD(old_secret, sizeof(old_secret));
     // }
 
@@ -2979,7 +2979,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     //         uint8_t pubkey[BTC_SZ_PUBKEY];
     //         btc_keys_priv2pub(pubkey, old_secret);
     //         //M_DB_SELF_SAVE(self);
-    //         LOGD("$$$ old_secret(%" PRIx64 "): ", LN_SECINDEX_INIT - index);
+    //         LOGD("$$$ old_secret(%016" PRIx64 "): ", LN_SECINDEX_INIT - index);
     //         DUMPD(old_secret, sizeof(old_secret));
     //         LOGD("$$$ pubkey: ");
     //         DUMPD(pubkey, sizeof(pubkey));
@@ -3193,7 +3193,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
             // 既にrevoke_and_ackで渡し終わったsecretは、storage_index+3。
             //
             ln_derkey_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 3);
-            LOGD("storage_index(%" PRIx64 ": ", self->priv_data.storage_index + 3);
+            LOGD("storage_index(%016" PRIx64 ": ", self->priv_data.storage_index + 3);
             DUMPD(secret, BTC_SZ_PRIVKEY);
         }
         if ( (memcmp(reest.your_last_per_commitment_secret, secret, BTC_SZ_PRIVKEY) == 0) &&
@@ -3229,7 +3229,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
             //      "next_remote_revocation_number minus 1"だから、storage_index+4。
             uint8_t secret[BTC_SZ_PRIVKEY];
             ln_derkey_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 4);
-            LOGD("storage_index(%" PRIx64 ": ", self->priv_data.storage_index + 4);
+            LOGD("storage_index(%016" PRIx64 ": ", self->priv_data.storage_index + 4);
             DUMPD(secret, BTC_SZ_PRIVKEY);
             if (memcmp(secret, reest.your_last_per_commitment_secret, BTC_SZ_PRIVKEY) == 0) {
                 //MUST NOT broadcast its commitment transaction.
@@ -3352,7 +3352,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
         }
     } else {
         //closeされたとみなして、何もしない
-        LOGD("closed channel: not save(%0" PRIx64 ")\n", ann.short_channel_id);
+        LOGD("closed channel: not save(%016" PRIx64 ")\n", ann.short_channel_id);
     }
 
     return true;
@@ -3381,7 +3381,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
             ret = false;
             char tmstr[UTL_SZ_DTSTR + 1];
             utl_misc_strftime(tmstr, upd.timestamp);
-            LOGD("older channel: not save(%0" PRIx64 "): %s\n", upd.short_channel_id, tmstr);
+            LOGD("older channel: not save(%016" PRIx64 "): %s\n", upd.short_channel_id, tmstr);
         }
     }
     if (ret) {
@@ -3392,11 +3392,11 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
         ret = param.is_unspent;
         if (!ret) {
-            LOGD("closed channel: not save(%0" PRIx64 ")\n", upd.short_channel_id);
+            LOGD("closed channel: not save(%016" PRIx64 ")\n", upd.short_channel_id);
         }
     }
     if (ret) {
-        LOGV("recv channel_upd%d: %" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
+        LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
 
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[BTC_SZ_PUBKEY];
@@ -3743,7 +3743,7 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    LOGD("local commitment_number=%" PRIx64 "\n", self->funding_local.current_commit_num);
+    LOGD("local commitment_number=%016" PRIx64 "\n", self->funding_local.current_commit_num);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->priv_data);
     if (ret) {
         ret = create_to_local_sign(self, &tx_commit, &buf_sig);
@@ -3811,7 +3811,7 @@ static bool create_to_local_sign(ln_self_t *self,
                             pBufSig,
                             &buf_sig_from_remote,
                             &self->redeem_fund);
-    LOGD("++++++++++++++ 自分のcommit txに署名: [%" PRIx64 "]\n", self->short_channel_id);
+    LOGD("++++++++++++++ 自分のcommit txに署名: [%016" PRIx64 "]\n", self->short_channel_id);
     M_DBG_PRINT_TX(pTxCommit);
 
     // 署名verify
@@ -4165,7 +4165,7 @@ static bool create_to_remote(ln_self_t *self,
             pp_htlcinfo[cnt]->expiry = self->cnl_add_htlc[idx].cltv_expiry;
             pp_htlcinfo[cnt]->amount_msat = self->cnl_add_htlc[idx].amount_msat;
             pp_htlcinfo[cnt]->preimage_hash = self->cnl_add_htlc[idx].payment_sha256;
-            LOGD(" [%d][id=%" PRIx64 "](%p)\n", idx, self->cnl_add_htlc[idx].id, self);
+            LOGD(" [%d][id=%" PRIu64 "](%p)\n", idx, self->cnl_add_htlc[idx].id, self);
             cnt++;
         }
     }
@@ -4218,10 +4218,10 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    LOGD("remote commitment_number=%" PRIx64 "\n", self->funding_remote.current_commit_num);
+    LOGD("remote commitment_number=%016" PRIx64 "\n", self->funding_remote.current_commit_num);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->priv_data);
     if (ret) {
-        LOGD("++++++++++++++ 相手のcommit tx: tx_commit[%" PRIx64 "]\n", self->short_channel_id);
+        LOGD("++++++++++++++ 相手のcommit tx: tx_commit[%016" PRIx64 "]\n", self->short_channel_id);
         M_DBG_PRINT_TX(&tx_commit);
 
         ret = btc_tx_txid(self->commit_remote.txid, &tx_commit);
@@ -4646,7 +4646,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
     }
     utl_buf_free(&buf_sig);
 
-    LOGD("+++++++++++++ closing_tx[%" PRIx64 "]\n", self->short_channel_id);
+    LOGD("+++++++++++++ closing_tx[%016" PRIx64 "]\n", self->short_channel_id);
     M_DBG_PRINT_TX(pTx);
 
     LOGD("END ret=%d\n", ret);
@@ -4657,7 +4657,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
 // channel_announcement用データ(自分の枠)
 static bool create_local_channel_announcement(ln_self_t *self)
 {
-    LOGD("short_channel_id=%" PRIx64 "\n", self->short_channel_id);
+    LOGD("short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
     utl_buf_free(&self->cnl_anno);
 
     ln_cnl_announce_create_t anno;
@@ -5054,7 +5054,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
         uint8_t dir = ln_sort_to_dir(sort_nodeid(self, peer_id));
         ret = ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir);
         if (!ret) {
-            LOGD("fail: ln_db_annocnlupd_load: %" PRIx64 ", dir=%d\n", pDataOut->short_channel_id, dir);
+            LOGD("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n", pDataOut->short_channel_id, dir);
         }
     } else {
         LOGD("fail: ln_node_search_nodeid\n");
@@ -5073,7 +5073,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
 
         return false;
     }
-    LOGD("short_channel_id=%" PRIx64 "\n", pDataOut->short_channel_id);
+    LOGD("short_channel_id=%016" PRIx64 "\n", pDataOut->short_channel_id);
 
     //B8. if the HTLC amount is less than the currently specified minimum amount:
     //      amount_below_minimum
@@ -5177,7 +5177,7 @@ static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason)
  */
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret)
 {
-    //LOGD("I=%" PRIx64 "\n", self->peer_storage_index);
+    //LOGD("I=%016" PRIx64 "\n", self->peer_storage_index);
     //DUMPD(p_prev_secret, BTC_SZ_PRIVKEY);
     uint8_t pub[BTC_SZ_PUBKEY];
     btc_keys_priv2pub(pub, p_prev_secret);
@@ -5186,10 +5186,10 @@ static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_s
     if (ret) {
         self->peer_storage_index--;
         //M_DB_SELF_SAVE(self);    //保存は呼び出し元で行う
-        LOGD("I=%" PRIx64 " --> %" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
+        LOGD("I=%016" PRIx64 " --> %016" PRIx64 "\n", (uint64_t)(self->peer_storage_index + 1), self->peer_storage_index);
 
         //for (uint64_t idx = LN_SECINDEX_INIT; idx > self->peer_storage_index; idx--) {
-        //    LOGD("I=%" PRIx64 "\n", idx);
+        //    LOGD("I=%016" PRIx64 "\n", idx);
         //    LOGD2("  ");
         //    uint8_t sec[BTC_SZ_PRIVKEY];
         //    ret = ln_derkey_storage_get_secret(sec, &self->peer_storage, idx);
@@ -5212,7 +5212,7 @@ static void proc_anno_sigs(ln_self_t *self)
     if ( (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) &&
          (self->short_channel_id != 0) ) {
         //announcement_signatures送受信済み
-        LOGD("announcement_signatures sent and recv: %" PRIx64 "\n", self->short_channel_id);
+        LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", self->short_channel_id);
 
         //channel_announcement
         bool ret1 = ln_db_annocnl_save(&self->cnl_anno, self->short_channel_id, NULL,
@@ -5240,7 +5240,7 @@ static void proc_anno_sigs(ln_self_t *self)
 
         self->anno_flag |= LN_ANNO_FLAG_END;
     } else {
-        LOGD("yet: anno_flag=%02x, short_channel_id=%" PRIx64 "\n", self->anno_flag, self->short_channel_id);
+        LOGD("yet: anno_flag=%02x, short_channel_id=%016" PRIx64 "\n", self->anno_flag, self->short_channel_id);
     }
 }
 
@@ -5613,8 +5613,8 @@ static void dbg_commitnum(const ln_self_t *self)
 {
     uint8_t stat = comrev_state(self);
     LOGD("------------------------------------------\n");
-    LOGD("storage_index      = %" PRIx64 "\n", self->priv_data.storage_index);
-    LOGD("peer_storage_index = %" PRIx64 "\n", self->peer_storage_index);
+    LOGD("storage_index      = %016" PRIx64 "\n", self->priv_data.storage_index);
+    LOGD("peer_storage_index = %016" PRIx64 "\n", self->peer_storage_index);
     LOGD("------------------------------------------\n");
     LOGD("local.current_commit_num  = %" PRIu64 "\n", self->funding_local.current_commit_num);
     LOGD("remote.current_commit_num = %" PRIu64 "\n", self->funding_remote.current_commit_num);

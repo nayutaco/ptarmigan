@@ -169,7 +169,7 @@ static void update_add_htlc_print(const ln_update_add_htlc_t *pMsg)
     LOGD("-[update_add_htlc]-------------------------------\n");
     LOGD("channel-id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("id: %" PRIx64 "\n", pMsg->id);
+    LOGD("id: %" PRIu64 "\n", pMsg->id);
     LOGD("amount_msat: %" PRIu64 "\n", pMsg->amount_msat);
     LOGD("cltv_expiry: %u\n", pMsg->cltv_expiry);
     LOGD("payment_sha256: ");
@@ -266,7 +266,7 @@ static void update_fulfill_htlc_print(const ln_update_fulfill_htlc_t *pMsg)
     LOGD("-[update_fulfill_htlc]-------------------------------\n");
     LOGD("channel-id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("id: %" PRIx64 "\n", pMsg->id);
+    LOGD("id: %" PRIu64 "\n", pMsg->id);
     LOGD("p_payment_preimage: ");
     DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
     uint8_t sha[BTC_SZ_SHA256];
@@ -375,7 +375,7 @@ static void update_fail_htlc_print(const ln_update_fail_htlc_t *pMsg)
     LOGD("-[update_fail_htlc]-------------------------------\n");
     LOGD("channel-id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("id: %" PRIx64 "\n", pMsg->id);
+    LOGD("id: %" PRIu64 "\n", pMsg->id);
     LOGD("len= %lu\n", (unsigned long)pMsg->p_reason->len);
     LOGD("reason: ");
     DUMPD(pMsg->p_reason->buf, pMsg->p_reason->len);
@@ -761,7 +761,7 @@ static void update_fail_malformed_htlc_print(const ln_update_fail_malformed_htlc
     LOGD("-[update_fail_malformed_htlc]-------------------------------\n");
     LOGD("channel-id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("id: %" PRIx64 "\n", pMsg->id);
+    LOGD("id: %" PRIu64 "\n", pMsg->id);
     LOGD("p_sha256_onion: ");
     DUMPD(pMsg->p_sha256_onion, LN_SZ_HASH);
     LOGD("failure_code: %04x\n", pMsg->failure_code);

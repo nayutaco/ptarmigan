@@ -477,7 +477,7 @@ typedef struct {
                                                     //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
     uint64_t    prev_short_channel_id;              ///< 転送元short_channel_id
                                                     //      origin/final node: == 0
-    uint64_t    prev_idx;                           ///< 転送元cnl_add_htlc[]index
+    uint16_t    prev_idx;                           ///< 転送元cnl_add_htlc[]index
     //failで戻す
     utl_buf_t   buf_shared_secret;                  ///< failuremsg暗号化用
 

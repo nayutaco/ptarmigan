@@ -240,7 +240,7 @@ int main(int argc, char* argv[])
                 for (int lp = 0; lp < result.hop_num; lp++) {
                     printf("route%d=", lp);
                     btc_util_dumpbin(stdout, result.hop_datain[lp].pubkey, BTC_SZ_PUBKEY, false);
-                    printf(",%" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n",
+                    printf(",%016" PRIx64 ",%" PRIu64 ",%" PRIu32 "\n",
                                 result.hop_datain[lp].short_channel_id,
                                 result.hop_datain[lp].amt_to_forward,
                                 result.hop_datain[lp].outgoing_cltv_value);
@@ -255,7 +255,7 @@ int main(int argc, char* argv[])
                     }
                     printf("[\"");
                     btc_util_dumpbin(stdout, result.hop_datain[lp].pubkey, BTC_SZ_PUBKEY, false);
-                    printf("\",\"%" PRIx64 "\",%" PRIu64 ",%" PRIu32 "]",
+                    printf("\",\"%016" PRIx64 "\",%" PRIu64 ",%" PRIu32 "]",
                                 result.hop_datain[lp].short_channel_id,
                                 result.hop_datain[lp].amt_to_forward,
                                 result.hop_datain[lp].outgoing_cltv_value);

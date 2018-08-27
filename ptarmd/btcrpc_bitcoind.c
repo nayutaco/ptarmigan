@@ -1476,12 +1476,12 @@ int main(int argc, char *argv[])
     //     short_channel_id = 0x11a7810000440000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
     //     unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
-    //     fprintf(stderr, "%" PRIx64 " = %d\n", short_channel_id, unspent);
+    //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
 
     //     short_channel_id = 0x11a2eb0000210000ULL;
     //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
     //     unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
-    //     fprintf(stderr, "%" PRIx64 " = %d\n", short_channel_id, unspent);
+    //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
     // }
 
     fprintf(stderr, "--------------------------\n");

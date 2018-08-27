@@ -122,7 +122,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, c
 
 #if 0
     LOGD("--------------------------\n");
-    LOGD("short_channel_id: %" PRIx64 "\n", pMsg->short_channel_id);
+    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
     LOGD("p_my_node_pub: ");
     DUMPD(pMsg->p_my_node_pub, BTC_SZ_PUBKEY);
     LOGD("p_peer_node_pub: ");
@@ -195,7 +195,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, c
     bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, pMsg->sort);
     if (ret) {
 #ifdef DBG_PRINT_CREATE_CNL
-        LOGD("short_channel_id=%" PRIx64 "\n", pMsg->short_channel_id);
+        LOGD("short_channel_id=%016" PRIx64 "\n", pMsg->short_channel_id);
         ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
 #endif  //DBG_PRINT_CREATE_CNL
     } else {
@@ -229,7 +229,7 @@ bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData
         memcpy(pMsg->btc_key2, ptr.p_btc_key2, BTC_SZ_PUBKEY);
         pMsg->short_channel_id = ptr.short_channel_id;
 #ifdef DBG_PRINT_READ_CNL
-        LOGD("short_channel_id=%" PRIx64 "\n", pMsg->short_channel_id);
+        LOGD("short_channel_id=%016" PRIx64 "\n", pMsg->short_channel_id);
         ln_msg_cnl_announce_print(pData, Len);
 #endif
     } else {
@@ -335,7 +335,7 @@ void HIDDEN ln_msg_cnl_announce_print(const uint8_t *pData, uint16_t Len)
     Len -= BTC_SZ_HASH256;
 
     //        [8:short_channel_id]
-    LOGD("short_channel_id= %" PRIx64 "\n", ln_misc_get64be(pData + pos));
+    LOGD("short_channel_id= %016" PRIx64 "\n", ln_misc_get64be(pData + pos));
     pos += LN_SZ_SHORT_CHANNEL_ID;
     Len -= LN_SZ_SHORT_CHANNEL_ID;
 
@@ -935,7 +935,7 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
     LOGD("-[channel_update]-------------------------------\n");
     //LOGD("p_node_signature: ");
     //DUMPD(pMsg->signature, LN_SZ_SIGNATURE);
-    LOGD("short_channel_id: %" PRIx64 "\n", pMsg->short_channel_id);
+    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
     time_t t = (time_t)pMsg->timestamp;
     LOGD("timestamp: %lu : %s", (unsigned long)t, ctime(&t));
     LOGD("flags= 0x%04x\n", pMsg->flags);
@@ -1047,7 +1047,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     if (pMsg->short_channel_id == 0) {
         pMsg->short_channel_id = short_channel_id;
     } else if (pMsg->short_channel_id != short_channel_id) {
-        LOGD("fail: short_channel_id mismatch: %" PRIx64 " != %" PRIx64 "\n", pMsg->short_channel_id, short_channel_id);
+        LOGD("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pMsg->short_channel_id, short_channel_id);
         return false;
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;
@@ -1078,7 +1078,7 @@ static void announce_signs_print(const ln_announce_signs_t *pMsg)
     LOGD("-[announcement_signatures]-------------------------------\n");
     LOGD("channel_id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
-    LOGD("short_channel_id: %" PRIx64 "\n", pMsg->short_channel_id);
+    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
     LOGD("p_node_signature: ");
     DUMPD(pMsg->p_node_signature, LN_SZ_SIGNATURE);
     LOGD("p_btc_signature: ");

@@ -180,7 +180,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
         p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
 
         M_DBGLOG("[cnl]nodenum=%d\n", p_result->node_num);
-        M_DBGLOG("[cnl]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
+        M_DBGLOG("[cnl]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
         M_DBGLOG("[cnl]node1= ");
         M_DBGDUMPG(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
         M_DBGLOG("[cnl]node2= ");
@@ -203,7 +203,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
                     p_nodes->ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
 
                     M_DBGLOG("[upd]nodenum=%d\n", p_result->node_num);
-                    M_DBGLOG("[upd]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
+                    M_DBGLOG("[upd]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
                     M_DBGLOG("[upd]node1= ");
                     M_DBGDUMPG(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
                     M_DBGLOG("[upd]node2= ");
@@ -211,7 +211,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
                 }
             } else {
                 //disableの場合は、対象外にされるよう初期値にしておく
-                M_DBGLOG("[upd]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
+                M_DBGLOG("[upd]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
                 M_DBGLOG("[upd]skip[%c]\n", type);
                 p_nodes->ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
             }
@@ -241,7 +241,7 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
             bret = ln_db_annoskip_search(p_db_skip, self->short_channel_id);
             if (bret) {
                 //skip DBに載っているchannelは使用しない
-                LOGD("skip : %" PRIx64 "\n", self->short_channel_id);
+                LOGD("skip : %016" PRIx64 "\n", self->short_channel_id);
                 ln_db_node_cur_commit(p_db_skip);
                 return false;
             }
@@ -269,7 +269,7 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
         }
 
         M_DBGLOG("[self]nodenum=%d\n",  p_prm_self->p_result->node_num);
-        M_DBGLOG("[self]short_channel_id: %" PRIx64 "\n", self->short_channel_id);
+        M_DBGLOG("[self]short_channel_id: %016" PRIx64 "\n", self->short_channel_id);
         M_DBGLOG("[self]p_payer= ");
         M_DBGDUMPG(p_prm_self->p_payer, BTC_SZ_PUBKEY);
         M_DBGLOG("[self]self->peer_node_id= ");
@@ -402,7 +402,7 @@ lnerr_route_t ln_routing_calculate(
             p_nodes->ninfo[dir].htlc_minimum_msat = 0;
             node_num++;
 
-            M_DBGLOG("  [add]short_channel_id=%" PRIx64 "\n", pAddRoute[lp].short_channel_id);
+            M_DBGLOG("  [add]short_channel_id=%016" PRIx64 "\n", pAddRoute[lp].short_channel_id);
             M_DBGLOG("  [add]  [1]");
             M_DBGDUMPG(p1, BTC_SZ_PUBKEY);
             M_DBGLOG("  [add]  [2]");
@@ -425,7 +425,7 @@ lnerr_route_t ln_routing_calculate(
 
     //Edge追加
     for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
-        M_DBGLOG("  short_channel_id=%" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
+        M_DBGLOG("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
         M_DBGLOG("    [1]");
         M_DBGDUMPG(rt_res.p_nodes[lp].ninfo[0].node_id, BTC_SZ_PUBKEY);
         M_DBGLOG("    [2]");

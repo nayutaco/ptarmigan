@@ -361,7 +361,7 @@ bool HIDDEN ln_create_commit_tx(btc_tx_t *pTx, utl_buf_t *pSig, const ln_tx_cmt_
         }
     }
 
-    //LOGD("pCmt->obscured=%" PRIx64 "\n", pCmt->obscured);
+    //LOGD("pCmt->obscured=%016" PRIx64 "\n", pCmt->obscured);
 
     //input
     btc_vin_t *vin = btc_tx_add_vin(pTx, pCmt->fund.txid, pCmt->fund.txid_index);
