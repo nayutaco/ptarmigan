@@ -646,7 +646,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         utl_misc_bin2str(str, ln_channel_id(pAppConf->p_self), LN_SZ_CHANNEL_ID);
         cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
         //short_channel_id
-        sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
+        sprintf(str, "%" PRIx64, ln_short_channel_id(p_self));
         cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
         //funding_tx
         utl_misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), BTC_SZ_TXID);
@@ -1044,7 +1044,7 @@ static void *thread_main_start(void *pArg)
     }
 
     if (!p_conf->loop) {
-        LOGD("fail: loop ended: %016" PRIx64 "\n", ln_short_channel_id(p_self));
+        LOGD("fail: loop ended: %" PRIx64 "\n", ln_short_channel_id(p_self));
         goto LABEL_JOIN;
     }
 
@@ -1115,7 +1115,7 @@ LABEL_SHUTDOWN:
         LOGD("socket close: %s", strerror(errno));
     }
 
-    LOGD("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(p_self));
+    LOGD("[exit]channel thread [%" PRIx64 "]\n", ln_short_channel_id(p_self));
 
     //クリア
     UTL_DBG_FREE(p_conf->p_errstr);
@@ -1271,8 +1271,8 @@ static bool check_short_channel_id(lnapp_conf_t *p_conf)
         if (ret) {
             if ((short_channel_id != 0) && (short_channel_id != ln_short_channel_id(p_conf->p_self))) {
                 LOGD("FATAL: short_channel_id mismatch\n");
-                LOGD("  DB: %016" PRIu64 "\n", short_channel_id);
-                LOGD("  BC: %016" PRIu64 "\n", ln_short_channel_id(p_conf->p_self));
+                LOGD("  DB: %" PRIx64 "\n", short_channel_id);
+                LOGD("  BC: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
                 ret = false;
             } else {
                 //以前と同じ値か、新規で取得した
@@ -1798,7 +1798,7 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf)
     if (ret) {
         //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ret = ln_set_short_channel_id_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self), mined_hash);
-        LOGD("short_channel_id = %016" PRIx64 "(%d)\n", ln_short_channel_id(p_conf->p_self), ret);
+        LOGD("short_channel_id = %" PRIx64 "(%d)\n", ln_short_channel_id(p_conf->p_self), ret);
     }
 
     return ret;
@@ -2435,7 +2435,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
                 // }
 
                 uint64_t short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
-                sprintf(suggest, "%016" PRIx64, short_channel_id);
+                sprintf(suggest, "%" PRIx64, short_channel_id);
                 ln_db_annoskip_save(short_channel_id, btemp);
                 retry = true;
             } else {
@@ -2651,7 +2651,7 @@ static void stop_threads(lnapp_conf_t *p_conf)
         p_conf->loop = false;
         //mainloop待ち合わせ解除(*2)
         pthread_cond_signal(&p_conf->cond);
-        LOGD("disconnect channel: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
+        LOGD("disconnect channel: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         LOGD("===================================\n");
         LOGD("=  CHANNEL THREAD END             =\n");
         LOGD("===================================\n");
@@ -2835,7 +2835,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
             p_conf->last_annocnl_sci = short_channel_id;    //channel_updateだけを送信しないようにするため
             ret = send_anno_pre_chan(short_channel_id);
             if (!ret) {
-                LOGD("pre_chan: %016" PRIx64 "\n", short_channel_id);
+                LOGD("pre_chan: %" PRIx64 "\n", short_channel_id);
                 goto LABEL_EXIT;
             }
         } else if ((type == LN_DB_CNLANNO_UPD1) || (type == LN_DB_CNLANNO_UPD2)) {
@@ -2858,7 +2858,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
                 //送信数カウント
                 anno_cnt++;
             } else {
-                LOGV("already sent: short_channel_id=%016" PRIx64 ", type:%c\n", short_channel_id, type);
+                LOGV("already sent: short_channel_id=%" PRIx64 ", type:%c\n", short_channel_id, type);
             }
             if (type == LN_DB_CNLANNO_ANNO) {
                 //channel_announcementの送信にかかわらず、未送信のnode_announcementは送信する
@@ -2871,7 +2871,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
             }
         } else {
             //channel_announcementが無いchannel_updateの場合
-            LOGV("skip channel_%c: last=%016" PRIx64 " / get=%016" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
+            LOGV("skip channel_%c: last=%" PRIx64 " / get=%" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
         }
         utl_buf_free(&buf_cnl);
     }
@@ -2942,7 +2942,7 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp)
 
 static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const utl_buf_t *p_buf_cnl)
 {
-    LOGV("send channel_%c: %016" PRIx64 "\n", type, p_conf->last_annocnl_sci);
+    LOGV("send channel_%c: %" PRIx64 "\n", type, p_conf->last_annocnl_sci);
     send_peer_noise(p_conf, p_buf_cnl);
     ln_db_annocnls_add_nodeid(p_db, p_conf->last_annocnl_sci, type, false, ln_their_node_id(p_conf->p_self));
 }
@@ -3618,7 +3618,7 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
         ret = btcrpc_check_unspent(&unspent, NULL, txid, vindex);
     }
     if (!(ret && unspent)) {
-        LOGD("already spent : %016" PRIx64 "(height=%" PRIu32 ", bindex=%" PRIu32 ", txindex=%" PRIu32 ")\n", ShortChannelId, bheight, bindex, vindex);
+        LOGD("already spent : %" PRIx64 "(height=%" PRIu32 ", bindex=%" PRIu32 ", txindex=%" PRIu32 ")\n", ShortChannelId, bheight, bindex, vindex);
     }
 
     return ret && unspent;
@@ -3642,7 +3642,7 @@ static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, in
             if (p_htlc->amount_msat > 0) {
                 LOGD("  HTLC[%d]\n", lp);
                 LOGD("    flag= %02x\n", p_htlc->flag);
-                LOGD("    htlc id= %" PRIx64 "\n", p_htlc->id);
+                LOGD("    htlc id= %" PRIu64 "\n", p_htlc->id);
                 LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);
                 LOGD("    amount_msat= %" PRIu64 "\n", p_htlc->amount_msat);
                 if (p_htlc->prev_short_channel_id) {

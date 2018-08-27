@@ -198,7 +198,7 @@ static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **p
                 //LOGD("-----------\n");
                 //LOGD("pubkey= ");
                 //DUMPD(p_fieldr->node_id, BTC_SZ_PUBKEY);
-                //LOGD("short_channel_id= %016" PRIx64 "\n", p_fieldr->short_channel_id);
+                //LOGD("short_channel_id= %" PRIx64 "\n", p_fieldr->short_channel_id);
                 //LOGD("fee_base_msat= %u\n", p_fieldr->fee_base_msat);
                 //LOGD("fee_proportional_millionths= %u\n", p_fieldr->fee_prop_millionths);
                 //LOGD("cltv_expiry_delta= %d\n", p_fieldr->cltv_expiry_delta);

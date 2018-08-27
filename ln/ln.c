@@ -3396,7 +3396,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         }
     }
     if (ret) {
-        LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
+        LOGV("recv channel_upd%d: %" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
 
         //short_channel_id と dir から node_id を取得する
         uint8_t node_id[BTC_SZ_PUBKEY];
@@ -4657,7 +4657,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
 // channel_announcement用データ(自分の枠)
 static bool create_local_channel_announcement(ln_self_t *self)
 {
-    LOGD("short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
+    LOGD("short_channel_id=%" PRIx64 "\n", self->short_channel_id);
     utl_buf_free(&self->cnl_anno);
 
     ln_cnl_announce_create_t anno;
@@ -5054,7 +5054,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
         uint8_t dir = ln_sort_to_dir(sort_nodeid(self, peer_id));
         ret = ln_db_annocnlupd_load(&cnlupd_buf, NULL, pDataOut->short_channel_id, dir);
         if (!ret) {
-            LOGD("fail: ln_db_annocnlupd_load: %016" PRIx64 ", dir=%d\n", pDataOut->short_channel_id, dir);
+            LOGD("fail: ln_db_annocnlupd_load: %" PRIx64 ", dir=%d\n", pDataOut->short_channel_id, dir);
         }
     } else {
         LOGD("fail: ln_node_search_nodeid\n");
@@ -5212,7 +5212,7 @@ static void proc_anno_sigs(ln_self_t *self)
     if ( (self->anno_flag == (M_ANNO_FLAG_SEND | M_ANNO_FLAG_RECV)) &&
          (self->short_channel_id != 0) ) {
         //announcement_signatures送受信済み
-        LOGD("announcement_signatures sent and recv: %016" PRIx64 "\n", self->short_channel_id);
+        LOGD("announcement_signatures sent and recv: %" PRIx64 "\n", self->short_channel_id);
 
         //channel_announcement
         bool ret1 = ln_db_annocnl_save(&self->cnl_anno, self->short_channel_id, NULL,
@@ -5240,7 +5240,7 @@ static void proc_anno_sigs(ln_self_t *self)
 
         self->anno_flag |= LN_ANNO_FLAG_END;
     } else {
-        LOGD("yet: anno_flag=%02x, short_channel_id=%016" PRIx64 "\n", self->anno_flag, self->short_channel_id);
+        LOGD("yet: anno_flag=%02x, short_channel_id=%" PRIx64 "\n", self->anno_flag, self->short_channel_id);
     }
 }
 

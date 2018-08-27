@@ -136,7 +136,7 @@ static void ln_print_wallet(const ln_self_t *self)
     printf(INDENT3 M_QQ("channel_id") ": \"");
     btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
     printf("\",\n");
-    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
+    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%" PRIx64) ",\n", self->short_channel_id);
     if (self->htlc_num != 0) {
         printf(INDENT3 M_QQ("htlc_num") ": %d,", self->htlc_num);
     }
@@ -158,11 +158,11 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("status") ": " M_QQ("0x%02x") ",\n", self->status);
 
     //key storage
-    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", self->priv_data.storage_index);
+    printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%" PRIx64) ",\n", self->priv_data.storage_index);
     // printf(M_QQ("storage_seed") ": \"");
     // btc_util_dumpbin(stdout, self->priv_data.storage_seed, BTC_SZ_PRIVKEY, false);
     // printf("\",\n");
-    printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", self->peer_storage_index);
+    printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%" PRIx64) ",\n", self->peer_storage_index);
 
     //funding
     printf(INDENT3 M_QQ("fund_flag") ": " M_QQ("0x%02x") ",\n", self->fund_flag);
@@ -217,7 +217,7 @@ static void ln_print_self(const ln_self_t *self)
     }
     printf("\n");
     printf(INDENT3 "},\n");
-    printf(INDENT3 M_QQ("obscured") ": " M_QQ("0x%016" PRIx64) ",\n", self->obscured);
+    printf(INDENT3 M_QQ("obscured") ": " M_QQ("0x%" PRIx64) ",\n", self->obscured);
     // printf(INDENT3 M_QQ("redeem_fund") ": \"");
     // btc_util_dumpbin(stdout, self->redeem_fund.buf, self->redeem_fund.len, false);
     // printf("\",\n");
@@ -248,7 +248,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("channel_id") ": \"");
     btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
     printf("\",\n");
-    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
+    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%" PRIx64) ",\n", self->short_channel_id);
 
     if (self->htlc_num > 0) {
         printf(INDENT3 M_QQ("add_htlc") ": [\n");
@@ -281,7 +281,7 @@ static void ln_print_self(const ln_self_t *self)
                 printf(INDENT5 M_QQ("preimage") ": \"");
                 btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
                 printf("\",\n");
-                printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->cnl_add_htlc[lp].prev_short_channel_id);
+                printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("0x%" PRIx64) ",\n", self->cnl_add_htlc[lp].prev_short_channel_id);
                 printf(INDENT5 M_QQ("prev_idx") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].prev_idx);
                 printf(INDENT5 M_QQ("onion_reason") ": \"");
                 if (self->cnl_add_htlc[lp].buf_onion_reason.len > 35) {
@@ -369,7 +369,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
             bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
             if (ret) {
                 printf(INDENT3 M_QQ("type") ": " M_QQ("channel_announcement") ",\n");
-                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", ann.short_channel_id);
+                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%" PRIx64) ",\n", ann.short_channel_id);
                 printf(INDENT3 M_QQ("node1") ": \"");
                 btc_util_dumpbin(stdout, ann.node_id1, BTC_SZ_PUBKEY, false);
                 printf("\",\n");
@@ -420,7 +420,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
             bool ret = ln_msg_cnl_update_read(&ann, pData, Len);
             if (ret) {
                 printf(INDENT3 M_QQ("type") ": " M_QQ("channel_update %s") ",\n", (ann.flags & 1) ? "2" : "1");
-                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", ann.short_channel_id);
+                printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%" PRIx64) ",\n", ann.short_channel_id);
                 //printf(INDENT3 M_QQ("node_sort") ": " M_QQ("%s") ",\n", (ann.flags & 1) ? "second" : "first");
                 printf(INDENT3 M_QQ("flags") ": " M_QQ("%04x") ",\n", ann.flags);
                 printf(INDENT3 M_QQ("cltv_expiry_delta") ": %d,\n", ann.cltv_expiry_delta);
@@ -620,7 +620,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
             }
 
             uint64_t short_channel_id = *(uint64_t *)key.mv_data;
-            printf("0x%016" PRIx64 "\n", short_channel_id);
+            printf("0x%" PRIx64 "\n", short_channel_id);
         } else if ((dbtype == LN_LMDB_DBTYPE_NODE_ANNOINFO) && (key.mv_size == M_SZ_ANNOINFO_NODE)) {
             printf("node_announcement: ");
             btc_util_dumpbin(stdout, key.mv_data, M_SZ_ANNOINFO_NODE, true);
@@ -661,7 +661,7 @@ static void dumpit_annoskip(MDB_txn *txn, MDB_dbi dbi)
                 printf(",\n");
             }
             uint64_t short_channel_id = *(uint64_t *)key.mv_data;
-            printf("[" M_QQ("0x%016" PRIx64) ",", short_channel_id);
+            printf("[" M_QQ("0x%" PRIx64) ",", short_channel_id);
             if (data.mv_size == 0) {
                 printf(M_QQ("perm") "]");
             } else if ((data.mv_size == 1) && (*(uint8_t *)data.mv_data == 0x01)) {
