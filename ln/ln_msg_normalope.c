@@ -81,13 +81,6 @@ bool HIDDEN ln_msg_update_add_htlc_create(utl_buf_t *pBuf, const ln_update_add_h
     update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    //check_create_add_htlc()でチェックする
-    //
-    // if (pMsg->cltv_expiry >= (uint32_t)500000000) {
-    //     LOGD("fail: expiry >= 500000000\n");
-    //     return false;
-    // }
-
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 1450);
 
     //    type: 128 (update_add_htlc)

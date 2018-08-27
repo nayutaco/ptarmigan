@@ -305,7 +305,6 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
                     ln_update_add_htlc_t *pAddHtlc,
                     int32_t Height);
 static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason);
-//static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8_t *pPreImage);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 
 static void proc_anno_sigs(ln_self_t *self);
@@ -1489,28 +1488,6 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
 /********************************************************************
  * others
  ********************************************************************/
-
-/*
- * cnl_add_htlc[].flagのLN_HTLC_FLAG_COMMITは、以下の場合に立つ
- *      - commitment_signed受信
- *      - revoke_and_ack受信
- */
-// bool ln_have_needcommit_htlc(const ln_self_t *self)
-// {
-//     bool ret = false;
-
-//     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-//         if ( (self->cnl_add_htlc[lp].amount_msat > 0) &&
-//              (self->cnl_add_htlc[lp].flag == LN_HTLC_FLAG_RECV) ) {
-//             LOGD("HTLC not commit[%d]\n", lp);
-//             ret = true;
-//             break;
-//         }
-//     }
-
-//     return ret;
-// }
-
 
 bool ln_htlc_is_stable(const ln_self_t *self)
 {
@@ -5186,70 +5163,6 @@ static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason)
 
     return true;
 }
-
-
-#if 0
-/** 保持しているpreimageに合致するHTLCを検索(最初にヒットしたもの)
- *
- * @param[in]           self
- * @param[out]          pHtlcIdx        一致したself->cnl_add_htlc[]の添字(戻り値がtrueの場合)
- * @retval      true    検索成功(反映可能なHTLCがある)
- */
-static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8_t *pPreImage)
-{
-    bool ret;
-
-    //preimage検索
-    ln_db_preimg_t preimg;
-    uint8_t preimage_hash[LN_SZ_HASH];
-
-    if (self->htlc_num == 0) {
-        //no HTLCs
-        LOGD("no htlc\n");
-        return false;
-    }
-
-    preimg.amount_msat = (uint64_t)-1;
-    preimg.expiry = 0;
-    void *p_cur;
-    bool detect = false;
-    ret = ln_db_preimg_cur_open(&p_cur);
-    while (ret) {
-        ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);     //from invoice
-        if (ret && detect) {
-            ln_calc_preimage_hash(preimage_hash, preimg.preimage);
-            LOGD("DB preimage: ");
-            DUMPD(preimg.preimage, sizeof(preimg.preimage));
-            LOGD("   payhash : ");
-            DUMPD(preimage_hash, sizeof(preimage_hash));
-            for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-                LOGD("  HTLC[%d]: ", lp);
-                DUMPD(self->cnl_add_htlc[lp].payment_sha256, LN_SZ_HASH);
-                if ( (self->cnl_add_htlc[lp].amount_msat != 0) &&
-                     (memcmp(preimage_hash, self->cnl_add_htlc[lp].payment_sha256, LN_SZ_HASH) == 0) ) {
-                    //一致
-                    *pHtlcIdx = (uint16_t)lp;
-                    memcpy(pPreImage, preimg.preimage, LN_SZ_PREIMAGE);
-                    LOGD("match preimage[%d]: ", lp);
-                    DUMPD(preimg.preimage, LN_SZ_PREIMAGE);
-                    ret = false;        //break while
-                    break;
-                }
-                detect = false;
-            }
-        }
-    }
-    ln_db_preimg_cur_close(p_cur);
-
-    if (detect) {
-        LOGD("have fulfill HTLC\n");
-    } else {
-        LOGD("no fulfill HTLC\n");
-    }
-
-    return detect;
-}
-#endif
 
 
 /** peerから受信したper_commitment_secret保存

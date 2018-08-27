@@ -1631,14 +1631,6 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
  * others
  ********************************************************************/
 
-/** 未commit HTLCがあるかどうか
- *
- * @param[in]           self            channel情報
- * @retval  true    commitment_signedを送信していないHTLCあり
- */
-// bool ln_have_needcommit_htlc(const ln_self_t *self);
-
-
 /** HTLCが安定しているかどうか
  * 
  */
