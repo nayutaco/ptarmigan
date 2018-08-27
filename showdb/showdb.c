@@ -282,7 +282,7 @@ static void ln_print_self(const ln_self_t *self)
                 btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
                 printf("\",\n");
                 printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->cnl_add_htlc[lp].prev_short_channel_id);
-                printf(INDENT5 M_QQ("prev_idx") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].prev_idx);
+                printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].prev_idx);
                 printf(INDENT5 M_QQ("onion_reason") ": \"");
                 if (self->cnl_add_htlc[lp].buf_onion_reason.len > 35) {
                     printf("length=%d, ", self->cnl_add_htlc[lp].buf_onion_reason.len);

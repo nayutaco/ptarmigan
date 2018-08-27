@@ -962,7 +962,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
                 break;
             case ETYPE_UINT64X:
                 if (DBCOPY_IDX[lp].disp) {
-                    printf("\"%" PRIx64 "\"", *(const uint64_t *)p);
+                    printf("\"%016" PRIx64 "\"", *(const uint64_t *)p);
                 }
                 break;
             case ETYPE_UINT16:
@@ -1426,7 +1426,7 @@ bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type,
     M_ANNOINFO_CNL_SET(keydata, key, ShortChannelId, Type);
     int retval = mdb_get(p_db->txn, p_db->dbi, &key, &data);
     if (retval == 0) {
-        //LOGD("short_channel_id[%c]= %" PRIx64 "\n", Type, ShortChannelId);
+        //LOGD("short_channel_id[%c]= %016" PRIx64 "\n", Type, ShortChannelId);
         //LOGD("send_id= ");
         //DUMPD(pSendId, BTC_SZ_PUBKEY);
         ret = annoinfo_search(&data, pSendId);
@@ -3392,7 +3392,7 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     if (retval != 0) {
         LOGD("ERR: %s(backup_param_load)\n", mdb_strerror(retval));
     }
-    // LOGD("[priv]storage_index: %" PRIx64 "\n", self->priv_data.storage_index);
+    // LOGD("[priv]storage_index: %016" PRIx64 "\n", self->priv_data.storage_index);
     // LOGD("[priv]storage_seed: ");
     // DUMPD(self->priv_data.storage_seed, BTC_SZ_PRIVKEY);
     // for (size_t lp = 0; lp < MSG_FUNDIDX_MAX; lp++) {

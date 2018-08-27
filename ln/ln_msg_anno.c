@@ -122,7 +122,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, c
 
 #if 0
     LOGD("--------------------------\n");
-    LOGD("short_channel_id: %" PRIx64 "\n", pMsg->short_channel_id);
+    LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
     LOGD("p_my_node_pub: ");
     DUMPD(pMsg->p_my_node_pub, BTC_SZ_PUBKEY);
     LOGD("p_peer_node_pub: ");
@@ -195,7 +195,7 @@ bool HIDDEN ln_msg_cnl_announce_create(const ln_self_t *self, utl_buf_t *pBuf, c
     bool ret = cnl_announce_sign(self, pBuf->buf, pBuf->len, pMsg->sort);
     if (ret) {
 #ifdef DBG_PRINT_CREATE_CNL
-        LOGD("short_channel_id=%" PRIx64 "\n", pMsg->short_channel_id);
+        LOGD("short_channel_id=%016" PRIx64 "\n", pMsg->short_channel_id);
         ln_msg_cnl_announce_print(pBuf->buf, pBuf->len);
 #endif  //DBG_PRINT_CREATE_CNL
     } else {
@@ -1047,7 +1047,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     if (pMsg->short_channel_id == 0) {
         pMsg->short_channel_id = short_channel_id;
     } else if (pMsg->short_channel_id != short_channel_id) {
-        LOGD("fail: short_channel_id mismatch: %" PRIx64 " != %" PRIx64 "\n", pMsg->short_channel_id, short_channel_id);
+        LOGD("fail: short_channel_id mismatch: %016" PRIx64 " != %016" PRIx64 "\n", pMsg->short_channel_id, short_channel_id);
         return false;
     }
     pos += LN_SZ_SHORT_CHANNEL_ID;

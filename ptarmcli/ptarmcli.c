@@ -805,7 +805,7 @@ static void routepay(int *pOption, bool bPrevSkip)
                 printf("%02x", p_invoice_data->r_field[lp].node_id[lp2]);
             }
             printf("\n");
-            printf("    short_channel_id=%" PRIx64 "\n", p_invoice_data->r_field[lp].short_channel_id);
+            printf("    short_channel_id=%016" PRIx64 "\n", p_invoice_data->r_field[lp].short_channel_id);
             printf("    fee_base_msat=%" PRIu32 "\n", p_invoice_data->r_field[lp].fee_base_msat);
             printf("    fee_proportional_millionths=%" PRIu32 "\n", p_invoice_data->r_field[lp].fee_prop_millionths);
             printf("    cltv_expiry_delta=%" PRIu16 "\n", p_invoice_data->r_field[lp].cltv_expiry_delta);

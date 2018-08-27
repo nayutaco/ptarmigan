@@ -175,7 +175,7 @@ static void print_payment_conf(const payment_conf_t *pPayConf)
         fprintf(stderr, " [%d]:\n", lp);
         fprintf(stderr, "  node_id= ");
         btc_util_dumpbin(stderr, pPayConf->hop_datain[lp].pubkey, BTC_SZ_PUBKEY, true);
-        fprintf(stderr, "  short_channel_id= %" PRIx64 "\n", pPayConf->hop_datain[lp].short_channel_id);
+        fprintf(stderr, "  short_channel_id= %016" PRIx64 "\n", pPayConf->hop_datain[lp].short_channel_id);
         fprintf(stderr, "  amount_msat= %" PRIu64 "\n", pPayConf->hop_datain[lp].amt_to_forward);
         fprintf(stderr, "  cltv_expiry: %u\n", pPayConf->hop_datain[lp].outgoing_cltv_value);
     }

@@ -56,5 +56,5 @@ int main(void)
     uint64_t commit_num = ((uint64_t)(sequence & 0xffffff)) << 24;
     commit_num |= (uint64_t)(locktime & 0xffffff);
     commit_num ^= obscured;
-    printf("commit_num=0x%" PRIx64 "\n", commit_num);
+    printf("commit_num=%" PRIu64 "\n", commit_num);
 }

@@ -336,8 +336,8 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     if (pPay->hop_datain[0].short_channel_id != ln_short_channel_id(p_self)) {
         LOGD("short_channel_id mismatch\n");
         LOGD("fail: short_channel_id mismatch\n");
-        LOGD("    hop  : %" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
-        LOGD("    mine : %" PRIx64 "\n", ln_short_channel_id(p_self));
+        LOGD("    hop  : %016" PRIx64 "\n", pPay->hop_datain[0].short_channel_id);
+        LOGD("    mine : %016" PRIx64 "\n", ln_short_channel_id(p_self));
         ln_db_annoskip_save(pPay->hop_datain[0].short_channel_id, false);   //恒久的
         goto LABEL_EXIT;
     }
@@ -411,7 +411,7 @@ LABEL_EXIT:
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIx64 " %s "
+        sprintf(param, "%016" PRIx64 " %s "
                     "%" PRIu64 " "
                     "%" PRIu32 " "
                     "%s",
@@ -1077,7 +1077,7 @@ static void *thread_main_start(void *pArg)
         char peer_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIx64 " %s "
+        sprintf(param, "%016" PRIx64 " %s "
                     "%s",
                     ln_short_channel_id(p_self), node_id,
                     peer_id);
@@ -1271,8 +1271,8 @@ static bool check_short_channel_id(lnapp_conf_t *p_conf)
         if (ret) {
             if ((short_channel_id != 0) && (short_channel_id != ln_short_channel_id(p_conf->p_self))) {
                 LOGD("FATAL: short_channel_id mismatch\n");
-                LOGD("  DB: %016" PRIu64 "\n", short_channel_id);
-                LOGD("  BC: %016" PRIu64 "\n", ln_short_channel_id(p_conf->p_self));
+                LOGD("  DB: %016" PRIx64 "\n", short_channel_id);
+                LOGD("  BC: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
                 ret = false;
             } else {
                 //以前と同じ値か、新規で取得した
@@ -1345,7 +1345,7 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
     }
     ret = (count > 0);
     if (!ret) {
-        LOGD("fail: channel_reestablish timeout: %" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
+        LOGD("fail: channel_reestablish timeout: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
     }
 
     return ret;
@@ -1389,7 +1389,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
     utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
     char param[256];
-    sprintf(param, "%" PRIx64 " %s "
+    sprintf(param, "%016" PRIx64 " %s "
                 "%" PRIu64 " "
                 "%s",
                 ln_short_channel_id(p_conf->p_self), node_id,
@@ -1602,7 +1602,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
                     LOGD("EOF(len=%d)\n", len);
                     break;
                 } else {
-                    LOGD("fail: %s(%" PRIx64 ")\n", strerror(errno), ln_short_channel_id(p_conf->p_self));
+                    LOGD("fail: %s(%016" PRIx64 ")\n", strerror(errno), ln_short_channel_id(p_conf->p_self));
                     len = 0;
                     break;
                 }
@@ -1738,7 +1738,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
             }
 
             lnapp_save_event(ln_channel_id(p_conf->p_self),
-                    "funding_locked: short_channel_id=%" PRIx64 ", close_addr=%s",
+                    "funding_locked: short_channel_id=%016" PRIx64 ", close_addr=%s",
                     ln_short_channel_id(p_conf->p_self), close_addr);
         } else {
             LOGD("fail: btcrpc_get_short_channel_param()\n");
@@ -2059,7 +2059,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
     if ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
         lnapp_save_event(ln_channel_id(p_conf->p_self),
-                "open: recv funding_locked short_channel_id=%0" PRIx64,
+                "open: recv funding_locked short_channel_id=%016" PRIx64,
                 ln_short_channel_id(p_conf->p_self));
     }
 
@@ -2164,7 +2164,7 @@ static void cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t
     char str_preimage[LN_SZ_PREIMAGE * 2 + 1];
     utl_misc_bin2str(str_preimage, p_addhtlc->p_preimage, LN_SZ_PREIMAGE);
     lnapp_save_event(NULL,
-            "payment final node: preimage=%s short_channel_id=%" PRIx64,
+            "payment final node: preimage=%s short_channel_id=%016" PRIx64,
             str_preimage, ln_short_channel_id(p_conf->p_self));
 }
 
@@ -2215,7 +2215,7 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIx64 " %s "
+        sprintf(param, "%016" PRIx64 " %s "
                     "%" PRIu64 " "
                     "%" PRIu32 " "
                     "%s",
@@ -2243,7 +2243,7 @@ static void cbsub_add_htlc_fail(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_a
     char str_payhash[LN_SZ_HASH * 2 + 1];
     utl_misc_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
     lnapp_save_event(NULL,
-            "payment fail: payment_hash=%s short_channel_id=%" PRIx64,
+            "payment fail: payment_hash=%s short_channel_id=%016" PRIx64,
             str_payhash, ln_short_channel_id(p_conf->p_self));
 }
 
@@ -2256,7 +2256,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     const ln_cb_fulfill_htlc_recv_t *p_fulfill = (const ln_cb_fulfill_htlc_recv_t *)p_param;
 
     if (p_fulfill->prev_short_channel_id != 0) {
-        LOGD("backwind: id=%" PRIu64 ", prev_short_channel_id=%" PRIx64 "\n", p_fulfill->id, p_fulfill->prev_short_channel_id);
+        LOGD("backwind: id=%" PRIu64 ", prev_short_channel_id=%016" PRIx64 "\n", p_fulfill->id, p_fulfill->prev_short_channel_id);
         cbsub_fulfill_backwind(p_conf, p_fulfill);
     } else {
         LOGD("origin node\n");
@@ -2307,7 +2307,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIx64 " %s "
+        sprintf(param, "%016" PRIx64 " %s "
                     "%s "
                     "%s",
                     ln_short_channel_id(p_conf->p_self), node_id,
@@ -2338,7 +2338,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
 
     if (p_fail->prev_short_channel_id != 0) {
-        LOGD("backwind fail_htlc: prev_idx=%" PRIu16 ", prev_short_channel_id=%" PRIx64 ")\n", p_fail->prev_idx, p_fail->prev_short_channel_id);
+        LOGD("backwind fail_htlc: prev_idx=%" PRIu16 ", prev_short_channel_id=%016" PRIx64 ")\n", p_fail->prev_idx, p_fail->prev_short_channel_id);
         cbsub_fail_backwind(p_conf, p_fail);
     } else {
         LOGD("origin node\n");
@@ -2381,7 +2381,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%" PRIx64 " %s",
+        sprintf(param, "%016" PRIx64 " %s",
                     ln_short_channel_id(p_conf->p_self), node_id);
         call_script(EVT_FAIL, param);
     } else {
@@ -2501,7 +2501,7 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
     char param[256];
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
     utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-    sprintf(param, "%" PRIx64 " %s "
+    sprintf(param, "%016" PRIx64 " %s "
                 "%" PRIu64 " "
                 "%d",
                 ln_short_channel_id(p_conf->p_self), node_id,
@@ -2586,7 +2586,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         utl_misc_bin2str_rev(txidstr, txid, BTC_SZ_TXID);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        sprintf(param, "%" PRIx64 " %s "
+        sprintf(param, "%016" PRIx64 " %s "
                     "%s",
                     ln_short_channel_id(p_conf->p_self), node_id,
                     txidstr);
@@ -2911,7 +2911,7 @@ static bool send_anno_pre_chan(uint64_t short_channel_id)
     bool unspent = check_unspent_short_channel_id(short_channel_id);
     if (!unspent) {
         //使用済みのため、DBから削除
-        LOGD("closed channel: %0" PRIx64 "\n", short_channel_id);
+        LOGD("closed channel: %016" PRIx64 "\n", short_channel_id);
         ret = false;
     }
 #else
@@ -2932,7 +2932,7 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp)
         //古いため、DBから削除
         char tmstr[UTL_SZ_DTSTR + 1];
         utl_misc_strftime(tmstr, timestamp);
-        LOGD("older channel: prune(%0" PRIx64 "): %s\n", short_channel_id, tmstr);
+        LOGD("older channel: prune(%016" PRIx64 "): %s\n", short_channel_id, tmstr);
         ret = false;
     }
 
@@ -3157,7 +3157,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         char *param = (char *)UTL_DBG_MALLOC(len_max);      //UTL_DBG_FREE: この中
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        sprintf(param, "%" PRIx64 " %s "
+        sprintf(param, "%016" PRIx64 " %s "
                     "\"%s\"",
                     ln_short_channel_id(p_conf->p_self), node_id,
                     p_conf->p_errstr);
@@ -3633,7 +3633,7 @@ static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, in
 {
     LOGD("=(%s:%d)=============================================\n", msg, line);
     if (ln_short_channel_id(self)) {
-        LOGD("short_channel_id: %0" PRIx64 "\n", ln_short_channel_id(self));
+        LOGD("short_channel_id: %016" PRIx64 "\n", ln_short_channel_id(self));
         LOGD("our_msat:   %" PRIu64 "\n", ln_our_msat(self));
         LOGD("their_msat: %" PRIu64 "\n", ln_their_msat(self));
         LOGD("HTLC num: %" PRIu16 "\n", ln_htlc_num(self));
@@ -3642,18 +3642,18 @@ static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, in
             if (p_htlc->amount_msat > 0) {
                 LOGD("  HTLC[%d]\n", lp);
                 LOGD("    flag= %02x\n", p_htlc->flag);
-                LOGD("    htlc id= %" PRIx64 "\n", p_htlc->id);
+                LOGD("    htlc id= %" PRIu64 "\n", p_htlc->id);
                 LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);
                 LOGD("    amount_msat= %" PRIu64 "\n", p_htlc->amount_msat);
                 if (p_htlc->prev_short_channel_id) {
-                    LOGD("    from:        cnl_add_htlc[%d]%" PRIx64 "\n", p_htlc->prev_idx, p_htlc->prev_short_channel_id);
+                    LOGD("    from:        cnl_add_htlc[%d]%016" PRIx64 "\n", p_htlc->prev_idx, p_htlc->prev_short_channel_id);
                 }
             }
         }
 
         //コンソールログ
         fprintf(fp, "=%s:%d==================\n", msg, line);
-        fprintf(fp, "short_channel_id: %0" PRIx64 "\n", ln_short_channel_id(self));
+        fprintf(fp, "short_channel_id: %016" PRIx64 "\n", ln_short_channel_id(self));
         fprintf(fp, "our_msat:   %" PRIu64 "\n", ln_our_msat(self));
         fprintf(fp, "their_msat: %" PRIu64 "\n", ln_their_msat(self));
         fprintf(fp, "HTLC num: %" PRIu16 "\n\n\n", ln_htlc_num(self));

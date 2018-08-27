@@ -459,7 +459,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
         const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, pCloseDat->p_htlc_idx[lp]);
         if (p_htlc->prev_short_channel_id != 0) {
             //転送元がある場合、preimageを抽出する
-            LOGD("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
+            LOGD("prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
             uint32_t confm = btcrpc_get_funding_confirm(self);
             if (confm > 0) {
@@ -658,7 +658,7 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
         const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, pCloseDat->p_htlc_idx[lp]);
         if (p_htlc->prev_short_channel_id != 0) {
             //転送元がある場合、preimageを抽出する
-            LOGD("prev_short_channel_id=%" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
+            LOGD("prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
             uint32_t confm = btcrpc_get_funding_confirm(self);
             if (confm > 0) {

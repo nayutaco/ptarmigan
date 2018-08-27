@@ -180,7 +180,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
         p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
 
         M_DBGLOG("[cnl]nodenum=%d\n", p_result->node_num);
-        M_DBGLOG("[cnl]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
+        M_DBGLOG("[cnl]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
         M_DBGLOG("[cnl]node1= ");
         M_DBGDUMPG(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
         M_DBGLOG("[cnl]node2= ");
@@ -203,7 +203,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
                     p_nodes->ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
 
                     M_DBGLOG("[upd]nodenum=%d\n", p_result->node_num);
-                    M_DBGLOG("[upd]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
+                    M_DBGLOG("[upd]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
                     M_DBGLOG("[upd]node1= ");
                     M_DBGDUMPG(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
                     M_DBGLOG("[upd]node2= ");
@@ -211,7 +211,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
                 }
             } else {
                 //disableの場合は、対象外にされるよう初期値にしておく
-                M_DBGLOG("[upd]short_channel_id: %" PRIx64 "\n", p_nodes->short_channel_id);
+                M_DBGLOG("[upd]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
                 M_DBGLOG("[upd]skip[%c]\n", type);
                 p_nodes->ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
             }
@@ -269,7 +269,7 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
         }
 
         M_DBGLOG("[self]nodenum=%d\n",  p_prm_self->p_result->node_num);
-        M_DBGLOG("[self]short_channel_id: %" PRIx64 "\n", self->short_channel_id);
+        M_DBGLOG("[self]short_channel_id: %016" PRIx64 "\n", self->short_channel_id);
         M_DBGLOG("[self]p_payer= ");
         M_DBGDUMPG(p_prm_self->p_payer, BTC_SZ_PUBKEY);
         M_DBGLOG("[self]self->peer_node_id= ");
