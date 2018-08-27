@@ -78,8 +78,12 @@ extern "C" {
 #define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
 
 // self.htlc_flag, ln_update_add_htlc_t.flag
-#define LN_HTLC_FLAG_SEND               (0x01)      ///< Offered HTLC(add_htlcを送信した)
-#define LN_HTLC_FLAG_RECV               (0x02)      ///< Received HTLC(add_htlcを受信した)
+#define LN_HTLC_FLAG_SEND               (0x01)      ///< Offered HTLC
+#define LN_HTLC_FLAG_RECV               (0x02)      ///< Received HTLC
+#define LN_HTLC_FLAG_ADDHTLC            (0x04)      ///< update_add_htlc送信済み
+#define LN_HTLC_FLAG_FULFILLHTLC        (0x08)      ///< update_fulfill_htlc/update_fail_htlc/update_malformed_htlc送信済み
+#define LN_HTLC_FLAG_OFFERED_MASK       (LN_HTLC_FLAG_SEND | LN_HTLC_FLAG_ADDHTLC)
+#define LN_HTLC_FLAG_RECEIVED_MASK      (LN_HTLC_FLAG_RECV | LN_HTLC_FLAG_FULFILLHTLC)
 #define LN_HTLC_FLAG_COMMIT_SEND        (0x40)      ///< commitment_signed受信済み
 #define LN_HTLC_FLAG_COMMIT_RECV        (0x80)      ///< commitment_signed受信済み
 #define LN_HTLC_FLAG_COMMIT_MASK        (LN_HTLC_FLAG_COMMIT_SEND | LN_HTLC_FLAG_COMMIT_RECV)
@@ -215,7 +219,6 @@ typedef enum {
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
     LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
     LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
-    LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
     LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_REV_AND_ACK_EXCG,     ///< revoke_and_ack交換通知
     LN_CB_UPDATE_FEE_RECV,      ///< update_fee受信通知
@@ -455,21 +458,48 @@ typedef struct {
  *  @brief      update_add_htlc
  */
 typedef struct {
-    uint8_t     *p_channel_id;                      ///< 32: channel-id
+    uint8_t     *p_channel_id;                      ///< 32: channel_id
     uint64_t    id;                                 ///< 8:  id
-    uint64_t    amount_msat;                        ///< 8:  amount-msat
-    uint32_t    cltv_expiry;                        ///< 4:  cltv-expirty
-    uint8_t     payment_sha256[LN_SZ_HASH];         ///< 32: payment-hash
-    uint8_t     *p_onion_route;                     ///< 1366: onion-routing-packet
+    uint64_t    amount_msat;                        ///< 8:  amount_msat
+    uint32_t    cltv_expiry;                        ///< 4:  cltv_expirty
+    uint8_t     payment_sha256[LN_SZ_HASH];         ///< 32: payment_hash
+    utl_buf_t   buf_payment_preimage;               ///< 32: payment_preimage
+    utl_buf_t   buf_onion_reason;                   ///< 
+                                                    //  update_add_htlc
+                                                    //      1366: onion_routing_packet
+                                                    //          final node: length == 0
+                                                    //  update_fail_htlc
+                                                    //      len:  reason
     //inner
     uint8_t     flag;                               ///< LN_HTLC_FLAG_xxx
     //fulfillで戻す
     uint8_t     signature[LN_SZ_SIGNATURE];         ///< 受信した最新のHTLC署名
                                                     //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
     uint64_t    prev_short_channel_id;              ///< 転送元short_channel_id
-    uint64_t    prev_id;                            ///< 転送元id
+                                                    //      origin/final node: == 0
+    uint64_t    prev_idx;                           ///< 転送元cnl_add_htlc[]index
     //failで戻す
-    utl_buf_t shared_secret;                      ///< failuremsg暗号化用
+    utl_buf_t   buf_shared_secret;                  ///< failuremsg暗号化用
+
+    /*
+     * update_add_htlc送信
+     *      preimage = NULL
+     *      set:  flag = SEND
+     *      sent: flag = SEND | ADDHTLC
+     * 
+     * update_add_htlc受信
+     *      set:  flag = RECV
+     *            preimage = NULL
+     * 
+     * update_fulfill_htlc送信
+     *      set:  flag = RECV | FULFILLHTLC
+     *            preimage = payment_preimage
+     *      sent: clear HTLC
+     * 
+     * update_fulfill_htlc受信
+     *      set:  flag = RECV | FULFILLHTLC
+     *            preimage = payment_preimage
+     */
 } ln_update_add_htlc_t;
 
 
@@ -814,14 +844,14 @@ typedef struct {
 typedef struct {
     bool                        ok;                     ///< true:アプリ層処理OK
     uint64_t                    id;                     ///< HTLC id
-    const uint8_t               *p_payment;             ///< payment_hash or preimage
-                                                        //      (hop_dataout.b_exit==true) ? preimage : payment_hash
+    const uint8_t               *p_payment;             ///< payment_hash
+    const uint8_t               *p_preimage;            ///< 非NULL: preimage
     const ln_hop_dataout_t      *p_hop;                 ///< onion解析結果
     uint64_t                    amount_msat;            ///< self->cnl_add_htlc[idx].amount_msat
     uint32_t                    cltv_expiry;            ///< self->cnl_add_htlc[idx].cltv_expiry
-    uint8_t                     *p_onion_route;         ///< 変換後onionパケット(self->cnl_add_htlc[idx].p_onion_route)
+    uint16_t                    idx;                    ///< self->cnl_add_htlc[idx]
+    utl_buf_t                   *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
     const utl_buf_t             *p_shared_secret;       ///< onion shared secret
-    utl_buf_t                   reason;                 ///< fail reason
 } ln_cb_add_htlc_recv_t;
 
 
@@ -830,6 +860,7 @@ typedef struct {
  */
 typedef struct {
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
+    uint16_t                prev_idx;               ///< self->cnl_add_htlc[idx]
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
     uint64_t                id;                     ///< HTLC id
 } ln_cb_fulfill_htlc_recv_t;
@@ -842,7 +873,7 @@ typedef struct {
     uint64_t                prev_short_channel_id;  ///< 転送元short_channel_id
     const utl_buf_t         *p_reason;              ///< reason
     const utl_buf_t         *p_shared_secret;       ///< shared secret
-    uint64_t                prev_id;                ///< 戻すHTLC id
+    uint16_t                prev_idx;               ///< self->cnl_add_htlc[idx]
     uint64_t                orig_id;                ///< 元のHTLC id
     const uint8_t           *p_payment_hash;        ///< payment_hash
 } ln_cb_fail_htlc_recv_t;
@@ -1067,6 +1098,7 @@ struct ln_self_t {
     //commitment transaction情報(local/remote)
     ln_commit_data_t            commit_local;                   ///< local commit_tx用
     ln_commit_data_t            commit_remote;                  ///< remote commit_tx用
+    bool                        uncommit;                       ///< true:commitment_signedの送信が必要
     //commitment transaction情報(固有)
     uint64_t                    funding_sat;                    ///< funding_satoshis
     uint32_t                    feerate_per_kw;                 ///< feerate_per_kw
@@ -1469,10 +1501,9 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam);
  * Normal Operation関係
  ********************************************************************/
 
-/** update_add_htlcメッセージ作成
+/** update_add_htlc設定
  *
  * @param[in,out]       self            channel情報
- * @param[out]          pAdd            生成したupdate_add_htlcメッセージ
  * @param[out]          pHtlcId         生成したHTLCのid
  * @param[out]          pReason         (非NULLかつ戻り値がfalse)onion reason
  * @param[in]           pPacket         onion packet
@@ -1480,14 +1511,13 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam);
  * @param[in]           CltvValue       CLTV値(絶対値)
  * @param[in]           pPaymentHash    PaymentHash(SHA256:32byte)
  * @param[in]           PrevShortChannelId   転送元short_channel_id(ない場合は0)
- * @param[in]           PrevId          転送元HTLC id(ない場合は0)
+ * @param[in]           PrevIdx         転送元cnl_add_htlc[]index(ない場合は0)
  * @param[in]           pSharedSecrets  保存する共有秘密鍵集(NULL:未保存)
  * @retval      true    成功
  * @note
  *      - prev_short_channel_id はfullfillの通知先として使用する
  */
-bool ln_create_add_htlc(ln_self_t *self,
-            utl_buf_t *pAdd,
+bool ln_set_add_htlc(ln_self_t *self,
             uint64_t *pHtlcId,
             utl_buf_t *pReason,
             const uint8_t *pPacket,
@@ -1495,30 +1525,56 @@ bool ln_create_add_htlc(ln_self_t *self,
             uint32_t CltvValue,
             const uint8_t *pPaymentHash,
             uint64_t PrevShortChannelId,
-            uint64_t PrevId,
+            uint16_t PrevIdx,
             const utl_buf_t *pSharedSecrets);
+
+
+/** update_add_htlcメッセージ作成
+ *
+ * @param[in,out]       self            channel情報
+ * @param[out]          pAdd            生成したupdate_add_htlcメッセージ
+ * @param[in]           Idx             生成するHTLCの内部管理index値
+ */
+void ln_create_add_htlc(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx);
+
+
+/** update_fulfill_htlc設定
+ *
+ * @param[in,out]       self            channel情報
+ * @param[in]           Idx             設定するHTLCの内部管理index値
+ * @param[in]           pPreImage       payment_preimage
+ * @retval      true    成功
+ */
+bool ln_set_fulfill_htlc(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage);
 
 
 /** update_fulfill_htlcメッセージ作成
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pFulfill        生成したupdate_fulfill_htlcメッセージ
- * @param[in]           Id              HTLC id
- * @param[in]           pPreImage       反映するHTLCのpayment-preimage
- * @retval      true    成功
+ * @param[in]           Idx             生成するHTLCの内部管理index値
  */
-bool ln_create_fulfill_htlc(ln_self_t *self, utl_buf_t *pFulfill, uint64_t Id, const uint8_t *pPreImage);
+void ln_create_fulfill_htlc(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx);
+
+
+/** update_fail_htlc設定
+ * 
+ * @param[in,out]       self            channel情報
+ * @param[in]           Idx             index
+ * @param[in]           pReason         reason
+ * @note
+ *      - onion_routing_packetと共用のため、onion_routingは消える
+ */
+bool ln_set_fail_htlc(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
 
 
 /** update_fail_htlcメッセージ作成
  *
  * @param[in,out]       self            channel情報
  * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
- * @param[in]           Id              HTLC id
- * @param[in]           pReason         失敗理由
- * @retval      true    成功
+ * @param[in]           Idx             生成するHTLCの内部管理index値
  */
-bool ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint64_t Id, const utl_buf_t *pReason);
+void ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
 
 
 /** commitment_signedメッセージ作成
@@ -1580,7 +1636,13 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
  * @param[in]           self            channel情報
  * @retval  true    commitment_signedを送信していないHTLCあり
  */
-bool ln_have_needcommit_htlc(const ln_self_t *self);
+// bool ln_have_needcommit_htlc(const ln_self_t *self);
+
+
+/** HTLCが安定しているかどうか
+ * 
+ */
+bool ln_htlc_is_stable(const ln_self_t *self);
 
 
 /** HTLCの中に時間切れがあるかどうか
@@ -1920,6 +1982,25 @@ static inline const ln_commit_data_t *ln_commit_local(const ln_self_t *self) {
  */
 static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
     return &self->commit_remote;
+}
+
+
+/** commitment_signedの送信が必要かどうか
+ * 
+ * @param[in]           self            channel情報
+ * @return      true:送信が必要
+ */
+static inline bool ln_uncommit_get(const ln_self_t *self) {
+    return self->uncommit;
+}
+
+
+/** commitment_signed未commitフラグクリア
+ * 
+ * @param[in,out]       self            channel情報
+ */
+static inline void ln_uncommit_clr(ln_self_t *self) {
+    self->uncommit = false;
 }
 
 

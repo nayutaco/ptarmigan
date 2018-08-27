@@ -127,9 +127,6 @@ typedef enum {
     //外部用
     TRANSCMD_NONE,                  ///< 要求無し
 
-    TRANSCMD_ADDHTLC,               ///< update_add_htlc転送
-    TRANSCMD_FULFILL,               ///< update_fulfill_htlc転送
-    TRANSCMD_FAIL,                  ///< update_fail_htlc転送
     TRANSCMD_PAYRETRY,              ///< 支払いのリトライ
 
     //内部用
@@ -223,23 +220,6 @@ typedef struct {
 } channel_conf_t;
 
 
-/** @struct fwd_proc_add_t
- *  @brief  add_htlc転送データ
- *  @note
- *      - 転送元情報は、fulfill_htlc/fail_htlcの戻し用に self->cnl_add_htlc[]に保持する
- */
-typedef struct {
-    uint8_t     onion_route[LN_SZ_ONION_ROUTE];     ///< 送信:onion
-    uint64_t    amt_to_forward;                     ///< 送信:amt_to_forward
-    uint32_t    outgoing_cltv_value;                ///< 送信:cltv
-    uint8_t     payment_hash[LN_SZ_HASH];           ///< 送信:payment_hash
-    uint64_t    next_short_channel_id;              ///< 送信:short_chennl_id
-    uint64_t    prev_short_channel_id;              ///< 転送元:short_channel_id
-    uint64_t    prev_id;                            ///< 転送元:HTLC id
-    utl_buf_t shared_secret;                      ///< add_htlc失敗:reason用
-} fwd_proc_add_t;
-
-
 /** @struct bwd_proc_fulfill_t
  *  @brief  fulfill_htlc巻き戻しデータ
  */
@@ -256,8 +236,8 @@ typedef struct {
 typedef struct {
     uint64_t    id;
     uint64_t    prev_short_channel_id;
-    utl_buf_t reason;
-    utl_buf_t shared_secret;
+    utl_buf_t   reason;
+    utl_buf_t   shared_secret;
     bool        b_first;            ///< true:fail発生元
 } bwd_proc_fail_t;
 

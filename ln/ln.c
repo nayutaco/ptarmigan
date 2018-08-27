@@ -292,7 +292,7 @@ static bool check_create_add_htlc(
                 utl_buf_t *pReason,
                 uint64_t amount_msat,
                 uint32_t cltv_value);
-static bool check_recv_add_htlc_bolt2(ln_self_t *self, ln_update_add_htlc_t *p_htlc);
+static bool check_recv_add_htlc_bolt2(ln_self_t *self, const ln_update_add_htlc_t *p_htlc);
 static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
                     ln_hop_dataout_t *pDataOut,
                     utl_push_t *pPushReason,
@@ -305,7 +305,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
                     ln_update_add_htlc_t *pAddHtlc,
                     int32_t Height);
 static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason);
-static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8_t *pPreImage);
+//static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8_t *pPreImage);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 
 static void proc_anno_sigs(ln_self_t *self);
@@ -313,7 +313,7 @@ static void proc_rev_and_ack(ln_self_t *self);
 
 static bool chk_peer_node(ln_self_t *self);
 static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t short_channel_id, uint8_t Dir);;
-static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add);
+static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_htlc);
 static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bClosing);
 static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 static bool chk_channelid(const uint8_t *recv_id, const uint8_t *mine_id);
@@ -411,8 +411,9 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
     btc_tx_init(&self->tx_closing);
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        self->cnl_add_htlc[idx].p_onion_route = NULL;
-        utl_buf_init(&self->cnl_add_htlc[idx].shared_secret);
+        utl_buf_init(&self->cnl_add_htlc[idx].buf_payment_preimage);
+        utl_buf_init(&self->cnl_add_htlc[idx].buf_onion_reason);
+        utl_buf_init(&self->cnl_add_htlc[idx].buf_shared_secret);
     }
 
     self->lfeature_remote = 0;
@@ -444,8 +445,9 @@ void ln_term(ln_self_t *self)
 
     ln_signer_term(self);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        self->cnl_add_htlc[idx].p_onion_route = NULL;
-        utl_buf_free(&self->cnl_add_htlc[idx].shared_secret);
+        utl_buf_free(&self->cnl_add_htlc[idx].buf_payment_preimage);
+        utl_buf_free(&self->cnl_add_htlc[idx].buf_onion_reason);
+        utl_buf_free(&self->cnl_add_htlc[idx].buf_shared_secret);
     }
     //LOGD("END\n");
 }
@@ -717,7 +719,9 @@ bool ln_create_init(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
                     self->htlc_num--;
                     self->htlc_id_num--;
                 }
-                utl_buf_free(&self->cnl_add_htlc[idx].shared_secret);
+                utl_buf_free(&self->cnl_add_htlc[idx].buf_payment_preimage);
+                utl_buf_free(&self->cnl_add_htlc[idx].buf_onion_reason);
+                utl_buf_free(&self->cnl_add_htlc[idx].buf_shared_secret);
                 memset(&self->cnl_add_htlc[idx], 0x00, sizeof(ln_update_add_htlc_t));
                 LOGD("  -->remove\n");
             }
@@ -1270,8 +1274,7 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
  * Normal Operation関係
  ********************************************************************/
 
-bool ln_create_add_htlc(ln_self_t *self,
-            utl_buf_t *pAdd,
+bool ln_set_add_htlc(ln_self_t *self,
             uint64_t *pHtlcId,
             utl_buf_t *pReason,
             const uint8_t *pPacket,
@@ -1279,7 +1282,7 @@ bool ln_create_add_htlc(ln_self_t *self,
             uint32_t CltvValue,
             const uint8_t *pPaymentHash,
             uint64_t PrevShortChannelId,
-            uint64_t PrevId,
+            uint16_t PrevIdx,
             const utl_buf_t *pSharedSecrets)
 {
     LOGD("BEGIN\n");
@@ -1294,141 +1297,109 @@ bool ln_create_add_htlc(ln_self_t *self,
         self->cnl_add_htlc[idx].amount_msat = AmountMsat;
         self->cnl_add_htlc[idx].cltv_expiry = CltvValue;
         memcpy(self->cnl_add_htlc[idx].payment_sha256, pPaymentHash, LN_SZ_HASH);
-        self->cnl_add_htlc[idx].p_onion_route = (CONST_CAST uint8_t *)pPacket;
+        utl_buf_alloccopy(&self->cnl_add_htlc[idx].buf_onion_reason, pPacket, LN_SZ_ONION_ROUTE);
         self->cnl_add_htlc[idx].prev_short_channel_id = PrevShortChannelId;
-        self->cnl_add_htlc[idx].prev_id = PrevId;
-        utl_buf_free(&self->cnl_add_htlc[idx].shared_secret);
+        self->cnl_add_htlc[idx].prev_idx = PrevIdx;
+        utl_buf_free(&self->cnl_add_htlc[idx].buf_shared_secret);
         if (pSharedSecrets) {
-            utl_buf_alloccopy(&self->cnl_add_htlc[idx].shared_secret, pSharedSecrets->buf, pSharedSecrets->len);
+            utl_buf_alloccopy(&self->cnl_add_htlc[idx].buf_shared_secret, pSharedSecrets->buf, pSharedSecrets->len);
         }
-        ret = ln_msg_update_add_htlc_create(pAdd, &self->cnl_add_htlc[idx]);
-        if (!ret && (pReason != NULL)) {
-            LOGD("fail: temporary_node_failure\n");
-            ln_create_reason_temp_node(pReason);
-        }
-    }
-    if (ret) {
-        self->our_msat -= AmountMsat;
-        self->htlc_id_num++;        //offer時にインクリメント
-        self->htlc_num++;
+
         *pHtlcId = self->cnl_add_htlc[idx].id;
-        LOGD("HTLC add : htlc_num=%d, prev_short_channel_id=%" PRIu64 "\n", self->htlc_num, self->cnl_add_htlc[idx].prev_short_channel_id);
+        LOGD("HTLC add : next htlc_num=%d, prev_short_channel_id=%" PRIu64 "\n", self->htlc_num, self->cnl_add_htlc[idx].prev_short_channel_id);
     } else {
         M_SET_ERR(self, LNERR_MSG_ERROR, "create update_add_htlc");
     }
 
-    LOGD("END\n");
+    LOGD("END: self->cnl_add_htlc[%d].flag = 0x%02x\n", idx, self->cnl_add_htlc[idx].flag);
     return ret;
 }
 
 
-bool ln_create_fulfill_htlc(ln_self_t *self, utl_buf_t *pFulfill, uint64_t Id, const uint8_t *pPreImage)
+void ln_create_add_htlc(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx)
+{
+    LOGD("self->cnl_add_htlc[%d].flag = 0x%02x\n", Idx, self->cnl_add_htlc[Idx].flag);
+    (void)ln_msg_update_add_htlc_create(pAdd, &self->cnl_add_htlc[Idx]);
+
+    self->cnl_add_htlc[Idx].flag |= LN_HTLC_FLAG_ADDHTLC;
+    self->our_msat -= self->cnl_add_htlc[Idx].amount_msat;
+    self->htlc_id_num++;
+    self->htlc_num++;
+    self->uncommit = true;
+}
+
+
+bool ln_set_fulfill_htlc(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage)
 {
     LOGD("BEGIN\n");
 
-    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
-        M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
-        return false;
-    }
-    uint8_t sha256[LN_SZ_HASH];
-    btc_util_sha256(sha256, pPreImage, LN_SZ_PREIMAGE);
-    LOGD("id= %" PRIu64 "\n", Id);
-    LOGD("recv payment_sha256= ");
-    DUMPD(sha256, LN_SZ_PREIMAGE);
-    ln_update_add_htlc_t *p_add = NULL;
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        //fulfill送信はReceived Outputに対して行う
-        if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            LOGD("self->cnl_add_htlc[%d].flag=%02x\n", idx, self->cnl_add_htlc[idx].flag);
-            LOGD("htlc_id=%" PRIu64 "\n", self->cnl_add_htlc[idx].id);
-            LOGD("payment_sha256= ");
-            DUMPD(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_PREIMAGE);
-            if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_RECV) &&
-                 (Id == self->cnl_add_htlc[idx].id) &&
-                 (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) ) {
-                p_add = &self->cnl_add_htlc[idx];
-                break;
-            }
-        }
-    }
-    if (p_add == NULL) {
-        M_SET_ERR(self, LNERR_INV_PREIMAGE, "preimage not mismatch");
-        return false;
-    }
-    if (p_add->amount_msat == 0) {
-        M_SET_ERR(self, LNERR_INV_ID, "invalid id");
-        return false;
-    }
+    //self->cnl_add_htlc[Idx]にupdate_fulfill_htlcが作成出来るだけの情報を設定
+    //  final nodeにふさわしいかのチェックはupdate_add_htlc受信時に行われている
+    //  update_fulfill_htlc未送信状態にしておきたいが、このタイミングではadd_htlcのcommitは済んでいない
 
-    bool ret;
+    ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
+
+    p_htlc->flag |= LN_HTLC_FLAG_FULFILLHTLC;
+    utl_buf_alloccopy(&p_htlc->buf_payment_preimage, pPreImage, LN_SZ_PREIMAGE);
+
+    LOGD("END: self->cnl_add_htlc[%d].flag = 0x%02x\n", Idx, self->cnl_add_htlc[Idx].flag);
+    return true;
+}
+
+
+void ln_create_fulfill_htlc(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx)
+{
+    LOGD("self->cnl_add_htlc[%d].flag = 0x%02x\n", Idx, self->cnl_add_htlc[Idx].flag);
+
     ln_update_fulfill_htlc_t fulfill_htlc;
+    ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
 
     fulfill_htlc.p_channel_id = self->channel_id;
-    fulfill_htlc.id = p_add->id;
-    fulfill_htlc.p_payment_preimage = (CONST_CAST uint8_t *)pPreImage;
-    ret = ln_msg_update_fulfill_htlc_create(pFulfill, &fulfill_htlc);
-    if (ret) {
-        //反映
-        self->our_msat += p_add->amount_msat;
-        //self->their_msat -= p_add->amount_msat;   //add_htlc受信時に引いているので、ここでは不要
+    fulfill_htlc.id = p_htlc->id;
+    fulfill_htlc.p_payment_preimage = p_htlc->buf_payment_preimage.buf;
+    (void)ln_msg_update_fulfill_htlc_create(pFulfill, &fulfill_htlc);
 
-        clear_htlc(self, p_add);
-    } else {
-        M_SET_ERR(self, LNERR_MSG_ERROR, "create update_fulfill_htlc");
-    }
+    self->our_msat += p_htlc->amount_msat;
+    //self->their_msat -= p_htlc->amount_msat;   //add_htlc受信時に引いているので、ここでは不要
+    clear_htlc(self, p_htlc);   //TODO: revoke_and_ack後がよいか？
 
-    LOGD("END\n");
-    return ret;
+    self->uncommit = true;
 }
 
 
-bool ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint64_t Id, const utl_buf_t *pReason)
+bool ln_set_fail_htlc(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason)
 {
     LOGD("BEGIN\n");
 
-    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
-        M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
-        return false;
-    }
-    ln_update_add_htlc_t *p_add = NULL;
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        //fulfill送信はReceived Outputに対して行う
-        if (self->cnl_add_htlc[idx].amount_msat > 0) {
-            LOGD("id=%" PRIx64 ", htlc_id=%" PRIu64 "\n", Id, self->cnl_add_htlc[idx].id);
-            if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_RECV) &&
-                 (Id == self->cnl_add_htlc[idx].id) ) {
-                p_add = &self->cnl_add_htlc[idx];
-                break;
-            }
-        }
-    }
-    if (p_add == NULL) {
-        M_SET_ERR(self, LNERR_INV_ID, "invalid id 1");
-        return false;
-    }
-    if (p_add->amount_msat == 0) {
-        M_SET_ERR(self, LNERR_INV_ID, "invalid id 2");
-        return false;
-    }
+    ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
 
-    bool ret;
+    p_htlc->flag |= LN_HTLC_FLAG_FULFILLHTLC;
+    utl_buf_free(&self->cnl_add_htlc[Idx].buf_onion_reason);
+    ln_onion_failure_forward(&self->cnl_add_htlc[Idx].buf_onion_reason, &p_htlc->buf_shared_secret, pReason);
+
+    LOGD("END: self->cnl_add_htlc[%d].flag = 0x%02x\n", Idx, self->cnl_add_htlc[Idx].flag);
+    LOGD("   reason: ");
+    DUMPD(pReason->buf, pReason->len);
+    return true;
+}
+
+
+void ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
+{
+    LOGD("self->cnl_add_htlc[%d].flag = 0x%02x\n", Idx, self->cnl_add_htlc[Idx].flag);
+
     ln_update_fail_htlc_t fail_htlc;
+    ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
 
     fail_htlc.p_channel_id = self->channel_id;
-    fail_htlc.id = p_add->id;
-    fail_htlc.p_reason = (CONST_CAST utl_buf_t *)pReason;
-    ret = ln_msg_update_fail_htlc_create(pFail, &fail_htlc);
-    if (ret) {
-        //反映
-        self->their_msat += p_add->amount_msat;   //add_htlc受信時に引いた分を戻す
+    fail_htlc.id = p_htlc->id;
+    fail_htlc.p_reason = &p_htlc->buf_onion_reason;
+    (void)ln_msg_update_fail_htlc_create(pFail, &fail_htlc);
 
-        clear_htlc(self, p_add);
-    } else {
-        M_SET_ERR(self, LNERR_MSG_ERROR, "create update_fail_htlc");
-    }
+    self->their_msat += p_htlc->amount_msat;   //add_htlc受信時に引いた分を戻す
+    clear_htlc(self, p_htlc);
 
-    LOGD("END\n");
-    return ret;
+    self->uncommit = true;
 }
 
 
@@ -1454,6 +1425,9 @@ bool ln_create_update_fee(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
     updfee.p_channel_id = self->channel_id;
     updfee.feerate_per_kw = FeeratePerKw;
     ret = ln_msg_update_fee_create(pUpdFee, &updfee);
+    if (ret) {
+        self->uncommit = true;
+    }
 
     LOGD("END\n");
     return ret;
@@ -1521,20 +1495,26 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
  *      - commitment_signed受信
  *      - revoke_and_ack受信
  */
-bool ln_have_needcommit_htlc(const ln_self_t *self)
+// bool ln_have_needcommit_htlc(const ln_self_t *self)
+// {
+//     bool ret = false;
+
+//     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+//         if ( (self->cnl_add_htlc[lp].amount_msat > 0) &&
+//              (self->cnl_add_htlc[lp].flag == LN_HTLC_FLAG_RECV) ) {
+//             LOGD("HTLC not commit[%d]\n", lp);
+//             ret = true;
+//             break;
+//         }
+//     }
+
+//     return ret;
+// }
+
+
+bool ln_htlc_is_stable(const ln_self_t *self)
 {
-    bool ret = false;
-
-    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if ( (self->cnl_add_htlc[lp].amount_msat > 0) &&
-             (self->cnl_add_htlc[lp].flag == LN_HTLC_FLAG_RECV) ) {
-            LOGD("HTLC not commit[%d]\n", lp);
-            ret = true;
-            break;
-        }
-    }
-
-    return ret;
+    return comrev_state(self) == M_STAT_STABLE;
 }
 
 
@@ -1829,8 +1809,9 @@ static void channel_clear(ln_self_t *self)
     btc_tx_free(&self->tx_closing);
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        self->cnl_add_htlc[idx].p_onion_route = NULL;
-        utl_buf_free(&self->cnl_add_htlc[idx].shared_secret);
+        utl_buf_free(&self->cnl_add_htlc[idx].buf_payment_preimage);
+        utl_buf_free(&self->cnl_add_htlc[idx].buf_onion_reason);
+        utl_buf_free(&self->cnl_add_htlc[idx].buf_shared_secret);
     }
 
     memset(self->peer_node_id, 0, BTC_SZ_PUBKEY);
@@ -2608,9 +2589,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
 
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    uint8_t onion_route[LN_SZ_ONION_ROUTE];
     p_htlc->p_channel_id = channel_id;
-    p_htlc->p_onion_route = onion_route;
     ret = ln_msg_update_add_htlc_read(p_htlc, pData, Len);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_READ, "read message");
@@ -2645,17 +2624,17 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //  ただし、onionやpayeeのinvoiceチェックによりfailになる可能性がある。
     //
     ln_hop_dataout_t hop_dataout;   // update_add_htlc受信後のONION解析結果
-    const uint8_t *p_payment = NULL;
     uint8_t preimage[LN_SZ_PREIMAGE];
 
     ln_cb_add_htlc_recv_t add_htlc;
     utl_push_t push_htlc;
-    utl_push_init(&push_htlc, &add_htlc.reason, 0);
+    utl_buf_t buf_reason = UTL_BUF_INIT;
+    utl_push_init(&push_htlc, &buf_reason, 0);
 
-    ret = ln_onion_read_packet(p_htlc->p_onion_route, &hop_dataout,
-                    &p_htlc->shared_secret,
+    ret = ln_onion_read_packet(p_htlc->buf_onion_reason.buf, &hop_dataout,
+                    &p_htlc->buf_shared_secret,
                     &push_htlc,
-                    p_htlc->p_onion_route,
+                    p_htlc->buf_onion_reason.buf,
                     p_htlc->payment_sha256, LN_SZ_HASH);
     if (ret) {
         int32_t height = 0;
@@ -2664,14 +2643,14 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
             if (hop_dataout.b_exit) {
                 ret = check_recv_add_htlc_bolt4_final(self, &hop_dataout, &push_htlc, p_htlc, preimage, height);
                 if (ret) {
-                    p_payment = preimage;
+                    p_htlc->prev_short_channel_id = UINT64_MAX; //final node
+                    utl_buf_alloccopy(&p_htlc->buf_payment_preimage, preimage, LN_SZ_PREIMAGE);
+                    utl_buf_free(&p_htlc->buf_onion_reason);
                 }
             } else {
                 ret = check_recv_add_htlc_bolt4_forward(self, &hop_dataout, &push_htlc, p_htlc, height);
-                if (ret) {
-                    p_payment = p_htlc->payment_sha256;
-                }
             }
+            self->uncommit = true;
         } else {
             M_SET_ERR(self, LNERR_BITCOIND, "getblockcount");
         }
@@ -2690,7 +2669,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         ret = check_recv_add_htlc_bolt4_common(&push_htlc);
     }
 
-    //相手のamountから差し引いて、HTLC追加
+    //成功にせよ失敗にせよ、相手のamountから差し引いて、HTLC追加
     self->their_msat -= p_htlc->amount_msat;
     self->htlc_num++;
     p_htlc->flag = LN_HTLC_FLAG_RECV;       //受信=received HTLC
@@ -2714,14 +2693,35 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //update_add_htlc受信通知
     add_htlc.ok = ret;
     add_htlc.id = p_htlc->id;
-    add_htlc.p_payment = p_payment;     //(hop_dataout.b_exit==true) ? preimage : payment_hash
+    add_htlc.p_payment = p_htlc->payment_sha256;
+    add_htlc.p_preimage = (hop_dataout.b_exit) ? p_htlc->buf_payment_preimage.buf : NULL;
     add_htlc.p_hop = &hop_dataout;
     add_htlc.amount_msat = p_htlc->amount_msat;
     add_htlc.cltv_expiry = p_htlc->cltv_expiry;
-    add_htlc.p_onion_route = p_htlc->p_onion_route;
-    add_htlc.p_shared_secret = &p_htlc->shared_secret;
+    add_htlc.idx = idx;     //転送先にとっては、prev_idxになる
+    add_htlc.p_onion_reason = &p_htlc->buf_onion_reason;
+    add_htlc.p_shared_secret = &p_htlc->buf_shared_secret;
     (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV, &add_htlc);
-    utl_buf_free(&add_htlc.reason);
+
+    if (ret && hop_dataout.b_exit) {
+        //final node
+        LOGD("final node: backwind fulfill_htlc start\n");
+        p_htlc->flag |= LN_HTLC_FLAG_FULFILLHTLC;
+        ln_db_preimg_del(p_htlc->buf_payment_preimage.buf);
+
+        if (!LN_DBG_FULFILL()) {
+            LOGD("DBG: no fulfill mode\n");
+            self->cnl_add_htlc[idx].flag &= LN_HTLC_FLAG_FULFILLHTLC;
+        }
+    } else if (!ret) {
+        //update_fail_htlcを折り返す起点
+        LOGD("fail: backwind fail_htlc start: ");
+        DUMPD(buf_reason.buf, buf_reason.len);
+        p_htlc->flag |= LN_HTLC_FLAG_FULFILLHTLC;
+        utl_buf_free(&p_htlc->buf_onion_reason);
+        ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
+    }
+    utl_buf_free(&buf_reason);
 
     LOGD("END\n");
     return true;
@@ -2755,8 +2755,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
     uint8_t sha256[LN_SZ_HASH];
     btc_util_sha256(sha256, preimage, sizeof(preimage));
 
-    ln_update_add_htlc_t *p_add = NULL;
-    ret = false;
+    ln_update_add_htlc_t *p_htlc = NULL;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //受信したfulfillは、Offered HTLCについてチェックする
         LOGD("HTLC%d: id=%" PRIu64 ", flag=%02x: ", idx, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].flag);
@@ -2764,8 +2763,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         if ( (self->cnl_add_htlc[idx].id == fulfill_htlc.id) &&
              (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) ) {
             if (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) {
-                p_add = &self->cnl_add_htlc[idx];
-                ret = true;
+                p_htlc = &self->cnl_add_htlc[idx];
             } else {
                 LOGD("fail: match id, but fail payment_hash\n");
             }
@@ -2773,22 +2771,24 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         }
     }
 
-    if (ret) {
+    if (p_htlc != NULL) {
+        //flag
+        p_htlc->flag |= LN_HTLC_FLAG_FULFILLHTLC;
+
         //反映
-        //self->our_msat -= p_add->amount_msat; //add_htlc送信時に引いているので、ここでは不要
-        self->their_msat += p_add->amount_msat;
-
-        uint64_t prev_short_channel_id = p_add->prev_short_channel_id; //CB用
-        uint64_t prev_id = p_add->prev_id;  //CB用
-
-        clear_htlc(self, p_add);
+        //self->our_msat -= p_htlc->amount_msat; //add_htlc送信時に引いているので、ここでは不要
+        self->their_msat += p_htlc->amount_msat;
+        self->uncommit = true;
 
         //update_fulfill_htlc受信通知
         ln_cb_fulfill_htlc_recv_t fulfill;
-        fulfill.prev_short_channel_id = prev_short_channel_id;
+        fulfill.prev_short_channel_id = p_htlc->prev_short_channel_id;
+        fulfill.prev_idx = p_htlc->prev_idx;
         fulfill.p_preimage = preimage;
-        fulfill.id = prev_id;
+        fulfill.id = p_htlc->id;
         (*self->p_callback)(self, LN_CB_FULFILL_HTLC_RECV, &fulfill);
+
+        clear_htlc(self, p_htlc);
     } else {
         M_SET_ERR(self, LNERR_INV_ID, "fulfill");
     }
@@ -2806,7 +2806,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
     ln_update_fail_htlc_t    fail_htlc;
 
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    utl_buf_t             reason = UTL_BUF_INIT;
+    utl_buf_t reason = UTL_BUF_INIT;
 
     fail_htlc.p_channel_id = channel_id;
     fail_htlc.p_reason = &reason;
@@ -2830,12 +2830,13 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
              (self->cnl_add_htlc[idx].id == fail_htlc.id)) {
             //id一致
             self->our_msat += self->cnl_add_htlc[idx].amount_msat;
+            self->uncommit = true;
 
             ln_cb_fail_htlc_recv_t fail_recv;
             fail_recv.prev_short_channel_id = self->cnl_add_htlc[idx].prev_short_channel_id;
             fail_recv.p_reason = &reason;
-            fail_recv.p_shared_secret = &self->cnl_add_htlc[idx].shared_secret;
-            fail_recv.prev_id = self->cnl_add_htlc[idx].prev_id;     //戻したいHTLC id
+            fail_recv.p_shared_secret = &self->cnl_add_htlc[idx].buf_shared_secret;
+            fail_recv.prev_idx = idx;
             fail_recv.orig_id = self->cnl_add_htlc[idx].id;     //元のHTLC id
             fail_recv.p_payment_hash = self->cnl_add_htlc[idx].payment_sha256;
             (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
@@ -2861,9 +2862,6 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
     uint8_t bak_sig[LN_SZ_SIGNATURE];
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-
-    //処理前呼び出し
-    (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV_PREV, NULL);
 
     memcpy(bak_sig, self->commit_remote.signature, LN_SZ_SIGNATURE);
     commsig.p_channel_id = channel_id;
@@ -2939,20 +2937,12 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
         M_DBG_COMMITNUM(self);
         M_DB_SELF_SAVE(self);
 
-        if (self->funding_local.current_commit_num != self->funding_remote.current_commit_num) {
-            //commitment_signed未送信
-            ret = create_commit_signed(self, &buf_bolt);
-            if (ret) {
-                (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
-                utl_buf_free(&buf_bolt);
-            }
-        }
-    }
-    if (ret) {
         //commitment_signed受信通知
         (*self->p_callback)(self, LN_CB_COMMIT_SIG_RECV, NULL);
 
         proc_rev_and_ack(self);
+    } else {
+        LOGD("fail: ln_msg_revoke_and_ack_create\n");
     }
 
 LABEL_EXIT:
@@ -3000,14 +2990,6 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     if (!ret) {
         LOGD("fail: prev_secret convert\n");
         goto LABEL_EXIT;
-    }
-
-    //commitment_signed送信済みフラグ
-    //  TODO: revoke_and_ack受信＝相手がcommitment_signedを受信したことになるが、送信時に立てるべきか？
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (self->cnl_add_htlc[idx].amount_msat != 0) {
-            self->cnl_add_htlc[idx].flag |= LN_HTLC_FLAG_COMMIT_SEND;
-        }
     }
 
     LOGD("$$$ revoke_num: %" PRIu64 "\n", self->commit_local.revoke_num);
@@ -3067,6 +3049,7 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     M_DBG_COMMITNUM(self);
     M_DB_SELF_SAVE(self);
 
+    //revoke_and_ack交換チェック
     proc_rev_and_ack(self);
 
 LABEL_EXIT:
@@ -4543,6 +4526,10 @@ LABEL_EXIT:
 }
 
 
+/** commitment_signed作成
+ * 
+ * 
+ */
 static bool create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig)
 {
     LOGD("BEGIN\n");
@@ -4573,6 +4560,13 @@ static bool create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig)
     UTL_DBG_FREE(p_htlc_sigs);
 
     if (ret) {
+        //commitment_signed送信済みフラグ
+        for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+            if (self->cnl_add_htlc[idx].amount_msat != 0) {
+                self->cnl_add_htlc[idx].flag |= LN_HTLC_FLAG_COMMIT_SEND;
+            }
+        }
+
         //相手のcommitment_numberをインクリメント(channel_reestablish用)
         self->commit_remote.commit_num++;
         M_DBG_COMMITNUM(self);
@@ -4839,7 +4833,7 @@ LABEL_EXIT:
 /** [BOLT#2]recv_update_add_htlc()のチェック項目
  *
  */
-static bool check_recv_add_htlc_bolt2(ln_self_t *self, ln_update_add_htlc_t *p_htlc)
+static bool check_recv_add_htlc_bolt2(ln_self_t *self, const ln_update_add_htlc_t *p_htlc)
 {
     //amount_msatが0の場合、チャネルを失敗させる。
     //amount_msatが自分のhtlc_minimum_msat未満の場合、チャネルを失敗させる。
@@ -5194,11 +5188,12 @@ static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason)
 }
 
 
+#if 0
 /** 保持しているpreimageに合致するHTLCを検索(最初にヒットしたもの)
  *
  * @param[in]           self
  * @param[out]          pHtlcIdx        一致したself->cnl_add_htlc[]の添字(戻り値がtrueの場合)
- * @retval      true    検索成功
+ * @retval      true    検索成功(反映可能なHTLCがある)
  */
 static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8_t *pPreImage)
 {
@@ -5217,13 +5212,19 @@ static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8
     preimg.amount_msat = (uint64_t)-1;
     preimg.expiry = 0;
     void *p_cur;
+    bool detect = false;
     ret = ln_db_preimg_cur_open(&p_cur);
     while (ret) {
-        bool detect;
         ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);     //from invoice
         if (ret && detect) {
             ln_calc_preimage_hash(preimage_hash, preimg.preimage);
+            LOGD("DB preimage: ");
+            DUMPD(preimg.preimage, sizeof(preimg.preimage));
+            LOGD("   payhash : ");
+            DUMPD(preimage_hash, sizeof(preimage_hash));
             for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+                LOGD("  HTLC[%d]: ", lp);
+                DUMPD(self->cnl_add_htlc[lp].payment_sha256, LN_SZ_HASH);
                 if ( (self->cnl_add_htlc[lp].amount_msat != 0) &&
                      (memcmp(preimage_hash, self->cnl_add_htlc[lp].payment_sha256, LN_SZ_HASH) == 0) ) {
                     //一致
@@ -5231,15 +5232,24 @@ static bool search_fulfill_htlc(const ln_self_t *self, uint16_t *pHtlcIdx, uint8
                     memcpy(pPreImage, preimg.preimage, LN_SZ_PREIMAGE);
                     LOGD("match preimage[%d]: ", lp);
                     DUMPD(preimg.preimage, LN_SZ_PREIMAGE);
+                    ret = false;        //break while
                     break;
                 }
+                detect = false;
             }
         }
     }
     ln_db_preimg_cur_close(p_cur);
 
-    return ret;
+    if (detect) {
+        LOGD("have fulfill HTLC\n");
+    } else {
+        LOGD("no fulfill HTLC\n");
+    }
+
+    return detect;
 }
+#endif
 
 
 /** peerから受信したper_commitment_secret保存
@@ -5329,24 +5339,8 @@ static void proc_rev_and_ack(ln_self_t *self)
 {
     uint8_t stat = comrev_state(self);
     if (stat == M_STAT_STABLE) {
-        //revoke_and_ack受信通知
+        //revoke_and_ack交換通知
         (*self->p_callback)(self, LN_CB_REV_AND_ACK_EXCG, NULL);
-
-        uint16_t idx;
-        uint8_t preimage[LN_SZ_PREIMAGE];
-        bool ret = search_fulfill_htlc(self, &idx, preimage);
-        if (ret) {
-            //fulfill(final node)
-            ln_hop_dataout_t hop;
-            hop.b_exit = true;      //final
-
-            ln_cb_add_htlc_recv_t add_htlc;
-            add_htlc.ok = true;
-            add_htlc.id = self->cnl_add_htlc[idx].id;
-            add_htlc.p_payment = preimage;
-            add_htlc.p_hop = &hop;
-            (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV, &add_htlc);
-        }
     }
 }
 
@@ -5405,13 +5399,15 @@ static bool get_nodeid_from_annocnl(ln_self_t *self, uint8_t *pNodeId, uint64_t 
 
 
 //HTLC削除(HTLC idは維持する)
-static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_add)
+static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_htlc)
 {
     LOGD("HTLC remove prev: htlc_num=%d\n", self->htlc_num);
     assert(self->htlc_num > 0);
 
-    utl_buf_free(&p_add->shared_secret);
-    memset(p_add, 0, sizeof(ln_update_add_htlc_t));
+    utl_buf_free(&p_htlc->buf_payment_preimage);
+    utl_buf_free(&p_htlc->buf_onion_reason);
+    utl_buf_free(&p_htlc->buf_shared_secret);
+    memset(p_htlc, 0, sizeof(ln_update_add_htlc_t));
     self->htlc_num--;
     LOGD("   --> htlc_num=%d\n", self->htlc_num);
 }
@@ -5589,22 +5585,22 @@ static void set_error(ln_self_t *self, int Err, const char *pFormat, ...)
 
 
 /** commitment_number状態
- *
+ * 
+ *  @retval 0   state-A: local.commit_num <  remote.commit_num
+ *  @retval 1   state-B: local.commit_num >  remote.commit_num
+ *  @retval 2   state-C: local.commit_num == remote.commit_num
  */
 static int commitment_state(const ln_self_t *self)
 {
-    //state-A: local.commit_num <  remote.commit_num
-    //state-B: local.commit_num >  remote.commit_num
-    //state-C: local.commit_num == remote.commit_num
     int commit_stat;
     if (self->commit_local.commit_num == self->commit_remote.commit_num) {
         commit_stat = 2;    //C
     } else if (self->commit_local.commit_num + (uint64_t)1 == self->commit_remote.commit_num) {
         commit_stat = 0;    //A
-    } else if (self->commit_local.commit_num > self->commit_remote.commit_num + (uint64_t)1) {
+    } else if (self->commit_local.commit_num == self->commit_remote.commit_num + (uint64_t)1) {
         commit_stat = 1;    //B
     } else {
-        LOGD("err: invalid commit_num\n");
+        LOGD("err: invalid commit_num(local=%" PRIu64 ", remote=%" PRIu64 ")\n", self->commit_local.commit_num, self->commit_remote.commit_num);
         commit_stat = -1;
     }
     return commit_stat;
@@ -5613,12 +5609,12 @@ static int commitment_state(const ln_self_t *self)
 
 /** revocation_number状態
  *
+ *  @retval 0   state-a: local.revoke_num <  remote.revoke_num
+ *  @retval 1   state-b: local.revoke_num >  remote.revoke_num
+ *  @retval 2   state-c: local.revoke_num == remote.revoke_num
  */
 static int revocation_state(const ln_self_t *self)
 {
-    //state-a: local.revoke_num <  remote.revoke_num
-    //state-b: local.revoke_num >  remote.revoke_num
-    //state-c: local.revoke_num == remote.revoke_num
     int revoke_stat;
     if (self->commit_local.revoke_num == self->commit_remote.revoke_num) {
         revoke_stat = 2;    //c
@@ -5627,7 +5623,7 @@ static int revocation_state(const ln_self_t *self)
     } else if (self->commit_local.revoke_num == self->commit_remote.revoke_num + (uint64_t)1) {
         revoke_stat = 1;    //b
     } else {
-        LOGD("err: invalid revoke_num\n");
+        LOGD("err: invalid revoke_num(local=%" PRIu64 ", remote=%" PRIu64 ")\n", self->commit_local.revoke_num, self->commit_remote.revoke_num);
         revoke_stat = -1;
     }
     return revoke_stat;

@@ -81,10 +81,12 @@ bool HIDDEN ln_msg_update_add_htlc_create(utl_buf_t *pBuf, const ln_update_add_h
     update_add_htlc_print(pMsg);
 #endif  //DBG_PRINT_CREATE
 
-    if (pMsg->cltv_expiry >= (uint32_t)500000000) {
-        LOGD("fail: expiry >= 500000000\n");
-        return false;
-    }
+    //check_create_add_htlc()でチェックする
+    //
+    // if (pMsg->cltv_expiry >= (uint32_t)500000000) {
+    //     LOGD("fail: expiry >= 500000000\n");
+    //     return false;
+    // }
 
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + 1450);
 
@@ -107,7 +109,7 @@ bool HIDDEN ln_msg_update_add_htlc_create(utl_buf_t *pBuf, const ln_update_add_h
     ln_misc_push32be(&proto, pMsg->cltv_expiry);
 
     //        [1366:onion-routing-packet]
-    utl_push_data(&proto, pMsg->p_onion_route, LN_SZ_ONION_ROUTE);
+    utl_push_data(&proto, pMsg->buf_onion_reason.buf, LN_SZ_ONION_ROUTE);
 
     assert(sizeof(uint16_t) + 1450 == pBuf->len);
 
@@ -153,7 +155,8 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
     pos += sizeof(uint32_t);
 
     //        [1366:onion-routing-packet]
-    memcpy(pMsg->p_onion_route, pData + pos, LN_SZ_ONION_ROUTE);
+    utl_buf_free(&pMsg->buf_onion_reason);
+    utl_buf_alloccopy(&pMsg->buf_onion_reason, pData + pos, LN_SZ_ONION_ROUTE);
     pos += LN_SZ_ONION_ROUTE;
 
     assert(Len == pos);
@@ -178,8 +181,8 @@ static void update_add_htlc_print(const ln_update_add_htlc_t *pMsg)
     LOGD("cltv_expiry: %u\n", pMsg->cltv_expiry);
     LOGD("payment_sha256: ");
     DUMPD(pMsg->payment_sha256, LN_SZ_HASH);
-    LOGD("p_onion_route: ");
-    DUMPD(pMsg->p_onion_route, 30);
+    LOGD("onion_route: ");
+    DUMPD(pMsg->buf_onion_reason.buf, 30);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }

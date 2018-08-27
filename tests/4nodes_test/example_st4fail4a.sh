@@ -42,4 +42,4 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 sleep 2
 
 # 戻す
-./ptarmcli --debug 1 $PAYEE_PORT
+./ptarmcli --debug 1 $ACCIDENT_PORT
