@@ -574,10 +574,14 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             cJSON_AddItemToObject(json, "creation_time", cJSON_CreateString(dtstr));
             if (preimg.expiry != UINT32_MAX) {
                 cJSON_AddItemToObject(json, "expiry", cJSON_CreateNumber(preimg.expiry));
-                // char *p_invoice = create_bolt11(preimage_hash, preimg.amount_msat, preimg.expiry, NULL, 0);
+                // ln_fieldr_t *p_rfield = NULL;
+                // uint8_t rfieldnum = 0;
+                // create_bolt11_rfield(&p_rfield, &rfieldnum);
+                // char *p_invoice = create_bolt11(preimage_hash, preimg.amount_msat, preimg.expiry, p_rfield, rfieldnum, LN_MIN_FINAL_CLTV_EXPIRY);
                 // if (p_invoice != NULL) {
                 //     cJSON_AddItemToObject(json, "invoice", cJSON_CreateString(p_invoice));
                 //     free(p_invoice);
+                //     APP_FREE(p_rfield);
                 // }
             } else {
                 cJSON_AddItemToObject(json, "expiry", cJSON_CreateString("remove after close"));

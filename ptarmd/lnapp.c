@@ -76,7 +76,7 @@
 #define M_WAIT_ANNO_LONG_SEC    (30)        //監視スレッドでのannounce処理間隔(長めに空ける)[sec]
 #define M_WAIT_MUTEX_MSEC       (100)       //mMuxNodeのロック解除待ち間隔[msec]
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
-#define M_WAIT_RECV_TO_MSEC     (100)       //socket受信待ちタイムアウト[msec]
+#define M_WAIT_RECV_TO_MSEC     (50)        //socket受信待ちタイムアウト[msec]
 #define M_WAIT_SEND_WAIT_MSEC   (10)        //socket送信で一度に送信できなかった場合の待ち時間[msec]
 #define M_WAIT_RECV_MSG_MSEC    (500)       //message受信監視周期[msec]
 #define M_WAIT_RECV_THREAD      (100)       //recv_thread開始待ち[msec]
@@ -130,35 +130,6 @@ enum {
 };
 
 
-/** @enum   node_flag_t
- *  @brief  状態フラグ
- *
- * BOLTメッセージの送受信でフラグを立てていく。
- * スレッド間で並列できない処理がある場合の排他にも用いる。
- *
- * ADDHTLC_SEND --> commitment_signed受信 : offered HTLC追加完了
- * ADDHTLC_RECV --> COMSIG_RECV --> revoke_and_ack受信 : received HTLC追加完了
- * FULFILL_SEND --> commitment_signed受信 : fulfill完了(received HTLC)
- * FULFILL_RECV --> COMSIG_RECV --> revoke_nad_ack受信 : fulfill完了(offered HTLC)
- * FAIL_SEND --> commitment_signed受信 : fail完了(received HTLC)
- * FAIL_RECV --> COMSIG_RECV --> revoke_nad_ack受信 : fail完了(offered HTLC)
- */
-typedef enum {
-    FLAGNODE_NONE           = 0x0000,
-    FLAGNODE_PAYMENT        = 0x0001,   ///< 送金開始
-
-    FLAGNODE_ADDHTLC_SEND   = 0x0002,   ///< update_add_htlc送信
-    FLAGNODE_ADDHTLC_RECV   = 0x0004,   ///< update_add_htlc受信
-    FLAGNODE_UPDFEE_SEND    = 0x0008,   ///< update_fee送信
-    FLAGNODE_UPDFEE_RECV    = 0x0010,   ///< update_fee受信
-
-    FLAGNODE_FULFILL_SEND   = 0x0100,   ///< update_fulfill_htlc送信
-    FLAGNODE_FULFILL_RECV   = 0x0200,   ///< update_fulfill_htlc受信
-    FLAGNODE_FAIL_SEND      = 0x0400,   ///< update_fail_htlc送信
-    FLAGNODE_FAIL_RECV      = 0x0800,   ///< update_fail_htlc受信
-} node_flag_t;
-
-
 /********************************************************************
  * static variables
  ********************************************************************/
@@ -166,12 +137,6 @@ typedef enum {
 static volatile bool        mLoop;          //true:チャネル有効
 
 static ln_anno_prm_t        mAnnoPrm;       ///< announcementパラメータ
-
-//シーケンスのmutex
-//  PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NPでの初期化は関数内でしか行えない
-static pthread_mutexattr_t  mMuxAttr;
-static pthread_mutex_t      mMuxNode;
-static volatile node_flag_t mFlagNode;
 
 
 static const char *kSCRIPT[] = {
@@ -219,10 +184,6 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf);
 
 static void *thread_anno_start(void *pArg);
 
-static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd, utl_buf_t *pReason);
-static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdFulfill);
-static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail);
-
 static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param);
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -234,11 +195,17 @@ static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc);
+static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc);
+static void cbsub_add_htlc_fail(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc);
 static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htlc_recv_t *p_fulfill);
+static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_htlc_recv_t *p_fulfill);
 static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
-static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param);
+static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail);
+static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail);
 static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param);
-static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param);
+static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param);
 static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param);
@@ -258,12 +225,11 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp);
 static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const utl_buf_t *p_buf_cnl);
 static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const utl_buf_t *p_buf_cnl);
 static void send_cnlupd_before_announce(lnapp_conf_t *p_conf);
+static void send_commitment_signed(lnapp_conf_t *p_conf);
 
 static void load_channel_settings(lnapp_conf_t *p_conf);
 static void load_announce_settings(void);
 
-static void nodeflag_set(node_flag_t Flag);
-static void nodeflag_unset(node_flag_t Flag);
 static void call_script(event_t event, const char *param);
 static void set_onionerr_str(char *pStr, const ln_onion_err_t *pOnionErr);
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
@@ -271,6 +237,8 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 static void revack_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, utl_buf_t *pBuf);
 static void revack_pop_and_exec(lnapp_conf_t *p_conf);
 static void revack_clear(lnapp_conf_t *p_conf);
+static bool rcvidle_announcement_signs(lnapp_conf_t *p_conf);
+static bool rcvidle_htlc_check(lnapp_conf_t *p_conf);
 
 static void rcvidle_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, utl_buf_t *pBuf);
 static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf);
@@ -298,17 +266,11 @@ static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, in
 
 void lnapp_init(void)
 {
-    pthread_mutexattr_init(&mMuxAttr);
-    pthread_mutexattr_settype(&mMuxAttr, PTHREAD_MUTEX_RECURSIVE_NP);
-    pthread_mutex_init(&mMuxNode, &mMuxAttr);
-    mFlagNode = FLAGNODE_NONE;
 }
 
 
 void lnapp_term(void)
 {
-    pthread_mutexattr_destroy(&mMuxAttr);
-    pthread_mutex_destroy(&mMuxNode);
 }
 
 
@@ -359,21 +321,15 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         return false;
     }
 
-    pthread_mutex_lock(&mMuxNode);
-    if (mFlagNode != FLAGNODE_NONE) {
+    if (!ln_htlc_is_stable(pAppConf->p_self)) {
         //何かしているのであれば送金開始できない
-        LOGD("now paying...[%x]\n", mFlagNode);
-        pthread_mutex_unlock(&mMuxNode);
+        LOGD("now paying...\n");
         return false;
     }
-    mFlagNode = FLAGNODE_PAYMENT | FLAGNODE_ADDHTLC_SEND;
-    pthread_mutex_unlock(&mMuxNode);
-    LOGD("  -->mFlagNode %02x\n", mFlagNode);
 
     DBGTRACE_BEGIN
 
     bool ret = false;
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
     uint8_t session_key[BTC_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
 
@@ -417,37 +373,30 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     show_self_param(p_self, stderr, "prev payment", __LINE__);
 
     uint64_t htlc_id;
-    ret = ln_create_add_htlc(p_self,
-                        &buf_bolt,
+    ret = ln_set_add_htlc(p_self,
                         &htlc_id,
                         NULL,
                         onion,
                         pPay->hop_datain[0].amt_to_forward,
                         pPay->hop_datain[0].outgoing_cltv_value,
                         pPay->payment_hash,
-                        0,
+                        0,      //origin node
                         0,
                         &secrets);
     utl_buf_free(&secrets);
     if (ret) {
         //再routing用に送金経路を保存
         payroute_push(pAppConf, pPay, htlc_id);
+
+        //受信アイドル処理：update_add_htlc送信
+        LOGD("push(rcvidle): TRANSCMD_HTLCCHECK\n");
+        rcvidle_push(pAppConf, TRANSCMD_HTLCCHECK, NULL);
     } else {
         //our_msatが足りない場合もこのルート
         goto LABEL_EXIT;
     }
-    send_peer_noise(pAppConf, &buf_bolt);
-    utl_buf_free(&buf_bolt);
-
-    //add送信する場合はcommitment_signedも送信する
-    ret = ln_create_commit_signed(p_self, &buf_bolt);
-    if (!ret) {
-        goto LABEL_EXIT;
-    }
-    send_peer_noise(pAppConf, &buf_bolt);
 
 LABEL_EXIT:
-    utl_buf_free(&buf_bolt);
     if (ret) {
         show_self_param(p_self, stderr, "payment start", __LINE__);
 
@@ -483,12 +432,10 @@ LABEL_EXIT:
         // ln_db_annoskip_save(ln_short_channel_id(pAppConf->p_self), true);   //一時的
         // cmd_json_pay_retry(pPay->payment_hash);
         // ret = true;         //再送はtrue
-        nodeflag_unset(~FLAGNODE_NONE);
     }
 
     DBGTRACE_END
 
-    LOGD("  -->mFlagNode %d\n", mFlagNode);
     return ret;
 }
 
@@ -611,16 +558,11 @@ bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
         return false;
     }
 
-    pthread_mutex_lock(&mMuxNode);
-    if (mFlagNode != FLAGNODE_NONE) {
+    if (!ln_htlc_is_stable(pAppConf->p_self)) {
         //何かしているのであればupdate_feeできない
-        LOGD("now paying...[%x]\n", mFlagNode);
-        pthread_mutex_unlock(&mMuxNode);
+        LOGD("now paying...\n");
         return false;
     }
-    mFlagNode = FLAGNODE_UPDFEE_SEND;
-    pthread_mutex_unlock(&mMuxNode);
-    LOGD("  -->mFlagNode %02x\n", mFlagNode);
 
     DBGTRACE_BEGIN
 
@@ -639,12 +581,7 @@ bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
                 oldrate, FeeratePerKw);
 
         //update_fee送信する場合はcommitment_signedも送信する
-        ret = ln_create_commit_signed(p_self, &buf_bolt);
-        if (ret) {
-            send_peer_noise(pAppConf, &buf_bolt);
-            utl_buf_free(&buf_bolt);
-        }
-
+        send_commitment_signed(pAppConf);
     } else {
         lnapp_save_event(ln_channel_id(p_self), "fail updatefee");
     }
@@ -1601,7 +1538,7 @@ static void *thread_recv_start(void *pArg)
             //LOGD("type=%02x%02x\n", buf_recv.buf[0], buf_recv.buf[1]);
             pthread_mutex_lock(&p_conf->mux_proc);
             uint16_t type = ln_misc_get16be(buf_recv.buf);
-            LOGV("[RECV]type=%04x(%s): sock=%d, Len=%d\n", type, ln_misc_msgname(type), p_conf->sock, buf_recv.len);
+            LOGD("[RECV]type=%04x(%s): sock=%d, Len=%d\n", type, ln_misc_msgname(type), p_conf->sock, buf_recv.len);
             ret = ln_recv(p_conf->p_self, buf_recv.buf, buf_recv.len);
             //LOGD("ln_recv() result=%d\n", ret);
             if (!ret) {
@@ -1643,7 +1580,8 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
             break;
         } else if (polr == 0) {
             //timeout
-            //  処理要求があれば受け付ける
+            
+            // 受信アイドル処理
             rcvidle_pop_and_exec(p_conf);
 
             if (ToMsec > 0) {
@@ -1918,235 +1856,6 @@ static void *thread_anno_start(void *pArg)
 }
 
 
-/********************************************************************
- * 転送/巻き戻し処理
- ********************************************************************/
-
-/** 前channelからのupdate_add_htlc転送要求実施
- *
- * update_add_htlcの転送は、update_add_htlc受信以外に発生しない。
- * タイミングはrevoke_and_ack後になるため、受信時には lnapp.p_revackqにため、
- * revoke_and_ack後に #lnapp_forward_payment()で lnapp.rcvidleにためる。
- * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
- *
- * @param[in,out]   p_conf
- * @param[in,out]   pFwdAdd
- * @param[out]      pReason
- */
-static bool fwd_payment_forward(lnapp_conf_t *p_conf, fwd_proc_add_t *pFwdAdd, utl_buf_t *pReason)
-{
-    DBGTRACE_BEGIN
-
-    bool ret;
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-
-    nodeflag_set(FLAGNODE_ADDHTLC_SEND);
-
-    uint64_t htlc_id;
-    ret = ln_create_add_htlc(p_conf->p_self,
-                        &buf_bolt,
-                        &htlc_id,
-                        pReason,
-                        pFwdAdd->onion_route,
-                        pFwdAdd->amt_to_forward,
-                        pFwdAdd->outgoing_cltv_value,
-                        pFwdAdd->payment_hash,
-                        pFwdAdd->prev_short_channel_id,
-                        pFwdAdd->prev_id,
-                        &pFwdAdd->shared_secret);
-    //utl_buf_free(&pFwdAdd->shared_secret);  //ln.cで管理するため、freeさせない
-    if (!ret) {
-        LOGD("fail\n");
-        goto LABEL_EXIT;
-    }
-    send_peer_noise(p_conf, &buf_bolt);
-    utl_buf_free(&buf_bolt);
-
-    //add送信する場合はcommitment_signedも送信する
-    ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
-    if (!ret) {
-        LOGD("fail\n");
-        goto LABEL_EXIT;
-    }
-    send_peer_noise(p_conf, &buf_bolt);
-
-LABEL_EXIT:
-    utl_buf_free(&buf_bolt);
-
-    if (ret) {
-        // method: forward
-        // $1: short_channel_id
-        // $2: node_id
-        // $3: amt_to_forward
-        // $4: outgoing_cltv_value
-        // $5: payment_hash
-        char hashstr[LN_SZ_HASH * 2 + 1];
-        utl_misc_bin2str(hashstr, pFwdAdd->payment_hash, LN_SZ_HASH);
-        char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        char param[256];
-        sprintf(param, "%" PRIx64 " %s "
-                    "%" PRIu64 " "
-                    "%" PRIu32 " "
-                    "%s",
-                    ln_short_channel_id(p_conf->p_self), node_id,
-                    pFwdAdd->amt_to_forward,
-                    pFwdAdd->outgoing_cltv_value,
-                    hashstr);
-        call_script(EVT_FORWARD, param);
-    } else if (pReason->len == 0) {
-        //エラーだがreasonが未設定
-        LOGD("fail: temporary_node_failure\n");
-        ln_create_reason_temp_node(pReason);
-    } else {
-        //none
-        LOGD("fail\n");
-    }
-
-    DBGTRACE_END
-
-    return ret;
-}
-
-
-/** update_fulfill_htlc巻き戻し要求実施
- *
- * update_fulfill_htlcの巻き戻しは、以下の2パターンがある。
- *      - final nodeが update_add_htlc受信
- *      - forwarding nodeが update_fulfill_htlc受信
- *
- * 前者の場合、revoke_and_ackまで待つ必要があるため、受信時には lnapp.p_revackqにため、
- * revoke_and_ack後に #lnapp_forward_payment()で lnapp.rcvidleにためる。
- * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
- *
- * 後者の場合、待つ必要がないため、update_fulfill_htlc受信で lnapp.rcvidleにためる。
- * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
- */
-static bool fwd_fulfill_backwind(lnapp_conf_t *p_conf, bwd_proc_fulfill_t *pBwdFulfill)
-{
-    DBGTRACE_BEGIN
-
-    bool ret;
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-
-    show_self_param(p_conf->p_self, stderr, "prev fulfill_htlc", __LINE__);
-
-    LOGD("id= %" PRIu64 "\n", pBwdFulfill->id);
-    LOGD("preimage= ");
-    DUMPD(pBwdFulfill->preimage, LN_SZ_PREIMAGE);
-
-    ret = ln_create_fulfill_htlc(p_conf->p_self, &buf_bolt,
-                            pBwdFulfill->id, pBwdFulfill->preimage);
-    assert(ret);
-    send_peer_noise(p_conf, &buf_bolt);
-    utl_buf_free(&buf_bolt);
-    nodeflag_set(FLAGNODE_FULFILL_SEND);
-
-    //fulfill送信する場合はcommitment_signedも送信する
-    ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
-    assert(ret);
-    send_peer_noise(p_conf, &buf_bolt);
-    utl_buf_free(&buf_bolt);
-
-    if (ret) {
-        show_self_param(p_conf->p_self, stderr, "fulfill_htlc send", __LINE__);
-
-        // method: fulfill
-        // $1: short_channel_id
-        // $2: node_id
-        // $3: payment_hash
-        // $4: payment_preimage
-        char hashstr[LN_SZ_HASH * 2 + 1];
-        uint8_t payment_hash[LN_SZ_HASH];
-        ln_calc_preimage_hash(payment_hash, pBwdFulfill->preimage);
-        utl_misc_bin2str(hashstr, payment_hash, LN_SZ_HASH);
-        char imgstr[LN_SZ_PREIMAGE * 2 + 1];
-        utl_misc_bin2str(imgstr, pBwdFulfill->preimage, LN_SZ_PREIMAGE);
-        char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        char param[256];
-        sprintf(param, "%" PRIx64 " %s "
-                    "%s "
-                    "%s",
-                    ln_short_channel_id(p_conf->p_self), node_id,
-                    hashstr,
-                    imgstr);
-        call_script(EVT_FULFILL, param);
-    }
-
-    DBGTRACE_END
-
-    return ret;
-}
-
-
-/** update_fail_htlc巻き戻し要求実施
- *
- * update_fail_htlcの巻き戻しは、以下の2パターンがある。
- *      - final nodeが update_add_htlc受信
- *      - forwarding nodeが update_fulfill_htlc受信 or update_fail_htlc受信
- *
- * 前者の場合、revoke_and_ackまで待つ必要があるため、受信時には lnapp.p_revackqにため、
- * revoke_and_ack後に #lnapp_forward_payment()で lnapp.rcvidleにためる。
- * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
- *
- * 後者の場合、待つ必要がないため、update_fulfill/fail_htlc受信で lnapp.rcvidleにためる。
- * その後、転送先の #rcvidle_pop_and_exec()から呼び出される。
- */
-static bool fwd_fail_backwind(lnapp_conf_t *p_conf, bwd_proc_fail_t *pBwdFail)
-{
-    DBGTRACE_BEGIN
-
-    bool ret = false;
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-
-    show_self_param(p_conf->p_self, stderr, "prev fail_htlc", __LINE__);
-
-    LOGD("id= %" PRIx64 "\n", pBwdFail->id);
-    LOGD("reason= ");
-    DUMPD(pBwdFail->reason.buf, pBwdFail->reason.len);
-    LOGD("shared secret= ");
-    DUMPD(pBwdFail->shared_secret.buf, pBwdFail->shared_secret.len);
-    LOGD("first= %s\n", (pBwdFail->b_first) ? "true" : "false");
-
-    utl_buf_t buf_reason = UTL_BUF_INIT;
-    if (pBwdFail->b_first) {
-        ln_onion_failure_create(&buf_reason, &pBwdFail->shared_secret, &pBwdFail->reason);
-    } else {
-        ln_onion_failure_forward(&buf_reason, &pBwdFail->shared_secret, &pBwdFail->reason);
-    }
-    ret = ln_create_fail_htlc(p_conf->p_self, &buf_bolt, pBwdFail->id, &buf_reason);
-    assert(ret);
-
-    send_peer_noise(p_conf, &buf_bolt);
-    utl_buf_free(&buf_bolt);
-
-    //fail送信する場合はcommitment_signedも送信する
-    ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
-    if (ret) {
-        send_peer_noise(p_conf, &buf_bolt);
-        utl_buf_free(&buf_bolt);
-        nodeflag_set(FLAGNODE_FAIL_SEND);
-
-        show_self_param(p_conf->p_self, stderr, "fail_htlc send", __LINE__);
-
-        // method: fail
-        // $1: short_channel_id
-        // $2: node_id
-        char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        char param[256];
-        sprintf(param, "%" PRIx64 " %s",
-                    ln_short_channel_id(p_conf->p_self), node_id);
-        call_script(EVT_FAIL, param);
-    }
-
-    DBGTRACE_END
-
-    return ret;
-}
-
-
 /**************************************************************************
  * コールバック処理
  **************************************************************************/
@@ -2174,9 +1883,9 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
         //    LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
         //    LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
-        //    LN_CB_COMMIT_SIG_RECV_PREV, ///< commitment_signed処理前通知
         //    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
-        //    LN_CB_REV_AND_ACK_EXCG,     ///< revoke_and_ack受信通知
+        //    LN_CB_REV_AND_ACK_RECV,     ///< revoke_and_ack受信通知
+        //    LN_CB_REV_AND_ACK_EXCG,     ///< revoke_and_ack交換通知
         //    LN_CB_UPDATE_FEE_RECV,      ///< update_fee受信通知
         //    LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
         //    LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
@@ -2198,9 +1907,8 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_ADD_HTLC_RECV: update_add_htlc receive", cb_add_htlc_recv },
         { "  LN_CB_FULFILL_HTLC_RECV: update_fulfill_htlc receive", cb_fulfill_htlc_recv },
         { "  LN_CB_FAIL_HTLC_RECV: update_fail_htlc receive", cb_fail_htlc_recv },
-        { "  LN_CB_COMMIT_SIG_RECV_PREV: commitment_signed pre-process", cb_commit_sig_recv_prev },
         { "  LN_CB_COMMIT_SIG_RECV: commitment_signed receive", cb_commit_sig_recv },
-        { "  LN_CB_REV_AND_ACK_EXCG: revoke_and_ack exchange", cb_rev_and_ack_recv },
+        { "  LN_CB_REV_AND_ACK_EXCG: revoke_and_ack exchange", cb_rev_and_ack_excg },
         { "  LN_CB_UPDATE_FEE_RECV: update_fee receive", cb_update_fee_recv },
         { "  LN_CB_SHUTDOWN_RECV: shutdown receive", cb_shutdown_recv },
         { "  LN_CB_CLOSED_FEE: closing_signed receive(not same fee)", cb_closed_fee },
@@ -2389,6 +2097,7 @@ static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param)
 
 
 //LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc受信(前処理)
+//  BOLT4チェックをするために転送先チャネルを取得する
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf;
@@ -2419,9 +2128,6 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
  *          - else             --> add_htlcを転送する
  *      - add_htlcがNG
  *          - fail_htlcを巻き戻していく
- *
- * revoke_and_ack交換まで待つため、 #revack_push() で貯めておく
- *      --> #cb_rev_and_ack_recv() で続きを行う
  */
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
@@ -2429,74 +2135,22 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_add_htlc_recv_t *p_addhtlc = (ln_cb_add_htlc_recv_t *)p_param;
 
-    nodeflag_set(FLAGNODE_ADDHTLC_RECV);
-
     ptarmd_preimage_lock();
     if (p_addhtlc->ok) {
         LOGD("check OK\n");
         if (p_addhtlc->p_hop->b_exit) {
             //final node
             LOGD("final node\n");
-
-            if (LN_DBG_FULFILL()) {
-                //同一channelにupdate_fulfill_htlcを折り返す
-
-                //backwind fulfill情報
-                utl_buf_t buf;
-                utl_buf_alloc(&buf, sizeof(bwd_proc_fulfill_t));
-                bwd_proc_fulfill_t *p_bwd_fulfill = (bwd_proc_fulfill_t *)buf.buf;  //キュー処理後に解放
-
-                p_bwd_fulfill->id = p_addhtlc->id;
-                p_bwd_fulfill->prev_short_channel_id = 0;   //同一channelへの送信になるため、検索不要
-                memcpy(p_bwd_fulfill->preimage, p_addhtlc->p_payment, LN_SZ_PREIMAGE);
-                revack_push(p_conf, TRANSCMD_FULFILL, &buf);
-
-                //preimageを使い終わったら消す
-                ln_db_preimg_del(p_addhtlc->p_payment);
-
-                //
-                char str_payhash[LN_SZ_HASH * 2 + 1];
-                utl_misc_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
-                lnapp_save_event(NULL,
-                        "payment fulfill: payment_hash=%s short_channel_id=%" PRIx64,
-                        str_payhash, ln_short_channel_id(p_conf->p_self));
-            } else {
-                LOGD("DBG: no fulfill mode\n");
-            }
+            cbsub_add_htlc_finalnode(p_conf, p_addhtlc);
         } else {
             //別channelにupdate_add_htlcを転送する
             LOGD("forward\n");
-
-            //forward add_htlc情報
-            utl_buf_t buf;
-            utl_buf_alloc(&buf, sizeof(fwd_proc_add_t));
-            fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)buf.buf;  //キュー処理後に解放
-
-            memcpy(p_fwd_add->onion_route, p_addhtlc->p_onion_route, LN_SZ_ONION_ROUTE);
-            p_fwd_add->amt_to_forward = p_addhtlc->p_hop->amt_to_forward;
-            p_fwd_add->outgoing_cltv_value = p_addhtlc->p_hop->outgoing_cltv_value;
-            p_fwd_add->next_short_channel_id = p_addhtlc->p_hop->short_channel_id;
-            memcpy(p_fwd_add->payment_hash, p_addhtlc->p_payment, LN_SZ_HASH);
-            utl_buf_alloccopy(&p_fwd_add->shared_secret, p_addhtlc->p_shared_secret->buf, p_addhtlc->p_shared_secret->len);   // freeなし: lnで管理
-            p_fwd_add->prev_short_channel_id = ln_short_channel_id(p_conf->p_self);
-            p_fwd_add->prev_id = p_addhtlc->id;
-            revack_push(p_conf, TRANSCMD_ADDHTLC, &buf);
+            cbsub_add_htlc_forward(p_conf, p_addhtlc);
         }
     } else {
         //同一channelにupdate_fail_htlcを折り返す
         LOGD("fail\n");
-
-        //backwind fail情報
-        utl_buf_t buf;
-        utl_buf_alloc(&buf, sizeof(bwd_proc_fail_t));
-        bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)buf.buf;  //キュー処理後に解放
-
-        p_bwd_fail->id = p_addhtlc->id;
-        p_bwd_fail->prev_short_channel_id = 0;
-        utl_buf_alloccopy(&p_bwd_fail->shared_secret, p_addhtlc->p_shared_secret->buf, p_addhtlc->p_shared_secret->len);
-        utl_buf_alloccopy(&p_bwd_fail->reason, p_addhtlc->reason.buf, p_addhtlc->reason.len);
-        p_bwd_fail->b_first = true;
-        revack_push(p_conf, TRANSCMD_FAIL, &buf);
+        cbsub_add_htlc_fail(p_conf, p_addhtlc);
     }
     ptarmd_preimage_unlock();
 
@@ -2504,59 +2158,175 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 }
 
 
+//cb_add_htlc_recv(): final node
+static void cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc)
+{
+    char str_preimage[LN_SZ_PREIMAGE * 2 + 1];
+    utl_misc_bin2str(str_preimage, p_addhtlc->p_preimage, LN_SZ_PREIMAGE);
+    lnapp_save_event(NULL,
+            "payment final node: preimage=%s short_channel_id=%" PRIx64,
+            str_preimage, ln_short_channel_id(p_conf->p_self));
+}
+
+
+//cb_add_htlc_recv(): forward
+static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc)
+{
+    bool ret = false;
+    utl_buf_t reason = UTL_BUF_INIT;
+    lnapp_conf_t *p_nextconf = ptarmd_search_connected_cnl(p_addhtlc->p_hop->short_channel_id);
+    if (p_nextconf != NULL) {
+        uint64_t htlc_id;
+        ret = ln_set_add_htlc(p_nextconf->p_self,
+                            &htlc_id,
+                            &reason,
+                            p_addhtlc->p_onion_reason->buf,
+                            p_addhtlc->p_hop->amt_to_forward,
+                            p_addhtlc->p_hop->outgoing_cltv_value,
+                            p_addhtlc->p_payment,
+                            ln_short_channel_id(p_conf->p_self),     //hop
+                            p_addhtlc->idx,
+                            p_addhtlc->p_shared_secret);
+        //utl_buf_free(&pFwdAdd->shared_secret);  //ln.cで管理するため、freeさせない
+        if (ret) {
+            //revoke_and_ack交換後処理：update_add_htlc送信
+            //  BOLT2:
+            //      * until the incoming HTLC has been irrevocably committed:
+            //          * MUST NOT offer an HTLC (update_add_htlc) in response to an incoming HTLC.
+            LOGD("push(revack): TRANSCMD_HTLCCHECK\n");
+            utl_buf_t buf;
+            buf.buf = (uint8_t *)p_nextconf;
+            buf.len = sizeof(lnapp_conf_t*);
+            revack_push(p_conf, TRANSCMD_HTLCCHECK, &buf);
+        } else {
+            LOGD("fail forward\n");
+        }
+    }
+
+    if (ret) {
+        // method: forward
+        // $1: short_channel_id
+        // $2: node_id
+        // $3: amt_to_forward
+        // $4: outgoing_cltv_value
+        // $5: payment_hash
+        char hashstr[LN_SZ_HASH * 2 + 1];
+        utl_misc_bin2str(hashstr, p_addhtlc->p_payment, LN_SZ_HASH);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        char param[256];
+        sprintf(param, "%" PRIx64 " %s "
+                    "%" PRIu64 " "
+                    "%" PRIu32 " "
+                    "%s",
+                    ln_short_channel_id(p_conf->p_self), node_id,
+                    p_addhtlc->p_hop->amt_to_forward,
+                    p_addhtlc->p_hop->outgoing_cltv_value,
+                    hashstr);
+        call_script(EVT_FORWARD, param);
+    } else if (reason.len == 0) {
+        //エラーだがreasonが未設定
+        LOGD("fail: temporary_node_failure\n");
+        ln_create_reason_temp_node(&reason);
+        ln_set_fail_htlc(p_conf->p_self, p_addhtlc->idx, &reason);
+    } else {
+        //none
+        LOGD("fail\n");
+    }
+    utl_buf_free(&reason);
+}
+
+
+//cb_add_htlc_recv(): fail
+static void cbsub_add_htlc_fail(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc)
+{
+    char str_payhash[LN_SZ_HASH * 2 + 1];
+    utl_misc_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
+    lnapp_save_event(NULL,
+            "payment fail: payment_hash=%s short_channel_id=%" PRIx64,
+            str_payhash, ln_short_channel_id(p_conf->p_self));
+}
+
+
 //LN_CB_FULFILL_HTLC_RECV: update_fulfill_htlc受信
 static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 {
-    (void)p_conf;
     DBGTRACE_BEGIN
 
     const ln_cb_fulfill_htlc_recv_t *p_fulfill = (const ln_cb_fulfill_htlc_recv_t *)p_param;
 
-    LOGD("mFlagNode %02x\n", mFlagNode);
-    while (p_conf->loop) {
-        pthread_mutex_lock(&mMuxNode);
-        //PAYMENT以外の状態がなくなるまで待つ
-        if ((mFlagNode & ~FLAGNODE_PAYMENT) == 0) {
-            mFlagNode |= FLAGNODE_FULFILL_RECV;
-            break;
-        }
-        pthread_mutex_unlock(&mMuxNode);
-        utl_misc_msleep(M_WAIT_MUTEX_MSEC);
-    }
-
     if (p_fulfill->prev_short_channel_id != 0) {
-        //巻き戻し
-        LOGD("backwind: %" PRIx64 ", id=%" PRIx64 "\n", p_fulfill->prev_short_channel_id, p_fulfill->id);
-
-        if (LN_DBG_FULFILL()) {
-            utl_buf_t buf;
-            utl_buf_alloc(&buf, sizeof(bwd_proc_fulfill_t));
-            bwd_proc_fulfill_t *p_bwd_fulfill = (bwd_proc_fulfill_t *)buf.buf;
-
-            p_bwd_fulfill->id = p_fulfill->id;
-            p_bwd_fulfill->prev_short_channel_id = p_fulfill->prev_short_channel_id;
-            memcpy(p_bwd_fulfill->preimage, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
-            bool ret = ptarmd_transfer_channel(p_fulfill->prev_short_channel_id, TRANSCMD_FULFILL, &buf);
-            if (!ret) {
-                //TODO:戻す先がない場合の処理(#366)
-                LOGD("fail: cannot backwind\n");
-            }
-        } else {
-            LOGD("DBG: no fulfill mode\n");
-        }
+        LOGD("backwind: id=%" PRIu64 ", prev_short_channel_id=%" PRIx64 "\n", p_fulfill->id, p_fulfill->prev_short_channel_id);
+        cbsub_fulfill_backwind(p_conf, p_fulfill);
     } else {
-        //送金元
-        LOGD("payer node\n");
-        payroute_del(p_conf, p_fulfill->id);
-
-        uint8_t hash[LN_SZ_HASH];
-        ln_calc_preimage_hash(hash, p_fulfill->p_preimage);
-        ln_db_invoice_del(hash);
+        LOGD("origin node\n");
+        cbsub_fulfill_originnode(p_conf, p_fulfill);
     }
-    pthread_mutex_unlock(&mMuxNode);
-    LOGD("  -->mFlagNode %02x\n", mFlagNode);
 
     DBGTRACE_END
+}
+
+
+//cb_fulfill_htlc_recv(): 巻き戻し
+static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htlc_recv_t *p_fulfill)
+{
+    (void)p_conf;
+
+    if (!LN_DBG_FULFILL()) {
+        LOGD("DBG: no fulfill mode\n");
+        return;
+    }
+
+    bool ret = false;
+    lnapp_conf_t *p_prevconf = ptarmd_search_connected_cnl(p_fulfill->prev_short_channel_id);
+    if (p_prevconf != NULL) {
+        ret = ln_set_fulfill_htlc(p_prevconf->p_self, p_fulfill->prev_idx, p_fulfill->p_preimage);
+        if (ret) {
+            //受信アイドル処理：update_fulfill_htlc送信
+            LOGD("push(rcvidle): TRANSCMD_HTLCCHECK\n");
+            rcvidle_push(p_prevconf, TRANSCMD_HTLCCHECK, NULL);
+        } else {
+            //TODO:戻す先がない場合の処理(#366)
+            LOGD("fail backward\n");
+        }
+    }
+    if (ret) {
+        show_self_param(p_conf->p_self, stderr, "fulfill_htlc send", __LINE__);
+
+        // method: fulfill
+        // $1: short_channel_id
+        // $2: node_id
+        // $3: payment_hash
+        // $4: payment_preimage
+        char hashstr[LN_SZ_HASH * 2 + 1];
+        uint8_t payment_hash[LN_SZ_HASH];
+        ln_calc_preimage_hash(payment_hash, p_fulfill->p_preimage);
+        utl_misc_bin2str(hashstr, payment_hash, LN_SZ_HASH);
+        char imgstr[LN_SZ_PREIMAGE * 2 + 1];
+        utl_misc_bin2str(imgstr, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        char param[256];
+        sprintf(param, "%" PRIx64 " %s "
+                    "%s "
+                    "%s",
+                    ln_short_channel_id(p_conf->p_self), node_id,
+                    hashstr,
+                    imgstr);
+        call_script(EVT_FULFILL, param);
+    } else {
+    }
+}
+
+
+//cb_fulfill_htlc_recv(): origin node
+static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_htlc_recv_t *p_fulfill)
+{
+    payroute_del(p_conf, p_fulfill->id);
+
+    uint8_t hash[LN_SZ_HASH];
+    ln_calc_preimage_hash(hash, p_fulfill->p_preimage);
+    ln_db_invoice_del(hash);
 }
 
 
@@ -2566,128 +2336,138 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
-    bool retry = false;
-
-    LOGD("mFlagNode %02x\n", mFlagNode);
-    while (p_conf->loop) {
-        pthread_mutex_lock(&mMuxNode);
-        //PAYMENT以外の状態がなくなるまで待つ
-        if ((mFlagNode & ~FLAGNODE_PAYMENT) == 0) {
-            mFlagNode |= FLAGNODE_FAIL_RECV;
-            break;
-        }
-        pthread_mutex_unlock(&mMuxNode);
-        utl_misc_msleep(M_WAIT_MUTEX_MSEC);
-    }
 
     if (p_fail->prev_short_channel_id != 0) {
-        //フラグを立てて、相手の受信スレッドで処理してもらう
-        LOGD("fail戻す: %" PRIx64 ", id=%" PRIx64 "\n", p_fail->prev_short_channel_id, p_fail->prev_id);
-
-        utl_buf_t buf;
-        utl_buf_alloc(&buf, sizeof(bwd_proc_fail_t));
-        bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)buf.buf;
-
-        p_bwd_fail->id = p_fail->prev_id;
-        p_bwd_fail->prev_short_channel_id = p_fail->prev_short_channel_id;
-        utl_buf_alloccopy(&p_bwd_fail->reason, p_fail->p_reason->buf, p_fail->p_reason->len);
-        utl_buf_alloccopy(&p_bwd_fail->shared_secret, p_fail->p_shared_secret->buf, p_fail->p_shared_secret->len);
-        p_bwd_fail->b_first = false;
-        bool ret = ptarmd_transfer_channel(p_fail->prev_short_channel_id, TRANSCMD_FAIL, &buf);
-        if (!ret) {
-            //TODO:戻す先がない場合の処理(#366)
-            LOGD("戻せない\n");
-        }
+        LOGD("backwind fail_htlc: prev_idx=%" PRIu16 ", prev_short_channel_id=%" PRIx64 ")\n", p_fail->prev_idx, p_fail->prev_short_channel_id);
+        cbsub_fail_backwind(p_conf, p_fail);
     } else {
-        LOGD("ここまで\n");
-
-        utl_buf_t reason = UTL_BUF_INIT;
-        int hop;
-        bool ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
-        if (ret) {
-            LOGD("  failure reason= ");
-            DUMPD(reason.buf, reason.len);
-
-            payroute_print(p_conf);
-
-            ln_onion_err_t onionerr;
-            ret = ln_onion_read_err(&onionerr, &reason);  //onionerr.p_dataはmallocされる
-            bool btemp = false;
-            if (ret) {
-                switch (onionerr.reason) {
-                case LNONION_TMP_NODE_FAIL:
-                case LNONION_TMP_CHAN_FAIL:
-                case LNONION_AMT_BELOW_MIN:
-                    LOGD("add skip route: temporary\n");
-                    btemp = true;
-                    break;
-                default:
-                    break;
-                }
-            }
-
-            //失敗したと思われるshort_channel_idをrouting除外登録
-            //      route.hop_datain[0]は自分、[1]が相手
-            //      hopの0は相手
-            char suggest[64];
-            const payment_conf_t *p_payconf = payroute_get(p_conf, p_fail->orig_id);
-            if (p_payconf != NULL) {
-                if (hop == p_payconf->hop_num - 2) {
-                    //送金先がエラーを返した？
-                    strcpy(suggest, "payee");
-                } else if (hop < p_payconf->hop_num - 2) {
-                    //途中がエラーを返した
-                    // LOGD2("hop=%d\n", hop);
-                    // for (int lp = 0; lp < p_payconf.hop_num; lp++) {
-                    //     LOGD2("[%d]%" PRIu64 "\n", lp, p_payconf->hop_datain[lp].short_channel_id);
-                    // }
-
-                    uint64_t short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
-                    sprintf(suggest, "%016" PRIx64, short_channel_id);
-                    ln_db_annoskip_save(short_channel_id, btemp);
-                    retry = true;
-                } else {
-                    strcpy(suggest, "invalid");
-                }
-            } else {
-                strcpy(suggest, "?");
-            }
-            LOGD("suggest: %s\n", suggest);
-
-            char errstr[512];
-            char reasonstr[128];
-            set_onionerr_str(reasonstr, &onionerr);
-            sprintf(errstr, M_ERRSTR_REASON, reasonstr, hop, suggest);
-            set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
-
-            free(onionerr.p_data);
-        } else {
-            //デコード失敗
-            set_lasterror(p_conf, RPCERR_PAYFAIL, M_ERRSTR_CANNOTDECODE);
-        }
-        payroute_del(p_conf, p_fail->orig_id);
-        if (retry) {
-            LOGD("pay retry: ");
-            DUMPD(p_fail->p_payment_hash, LN_SZ_HASH);
-
-            utl_buf_t buf;
-            utl_buf_alloccopy(&buf, p_fail->p_payment_hash, LN_SZ_HASH);  //キュー処理後に解放
-            revack_push(p_conf, TRANSCMD_PAYRETRY, &buf);
-        } else {
-            ln_db_invoice_del(p_fail->p_payment_hash);
-        }
+        LOGD("origin node\n");
+        cbsub_fail_originnode(p_conf, p_fail);
     }
-    pthread_mutex_unlock(&mMuxNode);
-    LOGD("  -->mFlagNode %02x\n", mFlagNode);
 
     DBGTRACE_END
 }
 
 
-//LN_CB_COMMIT_SIG_RECV_PREV": commitment_signed受信(前処理)
-static void cb_commit_sig_recv_prev(lnapp_conf_t *p_conf, void *p_param)
+//cb_fail_htlc_recv(): 巻き戻し
+static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail)
 {
-    (void)p_conf; (void)p_param;
+    (void)p_conf;
+
+    if (!LN_DBG_FULFILL()) {
+        LOGD("DBG: no fulfill mode\n");
+        return;
+    }
+
+    bool ret = false;
+    lnapp_conf_t *p_prevconf = ptarmd_search_connected_cnl(p_fail->prev_short_channel_id);
+    if (p_prevconf != NULL) {
+        ret = ln_set_fail_htlc(p_prevconf->p_self, p_fail->prev_idx, p_fail->p_reason);
+        if (ret) {
+            //受信アイドル処理：update_fail_htlc送信
+            LOGD("push(rcvidle): TRANSCMD_HTLCCHECK\n");
+            rcvidle_push(p_prevconf, TRANSCMD_HTLCCHECK, NULL);
+        } else {
+            //TODO:戻す先がない場合の処理(#366)
+            LOGD("fail backward\n");
+        }
+    }
+    if (ret) {
+        show_self_param(p_conf->p_self, stderr, "fail_htlc send", __LINE__);
+
+        // method: fail
+        // $1: short_channel_id
+        // $2: node_id
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        char param[256];
+        sprintf(param, "%" PRIx64 " %s",
+                    ln_short_channel_id(p_conf->p_self), node_id);
+        call_script(EVT_FAIL, param);
+    } else {
+    }
+}
+
+
+//cb_fail_htlc_recv(): final node
+static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv_t *p_fail)
+{
+    utl_buf_t reason = UTL_BUF_INIT;
+    int hop;
+    bool retry = false;
+    bool ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
+    if (ret) {
+        LOGD("  failure reason= ");
+        DUMPD(reason.buf, reason.len);
+
+        payroute_print(p_conf);
+
+        ln_onion_err_t onionerr;
+        ret = ln_onion_read_err(&onionerr, &reason);  //onionerr.p_dataはmallocされる
+        bool btemp = false;
+        if (ret) {
+            switch (onionerr.reason) {
+            case LNONION_TMP_NODE_FAIL:
+            case LNONION_TMP_CHAN_FAIL:
+            case LNONION_AMT_BELOW_MIN:
+                LOGD("add skip route: temporary\n");
+                btemp = true;
+                break;
+            default:
+                break;
+            }
+        }
+
+        //失敗したと思われるshort_channel_idをrouting除外登録
+        //      route.hop_datain[0]は自分、[1]が相手
+        //      hopの0は相手
+        char suggest[64];
+        const payment_conf_t *p_payconf = payroute_get(p_conf, p_fail->orig_id);
+        if (p_payconf != NULL) {
+            if (hop == p_payconf->hop_num - 2) {
+                //送金先がエラーを返した
+                strcpy(suggest, "final node");
+            } else if (hop < p_payconf->hop_num - 2) {
+                //途中がエラーを返した
+                // LOGD2("hop=%d\n", hop);
+                // for (int lp = 0; lp < p_payconf.hop_num; lp++) {
+                //     LOGD2("[%d]%" PRIu64 "\n", lp, p_payconf->hop_datain[lp].short_channel_id);
+                // }
+
+                uint64_t short_channel_id = p_payconf->hop_datain[hop + 1].short_channel_id;
+                sprintf(suggest, "%016" PRIx64, short_channel_id);
+                ln_db_annoskip_save(short_channel_id, btemp);
+                retry = true;
+            } else {
+                strcpy(suggest, "invalid");
+            }
+        } else {
+            strcpy(suggest, "?");
+        }
+        LOGD("suggest: %s\n", suggest);
+
+        char errstr[512];
+        char reasonstr[128];
+        set_onionerr_str(reasonstr, &onionerr);
+        sprintf(errstr, M_ERRSTR_REASON, reasonstr, hop, suggest);
+        set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
+
+        free(onionerr.p_data);
+    } else {
+        //デコード失敗
+        set_lasterror(p_conf, RPCERR_PAYFAIL, M_ERRSTR_CANNOTDECODE);
+    }
+    payroute_del(p_conf, p_fail->orig_id);
+    if (retry) {
+        LOGD("pay retry: ");
+        DUMPD(p_fail->p_payment_hash, LN_SZ_HASH);
+
+        utl_buf_t buf;
+        utl_buf_alloccopy(&buf, p_fail->p_payment_hash, LN_SZ_HASH);  //キュー処理後に解放
+        revack_push(p_conf, TRANSCMD_PAYRETRY, &buf);
+    } else {
+        ln_db_invoice_del(p_fail->p_payment_hash);
+    }
 }
 
 
@@ -2696,104 +2476,38 @@ static void cb_commit_sig_recv(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_conf; (void)p_param;
 
-    pthread_mutex_lock(&mMuxNode);
-    pthread_mutex_unlock(&mMuxNode);
-    LOGD("  -->mFlagNode %02x\n", mFlagNode);
+    send_commitment_signed(p_conf);
 }
 
 
-/** LN_CB_REV_AND_ACK_EXCG: revoke_and_ack受信通知
- */
-static void cb_rev_and_ack_recv(lnapp_conf_t *p_conf, void *p_param)
+//LN_CB_REV_AND_ACK_EXCG: revoke_and_ack交換通知
+static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
 {
     (void)p_param;
     DBGTRACE_BEGIN
 
-    bool scr = true;   //true: call_script()
-
-    pthread_mutex_lock(&mMuxNode);
-    LOGD("mFlagNode: %02x\n", mFlagNode);
-
-    uint64_t total_amount = ln_node_total_msat();
-
-    if (mFlagNode & FLAGNODE_PAYMENT) {
-        //payer
-        mFlagNode &= ~FLAGNODE_PAYMENT;
-        if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV) ) {
-            //送金中
-            LOGD("PAYMENT: htlc added\n");
-            mFlagNode = FLAGNODE_PAYMENT;
-        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV) ) {
-            //送金完了
-            LOGD("PAYMENT: htlc fulfilled\n");
-            lnapp_save_event(NULL,
-                    "payment success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
-                    ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
-            mFlagNode = FLAGNODE_NONE;
-        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV)) {
-            //送金失敗
-            LOGD("PAYMENT: fail_htlc\n");
-            mFlagNode = FLAGNODE_NONE;
-        } else {
-            //それ以外
-            scr = false;
-            LOGD("PAYMENT: other\n");
-            mFlagNode = FLAGNODE_NONE;
-        }
-    } else if (mFlagNode & (FLAGNODE_UPDFEE_SEND | FLAGNODE_UPDFEE_RECV)) {
-        //update_fee
-        LOGD("UPDATE_FEE\n");
-        lnapp_save_event(ln_channel_id(p_conf->p_self),
-                "fee updated: short_channel_id=%" PRIx64 " feerate_per_kw=%" PRIu32,
-                ln_short_channel_id(p_conf->p_self), ln_feerate_per_kw(p_conf->p_self));
-        mFlagNode = FLAGNODE_NONE;
-    } else {
-        //非payer
-        if (M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_ADDHTLC_RECV) ) {
-            //送金中
-            LOGD("FORWARD: htlc added\n");
-            mFlagNode = FLAGNODE_NONE;
-        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FULFILL_RECV) ) {
-            //送金完了
-            LOGD("FORWARD: htlc fulfilled\n");
-            lnapp_save_event(NULL,
-                    "forward success: short_channel_id=%" PRIx64 " total_msat=%" PRIu64 "(our_msat=%" PRIu64 " their_msat=%" PRIu64 ")",
-                    ln_short_channel_id(p_conf->p_self), total_amount, ln_our_msat(p_conf->p_self), ln_their_msat(p_conf->p_self));
-            mFlagNode = FLAGNODE_NONE;
-        } else if ( M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_SEND) || M_FLAG_MASK(mFlagNode, FLAGNODE_FAIL_RECV)) {
-            //送金失敗
-            LOGD("FORWARD: fail_htlc\n");
-            mFlagNode = FLAGNODE_NONE;
-        } else {
-            //それ以外
-            scr = false;
-            LOGD("FORWARD: other\n");
-            mFlagNode = FLAGNODE_NONE;
-        }
-    }
-    pthread_mutex_unlock(&mMuxNode);
-    LOGD("  -->mFlagNode %d\n", mFlagNode);
-
     //要求がキューに積んであれば処理する
     revack_pop_and_exec(p_conf);
 
-    if (scr) {
-        // method: htlc_changed
-        // $1: short_channel_id
-        // $2: node_id
-        // $3: our_msat
-        // $4: htlc_num
-        char param[256];
-        char node_id[BTC_SZ_PUBKEY * 2 + 1];
-        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        sprintf(param, "%" PRIx64 " %s "
-                    "%" PRIu64 " "
-                    "%d",
-                    ln_short_channel_id(p_conf->p_self), node_id,
-                    ln_node_total_msat(),
-                    ln_htlc_num(p_conf->p_self));
-        call_script(EVT_HTLCCHANGED, param);
-    }
+    //未処理HTLC
+    LOGD("push(rcvidle): TRANSCMD_HTLCCHECK\n");
+    rcvidle_push(p_conf, TRANSCMD_HTLCCHECK, NULL);
+
+    // method: htlc_changed
+    // $1: short_channel_id
+    // $2: node_id
+    // $3: our_msat
+    // $4: htlc_num
+    char param[256];
+    char node_id[BTC_SZ_PUBKEY * 2 + 1];
+    utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+    sprintf(param, "%" PRIx64 " %s "
+                "%" PRIu64 " "
+                "%d",
+                ln_short_channel_id(p_conf->p_self), node_id,
+                ln_node_total_msat(),
+                ln_htlc_num(p_conf->p_self));
+    call_script(EVT_HTLCCHANGED, param);
 
     show_self_param(p_conf->p_self, stderr, "revoke_and_ack", __LINE__);
 
@@ -2807,8 +2521,6 @@ static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     uint32_t oldrate = *(const uint32_t *)p_param;
-
-    nodeflag_set(FLAGNODE_UPDFEE_RECV);
 
     lnapp_save_event(ln_channel_id(p_conf->p_self),
             "updatefee recv: feerate_per_kw=%" PRIu32 " --> %" PRIu32,
@@ -3008,7 +2720,7 @@ static bool send_peer_raw(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
 {
     uint16_t type = ln_misc_get16be(pBuf->buf);
-    LOGV("[SEND]type=%04x(%s): sock=%d, Len=%d\n", type, ln_misc_msgname(type), p_conf->sock, pBuf->len);
+    LOGD("[SEND]type=%04x(%s): sock=%d, Len=%d\n", type, ln_misc_msgname(type), p_conf->sock, pBuf->len);
 
     pthread_mutex_lock(&p_conf->mux_send);
 
@@ -3264,6 +2976,10 @@ static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const utl_buf_t *p_
 }
 
 
+/********************************************************************
+ * その他送信
+ ********************************************************************/
+
 /** announcement前のchannel_update送信
  *      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
  *
@@ -3279,6 +2995,27 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf)
         if (ret) {
             send_peer_noise(p_conf, &buf_bolt);
             utl_buf_free(&buf_bolt);
+        }
+    }
+}
+
+
+/** 未確定のremote HTLCがあれば、commitment_signedを送信する
+ * 
+ */
+static void send_commitment_signed(lnapp_conf_t *p_conf)
+{
+    //必要があればcommitment_signedを送信する
+    bool ret = ln_uncommit_get(p_conf->p_self);
+    if (ret) {
+        utl_buf_t buf_bolt = UTL_BUF_INIT;
+        ret = ln_create_commit_signed(p_conf->p_self, &buf_bolt);
+        if (ret) {
+            send_peer_noise(p_conf, &buf_bolt);
+            utl_buf_free(&buf_bolt);
+            ln_uncommit_clr(p_conf->p_self);
+        } else {
+            LOGD("fail: send commitment_signed\n");
         }
     }
 }
@@ -3325,43 +3062,6 @@ static void load_announce_settings(void)
     mAnnoPrm.htlc_minimum_msat = aconf.htlc_minimum_msat;
     mAnnoPrm.fee_base_msat = aconf.fee_base_msat;
     mAnnoPrm.fee_prop_millionths = aconf.fee_prop_millionths;
-}
-
-
-/** mFlagNode フラグの変更(OR処理)
- *
- * FLAGNODE_PAYMENTが立っていないことを確認
- */
-static void nodeflag_set(node_flag_t Flag)
-{
-    LOGD("mFlagNode %d\n", mFlagNode);
-    uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_MUTEX_MSEC;
-    while (count) {
-        pthread_mutex_lock(&mMuxNode);
-        //ここで PAYMENTがある場合もブロックすると、デッドロックする可能性あり
-        if ((mFlagNode & ~FLAGNODE_PAYMENT) == 0) {
-            break;
-        }
-        pthread_mutex_unlock(&mMuxNode);
-        utl_misc_msleep(M_WAIT_MUTEX_MSEC);
-        count--;
-    }
-    mFlagNode |= Flag;
-    pthread_mutex_unlock(&mMuxNode);
-    LOGD("  -->mFlagNode %d\n", mFlagNode);
-}
-
-
-/** mFlagNode フラグの解除
- *
- *
- */
-static void nodeflag_unset(node_flag_t Flag)
-{
-    pthread_mutex_lock(&mMuxNode);
-    mFlagNode &= ~Flag;
-    pthread_mutex_unlock(&mMuxNode);
-    LOGD("  -->mFlagNode %d\n", mFlagNode);
 }
 
 
@@ -3492,7 +3192,11 @@ static void revack_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, utl_buf_t *pBuf)
     transferlist_t *p_revack = (transferlist_t *)UTL_DBG_MALLOC(sizeof(transferlist_t));       //UTL_DBG_FREE: revack_pop_and_exec()
 
     p_revack->cmd = Cmd;
-    memcpy(&p_revack->buf, pBuf, sizeof(utl_buf_t));
+    if (pBuf != NULL) {
+        memcpy(&p_revack->buf, pBuf, sizeof(utl_buf_t));
+    } else {
+        utl_buf_init(&p_revack->buf);
+    }
     LIST_INSERT_HEAD(&p_conf->revack_head, p_revack, list);
 
     pthread_mutex_unlock(&p_conf->mux_revack);
@@ -3514,49 +3218,13 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
         return;
     }
 
-    utl_buf_t *p_fail_ss = NULL;
-    uint64_t fail_id;
-    utl_buf_t fail_reason = UTL_BUF_INIT;
-
     switch (p_revack->cmd) {
-    case TRANSCMD_ADDHTLC:
-        LOGD("TRANSCMD_ADDHTLC\n");
+    case TRANSCMD_HTLCCHECK:
         {
-            //別チャネルの受信アイドル時キューにupdate_add_htlc要求する
-            fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p_revack->buf.buf;
-
-            bool ret = ptarmd_transfer_channel(p_fwd_add->next_short_channel_id, p_revack->cmd, &p_revack->buf);
-            if (!ret) {
-                //add_htlc時に ptarmd_search_connected_cnl()でチェックしているので、
-                //ここまでに接続が切れたか、受信アイドル時キューへの追加に失敗した場合
-                LOGD("fail: forwarding\n");
-
-                //update_fail_htlc準備
-                p_fail_ss = &p_fwd_add->shared_secret;
-                fail_id = p_fwd_add->prev_id;
-                ln_create_reason_temp_node(&fail_reason);
-            }
-        }
-        break;
-    case TRANSCMD_FULFILL:
-        //自チャネルの受信アイドル時キューにupdate_fulfill_htlc要求する。
-        //revoke_and_ack後キューにupdate_fulfill_htlc要求が入るのは、last nodeの場合のみ。
-        //update_fulfill_htlcの巻き戻しは受信アイドル時キューに要求するため、ここは通らない。
-        LOGD("TRANSCMD_FULFILL\n");
-        lnapp_transfer_channel(p_conf, TRANSCMD_FULFILL, &p_revack->buf);
-        break;
-    case TRANSCMD_FAIL:
-        //自チャネルの受信アイドル時キューにupdate_fail_htlc要求する。
-        //このルートは、update_add_htlc受信をln.cがNG判定した場合となる。
-        //update_fail_htlcの巻き戻しは受信アイドル時キューに要求するため、ここは通らない。
-        LOGD("TRANSCMD_FAIL\n");
-        {
-            bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)p_revack->buf.buf;
-
-            p_fail_ss = &p_bwd_fail->shared_secret;
-            fail_id = p_bwd_fail->id;
-            memcpy(&fail_reason, &p_bwd_fail->reason, sizeof(utl_buf_t));
-            utl_buf_init(&p_bwd_fail->reason);
+            LOGD("TRANSCMD_HTLCCHECK: --> rcvidle\n");
+            lnapp_conf_t *p_nextconf = (lnapp_conf_t *)p_revack->buf.buf;
+            rcvidle_push(p_nextconf, TRANSCMD_HTLCCHECK, NULL);
+            utl_buf_init(&p_revack->buf);
         }
         break;
     case TRANSCMD_PAYRETRY:
@@ -3565,21 +3233,6 @@ static void revack_pop_and_exec(lnapp_conf_t *p_conf)
         break;
     default:
         break;
-    }
-    if (p_fail_ss != NULL) {
-        //自チャネルの受信アイドル時キューにupdate_fail_htlc要求する
-        utl_buf_t buf;
-        utl_buf_alloc(&buf, sizeof(bwd_proc_fail_t));
-        bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)buf.buf;
-
-        p_bwd_fail->id = fail_id;
-        memcpy(&p_bwd_fail->reason, &fail_reason, sizeof(utl_buf_t));        //shallow copy
-        memcpy(&p_bwd_fail->shared_secret, p_fail_ss, sizeof(utl_buf_t));    //shallow copy
-        p_bwd_fail->prev_short_channel_id = 0;
-        p_bwd_fail->b_first = true;
-        LOGD("  --> fail_htlc(id=%" PRIu64 ")\n", p_bwd_fail->id);
-        lnapp_transfer_channel(p_conf, TRANSCMD_FAIL, &buf);
-        utl_buf_free(&p_revack->buf);     //もう使用しないため解放
     }
 
     LIST_REMOVE(p_revack, list);
@@ -3625,9 +3278,12 @@ static void rcvidle_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, utl_buf_t *pBuf)
     pthread_mutex_lock(&p_conf->mux_rcvidle);
 
     transferlist_t *p_rcvidle = (transferlist_t *)UTL_DBG_MALLOC(sizeof(transferlist_t));       //UTL_DBG_FREE: revack_pop_and_exec()
-
     p_rcvidle->cmd = Cmd;
-    memcpy(&p_rcvidle->buf, pBuf, sizeof(utl_buf_t));
+    if (pBuf != NULL) {
+        memcpy(&p_rcvidle->buf, pBuf, sizeof(utl_buf_t));
+    } else {
+        utl_buf_init(&p_rcvidle->buf);
+    }
     LIST_INSERT_HEAD(&p_conf->rcvidle_head, p_rcvidle, list);
 
     pthread_mutex_unlock(&p_conf->mux_rcvidle);
@@ -3652,66 +3308,14 @@ static void rcvidle_pop_and_exec(lnapp_conf_t *p_conf)
     bool ret = false;
 
     switch (p_rcvidle->cmd) {
-    case TRANSCMD_ADDHTLC:
-        //update_add_htlc送信
-        LOGD("TRANSCMD_ADDHTLC\n");
-        {
-            fwd_proc_add_t *p_fwd_add = (fwd_proc_add_t *)p_rcvidle->buf.buf;
-            utl_buf_t reason = UTL_BUF_INIT;
-            ret = fwd_payment_forward(p_conf, p_fwd_add, &reason);
-            if (ret) {
-                //解放
-                utl_buf_free(&p_fwd_add->shared_secret);
-            } else {
-                LOGD("fail forward\n");
-                utl_buf_t buf;
-                utl_buf_alloc(&buf, sizeof(bwd_proc_fail_t));
-                bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)buf.buf;
-
-                p_bwd_fail->id = p_fwd_add->prev_id;
-                p_bwd_fail->prev_short_channel_id = p_fwd_add->prev_short_channel_id;
-                memcpy(&p_bwd_fail->reason, &reason, sizeof(utl_buf_t));                //shallow copy
-                memcpy(&p_bwd_fail->shared_secret, &p_fwd_add->shared_secret, sizeof(utl_buf_t));  //shallow copy
-                p_bwd_fail->b_first = true;
-                ret = ptarmd_transfer_channel(p_fwd_add->prev_short_channel_id, TRANSCMD_FAIL, &buf);
-            }
-        }
-        break;
-    case TRANSCMD_FULFILL:
-        //update_fulfill_htlc送信
-        LOGD("TRANSCMD_FULFILL\n");
-        {
-            bwd_proc_fulfill_t *p_bwd_fulfill = (bwd_proc_fulfill_t *)p_rcvidle->buf.buf;
-            ret = fwd_fulfill_backwind(p_conf, p_bwd_fulfill);
-        }
-        break;
-    case TRANSCMD_FAIL:
-        //update_fail_htlc送信
-        LOGD("TRANSCMD_FAIL\n");
-        {
-            bwd_proc_fail_t *p_bwd_fail = (bwd_proc_fail_t *)p_rcvidle->buf.buf;
-            ret = fwd_fail_backwind(p_conf, p_bwd_fail);
-            if (ret) {
-                //解放
-                utl_buf_free(&p_bwd_fail->reason);
-                utl_buf_free(&p_bwd_fail->shared_secret);
-            }
-        }
-        break;
     case TRANSCMD_ANNOSIGNS:
-        {
-            utl_buf_t buf_bolt = UTL_BUF_INIT;
-
-            LOGD("TRANSCMD_ANNOSIGNS\n");
-            ret = ln_create_announce_signs(p_conf->p_self, &buf_bolt);
-            if (ret) {
-                send_peer_noise(p_conf, &buf_bolt);
-                utl_buf_free(&buf_bolt);
-            } else {
-                LOGD("fail: create announcement_signatures\n");
-                stop_threads(p_conf);
-            }
-        }
+        LOGD("TRANSCMD_ANNOSIGNS\n");
+        ret = rcvidle_announcement_signs(p_conf);
+        break;
+    case TRANSCMD_HTLCCHECK:
+        //HTLC処理
+        LOGD("TRANSCMD_HTLCCHECK\n");
+        ret = rcvidle_htlc_check(p_conf);
         break;
     default:
         break;
@@ -3742,6 +3346,69 @@ static void rcvidle_clear(lnapp_conf_t *p_conf)
         UTL_DBG_FREE(p);
         p = tmp;
     }
+}
+
+
+static bool rcvidle_announcement_signs(lnapp_conf_t *p_conf)
+{
+    utl_buf_t buf_bolt = UTL_BUF_INIT;
+
+    bool ret = ln_create_announce_signs(p_conf->p_self, &buf_bolt);
+    if (ret) {
+        send_peer_noise(p_conf, &buf_bolt);
+        utl_buf_free(&buf_bolt);
+    } else {
+        LOGD("fail: create announcement_signatures\n");
+        stop_threads(p_conf);
+    }
+
+    return ret;
+}
+
+
+/** 未送信のHTLCがあれば処理する
+ * 
+ */
+static bool rcvidle_htlc_check(lnapp_conf_t *p_conf)
+{
+    int lp;
+    for (lp = 0; lp < LN_HTLC_MAX; lp++) {
+        if (p_conf->p_self->cnl_add_htlc[lp].amount_msat == 0) {
+            continue;
+        }
+        LOGD("cnl_add_htlc[%d].flag=0x%02x\n", lp, p_conf->p_self->cnl_add_htlc[lp].flag);
+        if ((p_conf->p_self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_OFFERED_MASK) == LN_HTLC_FLAG_SEND) {
+            LOGD("update_add_htlc[%d]\n", lp);
+
+            utl_buf_t buf_bolt = UTL_BUF_INIT;
+
+            ln_create_add_htlc(p_conf->p_self, &buf_bolt, lp);
+            send_peer_noise(p_conf, &buf_bolt);
+            utl_buf_free(&buf_bolt);
+            break;
+        }
+        if (p_conf->p_self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_FULFILLHTLC) {
+            utl_buf_t buf_bolt = UTL_BUF_INIT;
+
+            if (p_conf->p_self->cnl_add_htlc[lp].buf_payment_preimage.len == LN_SZ_PREIMAGE) {
+                LOGD("update_fulfill_htlc[%d]\n", lp);
+                ln_create_fulfill_htlc(p_conf->p_self, &buf_bolt, lp);
+            } else {
+                LOGD("update_fail/malformed_htlc[%d]\n", lp);
+                ln_create_fail_htlc(p_conf->p_self, &buf_bolt, lp);
+            }
+            send_peer_noise(p_conf, &buf_bolt);
+            utl_buf_free(&buf_bolt);
+            break;
+        }
+    }
+    if (lp == LN_HTLC_MAX) {
+        LOGD("nothing to do !\n");
+    } else {
+        send_commitment_signed(p_conf);
+    }
+
+    return true;
 }
 
 
@@ -3971,15 +3638,15 @@ static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, in
         LOGD("their_msat: %" PRIu64 "\n", ln_their_msat(self));
         LOGD("HTLC num: %" PRIu16 "\n", ln_htlc_num(self));
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            const ln_update_add_htlc_t *p_add = ln_update_add_htlc(self, lp);
-            if (p_add->amount_msat > 0) {
+            const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, lp);
+            if (p_htlc->amount_msat > 0) {
                 LOGD("  HTLC[%d]\n", lp);
-                LOGD("    flag= %02x\n", p_add->flag);
-                LOGD("    htlc id= %" PRIx64 "\n", p_add->id);
-                LOGD("    cltv_expiry= %" PRIu32 "\n", p_add->cltv_expiry);
-                LOGD("    amount_msat= %" PRIu64 "\n", p_add->amount_msat);
-                if (p_add->prev_short_channel_id) {
-                    LOGD("    from:        %" PRIx64 ": %" PRIu64 "\n", p_add->prev_short_channel_id, p_add->prev_id);
+                LOGD("    flag= %02x\n", p_htlc->flag);
+                LOGD("    htlc id= %" PRIx64 "\n", p_htlc->id);
+                LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);
+                LOGD("    amount_msat= %" PRIu64 "\n", p_htlc->amount_msat);
+                if (p_htlc->prev_short_channel_id) {
+                    LOGD("    from:        cnl_add_htlc[%d]%" PRIx64 "\n", p_htlc->prev_idx, p_htlc->prev_short_channel_id);
                 }
             }
         }

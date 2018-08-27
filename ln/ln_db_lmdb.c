@@ -88,12 +88,16 @@
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t))
 #define M_SZ_ANNOINFO_NODE      (BTC_SZ_PUBKEY)
 
+#define M_KEY_PREIMAGE          "preimage"
+#define M_SZ_PREIMAGE           (sizeof(M_KEY_PREIMAGE) - 1)
+#define M_KEY_ONIONROUTE        "onion_route"
+#define M_SZ_ONIONROUTE         (sizeof(M_KEY_ONIONROUTE) - 1)
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-21)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-22)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -118,6 +122,7 @@
     -19: revocation_number追加
     -20: current_commit_num追加、scriptpubkeys削除
     -21: fix: alias length
+    -22: onion route
  */
 
 
@@ -384,7 +389,7 @@ static const backup_param_t DBHTLC_KEYS[] = {
     M_ITEM(ln_update_add_htlc_t, flag),
     M_ITEM(ln_update_add_htlc_t, signature),
     M_ITEM(ln_update_add_htlc_t, prev_short_channel_id),
-    M_ITEM(ln_update_add_htlc_t, prev_id),
+    M_ITEM(ln_update_add_htlc_t, prev_idx),
 };
 
 
@@ -647,8 +652,9 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         self->cnl_add_htlc[idx].p_channel_id = NULL;
-        self->cnl_add_htlc[idx].p_onion_route = NULL;
-        utl_buf_init(&self->cnl_add_htlc[idx].shared_secret);
+        utl_buf_init(&self->cnl_add_htlc[idx].buf_payment_preimage);
+        utl_buf_init(&self->cnl_add_htlc[idx].buf_onion_reason);
+        utl_buf_init(&self->cnl_add_htlc[idx].buf_shared_secret);
     }
 
     //復元データからさらに復元
@@ -875,7 +881,7 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
                     }
                     ln_term(p_self);     //falseのみ解放
                 } else {
-                    LOGD("ERR: %s\n", mdb_strerror(retval));
+                    //LOGD("ERR: %s\n", mdb_strerror(retval));
                 }
             } else {
                 LOGD("ERR: %s\n", mdb_strerror(retval));
@@ -3009,6 +3015,9 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     if (strncmp(pDbName, M_PREF_CHANNEL, M_PREFIX_LEN) == 0) {
         //self
         dbtype = LN_LMDB_DBTYPE_SELF;
+    } else if (strncmp(pDbName, M_PREF_SECRET, M_PREFIX_LEN) == 0) {
+        //secret
+        dbtype = LN_LMDB_DBTYPE_SECRET;
     } else if (strncmp(pDbName, M_PREF_ADDHTLC, M_PREFIX_LEN) == 0) {
         //add_htlc
         dbtype = LN_LMDB_DBTYPE_ADD_HTLC;
@@ -3196,6 +3205,7 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb)
             LOGD("ERR: %s(%s)\n", mdb_strerror(retval), dbname);
             continue;
         }
+        //固定
         for (size_t lp2 = 0; lp2 < ARRAY_SIZE(DBHTLC_KEYS); lp2++) {
             key.mv_size = strlen(DBHTLC_KEYS[lp2].name);
             key.mv_data = (CONST_CAST char*)DBHTLC_KEYS[lp2].name;
@@ -3208,13 +3218,35 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb)
                 LOGD("ERR: %s(%s)\n", mdb_strerror(retval), DBHTLC_KEYS[lp2].name);
             }
         }
+
+        //可変
+        key.mv_size = M_SZ_PREIMAGE;
+        key.mv_data = M_KEY_PREIMAGE;
+        retval = mdb_get(pDb->txn, dbi, &key, &data);
+        if (retval == 0) {
+            utl_buf_alloccopy(&self->cnl_add_htlc[lp].buf_payment_preimage, data.mv_data, data.mv_size);
+        } else {
+            //LOGD("ERR: %s(preimage)\n", mdb_strerror(retval));
+        }
+
+        key.mv_size = M_SZ_ONIONROUTE;
+        key.mv_data = M_KEY_ONIONROUTE;
+        retval = mdb_get(pDb->txn, dbi, &key, &data);
+        if (retval == 0) {
+            utl_buf_alloccopy(&self->cnl_add_htlc[lp].buf_onion_reason, data.mv_data, data.mv_size);
+        } else {
+            //LOGD("ERR: %s(onion_route)\n", mdb_strerror(retval));
+            retval = 0;     //FALLTHROUGH
+        }
+
         key.mv_size = M_SZ_SHAREDSECRET;
         key.mv_data = M_KEY_SHAREDSECRET;
         retval = mdb_get(pDb->txn, dbi, &key, &data);
         if (retval == 0) {
-            utl_buf_alloccopy(&self->cnl_add_htlc[lp].shared_secret, data.mv_data, data.mv_size);
+            utl_buf_alloccopy(&self->cnl_add_htlc[lp].buf_shared_secret, data.mv_data, data.mv_size);
         } else {
-            LOGD("ERR: %s(shared_secret)\n", mdb_strerror(retval));
+            //LOGD("ERR: %s(shared_secret)\n", mdb_strerror(retval));
+            retval = 0;     //FALLTHROUGH
         }
         mdb_dbi_close(mpDbSelf, dbi);
     }
@@ -3250,6 +3282,7 @@ static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
             continue;
         }
 
+        //固定
         ln_lmdb_db_t db;
         db.txn = pDb->txn;
         db.dbi = dbi;
@@ -3259,10 +3292,31 @@ static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
             LOGD("ERR\n");
         }
 
+        //可変
+        if (self->cnl_add_htlc[lp].buf_payment_preimage.len > 0) {
+            key.mv_size = M_SZ_PREIMAGE;
+            key.mv_data = M_KEY_PREIMAGE;
+            data.mv_size = self->cnl_add_htlc[lp].buf_payment_preimage.len;
+            data.mv_data = self->cnl_add_htlc[lp].buf_payment_preimage.buf;
+            retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
+            if (retval != 0) {
+                LOGD("ERR: %s(onion_route)\n", mdb_strerror(retval));
+            }
+        }
+
         key.mv_size = M_SZ_SHAREDSECRET;
+        key.mv_size = M_SZ_ONIONROUTE;
+        key.mv_data = M_KEY_ONIONROUTE;
+        data.mv_size = self->cnl_add_htlc[lp].buf_onion_reason.len;
+        data.mv_data = self->cnl_add_htlc[lp].buf_onion_reason.buf;
+        retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
+        if (retval != 0) {
+            LOGD("ERR: %s(onion_route)\n", mdb_strerror(retval));
+        }
+
         key.mv_data = M_KEY_SHAREDSECRET;
-        data.mv_size = self->cnl_add_htlc[lp].shared_secret.len;
-        data.mv_data = self->cnl_add_htlc[lp].shared_secret.buf;
+        data.mv_size = self->cnl_add_htlc[lp].buf_shared_secret.len;
+        data.mv_data = self->cnl_add_htlc[lp].buf_shared_secret.buf;
         retval = mdb_put(pDb->txn, dbi, &key, &data, 0);
         if (retval != 0) {
             LOGD("ERR: %s(shared_secret)\n", mdb_strerror(retval));
