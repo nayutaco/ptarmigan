@@ -61,5 +61,5 @@ test:
 	$(MAKE) -C ln test
 
 test-integration:
-	cd tests/4nodes_test; timeout 180 ./example_all.sh
+	cd tests/4nodes_test; timeout 180 ./all_test.sh
 
