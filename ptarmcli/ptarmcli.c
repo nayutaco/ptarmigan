@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
     mAddr[0] = '\0';
     mTcpSend = true;
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:xwg::s:X:", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:x::wg::s:X:", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -203,7 +203,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
         fprintf(stderr, "\t\t-c PEER.CONF : connect node\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -f FUND.CONF : funding\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -x : mutual/unilateral close channel\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -x : mutual close channel\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -xforce: unilateral close channel\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -w : get last error\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -q : disconnect node\n");
         fprintf(stderr, "\n");
@@ -563,15 +564,23 @@ static void optfunc_close(int *pOption, bool *pConn)
 {
     M_CHK_CONN
 
+    if (optarg != NULL) {
+        if (strcmp(optarg, "force") != 0) {
+            strcpy(mErrStr, "invalid option");
+            *pOption = M_OPTIONS_ERR;
+            return;
+        }
+    }
+
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "close") M_NEXT
             M_QQ("params") ":[ "
                 //peer_nodeid, peer_addr, peer_port
-                M_QQ("%s") "," M_QQ("%s") ",%d"
+                M_QQ("%s") "," M_QQ("%s") ",%d%s"
             " ]"
         "}",
-            mPeerNodeId, mPeerAddr, mPeerPort);
+            mPeerNodeId, mPeerAddr, mPeerPort, (optarg == NULL) ? "" : ",\"force\"");
 
     *pConn = false;
     *pOption = M_OPTIONS_EXEC;

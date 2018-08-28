@@ -119,7 +119,8 @@ static int cmd_routepay_proc2(
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
                 const char *pInvoiceStr, uint64_t AddAmountMsat);
-static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId);
+static int cmd_close_mutual_proc(const uint8_t *pNodeId);
+static int cmd_close_unilateral_proc(const uint8_t *pNodeId);
 
 static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn);
 static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry, const ln_fieldr_t *pFieldR, uint8_t FieldRNum, uint32_t MinFinalCltvExpiry);
@@ -743,7 +744,7 @@ LABEL_EXIT:
 }
 
 
-/** 送金開始: ptarmcli -r / -R
+/** 送金開始: ptarmcli -r
  *
  * 一時ルーティング除外リストをクリアしてから送金する
  */
@@ -848,7 +849,7 @@ LABEL_EXIT:
 }
 
 
-/** channel close開始 : ptarmcli -x
+/** channel mutual close開始 : ptarmcli -x
  *
  */
 static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
@@ -858,8 +859,9 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
     int err = RPCERR_PARSE;
     peer_conn_t conn;
     cJSON *result = NULL;
+    cJSON *json;
     int index = 0;
-    bool b_mutual;
+    const char *p_str = "";
 
     //connect parameter
     bool ret = json_connect(params, &index, &conn);
@@ -867,16 +869,20 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    err = cmd_close_proc(&b_mutual, conn.node_id);
+    json = cJSON_GetArrayItem(params, index++);
+    if ( json && (json->type == cJSON_String) &&
+         (strcmp(json->valuestring, "force") == 0) ) {
+        LOGD("force close\n");
+        p_str = "Start Unilateral Close";
+        err = cmd_close_unilateral_proc(conn.node_id);
+    } else {
+        LOGD("mutual close\n");
+        p_str = "Start Mutual Close";
+        err = cmd_close_mutual_proc(conn.node_id);
+    }
 
 LABEL_EXIT:
     if (err == 0) {
-        const char *p_str;
-        if (b_mutual) {
-            p_str = "Start Mutual Close";
-        } else {
-            p_str = "Start Unilateral Close";
-        }
         result = cJSON_CreateString(p_str);
     } else {
         ctx->error_code = err;
@@ -1408,15 +1414,14 @@ static int cmd_routepay_proc2(
 }
 
 
-/** channel close開始
+/** channel mutual close開始
  *
- * @param[out]      bMutual         true:Mutual Close開始 / false:Unilateral Close開始
  * @param[in]       pNodeId
  * @retval  エラーコード
  */
-static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId)
+static int cmd_close_mutual_proc(const uint8_t *pNodeId)
 {
-    LOGD("close\n");
+    LOGD("mutual close\n");
 
     int err;
     lnapp_conf_t *p_appconf = search_connected_lnapp_node(pNodeId);
@@ -1425,32 +1430,40 @@ static int cmd_close_proc(bool *bMutual, const uint8_t *pNodeId)
         bool ret = lnapp_close_channel(p_appconf);
         if (ret) {
             err = 0;
-            *bMutual = true;
         } else {
             LOGD("fail: mutual  close\n");
             err = RPCERR_CLOSE_START;
         }
     } else {
-        //未接続
-        bool haveCnl = ln_node_search_channel(NULL, pNodeId);
-        if (haveCnl) {
-            //チャネルあり
-            //  相手とのチャネルがあるので、接続自体は可能かもしれない。
-            //  closeの仕方については、仕様や運用とも関係が深いので、後で変更することになるだろう。
-            //  今は、未接続の場合は mutual close以外で閉じることにする。
-            LOGD("チャネルはあるが接続していない\n");
-            bool ret = lnapp_close_channel_force(pNodeId);
-            if (ret) {
-                err = 0;
-                *bMutual = false;
-            } else {
-                LOGD("fail: unilateral close\n");
-                err = RPCERR_CLOSE_FAIL;
-            }
+        err = RPCERR_NOCONN;
+    }
+
+    return err;
+}
+
+
+/** channel unilateral close開始
+ *
+ * @param[in]       pNodeId
+ * @retval  エラーコード
+ */
+static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
+{
+    LOGD("unilateral close\n");
+
+    int err;
+    bool haveCnl = ln_node_search_channel(NULL, pNodeId);
+    if (haveCnl) {
+        bool ret = lnapp_close_channel_force(pNodeId);
+        if (ret) {
+            err = 0;
         } else {
-            //チャネルなし
-            err = RPCERR_NOCHANN;
+            LOGD("fail: unilateral close\n");
+            err = RPCERR_CLOSE_FAIL;
         }
+    } else {
+        //チャネルなし
+        err = RPCERR_NOCHANN;
     }
 
     return err;
