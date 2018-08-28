@@ -5,27 +5,6 @@
 [![Build Status](https://travis-ci.org/nayutaco/ptarmigan.svg?branch=development)](https://travis-ci.org/nayutaco/ptarmigan)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/15128/badge.svg)](https://scan.coverity.com/projects/nayutaco-ptarmigan)
 
-## NOTICE
-
-* 2018/08/19
-  * **separate `libptarm` into three libraries**
-    * `libutl`
-      * Utility Library
-      * prefix: `utl_` and `UTL_`
-    * `libbtc`
-      * Bitcoin(1st layer) Library
-      * prefix: `btc_` and `BTC_`
-    * `libln`
-      * Lightning Network(2nd layer) Library
-      * prefix: `ln_` and `LN_`
-
-* 2018/07/23
-  * **rename process name**
-    * `ucoind` --> `ptarmd`
-    * `ucoincli` --> `ptarmcli`
-  * rename many directory names and file names
-    * `ucoin` --> `ptarm`
-
 ## About
 
 * [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
@@ -119,21 +98,3 @@ make distclean
     * `getblock`
     * `getnewaddress`
     * `estimatesmartfee`
-
-## Implement status
-
-| BOLT | status |
-|------|-------|
-|  1   | partial supported |
-|  2   | partial supported |
-|  3   | partial supported |
-|  4   | partial supported |
-|  5   | partial supported |
-|  6   | (removed from BOLT) |
-|  7   | almost implemated |
-|  8   | supported |
-|  9   | - |
-|  10  | yet |
-|  11  | partial supported |
-
-[detail](docs/bolt_compliant_ja.md) (Japanese)
