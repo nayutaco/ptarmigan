@@ -161,8 +161,11 @@ bool ln_node_init(uint8_t Features)
         }
         ret = ln_db_annonod_save(&buf_node, &anno, NULL);
     }
+    LOGD("my node_id: ");
+    DUMPD(mNode.keys.pub, BTC_SZ_PUBKEY);
 
     if (ret) {
+        //annoinfo情報削除(全削除)
         ln_db_annoinfo_del(NULL);
         print_node();
     }
