@@ -464,7 +464,7 @@ typedef struct {
     uint32_t    cltv_expiry;                        ///< 4:  cltv_expirty
     uint8_t     payment_sha256[LN_SZ_HASH];         ///< 32: payment_hash
     utl_buf_t   buf_payment_preimage;               ///< 32: payment_preimage
-    utl_buf_t   buf_onion_reason;                   ///< 
+    utl_buf_t   buf_onion_reason;                   ///<
                                                     //  update_add_htlc
                                                     //      1366: onion_routing_packet
                                                     //          final node: length == 0
@@ -486,16 +486,16 @@ typedef struct {
      *      preimage = NULL
      *      set:  flag = SEND
      *      sent: flag = SEND | ADDHTLC
-     * 
+     *
      * update_add_htlc受信
      *      set:  flag = RECV
      *            preimage = NULL
-     * 
+     *
      * update_fulfill_htlc送信
      *      set:  flag = RECV | FULFILLHTLC
      *            preimage = payment_preimage
      *      sent: clear HTLC
-     * 
+     *
      * update_fulfill_htlc受信
      *      set:  flag = RECV | FULFILLHTLC
      *            preimage = payment_preimage
@@ -1558,7 +1558,7 @@ void ln_create_fulfill_htlc(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx);
 
 
 /** update_fail_htlc設定
- * 
+ *
  * @param[in,out]       self            channel情報
  * @param[in]           Idx             index
  * @param[in]           pReason         reason
@@ -1632,7 +1632,7 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
  ********************************************************************/
 
 /** HTLCが安定しているかどうか
- * 
+ *
  */
 bool ln_htlc_is_stable(const ln_self_t *self);
 
@@ -1870,6 +1870,16 @@ static inline const uint8_t *ln_funding_blockhash(const ln_self_t *self) {
 #endif
 
 
+/** initial_routing_sync動作が必要かどうか
+ *
+ * @param[in]           self            channel情報
+ * @retval  true    必要:保持しているchannel情報を送信する
+ */
+static inline bool ln_need_init_routing_sync(const ln_self_t *self) {
+    return self->lfeature_remote & LN_INIT_LF_ROUTE_SYNC;
+}
+
+
 /** announcement_signatures交換済みかどうか
  *
  * @param[in]           self            channel情報
@@ -1978,7 +1988,7 @@ static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
 
 
 /** commitment_signedの送信が必要かどうか
- * 
+ *
  * @param[in]           self            channel情報
  * @return      true:送信が必要
  */
@@ -1988,7 +1998,7 @@ static inline bool ln_uncommit_get(const ln_self_t *self) {
 
 
 /** commitment_signed未commitフラグクリア
- * 
+ *
  * @param[in,out]       self            channel情報
  */
 static inline void ln_uncommit_clr(ln_self_t *self) {

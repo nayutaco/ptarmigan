@@ -219,11 +219,11 @@ static void stop_threads(lnapp_conf_t *p_conf);
 static bool wait_peer_connected(lnapp_conf_t *p_conf);
 static bool send_peer_raw(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
 static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
-static bool send_announcement(lnapp_conf_t *p_conf);
+static bool send_announcement(lnapp_conf_t *p_conf, bool bDummySend);
 static bool send_anno_pre_chan(uint64_t short_channel_id);
 static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp);
-static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const utl_buf_t *p_buf_cnl);
-static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const utl_buf_t *p_buf_cnl);
+static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const utl_buf_t *p_buf_cnl, bool bDummySend);
+static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const utl_buf_t *p_buf_cnl, bool bDummySend);
 static void send_cnlupd_before_announce(lnapp_conf_t *p_conf);
 static void send_commitment_signed(lnapp_conf_t *p_conf);
 
@@ -990,8 +990,15 @@ static void *thread_main_start(void *pArg)
     }
     LOGD("init交換完了\n");
 
-    //annoinfo情報削除
-    ln_db_annoinfo_del(p_conf->node_id);
+    if (ln_need_init_routing_sync(p_conf->p_self)) {
+        //annoinfo情報削除(node_id指定)
+        LOGD("initial_routing_sync ON\n");
+        ln_db_annoinfo_del(p_conf->node_id);
+    } else {
+        //annoinfo情報追加
+        LOGD("initial_routing_sync OFF\n");
+        send_announcement(p_conf, true);       //ダミー送信
+    }
 
     //送金先
     if (ln_shutdown_scriptpk_local(p_self)->len == 0) {
@@ -1835,7 +1842,7 @@ static void *thread_anno_start(void *pArg)
             continue;
         }
 
-        bool retcnl = send_announcement(p_conf);
+        bool retcnl = send_announcement(p_conf, false);
         if (retcnl) {
             if (p_conf->annodb_updated) {
                 //annodb was updated, so send_announcement() will be done again.
@@ -2783,7 +2790,7 @@ LABEL_EXIT:
  * @param[in,out]   p_conf  lnapp情報
  * @retval  true    リストの最後まで終わった
  */
-static bool send_announcement(lnapp_conf_t *p_conf)
+static bool send_announcement(lnapp_conf_t *p_conf, bool bDummySend)
 {
     bool ret;
     int anno_cnt = 0;
@@ -2791,8 +2798,8 @@ static bool send_announcement(lnapp_conf_t *p_conf)
 
     LOGD("BEGIN\n");
 
-    void *p_db_cnl = NULL;
-    void *p_db_node = NULL;
+    void *p_db_cnl = NULL;      //channel_announcement/channel_update送信済みDB
+    void *p_db_node = NULL;     //node_announcement送信済みDB
     ret = ln_db_node_cur_transaction(&p_db_cnl, LN_DB_TXN_CNL, NULL);
     if (!ret) {
         LOGD("fail\n");
@@ -2805,8 +2812,8 @@ static bool send_announcement(lnapp_conf_t *p_conf)
     }
 
     utl_buf_t buf_cnl = UTL_BUF_INIT;
-    void *p_cur;
-    ret = ln_db_annocnl_cur_open(&p_cur, p_db_cnl);
+    void *p_cur_cnl;
+    ret = ln_db_annocnl_cur_open(&p_cur_cnl, p_db_cnl);
     if (!ret) {
         //LOGD("no channel DB\n");
         goto LABEL_EXIT;
@@ -2815,7 +2822,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
     char type;
     if (p_conf->last_anno_cnl != 0) {
         //前回のところまで検索する
-        while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
+        while ((ret = ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, &type, NULL, &buf_cnl))) {
             if (short_channel_id == p_conf->last_anno_cnl) {
                 break;
             }
@@ -2825,7 +2832,7 @@ static bool send_announcement(lnapp_conf_t *p_conf)
     utl_buf_free(&buf_cnl);
 
     uint32_t timestamp;
-    while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, &timestamp, &buf_cnl))) {
+    while ((ret = ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, &type, &timestamp, &buf_cnl))) {
         if (!p_conf->loop) {
             break;
         }
@@ -2850,19 +2857,22 @@ static bool send_announcement(lnapp_conf_t *p_conf)
 
         //取得したchannel_announcementのshort_channel_idに一致するものは送信する
         if (p_conf->last_annocnl_sci == short_channel_id) {
-            bool chk = ln_db_annocnls_search_nodeid(p_db_cnl, short_channel_id, type, ln_their_node_id(p_conf->p_self));
+            //channel_announcement/channel_update送信済みDB検索
+            bool chk = ln_db_annocnlinfo_search_nodeid(p_db_cnl, short_channel_id, type, ln_their_node_id(p_conf->p_self));
             if (!chk) {
                 //channel_announcement, channel_update
-                send_anno_cnl(p_conf, type, p_db_cnl, &buf_cnl);
+                send_anno_cnl(p_conf, type, p_db_cnl, &buf_cnl, bDummySend);
 
                 //送信数カウント
-                anno_cnt++;
+                if (!bDummySend) {
+                    anno_cnt++;
+                }
             } else {
                 LOGV("already sent: short_channel_id=%016" PRIx64 ", type:%c\n", short_channel_id, type);
             }
             if (type == LN_DB_CNLANNO_ANNO) {
                 //channel_announcementの送信にかかわらず、未送信のnode_announcementは送信する
-                send_anno_node(p_conf, p_db_node, &buf_cnl);
+                send_anno_node(p_conf, p_db_node, &buf_cnl, bDummySend);
             }
 
             if (anno_cnt >= M_ANNO_UNIT) {
@@ -2888,8 +2898,8 @@ static bool send_announcement(lnapp_conf_t *p_conf)
 
 LABEL_EXIT:
     utl_buf_free(&buf_cnl);
-    if (p_cur != NULL) {
-        ln_db_annocnl_cur_close(p_cur);
+    if (p_cur_cnl != NULL) {
+        ln_db_annocnl_cur_close(p_cur_cnl);
     }
     if (p_db_cnl != NULL) {
         ln_db_node_cur_commit(p_db_cnl);
@@ -2940,15 +2950,17 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp)
 }
 
 
-static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const utl_buf_t *p_buf_cnl)
+static void send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_db, const utl_buf_t *p_buf_cnl, bool bDummySend)
 {
     LOGV("send channel_%c: %016" PRIx64 "\n", type, p_conf->last_annocnl_sci);
-    send_peer_noise(p_conf, p_buf_cnl);
+    if (!bDummySend) {
+        send_peer_noise(p_conf, p_buf_cnl);
+    }
     ln_db_annocnls_add_nodeid(p_db, p_conf->last_annocnl_sci, type, false, ln_their_node_id(p_conf->p_self));
 }
 
 
-static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const utl_buf_t *p_buf_cnl)
+static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const utl_buf_t *p_buf_cnl, bool bDummySend)
 {
     uint64_t short_channel_id;
     uint8_t node[2][BTC_SZ_PUBKEY];
@@ -2964,11 +2976,12 @@ static void send_anno_node(lnapp_conf_t *p_conf, void *p_db, const utl_buf_t *p_
         if (!ret) {
             ret = ln_db_annonod_load(&buf_node, NULL, node[lp], p_db);
             if (ret) {
-                LOGV("send node_anno: ");
-                DUMPV(node[lp], BTC_SZ_PUBKEY);
-                send_peer_noise(p_conf, &buf_node);
-                utl_buf_free(&buf_node);
-
+                if (!bDummySend) {
+                    LOGV("send node_anno: ");
+                    DUMPV(node[lp], BTC_SZ_PUBKEY);
+                    send_peer_noise(p_conf, &buf_node);
+                    utl_buf_free(&buf_node);
+                }
                 ln_db_annonod_add_nodeid(p_db, node[lp], false, ln_their_node_id(p_conf->p_self));
             }
         }

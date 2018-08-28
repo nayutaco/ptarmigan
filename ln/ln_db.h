@@ -213,12 +213,12 @@ bool ln_db_annocnl_load(utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
  * @param[in]       pCnlAnno
  * @param[in]       ShortChannelId  pCnlAnnoのshort_channel_id
  * @param[in]       pSendId         pCnlAnnoの送信元/先node_id
- * @param[in]       pChan1          channel_announcementのnode1
- * @param[in]       pChan2          channel_announcementのnode2
+ * @param[in]       pNodeId1        channel_announcementのnode_id1
+ * @param[in]       pNodeId2        channel_announcementのnode_id2
  * @retval      true    成功
  */
 bool ln_db_annocnl_save(const utl_buf_t *pCnlAnno, uint64_t ShortChannelId, const uint8_t *pSendId,
-                        const uint8_t *pChan1, const uint8_t *pChan2);
+                        const uint8_t *pNodeId1, const uint8_t *pNodeId2);
 
 
 /** channel_update読込み
@@ -290,19 +290,19 @@ bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bo
 //uint64_t ln_db_annocnlall_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
 
 
-/** DB curosrオープン
+/** DB cursorオープン
  *
- * @param[out]      ppCur   curosr情報(ln_dbで使用する)
- * @param[in,out]   pDb     #ln_db_node_cur_transaction()取得したDB情報
+ * @param[out]      ppCurAnnoCnl    cursor情報(ln_dbで使用する)
+ * @param[in,out]   pDb             #ln_db_node_cur_transaction(LN_DB_TXN_CNL)取得したDB情報
  */
-bool ln_db_annocnl_cur_open(void **ppCur, void *pDb);
+bool ln_db_annocnl_cur_open(void **ppCurAnnoCnl, void *pDb);
 
 
-/** DB curosrクローズ
+/** DB cursorクローズ
  *
- * @param[in]       pCur    #ln_db_annocnl_cur_open()で取得したcursor情報
+ * @param[in]       pCurAnnoCnl     #ln_db_annocnl_cur_open()で取得したcursor情報
  */
-void ln_db_annocnl_cur_close(void *pCur);
+void ln_db_annocnl_cur_close(void *pCurAnnoCnl);
 
 
 /** channel_announcement関連情報送信済み検索
@@ -313,7 +313,7 @@ void ln_db_annocnl_cur_close(void *pCur);
  * @param[in]       pSendId             対象node_id
  * @retval  true    pSendIdへ送信済み
  */
-bool ln_db_annocnls_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId);
+bool ln_db_annocnlinfo_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId);
 
 
 /** channel_announcement関連情報の順次取得
@@ -462,6 +462,7 @@ bool ln_db_annonod_cur_open(void **ppCur, void *pDb);
  */
 void ln_db_annonod_cur_close(void *pCur);
 
+
 /** node_announcement順次取得
  *
  * @param[in,out]   pCur            #ln_db_annonod_cur_open()でオープンしたDB cursor
@@ -478,6 +479,8 @@ bool ln_db_annonod_cur_get(void *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, ui
 ////////////////////
 
 /** channel_announcement/channel_update/node_announcement送受信ノード情報削除
+ * announcement送信済みのnode_idを保持しているので、起動時に全削除する。
+ * また、チャネル接続時には接続先node_idの情報を削除する。
  *
  * @param[in]       pNodeId     削除対象のnode_id(NULL時は全削除)
  */
@@ -522,7 +525,7 @@ bool ln_db_preimg_search(ln_db_func_preimg_t pFunc, void *p_param);
 bool ln_db_preimg_del_hash(const uint8_t *pPreImageHash);
 
 
-/** preimage curosrオープン
+/** preimage cursorオープン
  *
  * @param[in,out]   ppCur
  * @retval  true
