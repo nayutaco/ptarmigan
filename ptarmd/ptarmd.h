@@ -71,7 +71,7 @@ static inline int tid() {
 #define FNAME_EVENTCH_LOG           "evt_%s.log"
 #define FNAME_FMT_NODECONF          "ptarm_%s.conf"
 
-
+//need update ptarmd_error_str()
 #define RPCERR_ERROR                (-10000)
 #define RPCERR_NOCONN               (-10001)
 #define RPCERR_ALCONN               (-10002)
@@ -94,6 +94,7 @@ static inline int tid() {
 #define RPCERR_INVOICE_FULL         (-22000)
 #define RPCERR_INVOICE_ERASE        (-22001)
 #define RPCERR_INVOICE_FAIL         (-22002)
+#define RPCERR_INVOICE_OUTDATE      (-22003)
 
 #define RPCERR_CLOSE_START          (-25000)
 #define RPCERR_CLOSE_FAIL           (-25001)

@@ -1308,7 +1308,13 @@ static int cmd_routepay_proc1(
     ln_invoice_t *p_invoice_data = *ppInvoiceData;
     if ( (p_invoice_data->hrp_type != LN_INVOICE_TESTNET) &&
         (p_invoice_data->hrp_type != LN_INVOICE_REGTEST) ) {
+        LOGD("fail: mismatch blockchain\n");
         return RPCERR_INVOICE_FAIL;
+    }
+    time_t now = time(NULL);
+    if (p_invoice_data->timestamp + p_invoice_data->expiry < (uint64_t)now) {
+        LOGD("fail: invoice outdated\n");
+        return RPCERR_INVOICE_OUTDATE;
     }
     p_invoice_data->amount_msat += AddAmountMsat;
 
