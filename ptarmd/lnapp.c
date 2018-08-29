@@ -191,7 +191,6 @@ static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param);
 static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param);
-static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_update_anno_db(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param);
 static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -1884,7 +1883,6 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         //    LN_CB_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
         //    LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
         //    LN_CB_FUNDINGLOCKED_RECV,   ///< funding_locked受信通知
-        //    LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信
         //    LN_CB_UPDATE_ANNODB,        ///< announcement DB更新通知
         //    LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
         //    LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
@@ -1908,7 +1906,6 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         { "  LN_CB_SIGN_FUNDINGTX_REQ: funding_tx sign request", cb_funding_tx_sign },
         { "  LN_CB_FUNDINGTX_WAIT: funding_tx confirmation wait request", cb_funding_tx_wait },
         { "  LN_CB_FUNDINGLOCKED_RECV: funding_locked receive", cb_funding_locked },
-        { NULL/*"  LN_CB_CHANNEL_ANNO_RECV: channel_announcement receive"*/, cb_channel_anno_recv },
         { NULL/*"  LN_CB_UPDATE_ANNODB: announcement DB update"*/, cb_update_anno_db },
         { "  LN_CB_ADD_HTLC_RECV_PREV: update_add_htlc pre-process", cb_add_htlc_recv_prev },
         { "  LN_CB_ADD_HTLC_RECV: update_add_htlc receive", cb_add_htlc_recv },
@@ -2072,24 +2069,6 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 
     //funding_locked受信待ち合わせ解除(*4)
     p_conf->flag_recv |= RECV_MSG_FUNDINGLOCKED;
-}
-
-
-//LN_CB_CHANNEL_ANNO_RECV: channel_announcement受信
-//  short_channel_idがcloseしているかチェックする
-static void cb_channel_anno_recv(lnapp_conf_t *p_conf, void *p_param)
-{
-    (void)p_conf;
-    //DBGTRACE_BEGIN
-
-#ifndef USE_SPV
-    ln_cb_channel_anno_recv_t *p = (ln_cb_channel_anno_recv_t *)p_param;
-    p->is_unspent = check_unspent_short_channel_id(p->short_channel_id);
-#else
-    (void)p_param;
-#endif
-
-    //DBGTRACE_END
 }
 
 

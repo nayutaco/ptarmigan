@@ -3322,15 +3322,9 @@ static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, 
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     ln_cnl_announce_read_t ann;
-    ln_cb_channel_anno_recv_t param;
 
-    param.is_unspent = true;
     bool ret = ln_msg_cnl_announce_read(&ann, pData, Len);
-    if (ret && (ann.short_channel_id != 0)) {
-        //is_unspent更新
-        param.short_channel_id = ann.short_channel_id;
-        (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
-    } else {
+    if (!ret || (ann.short_channel_id == 0)) {
         LOGD("fail: do nothing\n");
         return true;
     }
@@ -3339,20 +3333,15 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     buf.buf = (CONST_CAST uint8_t *)pData;
     buf.len = Len;
 
-    if (param.is_unspent) {
-        //DB保存
-        ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self),
-                                    ann.node_id1, ann.node_id2);
-        if (ret) {
-            ln_cb_update_annodb_t anno;
-            anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
-            (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
-        } else {
-            LOGD("fail: db save\n");
-        }
+    //DB保存
+    ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self),
+                                ann.node_id1, ann.node_id2);
+    if (ret) {
+        ln_cb_update_annodb_t anno;
+        anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
+        (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
     } else {
-        //closeされたとみなして、何もしない
-        LOGD("closed channel: not save(%016" PRIx64 ")\n", ann.short_channel_id);
+        LOGD("fail: db save\n");
     }
 
     return true;
@@ -3382,17 +3371,6 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
             char tmstr[UTL_SZ_DTSTR + 1];
             utl_misc_strftime(tmstr, upd.timestamp);
             LOGD("older channel: not save(%016" PRIx64 "): %s\n", upd.short_channel_id, tmstr);
-        }
-    }
-    if (ret) {
-        //is_unspent更新
-        ln_cb_channel_anno_recv_t param;
-        param.is_unspent = true;
-        param.short_channel_id = upd.short_channel_id;
-        (*self->p_callback)(self, LN_CB_CHANNEL_ANNO_RECV, &param);
-        ret = param.is_unspent;
-        if (!ret) {
-            LOGD("closed channel: not save(%016" PRIx64 ")\n", upd.short_channel_id);
         }
     }
     if (ret) {
