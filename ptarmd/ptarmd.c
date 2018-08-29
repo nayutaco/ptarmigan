@@ -42,6 +42,7 @@
 #include <pthread.h>
 #include <linux/limits.h>
 #include <getopt.h>
+#include <signal.h>
 #include <assert.h>
 
 #include "btcrpc.h"
@@ -95,6 +96,8 @@ static struct nodefaillisthead_t    mNodeFailListHead;
  ********************************************************************/
 
 static void reset_getopt();
+static void sig_set_catch_sigs(sigset_t *pSigSet);
+static void *sig_handler_start(void *pArg);
 
 
 /********************************************************************
@@ -232,7 +235,15 @@ int main(int argc, char *argv[])
         }
     }
 
+    //O'REILLY Japan: BINARY HACKS #52
+    sigset_t ss;
+    pthread_t th_sig;
+    sig_set_catch_sigs(&ss);
+    sigprocmask(SIG_BLOCK, &ss, NULL);
     signal(SIGPIPE , SIG_IGN);   //ignore SIGPIPE
+    pthread_create(&th_sig, NULL, &sig_handler_start, NULL);
+
+
     p2p_cli_init();
 
     //bitcoind起動確認
@@ -502,3 +513,37 @@ static void reset_getopt()
     optind = 0;
 }
 
+
+//捕捉するsignal設定
+static void sig_set_catch_sigs(sigset_t *pSigSet)
+{
+    sigemptyset(pSigSet);
+    sigaddset(pSigSet, SIGHUP);
+    sigaddset(pSigSet, SIGINT);
+    sigaddset(pSigSet, SIGQUIT);
+    sigaddset(pSigSet, SIGTERM);
+    sigaddset(pSigSet, SIGABRT);
+    sigaddset(pSigSet, SIGSEGV);
+}
+
+
+//signal捕捉スレッド
+static void *sig_handler_start(void *pArg)
+{
+    (void)pArg;
+
+    LOGD("signal handler\n");
+    pthread_detach(pthread_self());
+
+    sigset_t ss;
+    siginfo_t info;
+    sig_set_catch_sigs(&ss);
+    while (1) {
+        if (sigwaitinfo(&ss, &info) > 0) {
+            printf("!!! SIGNAL DETECT !!!\n");
+            LOGD("!!! SIGNAL DETECT: %d !!!\n", info.si_signo);
+            exit(-1);
+        }
+    }
+    return NULL;
+}
