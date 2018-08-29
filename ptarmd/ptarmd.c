@@ -470,22 +470,32 @@ char *ptarmd_error_str(int ErrCode)
         { RPCERR_NOCHANN,                   "no channel" },
         { RPCERR_PARSE,                     "parse param" },
         { RPCERR_NOINIT,                    "no init or init not end" },
+        { RPCERR_BLOCKCHAIN,                "fail blockchain access" },
+
         { RPCERR_NODEID,                    "invalid node_id" },
         { RPCERR_NOOPEN,                    "channel not open" },
         { RPCERR_ALOPEN,                    "channel already opened" },
         { RPCERR_FULLCLI,                   "client full" },
         { RPCERR_SOCK,                      "socket" },
         { RPCERR_CONNECT,                   "connect" },
+        { RPCERR_PEER_ERROR,                "peer error" },
         { RPCERR_OPENING,                   "funding now" },
+
         { RPCERR_FUNDING,                   "fail funding" },
+
         { RPCERR_INVOICE_FULL,              "invoice full" },
-        { RPCERR_INVOICE_ERASE,             "fail: erase invoice" },
+        { RPCERR_INVOICE_ERASE,             "erase invoice" },
+        { RPCERR_INVOICE_FAIL,              "decode invoice" },
+        { RPCERR_INVOICE_OUTDATE,           "outdated invoice" },
+
         { RPCERR_CLOSE_START,               "fail start closing" },
         { RPCERR_CLOSE_FAIL,                "fail unilateral close" },
+
         { RPCERR_PAY_STOP,                  "stop payment" },
         { RPCERR_NOROUTE,                   "fail routing" },
         { RPCERR_PAYFAIL,                   "" },
-        { RPCERR_PAY_RETRY,                 "retry payment" }
+        { RPCERR_PAY_RETRY,                 "retry payment" },
+        { RPCERR_TOOMANYHOP,                "fail create invoice(too many hop)" },
     };
 
     const char *p_str = "";
