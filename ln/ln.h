@@ -213,7 +213,6 @@ typedef enum {
     LN_CB_SIGN_FUNDINGTX_REQ,   ///< funding_tx署名要求
     LN_CB_FUNDINGTX_WAIT,       ///< funding_tx安定待ち要求
     LN_CB_FUNDINGLOCKED_RECV,   ///< funding_locked受信通知
-    LN_CB_CHANNEL_ANNO_RECV,    ///< channel_announcement受信通知
     LN_CB_UPDATE_ANNODB,        ///< announcement DB更新通知
     LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
@@ -902,15 +901,6 @@ typedef struct {
     const utl_buf_t         *p_buf_bolt;            ///< 受信したannouncement_signatures
     uint8_t                 sort;
 } ln_cb_anno_sigs_t;
-
-
-/** @struct ln_cb_channel_anno_recv_t
- *  @brief  channel_announcement受信通知(#LN_CB_CHANNEL_ANNO_RECV)
- */
-typedef struct {
-    uint64_t                short_channel_id;
-    bool                    is_unspent;
-} ln_cb_channel_anno_recv_t;
 
 
 /** @struct ln_cb_update_annodb_t
