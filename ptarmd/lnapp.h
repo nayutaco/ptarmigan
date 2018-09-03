@@ -112,6 +112,9 @@ typedef struct lnapp_conf_t {
     uint64_t        last_anno_cnl;                      ///< [#send_channel_anno()]最後にannouncementしたchannel
     uint64_t        last_annocnl_sci;                   ///< [#send_channel_anno()]最後にcur_getしたchannel_announcementのshort_channel_id
     bool            annodb_updated;                     ///< flag to notify annodb update
+    bool            annodb_cont;
+    time_t          annodb_stamp;                       ///< last annodb_updated change true
+    bool            annodb_dummy;                       ///< true: 初回にdummy送信する(終わったらfalseに設定される)
 
     int             err;            ///< last error
     char            *p_errstr;      ///< last error string

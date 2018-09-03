@@ -55,15 +55,15 @@
 
 #define SHOW_SELF               (0x0001)
 #define SHOW_WALLET             (0x0002)
-#define SHOW_CNLANNO            (0x0004)
+#define SHOW_ANNOCNL            (0x0004)
 #define SHOW_DEBUG              (0x0008)
-#define SHOW_NODEANNO           (0x0010)
-#define SHOW_CH                 (0x0020)
+#define SHOW_ANNONODE           (0x0010)
+#define SHOW_LISTCH             (0x0020)
 #define SHOW_ANNOINFO           (0x0040)
 #define SHOW_VERSION            (0x0080)
 #define SHOW_PREIMAGE           (0x0100)
-#define SHOW_ANNOSKIP           (0x0200)
-#define SHOW_ANNOINVOICE        (0x0400)
+#define SHOW_ROUTESKIP          (0x0200)
+#define SHOW_INVOICE            (0x0400)
 #define SHOW_CLOSED_CH          (0x0800)
 
 #define M_SZ_ANNOINFO_CNL       (sizeof(uint64_t) + 1)
@@ -93,7 +93,7 @@ void ln_print_announce(const uint8_t *pData, uint16_t Len);
 #define ln_print_announce(...)          //nothing
 #endif  //PTARM_USE_PRINTFUNC
 void ln_print_peerconf(FILE *fp, const uint8_t *pData, uint16_t Len);
-void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
+void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno);
 
 bool ln_msg_cnl_announce_read(ln_cnl_announce_read_t *pMsg, const uint8_t *pData, uint16_t Len);
 bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, uint16_t Len);
@@ -112,6 +112,7 @@ static int          cnt4;
 static int          cnt5;
 static MDB_env      *mpDbSelf = NULL;
 static MDB_env      *mpDbNode = NULL;
+static MDB_env      *mpDbAnno = NULL;
 static FILE         *fp_err;
 
 
@@ -443,7 +444,7 @@ static void ln_print_announce_short(const uint8_t *pData, uint16_t Len)
 static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
 {
     //self
-    if (showflag & (SHOW_SELF | SHOW_WALLET | SHOW_CH)) {
+    if (showflag & (SHOW_SELF | SHOW_WALLET | SHOW_LISTCH)) {
         ln_self_t *p_self = (ln_self_t *)malloc(sizeof(ln_self_t));
         memset(p_self, 0, sizeof(ln_self_t));
 
@@ -459,7 +460,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         if (showflag & SHOW_WALLET) {
             p_title = "wallet_info";
         }
-        if (showflag & SHOW_CH) {
+        if (showflag & SHOW_LISTCH) {
             p_title = "peer_node_id";
         }
 
@@ -475,7 +476,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         if (showflag & SHOW_WALLET) {
             ln_print_wallet(p_self);
         }
-        if (showflag & SHOW_CH) {
+        if (showflag & SHOW_LISTCH) {
             printf(INDENT2 "\"");
             btc_util_dumpbin(stdout, p_self->peer_node_id, BTC_SZ_PUBKEY, false);
             printf("\"");
@@ -504,7 +505,7 @@ static void dumpit_bkself(MDB_txn *txn, MDB_dbi dbi)
 
 static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
 {
-    if (showflag & SHOW_CNLANNO) {
+    if (showflag & SHOW_ANNOCNL) {
         if (cnt1) {
             printf(",");
         }
@@ -539,14 +540,14 @@ static void dumpit_channel(MDB_txn *txn, MDB_dbi dbi)
                 //printf("end of announce\n");
             }
         } while (ret == 0);
-        printf("]");
+        printf("\n" INDENT1 "]\n");
         mdb_cursor_close(cursor);
     }
 }
 
 static void dumpit_node(MDB_txn *txn, MDB_dbi dbi)
 {
-    if (showflag & SHOW_NODEANNO) {
+    if (showflag & SHOW_ANNONODE) {
         if (cnt2) {
             printf(",");
         } else {
@@ -602,7 +603,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
 
     MDB_val key, data;
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-        if ((dbtype == LN_LMDB_DBTYPE_CHANNEL_ANNOINFO) && (key.mv_size == M_SZ_ANNOINFO_CNL)) {
+        if ((dbtype == LN_LMDB_DBTYPE_ANNOINFO_CNL) && (key.mv_size == M_SZ_ANNOINFO_CNL)) {
             const uint8_t *keyname = (const uint8_t *)key.mv_data;
             switch (keyname[M_SZ_ANNOINFO_CNL - 1]) {
             case LN_DB_CNLANNO_ANNO:
@@ -621,7 +622,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
 
             uint64_t short_channel_id = *(uint64_t *)key.mv_data;
             printf("0x%016" PRIx64 "\n", short_channel_id);
-        } else if ((dbtype == LN_LMDB_DBTYPE_NODE_ANNOINFO) && (key.mv_size == M_SZ_ANNOINFO_NODE)) {
+        } else if ((dbtype == LN_LMDB_DBTYPE_ANNOINFO_NODE) && (key.mv_size == M_SZ_ANNOINFO_NODE)) {
             printf("node_announcement: ");
             btc_util_dumpbin(stdout, key.mv_data, M_SZ_ANNOINFO_NODE, true);
         } else {
@@ -641,9 +642,9 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
     mdb_cursor_close(cursor);
 }
 
-static void dumpit_annoskip(MDB_txn *txn, MDB_dbi dbi)
+static void dumpit_routeskip(MDB_txn *txn, MDB_dbi dbi)
 {
-    if (showflag == SHOW_ANNOSKIP) {
+    if (showflag == SHOW_ROUTESKIP) {
         printf(M_QQ("skiproute") ": [\n");
 
         MDB_cursor  *cursor;
@@ -677,9 +678,9 @@ static void dumpit_annoskip(MDB_txn *txn, MDB_dbi dbi)
     }
 }
 
-static void dumpit_annoinvoice(MDB_txn *txn, MDB_dbi dbi)
+static void dumpit_invoice(MDB_txn *txn, MDB_dbi dbi)
 {
-    if (showflag == SHOW_ANNOINVOICE) {
+    if (showflag == SHOW_INVOICE) {
         printf(M_QQ("payinvoice") ": [\n");
 
         MDB_cursor  *cursor;
@@ -852,7 +853,7 @@ int main(int argc, char *argv[])
             env = 0;
             break;
         case 'l':
-            showflag = SHOW_CH;
+            showflag = SHOW_LISTCH;
             env = 0;
             break;
         case 'q':
@@ -860,23 +861,23 @@ int main(int argc, char *argv[])
             env = 0;
             break;
         case 'c':
-            showflag = SHOW_CNLANNO;
-            env = 1;
+            showflag = SHOW_ANNOCNL;
+            env = 2;
             break;
         case 'n':
-            showflag = SHOW_NODEANNO;
-            env = 1;
+            showflag = SHOW_ANNONODE;
+            env = 2;
             break;
         case 'a':
             showflag = SHOW_ANNOINFO;
-            env = 1;
+            env = 2;
             break;
         case 'k':
-            showflag = SHOW_ANNOSKIP;
+            showflag = SHOW_ROUTESKIP;
             env = 1;
             break;
         case 'i':
-            showflag = SHOW_ANNOINVOICE;
+            showflag = SHOW_INVOICE;
             env = 1;
             break;
         case 'v':
@@ -886,14 +887,14 @@ int main(int argc, char *argv[])
         case '9':
             switch (optarg[1]) {
             case '1':
-                showflag = SHOW_CNLANNO | SHOW_DEBUG;
+                showflag = SHOW_ANNOCNL | SHOW_DEBUG;
                 spoil_stderr = false;
-                env = 1;
+                env = 2;
                 break;
             case '2':
-                showflag = SHOW_NODEANNO | SHOW_DEBUG;
+                showflag = SHOW_ANNONODE | SHOW_DEBUG;
                 spoil_stderr = false;
-                env = 1;
+                env = 2;
                 break;
             case '3':
                 showflag = SHOW_PREIMAGE;
@@ -945,9 +946,31 @@ int main(int argc, char *argv[])
         fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_nodepath());
         //return -1;
     }
-    ln_lmdb_setenv(mpDbSelf, mpDbNode);
+    ret = mdb_env_create(&mpDbAnno);
+    assert(ret == 0);
+    ret = mdb_env_set_maxdbs(mpDbAnno, 10);
+    assert(ret == 0);
+    ret = mdb_env_open(mpDbAnno, ln_lmdb_get_annopath(), MDB_RDONLY, 0664);
+    if (ret) {
+        fprintf(stderr, "fail: cannot open[%s]\n", ln_lmdb_get_annopath());
+        //return -1;
+    }
+    ln_lmdb_setenv(mpDbSelf, mpDbNode, mpDbAnno);
 
-    MDB_env *p_env = (env == 0) ? mpDbSelf : mpDbNode;
+    MDB_env *p_env;
+    switch(env) {
+    case 0:
+        p_env = mpDbSelf;
+        break;
+    case 1:
+        p_env = mpDbNode;
+        break;
+    case 2:
+        p_env = mpDbAnno;
+        break;
+    default:
+        assert(0);
+    }
 
     btc_genesis_t gtype;
     bool bret = ln_db_ver_check(NULL, &gtype);
@@ -1017,21 +1040,21 @@ int main(int argc, char *argv[])
                 case LN_LMDB_DBTYPE_BKSELF:
                     dumpit_bkself(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_CHANNEL_ANNO:
+                case LN_LMDB_DBTYPE_ANNO_CNL:
                     dumpit_channel(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_NODE_ANNO:
+                case LN_LMDB_DBTYPE_ANNO_NODE:
                     dumpit_node(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_CHANNEL_ANNOINFO:
-                case LN_LMDB_DBTYPE_NODE_ANNOINFO:
+                case LN_LMDB_DBTYPE_ANNOINFO_CNL:
+                case LN_LMDB_DBTYPE_ANNOINFO_NODE:
                     dumpit_annoinfo(txn, dbi2, dbtype);
                     break;
-                case LN_LMDB_DBTYPE_ANNO_SKIP:
-                    dumpit_annoskip(txn, dbi2);
+                case LN_LMDB_DBTYPE_ROUTE_SKIP:
+                    dumpit_routeskip(txn, dbi2);
                     break;
-                case LN_LMDB_DBTYPE_ANNO_INVOICE:
-                    dumpit_annoinvoice(txn, dbi2);
+                case LN_LMDB_DBTYPE_INVOICE:
+                    dumpit_invoice(txn, dbi2);
                     break;
                 case LN_LMDB_DBTYPE_PREIMAGE:
                     dumpit_preimage(txn, dbi2);
@@ -1055,6 +1078,7 @@ int main(int argc, char *argv[])
     mdb_cursor_close(cursor);
     mdb_txn_abort(txn);
 
+    mdb_env_close(mpDbAnno);
     mdb_env_close(mpDbNode);
     mdb_env_close(mpDbSelf);
 }

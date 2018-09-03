@@ -234,18 +234,11 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
 
     if ((self->short_channel_id != 0) && ((self->fund_flag & LN_FUNDFLAG_CLOSE) == 0)) {
         //チャネルは開設している && close処理をしていない
-
-        void *p_db_skip;
-        bret = ln_db_node_cur_transaction(&p_db_skip, LN_DB_TXN_SKIP, NULL);
+        bret = ln_db_routeskip_search(self->short_channel_id);
         if (bret) {
-            bret = ln_db_annoskip_search(p_db_skip, self->short_channel_id);
-            if (bret) {
-                //skip DBに載っているchannelは使用しない
-                LOGD("skip : %016" PRIx64 "\n", self->short_channel_id);
-                ln_db_node_cur_commit(p_db_skip);
-                return false;
-            }
-            ln_db_node_cur_commit(p_db_skip);
+            //skip DBに載っているchannelは使用しない
+            LOGD("skip : %016" PRIx64 "\n", self->short_channel_id);
+            return false;
         }
 
         if (memcmp(self->peer_node_id, p_prm_self->p_payer, BTC_SZ_PUBKEY) == 0) {
@@ -296,29 +289,25 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
     ln_db_self_search(comp_func_self, &prm_self);
 
     //channel_anno
-    void *p_db_anno;
     void *p_cur;
 
-    ret = ln_db_node_cur_transaction(&p_db_anno, LN_DB_TXN_CNL, NULL);
+    ret = ln_db_anno_transaction();
     if (!ret) {
         //channel_announcementを1回も受信せずにDBが存在しない場合もあるため、trueで返す
         return true;
     }
-    ret = ln_db_annocnl_cur_open(&p_cur, p_db_anno);
+
+    ret = ln_db_anno_cur_open(&p_cur, LN_DB_CUR_CNL);
     if (ret) {
         uint64_t short_channel_id;
         char type;
         utl_buf_t buf_cnl = UTL_BUF_INIT;
 
         while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
-            void *p_db_skip;
-            bret = ln_db_node_cur_transaction(&p_db_skip, LN_DB_TXN_SKIP, p_db_anno);
+            bret = ln_db_routeskip_search(short_channel_id);
             if (bret) {
-                bret = ln_db_annoskip_search(p_db_skip, short_channel_id);
-                if (bret) {
-                    utl_buf_free(&buf_cnl);
-                    continue;
-                }
+                utl_buf_free(&buf_cnl);
+                continue;
             }
 
             dumpit_chan(p_result, type, &buf_cnl);
@@ -326,7 +315,7 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
         }
     }
 
-    ln_db_node_cur_commit(p_db_anno);
+    ln_db_anno_commit(true);
 
     return true;
 }
@@ -584,7 +573,7 @@ void ln_routing_clear_skipdb(void)
 {
     bool bret;
 
-    bret = ln_db_annoskip_drop(false);
+    bret = ln_db_routeskip_drop(false);
     LOGD("%s: clear routing skip DB\n", (bret) ? "OK" : "fail");
 
     bret = ln_db_invoice_drop();

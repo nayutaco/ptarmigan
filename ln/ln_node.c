@@ -118,7 +118,7 @@ bool ln_node_init(uint8_t Features)
 
     ln_node_announce_t anno;
 
-    ret = ln_db_annonod_load(&buf_node, NULL, mNode.keys.pub, NULL);
+    ret = ln_db_annonod_load(&buf_node, NULL, mNode.keys.pub);
     if (ret) {
         //ノード設定が変更されていないかチェック
         //  少なくともnode_idは変更されていない
@@ -166,7 +166,7 @@ bool ln_node_init(uint8_t Features)
 
     if (ret) {
         //annoinfo情報削除(全削除)
-        ln_db_annoinfo_del(NULL);
+        ln_db_annoinfos_del(NULL);
         print_node();
     }
 
@@ -202,7 +202,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 {
     utl_buf_t buf_anno = UTL_BUF_INIT;
 
-    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId, NULL);
+    bool ret = ln_db_annonod_load(&buf_anno, NULL, pNodeId);
     if (ret) {
         pNodeAnno->p_node_id = NULL;
         pNodeAnno->p_alias = NULL;
@@ -262,7 +262,7 @@ bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData
     ret = ln_db_annonod_save(&buf_ann, &anno, ln_their_node_id(self));
     if (ret) {
         ln_cb_update_annodb_t anno;
-        anno.anno = MSGTYPE_NODE_ANNOUNCEMENT;
+        anno.anno = LN_CB_UPDATE_ANNODB_NODE_ANNO;
         (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
     }
 

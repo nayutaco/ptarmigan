@@ -920,7 +920,7 @@ bool ln_create_channel_update(ln_self_t *self, utl_buf_t *pCnlUpd)
             //announcement_signatures後であればコールバックする
             //そうでない場合は、announcement前のprivate channel通知をしている
             ln_cb_update_annodb_t anno;
-            anno.anno = MSGTYPE_CHANNEL_UPDATE;
+            anno.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
             (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
         }
     } else {
@@ -3336,13 +3336,13 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
     //DB保存
     ret = ln_db_annocnl_save(&buf, ann.short_channel_id, ln_their_node_id(self),
                                 ann.node_id1, ann.node_id2);
+    ln_cb_update_annodb_t anno;
     if (ret) {
-        ln_cb_update_annodb_t anno;
-        anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
-        (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+        anno.anno = LN_CB_UPDATE_ANNODB_CNL_ANNO;
     } else {
-        LOGD("fail: db save\n");
+        anno.anno = LN_CB_UPDATE_ANNODB_NONE;
     }
+    (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
 
     return true;
 }
@@ -3397,6 +3397,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         LOGD("fail: channel_update\n");
     }
 
+    ln_cb_update_annodb_t anno;
+    anno.anno = LN_CB_UPDATE_ANNODB_NONE;
     if (ret) {
         //DB保存
         utl_buf_t buf;
@@ -3404,9 +3406,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.len = Len;
         ret = ln_db_annocnlupd_save(&buf, &upd, ln_their_node_id(self));
         if (ret) {
-            ln_cb_update_annodb_t anno;
-            anno.anno = MSGTYPE_CHANNEL_UPDATE;
-            (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+            anno.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
         } else {
             LOGD("fail: db save\n");
         }
@@ -3415,6 +3415,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         //スルーするだけにとどめる
         ret = true;
     }
+    (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
 
     return ret;
 }
@@ -5196,9 +5197,6 @@ static void proc_anno_sigs(ln_self_t *self)
         bool ret1 = ln_db_annocnl_save(&self->cnl_anno, self->short_channel_id, NULL,
                                 ln_their_node_id(self), ln_node_getid());
         if (ret1) {
-            ln_cb_update_annodb_t anno;
-            anno.anno = MSGTYPE_CHANNEL_ANNOUNCEMENT;
-            (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
             utl_buf_free(&self->cnl_anno);
         } else {
             LOGD("fail\n");

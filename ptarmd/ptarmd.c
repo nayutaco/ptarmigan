@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
     }
 
     if (options & 0x40) {
-        bret = ln_db_annonod_drop();
+        bret = ln_db_annonod_drop_startup();
         fprintf(stderr, "db_annonod_drop: %d\n", bret);
         return 0;
     }
