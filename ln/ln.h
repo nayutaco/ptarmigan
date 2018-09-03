@@ -903,16 +903,22 @@ typedef struct {
 } ln_cb_anno_sigs_t;
 
 
+/** @struct ln_cb_update_annodb_anno_t
+ *  @brief  announcement DB更新通知値
+ */
+typedef enum {
+    LN_CB_UPDATE_ANNODB_NONE,
+    LN_CB_UPDATE_ANNODB_CNL_ANNO,       //channel_announcement
+    LN_CB_UPDATE_ANNODB_CNL_UPD,        //channel_update
+    LN_CB_UPDATE_ANNODB_NODE_ANNO,      //node_announcement
+} ln_cb_update_annodb_anno_t;
+
+
 /** @struct ln_cb_update_annodb_t
  *  @brief  announcement DB更新通知(#LN_CB_UPDATE_ANNODB)
  */
 typedef struct {
-    enum {
-        LN_CB_UPDATE_ANNODB_NONE,
-        LN_CB_UPDATE_ANNODB_CNL_ANNO,       //channel_announcement
-        LN_CB_UPDATE_ANNODB_CNL_UPD,        //channel_update
-        LN_CB_UPDATE_ANNODB_NODE_ANNO,      //node_announcement
-    } anno;
+    ln_cb_update_annodb_anno_t      anno;
 } ln_cb_update_annodb_t;
 
 

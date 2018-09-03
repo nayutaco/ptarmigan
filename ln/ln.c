@@ -3398,7 +3398,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     }
 
     ln_cb_update_annodb_t anno;
-    anno.anno = 0;
+    anno.anno = LN_CB_UPDATE_ANNODB_NONE;
     if (ret) {
         //DB保存
         utl_buf_t buf;
