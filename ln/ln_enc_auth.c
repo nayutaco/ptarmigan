@@ -104,6 +104,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE);
 static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf);
 static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE);
 static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf);
+static void dump_key(const uint8_t key[32], const uint8_t lengthMac[16]);
 
 
 /********************************************************************
@@ -281,6 +282,10 @@ bool HIDDEN ln_enc_auth_enc(ln_self_t *self, utl_buf_t *pBufEnc, const utl_buf_t
     }
 #endif
 
+    if (self->noise_send.nonce == 0) {
+        dump_key(self->noise_send.key, cl + sizeof(l));
+    }
+
     self->noise_send.nonce++;
     if (self->noise_send.nonce == 1000) {
         LOGD("???: This root shall not in.\n");
@@ -389,6 +394,10 @@ uint16_t HIDDEN ln_enc_auth_dec_len(ln_self_t *self, const uint8_t *pData, uint1
         goto LABEL_EXIT;
     }
 #endif
+
+    if (self->noise_recv.nonce == 0) {
+        dump_key(self->noise_recv.key, pData + sizeof(pl));
+    }
 
     self->noise_recv.nonce++;
     if (self->noise_recv.nonce == 1000) {
@@ -1035,4 +1044,34 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
 
 LABEL_EXIT:
     return ret;
+}
+
+
+static void dump_key(const uint8_t key[BTC_SZ_PRIVKEY], const uint8_t lengthMac[M_CHACHAPOLY_MAC])
+{
+#ifdef DEVELOPER_MODE
+    char *dstPath = getenv("LIGHTNINGKEYLOGFILE");
+    if (!dstPath) {
+        return;
+    }
+
+    FILE *dstFile = fopen(dstPath, "a");
+    if (!dstFile) {
+        LOGD("fail: $LIGHTNINGKEYLOGFILE refers to non-existent dir\n");
+        return;
+    }
+
+    char hexMac[33] = "";
+    for (int i = 0; i < 16; i++) {
+        sprintf(hexMac + strlen(hexMac), "%02x", lengthMac[i]);
+    }
+
+    char hexKey[65] = "";
+    for (int i = 0; i < 32; i++) {
+        sprintf(hexKey + strlen(hexKey), "%02x", key[i]);
+    }
+
+    fprintf(dstFile, "%s %s\n", hexMac, hexKey);
+    fclose(dstFile);
+#endif
 }
