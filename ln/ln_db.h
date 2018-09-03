@@ -74,14 +74,15 @@ typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_para
 typedef bool (*ln_db_func_preimg_t)(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 
-/** @typedef    ln_db_txn_t
- *  @brief      announcement種別
+/** @typedef    ln_db_cur_t
+ *  @brief      cursorオープンするannouncement種別
  */
 typedef enum {
-    LN_DB_TXN_CNL,          ///< channel_announcement/channel_update
-    LN_DB_TXN_NODE,         ///< node_announcement
-    LN_DB_TXN_SKIP          ///< routing skip channel
-} ln_db_txn_t;
+    LN_DB_CUR_CNL,              ///< channel_announcement/channel_update
+    LN_DB_CUR_NODE,             ///< node_announcement
+    LN_DB_CUR_INFOCNL,          ///< channel_announcement/channel_update送信済み
+    LN_DB_CUR_INFONODE,         ///< node_announcement送信済み
+} ln_db_cur_t;
 
 
 /** @typedef    ln_db_preimg_t
@@ -105,9 +106,9 @@ typedef struct {
 void ln_db_term(void);
 
 
-////////////////////
-// self
-////////////////////
+/********************************************************************
+ * self
+ ********************************************************************/
 
 /** channel情報読込み
  *
@@ -173,31 +174,27 @@ bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam);
 bool ln_db_secret_save(ln_self_t *self);
 
 
-////////////////////
-// announcement
-////////////////////
+/********************************************************************
+ * anno用DB
+ ********************************************************************/
 
 /** announcement用DBのトランザクション取得およびDBオープン
  *
- * @param[out]  ppDb        取得したDB情報(ln_dbで使用する)
- * @param[in]   Type        オープンするDB(LN_DB_TXN_xx)
- * @param[in]   pLockedDb   #ln_db_node_cur_transaction()で既にトランザクションがある場合に指定する(ない場合はNULL)
  * @retval  true    成功
  */
-bool ln_db_node_cur_transaction(void **ppDb, ln_db_txn_t Type, void *pLockedDb);
+bool ln_db_anno_transaction(void);
 
 
-/** #ln_db_node_cur_transaction()で取得したトランザクションのcommit
+/** #ln_db_anno_transaction()で取得したトランザクションのcommit
  *
- * @param[out]  pDb         #ln_db_node_cur_transaction()取得したDB情報
+ * @param[in]   bCommit         true:トランザクションをcommit
  */
-void ln_db_node_cur_commit(void *pDb);
+void ln_db_anno_commit(bool bCommit);
 
 
-////////////////////
-// channel_announcement
-////////////////////
-
+/********************************************************************
+ * [anno]channel_announcement / channel_update
+ ********************************************************************/
 
 /** channel_announcement読込み
  *
@@ -253,7 +250,7 @@ static inline bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp) 
     //  if a channel's latest channel_updates timestamp is older than two weeks (1209600 seconds):
     //      MAY prune the channel.
     //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#recommendation-on-pruning-stale-entries
-    return TimesStamp + 1209600 < Now;
+    return (uint64_t)TimesStamp + (uint64_t)1209600 < Now;
 }
 
 
@@ -267,58 +264,92 @@ static inline bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp) 
 bool ln_db_annocnlall_del(uint64_t short_channel_id);
 
 
+/** channel_announcementのないchannel_update削除
+ *
+ *
+ */
+void ln_db_annocnl_del_orphan(void);
+
+
+/********************************************************************
+ * node_announcement
+ ********************************************************************/
+
+/** node_announcement読込み
+ *
+ * @param[out]      pNodeAnno       node_announcement(NULL時は無視)
+ * @param[out]      pTimeStamp      node_announcementのtimestamp(NULL時は無視)
+ * @param[in]       pNodeId         検索するnode_id
+ * @retval      true    成功
+ */
+bool ln_db_annonod_load(utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
+
+
+/** node_announcement書込み
+ *
+ * @param[in]       pNodeAnno       node_announcementパケット
+ * @param[in]       pAnno           node_announcement構造体
+ * @param[in]       pSendId         (非NULL)node_announcementの送信元/先ノード
+ * @retval      true    成功
+ * @note
+ *      - タイムスタンプはAPI呼び出し時の値が保存される
+ */
+bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId);
+
+
+/** node_announcement全削除
+ *
+ */
+bool ln_db_annonod_drop_startup(void);
+
+
+/********************************************************************
+ * [anno]cursor
+ ********************************************************************/
+
+/** announcement用DBオープン
+ *
+ * @param[out]  pCur        
+ * @param[in]   Type        オープンするDB(LN_DB_TXN_xx)
+ * @retval  true    成功
+ */
+bool ln_db_anno_cur_open(void **ppCur, ln_db_cur_t Type);
+
+
+/** announcement用DBクローズ
+ *
+ * @param[out]  pCur        
+ */
+void ln_db_anno_cur_close(void *pCur);
+
+
 /** channel_announcement系の送受信情報追加
  *
  * channel_announcement/channel_updateの送信先・受信元ノードIDを追加する。
  *
- * @param[in,out]   pDb
+ * @param[in,out]   pCur
  * @param[in]       ShortChannelId
  * @param[in]       Type
  * @param[in]       bClr                true:保存したノードを削除してから追加する
  * @param[in]       pSendId             送信元/先ノード
  */
-bool ln_db_annocnls_add_nodeid(void *pDb, uint64_t ShortChannelId, char Type, bool bClr, const uint8_t *pSendId);
-
-
-/** node_idを含むshort_channel_id検索
- *
- * @param[in]       pNodeId1
- * @param[in]       pNodeId2
- * @retval      0以外   成功
- * @retval      0       検索失敗
- */
-//uint64_t ln_db_annocnlall_search_channel_short_channel_id(const uint8_t *pNodeId1, const uint8_t *pNodeId2);
-
-
-/** DB cursorオープン
- *
- * @param[out]      ppCurAnnoCnl    cursor情報(ln_dbで使用する)
- * @param[in,out]   pDb             #ln_db_node_cur_transaction(LN_DB_TXN_CNL)取得したDB情報
- */
-bool ln_db_annocnl_cur_open(void **ppCurAnnoCnl, void *pDb);
-
-
-/** DB cursorクローズ
- *
- * @param[in]       pCurAnnoCnl     #ln_db_annocnl_cur_open()で取得したcursor情報
- */
-void ln_db_annocnl_cur_close(void *pCurAnnoCnl);
+bool ln_db_annocnlinfo_add_nodeid(void *pCur, uint64_t ShortChannelId, char Type, bool bClr, const uint8_t *pSendId);
 
 
 /** channel_announcement関連情報送信済み検索
  *
- * @param[in]       pDb
+ * @param[in]       pCur
  * @param[in]       ShortChannelId      検索するshort_channel_id
  * @param[in]       Type                検索するchannel_announcement/channel_update[1/2]
  * @param[in]       pSendId             対象node_id
  * @retval  true    pSendIdへ送信済み
  */
-bool ln_db_annocnlinfo_search_nodeid(void *pDb, uint64_t ShortChannelId, char Type, const uint8_t *pSendId);
+bool ln_db_annocnlinfo_search_nodeid(void *pCur, uint64_t ShortChannelId, char Type, const uint8_t *pSendId);
 
 
 /** channel_announcement関連情報の順次取得
  *
- * @param[in,out]   pCur                    #ln_db_annocnl_cur_open()でオープンした*ppCur
+ * @param[in]       pCur
  * @param[out]      pShortChannelId         short_channel_id
  * @param[out]      pType                   LN_DB_CNLANNO_xxx(channel_announcement / channel_update)
  * @param[out]      pTimeStamp              channel_announcementのtimestamp
@@ -328,16 +359,56 @@ bool ln_db_annocnlinfo_search_nodeid(void *pDb, uint64_t ShortChannelId, char Ty
 bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
 
 
-/** channel_announcementのないchannel_update削除
- *
+/** node_announcement取得
  *
  */
-void ln_db_annocnl_del_orphan(void);
+bool ln_db_annonod_cur_load(void *pCur, utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
 
 
-////////////////////
-// skip routing
-////////////////////
+/** node_announcement送信済み検索
+ *
+ * @retval  true        送信済み
+ */
+bool ln_db_annonodinfo_search_nodeid(void *pCur, const uint8_t *pNodeId, const uint8_t *pSendId);
+
+
+/** node_announcement送信元/先ノード追加
+ *
+ * @param[in,out]   pCur
+ * @param[in]       pNodeId
+ * @param[in]       bClr                true:保存したノードを削除してから追加する
+ * @param[in]       pSendId             送信元/先ノード(NULLでbClr=true時はクリアのみ行う)
+ */
+bool ln_db_annonodinfo_add_nodeid(void *pCur, const uint8_t *pNodeId, bool bClr, const uint8_t *pSendId);
+
+
+/** node_announcement順次取得
+ *
+ * @param[in,out]   pCur            #ln_db_annonod_cur_open()でオープンしたDB cursor
+ * @param[out]      pBuf            node_announcementパケット
+ * @param[out]      pTimeStamp      保存時刻
+ * @param[out]      pNodeId         node_announcementのnode_id
+ * @retval      true    成功
+ */
+bool ln_db_annonod_cur_get(void *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
+
+
+/********************************************************************
+ * annocnl, annonod共通
+ ********************************************************************/
+
+/** channel_announcement/channel_update/node_announcement送受信ノード情報削除
+ * announcement送信済みのnode_idを保持しているので、起動時に全削除する。
+ * また、チャネル接続時には接続先node_idの情報を削除する。
+ *
+ * @param[in]       pNodeId     削除対象のnode_id(NULL時は全削除)
+ */
+bool ln_db_annoinfos_del(const uint8_t *pNodeId);
+
+
+/********************************************************************
+ * skip routing list
+ ********************************************************************/
 
 /** "route_skip" short_channel_id登録
  *
@@ -345,28 +416,27 @@ void ln_db_annocnl_del_orphan(void);
  * @param[in]   bTemp               true:一時的なskip
  * @retval  true    成功
  */
-bool ln_db_annoskip_save(uint64_t ShortChannelId, bool bTemp);
+bool ln_db_routeskip_save(uint64_t ShortChannelId, bool bTemp);
 
 
-/** "route_skip" short_channel_id検索
+/** "route_skip" スキップ情報にshort_channel_idが登録されているか
  *
- * @param[in]       pDb                 #ln_db_node_cur_transaction()取得したDB情報
  * @param[in]       ShortChannelId      検索するshort_channel_id
  * @retval  true    検出
  */
-bool ln_db_annoskip_search(void *pDb, uint64_t ShortChannelId);
+bool ln_db_routeskip_search(uint64_t ShortChannelId);
 
 
 /** "route_skip" DB削除
  *
  * @param[in]   bTemp               true:一時的なskipのみ削除 / false:全削除
  */
-bool ln_db_annoskip_drop(bool bTemp);
+bool ln_db_routeskip_drop(bool bTemp);
 
 
-////////////////////
-// invoice
-////////////////////
+/********************************************************************
+ * invoice
+ ********************************************************************/
 
 /** "routepay" invoice保存
  *
@@ -400,96 +470,9 @@ bool ln_db_invoice_del(const uint8_t *pPayHash);
 bool ln_db_invoice_drop(void);
 
 
-////////////////////
-// node_announcement
-////////////////////
-
-/** node_announcement読込み
- *
- * @param[out]      pNodeAnno       node_announcement(NULL時は無視)
- * @param[out]      pTimeStamp      node_announcementのtimestamp(NULL時は無視)
- * @param[in]       pNodeId         検索するnode_id
- * @retval      true    成功
- */
-bool ln_db_annonod_load(utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId, void *pDb);
-
-
-/** node_announcement書込み
- *
- * @param[in]       pNodeAnno       node_announcementパケット
- * @param[in]       pAnno           node_announcement構造体
- * @param[in]       pSendId         (非NULL)node_announcementの送信元/先ノード
- * @retval      true    成功
- * @note
- *      - タイムスタンプはAPI呼び出し時の値が保存される
- */
-bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId);
-
-
-/** node_announcement全削除
- *
- */
-bool ln_db_annonod_drop(void);
-
-
-/** node_announcement送信済み検索
- *
- * @retval  true        送信済み
- */
-bool ln_db_annonod_search_nodeid(void *pDb, const uint8_t *pNodeId, const uint8_t *pSendId);
-
-
-/** node_announcement送信元/先ノード追加
- *
- * @param[in,out]   pDb
- * @param[in]       pNodeId
- * @param[in]       bClr                true:保存したノードを削除してから追加する
- * @param[in]       pSendId             送信元/先ノード(NULLでbClr=true時はクリアのみ行う)
- */
-bool ln_db_annonod_add_nodeid(void *pDb, const uint8_t *pNodeId, bool bClr, const uint8_t *pSendId);
-
-
-/** #ln_db_annonod_cur_get()用DB cursorオープン
- *
- *
- */
-bool ln_db_annonod_cur_open(void **ppCur, void *pDb);
-
-
-/** #ln_db_annonod_cur_get()用DB cursorクローズ
- *
- *
- */
-void ln_db_annonod_cur_close(void *pCur);
-
-
-/** node_announcement順次取得
- *
- * @param[in,out]   pCur            #ln_db_annonod_cur_open()でオープンしたDB cursor
- * @param[out]      pBuf            node_announcementパケット
- * @param[out]      pTimeStamp      保存時刻
- * @param[out]      pNodeId         node_announcementのnode_id
- * @retval      true    成功
- */
-bool ln_db_annonod_cur_get(void *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, uint8_t *pNodeId);
-
-
-////////////////////
-// annocnl, annonod共通
-////////////////////
-
-/** channel_announcement/channel_update/node_announcement送受信ノード情報削除
- * announcement送信済みのnode_idを保持しているので、起動時に全削除する。
- * また、チャネル接続時には接続先node_idの情報を削除する。
- *
- * @param[in]       pNodeId     削除対象のnode_id(NULL時は全削除)
- */
-bool ln_db_annoinfo_del(const uint8_t *pNodeId);
-
-
-////////////////////
-// payment_preimage
-////////////////////
+/********************************************************************
+ * payment preimage
+ ********************************************************************/
 
 /** preimage保存
  *
@@ -558,9 +541,9 @@ bool ln_db_preimg_set_expiry(void *pCur, uint32_t Expiry);
 
 
 #ifdef LN_UGLY_NORMAL
-////////////////////
-// payment_hash
-////////////////////
+/********************************************************************
+ * payment_hash
+ ********************************************************************/
 
 /** payment_hash保存
  *
@@ -587,9 +570,9 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
 #endif  //LN_UGLY_NORMAL
 
 
-////////////////////
-// revoked transaction close
-////////////////////
+/********************************************************************
+ * revoked transaction close
+ ********************************************************************/
 
 /** revoked transaction情報読込み
  *
@@ -610,9 +593,9 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam);
 bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
 
 
-////////////////////
-// version
-////////////////////
+/********************************************************************
+ * version
+ ********************************************************************/
 
 /** DB version check
  *
@@ -623,9 +606,9 @@ bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
 bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType);
 
 
-////////////////////
-// others
-////////////////////
+/********************************************************************
+ * others
+ ********************************************************************/
 
 /** DB reset
  * "version"以外を削除する

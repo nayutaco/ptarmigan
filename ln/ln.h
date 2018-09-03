@@ -907,7 +907,12 @@ typedef struct {
  *  @brief  announcement DB更新通知(#LN_CB_UPDATE_ANNODB)
  */
 typedef struct {
-    uint16_t                anno;       //BOLT message type
+    enum {
+        LN_CB_UPDATE_ANNODB_NONE,
+        LN_CB_UPDATE_ANNODB_CNL_ANNO,       //channel_announcement
+        LN_CB_UPDATE_ANNODB_CNL_UPD,        //channel_update
+        LN_CB_UPDATE_ANNODB_NODE_ANNO,      //node_announcement
+    } anno;
 } ln_cb_update_annodb_t;
 
 

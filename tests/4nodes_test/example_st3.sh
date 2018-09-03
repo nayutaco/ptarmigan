@@ -83,13 +83,15 @@ sleep 1
 
 # 少し待つ
 echo wait...
-sleep 20
+sleep 10
 
 # mining
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 6
 
 # 少し待つ
 echo wait............
+sleep 10
+
 while :
 do
     ./showdb -c -d node_3333 | jq '.' > n3.txt
@@ -114,7 +116,7 @@ do
     sleep 3
 done
 
-rm n3.txt n4.txt n5.txt n6.txt
+#rm n3.txt n4.txt n5.txt n6.txt
 
 echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo @ channel established

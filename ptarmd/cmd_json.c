@@ -737,7 +737,7 @@ LABEL_EXIT:
     if (ctx->error_code != 0) {
         ln_db_invoice_del(payconf.payment_hash);
         //一時的なスキップは削除する
-        ln_db_annoskip_drop(true);
+        ln_db_routeskip_drop(true);
     }
 
     return result;
@@ -751,7 +751,7 @@ LABEL_EXIT:
 static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     LOGD("routepay_first\n");
-    ln_db_annoskip_drop(true);
+    ln_db_routeskip_drop(true);
     mPayTryCount = 0;
     return cmd_routepay(ctx, params, id);
 }
@@ -825,7 +825,7 @@ LABEL_EXIT:
     } else if (!retry) {
         //送金失敗
         ln_db_invoice_del(p_invoice_data->payment_hash);
-        ln_db_annoskip_drop(true);
+        ln_db_routeskip_drop(true);
 
         //最後に失敗した時間
         char date[50];
@@ -1392,7 +1392,7 @@ static int cmd_routepay_proc2(
                 err = 0;
             } else {
                 LOGD("fail: lnapp_payment\n");
-                ln_db_annoskip_save(pRouteResult->hop_datain[0].short_channel_id, true);
+                ln_db_routeskip_save(pRouteResult->hop_datain[0].short_channel_id, true);
             }
         } else {
             //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)

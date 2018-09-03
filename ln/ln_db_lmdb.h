@@ -52,7 +52,7 @@ extern "C" {
 #define LNDBK_LEN(key)          (sizeof(key) - 1)       ///< key長
 #define LNDBK_RLEN              (3)                     ///< [revoked]key長
 
-#define LNDB_DBI_ANNO_SKIP      "route_skip"
+#define LNDB_DBI_ROUTE_SKIP     "route_skip"
 
 
 /**************************************************************************
@@ -66,12 +66,12 @@ typedef enum {
     LN_LMDB_DBTYPE_ADD_HTLC,
     LN_LMDB_DBTYPE_REVOKED,
     LN_LMDB_DBTYPE_BKSELF,
-    LN_LMDB_DBTYPE_CHANNEL_ANNO,
-    LN_LMDB_DBTYPE_NODE_ANNO,
-    LN_LMDB_DBTYPE_CHANNEL_ANNOINFO,
-    LN_LMDB_DBTYPE_NODE_ANNOINFO,
-    LN_LMDB_DBTYPE_ANNO_SKIP,
-    LN_LMDB_DBTYPE_ANNO_INVOICE,
+    LN_LMDB_DBTYPE_ANNO_CNL,
+    LN_LMDB_DBTYPE_ANNO_NODE,
+    LN_LMDB_DBTYPE_ANNOINFO_CNL,
+    LN_LMDB_DBTYPE_ANNOINFO_NODE,
+    LN_LMDB_DBTYPE_ROUTE_SKIP,
+    LN_LMDB_DBTYPE_INVOICE,
     LN_LMDB_DBTYPE_PREIMAGE,
     LN_LMDB_DBTYPE_PAYHASH,
     LN_LMDB_DBTYPE_VERSION,
@@ -122,16 +122,23 @@ bool ln_lmdb_have_dbdir(void);
 
 /** LMDB selfパス取得
  * 
- * @return  dbselfパス
+ * @return  dbptarm_selfパス
  */
 const char *ln_lmdb_get_selfpath(void);
 
 
 /** LMDB nodeパス取得
  * 
- * @return  dbnodeパス
+ * @return  dbptarm_nodeパス
  */
 const char *ln_lmdb_get_nodepath(void);
+
+
+/** LMDB annoパス取得
+ * 
+ * @return  dbptarm_annoパス
+ */
+const char *ln_lmdb_get_annopath(void);
 
 
 /** channel情報読込み

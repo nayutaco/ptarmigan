@@ -62,7 +62,7 @@ static FILE *fp_err;
  * external prototypes
  ********************************************************************/
 
-void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_anno);
+void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno);
 
 
 /********************************************************************
@@ -184,6 +184,7 @@ int main(int argc, char* argv[])
 
     MDB_env     *pDbSelf = NULL;
     MDB_env     *pDbNode = NULL;
+    MDB_env     *pDbAnno = NULL;
 
     ret = mdb_env_create(&pDbSelf);
     assert(ret == 0);
@@ -204,7 +205,17 @@ int main(int argc, char* argv[])
         fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_nodepath());
         return -6;
     }
-    ln_lmdb_setenv(pDbSelf, pDbNode);
+
+    ret = mdb_env_create(&pDbAnno);
+    assert(ret == 0);
+    ret = mdb_env_set_maxdbs(pDbAnno, 10);
+    assert(ret == 0);
+    ret = mdb_env_open(pDbAnno, ln_lmdb_get_annopath(), 0, 0664);
+    if (ret) {
+        fprintf(fp_err, "fail: cannot open[%s]\n", ln_lmdb_get_annopath());
+        return -6;
+    }
+    ln_lmdb_setenv(pDbSelf, pDbNode, pDbAnno);
 
     uint8_t my_nodeid[BTC_SZ_PUBKEY];
     btc_genesis_t gtype;

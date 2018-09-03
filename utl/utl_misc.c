@@ -121,7 +121,7 @@ bool utl_misc_all_zero(const void *pData, size_t Len)
 void utl_misc_strftime(char *pTmStr, uint32_t Tm)
 {
     time_t tm = (time_t)Tm;
-    strftime(pTmStr, UTL_SZ_DTSTR + 1, "%m/%d %H:%M:%S", localtime(&tm));
+    strftime(pTmStr, UTL_SZ_DTSTR + 1, "%Y/%m/%d %H:%M:%S", localtime(&tm));
 }
 
 
