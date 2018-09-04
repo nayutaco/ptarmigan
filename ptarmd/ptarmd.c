@@ -362,6 +362,15 @@ LABEL_EXIT:
  * public functions
  ********************************************************************/
 
+void ptarmd_stop(void)
+{
+    cmd_json_stop();
+    p2p_svr_stop_all();
+    p2p_cli_stop_all();
+    monitor_stop();
+}
+
+
 bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, utl_buf_t *pBuf)
 {
     lnapp_conf_t *p_appconf = NULL;

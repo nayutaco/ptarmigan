@@ -251,6 +251,12 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  * prototypes
  ********************************************************************/
 
+/** stop all threads
+ * 
+ */
+void ptarmd_stop(void);
+
+
 /** ノード内転送
  *
  */

@@ -161,6 +161,14 @@ void cmd_json_start(uint16_t Port)
 }
 
 
+void cmd_json_stop(void)
+{
+    if (mJrpc.port_number != 0) {
+        jrpc_server_stop(&mJrpc);
+    }
+}
+
+
 int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
 {
     char nodestr[BTC_SZ_PUBKEY * 2 + 1];
@@ -1188,9 +1196,7 @@ static int cmd_stop_proc(void)
 {
     LOGD("stop\n");
 
-    p2p_svr_stop_all();
-    p2p_cli_stop_all();
-    monitor_stop();
+    ptarmd_stop();
 
     return 0;
 }

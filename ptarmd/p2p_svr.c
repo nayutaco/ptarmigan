@@ -65,7 +65,7 @@ void *p2p_svr_start(void *pArg)
     (void)pArg;
 
     int ret;
-    int sock;
+    int sock = -1;
     struct sockaddr_in sv_addr, cl_addr;
 
     memset(&mAppConf, 0, sizeof(mAppConf));
@@ -159,6 +159,11 @@ void *p2p_svr_start(void *pArg)
     }
 
 LABEL_EXIT:
+    if (sock > 0) {
+        close(sock);
+    }
+    ptarmd_stop();
+    LOGD("stop thread\n");
     return NULL;
 }
 

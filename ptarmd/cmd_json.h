@@ -34,6 +34,12 @@
 void cmd_json_start(uint16_t Port);
 
 
+/** ptarmd JSON-RPC動作停止
+ * 
+ */
+void cmd_json_stop(void);
+
+
 /** ノード接続
  *
  * @param[in]       pNodeId     接続先ノードID
