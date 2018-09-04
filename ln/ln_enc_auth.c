@@ -104,7 +104,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE);
 static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf);
 static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE);
 static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf);
-static void dump_key(const uint8_t key[32], const uint8_t lengthMac[16]);
+static void dump_key(const uint8_t key[BTC_SZ_PRIVKEY], const uint8_t lengthMac[M_CHACHAPOLY_MAC]);
 
 
 /********************************************************************
@@ -1073,5 +1073,7 @@ static void dump_key(const uint8_t key[BTC_SZ_PRIVKEY], const uint8_t lengthMac[
 
     fprintf(dstFile, "%s %s\n", hexMac, hexKey);
     fclose(dstFile);
+#else
+    (void)key[BTC_SZ_PRIVKEY]; (void)lengthMac[M_CHACHAPOLY_MAC];
 #endif
 }
