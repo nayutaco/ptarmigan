@@ -18,7 +18,7 @@
 #include "ln_segwit_addr.h"
 #include "ln_local.h"
 
-#define M_INVOICE_DESCRIPTION       "btcigan"
+#define M_INVOICE_DESCRIPTION       "ptarmigan"
 
 static const char *ln_hrp_str[] = {
     "bc", "tb", "BC", "TB", "lnbc", "lntb", "lnbcrt"
@@ -285,7 +285,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
 
     //short description
     data[datalen++] = 13;   // short description
-    data[datalen++] = 0;    // "btcigan": 72bit ÷ 5 ≒ 15
+    data[datalen++] = 0;    // "ptarmigan": 72bit ÷ 5 ≒ 15
     data[datalen++] = 15;   //      15 --(32進数)--> 32*0 + 15
     if (!ln_convert_bits(data, &datalen, 5, (const uint8_t *)M_INVOICE_DESCRIPTION, 9, 8, true)) return false;
 

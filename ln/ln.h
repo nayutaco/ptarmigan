@@ -1951,7 +1951,7 @@ static inline void ln_set_feerate_per_kw(ln_self_t *self, uint32_t FeeratePerKw)
  * @param[in]   FeeratePerKw        feerate_per_kw(open_channelのパラメータと同じ)
  * @return  estimate fee[satoshis]
  * @note
- *      - 現在(2018/04/03)のbtciganが生成するfunding_txは177byteで、それに+αしている
+ *      - 現在(2018/04/03)のptarmiganが生成するfunding_txは177byteで、それに+αしている
  */
 static inline uint64_t ln_estimate_fundingtx_fee(uint32_t FeeratePerKw) {
     return ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, FeeratePerKw);
