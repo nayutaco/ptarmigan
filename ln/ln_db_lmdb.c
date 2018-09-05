@@ -776,7 +776,7 @@ bool ln_db_self_save(const ln_self_t *self)
 
 LABEL_EXIT:
     if (db.txn) {
-        LOGD("abort\n");
+        LOGD("fail: save\n");
         MDB_TXN_ABORT(db.txn);
     }
     return retval == 0;
