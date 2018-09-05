@@ -13,3 +13,6 @@ ENABLE_DEVELOPER_MODE=0
 
 # 0: log to file 1: stdout
 ENABLE_PLOG_TO_STDOUT_PTARMD=0
+
+# max channels("conntct to"(MAX_CHANNELS) and "conect from"(MAX_CHANNELS))
+MAX_CHANNELS=10

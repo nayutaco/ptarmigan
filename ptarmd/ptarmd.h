@@ -57,9 +57,6 @@ static inline int tid() {
 #define SZ_RPC_PASSWD               (64)        ///< RPCPASSWORD
 #define SZ_RPC_URL                  (256)       ///< URL
 
-#define SZ_SOCK_SERVER_MAX          (10)        ///< 接続可能max(server)
-#define SZ_SOCK_CLIENT_MAX          (10)        ///< 接続可能max(client)
-
 #define SZ_IPV4_LEN                 INET_ADDRSTRLEN     ///< IPv4長
 #define SZ_IPV4_LEN_STR             "15"                ///< IPv4長(sprintf用)
 #define SZ_CONN_STR                 (INET6_ADDRSTRLEN + 1 + 5)   ///< <IP len>:<port>

@@ -52,13 +52,13 @@
  * macros
  ********************************************************************/
 
-#define M_LMDB_MAXDBS           (5 * 10)        ///< 同時オープンできるDB数
+#define M_LMDB_MAXDBS           (12 * 2 * MAX_CHANNELS)     ///< 同時オープンできるDB数
 #define M_LMDB_MAPSIZE          ((size_t)10485760)          // DB最大長[byte](LMDBのデフォルト値)
 
-#define M_LMDB_NODE_MAXDBS      (5 * 10)        ///< 同時オープンできるDB数
+#define M_LMDB_NODE_MAXDBS      (50)                        ///< 同時オープンできるDB数
 #define M_LMDB_NODE_MAPSIZE     ((size_t)10485760)          // DB最大長[byte](LMDBのデフォルト値)
 
-#define M_LMDB_ANNO_MAXDBS      (5 * 10)        ///< 同時オープンできるDB数
+#define M_LMDB_ANNO_MAXDBS      (50)                        ///< 同時オープンできるDB数
 #define M_LMDB_ANNO_MAPSIZE     ((size_t)134217728)         // DB最大長[byte](mdb_txn_commit()でMDB_MAP_FULLになったため拡張)
                                                             // 32bit環境ではsize_tが4byteになるため、4294967295が最大になる
 #define M_DBPATH_MAX            (256)

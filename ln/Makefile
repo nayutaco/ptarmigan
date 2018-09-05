@@ -103,6 +103,8 @@ ifeq ($(ENABLE_DEVELOPER_MODE),1)
 CFLAGS_CMN += -DDEVELOPER_MODE
 endif
 
+CFLAGS += -DMAX_CHANNELS=$(MAX_CHANNELS)
+
 ######################################
 #CFLAGS only
 ######################################
