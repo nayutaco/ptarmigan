@@ -3731,6 +3731,8 @@ static bool create_to_local(ln_self_t *self,
     }
     if (ret) {
         ret = btc_tx_txid(self->commit_local.txid, &tx_commit);
+        LOGD("local commit_txid: ");
+        TXIDD(self->commit_local.txid);
     }
 
     if (ret) {
@@ -4204,6 +4206,8 @@ static bool create_to_remote(ln_self_t *self,
         M_DBG_PRINT_TX(&tx_commit);
 
         ret = btc_tx_txid(self->commit_remote.txid, &tx_commit);
+        LOGD("remote commit_txid: ");
+        TXIDD(self->commit_remote.txid);
     }
 
     if (ret) {

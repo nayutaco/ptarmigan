@@ -373,6 +373,10 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
     const utl_buf_t *p_vout = ln_revoked_vout(self);
     if (p_vout == NULL) {
         //展開されているのが最新のcommit_txか
+        LOGD("local commit_txid: ");
+        TXIDD(ln_commit_local(self)->txid);
+        LOGD("remote commit_txid: ");
+        TXIDD(ln_commit_remote(self)->txid);
         if (btcrpc_is_tx_broadcasted(self, ln_commit_local(self)->txid)) {
             //最新のlocal commit_tx --> unilateral close(local)
             del = monitor_close_unilateral_local(self, p_db_param);
@@ -713,6 +717,11 @@ static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
         LOGD("find!\n");
         btc_print_tx(&tx);
         utl_buf_t *p_buf_pk = &tx.vout[0].script;
+        LOGD("vout_cnt: %d\n", tx.vout_cnt);
+        LOGD("local scriptpk: ");
+        DUMPD(ln_shutdown_scriptpk_local(self)->buf, ln_shutdown_scriptpk_local(self)->len);
+        LOGD("remote scriptpk: ");
+        DUMPD(ln_shutdown_scriptpk_remote(self)->buf, ln_shutdown_scriptpk_remote(self)->len);
         if ( (tx.vout_cnt <= 2) &&
              (utl_buf_cmp(p_buf_pk, ln_shutdown_scriptpk_local(self)) ||
               utl_buf_cmp(p_buf_pk, ln_shutdown_scriptpk_remote(self))) ) {

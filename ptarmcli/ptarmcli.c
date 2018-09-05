@@ -238,7 +238,6 @@ int main(int argc, char *argv[])
     } else {
         port = (uint16_t)atoi(argv[optind]);
     }
-    fprintf(stderr, "RPC port=%d\n", port);
 
     int ret = msg_send(mBuf, mBuf, mAddr, port, mTcpSend);
 
