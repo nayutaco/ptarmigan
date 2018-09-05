@@ -624,7 +624,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         goto LABEL_EXIT;
     }
     //ln_db_invoice_drop();
-    ln_db_annocnl_del_orphan();
+    //ln_db_annocnl_del_orphan();
 
 LABEL_EXIT:
     if (retval == 0) {
