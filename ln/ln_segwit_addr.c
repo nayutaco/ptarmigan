@@ -321,20 +321,21 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         data[datalen++] = 3;    // r field
         data[datalen++] = (uint8_t)p32;
         data[datalen++] = (uint8_t)(bits - p32 * 32);
-        uint8_t rfield[51];     //408bit分
-        utl_buf_t buf = { rfield, sizeof(rfield) };
+        uint8_t *rfield = UTL_DBG_MALLOC(51 * p_invoice_data->r_field_num);     //408bit * n分
+        utl_buf_t buf = { rfield, 51 * p_invoice_data->r_field_num };
         utl_push_t push = { 0, &buf };
         for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
             const ln_fieldr_t *r = &p_invoice_data->r_field[lp];
 
-            push.pos = 0;
             utl_push_data(&push, r->node_id, BTC_SZ_PUBKEY);
             ln_misc_push64be(&push, r->short_channel_id);
             ln_misc_push32be(&push, r->fee_base_msat);
             ln_misc_push32be(&push, r->fee_prop_millionths);
             ln_misc_push16be(&push, r->cltv_expiry_delta);
-            if (!ln_convert_bits(data, &datalen, 5, rfield, sizeof(rfield), 8, true)) return false;
         }
+        bool ret = ln_convert_bits(data, &datalen, 5, rfield, push.pos, 8, true);
+        UTL_DBG_FREE(rfield);
+        if (!ret) return false;
     }
 
     //ここまで、data[0～datalen-1]に1byteずつ5bitデータが入っている
