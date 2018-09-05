@@ -87,6 +87,8 @@ ifeq ($(ENABLE_PLOG_TO_STDOUT_PTARMD),1)
 CFLAGS += -DENABLE_PLOG_TO_STDOUT
 endif
 
+CFLAGS += -DMAX_CHANNELS=$(MAX_CHANNELS)
+
 ######################################
 #LDFLAGS
 ######################################

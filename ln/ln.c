@@ -3359,42 +3359,44 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
 {
     (void)self;
 
+    bool ret;
     ln_cnl_update_t upd;
     memset(&upd, 0, sizeof(upd));
 
-    bool ret = ln_msg_cnl_update_read(&upd, pData, Len);
+    ret = ln_msg_cnl_update_read(&upd, pData, Len);
     if (ret) {
         //timestamp check
         uint64_t now = (uint64_t)time(NULL);
         if (ln_db_annocnlupd_is_prune(now, upd.timestamp)) {
-            ret = false;
+            //ret = false;
             char tmstr[UTL_SZ_DTSTR + 1];
             utl_misc_strftime(tmstr, upd.timestamp);
             LOGD("older channel: not save(%016" PRIx64 "): %s\n", upd.short_channel_id, tmstr);
-        }
-    }
-    if (ret) {
-        LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
-
-        //short_channel_id と dir から node_id を取得する
-        uint8_t node_id[BTC_SZ_PUBKEY];
-
-        ret = get_nodeid_from_annocnl(self, node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
-        if (ret && btc_keys_chkpub(node_id)) {
-            ret = ln_msg_cnl_update_verify(node_id, pData, Len);
-            if (!ret) {
-                LOGD("fail: verify\n");
-            }
-        } else {
-            //該当するchannel_announcementが見つからない
-            //  BOLT#11
-            //      r fieldでchannel_update相当のデータを送信したい場合に備えて保持する
-            //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
-            LOGD("fail: not found channel_announcement in DB\n");
-            ret = true;
+            return true;
         }
     } else {
-        LOGD("fail: channel_update\n");
+        LOGD("fail: decode\n");
+        return true;
+    }
+
+    LOGV("recv channel_upd%d: %016" PRIx64 "\n", (int)(1 + (upd.flags & LN_CNLUPD_FLAGS_DIRECTION)), upd.short_channel_id);
+
+    //short_channel_id と dir から node_id を取得する
+    uint8_t node_id[BTC_SZ_PUBKEY];
+
+    ret = get_nodeid_from_annocnl(self, node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
+    if (ret && btc_keys_chkpub(node_id)) {
+        ret = ln_msg_cnl_update_verify(node_id, pData, Len);
+        if (!ret) {
+            LOGD("fail: verify\n");
+        }
+    } else {
+        //該当するchannel_announcementが見つからない
+        //  BOLT#11
+        //      r fieldでchannel_update相当のデータを送信したい場合に備えて保持する
+        //      https://lists.linuxfoundation.org/pipermail/lightning-dev/2018-April/001220.html
+        LOGD("through: not found channel_announcement in DB, but save\n");
+        ret = true;
     }
 
     ln_cb_update_annodb_t anno;
