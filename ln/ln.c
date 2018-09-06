@@ -1402,6 +1402,27 @@ void ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
 }
 
 
+void ln_create_fail_malformed_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
+{
+    LOGD("self->cnl_add_htlc[%d].flag = 0x%02x\n", Idx, self->cnl_add_htlc[Idx].flag);
+
+    ln_update_fail_malformed_htlc_t mal_htlc;
+    ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[Idx];
+
+    uint16_t failure_code = utl_misc_be16(p_htlc->buf_onion_reason.buf);
+    mal_htlc.p_channel_id = self->channel_id;
+    mal_htlc.id = p_htlc->id;
+    memcpy(mal_htlc.sha256_onion, p_htlc->buf_onion_reason.buf + sizeof(uint16_t), BTC_SZ_SHA256);
+    mal_htlc.failure_code = failure_code;
+    (void)ln_msg_update_fail_malformed_htlc_create(pFail, &mal_htlc);
+
+    self->their_msat += p_htlc->amount_msat;   //add_htlc受信時に引いた分を戻す
+    clear_htlc(self, p_htlc);
+
+    self->uncommit = true;
+}
+
+
 bool ln_create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig)
 {
     LOGD("BEGIN\n");
@@ -2608,6 +2629,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     utl_buf_t buf_reason = UTL_BUF_INIT;
     utl_push_init(&push_htlc, &buf_reason, 0);
 
+    add_htlc.result = LN_CB_ADD_HTLC_RESULT_OK;
     ret = ln_onion_read_packet(p_htlc->buf_onion_reason.buf, &hop_dataout,
                     &p_htlc->buf_shared_secret,
                     &push_htlc,
@@ -2627,7 +2649,6 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
             } else {
                 ret = check_recv_add_htlc_bolt4_forward(self, &hop_dataout, &push_htlc, p_htlc, height);
             }
-            self->uncommit = true;
         } else {
             M_SET_ERR(self, LNERR_BITCOIND, "getblockcount");
         }
@@ -2641,10 +2662,23 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         //B3. if the ephemeral key in the onion is unparsable:
         //      invalid_onion_key
         M_SET_ERR(self, LNERR_ONION, "onion-read");
+
+        uint16_t failure_code = utl_misc_be16(buf_reason.buf);
+        if (failure_code & LNERR_ONION_BADONION) {
+            //update_fail_malformed_htlc
+            add_htlc.result = LN_CB_ADD_HTLC_RESULT_MALFORMED;
+        } else {
+            //update_fail_htlc
+            add_htlc.result = LN_CB_ADD_HTLC_RESULT_FAIL;
+        }
+        utl_buf_free(&p_htlc->buf_onion_reason);
     }
     if (ret) {
         ret = check_recv_add_htlc_bolt4_common(&push_htlc);
     }
+
+    //failにせよfail_malformedにせよ、HTLCを受け入れるのでuncommit状態にする
+    self->uncommit = true;
 
     //成功にせよ失敗にせよ、相手のamountから差し引いて、HTLC追加
     self->their_msat -= p_htlc->amount_msat;
@@ -2668,7 +2702,9 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     LOGD("  cltv_expiry - outgoing_cltv_value(%" PRIu32") = %d\n",  hop_dataout.outgoing_cltv_value, p_htlc->cltv_expiry - hop_dataout.outgoing_cltv_value);
 
     //update_add_htlc受信通知
-    add_htlc.ok = ret;
+    if (!ret && (add_htlc.result == LN_CB_ADD_HTLC_RESULT_OK)) {
+        add_htlc.result = LN_CB_ADD_HTLC_RESULT_FAIL;
+    }
     add_htlc.id = p_htlc->id;
     add_htlc.p_payment = p_htlc->payment_sha256;
     add_htlc.p_preimage = (hop_dataout.b_exit) ? p_htlc->buf_payment_preimage.buf : NULL;
@@ -2691,12 +2727,21 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
             self->cnl_add_htlc[idx].flag &= LN_HTLC_FLAG_FULFILLHTLC;
         }
     } else if (!ret) {
-        //update_fail_htlcを折り返す起点
-        LOGD("fail: backwind fail_htlc start: ");
-        DUMPD(buf_reason.buf, buf_reason.len);
         p_htlc->flag |= LN_HTLC_FLAG_FULFILLHTLC;
-        utl_buf_free(&p_htlc->buf_onion_reason);
-        ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
+        if (add_htlc.result == LN_CB_ADD_HTLC_RESULT_FAIL) {
+        LOGD("fail: backwind fail_htlc start: ");
+
+            ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
+        } else {
+            LOGD("fail: backwind malformed_htlc: ");
+
+            p_htlc->flag |= LN_HTLC_FLAG_MALFORMED;
+            utl_buf_alloccopy(&p_htlc->buf_onion_reason, buf_reason.buf, buf_reason.len);
+        }
+        DUMPD(buf_reason.buf, buf_reason.len);
+
+    } else {
+        //ret==true && not last node
     }
     utl_buf_free(&buf_reason);
 
@@ -2817,6 +2862,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
             fail_recv.prev_idx = idx;
             fail_recv.orig_id = self->cnl_add_htlc[idx].id;     //元のHTLC id
             fail_recv.p_payment_hash = self->cnl_add_htlc[idx].payment_sha256;
+            fail_recv.malformed_failure = 0;
             (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
 
             clear_htlc(self, &self->cnl_add_htlc[idx]);
@@ -3130,6 +3176,7 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
             fail_recv.prev_idx = idx;
             fail_recv.orig_id = self->cnl_add_htlc[idx].id;     //元のHTLC id
             fail_recv.p_payment_hash = self->cnl_add_htlc[idx].payment_sha256;
+            fail_recv.malformed_failure = mal_htlc.failure_code;
             (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
             utl_buf_free(&reason);
 
@@ -4282,7 +4329,7 @@ static bool create_to_remote(ln_self_t *self,
 
     if (ret) {
         if (cnt > 0) {
-            uint8_t *p_htlc_sigs = NULL;;
+            uint8_t *p_htlc_sigs = NULL;
             if (pp_htlc_sigs != NULL) {
                 //送信用 commitment_signed.htlc_signature
                 *pp_htlc_sigs = (uint8_t *)UTL_DBG_MALLOC(LN_SZ_SIGNATURE * cnt);

@@ -81,9 +81,10 @@ extern "C" {
 #define LN_HTLC_FLAG_SEND               (0x01)      ///< Offered HTLC
 #define LN_HTLC_FLAG_RECV               (0x02)      ///< Received HTLC
 #define LN_HTLC_FLAG_ADDHTLC            (0x04)      ///< update_add_htlc送信済み
-#define LN_HTLC_FLAG_FULFILLHTLC        (0x08)      ///< update_fulfill_htlc/update_fail_htlc/update_malformed_htlc送信済み
+#define LN_HTLC_FLAG_FULFILLHTLC        (0x08)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
 #define LN_HTLC_FLAG_OFFERED_MASK       (LN_HTLC_FLAG_SEND | LN_HTLC_FLAG_ADDHTLC)
 #define LN_HTLC_FLAG_RECEIVED_MASK      (LN_HTLC_FLAG_RECV | LN_HTLC_FLAG_FULFILLHTLC)
+#define LN_HTLC_FLAG_MALFORMED          (0x20)      ///< update_fail_malformed_htlc
 #define LN_HTLC_FLAG_COMMIT_SEND        (0x40)      ///< commitment_signed受信済み
 #define LN_HTLC_FLAG_COMMIT_RECV        (0x80)      ///< commitment_signed受信済み
 #define LN_HTLC_FLAG_COMMIT_MASK        (LN_HTLC_FLAG_COMMIT_SEND | LN_HTLC_FLAG_COMMIT_RECV)
@@ -160,6 +161,10 @@ extern "C" {
 #define LN_DBG_MATCH_PREIMAGE() ((ln_get_debug() & 0x04) == 0)
 // 8: monitoringで未接続ノードに接続しに行かない
 #define LN_DBG_NODE_AUTO_CONNECT() ((ln_get_debug() & 0x08) == 0)
+// 16: onionのrealmを不正な値にする
+#define LN_DBG_ONION_CREATE_NORMAL_REALM() ((ln_get_debug() & 0x10) == 0)
+// 32: onionのversionを不正な値にする
+#define LN_DBG_ONION_CREATE_NORMAL_VERSION() ((ln_get_debug() & 0x20) == 0)
 
 
 /********************************************************************
@@ -837,11 +842,21 @@ typedef struct {
 } ln_cb_add_htlc_recv_prev_t;
 
 
+/** @enum   ln_cb_add_htlc_result_t
+ *  @brief  result of update_add_htlc processing
+ */
+typedef enum {
+    LN_CB_ADD_HTLC_RESULT_OK,           ///< transfer update_add_htlc or backward update_fulfill_htlc
+    LN_CB_ADD_HTLC_RESULT_FAIL,         ///< backward update_fail_htlc
+    LN_CB_ADD_HTLC_RESULT_MALFORMED,    ///< backward update_fail_malformed_htlc
+} ln_cb_add_htlc_result_t;
+
+
 /** @struct ln_cb_add_htlc_recv_t
  *  @brief  update_add_htlc受信通知(#LN_CB_ADD_HTLC_RECV)
  */
 typedef struct {
-    bool                        ok;                     ///< true:アプリ層処理OK
+    ln_cb_add_htlc_result_t     result;                 ///< update_add_htlc受信結果
     uint64_t                    id;                     ///< HTLC id
     const uint8_t               *p_payment;             ///< payment_hash
     const uint8_t               *p_preimage;            ///< 非NULL: preimage
@@ -875,6 +890,7 @@ typedef struct {
     uint16_t                prev_idx;               ///< self->cnl_add_htlc[idx]
     uint64_t                orig_id;                ///< 元のHTLC id
     const uint8_t           *p_payment_hash;        ///< payment_hash
+    uint16_t                malformed_failure;      ///< !0: malformed_htlcのfailure_code
 } ln_cb_fail_htlc_recv_t;
 
 
@@ -1576,6 +1592,15 @@ bool ln_set_fail_htlc(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
  * @param[in]           Idx             生成するHTLCの内部管理index値
  */
 void ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
+
+
+/** update_fail_malformed_htlcメッセージ作成
+ *
+ * @param[in,out]       self            channel情報
+ * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
+ * @param[in]           Idx             生成するHTLCの内部管理index値
+ */
+void ln_create_fail_malformed_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
 
 
 /** commitment_signedメッセージ作成

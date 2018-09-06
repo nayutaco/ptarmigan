@@ -460,7 +460,7 @@ LABEL_EXIT:
  *
  * TODO:
  *  - update_fail_htlc受信は、update_fail_htlc巻き戻し以外になることはあり得るか？
- *      - update_malformed_htlcを受信した場合、それ以降はupdate_fail_htlcを返すことになる。
+ *      - update_fail_malformed_htlcを受信した場合、それ以降はupdate_fail_htlcを返すことになる。
  *******************************************/
 
 void lnapp_transfer_channel(lnapp_conf_t *pAppConf, trans_cmd_t Cmd, utl_buf_t *pBuf)
@@ -2144,7 +2144,8 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     ln_cb_add_htlc_recv_t *p_addhtlc = (ln_cb_add_htlc_recv_t *)p_param;
 
     ptarmd_preimage_lock();
-    if (p_addhtlc->ok) {
+    switch (p_addhtlc->result) {
+    case LN_CB_ADD_HTLC_RESULT_OK:
         LOGD("check OK\n");
         if (p_addhtlc->p_hop->b_exit) {
             //final node
@@ -2155,10 +2156,15 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             LOGD("forward\n");
             cbsub_add_htlc_forward(p_conf, p_addhtlc);
         }
-    } else {
-        //同一channelにupdate_fail_htlcを折り返す
-        LOGD("fail\n");
+        break;
+    case LN_CB_ADD_HTLC_RESULT_FAIL:
+    case LN_CB_ADD_HTLC_RESULT_MALFORMED:
+        //同一channelにupdate_fail_htlc or update_fail_malformed_htlcを折り返す
+        LOGD("fail_htlc or fail_malformed_htlc\n");
         cbsub_add_htlc_fail(p_conf, p_addhtlc);
+        break;
+    default:
+        LOGD("fail: unknown result\n");
     }
     ptarmd_preimage_unlock();
 
@@ -2403,7 +2409,17 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
     utl_buf_t reason = UTL_BUF_INIT;
     int hop;
     bool retry = false;
-    bool ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
+    bool ret;
+    if (p_fail->malformed_failure == 0) {
+        // update_fail_htlc
+        ret = ln_onion_failure_read(&reason, &hop, p_fail->p_shared_secret, p_fail->p_reason);
+    } else {
+        // update_fail_malformed_htlc
+        uint16_t failure_code = utl_misc_be16(p_fail->p_reason->buf);
+        ret = (failure_code == p_fail->malformed_failure);
+        utl_buf_alloccopy(&reason, p_fail->p_reason->buf, p_fail->p_reason->len);
+        hop = 0;
+    }
     if (ret) {
         LOGD("  failure reason= ");
         DUMPD(reason.buf, reason.len);
@@ -3055,6 +3071,8 @@ static void send_commitment_signed(lnapp_conf_t *p_conf)
         } else {
             LOGD("fail: send commitment_signed\n");
         }
+    } else {
+        LOGD("no uncommit HTLC\n");
     }
 }
 
@@ -3382,8 +3400,11 @@ static bool rcvidle_htlc_check(lnapp_conf_t *p_conf)
             if (p_conf->p_self->cnl_add_htlc[lp].buf_payment_preimage.len == LN_SZ_PREIMAGE) {
                 LOGD("update_fulfill_htlc[%d]\n", lp);
                 ln_create_fulfill_htlc(p_conf->p_self, &buf_bolt, lp);
+            } else if (p_conf->p_self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_MALFORMED) {
+                LOGD("update_malformed_htlc[%d]\n", lp);
+                ln_create_fail_malformed_htlc(p_conf->p_self, &buf_bolt, lp);
             } else {
-                LOGD("update_fail/malformed_htlc[%d]\n", lp);
+                LOGD("update_fail_htlc[%d]\n", lp);
                 ln_create_fail_htlc(p_conf->p_self, &buf_bolt, lp);
             }
             send_peer_noise(p_conf, &buf_bolt);

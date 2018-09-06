@@ -47,7 +47,9 @@
  **************************************************************************/
 
 #define M_VERSION               ((uint8_t)0x00)
-#define M_REALM_VAL             (0x00)
+#define M_VERSION_INVALID       ((uint8_t)0xff)
+#define M_REALM_VAL             ((uint8_t)0x00)
+#define M_REALM_VAL_INVALID     ((uint8_t)0xff)
 
 #define M_SZ_BLINDING_FACT      (32)
 #define M_SZ_PAD                (12)
@@ -63,11 +65,6 @@
 #define M_SZ_KEYLEN             (32)
 
 //#define M_DBG_FAIL
-
-
-/**************************************************************************
- * typedefs
- **************************************************************************/
 
 
 /**************************************************************************
@@ -190,7 +187,11 @@ bool ln_onion_create_packet(uint8_t *pPacket,
         //[21] padding
         //[33] hmac
         uint8_t *p = mix_header;
+        if (LN_DBG_ONION_CREATE_NORMAL_REALM()) {
         *p = M_REALM_VAL;
+        } else {
+            *p = M_REALM_VAL_INVALID;
+        }
         p++;
         ln_misc_setbe(p, &pHopData[lp].short_channel_id, M_SZ_CHANNEL_ID);
         p += M_SZ_CHANNEL_ID;
@@ -216,7 +217,11 @@ bool ln_onion_create_packet(uint8_t *pPacket,
         btc_util_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, pPacket, M_SZ_ROUTING_INFO + AssocLen);
     }
 
+    if (LN_DBG_ONION_CREATE_NORMAL_VERSION()) {
     pPacket[0] = M_VERSION;
+    } else {
+        pPacket[0] = M_VERSION_INVALID;
+    }
     memcpy(pPacket + 1, eph_pubkeys, BTC_SZ_PUBKEY);
     memcpy(pPacket + 1 + BTC_SZ_PUBKEY, mix_header, M_SZ_ROUTING_INFO);
     memcpy(pPacket + 1 + BTC_SZ_PUBKEY + M_SZ_ROUTING_INFO, next_hmac, M_SZ_HMAC);
@@ -274,6 +279,12 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     uint8_t shared_secret[M_SZ_SHARED_SECRET];
 
     ln_node_generate_shared_secret(shared_secret, p_dhkey);
+    if (pSharedSecret) {
+        //BOLT#4
+        //  Intermediate hops store the shared secret from the forward path
+        //      and reuse it to obfuscate the error packet on each hop.
+        utl_buf_alloccopy(pSharedSecret, shared_secret, sizeof(shared_secret));
+    }
 
     int len = (M_SZ_HOP_DATA > AssocLen) ? M_SZ_HOP_DATA : AssocLen;
     uint8_t *p_msg = (uint8_t *)UTL_DBG_CALLOC(1, M_SZ_ROUTING_INFO + len);
@@ -344,13 +355,6 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
             pNextData->b_exit = false;
             break;
         }
-    }
-
-    if (pSharedSecret) {
-        //BOLT#4
-        //  Intermediate hops store the shared secret from the forward path
-        //      and reuse it to obfuscate the error packet on each hop.
-        utl_buf_alloccopy(pSharedSecret, shared_secret, sizeof(shared_secret));
     }
 
     return true;

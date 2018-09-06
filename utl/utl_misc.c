@@ -146,3 +146,24 @@ void utl_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen)
     }
 }
 
+
+uint16_t utl_misc_be16(const uint8_t *pData)
+{
+    return (uint16_t)((uint16_t)pData[0] << 8 | (uint16_t)pData[1]);
+}
+
+
+uint32_t utl_misc_be32(const uint8_t *pData)
+{
+    return (uint32_t)((uint32_t)pData[0] << 24 | (uint32_t)pData[1] << 16 |
+                (uint32_t)pData[2] << 8 | (uint32_t)pData[3]);
+}
+
+
+uint64_t utl_misc_be64(const uint8_t *pData)
+{
+    return (uint64_t)((uint64_t)pData[0] << 56 | (uint64_t)pData[1] << 48 |
+                (uint64_t)pData[2] << 40 | (uint64_t)pData[3] << 32 |
+                (uint64_t)pData[4] << 24 | (uint64_t)pData[5] << 16 |
+                (uint64_t)pData[6] <<  8 | (uint64_t)pData[7]);
+}

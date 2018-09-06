@@ -979,6 +979,12 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
         if (!LN_DBG_NODE_AUTO_CONNECT()) {
             LOGD("no node Auto connect\n");
         }
+        if (!LN_DBG_ONION_CREATE_NORMAL_REALM()) {
+            LOGD("create invalid realm onion\n");
+        }
+        if (!LN_DBG_ONION_CREATE_NORMAL_VERSION()) {
+            LOGD("create invalid version onion\n");
+        }
         cJSON_AddItemToObject(result, "new", cJSON_CreateString(str));
     } else {
         ctx->error_code = RPCERR_PARSE;
