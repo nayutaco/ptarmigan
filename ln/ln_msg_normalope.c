@@ -700,7 +700,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_create(utl_buf_t *pBuf, const ln_u
     ln_misc_push64be(&proto, pMsg->id);
 
     //        [32:sha256-of-onion]
-    utl_push_data(&proto, pMsg->p_sha256_onion, LN_SZ_HASH);
+    utl_push_data(&proto, pMsg->sha256_onion, BTC_SZ_SHA256);
 
     //        [2:failure-code]
     ln_misc_push16be(&proto, pMsg->failure_code);
@@ -737,8 +737,8 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
     pos += sizeof(uint64_t);
 
     //        [32:sha256-of-onion]
-    memcpy(pMsg->p_sha256_onion, pData + pos, LN_SZ_HASH);
-    pos += LN_SZ_HASH;
+    memcpy(pMsg->sha256_onion, pData + pos, BTC_SZ_SHA256);
+    pos += BTC_SZ_SHA256;
 
     //        [2:failure-code]
     pMsg->failure_code = ln_misc_get16be(pData + pos);
@@ -762,8 +762,8 @@ static void update_fail_malformed_htlc_print(const ln_update_fail_malformed_htlc
     LOGD("channel-id: ");
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("id: %" PRIu64 "\n", pMsg->id);
-    LOGD("p_sha256_onion: ");
-    DUMPD(pMsg->p_sha256_onion, LN_SZ_HASH);
+    LOGD("sha256_onion: ");
+    DUMPD(pMsg->sha256_onion, BTC_SZ_SHA256);
     LOGD("failure_code: %04x\n", pMsg->failure_code);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG

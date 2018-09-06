@@ -231,7 +231,6 @@ static void load_channel_settings(lnapp_conf_t *p_conf);
 static void load_announce_settings(void);
 
 static void call_script(event_t event, const char *param);
-static void set_onionerr_str(char *pStr, const ln_onion_err_t *pOnionErr);
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 
 static void revack_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, utl_buf_t *pBuf);
@@ -2456,11 +2455,10 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
         LOGD("suggest: %s\n", suggest);
 
         char errstr[512];
-        char reasonstr[128];
-        set_onionerr_str(reasonstr, &onionerr);
+        char *reasonstr = ln_onion_get_errstr(&onionerr);
         sprintf(errstr, M_ERRSTR_REASON, reasonstr, hop, suggest);
         set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
-
+        free(reasonstr);
         free(onionerr.p_data);
     } else {
         //デコード失敗
@@ -3121,55 +3119,6 @@ static void call_script(event_t event, const char *param)
         LOGD("cmdline: %s\n", cmdline);
         system(cmdline);
         UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
-    }
-}
-
-
-/** onion fail reason文字列設定
- *
- *
- */
-static void set_onionerr_str(char *pStr, const ln_onion_err_t *pOnionErr)
-{
-    const struct {
-        uint16_t err;
-        const char *str;
-    } ONIONERR[] = {
-        { LNONION_INV_REALM, "invalid realm" },
-        { LNONION_TMP_NODE_FAIL, "temporary_node_failure" },
-        { LNONION_PERM_NODE_FAIL, "permanent_node_failure" },
-        { LNONION_REQ_NODE_FTR_MISSING, "required_node_feature_missing" },
-        { LNONION_INV_ONION_VERSION, "invalid_onion_version" },
-        { LNONION_INV_ONION_HMAC, "invalid_onion_hmac" },
-        { LNONION_INV_ONION_KEY, "invalid_onion_key" },
-        { LNONION_TMP_CHAN_FAIL, "temporary_channel_failure" },
-        { LNONION_PERM_CHAN_FAIL, "permanent_channel_failure" },
-        { LNONION_REQ_CHAN_FTR_MISSING, "required_channel_feature_missing" },
-        { LNONION_UNKNOWN_NEXT_PEER, "unknown_next_peer" },
-        { LNONION_AMT_BELOW_MIN, "amount_below_minimum" },
-        { LNONION_FEE_INSUFFICIENT, "fee_insufficient" },
-        { LNONION_INCORR_CLTV_EXPIRY, "incorrect_cltv_expiry" },
-        { LNONION_EXPIRY_TOO_SOON, "expiry_too_soon" },
-        { LNONION_UNKNOWN_PAY_HASH, "unknown_payment_hash" },
-        { LNONION_INCORR_PAY_AMT, "incorrect_payment_amount" },
-        { LNONION_FINAL_EXPIRY_TOO_SOON, "final_expiry_too_soon" },
-        { LNONION_FINAL_INCORR_CLTV_EXP, "final_incorrect_cltv_expiry" },
-        { LNONION_FINAL_INCORR_HTLC_AMT, "final_incorrect_htlc_amount" },
-        { LNONION_CHAN_DISABLE, "channel_disabled" },
-        { LNONION_EXPIRY_TOO_FAR, "expiry_too_far" },
-    };
-
-    const char *p_str = NULL;
-    for (size_t lp = 0; lp < ARRAY_SIZE(ONIONERR); lp++) {
-        if (pOnionErr->reason == ONIONERR[lp].err) {
-            p_str = ONIONERR[lp].str;
-            break;
-        }
-    }
-    if (p_str != NULL) {
-        strcpy(pStr, p_str);
-    } else {
-        sprintf(pStr, "unknown reason[%04x]", pOnionErr->reason);
     }
 }
 

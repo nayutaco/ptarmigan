@@ -2801,6 +2801,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
         return false;
     }
 
+    ret = false;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //受信したfail_htlcは、Offered HTLCについてチェックする
         if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) &&
@@ -2819,13 +2820,14 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
             (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
 
             clear_htlc(self, &self->cnl_add_htlc[idx]);
+            ret = true;
             break;
         }
     }
 
     utl_buf_free(&reason);
 
-    return true;
+    return ret;
 }
 
 
@@ -3075,9 +3077,70 @@ LABEL_EXIT:
 static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     (void)self; (void)pData; (void)Len;
+
     LOGD("BEGIN\n");
-#warning not implemented
-    return true;
+
+    ln_update_fail_malformed_htlc_t mal_htlc;
+    uint8_t channel_id[LN_SZ_CHANNEL_ID];
+
+    mal_htlc.p_channel_id = channel_id;
+    bool ret = ln_msg_update_fail_malformed_htlc_read(&mal_htlc, pData, Len);
+    if (!ret) {
+        M_SET_ERR(self, LNERR_MSG_READ, "read message");
+        return false;
+    }
+
+    //channel-idチェック
+    ret = chk_channelid(channel_id, self->channel_id);
+    if (!ret) {
+        M_SET_ERR(self, LNERR_INV_CHANNEL, "channel_id not match");
+        return false;
+    }
+
+    //failure_code check
+    if ((mal_htlc.failure_code & LNERR_ONION_BADONION) == 0) {
+        M_SET_ERR(self, LNERR_INV_CHANNEL, "no BADONION bit");
+        return false;
+    }
+
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        //受信したmal_htlcは、Offered HTLCについてチェックする。
+        //仕様としては、sha256_of_onionを確認し、再送か別エラーにするなので、
+        //  ここでは受信したfailure_codeでエラーを作る。
+        //
+        // BOLT#02
+        //  if the sha256_of_onion in update_fail_malformed_htlc doesn't match the onion it sent: 
+        //      MAY retry or choose an alternate error response.
+        if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) &&
+             (self->cnl_add_htlc[idx].id == mal_htlc.id)) {
+            //id一致
+            self->our_msat += self->cnl_add_htlc[idx].amount_msat;
+            self->uncommit = true;
+
+            utl_buf_t reason;
+            utl_push_t push_rsn;
+            utl_push_init(&push_rsn, &reason, sizeof(uint16_t) + BTC_SZ_SHA256);
+            ln_misc_push16be(&push_rsn, mal_htlc.failure_code);
+            utl_push_data(&push_rsn, mal_htlc.sha256_onion, BTC_SZ_SHA256);
+
+            ln_cb_fail_htlc_recv_t fail_recv;
+            fail_recv.prev_short_channel_id = self->cnl_add_htlc[idx].prev_short_channel_id;
+            fail_recv.p_reason = &reason;
+            fail_recv.p_shared_secret = &self->cnl_add_htlc[idx].buf_shared_secret;
+            fail_recv.prev_idx = idx;
+            fail_recv.orig_id = self->cnl_add_htlc[idx].id;     //元のHTLC id
+            fail_recv.p_payment_hash = self->cnl_add_htlc[idx].payment_sha256;
+            (*self->p_callback)(self, LN_CB_FAIL_HTLC_RECV, &fail_recv);
+            utl_buf_free(&reason);
+
+            clear_htlc(self, &self->cnl_add_htlc[idx]);
+            ret = true;
+            break;
+        }
+    }
+
+    LOGD("END\n");
+    return ret;
 }
 
 

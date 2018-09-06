@@ -558,7 +558,7 @@ typedef struct {
 typedef struct {
     uint8_t     *p_channel_id;                      ///< 32: channel-id
     uint64_t    id;                                 ///< 8:  id
-    uint8_t     *p_sha256_onion;                    ///< 32: sha256-of-onion
+    uint8_t     sha256_onion[BTC_SZ_SHA256];        ///< 32: sha256-of-onion
     uint16_t    failure_code;                       ///< 2:  failure-code
 } ln_update_fail_malformed_htlc_t;
 
@@ -2393,6 +2393,14 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
  * @retval  true    成功
  */
 bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const utl_buf_t *pReason);
+
+
+/** ONION failure reason文字列取得
+ *
+ * @param[in]       pOnionErr
+ * @return  エラー文字列(呼び元でfree()すること)
+ */
+char *ln_onion_get_errstr(const ln_onion_err_t *pOnionErr);
 
 
 /********************************************************************
