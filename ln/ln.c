@@ -4820,10 +4820,6 @@ static bool check_create_add_htlc(
     uint64_t max_htlc_value_in_flight_msat = 0;
     uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_calc_max_closing_fee(self));
 
-    //channel_update
-    utl_buf_t buf_bolt = UTL_BUF_INIT;
-    ln_cnl_update_t upd;
-
     //cltv_expiryは、500000000未満にしなくてはならない
     if (cltv_value >= 500000000) {
         M_SET_ERR(self, LNERR_INV_VALUE, "cltv_value >= 500000000");
@@ -4883,45 +4879,50 @@ static bool check_create_add_htlc(
     ret = true;
 
 LABEL_EXIT:
-    retval = ln_get_channel_update_peer(self, &buf_bolt, NULL);
-    if (retval) {
-        memset(&upd, 0, sizeof(upd));
-        retval = ln_msg_cnl_update_read(&upd, buf_bolt.buf, buf_bolt.len);
-    }
-    if (ret) {
-        if (upd.flags & LN_CNLUPD_FLAGS_DISABLE) {
-            //B13. if the channel is disabled:
-            //      channel_disabled
-            //      (report the current channel setting for the outgoing channel.)
-            LOGD("fail: channel_disabled\n");
+    if (pReason != NULL) {
+        utl_buf_t buf_bolt = UTL_BUF_INIT;
+        ln_cnl_update_t upd;
 
-            utl_push_t push_htlc;
-            utl_push_init(&push_htlc, pReason,
-                                sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
-            ln_misc_push16be(&push_htlc, LNONION_CHAN_DISABLE);
-            ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
-            utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
-        }
-    } else if (!ret && (pReason != NULL)) {
+        retval = ln_get_channel_update_peer(self, &buf_bolt, NULL);
         if (retval) {
-            //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
-            //      temporary_channel_failure
-            LOGD("fail: temporary_channel_failure\n");
+            memset(&upd, 0, sizeof(upd));
+            retval = ln_msg_cnl_update_read(&upd, buf_bolt.buf, buf_bolt.len);
+        }
+        if (ret) {
+            if (upd.flags & LN_CNLUPD_FLAGS_DISABLE) {
+                //B13. if the channel is disabled:
+                //      channel_disabled
+                //      (report the current channel setting for the outgoing channel.)
+                LOGD("fail: channel_disabled\n");
 
-            utl_push_t push_htlc;
-            utl_push_init(&push_htlc, pReason,
-                                sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
-            ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
-            ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
-            utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
-        } else {
-            //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
-            //      permanent_channel_failure
-            LOGD("fail: permanent_channel_failure\n");
+                utl_push_t push_htlc;
+                utl_push_init(&push_htlc, pReason,
+                                    sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
+                ln_misc_push16be(&push_htlc, LNONION_CHAN_DISABLE);
+                ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
+                utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
+            }
+        } else if (!ret) {
+            if (retval) {
+                //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
+                //      temporary_channel_failure
+                LOGD("fail: temporary_channel_failure\n");
 
-            utl_push_t push_htlc;
-            utl_push_init(&push_htlc, pReason, sizeof(uint16_t));
-            ln_misc_push16be(&push_htlc, LNONION_PERM_CHAN_FAIL);
+                utl_push_t push_htlc;
+                utl_push_init(&push_htlc, pReason,
+                                    sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
+                ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
+                ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
+                utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
+            } else {
+                //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
+                //      permanent_channel_failure
+                LOGD("fail: permanent_channel_failure\n");
+
+                utl_push_t push_htlc;
+                utl_push_init(&push_htlc, pReason, sizeof(uint16_t));
+                ln_misc_push16be(&push_htlc, LNONION_PERM_CHAN_FAIL);
+            }
         }
     }
     return ret;
