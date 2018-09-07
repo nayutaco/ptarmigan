@@ -81,7 +81,7 @@ feerate_per_kw=[feerate_per_kw for `open_channel`]
 #### connect
 
 ```bash
-ptarmcli -c PEER_NODE_ID@IP_ADDR:PORT
+ptarmcli -c 02f5fa009cbf9774960d5f5591a37fd931fe4a22563b7cfbf57d3f9a98b0e11882@127.0.0.1:9735
 ```
 
 ```json
