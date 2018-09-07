@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment keep prev skip channel(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-m : show payment_hashs\n");
         fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
-        fprintf(stderr, "\t\t-c PEER.CONF : connect node\n");
+        fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT or PEER.CONF : connect node\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -f FUND.CONF : funding\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -x : mutual close channel\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -xforce: unilateral close channel\n");

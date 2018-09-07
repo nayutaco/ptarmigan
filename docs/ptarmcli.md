@@ -46,7 +46,7 @@ ptarmcli [options] [JSON-RPC port number]
 
 * debug
   * `-d DECIMAL_VALUE` : debug option
-  * `-c NODE_ID -g` : get commitment transaction
+  * `-c NODE_ID -g` : get commitment transaction and HTLC transaction
 
 * port
   * default port number is 9736
@@ -78,32 +78,10 @@ feerate_per_kw=[feerate_per_kw for `open_channel`]
 
 ### Command and JSON-RPC command
 
-#### funding
-
-```bash
-ptarmcli -c peer.conf -f fund.conf
-```
-
-```json
-{
-    "method":"fund",
-    "params":[
-        "02f5fa009cbf9774960d5f5591a37fd931fe4a22563b7cfbf57d3f9a98b0e11882",
-        "127.0.0.1",
-        9735,
-        "c165fed21602822ccad2f2394cfb8054e3c0c03620ab332b8f9bcad21c38e902",
-        1,
-        "mtkpsxCZhYmwGffbE2Rkj3DUcbrX8rJzfR",
-        600000,
-        300000
-    ]
-}
-```
-
 #### connect
 
 ```bash
-ptarmcli -c peer.conf
+ptarmcli -c 02f5fa009cbf9774960d5f5591a37fd931fe4a22563b7cfbf57d3f9a98b0e11882@127.0.0.1:9735
 ```
 
 ```json
@@ -112,6 +90,41 @@ ptarmcli -c peer.conf
     "params":[
         "02f5fa009cbf9774960d5f5591a37fd931fe4a22563b7cfbf57d3f9a98b0e11882","127.0.0.1",
         9735
+    ]
+}
+```
+
+#### funding
+
+```bash
+../pay_fundin.sh 10000 8000 4000
+
+----
+cat fund.conf
+
+txid=9a7b4456d7c2758540127d0401a75c5064b1f46f36aada499d5c85fcbd5dd782
+txindex=0
+signaddr=2NF8JohaX34qZV4mKZmZk17CcDMtbutF2fc
+funding_sat=8000
+push_sat=4000
+feerate_per_kw=0
+----
+
+ptarmcli -c 028df7753f0802ec2b781ffd44da838b7b57baebe2930132411fded4399e33bf58 -f fund.conf
+```
+
+```json
+{
+    "method": "fund",
+    "params": [
+        "028df7753f0802ec2b781ffd44da838b7b57baebe2930132411fded4399e33bf58",
+        "0.0.0.0",
+        0,
+        "9a7b4456d7c2758540127d0401a75c5064b1f46f36aada499d5c85fcbd5dd782",
+        0,
+        8000,
+        4000,
+        0
     ]
 }
 ```
@@ -150,8 +163,20 @@ ptarmcli -m
 
 ```json
 {
-    "method":"listinvoice",
-    "params":[]
+    "result": [
+        {
+            "hash": "dad73e2825409b41c6eeb125706cb7a16b66104515ab53692fffedf2248663be",
+            "amount_msat": 2000,
+            "creation_time": "2018/09/07 00:34:48",
+            "expiry": 3600
+        },
+        {
+            "hash": "638588558bbe5c047576a5ce531ffe6031b0974b7cb95d34fcffc9336bc2bed1",
+            "amount_msat": 1000,
+            "creation_time": "2018/09/07 00:34:45",
+            "expiry": 3600
+        }
+    ]
 }
 ```
 
