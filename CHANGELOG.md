@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2018/09/06
+
+* DB version : -23
+  * separate announcement DB
+* support `update_fail_malformed_htlc`
+
 ## 2018/08/19
 
 * separate `libptarm` into three libraries
