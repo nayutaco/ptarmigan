@@ -1717,13 +1717,6 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t 
 void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 
 
-/** set onion reaon: temporary node failure
- *
- * @param[out]      pReason
- */
-void ln_create_reason_temp_node(utl_buf_t *pReason);
-
-
 /** channel_announcementデータ解析
  *
  * @param[out]  p_short_channel_id
@@ -2418,6 +2411,20 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
  * @retval  true    成功
  */
 bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const utl_buf_t *pReason);
+
+
+/** set onion reaon: temporary node failure
+ *
+ * @param[out]      pReason
+ */
+void ln_onion_create_reason_temp_node(utl_buf_t *pReason);
+
+
+/** set onion reaon: permanent node failure
+ *
+ * @param[out]      pReason
+ */
+void ln_onion_create_reason_perm_node(utl_buf_t *pReason);
 
 
 /** ONION failure reason文字列取得

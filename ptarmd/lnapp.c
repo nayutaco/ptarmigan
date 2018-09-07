@@ -2241,7 +2241,7 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
     } else if (reason.len == 0) {
         //エラーだがreasonが未設定
         LOGD("fail: temporary_node_failure\n");
-        ln_create_reason_temp_node(&reason);
+        ln_onion_create_reason_temp_node(&reason);
         ln_set_fail_htlc(p_conf->p_self, p_addhtlc->idx, &reason);
     } else {
         //none

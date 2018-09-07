@@ -64,6 +64,8 @@
 #define M_SZ_STREAM_BYTES       (M_SZ_ROUTING_INFO + M_SZ_HOP_DATA)
 #define M_SZ_KEYLEN             (32)
 
+#define M_EXCHANGE_ENDIAN16(val)    ((uint16_t)((val) >> 8) | (((val) & 0xff) << 8))
+
 //#define M_DBG_FAIL
 
 
@@ -543,6 +545,24 @@ bool ln_onion_read_err(ln_onion_err_t *pOnionErr, const utl_buf_t *pReason)
     pOnionErr->reason = ((uint16_t)pReason->buf[0] << 8) | pReason->buf[1];
     pOnionErr->p_data = NULL;   //TODO:reasonに応じた結果をmallocして代入
     return true;
+}
+
+
+void ln_onion_create_reason_temp_node(utl_buf_t *pReason)
+{
+    //A2. if an otherwise unspecified transient error occurs for the entire node:
+    //      temporary_node_failure
+    uint16_t code = M_EXCHANGE_ENDIAN16(LNONION_TMP_NODE_FAIL);
+    utl_buf_alloccopy(pReason, (uint8_t *)&code, sizeof(code));
+}
+
+
+void ln_onion_create_reason_perm_node(utl_buf_t *pReason)
+{
+    //A3. if an otherwise unspecified permanent error occurs for the entire node:
+    //      return a permanent_node_failure error.
+    uint16_t code = M_EXCHANGE_ENDIAN16(LNONION_PERM_NODE_FAIL);
+    utl_buf_alloccopy(pReason, (uint8_t *)&code, sizeof(code));
 }
 
 
