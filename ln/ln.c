@@ -130,6 +130,10 @@
 
 #define M_FUNDING_INDEX                     (0)             ///< funding_txのvout
 
+#define M_HYSTE_CLTV_EXPIRY_MIN             (7)             ///< BOLT4 check:cltv_expiryのhysteresis
+#define M_HYSTE_CLTV_EXPIRY_SOON            (1)             ///< BOLT4 check:cltv_expiryのhysteresis
+#define M_HYSTE_CLTV_EXPIRY_FAR             (144 * 15)      ///< BOLT4 check:cltv_expiryのhysteresis(15日)
+
 // #define M_FEERATE_CHK_MIN_OK(our,their)     ( 0.5 * (our) < 1.0 * (their))  ///< feerate_per_kwのmin判定
 // #define M_FEERATE_CHK_MAX_OK(our,their)     (10.0 * (our) > 1.0 * (their))  ///< feerate_per_kwのmax判定
 #define M_FEERATE_CHK_MIN_OK(our,their)     (true)  ///< feerate_per_kwのmin判定(ALL OK)
@@ -1667,15 +1671,6 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
 }
 
 
-void ln_create_reason_temp_node(utl_buf_t *pReason)
-{
-    //A2. if an otherwise unspecified transient error occurs for the entire node:
-    //      temporary_node_failure
-    uint16_t code = (LNONION_TMP_NODE_FAIL >> 8) | ((LNONION_TMP_NODE_FAIL & 0xff) << 8);
-    utl_buf_alloccopy(pReason, (uint8_t *)&code, sizeof(code));
-}
-
-
 /* [routing用]channel_announcementデータ解析
  *
  * @param[out]  p_short_channel_id
@@ -2621,6 +2616,12 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //  BOLT2 checkにより、update_add_htlcとしては受入可能。
     //  ただし、onionやpayeeのinvoiceチェックによりfailになる可能性がある。
     //
+    //  [2018/09/07] N/A
+    //      A2. 該当する状況なし
+    //      A3. 該当する状況なし
+    //      A4. node_announcement.featuresは未定義
+    //      B6. channel_announcement.featuresは未定義
+
     ln_hop_dataout_t hop_dataout;   // update_add_htlc受信後のONION解析結果
     uint8_t preimage[LN_SZ_PREIMAGE];
 
@@ -4815,6 +4816,7 @@ static bool check_create_add_htlc(
                 uint32_t cltv_value)
 {
     bool ret = false;
+    bool retval;
     uint64_t max_htlc_value_in_flight_msat = 0;
     uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_calc_max_closing_fee(self));
 
@@ -4877,25 +4879,50 @@ static bool check_create_add_htlc(
     ret = true;
 
 LABEL_EXIT:
-    if (!ret && (pReason != NULL)) {
-        //channel_update
+    if (pReason != NULL) {
         utl_buf_t buf_bolt = UTL_BUF_INIT;
+        ln_cnl_update_t upd;
 
-        bool b = ln_get_channel_update_peer(self, &buf_bolt, NULL);
-        if (b) {
-            //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
-            //      temporary_channel_failure
-            LOGD("fail: temporary_channel_failure\n");
+        retval = ln_get_channel_update_peer(self, &buf_bolt, NULL);
+        if (retval) {
+            memset(&upd, 0, sizeof(upd));
+            retval = ln_msg_cnl_update_read(&upd, buf_bolt.buf, buf_bolt.len);
+        }
+        if (ret) {
+            if (upd.flags & LN_CNLUPD_FLAGS_DISABLE) {
+                //B13. if the channel is disabled:
+                //      channel_disabled
+                //      (report the current channel setting for the outgoing channel.)
+                LOGD("fail: channel_disabled\n");
 
-            utl_push_t push_htlc;
-            utl_push_init(&push_htlc, pReason,
-                                sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
-            ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
-            ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
-            utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
-        } else {
-            LOGD("fail: temporary_node_failure\n");
-            ln_create_reason_temp_node(pReason);
+                utl_push_t push_htlc;
+                utl_push_init(&push_htlc, pReason,
+                                    sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
+                ln_misc_push16be(&push_htlc, LNONION_CHAN_DISABLE);
+                ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
+                utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
+            }
+        } else if (!ret) {
+            if (retval) {
+                //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
+                //      temporary_channel_failure
+                LOGD("fail: temporary_channel_failure\n");
+
+                utl_push_t push_htlc;
+                utl_push_init(&push_htlc, pReason,
+                                    sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
+                ln_misc_push16be(&push_htlc, LNONION_TMP_CHAN_FAIL);
+                ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
+                utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
+            } else {
+                //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
+                //      permanent_channel_failure
+                LOGD("fail: permanent_channel_failure\n");
+
+                utl_push_t push_htlc;
+                utl_push_init(&push_htlc, pReason, sizeof(uint16_t));
+                ln_misc_push16be(&push_htlc, LNONION_PERM_CHAN_FAIL);
+            }
         }
     }
     return ret;
@@ -5061,8 +5088,9 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
     //      final_expiry_too_soon
     //          今のところ、min_final_cltv_expiryは固定値(#LN_MIN_FINAL_CLTV_EXPIRY)しかない。
     LOGD("outgoing_cltv_value=%" PRIu32 ", min_final_cltv_expiry=%" PRIu16 ", height=%" PRId32 "\n", pDataOut->outgoing_cltv_value, LN_MIN_FINAL_CLTV_EXPIRY, Height);
-    if (pDataOut->outgoing_cltv_value < (uint32_t)Height + LN_MIN_FINAL_CLTV_EXPIRY) {
-        LOGD("%" PRIu32 " < %" PRId32 "\n", pDataOut->outgoing_cltv_value, Height);
+    if ( (pDataOut->outgoing_cltv_value + M_HYSTE_CLTV_EXPIRY_SOON < (uint32_t)Height + LN_MIN_FINAL_CLTV_EXPIRY) ||
+         (pDataOut->outgoing_cltv_value < (uint32_t)Height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
+        LOGD("%" PRIu32 " < %" PRId32 "\n", pDataOut->outgoing_cltv_value + M_HYSTE_CLTV_EXPIRY_SOON, Height + M_HYSTE_CLTV_EXPIRY_MIN);
         M_SET_ERR(self, LNERR_INV_VALUE, "cltv_expiry too soon(final)");
         ln_misc_push16be(pPushReason, LNONION_FINAL_EXPIRY_TOO_SOON);
 
@@ -5121,13 +5149,10 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
         (*self->p_callback)(self, LN_CB_ADD_HTLC_RECV_PREV, &recv_prev);
     }
 
-    //TODO: implement
-    //B5. if an otherwise unspecified, permanent error occurs during forwarding to its receiving peer (e.g. channel recently closed):
-    //      permanent_channel_failure
-
-    //TODO: implement
     //B6. if the outgoing channel has requirements advertised in its channel_announcement's features, which were NOT included in the onion:
     //      required_channel_feature_missing
+    //
+    //      2018/09/07: channel_announcement.features not defined
 
     //B7. if the receiving peer specified by the onion is NOT known:
     //      unknown_next_peer
@@ -5221,8 +5246,9 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
     //      expiry_too_soon
     //      (report the current channel setting for the outgoing channel.)
     LOGD("cltv_value=%" PRIu32 ", expiry_delta=%" PRIu16 ", height=%" PRId32 "\n", pAddHtlc->cltv_expiry, cnlupd.cltv_expiry_delta, Height);
-    if (pAddHtlc->cltv_expiry < (uint32_t)Height + cnlupd.cltv_expiry_delta) {
-        LOGD("%" PRIu32 " < %" PRId32 " + %" PRIu16 "\n", pDataOut->outgoing_cltv_value, Height, cnlupd.cltv_expiry_delta);
+    if ( (pAddHtlc->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON < (uint32_t)Height + cnlupd.cltv_expiry_delta) ||
+         (pAddHtlc->cltv_expiry < (uint32_t)Height + M_HYSTE_CLTV_EXPIRY_MIN) ) {
+        LOGD("%" PRIu32 " < %" PRId32 "\n", pAddHtlc->cltv_expiry + M_HYSTE_CLTV_EXPIRY_SOON, Height + cnlupd.cltv_expiry_delta);
         M_SET_ERR(self, LNERR_INV_VALUE, "expiry too soon : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
         ln_misc_push16be(pPushReason, LNONION_EXPIRY_TOO_SOON);
         //[2:len]
@@ -5233,14 +5259,15 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
         return false;
     }
 
-    //TODO: implement
     //B12. if the cltv_expiry is unreasonably far in the future:
     //      expiry_too_far
+    if (pAddHtlc->cltv_expiry > (uint32_t)Height + cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR) {
+        LOGD("%" PRIu32 " > %" PRId32 "\n", pAddHtlc->cltv_expiry, Height + cnlupd.cltv_expiry_delta + M_HYSTE_CLTV_EXPIRY_FAR);
+        M_SET_ERR(self, LNERR_INV_VALUE, "expiry too far : %" PRIu32, ln_cltv_expily_delta(recv_prev.p_next_self));
+        ln_misc_push16be(pPushReason, LNONION_EXPIRY_TOO_FAR);
 
-    //TODO: implement
-    //B13. if the channel is disabled:
-    //      channel_disabled
-    //      (report the current channel setting for the outgoing channel.)
+        return false;
+    }
 
     return true;
 }
@@ -5248,13 +5275,17 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
 
 static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason)
 {
-    //TODO: implement
+    (void)pPushReason;
+
     //A3. if an otherwise unspecified permanent error occurs for the entire node:
     //      permanent_node_failure
+    //
+    //      N/A
 
-    //TODO: implement
     //A4. if a node has requirements advertised in its node_announcement features, which were NOT included in the onion:
     //      required_node_feature_missing
+    //
+    //      N/A
 
     return true;
 }

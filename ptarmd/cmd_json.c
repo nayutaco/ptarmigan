@@ -1412,6 +1412,7 @@ static int cmd_routepay_proc2(
         }
     } else {
         LOGD("fail: not connect\n");
+        ln_db_routeskip_save(pRouteResult->hop_datain[0].short_channel_id, true);
     }
 
     mPayTryCount++;
