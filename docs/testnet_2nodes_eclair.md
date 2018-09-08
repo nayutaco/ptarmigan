@@ -65,7 +65,7 @@ bitcoind -daemon
 
 ```bash
 cd install
-mkdir node
+./new_nodedir.sh
 cd node
 ../ptarmd
 ```
@@ -99,13 +99,6 @@ chmod u+x eclair-cli
 ./eclair-cli getinfo
 ```
 
-7. [ptarmigan] Creating a CONF file to connect
-
-```bash
-cd install/node
-../create_knownpeer.sh [eclair node_id] xx.xx.xx.xx > peer_eclr.conf
-```
-
 8. [ptarmigan] Creating fund-in transaction
 
 ```bash
@@ -124,8 +117,8 @@ cd install/node
   * Add `feerate_per_kw=zzzzz`(zzzzz is an approximate value to an error message `localFeeratePerKw`) in the last line.
 
 ```bash
-../ptarmcli -c peer_eclr.conf
-../ptarmcli -c peer_eclr.conf -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c [peer node_id]@[ipaddr]:[port]
+../ptarmcli -c [peer node_id] -f fund_yyyymmddhhmmss.conf
 ```
 
 10. [btc] Waiting for generating a block
@@ -165,8 +158,6 @@ Now, we will move on how to send payment.
 ../showdb -w | jq
 ```
 
-* If successful, our_msat will be 700000000 and their_masat will be 100000000.
-
 #### `eclair` --> `ptarmigan`
 
 1. [ptarmigan] Cenerating an invoice
@@ -192,5 +183,3 @@ Now, we will move on how to send payment.
 
 ./eclair-cli channel <channelId>
 ```
-
-* If successful, `balanceMsat` will be 99980000.

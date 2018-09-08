@@ -201,12 +201,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment keep prev skip channel(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-m : show payment_hashs\n");
         fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
-        fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT or PEER.CONF : connect node\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -f FUND.CONF : funding\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -x : mutual close channel\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -xforce: unilateral close channel\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -w : get last error\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -q : disconnect node\n");
+        fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT : connect node\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF : funding\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -w : get last error\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -q : disconnect node\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
         fprintf(stderr, "\n");
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t\tb1 ... no closing transaction\n");
         fprintf(stderr, "\t\t\tb2 ... force payment_preimage mismatch\n");
         fprintf(stderr, "\t\t\tb3 ... no node auto connect\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID or PEER.CONF -g : [debug]get commitment transaction\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -g : [debug]get commitment transaction\n");
         fprintf(stderr, "\t\t-X CHANNEL_ID : [debug]delete channel from DB\n");
         return -1;
     }

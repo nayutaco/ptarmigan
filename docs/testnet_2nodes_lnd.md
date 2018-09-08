@@ -78,7 +78,7 @@ btcd&
 
 ```bash
 cd install
-mkdir node
+./new_nodedir.sh
 cd node
 ../ptarmd
 ```
@@ -110,13 +110,6 @@ lncli --no-macaroons create
 lncli --no-macaroons getinfo
 ```
 
-7. [ptarmigan] Creating a CONF file to connect
-
-```bash
-cd install/node
-../create_knownpeer.sh [lnd node_id] xx.xx.xx.xx > peer_lnd.conf
-```
-
 8. [ptarmigan] Creating fund-in transaction
 
 ```bash
@@ -132,7 +125,7 @@ cd install/node
 9. [ptarmigan] Starting Channel Establishment
 
 ```bash
-../ptarmcli -c peer_lnd.conf
+../ptarmcli -c [peer node_id]@[ipaddr]:[port]
 ../ptarmcli -c peer_lnd.conf -f fund_yyyymmddhhmmss.conf
 ```
 
@@ -172,8 +165,6 @@ lncli --no-macaroons addinvoice --amt 100000
 ../showdb -w | jq
 ```
 
-* If successful, our_msat will be 700000000 and their_masat will be 10000000.
-
 #### `lnd` --> `ptarmigan`
 
 1. [ptarmigan] Cenerating an invoice
@@ -196,5 +187,3 @@ lncli --no-macaroons payinvoice <BOLT11 invoice>
 ```bash
 lncli --no-macaroons listchannels
 ```
-
-* If successful, `local_balance` will be 99980.

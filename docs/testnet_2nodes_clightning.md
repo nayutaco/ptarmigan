@@ -40,7 +40,7 @@ bitcoind -daemon
 
 ```bash
 cd install
-mkdir node
+./new_nodedir.sh
 cd node
 ../ptarmd
 ```
@@ -65,13 +65,6 @@ rm -rf ~/.lightning
 ./cli/lightning-cli getinfo
 ```
 
-7. [ptarmigan] Creating a CONF file to connect
-
-```bash
-cd install/node
-../create_knownpeer.sh [c-lightning node_id] xx.xx.xx.xx > peer_cln.conf
-```
-
 8. [ptarmigan] Creating fund-in transaction
 
 ```bash
@@ -87,8 +80,8 @@ cd install/node
 9. [ptarmigan] Starting Channel Establishment
 
 ```bash
-../ptarmcli -c peer_cln.conf
-../ptarmcli -c peer_cln.conf -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c [peer node_id]@[ipaddr]:[port]
+../ptarmcli -c [peer node_id] -f fund_yyyymmddhhmmss.conf
 ```
 
 10. [btc] Waiting for generating a block
@@ -118,7 +111,6 @@ Now, we will move on how to send payment.
 * We can get its result in JSON format.
   * Invoice to use this time is `"bolt11"`.
 
-
 2. [ptarmigan] Sending payment
 
 ```bash
@@ -130,8 +122,6 @@ Now, we will move on how to send payment.
 ```bash
 ../showdb -w | jq
 ```
-
-* If successful, `our_msat` will be 700000000 and `their_msat` will be 100000000.
 
 #### `c-lightning` --> `ptarmigan`
 
@@ -155,5 +145,3 @@ Now, we will move on how to send payment.
 ```bash
 ./cli/lightning-cli listpeers | jq
 ```
-
-* If successful, `msatoshi_to_us` will be 99980000.
