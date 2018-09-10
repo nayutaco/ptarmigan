@@ -62,13 +62,13 @@ typedef struct {
 
 bool utl_args_parse(utl_arginfo_t* arginfo, int argc, const char* const argv[]);
 
+void utl_args_free(utl_arginfo_t* arginfo);
+
 bool utl_args_is_set(utl_arginfo_t* arginfo, const char *name);
 
 const char *utl_args_get_string(utl_arginfo_t* arginfo, const char *name);
 
 bool utl_args_get_u32(utl_arginfo_t* arginfo, uint32_t* n, const char *name);
-
-void utl_args_free(utl_arginfo_t* arginfo);
 
 
 #ifdef __cplusplus
