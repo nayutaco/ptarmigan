@@ -50,7 +50,7 @@ TEST_F(args, parse0)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
 
-    const char* argv[] = {
+    const char *argv[] = {
         "program",
         "-name0=arg0",
         "-name1=arg1",
@@ -74,7 +74,7 @@ TEST_F(args, parse1)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
 
-    const char* argv[] = {
+    const char *argv[] = {
         "program",
         "command",
         "-name0=arg0",
@@ -101,7 +101,7 @@ TEST_F(args, parse2)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
 
-    const char* argv[] = {
+    const char *argv[] = {
         "program",
         "command",
         "-name0=arg0",
@@ -122,7 +122,7 @@ TEST_F(args, parse_invalid0)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
 
-    const char* argv[] = {
+    const char *argv[] = {
         "program",
         "-name0=arg0",
         "-name1=arg1",
@@ -139,7 +139,7 @@ TEST_F(args, parse_invalid1)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
 
-    const char* argv[] = {
+    const char *argv[] = {
         "program",
         "-name0=arg0",
         "-name1=arg1",
@@ -157,7 +157,7 @@ TEST_F(args, parse_invalid2)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
 
-    const char* argv[] = {
+    const char *argv[] = {
         "program",
         "-name0=arg0",
         "-name1=arg1",
@@ -173,7 +173,7 @@ TEST_F(args, option_with_no_arg)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             //empty
         };
@@ -183,7 +183,7 @@ TEST_F(args, option_with_no_arg)
         utl_args_free(arginfo);
     }
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name0",
         };
@@ -201,14 +201,14 @@ TEST_F(args, option_with_no_arg_invalid)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name0=param0", //invalid
         };
         ASSERT_FALSE(utl_args_parse(arginfo, ARRAY_SIZE(argv), argv));
     }
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name1", //invalid
         };
@@ -223,7 +223,7 @@ TEST_F(args, option_with_arg)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             //empty
         };
@@ -233,7 +233,7 @@ TEST_F(args, option_with_arg)
         utl_args_free(arginfo);
     }
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name0=param0",
         };
@@ -251,14 +251,14 @@ TEST_F(args, option_with_arg_invalid)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name0", //invalid
         };
         ASSERT_FALSE(utl_args_parse(arginfo, ARRAY_SIZE(argv), argv));
     }
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name1=param1", //invalid
         };
@@ -272,7 +272,7 @@ TEST_F(args, option_with_arg_and_param_default) {
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             //empty
         };
@@ -282,7 +282,7 @@ TEST_F(args, option_with_arg_and_param_default) {
         utl_args_free(arginfo);
     }
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name0=param0",
         };
@@ -300,14 +300,14 @@ TEST_F(args, option_with_arg_and_param_default_invalid)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name0", //invalid
         };
         ASSERT_FALSE(utl_args_parse(arginfo, ARRAY_SIZE(argv), argv));
     }
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name1=param1", //invalid
         };
@@ -322,7 +322,7 @@ TEST_F(args, arg_type_u32)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name0=1234567890"
         };
@@ -343,7 +343,7 @@ TEST_F(args, arg_type_u32_invalid)
         {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
     };
     {
-        const char* argv[] = {
+        const char *argv[] = {
             "program",
             "-name0=param0"
         };
