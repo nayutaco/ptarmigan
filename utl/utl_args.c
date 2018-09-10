@@ -31,15 +31,15 @@
  * prototypes
  **************************************************************************/
 
-static utl_arginfo_t *findn_arginfo(utl_arginfo_t* arginfo, const char* name, int len);
-static utl_arginfo_t *find_arginfo(utl_arginfo_t* arginfo, const char* name);
+static utl_arginfo_t *findn_arginfo(utl_arginfo_t *arginfo, const char *name, int len);
+static utl_arginfo_t *find_arginfo(utl_arginfo_t *arginfo, const char *name);
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-bool utl_args_parse(utl_arginfo_t* arginfo, int argc, const char* const argv[])
+bool utl_args_parse(utl_arginfo_t *arginfo, int argc, const char* const argv[])
 {
     //case1
     // argv[0]: program -- skip
@@ -114,14 +114,14 @@ LABEL_EXIT:
     return ret;
 }
 
-bool utl_args_is_set(utl_arginfo_t* arginfo, const char *name)
+bool utl_args_is_set(utl_arginfo_t *arginfo, const char *name)
 {
     utl_arginfo_t *info = find_arginfo(arginfo, name);
     if (!info) return false;
     return info->is_set;
 }
 
-const char *utl_args_get_string(utl_arginfo_t* arginfo, const char *name)
+const char *utl_args_get_string(utl_arginfo_t *arginfo, const char *name)
 {
     utl_arginfo_t *info = find_arginfo(arginfo, name);
     if (!info) return NULL;
@@ -129,7 +129,7 @@ const char *utl_args_get_string(utl_arginfo_t* arginfo, const char *name)
     return info->param;
 }
 
-bool utl_args_get_u32(utl_arginfo_t* arginfo, uint32_t* n, const char *name)
+bool utl_args_get_u32(utl_arginfo_t *arginfo, uint32_t *n, const char *name)
 {
     utl_arginfo_t *info = find_arginfo(arginfo, name);
     if (!info) return false;
@@ -139,7 +139,7 @@ bool utl_args_get_u32(utl_arginfo_t* arginfo, uint32_t* n, const char *name)
     return true;
 }
 
-void utl_args_free(utl_arginfo_t* arginfo)
+void utl_args_free(utl_arginfo_t *arginfo)
 {
     for (int i = 0; arginfo[i].name; i++) {
         arginfo[i].is_set = false;
@@ -154,7 +154,7 @@ void utl_args_free(utl_arginfo_t* arginfo)
  * private functions
  **************************************************************************/
 
-static utl_arginfo_t *findn_arginfo(utl_arginfo_t* arginfo, const char* name, int len)
+static utl_arginfo_t *findn_arginfo(utl_arginfo_t *arginfo, const char *name, int len)
 {
     for (int i = 0; arginfo[i].name; i++) {
         if (!strncmp(name, arginfo[i].name, len)) return &arginfo[i];
@@ -162,7 +162,7 @@ static utl_arginfo_t *findn_arginfo(utl_arginfo_t* arginfo, const char* name, in
     return NULL;
 }
 
-static utl_arginfo_t *find_arginfo(utl_arginfo_t* arginfo, const char* name)
+static utl_arginfo_t *find_arginfo(utl_arginfo_t *arginfo, const char *name)
 {
     return findn_arginfo(arginfo, name, strlen(name));
 }
