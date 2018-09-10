@@ -43,6 +43,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/utl_misc.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_buf.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_push.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_net.c
+C_SOURCE_FILES += $(PRJ_PATH)/utl_args.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_str.c
 #ifeq ($(findstring 1,$(USE_PLOG_PTARMD) $(USE_PLOG_PTARMLIB)), 1)
 C_SOURCE_FILES += $(PRJ_PATH)/utl_log.c
