@@ -96,6 +96,14 @@ void HIDDEN *utl_dbg_calloc(size_t blk, size_t size)
     return p;
 }
 
+char HIDDEN *utl_dbg_strdup(const char *s)
+{
+    char *p = strdup(s);
+    if (p) {
+        mcount++;
+    }
+    return p;
+}
 
 void HIDDEN utl_dbg_free(void *ptr)
 {
@@ -161,7 +169,6 @@ void HIDDEN *utl_dbg_realloc(void *ptr, size_t size)
     return p;
 }
 
-
 void HIDDEN *utl_dbg_calloc(size_t blk, size_t size)
 {
     void *p = calloc(blk, size);
@@ -179,6 +186,24 @@ void HIDDEN *utl_dbg_calloc(size_t blk, size_t size)
     return p;
 }
 
+char HIDDEN *utl_dbg_strdup(const char *s)
+{
+    char *p = strdup(s);
+    if (p) {
+        for (int lp = 0; lp < 100; lp++) {
+            if (mem[lp].p == 0) {
+                mem[lp].allocs++;
+                mem[lp].p = (void*)p;
+                break;
+            }
+        }
+        mcount++;
+    } else {
+        printf("0 strdup\n");
+    }
+    printf("%s(%u)[%d] = %p\n", __func__, strlen(s) + 1, mcount, p);
+    return p;
+}
 
 void HIDDEN utl_dbg_free(void *ptr)
 {

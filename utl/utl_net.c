@@ -73,7 +73,7 @@ bool utl_net_ipv4_addr_is_routable(const uint8_t* addr)
         {{255, 255, 255, 255}, 32},
     };
 
-    for (int i = 0; i < (int)ARRAY_SIZE(reserved); ++i) {
+    for (int i = 0; i < (int)ARRAY_SIZE(reserved); i++) {
         if (ipv4_addr_is_subset(reserved[i].addr, reserved[i].mask_bit_num, addr)) return false;
     }
     return true;

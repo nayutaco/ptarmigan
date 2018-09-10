@@ -12,6 +12,7 @@ extern "C" {
 #include "utl_push.c"
 #include "utl_log.c"
 #include "utl_net.c"
+#include "utl_str.c"
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -35,3 +36,4 @@ TEST_F(utl, first)
 #include "testinc_buf.cpp"
 #include "testinc_push.cpp"
 #include "testinc_net.cpp"
+#include "testinc_str.cpp"
