@@ -3,11 +3,11 @@
 ## BOLT#1
 
 * Setup Messages
-  * `init` : `initial_routing_sync` = 1 のみ送信。受信したfeaturesは無視。
+  * `init` : `channel.conf`の設定に従ってlocalfeaturesを送信する
   * `error` : 受信結果をログに出す
   * `ping` and `pong`
     * 無送信状態が60秒継続すると、 `ping` を送信する
-    * `pong`受信の際、前回の`ping`に対応するかチェックしない
+    * `pong`受信の際、前回の`ping`に対応するかチェックしない(c-lightningのDEVELOPER対策)
 
 ## BOLT#2
 
@@ -19,13 +19,13 @@
 * Channel Close
   * 相手が`closing_signed`を返した場合、同じ`fee_satoshis`を返す。
 
-* Normal Operation
-  * エラーメッセージに対応していない(箇所によってはabortする)。
-  * `commitment_signed` がなかった場合の取消にまだ対応できておらず、受信メッセージをすぐに反映させている。
-
 ## BOLT#4
 
-* Failure Messagesは実装中(固定値を返す)
+* `expiry_too_soon`
+  * `cltv_expiry`が現在のblock heightで期待する値より2以上小さい
+  * `cltv_expiry`が7未満
+* `expiry_too_far`
+  * `cltv_expiry`が約15日(144*15block)以上
 
 ## BOLT#5
 
@@ -34,7 +34,6 @@
 
 ## BOLT#7
 
-* Rebroadcastingは動作未確認
 * Routingは `boost` の `dijkstra_shortest_paths()` を使用
 
 ## BOLT#11

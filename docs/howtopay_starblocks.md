@@ -1,11 +1,10 @@
-# How to Pay starblocks/Y'alls (or Your Lightning Node) from ptarmigan Node
+# How to Pay starblocks (or Your Lightning Node) from ptarmigan Node
 
-## 2018/03/13
+## 2018/09/09
 
 - In order to make payment to destination node, the path of channels must exist.
   The "visible" node on testnet is displayed in [Lightning Network Explorer(TESTNET)](https://explorer.acinq.co/#/)
   As to connect the channels of the Lightning Network, the id, IP address, and port number of node with in this site are required(some nodes don't disclose IP address, and some nodes is not operating).
-- Because Lightning Network makes payments on the P2P network, it is necessary for all node on payment path to operate correctly. Even if only one node on payment path returns an error, payment will not be completed.
 - Node software is `ptarmd`. Use `ptarmcli` to operate `ptarmd`.
 - It is necessary that `bitcoind` completely synchroninzed with testnet is running on the same local host on which `ptarmd` is running. It is necessary to have testnet bitcoin.
 - Current user interface of `ptarmcli` is not easy understandable. It is improving.
@@ -15,10 +14,10 @@
 - JSON-RPC port number is the specified Lightning Network protocol port number + 1.
 - When executed according to the following procedure, `ptarmigan / install / node` is the directory where the node information is stored and `ptarmigan / install / node / dbptarm` is the database directory.
   Even if you exit `ptarmd` software, re-running `ptarmd` in the `ptarmigan / install / node` directory will start up as the same Lightning Network node.
-  If re-startup is not successful, remove the `dbptarm` directory and run it as a new node (if you do not change the `node.conf` file, the node ID will not be changed).
+  If re-startup is not successful, remove the `dbptarm` directory and run it as a new node.
 - When version up with DB change is done, you need DB clean(`rm -rf dbptarm`).
 
-## Overview of Payment for Starblocks/Y'alls
+## Overview of Payment for Starblocks
 
 - Start Ubuntu16
 - Install `bitcoind`
@@ -27,7 +26,7 @@
 - Start `ptarmd`
 - Connect `ptarmd` with other testnet Lightning Network node
 - Create payment channel from ptarmigan to connected node
-- Issue invoice from starblocks/Y'alls WEB
+- Issue invoice from starblocks WEB
 - Make payment from ptarmigan with invoice
 - After successful payment, WEB screen change
 
@@ -78,7 +77,6 @@ Example of faucet WEB
 sudo apt install -y git autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool jq bc
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
-git checkout -b test refs/tags/2018-03-03
 make full
 ```
 
@@ -86,7 +84,7 @@ make full
 
 ```bash
 cd install
-mkdir node
+./new_nodedir.sh
 cd node
 ../ptarmd
 ```
@@ -94,19 +92,10 @@ cd node
 Default mode is private node in which mode node does not announce IP address.  
 Open another Ubuntu window and control `ptarmd` from such window, because `ptarmd` is daemon.
 
-7. Generate peer node config file for `ptarmd`
-
-```bash
-cd ptarmigan/install/node
-../create_knownpeer.sh [Lightning node_id] [Lightning node IP address] [Lightning node port] > peer_xxx.conf
-```
-
-When `Lightning node port` is 9735, it can be ommited.
-
 8. Connect other lightning network node from `ptarmd`
 
 ```bash
-../ptarmcli -c peer_xxx.conf
+../ptarmcli -c [peer node_id]@[peer IP address]:[peer port]
 ```
 
 When ptarmd successfully connect other node, you receive the large amount of node information from peer node.  
@@ -120,7 +109,6 @@ You should wait untill finishing log output.
 
 `ptarmcli` shows current connection information.  
 Connected node `status` is `"connected"` in the log.  
-Go back 7 when connection is failed.
 
 10. Generate funding transactionn related command file
 
@@ -142,7 +130,7 @@ Note that unit is satoshi.
 11. Fund payment channel
 
 ```bash
-../ptarmcli -c peer.conf -f fund_yyyymmddhhmmss.conf
+../ptarmcli -c [peer node_id] -f fund_yyyymmddhhmmss.conf
 ```
 
 12. Wait until funding transaction get into bitcoin testnet block (it will take time)
@@ -157,17 +145,16 @@ When channel is established, status change from `"wait_minimum_depth"` to `"esta
 You should wait 6 confirmation, because broadcasting of channel start after 6 confirmation.  
 You can check current number of confirmationn by command `ptarmcli -l`.
 
-13. Generate invoice on Starblocks/Y'alls Web
+13. Generate invoice on Starblocks Web
 
 The following are famous Lightning Network(testnet) payment DEMO WEB site.
 
 - [starblocks](https://starblocks.acinq.co/#/)
-- [Y'alls](https://yalls.org/)
 
 Here, we explain how to pay starblocks.  
 Push "Add to Cart" button, and push checkout button.  
 Then, invoice number is displayed.  
-Long strings like `lntb********************.....` is invoice number.
+Long strings like `lntb********************.....` is invoice text.
 
 14. Execute payment from ptarmigan
 
@@ -175,11 +162,10 @@ Long strings like `lntb********************.....` is invoice number.
 ../ptarmcli -l | jq
 ```
 
-Display the node status. Comfirm the number of payment channel confirmation is more than 6.  
-(When the number is less than 6, you must wait.)  
+Display the node status.
 
 ```bash
-../ptarmcli -r [invoice number]
+../ptarmcli -r [invoice text]
 ```
 
 Execute payment from ptarmigan.  
