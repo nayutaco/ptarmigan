@@ -37,6 +37,18 @@ extern "C" {
 
 
 /**************************************************************************
+ * types
+ **************************************************************************/
+
+/** @struct utl_str_t
+ *  @brief  string buffer
+ *
+ */
+typedef struct {
+    char            *buf;       ///< buffer
+} utl_str_t;
+
+/**************************************************************************
  * prototypes
  **************************************************************************/
 
@@ -44,9 +56,33 @@ extern "C" {
  *
  * @param[out]  n       uint32_t number
  * @param[in]   s       string
- * @retval      true    failure
+ * @retval      true    success
  */
 bool utl_str_scan_u32(uint32_t *n, const char *s);
+
+/** init #utl_str_t
+ *
+ * @param[in,out]   x   object
+ */
+void utl_str_init(utl_str_t *x);
+
+/** append string
+ *
+ * @param[out]  x   object
+ */
+bool utl_str_append(utl_str_t *x, const char *s);
+
+/** get string
+ *
+ * @param[in]   x   object
+ */
+const char *utl_str_get(utl_str_t *x);
+
+/** free #utl_str_t
+ *
+ * @param[in]   x   object
+ */
+void utl_str_free(utl_str_t *x);
 
 
 #ifdef __cplusplus

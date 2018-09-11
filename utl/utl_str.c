@@ -22,6 +22,7 @@
 
 #include <string.h>
 
+#include "utl_dbg.h"
 #include "utl_str.h"
 
 
@@ -54,4 +55,36 @@ bool utl_str_scan_u32(uint32_t *n, const char* s)
     }
 
     return true;
+}
+
+void utl_str_init(utl_str_t *x)
+{
+    memset(x, 0x00, sizeof(utl_str_t));
+}
+
+bool utl_str_append(utl_str_t *x, const char *s)
+{
+    if (x->buf) {
+        uint32_t n = strlen(x->buf) + strlen(s) + 1;
+        char* tmp = (char*)UTL_DBG_REALLOC(x->buf, n);
+        if (!tmp) return false;
+        strncpy(tmp + strlen(x->buf), s, strlen(s) + 1);
+        x->buf = tmp;
+    } else {
+        x->buf = UTL_DBG_STRDUP(s);
+    }
+    return true;       
+}
+
+const char *utl_str_get(utl_str_t *x)
+{
+    return x->buf ? x->buf : "";
+}
+
+void utl_str_free(utl_str_t *x)
+{
+    if (x->buf) {
+        UTL_DBG_FREE(x->buf);
+    }
+    memset(x, 0x00, sizeof(utl_str_t));
 }

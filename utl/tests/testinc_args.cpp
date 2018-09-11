@@ -356,3 +356,16 @@ TEST_F(args, arg_type_u32_invalid)
     }
 }
 
+TEST_F(args, str_buf)
+{
+    utl_str_t x;
+    utl_str_init(&x);
+    ASSERT_STREQ(utl_str_get(&x), "");
+    ASSERT_TRUE(utl_str_append(&x, "aaa"));
+    ASSERT_STREQ(utl_str_get(&x), "aaa");
+    ASSERT_TRUE(utl_str_append(&x, "bbb"));
+    ASSERT_STREQ(utl_str_get(&x), "aaabbb");
+    ASSERT_TRUE(utl_str_append(&x, "ccc"));
+    ASSERT_STREQ(utl_str_get(&x), "aaabbbccc");
+    utl_str_free(&x);
+}
