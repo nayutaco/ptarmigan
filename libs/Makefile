@@ -75,8 +75,9 @@ ifeq ("$(wildcard boost)","")
 endif
 	cd boost; \
 	./bootstrap.sh; \
+	./b2 tools/bcp
 	perl -pi -e 's/using gcc/$(BOOST_CONV)/g' project-config.jam; \
-	bcp graph $(INSTALL_DIR)/boost; \
+	./dist/bin/bcp graph $(INSTALL_DIR)/boost; \
 	cd ..
 
 mk_jansson:
