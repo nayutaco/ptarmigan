@@ -97,7 +97,7 @@ mk_zlib:
 mk_curl:
 	cd curl; \
 	autoreconf -i ; \
-	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc --disable-ares --disable-manual --disable-proxy --disable-unix-sockets --disable-verbose --disable-versioned-symbols --enable-hidden-symbols --without-libidn --without-librtmp --without-ssl --disable-shared ; \
+	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc --disable-ftp --disable-ldap --disable-ldaps --disable-rtsp --disable-proxy --disable-dict --disable-telnet --disable-tftp --disable-pop3 --disable-imap --disable-smb --disable-smtp  --disable-gopher --disable-ares --disable-manual --disable-proxy --disable-unix-sockets --disable-verbose --disable-versioned-symbols --enable-hidden-symbols --without-libidn --without-librtmp --without-ssl --disable-shared ; \
 	$(MAKE) ; \
 	$(MAKE) install ; \
 	cd ..
