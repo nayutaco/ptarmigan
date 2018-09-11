@@ -126,18 +126,6 @@ typedef struct lnapp_conf_t {
  * prototypes
  ********************************************************************/
 
-/** [lnapp]初期化
- *
- */
-void lnapp_init(void);
-
-
-/** [lnapp]解放
- *
- */
-void lnapp_term(void);
-
-
 /** [lnapp]開始
  *
  */

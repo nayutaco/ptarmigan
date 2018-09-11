@@ -248,6 +248,12 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  * prototypes
  ********************************************************************/
 
+/** start
+ * 
+ */
+int ptarmd_start(uint16_t my_rpcport);
+
+
 /** stop all threads
  * 
  */
