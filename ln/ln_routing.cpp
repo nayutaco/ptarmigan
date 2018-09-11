@@ -237,7 +237,7 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
         bret = ln_db_routeskip_search(self->short_channel_id);
         if (bret) {
             //skip DBに載っているchannelは使用しない
-            LOGD("skip : %016" PRIx64 "\n", self->short_channel_id);
+            M_DBGLOG("skip : %" PRIx64 "\n", self->short_channel_id);
             return false;
         }
 

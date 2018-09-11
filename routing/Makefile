@@ -3,6 +3,8 @@ OBJ = routing
 
 include ../options.mak
 
+CC              := "$(GNU_PREFIX)gcc"
+
 CFLAGS = --std=c99 -D_GNU_SOURCE -I../utl -I../btc -I../ln -I../ptarmd -I../libs/install/include
 LDFLAGS = -L../libs/install/lib -L../ln -L../btc -L../utl
 LDFLAGS += -pthread -lln -lbtc -lutl -llmdb -lbase58 -lmbedcrypto -lstdc++
@@ -18,7 +20,7 @@ endif
 all: routing
 
 routing: ../ln/libln.a ../btc/libbtc.a ../utl/libutl.a $(SRC)
-	gcc -W -Wall $(CFLAGS) -o $(OBJ) $(SRC) $(LDFLAGS)
+	$(CC) -W -Wall $(CFLAGS) -o $(OBJ) $(SRC) $(LDFLAGS)
 
 clean:
 	-rm -rf $(OBJ)

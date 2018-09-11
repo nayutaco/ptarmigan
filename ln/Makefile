@@ -63,6 +63,7 @@ INC_PATHS += -I../utl
 INC_PATHS += -I../btc
 INC_PATHS += -I.
 INC_PATHS += -I../libs/install/include
+INC_PATHS += -I../libs/boost
 
 # Sorting removes duplicates
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))

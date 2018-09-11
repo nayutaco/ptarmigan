@@ -103,7 +103,7 @@ LDFLAGS += -pthread
 #Link Library
 LIBS += -L$(COMMON_PATH)/libs/install/lib
 LIBS += -ljansson
-LIBS += -lcurl
+LIBS += -lcurl -lrt -lz
 LIBS += -ljsonrpcc -lev -lm
 LIBS += -linih
 LIBS += -L$(COMMON_PATH)/ln -lln

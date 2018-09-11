@@ -27,7 +27,7 @@
 ### installation
 
 ```bash
-sudo apt install -y git autoconf pkg-config libcurl4-openssl-dev libjansson-dev libev-dev libboost-all-dev build-essential libtool jq bc
+sudo apt install -y git autoconf pkg-config build-essential libtool wget jq bc
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
 make full
