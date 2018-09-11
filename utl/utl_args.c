@@ -149,6 +149,40 @@ void utl_args_free(utl_arginfo_t *arginfo)
     }
 }
 
+bool utl_args_get_help_messages(utl_arginfo_t *arginfo, utl_str_t *messages)
+{
+    for (int i = 0; arginfo[i].name; i++) {
+        utl_arginfo_t *info = &arginfo[i];
+        if (!utl_str_append(messages, "  ")) return false;
+        if (!utl_str_append(messages, info->name)) return false;
+        if (info->arg) {
+            if (!utl_str_append(messages, "=<")) return false;
+            if (!utl_str_append(messages, info->arg)) return false;
+            if (!utl_str_append(messages, ">")) return false;
+        }
+        if (!utl_str_append(messages, "\n")) return false;
+        if (info->help) {
+            if (!utl_str_append(messages, "       ")) return false;
+            if (!utl_str_append(messages, info->help)) return false;
+            if (info->arg && info->param_default) {
+                if (!utl_str_append(messages, " ")) return false;
+                if (!utl_str_append(messages, "(")) return false;
+                if (!utl_str_append(messages, info->param_default)) return false;
+                if (!utl_str_append(messages, ")")) return false;
+            }
+            if (!utl_str_append(messages, "\n")) return false;
+        } else if (info->arg && info->param_default) {
+            if (!utl_str_append(messages, "       ")) return false;
+            if (!utl_str_append(messages, "(")) return false;
+            if (!utl_str_append(messages, info->param_default)) return false;
+            if (!utl_str_append(messages, ")")) return false;
+            if (!utl_str_append(messages, "\n")) return false;
+        }
+        if (!utl_str_append(messages, "\n")) return false;
+    }
+    return true;
+}
+
 
 /**************************************************************************
  * private functions
