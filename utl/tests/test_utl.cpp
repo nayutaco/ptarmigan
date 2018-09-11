@@ -14,6 +14,7 @@ extern "C" {
 #include "utl_net.c"
 #include "utl_str.c"
 #include "utl_args.c"
+#include "utl_jsonrpc.c"
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -39,3 +40,4 @@ TEST_F(utl, first)
 #include "testinc_net.cpp"
 #include "testinc_str.cpp"
 #include "testinc_args.cpp"
+#include "testinc_jsonrpc.cpp"
