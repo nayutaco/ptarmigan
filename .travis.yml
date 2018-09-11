@@ -17,12 +17,9 @@ addons:
     packages:
     - autoconf
     - pkg-config
-    - libcurl4-openssl-dev
-    - libjansson-dev
-    - libev-dev
-    - libboost-all-dev
     - build-essential
     - libtool
+    - wget
   coverity_scan:
     project:
       name: "nayutaco/ptarmigan"
