@@ -1,3 +1,5 @@
+#GNU_PREFIX := arm-linux-gnueabihf-
+
 # 0:mainnet, 1:testnet
 NETKIND=1
 
