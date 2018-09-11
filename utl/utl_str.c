@@ -64,14 +64,19 @@ void utl_str_init(utl_str_t *x)
 
 bool utl_str_append(utl_str_t *x, const char *s)
 {
+    if (!s) return false;
     if (x->buf) {
+        //after calling realloc x->buf may be broken, therefore, preserve its length
+        uint32_t n_org = strlen(x->buf);
+
         uint32_t n = strlen(x->buf) + strlen(s) + 1;
         char* tmp = (char*)UTL_DBG_REALLOC(x->buf, n);
         if (!tmp) return false;
-        strncpy(tmp + strlen(x->buf), s, strlen(s) + 1);
+        strncpy(tmp + n_org, s, strlen(s) + 1);
         x->buf = tmp;
     } else {
         x->buf = UTL_DBG_STRDUP(s);
+        if (!x->buf) return false;
     }
     return true;       
 }

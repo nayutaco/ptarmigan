@@ -356,16 +356,41 @@ TEST_F(args, arg_type_u32_invalid)
     }
 }
 
-TEST_F(args, str_buf)
+TEST_F(args, help_messages)
 {
+    utl_arginfo_t arginfo[] = {
+        {"-name0", NULL, NULL, "help0", NULL, false},
+        {"-name1", "arg1", NULL, "help1", NULL, false},
+        {"-name2", "arg2", "param_default2", "help2", NULL, false},
+        {"-name3", NULL, NULL, NULL, NULL, false},
+        {"-name4", "arg4", NULL, NULL, NULL, false},
+        {"-name5", "arg5", "param_default5", NULL, NULL, false},
+        {NULL, NULL, NULL, NULL, NULL, false}, //watchdog
+    };
+
     utl_str_t x;
     utl_str_init(&x);
-    ASSERT_STREQ(utl_str_get(&x), "");
-    ASSERT_TRUE(utl_str_append(&x, "aaa"));
-    ASSERT_STREQ(utl_str_get(&x), "aaa");
-    ASSERT_TRUE(utl_str_append(&x, "bbb"));
-    ASSERT_STREQ(utl_str_get(&x), "aaabbb");
-    ASSERT_TRUE(utl_str_append(&x, "ccc"));
-    ASSERT_STREQ(utl_str_get(&x), "aaabbbccc");
+    ASSERT_TRUE(utl_args_get_help_messages(arginfo, &x));
+    const char *p = utl_str_get(&x);
+    ASSERT_NE(p, NULL);
+    ASSERT_STREQ(p,
+        "  -name0\n"
+        "       help0\n"
+        "\n"
+        "  -name1=<arg1>\n"
+        "       help1\n"
+        "\n"
+        "  -name2=<arg2>\n"
+        "       help2 (param_default2)\n"
+        "\n"
+        "  -name3\n"
+        "\n"
+        "  -name4=<arg4>\n"
+        "\n"
+        "  -name5=<arg5>\n"
+        "       (param_default5)\n"
+        "\n"
+    );
     utl_str_free(&x);
+    utl_args_free(arginfo);
 }

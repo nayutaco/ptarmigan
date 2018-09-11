@@ -70,6 +70,8 @@ const char *utl_args_get_string(utl_arginfo_t *arginfo, const char *name);
 
 bool utl_args_get_u32(utl_arginfo_t *arginfo, uint32_t *n, const char *name);
 
+bool utl_args_get_help_messages(utl_arginfo_t *arginfo, utl_str_t *messages);
+
 
 #ifdef __cplusplus
 }
