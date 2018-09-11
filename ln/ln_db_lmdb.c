@@ -623,8 +623,8 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         LOGD("FAIL: check version db\n");
         goto LABEL_EXIT;
     }
-    //ln_db_invoice_drop();
-    //ln_db_annocnl_del_orphan();
+    //ln_db_invoice_drop();               //送金を再開する場合があるが、その場合は再入力させるか？
+    //ln_db_annocnl_del_orphan();         //channel_updateだけの場合でも保持しておく
 
 LABEL_EXIT:
     if (retval == 0) {
@@ -2222,8 +2222,8 @@ bool ln_db_routeskip_search(uint64_t ShortChannelId)
     MDB_TXN_COMMIT(txn);
 
 LABEL_EXIT:
-    if (retval != MDB_NOTFOUND) {
-        LOGD("skip drop=%s\n", mdb_strerror(retval));
+    if ((retval != 0) && (retval != MDB_NOTFOUND)) {
+        LOGD("fail: %s\n", mdb_strerror(retval));
     }
     return retval == 0;
 }

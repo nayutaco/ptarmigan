@@ -824,7 +824,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (err == RPCERR_PAY_RETRY) {
         //送金
         cmd_json_pay(p_invoice, add_amount_msat);
-        LOGD("retry: %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
+        LOGD("retry: skip %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
     }
 
 LABEL_EXIT:
@@ -833,7 +833,6 @@ LABEL_EXIT:
     } else if (!retry) {
         //送金失敗
         ln_db_invoice_del(p_invoice_data->payment_hash);
-        ln_db_routeskip_drop(true);
 
         //最後に失敗した時間
         char date[50];
@@ -1411,7 +1410,8 @@ static int cmd_routepay_proc2(
             LOGD("fail: not inited\n");
         }
     } else {
-        LOGD("fail: not connect\n");
+        LOGD("fail: not connect(%016" PRIx64 "): \n", pRouteResult->hop_datain[0].short_channel_id);
+        DUMPD(pRouteResult->hop_datain[1].pubkey, BTC_SZ_PUBKEY);
         ln_db_routeskip_save(pRouteResult->hop_datain[0].short_channel_id, true);
     }
 
