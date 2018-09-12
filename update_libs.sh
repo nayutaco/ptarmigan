@@ -24,7 +24,6 @@ func_tag() {
 }
 
 ######################################################
-git submodule update --init --recursive
 
 cd libs
 
@@ -46,6 +45,9 @@ if [ $CNT -ne 0 ]; then
 	git fetch
 fi
 cd ..
+
+git submodule sync
+git submodule update --init
 
 func_upd jsonrpc-c https://github.com/nayutaco/jsonrpc-c.git localonly
 func_tag inih https://github.com/nayutaco/inih.git master gnu_prefix
