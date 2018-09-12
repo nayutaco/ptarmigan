@@ -263,16 +263,6 @@ static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, in
  * public functions
  ********************************************************************/
 
-void lnapp_init(void)
-{
-}
-
-
-void lnapp_term(void)
-{
-}
-
-
 void lnapp_start(lnapp_conf_t *pAppConf)
 {
     pthread_create(&pAppConf->th, NULL, &thread_main_start, pAppConf);

@@ -34,6 +34,7 @@ RM              := rm -rf
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
 
 #sources project
+C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_main.c
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmd.c
 C_SOURCE_FILES += $(PRJ_PATH)/p2p_svr.c
 C_SOURCE_FILES += $(PRJ_PATH)/p2p_cli.c
