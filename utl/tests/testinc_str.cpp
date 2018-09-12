@@ -28,6 +28,58 @@ public:
 
 ////////////////////////////////////////////////////////////////////////
 
+TEST_F(str, scan_u16)
+{
+    uint16_t n;
+
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, ""));
+
+    n = 0;
+    ASSERT_TRUE(utl_str_scan_u16(&n, "0"));
+    ASSERT_EQ(n, 0);
+    n = 0;
+    ASSERT_TRUE(utl_str_scan_u16(&n, "9"));
+    ASSERT_EQ(n, 9);
+
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, "/"));
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, ":"));
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, "a"));
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, "f"));
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, "A"));
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, "F"));
+
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, "00"));
+
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, "01234"));
+    n = 0;
+    ASSERT_TRUE(utl_str_scan_u16(&n, "12345"));
+    ASSERT_EQ(n, 12345);
+
+    n = 0;
+    ASSERT_TRUE(utl_str_scan_u16(&n, "65534"));
+    ASSERT_EQ(n, 65534);
+    n = 0;
+    ASSERT_TRUE(utl_str_scan_u16(&n, "65535")); //max
+    ASSERT_EQ(n, 65535);
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, "65536"));
+
+    n = 0;
+    ASSERT_TRUE(utl_str_scan_u16(&n, "10000"));
+    ASSERT_EQ(n, 10000);
+    n = 0;
+    ASSERT_FALSE(utl_str_scan_u16(&n, "100000"));
+}
+
 TEST_F(str, scan_u32)
 {
     uint32_t n;
