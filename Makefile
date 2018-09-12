@@ -1,4 +1,5 @@
 INSTALL_DIR = $(CURDIR)/install
+include ./options.mak
 
 default:
 	$(MAKE) -C utl
@@ -10,7 +11,9 @@ default:
 	$(MAKE) -C routing
 	mkdir -p $(INSTALL_DIR)
 	-@rm -rf $(INSTALL_DIR)/ptarmd $(INSTALL_DIR)/ptarmcli $(INSTALL_DIR)/showdb
+ifneq ("$(BUILD_PTARMD)","LIB")
 	cp ptarmd/ptarmd $(INSTALL_DIR)/
+endif
 	cp ptarmcli/ptarmcli $(INSTALL_DIR)/
 	cp showdb/showdb $(INSTALL_DIR)/
 	cp routing/routing $(INSTALL_DIR)/

@@ -6,6 +6,13 @@ NETKIND=1
 # 0:not SPV 1:SPV
 USE_SPV=0
 
+# build ptarmd(WARNING: if you change this setting, need rebuild)
+#   EXEC
+#     as process
+#   LIB
+#     as library
+BUILD_PTARMD=EXEC
+
 # 0: enable print func 1:disable
 #  priority higher than PTARM_USE_PRINTFUNC
 DISABLE_PRINTFUND=0
