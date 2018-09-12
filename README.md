@@ -9,6 +9,7 @@
 
 * [Lightning Network BOLT](https://github.com/lightningnetwork/lightning-rfc) implementation
 * In Japanese, `ptarmigan` is called "雷(thunder)鳥(bird)".
+* [CHANGELOG](CHANGELOG.md)
 
 ## Setup
 
@@ -16,7 +17,6 @@
   * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
   * nested in BIP16 P2SH
 * Ubuntu 16.04
-* [recently changed](CHANGELOG.md)
 
 ## Usage
 
