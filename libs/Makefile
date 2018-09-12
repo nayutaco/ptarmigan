@@ -57,7 +57,7 @@ mk_base58:
 	@rm -rf libbase58/compile
 
 mk_lmdb:
-	GNU_PREFIX=$(GNU_PREFIX) $(MAKE)  -C lmdb/libraries/liblmdb
+	GNU_PREFIX=$(GNU_PREFIX) $(MAKE) XCFLAGS=$(ADD_CFLAGS) -C lmdb/libraries/liblmdb
 	cp lmdb/libraries/liblmdb/liblmdb.a $(INSTALL_DIR)/lib/
 	cp lmdb/libraries/liblmdb/lmdb.h $(INSTALL_DIR)/include/
 
