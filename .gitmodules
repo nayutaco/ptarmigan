@@ -3,7 +3,7 @@
 	url = https://github.com/nayutaco/jsonrpc-c.git
 [submodule "libs/inih"]
 	path = libs/inih
-	url = https://github.com/nayutaco/inih.git
+	url = https://github.com/benhoyt/inih.git
 	ignore = dirty
 [submodule "libs/mbedtls"]
 	path = libs/mbedtls
@@ -13,7 +13,7 @@
 	url = https://github.com/luke-jr/libbase58.git
 [submodule "libs/lmdb"]
 	path = libs/lmdb
-	url = https://github.com/nayutaco/lmdb.git
+	url = https://github.com/LMDB/lmdb.git
 	ignore = dirty
 [submodule "libs/libev"]
 	path = libs/libev

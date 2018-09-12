@@ -1,4 +1,6 @@
 INSTALL_DIR = $(CURDIR)/install
+BOOST_VER = 1.68.0
+BOOST_VER_FILE = boost_1_68_0
 
 include ../options.mak
 
@@ -41,7 +43,7 @@ mk_jsonrpc_c:
 
 mk_inih:
 	cd inih/extra ; \
-	EXTRACCFLAGS="-g -O2 -D'INI_INLINE_COMMENT_PREFIXES=\"#\"' -DINI_STOP_ON_FIRST_ERROR=1 $(ADD_CFLAGS)" GNU_PREFIX=$(GNU_PREFIX) $(MAKE) -f Makefile.static ; \
+	EXTRACCFLAGS="-g -O2 -D'INI_INLINE_COMMENT_PREFIXES=\"#\"' -DINI_STOP_ON_FIRST_ERROR=1 $(ADD_CFLAGS)" $(MAKE) CC=$(GNU_PREFIX)gcc -f Makefile.static ; \
 	cd ../..
 	@cp inih/extra/libinih.a $(INSTALL_DIR)/lib
 	@mkdir -p $(INSTALL_DIR)/include/inih
@@ -57,7 +59,7 @@ mk_base58:
 	@rm -rf libbase58/compile
 
 mk_lmdb:
-	GNU_PREFIX=$(GNU_PREFIX) $(MAKE) XCFLAGS=$(ADD_CFLAGS) -C lmdb/libraries/liblmdb
+	$(MAKE) XCFLAGS=$(ADD_CFLAGS) CC=$(GNU_PREFIX)gcc -C lmdb/libraries/liblmdb
 	cp lmdb/libraries/liblmdb/liblmdb.a $(INSTALL_DIR)/lib/
 	cp lmdb/libraries/liblmdb/lmdb.h $(INSTALL_DIR)/include/
 
@@ -72,12 +74,14 @@ clean_mbedtls:
 mbedtls_all: clean_mbedtls mk_mbedtls
 
 mk_boost:
+ifeq ("$(wildcard $(BOOST_VER_FILE).tar.gz)","")
+	rm -rf boost $(BOOST_VER_FILE) $(BOOST_VER_FILE).tar.gz
+	wget https://dl.bintray.com/boostorg/release/$(BOOST_VER)/source/$(BOOST_VER_FILE).tar.gz
+endif
 ifeq ("$(wildcard boost)","")
-	rm -rf boost boost_1_68_0 boost_1_68_0.tar.gz
-	wget https://dl.bintray.com/boostorg/release/1.68.0/source/boost_1_68_0.tar.gz
-	tar zxf boost_1_68_0.tar.gz
-	rm boost_1_68_0.tar.gz
-	ln -s boost_1_68_0 boost
+	rm -rf $(BOOST_VER_FILE)
+	tar zxf $(BOOST_VER_FILE).tar.gz
+	ln -s $(BOOST_VER_FILE) boost
 endif
 	cd boost; \
 	./bootstrap.sh; \
@@ -118,5 +122,5 @@ clean:
 	-$(MAKE) -C jansson clean
 	-$(MAKE) -C curl clean
 	-$(MAKE) -C zlib clean
-	-$(RM) -rf $(INSTALL_DIR) bech32 boost boost_1_68_0
+	-$(RM) -rf $(INSTALL_DIR) bech32 boost $(BOOST_VER_FILE)
 
