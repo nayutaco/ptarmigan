@@ -701,7 +701,7 @@ static void dumpit_invoice(MDB_txn *txn, MDB_dbi dbi)
             printf("[\"");
             btc_util_dumpbin(stdout, key.mv_data, key.mv_size, false);
             printf("\",");
-            printf("%s]", (const char *)data.mv_data);
+            printf(M_QQ("%s") "]", (const char *)data.mv_data);
             cnt++;
         }
         mdb_cursor_close(cursor);
