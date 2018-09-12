@@ -52,6 +52,14 @@ typedef struct {
  * prototypes
  **************************************************************************/
 
+/** convert string to uint16_t
+ *
+ * @param[out]  n       uint16_t number
+ * @param[in]   s       string
+ * @retval      true    success
+ */
+bool utl_str_scan_u16(uint16_t *n, const char *s);
+
 /** convert string to uint32_t
  *
  * @param[out]  n       uint32_t number
