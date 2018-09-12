@@ -315,7 +315,7 @@ TEST_F(args, option_with_arg_and_param_default_invalid)
     }
 }
 
-TEST_F(args, arg_type_u32)
+TEST_F(args, arg_type)
 {
     utl_arginfo_t arginfo[] = {
         {"-name0", "arg0", NULL, "help0", NULL, false},
@@ -334,9 +334,22 @@ TEST_F(args, arg_type_u32)
         ASSERT_EQ(n, 1234567890);
         utl_args_free(arginfo);
     }
+    {
+        const char *argv[] = {
+            "program",
+            "-name0=12345"
+        };
+        ASSERT_TRUE(utl_args_parse(arginfo, ARRAY_SIZE(argv), argv));
+        ASSERT_TRUE(utl_args_is_set(arginfo, "-name0"));
+        ASSERT_STREQ(utl_args_get_string(arginfo, "-name0"), "12345");
+        uint16_t n;
+        ASSERT_TRUE(utl_args_get_u16(arginfo, &n, "-name0"));
+        ASSERT_EQ(n, 12345);
+        utl_args_free(arginfo);
+    }
 }
 
-TEST_F(args, arg_type_u32_invalid)
+TEST_F(args, arg_type_u32)
 {
     utl_arginfo_t arginfo[] = {
         {"-name0", "arg0", NULL, "help0", NULL, false},
@@ -352,6 +365,30 @@ TEST_F(args, arg_type_u32_invalid)
         ASSERT_STREQ(utl_args_get_string(arginfo, "-name0"), "param0");
         uint32_t n;
         ASSERT_FALSE(utl_args_get_u32(arginfo, &n, "-name0"));
+        utl_args_free(arginfo);
+    }
+    {
+        const char *argv[] = {
+            "program",
+            "-name0=param0"
+        };
+        ASSERT_TRUE(utl_args_parse(arginfo, ARRAY_SIZE(argv), argv));
+        ASSERT_TRUE(utl_args_is_set(arginfo, "-name0"));
+        ASSERT_STREQ(utl_args_get_string(arginfo, "-name0"), "param0");
+        uint16_t n;
+        ASSERT_FALSE(utl_args_get_u16(arginfo, &n, "-name0"));
+        utl_args_free(arginfo);
+    }
+    {
+        const char *argv[] = {
+            "program",
+            "-name0=123456"
+        };
+        ASSERT_TRUE(utl_args_parse(arginfo, ARRAY_SIZE(argv), argv));
+        ASSERT_TRUE(utl_args_is_set(arginfo, "-name0"));
+        ASSERT_STREQ(utl_args_get_string(arginfo, "-name0"), "123456");
+        uint16_t n;
+        ASSERT_FALSE(utl_args_get_u16(arginfo, &n, "-name0"));
         utl_args_free(arginfo);
     }
 }

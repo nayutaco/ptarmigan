@@ -129,6 +129,16 @@ const char *utl_args_get_string(utl_arginfo_t *arginfo, const char *name)
     return info->param;
 }
 
+bool utl_args_get_u16(utl_arginfo_t *arginfo, uint16_t *n, const char *name)
+{
+    utl_arginfo_t *info = find_arginfo(arginfo, name);
+    if (!info) return false;
+    if (!info->is_set) return false;
+    if (!info->param) return false;
+    if (!utl_str_scan_u16(n, info->param)) return false;
+    return true;
+}
+
 bool utl_args_get_u32(utl_arginfo_t *arginfo, uint32_t *n, const char *name)
 {
     utl_arginfo_t *info = find_arginfo(arginfo, name);
