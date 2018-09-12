@@ -67,18 +67,18 @@ make distclean
 ### libraries
 
 * git submodule
-  * [libbase58](https://github.com/luke-jr/libbase58)
-  * [Mbed TLS](https://tls.mbed.org/) ([github](https://github.com/ARMmbed/mbedtls))
-  * [curl](https://curl.haxx.se/)
-  * [jansson](http://www.digip.org/jansson/)
-  * [libev](http://software.schmorp.de/pkg/libev.html) (for `jsonrpc-c`)
-  * [boost](http://www.boost.org/) (for dijkstra shortest paths)
-  * [nayutaco/inih](https://github.com/nayutaco/inih) - forked from [benhoyt/inih](https://github.com/benhoyt/inih)
-  * [nayutaco/lmdb](https://github.com/nayutaco/lmdb) - forked from [LMDB/lmdb](https://github.com/LMDB/lmdb)
+  * [ARMmbed/MbedTLS](https://github.com/ARMmbed/mbedtls)
+  * [LMDB/lmdb](https://github.com/LMDB/lmdb)
+  * [akheron/jansson](https://github.com/akheron/jansson)
+  * [benhoyt/inih](https://github.com/benhoyt/inih)
+  * [curl/curl](https://github.com/curl/curl)
+  * [enki/libev](hhttps://github.com/enki/libev)
+  * [luke-jr/libbase58](https://github.com/luke-jr/libbase58)
+  * [madler/zlib](https://github.com/madler/zlib)
   * [nayutaco/jsonrpc-c](https://github.com/nayutaco/jsonrpc-c) - forked from [hmng/jsonrpc-c](https://github.com/hmng/jsonrpc-c)
 
-* install
-  * [jq](https://stedolan.github.io/jq/) (for test scripts)
+* download
+  * [boost](http://www.boost.org/) (for dijkstra shortest paths)
 
 * reference code
   * [sipa/bech32](https://github.com/sipa/bech32)

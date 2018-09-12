@@ -41,7 +41,7 @@ mk_jsonrpc_c:
 
 mk_inih:
 	cd inih/extra ; \
-	EXTRACCFLAGS="-g -O2 -D'INI_INLINE_COMMENT_PREFIXES=\"#\"' -DINI_STOP_ON_FIRST_ERROR=1 $(ADD_CFLAGS)" GNU_PREFIX=$(GNU_PREFIX) $(MAKE) -f Makefile.static ; \
+	EXTRACCFLAGS="-g -O2 -D'INI_INLINE_COMMENT_PREFIXES=\"#\"' -DINI_STOP_ON_FIRST_ERROR=1 $(ADD_CFLAGS)" $(MAKE) CC=$(GNU_PREFIX)gcc -f Makefile.static ; \
 	cd ../..
 	@cp inih/extra/libinih.a $(INSTALL_DIR)/lib
 	@mkdir -p $(INSTALL_DIR)/include/inih
@@ -57,7 +57,7 @@ mk_base58:
 	@rm -rf libbase58/compile
 
 mk_lmdb:
-	GNU_PREFIX=$(GNU_PREFIX) $(MAKE) XCFLAGS=$(ADD_CFLAGS) -C lmdb/libraries/liblmdb
+	$(MAKE) XCFLAGS=$(ADD_CFLAGS) CC=$(GNU_PREFIX)gcc -C lmdb/libraries/liblmdb
 	cp lmdb/libraries/liblmdb/liblmdb.a $(INSTALL_DIR)/lib/
 	cp lmdb/libraries/liblmdb/lmdb.h $(INSTALL_DIR)/include/
 
