@@ -158,7 +158,7 @@ debug: $(BUILD_DIRECTORIES) $(OBJECTS)
 	$(NO_ECHO)$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME)
 
 libdebug: CFLAGS += $(CFLAGS_USER)
-libdebug: CFLAGS += -ggdb3 -O0 -fPIC
+libdebug: CFLAGS += -ggdb3 -O0
 libdebug: LDFLAGS += -ggdb3 -O0
 libdebug: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo [DEBUG]Linking target: $(OUTPUT_FILENAME)
