@@ -72,7 +72,7 @@ make distclean
   * [akheron/jansson](https://github.com/akheron/jansson)
   * [benhoyt/inih](https://github.com/benhoyt/inih)
   * [curl/curl](https://github.com/curl/curl)
-  * [enki/libev](hhttps://github.com/enki/libev)
+  * [enki/libev](https://github.com/enki/libev)
   * [luke-jr/libbase58](https://github.com/luke-jr/libbase58)
   * [madler/zlib](https://github.com/madler/zlib)
   * [nayutaco/jsonrpc-c](https://github.com/nayutaco/jsonrpc-c) - forked from [hmng/jsonrpc-c](https://github.com/hmng/jsonrpc-c)
