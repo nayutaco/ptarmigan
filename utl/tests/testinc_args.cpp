@@ -381,14 +381,14 @@ TEST_F(args, help_messages)
         "       help1\n"
         "\n"
         "  -name2=<arg2>\n"
-        "       help2 (param_default2)\n"
+        "       help2 (default: param_default2)\n"
         "\n"
         "  -name3\n"
         "\n"
         "  -name4=<arg4>\n"
         "\n"
         "  -name5=<arg5>\n"
-        "       (param_default5)\n"
+        "       (default: param_default5)\n"
         "\n"
     );
     utl_str_free(&x);

@@ -166,14 +166,14 @@ bool utl_args_get_help_messages(utl_arginfo_t *arginfo, utl_str_t *messages)
             if (!utl_str_append(messages, info->help)) return false;
             if (info->arg && info->param_default) {
                 if (!utl_str_append(messages, " ")) return false;
-                if (!utl_str_append(messages, "(")) return false;
+                if (!utl_str_append(messages, "(default: ")) return false;
                 if (!utl_str_append(messages, info->param_default)) return false;
                 if (!utl_str_append(messages, ")")) return false;
             }
             if (!utl_str_append(messages, "\n")) return false;
         } else if (info->arg && info->param_default) {
             if (!utl_str_append(messages, "       ")) return false;
-            if (!utl_str_append(messages, "(")) return false;
+            if (!utl_str_append(messages, "(default: ")) return false;
             if (!utl_str_append(messages, info->param_default)) return false;
             if (!utl_str_append(messages, ")")) return false;
             if (!utl_str_append(messages, "\n")) return false;
