@@ -46,6 +46,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/utl_net.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_args.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_str.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_jsonrpc.c
+C_SOURCE_FILES += $(PRJ_PATH)/utl_addr.c
 #ifeq ($(findstring 1,$(USE_PLOG_PTARMD) $(USE_PLOG_PTARMLIB)), 1)
 C_SOURCE_FILES += $(PRJ_PATH)/utl_log.c
 #endif

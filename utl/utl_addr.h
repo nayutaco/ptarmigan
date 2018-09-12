@@ -20,11 +20,11 @@
  *  under the License.
  */
 /**
- * @file    utl_net.h
- * @brief   utl_net
+ * @file    utl_addr.h
+ * @brief   utl_addr
  */
-#ifndef UTL_NET_H__
-#define UTL_NET_H__
+#ifndef UTL_ADDR_H__
+#define UTL_ADDR_H__
 
 #include <stdint.h>
 #include <inttypes.h>
@@ -47,16 +47,17 @@ extern "C" {
  * prototypes
  **************************************************************************/
 
-/** check ipv4 addr is routable or not
+/** convert ipv4 address string to byte array
  *
- * @param[in]    addr    network byte order ipv4 address
+ * @param[out]  b       ipv4 address byte array(network byte order)
+ * @param[in]   s       ipv4 address string
  * @retval      true    routable
  */
-bool utl_net_ipv4_addr_is_routable(const uint8_t* addr);
+bool utl_addr_ipv4_str2bin(uint8_t b[4], const char *s);
 
 
 #ifdef __cplusplus
 }
 #endif  //__cplusplus
 
-#endif /* UTL_NET_H__ */
+#endif /* UTL_ADDR_H__ */
