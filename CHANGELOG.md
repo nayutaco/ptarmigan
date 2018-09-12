@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2018/09/12
+
+* Support cross compile(only test `arm-linux-gnueabihf`)
+  * Change `GNU_PREFIX` in `options.mak`
+  * If you update your repository, execute `update_libs.sh` at first and `make full`.
+
 ## 2018/09/06
 
 * DB version : -23
