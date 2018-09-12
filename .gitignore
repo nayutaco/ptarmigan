@@ -6,6 +6,7 @@ _ggtest/
 .vscode/
 
 ptarmd/ptarmd
+ptarmd/libptarm.so
 ptarmcli/ptarmcli
 showdb/showdb
 routing/routing

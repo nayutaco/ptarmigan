@@ -1,4 +1,3 @@
-OUTPUT_FILENAME := ptarmd
 PRJ_PATH = .
 COMMON_PATH = ..
 OBJECT_DIRECTORY = _build
@@ -34,7 +33,13 @@ RM              := rm -rf
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
 
 #sources project
+ifeq ("$(BUILD_PTARMD)","LIB")
+OUTPUT_FILENAME := libptarm.so
+C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_lib.c
+else
+OUTPUT_FILENAME := ptarmd
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_main.c
+endif
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmd.c
 C_SOURCE_FILES += $(PRJ_PATH)/p2p_svr.c
 C_SOURCE_FILES += $(PRJ_PATH)/p2p_cli.c
@@ -73,22 +78,26 @@ CFLAGS += $(INC_PATHS)
 CFLAGS += -DNETKIND=$(NETKIND)
 
 ifeq ($(USE_SPV),1)
-CFLAGS += -DUSE_SPV
+	CFLAGS += -DUSE_SPV
 endif
 
 ifeq ($(DISABLE_PRINTFUND),0)
-CFLAGS += -DPTARM_USE_PRINTFUNC
+	CFLAGS += -DPTARM_USE_PRINTFUNC
 endif
 
 ifeq ($(ENABLE_DEVELOPER_MODE),1)
-CFLAGS += -DDEVELOPER_MODE
+	CFLAGS += -DDEVELOPER_MODE
 endif
 
 ifeq ($(ENABLE_PLOG_TO_STDOUT_PTARMD),1)
-CFLAGS += -DENABLE_PLOG_TO_STDOUT
+	CFLAGS += -DENABLE_PLOG_TO_STDOUT
 endif
 
 CFLAGS += -DMAX_CHANNELS=$(MAX_CHANNELS)
+
+ifeq ("$(BUILD_PTARMD)","LIB")
+	CFLAGS += -fPIC
+endif
 
 ######################################
 #LDFLAGS
@@ -119,7 +128,11 @@ LIBS += -lstdc++
 ######################################
 
 #default target - first one defined
+ifeq ("$(BUILD_PTARMD)","LIB")
+default: libdebug
+else
 default: debug
+endif
 
 #target for printing all targets
 help:
@@ -143,6 +156,15 @@ debug: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo [DEBUG]CFLAGS=$(CFLAGS)
 	@echo [DEBUG]LIBS=$(LIBS)
 	$(NO_ECHO)$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME)
+
+libdebug: CFLAGS += $(CFLAGS_USER)
+libdebug: CFLAGS += -ggdb3 -O0
+libdebug: LDFLAGS += -ggdb3 -O0
+libdebug: $(BUILD_DIRECTORIES) $(OBJECTS)
+	@echo [DEBUG]Linking target: $(OUTPUT_FILENAME)
+	@echo [DEBUG]CFLAGS=$(CFLAGS)
+	@echo [DEBUG]LIBS=$(LIBS)
+	$(NO_ECHO)$(CC) -shared $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME)
 
 release: CFLAGS += $(CFLAGS_USER)
 release: CFLAGS += -DNDEBUG -O3

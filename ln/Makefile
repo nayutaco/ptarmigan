@@ -12,8 +12,6 @@ CFLAGS_USER = -DPTARM_USE_RNG
 
 include ../options.mak
 
-#GNU_PREFIX := arm-none-eabi-
-
 MK := mkdir
 RM := rm -rf
 
@@ -93,18 +91,23 @@ CFLAGS_CMN += $(CFLAGS_USER)
 CFLAGS_CMN += -DNETKIND=$(NETKIND)
 
 ifeq ($(USE_SPV),1)
-CFLAGS += -DUSE_SPV
+	CFLAGS += -DUSE_SPV
 endif
 
 ifeq ($(DISABLE_PRINTFUND),0)
-CFLAGS_CMN += -DPTARM_USE_PRINTFUNC
+	CFLAGS_CMN += -DPTARM_USE_PRINTFUNC
 endif
 
 ifeq ($(ENABLE_DEVELOPER_MODE),1)
-CFLAGS_CMN += -DDEVELOPER_MODE
+	CFLAGS_CMN += -DDEVELOPER_MODE
 endif
 
 CFLAGS += -DMAX_CHANNELS=$(MAX_CHANNELS)
+
+ifeq ("$(BUILD_PTARMD)","LIB")
+	CFLAGS += -fPIC
+	CPPFLAGS += -fPIC
+endif
 
 ######################################
 #CFLAGS only

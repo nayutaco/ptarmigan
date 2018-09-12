@@ -9,6 +9,12 @@ else
 	BOOST_CONV="using gcc"
 endif
 
+ifeq ("$(BUILD_PTARMD)","LIB")
+	ADD_CFLAGS = -fPIC
+else
+	ADD_CFLAGS = 
+endif
+
 all: lib
 
 lib: mk_install mk_jsonrpc_c mk_inih mk_base58 mk_lmdb mk_mbedtls mk_boost mk_jansson mk_zlib mk_curl
@@ -22,20 +28,20 @@ mk_install:
 mk_jsonrpc_c:
 	cd libev; \
 	autoreconf -i ;\
-	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc --disable-shared ; \
+	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc CFLAGS="$(ADD_CFLAGS)" --disable-shared ; \
 	$(MAKE) ; \
 	$(MAKE) install ; \
 	cd ..
 	cd jsonrpc-c; \
 	autoreconf -i ; \
 	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc --with-libev=$(INSTALL_DIR) --disable-shared ; \
-	$(MAKE) CFLAGS=-DCHECK_LOCALHOST; \
+	$(MAKE) CFLAGS="-DCHECK_LOCALHOST $(ADD_CFLAGS)"; \
 	$(MAKE) install ; \
 	cd ..
 
 mk_inih:
 	cd inih/extra ; \
-	EXTRACCFLAGS="-g -O2 -D'INI_INLINE_COMMENT_PREFIXES=\"#\"' -DINI_STOP_ON_FIRST_ERROR=1" GNU_PREFIX=$(GNU_PREFIX) $(MAKE) -f Makefile.static ; \
+	EXTRACCFLAGS="-g -O2 -D'INI_INLINE_COMMENT_PREFIXES=\"#\"' -DINI_STOP_ON_FIRST_ERROR=1 $(ADD_CFLAGS)" GNU_PREFIX=$(GNU_PREFIX) $(MAKE) -f Makefile.static ; \
 	cd ../..
 	@cp inih/extra/libinih.a $(INSTALL_DIR)/lib
 	@mkdir -p $(INSTALL_DIR)/include/inih
@@ -45,18 +51,18 @@ mk_base58:
 	cd libbase58; \
 	autoreconf -i ; \
 	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc --disable-shared ; \
-	$(MAKE) ; \
+	$(MAKE) CFLAGS=$(ADD_CFLAGS); \
 	$(MAKE) install ; \
 	cd ..
 	@rm -rf libbase58/compile
 
 mk_lmdb:
-	GNU_PREFIX=$(GNU_PREFIX) $(MAKE) -C lmdb/libraries/liblmdb
+	GNU_PREFIX=$(GNU_PREFIX) $(MAKE) XCFLAGS=$(ADD_CFLAGS) -C lmdb/libraries/liblmdb
 	cp lmdb/libraries/liblmdb/liblmdb.a $(INSTALL_DIR)/lib/
 	cp lmdb/libraries/liblmdb/lmdb.h $(INSTALL_DIR)/include/
 
 mk_mbedtls:
-	CFLAGS="-I`pwd`/mbedtls_config -DMBEDTLS_CONFIG_FILE='\"config-ptarm.h\"'" CC=$(GNU_PREFIX)gcc $(MAKE) -C mbedtls
+	CFLAGS="-I`pwd`/mbedtls_config -DMBEDTLS_CONFIG_FILE='\"config-ptarm.h\"' $(ADD_CFLAGS)" CC=$(GNU_PREFIX)gcc $(MAKE) -C mbedtls
 	cp mbedtls/library/libmbedcrypto.a $(INSTALL_DIR)/lib/
 	cp -ra mbedtls/include/* $(INSTALL_DIR)/include/
 
@@ -83,14 +89,14 @@ endif
 mk_jansson:
 	cd jansson; \
 	autoreconf -i ; \
-	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc CFLAGS=-I$(INSTALL_DIR)/include --disable-shared ; $(MAKE) ; \
+	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc CFLAGS="-I$(INSTALL_DIR)/include $(ADD_CFLAGS)" --disable-shared ; $(MAKE) ; \
 	$(MAKE) install ; \
 	cd ..
 
 mk_zlib:
 	cd zlib; \
 	CC=$(GNU_PREFIX)gcc ./configure --prefix=$(INSTALL_DIR) ; $(MAKE) ; \
-	$(MAKE) ; \
+	$(MAKE) CFLAGS=$(ADD_CFLAGS); \
 	$(MAKE) install ; \
 	cd ..
 
@@ -98,7 +104,7 @@ mk_curl:
 	cd curl; \
 	autoreconf -i ; \
 	./configure --prefix=$(INSTALL_DIR) --host=$(HOST) CC=$(GNU_PREFIX)gcc --disable-ftp --disable-ldap --disable-ldaps --disable-rtsp --disable-proxy --disable-dict --disable-telnet --disable-tftp --disable-pop3 --disable-imap --disable-smb --disable-smtp  --disable-gopher --disable-ares --disable-manual --disable-proxy --disable-unix-sockets --disable-verbose --disable-versioned-symbols --enable-hidden-symbols --without-libidn --without-librtmp --without-ssl --disable-shared ; \
-	$(MAKE) ; \
+	$(MAKE) CFLAGS=$(ADD_CFLAGS); \
 	$(MAKE) install ; \
 	cd ..
 

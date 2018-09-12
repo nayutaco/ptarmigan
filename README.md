@@ -31,6 +31,7 @@ sudo apt install -y git autoconf pkg-config build-essential libtool wget jq bc
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
 make full
+(takes a lot of time...)
 ```
 
 ### update
@@ -66,17 +67,17 @@ make distclean
 ### libraries
 
 * git submodule
-  * [inih](https://github.com/benhoyt/inih)
   * [libbase58](https://github.com/luke-jr/libbase58)
   * [Mbed TLS](https://tls.mbed.org/) ([github](https://github.com/ARMmbed/mbedtls))
-  * [lmdb](https://symas.com/lightning-memory-mapped-database/) ([github](https://github.com/LMDB/lmdb))
-  * [jsonrpc-c](https://github.com/nayutaco/jsonrpc-c) - forked from [hmng/jsonrpc-c](https://github.com/hmng/jsonrpc-c)
-
-* install
   * [curl](https://curl.haxx.se/)
   * [jansson](http://www.digip.org/jansson/)
   * [libev](http://software.schmorp.de/pkg/libev.html) (for `jsonrpc-c`)
   * [boost](http://www.boost.org/) (for dijkstra shortest paths)
+  * [nayutaco/inih](https://github.com/nayutaco/inih) - forked from [benhoyt/inih](https://github.com/benhoyt/inih)
+  * [nayutaco/lmdb](https://github.com/nayutaco/lmdb) - forked from [LMDB/lmdb](https://github.com/LMDB/lmdb)
+  * [nayutaco/jsonrpc-c](https://github.com/nayutaco/jsonrpc-c) - forked from [hmng/jsonrpc-c](https://github.com/hmng/jsonrpc-c)
+
+* install
   * [jq](https://stedolan.github.io/jq/) (for test scripts)
 
 * reference code
