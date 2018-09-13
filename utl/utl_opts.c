@@ -24,22 +24,22 @@
 
 #include "utl_dbg.h"
 #include "utl_str.h"
-#include "utl_args.h"
+#include "utl_opts.h"
 
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
 
-static utl_arginfo_t *findn_arginfo(utl_arginfo_t *arginfo, const char *name, int len);
-static utl_arginfo_t *find_arginfo(utl_arginfo_t *arginfo, const char *name);
+static utl_opt_t *findn_opts(utl_opt_t *opts, const char *name, int len);
+static utl_opt_t *find_opts(utl_opt_t *opts, const char *name);
 
 
 /**************************************************************************
  * public functions
  **************************************************************************/
 
-bool utl_args_parse(utl_arginfo_t *arginfo, int argc, const char* const argv[])
+bool utl_opts_parse(utl_opt_t *opts, int argc, const char* const argv[])
 {
     //case1
     // argv[0]: program -- skip
@@ -65,12 +65,12 @@ bool utl_args_parse(utl_arginfo_t *arginfo, int argc, const char* const argv[])
         }
     }
     
-    for (int i = 0; arginfo[i].name; i++) {
-        if (!arginfo[i].arg) {
-            if (arginfo[i].param_default) return false;
+    for (int i = 0; opts[i].name; i++) {
+        if (!opts[i].arg) {
+            if (opts[i].param_default) return false;
         }
-        if (arginfo[i].param) return false;
-        if (arginfo[i].is_set) return false;
+        if (opts[i].param) return false;
+        if (opts[i].is_set) return false;
     }
 
     for (int i = offset; i < argc; i++) {
@@ -85,7 +85,7 @@ bool utl_args_parse(utl_arginfo_t *arginfo, int argc, const char* const argv[])
             v_len = p - v;
         }
 
-        utl_arginfo_t *info = findn_arginfo(arginfo, v, v_len);
+        utl_opt_t *info = findn_opts(opts, v, v_len);
         if (!info) goto LABEL_EXIT;
         if (info->is_set) goto LABEL_EXIT;
         if (info->arg && p) {
@@ -97,8 +97,8 @@ bool utl_args_parse(utl_arginfo_t *arginfo, int argc, const char* const argv[])
         info->is_set = true;
     }
 
-    for (int i = 0; arginfo[i].name; i++) {
-        utl_arginfo_t *info = &arginfo[i];
+    for (int i = 0; opts[i].name; i++) {
+        utl_opt_t *info = &opts[i];
         if (!info->is_set && info->param_default) {
             info->param = UTL_DBG_STRDUP(info->param_default);
             info->is_set = true;
@@ -109,29 +109,29 @@ bool utl_args_parse(utl_arginfo_t *arginfo, int argc, const char* const argv[])
 
 LABEL_EXIT:
     if (!ret) {
-        utl_args_free(arginfo);
+        utl_opts_free(opts);
     }
     return ret;
 }
 
-bool utl_args_is_set(utl_arginfo_t *arginfo, const char *name)
+bool utl_opts_is_set(utl_opt_t *opts, const char *name)
 {
-    utl_arginfo_t *info = find_arginfo(arginfo, name);
+    utl_opt_t *info = find_opts(opts, name);
     if (!info) return false;
     return info->is_set;
 }
 
-const char *utl_args_get_string(utl_arginfo_t *arginfo, const char *name)
+const char *utl_opts_get_string(utl_opt_t *opts, const char *name)
 {
-    utl_arginfo_t *info = find_arginfo(arginfo, name);
+    utl_opt_t *info = find_opts(opts, name);
     if (!info) return NULL;
     if (!info->is_set) return NULL;
     return info->param;
 }
 
-bool utl_args_get_u16(utl_arginfo_t *arginfo, uint16_t *n, const char *name)
+bool utl_opts_get_u16(utl_opt_t *opts, uint16_t *n, const char *name)
 {
-    utl_arginfo_t *info = find_arginfo(arginfo, name);
+    utl_opt_t *info = find_opts(opts, name);
     if (!info) return false;
     if (!info->is_set) return false;
     if (!info->param) return false;
@@ -139,9 +139,9 @@ bool utl_args_get_u16(utl_arginfo_t *arginfo, uint16_t *n, const char *name)
     return true;
 }
 
-bool utl_args_get_u32(utl_arginfo_t *arginfo, uint32_t *n, const char *name)
+bool utl_opts_get_u32(utl_opt_t *opts, uint32_t *n, const char *name)
 {
-    utl_arginfo_t *info = find_arginfo(arginfo, name);
+    utl_opt_t *info = find_opts(opts, name);
     if (!info) return false;
     if (!info->is_set) return false;
     if (!info->param) return false;
@@ -149,20 +149,20 @@ bool utl_args_get_u32(utl_arginfo_t *arginfo, uint32_t *n, const char *name)
     return true;
 }
 
-void utl_args_free(utl_arginfo_t *arginfo)
+void utl_opts_free(utl_opt_t *opts)
 {
-    for (int i = 0; arginfo[i].name; i++) {
-        arginfo[i].is_set = false;
-        if (!arginfo[i].param) continue;
-        UTL_DBG_FREE(arginfo[i].param);
-        arginfo[i].param = 0;
+    for (int i = 0; opts[i].name; i++) {
+        opts[i].is_set = false;
+        if (!opts[i].param) continue;
+        UTL_DBG_FREE(opts[i].param);
+        opts[i].param = 0;
     }
 }
 
-bool utl_args_get_help_messages(utl_arginfo_t *arginfo, utl_str_t *messages)
+bool utl_opts_get_help_messages(utl_opt_t *opts, utl_str_t *messages)
 {
-    for (int i = 0; arginfo[i].name; i++) {
-        utl_arginfo_t *info = &arginfo[i];
+    for (int i = 0; opts[i].name; i++) {
+        utl_opt_t *info = &opts[i];
         if (!utl_str_append(messages, "  ")) return false;
         if (!utl_str_append(messages, info->name)) return false;
         if (info->arg) {
@@ -198,16 +198,16 @@ bool utl_args_get_help_messages(utl_arginfo_t *arginfo, utl_str_t *messages)
  * private functions
  **************************************************************************/
 
-static utl_arginfo_t *findn_arginfo(utl_arginfo_t *arginfo, const char *name, int len)
+static utl_opt_t *findn_opts(utl_opt_t *opts, const char *name, int len)
 {
-    for (int i = 0; arginfo[i].name; i++) {
-        if (!strncmp(name, arginfo[i].name, len)) return &arginfo[i];
+    for (int i = 0; opts[i].name; i++) {
+        if (!strncmp(name, opts[i].name, len)) return &opts[i];
     }
     return NULL;
 }
 
-static utl_arginfo_t *find_arginfo(utl_arginfo_t *arginfo, const char *name)
+static utl_opt_t *find_opts(utl_opt_t *opts, const char *name)
 {
-    return findn_arginfo(arginfo, name, strlen(name));
+    return findn_opts(opts, name, strlen(name));
 }
 
