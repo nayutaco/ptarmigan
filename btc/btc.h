@@ -20,15 +20,8 @@
  *  under the License.
  */
 /** @file   btc.h
- *  @brief  bitcoinトランザクション計算
+ *  @brief  bitcoin offline API header
  *  @author ueno@nayuta.co
- *
- * @note
- *      - 公開不要なAPIも多数あるが、今は整理しない
- *      - 制限事項多し
- *          - Little Endian環境のみ
- *          - あまりエラーを返さず、abortする
- *          - vinなどvarint型のものは、だいたい1byte分(スクリプトは受け付けるつもり)
  */
 #ifndef BTC_H__
 #define BTC_H__
