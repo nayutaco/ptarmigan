@@ -11,7 +11,9 @@ default:
 	$(MAKE) -C routing
 	mkdir -p $(INSTALL_DIR)
 	-@rm -rf $(INSTALL_DIR)/ptarmd $(INSTALL_DIR)/ptarmcli $(INSTALL_DIR)/showdb
-ifneq ("$(BUILD_PTARMD)","LIB")
+ifeq ("$(BUILD_PTARMD)","LIB")
+	cp ptarmd/libptarm.so ./jni/
+else
 	cp ptarmd/ptarmd $(INSTALL_DIR)/
 endif
 	cp ptarmcli/ptarmcli $(INSTALL_DIR)/

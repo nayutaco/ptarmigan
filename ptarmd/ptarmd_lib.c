@@ -25,11 +25,14 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "btcrpc.h"
 #include "conf.h"
 #include "ln_db.h"
 #include "utl_log.h"
+#include "utl_addr.h"
 
 
 /**************************************************************************
@@ -57,7 +60,8 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
 
     //`d` option is used to change working directory.
     // It is done at the beginning of this process.
-    //chdir(optarg);
+    mkdir("node", 0755);
+    chdir("node");
 
     utl_log_init();
 
@@ -82,11 +86,11 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
     p_alias[LN_SZ_ALIAS] = '\0';
 
     //ip address
-    if ((pIpAddr != NULL) && (strlen(pIpAddr) > 10)) {
+    uint8_t ipbin[4];
+    bool addrret = utl_addr_ipv4_str2bin(ipbin, pIpAddr);
+    if (addrret) {
         p_addr->type = LN_NODEDESC_IPV4;
-        uint8_t *p = p_addr->addrinfo.addr;
-        sscanf(pIpAddr, "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8,
-                &p[0], &p[1], &p[2], &p[3]);
+        memcpy(p_addr->addrinfo.addr, ipbin, sizeof(ipbin));
     }
 
     // if (options & 0x40) {
@@ -114,8 +118,8 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
     rpc_conf_t rpc_conf;
     strcpy(rpc_conf.rpcurl, "127.0.0.1");
     rpc_conf.rpcport = 18332;
-    strcpy(rpc_conf.rpcuser, "rpcuser");
-    strcpy(rpc_conf.rpcpasswd, "rpcpassword");
+    strcpy(rpc_conf.rpcuser, "bitcoinuser");
+    strcpy(rpc_conf.rpcpasswd, "bitcoinpassword");
     bret = btcrpc_init(&rpc_conf);
     if (!bret) {
         fprintf(stderr, "fail: initialize btcrpc\n");

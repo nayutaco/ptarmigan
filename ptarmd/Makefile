@@ -36,6 +36,9 @@ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-ou
 ifeq ("$(BUILD_PTARMD)","LIB")
 OUTPUT_FILENAME := libptarm.so
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_lib.c
+C_SOURCE_FILES += $(PRJ_PATH)/co_nayuta_lightning_PtarmiganNative.c
+INC_PATHS += -I/usr/lib/jvm/java-8-openjdk-amd64/include
+INC_PATHS += -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux
 else
 OUTPUT_FILENAME := ptarmd
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_main.c
@@ -179,7 +182,7 @@ $(BUILD_DIRECTORIES):
 
 # Create objects from C SRC files
 $(OBJECT_DIRECTORY)/%.o: %.c
-	@echo Compiling C file: $(notdir $<)
+	@echo Compiling C file: $(notdir $<) $(INC_PATHS)
 	$(NO_ECHO)$(CC) $(CFLAGS) $(INC_PATHS) -c -o $@ $<
 
 # Link
