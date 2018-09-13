@@ -11,7 +11,7 @@ USE_SPV=0
 #     as process
 #   LIB
 #     as library
-BUILD_PTARMD=LIB
+BUILD_PTARMD=EXEC
 BUILD_PTARMD_LIB_INCPATHS = -I/usr/lib/jvm/java-8-openjdk-amd64/include -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux
 
 # 0: enable print func 1:disable
