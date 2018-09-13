@@ -20,11 +20,11 @@
  *  under the License.
  */
 /**
- * @file    utl_args.h
- * @brief   utl_args.h
+ * @file    utl_opts.h
+ * @brief   utl_opts.h
  */
-#ifndef UTL_ARGS_H__
-#define UTL_ARGS_H__
+#ifndef UTL_OPTS_H__
+#define UTL_OPTS_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -42,8 +42,8 @@ extern "C" {
  * types
  **************************************************************************/
 
-/** @struct utl_arginfo_t
- *  @brief  utl_arginfo_t
+/** @struct utl_opt_t
+ *  @brief  utl_opt_t
  *
  */
 typedef struct {
@@ -53,30 +53,30 @@ typedef struct {
     const char      *help;          ///< help(optional)
     char            *param;         ///< param
     bool            is_set;         ///< is_set
-} utl_arginfo_t;
+} utl_opt_t;
 
 
 /**************************************************************************
  * prototypes
  **************************************************************************/
 
-bool utl_args_parse(utl_arginfo_t *arginfo, int argc, const char* const argv[]);
+bool utl_opts_parse(utl_opt_t *opts, int argc, const char* const argv[]);
 
-void utl_args_free(utl_arginfo_t *arginfo);
+void utl_opts_free(utl_opt_t *opts);
 
-bool utl_args_is_set(utl_arginfo_t *arginfo, const char *name);
+bool utl_opts_is_set(utl_opt_t *opts, const char *name);
 
-const char *utl_args_get_string(utl_arginfo_t *arginfo, const char *name);
+const char *utl_opts_get_string(utl_opt_t *opts, const char *name);
 
-bool utl_args_get_u16(utl_arginfo_t *arginfo, uint16_t *n, const char *name);
+bool utl_opts_get_u16(utl_opt_t *opts, uint16_t *n, const char *name);
 
-bool utl_args_get_u32(utl_arginfo_t *arginfo, uint32_t *n, const char *name);
+bool utl_opts_get_u32(utl_opt_t *opts, uint32_t *n, const char *name);
 
-bool utl_args_get_help_messages(utl_arginfo_t *arginfo, utl_str_t *messages);
+bool utl_opts_get_help_messages(utl_opt_t *opts, utl_str_t *messages);
 
 
 #ifdef __cplusplus
 }
 #endif  //__cplusplus
 
-#endif /* UTL_ARGS_H__ */
+#endif /* UTL_OPTS_H__ */
