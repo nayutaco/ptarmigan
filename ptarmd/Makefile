@@ -37,8 +37,7 @@ ifeq ("$(BUILD_PTARMD)","LIB")
 OUTPUT_FILENAME := libptarm.so
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_lib.c
 C_SOURCE_FILES += $(PRJ_PATH)/co_nayuta_lightning_PtarmiganNative.c
-INC_PATHS += -I/usr/lib/jvm/java-8-openjdk-amd64/include
-INC_PATHS += -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux
+INC_PATHS += $(BUILD_PTARMD_LIB_INCPATHS)
 else
 OUTPUT_FILENAME := ptarmd
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_main.c
