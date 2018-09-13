@@ -33,3 +33,6 @@ script:
   - make full
   - make test
 
+notifications:
+  email
+    - hiroki.gondo@nayuta.co
