@@ -22,3 +22,7 @@ GTAGS
 tags
 /html
 a.out
+.gdbinit
+dbptarm
+logs
+ptarm_node_*.conf
