@@ -31,6 +31,7 @@
 #include "conf.h"
 #include "ln_db.h"
 #include "utl_log.h"
+#include "utl_addr.h"
 
 
 /**************************************************************************
@@ -126,10 +127,14 @@ int main(int argc, char *argv[])
             break;
         case 'a':
             //ip address
-            p_addr->type = LN_NODEDESC_IPV4;
-            uint8_t *p = p_addr->addrinfo.addr;
-            sscanf(optarg, "%" SCNu8 ".%" SCNu8 ".%" SCNu8 ".%" SCNu8,
-                    &p[0], &p[1], &p[2], &p[3]);
+            {
+                uint8_t ipbin[4];
+                bool addrret = utl_addr_ipv4_str2bin(ipbin, optarg);
+                if (addrret) {
+                    p_addr->type = LN_NODEDESC_IPV4;
+                    memcpy(p_addr->addrinfo.addr, ipbin, sizeof(ipbin));
+                }
+            }
             break;
         case 'c':
             //load btcconf file

@@ -6,15 +6,18 @@ _ggtest/
 .vscode/
 
 ptarmd/ptarmd
-ptarmd/libptarm.so
 ptarmcli/ptarmcli
 showdb/showdb
 routing/routing
+
+jni/classes/*
+jni/node
 
 .Depend
 *.o
 *.a
 *.log
+*.so
 GPATH
 GRTAGS
 GSYMS
