@@ -20,7 +20,7 @@
  *  under the License.
  */
 /** @file   btc.c
- *  @brief  bitcoinトランザクション計算
+ *  @brief  bitcoin offline API
  *  @author ueno@nayuta.co
  */
 #include <unistd.h>
