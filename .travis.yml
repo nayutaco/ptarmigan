@@ -34,5 +34,5 @@ script:
   - make test
 
 notifications:
-  email
+  email:
     - hiroki.gondo@nayuta.co
