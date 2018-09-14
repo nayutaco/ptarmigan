@@ -36,3 +36,4 @@ script:
 notifications:
   email:
     - hiroki.gondo@nayuta.co
+    - ueno@nayuta.co
