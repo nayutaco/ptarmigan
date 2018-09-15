@@ -1057,33 +1057,37 @@ void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 //EKEY
 //////////////////////
 
-/** 拡張鍵作成準備
+/** 拡張鍵生成
  *
  * pPrivKeyが非NULL かつ pEKey->typeが #BTC_EKEY_PRIV の場合、以下のいずれかを行う。<br/>
  *      - pSeedが非NULL: Master秘密鍵とMaster公開鍵を生成<br/>
  *      - pSeedがNULL: 子秘密鍵と子公開鍵を生成<br/>
  * pEKey->typeが #BTC_EKEY_PUB の場合、子公開鍵を生成する。
+ * pEKey->key[]には pEKey->typeに応じた結果をコピーする。
  *
- * @param[in,out]   pEKey           拡張鍵構造体(type, depth, child_numberを設定しておく)
- * @param[in]       pPrivKey        親秘密鍵(NULL: 子公開鍵)
- * @param[in]       pPubKey         親公開鍵
+ * @param[in,out]   pEKey           拡張鍵構造体
+ * @param[in]       pKey            親秘密鍵 or 親公開鍵(pEKey->type次第。pSeedが非NULLの場合は未使用。)
  * @param[in]       pSeed           非NULL: Master / NULL: 子鍵
  * @param[in]       SzSeed          pSeedサイズ
  * @return      true:成功
  */
-bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, const uint8_t *pSeed, int SzSeed);
+bool btc_ekey_generate(btc_ekey_t *pEKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
+        const uint8_t *pKey,
+        const uint8_t *pSeed, int SzSeed);
 
 
-/** 拡張鍵生成
+/** 拡張鍵データ作成
+ *
+ * #btc_ekey_generate()で生成した拡張鍵構造体
  *
  * @param[out]      pData       鍵データ
  * @param[out]      pAddr       非NULL:鍵アドレス文字列(NULL時は生成しない)
  * @param[in]       pEKey       生成元情報
  */
-bool btc_ekey_create(uint8_t *pData, char *pAddr, const btc_ekey_t *pEKey);
+bool btc_ekey_create_data(uint8_t *pData, char *pAddr, const btc_ekey_t *pEKey);
 
 
-/** 拡張鍵読込み
+/** 拡張鍵データ読込み
  *
  * @param[out]  pEKey       拡張鍵構造体
  * @param[in]   pData       鍵データ(Base58CHKデコード後)
