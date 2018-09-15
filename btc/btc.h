@@ -26,18 +26,15 @@
 #ifndef BTC_H__
 #define BTC_H__
 
+#if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
+#include <stdio.h>
+#endif
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "mbedtls/sha256.h"
-#include "mbedtls/ripemd160.h"
-#include "mbedtls/ecp.h"
-#ifdef PTARM_USE_RNG
-#include "mbedtls/ctr_drbg.h"
-#endif  //PTARM_USE_RNG
 
-#include "utl_common.h"
 #include "utl_buf.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -1256,9 +1253,7 @@ const uint8_t *btc_util_get_genesis_block(btc_genesis_t Kind);
  * @param[in]       pData           対象データ
  * @param[in]       Len             pDatat長
  */
-static inline void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len) {
-    mbedtls_ripemd160(pData, Len, pRipemd160);
-}
+void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len);
 
 
 /** SHA256計算
@@ -1267,9 +1262,7 @@ static inline void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData,
  * @param[in]       pData           元データ
  * @param[in]       Len             pData長
  */
-static inline void btc_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len) {
-    mbedtls_sha256(pData, Len, pSha256, 0);
-}
+void btc_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len);
 
 
 /** HASH160計算
@@ -1301,12 +1294,12 @@ void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len);
 void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2);
 
 
-int btc_util_set_keypair(mbedtls_ecp_keypair *pKeyPair, const uint8_t *pPubKey);
-int btc_util_ecp_point_read_binary2(mbedtls_ecp_point *point, const uint8_t *pPubKey);
+int btc_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
+int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
 void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash);
 void btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix);
 bool btc_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix);
-int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const mbedtls_mpi *pA);
+int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA);
 bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
 void btc_util_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey);
 bool btc_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen);

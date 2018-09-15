@@ -28,6 +28,7 @@
 #include "libbase58.h"
 #include "mbedtls/md.h"
 #include "mbedtls/pkcs5.h"
+#include "mbedtls/bignum.h"
 
 
 /**************************************************************************
