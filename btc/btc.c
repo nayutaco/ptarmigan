@@ -30,6 +30,7 @@
 #include "mbedtls/version.h"
 
 #include "btc_local.h"
+#include "utl_common.h"
 
 #ifndef __ORDER_LITTLE_ENDIAN__
 #error Only Little Endian
