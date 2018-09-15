@@ -212,7 +212,7 @@ typedef struct {
     uint32_t    fingerprint;                    ///<
     uint32_t    child_number;                   ///<
     uint8_t     chain_code[BTC_SZ_CHAINCODE];   ///<
-    uint8_t     key[BTC_SZ_PUBKEY];             ///<
+    uint8_t     key[BTC_SZ_PUBKEY];             ///< typeがBTC_EKEY_PRIVの場合、先頭の32byteが有効
 } btc_ekey_t;
 
 
@@ -326,7 +326,7 @@ btc_chain_t btc_get_chain(void);
 bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifPriv);
 
 
-/** RAW秘密鍵をWI形式秘密鍵に変換
+/** RAW秘密鍵をWIF形式秘密鍵に変換
  *
  * @param[out]      pWifPriv
  * @param[in]       pPrivKey
@@ -356,7 +356,7 @@ bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey);
 
 /** 公開鍵をBitcoinアドレス(P2WPKH)に変換
  *
- * @param[out]      pWAddr          変換後データ(BTC_SZ_WPKHADDR以上のサイズを想定)
+ * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_MAX 以上のサイズを想定)
  * @param[in]       pPubKey         対象データ(BTC_SZ_PUBKEY)
  */
 bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);

@@ -366,15 +366,17 @@ void btc_print_extendedkey(const btc_ekey_t *pEKey)
     btc_util_dumpbin(fp, pEKey->chain_code, 32, true);
     if (pEKey->type == BTC_EKEY_PUB) {
         fprintf(fp, "pubkey: ");
-        btc_util_dumpbin(fp, pEKey->key, 33, true);
+        btc_util_dumpbin(fp, pEKey->key, BTC_SZ_PUBKEY, true);
     } else {
         fprintf(fp, "privkey: ");
-        btc_util_dumpbin(fp, pEKey->key, 32, true);
+        btc_util_dumpbin(fp, pEKey->key, BTC_SZ_PRIVKEY, true);
 
         uint8_t pubkey[BTC_SZ_PUBKEY];
-        btc_keys_priv2pub(pubkey, pEKey->key);
-        fprintf(fp, "pubkey: ");
-        btc_util_dumpbin(fp, pubkey, sizeof(pubkey), true);
+        bool b = btc_keys_priv2pub(pubkey, pEKey->key);
+        if (b) {
+            fprintf(fp, "pubkey: ");
+            btc_util_dumpbin(fp, pubkey, sizeof(pubkey), true);
+        }
     }
     fprintf(fp, "------------------------\n");
 }

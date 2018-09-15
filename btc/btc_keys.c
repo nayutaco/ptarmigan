@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "mbedtls/asn1write.h"
 #include "mbedtls/ecdsa.h"
@@ -73,7 +72,6 @@ bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifP
         ret = (memcmp(buf_sha256, b58dec + 1 + BTC_SZ_PRIVKEY + tail, 4) == 0);
     } else {
         ret = false;
-        assert(0);
     }
     if (ret) {
         memcpy(pPrivKey, b58dec + 1, BTC_SZ_PRIVKEY);
@@ -128,12 +126,10 @@ bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey)
     //P:result, m:掛ける数値, grp.G:point
     ret = mbedtls_mpi_read_binary(&m, pPrivKey, BTC_SZ_PRIVKEY);
     if (ret) {
-        assert(0);
         goto LABEL_EXIT;
     }
     ret = mbedtls_ecp_mul(&keypair.grp, &P, &m, &keypair.grp.G, NULL, NULL);
     if (ret) {
-        assert(0);
         goto LABEL_EXIT;
     }
 
