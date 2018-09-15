@@ -27,7 +27,16 @@
 
 #include "libbase58.h"
 #include "mbedtls/md.h"
+#include "mbedtls/pkcs5.h"
 #include "mbedtls/bignum.h"
+
+
+/**************************************************************************
+ * macros
+ **************************************************************************/
+
+#define M_ITER_COUNT        (2048)
+#define M_KEYLEN            (64)
 
 
 /**************************************************************************
@@ -59,6 +68,40 @@ static bool ekey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCo
 /**************************************************************************
  * public functions
  **************************************************************************/
+
+bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord)
+{
+    //https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#generating-the-mnemonic
+    //  const int ENT = 256;
+    //  const int CS = 8;       //ENT / 32
+    //  const int MS = 24;      //(ENT + CS) / 11 = 264 / 11 = 24 words
+
+    int ret;
+
+    //PBKDF2
+    //  password:   mnemonic sentence
+    //  salt:       "mnemonic" + passphrase
+    //  iter count: 2048byte
+    // --> result : 64byte
+    const uint8_t *salt = (const uint8_t *)"mnemonic";
+    const size_t salt_len = strlen((const char *)salt);
+
+    mbedtls_md_context_t md_ctx;
+    mbedtls_md_init(&md_ctx);
+    mbedtls_md_setup(&md_ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA512), 1);
+    ret = mbedtls_pkcs5_pbkdf2_hmac(&md_ctx,
+                    (const uint8_t *)pWord, strlen(pWord),
+                    salt, salt_len,
+                    M_ITER_COUNT,
+                    M_KEYLEN, pSeed);
+    if (ret != 0) {
+        LOGD("fail: %x\n", -ret);
+    }
+
+    mbedtls_md_free(&md_ctx);
+    return 0;
+}
+
 
 bool btc_ekey_generate(btc_ekey_t *pEKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
         const uint8_t *pKey,
