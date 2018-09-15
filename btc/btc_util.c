@@ -28,6 +28,9 @@
 
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/md.h"
+#include "mbedtls/sha256.h"
+#include "mbedtls/ripemd160.h"
+#include "mbedtls/ecp.h"
 #include "libbase58.h"
 
 #include "utl_dbg.h"
@@ -336,6 +339,18 @@ const uint8_t *btc_util_get_genesis_block(btc_genesis_t kind)
 }
 
 
+void btc_util_ripemd160(uint8_t *pRipemd160, const uint8_t *pData, uint16_t Len)
+{
+    mbedtls_ripemd160(pData, Len, pRipemd160);
+}
+
+
+void btc_util_sha256(uint8_t *pSha256, const uint8_t *pData, uint16_t Len)
+{
+    mbedtls_sha256(pData, Len, pSha256, 0);
+}
+
+
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)
 /** uint8[]の内容をFILE*出力
  *
@@ -409,11 +424,12 @@ void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, 
  *      - https://bitcointalk.org/index.php?topic=644919.0
  *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
  */
-int HIDDEN btc_util_set_keypair(mbedtls_ecp_keypair *pKeyPair, const uint8_t *pPubKey)
+int HIDDEN btc_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
 {
     int ret;
 
-    ret = btc_util_ecp_point_read_binary2(&(pKeyPair->Q), pPubKey);
+    mbedtls_ecp_keypair *p_keypair = (mbedtls_ecp_keypair *)pKeyPair;
+    ret = btc_util_ecp_point_read_binary2(&(p_keypair->Q), pPubKey);
 
     return ret;
 }
@@ -428,13 +444,14 @@ int HIDDEN btc_util_set_keypair(mbedtls_ecp_keypair *pKeyPair, const uint8_t *pP
  * @note
  *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
  */
-int btc_util_ecp_point_read_binary2(mbedtls_ecp_point *point, const uint8_t *pPubKey)
+int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey)
 {
     int ret;
     uint8_t parity;
     size_t plen;
     mbedtls_mpi e, y2;
     mbedtls_ecp_keypair keypair;
+    mbedtls_ecp_point *point = (mbedtls_ecp_point *)pPoint;
 
     mbedtls_mpi_init(&e);
     mbedtls_mpi_init(&y2);
@@ -656,7 +673,7 @@ bool HIDDEN btc_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint
  * pPubKeyOut = pPubKeyIn + pA * G
  *
  */
-int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const mbedtls_mpi *pA)
+int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA)
 {
     int ret;
     mbedtls_ecp_point P1;
@@ -682,7 +699,7 @@ int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const mbedtl
     if (ret) {
         goto LABEL_EXIT;
     }
-    ret = mbedtls_ecp_muladd(&keypair.grp, &P2, pA, &keypair.grp.G, &one, &P1);
+    ret = mbedtls_ecp_muladd(&keypair.grp, &P2, (const mbedtls_mpi *)pA, &keypair.grp.G, &one, &P1);
     if (ret) {
         goto LABEL_EXIT;
     }

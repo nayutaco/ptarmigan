@@ -38,6 +38,10 @@
 #include <string.h>
 #include <assert.h>
 
+#ifdef PTARM_USE_RNG
+#include "mbedtls/ctr_drbg.h"
+#endif  //PTARM_USE_RNG
+
 #include "btc.h"
 #define LOG_TAG "BTC"
 #include "utl_log.h"
