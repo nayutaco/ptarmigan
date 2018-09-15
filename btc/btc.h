@@ -1057,6 +1057,12 @@ void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 //EKEY
 //////////////////////
 
+/** mnemonic words --> seed[64]
+ * 
+ */
+bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord);
+
+
 /** 拡張鍵生成
  *
  * pPrivKeyが非NULL かつ pEKey->typeが #BTC_EKEY_PRIV の場合、以下のいずれかを行う。<br/>
