@@ -59,7 +59,9 @@ static bool ekey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCo
  * public functions
  **************************************************************************/
 
-bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, const uint8_t *pSeed, int SzSeed)
+bool btc_ekey_generate(btc_ekey_t *pEKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
+        const uint8_t *pKey,
+        const uint8_t *pSeed, int SzSeed)
 {
     bool ret = false;
     int retval;
@@ -69,18 +71,25 @@ bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, co
     int key_len;
     int input_len;
 
-    if ((pPrivKey != NULL) && (pEKey->type == BTC_EKEY_PRIV)) {
+    pEKey->type = Type;
+    pEKey->depth = Depth;
+    pEKey->child_number = ChildNum;
+
+    if (pEKey->type == BTC_EKEY_PRIV) {
         //private parent key --> private child key
         if (pSeed == NULL) {
             //Child
+            uint8_t pub[BTC_SZ_PUBKEY];
+            btc_keys_priv2pub(pub, pKey);
+
             p_key = pEKey->chain_code;
             key_len = BTC_SZ_CHAINCODE;
 
             if (pEKey->child_number & BTC_EKEY_HARDENED) {
                 output37[0] = 0x00;
-                memcpy(output37 + 1, pPrivKey, BTC_SZ_PRIVKEY);
+                memcpy(output37 + 1, pKey, BTC_SZ_PRIVKEY);
             } else {
-                memcpy(output37, pPubKey, BTC_SZ_PUBKEY);
+                memcpy(output37, pub, BTC_SZ_PUBKEY);
             }
             output37[BTC_SZ_PUBKEY    ] =  pEKey->child_number  >> 24;
             output37[BTC_SZ_PUBKEY + 1] = (pEKey->child_number  >> 16) & 0xff;
@@ -90,7 +99,7 @@ bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, co
             input_len = 37;
 
             uint8_t h160[BTC_SZ_HASH160];
-            btc_util_hash160(h160, pPubKey, BTC_SZ_PUBKEY);
+            btc_util_hash160(h160, pub, BTC_SZ_PUBKEY);
             pEKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
         } else {
             //Master
@@ -104,12 +113,13 @@ bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, co
     } else if (pEKey->type == BTC_EKEY_PUB) {
         //public parent key --> public child key
         if (pEKey->child_number & BTC_EKEY_HARDENED) {
+            LOGD("fail: hardened child number\n");
             return false;
         }
         p_key = pEKey->chain_code;
         key_len = BTC_SZ_CHAINCODE;
 
-        memcpy(output37, pPubKey, BTC_SZ_PUBKEY);
+        memcpy(output37, pKey, BTC_SZ_PUBKEY);
         output37[BTC_SZ_PUBKEY    ] =  pEKey->child_number  >> 24;
         output37[BTC_SZ_PUBKEY + 1] = (pEKey->child_number  >> 16) & 0xff;
         output37[BTC_SZ_PUBKEY + 2] = (pEKey->child_number  >>  8) & 0xff;
@@ -118,9 +128,10 @@ bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, co
         input_len = 37;
 
         uint8_t h160[BTC_SZ_HASH160];
-        btc_util_hash160(h160, pPubKey, BTC_SZ_PUBKEY);
+        btc_util_hash160(h160, pKey, BTC_SZ_PUBKEY);
         pEKey->fingerprint = (h160[0] << 24) | (h160[1] << 16) | (h160[2] << 8) | h160[3];
     } else {
+        LOGD("fail: invalid type\n");
         return false;
     }
 
@@ -131,11 +142,11 @@ bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, co
 
     bool b = ekey_hmac512(&n, &l_L, pEKey->chain_code, p_key, key_len, p_input, input_len);
     if (!b) {
-        //printf("fail : ekey_hmac512\n");
+        LOGD("fail : ekey_hmac512\n");
         goto LABEL_EXIT;
     }
 
-    if ((pPrivKey != NULL) && (pEKey->type == BTC_EKEY_PRIV)) {
+    if (pEKey->type == BTC_EKEY_PRIV) {
         //private parent key --> private child key
         if (pSeed == NULL) {
             //Child
@@ -145,10 +156,10 @@ bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, co
             mbedtls_mpi_init(&k_i);
             mbedtls_mpi_init(&kpar);
 
-            retval  = mbedtls_mpi_read_binary(&kpar, pPrivKey, BTC_SZ_PRIVKEY);
+            retval  = mbedtls_mpi_read_binary(&kpar, pKey, BTC_SZ_PRIVKEY);
             retval += mbedtls_mpi_add_mpi(&k_i, &l_L, &kpar);
             retval += mbedtls_mpi_mod_mpi(&k_i, &k_i, &n);
-            retval += mbedtls_mpi_write_binary(&k_i, pPrivKey, BTC_SZ_PRIVKEY);
+            retval += mbedtls_mpi_write_binary(&k_i, pEKey->key, BTC_SZ_PRIVKEY);
 
             //k_i != 0
             ret = (retval == 0) && (mbedtls_mpi_cmp_int(&k_i, 0) != 0);
@@ -158,14 +169,13 @@ bool btc_ekey_prepare(btc_ekey_t *pEKey, uint8_t *pPrivKey, uint8_t *pPubKey, co
             mbedtls_mpi_free(&k_i);
         } else {
             //Master
-            retval = mbedtls_mpi_write_binary(&l_L, pPrivKey, BTC_SZ_PRIVKEY);
+            retval = mbedtls_mpi_write_binary(&l_L, pEKey->key, BTC_SZ_PRIVKEY);
             ret = (retval == 0);
             assert(ret);
         }
-        btc_keys_priv2pub(pPubKey, pPrivKey);
     } else if (pEKey->type == BTC_EKEY_PUB) {
         //public parent key --> public child key
-        ret = (btc_util_ecp_muladd(pPubKey, pPubKey, &l_L) == 0);
+        ret = (btc_util_ecp_muladd(pEKey->key, pKey, &l_L) == 0);
     } else {
         //上でreturnするので、こっちは通らない
         //return false;
@@ -178,11 +188,14 @@ LABEL_EXIT:
     memset(output37, 0, sizeof(output37));      //clear for security
 
     //TODO: check (l_L >=n or k_i == 0)
+    if (ret != 0) {
+        LOGD("fail\n");
+    }
     return ret;
 }
 
 
-bool btc_ekey_create(uint8_t *pData, char *pAddr, const btc_ekey_t *pEKey)
+bool btc_ekey_create_data(uint8_t *pData, char *pAddr, const btc_ekey_t *pEKey)
 {
     uint32_t ver;
     const uint8_t *p_ver = (const uint8_t *)&ver;
@@ -293,10 +306,10 @@ bool btc_ekey_read(btc_ekey_t *pEKey, const uint8_t *pData, int Len)
     if (pEKey->type == BTC_EKEY_PRIV) {
         //privkey
         p++;
-        len = 32;
+        len = BTC_SZ_PRIVKEY;
     } else {
         //pubkey
-        len = 33;
+        len = BTC_SZ_PUBKEY;
     }
     memcpy(pEKey->key, p, len);
     p += len;

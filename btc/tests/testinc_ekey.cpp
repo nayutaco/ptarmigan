@@ -9,6 +9,7 @@ class extendedkey: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
+        utl_log_init_stdout();
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_MAINNET, false);
     }
@@ -57,22 +58,20 @@ TEST_F(extendedkey, chain_m)
     uint8_t buf_ekey[BTC_SZ_EKEY];
     char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey.type = BTC_EKEY_PRIV;
-    ekey.depth = 0;
-    ekey.child_number = 0;
-    bool b = btc_ekey_prepare(&ekey, priv, pub, SEED, sizeof(SEED));
+    bool b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, 0, 0, NULL, SEED, sizeof(SEED));
     ASSERT_TRUE(b);
     btc_print_extendedkey(&ekey);
+    memcpy(priv, ekey.key, BTC_SZ_PRIVKEY);
 
-    memcpy(ekey.key, priv, sizeof(priv));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0, xaddr);
     btc_print_extendedkey(&ekey);
 
     ekey.type = BTC_EKEY_PUB;
-    memcpy(ekey.key, pub, sizeof(pub));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    btc_keys_priv2pub(ekey.key, ekey.key);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0, xaddr);
     btc_print_extendedkey(&ekey);
@@ -97,7 +96,6 @@ TEST_F(extendedkey, chain_m)
     ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
 }
 
-
 TEST_F(extendedkey, chain_m_0H)
 {
     const char XPRIV0H[] = "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7";
@@ -110,22 +108,20 @@ TEST_F(extendedkey, chain_m_0H)
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = BTC_EKEY_PRIV;
-    ekey.depth++;
-    ekey.child_number = BTC_EKEY_HARDENED | 0;
-    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    bool b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, 1, BTC_EKEY_HARDENED | 0, priv, NULL, 0);
     ASSERT_TRUE(b);
     btc_print_extendedkey(&ekey);
+    memcpy(priv, ekey.key, BTC_SZ_PRIVKEY);
 
-    memcpy(ekey.key, priv, sizeof(priv));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H, xaddr);
     btc_print_extendedkey(&ekey);
 
     ekey.type = BTC_EKEY_PUB;
-    memcpy(ekey.key, pub, sizeof(pub));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    btc_keys_priv2pub(ekey.key, ekey.key);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H, xaddr);
     btc_print_extendedkey(&ekey);
@@ -153,11 +149,9 @@ TEST_F(extendedkey, chain_m_0Hpub)
 {
     //const char XPUB0H[] = "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw";
 
-    ekey_prev.type = BTC_EKEY_PUB;
-    ekey_prev.depth++;
-    ekey_prev.child_number = BTC_EKEY_HARDENED | 0;
+    //hardenedからchild pubkeyはNG
     memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_generate(&ekey_prev, BTC_EKEY_PUB, 1, BTC_EKEY_HARDENED | 0, pub_prev, NULL, 0);
     ASSERT_FALSE(b);
 }
 
@@ -174,22 +168,20 @@ TEST_F(extendedkey, chain_m_0H_1)
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = BTC_EKEY_PRIV;
-    ekey.depth++;
-    ekey.child_number = 1;
-    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    bool b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, 2, 1, priv, NULL, 0);
     ASSERT_TRUE(b);
     btc_print_extendedkey(&ekey);
+    memcpy(priv, ekey.key, BTC_SZ_PRIVKEY);
 
-    memcpy(ekey.key, priv, sizeof(priv));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H1, xaddr);
     btc_print_extendedkey(&ekey);
 
     ekey.type = BTC_EKEY_PUB;
-    memcpy(ekey.key, pub, sizeof(pub));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    btc_keys_priv2pub(ekey.key, ekey.key);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H1, xaddr);
     btc_print_extendedkey(&ekey);
@@ -220,18 +212,13 @@ TEST_F(extendedkey, chain_m_0H_1pub)
     uint8_t buf_ekey[BTC_SZ_EKEY];
     char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey_prev.type = BTC_EKEY_PUB;
-    ekey_prev.depth++;
-    ekey_prev.child_number = 1;
-    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_generate(&ekey_prev, BTC_EKEY_PUB, 2, 1, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&ekey_prev);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
 
-    memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey_prev);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey_prev);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H1, xaddr);
-    btc_print_extendedkey(&ekey_prev);
 }
 
 
@@ -247,22 +234,20 @@ TEST_F(extendedkey, chain_m_0H_1_2H)
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = BTC_EKEY_PRIV;
-    ekey.depth++;
-    ekey.child_number = BTC_EKEY_HARDENED | 2;
-    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    bool b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, 3, BTC_EKEY_HARDENED | 2, priv, NULL, 0);
     ASSERT_TRUE(b);
     btc_print_extendedkey(&ekey);
+    memcpy(priv, ekey.key, BTC_SZ_PRIVKEY);
 
-    memcpy(ekey.key, priv, sizeof(priv));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H12H, xaddr);
     btc_print_extendedkey(&ekey);
 
     ekey.type = BTC_EKEY_PUB;
-    memcpy(ekey.key, pub, sizeof(pub));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    btc_keys_priv2pub(ekey.key, ekey.key);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H, xaddr);
     btc_print_extendedkey(&ekey);
@@ -290,11 +275,8 @@ TEST_F(extendedkey, chain_m_0H_1_2Hpub)
 {
     //const char XPUB0H12H[] = "xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5";
 
-    ekey_prev.type = BTC_EKEY_PUB;
-    ekey_prev.depth++;
-    ekey_prev.child_number = BTC_EKEY_HARDENED | 2;
     memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_generate(&ekey_prev, BTC_EKEY_PUB, 3, BTC_EKEY_HARDENED | 2, pub_prev, NULL, 0);
     ASSERT_FALSE(b);
 }
 
@@ -311,22 +293,20 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2)
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = BTC_EKEY_PRIV;
-    ekey.depth++;
-    ekey.child_number = 2;
-    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    bool b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, 4, 2, priv, NULL, 0);
     ASSERT_TRUE(b);
     btc_print_extendedkey(&ekey);
+    memcpy(priv, ekey.key, BTC_SZ_PRIVKEY);
 
-    memcpy(ekey.key, priv, sizeof(priv));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H12H2, xaddr);
     btc_print_extendedkey(&ekey);
 
     ekey.type = BTC_EKEY_PUB;
-    memcpy(ekey.key, pub, sizeof(pub));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    btc_keys_priv2pub(ekey.key, ekey.key);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H2, xaddr);
     btc_print_extendedkey(&ekey);
@@ -357,15 +337,12 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2pub)
     uint8_t buf_ekey[BTC_SZ_EKEY];
     char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey_prev.type = BTC_EKEY_PUB;
-    ekey_prev.depth++;
-    ekey_prev.child_number = 2;
-    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_generate(&ekey_prev, BTC_EKEY_PUB, 4, 2, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
     btc_print_extendedkey(&ekey_prev);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
 
-    memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey_prev);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey_prev);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H2, xaddr);
     btc_print_extendedkey(&ekey_prev);
@@ -384,22 +361,20 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2_1)
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
     memcpy(pub_prev, pub, sizeof(pub));
 
-    ekey.type = BTC_EKEY_PRIV;
-    ekey.depth++;
-    ekey.child_number = 1000000000;
-    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
+    bool b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, 5, 1000000000, priv, NULL, 0);
     ASSERT_TRUE(b);
     btc_print_extendedkey(&ekey);
+    memcpy(priv, ekey.key, BTC_SZ_PRIVKEY);
 
-    memcpy(ekey.key, priv, sizeof(priv));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H12H21, xaddr);
     btc_print_extendedkey(&ekey);
 
     ekey.type = BTC_EKEY_PUB;
-    memcpy(ekey.key, pub, sizeof(pub));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    btc_keys_priv2pub(ekey.key, ekey.key);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H21, xaddr);
     btc_print_extendedkey(&ekey);
@@ -423,22 +398,19 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2_1)
 }
 
 
-TEST_F(extendedkey, chain_m_0H_1_2H_21pub)
+TEST_F(extendedkey, chain_m_0H_1_2H_2_1pub)
 {
     const char XPUB0H12H21[] = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
     char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey_prev.type = BTC_EKEY_PUB;
-    ekey_prev.depth++;
-    ekey_prev.child_number = 1000000000;
-    bool b = btc_ekey_prepare(&ekey_prev, NULL, pub_prev, NULL, 0);
+    bool b = btc_ekey_generate(&ekey_prev, BTC_EKEY_PUB, 5, 1000000000, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
     btc_print_extendedkey(&ekey_prev);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
 
-    memcpy(ekey_prev.key, pub_prev, sizeof(pub_prev));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey_prev);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey_prev);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H21, xaddr);
     btc_print_extendedkey(&ekey_prev);
@@ -459,22 +431,20 @@ TEST_F(extendedkey, chain_m_master2)
     uint8_t buf_ekey[BTC_SZ_EKEY];
     char xaddr[BTC_SZ_EKEY_ADDR_MAX];
 
-    ekey.type = BTC_EKEY_PRIV;
-    ekey.depth = 0;
-    ekey.child_number = 0;
-    bool b = btc_ekey_prepare(&ekey, priv, pub, SEED, sizeof(SEED));
+    bool b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, 0, 0, NULL, SEED, sizeof(SEED));
     ASSERT_TRUE(b);
     btc_print_extendedkey(&ekey);
+    memcpy(priv, ekey.key, BTC_SZ_PRIVKEY);
 
-    memcpy(ekey.key, priv, sizeof(priv));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0, xaddr);
     btc_print_extendedkey(&ekey);
 
     ekey.type = BTC_EKEY_PUB;
-    memcpy(ekey.key, pub, sizeof(pub));
-    b = btc_ekey_create(buf_ekey, xaddr, &ekey);
+    btc_keys_priv2pub(ekey.key, ekey.key);
+    memcpy(pub, ekey.key, BTC_SZ_PUBKEY);
+    b = btc_ekey_create_data(buf_ekey, xaddr, &ekey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0, xaddr);
     btc_print_extendedkey(&ekey);
@@ -500,52 +470,6 @@ TEST_F(extendedkey, chain_m_master2)
 }
 
 
-TEST_F(extendedkey, chain_testnet)
-{
-    utl_dbg_malloc_cnt_reset();
-    btc_init(BTC_TESTNET, false);
-
-    uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xpriv[BTC_SZ_EKEY_ADDR_MAX];
-    char xpub[BTC_SZ_EKEY_ADDR_MAX];
-
-    ekey.type = BTC_EKEY_PRIV;
-    ekey.depth = 5;
-    ekey.child_number = 1000000000;
-    bool b = btc_ekey_prepare(&ekey, priv, pub, NULL, 0);
-    ASSERT_TRUE(b);
-    btc_print_extendedkey(&ekey);
-
-    memcpy(ekey.key, priv, sizeof(priv));
-    b = btc_ekey_create(buf_ekey, xpriv, &ekey);
-    ASSERT_TRUE(b);
-    btc_print_extendedkey(&ekey);
-
-    ekey.type = BTC_EKEY_PUB;
-    memcpy(ekey.key, pub, sizeof(pub));
-    b = btc_ekey_create(buf_ekey, xpub, &ekey);
-    ASSERT_TRUE(b);
-    btc_print_extendedkey(&ekey);
-
-
-    btc_ekey_t ekey2;
-
-    memset(&ekey2, 0, sizeof(ekey2));
-    b = btc_ekey_read_addr(&ekey2, xpriv);
-    ASSERT_TRUE(b);
-    ASSERT_EQ(BTC_EKEY_PRIV, ekey2.type);
-    ASSERT_EQ(5, ekey2.depth);
-    ASSERT_EQ(0, memcmp(priv, ekey2.key, sizeof(priv)));
-
-    memset(&ekey2, 0, sizeof(ekey2));
-    b = btc_ekey_read_addr(&ekey2, xpub);
-    ASSERT_TRUE(b);
-    ASSERT_EQ(BTC_EKEY_PUB, ekey2.type);
-    ASSERT_EQ(5, ekey2.depth);
-    ASSERT_EQ(0, memcmp(pub, ekey2.key, sizeof(pub)));
-}
-
-
 TEST_F(extendedkey, read_addr_fail)
 {
     bool b;
@@ -563,7 +487,7 @@ TEST_F(extendedkey, read_fail_len)
     bool b;
     uint8_t buf_ekey[BTC_SZ_EKEY];
 
-    b = btc_ekey_create(buf_ekey, NULL, &ekey);
+    b = btc_ekey_create_data(buf_ekey, NULL, &ekey);
     ASSERT_TRUE(b);
 
     //短い
@@ -577,7 +501,7 @@ TEST_F(extendedkey, read_fail_data)
     bool b;
     uint8_t buf_ekey[BTC_SZ_EKEY];
 
-    b = btc_ekey_create(buf_ekey, NULL, &ekey);
+    b = btc_ekey_create_data(buf_ekey, NULL, &ekey);
     ASSERT_TRUE(b);
 
     buf_ekey[3] = ~buf_ekey[3]; //書き換え
@@ -591,7 +515,7 @@ TEST_F(extendedkey, read_fail_init)
     bool b;
     uint8_t buf_ekey[BTC_SZ_EKEY];
 
-    b = btc_ekey_create(buf_ekey, NULL, &ekey);
+    b = btc_ekey_create_data(buf_ekey, NULL, &ekey);
     ASSERT_TRUE(b);
 
     mPref[BTC_PREF] = 0;
@@ -606,6 +530,6 @@ TEST_F(extendedkey, create_fail)
     uint8_t buf_ekey[BTC_SZ_EKEY];
 
     mPref[BTC_PREF] = 0;
-    b = btc_ekey_create(buf_ekey, NULL, &ekey);
+    b = btc_ekey_create_data(buf_ekey, NULL, &ekey);
     ASSERT_FALSE(b);
 }
