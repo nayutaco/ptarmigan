@@ -22,6 +22,18 @@ endif
 
 all: lib default
 
+small:
+	$(MAKE) CFLAGS=-DPTARM_UTL_LOG_MACRO_DISABLED -C utl
+	$(MAKE) CFLAGS=-DPTARM_UTL_LOG_MACRO_DISABLED -C btc
+	mkdir -p $(INSTALL_DIR)/small/include
+	mkdir -p $(INSTALL_DIR)/small/lib
+	cp utl/libutl.a $(INSTALL_DIR)/small/lib/
+	cp btc/libbtc.a $(INSTALL_DIR)/small/lib/
+	cp -ra utl/utl_buf.h $(INSTALL_DIR)/small/include/
+	cp -ra btc/btc.h $(INSTALL_DIR)/small/include/
+	cp libs/install/lib/libbase58.a $(INSTALL_DIR)/small/lib/
+	cp libs/install/lib/libmbedcrypto.a $(INSTALL_DIR)/small/lib/
+
 clean:
 	$(MAKE) -C gtest clean
 	$(MAKE) -C utl clean
@@ -34,6 +46,7 @@ clean:
 	-@rm -rf $(INSTALL_DIR)/ptarmd $(INSTALL_DIR)/ptarmcli $(INSTALL_DIR)/showdb $(INSTALL_DIR)/routing GPATH GRTAGS GSYMS GTAGS
 
 full: git_subs lib default
+full_small: git_subs lib small
 
 distclean: lib_clean clean
 
