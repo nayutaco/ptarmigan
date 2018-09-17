@@ -533,3 +533,57 @@ TEST_F(extendedkey, create_fail)
     b = btc_ekey_create_data(buf_ekey, NULL, &ekey);
     ASSERT_FALSE(b);
 }
+
+
+// https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki#test-vectors
+TEST_F(extendedkey, bip49)
+{
+    const char MASTERSEED[] = "tprv8ZgxMBicQKsPe5YMU9gHen4Ez3ApihUfykaqUorj9t6FDqy3nP6eoXiAo2ssvpAjoLroQxHqr3R5nE3a5dU3DHTjTgJDd7zrbniJr6nrCzd";
+    const char XADDR_ACC0[] = "tprv8gRrNu65W2Msef2BdBSUgFdRTGzC8EwVXnV7UGS3faeXtuMVtGfEdidVeGbThs4ELEoayCAzZQ4uUji9DUiAs7erdVskqju7hrBcDvDsdbY";
+    const uint8_t ACC0IDX0[] = {
+        0xc9, 0xbd, 0xb4, 0x9c, 0xfb, 0xae, 0xdc, 0xa2,
+        0x1c, 0x4b, 0x1f, 0x3a, 0x78, 0x03, 0xc3, 0x46,
+        0x36, 0xb1, 0xd7, 0xdc, 0x55, 0xa7, 0x17, 0x13,
+        0x24, 0x43, 0xfc, 0x3f, 0x4c, 0x58, 0x67, 0xe8,
+    };
+    const char B58_ACC0IDX0[] = "2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2";
+
+    bool b;
+    uint8_t ekey_data[BTC_SZ_EKEY];
+    char ekey_xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    btc_ekey_t ekey;
+
+    btc_term();
+    btc_init(BTC_TESTNET, false);
+
+    b = btc_ekey_read_addr(&ekey, MASTERSEED);
+    ASSERT_TRUE(b);
+
+    b = btc_ekey_bip49_prepare(&ekey, 0, BTC_EKEY_BIP_SKIP);
+    ASSERT_TRUE(b);
+    btc_ekey_create_data(ekey_data, ekey_xaddr, &ekey);
+    ASSERT_TRUE(b);
+    ASSERT_STREQ(XADDR_ACC0, ekey_xaddr);
+
+    b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, ekey.depth + 1, 0, ekey.key, NULL, 0);
+    ASSERT_TRUE(b);
+    b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, ekey.depth + 1, 0, ekey.key, NULL, 0);
+    ASSERT_TRUE(b);
+    ASSERT_TRUE(0 == memcmp(ACC0IDX0, ekey.key, BTC_SZ_PRIVKEY));
+
+    //prepareも使っておく
+    memset(&ekey, 0, sizeof(ekey));
+    btc_ekey_read_addr(&ekey, MASTERSEED);
+    b = btc_ekey_bip49_prepare(&ekey, 0, 0);
+    ASSERT_TRUE(b);
+    btc_ekey_t akey;
+    b = btc_ekey_bip_generate(&akey, &ekey, 0);
+    ASSERT_TRUE(0 == memcmp(ACC0IDX0, akey.key, BTC_SZ_PRIVKEY));
+
+    uint8_t pubkey[BTC_SZ_PUBKEY];
+    btc_keys_priv2pub(pubkey, akey.key);
+    char addr[BTC_SZ_ADDR_MAX];
+    b = btc_keys_pub2p2wpkh(addr, pubkey);
+    ASSERT_TRUE(b);
+    ASSERT_STREQ(B58_ACC0IDX0, addr);
+}

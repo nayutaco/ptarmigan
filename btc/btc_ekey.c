@@ -63,6 +63,8 @@ static const uint32_t VERSION_BYTES[][2] = {
  **************************************************************************/
 
 static bool ekey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCode, const uint8_t *pKey, int KeyLen, const uint8_t *pData, int DataLen);
+static bool ekey_bip_init(btc_ekey_t *pEKey, uint32_t Bip, const uint8_t *pSeed, uint32_t Account, uint32_t Change);
+static bool ekey_bip_prepare(btc_ekey_t *pEKey, uint32_t Bip, uint32_t Account, uint32_t Change);
 
 
 /**************************************************************************
@@ -238,82 +240,38 @@ LABEL_EXIT:
     memset(output37, 0, sizeof(output37));      //clear for security
 
     //TODO: check (l_L >=n or k_i == 0)
-    if (ret != 0) {
+    if (!ret) {
         LOGD("fail\n");
     }
     return ret;
 }
 
 
-bool btc_ekey_bip44_prepare(btc_ekey_t *pEKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
+bool btc_ekey_bip44_init(btc_ekey_t *pEKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
 {
-    bool b;
-
-    //depth=0は、master node(Chain m)
-    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 0, 0, NULL, pSeed, BTC_SZ_EKEY_SEED);
-    if (!b) {
-        LOGD("fail: ekey depth 0\n");
-        return false;
-    }
-
-    //depth=1は、purpose(Chain m/44')
-    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 1, BTC_EKEY_HARDENED | 44, pEKey->key, NULL, 0);
-    if (!b) {
-        LOGD("fail: ekey depth 1\n");
-        return false;
-    }
-
-    //depth=2は、coin_type(Chain m/44'/coin_type')
-    uint32_t child_num;
-    switch (btc_get_chain()) {
-    case BTC_MAINNET:
-        child_num = 0;
-        break;
-    case BTC_TESTNET:
-        child_num = 1;
-        break;
-    default:
-        return false;
-    }
-    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 2, BTC_EKEY_HARDENED | child_num, pEKey->key, NULL, 0);
-    if (!b) {
-        LOGD("fail: ekey depth 2\n");
-        return false;
-    }
-
-    if (Account == BTC_EKEY_BIP44_SKIP) {
-        LOGD("ok: ekey depth 2\n");
-        return true;
-    }
-
-    //depth=3は、account(Chain m/44'/coin_type'/account')
-    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 3,  BTC_EKEY_HARDENED | Account, pEKey->key, NULL, 0);
-    if (!b) {
-        LOGD("fail: ekey depth 3\n");
-        return false;
-    }
-
-    if (Change == BTC_EKEY_BIP44_SKIP) {
-        LOGD("ok: ekey depth 3\n");
-        return true;
-    }
-
-    //depth=4は、change(Chain m/44'/coin_type'/account'/change)
-    if ((Change != BTC_EKEY_BIP44_EXTERNAL) && (Change != BTC_EKEY_BIP44_INTERNAL)) {
-        LOGD("fail: invali change\n");
-        return false;
-    }
-    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 4, Change, pEKey->key, NULL, 0);
-    if (!b) {
-        LOGD("fail: ekey depth 4\n");
-        return false;
-    }
-
-    return true;
+    return ekey_bip_init(pEKey, 44, pSeed, Account, Change);
 }
 
 
-bool btc_ekey_bip44_generate(btc_ekey_t *pEKeyOut, const btc_ekey_t *pEKeyIn, uint32_t Index)
+bool btc_ekey_bip44_prepare(btc_ekey_t *pEKey, uint32_t Account, uint32_t Change)
+{
+    return ekey_bip_prepare(pEKey, 44, Account, Change);
+}
+
+
+bool btc_ekey_bip49_init(btc_ekey_t *pEKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
+{
+    return ekey_bip_init(pEKey, 49, pSeed, Account, Change);
+}
+
+
+bool btc_ekey_bip49_prepare(btc_ekey_t *pEKey, uint32_t Account, uint32_t Change)
+{
+    return ekey_bip_prepare(pEKey, 49, Account, Change);
+}
+
+
+bool btc_ekey_bip_generate(btc_ekey_t *pEKeyOut, const btc_ekey_t *pEKeyIn, uint32_t Index)
 {
     memcpy(pEKeyOut, pEKeyIn, sizeof(btc_ekey_t));
     return btc_ekey_generate(pEKeyOut, BTC_EKEY_PRIV, 5, Index, pEKeyIn->key, NULL, 0);
@@ -552,6 +510,82 @@ static bool ekey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCo
         return false;
     }
     memcpy(pChainCode, output + 32, BTC_SZ_CHAINCODE);
+
+    return true;
+}
+
+
+static bool ekey_bip_init(btc_ekey_t *pEKey, uint32_t Bip, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
+{
+    bool b;
+
+    //depth=0は、master node(Chain m)
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 0, 0, NULL, pSeed, BTC_SZ_EKEY_SEED);
+    if (!b) {
+        LOGD("fail: ekey depth 0\n");
+        return false;
+    }
+
+    return ekey_bip_prepare(pEKey, Bip, Account, Change);
+}
+
+
+static bool ekey_bip_prepare(btc_ekey_t *pEKey, uint32_t Bip, uint32_t Account, uint32_t Change)
+{
+    bool b;
+
+    //depth=1は、purpose(Chain m/4x')
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 1, BTC_EKEY_HARDENED | Bip, pEKey->key, NULL, 0);
+    if (!b) {
+        LOGD("fail: ekey depth 1\n");
+        return false;
+    }
+
+    //depth=2は、coin_type(Chain m/4x'/coin_type')
+    uint32_t child_num;
+    switch (btc_get_chain()) {
+    case BTC_MAINNET:
+        child_num = 0;
+        break;
+    case BTC_TESTNET:
+        child_num = 1;
+        break;
+    default:
+        return false;
+    }
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 2, BTC_EKEY_HARDENED | child_num, pEKey->key, NULL, 0);
+    if (!b) {
+        LOGD("fail: ekey depth 2\n");
+        return false;
+    }
+
+    if (Account == BTC_EKEY_BIP_SKIP) {
+        LOGD("ok: ekey depth 2\n");
+        return true;
+    }
+
+    //depth=3は、account(Chain m/4x'/coin_type'/account')
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 3,  BTC_EKEY_HARDENED | Account, pEKey->key, NULL, 0);
+    if (!b) {
+        LOGD("fail: ekey depth 3\n");
+        return false;
+    }
+
+    if (Change == BTC_EKEY_BIP_SKIP) {
+        LOGD("ok: ekey depth 3\n");
+        return true;
+    }
+
+    //depth=4は、change(Chain m/4x'/coin_type'/account'/change)
+    if ((Change != BTC_EKEY_BIP_EXTERNAL) && (Change != BTC_EKEY_BIP_INTERNAL)) {
+        LOGD("fail: invali change\n");
+        return false;
+    }
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 4, Change, pEKey->key, NULL, 0);
+    if (!b) {
+        LOGD("fail: ekey depth 4\n");
+        return false;
+    }
 
     return true;
 }
