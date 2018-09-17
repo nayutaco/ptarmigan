@@ -416,34 +416,6 @@ void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, 
 }
 
 
-/** 圧縮された公開鍵をkeypairに展開する
- *
- * @param[in]       pPubKey     圧縮された公開鍵
- * @return      0   成功
- * @note
- *      - https://bitcointalk.org/index.php?topic=644919.0
- *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
- */
-int HIDDEN btc_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
-{
-    int ret;
-
-    mbedtls_ecp_keypair *p_keypair = (mbedtls_ecp_keypair *)pKeyPair;
-    ret = btc_util_ecp_point_read_binary2(&(p_keypair->Q), pPubKey);
-
-    return ret;
-}
-
-
-/** 圧縮公開鍵を非圧縮公開鍵展開
- *
- * @param[out]  point       非圧縮公開鍵座標
- * @param[in]   pPubKey     圧縮公開鍵
- * @return      0...正常
- *
- * @note
- *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
- */
 int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey)
 {
     int ret;
@@ -553,14 +525,7 @@ LABEL_EXIT:
 }
 
 
-/** PubKeyHash(P2PKH)をPubKeyHash(P2WPKH)に変換
- *
- * [00][14][pubKeyHash] --> HASH160
- *
- * @param[out]      pWPubKeyHash    変換後データ(BTC_SZ_PUBKEYHASH以上のサイズを想定)
- * @param[in]       pPubKeyHash     対象データ(BTC_SZ_PUBKEYHASH)
- */
-void HIDDEN btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
+void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
 {
     if (!mNativeSegwit) {
         uint8_t wit_prog[2 + BTC_SZ_PUBKEYHASH];
@@ -576,12 +541,6 @@ void HIDDEN btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubK
 }
 
 
-/** 種類に応じたscriptPubKey設定
- *
- * @param[out]      pBuf
- * @param[in]       pPubKeyHash
- * @param[in]       Prefix
- */
 void btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix)
 {
     switch (Prefix) {
@@ -611,68 +570,6 @@ void btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int P
 }
 
 
-/** PubKeyHashをBitcoinアドレスに変換
- *
- * @param[out]      pAddr           変換後データ(BTC_SZ_ADDR_MAX以上のサイズを想定)
- * @param[in]       pPubKeyHash     対象データ(最大BTC_SZ_PUBKEY)
- * @param[in]       Prefix          BTC_PREF_xxx
- * @note
- *      - Prefixが #BTC_PREF_NATIVE の場合、pPubKeyHashはwitness program(20byte)
- *      - Prefixが #BTC_PREF_NATIVE_SH の場合、pPubKeyHashはwitness program(32byte)
- */
-bool HIDDEN btc_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix)
-{
-    bool ret;
-    uint8_t buf_sha256[BTC_SZ_HASH256];
-
-    if (Prefix == BTC_PREF_NATIVE) {
-        uint8_t hrp_type;
-
-        switch (btc_get_chain()) {
-        case BTC_MAINNET:
-            hrp_type = SEGWIT_ADDR_MAINNET;
-            break;
-        case BTC_TESTNET:
-            hrp_type = SEGWIT_ADDR_TESTNET;
-            break;
-        default:
-            return false;
-        }
-        ret = segwit_addr_encode(pAddr, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH160);
-    } else if (Prefix == BTC_PREF_NATIVE_SH) {
-        uint8_t hrp_type;
-
-        switch (btc_get_chain()) {
-        case BTC_MAINNET:
-            hrp_type = SEGWIT_ADDR_MAINNET;
-            break;
-        case BTC_TESTNET:
-            hrp_type = SEGWIT_ADDR_TESTNET;
-            break;
-        default:
-            return false;
-        }
-        ret = segwit_addr_encode(pAddr, hrp_type, 0x00, pPubKeyHash, BTC_SZ_SHA256);
-
-    } else {
-        uint8_t pkh[1 + BTC_SZ_HASH160 + 4];
-        size_t sz = BTC_SZ_ADDR_MAX;
-
-        pkh[0] = mPref[Prefix];
-        memcpy(pkh + 1, pPubKeyHash, BTC_SZ_HASH160);
-        btc_util_hash256(buf_sha256, pkh, 1 + BTC_SZ_HASH160);
-        memcpy(pkh + 1 + BTC_SZ_HASH160, buf_sha256, 4);
-        ret = b58enc(pAddr, &sz, pkh, sizeof(pkh));
-    }
-
-    return ret;
-}
-
-
-/**
- * pPubKeyOut = pPubKeyIn + pA * G
- *
- */
 int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA)
 {
     int ret;
@@ -730,7 +627,7 @@ bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t
     mbedtls_ecp_keypair_init(&keypair);
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
-    int ret = btc_util_set_keypair(&keypair, pPubKey);
+    int ret = btcl_util_set_keypair(&keypair, pPubKey);
     if (!ret) {
         // keypair.Qに公開鍵(x, y)が入っている
         mbedtls_ecp_point pnt;
@@ -755,34 +652,71 @@ bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t
 }
 
 
-void btc_util_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey)
+/**************************************************************************
+ * package functions
+ **************************************************************************/
+
+int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
 {
-    uint8_t pub[BTC_SZ_PUBKEY];
-    btc_util_mul_pubkey(pub, pPubKey, pPrivKey, BTC_SZ_PRIVKEY);
-    btc_util_sha256(pResult, pub, sizeof(pub));
+    int ret;
+
+    mbedtls_ecp_keypair *p_keypair = (mbedtls_ecp_keypair *)pKeyPair;
+    ret = btc_util_ecp_point_read_binary2(&(p_keypair->Q), pPubKey);
+
+    return ret;
 }
 
 
-bool btc_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen)
+bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix)
 {
-    //HMAC(SHA256)
-    const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-    int ret = mbedtls_md_hmac(mdinfo, pKeyStr, StrLen, pMsg, MsgLen, pMac);
-    return ret == 0;
+    bool ret;
+    uint8_t buf_sha256[BTC_SZ_HASH256];
+
+    if (Prefix == BTC_PREF_NATIVE) {
+        uint8_t hrp_type;
+
+        switch (btc_get_chain()) {
+        case BTC_MAINNET:
+            hrp_type = SEGWIT_ADDR_MAINNET;
+            break;
+        case BTC_TESTNET:
+            hrp_type = SEGWIT_ADDR_TESTNET;
+            break;
+        default:
+            return false;
+        }
+        ret = segwit_addr_encode(pAddr, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH160);
+    } else if (Prefix == BTC_PREF_NATIVE_SH) {
+        uint8_t hrp_type;
+
+        switch (btc_get_chain()) {
+        case BTC_MAINNET:
+            hrp_type = SEGWIT_ADDR_MAINNET;
+            break;
+        case BTC_TESTNET:
+            hrp_type = SEGWIT_ADDR_TESTNET;
+            break;
+        default:
+            return false;
+        }
+        ret = segwit_addr_encode(pAddr, hrp_type, 0x00, pPubKeyHash, BTC_SZ_SHA256);
+
+    } else {
+        uint8_t pkh[1 + BTC_SZ_HASH160 + 4];
+        size_t sz = BTC_SZ_ADDR_MAX;
+
+        pkh[0] = mPref[Prefix];
+        memcpy(pkh + 1, pPubKeyHash, BTC_SZ_HASH160);
+        btc_util_hash256(buf_sha256, pkh, 1 + BTC_SZ_HASH160);
+        memcpy(pkh + 1 + BTC_SZ_HASH160, buf_sha256, 4);
+        ret = b58enc(pAddr, &sz, pkh, sizeof(pkh));
+    }
+
+    return ret;
 }
 
 
-/** トランザクションデータ作成
- *
- * @param[out]      pBuf            変換後データ
- * @param[in]       pTx             対象データ
- * @param[in]       enableSegWit    false:pTxがsegwitでも、witnessを作らない(TXID計算用)
- *
- * @note
- *      - 動的にメモリ確保するため、pBufは使用後 #utl_buf_free()で解放すること
- *      - vin cntおよびvout cntは 252までしか対応しない(varint型の1byteまで)
- */
-bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit)
+bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit)
 {
     //version[4]
     //mark[1]...wit
@@ -799,7 +733,7 @@ bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enable
     //locktime[4]
 
     //version + vin_cnt + vout_cnt
-    uint32_t len = sizeof(uint32_t) + btc_util_get_varint_len(pTx->vin_cnt) + btc_util_get_varint_len(pTx->vout_cnt);
+    uint32_t len = sizeof(uint32_t) + btcl_util_get_varint_len(pTx->vin_cnt) + btcl_util_get_varint_len(pTx->vout_cnt);
     bool segwit = false;
 
     //vin + witness
@@ -807,14 +741,14 @@ bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enable
         btc_vin_t *vin = &(pTx->vin[lp]);
 
         len += BTC_SZ_TXID + sizeof(uint32_t) + vin->script.len + sizeof(uint32_t);
-        len += btc_util_get_varint_len(vin->script.len);
+        len += btcl_util_get_varint_len(vin->script.len);
         if (enableSegWit && vin->wit_cnt) {
             segwit = true;
             len++;          //wit_cnt
             for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
                 utl_buf_t *buf = &(vin->witness[lp2]);
                 len += buf->len;
-                len += btc_util_get_varint_len(buf->len);
+                len += btcl_util_get_varint_len(buf->len);
             }
         }
     }
@@ -826,7 +760,7 @@ bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enable
         btc_vout_t *vout = &(pTx->vout[lp]);
 
         len += sizeof(uint64_t) + vout->script.len;
-        len += btc_util_get_varint_len(vout->script.len);
+        len += btcl_util_get_varint_len(vout->script.len);
     }
     //locktime
     len += sizeof(uint32_t);
@@ -845,7 +779,7 @@ bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enable
     }
 
     //vin
-    p += btc_util_set_varint_len(p, NULL, pTx->vin_cnt, false);
+    p += btcl_util_set_varint_len(p, NULL, pTx->vin_cnt, false);
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &(pTx->vin[lp]);
 
@@ -855,7 +789,7 @@ bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enable
         //index
         p += set_le32(p, vin->index);
         //scriptSig
-        p += btc_util_set_varint_len(p, vin->script.buf, vin->script.len, false);
+        p += btcl_util_set_varint_len(p, vin->script.buf, vin->script.len, false);
         memcpy(p, vin->script.buf, vin->script.len);
         p += vin->script.len;
         //sequence
@@ -863,14 +797,14 @@ bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enable
     }
 
     //vout
-    p += btc_util_set_varint_len(p, NULL, pTx->vout_cnt, false);
+    p += btcl_util_set_varint_len(p, NULL, pTx->vout_cnt, false);
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         btc_vout_t *vout = &(pTx->vout[lp]);
 
         //value
         p += set_le64(p, vout->value);
         //scriptPubKey
-        p += btc_util_set_varint_len(p, vout->script.buf, vout->script.len, false);
+        p += btcl_util_set_varint_len(p, vout->script.buf, vout->script.len, false);
         memcpy(p, vout->script.buf, vout->script.len);
         p += vout->script.len;
     }
@@ -880,11 +814,11 @@ bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enable
         for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
             btc_vin_t *vin = &(pTx->vin[lp]);
 
-            p += btc_util_set_varint_len(p, NULL, vin->wit_cnt, false);
+            p += btcl_util_set_varint_len(p, NULL, vin->wit_cnt, false);
             for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
                 utl_buf_t *buf = &(vin->witness[lp2]);
 
-                p += btc_util_set_varint_len(p, buf->buf, buf->len, false);
+                p += btcl_util_set_varint_len(p, buf->buf, buf->len, false);
                 memcpy(p, buf->buf, buf->len);
                 p += buf->len;
             }
@@ -898,51 +832,29 @@ bool HIDDEN btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enable
 }
 
 
-void HIDDEN btc_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref)
+void HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref)
 {
     uint8_t pkh[BTC_SZ_PUBKEYHASH];
 
     btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
-    btc_util_add_vout_pkh(pTx, Value, pkh, Pref);
+    btcl_util_add_vout_pkh(pTx, Value, pkh, Pref);
 }
 
 
-void HIDDEN btc_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref)
+void HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref)
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
     btc_util_create_scriptpk(&vout->script, pPubKeyHash, Pref);
 }
 
 
-/** varint型のデータ長サイズ取得
- *
- * @param[in]   Len         データ長(16bit長まで)
- * @return      varint型のデータ長サイズ
- *
- * @note
- *      - 補足:<br/>
- *          varint型はデータ長＋データという構成になっているが、データ長のサイズが可変になっている。<br/>
- *          データ長が0～0xfcまでは1バイト、0xfd～0xffffまでは3バイト、などとなる。<br/>
- *              https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
- */
-int HIDDEN btc_util_get_varint_len(uint32_t Len)
+int HIDDEN btcl_util_get_varint_len(uint32_t Len)
 {
     return (Len < VARINT_3BYTE_MIN) ? 1 : 3;
 }
 
 
-/** varint型のデータ長設定
- *
- * @param[out]      pData       設定先
- * @param[in]       pOrg        データ先頭(isScript==trueのみ)
- * @param[in]       Len         pOrg長
- * @param[in]       isScript    true:スクリプト作成中
- * @return      varintデータ長サイズ
- *
- * @note
- *      - pDataにvarint型のデータ長だけ書込む。pDataから戻り値だけ進んだところにpOrgを書込むとよい。
- */
-int HIDDEN btc_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript)
+int HIDDEN btcl_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript)
 {
     int retval = 0;
 

@@ -164,14 +164,14 @@ void btc_tx_add_vout_spk(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScript
 
 bool btc_tx_add_vout_p2pkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
-    btc_util_add_vout_pub(pTx, Value, pPubKey, BTC_PREF_P2PKH);
+    btcl_util_add_vout_pub(pTx, Value, pPubKey, BTC_PREF_P2PKH);
     return true;
 }
 
 
 bool btc_tx_add_vout_p2pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
-    btc_util_add_vout_pkh(pTx, Value, pPubKeyHash, BTC_PREF_P2PKH);
+    btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, BTC_PREF_P2PKH);
     return true;
 }
 
@@ -555,7 +555,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
 
 bool btc_tx_create(utl_buf_t *pBuf, const btc_tx_t *pTx)
 {
-    return btc_util_create_tx(pBuf, pTx, true);
+    return btcl_util_create_tx(pBuf, pTx, true);
 }
 
 
@@ -706,7 +706,7 @@ bool btc_tx_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t 
         goto LABEL_EXIT;
     }
 
-    ret = btc_util_set_keypair(&keypair, pPubKey);
+    ret = btcl_util_set_keypair(&keypair, pPubKey);
     if (!ret) {
         ret = mbedtls_ecdsa_read_signature((mbedtls_ecdsa_context *)&keypair,
                     pTxHash, BTC_SZ_HASH256,
@@ -753,7 +753,7 @@ bool btc_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t 
         assert(0);
         goto LABEL_EXIT;
     }
-    ret = btc_util_set_keypair(&keypair, pPubKey);
+    ret = btcl_util_set_keypair(&keypair, pPubKey);
     if (!ret) {
         ret = mbedtls_ecdsa_verify(&keypair.grp, pTxHash, BTC_SZ_HASH256, &keypair.Q, &r, &s);
     } else {
@@ -1086,7 +1086,7 @@ bool btc_tx_txid(uint8_t *pTxId, const btc_tx_t *pTx)
 {
     utl_buf_t txbuf;
 
-    bool ret = btc_util_create_tx(&txbuf, pTx, false);
+    bool ret = btcl_util_create_tx(&txbuf, pTx, false);
     if (!ret) {
         assert(0);
         goto LABEL_EXIT;
@@ -1143,7 +1143,7 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
 
         btc_tx_read(&txold, pData, Len);
 
-        bool ret = btc_util_create_tx(&txbuf_old, &txold, false);
+        bool ret = btcl_util_create_tx(&txbuf_old, &txold, false);
         if (ret) {
             uint32_t fmt_old = txbuf_old.len;
             uint32_t fmt_new = Len;
@@ -1161,7 +1161,7 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
 }
 
 
-#ifdef PTARM_USE_PRINTFUNC
+#if defined(PTARM_USE_PRINTFUNC) && !defined(PTARM_UTL_LOG_MACRO_DISABLED)
 void btc_print_tx(const btc_tx_t *pTx)
 {
     LOGD("======================================\n");
@@ -1213,7 +1213,7 @@ void btc_print_tx(const btc_tx_t *pTx)
         if ( (buf->len == 25) && (buf->buf[0] == 0x76) && (buf->buf[1] == 0xa9) &&
              (buf->buf[2] == 0x14) && (buf->buf[23] == 0x88) && (buf->buf[24] == 0xac) ) {
             char addr[BTC_SZ_ADDR_MAX];
-            bool ret = btc_util_keys_pkh2addr(addr, &(buf->buf[3]), BTC_PREF_P2PKH);
+            bool ret = btcl_util_keys_pkh2addr(addr, &(buf->buf[3]), BTC_PREF_P2PKH);
             assert(ret);
             if (!ret) {
                 return;
@@ -1691,7 +1691,7 @@ SKIP_LOOP:
  * @return      varint型のデータ長サイズ
  *
  * @note
- *      - #btc_util_get_varint_len()との違いに注意すること
+ *      - #btcl_util_get_varint_len()との違いに注意すること
  *      - データ長は0xFFFFまでしか対応しない
  */
 static int get_varint(uint16_t *pLen, const uint8_t *pData)

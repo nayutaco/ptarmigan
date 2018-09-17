@@ -124,6 +124,13 @@ void HIDDEN ln_misc_calc_channel_id(uint8_t *pChannelId, const uint8_t *pTxid, u
 uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, uint32_t VIndex);
 
 
+/** MAC計算
+ *
+ *
+ */
+bool HIDDEN ln_misc_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen);
+
+
 /** short_channel_idパラメータ取得
  *
  * @param[out]      pHeight         ブロック高
@@ -131,5 +138,12 @@ uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, 
  * @param[out]      pVIndex         funding-txの2-of-2 vout index
  */
 void HIDDEN ln_misc_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_t *pVIndex, uint64_t short_channel_id);
+
+
+/** shared secret生成
+ *
+ *
+ */
+void HIDDEN ln_misc_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey);
 
 #endif /* LN_MISC_H__ */
