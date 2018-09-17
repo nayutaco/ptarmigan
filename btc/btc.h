@@ -76,6 +76,9 @@ extern "C" {
 #define BTC_EKEY_PRIV           (0)             ///< 拡張鍵種別:秘密鍵
 #define BTC_EKEY_PUB            (1)             ///< 拡張鍵種別:公開鍵
 #define BTC_EKEY_HARDENED       ((uint32_t)0x80000000)  ///< 拡張鍵:hardened
+#define BTC_EKEY_BIP44_EXTERNAL (0)             ///< BIP44 Change: external chain
+#define BTC_EKEY_BIP44_INTERNAL (1)             ///< BIP44 Change: internal chain(change addresses)
+#define BTC_EKEY_BIP44_SKIP     ((uint32_t)-1)  ///< BIP44: account以降かchange以降をskipする
 
 #define BTC_OP_0                "\x00"          ///< OP_0
 #define BTC_OP_2                "\x52"          ///< OP_2
@@ -1056,7 +1059,7 @@ void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 //////////////////////
 
 /** mnemonic words --> seed[BTC_SZ_EKEY_SEED]
- * 
+ *
  */
 bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass);
 
@@ -1069,7 +1072,7 @@ bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass
  * pEKey->typeが #BTC_EKEY_PUB の場合、子公開鍵を生成する。
  * pEKey->key[]には pEKey->typeに応じた結果をコピーする。
  *
- * @param[in,out]   pEKey           拡張鍵構造体
+ * @param[out]      pEKey           拡張鍵構造体
  * @param[in]       pKey            親秘密鍵 or 親公開鍵(pEKey->type次第。pSeedが非NULLの場合は未使用。)
  * @param[in]       pSeed           非NULL: Master / NULL: 子鍵
  * @param[in]       SzSeed          pSeedサイズ
@@ -1078,6 +1081,30 @@ bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass
 bool btc_ekey_generate(btc_ekey_t *pEKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
         const uint8_t *pKey,
         const uint8_t *pSeed, int SzSeed);
+
+
+/** BIP44形式拡張鍵構造体準備
+ *
+ * @param[out]      pEKey           拡張鍵構造体(depth2～4)
+ * @param[in]       pSeed           拡張鍵seed(BTC_SZ_EKEY_SEED)
+ * @param[in]       Account         0～。BTC_EKEY_BIP44_SKIPの場合、"m/44'/coin_type'"までで終わる。
+ * @param[in]       Change          BTC_EKEY_BIP44_EXTERNAL or BTC_EKEY_BIP44_INTERNAL。
+ *                                  BTC_EKEY_BIP44_SKIPの場合、"m/44'/coin_type'/account"までで終わる。
+ * @retval  true    成功
+ */
+bool btc_ekey_bip44_prepare(btc_ekey_t *pEkey, const uint8_t *pSeed, uint32_t Account, uint32_t Change);
+
+
+/** BIP44形式拡張鍵構造体生成
+ *
+ * @param[out]      pEKeyOut        拡張鍵構造体(depth4)
+ * @param[in]       pEKeyIn         拡張鍵構造体(depth4)
+ * @param[in]       Account         0～
+ * @retval  true    成功
+ * @note
+ *      - 繰り返し使用する場合、pEKeyInの値を変更しないこと
+ */
+bool btc_ekey_bip44_generate(btc_ekey_t *pEKeyOut, const btc_ekey_t *pEKeyIn, uint32_t Index);
 
 
 /** 拡張鍵データ作成

@@ -115,7 +115,7 @@ bool btc_ekey_generate(btc_ekey_t *pEKey, uint8_t Type, uint8_t Depth, uint32_t 
 {
     bool ret = false;
     int retval;
-    uint8_t output37[33 + 4];
+    uint8_t output37[BTC_SZ_PUBKEY + 4];
     const uint8_t *p_key;
     const uint8_t *p_input;
     int key_len;
@@ -242,6 +242,81 @@ LABEL_EXIT:
         LOGD("fail\n");
     }
     return ret;
+}
+
+
+bool btc_ekey_bip44_prepare(btc_ekey_t *pEKey, const uint8_t *pSeed, uint32_t Account, uint32_t Change)
+{
+    bool b;
+
+    //depth=0は、master node(Chain m)
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 0, 0, NULL, pSeed, BTC_SZ_EKEY_SEED);
+    if (!b) {
+        LOGD("fail: ekey depth 0\n");
+        return false;
+    }
+
+    //depth=1は、purpose(Chain m/44')
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 1, BTC_EKEY_HARDENED | 44, pEKey->key, NULL, 0);
+    if (!b) {
+        LOGD("fail: ekey depth 1\n");
+        return false;
+    }
+
+    //depth=2は、coin_type(Chain m/44'/coin_type')
+    uint32_t child_num;
+    switch (btc_get_chain()) {
+    case BTC_MAINNET:
+        child_num = 0;
+        break;
+    case BTC_TESTNET:
+        child_num = 1;
+        break;
+    default:
+        return false;
+    }
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 2, BTC_EKEY_HARDENED | child_num, pEKey->key, NULL, 0);
+    if (!b) {
+        LOGD("fail: ekey depth 2\n");
+        return false;
+    }
+
+    if (Account == BTC_EKEY_BIP44_SKIP) {
+        LOGD("ok: ekey depth 2\n");
+        return true;
+    }
+
+    //depth=3は、account(Chain m/44'/coin_type'/account')
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 3,  BTC_EKEY_HARDENED | Account, pEKey->key, NULL, 0);
+    if (!b) {
+        LOGD("fail: ekey depth 3\n");
+        return false;
+    }
+
+    if (Change == BTC_EKEY_BIP44_SKIP) {
+        LOGD("ok: ekey depth 3\n");
+        return true;
+    }
+
+    //depth=4は、change(Chain m/44'/coin_type'/account'/change)
+    if ((Change != BTC_EKEY_BIP44_EXTERNAL) && (Change != BTC_EKEY_BIP44_INTERNAL)) {
+        LOGD("fail: invali change\n");
+        return false;
+    }
+    b = btc_ekey_generate(pEKey, BTC_EKEY_PRIV, 4, Change, pEKey->key, NULL, 0);
+    if (!b) {
+        LOGD("fail: ekey depth 4\n");
+        return false;
+    }
+
+    return true;
+}
+
+
+bool btc_ekey_bip44_generate(btc_ekey_t *pEKeyOut, const btc_ekey_t *pEKeyIn, uint32_t Index)
+{
+    memcpy(pEKeyOut, pEKeyIn, sizeof(btc_ekey_t));
+    return btc_ekey_generate(pEKeyOut, BTC_EKEY_PRIV, 5, Index, pEKeyIn->key, NULL, 0);
 }
 
 
