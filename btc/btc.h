@@ -1058,6 +1058,16 @@ void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 //EKEY
 //////////////////////
 
+#ifdef BTC_ENABLE_GEN_MNEMONIC
+/** generate mnemonic 24words
+ *
+ * @return  mnemonic 24words
+ * @note
+ *      - call #UTL_DBG_FREE() after use
+ */
+char *btc_ekey_generate_mnemonic24(void);
+#endif  //BTC_ENABLE_GEN_MNEMONIC
+
 /** mnemonic words --> seed[BTC_SZ_EKEY_SEED]
  *
  */
