@@ -1239,10 +1239,10 @@ void btc_util_sort_bip69(btc_tx_t *pTx);
 btc_genesis_t btc_util_get_genesis(const uint8_t *pGenesisHash);
 
 
-/** ブロックチェーンハッシュ取得
+/** genesis block hash取得
  *
  * @param[in]       Kind
- * @return      ブロックチェーンハッシュ(未知のKindの場合はNULL)
+ * @return      genesis block hash(未知のKindの場合はNULL)
  */
 const uint8_t *btc_util_get_genesis_block(btc_genesis_t Kind);
 
@@ -1294,20 +1294,49 @@ void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len);
 void btc_util_sha256cat(uint8_t *pSha256, const uint8_t *pData1, uint16_t Len1, const uint8_t *pData2, uint16_t Len2);
 
 
-int btc_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
+/** 圧縮公開鍵を非圧縮公開鍵展開
+ *
+ * @param[out]  point       非圧縮公開鍵座標
+ * @param[in]   pPubKey     圧縮公開鍵
+ * @return      0...正常
+ *
+ * @note
+ *      - https://gist.github.com/flying-fury/6bc42c8bb60e5ea26631
+ */
 int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
+
+
+/** PubKeyHash(P2PKH)をPubKeyHash(P2WPKH)に変換
+ *
+ * [00][14][pubKeyHash] --> HASH160
+ *
+ * @param[out]      pWPubKeyHash    変換後データ(BTC_SZ_PUBKEYHASH以上のサイズを想定)
+ * @param[in]       pPubKeyHash     対象データ(BTC_SZ_PUBKEYHASH)
+ */
 void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash);
+
+
+/** 種類に応じたscriptPubKey設定
+ *
+ * @param[out]      pBuf
+ * @param[in]       pPubKeyHash
+ * @param[in]       Prefix
+ */
 void btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix);
-bool btc_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix);
+
+
+/**
+ * pPubKeyOut = pPubKeyIn + pA * G
+ *
+ */
 int btc_util_ecp_muladd(uint8_t *pResult, const uint8_t *pPubKeyIn, const void *pA);
+
+
+/**
+ * pResult = pPubKey * pMul
+ *
+ */
 bool btc_util_mul_pubkey(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pMul, int MulLen);
-void btc_util_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey);
-bool btc_util_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen);
-bool btc_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enableSegWit);
-void btc_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref);
-void btc_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref);
-int btc_util_get_varint_len(uint32_t Len);
-int btc_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_t Len, bool isScript);
 
 
 #if defined(PTARM_USE_PRINTFUNC) || defined(PTARM_DEBUG)

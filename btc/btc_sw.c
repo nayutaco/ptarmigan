@@ -34,13 +34,13 @@
 
 void btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
-    btc_util_add_vout_pub(pTx, Value, pPubKey, (mNativeSegwit) ? BTC_PREF_NATIVE : BTC_PREF_P2SH);
+    btcl_util_add_vout_pub(pTx, Value, pPubKey, (mNativeSegwit) ? BTC_PREF_NATIVE : BTC_PREF_P2SH);
 }
 
 
 void btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
-    btc_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_NATIVE : BTC_PREF_P2SH);
+    btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, (mNativeSegwit) ? BTC_PREF_NATIVE : BTC_PREF_P2SH);
 }
 
 
@@ -94,9 +94,9 @@ bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 
 void btc_sw_scriptcode_p2wsh(utl_buf_t *pScriptCode, const utl_buf_t *pWit)
 {
-    utl_buf_alloc(pScriptCode, btc_util_get_varint_len(pWit->len) + pWit->len);
+    utl_buf_alloc(pScriptCode, btcl_util_get_varint_len(pWit->len) + pWit->len);
     uint8_t *p = pScriptCode->buf;
-    p += btc_util_set_varint_len(p, NULL, pWit->len, false);
+    p += btcl_util_set_varint_len(p, NULL, pWit->len, false);
     memcpy(p, pWit->buf, pWit->len);
 }
 
@@ -503,7 +503,7 @@ bool btc_sw_wtxid(uint8_t *pWTxId, const btc_tx_t *pTx)
         return false;
     }
 
-    bool ret = btc_util_create_tx(&txbuf, pTx, true);
+    bool ret = btcl_util_create_tx(&txbuf, pTx, true);
     if (!ret) {
         assert(0);
         goto LABEL_EXIT;

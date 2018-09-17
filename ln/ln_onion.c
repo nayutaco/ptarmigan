@@ -130,7 +130,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
     btc_keys_priv2pub(eph_pubkeys, pSessionKey);
 
     //セッション鍵とpaymentPathの先頭から作った共有鍵のSHA256 --> shd_secrets[0]
-    btc_util_generate_shared_secret(shd_secrets, pHopData[0].pubkey, pSessionKey);
+    ln_misc_generate_shared_secret(shd_secrets, pHopData[0].pubkey, pSessionKey);
 
     //eph_pubkeys[0]とshd_secrets[0]から計算 --> blind_factors[0]
     compute_blinding_factor(blind_factors, eph_pubkeys, shd_secrets);
@@ -216,7 +216,7 @@ bool ln_onion_create_packet(uint8_t *pPacket,
         if (AssocLen != 0) {
             memcpy(pPacket + M_SZ_ROUTING_INFO, pAssocData, AssocLen);
         }
-        btc_util_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, pPacket, M_SZ_ROUTING_INFO + AssocLen);
+        ln_misc_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, pPacket, M_SZ_ROUTING_INFO + AssocLen);
     }
 
     if (LN_DBG_ONION_CREATE_NORMAL_VERSION()) {
@@ -295,7 +295,7 @@ bool HIDDEN ln_onion_read_packet(uint8_t *pNextPacket, ln_hop_dataout_t *pNextDa
     if (AssocLen != 0) {
         memcpy(p_msg + M_SZ_ROUTING_INFO, pAssocData, AssocLen);
     }
-    btc_util_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
+    ln_misc_calc_mac(next_hmac, mu_key, M_SZ_KEYLEN, p_msg, M_SZ_ROUTING_INFO + AssocLen);
     if (memcmp(next_hmac, p_hmac, M_SZ_HMAC) != 0) {
         LOGD("fail: hmac not match\n");
         UTL_DBG_FREE(p_msg);
@@ -406,7 +406,7 @@ void ln_onion_failure_create(utl_buf_t *pNextPacket,
     proto.pos += DATALEN - pReason->len;
 
     //HMAC
-    btc_util_calc_mac(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
+    ln_misc_calc_mac(buf_fail.buf, um_key, M_SZ_KEYLEN, buf_fail.buf + M_SZ_HMAC, proto.pos - M_SZ_HMAC);
 
 #ifdef M_DBG_FAIL
     LOGD("um_key=");
@@ -491,7 +491,7 @@ bool ln_onion_failure_read(utl_buf_t *pReason,
                     generate_key(um_key, UM, sizeof(UM), sharedsecret.buf);
 
                     uint8_t hmac[M_SZ_HMAC];
-                    btc_util_calc_mac(hmac, um_key, M_SZ_KEYLEN,
+                    ln_misc_calc_mac(hmac, um_key, M_SZ_KEYLEN,
                                     p_out->buf + M_SZ_HMAC, p_out->len - M_SZ_HMAC);
 
 #ifdef M_DBG_FAIL
@@ -691,7 +691,7 @@ static bool generate_key(uint8_t *pResult, const uint8_t *pKeyStr, int StrLen, c
     //const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
     //int ret = mbedtls_md_hmac(mdinfo, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET, pResult);
     //return ret == 0;
-    return btc_util_calc_mac(pResult, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET);
+    return ln_misc_calc_mac(pResult, pKeyStr, StrLen, pSharedSecret, M_SZ_SHARED_SECRET);
 }
 
 

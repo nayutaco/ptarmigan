@@ -28,6 +28,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "mbedtls/md.h"
+
 #include "ln_misc.h"
 #include "ln_derkey.h"
 #include "ln_local.h"
@@ -371,9 +373,26 @@ uint64_t HIDDEN ln_misc_calc_short_channel_id(uint32_t Height, uint32_t BIndex, 
 }
 
 
+bool HIDDEN ln_misc_calc_mac(uint8_t *pMac, const uint8_t *pKeyStr, int StrLen,  const uint8_t *pMsg, int MsgLen)
+{
+    //HMAC(SHA256)
+    const mbedtls_md_info_t *mdinfo = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    int ret = mbedtls_md_hmac(mdinfo, pKeyStr, StrLen, pMsg, MsgLen, pMac);
+    return ret == 0;
+}
+
+
 void HIDDEN ln_misc_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pBIndex, uint32_t *pVIndex, uint64_t short_channel_id)
 {
     *pHeight = short_channel_id >> 40;
     *pBIndex = (short_channel_id >> 16) & 0xffffff;
     *pVIndex = short_channel_id & 0xffff;
+}
+
+
+void HIDDEN ln_misc_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey, const uint8_t *pPrivKey)
+{
+    uint8_t pub[BTC_SZ_PUBKEY];
+    btc_util_mul_pubkey(pub, pPubKey, pPrivKey, BTC_SZ_PRIVKEY);
+    btc_util_sha256(pResult, pub, sizeof(pub));
 }

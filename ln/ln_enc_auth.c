@@ -509,7 +509,7 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
     mbedtls_md_context_t ctx;
 
     uint8_t ikm_len = (pIkm) ? BTC_SZ_SHA256 : 0;
-    ret = btc_util_calc_mac(prk, pSalt, BTC_SZ_SHA256, pIkm, ikm_len);
+    ret = ln_misc_calc_mac(prk, pSalt, BTC_SZ_SHA256, pIkm, ikm_len);
     if (!ret) {
         LOGD("fail: calc_mac\n");
         return false;
@@ -547,7 +547,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
     btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, pBolt->e.pub, BTC_SZ_PUBKEY);
 
     // ss = ECDH(rs, e.priv)
-    btc_util_generate_shared_secret(ss, pRS, pBolt->e.priv);
+    ln_misc_generate_shared_secret(ss, pRS, pBolt->e.priv);
 
     // ck, temp_k1 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
@@ -692,7 +692,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
     btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, pBolt->e.pub, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, e.priv)
-    btc_util_generate_shared_secret(ss, pRE, pBolt->e.priv);
+    ln_misc_generate_shared_secret(ss, pRE, pBolt->e.priv);
 
     // ck, temp_k2 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
@@ -771,7 +771,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
     btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, re, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, e.priv)
-    btc_util_generate_shared_secret(ss, re, pBolt->e.priv);
+    ln_misc_generate_shared_secret(ss, re, pBolt->e.priv);
 
     // ck, temp_k2 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);
@@ -994,7 +994,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
     btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, c, sizeof(c));
 
     // ss = ECDH(rs, e.priv)
-    btc_util_generate_shared_secret(ss, rs, pBolt->e.priv);
+    ln_misc_generate_shared_secret(ss, rs, pBolt->e.priv);
 
     // ck, temp_k3 = HKDF(ck, ss)
     noise_hkdf(pBolt->ck, pBolt->temp_k, pBolt->ck, ss);

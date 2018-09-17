@@ -151,7 +151,7 @@ bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey)
     uint8_t pkh[BTC_SZ_PUBKEYHASH];
 
     btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
-    return btc_util_keys_pkh2addr(pAddr, pkh, BTC_PREF_P2PKH);
+    return btcl_util_keys_pkh2addr(pAddr, pkh, BTC_PREF_P2PKH);
 }
 
 
@@ -169,7 +169,7 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
         btc_util_create_pkh2wpkh(pkh, pkh);
         pref = BTC_PREF_P2SH;
     }
-    ret = btc_util_keys_pkh2addr(pWAddr, pkh, pref);
+    ret = btcl_util_keys_pkh2addr(pWAddr, pkh, pref);
     return ret;
 }
 
@@ -201,7 +201,7 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
         ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, pkh, BTC_SZ_HASH160);
     } else {
         btc_util_create_pkh2wpkh(pkh, pkh);
-        ret = btc_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
+        ret = btcl_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
     }
     return ret;
 }
@@ -235,7 +235,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
         wit_prog[1] = BTC_SZ_HASH256;
         btc_util_sha256(wit_prog + 2, pWitScript->buf, pWitScript->len);
         btc_util_hash160(pkh, wit_prog, sizeof(wit_prog));
-        ret = btc_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
+        ret = btcl_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
     }
     return ret;
 }
@@ -247,7 +247,7 @@ bool btc_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey)
     mbedtls_ecp_keypair_init(&keypair);
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
-    int ret = btc_util_set_keypair(&keypair, pPubKey);
+    int ret = btcl_util_set_keypair(&keypair, pPubKey);
     if (!ret) {
         mbedtls_mpi_write_binary(&(keypair.Q.X), pUncomp, BTC_SZ_PUBKEY - 1);
         mbedtls_mpi_write_binary(&(keypair.Q.Y), pUncomp + BTC_SZ_PUBKEY - 1, BTC_SZ_PUBKEY - 1);
@@ -288,7 +288,7 @@ bool btc_keys_chkpub(const uint8_t *pPubKey)
     mbedtls_ecp_keypair_init(&keypair);
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
-    int ret = btc_util_set_keypair(&keypair, pPubKey);
+    int ret = btcl_util_set_keypair(&keypair, pPubKey);
     mbedtls_ecp_keypair_free(&keypair);
 
     return ret == 0;
@@ -437,7 +437,7 @@ bool btc_keys_spk2addr(char *pAddr, const utl_buf_t *pScriptPk)
     const uint8_t *pkh;
     int prefix = spk2prefix(&pkh, pScriptPk);
     if (prefix != BTC_PREF_MAX) {
-        btc_util_keys_pkh2addr(pAddr, pkh, prefix);
+        btcl_util_keys_pkh2addr(pAddr, pkh, prefix);
         ret = true;
     } else {
         ret = false;
