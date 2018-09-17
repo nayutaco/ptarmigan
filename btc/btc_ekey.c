@@ -24,6 +24,7 @@
  *  @author ueno@nayuta.co
  */
 #include "btc_local.h"
+#include "utl_dbg.h"
 
 #include "libbase58.h"
 #include "mbedtls/md.h"
@@ -36,7 +37,6 @@
  **************************************************************************/
 
 #define M_ITER_COUNT        (2048)
-#define M_KEYLEN            (64)
 
 
 /**************************************************************************
@@ -69,7 +69,7 @@ static bool ekey_hmac512(mbedtls_mpi *p_n, mbedtls_mpi *p_l_L, uint8_t *pChainCo
  * public functions
  **************************************************************************/
 
-bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord)
+bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass)
 {
     //https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#generating-the-mnemonic
     //  const int ENT = 256;
@@ -83,8 +83,13 @@ bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord)
     //  salt:       "mnemonic" + passphrase
     //  iter count: 2048byte
     // --> result : 64byte
-    const uint8_t *salt = (const uint8_t *)"mnemonic";
-    const size_t salt_len = strlen((const char *)salt);
+    size_t passphrase_len = (pPass != NULL) ? strlen(pPass) : 0;
+    const size_t salt_len = 8 + passphrase_len;
+    uint8_t *salt = (uint8_t *)UTL_DBG_MALLOC(salt_len);
+    memcpy(salt, "mnemonic", 8);
+    if (pPass != NULL) {
+        memcpy(salt + 8, pPass, passphrase_len);
+    }
 
     mbedtls_md_context_t md_ctx;
     mbedtls_md_init(&md_ctx);
@@ -93,13 +98,14 @@ bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord)
                     (const uint8_t *)pWord, strlen(pWord),
                     salt, salt_len,
                     M_ITER_COUNT,
-                    M_KEYLEN, pSeed);
+                    BTC_SZ_EKEY_SEED, pSeed);
     if (ret != 0) {
         LOGD("fail: %x\n", -ret);
     }
+    UTL_DBG_FREE(salt);
 
     mbedtls_md_free(&md_ctx);
-    return 0;
+    return ret == 0;
 }
 
 

@@ -58,6 +58,7 @@ extern "C" {
 #define BTC_SZ_TXID             (32)            ///< サイズ:TXID
 #define BTC_SZ_SIGHASH          (32)            ///< サイズ:Signature計算用のトランザクションHASH
 #define BTC_SZ_SIGN_RS          (64)            ///< サイズ:RS形式の署名
+#define BTC_SZ_EKEY_SEED        (64)            ///< サイズ:拡張鍵seed
 #define BTC_SZ_EKEY             (82)            ///< サイズ:拡張鍵
 #define BTC_SZ_CHAINCODE        (32)            ///< サイズ:拡張鍵chaincode
 #define BTC_SZ_EKEY_ADDR_MAX    (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
@@ -1054,10 +1055,10 @@ void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript);
 //EKEY
 //////////////////////
 
-/** mnemonic words --> seed[64]
+/** mnemonic words --> seed[BTC_SZ_EKEY_SEED]
  * 
  */
-bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord);
+bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass);
 
 
 /** 拡張鍵生成
