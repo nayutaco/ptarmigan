@@ -31,11 +31,16 @@
 #include "mbedtls/pkcs5.h"
 #include "mbedtls/bignum.h"
 
+#ifdef BTC_ENABLE_GEN_MNEMONIC
+#include "bip39_wordlist_english.h"
+#endif  //BTC_ENABLE_GEN_MNEMONIC
+
 
 /**************************************************************************
  * macros
  **************************************************************************/
 
+#define M_MS                (24)
 #define M_ITER_COUNT        (2048)
 
 
@@ -70,6 +75,34 @@ static bool ekey_bip_prepare(btc_ekey_t *pEKey, uint32_t Bip, uint32_t Account, 
 /**************************************************************************
  * public functions
  **************************************************************************/
+
+#ifdef BTC_ENABLE_GEN_MNEMONIC
+char *btc_ekey_generate_mnemonic24(void)
+{
+    size_t mlen = 0;
+    char *m = NULL;
+    uint8_t r[M_MS * 2];
+    int space = 1;
+
+    btc_util_random(r, sizeof(r));
+    for (int lp = 0; lp < M_MS; lp++) {
+        uint16_t rval = (r[lp * 2] << 8) | r[lp * 2 + 1];
+        const char *w = BIP39_WORDLIST_ENGLISH[rval % M_ITER_COUNT];
+        size_t len = strlen(w);
+        m = (char *)UTL_DBG_REALLOC(m, mlen + space + len);
+        if (space == 2) {
+            m[mlen] = ' ';
+            mlen++;
+        }
+        strcpy(m + mlen, w);
+        mlen += len;
+        space = 2;
+    }
+
+    return m;
+}
+#endif  //BTC_ENABLE_GEN_MNEMONIC
+
 
 bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass)
 {
