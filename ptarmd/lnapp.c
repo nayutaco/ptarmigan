@@ -743,7 +743,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
                 } else if (lp == LN_CLOSE_IDX_TOLOCAL) {
                     strcpy(title, "to_local");
                 } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
-                    strcpy(title, "to_remote???");
+                    strcpy(title, "to_remote");
                 } else {
                     sprintf(title, "htlc%d", lp - LN_CLOSE_IDX_HTLC);
                 }
