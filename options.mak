@@ -18,6 +18,9 @@ BUILD_PTARMD_LIB_INCPATHS = -I/usr/lib/jvm/java-8-openjdk-amd64/include -I/usr/l
 #  priority higher than PTARM_USE_PRINTFUNC
 DISABLE_PRINTFUND=0
 
+# 0: disable gcov 1:enable
+ENABLE_COVERAGE=0
+
 # 0: disable developer mode 1:enable
 ENABLE_DEVELOPER_MODE=0
 

@@ -98,6 +98,11 @@ ifeq ($(DISABLE_PRINTFUND),0)
 	CFLAGS_CMN += -DPTARM_USE_PRINTFUNC
 endif
 
+ifeq ($(ENABLE_COVERAGE),1)
+CFLAGS += --coverage
+LDFLAGS += --coverage
+endif
+
 ifeq ($(ENABLE_DEVELOPER_MODE),1)
 	CFLAGS_CMN += -DDEVELOPER_MODE
 endif
