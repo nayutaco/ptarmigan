@@ -146,6 +146,8 @@ int ptarmd_start(uint16_t my_rpcport)
     //ptarmcli受信用
     cmd_json_start(my_rpcport != 0 ? my_rpcport : p_addr->port + 1);
 
+    //ptarmd_stop()待ち
+
     //待ち合わせ
     pthread_join(th_svr, NULL);
     pthread_join(th_poll, NULL);

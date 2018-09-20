@@ -137,7 +137,13 @@ static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_par
 
 void cmd_json_start(uint16_t Port)
 {
-    jrpc_server_init(&mJrpc, Port);
+    int ret = jrpc_server_init(&mJrpc, Port);
+    if (ret != 0) {
+        fprintf(stderr, "ERR: cannot start JSON-RPC event loop\n");
+        ptarmd_stop();
+        return;
+    }
+
     jrpc_register_procedure(&mJrpc, cmd_connect,     "connect", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_disconnect,  "disconnect", NULL);
