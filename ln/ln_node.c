@@ -238,38 +238,6 @@ void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
 }
 
 
-bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
-{
-    bool ret;
-    ln_node_announce_t anno;
-    uint8_t node_id[BTC_SZ_PUBKEY];
-    char node_alias[LN_SZ_ALIAS + 1];
-
-    anno.p_node_id = node_id;
-    anno.p_alias = node_alias;
-    ret = ln_msg_node_announce_read(&anno, pData, Len);
-    if (!ret) {
-        LOGD("fail: read message\n");
-        return false;
-    }
-
-    LOGV("node_id:");
-    DUMPV(node_id, sizeof(node_id));
-
-    utl_buf_t buf_ann;
-    buf_ann.buf = (CONST_CAST uint8_t *)pData;
-    buf_ann.len = Len;
-    ret = ln_db_annonod_save(&buf_ann, &anno, ln_their_node_id(self));
-    if (ret) {
-        ln_cb_update_annodb_t anno;
-        anno.anno = LN_CB_UPDATE_ANNODB_NODE_ANNO;
-        (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
-    }
-
-    return true;
-}
-
-
 void HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPubKey)
 {
     uint8_t pub[BTC_SZ_PUBKEY];

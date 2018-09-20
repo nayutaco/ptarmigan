@@ -218,6 +218,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
 static bool recv_announcement_signatures(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t Len);
+static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static void send_error(ln_self_t *self, const ln_error_t *pError);
 static void start_funding_wait(ln_self_t *self, bool bSendTx);
 static bool set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
@@ -361,7 +362,7 @@ static const struct {
     { MSGTYPE_UPDATE_FAIL_MALFORMED_HTLC,   recv_update_fail_malformed_htlc },
     { MSGTYPE_CHANNEL_REESTABLISH,          recv_channel_reestablish },
     { MSGTYPE_CHANNEL_ANNOUNCEMENT,         recv_channel_announcement },
-    { MSGTYPE_NODE_ANNOUNCEMENT,            ln_node_recv_node_announcement },
+    { MSGTYPE_NODE_ANNOUNCEMENT,            recv_node_announcement },
     { MSGTYPE_CHANNEL_UPDATE,               recv_channel_update },
     { MSGTYPE_ANNOUNCEMENT_SIGNATURES,      recv_announcement_signatures }
 };
@@ -3449,6 +3450,7 @@ static bool recv_channel_announcement(ln_self_t *self, const uint8_t *pData, uin
                                 ann.node_id1, ann.node_id2);
     ln_cb_update_annodb_t anno;
     if (ret) {
+        LOGD("save channel_announcement: %016" PRIx64 "\n", ann.short_channel_id);
         anno.anno = LN_CB_UPDATE_ANNODB_CNL_ANNO;
     } else {
         anno.anno = LN_CB_UPDATE_ANNODB_NONE;
@@ -3519,6 +3521,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         buf.len = Len;
         ret = ln_db_annocnlupd_save(&buf, &upd, ln_their_node_id(self));
         if (ret) {
+            LOGD("save channel_update: %016" PRIx64 ":%d\n", upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
             anno.anno = LN_CB_UPDATE_ANNODB_CNL_UPD;
         } else {
             LOGD("fail: db save\n");
@@ -3531,6 +3534,48 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
 
     return ret;
+}
+
+
+/** node_announcement受信
+ *
+ * @param[in,out]       self            channel情報
+ * @param[in]           pData           受信データ
+ * @param[in]           Len             pData長
+ * @retval      true    解析成功
+ */
+static bool recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len)
+{
+    bool ret;
+    ln_node_announce_t anno;
+    uint8_t node_id[BTC_SZ_PUBKEY];
+    char node_alias[LN_SZ_ALIAS + 1];
+
+    anno.p_node_id = node_id;
+    anno.p_alias = node_alias;
+    ret = ln_msg_node_announce_read(&anno, pData, Len);
+    if (!ret) {
+        LOGD("fail: read message\n");
+        return false;
+    }
+
+    LOGV("node_id:");
+    DUMPV(node_id, sizeof(node_id));
+
+    utl_buf_t buf_ann;
+    buf_ann.buf = (CONST_CAST uint8_t *)pData;
+    buf_ann.len = Len;
+    ret = ln_db_annonod_save(&buf_ann, &anno, ln_their_node_id(self));
+    if (ret) {
+        LOGD("save node_announcement: ");
+        DUMPD(anno.p_node_id, BTC_SZ_PUBKEY);
+
+        ln_cb_update_annodb_t anno;
+        anno.anno = LN_CB_UPDATE_ANNODB_NODE_ANNO;
+        (*self->p_callback)(self, LN_CB_UPDATE_ANNODB, &anno);
+    }
+
+    return true;
 }
 
 

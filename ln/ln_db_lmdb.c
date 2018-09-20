@@ -410,7 +410,12 @@ static const backup_param_t DBHTLC_KEYS[] = {
 static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
-static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb);
+static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb);
+static bool self_chk_mynode(uint64_t ShortChannelId);
+static int self_cursor_open(lmdb_cursor_t *pCur);
+static void self_cursor_close(lmdb_cursor_t *pCur);
+static void self_addhtlc_dbname(char *pDbName, int num);
+static bool self_comp_func_cnldel(ln_self_t *self, void *p_db_param, void *p_param);
 
 static int annocnl_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
 static int annocnl_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
@@ -421,6 +426,7 @@ static int annonod_save(ln_lmdb_db_t *pDb, const utl_buf_t *pNodeAnno, const uin
 static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId);
 static bool annoinfo_search(MDB_val *pMdbData, const uint8_t *pNodeId);
 static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId);
+static void anno_del_orphan(void);
 
 static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
 static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
@@ -429,12 +435,6 @@ static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_
 
 static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port);
 static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
-
-static void addhtlc_dbname(char *pDbName, int num);
-static bool comp_func_cnldel(ln_self_t *self, void *p_db_param, void *p_param);
-
-static int self_cursor_open(lmdb_cursor_t *pCur);
-static void self_cursor_close(lmdb_cursor_t *pCur);
 
 static int backup_param_load(void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
 static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
@@ -624,7 +624,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         goto LABEL_EXIT;
     }
     //ln_db_invoice_drop();               //送金を再開する場合があるが、その場合は再入力させるか？
-    //ln_db_annocnl_del_orphan();         //channel_updateだけの場合でも保持しておく
+    anno_del_orphan();          //channel_updateだけの場合でも保持しておく
 
 LABEL_EXIT:
     if (retval == 0) {
@@ -719,7 +719,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
     }
 
     //secret
-    retval = secret_load(self, &db);
+    retval = self_secret_load(self, &db);
     if (retval != 0) {
         LOGD("ERR\n");
     }
@@ -785,7 +785,7 @@ LABEL_EXIT:
 
 bool ln_db_self_del(const uint8_t *pChannelId)
 {
-    return ln_db_self_search(comp_func_cnldel, (CONST_CAST void *)pChannelId);
+    return ln_db_self_search(self_comp_func_cnldel, (CONST_CAST void *)pChannelId);
 }
 
 
@@ -806,7 +806,7 @@ bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param)
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        addhtlc_dbname(dbname, lp);
+        self_addhtlc_dbname(dbname, lp);
         //LOGD("[%d]dbname: %s\n", lp, dbname);
         retval = mdb_dbi_open(p_cur->txn, dbname, 0, &dbi);
         if (retval == 0) {
@@ -1456,49 +1456,6 @@ LABEL_EXIT:
 }
 
 
-void ln_db_annocnl_del_orphan(void)
-{
-    bool ret;
-
-    ret = ln_db_anno_transaction();
-    if (!ret) {
-        LOGD("ERR: anno transaction\n");
-        return;
-    }
-
-    uint64_t now = (uint64_t)time(NULL);
-    void *p_cur;
-    ret = ln_db_anno_cur_open(&p_cur, LN_DB_CUR_CNL);
-    if (ret) {
-        uint64_t short_channel_id;
-        uint64_t last_short_chennel_id = 0;
-        char type;
-        utl_buf_t buf_cnl = UTL_BUF_INIT;
-        uint32_t timestamp;
-        while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, &timestamp, &buf_cnl))) {
-            utl_buf_free(&buf_cnl);
-            if (type == LN_DB_CNLANNO_ANNO) {
-                last_short_chennel_id = short_channel_id;
-            }
-            if ( (type != LN_DB_CNLANNO_ANNO) &&
-                 ( (last_short_chennel_id != short_channel_id) || (ln_db_annocnlupd_is_prune(now, timestamp))) ) {
-                //
-                MDB_cursor *cursor = ((lmdb_cursor_t *)p_cur)->cursor;
-                int retval = mdb_cursor_del(cursor, 0);
-                if (retval == 0) {
-                    LOGD("remove orphan: %0" PRIx64 "\n", short_channel_id);
-                } else {
-                    LOGD("err: %s\n", mdb_strerror(retval));
-                }
-            }
-        }
-        ln_db_anno_cur_close(p_cur);
-    }
-
-    ln_db_anno_commit(true);
-}
-
-
 /********************************************************************
  * node_announcement
  ********************************************************************/
@@ -1877,6 +1834,23 @@ bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, u
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
     int retval = ln_lmdb_annocnl_cur_load(p_cur->cursor, pShortChannelId, pType, pTimeStamp, pBuf);
+
+    return retval == 0;
+}
+
+
+/* [channel_announcement / channel_update]
+ *
+ *  dbi: "channel_anno"
+ */
+bool ln_db_annocnl_cur_del(void *pCur)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+
+    int retval = mdb_cursor_del(p_cur->cursor, 0);
+    if ((retval != 0) && (retval != MDB_NOTFOUND)) {
+        LOGD("fail: mdb_cursor_get(): %s\n", mdb_strerror(retval));
+    }
 
     return retval == 0;
 }
@@ -3252,7 +3226,7 @@ void HIDDEN ln_db_copy_channel(ln_self_t *pOutSelf, const ln_self_t *pInSelf)
 
 
 /********************************************************************
- * private functions
+ * private functions: self
  ********************************************************************/
 
 /** channel: add_htlc読み込み
@@ -3274,7 +3248,7 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        addhtlc_dbname(dbname, lp);
+        self_addhtlc_dbname(dbname, lp);
         //LOGD("[%d]dbname: %s\n", lp, dbname);
         retval = mdb_dbi_open(pDb->txn, dbname, 0, &dbi);
         if (retval != 0) {
@@ -3350,7 +3324,7 @@ static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     memcpy(dbname, M_PREF_ADDHTLC, M_PREFIX_LEN);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        addhtlc_dbname(dbname, lp);
+        self_addhtlc_dbname(dbname, lp);
         //LOGD("[%d]dbname: %s\n", lp, dbname);
         retval = mdb_dbi_open(pDb->txn, dbname, MDB_CREATE, &dbi);
         if (retval != 0) {
@@ -3454,7 +3428,7 @@ LABEL_EXIT:
 }
 
 
-static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
+static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
 {
     int retval;
     char        dbname[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR + 1];
@@ -3479,6 +3453,142 @@ static int secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
     return retval;
 }
 
+
+/** short_channel_idが自分が持つチャネルかどうか
+ *
+ */
+static bool self_chk_mynode(uint64_t ShortChannelId)
+{
+    int ret;
+    bool mynode = false;
+    MDB_val     key;
+    lmdb_cursor_t   cur;
+
+    ret = self_cursor_open(&cur);
+    if (ret != 0) {
+        LOGD("fail: self open\n");
+        ln_db_anno_commit(false);
+        return true;        //falseにすると削除されてしまうため
+    }
+
+    char name[M_SZ_DBNAME_LEN + 1];
+    name[sizeof(name) - 1] = '\0';
+    ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
+
+    while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
+        memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
+        name[M_SZ_DBNAME_LEN] = '\0';
+        if ((key.mv_size == M_SZ_DBNAME_LEN) && (memcmp(key.mv_data, M_PREF_CHANNEL, M_PREFIX_LEN) == 0)) {
+            memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
+            ret = mdb_dbi_open(cur.txn, name, 0, &cur.dbi);
+            if (ret == 0) {
+                memset(p_self, 0, sizeof(ln_self_t));
+                int retval = ln_lmdb_self_load(p_self, cur.txn, cur.dbi);
+                ln_term(p_self);
+                if ((retval == 0) && (ShortChannelId == p_self->short_channel_id)) {
+                    LOGD("own channel: %016" PRIx64 "\n", ShortChannelId);
+                    mynode = true;
+                    break;
+                }
+            } else {
+                LOGD("fail: dbi_open\n");
+            }
+        }
+    }
+    UTL_DBG_FREE(p_self);
+    self_cursor_close(&cur);
+    return mynode;
+}
+
+
+/**
+ *
+ * @param[out]      pCur
+ * @retval      0   成功
+ */
+static int self_cursor_open(lmdb_cursor_t *pCur)
+{
+    int             retval;
+
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &pCur->txn);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(pCur->txn, NULL, 0, &pCur->dbi);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(pCur->txn);
+        goto LABEL_EXIT;
+    }
+    retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(pCur->txn);
+        goto LABEL_EXIT;
+    }
+
+LABEL_EXIT:
+    return retval;
+}
+
+
+/**
+ *
+ * @param[out]      pCur
+ */
+static void self_cursor_close(lmdb_cursor_t *pCur)
+{
+    mdb_cursor_close(pCur->cursor);
+    MDB_TXN_COMMIT(pCur->txn);
+}
+
+
+/** addhtlc用db名の作成
+ *
+ * @note
+ *      - "HT" + xxxxxxxx...xx[32*2] + "ddd"
+ *        |<-- M_SZ_DBNAME_LEN  -->|
+ *
+ * @attention
+ *      - 予め pDbName に M_PREF_ADDHTLC と channel_idはコピーしておくこと
+ */
+static void self_addhtlc_dbname(char *pDbName, int num)
+{
+    char htlc_str[M_SZ_HTLC_STR + 1];
+
+    snprintf(htlc_str, sizeof(htlc_str), "%03d", num);
+    memcpy(pDbName + M_SZ_DBNAME_LEN, htlc_str, M_SZ_HTLC_STR);
+    pDbName[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR] = '\0';
+
+}
+
+
+/** #ln_node_search_channel()処理関数
+ *
+ * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
+ * @param[in,out]   p_param         comp_param_cnl_t構造体
+ */
+static bool self_comp_func_cnldel(ln_self_t *self, void *p_db_param, void *p_param)
+{
+    (void)p_db_param;
+    const uint8_t *p_channel_id = (const uint8_t *)p_param;
+
+    bool ret = (memcmp(self->channel_id, p_channel_id, LN_SZ_CHANNEL_ID) == 0);
+    if (ret) {
+        ln_db_self_del_prm(self, p_db_param);
+
+        //true時は呼び元では解放しないので、ここで解放する
+        ln_term(self);
+    }
+    return ret;
+}
+
+
+/********************************************************************
+ * private functions: announce
+ ********************************************************************/
 
 /** channel_announcement読込み
  *
@@ -3764,6 +3874,59 @@ static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId)
 }
 
 
+/** channel_announcementのないchannel_update削除
+ *
+ */
+static void anno_del_orphan(void)
+{
+    bool ret;
+
+    ret = ln_db_anno_transaction();
+    if (!ret) {
+        LOGD("ERR: anno transaction\n");
+        return;
+    }
+
+    uint64_t now = (uint64_t)time(NULL);
+    void *p_cur;
+    ret = ln_db_anno_cur_open(&p_cur, LN_DB_CUR_CNL);
+    if (ret) {
+        uint64_t short_channel_id;
+        uint64_t last_short_chennel_id = 0;
+        char type;
+        utl_buf_t buf_cnl = UTL_BUF_INIT;
+        uint32_t timestamp;
+        while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, &timestamp, &buf_cnl))) {
+            utl_buf_free(&buf_cnl);
+            if (type == LN_DB_CNLANNO_ANNO) {
+                last_short_chennel_id = short_channel_id;
+            }
+            if ( (type != LN_DB_CNLANNO_ANNO) &&
+                 ( (last_short_chennel_id != short_channel_id) || (ln_db_annocnlupd_is_prune(now, timestamp))) ) {
+                // channel_update && (channel_announcementが無い || 古い)
+
+                if (!self_chk_mynode(short_channel_id)) {
+                    MDB_cursor *cursor = ((lmdb_cursor_t *)p_cur)->cursor;
+                    int retval = mdb_cursor_del(cursor, 0);
+                    if (retval == 0) {
+                        LOGD("remove orphan: %016" PRIx64 "\n", short_channel_id);
+                    } else {
+                        LOGD("err: %s\n", mdb_strerror(retval));
+                    }
+                }
+            }
+        }
+        ln_db_anno_cur_close(p_cur);
+    }
+
+    ln_db_anno_commit(true);
+}
+
+
+/********************************************************************
+ * private functions: preimage
+ ********************************************************************/
+
 static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn)
 {
     int retval;
@@ -3849,6 +4012,10 @@ static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_
     return false;
 }
 
+
+/********************************************************************
+ * private functions: version
+ ********************************************************************/
 
 static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port)
 {
@@ -3961,90 +4128,9 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
 }
 
 
-/** addhtlc用db名の作成
- *
- * @note
- *      - "HT" + xxxxxxxx...xx[32*2] + "ddd"
- *        |<-- M_SZ_DBNAME_LEN  -->|
- *
- * @attention
- *      - 予め pDbName に M_PREF_ADDHTLC と channel_idはコピーしておくこと
- */
-static void addhtlc_dbname(char *pDbName, int num)
-{
-    char htlc_str[M_SZ_HTLC_STR + 1];
-
-    snprintf(htlc_str, sizeof(htlc_str), "%03d", num);
-    memcpy(pDbName + M_SZ_DBNAME_LEN, htlc_str, M_SZ_HTLC_STR);
-    pDbName[M_SZ_DBNAME_LEN + M_SZ_HTLC_STR] = '\0';
-
-}
-
-
-/** #ln_node_search_channel()処理関数
- *
- * @param[in,out]   self            DBから取得したself
- * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
- * @param[in,out]   p_param         comp_param_cnl_t構造体
- */
-static bool comp_func_cnldel(ln_self_t *self, void *p_db_param, void *p_param)
-{
-    (void)p_db_param;
-    const uint8_t *p_channel_id = (const uint8_t *)p_param;
-
-    bool ret = (memcmp(self->channel_id, p_channel_id, LN_SZ_CHANNEL_ID) == 0);
-    if (ret) {
-        ln_db_self_del_prm(self, p_db_param);
-
-        //true時は呼び元では解放しないので、ここで解放する
-        ln_term(self);
-    }
-    return ret;
-}
-
-
-/**
- *
- * @param[out]      pCur
- * @retval      0   成功
- */
-static int self_cursor_open(lmdb_cursor_t *pCur)
-{
-    int             retval;
-
-    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &pCur->txn);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = mdb_dbi_open(pCur->txn, NULL, 0, &pCur->dbi);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(pCur->txn);
-        goto LABEL_EXIT;
-    }
-    retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        MDB_TXN_ABORT(pCur->txn);
-        goto LABEL_EXIT;
-    }
-
-LABEL_EXIT:
-    return retval;
-}
-
-
-/**
- *
- * @param[out]      pCur
- */
-static void self_cursor_close(lmdb_cursor_t *pCur)
-{
-    mdb_cursor_close(pCur->cursor);
-    MDB_TXN_COMMIT(pCur->txn);
-}
-
+/********************************************************************
+ * private functions: backup
+ ********************************************************************/
 
 /** backup_param_tデータ読込み
  *
@@ -4106,6 +4192,10 @@ static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_
     return retval;
 }
 
+
+/********************************************************************
+ * private functions: initialize
+ ********************************************************************/
 
 static int initialize_dbself(void)
 {

@@ -41,16 +41,6 @@
 void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey);
 
 
-/** node_announcement受信
- *
- * @param[in,out]       self            channel情報
- * @param[in]           pData           受信データ
- * @param[in]           Len             pData長
- * @retval      true    解析成功
- */
-bool HIDDEN ln_node_recv_node_announcement(ln_self_t *self, const uint8_t *pData, uint16_t Len);
-
-
 /** 共有鍵生成
  *
  */
