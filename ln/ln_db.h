@@ -264,13 +264,6 @@ static inline bool ln_db_annocnlupd_is_prune(uint64_t Now, uint32_t TimesStamp) 
 bool ln_db_annocnlall_del(uint64_t short_channel_id);
 
 
-/** channel_announcementのないchannel_update削除
- *
- *
- */
-void ln_db_annocnl_del_orphan(void);
-
-
 /********************************************************************
  * node_announcement
  ********************************************************************/
@@ -357,6 +350,14 @@ bool ln_db_annocnlinfo_search_nodeid(void *pCur, uint64_t ShortChannelId, char T
  * @retval  true    成功
  */
 bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
+
+
+/** ln_db_annocnl_cur_get()したDBの削除
+ *
+ * @param[in]       pCur
+ * @retval  true    成功
+ */
+bool ln_db_annocnl_cur_del(void *pCur);
 
 
 /** node_announcement取得
