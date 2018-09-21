@@ -95,7 +95,7 @@ char *ln_node_alias(void)
 }
 
 
-bool ln_node_init(uint8_t Features)
+bool ln_node_init(uint8_t Features, bool bStdErr)
 {
     bool ret;
     char wif[BTC_SZ_WIF_MAX];
@@ -104,7 +104,7 @@ bool ln_node_init(uint8_t Features)
 
     mNode.features = Features;
 
-    ret = ln_db_init(wif, mNode.alias, &mNode.addr.port);
+    ret = ln_db_init(wif, mNode.alias, &mNode.addr.port, bStdErr);
     if (ret) {
         //新規設定 or DBから読み込み
         ret = btc_util_wif2keys(&mNode.keys, &chain, wif);

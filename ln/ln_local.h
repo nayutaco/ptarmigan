@@ -173,9 +173,10 @@ void HIDDEN ln_free_revoked_buf(ln_self_t *self);
  * @param[in,out]   pWif            ノードの秘密鍵
  * @param[in,out]   pNodeName       ノード名
  * @param[in,out]   pPort           ポート番号
+ * @param[in]       bStdErr         エラーをstderrに出力
  * @retval  true    初期化成功
  */
-bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort);
+bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr);
 
 
 /** DBで保存している対象のデータだけコピーする

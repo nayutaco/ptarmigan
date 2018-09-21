@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
     uint16_t port = 0;
     if (optind == argc) {
         if (ln_lmdb_have_dbdir()) {
-            (void)ln_node_init(0);
+            (void)ln_node_init(0, false);
             if (ln_node_addr()->port != 0) {
                 port = ln_node_addr()->port + 1;
             }

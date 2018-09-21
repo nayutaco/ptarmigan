@@ -102,7 +102,7 @@ int ptarmd_start(uint16_t my_rpcport)
     p2p_cli_init();
 
     //node情報読込み
-    bret = ln_node_init(0);
+    bret = ln_node_init(0, true);
     if (!bret) {
         fprintf(stderr, "fail: node init\n");
         return -2;
