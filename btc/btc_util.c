@@ -309,13 +309,16 @@ btc_genesis_t btc_util_get_genesis(const uint8_t *pGenesisHash)
     btc_genesis_t ret;
 
     if (memcmp(pGenesisHash, M_BTC_GENESIS_MAIN, BTC_SZ_HASH256) == 0) {
+        LOGD("  bitcoin mainnet\n");
         ret = BTC_GENESIS_BTCMAIN;
     } else if (memcmp(pGenesisHash, M_BTC_GENESIS_TEST, BTC_SZ_HASH256) == 0) {
+        LOGD("  bitcoin testnet\n");
         ret = BTC_GENESIS_BTCTEST;
     } else if (memcmp(pGenesisHash, M_BTC_GENESIS_REGTEST, BTC_SZ_HASH256) == 0) {
+        LOGD("  bitcoin regtest\n");
         ret = BTC_GENESIS_BTCREGTEST;
     } else {
-        LOGD("unknown genesis hash\n");
+        LOGD("  unknown genesis hash\n");
         ret = BTC_GENESIS_UNKNOWN;
     }
     return ret;
