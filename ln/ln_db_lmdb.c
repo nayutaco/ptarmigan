@@ -551,9 +551,11 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
             goto LABEL_EXIT;
         }
     } else {
-        LOGD("FATAL: already initialized\n");
+        LOGD("fail: already initialized\n");
         abort();
     }
+
+    fprintf(stderr, "DB checking: open...");
 
     retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -587,11 +589,13 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         LOGD("port=%d\n", *pPort);
         retval = ver_write(&db, pWif, pNodeName, *pPort);
         if (retval != 0) {
-            LOGD("FAIL: create version db\n");
+            fprintf(stderr, "create version db\n");
             MDB_TXN_ABORT(db.txn);
             goto LABEL_EXIT;
         }
     }
+
+    fprintf(stderr, "done!\nDB checking: version...");
 
     uint8_t genesis[LN_SZ_HASH];
     retval = ver_check(&db, pWif, pNodeName, pPort, genesis);
@@ -600,29 +604,23 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         //LOGD("wif=%s\n", pWif);
         LOGD("alias=%s\n", pNodeName);
         LOGD("port=%d\n", *pPort);
-
-        retval = memcmp(gGenesisChainHash, genesis, LN_SZ_HASH);
-    }
-    if (retval == 0) {
-        btc_genesis_t gtype = btc_util_get_genesis(genesis);
-        switch (gtype) {
-        case BTC_GENESIS_BTCMAIN:
-            LOGD("chainhash: bitcoin mainnet\n");
-            break;
-        case BTC_GENESIS_BTCTEST:
-            LOGD("chainhash: bitcoin testnet\n");
-            break;
-        case BTC_GENESIS_BTCREGTEST:
-            LOGD("chainhash: bitcoin regtest\n");
-            break;
-        default:
-            LOGD("chainhash: unknown chainhash\n");
-            break;
-        }
     } else {
-        LOGD("FAIL: check version db\n");
+        fprintf(stderr, "invalid version\n");
         goto LABEL_EXIT;
     }
+    LOGD("DB genesis hash:\n");
+    btc_genesis_t dbtype = btc_util_get_genesis(genesis);
+    LOGD("node genesis hash:\n");
+    btc_genesis_t bctype = btc_util_get_genesis(gGenesisChainHash);
+    if (dbtype != bctype) {
+        LOGD("fail: genesis hash(%d != %d)\n", dbtype, bctype);
+        fprintf(stderr, "genesis hash not match\n");
+        retval = -1;
+        goto LABEL_EXIT;
+    }
+    fprintf(stderr, "done!\n");
+
+
     //ln_db_invoice_drop();               //送金を再開する場合があるが、その場合は再入力させるか？
     anno_del_orphan();          //channel_updateだけの場合でも保持しておく
 
@@ -3887,6 +3885,9 @@ static void anno_del_orphan(void)
         return;
     }
 
+    //時間がかかる場合があるため、状況を出力する
+    fprintf(stderr, "DB checking: announcement...");
+
     uint64_t now = (uint64_t)time(NULL);
     void *p_cur;
     ret = ln_db_anno_cur_open(&p_cur, LN_DB_CUR_CNL);
@@ -3914,12 +3915,15 @@ static void anno_del_orphan(void)
                         LOGD("err: %s\n", mdb_strerror(retval));
                     }
                 }
+                fprintf(stderr, ".");
             }
         }
         ln_db_anno_cur_close(p_cur);
     }
 
     ln_db_anno_commit(true);
+
+    fprintf(stderr, "done!\n");
 }
 
 
@@ -4081,7 +4085,7 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
     if (retval == 0) {
         int32_t version = *(int32_t *)data.mv_data;
         if (version != M_DB_VERSION_VAL) {
-            LOGD("FAIL: version mismatch : %d(require %d)\n", version, M_DB_VERSION_VAL);
+            LOGD("fail: version mismatch : %d(require %d)\n", version, M_DB_VERSION_VAL);
             retval = -1;
         }
     } else {
