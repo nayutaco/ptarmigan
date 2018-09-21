@@ -256,6 +256,8 @@ static void send_queue_push(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
 static void send_queue_flush(lnapp_conf_t *p_conf);
 static void send_queue_clear(lnapp_conf_t *p_conf);
 
+static bool getnewaddress(utl_buf_t *pBuf);
+
 static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, int line);
 
 
@@ -994,7 +996,7 @@ static void *thread_main_start(void *pArg)
     //送金先
     if (ln_shutdown_scriptpk_local(p_self)->len == 0) {
         utl_buf_t buf = UTL_BUF_INIT;
-        ret = btcrpc_getnewaddress(&buf);
+        ret = getnewaddress(&buf);
         if (!ret) {
             LOGD("fail: create address\n");
             goto LABEL_JOIN;
@@ -1411,7 +1413,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
     LOGD("  funding_sat: %" PRIu64 "\n", pFunding->funding_sat);
     LOGD("  push_sat: %" PRIu64 "\n", pFunding->push_sat);
 
-    bool ret = btcrpc_getnewaddress(&fundin.change_spk);
+    bool ret = getnewaddress(&fundin.change_spk);
     if (!ret) {
         LOGD("fail: getnewaddress\n");
         return false;
@@ -3610,6 +3612,16 @@ static void send_queue_clear(lnapp_conf_t *p_conf)
         utl_buf_free((utl_buf_t *)p);
     }
     utl_buf_free(&p_conf->buf_sendque);
+}
+
+
+static bool getnewaddress(utl_buf_t *pBuf)
+{
+    char addr[BTC_SZ_ADDR_MAX];
+    if (!btcrpc_getnewaddress(addr)) {
+        return false;
+    }
+    return btc_keys_addr2spk(pBuf, addr);
 }
 
 

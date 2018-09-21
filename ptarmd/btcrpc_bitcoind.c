@@ -457,7 +457,7 @@ bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, 
 }
 
 
-bool btcrpc_getnewaddress(utl_buf_t *pBuf)
+bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX])
 {
     bool result = false;
     bool ret;
@@ -468,9 +468,10 @@ bool btcrpc_getnewaddress(utl_buf_t *pBuf)
     ret = getnewaddress_rpc(&p_root, &p_result, &p_json);
     if (ret) {
         if (json_is_string(p_result)) {
-            char addr[BTC_SZ_ADDR_MAX];
-            strcpy(addr,  (const char *)json_string_value(p_result));
-            result = btc_keys_addr2spk(pBuf, addr);
+            if (strlen(json_string_value(p_result)) < BTC_SZ_ADDR_MAX) {
+                strcpy(pAddr,  (const char *)json_string_value(p_result));
+                result = true;
+            }
         }
     } else {
         LOGD("fail: getnewaddress_rpc()\n");
