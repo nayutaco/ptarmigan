@@ -175,10 +175,10 @@ bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, 
 
 /** [bitcoin IF]getnewaddress
  *
- * @param[out]  pBuf        生成したScriptPubKey
+ * @param[out]  pAddr       address
  * @retval  true        取得成功
  */
-bool btcrpc_getnewaddress(utl_buf_t *pBuf);
+bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX]);
 
 
 /** [bitcoin IF]estimatefee
