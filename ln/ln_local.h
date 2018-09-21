@@ -165,19 +165,6 @@ void HIDDEN ln_free_revoked_buf(ln_self_t *self);
  * prototypes(ln_db_lmdb.c)
  **************************************************************************/
 
-/** DB初期化
- *
- * DBを使用できるようにする。
- * また、新規の場合は引数をDBに書き込み、新規でない場合にはDBから読込む
- * 
- * @param[in,out]   pWif            ノードの秘密鍵
- * @param[in,out]   pNodeName       ノード名
- * @param[in,out]   pPort           ポート番号
- * @retval  true    初期化成功
- */
-bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort);
-
-
 /** DBで保存している対象のデータだけコピーする
  *
  * @param[out]  pOutSelf    コピー先

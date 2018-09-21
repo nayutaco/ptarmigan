@@ -100,6 +100,20 @@ typedef struct {
  * prototypes
  ********************************************************************/
 
+/** DB初期化
+ *
+ * DBを使用できるようにする。
+ * また、新規の場合は引数をDBに書き込み、新規でない場合にはDBから読込む
+ * 
+ * @param[in,out]   pWif            ノードの秘密鍵
+ * @param[in,out]   pNodeName       ノード名
+ * @param[in,out]   pPort           ポート番号
+ * @param[in]       bStdErr         エラーをstderrに出力
+ * @retval  true    初期化成功
+ */
+bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr);
+
+
 /** db終了
  *
  */

@@ -526,7 +526,7 @@ const char *ln_lmdb_get_annopath(void)
 }
 
 
-bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
+bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
 {
     int         retval;
     ln_lmdb_db_t   db;
@@ -555,7 +555,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         abort();
     }
 
-    fprintf(stderr, "DB checking: open...");
+    if (bStdErr) fprintf(stderr, "DB checking: open...");
 
     retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db.txn);
     if (retval != 0) {
@@ -589,13 +589,13 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         LOGD("port=%d\n", *pPort);
         retval = ver_write(&db, pWif, pNodeName, *pPort);
         if (retval != 0) {
-            fprintf(stderr, "create version db\n");
+            if (bStdErr) fprintf(stderr, "create version db\n");
             MDB_TXN_ABORT(db.txn);
             goto LABEL_EXIT;
         }
     }
 
-    fprintf(stderr, "done!\nDB checking: version...");
+    if (bStdErr) fprintf(stderr, "done!\nDB checking: version...");
 
     uint8_t genesis[LN_SZ_HASH];
     retval = ver_check(&db, pWif, pNodeName, pPort, genesis);
@@ -605,7 +605,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
         LOGD("alias=%s\n", pNodeName);
         LOGD("port=%d\n", *pPort);
     } else {
-        fprintf(stderr, "invalid version\n");
+        if (bStdErr) fprintf(stderr, "invalid version\n");
         goto LABEL_EXIT;
     }
     LOGD("DB genesis hash:\n");
@@ -614,7 +614,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort)
     btc_genesis_t bctype = btc_util_get_genesis(gGenesisChainHash);
     if (dbtype != bctype) {
         LOGD("fail: genesis hash(%d != %d)\n", dbtype, bctype);
-        fprintf(stderr, "genesis hash not match\n");
+        if (bStdErr) fprintf(stderr, "genesis hash not match\n");
         retval = -1;
         goto LABEL_EXIT;
     }
