@@ -31,6 +31,7 @@
 #include <jansson.h>
 
 #include "ptarmd.h"
+#include "ln_db.h"
 #include "ln_db_lmdb.h"
 #include "conf.h"
 #include "utl_misc.h"
@@ -221,15 +222,19 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    //utl_log_init_stdout();
     if (conn) {
         connect_rpc();
     }
     uint16_t port = 0;
     if (optind == argc) {
         if (ln_lmdb_have_dbdir()) {
-            (void)ln_node_init(0, false);
-            if (ln_node_addr()->port != 0) {
-                port = ln_node_addr()->port + 1;
+            char wif[BTC_SZ_WIF_MAX] = "";
+            char alias[LN_SZ_ALIAS + 1] = "";
+
+            (void)ln_db_init(wif, alias, &port, false);
+            if (port != 0) {
+                port++;
             }
         }
         if (port == 0) {

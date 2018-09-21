@@ -526,7 +526,7 @@ const char *ln_lmdb_get_annopath(void)
 }
 
 
-bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
+bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
 {
     int         retval;
     ln_lmdb_db_t   db;
@@ -618,7 +618,7 @@ bool HIDDEN ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdEr
         retval = -1;
         goto LABEL_EXIT;
     }
-    if (bStdErr) fprintf(stderr, "done!\n");
+    fprintf(stderr, "done!\n");
 
 
     //ln_db_invoice_drop();               //送金を再開する場合があるが、その場合は再入力させるか？

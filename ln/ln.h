@@ -2305,9 +2305,8 @@ const uint8_t *ln_node_getid(void);
 /** ノード情報初期化
  *
  * @param[in]       Features        ?
- * @param[in]       bStdErr         true:エラーをstderrに出力
  */
-bool ln_node_init(uint8_t Features, bool bStdErr);
+bool ln_node_init(uint8_t Features);
 
 
 /** ノード情報終了
