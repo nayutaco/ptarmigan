@@ -290,8 +290,6 @@ void HIDDEN ln_misc_sigexpand(utl_buf_t *pSig, const uint8_t *pBuf)
 //
 void HIDDEN ln_misc_update_scriptkeys(ln_funding_local_data_t *pLocal, ln_funding_remote_data_t *pRemote)
 {
-    LOGD("BEGIN\n");
-
     //
     //local
     //

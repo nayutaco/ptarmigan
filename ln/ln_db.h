@@ -182,6 +182,12 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
 bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam);
 
 
+/** short_channel_idが自分が持つチャネルかどうか
+ *
+ */
+bool ln_db_self_chk_mynode(uint64_t ShortChannelId);
+
+
 /** secret保存
  *
  */
@@ -364,6 +370,20 @@ bool ln_db_annocnlinfo_search_nodeid(void *pCur, uint64_t ShortChannelId, char T
  * @retval  true    成功
  */
 bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
+
+
+/** channel_announcement関連情報の前方取得
+ *
+ * #ln_db_annocnl_cur_get()ではcursorが進んでしまうため、戻す場合に使う想定。
+ * 
+ * @param[in]       pCur
+ * @param[out]      pShortChannelId         short_channel_id
+ * @param[out]      pType                   LN_DB_CNLANNO_xxx(channel_announcement / channel_update)
+ * @param[out]      pTimeStamp              channel_announcementのtimestamp
+ * @param[out]      pBuf                    取得したデータ(p_typeに応じて内容は変わる)
+ * @retval  true    成功
+ */
+bool ln_db_annocnl_cur_getback(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf);
 
 
 /** ln_db_annocnl_cur_get()したDBの削除

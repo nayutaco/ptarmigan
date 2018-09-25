@@ -280,7 +280,6 @@ static void *sig_handler_start(void *pArg)
     sig_set_catch_sigs(&ss);
     while (1) {
         if (sigwaitinfo(&ss, &info) > 0) {
-            printf("!!! SIGNAL DETECT !!!\n");
             LOGD("!!! SIGNAL DETECT: %d !!!\n", info.si_signo);
             exit(-1);
         }

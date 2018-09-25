@@ -315,8 +315,8 @@ static void ln_print_self(const ln_self_t *self)
     btc_util_dumptxid(stdout, self->commit_local.txid);
     printf("\",\n");
     printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_local.htlc_num);
-    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_local.commit_num);
-    printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_local.revoke_num);
+    printf(INDENT4 M_QQ("commit_num") ": \"0x%016" PRIx64 "\",\n", self->commit_local.commit_num);
+    printf(INDENT4 M_QQ("revoke_num") ": \"0x%016" PRIx64 "\"\n", self->commit_local.revoke_num);
 
     printf(INDENT3 "},\n");
 

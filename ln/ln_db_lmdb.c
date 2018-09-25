@@ -411,7 +411,6 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb);
-static bool self_chk_mynode(uint64_t ShortChannelId);
 static int self_cursor_open(lmdb_cursor_t *pCur);
 static void self_cursor_close(lmdb_cursor_t *pCur);
 static void self_addhtlc_dbname(char *pDbName, int num);
@@ -421,12 +420,13 @@ static int annocnl_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortCh
 static int annocnl_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
 static int annocnlupd_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlUpd, uint32_t *pTimeStamp, uint64_t ShortChannelId, uint8_t Dir);
 static int annocnlupd_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlUpd, const ln_cnl_update_t *pUpd);
+static int annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf, MDB_cursor_op op);
 static int annonod_load(ln_lmdb_db_t *pDb, utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_t *pNodeId);
 static int annonod_save(ln_lmdb_db_t *pDb, const utl_buf_t *pNodeAnno, const uint8_t *pNodeId, uint32_t Timestamp);
 static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData, const uint8_t *pNodeId);
 static bool annoinfo_search(MDB_val *pMdbData, const uint8_t *pNodeId);
 static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId);
-static void anno_del_orphan(void);
+static void anno_del_prune(void);
 
 static bool preimg_open(ln_lmdb_db_t *p_db, MDB_txn *txn);
 static void preimg_close(ln_lmdb_db_t *p_db, MDB_txn *txn);
@@ -622,7 +622,7 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
 
 
     //ln_db_invoice_drop();               //送金を再開する場合があるが、その場合は再入力させるか？
-    anno_del_orphan();          //channel_updateだけの場合でも保持しておく
+    anno_del_prune();          //channel_updateだけの場合でも保持しておく
 
 LABEL_EXIT:
     if (retval == 0) {
@@ -1037,6 +1037,50 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
         //ln_print_keys(&local, &remote);
     }
 #endif  //M_DEBUG_KEYS
+}
+
+
+bool ln_db_self_chk_mynode(uint64_t ShortChannelId)
+{
+    int ret;
+    bool mynode = false;
+    MDB_val     key;
+    lmdb_cursor_t   cur;
+
+    ret = self_cursor_open(&cur);
+    if (ret != 0) {
+        LOGD("fail: self open\n");
+        ln_db_anno_commit(false);
+        return true;        //falseにすると削除されてしまうため
+    }
+
+    char name[M_SZ_DBNAME_LEN + 1];
+    name[sizeof(name) - 1] = '\0';
+    ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
+
+    while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
+        memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
+        name[M_SZ_DBNAME_LEN] = '\0';
+        if ((key.mv_size == M_SZ_DBNAME_LEN) && (memcmp(key.mv_data, M_PREF_CHANNEL, M_PREFIX_LEN) == 0)) {
+            memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
+            ret = mdb_dbi_open(cur.txn, name, 0, &cur.dbi);
+            if (ret == 0) {
+                memset(p_self, 0, sizeof(ln_self_t));
+                int retval = ln_lmdb_self_load(p_self, cur.txn, cur.dbi);
+                ln_term(p_self);
+                if ((retval == 0) && (ShortChannelId == p_self->short_channel_id)) {
+                    LOGD("own channel: %016" PRIx64 "\n", ShortChannelId);
+                    mynode = true;
+                    break;
+                }
+            } else {
+                LOGD("fail: dbi_open\n");
+            }
+        }
+    }
+    UTL_DBG_FREE(p_self);
+    self_cursor_close(&cur);
+    return mynode;
 }
 
 
@@ -1823,7 +1867,7 @@ bool ln_db_annocnlinfo_search_nodeid(void *pCur, uint64_t ShortChannelId, char T
 }
 
 
-/* [channel_announcement / channel_update]
+/* [channel_announcement / channel_update]cursor
  *
  *  dbi: "channel_anno"
  */
@@ -1831,7 +1875,22 @@ bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, u
 {
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
 
-    int retval = ln_lmdb_annocnl_cur_load(p_cur->cursor, pShortChannelId, pType, pTimeStamp, pBuf);
+    int retval = annocnl_cur_load(p_cur->cursor, pShortChannelId, pType, pTimeStamp, pBuf, MDB_NEXT_NODUP);
+
+    return retval == 0;
+}
+
+
+/* [channel_announcement / channel_update]cursor back
+ *
+ * MDB_NEXT_NODUPするとcursorが次に進んでしまうため、戻す
+ *  dbi: "channel_anno"
+ */
+bool ln_db_annocnl_cur_getback(void *pCur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf)
+{
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pCur;
+
+    int retval = annocnl_cur_load(p_cur->cursor, pShortChannelId, pType, pTimeStamp, pBuf, MDB_PREV_NODUP);
 
     return retval == 0;
 }
@@ -1860,38 +1919,7 @@ bool ln_db_annocnl_cur_del(void *pCur)
  */
 int ln_lmdb_annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf)
 {
-    MDB_val key, data;
-
-    int retval = mdb_cursor_get(cur, &key, &data, MDB_NEXT_NODUP);
-    if (retval == 0) {
-        if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
-            //key = short_channel_id + type
-            memcpy(pShortChannelId, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
-            *pType = *(char *)((uint8_t *)key.mv_data + LN_SZ_SHORT_CHANNEL_ID);
-            //data
-            uint8_t *pData = (uint8_t *)data.mv_data;
-            if ((*pType == LN_DB_CNLANNO_UPD1) || (*pType == LN_DB_CNLANNO_UPD2)) {
-                if (pTimeStamp != NULL) {
-                    *pTimeStamp = *(uint32_t *)pData;
-                }
-                pData += sizeof(uint32_t);
-                data.mv_size -= sizeof(uint32_t);
-            } else {
-                //channel_announcementにtimestampは無い
-            }
-            utl_buf_alloccopy(pBuf, pData, data.mv_size);
-        } else {
-            LOGD("fail: invalid key length: %d\n", (int)key.mv_size);
-            DUMPD(key.mv_data, key.mv_size);
-            retval = -1;
-        }
-    } else {
-        if (retval != MDB_NOTFOUND) {
-            LOGD("fail: mdb_cursor_get(): %s\n", mdb_strerror(retval));
-        }
-    }
-
-    return retval;
+    return annocnl_cur_load(cur, pShortChannelId, pType, pTimeStamp, pBuf, MDB_NEXT_NODUP);
 }
 
 
@@ -3452,53 +3480,6 @@ static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
 }
 
 
-/** short_channel_idが自分が持つチャネルかどうか
- *
- */
-static bool self_chk_mynode(uint64_t ShortChannelId)
-{
-    int ret;
-    bool mynode = false;
-    MDB_val     key;
-    lmdb_cursor_t   cur;
-
-    ret = self_cursor_open(&cur);
-    if (ret != 0) {
-        LOGD("fail: self open\n");
-        ln_db_anno_commit(false);
-        return true;        //falseにすると削除されてしまうため
-    }
-
-    char name[M_SZ_DBNAME_LEN + 1];
-    name[sizeof(name) - 1] = '\0';
-    ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
-
-    while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
-        memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
-        name[M_SZ_DBNAME_LEN] = '\0';
-        if ((key.mv_size == M_SZ_DBNAME_LEN) && (memcmp(key.mv_data, M_PREF_CHANNEL, M_PREFIX_LEN) == 0)) {
-            memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
-            ret = mdb_dbi_open(cur.txn, name, 0, &cur.dbi);
-            if (ret == 0) {
-                memset(p_self, 0, sizeof(ln_self_t));
-                int retval = ln_lmdb_self_load(p_self, cur.txn, cur.dbi);
-                ln_term(p_self);
-                if ((retval == 0) && (ShortChannelId == p_self->short_channel_id)) {
-                    LOGD("own channel: %016" PRIx64 "\n", ShortChannelId);
-                    mynode = true;
-                    break;
-                }
-            } else {
-                LOGD("fail: dbi_open\n");
-            }
-        }
-    }
-    UTL_DBG_FREE(p_self);
-    self_cursor_close(&cur);
-    return mynode;
-}
-
-
 /**
  *
  * @param[out]      pCur
@@ -3708,6 +3689,47 @@ static int annocnlupd_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlUpd, const ln
 }
 
 
+/* [channel_announcement / channel_update]
+ *
+ *  dbi: "channel_anno"
+ */
+static int annocnl_cur_load(MDB_cursor *cur, uint64_t *pShortChannelId, char *pType, uint32_t *pTimeStamp, utl_buf_t *pBuf, MDB_cursor_op op)
+{
+    MDB_val key, data;
+
+    int retval = mdb_cursor_get(cur, &key, &data, op);
+    if (retval == 0) {
+        if (key.mv_size == LN_SZ_SHORT_CHANNEL_ID + 1) {
+            //key = short_channel_id + type
+            memcpy(pShortChannelId, key.mv_data, LN_SZ_SHORT_CHANNEL_ID);
+            *pType = *(char *)((uint8_t *)key.mv_data + LN_SZ_SHORT_CHANNEL_ID);
+            //data
+            uint8_t *pData = (uint8_t *)data.mv_data;
+            if ((*pType == LN_DB_CNLANNO_UPD1) || (*pType == LN_DB_CNLANNO_UPD2)) {
+                if (pTimeStamp != NULL) {
+                    *pTimeStamp = *(uint32_t *)pData;
+                }
+                pData += sizeof(uint32_t);
+                data.mv_size -= sizeof(uint32_t);
+            } else {
+                //channel_announcementにtimestampは無い
+            }
+            utl_buf_alloccopy(pBuf, pData, data.mv_size);
+        } else {
+            LOGD("fail: invalid key length: %d\n", (int)key.mv_size);
+            DUMPD(key.mv_data, key.mv_size);
+            retval = -1;
+        }
+    } else {
+        if (retval != MDB_NOTFOUND) {
+            LOGD("fail: mdb_cursor_get(): %s\n", mdb_strerror(retval));
+        }
+    }
+
+    return retval;
+}
+
+
 /* node_announcement取得
  *
  * @param[in,out]   pDb
@@ -3872,10 +3894,11 @@ static void annoinfo_cur_trim(MDB_cursor *pCursor, const uint8_t *pNodeId)
 }
 
 
-/** channel_announcementのないchannel_update削除
- *
+/** channel_updateの枝刈り
+ *      - channel_announcementがない(自channel以外)
+ *      - 期限切れ
  */
-static void anno_del_orphan(void)
+static void anno_del_prune(void)
 {
     bool ret;
 
@@ -3902,15 +3925,18 @@ static void anno_del_orphan(void)
             if (type == LN_DB_CNLANNO_ANNO) {
                 last_short_chennel_id = short_channel_id;
             }
-            if ( (type != LN_DB_CNLANNO_ANNO) &&
-                 ( (last_short_chennel_id != short_channel_id) || (ln_db_annocnlupd_is_prune(now, timestamp))) ) {
+            bool prune = ln_db_annocnlupd_is_prune(now, timestamp);
+            if ( (type != LN_DB_CNLANNO_ANNO) && ((last_short_chennel_id != short_channel_id) || prune)) {
                 // channel_update && (channel_announcementが無い || 古い)
-
-                if (!self_chk_mynode(short_channel_id)) {
+                if (!prune && (last_short_chennel_id != short_channel_id)) {
+                    //時間切れでない場合、自channelでないなら削除対象
+                    prune = !ln_db_self_chk_mynode(short_channel_id);
+                }
+                if (prune) {
                     MDB_cursor *cursor = ((lmdb_cursor_t *)p_cur)->cursor;
                     int retval = mdb_cursor_del(cursor, 0);
                     if (retval == 0) {
-                        LOGD("remove orphan: %016" PRIx64 "\n", short_channel_id);
+                        LOGD("prune channel_update(%c): %016" PRIx64 "\n", type, short_channel_id);
                     } else {
                         LOGD("err: %s\n", mdb_strerror(retval));
                     }
