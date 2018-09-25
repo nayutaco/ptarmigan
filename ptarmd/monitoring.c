@@ -445,8 +445,8 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
             break;
         }
     } else {
-        LOGD("  not found: node_announcement: ");
-        DUMPD(p_node_id, BTC_SZ_PUBKEY);
+        //LOGD("  not found: node_announcement: ");
+        //DUMPD(p_node_id, BTC_SZ_PUBKEY);
     }
 
     return false;

@@ -221,7 +221,7 @@ static bool send_peer_raw(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
 static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf);
 static bool send_announcement(lnapp_conf_t *p_conf, bool bDummySend);
 static bool send_anno_pre_chan(uint64_t short_channel_id);
-static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp);
+static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uint64_t last_short_channel_id);
 static int send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_cur_infocnl, const utl_buf_t *p_buf_cnl, bool bDummySend);
 static int send_anno_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_infonode, const utl_buf_t *p_buf_cnl, bool bDummySend);
 static void send_cnlupd_before_announce(lnapp_conf_t *p_conf);
@@ -2844,6 +2844,8 @@ static bool send_announcement(lnapp_conf_t *p_conf, bool bDummySend)
         //前回のところまで検索する
         while ((ret = ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, &type, NULL, &buf_cnl))) {
             if (short_channel_id == p_conf->last_anno_cnl) {
+                //この時点でcursorは次に進んでいる
+                (void)ln_db_annocnl_cur_getback(p_cur_cnl, &short_channel_id, &type, NULL, &buf_cnl);
                 break;
             }
             utl_buf_free(&buf_cnl);
@@ -2863,13 +2865,19 @@ static bool send_announcement(lnapp_conf_t *p_conf, bool bDummySend)
         //事前チェック
         if (type == LN_DB_CNLANNO_ANNO) {
             p_conf->last_annocnl_sci = short_channel_id;    //channel_updateだけを送信しないようにするため
+
+            //  DBを長時間ロックする可能性があるので、送信しなくてもカウントする
+            if (!bDummySend && (anno_cnt >= M_ANNO_UNIT)) {
+                break;
+            }
+
             ret = send_anno_pre_chan(short_channel_id);
             if (!ret) {
                 LOGD("pre_chan: delete all channel %016" PRIx64 "\n", short_channel_id);
                 goto LABEL_EXIT;
             }
         } else if ((type == LN_DB_CNLANNO_UPD1) || (type == LN_DB_CNLANNO_UPD2)) {
-            ret = send_anno_pre_upd(short_channel_id, timestamp);
+            ret = send_anno_pre_upd(short_channel_id, timestamp, p_conf->last_annocnl_sci);
             if (!ret) {
                 LOGD("pre_upd: delete channel_update %016" PRIx64 " %c\n", short_channel_id, (char)type);
 
@@ -2899,10 +2907,8 @@ static bool send_announcement(lnapp_conf_t *p_conf, bool bDummySend)
             }
 
             //処理数カウント
-            //  DBを長時間ロックする可能性があるので、送信しなくてもカウントする
-            if (++anno_cnt >= M_ANNO_UNIT) {
-                break;
-            }
+            //  DBを長時間ロックする可能性があるので、送信しなくてもカウントする(whileから抜けるのは)
+            anno_cnt++;
         } else {
             //channel_announcementが無いchannel_updateの場合
             LOGV("skip channel_%c: last=%016" PRIx64 " / get=%016" PRIx64 "\n", type, p_conf->last_annocnl_sci, short_channel_id);
@@ -2941,11 +2947,16 @@ LABEL_EXIT:
         (void)ln_db_annocnlall_del(short_channel_id);
     }
 
-    LOGD("END: %" PRIu64 "\n", p_conf->last_anno_cnl);
+    LOGD("END: %016" PRIx64 "\n", p_conf->last_anno_cnl);
     return p_conf->last_anno_cnl == 0;
 }
 
 
+/** channel_announcement事前チェック
+ * 
+ * @retval  true        none
+ * @retval  false       channel情報を削除してよい
+ */
 static bool send_anno_pre_chan(uint64_t short_channel_id)
 {
     bool ret = true;
@@ -2965,7 +2976,12 @@ static bool send_anno_pre_chan(uint64_t short_channel_id)
 }
 
 
-static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp)
+/** channel_update事前チェック
+ * 
+ * @retval  true        none
+ * @retval  false       channel_updateを削除してよい
+ */
+static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uint64_t last_short_channel_id)
 {
     bool ret = true;
 
@@ -2975,8 +2991,17 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp)
         //古いため送信しない
         char tmstr[UTL_SZ_DTSTR + 1];
         utl_misc_strftime(tmstr, timestamp);
-        LOGD("older channel: prune(%016" PRIx64 "): %s(now=%" PRIu32 ", tm=%" PRIu32 ")\n", short_channel_id, tmstr, now, timestamp);
+        LOGD("older channel_update: prune(%016" PRIx64 "): %s(now=%" PRIu32 ", tm=%" PRIu32 ")\n", short_channel_id, tmstr, now, timestamp);
         ret = false;
+    }
+
+    //
+    if (ret && (short_channel_id != last_short_channel_id)) {
+        if (!ln_db_self_chk_mynode(short_channel_id)) {
+            //自ノードではないchannel_announcementを持たないchannel_updateのため、削除する
+            LOGD("orphan channel_update: prune(%016" PRIx64 ")\n", short_channel_id);
+            ret = false;
+        }
     }
 
     return ret;
