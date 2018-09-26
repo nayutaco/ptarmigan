@@ -1,11 +1,11 @@
+#define LOG_TAG "ex"
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
+#include "utl_log.h"
+#include "btc.h"
 
-#include "ptarm.h"
-
-extern bool plog_init_stderr(void);
 static bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 static bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 
@@ -36,7 +36,7 @@ static bool misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
  */
 int tx_create1(void)
 {
-    ptarm_init(PTARM_TESTNET, false);       //VIN: not native
+    btc_init(BTC_TESTNET, false);       //VIN: not native
 
     //
     //previous vout
@@ -60,25 +60,25 @@ int tx_create1(void)
     const uint64_t FEE = 1000;
 
 
-    uint8_t PREV_TXID[PTARM_SZ_TXID];
+    uint8_t PREV_TXID[BTC_SZ_TXID];
     misc_str2bin_rev(PREV_TXID, sizeof(PREV_TXID), PREV_TXID_STR);
 
 
-    ptarm_tx_t tx = PTARM_TX_INIT;
+    btc_tx_t tx = BTC_TX_INIT;
 
-    ptarm_vin_t *vin = ptarm_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
-    ptarm_buf_t *pRedeem = ptarm_tx_add_wit(vin);
-    ptarm_buf_alloccopy(pRedeem, PREV_VOUT_REDEEM, sizeof(PREV_VOUT_REDEEM));
+    btc_vin_t *vin = btc_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
+    utl_buf_t *pRedeem = btc_tx_add_wit(vin);
+    utl_buf_alloccopy(pRedeem, PREV_VOUT_REDEEM, sizeof(PREV_VOUT_REDEEM));
 
-    ptarm_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
+    btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
-    ptarm_util_keys_t prev_keys;
-    ptarm_chain_t chain;
-    ptarm_util_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = ptarm_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
+    btc_util_keys_t prev_keys;
+    btc_chain_t chain;
+    btc_util_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool ret = btc_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
-    ptarm_print_tx(&tx);
+    btc_print_tx(&tx);
     // ======================================
     // txid= 341cc3d10ef50cfe3161c72fa4f150382ff11428642fa87074f18551949c9d6f
     // ======================================
@@ -105,17 +105,17 @@ int tx_create1(void)
     // ======================================
 
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
-    ptarm_tx_create(&txbuf, &tx);
-    ptarm_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
-    ptarm_buf_free(&txbuf);
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    btc_tx_create(&txbuf, &tx);
+    btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
+    utl_buf_free(&txbuf);
 
     // $ bitcoin-cli sendrawtransaction 02000000000101e2b9cc94f7dfdb663f9715aed1d1ca9b2390483c827739ab7c489c20e522e8da01000000171600141bf9d39538ae6adc7a1683face78c62f0cf2e27cffffffff01058201000000000017a9142810a73d941022f4ff6b78878fadf5fb42a888a68702483045022100f34ea94cc2b4ddd8a898c5ae3c9bf80f83673f24e7c17314b5e9721e7103886002201b2d5d45754fb4796efb33042a829e3f93d581d4b7f3c6ce13d2ec5fb061bae2012103f8dd7803e1247535b8edf1a41b490d37a377be1f6d41c83cc7a8e2330dc3416600000000
     // 341cc3d10ef50cfe3161c72fa4f150382ff11428642fa87074f18551949c9d6f
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 
-    ptarm_term();
+    btc_term();
 
     return 0;
 }
@@ -155,7 +155,7 @@ int tx_create1(void)
  */
 int tx_create2(void)
 {
-    ptarm_init(PTARM_TESTNET, true);        //VIN: native
+    btc_init(BTC_TESTNET, true);        //VIN: native
 
     //
     //previous vout
@@ -174,23 +174,23 @@ int tx_create2(void)
     const uint64_t FEE = 1000;
 
 
-    uint8_t PREV_TXID[PTARM_SZ_TXID];
+    uint8_t PREV_TXID[BTC_SZ_TXID];
     misc_str2bin_rev(PREV_TXID, sizeof(PREV_TXID), PREV_TXID_STR);
 
 
-    ptarm_tx_t tx = PTARM_TX_INIT;
+    btc_tx_t tx = BTC_TX_INIT;
 
-    ptarm_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
+    btc_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
 
-    ptarm_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
+    btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
-    ptarm_util_keys_t prev_keys;
-    ptarm_chain_t chain;
-    ptarm_util_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = ptarm_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
+    btc_util_keys_t prev_keys;
+    btc_chain_t chain;
+    btc_util_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool ret = btc_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
-    ptarm_print_tx(&tx);
+    btc_print_tx(&tx);
     // ======================================
     // txid= cc4c95e4f27788ae40a7a8254657682206518b8585a043f9b42177b37ee866d7
     // ======================================
@@ -216,17 +216,17 @@ int tx_create2(void)
     // ======================================
 
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
-    ptarm_tx_create(&txbuf, &tx);
-    ptarm_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
-    ptarm_buf_free(&txbuf);
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    btc_tx_create(&txbuf, &tx);
+    btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
+    utl_buf_free(&txbuf);
 
     // $ bitcoin-cli sendrawtransaction 02000000000101a78e6255fd3f60c538a546b38e0fa6b3103cd1dfef72628bb31dd2e2eecc179a0100000000ffffffff01583e0f000000000017a9142810a73d941022f4ff6b78878fadf5fb42a888a68702483045022100a1971b418033d8e198e946f6bbf86c1bd6bff749bbffeeca1dd1168201676bbf022031d20ca73bce80261cac2227c157a5e1ee219db27a77c0e47f3ce2a4931621360121037321e275c52eafcd002e53b741bad8db1cd357e71ad3ef811d879070eddffd3100000000
     // cc4c95e4f27788ae40a7a8254657682206518b8585a043f9b42177b37ee866d7
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 
-    ptarm_term();
+    btc_term();
 
     return 0;
 }
@@ -266,7 +266,7 @@ int tx_create2(void)
  */
 int tx_create3(void)
 {
-    ptarm_init(PTARM_TESTNET, true);        //VIN: native
+    btc_init(BTC_TESTNET, true);        //VIN: native
 
     //
     //previous vout
@@ -285,23 +285,23 @@ int tx_create3(void)
     const uint64_t FEE = 1000;
 
 
-    uint8_t PREV_TXID[PTARM_SZ_TXID];
+    uint8_t PREV_TXID[BTC_SZ_TXID];
     misc_str2bin_rev(PREV_TXID, sizeof(PREV_TXID), PREV_TXID_STR);
 
 
-    ptarm_tx_t tx = PTARM_TX_INIT;
+    btc_tx_t tx = BTC_TX_INIT;
 
-    ptarm_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
+    btc_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
 
-    ptarm_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
+    btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
-    ptarm_util_keys_t prev_keys;
-    ptarm_chain_t chain;
-    ptarm_util_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = ptarm_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
+    btc_util_keys_t prev_keys;
+    btc_chain_t chain;
+    btc_util_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool ret = btc_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
-    ptarm_print_tx(&tx);
+    btc_print_tx(&tx);
     // ======================================
     // txid= 78bb06807dd07254ad3cdb3c49ec05b726f641a69ee41c581201f6d38912a6fe
     // ======================================
@@ -326,17 +326,17 @@ int tx_create3(void)
     // ======================================
 
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
-    ptarm_tx_create(&txbuf, &tx);
-    ptarm_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
-    ptarm_buf_free(&txbuf);
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    btc_tx_create(&txbuf, &tx);
+    btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
+    utl_buf_free(&txbuf);
 
     // $ bitcoin-cli sendrawtransaction 02000000000101bef916318123a1877fd012f2965e08c53257076e11afd52bbe2c244f2ab960890100000000ffffffff01583e0f0000000000160014a782f82af08ce48820cc402f6f7b346aa3daa4e802483045022100aad64cb35d5d7ddae6ecceaece136a43173e8ef73fa55365f466038be2ebc36b0220548ace73fa23c78e9d35d454b97c83228cbc47a78fd28ddf197e02c754594138012103158b0e57aafb5e16e6fb5ad375d423376bc45fbe8e4a841d7cdfaf8116d537b000000000
     // 78bb06807dd07254ad3cdb3c49ec05b726f641a69ee41c581201f6d38912a6fe
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 
-    ptarm_term();
+    btc_term();
 
     return 0;
 }
@@ -367,7 +367,7 @@ int tx_create3(void)
  */
 int tx_create4(void)
 {
-    ptarm_init(PTARM_TESTNET, false);       //VIN: not native
+    btc_init(BTC_TESTNET, false);       //VIN: not native
 
     //
     //previous vout
@@ -386,22 +386,22 @@ int tx_create4(void)
     const uint64_t FEE = 1000;
 
 
-    uint8_t PREV_TXID[PTARM_SZ_TXID];
+    uint8_t PREV_TXID[BTC_SZ_TXID];
     misc_str2bin_rev(PREV_TXID, sizeof(PREV_TXID), PREV_TXID_STR);
 
 
-    ptarm_tx_t tx = PTARM_TX_INIT;
+    btc_tx_t tx = BTC_TX_INIT;
 
-    ptarm_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
-    ptarm_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
+    btc_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
+    btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
-    ptarm_util_keys_t prev_keys;
-    ptarm_chain_t chain;
-    ptarm_util_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = ptarm_util_sign_p2pkh(&tx, 0, &prev_keys);
+    btc_util_keys_t prev_keys;
+    btc_chain_t chain;
+    btc_util_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool ret = btc_util_sign_p2pkh(&tx, 0, &prev_keys);
     printf("ret=%d\n", ret);
 
-    ptarm_print_tx(&tx);
+    btc_print_tx(&tx);
     // ======================================
     // txid= b072d8eab1580dae2047c0b92df54c3e5cc33825440e5e4f278e8e62e5575089
     // ======================================
@@ -430,17 +430,17 @@ int tx_create4(void)
     // ======================================
 
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
-    ptarm_tx_create(&txbuf, &tx);
-    ptarm_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
-    ptarm_buf_free(&txbuf);
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    btc_tx_create(&txbuf, &tx);
+    btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
+    utl_buf_free(&txbuf);
 
     // $ bitcoin-cli sendrawtransaction 02000000019a1c3af291ac26cd0126abb72ba5101422ad3dc76667f69abf19de6ed2514436010000006a47304402200ec4abd2df761092961cdfe1fe26200a60e41dadc934b0a212214fc01158dbd302201cc8b0d5c0e31eccf17a248133d97f79b33a66781e251422a8f4ea6983dd4245012102167d244d4230ad06c4b7871d3cb78238b3f5c069c808e7aa4ddbf610bcdfcd33ffffffff01583e0f00000000001976a9144e5a0d8858c484747bccf427c8ab3a017c3c75c788ac00000000
     // b072d8eab1580dae2047c0b92df54c3e5cc33825440e5e4f278e8e62e5575089
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 
-    ptarm_term();
+    btc_term();
 
     return 0;
 }
@@ -471,7 +471,7 @@ int tx_create4(void)
  */
 int tx_create5(void)
 {
-    ptarm_init(PTARM_TESTNET, false);       //VIN: not native
+    btc_init(BTC_TESTNET, false);       //VIN: not native
 
     //
     //previous vout
@@ -490,22 +490,22 @@ int tx_create5(void)
     const uint64_t FEE = 1000;
 
 
-    uint8_t PREV_TXID[PTARM_SZ_TXID];
+    uint8_t PREV_TXID[BTC_SZ_TXID];
     misc_str2bin_rev(PREV_TXID, sizeof(PREV_TXID), PREV_TXID_STR);
 
 
-    ptarm_tx_t tx = PTARM_TX_INIT;
+    btc_tx_t tx = BTC_TX_INIT;
 
-    ptarm_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
-    ptarm_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
+    btc_tx_add_vin(&tx, PREV_TXID, PREV_TXINDEX);
+    btc_tx_add_vout_addr(&tx, PREV_AMOUNT - FEE, NEW_VOUT_ADDR);
 
-    ptarm_util_keys_t prev_keys;
-    ptarm_chain_t chain;
-    ptarm_util_wif2keys(&prev_keys, &chain, PREV_WIF);
-    bool ret = ptarm_util_sign_p2pkh(&tx, 0, &prev_keys);
+    btc_util_keys_t prev_keys;
+    btc_chain_t chain;
+    btc_util_wif2keys(&prev_keys, &chain, PREV_WIF);
+    bool ret = btc_util_sign_p2pkh(&tx, 0, &prev_keys);
     printf("ret=%d\n", ret);
 
-    ptarm_print_tx(&tx);
+    btc_print_tx(&tx);
     // ======================================
     // txid= f2cff303c3f08882604dcfc8bf9a4c5ae26b2a2c23fa10c87db089492a0ba5aa
     // ======================================
@@ -530,21 +530,21 @@ int tx_create5(void)
     // ======================================
 
 
-    ptarm_buf_t txbuf = PTARM_BUF_INIT;
-    ptarm_tx_create(&txbuf, &tx);
-    ptarm_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
-    ptarm_buf_free(&txbuf);
+    utl_buf_t txbuf = UTL_BUF_INIT;
+    btc_tx_create(&txbuf, &tx);
+    btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
+    utl_buf_free(&txbuf);
 
-    ptarm_tx_free(&tx);
+    btc_tx_free(&tx);
 
-    ptarm_term();
+    btc_term();
 
     return 0;
 }
 
 int main(void)
 {
-    plog_init_stderr();
+    utl_log_init_stderr();
 
     tx_create1();
     tx_create2();

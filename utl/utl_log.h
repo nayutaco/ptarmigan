@@ -2,6 +2,7 @@
 #define UTL_LOG_H__
 
 #include <stdio.h>
+#include <stdbool.h>
 
 
 #ifdef __cplusplus

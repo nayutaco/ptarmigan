@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "ptarm.h"
+#include "btc.h"
 
 
 const uint8_t SIG[] = {
@@ -32,12 +32,12 @@ const uint8_t PUB[] = {
 
 int main(void)
 {
-    ptarm_init(PTARM_TESTNET, true);
+    btc_init(BTC_TESTNET, true);
 
-    const ptarm_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
-    bool ret = ptarm_tx_verify(&sig, TXHASH, PUB);
+    const utl_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
+    bool ret = btc_tx_verify(&sig, TXHASH, PUB);
     printf("ret=%d\n", ret);
 
-    ptarm_term();
+    btc_term();
     return 0;
 }

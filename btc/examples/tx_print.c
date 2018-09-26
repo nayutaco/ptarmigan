@@ -1,13 +1,12 @@
+#define LOG_TAG "ex"
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include "ptarm.h"
+#include "btc.h"
+#include "utl_log.h"
 #include "mbedtls/sha256.h"
 
-extern bool plog_init_stderr(void);
-
-void ptarm_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len);
 
 static bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 {
@@ -50,8 +49,8 @@ static bool misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 
 int main(void)
 {
-    plog_init_stderr();
-    ptarm_init(PTARM_TESTNET, true);
+    utl_log_init_stderr();
+    btc_init(BTC_TESTNET, true);
 
 #if 0
     printf("=======================================\n");
@@ -79,22 +78,22 @@ int main(void)
 
 #if 1
     printf("=======================================\n");
-    const char TXSTR[] = "02000000000101c5f10f842aa8c57da66f8d7f5a7405feb5aa80505a0b1702ba5052fbd5c9dbed02000000002800000001ace7020000000000160014fb8842d4e461f672c7d2730aef511f0ce026faee03483045022100cc82a015f3414a84eff9f7c7c82e0afcad2ae3adecaa64a9cce8f34248af87a502200c18dbe52cae9055271cba0499605fb2e6befb03e36f983b4c758824045d564601004c6321034328e59c32259384e09a50c7fede31978319baccf6a872203f2095698b035e93670128b2752102f07b2981ef0b6d9d115339a925ac2421fae98847d6315622441d5b109f5ee24a68ac00000000";
+    const char TXSTR[] = "0200000001516aef63107e8d4e909e3cd7a8e5b0bef1bd92a6a2a301ea06837ce26404da2a00000000002350528002882e000000000000220020eb474b65fe06d3c94bbf1cf6752859a6da090408e1af72bde932050a192a1bed90340800000000001600141e7cf6d85b86f2aca987b5519871e5891cd9b1d42a247220";
     size_t len = strlen(TXSTR);
     uint8_t *tx = (uint8_t *)malloc(len / 2);
     misc_str2bin(tx, len/2, TXSTR);
 
     const uint8_t byte = 0;
-    uint8_t h256[PTARM_SZ_HASH256];
+    uint8_t h256[BTC_SZ_HASH256];
     mbedtls_sha256(&byte, 1, h256, 0);
     mbedtls_sha256(h256, sizeof(h256), h256, 0);
-    for (int lp = 0; lp < PTARM_SZ_HASH256; lp++) {
+    for (int lp = 0; lp < BTC_SZ_HASH256; lp++) {
         printf("%02x", h256[lp]);
     }
     printf("\n");
-    ptarm_print_rawtx(tx, len/2);
+    btc_print_rawtx(tx, len/2);
 
-    uint32_t vsize = ptarm_tx_get_vbyte_raw(tx, len/2);
+    uint32_t vsize = btc_tx_get_vbyte_raw(tx, len/2);
     printf("vsize=%" PRIu32 "\n", vsize);
 
     free(tx);
@@ -102,7 +101,7 @@ int main(void)
 
     printf("=======================================\n");
 
-    ptarm_term();
+    btc_term();
 
     return 0;
 }

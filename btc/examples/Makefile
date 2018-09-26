@@ -15,8 +15,8 @@ INC_PATHS +=
 #COMMANDS
 ######################################
 
-INC_PATHS += -I../../util -I.. -I../../libs/install/include
-LD_PATHS += -L.. -L../../util -L../../libs/install/lib
+INC_PATHS += -I../../utl -I.. -I../../libs/install/include
+LD_PATHS += -L.. -L../../utl -L../../libs/install/lib
 
 OBJECT_DIRECTORY = _build
 OUTPUT_BINARY_DIRECTORY = .
@@ -90,7 +90,7 @@ LDFLAGS += -pthread
 
 #Link Library
 LIBS += $(LD_PATHS)
-LIBS += -lbtc -lutil -llmdb -lmbedcrypto -lbase58 -lstdc++
+LIBS += -lbtc -lutl -llmdb -lmbedcrypto -lbase58 -lstdc++
 
 
 #default target - first one defined

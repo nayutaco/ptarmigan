@@ -1,9 +1,9 @@
+#define LOG_TAG "ex"
 #include <stdio.h>
 #include <inttypes.h>
-#include "ptarm.h"
+#include "utl_log.h"
+#include "btc.h"
 #include "segwit_addr.h"
-
-extern bool plog_init_stderr(void);
 
 
 static void pkh_to_p2wpkh(void)
@@ -14,9 +14,9 @@ static void pkh_to_p2wpkh(void)
         0x96, 0x15, 0xf2, 0x31, 0x54, 0xc1, 0x87,
     };
 
-    char addr[PTARM_SZ_ADDR_MAX];
-    ptarm_buf_t BUF_SPK = { (uint8_t *)SPK, sizeof(SPK) };
-    bool ret = ptarm_keys_spk2addr(addr, &BUF_SPK);
+    char addr[BTC_SZ_ADDR_MAX];
+    utl_buf_t BUF_SPK = { (uint8_t *)SPK, sizeof(SPK) };
+    bool ret = btc_keys_spk2addr(addr, &BUF_SPK);
     if (ret) {
         printf("addr: %s\n", addr);
     }
@@ -34,12 +34,12 @@ static void bech32wpkh_to_hash(void)
     if (ret) {
         printf("ver: %02x\n", ver);
         printf("prog[%d]: ", (int)prog_len);
-        ptarm_util_dumpbin(stdout, prog, prog_len, true);
+        btc_util_dumpbin(stdout, prog, prog_len, true);
     } else {
         printf("fail: segwit_addr_decode\n");
     }
 
-    char addr[PTARM_SZ_ADDR_MAX];
+    char addr[BTC_SZ_ADDR_MAX];
     ret = segwit_addr_encode(addr, SEGWIT_ADDR_TESTNET, ver, prog, prog_len);
     if (ret) {
         printf("addr: %s\n", addr);
@@ -50,9 +50,9 @@ static void bech32wpkh_to_hash(void)
 
 int main(void)
 {
-    plog_init_stderr();
+    utl_log_init_stderr();
 
-    ptarm_init(PTARM_TESTNET, false);
+    btc_init(BTC_TESTNET, false);
 
     pkh_to_p2wpkh();
     bech32wpkh_to_hash();
