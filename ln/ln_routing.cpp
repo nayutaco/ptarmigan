@@ -370,12 +370,18 @@ lnerr_route_t ln_routing_calculate(
     }
 
     if (AddNum > 0) {
+        //r-filedの追加
         int node_num = rt_res.node_num;
         rt_res.node_num += AddNum;
         rt_res.p_nodes = (nodes_t *)realloc(rt_res.p_nodes, sizeof(nodes_t) * rt_res.node_num);
 
         for (uint8_t lp = 0; lp < AddNum; lp++) {
             nodes_t *p_nodes = &rt_res.p_nodes[node_num];
+
+            bool bret = ln_db_routeskip_search(pAddRoute[lp].short_channel_id);
+            if (bret) {
+                continue;
+            }
 
             // add_node(0) --> payee(1)
             p_nodes->short_channel_id = pAddRoute[lp].short_channel_id;
