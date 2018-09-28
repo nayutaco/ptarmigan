@@ -1311,11 +1311,11 @@ bool ln_set_add_htlc(ln_self_t *self,
 
         *pHtlcId = self->cnl_add_htlc[idx].id;
         LOGD("HTLC add : next htlc_num=%d, prev_short_channel_id=%" PRIu64 "\n", self->htlc_num, self->cnl_add_htlc[idx].prev_short_channel_id);
+        LOGD("           self->cnl_add_htlc[%d].flag = 0x%02x\n", idx, self->cnl_add_htlc[idx].flag);
     } else {
         M_SET_ERR(self, LNERR_MSG_ERROR, "create update_add_htlc");
     }
 
-    LOGD("END: self->cnl_add_htlc[%d].flag = 0x%02x\n", idx, self->cnl_add_htlc[idx].flag);
     return ret;
 }
 
@@ -3157,7 +3157,7 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
         //  ここでは受信したfailure_codeでエラーを作る。
         //
         // BOLT#02
-        //  if the sha256_of_onion in update_fail_malformed_htlc doesn't match the onion it sent: 
+        //  if the sha256_of_onion in update_fail_malformed_htlc doesn't match the onion it sent:
         //      MAY retry or choose an alternate error response.
         if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) &&
              (self->cnl_add_htlc[idx].id == mal_htlc.id)) {
@@ -4645,8 +4645,8 @@ LABEL_EXIT:
 
 
 /** commitment_signed作成
- * 
- * 
+ *
+ *
  */
 static bool create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig)
 {
@@ -5666,7 +5666,7 @@ static void set_error(ln_self_t *self, int Err, const char *pFormat, ...)
 
 
 /** commitment_number状態
- * 
+ *
  *  @retval 0   state-A: local.commit_num <  remote.commit_num
  *  @retval 1   state-B: local.commit_num >  remote.commit_num
  *  @retval 2   state-C: local.commit_num == remote.commit_num

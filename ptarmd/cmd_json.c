@@ -1408,7 +1408,7 @@ static int cmd_routepay_proc2(
                 LOGD("start payment\n");
                 err = 0;
             } else {
-                LOGD("fail: lnapp_payment\n");
+                LOGD("fail: lnapp_payment(0x%016" PRIx64 "\n", pRouteResult->hop_datain[0].short_channel_id);
                 ln_db_routeskip_save(pRouteResult->hop_datain[0].short_channel_id, true);
             }
         } else {
@@ -1551,7 +1551,7 @@ static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
 
 
 /** not public channel情報からr field情報を作成
- * 
+ *
  * channel_announcementする前や、channel_announcementしない場合、invoiceのr fieldに経路情報を追加することで、
  * announcementしていない部分の経路を知らせることができる。
  * ただ、その経路は自分へ向いているため、channelの相手が送信するchannel_updateの情報を追加することになる。
