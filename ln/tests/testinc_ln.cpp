@@ -250,7 +250,7 @@ TEST_F(ln, init)
     ln_term(&self);
 }
 
-
+#if 0
 TEST_F(ln, ln_set_add_htlc1)
 {
     ln_self_t self;
@@ -297,8 +297,8 @@ TEST_F(ln, ln_set_add_htlc1)
 
     ln_term(&self);
 }
+#endif
 
-#if 0
 TEST_F(ln, ln_create_add_htlc1)
 {
     ln_self_t self;
@@ -349,7 +349,7 @@ TEST_F(ln, ln_create_add_htlc1)
     utl_buf_free(&add);
     ln_term(&self);
 }
-#endif
+
 
 //fulfill
 TEST_F(ln, recv_update_add_htlc1)
