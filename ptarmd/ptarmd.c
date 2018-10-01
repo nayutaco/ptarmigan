@@ -83,6 +83,7 @@ LIST_HEAD(nodefaillisthead_t, nodefaillist_t);
 
 static pthread_mutex_t              mMuxPreimage;
 static struct nodefaillisthead_t    mNodeFailListHead;
+static bool                         mRunning;
 
 
 /********************************************************************
@@ -143,6 +144,8 @@ int ptarmd_start(uint16_t my_rpcport)
     lnapp_save_event(NULL,
             "ptarmd start: total_msat=%" PRIu64 "\n", total_amount);
 
+    mRunning = true;
+
     //ptarmcli受信用
     cmd_json_start(my_rpcport != 0 ? my_rpcport : p_addr->port + 1);
 
@@ -168,10 +171,14 @@ int ptarmd_start(uint16_t my_rpcport)
 
 void ptarmd_stop(void)
 {
-    cmd_json_stop();
-    p2p_svr_stop_all();
-    p2p_cli_stop_all();
-    monitor_stop();
+    if (mRunning) {
+        mRunning = false;
+        LOGD("stopage order\n");
+        cmd_json_stop();
+        p2p_svr_stop_all();
+        p2p_cli_stop_all();
+        monitor_stop();
+    }
 }
 
 

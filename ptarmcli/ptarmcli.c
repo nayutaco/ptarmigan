@@ -111,6 +111,7 @@ static void optfunc_getcommittx(int *pOption, bool *pConn);
 static void optfunc_disable_autoconn(int *pOption, bool *pConn);
 static void optfunc_remove_channel(int *pOption, bool *pConn);
 static void optfunc_setfeerate(int *pOption, bool *pConn);
+static void optfunc_estimatefundingfee(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -145,6 +146,7 @@ static const struct {
 
     //long opt
     { 'b', optfunc_setfeerate },
+    { 'B', optfunc_estimatefundingfee },
     { 'j', optfunc_debug },
 };
 
@@ -166,6 +168,7 @@ int main(int argc, char *argv[])
 
     const struct option OPTIONS[] = {
         { "setfeerate", required_argument, NULL, 'b' },
+        { "estimatefundingfee", required_argument, NULL, 'B' },
         { "debug", required_argument, NULL, 'j' },
         { 0, 0, 0, 0 }
     };
@@ -718,6 +721,38 @@ static void optfunc_setfeerate(int *pOption, bool *pConn)
         snprintf(mBuf, BUFFER_SIZE,
             "{"
                 M_STR("method", "setfeerate") M_NEXT
+                M_QQ("params") ":[ "
+                    //feerate_per_kw
+                    "%" PRIu32
+                " ]"
+            "}",
+                (uint32_t)feerate_per_kw);
+
+        *pOption = M_OPTIONS_EXEC;
+    } else {
+        sprintf(mErrStr, "%s", strerror(errno));
+        *pOption = M_OPTIONS_ERR;
+    }
+}
+
+
+static void optfunc_estimatefundingfee(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    errno = 0;
+    uint64_t feerate_per_kw = strtoull(optarg, NULL, 10);
+    if (feerate_per_kw > UINT32_MAX) {
+        strcpy(mErrStr, "feerate_per_kw too high");
+        *pOption = M_OPTIONS_ERR;
+        return;
+    }
+    if (errno == 0) {
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "estimatefundingfee") M_NEXT
                 M_QQ("params") ":[ "
                     //feerate_per_kw
                     "%" PRIu32

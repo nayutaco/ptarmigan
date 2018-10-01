@@ -118,7 +118,7 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
 }
 
 
-void btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
                 const utl_buf_t *pScriptCode)
 {
     // [transaction version : 4]
@@ -136,6 +136,12 @@ void btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t V
     utl_buf_t hash_prevouts;
     utl_buf_t hash_sequence;
     utl_buf_t hash_outputs;
+
+    btc_txvalid_t txvld = btc_tx_is_valid(pTx);
+    if (txvld != BTC_TXVALID_OK) {
+        LOGD("fail: invalid tx\n");
+        return false;
+    }
 
     utl_buf_alloc(&preimg, 156 + pScriptCode->len);
     uint8_t *p = preimg.buf;
@@ -226,6 +232,8 @@ void btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t V
     utl_buf_free(&hash_sequence);
     utl_buf_free(&hash_prevouts);
     utl_buf_free(&preimg);
+
+    return true;
 }
 
 
@@ -335,10 +343,12 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const 
     utl_buf_t script_code;
     btc_sw_scriptcode_p2wpkh(&script_code, p_pub->buf);
 
+    bool ret;
     uint8_t txhash[BTC_SZ_HASH256];
-    btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
-
-    bool ret = btc_tx_verify(p_sig, txhash, p_pub->buf);
+    ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
+    if (ret) {
+        ret = btc_tx_verify(p_sig, txhash, p_pub->buf);
+    }
     if (ret) {
         //pubKeyHashチェック
         uint8_t pkh[BTC_SZ_PUBKEYHASH];

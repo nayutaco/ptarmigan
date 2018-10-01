@@ -74,6 +74,7 @@ extern "C" {
 #define LN_BLK_FEEESTIMATE              (6)         ///< estimatefeeのブロック数(2以上)
 #define LN_MIN_FINAL_CLTV_EXPIRY        (9)         ///< min_final_cltv_expiryのデフォルト値
 #define LN_INVOICE_EXPIRY               (3600)      ///< invoice expiryのデフォルト値
+#define LN_FUNDSAT_MIN                  (1000)      ///< minimum funding_sat(BOLTに規定はない)
 
 #define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
 
@@ -1973,6 +1974,16 @@ static inline void ln_set_feerate_per_kw(ln_self_t *self, uint32_t FeeratePerKw)
  */
 static inline uint64_t ln_estimate_fundingtx_fee(uint32_t FeeratePerKw) {
     return ln_calc_fee(LN_SZ_FUNDINGTX_VSIZE, FeeratePerKw);
+}
+
+
+/** 初期commit_tx FEE取得
+ *
+ * @param[in]   FeeratePerKw        feerate_per_kw(open_channelのパラメータと同じ)
+ * @return      fee[satoshis]
+ */
+static inline uint64_t ln_estimate_initcommittx_fee(uint32_t FeeratePerKw) {
+    return (LN_FEE_COMMIT_BASE * FeeratePerKw / 1000);
 }
 
 

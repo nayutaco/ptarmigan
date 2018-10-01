@@ -121,7 +121,7 @@ void *monitor_thread_start(void *pArg)
         param.height = btcrpc_getblockcount();
         ln_db_self_search(monfunc, &param);
     }
-    LOGD("stop\n");
+    LOGD("[exit]monitor thread\n");
 
     return NULL;
 }
