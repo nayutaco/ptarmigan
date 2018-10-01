@@ -297,7 +297,7 @@ TEST_F(ln, ln_set_add_htlc1)
 
     ln_term(&self);
 }
-#endif
+
 
 TEST_F(ln, ln_create_add_htlc1)
 {
@@ -528,3 +528,4 @@ TEST_F(ln, recv_update_add_htlc3)
 
     ln_term(&self);
 }
+#endif
