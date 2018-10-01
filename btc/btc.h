@@ -80,6 +80,7 @@ extern "C" {
 #define BTC_EKEY_BIP_INTERNAL (1)             ///< BIP44 Change: internal chain(change addresses)
 #define BTC_EKEY_BIP_SKIP     ((uint32_t)-1)  ///< BIP44: account以降かchange以降をskipする
 
+//連結させるため文字列にしている
 #define BTC_OP_0                "\x00"          ///< OP_0
 #define BTC_OP_2                "\x52"          ///< OP_2
 #define BTC_OP_HASH160          "\xa9"          ///< OP_HASH160
@@ -98,6 +99,7 @@ extern "C" {
 #define BTC_OP_NOTIF            "\x64"          ///< OP_NOTIF
 #define BTC_OP_ELSE             "\x67"          ///< OP_ELSE
 #define BTC_OP_ENDIF            "\x68"          ///< OP_ENDIF
+#define BTC_OP_RETURN           "\x6a"          ///< OP_RETURN
 #define BTC_OP_SWAP             "\x7c"          ///< OP_SWAP
 #define BTC_OP_ADD              "\x93"          ///< OP_ADD
 #define BTC_OP_SIZE             "\x82"          ///< OP_SIZE
@@ -204,6 +206,24 @@ typedef enum {
 } btc_chain_t;
 
 
+/** @enum   btc_valid_t
+ *  @brief  #btc_tx_is_valid()
+ */
+typedef enum {
+    BTC_TXVALID_OK,
+    BTC_TXVALID_ARG,
+    BTC_TXVALID_VERSION,
+    BTC_TXVALID_VIN_NONE,
+    BTC_TXVALID_VIN_NULL,
+    BTC_TXVALID_VIN_WIT_NULL,
+    BTC_TXVALID_VIN_WIT_BAD,
+    BTC_TXVALID_VOUT_NONE,
+    BTC_TXVALID_VOUT_NULL,
+    BTC_TXVALID_VOUT_NOPKH,
+    BTC_TXVALID_VOUT_VALUE,
+} btc_txvalid_t;
+
+
 /** @struct     btc_ekey_t
  *  @brief      Extended Key管理構造体
  */
@@ -255,7 +275,7 @@ typedef struct {
  *  @brief  TX管理構造体
  */
 typedef struct {
-    uint32_t    version;        ///< TX version
+    int32_t     version;        ///< TX version
 
     uint32_t    vin_cnt;        ///< vin数(0のとき、vinは無視)
     btc_vin_t   *vin;           ///< vin(配列的に使用する)
@@ -492,6 +512,16 @@ void btc_tx_init(btc_tx_t *pTx);
  *      - メモリ解放以外の値(version, locktime)は維持する。
  */
 void btc_tx_free(btc_tx_t *pTx);
+
+
+/** トランザクションの正統性チェック
+ * 
+ * @param[in]   pTx         チェック対象
+ * @return  チェック結果
+ * @note
+ *      - 署名やスクリプトの正統性ではなく、形として正しいかどうかだけをチェックする
+ */
+btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx);
 
 
 /** #btc_vin_t の追加
@@ -977,9 +1007,10 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin);
  * @param[in]       Index               署名するINPUTのindex番号
  * @param[in]       Value               署名するINPUTのvalue[単位:satoshi]
  * @param[in]       pScriptCode         Script Code
+ * @retval  false   pTxがトランザクションとして不正
  *
  */
-void btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
                 const utl_buf_t *pScriptCode);
 
 
@@ -1271,8 +1302,9 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_ut
  * @param[in]       Index
  * @param[in]       Value
  * @param[in]       pWitScript
+ * @retval  false   pTxがトランザクションとして不正
  */
-void btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+bool btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
                     const utl_buf_t *pWitScript);
 
 

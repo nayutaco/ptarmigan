@@ -197,8 +197,10 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_ut
 
     btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
 
-    btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
-    ret = btc_tx_sign(&sigbuf, txhash, pKeys->priv);
+    ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
+    if (ret) {
+        ret = btc_tx_sign(&sigbuf, txhash, pKeys->priv);
+    }
     if (ret) {
         //mNativeSegwitがfalseの場合はscriptSigへの追加も行う
         btc_sw_set_vin_p2wpkh(pTx, Index, &sigbuf, pKeys->pub);
@@ -211,14 +213,15 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_ut
 }
 
 
-void btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+bool btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
                     const utl_buf_t *pWitScript)
 {
     utl_buf_t script_code = UTL_BUF_INIT;
 
     btc_sw_scriptcode_p2wsh(&script_code, pWitScript);
-    btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code);
+    bool ret = btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code);
     utl_buf_free(&script_code);
+    return ret;
 }
 
 

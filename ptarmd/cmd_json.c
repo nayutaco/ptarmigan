@@ -50,8 +50,9 @@
 
 #define M_SZ_JSONSTR            (8192)
 #define M_SZ_PAYERR             (128)
-
 #define M_RETRY_CONN_CHK        (10)        ///< 接続チェック[sec]
+
+#define M_RPCERR_FREESTRING     (-1)        //no ptarmd_error_str()
 
 
 /********************************************************************
@@ -78,6 +79,7 @@ typedef struct {
 static struct jrpc_server   mJrpc;
 static char                 mLastPayErr[M_SZ_PAYERR];       //最後に送金エラーが発生した時刻
 static int                  mPayTryCount = 0;               //送金トライ回数
+static bool                 mRunning;
 
 static const char *kOK = "OK";
 
@@ -104,11 +106,12 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id);
 
 static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx);
 static int cmd_disconnect_proc(const uint8_t *pNodeId);
 static int cmd_stop_proc(void);
-static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund);
+static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jrpc_context *ctx);
 static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat);
 static int cmd_eraseinvoice_proc(const uint8_t *pPayHash);
 static int cmd_routepay_proc1(
@@ -144,6 +147,7 @@ void cmd_json_start(uint16_t Port)
         return;
     }
 
+    mRunning = true;
     jrpc_register_procedure(&mJrpc, cmd_connect,     "connect", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_disconnect,  "disconnect", NULL);
@@ -162,15 +166,20 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_disautoconn, "disautoconn", NULL);
     jrpc_register_procedure(&mJrpc, cmd_removechannel,"removechannel", NULL);
     jrpc_register_procedure(&mJrpc, cmd_setfeerate,   "setfeerate", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_estimatefundingfee, "estimatefundingfee", NULL);
     jrpc_server_run(&mJrpc);
     jrpc_server_destroy(&mJrpc);
+
+    LOGD("[exit]jrpc_server\n");
 }
 
 
 void cmd_json_stop(void)
 {
-    if (mJrpc.port_number != 0) {
+    if (mRunning) {
         jrpc_server_stop(&mJrpc);
+        LOGD("stop jrpc_server\n");
+        mRunning = false;
     }
 }
 
@@ -431,13 +440,14 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         fundconf.feerate_per_kw = 0;
     }
 
-
-    err = cmd_fund_proc(conn.node_id, &fundconf);
+    err = cmd_fund_proc(conn.node_id, &fundconf, ctx);
 
 LABEL_EXIT:
     if (err == 0) {
         result = cJSON_CreateObject();
         cJSON_AddItemToObject(result, "status", cJSON_CreateString("Progressing"));
+    } else if (err == M_RPCERR_FREESTRING) {
+        //
     } else {
         ctx->error_code = err;
         ctx->error_message = ptarmd_error_str(err);
@@ -1136,6 +1146,50 @@ LABEL_EXIT:
 }
 
 
+/** feerate_per_kw手動設定 : ptarmcli --estimatefundingfee
+ *
+ */
+static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    cJSON *json;
+    uint32_t feerate_per_kw = 0;
+    cJSON *result = NULL;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    //feerate_per_kw
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number) && (json->valueu64 <= UINT32_MAX)) {
+        feerate_per_kw = (uint32_t)json->valueu64;
+        LOGD("feerate_per_kw=%" PRIu32 "\n", feerate_per_kw);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    LOGD("estimatefundingfee\n");
+
+    if (feerate_per_kw == 0) {
+        feerate_per_kw = monitoring_get_latest_feerate_kw();
+    }
+    uint64_t fee = ln_estimate_fundingtx_fee(feerate_per_kw);
+    result = cJSON_CreateNumber64(fee);
+
+LABEL_EXIT:
+    if (index < 0) {
+        ctx->error_code = RPCERR_PARSE;
+        ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+    }
+    return result;
+}
+
+
 /********************************************************************
  * private functions : procedure
  ********************************************************************/
@@ -1219,7 +1273,7 @@ static int cmd_stop_proc(void)
  * @param[in]   pFund
  * @retval  エラーコード
  */
-static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund)
+static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jrpc_context *ctx)
 {
     LOGD("fund\n");
 
@@ -1245,6 +1299,21 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund)
     if (!inited) {
         //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
         return RPCERR_NOINIT;
+    }
+
+    uint32_t feerate_per_kw = pFund->feerate_per_kw;
+    if (feerate_per_kw == 0) {
+        feerate_per_kw = monitoring_get_latest_feerate_kw();
+    }
+    uint64_t fee = ln_estimate_initcommittx_fee(feerate_per_kw);
+    if (pFund->funding_sat < fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN) {
+        char str[256];
+        sprintf(str, "funding_sat too low(%" PRIu64 " < %" PRIu64 ")\n",
+                pFund->funding_sat, fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN);
+        LOGD(str);
+        ctx->error_code = RPCERR_FUNDING;
+        ctx->error_message = strdup(str);
+        return M_RPCERR_FREESTRING;
     }
 
     bool ret = lnapp_funding(p_appconf, pFund);

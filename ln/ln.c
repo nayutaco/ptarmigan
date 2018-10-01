@@ -225,7 +225,7 @@ static bool set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
                     const utl_buf_t *pSig1,
                     const utl_buf_t *pSig2,
                     const utl_buf_t *pWit2of2);
-static bool create_funding_tx(ln_self_t *self);
+static bool create_funding_tx(ln_self_t *self, bool bSign);
 static bool create_to_local(ln_self_t *self,
                     ln_close_force_t *pClose,
                     const uint8_t *p_htlc_sigs,
@@ -803,6 +803,82 @@ bool ln_create_funding_locked(ln_self_t *self, utl_buf_t *pLocked)
 /********************************************************************
  * Establish関係
  ********************************************************************/
+
+#if 0
+uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
+{
+    LOGD("Feerate:   %" PRIu32 "\n", Feerate);
+
+    ln_self_t *dummy = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
+    uint8_t seed[LN_SZ_SEED];
+    ln_anno_prm_t annoprm;
+    ln_establish_t est;
+    ln_fundin_t fundin;
+
+    memset(dummy, 0, sizeof(ln_self_t));
+    memset(seed, 1, sizeof(seed));
+    memset(&annoprm, 0, sizeof(annoprm));
+    memset(&est, 0, sizeof(est));
+    memset(&fundin, 0, sizeof(fundin));
+
+    uint8_t zero[100];
+    memset(zero, 0, sizeof(zero));
+    fundin.change_spk.buf = zero;
+    fundin.change_spk.len = 23;
+    fundin.amount = (uint64_t)0xffffffffffffffff;
+
+    est.estprm.dust_limit_sat = BTC_DUST_LIMIT;
+    est.estprm.to_self_delay = 100;
+    est.cnl_open.feerate_per_kw = Feerate;
+    est.cnl_open.funding_sat = 100000000;
+    est.p_fundin = &fundin;
+
+    ln_init(dummy, seed, &annoprm, NULL);
+    memcpy(dummy->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING],
+            dummy->funding_local.pubkeys[MSG_FUNDIDX_FUNDING],
+            BTC_SZ_PUBKEY);
+    dummy->p_establish = &est;
+    bool ret = create_funding_tx(dummy, false);
+    uint64_t fee = 0;
+    if (ret) {
+        dummy->tx_funding.vin[0].script.buf = zero;
+        dummy->tx_funding.vin[0].script.len = 23;
+
+
+        utl_buf_t wit[2];
+        wit[0].buf = zero;
+        wit[0].len = 72;
+        wit[1].buf = zero;
+        wit[1].len = 33;
+        dummy->tx_funding.vin[0].wit_cnt = 2;
+        dummy->tx_funding.vin[0].witness = wit;
+
+        M_DBG_PRINT_TX(&dummy->tx_funding);
+        uint64_t sum = 0;
+        for (uint32_t lp = 0; lp < dummy->tx_funding.vout_cnt; lp++) {
+            sum += dummy->tx_funding.vout[lp].value;
+        }
+        fee = 0xffffffffffffffff - sum;
+
+        dummy->tx_funding.vin[0].script.buf = NULL;
+        dummy->tx_funding.vin[0].script.len = 0;
+        dummy->tx_funding.vin[0].wit_cnt = 0;
+        dummy->tx_funding.vin[0].witness = NULL;
+    } else {
+        LOGD("fail: create_funding_tx()\n");
+    }
+
+    fundin.change_spk.buf = NULL;
+    fundin.change_spk.len = 0;
+    est.p_fundin = NULL;
+    dummy->p_establish = NULL;
+    ln_term(dummy);
+
+    UTL_DBG_FREE(dummy);
+    return fee;
+}
+#endif
+
 
 //open_channel生成
 bool ln_create_open_channel(ln_self_t *self, utl_buf_t *pOpen,
@@ -2004,6 +2080,15 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
         return false;
     }
 
+    uint64_t fee = ln_estimate_initcommittx_fee(open_ch->feerate_per_kw);
+    if (open_ch->funding_sat < fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN) {
+        char str[256];
+        sprintf(str, "funding_sat too low(%" PRIu64 " < %" PRIu64 ")\n",
+                open_ch->funding_sat, fee + BTC_DUST_LIMIT + LN_FUNDSAT_MIN);
+        M_SEND_ERR(self, LNERR_INV_VALUE, "%s", str);
+        return false;
+    }
+
     self->commit_remote.dust_limit_sat = open_ch->dust_limit_sat;
     self->commit_remote.max_htlc_value_in_flight_msat = open_ch->max_htlc_value_in_flight_msat;
     self->commit_remote.channel_reserve_sat = open_ch->channel_reserve_sat;
@@ -2125,7 +2210,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     self->htlc_num = 0;
 
     //funding_tx作成
-    ret = create_funding_tx(self);
+    ret = create_funding_tx(self, true);
     if (!ret) {
         M_SET_ERR(self, LNERR_CREATE_TX, "create funding_tx");
         return false;
@@ -3689,7 +3774,7 @@ static bool set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
  *
  * @param[in,out]       self
  */
-static bool create_funding_tx(ln_self_t *self)
+static bool create_funding_tx(ln_self_t *self, bool bSign)
 {
     btc_tx_free(&self->tx_funding);
 
@@ -3750,24 +3835,29 @@ static bool create_funding_tx(ln_self_t *self)
 
     //署名
     bool ret;
-    ln_cb_funding_sign_t sig;
-    sig.p_tx =  &self->tx_funding;
+    if (bSign) {
+        ln_cb_funding_sign_t sig;
+        sig.p_tx =  &self->tx_funding;
 #ifndef USE_SPV
-    sig.amount = self->p_establish->p_fundin->amount;
+        sig.amount = self->p_establish->p_fundin->amount;
 #else
-    //SPVは未使用
-    sig.amount = 0;
+        //SPVは未使用
+        sig.amount = 0;
 #endif
-    (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
-    ret = sig.ret;
-    if (ret) {
-        btc_tx_txid(self->funding_local.txid, &self->tx_funding);
-    } else {
-        LOGD("fail: signature\n");
-    }
+        (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
+        ret = sig.ret;
+        if (ret) {
+            btc_tx_txid(self->funding_local.txid, &self->tx_funding);
+        } else {
+            LOGD("fail: signature\n");
+        }
 
-    LOGD("***** funding_tx *****\n");
-    M_DBG_PRINT_TX(&self->tx_funding);
+        LOGD("***** funding_tx *****\n");
+        M_DBG_PRINT_TX(&self->tx_funding);
+    } else {
+        //not sign
+        ret = true;
+    }
 
     return ret;
 }
@@ -3955,13 +4045,10 @@ static bool create_to_local_sign(ln_self_t *self,
 
     // 署名verify
     btc_sw_scriptcode_p2wsh(&script_code, &self->redeem_fund);
-    btc_sw_sighash(sighash, pTxCommit, 0, self->funding_sat, &script_code);
-    ret = btc_sw_verify_2of2(pTxCommit, 0, sighash,
-                &self->tx_funding.vout[self->funding_local.txindex].script);
+    ret = btc_sw_sighash(sighash, pTxCommit, 0, self->funding_sat, &script_code);
     if (ret) {
-        LOGD("verify OK\n");
-    } else {
-        LOGD("fail: btc_sw_verify_2of2\n");
+        ret = btc_sw_verify_2of2(pTxCommit, 0, sighash,
+                &self->tx_funding.vout[self->funding_local.txindex].script);
     }
 
     utl_buf_free(&buf_sig_from_remote);
@@ -4756,8 +4843,10 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
 
     //署名
     uint8_t sighash[BTC_SZ_SIGHASH];
-    btc_util_calc_sighash_p2wsh(sighash, pTx, 0, self->funding_sat, &self->redeem_fund);
-    ret = ln_signer_p2wsh(&buf_sig, sighash, &self->priv_data, MSG_FUNDIDX_FUNDING);
+    ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, self->funding_sat, &self->redeem_fund);
+    if (ret) {
+        ret = ln_signer_p2wsh(&buf_sig, sighash, &self->priv_data, MSG_FUNDIDX_FUNDING);
+    }
     if (!ret) {
         LOGD("fail: sign p2wsh\n");
         btc_tx_free(pTx);

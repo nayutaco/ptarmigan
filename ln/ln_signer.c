@@ -152,8 +152,10 @@ bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc
 
     btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
 
-    btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
-    ret = btc_tx_sign(&sigbuf, txhash, pKeys->priv);
+    ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
+    if (ret) {
+        ret = btc_tx_sign(&sigbuf, txhash, pKeys->priv);
+    }
     if (ret) {
         //mNativeSegwitがfalseの場合はscriptSigへの追加も行う
         btc_sw_set_vin_p2wpkh(pTx, Index, &sigbuf, pKeys->pub);
@@ -202,9 +204,10 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
     uint8_t sighash[BTC_SZ_SIGHASH];
 
     //vinは1つしかないので、Indexは0固定
-    btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
-
-    ret = btc_tx_sign(&sig, sighash, signkey.priv);
+    ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
+    if (ret) {
+        ret = btc_tx_sign(&sig, sighash, signkey.priv);
+    }
     if (ret) {
         // <delayedsig>
         // 0

@@ -273,12 +273,16 @@ void lnapp_start(lnapp_conf_t *pAppConf)
 
 void lnapp_stop(lnapp_conf_t *pAppConf)
 {
-    fprintf(stderr, "stop: ");
-    btc_util_dumpbin(stderr, pAppConf->node_id, BTC_SZ_PUBKEY, true);
+    if (pAppConf->th != 0) {
+        LOGD("stop lnapp\n");
+        fprintf(stderr, "stop: ");
+        btc_util_dumpbin(stderr, pAppConf->node_id, BTC_SZ_PUBKEY, true);
 
-    stop_threads(pAppConf);
-    pthread_join(pAppConf->th, NULL);
-    fprintf(stderr, "joined\n");
+        stop_threads(pAppConf);
+        pthread_join(pAppConf->th, NULL);
+        pAppConf->th = 0;
+        fprintf(stderr, "joined\n");
+    }
 }
 
 
@@ -1107,7 +1111,6 @@ LABEL_JOIN:
     pthread_join(th_peer, NULL);
     pthread_join(th_poll, NULL);
     pthread_join(th_anno, NULL);
-    LOGD("loop end\n");
 
 LABEL_SHUTDOWN:
     retval = close(p_conf->sock);
@@ -1115,7 +1118,7 @@ LABEL_SHUTDOWN:
         LOGD("socket close: %s", strerror(errno));
     }
 
-    LOGD("[exit]channel thread [%016" PRIx64 "]\n", ln_short_channel_id(p_self));
+    LOGD("stop channel[%016" PRIx64 "]\n", ln_short_channel_id(p_self));
 
     //クリア
     UTL_DBG_FREE(p_conf->p_errstr);
@@ -1124,9 +1127,10 @@ LABEL_SHUTDOWN:
     rcvidle_clear(p_conf);
     revack_clear(p_conf);
     send_queue_clear(p_conf);
-    memset(p_conf, 0, sizeof(lnapp_conf_t));
     p_conf->sock = -1;
     UTL_DBG_FREE(p_self);
+
+    LOGD("[exit]lnapp thread\n");
 
     return NULL;
 }

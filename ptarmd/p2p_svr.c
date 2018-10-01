@@ -170,7 +170,7 @@ LABEL_EXIT:
         close(sock);
     }
     ptarmd_stop();
-    LOGD("stop thread\n");
+    LOGD("[exit]p2p_svr thread\n");
     return NULL;
 }
 
