@@ -34,7 +34,7 @@ class btc: public testing::Test {
 
 TEST_F(btc, first)
 {
-    //plog_init_stderr();
+    //utl_log_init_stderr();
 }
 
 TEST_F(btc, btc_setnet_testnet_false)
