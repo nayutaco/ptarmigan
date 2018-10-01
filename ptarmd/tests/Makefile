@@ -5,7 +5,7 @@ CXX=g++
 MK := mkdir
 RM := rm -rf
 
-TEST_TARGET_SRC += test_main.cpp
+TEST_TARGET_SRC += test_ptarmd.cpp
 
 
 ################################
@@ -24,14 +24,15 @@ CPPFLAGS += -DPTARM_DEBUG_MEM
 CXXFLAGS += -g -Wall -Wextra -pthread -Wno-unused-parameter -Wno-sign-compare --coverage -fpermissive
 #CXXFLAGS += -fsanitize=leak
 #CXXFLAGS += -fsanitize=address
-CXXFLAGS += -I../../utl
-CXXFLAGS += -I../../btc
+CXXFLAGS += -I../../utl -I../../ln -I../../btc
+CXXFLAGS += -I../../utl/tests
 CXXFLAGS += -I..
 CXXFLAGS += -I../../libs/install/include
 CXXFLAGS += -I../../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
 
 CXXFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing -fstack-protector -D_FORTIFY_SOURCE=1
-LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58
+LDFLAGS  += -L../../ln -lln -L../../btc -lbtc
+LDFLAGS  += -L../../libs/install/lib -lmbedcrypto -lbase58 -llmdb
 LDFLAGS  += -Wl,--gc-sections
 
 
