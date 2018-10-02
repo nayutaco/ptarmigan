@@ -1728,6 +1728,7 @@ TEST_F(tx, tx_sighash)
 }
 
 
+#if 0
 TEST_F(tx, tx_sighash2)
 {
     btc_tx_t tx;
@@ -1783,4 +1784,4 @@ TEST_F(tx, tx_sighash2)
     ASSERT_EQ(sizeof(SC2), tx.vin[1].script.len);
     btc_tx_free(&tx);
 }
-
+#endif

@@ -34,7 +34,7 @@ class btc: public testing::Test {
 
 TEST_F(btc, first)
 {
-    //plog_init_stderr();
+    //utl_log_init_stderr();
 }
 
 TEST_F(btc, btc_setnet_testnet_false)
@@ -80,14 +80,14 @@ TEST_F(btc, btc_setnet_mainnet)
 }
 
 
-// #include "testinc_hash.cpp"
-// #include "testinc_keys.cpp"
-// #include "testinc_keys_native.cpp"
-// #include "testinc_tx.cpp"
-// #include "testinc_tx_native.cpp"
-// #include "testinc_segwit.cpp"
-// #include "testinc_sw_native.cpp"
-// #include "testinc_send.cpp"
+#include "testinc_hash.cpp"
+#include "testinc_keys.cpp"
+#include "testinc_keys_native.cpp"
+#include "testinc_tx.cpp"
+#include "testinc_tx_native.cpp"
+#include "testinc_segwit.cpp"
+#include "testinc_sw_native.cpp"
+#include "testinc_send.cpp"
 #include "testinc_ekey.cpp"
-// #include "testinc_recoverpub.cpp"
-// #include "testinc_bech32.cpp"
+#include "testinc_recoverpub.cpp"
+#include "testinc_bech32.cpp"

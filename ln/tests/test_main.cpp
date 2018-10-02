@@ -40,27 +40,18 @@ extern "C" {
 
 ////////////////////////////////////////////////////////////////////////
 
-class ln: public testing::Test {
+class main: public testing::Test {
 };
 
 
 ////////////////////////////////////////////////////////////////////////
 
-TEST_F(ln, first)
+TEST_F(main, first)
 {
-    //plog_init_stderr();
+    //utl_log_init_stderr();
 }
 
-//TEST_F(ln, init)
-//{
-//    btc_ln_init();
-//}
-//
-//TEST_F(ln, term)
-//{
-//    btc_ln_term();
-//}
-
+////////////////////////////////////////////////////////////////////////
 
 #include "testinc_ln_bolt3_b.cpp"
 #include "testinc_ln_bolt3_c.cpp"
@@ -70,3 +61,5 @@ TEST_F(ln, first)
 #include "testinc_ln_bolt8.cpp"
 #include "testinc_ln_misc.cpp"
 #include "testinc_bech32.cpp"
+
+#include "testinc_ln.cpp"
