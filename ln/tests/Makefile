@@ -5,8 +5,7 @@ CXX=g++
 MK := mkdir
 RM := rm -rf
 
-#fffの fake関数が名前衝突するので、同時に1つだけしかテストしない
-TEST_TARGET_SRC += test_ln.cpp
+TEST_TARGET_SRC += test_main.cpp
 
 
 ################################

@@ -711,7 +711,10 @@ static void generate_cipher_stream(uint8_t *pResult, const uint8_t *pKey, int Le
     uint8_t nonce[12] = {0};
     uint8_t *dummy = (uint8_t *)UTL_DBG_CALLOC(1, Len);
     int ret = mbedtls_chacha20_crypt(pKey, nonce, 0, Len, dummy, pResult);
-    assert(ret == 0);
+    if (ret != 0) {
+        LOGD("FATAL: mbedtls_chacha20_crypt\n");
+        abort();
+    }
     UTL_DBG_FREE(dummy);
 #endif
 }

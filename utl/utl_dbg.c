@@ -23,6 +23,7 @@
  *  @brief  utl処理: 汎用処理
  *  @author ueno@nayuta.co
  */
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -137,7 +138,7 @@ void HIDDEN *utl_dbg_malloc(size_t size)
     } else {
         printf("0 malloc\n");
     }
-    printf("%s(%u)[%d] = %p\n", __func__, size, mcount, p);
+    printf("%s(%u)[%d] = %p\n", __func__, (unsigned int)size, mcount, p);
     return p;
 }
 
@@ -165,7 +166,7 @@ void HIDDEN *utl_dbg_realloc(void *ptr, size_t size)
     } else {
         printf("   realloc same\n");
     }
-    printf("%s(%p, %u)[%d] = %p\n", __func__, ptr, size, mcount, p);
+    printf("%s(%p, %u)[%d] = %p\n", __func__, ptr, (unsigned int)size, mcount, p);
     return p;
 }
 
@@ -182,7 +183,7 @@ void HIDDEN *utl_dbg_calloc(size_t blk, size_t size)
             }
         }
     }
-    printf("%s(%u, %u)[%d] = %p\n", __func__, blk, size, mcount, p);
+    printf("%s(%u, %u)[%d] = %p\n", __func__, (unsigned int)blk, (unsigned int)size, mcount, p);
     return p;
 }
 
@@ -201,7 +202,7 @@ char HIDDEN *utl_dbg_strdup(const char *s)
     } else {
         printf("0 strdup\n");
     }
-    printf("%s(%u)[%d] = %p\n", __func__, strlen(s) + 1, mcount, p);
+    printf("%s(%u)[%d] = %p\n", __func__, (unsigned int)(strlen(s) + 1), mcount, p);
     return p;
 }
 

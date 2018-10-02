@@ -38,10 +38,6 @@ extern "C" {
 #endif
 
 
-static inline int tid() {
-    return (int)syscall(SYS_gettid);
-}
-
 #include "utl_misc.h"
 #define LOG_TAG "APP"
 #include "utl_log.h"

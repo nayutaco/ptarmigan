@@ -93,8 +93,6 @@
 
 #define M_SCRIPT_DIR            "./script/"
 
-#define M_FLAG_MASK(flag, mask) (((flag) & (mask)) == (mask))
-
 #ifdef DEBUGTRACE
 #define DBGTRACE_BEGIN  LOGD("BEGIN\n");
 #define DBGTRACE_END    LOGD("END\n");
@@ -327,6 +325,8 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     bool ret = false;
     uint8_t session_key[BTC_SZ_PRIVKEY];
     ln_self_t *p_self = pAppConf->p_self;
+    uint8_t onion[LN_SZ_ONION_ROUTE];
+    utl_buf_t secrets = UTL_BUF_INIT;
 
     if (pPay->hop_datain[0].short_channel_id != ln_short_channel_id(p_self)) {
         LOGD("short_channel_id mismatch\n");
@@ -357,8 +357,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
 
     btc_util_random(session_key, sizeof(session_key));
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
-    uint8_t onion[LN_SZ_ONION_ROUTE];
-    utl_buf_t secrets = UTL_BUF_INIT;
     ret = ln_onion_create_packet(onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
                         session_key, pPay->payment_hash, LN_SZ_HASH);
     if (!ret) {
@@ -869,6 +867,7 @@ static void *thread_main_start(void *pArg)
 {
     bool ret;
     int retval;
+    bool detect;
 
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
     ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
@@ -955,7 +954,7 @@ static void *thread_main_start(void *pArg)
 
     //p_conf->node_idがchannel情報を持っているかどうか。
     //持っている場合、selfにDBから読み込みまで行われている。
-    bool detect = ln_node_search_channel(p_self, p_conf->node_id);
+    detect = ln_node_search_channel(p_self, p_conf->node_id);
 
     //
     //selfへの設定はこれ以降に行う
@@ -1584,7 +1583,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
             break;
         } else if (polr == 0) {
             //timeout
-            
+
             // 受信アイドル処理
             rcvidle_pop_and_exec(p_conf);
 
@@ -2151,14 +2150,14 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
             LOGD("final node\n");
             cbsub_add_htlc_finalnode(p_conf, p_addhtlc);
         } else {
-            //別channelにupdate_add_htlcを転送する
+            //別channelにupdate_add_htlcを転送する(メッセージ送信は受信アイドル処理で行う)
             LOGD("forward\n");
             cbsub_add_htlc_forward(p_conf, p_addhtlc);
         }
         break;
     case LN_CB_ADD_HTLC_RESULT_FAIL:
     case LN_CB_ADD_HTLC_RESULT_MALFORMED:
-        //同一channelにupdate_fail_htlc or update_fail_malformed_htlcを折り返す
+        //エラーログ(メッセージ送信は受信アイドル処理で行う)
         LOGD("fail_htlc or fail_malformed_htlc\n");
         cbsub_add_htlc_fail(p_conf, p_addhtlc);
         break;
@@ -2808,6 +2807,12 @@ static bool send_announcement(lnapp_conf_t *p_conf, bool bDummySend)
     bool ret;
     int anno_cnt = 0;
     uint64_t short_channel_id = 0;
+    void *p_cur_cnl = NULL;         //channel
+    void *p_cur_node = NULL;        //node_announcement
+    void *p_cur_infocnl = NULL;     //channel送信済みDB
+    void *p_cur_infonode = NULL;    //node_announcement送信済みDB
+    utl_buf_t buf_cnl = UTL_BUF_INIT;
+    char type;
 
     LOGD("BEGIN: dummy=%d\n", bDummySend);
 
@@ -2817,10 +2822,6 @@ static bool send_announcement(lnapp_conf_t *p_conf, bool bDummySend)
         goto LABEL_EXIT;
     }
 
-    void *p_cur_cnl = NULL;         //channel
-    void *p_cur_node = NULL;        //node_announcement
-    void *p_cur_infocnl = NULL;     //channel送信済みDB
-    void *p_cur_infonode = NULL;    //node_announcement送信済みDB
     ret = ln_db_anno_cur_open(&p_cur_cnl, LN_DB_CUR_CNL);
     if (!ret) {
         LOGD("fail\n");
@@ -2842,8 +2843,6 @@ static bool send_announcement(lnapp_conf_t *p_conf, bool bDummySend)
         goto LABEL_EXIT;
     }
 
-    utl_buf_t buf_cnl = UTL_BUF_INIT;
-    char type;
     if (p_conf->last_anno_cnl != 0) {
         //前回のところまで検索する
         while ((ret = ln_db_annocnl_cur_get(p_cur_cnl, &short_channel_id, &type, NULL, &buf_cnl))) {
@@ -2957,7 +2956,7 @@ LABEL_EXIT:
 
 
 /** channel_announcement事前チェック
- * 
+ *
  * @retval  true        none
  * @retval  false       channel情報を削除してよい
  */
@@ -2981,7 +2980,7 @@ static bool send_anno_pre_chan(uint64_t short_channel_id)
 
 
 /** channel_update事前チェック
- * 
+ *
  * @retval  true        none
  * @retval  false       channel_updateを削除してよい
  */
@@ -3013,7 +3012,7 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uin
 
 
 /**
- * 
+ *
  * @return  送信数
  */
 static int send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_cur_infocnl, const utl_buf_t *p_buf_cnl, bool bDummySend)
@@ -3032,7 +3031,7 @@ static int send_anno_cnl(lnapp_conf_t *p_conf, char type, void *p_cur_infocnl, c
 
 
 /**
- * 
+ *
  * @return  送信数
  */
 static int send_anno_node(lnapp_conf_t *p_conf, void *p_cur_node, void *p_cur_infonode, const utl_buf_t *p_buf_cnl, bool bDummySend)
@@ -3095,7 +3094,7 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf)
 
 
 /** 未確定のremote HTLCがあれば、commitment_signedを送信する
- * 
+ *
  */
 static void send_commitment_signed(lnapp_conf_t *p_conf)
 {
@@ -3414,17 +3413,18 @@ static bool rcvidle_announcement_signs(lnapp_conf_t *p_conf)
 
 
 /** 未送信のHTLCがあれば処理する
- * 
+ *
  */
 static bool rcvidle_htlc_check(lnapp_conf_t *p_conf)
 {
     int lp;
     for (lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if (p_conf->p_self->cnl_add_htlc[lp].amount_msat == 0) {
+        ln_update_add_htlc_t *p_htlc = &p_conf->p_self->cnl_add_htlc[lp];
+
+        if (p_htlc->amount_msat == 0) {
             continue;
         }
-        LOGD("cnl_add_htlc[%d].flag=0x%02x\n", lp, p_conf->p_self->cnl_add_htlc[lp].flag);
-        if ((p_conf->p_self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_OFFERED_MASK) == LN_HTLC_FLAG_SEND) {
+        if (LN_HTLC_WILL_ADDHTLC(p_htlc)) {
             LOGD("update_add_htlc[%d]\n", lp);
 
             utl_buf_t buf_bolt = UTL_BUF_INIT;
@@ -3434,13 +3434,13 @@ static bool rcvidle_htlc_check(lnapp_conf_t *p_conf)
             utl_buf_free(&buf_bolt);
             break;
         }
-        if (p_conf->p_self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_FULFILLHTLC) {
+        if (LN_HTLC_WILL_FULFILL(p_htlc)) {
             utl_buf_t buf_bolt = UTL_BUF_INIT;
 
-            if (p_conf->p_self->cnl_add_htlc[lp].buf_payment_preimage.len == LN_SZ_PREIMAGE) {
+            if (LN_HTLC_IS_FULFILL(p_htlc)) {
                 LOGD("update_fulfill_htlc[%d]\n", lp);
                 ln_create_fulfill_htlc(p_conf->p_self, &buf_bolt, lp);
-            } else if (p_conf->p_self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_MALFORMED) {
+            } else if (LN_HTLC_IS_MALFORMED(p_htlc)) {
                 LOGD("update_malformed_htlc[%d]\n", lp);
                 ln_create_fail_malformed_htlc(p_conf->p_self, &buf_bolt, lp);
             } else {
@@ -3701,7 +3701,6 @@ static void show_self_param(const ln_self_t *self, FILE *fp, const char *msg, in
             const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, lp);
             if (p_htlc->amount_msat > 0) {
                 LOGD("  HTLC[%d]\n", lp);
-                LOGD("    flag= %02x\n", p_htlc->flag);
                 LOGD("    htlc id= %" PRIu64 "\n", p_htlc->id);
                 LOGD("    cltv_expiry= %" PRIu32 "\n", p_htlc->cltv_expiry);
                 LOGD("    amount_msat= %" PRIu64 "\n", p_htlc->amount_msat);

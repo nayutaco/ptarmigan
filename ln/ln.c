@@ -715,10 +715,11 @@ bool ln_create_init(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         if (self->cnl_add_htlc[idx].amount_msat != 0) {
             LOGD("[%d]HTLC(num=%d): id=%" PRIu64 ", flag=%02x, amount_msat=%" PRIu64 "\n", idx, self->htlc_num, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].flag, self->cnl_add_htlc[idx].amount_msat);
-            if ((self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_COMMIT_MASK) == 0) {
+            if ((self->cnl_add_htlc[idx].flag & (LN_HTLC_FLAG_COMMIT_SEND | LN_HTLC_FLAG_COMMIT_RECV)) == 0) {
                 //未確定ならば、消す
-                if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) {
+                if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_OFFER) {
                     //offeredならば、amountを戻し、HTLC idも戻す
+                    LOGD("  rollback htlc[%d]\n", idx);
                     self->our_msat += self->cnl_add_htlc[idx].amount_msat;
                     self->htlc_num--;
                     self->htlc_id_num--;
@@ -1371,7 +1372,7 @@ bool ln_set_add_htlc(ln_self_t *self,
     int idx;
     ret = check_create_add_htlc(self, &idx, pReason, AmountMsat, CltvValue);
     if (ret) {
-        self->cnl_add_htlc[idx].flag = LN_HTLC_FLAG_SEND;        //送信=offered HTLC
+        self->cnl_add_htlc[idx].flag = LN_HTLC_FLAG_OFFER;        //送信=offered HTLC
         self->cnl_add_htlc[idx].p_channel_id = self->channel_id;
         self->cnl_add_htlc[idx].id = self->htlc_id_num;
         self->cnl_add_htlc[idx].amount_msat = AmountMsat;
@@ -1604,7 +1605,7 @@ bool ln_have_outdated_htlc(const ln_self_t *self, int32_t Height)
     if (Height > 0) {
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
             if ( (self->cnl_add_htlc[lp].amount_msat > 0) &&
-                 (self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_SEND) &&
+                 (self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_OFFER) &&
                  (self->cnl_add_htlc[lp].cltv_expiry <= (uint32_t)Height) ) {
                 LOGD("HTLC timeouted[%d] expiry:%" PRIu32 " <= height:%" PRId32 "\n", lp, self->cnl_add_htlc[lp].cltv_expiry, Height);
                 ret = true;
@@ -2738,6 +2739,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
             }
         } else {
             M_SET_ERR(self, LNERR_BITCOIND, "getblockcount");
+            ret = false;
         }
     } else {
         //A1. if the realm byte is unknown:
@@ -2815,15 +2817,25 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         }
     } else if (!ret) {
         p_htlc->flag |= LN_HTLC_FLAG_FULFILLHTLC;
-        if (add_htlc.result == LN_CB_ADD_HTLC_RESULT_FAIL) {
-        LOGD("fail: backwind fail_htlc start: ");
+        switch (add_htlc.result) {
+        case LN_CB_ADD_HTLC_RESULT_FAIL:
+            LOGD("fail: backwind fail_htlc start: ");
 
+            utl_buf_free(&p_htlc->buf_onion_reason);
             ln_onion_failure_create(&p_htlc->buf_onion_reason, &p_htlc->buf_shared_secret, &buf_reason);
-        } else {
+            break;
+        case LN_CB_ADD_HTLC_RESULT_MALFORMED:
             LOGD("fail: backwind malformed_htlc: ");
 
             p_htlc->flag |= LN_HTLC_FLAG_MALFORMED;
+            utl_buf_free(&p_htlc->buf_onion_reason);
             utl_buf_alloccopy(&p_htlc->buf_onion_reason, buf_reason.buf, buf_reason.len);
+            break;
+
+        default:
+            LOGD("fail: unknown fail: %d\n", add_htlc.result);
+            assert(0);
+            break;
         }
         DUMPD(buf_reason.buf, buf_reason.len);
 
@@ -2870,7 +2882,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         LOGD("HTLC%d: id=%" PRIu64 ", flag=%02x: ", idx, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].flag);
         DUMPD(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH);
         if ( (self->cnl_add_htlc[idx].id == fulfill_htlc.id) &&
-             (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) ) {
+             (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_OFFER) ) {
             if (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) {
                 p_htlc = &self->cnl_add_htlc[idx];
             } else {
@@ -2881,9 +2893,6 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
     }
 
     if (p_htlc != NULL) {
-        //flag
-        p_htlc->flag |= LN_HTLC_FLAG_FULFILLHTLC;
-
         //反映
         //self->our_msat -= p_htlc->amount_msat; //add_htlc送信時に引いているので、ここでは不要
         self->their_msat += p_htlc->amount_msat;
@@ -2936,7 +2945,7 @@ static bool recv_update_fail_htlc(ln_self_t *self, const uint8_t *pData, uint16_
     ret = false;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //受信したfail_htlcは、Offered HTLCについてチェックする
-        if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) &&
+        if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_OFFER) &&
              (self->cnl_add_htlc[idx].id == fail_htlc.id)) {
             //id一致
             self->our_msat += self->cnl_add_htlc[idx].amount_msat;
@@ -3244,7 +3253,7 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
         // BOLT#02
         //  if the sha256_of_onion in update_fail_malformed_htlc doesn't match the onion it sent:
         //      MAY retry or choose an alternate error response.
-        if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) &&
+        if ( (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_OFFER) &&
              (self->cnl_add_htlc[idx].id == mal_htlc.id)) {
             //id一致
             self->our_msat += self->cnl_add_htlc[idx].amount_msat;
@@ -4987,7 +4996,7 @@ static bool check_create_add_htlc(
 
     //加算した結果が相手のmax_htlc_value_in_flight_msatを超えるなら、追加してはならない。
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) {
+        if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_OFFER) {
             max_htlc_value_in_flight_msat += self->cnl_add_htlc[idx].amount_msat;
         }
     }
@@ -5094,7 +5103,7 @@ static bool check_recv_add_htlc_bolt2(ln_self_t *self, const ln_update_add_htlc_
     //      adds more than its max_htlc_value_in_flight_msat worth of offered HTLCs to its local commitment transaction
     uint64_t max_htlc_value_in_flight_msat = 0;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_SEND) {
+        if (self->cnl_add_htlc[idx].flag & LN_HTLC_FLAG_OFFER) {
             max_htlc_value_in_flight_msat += self->cnl_add_htlc[idx].amount_msat;
         }
     }

@@ -139,7 +139,7 @@ static void ln_print_wallet(const ln_self_t *self)
     printf("\",\n");
     printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
     if (self->htlc_num != 0) {
-        printf(INDENT3 M_QQ("htlc_num") ": %d,", self->htlc_num);
+        printf(INDENT3 M_QQ("htlc_num") ": %d,\n", self->htlc_num);
     }
     printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
     printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", self->their_msat);
@@ -263,7 +263,7 @@ static void ln_print_self(const ln_self_t *self)
                 printf(INDENT5 M_QQ("type") ": \"");
                 if (self->cnl_add_htlc[lp].prev_short_channel_id == UINT64_MAX) {
                     printf("final node");
-                } else if ((self->cnl_add_htlc[lp].prev_short_channel_id == 0) && (self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_SEND)) {
+                } else if ((self->cnl_add_htlc[lp].prev_short_channel_id == 0) && (self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_OFFER)) {
                     //prev_short_channel_idが0になる
                     //      - origin node
                     //      - update_add_htlcの受信側
@@ -765,10 +765,13 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
 
         retval = ln_db_lmdb_get_mynodeid(txn, dbi, wif, alias, &port, genesis);
         if (retval == 0) {
-            //printf(M_QQ("wif") ": " M_QQ("%s") ",\n", wif);
             btc_util_keys_t keys;
             btc_chain_t chain;
             btc_util_wif2keys(&keys, &chain, wif);
+            // printf(INDENT2 M_QQ("wif") ": " M_QQ("%s") ",\n", wif);
+            // printf(INDENT2 M_QQ("node_secret") ": \"");
+            // btc_util_dumpbin(stdout, keys.priv, BTC_SZ_PRIVKEY, false);
+            // printf("\",\n");
             printf(INDENT2 M_QQ("node_id") ": \"");
             btc_util_dumpbin(stdout, keys.pub, BTC_SZ_PUBKEY, false);
             printf("\",\n");
