@@ -321,8 +321,8 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
         data[datalen++] = 3;    // r field
         data[datalen++] = (uint8_t)p32;
         data[datalen++] = (uint8_t)(bits - p32 * 32);
-        uint8_t *rfield = UTL_DBG_MALLOC(51 * p_invoice_data->r_field_num);     //408bit * n分
-        utl_buf_t buf = { rfield, 51 * p_invoice_data->r_field_num };
+        uint8_t *rfield = (uint8_t *)UTL_DBG_MALLOC(51 * p_invoice_data->r_field_num);     //408bit * n分
+        utl_buf_t buf = { rfield, (uint32_t)(51 * p_invoice_data->r_field_num) };
         utl_push_t push = { 0, &buf };
         for (int lp = 0; lp < p_invoice_data->r_field_num; lp++) {
             const ln_fieldr_t *r = &p_invoice_data->r_field[lp];

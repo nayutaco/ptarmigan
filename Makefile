@@ -78,7 +78,14 @@ test:
 	$(MAKE) -C utl test
 	$(MAKE) -C btc test
 	$(MAKE) -C ln test
+	$(MAKE) -C ptarmd test
+
+test_clean:
+	$(MAKE) -C gtest clean
+	$(MAKE) -C utl/tests clean
+	$(MAKE) -C btc/tests clean
+	$(MAKE) -C ln/tests clean
+	$(MAKE) -C ptarmd/tests clean
 
 test-integration:
 	cd tests/4nodes_test; timeout 180 ./all_test.sh
-

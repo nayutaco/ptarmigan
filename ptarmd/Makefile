@@ -201,6 +201,10 @@ lcov:
 	lcov -c -d $(OBJECT_DIRECTORY) -o $(OBJECT_DIRECTORY)/lcov.info
 	genhtml -o $(OBJECT_DIRECTORY)/lcovhtml $(OBJECT_DIRECTORY)/lcov.info
 
+test:
+	$(MAKE) -C tests
+	$(MAKE) -C tests exec
+
 ################################
 
 .Depend:

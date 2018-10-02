@@ -22,8 +22,6 @@
 /** @file   ln.h
  *  @brief  Lightning
  *  @author ueno@nayuta.co
- *  @todo
- *      - 外部公開するAPIや構造体を整理する
  */
 #ifndef LN_H__
 #define LN_H__
@@ -78,17 +76,18 @@ extern "C" {
 
 #define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
 
-// self.htlc_flag, ln_update_add_htlc_t.flag
-#define LN_HTLC_FLAG_SEND               (0x01)      ///< Offered HTLC
+// ln_update_add_htlc_t.flag
+//  - offeredには送信前と送信後があるが、receivedは受信後しかない
+//  - 受信したreceived HTLCは、すぐにcommit_txのHTLCとして計算に含める
+//  - 送信したoffered HTLCは、相手からrevoke_and_ackを受信してからcommit_txのHTLCとして計算に含める
+//      (それまではcommit_txに反映されていないように振る舞うこと)
+#define LN_HTLC_FLAG_OFFER              (0x01)      ///< Offered HTLC
 #define LN_HTLC_FLAG_RECV               (0x02)      ///< Received HTLC
 #define LN_HTLC_FLAG_ADDHTLC            (0x04)      ///< update_add_htlc送信済み
 #define LN_HTLC_FLAG_FULFILLHTLC        (0x08)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
-#define LN_HTLC_FLAG_OFFERED_MASK       (LN_HTLC_FLAG_SEND | LN_HTLC_FLAG_ADDHTLC)
-#define LN_HTLC_FLAG_RECEIVED_MASK      (LN_HTLC_FLAG_RECV | LN_HTLC_FLAG_FULFILLHTLC)
 #define LN_HTLC_FLAG_MALFORMED          (0x20)      ///< update_fail_malformed_htlc
 #define LN_HTLC_FLAG_COMMIT_SEND        (0x40)      ///< commitment_signed受信済み
 #define LN_HTLC_FLAG_COMMIT_RECV        (0x80)      ///< commitment_signed受信済み
-#define LN_HTLC_FLAG_COMMIT_MASK        (LN_HTLC_FLAG_COMMIT_SEND | LN_HTLC_FLAG_COMMIT_RECV)
 
 // channel_update.flags
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
@@ -148,6 +147,36 @@ extern "C" {
  *  @brief  msat(milli-satoshi)をsatoshi変換
  */
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
+
+
+/** @def    LN_HTLC_WILL_ADDHTLC(htlc)
+ *  @brief  update_add_htlc送信予定
+ */
+#define LN_HTLC_WILL_ADDHTLC(htlc)  (((htlc)->flag & (LN_HTLC_FLAG_OFFER | LN_HTLC_FLAG_ADDHTLC)) == LN_HTLC_FLAG_OFFER)
+
+
+/** @def    LN_HTLC_WILL_FULFILL(htlc)
+ *  @brief  update_fulfill/fail/fail_malformed_htlc送信予定
+ *  @note
+ *      - update_fulfill_htlc: #LN_HTLC_IS_FULFILL()がtrue
+ *      - update_fail_malformed_htlc: #LN_HTLC_IS_MALFORMED()がtrue
+ *      - update_fail_htlc: それ以外
+ */
+#define LN_HTLC_WILL_FULFILL(htlc)  ((htlc)->flag & LN_HTLC_FLAG_FULFILLHTLC)
+
+
+/** @def    LN_HTLC_IS_FULFILL(htlc)
+ *  @brief  update_fulfill_htlc送信予定
+ *  @note   #LN_HTLC_WILL_FULFILL()がtrueの場合に有効
+ */
+#define LN_HTLC_IS_FULFILL(htlc)    ((htlc)->buf_payment_preimage.len == LN_SZ_PREIMAGE)
+
+
+/** @def    LN_HTLC_IS_MALFORMED(htlc)
+ *  @brief  update_fail_malformed_htlc送信予定
+ *  @note   #LN_HTLC_WILL_FULFILL()がtrueの場合に有効
+ */
+#define LN_HTLC_IS_MALFORMED(htlc)  ((htlc)->flag & LN_HTLC_FLAG_MALFORMED)
 
 
 //
@@ -486,24 +515,70 @@ typedef struct {
     //failで戻す
     utl_buf_t   buf_shared_secret;                  ///< failuremsg暗号化用
 
-    /*
-     * update_add_htlc送信
+    /* flag
+
+     * update_add_htlc準備(#ln_set_add_htlc())
+     *      flag = SEND
+     *
+     * update_add_htlc送信(#ln_create_add_htlc())
+     *      flag = SEND | ADDHTLC
+     *
+     *
+     * update_add_htlc受信:hop元 node(#recv_update_add_htlc())
+     *      flag = RECV
+     *
+     * update_add_htlc受信:hop先 node(#ln_set_add_htlc())
+     *      flag = SEND
+     *
+     * update_add_htlc受信:final node(#recv_update_add_htlc())
+     *      flag = RECV | FULFILLHTLC
+     *      onion_result = empty
+     *      preimage = payment_preimage
+     *          --> 受信アイドル処理によるupdate_fulfill_htlc送信
+     *
+     * update_add_htlc受信:reason=FAIL(#recv_update_add_htlc())
+     *      flag = RECV | FULFILLHTLC
+     *      onion_result = shared_secretで逆onion
      *      preimage = NULL
-     *      set:  flag = SEND
-     *      sent: flag = SEND | ADDHTLC
+     *          --> 受信アイドル処理によるupdate_fail_htlc送信
      *
-     * update_add_htlc受信
-     *      set:  flag = RECV
-     *            preimage = NULL
+     * update_add_htlc受信:reason=MALFORMED(#recv_update_add_htlc())
+     *      flag = RECV | MALFORMED
+     *      onion_result = malformed_htlc
+     *      preimage = NULL
+     *          --> 受信アイドル処理によるupdate_fail_malformed_htlc送信
      *
-     * update_fulfill_htlc送信
-     *      set:  flag = RECV | FULFILLHTLC
-     *            preimage = payment_preimage
-     *      sent: clear HTLC
      *
-     * update_fulfill_htlc受信
-     *      set:  flag = RECV | FULFILLHTLC
-     *            preimage = payment_preimage
+     * update_fulfill_htlc受信(#recv_update_fulfill_htlc())
+     *          --> 上位層に通知後、HTLC削除
+     *
+     * update_fulfill_htlc受信:上位層:hop元(#ln_set_fulfill_htlc())
+     *      flag |= FULFILLHTLC
+     *          --> 受信アイドル処理によるupdate_fulfill_htlc送信
+     *
+     * update_fulfill_htlc受信:上位層:origin node
+     *          --> invoice削除
+     *
+     *
+     * update_fail_htlc受信:(#recv_update_fail_htlc())
+     *          --> 上位層に通知後、HTLC削除
+     *
+     * update_fail_malformed_htlc受信:(#recv_update_fail_malformed_htlc())
+     *          --> 上位層に通知後、HTLC削除
+     *
+     * update_fail_htlc/update_fail_malformed_htlc受信:上位層:hop元(#ln_set_fail_htlc())
+     *      flag |= FULFILLHTLC
+     *          --> 受信アイドル処理によるupdate_fail_htlc送信
+     *
+     * update_fail_htlc/update_fail_malformed_htlc受信:上位層:origin node
+     *      reasonデコード
+     *
+     *
+     * update_fulfill_htlc送信(#ln_create_fulfill_htlc())
+     * update_fail_htlc送信(#ln_create_fail_htlc())
+     * update_fail_malformed_htlc送信(#ln_create_fail_malformed_htlc())
+     *          --> パケット作成後、HTLC削除
+     *
      */
 } ln_update_add_htlc_t;
 
