@@ -44,7 +44,7 @@ class main: public testing::Test {
 
 TEST_F(main, first)
 {
-    //utl_log_init_stderr();
+    utl_log_init_stderr();
 }
 
 ////////////////////////////////////////////////////////////////////////
