@@ -4959,7 +4959,6 @@ static bool check_create_add_htlc(
                 uint32_t cltv_value)
 {
     bool ret = false;
-    bool retval;
     uint64_t max_htlc_value_in_flight_msat = 0;
     uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_calc_max_closing_fee(self));
 
@@ -5026,26 +5025,33 @@ LABEL_EXIT:
         utl_buf_t buf_bolt = UTL_BUF_INIT;
         ln_cnl_update_t upd;
 
-        retval = ln_get_channel_update_peer(self, &buf_bolt, NULL);
+        bool retval = ln_get_channel_update_peer(self, &buf_bolt, NULL);
         if (retval) {
             memset(&upd, 0, sizeof(upd));
             retval = ln_msg_cnl_update_read(&upd, buf_bolt.buf, buf_bolt.len);
         }
         if (ret) {
-            if (upd.flags & LN_CNLUPD_FLAGS_DISABLE) {
-                //B13. if the channel is disabled:
-                //      channel_disabled
-                //      (report the current channel setting for the outgoing channel.)
-                LOGD("fail: channel_disabled\n");
+            if (retval) {
+                if (upd.flags & LN_CNLUPD_FLAGS_DISABLE) {
+                    //B13. if the channel is disabled:
+                    //      channel_disabled
+                    //      (report the current channel setting for the outgoing channel.)
+                    LOGD("fail: channel_disabled\n");
 
-                utl_push_t push_htlc;
-                utl_push_init(&push_htlc, pReason,
-                                    sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
-                ln_misc_push16be(&push_htlc, LNONION_CHAN_DISABLE);
-                ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
-                utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
+                    utl_push_t push_htlc;
+                    utl_push_init(&push_htlc, pReason,
+                                        sizeof(uint16_t) + sizeof(uint16_t) + buf_bolt.len);
+                    ln_misc_push16be(&push_htlc, LNONION_CHAN_DISABLE);
+                    ln_misc_push16be(&push_htlc, (uint16_t)buf_bolt.len);
+                    utl_push_data(&push_htlc, buf_bolt.buf, buf_bolt.len);
+                } else {
+                    LOGD("OK\n");
+                }
+            } else {
+                //channel_updateは必ずしも受信しているとは限らないため、ここではスルー
+                LOGD("OK\n");
             }
-        } else if (!ret) {
+        } else {
             if (retval) {
                 //B4. if during forwarding to its receiving peer, an otherwise unspecified, transient error occurs in the outgoing channel (e.g. channel capacity reached, too many in-flight HTLCs, etc.):
                 //      temporary_channel_failure
