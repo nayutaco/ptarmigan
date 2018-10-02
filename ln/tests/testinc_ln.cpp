@@ -278,6 +278,7 @@ TEST_F(ln, ln_set_add_htlc1)
 
     /*** CHECK ***/
     ASSERT_TRUE(ret);
+    ASSERT_EQ(0, buf_reason.len);
     ASSERT_EQ(amount_msat, self.cnl_add_htlc[0].amount_msat);
     ASSERT_EQ(cltv_expiry, self.cnl_add_htlc[0].cltv_expiry);
     ASSERT_EQ(prev_schid, self.cnl_add_htlc[0].prev_short_channel_id);
@@ -323,6 +324,7 @@ TEST_F(ln, ln_create_add_htlc1)
                 amount_msat, cltv_expiry, payhash,
                 prev_schid, prev_idx, &shared_secret);
     ASSERT_TRUE(ret);
+    ASSERT_EQ(0, buf_reason.len);
 
     /*** TEST ***/
     utl_buf_t add = UTL_BUF_INIT;
