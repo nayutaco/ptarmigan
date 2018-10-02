@@ -67,7 +67,7 @@ void utl_dbg_malloc_cnt_reset(void)
 
 #ifdef PTARM_DEBUG_MEM
 
-#if 0
+#if 1
 void HIDDEN *utl_dbg_malloc(size_t size)
 {
     void *p = malloc(size);
