@@ -255,7 +255,7 @@ static void ln_print_self(const ln_self_t *self)
         printf(INDENT3 M_QQ("add_htlc") ": [\n");
         int cnt = 0;
         for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            if (self->cnl_add_htlc[lp].amount_msat > 0) {
+            if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
                 if (cnt > 0) {
                     printf(",\n");
                 }
@@ -263,7 +263,7 @@ static void ln_print_self(const ln_self_t *self)
                 printf(INDENT5 M_QQ("type") ": \"");
                 if (self->cnl_add_htlc[lp].prev_short_channel_id == UINT64_MAX) {
                     printf("final node");
-                } else if ((self->cnl_add_htlc[lp].prev_short_channel_id == 0) && (self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_OFFER)) {
+                } else if ((self->cnl_add_htlc[lp].prev_short_channel_id == 0) && (self->cnl_add_htlc[lp].flag.addhtlc == LN_HTLCFLAG_OFFER)) {
                     //prev_short_channel_idが0になる
                     //      - origin node
                     //      - update_add_htlcの受信側
@@ -273,7 +273,7 @@ static void ln_print_self(const ln_self_t *self)
                 }
                 printf("\",\n");
                 printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
-                printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(0x%02x)") ",\n", ((self->cnl_add_htlc[lp].flag & LN_HTLC_FLAG_RECV) ? "Received" : "Offered"), self->cnl_add_htlc[lp].flag);
+                printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(0x%04x)") ",\n", ((self->cnl_add_htlc[lp].flag.addhtlc == LN_HTLCFLAG_RECV) ? "Received" : "Offered"), *(uint16_t *)&self->cnl_add_htlc[lp].flag);
                 printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
                 printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
                 printf(INDENT5 M_QQ("payhash") ": \"");

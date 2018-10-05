@@ -310,6 +310,7 @@ char *ptarmd_error_str(int ErrCode)
 
         { RPCERR_CLOSE_START,               "fail start closing" },
         { RPCERR_CLOSE_FAIL,                "fail unilateral close" },
+        { RPCERR_CLOSE_CLEAN,               "remain HTLC" },
 
         { RPCERR_PAY_STOP,                  "stop payment" },
         { RPCERR_NOROUTE,                   "fail routing" },

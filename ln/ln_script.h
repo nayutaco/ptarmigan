@@ -245,7 +245,7 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
  * @param[out]      pTx         TX情報
  * @param[out]      pSig        local署名
  * @param[in]       pCmt        Commitment Transaction情報
- * @param[in]       Local       true:LocalがFEEを払う
+ * @param[in]       Local       true:LocalがFEEを払う / false:RemoteがFEEを払う
  * @param[in]       pPrivData
  * @return      true:成功
  */

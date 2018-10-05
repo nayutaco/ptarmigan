@@ -91,6 +91,7 @@ extern "C" {
 
 #define RPCERR_CLOSE_START          (-25000)
 #define RPCERR_CLOSE_FAIL           (-25001)
+#define RPCERR_CLOSE_CLEAN          (-25002)
 
 #define RPCERR_PAY_STOP             (-26000)
 #define RPCERR_NOROUTE              (-26001)
@@ -121,11 +122,8 @@ typedef enum {
     //外部用
     TRANSCMD_NONE,                  ///< 要求無し
 
-    TRANSCMD_PAYRETRY,              ///< 支払いのリトライ
-
     //内部用
     TRANSCMD_ANNOSIGNS,             ///< announcement_signatures送信要求
-    TRANSCMD_HTLCCHECK,             ///< HTLC check(消化できていないHTLCを反映する)
 } trans_cmd_t;
 
 
@@ -245,13 +243,13 @@ typedef struct lnapp_conf_t lnapp_conf_t;
  ********************************************************************/
 
 /** start
- * 
+ *
  */
 int ptarmd_start(uint16_t my_rpcport);
 
 
 /** stop all threads
- * 
+ *
  */
 void ptarmd_stop(void);
 

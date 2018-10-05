@@ -49,13 +49,13 @@ TEST_F(main, first)
 
 ////////////////////////////////////////////////////////////////////////
 
-#include "testinc_ln_bolt3_b.cpp"
-#include "testinc_ln_bolt3_c.cpp"
-#include "testinc_ln_bolt3_d.cpp"
-#include "testinc_ln_bolt3_e.cpp"
-#include "testinc_ln_bolt4.cpp"
-#include "testinc_ln_bolt8.cpp"
-#include "testinc_ln_misc.cpp"
-#include "testinc_bech32.cpp"
+// #include "testinc_ln_bolt3_b.cpp"
+// #include "testinc_ln_bolt3_c.cpp"
+// #include "testinc_ln_bolt3_d.cpp"
+// #include "testinc_ln_bolt3_e.cpp"
+// #include "testinc_ln_bolt4.cpp"
+// #include "testinc_ln_bolt8.cpp"
+// #include "testinc_ln_misc.cpp"
+// #include "testinc_bech32.cpp"
 
 #include "testinc_ln.cpp"
