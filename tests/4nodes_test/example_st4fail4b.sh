@@ -39,7 +39,7 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 # 送金実施
 ./ptarmcli -p $ROUTECONF,$HASH $PAYER_PORT
 
-sleep 2
+read -p "Hit enter: " inkey
 
 # 戻す
 ./ptarmcli --debug 1 $ACCIDENT_PORT

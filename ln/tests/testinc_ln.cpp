@@ -62,10 +62,11 @@ public:
         case LN_CB_UPDATE_ANNODB: p_str = "LN_CB_UPDATE_ANNODB"; break;
         case LN_CB_ADD_HTLC_RECV_PREV: p_str = "LN_CB_ADD_HTLC_RECV_PREV"; break;
         case LN_CB_ADD_HTLC_RECV: p_str = "LN_CB_ADD_HTLC_RECV"; break;
+        case LN_CB_FWD_ADDHTLC_START: p_str = "LN_CB_FWD_ADDHTLC_START"; break;
         case LN_CB_FULFILL_HTLC_RECV: p_str = "LN_CB_FULFILL_HTLC_RECV"; break;
         case LN_CB_FAIL_HTLC_RECV: p_str = "LN_CB_FAIL_HTLC_RECV"; break;
-        case LN_CB_COMMIT_SIG_RECV: p_str = "LN_CB_COMMIT_SIG_RECV"; break;
         case LN_CB_REV_AND_ACK_EXCG: p_str = "LN_CB_REV_AND_ACK_EXCG"; break;
+        case LN_CB_PAYMENT_RETRY: p_str = "LN_CB_PAYMENT_RETRY"; break;
         case LN_CB_UPDATE_FEE_RECV: p_str = "LN_CB_UPDATE_FEE_RECV"; break;
         case LN_CB_SHUTDOWN_RECV: p_str = "LN_CB_SHUTDOWN_RECV"; break;
         case LN_CB_CLOSED_FEE: p_str = "LN_CB_CLOSED_FEE"; break;
@@ -99,6 +100,7 @@ public:
         self->commit_remote.max_accepted_htlcs = 10;
         self->our_msat = 1000000;
         self->their_msat = 1000000;
+        self->p_callback = LnCallbackType;
     }
 };
 
@@ -240,7 +242,7 @@ TEST_F(ln, init)
 
     ASSERT_EQ(LN_STATUS_NONE, self.status);
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ASSERT_EQ(0, self.cnl_add_htlc[idx].flag);
+        ASSERT_EQ(0, *(uint16_t *)&self.cnl_add_htlc[idx].flag);
     }
     ASSERT_TRUE(DumpCheck(&self.noise_send, sizeof(ln_noise_t), 0xcc));
     ASSERT_TRUE(DumpCheck(&self.noise_recv, sizeof(ln_noise_t), 0xcc));
@@ -283,11 +285,17 @@ TEST_F(ln, ln_set_add_htlc1)
     ASSERT_EQ(cltv_expiry, self.cnl_add_htlc[0].cltv_expiry);
     ASSERT_EQ(prev_schid, self.cnl_add_htlc[0].prev_short_channel_id);
     ASSERT_EQ(prev_idx, self.cnl_add_htlc[0].prev_idx);
+    //
     ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_WILL_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_IS_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_IS_MALFORMED(&self.cnl_add_htlc[0]));
-    ASSERT_EQ(LN_HTLC_FLAG_OFFER, self.cnl_add_htlc[0].flag);
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
+    //
+    ASSERT_EQ(LN_HTLCFLAG_OFFER, self.cnl_add_htlc[0].flag.addhtlc);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.delhtlc);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.updsend);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comsend);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revsend);
 
     ASSERT_EQ(1000000, self.our_msat);
     ASSERT_EQ(1000000, self.their_msat);
@@ -335,13 +343,19 @@ TEST_F(ln, ln_create_add_htlc1)
     ASSERT_EQ(cltv_expiry, self.cnl_add_htlc[0].cltv_expiry);
     ASSERT_EQ(prev_schid, self.cnl_add_htlc[0].prev_short_channel_id);
     ASSERT_EQ(prev_idx, self.cnl_add_htlc[0].prev_idx);
+    //
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_WILL_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_IS_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_IS_MALFORMED(&self.cnl_add_htlc[0]));
-    ASSERT_EQ(LN_HTLC_FLAG_OFFER | LN_HTLC_FLAG_ADDHTLC, self.cnl_add_htlc[0].flag);
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
+    //
+    ASSERT_EQ(LN_HTLCFLAG_OFFER, self.cnl_add_htlc[0].flag.addhtlc);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.delhtlc);
+    ASSERT_EQ(1, self.cnl_add_htlc[0].flag.updsend);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comsend);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revsend);
 
-    ASSERT_EQ(1000000 - amount_msat, self.our_msat);
+    ASSERT_EQ(1000000, self.our_msat);
     ASSERT_EQ(1000000, self.their_msat);
     ASSERT_EQ(1, self.htlc_id_num);
     ASSERT_EQ(1, self.htlc_num);
@@ -402,14 +416,20 @@ TEST_F(ln, recv_update_add_htlc1)
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY, self.cnl_add_htlc[0].cltv_expiry);
     // ASSERT_EQ(0, self.cnl_add_htlc[0].prev_short_channel_id);
     // ASSERT_EQ(0, self.cnl_add_htlc[0].prev_idx);
+    //
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(&self.cnl_add_htlc[0]));
-    ASSERT_TRUE(LN_HTLC_WILL_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_TRUE(LN_HTLC_IS_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_IS_MALFORMED(&self.cnl_add_htlc[0]));
-    ASSERT_EQ(LN_HTLC_FLAG_RECV | LN_HTLC_FLAG_FULFILLHTLC, self.cnl_add_htlc[0].flag);
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
+    //
+    ASSERT_EQ(LN_HTLCFLAG_RECV, self.cnl_add_htlc[0].flag.addhtlc);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.delhtlc);
+    ASSERT_EQ(LN_HTLCFLAG_FULFILL, self.cnl_add_htlc[0].fin_delhtlc);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comsend);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revsend);
 
     ASSERT_EQ(1000000, self.our_msat);
-    ASSERT_EQ(1000000 - LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT, self.their_msat);
+    ASSERT_EQ(1000000, self.their_msat);
     ASSERT_EQ(0, self.htlc_id_num);
     ASSERT_EQ(1, self.htlc_num);
     ASSERT_EQ(0, self.commit_local.htlc_num);
@@ -469,14 +489,21 @@ TEST_F(ln, recv_update_add_htlc2)
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY, self.cnl_add_htlc[0].cltv_expiry);
     // ASSERT_EQ(0, self.cnl_add_htlc[0].prev_short_channel_id);
     // ASSERT_EQ(0, self.cnl_add_htlc[0].prev_idx);
+    //
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(&self.cnl_add_htlc[0]));
-    ASSERT_TRUE(LN_HTLC_WILL_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_IS_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_IS_MALFORMED(&self.cnl_add_htlc[0]));
-    ASSERT_EQ(LN_HTLC_FLAG_RECV | LN_HTLC_FLAG_FULFILLHTLC, self.cnl_add_htlc[0].flag);
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
+    //
+    ASSERT_EQ(LN_HTLCFLAG_RECV, self.cnl_add_htlc[0].flag.addhtlc);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.delhtlc);
+    ASSERT_EQ(LN_HTLCFLAG_FAIL, self.cnl_add_htlc[0].fin_delhtlc);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.updsend);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comsend);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revsend);
 
     ASSERT_EQ(1000000, self.our_msat);
-    ASSERT_EQ(1000000 - LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT, self.their_msat);
+    ASSERT_EQ(1000000, self.their_msat);
     ASSERT_EQ(0, self.htlc_id_num);
     ASSERT_EQ(1, self.htlc_num);
     ASSERT_EQ(0, self.commit_local.htlc_num);
@@ -501,7 +528,6 @@ TEST_F(ln, recv_update_add_htlc3)
     ln_self_t self;
     LnInit(&self);
 
-    self.p_callback = LnCallbackType;
     memcpy(self.channel_id, LN_UPDATE_ADD_HTLC_A::CHANNEL_ID, sizeof(LN_UPDATE_ADD_HTLC_A::CHANNEL_ID));
 
     bool ret;
@@ -515,18 +541,365 @@ TEST_F(ln, recv_update_add_htlc3)
     ASSERT_EQ(LN_UPDATE_ADD_HTLC_A::CLTV_EXPIRY, self.cnl_add_htlc[0].cltv_expiry);
     // ASSERT_EQ(0, self.cnl_add_htlc[0].prev_short_channel_id);
     // ASSERT_EQ(0, self.cnl_add_htlc[0].prev_idx);
+    //
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(&self.cnl_add_htlc[0]));
-    ASSERT_TRUE(LN_HTLC_WILL_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_FALSE(LN_HTLC_IS_FULFILL(&self.cnl_add_htlc[0]));
-    ASSERT_TRUE(LN_HTLC_IS_MALFORMED(&self.cnl_add_htlc[0]));
-    ASSERT_EQ(LN_HTLC_FLAG_RECV | LN_HTLC_FLAG_FULFILLHTLC | LN_HTLC_FLAG_MALFORMED, self.cnl_add_htlc[0].flag);
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
+    //
+    ASSERT_EQ(LN_HTLCFLAG_RECV, self.cnl_add_htlc[0].flag.addhtlc);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.delhtlc);
+    ASSERT_EQ(LN_HTLCFLAG_MALFORMED, self.cnl_add_htlc[0].fin_delhtlc);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.updsend);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comsend);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comrecv);
+    ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revsend);
 
     ASSERT_EQ(1000000, self.our_msat);
-    ASSERT_EQ(1000000 - LN_UPDATE_ADD_HTLC_A::AMOUNT_MSAT, self.their_msat);
+    ASSERT_EQ(1000000, self.their_msat);
     ASSERT_EQ(0, self.htlc_id_num);
     ASSERT_EQ(1, self.htlc_num);
     ASSERT_EQ(0, self.commit_local.htlc_num);
     ASSERT_EQ(0, self.commit_remote.htlc_num);
+
+    ln_term(&self);
+}
+
+
+TEST_F(ln, htlcflag_macro_offer)
+{
+    ln_self_t self;
+    LnInit(&self);
+
+    ln_update_add_htlc_t *p_htlc = &self.cnl_add_htlc[0];
+    ln_htlcflag_t *p_flag = &p_htlc->flag;
+
+    p_flag->addhtlc = LN_HTLCFLAG_OFFER;
+    ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->updsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->revrecv = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comrecv = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->revsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comsend = 0;
+    p_flag->revrecv = 0;
+    p_flag->comrecv = 0;
+    p_flag->revsend = 0;
+    p_flag->delhtlc = LN_HTLCFLAG_FULFILL;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comrecv = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->revsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->revrecv = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    ln_term(&self);
+}
+
+
+TEST_F(ln, htlcflag_macro_recv)
+{
+    ln_self_t self;
+    LnInit(&self);
+
+    ln_update_add_htlc_t *p_htlc = &self.cnl_add_htlc[0];
+    ln_htlcflag_t *p_flag = &p_htlc->flag;
+
+    p_flag->addhtlc = LN_HTLCFLAG_RECV;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comrecv = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->revsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->revrecv = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comsend = 0;
+    p_flag->revrecv = 0;
+    p_flag->comrecv = 0;
+    p_flag->revsend = 0;
+    p_flag->delhtlc = LN_HTLCFLAG_FULFILL;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_TRUE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->updsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->revrecv = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->comrecv = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
+
+    p_flag->revsend = 1;
+    ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_OFFER(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc));
+    ASSERT_TRUE(LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc));
+    ASSERT_FALSE(LN_HTLC_WILL_COMSIG_RECV(p_htlc));
 
     ln_term(&self);
 }

@@ -81,13 +81,12 @@ extern "C" {
 //  - 受信したreceived HTLCは、すぐにcommit_txのHTLCとして計算に含める
 //  - 送信したoffered HTLCは、相手からrevoke_and_ackを受信してからcommit_txのHTLCとして計算に含める
 //      (それまではcommit_txに反映されていないように振る舞うこと)
-#define LN_HTLC_FLAG_OFFER              (0x01)      ///< Offered HTLC
-#define LN_HTLC_FLAG_RECV               (0x02)      ///< Received HTLC
-#define LN_HTLC_FLAG_ADDHTLC            (0x04)      ///< update_add_htlc送信済み
-#define LN_HTLC_FLAG_FULFILLHTLC        (0x08)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
-#define LN_HTLC_FLAG_MALFORMED          (0x20)      ///< update_fail_malformed_htlc
-#define LN_HTLC_FLAG_COMMIT_SEND        (0x40)      ///< commitment_signed受信済み
-#define LN_HTLC_FLAG_COMMIT_RECV        (0x80)      ///< commitment_signed受信済み
+#define LN_HTLCFLAG_OFFER               (0x01)      ///< Offered HTLC
+#define LN_HTLCFLAG_RECV                (0x02)      ///< Received HTLC
+
+#define LN_HTLCFLAG_FULFILL             (0x01)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
+#define LN_HTLCFLAG_FAIL                (0x02)      ///< update_fail_malformed_htlc
+#define LN_HTLCFLAG_MALFORMED           (0x03)      ///< update_fail_malformed_htlc
 
 // channel_update.flags
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
@@ -149,34 +148,155 @@ extern "C" {
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
 
 
+/** @def    LN_HTLC_ENABLE(htlc)
+ *  @brief  ln_update_add_htlc_tとして有効
+ *  @note
+ *      - (amount_msat != 0)で判定していたが、update_add_htlcの転送の場合、
+ *          update_add_htlc受信時に転送先にパラメータを全部設定して待たせておき、
+ *          revoke_and_ackが完了してから指示だけを出すようにしたかった。
+ */
+#define LN_HTLC_ENABLE(htlc)    ((htlc)->flag.addhtlc != 0)
+
+
+/** @def    LN_HTLC_EMPTY(htlc)
+ *  @brief  ln_update_add_htlc_tの空き
+ *  @note
+ *      - HTLCの空き場所を探している場合には、(amount_msat != 0)も同時にチェックする
+ */
+#define LN_HTLC_EMPTY(htlc)     ( ((htlc)->flag.addhtlc == 0) && ((htlc)->amount_msat == 0) )
+
+
 /** @def    LN_HTLC_WILL_ADDHTLC(htlc)
  *  @brief  update_add_htlc送信予定
  */
-#define LN_HTLC_WILL_ADDHTLC(htlc)  (((htlc)->flag & (LN_HTLC_FLAG_OFFER | LN_HTLC_FLAG_ADDHTLC)) == LN_HTLC_FLAG_OFFER)
+#define LN_HTLC_WILL_ADDHTLC(htlc)  (((htlc)->flag.addhtlc == LN_HTLCFLAG_OFFER) && ((htlc)->flag.delhtlc == 0) && ((htlc)->flag.updsend == 0))
 
 
-/** @def    LN_HTLC_WILL_FULFILL(htlc)
+/** @def    LN_HTLC_WILL_DELHTLC(htlc)
  *  @brief  update_fulfill/fail/fail_malformed_htlc送信予定
  *  @note
  *      - update_fulfill_htlc: #LN_HTLC_IS_FULFILL()がtrue
  *      - update_fail_malformed_htlc: #LN_HTLC_IS_MALFORMED()がtrue
  *      - update_fail_htlc: それ以外
  */
-#define LN_HTLC_WILL_FULFILL(htlc)  ((htlc)->flag & LN_HTLC_FLAG_FULFILLHTLC)
+#define LN_HTLC_WILL_DELHTLC(htlc)  (((htlc)->flag.addhtlc == LN_HTLCFLAG_RECV) && ((htlc)->flag.delhtlc != 0) && ((htlc)->flag.updsend == 0))
 
 
 /** @def    LN_HTLC_IS_FULFILL(htlc)
  *  @brief  update_fulfill_htlc送信予定
- *  @note   #LN_HTLC_WILL_FULFILL()がtrueの場合に有効
+ *  @note   #LN_HTLC_WILL_DELHTLC()がtrueの場合に有効
  */
-#define LN_HTLC_IS_FULFILL(htlc)    ((htlc)->buf_payment_preimage.len == LN_SZ_PREIMAGE)
+#define LN_HTLC_IS_FULFILL(htlc)    ((htlc)->flag.delhtlc == LN_HTLCFLAG_FULFILL)
+
+
+/** @def    LN_HTLC_IS_FAIL(htlc)
+ *  @brief  update_fail_htlc送信予定
+ *  @note   #LN_HTLC_WILL_DELHTLC()がtrueの場合に有効
+ */
+#define LN_HTLC_IS_FAIL(htlc)    ((htlc)->flag.delhtlc == LN_HTLCFLAG_FAIL)
 
 
 /** @def    LN_HTLC_IS_MALFORMED(htlc)
  *  @brief  update_fail_malformed_htlc送信予定
- *  @note   #LN_HTLC_WILL_FULFILL()がtrueの場合に有効
+ *  @note   #LN_HTLC_WILL_DELHTLC()がtrueの場合に有効
  */
-#define LN_HTLC_IS_MALFORMED(htlc)  ((htlc)->flag & LN_HTLC_FLAG_MALFORMED)
+#define LN_HTLC_IS_MALFORMED(htlc)  ((htlc)->flag.delhtlc == LN_HTLCFLAG_MALFORMED)
+
+
+/** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(htlc)
+ *  @brief  local commit_txのHTLC追加として使用できる(update_add_htlc送信側)
+ */
+#define LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(htlc)    (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_OFFER) &&\
+                                                        ((htlc)->flag.delhtlc == 0) &&\
+                                                        ((htlc)->flag.updsend == 1) &&\
+                                                        ((htlc)->flag.comsend == 1) &&\
+                                                        ((htlc)->flag.revrecv == 1) \
+                                                    )
+
+/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(htlc)
+ *  @brief  local commit_txのHTLC反映として使用できる
+ */
+#define LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(htlc)    (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_OFFER) &&\
+                                                        ((htlc)->flag.delhtlc != 0) \
+                                                    )
+
+
+/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc)
+ *  @brief  remote commit_txのHTLC追加として使用できる(update_add_htlc送信側)
+ */
+#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc)   (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_OFFER) &&\
+                                                        ((htlc)->flag.updsend == 1) &&\
+                                                       !( ((htlc)->flag.delhtlc != 0) &&\
+                                                          ((htlc)->flag.comrecv == 1) &&\
+                                                          ((htlc)->flag.revsend == 1) )\
+                                                    )
+
+
+/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc)
+ *  @brief  remote commit_txのHTLC反映として使用できる(update_add_htlc送信側)
+ */
+#define LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc)   (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_OFFER) &&\
+                                                        ((htlc)->flag.delhtlc != 0) &&\
+                                                        ((htlc)->flag.comrecv == 1) &&\
+                                                        ((htlc)->flag.revsend == 1) \
+                                                    )
+
+
+/** @def    LN_HTLC_WILL_COMSIG_OFFER(htlc)
+ *  @brief  commitment_signedを送信できる(update_add_htlc送信側)
+ */
+#define LN_HTLC_WILL_COMSIG_OFFER(htlc)             (   ( (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(htlc) && ((htlc)->flag.delhtlc == 0)) ||\
+                                                          LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc) ) &&\
+                                                        ((htlc)->flag.comsend == 0) \
+                                                    )
+
+
+/** @def    LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc)
+ *  @brief  local commit_txのHTLC追加として使用できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(htlc) (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_RECV) &&\
+                                                   !( ((htlc)->flag.updsend == 1) &&\
+                                                      ((htlc)->flag.comsend == 1) &&\
+                                                      ((htlc)->flag.revrecv == 1) ) \
+                                                )
+
+
+/** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc)
+ *  @brief  local commit_txのHTLC反映として使用できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc) (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_RECV) &&\
+                                                    ((htlc)->flag.delhtlc != 0) &&\
+                                                    ((htlc)->flag.updsend == 1) &&\
+                                                    ((htlc)->flag.comsend == 1) &&\
+                                                    ((htlc)->flag.revrecv == 1) \
+                                                )
+
+
+/** @def    LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc)
+ *  @brief  remote commit_txのHTLC追加として使用できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc)    (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_RECV) &&\
+                                                        ((htlc)->flag.updsend == 0) &&\
+                                                        ((htlc)->flag.comrecv == 1) &&\
+                                                        ((htlc)->flag.revsend == 1) \
+                                                    )
+
+
+/** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc)
+ *  @brief  remote commit_txのHTLC反映として使用できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc)    (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_RECV) &&\
+                                                        ((htlc)->flag.updsend == 1) \
+                                                    )
+
+
+/** @def    LN_HTLC_WILL_COMSIG_RECV(htlc)
+ *  @brief  commitment_signedを送信できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_WILL_COMSIG_RECV(htlc)              (   ( LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(htlc) ||\
+                                                          LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) ) &&\
+                                                        ((htlc)->flag.comsend == 0) \
+                                                    )
 
 
 //
@@ -251,10 +371,11 @@ typedef enum {
     LN_CB_UPDATE_ANNODB,        ///< announcement DB更新通知
     LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
+    LN_CB_FWD_ADDHTLC_START,    ///< update_add_htlc転送開始
     LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
     LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
-    LN_CB_COMMIT_SIG_RECV,      ///< commitment_signed受信通知
     LN_CB_REV_AND_ACK_EXCG,     ///< revoke_and_ack交換通知
+    LN_CB_PAYMENT_RETRY,        ///< 送金リトライ
     LN_CB_UPDATE_FEE_RECV,      ///< update_fee受信通知
     LN_CB_SHUTDOWN_RECV,        ///< shutdown受信通知
     LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
@@ -265,6 +386,18 @@ typedef enum {
     LN_CB_GETBLOCKCOUNT,        ///< getblockcount
     LN_CB_MAX,
 } ln_cb_t;
+
+
+typedef struct {
+    unsigned        addhtlc     : 2;    ///< LN_HTLCFLAG_OFFER/RECV
+    unsigned        delhtlc     : 2;    ///< LN_HTLCFLAG_FULFILL/FAIL/MALFORMED
+    unsigned        updsend     : 1;    ///< 1:update message sent
+    unsigned        comsend     : 1;    ///< 1:commitment_signed sent
+    unsigned        revrecv     : 1;    ///< 1:revoke_and_ack received
+    unsigned        comrecv     : 1;    ///< 1:commitment_signed received
+    unsigned        revsend     : 1;    ///< 1:revoke_and_ack sent
+    unsigned        Reserved    : 7;
+} ln_htlcflag_t;
 
 
 /** @typedef    ln_callback_t
@@ -505,7 +638,12 @@ typedef struct {
                                                     //  update_fail_htlc
                                                     //      len:  reason
     //inner
-    uint8_t     flag;                               ///< LN_HTLC_FLAG_xxx
+    ln_htlcflag_t   flag;                           ///< LN_HTLC_FLAG_xxx
+    uint64_t        next_short_channel_id;          ///< flag.addhtlc == OFFER
+                                                    //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
+    uint16_t        next_idx;
+    uint8_t         fin_delhtlc;                    ///< flag.addhtlc == RECV
+                                                    //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
     //fulfillで戻す
     uint8_t     signature[LN_SZ_SIGNATURE];         ///< 受信した最新のHTLC署名
                                                     //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
@@ -514,72 +652,6 @@ typedef struct {
     uint16_t    prev_idx;                           ///< 転送元cnl_add_htlc[]index
     //failで戻す
     utl_buf_t   buf_shared_secret;                  ///< failuremsg暗号化用
-
-    /* flag
-
-     * update_add_htlc準備(#ln_set_add_htlc())
-     *      flag = SEND
-     *
-     * update_add_htlc送信(#ln_create_add_htlc())
-     *      flag = SEND | ADDHTLC
-     *
-     *
-     * update_add_htlc受信:hop元 node(#recv_update_add_htlc())
-     *      flag = RECV
-     *
-     * update_add_htlc受信:hop先 node(#ln_set_add_htlc())
-     *      flag = SEND
-     *
-     * update_add_htlc受信:final node(#recv_update_add_htlc())
-     *      flag = RECV | FULFILLHTLC
-     *      onion_result = empty
-     *      preimage = payment_preimage
-     *          --> 受信アイドル処理によるupdate_fulfill_htlc送信
-     *
-     * update_add_htlc受信:reason=FAIL(#recv_update_add_htlc())
-     *      flag = RECV | FULFILLHTLC
-     *      onion_result = shared_secretで逆onion
-     *      preimage = NULL
-     *          --> 受信アイドル処理によるupdate_fail_htlc送信
-     *
-     * update_add_htlc受信:reason=MALFORMED(#recv_update_add_htlc())
-     *      flag = RECV | MALFORMED
-     *      onion_result = malformed_htlc
-     *      preimage = NULL
-     *          --> 受信アイドル処理によるupdate_fail_malformed_htlc送信
-     *
-     *
-     * update_fulfill_htlc受信(#recv_update_fulfill_htlc())
-     *          --> 上位層に通知後、HTLC削除
-     *
-     * update_fulfill_htlc受信:上位層:hop元(#ln_set_fulfill_htlc())
-     *      flag |= FULFILLHTLC
-     *          --> 受信アイドル処理によるupdate_fulfill_htlc送信
-     *
-     * update_fulfill_htlc受信:上位層:origin node
-     *          --> invoice削除
-     *
-     *
-     * update_fail_htlc受信:(#recv_update_fail_htlc())
-     *          --> 上位層に通知後、HTLC削除
-     *
-     * update_fail_malformed_htlc受信:(#recv_update_fail_malformed_htlc())
-     *          --> 上位層に通知後、HTLC削除
-     *
-     * update_fail_htlc/update_fail_malformed_htlc受信:上位層:hop元(#ln_set_fail_htlc())
-     *      flag |= FULFILLHTLC
-     *          --> 受信アイドル処理によるupdate_fail_htlc送信
-     *
-     * update_fail_htlc/update_fail_malformed_htlc受信:上位層:origin node
-     *      reasonデコード
-     *
-     *
-     * update_fulfill_htlc送信(#ln_create_fulfill_htlc())
-     * update_fail_htlc送信(#ln_create_fail_htlc())
-     * update_fail_malformed_htlc送信(#ln_create_fail_malformed_htlc())
-     *          --> パケット作成後、HTLC削除
-     *
-     */
 } ln_update_add_htlc_t;
 
 
@@ -935,7 +1007,6 @@ typedef struct {
     ln_cb_add_htlc_result_t     result;                 ///< update_add_htlc受信結果
     uint64_t                    id;                     ///< HTLC id
     const uint8_t               *p_payment;             ///< payment_hash
-    const uint8_t               *p_preimage;            ///< 非NULL: preimage
     const ln_hop_dataout_t      *p_hop;                 ///< onion解析結果
     uint64_t                    amount_msat;            ///< self->cnl_add_htlc[idx].amount_msat
     uint32_t                    cltv_expiry;            ///< self->cnl_add_htlc[idx].cltv_expiry
@@ -943,6 +1014,12 @@ typedef struct {
     utl_buf_t                   *p_onion_reason;        ///< 変換後onionパケット(ok==true) or fail reason(ok==false)
     const utl_buf_t             *p_shared_secret;       ///< onion shared secret
 } ln_cb_add_htlc_recv_t;
+
+
+typedef struct {
+    uint64_t                    short_channel_id;
+    uint16_t                    idx;
+} ln_cb_fwd_add_htlc_t;
 
 
 /** @struct ln_cb_fulfill_htlc_recv_t
@@ -1191,7 +1268,6 @@ struct ln_self_t {
     //commitment transaction情報(local/remote)
     ln_commit_data_t            commit_local;                   ///< local commit_tx用
     ln_commit_data_t            commit_remote;                  ///< remote commit_tx用
-    bool                        uncommit;                       ///< true:commitment_signedの送信が必要
     //commitment transaction情報(固有)
     uint64_t                    funding_sat;                    ///< funding_satoshis
     uint32_t                    feerate_per_kw;                 ///< feerate_per_kw
@@ -1411,6 +1487,14 @@ bool ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf);
 bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 
 
+/** 受信アイドル処理
+ * Normal Operationの処理を進める
+ *
+ * @param[in,out]       self        channel情報
+ */
+void ln_recv_idle_proc(ln_self_t *self);
+
+
 /** initメッセージ作成
  *
  * @param[in,out]       self            channel情報
@@ -1621,6 +1705,21 @@ bool ln_set_add_htlc(ln_self_t *self,
             uint16_t PrevIdx,
             const utl_buf_t *pSharedSecrets);
 
+
+bool ln_set_fwd_add_htlc(ln_self_t *self,
+            uint64_t *pHtlcId,
+            utl_buf_t *pReason,
+            uint16_t *pNextIdx,
+            const uint8_t *pPacket,
+            uint64_t AmountMsat,
+            uint32_t CltvValue,
+            const uint8_t *pPaymentHash,
+            uint64_t PrevShortChannelId,
+            uint16_t PrevIdx,
+            const utl_buf_t *pSharedSecrets);
+
+
+void ln_fwd_add_htlc_start(ln_self_t *self, uint16_t Idx);
 
 /** update_add_htlcメッセージ作成
  *
@@ -2089,25 +2188,6 @@ static inline const ln_commit_data_t *ln_commit_local(const ln_self_t *self) {
  */
 static inline const ln_commit_data_t *ln_commit_remote(const ln_self_t *self) {
     return &self->commit_remote;
-}
-
-
-/** commitment_signedの送信が必要かどうか
- *
- * @param[in]           self            channel情報
- * @return      true:送信が必要
- */
-static inline bool ln_uncommit_get(const ln_self_t *self) {
-    return self->uncommit;
-}
-
-
-/** commitment_signed未commitフラグクリア
- *
- * @param[in,out]       self            channel情報
- */
-static inline void ln_uncommit_clr(ln_self_t *self) {
-    self->uncommit = false;
 }
 
 

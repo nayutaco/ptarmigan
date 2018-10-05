@@ -1529,7 +1529,11 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
             err = RPCERR_CLOSE_START;
         }
     } else {
-        err = RPCERR_NOCONN;
+        if (p_appconf == NULL) {
+            err = RPCERR_NOCONN;
+        } else {
+            err = RPCERR_CLOSE_CLEAN;
+        }
     }
 
     return err;

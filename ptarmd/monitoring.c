@@ -327,7 +327,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                     lnapp_send_updatefee(p_app_conf, p_prm->feerate_per_kw);
                 }
             } else {
-                LOGD("No Auto connect mode\n");
+                //LOGD("No Auto connect mode\n");
             }
         }
         if (del) {

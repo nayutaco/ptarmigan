@@ -9,7 +9,7 @@ PAYER_PORT=$(( ${PAY_BEGIN} + 1 ))
 
 ./example_st4pay_r.sh $PAY_BEGIN $PAY_END $AMOUNT $1
 
-sleep 2
+read -p "Hit enter: " inkey
 
 # reset
 ./ptarmcli --debug 16 $PAYER_PORT

@@ -102,7 +102,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-23)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-24)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -129,6 +129,7 @@
     -21: fix: alias length
     -22: onion route
     -23: announcement dbを分離
+    -24: self.cnl_add_htlc[].flag変更
  */
 
 
@@ -374,12 +375,12 @@ static const struct {
     int length;
     bool disp;
 } DBCOPY_IDX[] = {
-    { ETYPE_BYTEPTR,    BTC_SZ_PUBKEY, true },    // peer_node_id
+    { ETYPE_BYTEPTR,    BTC_SZ_PUBKEY, true },      // peer_node_id
     { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
     { ETYPE_UINT64X,    1, true },                  // short_channel_id
     { ETYPE_UINT64U,    1, true },                  // our_msat
     { ETYPE_UINT64U,    1, true },                  // their_msat
-    { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },      // funding_local.txid
+    { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_local.txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_local.txindex
     { ETYPE_LOCALKEYS,  1, false },                 // funding_local.pubkeys
     { ETYPE_REMOTEKEYS, 1, false },                 // funding_remote.pubkeys
@@ -397,6 +398,9 @@ static const backup_param_t DBHTLC_KEYS[] = {
     M_ITEM(ln_update_add_htlc_t, cltv_expiry),
     M_ITEM(ln_update_add_htlc_t, payment_sha256),
     M_ITEM(ln_update_add_htlc_t, flag),
+    M_ITEM(ln_update_add_htlc_t, next_short_channel_id),
+    M_ITEM(ln_update_add_htlc_t, next_idx),
+    M_ITEM(ln_update_add_htlc_t, fin_delhtlc),
     M_ITEM(ln_update_add_htlc_t, signature),
     M_ITEM(ln_update_add_htlc_t, prev_short_channel_id),
     M_ITEM(ln_update_add_htlc_t, prev_idx),
