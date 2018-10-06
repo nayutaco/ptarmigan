@@ -2002,8 +2002,10 @@ static bool recv_idle_proc_final(ln_self_t *self)
                 //DEL_HTLC後
                 if (p_htlc->flag.addhtlc == LN_HTLCFLAG_OFFER) {
                     //DEL_HTLC後: update_add_htlc送信側
-                    self->our_msat -= p_htlc->amount_msat;
-                    self->their_msat += p_htlc->amount_msat;
+                    if (p_htlc->flag.delhtlc == LN_HTLCFLAG_FULFILL) {
+                        self->our_msat -= p_htlc->amount_msat;
+                        self->their_msat += p_htlc->amount_msat;
+                    }
 
                     if (p_htlc->prev_short_channel_id == 0) {
                         if (p_htlc->flag.delhtlc == LN_HTLCFLAG_FULFILL) {
@@ -2011,13 +2013,15 @@ static bool recv_idle_proc_final(ln_self_t *self)
                             ln_db_invoice_del(p_htlc->payment_sha256);
                         } else {
                             //origin nodeで失敗 --> 送金の再送
-                            (*self->p_callback)(self, LN_CB_UPDATE_FEE_RECV, p_htlc->payment_sha256);
+                            (*self->p_callback)(self, LN_CB_PAYMENT_RETRY, p_htlc->payment_sha256);
                         }
                     }
                 } else if (p_htlc->flag.addhtlc == LN_HTLCFLAG_RECV) {
                     //DEL_HTLC後: update_add_htlc受信側
-                    self->our_msat += p_htlc->amount_msat;
-                    self->their_msat -= p_htlc->amount_msat;
+                    if (p_htlc->flag.delhtlc == LN_HTLCFLAG_FULFILL) {
+                        self->our_msat += p_htlc->amount_msat;
+                        self->their_msat -= p_htlc->amount_msat;
+                    }
                 } else {
                     //nothing
                 }
