@@ -889,7 +889,7 @@ LABEL_EXIT:
         char str_payhash[LN_SZ_HASH * 2 + 1];
         utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, LN_SZ_HASH);
 
-        sprintf(mLastPayErr, "[%s]payment fail", date);
+        sprintf(mLastPayErr, "[%s]fail payment: %s", date, str_payhash);
         LOGD("%s\n", mLastPayErr);
         lnapp_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
 
