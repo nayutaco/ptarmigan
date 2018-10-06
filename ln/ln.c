@@ -4141,7 +4141,7 @@ static bool create_to_local(ln_self_t *self,
         ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
         if (LN_HTLC_ENABLE(p_htlc)) {
             bool addhtlc = false;
-            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc)) {
+            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(p_htlc)) {
                 our_msat -= p_htlc->amount_msat;
 
                 if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc)) {
@@ -4152,7 +4152,7 @@ static bool create_to_local(ln_self_t *self,
                     their_msat += p_htlc->amount_msat;
                 }
             }
-            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(p_htlc)) {
+            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(p_htlc)) {
                 their_msat -= p_htlc->amount_msat;
 
                 if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc)) {
@@ -4635,7 +4635,7 @@ static bool create_to_remote(ln_self_t *self,
         ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
         if (LN_HTLC_ENABLE(p_htlc)) {
             bool addhtlc = false;
-            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc)) {
+            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(p_htlc)) {
                 their_msat -= p_htlc->amount_msat;
 
                 if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc)) {
@@ -4646,7 +4646,7 @@ static bool create_to_remote(ln_self_t *self,
                     our_msat += p_htlc->amount_msat;
                 }
             }
-            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(p_htlc)) {
+            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc)) {
                 our_msat -= p_htlc->amount_msat;
 
                 if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc)) {

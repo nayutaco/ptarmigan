@@ -213,11 +213,20 @@ extern "C" {
                                                         ((htlc)->flag.revrecv == 1) \
                                                     )
 
+
 /** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(htlc)
- *  @brief  local commit_txのHTLC反映として使用できる
+ *  @brief  local commit_txのHTLC反映(commitment_signed)として使用できる
  */
 #define LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(htlc)    (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_OFFER) &&\
                                                         ((htlc)->flag.delhtlc != 0) \
+                                                    )
+
+
+/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(htlc)
+ *  @brief  local commit_txのHTLC反映(amount)として使用できる
+ */
+#define LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(htlc)    (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_OFFER) &&\
+                                                        ((htlc)->flag.delhtlc == LN_HTLCFLAG_FULFILL) \
                                                     )
 
 
@@ -233,10 +242,20 @@ extern "C" {
 
 
 /** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc)
- *  @brief  remote commit_txのHTLC反映として使用できる(update_add_htlc送信側)
+ *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc送信側)
  */
 #define LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(htlc)   (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_OFFER) &&\
                                                         ((htlc)->flag.delhtlc != 0) &&\
+                                                        ((htlc)->flag.comrecv == 1) &&\
+                                                        ((htlc)->flag.revsend == 1) \
+                                                    )
+
+
+/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc)
+ *  @brief  remote commit_txのHTLC反映(amount)として使用できる(update_add_htlc送信側)
+ */
+#define LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(htlc)   (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_OFFER) &&\
+                                                        ((htlc)->flag.delhtlc == LN_HTLCFLAG_FULFILL) &&\
                                                         ((htlc)->flag.comrecv == 1) &&\
                                                         ((htlc)->flag.revsend == 1) \
                                                     )
@@ -262,10 +281,21 @@ extern "C" {
 
 
 /** @def    LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc)
- *  @brief  local commit_txのHTLC反映として使用できる(update_add_htlc受信側)
+ *  @brief  local commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
  */
 #define LN_HTLC_ENABLE_LOCAL_DELHTLC_RECV(htlc) (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_RECV) &&\
                                                     ((htlc)->flag.delhtlc != 0) &&\
+                                                    ((htlc)->flag.updsend == 1) &&\
+                                                    ((htlc)->flag.comsend == 1) &&\
+                                                    ((htlc)->flag.revrecv == 1) \
+                                                )
+
+
+/** @def    LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(htlc)
+ *  @brief  local commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(htlc) (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_RECV) &&\
+                                                    ((htlc)->flag.delhtlc == LN_HTLCFLAG_FULFILL) &&\
                                                     ((htlc)->flag.updsend == 1) &&\
                                                     ((htlc)->flag.comsend == 1) &&\
                                                     ((htlc)->flag.revrecv == 1) \
@@ -283,11 +313,17 @@ extern "C" {
 
 
 /** @def    LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc)
- *  @brief  remote commit_txのHTLC反映として使用できる(update_add_htlc受信側)
+ *  @brief  remote commit_txのHTLC反映(commitment_signed)として使用できる(update_add_htlc受信側)
  */
 #define LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc)    (   ((htlc)->flag.addhtlc == LN_HTLCFLAG_RECV) &&\
                                                         ((htlc)->flag.updsend == 1) \
                                                     )
+
+
+/** @def    LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc)
+ *  @brief  remote commit_txのHTLC反映(amount)として使用できる(update_add_htlc受信側)
+ */
+#define LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(htlc)    (LN_HTLC_ENABLE_REMOTE_DELHTLC_RECV(htlc) && ((htlc)->flag.delhtlc == LN_HTLCFLAG_FULFILL))
 
 
 /** @def    LN_HTLC_WILL_COMSIG_RECV(htlc)
