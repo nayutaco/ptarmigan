@@ -117,7 +117,8 @@ static int cmd_eraseinvoice_proc(const uint8_t *pPayHash);
 static int cmd_routepay_proc1(
                 ln_invoice_t **ppInvoiceData,
                 ln_routing_result_t *pRouteResult,
-                const char *pInvoice, uint64_t AddAmountMsat);
+                const char *pInvoice, uint64_t AddAmountMsat,
+                int32_t BlockCnt);
 static int cmd_routepay_proc2(
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
@@ -822,8 +823,16 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    //blockcount
+    int32_t blockcnt = btcrpc_getblockcount();
+    LOGD("blockcnt=%d\n", blockcnt);
+    if (blockcnt < 0) {
+        err = RPCERR_BLOCKCHAIN;
+        goto LABEL_EXIT;
+    }
+
     err = cmd_routepay_proc1(&p_invoice_data, &rt_ret,
-                    p_invoice, add_amount_msat);
+                    p_invoice, add_amount_msat, blockcnt);
     if (err != 0) {
         LOGD("fail: pay1\n");
         goto LABEL_EXIT;
@@ -833,20 +842,44 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     //      ここまでで送金ルートは作成済み
     //      これ以降は失敗してもリトライする
     LOGD("routepay: pay1\n");
-    retry = true;
-
-    //再送のためにinvoice保存
     err = cmd_routepay_proc2(p_invoice_data, &rt_ret, p_invoice, add_amount_msat);
-    if (err == RPCERR_PAY_RETRY) {
-        //送金
-        cmd_json_pay(p_invoice, add_amount_msat);
-        LOGD("retry: skip %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
-    }
+    retry = (err == RPCERR_PAY_RETRY);
 
 LABEL_EXIT:
     if (err == 0) {
         result = cJSON_CreateString("start payment");
-    } else if (!retry) {
+
+        //log file
+        char str_payhash[LN_SZ_HASH * 2 + 1];
+        utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, LN_SZ_HASH);
+        char fname[256];
+        sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
+        FILE *fp = fopen(fname, "w");
+        if (fp != NULL) {
+            fprintf(fp, "payment_hash: %s\n", str_payhash);
+            fprintf(fp, "amount_msat: %" PRIu64 "\n", p_invoice_data->amount_msat);
+            fprintf(fp, "current blockcount: %" PRId32 "\n", blockcnt);
+            fprintf(fp, "min_final_cltv_expiry: %" PRId32 "\n", p_invoice_data->min_final_cltv_expiry);
+            char dt[UTL_SZ_DTSTR + 1];
+            utl_misc_strftime(dt, p_invoice_data->timestamp);
+            fprintf(fp, "timestamp: %s\n", dt);
+            fprintf(fp, "\n----------- route -----------\n");
+            for (int lp = 0; lp < rt_ret.hop_num; lp++) {
+                char str_pubkey[BTC_SZ_PUBKEY * 2 + 1];
+                utl_misc_bin2str(str_pubkey, rt_ret.hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
+                fprintf(fp, "[%d] %s\n", lp, str_pubkey);
+                if (rt_ret.hop_datain[lp].short_channel_id != 0) {
+                    fprintf(fp, "  short_channel_id: %016" PRIx64 "\n", rt_ret.hop_datain[lp].short_channel_id);
+                    fprintf(fp, "       amount_msat: %" PRIu64 "\n", rt_ret.hop_datain[lp].amt_to_forward);
+                    fprintf(fp, "       cltv_expiry: %" PRIu32 "\n\n", rt_ret.hop_datain[lp].outgoing_cltv_value);
+                }
+            }
+            fclose(fp);
+        }
+    } else if (retry) {
+        LOGD("retry: skip %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
+        cmd_json_pay(p_invoice, add_amount_msat);
+    } else {
         //送金失敗
         ln_db_invoice_del(p_invoice_data->payment_hash);
 
@@ -862,8 +895,6 @@ LABEL_EXIT:
 
         ctx->error_code = err;
         ctx->error_message = ptarmd_error_str(err);
-    } else {
-        //already processed
     }
     free(p_invoice_data);
     free(p_invoice);
@@ -1379,12 +1410,14 @@ static int cmd_eraseinvoice_proc(const uint8_t *pPayHash)
  * @param[out]      pRouteResult
  * @param[in]       pInvoice
  * @param[in]       AddAmountMsat
+ * @param[in]       BlockCnt
  * @retval  エラーコード
  */
 static int cmd_routepay_proc1(
                 ln_invoice_t **ppInvoiceData,
                 ln_routing_result_t *pRouteResult,
-                const char *pInvoice, uint64_t AddAmountMsat)
+                const char *pInvoice, uint64_t AddAmountMsat,
+                int32_t BlockCnt)
 {
     bool bret = ln_invoice_decode(ppInvoiceData, pInvoice);
     if (!bret) {
@@ -1404,17 +1437,10 @@ static int cmd_routepay_proc1(
     }
     p_invoice_data->amount_msat += AddAmountMsat;
 
-    //blockcount
-    int32_t blockcnt = btcrpc_getblockcount();
-    LOGD("blockcnt=%d\n", blockcnt);
-    if (blockcnt < 0) {
-        return RPCERR_BLOCKCHAIN;
-    }
-
     lnerr_route_t rerr = ln_routing_calculate(pRouteResult,
                     ln_node_getid(),
                     p_invoice_data->pubkey,
-                    blockcnt + p_invoice_data->min_final_cltv_expiry,
+                    BlockCnt + p_invoice_data->min_final_cltv_expiry,
                     p_invoice_data->amount_msat,
                     p_invoice_data->r_field_num, p_invoice_data->r_field);
     if (rerr != LNROUTE_NONE) {
