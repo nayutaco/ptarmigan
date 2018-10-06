@@ -400,7 +400,6 @@ static const backup_param_t DBHTLC_KEYS[] = {
     M_ITEM(ln_update_add_htlc_t, flag),
     M_ITEM(ln_update_add_htlc_t, next_short_channel_id),
     M_ITEM(ln_update_add_htlc_t, next_idx),
-    M_ITEM(ln_update_add_htlc_t, fin_delhtlc),
     M_ITEM(ln_update_add_htlc_t, signature),
     M_ITEM(ln_update_add_htlc_t, prev_short_channel_id),
     M_ITEM(ln_update_add_htlc_t, prev_idx),
