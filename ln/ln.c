@@ -1962,18 +1962,18 @@ static void channel_clear(ln_self_t *self)
  */
 static bool recv_idle_proc_final(ln_self_t *self)
 {
-    LOGD("HTLC final\n");
+    //LOGD("HTLC final\n");
 
     bool db_upd = false;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
         if (LN_HTLC_ENABLE(p_htlc)) {
-            ln_htlcflag_t *p_flag = &p_htlc->flag;
-            LOGD(" [%d]addhtlc=%d, delhtlc=%d, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%d\n",
-                    idx,
-                    p_flag->addhtlc, p_flag->delhtlc, p_flag->updsend,
-                    p_flag->comsend, p_flag->revrecv, p_flag->comrecv, p_flag->revsend,
-                    p_htlc->next_short_channel_id, p_htlc->next_idx, p_htlc->fin_delhtlc);
+            //ln_htlcflag_t *p_flag = &p_htlc->flag;
+            // LOGD(" [%d]addhtlc=%d, delhtlc=%d, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%d\n",
+            //         idx,
+            //         p_flag->addhtlc, p_flag->delhtlc, p_flag->updsend,
+            //         p_flag->comsend, p_flag->revrecv, p_flag->comrecv, p_flag->revsend,
+            //         p_htlc->next_short_channel_id, p_htlc->next_idx, p_htlc->fin_delhtlc);
             if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc)) {
                 //ADD_HTLC後: update_add_htlc送信側
                 //self->our_msat -= p_htlc->amount_msat;
