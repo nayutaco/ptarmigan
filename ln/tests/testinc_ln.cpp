@@ -422,7 +422,7 @@ TEST_F(ln, recv_update_add_htlc1)
     //
     ASSERT_EQ(LN_HTLCFLAG_RECV, self.cnl_add_htlc[0].flag.addhtlc);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.delhtlc);
-    ASSERT_EQ(LN_HTLCFLAG_FULFILL, self.cnl_add_htlc[0].fin_delhtlc);
+    ASSERT_EQ(LN_HTLCFLAG_FULFILL, self.cnl_add_htlc[0].flag.fin_delhtlc);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comsend);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revrecv);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comrecv);
@@ -495,7 +495,7 @@ TEST_F(ln, recv_update_add_htlc2)
     //
     ASSERT_EQ(LN_HTLCFLAG_RECV, self.cnl_add_htlc[0].flag.addhtlc);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.delhtlc);
-    ASSERT_EQ(LN_HTLCFLAG_FAIL, self.cnl_add_htlc[0].fin_delhtlc);
+    ASSERT_EQ(LN_HTLCFLAG_FAIL, self.cnl_add_htlc[0].flag.fin_delhtlc);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.updsend);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comsend);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revrecv);
@@ -547,7 +547,7 @@ TEST_F(ln, recv_update_add_htlc3)
     //
     ASSERT_EQ(LN_HTLCFLAG_RECV, self.cnl_add_htlc[0].flag.addhtlc);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.delhtlc);
-    ASSERT_EQ(LN_HTLCFLAG_MALFORMED, self.cnl_add_htlc[0].fin_delhtlc);
+    ASSERT_EQ(LN_HTLCFLAG_MALFORMED, self.cnl_add_htlc[0].flag.fin_delhtlc);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.updsend);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.comsend);
     ASSERT_EQ(0, self.cnl_add_htlc[0].flag.revrecv);

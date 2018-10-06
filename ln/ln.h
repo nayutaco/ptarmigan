@@ -432,7 +432,9 @@ typedef struct {
     unsigned        revrecv     : 1;    ///< 1:revoke_and_ack received
     unsigned        comrecv     : 1;    ///< 1:commitment_signed received
     unsigned        revsend     : 1;    ///< 1:revoke_and_ack sent
-    unsigned        Reserved    : 7;
+    unsigned        fin_delhtlc : 2;    ///< flag.addhtlc == RECV
+                                        //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
+    unsigned        Reserved    : 5;
 } ln_htlcflag_t;
 
 
@@ -678,8 +680,6 @@ typedef struct {
     uint64_t        next_short_channel_id;          ///< flag.addhtlc == OFFER
                                                     //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
     uint16_t        next_idx;
-    uint8_t         fin_delhtlc;                    ///< flag.addhtlc == RECV
-                                                    //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
     //fulfillで戻す
     uint8_t     signature[LN_SZ_SIGNATURE];         ///< 受信した最新のHTLC署名
                                                     //      相手がunilateral close後にHTLC-txを送信しなかった場合に使用する
