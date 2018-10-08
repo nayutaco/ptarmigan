@@ -1013,25 +1013,27 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
         unsigned long dbg = ln_get_debug() ^ json->valueint;
         ln_set_debug(dbg);
         sprintf(str, "%08lx", dbg);
+        cJSON *js_mode = cJSON_CreateArray();
         if (!LN_DBG_FULFILL()) {
-            LOGD("no fulfill return\n");
+            cJSON_AddItemToArray(js_mode, cJSON_CreateString("no fulfill return"));
         }
         if (!LN_DBG_CLOSING_TX()) {
-            LOGD("no closing tx\n");
+            cJSON_AddItemToArray(js_mode, cJSON_CreateString("no closing tx"));
         }
         if (!LN_DBG_MATCH_PREIMAGE()) {
-            LOGD("force preimage mismatch\n");
+            cJSON_AddItemToArray(js_mode, cJSON_CreateString("force preimage mismatch"));
         }
         if (!LN_DBG_NODE_AUTO_CONNECT()) {
-            LOGD("no node Auto connect\n");
+            cJSON_AddItemToArray(js_mode, cJSON_CreateString("no node Auto connect"));
         }
         if (!LN_DBG_ONION_CREATE_NORMAL_REALM()) {
-            LOGD("create invalid realm onion\n");
+            cJSON_AddItemToArray(js_mode, cJSON_CreateString("create invalid realm onion"));
         }
         if (!LN_DBG_ONION_CREATE_NORMAL_VERSION()) {
-            LOGD("create invalid version onion\n");
+            cJSON_AddItemToArray(js_mode, cJSON_CreateString("create invalid version onion"));
         }
         cJSON_AddItemToObject(result, "new", cJSON_CreateString(str));
+        cJSON_AddItemToObject(result, "mode", js_mode);
     } else {
         ctx->error_code = RPCERR_PARSE;
         ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
@@ -1053,7 +1055,6 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     peer_conn_t conn;
     cJSON *result = cJSON_CreateObject();
     int index = 0;
-    cJSON *json;
 
     //connect parameter
     bool ret = json_connect(params, &index, &conn);
@@ -1064,8 +1065,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     LOGD("getcommittx\n");
 
     getcommittx_t prm;
-    json = cJSON_GetArrayItem(params, 0);
-    prm.b_local = (json == NULL);
+    prm.b_local = true;
     prm.p_nodeid = conn.node_id;
     prm.result = result;
     ln_db_self_search(comp_func_getcommittx, &prm);

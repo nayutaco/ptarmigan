@@ -309,9 +309,9 @@ static void optfunc_conn_param(int *pOption, bool *pConn)
             mPeerNodeId,
             mPeerAddr,
             &mPeerPort);
-        printf("id: %s\n", mPeerNodeId);
-        printf("addr: %s\n", mPeerAddr);
-        printf("port: %" PRIu16 "\n", mPeerPort);
+        // printf("id: %s\n", mPeerNodeId);
+        // printf("addr: %s\n", mPeerAddr);
+        // printf("port: %" PRIu16 "\n", mPeerPort);
         if (results == 3) {
             *pConn = true;
             *pOption = M_OPTIONS_CONN;

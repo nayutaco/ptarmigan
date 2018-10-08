@@ -338,6 +338,7 @@ static void close_alloc(ln_close_force_t *pClose, int Num);
 static void free_establish(ln_self_t *self, bool bEndEstablish);
 static btc_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId);
 static inline uint8_t ln_sort_to_dir(btc_keys_sort_t Sort);
+static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx);
 static void set_error(ln_self_t *self, int Err, const char *pFormat, ...);
 static int commitment_state(const ln_self_t *self);
 static int revocation_state(const ln_self_t *self);
@@ -1127,12 +1128,43 @@ bool ln_create_shutdown(ln_self_t *self, utl_buf_t *pShutdown)
 }
 
 
-void ln_goto_closing(ln_self_t *self, void *pDbParam)
+void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
 {
     LOGD("BEGIN\n");
-    if ((self->fund_flag & LN_FUNDFLAG_CLOSE) == 0) {
-        //closing中フラグを立てる
-        self->fund_flag = (ln_fundflag_t)(self->fund_flag | LN_FUNDFLAG_CLOSE);
+    if (self->close_type == LN_CLOSETYPE_NONE) {
+        //mutual close?
+        if ( (ln_shutdown_scriptpk_local(self)->len > 0) &&
+             (ln_shutdown_scriptpk_remote(self)->len > 0) &&
+             (pCloseTx->vout_cnt <= 2) &&
+             ( utl_buf_cmp(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_local(self)) ||
+               utl_buf_cmp(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(self)) ) ) {
+            self->close_type = LN_CLOSETYPE_MUTUAL;
+        } else {
+            //commitment numberの復元
+            uint64_t commit_num = calc_commit_num(self, pCloseTx);
+
+            utl_buf_alloc(&self->revoked_sec, BTC_SZ_PRIVKEY);
+            bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(LN_SECINDEX_INIT - commit_num));
+            if (ret) {
+                //revoked transaction close
+                self->close_type = LN_CLOSETYPE_REVOKED;
+            } else {
+                //unilateral close
+                uint8_t txid[BTC_SZ_TXID];
+                bool ret = btc_tx_txid(txid, pCloseTx);
+                if (ret) {
+                    if (memcmp(txid, ln_commit_local(self)->txid, BTC_SZ_TXID) == 0) {
+                        self->close_type = LN_CLOSETYPE_UNI_LOCAL;
+                    } else {
+                        self->close_type = LN_CLOSETYPE_UNI_REMOTE;
+                    }
+                } else {
+                    LOGD("fail: txid\n");
+                }
+            }
+            btc_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
+
+        }
         ln_db_self_save_closeflg(self, pDbParam);
 
         //自分のchannel_updateをdisableにする(相手のは署名できないので、自分だけ)
@@ -1315,10 +1347,7 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
     //
 
     //commitment numberの復元
-    uint64_t commit_num = ((uint64_t)(pRevokedTx->vin[0].sequence & 0xffffff)) << 24;
-    commit_num |= (uint64_t)(pRevokedTx->locktime & 0xffffff);
-    commit_num ^= self->obscured;
-    LOGD("commit_num=%" PRIu64 "\n", commit_num);
+    uint64_t commit_num = calc_commit_num(self, pRevokedTx);
 
     //remote per_commitment_secretの復元
     utl_buf_alloc(&self->revoked_sec, BTC_SZ_PRIVKEY);
@@ -2027,13 +2056,11 @@ static bool recv_idle_proc_final(ln_self_t *self)
                 }
 
                 clear_htlc(self, p_htlc);
+                (*self->p_callback)(self, LN_CB_REV_AND_ACK_EXCG, NULL);
+
                 db_upd = true;
             }
         }
-    }
-
-    if (db_upd) {
-        (*self->p_callback)(self, LN_CB_REV_AND_ACK_EXCG, NULL);
     }
 
     return db_upd;
@@ -2052,31 +2079,33 @@ static bool recv_idle_proc_nonfinal(ln_self_t *self)
         ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
         if (LN_HTLC_ENABLE(p_htlc)) {
             ln_htlcflag_t *p_flag = &p_htlc->flag;
-            LOGD(" [%d]addhtlc=%d, delhtlc=%d, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%d\n",
-                    idx,
-                    p_flag->addhtlc, p_flag->delhtlc, p_flag->updsend,
-                    p_flag->comsend, p_flag->revrecv, p_flag->comrecv, p_flag->revsend,
-                    p_htlc->next_short_channel_id, p_htlc->next_idx, p_flag->fin_delhtlc);
+            // LOGD(" [%d]addhtlc=%d, delhtlc=%d, updsend=%d, %d%d%d%d, next=%" PRIx64 "(%d), fin_del=%d\n",
+            //         idx,
+            //         p_flag->addhtlc, p_flag->delhtlc, p_flag->updsend,
+            //         p_flag->comsend, p_flag->revrecv, p_flag->comrecv, p_flag->revsend,
+            //         p_htlc->next_short_channel_id, p_htlc->next_idx, p_flag->fin_delhtlc);
             utl_buf_t buf_bolt = UTL_BUF_INIT;
-            if (!LN_DBG_FULFILL()) {
-                LOGD("DBG: no fulfill mode\n");
-            } else if (LN_HTLC_WILL_ADDHTLC(p_htlc)) {
+            if (LN_HTLC_WILL_ADDHTLC(p_htlc)) {
                 //update_add_htlc送信
                 ln_create_add_htlc(self, &buf_bolt, idx);
             } else if (LN_HTLC_WILL_DELHTLC(p_htlc)) {
-                //update_fulfill/fail/fail_malformed_htlc送信
-                switch (p_flag->delhtlc) {
-                case LN_HTLCFLAG_FULFILL:
-                    ln_create_fulfill_htlc(self, &buf_bolt, idx);
-                    break;
-                case LN_HTLCFLAG_FAIL:
-                    ln_create_fail_htlc(self, &buf_bolt, idx);
-                    break;
-                case LN_HTLCFLAG_MALFORMED:
-                    ln_create_fail_malformed_htlc(self, &buf_bolt, idx);
-                    break;
-                default:
-                    break;
+                if (!LN_DBG_FULFILL()) {
+                    LOGD("DBG: no fulfill mode\n");
+                } else {
+                    //update_fulfill/fail/fail_malformed_htlc送信
+                    switch (p_flag->delhtlc) {
+                    case LN_HTLCFLAG_FULFILL:
+                        ln_create_fulfill_htlc(self, &buf_bolt, idx);
+                        break;
+                    case LN_HTLCFLAG_FAIL:
+                        ln_create_fail_htlc(self, &buf_bolt, idx);
+                        break;
+                    case LN_HTLCFLAG_MALFORMED:
+                        ln_create_fail_malformed_htlc(self, &buf_bolt, idx);
+                        break;
+                    default:
+                        break;
+                    }
                 }
             } else if (LN_HTLC_WILL_COMSIG_OFFER(p_htlc) ||
                         LN_HTLC_WILL_COMSIG_RECV(p_htlc)) {
@@ -3007,14 +3036,9 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
 
     if (ret && hop_dataout.b_exit) {
         //final node
-        if (LN_DBG_FULFILL()) {
-            LOGD("final node: backwind fulfill_htlc start: ");
-            p_htlc->flag.fin_delhtlc = LN_HTLCFLAG_FULFILL;
-            ln_db_preimg_del(p_htlc->buf_payment_preimage.buf);
-        } else {
-            LOGD("DBG: no fulfill mode\n");
-            self->cnl_add_htlc[idx].flag.delhtlc = 0;
-        }
+        LOGD("final node: backwind fulfill_htlc start: ");
+        p_htlc->flag.fin_delhtlc = LN_HTLCFLAG_FULFILL;
+        ln_db_preimg_del(p_htlc->buf_payment_preimage.buf);
     } else if (ret) {
         LOGD("hop node: forwad another channel\n");
         p_htlc->next_short_channel_id = hop_dataout.short_channel_id;
@@ -4226,7 +4250,7 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    LOGD("local commitment_number=%016" PRIx64 "\n", self->funding_local.current_commit_num);
+    LOGD("local commitment_number=%" PRIu64 "\n", self->funding_local.current_commit_num);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->priv_data);
     if (ret) {
         ret = create_to_local_sign(self, &tx_commit, &buf_sig);
@@ -4731,7 +4755,7 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
 
-    LOGD("remote commitment_number=%016" PRIx64 "\n", self->funding_remote.current_commit_num);
+    LOGD("remote commitment_number=%" PRIu64 "\n", self->funding_remote.current_commit_num);
     ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->priv_data);
     if (ret) {
         LOGD("++++++++++++++ 相手のcommit tx: tx_commit[%016" PRIx64 "]\n", self->short_channel_id);
@@ -6082,6 +6106,19 @@ static btc_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId
 static inline uint8_t ln_sort_to_dir(btc_keys_sort_t Sort)
 {
     return (uint8_t)Sort;
+}
+
+
+/** transactionからcommitment numberを復元
+ * 
+ */
+static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx)
+{
+    uint64_t commit_num = ((uint64_t)(pTx->vin[0].sequence & 0xffffff)) << 24;
+    commit_num |= (uint64_t)(pTx->locktime & 0xffffff);
+    commit_num ^= self->obscured;
+    LOGD("commit_num=%" PRIu64 "\n", commit_num);
+    return commit_num;
 }
 
 

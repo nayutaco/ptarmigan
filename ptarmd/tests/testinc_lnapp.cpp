@@ -31,7 +31,7 @@ FAKE_VALUE_FUNC(bool, btcrpc_estimatefee, uint64_t*, int);
 FAKE_VALUE_FUNC(int, ptarmd_start, uint16_t);
 FAKE_VALUE_FUNC(bool, ptarmd_transfer_channel, uint64_t, trans_cmd_t, utl_buf_t*);
 FAKE_VALUE_FUNC(lnapp_conf_t*, ptarmd_search_connected_cnl, uint64_t);
-FAKE_VALUE_FUNC(bool, ptarmd_nodefail_get, const uint8_t*, const char*, uint16_t, ln_nodedesc_t);
+FAKE_VALUE_FUNC(bool, ptarmd_nodefail_get, const uint8_t*, const char*, uint16_t, ln_nodedesc_t, bool);
 FAKE_VALUE_FUNC(char*, ptarmd_error_str, int);
 FAKE_VALUE_FUNC(uint32_t, monitoring_get_latest_feerate_kw);
 FAKE_VALUE_FUNC(bool, monitor_close_unilateral_local, ln_self_t*, void*);
