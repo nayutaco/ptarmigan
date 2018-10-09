@@ -1132,6 +1132,8 @@ void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
 {
     LOGD("BEGIN\n");
     if (self->close_type == LN_CLOSETYPE_NONE) {
+        M_DBG_PRINT_TX(pCloseTx);
+
         //mutual close?
         if ( (ln_shutdown_scriptpk_local(self)->len > 0) &&
              (ln_shutdown_scriptpk_remote(self)->len > 0) &&
@@ -1379,9 +1381,10 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
                 self->commit_local.to_self_delay);
     utl_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], LNL_SZ_WITPROG_WSH);
     btc_sw_wit2prog_p2wsh(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
-    LOGD("calc to_local vout: ");
-    DUMPD(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
+    // LOGD("calc to_local vout: ");
+    // DUMPD(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
 
+    int htlc_cnt = 0;
     for (uint32_t lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
         LOGD("vout[%d]: ", lp);
         DUMPD(pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
@@ -1402,18 +1405,20 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
             bool srch = ln_db_phash_search(payhash, &type, &expiry,
                             pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
-                LOGD("[%d]detect!\n", lp);
-
-                ln_create_htlcinfo(&self->p_revoked_wit[LN_RCLOSE_IDX_HTLC + lp],
+                int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
+                ln_create_htlcinfo(&self->p_revoked_wit[htlc_idx],
                         type,
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                         payhash,
                         expiry);
-                utl_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_HTLC + lp], LNL_SZ_WITPROG_WSH);
-                btc_sw_wit2prog_p2wsh(self->p_revoked_vout[LN_RCLOSE_IDX_HTLC + lp].buf, &self->p_revoked_wit[LN_RCLOSE_IDX_HTLC + lp]);
-                self->p_revoked_type[LN_RCLOSE_IDX_HTLC + lp] = type;
+                utl_buf_alloc(&self->p_revoked_vout[htlc_idx], LNL_SZ_WITPROG_WSH);
+                btc_sw_wit2prog_p2wsh(self->p_revoked_vout[htlc_idx].buf, &self->p_revoked_wit[htlc_idx]);
+                self->p_revoked_type[htlc_idx] = type;
+
+                LOGD("[%d]%s(%d) HTLC output%d\n", lp, (type == LN_HTLCTYPE_OFFERED) ? "offered" : "recieved", type, htlc_idx);
+                htlc_cnt++;
             } else {
                 LOGD("[%d]not detect\n", lp);
             }
@@ -6110,7 +6115,7 @@ static inline uint8_t ln_sort_to_dir(btc_keys_sort_t Sort)
 
 
 /** transactionからcommitment numberを復元
- * 
+ *
  */
 static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx)
 {

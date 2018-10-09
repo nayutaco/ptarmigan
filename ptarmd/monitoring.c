@@ -747,7 +747,7 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
     bool save = true;
     bool ret;
 
-    lnapp_save_event(ln_channel_id(self), "close: ugly way(remote)");
+    lnapp_save_event(ln_channel_id(self), "close: ugly way");
 
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         const utl_buf_t *p_vout = ln_revoked_vout(self);
@@ -772,8 +772,8 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
             }
         } else {
             for (int lp2 = LN_RCLOSE_IDX_HTLC; lp2 < ln_revoked_num(self); lp2++) {
-                LOGD("p_vout[%d]=", lp2);
-                DUMPD(p_vout[lp2].buf, p_vout[lp2].len);
+                // LOGD("p_vout[%u][%d]=", lp, lp2);
+                // DUMPD(p_vout[lp2].buf, p_vout[lp2].len);
                 if (utl_buf_cmp(&pTx->vout[lp].script, &p_vout[lp2])) {
                     LOGD("[%u]HTLC vout[%d] !\n", lp, lp2);
 
