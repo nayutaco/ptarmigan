@@ -180,7 +180,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
     bool ret;
     ln_close_force_t close_dat;
 
-    LOGD("unilateral close[local]\n");
+    LOGD("closed: unilateral close[local]\n");
 
     ret = ln_create_close_unilateral_tx(self, &close_dat);
     if (ret) {
@@ -384,6 +384,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
     if (p_vout == NULL) {
         switch (type) {
         case LN_CLOSETYPE_MUTUAL:
+            LOGD("closed: mutual close\n");
             del = true;
             break;
         case LN_CLOSETYPE_UNI_LOCAL:
@@ -396,7 +397,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
             break;
         case LN_CLOSETYPE_REVOKED:
             //相手にrevoked transaction closeされた
-            LOGD("closed: ugly way\n");
+            LOGD("closed: revoked transaction close\n");
             ret = ln_close_ugly(self, &close_tx, p_db_param);
             if (ret) {
                 if (ln_revoked_cnt(self) > 0) {
@@ -564,7 +565,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
     bool del = true;
     ln_close_force_t close_dat;
 
-    LOGD("unilateral close[remote]\n");
+    LOGD("closed: unilateral close[remote]\n");
 
     bool ret = ln_create_closed_tx(self, &close_dat);
     if (ret) {
