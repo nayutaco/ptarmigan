@@ -228,13 +228,15 @@ lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
 // ptarmd 起動中に接続失敗したnodeを登録していく。
 // リストに登録されているnodeに対しては、monitoring.c で自動接続しないようにする。
 // 再接続できるようになったか確認する方法を用意していないので、今のところリストから削除する方法はない。
-void ptarmd_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc)
+void ptarmd_nodefail_add(
+            const uint8_t *pNodeId, const char *pAddr, uint16_t Port,
+            ln_nodedesc_t NodeDesc)
 {
     LOGD("ipaddr(%d)=%s:%" PRIu16 " node_id: ", NodeDesc, pAddr, Port);
     DUMPD(pNodeId, BTC_SZ_PUBKEY);
 
     if ( utl_misc_all_zero(pNodeId, BTC_SZ_PUBKEY) ||
-         ptarmd_nodefail_get(pNodeId, pAddr, Port, LN_NODEDESC_IPV4) ) {
+         ptarmd_nodefail_get(pNodeId, pAddr, Port, LN_NODEDESC_IPV4, false) ) {
         //登録の必要なし
         LOGD("no save\n");
         return;
@@ -254,7 +256,9 @@ void ptarmd_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
 }
 
 
-bool ptarmd_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc)
+bool ptarmd_nodefail_get(
+            const uint8_t *pNodeId, const char *pAddr, uint16_t Port,
+            ln_nodedesc_t NodeDesc, bool bRemove)
 {
     bool detect = false;
 
@@ -267,7 +271,10 @@ bool ptarmd_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Por
             if ( (memcmp(p->node_id, pNodeId, BTC_SZ_PUBKEY) == 0) &&
                  (strcmp(p->ipaddr, pAddr) == 0) &&
                  (p->port == Port) ) {
-                //LOGD("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+                if (bRemove) {
+                    LOGD("get nodefail list: %s@%s:%" PRIu16 "\n", nodeid_str, pAddr, Port);
+                    LIST_REMOVE(p, list);
+                }
                 detect = true;
                 break;
             }

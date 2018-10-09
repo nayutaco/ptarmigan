@@ -282,14 +282,18 @@ lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id);
 /** ノード接続失敗リスト追加
  *
  */
-void ptarmd_nodefail_add(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc);
+void ptarmd_nodefail_add(
+            const uint8_t *pNodeId, const char *pAddr, uint16_t Port,
+            ln_nodedesc_t NodeDesc);
 
 
 /** ノード接続失敗リスト検索
  *
  * @retval  true        リスト登録済み
  */
-bool ptarmd_nodefail_get(const uint8_t *pNodeId, const char *pAddr, uint16_t Port, ln_nodedesc_t NodeDesc);
+bool ptarmd_nodefail_get(
+            const uint8_t *pNodeId, const char *pAddr, uint16_t Port,
+            ln_nodedesc_t NodeDesc, bool bRemove);
 
 
 /** エラー文字列取得

@@ -232,7 +232,7 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
     bool bret;
     param_self_t *p_prm_self = (param_self_t *)p_param;
 
-    if ((self->short_channel_id != 0) && ((self->fund_flag & LN_FUNDFLAG_CLOSE) == 0)) {
+    if ((self->short_channel_id != 0) && (ln_close_type(self) == LN_CLOSETYPE_NONE)) {
         //チャネルは開設している && close処理をしていない
         bret = ln_db_routeskip_search(self->short_channel_id);
         if (bret) {

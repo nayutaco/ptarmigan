@@ -475,7 +475,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     ln_self_t *p_self = pAppConf->p_self;
 
-    if (ln_is_closing(p_self)) {
+    if (ln_close_type(p_self) != LN_CLOSETYPE_NONE) {
         LOGD("fail: already closing\n");
         return false;
     }
@@ -516,7 +516,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     if (!ret) {
         return false;
     }
-    if (ln_is_closing(p_self)) {
+    if (ln_close_type(p_self) != LN_CLOSETYPE_NONE) {
         LOGD("fail: already closing\n");
         UTL_DBG_FREE(p_self);
         return false;
@@ -711,6 +711,8 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
 
 bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
 {
+    LOGD("bLocal=%d\n", bLocal);
+
     ln_close_force_t close_dat;
     bool ret;
     if (bLocal) {
@@ -909,7 +911,10 @@ static void *thread_main_start(void *pArg)
 
     //noise protocol handshake
     ret = noise_handshake(p_conf);
-    if (!ret) {
+    if (ret) {
+        //失敗リストに乗っている可能性があるため、削除
+        (void)ptarmd_nodefail_get(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_NODEDESC_IPV4, true);
+    } else {
         //ノード接続失敗リストに追加
         ptarmd_nodefail_add(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_NODEDESC_IPV4);
         goto LABEL_SHUTDOWN;
@@ -931,7 +936,10 @@ static void *thread_main_start(void *pArg)
 
     btc_tx_create(&txbuf, ln_funding_tx(p_conf->p_self));
     p_bhash = ln_funding_blockhash(p_conf->p_self);
-    btcrpc_add_channel(p_conf->p_self, ln_short_channel_id(p_conf->p_self), txbuf.buf, txbuf.len, !ln_is_closing(p_conf->p_self), p_bhash);
+    btcrpc_add_channel(p_conf->p_self,
+            ln_short_channel_id(p_conf->p_self), txbuf.buf, txbuf.len,
+            (ln_is_closing(p_conf->p_self) != LN_CLOSETYPE_NONE),
+            p_bhash);
     utl_buf_free(&txbuf);
 #endif
 
@@ -1114,6 +1122,7 @@ LABEL_SHUTDOWN:
     rcvidle_clear(p_conf);
     send_queue_clear(p_conf);
     p_conf->sock = -1;
+    p_conf->loop = false;
     UTL_DBG_FREE(p_self);
 
     LOGD("[exit]lnapp thread\n");

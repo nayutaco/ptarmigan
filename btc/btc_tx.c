@@ -33,6 +33,7 @@
 #include "utl_dbg.h"
 
 #include "btc_local.h"
+#include "segwit_addr.h"
 
 
 /**************************************************************************
@@ -1282,14 +1283,30 @@ void btc_print_tx(const btc_tx_t *pTx)
         LOGD("  scriptPubKey[%u]= ", buf->len);
         DUMPD(buf->buf, buf->len);
         //btc_print_script(buf->buf, buf->len);
-        if ( (buf->len == 25) && (buf->buf[0] == 0x76) && (buf->buf[1] == 0xa9) &&
-             (buf->buf[2] == 0x14) && (buf->buf[23] == 0x88) && (buf->buf[24] == 0xac) ) {
-            char addr[BTC_SZ_ADDR_MAX];
-            bool ret = btcl_util_keys_pkh2addr(addr, &(buf->buf[3]), BTC_PREF_P2PKH);
-            assert(ret);
-            if (!ret) {
-                return;
+        char addr[BTC_SZ_ADDR_MAX];
+        addr[0] = '\0';
+        if ( (buf->len == 25) && (buf->buf[0] == OP_DUP) && (buf->buf[1] == OP_HASH160) &&
+             (buf->buf[2] == 0x14) && (buf->buf[23] == OP_EQUALVERIFY) && (buf->buf[24] == OP_CHECKSIG) ) {
+            (void)btcl_util_keys_pkh2addr(addr, &(buf->buf[3]), BTC_PREF_P2PKH);
+        } else if ( (buf->len == 23) && (buf->buf[0] == OP_HASH160) && (buf->buf[1] == 0x14) && (buf->buf[22] == OP_EQUAL) ) {
+            (void)btcl_util_keys_pkh2addr(addr, &(buf->buf[2]), BTC_PREF_P2SH);
+        } else if ( ((buf->len == 22) && (buf->buf[0] == 0x00) && (buf->buf[1] == 0x14)) ||
+                    ((buf->len == 34) && (buf->buf[0] == 0x00) && (buf->buf[1] == 0x20)) ) {
+            //bech32
+            int hrp_type;
+            switch (btc_get_chain()) {
+            case BTC_MAINNET:
+                hrp_type = SEGWIT_ADDR_MAINNET;
+                break;
+            case BTC_TESTNET:
+                hrp_type = SEGWIT_ADDR_TESTNET;
+                break;
+            default:
+                hrp_type = -1;
             }
+            (void)segwit_addr_encode(addr, hrp_type, buf->buf[0], &buf->buf[2], buf->buf[1]);
+        }
+        if (addr[0] != '\0') {
             LOGD("    (%s)\n", addr);
         }
     }

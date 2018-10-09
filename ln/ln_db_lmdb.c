@@ -102,7 +102,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-24)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-25)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -130,6 +130,7 @@
     -22: onion route
     -23: announcement dbを分離
     -24: self.cnl_add_htlc[].flag変更
+    -25: self.close_type追加
  */
 
 
@@ -286,6 +287,7 @@ static const backup_param_t DBSELF_KEYS[] = {
     //cnl_anno --> none
     //init_flag: none
     M_ITEM(ln_self_t, lfeature_remote),
+    M_ITEM(ln_self_t, close_type),
     //tx_closing: none
     //shutdown_flag: none
     //close_fee_sat: none
@@ -1072,7 +1074,7 @@ bool ln_db_self_chk_mynode(uint64_t ShortChannelId)
                 int retval = ln_lmdb_self_load(p_self, cur.txn, cur.dbi);
                 ln_term(p_self);
                 if ((retval == 0) && (ShortChannelId == p_self->short_channel_id)) {
-                    LOGD("own channel: %016" PRIx64 "\n", ShortChannelId);
+                    //LOGD("own channel: %016" PRIx64 "\n", ShortChannelId);
                     mynode = true;
                     break;
                 }

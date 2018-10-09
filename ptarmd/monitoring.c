@@ -85,7 +85,6 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
 static bool close_unilateral_remote_offered(bool spent);
 static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 
-static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, void *pDbParam);
 static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam);
 static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, int VIndex);
@@ -356,41 +355,71 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 static bool funding_spent(ln_self_t *self, uint32_t confm, void *p_db_param)
 {
     bool del = false;
+    bool ret;
 
     LOGD("close: confirm=%" PRIu32 "\n", confm);
 
-    bool spent = ln_is_closing(self);
-    if (!spent) {
+    btc_tx_t close_tx = BTC_TX_INIT;
+    ln_closetype_t type = ln_close_type(self);
+    if (type == LN_CLOSETYPE_NONE) {
         //初めてclosing処理を行う(まだln_goto_closing()を呼び出していない)
         char txid_str[BTC_SZ_TXID * 2 + 1];
         utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
         lnapp_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
-    }
 
-    ln_goto_closing(self, p_db_param);
+        //funding_txをINPUTにもつtx
+        ret = btcrpc_search_outpoint(&close_tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
+        if (ret) {
+            LOGD("find!\n");
+
+            ln_goto_closing(self, &close_tx, p_db_param);
+            type = ln_close_type(self);
+        } else {
+            LOGD("fail: not found\n");
+        }
+    }
 
     ln_db_revtx_load(self, p_db_param);
     const utl_buf_t *p_vout = ln_revoked_vout(self);
     if (p_vout == NULL) {
-        //展開されているのが最新のcommit_txか
-        LOGD("local commit_txid: ");
-        TXIDD(ln_commit_local(self)->txid);
-        LOGD("remote commit_txid: ");
-        TXIDD(ln_commit_remote(self)->txid);
-        if (btcrpc_is_tx_broadcasted(self, ln_commit_local(self)->txid)) {
+        switch (type) {
+        case LN_CLOSETYPE_MUTUAL:
+            del = true;
+            break;
+        case LN_CLOSETYPE_UNI_LOCAL:
             //最新のlocal commit_tx --> unilateral close(local)
             del = monitor_close_unilateral_local(self, p_db_param);
-        } else if (btcrpc_is_tx_broadcasted(self, ln_commit_remote(self)->txid)) {
+            break;
+        case LN_CLOSETYPE_UNI_REMOTE:
             //最新のremote commit_tx --> unilateral close(remote)
             del = close_unilateral_remote(self, p_db_param);
-        } else {
-            //最新のcommit_txではない --> mutual close or revoked transaction close
-            del = close_others(self, confm, p_db_param);
+            break;
+        case LN_CLOSETYPE_REVOKED:
+            //相手にrevoked transaction closeされた
+            LOGD("closed: ugly way\n");
+            ret = ln_close_ugly(self, &close_tx, p_db_param);
+            if (ret) {
+                if (ln_revoked_cnt(self) > 0) {
+                    //revoked transactionのvoutに未解決あり
+                    //  2回目以降はclose_revoked_after()が呼び出される
+                    del = close_revoked_first(self, &close_tx, confm, p_db_param);
+                } else {
+                    LOGD("all revoked transaction vout is already solved.\n");
+                    del = true;
+                }
+            } else {
+                LOGD("fail: ln_close_ugly\n");
+            }
+            break;
+        case LN_CLOSETYPE_NONE:
+        default:
+            break;
         }
     } else {
         // revoked transaction close
         del = close_revoked_after(self, confm, p_db_param);
     }
+    btc_tx_free(&close_tx);
 
     return del;
 }
@@ -408,7 +437,7 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
     //clientとして接続したときの接続先情報があれば、そこに接続する
     peer_conn_t last_peer_conn;
     if (p2p_cli_load_peer_conn(&last_peer_conn, p_node_id)) {
-        bool ret = ptarmd_nodefail_get(last_peer_conn.node_id, last_peer_conn.ipaddr, last_peer_conn.port, LN_NODEDESC_IPV4);
+        bool ret = ptarmd_nodefail_get(last_peer_conn.node_id, last_peer_conn.ipaddr, last_peer_conn.port, LN_NODEDESC_IPV4, false);
         if (!ret) {
             utl_misc_msleep(10 + rand() % 2000);
             int retval = cmd_json_connect(last_peer_conn.node_id, last_peer_conn.ipaddr, last_peer_conn.port);
@@ -431,7 +460,7 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
                             anno.addr.addrinfo.ipv4.addr[0], anno.addr.addrinfo.ipv4.addr[1],
                             anno.addr.addrinfo.ipv4.addr[2], anno.addr.addrinfo.ipv4.addr[3]);
 
-                ret = ptarmd_nodefail_get(p_node_id, ipaddr, anno.addr.port, LN_NODEDESC_IPV4);
+                ret = ptarmd_nodefail_get(p_node_id, ipaddr, anno.addr.port, LN_NODEDESC_IPV4, false);
                 if (!ret) {
                     //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
                     utl_misc_msleep(10 + rand() % 2000);    //双方が同時に接続しに行かないように時差を付ける(効果があるかは不明)
@@ -705,55 +734,6 @@ static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool s
 }
 
 
-// Mutual Close or Revoked Transaction Close
-static bool close_others(ln_self_t *self, uint32_t confm, void *pDbParam)
-{
-    (void)pDbParam;
-    bool del = false;
-    btc_tx_t tx = BTC_TX_INIT;      //funding_txをINPUTにもつtx
-
-    bool ret = btcrpc_search_outpoint(&tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
-    if (ret) {
-        LOGD("find!\n");
-        btc_print_tx(&tx);
-        utl_buf_t *p_buf_pk = &tx.vout[0].script;
-        LOGD("vout_cnt: %d\n", tx.vout_cnt);
-        LOGD("local scriptpk: ");
-        DUMPD(ln_shutdown_scriptpk_local(self)->buf, ln_shutdown_scriptpk_local(self)->len);
-        LOGD("remote scriptpk: ");
-        DUMPD(ln_shutdown_scriptpk_remote(self)->buf, ln_shutdown_scriptpk_remote(self)->len);
-        if ( (tx.vout_cnt <= 2) &&
-             (utl_buf_cmp(p_buf_pk, ln_shutdown_scriptpk_local(self)) ||
-              utl_buf_cmp(p_buf_pk, ln_shutdown_scriptpk_remote(self))) ) {
-            //voutのどちらかがshutdown時のscriptPubkeyと一致すればclosing_txと見なす
-            LOGD("This is closing_tx\n");
-            del = true;
-        } else {
-            //相手にrevoked transaction closeされた
-            LOGD("closed: ugly way\n");
-            ret = ln_close_ugly(self, &tx, pDbParam);
-            if (ret) {
-                if (ln_revoked_cnt(self) > 0) {
-                    //revoked transactionのvoutに未解決あり
-                    //  2回目以降はclose_revoked_after()が呼び出される
-                    del = close_revoked_first(self, &tx, confm, pDbParam);
-                } else {
-                    LOGD("all revoked transaction vout is already solved.\n");
-                    del = true;
-                }
-            } else {
-                LOGD("fail: ln_close_ugly\n");
-            }
-        }
-    } else {
-        LOGD("just closed: wait mining...\n");
-    }
-    btc_tx_free(&tx);
-
-    return del;
-}
-
-
 /** revoked transactionから即座に取り戻す
  *
  * @param[in,out]   self
@@ -767,7 +747,7 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
     bool save = true;
     bool ret;
 
-    lnapp_save_event(ln_channel_id(self), "close: ugly way(remote)");
+    lnapp_save_event(ln_channel_id(self), "close: ugly way");
 
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         const utl_buf_t *p_vout = ln_revoked_vout(self);
@@ -792,8 +772,8 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
             }
         } else {
             for (int lp2 = LN_RCLOSE_IDX_HTLC; lp2 < ln_revoked_num(self); lp2++) {
-                LOGD("p_vout[%d]=", lp2);
-                DUMPD(p_vout[lp2].buf, p_vout[lp2].len);
+                // LOGD("p_vout[%u][%d]=", lp, lp2);
+                // DUMPD(p_vout[lp2].buf, p_vout[lp2].len);
                 if (utl_buf_cmp(&pTx->vout[lp].script, &p_vout[lp2])) {
                     LOGD("[%u]HTLC vout[%d] !\n", lp, lp2);
 
