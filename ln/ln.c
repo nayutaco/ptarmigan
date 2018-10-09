@@ -2015,23 +2015,25 @@ static bool recv_idle_proc_final(ln_self_t *self)
                 //ADD_HTLC後: update_add_htlc受信側
                 //self->their_msat -= p_htlc->amount_msat;
 
-                //ADD_HTLC転送
-                if (p_htlc->next_short_channel_id != 0) {
-                    LOGD("forward: %d\n", p_htlc->next_idx);
-                    ln_cb_fwd_add_htlc_t fwd;
-                    fwd.short_channel_id = p_htlc->next_short_channel_id;
-                    fwd.idx = p_htlc->next_idx;
-                    (*self->p_callback)(self, LN_CB_FWD_ADDHTLC_START, &fwd);
-                    p_htlc->next_short_channel_id = 0;
-                }
+                if (LN_DBG_FULFILL()) {
+                    //ADD_HTLC転送
+                    if (p_htlc->next_short_channel_id != 0) {
+                        LOGD("forward: %d\n", p_htlc->next_idx);
+                        ln_cb_fwd_add_htlc_t fwd;
+                        fwd.short_channel_id = p_htlc->next_short_channel_id;
+                        fwd.idx = p_htlc->next_idx;
+                        (*self->p_callback)(self, LN_CB_FWD_ADDHTLC_START, &fwd);
+                        p_htlc->next_short_channel_id = 0;
+                    }
 
-                //DEL_HTLC開始
-                if (p_flag->fin_delhtlc != 0) {
-                    LOGD("del htlc: %d\n", p_flag->fin_delhtlc);
-                    clear_htlc_comrevflag(p_htlc, p_flag->fin_delhtlc);
-                }
+                    //DEL_HTLC開始
+                    if (p_flag->fin_delhtlc != 0) {
+                        LOGD("del htlc: %d\n", p_flag->fin_delhtlc);
+                        clear_htlc_comrevflag(p_htlc, p_flag->fin_delhtlc);
+                    }
 
-                db_upd = true;
+                    db_upd = true;
+                }
             } else {
                 //DEL_HTLC後
                 if (p_htlc->flag.addhtlc == LN_HTLCFLAG_OFFER) {
@@ -4777,21 +4779,21 @@ static bool create_to_remote(ln_self_t *self,
     }
 
     if (ret) {
+        uint8_t *p_htlc_sigs = NULL;
         if (cnt > 0) {
-            uint8_t *p_htlc_sigs = NULL;
             if (pp_htlc_sigs != NULL) {
                 //送信用 commitment_signed.htlc_signature
                 *pp_htlc_sigs = (uint8_t *)UTL_DBG_MALLOC(LN_SZ_SIGNATURE * cnt);
                 p_htlc_sigs = *pp_htlc_sigs;
             }
-            ret = create_to_remote_spent(self, pClose,
-                        p_htlc_sigs,
-                        &tx_commit, &buf_ws,
-                        (const ln_htlcinfo_t **)pp_htlcinfo,
-                        &feeinfo);
         } else {
             self->commit_remote.htlc_num = 0;
         }
+        ret = create_to_remote_spent(self, pClose,
+                    p_htlc_sigs,
+                    &tx_commit, &buf_ws,
+                    (const ln_htlcinfo_t **)pp_htlcinfo,
+                    &feeinfo);
     }
 
     LOGD("free: ret=%d\n", ret);
