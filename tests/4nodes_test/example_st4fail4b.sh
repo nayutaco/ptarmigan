@@ -2,6 +2,10 @@
 #	途中でfulfillしない(6666)
 #	4444 --> 3333 --> 5555 --> 6666
 
+echo "--------------------------------------------"
+echo "NO_FULFILL(6666): 4444 --> 3333 --> 5555 --> 6666"
+echo "--------------------------------------------"
+
 ROUTECONF=pay_route.conf
 AMOUNT=15000000
 PAY_BEGIN=4444
@@ -39,7 +43,7 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 # 送金実施
 ./ptarmcli -p $ROUTECONF,$HASH $PAYER_PORT
 
-read -p "Hit enter: " inkey
+read -p "Hit ENTER Key!" key
 
 # 戻す
 ./ptarmcli --debug 1 $ACCIDENT_PORT

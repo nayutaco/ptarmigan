@@ -82,8 +82,8 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
 static bool close_unilateral_local_received(bool spent);
 
 static bool close_unilateral_remote(ln_self_t *self, void *pDbParam);
-static bool close_unilateral_remote_offered(bool spent);
-static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
+static bool close_unilateral_remote_received(bool spent);
+static bool close_unilateral_remote_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 
 static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, void *pDbParam);
 static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam);
@@ -327,6 +327,18 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                 }
             } else {
                 //LOGD("No Auto connect mode\n");
+            }
+
+            //Offered HTLCのtimeoutチェック
+            for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+                if (ln_is_offered_htlc_timeout(self, lp, p_prm->height)) {
+                    LOGD("detect: offered HTLC timeout[%d] --> close 0x%016" PRIx64 "\n", lp, ln_short_channel_id(self));
+                    bool ret = monitor_close_unilateral_local(self, p_db_param);
+                    if (!ret) {
+                        LOGD("fail: unilateral close\n");
+                    }
+                    break;
+                }
             }
         }
         if (del) {
@@ -619,10 +631,10 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 //ln_create_htlc_tx()後だから、OFFERED/RECEIVEDがわかる
                 switch (close_dat.p_tx[lp].vout[0].opt) {
                 case LN_HTLCTYPE_OFFERED:
-                    send_req = close_unilateral_remote_offered(!unspent);
+                    send_req = close_unilateral_remote_offered(self, &del, !unspent, &close_dat, lp, pDbParam);
                     break;
                 case LN_HTLCTYPE_RECEIVED:
-                    send_req = close_unilateral_remote_received(self, &del, !unspent, &close_dat, lp, pDbParam);
+                    send_req = close_unilateral_remote_received(!unspent);
                     break;
                 default:
                     LOGD("opt=%x\n", close_dat.p_tx[lp].vout[0].opt);
@@ -645,6 +657,15 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 }
             } else if (lp == LN_CLOSE_IDX_TOREMOTE) {
                 LOGD("skip: no to_remote payment\n");
+            } else if (lp >= LN_CLOSE_IDX_HTLC) {
+                //自分が行ったOfferedはタイムアウトで取り戻す
+                //Offered HTLC outputであれば処理し、Received HTLC outputであればskipする
+                const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, close_dat.p_htlc_idx[lp]);
+                if (p_htlc->stat.flag.addhtlc == LN_HTLCFLAG_OFFER) {
+                    LOGD("Received HTLC%d[%d]\n", close_dat.p_htlc_idx[lp], lp);
+                } else {
+                    LOGD("skip Offered HTLC%d[%d]\n", close_dat.p_htlc_idx[lp], lp);
+                }
             } else {
                 LOGD("skip tx[%d]\n", lp);
                 del = false;
@@ -663,12 +684,13 @@ LABEL_EXIT:
 }
 
 
-// Unilateral Close(相手がcommit_tx展開): Offered HTLC output
-static bool close_unilateral_remote_offered(bool spent)
+// Unilateral Close(相手がcommit_tx展開): Received HTLC output
+//  自分がofferしているから、タイムアウトしたら取り戻す
+static bool close_unilateral_remote_received(bool spent)
 {
     bool send_req;
 
-    LOGD("offered HTLC output\n");
+    LOGD("received HTLC output\n");
     if (spent) {
         //展開済みならOK
         LOGD("-->OK\n");
@@ -682,12 +704,13 @@ static bool close_unilateral_remote_offered(bool spent)
 }
 
 
-// Unilateral Close(相手がcommit_tx展開): Received HTLC output
-static bool close_unilateral_remote_received(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
+// Unilateral Close(相手がcommit_tx展開): Offered HTLC output
+//  相手からofferされているから、preimageがあれば取り戻す
+static bool close_unilateral_remote_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam)
 {
     bool send_req = false;
 
-    LOGD("received HTLC output\n");
+    LOGD("offered HTLC output\n");
     if (spent) {
         const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(self, pCloseDat->p_htlc_idx[lp]);
         if (p_htlc->prev_short_channel_id != 0) {

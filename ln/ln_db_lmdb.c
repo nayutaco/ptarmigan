@@ -399,7 +399,7 @@ static const backup_param_t DBHTLC_KEYS[] = {
     M_ITEM(ln_update_add_htlc_t, amount_msat),
     M_ITEM(ln_update_add_htlc_t, cltv_expiry),
     M_ITEM(ln_update_add_htlc_t, payment_sha256),
-    M_ITEM(ln_update_add_htlc_t, flag),
+    M_ITEM(ln_update_add_htlc_t, stat),
     M_ITEM(ln_update_add_htlc_t, next_short_channel_id),
     M_ITEM(ln_update_add_htlc_t, next_idx),
     M_ITEM(ln_update_add_htlc_t, signature),

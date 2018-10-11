@@ -155,7 +155,7 @@ extern "C" {
  *          update_add_htlc受信時に転送先にパラメータを全部設定して待たせておき、
  *          revoke_and_ackが完了してから指示だけを出すようにしたかった。
  */
-#define LN_HTLC_ENABLE(htlc)    ((htlc)->flag.addhtlc != 0)
+#define LN_HTLC_ENABLE(htlc)    ((htlc)->stat.flag.addhtlc != 0)
 
 
 //
@@ -235,6 +235,7 @@ typedef enum {
     LN_CLOSETYPE_REVOKED                ///< revoked transaction close(from remote)
 } ln_closetype_t;
 
+
 /** @enum   ln_cb_t
  *  @brief  コールバック理由
  */
@@ -267,6 +268,8 @@ typedef enum {
 
 /** @struct ln_htlcflag_t
  *  @brief  HTLC管理フラグ
+ *  @note
+ *      - uint16_tとunionする場合がある
  */
 typedef struct {
     unsigned        addhtlc     : 2;    ///< LN_HTLCFLAG_OFFER/RECV
@@ -280,6 +283,22 @@ typedef struct {
                                         //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
     unsigned        Reserved    : 5;
 } ln_htlcflag_t;
+#define LN_HTLCFLAG_MASK_HTLC       (0x000f)    ///< addhtlc, htlc
+#define LN_HTLCFLAG_MASK_UPDSEND    (0x0010)    ///< updsend
+#define LN_HTLCFLAG_MASK_COMSIG1    (0x0060)    ///< comsend, revrecv
+#define LN_HTLCFLAG_MASK_COMSIG2    (0x0180)    ///< comrecv, revsend
+#define LN_HTLCFLAG_MASK_COMSIG     ((LN_HTLCFLAG_MASK_COMSIG1 | LN_HTLCFLAG_MASK_COMSIG2))    ///< comsned, revrecv, comrecv, revsend
+#define LN_HTLCFLAG_MASK_FINDELHTLC (0x0600)    ///< fin_delhtlc
+#define LN_HTLCFLAG_MASK_ALL        (LN_HTLCFLAG_MASK_FINDELHTLC | LN_HTLCFLAG_MASK_COMSIG | LN_HTLCFLAG_MASK_UPDSEND | LN_HTLCFLAG_MASK_HTLC)
+#define LN_HTLCFLAG_SFT_ADDHTLC(a)      (uint16_t)(a)
+#define LN_HTLCFLAG_SFT_DELHTLC(a)      ((uint16_t)(a) << 2)
+#define LN_HTLCFLAG_SFT_UPDSEND         ((uint16_t)1 << 4)
+#define LN_HTLCFLAG_SFT_COMSEND         ((uint16_t)1 << 5)
+#define LN_HTLCFLAG_SFT_REVRECV         ((uint16_t)1 << 6)
+#define LN_HTLCFLAG_SFT_COMRECV         ((uint16_t)1 << 7)
+#define LN_HTLCFLAG_SFT_REVSEND         ((uint16_t)1 << 8)
+#define LN_HTLCFLAG_SFT_FINDELHTLC(a)   ((uint16_t)(a) << 9)
+#define LN_HTLCFLAG_SFT_TIMEOUT         (LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_OFFER))
 
 
 /** @typedef    ln_callback_t
@@ -520,7 +539,10 @@ typedef struct {
                                                     //  update_fail_htlc
                                                     //      len:  reason
     //inner
-    ln_htlcflag_t   flag;                           ///< LN_HTLC_FLAG_xxx
+    union {
+        uint16_t        bits;
+        ln_htlcflag_t   flag;                       ///< LN_HTLC_FLAG_xxx
+    } stat;
     uint64_t        next_short_channel_id;          ///< flag.addhtlc == OFFER
                                                     //      update_add_htlc受信 && hop node時、irrevocably committed後の通知先
     uint16_t        next_idx;
@@ -1713,21 +1735,6 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
  * others
  ********************************************************************/
 
-/** HTLCが安定しているかどうか
- *
- */
-bool ln_htlc_is_stable(const ln_self_t *self);
-
-
-/** HTLCの中に時間切れがあるかどうか
- *
- * @param[in]           self            channel情報
- * @param[in]           Height          現在のブロック高
- * @retval  true    自分がofferedの時間切れHTLCあり
- */
-bool ln_have_outdated_htlc(const ln_self_t *self, int32_t Height);
-
-
 /** to_localをINPUTとするトランザクション作成(署名まで実施)
  *
  * @param[in]           self            channel情報
@@ -2100,6 +2107,24 @@ static inline const utl_buf_t *ln_shutdown_scriptpk_remote(const ln_self_t *self
  */
 static inline const ln_update_add_htlc_t *ln_update_add_htlc(const ln_self_t *self, uint16_t htlc_idx) {
     return (htlc_idx < LN_HTLC_MAX) ? &self->cnl_add_htlc[htlc_idx] : NULL;
+}
+
+
+/** Offered HTLCがTimeoutしているかどうか
+ *
+ * @retval      true    Timeoutしている
+ * @note
+ *      - addhtlc == OFFERED
+ *      - delhtlc == none
+ *      - updsend == true
+ *      - comsend, revrecv, comrecv, revsend == true
+ *      - fin_delhtlc == none
+ *      - cltv_expiry <= current blockcount
+ */
+static inline bool ln_is_offered_htlc_timeout(const ln_self_t *self, uint16_t htlc_idx, uint32_t BlkCnt) {
+    return (htlc_idx < LN_HTLC_MAX) &&
+            ((self->cnl_add_htlc[htlc_idx].stat.bits & LN_HTLCFLAG_MASK_ALL) == LN_HTLCFLAG_SFT_TIMEOUT) &&
+            (self->cnl_add_htlc[htlc_idx].cltv_expiry <= BlkCnt);
 }
 
 
