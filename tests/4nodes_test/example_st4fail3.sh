@@ -1,6 +1,10 @@
 #!/bin/sh
 #	payment_hash不一致
 
+echo "--------------------------------------------"
+echo "PAY FAIL(payment_hash mismatch): 4444 --> 3333 --> 5555 --> 6666"
+echo "--------------------------------------------"
+
 ROUTECONF=pay_route.conf
 AMOUNT=100000
 PAY_BEGIN=4444

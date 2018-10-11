@@ -11,6 +11,10 @@ PAYER_PORT=$(( ${PAY_BEGIN} + 1 ))
 PAYEE=node_${PAY_END}
 PAYEE_PORT=$(( ${PAY_END} + 1 ))
 
+echo "-------------------------------"
+echo "PAY_FAIL(payment_hash mismatch): 4444-->3333"
+echo "-------------------------------"
+
 nodeid() {
 	cat conf/peer$1.conf | awk '(NR==3) { print $1 }' | cut -d '=' -f2
 }

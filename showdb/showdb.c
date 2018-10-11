@@ -138,11 +138,36 @@ static void ln_print_wallet(const ln_self_t *self)
     btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
     printf("\",\n");
     printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
+    uint64_t offered = 0;
+    uint64_t received = 0;
     if (self->htlc_num != 0) {
-        printf(INDENT3 M_QQ("htlc_num") ": %d,\n", self->htlc_num);
+        printf(INDENT3 M_QQ("pending") ": [\n");
+        int cnt = 0;
+        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+            if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
+                if (cnt != 0) {
+                    printf(",\n");
+                }
+                const char *p_dir = NULL;
+                if (self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_OFFER) {
+                    p_dir = "Offered";
+                    offered += self->cnl_add_htlc[lp].amount_msat;
+                } else {
+                    p_dir = "Received";
+                    received += self->cnl_add_htlc[lp].amount_msat;
+                }
+                printf(INDENT4 "{\n");
+                printf(INDENT5 M_QQ("direction") ": " M_QQ("%s") ",\n", p_dir);
+                printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
+                printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 "\n", self->cnl_add_htlc[lp].cltv_expiry);
+                printf(INDENT4 "}");
+                cnt++;
+            }
+        }
+        printf("\n" INDENT3 "],\n");
     }
-    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
-    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", self->their_msat);
+    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat - offered);
+    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", self->their_msat - received);
     printf(INDENT2 "}");
 }
 
@@ -263,7 +288,7 @@ static void ln_print_self(const ln_self_t *self)
                 printf(INDENT5 M_QQ("type") ": \"");
                 if (self->cnl_add_htlc[lp].prev_short_channel_id == UINT64_MAX) {
                     printf("final node");
-                } else if ((self->cnl_add_htlc[lp].prev_short_channel_id == 0) && (self->cnl_add_htlc[lp].flag.addhtlc == LN_HTLCFLAG_OFFER)) {
+                } else if ((self->cnl_add_htlc[lp].prev_short_channel_id == 0) && (self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_OFFER)) {
                     //prev_short_channel_idが0になる
                     //      - origin node
                     //      - update_add_htlcの受信側
@@ -273,7 +298,9 @@ static void ln_print_self(const ln_self_t *self)
                 }
                 printf("\",\n");
                 printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
-                printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(0x%04x)") ",\n", ((self->cnl_add_htlc[lp].flag.addhtlc == LN_HTLCFLAG_RECV) ? "Received" : "Offered"), *(uint16_t *)&self->cnl_add_htlc[lp].flag);
+                printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(0x%04x)") ",\n",
+                            ((self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_RECV) ? "Received" : "Offered"),
+                            self->cnl_add_htlc[lp].stat.bits);
                 printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
                 printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
                 printf(INDENT5 M_QQ("payhash") ": \"");

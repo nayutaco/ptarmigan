@@ -309,12 +309,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         return false;
     }
 
-    if (!ln_htlc_is_stable(pAppConf->p_self)) {
-        //何かしているのであれば送金開始できない
-        LOGD("now paying...\n");
-        return false;
-    }
-
     DBGTRACE_BEGIN
 
     bool ret = false;
@@ -539,12 +533,6 @@ bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
 {
     if (!pAppConf->loop) {
         //LOGD("This AppConf not working\n");
-        return false;
-    }
-
-    if (!ln_htlc_is_stable(pAppConf->p_self)) {
-        //何かしているのであればupdate_feeできない
-        LOGD("now paying...\n");
         return false;
     }
 
@@ -1768,18 +1756,6 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
         return;
     }
 
-    //HTLC preimage
-//    ln_fulfill_preimage(p_conf->p_self);
-
-    //HTLC outdated
-    int32_t height = btcrpc_getblockcount();
-    bool outdated = ln_have_outdated_htlc(p_conf->p_self, height);
-    if (outdated) {
-        lnapp_save_event(ln_channel_id(p_conf->p_self), "close: bad way(local) by outdated HTLC");
-        (void)monitor_close_unilateral_local(p_conf->p_self, NULL);
-        return;
-    }
-
     //DBGTRACE_END
 }
 
@@ -2588,7 +2564,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 static void cb_send_req(lnapp_conf_t *p_conf, void *p_param)
 {
     utl_buf_t *p_buf = (utl_buf_t *)p_param;
-    send_peer_noise(p_conf, p_buf);
+    (void)send_peer_noise(p_conf, p_buf);
 }
 
 

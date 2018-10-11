@@ -1,6 +1,9 @@
 #!/bin/sh
 # fulfillしない: 3333-->4444
-#	HTLCが+1され、333だけが支払った状態になる
+
+echo "-------------------------------"
+echo "NO_FULFILL: 3333-->4444"
+echo "-------------------------------"
 
 ROUTECONF=pay_route.conf
 AMOUNT=20000000
@@ -37,7 +40,7 @@ HASH=`echo $INVOICE | jq -r '.result.hash'`
 # 送金実施
 ./ptarmcli -p $ROUTECONF,$HASH $PAYER_PORT
 
-sleep 2
+read -p "Hit ENTER Key!" key
 
 # 戻す
 ./ptarmcli --debug 1 $PAYEE_PORT
