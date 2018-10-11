@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2018/10/11
+
+* DB version : -25
+  * change `self.cnl_add_htlc[].stat`
+  * add `self.close_type`
+
 ## 2018/09/12
 
 * Support cross compile(only test `arm-linux-gnueabihf`)
