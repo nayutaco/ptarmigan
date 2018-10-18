@@ -99,3 +99,9 @@ make distclean
     * `getblock`
     * `getnewaddress`
     * `estimatesmartfee`
+
+## Security
+
+If you find any issues regarding security,
+please disclose the information by sending an (possibly encrypted) email to security at nayuta dot co.
+[Our PGP key `3C95B178758342844787766AAF91183E1DCC4222`](https://pgp.mit.edu/pks/lookup?op=vindex&search=0xAF91183E1DCC4222).
