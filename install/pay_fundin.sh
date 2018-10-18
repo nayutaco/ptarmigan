@@ -36,13 +36,13 @@ cli() {
 
 OPT_GENERATE=
 BITCOIND_VER=`cli getnetworkinfo | jq .version | sed -e 's/\([0-9][0-9]\).*/\1/'`
-if [ "$BITCOIND_VER" = "16" ]; then
+if [ "$BITCOIND_VER" -ge "16" ]; then
 	OPT_GENERATE="p2sh-segwit"
 fi
 
 ADDR=
 SEG=
-if [ "$BITCOIND_VER" = "16" ]; then
+if [ "$BITCOIND_VER" -ge "16" ]; then
 	ADDR=`cli getnewaddress "" p2sh-segwit`
 	SEG=$ADDR
 else
