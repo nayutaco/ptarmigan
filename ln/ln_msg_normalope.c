@@ -152,7 +152,7 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
     utl_buf_alloccopy(&pMsg->buf_onion_reason, pData + pos, LN_SZ_ONION_ROUTE);
     pos += LN_SZ_ONION_ROUTE;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -249,7 +249,7 @@ bool HIDDEN ln_msg_update_fulfill_htlc_read(ln_update_fulfill_htlc_t *pMsg, cons
     memcpy(pMsg->p_payment_preimage, pData + pos, BTC_SZ_PRIVKEY);
     pos += BTC_SZ_PRIVKEY;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -358,7 +358,7 @@ bool HIDDEN ln_msg_update_fail_htlc_read(ln_update_fail_htlc_t *pMsg, const uint
     utl_buf_alloccopy(pMsg->p_reason, pData + pos, len);
     pos += len;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -462,7 +462,7 @@ bool HIDDEN ln_msg_commit_signed_read(ln_commit_signed_t *pMsg, const uint8_t *p
     memcpy(pMsg->p_htlc_signature, pData + pos, pMsg->num_htlcs * LN_SZ_SIGNATURE);
     pos += pMsg->num_htlcs * LN_SZ_SIGNATURE;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -559,7 +559,7 @@ bool HIDDEN ln_msg_revoke_and_ack_read(ln_revoke_and_ack_t *pMsg, const uint8_t 
     memcpy(pMsg->p_per_commitpt, pData + pos, BTC_SZ_PUBKEY);
     pos += BTC_SZ_PUBKEY;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -645,7 +645,7 @@ bool HIDDEN ln_msg_update_fee_read(ln_update_fee_t *pMsg, const uint8_t *pData, 
     pMsg->feerate_per_kw = ln_misc_get32be(pData + pos);
     pos += sizeof(uint32_t);
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -744,7 +744,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
     pMsg->failure_code = ln_misc_get16be(pData + pos);
     pos += sizeof(uint16_t);
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
