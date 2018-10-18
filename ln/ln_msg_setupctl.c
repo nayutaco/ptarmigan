@@ -146,7 +146,7 @@ bool HIDDEN ln_msg_init_read(ln_init_t *pMsg, const uint8_t *pData, uint16_t Len
     utl_buf_alloccopy(&pMsg->localfeatures, pData + pos, lflen);
     pos += lflen;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -335,7 +335,7 @@ bool HIDDEN ln_msg_ping_read(ln_ping_t *pMsg, const uint8_t *pData, uint16_t Len
     }
 #endif  //M_PING_NONZERO_CHK
 
-    assert(Len == sizeof(uint16_t) + 4 + pMsg->byteslen);
+    assert(Len >= sizeof(uint16_t) + 4 + pMsg->byteslen);
 
     return true;
 }
@@ -434,7 +434,7 @@ bool HIDDEN ln_msg_pong_read(ln_pong_t *pMsg, const uint8_t *pData, uint16_t Len
     }
 #endif  //M_PONG_NONZERO_CHK
 
-    assert(Len == sizeof(uint16_t) + 2 + pMsg->byteslen);
+    assert(Len >= sizeof(uint16_t) + 2 + pMsg->byteslen);
 
     return true;
 }

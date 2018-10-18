@@ -122,7 +122,7 @@ bool HIDDEN ln_msg_shutdown_read(ln_shutdown_t *pMsg, const uint8_t *pData, uint
     utl_buf_alloccopy(pMsg->p_scriptpk, pData + pos, len);
     pos += len;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -214,7 +214,7 @@ bool HIDDEN ln_msg_closing_signed_read(ln_closing_signed_t *pMsg, const uint8_t 
     memcpy(pMsg->p_signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ
     LOGD("@@@@@ %s @@@@@\n", __func__);

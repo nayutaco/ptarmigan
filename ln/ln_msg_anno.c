@@ -697,10 +697,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
     }
     pos += addrlen;
 
-    //assert(Len == pos);
-    if (Len != pos) {
-        LOGD("length not match: Len=%d, pos=%d\n", Len, pos);
-    }
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ_NOD
   LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -900,7 +897,12 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     pMsg->fee_prop_millionths = ln_misc_get32be(pData + pos);
     pos += sizeof(uint32_t);
 
-    assert(Len == pos);
+    if (Len >= pos + sizeof(uint64_t)) {
+        uint64_t htlc_maximum_msat = ln_misc_get64be(pData + pos);
+        pos += sizeof(uint64_t);
+    }
+
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ_UPD
     LOGD("@@@@@ %s @@@@@\n", __func__);
@@ -1060,7 +1062,7 @@ bool HIDDEN ln_msg_announce_signs_read(ln_announce_signs_t *pMsg, const uint8_t 
     memcpy(pMsg->p_btc_signature, pData + pos, LN_SZ_SIGNATURE);
     pos += LN_SZ_SIGNATURE;
 
-    assert(Len == pos);
+    assert(Len >= pos);
 
 #ifdef DBG_PRINT_READ_SIG
     LOGD("@@@@@ %s @@@@@\n", __func__);
