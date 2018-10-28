@@ -21,7 +21,6 @@
  */
 /** @file   ln.h
  *  @brief  Lightning
- *  @author ueno@nayuta.co
  */
 #ifndef LN_H__
 #define LN_H__
@@ -283,7 +282,7 @@ typedef struct {
                                         //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
     unsigned        Reserved    : 5;
 } ln_htlcflag_t;
-#define LN_HTLCFLAG_MASK_HTLC       (0x000f)    ///< addhtlc, htlc
+#define LN_HTLCFLAG_MASK_HTLC       (0x000f)    ///< addhtlc, delhtlc
 #define LN_HTLCFLAG_MASK_UPDSEND    (0x0010)    ///< updsend
 #define LN_HTLCFLAG_MASK_COMSIG1    (0x0060)    ///< comsend, revrecv
 #define LN_HTLCFLAG_MASK_COMSIG2    (0x0180)    ///< comrecv, revsend
@@ -299,6 +298,18 @@ typedef struct {
 #define LN_HTLCFLAG_SFT_REVSEND         ((uint16_t)1 << 8)
 #define LN_HTLCFLAG_SFT_FINDELHTLC(a)   ((uint16_t)(a) << 9)
 #define LN_HTLCFLAG_SFT_TIMEOUT         (LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_OFFER))
+
+/// update_add_htlc+commitment_signed送信直後
+#define LN_HTLCFLAG_BITS_ADDHTLC        (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_OFFER) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+
+/// update_fulfill_htlc+commitment_signed送信直後
+#define LN_HTLCFLAG_BITS_FULFILLHTLC    (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_FULFILL) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+
+/// update_fail_htlc+commitment_signed送信直後
+#define LN_HTLCFLAG_BITS_FAILHTLC       (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_FAIL) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+
+/// update_fail_malformed_htlc+commitment_signed送信直後
+#define LN_HTLCFLAG_BITS_MALFORMEDHTLC  (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_MALFORMED) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
 
 
 /** @typedef    ln_callback_t
@@ -1036,7 +1047,6 @@ typedef struct {
     uint8_t             pubkeys[LN_FUNDIDX_MAX][BTC_SZ_PUBKEY];         ///< 自分の公開鍵
     //MSG_SCRIPTIDX_xxx
     uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][BTC_SZ_PUBKEY]; ///< script用PubKey
-    uint64_t            current_commit_num;                             ///< pubkeys[MSG_FUNDIDX_PER_COMMIT]の世代
 } ln_funding_local_data_t;
 
 
@@ -1049,7 +1059,6 @@ typedef struct {
     uint8_t             prev_percommit[BTC_SZ_PUBKEY];              ///< 1つ前のper_commit_point
     //MSG_SCRIPTIDX_xxx
     uint8_t             scriptpubkeys[LN_SCRIPTIDX_MAX][BTC_SZ_PUBKEY]; ///< script用PubKey
-    uint64_t            current_commit_num;                             ///< pubkeys[MSG_FUNDIDX_PER_COMMIT]の世代
 } ln_funding_remote_data_t;
 
 
@@ -1156,7 +1165,7 @@ struct ln_self_t {
     uint32_t                    revoked_chk;                    ///< 最後にチェックしたfunding_txのconfirmation数
 
     //msg:normal operation
-    uint16_t                    htlc_num;                       ///< HTLC数
+    uint16_t                    htlc_num;                       ///< HTLC数(update_add_htlcの送信/受信で+1, fulfillなどで-1)
     uint64_t                    htlc_id_num;                    ///< update_add_htlcで使うidの管理
     uint64_t                    our_msat;                       ///< 自分の持ち分
     uint64_t                    their_msat;                     ///< 相手の持ち分
@@ -1174,6 +1183,9 @@ struct ln_self_t {
     //commitment transaction情報(固有)
     uint64_t                    funding_sat;                    ///< funding_satoshis
     uint32_t                    feerate_per_kw;                 ///< feerate_per_kw
+    //channel_reestablish後の処理
+    uint64_t                    reest_commit_num;               ///< channel_reestablish.next_local_commitment_number
+    uint64_t                    reest_revoke_num;               ///< channel_reestablish.next_remote_revocation_number
 
     ////////////////////////////////////////////////
 
@@ -1415,6 +1427,13 @@ bool ln_create_init(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl);
  * retval       true    成功
  */
 bool ln_create_channel_reestablish(ln_self_t *self, utl_buf_t *pReEst);
+
+
+/** channel_reestablishメッセージ交換後
+ *
+ * @param[in,out]       self            channel情報
+ */
+void ln_after_channel_reestablish(ln_self_t *self);
 
 
 /** 接続直後のfunding_locked必要性チェック
@@ -1681,15 +1700,6 @@ void ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
 void ln_create_fail_malformed_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
 
 
-/** commitment_signedメッセージ作成
- *
- * @param[in,out]       self            channel情報
- * @param[out]          pCommSig        生成したcommitment_signedメッセージ
- * @retval      true    成功
- */
-bool ln_create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig);
-
-
 /** update_feeメッセージ作成
  *
  * @param[in,out]       self            channel情報
@@ -1735,33 +1745,46 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
  * others
  ********************************************************************/
 
-/** to_localをINPUTとするトランザクション作成(署名まで実施)
+/** to_localをwalletに保存する情報作成
+ *
+ *  btc_tx_tフォーマットだが、blockchainに展開できるデータではない
+ *      - vin: pTxid:Index, witness([0]=secret
+ *      - vout: input value
  *
  * @param[in]           self            channel情報
  * @param[out]          pTx             生成結果
- * @param[in]           Value           vinとなるamount(ここからfeeを内部で引く)
+ * @param[in]           Value           vinとなるamount
  * @param[in]           ToSelfDelay     to_self_delay
  * @param[in]           pScript         送金先スクリプト
  * @param[in]           pTxid           vinとなるoutpointのtxid
  * @param[in]           Index           vinとなるoutpointのindex
  * @param[in]           bRevoked        true:revoked transaction close対応
  * @retval  true    成功
- *
  */
-bool ln_create_tolocal_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
+bool ln_create_tolocal_wallet(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
                 const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
-/** to_remoteをINPUTとするトランザクション作成(署名まで実施)
+/** to_remoteをwalletに保存する情報作成
+ *
+ *  btc_tx_tフォーマットだが、blockchainに展開できるデータではない
+ *      - vin: pTxid:Index, witness([0]=secret
+ *      - vout: input value
  *
  * @param[in]           self            channel情報
  * @param[out]          pTx             生成結果
- * @param[in]           Value           vinとなるamount(ここからfeeを内部で引く)
+ * @param[in]           Value           vinとなるamount
  * @param[in]           pTxid           vinとなるoutpointのtxid
  * @param[in]           Index           vinとなるoutpointのindex
  * @retval  true    成功
+ * @note
+ *  - 処理の都合上utl_tx_tの形を取るが、展開してはいけない
+ *      - vin: pTxid:Index
+ *      - vout: value, secret
  */
-bool ln_create_toremote_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value, const uint8_t *pTxid, int Index);
+bool ln_create_toremote_wallet(
+            const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
+            const uint8_t *pTxid, int Index);
 
 
 /** revoked HTLC Txから取り戻すトランザクション作成
@@ -1867,7 +1890,8 @@ static inline uint64_t ln_their_msat(const ln_self_t *self) {
 }
 
 
-/** HTLC数取得
+/** HTLC数取得(update_add_htlcの送信/受信で+1, fulfillなどで-1)
+ *
  *
  * @param[in]           self            channel情報
  * @return      HTLC数

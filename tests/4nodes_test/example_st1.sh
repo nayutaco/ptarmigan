@@ -21,6 +21,8 @@ ln -s $INSTALL_DIR/default_conf.sh default_conf.sh
 ln -s ../testfiles/fund-test-in.sh fund-test-in.sh
 ln -s ../testfiles/regtest.conf regtest.conf
 ln -s ../testfiles/generate.sh generate.sh
+ln -s ../testfiles/getrawtx.sh getrawtx.sh
+ln -s ../testfiles/sendrawtx.sh sendrawtx.sh
 
 bitcoind -conf=$CONFFILE -datadir=$DATADIR -daemon
 sleep $SLEEP_TM

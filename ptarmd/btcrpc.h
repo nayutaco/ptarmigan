@@ -159,7 +159,7 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
  * @param[in]   pTxid       取得するTXID(バイト列)
  * @retval  true        トランザクション展開済み(mempool含む)
  */
-bool btcrpc_is_tx_broadcasted(const ln_self_t *self, const uint8_t *pTxid);
+bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid);
 
 
 /** [bitcoin IF]vout unspent確認
@@ -193,7 +193,7 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
 /** [bitcoin IF]channel追加
  * DBから復元することを想定している。
  * 必要であればbtcrpc_set_fundingtx()を内部で呼び出す。
- * 
+ *
  * @param[in]   self
  * @param[in]   shortChannelId  short_channel_id(-1:デフォルト値)
  * @param[in]   pTxBuf          raw funding_tx(NULL:デフォルト値)
@@ -206,7 +206,7 @@ void btcrpc_add_channel(const ln_self_t *self, uint64_t shortChannelId, const ui
 
 /** [bitcoin IF]funding_tx通知
  * funding_tx展開直後に呼び出す。
- * 
+ *
  * @param[in]   pTxBuf
  * @param[in]   Len
  */
@@ -214,7 +214,7 @@ void btcrpc_set_fundingtx(const ln_self_t *self, const uint8_t *pTxBuf, uint32_t
 
 
 /** [bitcoin IF]監視TXID設定
- * 
+ *
  * @param[in]   self
  */
 void btcrpc_set_committxid(const ln_self_t *self);

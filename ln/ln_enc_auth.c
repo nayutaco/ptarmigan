@@ -222,13 +222,13 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
 }
 
 
-bool ln_enc_auth_handshake_state(ln_self_t *self)
+bool HIDDEN ln_enc_auth_handshake_state(ln_self_t *self)
 {
     return self->p_handshake != NULL;
 }
 
 
-void ln_enc_auth_handshake_free(ln_self_t *self)
+void HIDDEN ln_enc_auth_handshake_free(ln_self_t *self)
 {
     UTL_DBG_FREE(self->p_handshake);
 }

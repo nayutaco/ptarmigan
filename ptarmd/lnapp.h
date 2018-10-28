@@ -114,8 +114,6 @@ typedef struct lnapp_conf_t {
     bool            annodb_updated;                     ///< true: flag to notify annodb update
     bool            annodb_cont;                        ///< true: announcement連続送信中
     time_t          annodb_stamp;                       ///< last annodb_updated change true
-    bool            annodb_dummy;                       ///< true: 初回にdummy送信する(終わったらfalseに設定される)
-                                                        //      dummy送信＝initial_routing_syncしない場合に、全部送信したと見なさせる処理
 
     int             err;            ///< last error
     char            *p_errstr;      ///< last error string(malloc)

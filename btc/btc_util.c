@@ -149,6 +149,12 @@ bool btc_util_create2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8
 
 bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_util_keys_t *pKeys)
 {
+    btc_txvalid_t txvalid = btc_tx_is_valid(pTx);
+    if (txvalid != BTC_TXVALID_OK) {
+        LOGD("fail\n");
+        return false;
+    }
+
     utl_buf_t scrpk;
     uint8_t pkh[BTC_SZ_PUBKEYHASH];
     btc_util_hash160(pkh, pKeys->pub, BTC_SZ_PUBKEY);
@@ -195,6 +201,12 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_ut
     utl_buf_t sigbuf = UTL_BUF_INIT;
     utl_buf_t script_code = UTL_BUF_INIT;
 
+    btc_txvalid_t txvalid = btc_tx_is_valid(pTx);
+    if (txvalid != BTC_TXVALID_OK) {
+        LOGD("fail\n");
+        return false;
+    }
+
     btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
 
     ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
@@ -216,10 +228,17 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_ut
 bool btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
                     const utl_buf_t *pWitScript)
 {
+    bool ret;
     utl_buf_t script_code = UTL_BUF_INIT;
 
+    btc_txvalid_t txvalid = btc_tx_is_valid(pTx);
+    if (txvalid != BTC_TXVALID_OK) {
+        LOGD("fail\n");
+        return false;
+    }
+
     btc_sw_scriptcode_p2wsh(&script_code, pWitScript);
-    bool ret = btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code);
+    ret = btc_sw_sighash(pTxHash, pTx, Index, Value, &script_code);
     utl_buf_free(&script_code);
     return ret;
 }

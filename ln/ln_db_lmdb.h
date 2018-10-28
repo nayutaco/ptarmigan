@@ -104,41 +104,48 @@ typedef struct {
  **************************************************************************/
 
 /** LMDBパス設定
- * 
+ *
  * LMDBのenvironmentを格納するパスを指定する。
  * 指定したパスの中に、dbself/ と dbnode/ を作成する。
- * 
+ *
  * @param[in]   pPath       DBを作成するディレクトリ
  */
 void ln_lmdb_set_path(const char *pPath);
 
 
 /**　DBディレクトリの存在チェック
- * 
+ *
  * @retval  true    カレントディレクトリにDBディレクトリがある
  */
 bool ln_lmdb_have_dbdir(void);
 
 
 /** LMDB selfパス取得
- * 
+ *
  * @return  dbptarm_selfパス
  */
 const char *ln_lmdb_get_selfpath(void);
 
 
 /** LMDB nodeパス取得
- * 
+ *
  * @return  dbptarm_nodeパス
  */
 const char *ln_lmdb_get_nodepath(void);
 
 
 /** LMDB annoパス取得
- * 
+ *
  * @return  dbptarm_annoパス
  */
 const char *ln_lmdb_get_annopath(void);
+
+
+/** LMDB waltパス取得
+ *
+ * @return  dbptarm_waltパス
+ */
+const char *ln_lmdb_get_waltpath(void);
 
 
 /** channel情報読込み

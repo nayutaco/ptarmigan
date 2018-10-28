@@ -225,6 +225,18 @@ lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
 }
 
 
+lnapp_conf_t *ptarmd_search_connected_nodeid(const uint8_t *p_node_id)
+{
+    lnapp_conf_t *p_appconf;
+
+    p_appconf = p2p_cli_search_node(p_node_id);
+    if (p_appconf == NULL) {
+        p_appconf = p2p_svr_search_node(p_node_id);
+    }
+    return p_appconf;
+}
+
+
 // ptarmd 起動中に接続失敗したnodeを登録していく。
 // リストに登録されているnodeに対しては、monitoring.c で自動接続しないようにする。
 // 再接続できるようになったか確認する方法を用意していないので、今のところリストから削除する方法はない。
@@ -324,6 +336,8 @@ char *ptarmd_error_str(int ErrCode)
         { RPCERR_PAYFAIL,                   "" },
         { RPCERR_PAY_RETRY,                 "retry payment" },
         { RPCERR_TOOMANYHOP,                "fail create invoice(too many hop)" },
+
+        { RPCERR_WALLET_ERR,                "wallet error" },
     };
 
     const char *p_str = "";

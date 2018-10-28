@@ -50,6 +50,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/cmd_json.c
 C_SOURCE_FILES += $(PRJ_PATH)/monitoring.c
 C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
 C_SOURCE_FILES += $(PRJ_PATH)/conf.c
+C_SOURCE_FILES += $(PRJ_PATH)/wallet.c
 
 #includes common to all targets
 INC_PATHS += -I$(PRJ_PATH)

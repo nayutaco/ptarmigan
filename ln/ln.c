@@ -20,8 +20,7 @@
  *  under the License.
  */
 /** @file   ln.c
- *  @brief  Lightningライブラリ
- *  @author ueno@nayuta.co
+ *  @brief  Lightning Library main
  */
 #include <stdio.h>
 #include <inttypes.h>
@@ -126,7 +125,7 @@
 #define M_STAT_RECV2                        ((uint8_t)(M_STAT_RECEIVER | 2))
 #define M_STAT_RECV3                        ((uint8_t)(M_STAT_RECEIVER | 3))
 
-#define M_PONG_MISSING                      (50)            ///< pongが返ってこないエラー上限
+#define M_PONG_MISSING                      (3)             ///< pongが返ってこないエラー上限
 
 #define M_FUNDING_INDEX                     (0)             ///< funding_txのvout
 
@@ -169,8 +168,12 @@
 #define M_DBG_COMMITHTLC
 #ifdef M_DBG_COMMITHTLC
 #define M_DBG_COMMITNUM(self) { LOGD("----- debug commit_num -----\n"); dbg_commitnum(self); }
+#define M_DBG_HTLCFLAG(htlc) dbg_htlcflag(htlc)
+#define M_DBG_HTLCFLAGALL(self) dbg_htlcflagall(self)
 #else
 #define M_DBG_COMMITNUM(self)   //none
+#define M_DBG_HTLCFLAG(htlc)    //none
+#define M_DBG_HTLCFLAGALL(self) //none
 #endif
 
 
@@ -228,63 +231,85 @@ static bool set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
                     const utl_buf_t *pSig2,
                     const utl_buf_t *pWit2of2);
 static bool create_funding_tx(ln_self_t *self, bool bSign);
+static bool create_basetx(btc_tx_t *pTx,
+                uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime,
+                const uint8_t *pTxid, int Index, bool bRevoked);
 static bool create_to_local(ln_self_t *self,
                     ln_close_force_t *pClose,
-                    const uint8_t *p_htlc_sigs,
-                    uint8_t htlc_sigs_num,
-                    uint32_t to_self_delay,
-                    uint64_t dust_limit_sat);
-static bool create_to_local_sign(ln_self_t *self,
+                    const uint8_t *pHtlcSigs,
+                    uint8_t HtlcSigsNum,
+                    uint64_t CommitNum,
+                    uint32_t ToSelfDelay,
+                    uint64_t DustLimitSat);
+static void create_to_local_htlcinfo_amount(ln_self_t *self,
+                    ln_script_htlcinfo_t **ppHtlcInfo,
+                    int *pCnt,
+                    uint64_t *pOurMsat,
+                    uint64_t *pTheirMsat);
+static bool create_to_local_sign_verify(ln_self_t *self,
                     btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufSig);
 static bool create_to_local_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
-                    const uint8_t *p_htlc_sigs,
-                    uint8_t htlc_sigs_num,
+                    const uint8_t *pHtlcSigs,
+                    uint8_t HtlcSigsNum,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
-                    const ln_htlcinfo_t **pp_htlcinfo,
-                    const ln_feeinfo_t *p_feeinfo,
-                    uint32_t to_self_delay);
-static bool create_to_local_close(ln_self_t *self,
-                    btc_tx_t *pTxHtlcs,
+                    const ln_script_htlcinfo_t **ppHtlcInfo,
+                    const ln_script_feeinfo_t *pFeeInfo,
+                    uint32_t ToSelfDelay);
+static bool create_to_local_spentlocal(ln_self_t *self,
+                    btc_tx_t *pTxToLocal,
+                    const utl_buf_t *pBufWs,
+                    uint64_t Amount,
+                    uint32_t VoutIdx,
+                    uint32_t ToSelfDelay);
+static bool create_to_local_htlcverify(ln_self_t *self,
+                    btc_tx_t *pTx,
+                    const uint8_t *pHtlcSig,
+                    const utl_buf_t *pScript,
+                    uint64_t Amount);
+static bool create_to_local_spenthtlc(ln_self_t *self,
+                    btc_tx_t *pCloseTxHtlc,
                     btc_tx_t *pTxHtlc,
                     utl_push_t *pPush,
-                    const btc_tx_t *pTxCommit,
+                    uint64_t Amount,
                     const utl_buf_t *pBufWs,
-                    const ln_htlcinfo_t *p_htlcinfo,
+                    const ln_script_htlcinfo_t *pHtlcInfo,
                     const btc_util_keys_t *pHtlcKey,
-                    uint8_t htlc_num,
-                    int vout_idx,
-                    const uint8_t *pPayHash,
-                    const uint8_t *pSig,
-                    uint32_t to_self_delay);
+                    uint32_t ToSelfDelay);
 static bool create_to_remote(ln_self_t *self,
                     ln_close_force_t *pClose,
-                    uint8_t **pp_htlc_sigs,
-                    uint32_t to_self_delay,
-                    uint64_t dust_limit_sat);
+                    uint8_t **ppHtlcSigs,
+                    uint64_t CommitNum,
+                    uint32_t ToSelfDelay,
+                    uint64_t DustLimitSat);
+static void create_to_remote_htlcinfo(ln_self_t *self,
+                    ln_script_htlcinfo_t **ppHtlcInfo,
+                    int *pCnt,
+                    uint64_t *pOurMsat,
+                    uint64_t *pTheirMsat);
 static bool create_to_remote_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
-                    uint8_t *p_htlc_sigs,
+                    uint8_t *pHtlcSigs,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
-                    const ln_htlcinfo_t **pp_htlcinfo,
-                    const ln_feeinfo_t *p_feeinfo);
-static bool create_to_remote_htlcsign(ln_self_t *self,
+                    const ln_script_htlcinfo_t **ppHtlcInfo,
+                    const ln_script_feeinfo_t *pFeeInfo);
+static bool create_to_remote_spenthtlc(ln_self_t *self,
                     btc_tx_t *pTxHtlcs,
-                    uint8_t *p_htlc_sigs,
+                    uint8_t *pHtlcSigs,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
-                    const ln_htlcinfo_t *p_htlcinfo,
+                    const ln_script_htlcinfo_t *pHtlcInfo,
                     const btc_util_keys_t *pHtlcKey,
                     const utl_buf_t *pBufRemoteSig,
-                    uint64_t fee,
-                    uint8_t htlc_num,
-                    int vout_idx,
+                    uint64_t Fee,
+                    uint8_t HtlcNum,
+                    uint32_t VoutIdx,
                     const uint8_t *pPayHash,
                     bool bClosing);
-static bool create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig);
+static bool create_commitment_signed(ln_self_t *self, utl_buf_t *pCommSig);
 static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, bool bVerify);
 static bool create_local_channel_announcement(ln_self_t *self);
 static bool create_channel_update(
@@ -340,11 +365,10 @@ static btc_keys_sort_t sort_nodeid(const ln_self_t *self, const uint8_t *pNodeId
 static inline uint8_t ln_sort_to_dir(btc_keys_sort_t Sort);
 static uint64_t calc_commit_num(const ln_self_t *self, const btc_tx_t *pTx);
 static void set_error(ln_self_t *self, int Err, const char *pFormat, ...);
-static int commitment_state(const ln_self_t *self);
-static int revocation_state(const ln_self_t *self);
-static uint8_t comrev_state(const ln_self_t *self);
 #ifdef M_DBG_COMMITNUM
 static void dbg_commitnum(const ln_self_t *self);
+static void dbg_htlcflag(const ln_htlcflag_t *p_flag);
+static void dbg_htlcflagall(const ln_self_t *self);
 #endif
 
 
@@ -582,7 +606,7 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
         const utl_buf_t pub = { (CONST_CAST uint8_t *)pShutdownPubkey, BTC_SZ_PUBKEY };
         utl_buf_t spk;
 
-        ln_create_scriptpkh(&spk, &pub, ShutdownPref);
+        ln_script_scriptpkh_create(&spk, &pub, ShutdownPref);
         utl_buf_free(&self->shutdown_scriptpk_local);
         utl_buf_alloccopy(&self->shutdown_scriptpk_local, spk.buf, spk.len);
         utl_buf_free(&spk);
@@ -755,29 +779,29 @@ bool ln_create_init(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
     utl_buf_free(&msg.globalfeatures);
 
     //HTLC確定状態でないならば、消す
-    M_DBG_COMMITNUM(self);
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
-        if (LN_HTLC_ENABLE(p_htlc) && (p_htlc->stat.flag.addhtlc != 0)) {
-            LOGD("[%d]HTLC(num=%d): id=%" PRIu64 ", flag=%02x, amount_msat=%" PRIu64 "\n", idx, self->htlc_num, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].stat.bits, self->cnl_add_htlc[idx].amount_msat);
-            if ( !LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) &&
-                 !LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc) &&
-                 !LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) &&
-                 !LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc) ) {
-                if (p_htlc->stat.flag.addhtlc == LN_HTLCFLAG_OFFER) {
-                    //offeredならば、HTLC idを戻す
-                    LOGD("  rollback htlc[%d]\n", idx);
-                    self->htlc_num--;
-                    self->htlc_id_num--;
-                }
-                utl_buf_free(&p_htlc->buf_payment_preimage);
-                utl_buf_free(&p_htlc->buf_onion_reason);
-                utl_buf_free(&p_htlc->buf_shared_secret);
-                memset(p_htlc, 0x00, sizeof(ln_update_add_htlc_t));
-                LOGD("  -->remove\n");
-            }
-        }
-    }
+    // M_DBG_COMMITNUM(self);
+    // for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+    //     ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
+    //     if (LN_HTLC_ENABLE(p_htlc) && (p_htlc->stat.flag.addhtlc != 0)) {
+    //         LOGD("[%d]HTLC(num=%d): id=%" PRIu64 ", flag=%02x, amount_msat=%" PRIu64 "\n", idx, self->htlc_num, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].stat.bits, self->cnl_add_htlc[idx].amount_msat);
+    //         if ( !LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) &&
+    //              !LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc) &&
+    //              !LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) &&
+    //              !LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc) ) {
+    //             if (p_htlc->stat.flag.addhtlc == LN_HTLCFLAG_OFFER) {
+    //                 //offeredならば、HTLC idを戻す
+    //                 LOGD("  rollback htlc[%d]\n", idx);
+    //                 self->htlc_num--;
+    //                 self->htlc_id_num--;
+    //             }
+    //             utl_buf_free(&p_htlc->buf_payment_preimage);
+    //             utl_buf_free(&p_htlc->buf_onion_reason);
+    //             utl_buf_free(&p_htlc->buf_shared_secret);
+    //             memset(p_htlc, 0x00, sizeof(ln_update_add_htlc_t));
+    //             LOGD("  -->remove\n");
+    //         }
+    //     }
+    // }
     M_DB_SELF_SAVE(self);
 
     return ret;
@@ -810,7 +834,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, utl_buf_t *pReEst)
                             &self->peer_storage,
                             (uint64_t)(LN_SECINDEX_INIT - (self->commit_remote.commit_num - 1)));
             if (!ret) {
-                LOGD("fail: get last secret\n");
+                LOGD("no last secret\n");
                 memset(msg.your_last_per_commitment_secret, 0, BTC_SZ_PRIVKEY);
             }
         }
@@ -826,19 +850,146 @@ bool ln_create_channel_reestablish(ln_self_t *self, utl_buf_t *pReEst)
 }
 
 
+void ln_after_channel_reestablish(ln_self_t *self)
+{
+    M_DBG_COMMITNUM(self);
+    M_DBG_HTLCFLAGALL(self);
+
+    //
+    //BOLT#02
+    //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
+    //  そのため、(commit_num+1)がcommit_tx作成時のcommitment numberである。
+
+    //  next_local_commitment_number
+    if (self->commit_remote.commit_num == self->reest_commit_num) {
+        //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
+        //      * MUST reuse the same commitment number for its next commitment_signed.
+        //remote.per_commitment_pointを1つ戻して、キャンセルされたupdateメッセージを再送する
+
+        LOGD("$$$ resend: previous update message\n");
+        int idx;
+        for (idx = 0; idx < LN_HTLC_MAX; idx++) {
+            ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
+            if (LN_HTLC_ENABLE(p_htlc)) {
+                bool proc = true;
+                utl_buf_t buf_bolt = UTL_BUF_INIT;
+                switch (p_htlc->stat.bits & ~LN_HTLCFLAG_MASK_FINDELHTLC) {
+                case LN_HTLCFLAG_BITS_ADDHTLC:
+                    //update_add_htlc送信
+                    LOGD("resend: update_add_htlc\n");
+                    p_htlc->p_channel_id = self->channel_id;
+                    (void)ln_msg_update_add_htlc_create(&buf_bolt, p_htlc);
+                    break;
+                case LN_HTLCFLAG_BITS_FULFILLHTLC:
+                    //update_fulfill_htlc送信
+                    LOGD("resend: update_fulfill_htlc\n");
+                    ln_create_fulfill_htlc(self, &buf_bolt, idx);
+                    break;
+                case LN_HTLCFLAG_BITS_FAILHTLC:
+                    //update_fail_htlc送信
+                    LOGD("resend: update_fail_htlc\n");
+                    ln_create_fail_htlc(self, &buf_bolt, idx);
+                    break;
+                case LN_HTLCFLAG_BITS_MALFORMEDHTLC:
+                    //update_fail_malformed_htlc送信
+                    LOGD("resend: update_fail_malformed_htlc\n");
+                    ln_create_fail_malformed_htlc(self, &buf_bolt, idx);
+                    break;
+                default:
+                    //none
+                    proc = false;
+                }
+                if (proc) {
+                    p_htlc->stat.flag.comsend = 0;
+                    (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+                    utl_buf_free(&buf_bolt);
+                    self->commit_remote.commit_num--;
+                    M_DB_SELF_SAVE(self);
+                    break;
+                }
+            }
+        }
+        if (idx >= LN_HTLC_MAX) {
+            LOGD("fail: cannot find HTLC to process\n");
+        }
+    }
+
+    //BOLT#02
+    //  next_remote_revocation_number
+    if (self->commit_local.revoke_num == self->reest_revoke_num) {
+        // if next_remote_revocation_number is equal to the commitment number of the last revoke_and_ack the receiving node sent, AND the receiving node hasn't already received a closing_signed:
+        //      * MUST re-send the revoke_and_ack.
+        LOGD("$$$ next_remote_revocation_number == local commit_num: resend\n");
+
+        uint8_t prev_secret[BTC_SZ_PRIVKEY];
+        ln_signer_create_prev_percommitsec(self, prev_secret, NULL);
+
+        utl_buf_t buf_bolt = UTL_BUF_INIT;
+        ln_revoke_and_ack_t revack;
+        revack.p_channel_id = self->channel_id;
+        revack.p_per_commit_secret = prev_secret;
+        revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
+        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+        bool ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
+        if (ret) {
+            (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+            LOGD("OK: re-send revoke_and_ack\n");
+        } else {
+            LOGD("fail: re-send revoke_and_ack\n");
+        }
+        utl_buf_free(&buf_bolt);
+    }
+
+#if 0
+        uint8_t secret[BTC_SZ_PRIVKEY];
+        if (self->commit_local.commit_num == 0) {
+            memset(secret, 0, BTC_SZ_PRIVKEY);
+        } else {
+            // self->priv_data.storage_indexは鍵導出後にデクリメントしている。
+            // 最新のcommit_tx生成後は、次の次に生成するstorage_indexを指している。
+            // 最後に交換したcommit_txは、storage_index+1。
+            // revoke_and_ackで渡すsecretは、storage_index+2。
+            // 既にrevoke_and_ackで渡し終わったsecretは、storage_index+3。
+            //
+            ln_derkey_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 3);
+            LOGD("storage_index(%016" PRIx64 ": ", self->priv_data.storage_index + 3);
+            DUMPD(secret, BTC_SZ_PRIVKEY);
+        }
+        if ( (memcmp(reest.your_last_per_commitment_secret, secret, BTC_SZ_PRIVKEY) == 0) &&
+          (memcmp(reest.my_current_per_commitment_point, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY) == 0) ) {
+            //一致
+            LOGD("OK!\n");
+        } else {
+            //
+            LOGD("NG...\n");
+            LOGD("secret: ");
+            DUMPD(secret, BTC_SZ_PRIVKEY);
+            LOGD("prevpt: ");
+            DUMPD(self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
+        }
+
+#endif
+}
+
+
 bool ln_check_need_funding_locked(const ln_self_t *self)
 {
-    return (self->short_channel_id != 0) && (self->commit_local.commit_num == 0) && (self->commit_remote.commit_num == 0);
+    return (self->short_channel_id != 0) &&
+        ( 
+            ((self->commit_local.commit_num == 0) && (self->commit_remote.commit_num == 0)) ||
+            ((self->reest_commit_num == 1) && (self->reest_revoke_num == 0))
+        );
 }
 
 
 bool ln_create_funding_locked(ln_self_t *self, utl_buf_t *pLocked)
 {
+    LOGD("\n");
+
     //funding_locked
     ln_funding_locked_t cnl_funding_locked;
     cnl_funding_locked.p_channel_id = self->channel_id;
     cnl_funding_locked.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-    LOGD("  next_per_commitment_point=%" PRIu64 "\n", self->funding_local.current_commit_num);
     bool ret = ln_msg_funding_locked_create(pLocked, &cnl_funding_locked);
 
     M_DBG_COMMITNUM(self);
@@ -1148,7 +1299,7 @@ void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
                utl_buf_cmp(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(self)) ) ) {
             //mutual close
             self->close_type = LN_CLOSETYPE_MUTUAL;
-        } else if (memcmp(txid, ln_commit_local(self)->txid, BTC_SZ_TXID) == 0) {
+        } else if (memcmp(txid, self->commit_local.txid, BTC_SZ_TXID) == 0) {
             //unilateral close(local)
             self->close_type = LN_CLOSETYPE_UNI_LOCAL;
         } else {
@@ -1207,12 +1358,10 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     ln_signer_create_prev_percommitsec(self,
                 self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT],
                 self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-    self->funding_local.current_commit_num = self->commit_local.commit_num;
 
     //remote
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
             self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
-    self->funding_remote.current_commit_num = self->commit_remote.commit_num;
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -1221,7 +1370,9 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
     close_alloc(pClose, LN_CLOSE_IDX_HTLC + self->commit_local.htlc_num);
 
     //local commit_tx
-    bool ret = create_to_local(self, pClose, NULL, 0,
+    bool ret = create_to_local(self,
+                pClose, NULL, 0,        //closeのみ(HTLC署名無し)
+                self->commit_local.commit_num,
                 self->commit_remote.to_self_delay,
                 self->commit_local.dust_limit_sat);
     if (!ret) {
@@ -1263,12 +1414,10 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
     ln_signer_create_prev_percommitsec(self,
                 self->priv_data.priv[MSG_FUNDIDX_PER_COMMIT],
                 self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-    self->funding_local.current_commit_num = self->commit_local.commit_num;
 
     //remote
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
             self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
-    self->funding_remote.current_commit_num = self->commit_remote.commit_num;
 
     //update keys
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -1279,6 +1428,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 
     //remote commit_tx
     bool ret = create_to_remote(self, pClose, NULL,
+                self->commit_remote.commit_num,
                 self->commit_local.to_self_delay,
                 self->commit_remote.dust_limit_sat);
     if (!ret) {
@@ -1375,7 +1525,7 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
 
     //to_local outputとHTLC Timeout/Success Txのoutputは同じ形式のため、to_local outputの有無にかかわらず作っておく。
     //p_revoked_vout[0]にはscriptPubKey、p_revoked_wit[0]にはwitnessProgramを作る。
-    ln_create_script_local(&self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
+    ln_script_create_tolocal(&self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 self->commit_local.to_self_delay);
@@ -1406,7 +1556,7 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
                             pRevokedTx->vout[lp].script.buf, pDbParam);
             if (srch) {
                 int htlc_idx = LN_RCLOSE_IDX_HTLC + htlc_cnt;
-                ln_create_htlcinfo(&self->p_revoked_wit[htlc_idx],
+                ln_script_htlcinfo_script(&self->p_revoked_wit[htlc_idx],
                         type,
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
@@ -1494,9 +1644,11 @@ void ln_create_add_htlc(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx)
     LOGD("self->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
     (void)ln_msg_update_add_htlc_create(pAdd, &self->cnl_add_htlc[Idx]);
 
-    self->cnl_add_htlc[Idx].stat.flag.updsend = 1;
-    self->htlc_id_num++;
-    self->htlc_num++;
+    if (self->cnl_add_htlc[Idx].stat.flag.updsend == 0) {
+        self->cnl_add_htlc[Idx].stat.flag.updsend = 1;
+        self->htlc_id_num++;
+        self->htlc_num++;
+    }
 }
 
 
@@ -1517,6 +1669,7 @@ bool ln_set_fulfill_htlc(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage
 
     clear_htlc_comrevflag(p_htlc, LN_HTLCFLAG_FULFILL);
     utl_buf_alloccopy(&p_htlc->buf_payment_preimage, pPreImage, LN_SZ_PREIMAGE);
+    M_DB_SELF_SAVE(self);
     LOGD("self->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
     return true;
 }
@@ -1590,13 +1743,6 @@ void ln_create_fail_malformed_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t I
 }
 
 
-bool ln_create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig)
-{
-    LOGD("BEGIN\n");
-    return create_commit_signed(self, pCommSig);
-}
-
-
 bool ln_create_update_fee(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw)
 {
 #if 0
@@ -1657,10 +1803,10 @@ bool ln_create_ping(ln_self_t *self, utl_buf_t *pPing)
     bool ret = ln_msg_ping_create(pPing, &ping);
     if (ret) {
         self->missing_pong_cnt++;
-        //if (self->missing_pong_cnt > M_PONG_MISSING) {
-        //    M_SET_ERR(self, LNERR_PINGPONG, "many pong missing...(%d)\n", self->missing_pong_cnt);
-        //    ret = false;
-        //}
+        if (self->missing_pong_cnt > M_PONG_MISSING) {
+           M_SET_ERR(self, LNERR_PINGPONG, "many pong missing...(%d)\n", self->missing_pong_cnt);
+           ret = false;
+        }
     }
 
     return ret;
@@ -1684,74 +1830,32 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
  * others
  ********************************************************************/
 
-bool ln_create_tolocal_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value, uint32_t to_self_delay,
+bool ln_create_tolocal_wallet(const ln_self_t *self, btc_tx_t *pTx,uint64_t Value, uint32_t ToSelfDelay,
                 const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked)
 {
-    bool ret;
-    uint64_t val;
-
-    //to_localのFEE
-    uint64_t fee_tolocal = ln_calc_fee(M_SZ_TO_LOCAL_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
-    LOGD("fee_tolocal=%" PRIu64 "\n", fee_tolocal);
-    if (Value < BTC_DUST_LIMIT + fee_tolocal) {
-        LOGD("fail: vout below dust: value=%" PRIu64 "< DUST(%" PRIu64 ")+fee(%" PRIu64 ")\n", Value, BTC_DUST_LIMIT, fee_tolocal);
-        goto LABEL_EXIT;
+    bool ret = create_basetx(pTx, Value,
+                NULL, ToSelfDelay, pTxid, Index, bRevoked);
+    if (ret) {
+        btc_util_keys_t sigkey;
+        ln_signer_tolocal_key(self, &sigkey, bRevoked);
+        ret = ln_script_tolocal_wit(pTx, &sigkey, pScript, bRevoked);
     }
-    val = Value - fee_tolocal;
-    ret = ln_create_tolocal_tx(pTx, val,
-            &self->shutdown_scriptpk_local, to_self_delay, pTxid, Index, bRevoked);
-    if (!ret) {
-        goto LABEL_EXIT;
-    }
-
-    ret = ln_signer_tolocal_tx(self, pTx, Value, pScript, bRevoked);
-
-LABEL_EXIT:
     return ret;
 }
 
 
-bool ln_create_toremote_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value, const uint8_t *pTxid, int Index)
+bool ln_create_toremote_wallet(
+            const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
+            const uint8_t *pTxid, int Index)
 {
-    bool ret;
-    btc_util_keys_t signkey;
-
-    //to_remoteのFEE
-    uint64_t fee_toremote = ln_calc_fee(M_SZ_TO_REMOTE_TX(self->shutdown_scriptpk_local.len), self->feerate_per_kw);
-    if (Value < BTC_DUST_LIMIT + fee_toremote) {
-        LOGD("fail: vout below dust(value=%" PRIu64 ", fee=%" PRIu64 ")\n", Value, fee_toremote);
-        ret = false;
-        goto LABEL_EXIT;
+    bool ret = create_basetx(pTx, Value,
+                NULL, 0, pTxid, Index, false);
+    if (ret) {
+        btc_util_keys_t sigkey;
+        ln_signer_toremote_key(self, &sigkey);
+        ln_script_toremote_wit(pTx, &sigkey);
     }
 
-    // remotekeyへの支払いを self->shutdown_scriptpk_local に送金する
-    //  通常のP2WPKHなので、bRevoedはfalse扱い
-    //  to_local用の関数を使っているが、最低限の設定をしているだけなので同じ処理でよい
-    btc_tx_init(pTx);
-
-    ret = ln_create_tolocal_tx(pTx, Value - fee_toremote,
-            &self->shutdown_scriptpk_local, 0, pTxid, Index, false);
-    if (!ret) {
-        LOGD("fail: create to_remote tx\n");
-        goto LABEL_EXIT;
-    }
-    //<remotesecretkey>
-    //  revoked transaction close後はremotekeyも当時のものになっているため、同じ処理でよい
-    ln_signer_get_secret(self, &signkey, MSG_FUNDIDX_PAYMENT,
-        self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-    if (memcmp(signkey.pub, self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY], BTC_SZ_PUBKEY) != 0) {
-        LOGD("FATAL: pubkey mismatch\n");
-        abort();
-    }
-    //LOGD("key-priv: ");
-    //DUMPD(signkey.priv, BTC_SZ_PRIVKEY);
-    //LOGD("key-pub : ");
-    //DUMPD(signkey.pub, BTC_SZ_PUBKEY);
-
-    //vinは1つしかない
-    ret = ln_signer_p2wpkh(pTx, 0, Value, &signkey);
-
-LABEL_EXIT:
     return ret;
 }
 
@@ -1759,13 +1863,13 @@ LABEL_EXIT:
 bool ln_create_revokedhtlc_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
                 int WitIndex, const uint8_t *pTxid, int Index)
 {
-    ln_feeinfo_t feeinfo;
+    ln_script_feeinfo_t feeinfo;
     feeinfo.feerate_per_kw = self->feerate_per_kw;
-    ln_fee_calc(&feeinfo, NULL, 0);
+    ln_script_fee_calc(&feeinfo, NULL, 0);
     uint64_t fee = (self->p_revoked_type[WitIndex] == LN_HTLCTYPE_OFFERED) ? feeinfo.htlc_timeout : feeinfo.htlc_success;
     LOGD("Value=%" PRIu64 ", fee=%" PRIu64 "\n", Value, fee);
 
-    ln_create_htlc_tx(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
+    ln_script_htlctx_create(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
     M_DBG_PRINT_TX2(pTx);
 
     btc_util_keys_t signkey;
@@ -1777,14 +1881,13 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t 
     // LOGD("key-pub : ");
     // DUMPD(signkey.pub, BTC_SZ_PUBKEY);
 
-    utl_buf_t buf_sig;
-    ln_htlcsign_t htlcsign = LN_HTLCSIGN_NONE;
+    ln_script_htlcsign_t htlcsign = LN_HTLCSIGN_NONE;
     switch (self->p_revoked_type[WitIndex]) {
     case LN_HTLCTYPE_OFFERED:
-        htlcsign = LN_HTLCSIGN_RV_OFFERED;
+        htlcsign = LN_HTLCSIGN_REVOKE_OFFER;
         break;
     case LN_HTLCTYPE_RECEIVED:
-        htlcsign = LN_HTLCSIGN_RV_RECEIVED;
+        htlcsign = LN_HTLCSIGN_REVOKE_RECV;
         break;
     default:
         LOGD("index=%d, %d\n", WitIndex, self->p_revoked_type[WitIndex]);
@@ -1792,14 +1895,21 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t 
     }
     bool ret;
     if (htlcsign != LN_HTLCSIGN_NONE) {
-        ret = ln_sign_htlc_tx(pTx,
+        utl_buf_t buf_sig = UTL_BUF_INIT;
+        ret = ln_script_htlctx_sign(pTx,
                 &buf_sig,
                 Value,
+                &signkey,
+                &self->p_revoked_wit[WitIndex]);
+        if (ret) {
+            ret = ln_script_htlctx_wit(pTx,
+                &buf_sig,
                 &signkey,
                 NULL,
                 NULL,
                 &self->p_revoked_wit[WitIndex],
                 htlcsign);
+        }
         utl_buf_free(&buf_sig);
     } else {
         ret = false;
@@ -1967,6 +2077,7 @@ static void channel_clear(ln_self_t *self)
 
 /** 受信アイドル処理(HTLC final)
  *
+ * @retval  true        DB変化あり
  */
 static bool recv_idle_proc_final(ln_self_t *self)
 {
@@ -1998,15 +2109,15 @@ static bool recv_idle_proc_final(ln_self_t *self)
                         fwd.idx = p_htlc->next_idx;
                         (*self->p_callback)(self, LN_CB_FWD_ADDHTLC_START, &fwd);
                         p_htlc->next_short_channel_id = 0;
+                        db_upd = true;
                     }
 
                     //DEL_HTLC開始
                     if (p_flag->fin_delhtlc != 0) {
                         LOGD("del htlc: %d\n", p_flag->fin_delhtlc);
                         clear_htlc_comrevflag(p_htlc, p_flag->fin_delhtlc);
+                        db_upd = true;
                     }
-
-                    db_upd = true;
                 }
             } else {
                 //DEL_HTLC後
@@ -2050,6 +2161,7 @@ static bool recv_idle_proc_final(ln_self_t *self)
 
 /** 受信アイドル処理(HTLC non-final)
  *
+ * @retval  true        DB変化あり
  */
 static bool recv_idle_proc_nonfinal(ln_self_t *self)
 {
@@ -2059,9 +2171,12 @@ static bool recv_idle_proc_nonfinal(ln_self_t *self)
                ((self->cnl_add_htlc[idx].stat.bits & LN_HTLCFLAG_MASK_COMSIG1) == LN_HTLCFLAG_MASK_COMSIG1) ) &&
              ( ((self->cnl_add_htlc[idx].stat.bits & LN_HTLCFLAG_MASK_COMSIG2) == 0) ||
                ((self->cnl_add_htlc[idx].stat.bits & LN_HTLCFLAG_MASK_COMSIG2) == LN_HTLCFLAG_MASK_COMSIG2) ) ) {
-            //OK
+            //[send commitment_signed] && [recv revoke_and_ack] or NONE
+            //  &&
+            //[recv commitment_signed] && [send revoke_and_ack] or NONE
+            //  -->OK
         } else {
-            LOGD("HTLC[%d] comsiging\n", idx);
+            //commitment_signed〜revoke_and_ackの途中
             b_comsiging = true;
             break;
         }
@@ -2119,7 +2234,7 @@ static bool recv_idle_proc_nonfinal(ln_self_t *self)
     if (b_comsig) {
         //commitment_signed送信
         utl_buf_t buf_bolt = UTL_BUF_INIT;
-        bool ret = create_commit_signed(self, &buf_bolt);
+        bool ret = create_commitment_signed(self, &buf_bolt);
         if (ret) {
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
         }
@@ -2330,8 +2445,6 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
-    self->funding_remote.current_commit_num = 0;
-    LOGD("  funding_remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
 
     self->funding_sat = open_ch->funding_sat;
     self->feerate_per_kw = open_ch->feerate_per_kw;
@@ -2371,7 +2484,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     //obscured commitment tx numberは共通
     //  1番目:open_channelのpayment-basepoint
     //  2番目:accept_channelのpayment-basepoint
-    self->obscured = ln_calc_obscured_txnum(
+    self->obscured = ln_script_calc_obscured_txnum(
                                 open_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT],
                                 acc_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT]);
     LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
@@ -2432,8 +2545,6 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //first_per_commitment_pointは初回revoke_and_ackのper_commitment_secretに対応する
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
-    self->funding_remote.current_commit_num = 0;
-    LOGD("  funding_remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
 
     //スクリプト用鍵生成
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
@@ -2451,7 +2562,7 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     //obscured commitment tx numberは共通
     //  1番目:open_channelのpayment-basepoint
     //  2番目:accept_channelのpayment-basepoint
-    self->obscured = ln_calc_obscured_txnum(
+    self->obscured = ln_script_calc_obscured_txnum(
                                 self->p_establish->cnl_open.p_pubkeys[MSG_FUNDIDX_PAYMENT],
                                 acc_ch->p_pubkeys[MSG_FUNDIDX_PAYMENT]);
     LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
@@ -2460,8 +2571,11 @@ static bool recv_accept_channel(ln_self_t *self, const uint8_t *pData, uint16_t 
     // initial commit tx(Remoteが持つTo-Local)
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
-    ret = create_to_remote(self, NULL, NULL,
-                self->p_establish->cnl_open.to_self_delay, acc_ch->dust_limit_sat);
+    ret = create_to_remote(self,
+                NULL, NULL,     //close無し、署名作成無し
+                0,
+                self->p_establish->cnl_open.to_self_delay,
+                acc_ch->dust_limit_sat);
     if (ret) {
         //funding_created
         ln_funding_created_t *fundc = &self->p_establish->cnl_funding_created;
@@ -2527,8 +2641,11 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     // initial commit tx(自分が持つTo-Local)
     //      to-self-delayは自分の値(open_channel)を使う
     //      HTLCは存在しない
-    ret = create_to_local(self, NULL, NULL, 0,
-                self->p_establish->cnl_open.to_self_delay, self->p_establish->cnl_accept.dust_limit_sat);
+    ret = create_to_local(self,
+            NULL, NULL, 0,      //closeもHTLC署名も無し
+            0,
+            self->p_establish->cnl_open.to_self_delay,
+            self->p_establish->cnl_accept.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         return false;
@@ -2537,8 +2654,11 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
     // initial commit tx(Remoteが持つTo-Local)
     //      署名計算のみのため、計算後は破棄する
     //      HTLCは存在しないため、計算省略
-    ret = create_to_remote(self, NULL, NULL,
-                self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat);
+    ret = create_to_remote(self,
+                NULL, NULL,         //close無し、署名無し
+                0,
+                self->p_establish->cnl_accept.to_self_delay,
+                self->p_establish->cnl_open.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_remote\n");
         return false;
@@ -2600,8 +2720,11 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     // initial commit tx(自分が持つTo-Local)
     //      to-self-delayは相手の値(accept_channel)を使う
     //      HTLCは存在しない
-    ret = create_to_local(self, NULL, NULL, 0,
-                self->p_establish->cnl_accept.to_self_delay, self->p_establish->cnl_open.dust_limit_sat);
+    ret = create_to_local(self,
+            NULL, NULL, 0,      //closeもHTLC署名も無し
+            0,
+            self->p_establish->cnl_accept.to_self_delay,
+            self->p_establish->cnl_open.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         return false;
@@ -2654,8 +2777,6 @@ static bool recv_funding_locked(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //prev_percommitはrevoke_and_ackでのみ更新する
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], per_commitpt, BTC_SZ_PUBKEY);
-    self->funding_remote.current_commit_num = 1;
-    LOGD("  funding_remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
 
     //funding中終了
     free_establish(self, true);
@@ -2702,7 +2823,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     //scriptPubKeyチェック
-    ret = ln_check_scriptpkh(&self->shutdown_scriptpk_remote);
+    ret = ln_script_scriptpkh_check(&self->shutdown_scriptpk_remote);
     if (!ret) {
         M_SET_ERR(self, LNERR_INV_PRIVKEY, "unknown scriptPubKey type");
         return false;
@@ -2998,7 +3119,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
     //成功にせよ失敗にせよHTLC追加
     self->htlc_num++;
     p_htlc->stat.flag.addhtlc = LN_HTLCFLAG_RECV;
-    LOGD("HTLC add : htlc_num=%d, id=%" PRIu64 ", amount_msat=%" PRIu64 "\n", self->htlc_num, p_htlc->id, p_htlc->amount_msat);
+    LOGD("HTLC add : id=%" PRIu64 ", amount_msat=%" PRIu64 "\n", p_htlc->id, p_htlc->amount_msat);
 
     LOGD("  ret=%d\n", ret);
     LOGD("  id=%" PRIu64 "\n", p_htlc->id);
@@ -3034,7 +3155,6 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         //final node
         LOGD("final node: backwind fulfill_htlc start: ");
         p_htlc->stat.flag.fin_delhtlc = LN_HTLCFLAG_FULFILL;
-        ln_db_preimg_del(p_htlc->buf_payment_preimage.buf);
     } else if (ret) {
         LOGD("hop node: forwad another channel\n");
         p_htlc->next_short_channel_id = hop_dataout.short_channel_id;
@@ -3216,17 +3336,27 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     }
 
     //署名チェック＋保存: To-Local
-    ret = create_to_local(self, NULL, commsig.p_htlc_signature, commsig.num_htlcs,
-                self->commit_remote.to_self_delay, self->commit_local.dust_limit_sat);
+    ret = create_to_local(self,
+            NULL, commsig.p_htlc_signature, commsig.num_htlcs,  //HTLC署名のみ(closeなし)
+            self->commit_local.commit_num + 1,
+            self->commit_remote.to_self_delay,
+            self->commit_local.dust_limit_sat);
     UTL_DBG_FREE(commsig.p_htlc_signature);
     if (!ret) {
         LOGD("fail: create_to_local\n");
         goto LABEL_EXIT;
     }
 
-    //自分のcommitment_numberをインクリメント
-    self->commit_local.commit_num++;
-    M_DBG_COMMITNUM(self);
+    //for commitment_nubmer debug
+    // {
+    //     static int count;
+    //     count++;
+    //     if (count >= 2) {
+    //         LOGD("**************ABORT*************\n");
+    //         printf("**************ABORT*************\n");
+    //         exit(-1);
+    //     }
+    // }
 
     //commitment_signed受信フラグ
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -3247,11 +3377,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     //storage_indexデクリメントおよびper_commit_secret更新
     ln_signer_keys_update_storage(self);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    ln_print_keys(&self->funding_local, &self->funding_remote);
-    M_DB_SECRET_SAVE(self);
-
-    //commitment_signed受信により、自分のcommit_txが確定する
-    M_DB_SELF_SAVE(self);
+    //ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //チェックOKであれば、revoke_and_ackを返す
     //HTLCに変化がある場合、revoke_and_ack→commitment_signedの順で送信
@@ -3267,7 +3393,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     revack.p_channel_id = channel_id;
     revack.p_per_commit_secret = prev_secret;
     revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-    LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.current_commit_num);
+    LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->commit_local.commit_num);
     ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
     if (ret) {
         //commitment_signed受信フラグ
@@ -3284,18 +3410,20 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
         }
         (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
         utl_buf_free(&buf_bolt);
-
-        //最後に送信したrevoke_and_ackでのcommitment_numberを保持(channel_reestablish)
-        self->commit_local.revoke_num = self->commit_local.commit_num - 1;
-        M_DBG_COMMITNUM(self);
-        M_DB_SELF_SAVE(self);
     } else {
         LOGD("fail: ln_msg_revoke_and_ack_create\n");
     }
 
 LABEL_EXIT:
-    //戻す
-    if (!ret) {
+    if (ret) {
+        //revoke_and_ackを返せた場合だけ保存することにする
+        self->commit_local.revoke_num = self->commit_local.commit_num;
+        self->commit_local.commit_num++;
+        M_DBG_COMMITNUM(self);
+        M_DB_SECRET_SAVE(self);
+        M_DB_SELF_SAVE(self);
+    } else {
+        //戻す
         LOGD("fail restore\n");
         memcpy(self->commit_remote.signature, bak_sig, LN_SZ_SIGNATURE);
     }
@@ -3360,23 +3488,23 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     //     }
     // }
 
-    if (memcmp(prev_commitpt, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY) != 0) {
-        LOGD("fail: prev_secret mismatch\n");
+    // if (memcmp(prev_commitpt, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY) != 0) {
+    //     LOGD("fail: prev_secret mismatch\n");
 
-        //check re-send
-        if (memcmp(new_commitpt, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY) == 0) {
-            //current per_commitment_point
-            LOGD("skip: same as previous next_per_commitment_point\n");
-            ret = true;
-        } else {
-            LOGD("recv secret: ");
-            DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
-            LOGD("my secret: ");
-            DUMPD(self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
-            ret = false;
-        }
-        goto LABEL_EXIT;
-    }
+    //     //check re-send
+    //     if (memcmp(new_commitpt, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY) == 0) {
+    //         //current per_commitment_point
+    //         LOGD("skip: same as previous next_per_commitment_point\n");
+    //         ret = true;
+    //     } else {
+    //         LOGD("recv secret: ");
+    //         DUMPD(prev_commitpt, BTC_SZ_PUBKEY);
+    //         LOGD("my secret: ");
+    //         DUMPD(self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
+    //         ret = false;
+    //     }
+    //     goto LABEL_EXIT;
+    // }
 
     //prev_secret保存
     ret = store_peer_percommit_secret(self, prev_secret);
@@ -3388,10 +3516,8 @@ static bool recv_revoke_and_ack(ln_self_t *self, const uint8_t *pData, uint16_t 
     //per_commitment_point更新
     memcpy(self->funding_remote.prev_percommit, self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], BTC_SZ_PUBKEY);
     memcpy(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], new_commitpt, BTC_SZ_PUBKEY);
-    self->funding_remote.current_commit_num++;
-    LOGD("  funding_remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    ln_print_keys(&self->funding_local, &self->funding_remote);
+    //ln_print_keys(&self->funding_local, &self->funding_remote);
 
     //revoke_and_ack受信フラグ
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -3547,7 +3673,8 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     }
 
     M_DBG_COMMITNUM(self);
-    uint8_t stat = comrev_state(self);
+    self->reest_commit_num = reest.next_local_commitment_number;
+    self->reest_revoke_num = reest.next_remote_revocation_number;
 
     //BOLT#02
     //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
@@ -3560,32 +3687,11 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     } else if (self->commit_remote.commit_num == reest.next_local_commitment_number) {
         //  if next_local_commitment_number is equal to the commitment number of the last commitment_signed message the receiving node has sent:
         //      * MUST reuse the same commitment number for its next commitment_signed.
-        LOGD("next_local_commitment_number == local commit_num: reuse\n");
-
-        //remote.per_commitment_pointを1つ戻して、commitment_signedを再送する
-        self->commit_remote.commit_num--;
-        M_DBG_COMMITNUM(self);
-
-        //1回以上commitment_signedを返している
-        if (M_STAT_MASK_NUM(stat) >= 2) {
-            LOGD("resend: commitment_signed\n");
-            utl_buf_t buf_bolt = UTL_BUF_INIT;
-            bool ret = create_commit_signed(self, &buf_bolt);
-            if (ret) {
-                (*self->p_callback)(self, LN_CB_SEND_QUEUE, &buf_bolt);
-                LOGD("OK: re-send commigment_signed\n");
-                //utl_buf_free(&buf_bolt);    //そのまま使うのでfreeしない
-            } else {
-                LOGD("fail: re-send commitment_signed\n");
-                utl_buf_free(&buf_bolt);
-            }
-        } else {
-            LOGD("reuse: commitment_number\n");
-        }
+        LOGD("next_local_commitment_number == remote commit_num: reuse\n");
     } else {
         // if next_local_commitment_number is not 1 greater than the commitment number of the last commitment_signed message the receiving node has sent:
         //      * SHOULD fail the channel.
-        LOGD("number mismatch : FAIL\n");
+        LOGD("fail: next commitment number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_remote.commit_num + 1, reest.next_local_commitment_number);
         chk_commit_num = false;
     }
 
@@ -3594,64 +3700,14 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     bool chk_revoke_num = true;
     if (self->commit_local.revoke_num + 1 == reest.next_remote_revocation_number) {
         LOGD("next_remote_revocation_number: OK\n");
-    } else if (self->commit_local.revoke_num - 1 == reest.next_remote_revocation_number) {
+    } else if (self->commit_local.revoke_num == reest.next_remote_revocation_number) {
         // if next_remote_revocation_number is equal to the commitment number of the last revoke_and_ack the receiving node sent, AND the receiving node hasn't already received a closing_signed:
         //      * MUST re-send the revoke_and_ack.
-        LOGD("next_remote_revocation_number: \n");
-
-        uint8_t prev_secret[BTC_SZ_PRIVKEY];
-        ln_signer_create_prev_percommitsec(self, prev_secret, NULL);
-
-        utl_buf_t buf_bolt = UTL_BUF_INIT;
-        ln_revoke_and_ack_t revack;
-        revack.p_channel_id = channel_id;
-        revack.p_per_commit_secret = prev_secret;
-        revack.p_per_commitpt = self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT];
-        LOGD("  send revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-        ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
-        if (ret) {
-            (*self->p_callback)(self, LN_CB_SEND_QUEUE, &buf_bolt);
-            LOGD("OK: re-send revoke_and_ack\n");
-            //utl_buf_free(&buf_bolt);    //そのまま使うのでfreeしない
-        } else {
-            LOGD("fail: re-send revoke_and_ack\n");
-            utl_buf_free(&buf_bolt);
-        }
-        utl_buf_free(&buf_bolt);
+        LOGD("next_remote_revocation_number == local commit_num: resend\n");
     } else {
-        LOGD("number mismatch: FAIL\n");
+        LOGD("fail: next revocation number[%" PRIu64 "(expect) != %" PRIu64 "(recv)]\n", self->commit_local.revoke_num + 1, reest.next_remote_revocation_number);
         chk_revoke_num = false;
     }
-
-#if 0
-        uint8_t secret[BTC_SZ_PRIVKEY];
-        if (self->commit_local.commit_num == 0) {
-            memset(secret, 0, BTC_SZ_PRIVKEY);
-        } else {
-            // self->priv_data.storage_indexは鍵導出後にデクリメントしている。
-            // 最新のcommit_tx生成後は、次の次に生成するstorage_indexを指している。
-            // 最後に交換したcommit_txは、storage_index+1。
-            // revoke_and_ackで渡すsecretは、storage_index+2。
-            // 既にrevoke_and_ackで渡し終わったsecretは、storage_index+3。
-            //
-            ln_derkey_create_secret(secret, self->priv_data.storage_seed, self->priv_data.storage_index + 3);
-            LOGD("storage_index(%016" PRIx64 ": ", self->priv_data.storage_index + 3);
-            DUMPD(secret, BTC_SZ_PRIVKEY);
-        }
-        if ( (memcmp(reest.your_last_per_commitment_secret, secret, BTC_SZ_PRIVKEY) == 0) &&
-          (memcmp(reest.my_current_per_commitment_point, self->funding_remote.prev_percommit, BTC_SZ_PUBKEY) == 0) ) {
-            //一致
-            LOGD("OK!\n");
-        } else {
-            //
-            LOGD("NG...\n");
-            LOGD("secret: ");
-            DUMPD(secret, BTC_SZ_PRIVKEY);
-            LOGD("prevpt: ");
-            DUMPD(self->funding_remote.prev_percommit, BTC_SZ_PUBKEY);
-        }
-
-#endif
 
     //BOLT#2
     //  if it supports option_data_loss_protect, AND the option_data_loss_protect fields are present:
@@ -4015,6 +4071,26 @@ static bool set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
 }
 
 
+static bool create_basetx(btc_tx_t *pTx,
+                uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime,
+                const uint8_t *pTxid, int Index, bool bRevoked)
+{
+    //vout
+    btc_vout_t* vout = btc_tx_add_vout(pTx, Value);
+    if (pScriptPk != NULL) {
+        utl_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
+    }
+
+    //vin
+    btc_tx_add_vin(pTx, pTxid, Index);
+    if (!bRevoked) {
+        pTx->vin[0].sequence = LockTime;
+    }
+
+    return true;
+}
+
+
 /** funding_tx作成
  *
  * @param[in,out]       self
@@ -4126,89 +4202,57 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
  *
  * @param[in,out]       self
  * @param[out]          pClose              非NULL:自分がunilateral closeした情報を返す
- * @param[in]           p_htlc_sigs         commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
- * @param[in]           htlc_sigs_num       p_htlc_sigsの署名数
- * @param[in]           to_self_delay       remoteのto_self_delay
- * @param[in]           dust_limit_sat      localのdust_limit_sat
+ * @param[in]           pHtlcSigs         commitment_signedで受信したHTLCの署名(NULL時はHTLC署名無し)
+ * @param[in]           HtlcSigsNum       pHtlcSigsの署名数
+ * @param[in]           CommitNum           計算に使用するcommitment_number
+ * @param[in]           ToSelfDelay       remoteのToSelfDelay
+ * @param[in]           DustLimitSat      localのDustLimitSat
  * @retval      true    成功
  * @note
- *      - pubkeys[MSG_FUNDIDX_PER_COMMIT]にはself->funding_local.current_commit_numに対応するper_commitment_pointが入っている前提。
+ *      - pubkeys[MSG_FUNDIDX_PER_COMMIT]にはCommitNumに対応するper_commitment_pointが入っている前提。
  */
 static bool create_to_local(ln_self_t *self,
                     ln_close_force_t *pClose,
-                    const uint8_t *p_htlc_sigs,
-                    uint8_t htlc_sigs_num,
-                    uint32_t to_self_delay,
-                    uint64_t dust_limit_sat)
+                    const uint8_t *pHtlcSigs,
+                    uint8_t HtlcSigsNum,
+                    uint64_t CommitNum,
+                    uint32_t ToSelfDelay,
+                    uint64_t DustLimitSat)
 {
     LOGD("BEGIN\n");
 
     bool ret;
     utl_buf_t buf_ws = UTL_BUF_INIT;
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_feeinfo_t feeinfo;
-    ln_tx_cmt_t lntx_commit;
+    ln_script_feeinfo_t feeinfo;
+    ln_script_committx_t lntx_commit;
     btc_tx_t tx_commit = BTC_TX_INIT;
     uint64_t our_msat = self->our_msat;
     uint64_t their_msat = self->their_msat;
 
     //To-Local
-    ln_create_script_local(&buf_ws,
+    ln_script_create_tolocal(&buf_ws,
                 self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
-                to_self_delay);
+                ToSelfDelay);
 
-    //HTLC
-    ln_htlcinfo_t **pp_htlcinfo = (ln_htlcinfo_t **)UTL_DBG_MALLOC(sizeof(ln_htlcinfo_t*) * LN_HTLC_MAX);
+    //HTLC info(amount)
+    ln_script_htlcinfo_t **pp_htlcinfo = (ln_script_htlcinfo_t **)UTL_DBG_MALLOC(sizeof(ln_script_htlcinfo_t*) * LN_HTLC_MAX);
     int cnt = 0;
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
-        if (LN_HTLC_ENABLE(p_htlc)) {
-            bool addhtlc = false;
-            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(p_htlc)) {
-                our_msat -= p_htlc->amount_msat;
+    create_to_local_htlcinfo_amount(self, pp_htlcinfo, &cnt, &our_msat, &their_msat);
 
-                if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc)) {
-                    LOGD("addhtlc_offer\n");
-                    addhtlc = true;
-                } else {
-                    LOGD("delhtlc_offer\n");
-                    their_msat += p_htlc->amount_msat;
-                }
-            }
-            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(p_htlc)) {
-                their_msat -= p_htlc->amount_msat;
-
-                if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc)) {
-                    LOGD("addhtlc_recv\n");
-                    addhtlc = true;
-                } else {
-                    LOGD("delhtlc_recv\n");
-                    our_msat += p_htlc->amount_msat;
-                }
-            }
-            if (addhtlc) {
-                pp_htlcinfo[cnt] = (ln_htlcinfo_t *)UTL_DBG_MALLOC(sizeof(ln_htlcinfo_t));
-                ln_htlcinfo_init(pp_htlcinfo[cnt]);
-                if (p_htlc->stat.flag.addhtlc == LN_HTLCFLAG_RECV) {
-                    pp_htlcinfo[cnt]->type = LN_HTLCTYPE_RECEIVED;
-                } else {
-                    pp_htlcinfo[cnt]->type = LN_HTLCTYPE_OFFERED;
-                }
-                pp_htlcinfo[cnt]->add_htlc_idx = idx;
-                pp_htlcinfo[cnt]->expiry = p_htlc->cltv_expiry;
-                pp_htlcinfo[cnt]->amount_msat = p_htlc->amount_msat;
-                pp_htlcinfo[cnt]->preimage_hash = p_htlc->payment_sha256;
-
-                LOGD(" ADD[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
-                cnt++;
-            } else {
-                LOGD(" DEL[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
-            }
-        }
+    //HTLC info(script)
+    for (int lp = 0; lp < cnt; lp++) {
+        ln_script_htlcinfo_script(&pp_htlcinfo[lp]->script,
+                        pp_htlcinfo[lp]->type,
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
+                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
+                        pp_htlcinfo[lp]->preimage_hash,
+                        pp_htlcinfo[lp]->expiry);
     }
+
     LOGD("-------\n");
-    LOGD("cnt=%d, htlc_num=%d\n", cnt, self->htlc_num);
     LOGD("our_msat   %" PRIu64 " --> %" PRIu64 "\n", self->our_msat, our_msat);
     LOGD("their_msat %" PRIu64 " --> %" PRIu64 "\n", self->their_msat, their_msat);
     for (int lp = 0; lp < cnt; lp++) {
@@ -4218,21 +4262,11 @@ static bool create_to_local(ln_self_t *self,
 
     //FEE
     feeinfo.feerate_per_kw = self->feerate_per_kw;
-    feeinfo.dust_limit_satoshi = dust_limit_sat;
-    ln_fee_calc(&feeinfo, (const ln_htlcinfo_t **)pp_htlcinfo, cnt);
-
-    //scriptPubKey作成
-    for (int lp = 0; lp < cnt; lp++) {
-        ln_create_htlcinfo(&pp_htlcinfo[lp]->script,
-                        pp_htlcinfo[lp]->type,
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
-                        self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
-                        pp_htlcinfo[lp]->preimage_hash,
-                        pp_htlcinfo[lp]->expiry);
-    }
+    feeinfo.dust_limit_satoshi = DustLimitSat;
+    ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfo, cnt);
 
     //commitment transaction
+    LOGD("local commitment_number=%" PRIu64 "\n", CommitNum);
     lntx_commit.fund.txid = self->funding_local.txid;
     lntx_commit.fund.txid_index = self->funding_local.txindex;
     lntx_commit.fund.satoshi = self->funding_sat;
@@ -4241,15 +4275,14 @@ static bool create_to_local(ln_self_t *self,
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(their_msat);
     lntx_commit.remote.pubkey = self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
-    lntx_commit.obscured = self->obscured ^ self->funding_local.current_commit_num;
+    lntx_commit.obscured = self->obscured ^ CommitNum;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
-
-    LOGD("local commitment_number=%" PRIu64 "\n", self->funding_local.current_commit_num);
-    ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->priv_data);
+    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, ln_is_funder(self), &self->priv_data);
     if (ret) {
-        ret = create_to_local_sign(self, &tx_commit, &buf_sig);
+        //2-of-2 verify
+        ret = create_to_local_sign_verify(self, &tx_commit, &buf_sig);
     } else {
         LOGD("fail\n");
     }
@@ -4258,25 +4291,22 @@ static bool create_to_local(ln_self_t *self,
         LOGD("local commit_txid: ");
         TXIDD(self->commit_local.txid);
     }
-
     if (ret) {
-        if (tx_commit.vout_cnt > 0) {
-            ret = create_to_local_spent(self, pClose,
-                        p_htlc_sigs, htlc_sigs_num,
-                        &tx_commit, &buf_ws,
-                        (const ln_htlcinfo_t **)pp_htlcinfo,
-                        &feeinfo,
-                        to_self_delay);
-        } else {
-            self->commit_local.htlc_num = 0;
-        }
+        ret = create_to_local_spent(self,
+                    pClose,
+                    pHtlcSigs,
+                    HtlcSigsNum,
+                    &tx_commit,
+                    &buf_ws,
+                    (const ln_script_htlcinfo_t **)pp_htlcinfo,
+                    &feeinfo,
+                    ToSelfDelay);
     }
-
 
     LOGD("free: ret=%d\n", ret);
     utl_buf_free(&buf_ws);
     for (int lp = 0; lp < cnt; lp++) {
-        ln_htlcinfo_free(pp_htlcinfo[lp]);
+        ln_script_htlcinfo_free(pp_htlcinfo[lp]);
         UTL_DBG_FREE(pp_htlcinfo[lp]);
     }
     UTL_DBG_FREE(pp_htlcinfo);
@@ -4292,18 +4322,75 @@ static bool create_to_local(ln_self_t *self,
 }
 
 
-/** commit_tx署名
+static void create_to_local_htlcinfo_amount(ln_self_t *self,
+                    ln_script_htlcinfo_t **ppHtlcInfo,
+                    int *pCnt,
+                    uint64_t *pOurMsat,
+                    uint64_t *pTheirMsat)
+{
+    int cnt = 0;
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
+        if (LN_HTLC_ENABLE(p_htlc)) {
+            bool addhtlc = false;
+            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_LOCAL_FULFILL_OFFER(p_htlc)) {
+                *pOurMsat -= p_htlc->amount_msat;
+
+                if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc)) {
+                    LOGD("addhtlc_offer\n");
+                    addhtlc = true;
+                } else {
+                    LOGD("delhtlc_offer\n");
+                    *pTheirMsat += p_htlc->amount_msat;
+                }
+            }
+            if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_LOCAL_FULFILL_RECV(p_htlc)) {
+                *pTheirMsat -= p_htlc->amount_msat;
+
+                if (LN_HTLC_ENABLE_LOCAL_ADDHTLC_RECV(p_htlc)) {
+                    LOGD("addhtlc_recv\n");
+                    addhtlc = true;
+                } else {
+                    LOGD("delhtlc_recv\n");
+                    *pOurMsat += p_htlc->amount_msat;
+                }
+            }
+            if (addhtlc) {
+                ppHtlcInfo[cnt] = (ln_script_htlcinfo_t *)UTL_DBG_MALLOC(sizeof(ln_script_htlcinfo_t));
+                ln_script_htlcinfo_init(ppHtlcInfo[cnt]);
+                if (p_htlc->stat.flag.addhtlc == LN_HTLCFLAG_RECV) {
+                    ppHtlcInfo[cnt]->type = LN_HTLCTYPE_RECEIVED;
+                } else {
+                    ppHtlcInfo[cnt]->type = LN_HTLCTYPE_OFFERED;
+                }
+                ppHtlcInfo[cnt]->add_htlc_idx = idx;
+                ppHtlcInfo[cnt]->expiry = p_htlc->cltv_expiry;
+                ppHtlcInfo[cnt]->amount_msat = p_htlc->amount_msat;
+                ppHtlcInfo[cnt]->preimage_hash = p_htlc->payment_sha256;
+
+                LOGD(" ADD[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
+                cnt++;
+            } else {
+                LOGD(" DEL[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
+            }
+        }
+    }
+    *pCnt = cnt;
+}
+
+
+/** commit_tx署名verify
  *
  * @param[in,out]   self
  * @param[in,out]   pTxCommit   [in]commit_tx(署名無し) / [out]commit_tx(署名あり)
  * @param[in]       pBufSig     相手の署名
  * @retval  true    成功
  */
-static bool create_to_local_sign(ln_self_t *self,
+static bool create_to_local_sign_verify(ln_self_t *self,
                     btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufSig)
 {
-    LOGD("local sign\n");
+    LOGD("local verify\n");
 
     bool ret;
     utl_buf_t buf_sig_from_remote = UTL_BUF_INIT;
@@ -4319,7 +4406,7 @@ static bool create_to_local_sign(ln_self_t *self,
     LOGD("++++++++++++++ 自分のcommit txに署名: [%016" PRIx64 "]\n", self->short_channel_id);
     M_DBG_PRINT_TX(pTxCommit);
 
-    // 署名verify
+    // verify
     btc_sw_scriptcode_p2wsh(&script_code, &self->redeem_fund);
     ret = btc_sw_sighash(sighash, pTxCommit, 0, self->funding_sat, &script_code);
     if (ret) {
@@ -4362,44 +4449,40 @@ static bool create_to_local_sign(ln_self_t *self,
  *
  * @param[in,out]   self
  * @param[out]      pClose
- * @param[in]       p_htlc_sigs
- * @param[in]       htlc_sigs_num
+ * @param[in]       pHtlcSigs
+ * @param[in]       HtlcSigsNum
  * @param[in]       pTxCommit
  * @param[in]       pBufWs
- * @param[in]       pp_htlcinfo
- * @param[in]       p_feeinfo
- * @param[in]       to_self_delay
+ * @param[in]       ppHtlcInfo
+ * @param[in]       pFeeInfo
+ * @param[in]       ToSelfDelay
  * @retval  true    成功
  */
 static bool create_to_local_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
-                    const uint8_t *p_htlc_sigs,
-                    uint8_t htlc_sigs_num,
+                    const uint8_t *pHtlcSigs,
+                    uint8_t HtlcSigsNum,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
-                    const ln_htlcinfo_t **pp_htlcinfo,
-                    const ln_feeinfo_t *p_feeinfo,
-                    uint32_t to_self_delay)
+                    const ln_script_htlcinfo_t **ppHtlcInfo,
+                    const ln_script_feeinfo_t *pFeeInfo,
+                    uint32_t ToSelfDelay)
 {
     bool ret = true;
-    int htlc_num = 0;
-    btc_tx_t *pTxToLocal = NULL;
-    btc_tx_t *pTxHtlcs = NULL;
+    uint16_t htlc_num = 0;
+    btc_tx_t *pCloseTxToLocal = NULL;
+    btc_tx_t *pCloseTxHtlcs = NULL;
     utl_push_t push;
     btc_util_keys_t htlckey;
 
-    LOGD("local spent: local.current_commit_num=%" PRIu64 "\n", self->funding_local.current_commit_num);
-
     if (pClose != NULL) {
-        pTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
-        pTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
+        pCloseTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
+        pCloseTxHtlcs = &pClose->p_tx[LN_CLOSE_IDX_HTLC];
 
         utl_push_init(&push, &pClose->tx_buf, 0);
 
         //HTLC署名用鍵
-        ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
-            self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
-        assert(memcmp(htlckey.pub, self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY], BTC_SZ_PUBKEY) == 0);
+        ln_signer_htlc_localkey(self, &htlckey);
     } else {
         push.data = NULL;
     }
@@ -4408,87 +4491,74 @@ static bool create_to_local_spent(ln_self_t *self,
         uint8_t htlc_idx = pTxCommit->vout[vout_idx].opt;
         if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
             LOGD("+++[%d]to_local\n", vout_idx);
-            if (pTxToLocal != NULL) {
-                btc_tx_t tx = BTC_TX_INIT;
-
-                //vout.valueはfeeが引かれた値
-                ret = ln_create_tolocal_spent(self, &tx, pTxCommit->vout[vout_idx].value, to_self_delay,
-                        pBufWs, self->commit_local.txid, vout_idx, false);
-                if (ret) {
-                    M_DBG_PRINT_TX(&tx);
-                    memcpy(pTxToLocal, &tx, sizeof(tx));
-                    btc_tx_init(&tx);     //txはfreeさせない
-                } else {
-                    btc_tx_free(&tx);
-                }
-            }
+            ret = create_to_local_spentlocal(self,
+                        pCloseTxToLocal,
+                        pBufWs,
+                        pTxCommit->vout[vout_idx].value,
+                        vout_idx,
+                        ToSelfDelay);
         } else if (htlc_idx == LN_HTLCTYPE_TOREMOTE) {
             LOGD("+++[%d]to_remote\n", vout_idx);
         } else {
-            const ln_htlcinfo_t *p_htlcinfo = pp_htlcinfo[htlc_idx];
-            uint64_t fee_sat = (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? p_feeinfo->htlc_timeout : p_feeinfo->htlc_success;
-            if (pTxCommit->vout[vout_idx].value >= p_feeinfo->dust_limit_satoshi + fee_sat) {
-                LOGD("+++[%d]%s HTLC\n", vout_idx, (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-                btc_tx_t tx = BTC_TX_INIT;
+            const ln_script_htlcinfo_t *p_htlcinfo = ppHtlcInfo[htlc_idx];
+            uint64_t fee_sat = (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? pFeeInfo->htlc_timeout : pFeeInfo->htlc_success;
+            LOGD("+++[%d]%s HTLC\n", vout_idx, (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
+            assert(pTxCommit->vout[vout_idx].value >= pFeeInfo->dust_limit_satoshi + fee_sat);
 
-                ln_create_htlc_tx(&tx, pTxCommit->vout[vout_idx].value - fee_sat, pBufWs,
-                            p_htlcinfo->type, p_htlcinfo->expiry,
-                            self->commit_local.txid, vout_idx);
-                M_DBG_PRINT_TX2(&tx);
+            btc_tx_t tx = BTC_TX_INIT;
+            ln_script_htlctx_create(&tx,
+                        pTxCommit->vout[vout_idx].value - fee_sat,
+                        pBufWs,
+                        p_htlcinfo->type,
+                        p_htlcinfo->expiry,
+                        self->commit_local.txid, vout_idx);
 
-                if ((p_htlc_sigs != NULL) && (htlc_sigs_num != 0)) {
-                    //署名チェック
-                    utl_buf_t buf_sig;
-                    ln_misc_sigexpand(&buf_sig, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE);
-                    ret = ln_verify_htlc_tx(&tx,
-                                pTxCommit->vout[vout_idx].value,
-                                NULL,
-                                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
-                                NULL,
-                                &buf_sig,
-                                &p_htlcinfo->script);
-                    utl_buf_free(&buf_sig);
-                    if (!ret) {
-                        LOGD("fail: verify vout[%d]\n", vout_idx);
-                        btc_tx_free(&tx);
-                        break;
-                    }
-
+            if ((pHtlcSigs != NULL) && (HtlcSigsNum != 0)) {
+                //HTLC署名があるなら、verify
+                //  - commitment_signed受信
+                ret = create_to_local_htlcverify(self,
+                            &tx,
+                            pHtlcSigs + htlc_num * LN_SZ_SIGNATURE,
+                            &p_htlcinfo->script,
+                            pTxCommit->vout[vout_idx].value);
+                if (ret) {
                     //OKなら各HTLCに保持
                     //  相手がunilateral closeした後に送信しなかったら、この署名を使う
-                    memcpy(self->cnl_add_htlc[p_htlcinfo->add_htlc_idx].signature, p_htlc_sigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
+                    memcpy(self->cnl_add_htlc[p_htlcinfo->add_htlc_idx].signature, pHtlcSigs + htlc_num * LN_SZ_SIGNATURE, LN_SZ_SIGNATURE);
+                } else {
+                    break;
                 }
-
-                if (pClose != NULL) {
-                    const uint8_t *p_payhash = self->cnl_add_htlc[p_htlcinfo->add_htlc_idx].payment_sha256;
-                    const uint8_t *p_sig = self->cnl_add_htlc[p_htlcinfo->add_htlc_idx].signature;
-                    ret = create_to_local_close(self,
-                                    pTxHtlcs, &tx, &push,
-                                    pTxCommit, pBufWs,
-                                    p_htlcinfo, &htlckey,
-                                    htlc_num, vout_idx,
-                                    p_payhash, p_sig,
-                                    to_self_delay);
-                    if (ret) {
-                        pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
-                    } else {
-                        LOGD("fail: sign vout[%d]\n", vout_idx);
-                        break;
-                    }
+            } else if (pClose != NULL) {
+                //unilateral closeデータを作成
+                //  - unilateral close要求
+                ret = create_to_local_spenthtlc(self,
+                                &pCloseTxHtlcs[htlc_num],
+                                &tx,
+                                &push,
+                                pTxCommit->vout[vout_idx].value,
+                                pBufWs,
+                                p_htlcinfo,
+                                &htlckey,
+                                ToSelfDelay);
+                if (ret) {
+                    pClose->p_htlc_idx[LN_CLOSE_IDX_HTLC + htlc_num] = htlc_idx;
+                } else {
+                    LOGD("fail: sign vout[%d]\n", vout_idx);
+                    break;
                 }
-                btc_tx_free(&tx);
-
-                htlc_num++;
             } else {
-                LOGD("cut HTLC[%d] %" PRIu64 " > %" PRIu64 "\n",
-                            vout_idx, pTxCommit->vout[vout_idx].value,
-                            p_feeinfo->dust_limit_satoshi + fee_sat);
+                //HTLC署名なし、close要求なし
+                //  - funding_created受信
+                //  - funding_signed受信
             }
+            btc_tx_free(&tx);
+
+            htlc_num++;
         }
     }
 
-    if ((p_htlc_sigs != NULL) && (htlc_num != htlc_sigs_num)) {
-        LOGD("署名数不一致: %d, %d\n", htlc_num, htlc_sigs_num);
+    if ((pHtlcSigs != NULL) && (htlc_num != HtlcSigsNum)) {
+        LOGD("署名数不一致: %d, %d\n", htlc_num, HtlcSigsNum);
         ret = false;
     }
 
@@ -4498,7 +4568,63 @@ static bool create_to_local_spent(ln_self_t *self,
 }
 
 
-/** local close用HTLC作成
+static bool create_to_local_spentlocal(ln_self_t *self,
+                    btc_tx_t *pTxToLocal,
+                    const utl_buf_t *pBufWs,
+                    uint64_t Amount,
+                    uint32_t VoutIdx,
+                    uint32_t ToSelfDelay)
+{
+    bool ret;
+    if (pTxToLocal != NULL) {
+        btc_tx_t tx = BTC_TX_INIT;
+        ret = ln_create_tolocal_wallet(self, &tx,
+                Amount,
+                ToSelfDelay,
+                pBufWs, self->commit_local.txid, VoutIdx, false);
+        if (ret) {
+            M_DBG_PRINT_TX(&tx);
+            memcpy(pTxToLocal, &tx, sizeof(tx));
+            btc_tx_init(&tx);     //txはfreeさせない
+        } else {
+            btc_tx_free(&tx);
+        }
+    } else {
+        ret = true;
+    }
+    return ret;
+}
+
+
+static bool create_to_local_htlcverify(ln_self_t *self,
+                    btc_tx_t *pTx,
+                    const uint8_t *pHtlcSig,
+                    const utl_buf_t *pScript,
+                    uint64_t Amount)
+{
+    utl_buf_t buf_sig;
+    ln_misc_sigexpand(&buf_sig, pHtlcSig);
+M_DBG_PRINT_TX2(pTx);
+    bool ret = ln_script_htlctx_verify(pTx,
+                Amount,
+                NULL,
+                self->funding_local.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
+                NULL,
+                &buf_sig,
+                pScript);
+    utl_buf_free(&buf_sig);
+    if (ret) {
+        M_DBG_PRINT_TX2(pTx);
+    } else {
+        LOGD("fail: verify vout\n");
+        btc_tx_free(pTx);
+    }
+
+    return ret;
+}
+
+
+/** local close後のHTLC_txからの送金情報作成
  *
  *  1. input署名をASN.1形式に展開
  *  2. [received HTLC]DBからpreimage検索
@@ -4509,97 +4635,102 @@ static bool create_to_local_spent(ln_self_t *self,
  *      -# HTLC txの送金を取り戻すtxを作成 + 署名(形はto_localと同じ) --> キューに積む
  *
  * @param[in,out]   self
- * @param[out]      pTxHtlcs        処理結果のHTLC tx配列(末尾に追加)
+ * @param[out]      pCloseTxHtlcs   処理結果のHTLC tx配列(末尾に追加)
  * @param[in,out]   pTxHtlc         [in]処理中のHTLC tx(署名無し) / [out]HTLC tx(署名あり)
- * @param[out]      pPush           HTLC txから取り戻すtx
- * @param[in]       pTxCommit
+ * @param[out]      pPush           HTLC txから取り戻すtxのwallet情報
+ * @param[in]       Amount
  * @param[in]       pBufWs
- * @param[in]       pp_htlcinfo
+ * @param[in]       pHtlcInfo
  * @param[in]       pHtlcKey
- * @param[in]       htlc_num
- * @param[in]       vout_idx
- * @param[in]       pPayHash
- * @param[in]       pSig
- * @param[in]       to_self_delay
+ * @param[in]       ToSelfDelay
  * @retval  true    成功
  */
-static bool create_to_local_close(ln_self_t *self,
-                    btc_tx_t *pTxHtlcs,
+static bool create_to_local_spenthtlc(ln_self_t *self,
+                    btc_tx_t *pCloseTxHtlc,
                     btc_tx_t *pTxHtlc,
                     utl_push_t *pPush,
-                    const btc_tx_t *pTxCommit,
+                    uint64_t Amount,
                     const utl_buf_t *pBufWs,
-                    const ln_htlcinfo_t *p_htlcinfo,
+                    const ln_script_htlcinfo_t *pHtlcInfo,
                     const btc_util_keys_t *pHtlcKey,
-                    uint8_t htlc_num,
-                    int vout_idx,
-                    const uint8_t *pPayHash,
-                    const uint8_t *pSig,
-                    uint32_t to_self_delay)
+                    uint32_t ToSelfDelay)
 {
     bool ret;
-
-    utl_buf_t buf_sig;
-    ln_misc_sigexpand(&buf_sig, pSig);
-
+    utl_buf_t buf_local_sig = UTL_BUF_INIT;
+    utl_buf_t buf_remote_sig;
+    btc_tx_t tx = BTC_TX_INIT;
     uint8_t preimage[LN_SZ_PREIMAGE];
     bool ret_img;
-    if (p_htlcinfo->type == LN_HTLCTYPE_RECEIVED) {
+    uint8_t txid[BTC_SZ_TXID];
+
+    ln_misc_sigexpand(&buf_remote_sig,
+                self->cnl_add_htlc[pHtlcInfo->add_htlc_idx].signature);
+
+    if (pHtlcInfo->type == LN_HTLCTYPE_RECEIVED) {
         //Receivedであればpreimageを所持している可能性がある
-        ret_img = search_preimage(preimage, pPayHash, true);
-        LOGD("[received]%d\n", ret_img);
+        ret_img = search_preimage(preimage,
+                        self->cnl_add_htlc[pHtlcInfo->add_htlc_idx].payment_sha256,
+                        true);
+        LOGD("[received]have preimage=%s\n", (ret_img) ? "yes" : "NO");
     } else {
         ret_img = false;
-        LOGD("[offered]%d\n", ret_img);
+        LOGD("[offered]\n");
+    }
+    if ( ((pHtlcInfo->type == LN_HTLCTYPE_RECEIVED) && ret_img) ||
+            (pHtlcInfo->type == LN_HTLCTYPE_OFFERED) ) {
+        //継続
+    } else {
+        LOGD("skip create HTLC tx\n");
+        btc_tx_init(pCloseTxHtlc);
+        ret = true;
+        goto LABEL_EXIT;
     }
 
     //署名:HTLC Success/Timeout Transaction
-    utl_buf_t buf_local_sig;
-    ret = ln_sign_htlc_tx(pTxHtlc,
-                &buf_local_sig,                 //<localsig>
-                pTxCommit->vout[vout_idx].value,
+    ret = ln_script_htlctx_sign(pTxHtlc,
+                &buf_local_sig,
+                Amount,
                 pHtlcKey,
-                &buf_sig,                       //<remotesig>
+                &pHtlcInfo->script);
+    if (ret) {
+        ret = ln_script_htlctx_wit(pTxHtlc,
+                &buf_local_sig,
+                pHtlcKey,
+                &buf_remote_sig,
                 (ret_img) ? preimage : NULL,
-                &p_htlcinfo->script,
-                LN_HTLCSIGN_TO_SUCCESS);
-    utl_buf_free(&buf_sig);
+                &pHtlcInfo->script,
+                LN_HTLCSIGN_TIMEOUT_SUCCESS);
+    }
+    utl_buf_free(&buf_remote_sig);
     utl_buf_free(&buf_local_sig);
     if (!ret) {
-        LOGD("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
-        return false;
+        LOGD("fail: sign_htlc_tx: vout\n");
+        goto LABEL_EXIT;
     }
+    M_DBG_PRINT_TX2(pTxHtlc);
 
-    if ( ((p_htlcinfo->type == LN_HTLCTYPE_RECEIVED) && ret_img) ||
-            (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ) {
-        LOGD("create HTLC tx[%d]\n", htlc_num);
-        M_DBG_PRINT_TX2(pTxHtlc);
-        memcpy(&pTxHtlcs[htlc_num], pTxHtlc, sizeof(btc_tx_t));
+    //署名したHTLC_txを上位に返して展開してもらう(sequence/locktimeのため展開されないかもしれない)
+    memcpy(pCloseTxHtlc, pTxHtlc, sizeof(btc_tx_t));
 
-        // HTLC Timeout/Success Txを作った場合はそれを取り戻すトランザクションも作る
-        btc_tx_t tx = BTC_TX_INIT;
-        uint8_t txid[BTC_SZ_TXID];
-        btc_tx_txid(txid, pTxHtlc);
-        //pTxHtlc->vout[0].valueはfeeが引かれた値
-        ret = ln_create_tolocal_spent(self, &tx,
-                    pTxHtlc->vout[0].value, to_self_delay,
-                    pBufWs, txid, 0, false);
-        if (ret) {
-            LOGD("*** HTLC out Tx ***\n");
-            M_DBG_PRINT_TX2(&tx);
+    // HTLC Timeout/Success Txを作った場合はそれを取り戻す準備をする
+    btc_tx_txid(txid, pTxHtlc);
+    ret = ln_create_tolocal_wallet(self, &tx,
+                pTxHtlc->vout[0].value,
+                ToSelfDelay,
+                pBufWs, txid, 0, false);
+    if (ret) {
+        LOGD("*** HTLC out Tx ***\n");
+        M_DBG_PRINT_TX2(&tx);
 
-            //HTLC txから取り戻すtxをキューに積む
-            utl_push_data(pPush, &tx, sizeof(btc_tx_t));
-        } else {
-            btc_tx_free(&tx);
-            ret = true;     //no to_local
-        }
-        btc_tx_init(pTxHtlc);     //txはfreeさせない(pTxHtlcsに任せる)
+        //HTLC txから取り戻すtxをキューに積む
+        utl_push_data(pPush, &tx, sizeof(btc_tx_t));
     } else {
-        LOGD("skip create HTLC tx[%d]\n", htlc_num);
-        btc_tx_init(&pTxHtlcs[htlc_num]);
+        btc_tx_free(&tx);
+        ret = true;     //no to_local
     }
+    btc_tx_init(pTxHtlc);     //txはfreeさせない(pTxHtlcsに任せる)
 
+LABEL_EXIT:
     return ret;
 }
 
@@ -4624,108 +4755,49 @@ static bool create_to_local_close(ln_self_t *self,
  *
  * @param[in,out]       self
  * @param[out]          pClose              非NULL:相手がunilateral closeした場合の情報を返す
- * @param[out]          pp_htlc_sigs        commitment_signed送信用署名(NULLの場合は代入しない)
- * @param[in]           to_self_delay       localのto_self_delay
- * @param[in]           dust_limit_sat      remoteのdust_limit_sat
+ * @param[out]          ppHtlcSigs        commitment_signed送信用署名(NULLの場合は代入しない)
+ * @param[in]           ToSelfDelay       localのToSelfDelay
+ * @param[in]           DustLimitSat      remoteのDustLimitSat
  * @retval  true    成功
  */
 static bool create_to_remote(ln_self_t *self,
                     ln_close_force_t *pClose,
-                    uint8_t **pp_htlc_sigs,
-                    uint32_t to_self_delay,
-                    uint64_t dust_limit_sat)
+                    uint8_t **ppHtlcSigs,
+                    uint64_t CommitNum,
+                    uint32_t ToSelfDelay,
+                    uint64_t DustLimitSat)
 {
     LOGD("BEGIN\n");
 
     bool ret;
     utl_buf_t buf_ws = UTL_BUF_INIT;
     utl_buf_t buf_sig = UTL_BUF_INIT;
-    ln_feeinfo_t feeinfo;
-    ln_tx_cmt_t lntx_commit;
+    ln_script_feeinfo_t feeinfo;
+    ln_script_committx_t lntx_commit;
     btc_tx_t tx_commit = BTC_TX_INIT;
     uint64_t our_msat = self->their_msat;
     uint64_t their_msat = self->our_msat;
 
-    //To-Local(Remote)
-    ln_create_script_local(&buf_ws,
+    //To-Local
+    ln_script_create_tolocal(&buf_ws,
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
-                to_self_delay);
+                ToSelfDelay);
 
-    //HTLC(Remote)
-    ln_htlcinfo_t **pp_htlcinfo = (ln_htlcinfo_t **)UTL_DBG_MALLOC(sizeof(ln_htlcinfo_t*) * LN_HTLC_MAX);
+    //HTLC info(amount)
+    ln_script_htlcinfo_t **pp_htlcinfo = (ln_script_htlcinfo_t **)UTL_DBG_MALLOC(sizeof(ln_script_htlcinfo_t*) * LN_HTLC_MAX);
     int cnt = 0;    //commit_txのvout数
-    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-        ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
-        if (LN_HTLC_ENABLE(p_htlc)) {
-            bool addhtlc = false;
-            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(p_htlc)) {
-                their_msat -= p_htlc->amount_msat;
+    create_to_remote_htlcinfo(self, pp_htlcinfo, &cnt, &our_msat, &their_msat);
 
-                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc)) {
-                    LOGD("addhtlc_offer\n");
-                    addhtlc = true;
-                } else {
-                    LOGD("delhtlc_offer\n");
-                    our_msat += p_htlc->amount_msat;
-                }
-            }
-            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc)) {
-                our_msat -= p_htlc->amount_msat;
-
-                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc)) {
-                    LOGD("addhtlc_recv\n");
-                    addhtlc = true;
-                } else {
-                    LOGD("delhtlc_recv\n");
-                    their_msat += p_htlc->amount_msat;
-                }
-            }
-            if (addhtlc) {
-                pp_htlcinfo[cnt] = (ln_htlcinfo_t *)UTL_DBG_MALLOC(sizeof(ln_htlcinfo_t));
-                ln_htlcinfo_init(pp_htlcinfo[cnt]);
-                //OFFEREDとRECEIVEDが逆になる
-                if (p_htlc->stat.flag.addhtlc == LN_HTLCFLAG_RECV) {
-                    pp_htlcinfo[cnt]->type = LN_HTLCTYPE_OFFERED;
-                } else {
-                    pp_htlcinfo[cnt]->type = LN_HTLCTYPE_RECEIVED;
-                }
-                pp_htlcinfo[cnt]->add_htlc_idx = idx;
-                pp_htlcinfo[cnt]->expiry = p_htlc->cltv_expiry;
-                pp_htlcinfo[cnt]->amount_msat = p_htlc->amount_msat;
-                pp_htlcinfo[cnt]->preimage_hash = p_htlc->payment_sha256;
-
-                LOGD(" ADD[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
-                cnt++;
-            } else {
-                LOGD(" DEL[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
-            }
-        }
-    }
-    LOGD("-------\n");
-    LOGD("cnt=%d, htlc_num=%d\n", cnt, self->htlc_num);
-    LOGD("(remote)our_msat   %" PRIu64 " --> %" PRIu64 "\n", self->their_msat, our_msat);
-    LOGD("(remote)their_msat %" PRIu64 " --> %" PRIu64 "\n", self->our_msat, their_msat);
+    //HTLC info(script)
     for (int lp = 0; lp < cnt; lp++) {
-        LOGD("  have HTLC[%d] %" PRIu64 " (%s)\n", lp, pp_htlcinfo[lp]->amount_msat, (pp_htlcinfo[lp]->type != LN_HTLCTYPE_RECEIVED) ? "received" : "offered");
-    }
-    LOGD("-------\n");
-
-    //FEE(Remote)
-    feeinfo.feerate_per_kw = self->feerate_per_kw;
-    feeinfo.dust_limit_satoshi = dust_limit_sat;
-    ln_fee_calc(&feeinfo, (const ln_htlcinfo_t **)pp_htlcinfo, cnt);
-
-    //scriptPubKey作成(Remote)
-    for (int lp = 0; lp < cnt; lp++) {
-        ln_create_htlcinfo(&pp_htlcinfo[lp]->script,
+        ln_script_htlcinfo_script(&pp_htlcinfo[lp]->script,
                         pp_htlcinfo[lp]->type,
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_LOCALHTLCKEY],
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                         pp_htlcinfo[lp]->preimage_hash,
                         pp_htlcinfo[lp]->expiry);
-
 #ifdef LN_UGLY_NORMAL
         //payment_hash, type, expiry保存
         uint8_t vout[LNL_SZ_WITPROG_WSH];
@@ -4737,7 +4809,21 @@ static bool create_to_remote(ln_self_t *self,
 #endif  //LN_UGLY_NORMAL
     }
 
-    //commitment transaction(Remote)
+    LOGD("-------\n");
+    LOGD("(remote)our_msat   %" PRIu64 " --> %" PRIu64 "\n", self->their_msat, our_msat);
+    LOGD("(remote)their_msat %" PRIu64 " --> %" PRIu64 "\n", self->our_msat, their_msat);
+    for (int lp = 0; lp < cnt; lp++) {
+        LOGD("  have HTLC[%d] %" PRIu64 " (%s)\n", lp, pp_htlcinfo[lp]->amount_msat, (pp_htlcinfo[lp]->type != LN_HTLCTYPE_RECEIVED) ? "received" : "offered");
+    }
+    LOGD("-------\n");
+
+    //FEE
+    feeinfo.feerate_per_kw = self->feerate_per_kw;
+    feeinfo.dust_limit_satoshi = DustLimitSat;
+    ln_script_fee_calc(&feeinfo, (const ln_script_htlcinfo_t **)pp_htlcinfo, cnt);
+
+    //commitment transaction
+    LOGD("remote commitment_number=%" PRIu64 "\n", CommitNum);
     lntx_commit.fund.txid = self->funding_local.txid;
     lntx_commit.fund.txid_index = self->funding_local.txindex;
     lntx_commit.fund.satoshi = self->funding_sat;
@@ -4746,13 +4832,11 @@ static bool create_to_remote(ln_self_t *self,
     lntx_commit.local.p_script = &buf_ws;
     lntx_commit.remote.satoshi = LN_MSAT2SATOSHI(their_msat);
     lntx_commit.remote.pubkey = self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEKEY];
-    lntx_commit.obscured = self->obscured ^ self->funding_remote.current_commit_num;
+    lntx_commit.obscured = self->obscured ^ CommitNum;
     lntx_commit.p_feeinfo = &feeinfo;
     lntx_commit.pp_htlcinfo = pp_htlcinfo;
     lntx_commit.htlcinfo_num = cnt;
-
-    LOGD("remote commitment_number=%" PRIu64 "\n", self->funding_remote.current_commit_num);
-    ret = ln_create_commit_tx(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->priv_data);
+    ret = ln_script_committx_create(&tx_commit, &buf_sig, &lntx_commit, !ln_is_funder(self), &self->priv_data);
     if (ret) {
         LOGD("++++++++++++++ 相手のcommit tx: tx_commit[%016" PRIx64 "]\n", self->short_channel_id);
         M_DBG_PRINT_TX(&tx_commit);
@@ -4770,10 +4854,10 @@ static bool create_to_remote(ln_self_t *self,
     if (ret) {
         uint8_t *p_htlc_sigs = NULL;
         if (cnt > 0) {
-            if (pp_htlc_sigs != NULL) {
+            if (ppHtlcSigs != NULL) {
                 //送信用 commitment_signed.htlc_signature
-                *pp_htlc_sigs = (uint8_t *)UTL_DBG_MALLOC(LN_SZ_SIGNATURE * cnt);
-                p_htlc_sigs = *pp_htlc_sigs;
+                *ppHtlcSigs = (uint8_t *)UTL_DBG_MALLOC(LN_SZ_SIGNATURE * cnt);
+                p_htlc_sigs = *ppHtlcSigs;
             }
         } else {
             self->commit_remote.htlc_num = 0;
@@ -4781,14 +4865,14 @@ static bool create_to_remote(ln_self_t *self,
         ret = create_to_remote_spent(self, pClose,
                     p_htlc_sigs,
                     &tx_commit, &buf_ws,
-                    (const ln_htlcinfo_t **)pp_htlcinfo,
+                    (const ln_script_htlcinfo_t **)pp_htlcinfo,
                     &feeinfo);
     }
 
     LOGD("free: ret=%d\n", ret);
     utl_buf_free(&buf_ws);
     for (int lp = 0; lp < cnt; lp++) {
-        ln_htlcinfo_free(pp_htlcinfo[lp]);
+        ln_script_htlcinfo_free(pp_htlcinfo[lp]);
         UTL_DBG_FREE(pp_htlcinfo[lp]);
     }
     UTL_DBG_FREE(pp_htlcinfo);
@@ -4804,11 +4888,70 @@ static bool create_to_remote(ln_self_t *self,
 }
 
 
+static void create_to_remote_htlcinfo(ln_self_t *self,
+                    ln_script_htlcinfo_t **ppHtlcInfo,
+                    int *pCnt,
+                    uint64_t *pOurMsat,
+                    uint64_t *pTheirMsat)
+{
+    int cnt = 0;
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
+        if (LN_HTLC_ENABLE(p_htlc)) {
+            bool addhtlc = false;
+            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_OFFER(p_htlc)) {
+                *pTheirMsat -= p_htlc->amount_msat;
+
+                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc)) {
+                    LOGD("addhtlc_offer\n");
+                    addhtlc = true;
+                } else {
+                    LOGD("delhtlc_offer\n");
+                    *pOurMsat += p_htlc->amount_msat;
+                }
+            }
+            if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc) || LN_HTLC_ENABLE_REMOTE_FULFILL_RECV(p_htlc)) {
+                *pOurMsat -= p_htlc->amount_msat;
+
+                if (LN_HTLC_ENABLE_REMOTE_ADDHTLC_RECV(p_htlc)) {
+                    LOGD("addhtlc_recv\n");
+                    addhtlc = true;
+                } else {
+                    LOGD("delhtlc_recv\n");
+                    *pTheirMsat += p_htlc->amount_msat;
+                }
+            }
+            if (addhtlc) {
+                ppHtlcInfo[cnt] = (ln_script_htlcinfo_t *)UTL_DBG_MALLOC(sizeof(ln_script_htlcinfo_t));
+                ln_script_htlcinfo_init(ppHtlcInfo[cnt]);
+                //OFFEREDとRECEIVEDが逆になる
+                if (p_htlc->stat.flag.addhtlc == LN_HTLCFLAG_RECV) {
+                    ppHtlcInfo[cnt]->type = LN_HTLCTYPE_OFFERED;
+                } else {
+                    ppHtlcInfo[cnt]->type = LN_HTLCTYPE_RECEIVED;
+                }
+                ppHtlcInfo[cnt]->add_htlc_idx = idx;
+                ppHtlcInfo[cnt]->expiry = p_htlc->cltv_expiry;
+                ppHtlcInfo[cnt]->amount_msat = p_htlc->amount_msat;
+                ppHtlcInfo[cnt]->preimage_hash = p_htlc->payment_sha256;
+
+                LOGD(" ADD[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
+                cnt++;
+            } else {
+                LOGD(" DEL[%d][id=%" PRIu64 "](%" PRIu64 ")\n", idx, p_htlc->id, p_htlc->amount_msat);
+            }
+        }
+    }
+
+    *pCnt = cnt;
+}
+
+
 /** remote commit_txの送金先処理
  *
  *  1. [close]HTLC署名用local_htlcsecret取得
  *  2. voutごとの処理
- *      2.1. vout indexから対応するpp_htlcinfo[]を得る --> htlc_idx
+ *      2.1. vout indexから対応するppHtlcInfo[]を得る --> htlc_idx
  *      2.2. htlc_idxで分岐
  *          2.2.1. [to_local]
  *              -# 処理なし
@@ -4821,25 +4964,23 @@ static bool create_to_remote(ln_self_t *self,
  *
  * @param[in,out]   self
  * @param[out]      pClose
- * @param[out]      p_htlc_sigs
+ * @param[out]      pHtlcSigs
  * @param[in]       pTxCommit
  * @param[in]       pBufWs
- * @param[in]       pp_htlcinfo
- * @param[in]       p_feeinfo
+ * @param[in]       ppHtlcInfo
+ * @param[in]       pFeeInfo
  * @retval  true    成功
  */
 static bool create_to_remote_spent(ln_self_t *self,
                     ln_close_force_t *pClose,
-                    uint8_t *p_htlc_sigs,
+                    uint8_t *pHtlcSigs,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
-                    const ln_htlcinfo_t **pp_htlcinfo,
-                    const ln_feeinfo_t *p_feeinfo)
+                    const ln_script_htlcinfo_t **ppHtlcInfo,
+                    const ln_script_feeinfo_t *pFeeInfo)
 {
     bool ret = true;
     uint8_t htlc_num = 0;
-
-    LOGD("remote spent: remote.current_commit_num=%" PRIu64 "\n", self->funding_remote.current_commit_num);
 
     btc_tx_t *pTxHtlcs = NULL;
     if (pClose != NULL) {
@@ -4851,12 +4992,11 @@ static bool create_to_remote_spent(ln_self_t *self,
 
     //HTLC署名用鍵
     btc_util_keys_t htlckey;
-    ln_signer_get_secret(self, &htlckey, MSG_FUNDIDX_HTLC,
-                self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
+    ln_signer_htlc_remotekey(self, &htlckey);
 
     for (uint32_t vout_idx = 0; vout_idx < pTxCommit->vout_cnt; vout_idx++) {
         //各HTLCのHTLC Timeout/Success Transactionを作って署名するために、
-        //BIP69ソート後のtx_commit.voutからpp_htlcinfo[]のindexを取得する
+        //BIP69ソート後のtx_commit.voutからppHtlcInfo[]のindexを取得する
         uint8_t htlc_idx = pTxCommit->vout[vout_idx].opt;
 
         if (htlc_idx == LN_HTLCTYPE_TOLOCAL) {
@@ -4866,10 +5006,11 @@ static bool create_to_remote_spent(ln_self_t *self,
             if (pClose != NULL) {
                 btc_tx_t tx = BTC_TX_INIT;
 
-                ret = ln_create_toremote_spent(self, &tx, pTxCommit->vout[vout_idx].value,
+                //wallet保存用のデータ作成
+                ret = ln_create_toremote_wallet(
+                            self, &tx, pTxCommit->vout[vout_idx].value,
                             self->commit_remote.txid, vout_idx);
                 if (ret) {
-                    M_DBG_PRINT_TX2(&tx);
                     memcpy(&pClose->p_tx[LN_CLOSE_IDX_TOREMOTE], &tx, sizeof(tx));
                     btc_tx_init(&tx);     //txはfreeさせない
                 } else {
@@ -4879,16 +5020,22 @@ static bool create_to_remote_spent(ln_self_t *self,
                 }
             }
         } else {
-            const ln_htlcinfo_t *p_htlcinfo = pp_htlcinfo[htlc_idx];
+            const ln_script_htlcinfo_t *p_htlcinfo = ppHtlcInfo[htlc_idx];
             const uint8_t *p_payhash = self->cnl_add_htlc[p_htlcinfo->add_htlc_idx].payment_sha256;
-            uint64_t fee_sat = (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? p_feeinfo->htlc_timeout : p_feeinfo->htlc_success;
-            if (pTxCommit->vout[vout_idx].value >= p_feeinfo->dust_limit_satoshi + fee_sat) {
-                ret = create_to_remote_htlcsign(self,
-                                pTxHtlcs, p_htlc_sigs,
-                                pTxCommit, pBufWs,
-                                p_htlcinfo, &htlckey,
-                                &buf_remotesig, fee_sat,
-                                htlc_num, vout_idx, p_payhash,
+            uint64_t fee_sat = (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? pFeeInfo->htlc_timeout : pFeeInfo->htlc_success;
+            if (pTxCommit->vout[vout_idx].value >= pFeeInfo->dust_limit_satoshi + fee_sat) {
+                ret = create_to_remote_spenthtlc(self,
+                                pTxHtlcs,
+                                pHtlcSigs,
+                                pTxCommit,
+                                pBufWs,
+                                p_htlcinfo,
+                                &htlckey,
+                                &buf_remotesig,
+                                fee_sat,
+                                htlc_num,
+                                vout_idx,
+                                p_payhash,
                                 (pClose != NULL));
                 if (ret) {
                     if (pClose != NULL) {
@@ -4903,7 +5050,7 @@ static bool create_to_remote_spent(ln_self_t *self,
             } else {
                 LOGD("cut HTLC[%d] %" PRIu64 " > %" PRIu64 "\n",
                             vout_idx, pTxCommit->vout[vout_idx].value,
-                            p_feeinfo->dust_limit_satoshi + fee_sat);
+                            pFeeInfo->dust_limit_satoshi + fee_sat);
             }
         }
     }
@@ -4915,7 +5062,7 @@ static bool create_to_remote_spent(ln_self_t *self,
 }
 
 
-/** remote HTLC署名作成
+/** remote HTLCからの送金先情報作成
  *
  *  1. HTLC tx作成
  *  2. HTLC Success txを作成する予定にする
@@ -4932,102 +5079,138 @@ static bool create_to_remote_spent(ln_self_t *self,
  *          -# 署名したHTLC txを処理結果にコピー
  *
  * @param[in,out]   self
- * @param[out]      pTxHtlcs        処理結果のHTLC tx配列(末尾に追加)
- * @param[out]      p_htlc_sigs     HTLC署名
+ * @param[out]      pTxHtlcs        Close処理結果のHTLC tx配列(末尾に追加)
+ * @param[out]      pHtlcSigs     HTLC署名
  * @param[in]       pTxCommit
  * @param[in]       pBufWs
- * @param[in]       p_htlcinfo
+ * @param[in]       pHtlcInfo
  * @param[in]       pHtlcKey
  * @param[in]       pBufRemoteSig
- * @param[in]       fee
- * @param[in]       htlc_num
- * @param[in]       vout_idx
+ * @param[in]       Fee
+ * @param[in]       HtlcNum
+ * @param[in]       VoutIdx
  * @param[in]       pPayHash
  * @param[in]       bClosing        true:close処理
  * @retval  true    成功
  */
-static bool create_to_remote_htlcsign(ln_self_t *self,
+static bool create_to_remote_spenthtlc(ln_self_t *self,
                     btc_tx_t *pTxHtlcs,
-                    uint8_t *p_htlc_sigs,
+                    uint8_t *pHtlcSigs,
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
-                    const ln_htlcinfo_t *p_htlcinfo,
+                    const ln_script_htlcinfo_t *pHtlcInfo,
                     const btc_util_keys_t *pHtlcKey,
                     const utl_buf_t *pBufRemoteSig,
-                    uint64_t fee,
-                    uint8_t htlc_num,
-                    int vout_idx,
+                    uint64_t Fee,
+                    uint8_t HtlcNum,
+                    uint32_t VoutIdx,
                     const uint8_t *pPayHash,
                     bool bClosing)
 {
-    bool ret;
+    bool ret = false;
     btc_tx_t tx = BTC_TX_INIT;
 
-    LOGD("---[%d]%s HTLC\n", vout_idx, (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) ? "offered" : "received");
-    ln_create_htlc_tx(&tx, pTxCommit->vout[vout_idx].value - fee, pBufWs,
-                p_htlcinfo->type, p_htlcinfo->expiry,
-                self->commit_remote.txid, vout_idx);
-    M_DBG_PRINT_TX2(&tx);
+    LOGD("---HTLC[%d]\n", VoutIdx);
+    ln_script_htlctx_create(&tx, pTxCommit->vout[VoutIdx].value - Fee, pBufWs,
+                pHtlcInfo->type, pHtlcInfo->expiry,
+                self->commit_remote.txid, VoutIdx);
 
     uint8_t preimage[LN_SZ_PREIMAGE];
     bool ret_img;
-    ln_htlcsign_t htlcsign = LN_HTLCSIGN_TO_SUCCESS;
-    if (p_htlcinfo->type == LN_HTLCTYPE_OFFERED) {
-        //remoteのoffered=localのreceivedなのでpreimageを所持している可能性がある
+    bool b_save = false;        //true: pTxHtlcs[HtlcNum]に残したい
+    ln_script_htlcsign_t htlcsign = LN_HTLCSIGN_TIMEOUT_SUCCESS;
+    if (pHtlcInfo->type == LN_HTLCTYPE_OFFERED) {
+        //remoteのoffered=自分のreceivedなのでpreimageを所持している可能性がある
         ret_img = search_preimage(preimage, pPayHash, bClosing);
-        LOGD("[offered]%d\n", ret_img);
         if (ret_img && (pTxHtlcs != NULL)) {
+            LOGD("[offered]have preimage\n");
             //offeredかつpreimageがあるので、即時使用可能
-            utl_buf_free(&tx.vout[0].script);      //HTLC Success Txを止める
-            //close時の出力先に変更
-            utl_buf_alloccopy(&tx.vout[0].script,
-                    self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
+
+            utl_buf_free(&tx.vout[0].script);
+            //wit[0]に署名用秘密鍵を設定しておく(wallet用)
+            utl_buf_t buf_key = { (CONST_CAST uint8_t *)pHtlcKey->priv, BTC_SZ_PRIVKEY };
             tx.locktime = 0;
-            htlcsign = LN_HTLCSIGN_OF_PREIMG;
+            ret = ln_script_htlctx_wit(&tx,
+                &buf_key,
+                pHtlcKey,
+                NULL,
+                (ret_img) ? preimage : NULL,
+                &pHtlcInfo->script,
+                LN_HTLCSIGN_REMOTE_OFFER);
+            htlcsign = LN_HTLCSIGN_NONE;
+        } else if (!ret_img) {
+            //preimageがないためHTLCを解くことができない
+            //  --> 署名はしてpTxHtlcs[HtlcNum]に残す
+            LOGD("[offered]no preimage\n");
+            //htlcsign = LN_HTLCSIGN_NONE;
+            b_save = true;
+            ret = true;
+        } else {
+            //署名のみ作成(commitment_signed用)
+            LOGD("[offered]only sign\n");
+            ret = true;
         }
     } else {
+        //remoteのreceived=自分がofferedしているでtimeoutしたら取り戻す
+        LOGD("[received]\n");
+
         ret_img = false;
-        LOGD("[received]%d\n", ret_img);
         if (pTxHtlcs != NULL) {
             //タイムアウト待ち
-            utl_buf_free(&tx.vout[0].script);      //HTLC Success Txを止める
-            //close時の出力先に変更
-            utl_buf_alloccopy(&tx.vout[0].script,
-                    self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len);
-            tx.locktime = p_htlcinfo->expiry;
-            htlcsign = LN_HTLCSIGN_RV_TIMEOUT;
+            //  -->署名はしないがpTxHtlcs[HtlcNum]に残したい
+
+            utl_buf_free(&tx.vout[0].script);
+            //wit[0]に署名用秘密鍵を設定しておく(wallet用)
+            utl_buf_t buf_key = { (CONST_CAST uint8_t *)pHtlcKey->priv, BTC_SZ_PRIVKEY };
+            tx.locktime = pHtlcInfo->expiry;
+            ret = ln_script_htlctx_wit(&tx,
+                &buf_key,
+                pHtlcKey,
+                NULL,
+                NULL,
+                &pHtlcInfo->script,
+                LN_HTLCSIGN_REMOTE_RECV);
+            htlcsign = LN_HTLCSIGN_NONE;
         }
     }
 
     //署名
-    utl_buf_t buf_sig;
-    ret = ln_sign_htlc_tx(&tx,
-                &buf_sig,                       //<localsig>
-                pTxCommit->vout[vout_idx].value,
-                pHtlcKey,
-                pBufRemoteSig,                  //<remotesig>
-                (ret_img) ? preimage : NULL,
-                &p_htlcinfo->script,
-                htlcsign);
-    if (ret && (p_htlc_sigs != NULL)) {
-        ln_misc_sigtrim(p_htlc_sigs + LN_SZ_SIGNATURE * htlc_num, buf_sig.buf);
-    }
-    utl_buf_free(&buf_sig);
-    if (!ret) {
-        LOGD("fail: ln_sign_htlc_tx: vout[%d]\n", vout_idx);
-        goto LABEL_EXIT;
+    if (htlcsign != LN_HTLCSIGN_NONE) {
+        utl_buf_t buf_localsig;
+        ret = ln_script_htlctx_sign(&tx,
+                    &buf_localsig,
+                    pTxCommit->vout[VoutIdx].value,
+                    pHtlcKey,
+                    &pHtlcInfo->script);
+        if (ret && (pHtlcSigs != NULL)) {
+            ln_misc_sigtrim(pHtlcSigs + LN_SZ_SIGNATURE * HtlcNum, buf_localsig.buf);
+        }
+        if (ret) {
+            ret = ln_script_htlctx_wit(&tx,
+                    &buf_localsig,
+                    pHtlcKey,
+                    pBufRemoteSig,
+                    (ret_img) ? preimage : NULL,
+                    &pHtlcInfo->script,
+                    htlcsign);
+        }
+        utl_buf_free(&buf_localsig);
+        if (!ret) {
+            LOGD("fail: sign_htlc_tx: vout[%d]\n", VoutIdx);
+            goto LABEL_EXIT;
+        }
     }
 
     if (pTxHtlcs != NULL) {
-        if ( ((p_htlcinfo->type == LN_HTLCTYPE_OFFERED) && ret_img) ||
-                (p_htlcinfo->type == LN_HTLCTYPE_RECEIVED) ) {
-            LOGD("create HTLC tx[%d]\n", htlc_num);
-            M_DBG_PRINT_TX2(&tx);
-            memcpy(&pTxHtlcs[htlc_num], &tx, sizeof(tx));
+        if ( ((pHtlcInfo->type == LN_HTLCTYPE_OFFERED) && ret_img) ||
+                (pHtlcInfo->type == LN_HTLCTYPE_RECEIVED) ||
+                b_save ) {
+            LOGD("create HTLC tx[%d]\n", HtlcNum);
+            memcpy(&pTxHtlcs[HtlcNum], &tx, sizeof(tx));
             btc_tx_init(&tx);     //txはfreeさせない(pTxHtlcsに任せる)
         } else {
-            LOGD("skip create HTLC tx[%d]\n", htlc_num);
-            btc_tx_init(&pTxHtlcs[htlc_num]);
+            LOGD("skip create HTLC tx[%d]\n", HtlcNum);
+            btc_tx_init(&pTxHtlcs[HtlcNum]);
         }
     }
 
@@ -5042,7 +5225,7 @@ LABEL_EXIT:
  *
  *
  */
-static bool create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig)
+static bool create_commitment_signed(ln_self_t *self, utl_buf_t *pCommSig)
 {
     LOGD("BEGIN\n");
 
@@ -5056,11 +5239,15 @@ static bool create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig)
     //相手に送る署名を作成
     uint8_t *p_htlc_sigs = NULL;    //必要があればcreate_to_remote()でMALLOC()する
     ret = create_to_remote(self, NULL, &p_htlc_sigs,
+                self->commit_remote.commit_num + 1,
                 self->commit_local.to_self_delay, self->commit_remote.dust_limit_sat);
     if (!ret) {
         M_SET_ERR(self, LNERR_MSG_ERROR, "create remote commit_tx");
         return false;
     }
+
+    //commitment_signedを受信していないと想定してはいけないようなので、ここでインクリメントする。
+    self->commit_remote.commit_num++;
 
     ln_commit_signed_t commsig;
 
@@ -5085,8 +5272,6 @@ static bool create_commit_signed(ln_self_t *self, utl_buf_t *pCommSig)
             }
         }
 
-        //相手のcommitment_numberをインクリメント(channel_reestablish用)
-        self->commit_remote.commit_num++;
         M_DBG_COMMITNUM(self);
         M_DB_SELF_SAVE(self);
     }
@@ -5926,7 +6111,8 @@ static void clear_htlc_comrevflag(ln_update_add_htlc_t *p_htlc, uint8_t DelHtlc)
         p_flag->comrecv = 0;
         p_flag->revsend = 0;
     } else {
-        LOGD("fail: maybe bug\n");
+        LOGD("not clear: comsend=%d, revrecv=%d, comrecv=%d, revsend=%d\n",
+                p_flag->comsend, p_flag->revrecv, p_flag->comrecv, p_flag->revsend);
     }
 }
 
@@ -5937,6 +6123,7 @@ static void clear_htlc(ln_self_t *self, ln_update_add_htlc_t *p_htlc)
     LOGD("HTLC remove prev: htlc_num=%d\n", self->htlc_num);
     assert(self->htlc_num > 0);
 
+    ln_db_preimg_del(p_htlc->buf_payment_preimage.buf);
     utl_buf_free(&p_htlc->buf_payment_preimage);
     utl_buf_free(&p_htlc->buf_onion_reason);
     utl_buf_free(&p_htlc->buf_shared_secret);
@@ -5959,7 +6146,8 @@ static bool search_preimage(uint8_t *pPreImage, const uint8_t *pPayHash, bool bC
         LOGD("DBG: HTLC preimage mismatch\n");
         return false;
     }
-    //LOGD("bClosing=%d\n", bClosing);
+    // LOGD("pPayHash(%d)=", bClosing);
+    // DUMPD(pPayHash, BTC_SZ_HASH256);
 
     preimg_t prm;
     prm.image = pPreImage;
@@ -6130,114 +6318,6 @@ static void set_error(ln_self_t *self, int Err, const char *pFormat, ...)
 }
 
 
-/** commitment_number状態
- *
- *  @retval 0   state-A: local.commit_num <  remote.commit_num
- *  @retval 1   state-B: local.commit_num >  remote.commit_num
- *  @retval 2   state-C: local.commit_num == remote.commit_num
- */
-static int commitment_state(const ln_self_t *self)
-{
-    int commit_stat;
-    if (self->commit_local.commit_num == self->commit_remote.commit_num) {
-        commit_stat = 2;    //C
-    } else if (self->commit_local.commit_num + (uint64_t)1 == self->commit_remote.commit_num) {
-        commit_stat = 0;    //A
-    } else if (self->commit_local.commit_num == self->commit_remote.commit_num + (uint64_t)1) {
-        commit_stat = 1;    //B
-    } else {
-        LOGD("err: invalid commit_num(local=%" PRIu64 ", remote=%" PRIu64 ")\n", self->commit_local.commit_num, self->commit_remote.commit_num);
-        commit_stat = -1;
-    }
-    return commit_stat;
-}
-
-
-/** revocation_number状態
- *
- *  @retval 0   state-a: local.revoke_num <  remote.revoke_num
- *  @retval 1   state-b: local.revoke_num >  remote.revoke_num
- *  @retval 2   state-c: local.revoke_num == remote.revoke_num
- */
-static int revocation_state(const ln_self_t *self)
-{
-    int revoke_stat;
-    if (self->commit_local.revoke_num == self->commit_remote.revoke_num) {
-        revoke_stat = 2;    //c
-    } else if (self->commit_local.revoke_num + (uint64_t)1 == self->commit_remote.revoke_num) {
-        revoke_stat = 0;    //a
-    } else if (self->commit_local.revoke_num == self->commit_remote.revoke_num + (uint64_t)1) {
-        revoke_stat = 1;    //b
-    } else {
-        LOGD("err: invalid revoke_num(local=%" PRIu64 ", remote=%" PRIu64 ")\n", self->commit_local.revoke_num, self->commit_remote.revoke_num);
-        revoke_stat = -1;
-    }
-    return revoke_stat;
-}
-
-
-/** commitment/revocation状態
- *
- * #commitment_state(), #revocation_state()とセットになっている。
- *
- *      * 安定
- *      * 状態1: A→B: commitment_signed後
- *          * A送信-B未受信:
- *          * A送信-B受信:
- *      * 状態2: A←B: revoke_and_ack後
- *          * B送信-A未受信:
- *          * B送信-A受信:
- *      * 状態3: A←B: commitment_signed後
- *          * B送信-A未受信:
- *          * B送信-A受信:
- *      * 安定 : A→B: revoke_and_ack後
- *          * A送信-B未受信:
- *          * A送信-B受信:
- */
-static uint8_t comrev_state(const ln_self_t *self)
-{
-    int stat;
-    int commit_stat = commitment_state(self);
-    int revoke_stat = revocation_state(self);
-    //update message sender  :
-    //      0: C-c (stable)
-    //      1: A-c
-    //      2: A-a
-    //      3: C-a
-    //      4: C-c (stable)
-    //update message receiver:
-    //      0: C-c (stable)
-    //      1: B-c
-    //      2: B-b
-    //      3: C-b
-    //      4: C-c (stable)
-    if ((commit_stat == 2) && (revoke_stat == 2)) {
-        stat = M_STAT_STABLE;
-    } else if ((commit_stat == 0) && (revoke_stat == 2)) {
-        //      sender-1: A-c
-        stat = M_STAT_SEND1;
-    } else if ((commit_stat == 0) && (revoke_stat == 0)) {
-        //      sender-2: A-a
-        stat = M_STAT_SEND2;
-    } else if ((commit_stat == 2) && (revoke_stat == 0)) {
-        //      sender-3: C-a
-        stat = M_STAT_SEND3;
-    } else if ((commit_stat == 1) && (revoke_stat == 2)) {
-        //      receiver-1: B-c
-        stat = M_STAT_RECV1;
-    } else if ((commit_stat == 1) && (revoke_stat == 1)) {
-        //      receiver-2: B-b
-        stat = M_STAT_RECV2;
-    } else if ((commit_stat == 2) && (revoke_stat == 1)) {
-        //      receiver-3: C-b
-        stat = M_STAT_RECV3;
-    } else {
-        stat = 0xff;
-    }
-    return stat;
-}
-
-
 #ifdef M_DBG_COMMITHTLC
 /** commitment_number debug output
  *
@@ -6248,9 +6328,6 @@ static void dbg_commitnum(const ln_self_t *self)
     LOGD("storage_index      = %016" PRIx64 "\n", self->priv_data.storage_index);
     LOGD("peer_storage_index = %016" PRIx64 "\n", self->peer_storage_index);
     LOGD("------------------------------------------\n");
-    LOGD("local.current_commit_num  = %" PRIu64 "\n", self->funding_local.current_commit_num);
-    LOGD("remote.current_commit_num = %" PRIu64 "\n", self->funding_remote.current_commit_num);
-    LOGD("------------------------------------------\n");
     LOGD("local.commit_num  = %" PRIu64 "\n", self->commit_local.commit_num);
     LOGD("remote.commit_num = %" PRIu64 "\n", self->commit_remote.commit_num);
     LOGD("local.revoke_num  = %" PRId64 "\n", (int64_t)self->commit_local.revoke_num);
@@ -6258,6 +6335,38 @@ static void dbg_commitnum(const ln_self_t *self)
     LOGD("------------------------------------------\n");
     LOGD("htlc_num: %" PRIu64 "\n", self->htlc_num);
     LOGD("htlc_id_num: %" PRIu64 "\n", self->htlc_id_num);
+    LOGD("------------------------------------------\n");
+}
+
+
+static void dbg_htlcflag(const ln_htlcflag_t *p_flag)
+{
+    LOGD("        addhtlc=%d, delhtlc=%d\n",
+            p_flag->addhtlc, p_flag->delhtlc);
+    LOGD("        updsend=%d\n",
+            p_flag->updsend);
+    LOGD("        comsend=%d, revrecv=%d\n",
+            p_flag->comsend, p_flag->revrecv);
+    LOGD("        comrecv=%d revsend=%d\n",
+            p_flag->comrecv, p_flag->revsend);
+    LOGD("        fin_del=%d\n",
+            p_flag->fin_delhtlc);
+}
+
+static void dbg_htlcflagall(const ln_self_t *self)
+{
+    LOGD("------------------------------------------\n");
+    for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
+        const ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
+        if (LN_HTLC_ENABLE(p_htlc)) {
+            const ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
+            LOGD("[%d]prev_short_channel_id=%016" PRIx64 "(%d), next_short_channel_id=%016" PRIx64 "(%d)\n",
+                    idx,
+                    p_htlc->prev_short_channel_id, p_htlc->prev_idx,
+                    p_htlc->next_short_channel_id, p_htlc->next_idx);
+            dbg_htlcflag(p_flag);
+        }
+    }
     LOGD("------------------------------------------\n");
 }
 #endif

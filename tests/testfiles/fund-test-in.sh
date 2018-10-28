@@ -3,17 +3,11 @@ FUNDIN_BTC=0.1
 FUND_SAT=600000
 PUSH_SAT=300000
 CONFFILE=`pwd`/regtest.conf
-DATADIR=`pwd`/regtest
+DATADIR=`pwd`
 
 cli() {
 	bitcoin-cli -conf=$CONFFILE -datadir=$DATADIR $@
 }
-
-# BITCOIND_OPT=
-# BITCOIND_VER=`cli getnetworkinfo | jq .version | sed -e 's/\([0-9][0-9]\).*/\1/'`
-# if [ "$BITCOIND_VER" = "16" ]; then
-# 	BITCOIND_OPT="-addresstype=legacy -deprecatedrpc=addwitnessaddress"
-# fi
 
 ADDR=`cli getnewaddress`
 TXID=`cli sendtoaddress $ADDR $FUNDIN_BTC`

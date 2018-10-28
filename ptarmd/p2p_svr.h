@@ -60,6 +60,12 @@ lnapp_conf_t *p2p_svr_search_node(const uint8_t *pNodeId);
 lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id);
 
 
+/** [p2p_svr]動作中lnapp数取得
+ *
+ */
+int p2p_svr_connected_peer(void);
+
+
 /** [p2p_svr]動作中lnapp全出力
  *
  */

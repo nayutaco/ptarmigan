@@ -173,7 +173,7 @@ static void *sig_handler_start(void *pArg)
 {
     (void)pArg;
 
-    LOGD("signal handler\n");
+    LOGD("[THREAD]signal handler\n");
     pthread_detach(pthread_self());
 
     sigset_t ss;

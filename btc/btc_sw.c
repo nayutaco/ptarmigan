@@ -146,7 +146,7 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t V
     utl_buf_alloc(&preimg, 156 + pScriptCode->len);
     uint8_t *p = preimg.buf;
 
-    btc_vin_t *vin_now = &pTx->vin[Index];
+    const btc_vin_t *vin_now = &pTx->vin[Index];
 
     //version
     memcpy(p, &pTx->version, sizeof(pTx->version));
