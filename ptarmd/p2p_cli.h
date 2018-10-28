@@ -70,6 +70,12 @@ lnapp_conf_t *p2p_cli_search_node(const uint8_t *pNodeId);
 lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id);
 
 
+/** [p2p_cli]動作中lnapp数取得
+ *
+ */
+int p2p_cli_connected_peer(void);
+
+
 /** [p2p_cli]動作中lnapp全出力
  *
  */

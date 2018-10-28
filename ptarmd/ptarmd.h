@@ -100,6 +100,8 @@ extern "C" {
 #define RPCERR_PAY_RETRY            (-26003)
 #define RPCERR_TOOMANYHOP           (-26004)
 
+#define RPCERR_WALLET_ERR           (-27000)
+
 
 #define PREIMAGE_NUM        (10)        ///< 保持できるpreimage数(server/clientそれぞれ)
 
@@ -273,10 +275,22 @@ void ptarmd_preimage_lock(void);
 void ptarmd_preimage_unlock(void);
 
 
-/** 接続済みlnapp検索
+/** 接続済みlnapp_conf_t取得(short_channel_id)
  *
+ * @param[in]   short_channel_id    検索するshort_channel_id
+ * @retval  非NULL      検索成功
+ * @retval  NULL        検索失敗
  */
 lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id);
+
+
+/** 接続済みlnapp_conf_t取得(node_id)
+ *
+ * @param[in]   p_node_id       検索するnode_id
+ * @retval  非NULL      検索成功
+ * @retval  NULL        検索失敗
+ */
+lnapp_conf_t *ptarmd_search_connected_nodeid(const uint8_t *p_node_id);
 
 
 /** ノード接続失敗リスト追加

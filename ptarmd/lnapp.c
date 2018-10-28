@@ -110,6 +110,7 @@
 typedef enum {
     EVT_ERROR,
     EVT_CONNECTED,
+    EVT_DISCONNECTED,
     EVT_ESTABLISHED,
     EVT_PAYMENT,
     EVT_FORWARD,
@@ -143,6 +144,8 @@ static const char *kSCRIPT[] = {
     M_SCRIPT_DIR "error.sh",
     //EVT_CONNECTED
     M_SCRIPT_DIR "connected.sh",
+    //EVT_DISCONNECTED
+    M_SCRIPT_DIR "disconnected.sh",
     //EVT_ESTABLISHED
     M_SCRIPT_DIR "established.sh",
     //EVT_PAYMENT,
@@ -712,6 +715,17 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
         cJSON *result = cJSON_CreateObject();
         utl_buf_t buf = UTL_BUF_INIT;
 
+#if 1
+        if (close_dat.p_tx[LN_CLOSE_IDX_COMMIT].vout_cnt > 0) {
+            btc_tx_create(&buf, &close_dat.p_tx[LN_CLOSE_IDX_COMMIT]);
+            char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);        //UTL_DBG_FREE: この中
+            utl_misc_bin2str(transaction, buf.buf, buf.len);
+            utl_buf_free(&buf);
+
+            cJSON_AddItemToObject(result, "committx", cJSON_CreateString(transaction));
+            UTL_DBG_FREE(transaction);
+        }
+#else
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
                 btc_tx_create(&buf, &close_dat.p_tx[lp]);
@@ -745,42 +759,12 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
             cJSON_AddItemToObject(result, "htlc_out", cJSON_CreateString(transaction));
             UTL_DBG_FREE(transaction);
         }
+#endif
         const char *p_title = (bLocal) ? "local" : "remote";
         cJSON_AddItemToObject(pResult, p_title, result);
 
         ln_free_close_force_tx(&close_dat);
     }
-
-#if 0   //相手側のcommit_txは署名を持たないため正しく出力できない
-    ret = ln_create_closed_tx(pAppConf->p_self, &close_dat);
-    if (ret) {
-        cJSON *result_remote = cJSON_CreateObject();
-        utl_buf_t buf = UTL_BUF_INIT;
-
-        for (int lp = 0; lp < close_dat.num; lp++) {
-            if (close_dat.p_tx[lp].vout_cnt > 0) {
-                btc_tx_create(&buf, &close_dat.p_tx[lp]);
-                char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);        //UTL_DBG_FREE: この中
-                utl_misc_bin2str(transaction, buf.buf, buf.len);
-                utl_buf_free(&buf);
-
-                char title[10];
-                if (lp == 0) {
-                    strcpy(title, "committx");
-                } else if (lp == 1) {
-                    strcpy(title, "to_local");
-                } else {
-                    sprintf(title, "htlc%d", lp - 1);
-                }
-                cJSON_AddItemToObject(result_remote, title, cJSON_CreateString(transaction));
-                UTL_DBG_FREE(transaction);
-            }
-        }
-        cJSON_AddItemToObject(pResult, "remote", result_remote);
-
-        ln_free_close_force_tx(&close_dat);
-    }
-#endif
 
     return ret;
 }
@@ -846,6 +830,10 @@ static void *thread_main_start(void *pArg)
     bool ret;
     int retval;
     bool detect;
+    bool isync;
+    bool b_channelreestablished = false;
+
+    LOGD("[THREAD]ln_self_t initialize\n");
 
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
     ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
@@ -861,7 +849,6 @@ static void *thread_main_start(void *pArg)
 
     //seed作成(後でDB読込により上書きされる可能性あり)
     uint8_t seed[LN_SZ_SEED];
-    LOGD("ln_self_t initialize\n");
     btc_util_random(seed, LN_SZ_SEED);
     ln_init(p_self, seed, &mAnnoPrm, notify_cb);
 
@@ -891,7 +878,7 @@ static void *thread_main_start(void *pArg)
 
     p_conf->loop = true;
 
-    LOGD("wait peer connected...");
+    LOGD("wait peer connected...\n");
     ret = wait_peer_connected(p_conf);
     if (!ret) {
         goto LABEL_SHUTDOWN;
@@ -899,14 +886,14 @@ static void *thread_main_start(void *pArg)
 
     //noise protocol handshake
     ret = noise_handshake(p_conf);
-    if (ret) {
-        //失敗リストに乗っている可能性があるため、削除
-        (void)ptarmd_nodefail_get(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_NODEDESC_IPV4, true);
-    } else {
+    if (!ret) {
         //ノード接続失敗リストに追加
         ptarmd_nodefail_add(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_NODEDESC_IPV4);
         goto LABEL_SHUTDOWN;
     }
+
+    //失敗リストに乗っている可能性があるため、削除
+    (void)ptarmd_nodefail_get(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_NODEDESC_IPV4, true);
 
     LOGD("connected peer: ");
     DUMPD(p_conf->node_id, BTC_SZ_PUBKEY);
@@ -970,14 +957,11 @@ static void *thread_main_start(void *pArg)
     }
     LOGD("init交換完了\n");
 
-    p_conf->annodb_dummy = !ln_need_init_routing_sync(p_conf->p_self);
-    if (!p_conf->annodb_dummy) {
+    isync = ln_need_init_routing_sync(p_conf->p_self);
+    if (isync) {
         //annoinfo情報削除(node_id指定)
         LOGD("initial_routing_sync ON\n");
         ln_db_annoinfos_del(p_conf->node_id);
-    } else {
-        //annoinfo情報追加
-        LOGD("initial_routing_sync OFF\n");
     }
 
     //送金先
@@ -999,31 +983,56 @@ static void *thread_main_start(void *pArg)
         //
         // selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
 
-        //short_channel_idチェック
-        ret = check_short_channel_id(p_conf);
-        if (!ret) {
-            LOGD("fail: check_short_channel_id\n");
-            goto LABEL_JOIN;
-        }
+        ln_closetype_t closetype = ln_close_type(p_conf->p_self);
+        if (closetype == LN_CLOSETYPE_NONE) {
+            //short_channel_idチェック
+            ret = check_short_channel_id(p_conf);
+            if (!ret) {
+                LOGD("fail: check_short_channel_id\n");
+                goto LABEL_JOIN;
+            }
 
-        if (ln_short_channel_id(p_self) != 0) {
-            // funding_txはブロックに入ってminimum_depth以上経過している
-            LOGD("Establish済み\n");
-            ln_free_establish(p_self);
+            if (ln_short_channel_id(p_self) != 0) {
+                // funding_txはブロックに入ってminimum_depth以上経過している
+                LOGD("Establish済み\n");
+                ln_free_establish(p_self);
+            } else {
+                // funding_txはminimum_depth未満
+                LOGD("funding_tx監視開始\n");
+                TXIDD(ln_funding_txid(p_self));
+
+                p_conf->funding_waiting = true;
+            }
+
+            b_channelreestablished = exchange_reestablish(p_conf);
+            if (!b_channelreestablished) {
+                LOGD("fail: exchange channel_reestablish\n");
+                goto LABEL_JOIN;
+            }
+            LOGD("reestablish交換完了\n");
         } else {
-            // funding_txはminimum_depth未満
-            LOGD("funding_tx監視開始\n");
-            TXIDD(ln_funding_txid(p_self));
-
-            p_conf->funding_waiting = true;
+            const char *p_str;
+            switch (closetype) {
+            case LN_CLOSETYPE_NONE:
+                p_str = "none";
+                break;
+            case LN_CLOSETYPE_MUTUAL:
+                p_str = "mutual close";
+                break;
+            case LN_CLOSETYPE_UNI_LOCAL:
+                p_str = "unilateral close(local)";
+                break;
+            case LN_CLOSETYPE_UNI_REMOTE:
+                p_str = "unilateral close(remote)";
+                break;
+            case LN_CLOSETYPE_REVOKED:
+                p_str = "remote revoked transaction close";
+                break;
+            default:
+                p_str = "???";
+            }
+            LOGD("now closing: %s\n", p_str);
         }
-
-        ret = exchange_reestablish(p_conf);
-        if (!ret) {
-            LOGD("fail: exchange channel_reestablish\n");
-            goto LABEL_JOIN;
-        }
-        LOGD("reestablish交換完了\n");
     } else {
         // channel_idはDB未登録
         // →ユーザの指示待ち
@@ -1046,6 +1055,10 @@ static void *thread_main_start(void *pArg)
             LOGD("fail: exchange funding_locked\n");
             goto LABEL_JOIN;
         }
+    }
+
+    if (b_channelreestablished) {
+        ln_after_channel_reestablish(p_self);
     }
 
     // flush buffered BOLT message
@@ -1090,18 +1103,37 @@ static void *thread_main_start(void *pArg)
     }
 
 LABEL_JOIN:
+    LOGD("stop threads...\n");
     stop_threads(p_conf);
     pthread_join(th_peer, NULL);
     pthread_join(th_poll, NULL);
     pthread_join(th_anno, NULL);
 
 LABEL_SHUTDOWN:
+    LOGD("shutdown...\n");
     retval = close(p_conf->sock);
     if (retval < 0) {
         LOGD("socket close: %s", strerror(errno));
     }
 
     LOGD("stop channel[%016" PRIx64 "]\n", ln_short_channel_id(p_self));
+
+    {
+        // method: disconnect
+        // $1: short_channel_id
+        // $2: node_id
+        // $3: peer_id
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        char peer_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
+        char param[256];
+        sprintf(param, "%016" PRIx64 " %s "
+                    "%s",
+                    ln_short_channel_id(p_self), node_id,
+                    peer_id);
+        call_script(EVT_DISCONNECTED, param);
+    }
 
     //クリア
     UTL_DBG_FREE(p_conf->p_errstr);
@@ -1131,7 +1163,6 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
     bool b_cont;
     uint16_t len_msg;
 
-    // 今ひとつだが、同期でやってしまう
     if (p_conf->initiator) {
         //initiatorはnode_idを知っている
 
@@ -1225,10 +1256,19 @@ static bool noise_handshake(lnapp_conf_t *p_conf)
         }
 
         //bufには相手のnode_idが返ってくる
-        assert(buf.len == BTC_SZ_PUBKEY);
-        memcpy(p_conf->node_id, buf.buf, BTC_SZ_PUBKEY);
+        if (buf.len == BTC_SZ_PUBKEY) {
+            //既に接続済みのlnappがある場合、そちらを切断させる
+            //  socket切断を識別できないまま再接続されることがあるため
+            lnapp_conf_t *p_exist_conf = ptarmd_search_connected_nodeid(buf.buf);
+            if (p_exist_conf != NULL) {
+                LOGD("stop already connected lnapp\n");
+                lnapp_stop(p_exist_conf);
+            }
 
-        result = true;
+            memcpy(p_conf->node_id, buf.buf, BTC_SZ_PUBKEY);
+
+            result = true;
+        }
     }
 
 LABEL_EXIT:
@@ -1330,12 +1370,7 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
         utl_misc_msleep(M_WAIT_RECV_MSG_MSEC);
         count--;
     }
-    ret = (count > 0);
-    if (!ret) {
-        LOGD("fail: channel_reestablish timeout: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
-    }
-
-    return ret;
+    return p_conf->loop && (count > 0);
 }
 
 
@@ -1477,6 +1512,8 @@ static void *thread_recv_start(void *pArg)
     utl_buf_t buf_recv;
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
 
+    LOGD("[THREAD]recv initialize\n");
+
     //init受信待ちの準備時間を設ける
     utl_misc_msleep(M_WAIT_RECV_THREAD);
 
@@ -1586,7 +1623,7 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
                     len += n;
                     pBuf += n;
                 } else if (n == 0) {
-                    LOGD("EOF(len=%d)\n", len);
+                    LOGD("timeout(len=%d, reqLen=%d)\n", len, Len);
                     break;
                 } else {
                     LOGD("fail: %s(%016" PRIx64 ")\n", strerror(errno), ln_short_channel_id(p_conf->p_self));
@@ -1612,6 +1649,8 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
 static void *thread_poll_start(void *pArg)
 {
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
+
+    LOGD("[THREAD]poll initialize\n");
 
     while (p_conf->loop) {
         //ループ解除まで時間が長くなるので、短くチェックする
@@ -1691,8 +1730,8 @@ static void poll_ping(lnapp_conf_t *p_conf)
             send_peer_noise(p_conf, &buf_ping);
             utl_buf_free(&buf_ping);
         } else {
-            //LOGD("pong not respond\n");
-            //stop_threads(p_conf);
+            LOGD("pong not respond\n");
+            stop_threads(p_conf);
         }
     }
 
@@ -1793,6 +1832,8 @@ static void *thread_anno_start(void *pArg)
     lnapp_conf_t *p_conf = (lnapp_conf_t *)pArg;
     int slp = M_WAIT_ANNO_SEC;
 
+    LOGD("[THREAD]anno initialize\n");
+
     while (p_conf->loop) {
         //ループ解除まで時間が長くなるので、短くチェックする
         for (int lp = 0; lp < slp; lp++) {
@@ -1815,8 +1856,7 @@ static void *thread_anno_start(void *pArg)
             continue;
         }
 
-        bool retcnl = send_announcement(p_conf, p_conf->annodb_dummy);
-        p_conf->annodb_dummy = false;       //dummy送信するのは初回のみ
+        bool retcnl = send_announcement(p_conf, false);
         if (retcnl) {
             //channel_listの最後まで見終わった
             if (p_conf->annodb_updated) {
@@ -3057,7 +3097,10 @@ static void load_channel_settings(lnapp_conf_t *p_conf)
 
     ln_set_init_localfeatures(econf.localfeatures);
     bool ret = ln_set_establish(p_conf->p_self, &estprm);
-    assert(ret);
+    if (!ret) {
+        LOGD("fail: set establish\n");
+        assert(ret);
+    }
 }
 
 

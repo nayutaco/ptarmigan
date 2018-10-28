@@ -75,6 +75,8 @@ void *p2p_svr_start(void *pArg)
     int sock = -1;
     struct sockaddr_in sv_addr, cl_addr;
 
+    LOGD("[THREAD]svr initialize\n");
+
     memset(&mAppConf, 0, sizeof(mAppConf));
     for (int lp = 0; lp < (int)ARRAY_SIZE(mAppConf); lp++) {
         mAppConf[lp].sock = -1;
@@ -215,6 +217,18 @@ lnapp_conf_t *p2p_svr_search_short_channel_id(uint64_t short_channel_id)
     //LOGD("p_appconf= %p\n", p_appconf);
 
     return p_appconf;
+}
+
+
+int p2p_svr_connected_peer(void)
+{
+    int cnt = 0;
+    for (int lp = 0; lp < SZ_SOCK_SERVER_MAX; lp++) {
+        if (lnapp_is_looping(&mAppConf[lp])) {
+            cnt++;
+        }
+    }
+    return cnt;
 }
 
 

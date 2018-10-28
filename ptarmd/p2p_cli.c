@@ -90,6 +90,13 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
         ctx->error_message = ptarmd_error_str(RPCERR_NODEID);
         goto LABEL_EXIT;
     }
+    lnapp_conf_t *p_conf = ptarmd_search_connected_nodeid(pConn->node_id);
+    if (p_conf != NULL) {
+        LOGD("fail: already connected.\n");
+        ctx->error_code = RPCERR_ALCONN;
+        ctx->error_message = ptarmd_error_str(RPCERR_ALCONN);
+        goto LABEL_EXIT;
+    }
 
     for (idx = 0; idx < (int)ARRAY_SIZE(mAppConf); idx++) {
         if (mAppConf[idx].sock == -1) {
@@ -218,6 +225,18 @@ lnapp_conf_t *p2p_cli_search_short_channel_id(uint64_t short_channel_id)
     //LOGD("p_appconf= %p\n", p_appconf);
 
     return p_appconf;
+}
+
+
+int p2p_cli_connected_peer(void)
+{
+    int cnt = 0;
+    for (int lp = 0; lp < SZ_SOCK_CLIENT_MAX; lp++) {
+        if (lnapp_is_looping(&mAppConf[lp])) {
+            cnt++;
+        }
+    }
+    return cnt;
 }
 
 

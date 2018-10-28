@@ -428,10 +428,8 @@ bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
 }
 
 
-bool btcrpc_is_tx_broadcasted(const ln_self_t *self, const uint8_t *pTxid)
+bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
 {
-    (void)self;
-
     char txid[BTC_SZ_TXID * 2 + 1];
 
     //TXIDはBE/LE変換
@@ -1452,7 +1450,7 @@ int main(int argc, char *argv[])
     //}
 
 //    fprintf(stderr, "-getrawtx------------------------\n");
-//    ret = btcrpc_is_tx_broadcasted(NULL, TXID);
+//    ret = btcrpc_is_tx_broadcasted(TXID);
 //    fprintf(stderr, "ret=%d\n", ret);
 
 //    fprintf(stderr, "--------------------------\n");

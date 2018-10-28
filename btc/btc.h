@@ -266,8 +266,8 @@ typedef struct {
     uint64_t    value;                  ///< value[単位:satoshi]
     utl_buf_t   script;                 ///< scriptPubKey
     uint8_t     opt;                    ///< 付加情報(ln用)
-                                        //      ln_create_htlc_tx()でln_htlctype_tに設定
-                                        //      ln_create_commit_tx()でln_tx_cmt_t.pp_htlcinfo[]のindex値(or LN_HTLCTYPE_TOLOCAL/REMOTE)に設定
+                                        //      ln_script_htlctx_create()でln_htlctype_tに設定
+                                        //      ln_script_committx_create()でln_tx_cmt_t.pp_htlcinfo[]のindex値(or LN_HTLCTYPE_TOLOCAL/REMOTE)に設定
 } btc_vout_t;
 
 
@@ -515,7 +515,7 @@ void btc_tx_free(btc_tx_t *pTx);
 
 
 /** トランザクションの正統性チェック
- * 
+ *
  * @param[in]   pTx         チェック対象
  * @return  チェック結果
  * @note

@@ -112,6 +112,7 @@ static void optfunc_disable_autoconn(int *pOption, bool *pConn);
 static void optfunc_remove_channel(int *pOption, bool *pConn);
 static void optfunc_setfeerate(int *pOption, bool *pConn);
 static void optfunc_estimatefundingfee(int *pOption, bool *pConn);
+static void optfunc_walletback(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -143,6 +144,7 @@ static const struct {
     { 'g', optfunc_getcommittx },
     { 's', optfunc_disable_autoconn },
     { 'X', optfunc_remove_channel },
+    { 'W', optfunc_walletback },
 
     //long opt
     { 'b', optfunc_setfeerate },
@@ -178,7 +180,7 @@ int main(int argc, char *argv[])
     mAddr[0] = '\0';
     mTcpSend = true;
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:x::wg::s:X:", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:x::wg::s:X:W", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -759,6 +761,27 @@ static void optfunc_estimatefundingfee(int *pOption, bool *pConn)
                 " ]"
             "}",
                 (uint32_t)feerate_per_kw);
+
+        *pOption = M_OPTIONS_EXEC;
+    } else {
+        sprintf(mErrStr, "%s", strerror(errno));
+        *pOption = M_OPTIONS_ERR;
+    }
+}
+
+
+static void optfunc_walletback(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    if (errno == 0) {
+        snprintf(mBuf, BUFFER_SIZE,
+            "{"
+                M_STR("method", "walletback") M_NEXT
+                M_QQ("params") ":[]"
+            "}");
 
         *pOption = M_OPTIONS_EXEC;
     } else {

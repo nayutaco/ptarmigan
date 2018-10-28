@@ -26,12 +26,13 @@
 #include <inttypes.h>
 
 #include "utl_push.h"
+#include "utl_dbg.h"
 
 #include "ln_script.h"
 #include "ln_signer.h"
 #include "ln_local.h"
 
-#define M_DBG_VERBOSE
+//#define M_DBG_VERBOSE
 
 /**************************************************************************
  * macros
@@ -67,7 +68,7 @@ static void create_script_received(utl_buf_t *pBuf,
  * public functions
  **************************************************************************/
 
-uint64_t HIDDEN ln_calc_obscured_txnum(const uint8_t *pOpenBasePt, const uint8_t *pAcceptBasePt)
+uint64_t HIDDEN ln_script_calc_obscured_txnum(const uint8_t *pOpenBasePt, const uint8_t *pAcceptBasePt)
 {
     uint64_t obs = 0;
     uint8_t base[32];
@@ -89,7 +90,7 @@ uint64_t HIDDEN ln_calc_obscured_txnum(const uint8_t *pOpenBasePt, const uint8_t
 }
 
 
-void HIDDEN ln_create_script_local(utl_buf_t *pBuf,
+void HIDDEN ln_script_create_tolocal(utl_buf_t *pBuf,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pLocalDelayedKey,
                     uint32_t LocalDelay)
@@ -128,32 +129,42 @@ void HIDDEN ln_create_script_local(utl_buf_t *pBuf,
 }
 
 
-/*  to_self_delay後(sequence=to_self_delay)
- *      <local_delayedsig> 0
- *
- *  revoked transaction
- *      <revocation_sig> 1
- *
- */
-bool HIDDEN ln_create_tolocal_tx(btc_tx_t *pTx,
-                uint64_t Value, const utl_buf_t *pScriptPk, uint32_t LockTime,
-                const uint8_t *pTxid, int Index, bool bRevoked)
+
+bool HIDDEN ln_script_tolocal_wit(btc_tx_t *pTx,
+                    const btc_util_keys_t *pKey,
+                    const utl_buf_t *pWitScript, bool bRevoked)
 {
-    //vout
-    btc_vout_t* vout = btc_tx_add_vout(pTx, Value);
-    utl_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
+    // <delayedsig>
+    // 0
+    // <script>
+    const uint8_t WIT1 = 0x01;
+    const utl_buf_t key = { (CONST_CAST uint8_t *)pKey->priv, BTC_SZ_PRIVKEY };
+    const utl_buf_t wit0 = { NULL, 0 };
+    const utl_buf_t wit1 = { (CONST_CAST uint8_t *)&WIT1, 1 };
+    const utl_buf_t *wits[] = {
+        &key,
+        NULL,
+        pWitScript
+    };
+    wits[1] = (bRevoked) ? &wit1 : &wit0;
 
-    //vin
-    btc_tx_add_vin(pTx, pTxid, Index);
-    if (!bRevoked) {
-        pTx->vin[0].sequence = LockTime;
-    }
+    bool ret = btc_sw_set_vin_p2wsh(pTx, 0, (const utl_buf_t **)wits, ARRAY_SIZE(wits));
 
-    return true;
+    return ret;
 }
 
 
-bool HIDDEN ln_create_scriptpkh(utl_buf_t *pBuf, const utl_buf_t *pPub, int Prefix)
+void HIDDEN ln_script_toremote_wit(btc_tx_t *pTx, const btc_util_keys_t *pKey)
+{
+    utl_buf_t *p_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * 2);
+    utl_buf_alloccopy(&p_wit[0], pKey->priv, BTC_SZ_PRIVKEY);
+    utl_buf_alloccopy(&p_wit[1], pKey->pub, BTC_SZ_PUBKEY);
+    pTx->vin[0].wit_cnt = 2;
+    pTx->vin[0].witness = p_wit;
+}
+
+
+bool HIDDEN ln_script_scriptpkh_create(utl_buf_t *pBuf, const utl_buf_t *pPub, int Prefix)
 {
     bool ret = true;
     uint8_t pkh[BTC_SZ_HASH256];      //一番長いサイズにしておく
@@ -177,7 +188,7 @@ bool HIDDEN ln_create_scriptpkh(utl_buf_t *pBuf, const utl_buf_t *pPub, int Pref
 }
 
 
-bool HIDDEN ln_check_scriptpkh(const utl_buf_t *pBuf)
+bool HIDDEN ln_script_scriptpkh_check(const utl_buf_t *pBuf)
 {
     bool ret;
     const uint8_t *p = pBuf->buf;
@@ -212,7 +223,7 @@ bool HIDDEN ln_check_scriptpkh(const utl_buf_t *pBuf)
 }
 
 
-void HIDDEN ln_htlcinfo_init(ln_htlcinfo_t *pHtlcInfo)
+void HIDDEN ln_script_htlcinfo_init(ln_script_htlcinfo_t *pHtlcInfo)
 {
     pHtlcInfo->type = LN_HTLCTYPE_NONE;
     pHtlcInfo->add_htlc_idx = (uint16_t)-1;
@@ -223,13 +234,13 @@ void HIDDEN ln_htlcinfo_init(ln_htlcinfo_t *pHtlcInfo)
 }
 
 
-void HIDDEN ln_htlcinfo_free(ln_htlcinfo_t *pHtlcInfo)
+void HIDDEN ln_script_htlcinfo_free(ln_script_htlcinfo_t *pHtlcInfo)
 {
     utl_buf_free(&pHtlcInfo->script);
 }
 
 
-void HIDDEN ln_create_htlcinfo(utl_buf_t *pScript, ln_htlctype_t Type,
+void HIDDEN ln_script_htlcinfo_script(utl_buf_t *pScript, ln_htlctype_t Type,
                     const uint8_t *pLocalHtlcKey,
                     const uint8_t *pLocalRevoKey,
                     const uint8_t *pRemoteHtlcKey,
@@ -263,7 +274,10 @@ void HIDDEN ln_create_htlcinfo(utl_buf_t *pScript, ln_htlctype_t Type,
 }
 
 
-uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlcInfo, int Num)
+uint64_t HIDDEN ln_script_fee_calc(
+                    ln_script_feeinfo_t *pFeeInfo,
+                    const ln_script_htlcinfo_t **ppHtlcInfo,
+                    int Num)
 {
     pFeeInfo->htlc_success = M_FEE_HTLCSUCCESS * pFeeInfo->feerate_per_kw / 1000;
     pFeeInfo->htlc_timeout = M_FEE_HTLCTIMEOUT * pFeeInfo->feerate_per_kw / 1000;
@@ -297,7 +311,12 @@ uint64_t HIDDEN ln_fee_calc(ln_feeinfo_t *pFeeInfo, const ln_htlcinfo_t **ppHtlc
 }
 
 
-bool HIDDEN ln_create_commit_tx(btc_tx_t *pTx, utl_buf_t *pSig, const ln_tx_cmt_t *pCmt, bool Local, const ln_self_priv_t *pPrivData)
+bool HIDDEN ln_script_committx_create(
+                    btc_tx_t *pTx,
+                    utl_buf_t *pSig,
+                    const ln_script_committx_t *pCmt,
+                    bool Local,
+                    const ln_self_priv_t *pPrivData)
 {
     uint64_t fee_local;
     uint64_t fee_remote;
@@ -379,14 +398,22 @@ bool HIDDEN ln_create_commit_tx(btc_tx_t *pTx, utl_buf_t *pSig, const ln_tx_cmt_
     ret = btc_util_calc_sighash_p2wsh(txhash, pTx, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
     if (ret) {
         ret = ln_signer_p2wsh(pSig, txhash, pPrivData, MSG_FUNDIDX_FUNDING);
+    } else {
+        LOGD("fail: calc sighash\n");
     }
 
     return ret;
 }
 
 
-void HIDDEN ln_create_htlc_tx(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScript,
-                ln_htlctype_t Type, uint32_t CltvExpiry, const uint8_t *pTxid, int Index)
+void HIDDEN ln_script_htlctx_create(
+                    btc_tx_t *pTx,
+                    uint64_t Value,
+                    const utl_buf_t *pScript,
+                    ln_htlctype_t Type,
+                    uint32_t CltvExpiry,
+                    const uint8_t *pTxid,
+                    int Index)
 {
     //vout
     btc_sw_add_vout_p2wsh(pTx, Value, pScript);
@@ -414,13 +441,11 @@ void HIDDEN ln_create_htlc_tx(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pS
 }
 
 
-bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
+bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
+                    utl_buf_t *pLocalSig,
                     uint64_t Value,
                     const btc_util_keys_t *pKeys,
-                    const utl_buf_t *pRemoteSig,
-                    const uint8_t *pPreImage,
-                    const utl_buf_t *pWitScript,
-                    ln_htlcsign_t HtlcSign)
+                    const utl_buf_t *pWitScript)
 {
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
 
@@ -434,13 +459,26 @@ bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
     ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
     if (ret) {
         ret = ln_signer_p2wsh_force(pLocalSig, sighash, pKeys);
+    } else {
+        LOGD("fail: calc sighash\n");
     }
+    return ret;
+}
 
+
+bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
+                    const utl_buf_t *pLocalSig,
+                    const btc_util_keys_t *pKeys,
+                    const utl_buf_t *pRemoteSig,
+                    const uint8_t *pPreImage,
+                    const utl_buf_t *pWitScript,
+                    ln_script_htlcsign_t HtlcSign)
+{
     const utl_buf_t wit0 = { NULL, 0 };
     const utl_buf_t **pp_wits = NULL;
     int wits_num = 0;
     switch (HtlcSign) {
-    case LN_HTLCSIGN_TO_SUCCESS:
+    case LN_HTLCSIGN_TIMEOUT_SUCCESS:
         if (pRemoteSig != NULL) {
             // 0
             // <remotesig>
@@ -465,7 +503,7 @@ bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
         LOGD("HTLC Timeout/Success Tx sign: wits_num=%d\n", wits_num);
         break;
 
-    case LN_HTLCSIGN_OF_PREIMG:
+    case LN_HTLCSIGN_REMOTE_OFFER:
         {
             // <remotesig>
             // <payment-preimage>
@@ -488,7 +526,7 @@ bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
         LOGD("Offered HTLC + preimage sign: wits_num=%d\n", wits_num);
         break;
 
-    case LN_HTLCSIGN_RV_TIMEOUT:
+    case LN_HTLCSIGN_REMOTE_RECV:
         {
             // <remotesig>
             // 0
@@ -504,8 +542,8 @@ bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
         LOGD("Received HTLC sign: wits_num=%d\n", wits_num);
         break;
 
-    case LN_HTLCSIGN_RV_RECEIVED:
-    case LN_HTLCSIGN_RV_OFFERED:
+    case LN_HTLCSIGN_REVOKE_RECV:
+    case LN_HTLCSIGN_REVOKE_OFFER:
         {
             // <revocation_sig>
             // <revocationkey>
@@ -526,14 +564,14 @@ bool HIDDEN ln_sign_htlc_tx(btc_tx_t *pTx, utl_buf_t *pLocalSig,
         assert(0);
         break;
     }
-    ret = btc_sw_set_vin_p2wsh(pTx, 0, pp_wits, wits_num);
+    bool ret = btc_sw_set_vin_p2wsh(pTx, 0, pp_wits, wits_num);
 
     return ret;
 }
 
 
 //署名の検証だけであれば、hashを計算して、署名と公開鍵を与えればよい
-bool HIDDEN ln_verify_htlc_tx(const btc_tx_t *pTx,
+bool HIDDEN ln_script_htlctx_verify(const btc_tx_t *pTx,
                     uint64_t Value,
                     const uint8_t *pLocalPubKey,
                     const uint8_t *pRemotePubKey,

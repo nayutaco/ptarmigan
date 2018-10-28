@@ -81,6 +81,7 @@
 #define INDENT3                 "      "
 #define INDENT4                 "        "
 #define INDENT5                 "          "
+#define INDENT6                 "            "
 
 
 /********************************************************************
@@ -180,6 +181,18 @@ static void ln_print_self(const ln_self_t *self)
     btc_util_dumpbin(stdout, self->peer_node_id, BTC_SZ_PUBKEY, false);
     printf("\",\n");
 
+    //channel_id
+    printf(INDENT3 M_QQ("channel_id") ": \"");
+    btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
+    printf("\",\n");
+    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
+
+    //amount
+    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
+    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 ",\n", self->their_msat);
+    printf(INDENT3 M_QQ("funding_sat") ": %" PRIu64 ",\n", self->funding_sat);
+    printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", self->feerate_per_kw);
+
     //status
     printf(INDENT3 M_QQ("status") ": " M_QQ("0x%02x") ",\n", self->status);
 
@@ -191,7 +204,13 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("peer_storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", self->peer_storage_index);
 
     //funding
-    printf(INDENT3 M_QQ("fund_flag") ": " M_QQ("0x%02x") ",\n", self->fund_flag);
+    printf(INDENT3 M_QQ("fund_flag") ": {\n");
+    printf(INDENT4 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->fund_flag);
+    printf(INDENT4 M_QQ("is_funder") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_FUNDER) == LN_FUNDFLAG_FUNDER));
+    printf(INDENT4 M_QQ("announce_channel") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_ANNO_CH) == LN_FUNDFLAG_ANNO_CH));
+    printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_FUNDING) == LN_FUNDFLAG_FUNDING));
+    printf(INDENT4 M_QQ("is_opened") ": %d\n", ((self->fund_flag & LN_FUNDFLAG_OPENED) == LN_FUNDFLAG_OPENED));
+    printf(INDENT3 "},\n");
     printf(INDENT3 M_QQ("funding_local") ": {\n");
     printf(INDENT4 M_QQ("funding_txid") ": \"");
     btc_util_dumptxid(stdout, self->funding_local.txid);
@@ -258,6 +277,40 @@ static void ln_print_self(const ln_self_t *self)
 
     //close
     printf(INDENT3 M_QQ("close") ": {\n");
+    const char *p_str_close_type;
+    switch (self->close_type) {
+    case LN_CLOSETYPE_NONE:
+        p_str_close_type = "none";
+        break;
+    case LN_CLOSETYPE_MUTUAL:
+        p_str_close_type = "mutual close";
+        break;
+    case LN_CLOSETYPE_UNI_LOCAL:
+        p_str_close_type = "unilateral close(local)";
+        break;
+    case LN_CLOSETYPE_UNI_REMOTE:
+        p_str_close_type = "unilateral close(remote)";
+        break;
+    case LN_CLOSETYPE_REVOKED:
+        p_str_close_type = "revoked transaction close";
+        break;
+    default:
+        p_str_close_type = "???";
+    }
+    printf(INDENT4 M_QQ("close_type") ": %s,\n", p_str_close_type);
+    printf(INDENT4 M_QQ("shutdown_flag") ": [");
+    if (self->shutdown_flag & 1) {
+        printf(M_QQ("shutdown sent"));
+    } else {
+        printf(M_QQ("shutdown not send"));
+    }
+    printf(", ");
+    if (self->shutdown_flag & 2) {
+        printf(M_QQ("shutdown received"));
+    } else {
+        printf(M_QQ("shutdown not received"));
+    }
+    printf("],\n");
     printf(INDENT4 M_QQ("local_scriptPubKey") ": \"");
     btc_util_dumpbin(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
     printf("\",\n");
@@ -269,12 +322,6 @@ static void ln_print_self(const ln_self_t *self)
     //normal operation
     printf(INDENT3 M_QQ("htlc_num") ": %d,\n", self->htlc_num);
     printf(INDENT3 M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);
-    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
-    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 ",\n", self->their_msat);
-    printf(INDENT3 M_QQ("channel_id") ": \"");
-    btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
-    printf("\",\n");
-    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
 
     if (self->htlc_num > 0) {
         printf(INDENT3 M_QQ("add_htlc") ": [\n");
@@ -298,9 +345,68 @@ static void ln_print_self(const ln_self_t *self)
                 }
                 printf("\",\n");
                 printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
-                printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(0x%04x)") ",\n",
-                            ((self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_RECV) ? "Received" : "Offered"),
-                            self->cnl_add_htlc[lp].stat.bits);
+                // printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(0x%04x)") ",\n",
+                //             ((self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_RECV) ? "Received" : "Offered"),
+                //             self->cnl_add_htlc[lp].stat.bits);
+                printf(INDENT5 M_QQ("flag") ": {\n");
+                const char *p_str_addhtlc;
+                const char *p_str_delhtlc;
+                const char *p_str_fin_delhtlc;
+                switch (self->cnl_add_htlc[lp].stat.flag.addhtlc) {
+                case 0:
+                    p_str_addhtlc = "---";
+                    break;
+                case LN_HTLCFLAG_OFFER:
+                    p_str_addhtlc = "Offered";
+                    break;
+                case LN_HTLCFLAG_RECV:
+                    p_str_addhtlc = "Received";
+                    break;
+                default:
+                    p_str_addhtlc = "???";
+                }
+                switch (self->cnl_add_htlc[lp].stat.flag.delhtlc) {
+                case 0:
+                    p_str_delhtlc = "---";
+                    break;
+                case LN_HTLCFLAG_FULFILL:
+                    p_str_delhtlc = "fulfill";
+                    break;
+                case LN_HTLCFLAG_FAIL:
+                    p_str_delhtlc = "fail";
+                    break;
+                case LN_HTLCFLAG_MALFORMED:
+                    p_str_delhtlc = "malformed";
+                    break;
+                default:
+                    p_str_delhtlc = "???";
+                }
+                switch (self->cnl_add_htlc[lp].stat.flag.fin_delhtlc) {
+                case 0:
+                    p_str_fin_delhtlc = "---";
+                    break;
+                case LN_HTLCFLAG_FULFILL:
+                    p_str_fin_delhtlc = "fulfill";
+                    break;
+                case LN_HTLCFLAG_FAIL:
+                    p_str_fin_delhtlc = "fail";
+                    break;
+                case LN_HTLCFLAG_MALFORMED:
+                    p_str_fin_delhtlc = "malformed";
+                    break;
+                default:
+                    p_str_fin_delhtlc = "???";
+                }
+                printf(INDENT6 M_QQ("value") ": " M_QQ("0x%04x") ",\n", self->cnl_add_htlc[lp].stat.bits);
+                printf(INDENT6 M_QQ("addhtlc") ": " M_QQ("%s") ",\n", p_str_addhtlc);
+                printf(INDENT6 M_QQ("delhtlc") ": " M_QQ("%s") ",\n", p_str_delhtlc);
+                printf(INDENT6 M_QQ("updsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.updsend);
+                printf(INDENT6 M_QQ("comsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.comsend);
+                printf(INDENT6 M_QQ("revrecv") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.revrecv);
+                printf(INDENT6 M_QQ("comrecv") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.comrecv);
+                printf(INDENT6 M_QQ("revsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.revsend);
+                printf(INDENT6 M_QQ("fin_delhtlc") ": " M_QQ("%s") "\n", p_str_fin_delhtlc);
+                printf(INDENT5 "},\n");
                 printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
                 printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
                 printf(INDENT5 M_QQ("payhash") ": \"");
@@ -309,6 +415,16 @@ static void ln_print_self(const ln_self_t *self)
                 printf(INDENT5 M_QQ("preimage") ": \"");
                 btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
                 printf("\",\n");
+                uint8_t sha[BTC_SZ_SHA256];
+                btc_util_sha256(sha, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len);
+                printf(INDENT5 M_QQ("preimage_check") ": ");
+                if (memcmp(sha, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_SHA256) == 0) {
+                    printf(M_QQ("OK") ",\n");
+                } else {
+                    printf(M_QQ("NG") ",\n");
+                }
+                printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->cnl_add_htlc[lp].next_short_channel_id);
+                printf(INDENT5 M_QQ("next_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].next_idx);
                 printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->cnl_add_htlc[lp].prev_short_channel_id);
                 printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].prev_idx);
                 printf(INDENT5 M_QQ("onion_reason") ": \"");
@@ -342,8 +458,8 @@ static void ln_print_self(const ln_self_t *self)
     btc_util_dumptxid(stdout, self->commit_local.txid);
     printf("\",\n");
     printf(INDENT4 M_QQ("htlc_num") ": %" PRIu32 ",\n", self->commit_local.htlc_num);
-    printf(INDENT4 M_QQ("commit_num") ": \"0x%016" PRIx64 "\",\n", self->commit_local.commit_num);
-    printf(INDENT4 M_QQ("revoke_num") ": \"0x%016" PRIx64 "\"\n", self->commit_local.revoke_num);
+    printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_local.commit_num);
+    printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_local.revoke_num);
 
     printf(INDENT3 "},\n");
 
@@ -361,9 +477,6 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT4 M_QQ("commit_num") ": %" PRIu64 ",\n", self->commit_remote.commit_num);
     printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_remote.revoke_num);
     printf(INDENT3 "},\n");
-
-    printf(INDENT3 M_QQ("funding_sat") ": %" PRIu64 ",\n", self->funding_sat);
-    printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", self->feerate_per_kw);
 
     printf(INDENT3 M_QQ("err") ": %d\n", self->err);
 
@@ -647,7 +760,8 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
                 exit(-1);
             }
 
-            uint64_t short_channel_id = *(uint64_t *)key.mv_data;
+            uint64_t short_channel_id;
+            memcpy(&short_channel_id, key.mv_data, sizeof(short_channel_id));
             printf("0x%016" PRIx64 "\n", short_channel_id);
         } else if ((dbtype == LN_LMDB_DBTYPE_ANNOINFO_NODE) && (key.mv_size == M_SZ_ANNOINFO_NODE)) {
             printf("node_announcement: ");
@@ -688,7 +802,8 @@ static void dumpit_routeskip(MDB_txn *txn, MDB_dbi dbi)
             if (cnt > 0) {
                 printf(",\n");
             }
-            uint64_t short_channel_id = *(uint64_t *)key.mv_data;
+            uint64_t short_channel_id;
+            memcpy(&short_channel_id, key.mv_data, sizeof(short_channel_id));
             printf("[" M_QQ("0x%016" PRIx64) ",", short_channel_id);
             if (data.mv_size == 0) {
                 printf(M_QQ("perm") "]");
@@ -827,7 +942,8 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         key.mv_data = LNDBK_VER;
         retval = mdb_get(txn, dbi, &key, &data);
         if (retval == 0) {
-            int version = *(int *)data.mv_data;
+            int version;
+            memcpy(&version, data.mv_data, sizeof(version));
             printf(INDENT2 M_QQ("version") ": %d\n", version);
         } else {
             printf(INDENT2 M_QQ("version") ": " M_QQ("fail") "\n");

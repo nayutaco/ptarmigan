@@ -123,6 +123,7 @@ btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
     }
     if (pTx->vout_cnt == 0) {
         LOGD("fail: vout_cnt\n");
+        btc_print_tx(pTx);
         return BTC_TXVALID_VOUT_NONE;
     }
     if (pTx->vout == NULL) {
@@ -1244,6 +1245,7 @@ void btc_print_tx(const btc_tx_t *pTx)
     TXIDD(txid);
     LOGD("======================================\n");
     LOGD(" version:%d\n", pTx->version);
+    LOGD("\n");
     LOGD(" txin_cnt=%u\n", pTx->vin_cnt);
     for(uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         LOGD(" [vin #%u]\n", lp);
@@ -1260,7 +1262,7 @@ void btc_print_tx(const btc_tx_t *pTx)
         //bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
         LOGD("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
         for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
-            LOGD("  witness[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
+            LOGD("    wit[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
                 DUMPD(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 // if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
@@ -1272,6 +1274,7 @@ void btc_print_tx(const btc_tx_t *pTx)
                 LOGD2("<none>\n");
             }
         }
+        LOGD("\n");
     }
     LOGD(" txout_cnt= %u\n", pTx->vout_cnt);
     for(uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
@@ -1309,6 +1312,7 @@ void btc_print_tx(const btc_tx_t *pTx)
         if (addr[0] != '\0') {
             LOGD("    (%s)\n", addr);
         }
+        LOGD("\n");
     }
     LOGD(" locktime= 0x%08x : ", pTx->locktime);
     if (pTx->locktime < 500000000L) {

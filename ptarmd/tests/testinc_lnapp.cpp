@@ -24,7 +24,7 @@ FAKE_VALUE_FUNC(bool, btcrpc_search_outpoint, btc_tx_t*, uint32_t, const uint8_t
 FAKE_VALUE_FUNC(bool, btcrpc_search_vout, utl_buf_t*, uint32_t, const utl_buf_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_signraw_tx, btc_tx_t*, const uint8_t*, size_t, uint64_t);
 FAKE_VALUE_FUNC(bool, btcrpc_sendraw_tx, uint8_t*, int*, const uint8_t*, uint32_t);
-FAKE_VALUE_FUNC(bool, btcrpc_is_tx_broadcasted, const ln_self_t*, const uint8_t*);
+FAKE_VALUE_FUNC(bool, btcrpc_is_tx_broadcasted, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_check_unspent, bool*, uint64_t*, const uint8_t*, uint32_t);
 FAKE_VALUE_FUNC(bool, btcrpc_getnewaddress, char*);
 FAKE_VALUE_FUNC(bool, btcrpc_estimatefee, uint64_t*, int);

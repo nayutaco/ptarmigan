@@ -41,10 +41,58 @@ extern "C" {
 #define LN_DB_CNLANNO_UPD1          'B'     ///< channel_announcement用KEYの末尾: channel_update 1
 #define LN_DB_CNLANNO_UPD2          'C'     ///< channel_announcement用KEYの末尾: channel_update 2
 
+#define LN_DB_WALLET_TYPE_TOLOCAL   ((uint8_t)1)
+#define LN_DB_WALLET_TYPE_TOREMOTE  ((uint8_t)2)
+#define LN_DB_WALLET_TYPE_HTLCOUT   ((uint8_t)3)
+
+#define LN_DB_WALLET_INIT           { 0/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_cnt*/, NULL/*p_wit*/ }
+
 
 /**************************************************************************
  * typedefs
  **************************************************************************/
+
+/** @typedef    ln_db_cur_t
+ *  @brief      cursorオープンするannouncement種別
+ */
+typedef enum {
+    LN_DB_CUR_CNL,              ///< channel_announcement/channel_update
+    LN_DB_CUR_NODE,             ///< node_announcement
+    LN_DB_CUR_INFOCNL,          ///< channel_announcement/channel_update送信済み
+    LN_DB_CUR_INFONODE,         ///< node_announcement送信済み
+} ln_db_cur_t;
+
+
+/** @typedef    ln_db_preimg_t
+ *  @brief      preimage/invoice
+ */
+typedef struct {
+    uint8_t     preimage[LN_SZ_PREIMAGE];
+    uint64_t    amount_msat;
+    uint64_t    creation_time;
+    uint32_t    expiry;
+} ln_db_preimg_t;
+
+
+/** @typedef    ln_db_wallet_t
+ *  @brief      ln_db_wallet
+ *  @note
+ *      - 変更する場合は、以下のAPIも変更すること
+ *          - ln_db_wallet_search()
+ *          - wallet_add()
+ *          - ln_db_wallet_tの使用箇所
+ */
+typedef struct {
+    uint8_t     type;                       ///< DBからの読み出し時のみ使用
+    uint8_t     *p_txid;
+    uint32_t    index;
+    uint64_t    amount;
+    uint32_t    sequence;
+    uint32_t    locktime;
+    uint32_t    wit_cnt;
+    utl_buf_t   *p_wit;                     ///< p_wit[wit_cnt]
+} ln_db_wallet_t;
+
 
 /** @typedef    ln_db_func_cmp_t
  *  @brief      比較関数(#ln_db_self_search())
@@ -74,26 +122,15 @@ typedef bool (*ln_db_func_cmp_t)(ln_self_t *self, void *p_db_param, void *p_para
 typedef bool (*ln_db_func_preimg_t)(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 
-/** @typedef    ln_db_cur_t
- *  @brief      cursorオープンするannouncement種別
+/** @typedef    ln_db_func_wallet_t
+ *  @brief      比較関数(#ln_db_wallet_search())
+ *
+ * @param[in]       self            DBから取得したself
+ * @param[in]       p_param         #ln_db_wallet_search()に渡したデータポインタ
+ * @retval  true    比較終了
+ * @retval  false   比較継続
  */
-typedef enum {
-    LN_DB_CUR_CNL,              ///< channel_announcement/channel_update
-    LN_DB_CUR_NODE,             ///< node_announcement
-    LN_DB_CUR_INFOCNL,          ///< channel_announcement/channel_update送信済み
-    LN_DB_CUR_INFONODE,         ///< node_announcement送信済み
-} ln_db_cur_t;
-
-
-/** @typedef    ln_db_preimg_t
- *  @brief      preimage/invoice
- */
-typedef struct {
-    uint8_t     preimage[LN_SZ_PREIMAGE];
-    uint64_t    amount_msat;
-    uint64_t    creation_time;
-    uint32_t    expiry;
-} ln_db_preimg_t;
+typedef bool (*ln_db_func_wallet_t)(const ln_db_wallet_t *pWallet, void *p_param);
 
 
 /********************************************************************
@@ -104,7 +141,7 @@ typedef struct {
  *
  * DBを使用できるようにする。
  * また、新規の場合は引数をDBに書き込み、新規でない場合にはDBから読込む
- * 
+ *
  * @param[in,out]   pWif            ノードの秘密鍵
  * @param[in,out]   pNodeName       ノード名
  * @param[in,out]   pPort           ポート番号
@@ -322,7 +359,7 @@ bool ln_db_annonod_drop_startup(void);
 
 /** announcement用DBオープン
  *
- * @param[out]  pCur        
+ * @param[out]  pCur
  * @param[in]   Type        オープンするDB(LN_DB_TXN_xx)
  * @retval  true    成功
  */
@@ -331,7 +368,7 @@ bool ln_db_anno_cur_open(void **ppCur, ln_db_cur_t Type);
 
 /** announcement用DBクローズ
  *
- * @param[out]  pCur        
+ * @param[out]  pCur
  */
 void ln_db_anno_cur_close(void *pCur);
 
@@ -375,7 +412,7 @@ bool ln_db_annocnl_cur_get(void *pCur, uint64_t *pShortChannelId, char *pType, u
 /** channel_announcement関連情報の前方取得
  *
  * #ln_db_annocnl_cur_get()ではcursorが進んでしまうため、戻す場合に使う想定。
- * 
+ *
  * @param[in]       pCur
  * @param[out]      pShortChannelId         short_channel_id
  * @param[out]      pType                   LN_DB_CNLANNO_xxx(channel_announcement / channel_update)
@@ -626,6 +663,39 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam);
  * @retval  true        .
  */
 bool ln_db_revtx_save(const ln_self_t *self, bool bUpdate, void *pDbParam);
+
+
+/********************************************************************
+ * wallet
+ ********************************************************************/
+
+/**
+ *
+ * @param[out]  pBuf    読込結果(非NULLの場合)
+ * @param[in]   pTxid
+ * @param[in]   Index
+ * @retval  true    読み込み成功
+ */
+bool ln_db_wallet_load(utl_buf_t *pBuf, const uint8_t *pTxid, uint32_t Index);
+
+
+/** 送金可能なINPUTを登録
+ *
+ * @retval  true    成功
+ */
+bool ln_db_wallet_add(const ln_db_wallet_t *pWallet);
+
+
+/** wallet DB検索
+ *  検索にヒットするとコールバック関数を呼び出す。
+ */
+bool ln_db_wallet_search(ln_db_func_wallet_t pWalletFunc, void *pFuncParam);
+
+
+/** wallet DBから対象outpointを削除
+ *
+ */
+bool ln_db_wallet_del(const uint8_t *pTxid, uint32_t Index);
 
 
 /********************************************************************

@@ -42,6 +42,7 @@
 #include "p2p_cli.h"
 #include "lnapp.h"
 #include "monitoring.h"
+#include "wallet.h"
 
 
 /********************************************************************
@@ -89,6 +90,7 @@ static const char *kOK = "OK";
  ********************************************************************/
 
 static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_connect_nores(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -107,6 +109,7 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id);
 
 static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx);
 static int cmd_disconnect_proc(const uint8_t *pNodeId);
@@ -130,7 +133,6 @@ static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn);
 static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry, const ln_fieldr_t *pFieldR, uint8_t FieldRNum, uint32_t MinFinalCltvExpiry);
 static void create_bolt11_rfield(ln_fieldr_t **ppFieldR, uint8_t *pFieldRNum);
 static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
-static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id);
 static int send_json(const char *pSend, const char *pAddr, uint16_t Port);
 static bool comp_func_getcommittx(ln_self_t *self, void *p_db_param, void *p_param);
 
@@ -150,6 +152,7 @@ void cmd_json_start(uint16_t Port)
 
     mRunning = true;
     jrpc_register_procedure(&mJrpc, cmd_connect,     "connect", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_connect_nores, "CONNECT", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getinfo,     "getinfo", NULL);
     jrpc_register_procedure(&mJrpc, cmd_disconnect,  "disconnect", NULL);
     jrpc_register_procedure(&mJrpc, cmd_stop,        "stop", NULL);
@@ -168,6 +171,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_removechannel,"removechannel", NULL);
     jrpc_register_procedure(&mJrpc, cmd_setfeerate,   "setfeerate", NULL);
     jrpc_register_procedure(&mJrpc, cmd_estimatefundingfee, "estimatefundingfee", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_walletback, "walletback", NULL);
     jrpc_server_run(&mJrpc);
     jrpc_server_destroy(&mJrpc);
 
@@ -191,7 +195,8 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
     char json[256];
 
     utl_misc_bin2str(nodestr, pNodeId, BTC_SZ_PUBKEY);
-    sprintf(json, "{\"method\":\"connect\",\"params\":[\"%s\",\"%s\",%d]}",
+    LOGD("connect:%s@%s:%d\n", nodestr, pIpAddr, Port);
+    sprintf(json, "{\"method\":\"CONNECT\",\"params\":[\"%s\",\"%s\",%d]}",
                         nodestr, pIpAddr, Port);
 
     int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
@@ -222,6 +227,7 @@ int cmd_json_pay_retry(const uint8_t *pPayHash)
     char *p_invoice = NULL;
     uint64_t add_amount_msat;
 
+    LOGD("pay_retry\n");
     ret = ln_db_invoice_load(&p_invoice, &add_amount_msat, pPayHash);   //p_invoiceはmalloc()される
     if (ret) {
         retval = cmd_json_pay(p_invoice, add_amount_msat);
@@ -266,6 +272,28 @@ LABEL_EXIT:
         ctx->error_message = ptarmd_error_str(err);
     }
     return result;
+}
+
+
+
+/** 接続(内部用)
+ *
+ */
+static cJSON *cmd_connect_nores(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    peer_conn_t conn;
+    int index = 0;
+
+    //connect parameter
+    bool ret = json_connect(params, &index, &conn);
+    if (!ret) {
+        return NULL;
+    }
+
+    (void)cmd_connect_proc(&conn, ctx);
+    return NULL;
 }
 
 
@@ -470,6 +498,13 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *result = NULL;
     int index = 0;
     uint32_t min_final_cltv_expiry;
+
+    int cnt = p2p_cli_connected_peer() + p2p_svr_connected_peer();
+    if (cnt == 0) {
+        //未接続の場合はinvoiceを作らなくても良いだろう
+        err = RPCERR_NOCONN;
+        goto LABEL_EXIT;
+    }
 
     if (params == NULL) {
         goto LABEL_EXIT;
@@ -731,7 +766,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("payment\n");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp_node(payconf.hop_datain[1].pubkey);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
 
         bool inited = lnapp_is_inited(p_appconf);
@@ -967,7 +1002,7 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("getlasterror\n");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp_node(conn.node_id);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(conn.node_id);
     if (p_appconf != NULL) {
         //接続中
         LOGD("error code: %d\n", p_appconf->err);
@@ -1221,6 +1256,45 @@ LABEL_EXIT:
 }
 
 
+/** DBに残っている1st layerのamountをwalletに返す : ptarmcli -W
+ *
+ */
+static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)params; (void)id;
+
+    bool ret;
+    cJSON *result = NULL;
+
+    LOGD("walletback\n");
+
+    char addr[BTC_SZ_ADDR_MAX];
+    ret = btcrpc_getnewaddress(addr);
+    if (!ret) {
+        ctx->error_code = RPCERR_BLOCKCHAIN;
+        ctx->error_message = ptarmd_error_str(RPCERR_BLOCKCHAIN);
+        return NULL;
+    }
+    uint64_t feerate;
+    ret = btcrpc_estimatefee(&feerate, LN_BLK_FEEESTIMATE);
+    if (!ret) {
+        feerate = 5000;
+    }
+
+    char *p_rawtx = NULL;
+    ret = wallet_from_ptarm(&p_rawtx, addr, (uint32_t)feerate);
+    if (ret) {
+        result = cJSON_CreateString(p_rawtx);
+        UTL_DBG_FREE(p_rawtx);
+    } else {
+        ctx->error_code = RPCERR_WALLET_ERR;
+        ctx->error_message = ptarmd_error_str(RPCERR_WALLET_ERR);
+    }
+
+    return result;
+}
+
+
 /********************************************************************
  * private functions : procedure
  ********************************************************************/
@@ -1235,11 +1309,6 @@ static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx)
 {
     LOGD("connect\n");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp_node(pConn->node_id);
-    if (p_appconf != NULL) {
-        return RPCERR_ALCONN;
-    }
-
     bool ret = p2p_cli_start(pConn, ctx);
     if (!ret) {
         return RPCERR_CONNECT;
@@ -1248,7 +1317,7 @@ static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx)
     //チェック
     int retry = M_RETRY_CONN_CHK;
     while (retry--) {
-        p_appconf = search_connected_lnapp_node(pConn->node_id);
+        lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pConn->node_id);
         if ((p_appconf != NULL) && lnapp_is_looping(p_appconf) && lnapp_is_inited(p_appconf)) {
             break;
         }
@@ -1272,7 +1341,7 @@ static int cmd_disconnect_proc(const uint8_t *pNodeId)
     LOGD("disconnect\n");
 
     int err;
-    lnapp_conf_t *p_appconf = search_connected_lnapp_node(pNodeId);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
     if (p_appconf != NULL) {
         lnapp_stop(p_appconf);
         err = 0;
@@ -1308,7 +1377,7 @@ static int cmd_fund_proc(const uint8_t *pNodeId, const funding_conf_t *pFund, jr
 {
     LOGD("fund\n");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp_node(pNodeId);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
     if (p_appconf == NULL) {
         //未接続
         return RPCERR_NOCONN;
@@ -1488,7 +1557,7 @@ static int cmd_routepay_proc2(
     }
     LOGD("-----------------------------------\n");
 
-    lnapp_conf_t *p_appconf = search_connected_lnapp_node(pRouteResult->hop_datain[1].pubkey);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pRouteResult->hop_datain[1].pubkey);
     if (p_appconf != NULL) {
         bool inited = lnapp_is_inited(p_appconf);
         if (inited) {
@@ -1544,7 +1613,7 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
     LOGD("mutual close\n");
 
     int err;
-    lnapp_conf_t *p_appconf = search_connected_lnapp_node(pNodeId);
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
     if ((p_appconf != NULL) && (ln_htlc_num(p_appconf->p_self) == 0)) {
         //接続中
         bool ret = lnapp_close_channel(p_appconf);
@@ -1738,21 +1807,6 @@ static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Ex
                 pPayHash, Amount, Expiry, pFieldR, FieldRNum, MinFinalCltvExpiry);
     }
     return p_invoice;
-}
-
-
-/** 接続済みlnapp_conf_t取得
- *
- */
-static lnapp_conf_t *search_connected_lnapp_node(const uint8_t *p_node_id)
-{
-    lnapp_conf_t *p_appconf;
-
-    p_appconf = p2p_cli_search_node(p_node_id);
-    if (p_appconf == NULL) {
-        p_appconf = p2p_svr_search_node(p_node_id);
-    }
-    return p_appconf;
 }
 
 

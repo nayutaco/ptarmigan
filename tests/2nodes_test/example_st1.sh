@@ -1,14 +1,13 @@
 #!/bin/sh
 INSTALL_DIR=`pwd`/../../install
 CONFFILE=`pwd`/regtest.conf
-DATADIR=`pwd`/regtest
+DATADIR=`pwd`
 SLEEP_TM=3
 
 cli() {
 	bitcoin-cli -conf=$CONFFILE -datadir=$DATADIR $@
 }
 
-mkdir regtest
 if [ $? -ne 0 ]; then
 	exit -1
 fi
@@ -21,6 +20,8 @@ ln -s $INSTALL_DIR/default_conf.sh default_conf.sh
 ln -s ../testfiles/fund-test-in.sh fund-test-in.sh
 ln -s ../testfiles/regtest.conf regtest.conf
 ln -s ../testfiles/generate.sh generate.sh
+ln -s ../testfiles/getrawtx.sh getrawtx.sh
+ln -s ../testfiles/sendrawtx.sh sendrawtx.sh
 
 bitcoind -conf=$CONFFILE -datadir=$DATADIR -daemon
 sleep $SLEEP_TM
