@@ -21,7 +21,6 @@
  */
 /** @file   ln_err.h
  *  @brief  Lightning Library Error Code
- *  @author ueno@nayuta.co
  */
 #ifndef LN_ERR_H__
 #define LN_ERR_H__

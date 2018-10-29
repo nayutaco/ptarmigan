@@ -21,7 +21,6 @@
  */
 /** @file   btc.h
  *  @brief  bitcoin offline API header
- *  @author ueno@nayuta.co
  */
 #ifndef BTC_H__
 #define BTC_H__

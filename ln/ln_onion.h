@@ -21,7 +21,6 @@
  */
 /** @file   ln_onion.h
  *  @brief  ONION関連
- *  @author ueno@nayuta.co
  */
 #ifndef LN_ONION_H__
 #define LN_ONION_H__

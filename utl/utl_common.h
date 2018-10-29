@@ -21,7 +21,6 @@
  */
 /** @file   utl_common.h
  *  @brief  common
- *  @author ueno@nayuta.co
  */
 #ifndef UTL_COMMON_H__
 #define UTL_COMMON_H__

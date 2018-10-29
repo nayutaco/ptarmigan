@@ -21,7 +21,6 @@
  */
 /** @file   ln_msg_close.h
  *  @brief  [LN]Close関連
- *  @author ueno@nayuta.co
  */
 #ifndef LN_MSG_CLOSE_H__
 #define LN_MSG_CLOSE_H__

@@ -21,7 +21,6 @@
  */
 /** @file   ln_signer.h
  *  @brief  [LN]秘密鍵管理
- *  @author ueno@nayuta.co
  */
 #ifndef LN_SIGNER_H__
 #define LN_SIGNER_H__

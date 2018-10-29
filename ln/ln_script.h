@@ -21,7 +21,6 @@
  */
 /** @file   ln_script.h
  *  @brief  [LN]スクリプト
- *  @author ueno@nayuta.co
  */
 #ifndef LN_SCRIPT_H__
 #define LN_SCRIPT_H__

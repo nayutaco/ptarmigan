@@ -21,7 +21,6 @@
  */
 /** @file   btc.c
  *  @brief  bitcoin offline API
- *  @author ueno@nayuta.co
  */
 #include <unistd.h>
 

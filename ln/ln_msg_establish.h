@@ -21,7 +21,6 @@
  */
 /** @file   ln_msg_establish.h
  *  @brief  [LN]Establish関連
- *  @author ueno@nayuta.co
  */
 #ifndef LN_MSG_ESTABLISH_H__
 #define LN_MSG_ESTABLISH_H__

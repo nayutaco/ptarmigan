@@ -21,7 +21,6 @@
  */
 /** @file   ln_local.h
  *  @brief  [LN]内部管理用
- *  @author ueno@nayuta.co
  */
 #ifndef LN_LOCAL_H__
 #define LN_LOCAL_H__

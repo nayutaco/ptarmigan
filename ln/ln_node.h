@@ -21,7 +21,6 @@
  */
 /** @file   ln_node.h
  *  @brief  [LN]node関連
- *  @author ueno@nayuta.co
  */
 #ifndef LN_NODE_H__
 #define LN_NODE_H__

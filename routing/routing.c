@@ -21,7 +21,6 @@
  */
 /** @file   routing.c
  *  @brief  routing計算アプリ
- *  @author ueno@nayuta.co
  */
 #include <stdio.h>
 #include <stdlib.h>

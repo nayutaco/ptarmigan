@@ -21,7 +21,6 @@
  */
 /** @file   utl_push.c
  *  @brief  bitcoinスクリプト作成
- *  @author ueno@nayuta.co
  */
 #include "utl_local.h"
 

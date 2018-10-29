@@ -21,7 +21,6 @@
  */
 /** @file   ln_print.c
  *  @brief  デバッグ情報
- *  @author ueno@nayuta.co
  */
 #include <stdio.h>
 #include <inttypes.h>

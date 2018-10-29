@@ -21,7 +21,6 @@
  */
 /** @file   utl_buf.h
  *  @brief  utl_buf
- *  @author ueno@nayuta.co
  *
  * @note
  *      - utl_buf

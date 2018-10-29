@@ -21,7 +21,6 @@
  */
 /** @file   ln_misc.h
  *  @brief  [LN]雑多
- *  @author ueno@nayuta.co
  */
 #ifndef LN_MISC_H__
 #define LN_MISC_H__

@@ -21,7 +21,6 @@
  */
 /** @file   ln_msg_establish.c
  *  @brief  [LN]Establish関連
- *  @author ueno@nayuta.co
  *  @sa     https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#channel-establishment
  */
 #include <stdio.h>

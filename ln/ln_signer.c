@@ -21,7 +21,6 @@
  */
 /** @file   ln_signer.c
  *  @brief  [LN]秘密鍵管理
- *  @author ueno@nayuta.co
  */
 
 #include "segwit_addr.h"

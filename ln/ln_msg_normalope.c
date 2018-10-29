@@ -21,7 +21,6 @@
  */
 /** @file   ln_msg_normalope.c
  *  @brief  [LN]Normal Operation関連
- *  @author ueno@nayuta.co
  *  @sa     https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#normal-operation
  */
 #include <stdio.h>

@@ -21,7 +21,6 @@
  */
 /** @file   ln_enc_auth.c
  *  @brief  [LN]BOLT#8関連
- *  @author ueno@nayuta.co
  */
 #include <stdio.h>
 #include <inttypes.h>

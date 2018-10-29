@@ -21,7 +21,6 @@
  */
 /** @file   ln_derkey.c
  *  @brief  Key Derivation
- *  @author ueno@nayuta.co
  *  @note
  *      - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#key-derivation
  */

@@ -21,7 +21,6 @@
  */
 /** @file   ln_msg_setupctl.h
  *  @brief  [LN]Setup/Control関連
- *  @author ueno@nayuta.co
  */
 #ifndef LN_MSG_SETUPCTL_H__
 #define LN_MSG_SETUPCTL_H__
