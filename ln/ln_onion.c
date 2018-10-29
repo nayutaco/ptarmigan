@@ -21,7 +21,6 @@
  */
 /** @file   ln_onion.c
  *  @brief  ONION関連
- *  @author ueno@nayuta.co
  *  @sa     https://github.com/cdecker/lightning-onion/blob/sphinx-hop-data/sphinx.go
  */
 //#define M_USE_SODIUM

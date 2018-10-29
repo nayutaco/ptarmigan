@@ -21,7 +21,6 @@
  */
 /** @file   ln_enc_auth.h
  *  @brief  [LN]noise関連
- *  @author ueno@nayuta.co
  */
 #ifndef LN_ENC_AUTH_H__
 #define LN_ENC_AUTH_H__

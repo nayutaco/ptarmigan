@@ -21,7 +21,6 @@
  */
 /** @file   ln_db_lmdb.h
  *  @brief  showdb用
- *  @author ueno@nayuta.co
  */
 #ifndef LN_DB_LMDB_H__
 #define LN_DB_LMDB_H__

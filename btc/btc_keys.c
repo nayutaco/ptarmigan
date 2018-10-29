@@ -21,7 +21,6 @@
  */
 /** @file   btc_keys.c
  *  @brief  bitcoin処理: 鍵関連
- *  @author ueno@nayuta.co
  */
 #include <stdio.h>
 #include <stdlib.h>

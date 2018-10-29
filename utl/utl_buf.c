@@ -21,7 +21,6 @@
  */
 /** @file   utl_buf.c
  *  @brief  可変サイズバッファ
- *  @author ueno@nayuta.co
  */
 #include "utl_local.h"
 

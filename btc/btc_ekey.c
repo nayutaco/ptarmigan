@@ -21,7 +21,6 @@
  */
 /** @file   btc_ekey.c
  *  @brief  bitcoin extended key
- *  @author ueno@nayuta.co
  */
 #include "btc_local.h"
 #include "utl_dbg.h"

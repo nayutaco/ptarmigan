@@ -21,7 +21,6 @@
  */
 /** @file   ln_msg_normalope.h
  *  @brief  [LN]Normal Operation関連
- *  @author ueno@nayuta.co
  */
 #ifndef LN_MSG_NORMALOPE_H__
 #define LN_MSG_NORMALOPE_H__

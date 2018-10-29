@@ -21,7 +21,6 @@
  */
 /** @file   showdb.c
  *  @brief  DB閲覧
- *  @author ueno@nayuta.co
  */
 #include <stdio.h>
 #include <stdlib.h>

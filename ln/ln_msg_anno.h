@@ -21,7 +21,6 @@
  */
 /** @file   ln_msg_anno.h
  *  @brief  [LN]Announce関連
- *  @author ueno@nayuta.co
  */
 #ifndef LN_MSG_ANNO_H__
 #define LN_MSG_ANNO_H__
@@ -159,7 +158,7 @@ void HIDDEN ln_msg_get_anno_signs(ln_self_t *self, uint8_t **pp_sig_node, uint8_
 
 
 /** short_channel_id書き換え
- * 
+ *
  */
 bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t ShortChannelId, btc_keys_sort_t Sort);
 

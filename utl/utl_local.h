@@ -21,7 +21,6 @@
  */
 /** @file   utl_local.h
  *  @brief  libutl内インターフェース
- *  @author ueno@nayuta.co
  */
 #ifndef UTL_LOCAL_H__
 #define UTL_LOCAL_H__

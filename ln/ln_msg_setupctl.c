@@ -21,7 +21,6 @@
  */
 /** @file   ln_msg_setupctl.c
  *  @brief  [LN]Setup/Control関連
- *  @author ueno@nayuta.co
  *  @sa     https://github.com/lightningnetwork/lightning-rfc/blob/master/01-messaging.md
  */
 #include <stdio.h>

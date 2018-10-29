@@ -21,7 +21,6 @@
  */
 /** @file   ln_db_lmdb.c
  *  @brief  Lightning DB保存/復元
- *  @author ueno@nayuta.co
  */
 #include <stdio.h>
 #include <stdlib.h>

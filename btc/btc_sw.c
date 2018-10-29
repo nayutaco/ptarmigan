@@ -21,7 +21,6 @@
  */
 /** @file   btc_sw.c
  *  @brief  bitcoin処理: Segwitトランザクション生成関連
- *  @author ueno@nayuta.co
  */
 #include "utl_dbg.h"
 

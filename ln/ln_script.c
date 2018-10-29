@@ -21,7 +21,6 @@
  */
 /** @file   ln_script.c
  *  @brief  [LN]スクリプト
- *  @author ueno@nayuta.co
  */
 #include <inttypes.h>
 

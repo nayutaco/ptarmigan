@@ -21,7 +21,6 @@
  */
 /** @file   btc_tx.c
  *  @brief  bitcoin処理: トランザクション生成関連
- *  @author ueno@nayuta.co
  */
 #ifdef PTARM_USE_PRINTFUNC
 #include <time.h>

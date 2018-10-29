@@ -21,7 +21,6 @@
  */
 /** @file   ln_routing.cpp
  *  @brief  routing計算
- *  @author ueno@nayuta.co
  */
 #include <stdio.h>
 #include <stdlib.h>

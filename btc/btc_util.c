@@ -21,7 +21,6 @@
  */
 /** @file   btc_util.c
  *  @brief  bitcoin処理: 汎用処理
- *  @author ueno@nayuta.co
  */
 #include <sys/stat.h>
 #include <sys/types.h>

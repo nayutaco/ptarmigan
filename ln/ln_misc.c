@@ -21,7 +21,6 @@
  */
 /** @file   ln_misc.c
  *  @brief  [LN]雑多
- *  @author ueno@nayuta.co
  */
 #include <stdio.h>
 #include <stdlib.h>

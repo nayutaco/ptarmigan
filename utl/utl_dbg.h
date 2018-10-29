@@ -21,7 +21,6 @@
  */
 /** @file   utl_dbg.h
  *  @brief  utl_dbg
- *  @author ueno@nayuta.co
  *
  * @note
  *      - utl_dbg

@@ -21,7 +21,6 @@
  */
 /** @file   utl_push.h
  *  @brief  utl_push
- *  @author ueno@nayuta.co
  *
  * @note
  *      - utl_push

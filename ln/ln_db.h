@@ -21,7 +21,6 @@
  */
 /** @file   ln_db.h
  *  @brief  Lightning DB保存・復元
- *  @author ueno@nayuta.co
  */
 #ifndef LN_DB_H__
 #define LN_DB_H__

@@ -21,7 +21,6 @@
  */
 /** @file   ln_node.c
  *  @brief  ノード情報
- *  @author ueno@nayuta.co
  */
 #include <stdio.h>
 #include <inttypes.h>

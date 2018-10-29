@@ -21,7 +21,6 @@
  */
 /** @file   ln_msg_close.c
  *  @brief  [LN]Close関連
- *  @author ueno@nayuta.co
  *  @sa     https://github.com/lightningnetwork/lightning-rfc/blob/master/02-peer-protocol.md#channel-close
  */
 #include <stdio.h>

@@ -21,7 +21,6 @@
  */
 /** @file   utl_dbg.c
  *  @brief  utl処理: 汎用処理
- *  @author ueno@nayuta.co
  */
 #include <stdlib.h>
 #include <sys/stat.h>
