@@ -772,9 +772,9 @@ void lnapp_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
     if (pChannelId != NULL) {
         char chanid[LN_SZ_CHANNEL_ID * 2 + 1];
         utl_misc_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
-        sprintf(fname, FNAME_EVENTCH_LOG, chanid);
+        sprintf(fname, FNAME_CHANNEL_LOG, chanid);
     } else {
-        sprintf(fname, FNAME_EVENTCH_LOG, "node");
+        sprintf(fname, FNAME_EVENT_LOG);
     }
     FILE *fp = fopen(fname, "a");
     if (fp != NULL) {

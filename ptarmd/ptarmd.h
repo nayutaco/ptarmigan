@@ -59,10 +59,11 @@ extern "C" {
 
 #define TM_WAIT_CONNECT             (10)        ///< client socket接続待ち[sec]
 
-#define FNAME_CONN_LOG              "connect.log"
-#define FNAME_EVENT_LOG             "event.log"
-#define FNAME_EVENTCH_LOG           "evt_%s.log"
-#define FNAME_INVOICE_LOG           "invoice_%s.log"
+#define FNAME_LOGDIR                "logs"
+#define FNAME_CONN_LOG              FNAME_LOGDIR "/connect.log"
+#define FNAME_EVENT_LOG             FNAME_LOGDIR "/event.log"
+#define FNAME_CHANNEL_LOG           FNAME_LOGDIR "/chan_%s.log"
+#define FNAME_INVOICE_LOG           FNAME_LOGDIR "/invoice_%s.log"
 #define FNAME_FMT_NODECONF          "ptarm_%s.conf"
 
 //need update ptarmd_error_str()

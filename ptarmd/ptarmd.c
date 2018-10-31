@@ -100,6 +100,8 @@ int ptarmd_start(uint16_t my_rpcport)
     bool bret;
     ln_nodeaddr_t *p_addr = ln_node_addr();
 
+    mkdir(FNAME_LOGDIR, 0755);
+
     p2p_cli_init();
 
     //node情報読込み
@@ -142,7 +144,7 @@ int ptarmd_start(uint16_t my_rpcport)
 
     uint64_t total_amount = ln_node_total_msat();
     lnapp_save_event(NULL,
-            "ptarmd start: total_msat=%" PRIu64 "\n", total_amount);
+            "ptarmd start: total_msat=%" PRIu64, total_amount);
 
     mRunning = true;
 
@@ -156,6 +158,9 @@ int ptarmd_start(uint16_t my_rpcport)
     pthread_join(th_poll, NULL);
 
     LOGD("end\n");
+    total_amount = ln_node_total_msat();
+    lnapp_save_event(NULL,
+            "ptarmd end: total_msat=%" PRIu64 "\n", total_amount);
 
     btcrpc_term();
     ln_db_term();
