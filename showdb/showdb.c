@@ -138,6 +138,9 @@ static void ln_print_wallet(const ln_self_t *self)
     btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
     printf("\",\n");
     printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
+    printf(INDENT3 M_QQ("funding_tx") ": \"");
+    btc_util_dumptxid(stdout, self->funding_local.txid);
+    printf(":%d\",\n", self->funding_local.txindex);
     uint64_t offered = 0;
     uint64_t received = 0;
     if (self->htlc_num != 0) {
@@ -269,7 +272,12 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("min_depth") ": %" PRIu32 ",\n", self->min_depth);
 
     //announce
-    printf(INDENT3 M_QQ("anno_flag") ": " M_QQ("0x%02x") ",\n", self->anno_flag);
+    printf(INDENT3 M_QQ("anno_flag") ": {\n");
+    printf(INDENT4 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->anno_flag);
+    printf(INDENT4 M_QQ("announcement_signatures send") ": %d,\n", (self->anno_flag & 0x01) == 0x01);
+    printf(INDENT4 M_QQ("announcement_signatures recv") ": %d,\n", (self->anno_flag & 0x02) == 0x02);
+    printf(INDENT4 M_QQ("exchanged") ": %d\n", (self->anno_flag & LN_ANNO_FLAG_END) == LN_ANNO_FLAG_END);
+    printf(INDENT3 "},\n");
 
     //init
     printf(INDENT3 M_QQ("lfeature_remote") ": " M_QQ("0x%02x") ",\n", self->lfeature_remote);
@@ -297,19 +305,11 @@ static void ln_print_self(const ln_self_t *self)
         p_str_close_type = "???";
     }
     printf(INDENT4 M_QQ("close_type") ": %s,\n", p_str_close_type);
-    printf(INDENT4 M_QQ("shutdown_flag") ": [");
-    if (self->shutdown_flag & 1) {
-        printf(M_QQ("shutdown sent"));
-    } else {
-        printf(M_QQ("shutdown not send"));
-    }
-    printf(", ");
-    if (self->shutdown_flag & 2) {
-        printf(M_QQ("shutdown received"));
-    } else {
-        printf(M_QQ("shutdown not received"));
-    }
-    printf("],\n");
+    printf(INDENT4 M_QQ("shutdown_flag") ": {\n");
+    printf(INDENT5 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->shutdown_flag);
+    printf(INDENT5 M_QQ("shutdown send") ": %d,\n", (self->shutdown_flag & 0x01) == 0x01);
+    printf(INDENT5 M_QQ("shutdown recv") ": %d\n", (self->shutdown_flag & 0x02) == 0x02);
+    printf(INDENT4 "},\n");
     printf(INDENT4 M_QQ("local_scriptPubKey") ": \"");
     btc_util_dumpbin(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
     printf("\",\n");
@@ -477,6 +477,15 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT4 M_QQ("revoke_num") ": %" PRIu64 "\n", self->commit_remote.revoke_num);
     printf(INDENT3 "},\n");
 
+    //addr
+    if (self->last_connected_addr.type == LN_NODEDESC_IPV4) {
+        printf(INDENT3 M_QQ("last_connected IPv4") ": %d.%d.%d.%d:%d,\n",
+                    self->last_connected_addr.addrinfo.ipv4.addr[0],
+                    self->last_connected_addr.addrinfo.ipv4.addr[1],
+                    self->last_connected_addr.addrinfo.ipv4.addr[2],
+                    self->last_connected_addr.addrinfo.ipv4.addr[3],
+                    self->last_connected_addr.port);
+    }
     printf(INDENT3 M_QQ("err") ": %d\n", self->err);
 
     printf(INDENT2 "}");

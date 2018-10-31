@@ -183,14 +183,15 @@ void ln_node_term(void)
 
 bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
 {
+    LOGD("search id:");
+    DUMPD(pNodeId, BTC_SZ_PUBKEY);
+
     comp_param_cnl_t prm;
 
     prm.p_node_id = pNodeId;
     prm.p_self = self;
     bool detect = ln_db_self_search(comp_func_cnl, &prm);
 
-    LOGD("search id:");
-    DUMPD(pNodeId, BTC_SZ_PUBKEY);
     LOGD("  --> detect=%d\n", detect);
 
     return detect;

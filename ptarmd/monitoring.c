@@ -77,6 +77,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 
 static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void *p_db_param);
 static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param);
+static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
 static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
 static bool close_unilateral_local_received(bool spent);
@@ -372,6 +373,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         }
         if (del) {
             LOGD("delete from DB\n");
+            ln_db_annoown_del(ln_short_channel_id(self));
             ret = ln_db_self_del_prm(self, p_db_param);
             if (ret) {
                 lnapp_save_event(ln_channel_id(self), "close: finish");
@@ -476,52 +478,93 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
     // TXIDD(ln_funding_txid(self));
 
     const uint8_t *p_node_id = ln_their_node_id(self);
+    struct {
+        char ipaddr[SZ_IPV4_LEN + 1];
+        uint16_t port;
+    } conn_addr[3];
 
+    //conn_addr[0]
     //clientとして接続したときの接続先情報があれば、そこに接続する
     peer_conn_t last_peer_conn;
     if (p2p_cli_load_peer_conn(&last_peer_conn, p_node_id)) {
-        bool ret = ptarmd_nodefail_get(last_peer_conn.node_id, last_peer_conn.ipaddr, last_peer_conn.port, LN_NODEDESC_IPV4, false);
-        if (!ret) {
-            utl_misc_msleep(10 + rand() % 2000);
-            int retval = cmd_json_connect(last_peer_conn.node_id, last_peer_conn.ipaddr, last_peer_conn.port);
-            LOGD("retval=%d\n", retval);
-            if (retval == 0) {
-                return false;
-            }
-        }
+        strcpy(conn_addr[0].ipaddr, last_peer_conn.ipaddr);
+        conn_addr[0].port = last_peer_conn.port;
+    } else {
+        conn_addr[0].port = 0;
     }
 
+    //conn_addr[1]
     //node_announcementで通知されたアドレスに接続する
     ln_node_announce_t anno;
     bool ret = ln_node_search_nodeanno(&anno, p_node_id);
     if (ret) {
         switch (anno.addr.type) {
         case LN_NODEDESC_IPV4:
-            {
-                char ipaddr[SZ_IPV4_LEN + 1];
-                sprintf(ipaddr, "%d.%d.%d.%d",
-                            anno.addr.addrinfo.ipv4.addr[0], anno.addr.addrinfo.ipv4.addr[1],
-                            anno.addr.addrinfo.ipv4.addr[2], anno.addr.addrinfo.ipv4.addr[3]);
-
-                ret = ptarmd_nodefail_get(p_node_id, ipaddr, anno.addr.port, LN_NODEDESC_IPV4, false);
-                if (!ret) {
-                    //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
-                    utl_misc_msleep(10 + rand() % 2000);    //双方が同時に接続しに行かないように時差を付ける(効果があるかは不明)
-                    int retval = cmd_json_connect(p_node_id, ipaddr, anno.addr.port);
-                    LOGD("retval=%d\n", retval);
-                }
-            }
+            sprintf(conn_addr[1].ipaddr, "%d.%d.%d.%d",
+                anno.addr.addrinfo.ipv4.addr[0],
+                anno.addr.addrinfo.ipv4.addr[1],
+                anno.addr.addrinfo.ipv4.addr[2],
+                anno.addr.addrinfo.ipv4.addr[3]);
+            conn_addr[1].port = anno.addr.port;
             break;
         default:
             //LOGD("addrtype: %d\n", anno.addr.type);
+            conn_addr[1].port = 0;
             break;
         }
-    } else {
-        //LOGD("  not found: node_announcement: ");
-        //DUMPD(p_node_id, BTC_SZ_PUBKEY);
+    }
+
+    //conn_addr[2]
+    //self->last_connected_addrがあれば、それを使う
+    switch (ln_last_connected_addr(self)->type) {
+    case LN_NODEDESC_IPV4:
+        sprintf(conn_addr[2].ipaddr, "%d.%d.%d.%d",
+            ln_last_connected_addr(self)->addrinfo.ipv4.addr[0],
+            ln_last_connected_addr(self)->addrinfo.ipv4.addr[1],
+            ln_last_connected_addr(self)->addrinfo.ipv4.addr[2],
+            ln_last_connected_addr(self)->addrinfo.ipv4.addr[3]);
+        conn_addr[2].port = ln_last_connected_addr(self)->port;
+        break;
+    default:
+        //LOGD("addrtype: %d\n", anno.addr.type);
+        conn_addr[2].port = 0;
+        break;
+    }
+
+    for (size_t lp = 0; lp < ARRAY_SIZE(conn_addr); lp++) {
+        if (conn_addr[lp].port != 0) {
+            //先にdefault portで試し、だめだったら指定したportで試す
+            if (conn_addr[lp].port != LN_PORT_DEFAULT) {
+                ret = channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, LN_PORT_DEFAULT);
+                if (ret) {
+                    break;
+                }
+            }
+            ret = channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, conn_addr[lp].port);
+            if (ret) {
+                break;
+            }
+        }
     }
 
     return false;
+}
+
+
+static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
+{
+    int retval = -1;
+    bool ret = ptarmd_nodefail_get(
+                    pNodeId, pIpAddr, LN_PORT_DEFAULT,
+                    LN_NODEDESC_IPV4, false);
+    if (!ret) {
+        //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
+        retval = cmd_json_connect(
+                    pNodeId, pIpAddr, Port);
+        LOGD("retval=%d\n", retval);
+    }
+
+    return retval == 0;
 }
 
 

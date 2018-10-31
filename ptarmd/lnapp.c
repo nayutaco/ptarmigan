@@ -61,6 +61,7 @@
 #include "conf.h"
 #include "btcrpc.h"
 #include "ln_db.h"
+#include "utl_addr.h"
 
 #include "monitoring.h"
 
@@ -423,26 +424,8 @@ LABEL_EXIT:
 
 /*******************************************
  * 転送/巻き戻しのための lnappコンテキスト移動
- *
  *      転送/巻き戻しを行うため、lnappをまたぐ必要がある。
  *      pthreadがlnappで別になるため、受信スレッドのidle処理を介して移動させる。
- *
- *      この経路を使うのは、以下のタイミングになる。
- *          - update_add_htlc転送 : revoke_and_ack後(add_htlc転送は、add_htlc受信以外に無い)
- *          - update_fulfill_htlc巻き戻し
- *              - payee : revoke_and_ack後(add_htlc受信)
- *              - それ以外 : update_fulfill_htlc受信後(fulfill_htlc受信)
- *          - update_fail_htlc巻き戻し
- *              - payee : revoke_and_ack後(add_htlc受信)
- *              - それ以外 : update_fulfill_htlc/update_fail_htlc受信後(fail_htlc受信)
- *
- * update_add_htlc受信後に転送/巻き戻しを行う場合、revoke_and_ack受信まで待つ必要があるため、
- * 一旦 lnapp.p_revackq にためている。
- * それ以降はrevoke_and_ackを待つ必要がないため、以下のAPIを直接呼び出す。
- *
- * TODO:
- *  - update_fail_htlc受信は、update_fail_htlc巻き戻し以外になることはあり得るか？
- *      - update_fail_malformed_htlcを受信した場合、それ以降はupdate_fail_htlcを返すことになる。
  *******************************************/
 
 void lnapp_transfer_channel(lnapp_conf_t *pAppConf, trans_cmd_t Cmd, utl_buf_t *pBuf)
@@ -864,7 +847,6 @@ static void *thread_main_start(void *pArg)
     p_conf->err = 0;
     p_conf->p_errstr = NULL;
     utl_buf_init(&p_conf->buf_sendque);
-    LIST_INIT(&p_conf->revack_head);
     LIST_INIT(&p_conf->rcvidle_head);
     LIST_INIT(&p_conf->payroute_head);
 
@@ -872,7 +854,6 @@ static void *thread_main_start(void *pArg)
     pthread_mutex_init(&p_conf->mux, NULL);
     pthread_mutex_init(&p_conf->mux_proc, NULL);
     pthread_mutex_init(&p_conf->mux_send, NULL);
-    pthread_mutex_init(&p_conf->mux_revack, NULL);
     pthread_mutex_init(&p_conf->mux_rcvidle, NULL);
     pthread_mutex_init(&p_conf->mux_sendque, NULL);
 
@@ -1002,6 +983,13 @@ static void *thread_main_start(void *pArg)
                 TXIDD(ln_funding_txid(p_self));
 
                 p_conf->funding_waiting = true;
+            }
+
+            ln_nodeaddr_t conn_addr;
+            ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
+            if (ret) {
+                conn_addr.type = LN_NODEDESC_IPV4;
+                ln_set_last_connected_addr(p_self, &conn_addr);
             }
 
             b_channelreestablished = exchange_reestablish(p_conf);
@@ -1812,7 +1800,12 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf)
     if (ret) {
         //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ret = ln_set_short_channel_id_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self), mined_hash);
-        LOGD("short_channel_id = %016" PRIx64 "(%d)\n", ln_short_channel_id(p_conf->p_self), ret);
+        if (ret) {
+            ln_db_annoown_save(ln_short_channel_id(p_conf->p_self));
+            LOGD("short_channel_id = %016" PRIx64 "(%d)\n", ln_short_channel_id(p_conf->p_self), ret);
+        } else {
+            LOGD("fail: set short_channel_id param\n");
+        }
     }
 
     return ret;
@@ -2979,7 +2972,7 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uin
 
     //
     if (ret && (short_channel_id != last_short_channel_id)) {
-        if (!ln_db_self_chk_mynode(short_channel_id)) {
+        if (!ln_db_annoown_check(short_channel_id)) {
             //自ノードではないchannel_announcementを持たないchannel_updateのため、削除する
             LOGD("orphan channel_update: prune(%016" PRIx64 ")\n", short_channel_id);
             ret = false;

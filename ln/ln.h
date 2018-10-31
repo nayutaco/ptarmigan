@@ -41,6 +41,8 @@ extern "C" {
  * macros
  **************************************************************************/
 
+#define LN_PORT_DEFAULT                 (9735)
+
 #define LN_SZ_CHANNEL_ID                (32)        ///< サイズ:channel_id
 #define LN_SZ_SHORT_CHANNEL_ID          (8)         ///< サイズ:short_channel_id
 #define LN_SZ_SIGNATURE                 BTC_SZ_SIGN_RS    ///< サイズ:署名
@@ -299,18 +301,6 @@ typedef struct {
 #define LN_HTLCFLAG_SFT_FINDELHTLC(a)   ((uint16_t)(a) << 9)
 #define LN_HTLCFLAG_SFT_TIMEOUT         (LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_OFFER))
 
-/// update_add_htlc+commitment_signed送信直後
-#define LN_HTLCFLAG_BITS_ADDHTLC        (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_OFFER) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
-
-/// update_fulfill_htlc+commitment_signed送信直後
-#define LN_HTLCFLAG_BITS_FULFILLHTLC    (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_FULFILL) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
-
-/// update_fail_htlc+commitment_signed送信直後
-#define LN_HTLCFLAG_BITS_FAILHTLC       (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_FAIL) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
-
-/// update_fail_malformed_htlc+commitment_signed送信直後
-#define LN_HTLCFLAG_BITS_MALFORMEDHTLC  (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_MALFORMED) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
-
 
 /** @typedef    ln_callback_t
  *  @brief      通知コールバック関数
@@ -336,7 +326,7 @@ typedef enum {
 } ln_htlctype_t;
 
 
-/** @struct ln_derkey_storage
+/** @struct ln_derkey_storage_t
  *  @brief  per-commitment secret storage
  *      https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#efficient-per-commitment-secret-storage
  */
@@ -345,7 +335,7 @@ typedef struct {
         uint8_t     secret[BTC_SZ_PRIVKEY];   ///< secret
         uint64_t    index;                      ///< index
     } storage[49];
-} ln_derkey_storage;
+} ln_derkey_storage_t;
 
 
 /**************************************************************************
@@ -1118,7 +1108,7 @@ struct ln_self_t {
     ln_self_priv_t              priv_data;
 
     //key storage
-    ln_derkey_storage           peer_storage;                   ///< key storage(peer)
+    ln_derkey_storage_t         peer_storage;                   ///< key storage(peer)
     uint64_t                    peer_storage_index;             ///< storage index(peer)
                                                                 //      鍵保存してからデクリメントするため、次に保存する際のindexを指している
 
@@ -1188,6 +1178,8 @@ struct ln_self_t {
     uint64_t                    reest_revoke_num;               ///< channel_reestablish.next_remote_revocation_number
 
     ////////////////////////////////////////////////
+
+    ln_nodeaddr_t               last_connected_addr;            ///< 最後に接続したIP address
 
     //noise protocol
     ln_noise_t                  noise_send;                     ///< noise protocol
@@ -1825,6 +1817,12 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
 bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 
 
+/** 最後に接続したアドレス保存
+ *
+ */
+void ln_set_last_connected_addr(ln_self_t *self, const ln_nodeaddr_t *pAddr);
+
+
 /********************************************************************
  * inline展開用
  ********************************************************************/
@@ -2339,6 +2337,14 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
  */
 static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t AmountMsat) {
     return (uint64_t)self->anno_prm.fee_base_msat + (AmountMsat * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
+}
+
+
+/** 最後に接続したIPアドレス
+ *
+ */
+static inline const ln_nodeaddr_t *ln_last_connected_addr(const ln_self_t *self) {
+    return &self->last_connected_addr;
 }
 
 
