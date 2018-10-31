@@ -309,7 +309,7 @@ void HIDDEN ln_derkey_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uin
 }
 
 
-void HIDDEN ln_derkey_storage_init(ln_derkey_storage *pStorage)
+void HIDDEN ln_derkey_storage_init(ln_derkey_storage_t *pStorage)
 {
     for (int lp = 0; lp < 49; lp++) {
         memset(pStorage->storage[lp].secret, 0xcc, BTC_SZ_PRIVKEY);
@@ -318,7 +318,7 @@ void HIDDEN ln_derkey_storage_init(ln_derkey_storage *pStorage)
 }
 
 
-bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const uint8_t *pSecret, uint64_t Index)
+bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const uint8_t *pSecret, uint64_t Index)
 {
     //insert_secret(secret, I):
     //    B = where_to_put_secret(secret, I)
@@ -353,7 +353,7 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const u
 }
 
 
-bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_storage *pStorage, uint64_t Index)
+bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_storage_t *pStorage, uint64_t Index)
 {
     LOGD("index=%016" PRIx64 "\n", Index);
 

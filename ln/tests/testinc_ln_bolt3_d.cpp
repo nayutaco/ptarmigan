@@ -23,7 +23,7 @@ protected:
         btc_term();
     }
 
-    static ln_derkey_storage storage;
+    static ln_derkey_storage_t storage;
 
 public:
     static void DumpBin(const uint8_t *pData, uint16_t Len)
@@ -35,7 +35,7 @@ public:
     }
 };
 
-ln_derkey_storage ln_bolt3_d::storage;
+ln_derkey_storage_t ln_bolt3_d::storage;
 
 
 ////////////////////////////////////////////////////////////////////////

@@ -92,7 +92,7 @@ void HIDDEN ln_derkey_create_secret(uint8_t *pPrivKey, const uint8_t *pSeed, uin
  *
  * @param[out]      pStorage
  */
-void HIDDEN ln_derkey_storage_init(ln_derkey_storage *pStorage);
+void HIDDEN ln_derkey_storage_init(ln_derkey_storage_t *pStorage);
 
 
 /** per-commitment secret storage追加
@@ -102,7 +102,7 @@ void HIDDEN ln_derkey_storage_init(ln_derkey_storage *pStorage);
  * @param[in]       Index
  * @return      true    成功
  */
-bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const uint8_t *pSecret, uint64_t Index);
+bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage_t *pStorage, const uint8_t *pSecret, uint64_t Index);
 
 
 /** per-commitment secret取得
@@ -112,6 +112,6 @@ bool HIDDEN ln_derkey_storage_insert_secret(ln_derkey_storage *pStorage, const u
  * @param[in]       Index
  * @return      true    成功
  */
-bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_storage *pStorage, uint64_t Index);
+bool HIDDEN ln_derkey_storage_get_secret(uint8_t *pSecret, const ln_derkey_storage_t *pStorage, uint64_t Index);
 
 #endif /* LN_DERKEY_H__ */

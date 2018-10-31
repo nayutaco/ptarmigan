@@ -100,11 +100,9 @@ typedef struct lnapp_conf_t {
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
     pthread_mutex_t mux_proc;       ///< BOLT受信処理中のmutex
     pthread_mutex_t mux_send;       ///< socket送信中のmutex
-    pthread_mutex_t mux_revack;     ///< revoke_and_ack後キュー用mutex
     pthread_mutex_t mux_rcvidle;    ///< 受信アイドル時キュー用mutex
     pthread_mutex_t mux_sendque;    ///< BOLT送信キュー用mutex
 
-    struct transferlisthead_t   revack_head;    //revoke_and_ack後キュー
     struct transferlisthead_t   rcvidle_head;   //受信アイドル時キュー
     struct routelisthead_t      payroute_head;  //payment
 

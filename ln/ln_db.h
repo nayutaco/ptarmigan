@@ -465,6 +465,31 @@ bool ln_db_annonod_cur_get(void *pCur, utl_buf_t *pBuf, uint32_t *pTimeStamp, ui
 
 
 /********************************************************************
+ * [anno]own channel
+ ********************************************************************/
+
+/** 自short_channel_id登録
+ *      受信したshort_channel_idが自分の持つものかどうか調べるためのDB
+ *
+ */
+bool ln_db_annoown_save(uint64_t ShortChannelId);
+
+/** 自short_channel_idチェック
+ *
+ * @retval  true    自short_channel_id DBに登録あり
+ * @attention
+ *      #ln_db_anno_transaction()でtransaction取得済みであること
+ */
+bool ln_db_annoown_check(uint64_t ShortChannelId);
+
+
+/** 自short_channel_id削除
+ *
+ */
+bool ln_db_annoown_del(uint64_t ShortChannelId);
+
+
+/********************************************************************
  * annocnl, annonod共通
  ********************************************************************/
 

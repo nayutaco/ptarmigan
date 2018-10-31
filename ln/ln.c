@@ -112,18 +112,19 @@
 #define M_SHDN_FLAG_RECV                    (0x02)          ///< shutdown受信済み
 #define M_SHDN_FLAG_EXCHANGED(flag)         (((flag) & (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)) == (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV))
 
-// comrev_state()
-#define M_STAT_STABLE                       (0x00)
-#define M_STAT_SENDER                       (0x40)
-#define M_STAT_RECEIVER                     (0x80)
-#define M_STAT_MASK_DIR(f)                  ((f) & 0xf0)
-#define M_STAT_MASK_NUM(f)                  ((f) & 0x0f)
-#define M_STAT_SEND1                        ((uint8_t)(M_STAT_SENDER | 1))
-#define M_STAT_SEND2                        ((uint8_t)(M_STAT_SENDER | 2))
-#define M_STAT_SEND3                        ((uint8_t)(M_STAT_SENDER | 3))
-#define M_STAT_RECV1                        ((uint8_t)(M_STAT_RECEIVER | 1))
-#define M_STAT_RECV2                        ((uint8_t)(M_STAT_RECEIVER | 2))
-#define M_STAT_RECV3                        ((uint8_t)(M_STAT_RECEIVER | 3))
+
+/// update_add_htlc+commitment_signed送信直後
+#define M_HTLCFLAG_BITS_ADDHTLC         (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_OFFER) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+
+/// update_fulfill_htlc+commitment_signed送信直後
+#define M_HTLCFLAG_BITS_FULFILLHTLC     (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_FULFILL) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+
+/// update_fail_htlc+commitment_signed送信直後
+#define M_HTLCFLAG_BITS_FAILHTLC        (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_FAIL) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+
+/// update_fail_malformed_htlc+commitment_signed送信直後
+#define M_HTLCFLAG_BITS_MALFORMEDHTLC   (LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_RECV) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_MALFORMED) | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_COMSEND)
+
 
 #define M_PONG_MISSING                      (3)             ///< pongが返ってこないエラー上限
 
@@ -855,6 +856,9 @@ void ln_after_channel_reestablish(ln_self_t *self)
     M_DBG_COMMITNUM(self);
     M_DBG_HTLCFLAGALL(self);
 
+    LOGD("self->reest_revoke_num=%" PRIu64 "\n", self->reest_revoke_num);
+    LOGD("self->reest_commit_num=%" PRIu64 "\n", self->reest_commit_num);
+
     //
     //BOLT#02
     //  commit_txは、作成する関数内でcommit_num+1している(インクリメントはしない)。
@@ -874,23 +878,23 @@ void ln_after_channel_reestablish(ln_self_t *self)
                 bool proc = true;
                 utl_buf_t buf_bolt = UTL_BUF_INIT;
                 switch (p_htlc->stat.bits & ~LN_HTLCFLAG_MASK_FINDELHTLC) {
-                case LN_HTLCFLAG_BITS_ADDHTLC:
+                case M_HTLCFLAG_BITS_ADDHTLC:
                     //update_add_htlc送信
                     LOGD("resend: update_add_htlc\n");
                     p_htlc->p_channel_id = self->channel_id;
                     (void)ln_msg_update_add_htlc_create(&buf_bolt, p_htlc);
                     break;
-                case LN_HTLCFLAG_BITS_FULFILLHTLC:
+                case M_HTLCFLAG_BITS_FULFILLHTLC:
                     //update_fulfill_htlc送信
                     LOGD("resend: update_fulfill_htlc\n");
                     ln_create_fulfill_htlc(self, &buf_bolt, idx);
                     break;
-                case LN_HTLCFLAG_BITS_FAILHTLC:
+                case M_HTLCFLAG_BITS_FAILHTLC:
                     //update_fail_htlc送信
                     LOGD("resend: update_fail_htlc\n");
                     ln_create_fail_htlc(self, &buf_bolt, idx);
                     break;
-                case LN_HTLCFLAG_BITS_MALFORMEDHTLC:
+                case M_HTLCFLAG_BITS_MALFORMEDHTLC:
                     //update_fail_malformed_htlc送信
                     LOGD("resend: update_fail_malformed_htlc\n");
                     ln_create_fail_malformed_htlc(self, &buf_bolt, idx);
@@ -975,7 +979,7 @@ void ln_after_channel_reestablish(ln_self_t *self)
 bool ln_check_need_funding_locked(const ln_self_t *self)
 {
     return (self->short_channel_id != 0) &&
-        ( 
+        (
             ((self->commit_local.commit_num == 0) && (self->commit_remote.commit_num == 0)) ||
             ((self->reest_commit_num == 1) && (self->reest_revoke_num == 0))
         );
@@ -1803,9 +1807,12 @@ bool ln_create_ping(ln_self_t *self, utl_buf_t *pPing)
     bool ret = ln_msg_ping_create(pPing, &ping);
     if (ret) {
         self->missing_pong_cnt++;
-        if (self->missing_pong_cnt > M_PONG_MISSING) {
-           M_SET_ERR(self, LNERR_PINGPONG, "many pong missing...(%d)\n", self->missing_pong_cnt);
-           ret = false;
+        if (self->missing_pong_cnt > 1) {
+            LOGD("missing pong: %d\n", self->missing_pong_cnt);
+            if (self->missing_pong_cnt > M_PONG_MISSING) {
+                M_SET_ERR(self, LNERR_PINGPONG, "many pong missing...(%d)\n", self->missing_pong_cnt);
+                ret = false;
+            }
         }
     }
 
@@ -1962,6 +1969,13 @@ bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t 
 {
     bool ret = ln_msg_cnl_update_read(pUpd, pData, Len);
     return ret;
+}
+
+
+void ln_set_last_connected_addr(ln_self_t *self, const ln_nodeaddr_t *pAddr)
+{
+    memcpy(&self->last_connected_addr, &pAddr->addrinfo, sizeof(ln_nodeaddr_t));
+    M_DB_SELF_SAVE(self);
 }
 
 
