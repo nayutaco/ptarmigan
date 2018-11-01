@@ -1974,7 +1974,11 @@ bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t 
 
 void ln_set_last_connected_addr(ln_self_t *self, const ln_nodeaddr_t *pAddr)
 {
-    memcpy(&self->last_connected_addr, &pAddr->addrinfo, sizeof(ln_nodeaddr_t));
+    memcpy(&self->last_connected_addr, pAddr, sizeof(ln_nodeaddr_t));
+    LOGD("addr[%d]: %d.%d.%d.%d:%d\n", pAddr->type,
+            pAddr->addrinfo.ipv4.addr[0], pAddr->addrinfo.ipv4.addr[1],
+            pAddr->addrinfo.ipv4.addr[2], pAddr->addrinfo.ipv4.addr[3],
+            pAddr->port);
     M_DB_SELF_SAVE(self);
 }
 

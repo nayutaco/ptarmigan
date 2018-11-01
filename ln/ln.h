@@ -1102,97 +1102,91 @@ typedef struct {
  *  @brief      チャネル情報
  */
 struct ln_self_t {
-    uint8_t                     peer_node_id[BTC_SZ_PUBKEY];    ///< 接続先ノード
-    ln_status_t                 status;
-
-    ln_self_priv_t              priv_data;
+    uint8_t                     peer_node_id[BTC_SZ_PUBKEY];    ///< [CONN_01]接続先ノード
+    ln_nodeaddr_t               last_connected_addr;            ///< [CONN_02]最後に接続したIP address
+    ln_status_t                 status;                         ///< [CONN_03]状態
+    uint16_t                    missing_pong_cnt;               ///< [CONN_04]ping送信に対してpongを受信しなかった回数
+    uint16_t                    last_num_pong_bytes;            ///< [CONN_05]最後にping送信したlast_num_pong_bytes
 
     //key storage
-    ln_derkey_storage_t         peer_storage;                   ///< key storage(peer)
-    uint64_t                    peer_storage_index;             ///< storage index(peer)
-                                                                //      鍵保存してからデクリメントするため、次に保存する際のindexを指している
+    ln_derkey_storage_t         peer_storage;                   ///< [KEYS_01]key storage(peer)
+    uint64_t                    peer_storage_index;             ///< [KEYS_02]storage index(peer)
+    ln_self_priv_t              priv_data;                      ///< [KEYS_03]secret情報
 
     //funding
-    ln_fundflag_t               fund_flag;                      ///< none/funder/fundee
-    ln_funding_local_data_t     funding_local;                  ///< funding情報:local
-    ln_funding_remote_data_t    funding_remote;                 ///< funding情報:remote
-    uint64_t                    obscured;                       ///< commitment numberをXORするとobscured commitment numberになる値。
-                                                                // 0の場合、1回でもclosing_signed受信した
-    utl_buf_t                   redeem_fund;                    ///< 2-of-2のredeemScript
-    btc_keys_sort_t             key_fund_sort;                  ///< 2-of-2のソート順(local, remoteを正順とした場合)
-    btc_tx_t                    tx_funding;                     ///< funding_tx
+    ln_fundflag_t               fund_flag;                      ///< [FUND_01]none/funder/fundee
+    ln_funding_local_data_t     funding_local;                  ///< [FUND_02]funding情報:local
+    ln_funding_remote_data_t    funding_remote;                 ///< [FUND_03]funding情報:remote
+    uint64_t                    obscured;                       ///< [FUND_04]commitment numberをXORするとobscured commitment numberになる値。
+                                                                    // 0の場合、1回でもclosing_signed受信した
+    utl_buf_t                   redeem_fund;                    ///< [FUND_05]2-of-2のredeemScript
+    btc_keys_sort_t             key_fund_sort;                  ///< [FUND_06]2-of-2のソート順(local, remoteを正順とした場合)
+    btc_tx_t                    tx_funding;                     ///< [FUND_07]funding_tx
 #ifndef USE_SPV
 #else
-    uint8_t                     funding_bhash[BTC_SZ_SHA256];   ///< funding_txがマイニングされたblock hash
-    uint32_t                    funding_bheight;                ///< funding_txがマイニングされたblock height
+    uint8_t                     funding_bhash[BTC_SZ_SHA256];   ///< [FUND_08]funding_txがマイニングされたblock hash
+    uint32_t                    funding_bheight;                ///< [FUND_09]funding_txがマイニングされたblock height
 #endif
-    ln_establish_t              *p_establish;                   ///< Establishワーク領域
-    uint32_t                    min_depth;                      ///< minimum_depth
+    ln_establish_t              *p_establish;                   ///< [FUND_10]Establishワーク領域
+    uint32_t                    min_depth;                      ///< [FUND_11]minimum_depth
 
     //announce
-    uint8_t                     anno_flag;                      ///< announcement_signaturesなど
-    ln_anno_prm_t               anno_prm;                       ///< announcementパラメータ
-    utl_buf_t                   cnl_anno;                       ///< 自channel_announcement
+    uint8_t                     anno_flag;                      ///< [ANNO_01]announcement_signaturesなど
+    ln_anno_prm_t               anno_prm;                       ///< [ANNO_02]announcementパラメータ
+    utl_buf_t                   cnl_anno;                       ///< [ANNO_03]自channel_announcement
 
     //msg:init
-    uint8_t                     init_flag;                      ///< initフラグ(M_INIT_FLAG_xxx)
-    uint8_t                     lfeature_remote;                ///< initで取得したlocalfeature
+    uint8_t                     init_flag;                      ///< [INIT_01]initフラグ(M_INIT_FLAG_xxx)
+    uint8_t                     lfeature_remote;                ///< [INIT_02]initで取得したlocalfeature
+    //channel_reestablish後の処理
+    uint64_t                    reest_commit_num;               ///< [INIT_03]channel_reestablish.next_local_commitment_number
+    uint64_t                    reest_revoke_num;               ///< [INIT_04]channel_reestablish.next_remote_revocation_number
 
     //msg:close
-    ln_closetype_t              close_type;                     ///< close状況
-    btc_tx_t                    tx_closing;                     ///< closing_tx
-    uint8_t                     shutdown_flag;                  ///< shutdownフラグ(M_SHDN_FLAG_xxx)
-    uint64_t                    close_fee_sat;                  ///< closing_txのFEE
-    uint64_t                    close_last_fee_sat;             ///< 最後に送信したclosing_txのFEE
-    utl_buf_t                   shutdown_scriptpk_local;        ///< close時の送金先(local)
-    utl_buf_t                   shutdown_scriptpk_remote;       ///< mutual close時の送金先(remote)
-    utl_buf_t                   *p_revoked_vout;                ///< revoked transaction close時に検索するvoutスクリプト([0]は必ずto_local系)
-    utl_buf_t                   *p_revoked_wit;                 ///< revoked transaction close時のwitnessスクリプト
-    ln_htlctype_t               *p_revoked_type;                ///< p_revoked_vout/p_revoked_witに対応するtype
-    utl_buf_t                   revoked_sec;                    ///< revoked transaction close時のremote per_commit_sec
-    uint16_t                    revoked_num;                    ///< revoked_cnt+1([0]にto_local系を入れるため)
-    uint16_t                    revoked_cnt;                    ///< 取り戻す必要があるvout数
-    uint32_t                    revoked_chk;                    ///< 最後にチェックしたfunding_txのconfirmation数
+    ln_closetype_t              close_type;                     ///< [CLSE_01]close状況
+    btc_tx_t                    tx_closing;                     ///< [CLSE_02]closing_tx
+    uint8_t                     shutdown_flag;                  ///< [CLSE_03]shutdownフラグ(M_SHDN_FLAG_xxx)
+    uint64_t                    close_fee_sat;                  ///< [CLSE_04]closing_txのFEE
+    uint64_t                    close_last_fee_sat;             ///< [CLSE_05]最後に送信したclosing_txのFEE
+    utl_buf_t                   shutdown_scriptpk_local;        ///< [CLSE_06]close時の送金先(local)
+    utl_buf_t                   shutdown_scriptpk_remote;       ///< [CLSE_07]mutual close時の送金先(remote)
+    //revoked
+    utl_buf_t                   *p_revoked_vout;                ///< [REVK_01]revoked transaction close時に検索するvoutスクリプト([0]は必ずto_local系)
+    utl_buf_t                   *p_revoked_wit;                 ///< [REVK_02]revoked transaction close時のwitnessスクリプト
+    ln_htlctype_t               *p_revoked_type;                ///< [REVK_03]p_revoked_vout/p_revoked_witに対応するtype
+    utl_buf_t                   revoked_sec;                    ///< [REVK_04]revoked transaction close時のremote per_commit_sec
+    uint16_t                    revoked_num;                    ///< [REVK_05]revoked_cnt+1([0]にto_local系を入れるため)
+    uint16_t                    revoked_cnt;                    ///< [REVK_06]取り戻す必要があるvout数
+    uint32_t                    revoked_chk;                    ///< [REVK_07]最後にチェックしたfunding_txのconfirmation数
 
     //msg:normal operation
-    uint16_t                    htlc_num;                       ///< HTLC数(update_add_htlcの送信/受信で+1, fulfillなどで-1)
-    uint64_t                    htlc_id_num;                    ///< update_add_htlcで使うidの管理
-    uint64_t                    our_msat;                       ///< 自分の持ち分
-    uint64_t                    their_msat;                     ///< 相手の持ち分
-    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< channel_id
-    uint64_t                    short_channel_id;               ///< short_channel_id
-    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< 追加したHTLC
-
-    //ping pong
-    uint16_t                    missing_pong_cnt;               ///< ping送信に対してpongを受信しなかった回数
-    uint16_t                    last_num_pong_bytes;            ///< 最後にping送信したlast_num_pong_bytes
+    uint16_t                    htlc_num;                       ///< [NORM_01]HTLC数(update_add_htlcの送信/受信で+1, fulfillなどで-1)
+    uint64_t                    htlc_id_num;                    ///< [NORM_02]update_add_htlcで使うidの管理
+    uint64_t                    our_msat;                       ///< [NORM_03]自分の持ち分
+    uint64_t                    their_msat;                     ///< [NORM_04]相手の持ち分
+    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_05]channel_id
+    uint64_t                    short_channel_id;               ///< [NORM_06]short_channel_id
+    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_07]追加したHTLC
 
     //commitment transaction情報(local/remote)
-    ln_commit_data_t            commit_local;                   ///< local commit_tx用
-    ln_commit_data_t            commit_remote;                  ///< remote commit_tx用
+    ln_commit_data_t            commit_local;                   ///< [COMM_01]local commit_tx用
+    ln_commit_data_t            commit_remote;                  ///< [COMM_02]remote commit_tx用
     //commitment transaction情報(固有)
-    uint64_t                    funding_sat;                    ///< funding_satoshis
-    uint32_t                    feerate_per_kw;                 ///< feerate_per_kw
-    //channel_reestablish後の処理
-    uint64_t                    reest_commit_num;               ///< channel_reestablish.next_local_commitment_number
-    uint64_t                    reest_revoke_num;               ///< channel_reestablish.next_remote_revocation_number
-
-    ////////////////////////////////////////////////
-
-    ln_nodeaddr_t               last_connected_addr;            ///< 最後に接続したIP address
+    uint64_t                    funding_sat;                    ///< [COMM_03]funding_satoshis
+    uint32_t                    feerate_per_kw;                 ///< [COMM_04]feerate_per_kw
 
     //noise protocol
-    ln_noise_t                  noise_send;                     ///< noise protocol
-    ln_noise_t                  noise_recv;                     ///< noise protocol
-    void                        *p_handshake;
+    ln_noise_t                  noise_send;                     ///< [NOIS_01]noise protocol
+    ln_noise_t                  noise_recv;                     ///< [NOIS_02]noise protocol
+    void                        *p_handshake;                   ///< [NOIS_03]
 
     //last error
-    int                         err;                            ///< error code(ln_err.h)
-    char                        err_msg[LN_SZ_ERRMSG];          ///< エラーメッセージ
+    int                         err;                            ///< [ERRO_01]error code(ln_err.h)
+    char                        err_msg[LN_SZ_ERRMSG];          ///< [ERRO_02]]エラーメッセージ
 
     //for app
-    ln_callback_t               p_callback;                     ///< 通知コールバック
-    void                        *p_param;                       ///< ユーザ用
+    ln_callback_t               p_callback;                     ///< [APPS_01]通知コールバック
+    void                        *p_param;                       ///< [APPS_02]ユーザ用
 };
 
 /// @}

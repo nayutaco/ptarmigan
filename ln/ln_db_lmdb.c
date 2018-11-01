@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <pthread.h>
+#include <ftw.h>
 
 #include "utl_misc.h"
 #include "utl_dbg.h"
@@ -50,6 +51,11 @@
 /********************************************************************
  * macros
  ********************************************************************/
+
+#define M_INITPARAM_SELF        (0)
+#define M_INITPARAM_NODE        (1)
+#define M_INITPARAM_ANNO        (2)
+#define M_INITPARAM_WALT        (3)
 
 #define M_LMDB_SELF_MAXDBS      (12 * 2 * MAX_CHANNELS)     ///< 同時オープンできるDB数
 #define M_LMDB_SELF_MAPSIZE     ((size_t)10485760)          // DB最大長[byte](LMDBのデフォルト値)
@@ -172,7 +178,7 @@
 #ifndef M_DB_DEBUG
 #define MDB_TXN_BEGIN(a,b,c,d)      mdb_txn_begin(a, b, c, d)
 #define MDB_TXN_ABORT(a)            mdb_txn_abort(a)
-#define MDB_TXN_COMMIT(a)           int txn_retval = mdb_txn_commit(a); if (txn_retval) {LOGD("ERR: %s\n", mdb_strerror(txn_retval));}
+#define MDB_TXN_COMMIT(a)           my_mdb_txn_commit(a)
 
 #define MDB_TXN_CHECK_SELF(a)       //none
 #define MDB_TXN_CHECK_NODE(a)       //none
@@ -180,7 +186,7 @@
 #define MDB_TXN_CHECK_WALT(a)       //none
 #else
 static volatile int g_cnt[2];
-#define MDB_TXN_BEGIN(a,b,c,d)      my_mdb_txn_begin(a,b,c,d, __LINE__);
+#define MDB_TXN_BEGIN(a,b,c,d)      my_mdb_txn_begin(a, b, c, d, __LINE__);
 #define MDB_TXN_ABORT(a)            my_mdb_txn_abort(a, __LINE__)
 #define MDB_TXN_COMMIT(a)           my_mdb_txn_commit(a, __LINE__)
 #define MDB_TXN_CHECK_SELF(a)       if (mdb_txn_env(a) != mpDbSelf) { LOGD("ERR: txn not SELF\n"); abort(); }
@@ -197,7 +203,10 @@ static volatile int g_cnt[2];
  * typedefs
  ********************************************************************/
 
-// ln_self_tのバックアップ
+/**
+ * @typedef backup_param_t
+ * @brief   ln_self_tのバックアップ
+ */
 typedef struct backup_param_t {
     const char  *name;
     size_t      datalen;
@@ -205,10 +214,27 @@ typedef struct backup_param_t {
 } backup_param_t;
 
 
+/**
+ * @typedef backup_buf_t
+ * @brief   backup buffer
+ */
 typedef struct backup_buf_t {
     const char  *name;
     utl_buf_t *p_buf;
 } backup_buf_t;
+
+
+/**
+ * @typedef init_param_t
+ * @brief   DB初期化パラメータ
+ */
+typedef struct {
+    MDB_env         **pp_env;
+    const char      *path;
+    MDB_dbi         maxdbs;         //mdb_env_set_maxdbs()
+    size_t          mapsize;        //mdb_env_set_mapsize()
+    unsigned int    openflag;       //mdb_env_open()
+} init_param_t;
 
 
 /** @typedef    nodeinfo_t
@@ -462,6 +488,19 @@ static const backup_param_t DBHTLC_vALUES[] = {
 };
 
 
+// LMDB initialize parameter
+static const init_param_t INIT_PARAM[] = {
+    //M_INITPARAM_SELF
+    { &mpDbSelf, mPathSelf, M_LMDB_SELF_MAXDBS, M_LMDB_SELF_MAPSIZE, 0 },
+    //M_INITPARAM_NODE
+    { &mpDbNode, mPathNode, M_LMDB_NODE_MAXDBS, M_LMDB_NODE_MAPSIZE, 0 },
+    //M_INITPARAM_ANNO
+    { &mpDbAnno, mPathAnno, M_LMDB_ANNO_MAXDBS, M_LMDB_ANNO_MAPSIZE, MDB_NOSYNC },
+    //M_INITPARAM_WALT
+    { &mpDbWalt, mPathWalt, M_LMDB_WALT_MAXDBS, M_LMDB_WALT_MAPSIZE, 0 },
+};
+
+
 /********************************************************************
  * prototypes
  ********************************************************************/
@@ -498,10 +537,24 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
 static int backup_param_load(void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
 static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
 
-static int init_dbenv(MDB_env **pp_env, const char *path, MDB_dbi maxdbs, size_t mapsize);
+static int init_dbenv(int InitParamIdx);
 
 
-#ifdef M_DB_DEBUG
+#ifndef M_DB_DEBUG
+static inline int my_mdb_txn_commit(MDB_txn *txn) {
+    int txn_retval = mdb_txn_commit(txn);
+    if (txn_retval) {
+        LOGD("ERR: %s\n", mdb_strerror(txn_retval));
+        if (txn_retval == MDB_BAD_TXN) {
+            mdb_txn_abort(txn);
+            LOGD("FATAL: FATAL DB ERROR!\n");
+            fprintf(stderr, "FATAL DB ERROR!\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    return txn_retval;
+}
+#else
 static inline int my_mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **txn, int line) {
     int ggg = (env == mpDbSelf) ? 0 : 1;
     g_cnt[ggg]++;
@@ -551,11 +604,11 @@ void ln_lmdb_set_path(const char *pPath)
     if (path[len - 1] == '/') {
         path[len - 1] = '\0';
     }
-    sprintf(mPath, "%s/%s", path, M_DBDIR);
-    sprintf(mPathSelf, "%s/%s", mPath, M_SELFENV_DIR);
-    sprintf(mPathNode, "%s/%s", mPath, M_NODEENV_DIR);
-    sprintf(mPathAnno, "%s/%s", mPath, M_ANNOENV_DIR);
-    sprintf(mPathWalt, "%s/%s", mPath, M_WALTENV_DIR);
+    snprintf(mPath, M_DBPATH_MAX, "%s/%s", path, M_DBDIR);
+    snprintf(mPathSelf, M_DBPATH_MAX, "%s/%s", mPath, M_SELFENV_DIR);
+    snprintf(mPathNode, M_DBPATH_MAX, "%s/%s", mPath, M_NODEENV_DIR);
+    snprintf(mPathAnno, M_DBPATH_MAX, "%s/%s", mPath, M_ANNOENV_DIR);
+    snprintf(mPathWalt, M_DBPATH_MAX, "%s/%s", mPath, M_WALTENV_DIR);
 
     LOGD("db dir: %s\n", mPath);
     LOGD("  self: %s\n", mPathSelf);
@@ -602,20 +655,14 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
     int         retval;
     ln_lmdb_db_t   db;
 
+    if (mPath[0] == '\0') {
+        ln_lmdb_set_path(".");
+    }
+    mkdir(mPath, 0755);
+
     if (mpDbSelf == NULL) {
-        const struct {
-            MDB_env         **pp_env;
-            const char      *path;
-            MDB_dbi         maxdbs;
-            size_t          mapsize;
-        } TABLE[] = {
-            { &mpDbSelf, mPathSelf, M_LMDB_SELF_MAXDBS, M_LMDB_SELF_MAPSIZE },
-            { &mpDbNode, mPathNode, M_LMDB_NODE_MAXDBS, M_LMDB_NODE_MAPSIZE },
-            { &mpDbAnno, mPathAnno, M_LMDB_ANNO_MAXDBS, M_LMDB_ANNO_MAPSIZE },
-            { &mpDbWalt, mPathWalt, M_LMDB_WALT_MAXDBS, M_LMDB_WALT_MAPSIZE },
-        };
-        for (size_t lp = 0; lp < ARRAY_SIZE(TABLE); lp++) {
-            retval = init_dbenv(TABLE[lp].pp_env, TABLE[lp].path, TABLE[lp].maxdbs, TABLE[lp].mapsize);
+        for (size_t lp = 0; lp < ARRAY_SIZE(INIT_PARAM); lp++) {
+            retval = init_dbenv(lp);
             if (retval != 0) {
                 LOGD("ERR: %s\n", mdb_strerror(retval));
                 goto LABEL_EXIT;
@@ -1736,12 +1783,15 @@ bool ln_db_annonod_drop_startup(void)
         return false;
     }
 
-    retval = init_dbenv(&mpDbAnno, mPathAnno, M_LMDB_ANNO_MAXDBS, M_LMDB_ANNO_MAPSIZE);
+    if (mPath[0] == '\0') {
+        ln_lmdb_set_path(".");
+    }
+    retval = init_dbenv(M_INITPARAM_ANNO);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = init_dbenv(&mpDbSelf, mPathSelf, M_LMDB_SELF_MAXDBS, M_LMDB_SELF_MAPSIZE);
+    retval = init_dbenv(M_INITPARAM_SELF);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -3637,7 +3687,10 @@ bool ln_db_reset(void)
         return false;
     }
 
-    retval = init_dbenv(&mpDbSelf, mPathSelf, M_LMDB_SELF_MAXDBS, M_LMDB_SELF_MAPSIZE);
+    if (mPath[0] == '\0') {
+        ln_lmdb_set_path(".");
+    }
+    retval = init_dbenv(M_INITPARAM_SELF);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -4709,36 +4762,112 @@ static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_
  * private functions: initialize
  ********************************************************************/
 
-static int init_dbenv(MDB_env **pp_env, const char *path, MDB_dbi maxdbs, size_t mapsize)
+//https://stackoverflow.com/a/42978529
+static int rmFiles(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb)
+{
+    (void)sbuf; (void)type; (void)ftwb;
+
+    if(remove(pathname) < 0) {
+        perror("ERROR: remove");
+        return -1;
+    }
+    return 0;
+}
+
+
+static int init_dbenv(int InitParamIdx)
 {
     int retval;
+    int line = 0;
+    MDB_envinfo     info;
+    const init_param_t *p_param = &INIT_PARAM[InitParamIdx];
 
-    if (mPath[0] == '\0') {
-        ln_lmdb_set_path(".");
-    }
-    mkdir(mPath, 0755);
-    mkdir(path, 0755);
+    LOGD("BEGIN(%s)\n", p_param->path);
 
-    retval = mdb_env_create(pp_env);
+    mkdir(p_param->path, 0755);
+
+    retval = mdb_env_create(p_param->pp_env);
     if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        return -1;
+        line = __LINE__;
+        goto LABEL_EXIT;
     }
-    retval = mdb_env_set_maxdbs(*pp_env, maxdbs);
+    retval = mdb_env_set_maxdbs(*p_param->pp_env, p_param->maxdbs);
     if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        return -1;
+        line = __LINE__;
+        goto LABEL_EXIT;
     }
-    retval = mdb_env_set_mapsize(*pp_env, mapsize);
+    retval = mdb_env_set_mapsize(*p_param->pp_env, p_param->mapsize);
     if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        return -1;
+        line = __LINE__;
+        goto LABEL_EXIT;
     }
-    retval = mdb_env_open(*pp_env, path, 0, 0644);
+    retval = mdb_env_open(*p_param->pp_env, p_param->path, p_param->openflag, 0644);
     if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        return -1;
+        line = __LINE__;
+        goto LABEL_EXIT;
     }
 
-    return 0;
+    //compat処理
+    retval = mdb_env_info(*p_param->pp_env, &info);
+    if (retval != 0) {
+        line = __LINE__;
+        goto LABEL_EXIT;
+    }
+    LOGD("-------------------------------------------\n");
+    LOGD("env_info.mapsize=%lu\n", info.me_mapsize);
+    LOGD("env_info.last_pgno=%lu\n", info.me_last_pgno);
+    // LOGD("env_info.last_txnid=%lu\n", info.me_last_txnid);
+    // LOGD("env_info.maxreaders=%lu\n", info.me_maxreaders);
+    // LOGD("env_info.numreaders=%lu\n", info.me_numreaders);
+    LOGD("-------------------------------------------\n");
+    if (info.me_mapsize <= (info.me_last_pgno + 2) * 4096) {
+        LOGD("ERR: page not remain\n");
+
+        size_t prev_pgno = info.me_last_pgno;
+        char tmppath[M_DBPATH_MAX];
+        snprintf(tmppath, M_DBPATH_MAX, "%s/tmpdir", mPath);
+        mkdir(tmppath, 0755);
+        retval = mdb_env_copy2(*p_param->pp_env, tmppath, MDB_CP_COMPACT);
+        if (retval != 0) {
+            line = __LINE__;
+            goto LABEL_EXIT;
+        }
+
+        retval = mdb_env_info(*p_param->pp_env, &info);
+        if (retval != 0) {
+            line = __LINE__;
+            goto LABEL_EXIT;
+        }
+
+        int err;
+        if (prev_pgno > info.me_last_pgno) {
+            err = nftw(p_param->path, rmFiles, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
+            if (err == 0) {
+                rename(tmppath, p_param->path);
+            } else {
+                LOGD("fail\n");
+            }
+
+            fprintf(stderr, "DB optimized. Please rerun !\n");
+        } else {
+            err = nftw(tmppath, rmFiles, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
+            if (err < 0) {
+                LOGD("fail\n");
+            }
+
+            fprintf(stderr, "DB mapsize is flood...\n");
+        }
+        LOGD("prev pgno=%lu, now pgno=%lu(rmdir=%d)\n", prev_pgno, info.me_last_pgno, err);
+        retval = MDB_BAD_VALSIZE;
+        line = __LINE__;
+    }
+
+LABEL_EXIT:
+    if (retval == 0) {
+        LOGD("DB: OK(%s)\n", p_param->path);
+    } else {
+        LOGD("ERR: %s(line: %d)\n", mdb_strerror(retval), line);
+    }
+
+    return retval;
 }
