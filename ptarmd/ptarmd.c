@@ -144,7 +144,7 @@ int ptarmd_start(uint16_t my_rpcport)
 
     uint64_t total_amount = ln_node_total_msat();
     lnapp_save_event(NULL,
-            "ptarmd start: total_msat=%" PRIu64, total_amount);
+            "\nptarmd start: total_msat=%" PRIu64, total_amount);
 
     mRunning = true;
 

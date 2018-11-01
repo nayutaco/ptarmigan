@@ -479,7 +479,7 @@ static void ln_print_self(const ln_self_t *self)
 
     //addr
     if (self->last_connected_addr.type == LN_NODEDESC_IPV4) {
-        printf(INDENT3 M_QQ("last_connected IPv4") ": %d.%d.%d.%d:%d,\n",
+        printf(INDENT3 M_QQ("last_connected IPv4") ": \"%d.%d.%d.%d:%d\",\n",
                     self->last_connected_addr.addrinfo.ipv4.addr[0],
                     self->last_connected_addr.addrinfo.ipv4.addr[1],
                     self->last_connected_addr.addrinfo.ipv4.addr[2],
@@ -928,7 +928,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
             printf(INDENT2 M_QQ("alias") ": " M_QQ("%s") ",\n", alias);
             printf(INDENT2 M_QQ("port") ": %" PRIu16 ",\n", port);
             printf(INDENT2 M_QQ("genesis") ": \"");
-            btc_util_dumpbin(stdout, genesis, LN_SZ_HASH, false);
+            btc_util_dumptxid(stdout, genesis);
             printf("\",\n");
             const char *p_net;
             switch (chain) {
@@ -1148,7 +1148,10 @@ int main(int argc, char *argv[])
     }
 
     ret = mdb_txn_begin(p_env, NULL, MDB_RDONLY, &txn);
-    assert(ret == 0);
+    if (ret != 0) {
+        fprintf(stderr, "fail: DB cannot open.\n");
+        return -1;
+    }
     ret = mdb_dbi_open(txn, NULL, 0, &dbi);
     if (ret != 0) {
         fprintf(stderr, "fail: DB cannot open.\n");

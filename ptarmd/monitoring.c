@@ -483,14 +483,16 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
         uint16_t port;
     } conn_addr[3];
 
+    for (size_t lp = 0; lp < ARRAY_SIZE(conn_addr); lp++) {
+        conn_addr[lp].port = 0;
+    }
+
     //conn_addr[0]
     //clientとして接続したときの接続先情報があれば、そこに接続する
     peer_conn_t last_peer_conn;
     if (p2p_cli_load_peer_conn(&last_peer_conn, p_node_id)) {
         strcpy(conn_addr[0].ipaddr, last_peer_conn.ipaddr);
         conn_addr[0].port = last_peer_conn.port;
-    } else {
-        conn_addr[0].port = 0;
     }
 
     //conn_addr[1]
@@ -509,7 +511,6 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
             break;
         default:
             //LOGD("addrtype: %d\n", anno.addr.type);
-            conn_addr[1].port = 0;
             break;
         }
     }
@@ -527,7 +528,6 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
         break;
     default:
         //LOGD("addrtype: %d\n", anno.addr.type);
-        conn_addr[2].port = 0;
         break;
     }
 
@@ -559,8 +559,7 @@ static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, 
                     LN_NODEDESC_IPV4, false);
     if (!ret) {
         //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
-        retval = cmd_json_connect(
-                    pNodeId, pIpAddr, Port);
+        retval = cmd_json_connect(pNodeId, pIpAddr, Port);
         LOGD("retval=%d\n", retval);
     }
 
