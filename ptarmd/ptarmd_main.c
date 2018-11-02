@@ -211,7 +211,7 @@ int main(int argc, char *argv[])
         genesis[lp] = genesis[LN_SZ_HASH - lp - 1];
         genesis[LN_SZ_HASH - lp - 1] = tmp;
     }
-    ln_set_genesishash(genesis);
+    ln_genesishash_set(genesis);
 
 #if NETKIND==0
     LOGD("start bitcoin mainnet\n");

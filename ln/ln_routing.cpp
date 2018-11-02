@@ -70,7 +70,7 @@ using namespace boost;
 
 extern "C" {
     bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
-    bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
+    bool ln_channel_update_get_params(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 }
 
 struct Node {
@@ -192,7 +192,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
 
             ln_cnl_update_t upd;
             int idx = type - LN_DB_CNLANNO_UPD1;
-            bool bret = ln_getparams_cnl_upd(&upd, p_buf->buf, p_buf->len);
+            bool bret = ln_channel_update_get_params(&upd, p_buf->buf, p_buf->len);
             if (bret && ((upd.flags & LN_CNLUPD_FLAGS_DISABLE) == 0)) {
                 if (p_nodes->short_channel_id == upd.short_channel_id) {
                     //disable状態ではない && channel_announcement.short_channel_idと一致

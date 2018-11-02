@@ -1114,7 +1114,7 @@ int main(int argc, char *argv[])
         //return -1;
     }
 
-    ln_set_genesishash(btc_util_get_genesis_block(gtype));
+    ln_genesishash_set(btc_util_get_genesis_block(gtype));
     switch (gtype) {
     case BTC_GENESIS_BTCMAIN:
         btc_init(BTC_MAINNET, true);

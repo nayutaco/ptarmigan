@@ -164,17 +164,17 @@ extern "C" {
 //
 
 // 1: update_fulfill_htlcを返さない
-#define LN_DBG_FULFILL()        ((ln_get_debug() & 0x01) == 0)
+#define LN_DBG_FULFILL()        ((ln_debug_get() & 0x01) == 0)
 // 2: closeでclosing_txを展開しない
-#define LN_DBG_CLOSING_TX()     ((ln_get_debug() & 0x02) == 0)
+#define LN_DBG_CLOSING_TX()     ((ln_debug_get() & 0x02) == 0)
 // 4: HTLC scriptでpreimageが一致しても不一致とみなす
-#define LN_DBG_MATCH_PREIMAGE() ((ln_get_debug() & 0x04) == 0)
+#define LN_DBG_MATCH_PREIMAGE() ((ln_debug_get() & 0x04) == 0)
 // 8: monitoringで未接続ノードに接続しに行かない
-#define LN_DBG_NODE_AUTO_CONNECT() ((ln_get_debug() & 0x08) == 0)
+#define LN_DBG_NODE_AUTO_CONNECT() ((ln_debug_get() & 0x08) == 0)
 // 16: onionのrealmを不正な値にする
-#define LN_DBG_ONION_CREATE_NORMAL_REALM() ((ln_get_debug() & 0x10) == 0)
+#define LN_DBG_ONION_CREATE_NORMAL_REALM() ((ln_debug_get() & 0x10) == 0)
 // 32: onionのversionを不正な値にする
-#define LN_DBG_ONION_CREATE_NORMAL_VERSION() ((ln_get_debug() & 0x20) == 0)
+#define LN_DBG_ONION_CREATE_NORMAL_VERSION() ((ln_debug_get() & 0x20) == 0)
 
 
 /********************************************************************
@@ -217,7 +217,7 @@ typedef enum {
  */
 typedef enum {
     LN_FUNDFLAG_FUNDER      = 0x01,     ///< true:funder / false:fundee
-    LN_FUNDFLAG_ANNO_CH     = 0x02,     ///< open_channel.channel_flags.announce_channel
+    LN_FUNDFLAG_ANNO_CH     = 0x02,     ///< 1:announcement_signatures未送信 / 0:announcement_signatures送信不要 or 送信済み
     LN_FUNDFLAG_FUNDING     = 0x04,     ///< 1:open_channel～funding_lockedまで
     LN_FUNDFLAG_OPENED      = 0x80      ///< 1:opened
 } ln_fundflag_t;
@@ -439,7 +439,7 @@ typedef struct {
 /** @struct ln_establish_prm_t
  *  @brief  Establish関連のパラメータ
  *  @note
- *      - #ln_set_establish()で初期化する
+ *      - #ln_establish_alloc()で初期化する
  */
 typedef struct {
     uint64_t    dust_limit_sat;                     ///< 8 : dust-limit-satoshis
@@ -1222,7 +1222,7 @@ void ln_term(ln_self_t *self);
  * @param[in,out]       self            channel情報
  * @param[in]           Status          設定値
  */
-void ln_set_status(ln_self_t *self, ln_status_t Status);
+void ln_status_set(ln_self_t *self, ln_status_t Status);
 
 
 /** status設定
@@ -1230,7 +1230,7 @@ void ln_set_status(ln_self_t *self, ln_status_t Status);
  * @param[in,out]       self            channel情報
  * @param[in]           Status          設定値
  */
-ln_status_t ln_get_status(const ln_self_t *self);
+ln_status_t ln_status_get(const ln_self_t *self);
 
 
 /** Genesis Block Hash設定
@@ -1241,27 +1241,27 @@ ln_status_t ln_get_status(const ln_self_t *self);
  *          設定する場合にはエンディアンを逆にして pHashに与えること。
  *          https://github.com/lightningnetwork/lightning-rfc/issues/237
  */
-void ln_set_genesishash(const uint8_t *pHash);
+void ln_genesishash_set(const uint8_t *pHash);
 
 
 /** Genesis Block Hash取得
  *
- * @return      #ln_set_genesishash()で設定したGenesis Block Hash
+ * @return      #ln_genesishash_set()で設定したGenesis Block Hash
  */
-const uint8_t* ln_get_genesishash(void);
+const uint8_t* ln_genesishash_get(void);
 
 
 /** peer node_id設定
  *
  */
-void ln_set_peer_nodeid(ln_self_t *self, const uint8_t *pNodeId);
+void ln_peer_set_nodeid(ln_self_t *self, const uint8_t *pNodeId);
 
 
 /** init.localfeatures設定
  * 未設定の場合はデフォルト値が使用される。
  *
  */
-void ln_set_init_localfeatures(uint8_t lf);
+void ln_init_localfeatures_set(uint8_t lf);
 
 
 /** Channel Establish設定
@@ -1272,16 +1272,16 @@ void ln_set_init_localfeatures(uint8_t lf);
  * @note
  *      - pEstablishは接続完了まで保持すること
  */
-bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm);
+bool ln_establish_alloc(ln_self_t *self, const ln_establish_prm_t *pEstPrm);
 
 
-/** #ln_set_establish()で確保したメモリを解放する
+/** #ln_establish_alloc()で確保したメモリを解放する
  *
  * @param[in,out]       self            channel情報
  * @note
  *      - lnapp.cでfunding済みだった場合に呼ばれる想定
  */
-void ln_free_establish(ln_self_t *self);
+void ln_establish_free(ln_self_t *self);
 
 
 /** short_channel_id情報設定
@@ -1296,7 +1296,7 @@ void ln_free_establish(ln_self_t *self);
  * @note
  *      - #LN_CB_FUNDINGTX_WAIT でコールバックされた後、安定後に呼び出すこと
  */
-bool ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex, const uint8_t *pMinedHash);
+bool ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex, const uint8_t *pMinedHash);
 
 
 /** short_channel_id情報取得
@@ -1306,7 +1306,7 @@ bool ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t In
  * @param[out]          pVIndex     funding_txとして使用するvout index
  * @param[in]           ShortChannelId  short_channel_id
  */
-void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId);
+void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId);
 
 
 /** shutdown時の出力先設定(address)
@@ -1314,7 +1314,7 @@ void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t
  * @param[in,out]       self            channel情報
  * @param[in]           pScriptPk       shutdown時の送金先ScriptPubKey
  */
-void ln_set_shutdown_vout_addr(ln_self_t *self, const utl_buf_t *pScriptPk);
+void ln_shutdown_set_vout_addr(ln_self_t *self, const utl_buf_t *pScriptPk);
 
 
 /** noise handshake開始
@@ -1404,7 +1404,7 @@ void ln_recv_idle_proc(ln_self_t *self);
  * @param[in]           bHaveCnl        true:チャネル開設済み
  * retval       true    成功
  */
-bool ln_create_init(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl);
+bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl);
 
 
 /** channel_reestablishメッセージ作成
@@ -1413,14 +1413,14 @@ bool ln_create_init(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl);
  * @param[out]          pReEst          channel_reestablishメッセージ
  * retval       true    成功
  */
-bool ln_create_channel_reestablish(ln_self_t *self, utl_buf_t *pReEst);
+bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst);
 
 
 /** channel_reestablishメッセージ交換後
  *
  * @param[in,out]       self            channel情報
  */
-void ln_after_channel_reestablish(ln_self_t *self);
+void ln_channel_reestablish_after(ln_self_t *self);
 
 
 /** 接続直後のfunding_locked必要性チェック
@@ -1428,7 +1428,7 @@ void ln_after_channel_reestablish(ln_self_t *self);
  * @param[in]           self
  * @retval  true    funding_lockedの送信必要あり
  */
-bool ln_check_need_funding_locked(const ln_self_t *self);
+bool ln_funding_locked_check_need(const ln_self_t *self);
 
 
 /**
@@ -1437,7 +1437,7 @@ bool ln_check_need_funding_locked(const ln_self_t *self);
  * @param[out]          pLocked
  * @retval  true    成功
  */
-bool ln_create_funding_locked(ln_self_t *self, utl_buf_t *pLocked);
+bool ln_funding_locked_create(ln_self_t *self, utl_buf_t *pLocked);
 
 
 /********************************************************************
@@ -1454,7 +1454,7 @@ bool ln_create_funding_locked(ln_self_t *self, utl_buf_t *pLocked);
  * @param[in]           FeeRate         feerate_per_kw
  * retval       true    成功
  */
-bool ln_create_open_channel(ln_self_t *self, utl_buf_t *pOpen,
+bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
             const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate);
 
 
@@ -1463,7 +1463,7 @@ bool ln_create_open_channel(ln_self_t *self, utl_buf_t *pOpen,
  *
  * @param[in]           self            channel情報
  */
-void ln_open_announce_channel_clr(ln_self_t *self);
+void ln_open_channel_clr_announce(ln_self_t *self);
 
 
 /** announcement_signatures作成およびchannel_announcementの一部(peer署名無し)生成
@@ -1475,7 +1475,7 @@ void ln_open_announce_channel_clr(ln_self_t *self);
  *      - チャネルのどちらかでもinitのlocalfeaturesでchannels_publicを持っていない場合は失敗する。
  *      - Establish完了以降に呼び出すこと。
  */
-bool ln_create_announce_signs(ln_self_t *self, utl_buf_t *pBufAnnoSigns);
+bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns);
 
 
 /** channel_update作成
@@ -1486,7 +1486,7 @@ bool ln_create_announce_signs(ln_self_t *self, utl_buf_t *pBufAnnoSigns);
  * @param[out]  pCnlUpd
  * @retval      ture    成功
  */
-bool ln_create_channel_update(ln_self_t *self, utl_buf_t *pCnlUpd);
+bool ln_channel_update_create(ln_self_t *self, utl_buf_t *pCnlUpd);
 
 
 /** 相手のchannel_update取得
@@ -1498,17 +1498,17 @@ bool ln_create_channel_update(ln_self_t *self, utl_buf_t *pCnlUpd);
  * @param[out]  pMsg        (非NULL)pCnlUpdデコード結果
  * @retval      ture    成功
  */
-bool ln_get_channel_update_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cnl_update_t *pMsg);
+bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cnl_update_t *pMsg);
 
 
-/** channel_update更新
- * 送信済みのchannel_updateと現在のパラメータを比較し、相違があれば作成する
+/** [routing用]channel_updateデータ解析
  *
- * @param[in,out]       self            channel情報
- * @param[out]          pCnlUpd         生成したchannel_updateメッセージ
- * @retval      ture    更新あり
+ * @param[out]  pUpd
+ * @param[in]   pData
+ * @param[in]   Len
+ * @retval  true        解析成功
  */
-//bool ln_update_channel_update(ln_self_t *self, utl_buf_t *pCnlUpd);
+bool ln_channel_update_get_params(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
 
 
 /********************************************************************
@@ -1520,7 +1520,7 @@ bool ln_get_channel_update_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cn
  * @param[in,out]       self            channel情報
  * @param[in]           Fee             FEE
  */
-void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee);
+void ln_shutdown_update_fee(ln_self_t *self, uint64_t Fee);
 
 
 /** shutdownメッセージ作成
@@ -1531,7 +1531,7 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee);
  * @note
  *      - scriptPubKeyは #ln_init()で指定したアドレスを使用する
  */
-bool ln_create_shutdown(ln_self_t *self, utl_buf_t *pShutdown);
+bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown);
 
 
 /** close_type文字列取得
@@ -1545,7 +1545,7 @@ const char *ln_close_typestring(const ln_self_t *self);
  *
  * @param[in,out]       self        channel情報
  */
-void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam);
+void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam);
 
 
 /** local unilateral closeトランザクション作成
@@ -1554,9 +1554,9 @@ void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam);
  * @param[out]          pClose      生成したトランザクション
  * @retval      ture    成功
  * @note
- *      - pCloseは @ln_free_close_force_tx()で解放すること
+ *      - pCloseは @ln_close_free_forcetx()で解放すること
  */
-bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose);
+bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose);
 
 
 /** 相手からcloseされたcommit_txを復元
@@ -1565,16 +1565,16 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose);
  * @param[out]          pClose      生成したトランザクション
  * @retval      ture    成功
  * @note
- *      - pCloseは @ln_free_close_force_tx()で解放すること
+ *      - pCloseは @ln_close_free_forcetx()で解放すること
  */
-bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose);
+bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose);
 
 
 /** ln_close_force_tのメモリ解放
  *
- * @param[in,out]       pClose      ln_create_close_unilateral_tx()やln_create_closed_tx()で生成したデータ
+ * @param[in,out]       pClose      ln_close_create_unilateral_tx()やln_create_closed_tx()で生成したデータ
  */
-void ln_free_close_force_tx(ln_close_force_t *pClose);
+void ln_close_free_forcetx(ln_close_force_t *pClose);
 
 
 /** revoked transaction close(ugly way)の対処
@@ -1587,7 +1587,7 @@ void ln_free_close_force_tx(ln_close_force_t *pClose);
  *      - self->vout にto_localのscriptPubKeyを設定する(HTLC Timeout/Successの取り戻しにも使用する)
  *      - self->wit にto_localのwitnessProgramを設定する
  */
-bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam);
+bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam);
 
 
 /********************************************************************
@@ -1610,7 +1610,7 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam);
  * @note
  *      - prev_short_channel_id はfullfillの通知先として使用する
  */
-bool ln_set_add_htlc(ln_self_t *self,
+bool ln_add_htlc_set(ln_self_t *self,
             uint64_t *pHtlcId,
             utl_buf_t *pReason,
             const uint8_t *pPacket,
@@ -1622,7 +1622,7 @@ bool ln_set_add_htlc(ln_self_t *self,
             const utl_buf_t *pSharedSecrets);
 
 
-bool ln_set_fwd_add_htlc(ln_self_t *self,
+bool ln_add_htlc_set_fwd(ln_self_t *self,
             uint64_t *pHtlcId,
             utl_buf_t *pReason,
             uint16_t *pNextIdx,
@@ -1635,7 +1635,7 @@ bool ln_set_fwd_add_htlc(ln_self_t *self,
             const utl_buf_t *pSharedSecrets);
 
 
-void ln_fwd_add_htlc_start(ln_self_t *self, uint16_t Idx);
+void ln_add_htlc_start_fwd(ln_self_t *self, uint16_t Idx);
 
 /** update_add_htlcメッセージ作成
  *
@@ -1643,7 +1643,7 @@ void ln_fwd_add_htlc_start(ln_self_t *self, uint16_t Idx);
  * @param[out]          pAdd            生成したupdate_add_htlcメッセージ
  * @param[in]           Idx             生成するHTLCの内部管理index値
  */
-void ln_create_add_htlc(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx);
+void ln_add_htlc_create(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx);
 
 
 /** update_fulfill_htlc設定
@@ -1653,7 +1653,7 @@ void ln_create_add_htlc(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx);
  * @param[in]           pPreImage       payment_preimage
  * @retval      true    成功
  */
-bool ln_set_fulfill_htlc(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage);
+bool ln_fulfill_htlc_set(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage);
 
 
 /** update_fulfill_htlcメッセージ作成
@@ -1662,7 +1662,7 @@ bool ln_set_fulfill_htlc(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage
  * @param[out]          pFulfill        生成したupdate_fulfill_htlcメッセージ
  * @param[in]           Idx             生成するHTLCの内部管理index値
  */
-void ln_create_fulfill_htlc(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx);
+void ln_fulfill_htlc_create(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx);
 
 
 /** update_fail_htlc設定
@@ -1673,7 +1673,7 @@ void ln_create_fulfill_htlc(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx);
  * @note
  *      - onion_routing_packetと共用のため、onion_routingは消える
  */
-bool ln_set_fail_htlc(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
+bool ln_fail_htlc_set(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
 
 
 /** update_fail_htlcメッセージ作成
@@ -1682,7 +1682,7 @@ bool ln_set_fail_htlc(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
  * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
  * @param[in]           Idx             生成するHTLCの内部管理index値
  */
-void ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
+void ln_fail_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
 
 
 /** update_fail_malformed_htlcメッセージ作成
@@ -1691,7 +1691,7 @@ void ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
  * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
  * @param[in]           Idx             生成するHTLCの内部管理index値
  */
-void ln_create_fail_malformed_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
+void ln_fail_malformed_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
 
 
 /** update_feeメッセージ作成
@@ -1700,16 +1700,7 @@ void ln_create_fail_malformed_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t I
  * @param[out]          pUpdFee         生成したupdate_feeメッセージ
  * @param[in]           FeeratePerKw    更新後のfeerate_per_kw
  */
-bool ln_create_update_fee(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw);
-
-
-/** HTLCを完了させる
- *
- * HTLCが残っている場合、解消に向けて動く。
- *
- * @param[in,out]       self            channel情報
- */
-void ln_htlc_fulfillment(ln_self_t *self);
+bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw);
 
 
 /********************************************************************
@@ -1722,7 +1713,7 @@ void ln_htlc_fulfillment(ln_self_t *self);
  * @param[out]          pPing           生成したpingメッセージ
  * @retval      true    成功
  */
-bool ln_create_ping(ln_self_t *self, utl_buf_t *pPing);
+bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing);
 
 
 /** pong作成
@@ -1732,7 +1723,7 @@ bool ln_create_ping(ln_self_t *self, utl_buf_t *pPing);
  * @param[in]           NumPongBytes    pingのnum_pong_bytes
  * @retval      true    成功
  */
-bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
+bool ln_pong_create(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
 
 
 /********************************************************************
@@ -1755,7 +1746,7 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes);
  * @param[in]           bRevoked        true:revoked transaction close対応
  * @retval  true    成功
  */
-bool ln_create_tolocal_wallet(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
+bool ln_wallet_create_tolocal(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value, uint32_t ToSelfDelay,
                 const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked);
 
 
@@ -1776,7 +1767,7 @@ bool ln_create_tolocal_wallet(const ln_self_t *self, btc_tx_t *pTx, uint64_t Val
  *      - vin: pTxid:Index
  *      - vout: value, secret
  */
-bool ln_create_toremote_wallet(
+bool ln_wallet_create_toremote(
             const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
             const uint8_t *pTxid, int Index);
 
@@ -1785,7 +1776,7 @@ bool ln_create_toremote_wallet(
  *
  *
  */
-bool ln_create_revokedhtlc_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
+bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
                 int WitIndex, const uint8_t *pTxid, int Index);
 
 
@@ -1794,7 +1785,7 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t 
  * @param[out]      pHash               計算結果(LN_SZ_HASH)
  * @param[in]       pPreImage           計算元(LN_SZ_PREIMAGE)
  */
-void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
+void ln_preimage_hash_calc(uint8_t *pHash, const uint8_t *pPreImage);
 
 
 /** channel_announcementデータ解析
@@ -1809,20 +1800,10 @@ void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage);
 bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t *pNodeId2, const uint8_t *pData, uint16_t Len);
 
 
-/** channel_updateデータ解析
- *
- * @param[out]  pUpd
- * @param[in]   pData
- * @param[in]   Len
- * @retval  true        解析成功
- */
-bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len);
-
-
 /** 最後に接続したアドレス保存
  *
  */
-void ln_set_last_connected_addr(ln_self_t *self, const ln_nodeaddr_t *pAddr);
+void ln_last_connected_addr_set(ln_self_t *self, const ln_nodeaddr_t *pAddr);
 
 
 /********************************************************************
@@ -2014,7 +1995,7 @@ static inline ln_closetype_t ln_close_type(const ln_self_t *self) {
  * @param[in]           feerate_kb  bitcoindから取得したfeerate/KB
  * @return          feerate_per_kw
  */
-static inline uint32_t ln_calc_feerate_per_kw(uint64_t feerate_kb) {
+static inline uint32_t ln_feerate_per_kw_calc(uint64_t feerate_kb) {
     return (uint32_t)(feerate_kb / 4);
 }
 
@@ -2045,7 +2026,7 @@ static inline uint32_t ln_feerate_per_kw(ln_self_t *self) {
  * @param[out]          self            channel情報
  * @param[in]           FeeratePerKw    設定値
  */
-static inline void ln_set_feerate_per_kw(ln_self_t *self, uint32_t FeeratePerKw) {
+static inline void ln_feerate_per_kw_set(ln_self_t *self, uint32_t FeeratePerKw) {
     self->feerate_per_kw = FeeratePerKw;
 }
 
@@ -2077,7 +2058,7 @@ static inline uint64_t ln_estimate_initcommittx_fee(uint32_t FeeratePerKw) {
  * @param[in,out]       self            channel情報
  * @return      fee[satoshis]
  */
-static inline uint64_t ln_calc_max_closing_fee(const ln_self_t *self) {
+static inline uint64_t ln_closing_signed_initfee(const ln_self_t *self) {
     return (LN_FEE_COMMIT_BASE * self->feerate_per_kw / 1000);
 }
 
@@ -2304,7 +2285,7 @@ static inline const utl_buf_t* ln_revoked_wit(const ln_self_t *self) {
  *          wishes to advertise this channel publicly to the network
  *          as detailed within BOLT #7.
  */
-static inline bool ln_open_announce_channel(const ln_self_t *self) {
+static inline bool ln_open_channel_announce(const ln_self_t *self) {
     return (self->fund_flag & LN_FUNDFLAG_ANNO_CH);
 }
 
@@ -2609,8 +2590,8 @@ uint64_t ln_misc_get64be(const uint8_t *pData);
  * デバッグ
  ********************************************************************/
 
-void ln_set_debug(unsigned long debug);
-unsigned long ln_get_debug(void);
+void ln_debug_set(unsigned long debug);
+unsigned long ln_debug_get(void);
 
 
 #ifdef PTARM_USE_PRINTFUNC

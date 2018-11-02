@@ -623,7 +623,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         bool detect;
         ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);
         if (detect) {
-            ln_calc_preimage_hash(preimage_hash, preimg.preimage);
+            ln_preimage_hash_calc(preimage_hash, preimg.preimage);
             cJSON *json = cJSON_CreateObject();
 
             char str_hash[LN_SZ_HASH * 2 + 1];
@@ -1042,11 +1042,11 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
     if (json && (json->type == cJSON_Number)) {
         result = cJSON_CreateObject();
 
-        sprintf(str, "%08lx", ln_get_debug());
+        sprintf(str, "%08lx", ln_debug_get());
         cJSON_AddItemToObject(result, "old", cJSON_CreateString(str));
 
-        unsigned long dbg = ln_get_debug() ^ json->valueint;
-        ln_set_debug(dbg);
+        unsigned long dbg = ln_debug_get() ^ json->valueint;
+        ln_debug_set(dbg);
         sprintf(str, "%08lx", dbg);
         cJSON *js_mode = cJSON_CreateArray();
         if (!LN_DBG_FULFILL()) {
@@ -1446,7 +1446,7 @@ static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
     ln_db_preimg_save(&preimg, NULL);
     ptarmd_preimage_unlock();
 
-    ln_calc_preimage_hash(pPayHash, preimg.preimage);
+    ln_preimage_hash_calc(pPayHash, preimg.preimage);
     return 0;
 }
 
@@ -1759,7 +1759,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     ln_cnl_update_t msg;
-    ret = ln_get_channel_update_peer(self, &buf_bolt, &msg);
+    ret = ln_channel_update_get_peer(self, &buf_bolt, &msg);
     if (ret && !ln_is_announced(self)) {
         size_t sz = (1 + *prm->p_fieldnum) * sizeof(ln_fieldr_t);
         *prm->pp_field = (ln_fieldr_t *)UTL_DBG_REALLOC(*prm->pp_field, sz);
@@ -1786,7 +1786,7 @@ static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
 static char *create_bolt11(const uint8_t *pPayHash, uint64_t Amount, uint32_t Expiry, const ln_fieldr_t *pFieldR, uint8_t FieldRNum, uint32_t MinFinalCltvExpiry)
 {
     uint8_t type;
-    btc_genesis_t gtype = btc_util_get_genesis(ln_get_genesishash());
+    btc_genesis_t gtype = btc_util_get_genesis(ln_genesishash_get());
     switch (gtype) {
     case BTC_GENESIS_BTCMAIN:
         type = LN_INVOICE_MAINNET;

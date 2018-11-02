@@ -2902,7 +2902,7 @@ bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
             *pDetect = true;
 
             uint8_t hash[LN_SZ_HASH];
-            ln_calc_preimage_hash(hash, pPreImg->preimage);
+            ln_preimage_hash_calc(hash, pPreImg->preimage);
             LOGD("invoice hash: ");
             DUMPD(hash, LN_SZ_HASH);
         } else {
@@ -3067,7 +3067,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
         goto LABEL_EXIT;
     }
 
-    ln_free_revoked_buf(self);
+    ln_revoked_buf_free(self);
     key.mv_size = LNDBK_RLEN;
 
     //number of vout scripts
@@ -3080,7 +3080,7 @@ bool ln_db_revtx_load(ln_self_t *self, void *pDbParam)
     uint16_t *p = (uint16_t *)data.mv_data;
     self->revoked_cnt = p[0];
     self->revoked_num = p[1];
-    ln_alloc_revoked_buf(self);
+    ln_revoked_buf_alloc(self);
 
     //vout scripts
     key.mv_data = LNDBK_RVV;
@@ -4539,7 +4539,7 @@ static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t 
 
     LOGD("compare preimage : ");
     DUMPD(pPreImage, LN_SZ_PREIMAGE);
-    ln_calc_preimage_hash(preimage_hash, pPreImage);
+    ln_preimage_hash_calc(preimage_hash, pPreImage);
     if (memcmp(preimage_hash, hash, LN_SZ_HASH) == 0) {
         retval = mdb_cursor_del(p_cur->cursor, 0);
         LOGD("  remove from DB: %s\n", mdb_strerror(retval));
@@ -4563,7 +4563,7 @@ static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_
 
     LOGD("compare preimage : ");
     DUMPD(pPreImage, LN_SZ_PREIMAGE);
-    ln_calc_preimage_hash(preimage_hash, pPreImage);
+    ln_preimage_hash_calc(preimage_hash, pPreImage);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
         if (memcmp(preimage_hash, prm->add_htlc[lp].payment_sha256, LN_SZ_HASH) == 0) {

@@ -327,13 +327,13 @@ extern uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
 /** revoked transaction close用のスクリプトバッファ確保
  *
  */
-void HIDDEN ln_alloc_revoked_buf(ln_self_t *self);
+void HIDDEN ln_revoked_buf_alloc(ln_self_t *self);
 
 
 /** revoked transaction close用のスクリプトバッファ解放
  *
  */
-void HIDDEN ln_free_revoked_buf(ln_self_t *self);
+void HIDDEN ln_revoked_buf_free(ln_self_t *self);
 
 
 /**************************************************************************

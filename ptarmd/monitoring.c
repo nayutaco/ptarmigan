@@ -147,7 +147,7 @@ uint32_t monitoring_get_latest_feerate_kw(void)
     uint64_t feerate_kb = 0;
     bool ret = btcrpc_estimatefee(&feerate_kb, LN_BLK_FEEESTIMATE);
     if (ret) {
-        feerate_kw = ln_calc_feerate_per_kw(feerate_kb);
+        feerate_kw = ln_feerate_per_kw_calc(feerate_kb);
     } else {
         LOGD("fail: estimatefee\n");
         feerate_kw = LN_FEERATE_PER_KW;
@@ -192,7 +192,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
 
     LOGD("closed: unilateral close[local]\n");
 
-    ret = ln_create_close_unilateral_tx(self, &close_dat);
+    ret = ln_close_create_unilateral_tx(self, &close_dat);
     if (ret) {
         del = true;
         uint8_t txid[BTC_SZ_TXID];
@@ -309,7 +309,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
         }
 
 LABEL_EXIT:
-        ln_free_close_force_tx(&close_dat);
+        ln_close_free_forcetx(&close_dat);
     } else {
         del = false;
     }
@@ -414,14 +414,14 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void 
             //funding_txがblockに入った
             LOGD("find!\n");
 
-            ln_goto_closing(self, &close_tx, p_db_param);
+            ln_close_change_stat(self, &close_tx, p_db_param);
             type = ln_close_type(self);
             const char *p_str = ln_close_typestring(self);
             lnapp_save_event(ln_channel_id(self), "close: %s(%s)", p_str, txid_str);
         } else {
             //funding_txはspentだがblockに入っていない
             if (type == LN_CLOSETYPE_NONE) {
-                ln_goto_closing(self, &close_tx, p_db_param);
+                ln_close_change_stat(self, &close_tx, p_db_param);
                 lnapp_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
             }
             LOGD("fail: not found\n");
@@ -447,7 +447,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void 
         case LN_CLOSETYPE_REVOKED:
             //相手にrevoked transaction closeされた
             LOGD("closed: revoked transaction close\n");
-            ret = ln_close_ugly(self, &close_tx, p_db_param);
+            ret = ln_close_remoterevoked(self, &close_tx, p_db_param);
             if (ret) {
                 if (ln_revoked_cnt(self) > 0) {
                     //revoked transactionのvoutに未解決あり
@@ -458,7 +458,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void 
                     del = true;
                 }
             } else {
-                LOGD("fail: ln_close_ugly\n");
+                LOGD("fail: ln_close_remoterevoked\n");
             }
             break;
         case LN_CLOSETYPE_NONE:
@@ -668,7 +668,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
 
     LOGD("closed: unilateral close[remote]\n");
 
-    bool ret = ln_create_closed_tx(self, &close_dat);
+    bool ret = ln_close_create_tx(self, &close_dat);
     if (ret) {
         for (int lp = 0; lp < close_dat.num; lp++) {
             const btc_tx_t *p_tx = &close_dat.p_tx[lp];
@@ -749,7 +749,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
             }
         }
 
-        ln_free_close_force_tx(&close_dat);
+        ln_close_free_forcetx(&close_dat);
     } else {
         del = false;
     }
@@ -944,7 +944,7 @@ static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, in
 
     const utl_buf_t *p_wit = ln_revoked_wit(self);
 
-    bool ret = ln_create_tolocal_wallet(self, &tx,
+    bool ret = ln_wallet_create_tolocal(self, &tx,
                 pTx->vout[VIndex].value,
                 ln_commit_local(self)->to_self_delay,
                 &p_wit[0], txid, VIndex, true);
@@ -978,7 +978,7 @@ static bool close_revoked_toremote(const ln_self_t *self, const btc_tx_t *pTx, i
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(txid, pTx);
 
-    bool ret = ln_create_toremote_wallet(
+    bool ret = ln_wallet_create_toremote(
                     self, &tx, pTx->vout[VIndex].value,
                     txid, VIndex);
     if (ret) {
@@ -1016,7 +1016,7 @@ static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int V
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(txid, pTx);
 
-    ln_create_revokedhtlc_spent(self, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
+    ln_revokedhtlc_create_spenttx(self, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
     btc_print_tx(&tx);
     utl_buf_t buf;
     btc_tx_create(&buf, &tx);

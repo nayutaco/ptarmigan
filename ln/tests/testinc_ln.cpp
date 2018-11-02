@@ -274,7 +274,7 @@ TEST_F(ln, ln_set_add_htlc1)
     memset(payhash, 0xdd, LN_SZ_HASH);
 
     /*** TEST ***/
-    ret = ln_set_add_htlc(&self, &htlcid, &buf_reason, onion,
+    ret = ln_add_htlc_set(&self, &htlcid, &buf_reason, onion,
                 amount_msat, cltv_expiry, payhash,
                 prev_schid, prev_idx, &shared_secret);
 
@@ -329,7 +329,7 @@ TEST_F(ln, ln_create_add_htlc1)
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
     memset(payhash, 0xdd, LN_SZ_HASH);
 
-    ret = ln_set_add_htlc(&self, &htlcid, &buf_reason, onion,
+    ret = ln_add_htlc_set(&self, &htlcid, &buf_reason, onion,
                 amount_msat, cltv_expiry, payhash,
                 prev_schid, prev_idx, &shared_secret);
     ASSERT_TRUE(ret);
@@ -337,7 +337,7 @@ TEST_F(ln, ln_create_add_htlc1)
 
     /*** TEST ***/
     utl_buf_t add = UTL_BUF_INIT;
-    ln_create_add_htlc(&self, &add, 0);
+    ln_add_htlc_create(&self, &add, 0);
 
     /*** CHECK ***/
     ASSERT_EQ(amount_msat, self.cnl_add_htlc[0].amount_msat);
