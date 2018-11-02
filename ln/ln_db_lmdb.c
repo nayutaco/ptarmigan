@@ -52,10 +52,13 @@
  * macros
  ********************************************************************/
 
+//INIT_PARAM[]の添字
 #define M_INITPARAM_SELF        (0)
 #define M_INITPARAM_NODE        (1)
 #define M_INITPARAM_ANNO        (2)
 #define M_INITPARAM_WALT        (3)
+
+#define M_MAPSIZE_REMAIN        (2)                         ///< DB compactionを実施する残りpage
 
 #define M_LMDB_SELF_MAXDBS      (12 * 2 * MAX_CHANNELS)     ///< 同時オープンできるDB数
 #define M_LMDB_SELF_MAPSIZE     ((size_t)10485760)          // DB最大長[byte](LMDBのデフォルト値)
@@ -543,6 +546,9 @@ static int backup_param_load(void *pData, ln_lmdb_db_t *pDb, const backup_param_
 static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
 
 static int init_dbenv(int InitParamIdx);
+static int rm_files(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb);
+static int lmdb_init(int InitParamIdx);
+static int lmdb_compaction(int InitParamIdx);
 
 
 #ifndef M_DB_DEBUG
@@ -4762,24 +4768,28 @@ static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_
  * private functions: initialize
  ********************************************************************/
 
-//https://stackoverflow.com/a/42978529
-static int rmFiles(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb)
-{
-    (void)sbuf; (void)type; (void)ftwb;
-
-    if(remove(pathname) < 0) {
-        perror("ERROR: remove");
-        return -1;
-    }
-    return 0;
-}
-
-
 static int init_dbenv(int InitParamIdx)
 {
     int retval;
+
+    retval = lmdb_init(InitParamIdx);
+    if (retval == 0) {
+        retval = lmdb_compaction(InitParamIdx);
+    }
+    if (retval == 0) {
+        LOGD("DB: OK(%d)\n", InitParamIdx);
+    } else {
+        LOGD("ERR: (%d)\n", InitParamIdx);
+    }
+
+    return retval;
+}
+
+
+static int lmdb_init(int InitParamIdx)
+{
+    int retval;
     int line = 0;
-    MDB_envinfo     info;
     const init_param_t *p_param = &INIT_PARAM[InitParamIdx];
 
     LOGD("BEGIN(%s)\n", p_param->path);
@@ -4807,6 +4817,25 @@ static int init_dbenv(int InitParamIdx)
         goto LABEL_EXIT;
     }
 
+LABEL_EXIT:
+    if (retval == 0) {
+        LOGD("DB: OK(%s)\n", p_param->path);
+    } else {
+        LOGD("ERR: %s(line: %d)\n", mdb_strerror(retval), line);
+    }
+
+    return retval;
+}
+
+
+static int lmdb_compaction(int InitParamIdx)
+{
+    int retval;
+    int line = 0;
+    MDB_envinfo     info;
+    const init_param_t *p_param = &INIT_PARAM[InitParamIdx];
+    long sz = sysconf(_SC_PAGESIZE);
+
     //compat処理
     retval = mdb_env_info(*p_param->pp_env, &info);
     if (retval != 0) {
@@ -4814,13 +4843,14 @@ static int init_dbenv(int InitParamIdx)
         goto LABEL_EXIT;
     }
     LOGD("-------------------------------------------\n");
+    LOGD("pagesize=%d\n", sz);
     LOGD("env_info.mapsize=%lu\n", info.me_mapsize);
     LOGD("env_info.last_pgno=%lu\n", info.me_last_pgno);
     // LOGD("env_info.last_txnid=%lu\n", info.me_last_txnid);
     // LOGD("env_info.maxreaders=%lu\n", info.me_maxreaders);
     // LOGD("env_info.numreaders=%lu\n", info.me_numreaders);
     LOGD("-------------------------------------------\n");
-    if (info.me_mapsize <= (info.me_last_pgno + 2) * 4096) {
+    if (info.me_mapsize <= (info.me_last_pgno + M_MAPSIZE_REMAIN) * sz) {
         LOGD("ERR: page not remain\n");
 
         size_t prev_pgno = info.me_last_pgno;
@@ -4841,16 +4871,24 @@ static int init_dbenv(int InitParamIdx)
 
         int err;
         if (prev_pgno > info.me_last_pgno) {
-            err = nftw(p_param->path, rmFiles, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
+            err = nftw(p_param->path, rm_files, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
             if (err == 0) {
                 rename(tmppath, p_param->path);
             } else {
                 LOGD("fail\n");
             }
 
+            //開き直す
+            mdb_env_close(*p_param->pp_env);
+            retval = lmdb_init(InitParamIdx);
+            if (retval != 0) {
+                line = __LINE__;
+                goto LABEL_EXIT;
+            }
+
             fprintf(stderr, "DB optimized. Please rerun !\n");
         } else {
-            err = nftw(tmppath, rmFiles, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
+            err = nftw(tmppath, rm_files, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS);
             if (err < 0) {
                 LOGD("fail\n");
             }
@@ -4858,7 +4896,7 @@ static int init_dbenv(int InitParamIdx)
             fprintf(stderr, "DB mapsize is flood...\n");
         }
         LOGD("prev pgno=%lu, now pgno=%lu(rmdir=%d)\n", prev_pgno, info.me_last_pgno, err);
-        retval = MDB_BAD_VALSIZE;
+        retval = ENOMEM;
         line = __LINE__;
     }
 
@@ -4870,4 +4908,17 @@ LABEL_EXIT:
     }
 
     return retval;
+}
+
+
+//https://stackoverflow.com/a/42978529
+static int rm_files(const char *pathname, const struct stat *sbuf, int type, struct FTW *ftwb)
+{
+    (void)sbuf; (void)type; (void)ftwb;
+
+    if(remove(pathname) < 0) {
+        perror("ERROR: remove");
+        return -1;
+    }
+    return 0;
 }
