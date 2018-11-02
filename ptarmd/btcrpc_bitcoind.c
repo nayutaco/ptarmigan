@@ -1473,12 +1473,12 @@ int main(int argc, char *argv[])
     //     uint8_t txid[BTC_SZ_TXID];
 
     //     short_channel_id = 0x11a7810000440000ULL;
-    //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
+    //     ln_short_channel_id_get_param(&bheight, &bindex, &vindex, short_channel_id);
     //     unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
     //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
 
     //     short_channel_id = 0x11a2eb0000210000ULL;
-    //     ln_get_short_channel_id_param(&bheight, &bindex, &vindex, short_channel_id);
+    //     ln_short_channel_id_get_param(&bheight, &bindex, &vindex, short_channel_id);
     //     unspent = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
     //     fprintf(stderr, "%016" PRIx64 " = %d\n", short_channel_id, unspent);
     // }

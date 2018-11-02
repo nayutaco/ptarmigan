@@ -496,7 +496,7 @@ void ln_term(ln_self_t *self)
 }
 
 
-void ln_set_status(ln_self_t *self, ln_status_t Status)
+void ln_status_set(ln_self_t *self, ln_status_t Status)
 {
     LOGD("status: %02x --> %02x\n", (uint8_t)self->status, Status);
     self->status = Status;
@@ -504,13 +504,13 @@ void ln_set_status(ln_self_t *self, ln_status_t Status)
 }
 
 
-ln_status_t ln_get_status(const ln_self_t *self)
+ln_status_t ln_status_get(const ln_self_t *self)
 {
     return self->status;
 }
 
 
-void ln_set_genesishash(const uint8_t *pHash)
+void ln_genesishash_set(const uint8_t *pHash)
 {
     memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
     //LOGD("genesis=");
@@ -518,26 +518,26 @@ void ln_set_genesishash(const uint8_t *pHash)
 }
 
 
-const uint8_t* ln_get_genesishash(void)
+const uint8_t* ln_genesishash_get(void)
 {
     return gGenesisChainHash;
 }
 
 
-void ln_set_peer_nodeid(ln_self_t *self, const uint8_t *pNodeId)
+void ln_peer_set_nodeid(ln_self_t *self, const uint8_t *pNodeId)
 {
     memcpy(self->peer_node_id, pNodeId, BTC_SZ_PUBKEY);
 }
 
 
-void ln_set_init_localfeatures(uint8_t lf)
+void ln_init_localfeatures_set(uint8_t lf)
 {
     LOGD("localfeatures=0x%02x\n", lf);
     mInitLocalFeatures[0] = lf;
 }
 
 
-bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
+bool ln_establish_alloc(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
 {
     LOGD("BEGIN\n");
 
@@ -568,13 +568,13 @@ bool ln_set_establish(ln_self_t *self, const ln_establish_prm_t *pEstPrm)
 }
 
 
-void ln_free_establish(ln_self_t *self)
+void ln_establish_free(ln_self_t *self)
 {
     free_establish(self, true);
 }
 
 
-bool ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex, const uint8_t *pMinedHash)
+bool ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex, const uint8_t *pMinedHash)
 {
     uint64_t short_channel_id = ln_misc_calc_short_channel_id(Height, Index, FundingIndex);
     if (self->short_channel_id == 0) {
@@ -592,7 +592,7 @@ bool ln_set_short_channel_id_param(ln_self_t *self, uint32_t Height, uint32_t In
 }
 
 
-void ln_get_short_channel_id_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId)
+void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId)
 {
     ln_misc_get_short_channel_id_param(pHeight, pIndex, pVIndex, ShortChannelId);
 }
@@ -622,7 +622,7 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
 #endif
 
 
-void ln_set_shutdown_vout_addr(ln_self_t *self, const utl_buf_t *pScriptPk)
+void ln_shutdown_set_vout_addr(ln_self_t *self, const utl_buf_t *pScriptPk)
 {
     LOGD("set close addr: ");
     DUMPD(pScriptPk->buf, pScriptPk->len);
@@ -759,7 +759,7 @@ void ln_recv_idle_proc(ln_self_t *self)
 
 
 //init作成
-bool ln_create_init(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
+bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
 {
     (void)bHaveCnl;
 
@@ -786,7 +786,7 @@ bool ln_create_init(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
 
 
 //channel_reestablish作成
-bool ln_create_channel_reestablish(ln_self_t *self, utl_buf_t *pReEst)
+bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
 {
     ln_channel_reestablish_t msg;
     msg.p_channel_id = self->channel_id;
@@ -827,7 +827,7 @@ bool ln_create_channel_reestablish(ln_self_t *self, utl_buf_t *pReEst)
 }
 
 
-void ln_after_channel_reestablish(ln_self_t *self)
+void ln_channel_reestablish_after(ln_self_t *self)
 {
     M_DBG_COMMITNUM(self);
     M_DBG_HTLCFLAGALL(self);
@@ -863,17 +863,17 @@ void ln_after_channel_reestablish(ln_self_t *self)
                 case M_HTLCFLAG_BITS_FULFILLHTLC:
                     //update_fulfill_htlc送信
                     LOGD("resend: update_fulfill_htlc\n");
-                    ln_create_fulfill_htlc(self, &buf_bolt, idx);
+                    ln_fulfill_htlc_create(self, &buf_bolt, idx);
                     break;
                 case M_HTLCFLAG_BITS_FAILHTLC:
                     //update_fail_htlc送信
                     LOGD("resend: update_fail_htlc\n");
-                    ln_create_fail_htlc(self, &buf_bolt, idx);
+                    ln_fail_htlc_create(self, &buf_bolt, idx);
                     break;
                 case M_HTLCFLAG_BITS_MALFORMEDHTLC:
                     //update_fail_malformed_htlc送信
                     LOGD("resend: update_fail_malformed_htlc\n");
-                    ln_create_fail_malformed_htlc(self, &buf_bolt, idx);
+                    ln_fail_malformed_htlc_create(self, &buf_bolt, idx);
                     break;
                 default:
                     //none
@@ -952,7 +952,7 @@ void ln_after_channel_reestablish(ln_self_t *self)
 }
 
 
-bool ln_check_need_funding_locked(const ln_self_t *self)
+bool ln_funding_locked_check_need(const ln_self_t *self)
 {
     return (self->short_channel_id != 0) &&
         (
@@ -962,7 +962,7 @@ bool ln_check_need_funding_locked(const ln_self_t *self)
 }
 
 
-bool ln_create_funding_locked(ln_self_t *self, utl_buf_t *pLocked)
+bool ln_funding_locked_create(ln_self_t *self, utl_buf_t *pLocked)
 {
     LOGD("\n");
 
@@ -1059,7 +1059,7 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
 
 
 //open_channel生成
-bool ln_create_open_channel(ln_self_t *self, utl_buf_t *pOpen,
+bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
             const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate)
 {
     if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
@@ -1127,7 +1127,7 @@ bool ln_create_open_channel(ln_self_t *self, utl_buf_t *pOpen,
 }
 
 
-void ln_open_announce_channel_clr(ln_self_t *self)
+void ln_open_channel_clr_announce(ln_self_t *self)
 {
     self->fund_flag = (ln_fundflag_t)(self->fund_flag & ~LN_FUNDFLAG_ANNO_CH);
     M_DB_SELF_SAVE(self);
@@ -1135,7 +1135,7 @@ void ln_open_announce_channel_clr(ln_self_t *self)
 
 
 //announcement_signaturesを交換すると channel_announcementが完成する。
-bool ln_create_announce_signs(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
+bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
 {
     bool ret;
 
@@ -1165,7 +1165,7 @@ bool ln_create_announce_signs(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
 }
 
 
-bool ln_create_channel_update(ln_self_t *self, utl_buf_t *pCnlUpd)
+bool ln_channel_update_create(ln_self_t *self, utl_buf_t *pCnlUpd)
 {
     bool ret;
 
@@ -1190,7 +1190,7 @@ bool ln_create_channel_update(ln_self_t *self, utl_buf_t *pCnlUpd)
 }
 
 
-bool ln_get_channel_update_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cnl_update_t *pMsg)
+bool ln_channel_update_get_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cnl_update_t *pMsg)
 {
     bool ret;
 
@@ -1205,16 +1205,23 @@ bool ln_get_channel_update_peer(const ln_self_t *self, utl_buf_t *pCnlUpd, ln_cn
 }
 
 
+bool ln_channel_update_get_params(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len)
+{
+    bool ret = ln_msg_cnl_update_read(pUpd, pData, Len);
+    return ret;
+}
+
+
 /********************************************************************
  * Close関係
  ********************************************************************/
 
-void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee)
+void ln_shutdown_update_fee(ln_self_t *self, uint64_t Fee)
 {
     //BOLT#3
     //  A sending node MUST set fee_satoshis lower than or equal to the base fee
     //      of the final commitment transaction as calculated in BOLT #3.
-    uint64_t feemax = ln_calc_max_closing_fee(self);
+    uint64_t feemax = ln_closing_signed_initfee(self);
     if (Fee > feemax) {
         LOGD("closing fee limit(%" PRIu64 " > %" PRIu64 ")\n", Fee, feemax);
         Fee = feemax;
@@ -1225,7 +1232,7 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee)
 }
 
 
-bool ln_create_shutdown(ln_self_t *self, utl_buf_t *pShutdown)
+bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown)
 {
     LOGD("BEGIN\n");
 
@@ -1288,7 +1295,7 @@ const char *ln_close_typestring(const ln_self_t *self)
 }
 
 
-void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
+void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
 {
     LOGD("BEGIN: type=%d\n", (int)self->close_type);
     if (self->close_type == LN_CLOSETYPE_NONE) {
@@ -1353,7 +1360,7 @@ void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
  *
  * 現在のcommitment_transactionを取得する場合にも呼び出されるため、値を元に戻す。
  */
-bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
+bool ln_close_create_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     LOGD("BEGIN\n");
 
@@ -1389,7 +1396,7 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
                 self->commit_local.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_local\n");
-        ln_free_close_force_tx(pClose);
+        ln_close_free_forcetx(pClose);
     }
 
     //元に戻す
@@ -1412,7 +1419,7 @@ bool ln_create_close_unilateral_tx(ln_self_t *self, ln_close_force_t *pClose)
  * funding_txがspentで、remote commit_txのtxidがgetrawtransactionできる状態で呼ばれる。
  * (remote commit_txが展開＝相手がunilateral closeした)
  */
-bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
+bool ln_close_create_tx(ln_self_t *self, ln_close_force_t *pClose)
 {
     LOGD("BEGIN\n");
 
@@ -1445,7 +1452,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
                 self->commit_remote.dust_limit_sat);
     if (!ret) {
         LOGD("fail: create_to_remote\n");
-        ln_free_close_force_tx(pClose);
+        ln_close_free_forcetx(pClose);
     }
 
     //元に戻す
@@ -1462,7 +1469,7 @@ bool ln_create_closed_tx(ln_self_t *self, ln_close_force_t *pClose)
 }
 
 
-void ln_free_close_force_tx(ln_close_force_t *pClose)
+void ln_close_free_forcetx(ln_close_force_t *pClose)
 {
     for (int lp = 0; lp < pClose->num; lp++) {
         btc_tx_free(&pClose->p_tx[lp]);
@@ -1491,7 +1498,7 @@ void ln_free_close_force_tx(ln_close_force_t *pClose)
  *          4.1 DBから当時のpayment_hashを検索
  *          4.2 script復元
  */
-bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
+bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
 {
     //取り戻す必要があるvout数
     self->revoked_cnt = 0;
@@ -1504,7 +1511,7 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
     LOGD("revoked_cnt=%d\n", self->revoked_cnt);
     self->revoked_num = 1 + self->revoked_cnt;      //p_revoked_vout[0]にto_local系を必ず入れるため、+1しておく
                                                     //(to_local自体が無くても、HTLC txの送金先がto_localと同じtxになるため)
-    ln_alloc_revoked_buf(self);
+    ln_revoked_buf_alloc(self);
 
     //
     //相手がrevoked_txを展開した前提で、スクリプトを再現
@@ -1596,7 +1603,7 @@ bool ln_close_ugly(ln_self_t *self, const btc_tx_t *pRevokedTx, void *pDbParam)
  * Normal Operation関係
  ********************************************************************/
 
-bool ln_set_add_htlc(ln_self_t *self,
+bool ln_add_htlc_set(ln_self_t *self,
             uint64_t *pHtlcId,
             utl_buf_t *pReason,
             const uint8_t *pPacket,
@@ -1621,7 +1628,7 @@ bool ln_set_add_htlc(ln_self_t *self,
 }
 
 
-bool ln_set_fwd_add_htlc(ln_self_t *self,
+bool ln_add_htlc_set_fwd(ln_self_t *self,
             uint64_t *pHtlcId,
             utl_buf_t *pReason,
             uint16_t *pNextIdx,
@@ -1638,20 +1645,20 @@ bool ln_set_fwd_add_htlc(ln_self_t *self,
     bool ret = set_add_htlc(self, pHtlcId, pReason, pNextIdx,
                     pPacket, AmountMsat, CltvValue, pPaymentHash,
                     PrevShortChannelId, PrevIdx, pSharedSecrets);
-    //flag.addhtlcは #ln_recv_idle_proc()のHTLC final経由で #ln_fwd_add_htlc_start()を呼び出して設定
+    //flag.addhtlcは #ln_recv_idle_proc()のHTLC final経由で #ln_add_htlc_start_fwd()を呼び出して設定
 
     return ret;
 }
 
 
-void ln_fwd_add_htlc_start(ln_self_t *self, uint16_t Idx)
+void ln_add_htlc_start_fwd(ln_self_t *self, uint16_t Idx)
 {
     LOGD("forwarded HTLC\n");
     self->cnl_add_htlc[Idx].stat.flag.addhtlc = LN_HTLCFLAG_OFFER;
 }
 
 
-void ln_create_add_htlc(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx)
+void ln_add_htlc_create(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx)
 {
     LOGD("self->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
     (void)ln_msg_update_add_htlc_create(pAdd, &self->cnl_add_htlc[Idx]);
@@ -1664,7 +1671,7 @@ void ln_create_add_htlc(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx)
 }
 
 
-bool ln_set_fulfill_htlc(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage)
+bool ln_fulfill_htlc_set(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage)
 {
     LOGD("BEGIN\n");
 
@@ -1687,7 +1694,7 @@ bool ln_set_fulfill_htlc(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage
 }
 
 
-void ln_create_fulfill_htlc(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx)
+void ln_fulfill_htlc_create(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx)
 {
     LOGD("self->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
 
@@ -1703,7 +1710,7 @@ void ln_create_fulfill_htlc(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx)
 }
 
 
-bool ln_set_fail_htlc(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason)
+bool ln_fail_htlc_set(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason)
 {
     LOGD("BEGIN\n");
 
@@ -1721,7 +1728,7 @@ bool ln_set_fail_htlc(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason)
 }
 
 
-void ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
+void ln_fail_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
 {
     LOGD("self->cnl_add_htlc[%d].flag = 0x%02x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
 
@@ -1737,7 +1744,7 @@ void ln_create_fail_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
 }
 
 
-void ln_create_fail_malformed_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
+void ln_fail_malformed_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx)
 {
     LOGD("self->cnl_add_htlc[%d].flag = 0x%04x\n", Idx, self->cnl_add_htlc[Idx].stat.bits);
 
@@ -1755,7 +1762,7 @@ void ln_create_fail_malformed_htlc(ln_self_t *self, utl_buf_t *pFail, uint16_t I
 }
 
 
-bool ln_create_update_fee(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw)
+bool ln_update_fee_create(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeeratePerKw)
 {
 #if 0
     LOGD("BEGIN: %" PRIu32 " --> %" PRIu32 "\n", self->feerate_per_kw, FeeratePerKw);
@@ -1790,7 +1797,7 @@ bool ln_create_update_fee(ln_self_t *self, utl_buf_t *pUpdFee, uint32_t FeerateP
  * ping/pong
  ********************************************************************/
 
-bool ln_create_ping(ln_self_t *self, utl_buf_t *pPing)
+bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing)
 {
     ln_ping_t ping;
 
@@ -1828,7 +1835,7 @@ bool ln_create_ping(ln_self_t *self, utl_buf_t *pPing)
 }
 
 
-bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
+bool ln_pong_create(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
 {
     (void)self;
 
@@ -1845,7 +1852,7 @@ bool ln_create_pong(ln_self_t *self, utl_buf_t *pPong, uint16_t NumPongBytes)
  * others
  ********************************************************************/
 
-bool ln_create_tolocal_wallet(const ln_self_t *self, btc_tx_t *pTx,uint64_t Value, uint32_t ToSelfDelay,
+bool ln_wallet_create_tolocal(const ln_self_t *self, btc_tx_t *pTx,uint64_t Value, uint32_t ToSelfDelay,
                 const utl_buf_t *pScript, const uint8_t *pTxid, int Index, bool bRevoked)
 {
     bool ret = create_basetx(pTx, Value,
@@ -1859,7 +1866,7 @@ bool ln_create_tolocal_wallet(const ln_self_t *self, btc_tx_t *pTx,uint64_t Valu
 }
 
 
-bool ln_create_toremote_wallet(
+bool ln_wallet_create_toremote(
             const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
             const uint8_t *pTxid, int Index)
 {
@@ -1875,7 +1882,7 @@ bool ln_create_toremote_wallet(
 }
 
 
-bool ln_create_revokedhtlc_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
+bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_t Value,
                 int WitIndex, const uint8_t *pTxid, int Index)
 {
     ln_script_feeinfo_t feeinfo;
@@ -1934,7 +1941,7 @@ bool ln_create_revokedhtlc_spent(const ln_self_t *self, btc_tx_t *pTx, uint64_t 
 }
 
 
-void ln_calc_preimage_hash(uint8_t *pHash, const uint8_t *pPreImage)
+void ln_preimage_hash_calc(uint8_t *pHash, const uint8_t *pPreImage)
 {
     btc_util_sha256(pHash, pPreImage, LN_SZ_PREIMAGE);
 }
@@ -1966,21 +1973,7 @@ bool ln_getids_cnl_anno(uint64_t *p_short_channel_id, uint8_t *pNodeId1, uint8_t
 }
 
 
-/** [routing用]channel_updateデータ解析
- *
- * @param[out]  pUpd
- * @param[in]   pData
- * @param[in]   Len
- * @retval  true        解析成功
- */
-bool ln_getparams_cnl_upd(ln_cnl_update_t *pUpd, const uint8_t *pData, uint16_t Len)
-{
-    bool ret = ln_msg_cnl_update_read(pUpd, pData, Len);
-    return ret;
-}
-
-
-void ln_set_last_connected_addr(ln_self_t *self, const ln_nodeaddr_t *pAddr)
+void ln_last_connected_addr_set(ln_self_t *self, const ln_nodeaddr_t *pAddr)
 {
     memcpy(&self->last_connected_addr, pAddr, sizeof(ln_nodeaddr_t));
     LOGD("addr[%d]: %d.%d.%d.%d:%d\n", pAddr->type,
@@ -1994,7 +1987,7 @@ void ln_set_last_connected_addr(ln_self_t *self, const ln_nodeaddr_t *pAddr)
 /* [非公開]デバッグ用オプション設定
  *
  */
-void ln_set_debug(unsigned long debug)
+void ln_debug_set(unsigned long debug)
 {
     mDebug = debug;
     LOGD("debug flag: 0x%lx\n", mDebug);
@@ -2008,7 +2001,7 @@ void ln_set_debug(unsigned long debug)
 /* [非公開]デバッグ用オプション取得
  *
  */
-unsigned long ln_get_debug(void)
+unsigned long ln_debug_get(void)
 {
     return mDebug;
 }
@@ -2021,7 +2014,7 @@ unsigned long ln_get_debug(void)
 /** revoked transaction close関連のメモリ確保
  *
  */
-void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
+void HIDDEN ln_revoked_buf_alloc(ln_self_t *self)
 {
     LOGD("alloc(%d)\n", self->revoked_num);
 
@@ -2036,10 +2029,10 @@ void HIDDEN ln_alloc_revoked_buf(ln_self_t *self)
 }
 
 
-/** #ln_alloc_revoked_buf()で確保したメモリの解放
+/** #ln_revoked_buf_alloc()で確保したメモリの解放
  *
  */
-void HIDDEN ln_free_revoked_buf(ln_self_t *self)
+void HIDDEN ln_revoked_buf_free(ln_self_t *self)
 {
     if (self->revoked_num == 0) {
         return;
@@ -2076,7 +2069,7 @@ static void channel_clear(ln_self_t *self)
     utl_buf_free(&self->redeem_fund);
     utl_buf_free(&self->cnl_anno);
     utl_buf_free(&self->revoked_sec);
-    ln_free_revoked_buf(self);
+    ln_revoked_buf_free(self);
 
     btc_tx_free(&self->tx_funding);
     btc_tx_free(&self->tx_closing);
@@ -2223,7 +2216,7 @@ static bool recv_idle_proc_nonfinal(ln_self_t *self)
                 utl_buf_t buf_bolt = UTL_BUF_INIT;
                 if (LN_HTLC_WILL_ADDHTLC(p_htlc)) {
                     //update_add_htlc送信
-                    ln_create_add_htlc(self, &buf_bolt, idx);
+                    ln_add_htlc_create(self, &buf_bolt, idx);
                 } else if (LN_HTLC_WILL_DELHTLC(p_htlc)) {
                     if (!LN_DBG_FULFILL()) {
                         LOGD("DBG: no fulfill mode\n");
@@ -2231,13 +2224,13 @@ static bool recv_idle_proc_nonfinal(ln_self_t *self)
                         //update_fulfill/fail/fail_malformed_htlc送信
                         switch (p_flag->delhtlc) {
                         case LN_HTLCFLAG_FULFILL:
-                            ln_create_fulfill_htlc(self, &buf_bolt, idx);
+                            ln_fulfill_htlc_create(self, &buf_bolt, idx);
                             break;
                         case LN_HTLCFLAG_FAIL:
-                            ln_create_fail_htlc(self, &buf_bolt, idx);
+                            ln_fail_htlc_create(self, &buf_bolt, idx);
                             break;
                         case LN_HTLCFLAG_MALFORMED:
-                            ln_create_fail_malformed_htlc(self, &buf_bolt, idx);
+                            ln_fail_malformed_htlc_create(self, &buf_bolt, idx);
                             break;
                         default:
                             break;
@@ -2366,7 +2359,7 @@ static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     //脊髄反射的にpongを返す
     utl_buf_t buf_bolt;
-    ret = ln_create_pong(self, &buf_bolt, ping.num_pong_bytes);
+    ret = ln_pong_create(self, &buf_bolt, ping.num_pong_bytes);
     (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
     utl_buf_free(&buf_bolt);
 
@@ -2704,7 +2697,7 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //funding_tx安定待ち
     start_funding_wait(self, false);
-    ln_set_status(self, LN_STATUS_ESTABLISH);
+    ln_status_set(self, LN_STATUS_ESTABLISH);
 
     LOGD("END\n");
     return true;
@@ -2758,7 +2751,7 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //funding_tx安定待ち
     start_funding_wait(self, true);
-    ln_set_status(self, LN_STATUS_ESTABLISH);
+    ln_status_set(self, LN_STATUS_ESTABLISH);
 
     LOGD("END\n");
     return ret;
@@ -2876,7 +2869,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         //feeと送金先を設定してもらう
         (*self->p_callback)(self, LN_CB_SHUTDOWN_RECV, NULL);
 
-        ret = ln_create_shutdown(self, &buf_bolt);
+        ret = ln_shutdown_create(self, &buf_bolt);
         if (ret) {
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
             utl_buf_free(&buf_bolt);
@@ -2953,7 +2946,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     //BOLT#3
     //  A sending node MUST set fee_satoshis lower than or equal to the base fee
     //      of the final commitment transaction as calculated in BOLT #3.
-    uint64_t feemax = ln_calc_max_closing_fee(self);
+    uint64_t feemax = ln_closing_signed_initfee(self);
     if (cnl_close.fee_sat > feemax) {
         LOGD("fail: fee too large(%" PRIu64 " > %" PRIu64 ")\n", cnl_close.fee_sat, feemax);
         return false;
@@ -4604,7 +4597,7 @@ static bool create_to_local_spentlocal(ln_self_t *self,
     bool ret;
     if (pTxToLocal != NULL) {
         btc_tx_t tx = BTC_TX_INIT;
-        ret = ln_create_tolocal_wallet(self, &tx,
+        ret = ln_wallet_create_tolocal(self, &tx,
                 Amount,
                 ToSelfDelay,
                 pBufWs, self->commit_local.txid, VoutIdx, false);
@@ -4740,7 +4733,7 @@ static bool create_to_local_spenthtlc(ln_self_t *self,
 
     // HTLC Timeout/Success Txを作った場合はそれを取り戻す準備をする
     btc_tx_txid(txid, pTxHtlc);
-    ret = ln_create_tolocal_wallet(self, &tx,
+    ret = ln_wallet_create_tolocal(self, &tx,
                 pTxHtlc->vout[0].value,
                 ToSelfDelay,
                 pBufWs, txid, 0, false);
@@ -5033,7 +5026,7 @@ static bool create_to_remote_spent(ln_self_t *self,
                 btc_tx_t tx = BTC_TX_INIT;
 
                 //wallet保存用のデータ作成
-                ret = ln_create_toremote_wallet(
+                ret = ln_wallet_create_toremote(
                             self, &tx, pTxCommit->vout[vout_idx].value,
                             self->commit_remote.txid, vout_idx);
                 if (ret) {
@@ -5475,7 +5468,7 @@ static bool check_create_add_htlc(
 {
     bool ret = false;
     uint64_t max_htlc_value_in_flight_msat = 0;
-    uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_calc_max_closing_fee(self));
+    uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_closing_signed_initfee(self));
 
     //cltv_expiryは、500000000未満にしなくてはならない
     if (cltv_value >= 500000000) {
@@ -5538,7 +5531,7 @@ LABEL_EXIT:
         utl_buf_t buf_bolt = UTL_BUF_INIT;
         ln_cnl_update_t upd;
 
-        bool retval = ln_get_channel_update_peer(self, &buf_bolt, NULL);
+        bool retval = ln_channel_update_get_peer(self, &buf_bolt, NULL);
         if (retval) {
             memset(&upd, 0, sizeof(upd));
             retval = ln_msg_cnl_update_read(&upd, buf_bolt.buf, buf_bolt.len);
@@ -5700,7 +5693,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
         ret = ln_db_preimg_cur_get(p_cur, &detect, &preimg);     //from invoice
         if (detect) {
             memcpy(pPreImage, preimg.preimage, LN_SZ_PREIMAGE);
-            ln_calc_preimage_hash(preimage_hash, pPreImage);
+            ln_preimage_hash_calc(preimage_hash, pPreImage);
             if (memcmp(preimage_hash, pAddHtlc->payment_sha256, LN_SZ_HASH) == 0) {
                 //一致
                 LOGD("match preimage: ");
@@ -6200,7 +6193,7 @@ static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint
 
     //LOGD("compare preimage : ");
     //DUMPD(pPreImage, LN_SZ_PREIMAGE);
-    ln_calc_preimage_hash(preimage_hash, pPreImage);
+    ln_preimage_hash_calc(preimage_hash, pPreImage);
     if (memcmp(preimage_hash, prm->hash, LN_SZ_HASH) == 0) {
         //一致
         //LOGD("preimage match!: ");
@@ -6261,12 +6254,12 @@ static void free_establish(ln_self_t *self, bool bEndEstablish)
 #ifndef USE_SPV
         if (self->p_establish->p_fundin != NULL) {
             LOGD("self->p_establish->p_fundin=%p\n", self->p_establish->p_fundin);
-            UTL_DBG_FREE(self->p_establish->p_fundin);  //UTL_DBG_MALLOC: ln_create_open_channel()
+            UTL_DBG_FREE(self->p_establish->p_fundin);  //UTL_DBG_MALLOC: ln_open_channel_create()
             LOGD("free\n");
         }
 #endif
         if (bEndEstablish) {
-            UTL_DBG_FREE(self->p_establish);        //UTL_DBG_MALLOC: ln_set_establish()
+            UTL_DBG_FREE(self->p_establish);        //UTL_DBG_MALLOC: ln_establish_alloc()
             LOGD("free\n");
         }
     }

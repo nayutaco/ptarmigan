@@ -308,7 +308,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         //LOGD("This AppConf not working\n");
         return false;
     }
-    if (ln_get_status(pAppConf->p_self) != LN_STATUS_NORMAL) {
+    if (ln_status_get(pAppConf->p_self) != LN_STATUS_NORMAL) {
         LOGD("not Normal Operation status\n");
         return false;
     }
@@ -357,7 +357,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     }
 
     uint64_t htlc_id;
-    ret = ln_set_add_htlc(p_self,
+    ret = ln_add_htlc_set(p_self,
                         &htlc_id,
                         NULL,
                         onion,
@@ -470,7 +470,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     show_self_param(p_self, stderr, "close channel", __LINE__);
 
     const char *p_str;
-    ret = ln_create_shutdown(p_self, &buf_bolt);
+    ret = ln_shutdown_create(p_self, &buf_bolt);
     if (ret) {
         send_peer_noise(pAppConf, &buf_bolt);
         utl_buf_free(&buf_bolt);
@@ -532,10 +532,10 @@ bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     ln_self_t *p_self = pAppConf->p_self;
 
-    ret = ln_create_update_fee(p_self, &buf_bolt, FeeratePerKw);
+    ret = ln_update_fee_create(p_self, &buf_bolt, FeeratePerKw);
     if (ret) {
         uint32_t oldrate = ln_feerate_per_kw(p_self);
-        ln_set_feerate_per_kw(p_self, FeeratePerKw);
+        ln_feerate_per_kw_set(p_self, FeeratePerKw);
         send_peer_noise(pAppConf, &buf_bolt);
         utl_buf_free(&buf_bolt);
         lnapp_save_event(ln_channel_id(p_self),
@@ -581,7 +581,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         char str[256];
 
         const char *p_status;
-        ln_status_t stat = ln_get_status(p_self);
+        ln_status_t stat = ln_status_get(p_self);
         switch (stat) {
         case LN_STATUS_ESTABLISH:
             p_status = "establishing";
@@ -694,9 +694,9 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
     ln_close_force_t close_dat;
     bool ret;
     if (bLocal) {
-        ret = ln_create_close_unilateral_tx(pAppConf->p_self, &close_dat);
+        ret = ln_close_create_unilateral_tx(pAppConf->p_self, &close_dat);
     } else {
-        ret = ln_create_closed_tx(pAppConf->p_self, &close_dat);
+        ret = ln_close_create_tx(pAppConf->p_self, &close_dat);
     }
     if (ret) {
         cJSON *result = cJSON_CreateObject();
@@ -750,7 +750,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
         const char *p_title = (bLocal) ? "local" : "remote";
         cJSON_AddItemToObject(pResult, p_title, result);
 
-        ln_free_close_force_tx(&close_dat);
+        ln_close_free_forcetx(&close_dat);
     }
 
     return ret;
@@ -886,7 +886,7 @@ static void *thread_main_start(void *pArg)
     btc_util_dumpbin(stderr, p_conf->node_id, BTC_SZ_PUBKEY, true);
 
     //init交換前に設定する(open_channelの受信に間に合わない場合あり issue #351)
-    ln_set_peer_nodeid(p_self, p_conf->node_id);
+    ln_peer_set_nodeid(p_self, p_conf->node_id);
     load_channel_settings(p_conf);
 
 #ifndef USE_SPV
@@ -961,7 +961,7 @@ static void *thread_main_start(void *pArg)
             LOGD("fail: create address\n");
             goto LABEL_JOIN;
         }
-        ln_set_shutdown_vout_addr(p_self, &buf);
+        ln_shutdown_set_vout_addr(p_self, &buf);
         utl_buf_free(&buf);
     }
 
@@ -984,7 +984,7 @@ static void *thread_main_start(void *pArg)
             if (ln_short_channel_id(p_self) != 0) {
                 // funding_txはブロックに入ってminimum_depth以上経過している
                 LOGD("Establish済み\n");
-                ln_free_establish(p_self);
+                ln_establish_free(p_self);
             } else {
                 // funding_txはminimum_depth未満
                 LOGD("funding_tx監視開始\n");
@@ -997,7 +997,7 @@ static void *thread_main_start(void *pArg)
             ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
             if (ret) {
                 conn_addr.type = LN_NODEDESC_IPV4;
-                ln_set_last_connected_addr(p_self, &conn_addr);
+                ln_last_connected_addr_set(p_self, &conn_addr);
             }
 
             b_channelreestablished = exchange_reestablish(p_conf);
@@ -1025,7 +1025,7 @@ static void *thread_main_start(void *pArg)
     LOGD("*** message inited ***\n");
     p_conf->flag_recv |= RECV_MSG_END;
 
-    if (ln_check_need_funding_locked(p_self)) {
+    if (ln_funding_locked_check_need(p_self)) {
         //funding_locked交換
         ret = exchange_funding_locked(p_conf);
         if (!ret) {
@@ -1035,7 +1035,7 @@ static void *thread_main_start(void *pArg)
     }
 
     if (b_channelreestablished) {
-        ln_after_channel_reestablish(p_self);
+        ln_channel_reestablish_after(p_self);
     }
 
     // flush buffered BOLT message
@@ -1300,7 +1300,7 @@ static bool exchange_init(lnapp_conf_t *p_conf)
 {
     utl_buf_t buf_bolt = UTL_BUF_INIT;
 
-    bool ret = ln_create_init(p_conf->p_self, &buf_bolt, true);     //channel announceあり
+    bool ret = ln_init_create(p_conf->p_self, &buf_bolt, true);     //channel announceあり
     if (!ret) {
         LOGD("fail: create\n");
         return false;
@@ -1332,7 +1332,7 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
 {
     utl_buf_t buf_bolt = UTL_BUF_INIT;
 
-    bool ret = ln_create_channel_reestablish(p_conf->p_self, &buf_bolt);
+    bool ret = ln_channel_reestablish_create(p_conf->p_self, &buf_bolt);
     if (!ret) {
         LOGD("fail: create\n");
         return false;
@@ -1359,7 +1359,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 {
     utl_buf_t buf_bolt = UTL_BUF_INIT;
 
-    bool ret = ln_create_funding_locked(p_conf->p_self, &buf_bolt);
+    bool ret = ln_funding_locked_create(p_conf->p_self, &buf_bolt);
     if (!ret) {
         LOGD("fail: create\n");
         return false;
@@ -1374,7 +1374,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
         utl_misc_msleep(M_WAIT_RECV_MSG_MSEC);
     }
     LOGD("exchange: funding_locked\n");
-    ln_set_status(p_conf->p_self, LN_STATUS_NORMAL);
+    ln_status_set(p_conf->p_self, LN_STATUS_NORMAL);
 
     check_short_channel_id(p_conf);
 
@@ -1382,7 +1382,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
     if (ret) {
         conn_addr.type = LN_NODEDESC_IPV4;
-        ln_set_last_connected_addr(p_conf->p_self, &conn_addr);
+        ln_last_connected_addr_set(p_conf->p_self, &conn_addr);
     }
 
     // method: established
@@ -1464,7 +1464,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 #endif
 
         utl_buf_t buf_bolt = UTL_BUF_INIT;
-        ret = ln_create_open_channel(p_conf->p_self, &buf_bolt,
+        ret = ln_open_channel_create(p_conf->p_self, &buf_bolt,
                         &fundin,
                         pFunding->funding_sat,
                         pFunding->push_sat,
@@ -1682,14 +1682,14 @@ static void *thread_poll_start(void *pArg)
         //announcement_signatures
         //  監視周期によっては funding_confirmが minimum_depth と M_ANNOSIGS_CONFIRMの
         //  両方を満たす可能性があるため、先に poll_funding_wait()を行って self->cnl_anno の準備を済ませる。
-        if ( ln_open_announce_channel(p_conf->p_self) &&
+        if ( ln_open_channel_announce(p_conf->p_self) &&
              (p_conf->funding_confirm >= LN_ANNOSIGS_CONFIRM) &&
              (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_self)) ) {
             // BOLT#7: announcement_signaturesは最低でも 6confirmations必要
             //  https://github.com/lightningnetwork/lightning-rfc/blob/master/07-routing-gossip.md#requirements
             utl_buf_t buf = UTL_BUF_INIT;
             rcvidle_push(p_conf, TRANSCMD_ANNOSIGNS, &buf);
-            ln_open_announce_channel_clr(p_conf->p_self);
+            ln_open_channel_clr_announce(p_conf->p_self);
         }
     }
 
@@ -1709,7 +1709,7 @@ static void poll_ping(lnapp_conf_t *p_conf)
     if (p_conf->ping_counter >= M_WAIT_PING_SEC / M_WAIT_POLL_SEC) {
         utl_buf_t buf_ping = UTL_BUF_INIT;
 
-        bool ret = ln_create_ping(p_conf->p_self, &buf_ping);
+        bool ret = ln_ping_create(p_conf->p_self, &buf_ping);
         if (ret) {
             send_peer_noise(p_conf, &buf_ping);
             utl_buf_free(&buf_ping);
@@ -1774,7 +1774,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     if (ret && !unspent) {
         //ループ解除
         LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
-        ln_set_status(p_conf->p_self, LN_STATUS_CLOSING);
+        ln_status_set(p_conf->p_self, LN_STATUS_CLOSING);
         stop_threads(p_conf);
         return;
     }
@@ -1795,7 +1795,7 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf)
     bool ret = btcrpc_get_short_channel_param(p_conf->p_self, &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
     if (ret) {
         //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
-        ret = ln_set_short_channel_id_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self), mined_hash);
+        ret = ln_short_channel_id_set_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self), mined_hash);
         if (ret) {
             ln_db_annoown_save(ln_short_channel_id(p_conf->p_self));
             LOGD("short_channel_id = %016" PRIx64 "(%d)\n", ln_short_channel_id(p_conf->p_self), ret);
@@ -2185,7 +2185,7 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
     if (p_nextconf != NULL) {
         uint64_t htlc_id;
         uint16_t next_idx;
-        ret = ln_set_fwd_add_htlc(p_nextconf->p_self,
+        ret = ln_add_htlc_set_fwd(p_nextconf->p_self,
                             &htlc_id,
                             &reason,
                             &next_idx,
@@ -2234,7 +2234,7 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
         //エラーだがreasonが未設定
         LOGD("fail: temporary_node_failure\n");
         ln_onion_create_reason_temp_node(&reason);
-        ln_set_fail_htlc(p_conf->p_self, p_addhtlc->idx, &reason);
+        ln_fail_htlc_set(p_conf->p_self, p_addhtlc->idx, &reason);
     } else {
         //none
         LOGD("fail\n");
@@ -2267,7 +2267,7 @@ static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param)
 
     lnapp_conf_t *p_nextconf = ptarmd_search_connected_cnl(p_fwd->short_channel_id);
     if (p_nextconf != NULL) {
-        ln_fwd_add_htlc_start(p_nextconf->p_self, p_fwd->idx);
+        ln_add_htlc_start_fwd(p_nextconf->p_self, p_fwd->idx);
     }
 
     DBGTRACE_END
@@ -2318,7 +2318,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
     bool ret = false;
     lnapp_conf_t *p_prevconf = ptarmd_search_connected_cnl(p_fulfill->prev_short_channel_id);
     if (p_prevconf != NULL) {
-        ret = ln_set_fulfill_htlc(p_prevconf->p_self, p_fulfill->prev_idx, p_fulfill->p_preimage);
+        ret = ln_fulfill_htlc_set(p_prevconf->p_self, p_fulfill->prev_idx, p_fulfill->p_preimage);
     }
     if (ret) {
         show_self_param(p_conf->p_self, stderr, "fulfill_htlc send", __LINE__);
@@ -2330,7 +2330,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
         // $4: payment_preimage
         char hashstr[LN_SZ_HASH * 2 + 1];
         uint8_t payment_hash[LN_SZ_HASH];
-        ln_calc_preimage_hash(payment_hash, p_fulfill->p_preimage);
+        ln_preimage_hash_calc(payment_hash, p_fulfill->p_preimage);
         utl_misc_bin2str(hashstr, payment_hash, LN_SZ_HASH);
         char imgstr[LN_SZ_PREIMAGE * 2 + 1];
         utl_misc_bin2str(imgstr, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
@@ -2361,7 +2361,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_h
     payroute_del(p_conf, p_fulfill->id);
 
     uint8_t hash[LN_SZ_HASH];
-    ln_calc_preimage_hash(hash, p_fulfill->p_preimage);
+    ln_preimage_hash_calc(hash, p_fulfill->p_preimage);
     ln_db_invoice_del(hash);
 }
 
@@ -2410,7 +2410,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
     bool ret = false;
     lnapp_conf_t *p_prevconf = ptarmd_search_connected_cnl(p_fail->prev_short_channel_id);
     if (p_prevconf != NULL) {
-        ret = ln_set_fail_htlc(p_prevconf->p_self, p_fail->prev_idx, p_fail->p_reason);
+        ret = ln_fail_htlc_set(p_prevconf->p_self, p_fail->prev_idx, p_fail->p_reason);
         if (!ret) {
             //TODO:戻す先がない場合の処理(#366)
             LOGD("fail backward\n");
@@ -2572,8 +2572,8 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
 
     //fee and addr
     //   fee_satoshis lower than or equal to the base fee of the final commitment transaction
-    uint64_t commit_fee = ln_calc_max_closing_fee(p_conf->p_self);
-    ln_update_shutdown_fee(p_conf->p_self, commit_fee);
+    uint64_t commit_fee = ln_closing_signed_initfee(p_conf->p_self);
+    ln_shutdown_update_fee(p_conf->p_self, commit_fee);
 
     lnapp_save_event(ln_channel_id(p_conf->p_self), "close: recv shutdown");
 }
@@ -2588,7 +2588,7 @@ static void cb_closed_fee(lnapp_conf_t *p_conf, void *p_param)
     LOGD("received fee: %" PRIu64 "\n", p_closed_fee->fee_sat);
 
 #warning How to decide shutdown fee
-    ln_update_shutdown_fee(p_conf->p_self, p_closed_fee->fee_sat);
+    ln_shutdown_update_fee(p_conf->p_self, p_closed_fee->fee_sat);
 }
 
 
@@ -2661,7 +2661,7 @@ static void cb_set_latest_feerate(lnapp_conf_t *p_conf, void *p_param)
     (void)p_param;
 
     uint32_t feerate_kw = monitoring_get_latest_feerate_kw();
-    ln_set_feerate_per_kw(p_conf->p_self, feerate_kw);
+    ln_feerate_per_kw_set(p_conf->p_self, feerate_kw);
 }
 
 
@@ -3093,7 +3093,7 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf)
     if ((ln_short_channel_id(p_self) != 0) && !ln_is_announced(p_self)) {
         //チャネル作成済み && announcement未交換
         utl_buf_t buf_bolt = UTL_BUF_INIT;
-        bool ret = ln_create_channel_update(p_self, &buf_bolt);
+        bool ret = ln_channel_update_create(p_self, &buf_bolt);
         if (ret) {
             send_peer_noise(p_conf, &buf_bolt);
             utl_buf_free(&buf_bolt);
@@ -3125,8 +3125,8 @@ static void load_channel_settings(lnapp_conf_t *p_conf)
     estprm.max_accepted_htlcs = econf.max_accepted_htlcs;
     estprm.min_depth = econf.min_depth;
 
-    ln_set_init_localfeatures(econf.localfeatures);
-    bool ret = ln_set_establish(p_conf->p_self, &estprm);
+    ln_init_localfeatures_set(econf.localfeatures);
+    bool ret = ln_establish_alloc(p_conf->p_self, &estprm);
     if (!ret) {
         LOGD("fail: set establish\n");
         assert(ret);
@@ -3293,7 +3293,7 @@ static bool rcvidle_announcement_signs(lnapp_conf_t *p_conf)
 {
     utl_buf_t buf_bolt = UTL_BUF_INIT;
 
-    bool ret = ln_create_announce_signs(p_conf->p_self, &buf_bolt);
+    bool ret = ln_announce_signs_create(p_conf->p_self, &buf_bolt);
     if (ret) {
         send_peer_noise(p_conf, &buf_bolt);
         utl_buf_free(&buf_bolt);
@@ -3516,7 +3516,7 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
     bool unspent;
     uint8_t txid[BTC_SZ_TXID];
 
-    ln_get_short_channel_id_param(&bheight, &bindex, &vindex, ShortChannelId);
+    ln_short_channel_id_get_param(&bheight, &bindex, &vindex, ShortChannelId);
     ret = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
     if (ret) {
         ret = btcrpc_check_unspent(&unspent, NULL, txid, vindex);
