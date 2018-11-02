@@ -230,6 +230,7 @@ typedef enum {
  */
 typedef enum {
     LN_CLOSETYPE_NONE,                  ///< ln_self_t not close
+    LN_CLOSETYPE_SPENT,                 ///< funding_tx is spent but not in block
     LN_CLOSETYPE_MUTUAL,                ///< mutual close
     LN_CLOSETYPE_UNI_LOCAL,             ///< unilateral close(from local)
     LN_CLOSETYPE_UNI_REMOTE,            ///< unilateral close(from remote)
@@ -1531,6 +1532,13 @@ void ln_update_shutdown_fee(ln_self_t *self, uint64_t Fee);
  *      - scriptPubKeyは #ln_init()で指定したアドレスを使用する
  */
 bool ln_create_shutdown(ln_self_t *self, utl_buf_t *pShutdown);
+
+
+/** close_type文字列取得
+ * 
+ * @return  close_type文字列
+ */
+const char *ln_close_typestring(const ln_self_t *self);
 
 
 /** close中状態に遷移させる

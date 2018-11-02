@@ -356,8 +356,6 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
         goto LABEL_EXIT;
     }
 
-    show_self_param(p_self, stderr, "prev payment", __LINE__);
-
     uint64_t htlc_id;
     ret = ln_set_add_htlc(p_self,
                         &htlc_id,
@@ -402,6 +400,12 @@ LABEL_EXIT:
                     pPay->hop_datain[0].outgoing_cltv_value,
                     hashstr);
         call_script(EVT_PAYMENT, param);
+
+        lnapp_save_event(ln_channel_id(pAppConf->p_self),
+            "[SEND]add_htlc: HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d",
+                    htlc_id,
+                    pPay->hop_datain[0].amt_to_forward,
+                    pPay->hop_datain[0].outgoing_cltv_value);
     } else {
         // LOGD("fail --> retry\n");
         // char errstr[512];
@@ -907,6 +911,10 @@ static void *thread_main_start(void *pArg)
     //p_conf->node_idがchannel情報を持っているかどうか。
     //持っている場合、selfにDBから読み込みまで行われている。
     detect = ln_node_search_channel(p_self, p_conf->node_id);
+    if (detect && (ln_close_type(p_self) != LN_CLOSETYPE_NONE)) {
+        LOGD("$$$ closing channel: %016" PRIx64 "\n", ln_short_channel_id(p_self));
+        goto LABEL_SHUTDOWN;
+    }
 
     //
     //selfへの設定はこれ以降に行う
@@ -999,26 +1007,7 @@ static void *thread_main_start(void *pArg)
             }
             LOGD("reestablish交換完了\n");
         } else {
-            const char *p_str;
-            switch (closetype) {
-            case LN_CLOSETYPE_NONE:
-                p_str = "none";
-                break;
-            case LN_CLOSETYPE_MUTUAL:
-                p_str = "mutual close";
-                break;
-            case LN_CLOSETYPE_UNI_LOCAL:
-                p_str = "unilateral close(local)";
-                break;
-            case LN_CLOSETYPE_UNI_REMOTE:
-                p_str = "unilateral close(remote)";
-                break;
-            case LN_CLOSETYPE_REVOKED:
-                p_str = "remote revoked transaction close";
-                break;
-            default:
-                p_str = "???";
-            }
+            const char *p_str = ln_close_typestring(p_conf->p_self);
             LOGD("now closing: %s\n", p_str);
         }
     } else {
@@ -1784,7 +1773,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
     bool ret = btcrpc_check_unspent(&unspent, NULL, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
     if (ret && !unspent) {
         //ループ解除
-        LOGD("funding_tx is spent.\n");
+        LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         ln_set_status(p_conf->p_self, LN_STATUS_CLOSING);
         stop_threads(p_conf);
         return;
@@ -2130,6 +2119,8 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     ln_cb_add_htlc_recv_t *p_addhtlc = (ln_cb_add_htlc_recv_t *)p_param;
+    const char *p_stat;
+    char str_stat[256];
 
     ptarmd_preimage_lock();
     switch (p_addhtlc->result) {
@@ -2137,10 +2128,15 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         LOGD("check OK\n");
         if (p_addhtlc->p_hop->b_exit) {
             //final node
+            p_stat = "final node";
             LOGD("final node\n");
             cbsub_add_htlc_finalnode(p_conf, p_addhtlc);
         } else {
             //別channelにupdate_add_htlcを転送する(メッセージ送信は受信アイドル処理で行う)
+            snprintf(str_stat, sizeof(str_stat), "-->[fwd]0x%016" PRIx64 ", cltv=%d",
+                    p_addhtlc->p_hop->short_channel_id,
+                    p_addhtlc->p_hop->outgoing_cltv_value);
+            p_stat = str_stat;
             LOGD("forward\n");
             cbsub_add_htlc_forward(p_conf, p_addhtlc);
         }
@@ -2148,13 +2144,22 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     case LN_CB_ADD_HTLC_RESULT_FAIL:
     case LN_CB_ADD_HTLC_RESULT_MALFORMED:
         //エラーログ(メッセージ送信は受信アイドル処理で行う)
+        p_stat = "failure";
         LOGD("fail_htlc or fail_malformed_htlc\n");
         cbsub_add_htlc_fail(p_conf, p_addhtlc);
         break;
     default:
+        p_stat = "unknown";
         LOGD("fail: unknown result\n");
     }
     ptarmd_preimage_unlock();
+
+    lnapp_save_event(ln_channel_id(p_conf->p_self),
+            "[RECV]add_htlc: %s(HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d)",
+                p_stat,
+                p_addhtlc->id,
+                p_addhtlc->amount_msat,
+                p_addhtlc->cltv_expiry);
 
     DBGTRACE_END
 }
@@ -2220,6 +2225,11 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
                     p_addhtlc->p_hop->outgoing_cltv_value,
                     hashstr);
         call_script(EVT_FORWARD, param);
+
+        lnapp_save_event(ln_channel_id(p_nextconf->p_self),
+            "[SEND]add_htlc: amount_msat=%" PRIu64 ", cltv=%d",
+                    p_addhtlc->p_hop->amt_to_forward,
+                    p_addhtlc->p_hop->outgoing_cltv_value);
     } else if (reason.len == 0) {
         //エラーだがreasonが未設定
         LOGD("fail: temporary_node_failure\n");
@@ -2270,14 +2280,26 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     const ln_cb_fulfill_htlc_recv_t *p_fulfill = (const ln_cb_fulfill_htlc_recv_t *)p_param;
+    const char *p_stat;
+    char str_stat[256];
 
     if (p_fulfill->prev_short_channel_id != 0) {
         LOGD("backwind: id=%" PRIu64 ", prev_short_channel_id=%016" PRIx64 "\n", p_fulfill->id, p_fulfill->prev_short_channel_id);
+        snprintf(str_stat, sizeof(str_stat), "-->[fwd]%016" PRIx64, p_fulfill->prev_short_channel_id);
+        p_stat = str_stat;
+
         cbsub_fulfill_backwind(p_conf, p_fulfill);
     } else {
         LOGD("origin node\n");
+        p_stat = "origin node";
+
         cbsub_fulfill_originnode(p_conf, p_fulfill);
     }
+
+    lnapp_save_event(ln_channel_id(p_conf->p_self),
+        "[RECV]fulfill_htlc: %s(HTLC id=%" PRIu64 ")",
+                p_stat,
+                p_fulfill->id);
 
     DBGTRACE_END
 }
@@ -2297,10 +2319,6 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
     lnapp_conf_t *p_prevconf = ptarmd_search_connected_cnl(p_fulfill->prev_short_channel_id);
     if (p_prevconf != NULL) {
         ret = ln_set_fulfill_htlc(p_prevconf->p_self, p_fulfill->prev_idx, p_fulfill->p_preimage);
-        if (!ret) {
-            //TODO:戻す先がない場合の処理(#366)
-            LOGD("fail backward\n");
-        }
     }
     if (ret) {
         show_self_param(p_conf->p_self, stderr, "fulfill_htlc send", __LINE__);
@@ -2326,7 +2344,13 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
                     hashstr,
                     imgstr);
         call_script(EVT_FULFILL, param);
+
+        lnapp_save_event(ln_channel_id(p_prevconf->p_self),
+            "[SEND]fulfill_htlc: HTLC id=%" PRIu64,
+                    p_fulfill->id);
     } else {
+        //TODO:戻す先がない場合の処理(#366)
+        LOGD("fail backward\n");
     }
 }
 
@@ -2348,14 +2372,26 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     const ln_cb_fail_htlc_recv_t *p_fail = (const ln_cb_fail_htlc_recv_t *)p_param;
+    const char *p_stat;
+    char str_stat[256];
 
     if (p_fail->prev_short_channel_id != 0) {
         LOGD("backwind fail_htlc: prev_idx=%" PRIu16 ", prev_short_channel_id=%016" PRIx64 ")\n", p_fail->prev_idx, p_fail->prev_short_channel_id);
+        snprintf(str_stat, sizeof(str_stat), "-->%016" PRIx64, p_fail->prev_short_channel_id);
+        p_stat = str_stat;
+
         cbsub_fail_backwind(p_conf, p_fail);
     } else {
         LOGD("origin node\n");
+        p_stat = "origin node";
+
         cbsub_fail_originnode(p_conf, p_fail);
     }
+
+    lnapp_save_event(ln_channel_id(p_conf->p_self),
+        "[RECV]fail_htlc: %s(HTLC id=%" PRIu64 ")",
+                p_stat,
+                p_fail->orig_id);
 
     DBGTRACE_END
 }

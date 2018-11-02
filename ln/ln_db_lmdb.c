@@ -118,7 +118,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-25)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-26)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -147,6 +147,7 @@
     -23: announcement dbを分離
     -24: self.cnl_add_htlc[].flag変更
     -25: self.close_type追加
+    -26: DB_COPYにhtlc_num, htld_id_num追加
  */
 
 
@@ -415,6 +416,8 @@ static const backup_param_t DBSELF_COPY[] = {
     M_ITEM(ln_self_t, short_channel_id),
     M_ITEM(ln_self_t, our_msat),
     M_ITEM(ln_self_t, their_msat),
+    M_ITEM(ln_self_t, htlc_num),
+    M_ITEM(ln_self_t, htlc_id_num),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
@@ -447,13 +450,15 @@ static const struct {
         ETYPE_REMOTECOMM,   //funding_remote.prev_percommit
     } type;
     int length;
-    bool disp;
+    bool disp;      //true: showdbで表示する
 } DBSELF_COPYIDX[] = {
     { ETYPE_BYTEPTR,    BTC_SZ_PUBKEY, true },      // peer_node_id
     { ETYPE_BYTEPTR,    LN_SZ_CHANNEL_ID, true },   // channel_id
     { ETYPE_UINT64X,    1, true },                  // short_channel_id
     { ETYPE_UINT64U,    1, true },                  // our_msat
     { ETYPE_UINT64U,    1, true },                  // their_msat
+    { ETYPE_UINT16,     1, true },                  // htlc_num
+    { ETYPE_UINT64U,    1, true },                  // htlc_id_num
     { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_local.txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_local.txindex
     { ETYPE_LOCALKEYS,  1, false },                 // funding_local.pubkeys
@@ -467,10 +472,10 @@ static const struct {
 
 
 /**
- *  @var    DBHTLC_vALUES
+ *  @var    DBHTLC_VALUES
  *  @brief  HTLC
  */
-static const backup_param_t DBHTLC_vALUES[] = {
+static const backup_param_t DBHTLC_VALUES[] = {
     //p_channel_id
     M_ITEM(ln_update_add_htlc_t, id),
     M_ITEM(ln_update_add_htlc_t, amount_msat),
@@ -1041,14 +1046,14 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_self_save_closeflg(const ln_self_t *self, void *pDbParam)
+bool ln_db_self_save_closetype(const ln_self_t *self, void *pDbParam)
 {
     int             retval;
     MDB_val         key, data;
     lmdb_cursor_t   *p_cur;
 
-    //self->fund_flagのみ
-    const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, fund_flag);
+    //self->close_typeのみ
+    const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, close_type);
 
     p_cur = (lmdb_cursor_t *)pDbParam;
     MDB_TXN_CHECK_SELF(p_cur->txn);
@@ -3816,16 +3821,16 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb)
             continue;
         }
         //固定
-        for (size_t lp2 = 0; lp2 < ARRAY_SIZE(DBHTLC_vALUES); lp2++) {
-            key.mv_size = strlen(DBHTLC_vALUES[lp2].name);
-            key.mv_data = (CONST_CAST char*)DBHTLC_vALUES[lp2].name;
+        for (size_t lp2 = 0; lp2 < ARRAY_SIZE(DBHTLC_VALUES); lp2++) {
+            key.mv_size = strlen(DBHTLC_VALUES[lp2].name);
+            key.mv_data = (CONST_CAST char*)DBHTLC_VALUES[lp2].name;
             retval = mdb_get(pDb->txn, dbi, &key, &data);
             if (retval == 0) {
-                //LOGD("[%d]%s: ", lp, DBHTLC_vALUES[lp2].name);
+                //LOGD("[%d]%s: ", lp, DBHTLC_VALUES[lp2].name);
                 //DUMPD(data.mv_data, data.mv_size);
-                memcpy(OFFSET + sizeof(ln_update_add_htlc_t) * lp + DBHTLC_vALUES[lp2].offset, data.mv_data, DBHTLC_vALUES[lp2].datalen);
+                memcpy(OFFSET + sizeof(ln_update_add_htlc_t) * lp + DBHTLC_VALUES[lp2].offset, data.mv_data, DBHTLC_VALUES[lp2].datalen);
             } else {
-                LOGD("ERR: %s(%s)\n", mdb_strerror(retval), DBHTLC_vALUES[lp2].name);
+                LOGD("ERR: %s(%s)\n", mdb_strerror(retval), DBHTLC_VALUES[lp2].name);
             }
         }
 
@@ -3897,7 +3902,7 @@ static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
         db.txn = pDb->txn;
         db.dbi = dbi;
         retval = backup_param_save(OFFSET + sizeof(ln_update_add_htlc_t) * lp,
-                        &db, DBHTLC_vALUES, ARRAY_SIZE(DBHTLC_vALUES));
+                        &db, DBHTLC_VALUES, ARRAY_SIZE(DBHTLC_VALUES));
         if (retval != 0) {
             LOGD("ERR\n");
         }
@@ -4461,11 +4466,6 @@ static void anno_del_prune(void)
             }
             bool prune = ln_db_annocnlupd_is_prune(now, timestamp);
             if ( (type != LN_DB_CNLANNO_ANNO) && ((last_short_chennel_id != short_channel_id) || prune)) {
-                // channel_update && (channel_announcementが無い || 古い)
-                // if (!prune && (last_short_chennel_id != short_channel_id)) {
-                //     //時間切れでない場合、自channelでないなら削除対象
-                //     prune = !ln_db_self_chk_mynode(short_channel_id);
-                // }
                 if (prune) {
                     MDB_cursor *cursor = ((lmdb_cursor_t *)p_cur)->cursor;
                     int retval = mdb_cursor_del(cursor, 0);

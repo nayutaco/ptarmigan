@@ -284,27 +284,8 @@ static void ln_print_self(const ln_self_t *self)
 
     //close
     printf(INDENT3 M_QQ("close") ": {\n");
-    const char *p_str_close_type;
-    switch (self->close_type) {
-    case LN_CLOSETYPE_NONE:
-        p_str_close_type = "none";
-        break;
-    case LN_CLOSETYPE_MUTUAL:
-        p_str_close_type = "mutual close";
-        break;
-    case LN_CLOSETYPE_UNI_LOCAL:
-        p_str_close_type = "unilateral close(local)";
-        break;
-    case LN_CLOSETYPE_UNI_REMOTE:
-        p_str_close_type = "unilateral close(remote)";
-        break;
-    case LN_CLOSETYPE_REVOKED:
-        p_str_close_type = "revoked transaction close";
-        break;
-    default:
-        p_str_close_type = "???";
-    }
-    printf(INDENT4 M_QQ("close_type") ": %s,\n", p_str_close_type);
+    const char *p_str_close_type = ln_close_typestring(self);
+    printf(INDENT4 M_QQ("close_type") ": " M_QQ("%s") ",\n", p_str_close_type);
     printf(INDENT4 M_QQ("shutdown_flag") ": {\n");
     printf(INDENT5 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->shutdown_flag);
     printf(INDENT5 M_QQ("shutdown send") ": %d,\n", (self->shutdown_flag & 0x01) == 0x01);
