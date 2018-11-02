@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2018/11/02
+
+* DB version : -26
+  * add `htlc_num` for `showdb -q`
+
 ## 2018/10/11
 
 * DB version : -25

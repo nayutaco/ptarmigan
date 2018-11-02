@@ -779,30 +779,6 @@ bool ln_create_init(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
     utl_buf_free(&msg.localfeatures);
     utl_buf_free(&msg.globalfeatures);
 
-    //HTLC確定状態でないならば、消す
-    // M_DBG_COMMITNUM(self);
-    // for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
-    //     ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
-    //     if (LN_HTLC_ENABLE(p_htlc) && (p_htlc->stat.flag.addhtlc != 0)) {
-    //         LOGD("[%d]HTLC(num=%d): id=%" PRIu64 ", flag=%02x, amount_msat=%" PRIu64 "\n", idx, self->htlc_num, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].stat.bits, self->cnl_add_htlc[idx].amount_msat);
-    //         if ( !LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc) &&
-    //              !LN_HTLC_ENABLE_LOCAL_DELHTLC_OFFER(p_htlc) &&
-    //              !LN_HTLC_ENABLE_REMOTE_ADDHTLC_OFFER(p_htlc) &&
-    //              !LN_HTLC_ENABLE_REMOTE_DELHTLC_OFFER(p_htlc) ) {
-    //             if (p_htlc->stat.flag.addhtlc == LN_HTLCFLAG_OFFER) {
-    //                 //offeredならば、HTLC idを戻す
-    //                 LOGD("  rollback htlc[%d]\n", idx);
-    //                 self->htlc_num--;
-    //                 self->htlc_id_num--;
-    //             }
-    //             utl_buf_free(&p_htlc->buf_payment_preimage);
-    //             utl_buf_free(&p_htlc->buf_onion_reason);
-    //             utl_buf_free(&p_htlc->buf_shared_secret);
-    //             memset(p_htlc, 0x00, sizeof(ln_update_add_htlc_t));
-    //             LOGD("  -->remove\n");
-    //         }
-    //     }
-    // }
     M_DB_SELF_SAVE(self);
 
     return ret;
@@ -1283,10 +1259,42 @@ bool ln_create_shutdown(ln_self_t *self, utl_buf_t *pShutdown)
 }
 
 
+const char *ln_close_typestring(const ln_self_t *self)
+{
+    const char *p_str_close_type;
+    switch (self->close_type) {
+    case LN_CLOSETYPE_NONE:
+        p_str_close_type = "none";
+        break;
+    case LN_CLOSETYPE_SPENT:
+        p_str_close_type = "funding spent";
+        break;
+    case LN_CLOSETYPE_MUTUAL:
+        p_str_close_type = "mutual close";
+        break;
+    case LN_CLOSETYPE_UNI_LOCAL:
+        p_str_close_type = "unilateral close(local)";
+        break;
+    case LN_CLOSETYPE_UNI_REMOTE:
+        p_str_close_type = "unilateral close(remote)";
+        break;
+    case LN_CLOSETYPE_REVOKED:
+        p_str_close_type = "revoked transaction close";
+        break;
+    default:
+        p_str_close_type = "???";
+    }
+    return p_str_close_type;
+}
+
+
 void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
 {
-    LOGD("BEGIN\n");
+    LOGD("BEGIN: type=%d\n", (int)self->close_type);
     if (self->close_type == LN_CLOSETYPE_NONE) {
+        self->close_type = LN_CLOSETYPE_SPENT;
+        ln_db_self_save_closetype(self, pDbParam);
+    } else if (self->close_type == LN_CLOSETYPE_SPENT) {
         M_DBG_PRINT_TX(pCloseTx);
 
         uint8_t txid[BTC_SZ_TXID];
@@ -1322,7 +1330,7 @@ void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
                 utl_buf_free(&self->revoked_sec);
             }
         }
-        ln_db_self_save_closeflg(self, pDbParam);
+        ln_db_self_save_closetype(self, pDbParam);
 
         //自分のchannel_updateをdisableにする(相手のは署名できないので、自分だけ)
         utl_buf_t buf_upd = UTL_BUF_INIT;
@@ -1334,7 +1342,7 @@ void ln_goto_closing(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
             utl_buf_free(&buf_upd);
         }
     }
-    LOGD("END\n");
+    LOGD("END: type=%d\n", (int)self->close_type);
 }
 
 
