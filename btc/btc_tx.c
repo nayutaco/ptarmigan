@@ -1237,31 +1237,31 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
 #if defined(PTARM_USE_PRINTFUNC) && !defined(PTARM_UTL_LOG_MACRO_DISABLED)
 void btc_print_tx(const btc_tx_t *pTx)
 {
-    LOGD("======================================\n");
+    LOGD2("======================================\n");
     uint8_t txid[BTC_SZ_TXID];
     btc_tx_txid(txid, pTx);
-    LOGD("txid= ");
+    LOGD2("txid= ");
     TXIDD(txid);
-    LOGD("======================================\n");
-    LOGD(" version:%d\n", pTx->version);
-    LOGD("\n");
-    LOGD(" txin_cnt=%u\n", pTx->vin_cnt);
+    LOGD2("======================================\n");
+    LOGD2(" version:%d\n", pTx->version);
+    LOGD2("\n");
+    LOGD2(" txin_cnt=%u\n", pTx->vin_cnt);
     for(uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
-        LOGD(" [vin #%u]\n", lp);
-        LOGD("  txid= ");
+        LOGD2(" [vin #%u]\n", lp);
+        LOGD2("  txid= ");
         TXIDD(pTx->vin[lp].txid);
-        LOGD("       LE: ");
+        LOGD2("       LE: ");
         DUMPD(pTx->vin[lp].txid, BTC_SZ_TXID);
-        LOGD("  index= %u\n", pTx->vin[lp].index);
-        LOGD("  scriptSig[%u]= ", pTx->vin[lp].script.len);
+        LOGD2("  index= %u\n", pTx->vin[lp].index);
+        LOGD2("  scriptSig[%u]= ", pTx->vin[lp].script.len);
         DUMPD(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         //btc_print_scriptbtc_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         //bool p2wsh = (pTx->vin[lp].script.len == 35) &&
         //             (pTx->vin[lp].script.buf[1] == 0x00) && (pTx->vin[lp].script.buf[2] == 0x20);
         //bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
-        LOGD("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
+        LOGD2("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
         for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
-            LOGD("    wit[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
+            LOGD2("    wit[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
                 DUMPD(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 // if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
@@ -1273,16 +1273,16 @@ void btc_print_tx(const btc_tx_t *pTx)
                 LOGD2("<none>\n");
             }
         }
-        LOGD("\n");
+        LOGD2("\n");
     }
-    LOGD(" txout_cnt= %u\n", pTx->vout_cnt);
+    LOGD2(" txout_cnt= %u\n", pTx->vout_cnt);
     for(uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
-        LOGD(" [vout #%u]\n", lp);
-        LOGD("  value= %llu  : ", (unsigned long long)pTx->vout[lp].value);
+        LOGD2(" [vout #%u]\n", lp);
+        LOGD2("  value= %llu  : ", (unsigned long long)pTx->vout[lp].value);
         DUMPD(((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value));
-        LOGD("    %10.5f mBTC, %10.8f BTC\n", BTC_SATOSHI2MBTC(pTx->vout[lp].value), BTC_SATOSHI2BTC(pTx->vout[lp].value));
+        LOGD2("    %10.5f mBTC, %10.8f BTC\n", BTC_SATOSHI2MBTC(pTx->vout[lp].value), BTC_SATOSHI2BTC(pTx->vout[lp].value));
         utl_buf_t *buf = &(pTx->vout[lp].script);
-        LOGD("  scriptPubKey[%u]= ", buf->len);
+        LOGD2("  scriptPubKey[%u]= ", buf->len);
         DUMPD(buf->buf, buf->len);
         //btc_print_script(buf->buf, buf->len);
         char addr[BTC_SZ_ADDR_MAX];
@@ -1309,11 +1309,11 @@ void btc_print_tx(const btc_tx_t *pTx)
             (void)segwit_addr_encode(addr, hrp_type, buf->buf[0], &buf->buf[2], buf->buf[1]);
         }
         if (addr[0] != '\0') {
-            LOGD("    (%s)\n", addr);
+            LOGD2("    (%s)\n", addr);
         }
-        LOGD("\n");
+        LOGD2("\n");
     }
-    LOGD(" locktime= 0x%08x : ", pTx->locktime);
+    LOGD2(" locktime= 0x%08x : ", pTx->locktime);
     if (pTx->locktime < 500000000L) {
         //ブロック高
         LOGD2("block height\n");
@@ -1322,7 +1322,7 @@ void btc_print_tx(const btc_tx_t *pTx)
         time_t tm = pTx->locktime;
         LOGD2("epoch second: %s", ctime(&tm));
     }
-    LOGD("======================================\n");
+    LOGD2("======================================\n");
 }
 
 
