@@ -99,8 +99,8 @@ static int error_result(json_t *p_root);
  * static variables
  **************************************************************************/
 
-static char     rpc_url[SZ_RPC_URL + 1 + 5 + 2];
-static char     rpc_userpwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD + 1];
+static char     mRpcUrl[SZ_RPC_URL + 1 + 5 + 2];
+static char     mRpcUserPwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD + 1];
 static pthread_mutex_t      mMux;
 static CURL     *mCurl;
 
@@ -131,11 +131,11 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
         return false;
     }
 
-    sprintf(rpc_url, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
-    sprintf(rpc_userpwd, "%s:%s", pRpcConf->rpcuser, pRpcConf->rpcpasswd);
-    LOGD("URL=%s\n", rpc_url);
+    sprintf(mRpcUrl, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
+    sprintf(mRpcUserPwd, "%s:%s", pRpcConf->rpcuser, pRpcConf->rpcpasswd);
+    LOGD("URL=%s\n", mRpcUrl);
 #ifdef M_DBG_SHOWRPC
-    LOGD("rpc_userpwd=%s\n", rpc_userpwd);
+    LOGD("RpcUserPwd=%s\n", mRpcUserPwd);
 #endif //M_DBG_SHOWRPC
 
     int64_t version = -1;
@@ -1262,10 +1262,10 @@ static bool rpc_proc(json_t **ppRoot, json_t **ppResult, char **ppJson, char *pD
 
     struct curl_slist *headers = curl_slist_append(NULL, "content-type: text/plain;");
     curl_easy_setopt(mCurl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(mCurl, CURLOPT_URL, rpc_url);
+    curl_easy_setopt(mCurl, CURLOPT_URL, mRpcUrl);
     curl_easy_setopt(mCurl, CURLOPT_POSTFIELDSIZE, (long)strlen(pData));
     curl_easy_setopt(mCurl, CURLOPT_POSTFIELDS, pData);
-    curl_easy_setopt(mCurl, CURLOPT_USERPWD, rpc_userpwd);
+    curl_easy_setopt(mCurl, CURLOPT_USERPWD, mRpcUserPwd);
     curl_easy_setopt(mCurl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
     curl_easy_setopt(mCurl, CURLOPT_NOSIGNAL, 1);
 
