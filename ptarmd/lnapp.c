@@ -2015,9 +2015,12 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
         btc_tx_create(&buf_tx, p->p_tx_funding);
         p->b_result = btcrpc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
+#ifndef USE_SPV
+#else
         if (p->b_result) {
             btcrpc_set_fundingtx(p_conf->p_self, buf_tx.buf, buf_tx.len);
         }
+#endif
         utl_buf_free(&buf_tx);
     } else {
         p->b_result = true;

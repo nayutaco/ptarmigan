@@ -524,24 +524,6 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
 }
 
 
-void btcrpc_add_channel(const ln_self_t *self, uint64_t shortChannelId, const uint8_t *pTxBuf, uint32_t Len, bool bUnspent, const uint8_t *pMinedHash)
-{
-    (void)self; (void)shortChannelId; (void)pTxBuf; (void)Len; (void)bUnspent; (void)pMinedHash;
-}
-
-
-void btcrpc_set_fundingtx(const ln_self_t *self, const uint8_t *pTxBuf, uint32_t Len)
-{
-    (void)self; (void)pTxBuf; (void)Len;
-}
-
-
-void btcrpc_set_committxid(const ln_self_t *self)
-{
-    (void)self;
-}
-
-
 /**************************************************************************
  * private functions
  **************************************************************************/
