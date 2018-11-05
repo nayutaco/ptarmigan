@@ -119,8 +119,10 @@ void *monitor_thread_start(void *pArg)
         } else {
             param.feerate_per_kw = mFeeratePerKw;
         }
-        param.height = btcrpc_getblockcount();
-        ln_db_self_search(monfunc, &param);
+        bool ret = btcrpc_getblockcount(&param.height);
+        if (ret) {
+            ln_db_self_search(monfunc, &param);
+        }
     }
     LOGD("[exit]monitor thread\n");
 
@@ -719,9 +721,10 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                     bool saved = ln_db_wallet_load(NULL, p_tx->vin[0].txid, p_tx->vin[0].index);
                     if (!saved) {
                         //まだ保存していないので、保存する
-                        int32_t blkcnt = btcrpc_getblockcount();
+                        int32_t blkcnt;
+                        ret = btcrpc_getblockcount(&blkcnt);
                         LOGD("blkcnt=%" PRIu32 "\n", blkcnt);
-                        if ((p_tx->locktime == 0) || ((blkcnt > 0) && (p_tx->locktime <= (uint32_t)blkcnt))) {
+                        if ((p_tx->locktime == 0) || (ret && (blkcnt > 0) && (p_tx->locktime <= (uint32_t)blkcnt))) {
                             LOGD("  $$$ remote HTLC[%d] ==> DB(%" PRId32 ")\n", lp, blkcnt);
                             if (p_tx->vin_cnt > 0) {
                                 ln_db_wallet_t wlt = LN_DB_WALLET_INIT;

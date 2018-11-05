@@ -2686,8 +2686,12 @@ static void cb_getblockcount(lnapp_conf_t *p_conf, void *p_param)
     (void)p_conf;
 
     int32_t *p_height = (int32_t *)p_param;
-    *p_height = btcrpc_getblockcount();
-    LOGD("block count=%" PRId32 "\n", *p_height);
+    bool ret = btcrpc_getblockcount(p_height);
+    if (ret) {
+        LOGD("block count=%" PRId32 "\n", *p_height);
+    } else {
+        *p_height = 0;
+    }
 }
 
 

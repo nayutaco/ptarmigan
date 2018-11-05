@@ -15,7 +15,7 @@ FAKE_VOID_FUNC(monitor_set_feerate_per_kw, uint32_t);
 FAKE_VOID_FUNC(cmd_json_start, uint16_t);
 FAKE_VOID_FUNC(cmd_json_stop);
 FAKE_VALUE_FUNC(bool, btcrpc_init, const rpc_conf_t*);
-FAKE_VALUE_FUNC(int32_t, btcrpc_getblockcount);
+FAKE_VALUE_FUNC(bool, btcrpc_getblockcount, int32_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_getgenesisblock, uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_get_confirm, uint32_t*, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_get_short_channel_param, const ln_self_t*, int*, int*, uint8_t*, const uint8_t*);

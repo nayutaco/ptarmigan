@@ -52,10 +52,9 @@ void btcrpc_term(void);
 
 /** [bitcoin IF]getblockcount
  *
- * @retval      -1以外      現在のblock count
- * @retval      -1          取得失敗
+ * @retval  true        取得成功
  */
-int32_t btcrpc_getblockcount(void);
+bool btcrpc_getblockcount(int32_t *pBlkCnt);
 
 
 /** [bitcoin IF]genesis blockhash取得
