@@ -78,7 +78,8 @@
 #define M_WAIT_MUTEX_MSEC       (100)       //mMuxNodeのロック解除待ち間隔[msec]
 #define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
 #define M_WAIT_RECV_TO_MSEC     (50)        //socket受信待ちタイムアウト[msec]
-#define M_WAIT_SEND_WAIT_MSEC   (10)        //socket送信で一度に送信できなかった場合の待ち時間[msec]
+#define M_WAIT_SEND_TO_MSEC     (500)       //socket送信待ちタイムアウト[msec]
+#define M_WAIT_SEND_WAIT_MSEC   (100)       //socket送信で一度に送信できなかった場合の待ち時間[msec]
 #define M_WAIT_RECV_MSG_MSEC    (500)       //message受信監視周期[msec]
 #define M_WAIT_RECV_THREAD      (100)       //recv_thread開始待ち[msec]
 #define M_WAIT_RESPONSE_MSEC    (10000)     //受信待ち[msec]
@@ -2687,10 +2688,9 @@ static void stop_threads(lnapp_conf_t *p_conf)
         p_conf->loop = false;
         //mainloop待ち合わせ解除(*2)
         pthread_cond_signal(&p_conf->cond);
-        LOGD("disconnect channel: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
-        LOGD("===================================\n");
-        LOGD("=  CHANNEL THREAD END             =\n");
-        LOGD("===================================\n");
+        LOGD("=========================================\n");
+        LOGD("=  CHANNEL THREAD END: %016" PRIx64 " =\n", ln_short_channel_id(p_conf->p_self));
+        LOGD("=========================================\n");
     }
 }
 
@@ -2706,7 +2706,7 @@ static bool wait_peer_connected(lnapp_conf_t *p_conf)
     fds.events = POLLOUT;
     int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
     if (polr <= 0) {
-        LOGD("poll: %s\n", strerror(errno));
+        LOGD("fail poll: %s\n", strerror(errno));
         return false;
     }
 
@@ -2714,11 +2714,11 @@ static bool wait_peer_connected(lnapp_conf_t *p_conf)
     socklen_t optlen = sizeof(optval);
     int retval = getsockopt(p_conf->sock, SOL_SOCKET, SO_ERROR, &optval, &optlen);
     if (retval != 0) {
-        LOGD("getsockopt: %s\n", strerror(errno));
+        LOGD("fail getsockopt: %s\n", strerror(errno));
         return false;
     }
     if (optval) {
-        LOGD("getsockopt: optval: %s\n", strerror(optval));
+        LOGD("fail getsockopt: optval: %s\n", strerror(optval));
         return false;
     }
 
@@ -2734,22 +2734,20 @@ static bool send_peer_raw(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
     while ((p_conf->loop) && (len > 0)) {
         fds.fd = p_conf->sock;
         fds.events = POLLOUT;
-        int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
-        if (polr == 0) {
-            LOGD("timeout: %s\n", strerror(errno));
-            utl_misc_msleep(M_WAIT_SEND_WAIT_MSEC);
-            continue;
-        }
-        if (polr < 0) {
-            LOGD("poll: %s\n", strerror(errno));
+        int polr = poll(&fds, 1, M_WAIT_SEND_TO_MSEC);
+        if (polr <= 0) {
+            LOGD("fail poll: %s\n", strerror(errno));
             break;
         }
         ssize_t sz = write(p_conf->sock, pBuf->buf, len);
         if (sz < 0) {
-            LOGD("write: %s\n", strerror(errno));
+            LOGD("fail write: %s\n", strerror(errno));
             break;
         }
         len -= sz;
+        if (len > 0) {
+            utl_misc_msleep(M_WAIT_SEND_WAIT_MSEC);
+        }
     }
 
     return len == 0;
@@ -2778,23 +2776,21 @@ static bool send_peer_noise(lnapp_conf_t *p_conf, const utl_buf_t *pBuf)
     while ((p_conf->loop) && (len > 0)) {
         fds.fd = p_conf->sock;
         fds.events = POLLOUT;
-        int polr = poll(&fds, 1, M_WAIT_RECV_TO_MSEC);
-        if (polr == 0) {
-            LOGD("timeout: %s\n", strerror(errno));
-            utl_misc_msleep(M_WAIT_SEND_WAIT_MSEC);
-            continue;
-        }
-        if (polr < 0) {
-            LOGD("poll: %s\n", strerror(errno));
+        int polr = poll(&fds, 1, M_WAIT_SEND_TO_MSEC);
+        if (polr <= 0) {
+            LOGD("fail poll: %s\n", strerror(errno));
             break;
         }
         ssize_t sz = write(p_conf->sock, buf_enc.buf, len);
         if (sz < 0) {
-            LOGD("write: %s\n", strerror(errno));
+            LOGD("fail write: %s\n", strerror(errno));
             stop_threads(p_conf);
             break;
         }
         len -= sz;
+        if (len > 0) {
+            utl_misc_msleep(M_WAIT_SEND_WAIT_MSEC);
+        }
     }
     utl_buf_free(&buf_enc);
 
