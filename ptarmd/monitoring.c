@@ -334,8 +334,9 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     monparam_t *p_prm = (monparam_t *)p_param;
 
-    uint32_t confm = btcrpc_get_funding_confirm(self);
-    if (confm > 0) {
+    uint32_t confm;
+    bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
+    if (b_get && (confm > 0)) {
         bool del = false;
         bool unspent;
         bool ret = btcrpc_check_unspent(&unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
@@ -588,8 +589,9 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             LOGD("hop node\n");
             LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
-            uint32_t confm = btcrpc_get_funding_confirm(self);
-            if (confm > 0) {
+            uint32_t confm;
+            bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
+            if (b_get && (confm > 0)) {
                 btc_tx_t tx = BTC_TX_INIT;
                 uint8_t txid[BTC_SZ_TXID];
                 btc_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
@@ -781,8 +783,9 @@ static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_clos
 
         //転送元がある場合、preimageを抽出する
         LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
-        uint32_t confm = btcrpc_get_funding_confirm(self);
-        if (confm > 0) {
+        uint32_t confm;
+        bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
+        if (b_get && (confm > 0)) {
             btc_tx_t tx = BTC_TX_INIT;
             uint8_t txid[BTC_SZ_TXID];
             btc_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);

@@ -613,9 +613,12 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
-        uint32_t confirm = btcrpc_get_funding_confirm(pAppConf->p_self);
-        if (confirm != 0) {
+        uint32_t confirm;
+        bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(pAppConf->p_self));
+        if (b_get) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
+        } else {
+            cJSON_AddItemToObject(result, "confirmation", cJSON_CreateString("not broadcasted"));
         }
         //our_msat
         cJSON_AddItemToObject(result, "our_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
@@ -645,9 +648,12 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
-        uint32_t confirm = btcrpc_get_funding_confirm(pAppConf->p_self);
-        if (confirm > 0) {
+        uint32_t confirm;
+        bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(pAppConf->p_self));
+        if (b_get) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
+        } else {
+            cJSON_AddItemToObject(result, "confirmation", cJSON_CreateString("not broadcasted"));
         }
         //minimum_depth
         cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_minimum_depth(pAppConf->p_self)));
@@ -1268,8 +1274,9 @@ static bool check_short_channel_id(lnapp_conf_t *p_conf)
 {
     bool ret = true;
 
-    uint32_t confirm = btcrpc_get_funding_confirm(p_conf->p_self);
-    if (confirm > 0) {
+    uint32_t confirm;
+    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_conf->p_self));
+    if (b_get && (confirm > 0)) {
         p_conf->funding_confirm = confirm;
         uint64_t short_channel_id = ln_short_channel_id(p_conf->p_self);
         ret = get_short_channel_id(p_conf);
@@ -1657,8 +1664,9 @@ static void *thread_poll_start(void *pArg)
         poll_ping(p_conf);
 
         uint32_t bak_conf = p_conf->funding_confirm;
-        uint32_t confirm = btcrpc_get_funding_confirm(p_conf->p_self);
-        if (confirm > 0) {
+        uint32_t confirm;
+        bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_conf->p_self));
+        if (b_get && (confirm > 0)) {
             p_conf->funding_confirm = confirm;
             if (bak_conf != p_conf->funding_confirm) {
                 LOGD2("***********************************\n");
@@ -1667,6 +1675,9 @@ static void *thread_poll_start(void *pArg)
                 TXIDD(ln_funding_txid(p_conf->p_self));
                 LOGD2("***********************************\n");
             }
+        } else if (!b_get) {
+            LOGD("funding_tx not broadcast: ");
+            TXIDD(ln_funding_txid(p_conf->p_self));
         } else {
             continue;
         }
