@@ -76,15 +76,6 @@ static int handler_channel_conf(void* user, const char* section, const char* nam
 void conf_btcrpc_init(rpc_conf_t *pRpcConf)
 {
     memset(pRpcConf, 0, sizeof(rpc_conf_t));
-#ifndef NETKIND
-#error not define NETKIND
-#endif
-#if NETKIND==0
-    pRpcConf->rpcport = 8332;
-#elif NETKIND==1
-    pRpcConf->rpcport = 18332;
-#endif
-    strcpy(pRpcConf->rpcurl, "127.0.0.1");
 }
 
 
@@ -94,6 +85,12 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
         LOGD("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
     }
+    if (pRpcConf->rpcport == 0) {
+        pRpcConf->rpcport = 8332;
+    }
+    if (strlen(pRpcConf->rpcurl) == 0) {
+        strcpy(pRpcConf->rpcurl, "127.0.0.1");
+    }
 
     if ((strlen(pRpcConf->rpcuser) == 0) || (strlen(pRpcConf->rpcpasswd) == 0)) {
         LOGD("fail: no rpcuser or rpcpassword[%s]", pConfFile);
@@ -102,6 +99,7 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
 
 #ifdef M_DEBUG
     fprintf(stderr, "rpcuser=%s\n", pRpcConf->rpcuser);
+    fprintf(stderr, "rpcpassword=%s\n", pRpcConf->rpcpasswd);
     fprintf(stderr, "rpcport=%d\n", pRpcConf->rpcport);
     fprintf(stderr, "rpcurl=%s\n", pRpcConf->rpcurl);
 #endif
@@ -185,6 +183,16 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
     } else if (strcmp(name, "rpcurl") == 0) {
         //bitcoin.confには無い。ptarmiganテスト用。
         strcpy(pconfig->rpcurl, value);
+    } else if (strcmp(name, "testnet") == 0) {
+        //testnet
+        if (pconfig->rpcport == 0) {
+            pconfig->rpcport = 18332;
+        }
+    } else if (strcmp(name, "regtest") == 0) {
+        //regtest
+        if (pconfig->rpcport == 0) {
+            pconfig->rpcport = 18443;
+        }
     } else {
         //return 0;  /* unknown section/name, error */
     }

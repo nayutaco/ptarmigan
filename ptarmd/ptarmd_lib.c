@@ -65,14 +65,16 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
 
     utl_log_init();
 
+    btc_chain_t chain;
 #ifndef NETKIND
 #error not define NETKIND
 #endif
 #if NETKIND==0
-    bret = btc_init(BTC_MAINNET, true);
+    chain = BTC_MAINNET;
 #elif NETKIND==1
-    bret = btc_init(BTC_TESTNET, true);
+    chain = BTC_TESTNET;
 #endif
+    bret = btc_init(chain, true);
     if (!bret) {
         fprintf(stderr, "fail: btc_init()\n");
         return -1;
@@ -116,10 +118,8 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
     //bitcoind起動確認
     uint8_t genesis[LN_SZ_HASH];
     rpc_conf_t rpc_conf;
-    strcpy(rpc_conf.rpcurl, "127.0.0.1");
-    rpc_conf.rpcport = 18332;
-    strcpy(rpc_conf.rpcuser, "bitcoinuser");
-    strcpy(rpc_conf.rpcpasswd, "bitcoinpassword");
+    conf_btcrpc_init(&rpc_conf);
+    bret = conf_btcrpc_load_default(&rpc_conf);
     bret = btcrpc_init(&rpc_conf);
     if (!bret) {
         fprintf(stderr, "fail: initialize btcrpc\n");

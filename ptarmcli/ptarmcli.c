@@ -159,15 +159,6 @@ static const struct {
 
 int main(int argc, char *argv[])
 {
-#ifndef NETKIND
-#error not define NETKIND
-#endif
-#if NETKIND==0
-    btc_init(BTC_MAINNET, true);
-#elif NETKIND==1
-    btc_init(BTC_TESTNET, true);
-#endif
-
     const struct option OPTIONS[] = {
         { "setfeerate", required_argument, NULL, 'b' },
         { "estimatefundingfee", required_argument, NULL, 'B' },
@@ -250,8 +241,6 @@ int main(int argc, char *argv[])
     }
 
     int ret = msg_send(mBuf, mBuf, mAddr, port, mTcpSend);
-
-    btc_term();
 
     return ret;
 }

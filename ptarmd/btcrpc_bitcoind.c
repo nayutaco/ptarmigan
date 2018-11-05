@@ -135,7 +135,7 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     sprintf(rpc_userpwd, "%s:%s", pRpcConf->rpcuser, pRpcConf->rpcpasswd);
     LOGD("URL=%s\n", rpc_url);
 #ifdef M_DBG_SHOWRPC
-    LOGD("rpcuser=%s\n", rpc_userpwd);
+    LOGD("rpc_userpwd=%s\n", rpc_userpwd);
 #endif //M_DBG_SHOWRPC
 
     int64_t version = -1;
@@ -159,6 +159,7 @@ void btcrpc_term(void)
     curl_easy_cleanup(mCurl);
     mCurl = NULL;
     curl_global_cleanup();
+    pthread_mutex_destroy(&mMux);
 }
 
 
