@@ -48,13 +48,33 @@ static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk);
 bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifPriv)
 {
     // [1byte][32bytes:privkey][1byte][4bytes]
-    // プレフィクスの1byteは「圧縮された秘密鍵」
+    // サフィクスの1byteは「圧縮された公開鍵」
     uint8_t b58dec[1 + BTC_SZ_PRIVKEY + 1 + 4];
     size_t sz_priv = sizeof(b58dec);
+    int idx;
+    int tail;
     bool ret = b58tobin(b58dec, &sz_priv, pWifPriv, strlen(pWifPriv));
+#if 1
+    ret &= (sz_priv == sizeof(b58dec));
+#endif
     if (ret) {
         //chain
-        switch (b58dec[0]) {
+#if 1
+        //圧縮されたもののみtrue
+        idx = 0;        //先頭は[0]
+        tail = 1;       //圧縮フラグあり
+#else
+        if (sz_priv == sizeof(b58dec)) {
+            idx = 0;        //先頭は[0]
+            tail = 1;       //圧縮フラグあり
+        } else if (sz_priv == sizeof(b58dec) - 1) {
+            idx = 1;        //先頭は[1]
+            tail = 0;       //圧縮フラグ無し
+        } else {
+            ret = false;
+        }
+#endif
+        switch (b58dec[idx]) {
         case 0x80:
             *pChain = BTC_MAINNET;
             break;
@@ -66,14 +86,11 @@ bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifP
         }
         //checksum
         uint8_t buf_sha256[BTC_SZ_HASH256];
-        int tail = (sz_priv == sizeof(b58dec)) ? 1 : 0;
-        btc_util_hash256(buf_sha256, b58dec, 1 + BTC_SZ_PRIVKEY + tail);
-        ret = (memcmp(buf_sha256, b58dec + 1 + BTC_SZ_PRIVKEY + tail, 4) == 0);
-    } else {
-        ret = false;
+        btc_util_hash256(buf_sha256, b58dec + idx, 1 + BTC_SZ_PRIVKEY + tail);
+        ret = (memcmp(buf_sha256, b58dec + sizeof(b58dec) - 4, 4) == 0);
     }
     if (ret) {
-        memcpy(pPrivKey, b58dec + 1, BTC_SZ_PRIVKEY);
+        memcpy(pPrivKey, b58dec + idx + 1, BTC_SZ_PRIVKEY);
     }
     memset(b58dec, 0, sizeof(b58dec));      //clear for security
 
@@ -98,7 +115,7 @@ bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey)
 
     b58[0] = mPref[BTC_PREF_WIF];
     memcpy(b58 + 1, pPrivKey, BTC_SZ_PRIVKEY);
-    b58[1 + BTC_SZ_PRIVKEY] = 0x01;        //圧縮された秘密鍵のみ対応
+    b58[1 + BTC_SZ_PRIVKEY] = 0x01;        //圧縮された公開鍵のみ対応
     btc_util_hash256(buf_sha256, b58, 1 + BTC_SZ_PRIVKEY + 1);
     memcpy(b58 + 1 + BTC_SZ_PRIVKEY + 1, buf_sha256, 4);
 

@@ -17,7 +17,7 @@ FAKE_VOID_FUNC(cmd_json_stop);
 FAKE_VALUE_FUNC(bool, btcrpc_init, const rpc_conf_t*);
 FAKE_VALUE_FUNC(int32_t, btcrpc_getblockcount);
 FAKE_VALUE_FUNC(bool, btcrpc_getgenesisblock, uint8_t*);
-FAKE_VALUE_FUNC(uint32_t, btcrpc_get_funding_confirm, const ln_self_t*);
+FAKE_VALUE_FUNC(bool, btcrpc_get_confirm, uint32_t*, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_get_short_channel_param, const ln_self_t*, int*, int*, uint8_t*, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_gettxid_from_short_channel, uint8_t*, int, int);
 FAKE_VALUE_FUNC(bool, btcrpc_search_outpoint, btc_tx_t*, uint32_t, const uint8_t*, uint32_t);
@@ -61,7 +61,7 @@ protected:
         RESET_FAKE(btcrpc_init);
         RESET_FAKE(btcrpc_getblockcount);
         RESET_FAKE(btcrpc_getgenesisblock);
-        RESET_FAKE(btcrpc_get_funding_confirm);
+        RESET_FAKE(btcrpc_get_confirm);
         RESET_FAKE(btcrpc_get_short_channel_param);
         RESET_FAKE(btcrpc_gettxid_from_short_channel);
         RESET_FAKE(btcrpc_search_outpoint);

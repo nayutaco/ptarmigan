@@ -207,11 +207,10 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 }
 
 
-uint32_t btcrpc_get_funding_confirm(const ln_self_t *self)
+bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
 {
-    const uint8_t *pTxid = ln_funding_txid(self);
     bool ret;
-    int64_t confirmation = 0;
+    bool retval = false;
     char *p_json = NULL;
     json_t *p_root = NULL;
     json_t *p_result;
@@ -222,7 +221,8 @@ uint32_t btcrpc_get_funding_confirm(const ln_self_t *self)
 
         p_confirm = json_object_get(p_result, M_CONFIRMATION);
         if (json_is_integer(p_confirm)) {
-            confirmation = (int64_t)json_integer_value(p_confirm);
+            *pConfirm = (uint32_t)json_integer_value(p_confirm);
+            retval = true;
         }
     } else {
         LOGD("fail: getrawtransaction_rpc\n");
@@ -232,7 +232,7 @@ uint32_t btcrpc_get_funding_confirm(const ln_self_t *self)
     }
     UTL_DBG_FREE(p_json);
 
-    return (uint32_t)confirmation;
+    return retval;
 }
 
 
@@ -1422,10 +1422,10 @@ int main(int argc, char *argv[])
 //        fprintf(stderr, "height = %d\n", bheight);
 //    }
 
-//    int conf;
+//    uint32_t conf;
 //    fprintf(stderr, "-conf-------------------------\n");
-//    conf = btcrpc_get_funding_confirm(TXID);
-//    fprintf(stderr, "confirmations = %d\n", conf);
+//    bool b = btcrpc_get_confirm(&conf, TXID);
+//    fprintf(stderr, "confirmations = %d(%d)\n", (int)conf, b);
 
 //    fprintf(stderr, "-getnewaddress-------------------------\n");
 //    char addr[BTC_SZ_ADDR_MAX];
