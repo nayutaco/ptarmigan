@@ -1108,7 +1108,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
     prm.b_local = true;
     prm.p_nodeid = conn.node_id;
     prm.result = result;
-    ln_db_self_search(comp_func_getcommittx, &prm);
+    ln_db_self_search_readonly(comp_func_getcommittx, &prm);
 
 LABEL_EXIT:
     if (index < 0) {
@@ -1739,7 +1739,7 @@ static void create_bolt11_rfield(ln_fieldr_t **ppFieldR, uint8_t *pFieldRNum)
 
     prm.pp_field = ppFieldR;
     prm.p_fieldnum = pFieldRNum;
-    ln_db_self_search(comp_func_cnl, &prm);
+    ln_db_self_search_readonly(comp_func_cnl, &prm);
 
     if (*pFieldRNum != 0) {
         LOGD("add r_field: %d\n", *pFieldRNum);

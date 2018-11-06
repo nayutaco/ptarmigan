@@ -285,7 +285,7 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 
     prm_self.p_result = p_result;
     prm_self.p_payer = pPayerId;
-    ln_db_self_search(comp_func_self, &prm_self);
+    ln_db_self_search_readonly(comp_func_self, &prm_self);
 
     //channel_anno
     void *p_cur;
