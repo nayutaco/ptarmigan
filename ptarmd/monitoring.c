@@ -403,31 +403,33 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void 
 {
     bool del = false;
     bool ret;
+    char txid_str[BTC_SZ_TXID * 2 + 1];
 
     btc_tx_t close_tx = BTC_TX_INIT;
     ln_closetype_t type = ln_close_type(self);
-    LOGD("close: confirm=%" PRIu32 "(%d), type=%d\n", confm, height, (int)type);
+    utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
+
+    LOGD("$$$ close: %s (confirm=%" PRIu32 ", height=%d, close_type=%s)\n", txid_str, confm, height, ln_close_typestring(self));
     if (type <= LN_CLOSETYPE_SPENT) {
-        char txid_str[BTC_SZ_TXID * 2 + 1];
-        utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
 
         //funding_txをINPUTにもつtx
         ret = btcrpc_search_outpoint(&close_tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
         if (ret) {
             //funding_txがblockに入った
-            LOGD("find!\n");
+            LOGD("$$$ find spent_tx!\n");
 
             ln_close_change_stat(self, &close_tx, p_db_param);
             type = ln_close_type(self);
             const char *p_str = ln_close_typestring(self);
             lnapp_save_event(ln_channel_id(self), "close: %s(%s)", p_str, txid_str);
         } else {
-            //funding_txはspentだがblockに入っていない
+            //funding_txのvoutはspentだがblockに入っていない
+            LOGD("$$$ spent_tx in mempool\n");
+
             if (type == LN_CLOSETYPE_NONE) {
                 ln_close_change_stat(self, &close_tx, p_db_param);
                 lnapp_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
             }
-            LOGD("fail: not found\n");
         }
     }
 
