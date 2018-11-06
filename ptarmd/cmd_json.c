@@ -318,11 +318,12 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
 
 #ifdef DEVELOPER_MODE
     //blockcount
-    int32_t blockcnt = btcrpc_getblockcount();
-    if (blockcnt < 0) {
-        LOGD("fail btcrpc_getblockcount()\n");
-    } else {
+    int32_t blockcnt;
+    bool ret = btcrpc_getblockcount(&blockcnt);
+    if (ret) {
         cJSON_AddItemToObject(result, "block_count", cJSON_CreateNumber(blockcnt));
+    } else {
+        LOGD("fail btcrpc_getblockcount()\n");
     }
 #endif
 
@@ -663,6 +664,8 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
+    bool ret;
+    int32_t blockcnt;
     cJSON *json;
     payment_conf_t payconf;
     cJSON *result = NULL;
@@ -674,12 +677,12 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     //blockcount
-    int32_t blockcnt = btcrpc_getblockcount();
-    LOGD("blockcnt=%d\n", blockcnt);
-    if (blockcnt < 0) {
+    ret = btcrpc_getblockcount(&blockcnt);
+    if (!ret) {
         index = -1;
         goto LABEL_EXIT;
     }
+    LOGD("blockcnt=%d\n", blockcnt);
 
     //payment_hash, hop_num
     json = cJSON_GetArrayItem(params, index++);
@@ -826,6 +829,8 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("routepay\n");
 
+    bool ret;
+    int32_t blockcnt;
     int err = RPCERR_PARSE;
     cJSON *result = NULL;
     bool retry = false;
@@ -859,12 +864,12 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     }
 
     //blockcount
-    int32_t blockcnt = btcrpc_getblockcount();
-    LOGD("blockcnt=%d\n", blockcnt);
-    if (blockcnt < 0) {
+    ret = btcrpc_getblockcount(&blockcnt);
+    if (!ret) {
         err = RPCERR_BLOCKCHAIN;
         goto LABEL_EXIT;
     }
+    LOGD("blockcnt=%d\n", blockcnt);
 
     err = cmd_routepay_proc1(&p_invoice_data, &rt_ret,
                     p_invoice, add_amount_msat, blockcnt);

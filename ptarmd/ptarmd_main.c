@@ -92,14 +92,16 @@ int main(int argc, char *argv[])
     utl_log_init();
 #endif
 
+    btc_chain_t chain;
 #ifndef NETKIND
 #error not define NETKIND
 #endif
 #if NETKIND==0
-    bret = btc_init(BTC_MAINNET, true);
+    chain = BTC_MAINNET;
 #elif NETKIND==1
-    bret = btc_init(BTC_TESTNET, true);
+    chain = BTC_TESTNET;
 #endif
+    bret = btc_init(chain, true);
     if (!bret) {
         fprintf(stderr, "fail: btc_init()\n");
         return -1;
@@ -179,7 +181,7 @@ int main(int argc, char *argv[])
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
         //bitcoin.confから読込む
         bret = conf_btcrpc_load_default(&rpc_conf);
-        if (!bret) {
+        if (!bret || (strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
             goto LABEL_EXIT;
         }
     }

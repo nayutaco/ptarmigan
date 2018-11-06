@@ -119,8 +119,10 @@ void *monitor_thread_start(void *pArg)
         } else {
             param.feerate_per_kw = mFeeratePerKw;
         }
-        param.height = btcrpc_getblockcount();
-        ln_db_self_search(monfunc, &param);
+        bool ret = btcrpc_getblockcount(&param.height);
+        if (ret) {
+            ln_db_self_search(monfunc, &param);
+        }
     }
     LOGD("[exit]monitor thread\n");
 
@@ -401,31 +403,33 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void 
 {
     bool del = false;
     bool ret;
+    char txid_str[BTC_SZ_TXID * 2 + 1];
 
     btc_tx_t close_tx = BTC_TX_INIT;
     ln_closetype_t type = ln_close_type(self);
-    LOGD("close: confirm=%" PRIu32 "(%d), type=%d\n", confm, height, (int)type);
+    utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
+
+    LOGD("$$$ close: %s (confirm=%" PRIu32 ", height=%d, close_type=%s)\n", txid_str, confm, height, ln_close_typestring(self));
     if (type <= LN_CLOSETYPE_SPENT) {
-        char txid_str[BTC_SZ_TXID * 2 + 1];
-        utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
 
         //funding_txをINPUTにもつtx
         ret = btcrpc_search_outpoint(&close_tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
         if (ret) {
             //funding_txがblockに入った
-            LOGD("find!\n");
+            LOGD("$$$ find spent_tx!\n");
 
             ln_close_change_stat(self, &close_tx, p_db_param);
             type = ln_close_type(self);
             const char *p_str = ln_close_typestring(self);
             lnapp_save_event(ln_channel_id(self), "close: %s(%s)", p_str, txid_str);
         } else {
-            //funding_txはspentだがblockに入っていない
+            //funding_txのvoutはspentだがblockに入っていない
+            LOGD("$$$ spent_tx in mempool\n");
+
             if (type == LN_CLOSETYPE_NONE) {
                 ln_close_change_stat(self, &close_tx, p_db_param);
                 lnapp_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
             }
-            LOGD("fail: not found\n");
         }
     }
 
@@ -719,9 +723,10 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                     bool saved = ln_db_wallet_load(NULL, p_tx->vin[0].txid, p_tx->vin[0].index);
                     if (!saved) {
                         //まだ保存していないので、保存する
-                        int32_t blkcnt = btcrpc_getblockcount();
+                        int32_t blkcnt;
+                        ret = btcrpc_getblockcount(&blkcnt);
                         LOGD("blkcnt=%" PRIu32 "\n", blkcnt);
-                        if ((p_tx->locktime == 0) || ((blkcnt > 0) && (p_tx->locktime <= (uint32_t)blkcnt))) {
+                        if ((p_tx->locktime == 0) || (ret && (blkcnt > 0) && (p_tx->locktime <= (uint32_t)blkcnt))) {
                             LOGD("  $$$ remote HTLC[%d] ==> DB(%" PRId32 ")\n", lp, blkcnt);
                             if (p_tx->vin_cnt > 0) {
                                 ln_db_wallet_t wlt = LN_DB_WALLET_INIT;

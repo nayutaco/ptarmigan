@@ -52,10 +52,9 @@ void btcrpc_term(void);
 
 /** [bitcoin IF]getblockcount
  *
- * @retval      -1以外      現在のblock count
- * @retval      -1          取得失敗
+ * @retval  true        取得成功
  */
-int32_t btcrpc_getblockcount(void);
+bool btcrpc_getblockcount(int32_t *pBlkCnt);
 
 
 /** [bitcoin IF]genesis blockhash取得
@@ -189,6 +188,8 @@ bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX]);
 bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
 
 
+#ifndef USE_SPV
+#else
 /** [bitcoin IF]channel追加
  * DBから復元することを想定している。
  * 必要であればbtcrpc_set_fundingtx()を内部で呼び出す。
@@ -217,5 +218,6 @@ void btcrpc_set_fundingtx(const ln_self_t *self, const uint8_t *pTxBuf, uint32_t
  * @param[in]   self
  */
 void btcrpc_set_committxid(const ln_self_t *self);
+#endif
 
 #endif /* BTCRPC_H__ */

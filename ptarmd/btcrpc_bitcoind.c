@@ -99,8 +99,8 @@ static int error_result(json_t *p_root);
  * static variables
  **************************************************************************/
 
-static char     rpc_url[SZ_RPC_URL + 1 + 5 + 2];
-static char     rpc_userpwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD + 1];
+static char     mRpcUrl[SZ_RPC_URL + 1 + 5 + 2];
+static char     mRpcUserPwd[SZ_RPC_USER + 1 + SZ_RPC_PASSWD + 1];
 static pthread_mutex_t      mMux;
 static CURL     *mCurl;
 
@@ -131,11 +131,11 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
         return false;
     }
 
-    sprintf(rpc_url, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
-    sprintf(rpc_userpwd, "%s:%s", pRpcConf->rpcuser, pRpcConf->rpcpasswd);
-    LOGD("URL=%s\n", rpc_url);
+    sprintf(mRpcUrl, "%s:%d", pRpcConf->rpcurl, pRpcConf->rpcport);
+    sprintf(mRpcUserPwd, "%s:%s", pRpcConf->rpcuser, pRpcConf->rpcpasswd);
+    LOGD("URL=%s\n", mRpcUrl);
 #ifdef M_DBG_SHOWRPC
-    LOGD("rpcuser=%s\n", rpc_userpwd);
+    LOGD("RpcUserPwd=%s\n", mRpcUserPwd);
 #endif //M_DBG_SHOWRPC
 
     int64_t version = -1;
@@ -159,20 +159,22 @@ void btcrpc_term(void)
     curl_easy_cleanup(mCurl);
     mCurl = NULL;
     curl_global_cleanup();
+    pthread_mutex_destroy(&mMux);
 }
 
 
-int32_t btcrpc_getblockcount(void)
+bool btcrpc_getblockcount(int32_t *pBlkCnt)
 {
+    bool retval = false;
     bool ret;
-    int32_t blocks = -1;
     char *p_json = NULL;
     json_t *p_root = NULL;
     json_t *p_result;
 
     ret = getblockcount_rpc(&p_root, &p_result, &p_json);
     if (ret && json_is_integer(p_result)) {
-        blocks = (int32_t)json_integer_value(p_result);
+        *pBlkCnt = (int32_t)json_integer_value(p_result);
+        retval = true;
     } else {
         LOGD("fail: getblockcount_rpc\n");
     }
@@ -181,7 +183,7 @@ int32_t btcrpc_getblockcount(void)
     }
     UTL_DBG_FREE(p_json);
 
-    return blocks;
+    return retval;
 }
 
 
@@ -345,11 +347,12 @@ bool btcrpc_gettxid_from_short_channel(uint8_t *pTxid, int BHeight, int BIndex)
 
 bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {
-    bool ret = false;
-    int32_t height = btcrpc_getblockcount();
+    bool ret;
+    int32_t height;
+    ret = btcrpc_getblockcount(&height);
 
     //現在からBlksの間に、使用したtransactionがあるかどうか
-    if (height > 0) {
+    if (ret) {
         for (uint32_t lp = 0; lp < Blks; lp++) {
             ret = search_outpoint(pTx, height - lp, pTxid, VIndex);
             if (ret) {
@@ -364,11 +367,12 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
 
 bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout)
 {
-    bool ret = false;
-    int32_t height = btcrpc_getblockcount();
+    bool ret;
+    int32_t height;
+    ret = btcrpc_getblockcount(&height);
 
     //現在からBlksの間に使用したtransactionがあるかどうか
-    if (height > 0) {
+    if (ret) {
         for (uint32_t lp = 0; lp < Blks; lp++) {
             ret = search_vout_block(pTxBuf, height - lp, pVout);
             if (ret) {
@@ -520,24 +524,6 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
     UTL_DBG_FREE(p_json);
 
     return result;
-}
-
-
-void btcrpc_add_channel(const ln_self_t *self, uint64_t shortChannelId, const uint8_t *pTxBuf, uint32_t Len, bool bUnspent, const uint8_t *pMinedHash)
-{
-    (void)self; (void)shortChannelId; (void)pTxBuf; (void)Len; (void)bUnspent; (void)pMinedHash;
-}
-
-
-void btcrpc_set_fundingtx(const ln_self_t *self, const uint8_t *pTxBuf, uint32_t Len)
-{
-    (void)self; (void)pTxBuf; (void)Len;
-}
-
-
-void btcrpc_set_committxid(const ln_self_t *self)
-{
-    (void)self;
 }
 
 
@@ -1261,10 +1247,10 @@ static bool rpc_proc(json_t **ppRoot, json_t **ppResult, char **ppJson, char *pD
 
     struct curl_slist *headers = curl_slist_append(NULL, "content-type: text/plain;");
     curl_easy_setopt(mCurl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(mCurl, CURLOPT_URL, rpc_url);
+    curl_easy_setopt(mCurl, CURLOPT_URL, mRpcUrl);
     curl_easy_setopt(mCurl, CURLOPT_POSTFIELDSIZE, (long)strlen(pData));
     curl_easy_setopt(mCurl, CURLOPT_POSTFIELDS, pData);
-    curl_easy_setopt(mCurl, CURLOPT_USERPWD, rpc_userpwd);
+    curl_easy_setopt(mCurl, CURLOPT_USERPWD, mRpcUserPwd);
     curl_easy_setopt(mCurl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
     curl_easy_setopt(mCurl, CURLOPT_NOSIGNAL, 1);
 
