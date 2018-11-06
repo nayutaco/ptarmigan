@@ -517,10 +517,11 @@ static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb);
-static int self_cursor_open(lmdb_cursor_t *pCur);
+static int self_cursor_open(lmdb_cursor_t *pCur, bool bWritable);
 static void self_cursor_close(lmdb_cursor_t *pCur);
 static void self_addhtlc_dbname(char *pDbName, int num);
 static bool self_comp_func_cnldel(ln_self_t *self, void *p_db_param, void *p_param);
+static bool self_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable);
 
 static int annocnl_load(ln_lmdb_db_t *pDb, utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
 static int annocnl_save(ln_lmdb_db_t *pDb, const utl_buf_t *pCnlAnno, uint64_t ShortChannelId);
@@ -1005,50 +1006,13 @@ bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param)
 
 bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
-    bool            result = false;
-    int             retval;
-    lmdb_cursor_t   cur;
+    return self_search(pFunc, pFuncParam, true);
+}
 
-    LOGD("self cursor open\n");
-    retval = self_cursor_open(&cur);
-    if (retval != 0) {
-        LOGD("fail: open\n");
-        goto LABEL_EXIT;
-    }
 
-    ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
-    bool ret;
-    MDB_val     key;
-    char name[M_SZ_DBNAME_LEN + 1];
-    name[sizeof(name) - 1] = '\0';
-    while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
-        if ((key.mv_size == M_SZ_DBNAME_LEN) && (memcmp(key.mv_data, M_PREF_CHANNEL, M_PREFIX_LEN) == 0)) {
-            memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
-            ret = mdb_dbi_open(cur.txn, name, 0, &cur.dbi);
-            if (ret == 0) {
-                memset(p_self, 0, sizeof(ln_self_t));
-                retval = ln_lmdb_self_load(p_self, cur.txn, cur.dbi);
-                if (retval == 0) {
-                    result = (*pFunc)(p_self, (void *)&cur, pFuncParam);
-                    if (result) {
-                        LOGD("match !\n");
-                        break;
-                    }
-                    ln_term(p_self);     //falseのみ解放
-                } else {
-                    LOGD("ERR: %s\n", mdb_strerror(retval));
-                }
-            } else {
-                LOGD("ERR: %s\n", mdb_strerror(retval));
-            }
-        }
-    }
-    self_cursor_close(&cur);
-    UTL_DBG_FREE(p_self);
-
-LABEL_EXIT:
-    LOGD("result=%d\n", result);
-    return result;
+bool ln_db_self_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
+{
+    return self_search(pFunc, pFuncParam, false);
 }
 
 
@@ -1188,7 +1152,7 @@ bool ln_db_self_chk_mynode(uint64_t ShortChannelId)
     lmdb_cursor_t   cur;
 
     LOGD("self cursor open\n");
-    ret = self_cursor_open(&cur);
+    ret = self_cursor_open(&cur, false);
     if (ret != 0) {
         LOGD("fail: self open\n");
         ln_db_anno_commit(false);
@@ -3710,7 +3674,7 @@ bool ln_db_reset(void)
     bool ret = false;
     lmdb_cursor_t cur;
     LOGD("self cursor open\n");
-    retval = self_cursor_open(&cur);
+    retval = self_cursor_open(&cur, true);
     if (retval != 0) {
         LOGD("fail: open\n");
         goto LABEL_EXIT;
@@ -4030,11 +3994,13 @@ static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb)
  * @param[out]      pCur
  * @retval      0   成功
  */
-static int self_cursor_open(lmdb_cursor_t *pCur)
+static int self_cursor_open(lmdb_cursor_t *pCur, bool bWritable)
 {
     int             retval;
+    int             opt;
 
-    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &pCur->txn);
+    opt = (bWritable) ? 0 : MDB_RDONLY;
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, opt, &pCur->txn);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
@@ -4107,6 +4073,55 @@ static bool self_comp_func_cnldel(ln_self_t *self, void *p_db_param, void *p_par
         ln_term(self);
     }
     return ret;
+}
+
+
+static bool self_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable)
+{
+    bool            result = false;
+    int             retval;
+    lmdb_cursor_t   cur;
+
+    LOGD("self cursor open\n");
+    retval = self_cursor_open(&cur, bWritable);
+    if (retval != 0) {
+        LOGD("fail: open\n");
+        goto LABEL_EXIT;
+    }
+
+    ln_self_t *p_self = (ln_self_t *)UTL_DBG_MALLOC(sizeof(ln_self_t));
+    bool ret;
+    MDB_val     key;
+    char name[M_SZ_DBNAME_LEN + 1];
+    name[sizeof(name) - 1] = '\0';
+    while ((ret = mdb_cursor_get(cur.cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
+        if ((key.mv_size == M_SZ_DBNAME_LEN) && (memcmp(key.mv_data, M_PREF_CHANNEL, M_PREFIX_LEN) == 0)) {
+            memcpy(name, key.mv_data, M_SZ_DBNAME_LEN);
+            ret = mdb_dbi_open(cur.txn, name, 0, &cur.dbi);
+            if (ret == 0) {
+                memset(p_self, 0, sizeof(ln_self_t));
+                retval = ln_lmdb_self_load(p_self, cur.txn, cur.dbi);
+                if (retval == 0) {
+                    result = (*pFunc)(p_self, (void *)&cur, pFuncParam);
+                    if (result) {
+                        LOGD("match !\n");
+                        break;
+                    }
+                    ln_term(p_self);     //falseのみ解放
+                } else {
+                    LOGD("ERR: %s\n", mdb_strerror(retval));
+                }
+            } else {
+                LOGD("ERR: %s\n", mdb_strerror(retval));
+            }
+        }
+    }
+    self_cursor_close(&cur);
+    UTL_DBG_FREE(p_self);
+
+LABEL_EXIT:
+    LOGD("result=%d\n", result);
+    return result;
 }
 
 
