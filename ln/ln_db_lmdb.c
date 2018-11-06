@@ -4082,7 +4082,7 @@ static bool self_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable
     int             retval;
     lmdb_cursor_t   cur;
 
-    LOGD("self cursor open\n");
+    LOGD("self cursor open(writable=%d)\n", bWritable);
     retval = self_cursor_open(&cur, bWritable);
     if (retval != 0) {
         LOGD("fail: open\n");
@@ -4120,7 +4120,7 @@ static bool self_search(ln_db_func_cmp_t pFunc, void *pFuncParam, bool bWritable
     UTL_DBG_FREE(p_self);
 
 LABEL_EXIT:
-    LOGD("result=%d\n", result);
+    LOGD("result=%d(writable=%d)\n", result, bWritable);
     return result;
 }
 
