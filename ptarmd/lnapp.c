@@ -93,8 +93,6 @@
 #define M_ERRSTR_CANNOTDECODE           "fail: result cannot decode"
 #define M_ERRSTR_CANNOTSTART            "fail: can't start payment(our_msat=%" PRIu64 ", amt_to_forward=%" PRIu64 ")"
 
-#define M_SCRIPT_DIR            "./script/"
-
 #ifdef DEBUGTRACE
 #define DBGTRACE_BEGIN  LOGD("BEGIN\n");
 #define DBGTRACE_END    LOGD("END\n");
@@ -107,21 +105,6 @@
 /********************************************************************
  * typedefs
  ********************************************************************/
-
-//event
-typedef enum {
-    EVT_ERROR,
-    EVT_CONNECTED,
-    EVT_DISCONNECTED,
-    EVT_ESTABLISHED,
-    EVT_PAYMENT,
-    EVT_FORWARD,
-    EVT_FULFILL,
-    EVT_FAIL,
-    EVT_HTLCCHANGED,
-    EVT_CLOSED
-} event_t;
-
 
 //lnapp_conf_t.flag_recv
 enum {
@@ -139,30 +122,6 @@ enum {
 static volatile bool        mLoop;          //true:チャネル有効
 
 static ln_anno_prm_t        mAnnoPrm;       ///< announcementパラメータ
-
-
-static const char *kSCRIPT[] = {
-    //EVT_ERROR
-    M_SCRIPT_DIR "error.sh",
-    //EVT_CONNECTED
-    M_SCRIPT_DIR "connected.sh",
-    //EVT_DISCONNECTED
-    M_SCRIPT_DIR "disconnected.sh",
-    //EVT_ESTABLISHED
-    M_SCRIPT_DIR "established.sh",
-    //EVT_PAYMENT,
-    M_SCRIPT_DIR "payment.sh",
-    //EVT_FORWARD,
-    M_SCRIPT_DIR "forward.sh",
-    //EVT_FULFILL,
-    M_SCRIPT_DIR "fulfill.sh",
-    //EVT_FAIL,
-    M_SCRIPT_DIR "fail.sh",
-    //EVT_HTLCCHANGED,
-    M_SCRIPT_DIR "htlcchanged.sh",
-    //EVT_CLOSED
-    M_SCRIPT_DIR "closed.sh"
-};
 
 
 /********************************************************************
@@ -234,7 +193,6 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf);
 static void load_channel_settings(lnapp_conf_t *p_conf);
 static void load_announce_settings(void);
 
-static void call_script(event_t event, const char *param);
 static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr);
 
 static void rcvidle_push(lnapp_conf_t *p_conf, trans_cmd_t Cmd, utl_buf_t *pBuf);
@@ -401,7 +359,7 @@ LABEL_EXIT:
                     pPay->hop_datain[0].amt_to_forward,
                     pPay->hop_datain[0].outgoing_cltv_value,
                     hashstr);
-        call_script(EVT_PAYMENT, param);
+        ptarmd_call_script(PTARMD_EVT_PAYMENT, param);
 
         lnapp_save_event(ln_channel_id(pAppConf->p_self),
             "[SEND]add_htlc: HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d",
@@ -1070,7 +1028,7 @@ static void *thread_main_start(void *pArg)
                     "%s",
                     ln_short_channel_id(p_self), node_id,
                     peer_id);
-        call_script(EVT_CONNECTED, param);
+        ptarmd_call_script(PTARMD_EVT_CONNECTED, param);
 
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
         if (fp) {
@@ -1121,7 +1079,7 @@ LABEL_SHUTDOWN:
                     "%s",
                     ln_short_channel_id(p_self), node_id,
                     peer_id);
-        call_script(EVT_DISCONNECTED, param);
+        ptarmd_call_script(PTARMD_EVT_DISCONNECTED, param);
     }
 
     //クリア
@@ -1407,7 +1365,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
                 ln_short_channel_id(p_conf->p_self), node_id,
                 ln_node_total_msat(),
                 txidstr);
-    call_script(EVT_ESTABLISHED, param);
+    ptarmd_call_script(PTARMD_EVT_ESTABLISHED, param);
 
     return true;
 }
@@ -2267,7 +2225,7 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
                     p_addhtlc->p_hop->amt_to_forward,
                     p_addhtlc->p_hop->outgoing_cltv_value,
                     hashstr);
-        call_script(EVT_FORWARD, param);
+        ptarmd_call_script(PTARMD_EVT_FORWARD, param);
 
         lnapp_save_event(ln_channel_id(p_nextconf->p_self),
             "[SEND]add_htlc: amount_msat=%" PRIu64 ", cltv=%d",
@@ -2386,7 +2344,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
                     ln_short_channel_id(p_conf->p_self), node_id,
                     hashstr,
                     imgstr);
-        call_script(EVT_FULFILL, param);
+        ptarmd_call_script(PTARMD_EVT_FULFILL, param);
 
         lnapp_save_event(ln_channel_id(p_prevconf->p_self),
             "[SEND]fulfill_htlc: HTLC id=%" PRIu64,
@@ -2470,7 +2428,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
         char param[256];
         sprintf(param, "%016" PRIx64 " %s",
                     ln_short_channel_id(p_conf->p_self), node_id);
-        call_script(EVT_FAIL, param);
+        ptarmd_call_script(PTARMD_EVT_FAIL, param);
     }
 }
 
@@ -2574,7 +2532,7 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
                 ln_short_channel_id(p_conf->p_self), node_id,
                 ln_node_total_msat(),
                 ln_htlc_num(p_conf->p_self));
-    call_script(EVT_HTLCCHANGED, param);
+    ptarmd_call_script(PTARMD_EVT_HTLCCHANGED, param);
 
     show_self_param(p_conf->p_self, stderr, "revoke_and_ack", __LINE__);
 
@@ -2669,7 +2627,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
                     "%s",
                     ln_short_channel_id(p_conf->p_self), node_id,
                     txidstr);
-        call_script(EVT_CLOSED, param);
+        ptarmd_call_script(PTARMD_EVT_CLOSED, param);
     } else {
         LOGD("DBG: no send closing_tx mode\n");
     }
@@ -3191,26 +3149,6 @@ static void load_announce_settings(void)
 }
 
 
-/** イベント発生によるスクリプト実行
- *
- *
- */
-static void call_script(event_t event, const char *param)
-{
-    LOGD("event=0x%02x\n", (int)event);
-
-    struct stat buf;
-    int ret = stat(kSCRIPT[event], &buf);
-    if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
-        char *cmdline = (char *)UTL_DBG_MALLOC(128 + strlen(param));    //UTL_DBG_FREE: この中
-        sprintf(cmdline, "%s %s", kSCRIPT[event], param);
-        LOGD("cmdline: %s\n", cmdline);
-        system(cmdline);
-        UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
-    }
-}
-
-
 /** エラー文字列設定
  *
  */
@@ -3238,7 +3176,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
                     "\"%s\"",
                     ln_short_channel_id(p_conf->p_self), node_id,
                     p_conf->p_errstr);
-        call_script(EVT_ERROR, param);
+        ptarmd_call_script(PTARMD_EVT_ERROR, param);
         UTL_DBG_FREE(param);        //UTL_DBG_MALLOC: この中
     }
 }

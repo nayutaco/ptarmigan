@@ -132,6 +132,23 @@ typedef enum {
 } trans_cmd_t;
 
 
+/** @enum   ptarmd_event_t
+ *  @brief  call script event
+ */
+typedef enum {
+    PTARMD_EVT_ERROR,
+    PTARMD_EVT_CONNECTED,
+    PTARMD_EVT_DISCONNECTED,
+    PTARMD_EVT_ESTABLISHED,
+    PTARMD_EVT_PAYMENT,
+    PTARMD_EVT_FORWARD,
+    PTARMD_EVT_FULFILL,
+    PTARMD_EVT_FAIL,
+    PTARMD_EVT_HTLCCHANGED,
+    PTARMD_EVT_CLOSED
+} ptarmd_event_t;
+
+
 /** @struct     peer_conn_t
  *  @brief      peer接続情報
  *  @note
@@ -314,6 +331,12 @@ void ptarmd_nodefail_add(
 bool ptarmd_nodefail_get(
             const uint8_t *pNodeId, const char *pAddr, uint16_t Port,
             ln_nodedesc_t NodeDesc, bool bRemove);
+
+
+/** イベントコール
+ * 
+ */
+void ptarmd_call_script(ptarmd_event_t event, const char *param);
 
 
 /** エラー文字列取得
