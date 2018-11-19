@@ -51,6 +51,8 @@ extern "C" {
 /** sleep millisecond
  *
  * @param[in]   slp     スリープする時間[msec]
+ * @attention
+ *  slpは1000未満にすること
  */
 static inline void utl_misc_msleep(unsigned long slp) {
     struct timespec req = { 0, (long)(slp * 1000000UL) };

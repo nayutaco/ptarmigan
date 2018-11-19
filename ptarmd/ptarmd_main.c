@@ -37,7 +37,12 @@
 /**************************************************************************
  * macros
  **************************************************************************/
+
+#ifndef USE_SPV
 #define M_OPTSTRING     "p:n:a:c:d:xNh"
+#else
+#define M_OPTSTRING     "p:n:mtrd:xNh"
+#endif
 
 
 /********************************************************************
@@ -111,7 +116,6 @@ int main(int argc, char *argv[])
     p_addr->type = LN_NODEDESC_NONE;
     p_addr->port = 0;
 
-    int options = 0;
     while ((opt = getopt_long(argc, argv, M_OPTSTRING, OPTIONS, NULL)) != -1) {
         switch (opt) {
         //case 'd':
@@ -127,6 +131,7 @@ int main(int argc, char *argv[])
             strncpy(p_alias, optarg, LN_SZ_ALIAS);
             p_alias[LN_SZ_ALIAS] = '\0';
             break;
+#ifndef USE_SPV
         case 'a':
             //ip address
             {
@@ -145,18 +150,29 @@ int main(int argc, char *argv[])
                 goto LABEL_EXIT;
             }
             break;
+#else
+        case 'm':
+            //mainnet
+            rpc_conf.gen = BTC_GENESIS_BTCMAIN;
+            break;
+        case 't':
+            //testnet
+            rpc_conf.gen = BTC_GENESIS_BTCTEST;
+            break;
+        case 'r':
+            //regtest
+            rpc_conf.gen = BTC_GENESIS_BTCREGTEST;
+            break;
+#endif
         case 'P':
             //my rpcport num
             my_rpcport = (uint16_t)atoi(optarg);
             break;
-        case 'x':
-            //ノード情報を残してすべて削除
-            options |= 0x80;
-            break;
         case 'N':
             //node_announcementを全削除
-            options |= 0x40;
-            break;
+            bret = ln_db_reset();
+            fprintf(stderr, "db_reset: %d\n", bret);
+            return 0;
         case 'h':
             //help
             goto LABEL_EXIT;
@@ -165,19 +181,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (options & 0x40) {
-        bret = ln_db_annonod_drop_startup();
-        fprintf(stderr, "db_annonod_drop: %d\n", bret);
-        return 0;
-    }
-
-    if (options & 0x80) {
-        //
-        bret = ln_db_reset();
-        fprintf(stderr, "db_reset: %d\n", bret);
-        return 0;
-    }
-
+#ifndef USE_SPV
     if ((strlen(rpc_conf.rpcuser) == 0) || (strlen(rpc_conf.rpcpasswd) == 0)) {
         //bitcoin.confから読込む
         bret = conf_btcrpc_load_default(&rpc_conf);
@@ -185,6 +189,12 @@ int main(int argc, char *argv[])
             goto LABEL_EXIT;
         }
     }
+#else
+    if (rpc_conf.gen == BTC_GENESIS_UNKNOWN) {
+        fprintf(stderr, "ERROR: you need select network.\n");
+        goto LABEL_EXIT;
+    }
+#endif
 
     //O'REILLY Japan: BINARY HACKS #52
     sigset_t ss;
@@ -206,13 +216,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "fail: bitcoin getblockhash\n");
         return -1;
     }
-
-    // https://github.com/lightningnetwork/lightning-rfc/issues/237
-    for (int lp = 0; lp < LN_SZ_HASH / 2; lp++) {
-        uint8_t tmp = genesis[lp];
-        genesis[lp] = genesis[LN_SZ_HASH - lp - 1];
-        genesis[LN_SZ_HASH - lp - 1] = tmp;
-    }
     ln_genesishash_set(genesis);
 
 #if NETKIND==0
@@ -232,11 +235,16 @@ LABEL_EXIT:
     fprintf(stderr, "\t\t-h : help\n");
     fprintf(stderr, "\t\t-p PORT : node port(default: 9735)\n");
     fprintf(stderr, "\t\t-n NAME : alias name(default: \"node_xxxxxxxxxxxx\")\n");
+#ifndef USE_SPV
     fprintf(stderr, "\t\t-c CONF_FILE : using bitcoin.conf(default: ~/.bitcoin/bitcoin.conf)\n");
     fprintf(stderr, "\t\t-a IPADDRv4 : announce IPv4 address(default: none)\n");
+#else
+    //fprintf(stderr, "\t\t-m MAINNET\n");
+    fprintf(stderr, "\t\t-t TESTNET\n");
+    fprintf(stderr, "\t\t-r REGTEST\n");
+#endif
     fprintf(stderr, "\t\t-d DIR_PATH : change working directory\n");
     fprintf(stderr, "\t\t--rpcport PORT : JSON-RPC port(default: node port+1)\n");
-    fprintf(stderr, "\t\t-x : erase current DB(without node_id)(TEST)\n");
     fprintf(stderr, "\t\t-N : erase node_announcement DB(TEST)\n");
     return -1;
 }

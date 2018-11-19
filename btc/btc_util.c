@@ -557,7 +557,7 @@ void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
         wit_prog[0] = 0x00;
         wit_prog[1] = (uint8_t)BTC_SZ_HASH160;
         memcpy(wit_prog + 2, pPubKeyHash, BTC_SZ_HASH160);
-        btc_util_hash160(pWPubKeyHash, wit_prog, LNL_SZ_WITPROG_WPKH);
+        btc_util_hash160(pWPubKeyHash, wit_prog, BTC_SZ_WITPROG_P2WPKH);
     } else {
         //nested in P2SH用
         assert(false);

@@ -48,7 +48,6 @@ C_SOURCE_FILES += $(PRJ_PATH)/p2p_cli.c
 C_SOURCE_FILES += $(PRJ_PATH)/lnapp.c
 C_SOURCE_FILES += $(PRJ_PATH)/cmd_json.c
 C_SOURCE_FILES += $(PRJ_PATH)/monitoring.c
-C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
 C_SOURCE_FILES += $(PRJ_PATH)/conf.c
 C_SOURCE_FILES += $(PRJ_PATH)/wallet.c
 
@@ -82,6 +81,12 @@ CFLAGS += -DNETKIND=$(NETKIND)
 
 ifeq ($(USE_SPV),1)
 	CFLAGS += -DUSE_SPV
+	C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoinj.c
+	C_SOURCE_FILES += $(PRJ_PATH)/jni/btcj_jni.c
+	INC_PATHS += $(BUILD_PTARMD_LIB_INCPATHS)
+	LIBS += $(USE_SPV_JVM) -ljvm
+else
+	C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
 endif
 
 ifeq ($(DISABLE_PRINTFUND),0)

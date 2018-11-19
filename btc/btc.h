@@ -61,6 +61,9 @@ extern "C" {
 #define BTC_SZ_EKEY             (82)            ///< サイズ:拡張鍵
 #define BTC_SZ_CHAINCODE        (32)            ///< サイズ:拡張鍵chaincode
 #define BTC_SZ_EKEY_ADDR_MAX    (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
+#define BTC_SZ_WITPROG_P2WPKH   (2 + BTC_SZ_HASH160)    ///< サイズ: witnessProgram(P2WPKH)
+#define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_SHA256)     ///< サイズ: witnessProgram(P2WSH)
+#define BTC_SZ_2OF2             (1 + 34 + 34 + 2)       ///< OP_m 21 [pub1] 21 [pub2] OP_n OP_CHKMULTISIG
 
 #define BTC_PREF                (0)             ///< Prefix: 1:mainnet, 2:testnet
 #define BTC_PREF_WIF            (1)             ///< Prefix: WIF
@@ -116,10 +119,6 @@ extern "C" {
 #define BTC_TX_VERSION_INIT     (2)
 #define BTC_TX_INIT             { BTC_TX_VERSION_INIT, 0, (btc_vin_t *)NULL, 0, (btc_vout_t *)NULL, 0 }
 
-#define LNL_SZ_2OF2             (1 + 34 + 34 + 2)           ///< OP_m 21 [pub1] 21 [pub2] OP_n OP_CHKMULTISIG
-#define LNL_SZ_WITPROG_WPKH     (2 + BTC_SZ_HASH160)      ///< P2WPKHのwitnessProgramサイズ
-#define LNL_SZ_WITPROG_WSH      (2 + BTC_SZ_HASH256)      ///< P2WSHのwitnessProgramサイズ
-
 #define OP_0                    (0x00)
 #define OP_HASH160              (0xa9)
 #define OP_EQUAL                (0x87)
@@ -150,6 +149,7 @@ extern "C" {
 #define VARINT_1BYTE_MAX        (0xfc)
 #define VARINT_3BYTE_MIN        (0xfd)
 
+#define BTC_OFFSET_WITPROG      (2)         ///witnessProgram中のscriptPubKey位置
 
 /**************************************************************************
  * macro functions

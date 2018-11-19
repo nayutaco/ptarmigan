@@ -76,9 +76,9 @@ typedef struct {
 /** @typedef    ln_db_wallet_t
  *  @brief      ln_db_wallet
  *  @note
- *      - 変更する場合は、以下のAPIも変更すること
+ *      - 変更した場合は、以下も変更すること
+ *          - LN_DB_WALLET_INIT
  *          - ln_db_wallet_search()
- *          - wallet_add()
  *          - ln_db_wallet_tの使用箇所
  */
 typedef struct {
@@ -344,12 +344,6 @@ bool ln_db_annonod_load(utl_buf_t *pNodeAnno, uint32_t *pTimeStamp, const uint8_
  *      - タイムスタンプはAPI呼び出し時の値が保存される
  */
 bool ln_db_annonod_save(const utl_buf_t *pNodeAnno, const ln_node_announce_t *pAnno, const uint8_t *pSendId);
-
-
-/** node_announcement全削除
- *
- */
-bool ln_db_annonod_drop_startup(void);
 
 
 /********************************************************************

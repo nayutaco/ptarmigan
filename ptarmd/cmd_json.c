@@ -110,6 +110,11 @@ static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id);
+#ifndef USE_SPV
+#else
+static cJSON *cmd_fundaddr(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id);
+#endif
 
 static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx);
 static int cmd_disconnect_proc(const uint8_t *pNodeId);
@@ -172,6 +177,11 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_setfeerate,   "setfeerate", NULL);
     jrpc_register_procedure(&mJrpc, cmd_estimatefundingfee, "estimatefundingfee", NULL);
     jrpc_register_procedure(&mJrpc, cmd_walletback, "walletback", NULL);
+#ifndef USE_SPV
+#else
+    jrpc_register_procedure(&mJrpc, cmd_fundaddr,    "fundaddr", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_getbalance,  "getbalance", NULL);
+#endif
     jrpc_server_run(&mJrpc);
     jrpc_server_destroy(&mJrpc);
 
@@ -196,6 +206,12 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
 
     utl_misc_bin2str(nodestr, pNodeId, BTC_SZ_PUBKEY);
     LOGD("connect:%s@%s:%d\n", nodestr, pIpAddr, Port);
+
+    bool ret = p2p_cli_connect_test(pIpAddr, Port);
+    if (!ret) {
+        return -1;
+    }
+
     sprintf(json, "{\"method\":\"CONNECT\",\"params\":[\"%s\",\"%s\",%d]}",
                         nodestr, pIpAddr, Port);
 
@@ -430,20 +446,24 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
     //funding parameter
     //txid
     json = cJSON_GetArrayItem(params, index++);
+#ifndef USE_SPV
     if (json && (json->type == cJSON_String)) {
         utl_misc_str2bin_rev(fundconf.txid, BTC_SZ_TXID, json->valuestring);
         LOGD("txid=%s\n", json->valuestring);
     } else {
         goto LABEL_EXIT;
     }
+#endif
     //txindex
     json = cJSON_GetArrayItem(params, index++);
+#ifndef USE_SPV
     if (json && (json->type == cJSON_Number)) {
         fundconf.txindex = json->valueint;
         LOGD("txindex=%d\n", json->valueint);
     } else {
         goto LABEL_EXIT;
     }
+#endif
     //funding_sat
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_Number)) {
@@ -1298,6 +1318,53 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     return result;
 }
+
+
+#ifndef USE_SPV
+#else
+/** fund-inアドレス出力 : ptarmcli -F
+ *
+ */
+static cJSON *cmd_fundaddr(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)ctx; (void)params; (void)id;
+
+    cJSON *result = NULL;
+    bool ret;
+    char addr[BTC_SZ_ADDR_MAX];
+
+    ret = btcrpc_getnewaddress(addr);
+    if (ret) {
+        result = cJSON_CreateString(addr);
+    } else {
+        ctx->error_code = RPCERR_BLOCKCHAIN;
+        ctx->error_message = ptarmd_error_str(RPCERR_BLOCKCHAIN);
+    }
+    return result;
+}
+
+
+/** fund-inアドレス出力 : ptarmcli --getbalance
+ *
+ */
+static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)ctx; (void)params; (void)id;
+
+    cJSON *result = NULL;
+    bool ret;
+    uint64_t amount = 0;
+
+    ret = btcrpc_get_balance(&amount);
+    if (ret) {
+        result = cJSON_CreateNumber64(amount);
+    } else {
+        ctx->error_code = RPCERR_BLOCKCHAIN;
+        ctx->error_message = ptarmd_error_str(RPCERR_BLOCKCHAIN);
+    }
+    return result;
+}
+#endif
 
 
 /********************************************************************

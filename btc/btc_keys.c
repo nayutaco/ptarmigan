@@ -244,7 +244,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
         btc_util_sha256(sha, pWitScript->buf, pWitScript->len);
         ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, sha, BTC_SZ_SHA256);
     } else {
-        uint8_t wit_prog[LNL_SZ_WITPROG_WSH];
+        uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
         uint8_t pkh[BTC_SZ_PUBKEYHASH];
 
         wit_prog[0] = 0x00;
@@ -313,7 +313,7 @@ bool btc_keys_chkpub(const uint8_t *pPubKey)
 
 bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
-    utl_buf_alloc(pRedeem, LNL_SZ_2OF2);
+    utl_buf_alloc(pRedeem, BTC_SZ_2OF2);
 
     uint8_t *p = pRedeem->buf;
 

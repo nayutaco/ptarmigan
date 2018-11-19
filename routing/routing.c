@@ -37,6 +37,9 @@
 
 #include "utl_misc.h"
 
+#define LOG_TAG     "routing"
+#include "utl_log.h"
+
 
 /**************************************************************************
  * macros
@@ -72,6 +75,8 @@ int main(int argc, char* argv[])
 {
     int ret;
     bool bret;
+
+    utl_log_init_stderr();
 
     fp_err = stderr;
 

@@ -45,7 +45,7 @@ void btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKe
 
 void btc_sw_add_vout_p2wsh(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript)
 {
-    uint8_t wit_prog[LNL_SZ_WITPROG_WSH];
+    uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
 
     btc_sw_wit2prog_p2wsh(wit_prog, pWitScript);
     if (mNativeSegwit) {
