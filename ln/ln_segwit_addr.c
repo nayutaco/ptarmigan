@@ -210,7 +210,7 @@ static bool ln_analyze_tag(size_t *p_len, const uint8_t *p_tag, ln_invoice_t **p
         if (!ln_convert_bits(p_data, &d_len, 8, p_tag, len, 5, true)) return false;
         d_len =  (len * 5) / 8;
         if (tag == 1) {
-            memcpy(p_invoice_data->payment_hash, p_data, LN_SZ_HASH);
+            memcpy(p_invoice_data->payment_hash, p_data, BTC_SZ_HASH256);
         }
         //if ((tag == 13)) {
         //    char *p_str = (char *)M_ALLOC(d_len + 1);
@@ -281,7 +281,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     data[datalen++] = 1;    // 256-bit SHA256 payment_hash
     data[datalen++] = 1;    // 256bit ÷ 5 ≒ 52
     data[datalen++] = 20;   //      52 --(32進数)--> 32*1 + 20
-    if (!ln_convert_bits(data, &datalen, 5, p_invoice_data->payment_hash, LN_SZ_HASH, 8, true)) return false;
+    if (!ln_convert_bits(data, &datalen, 5, p_invoice_data->payment_hash, BTC_SZ_HASH256, 8, true)) return false;
 
     //short description
     data[datalen++] = 13;   // short description
@@ -347,7 +347,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     ln_convert_bits(hashdata + hrp_len, &hashdatalen, 8, data, datalen, 5, true);
 
     //signature
-    uint8_t hash[LN_SZ_HASH];
+    uint8_t hash[BTC_SZ_HASH256];
     mbedtls_sha256(hashdata, hashdatalen + hrp_len, hash, 0);
 
     uint8_t sign[BTC_SZ_SIGN_RS + 1];
@@ -378,7 +378,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     size_t pdata_len = 0;
     size_t total_len;
     uint8_t *preimg;
-    uint8_t hash[LN_SZ_HASH];
+    uint8_t hash[BTC_SZ_HASH256];
     time_t tm;
     uint8_t sig[65];
     size_t sig_len = 0;
@@ -514,7 +514,7 @@ bool ln_invoice_create(char **ppInvoice, uint8_t Type, const uint8_t *pPayHash, 
     p_invoice_data->expiry = Expiry;
     p_invoice_data->min_final_cltv_expiry = MinFinalCltvExpiry;
     memcpy(p_invoice_data->pubkey, ln_node_getid(), BTC_SZ_PUBKEY);
-    memcpy(p_invoice_data->payment_hash, pPayHash, LN_SZ_HASH);
+    memcpy(p_invoice_data->payment_hash, pPayHash, BTC_SZ_HASH256);
     p_invoice_data->r_field_num = FieldRNum;
     memcpy(p_invoice_data->r_field, pFieldR, sizeof(ln_fieldr_t) * FieldRNum);
 

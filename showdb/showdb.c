@@ -408,15 +408,15 @@ static void ln_print_self(const ln_self_t *self)
                 printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
                 printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
                 printf(INDENT5 M_QQ("payhash") ": \"");
-                btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_SHA256, false);
+                btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256, false);
                 printf("\",\n");
                 printf(INDENT5 M_QQ("preimage") ": \"");
                 btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
                 printf("\",\n");
-                uint8_t sha[BTC_SZ_SHA256];
+                uint8_t sha[BTC_SZ_HASH256];
                 btc_util_sha256(sha, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len);
                 printf(INDENT5 M_QQ("preimage_check") ": ");
-                if (memcmp(sha, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_SHA256) == 0) {
+                if (memcmp(sha, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {
                     printf(M_QQ("OK") ",\n");
                 } else {
                     printf(M_QQ("NG") ",\n");
@@ -908,7 +908,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
         char wif[BTC_SZ_WIF_MAX] = "";
         char alias[LN_SZ_ALIAS + 1] = "";
         uint16_t port = 0;
-        uint8_t genesis[LN_SZ_HASH];
+        uint8_t genesis[BTC_SZ_HASH256];
 
         printf(INDENT1 M_QQ("version") ": {\n");
 

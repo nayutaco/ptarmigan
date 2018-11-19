@@ -46,7 +46,6 @@ extern "C" {
 #define LN_SZ_CHANNEL_ID                (32)        ///< サイズ:channel_id
 #define LN_SZ_SHORT_CHANNEL_ID          (8)         ///< サイズ:short_channel_id
 #define LN_SZ_SIGNATURE                 BTC_SZ_SIGN_RS    ///< サイズ:署名
-#define LN_SZ_HASH                      (32)        ///< サイズ:xxx-hash
 #define LN_SZ_PREIMAGE                  (32)        ///< サイズ:preimage
 #define LN_SZ_SEED                      (32)        ///< サイズ:seed
 #define LN_SZ_ONION_ROUTE               (1366)      ///< サイズ:onion-routing-packet
@@ -534,7 +533,7 @@ typedef struct {
     uint64_t    id;                                 ///< 8:  id
     uint64_t    amount_msat;                        ///< 8:  amount_msat
     uint32_t    cltv_expiry;                        ///< 4:  cltv_expirty
-    uint8_t     payment_sha256[LN_SZ_HASH];         ///< 32: payment_hash
+    uint8_t     payment_sha256[BTC_SZ_HASH256];         ///< 32: payment_hash
     utl_buf_t   buf_payment_preimage;               ///< 32: payment_preimage
     utl_buf_t   buf_onion_reason;                   ///<
                                                     //  update_add_htlc
@@ -617,7 +616,7 @@ typedef struct {
 typedef struct {
     uint8_t     *p_channel_id;                      ///< 32: channel-id
     uint64_t    id;                                 ///< 8:  id
-    uint8_t     sha256_onion[BTC_SZ_SHA256];        ///< 32: sha256-of-onion
+    uint8_t     sha256_onion[BTC_SZ_HASH256];        ///< 32: sha256-of-onion
     uint16_t    failure_code;                       ///< 2:  failure-code
 } ln_update_fail_malformed_htlc_t;
 
@@ -1087,7 +1086,7 @@ typedef struct {
 typedef struct {
     uint8_t         key[BTC_SZ_PRIVKEY];            ///< key
     uint64_t        nonce;                          ///< nonce
-    uint8_t         ck[BTC_SZ_SHA256];              ///< chainkey
+    uint8_t         ck[BTC_SZ_HASH256];              ///< chainkey
 } ln_noise_t;
 
 
@@ -1128,7 +1127,7 @@ struct ln_self_t {
     btc_tx_t                    tx_funding;                     ///< [FUND_07]funding_tx
 #ifndef USE_SPV
 #else
-    uint8_t                     funding_bhash[BTC_SZ_SHA256];   ///< [FUND_08]funding_txがマイニングされたblock hash
+    uint8_t                     funding_bhash[BTC_SZ_HASH256];   ///< [FUND_08]funding_txがマイニングされたblock hash
 #endif
     ln_establish_t              *p_establish;                   ///< [FUND_10]Establishワーク領域
     uint32_t                    min_depth;                      ///< [FUND_11]minimum_depth
@@ -1784,7 +1783,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_
 
 /** PreImageハッシュ計算
  *
- * @param[out]      pHash               計算結果(LN_SZ_HASH)
+ * @param[out]      pHash               計算結果(BTC_SZ_HASH256)
  * @param[in]       pPreImage           計算元(LN_SZ_PREIMAGE)
  */
 void ln_preimage_hash_calc(uint8_t *pHash, const uint8_t *pPreImage);

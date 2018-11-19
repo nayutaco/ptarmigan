@@ -84,9 +84,9 @@ enum state_t {
  */
 struct bolt8_t {
     btc_util_keys_t   e;                  //ephemeral key
-    uint8_t     h[BTC_SZ_SHA256];         //h
-    uint8_t     ck[BTC_SZ_SHA256];        //ck
-    uint8_t     temp_k[BTC_SZ_SHA256];    //temp_k1,2,3
+    uint8_t     h[BTC_SZ_HASH256];         //h
+    uint8_t     ck[BTC_SZ_HASH256];        //ck
+    uint8_t     temp_k[BTC_SZ_HASH256];    //temp_k1,2,3
 
     enum state_t    state;
 };
@@ -130,7 +130,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
     btc_util_sha256(pBolt->ck, (const uint8_t *)M_PROTOCOL_NAME, M_PROTOCOL_LEN);
 
     // h = sha256(ck || prologue)
-    btc_util_sha256cat(pBolt->h, pBolt->ck, BTC_SZ_SHA256, (const uint8_t *)M_PROLOGUE, M_PROLOGUE_LEN);
+    btc_util_sha256cat(pBolt->h, pBolt->ck, BTC_SZ_HASH256, (const uint8_t *)M_PROLOGUE, M_PROLOGUE_LEN);
 
 
     if (pNodeId != NULL) {
@@ -144,7 +144,7 @@ bool HIDDEN ln_enc_auth_handshake_init(ln_self_t *self, const uint8_t *pNodeId)
         pBolt->state = WAIT_ACT_ONE;
     }
     //initiatorは相手node_id, responderは自node_id
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, pNodeId, BTC_SZ_PUBKEY);
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pNodeId, BTC_SZ_PUBKEY);
 
     return true;
 }
@@ -186,8 +186,8 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
     case WAIT_ACT_TWO:
         //
         ret = acttwo_receiver(self, pBuf);
-        memcpy(self->noise_send.ck, pBolt->ck, BTC_SZ_SHA256);
-        memcpy(self->noise_recv.ck, pBolt->ck, BTC_SZ_SHA256);
+        memcpy(self->noise_send.ck, pBolt->ck, BTC_SZ_HASH256);
+        memcpy(self->noise_recv.ck, pBolt->ck, BTC_SZ_HASH256);
         UTL_DBG_FREE(self->p_handshake);
         self->noise_send.nonce = 0;
         self->noise_recv.nonce = 0;
@@ -202,8 +202,8 @@ bool HIDDEN ln_enc_auth_handshake_recv(ln_self_t *self, utl_buf_t *pBuf)
     case WAIT_ACT_THREE:
         //
         ret = actthree_receiver(self, pBuf);
-        memcpy(self->noise_send.ck, pBolt->ck, BTC_SZ_SHA256);
-        memcpy(self->noise_recv.ck, pBolt->ck, BTC_SZ_SHA256);
+        memcpy(self->noise_send.ck, pBolt->ck, BTC_SZ_HASH256);
+        memcpy(self->noise_recv.ck, pBolt->ck, BTC_SZ_HASH256);
         UTL_DBG_FREE(self->p_handshake);
         self->noise_send.nonce = 0;
         self->noise_recv.nonce = 0;
@@ -489,26 +489,26 @@ LABEL_EXIT:
 static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint8_t *pIkm)
 {
 #if 1
-    size_t ikm_len = (pIkm) ? BTC_SZ_SHA256 : 0;
+    size_t ikm_len = (pIkm) ? BTC_SZ_HASH256 : 0;
     uint8_t okm[64];
     int retval = mbedtls_hkdf(
                     mbedtls_md_info_from_type(MBEDTLS_MD_SHA256),
-                    pSalt, BTC_SZ_SHA256,
+                    pSalt, BTC_SZ_HASH256,
                     pIkm, ikm_len,
                     NULL, 0,
                     okm, sizeof(okm));
     if (retval == 0) {
-        memcpy(ck, okm, BTC_SZ_SHA256);
-        memcpy(k, okm + BTC_SZ_SHA256, BTC_SZ_SHA256);
+        memcpy(ck, okm, BTC_SZ_HASH256);
+        memcpy(k, okm + BTC_SZ_HASH256, BTC_SZ_HASH256);
     }
     return retval == 0;
 #else
     bool ret;
-    uint8_t prk[BTC_SZ_SHA256];
+    uint8_t prk[BTC_SZ_HASH256];
     mbedtls_md_context_t ctx;
 
-    uint8_t ikm_len = (pIkm) ? BTC_SZ_SHA256 : 0;
-    ret = ln_misc_calc_mac(prk, pSalt, BTC_SZ_SHA256, pIkm, ikm_len);
+    uint8_t ikm_len = (pIkm) ? BTC_SZ_HASH256 : 0;
+    ret = ln_misc_calc_mac(prk, pSalt, BTC_SZ_HASH256, pIkm, ikm_len);
     if (!ret) {
         LOGD("fail: calc_mac\n");
         return false;
@@ -518,12 +518,12 @@ static bool noise_hkdf(uint8_t *ck, uint8_t *k, const uint8_t *pSalt, const uint
     mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1);
 
     uint8_t c = 1;
-    mbedtls_md_hmac_starts(&ctx, prk, BTC_SZ_SHA256);
+    mbedtls_md_hmac_starts(&ctx, prk, BTC_SZ_HASH256);
     mbedtls_md_hmac_update(&ctx, &c, 1);
     mbedtls_md_hmac_finish(&ctx, ck);
     c++;
     mbedtls_md_hmac_reset(&ctx);
-    mbedtls_md_hmac_update(&ctx, ck, BTC_SZ_SHA256);
+    mbedtls_md_hmac_update(&ctx, ck, BTC_SZ_HASH256);
     mbedtls_md_hmac_update(&ctx, &c, 1);
     mbedtls_md_hmac_finish(&ctx, k);
     mbedtls_md_free(&ctx);
@@ -543,7 +543,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
     int rc;
 
     // h = SHA-256(h || e.pub.serializeCompressed())
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, pBolt->e.pub, BTC_SZ_PUBKEY);
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pBolt->e.pub, BTC_SZ_PUBKEY);
 
     // ss = ECDH(rs, e.priv)
     ln_misc_generate_shared_secret(ss, pRS, pBolt->e.priv);
@@ -558,7 +558,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
                     c, &clen,
                     NULL, 0,                    //zero length data
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (clen != sizeof(c))) {
@@ -576,7 +576,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     0,                              //in length
                     nonce,                          //12byte
-                    pBolt->h, BTC_SZ_SHA256,      //AAD
+                    pBolt->h, BTC_SZ_HASH256,      //AAD
                     NULL,                           //input
                     NULL,                           //output
                     c);                             //MAC
@@ -589,7 +589,7 @@ static bool actone_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRS)
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, c, sizeof(c));
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     // SEND: m = 0 || e.pub.serializeCompressed() || c to the responder over the network buffer.
     utl_buf_free(pBuf);
@@ -611,7 +611,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
     uint8_t re[BTC_SZ_PUBKEY];
     uint8_t c[M_CHACHAPOLY_MAC];
     uint8_t ss[BTC_SZ_PRIVKEY];
-    uint8_t p[BTC_SZ_SHA256 + M_CHACHAPOLY_MAC];
+    uint8_t p[BTC_SZ_HASH256 + M_CHACHAPOLY_MAC];
     uint8_t nonce[12];
     int rc;
 
@@ -624,7 +624,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
     memcpy(c, pBuf->buf + 1 + sizeof(re), sizeof(c));
 
     // h = SHA-256(h || re.serializeCompressed())
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, re, BTC_SZ_PUBKEY);
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, re, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, s.priv)
     ln_node_generate_shared_secret(ss, re);
@@ -640,7 +640,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     p, &plen,
                     NULL,                       //combined modeではNULL
                     c, sizeof(c),               //ciphertext
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (plen != 0)) {
         LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
@@ -657,7 +657,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
     rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     0,                  //in length
                     nonce,              //12byte
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     c,                  //MAC
                     NULL,               //input
                     p);                 //output
@@ -669,7 +669,7 @@ static bool actone_receiver(ln_self_t *self, utl_buf_t *pBuf)
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, c, sizeof(c));
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     ret = acttwo_sender(self, pBuf, re);
 
@@ -688,7 +688,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
     int rc;
 
     // h = SHA-256(h || e.pub.serializeCompressed())
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, pBolt->e.pub, BTC_SZ_PUBKEY);
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, pBolt->e.pub, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, e.priv)
     ln_misc_generate_shared_secret(ss, pRE, pBolt->e.priv);
@@ -703,7 +703,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
                     c, &clen,
                     NULL, 0,                    //zero length data
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (clen != sizeof(c))) {
@@ -721,7 +721,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     0,                              //in length
                     nonce,                          //12byte
-                    pBolt->h, BTC_SZ_SHA256,      //AAD
+                    pBolt->h, BTC_SZ_HASH256,      //AAD
                     NULL,                           //input
                     NULL,                           //output
                     c);                             //MAC
@@ -733,7 +733,7 @@ static bool acttwo_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE)
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, c, sizeof(c));
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     // SEND: m = 0 || e.pub.serializeCompressed() || c to the responder over the network buffer.
     utl_buf_free(pBuf);
@@ -755,7 +755,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
     uint8_t re[BTC_SZ_PUBKEY];
     uint8_t c[M_CHACHAPOLY_MAC];
     uint8_t ss[BTC_SZ_PRIVKEY];
-    uint8_t p[BTC_SZ_SHA256 + M_CHACHAPOLY_MAC];
+    uint8_t p[BTC_SZ_HASH256 + M_CHACHAPOLY_MAC];
     uint8_t nonce[12];
     int rc;
 
@@ -767,7 +767,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
     memcpy(c, pBuf->buf + 1 + sizeof(re), sizeof(c));
 
     // h = SHA-256(h || re.serializeCompressed())
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, re, BTC_SZ_PUBKEY);
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, re, BTC_SZ_PUBKEY);
 
     // ss = ECDH(re, e.priv)
     ln_misc_generate_shared_secret(ss, re, pBolt->e.priv);
@@ -783,7 +783,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     p, &plen,
                     NULL,                       //combined modeではNULL
                     c, sizeof(c),               //ciphertext
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (plen != 0)) {
         LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
@@ -801,7 +801,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
     rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     0,                          //in length
                     nonce,                      //12byte
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     c,                          //MAC
                     NULL,                       //input
                     p);                         //output
@@ -813,7 +813,7 @@ static bool acttwo_receiver(ln_self_t *self, utl_buf_t *pBuf)
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, c, sizeof(c));
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     ret = actthree_sender(self, pBuf, re);
 
@@ -841,7 +841,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
                     c, &clen,
                     ln_node_getid(), BTC_SZ_PUBKEY,   //s.pub.serializeCompressed()
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (clen != sizeof(c))) {
@@ -859,7 +859,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     BTC_SZ_PUBKEY,                //in length
                     nonce,                          //12byte
-                    pBolt->h, BTC_SZ_SHA256,      //AAD
+                    pBolt->h, BTC_SZ_HASH256,      //AAD
                     ln_node_getid(),                //input
                     c,                              //output
                     c + BTC_SZ_PUBKEY);           //MAC
@@ -871,7 +871,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
 #endif
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, c, sizeof(c));
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     // ss = ECDH(re, s.priv)
     ln_node_generate_shared_secret(ss, pRE);
@@ -885,7 +885,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
     rc = crypto_aead_chacha20poly1305_ietf_encrypt(
                     t, &tlen,
                     NULL, 0,                    //zero length data
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     NULL,                       //combined modeではNULL
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (tlen != sizeof(t))) {
@@ -902,7 +902,7 @@ static bool actthree_sender(ln_self_t *self, utl_buf_t *pBuf, const uint8_t *pRE
     rc = mbedtls_chachapoly_encrypt_and_tag(&ctx,
                     0,                              //in length
                     nonce,                          //12byte
-                    pBolt->h, BTC_SZ_SHA256,      //AAD
+                    pBolt->h, BTC_SZ_HASH256,      //AAD
                     NULL,                           //input
                     NULL,                           //output
                     t);                             //MAC
@@ -938,7 +938,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
     uint8_t rs[BTC_SZ_PUBKEY];
     uint8_t nonce[12];
     uint8_t ss[BTC_SZ_PRIVKEY];
-    uint8_t p[BTC_SZ_SHA256 + M_CHACHAPOLY_MAC];
+    uint8_t p[BTC_SZ_HASH256 + M_CHACHAPOLY_MAC];
     int rc;
 
     if ((pBuf->len != 66) || (pBuf->buf[0] != 0x00)) {
@@ -958,7 +958,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     rs, &rslen,
                     NULL,                       //combined modeではNULL
                     c, sizeof(c),               //ciphertext
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (rslen != sizeof(rs))) {
         LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
@@ -975,7 +975,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
     rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     BTC_SZ_PUBKEY,            //in length
                     nonce,                      //12byte
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     c + BTC_SZ_PUBKEY,        //MAC
                     c,                          //input
                     rs);                        //output
@@ -990,7 +990,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
     DUMPD(rs, sizeof(rs));
 
     // h = SHA-256(h || c)
-    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_SHA256, c, sizeof(c));
+    btc_util_sha256cat(pBolt->h, pBolt->h, BTC_SZ_HASH256, c, sizeof(c));
 
     // ss = ECDH(rs, e.priv)
     ln_misc_generate_shared_secret(ss, rs, pBolt->e.priv);
@@ -1005,7 +1005,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
                     p, &plen,
                     NULL,                       //combined modeではNULL
                     t, sizeof(t),               //ciphertext
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     nonce, pBolt->temp_k);      //nonce, key
     if ((rc != 0) || (plen != 0)) {
         LOGD("fail: crypto_aead_chacha20poly1305_ietf_decrypt rc=%d\n", rc);
@@ -1021,7 +1021,7 @@ static bool actthree_receiver(ln_self_t *self, utl_buf_t *pBuf)
     rc = mbedtls_chachapoly_auth_decrypt(&ctx,
                     0,                          //in length
                     nonce,                      //12byte
-                    pBolt->h, BTC_SZ_SHA256,  //additional data
+                    pBolt->h, BTC_SZ_HASH256,  //additional data
                     t,                          //MAC
                     NULL,                       //input
                     p);                         //output

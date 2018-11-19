@@ -1716,7 +1716,7 @@ TEST_F(tx, tx_sighash)
     };
     const utl_buf_t scriptpk0 = { (uint8_t *)SCRIPTPK, sizeof(SCRIPTPK) };
     const utl_buf_t *pks[] = { &scriptpk0 };
-    uint8_t sighash[BTC_SZ_SIGHASH];
+    uint8_t sighash[BTC_SZ_HASH256];
     ret = btc_tx_sighash(sighash, &tx, pks, 1);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SIGHASH, sighash, BTC_SZ_HASH256));
@@ -1772,7 +1772,7 @@ TEST_F(tx, tx_sighash2)
     const utl_buf_t scriptpk1 = { (uint8_t *)SCRIPTPK1, sizeof(SCRIPTPK1) };
     const utl_buf_t *pks[] = { &scriptpk0, &scriptpk1 };
 
-    uint8_t sighash[BTC_SZ_SIGHASH];
+    uint8_t sighash[BTC_SZ_HASH256];
     bool ret = btc_tx_sighash(sighash, &tx, pks, 2);
     ASSERT_TRUE(ret);
     ASSERT_EQ(2, tx.vin_cnt);

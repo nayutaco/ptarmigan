@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
     pthread_create(&th_sig, NULL, &sig_handler_start, NULL);
 
     //bitcoind起動確認
-    uint8_t genesis[LN_SZ_HASH];
+    uint8_t genesis[BTC_SZ_HASH256];
     bret = btcrpc_init(&rpc_conf);
     if (!bret) {
         fprintf(stderr, "fail: initialize btcrpc\n");

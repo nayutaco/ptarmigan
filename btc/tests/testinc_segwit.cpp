@@ -362,7 +362,7 @@ TEST_F(sw, read_tx_p2wsh)
 
 TEST_F(sw, sighash_p2wpkh)
 {
-    uint8_t txhash[BTC_SZ_SIGHASH];
+    uint8_t txhash[BTC_SZ_HASH256];
 
     //5fb7d9c00b99fe93c1228e428985fbc8eaed1d27eb864711ad6b74a32f4eb8f1
     const uint8_t TX[] = {
@@ -422,7 +422,7 @@ TEST_F(sw, sighash_p2wpkh)
 
 TEST_F(sw, sighash_p2wsh)
 {
-    uint8_t txhash[BTC_SZ_SIGHASH];
+    uint8_t txhash[BTC_SZ_HASH256];
 
     //3c5f0cc27c54ffca22458a5ba840bccb99fcbde7823414d5c6b2c572932eff71
     const uint8_t TX[] = {
@@ -726,7 +726,7 @@ TEST_F(sw, sign_p2wpkh)
     printf("pubkey= ");
     sw::DumpBin(PUB, sizeof(PUB));
     printf("txhash= ");
-    uint8_t txhash[BTC_SZ_SIGHASH];
+    uint8_t txhash[BTC_SZ_HASH256];
     utl_buf_t script_code = UTL_BUF_INIT;
     ret = btc_sw_scriptcode_p2wpkh_vin(&script_code, &tx.vin[0]);
     ASSERT_TRUE(ret);

@@ -196,16 +196,16 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 
     ret = getblockhash_rpc(&p_root, &p_result, &p_json, 0);
     if (ret && json_is_string(p_result)) {
-        ret = utl_misc_str2bin(pHash, LN_SZ_HASH, (const char *)json_string_value(p_result));
+        ret = utl_misc_str2bin(pHash, BTC_SZ_HASH256, (const char *)json_string_value(p_result));
     } else {
         LOGD("fail: getblockhash_rpc\n");
     }
     if (ret) {
         // https://github.com/lightningnetwork/lightning-rfc/issues/237
-        for (int lp = 0; lp < LN_SZ_HASH / 2; lp++) {
+        for (int lp = 0; lp < BTC_SZ_HASH256 / 2; lp++) {
             uint8_t tmp = pHash[lp];
-            pHash[lp] = pHash[LN_SZ_HASH - lp - 1];
-            pHash[LN_SZ_HASH - lp - 1] = tmp;
+            pHash[lp] = pHash[BTC_SZ_HASH256 - lp - 1];
+            pHash[BTC_SZ_HASH256 - lp - 1] = tmp;
         }
     }
     if (p_root != NULL) {
@@ -253,7 +253,7 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
 
     bool ret;
     char *p_json = NULL;
-    char blockhash[BTC_SZ_SHA256 * 2 + 1] = "NG";
+    char blockhash[BTC_SZ_HASH256 * 2 + 1] = "NG";
     json_t *p_root = NULL;
     json_t *p_result;
 
@@ -548,7 +548,7 @@ static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int
     json_t *p_result;
     json_t *p_height;
     char *p_json = NULL;
-    char blockhash[BTC_SZ_SHA256 * 2 + 1];
+    char blockhash[BTC_SZ_HASH256 * 2 + 1];
 
     *ppJsonTx = NULL;
     *ppRoot = NULL;

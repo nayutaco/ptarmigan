@@ -250,7 +250,7 @@ typedef struct {
  *  @brief      [version]に保存するnode情報
  */
 typedef struct {
-    uint8_t     genesis[LN_SZ_HASH];
+    uint8_t     genesis[BTC_SZ_HASH256];
     char        wif[BTC_SZ_WIF_MAX];
     char        name[LN_SZ_ALIAS + 1];
     uint16_t    port;
@@ -730,7 +730,7 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
 
     if (bStdErr) fprintf(stderr, "done!\nDB checking: version...");
 
-    uint8_t genesis[LN_SZ_HASH];
+    uint8_t genesis[BTC_SZ_HASH256];
     retval = ver_check(&db, pWif, pNodeName, pPort, genesis);
     MDB_TXN_COMMIT(db.txn);
     if (retval == 0) {
@@ -2454,7 +2454,7 @@ bool ln_db_invoice_save(const char *pInvoice, uint64_t AddAmountMsat, const uint
     }
 
     LOGD("\n");
-    key.mv_size = LN_SZ_HASH;
+    key.mv_size = BTC_SZ_HASH256;
     key.mv_data = (CONST_CAST uint8_t *)pPayHash;
     size_t len = strlen(pInvoice);
     data.mv_size = len + 1 + sizeof(AddAmountMsat);    //invoice(\0含む) + uint64_t
@@ -2497,7 +2497,7 @@ bool ln_db_invoice_load(char **ppInvoice, uint64_t *pAddAmountMsat, const uint8_
         goto LABEL_EXIT;
     }
 
-    key.mv_size = LN_SZ_HASH;
+    key.mv_size = BTC_SZ_HASH256;
     key.mv_data = (CONST_CAST uint8_t *)pPayHash;
     retval = mdb_get(txn, dbi, &key, &data);
     if (retval == 0) {
@@ -2547,10 +2547,10 @@ int ln_db_invoice_get(uint8_t **ppPayHash)
     }
 
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-        if (key.mv_size == LN_SZ_HASH) {
+        if (key.mv_size == BTC_SZ_HASH256) {
             cnt++;
-            *ppPayHash = (uint8_t *)realloc(*ppPayHash, cnt * LN_SZ_HASH);
-            memcpy(*ppPayHash + (cnt - 1) * LN_SZ_HASH, key.mv_data, LN_SZ_HASH);
+            *ppPayHash = (uint8_t *)realloc(*ppPayHash, cnt * BTC_SZ_HASH256);
+            memcpy(*ppPayHash + (cnt - 1) * BTC_SZ_HASH256, key.mv_data, BTC_SZ_HASH256);
         }
     }
     MDB_TXN_ABORT(txn);
@@ -2568,7 +2568,7 @@ bool ln_db_invoice_del(const uint8_t *pPayHash)
     MDB_val     key;
 
     LOGD("payment_hash=");
-    DUMPD(pPayHash, LN_SZ_HASH);
+    DUMPD(pPayHash, BTC_SZ_HASH256);
 
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
@@ -2583,7 +2583,7 @@ bool ln_db_invoice_del(const uint8_t *pPayHash)
     }
 
     //再送があるため、同じkeyで上書きして良い
-    key.mv_size = LN_SZ_HASH;
+    key.mv_size = BTC_SZ_HASH256;
     key.mv_data = (CONST_CAST uint8_t*)pPayHash;
     retval = mdb_del(txn, dbi, &key, NULL);
     if ((retval != 0) && (retval != MDB_NOTFOUND)) {
@@ -2802,10 +2802,10 @@ bool ln_db_preimg_cur_get(void *pCur, bool *pDetect, ln_db_preimg_t *pPreImg)
             pPreImg->amount_msat = p_info->amount;
             *pDetect = true;
 
-            uint8_t hash[LN_SZ_HASH];
+            uint8_t hash[BTC_SZ_HASH256];
             ln_preimage_hash_calc(hash, pPreImg->preimage);
             LOGD("invoice hash: ");
-            DUMPD(hash, LN_SZ_HASH);
+            DUMPD(hash, BTC_SZ_HASH256);
         } else {
             //期限切れ
             LOGD("invoice timeout del: ");
@@ -2872,10 +2872,10 @@ bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype
 
     key.mv_size = BTC_SZ_WITPROG_P2WSH;
     key.mv_data = (CONST_CAST uint8_t *)pVout;
-    uint8_t hash[1 + sizeof(uint32_t) + LN_SZ_HASH];
+    uint8_t hash[1 + sizeof(uint32_t) + BTC_SZ_HASH256];
     hash[0] = (uint8_t)Type;
     memcpy(hash + 1, &Expiry, sizeof(uint32_t));
-    memcpy(hash + 1 + sizeof(uint32_t), pPayHash, LN_SZ_HASH);
+    memcpy(hash + 1 + sizeof(uint32_t), pPayHash, BTC_SZ_HASH256);
     data.mv_size = sizeof(hash);
     data.mv_data = hash;
     retval = mdb_put(txn, dbi, &key, &data, 0);
@@ -2929,7 +2929,7 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
             uint8_t *p = (uint8_t *)data.mv_data;
             *pType = (ln_htlctype_t)*p;
             memcpy(pExpiry, p + 1, sizeof(uint32_t));
-            memcpy(pPayHash, p + 1 + sizeof(uint32_t), LN_SZ_HASH);
+            memcpy(pPayHash, p + 1 + sizeof(uint32_t), BTC_SZ_HASH256);
             found = true;
             break;
         }
@@ -3467,7 +3467,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType)
     char wif[BTC_SZ_WIF_MAX] = "";
     char alias[LN_SZ_ALIAS + 1] = "";
     uint16_t port = 0;
-    uint8_t genesis[LN_SZ_HASH];
+    uint8_t genesis[BTC_SZ_HASH256];
     retval = ver_check(&db, wif, alias, &port, genesis);
     if (retval == 0) {
         btc_util_keys_t key;
@@ -4435,13 +4435,13 @@ static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t 
 
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
     const uint8_t *hash = (const uint8_t *)p_param;
-    uint8_t preimage_hash[LN_SZ_HASH];
+    uint8_t preimage_hash[BTC_SZ_HASH256];
     int retval = MDB_NOTFOUND;
 
     LOGD("compare preimage : ");
     DUMPD(pPreImage, LN_SZ_PREIMAGE);
     ln_preimage_hash_calc(preimage_hash, pPreImage);
-    if (memcmp(preimage_hash, hash, LN_SZ_HASH) == 0) {
+    if (memcmp(preimage_hash, hash, BTC_SZ_HASH256) == 0) {
         retval = mdb_cursor_del(p_cur->cursor, 0);
         LOGD("  remove from DB: %s\n", mdb_strerror(retval));
     }
@@ -4460,14 +4460,14 @@ static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_
 
     lmdb_cursor_t *p_cur = (lmdb_cursor_t *)p_db_param;
     preimg_close_t *prm = (preimg_close_t *)p_param;
-    uint8_t preimage_hash[LN_SZ_HASH];
+    uint8_t preimage_hash[BTC_SZ_HASH256];
 
     LOGD("compare preimage : ");
     DUMPD(pPreImage, LN_SZ_PREIMAGE);
     ln_preimage_hash_calc(preimage_hash, pPreImage);
 
     for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-        if (memcmp(preimage_hash, prm->add_htlc[lp].payment_sha256, LN_SZ_HASH) == 0) {
+        if (memcmp(preimage_hash, prm->add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {
             //一致
             int retval = mdb_cursor_del(p_cur->cursor, 0);
             LOGD("  remove from DB: %s\n", mdb_strerror(retval));
@@ -4510,7 +4510,7 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
         // LOGD("name=%s\n", pNodeName);
         // LOGD("port=%" PRIu16 "\n", Port);
         nodeinfo_t nodeinfo;
-        memcpy(nodeinfo.genesis, gGenesisChainHash, LN_SZ_HASH);
+        memcpy(nodeinfo.genesis, gGenesisChainHash, BTC_SZ_HASH256);
         strcpy(nodeinfo.wif, pWif);
         strcpy(nodeinfo.name, pNodeName);
         nodeinfo.port = Port;
@@ -4578,13 +4578,13 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
                 *pPort = p_nodeinfo->port;
             }
             if (pGenesis != NULL) {
-                memcpy(pGenesis, p_nodeinfo->genesis, LN_SZ_HASH);
+                memcpy(pGenesis, p_nodeinfo->genesis, BTC_SZ_HASH256);
             }
             // LOGD("wif=%s\n", pWif);
             // LOGD("name=%s\n", pNodeName);
             // LOGD("port=%" PRIu16 "\n", *pPort);
             // LOGD("genesis=");
-            // DUMPD(p_nodeinfo->genesis, LN_SZ_HASH);
+            // DUMPD(p_nodeinfo->genesis, BTC_SZ_HASH256);
         } else {
             LOGD("ERR: %s\n", mdb_strerror(retval));
         }

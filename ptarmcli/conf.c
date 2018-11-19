@@ -169,7 +169,7 @@ static void print_payment_conf(const payment_conf_t *pPayConf)
 {
     fprintf(stderr, "\n--- payment ---\n");
     fprintf(stderr, "payment_hash=");
-    btc_util_dumpbin(stderr, pPayConf->payment_hash, LN_SZ_HASH, true);
+    btc_util_dumpbin(stderr, pPayConf->payment_hash, BTC_SZ_HASH256, true);
     fprintf(stderr, "hop_num=%d\n", pPayConf->hop_num);
     for (int lp = 0; lp < pPayConf->hop_num; lp++) {
         fprintf(stderr, " [%d]:\n", lp);
@@ -263,7 +263,7 @@ static int handler_pay_conf(void* user, const char* section, const char* name, c
     payment_conf_t* pconfig = (payment_conf_t *)user;
 
     if (strcmp(name, "hash") == 0) {
-        ret = utl_misc_str2bin(pconfig->payment_hash, LN_SZ_HASH, value);
+        ret = utl_misc_str2bin(pconfig->payment_hash, BTC_SZ_HASH256, value);
     } else if (strcmp(name, "hop_num") == 0) {
         pconfig->hop_num = atoi(value);
         ret = (2 <= pconfig->hop_num) && (pconfig->hop_num <= LN_HOP_MAX + 1);

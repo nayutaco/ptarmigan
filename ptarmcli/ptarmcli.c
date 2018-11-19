@@ -477,7 +477,7 @@ static void optfunc_erase(int *pOption, bool *pConn)
     const char *pPaymentHash = NULL;
     if (strcmp(optarg, "ALL") == 0) {
         pPaymentHash = "";
-    } else if (strlen(optarg) == LN_SZ_HASH * 2) {
+    } else if (strlen(optarg) == BTC_SZ_HASH256 * 2) {
         pPaymentHash = optarg;
     } else {
         //error
@@ -527,7 +527,7 @@ static void optfunc_payment(int *pOption, bool *pConn)
     conf_payment_init(&payconf);
     bool bret = conf_payment_load(path, &payconf);
     if (hash) {
-        bret &= utl_misc_str2bin(payconf.payment_hash, LN_SZ_HASH, hash);
+        bret &= utl_misc_str2bin(payconf.payment_hash, BTC_SZ_HASH256, hash);
     }
     if (!bret) {
         strcpy(mErrStr, "payment configuration file");
@@ -535,11 +535,11 @@ static void optfunc_payment(int *pOption, bool *pConn)
         return;
     }
 
-    char payhash[LN_SZ_HASH * 2 + 1];
+    char payhash[BTC_SZ_HASH256 * 2 + 1];
     //node_id(33*2),short_channel_id(8*2),amount(21),cltv(5)
     char forward[BTC_SZ_PUBKEY*2 + sizeof(uint64_t)*2 + 21 + 5 + 50];
 
-    utl_misc_bin2str(payhash, payconf.payment_hash, LN_SZ_HASH);
+    utl_misc_bin2str(payhash, payconf.payment_hash, BTC_SZ_HASH256);
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "PAY") M_NEXT
@@ -907,7 +907,7 @@ static void routepay(int *pOption, bool bPrevSkip)
     }
     printf("\n");
     printf("payment_hash=");
-    for (int lp = 0; lp < BTC_SZ_SHA256; lp++) {
+    for (int lp = 0; lp < BTC_SZ_HASH256; lp++) {
         printf("%02x", p_invoice_data->payment_hash[lp]);
     }
     printf("\n");

@@ -95,7 +95,7 @@ bool HIDDEN ln_msg_update_add_htlc_create(utl_buf_t *pBuf, const ln_update_add_h
     ln_misc_push64be(&proto, pMsg->amount_msat);
 
     //        [32:payment-hash]
-    utl_push_data(&proto, pMsg->payment_sha256, LN_SZ_HASH);
+    utl_push_data(&proto, pMsg->payment_sha256, BTC_SZ_HASH256);
 
     //        [4:cltv-expiry]
     ln_misc_push32be(&proto, pMsg->cltv_expiry);
@@ -139,8 +139,8 @@ bool HIDDEN ln_msg_update_add_htlc_read(ln_update_add_htlc_t *pMsg, const uint8_
     pos += sizeof(uint64_t);
 
     //        [32:payment-hash]
-    memcpy(pMsg->payment_sha256, pData + pos, LN_SZ_HASH);
-    pos += LN_SZ_HASH;
+    memcpy(pMsg->payment_sha256, pData + pos, BTC_SZ_HASH256);
+    pos += BTC_SZ_HASH256;
 
     //        [4:cltv-expiry]
     pMsg->cltv_expiry = ln_misc_get32be(pData + pos);
@@ -172,7 +172,7 @@ static void update_add_htlc_print(const ln_update_add_htlc_t *pMsg)
     LOGD("amount_msat: %" PRIu64 "\n", pMsg->amount_msat);
     LOGD("cltv_expiry: %u\n", pMsg->cltv_expiry);
     LOGD("payment_sha256: ");
-    DUMPD(pMsg->payment_sha256, LN_SZ_HASH);
+    DUMPD(pMsg->payment_sha256, BTC_SZ_HASH256);
     LOGD("onion_route: ");
     DUMPD(pMsg->buf_onion_reason.buf, 30);
     LOGD("--------------------------------\n");
@@ -268,7 +268,7 @@ static void update_fulfill_htlc_print(const ln_update_fulfill_htlc_t *pMsg)
     LOGD("id: %" PRIu64 "\n", pMsg->id);
     LOGD("p_payment_preimage: ");
     DUMPD(pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
-    uint8_t sha[BTC_SZ_SHA256];
+    uint8_t sha[BTC_SZ_HASH256];
     btc_util_sha256(sha, pMsg->p_payment_preimage, BTC_SZ_PRIVKEY);
     LOGD("              hash: ");
     DUMPD(sha, sizeof(sha));
@@ -699,7 +699,7 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_create(utl_buf_t *pBuf, const ln_u
     ln_misc_push64be(&proto, pMsg->id);
 
     //        [32:sha256-of-onion]
-    utl_push_data(&proto, pMsg->sha256_onion, BTC_SZ_SHA256);
+    utl_push_data(&proto, pMsg->sha256_onion, BTC_SZ_HASH256);
 
     //        [2:failure-code]
     ln_misc_push16be(&proto, pMsg->failure_code);
@@ -736,8 +736,8 @@ bool HIDDEN ln_msg_update_fail_malformed_htlc_read(ln_update_fail_malformed_htlc
     pos += sizeof(uint64_t);
 
     //        [32:sha256-of-onion]
-    memcpy(pMsg->sha256_onion, pData + pos, BTC_SZ_SHA256);
-    pos += BTC_SZ_SHA256;
+    memcpy(pMsg->sha256_onion, pData + pos, BTC_SZ_HASH256);
+    pos += BTC_SZ_HASH256;
 
     //        [2:failure-code]
     pMsg->failure_code = ln_misc_get16be(pData + pos);
@@ -762,7 +762,7 @@ static void update_fail_malformed_htlc_print(const ln_update_fail_malformed_htlc
     DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
     LOGD("id: %" PRIu64 "\n", pMsg->id);
     LOGD("sha256_onion: ");
-    DUMPD(pMsg->sha256_onion, BTC_SZ_SHA256);
+    DUMPD(pMsg->sha256_onion, BTC_SZ_HASH256);
     LOGD("failure_code: %04x\n", pMsg->failure_code);
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG

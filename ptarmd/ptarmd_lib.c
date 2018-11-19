@@ -104,7 +104,7 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
     pthread_create(&th_sig, NULL, &sig_handler_start, NULL);
 
     //bitcoind起動確認
-    uint8_t genesis[LN_SZ_HASH];
+    uint8_t genesis[BTC_SZ_HASH256];
     rpc_conf_t rpc_conf;
     conf_btcrpc_init(&rpc_conf);
     bret = conf_btcrpc_load_default(&rpc_conf);

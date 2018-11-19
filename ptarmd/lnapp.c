@@ -353,7 +353,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay)
     btc_util_random(session_key, sizeof(session_key));
     //hop_datain[0]にこのchannel情報を置いているので、ONIONにするのは次から
     ret = ln_onion_create_packet(onion, &secrets, &pPay->hop_datain[1], pPay->hop_num - 1,
-                        session_key, pPay->payment_hash, LN_SZ_HASH);
+                        session_key, pPay->payment_hash, BTC_SZ_HASH256);
     if (!ret) {
         goto LABEL_EXIT;
     }
@@ -388,8 +388,8 @@ LABEL_EXIT:
         // $3: amt_to_forward
         // $4: outgoing_cltv_value
         // $5: payment_hash
-        char hashstr[LN_SZ_HASH * 2 + 1];
-        utl_misc_bin2str(hashstr, pPay->payment_hash, LN_SZ_HASH);
+        char hashstr[BTC_SZ_HASH256 * 2 + 1];
+        utl_misc_bin2str(hashstr, pPay->payment_hash, BTC_SZ_HASH256);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
@@ -1801,7 +1801,7 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf)
 {
     int32_t bheight = 0;
     int32_t bindex = 0;
-    uint8_t mined_hash[LN_SZ_HASH];
+    uint8_t mined_hash[BTC_SZ_HASH256];
     bool ret = btcrpc_get_short_channel_param(ln_their_node_id(p_conf->p_self), &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
     if (ret) {
         //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
@@ -2211,8 +2211,8 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
 //cb_add_htlc_recv(): final node
 static void cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc)
 {
-    char str_payhash[LN_SZ_HASH * 2 + 1];
-    utl_misc_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
+    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+    utl_misc_bin2str(str_payhash, p_addhtlc->p_payment, BTC_SZ_HASH256);
     lnapp_save_event(NULL,
             "payment final node: payment_hash=%s short_channel_id=%016" PRIx64,
             str_payhash, ln_short_channel_id(p_conf->p_self));
@@ -2254,8 +2254,8 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
         // $3: amt_to_forward
         // $4: outgoing_cltv_value
         // $5: payment_hash
-        char hashstr[LN_SZ_HASH * 2 + 1];
-        utl_misc_bin2str(hashstr, p_addhtlc->p_payment, LN_SZ_HASH);
+        char hashstr[BTC_SZ_HASH256 * 2 + 1];
+        utl_misc_bin2str(hashstr, p_addhtlc->p_payment, BTC_SZ_HASH256);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
@@ -2289,8 +2289,8 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
 //cb_add_htlc_recv(): fail
 static void cbsub_add_htlc_fail(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *p_addhtlc)
 {
-    char str_payhash[LN_SZ_HASH * 2 + 1];
-    utl_misc_bin2str(str_payhash, p_addhtlc->p_payment, LN_SZ_HASH);
+    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+    utl_misc_bin2str(str_payhash, p_addhtlc->p_payment, BTC_SZ_HASH256);
     lnapp_save_event(NULL,
             "payment fail: payment_hash=%s short_channel_id=%016" PRIx64,
             str_payhash, ln_short_channel_id(p_conf->p_self));
@@ -2371,10 +2371,10 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
         // $2: node_id
         // $3: payment_hash
         // $4: payment_preimage
-        char hashstr[LN_SZ_HASH * 2 + 1];
-        uint8_t payment_hash[LN_SZ_HASH];
+        char hashstr[BTC_SZ_HASH256 * 2 + 1];
+        uint8_t payment_hash[BTC_SZ_HASH256];
         ln_preimage_hash_calc(payment_hash, p_fulfill->p_preimage);
-        utl_misc_bin2str(hashstr, payment_hash, LN_SZ_HASH);
+        utl_misc_bin2str(hashstr, payment_hash, BTC_SZ_HASH256);
         char imgstr[LN_SZ_PREIMAGE * 2 + 1];
         utl_misc_bin2str(imgstr, p_fulfill->p_preimage, LN_SZ_PREIMAGE);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
@@ -2403,7 +2403,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_h
 {
     payroute_del(p_conf, p_fulfill->id);
 
-    uint8_t hash[LN_SZ_HASH];
+    uint8_t hash[BTC_SZ_HASH256];
     ln_preimage_hash_calc(hash, p_fulfill->p_preimage);
     ln_db_invoice_del(hash);
 }

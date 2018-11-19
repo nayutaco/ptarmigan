@@ -161,7 +161,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_util_keys_t *pKeys)
 
     const utl_buf_t *scrpks[] = { &scrpk };
 
-    uint8_t txhash[BTC_SZ_SIGHASH];
+    uint8_t txhash[BTC_SZ_HASH256];
     bool ret = btc_tx_sighash(txhash, pTx, (const utl_buf_t **)scrpks, 1);
     assert(ret);
     ret = btc_tx_sign_p2pkh(pTx, Index, txhash, pKeys->priv, pKeys->pub);
@@ -182,7 +182,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout)
     btc_util_create_scriptpk(&scrpk, pkh, BTC_PREF_P2PKH);
     const utl_buf_t *scrpks[] = { &scrpk };
 
-    uint8_t txhash[BTC_SZ_SIGHASH];
+    uint8_t txhash[BTC_SZ_HASH256];
     bool ret = btc_tx_sighash(txhash, pTx, (const utl_buf_t **)scrpks, 1);
     assert(ret);
     ret = btc_tx_verify_p2pkh_addr(pTx, Index, txhash, pAddrVout);
@@ -413,7 +413,7 @@ void btc_util_dumptxid(FILE *fp, const uint8_t *pTxid)
 
 void btc_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
 {
-    uint8_t buf_sha256[BTC_SZ_SHA256];
+    uint8_t buf_sha256[BTC_SZ_HASH256];
 
     btc_util_sha256(buf_sha256, pData, Len);
     btc_util_ripemd160(pHash160, buf_sha256, sizeof(buf_sha256));
@@ -423,7 +423,7 @@ void btc_util_hash160(uint8_t *pHash160, const uint8_t *pData, uint16_t Len)
 void btc_util_hash256(uint8_t *pHash256, const uint8_t *pData, uint16_t Len)
 {
     btc_util_sha256(pHash256, pData, Len);
-    btc_util_sha256(pHash256, pHash256, BTC_SZ_SHA256);
+    btc_util_sha256(pHash256, pHash256, BTC_SZ_HASH256);
 }
 
 
@@ -585,8 +585,8 @@ void btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int P
         break;
     case BTC_PREF_NATIVE_SH:
         //LOGD("BTC_PREF_NATIVE_SH\n");
-        utl_buf_alloc(pBuf, 2 + BTC_SZ_SHA256);
-        create_scriptpk_native(pBuf->buf, pPubKeyHash, BTC_SZ_SHA256);
+        utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH256);
+        create_scriptpk_native(pBuf->buf, pPubKeyHash, BTC_SZ_HASH256);
         break;
     default:
         assert(false);
@@ -723,7 +723,7 @@ bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uin
         default:
             return false;
         }
-        ret = segwit_addr_encode(pAddr, hrp_type, 0x00, pPubKeyHash, BTC_SZ_SHA256);
+        ret = segwit_addr_encode(pAddr, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH256);
 
     } else {
         uint8_t pkh[1 + BTC_SZ_HASH160 + 4];

@@ -247,7 +247,7 @@ void HIDDEN ln_script_htlcinfo_script(utl_buf_t *pScript, ln_htlctype_t Type,
                     uint32_t Expiry)
 {
     uint8_t hash160[BTC_SZ_HASH160];
-    btc_util_ripemd160(hash160, pPaymentHash, BTC_SZ_SHA256);
+    btc_util_ripemd160(hash160, pPaymentHash, BTC_SZ_HASH256);
 
     switch (Type) {
     case LN_HTLCTYPE_OFFERED:
@@ -393,7 +393,7 @@ bool HIDDEN ln_script_committx_create(
 
     //署名
     bool ret;
-    uint8_t txhash[BTC_SZ_SIGHASH];
+    uint8_t txhash[BTC_SZ_HASH256];
     ret = btc_util_calc_sighash_p2wsh(txhash, pTx, 0, pCmt->fund.satoshi, pCmt->fund.p_script);
     if (ret) {
         ret = ln_signer_p2wsh(pSig, txhash, pPrivData, MSG_FUNDIDX_FUNDING);
@@ -454,7 +454,7 @@ bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
     }
 
     bool ret;
-    uint8_t sighash[BTC_SZ_SIGHASH];
+    uint8_t sighash[BTC_SZ_HASH256];
     ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);    //vinは1つしかないので、Indexは0固定
     if (ret) {
         ret = ln_signer_p2wsh_force(pLocalSig, sighash, pKeys);
@@ -588,12 +588,12 @@ bool HIDDEN ln_script_htlctx_verify(const btc_tx_t *pTx,
     }
 
     bool ret;
-    uint8_t sighash[BTC_SZ_SIGHASH];
+    uint8_t sighash[BTC_SZ_HASH256];
 
     //vinは1つしかないので、Indexは0固定
     ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
     //LOGD("sighash: ");
-    //DUMPD(sighash, BTC_SZ_SIGHASH);
+    //DUMPD(sighash, BTC_SZ_HASH256);
     if (ret && pLocalPubKey && pLocalSig) {
         ret = btc_tx_verify(pLocalSig, sighash, pLocalPubKey);
         //LOGD("btc_tx_verify(local)=%d\n", ret);

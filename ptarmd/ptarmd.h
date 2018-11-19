@@ -161,7 +161,7 @@ typedef struct {
  *  @brief      送金情報(test用)
  */
 typedef struct {
-    uint8_t             payment_hash[LN_SZ_HASH];
+    uint8_t             payment_hash[BTC_SZ_HASH256];
     uint8_t             hop_num;
     ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
 } payment_conf_t;

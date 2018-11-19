@@ -228,7 +228,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
     bool ret;
 
     if (mNativeSegwit) {
-        uint8_t sha[BTC_SZ_SHA256];
+        uint8_t sha[BTC_SZ_HASH256];
         uint8_t hrp_type;
 
         switch (btc_get_chain()) {
@@ -242,7 +242,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
             return false;
         }
         btc_util_sha256(sha, pWitScript->buf, pWitScript->len);
-        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, sha, BTC_SZ_SHA256);
+        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, sha, BTC_SZ_HASH256);
     } else {
         uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
         uint8_t pkh[BTC_SZ_PUBKEYHASH];
@@ -414,7 +414,7 @@ bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
             //witver==0ではwitness programとpubKeyHashは同じ
             if (witprog_len == BTC_SZ_HASH160) {
                 *pPrefix = BTC_PREF_NATIVE;
-            } else if (witprog_len == BTC_SZ_SHA256) {
+            } else if (witprog_len == BTC_SZ_HASH256) {
                 *pPrefix = BTC_PREF_NATIVE_SH;
             } else {
                 ret = false;
@@ -495,7 +495,7 @@ static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk)
     }
     else if ( (pScriptPk->len == 34) &&
          (pScriptPk->buf[0] == 0x00) &&
-         (pScriptPk->buf[1] == BTC_SZ_SHA256) ) {
+         (pScriptPk->buf[1] == BTC_SZ_HASH256) ) {
         *ppPkh = pScriptPk->buf + 2;
         return BTC_PREF_NATIVE_SH;
     }

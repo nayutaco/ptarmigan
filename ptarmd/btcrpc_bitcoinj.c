@@ -807,7 +807,7 @@ static void jni_set_channel(void *pArg)
     TXIDD(p->p_fundingtxid);
     LOGD("funding_index=%d\n", p->fundingidx);
     LOGD("scriptPubKey=");
-    DUMPD(p->p_scriptpubkey, BTC_SZ_SHA256);
+    DUMPD(p->p_scriptpubkey, BTC_SZ_HASH256);
     LOGD("unspent=%d\n", p->unspent);
     if (p->mined_hash != NULL) {
         LOGD("mined_hash=");

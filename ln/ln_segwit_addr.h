@@ -36,7 +36,7 @@ typedef struct ln_invoice_t {
     uint32_t    expiry;
     uint32_t    min_final_cltv_expiry;
     uint8_t     pubkey[BTC_SZ_PUBKEY];
-    uint8_t     payment_hash[LN_SZ_HASH];
+    uint8_t     payment_hash[BTC_SZ_HASH256];
     uint8_t     r_field_num;
     ln_fieldr_t r_field[];
 } ln_invoice_t;
