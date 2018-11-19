@@ -513,8 +513,12 @@ ln_status_t ln_status_get(const ln_self_t *self)
 void ln_genesishash_set(const uint8_t *pHash)
 {
     memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
-    //LOGD("genesis=");
-    //DUMPD(gGenesisChainHash, LN_SZ_HASH);
+    btc_genesis_t gen = btc_util_get_genesis(gGenesisChainHash);
+    LOGD("genesis(%d)=", (int)gen);
+    DUMPD(gGenesisChainHash, LN_SZ_HASH);
+    if (gen == BTC_GENESIS_UNKNOWN) {
+        LOGD("fail: unknown genesis block hash\n");
+    }
 }
 
 
@@ -582,8 +586,10 @@ bool ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t In
 #ifndef USE_SPV
         (void)pMinedHash;
 #else
+        LOGD("block hash=");
+        TXIDD(pMinedHash);
+        LOGD("block height=%d\n", Height);
         memcpy(self->funding_bhash, pMinedHash, BTC_SZ_SHA256);
-        self->funding_bheight = Height;
 #endif
         M_DB_SELF_SAVE(self);
     }
@@ -1273,6 +1279,9 @@ const char *ln_close_typestring(const ln_self_t *self)
     case LN_CLOSETYPE_NONE:
         p_str_close_type = "none";
         break;
+    case LN_CLOSETYPE_WAIT:
+        p_str_close_type = "close waiting";
+        break;
     case LN_CLOSETYPE_SPENT:
         p_str_close_type = "funding spent";
         break;
@@ -1298,7 +1307,7 @@ const char *ln_close_typestring(const ln_self_t *self)
 void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
 {
     LOGD("BEGIN: type=%d\n", (int)self->close_type);
-    if (self->close_type == LN_CLOSETYPE_NONE) {
+    if ((self->close_type == LN_CLOSETYPE_NONE) || (self->close_type == LN_CLOSETYPE_WAIT)) {
         self->close_type = LN_CLOSETYPE_SPENT;
         ln_db_self_save_closetype(self, pDbParam);
     } else if (self->close_type == LN_CLOSETYPE_SPENT) {
@@ -1503,7 +1512,7 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
     //取り戻す必要があるvout数
     self->revoked_cnt = 0;
     for (uint32_t lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
-        if (pRevokedTx->vout[lp].script.len != LNL_SZ_WITPROG_WPKH) {
+        if (pRevokedTx->vout[lp].script.len != BTC_SZ_WITPROG_P2WPKH) {
             //to_remote output以外はスクリプトを作って取り戻す
             self->revoked_cnt++;
         }
@@ -1548,7 +1557,7 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REVOCATION],
                 self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_DELAYED],
                 self->commit_local.to_self_delay);
-    utl_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], LNL_SZ_WITPROG_WSH);
+    utl_buf_alloc(&self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL], BTC_SZ_WITPROG_P2WSH);
     btc_sw_wit2prog_p2wsh(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, &self->p_revoked_wit[LN_RCLOSE_IDX_TOLOCAL]);
     // LOGD("calc to_local vout: ");
     // DUMPD(self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].buf, self->p_revoked_vout[LN_RCLOSE_IDX_TOLOCAL].len);
@@ -1557,7 +1566,7 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
     for (uint32_t lp = 0; lp < pRevokedTx->vout_cnt; lp++) {
         LOGD("vout[%d]: ", lp);
         DUMPD(pRevokedTx->vout[lp].script.buf, pRevokedTx->vout[lp].script.len);
-        if (pRevokedTx->vout[lp].script.len == LNL_SZ_WITPROG_WPKH) {
+        if (pRevokedTx->vout[lp].script.len == BTC_SZ_WITPROG_P2WPKH) {
             //to_remote output
             LOGD("[%d]to_remote_output\n", lp);
             utl_buf_init(&self->p_revoked_wit[LN_RCLOSE_IDX_TOREMOTE]);
@@ -1582,7 +1591,7 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
                         self->funding_remote.scriptpubkeys[MSG_SCRIPTIDX_REMOTEHTLCKEY],
                         payhash,
                         expiry);
-                utl_buf_alloc(&self->p_revoked_vout[htlc_idx], LNL_SZ_WITPROG_WSH);
+                utl_buf_alloc(&self->p_revoked_vout[htlc_idx], BTC_SZ_WITPROG_P2WSH);
                 btc_sw_wit2prog_p2wsh(self->p_revoked_vout[htlc_idx].buf, &self->p_revoked_wit[htlc_idx]);
                 self->p_revoked_type[htlc_idx] = type;
 
@@ -2256,6 +2265,10 @@ static bool recv_idle_proc_nonfinal(ln_self_t *self)
         bool ret = create_commitment_signed(self, &buf_bolt);
         if (ret) {
             (*self->p_callback)(self, LN_CB_SEND_REQ, &buf_bolt);
+        } else {
+            //commit_txの作成に失敗したので、commitment_signedは送信できない
+            LOGD("fail: create commit_tx(0x%" PRIx64 ")\n", ln_short_channel_id(self));
+            (*self->p_callback)(self, LN_CB_QUIT, NULL);
         }
         utl_buf_free(&buf_bolt);
     }
@@ -2988,11 +3001,21 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         if (ret) {
             ln_cb_closed_t closed;
 
+            closed.result = false;
             closed.p_tx_closing = &txbuf;
             (*self->p_callback)(self, LN_CB_CLOSED, &closed);
 
-            //clearはDB削除に任せる
-            //channel_clear(self);
+            //funding_txがspentになった
+            if (closed.result) {
+                LOGD("$$$ close waiting\n");
+                self->close_type = LN_CLOSETYPE_WAIT;
+                M_DB_SELF_SAVE(self);
+
+                //clearはDB削除に任せる
+                //channel_clear(self);
+            } else {
+                LOGD("fail: send closing_tx\n");
+            }
         } else {
             LOGD("fail: create closeing_tx\n");
             assert(0);
@@ -4171,6 +4194,9 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
 #else
     //SPVの場合、fee計算と署名はSPVに任せる(LN_CB_SIGN_FUNDINGTX_REQで吸収する)
     //その代わり、self->funding_local.txindexは固定値にならない。
+    btc_sw_add_vout_p2wsh(&self->tx_funding, self->p_establish->cnl_open.funding_sat, &self->redeem_fund);
+    //INPUTもダミーで入れておく
+    btc_tx_add_vin(&self->tx_funding, self->funding_local.txid, 0);
 #endif
 
     //署名
@@ -4179,6 +4205,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
         ln_cb_funding_sign_t sig;
         sig.p_tx =  &self->tx_funding;
 #ifndef USE_SPV
+        //bitcoindはfund-in amount
         sig.amount = self->p_establish->p_fundin->amount;
 #else
         //SPVは未使用
@@ -4188,12 +4215,26 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
         ret = sig.ret;
         if (ret) {
             btc_tx_txid(self->funding_local.txid, &self->tx_funding);
+            LOGD("***** funding_tx *****\n");
+            M_DBG_PRINT_TX(&self->tx_funding);
+
+            //search funding vout
+            ret = false;
+            uint8_t witprog[BTC_SZ_WITPROG_P2WSH];
+            btc_sw_wit2prog_p2wsh(witprog, &self->redeem_fund);
+            const utl_buf_t TWOOFTWO = { witprog, sizeof(witprog) };
+            for (uint32_t lp = 0; lp < self->tx_funding.vout_cnt; lp++) {
+                if (utl_buf_cmp(&self->tx_funding.vout[lp].script, &TWOOFTWO)) {
+                    self->funding_local.txindex = (uint16_t)lp;
+                    ret = true;
+                    LOGD("funding_txindex=%d\n", self->funding_local.txindex);
+                    break;
+                }
+            }
         } else {
             LOGD("fail: signature\n");
+            btc_tx_free(&self->tx_funding);
         }
-
-        LOGD("***** funding_tx *****\n");
-        M_DBG_PRINT_TX(&self->tx_funding);
     } else {
         //not sign
         ret = true;
@@ -4819,7 +4860,7 @@ static bool create_to_remote(ln_self_t *self,
                         pp_htlcinfo[lp]->expiry);
 #ifdef LN_UGLY_NORMAL
         //payment_hash, type, expiry保存
-        uint8_t vout[LNL_SZ_WITPROG_WSH];
+        uint8_t vout[BTC_SZ_WITPROG_P2WSH];
         btc_sw_wit2prog_p2wsh(vout, &pp_htlcinfo[lp]->script);
         ln_db_phash_save(pp_htlcinfo[lp]->preimage_hash,
                         vout,

@@ -77,6 +77,30 @@ void p2p_cli_init(void)
 }
 
 
+bool p2p_cli_connect_test(const char *pIpAddr, uint16_t Port)
+{
+    bool ret = false;
+    struct sockaddr_in sv_addr;
+
+    int sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        LOGD("socket\n");
+        goto LABEL_EXIT;
+    }
+
+    memset(&sv_addr, 0, sizeof(sv_addr));
+    sv_addr.sin_family = AF_INET;
+    sv_addr.sin_addr.s_addr = inet_addr(pIpAddr);
+    sv_addr.sin_port = htons(Port);
+    errno = 0;
+    ret = (connect(sock, (struct sockaddr *)&sv_addr, sizeof(sv_addr)) == 0);
+
+LABEL_EXIT:
+    close(sock);
+    return ret;
+}
+
+
 bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
 {
     bool bret = false;

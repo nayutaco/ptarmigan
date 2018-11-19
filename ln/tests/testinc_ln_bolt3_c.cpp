@@ -1202,6 +1202,11 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
+                        &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
@@ -1917,6 +1922,11 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
+                        &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
@@ -2570,6 +2580,11 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
             ret = ln_script_htlctx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
+                        &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
@@ -3225,6 +3240,11 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
+                        &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
@@ -3814,6 +3834,11 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
             ret = ln_script_htlctx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
+                        &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
@@ -4405,6 +4430,11 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
+                        &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
@@ -4933,6 +4963,11 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
             ret = ln_script_htlctx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
+                        &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
@@ -5463,6 +5498,11 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
+                        &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
@@ -5932,6 +5972,11 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
                         &local_sig,
                         tx.vout[index].value,
                         &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
+                        &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],
                         &htlcinfos[lp].script,
@@ -6399,6 +6444,11 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
             ret = ln_script_htlctx_sign(&tx2,
                         &local_sig,
                         tx.vout[index].value,
+                        &keys_local_commit,
+                        &htlcinfos[lp].script);
+            ASSERT_TRUE(ret);
+            ret = ln_script_htlctx_wit(&tx2,
+                        &local_sig,
                         &keys_local_commit,
                         &remote_sig,
                         PREIMAGES[lp],

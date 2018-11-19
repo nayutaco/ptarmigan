@@ -189,6 +189,7 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf);
 static void *thread_anno_start(void *pArg);
 
 static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param);
+static void cb_channel_quit(lnapp_conf_t *p_conf, void *p_param);
 static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_init_recv(lnapp_conf_t *p_conf, void *p_param);
 static void cb_channel_reestablish_recv(lnapp_conf_t *p_conf, void *p_param);
@@ -613,7 +614,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
-        uint32_t confirm;
+        int32_t confirm;
         bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(pAppConf->p_self));
         if (b_get) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
@@ -648,7 +649,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(pAppConf->p_self)));
         //confirmation
-        uint32_t confirm;
+        int32_t confirm;
         bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(pAppConf->p_self));
         if (b_get) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
@@ -896,20 +897,6 @@ static void *thread_main_start(void *pArg)
     ln_peer_set_nodeid(p_self, p_conf->node_id);
     load_channel_settings(p_conf);
 
-#ifndef USE_SPV
-#else
-    utl_buf_t txbuf = UTL_BUF_INIT;
-    const uint8_t *p_bhash;
-
-    btc_tx_create(&txbuf, ln_funding_tx(p_conf->p_self));
-    p_bhash = ln_funding_blockhash(p_conf->p_self);
-    btcrpc_add_channel(p_conf->p_self,
-            ln_short_channel_id(p_conf->p_self), txbuf.buf, txbuf.len,
-            (ln_is_closing(p_conf->p_self) != LN_CLOSETYPE_NONE),
-            p_bhash);
-    utl_buf_free(&txbuf);
-#endif
-
     /////////////////////////
     // handshake完了
     //      server動作時、p_conf->node_idに相手node_idが入っている
@@ -951,7 +938,6 @@ static void *thread_main_start(void *pArg)
         LOGD("fail: exchange init\n");
         goto LABEL_JOIN;
     }
-    LOGD("init交換完了\n");
 
     isync = ln_need_init_routing_sync(p_conf->p_self);
     if (isync) {
@@ -978,6 +964,25 @@ static void *thread_main_start(void *pArg)
         // →funding_txは展開されている
         //
         // selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
+        LOGD("have channel\n");
+
+#ifndef USE_SPV
+#else
+        const uint8_t *p_bhash;
+        p_bhash = ln_funding_blockhash(p_conf->p_self);
+        int32_t blockcnt;
+        ret = btcrpc_getblockcount(&blockcnt);
+        if (!ret) {
+            blockcnt = -1;
+        }
+        btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
+                ln_short_channel_id(p_conf->p_self),
+                ln_funding_txid(p_conf->p_self),
+                ln_funding_txindex(p_conf->p_self),
+                ln_funding_redeem(p_conf->p_self),
+                (ln_close_type(p_conf->p_self) == LN_CLOSETYPE_NONE),
+                p_bhash, blockcnt);
+#endif
 
         ln_closetype_t closetype = ln_close_type(p_conf->p_self);
         if (closetype == LN_CLOSETYPE_NONE) {
@@ -990,11 +995,11 @@ static void *thread_main_start(void *pArg)
 
             if (ln_short_channel_id(p_self) != 0) {
                 // funding_txはブロックに入ってminimum_depth以上経過している
-                LOGD("Establish済み\n");
+                LOGD("$$$ Established\n");
                 ln_establish_free(p_self);
             } else {
                 // funding_txはminimum_depth未満
-                LOGD("funding_tx監視開始\n");
+                LOGD("$$$ funding_tx in mempool\n");
                 TXIDD(ln_funding_txid(p_self));
 
                 p_conf->funding_waiting = true;
@@ -1004,6 +1009,7 @@ static void *thread_main_start(void *pArg)
             ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
             if (ret) {
                 conn_addr.type = LN_NODEDESC_IPV4;
+                conn_addr.port = p_conf->conn_port;
                 ln_last_connected_addr_set(p_self, &conn_addr);
             }
 
@@ -1012,10 +1018,9 @@ static void *thread_main_start(void *pArg)
                 LOGD("fail: exchange channel_reestablish\n");
                 goto LABEL_JOIN;
             }
-            LOGD("reestablish交換完了\n");
         } else {
             const char *p_str = ln_close_typestring(p_conf->p_self);
-            LOGD("now closing: %s\n", p_str);
+            LOGD("$$$ now closing: %s\n", p_str);
         }
     } else {
         // channel_idはDB未登録
@@ -1274,7 +1279,7 @@ static bool check_short_channel_id(lnapp_conf_t *p_conf)
 {
     bool ret = true;
 
-    uint32_t confirm;
+    int32_t confirm;
     bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_conf->p_self));
     if (b_get && (confirm > 0)) {
         p_conf->funding_confirm = confirm;
@@ -1386,13 +1391,6 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
 
     check_short_channel_id(p_conf);
 
-    ln_nodeaddr_t conn_addr;
-    ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
-    if (ret) {
-        conn_addr.type = LN_NODEDESC_IPV4;
-        ln_last_connected_addr_set(p_conf->p_self, &conn_addr);
-    }
-
     // method: established
     // $1: short_channel_id
     // $2: node_id
@@ -1437,7 +1435,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 #ifndef USE_SPV
     //事前にfund-in txがunspentかどうかチェックしようとしている。
     //SPVの場合は1st Layerの処理も内部で行うので、チェック不要。
-    ret = btcrpc_check_unspent(&unspent, &fundin.amount, pFunding->txid, pFunding->txindex);
+    ret = btcrpc_check_unspent(NULL, &unspent, &fundin.amount, pFunding->txid, pFunding->txindex);
     LOGD("ret=%d, unspent=%d, fundin.amount=%" PRIu64 "\n", ret, unspent, fundin.amount);
 #else
     //SPVの場合、内部でfund-in txを生成するため、チェック不要
@@ -1483,7 +1481,7 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
         }
         utl_buf_free(&buf_bolt);
     } else {
-        LOGD("fail through: btcrpc_check_unspent: ");
+        LOGD("fail through: check_unspent: ");
         TXIDD(pFunding->txid);
     }
 
@@ -1664,7 +1662,7 @@ static void *thread_poll_start(void *pArg)
         poll_ping(p_conf);
 
         uint32_t bak_conf = p_conf->funding_confirm;
-        uint32_t confirm;
+        int32_t confirm;
         bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_conf->p_self));
         if (b_get && (confirm > 0)) {
             p_conf->funding_confirm = confirm;
@@ -1763,7 +1761,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
                     "funding_locked: short_channel_id=%016" PRIx64 ", close_addr=%s",
                     ln_short_channel_id(p_conf->p_self), close_addr);
         } else {
-            LOGD("fail: btcrpc_get_short_channel_param()\n");
+            LOGD("fail: check_short_channel_id()\n");
         }
 
         p_conf->funding_waiting = false;
@@ -1782,7 +1780,7 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 
     //funding_tx使用チェック
     bool unspent;
-    bool ret = btcrpc_check_unspent(&unspent, NULL, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
+    bool ret = btcrpc_check_unspent(ln_their_node_id(p_conf->p_self), &unspent, NULL, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
     if (ret && !unspent) {
         //ループ解除
         LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
@@ -1801,10 +1799,10 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
  */
 static bool get_short_channel_id(lnapp_conf_t *p_conf)
 {
-    int bheight = 0;
-    int bindex = 0;
-    uint8_t mined_hash[BTC_SZ_SHA256];
-    bool ret = btcrpc_get_short_channel_param(p_conf->p_self, &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
+    int32_t bheight = 0;
+    int32_t bindex = 0;
+    uint8_t mined_hash[LN_SZ_HASH];
+    bool ret = btcrpc_get_short_channel_param(ln_their_node_id(p_conf->p_self), &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
     if (ret) {
         //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ret = ln_short_channel_id_set_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self), mined_hash);
@@ -1896,6 +1894,7 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
         const char *p_msg;
         void (*func)(lnapp_conf_t *p_conf, void *p_param);
     } MAP[] = {
+        { "  LN_CB_QUIT: channel quit", cb_channel_quit },
         { "  LN_CB_ERROR: error receive", cb_error_recv },
         { "  LN_CB_INIT_RECV: init receive", cb_init_recv },
         { "  LN_CB_REESTABLISH_RECV: channel_reestablish receive", cb_channel_reestablish_recv },
@@ -1930,6 +1929,15 @@ static void notify_cb(ln_self_t *self, ln_cb_t reason, void *p_param)
     }
 
     //DBGTRACE_END
+}
+
+
+static void cb_channel_quit(lnapp_conf_t *p_conf, void *p_param)
+{
+    (void)p_param;
+    LOGD("quit channel\n");
+
+    stop_threads(p_conf);
 }
 
 
@@ -1997,7 +2005,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
 
     utl_buf_t buf_tx = UTL_BUF_INIT;
     btc_tx_create(&buf_tx, p_sig->p_tx);
-    p_sig->ret = btcrpc_signraw_tx(p_sig->p_tx, buf_tx.buf, buf_tx.len, p_sig->amount);
+    p_sig->ret = btcrpc_sign_rawtx(p_sig->p_tx, buf_tx.buf, buf_tx.len, p_sig->amount);
     utl_buf_free(&buf_tx);
 }
 
@@ -2011,16 +2019,10 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
     if (p->b_send) {
         uint8_t txid[BTC_SZ_TXID];
-        utl_buf_t buf_tx = UTL_BUF_INIT;
 
+        utl_buf_t buf_tx = UTL_BUF_INIT;
         btc_tx_create(&buf_tx, p->p_tx_funding);
-        p->b_result = btcrpc_sendraw_tx(txid, NULL, buf_tx.buf, buf_tx.len);
-#ifndef USE_SPV
-#else
-        if (p->b_result) {
-            btcrpc_set_fundingtx(p_conf->p_self, buf_tx.buf, buf_tx.len);
-        }
-#endif
+        p->b_result = btcrpc_send_rawtx(txid, NULL, buf_tx.buf, buf_tx.len);
         utl_buf_free(&buf_tx);
     } else {
         p->b_result = true;
@@ -2031,6 +2033,24 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         LOGD("funding_tx監視開始: ");
         TXIDD(ln_funding_txid(p_conf->p_self));
         p_conf->funding_waiting = true;
+
+#ifndef USE_SPV
+#else
+        const uint8_t *p_bhash;
+        p_bhash = ln_funding_blockhash(p_conf->p_self);
+        int32_t blockcnt;
+        bool ret = btcrpc_getblockcount(&blockcnt);
+        if (!ret) {
+            blockcnt = -1;
+        }
+        btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
+                ln_short_channel_id(p_conf->p_self),
+                ln_funding_txid(p_conf->p_self),
+                ln_funding_txindex(p_conf->p_self),
+                ln_funding_redeem(p_conf->p_self),
+                (ln_close_type(p_conf->p_self) == LN_CLOSETYPE_NONE),
+                p_bhash, blockcnt);
+#endif
 
         const char *p_str;
         if (ln_is_funder(p_conf->p_self)) {
@@ -2048,6 +2068,14 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         lnapp_save_event(ln_channel_id(p_conf->p_self),
                 "fail: sendrawtransaction\n");
         stop_threads(p_conf);
+    }
+
+    ln_nodeaddr_t conn_addr;
+    bool ret = utl_addr_ipv4_str2bin(conn_addr.addrinfo.ipv4.addr, p_conf->conn_str);
+    if (ret) {
+        conn_addr.type = LN_NODEDESC_IPV4;
+        conn_addr.port = p_conf->conn_port;
+        ln_last_connected_addr_set(p_conf->p_self, &conn_addr);
     }
 
     DBGTRACE_END
@@ -2613,16 +2641,16 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 {
     DBGTRACE_BEGIN
 
-    const ln_cb_closed_t *p_closed = (const ln_cb_closed_t *)p_param;
+    ln_cb_closed_t *p_closed = (ln_cb_closed_t *)p_param;
 
     if (LN_DBG_CLOSING_TX()) {
         //closing_txを展開
         LOGD("send closing tx\n");
 
         uint8_t txid[BTC_SZ_TXID];
-        bool ret = btcrpc_sendraw_tx(txid, NULL, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
-        if (!ret) {
-            LOGD("btcrpc_sendraw_tx\n");
+        p_closed->result = btcrpc_send_rawtx(txid, NULL, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
+        if (!p_closed->result) {
+            LOGD("btcrpc_send_rawtx\n");
             assert(0);
         }
         LOGD("closing_txid: ");
@@ -3533,7 +3561,7 @@ static bool check_unspent_short_channel_id(uint64_t ShortChannelId)
     ln_short_channel_id_get_param(&bheight, &bindex, &vindex, ShortChannelId);
     ret = btcrpc_gettxid_from_short_channel(txid, bheight, bindex);
     if (ret) {
-        ret = btcrpc_check_unspent(&unspent, NULL, txid, vindex);
+        ret = btcrpc_check_unspent(NULL, &unspent, NULL, txid, vindex);
     }
     if (!(ret && unspent)) {
         LOGD("already spent : %016" PRIx64 "(height=%" PRIu32 ", bindex=%" PRIu32 ", txindex=%" PRIu32 ")\n", ShortChannelId, bheight, bindex, vindex);

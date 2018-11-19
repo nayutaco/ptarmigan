@@ -7,10 +7,12 @@ DEFINE_FFF_GLOBALS;
 extern "C" {
 //評価対象本体
 #include "../../utl/utl_misc.c"
+#undef LOG_TAG
 #include "../../utl/utl_log.c"
 #include "../../utl/utl_dbg.c"
 #include "../../utl/utl_buf.c"
 #include "../../utl/utl_push.c"
+#undef LOG_TAG
 #include "btc.c"
 #include "btc_ekey.c"
 #include "btc_keys.c"

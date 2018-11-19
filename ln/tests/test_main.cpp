@@ -6,11 +6,14 @@ DEFINE_FFF_GLOBALS;
 
 extern "C" {
 //評価対象本体
+#undef LOG_TAG
 #include "../../utl/utl_misc.c"
+#undef LOG_TAG
 #include "../../utl/utl_log.c"
 #include "../../utl/utl_dbg.c"
 #include "../../utl/utl_buf.c"
 #include "../../utl/utl_push.c"
+#undef LOG_TAG
 #include "../../btc/btc.c"
 #include "../../btc/btc_ekey.c"
 #include "../../btc/btc_keys.c"
@@ -18,6 +21,7 @@ extern "C" {
 #include "../../btc/btc_tx.c"
 #include "../../btc/btc_util.c"
 #include "../../btc/segwit_addr.c"
+#undef LOG_TAG
 #include "ln.c"
 #include "ln_derkey.c"
 #include "ln_misc.c"
@@ -49,13 +53,12 @@ TEST_F(main, first)
 
 ////////////////////////////////////////////////////////////////////////
 
-// #include "testinc_ln_bolt3_b.cpp"
-// #include "testinc_ln_bolt3_c.cpp"
-// #include "testinc_ln_bolt3_d.cpp"
-// #include "testinc_ln_bolt3_e.cpp"
-// #include "testinc_ln_bolt4.cpp"
-// #include "testinc_ln_bolt8.cpp"
-// #include "testinc_ln_misc.cpp"
-// #include "testinc_bech32.cpp"
-
+#include "testinc_ln_bolt3_b.cpp"
+#include "testinc_ln_bolt3_c.cpp"
+#include "testinc_ln_bolt3_d.cpp"
+#include "testinc_ln_bolt3_e.cpp"
+#include "testinc_ln_bolt4.cpp"
+#include "testinc_ln_bolt8.cpp"
+#include "testinc_ln_misc.cpp"
+#include "testinc_bech32.cpp"
 #include "testinc_ln.cpp"

@@ -10,6 +10,7 @@ extern "C" {
 #include "utl_dbg.c"
 #include "utl_buf.c"
 #include "utl_push.c"
+#undef LOG_TAG
 #include "utl_log.c"
 #include "utl_net.c"
 #include "utl_str.c"

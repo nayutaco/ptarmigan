@@ -97,6 +97,7 @@ static void optfunc_addr(int *pOption, bool *pConn);
 static void optfunc_conn_param(int *pOption, bool *pConn);
 static void optfunc_getinfo(int *pOption, bool *pConn);
 static void optfunc_disconnect(int *pOption, bool *pConn);
+static void optfunc_fundinaddr(int *pOption, bool *pConn);
 static void optfunc_funding(int *pOption, bool *pConn);
 static void optfunc_invoice(int *pOption, bool *pConn);
 static void optfunc_erase(int *pOption, bool *pConn);
@@ -113,6 +114,7 @@ static void optfunc_remove_channel(int *pOption, bool *pConn);
 static void optfunc_setfeerate(int *pOption, bool *pConn);
 static void optfunc_estimatefundingfee(int *pOption, bool *pConn);
 static void optfunc_walletback(int *pOption, bool *pConn);
+static void optfunc_getbalance(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -150,6 +152,8 @@ static const struct {
     { 'b', optfunc_setfeerate },
     { 'B', optfunc_estimatefundingfee },
     { 'j', optfunc_debug },
+    { 'F', optfunc_fundinaddr },
+    { '$', optfunc_getbalance },
 };
 
 
@@ -162,6 +166,7 @@ int main(int argc, char *argv[])
     const struct option OPTIONS[] = {
         { "setfeerate", required_argument, NULL, 'b' },
         { "estimatefundingfee", required_argument, NULL, 'B' },
+        { "getbalance", no_argument, NULL, '$' },
         { "debug", required_argument, NULL, 'j' },
         { 0, 0, 0, 0 }
     };
@@ -171,7 +176,7 @@ int main(int argc, char *argv[])
     mAddr[0] = '\0';
     mTcpSend = true;
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:x::wg::s:X:W", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:lq::Ff:i:e:mp:r:R:x::wg::s:X:W", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -190,6 +195,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-h : help\n");
         fprintf(stderr, "\t\t-t : test(not send command)\n");
         fprintf(stderr, "\t\t-q : quit ptarmd\n");
+        fprintf(stderr, "\n");
         fprintf(stderr, "\t\t-l : list channels\n");
         fprintf(stderr, "\t\t-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
         fprintf(stderr, "\t\t-e PAYMENT_HASH : erase payment_hash\n");
@@ -197,13 +203,19 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment keep prev skip channel(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-m : show payment_hashs\n");
-        fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
         fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT : connect node\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF : funding\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -w : get last error\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -q : disconnect node\n");
+        fprintf(stderr, "\n");
+#ifndef USE_SPV
+#else
+        fprintf(stderr, "\t\t-F : get wallet address(for fund-in)\n");
+        fprintf(stderr, "\t\t--getbalance : get available Bitcoin balance\n");
+#endif
+        fprintf(stderr, "\t\t-W : show send wallet rawtransaction\n");
         fprintf(stderr, "\n");
         fprintf(stderr, "\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
         fprintf(stderr, "\n");
@@ -215,6 +227,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t\tb3 ... no node auto connect\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -g : [debug]get commitment transaction\n");
         fprintf(stderr, "\t\t-X CHANNEL_ID : [debug]delete channel from DB\n");
+        fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
         return -1;
     }
 
@@ -363,6 +376,21 @@ static void optfunc_disconnect(int *pOption, bool *pConn)
 }
 
 
+static void optfunc_fundinaddr(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "fundaddr") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
 static void optfunc_funding(int *pOption, bool *pConn)
 {
     M_CHK_CONN
@@ -370,6 +398,17 @@ static void optfunc_funding(int *pOption, bool *pConn)
     funding_conf_t fundconf;
     conf_funding_init(&fundconf);
     bool bret = conf_funding_load(optarg, &fundconf);
+    if (!bret) {
+        //SPVの場合、funding_satoshisだけの指定でも受け付けられる
+        char *endp = NULL;
+        fundconf.funding_sat = (uint64_t)strtoul(optarg, &endp, 10);
+        if ((endp != NULL) && (*endp != 0x00)) {
+            //変換失敗
+            LOGD("fail: *endp = %p(%02x)\n", endp, *endp);
+        } else {
+            bret = true;
+        }
+    }
     if (bret) {
         char txid[BTC_SZ_TXID * 2 + 1];
 
@@ -380,7 +419,7 @@ static void optfunc_funding(int *pOption, bool *pConn)
                 M_QQ("params") ":[ "
                     //peer_nodeid, peer_addr, peer_port
                     M_QQ("%s") "," M_QQ("%s") ",%d,"
-                    //txid, txindex, funding_sat, push_sat
+                    //txid, txindex, funding_sat, push_sat, feerate_per_kw
                     M_QQ("%s") ",%d,%" PRIu64 ",%" PRIu64 ",%" PRIu32
                 " ]"
             "}",
@@ -777,6 +816,21 @@ static void optfunc_walletback(int *pOption, bool *pConn)
         sprintf(mErrStr, "%s", strerror(errno));
         *pOption = M_OPTIONS_ERR;
     }
+}
+
+
+static void optfunc_getbalance(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "getbalance") M_NEXT
+            M_QQ("params") ":[]"
+        "}");
+    *pOption = M_OPTIONS_EXEC;
 }
 
 

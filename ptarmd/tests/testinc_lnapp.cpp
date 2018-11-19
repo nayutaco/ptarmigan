@@ -2,8 +2,7 @@
 //FAKE関数
 
 FAKE_VOID_FUNC(btcrpc_term);
-FAKE_VOID_FUNC(btcrpc_add_channel, const ln_self_t*, uint64_t, const uint8_t*, uint32_t, bool, const uint8_t*);
-FAKE_VOID_FUNC(btcrpc_set_fundingtx, const ln_self_t*, const uint8_t*, uint32_t);
+FAKE_VOID_FUNC(btcrpc_set_channel, const uint8_t*, uint64_t, const uint8_t*, int, const utl_buf_t*, bool, const uint8_t*, int32_t);
 FAKE_VOID_FUNC(btcrpc_set_committxid, const ln_self_t*);
 FAKE_VOID_FUNC(ptarmd_stop);
 FAKE_VOID_FUNC(ptarmd_preimage_lock);
@@ -17,15 +16,15 @@ FAKE_VOID_FUNC(cmd_json_stop);
 FAKE_VALUE_FUNC(bool, btcrpc_init, const rpc_conf_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_getblockcount, int32_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_getgenesisblock, uint8_t*);
-FAKE_VALUE_FUNC(bool, btcrpc_get_confirm, uint32_t*, const uint8_t*);
-FAKE_VALUE_FUNC(bool, btcrpc_get_short_channel_param, const ln_self_t*, int*, int*, uint8_t*, const uint8_t*);
+FAKE_VALUE_FUNC(bool, btcrpc_get_confirm, int32_t*, const uint8_t*);
+FAKE_VALUE_FUNC(bool, btcrpc_get_short_channel_param, const uint8_t*, int32_t*, int32_t*, uint8_t*, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_gettxid_from_short_channel, uint8_t*, int, int);
 FAKE_VALUE_FUNC(bool, btcrpc_search_outpoint, btc_tx_t*, uint32_t, const uint8_t*, uint32_t);
 FAKE_VALUE_FUNC(bool, btcrpc_search_vout, utl_buf_t*, uint32_t, const utl_buf_t*);
-FAKE_VALUE_FUNC(bool, btcrpc_signraw_tx, btc_tx_t*, const uint8_t*, size_t, uint64_t);
-FAKE_VALUE_FUNC(bool, btcrpc_sendraw_tx, uint8_t*, int*, const uint8_t*, uint32_t);
+FAKE_VALUE_FUNC(bool, btcrpc_sign_rawtx, btc_tx_t*, const uint8_t*, uint32_t, uint64_t);
+FAKE_VALUE_FUNC(bool, btcrpc_send_rawtx, uint8_t*, int*, const uint8_t*, uint32_t);
 FAKE_VALUE_FUNC(bool, btcrpc_is_tx_broadcasted, const uint8_t*);
-FAKE_VALUE_FUNC(bool, btcrpc_check_unspent, bool*, uint64_t*, const uint8_t*, uint32_t);
+FAKE_VALUE_FUNC(bool, btcrpc_check_unspent, const uint8_t*, bool*, uint64_t*, const uint8_t*, uint32_t);
 FAKE_VALUE_FUNC(bool, btcrpc_getnewaddress, char*);
 FAKE_VALUE_FUNC(bool, btcrpc_estimatefee, uint64_t*, int);
 FAKE_VALUE_FUNC(int, ptarmd_start, uint16_t);
@@ -46,8 +45,7 @@ class lnapp: public testing::Test {
 protected:
     virtual void SetUp() {
         RESET_FAKE(btcrpc_term);
-        RESET_FAKE(btcrpc_add_channel);
-        RESET_FAKE(btcrpc_set_fundingtx);
+        RESET_FAKE(btcrpc_set_channel);
         RESET_FAKE(btcrpc_set_committxid);
         RESET_FAKE(ptarmd_stop);
         RESET_FAKE(ptarmd_preimage_lock);
@@ -66,8 +64,8 @@ protected:
         RESET_FAKE(btcrpc_gettxid_from_short_channel);
         RESET_FAKE(btcrpc_search_outpoint);
         RESET_FAKE(btcrpc_search_vout);
-        RESET_FAKE(btcrpc_signraw_tx);
-        RESET_FAKE(btcrpc_sendraw_tx);
+        RESET_FAKE(btcrpc_sign_rawtx);
+        RESET_FAKE(btcrpc_send_rawtx);
         RESET_FAKE(btcrpc_is_tx_broadcasted);
         RESET_FAKE(btcrpc_check_unspent);
         RESET_FAKE(btcrpc_getnewaddress);

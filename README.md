@@ -28,6 +28,10 @@
 
 ```bash
 sudo apt install -y git autoconf pkg-config build-essential libtool wget jq bc
+
+# only SPV build(need edit options.mak)
+sudo apt install -y openjdk-8-jdk
+
 git clone https://github.com/nayutaco/ptarmigan.git
 cd ptarmigan
 make full

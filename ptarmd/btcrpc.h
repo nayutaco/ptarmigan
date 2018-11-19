@@ -71,19 +71,19 @@ bool btcrpc_getgenesisblock(uint8_t *pHash);
  * @param[out]  confirmation数
  * @retval  true        取得成功
  */
-bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid);
+bool btcrpc_get_confirm(int32_t *pConfirm, const uint8_t *pTxid);
 
 
 /** [bitcoin IF]short_channel_idの計算に使用するパラメータ取得
  *
- * @param[in]   self
+ * @param[in]   pPeerId
  * @param[out]  pBHeight    block height
  * @param[out]  pBIndex     block index(pTxidの位置)
  * @param[out]  pMinedHash  miningされたblock hash
  * @param[in]   pTxid       検索するTXID
  * @retval  true        取得成功
  */
-bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid);
+bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, int32_t *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid);
 
 
 #ifndef USE_SPV
@@ -138,18 +138,18 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
  *      - funding_txへの署名を想定(scriptPubKeyは2-of-2)
  *      - pTxは戻り値がtrueの場合のみ更新する
  */
-bool btcrpc_signraw_tx(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
+bool btcrpc_sign_rawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount);
 
 
 /** [bitcoin IF]sendrawtransaction
  *
  * @param[out]  pTxid       取得したTXID(戻り値がtrue時)
- * @param[out]  pCode       結果コード(BTCRPC_ERR_xxx)
+ * @param[out]  pCode       (未使用)結果コード(BTCRPC_ERR_xxx)
  * @param[in]   pRawData    トランザクションRAWデータ
  * @param[in]   Len         pRawData長
  * @retval  true        送信成功
  */
-bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint32_t Len);
+bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint32_t Len);
 
 
 /** [bitcoin IF]トランザクション展開済み確認
@@ -163,12 +163,12 @@ bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid);
 /** [bitcoin IF]vout unspent確認
  *
  * @param[out]  pUnspent        (成功 and 非NULL時)true:unspent
- * @param[out]  pSat            (成功 and 非NULL時)取得したamount[satoshi]
+ * @param[out]  pSat            (SPV未使用)(成功 and 非NULL時)取得したamount[satoshi]
  * @param[in]   pTxid
  * @param[in]   VIndex
  * @retval  true        取得成功
  */
-bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
+bool btcrpc_check_unspent(const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 
 
 /** [bitcoin IF]getnewaddress
@@ -194,23 +194,21 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
  * DBから復元することを想定している。
  * 必要であればbtcrpc_set_fundingtx()を内部で呼び出す。
  *
- * @param[in]   self
- * @param[in]   shortChannelId  short_channel_id(-1:デフォルト値)
- * @param[in]   pTxBuf          raw funding_tx(NULL:デフォルト値)
- * @param[in]   Len             pTx長(pTxBuf==NULL:デフォルト値)
- * @param[in]   bUnspent        true:funding_txがunspent(pTxBuf==NULL:デフォルト値)
- * @param[in]   pMinedHash      funding_txがマイニングされたblock hash(NULL:デフォルト値)
+ * @param[in]   pPeerId
+ * @param[in]   ShortChannelId  (0の場合、更新しない)
+ * @param[in]   pFundingTxid    funding txid
+ * @param[in]   FundingIdx      funding vout index
+ * @param[in]   pRedeemScript   funding_txのvout
+ * @param[in]   bUnspent        true:funding_txがunspent(pFundingTx==NULLの場合、変更しない)
+ * @param[in]   pMinedHash      funding_txがマイニングされたblock hash(NULLの場合、変更しない)
+ * @param[in]   BlockCnt        現在のブロック高(初期confirmation計算用)
  */
-void btcrpc_add_channel(const ln_self_t *self, uint64_t shortChannelId, const uint8_t *pTxBuf, uint32_t Len, bool bUnspent, const uint8_t *pMinedHash);
-
-
-/** [bitcoin IF]funding_tx通知
- * funding_tx展開直後に呼び出す。
- *
- * @param[in]   pTxBuf
- * @param[in]   Len
- */
-void btcrpc_set_fundingtx(const ln_self_t *self, const uint8_t *pTxBuf, uint32_t Len);
+void btcrpc_set_channel(const uint8_t *pPeerId,
+                uint64_t ShortChannelId,
+                const uint8_t *pFundingTxid,
+                int FundingIdx,
+                const utl_buf_t *pRedeemScript,
+                bool bUnspent, const uint8_t *pMinedHash, int32_t BlockCnt);
 
 
 /** [bitcoin IF]監視TXID設定
@@ -218,6 +216,14 @@ void btcrpc_set_fundingtx(const ln_self_t *self, const uint8_t *pTxBuf, uint32_t
  * @param[in]   self
  */
 void btcrpc_set_committxid(const ln_self_t *self);
+
+
+/** [bitcoin IF]balance取得
+ *
+ * @param[out]  pAmount
+ */
+bool btcrpc_get_balance(uint64_t *pAmount);
+
 #endif
 
 #endif /* BTCRPC_H__ */

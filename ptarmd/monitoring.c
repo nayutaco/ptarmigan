@@ -242,7 +242,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
 
                 //各close_dat.p_tx[]のINPUT展開済みチェック
                 bool unspent;
-                bool ret = btcrpc_check_unspent(&unspent, NULL, p_tx->vin[0].txid, p_tx->vin[0].index);
+                bool ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, p_tx->vin[0].txid, p_tx->vin[0].index);
                 if (!ret) {
                     goto LABEL_EXIT;
                 }
@@ -272,9 +272,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
                 if (send_req) {
                     utl_buf_t buf;
                     btc_tx_create(&buf, p_tx);
-                    int code = 0;
-                    ret = btcrpc_sendraw_tx(txid, &code, buf.buf, buf.len);
-                    LOGD("code=%d\n", code);
+                    ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);
                     utl_buf_free(&buf);
                     if (ret) {
                         LOGD("broadcast now tx[%d]: ", lp);
@@ -336,19 +334,20 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     monparam_t *p_prm = (monparam_t *)p_param;
 
-    uint32_t confm;
+    int32_t confm;
     bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
     if (b_get && (confm > 0)) {
         bool del = false;
         bool unspent;
-        bool ret = btcrpc_check_unspent(&unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
+        bool ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
         if (ret && !unspent) {
             //funding_tx使用済み
             del = funding_spent(self, confm, p_prm->height, p_db_param);
         } else {
             //funding_tx未使用
             lnapp_conf_t *p_app_conf = ptarmd_search_connected_cnl(ln_short_channel_id(self));
-            if ((p_app_conf == NULL) && LN_DBG_NODE_AUTO_CONNECT() && !mDisableAutoConn) {
+            if ( (p_app_conf == NULL) && LN_DBG_NODE_AUTO_CONNECT() &&
+                  !mDisableAutoConn && (ln_close_type(self) == LN_CLOSETYPE_NONE) ) {
                 //socket未接続であれば、再接続を試行
                 del = channel_reconnect(self, confm, p_db_param);
             } else if (p_app_conf != NULL) {
@@ -467,6 +466,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void 
             }
             break;
         case LN_CLOSETYPE_NONE:
+        case LN_CLOSETYPE_WAIT:
         case LN_CLOSETYPE_SPENT:
         default:
             break;
@@ -504,21 +504,40 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
     if (p2p_cli_load_peer_conn(&last_peer_conn, p_node_id)) {
         strcpy(conn_addr[0].ipaddr, last_peer_conn.ipaddr);
         conn_addr[0].port = last_peer_conn.port;
+        LOGD("conn_addr[0]: %s:%d\n", conn_addr[0].ipaddr, conn_addr[0].port);
     }
 
     //conn_addr[1]
+    //self->last_connected_addrがあれば、それを使う
+    switch (ln_last_connected_addr(self)->type) {
+    case LN_NODEDESC_IPV4:
+        sprintf(conn_addr[1].ipaddr, "%d.%d.%d.%d",
+            ln_last_connected_addr(self)->addrinfo.ipv4.addr[0],
+            ln_last_connected_addr(self)->addrinfo.ipv4.addr[1],
+            ln_last_connected_addr(self)->addrinfo.ipv4.addr[2],
+            ln_last_connected_addr(self)->addrinfo.ipv4.addr[3]);
+        conn_addr[1].port = ln_last_connected_addr(self)->port;
+        LOGD("conn_addr[1]: %s:%d\n", conn_addr[1].ipaddr, conn_addr[1].port);
+        break;
+    default:
+        //LOGD("addrtype: %d\n", anno.addr.type);
+        break;
+    }
+
+    //conn_addr[2]
     //node_announcementで通知されたアドレスに接続する
     ln_node_announce_t anno;
     bool ret = ln_node_search_nodeanno(&anno, p_node_id);
     if (ret) {
         switch (anno.addr.type) {
         case LN_NODEDESC_IPV4:
-            sprintf(conn_addr[1].ipaddr, "%d.%d.%d.%d",
+            sprintf(conn_addr[2].ipaddr, "%d.%d.%d.%d",
                 anno.addr.addrinfo.ipv4.addr[0],
                 anno.addr.addrinfo.ipv4.addr[1],
                 anno.addr.addrinfo.ipv4.addr[2],
                 anno.addr.addrinfo.ipv4.addr[3]);
-            conn_addr[1].port = anno.addr.port;
+            conn_addr[2].port = anno.addr.port;
+            LOGD("conn_addr[2]: %s:%d\n", conn_addr[2].ipaddr, conn_addr[2].port);
             break;
         default:
             //LOGD("addrtype: %d\n", anno.addr.type);
@@ -526,34 +545,18 @@ static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
         }
     }
 
-    //conn_addr[2]
-    //self->last_connected_addrがあれば、それを使う
-    switch (ln_last_connected_addr(self)->type) {
-    case LN_NODEDESC_IPV4:
-        sprintf(conn_addr[2].ipaddr, "%d.%d.%d.%d",
-            ln_last_connected_addr(self)->addrinfo.ipv4.addr[0],
-            ln_last_connected_addr(self)->addrinfo.ipv4.addr[1],
-            ln_last_connected_addr(self)->addrinfo.ipv4.addr[2],
-            ln_last_connected_addr(self)->addrinfo.ipv4.addr[3]);
-        conn_addr[2].port = ln_last_connected_addr(self)->port;
-        break;
-    default:
-        //LOGD("addrtype: %d\n", anno.addr.type);
-        break;
-    }
-
     for (size_t lp = 0; lp < ARRAY_SIZE(conn_addr); lp++) {
         if (conn_addr[lp].port != 0) {
-            //先にdefault portで試し、だめだったら指定したportで試す
+            ret = channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, conn_addr[lp].port);
+            if (ret) {
+                break;
+            }
             if (conn_addr[lp].port != LN_PORT_DEFAULT) {
+                //だめだったらLNのdefault portで試す
                 ret = channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, LN_PORT_DEFAULT);
                 if (ret) {
                     break;
                 }
-            }
-            ret = channel_reconnect_ipv4(p_node_id, conn_addr[lp].ipaddr, conn_addr[lp].port);
-            if (ret) {
-                break;
             }
         }
     }
@@ -570,6 +573,7 @@ static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, 
                     LN_NODEDESC_IPV4, false);
     if (!ret) {
         //ノード接続失敗リストに載っていない場合は、自分に対して「接続要求」のJSON-RPCを送信する
+        LOGD("try connect: %s:%d\n", pIpAddr, Port);
         retval = cmd_json_connect(pNodeId, pIpAddr, Port);
         LOGD("retval=%d\n", retval);
     }
@@ -593,7 +597,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             LOGD("hop node\n");
             LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
-            uint32_t confm;
+            int32_t confm;
             bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
             if (b_get && (confm > 0)) {
                 btc_tx_t tx = BTC_TX_INIT;
@@ -711,7 +715,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 } else if (p_tx->vin[0].wit_cnt > 0) {
                     //INPUT spent check
                     bool unspent;
-                    bool ret = btcrpc_check_unspent(&unspent, NULL,
+                    bool ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL,
                                     p_tx->vin[0].txid, p_tx->vin[0].index);
                     if (ret && !unspent) {
                         LOGD("already spent\n");
@@ -778,7 +782,7 @@ static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_clos
         LOGD("origin/hop node\n");
 
         bool unspent;
-        bool ret = btcrpc_check_unspent(&unspent, NULL,
+        bool ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL,
                         pCloseDat->p_tx[lp].vin[0].txid, pCloseDat->p_tx[lp].vin[0].index);
         if (ret && !unspent) {
             LOGD("already spent\n");
@@ -788,7 +792,7 @@ static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_clos
 
         //転送元がある場合、preimageを抽出する
         LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
-        uint32_t confm;
+        int32_t confm;
         bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
         if (b_get && (confm > 0)) {
             btc_tx_t tx = BTC_TX_INIT;
@@ -1029,7 +1033,7 @@ static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int V
     utl_buf_t buf;
     btc_tx_create(&buf, &tx);
     btc_tx_free(&tx);
-    bool ret = btcrpc_sendraw_tx(txid, NULL, buf.buf, buf.len);
+    bool ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);
     if (ret) {
         LOGD("broadcast now: ");
         TXIDD(txid);

@@ -68,7 +68,11 @@
 
 #define M_LMDB_ANNO_MAXDBS      (50)                        ///< 同時オープンできるDB数
 //#define M_LMDB_ANNO_MAPSIZE     ((size_t)4294963200)        // DB最大長[byte] Ubuntu 18.04(64bit)で使用できたサイズ
+#ifndef USE_SPV
 #define M_LMDB_ANNO_MAPSIZE     ((size_t)1610612736)        // DB最大長[byte] Raspberry Piで使用できたサイズ
+#else
+#define M_LMDB_ANNO_MAPSIZE     ((size_t)1073741824)        // DB最大長[byte] Raspberry Pi(SPV)で使用できたサイズ
+#endif
                                                             // 32bit環境ではsize_tが4byteになるため、32bitの範囲内にすること
 
 #define M_LMDB_WALT_MAXDBS      (MAX_CHANNELS)              ///< 同時オープンできるDB数
@@ -121,7 +125,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-26)      ///< DBバージョン
+#define M_DB_VERSION_VAL        ((int32_t)-27)      ///< DBバージョン
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -151,6 +155,7 @@
     -24: self.cnl_add_htlc[].flag変更
     -25: self.close_type追加
     -26: DB_COPYにhtlc_num, htld_id_num追加
+    -27: self.close_type変更
  */
 
 
@@ -333,7 +338,6 @@ static const backup_param_t DBSELF_VALUES[] = {
 #ifndef USE_SPV
 #else
     M_ITEM(ln_self_t, funding_bhash),
-    M_ITEM(ln_self_t, funding_bheight),
 #endif
     M_ITEM(ln_self_t, min_depth),
     M_ITEM(ln_self_t, anno_flag),
@@ -1781,115 +1785,6 @@ LABEL_EXIT:
 }
 
 
-bool ln_db_annonod_drop_startup(void)
-{
-    int             retval;
-    ln_lmdb_db_t    db_self;
-    lmdb_cursor_t   *p_cur_node = NULL;
-
-    db_self.txn = NULL;
-
-    if (mpDbSelf != NULL) {
-        LOGD("fail: already started\n");
-        return false;
-    }
-
-    if (mPath[0] == '\0') {
-        ln_lmdb_set_path(".");
-    }
-    retval = init_dbenv(M_INITPARAM_ANNO);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = init_dbenv(M_INITPARAM_SELF);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
-    bool ret = ln_db_anno_transaction();
-    if (!ret) {
-        LOGD("ERR: anno transaction\n");
-        retval = -1;
-        goto LABEL_EXIT;
-    }
-    ret = ln_db_anno_cur_open((void **)&p_cur_node, LN_DB_CUR_NODE);
-    if (!ret) {
-        LOGD("ERR: anno transaction\n");
-        retval = -1;
-        goto LABEL_EXIT;
-    }
-
-    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, 0, &db_self.txn);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    retval = mdb_dbi_open(db_self.txn, M_DBI_VERSION, 0, &db_self.dbi);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
-    char wif[BTC_SZ_WIF_MAX];
-    char nodename[LN_SZ_ALIAS + 1];
-    uint8_t genesis[LN_SZ_HASH];
-    uint16_t port;
-    retval = ver_check(&db_self, wif, nodename, &port, genesis);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
-    utl_buf_t bufnod = UTL_BUF_INIT;
-    uint32_t timestamp;
-    btc_util_keys_t keys;
-    btc_chain_t chain;
-    btc_util_wif2keys(&keys, &chain, wif);
-    retval = annonod_load((ln_lmdb_db_t *)p_cur_node, &bufnod, &timestamp, keys.pub);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-
-    retval = mdb_drop(mTxnAnno, p_cur_node->dbi, 0);
-    if (retval != 0) {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
-    }
-    ln_db_anno_cur_close(p_cur_node);
-
-    ret = ln_db_anno_cur_open((void **)&p_cur_node, LN_DB_CUR_NODE);
-    if (!ret) {
-        LOGD("ERR: anno transaction\n");
-        retval = -1;
-        goto LABEL_EXIT;
-    }
-    if (retval == 0) {
-        //自ノード再登録
-        annonod_save((ln_lmdb_db_t *)p_cur_node, &bufnod, keys.pub, timestamp);
-    } else {
-        LOGD("ERR: %s\n", mdb_strerror(retval));
-    }
-
-    utl_buf_free(&bufnod);
-
-    ln_db_anno_commit(true);
-
-LABEL_EXIT:
-    ln_db_anno_cur_close(p_cur_node);
-    if (db_self.txn != NULL) {
-        MDB_TXN_ABORT(db_self.txn);
-    }
-    if (retval != 0) {
-        ln_db_anno_commit(false);
-    }
-
-    return retval == 0;
-}
-
-
 /********************************************************************
  * [anno]cursor
  ********************************************************************/
@@ -2975,7 +2870,7 @@ bool ln_db_phash_save(const uint8_t *pPayHash, const uint8_t *pVout, ln_htlctype
         goto LABEL_EXIT;
     }
 
-    key.mv_size = LNL_SZ_WITPROG_WSH;
+    key.mv_size = BTC_SZ_WITPROG_P2WSH;
     key.mv_data = (CONST_CAST uint8_t *)pVout;
     uint8_t hash[1 + sizeof(uint32_t) + LN_SZ_HASH];
     hash[0] = (uint8_t)Type;
@@ -3029,8 +2924,8 @@ bool ln_db_phash_search(uint8_t *pPayHash, ln_htlctype_t *pType, uint32_t *pExpi
     }
 
     while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
-        if ( (key.mv_size == LNL_SZ_WITPROG_WSH) &&
-             (memcmp(key.mv_data, pVout, LNL_SZ_WITPROG_WSH) == 0) ) {
+        if ( (key.mv_size == BTC_SZ_WITPROG_P2WSH) &&
+             (memcmp(key.mv_data, pVout, BTC_SZ_WITPROG_P2WSH) == 0) ) {
             uint8_t *p = (uint8_t *)data.mv_data;
             *pType = (ln_htlctype_t)*p;
             memcpy(pExpiry, p + 1, sizeof(uint32_t));

@@ -71,7 +71,7 @@ typedef struct {
 static bool getblocktx(json_t **ppRoot, json_t **ppJsonTx, char **ppBufJson, int BHeight);
 static bool getraw_tx(json_t **ppRoot, json_t **ppResult, char **ppJson, const uint8_t *pTxid);
 static bool getraw_txstr(btc_tx_t *pTx, const char *txid);
-static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount, int* pCode);
+static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount, int* pCode);
 static bool signraw_tx_with_wallet(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount);
 static bool gettxout(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex);
 static bool search_outpoint(btc_tx_t *pTx, int BHeight, const uint8_t *pTxid, uint32_t VIndex);
@@ -200,6 +200,14 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
     } else {
         LOGD("fail: getblockhash_rpc\n");
     }
+    if (ret) {
+        // https://github.com/lightningnetwork/lightning-rfc/issues/237
+        for (int lp = 0; lp < LN_SZ_HASH / 2; lp++) {
+            uint8_t tmp = pHash[lp];
+            pHash[lp] = pHash[LN_SZ_HASH - lp - 1];
+            pHash[LN_SZ_HASH - lp - 1] = tmp;
+        }
+    }
     if (p_root != NULL) {
         json_decref(p_root);
     }
@@ -209,7 +217,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 }
 
 
-bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
+bool btcrpc_get_confirm(int32_t *pConfirm, const uint8_t *pTxid)
 {
     bool ret;
     bool retval = false;
@@ -223,7 +231,7 @@ bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
 
         p_confirm = json_object_get(p_result, M_CONFIRMATION);
         if (json_is_integer(p_confirm)) {
-            *pConfirm = (uint32_t)json_integer_value(p_confirm);
+            *pConfirm = (int32_t)json_integer_value(p_confirm);
             retval = true;
         }
     } else {
@@ -238,9 +246,9 @@ bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
 }
 
 
-bool btcrpc_get_short_channel_param(const ln_self_t *self, int *pBHeight, int *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid)
+bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, int32_t *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid)
 {
-    (void)self;
+    (void)pPeerId;
     (void)pMinedHash;
 
     bool ret;
@@ -385,7 +393,7 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
 }
 
 
-bool btcrpc_signraw_tx(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount)
+bool btcrpc_sign_rawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount)
 {
     int code = 0;
 
@@ -395,7 +403,7 @@ bool btcrpc_signraw_tx(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t
 }
 
 
-bool btcrpc_sendraw_tx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint32_t Len)
+bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint32_t Len)
 {
     bool result = false;
     bool ret;
@@ -443,8 +451,10 @@ bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
 }
 
 
-bool btcrpc_check_unspent(bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
+bool btcrpc_check_unspent(const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat, const uint8_t *pTxid, uint32_t VIndex)
 {
+    (void)pPeerId;
+
     bool unspent = true;
     uint64_t sat = 0;
     bool ret = gettxout(&unspent, &sat, pTxid, VIndex);
@@ -647,7 +657,7 @@ LABEL_EXIT:
 }
 
 
-static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, size_t Len, uint64_t Amount, int* pCode)
+static bool signraw_tx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64_t Amount, int* pCode)
 {
     (void)Amount;
 
@@ -1400,15 +1410,15 @@ int main(int argc, char *argv[])
 //    fprintf(stderr, "blocks = %d\n", blocks);
 
 //    fprintf(stderr, "-[short_channel_info]-------------------------\n");
-//    int bindex;
-//    int bheight;
+//    int32_t bindex;
+//    int32_t bheight;
 //    ret = btcrpc_get_short_channel_param(NULL, &bindex, &bheight, NULL, TXID);
 //    if (ret) {
 //        fprintf(stderr, "index = %d\n", bindex);
 //        fprintf(stderr, "height = %d\n", bheight);
 //    }
 
-//    uint32_t conf;
+//    int32_t conf;
 //    fprintf(stderr, "-conf-------------------------\n");
 //    bool b = btcrpc_get_confirm(&conf, TXID);
 //    fprintf(stderr, "confirmations = %d(%d)\n", (int)conf, b);
@@ -1430,7 +1440,7 @@ int main(int argc, char *argv[])
     //fprintf(stderr, "-gettxout-------------------------\n");
     //bool unspent;
     //uint64_t value;
-    //ret = btcrpc_check_unspent(&unspent, &value, TXID, 1);
+    //ret = btcrpc_check_unspent(NULL, &unspent, &value, TXID, 1);
     //if (ret && unspent) {
     //    fprintf(stderr, "value=%" PRIu64 "\n", value);
     //}
@@ -1441,7 +1451,7 @@ int main(int argc, char *argv[])
 
 //    fprintf(stderr, "--------------------------\n");
 //    uint8_t txid[BTC_SZ_TXID];
-//    bool ret = btcrpc_sendraw_tx(txid, NULL, TX, sizeof(TX));
+//    bool ret = btcrpc_send_rawtx(txid, NULL, TX, sizeof(TX));
 //    if (ret) {
 //        for (int lp = 0; lp < sizeof(txid); lp++) {
 //            fprintf(stderr, "%02x", txid[lp]);

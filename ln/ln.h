@@ -230,6 +230,7 @@ typedef enum {
  */
 typedef enum {
     LN_CLOSETYPE_NONE,                  ///< ln_self_t not close
+    LN_CLOSETYPE_WAIT,                  ///< funding_tx is broadcasted but btcrpc not detect
     LN_CLOSETYPE_SPENT,                 ///< funding_tx is spent but not in block
     LN_CLOSETYPE_MUTUAL,                ///< mutual close
     LN_CLOSETYPE_UNI_LOCAL,             ///< unilateral close(from local)
@@ -242,6 +243,7 @@ typedef enum {
  *  @brief  コールバック理由
  */
 typedef enum {
+    LN_CB_QUIT,                 ///< チャネルを停止(closeはしない)
     LN_CB_ERROR,                ///< エラー通知
     LN_CB_INIT_RECV,            ///< init受信通知
     LN_CB_REESTABLISH_RECV,     ///< channel_reestablish受信通知
@@ -868,7 +870,7 @@ typedef struct {
  */
 typedef struct {
     btc_tx_t                *p_tx;
-    uint64_t                amount;     //送金額[satoshi]
+    uint64_t                amount;     //(SPV未使用)fund-inするamount[satoshi]
     bool                    ret;        //署名結果
 } ln_cb_funding_sign_t;
 
@@ -963,6 +965,7 @@ typedef struct {
  *  @brief  Mutual Close完了通知(#LN_CB_CLOSED)
  */
 typedef struct {
+    bool                    result;                 ///< true:closing_tx展開成功
     const utl_buf_t         *p_tx_closing;          ///< ブロックチェーンに公開するtx
 } ln_cb_closed_t;
 
@@ -1126,7 +1129,6 @@ struct ln_self_t {
 #ifndef USE_SPV
 #else
     uint8_t                     funding_bhash[BTC_SZ_SHA256];   ///< [FUND_08]funding_txがマイニングされたblock hash
-    uint32_t                    funding_bheight;                ///< [FUND_09]funding_txがマイニングされたblock height
 #endif
     ln_establish_t              *p_establish;                   ///< [FUND_10]Establishワーク領域
     uint32_t                    min_depth;                      ///< [FUND_11]minimum_depth
@@ -1899,6 +1901,11 @@ static inline const uint8_t *ln_funding_txid(const ln_self_t *self) {
  */
 static inline uint32_t ln_funding_txindex(const ln_self_t *self) {
     return self->funding_local.txindex;
+}
+
+
+static inline const utl_buf_t *ln_funding_redeem(const ln_self_t *self) {
+    return &self->redeem_fund;
 }
 
 

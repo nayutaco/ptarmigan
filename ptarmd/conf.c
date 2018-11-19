@@ -85,6 +85,7 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
         LOGD("fail bitcoin.conf parse[%s]", pConfFile);
         return false;
     }
+#ifndef USE_SPV
     if (pRpcConf->rpcport == 0) {
         pRpcConf->rpcport = 8332;
     }
@@ -96,6 +97,10 @@ bool conf_btcrpc_load(const char *pConfFile, rpc_conf_t *pRpcConf)
         LOGD("fail: no rpcuser or rpcpassword[%s]", pConfFile);
         return false;
     }
+#else
+    LOGD("fail: SPV mode\n");
+    return false;
+#endif
 
 #ifdef M_DEBUG
     fprintf(stderr, "rpcuser=%s\n", pRpcConf->rpcuser);
@@ -172,6 +177,7 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
 {
     (void)section;
 
+#ifndef USE_SPV
     rpc_conf_t* pconfig = (rpc_conf_t *)user;
 
     if (strcmp(name, "rpcuser") == 0) {
@@ -197,6 +203,10 @@ static int handler_btcrpc_conf(void* user, const char* section, const char* name
         //return 0;  /* unknown section/name, error */
     }
     return 1;
+#else
+    (void)user; (void)name; (void)value;
+    return 0;
+#endif
 }
 
 

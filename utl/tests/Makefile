@@ -49,7 +49,7 @@ unittest: $(OBJECT_DIRECTORY) $(GTEST_DIR)/gtest_main.a $(TEST_OBJECTS)
 
 $(OBJECT_DIRECTORY):
 	@echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-	@echo @ Google Test
+	@echo @ Google Test: $(CURDIR)
 	@echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 	@$(MK) $@
 

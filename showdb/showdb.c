@@ -130,48 +130,51 @@ static const char *SCR_STR[LN_SCRIPTIDX_MAX] = {
 
 static void ln_print_wallet(const ln_self_t *self)
 {
-    printf(INDENT2 "{\n");
-    printf(INDENT3 M_QQ("node_id") ": \"");
-    btc_util_dumpbin(stdout, self->peer_node_id, BTC_SZ_PUBKEY, false);
-    printf("\",\n");
-    printf(INDENT3 M_QQ("channel_id") ": \"");
-    btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
-    printf("\",\n");
-    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
-    printf(INDENT3 M_QQ("funding_tx") ": \"");
-    btc_util_dumptxid(stdout, self->funding_local.txid);
-    printf(":%d\",\n", self->funding_local.txindex);
-    uint64_t offered = 0;
-    uint64_t received = 0;
-    if (self->htlc_num != 0) {
-        printf(INDENT3 M_QQ("pending") ": [\n");
-        int cnt = 0;
-        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
-                if (cnt != 0) {
-                    printf(",\n");
+    ln_status_t stat = ln_status_get(self);
+    if (stat == LN_STATUS_NORMAL) {
+        printf(INDENT2 "{\n");
+        printf(INDENT3 M_QQ("node_id") ": \"");
+        btc_util_dumpbin(stdout, self->peer_node_id, BTC_SZ_PUBKEY, false);
+        printf("\",\n");
+        printf(INDENT3 M_QQ("channel_id") ": \"");
+        btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
+        printf("\",\n");
+        printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
+        printf(INDENT3 M_QQ("funding_tx") ": \"");
+        btc_util_dumptxid(stdout, self->funding_local.txid);
+        printf(":%d\",\n", self->funding_local.txindex);
+        uint64_t offered = 0;
+        uint64_t received = 0;
+        if (self->htlc_num != 0) {
+            printf(INDENT3 M_QQ("pending") ": [\n");
+            int cnt = 0;
+            for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+                if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
+                    if (cnt != 0) {
+                        printf(",\n");
+                    }
+                    const char *p_dir = NULL;
+                    if (self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_OFFER) {
+                        p_dir = "Offered";
+                        offered += self->cnl_add_htlc[lp].amount_msat;
+                    } else {
+                        p_dir = "Received";
+                        received += self->cnl_add_htlc[lp].amount_msat;
+                    }
+                    printf(INDENT4 "{\n");
+                    printf(INDENT5 M_QQ("direction") ": " M_QQ("%s") ",\n", p_dir);
+                    printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
+                    printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 "\n", self->cnl_add_htlc[lp].cltv_expiry);
+                    printf(INDENT4 "}");
+                    cnt++;
                 }
-                const char *p_dir = NULL;
-                if (self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_OFFER) {
-                    p_dir = "Offered";
-                    offered += self->cnl_add_htlc[lp].amount_msat;
-                } else {
-                    p_dir = "Received";
-                    received += self->cnl_add_htlc[lp].amount_msat;
-                }
-                printf(INDENT4 "{\n");
-                printf(INDENT5 M_QQ("direction") ": " M_QQ("%s") ",\n", p_dir);
-                printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
-                printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 "\n", self->cnl_add_htlc[lp].cltv_expiry);
-                printf(INDENT4 "}");
-                cnt++;
             }
+            printf("\n" INDENT3 "],\n");
         }
-        printf("\n" INDENT3 "],\n");
+        printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat - offered);
+        printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", self->their_msat - received);
+        printf(INDENT2 "}");
     }
-    printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat - offered);
-    printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", self->their_msat - received);
-    printf(INDENT2 "}");
 }
 
 static void ln_print_self(const ln_self_t *self)
@@ -187,7 +190,16 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("channel_id") ": \"");
     btc_util_dumpbin(stdout, self->channel_id, LN_SZ_CHANNEL_ID, false);
     printf("\",\n");
-    printf(INDENT3 M_QQ("short_channel_id") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
+    printf(INDENT3 M_QQ("short_channel_id") ": {\n");
+    uint32_t height;
+    uint32_t bindex;
+    uint32_t vindex;
+    ln_short_channel_id_get_param(&height, &bindex, &vindex, self->short_channel_id);
+    printf(INDENT4 M_QQ("hex") ": " M_QQ("0x%016" PRIx64) ",\n", self->short_channel_id);
+    printf(INDENT4 M_QQ("block height") ": %" PRIu32 ",\n", height);
+    printf(INDENT4 M_QQ("block index") ": %" PRIu32 ",\n", bindex);
+    printf(INDENT4 M_QQ("tx vout") ": %" PRIu32 "\n", vindex);
+    printf(INDENT3 "},\n");
 
     //amount
     printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat);
@@ -213,6 +225,12 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT4 M_QQ("is_funding") ": %d,\n", ((self->fund_flag & LN_FUNDFLAG_FUNDING) == LN_FUNDFLAG_FUNDING));
     printf(INDENT4 M_QQ("is_opened") ": %d\n", ((self->fund_flag & LN_FUNDFLAG_OPENED) == LN_FUNDFLAG_OPENED));
     printf(INDENT3 "},\n");
+#ifndef USE_SPV
+#else
+    printf(INDENT3 M_QQ("mined block") ": \"");
+    btc_util_dumptxid(stdout, self->funding_bhash);
+    printf("\",\n");
+#endif
     printf(INDENT3 M_QQ("funding_local") ": {\n");
     printf(INDENT4 M_QQ("funding_txid") ": \"");
     btc_util_dumptxid(stdout, self->funding_local.txid);

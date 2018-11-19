@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <arpa/inet.h>
+#include <linux/limits.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -170,10 +171,14 @@ typedef struct {
  *  @brief      bitcoind情報
  */
 typedef struct {
+#ifndef USE_SPV
     char            rpcuser[SZ_RPC_USER];
     char            rpcpasswd[SZ_RPC_PASSWD];
     char            rpcurl[SZ_RPC_URL];
     uint16_t        rpcport;
+#else
+    btc_genesis_t   gen;
+#endif
 } rpc_conf_t;
 
 

@@ -95,18 +95,6 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
         memcpy(p_addr->addrinfo.addr, ipbin, sizeof(ipbin));
     }
 
-    // if (options & 0x40) {
-    //     bret = ln_db_annonod_drop_startup();
-    //     fprintf(stderr, "db_annonod_drop: %d\n", bret);
-    //     return 0;
-    // }
-
-    // if (options & 0x80) {
-    //     bret = ln_db_reset();
-    //     fprintf(stderr, "db_reset: %d\n", bret);
-    //     return 0;
-    // }
-
     //O'REILLY Japan: BINARY HACKS #52
     sigset_t ss;
     pthread_t th_sig;
@@ -129,13 +117,6 @@ int ptarm_start(const char *pAlias, const char *pIpAddr, uint16_t Port)
     if (!bret) {
         fprintf(stderr, "fail: bitcoin getblockhash\n");
         return -1;
-    }
-
-    // https://github.com/lightningnetwork/lightning-rfc/issues/237
-    for (int lp = 0; lp < LN_SZ_HASH / 2; lp++) {
-        uint8_t tmp = genesis[lp];
-        genesis[lp] = genesis[LN_SZ_HASH - lp - 1];
-        genesis[LN_SZ_HASH - lp - 1] = tmp;
     }
     ln_genesishash_set(genesis);
 

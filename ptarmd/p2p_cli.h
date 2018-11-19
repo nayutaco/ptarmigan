@@ -46,6 +46,12 @@ extern "C" {
 void p2p_cli_init(void);
 
 
+/** [p2p_cli]接続テスト
+ * 
+ */
+bool p2p_cli_connect_test(const char *pIpAddr, uint16_t Port);
+
+
 /** [p2p_cli]開始
  *
  */
