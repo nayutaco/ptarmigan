@@ -160,7 +160,7 @@ extern "C" {
 /** @def    BTC_BTC2SATOSHI
  *  @brief  BTCをsatochi変換
  */
-#define BTC_BTC2SATOSHI(mbtc)       ((uint64_t)((mbtc) * (uint64_t)100000000 + 0.5))
+#define BTC_BTC2SATOSHI(btc)        ((uint64_t)((btc) * (uint64_t)100000000 + 0.5))
 
 /** @def    BTC_SATOSHI2MBTC
  *  @brief  satoshiをmBTC変換
