@@ -7,6 +7,7 @@ FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_open, void **);
 FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_get, void *, bool *, ln_db_preimg_t *);
 FAKE_VOID_FUNC(ln_db_preimg_cur_close, void *);
 FAKE_VALUE_FUNC(bool, ln_db_self_search, ln_db_func_cmp_t, void *);
+FAKE_VALUE_FUNC(bool, ln_db_self_search_readonly, ln_db_func_cmp_t, void *);
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -19,6 +20,7 @@ protected:
         RESET_FAKE(ln_db_preimg_cur_get)
         RESET_FAKE(ln_db_preimg_cur_close)
         RESET_FAKE(ln_db_self_search)
+        RESET_FAKE(ln_db_self_search_readonly)
         utl_dbg_malloc_cnt_reset();
         btc_init(BTC_TESTNET, false);
     }

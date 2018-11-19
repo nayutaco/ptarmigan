@@ -210,6 +210,7 @@ bool ln_db_self_del_prm(const ln_self_t *self, void *p_db_param);
  *      - 戻り値がtrueの場合、検索関数のselfは解放しない。必要があれば#ln_term()を実行すること。
  */
 bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
+bool ln_db_self_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
 /** closeフラグ保存

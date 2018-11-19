@@ -190,7 +190,7 @@ bool ln_node_search_channel(ln_self_t *self, const uint8_t *pNodeId)
 
     prm.p_node_id = pNodeId;
     prm.p_self = self;
-    bool detect = ln_db_self_search(comp_func_cnl, &prm);
+    bool detect = ln_db_self_search_readonly(comp_func_cnl, &prm);
 
     LOGD("  --> detect=%d\n", detect);
 
@@ -220,7 +220,7 @@ bool ln_node_search_nodeanno(ln_node_announce_t *pNodeAnno, const uint8_t *pNode
 uint64_t ln_node_total_msat(void)
 {
     uint64_t amount = 0;
-    ln_db_self_search(comp_func_total_msat, &amount);
+    ln_db_self_search_readonly(comp_func_total_msat, &amount);
     return amount;
 }
 
@@ -257,7 +257,7 @@ bool HIDDEN ln_node_search_nodeid(uint8_t *pNodeId, uint64_t ShortChannelId)
     comp_param_srcnodeid_t param;
     param.p_node_id = pNodeId;
     param.short_channel_id = ShortChannelId;
-    bool ret = ln_db_self_search(comp_func_srch_nodeid, &param);
+    bool ret = ln_db_self_search_readonly(comp_func_srch_nodeid, &param);
     LOGD("ret=%d\n", ret);
     return ret;
 }
