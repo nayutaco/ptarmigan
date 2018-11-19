@@ -392,7 +392,7 @@ bool HIDDEN ln_msg_cnl_announce_update_short_cnl_id(ln_self_t *self, uint64_t Sh
     int pos = sizeof(uint16_t) + LN_SZ_SIGNATURE * 4;
     //        [2:len]
     uint16_t len = ln_misc_get16be(pData + pos);
-    pos += sizeof(len) + len + BTC_SZ_SHA256;
+    pos += sizeof(len) + len + BTC_SZ_HASH256;
     //        [8:short_channel_id]
     for (size_t lp = 0; lp < sizeof(uint64_t); lp++) {
         *(pData + pos + sizeof(uint64_t) - 1 - lp) = (uint8_t)ShortChannelId;
@@ -477,9 +477,9 @@ static bool cnl_announce_ptr(cnl_announce_ptr_t *pPtr, const uint8_t *pData, uin
     if (cmp != 0) {
         LOGD("fail: chain_hash mismatch\n");
         LOGD("node: ");
-        DUMPD(gGenesisChainHash, LN_SZ_HASH);
+        DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
         LOGD("msg:  ");
-        DUMPD(pData + pos, LN_SZ_HASH);
+        DUMPD(pData + pos, BTC_SZ_HASH256);
         return false;
     }
     pos += sizeof(gGenesisChainHash);
@@ -858,9 +858,9 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     if (!chain_match) {
         LOGD("fail: chain_hash mismatch\n");
         LOGD("node: ");
-        DUMPD(gGenesisChainHash, LN_SZ_HASH);
+        DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
         LOGD("msg:  ");
-        DUMPD(pData + pos, LN_SZ_HASH);
+        DUMPD(pData + pos, BTC_SZ_HASH256);
     }
     pos += sizeof(gGenesisChainHash);
 

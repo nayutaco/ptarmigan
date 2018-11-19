@@ -452,9 +452,9 @@ bool btc_sw_verify_2of2(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, 
     }
     if (pVout->buf[1] == BTC_SZ_HASH256) {
         //native P2WSH
-        uint8_t pkh[BTC_SZ_SHA256];
+        uint8_t pkh[BTC_SZ_HASH256];
         btc_util_sha256(pkh, wit->buf, wit->len);
-        bool ret = (memcmp(pkh, &pVout->buf[2], BTC_SZ_SHA256) == 0);
+        bool ret = (memcmp(pkh, &pVout->buf[2], BTC_SZ_HASH256) == 0);
         if (!ret) {
             LOGD("pubkeyhash mismatch.\n");
             return false;
@@ -483,7 +483,7 @@ bool btc_sw_verify_2of2(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, 
     bool ret4 = btc_tx_verify(sig2, pTxHash, pub1);
     bool ret = ret1 && ret2;
     printf("txhash=");
-    DUMPD(pTxHash, BTC_SZ_SIGHASH);
+    DUMPD(pTxHash, BTC_SZ_HASH256);
     printf("ret1=%d\n", ret1);
     printf("ret2=%d\n", ret2);
     printf("ret3=%d\n", ret3);
@@ -544,6 +544,6 @@ bool btc_sw_is_segwit(const btc_tx_t *pTx)
 void btc_sw_wit2prog_p2wsh(uint8_t *pWitProg, const utl_buf_t *pWitScript)
 {
     pWitProg[0] = 0x00;
-    pWitProg[1] = BTC_SZ_SHA256;
+    pWitProg[1] = BTC_SZ_HASH256;
     btc_util_sha256(pWitProg + 2, pWitScript->buf, pWitScript->len);
 }

@@ -157,7 +157,7 @@ struct valid_invoice_data {
     const char* invoice;
     const uint8_t privkey[BTC_SZ_PRIVKEY];
     const uint8_t pubkey[BTC_SZ_PUBKEY];
-    const uint8_t payment_hash[BTC_SZ_SHA256];
+    const uint8_t payment_hash[BTC_SZ_HASH256];
 };
 
 static void segwit_scriptpubkey(uint8_t* scriptpubkey, size_t* scriptpubkeylen, int witver, const uint8_t* witprog, size_t witprog_len) {

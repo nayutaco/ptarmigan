@@ -745,7 +745,7 @@ static void set_reason_sha256(utl_push_t *pPushReason, const uint8_t *pPacket, u
 {
     ln_misc_push16be(pPushReason, Code);
     //[32:sha256_of_onion]
-    uint8_t sha256_of_onion[BTC_SZ_SHA256];
+    uint8_t sha256_of_onion[BTC_SZ_HASH256];
     btc_util_sha256(sha256_of_onion, pPacket, LN_SZ_ONION_ROUTE);
     utl_push_data(pPushReason, sha256_of_onion, sizeof(sha256_of_onion));
 }

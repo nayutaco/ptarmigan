@@ -35,7 +35,7 @@ struct valid_invoice_data {
     const char* invoice;
     const uint8_t privkey[BTC_SZ_PRIVKEY];
     const uint8_t pubkey[BTC_SZ_PUBKEY];
-    const uint8_t payment_hash[BTC_SZ_SHA256];
+    const uint8_t payment_hash[BTC_SZ_HASH256];
 };
 static struct valid_invoice_data ln_valid_invoice[] = {
     {
@@ -110,7 +110,7 @@ static struct valid_invoice_data ln_valid_invoice[] = {
 //     }
 //     fprintf(stderr, "\n");
 //     fprintf(stderr, "payment_hash=");
-//     for (int lp = 0; lp < LN_SZ_HASH; lp++) {
+//     for (int lp = 0; lp < BTC_SZ_HASH256; lp++) {
 //         fprintf(stderr, "%02x", p_invoice_data->payment_hash[lp]);
 //     }
 //     fprintf(stderr, "\n");
@@ -147,7 +147,7 @@ TEST_F(bech32, invoice_valid)
         ASSERT_NE(p_invoice_data->timestamp, p_invoice_data2->timestamp);       //時刻は更新するので、変化する
         ASSERT_EQ(p_invoice_data->min_final_cltv_expiry, p_invoice_data2->min_final_cltv_expiry);
         ASSERT_EQ(0, memcmp(p_invoice_data->pubkey, p_invoice_data2->pubkey, BTC_SZ_PUBKEY));
-        ASSERT_EQ(0, memcmp(p_invoice_data->payment_hash, p_invoice_data2->payment_hash, LN_SZ_HASH));
+        ASSERT_EQ(0, memcmp(p_invoice_data->payment_hash, p_invoice_data2->payment_hash, BTC_SZ_HASH256));
         ASSERT_EQ(p_invoice_data->expiry, p_invoice_data2->expiry);
 
         free(p_invoice_data2);

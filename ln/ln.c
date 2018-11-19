@@ -412,7 +412,7 @@ static const struct {
  **************************************************************************/
 
 //< 32: chain-hash
-uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
+uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
 
 /// init.localfeaturesデフォルト値
 static uint8_t mInitLocalFeatures[1];
@@ -512,10 +512,10 @@ ln_status_t ln_status_get(const ln_self_t *self)
 
 void ln_genesishash_set(const uint8_t *pHash)
 {
-    memcpy(gGenesisChainHash, pHash, LN_SZ_HASH);
+    memcpy(gGenesisChainHash, pHash, BTC_SZ_HASH256);
     btc_genesis_t gen = btc_util_get_genesis(gGenesisChainHash);
     LOGD("genesis(%d)=", (int)gen);
-    DUMPD(gGenesisChainHash, LN_SZ_HASH);
+    DUMPD(gGenesisChainHash, BTC_SZ_HASH256);
     if (gen == BTC_GENESIS_UNKNOWN) {
         LOGD("fail: unknown genesis block hash\n");
     }
@@ -589,7 +589,7 @@ bool ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t In
         LOGD("block hash=");
         TXIDD(pMinedHash);
         LOGD("block height=%d\n", Height);
-        memcpy(self->funding_bhash, pMinedHash, BTC_SZ_SHA256);
+        memcpy(self->funding_bhash, pMinedHash, BTC_SZ_HASH256);
 #endif
         M_DB_SELF_SAVE(self);
     }
@@ -1578,7 +1578,7 @@ bool ln_close_remoterevoked(ln_self_t *self, const btc_tx_t *pRevokedTx, void *p
             //HTLC Tx
             //  DBには、vout(SHA256後)をkeyにして、payment_hashを保存している。
             ln_htlctype_t type;
-            uint8_t payhash[LN_SZ_HASH];
+            uint8_t payhash[BTC_SZ_HASH256];
             uint32_t expiry;
             bool srch = ln_db_phash_search(payhash, &type, &expiry,
                             pRevokedTx->vout[lp].script.buf, pDbParam);
@@ -1763,7 +1763,7 @@ void ln_fail_malformed_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t I
     uint16_t failure_code = utl_misc_be16(p_htlc->buf_onion_reason.buf);
     mal_htlc.p_channel_id = self->channel_id;
     mal_htlc.id = p_htlc->id;
-    memcpy(mal_htlc.sha256_onion, p_htlc->buf_onion_reason.buf + sizeof(uint16_t), BTC_SZ_SHA256);
+    memcpy(mal_htlc.sha256_onion, p_htlc->buf_onion_reason.buf + sizeof(uint16_t), BTC_SZ_HASH256);
     mal_htlc.failure_code = failure_code;
     (void)ln_msg_update_fail_malformed_htlc_create(pFail, &mal_htlc);
 
@@ -3114,7 +3114,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
                     &p_htlc->buf_shared_secret,
                     &push_htlc,
                     p_htlc->buf_onion_reason.buf,
-                    p_htlc->payment_sha256, LN_SZ_HASH);
+                    p_htlc->payment_sha256, BTC_SZ_HASH256);
     if (ret) {
         int32_t height = 0;
         (*self->p_callback)(self, LN_CB_GETBLOCKCOUNT, &height);
@@ -3254,17 +3254,17 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         return false;
     }
 
-    uint8_t sha256[LN_SZ_HASH];
+    uint8_t sha256[BTC_SZ_HASH256];
     btc_util_sha256(sha256, preimage, sizeof(preimage));
 
     ln_update_add_htlc_t *p_htlc = NULL;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         //受信したfulfillは、Offered HTLCについてチェックする
         LOGD("HTLC%d: id=%" PRIu64 ", flag=%04x: ", idx, self->cnl_add_htlc[idx].id, self->cnl_add_htlc[idx].stat.bits);
-        DUMPD(self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH);
+        DUMPD(self->cnl_add_htlc[idx].payment_sha256, BTC_SZ_HASH256);
         if ( (self->cnl_add_htlc[idx].id == fulfill_htlc.id) &&
              (self->cnl_add_htlc[idx].stat.flag.addhtlc == LN_HTLCFLAG_OFFER) ) {
-            if (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, LN_SZ_HASH) == 0) {
+            if (memcmp(sha256, self->cnl_add_htlc[idx].payment_sha256, BTC_SZ_HASH256) == 0) {
                 p_htlc = &self->cnl_add_htlc[idx];
             } else {
                 LOGD("fail: match id, but fail payment_hash\n");
@@ -3666,9 +3666,9 @@ static bool recv_update_fail_malformed_htlc(ln_self_t *self, const uint8_t *pDat
 
             utl_buf_t reason;
             utl_push_t push_rsn;
-            utl_push_init(&push_rsn, &reason, sizeof(uint16_t) + BTC_SZ_SHA256);
+            utl_push_init(&push_rsn, &reason, sizeof(uint16_t) + BTC_SZ_HASH256);
             ln_misc_push16be(&push_rsn, mal_htlc.failure_code);
-            utl_push_data(&push_rsn, mal_htlc.sha256_onion, BTC_SZ_SHA256);
+            utl_push_data(&push_rsn, mal_htlc.sha256_onion, BTC_SZ_HASH256);
 
             ln_cb_fail_htlc_recv_t fail_recv;
             fail_recv.prev_short_channel_id = p_htlc->prev_short_channel_id;
@@ -4455,7 +4455,7 @@ static bool create_to_local_sign_verify(ln_self_t *self,
     bool ret;
     utl_buf_t buf_sig_from_remote = UTL_BUF_INIT;
     utl_buf_t script_code = UTL_BUF_INIT;
-    uint8_t sighash[BTC_SZ_SIGHASH];
+    uint8_t sighash[BTC_SZ_HASH256];
 
     //署名追加
     ln_misc_sigexpand(&buf_sig_from_remote, self->commit_remote.signature);
@@ -5400,7 +5400,7 @@ static bool create_closing_tx(ln_self_t *self, btc_tx_t *pTx, uint64_t FeeSat, b
     btc_util_sort_bip69(pTx);
 
     //署名
-    uint8_t sighash[BTC_SZ_SIGHASH];
+    uint8_t sighash[BTC_SZ_HASH256];
     ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, self->funding_sat, &self->redeem_fund);
     if (ret) {
         ret = ln_signer_p2wsh(&buf_sig, sighash, &self->priv_data, MSG_FUNDIDX_FUNDING);
@@ -5723,7 +5723,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
 
     //preimage検索
     ln_db_preimg_t preimg;
-    uint8_t preimage_hash[LN_SZ_HASH];
+    uint8_t preimage_hash[BTC_SZ_HASH256];
 
     preimg.amount_msat = (uint64_t)-1;
     preimg.expiry = 0;
@@ -5735,7 +5735,7 @@ static bool check_recv_add_htlc_bolt4_final(ln_self_t *self,
         if (detect) {
             memcpy(pPreImage, preimg.preimage, LN_SZ_PREIMAGE);
             ln_preimage_hash_calc(preimage_hash, pPreImage);
-            if (memcmp(preimage_hash, pAddHtlc->payment_sha256, LN_SZ_HASH) == 0) {
+            if (memcmp(preimage_hash, pAddHtlc->payment_sha256, BTC_SZ_HASH256) == 0) {
                 //一致
                 LOGD("match preimage: ");
                 DUMPD(pPreImage, LN_SZ_PREIMAGE);
@@ -6139,7 +6139,7 @@ static bool set_add_htlc(ln_self_t *self,
         self->cnl_add_htlc[idx].id = self->htlc_id_num;
         self->cnl_add_htlc[idx].amount_msat = AmountMsat;
         self->cnl_add_htlc[idx].cltv_expiry = CltvValue;
-        memcpy(self->cnl_add_htlc[idx].payment_sha256, pPaymentHash, LN_SZ_HASH);
+        memcpy(self->cnl_add_htlc[idx].payment_sha256, pPaymentHash, BTC_SZ_HASH256);
         utl_buf_alloccopy(&self->cnl_add_htlc[idx].buf_onion_reason, pPacket, LN_SZ_ONION_ROUTE);
         self->cnl_add_htlc[idx].prev_short_channel_id = PrevShortChannelId;
         self->cnl_add_htlc[idx].prev_idx = PrevIdx;
@@ -6229,13 +6229,13 @@ static bool search_preimage_func(const uint8_t *pPreImage, uint64_t Amount, uint
     (void)Amount; (void)Expiry;
 
     preimg_t *prm = (preimg_t *)p_param;
-    uint8_t preimage_hash[LN_SZ_HASH];
+    uint8_t preimage_hash[BTC_SZ_HASH256];
     bool ret = false;
 
     //LOGD("compare preimage : ");
     //DUMPD(pPreImage, LN_SZ_PREIMAGE);
     ln_preimage_hash_calc(preimage_hash, pPreImage);
-    if (memcmp(preimage_hash, prm->hash, LN_SZ_HASH) == 0) {
+    if (memcmp(preimage_hash, prm->hash, BTC_SZ_HASH256) == 0) {
         //一致
         //LOGD("preimage match!: ");
         //DUMPD(pPreImage, LN_SZ_PREIMAGE);

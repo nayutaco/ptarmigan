@@ -265,13 +265,13 @@ TEST_F(ln, ln_set_add_htlc1)
     uint8_t onion[LN_SZ_ONION_ROUTE];
     uint64_t amount_msat = 123;
     uint32_t cltv_expiry = 98765;
-    uint8_t payhash[LN_SZ_HASH];
+    uint8_t payhash[BTC_SZ_HASH256];
     uint64_t prev_schid = 0x1234567;
     uint16_t prev_idx = 3;
     utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
-    memset(payhash, 0xdd, LN_SZ_HASH);
+    memset(payhash, 0xdd, BTC_SZ_HASH256);
 
     /*** TEST ***/
     ret = ln_add_htlc_set(&self, &htlcid, &buf_reason, onion,
@@ -321,13 +321,13 @@ TEST_F(ln, ln_create_add_htlc1)
     uint8_t onion[LN_SZ_ONION_ROUTE];
     uint64_t amount_msat = 123;
     uint32_t cltv_expiry = 98765;
-    uint8_t payhash[LN_SZ_HASH];
+    uint8_t payhash[BTC_SZ_HASH256];
     uint64_t prev_schid = 0x1234567;
     uint16_t prev_idx = 3;
     utl_buf_t shared_secret = UTL_BUF_INIT;
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
-    memset(payhash, 0xdd, LN_SZ_HASH);
+    memset(payhash, 0xdd, BTC_SZ_HASH256);
 
     ret = ln_add_htlc_set(&self, &htlcid, &buf_reason, onion,
                 amount_msat, cltv_expiry, payhash,

@@ -317,7 +317,7 @@
  * const variables(ln.c)
  **************************************************************************/
 
-extern uint8_t HIDDEN gGenesisChainHash[LN_SZ_HASH];
+extern uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
 
 
 /**************************************************************************

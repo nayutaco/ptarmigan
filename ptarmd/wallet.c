@@ -33,7 +33,7 @@ bool wallet_from_ptarm(char **ppRawTx, const char *pAddr, uint32_t FeeratePerKw)
 {
     bool ret;
     wallet_t wallet;
-    uint8_t txhash[BTC_SZ_SIGHASH];
+    uint8_t txhash[BTC_SZ_HASH256];
 
     btc_tx_init(&wallet.tx);
     wallet.amount = 0;

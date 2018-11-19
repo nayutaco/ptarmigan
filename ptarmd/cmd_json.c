@@ -355,9 +355,9 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
         cJSON *result_hash = cJSON_CreateArray();
         uint8_t *p = p_hash;
         for (int lp = 0; lp < cnt; lp++) {
-            char hash_str[LN_SZ_HASH * 2 + 1];
-            utl_misc_bin2str(hash_str, p, LN_SZ_HASH);
-            p += LN_SZ_HASH;
+            char hash_str[BTC_SZ_HASH256 * 2 + 1];
+            utl_misc_bin2str(hash_str, p, BTC_SZ_HASH256);
+            p += BTC_SZ_HASH256;
             cJSON_AddItemToArray(result_hash, cJSON_CreateString(hash_str));
         }
         free(p_hash);       //ln_lmdbでmalloc/realloc()している
@@ -549,7 +549,7 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     }
 
-    uint8_t preimage_hash[LN_SZ_HASH];
+    uint8_t preimage_hash[BTC_SZ_HASH256];
     err = cmd_invoice_proc(preimage_hash, amount);
 
 LABEL_EXIT:
@@ -562,9 +562,9 @@ LABEL_EXIT:
                             min_final_cltv_expiry);
 
         if (p_invoice != NULL) {
-            char str_hash[LN_SZ_HASH * 2 + 1];
+            char str_hash[BTC_SZ_HASH256 * 2 + 1];
 
-            utl_misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+            utl_misc_bin2str(str_hash, preimage_hash, BTC_SZ_HASH256);
             result = cJSON_CreateObject();
             cJSON_AddItemToObject(result, "hash", cJSON_CreateString(str_hash));
             cJSON_AddItemToObject(result, "amount", cJSON_CreateNumber64(amount));
@@ -595,7 +595,7 @@ static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     int err = RPCERR_PARSE;
     cJSON *json;
     cJSON *result = NULL;
-    uint8_t preimage_hash[LN_SZ_HASH];
+    uint8_t preimage_hash[BTC_SZ_HASH256];
     int index = 0;
 
     if (params == NULL) {
@@ -633,7 +633,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)ctx; (void)params; (void)id;
 
     cJSON *result = NULL;
-    uint8_t preimage_hash[LN_SZ_HASH];
+    uint8_t preimage_hash[BTC_SZ_HASH256];
     ln_db_preimg_t preimg;
     void *p_cur;
     bool ret;
@@ -647,8 +647,8 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             ln_preimage_hash_calc(preimage_hash, preimg.preimage);
             cJSON *json = cJSON_CreateObject();
 
-            char str_hash[LN_SZ_HASH * 2 + 1];
-            utl_misc_bin2str(str_hash, preimage_hash, LN_SZ_HASH);
+            char str_hash[BTC_SZ_HASH256 * 2 + 1];
+            utl_misc_bin2str(str_hash, preimage_hash, BTC_SZ_HASH256);
             cJSON_AddItemToObject(json, "hash", cJSON_CreateString(str_hash));
             cJSON_AddItemToObject(json, "amount_msat", cJSON_CreateNumber64(preimg.amount_msat));
             char dtstr[UTL_SZ_DTSTR];
@@ -707,7 +707,7 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
     //payment_hash, hop_num
     json = cJSON_GetArrayItem(params, index++);
     if (json && (json->type == cJSON_String)) {
-        utl_misc_str2bin(payconf.payment_hash, LN_SZ_HASH, json->valuestring);
+        utl_misc_str2bin(payconf.payment_hash, BTC_SZ_HASH256, json->valuestring);
         LOGD("payment_hash=%s\n", json->valuestring);
     } else {
         index = -1;
@@ -910,8 +910,8 @@ LABEL_EXIT:
         result = cJSON_CreateString("start payment");
 
         //log file
-        char str_payhash[LN_SZ_HASH * 2 + 1];
-        utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, LN_SZ_HASH);
+        char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+        utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
         char fname[256];
         sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
         FILE *fp = fopen(fname, "w");
@@ -946,8 +946,8 @@ LABEL_EXIT:
         //最後に失敗した時間
         char date[50];
         utl_misc_datetime(date, sizeof(date));
-        char str_payhash[LN_SZ_HASH * 2 + 1];
-        utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, LN_SZ_HASH);
+        char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+        utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
 
         sprintf(mLastPayErr, "[%s]fail payment: %s", date, str_payhash);
         LOGD("%s\n", mLastPayErr);
@@ -1635,7 +1635,7 @@ static int cmd_routepay_proc2(
         if (inited) {
             payment_conf_t payconf;
 
-            memcpy(payconf.payment_hash, pInvoiceData->payment_hash, LN_SZ_HASH);
+            memcpy(payconf.payment_hash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
             payconf.hop_num = pRouteResult->hop_num;
             memcpy(payconf.hop_datain, pRouteResult->hop_datain, sizeof(ln_hop_datain_t) * (1 + LN_HOP_MAX));
 
@@ -1662,8 +1662,8 @@ static int cmd_routepay_proc2(
     if (mPayTryCount == 1) {
         //初回ログ
         uint64_t total_amount = ln_node_total_msat();
-        char str_payhash[LN_SZ_HASH * 2 + 1];
-        utl_misc_bin2str(str_payhash, pInvoiceData->payment_hash, LN_SZ_HASH);
+        char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+        utl_misc_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
         char str_payee[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(str_payee, pInvoiceData->pubkey, BTC_SZ_PUBKEY);
 

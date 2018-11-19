@@ -213,7 +213,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
     ln_signer_tolocal_key(self, &sigkey, bRevoked);
 
     bool ret;
-    uint8_t sighash[BTC_SZ_SIGHASH];
+    uint8_t sighash[BTC_SZ_HASH256];
 
     //vinは1つしかないので、Indexは0固定
     ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);

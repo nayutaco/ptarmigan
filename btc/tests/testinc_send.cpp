@@ -72,7 +72,7 @@ TEST_F(send, p2pkh)
     ret = btc_tx_add_vout_p2pkh_addr(&tx, BTC_MBTC2SATOSHI(168.9), "mmsgPUnoceq7er7f9HuaZV2ktMkaVD3Za1");
     ASSERT_TRUE(ret);
 
-    uint8_t txhash[BTC_SZ_SIGHASH];
+    uint8_t txhash[BTC_SZ_HASH256];
     utl_buf_t script_pk;
     ret = btc_keys_addr2spk(&script_pk, "mmsgPUnoceq7er7f9HuaZV2ktMkaVD3Za1");
     ASSERT_TRUE(ret);

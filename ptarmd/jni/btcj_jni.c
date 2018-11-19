@@ -515,7 +515,7 @@ void btcj_set_channel(
     jbyteArray aryPeer = buf2jbarray(&peer_id);
     jlong sci = ShortChannelId;
     jobject txHash = bytes2hash(pFundingTxid);
-    btcj_buf_t script_pubkey = { (CONST_CAST uint8_t *)pScriptPubKey, BTC_SZ_SHA256 };
+    btcj_buf_t script_pubkey = { (CONST_CAST uint8_t *)pScriptPubKey, BTC_SZ_HASH256 };
     jbyteArray aryScriptPubKey = buf2jbarray(&script_pubkey);
     jobject blkhash;
     if(pMinedHash != NULL) {

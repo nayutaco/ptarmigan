@@ -798,7 +798,7 @@ LABEL_EXIT:
         LOGD("pSig: ");
         DUMPD(pSig->buf, pSig->len);
         LOGD("txhash: ");
-        DUMPD(pTxHash, BTC_SZ_SIGHASH);
+        DUMPD(pTxHash, BTC_SZ_HASH256);
         LOGD("pub: ");
         DUMPD(pPubKey, BTC_SZ_PUBKEY);
     }
@@ -843,7 +843,7 @@ LABEL_EXIT:
     } else {
         LOGD("fail ret=%d\n", ret);
         LOGD("txhash: ");
-        DUMPD(pTxHash, BTC_SZ_SIGHASH);
+        DUMPD(pTxHash, BTC_SZ_HASH256);
         LOGD("pub: ");
         DUMPD(pPubKey, BTC_SZ_PUBKEY);
     }
@@ -1642,7 +1642,7 @@ static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, co
     // 1.5
     //      e = Hash(M)
     //      me = -e
-    ret = mbedtls_mpi_read_binary(&me, pTxHash, BTC_SZ_SIGHASH);
+    ret = mbedtls_mpi_read_binary(&me, pTxHash, BTC_SZ_HASH256);
     assert(ret == 0);
 
     mbedtls_mpi zero;
