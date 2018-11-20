@@ -3,11 +3,9 @@
 ## build
 
 * JDK
-
   * Raspberry Pi2/3(Cortex-A)
     * already installed (maybe)
-
-  *  Raspberry Pi1/Zero (Arm11)
+  * Raspberry Pi1/Zero (Arm11)
     * install `openjdk-8-jdk`
 
 * configure
