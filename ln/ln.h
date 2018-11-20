@@ -334,7 +334,7 @@ typedef enum {
  */
 typedef struct {
     struct {
-        uint8_t     secret[BTC_SZ_PRIVKEY];   ///< secret
+        uint8_t     secret[BTC_SZ_PRIVKEY];     ///< secret
         uint64_t    index;                      ///< index
     } storage[49];
 } ln_derkey_storage_t;
@@ -1086,7 +1086,7 @@ typedef struct {
 typedef struct {
     uint8_t         key[BTC_SZ_PRIVKEY];            ///< key
     uint64_t        nonce;                          ///< nonce
-    uint8_t         ck[BTC_SZ_HASH256];              ///< chainkey
+    uint8_t         ck[BTC_SZ_HASH256];             ///< chainkey
 } ln_noise_t;
 
 
@@ -2139,42 +2139,7 @@ static inline bool ln_is_offered_htlc_timeout(const ln_self_t *self, uint16_t ht
 }
 
 
-/** トランザクションがHTLC Success TxのUnlocking Scriptを含むと思われる場合、preimageを取得
- *
- * @param[in]   tx
- * @retval  非NULL      preimage
- * @retval  NULL        -
- *
- * @note
- *      - Offered HTLC Outputsをredeemできたtx
- *          - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#offered-htlc-outputs
- *            -----------------------------------------------------
- *            <remotehtlcsig>
- *            <payment_preimage> ★
- *            -----------------------------------------------------
- *            # To remote node with revocation key
- *            OP_DUP OP_HASH160 <RIPEMD160(SHA256(revocationkey))> OP_EQUAL
- *            OP_IF
- *                OP_CHECKSIG
- *            OP_ELSE
- *                <remote_htlckey> OP_SWAP OP_SIZE 32 OP_EQUAL
- *                OP_NOTIF
- *                    # To me via HTLC-timeout transaction (timelocked).
- *                    OP_DROP 2 OP_SWAP <local_htlckey> 2 OP_CHECKMULTISIG
- *                OP_ELSE
- *                    # To you with preimage.
- *                    OP_HASH160 <RIPEMD160(payment_hash)> OP_EQUALVERIFY
- *                    OP_CHECKSIG
- *                OP_ENDIF
- *            OP_ENDIF
- *            -----------------------------------------------------
- */
-static inline const utl_buf_t *ln_preimage_local(const btc_tx_t *pTx) {
-    return (pTx->vin[0].wit_cnt == 3) ? &pTx->vin[0].witness[1] : NULL;
-}
-
-
-/** トランザクションがHTLC Success TxのUnlocking Scriptを含むと思われる場合、preimageを取得
+/** トランザクションがHTLC Success Txの場合、preimageを取得
  *
  * @param[in]   tx
  * @retval  非NULL      preimage
@@ -2182,7 +2147,7 @@ static inline const utl_buf_t *ln_preimage_local(const btc_tx_t *pTx) {
  *
  * @note
  *      - HTLC Success Tx時のUnlockになる
- *          - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#offered-htlc-outputs
+ *          - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#received-htlc-outputs
  *          - https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
  *            -----------------------------------------------------
  *            0
@@ -2322,7 +2287,7 @@ static inline uint32_t ln_cltv_expily_delta(const ln_self_t *self) {
  * @param[in]           AmountMsat      転送amount_msat
  * @return      転送FEE(msat)
  * @note
- *      - fee_prop_millionthsの単位は[satoshi]だが、最終的に[msatoshi]の結果がほしいため、そのままmsatoshiで計算できる。
+ *      - fee_prop_millionths is a proportion (ppm)
  */
 static inline uint64_t ln_forward_fee(const ln_self_t *self, uint64_t AmountMsat) {
     return (uint64_t)self->anno_prm.fee_base_msat + (AmountMsat * (uint64_t)self->anno_prm.fee_prop_millionths / (uint64_t)1000000);
