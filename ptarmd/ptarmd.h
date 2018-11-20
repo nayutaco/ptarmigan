@@ -136,6 +136,7 @@ typedef enum {
  *  @brief  call script event
  */
 typedef enum {
+    PTARMD_EVT_STARTED,
     PTARMD_EVT_ERROR,
     PTARMD_EVT_CONNECTED,
     PTARMD_EVT_DISCONNECTED,

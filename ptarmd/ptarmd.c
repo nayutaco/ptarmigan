@@ -89,6 +89,8 @@ static bool                         mRunning;
 
 
 static const char *kSCRIPT[] = {
+    //PTARMD_EVT_STARTED
+    M_SCRIPT_DIR "started.sh",
     //PTARMD_EVT_ERROR
     M_SCRIPT_DIR "error.sh",
     //PTARMD_EVT_CONNECTED
@@ -174,6 +176,18 @@ int ptarmd_start(uint16_t my_rpcport)
             "ptarmd start: total_msat=%" PRIu64, total_amount);
 
     mRunning = true;
+
+    {
+        // method: started
+        // $1: 0000000000000000
+        // $2: node_id
+        char param[256];
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        sprintf(param, "0000000000000000 %s", node_id);
+        ptarmd_call_script(PTARMD_EVT_STARTED, param);
+
+    }
 
     //ptarmcli受信用
     cmd_json_start(my_rpcport != 0 ? my_rpcport : p_addr->port + 1);
