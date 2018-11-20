@@ -85,7 +85,7 @@ extern "C" {
 #define LN_HTLCFLAG_RECV                (0x02)      ///< Received HTLC
 
 #define LN_HTLCFLAG_FULFILL             (0x01)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
-#define LN_HTLCFLAG_FAIL                (0x02)      ///< update_fail_malformed_htlc
+#define LN_HTLCFLAG_FAIL                (0x02)      ///< update_fail_htlc
 #define LN_HTLCFLAG_MALFORMED           (0x03)      ///< update_fail_malformed_htlc
 
 // channel_update.flags
