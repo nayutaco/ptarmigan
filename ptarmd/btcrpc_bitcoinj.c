@@ -249,8 +249,8 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     pthread_create(&th, NULL, &thread_jni_start, (CONST_CAST void*)pRpcConf);
 
     //wait jni start...
-    int count = 2000;
-    LOGD("mLoopJni: %d\n", mLoopJni);
+    int count = 100 * 30;       //600ms * 100 = 60s
+    LOGD("$$$ SYNC start\n");
     fprintf(stderr, "Java initialize...");
     while ((mLoopJni == JNILOOP_INI) && (count > 0)) {
         utl_misc_msleep(600);
@@ -262,7 +262,8 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
         fprintf(stderr, "JNI thread cannot start.\n");
         return false;
     }
-    fprintf(stderr, "done\n");
+    fprintf(stderr, "SYNC done\n");
+    LOGD("$$$ SYNC done\n");
 
     int32_t blkcnt;
     ret = btcrpc_getblockcount(&blkcnt);
