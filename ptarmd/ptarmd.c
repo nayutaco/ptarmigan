@@ -59,6 +59,8 @@
  * macros
  **************************************************************************/
 
+#define M_SCRIPT_DIR            "./script/"
+
 
 /********************************************************************
  * typedefs
@@ -84,6 +86,32 @@ LIST_HEAD(nodefaillisthead_t, nodefaillist_t);
 static pthread_mutex_t              mMuxPreimage;
 static struct nodefaillisthead_t    mNodeFailListHead;
 static bool                         mRunning;
+
+
+static const char *kSCRIPT[] = {
+    //PTARMD_EVT_STARTED
+    M_SCRIPT_DIR "started.sh",
+    //PTARMD_EVT_ERROR
+    M_SCRIPT_DIR "error.sh",
+    //PTARMD_EVT_CONNECTED
+    M_SCRIPT_DIR "connected.sh",
+    //PTARMD_EVT_DISCONNECTED
+    M_SCRIPT_DIR "disconnected.sh",
+    //PTARMD_EVT_ESTABLISHED
+    M_SCRIPT_DIR "established.sh",
+    //PTARMD_EVT_PAYMENT,
+    M_SCRIPT_DIR "payment.sh",
+    //PTARMD_EVT_FORWARD,
+    M_SCRIPT_DIR "forward.sh",
+    //PTARMD_EVT_FULFILL,
+    M_SCRIPT_DIR "fulfill.sh",
+    //PTARMD_EVT_FAIL,
+    M_SCRIPT_DIR "fail.sh",
+    //PTARMD_EVT_HTLCCHANGED,
+    M_SCRIPT_DIR "htlcchanged.sh",
+    //PTARMD_EVT_CLOSED
+    M_SCRIPT_DIR "closed.sh"
+};
 
 
 /********************************************************************
@@ -148,6 +176,18 @@ int ptarmd_start(uint16_t my_rpcport)
             "ptarmd start: total_msat=%" PRIu64, total_amount);
 
     mRunning = true;
+
+    {
+        // method: started
+        // $1: 0000000000000000
+        // $2: node_id
+        char param[256];
+        char node_id[BTC_SZ_PUBKEY * 2 + 1];
+        utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
+        sprintf(param, "0000000000000000 %s", node_id);
+        ptarmd_call_script(PTARMD_EVT_STARTED, param);
+
+    }
 
     //ptarmcli受信用
     cmd_json_start(my_rpcport != 0 ? my_rpcport : p_addr->port + 1);
@@ -300,6 +340,26 @@ bool ptarmd_nodefail_get(
         }
     }
     return detect;
+}
+
+
+/** イベント発生によるスクリプト実行
+ *
+ *
+ */
+void ptarmd_call_script(ptarmd_event_t event, const char *param)
+{
+    LOGD("event=0x%02x\n", (int)event);
+
+    struct stat buf;
+    int ret = stat(kSCRIPT[event], &buf);
+    if ((ret == 0) && (buf.st_mode & S_IXUSR)) {
+        char *cmdline = (char *)UTL_DBG_MALLOC(128 + strlen(param));    //UTL_DBG_FREE: この中
+        sprintf(cmdline, "%s %s", kSCRIPT[event], param);
+        LOGD("cmdline: %s\n", cmdline);
+        system(cmdline);
+        UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
+    }
 }
 
 
