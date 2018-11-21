@@ -49,6 +49,13 @@
 #define M_OPTIONS_HELP  (0)
 #define M_OPTIONS_ERR   (-1)
 
+#define M_OPT_SETFEERATE            '\x01'
+#define M_OPT_ESTIMATEFUNDINGFEE    '\x02'
+#define M_OPT_GETNEWADDRESS         '\x03'
+#define M_OPT_GETBALANCE            '\x04'
+#define M_OPT_EMPTYWALLET           '\x05'
+#define M_OPT_DEBUG                 '\x1f'
+
 #define BUFFER_SIZE     (256 * 1024)
 
 #define M_NEXT              ","
@@ -97,7 +104,7 @@ static void optfunc_addr(int *pOption, bool *pConn);
 static void optfunc_conn_param(int *pOption, bool *pConn);
 static void optfunc_getinfo(int *pOption, bool *pConn);
 static void optfunc_disconnect(int *pOption, bool *pConn);
-static void optfunc_fundinaddr(int *pOption, bool *pConn);
+static void optfunc_getnewaddress(int *pOption, bool *pConn);
 static void optfunc_funding(int *pOption, bool *pConn);
 static void optfunc_invoice(int *pOption, bool *pConn);
 static void optfunc_erase(int *pOption, bool *pConn);
@@ -115,6 +122,7 @@ static void optfunc_setfeerate(int *pOption, bool *pConn);
 static void optfunc_estimatefundingfee(int *pOption, bool *pConn);
 static void optfunc_walletback(int *pOption, bool *pConn);
 static void optfunc_getbalance(int *pOption, bool *pConn);
+static void optfunc_emptywallet(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -149,11 +157,12 @@ static const struct {
     { 'W', optfunc_walletback },
 
     //long opt
-    { 'b', optfunc_setfeerate },
-    { 'B', optfunc_estimatefundingfee },
-    { 'j', optfunc_debug },
-    { 'F', optfunc_fundinaddr },
-    { '$', optfunc_getbalance },
+    { M_OPT_SETFEERATE,         optfunc_setfeerate },
+    { M_OPT_ESTIMATEFUNDINGFEE, optfunc_estimatefundingfee },
+    { M_OPT_GETNEWADDRESS,      optfunc_getnewaddress },
+    { M_OPT_GETBALANCE,         optfunc_getbalance },
+    { M_OPT_EMPTYWALLET,        optfunc_emptywallet },
+    { M_OPT_DEBUG,              optfunc_debug },
 };
 
 
@@ -164,10 +173,12 @@ static const struct {
 int main(int argc, char *argv[])
 {
     const struct option OPTIONS[] = {
-        { "setfeerate", required_argument, NULL, 'b' },
-        { "estimatefundingfee", required_argument, NULL, 'B' },
-        { "getbalance", no_argument, NULL, '$' },
-        { "debug", required_argument, NULL, 'j' },
+        { "setfeerate", required_argument, NULL, M_OPT_SETFEERATE },
+        { "estimatefundingfee", required_argument, NULL, M_OPT_ESTIMATEFUNDINGFEE },
+        { "getnewaddress", no_argument, NULL, M_OPT_GETNEWADDRESS },
+        { "getbalance", no_argument, NULL, M_OPT_GETBALANCE },
+        { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
+        { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
     };
 
@@ -176,7 +187,7 @@ int main(int argc, char *argv[])
     mAddr[0] = '\0';
     mTcpSend = true;
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:hta:lq::Ff:i:e:mp:r:R:x::wg::s:X:W", OPTIONS, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:x::wg::s:X:W", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
             if (opt == OPTION_FUNCS[lp].opt) {
                 (*OPTION_FUNCS[lp].func)(&option, &conn);
@@ -376,7 +387,7 @@ static void optfunc_disconnect(int *pOption, bool *pConn)
 }
 
 
-static void optfunc_fundinaddr(int *pOption, bool *pConn)
+static void optfunc_getnewaddress(int *pOption, bool *pConn)
 {
     (void)pConn;
 
@@ -830,6 +841,21 @@ static void optfunc_getbalance(int *pOption, bool *pConn)
             M_STR("method", "getbalance") M_NEXT
             M_QQ("params") ":[]"
         "}");
+    *pOption = M_OPTIONS_EXEC;
+}
+
+
+static void optfunc_emptywallet(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_INIT
+
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "emptywallet") M_NEXT
+            M_QQ("params") ":[%s]"
+        "}", optarg);
     *pOption = M_OPTIONS_EXEC;
 }
 
