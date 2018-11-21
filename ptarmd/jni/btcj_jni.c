@@ -111,7 +111,7 @@ bool btcj_init(btc_genesis_t Gen)
     char exepath[PATH_MAX];
     char optjar[PATH_MAX];
     get_execpath(exepath, sizeof(exepath));
-    snprintf(optjar, sizeof(optjar), "-Djava.class.path=%s/bitcoinj-ptarmigan-dev.jar", exepath);
+    snprintf(optjar, sizeof(optjar), "-Djava.class.path=%s/jar/bitcoinj-ptarmigan-dev.jar:%s/jar/bcprov-jdk15on-160.jar", exepath, exepath);
     LOGD("optjar=%s\n", optjar);
 
     JavaVMOption opt[1];
