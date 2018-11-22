@@ -114,6 +114,7 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id);
 #else
 static cJSON *cmd_fundaddr(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_emptywallet(jrpc_context *ctx, cJSON *params, cJSON *id);
 #endif
 
 static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx);
@@ -181,6 +182,7 @@ void cmd_json_start(uint16_t Port)
 #else
     jrpc_register_procedure(&mJrpc, cmd_fundaddr,    "fundaddr", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getbalance,  "getbalance", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_emptywallet, "emptywallet", NULL);
 #endif
     jrpc_server_run(&mJrpc);
     jrpc_server_destroy(&mJrpc);
@@ -1361,6 +1363,53 @@ static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id)
     } else {
         ctx->error_code = RPCERR_BLOCKCHAIN;
         ctx->error_message = ptarmd_error_str(RPCERR_BLOCKCHAIN);
+    }
+    return result;
+}
+
+
+/** 送金してwalletを空にする : ptarmcli --emptywallet
+ *
+ */
+static cJSON *cmd_emptywallet(jrpc_context *ctx, cJSON *params, cJSON *id)
+{
+    (void)id;
+
+    bool ret = false;
+    uint8_t txid[BTC_SZ_TXID];
+    cJSON *json;
+    cJSON *result = NULL;
+    int index = 0;
+
+    if (params == NULL) {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_String)) {
+        LOGD("send to=%" PRIu32 "\n", json->valuestring);
+    } else {
+        index = -1;
+        goto LABEL_EXIT;
+    }
+
+    LOGD("emptywallet\n");
+    ret = btcrpc_empty_wallet(txid, json->valuestring);
+
+LABEL_EXIT:
+    if (ret) {
+        char str_txid[BTC_SZ_TXID * 2 + 1];
+        utl_misc_bin2str_rev(str_txid, txid, BTC_SZ_TXID);
+        result = cJSON_CreateString(str_txid);
+    } else {
+        if (index < 0) {
+            ctx->error_code = RPCERR_PARSE;
+            ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
+        } else {
+            ctx->error_code = RPCERR_BLOCKCHAIN;
+            ctx->error_message = ptarmd_error_str(RPCERR_BLOCKCHAIN);
+        }
     }
     return result;
 }

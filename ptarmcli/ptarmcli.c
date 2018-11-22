@@ -854,7 +854,7 @@ static void optfunc_emptywallet(int *pOption, bool *pConn)
     snprintf(mBuf, BUFFER_SIZE,
         "{"
             M_STR("method", "emptywallet") M_NEXT
-            M_QQ("params") ":[%s]"
+            M_QQ("params") ":[" M_QQ("%s") "]"
         "}", optarg);
     *pOption = M_OPTIONS_EXEC;
 }
