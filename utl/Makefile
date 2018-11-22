@@ -26,7 +26,6 @@ endif
 
 # Toolchain commands
 CC       		:= "$(GNU_PREFIX)gcc"
-CXX      		:= "$(GNU_PREFIX)g++"
 AS       		:= "$(GNU_PREFIX)as"
 AR       		:= "$(GNU_PREFIX)ar" -r
 LD       		:= "$(GNU_PREFIX)ld"
@@ -47,9 +46,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/utl_opts.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_str.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_jsonrpc.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_addr.c
-#ifeq ($(findstring 1,$(USE_PLOG_PTARMD) $(USE_PLOG_PTARMLIB)), 1)
 C_SOURCE_FILES += $(PRJ_PATH)/utl_log.c
-#endif
 
 
 #includes common to all targets
@@ -60,40 +57,24 @@ INC_PATHS += -I../libs/install/include
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY))
 
 ######################################
-#CFLAGS_CMN : C/C++ common
+#CFLAGS
 ######################################
 # cpu
-#CFLAGS_CMN += -mcpu=cortex-m0
-#CFLAGS_CMN += -mthumb -mabi=aapcs
-#CFLAGS_CMN += -mfloat-abi=soft
+#CFLAGS += -mcpu=cortex-m0
+#CFLAGS += -mthumb -mabi=aapcs
+#CFLAGS += -mfloat-abi=soft
 
-CFLAGS_CMN += -W -Wall -Wno-error=unused-function -fno-common
+CFLAGS += -W -Wall -Wno-error=unused-function -fno-common
 
 # keep every function in separate section. This will allow linker to dump unused functions
-CFLAGS_CMN += -ffunction-sections -fdata-sections -fno-strict-aliasing
-#CFLAGS_CMN += -flto -fno-builtin
-
-# for syscall()
-CFLAGS_CMN += -D_GNU_SOURCE
+CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
+#CFLAGS += -flto -fno-builtin
 
 # for mbedtls
-CFLAGS_CMN += -I../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
+CFLAGS += -I../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
 
 # others
-CFLAGS_CMN += $(CFLAGS_USER)
-CFLAGS_CMN += -DNETKIND=$(NETKIND)
-
-ifeq ($(USE_SPV),1)
-	CFLAGS += -DUSE_SPV
-endif
-
-ifeq ($(DISABLE_PRINTFUND),0)
-	CFLAGS_CMN += -DPTARM_USE_PRINTFUNC
-endif
-
-ifeq ($(ENABLE_DEVELOPER_MODE),1)
-	CFLAGS_CMN += -DDEVELOPER_MODE
-endif
+CFLAGS += $(CFLAGS_USER)
 
 ifeq ("$(BUILD_PTARMD)","LIB")
 	CFLAGS += -fPIC
@@ -138,32 +119,27 @@ C_SOURCE_FILE_NAMES = $(notdir $(C_SOURCE_FILES))
 C_PATHS = $(call remduplicates, $(dir $(C_SOURCE_FILES) ) )
 C_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(C_SOURCE_FILE_NAMES:.c=.o) )
 
-CPP_SOURCE_FILE_NAMES = $(notdir $(CPP_SOURCE_FILES))
-CPP_PATHS = $(call remduplicates, $(dir $(CPP_SOURCE_FILES) ) )
-CPP_OBJECTS = $(addprefix $(OBJECT_DIRECTORY)/, $(CPP_SOURCE_FILE_NAMES:.cpp=.o) )
-
 vpath %.c $(C_PATHS)
-vpath %.cpp $(CPP_PATHS)
 
-OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS)
+OBJECTS = $(C_OBJECTS)
 
 lib:
 	$(MAKE) -C ../libs
 
-debug: CFLAGS_CMN += -DDEBUG -DPTARM_DEBUG
-debug: CFLAGS_CMN += -ggdb3 -O0
+debug: CFLAGS += -DDEBUG -DPTARM_DEBUG
+debug: CFLAGS += -ggdb3 -O0
 debug: LDFLAGS += -ggdb3 -O0
 debug: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo [DEBUG]Linking target: $(OUTPUT_FILENAME)
-	@echo [DEBUG]CFLAGS=$(CFLAGS) $(CFLAGS_CMN)
+	@echo [DEBUG]CFLAGS=$(CFLAGS)
 	$(NO_ECHO)$(LD) -r $(OBJECTS) -o ptarm_tmp.o
 	$(NO_ECHO)$(OBJCOPY) --localize-hidden ptarm_tmp.o ptarm_lib.o
 	$(NO_ECHO)$(AR) $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME) ptarm_lib.o
 	$(NO_ECHO)$(RM) ptarm_tmp.o ptarm_lib.o
 
-#release: CFLAGS_CMN += -DNDEBUG
-release: CFLAGS_CMN += -O3
-#release: CFLAGS_CMN +=-Werror
+#release: CFLAGS += -DNDEBUG
+release: CFLAGS += -O3
+#release: CFLAGS +=-Werror
 release: LDFLAGS += -O3
 release: $(BUILD_DIRECTORIES) $(OBJECTS)
 	@echo [RELEASE]Linking target: $(OUTPUT_FILENAME)
@@ -179,13 +155,7 @@ $(BUILD_DIRECTORIES):
 # Create objects from C SRC files
 $(OBJECT_DIRECTORY)/%.o: %.c
 	@echo Compiling C file: $(notdir $<)
-	$(NO_ECHO)$(CC) $(CFLAGS) $(CFLAGS_CMN) $(INC_PATHS) -c -o $@ $<
-
-
-# Create objects from C++ SRC files
-$(OBJECT_DIRECTORY)/%.o: %.cpp
-	@echo Compiling C++ file: $(notdir $<)
-	$(NO_ECHO)$(CXX) $(CPPFLAGS) $(CFLAGS_CMN) $(INC_PATHS) -c -o $@ $<
+	$(NO_ECHO)$(CC) $(CFLAGS) $(INC_PATHS) -c -o $@ $<
 
 
 # Link
@@ -208,8 +178,7 @@ test:
 
 .Depend:
 ifneq ($(MAKECMDGOALS),clean)
-	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(CFLAGS_CMN) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
-	@$(foreach SRC,$(CPP_SOURCE_FILES),$(CXX) $(CPPFLAGS) $(CFLAGS_CMN) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.cpp=%.o)) $(SRC) >> .Depend; )
+	@$(foreach SRC,$(C_SOURCE_FILES),$(CC) $(CFLAGS) $(INC_PATHS) -MM -MT $(OBJECT_DIRECTORY)/$(notdir $(SRC:%.c=%.o)) $(SRC) >> .Depend; )
 endif
 
 -include .Depend

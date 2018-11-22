@@ -34,13 +34,13 @@ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-ou
 
 #sources project
 ifeq ("$(BUILD_PTARMD)","LIB")
-OUTPUT_FILENAME := libptarm.so
-C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_lib.c
-C_SOURCE_FILES += $(PRJ_PATH)/co_nayuta_lightning_PtarmiganNative.c
-INC_PATHS += $(BUILD_PTARMD_LIB_INCPATHS)
+	OUTPUT_FILENAME := libptarm.so
+	C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_lib.c
+	C_SOURCE_FILES += $(PRJ_PATH)/co_nayuta_lightning_PtarmiganNative.c
+	INC_PATHS += $(BUILD_PTARMD_LIB_INCPATHS)
 else
-OUTPUT_FILENAME := ptarmd
-C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_main.c
+	OUTPUT_FILENAME := ptarmd
+	C_SOURCE_FILES += $(PRJ_PATH)/ptarmd_main.c
 endif
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmd.c
 C_SOURCE_FILES += $(PRJ_PATH)/p2p_svr.c
@@ -72,34 +72,16 @@ CFLAGS += -W -Wall -Wextra
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 #CFLAGS += -flto -fno-builtin
 
-# for syscall() and others
-CFLAGS += -D_GNU_SOURCE
-
 # others
 CFLAGS += $(INC_PATHS)
-CFLAGS += -DNETKIND=$(NETKIND)
 
 ifeq ($(USE_SPV),1)
-	CFLAGS += -DUSE_SPV
 	C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoinj.c
 	C_SOURCE_FILES += $(PRJ_PATH)/jni/btcj_jni.c
 	INC_PATHS += $(BUILD_PTARMD_LIB_INCPATHS)
 	LIBS += $(USE_SPV_JVM) -ljvm
 else
 	C_SOURCE_FILES += $(PRJ_PATH)/btcrpc_bitcoind.c
-endif
-
-ifeq ($(DISABLE_PRINTFUND),0)
-	CFLAGS += -DPTARM_USE_PRINTFUNC
-endif
-
-ifeq ($(ENABLE_COVERAGE),1)
-CFLAGS += --coverage
-LDFLAGS += --coverage
-endif
-
-ifeq ($(ENABLE_DEVELOPER_MODE),1)
-	CFLAGS += -DDEVELOPER_MODE
 endif
 
 ifeq ($(ENABLE_PLOG_TO_STDOUT_PTARMD),1)
@@ -192,7 +174,7 @@ $(BUILD_DIRECTORIES):
 
 # Create objects from C SRC files
 $(OBJECT_DIRECTORY)/%.o: %.c
-	@echo Compiling C file: $(notdir $<) $(INC_PATHS)
+	@echo Compiling C file: $(notdir $<)
 	$(NO_ECHO)$(CC) $(CFLAGS) $(INC_PATHS) -c -o $@ $<
 
 # Link

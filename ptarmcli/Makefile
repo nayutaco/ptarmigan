@@ -61,20 +61,6 @@ CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 
 # others
 CFLAGS += $(INC_PATHS)
-CFLAGS += -DNETKIND=$(NETKIND)
-
-ifeq ($(DISABLE_PRINTFUND),0)
-CFLAGS += -DPTARM_USE_PRINTFUNC
-endif
-
-ifeq ($(ENABLE_COVERAGE),1)
-CFLAGS += --coverage
-LDFLAGS += --coverage
-endif
-
-ifeq ($(ENABLE_DEVELOPER_MODE),1)
-CFLAGS += -DDEVELOPER_MODE
-endif
 
 ######################################
 #LDFLAGS
