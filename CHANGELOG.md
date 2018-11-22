@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2018/11/22
+
+* DB version : -27
+* testing SPV mode
+  * `options.mak` ... `USE_SPV=1`
+
 ## 2018/11/02
 
 * DB version : -26
