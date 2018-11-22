@@ -28,15 +28,52 @@ make
 ## execute
 
 * configure
-  * `install/jdk.sh`
-    * uncomment `JDK_HOME` and `JDK_CPU`
-
-* exec (testnet)
 
 ```bash
 cd install
+
+# edit your environment(if need)
+vi jdk.sh
+(uncomment your TARGET)
+
 source jdk.sh
-./new_nodedir.sh
-cd node
-../ptarmd -t
+```
+
+## usage
+
+* start (testnet)
+
+```bash
+cd install
+./new_nodedir.sh spv
+cd spv
+../ptarmd -t&
+#start blockchain syncing...
+#   take a long time........
+```
+
+* fund-in
+  * get address for fund-in
+  * you send from your wallet to the address.
+
+```bash
+# like `bitcoin-cli getnewaddress`
+../ptarmcli --getnewaddress
+```
+
+* funding from fund-in amount
+
+```bash
+# check you have fund-in amount
+../ptarmcli --getbalance
+
+# funding
+../ptarmcli -c xxxxxxxx....xxxx@yyy.yyy.yyy.yyy:zzzz -f FUNDING_SATOSHIS
+```
+
+* send fund-in amount to address
+
+```bash
+# send all amount to address
+../ptarmcli --emptywallet YOUR_RECEIVING_ADDRESS
 ```

@@ -259,11 +259,11 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     pthread_create(&th, NULL, &thread_jni_start, (CONST_CAST void*)pRpcConf);
 
     //wait jni start...
-    int count = 100 * 30;       //600ms * 100 = 60s
+    int count = 60 * 60 * 24;       //1s*60*60=1hour
     LOGD("$$$ SYNC start\n");
     fprintf(stderr, "Java initialize...");
     while ((mLoopJni == JNILOOP_INI) && (count > 0)) {
-        utl_misc_msleep(600);
+        sleep(1);
         fprintf(stderr, ".");
         count--;
     }
