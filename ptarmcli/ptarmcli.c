@@ -223,8 +223,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\n");
 #ifndef USE_SPV
 #else
-        fprintf(stderr, "\t\t-F : get wallet address(for fund-in)\n");
+        fprintf(stderr, "\t\t--getnewaddress : get wallet address(for fund-in)\n");
         fprintf(stderr, "\t\t--getbalance : get available Bitcoin balance\n");
+        fprintf(stderr, "\t\t--emptywallet BITCOIN_ADDRESS : send all Bitcoin balance\n");
 #endif
         fprintf(stderr, "\t\t-W : show send wallet rawtransaction\n");
         fprintf(stderr, "\n");
