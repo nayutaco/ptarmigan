@@ -88,6 +88,8 @@ const struct {
     { "setCommitTxid", "([BIILorg/bitcoinj/core/Sha256Hash;)V" },
     // METHOD_PTARM_GETBALANCE,
     { "getBalance", "()J" },
+    // METHOD_PTARM_EMPTYWALLET,
+    { "emptyWallet", "(Ljava/lang/String;)Lorg/bitcoinj/core/Sha256Hash;" },
 };
 
 
@@ -543,6 +545,25 @@ bool btcj_getbalance(uint64_t *pAmount)
     *pAmount = ret;
     //
     return true;
+}
+//-----------------------------------------------------------------------------
+bool btcj_emptywallet(const char *pAddr, uint8_t **ppTxid)
+{
+    bool ret;
+    jstring addr = (*env)->NewStringUTF(env, pAddr);
+    jobject hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_EMPTYWALLET], addr);
+    if (hash_obj != NULL) {
+        *ppTxid = hash2bytes(hash_obj);
+        ret = true;
+    } else {
+        *ppTxid = NULL;
+        ret = false;
+    }
+    //
+    (*env)->DeleteLocalRef(env, addr);
+    (*env)->DeleteLocalRef(env, hash_obj);
+    //
+    return ret;
 }
 //-----------------------------------------------------------------------------
 

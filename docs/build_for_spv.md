@@ -8,6 +8,11 @@
   * Raspberry Pi1/Zero (Arm11)
     * install `openjdk-8-jdk`
 
+```bash
+sudo apt remove -y oracle-java8-jdk
+sudo apt install -y openjdk-8-jdk
+```
+
 * configure
 
   * `options.mak`

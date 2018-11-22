@@ -144,6 +144,13 @@ typedef struct {
 } getbalance_t;
 
 
+typedef struct {
+    bool            ret;
+    uint8_t         *p_txid;
+    const char      *p_addr;
+} emptywallet_t;
+
+
 /**************************************************************************
  * prototypes
  **************************************************************************/
@@ -167,6 +174,7 @@ static void jni_estimatefee(void *pArg);
 static void jni_set_channel(void *pArg);
 static void jni_set_committxid(void *pArg);
 static void jni_get_balance(void *pArg);
+static void jni_empty_wallet(void *pArg);
 
 
 /**************************************************************************
@@ -228,6 +236,8 @@ static const struct {
     { jni_set_committxid },
     // METHOD_PTARM_GETBALANCE,
     { jni_get_balance },
+    // METHOD_PTARM_EMPTYWALLET,
+    { jni_empty_wallet },
 };
 
 
@@ -564,6 +574,22 @@ bool btcrpc_get_balance(uint64_t *pAmount)
 }
 
 
+bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr)
+{
+    LOGD("\n");
+
+    emptywallet_t prm;
+    prm.p_txid = pTxid;
+    prm.p_addr = pAddr;
+    call_jni(METHOD_PTARM_EMPTYWALLET, &prm);
+    if (prm.ret) {
+        LOGD("txid=");
+        TXIDD(prm.p_txid);
+    }
+    return prm.ret;
+}
+
+
 /**************************************************************************
  * private functions
  **************************************************************************/
@@ -840,4 +866,18 @@ static void jni_get_balance(void *pArg)
 
     getbalance_t *p = (getbalance_t *)pArg;
     p->ret = btcj_getbalance(p->p_amount);
+}
+
+
+static void jni_empty_wallet(void *pArg)
+{
+    LOGD("\n");
+
+    emptywallet_t *p = (emptywallet_t *)pArg;
+    uint8_t *p_txid = NULL;
+    p->ret = btcj_emptywallet(p->p_addr, &p_txid);
+    if (p->ret) {
+        memcpy(p->p_txid, p_txid, BTC_SZ_TXID);
+        free(p_txid);
+    }
 }

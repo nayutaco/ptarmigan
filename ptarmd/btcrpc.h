@@ -224,6 +224,14 @@ void btcrpc_set_committxid(const ln_self_t *self);
  */
 bool btcrpc_get_balance(uint64_t *pAmount);
 
+
+/** [bitcoin IF]wallet全送金
+ * 
+ * @param[out]  pTxid
+ * @param[in]   pAddr
+ */
+bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr);
+
 #endif
 
 #endif /* BTCRPC_H__ */

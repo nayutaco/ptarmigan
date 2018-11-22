@@ -80,32 +80,11 @@ CFLAGS += -W -Wall -Wno-error=unused-function -fno-common
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 #CFLAGS += -flto -fno-builtin
 
-# for syscall()
-CFLAGS += -D_GNU_SOURCE
-
 # for mbedtls
 CFLAGS += -I../libs/mbedtls_config -DMBEDTLS_CONFIG_FILE='<config-ptarm.h>'
 
 # others
 CFLAGS += $(CFLAGS_USER)
-CFLAGS += -DNETKIND=$(NETKIND)
-
-ifeq ($(USE_SPV),1)
-	CFLAGS += -DUSE_SPV
-endif
-
-ifeq ($(DISABLE_PRINTFUND),0)
-	CFLAGS += -DPTARM_USE_PRINTFUNC
-endif
-
-ifeq ($(ENABLE_COVERAGE),1)
-	CFLAGS += --coverage
-	LDFLAGS += --coverage
-endif
-
-ifeq ($(ENABLE_DEVELOPER_MODE),1)
-	CFLAGS += -DDEVELOPER_MODE
-endif
 
 CFLAGS += -DMAX_CHANNELS=$(MAX_CHANNELS)
 
