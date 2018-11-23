@@ -50,6 +50,8 @@
 #define DBG_PRINT_CREATE_UPD
 #define DBG_PRINT_READ_UPD
 #endif
+#define DBG_PRINT_READ_CNL
+#define DBG_PRINT_READ_UPD
 #define DBG_PRINT_CREATE_SIG
 #define DBG_PRINT_READ_SIG
 

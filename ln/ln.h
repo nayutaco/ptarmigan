@@ -112,12 +112,12 @@ extern "C" {
                                                     ///< 相手のアクションが必要となる
 
 #define LN_INIT_LF_OPT_DATALOSS_REQ     (1 << 0)    ///< option_data_loss_protect
-#define LN_INIT_LF_OPT_DATALOSS_OPT     (1 << 1)    ///< option_data_loss_protect
+#define LN_INIT_LF_OPT_DATALOSS         (1 << 1)    ///< option_data_loss_protect
 #define LN_INIT_LF_ROUTE_SYNC           (1 << 3)    ///< initial_routing_sync
 #define LN_INIT_LF_OPT_UPF_SHDN_REQ     (1 << 4)    ///< option_upfront_shutdown_script
-#define LN_INIT_LF_OPT_UPF_SHDN_OPT     (1 << 5)    ///< option_upfront_shutdown_script
+#define LN_INIT_LF_OPT_UPF_SHDN         (1 << 5)    ///< option_upfront_shutdown_script
 #define LN_INIT_LF_OPT_GSP_QUERY_REQ    (1 << 6)    ///< gossip_queries
-#define LN_INIT_LF_OPT_GSP_QUERY_OPT    (1 << 7)    ///< gossip_queries
+#define LN_INIT_LF_OPT_GSP_QUERY        (1 << 7)    ///< gossip_queries
 
 
 /**************************************************************************
@@ -1139,6 +1139,7 @@ struct ln_self_t {
 
     //msg:init
     uint8_t                     init_flag;                      ///< [INIT_01]initフラグ(M_INIT_FLAG_xxx)
+    uint8_t                     lfeature_local;                 ///< [INIT_02]initで送信したlocalfeature
     uint8_t                     lfeature_remote;                ///< [INIT_02]initで取得したlocalfeature
     //channel_reestablish後の処理
     uint64_t                    reest_commit_num;               ///< [INIT_03]channel_reestablish.next_local_commitment_number

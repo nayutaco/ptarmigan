@@ -334,6 +334,12 @@ bool ptarmd_nodefail_get(
             ln_nodedesc_t NodeDesc, bool bRemove);
 
 
+/** Establish Parameter取得
+ * 
+ */
+const ln_establish_prm_t *ptarmd_get_establishprm(void);
+
+
 /** イベントコール
  * 
  */

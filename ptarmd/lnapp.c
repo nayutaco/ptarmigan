@@ -3112,21 +3112,7 @@ static void send_cnlupd_before_announce(lnapp_conf_t *p_conf)
  */
 static void load_channel_settings(lnapp_conf_t *p_conf)
 {
-    channel_conf_t econf;
-    ln_establish_prm_t estprm;
-
-    conf_channel_init(&econf);
-    (void)conf_channel_load("channel.conf", &econf);
-    estprm.dust_limit_sat = econf.dust_limit_sat;
-    estprm.max_htlc_value_in_flight_msat = econf.max_htlc_value_in_flight_msat;
-    estprm.channel_reserve_sat = econf.channel_reserve_sat;
-    estprm.htlc_minimum_msat = econf.htlc_minimum_msat;
-    estprm.to_self_delay = econf.to_self_delay;
-    estprm.max_accepted_htlcs = econf.max_accepted_htlcs;
-    estprm.min_depth = econf.min_depth;
-
-    ln_init_localfeatures_set(econf.localfeatures);
-    bool ret = ln_establish_alloc(p_conf->p_self, &estprm);
+    bool ret = ln_establish_alloc(p_conf->p_self, ptarmd_get_establishprm());
     if (!ret) {
         LOGD("fail: set establish\n");
         assert(ret);

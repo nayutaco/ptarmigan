@@ -1555,3 +1555,250 @@ TEST_F(ln, htlcflag_bitmask)
     ASSERT_EQ(LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND, stat.bits & LN_HTLCFLAG_MASK_COMSIG);
     ASSERT_EQ(LN_HTLCFLAG_SFT_FINDELHTLC(LN_HTLCFLAG_FULFILL), stat.bits & LN_HTLCFLAG_MASK_FINDELHTLC);
 }
+
+
+TEST_F(ln, recv_init_0)
+{
+    const uint8_t INIT[] = {
+        //init
+        0x00, 0x10,
+
+        //globalfeatures
+        0x00, 0x00,
+        //localfeatures
+        0x00, 0x00,
+    };
+    ln_self_t self;
+    LnInit(&self);
+
+    static bool b_called;
+    static bool b_initial_routing_sync;
+    class dummy {
+    public:
+        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+            (void)self;
+            if (type == LN_CB_INIT_RECV) {
+                b_called = true;
+                b_initial_routing_sync = *(bool *)p_param;
+            }
+        }
+    };
+    self.p_callback = dummy::callback;
+
+    bool ret = recv_init(&self, INIT, sizeof(INIT));
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(0x00, self.lfeature_remote);
+    ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
+    ASSERT_TRUE(b_called);
+    ASSERT_FALSE(b_initial_routing_sync);
+}
+
+
+TEST_F(ln, recv_init_gf1)
+{
+    uint8_t INIT[] = {
+        //init
+        0x00, 0x10,
+
+        //globalfeatures
+        0x00, 0x01, 0xaa,
+        //localfeatures
+        0x00, 0x00,
+    };
+    ln_self_t self;
+    LnInit(&self);
+
+    static bool b_called;
+    static bool b_initial_routing_sync;
+    class dummy {
+    public:
+        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+            (void)self;
+            if (type == LN_CB_INIT_RECV) {
+                b_called = true;
+                b_initial_routing_sync = *(bool *)p_param;
+            }
+        }
+    };
+    self.p_callback = dummy::callback;
+
+    bool ret;
+    
+    for (int lp = 1; lp <= 0x0f; lp++) {
+        self.init_flag = 0;
+        self.lfeature_remote = 0;
+        b_called = false;
+        b_initial_routing_sync = false;
+
+        //odd bits(7, 5, 3, 1)
+        //          abcd
+        //      a0b0c0d0
+        INIT[4] = (lp & 0x08) << 4 | (lp & 0x04) << 3 | (lp & 0x02) << 2 | (lp & 0x01) << 1;
+        ret = recv_init(&self, INIT, sizeof(INIT));
+        ASSERT_TRUE(ret);
+        ASSERT_EQ(0x00, self.lfeature_remote);
+        ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
+        ASSERT_TRUE(b_called);
+        ASSERT_FALSE(b_initial_routing_sync);
+    }
+}
+
+
+TEST_F(ln, recv_init_gf2)
+{
+    uint8_t INIT[] = {
+        //init
+        0x00, 0x10,
+
+        //globalfeatures
+        0x00, 0x01, 0x55,
+        //localfeatures
+        0x00, 0x00,
+    };
+    ln_self_t self;
+    LnInit(&self);
+
+    static bool b_called;
+    static bool b_initial_routing_sync;
+    class dummy {
+    public:
+        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+            (void)self;
+            if (type == LN_CB_INIT_RECV) {
+                b_called = true;
+                b_initial_routing_sync = *(bool *)p_param;
+            }
+        }
+    };
+    self.p_callback = dummy::callback;
+
+    bool ret;
+    
+    for (int lp = 1; lp <= 0x0f; lp++) {
+        self.init_flag = 0;
+        self.lfeature_remote = 0;
+        b_called = false;
+        b_initial_routing_sync = false;
+
+        //even bits(6, 4, 2, 0)
+        //          abcd
+        //      0a0b0c0d
+        INIT[4] = (lp & 0x08) << 3 | (lp & 0x04) << 2 | (lp & 0x02) << 1 | (lp & 0x01);
+        ret = recv_init(&self, INIT, sizeof(INIT));
+        ASSERT_FALSE(ret);
+        ASSERT_EQ(0x00, self.lfeature_remote);
+        ASSERT_EQ(0, self.init_flag);
+        ASSERT_FALSE(b_called);
+        ASSERT_FALSE(b_initial_routing_sync);
+    }
+}
+
+
+TEST_F(ln, recv_init_lf1)
+{
+    uint8_t INIT[] = {
+        //init
+        0x00, 0x10,
+
+        //globalfeatures
+        0x00, 0x00,
+        //localfeatures
+        0x00, 0x01, 0xaa
+    };
+    ln_self_t self;
+    LnInit(&self);
+
+    static bool b_called;
+    static bool b_initial_routing_sync;
+    class dummy {
+    public:
+        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+            (void)self;
+            if (type == LN_CB_INIT_RECV) {
+                b_called = true;
+                b_initial_routing_sync = *(bool *)p_param;
+            }
+        }
+    };
+    self.p_callback = dummy::callback;
+
+    bool ret;
+    
+    for (int lp = 1; lp <= 0x0f; lp++) {
+        self.init_flag = 0;
+        self.lfeature_remote = 0;
+        b_called = false;
+        b_initial_routing_sync = false;
+
+        //odd bits(7, 5, 3, 1)
+        //          abcd
+        //      a0b0c0d0
+        INIT[6] = (lp & 0x08) << 4 | (lp & 0x04) << 3 | (lp & 0x02) << 2 | (lp & 0x01) << 1;
+        ret = recv_init(&self, INIT, sizeof(INIT));
+        ASSERT_TRUE(ret);
+        ASSERT_EQ(INIT[6], self.lfeature_remote);
+        ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
+        ASSERT_TRUE(b_called);
+        bool initsync = ((lp & 0x02) << 2) != 0;
+        ASSERT_EQ(initsync, b_initial_routing_sync);
+    }
+}
+
+
+TEST_F(ln, recv_init_lf2)
+{
+    uint8_t INIT[] = {
+        //init
+        0x00, 0x10,
+
+        //globalfeatures
+        0x00, 0x00,
+        //localfeatures
+        0x00, 0x01, 0x55,
+    };
+    ln_self_t self;
+    LnInit(&self);
+
+    static bool b_called;
+    static bool b_initial_routing_sync;
+    class dummy {
+    public:
+        static void callback(ln_self_t *self, ln_cb_t type, void *p_param) {
+            (void)self;
+            if (type == LN_CB_INIT_RECV) {
+                b_called = true;
+                b_initial_routing_sync = *(bool *)p_param;
+            }
+        }
+    };
+    self.p_callback = dummy::callback;
+
+    bool ret;
+    
+    for (int lp = 1; lp <= 0x0f; lp++) {
+        self.init_flag = 0;
+        self.lfeature_remote = 0;
+        b_called = false;
+        b_initial_routing_sync = false;
+
+        //even bits(6, 4, 2, 0)
+        //          abcd
+        //      0a0b0c0d
+        INIT[6] = (lp & 0x08) << 3 | (lp & 0x04) << 2 | (lp & 0x02) << 1 | (lp & 0x01);
+        ret = recv_init(&self, INIT, sizeof(INIT));
+        if (INIT[6] == 0x01) {
+            //option_data_loss_protect
+            ASSERT_TRUE(ret);
+            ASSERT_EQ(INIT[6], self.lfeature_remote);
+            ASSERT_EQ(M_INIT_FLAG_RECV, self.init_flag);
+            ASSERT_TRUE(b_called);
+            ASSERT_FALSE(b_initial_routing_sync);
+        } else {
+            ASSERT_FALSE(ret);
+            ASSERT_EQ(0x00, self.lfeature_remote);
+            ASSERT_EQ(0, self.init_flag);
+            ASSERT_FALSE(b_called);
+            ASSERT_FALSE(b_initial_routing_sync);
+        }
+    }
+}
