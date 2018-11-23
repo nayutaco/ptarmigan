@@ -137,7 +137,6 @@ bool ln_node_init(uint8_t Features)
                 ret = false;
                 goto LABEL_EXIT;
             } else {
-                LOGD("same node.conf\n");
                 uint16_t bak = mNode.addr.port; //node_announcementにはポート番号が載らないことがあり得る
                 memcpy(&mNode.addr, &anno.addr, sizeof(anno.addr));
                 mNode.addr.port = bak;
@@ -160,12 +159,10 @@ bool ln_node_init(uint8_t Features)
         }
         ret = ln_db_annonod_save(&buf_node, &anno, NULL);
     }
-    LOGD("my node_id: ");
-    DUMPD(mNode.keys.pub, BTC_SZ_PUBKEY);
-
     if (ret) {
-        //annoinfo情報削除(全削除)
-        ln_db_annoinfos_del(NULL);
+        LOGD("my node_id: ");
+        DUMPD(mNode.keys.pub, BTC_SZ_PUBKEY);
+
         print_node();
     }
 
