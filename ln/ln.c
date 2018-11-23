@@ -764,7 +764,12 @@ void ln_recv_idle_proc(ln_self_t *self)
 }
 
 
-//init作成
+/*
+ * init作成
+ * 
+ * localfeaturesは、自分がサポートするfeature(odd bits)と、要求するfeature(even bits)を送信する。
+ * 
+ */
 bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
 {
     (void)bHaveCnl;
@@ -777,7 +782,10 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
     ln_init_t msg;
 
     utl_buf_init(&msg.globalfeatures);
-    utl_buf_alloccopy(&msg.localfeatures, mInitLocalFeatures, sizeof(mInitLocalFeatures));
+    self->lfeature_local = mInitLocalFeatures[0];
+    utl_buf_alloccopy(&msg.localfeatures, &self->lfeature_local, sizeof(self->lfeature_local));
+    LOGD("localfeatures: ");
+    DUMPD(msg.localfeatures.buf, msg.localfeatures.len);
     bool ret = ln_msg_init_create(pInit, &msg);
     if (ret) {
         self->init_flag |= M_INIT_FLAG_SEND;
@@ -807,7 +815,7 @@ bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
     msg.next_remote_revocation_number = self->commit_remote.revoke_num + 1;
 
     //option_data_loss_protect
-    if (mInitLocalFeatures[0] & INIT_LF_MASK_DATALOSS) {
+    if (self->lfeature_local & LN_INIT_LF_OPT_DATALOSS) {
         msg.option_data_loss_protect = true;
 
         if (self->commit_remote.commit_num == 0) {
@@ -2280,6 +2288,7 @@ static bool recv_idle_proc_nonfinal(ln_self_t *self)
 static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     bool ret;
+    bool initial_routing_sync = false;
 
     if (self->init_flag & M_INIT_FLAG_RECV) {
         //TODO: 2回init受信した場合はエラーにする
@@ -2291,49 +2300,73 @@ static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     utl_buf_init(&msg.globalfeatures);
     utl_buf_init(&msg.localfeatures);
     ret = ln_msg_init_read(&msg, pData, Len);
-    if (ret) {
-        //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
-        //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-globalfeatures-flags
-        //  globalfeatures not assigned
-        ret &= (msg.globalfeatures.len == 0);
+    if (!ret) {
+        LOGD("fail: read\n");
+        goto LABEL_EXIT;
     }
 
-    bool initial_routing_sync = false;
-    if (ret) {
-        ret &= (msg.localfeatures.len <= 1);
-        if (msg.localfeatures.len == 1) {
-            //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
-            //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-localfeatures-flags
-            //  bit0/1 : option_data_loss_protect
-            //  bit3   : initial_routing_sync
-            //  bit4/5 : option_upfront_shutdown_script
-            //  bit6/7 : gossip_queries
-            if (ret) {
-                //flagは未知のフラグ
-                uint8_t flag = (msg.localfeatures.buf[0] & (~INIT_LF_MASK));
-                if (flag & 0x55) {
+    //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
+    //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-globalfeatures-flags
+    //  globalfeatures not assigned
+    for (uint32_t lp = 0; lp < msg.globalfeatures.len; lp++) {
+        if (msg.globalfeatures.buf[lp] & 0x55) {
+            //even bit: 未対応のため、エラーにする
+            LOGD("fail: unknown bit(globalfeatures)\n");
+            ret = false;
+            goto LABEL_EXIT;
+        } else {
+            //odd bit: 未知でもスルー
+        }
+    }
+
+    if (msg.localfeatures.len == 0) {
+        self->lfeature_remote = 0x00;
+    } else {
+        //2018/06/27(comit: f6312d9a702ede0f85e094d75fd95c5e3b245bcf)
+        //      https://github.com/lightningnetwork/lightning-rfc/blob/f6312d9a702ede0f85e094d75fd95c5e3b245bcf/09-features.md#assigned-localfeatures-flags
+        //  bit0/1 : option_data_loss_protect
+        //  bit3   : initial_routing_sync
+        //  bit4/5 : option_upfront_shutdown_script
+        //  bit6/7 : gossip_queries
+        uint8_t flag = (msg.localfeatures.buf[0] & (~LN_INIT_LF_OPT_DATALOSS_REQ));
+        if (flag & 0x55) {
+            //even bit: 未対応のため、エラーにする
+            LOGD("fail: unknown bit(localfeatures)\n");
+            ret = false;
+            goto LABEL_EXIT;
+        } else {
+            //odd bit: 未知でもスルー
+        }
+
+        initial_routing_sync = (msg.localfeatures.buf[0] & LN_INIT_LF_ROUTE_SYNC);
+
+        if (msg.localfeatures.len > 1) {
+            for (uint32_t lp = 1; lp < msg.localfeatures.len; lp++) {
+                if (msg.globalfeatures.buf[lp] & 0x55) {
                     //even bit: 未対応のため、エラーにする
+                    LOGD("fail: unknown bit(localfeatures)\n");
                     ret = false;
+                    goto LABEL_EXIT;
                 } else {
                     //odd bit: 未知でもスルー
                 }
             }
-            initial_routing_sync = (msg.localfeatures.buf[0] & LN_INIT_LF_ROUTE_SYNC);
         }
+        self->lfeature_remote = msg.localfeatures.buf[0];
     }
-    if (ret) {
-        if (msg.localfeatures.len > 0) {
-            self->lfeature_remote = msg.localfeatures.buf[0];
-        }
-        self->init_flag |= M_INIT_FLAG_RECV;
 
-        //init受信通知
-        (*self->p_callback)(self, LN_CB_INIT_RECV, &initial_routing_sync);
-    } else {
-        M_SET_ERR(self, LNERR_INV_FEATURE, "init error");
-    }
+    self->init_flag |= M_INIT_FLAG_RECV;
+
+    //init受信通知
+    (*self->p_callback)(self, LN_CB_INIT_RECV, &initial_routing_sync);
+
+LABEL_EXIT:
     utl_buf_free(&msg.localfeatures);
     utl_buf_free(&msg.globalfeatures);
+
+    if (!ret) {
+        M_SET_ERR(self, LNERR_INV_FEATURE, "init error");
+    }
 
     return ret;
 }
@@ -3754,7 +3787,7 @@ static bool recv_channel_reestablish(ln_self_t *self, const uint8_t *pData, uint
     //BOLT#2
     //  if it supports option_data_loss_protect, AND the option_data_loss_protect fields are present:
     if ( !(chk_commit_num && chk_revoke_num) &&
-         (mInitLocalFeatures[0] & INIT_LF_MASK_DATALOSS) &&
+         (self->lfeature_local & LN_INIT_LF_OPT_DATALOSS) &&
          reest.option_data_loss_protect ) {
         //if next_remote_revocation_number is greater than expected above,
         if (reest.next_remote_revocation_number > self->commit_local.commit_num) {
