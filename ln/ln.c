@@ -3433,7 +3433,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     //     }
     // }
 
-    //commitment_signed受信フラグ
+    //commitment_signed recv flag
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
         if ( LN_HTLC_ENABLE(p_htlc) &&
@@ -3471,7 +3471,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->commit_local.commit_num);
     ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
     if (ret) {
-        //commitment_signed受信フラグ
+        //revoke_and_ack send flag
         for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
             ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
             if ( LN_HTLC_ENABLE(p_htlc) &&
