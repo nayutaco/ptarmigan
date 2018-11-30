@@ -1,7 +1,11 @@
 INSTALL_DIR = $(CURDIR)/install
 include ./options.mak
 
-default:
+.PHONY: build install btconly clean full full_btconly distclean update lib lib_clean git_subs test test_clean test-integration
+
+default: build install
+
+build:
 	$(MAKE) -C utl
 	$(MAKE) -C btc
 	$(MAKE) -C ln
@@ -9,8 +13,9 @@ default:
 	$(MAKE) -C ptarmcli
 	$(MAKE) -C showdb
 	$(MAKE) -C routing
-	mkdir -p $(INSTALL_DIR)
-	-@rm -rf $(INSTALL_DIR)/ptarmd $(INSTALL_DIR)/ptarmcli $(INSTALL_DIR)/showdb
+
+install:
+	-@mkdir -p $(INSTALL_DIR)
 ifeq ("$(BUILD_PTARMD)","LIB")
 	cp ptarmd/libptarm.so ./jni/
 else
@@ -47,7 +52,7 @@ clean:
 	$(MAKE) -C ptarmcli clean
 	$(MAKE) -C showdb clean
 	$(MAKE) -C routing clean
-	-@rm -rf $(INSTALL_DIR)/ptarmd $(INSTALL_DIR)/ptarmcli $(INSTALL_DIR)/showdb $(INSTALL_DIR)/routing GPATH GRTAGS GSYMS GTAGS
+	-@rm -rf $(INSTALL_DIR)/ptarmd $(INSTALL_DIR)/ptarmcli $(INSTALL_DIR)/showdb $(INSTALL_DIR)/routing $(INSTALL_DIR)/jar GPATH GRTAGS GSYMS GTAGS
 
 full: git_subs lib default
 full_btconly: git_subs lib btconly

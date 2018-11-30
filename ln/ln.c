@@ -414,6 +414,13 @@ static const struct {
 //< 32: chain-hash
 uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
 
+#ifndef USE_SPV
+#else
+//blockhash at node creation
+//      usage: search blockchain limit
+uint8_t HIDDEN gCreationBlockHash[BTC_SZ_HASH256];
+#endif
+
 /// init.localfeaturesデフォルト値
 static uint8_t mInitLocalFeatures[1];
 
@@ -525,6 +532,29 @@ void ln_genesishash_set(const uint8_t *pHash)
 const uint8_t* ln_genesishash_get(void)
 {
     return gGenesisChainHash;
+}
+
+
+void ln_creationhash_set(const uint8_t *pHash)
+{
+#ifndef USE_SPV
+    (void)pHash;
+#else
+    memcpy(gCreationBlockHash, pHash, BTC_SZ_HASH256);
+
+    LOGD("block hash=");
+    DUMPD(gCreationBlockHash, BTC_SZ_HASH256);
+#endif
+}
+
+
+const uint8_t *ln_creationhash_get(void)
+{
+#ifndef USE_SPV
+    return NULL;
+#else
+    return gCreationBlockHash;
+#endif
 }
 
 
@@ -766,9 +796,9 @@ void ln_recv_idle_proc(ln_self_t *self)
 
 /*
  * init作成
- * 
+ *
  * localfeaturesは、自分がサポートするfeature(odd bits)と、要求するfeature(even bits)を送信する。
- * 
+ *
  */
 bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
 {
@@ -4661,6 +4691,13 @@ static bool create_to_local_spent(ln_self_t *self,
 }
 
 
+/** to_localをwalletに保存する情報作成
+ *
+ * @param[out]      pTxToLocal
+ *
+ * @note
+ *  - pTxToLocalはbtc_tx_tフォーマットだが、blockchainに展開できるデータではない
+ */
 static bool create_to_local_spentlocal(ln_self_t *self,
                     btc_tx_t *pTxToLocal,
                     const utl_buf_t *pBufWs,
@@ -4676,7 +4713,6 @@ static bool create_to_local_spentlocal(ln_self_t *self,
                 ToSelfDelay,
                 pBufWs, self->commit_local.txid, VoutIdx, false);
         if (ret) {
-            M_DBG_PRINT_TX(&tx);
             memcpy(pTxToLocal, &tx, sizeof(tx));
             btc_tx_init(&tx);     //txはfreeさせない
         } else {
@@ -4697,7 +4733,7 @@ static bool create_to_local_htlcverify(ln_self_t *self,
 {
     utl_buf_t buf_sig;
     ln_misc_sigexpand(&buf_sig, pHtlcSig);
-M_DBG_PRINT_TX2(pTx);
+
     bool ret = ln_script_htlctx_verify(pTx,
                 Amount,
                 NULL,

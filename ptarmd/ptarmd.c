@@ -120,6 +120,11 @@ static const char *kSCRIPT[] = {
  ********************************************************************/
 
 static void load_channel_settings(void);
+#ifndef USE_SPV
+#else
+static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param);
+static void set_channels(void);
+#endif
 
 
 /********************************************************************
@@ -166,6 +171,11 @@ int ptarmd_start(uint16_t my_rpcport)
     pthread_mutex_init(&mMuxPreimage, NULL);
 
     load_channel_settings();
+#ifndef USE_SPV
+#else
+    btcrpc_set_creationhash(ln_creationhash_get());
+    set_channels();
+#endif
 
     //接続待ち受け用
     pthread_t th_svr;
@@ -191,7 +201,6 @@ int ptarmd_start(uint16_t my_rpcport)
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         sprintf(param, "0000000000000000 %s", node_id);
         ptarmd_call_script(PTARMD_EVT_STARTED, param);
-
     }
 
     //ptarmcli受信用
@@ -453,3 +462,38 @@ static void load_channel_settings(void)
 
     ln_init_localfeatures_set(econf.localfeatures);
 }
+
+
+#ifndef USE_SPV
+#else
+/** #ln_node_search_channel()処理関数
+ *
+ * @param[in,out]   self            DBから取得したself
+ * @param[in,out]   p_db_param      DB情報(ln_dbで使用する)
+ * @param[in,out]   p_param         comp_param_cnl_t構造体
+ */
+static bool comp_func_cnl(ln_self_t *self, void *p_db_param, void *p_param)
+{
+    (void)p_db_param; (void)p_param;
+
+    LOGD("short_channel_id=%016" PRIx64 "\n", ln_short_channel_id(self));
+
+    const uint8_t *p_bhash;
+    p_bhash = ln_funding_blockhash(self);
+    btcrpc_set_channel(ln_their_node_id(self),
+            ln_short_channel_id(self),
+            ln_funding_txid(self),
+            ln_funding_txindex(self),
+            ln_funding_redeem(self),
+            p_bhash);
+
+    return false;
+}
+
+
+static void set_channels(void)
+{
+    LOGD("\n");
+    ln_db_self_search_readonly(comp_func_cnl, NULL);
+}
+#endif

@@ -2,7 +2,7 @@
 //FAKE関数
 
 FAKE_VOID_FUNC(btcrpc_term);
-FAKE_VOID_FUNC(btcrpc_set_channel, const uint8_t*, uint64_t, const uint8_t*, int, const utl_buf_t*, bool, const uint8_t*, int32_t);
+FAKE_VOID_FUNC(btcrpc_set_channel, const uint8_t*, uint64_t, const uint8_t*, int, const utl_buf_t*, bool, const uint8_t*);
 FAKE_VOID_FUNC(btcrpc_set_committxid, const ln_self_t*);
 FAKE_VOID_FUNC(ptarmd_stop);
 FAKE_VOID_FUNC(ptarmd_preimage_lock);

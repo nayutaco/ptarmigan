@@ -190,6 +190,14 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
 
 #ifndef USE_SPV
 #else
+
+/** [bitcoin IF]node作成時のblock hash設定
+ *      bitcoinjで過去ブロックに遡りながら検索することがあるが、その下限を決めるため。
+ * 
+ */
+void btcrpc_set_creationhash(const uint8_t *pHash);
+
+
 /** [bitcoin IF]channel追加
  * DBから復元することを想定している。
  * 必要であればbtcrpc_set_fundingtx()を内部で呼び出す。
@@ -199,16 +207,14 @@ bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks);
  * @param[in]   pFundingTxid    funding txid
  * @param[in]   FundingIdx      funding vout index
  * @param[in]   pRedeemScript   funding_txのvout
- * @param[in]   bUnspent        true:funding_txがunspent(pFundingTx==NULLの場合、変更しない)
  * @param[in]   pMinedHash      funding_txがマイニングされたblock hash(NULLの場合、変更しない)
- * @param[in]   BlockCnt        現在のブロック高(初期confirmation計算用)
  */
 void btcrpc_set_channel(const uint8_t *pPeerId,
                 uint64_t ShortChannelId,
                 const uint8_t *pFundingTxid,
                 int FundingIdx,
                 const utl_buf_t *pRedeemScript,
-                bool bUnspent, const uint8_t *pMinedHash, int32_t BlockCnt);
+                const uint8_t *pMinedHash);
 
 
 /** [bitcoin IF]監視TXID設定

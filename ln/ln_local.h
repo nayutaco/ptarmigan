@@ -308,10 +308,18 @@
 
 
 /**************************************************************************
- * const variables(ln.c)
+ * static variables(ln.c)
  **************************************************************************/
 
 extern uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
+
+
+#ifndef USE_SPV
+#else
+//blockhash at node creation
+//      usage: search blockchain limit
+extern uint8_t HIDDEN gCreationBlockHash[BTC_SZ_HASH256];
+#endif
 
 
 /**************************************************************************

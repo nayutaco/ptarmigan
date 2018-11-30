@@ -1127,10 +1127,10 @@ struct ln_self_t {
     btc_tx_t                    tx_funding;                     ///< [FUND_07]funding_tx
 #ifndef USE_SPV
 #else
-    uint8_t                     funding_bhash[BTC_SZ_HASH256];   ///< [FUND_08]funding_txがマイニングされたblock hash
+    uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUND_08]funding_txがマイニングされたblock hash
 #endif
-    ln_establish_t              *p_establish;                   ///< [FUND_10]Establishワーク領域
-    uint32_t                    min_depth;                      ///< [FUND_11]minimum_depth
+    ln_establish_t              *p_establish;                   ///< [FUND_09]Establishワーク領域
+    uint32_t                    min_depth;                      ///< [FUND_10]minimum_depth
 
     //announce
     uint8_t                     anno_flag;                      ///< [ANNO_01]announcement_signaturesなど
@@ -1251,6 +1251,18 @@ void ln_genesishash_set(const uint8_t *pHash);
  * @return      #ln_genesishash_set()で設定したGenesis Block Hash
  */
 const uint8_t* ln_genesishash_get(void);
+
+
+/** set BlockHash on node creation time(SPV only)
+ * 
+ */
+void ln_creationhash_set(const uint8_t *pHash);
+
+
+/** get BlockHash on node creation time(SPV only)
+ * 
+ */
+const uint8_t *ln_creationhash_get(void);
 
 
 /** peer node_id設定

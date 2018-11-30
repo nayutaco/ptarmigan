@@ -29,11 +29,13 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param);
  ********************************************************************/
 
 // ptarmiganから外部walletへ送金
-bool wallet_from_ptarm(char **ppRawTx, const char *pAddr, uint32_t FeeratePerKw)
+bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKw)
 {
     bool ret;
     wallet_t wallet;
     uint8_t txhash[BTC_SZ_HASH256];
+
+    LOGD("sendto=%s, feerate_per_kw=%" PRIu32 "\n", pAddr, FeeratePerKw);
 
     btc_tx_init(&wallet.tx);
     wallet.amount = 0;
@@ -61,7 +63,14 @@ bool wallet_from_ptarm(char **ppRawTx, const char *pAddr, uint32_t FeeratePerKw)
         vbyte += (72 - (32+1+8)) * wallet.tx.vin_cnt / 4;    //署名サイズを72byteとして計算
                                                         //vbyteはwitness/4だけ増加
         LOGD("vbyte=%d\n", vbyte);
-        wallet.tx.vout[0].value -= (uint64_t)vbyte * (uint64_t)FeeratePerKw * 4 / 1000;
+        uint64_t fee = (uint64_t)vbyte * (uint64_t)FeeratePerKw * 4 / 1000;
+        if (fee + BTC_DUST_LIMIT > wallet.tx.vout[0].value) {
+            LOGD("fail: amount is too low to send.");
+            ret = false;
+            goto LABEL_EXIT;
+        }
+
+        wallet.tx.vout[0].value -= fee;
         utl_buf_free(&txbuf);
     }
 
@@ -77,10 +86,10 @@ bool wallet_from_ptarm(char **ppRawTx, const char *pAddr, uint32_t FeeratePerKw)
         memcpy(&amount, p, sizeof(uint64_t));
         //p += sizeof(uint64_t);
 
-        // LOGD("secret: ");
-        // DUMPD(p_secret, BTC_SZ_PRIVKEY);
-        // LOGD("type: %02x\n", type);
-        // LOGD("amount: %" PRIu64 "\n", amount);
+        LOGD("[%d]secret: ", lp);
+        DUMPD(p_secret, BTC_SZ_PRIVKEY);
+        LOGD("   type: %02x\n", type);
+        LOGD("   amount: %" PRIu64 "\n", amount);
 
         utl_buf_t sigbuf = UTL_BUF_INIT;
         utl_buf_t script_code = UTL_BUF_INIT;
@@ -118,8 +127,20 @@ bool wallet_from_ptarm(char **ppRawTx, const char *pAddr, uint32_t FeeratePerKw)
     btc_tx_create(&txbuf, &wallet.tx);
     LOGD("raw=");
     DUMPD(txbuf.buf, txbuf.len);
-    *ppRawTx = (char *)UTL_DBG_MALLOC(txbuf.len * 2 + 1);
-    utl_misc_bin2str(*ppRawTx, txbuf.buf, txbuf.len);
+
+#ifndef USE_SPV
+    //create sendrawtransaction date
+    *ppResult = (char *)UTL_DBG_MALLOC(txbuf.len * 2 + 1);
+    utl_misc_bin2str(*ppResult, txbuf.buf, txbuf.len);
+#else
+    //broadcast
+    uint8_t txid[BTC_SZ_TXID];
+    ret = btcrpc_send_rawtx(txid, NULL, txbuf.buf, txbuf.len);
+    if (ret) {
+        *ppResult = (char *)UTL_DBG_MALLOC(BTC_SZ_TXID * 2 + 1);
+        utl_misc_bin2str_rev(*ppResult, txid, BTC_SZ_TXID);
+    }
+#endif
     utl_buf_free(&txbuf);
 
     btc_tx_free(&wallet.tx);
@@ -145,12 +166,12 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     LOGD("txid=");
     TXIDD(pWallet->p_txid);
     LOGD("index=%d\n", pWallet->index);
-    // LOGD("amount=%" PRIu64 "\n", pWallet->amount);
-    // LOGD("cnt=%d\n", pWallet->wit_cnt);
-    // for (uint8_t lp = 0; lp < pWallet->wit_cnt; lp++) {
-    //     LOGD("[%d][%d]", lp, pWallet->p_wit[lp].len);
-    //     DUMPD(pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
-    // }
+    LOGD("amount=%" PRIu64 "\n", pWallet->amount);
+    LOGD("cnt=%d\n", pWallet->wit_cnt);
+    for (uint8_t lp = 0; lp < pWallet->wit_cnt; lp++) {
+        LOGD("[%d][%d]", lp, pWallet->p_wit[lp].len);
+        DUMPD(pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
+    }
 
     bool ret;
     wallet_t *p_wlt = (wallet_t *)p_param;
@@ -161,11 +182,11 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     }
 
     //INPUT確認
-    ret = btcrpc_is_tx_broadcasted(pWallet->p_txid);
-    if (!ret) {
-        LOGD("not broadcasted\n");
-        return false;
-    }
+    // ret = btcrpc_is_tx_broadcasted(pWallet->p_txid);
+    // if (!ret) {
+    //     LOGD("not broadcasted\n");
+    //     return false;
+    // }
     bool unspent;
     ret = btcrpc_check_unspent(NULL, &unspent, NULL, pWallet->p_txid, pWallet->index);
     if (ret && !unspent) {
@@ -193,8 +214,8 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     //  [32:privkey]
     //     ↓↓↓
     //  [32:privkey] + [1:type] + [8:amount]
-    // LOGD("wit[0][%d] ", pWallet->p_wit[0].len);
-    // DUMPD(pWallet->p_wit[0].buf, pWallet->p_wit[0].len);
+    LOGD("wit[0][%d] ", pWallet->p_wit[0].len);
+    DUMPD(pWallet->p_wit[0].buf, pWallet->p_wit[0].len);
     utl_buf_realloc(p_wit,
             BTC_SZ_PRIVKEY + sizeof(uint8_t) + sizeof(uint64_t));
     uint8_t *p = p_wit->buf;
@@ -204,15 +225,16 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     p++;
     memcpy(p, &pWallet->amount, sizeof(uint64_t));
     //p += sizeof(uint64_t);
-    // LOGD("  --> wit[0][%d] ", p_wit[0].len);
-    // DUMPD(p_wit[0].buf, p_wit[0].len);
+
+    LOGD("  --> wit[0][%d] ", p_wit[0].len);
+    DUMPD(p_wit[0].buf, p_wit[0].len);
 
     //残りwitをコピー
     for (uint8_t lp = 1; lp < pWallet->wit_cnt; lp++) {
         utl_buf_t *p_wit = btc_tx_add_wit(p_vin);
         utl_buf_alloccopy(p_wit, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
-        // LOGD("wit[%d][%d] ", lp, p_wit->len);
-        // DUMPD(p_wit->buf, p_wit->len);
+        LOGD("wit[%d][%d] ", lp, p_wit->len);
+        DUMPD(p_wit->buf, p_wit->len);
     }
 
     return false;       //継続

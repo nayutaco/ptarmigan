@@ -112,7 +112,7 @@ static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id
 static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id);
 #ifndef USE_SPV
 #else
-static cJSON *cmd_fundaddr(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_getnewaddress(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_emptywallet(jrpc_context *ctx, cJSON *params, cJSON *id);
 #endif
@@ -180,7 +180,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_walletback, "walletback", NULL);
 #ifndef USE_SPV
 #else
-    jrpc_register_procedure(&mJrpc, cmd_fundaddr,    "fundaddr", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_getnewaddress,  "getnewaddress", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getbalance,  "getbalance", NULL);
     jrpc_register_procedure(&mJrpc, cmd_emptywallet, "emptywallet", NULL);
 #endif
@@ -280,6 +280,8 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    LOGD("$$$: [JSONRPC]connect\n");
+
     err = cmd_connect_proc(&conn, ctx);
 
 LABEL_EXIT:
@@ -326,6 +328,8 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *result_peer = cJSON_CreateArray();
 
     uint64_t amount = ln_node_total_msat();
+
+    LOGD("$$$: [JSONRPC]getinfo\n");
 
     //basic info
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
@@ -389,6 +393,8 @@ static cJSON *cmd_disconnect(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    LOGD("$$$: [JSONRPC]disconnect\n");
+
     err = cmd_disconnect_proc(conn.node_id);
 
 LABEL_EXIT:
@@ -410,6 +416,8 @@ static cJSON *cmd_stop(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)ctx; (void)params; (void)id;
 
     cJSON *result = NULL;
+
+    LOGD("$$$: [JSONRPC]stop\n");
 
     monitor_disable_autoconn(true);
     int err = cmd_stop_proc();
@@ -492,6 +500,8 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id)
         fundconf.feerate_per_kw = 0;
     }
 
+    LOGD("$$$: [JSONRPC]fund\n");
+
     err = cmd_fund_proc(conn.node_id, &fundconf, ctx);
 
 LABEL_EXIT:
@@ -551,6 +561,8 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id)
         min_final_cltv_expiry = LN_MIN_FINAL_CLTV_EXPIRY;
     }
 
+    LOGD("$$$: [JSONRPC]invoice\n");
+
     uint8_t preimage_hash[BTC_SZ_HASH256];
     err = cmd_invoice_proc(preimage_hash, amount);
 
@@ -608,6 +620,9 @@ static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     if ((json == NULL) || (json->type != cJSON_String)) {
         goto LABEL_EXIT;
     }
+
+    LOGD("$$$: [JSONRPC]eraseinvoice\n");
+
     if (strlen(json->valuestring) > 0) {
         LOGD("erase hash: %s\n", json->valuestring);
         utl_misc_str2bin(preimage_hash, sizeof(preimage_hash), json->valuestring);
@@ -639,6 +654,8 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
     ln_db_preimg_t preimg;
     void *p_cur;
     bool ret;
+
+    LOGD("$$$: [JSONRPC]listinvoice\n");
 
     result = cJSON_CreateArray();
     ret = ln_db_preimg_cur_open(&p_cur);
@@ -697,6 +714,8 @@ static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
         index = -1;
         goto LABEL_EXIT;
     }
+
+    LOGD("$$$: [JSONRPC]PAY\n");
 
     //blockcount
     ret = btcrpc_getblockcount(&blockcnt);
@@ -835,7 +854,8 @@ LABEL_EXIT:
  */
 static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    LOGD("routepay_first\n");
+    LOGD("$$$ [JSONRPC]routepay_first\n");
+
     ln_db_routeskip_drop(true);
     mPayTryCount = 0;
     return cmd_routepay(ctx, params, id);
@@ -849,7 +869,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
-    LOGD("routepay\n");
+    LOGD("$$$ [JSONRPC]routepay\n");
 
     bool ret;
     int32_t blockcnt;
@@ -985,6 +1005,8 @@ static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
+    LOGD("$$$ [JSONRPC]close\n");
+
     json = cJSON_GetArrayItem(params, index++);
     if ( json && (json->type == cJSON_String) &&
          (strcmp(json->valuestring, "force") == 0) ) {
@@ -1027,7 +1049,7 @@ static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    LOGD("getlasterror\n");
+    LOGD("$$$ [JSONRPC]getlasterror\n");
 
     lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(conn.node_id);
     if (p_appconf != NULL) {
@@ -1064,6 +1086,8 @@ static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id)
         ctx->error_message = ptarmd_error_str(RPCERR_PARSE);
         goto LABEL_EXIT;
     }
+
+    LOGD("$$$ [JSONRPC]debug\n");
 
     json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_Number)) {
@@ -1124,7 +1148,7 @@ static cJSON *cmd_getcommittx(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    LOGD("getcommittx\n");
+    LOGD("$$$ [JSONRPC]getcommittx\n");
 
     getcommittx_t prm;
     prm.b_local = true;
@@ -1150,6 +1174,8 @@ static cJSON *cmd_disautoconn(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     const char *p_str = NULL;
+
+    LOGD("$$$ [JSONRPC]disautoconn\n");
 
     cJSON *json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_String)) {
@@ -1182,6 +1208,8 @@ static cJSON *cmd_removechannel(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     bool ret = false;
+
+    LOGD("$$$ [JSONRPC]removechannel\n");
 
     cJSON *json = cJSON_GetArrayItem(params, 0);
     if (json && (json->type == cJSON_String)) {
@@ -1226,7 +1254,7 @@ static cJSON *cmd_setfeerate(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    LOGD("setfeerate\n");
+    LOGD("$$$ [JSONRPC]setfeerate\n");
     monitor_set_feerate_per_kw(feerate_per_kw);
     result = cJSON_CreateString(kOK);
 
@@ -1266,7 +1294,7 @@ static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id
         goto LABEL_EXIT;
     }
 
-    LOGD("estimatefundingfee\n");
+    LOGD("$$$ [JSONRPC]estimatefundingfee\n");
 
     if (feerate_per_kw == 0) {
         feerate_per_kw = monitoring_get_latest_feerate_kw();
@@ -1293,7 +1321,7 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
     bool ret;
     cJSON *result = NULL;
 
-    LOGD("walletback\n");
+    LOGD("$$$ [JSONRPC]walletback\n");
 
     char addr[BTC_SZ_ADDR_MAX];
     ret = btcrpc_getnewaddress(addr);
@@ -1308,11 +1336,11 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
         feerate = 5000;
     }
 
-    char *p_rawtx = NULL;
-    ret = wallet_from_ptarm(&p_rawtx, addr, (uint32_t)feerate);
+    char *p_result = NULL;
+    ret = wallet_from_ptarm(&p_result, addr, (uint32_t)feerate);
     if (ret) {
-        result = cJSON_CreateString(p_rawtx);
-        UTL_DBG_FREE(p_rawtx);
+        result = cJSON_CreateString(p_result);
+        UTL_DBG_FREE(p_result);
     } else {
         ctx->error_code = RPCERR_WALLET_ERR;
         ctx->error_message = ptarmd_error_str(RPCERR_WALLET_ERR);
@@ -1327,13 +1355,15 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
 /** fund-inアドレス出力 : ptarmcli -F
  *
  */
-static cJSON *cmd_fundaddr(jrpc_context *ctx, cJSON *params, cJSON *id)
+static cJSON *cmd_getnewaddress(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)ctx; (void)params; (void)id;
 
     cJSON *result = NULL;
     bool ret;
     char addr[BTC_SZ_ADDR_MAX];
+
+    LOGD("$$$ [JSONRPC]getnewaddress\n");
 
     ret = btcrpc_getnewaddress(addr);
     if (ret) {
@@ -1356,6 +1386,8 @@ static cJSON *cmd_getbalance(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *result = NULL;
     bool ret;
     uint64_t amount = 0;
+
+    LOGD("$$$ [JSONRPC]getbalance\n");
 
     ret = btcrpc_get_balance(&amount);
     if (ret) {
@@ -1394,7 +1426,7 @@ static cJSON *cmd_emptywallet(jrpc_context *ctx, cJSON *params, cJSON *id)
         goto LABEL_EXIT;
     }
 
-    LOGD("emptywallet\n");
+    LOGD("$$$ [JSONRPC]emptywallet\n");
     ret = btcrpc_empty_wallet(txid, json->valuestring);
 
 LABEL_EXIT:
@@ -1693,7 +1725,7 @@ static int cmd_routepay_proc2(
                 LOGD("start payment\n");
                 err = 0;
             } else {
-                LOGD("fail: lnapp_payment(0x%016" PRIx64 "\n", pRouteResult->hop_datain[0].short_channel_id);
+                LOGD("fail: lnapp_payment(0x%016" PRIx64 ")\n", pRouteResult->hop_datain[0].short_channel_id);
                 ln_db_routeskip_save(pRouteResult->hop_datain[0].short_channel_id, true);
             }
         } else {

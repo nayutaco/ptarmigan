@@ -70,21 +70,18 @@
  * macros
  **************************************************************************/
 
-#define M_WAIT_MUTEX_SEC        (1)         //mMuxNodeのロック解除待ち間隔[sec]
 #define M_WAIT_POLL_SEC         (10)        //監視スレッドの待ち間隔[sec]
 #define M_WAIT_PING_SEC         (60)        //ping送信待ち[sec](pingは30秒以上の間隔をあけること)
 #define M_WAIT_ANNO_SEC         (1)         //監視スレッドでのannounce処理間隔[sec]
 #define M_WAIT_ANNO_LONG_SEC    (30)        //監視スレッドでのannounce処理間隔(長めに空ける)[sec]
-#define M_WAIT_MUTEX_MSEC       (100)       //mMuxNodeのロック解除待ち間隔[msec]
-#define M_WAIT_RECV_MULTI_MSEC  (1000)      //複数パケット受信した時の処理間隔[msec]
+#define M_WAIT_ANNO_HYSTER_SEC  (1)         //announce DBが更新されて展開するまでの最低空き時間[sec]
 #define M_WAIT_RECV_TO_MSEC     (50)        //socket受信待ちタイムアウト[msec]
 #define M_WAIT_SEND_TO_MSEC     (500)       //socket送信待ちタイムアウト[msec]
 #define M_WAIT_SEND_WAIT_MSEC   (100)       //socket送信で一度に送信できなかった場合の待ち時間[msec]
 #define M_WAIT_RECV_MSG_MSEC    (500)       //message受信監視周期[msec]
-#define M_WAIT_RECV_THREAD      (100)       //recv_thread開始待ち[msec]
+#define M_WAIT_RECV_THREAD_MSEC (100)       //recv_thread開始待ち[msec]
 #define M_WAIT_RESPONSE_MSEC    (10000)     //受信待ち[msec]
 #define M_WAIT_CHANREEST_MSEC   (3600000)   //channel_reestablish受信待ち[msec]
-#define M_WAIT_ANNO_HYSTER_SEC  (1)         //announce DBが更新されて展開するまでの最低空き時間[sec]
 
 #define M_ANNO_UNIT             (50)       ///< 1回のsend_announcement()での処理単位
 #define M_RECVIDLE_RETRY_MAX    (5)         ///< 受信アイドル時キュー処理のリトライ最大
@@ -576,8 +573,6 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(pAppConf->p_self));
         if (b_get) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
-        } else {
-            cJSON_AddItemToObject(result, "confirmation", cJSON_CreateString("not broadcasted"));
         }
         //our_msat
         cJSON_AddItemToObject(result, "our_msat", cJSON_CreateNumber64(ln_our_msat(p_self)));
@@ -611,8 +606,6 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(pAppConf->p_self));
         if (b_get) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
-        } else {
-            cJSON_AddItemToObject(result, "confirmation", cJSON_CreateString("not broadcasted"));
         }
         //minimum_depth
         cJSON_AddItemToObject(result, "minimum_depth", cJSON_CreateNumber(ln_minimum_depth(pAppConf->p_self)));
@@ -796,7 +789,7 @@ static void *thread_main_start(void *pArg)
     load_announce_settings();
 
     //スレッド
-    pthread_t   th_peer;        //peer受信
+    pthread_t   th_recv;        //peer受信
     pthread_t   th_poll;        //トランザクション監視
     pthread_t   th_anno;        //announce
 
@@ -873,7 +866,7 @@ static void *thread_main_start(void *pArg)
     //
 
     //peer受信スレッド
-    pthread_create(&th_peer, NULL, &thread_recv_start, p_conf);
+    pthread_create(&th_recv, NULL, &thread_recv_start, p_conf);
 
     //監視スレッド
     pthread_create(&th_poll, NULL, &thread_poll_start, p_conf);
@@ -928,18 +921,12 @@ static void *thread_main_start(void *pArg)
 #else
         const uint8_t *p_bhash;
         p_bhash = ln_funding_blockhash(p_conf->p_self);
-        int32_t blockcnt;
-        ret = btcrpc_getblockcount(&blockcnt);
-        if (!ret) {
-            blockcnt = -1;
-        }
         btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
                 ln_short_channel_id(p_conf->p_self),
                 ln_funding_txid(p_conf->p_self),
                 ln_funding_txindex(p_conf->p_self),
                 ln_funding_redeem(p_conf->p_self),
-                (ln_close_type(p_conf->p_self) == LN_CLOSETYPE_NONE),
-                p_bhash, blockcnt);
+                p_bhash);
 #endif
 
         ln_closetype_t closetype = ln_close_type(p_conf->p_self);
@@ -1052,7 +1039,7 @@ static void *thread_main_start(void *pArg)
 LABEL_JOIN:
     LOGD("stop threads...\n");
     stop_threads(p_conf);
-    pthread_join(th_peer, NULL);
+    pthread_join(th_recv, NULL);
     pthread_join(th_poll, NULL);
     pthread_join(th_anno, NULL);
 
@@ -1463,7 +1450,7 @@ static void *thread_recv_start(void *pArg)
     LOGD("[THREAD]recv initialize\n");
 
     //init受信待ちの準備時間を設ける
-    utl_misc_msleep(M_WAIT_RECV_THREAD);
+    utl_misc_msleep(M_WAIT_RECV_THREAD_MSEC);
 
     while (p_conf->loop) {
         bool ret = true;
@@ -1619,6 +1606,11 @@ static void *thread_poll_start(void *pArg)
 
         poll_ping(p_conf);
 
+        if (utl_misc_all_zero(ln_funding_txid(p_conf->p_self), BTC_SZ_TXID)) {
+            //fundingしていない
+            continue;
+        }
+
         uint32_t bak_conf = p_conf->funding_confirm;
         int32_t confirm;
         bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_conf->p_self));
@@ -1632,8 +1624,8 @@ static void *thread_poll_start(void *pArg)
                 LOGD2("***********************************\n");
             }
         } else if (!b_get) {
-            LOGD("funding_tx not broadcast: ");
-            TXIDD(ln_funding_txid(p_conf->p_self));
+            //LOGD("funding_tx not detect: ");
+            //TXIDD(ln_funding_txid(p_conf->p_self));
         } else {
             continue;
         }
@@ -1988,7 +1980,6 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
     if (p->b_result) {
         //fundingの監視は thread_poll_start()に任せる
-        LOGD("funding_tx監視開始: ");
         TXIDD(ln_funding_txid(p_conf->p_self));
         p_conf->funding_waiting = true;
 
@@ -1996,18 +1987,12 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 #else
         const uint8_t *p_bhash;
         p_bhash = ln_funding_blockhash(p_conf->p_self);
-        int32_t blockcnt;
-        bool ret = btcrpc_getblockcount(&blockcnt);
-        if (!ret) {
-            blockcnt = -1;
-        }
         btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
                 ln_short_channel_id(p_conf->p_self),
                 ln_funding_txid(p_conf->p_self),
                 ln_funding_txindex(p_conf->p_self),
                 ln_funding_redeem(p_conf->p_self),
-                (ln_close_type(p_conf->p_self) == LN_CLOSETYPE_NONE),
-                p_bhash, blockcnt);
+                p_bhash);
 #endif
 
         const char *p_str;
@@ -2052,6 +2037,18 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
                 "open: recv funding_locked short_channel_id=%016" PRIx64,
                 ln_short_channel_id(p_conf->p_self));
     }
+
+#ifndef USE_SPV
+#else
+    const uint8_t *p_bhash;
+    p_bhash = ln_funding_blockhash(p_conf->p_self);
+    btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
+            ln_short_channel_id(p_conf->p_self),
+            ln_funding_txid(p_conf->p_self),
+            ln_funding_txindex(p_conf->p_self),
+            ln_funding_redeem(p_conf->p_self),
+            p_bhash);
+#endif
 
     //funding_locked受信待ち合わせ解除(*4)
     p_conf->flag_recv |= RECV_MSG_FUNDINGLOCKED;
