@@ -535,22 +535,27 @@ const uint8_t* ln_genesishash_get(void)
 }
 
 
-#ifndef USE_SPV
-#else
 void ln_creationhash_set(const uint8_t *pHash)
 {
+#ifndef USE_SPV
+    (void)pHash;
+#else
     memcpy(gCreationBlockHash, pHash, BTC_SZ_HASH256);
 
     LOGD("block hash=");
     DUMPD(gCreationBlockHash, BTC_SZ_HASH256);
+#endif
 }
 
 
 const uint8_t *ln_creationhash_get(void)
 {
+#ifndef USE_SPV
+    return NULL;
+#else
     return gCreationBlockHash;
-}
 #endif
+}
 
 
 void ln_peer_set_nodeid(ln_self_t *self, const uint8_t *pNodeId)

@@ -1253,11 +1253,16 @@ void ln_genesishash_set(const uint8_t *pHash);
 const uint8_t* ln_genesishash_get(void);
 
 
-#ifndef USE_SPV
-#else
+/** set BlockHash on node creation time(SPV only)
+ * 
+ */
 void ln_creationhash_set(const uint8_t *pHash);
+
+
+/** get BlockHash on node creation time(SPV only)
+ * 
+ */
 const uint8_t *ln_creationhash_get(void);
-#endif
 
 
 /** peer node_id設定
