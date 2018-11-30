@@ -49,6 +49,7 @@ static jbyteArray buf2jbarray(const btcj_buf_t *buf);
 static btcj_buf_t* jbarray2buf(jbyteArray jbarray);
 static jobject bufs2list(const btcj_buf_t *bufs);
 static btcj_buf_t* list2bufs(jobject list);
+static inline void check_exception(JNIEnv *env);
 static bool get_execpath(char *path, size_t dest_len);
 
 
@@ -56,8 +57,10 @@ const struct {
     const char *name;
     const char *sig;
 } kMethod[METHOD_PTARM_MAX] = {
+    // METHOD_PTARM_SETCREATIONHASH,
+    { "setCreationHash", "([B)V" },
     // METHOD_PTARM_GETBLOCKCOUNT,
-    { "getBlockCount", "()I" },
+    { "getBlockCount", "([B)I" },
     // METHOD_PTARM_GETGENESISBLOCKHASH,
     { "getGenesisBlockHash", "()Lorg/bitcoinj/core/Sha256Hash;" },
     // METHOD_PTARM_GETCONFIRMATION,
@@ -83,7 +86,7 @@ const struct {
     // METHOD_PTARM_ESTIMATEFEE,
     { "estimateFee", "()J" },
     // METHOD_PTARM_SETCHANNEL,
-    { "setChannel", "([BJLorg/bitcoinj/core/Sha256Hash;I[BZLorg/bitcoinj/core/Sha256Hash;I)V" },
+    { "setChannel", "([BJLorg/bitcoinj/core/Sha256Hash;I[BLorg/bitcoinj/core/Sha256Hash;)V" },
     // METHOD_PTARM_SETCOMMITTXID,
     { "setCommitTxid", "([BIILorg/bitcoinj/core/Sha256Hash;)V" },
     // METHOD_PTARM_GETBALANCE,
@@ -113,7 +116,7 @@ bool btcj_init(btc_genesis_t Gen)
     char exepath[PATH_MAX];
     char optjar[PATH_MAX];
     get_execpath(exepath, sizeof(exepath));
-    snprintf(optjar, sizeof(optjar), "-Djava.class.path=%s/jar/bitcoinj-ptarmigan-dev.jar:%s/jar/bcprov-jdk15on-160.jar", exepath, exepath);
+    snprintf(optjar, sizeof(optjar), "-Djava.class.path=%s/jar/slf4j-simple-1.7.25.jar:%s/jar/bitcoinj-ptarmigan-dev.jar:%s/jar/bcprov-jdk15on-160.jar", exepath, exepath, exepath);
     LOGD("optjar=%s\n", optjar);
 
     JavaVMOption opt[1];
@@ -285,17 +288,40 @@ bool btcj_release(void)
     return true;
 }
 //-----------------------------------------------------------------------------
-int32_t btcj_getblockcount(void)
+void btcj_setcreationhash(const uint8_t *pHash)
 {
     LOGD("\n");
-    jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETBLOCKCOUNT]);
+    const btcj_buf_t buf = { (CONST_CAST uint8_t *)pHash, BTC_SZ_HASH256 };
+    jbyteArray array = buf2jbarray(&buf);
+    (*env)->CallVoidMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SETCREATIONHASH], array);
+    check_exception(env);
+    //
+    (*env)->DeleteLocalRef(env, array);
+}
+//-----------------------------------------------------------------------------
+int32_t btcj_getblockcount(uint8_t *pHash)
+{
+    LOGD("\n");
+    jbyteArray array;
+    if (pHash != NULL) {
+        array = (*env)->NewByteArray(env, BTC_SZ_HASH256);
+    } else {
+        array = NULL;
+    }
+    jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETBLOCKCOUNT], array);
+    check_exception(env);
     LOGD("ret=%d\n", ret);
+    if (pHash != NULL) {
+        (*env)->GetByteArrayRegion(env, array, 0, BTC_SZ_HASH256, (jbyte *)pHash);
+        (*env)->DeleteLocalRef(env, array);
+    }
     return ret;
 }
 //-----------------------------------------------------------------------------
 bool btcj_getgenesisblockhash(uint8_t *pHash)
 {
     jobject hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETGENESISBLOCKHASH]);
+    check_exception(env);
     uint8_t *bytes = hash2bytes(hash_obj);
     memcpy(pHash, bytes, BTC_SZ_HASH256);
     //
@@ -312,6 +338,7 @@ int32_t btcj_get_funding_confirm(const uint8_t *pTxid)
 
     jobject txHash = bytes2hash(pTxid);
     jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETCONFIRMATION], txHash);
+    check_exception(env);
     LOGD("ret=%d\n", ret);
     //
     (*env)->DeleteLocalRef(env, txHash);
@@ -325,6 +352,7 @@ bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int3
     const btcj_buf_t buf = { (CONST_CAST uint8_t *)pPeerId, BTC_SZ_PUBKEY };
     jbyteArray barray = buf2jbarray(&buf);
     jobject param_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETSHORTCHANNELPARAM], barray);
+    check_exception(env);
     //
     if(param_obj != NULL) {
         *pHeight = (*env)->GetIntField(env, param_obj, ptarmcls_field[M_FIELD_PTARMCHAN_HEIGHT]);
@@ -332,11 +360,14 @@ bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int3
         jobject hash_obj = (*env)->GetObjectField(env, param_obj, ptarmcls_field[M_FIELD_PTARMCHAN_MINEDHASH]);
         if(hash_obj != NULL) {
             *ppMinedHash = hash2bytes(hash_obj);
+            LOGD("success\n");
         } else {
             LOGD("fail: blockHash field\n");
         }
 
-        (*env)->DeleteLocalRef(env, hash_obj);
+        if (hash_obj != NULL) {
+            (*env)->DeleteLocalRef(env, hash_obj);
+        }
         (*env)->DeleteLocalRef(env, param_obj);
     }
     return param_obj != NULL;
@@ -345,8 +376,10 @@ bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int3
 bool btcj_gettxid_from_short_channel(uint64_t ShortChannelId, uint8_t **ppTxid)
 {
     jobject hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETTXIDFROMSHORTCHANNELID], ShortChannelId);
+    check_exception(env);
     if(hash_obj != NULL) {
         *ppTxid = hash2bytes(hash_obj);
+        LOGD("success\n");
     } else {
         LOGD("fail: txid\n");
     }
@@ -357,13 +390,16 @@ bool btcj_search_outpoint(btcj_buf_t **ppTx, uint32_t Blks, const uint8_t *pTxid
 {
     jobject txHash = bytes2hash(pTxid);
     jbyteArray retval = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SEARCHOUTPOINT], Blks, txHash, VIndex);
+    check_exception(env);
     //
     bool ret;
     if(retval != NULL) {
         *ppTx = jbarray2buf(retval);
         ret = true;
+        LOGD("success\n");
     } else {
         ret = false;
+        LOGD("fail\n");
     }
     //
     (*env)->DeleteLocalRef(env, txHash);
@@ -378,9 +414,13 @@ bool btcj_search_vout(btcj_buf_t **ppTxBuf, uint32_t Blks, const btcj_buf_t *pVo
     jobject vout = bufs2list(pVout);
     LOGD(" vout=%p\n", vout);
     jobject list = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SEARCHVOUT], Blks, vout);
+    check_exception(env);
     LOGD(" list=%p\n", list);
     if(ppTxBuf != NULL) {
         *ppTxBuf = list2bufs(list);
+        LOGD("success\n");
+    } else {
+        LOGD("fail\n");
     }
     //
     (*env)->DeleteLocalRef(env, vout);
@@ -397,8 +437,10 @@ bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, btcj_buf_
     jlong amnt = Amount;
     jbyteArray pubKey = buf2jbarray(pScriptPubKey);
     jbyteArray ret = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SIGNRAWTX], amnt, pubKey);
+    check_exception(env);
     if(ret != NULL) {
         *ppTxData = jbarray2buf(ret);
+        LOGD("success\n");
     } else {
         LOGD("fail\n");
     }
@@ -412,15 +454,21 @@ bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, btcj_buf_
 bool btcj_sendraw_tx(uint8_t **ppTxid, int *pCode, const btcj_buf_t *pTxData)
 {
     (void)pCode;
+
+    LOGD("rawtx=");
+    DUMPD(pTxData->buf, pTxData->len);
     bool ret;
     jbyteArray array = buf2jbarray(pTxData);
     jobject hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SENDRAWTX], array);
+    check_exception(env);
     if (hash_obj != NULL) {
         *ppTxid = hash2bytes(hash_obj);
         ret = true;
+        LOGD("success\n");
     } else {
         *ppTxid = NULL;
         ret = false;
+        LOGD("fail\n");
     }
     //
     (*env)->DeleteLocalRef(env, array);
@@ -433,6 +481,8 @@ bool btcj_is_tx_broadcasted(const uint8_t *pTxid)
 {
     jobject txHash = bytes2hash(pTxid);
     jboolean ret = (*env)->CallBooleanMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_CHECKBROADCAST], txHash);
+    check_exception(env);
+    LOGD("result=%d\n", ret);
     //
     (*env)->DeleteLocalRef(env, txHash);
     //
@@ -451,6 +501,8 @@ bool btcj_check_unspent(const uint8_t *pPeerId, bool *pUnspent, const uint8_t *p
     }
     jobject txHash = bytes2hash(pTxid);
     jint retval = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_CHECKUNSPENT], peer_id, txHash, VIndex);
+    check_exception(env);
+    LOGD("result=%d\n", retval);
     //
     bool ret;
     switch(retval) {
@@ -481,6 +533,7 @@ bool btcj_getnewaddress(char *pAddr)
     jstring addr_str = (*env)->CallObjectMethod(env, addr_obj, tobech32_method);
 #else
     jstring addr_str = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETNEWADDRESS]);
+    check_exception(env);
 #endif
     if(addr_str != NULL) {
         const char *cs = (*env)->GetStringUTFChars(env, addr_str, JNI_FALSE);
@@ -499,6 +552,7 @@ bool btcj_estimatefee(uint64_t *pFeeSatoshi, int Blks)
 #warning FIX: Dynamic fee
     (void)Blks;
     jlong ret = (*env)->CallLongMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_ESTIMATEFEE]);
+    check_exception(env);
     *pFeeSatoshi = ret;
     //
     return true;
@@ -510,8 +564,7 @@ void btcj_set_channel(
     const uint8_t *pFundingTxid,
     int FundingIndex,
     const uint8_t *pScriptPubKey,
-    bool bFundingTxUnspent,
-    const uint8_t *pMinedHash, int32_t BlockCnt)
+    const uint8_t *pMinedHash)
 {
     btcj_buf_t peer_id = { (CONST_CAST uint8_t *)pPeerId, BTC_SZ_PUBKEY };
     jbyteArray aryPeer = buf2jbarray(&peer_id);
@@ -519,15 +572,13 @@ void btcj_set_channel(
     jobject txHash = bytes2hash(pFundingTxid);
     btcj_buf_t script_pubkey = { (CONST_CAST uint8_t *)pScriptPubKey, BTC_SZ_HASH256 };
     jbyteArray aryScriptPubKey = buf2jbarray(&script_pubkey);
-    jobject blkhash;
-    if(pMinedHash != NULL) {
-        blkhash = bytes2hash(pMinedHash);
-    } else {
-        blkhash = NULL;
-    }
+    jobject blkhash = bytes2hash(pMinedHash);
+    LOGD("sci=%016" PRIx64 "\n", sci);
     (*env)->CallBooleanMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SETCHANNEL],
                               aryPeer, sci, txHash, FundingIndex, aryScriptPubKey,
-                              bFundingTxUnspent, blkhash, BlockCnt);
+                              blkhash);
+    LOGD("called\n");
+    check_exception(env);
     //
     (*env)->DeleteLocalRef(env, blkhash);
     (*env)->DeleteLocalRef(env, aryScriptPubKey);
@@ -542,6 +593,7 @@ void btcj_set_channel(
 bool btcj_getbalance(uint64_t *pAmount)
 {
     jlong ret = (*env)->CallLongMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETBALANCE]);
+    check_exception(env);
     *pAmount = ret;
     //
     return true;
@@ -552,6 +604,7 @@ bool btcj_emptywallet(const char *pAddr, uint8_t **ppTxid)
     bool ret;
     jstring addr = (*env)->NewStringUTF(env, pAddr);
     jobject hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_EMPTYWALLET], addr);
+    check_exception(env);
     if (hash_obj != NULL) {
         *ppTxid = hash2bytes(hash_obj);
         ret = true;
@@ -622,6 +675,7 @@ static jobject bytes2hash(const uint8_t *bytes)
     const btcj_buf_t buf = { (CONST_CAST uint8_t *)bytes, BTC_SZ_HASH256 };
     jbyteArray array = buf2jbarray(&buf);
     jobject obj = (*env)->CallStaticObjectMethod(env, hash_cls, sha256_wraprev_method, array);
+    check_exception(env);
     //
     (*env)->DeleteLocalRef(env, array);
     //
@@ -654,6 +708,7 @@ static jobject bufs2list(const btcj_buf_t *bufs)
     for(int i = 0; i < num; i++) {
         jbyteArray ba = buf2jbarray((p + i));
         (*env)->CallBooleanMethod(env, list, arraylist_add_method, ba);
+        check_exception(env);
         (*env)->DeleteLocalRef(env, ba);
     }
     return list;
@@ -668,10 +723,19 @@ static btcj_buf_t* list2bufs(jobject list)
     //
     for(int i = 0; i < size; i++) {
         jbyteArray ba = (*env)->CallObjectMethod(env, list, list_get_method, (jint)i);
+        check_exception(env);
         ((btcj_buf_t**)bufs->buf)[i] = jbarray2buf(ba);
         (*env)->DeleteLocalRef(env, ba);
     }
     return bufs;
+}
+
+static inline void check_exception(JNIEnv *env)
+{
+    if ((*env)->ExceptionCheck(env)) {
+        LOGD("fail: exception!!\n");
+        (*env)->ExceptionClear(env);
+    }
 }
 
 //https://stackoverflow.com/questions/606041/how-do-i-get-the-path-of-a-process-in-unix-linux

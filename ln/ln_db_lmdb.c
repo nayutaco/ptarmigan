@@ -125,7 +125,12 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_VAL        ((int32_t)-27)      ///< DBバージョン
+#define M_DB_VERSION_BASE       ((int32_t)27)      ///< DBバージョン
+#ifndef USE_SPV
+#define M_DB_VERSION_VAL        ((int32_t)(-M_DB_VERSION_BASE))     ///< DBバージョン
+#else
+#define M_DB_VERSION_VAL        ((int32_t)M_DB_VERSION_BASE)        ///< DBバージョン
+#endif
 /*
     -1 : first
     -2 : ln_update_add_htlc_t変更
@@ -254,6 +259,10 @@ typedef struct {
     char        wif[BTC_SZ_WIF_MAX];
     char        name[LN_SZ_ALIAS + 1];
     uint16_t    port;
+#ifndef USE_SPV
+#else
+    uint8_t     bhash[BTC_SZ_HASH256];
+#endif
 } nodeinfo_t;
 
 
@@ -545,7 +554,7 @@ static bool preimg_del_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t 
 static bool preimg_close_func(const uint8_t *pPreImage, uint64_t Amount, uint32_t Expiry, void *p_db_param, void *p_param);
 
 static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName, uint16_t Port);
-static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
+static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis);
 
 static int backup_param_load(void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
 static int backup_param_save(const void *pData, ln_lmdb_db_t *pDb, const backup_param_t *pParam, size_t Num);
@@ -731,8 +740,9 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr)
 
     if (bStdErr) fprintf(stderr, "done!\nDB checking: version...");
 
+    int32_t ver;
     uint8_t genesis[BTC_SZ_HASH256];
-    retval = ver_check(&db, pWif, pNodeName, pPort, genesis);
+    retval = ver_check(&db, &ver, pWif, pNodeName, pPort, genesis);
     MDB_TXN_COMMIT(db.txn);
     if (retval == 0) {
         //LOGD("wif=%s\n", pWif);
@@ -2353,7 +2363,10 @@ bool ln_db_routeskip_drop(bool bTemp)
     if (retval != 0) {
         //存在しないなら削除しなくてよい
         MDB_TXN_ABORT(txn);
-        retval = 0;
+        if (retval == MDB_NOTFOUND) {
+            LOGD("no db\n");
+            retval = 0;
+        }
         goto LABEL_EXIT;
     }
 
@@ -2361,6 +2374,7 @@ bool ln_db_routeskip_drop(bool bTemp)
         MDB_cursor  *cursor;
         MDB_val     key, data;
 
+        LOGD("remove temporary only\n");
         retval = mdb_cursor_open(txn, dbi, &cursor);
         if (retval != 0) {
             LOGD("ERR: %s\n", mdb_strerror(retval));
@@ -2380,6 +2394,8 @@ bool ln_db_routeskip_drop(bool bTemp)
         }
         retval = 0;
     } else {
+        LOGD("remove all\n");
+
         retval = mdb_drop(txn, dbi, 1);
         if (retval != 0) {
             LOGD("ERR: %s\n", mdb_strerror(retval));
@@ -3288,10 +3304,9 @@ LABEL_EXIT:
 
 bool ln_db_wallet_search(ln_db_func_wallet_t pWalletFunc, void *pFuncParam)
 {
+    bool        ret = false;
     int         retval;
     lmdb_cursor_t cur;
-    MDB_val     key;
-    MDB_val     data;
 
     cur.txn = NULL;
     cur.cursor = NULL;
@@ -3305,13 +3320,33 @@ bool ln_db_wallet_search(ln_db_func_wallet_t pWalletFunc, void *pFuncParam)
         LOGD("ERR: %s\n", mdb_strerror(retval));
         goto LABEL_EXIT;
     }
-    retval = mdb_cursor_open(cur.txn, cur.dbi, &cur.cursor);
+
+    ret = ln_lmdb_wallet_search(&cur, pWalletFunc, pFuncParam);
+
+LABEL_EXIT:
+    if (cur.cursor != NULL) {
+        mdb_cursor_close(cur.cursor);
+    }
+    if (cur.txn != NULL) {
+        MDB_TXN_ABORT(cur.txn);
+    }
+    return ret;
+}
+
+
+bool ln_lmdb_wallet_search(lmdb_cursor_t *pCur, ln_db_func_wallet_t pWalletFunc, void *pFuncParam)
+{
+    int         retval;
+    MDB_val     key;
+    MDB_val     data;
+
+    retval = mdb_cursor_open(pCur->txn, pCur->dbi, &pCur->cursor);
     if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
-        goto LABEL_EXIT;
+        return false;
     }
 
-    while ((retval = mdb_cursor_get(cur.cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
+    while ((retval = mdb_cursor_get(pCur->cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
         ln_db_wallet_t wallet = LN_DB_WALLET_INIT;
 
         uint8_t *k = (uint8_t *)key.mv_data;
@@ -3353,14 +3388,6 @@ bool ln_db_wallet_search(ln_db_func_wallet_t pWalletFunc, void *pFuncParam)
         retval = 0;
     } else {
         LOGD("ERR: %s\n", mdb_strerror(retval));
-    }
-
-LABEL_EXIT:
-    if (cur.cursor != NULL) {
-        mdb_cursor_close(cur.cursor);
-    }
-    if (cur.txn != NULL) {
-        MDB_TXN_ABORT(cur.txn);
     }
 
     return retval == 0;
@@ -3428,11 +3455,12 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType)
         goto LABEL_EXIT;
     }
 
+    int32_t ver;
     char wif[BTC_SZ_WIF_MAX] = "";
     char alias[LN_SZ_ALIAS + 1] = "";
     uint16_t port = 0;
     uint8_t genesis[BTC_SZ_HASH256];
-    retval = ver_check(&db, wif, alias, &port, genesis);
+    retval = ver_check(&db, &ver, wif, alias, &port, genesis);
     if (retval == 0) {
         btc_util_keys_t key;
         btc_chain_t chain;
@@ -3465,14 +3493,14 @@ LABEL_EXIT:
 }
 
 
-int ln_db_lmdb_get_mynodeid(MDB_txn *txn, MDB_dbi dbi, char *wif, char *alias, uint16_t *p_port, uint8_t *genesis)
+int ln_db_lmdb_get_mynodeid(MDB_txn *txn, MDB_dbi dbi, int32_t *ver, char *wif, char *alias, uint16_t *p_port, uint8_t *genesis)
 {
     int             retval;
     ln_lmdb_db_t    db;
 
     db.txn = txn;
     db.dbi = dbi;
-    retval = ver_check(&db, wif, alias, p_port, genesis);
+    retval = ver_check(&db, ver, wif, alias, p_port, genesis);
     return retval;
 }
 
@@ -3500,6 +3528,9 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
     } else if (strncmp(pDbName, M_PREF_BAKCHANNEL, M_PREFIX_LEN) == 0) {
         //removed self
         dbtype = LN_LMDB_DBTYPE_BKSELF;
+    } else if (strcmp(pDbName, M_DBI_WALLET) == 0) {
+        //wallet
+        dbtype = LN_LMDB_DBTYPE_WALLET;
     } else if (strcmp(pDbName, M_DBI_ANNO_CNL) == 0) {
         //channel_announcement
         dbtype = LN_LMDB_DBTYPE_ANNO_CNL;
@@ -3540,11 +3571,12 @@ ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName)
 /* btcのDB動作を借りたいために、showdb/routingから使用される。
  *
  */
-void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno)
+void ln_lmdb_setenv(MDB_env *p_env, MDB_env *p_node, MDB_env *p_anno, MDB_env *p_walt)
 {
     mpDbSelf = p_env;
     mpDbNode = p_node;
     mpDbAnno = p_anno;
+    mpDbWalt = p_walt;
 }
 
 
@@ -4529,6 +4561,10 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
         strcpy(nodeinfo.wif, pWif);
         strcpy(nodeinfo.name, pNodeName);
         nodeinfo.port = Port;
+#ifndef USE_SPV
+#else
+        memcpy(nodeinfo.bhash, gCreationBlockHash, BTC_SZ_HASH256);
+#endif
         data.mv_size = sizeof(nodeinfo);
         data.mv_data = (void *)&nodeinfo;
         retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
@@ -4544,12 +4580,13 @@ LABEL_EXIT:
 /** DBバージョンチェック
  *
  * @param[in,out]   pDb
+ * @param[out]      pVer
  * @param[out]      pWif
  * @param[out]      pNodeName
  * @param[out]      pPort
  * @retval  0   DBバージョン一致
  */
-static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis)
+static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeName, uint16_t *pPort, uint8_t *pGenesis)
 {
     int         retval;
     MDB_val key, data;
@@ -4559,10 +4596,9 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
     key.mv_data = LNDBK_VER;
     retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
     if (retval == 0) {
-        int32_t version;
-        memcpy(&version, data.mv_data, sizeof(version));
-        if (version != M_DB_VERSION_VAL) {
-            LOGD("fail: version mismatch : %d(require %d)\n", version, M_DB_VERSION_VAL);
+        memcpy(pVer, data.mv_data, sizeof(int32_t));
+        if (*pVer != M_DB_VERSION_VAL) {
+            LOGD("fail: version mismatch : %d(require %d)\n", *pVer, M_DB_VERSION_VAL);
             retval = -1;
         }
     } else {
@@ -4572,6 +4608,11 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
         key.mv_size = LNDBK_LEN(LNDBK_NODEID);
         key.mv_data = LNDBK_NODEID;
         retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
+        if (retval == 0) {
+            if (data.mv_size != sizeof(nodeinfo_t)) {
+                retval = MDB_BAD_VALSIZE;
+            }
+        }
         if (retval == 0) {
             const nodeinfo_t *p_nodeinfo = (const nodeinfo_t*)data.mv_data;
 
@@ -4595,6 +4636,10 @@ static int ver_check(ln_lmdb_db_t *pDb, char *pWif, char *pNodeName, uint16_t *p
             if (pGenesis != NULL) {
                 memcpy(pGenesis, p_nodeinfo->genesis, BTC_SZ_HASH256);
             }
+#ifndef USE_SPV
+#else
+            memcpy(gCreationBlockHash, p_nodeinfo->bhash, BTC_SZ_HASH256);
+#endif
             // LOGD("wif=%s\n", pWif);
             // LOGD("name=%s\n", pNodeName);
             // LOGD("port=%" PRIu16 "\n", *pPort);

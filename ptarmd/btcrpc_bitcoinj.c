@@ -31,12 +31,42 @@
 
 
 /**************************************************************************
+ * macros
+ **************************************************************************/
+
+#if 0
+#define LOGD_BTCTRACE(...)
+#define LOGD_BTCRESULT(...)
+#define DUMPD_BTCRESULT(...)
+#define TXIDD_BTCRESULT(...)
+#define LOGD_BTCFAIL(...)
+#define LOGD_PTHREAD(...)
+#define LOGD_JNI(...)
+#else
+#define LOGD_BTCTRACE       LOGD
+#define LOGD_BTCRESULT      LOGD
+#define DUMPD_BTCRESULT     DUMPD
+#define TXIDD_BTCRESULT     TXIDD
+#define LOGD_BTCFAIL        LOGD
+#define LOGD_PTHREAD        LOGD
+#define LOGD_JNI            LOGD
+#endif
+
+
+/**************************************************************************
  * typedefs
  **************************************************************************/
 
 typedef struct {
+    bool            ret;
+    const uint8_t   *p_hash;
+} setcreationhash_t;
+
+
+typedef struct {
     bool        ret;
     int32_t     *p_cnt;
+    uint8_t     *p_hash;
 } getblockcount_t;
 
 
@@ -132,9 +162,7 @@ typedef struct {
     const uint8_t   *p_fundingtxid;
     int             fundingidx;
     const uint8_t   *p_scriptpubkey;
-    bool            unspent;
     const uint8_t   *mined_hash;
-    int32_t         block_cnt;              ///< 現在のブロック高(初期confirmation計算用)
 } setchannel_t;
 
 
@@ -158,6 +186,7 @@ typedef struct {
 static void call_jni(btcj_method_t Method, void *pParam);
 
 static void *thread_jni_start(void *pArg);
+static void jni_set_creationhash(void *pArg);
 static void jni_get_blockcount(void *pArg);
 static void jni_get_genesisblockhash(void *pArg);
 static void jni_getconfirm(void *pArg);
@@ -181,6 +210,7 @@ static void jni_empty_wallet(void *pArg);
  * static variables
  **************************************************************************/
 
+static pthread_mutex_t      mMuxCall;
 static pthread_mutex_t      mMuxApi;
 static pthread_cond_t       mCondApi;        ///< APIの待ち合わせ
 
@@ -204,6 +234,8 @@ static struct {
 static const struct {
     void (*p_func)(void *pArg);
 } kJniFuncs[METHOD_PTARM_MAX] = {
+    //METHOD_PTARM_SETCREATIONHASH
+    { jni_set_creationhash },
     // METHOD_PTARM_GETBLOCKCOUNT,
     { jni_get_blockcount },
     // METHOD_PTARM_GETGENESISBLOCKHASH,
@@ -247,7 +279,7 @@ static const struct {
 
 bool btcrpc_init(const rpc_conf_t *pRpcConf)
 {
-    bool ret;
+    pthread_mutex_init(&mMuxCall, NULL);
     pthread_mutex_init(&mMuxApi, NULL);
     pthread_cond_init(&mCondApi, NULL);
     pthread_mutex_init(&mMuxJni, NULL);
@@ -275,12 +307,14 @@ bool btcrpc_init(const rpc_conf_t *pRpcConf)
     fprintf(stderr, "SYNC done\n");
     LOGD("$$$ SYNC done\n");
 
-    int32_t blkcnt;
-    ret = btcrpc_getblockcount(&blkcnt);
-    if (!ret || (blkcnt == 0)) {
-        return false;
-    }
-    LOGD("blockcount: %d\n", blkcnt);
+    int32_t bcnt;
+    uint8_t bhash[BTC_SZ_HASH256];
+    memset(bhash, 0xcc, sizeof(bhash));
+    getblockcount_t prm;
+    prm.p_cnt = &bcnt;
+    prm.p_hash = bhash;
+    call_jni(METHOD_PTARM_GETBLOCKCOUNT, &prm);
+    ln_creationhash_set(bhash);
 
     return true;
 }
@@ -294,19 +328,33 @@ void btcrpc_term(void)
     pthread_mutex_destroy(&mMuxJni);
     pthread_cond_destroy(&mCondApi);
     pthread_mutex_destroy(&mMuxApi);
+    pthread_mutex_destroy(&mMuxCall);
+}
+
+
+void btcrpc_set_creationhash(const uint8_t *pHash)
+{
+    LOGD_BTCTRACE("\n");
+
+    setcreationhash_t prm;
+    prm.p_hash = pHash;
+    call_jni(METHOD_PTARM_SETCREATIONHASH, &prm);
 }
 
 
 bool btcrpc_getblockcount(int32_t *pBlkCnt)
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     getblockcount_t prm;
     prm.p_cnt = pBlkCnt;
+    prm.p_hash = NULL;
     call_jni(METHOD_PTARM_GETBLOCKCOUNT, &prm);
 
     if (prm.ret) {
-        LOGD("getblockcount=%d\n", *pBlkCnt);
+        LOGD_BTCRESULT("getblockcount=%d\n", *pBlkCnt);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -314,14 +362,16 @@ bool btcrpc_getblockcount(int32_t *pBlkCnt)
 
 bool btcrpc_getgenesisblock(uint8_t *pHash)
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     getgenesisblockhash_t prm;
     prm.p_hash = pHash;
     call_jni(METHOD_PTARM_GETGENESISBLOCKHASH, &prm);
     if (prm.ret) {
-        LOGD("genesis hash=");
-        DUMPD(pHash, BTC_SZ_HASH256);
+        LOGD_BTCRESULT("genesis hash=");
+        DUMPD_BTCRESULT(pHash, BTC_SZ_HASH256);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -333,14 +383,16 @@ bool btcrpc_get_confirm(int32_t *pConfirm, const uint8_t *pTxid)
         return false;
     }
 
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     getconfirmation_t prm;
     prm.p_confirm = pConfirm;
     prm.p_txid = pTxid;
     call_jni(METHOD_PTARM_GETCONFIRMATION, &prm);
     if (prm.ret) {
-        LOGD("confirm=%" PRId32 "\n", *pConfirm);
+        LOGD_BTCRESULT("confirm=%" PRId32 "\n", *pConfirm);
+    } else {
+        LOGD_BTCFAIL("confirm=fail\n");
     }
     return prm.ret;
 }
@@ -348,7 +400,7 @@ bool btcrpc_get_confirm(int32_t *pConfirm, const uint8_t *pTxid)
 
 bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, int32_t *pBIndex, uint8_t *pMinedHash, const uint8_t *pTxid)
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     getshortchannelparam_t prm;
     prm.p_peerid = pPeerId;
@@ -358,8 +410,10 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
     prm.p_txid = pTxid;
     call_jni(METHOD_PTARM_GETSHORTCHANNELPARAM, &prm);
     if (prm.ret) {
-        LOGD("b_height=%" PRId32 ", b_index=%" PRId32 ", mined_hash=", *pBHeight, *pBIndex);
-        TXIDD(pMinedHash);
+        LOGD_BTCRESULT("b_height=%" PRId32 ", b_index=%" PRId32 ", mined_hash=", *pBHeight, *pBIndex);
+        TXIDD_BTCRESULT(pMinedHash);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -371,7 +425,7 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
         return false;
     }
 
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     searchoutpoint_t prm;
     prm.p_tx = pTx;
@@ -381,6 +435,8 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
     call_jni(METHOD_PTARM_SEARCHOUTPOINT, &prm);
     if (prm.ret) {
         btc_print_tx(pTx);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -388,7 +444,7 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
 
 bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout)
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     searchvout_t prm;
     prm.p_txbuf = pTxBuf;
@@ -399,10 +455,12 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
         int len = pTxBuf->len / sizeof(utl_buf_t);
         const utl_buf_t *p_buf = (const utl_buf_t *)pTxBuf->buf;
         for (int lp = 0; lp < len; lp++) {
-            LOGD("----[%d]----\n", lp);
+            LOGD_BTCRESULT("----[%d]----\n", lp);
             const btc_tx_t *p = (const btc_tx_t *)p_buf[lp].buf;
             btc_print_tx(p);
         }
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -427,7 +485,7 @@ bool btcrpc_sign_rawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64
         return false;
     }
 
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     signrawtx_t prm;
     prm.p_tx = pTx;
@@ -435,6 +493,11 @@ bool btcrpc_sign_rawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64
     prm.len = BTC_SZ_HASH256;
     prm.amount = pTx->vout[0].value;
     call_jni(METHOD_PTARM_SIGNRAWTX, &prm);
+    if (prm.ret) {
+        LOGD_BTCRESULT("send ok\n");
+    } else {
+        LOGD_BTCFAIL("fail\n");
+    }
 
     return prm.ret;
 }
@@ -442,7 +505,7 @@ bool btcrpc_sign_rawtx(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len, uint64
 
 bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint32_t Len)
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     sendrawtx_t prm;
     prm.p_txid = pTxid;
@@ -451,8 +514,10 @@ bool btcrpc_send_rawtx(uint8_t *pTxid, int *pCode, const uint8_t *pRawData, uint
     prm.len = Len;
     call_jni(METHOD_PTARM_SENDRAWTX, &prm);
     if (prm.ret) {
-        LOGD("txid=");
-        TXIDD(pTxid);
+        LOGD_BTCRESULT("txid=");
+        TXIDD_BTCRESULT(pTxid);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -464,12 +529,12 @@ bool btcrpc_is_tx_broadcasted(const uint8_t *pTxid)
         return false;
     }
 
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     checkbroadcast_t prm;
     prm.p_txid = pTxid;
     call_jni(METHOD_PTARM_CHECKBROADCAST, &prm);
-    LOGD("ret=%d\n", prm.ret);
+    LOGD_BTCRESULT("result=%d\n", prm.ret);
     return prm.ret;
 }
 
@@ -482,7 +547,7 @@ bool btcrpc_check_unspent(const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat
         return false;
     }
 
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     checkunspent_t prm;
     prm.p_unspent = pUnspent;
@@ -491,9 +556,11 @@ bool btcrpc_check_unspent(const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat
     prm.v_index = VIndex;
     call_jni(METHOD_PTARM_CHECKUNSPENT, &prm);
     if (prm.ret) {
-        LOGD("txid(vout=%d)=", VIndex);
-        TXIDD(pTxid);
-        LOGD("    unspent: %d\n", *pUnspent);
+        LOGD_BTCRESULT("txid(vout=%d)=", VIndex);
+        TXIDD_BTCRESULT(pTxid);
+        LOGD_BTCRESULT("    unspent: %d\n", *pUnspent);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -501,13 +568,15 @@ bool btcrpc_check_unspent(const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat
 
 bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX])
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     getnewaddress_t prm;
     prm.p_addr = pAddr;
     call_jni(METHOD_PTARM_GETNEWADDRESS, &prm);
     if (prm.ret) {
-        LOGD("addr=%s\n", pAddr);
+        LOGD_BTCRESULT("addr=%s\n", pAddr);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -515,14 +584,16 @@ bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX])
 
 bool btcrpc_estimatefee(uint64_t *pFeeSatoshi, int nBlocks)
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     estimatefee_t prm;
     prm.p_fee_satoshi = pFeeSatoshi;
     prm.blks = nBlocks;
     call_jni(METHOD_PTARM_ESTIMATEFEE, &prm);
     if (prm.ret) {
-        LOGD("fee=%" PRIu64 "\n", *prm.p_fee_satoshi);
+        LOGD_BTCRESULT("fee=%" PRIu64 "\n", *prm.p_fee_satoshi);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -533,9 +604,9 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
                 const uint8_t *pFundingTxid,
                 int FundingIdx,
                 const utl_buf_t *pRedeemScript,
-                bool bUnspent, const uint8_t *pMinedHash, int32_t BlockCnt)
+                const uint8_t *pMinedHash)
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     uint8_t witprog[BTC_SZ_WITPROG_P2WSH];
     btc_sw_wit2prog_p2wsh(witprog, pRedeemScript);
@@ -546,9 +617,7 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
     prm.p_fundingtxid = pFundingTxid;
     prm.fundingidx = FundingIdx;
     prm.p_scriptpubkey = witprog + BTC_OFFSET_WITPROG;
-    prm.unspent = bUnspent;
     prm.mined_hash = pMinedHash;
-    prm.block_cnt = BlockCnt;
     call_jni(METHOD_PTARM_SETCHANNEL, &prm);
 }
 
@@ -562,13 +631,15 @@ void btcrpc_set_committxid(const ln_self_t *self)
 
 bool btcrpc_get_balance(uint64_t *pAmount)
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     getbalance_t prm;
     prm.p_amount = pAmount;
     call_jni(METHOD_PTARM_GETBALANCE, &prm);
     if (prm.ret) {
-        LOGD("amount=%" PRIu64 "\n", *prm.p_amount);
+        LOGD_BTCRESULT("amount=%" PRIu64 "\n", *prm.p_amount);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -576,15 +647,17 @@ bool btcrpc_get_balance(uint64_t *pAmount)
 
 bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr)
 {
-    LOGD("\n");
+    LOGD_BTCTRACE("\n");
 
     emptywallet_t prm;
     prm.p_txid = pTxid;
     prm.p_addr = pAddr;
     call_jni(METHOD_PTARM_EMPTYWALLET, &prm);
     if (prm.ret) {
-        LOGD("txid=");
-        TXIDD(prm.p_txid);
+        LOGD_BTCRESULT("txid=");
+        TXIDD_BTCRESULT(prm.p_txid);
+    } else {
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }
@@ -596,18 +669,20 @@ bool btcrpc_empty_wallet(uint8_t *pTxid, const char *pAddr)
 
 static void call_jni(btcj_method_t Method, void *pParam)
 {
+    pthread_mutex_lock(&mMuxCall);
     pthread_mutex_lock(&mMuxJni);
     mMethodParam.method = Method;
     mMethodParam.p_arg = pParam;
-    //LOGD("BTC: send signal\n");
+    LOGD_PTHREAD("BTC: send signal: %d\n", (int)mMethodParam.method);
     pthread_mutex_lock(&mMuxApi);
     pthread_cond_signal(&mCondJni);
     pthread_mutex_unlock(&mMuxJni);
 
-    //LOGD("BTC: wait...\n");
+    LOGD_PTHREAD("BTC: wait...: %d\n", (int)mMethodParam.method);
     pthread_cond_wait(&mCondApi, &mMuxApi);
     pthread_mutex_unlock(&mMuxApi);
-    //LOGD("BTC: unlock: %d\n", (int)Method);
+    LOGD_PTHREAD("BTC: unlock: %d\n", (int)mMethodParam.method);
+    pthread_mutex_unlock(&mMuxCall);
 }
 
 
@@ -631,17 +706,17 @@ static void *thread_jni_start(void *pArg)
 
     pthread_mutex_lock(&mMuxJni);
     while (mLoopJni) {
-        //LOGD("JNI: exec wait...\n");
+        LOGD_PTHREAD("JNI: exec wait...\n");
         pthread_cond_wait(&mCondJni, &mMuxJni);
 
-        //LOGD("JNI: exec: %d\n", (int)mMethodParam.method);
+        LOGD_PTHREAD("JNI: exec: %d\n", (int)mMethodParam.method);
         if (mMethodParam.method < ARRAY_SIZE(kJniFuncs)) {
             (*kJniFuncs[mMethodParam.method].p_func)(mMethodParam.p_arg);
         } else {
             LOGD("fail: invalid method(%d)\n", mMethodParam.method);
         }
         pthread_mutex_lock(&mMuxApi);
-        //LOGD("JNI: send signal\n");
+        LOGD_PTHREAD("JNI: send signal\n");
         pthread_cond_signal(&mCondApi);
         pthread_mutex_unlock(&mMuxApi);
     }
@@ -654,12 +729,22 @@ static void *thread_jni_start(void *pArg)
 }
 
 
+static void jni_set_creationhash(void *pArg)
+{
+    LOGD("\n");
+
+    setcreationhash_t *p = (setcreationhash_t *)pArg;
+    btcj_setcreationhash(p->p_hash);
+    p->ret = true;
+}
+
+
 static void jni_get_blockcount(void *pArg)
 {
     LOGD("\n");
 
     getblockcount_t *p = (getblockcount_t *)pArg;
-    *p->p_cnt = btcj_getblockcount();
+    *p->p_cnt = btcj_getblockcount(p->p_hash);
     p->ret = true;
 }
 
@@ -697,10 +782,10 @@ static void jni_get_short_channel_param(void *pArg)
     getshortchannelparam_t *p = (getshortchannelparam_t *)pArg;
     uint8_t *p_mined_hash = NULL;
     p->ret = btcj_get_short_channel_param(p->p_peerid, p->p_b_height, p->p_b_index, &p_mined_hash);
-    if (p->ret) {
+    if (p->ret && (p_mined_hash != NULL)) {
         memcpy(p->p_mined_hash, p_mined_hash, BTC_SZ_HASH256);
+        free(p_mined_hash);
     }
-    free(p_mined_hash);
 }
 
 
@@ -835,20 +920,15 @@ static void jni_set_channel(void *pArg)
     LOGD("funding_index=%d\n", p->fundingidx);
     LOGD("scriptPubKey=");
     DUMPD(p->p_scriptpubkey, BTC_SZ_HASH256);
-    LOGD("unspent=%d\n", p->unspent);
-    if (p->mined_hash != NULL) {
         LOGD("mined_hash=");
         TXIDD(p->mined_hash);
-    }
-    LOGD("block count=%d\n", p->block_cnt);
 
     btcj_set_channel(p->p_peer_id,
                 p->short_channel_id,
                 p->p_fundingtxid,
                 p->fundingidx,
                 p->p_scriptpubkey,
-                p->unspent,
-                p->mined_hash, p->block_cnt);
+                p->mined_hash);
 }
 
 

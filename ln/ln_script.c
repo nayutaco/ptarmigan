@@ -304,7 +304,7 @@ uint64_t HIDDEN ln_script_fee_calc(
         }
     }
     pFeeInfo->commit = pFeeInfo->commit * pFeeInfo->feerate_per_kw / 1000;
-    LOGD("pFeeInfo->commit= %" PRIu64 "(%" PRIu32 ")\n", pFeeInfo->commit, pFeeInfo->feerate_per_kw);
+    LOGD("pFeeInfo->commit= %" PRIu64 "(feerate_per_kw=%" PRIu32 ")\n", pFeeInfo->commit, pFeeInfo->feerate_per_kw);
 
     return pFeeInfo->commit + dusts;
 }
@@ -338,7 +338,7 @@ bool HIDDEN ln_script_committx_create(
         btc_sw_add_vout_p2wpkh_pub(pTx, pCmt->remote.satoshi - fee_remote, pCmt->remote.pubkey);
         pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOREMOTE;
     } else {
-        LOGD("  remote output below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
+        LOGD("  [remote output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->remote.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_remote);
     }
     //  P2WSH - local
     if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
@@ -346,7 +346,7 @@ bool HIDDEN ln_script_committx_create(
         btc_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
         pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOLOCAL;
     } else {
-        LOGD("  local output below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
+        LOGD("  [local output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
     }
     //  HTLCs
     for (int lp = 0; lp < pCmt->htlcinfo_num; lp++) {
@@ -375,7 +375,7 @@ bool HIDDEN ln_script_committx_create(
             LOGD("scirpt.len=%d\n", pCmt->pp_htlcinfo[lp]->script.len);
             //btc_print_script(pCmt->pp_htlcinfo[lp]->script.buf, pCmt->pp_htlcinfo[lp]->script.len);
         } else {
-            LOGD("    HTLC below dust: %" PRIu64 " < %" PRIu64 "\n", output_sat, pCmt->p_feeinfo->dust_limit_satoshi + fee);
+            LOGD("    [HTLC]below dust: %" PRIu64 " < %" PRIu64 "(dust_limit) + %" PRIu64 "(fee)\n", output_sat, pCmt->p_feeinfo->dust_limit_satoshi, fee);
         }
     }
 

@@ -396,7 +396,7 @@ static void optfunc_getnewaddress(int *pOption, bool *pConn)
 
     snprintf(mBuf, BUFFER_SIZE,
         "{"
-            M_STR("method", "fundaddr") M_NEXT
+            M_STR("method", "getnewaddress") M_NEXT
             M_QQ("params") ":[]"
         "}");
     *pOption = M_OPTIONS_EXEC;

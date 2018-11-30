@@ -65,6 +65,7 @@ typedef enum {
     LN_LMDB_DBTYPE_ADD_HTLC,
     LN_LMDB_DBTYPE_REVOKED,
     LN_LMDB_DBTYPE_BKSELF,
+    LN_LMDB_DBTYPE_WALLET,
     LN_LMDB_DBTYPE_ANNO_CNL,
     LN_LMDB_DBTYPE_ANNO_NODE,
     LN_LMDB_DBTYPE_ANNOINFO_CNL,
@@ -182,7 +183,10 @@ int ln_lmdb_annonod_cur_load(MDB_cursor *cur, utl_buf_t *pBuf, uint32_t *pTimeSt
 ln_lmdb_dbtype_t ln_lmdb_get_dbtype(const char *pDbName);
 
 
-int ln_db_lmdb_get_mynodeid(MDB_txn *txn, MDB_dbi dbi, char *wif, char *alias, uint16_t *p_port, uint8_t *genesis);
+int ln_db_lmdb_get_mynodeid(MDB_txn *txn, MDB_dbi dbi, int32_t *ver, char *wif, char *alias, uint16_t *p_port, uint8_t *genesis);
+
+
+bool ln_lmdb_wallet_search(lmdb_cursor_t *pCur, ln_db_func_wallet_t pWalletFunc, void *pFuncParam);
 
 
 #ifdef __cplusplus

@@ -414,6 +414,13 @@ static const struct {
 //< 32: chain-hash
 uint8_t HIDDEN gGenesisChainHash[BTC_SZ_HASH256];
 
+#ifndef USE_SPV
+#else
+//blockhash at node creation
+//      usage: search blockchain limit
+uint8_t HIDDEN gCreationBlockHash[BTC_SZ_HASH256];
+#endif
+
 /// init.localfeaturesデフォルト値
 static uint8_t mInitLocalFeatures[1];
 
@@ -526,6 +533,24 @@ const uint8_t* ln_genesishash_get(void)
 {
     return gGenesisChainHash;
 }
+
+
+#ifndef USE_SPV
+#else
+void ln_creationhash_set(const uint8_t *pHash)
+{
+    memcpy(gCreationBlockHash, pHash, BTC_SZ_HASH256);
+
+    LOGD("block hash=");
+    DUMPD(gCreationBlockHash, BTC_SZ_HASH256);
+}
+
+
+const uint8_t *ln_creationhash_get(void)
+{
+    return gCreationBlockHash;
+}
+#endif
 
 
 void ln_peer_set_nodeid(ln_self_t *self, const uint8_t *pNodeId)
@@ -766,9 +791,9 @@ void ln_recv_idle_proc(ln_self_t *self)
 
 /*
  * init作成
- * 
+ *
  * localfeaturesは、自分がサポートするfeature(odd bits)と、要求するfeature(even bits)を送信する。
- * 
+ *
  */
 bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
 {
@@ -3433,7 +3458,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     //     }
     // }
 
-    //commitment_signed受信フラグ
+    //commitment_signed recv flag
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
         if ( LN_HTLC_ENABLE(p_htlc) &&
@@ -3471,7 +3496,7 @@ static bool recv_commitment_signed(ln_self_t *self, const uint8_t *pData, uint16
     LOGD("  revoke_and_ack.next_per_commitment_point=%" PRIu64 "\n", self->commit_local.commit_num);
     ret = ln_msg_revoke_and_ack_create(&buf_bolt, &revack);
     if (ret) {
-        //commitment_signed受信フラグ
+        //revoke_and_ack send flag
         for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
             ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
             if ( LN_HTLC_ENABLE(p_htlc) &&
@@ -4661,6 +4686,13 @@ static bool create_to_local_spent(ln_self_t *self,
 }
 
 
+/** to_localをwalletに保存する情報作成
+ *
+ * @param[out]      pTxToLocal
+ *
+ * @note
+ *  - pTxToLocalはbtc_tx_tフォーマットだが、blockchainに展開できるデータではない
+ */
 static bool create_to_local_spentlocal(ln_self_t *self,
                     btc_tx_t *pTxToLocal,
                     const utl_buf_t *pBufWs,
@@ -4676,7 +4708,6 @@ static bool create_to_local_spentlocal(ln_self_t *self,
                 ToSelfDelay,
                 pBufWs, self->commit_local.txid, VoutIdx, false);
         if (ret) {
-            M_DBG_PRINT_TX(&tx);
             memcpy(pTxToLocal, &tx, sizeof(tx));
             btc_tx_init(&tx);     //txはfreeさせない
         } else {
@@ -4697,7 +4728,7 @@ static bool create_to_local_htlcverify(ln_self_t *self,
 {
     utl_buf_t buf_sig;
     ln_misc_sigexpand(&buf_sig, pHtlcSig);
-M_DBG_PRINT_TX2(pTx);
+
     bool ret = ln_script_htlctx_verify(pTx,
                 Amount,
                 NULL,

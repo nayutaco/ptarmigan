@@ -26,6 +26,13 @@ static inline int tid(void) {
 static pthread_mutex_t  mMux;
 static FILE             *mFp;
 
+//UTL_LOG_PRI_xxx
+//  Error
+//  Info
+//  Debug
+//  Verbose
+static const char M_MARK[] = "EIDV";
+
 
 bool utl_log_init(void)
 {
@@ -104,7 +111,7 @@ void utl_log_write(int Pri, const char* pFname, int Line, int Flag, const char *
 
     va_start(ap, pFmt);
     if (Flag) {
-        fprintf(mFp, "%s(%d)[%s:%d:%s][%s]", tmstr, (int)tid(), pFname, Line, pFunc, pTag);
+        fprintf(mFp, "%s(%5d)[%c/%s][%s:%d:%s]", tmstr, (int)tid(), M_MARK[Pri - 1], pTag, pFname, Line, pFunc);
     }
     vfprintf(mFp, pFmt, ap);
     va_end(ap);

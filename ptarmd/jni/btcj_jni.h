@@ -16,6 +16,7 @@ typedef struct {
 //  btcrpc_bitcoinj.c : kJniFuncs[]
 //  btcj_jni.c        : kMethod[]
 typedef enum {
+    METHOD_PTARM_SETCREATIONHASH,
     METHOD_PTARM_GETBLOCKCOUNT,
     METHOD_PTARM_GETGENESISBLOCKHASH,
     METHOD_PTARM_GETCONFIRMATION,
@@ -40,7 +41,8 @@ typedef enum {
 
 bool btcj_init(btc_genesis_t Gen);
 bool btcj_release(void);
-int32_t btcj_getblockcount(void);
+void btcj_setcreationhash(const uint8_t *pHash);
+int32_t btcj_getblockcount(uint8_t *pHash);
 bool btcj_getgenesisblockhash(uint8_t *pHash);
 int32_t btcj_get_funding_confirm(const uint8_t *pTxid);
 bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int32_t *pbIndex, uint8_t **ppMinedHash);
@@ -59,8 +61,7 @@ void btcj_set_channel(
     const uint8_t *pFundingTxid,
     int FundingIndex,
     const uint8_t *pScriptPubKey,
-    bool bFundingTxUnspent,
-    const uint8_t *pMinedHash, int32_t BLockCnt);
+    const uint8_t *pMinedHash);
 // void btcj_set_committxid(const uint8_t *peerId, )
 bool btcj_getbalance(uint64_t *pAmount);
 bool btcj_emptywallet(const char *pAddr, uint8_t **ppTxid);
