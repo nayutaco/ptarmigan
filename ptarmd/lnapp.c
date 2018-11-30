@@ -343,16 +343,18 @@ LABEL_EXIT:
         // $3: amt_to_forward
         // $4: outgoing_cltv_value
         // $5: payment_hash
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(pAppConf->p_self));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         utl_misc_bin2str(hashstr, pPay->payment_hash, BTC_SZ_HASH256);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%016" PRIx64 " %s "
+        sprintf(param, "%s %s "
                     "%" PRIu64 " "
                     "%" PRIu32 " "
                     "%s",
-                    ln_short_channel_id(pAppConf->p_self), node_id,
+                    str_sci, node_id,
                     pPay->hop_datain[0].amt_to_forward,
                     pPay->hop_datain[0].outgoing_cltv_value,
                     hashstr);
@@ -562,8 +564,9 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         utl_misc_bin2str(str, ln_channel_id(pAppConf->p_self), LN_SZ_CHANNEL_ID);
         cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
         //short_channel_id
-        sprintf(str, "%016" PRIx64, ln_short_channel_id(p_self));
-        cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str));
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_self));
+        cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str_sci));
         //funding_tx
         utl_misc_bin2str_rev(str, ln_funding_txid(pAppConf->p_self), BTC_SZ_TXID);
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
@@ -1006,14 +1009,16 @@ static void *thread_main_start(void *pArg)
         // $1: short_channel_id
         // $2: node_id
         // $3: peer_id
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_self));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char peer_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%016" PRIx64 " %s "
+        sprintf(param, "%s %s "
                     "%s",
-                    ln_short_channel_id(p_self), node_id,
+                    str_sci, node_id,
                     peer_id);
         ptarmd_call_script(PTARMD_EVT_CONNECTED, param);
 
@@ -1057,14 +1062,16 @@ LABEL_SHUTDOWN:
         // $1: short_channel_id
         // $2: node_id
         // $3: peer_id
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_self));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char peer_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(peer_id, p_conf->node_id, BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%016" PRIx64 " %s "
+        sprintf(param, "%s %s "
                     "%s",
-                    ln_short_channel_id(p_self), node_id,
+                    str_sci, node_id,
                     peer_id);
         ptarmd_call_script(PTARMD_EVT_DISCONNECTED, param);
     }
@@ -1341,15 +1348,17 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     // $2: node_id
     // $3: our_msat
     // $4: funding_txid
+    char str_sci[LN_SZ_SHORTCHANNELID_STR];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     char txidstr[BTC_SZ_TXID * 2 + 1];
     utl_misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), BTC_SZ_TXID);
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
     utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
     char param[256];
-    sprintf(param, "%016" PRIx64 " %s "
+        sprintf(param, "%s %s "
                 "%" PRIu64 " "
                 "%s",
-                ln_short_channel_id(p_conf->p_self), node_id,
+                str_sci, node_id,
                 ln_node_total_msat(),
                 txidstr);
     ptarmd_call_script(PTARMD_EVT_ESTABLISHED, param);
@@ -1707,9 +1716,11 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
                         ln_shutdown_scriptpk_local(p_conf->p_self)->len);
             }
 
+            char str_sci[LN_SZ_SHORTCHANNELID_STR];
+            ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
             lnapp_save_event(ln_channel_id(p_conf->p_self),
-                    "funding_locked: short_channel_id=%016" PRIx64 ", close_addr=%s",
-                    ln_short_channel_id(p_conf->p_self), close_addr);
+                    "funding_locked: short_channel_id=%s, close_addr=%s",
+                    str_sci, close_addr);
         } else {
             LOGD("fail: check_short_channel_id()\n");
         }
@@ -2033,9 +2044,11 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 
     if ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         lnapp_save_event(ln_channel_id(p_conf->p_self),
-                "open: recv funding_locked short_channel_id=%016" PRIx64,
-                ln_short_channel_id(p_conf->p_self));
+                "open: recv funding_locked short_channel_id=%s",
+                str_sci);
     }
 
 #ifndef USE_SPV
@@ -2209,16 +2222,18 @@ static void cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
         // $3: amt_to_forward
         // $4: outgoing_cltv_value
         // $5: payment_hash
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         utl_misc_bin2str(hashstr, p_addhtlc->p_payment, BTC_SZ_HASH256);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%016" PRIx64 " %s "
+        sprintf(param, "%s %s "
                     "%" PRIu64 " "
                     "%" PRIu32 " "
                     "%s",
-                    ln_short_channel_id(p_conf->p_self), node_id,
+                    str_sci, node_id,
                     p_addhtlc->p_hop->amt_to_forward,
                     p_addhtlc->p_hop->outgoing_cltv_value,
                     hashstr);
@@ -2326,6 +2341,8 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
         // $2: node_id
         // $3: payment_hash
         // $4: payment_preimage
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         uint8_t payment_hash[BTC_SZ_HASH256];
         ln_preimage_hash_calc(payment_hash, p_fulfill->p_preimage);
@@ -2335,10 +2352,10 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%016" PRIx64 " %s "
+        sprintf(param, "%s %s "
                     "%s "
                     "%s",
-                    ln_short_channel_id(p_conf->p_self), node_id,
+                    str_sci, node_id,
                     hashstr,
                     imgstr);
         ptarmd_call_script(PTARMD_EVT_FULFILL, param);
@@ -2420,11 +2437,13 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
         // method: fail
         // $1: short_channel_id
         // $2: node_id
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         char param[256];
-        sprintf(param, "%016" PRIx64 " %s",
-                    ln_short_channel_id(p_conf->p_self), node_id);
+        sprintf(param, "%s %s ",
+                    str_sci, node_id);
         ptarmd_call_script(PTARMD_EVT_FAIL, param);
     }
 }
@@ -2520,13 +2539,15 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
     // $2: node_id
     // $3: our_msat
     // $4: htlc_num
+    char str_sci[LN_SZ_SHORTCHANNELID_STR];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     char param[256];
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
     utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-    sprintf(param, "%016" PRIx64 " %s "
+    sprintf(param, "%s %s "
                 "%" PRIu64 " "
                 "%d",
-                ln_short_channel_id(p_conf->p_self), node_id,
+                str_sci, node_id,
                 ln_node_total_msat(),
                 ln_htlc_num(p_conf->p_self));
     ptarmd_call_script(PTARMD_EVT_HTLCCHANGED, param);
@@ -2615,14 +2636,16 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         // $1: short_channel_id
         // $2: node_id
         // $3: closing_txid
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char param[256];
         char txidstr[BTC_SZ_TXID * 2 + 1];
         utl_misc_bin2str_rev(txidstr, txid, BTC_SZ_TXID);
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        sprintf(param, "%016" PRIx64 " %s "
+        sprintf(param, "%s %s "
                     "%s",
-                    ln_short_channel_id(p_conf->p_self), node_id,
+                    str_sci, node_id,
                     txidstr);
         ptarmd_call_script(PTARMD_EVT_CLOSED, param);
     } else {
@@ -3152,12 +3175,14 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         // $1: short_channel_id
         // $2: node_id
         // $3: err_str
+        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char *param = (char *)UTL_DBG_MALLOC(len_max);      //UTL_DBG_FREE: この中
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        sprintf(param, "%016" PRIx64 " %s "
+        sprintf(param, "%s %s "
                     "\"%s\"",
-                    ln_short_channel_id(p_conf->p_self), node_id,
+                    str_sci, node_id,
                     p_conf->p_errstr);
         ptarmd_call_script(PTARMD_EVT_ERROR, param);
         UTL_DBG_FREE(param);        //UTL_DBG_MALLOC: この中

@@ -634,6 +634,16 @@ void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t
 }
 
 
+void ln_short_channel_id_string(char *pStr, uint64_t ShortChannelId)
+{
+    uint32_t height;
+    uint32_t bindex;
+    uint32_t vindex;
+    ln_short_channel_id_get_param(&height, &bindex, &vindex, ShortChannelId);
+    snprintf(pStr, LN_SZ_SHORTCHANNELID_STR, "%" PRIu32 "x%" PRIu32 "x%" PRIu32, height, bindex, vindex);
+}
+
+
 #if 0
 bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey, int ShutdownPref)
 {
