@@ -43,16 +43,17 @@ extern "C" {
 
 #define LN_PORT_DEFAULT                 (9735)
 
-#define LN_SZ_CHANNEL_ID                (32)        ///< サイズ:channel_id
-#define LN_SZ_SHORT_CHANNEL_ID          (8)         ///< サイズ:short_channel_id
-#define LN_SZ_SIGNATURE                 BTC_SZ_SIGN_RS    ///< サイズ:署名
-#define LN_SZ_PREIMAGE                  (32)        ///< サイズ:preimage
-#define LN_SZ_SEED                      (32)        ///< サイズ:seed
-#define LN_SZ_ONION_ROUTE               (1366)      ///< サイズ:onion-routing-packet
-#define LN_SZ_ALIAS                     (32)        ///< サイズ:alias長
-#define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< サイズ:noiseパケットヘッダ
-#define LN_SZ_FUNDINGTX_VSIZE           (177)       ///< サイズ:funding_txのvsize(nested in BIP16 P2SH形式)
-#define LN_SZ_ERRMSG                    (256)       ///< サイズ:last error文字列
+#define LN_SZ_CHANNEL_ID                (32)        ///< (size) channel_id
+#define LN_SZ_SHORT_CHANNEL_ID          (8)         ///< (size) short_channel_id
+#define LN_SZ_SHORTCHANNELID_STR        (128+1)     ///< (size) short_channel_id string
+#define LN_SZ_SIGNATURE                 BTC_SZ_SIGN_RS    ///< (size) signature
+#define LN_SZ_PREIMAGE                  (32)        ///< (size) preimage
+#define LN_SZ_SEED                      (32)        ///< (size) seed
+#define LN_SZ_ONION_ROUTE               (1366)      ///< (size) onion-routing-packet
+#define LN_SZ_ALIAS                     (32)        ///< (size) node alias
+#define LN_SZ_NOISE_HEADER              (sizeof(uint16_t) + 16)     ///< (size) noise packet header
+#define LN_SZ_FUNDINGTX_VSIZE           (177)       ///< (size) funding_txのvsize(nested in BIP16 P2SH format)
+#define LN_SZ_ERRMSG                    (256)       ///< (size) last error string
 
 
 #define LN_ANNOSIGS_CONFIRM             (6)         ///< announcement_signaturesを送信するconfirmation
@@ -1321,6 +1322,14 @@ bool ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t In
  * @param[in]           ShortChannelId  short_channel_id
  */
 void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId);
+
+
+/** get BOLT short_channel_id string
+ * 
+ * @param[out]  pStr            return value(length > LN_SZ_SHORTCHANNELID_STR)
+ * @param[in]   ShortChannelId  short_channel_id
+ */
+void ln_short_channel_id_string(char *pStr, uint64_t ShortChannelId);
 
 
 /** shutdown時の出力先設定(address)

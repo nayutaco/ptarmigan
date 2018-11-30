@@ -194,12 +194,12 @@ int ptarmd_start(uint16_t my_rpcport)
 
     {
         // method: started
-        // $1: 0000000000000000
+        // $1: 0
         // $2: node_id
         char param[256];
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
-        sprintf(param, "0000000000000000 %s", node_id);
+        sprintf(param, "0x0x0 %s", node_id);
         ptarmd_call_script(PTARMD_EVT_STARTED, param);
     }
 
