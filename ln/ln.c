@@ -810,7 +810,7 @@ void ln_recv_idle_proc(ln_self_t *self)
  * localfeaturesは、自分がサポートするfeature(odd bits)と、要求するfeature(even bits)を送信する。
  *
  */
-bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
+bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool bHaveCnl)
 {
     (void)bHaveCnl;
 
@@ -822,7 +822,7 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl)
     ln_init_t msg;
 
     utl_buf_init(&msg.globalfeatures);
-    self->lfeature_local = mInitLocalFeatures[0];
+    self->lfeature_local = mInitLocalFeatures[0] | (bInitRouteSync ? LN_INIT_LF_ROUTE_SYNC : 0);
     utl_buf_alloccopy(&msg.localfeatures, &self->lfeature_local, sizeof(self->lfeature_local));
     LOGD("localfeatures: ");
     DUMPD(msg.localfeatures.buf, msg.localfeatures.len);

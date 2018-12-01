@@ -392,7 +392,7 @@ char *ptarmd_error_str(int ErrCode)
         { RPCERR_ERROR,                     "error" },
         { RPCERR_NOCONN,                    "not connected" },
         { RPCERR_ALCONN,                    "already connected" },
-        { RPCERR_NOCHANN,                   "no channel" },
+        { RPCERR_NOCHANNEL,                 "no channel" },
         { RPCERR_PARSE,                     "parse param" },
         { RPCERR_NOINIT,                    "no init or init not end" },
         { RPCERR_BLOCKCHAIN,                "fail blockchain access" },

@@ -71,7 +71,7 @@ extern "C" {
 #define RPCERR_ERROR                (-10000)
 #define RPCERR_NOCONN               (-10001)
 #define RPCERR_ALCONN               (-10002)
-#define RPCERR_NOCHANN              (-10003)
+#define RPCERR_NOCHANNEL            (-10003)
 #define RPCERR_PARSE                (-10004)
 #define RPCERR_NOINIT               (-10005)
 #define RPCERR_BLOCKCHAIN           (-10006)
@@ -150,6 +150,17 @@ typedef enum {
 } ptarmd_event_t;
 
 
+/** @enum   ptarmd_routesync_t
+ *  @brief  route sync method
+ */
+typedef enum {
+    PTARMD_ROUTESYNC_NONE,
+    PTARMD_ROUTESYNC_INIT,      ///< initial_routing_sync
+    //
+    PTARMD_ROUTESYNC_MAX = PTARMD_ROUTESYNC_INIT
+} ptarmd_routesync_t;
+
+
 /** @struct     peer_conn_t
  *  @brief      peer接続情報
  *  @note
@@ -157,9 +168,10 @@ typedef enum {
  */
 typedef struct {
     //peer
-    char        ipaddr[SZ_IPV4_LEN + 1];
-    uint16_t    port;
-    uint8_t     node_id[BTC_SZ_PUBKEY];
+    char                ipaddr[SZ_IPV4_LEN + 1];
+    uint16_t            port;
+    uint8_t             node_id[BTC_SZ_PUBKEY];
+    ptarmd_routesync_t  routesync;
 } peer_conn_t;
 
 

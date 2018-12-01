@@ -196,6 +196,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
     //mAppConf[idx].cmd = DCMD_CONNECT;
     strcpy(mAppConf[idx].conn_str, pConn->ipaddr);
     mAppConf[idx].conn_port = pConn->port;
+    mAppConf[idx].routesync = pConn->routesync;
 
     //store for reconnection
     if (!p2p_cli_store_peer_conn(pConn)) {

@@ -54,6 +54,7 @@
 #define M_OPT_GETNEWADDRESS         '\x03'
 #define M_OPT_GETBALANCE            '\x04'
 #define M_OPT_EMPTYWALLET           '\x05'
+#define M_OPT_INITROUTESYNC         '\x06'
 #define M_OPT_DEBUG                 '\x1f'
 
 #define BUFFER_SIZE     (256 * 1024)
@@ -92,6 +93,7 @@ static char         mBuf[BUFFER_SIZE];
 static bool         mTcpSend;
 static char         mAddr[256];
 static char         mErrStr[256];
+static char         mInitRouteSync[16];
 
 
 /********************************************************************
@@ -123,6 +125,7 @@ static void optfunc_estimatefundingfee(int *pOption, bool *pConn);
 static void optfunc_walletback(int *pOption, bool *pConn);
 static void optfunc_getbalance(int *pOption, bool *pConn);
 static void optfunc_emptywallet(int *pOption, bool *pConn);
+static void optfunc_initroutesync(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
@@ -162,6 +165,7 @@ static const struct {
     { M_OPT_GETNEWADDRESS,      optfunc_getnewaddress },
     { M_OPT_GETBALANCE,         optfunc_getbalance },
     { M_OPT_EMPTYWALLET,        optfunc_emptywallet },
+    { M_OPT_INITROUTESYNC,      optfunc_initroutesync },
     { M_OPT_DEBUG,              optfunc_debug },
 };
 
@@ -178,6 +182,7 @@ int main(int argc, char *argv[])
         { "getnewaddress", no_argument, NULL, M_OPT_GETNEWADDRESS },
         { "getbalance", no_argument, NULL, M_OPT_GETBALANCE },
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
+        { "initroutesync", no_argument, NULL, M_OPT_INITROUTESYNC },
         { "debug", required_argument, NULL, M_OPT_DEBUG },
         { 0, 0, 0, 0 }
     };
@@ -186,6 +191,7 @@ int main(int argc, char *argv[])
     bool conn = false;
     mAddr[0] = '\0';
     mTcpSend = true;
+    mInitRouteSync[0] = '\0';
     int opt;
     while ((opt = getopt_long(argc, argv, "c:hta:lq::f:i:e:mp:r:R:x::wg::s:X:W", OPTIONS, NULL)) != -1) {
         for (size_t lp = 0; lp < ARRAY_SIZE(OPTION_FUNCS); lp++) {
@@ -861,6 +867,16 @@ static void optfunc_emptywallet(int *pOption, bool *pConn)
 }
 
 
+static void optfunc_initroutesync(int *pOption, bool *pConn)
+{
+    (void)pConn;
+
+    M_CHK_CONN
+
+    strcpy(mInitRouteSync, ",1");
+}
+
+
 /********************************************************************
  * others
  ********************************************************************/
@@ -873,9 +889,10 @@ static void connect_rpc(void)
             M_QQ("params") ":[ "
                 //peer_nodeid, peer_addr, peer_port
                 M_QQ("%s") "," M_QQ("%s") ",%d"
+                "%s"
             " ]"
         "}",
-            mPeerNodeId, mPeerAddr, mPeerPort);
+            mPeerNodeId, mPeerAddr, mPeerPort, mInitRouteSync);
 }
 
 
