@@ -270,6 +270,7 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
     (void)id;
 
     int err = RPCERR_PARSE;
+    cJSON *json;
     peer_conn_t conn;
     cJSON *result = NULL;
     int index = 0;
@@ -278,6 +279,12 @@ static cJSON *cmd_connect(jrpc_context *ctx, cJSON *params, cJSON *id)
     bool ret = json_connect(params, &index, &conn);
     if (!ret) {
         goto LABEL_EXIT;
+    }
+
+    //initial_routing_sync
+    json = cJSON_GetArrayItem(params, index++);
+    if (json && (json->type == cJSON_Number)) {
+        conn.routesync = json->valueint;
     }
 
     LOGD("$$$: [JSONRPC]connect\n");
@@ -1468,6 +1475,10 @@ static int cmd_connect_proc(const peer_conn_t *pConn, jrpc_context *ctx)
     }
 
     //チェック
+    if (pConn->routesync > PTARMD_ROUTESYNC_MAX) {
+        return JRPC_INVALID_PARAMS;
+    }
+
     int retry = M_RETRY_CONN_CHK;
     while (retry--) {
         lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pConn->node_id);
@@ -1809,7 +1820,7 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
         }
     } else {
         //チャネルなし
-        err = RPCERR_NOCHANN;
+        err = RPCERR_NOCHANNEL;
     }
 
     return err;
@@ -1830,6 +1841,7 @@ static bool json_connect(cJSON *params, int *pIndex, peer_conn_t *pConn)
     if (params == NULL) {
         return false;
     }
+    pConn->routesync = 0;
 
     //peer_nodeid, peer_addr, peer_port
     json = cJSON_GetArrayItem(params, (*pIndex)++);

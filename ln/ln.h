@@ -1427,7 +1427,7 @@ void ln_recv_idle_proc(ln_self_t *self);
  * @param[in]           bHaveCnl        true:チャネル開設済み
  * retval       true    成功
  */
-bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bHaveCnl);
+bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool bHaveCnl);
 
 
 /** channel_reestablishメッセージ作成
