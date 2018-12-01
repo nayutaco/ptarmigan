@@ -324,6 +324,10 @@ void btcrpc_term(void)
 {
     LOGD("\n");
 
+    mLoopJni = JNILOOP_STOP;
+    pthread_cond_signal(&mCondJni);
+    pthread_cond_signal(&mCondApi);
+
     pthread_cond_destroy(&mCondJni);
     pthread_mutex_destroy(&mMuxJni);
     pthread_cond_destroy(&mCondApi);
@@ -694,7 +698,8 @@ static void *thread_jni_start(void *pArg)
 {
     const rpc_conf_t *p_rpcconf = (const rpc_conf_t *)pArg;
 
-    LOGD("BEGIN\n");
+    LOGD("[THREAD]jni initialize\n");
+
     bool ret = btcj_init(p_rpcconf->gen);
     if (!ret) {
         LOGD("fail: jvm init\n");
@@ -705,9 +710,13 @@ static void *thread_jni_start(void *pArg)
     mLoopJni = JNILOOP_WORK;
 
     pthread_mutex_lock(&mMuxJni);
-    while (mLoopJni) {
+    while (mLoopJni == JNILOOP_WORK) {
         LOGD_PTHREAD("JNI: exec wait...\n");
         pthread_cond_wait(&mCondJni, &mMuxJni);
+        if (mLoopJni != JNILOOP_WORK) {
+            LOGD("stop: jni loop\n");
+            break;
+        }
 
         LOGD_PTHREAD("JNI: exec: %d\n", (int)mMethodParam.method);
         if (mMethodParam.method < ARRAY_SIZE(kJniFuncs)) {
@@ -723,7 +732,6 @@ static void *thread_jni_start(void *pArg)
     pthread_mutex_unlock(&mMuxJni);
 
     btcj_release();
-    mLoopJni = JNILOOP_STOP;
     LOGD("END\n");
     return NULL;
 }
