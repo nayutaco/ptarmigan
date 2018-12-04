@@ -1014,6 +1014,8 @@ int main(int argc, char *argv[])
     MDB_dbi     dbi;
     MDB_val     key;
     MDB_cursor  *cursor;
+    bool loop = true;
+    int opt;
 #ifdef M_SPOIL_STDERR
     bool        spoil_stderr = true;
 #else
@@ -1026,6 +1028,18 @@ int main(int argc, char *argv[])
     };
 
     ln_lmdb_set_path(".");
+
+    while ((opt = getopt_long(argc, argv, "hd:swlqcnakiWvD9:", OPTIONS, NULL)) != -1) {
+        switch (opt) {
+        case 'd':
+            if (optarg[strlen(optarg) - 1] == '/') {
+                optarg[strlen(optarg) - 1] = '\0';
+            }
+            ln_lmdb_set_path(optarg);
+            break;
+        }
+    }
+    optind = 0;
 
     ret = mdb_env_create(&mpDbSelf);
     assert(ret == 0);
@@ -1064,8 +1078,6 @@ int main(int argc, char *argv[])
         //return -1;
     }
 
-    bool loop = true;
-    int opt;
     while (loop && ((opt = getopt_long(argc, argv, "hd:swlqcnakiWvD9:", OPTIONS, NULL)) != -1)) {
         switch (opt) {
         case 'd':
