@@ -77,17 +77,16 @@ extern "C" {
 
 #define LN_FEE_COMMIT_BASE              (724ULL)    ///< commit_tx base fee
 
-// ln_update_add_htlc_t.flag
-//  - offeredには送信前と送信後があるが、receivedは受信後しかない
-//  - 受信したreceived HTLCは、すぐにcommit_txのHTLCとして計算に含める
-//  - 送信したoffered HTLCは、相手からrevoke_and_ackを受信してからcommit_txのHTLCとして計算に含める
-//      (それまではcommit_txに反映されていないように振る舞うこと)
-#define LN_HTLCFLAG_OFFER               (0x01)      ///< Offered HTLC
-#define LN_HTLCFLAG_RECV                (0x02)      ///< Received HTLC
+// ln_htlcflag_t.addhtlc
+#define LN_ADDHTLC_NONE                 (0x00)
+#define LN_ADDHTLC_OFFER                (0x01)      ///< Offered HTLC
+#define LN_ADDHTLC_RECV                 (0x02)      ///< Received HTLC
 
-#define LN_HTLCFLAG_FULFILL             (0x01)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
-#define LN_HTLCFLAG_FAIL                (0x02)      ///< update_fail_htlc
-#define LN_HTLCFLAG_MALFORMED           (0x03)      ///< update_fail_malformed_htlc
+// ln_htlcflag_t.delhtlc, fin_delhtlc
+#define LN_DELHTLC_NONE                 (0x00)
+#define LN_DELHTLC_FULFILL              (0x01)      ///< update_fulfill_htlc/update_fail_htlc/update_fail_malformed_htlc送信済み
+#define LN_DELHTLC_FAIL                 (0x02)      ///< update_fail_htlc
+#define LN_DELHTLC_MALFORMED            (0x03)      ///< update_fail_malformed_htlc
 
 // channel_update.flags
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
@@ -149,6 +148,16 @@ extern "C" {
 #define LN_MSAT2SATOSHI(msat)   ((msat) / 1000)
 
 
+/** @def    LN_HTLC_EMPTY(htlc)
+ *  @brief  ln_update_add_htlc_tの空き
+ *  @note
+ *      - HTLCの空き場所を探している場合には、(amount_msat != 0)も同時にチェックする
+ */
+#define LN_HTLC_EMPTY(htlc)     \
+            ( ((htlc)->stat.flag.addhtlc == LN_ADDHTLC_NONE) && \
+            ((htlc)->amount_msat == 0) )
+
+
 /** @def    LN_HTLC_ENABLE(htlc)
  *  @brief  ln_update_add_htlc_tとして有効
  *  @note
@@ -156,7 +165,8 @@ extern "C" {
  *          update_add_htlc受信時に転送先にパラメータを全部設定して待たせておき、
  *          revoke_and_ackが完了してから指示だけを出すようにしたかった。
  */
-#define LN_HTLC_ENABLE(htlc)    ((htlc)->stat.flag.addhtlc != 0)
+//#define LN_HTLC_ENABLE(htlc)    ((htlc)->stat.flag.addhtlc != LN_ADDHTLC_NONE)
+#define LN_HTLC_ENABLE(htlc)    (!LN_HTLC_EMPTY(htlc))
 
 
 //
@@ -254,6 +264,7 @@ typedef enum {
     LN_CB_ADD_HTLC_RECV_PREV,   ///< update_add_htlc処理前通知
     LN_CB_ADD_HTLC_RECV,        ///< update_add_htlc受信通知
     LN_CB_FWD_ADDHTLC_START,    ///< update_add_htlc転送開始
+    LN_CB_BWD_DELHTLC_START,    ///< HTLC削除処理開始
     LN_CB_FULFILL_HTLC_RECV,    ///< update_fulfill_htlc受信通知
     LN_CB_FAIL_HTLC_RECV,       ///< update_fail_htlc受信通知
     LN_CB_REV_AND_ACK_EXCG,     ///< revoke_and_ack交換通知
@@ -263,7 +274,7 @@ typedef enum {
     LN_CB_CLOSED_FEE,           ///< closing_signed受信通知(FEE不一致)
     LN_CB_CLOSED,               ///< closing_signed受信通知(FEE一致)
     LN_CB_SEND_REQ,             ///< peerへの送信要求
-    LN_CB_SEND_QUEUE,           ///< 送信キュー保存
+    LN_CB_SEND_QUEUE,           ///< 送信キュー保存(廃止予定)
     LN_CB_SET_LATEST_FEERATE,   ///< feerate_per_kw更新要求
     LN_CB_GETBLOCKCOUNT,        ///< getblockcount
     LN_CB_MAX,
@@ -276,8 +287,8 @@ typedef enum {
  *      - uint16_tとunionする場合がある
  */
 typedef struct {
-    unsigned        addhtlc     : 2;    ///< LN_HTLCFLAG_OFFER/RECV
-    unsigned        delhtlc     : 2;    ///< LN_HTLCFLAG_FULFILL/FAIL/MALFORMED
+    unsigned        addhtlc     : 2;    ///< LN_ADDHTLC_OFFER/RECV
+    unsigned        delhtlc     : 2;    ///< LN_DELHTLC_FULFILL/FAIL/MALFORMED
     unsigned        updsend     : 1;    ///< 1:update message sent
     unsigned        comsend     : 1;    ///< 1:commitment_signed sent
     unsigned        revrecv     : 1;    ///< 1:revoke_and_ack received
@@ -285,7 +296,8 @@ typedef struct {
     unsigned        revsend     : 1;    ///< 1:revoke_and_ack sent
     unsigned        fin_delhtlc : 2;    ///< flag.addhtlc == RECV
                                         //      update_add_htlc受信 && final node時、irrevocably committed後のflag.delhtlc
-    unsigned        Reserved    : 5;
+    unsigned        updwait     : 1;    ///< 1:update message received
+    unsigned        Reserved    : 4;
 } ln_htlcflag_t;
 #define LN_HTLCFLAG_MASK_HTLC       (0x000f)    ///< addhtlc, delhtlc
 #define LN_HTLCFLAG_MASK_UPDSEND    (0x0010)    ///< updsend
@@ -293,8 +305,9 @@ typedef struct {
 #define LN_HTLCFLAG_MASK_COMSIG2    (0x0180)    ///< comrecv, revsend
 #define LN_HTLCFLAG_MASK_COMSIG     ((LN_HTLCFLAG_MASK_COMSIG1 | LN_HTLCFLAG_MASK_COMSIG2))    ///< comsned, revrecv, comrecv, revsend
 #define LN_HTLCFLAG_MASK_FINDELHTLC (0x0600)    ///< fin_delhtlc
+#define LN_HTLCFLAG_MASK_UPDWAIT    (0x0800)    ///< updwait
 #define LN_HTLCFLAG_MASK_ALL        (LN_HTLCFLAG_MASK_FINDELHTLC | LN_HTLCFLAG_MASK_COMSIG | LN_HTLCFLAG_MASK_UPDSEND | LN_HTLCFLAG_MASK_HTLC)
-#define LN_HTLCFLAG_SFT_ADDHTLC(a)      (uint16_t)(a)
+#define LN_HTLCFLAG_SFT_ADDHTLC(a)      ((uint16_t)(a))
 #define LN_HTLCFLAG_SFT_DELHTLC(a)      ((uint16_t)(a) << 2)
 #define LN_HTLCFLAG_SFT_UPDSEND         ((uint16_t)1 << 4)
 #define LN_HTLCFLAG_SFT_COMSEND         ((uint16_t)1 << 5)
@@ -302,7 +315,8 @@ typedef struct {
 #define LN_HTLCFLAG_SFT_COMRECV         ((uint16_t)1 << 7)
 #define LN_HTLCFLAG_SFT_REVSEND         ((uint16_t)1 << 8)
 #define LN_HTLCFLAG_SFT_FINDELHTLC(a)   ((uint16_t)(a) << 9)
-#define LN_HTLCFLAG_SFT_TIMEOUT         (LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_OFFER))
+#define LN_HTLCFLAG_SFT_UPDRECV         ((uint16_t)1 << 11)
+#define LN_HTLCFLAG_SFT_TIMEOUT         (LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND | LN_HTLCFLAG_SFT_UPDSEND | LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER))
 
 
 /** @typedef    ln_callback_t
@@ -888,7 +902,7 @@ typedef struct {
 
 
 /** @struct ln_cb_add_htlc_recv_prev_t
- *  @brief  update_add_htlc受信前処理(#LN_CB_ADD_HTLC_RECV_PREV)
+ *  @brief  update_add_htlc受信 前処理(#LN_CB_ADD_HTLC_RECV_PREV)
  */
 typedef struct {
     uint64_t                next_short_channel_id;
@@ -910,7 +924,7 @@ typedef enum {
  *  @brief  update_add_htlc受信通知(#LN_CB_ADD_HTLC_RECV)
  */
 typedef struct {
-    ln_cb_add_htlc_result_t     result;                 ///< update_add_htlc受信結果
+    bool                        ret;                    ///< callback処理結果
     uint64_t                    id;                     ///< HTLC id
     const uint8_t               *p_payment;             ///< payment_hash
     const ln_hop_dataout_t      *p_hop;                 ///< onion解析結果
@@ -926,6 +940,11 @@ typedef struct {
     uint64_t                    short_channel_id;
     uint16_t                    idx;
 } ln_cb_fwd_add_htlc_t;
+
+
+typedef struct {
+    uint8_t                     fin_delhtlc;
+} ln_cb_bwd_del_htlc_t;
 
 
 /** @struct ln_cb_fulfill_htlc_recv_t
@@ -1164,7 +1183,6 @@ struct ln_self_t {
     uint32_t                    revoked_chk;                    ///< [REVK_07]最後にチェックしたfunding_txのconfirmation数
 
     //msg:normal operation
-    uint16_t                    htlc_num;                       ///< [NORM_01]HTLC数(update_add_htlcの送信/受信で+1, fulfillなどで-1)
     uint64_t                    htlc_id_num;                    ///< [NORM_02]update_add_htlcで使うidの管理
     uint64_t                    our_msat;                       ///< [NORM_03]自分の持ち分
     uint64_t                    their_msat;                     ///< [NORM_04]相手の持ち分
@@ -1660,14 +1678,6 @@ bool ln_add_htlc_set_fwd(ln_self_t *self,
 
 void ln_add_htlc_start_fwd(ln_self_t *self, uint16_t Idx);
 
-/** update_add_htlcメッセージ作成
- *
- * @param[in,out]       self            channel情報
- * @param[out]          pAdd            生成したupdate_add_htlcメッセージ
- * @param[in]           Idx             生成するHTLCの内部管理index値
- */
-void ln_add_htlc_create(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx);
-
 
 /** update_fulfill_htlc設定
  *
@@ -1679,15 +1689,6 @@ void ln_add_htlc_create(ln_self_t *self, utl_buf_t *pAdd, uint16_t Idx);
 bool ln_fulfill_htlc_set(ln_self_t *self, uint16_t Idx, const uint8_t *pPreImage);
 
 
-/** update_fulfill_htlcメッセージ作成
- *
- * @param[in,out]       self            channel情報
- * @param[out]          pFulfill        生成したupdate_fulfill_htlcメッセージ
- * @param[in]           Idx             生成するHTLCの内部管理index値
- */
-void ln_fulfill_htlc_create(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx);
-
-
 /** update_fail_htlc設定
  *
  * @param[in,out]       self            channel情報
@@ -1697,24 +1698,6 @@ void ln_fulfill_htlc_create(ln_self_t *self, utl_buf_t *pFulfill, uint16_t Idx);
  *      - onion_routing_packetと共用のため、onion_routingは消える
  */
 bool ln_fail_htlc_set(ln_self_t *self, uint16_t Idx, const utl_buf_t *pReason);
-
-
-/** update_fail_htlcメッセージ作成
- *
- * @param[in,out]       self            channel情報
- * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
- * @param[in]           Idx             生成するHTLCの内部管理index値
- */
-void ln_fail_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
-
-
-/** update_fail_malformed_htlcメッセージ作成
- *
- * @param[in,out]       self            channel情報
- * @param[out]          pFail           生成したupdate_fail_htlcメッセージ
- * @param[in]           Idx             生成するHTLCの内部管理index値
- */
-void ln_fail_malformed_htlc_create(ln_self_t *self, utl_buf_t *pFail, uint16_t Idx);
 
 
 /** update_feeメッセージ作成
@@ -1891,17 +1874,6 @@ static inline uint64_t ln_our_msat(const ln_self_t *self) {
  */
 static inline uint64_t ln_their_msat(const ln_self_t *self) {
     return self->their_msat;
-}
-
-
-/** HTLC数取得(update_add_htlcの送信/受信で+1, fulfillなどで-1)
- *
- *
- * @param[in]           self            channel情報
- * @return      HTLC数
- */
-static inline uint16_t ln_htlc_num(const ln_self_t *self) {
-    return self->htlc_num;
 }
 
 

@@ -43,16 +43,16 @@ extern "C" {
 
 typedef struct cJSON cJSON;
 
-/** @struct     transferlist_t
+/** @struct     rcvidlelist_t
  *  @brief      update_add_htlc, update_fulfill_htlc, update_fail_htlcの転送リスト
  */
-typedef struct transferlist_t {
-    LIST_ENTRY(transferlist_t) list;
-    trans_cmd_t     cmd;            ///< 要求
+typedef struct rcvidlelist_t {
+    LIST_ENTRY(rcvidlelist_t) list;
+    rcvidle_cmd_t   cmd;            ///< 要求
     utl_buf_t       buf;            ///< 転送先で送信するパケット用パラメータ
-} transferlist_t;
+} rcvidlelist_t;
 
-LIST_HEAD(transferlisthead_t, transferlist_t);
+LIST_HEAD(rcvidlelisthead_t, rcvidlelist_t);
 
 
 /** @struct     routelist_t
@@ -99,12 +99,12 @@ typedef struct lnapp_conf_t {
     //  これ以外に、ptarmd全体として mMuxNode とフラグmFlagNode がある。
     pthread_cond_t  cond;           ///< muxの待ち合わせ
     pthread_mutex_t mux;            ///< 処理待ち合わせ用のmutex
-    pthread_mutex_t mux_proc;       ///< BOLT受信処理中のmutex
+    pthread_mutex_t mux_self;       ///< ln_self_t処理中のmutex
     pthread_mutex_t mux_send;       ///< socket送信中のmutex
     pthread_mutex_t mux_rcvidle;    ///< 受信アイドル時キュー用mutex
     pthread_mutex_t mux_sendque;    ///< BOLT送信キュー用mutex
 
-    struct transferlisthead_t   rcvidle_head;   //受信アイドル時キュー
+    struct rcvidlelisthead_t    rcvidle_head;   //受信アイドル時キュー
     struct routelisthead_t      payroute_head;  //payment
 
     //send announcement
@@ -154,7 +154,7 @@ bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 /** [lnapp]channel間処理転送
  *
  */
-void lnapp_transfer_channel(lnapp_conf_t *pAppConf, trans_cmd_t Cmd, utl_buf_t *pBuf);
+void lnapp_transfer_channel(lnapp_conf_t *pAppConf, rcvidle_cmd_t Cmd, utl_buf_t *pBuf);
 
 
 /*******************************************

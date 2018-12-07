@@ -117,19 +117,16 @@ extern "C" {
  * typedefs
  ********************************************************************/
 
-/** @enum   trans_cmd_t
- *  @brief  時間差処理要求
+/** @enum   rcvidle_cmd_t
+ *  @brief  受信アイドル処理要求
  *  @note
  *      - 要求が発生するタイミングと実行するタイミングをずらす場合に使用する。
  *      - 主に、BOLTメッセージ受信(update_add/fulfill/fail_htlc)を別チャネルに転送するために用いる。
  */
 typedef enum {
-    //外部用
-    TRANSCMD_NONE,                  ///< 要求無し
-
-    //内部用
-    TRANSCMD_ANNOSIGNS,             ///< announcement_signatures送信要求
-} trans_cmd_t;
+    RCVIDLE_NONE,                   ///< 要求無し
+    RCVIDLE_ANNOSIGNS,              ///< announcement_signatures送信要求
+} rcvidle_cmd_t;
 
 
 /** @enum   ptarmd_event_t
@@ -296,7 +293,7 @@ void ptarmd_stop(void);
 /** ノード内転送
  *
  */
-bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, utl_buf_t *pBuf);
+bool ptarmd_transfer_channel(uint64_t ShortChannelId, rcvidle_cmd_t Cmd, utl_buf_t *pBuf);
 
 
 /** preimage操作排他開始
