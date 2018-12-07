@@ -1778,7 +1778,7 @@ static int cmd_close_mutual_proc(const uint8_t *pNodeId)
 
     int err;
     lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
-    if ((p_appconf != NULL) && (ln_htlc_num(p_appconf->p_self) == 0)) {
+    if (p_appconf != NULL) {
         //接続中
         bool ret = lnapp_close_channel(p_appconf);
         if (ret) {

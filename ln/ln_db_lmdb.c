@@ -125,7 +125,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_BASE       ((int32_t)27)      ///< DBバージョン
+#define M_DB_VERSION_BASE       ((int32_t)28)      ///< DBバージョン
 #ifndef USE_SPV
 #define M_DB_VERSION_VAL        ((int32_t)(-M_DB_VERSION_BASE))     ///< DBバージョン
 #else
@@ -161,6 +161,7 @@
     -25: self.close_type追加
     -26: DB_COPYにhtlc_num, htld_id_num追加
     -27: self.close_type変更
+    -28: self.htlc_num削除
  */
 
 
@@ -370,7 +371,6 @@ static const backup_param_t DBSELF_VALUES[] = {
     //revoked_cnt --> revoked db
     //revoked_chk --> revoked db
 
-    M_ITEM(ln_self_t, htlc_num),
     M_ITEM(ln_self_t, htlc_id_num),
     M_ITEM(ln_self_t, our_msat),
     M_ITEM(ln_self_t, their_msat),
@@ -432,15 +432,16 @@ static const backup_param_t DBSELF_COPY[] = {
     M_ITEM(ln_self_t, short_channel_id),
     M_ITEM(ln_self_t, our_msat),
     M_ITEM(ln_self_t, their_msat),
-    M_ITEM(ln_self_t, htlc_num),
     M_ITEM(ln_self_t, htlc_id_num),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txid),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, txindex),
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
+    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_num),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),
+    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_num),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, revoke_num),
 };

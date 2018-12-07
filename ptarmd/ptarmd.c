@@ -23,15 +23,22 @@
  *  @brief  ptarm daemon
  *  @note   <pre>
  *                +------------------+
- * main---------->| main thread      |
- *                |                  |
- *                +----+----------+--+
- *               create|          | create
- *                     v          v
- *      +-------------------+   +----------------+
- *      | p2p server thread |   | monitor thread |
- *      |                   |   |                |
- *      +-------------------+   +----------------+
+ * main---------->+ main thread      +-----------------+
+ *                |  JSON-RPC recv   |                 |
+ *                +---+-------+----+-+                 |
+ *                    |       |    |                   |
+ *                    v       |    v                   v
+ *         P2P-server-thread  |  monitor-thread  signal-thread
+ *                            v 
+ *                        +---+------------+
+ *         recv-thread <--| channel thread |-+
+ *         poll-thread <--|                | |-+
+ *         anno-thread <--|                | | |
+ *                        +----------------+ | |
+ *                           |               | |
+ *                           +---------------+ |
+ *                             |               |
+ *                             +---------------+
  * </pre>
  */
 #include <stdio.h>
@@ -242,7 +249,7 @@ void ptarmd_stop(void)
 }
 
 
-bool ptarmd_transfer_channel(uint64_t ShortChannelId, trans_cmd_t Cmd, utl_buf_t *pBuf)
+bool ptarmd_transfer_channel(uint64_t ShortChannelId, rcvidle_cmd_t Cmd, utl_buf_t *pBuf)
 {
     lnapp_conf_t *p_appconf = NULL;
 

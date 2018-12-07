@@ -5,12 +5,4 @@
 #   $3: payment_hash
 #   $4: payment_preimage
 DATE=`date +"%Y-%m-%dT%H:%M:%S.%N"`
-echo { \"method\": \"fulfill\", \"short_channel_id\": \"$1\", \"node_id\": \"$2\", \"date\": \"$DATE\", \"debug\": \"payment_hash=$3, payment_preimage=$4\" } | jq -c . > j.json
-
-if [ -f script/PTARMTEST.txt ]; then
-    PTARMTEST=`cat script/PTARMTEST.txt`
-fi
-if [ -n "$PTARMTEST" ]; then
-    cat j.json | curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d @- http://${PTARMTEST}/reports/
-fi
-rm -f j.json
+echo { \"method\": \"fulfill\", \"short_channel_id\": \"$1\", \"node_id\": \"$2\", \"date\": \"$DATE\", \"debug\": \"payment_hash=$3, payment_preimage=$4\" } | jq -c .

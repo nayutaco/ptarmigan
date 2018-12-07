@@ -355,7 +355,9 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                 //  当面、feerate_per_kwを手動で変更した場合のみとする
                 if ((mFeeratePerKw != 0) && (ln_feerate_per_kw(self) != p_prm->feerate_per_kw)) {
                     LOGD("differenct feerate_per_kw: %" PRIu32 " : %" PRIu32 "\n", ln_feerate_per_kw(self), p_prm->feerate_per_kw);
+                    pthread_mutex_lock(&p_app_conf->mux_self);
                     lnapp_send_updatefee(p_app_conf, p_prm->feerate_per_kw);
+                    pthread_mutex_unlock(&p_app_conf->mux_self);
                 }
             } else {
                 //LOGD("No Auto connect mode\n");

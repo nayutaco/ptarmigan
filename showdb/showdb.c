@@ -150,32 +150,35 @@ static void ln_print_wallet(const ln_self_t *self)
         printf(":%d\",\n", self->funding_local.txindex);
         uint64_t offered = 0;
         uint64_t received = 0;
-        if (self->htlc_num != 0) {
-            printf(INDENT3 M_QQ("pending") ": [\n");
-            int cnt = 0;
-            for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-                if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
-                    if (cnt != 0) {
-                        printf(",\n");
-                    }
-                    const char *p_dir = NULL;
-                    if (self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_OFFER) {
-                        p_dir = "Offered";
-                        offered += self->cnl_add_htlc[lp].amount_msat;
-                    } else {
-                        p_dir = "Received";
-                        received += self->cnl_add_htlc[lp].amount_msat;
-                    }
-                    printf(INDENT4 "{\n");
-                    printf(INDENT5 M_QQ("direction") ": " M_QQ("%s") ",\n", p_dir);
-                    printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
-                    printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 "\n", self->cnl_add_htlc[lp].cltv_expiry);
-                    printf(INDENT4 "}");
-                    cnt++;
+        printf(INDENT3 M_QQ("pending") ": [\n");
+        int cnt = 0;
+        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+            if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
+                if (cnt != 0) {
+                    printf(",\n");
                 }
+                const char *p_dir = NULL;
+                switch (self->cnl_add_htlc[lp].stat.flag.addhtlc) {
+                case LN_ADDHTLC_OFFER:
+                    p_dir = "Offered";
+                    offered += self->cnl_add_htlc[lp].amount_msat;
+                    break;
+                case LN_ADDHTLC_RECV:
+                    p_dir = "Received";
+                    received += self->cnl_add_htlc[lp].amount_msat;
+                    break;
+                default:
+                    p_dir = "???";
+                }
+                printf(INDENT4 "{\n");
+                printf(INDENT5 M_QQ("direction") ": " M_QQ("%s") ",\n", p_dir);
+                printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
+                printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 "\n", self->cnl_add_htlc[lp].cltv_expiry);
+                printf(INDENT4 "}");
+                cnt++;
             }
-            printf("\n" INDENT3 "],\n");
         }
+        printf("\n" INDENT3 "],\n");
         printf(INDENT3 M_QQ("our_msat") ": %" PRIu64 ",\n", self->our_msat - offered);
         printf(INDENT3 M_QQ("their_msat") ": %" PRIu64 "\n", self->their_msat - received);
         printf(INDENT2 "}");
@@ -326,135 +329,132 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "},\n");
 
     //normal operation
-    printf(INDENT3 M_QQ("htlc_num") ": %d,\n", self->htlc_num);
     printf(INDENT3 M_QQ("htlc_id_num") ": %" PRIu64 ",\n", self->htlc_id_num);
 
-    if (self->htlc_num > 0) {
-        printf(INDENT3 M_QQ("add_htlc") ": [\n");
-        int cnt = 0;
-        for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-            if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
-                if (cnt > 0) {
-                    printf(",\n");
-                }
-                printf(INDENT4 "{\n");
-                printf(INDENT5 M_QQ("type") ": \"");
-                if (self->cnl_add_htlc[lp].prev_short_channel_id == UINT64_MAX) {
-                    printf("final node");
-                } else if ((self->cnl_add_htlc[lp].prev_short_channel_id == 0) && (self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_OFFER)) {
-                    //prev_short_channel_idが0になる
-                    //      - origin node
-                    //      - update_add_htlcの受信側
-                    printf("origin node");
-                } else {
-                    printf("hop");
-                }
-                printf("\",\n");
-                printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
-                // printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(0x%04x)") ",\n",
-                //             ((self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_HTLCFLAG_RECV) ? "Received" : "Offered"),
-                //             self->cnl_add_htlc[lp].stat.bits);
-                printf(INDENT5 M_QQ("flag") ": {\n");
-                const char *p_str_addhtlc;
-                const char *p_str_delhtlc;
-                const char *p_str_fin_delhtlc;
-                switch (self->cnl_add_htlc[lp].stat.flag.addhtlc) {
-                case 0:
-                    p_str_addhtlc = "---";
-                    break;
-                case LN_HTLCFLAG_OFFER:
-                    p_str_addhtlc = "Offered";
-                    break;
-                case LN_HTLCFLAG_RECV:
-                    p_str_addhtlc = "Received";
-                    break;
-                default:
-                    p_str_addhtlc = "???";
-                }
-                switch (self->cnl_add_htlc[lp].stat.flag.delhtlc) {
-                case 0:
-                    p_str_delhtlc = "---";
-                    break;
-                case LN_HTLCFLAG_FULFILL:
-                    p_str_delhtlc = "fulfill";
-                    break;
-                case LN_HTLCFLAG_FAIL:
-                    p_str_delhtlc = "fail";
-                    break;
-                case LN_HTLCFLAG_MALFORMED:
-                    p_str_delhtlc = "malformed";
-                    break;
-                default:
-                    p_str_delhtlc = "???";
-                }
-                switch (self->cnl_add_htlc[lp].stat.flag.fin_delhtlc) {
-                case 0:
-                    p_str_fin_delhtlc = "---";
-                    break;
-                case LN_HTLCFLAG_FULFILL:
-                    p_str_fin_delhtlc = "fulfill";
-                    break;
-                case LN_HTLCFLAG_FAIL:
-                    p_str_fin_delhtlc = "fail";
-                    break;
-                case LN_HTLCFLAG_MALFORMED:
-                    p_str_fin_delhtlc = "malformed";
-                    break;
-                default:
-                    p_str_fin_delhtlc = "???";
-                }
-                printf(INDENT6 M_QQ("value") ": " M_QQ("0x%04x") ",\n", self->cnl_add_htlc[lp].stat.bits);
-                printf(INDENT6 M_QQ("addhtlc") ": " M_QQ("%s") ",\n", p_str_addhtlc);
-                printf(INDENT6 M_QQ("delhtlc") ": " M_QQ("%s") ",\n", p_str_delhtlc);
-                printf(INDENT6 M_QQ("updsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.updsend);
-                printf(INDENT6 M_QQ("comsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.comsend);
-                printf(INDENT6 M_QQ("revrecv") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.revrecv);
-                printf(INDENT6 M_QQ("comrecv") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.comrecv);
-                printf(INDENT6 M_QQ("revsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.revsend);
-                printf(INDENT6 M_QQ("fin_delhtlc") ": " M_QQ("%s") "\n", p_str_fin_delhtlc);
-                printf(INDENT5 "},\n");
-                printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
-                printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
-                printf(INDENT5 M_QQ("payhash") ": \"");
-                btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256, false);
-                printf("\",\n");
-                printf(INDENT5 M_QQ("preimage") ": \"");
-                btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
-                printf("\",\n");
-                uint8_t sha[BTC_SZ_HASH256];
-                btc_util_sha256(sha, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len);
-                printf(INDENT5 M_QQ("preimage_check") ": ");
-                if (memcmp(sha, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {
-                    printf(M_QQ("OK") ",\n");
-                } else {
-                    printf(M_QQ("NG") ",\n");
-                }
-                char str_sci[LN_SZ_SHORTCHANNELID_STR];
-                ln_short_channel_id_string(str_sci, self->cnl_add_htlc[lp].next_short_channel_id);
-                printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
-                printf(INDENT5 M_QQ("next_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].next_idx);
-                ln_short_channel_id_string(str_sci, self->cnl_add_htlc[lp].prev_short_channel_id);
-                printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
-                printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].prev_idx);
-                printf(INDENT5 M_QQ("onion_reason") ": \"");
-                if (self->cnl_add_htlc[lp].buf_onion_reason.len > 35) {
-                    printf("length=%d, ", self->cnl_add_htlc[lp].buf_onion_reason.len);
-                    btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, 35, false);
-                    printf("...");
-                } else {
-                    btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, self->cnl_add_htlc[lp].buf_onion_reason.len, false);
-                }
-                printf("\",\n");
-                printf(INDENT5 M_QQ("shared_secret") ": \"");
-                btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_shared_secret.buf, self->cnl_add_htlc[lp].buf_shared_secret.len, false);
-                printf("\",\n");
-                printf(INDENT5 M_QQ("index") ": %d\n", lp);
-                printf(INDENT4 "}");
-                cnt++;
+    printf(INDENT3 M_QQ("add_htlc") ": [\n");
+    int cnt = 0;
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        if (LN_HTLC_ENABLE(&self->cnl_add_htlc[lp])) {
+            if (cnt > 0) {
+                printf(",\n");
             }
+            printf(INDENT4 "{\n");
+            printf(INDENT5 M_QQ("type") ": \"");
+            if (self->cnl_add_htlc[lp].prev_short_channel_id == UINT64_MAX) {
+                printf("final node");
+            } else if ((self->cnl_add_htlc[lp].prev_short_channel_id == 0) && (self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_ADDHTLC_OFFER)) {
+                //prev_short_channel_idが0になる
+                //      - origin node
+                //      - update_add_htlcの受信側
+                printf("origin node");
+            } else {
+                printf("hop");
+            }
+            printf("\",\n");
+            printf(INDENT5 M_QQ("id") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].id);
+            // printf(INDENT5 M_QQ("flag") ": " M_QQ("%s(0x%04x)") ",\n",
+            //             ((self->cnl_add_htlc[lp].stat.flag.addhtlc == LN_ADDHTLC_RECV) ? "Received" : "Offered"),
+            //             self->cnl_add_htlc[lp].stat.bits);
+            printf(INDENT5 M_QQ("flag") ": {\n");
+            const char *p_str_addhtlc;
+            const char *p_str_delhtlc;
+            const char *p_str_fin_delhtlc;
+            switch (self->cnl_add_htlc[lp].stat.flag.addhtlc) {
+            case LN_ADDHTLC_NONE:
+                p_str_addhtlc = "---";
+                break;
+            case LN_ADDHTLC_OFFER:
+                p_str_addhtlc = "Offered";
+                break;
+            case LN_ADDHTLC_RECV:
+                p_str_addhtlc = "Received";
+                break;
+            default:
+                p_str_addhtlc = "???";
+            }
+            switch (self->cnl_add_htlc[lp].stat.flag.delhtlc) {
+            case LN_DELHTLC_NONE:
+                p_str_delhtlc = "---";
+                break;
+            case LN_DELHTLC_FULFILL:
+                p_str_delhtlc = "fulfill";
+                break;
+            case LN_DELHTLC_FAIL:
+                p_str_delhtlc = "fail";
+                break;
+            case LN_DELHTLC_MALFORMED:
+                p_str_delhtlc = "malformed";
+                break;
+            default:
+                p_str_delhtlc = "???";
+            }
+            switch (self->cnl_add_htlc[lp].stat.flag.fin_delhtlc) {
+            case LN_DELHTLC_NONE:
+                p_str_fin_delhtlc = "---";
+                break;
+            case LN_DELHTLC_FULFILL:
+                p_str_fin_delhtlc = "fulfill";
+                break;
+            case LN_DELHTLC_FAIL:
+                p_str_fin_delhtlc = "fail";
+                break;
+            case LN_DELHTLC_MALFORMED:
+                p_str_fin_delhtlc = "malformed";
+                break;
+            default:
+                p_str_fin_delhtlc = "???";
+            }
+            printf(INDENT6 M_QQ("value") ": " M_QQ("0x%04x") ",\n", self->cnl_add_htlc[lp].stat.bits);
+            printf(INDENT6 M_QQ("addhtlc") ": " M_QQ("%s") ",\n", p_str_addhtlc);
+            printf(INDENT6 M_QQ("delhtlc") ": " M_QQ("%s") ",\n", p_str_delhtlc);
+            printf(INDENT6 M_QQ("updsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.updsend);
+            printf(INDENT6 M_QQ("comsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.comsend);
+            printf(INDENT6 M_QQ("revrecv") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.revrecv);
+            printf(INDENT6 M_QQ("comrecv") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.comrecv);
+            printf(INDENT6 M_QQ("revsend") ": %d,\n", self->cnl_add_htlc[lp].stat.flag.revsend);
+            printf(INDENT6 M_QQ("fin_delhtlc") ": " M_QQ("%s") "\n", p_str_fin_delhtlc);
+            printf(INDENT5 "},\n");
+            printf(INDENT5 M_QQ("amount_msat") ": %" PRIu64 ",\n", self->cnl_add_htlc[lp].amount_msat);
+            printf(INDENT5 M_QQ("cltv_expiry") ": %" PRIu32 ",\n", self->cnl_add_htlc[lp].cltv_expiry);
+            printf(INDENT5 M_QQ("payhash") ": \"");
+            btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256, false);
+            printf("\",\n");
+            printf(INDENT5 M_QQ("preimage") ": \"");
+            btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len, false);
+            printf("\",\n");
+            uint8_t sha[BTC_SZ_HASH256];
+            btc_util_sha256(sha, self->cnl_add_htlc[lp].buf_payment_preimage.buf, self->cnl_add_htlc[lp].buf_payment_preimage.len);
+            printf(INDENT5 M_QQ("preimage_check") ": ");
+            if (memcmp(sha, self->cnl_add_htlc[lp].payment_sha256, BTC_SZ_HASH256) == 0) {
+                printf(M_QQ("OK") ",\n");
+            } else {
+                printf(M_QQ("NG") ",\n");
+            }
+            char str_sci[LN_SZ_SHORTCHANNELID_STR];
+            ln_short_channel_id_string(str_sci, self->cnl_add_htlc[lp].next_short_channel_id);
+            printf(INDENT5 M_QQ("next_short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
+            printf(INDENT5 M_QQ("next_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].next_idx);
+            ln_short_channel_id_string(str_sci, self->cnl_add_htlc[lp].prev_short_channel_id);
+            printf(INDENT5 M_QQ("prev_short_channel_id") ": " M_QQ("%s") ",\n", str_sci);
+            printf(INDENT5 M_QQ("prev_idx") ": %" PRIu16 ",\n", self->cnl_add_htlc[lp].prev_idx);
+            printf(INDENT5 M_QQ("onion_reason") ": \"");
+            if (self->cnl_add_htlc[lp].buf_onion_reason.len > 35) {
+                printf("length=%d, ", self->cnl_add_htlc[lp].buf_onion_reason.len);
+                btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, 35, false);
+                printf("...");
+            } else {
+                btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_onion_reason.buf, self->cnl_add_htlc[lp].buf_onion_reason.len, false);
+            }
+            printf("\",\n");
+            printf(INDENT5 M_QQ("shared_secret") ": \"");
+            btc_util_dumpbin(stdout, self->cnl_add_htlc[lp].buf_shared_secret.buf, self->cnl_add_htlc[lp].buf_shared_secret.len, false);
+            printf("\",\n");
+            printf(INDENT5 M_QQ("index") ": %d\n", lp);
+            printf(INDENT4 "}");
+            cnt++;
         }
-        printf(INDENT3 "],\n");
     }
+    printf(INDENT3 "],\n");
 
     printf(INDENT3 M_QQ("commit_local") ": {\n");
     printf(INDENT4 M_QQ("dust_limit_sat") ": %" PRIu64 ",\n", self->commit_local.dust_limit_sat);
@@ -646,7 +646,9 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         }
         ln_term(p_self);
         free(p_self);
-        cnt0++;
+        if (!(showflag & SHOW_SELF_WALLET)) {
+            cnt0++;
+        }
     }
 }
 

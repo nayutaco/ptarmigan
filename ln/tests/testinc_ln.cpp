@@ -8,6 +8,10 @@ FAKE_VALUE_FUNC(bool, ln_db_preimg_cur_get, void *, bool *, ln_db_preimg_t *);
 FAKE_VOID_FUNC(ln_db_preimg_cur_close, void *);
 FAKE_VALUE_FUNC(bool, ln_db_self_search, ln_db_func_cmp_t, void *);
 FAKE_VALUE_FUNC(bool, ln_db_self_search_readonly, ln_db_func_cmp_t, void *);
+FAKE_VALUE_FUNC(bool, ln_db_phash_save, const uint8_t*, const uint8_t*, ln_htlctype_t, uint32_t);
+FAKE_VALUE_FUNC(bool, ln_db_preimg_search, ln_db_func_preimg_t, void*);
+FAKE_VALUE_FUNC(bool, ln_db_preimg_set_expiry, void *, uint32_t);
+
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -274,6 +278,7 @@ TEST_F(ln, ln_set_add_htlc1)
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
     memset(payhash, 0xdd, BTC_SZ_HASH256);
+    ln_signer_create_channelkeys(&self);
 
     /*** TEST ***/
     ret = ln_add_htlc_set(&self, &htlcid, &buf_reason, onion,
@@ -292,7 +297,7 @@ TEST_F(ln, ln_set_add_htlc1)
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &self.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_HTLCFLAG_OFFER, p_flag->addhtlc);
+    ASSERT_EQ(LN_ADDHTLC_OFFER, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
     ASSERT_EQ(0, p_flag->updsend);
     ASSERT_EQ(0, p_flag->comsend);
@@ -302,8 +307,7 @@ TEST_F(ln, ln_set_add_htlc1)
 
     ASSERT_EQ(1000000, self.our_msat);
     ASSERT_EQ(1000000, self.their_msat);
-    ASSERT_EQ(0, self.htlc_id_num);
-    ASSERT_EQ(0, self.htlc_num);
+    ASSERT_EQ(1, self.htlc_id_num);
     ASSERT_EQ(0, self.commit_local.htlc_num);
     ASSERT_EQ(0, self.commit_remote.htlc_num);
 
@@ -330,6 +334,7 @@ TEST_F(ln, ln_create_add_htlc1)
 
     memset(onion, 0xcc, LN_SZ_ONION_ROUTE);
     memset(payhash, 0xdd, BTC_SZ_HASH256);
+    ln_signer_create_channelkeys(&self);
 
     ret = ln_add_htlc_set(&self, &htlcid, &buf_reason, onion,
                 amount_msat, cltv_expiry, payhash,
@@ -339,7 +344,7 @@ TEST_F(ln, ln_create_add_htlc1)
 
     /*** TEST ***/
     utl_buf_t add = UTL_BUF_INIT;
-    ln_add_htlc_create(&self, &add, 0);
+    add_htlc_create(&self, &add, 0);
 
     /*** CHECK ***/
     ASSERT_EQ(amount_msat, self.cnl_add_htlc[0].amount_msat);
@@ -351,7 +356,7 @@ TEST_F(ln, ln_create_add_htlc1)
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &self.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_HTLCFLAG_OFFER, p_flag->addhtlc);
+    ASSERT_EQ(LN_ADDHTLC_OFFER, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
     ASSERT_EQ(1, p_flag->updsend);
     ASSERT_EQ(0, p_flag->comsend);
@@ -362,7 +367,6 @@ TEST_F(ln, ln_create_add_htlc1)
     ASSERT_EQ(1000000, self.our_msat);
     ASSERT_EQ(1000000, self.their_msat);
     ASSERT_EQ(1, self.htlc_id_num);
-    ASSERT_EQ(1, self.htlc_num);
     ASSERT_EQ(0, self.commit_local.htlc_num);
     ASSERT_EQ(0, self.commit_remote.htlc_num);
 
@@ -425,9 +429,9 @@ TEST_F(ln, recv_update_add_htlc1)
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &self.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_HTLCFLAG_RECV, p_flag->addhtlc);
+    ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
-    ASSERT_EQ(LN_HTLCFLAG_FULFILL, p_flag->fin_delhtlc);
+    ASSERT_EQ(LN_DELHTLC_FULFILL, p_flag->fin_delhtlc);
     ASSERT_EQ(0, p_flag->comsend);
     ASSERT_EQ(0, p_flag->revrecv);
     ASSERT_EQ(0, p_flag->comrecv);
@@ -436,7 +440,6 @@ TEST_F(ln, recv_update_add_htlc1)
     ASSERT_EQ(1000000, self.our_msat);
     ASSERT_EQ(1000000, self.their_msat);
     ASSERT_EQ(0, self.htlc_id_num);
-    ASSERT_EQ(1, self.htlc_num);
     ASSERT_EQ(0, self.commit_local.htlc_num);
     ASSERT_EQ(0, self.commit_remote.htlc_num);
 
@@ -499,9 +502,9 @@ TEST_F(ln, recv_update_add_htlc2)
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &self.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_HTLCFLAG_RECV, p_flag->addhtlc);
+    ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
-    ASSERT_EQ(LN_HTLCFLAG_FAIL, p_flag->fin_delhtlc);
+    ASSERT_EQ(LN_DELHTLC_FAIL, p_flag->fin_delhtlc);
     ASSERT_EQ(0, p_flag->updsend);
     ASSERT_EQ(0, p_flag->comsend);
     ASSERT_EQ(0, p_flag->revrecv);
@@ -511,7 +514,6 @@ TEST_F(ln, recv_update_add_htlc2)
     ASSERT_EQ(1000000, self.our_msat);
     ASSERT_EQ(1000000, self.their_msat);
     ASSERT_EQ(0, self.htlc_id_num);
-    ASSERT_EQ(1, self.htlc_num);
     ASSERT_EQ(0, self.commit_local.htlc_num);
     ASSERT_EQ(0, self.commit_remote.htlc_num);
 
@@ -552,9 +554,9 @@ TEST_F(ln, recv_update_add_htlc3)
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(&self.cnl_add_htlc[0]));
     //
     ln_htlcflag_t *p_flag = &self.cnl_add_htlc[0].stat.flag;
-    ASSERT_EQ(LN_HTLCFLAG_RECV, p_flag->addhtlc);
+    ASSERT_EQ(LN_ADDHTLC_RECV, p_flag->addhtlc);
     ASSERT_EQ(0, p_flag->delhtlc);
-    ASSERT_EQ(LN_HTLCFLAG_MALFORMED, p_flag->fin_delhtlc);
+    ASSERT_EQ(LN_DELHTLC_MALFORMED, p_flag->fin_delhtlc);
     ASSERT_EQ(0, p_flag->updsend);
     ASSERT_EQ(0, p_flag->comsend);
     ASSERT_EQ(0, p_flag->revrecv);
@@ -564,7 +566,6 @@ TEST_F(ln, recv_update_add_htlc3)
     ASSERT_EQ(1000000, self.our_msat);
     ASSERT_EQ(1000000, self.their_msat);
     ASSERT_EQ(0, self.htlc_id_num);
-    ASSERT_EQ(1, self.htlc_num);
     ASSERT_EQ(0, self.commit_local.htlc_num);
     ASSERT_EQ(0, self.commit_remote.htlc_num);
 
@@ -581,7 +582,7 @@ TEST_F(ln, htlcflag_macro_offer_fulfill)
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc準備
-    p_flag->addhtlc = LN_HTLCFLAG_OFFER;
+    p_flag->addhtlc = LN_ADDHTLC_OFFER;
     ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
@@ -699,7 +700,7 @@ TEST_F(ln, htlcflag_macro_offer_fulfill)
     p_flag->revrecv = 0;
     p_flag->comrecv = 0;
     p_flag->revsend = 0;
-    p_flag->delhtlc = LN_HTLCFLAG_FULFILL;
+    p_flag->delhtlc = LN_DELHTLC_FULFILL;
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
@@ -806,7 +807,7 @@ TEST_F(ln, htlcflag_macro_offer_fail)
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc準備
-    p_flag->addhtlc = LN_HTLCFLAG_OFFER;
+    p_flag->addhtlc = LN_ADDHTLC_OFFER;
     ASSERT_TRUE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
@@ -924,7 +925,7 @@ TEST_F(ln, htlcflag_macro_offer_fail)
     p_flag->revrecv = 0;
     p_flag->comrecv = 0;
     p_flag->revsend = 0;
-    p_flag->delhtlc = LN_HTLCFLAG_FAIL;
+    p_flag->delhtlc = LN_DELHTLC_FAIL;
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
@@ -1031,7 +1032,7 @@ TEST_F(ln, htlcflag_macro_recv_fulfill)
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc受信
-    p_flag->addhtlc = LN_HTLCFLAG_RECV;
+    p_flag->addhtlc = LN_ADDHTLC_RECV;
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
@@ -1130,7 +1131,7 @@ TEST_F(ln, htlcflag_macro_recv_fulfill)
     p_flag->revrecv = 0;
     p_flag->comrecv = 0;
     p_flag->revsend = 0;
-    p_flag->delhtlc = LN_HTLCFLAG_FULFILL;
+    p_flag->delhtlc = LN_DELHTLC_FULFILL;
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_TRUE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
@@ -1256,7 +1257,7 @@ TEST_F(ln, htlcflag_macro_recv_fail)
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     //update_add_htlc受信
-    p_flag->addhtlc = LN_HTLCFLAG_RECV;
+    p_flag->addhtlc = LN_ADDHTLC_RECV;
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
@@ -1355,7 +1356,7 @@ TEST_F(ln, htlcflag_macro_recv_fail)
     p_flag->revrecv = 0;
     p_flag->comrecv = 0;
     p_flag->revsend = 0;
-    p_flag->delhtlc = LN_HTLCFLAG_FAIL;
+    p_flag->delhtlc = LN_DELHTLC_FAIL;
     ASSERT_FALSE(LN_HTLC_WILL_ADDHTLC(p_htlc));
     ASSERT_TRUE(LN_HTLC_WILL_DELHTLC(p_htlc));
     ASSERT_FALSE(LN_HTLC_ENABLE_LOCAL_ADDHTLC_OFFER(p_htlc));
@@ -1481,7 +1482,7 @@ TEST_F(ln, htlcflag_offer_timeout)
     ln_htlcflag_t *p_flag = &p_htlc->stat.flag;
 
     p_htlc->cltv_expiry = 100;
-    p_flag->addhtlc = LN_HTLCFLAG_OFFER;
+    p_flag->addhtlc = LN_ADDHTLC_OFFER;
     p_flag->updsend = true;
     p_flag->comsend = true;
     p_flag->revrecv = true;
@@ -1493,13 +1494,13 @@ TEST_F(ln, htlcflag_offer_timeout)
     ASSERT_TRUE(ln_is_offered_htlc_timeout(&self, 0, 101)); //pass
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 99)); //before
 
-    p_flag->addhtlc = 0;
+    p_flag->addhtlc = LN_ADDHTLC_NONE;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
-    p_flag->addhtlc = LN_HTLCFLAG_RECV;
+    p_flag->addhtlc = LN_ADDHTLC_RECV;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
     p_htlc->stat.bits = bak;
 
-    p_flag->delhtlc = LN_HTLCFLAG_FULFILL;
+    p_flag->delhtlc = LN_DELHTLC_FULFILL;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
     p_htlc->stat.bits = bak;
 
@@ -1523,7 +1524,7 @@ TEST_F(ln, htlcflag_offer_timeout)
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
     p_htlc->stat.bits = bak;
 
-    p_flag->fin_delhtlc = LN_HTLCFLAG_FULFILL;
+    p_flag->fin_delhtlc = LN_DELHTLC_FULFILL;
     ASSERT_FALSE(ln_is_offered_htlc_timeout(&self, 0, 100));
     p_htlc->stat.bits = bak;
 
@@ -1541,19 +1542,19 @@ TEST_F(ln, htlcflag_bitmask)
     } stat;
 
     stat.bits = 0;
-    stat.flag.addhtlc = LN_HTLCFLAG_OFFER;
-    stat.flag.delhtlc = LN_HTLCFLAG_FULFILL;
+    stat.flag.addhtlc = LN_ADDHTLC_OFFER;
+    stat.flag.delhtlc = LN_DELHTLC_FULFILL;
     stat.flag.updsend = true;
     stat.flag.comsend = true;
     stat.flag.revrecv = true;
     stat.flag.comrecv = true;
     stat.flag.revsend = true;
-    stat.flag.fin_delhtlc = LN_HTLCFLAG_FULFILL;
+    stat.flag.fin_delhtlc = LN_DELHTLC_FULFILL;
 
-    ASSERT_EQ(LN_HTLCFLAG_SFT_ADDHTLC(LN_HTLCFLAG_OFFER) | LN_HTLCFLAG_SFT_DELHTLC(LN_HTLCFLAG_FULFILL), stat.bits & LN_HTLCFLAG_MASK_HTLC);
+    ASSERT_EQ(LN_HTLCFLAG_SFT_ADDHTLC(LN_ADDHTLC_OFFER) | LN_HTLCFLAG_SFT_DELHTLC(LN_DELHTLC_FULFILL), stat.bits & LN_HTLCFLAG_MASK_HTLC);
     ASSERT_TRUE(stat.bits & LN_HTLCFLAG_MASK_UPDSEND);
     ASSERT_EQ(LN_HTLCFLAG_SFT_REVSEND | LN_HTLCFLAG_SFT_COMRECV | LN_HTLCFLAG_SFT_REVRECV | LN_HTLCFLAG_SFT_COMSEND, stat.bits & LN_HTLCFLAG_MASK_COMSIG);
-    ASSERT_EQ(LN_HTLCFLAG_SFT_FINDELHTLC(LN_HTLCFLAG_FULFILL), stat.bits & LN_HTLCFLAG_MASK_FINDELHTLC);
+    ASSERT_EQ(LN_HTLCFLAG_SFT_FINDELHTLC(LN_DELHTLC_FULFILL), stat.bits & LN_HTLCFLAG_MASK_FINDELHTLC);
 }
 
 
