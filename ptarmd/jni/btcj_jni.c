@@ -36,7 +36,6 @@ static jobject ptarm_obj;
 static jmethodID ptarm_method[METHOD_PTARM_MAX];
 //static jmethodID tobech32_method;
 static jmethodID sha256_getrevbytes_method;
-static jmethodID sha256_wraprev_method;
 static jmethodID arraylist_ctor_method;
 static jmethodID arraylist_add_method;
 static jmethodID list_get_method;
@@ -44,7 +43,6 @@ static jmethodID list_size_method;
 static jfieldID ptarmcls_field[M_FIELD_PTARMCHAN_MAX];
 
 static uint8_t* hash2bytes(jobject hash_obj);
-static jobject bytes2hash(const uint8_t *bytes);
 static jbyteArray buf2jbarray(const btcj_buf_t *buf);
 static btcj_buf_t* jbarray2buf(jbyteArray jbarray);
 static jobject bufs2list(const btcj_buf_t *bufs);
@@ -62,37 +60,37 @@ const struct {
     // METHOD_PTARM_GETBLOCKCOUNT,
     { "getBlockCount", "([B)I" },
     // METHOD_PTARM_GETGENESISBLOCKHASH,
-    { "getGenesisBlockHash", "()Lorg/bitcoinj/core/Sha256Hash;" },
+    { "getGenesisBlockHash", "()[B" },
     // METHOD_PTARM_GETCONFIRMATION,
-    { "getTxConfirmation", "(Lorg/bitcoinj/core/Sha256Hash;)I" },
+    { "getTxConfirmation", "([B)I" },
     // METHOD_PTARM_GETSHORTCHANNELPARAM,
     { "getShortChannelParam", "([B)Lco/nayuta/lightning/Ptarmigan$ShortChannelParam;" },
     // METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
     { "getTxidFromShortChannelId", "(J)Lorg/bitcoinj/core/Sha256Hash;" },
     // METHOD_PTARM_SEARCHOUTPOINT,
-    { "searchOutPoint", "(ILorg/bitcoinj/core/Sha256Hash;I)[B" },
+    { "searchOutPoint", "(I[BI)[B" },
     // METHOD_PTARM_SEARCHVOUT,
     { "searchVout", "(ILjava/util/List;)Ljava/util/List;" },
     // METHOD_PTARM_SIGNRAWTX,
     { "signRawTx", "(J[B)[B" },
     // METHOD_PTARM_SENDRAWTX,
-    { "sendRawTx", "([B)Lorg/bitcoinj/core/Sha256Hash;" },
+    { "sendRawTx", "([B)[B" },
     // METHOD_PTARM_CHECKBROADCAST,
-    { "checkBroadcast", "(Lorg/bitcoinj/core/Sha256Hash;)Z" },
+    { "checkBroadcast", "([B)Z" },
     // METHOD_PTARM_CHECKUNSPENT,
-    { "checkUnspent", "([BLorg/bitcoinj/core/Sha256Hash;I)I" },
+    { "checkUnspent", "([B[BI)I" },
     // METHOD_PTARM_GETNEWADDRESS,
     { "getNewAddress", "()Ljava/lang/String;" },
     // METHOD_PTARM_ESTIMATEFEE,
     { "estimateFee", "()J" },
     // METHOD_PTARM_SETCHANNEL,
-    { "setChannel", "([BJLorg/bitcoinj/core/Sha256Hash;I[BLorg/bitcoinj/core/Sha256Hash;)V" },
+    { "setChannel", "([BJ[BI[B[B)V" },
     // METHOD_PTARM_SETCOMMITTXID,
     { "setCommitTxid", "([BIILorg/bitcoinj/core/Sha256Hash;)V" },
     // METHOD_PTARM_GETBALANCE,
     { "getBalance", "()J" },
     // METHOD_PTARM_EMPTYWALLET,
-    { "emptyWallet", "(Ljava/lang/String;)Lorg/bitcoinj/core/Sha256Hash;" },
+    { "emptyWallet", "(Ljava/lang/String;)[B" },
 };
 
 
@@ -228,11 +226,6 @@ bool btcj_init(btc_genesis_t Gen)
         LOGD("fail: GetMethodID()\n");
         return false;
     }
-    sha256_wraprev_method = (*env)->GetStaticMethodID(env, hash_cls, "wrapReversed", "([B)Lorg/bitcoinj/core/Sha256Hash;");
-    if(sha256_wraprev_method == NULL) {
-        LOGD("fail: GetStaticMethodID()\n");
-        return false;
-    }
 
     //ArrayList
     cls = (*env)->FindClass(env, "Ljava/util/ArrayList;");
@@ -320,23 +313,24 @@ int32_t btcj_getblockcount(uint8_t *pHash)
 //-----------------------------------------------------------------------------
 bool btcj_getgenesisblockhash(uint8_t *pHash)
 {
-    jobject hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETGENESISBLOCKHASH]);
+    jbyteArray hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETGENESISBLOCKHASH]);
     check_exception(env);
-    uint8_t *bytes = hash2bytes(hash_obj);
-    memcpy(pHash, bytes, BTC_SZ_HASH256);
+    btcj_buf_t *bytes = jbarray2buf(hash_obj);
+    memcpy(pHash, bytes->buf, bytes->len);
     //
     (*env)->DeleteLocalRef(env, hash_obj);
-    free(bytes);
+    free(bytes->buf);
     //
     return true;
 }
 //-----------------------------------------------------------------------------
-int32_t btcj_get_funding_confirm(const uint8_t *pTxid)
+int32_t btcj_gettxconfirm(const uint8_t *pTxid)
 {
     LOGD("txid=");
     TXIDD(pTxid);
 
-    jobject txHash = bytes2hash(pTxid);
+    const btcj_buf_t buf = { (CONST_CAST uint8_t *)pTxid, BTC_SZ_TXID };
+    jobject txHash = buf2jbarray(&buf);
     jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETCONFIRMATION], txHash);
     check_exception(env);
     LOGD("ret=%d\n", ret);
@@ -348,7 +342,6 @@ int32_t btcj_get_funding_confirm(const uint8_t *pTxid)
 //-----------------------------------------------------------------------------
 bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int32_t *pbIndex, uint8_t **ppMinedHash)
 {
-    //jbyteArray barray = bytes2jbarray(pPeerId, BTC_SZ_PUBKEY);
     const btcj_buf_t buf = { (CONST_CAST uint8_t *)pPeerId, BTC_SZ_PUBKEY };
     jbyteArray barray = buf2jbarray(&buf);
     jobject param_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETSHORTCHANNELPARAM], barray);
@@ -388,7 +381,8 @@ bool btcj_gettxid_from_short_channel(uint64_t ShortChannelId, uint8_t **ppTxid)
 //-----------------------------------------------------------------------------
 bool btcj_search_outpoint(btcj_buf_t **ppTx, uint32_t Blks, const uint8_t *pTxid, uint32_t VIndex)
 {
-    jobject txHash = bytes2hash(pTxid);
+    const btcj_buf_t buf = { (CONST_CAST uint8_t *)pTxid, BTC_SZ_TXID };
+    jobject txHash = buf2jbarray(&buf);
     jbyteArray retval = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SEARCHOUTPOINT], Blks, txHash, VIndex);
     check_exception(env);
     //
@@ -451,7 +445,7 @@ bool btcj_signraw_tx(uint64_t Amount, const btcj_buf_t *pScriptPubKey, btcj_buf_
     return ret != NULL;
 }
 //-----------------------------------------------------------------------------
-bool btcj_sendraw_tx(uint8_t **ppTxid, int *pCode, const btcj_buf_t *pTxData)
+bool btcj_sendraw_tx(uint8_t *pTxid, int *pCode, const btcj_buf_t *pTxData)
 {
     (void)pCode;
 
@@ -459,14 +453,15 @@ bool btcj_sendraw_tx(uint8_t **ppTxid, int *pCode, const btcj_buf_t *pTxData)
     DUMPD(pTxData->buf, pTxData->len);
     bool ret;
     jbyteArray array = buf2jbarray(pTxData);
-    jobject hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SENDRAWTX], array);
+    jbyteArray hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SENDRAWTX], array);
     check_exception(env);
     if (hash_obj != NULL) {
-        *ppTxid = hash2bytes(hash_obj);
+        btcj_buf_t *hash = jbarray2buf(hash_obj);
+        memcpy(pTxid, hash->buf, hash->len);
+        free(hash->buf);
         ret = true;
         LOGD("success\n");
     } else {
-        *ppTxid = NULL;
         ret = false;
         LOGD("fail\n");
     }
@@ -479,7 +474,8 @@ bool btcj_sendraw_tx(uint8_t **ppTxid, int *pCode, const btcj_buf_t *pTxData)
 //-----------------------------------------------------------------------------
 bool btcj_is_tx_broadcasted(const uint8_t *pTxid)
 {
-    jobject txHash = bytes2hash(pTxid);
+    const btcj_buf_t buf = { (CONST_CAST uint8_t *)pTxid, BTC_SZ_TXID };
+    jobject txHash = buf2jbarray(&buf);
     jboolean ret = (*env)->CallBooleanMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_CHECKBROADCAST], txHash);
     check_exception(env);
     LOGD("result=%d\n", ret);
@@ -499,7 +495,8 @@ bool btcj_check_unspent(const uint8_t *pPeerId, bool *pUnspent, const uint8_t *p
     } else {
         peer_id = NULL;
     }
-    jobject txHash = bytes2hash(pTxid);
+    const btcj_buf_t buf = { (CONST_CAST uint8_t *)pTxid, BTC_SZ_TXID };
+    jobject txHash = buf2jbarray(&buf);
     jint retval = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_CHECKUNSPENT], peer_id, txHash, VIndex);
     check_exception(env);
     LOGD("result=%d\n", retval);
@@ -569,10 +566,16 @@ void btcj_set_channel(
     btcj_buf_t peer_id = { (CONST_CAST uint8_t *)pPeerId, BTC_SZ_PUBKEY };
     jbyteArray aryPeer = buf2jbarray(&peer_id);
     jlong sci = ShortChannelId;
-    jobject txHash = bytes2hash(pFundingTxid);
+
+    const btcj_buf_t buf = { (CONST_CAST uint8_t *)pFundingTxid, BTC_SZ_TXID };
+    jobject txHash = buf2jbarray(&buf);
+
     btcj_buf_t script_pubkey = { (CONST_CAST uint8_t *)pScriptPubKey, BTC_SZ_HASH256 };
     jbyteArray aryScriptPubKey = buf2jbarray(&script_pubkey);
-    jobject blkhash = bytes2hash(pMinedHash);
+
+    const btcj_buf_t bufmined = { (CONST_CAST uint8_t *)pMinedHash, BTC_SZ_HASH256 };
+    jobject blkhash = buf2jbarray(&bufmined);
+
     LOGD("sci=%016" PRIx64 "\n", sci);
     (*env)->CallBooleanMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SETCHANNEL],
                               aryPeer, sci, txHash, FundingIndex, aryScriptPubKey,
@@ -599,68 +602,27 @@ bool btcj_getbalance(uint64_t *pAmount)
     return true;
 }
 //-----------------------------------------------------------------------------
-bool btcj_emptywallet(const char *pAddr, uint8_t **ppTxid)
+bool btcj_emptywallet(const char *pAddr, uint8_t *pTxid)
 {
     bool ret;
     jstring addr = (*env)->NewStringUTF(env, pAddr);
-    jobject hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_EMPTYWALLET], addr);
+    jbyteArray hash_obj = (*env)->CallObjectMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_EMPTYWALLET], addr);
     check_exception(env);
     if (hash_obj != NULL) {
-        *ppTxid = hash2bytes(hash_obj);
+        btcj_buf_t *hash = jbarray2buf(hash_obj);
+        memcpy(pTxid, hash->buf, hash->len);
+        free(hash->buf);
         ret = true;
+        (*env)->DeleteLocalRef(env, hash_obj);
     } else {
-        *ppTxid = NULL;
         ret = false;
     }
     //
     (*env)->DeleteLocalRef(env, addr);
-    (*env)->DeleteLocalRef(env, hash_obj);
     //
     return ret;
 }
 //-----------------------------------------------------------------------------
-
-/*
-public int getBlockCount();
-descriptor: ()I
-
-public org.bitcoinj.core.Sha256Hash getGenesisBlockHash();
-descriptor: ()Lorg/bitcoinj/core/Sha256Hash;
-
-public int getTxConfirmation(org.bitcoinj.core.Sha256Hash);
-descriptor: (Lorg/bitcoinj/core/Sha256Hash;)I
-
-public co.nayuta.lightning.Ptarmigan$ShortChannelParam getShortChannelParam(byte[]);
-descriptor: ([B)Lco/nayuta/lightning/Ptarmigan$ShortChannelParam;
-
-public org.bitcoinj.core.Sha256Hash getTxidFromShortChannelId(long);
-descriptor: (J)Lorg/bitcoinj/core/Sha256Hash;
-
-public byte[] searchOutPoint(int, byte[], int);
-descriptor: (I[BI)[B
-
-public byte[][] searchVout(int, byte[][]);
-descriptor: (I[[B)[[B
-
-public byte[] signRawTx(long, byte[]);
-descriptor: (J[B)[B
-
-public boolean sendRawTx(byte[]);
-descriptor: ([B)Z
-
-public boolean checkBroadcast(org.bitcoinj.core.Sha256Hash);
-descriptor: (Lorg/bitcoinj/core/Sha256Hash;)Z
-
-public boolean checkUnspent(org.bitcoinj.core.Sha256Hash);
-descriptor: (Lorg/bitcoinj/core/Sha256Hash;)Z
-
-public org.bitcoinj.core.SegwitAddress getNewAddress();
-descriptor: ()Lorg/bitcoinj/core/SegwitAddress;
-
-public long estimateFee();
-descriptor: ()J
-*/
-
 //-----------------------------------------------------------------------------
 static uint8_t* hash2bytes(jobject hash_obj)
 {
@@ -668,18 +630,6 @@ static uint8_t* hash2bytes(jobject hash_obj)
     uint8_t *bytes = malloc(BTC_SZ_HASH256);
     (*env)->GetByteArrayRegion(env, array, 0, BTC_SZ_HASH256, (jbyte *)bytes);
     return bytes;
-}
-
-static jobject bytes2hash(const uint8_t *bytes)
-{
-    const btcj_buf_t buf = { (CONST_CAST uint8_t *)bytes, BTC_SZ_HASH256 };
-    jbyteArray array = buf2jbarray(&buf);
-    jobject obj = (*env)->CallStaticObjectMethod(env, hash_cls, sha256_wraprev_method, array);
-    check_exception(env);
-    //
-    (*env)->DeleteLocalRef(env, array);
-    //
-    return obj;
 }
 
 static jbyteArray buf2jbarray(const btcj_buf_t *buf)

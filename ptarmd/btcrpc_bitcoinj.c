@@ -189,7 +189,7 @@ static void *thread_jni_start(void *pArg);
 static void jni_set_creationhash(void *pArg);
 static void jni_get_blockcount(void *pArg);
 static void jni_get_genesisblockhash(void *pArg);
-static void jni_getconfirm(void *pArg);
+static void jni_get_txconfirm(void *pArg);
 static void jni_get_short_channel_param(void *pArg);
 static void jni_get_txid_from_short_channel_id(void *pArg);
 static void jni_search_outpoint(void *pArg);
@@ -241,7 +241,7 @@ static const struct {
     // METHOD_PTARM_GETGENESISBLOCKHASH,
     { jni_get_genesisblockhash },
     // METHOD_PTARM_GETCONFIRMATION,
-    { jni_getconfirm },
+    { jni_get_txconfirm },
     // METHOD_PTARM_GETSHORTCHANNELPARAM,
     { jni_get_short_channel_param },
     // METHOD_PTARM_GETTXIDFROMSHORTCHANNELID,
@@ -766,12 +766,12 @@ static void jni_get_genesisblockhash(void *pArg)
 }
 
 
-static void jni_getconfirm(void *pArg)
+static void jni_get_txconfirm(void *pArg)
 {
     LOGD("\n");
 
     getconfirmation_t *p = (getconfirmation_t *)pArg;
-    int32_t val = btcj_get_funding_confirm(p->p_txid);
+    int32_t val = btcj_gettxconfirm(p->p_txid);
     LOGD("val=%d\n", (int)val);
     if (val > 0) {
         *p->p_confirm = (uint32_t)val;
@@ -870,12 +870,7 @@ static void jni_send_rawtx(void *pArg)
 
     sendrawtx_t *p = (sendrawtx_t *)pArg;
     btcj_buf_t txdata = { (CONST_CAST uint8_t *)p->p_raw_data, p->len };
-    uint8_t *p_txid = NULL;
-    p->ret = btcj_sendraw_tx(&p_txid, p->p_code, &txdata);
-    if (p->ret) {
-        memcpy(p->p_txid, p_txid, BTC_SZ_TXID);
-    }
-    free(p_txid);
+    p->ret = btcj_sendraw_tx(p->p_txid, p->p_code, &txdata);
 }
 
 
@@ -962,10 +957,5 @@ static void jni_empty_wallet(void *pArg)
     LOGD("\n");
 
     emptywallet_t *p = (emptywallet_t *)pArg;
-    uint8_t *p_txid = NULL;
-    p->ret = btcj_emptywallet(p->p_addr, &p_txid);
-    if (p->ret) {
-        memcpy(p->p_txid, p_txid, BTC_SZ_TXID);
-        free(p_txid);
-    }
+    p->ret = btcj_emptywallet(p->p_addr, p->p_txid);
 }
