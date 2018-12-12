@@ -17,7 +17,7 @@ FAKE_VOID_FUNC(ptarmd_call_script, ptarmd_event_t, const char*);
 FAKE_VALUE_FUNC(bool, btcrpc_init, const rpc_conf_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_getblockcount, int32_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_getgenesisblock, uint8_t*);
-FAKE_VALUE_FUNC(bool, btcrpc_get_confirm, int32_t*, const uint8_t*);
+FAKE_VALUE_FUNC(bool, btcrpc_get_confirm, uint32_t*, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_get_short_channel_param, const uint8_t*, int32_t*, int32_t*, uint8_t*, const uint8_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_gettxid_from_short_channel, uint8_t*, int, int);
 FAKE_VALUE_FUNC(bool, btcrpc_search_outpoint, btc_tx_t*, uint32_t, const uint8_t*, uint32_t);

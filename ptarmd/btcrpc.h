@@ -69,9 +69,10 @@ bool btcrpc_getgenesisblock(uint8_t *pHash);
  *
  * @param[in]   self        取得対象のchannel
  * @param[out]  confirmation数
- * @retval  true        取得成功
+ * @retval  true        success(*pConfirm > 0)
+ * @retval  false       fail(*pConfirm not changed)
  */
-bool btcrpc_get_confirm(int32_t *pConfirm, const uint8_t *pTxid);
+bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid);
 
 
 /** [bitcoin IF]short_channel_idの計算に使用するパラメータ取得

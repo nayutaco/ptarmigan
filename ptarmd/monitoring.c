@@ -76,7 +76,7 @@ static uint32_t             mFeeratePerKw;              ///< 0:bitcoind estimate
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 
 static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void *p_db_param);
-static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param);
+static bool channel_reconnect(ln_self_t *self);
 static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
 static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spent, ln_close_force_t *pCloseDat, int lp, void *pDbParam);
@@ -334,22 +334,25 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     monparam_t *p_prm = (monparam_t *)p_param;
 
-    int32_t confm;
-    bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
-    if (b_get && (confm > 0)) {
+    ln_status_t stat = ln_status_get(self);
+    if ((stat != LN_STATUS_NONE) && (stat != LN_STATUS_CLOSING)) {
         bool del = false;
         bool unspent;
         bool ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
         if (ret && !unspent) {
             //funding_tx使用済み
-            del = funding_spent(self, confm, p_prm->height, p_db_param);
+            uint32_t confm;
+            bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
+            if (b_get) {
+                del = funding_spent(self, confm, p_prm->height, p_db_param);
+            }
         } else {
             //funding_tx未使用
             lnapp_conf_t *p_app_conf = ptarmd_search_connected_cnl(ln_short_channel_id(self));
             if ( (p_app_conf == NULL) && LN_DBG_NODE_AUTO_CONNECT() &&
                   !mDisableAutoConn && (ln_close_type(self) == LN_CLOSETYPE_NONE) ) {
                 //socket未接続であれば、再接続を試行
-                del = channel_reconnect(self, confm, p_db_param);
+                del = channel_reconnect(self);
             } else if (p_app_conf != NULL) {
                 //socket接続済みであれば、feerate_per_kwチェック
                 //  当面、feerate_per_kwを手動で変更した場合のみとする
@@ -483,13 +486,8 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void 
 }
 
 
-static bool channel_reconnect(ln_self_t *self, uint32_t confm, void *p_db_param)
+static bool channel_reconnect(ln_self_t *self)
 {
-    (void)confm; (void)p_db_param;
-
-    // LOGD("opening: funding_tx[conf=%u, idx=%d]: ", confm, ln_funding_txindex(self));
-    // TXIDD(ln_funding_txid(self));
-
     const uint8_t *p_node_id = ln_their_node_id(self);
     struct {
         char ipaddr[SZ_IPV4_LEN + 1];
@@ -599,9 +597,9 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             LOGD("hop node\n");
             LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
 
-            int32_t confm;
+            uint32_t confm;
             bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
-            if (b_get && (confm > 0)) {
+            if (b_get) {
                 btc_tx_t tx = BTC_TX_INIT;
                 uint8_t txid[BTC_SZ_TXID];
                 btc_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
@@ -794,9 +792,9 @@ static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_clos
 
         //転送元がある場合、preimageを抽出する
         LOGD("  prev_short_channel_id=%016" PRIx64 "(vout=%d)\n", p_htlc->prev_short_channel_id, pCloseDat->p_htlc_idx[lp]);
-        int32_t confm;
+        uint32_t confm;
         bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
-        if (b_get && (confm > 0)) {
+        if (b_get) {
             btc_tx_t tx = BTC_TX_INIT;
             uint8_t txid[BTC_SZ_TXID];
             btc_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);

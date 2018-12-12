@@ -128,8 +128,7 @@ static ln_anno_prm_t        mAnnoPrm;       ///< announcementパラメータ
 static void *thread_main_start(void *pArg);
 static bool wait_peer_connected(lnapp_conf_t *p_conf);
 static bool noise_handshake(lnapp_conf_t *p_conf);
-static bool check_short_channel_id(lnapp_conf_t *p_conf);
-static bool get_short_channel_id(lnapp_conf_t *p_conf);
+static bool set_short_channel_id(lnapp_conf_t *p_conf);
 static bool exchange_init(lnapp_conf_t *p_conf);
 static bool exchange_reestablish(lnapp_conf_t *p_conf);
 static bool exchange_funding_locked(lnapp_conf_t *p_conf);
@@ -582,7 +581,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(p_self)));
         //confirmation
-        int32_t confirm;
+        uint32_t confirm;
         bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_self));
         if (b_get) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
@@ -625,7 +624,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         cJSON_AddItemToObject(result, "funding_tx", cJSON_CreateString(str));
         cJSON_AddItemToObject(result, "funding_vout", cJSON_CreateNumber(ln_funding_txindex(p_self)));
         //confirmation
-        int32_t confirm;
+        uint32_t confirm;
         bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_self));
         if (b_get) {
             cJSON_AddItemToObject(result, "confirmation", cJSON_CreateNumber(confirm));
@@ -913,12 +912,14 @@ static void *thread_main_start(void *pArg)
 
     //init送受信
     ret = exchange_init(p_conf);
-    if (!ret || (!p_conf->loop)) {
+    if (ret) {
+        LOGD("exchange: init\n");
+    } else {
         LOGD("fail: exchange init\n");
         goto LABEL_JOIN;
     }
 
-    isync = ln_need_init_routing_sync(p_conf->p_self);
+    isync = ln_need_init_routing_sync(p_self);
     if (isync) {
         //annoinfo情報削除(node_id指定)
         LOGD("initial_routing_sync ON\n");
@@ -947,26 +948,18 @@ static void *thread_main_start(void *pArg)
 
 #ifndef USE_SPV
 #else
-        const uint8_t *p_bhash;
-        p_bhash = ln_funding_blockhash(p_conf->p_self);
-        btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
-                ln_short_channel_id(p_conf->p_self),
-                ln_funding_txid(p_conf->p_self),
-                ln_funding_txindex(p_conf->p_self),
-                ln_funding_redeem(p_conf->p_self),
-                p_bhash);
+        btcrpc_set_channel(ln_their_node_id(p_self),
+                ln_short_channel_id(p_self),
+                ln_funding_txid(p_self),
+                ln_funding_txindex(p_self),
+                ln_funding_redeem(p_self),
+                ln_funding_blockhash(p_self));
 #endif
 
-        ln_closetype_t closetype = ln_close_type(p_conf->p_self);
+        ln_closetype_t closetype = ln_close_type(p_self);
         if (closetype == LN_CLOSETYPE_NONE) {
-            //short_channel_idチェック
-            ret = check_short_channel_id(p_conf);
-            if (!ret) {
-                LOGD("fail: check_short_channel_id\n");
-                goto LABEL_JOIN;
-            }
-
-            if (ln_short_channel_id(p_self) != 0) {
+            ln_status_t stat = ln_status_get(p_self);
+            if (stat == LN_STATUS_NORMAL) {
                 // funding_txはブロックに入ってminimum_depth以上経過している
                 LOGD("$$$ Established\n");
                 ln_establish_free(p_self);
@@ -987,12 +980,14 @@ static void *thread_main_start(void *pArg)
             }
 
             b_channelreestablished = exchange_reestablish(p_conf);
-            if (!b_channelreestablished) {
+            if (b_channelreestablished) {
+                LOGD("exchange: channel_reestablish\n");
+            } else {
                 LOGD("fail: exchange channel_reestablish\n");
                 goto LABEL_JOIN;
             }
         } else {
-            const char *p_str = ln_close_typestring(p_conf->p_self);
+            const char *p_str = ln_close_typestring(p_self);
             LOGD("$$$ now closing: %s\n", p_str);
         }
     } else {
@@ -1291,47 +1286,11 @@ LABEL_EXIT:
 }
 
 
-/** short_channel_idチェック
- *      blockchainからshort_channel_idを計算し、self->short_channel_idに設定する。
- *      もし以前に設定した値と異なるようであれば、エラーと見なす。
- *
- * @retval  true    チェックOK(short_channel_idが設定できなかった場合も含む)
- */
-static bool check_short_channel_id(lnapp_conf_t *p_conf)
-{
-    bool ret = true;
-
-    int32_t confirm;
-    bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_conf->p_self));
-    if (b_get && (confirm > 0)) {
-        p_conf->funding_confirm = confirm;
-        uint64_t short_channel_id = ln_short_channel_id(p_conf->p_self);
-        ret = get_short_channel_id(p_conf);
-        if (ret) {
-            if ((short_channel_id != 0) && (short_channel_id != ln_short_channel_id(p_conf->p_self))) {
-                LOGD("FATAL: short_channel_id mismatch\n");
-                LOGD("  DB: %016" PRIx64 "\n", short_channel_id);
-                LOGD("  BC: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
-                ret = false;
-            } else {
-                //以前と同じ値か、新規で取得した
-            }
-        } else {
-            LOGD("fail: calc short_channel_id\n");
-        }
-    } else {
-        //まだfunding_txがブロックに入っていない or bitcoind error
-    }
-
-    return ret;
-}
-
-
-/** blockchainからのshort_channel_id計算
+/** blockchainからのshort_channel_id計算および保存
  *
  * @retval  true    OK
  */
-static bool get_short_channel_id(lnapp_conf_t *p_conf)
+static bool set_short_channel_id(lnapp_conf_t *p_conf)
 {
     int32_t bheight = 0;
     int32_t bindex = 0;
@@ -1339,13 +1298,10 @@ static bool get_short_channel_id(lnapp_conf_t *p_conf)
     bool ret = btcrpc_get_short_channel_param(ln_their_node_id(p_conf->p_self), &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
     if (ret) {
         //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
-        ret = ln_short_channel_id_set_param(p_conf->p_self, bheight, bindex, ln_funding_txindex(p_conf->p_self), mined_hash);
-        if (ret) {
-            ln_db_annoown_save(ln_short_channel_id(p_conf->p_self));
-            LOGD("short_channel_id = %016" PRIx64 "(%d)\n", ln_short_channel_id(p_conf->p_self), ret);
-        } else {
-            LOGD("fail: set short_channel_id param\n");
-        }
+        ln_short_channel_id_set_param(p_conf->p_self, bheight, bindex);
+        ln_funding_blockhash_set(p_conf->p_self, mined_hash);
+        ln_db_annoown_save(ln_short_channel_id(p_conf->p_self));
+        LOGD("short_channel_id = %016" PRIx64 "(%d)\n", ln_short_channel_id(p_conf->p_self), ret);
     }
 
     return ret;
@@ -1375,12 +1331,7 @@ static bool exchange_init(lnapp_conf_t *p_conf)
         utl_misc_msleep(M_WAIT_RECV_MSG_MSEC);
         count--;
     }
-    ret = (count > 0);
-    if (ret) {
-        LOGD("exchange: init\n");
-    }
-
-    return count > 0;
+    return p_conf->loop && (count > 0);
 }
 
 
@@ -1436,8 +1387,8 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     LOGD("exchange: funding_locked\n");
     ln_status_set(p_conf->p_self, LN_STATUS_NORMAL);
 
-    //check and set short_channel_id
-    check_short_channel_id(p_conf);
+    //set short_channel_id
+    (void)set_short_channel_id(p_conf);
 
     // method: established
     // $1: short_channel_id
@@ -1719,11 +1670,31 @@ static void *thread_poll_start(void *pArg)
         }
 
         uint32_t bak_conf = p_conf->funding_confirm;
-        int32_t confirm;
-        bool b_get = btcrpc_get_confirm(&confirm, ln_funding_txid(p_conf->p_self));
-        if (b_get && (confirm > 0)) {
-            p_conf->funding_confirm = confirm;
+        bool b_get = btcrpc_get_confirm(&p_conf->funding_confirm, ln_funding_txid(p_conf->p_self));
+        if (b_get) {
             if (bak_conf != p_conf->funding_confirm) {
+#ifndef USE_SPV
+#else
+                const uint8_t *oldhash = ln_funding_blockhash(p_conf->p_self);
+                if (utl_misc_all_zero(oldhash, BTC_SZ_HASH256)) {
+                    int32_t bheight = 0;
+                    int32_t bindex = 0;
+                    uint8_t mined_hash[BTC_SZ_HASH256];
+                    bool ret = btcrpc_get_short_channel_param(ln_their_node_id(p_conf->p_self), &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
+                    if (ret) {
+                        //mined block hash
+                        ln_funding_blockhash_set(p_conf->p_self, mined_hash);
+                    }
+                }
+
+                btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
+                        ln_short_channel_id(p_conf->p_self),
+                        ln_funding_txid(p_conf->p_self),
+                        ln_funding_txindex(p_conf->p_self),
+                        ln_funding_redeem(p_conf->p_self),
+                        ln_funding_blockhash(p_conf->p_self));
+#endif
+
                 LOGD2("***********************************\n");
                 LOGD2("* CONFIRMATION: %d\n", p_conf->funding_confirm);
                 LOGD2("*    funding_txid: ");
@@ -1798,7 +1769,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
     if (p_conf->funding_confirm >= ln_minimum_depth(p_conf->p_self)) {
         LOGD("confirmation OK: %d\n", p_conf->funding_confirm);
         //funding_tx確定
-        bool ret = check_short_channel_id(p_conf);
+        bool ret = set_short_channel_id(p_conf);
         if (ret) {
             ret = exchange_funding_locked(p_conf);
             assert(ret);
@@ -1820,7 +1791,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
                     "funding_locked: short_channel_id=%s, close_addr=%s",
                     str_sci, close_addr);
         } else {
-            LOGD("fail: check_short_channel_id()\n");
+            LOGD("fail: set_short_channel_id()\n");
         }
 
         p_conf->funding_waiting = false;
@@ -2359,14 +2330,12 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
 #ifndef USE_SPV
 #else
-        const uint8_t *p_bhash;
-        p_bhash = ln_funding_blockhash(p_conf->p_self);
         btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
                 ln_short_channel_id(p_conf->p_self),
                 ln_funding_txid(p_conf->p_self),
                 ln_funding_txindex(p_conf->p_self),
                 ln_funding_redeem(p_conf->p_self),
-                p_bhash);
+                ln_funding_blockhash(p_conf->p_self));
 #endif
 
         const char *p_str;
@@ -2413,18 +2382,6 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
                 "open: recv funding_locked short_channel_id=%s",
                 str_sci);
     }
-
-#ifndef USE_SPV
-#else
-    const uint8_t *p_bhash;
-    p_bhash = ln_funding_blockhash(p_conf->p_self);
-    btcrpc_set_channel(ln_their_node_id(p_conf->p_self),
-            ln_short_channel_id(p_conf->p_self),
-            ln_funding_txid(p_conf->p_self),
-            ln_funding_txindex(p_conf->p_self),
-            ln_funding_redeem(p_conf->p_self),
-            p_bhash);
-#endif
 
     //funding_locked受信待ち合わせ解除(*4)
     p_conf->flag_recv |= RECV_MSG_FUNDINGLOCKED;

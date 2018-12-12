@@ -219,7 +219,24 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", self->feerate_per_kw);
 
     //status
-    printf(INDENT3 M_QQ("status") ": " M_QQ("0x%02x") ",\n", self->status);
+    const char *p_status_str;
+    switch (self->status) {
+    case LN_STATUS_NONE:
+        p_status_str = "none";
+        break;
+    case LN_STATUS_ESTABLISH:
+        p_status_str = "establish";
+        break;
+    case LN_STATUS_NORMAL:
+        p_status_str = "normal operation";
+        break;
+    case LN_STATUS_CLOSING:
+        p_status_str = "closing";
+        break;
+    default:
+        p_status_str = "???";
+    }
+    printf(INDENT3 M_QQ("status") ": " M_QQ("%s") ",\n", p_status_str);
 
     //key storage
     printf(INDENT3 M_QQ("storage_index") ": " M_QQ("0x%016" PRIx64) ",\n", self->priv_data.storage_index);
