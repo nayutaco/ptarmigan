@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment keep prev skip channel(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-m : show payment_hashs\n");
-        fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT : connect node\n");
+        fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF : funding\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
         fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
@@ -256,7 +256,7 @@ int main(int argc, char *argv[])
     uint16_t port = 0;
     if (optind == argc) {
         if (ln_lmdb_have_dbdir()) {
-            char wif[BTC_SZ_WIF_MAX + 1] = "";
+            char wif[BTC_SZ_WIF_MAX] = "";
             char alias[LN_SZ_ALIAS + 1] = "";
 
             (void)ln_db_init(wif, alias, &port, false);
