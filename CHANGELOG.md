@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2018/12/12
+
+* node connection: [`initial_routing_sync`](https://github.com/lightningnetwork/lightning-rfc/blob/master/09-features.md#assigned-localfeatures-flags)=OFF
+  * use `ptarmcli -c NODE_ID@IPADDR:PORT --initroutesync` on connection.
+
 ## 2018/11/22
 
 * DB version : -27

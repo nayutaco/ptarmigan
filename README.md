@@ -1,8 +1,8 @@
 # ptarmigan
 
+[![Build Status](https://travis-ci.org/nayutaco/ptarmigan.svg?branch=development)](https://travis-ci.org/nayutaco/ptarmigan)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
-[![Build Status](https://travis-ci.org/nayutaco/ptarmigan.svg?branch=development)](https://travis-ci.org/nayutaco/ptarmigan)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/15128/badge.svg)](https://scan.coverity.com/projects/nayutaco-ptarmigan)
 
 ## About
@@ -13,10 +13,10 @@
 
 ## Setup
 
-* bitcoind v0.16
+* bitcoind v0.17
   * for bitcoin testnet/regtest (`ptarmigan` mainnet not support now)
   * nested in BIP16 P2SH
-* Ubuntu 16.04
+* Ubuntu 18.04
 
 ## Usage
 
@@ -25,6 +25,9 @@
 ## Build
 
 ### installation
+
+* use `bitcoind`
+  * show [SPV mode](docs/build_for_spv.md)(now testing)
 
 ```bash
 sudo apt install -y git autoconf pkg-config build-essential libtool wget jq bc
