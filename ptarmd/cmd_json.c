@@ -958,7 +958,9 @@ LABEL_EXIT:
                 utl_misc_bin2str(str_pubkey, rt_ret.hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
                 fprintf(fp, "[%d] %s\n", lp, str_pubkey);
                 if (rt_ret.hop_datain[lp].short_channel_id != 0) {
-                    fprintf(fp, "  short_channel_id: %016" PRIx64 "\n", rt_ret.hop_datain[lp].short_channel_id);
+                    char str_sci[LN_SZ_SHORTCHANNELID_STR];
+                    ln_short_channel_id_string(str_sci, rt_ret.hop_datain[lp].short_channel_id);
+                    fprintf(fp, "  short_channel_id: %s\n", str_sci);
                     fprintf(fp, "       amount_msat: %" PRIu64 "\n", rt_ret.hop_datain[lp].amt_to_forward);
                     fprintf(fp, "       cltv_expiry: %" PRIu32 "\n\n", rt_ret.hop_datain[lp].outgoing_cltv_value);
                 }
