@@ -472,7 +472,7 @@ bool btcrpc_check_unspent(const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat
 }
 
 
-bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX])
+bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX + 1])
 {
     bool result = false;
     bool ret;
@@ -483,7 +483,7 @@ bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX])
     ret = getnewaddress_rpc(&p_root, &p_result, &p_json);
     if (ret) {
         if (json_is_string(p_result)) {
-            if (strlen(json_string_value(p_result)) < BTC_SZ_ADDR_MAX) {
+            if (strlen(json_string_value(p_result)) <= BTC_SZ_ADDR_MAX) {
                 strcpy(pAddr,  (const char *)json_string_value(p_result));
                 result = true;
             }
@@ -1427,14 +1427,14 @@ int main(int argc, char *argv[])
 //    fprintf(stderr, "confirmations = %d(%d)\n", (int)conf, b);
 
 //    fprintf(stderr, "-getnewaddress-------------------------\n");
-//    char addr[BTC_SZ_ADDR_MAX];
+//    char addr[BTC_SZ_ADDR_MAX + 1];
 //    ret = btcrpc_getnewaddress(addr);
 //    if (ret) {
 //        fprintf(stderr, "addr=%s\n", addr);
 //    }
 
 //    fprintf(stderr, "-dumpprivkey-------------------------\n");
-//    char wif[BTC_SZ_WIF_MAX];
+//    char wif[BTC_SZ_WIF_MAX + 1];
 //    ret = btcrpc_dumpprivkey(wif, addr);
 //    if (ret) {
 //        fprintf(stderr, "wif=%s\n", wif);

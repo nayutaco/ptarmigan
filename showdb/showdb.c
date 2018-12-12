@@ -972,7 +972,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
     if (showflag == SHOW_VERSION) {
         int retval;
         int32_t version;
-        char wif[BTC_SZ_WIF_MAX] = "";
+        char wif[BTC_SZ_WIF_MAX + 1] = "";
         char alias[LN_SZ_ALIAS + 1] = "";
         uint16_t port = 0;
         uint8_t genesis[BTC_SZ_HASH256];

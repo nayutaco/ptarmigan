@@ -50,16 +50,16 @@ extern "C" {
 #define BTC_SZ_PUBKEY           (33)            ///< サイズ:圧縮された公開鍵
 #define BTC_SZ_PUBKEY_UNCOMP    (64)            ///< サイズ:圧縮されていない公開鍵
 #define BTC_SZ_PUBKEYHASH       (32)            ///< サイズ:PubKeyHashの最大値
-#define BTC_SZ_ADDR_MAX         (90 + 1)        ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
-#define BTC_SZ_WIF_MAX          (55 + 1)        ///< サイズ:秘密鍵のWIF(上限不明)
+#define BTC_SZ_ADDR_MAX         (90)            ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
+#define BTC_SZ_WIF_MAX          (55)            ///< サイズ:秘密鍵のWIF(上限不明)
 #define BTC_SZ_TXID             (32)            ///< サイズ:TXID
 #define BTC_SZ_SIGN_RS          (64)            ///< サイズ:RS形式の署名
 #define BTC_SZ_EKEY_SEED        (64)            ///< サイズ:拡張鍵seed
 #define BTC_SZ_EKEY             (82)            ///< サイズ:拡張鍵
 #define BTC_SZ_CHAINCODE        (32)            ///< サイズ:拡張鍵chaincode
-#define BTC_SZ_EKEY_ADDR_MAX    (112 + 1)       ///< サイズ:拡張鍵アドレス長上限
+#define BTC_SZ_EKEY_ADDR_MAX    (112)           ///< サイズ:拡張鍵アドレス長上限
 #define BTC_SZ_WITPROG_P2WPKH   (2 + BTC_SZ_HASH160)    ///< サイズ: witnessProgram(P2WPKH)
-#define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)     ///< サイズ: witnessProgram(P2WSH)
+#define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)    ///< サイズ: witnessProgram(P2WSH)
 #define BTC_SZ_2OF2             (1 + 34 + 34 + 2)       ///< OP_m 21 [pub1] 21 [pub2] OP_n OP_CHKMULTISIG
 
 #define BTC_PREF                (0)             ///< Prefix: 1:mainnet, 2:testnet

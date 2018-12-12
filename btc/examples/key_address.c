@@ -14,7 +14,7 @@ static void pkh_to_p2wpkh(void)
         0x96, 0x15, 0xf2, 0x31, 0x54, 0xc1, 0x87,
     };
 
-    char addr[BTC_SZ_ADDR_MAX];
+    char addr[BTC_SZ_ADDR_MAX + 1];
     utl_buf_t BUF_SPK = { (uint8_t *)SPK, sizeof(SPK) };
     bool ret = btc_keys_spk2addr(addr, &BUF_SPK);
     if (ret) {
@@ -39,7 +39,7 @@ static void bech32wpkh_to_hash(void)
         printf("fail: segwit_addr_decode\n");
     }
 
-    char addr[BTC_SZ_ADDR_MAX];
+    char addr[BTC_SZ_ADDR_MAX + 1];
     ret = segwit_addr_encode(addr, SEGWIT_ADDR_TESTNET, ver, prog, prog_len);
     if (ret) {
         printf("addr: %s\n", addr);

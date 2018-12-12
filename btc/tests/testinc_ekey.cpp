@@ -56,7 +56,7 @@ TEST_F(extendedkey, chain_m)
     const char XPUB0[] = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     bool b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, 0, 0, NULL, SEED, sizeof(SEED));
     ASSERT_TRUE(b);
@@ -102,7 +102,7 @@ TEST_F(extendedkey, chain_m_0H)
     const char XPUB0H[] = "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
@@ -162,7 +162,7 @@ TEST_F(extendedkey, chain_m_0H_1)
     const char XPUB0H1[] = "xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
@@ -210,7 +210,7 @@ TEST_F(extendedkey, chain_m_0H_1pub)
     const char XPUB0H1[] = "xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     bool b = btc_ekey_generate(&ekey_prev, BTC_EKEY_PUB, 2, 1, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
@@ -228,7 +228,7 @@ TEST_F(extendedkey, chain_m_0H_1_2H)
     const char XPUB0H12H[] = "xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
@@ -287,7 +287,7 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2)
     const char XPUB0H12H2[] = "xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
@@ -335,7 +335,7 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2pub)
     const char XPUB0H12H2[] = "xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     bool b = btc_ekey_generate(&ekey_prev, BTC_EKEY_PUB, 4, 2, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
@@ -355,7 +355,7 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2_1)
     const char XPUB0H12H21[] = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     //pub用
     memcpy(&ekey_prev, &ekey, sizeof(ekey));
@@ -403,7 +403,7 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2_1pub)
     const char XPUB0H12H21[] = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     bool b = btc_ekey_generate(&ekey_prev, BTC_EKEY_PUB, 5, 1000000000, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
@@ -429,7 +429,7 @@ TEST_F(extendedkey, chain_m_master2)
     const char XPUB0[] = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
     uint8_t buf_ekey[BTC_SZ_EKEY];
-    char xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
 
     bool b = btc_ekey_generate(&ekey, BTC_EKEY_PRIV, 0, 0, NULL, SEED, sizeof(SEED));
     ASSERT_TRUE(b);
@@ -550,7 +550,7 @@ TEST_F(extendedkey, bip49)
 
     bool b;
     uint8_t ekey_data[BTC_SZ_EKEY];
-    char ekey_xaddr[BTC_SZ_EKEY_ADDR_MAX];
+    char ekey_xaddr[BTC_SZ_EKEY_ADDR_MAX + 1];
     btc_ekey_t ekey;
 
     btc_term();
@@ -582,7 +582,7 @@ TEST_F(extendedkey, bip49)
 
     uint8_t pubkey[BTC_SZ_PUBKEY];
     btc_keys_priv2pub(pubkey, akey.key);
-    char addr[BTC_SZ_ADDR_MAX];
+    char addr[BTC_SZ_ADDR_MAX + 1];
     b = btc_keys_pub2p2wpkh(addr, pubkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(B58_ACC0IDX0, addr);

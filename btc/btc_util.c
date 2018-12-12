@@ -727,7 +727,7 @@ bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uin
 
     } else {
         uint8_t pkh[1 + BTC_SZ_HASH160 + 4];
-        size_t sz = BTC_SZ_ADDR_MAX;
+        size_t sz = BTC_SZ_ADDR_MAX + 1;
 
         pkh[0] = mPref[Prefix];
         memcpy(pkh + 1, pPubKeyHash, BTC_SZ_HASH160);

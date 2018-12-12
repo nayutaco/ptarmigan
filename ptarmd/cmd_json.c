@@ -1330,7 +1330,7 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("$$$ [JSONRPC]walletback\n");
 
-    char addr[BTC_SZ_ADDR_MAX];
+    char addr[BTC_SZ_ADDR_MAX + 1];
     ret = btcrpc_getnewaddress(addr);
     if (!ret) {
         ctx->error_code = RPCERR_BLOCKCHAIN;
@@ -1368,7 +1368,7 @@ static cJSON *cmd_getnewaddress(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     cJSON *result = NULL;
     bool ret;
-    char addr[BTC_SZ_ADDR_MAX];
+    char addr[BTC_SZ_ADDR_MAX + 1];
 
     LOGD("$$$ [JSONRPC]getnewaddress\n");
 
