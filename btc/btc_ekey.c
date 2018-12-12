@@ -351,7 +351,7 @@ bool btc_ekey_create_data(uint8_t *pData, char *pAddr, const btc_ekey_t *pEKey)
     bool ret = true;
 
     if (pAddr) {
-        size_t sz = BTC_SZ_EKEY_ADDR_MAX;
+        size_t sz = BTC_SZ_EKEY_ADDR_MAX + 1;
         ret = b58enc(pAddr, &sz, pData, BTC_SZ_EKEY);
     }
 
@@ -440,8 +440,7 @@ bool btc_ekey_read_addr(btc_ekey_t *pEKey, const char *pXAddr)
     uint8_t bin[BTC_SZ_EKEY];
 
     size_t addr_len = strlen(pXAddr);
-    if (addr_len >= BTC_SZ_EKEY_ADDR_MAX) {
-        //BTC_SZ_EKEY_ADDR_MAXは\0も含んだサイズなので、>=になる
+    if (addr_len > BTC_SZ_EKEY_ADDR_MAX) {
         return false;
     }
 

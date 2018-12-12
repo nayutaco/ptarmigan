@@ -571,7 +571,7 @@ bool btcrpc_check_unspent(const uint8_t *pPeerId, bool *pUnspent, uint64_t *pSat
 }
 
 
-bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX])
+bool btcrpc_getnewaddress(char pAddr[BTC_SZ_ADDR_MAX + 1])
 {
     LOGD_BTCTRACE("\n");
 

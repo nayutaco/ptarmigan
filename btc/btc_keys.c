@@ -119,7 +119,7 @@ bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey)
     btc_util_hash256(buf_sha256, b58, 1 + BTC_SZ_PRIVKEY + 1);
     memcpy(b58 + 1 + BTC_SZ_PRIVKEY + 1, buf_sha256, 4);
 
-    size_t sz = BTC_SZ_WIF_MAX;
+    size_t sz = BTC_SZ_WIF_MAX + 1;
     ret = b58enc(pWifPriv, &sz, b58, sizeof(b58));
     memset(b58, 0, sizeof(b58));        //clear for security
     return ret;

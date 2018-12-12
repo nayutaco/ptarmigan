@@ -41,7 +41,7 @@
 #ifndef USE_SPV
 #define M_OPTSTRING     "p:n:a:c:d:xNh"
 #else
-#define M_OPTSTRING     "p:n:mtrd:xNh"
+#define M_OPTSTRING     "p:n:a:mtrd:xNh"
 #endif
 
 
@@ -131,7 +131,6 @@ int main(int argc, char *argv[])
             strncpy(p_alias, optarg, LN_SZ_ALIAS);
             p_alias[LN_SZ_ALIAS] = '\0';
             break;
-#ifndef USE_SPV
         case 'a':
             //ip address
             {
@@ -140,9 +139,14 @@ int main(int argc, char *argv[])
                 if (addrret) {
                     p_addr->type = LN_NODEDESC_IPV4;
                     memcpy(p_addr->addrinfo.addr, ipbin, sizeof(ipbin));
+                    LOGD("ipv4=");
+                    DUMPD(p_addr->addrinfo.addr, sizeof(p_addr->addrinfo.ipv4.addr));
+                } else {
+                    LOGE("fail: ipv4(%s)\n", optarg);
                 }
             }
             break;
+#ifndef USE_SPV
         case 'c':
             //load btcconf file
             bret = conf_btcrpc_load(optarg, &rpc_conf);

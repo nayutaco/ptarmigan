@@ -1777,7 +1777,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
             // send `channel_update` for private/before publish channel
             send_cnlupd_before_announce(p_conf);
 
-            char close_addr[BTC_SZ_ADDR_MAX];
+            char close_addr[BTC_SZ_ADDR_MAX + 1];
             ret = btc_keys_spk2addr(close_addr, ln_shutdown_scriptpk_local(p_conf->p_self));
             if (!ret) {
                 utl_misc_bin2str(close_addr,
@@ -3474,7 +3474,7 @@ static void send_queue_clear(lnapp_conf_t *p_conf)
 
 static bool getnewaddress(utl_buf_t *pBuf)
 {
-    char addr[BTC_SZ_ADDR_MAX];
+    char addr[BTC_SZ_ADDR_MAX + 1];
     if (!btcrpc_getnewaddress(addr)) {
         return false;
     }

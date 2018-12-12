@@ -34,6 +34,7 @@
 #include "ln_msg_anno.h"
 #include "ln_node.h"
 #include "ln_local.h"
+#include "utl_net.h"
 
 
 /**************************************************************************
@@ -82,6 +83,7 @@ const uint8_t *ln_node_getid(void)
     return mNode.keys.pub;
 }
 
+
 ln_nodeaddr_t *ln_node_addr(void)
 {
     return &mNode.addr;
@@ -97,9 +99,10 @@ char *ln_node_alias(void)
 bool ln_node_init(uint8_t Features)
 {
     bool ret;
-    char wif[BTC_SZ_WIF_MAX];
+    char wif[BTC_SZ_WIF_MAX + 1];
     btc_chain_t chain;
     utl_buf_t buf_node = UTL_BUF_INIT;
+    ln_node_announce_t anno;
 
     mNode.features = Features;
 
@@ -115,7 +118,7 @@ bool ln_node_init(uint8_t Features)
         goto LABEL_EXIT;
     }
 
-    ln_node_announce_t anno;
+    print_node();
 
     ret = ln_db_annonod_load(&buf_node, NULL, mNode.keys.pub);
     if (ret) {
@@ -124,22 +127,51 @@ bool ln_node_init(uint8_t Features)
         uint8_t node_id[BTC_SZ_PUBKEY];
         char node_alias[LN_SZ_ALIAS + 1];
 
+        //mNode.addr: 引数(引数無しの場合、desc=NONE、port=最後の状態(新規は9735))
+        //anno.addr : node_announcement(desc==NONEの場合、port情報無し)
         anno.p_node_id = node_id;
         anno.p_alias = node_alias;
         ret = ln_msg_node_announce_read(&anno, buf_node.buf, buf_node.len);
         if (ret) {
-            if ( (memcmp(anno.p_node_id, mNode.keys.pub, BTC_SZ_PUBKEY) != 0) ||
-                 (strcmp(anno.p_alias, mNode.alias) != 0) ||
-                 (anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0) ||
-                 (!comp_node_addr(&anno.addr, &mNode.addr) && (mNode.addr.type != LN_NODEDESC_NONE)) ) {
-                //保持している情報と不一致(IPアドレスは引数で指定された場合のみチェック)
-                fprintf(stderr, "fail: node info not match(DB)\n");
+            if (memcmp(anno.p_node_id, mNode.keys.pub, BTC_SZ_PUBKEY) != 0) {
+                fprintf(stderr, "fail: node_id not match(DB)\n");
                 ret = false;
                 goto LABEL_EXIT;
             } else {
-                uint16_t bak = mNode.addr.port; //node_announcementにはポート番号が載らないことがあり得る
+                //保持している情報と不一致の場合、`node_announcement`を作り直す
+                bool update = false;
+                if (strcmp(anno.p_alias, mNode.alias) != 0) {
+                    memcpy(anno.p_alias, mNode.alias, LN_SZ_ALIAS);
+                    update = true;
+                }
+                if ((anno.rgbcolor[0] != 0) || (anno.rgbcolor[1] != 0) || (anno.rgbcolor[2] != 0)) {
+                    memset(anno.rgbcolor, 0, 3);
+                    update = true;
+                }
+                if (!comp_node_addr(&anno.addr, &mNode.addr) && (mNode.addr.type != LN_NODEDESC_NONE)) {
+                    if ((mNode.addr.type == LN_NODEDESC_IPV4) && utl_net_ipv4_addr_is_routable(mNode.addr.addrinfo.ipv4.addr)) {
+                        memcpy(&anno.addr, &mNode.addr, sizeof(ln_nodeaddr_t));
+                    } else {
+                        LOGD("fail: not announsable ipv4\n");
+                        anno.addr.type = LN_NODEDESC_NONE;
+                    }
+                    update = true;
+                }
+                if (anno.addr.port != mNode.addr.port) {
+                    anno.addr.port = mNode.addr.port;
+                    update = true;
+                }
+                if (update) {
+                    LOGD("$$$ change node_announcement\n");
+                    anno.timestamp = (uint32_t)time(NULL);
+                    ret = ln_msg_node_announce_create(&buf_node, &anno);
+                    if (!ret) {
+                        LOGD("fail: create node_announcement\n");
+                        goto LABEL_EXIT;
+                    }
+                    (void)ln_db_annonod_save(&buf_node, &anno, NULL);
+                }
                 memcpy(&mNode.addr, &anno.addr, sizeof(anno.addr));
-                mNode.addr.port = bak;
             }
         }
     } else {
@@ -359,11 +391,7 @@ static bool comp_node_addr(const ln_nodeaddr_t *pAddr1, const ln_nodeaddr_t *pAd
     };
 
     if (pAddr1->type != pAddr2->type) {
-        LOGD("not match: type\n");
-        return false;
-    }
-    if ((pAddr1->type != LN_NODEDESC_NONE) && (pAddr1->port != pAddr2->port)) {
-        LOGD("not match: port, %d, %d\n", pAddr1->port, pAddr2->port);
+        LOGD("not match: type %d != %d\n", pAddr1->type, pAddr2->type);
         return false;
     }
     if (pAddr1->type <= LN_NODEDESC_ONIONV3) {

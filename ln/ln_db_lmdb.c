@@ -257,7 +257,7 @@ typedef struct {
  */
 typedef struct {
     uint8_t     genesis[BTC_SZ_HASH256];
-    char        wif[BTC_SZ_WIF_MAX];
+    char        wif[BTC_SZ_WIF_MAX + 1];
     char        name[LN_SZ_ALIAS + 1];
     uint16_t    port;
 #ifndef USE_SPV
@@ -3457,7 +3457,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType)
     }
 
     int32_t ver;
-    char wif[BTC_SZ_WIF_MAX] = "";
+    char wif[BTC_SZ_WIF_MAX + 1] = "";
     char alias[LN_SZ_ALIAS + 1] = "";
     uint16_t port = 0;
     uint8_t genesis[BTC_SZ_HASH256];
@@ -4309,10 +4309,7 @@ static bool annoinfo_add(ln_lmdb_db_t *pDb, MDB_val *pMdbKey, MDB_val *pMdbData,
 
     pMdbData->mv_data = p_ids;
     int retval = mdb_put(mTxnAnno, pDb->dbi, pMdbKey, pMdbData, 0);
-    if (retval == 0) {
-        LOGV("add annoinfo: ");
-        DUMPV(pNodeId, BTC_SZ_PUBKEY);
-    } else {
+    if (retval != 0) {
         LOGD("ERR: %s\n", mdb_strerror(retval));
     }
     UTL_DBG_FREE(p_ids);
@@ -4559,8 +4556,10 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
         // LOGD("port=%" PRIu16 "\n", Port);
         nodeinfo_t nodeinfo;
         memcpy(nodeinfo.genesis, gGenesisChainHash, BTC_SZ_HASH256);
-        strcpy(nodeinfo.wif, pWif);
-        strcpy(nodeinfo.name, pNodeName);
+        strncpy(nodeinfo.wif, pWif, BTC_SZ_WIF_MAX);
+        strncpy(nodeinfo.name, pNodeName, LN_SZ_ALIAS);
+        nodeinfo.wif[BTC_SZ_WIF_MAX] = '\0';
+        nodeinfo.name[LN_SZ_ALIAS] = '\0';
         nodeinfo.port = Port;
 #ifndef USE_SPV
 #else
@@ -4591,6 +4590,7 @@ static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeNa
 {
     int         retval;
     MDB_val key, data;
+    nodeinfo_t nodeinfo;
 
     //version
     key.mv_size = LNDBK_LEN(LNDBK_VER);
@@ -4605,52 +4605,58 @@ static int ver_check(ln_lmdb_db_t *pDb, int32_t *pVer, char *pWif, char *pNodeNa
     } else {
         LOGD("ERR: %s\n", mdb_strerror(retval));
     }
-    if ((retval == 0) && (pWif != NULL)) {
-        key.mv_size = LNDBK_LEN(LNDBK_NODEID);
-        key.mv_data = LNDBK_NODEID;
-        retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
-        if (retval == 0) {
-            if (data.mv_size != sizeof(nodeinfo_t)) {
-                retval = MDB_BAD_VALSIZE;
-            }
-        }
-        if (retval == 0) {
-            const nodeinfo_t *p_nodeinfo = (const nodeinfo_t*)data.mv_data;
+    if (retval != 0) {
+        goto LABEL_EXIT;
+    }
 
-            strcpy(pWif, p_nodeinfo->wif);
-            if (pNodeName[0] != '\0') {
-                if (strcmp(pNodeName, p_nodeinfo->name) != 0) {
-                    fprintf(stderr, "fail: alias not match(DB)[%s][%s]\n", pNodeName, p_nodeinfo->name);
-                    retval = -1;
-                }
-            } else {
-                strcpy(pNodeName, p_nodeinfo->name);
-            }
-            if (*pPort != 0) {
-                if (*pPort != p_nodeinfo->port) {
-                    fprintf(stderr, "fail: port not match(DB)[%" PRIu16 "][%" PRIu16 "]\n", *pPort, p_nodeinfo->port);
-                    retval = -2;
-                }
-            } else {
-                *pPort = p_nodeinfo->port;
-            }
-            if (pGenesis != NULL) {
-                memcpy(pGenesis, p_nodeinfo->genesis, BTC_SZ_HASH256);
-            }
-#ifndef USE_SPV
-#else
-            memcpy(gCreationBlockHash, p_nodeinfo->bhash, BTC_SZ_HASH256);
-#endif
-            // LOGD("wif=%s\n", pWif);
-            // LOGD("name=%s\n", pNodeName);
-            // LOGD("port=%" PRIu16 "\n", *pPort);
-            // LOGD("genesis=");
-            // DUMPD(p_nodeinfo->genesis, BTC_SZ_HASH256);
-        } else {
-            LOGD("ERR: %s\n", mdb_strerror(retval));
+    key.mv_size = LNDBK_LEN(LNDBK_NODEID);
+    key.mv_data = LNDBK_NODEID;
+    retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
+    if (retval == 0) {
+        if (data.mv_size != sizeof(nodeinfo_t)) {
+            retval = MDB_BAD_VALSIZE;
+            goto LABEL_EXIT;
         }
     }
 
+    bool update = false;
+    memcpy(&nodeinfo, (const nodeinfo_t*)data.mv_data, data.mv_size);
+    strcpy(pWif, nodeinfo.wif);
+    if ((pNodeName[0] != '\0') && (strcmp(nodeinfo.name, pNodeName) == 0)) {
+        //update
+        strncpy(nodeinfo.name, pNodeName, sizeof(nodeinfo.name));
+        update = true;
+    } else {
+        strcpy(pNodeName, nodeinfo.name);
+    }
+    if ((*pPort != 0) && (nodeinfo.port = *pPort)) {
+        //update
+        nodeinfo.port = *pPort;
+        update = true;
+    } else {
+        *pPort = nodeinfo.port;
+    }
+    memcpy(pGenesis, nodeinfo.genesis, BTC_SZ_HASH256);
+#ifndef USE_SPV
+#else
+    memcpy(gCreationBlockHash, nodeinfo.bhash, BTC_SZ_HASH256);
+#endif
+    // LOGD("wif=%s\n", pWif);
+    // LOGD("name=%s\n", pNodeName);
+    // LOGD("port=%" PRIu16 "\n", *pPort);
+    // LOGD("genesis=");
+    // DUMPD(p_nodeinfo->genesis, BTC_SZ_HASH256);
+
+    if (update) {
+        data.mv_data = &nodeinfo;
+        data.mv_size = sizeof(nodeinfo);
+        retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
+        if (retval != 0) {
+            LOGD("fail: %s\n", mdb_strerror(retval));
+        }
+    }
+
+LABEL_EXIT:
     return retval;
 }
 
