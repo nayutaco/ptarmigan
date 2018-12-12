@@ -1322,14 +1322,10 @@ void ln_establish_free(ln_self_t *self);
  * @param[in,out]       self            channel情報
  * @param[in]           Height          funding_txが入ったブロック height
  * @param[in]           Index           funding_txのTXIDが入っているindex
- * @param[in]           FundingIndex    funding_tx vout in channel
- * @param[in]           pMinedHash      funding_txがマイニングされたblock hash
- * @retval  true    OK
- * @retval  false   short_channel_idに0以外が代入済みで、結果が異なる
  * @note
- *      - #LN_CB_FUNDINGTX_WAIT でコールバックされた後、安定後に呼び出すこと
+ *  - save DB if self->short_channel_id == 0
  */
-bool ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex, const uint8_t *pMinedHash);
+void ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t Index);
 
 
 /** short_channel_id情報取得
@@ -1340,6 +1336,13 @@ bool ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t In
  * @param[in]           ShortChannelId  short_channel_id
  */
 void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId);
+
+
+/** short_channel_id情報設定
+ *
+ * @param[in]           pMinedHash      funding_txがマイニングされたblock hash
+ */
+void ln_funding_blockhash_set(ln_self_t *self, const uint8_t *pMinedHash);
 
 
 /** get BOLT short_channel_id string

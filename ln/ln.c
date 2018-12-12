@@ -614,29 +614,32 @@ void ln_establish_free(ln_self_t *self)
 }
 
 
-bool ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t Index, uint32_t FundingIndex, const uint8_t *pMinedHash)
+void ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t Index)
 {
-    uint64_t short_channel_id = ln_misc_calc_short_channel_id(Height, Index, FundingIndex);
+    uint64_t short_channel_id = ln_misc_calc_short_channel_id(Height, Index, ln_funding_txindex(self));
     if (self->short_channel_id == 0) {
         self->short_channel_id = short_channel_id;
-#ifndef USE_SPV
-        (void)pMinedHash;
-#else
-        LOGD("block hash=");
-        TXIDD(pMinedHash);
-        LOGD("block height=%d\n", Height);
-        memcpy(self->funding_bhash, pMinedHash, BTC_SZ_HASH256);
-#endif
         M_DB_SELF_SAVE(self);
     }
-
-    return (short_channel_id != 0) && (self->short_channel_id == short_channel_id);
 }
 
 
 void ln_short_channel_id_get_param(uint32_t *pHeight, uint32_t *pIndex, uint32_t *pVIndex, uint64_t ShortChannelId)
 {
     ln_misc_get_short_channel_id_param(pHeight, pIndex, pVIndex, ShortChannelId);
+}
+
+
+void ln_funding_blockhash_set(ln_self_t *self, const uint8_t *pMinedHash)
+{
+#ifndef USE_SPV
+    (void)self; (void)pMinedHash;
+#else
+    LOGD("save minedHash=");
+    TXIDD(pMinedHash);
+    memcpy(self->funding_bhash, pMinedHash, BTC_SZ_HASH256);
+    M_DB_SELF_SAVE(self);
+#endif
 }
 
 
@@ -2929,6 +2932,8 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
         //shutdown交換完了
+        self->status = LN_STATUS_CLOSING;
+        //self->close_type = LN_CLOSETYPE_MUTUAL;   //close_type is set by funding_tx spending
         M_DB_SELF_SAVE(self);
     }
 
@@ -3026,7 +3031,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
     ret = create_closing_tx(self, &self->tx_closing, self->close_fee_sat, need_closetx);
     if (!ret) {
         LOGD("fail: create close_t\n");
-        assert(false);
+        return false;
     }
 
     if (need_closetx) {
@@ -3045,7 +3050,6 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
             if (closed.result) {
                 LOGD("$$$ close waiting\n");
                 self->close_type = LN_CLOSETYPE_WAIT;
-                M_DB_SELF_SAVE(self);
 
                 //clearはDB削除に任せる
                 //channel_clear(self);
@@ -3071,6 +3075,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         }
         utl_buf_free(&buf_bolt);
     }
+    M_DB_SELF_SAVE(self);
 
     LOGD("END\n");
     return ret;

@@ -16,6 +16,9 @@
 #define M_CHECKUNSPENT_SPENT            (1)
 
 
+#define check_exception(env)    { LOGD("\n"); _check_exception(env); }
+
+
 enum {
     M_FIELD_PTARMCHAN_HEIGHT,
     M_FIELD_PTARMCHAN_BINDEX,
@@ -47,7 +50,7 @@ static jbyteArray buf2jbarray(const btcj_buf_t *buf);
 static btcj_buf_t* jbarray2buf(jbyteArray jbarray);
 static jobject bufs2list(const btcj_buf_t *bufs);
 static btcj_buf_t* list2bufs(jobject list);
-static inline void check_exception(JNIEnv *env);
+static inline void _check_exception(JNIEnv *env);
 static bool get_execpath(char *path, size_t dest_len);
 
 
@@ -103,7 +106,7 @@ const struct {
     // M_FIELD_PTARMCHAN_BINDEX,
     { "bIndex", "I" },
     // M_FIELD_PTARMCHAN_MINEDHASH,
-    { "minedHash", "Lorg/bitcoinj/core/Sha256Hash;" },
+    { "minedHash", "[B" },
 };
 
 
@@ -147,6 +150,7 @@ bool btcj_init(btc_genesis_t Gen)
     // コンストラクタ呼び出し
     LOGD("call ctor\n");
     jmethodID method = (*env)->GetMethodID(env, cls, "<init>", "(Ljava/lang/String;)V");
+    check_exception(env);
     if(method == NULL) {
         LOGD("fail: get method id\n");
         return false;
@@ -324,7 +328,7 @@ bool btcj_getgenesisblockhash(uint8_t *pHash)
     return true;
 }
 //-----------------------------------------------------------------------------
-int32_t btcj_gettxconfirm(const uint8_t *pTxid)
+uint32_t btcj_gettxconfirm(const uint8_t *pTxid)
 {
     LOGD("txid=");
     TXIDD(pTxid);
@@ -333,14 +337,14 @@ int32_t btcj_gettxconfirm(const uint8_t *pTxid)
     jobject txHash = buf2jbarray(&buf);
     jint ret = (*env)->CallIntMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_GETCONFIRMATION], txHash);
     check_exception(env);
-    LOGD("ret=%d\n", ret);
+    LOGD("ret=%" PRIu32 "\n", ret);
     //
     (*env)->DeleteLocalRef(env, txHash);
     //
-    return (int32_t)ret;
+    return ret;
 }
 //-----------------------------------------------------------------------------
-bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int32_t *pbIndex, uint8_t **ppMinedHash)
+bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int32_t *pbIndex, uint8_t *pMinedHash)
 {
     const btcj_buf_t buf = { (CONST_CAST uint8_t *)pPeerId, BTC_SZ_PUBKEY };
     jbyteArray barray = buf2jbarray(&buf);
@@ -350,10 +354,13 @@ bool btcj_get_short_channel_param(const uint8_t *pPeerId, int32_t *pHeight, int3
     if(param_obj != NULL) {
         *pHeight = (*env)->GetIntField(env, param_obj, ptarmcls_field[M_FIELD_PTARMCHAN_HEIGHT]);
         *pbIndex = (*env)->GetIntField(env, param_obj, ptarmcls_field[M_FIELD_PTARMCHAN_BINDEX]);
-        jobject hash_obj = (*env)->GetObjectField(env, param_obj, ptarmcls_field[M_FIELD_PTARMCHAN_MINEDHASH]);
+        jbyteArray hash_obj = (*env)->GetObjectField(env, param_obj, ptarmcls_field[M_FIELD_PTARMCHAN_MINEDHASH]);
         if(hash_obj != NULL) {
-            *ppMinedHash = hash2bytes(hash_obj);
-            LOGD("success\n");
+            btcj_buf_t *bytes = jbarray2buf(hash_obj);
+            memcpy(pMinedHash, bytes->buf, bytes->len);
+            free(bytes->buf);
+            LOGD("minedHash: ");
+            TXIDD(pMinedHash);
         } else {
             LOGD("fail: blockHash field\n");
         }
@@ -680,10 +687,11 @@ static btcj_buf_t* list2bufs(jobject list)
     return bufs;
 }
 
-static inline void check_exception(JNIEnv *env)
+static inline void _check_exception(JNIEnv *env)
 {
     if ((*env)->ExceptionCheck(env)) {
         LOGD("fail: exception!!\n");
+        abort();
         (*env)->ExceptionClear(env);
     }
 }

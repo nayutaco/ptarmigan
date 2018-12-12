@@ -217,7 +217,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 }
 
 
-bool btcrpc_get_confirm(int32_t *pConfirm, const uint8_t *pTxid)
+bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
 {
     bool ret;
     bool retval = false;
@@ -231,8 +231,11 @@ bool btcrpc_get_confirm(int32_t *pConfirm, const uint8_t *pTxid)
 
         p_confirm = json_object_get(p_result, M_CONFIRMATION);
         if (json_is_integer(p_confirm)) {
-            *pConfirm = (int32_t)json_integer_value(p_confirm);
-            retval = true;
+            uint32_t conf = (uint32_t)json_integer_value(p_confirm);
+            if (conf > 0) {
+                *pConfirm = conf;
+                retval = true;
+            }
         }
     } else {
         LOGD("fail: getrawtransaction_rpc\n");

@@ -78,7 +78,7 @@ typedef struct {
 
 typedef struct {
     bool            ret;
-    int32_t         *p_confirm;
+    uint32_t        *p_confirm;
     const uint8_t   *p_txid;
 } getconfirmation_t;
 
@@ -381,7 +381,7 @@ bool btcrpc_getgenesisblock(uint8_t *pHash)
 }
 
 
-bool btcrpc_get_confirm(int32_t *pConfirm, const uint8_t *pTxid)
+bool btcrpc_get_confirm(uint32_t *pConfirm, const uint8_t *pTxid)
 {
     if (utl_misc_all_zero(pTxid, BTC_SZ_TXID)) {
         return false;
@@ -417,7 +417,8 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
         LOGD_BTCRESULT("b_height=%" PRId32 ", b_index=%" PRId32 ", mined_hash=", *pBHeight, *pBIndex);
         TXIDD_BTCRESULT(pMinedHash);
     } else {
-        LOGD_BTCFAIL("fail\n");
+        LOGD_BTCFAIL("fail --> THROUGH\n");
+        prm.ret = true;
     }
     return prm.ret;
 }
@@ -737,6 +738,7 @@ static void *thread_jni_start(void *pArg)
 }
 
 
+//METHOD_PTARM_SETCREATIONHASH
 static void jni_set_creationhash(void *pArg)
 {
     LOGD("\n");
@@ -747,6 +749,7 @@ static void jni_set_creationhash(void *pArg)
 }
 
 
+//METHOD_PTARM_GETBLOCKCOUNT
 static void jni_get_blockcount(void *pArg)
 {
     LOGD("\n");
@@ -757,6 +760,7 @@ static void jni_get_blockcount(void *pArg)
 }
 
 
+//METHOD_PTARM_GETGENESISBLOCKHASH
 static void jni_get_genesisblockhash(void *pArg)
 {
     LOGD("\n");
@@ -766,6 +770,7 @@ static void jni_get_genesisblockhash(void *pArg)
 }
 
 
+//METHOD_PTARM_GETCONFIRMATION
 static void jni_get_txconfirm(void *pArg)
 {
     LOGD("\n");
@@ -777,26 +782,22 @@ static void jni_get_txconfirm(void *pArg)
         *p->p_confirm = (uint32_t)val;
         p->ret = true;
     } else {
-        *p->p_confirm = 0;
         p->ret = false;
     }
 }
 
 
+//METHOD_PTARM_GETSHORTCHANNELPARAM
 static void jni_get_short_channel_param(void *pArg)
 {
     LOGD("\n");
 
     getshortchannelparam_t *p = (getshortchannelparam_t *)pArg;
-    uint8_t *p_mined_hash = NULL;
-    p->ret = btcj_get_short_channel_param(p->p_peerid, p->p_b_height, p->p_b_index, &p_mined_hash);
-    if (p->ret && (p_mined_hash != NULL)) {
-        memcpy(p->p_mined_hash, p_mined_hash, BTC_SZ_HASH256);
-        free(p_mined_hash);
-    }
+    p->ret = btcj_get_short_channel_param(p->p_peerid, p->p_b_height, p->p_b_index, p->p_mined_hash);
 }
 
 
+//METHOD_PTARM_GETTXIDFROMSHORTCHANNELID
 static void jni_get_txid_from_short_channel_id(void *pArg)
 {
     LOGD("\n");
@@ -805,6 +806,7 @@ static void jni_get_txid_from_short_channel_id(void *pArg)
 }
 
 
+//METHOD_PTARM_SEARCHOUTPOINT
 static void jni_search_outpoint(void *pArg)
 {
     LOGD("\n");
@@ -820,6 +822,7 @@ static void jni_search_outpoint(void *pArg)
 }
 
 
+//METHOD_PTARM_SEARCHVOUT
 static void jni_search_vout(void *pArg)
 {
     LOGD("\n");
@@ -844,6 +847,7 @@ static void jni_search_vout(void *pArg)
 }
 
 
+//METHOD_PTARM_SIGNRAWTX
 static void jni_sign_rawtx(void *pArg)
 {
     LOGD("\n");
@@ -864,6 +868,7 @@ static void jni_sign_rawtx(void *pArg)
 }
 
 
+//METHOD_PTARM_SENDRAWTX
 static void jni_send_rawtx(void *pArg)
 {
     LOGD("\n");
@@ -874,6 +879,7 @@ static void jni_send_rawtx(void *pArg)
 }
 
 
+//METHOD_PTARM_CHECKBROADCAST
 static void jni_is_tx_broadcasted(void *pArg)
 {
     LOGD("\n");
@@ -883,6 +889,7 @@ static void jni_is_tx_broadcasted(void *pArg)
 }
 
 
+//METHOD_PTARM_CHECKUNSPENT
 static void jni_check_unspent(void *pArg)
 {
     LOGD("\n");
@@ -892,6 +899,7 @@ static void jni_check_unspent(void *pArg)
 }
 
 
+//METHOD_PTARM_GETNEWADDRESS
 static void jni_get_newaddress(void *pArg)
 {
     LOGD("\n");
@@ -902,6 +910,7 @@ static void jni_get_newaddress(void *pArg)
 }
 
 
+//METHOD_PTARM_ESTIMATEFEE
 static void jni_estimatefee(void *pArg)
 {
     LOGD("\n");
@@ -911,6 +920,7 @@ static void jni_estimatefee(void *pArg)
 }
 
 
+//METHOD_PTARM_SETCHANNEL
 static void jni_set_channel(void *pArg)
 {
     setchannel_t *p = (setchannel_t *)pArg;
@@ -935,6 +945,7 @@ static void jni_set_channel(void *pArg)
 }
 
 
+//METHOD_PTARM_SETCOMMITTXID
 static void jni_set_committxid(void *pArg)
 {
     LOGD("\n");
@@ -943,6 +954,7 @@ static void jni_set_committxid(void *pArg)
 }
 
 
+//METHOD_PTARM_GETBALANCE
 static void jni_get_balance(void *pArg)
 {
     LOGD("\n");
@@ -952,6 +964,7 @@ static void jni_get_balance(void *pArg)
 }
 
 
+//METHOD_PTARM_EMPTYWALLET
 static void jni_empty_wallet(void *pArg)
 {
     LOGD("\n");
