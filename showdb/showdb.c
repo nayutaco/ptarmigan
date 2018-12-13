@@ -663,9 +663,7 @@ static void dumpit_self(MDB_txn *txn, MDB_dbi dbi)
         }
         ln_term(p_self);
         free(p_self);
-        if (!(showflag & SHOW_SELF_WALLET)) {
-            cnt0++;
-        }
+        cnt0++;
     }
 }
 
