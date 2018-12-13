@@ -27,17 +27,17 @@ bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` sendtoaddress $NEWADDR 0.1
 bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 1
 
 # node_4444からnode_3333へチャネルを開く。
-./ptarmcli -c conf/peer3333.conf -f 600000 4445
+./ptarmcli -c conf/peer3333.conf -f 600000,300000 4445
 
 sleep 3
 
 # node_5555からnode_3333へチャネルを開く。
-./ptarmcli -c conf/peer3333.conf -f 600000 5556
+./ptarmcli -c conf/peer3333.conf -f 600000,300000 5556
 
 sleep 3
 
 # node_6666からnode_5555へチャネルを開く。
-./ptarmcli -c conf/peer5555.conf -f 600000 6667
+./ptarmcli -c conf/peer5555.conf -f 600000,300000 6667
 
 # 少し待つ
 echo wait...

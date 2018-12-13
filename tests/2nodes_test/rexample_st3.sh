@@ -23,7 +23,7 @@ bitcoin-cli -conf=`pwd`/regtest.conf -datadir=`pwd` generate 1
 sleep 5
 
 # node_4444からnode_3333へチャネルを開く。
-./ptarmcli -c conf/peer3333.conf -f 600000 4445
+./ptarmcli -c conf/peer3333.conf -f 600000,300000 4445
 
 # 少し待つ
 echo wait...
