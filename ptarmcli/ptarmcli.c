@@ -418,13 +418,22 @@ static void optfunc_funding(int *pOption, bool *pConn)
     bool bret = conf_funding_load(optarg, &fundconf);
     if (!bret) {
         //SPVの場合、funding_satoshisだけの指定でも受け付けられる
+        const char *param = strtok(optarg, ",");
         char *endp = NULL;
-        fundconf.funding_sat = (uint64_t)strtoul(optarg, &endp, 10);
+        fundconf.funding_sat = (uint64_t)strtoul(param, &endp, 10);
         if ((endp != NULL) && (*endp != 0x00)) {
             //変換失敗
             LOGD("fail: *endp = %p(%02x)\n", endp, *endp);
         } else {
             bret = true;
+        }
+        param = strtok(NULL, ",");
+        if ((param != NULL) && (*param != '\0')) {
+            fundconf.push_sat = (uint64_t)strtoul(param, &endp, 10);
+            if ((endp != NULL) && (*endp != 0x00)) {
+                //変換失敗(push_msatはエラーになっても気にしない)
+                LOGD("fail: *endp = %p(%02x)\n", endp, *endp);
+            }
         }
     }
     if (bret) {
