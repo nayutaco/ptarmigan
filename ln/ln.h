@@ -1126,6 +1126,7 @@ typedef struct {
  *  @brief      チャネル情報
  */
 struct ln_self_t {
+    //connect
     uint8_t                     peer_node_id[BTC_SZ_PUBKEY];    ///< [CONN_01]接続先ノード
     ln_nodeaddr_t               last_connected_addr;            ///< [CONN_02]最後に接続したIP address
     ln_status_t                 status;                         ///< [CONN_03]状態
@@ -1146,12 +1147,12 @@ struct ln_self_t {
     utl_buf_t                   redeem_fund;                    ///< [FUND_05]2-of-2のredeemScript
     btc_keys_sort_t             key_fund_sort;                  ///< [FUND_06]2-of-2のソート順(local, remoteを正順とした場合)
     btc_tx_t                    tx_funding;                     ///< [FUND_07]funding_tx
+    ln_establish_t              *p_establish;                   ///< [FUND_08]Establishワーク領域
+    uint32_t                    min_depth;                      ///< [FUND_09]minimum_depth
 #ifndef USE_SPV
 #else
-    uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUND_08]funding_txがマイニングされたblock hash
+    uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
 #endif
-    ln_establish_t              *p_establish;                   ///< [FUND_09]Establishワーク領域
-    uint32_t                    min_depth;                      ///< [FUND_10]minimum_depth
 
     //announce
     uint8_t                     anno_flag;                      ///< [ANNO_01]announcement_signaturesなど
@@ -1161,10 +1162,10 @@ struct ln_self_t {
     //msg:init
     uint8_t                     init_flag;                      ///< [INIT_01]initフラグ(M_INIT_FLAG_xxx)
     uint8_t                     lfeature_local;                 ///< [INIT_02]initで送信したlocalfeature
-    uint8_t                     lfeature_remote;                ///< [INIT_02]initで取得したlocalfeature
+    uint8_t                     lfeature_remote;                ///< [INIT_03]initで取得したlocalfeature
     //channel_reestablish後の処理
-    uint64_t                    reest_commit_num;               ///< [INIT_03]channel_reestablish.next_local_commitment_number
-    uint64_t                    reest_revoke_num;               ///< [INIT_04]channel_reestablish.next_remote_revocation_number
+    uint64_t                    reest_commit_num;               ///< [INIT_04]channel_reestablish.next_local_commitment_number
+    uint64_t                    reest_revoke_num;               ///< [INIT_05]channel_reestablish.next_remote_revocation_number
 
     //msg:close
     ln_closetype_t              close_type;                     ///< [CLSE_01]close状況
@@ -1184,12 +1185,12 @@ struct ln_self_t {
     uint32_t                    revoked_chk;                    ///< [REVK_07]最後にチェックしたfunding_txのconfirmation数
 
     //msg:normal operation
-    uint64_t                    htlc_id_num;                    ///< [NORM_02]update_add_htlcで使うidの管理
-    uint64_t                    our_msat;                       ///< [NORM_03]自分の持ち分
-    uint64_t                    their_msat;                     ///< [NORM_04]相手の持ち分
-    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_05]channel_id
-    uint64_t                    short_channel_id;               ///< [NORM_06]short_channel_id
-    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_07]追加したHTLC
+    uint64_t                    htlc_id_num;                    ///< [NORM_01]update_add_htlcで使うidの管理
+    uint64_t                    our_msat;                       ///< [NORM_02]自分の持ち分
+    uint64_t                    their_msat;                     ///< [NORM_03]相手の持ち分
+    uint8_t                     channel_id[LN_SZ_CHANNEL_ID];   ///< [NORM_04]channel_id
+    uint64_t                    short_channel_id;               ///< [NORM_05]short_channel_id
+    ln_update_add_htlc_t        cnl_add_htlc[LN_HTLC_MAX];      ///< [NORM_06]追加したHTLC
 
     //commitment transaction情報(local/remote)
     ln_commit_data_t            commit_local;                   ///< [COMM_01]local commit_tx用
