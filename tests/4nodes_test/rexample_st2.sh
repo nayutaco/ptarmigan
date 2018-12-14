@@ -12,6 +12,5 @@ ls -l $LD_LIBRARY_PATH/libjvm.so
 
 for i in 3333 4444 5555 6666
 do
-    rm -rf ./node_$i/dbptarm
     ./ptarmd -d ./node_$i -r -p $i &
 done
