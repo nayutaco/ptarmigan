@@ -896,10 +896,12 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
     pMsg->fee_prop_millionths = ln_misc_get32be(pData + pos);
     pos += sizeof(uint32_t);
 
+    //        [8:htlc_maximum_msat] (option_channel_htlc_max)
     if (Len >= pos + sizeof(uint64_t)) {
-        uint64_t htlc_maximum_msat = ln_misc_get64be(pData + pos);
-        //LOGD("htlc_maximum_msat: %" PRIu64 "\n", htlc_maximum_msat);
+        pMsg->htlc_maximum_msat = ln_misc_get64be(pData + pos);
         pos += sizeof(uint64_t);
+    } else {
+        pMsg->htlc_maximum_msat = 0;
     }
 
     assert(Len >= pos);
@@ -947,6 +949,9 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
     LOGD("htlc_minimum_msat= %" PRIu64 "\n", pMsg->htlc_minimum_msat);
     LOGD("fee_base_msat= %u\n", pMsg->fee_base_msat);
     LOGD("fee_prop_millionths= %u\n", pMsg->fee_prop_millionths);
+    if (pMsg->htlc_maximum_msat > 0) {
+        LOGD("htlc_maximum_msat= %" PRIu64 "\n", pMsg->htlc_maximum_msat);
+    }
     LOGD("--------------------------------\n");
 #endif  //PTARM_DEBUG
 }
