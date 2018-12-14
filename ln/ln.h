@@ -798,6 +798,7 @@ typedef struct {
     uint64_t    htlc_minimum_msat;                  ///< 8:  htlc_minimum_msat
     uint32_t    fee_base_msat;                      ///< 4:  fee_base_msat
     uint32_t    fee_prop_millionths;                ///< 4:  fee_proportional_millionths
+    uint64_t    htlc_maximum_msat;                  ///< 8:  htlc_maximum_msat(option_channel_htlc_max)
 } ln_cnl_update_t;
 
 

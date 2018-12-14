@@ -5548,6 +5548,8 @@ static bool create_channel_update(
     pUpd->fee_base_msat = self->anno_prm.fee_base_msat;
     pUpd->fee_prop_millionths = self->anno_prm.fee_prop_millionths;
     pUpd->flags = Flag | ln_sort_to_dir(sort_nodeid(self, NULL));
+#warning channel_update.htlc_maximum_msat not supported
+    pUpd->htlc_maximum_msat = 0;
     bool ret = ln_msg_cnl_update_create(pCnlUpd, pUpd);
 
     return ret;
