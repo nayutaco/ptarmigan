@@ -898,7 +898,7 @@ bool ln_msg_cnl_update_read(ln_cnl_update_t *pMsg, const uint8_t *pData, uint16_
 
     if (Len >= pos + sizeof(uint64_t)) {
         uint64_t htlc_maximum_msat = ln_misc_get64be(pData + pos);
-        LOGD("htlc_maximum_msat: %" PRIu64 "\n", htlc_maximum_msat);
+        //LOGD("htlc_maximum_msat: %" PRIu64 "\n", htlc_maximum_msat);
         pos += sizeof(uint64_t);
     }
 

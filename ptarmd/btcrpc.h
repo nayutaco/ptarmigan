@@ -218,6 +218,14 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
                 const uint8_t *pMinedHash);
 
 
+/** [bitcoin IF]channel削除
+ * delete watch channel added by #btcrpc_set_channel()
+ *
+ * @param[in]   pPeerId
+ */
+void btcrpc_del_channel(const uint8_t *pPeerId);
+
+
 /** [bitcoin IF]監視TXID設定
  *
  * @param[in]   self

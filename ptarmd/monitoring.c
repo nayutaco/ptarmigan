@@ -334,18 +334,21 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     monparam_t *p_prm = (monparam_t *)p_param;
 
-    ln_status_t stat = ln_status_get(self);
-    if ((stat != LN_STATUS_NONE) && (stat != LN_STATUS_CLOSING)) {
+    uint32_t confm;
+    bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
+    if (b_get) {
+        bool ret;
         bool del = false;
         bool unspent;
-        bool ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
+        if (ln_status_get(self) == LN_STATUS_CLOSING) {
+            ret = true;
+            unspent = false;
+        } else {
+            ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
+        }
         if (ret && !unspent) {
             //funding_tx使用済み
-            uint32_t confm;
-            bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
-            if (b_get) {
-                del = funding_spent(self, confm, p_prm->height, p_db_param);
-            }
+            del = funding_spent(self, confm, p_prm->height, p_db_param);
         } else {
             //funding_tx未使用
             lnapp_conf_t *p_app_conf = ptarmd_search_connected_cnl(ln_short_channel_id(self));
@@ -388,6 +391,10 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
                 LOGD("fail: del channel: ");
                 DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
             }
+#ifndef USE_SPV
+#else
+            btcrpc_del_channel(ln_their_node_id(self));
+#endif
         }
     }
 

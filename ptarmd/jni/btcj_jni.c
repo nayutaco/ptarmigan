@@ -88,6 +88,8 @@ const struct {
     { "estimateFee", "()J" },
     // METHOD_PTARM_SETCHANNEL,
     { "setChannel", "([BJ[BI[B[B)V" },
+    // METHOD_PTARM_DELCHANNEL,
+    { "delChannel", "([B)V" },
     // METHOD_PTARM_SETCOMMITTXID,
     { "setCommitTxid", "([BIILorg/bitcoinj/core/Sha256Hash;)V" },
     // METHOD_PTARM_GETBALANCE,
@@ -584,7 +586,7 @@ void btcj_set_channel(
     jobject blkhash = buf2jbarray(&bufmined);
 
     LOGD("sci=%016" PRIx64 "\n", sci);
-    (*env)->CallBooleanMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SETCHANNEL],
+    (*env)->CallVoidMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_SETCHANNEL],
                               aryPeer, sci, txHash, FundingIndex, aryScriptPubKey,
                               blkhash);
     LOGD("called\n");
@@ -594,6 +596,16 @@ void btcj_set_channel(
     (*env)->DeleteLocalRef(env, aryScriptPubKey);
     (*env)->DeleteLocalRef(env, txHash);
     (*env)->DeleteLocalRef(env, aryPeer);
+}
+//-----------------------------------------------------------------------------
+void btcj_del_channel(const uint8_t *pPeerId)
+{
+    const btcj_buf_t buf = { (CONST_CAST uint8_t *)pPeerId, BTC_SZ_PUBKEY };
+    jbyteArray barray = buf2jbarray(&buf);
+    (*env)->CallVoidMethod(env, ptarm_obj, ptarm_method[METHOD_PTARM_DELCHANNEL], barray);
+    check_exception(env);
+    //
+    (*env)->DeleteLocalRef(env, barray);
 }
 //-----------------------------------------------------------------------------
 // void btcj_set_committxid(const uint8_t *peerId, )

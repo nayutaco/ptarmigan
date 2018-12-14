@@ -31,6 +31,7 @@ typedef enum {
     METHOD_PTARM_GETNEWADDRESS,
     METHOD_PTARM_ESTIMATEFEE,
     METHOD_PTARM_SETCHANNEL,
+    METHOD_PTARM_DELCHANNEL,
     METHOD_PTARM_SETCOMMITTXID,
     METHOD_PTARM_GETBALANCE,
     METHOD_PTARM_EMPTYWALLET,
@@ -72,6 +73,7 @@ void btcj_set_channel(
     int FundingIndex,
     const uint8_t *pScriptPubKey,
     const uint8_t *pMinedHash);
+void btcj_del_channel(const uint8_t *pPeerId);
 // void btcj_set_committxid(const uint8_t *peerId, )
 bool btcj_getbalance(uint64_t *pAmount);
 bool btcj_emptywallet(const char *pAddr, uint8_t *pTxid);
