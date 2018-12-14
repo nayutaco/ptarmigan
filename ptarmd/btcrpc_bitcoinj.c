@@ -167,6 +167,11 @@ typedef struct {
 
 
 typedef struct {
+    const uint8_t   *p_peer_id;
+} delchannel_t;
+
+
+typedef struct {
     bool            ret;
     uint64_t        *p_amount;
 } getbalance_t;
@@ -201,6 +206,7 @@ static void jni_check_unspent(void *pArg);
 static void jni_get_newaddress(void *pArg);
 static void jni_estimatefee(void *pArg);
 static void jni_set_channel(void *pArg);
+static void jni_del_channel(void *pArg);
 static void jni_set_committxid(void *pArg);
 static void jni_get_balance(void *pArg);
 static void jni_empty_wallet(void *pArg);
@@ -264,6 +270,8 @@ static const struct {
     { jni_estimatefee },
     // METHOD_PTARM_SETCHANNEL,
     { jni_set_channel },
+    // METHOD_PTARM_DELCHANNEL,
+    { jni_del_channel },
     // METHOD_PTARM_SETCOMMITTXID,
     { jni_set_committxid },
     // METHOD_PTARM_GETBALANCE,
@@ -627,6 +635,16 @@ void btcrpc_set_channel(const uint8_t *pPeerId,
 }
 
 
+void btcrpc_del_channel(const uint8_t *pPeerId)
+{
+    LOGD_BTCTRACE("\n");
+
+    delchannel_t prm;
+    prm.p_peer_id = pPeerId;
+    call_jni(METHOD_PTARM_DELCHANNEL, &prm);
+}
+
+
 void btcrpc_set_committxid(const ln_self_t *self)
 {
     (void)self;
@@ -942,6 +960,18 @@ static void jni_set_channel(void *pArg)
                 p->fundingidx,
                 p->p_scriptpubkey,
                 p->mined_hash);
+}
+
+
+//METHOD_PTARM_DELCHANNEL
+static void jni_del_channel(void *pArg)
+{
+    delchannel_t *p = (delchannel_t *)pArg;
+
+    LOGD("peer=");
+    DUMPD(p->p_peer_id, BTC_SZ_PUBKEY);
+
+    btcj_del_channel(p->p_peer_id);
 }
 
 
