@@ -34,22 +34,26 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKw
     bool ret;
     wallet_t wallet;
     uint8_t txhash[BTC_SZ_HASH256];
+    const char *p_err_str = NULL;
 
     LOGD("sendto=%s, feerate_per_kw=%" PRIu32 "\n", pAddr, FeeratePerKw);
+    *ppResult = NULL;
 
     btc_tx_init(&wallet.tx);
     wallet.amount = 0;
 
     ln_db_wallet_search(wallet_dbfunc, &wallet);
     if (wallet.tx.vin_cnt == 0) {
-        LOGD("no input\n");
+        p_err_str = "no input";
+        LOGD("%s\n", p_err_str);
         ret = false;
         goto LABEL_EXIT;
     }
 
     ret = btc_tx_add_vout_addr(&wallet.tx, wallet.amount, pAddr); //feeを引く前
     if (!ret) {
-        LOGD("fail: btc_tx_add_vout_addr");
+        p_err_str = "fail: btc_tx_add_vout_addr";
+        LOGD("%s\n", p_err_str);
         goto LABEL_EXIT;
     }
 
@@ -65,7 +69,8 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKw
         LOGD("vbyte=%d\n", vbyte);
         uint64_t fee = (uint64_t)vbyte * (uint64_t)FeeratePerKw * 4 / 1000;
         if (fee + BTC_DUST_LIMIT > wallet.tx.vout[0].value) {
-            LOGD("fail: amount is too low to send.");
+            p_err_str = "fail: amount is too low to send.";
+            LOGD("%s\n", p_err_str);
             ret = false;
             goto LABEL_EXIT;
         }
@@ -146,6 +151,9 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKw
     btc_tx_free(&wallet.tx);
 
 LABEL_EXIT:
+    if (!ret && (p_err_str != NULL)) {
+        *ppResult = strdup(p_err_str);
+    }
     return ret;
 }
 
@@ -239,4 +247,3 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
 
     return false;       //継続
 }
-

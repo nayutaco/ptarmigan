@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
 {
     const struct option OPTIONS[] = {
         { "setfeerate", required_argument, NULL, M_OPT_SETFEERATE },
-        { "estimatefundingfee", required_argument, NULL, M_OPT_ESTIMATEFUNDINGFEE },
+        { "estimatefundingfee", optional_argument, NULL, M_OPT_ESTIMATEFUNDINGFEE },
         { "getnewaddress", no_argument, NULL, M_OPT_GETNEWADDRESS },
         { "getbalance", no_argument, NULL, M_OPT_GETBALANCE },
         { "emptywallet", required_argument, NULL, M_OPT_EMPTYWALLET },
@@ -212,40 +212,53 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-h : help\n");
         fprintf(stderr, "\t\t-t : test(not send command)\n");
         fprintf(stderr, "\t\t-q : quit ptarmd\n");
-        fprintf(stderr, "\n");
         fprintf(stderr, "\t\t-l : list channels\n");
+        fprintf(stderr, "\t\t--estimatefundingfee[=FEERATE_PER_KW]: estimate fee amount to funding\n");
+        fprintf(stderr, "\n");
+
+        fprintf(stderr, "\tCONNECT:\n");
+        fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
+#ifndef USE_SPV
+        fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF : funding\n");
+#else
+        fprintf(stderr, "\t\t-c PEER NODE_ID -f AMOUNT_SATOSHIS : funding\n");
+#endif
+        fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -w : get last error\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -q : disconnect node\n");
+        fprintf(stderr, "\n");
+
+        fprintf(stderr, "\tPAYMENT:\n");
         fprintf(stderr, "\t\t-i AMOUNT_MSAT : add preimage, and show payment_hash\n");
         fprintf(stderr, "\t\t-e PAYMENT_HASH : erase payment_hash\n");
         fprintf(stderr, "\t\t-e ALL : erase all payment_hash\n");
         fprintf(stderr, "\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment keep prev skip channel(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-m : show payment_hashs\n");
-        fprintf(stderr, "\t\t-c PEER_NODE_ID@IPADDR:PORT [--initroutesync]: connect node\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -f FUND.CONF : funding\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -x : mutual close channel\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -xforce: unilateral close channel\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -w : get last error\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -q : disconnect node\n");
         fprintf(stderr, "\n");
+
+        fprintf(stderr, "\tWALLET:\n");
 #ifndef USE_SPV
 #else
         fprintf(stderr, "\t\t--getnewaddress : get wallet address(for fund-in)\n");
         fprintf(stderr, "\t\t--getbalance : get available Bitcoin balance\n");
         fprintf(stderr, "\t\t--emptywallet BITCOIN_ADDRESS : send all Bitcoin balance\n");
 #endif
-        fprintf(stderr, "\t\t-W : show send wallet rawtransaction\n");
+        fprintf(stderr, "\t\t-W : show wallet rawtransaction\n");
         fprintf(stderr, "\n");
-        fprintf(stderr, "\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
-        fprintf(stderr, "\n");
-        // fprintf(stderr, "\t\t-a <IP address> : [debug]JSON-RPC send address\n");
-        fprintf(stderr, "\t\t--debug VALUE : [debug]debug option\n");
+
+        fprintf(stderr, "\tDEBUG:\n");
+        // fprintf(stderr, "\t\t-a <IP address> : JSON-RPC send address\n");
+        fprintf(stderr, "\t\t--debug VALUE : debug option\n");
         fprintf(stderr, "\t\t\tb0 ... no update_fulfill_htlc\n");
         fprintf(stderr, "\t\t\tb1 ... no closing transaction\n");
         fprintf(stderr, "\t\t\tb2 ... force payment_preimage mismatch\n");
         fprintf(stderr, "\t\t\tb3 ... no node auto connect\n");
-        fprintf(stderr, "\t\t-c PEER NODE_ID -g : [debug]get commitment transaction\n");
-        fprintf(stderr, "\t\t-X CHANNEL_ID : [debug]delete channel from DB\n");
+        fprintf(stderr, "\t\t-c PEER NODE_ID -g : get commitment transaction\n");
+        fprintf(stderr, "\t\t-X CHANNEL_ID : delete channel from DB\n");
         fprintf(stderr, "\t\t-s<1 or 0> : 1=stop auto channel connect\n");
+        fprintf(stderr, "\t\t--setfeerate FEERATE_PER_KW : set feerate_per_kw\n");
         return -1;
     }
 
@@ -800,28 +813,31 @@ static void optfunc_estimatefundingfee(int *pOption, bool *pConn)
     M_CHK_INIT
 
     errno = 0;
-    uint64_t feerate_per_kw = strtoull(optarg, NULL, 10);
-    if (feerate_per_kw > UINT32_MAX) {
-        strcpy(mErrStr, "feerate_per_kw too high");
-        *pOption = M_OPTIONS_ERR;
-        return;
+    uint64_t feerate_per_kw = 0;
+    if ((optarg != NULL) && (optarg[0] != '\0')) {
+        feerate_per_kw = strtoull(optarg, NULL, 10);
+        if (feerate_per_kw > UINT32_MAX) {
+            strcpy(mErrStr, "feerate_per_kw too high");
+            *pOption = M_OPTIONS_ERR;
+            return;
+        }
+        if (errno != 0) {
+            sprintf(mErrStr, "%s", strerror(errno));
+            *pOption = M_OPTIONS_ERR;
+            return;
+        }
     }
-    if (errno == 0) {
-        snprintf(mBuf, BUFFER_SIZE,
-            "{"
-                M_STR("method", "estimatefundingfee") M_NEXT
-                M_QQ("params") ":[ "
-                    //feerate_per_kw
-                    "%" PRIu32
-                " ]"
-            "}",
-                (uint32_t)feerate_per_kw);
+    snprintf(mBuf, BUFFER_SIZE,
+        "{"
+            M_STR("method", "estimatefundingfee") M_NEXT
+            M_QQ("params") ":[ "
+                //feerate_per_kw
+                "%" PRIu32
+            " ]"
+        "}",
+            (uint32_t)feerate_per_kw);
 
-        *pOption = M_OPTIONS_EXEC;
-    } else {
-        sprintf(mErrStr, "%s", strerror(errno));
-        *pOption = M_OPTIONS_ERR;
-    }
+    *pOption = M_OPTIONS_EXEC;
 }
 
 
