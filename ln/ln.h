@@ -1245,14 +1245,6 @@ void ln_term(ln_self_t *self);
  * @param[in,out]       self            channel情報
  * @param[in]           Status          設定値
  */
-void ln_status_set(ln_self_t *self, ln_status_t Status);
-
-
-/** status設定
- *
- * @param[in,out]       self            channel情報
- * @param[in]           Status          設定値
- */
 ln_status_t ln_status_get(const ln_self_t *self);
 
 

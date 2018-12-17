@@ -219,6 +219,12 @@ bool ln_db_self_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
 bool ln_db_self_save_closetype(const ln_self_t *self, void *pDbParam);
 
 
+/** status保存
+ * 
+ */
+bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam);
+
+
 /** short_channel_idが自分が持つチャネルかどうか
  *
  */

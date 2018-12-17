@@ -565,6 +565,7 @@ static const init_param_t INIT_PARAM[] = {
 static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
+static int self_item_save(const ln_self_t *self, const backup_param_t *pBackupParam, void *pDbParam);
 static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_cursor_open(lmdb_cursor_t *pCur, bool bWritable);
 static void self_cursor_close(lmdb_cursor_t *pCur);
@@ -1068,25 +1069,16 @@ bool ln_db_self_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 
 bool ln_db_self_save_closetype(const ln_self_t *self, void *pDbParam)
 {
-    int             retval;
-    MDB_val         key, data;
-    lmdb_cursor_t   *p_cur;
-
-    //self->close_typeのみ
     const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, close_type);
+    int retval = self_item_save(self, &DBSELF_KEY, pDbParam);
+    return retval == 0;
+}
 
-    p_cur = (lmdb_cursor_t *)pDbParam;
-    MDB_TXN_CHECK_SELF(p_cur->txn);
 
-    key.mv_size = strlen(DBSELF_KEY.name);
-    key.mv_data = (CONST_CAST char*)DBSELF_KEY.name;
-    data.mv_size = DBSELF_KEY.datalen;
-    data.mv_data = (uint8_t *)self + DBSELF_KEY.offset;
-    retval = mdb_put(p_cur->txn, p_cur->dbi, &key, &data, 0);
-    if (retval != 0) {
-        LOGD("fail: %s(%s)\n", mdb_strerror(retval), DBSELF_KEY.name);
-    }
-
+bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam)
+{
+    const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, status);
+    int retval = self_item_save(self, &DBSELF_KEY, pDbParam);
     return retval == 0;
 }
 
@@ -3922,6 +3914,26 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
     UTL_DBG_FREE(p_dbscript_keys);
 
 LABEL_EXIT:
+    return retval;
+}
+
+
+static int self_item_save(const ln_self_t *self, const backup_param_t *pBackupParam, void *pDbParam)
+{
+    int             retval;
+    MDB_val         key, data;
+
+    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pDbParam;
+
+    key.mv_size = strlen(pBackupParam->name);
+    key.mv_data = (CONST_CAST char*)pBackupParam->name;
+    data.mv_size = pBackupParam->datalen;
+    data.mv_data = (uint8_t *)self + pBackupParam->offset;
+    retval = mdb_put(p_cur->txn, p_cur->dbi, &key, &data, 0);
+    if (retval != 0) {
+        LOGD("fail: %s(%s)\n", mdb_strerror(retval), pBackupParam->name);
+    }
+
     return retval;
 }
 

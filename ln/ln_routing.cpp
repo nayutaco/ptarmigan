@@ -34,6 +34,7 @@
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
 #include "ln_segwit_addr.h"
+#include "utl_dbg.h"
 
 #include <iostream>
 #include <fstream>
@@ -167,7 +168,7 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
     switch (type) {
     case LN_DB_CNLANNO_ANNO:
         p_result->node_num++;
-        p_result->p_nodes = (nodes_t *)realloc(p_result->p_nodes, sizeof(nodes_t) * p_result->node_num);
+        p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_result->p_nodes, sizeof(nodes_t) * p_result->node_num);
         p_nodes = &p_result->p_nodes[p_result->node_num - 1];
 
         ln_getids_cnl_anno(
@@ -245,7 +246,7 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
         }
 
         p_prm_self->p_result->node_num++;
-        p_prm_self->p_result->p_nodes = (nodes_t *)realloc(p_prm_self->p_result->p_nodes, sizeof(nodes_t) * p_prm_self->p_result->node_num);
+        p_prm_self->p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_prm_self->p_result->p_nodes, sizeof(nodes_t) * p_prm_self->p_result->node_num);
         p_prm_self->p_result->p_nodes[p_prm_self->p_result->node_num - 1].short_channel_id = self->short_channel_id;
 
         nodes_t *p_nodes_result = &p_prm_self->p_result->p_nodes[p_prm_self->p_result->node_num - 1];
@@ -372,7 +373,7 @@ lnerr_route_t ln_routing_calculate(
         //r-filedの追加
         int node_num = rt_res.node_num;
         rt_res.node_num += AddNum;
-        rt_res.p_nodes = (nodes_t *)realloc(rt_res.p_nodes, sizeof(nodes_t) * rt_res.node_num);
+        rt_res.p_nodes = (nodes_t *)UTL_DBG_REALLOC(rt_res.p_nodes, sizeof(nodes_t) * rt_res.node_num);
 
         for (uint8_t lp = 0; lp < AddNum; lp++) {
             nodes_t *p_nodes = &rt_res.p_nodes[node_num];
@@ -494,7 +495,7 @@ lnerr_route_t ln_routing_calculate(
 
     if (p[pnt_goal] == pnt_goal) {
         LOGD("fail: cannot find route\n");
-        free(rt_res.p_nodes);
+        UTL_DBG_FREE(rt_res.p_nodes);
         return LNROUTE_NOTFOUND;
     }
 
@@ -528,7 +529,7 @@ lnerr_route_t ln_routing_calculate(
     if (route.size() > LN_HOP_MAX + 1) {
         //先頭に自ノードが入るため+1
         LOGD("fail: too many hops\n");
-        free(rt_res.p_nodes);
+        UTL_DBG_FREE(rt_res.p_nodes);
         return LNROUTE_TOOMANYHOP;
     }
 
@@ -568,7 +569,7 @@ lnerr_route_t ln_routing_calculate(
     pResult->hop_datain[pResult->hop_num - 1].outgoing_cltv_value = cltv[pResult->hop_num - 1];
     memcpy(pResult->hop_datain[pResult->hop_num - 1].pubkey, p_next, BTC_SZ_PUBKEY);
 
-    free(rt_res.p_nodes);
+    UTL_DBG_FREE(rt_res.p_nodes);
 
     return LNROUTE_NONE;
 }
