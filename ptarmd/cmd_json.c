@@ -1276,7 +1276,7 @@ LABEL_EXIT:
 }
 
 
-/** feerate_per_kw手動設定 : ptarmcli --estimatefundingfee
+/** 予想されるfunding fee : ptarmcli --estimatefundingfee
  *
  */
 static cJSON *cmd_estimatefundingfee(jrpc_context *ctx, cJSON *params, cJSON *id)
@@ -1352,7 +1352,11 @@ static cJSON *cmd_walletback(jrpc_context *ctx, cJSON *params, cJSON *id)
         UTL_DBG_FREE(p_result);
     } else {
         ctx->error_code = RPCERR_WALLET_ERR;
-        ctx->error_message = ptarmd_error_str(RPCERR_WALLET_ERR);
+        if (p_result != NULL) {
+            ctx->error_message = p_result;
+        } else {
+            ctx->error_message = ptarmd_error_str(RPCERR_WALLET_ERR);
+        }
     }
 
     return result;

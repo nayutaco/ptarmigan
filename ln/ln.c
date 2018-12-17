@@ -509,14 +509,6 @@ void ln_term(ln_self_t *self)
 }
 
 
-void ln_status_set(ln_self_t *self, ln_status_t Status)
-{
-    LOGD("status: %02x --> %02x\n", (uint8_t)self->status, Status);
-    self->status = Status;
-    M_DB_SELF_SAVE(self);
-}
-
-
 ln_status_t ln_status_get(const ln_self_t *self)
 {
     return self->status;
@@ -617,10 +609,9 @@ void ln_establish_free(ln_self_t *self)
 void ln_short_channel_id_set_param(ln_self_t *self, uint32_t Height, uint32_t Index)
 {
     uint64_t short_channel_id = ln_misc_calc_short_channel_id(Height, Index, ln_funding_txindex(self));
-    if (self->short_channel_id == 0) {
-        self->short_channel_id = short_channel_id;
-        M_DB_SELF_SAVE(self);
-    }
+    self->short_channel_id = short_channel_id;
+    self->status = LN_STATUS_NORMAL;
+    M_DB_SELF_SAVE(self);
 }
 
 
@@ -1362,7 +1353,9 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
     LOGD("BEGIN: type=%d\n", (int)self->close_type);
     if ((self->close_type == LN_CLOSETYPE_NONE) || (self->close_type == LN_CLOSETYPE_WAIT)) {
         self->close_type = LN_CLOSETYPE_SPENT;
+        self->status = LN_STATUS_CLOSING;
         ln_db_self_save_closetype(self, pDbParam);
+        ln_db_self_save_status(self, pDbParam);
     } else if (self->close_type == LN_CLOSETYPE_SPENT) {
         M_DBG_PRINT_TX(pCloseTx);
 
@@ -1399,7 +1392,9 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
                 utl_buf_free(&self->revoked_sec);
             }
         }
+        self->status = LN_STATUS_CLOSING;
         ln_db_self_save_closetype(self, pDbParam);
+        ln_db_self_save_status(self, pDbParam);
 
         //自分のchannel_updateをdisableにする(相手のは署名できないので、自分だけ)
         utl_buf_t buf_upd = UTL_BUF_INIT;
@@ -2755,7 +2750,6 @@ static bool recv_funding_created(ln_self_t *self, const uint8_t *pData, uint16_t
 
     //funding_tx安定待ち
     start_funding_wait(self, false);
-    ln_status_set(self, LN_STATUS_ESTABLISH);
 
     LOGD("END\n");
     return true;
@@ -2809,7 +2803,6 @@ static bool recv_funding_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
 
     //funding_tx安定待ち
     start_funding_wait(self, true);
-    ln_status_set(self, LN_STATUS_ESTABLISH);
 
     LOGD("END\n");
     return ret;
@@ -4117,6 +4110,8 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
     (*self->p_callback)(self, LN_CB_FUNDINGTX_WAIT, &funding);
 
     if (funding.b_result) {
+        self->status = LN_STATUS_ESTABLISH;
+
         M_DB_SECRET_SAVE(self);
         M_DB_SELF_SAVE(self);
     } else {

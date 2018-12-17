@@ -1385,7 +1385,6 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
         utl_misc_msleep(M_WAIT_RECV_MSG_MSEC);
     }
     LOGD("exchange: funding_locked\n");
-    ln_status_set(p_conf->p_self, LN_STATUS_NORMAL);
 
     //set short_channel_id
     (void)set_short_channel_id(p_conf);
@@ -1808,13 +1807,10 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 {
     //DBGTRACE_BEGIN
 
-    //funding_tx使用チェック
-    bool unspent;
-    bool ret = btcrpc_check_unspent(ln_their_node_id(p_conf->p_self), &unspent, NULL, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
-    if (ret && !unspent) {
+    ln_status_t stat = ln_status_get(p_conf->p_self);
+    if (stat == LN_STATUS_CLOSING) {
         //ループ解除
         LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
-        ln_status_set(p_conf->p_self, LN_STATUS_CLOSING);
         stop_threads(p_conf);
         return;
     }
