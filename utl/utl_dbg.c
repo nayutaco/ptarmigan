@@ -28,6 +28,7 @@
 
 #include "utl_local.h"
 #include "utl_dbg.h"
+#include "utl_log.h"
 
 
 /**************************************************************************
@@ -67,51 +68,56 @@ void utl_dbg_malloc_cnt_reset(void)
 #ifdef PTARM_DEBUG_MEM
 
 #if 1
-void HIDDEN *utl_dbg_malloc(size_t size)
+void HIDDEN *utl_dbg_malloc(size_t Size)
 {
-    void *p = malloc(size);
+    void *p = malloc(Size);
     if (p) {
         mcount++;
     }
+    LOGD("UTL_DBG_MALLOC:%d\n", utl_dbg_malloc_cnt());
     return p;
 }
 
 
-void HIDDEN *utl_dbg_realloc(void *ptr, size_t size)
+void HIDDEN *utl_dbg_realloc(void *pBuf, size_t Size)
 {
-    void *p = realloc(ptr, size);
-    if ((ptr == NULL) && p) {
+    void *p = realloc(pBuf, Size);
+    if ((pBuf == NULL) && p) {
         mcount++;
     }
+    LOGD("UTL_DBG_REALLOC:%d\n", utl_dbg_malloc_cnt());
     return p;
 }
 
 
-void HIDDEN *utl_dbg_calloc(size_t blk, size_t size)
+void HIDDEN *utl_dbg_calloc(size_t Block, size_t Size)
 {
-    void *p = calloc(blk, size);
+    void *p = calloc(Block, Size);
     if (p) {
         mcount++;
     }
+    LOGD("UTL_DBG_CALLOC:%d\n", utl_dbg_malloc_cnt());
     return p;
 }
 
-char HIDDEN *utl_dbg_strdup(const char *s)
+char HIDDEN *utl_dbg_strdup(const char *pStr)
 {
-    char *p = strdup(s);
+    char *p = strdup(pStr);
     if (p) {
         mcount++;
     }
+    LOGD("UTL_DBG_STRDUP:%d\n", utl_dbg_malloc_cnt());
     return p;
 }
 
-void HIDDEN utl_dbg_free(void *ptr)
+void HIDDEN utl_dbg_free(void *pBuf)
 {
     //NULL代入してfree()だけするパターンもあるため、NULLチェックする
-    if (ptr) {
+    if (pBuf) {
         mcount--;
     }
-    free(ptr);
+    free(pBuf);
+    LOGD("UTL_DBG_FREE:%d\n", utl_dbg_malloc_cnt());
 }
 
 
@@ -122,9 +128,9 @@ static struct {
     void *p;
 } mem[100];
 
-void HIDDEN *utl_dbg_malloc(size_t size)
+void HIDDEN *utl_dbg_malloc(size_t Size)
 {
-    void *p = malloc(size);
+    void *p = malloc(Size);
     if (p) {
         for (int lp = 0; lp < 100; lp++) {
             if (mem[lp].p == 0) {
@@ -137,23 +143,23 @@ void HIDDEN *utl_dbg_malloc(size_t size)
     } else {
         printf("0 malloc\n");
     }
-    printf("%s(%u)[%d] = %p\n", __func__, (unsigned int)size, mcount, p);
+    printf("%s(%u)[%d] = %p\n", __func__, (unsigned int)Size, mcount, p);
     return p;
 }
 
 
-void HIDDEN *utl_dbg_realloc(void *ptr, size_t size)
+void HIDDEN *utl_dbg_realloc(void *pBuf, size_t Size)
 {
-    void *p = realloc(ptr, size);
-    if (ptr && (ptr != p)) {
+    void *p = realloc(pBuf, Size);
+    if (pBuf && (pBuf != p)) {
         for (int lp = 0; lp < 100; lp++) {
-            if (mem[lp].p == ptr) {
+            if (mem[lp].p == pBuf) {
                 printf("   realloc update\n");
                 mem[lp].p = p;
                 break;
             }
         }
-    } else if ((ptr == NULL) && p) {
+    } else if ((pBuf == NULL) && p) {
         mcount++;
         for (int lp = 0; lp < 100; lp++) {
             if (mem[lp].p == 0) {
@@ -165,13 +171,13 @@ void HIDDEN *utl_dbg_realloc(void *ptr, size_t size)
     } else {
         printf("   realloc same\n");
     }
-    printf("%s(%p, %u)[%d] = %p\n", __func__, ptr, (unsigned int)size, mcount, p);
+    printf("%s(%p, %u)[%d] = %p\n", __func__, pBuf, (unsigned int)Size, mcount, p);
     return p;
 }
 
-void HIDDEN *utl_dbg_calloc(size_t blk, size_t size)
+void HIDDEN *utl_dbg_calloc(size_t Block, size_t Size)
 {
-    void *p = calloc(blk, size);
+    void *p = calloc(Block, Size);
     if (p) {
         mcount++;
         for (int lp = 0; lp < 100; lp++) {
@@ -182,13 +188,13 @@ void HIDDEN *utl_dbg_calloc(size_t blk, size_t size)
             }
         }
     }
-    printf("%s(%u, %u)[%d] = %p\n", __func__, (unsigned int)blk, (unsigned int)size, mcount, p);
+    printf("%s(%u, %u)[%d] = %p\n", __func__, (unsigned int)Block, (unsigned int)Size, mcount, p);
     return p;
 }
 
-char HIDDEN *utl_dbg_strdup(const char *s)
+char HIDDEN *utl_dbg_strdup(const char *pStr)
 {
-    char *p = strdup(s);
+    char *p = strdup(pStr);
     if (p) {
         for (int lp = 0; lp < 100; lp++) {
             if (mem[lp].p == 0) {
@@ -201,28 +207,28 @@ char HIDDEN *utl_dbg_strdup(const char *s)
     } else {
         printf("0 strdup\n");
     }
-    printf("%s(%u)[%d] = %p\n", __func__, (unsigned int)(strlen(s) + 1), mcount, p);
+    printf("%s(%u)[%d] = %p\n", __func__, (unsigned int)(strlen(pStr) + 1), mcount, p);
     return p;
 }
 
-void HIDDEN utl_dbg_free(void *ptr)
+void HIDDEN utl_dbg_free(void *pBuf)
 {
     //NULL代入してfree()だけするパターンもあるため、NULLチェックする
-    if (ptr) {
+    if (pBuf) {
         mcount--;
         for (int lp = 0; lp < 100; lp++) {
-            if (mem[lp].p == ptr) {
+            if (mem[lp].p == pBuf) {
                 mem[lp].allocs--;
                 if (mem[lp].allocs == 0) {
                     mem[lp].p = NULL;
                 }
-                printf("%s(%p) allocs:%d\n", __func__, ptr, mem[lp].allocs);
+                printf("%s(%p) allocs:%d\n", __func__, pBuf, mem[lp].allocs);
                 break;
             }
         }
     }
-    printf("%s(%p)[%d]\n", __func__, ptr, mcount);
-    free(ptr);
+    printf("%s(%p)[%d]\n", __func__, pBuf, mcount);
+    free(pBuf);
 }
 
 void utl_dbg_show_mem(void)
