@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <ctype.h>
@@ -83,15 +82,6 @@ bool utl_misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 }
 
 
-void utl_misc_datetime(char *pDateTime, size_t Len)
-{
-    struct tm tmval;
-    time_t now = time(NULL);
-    gmtime_r(&now, &tmval);
-    strftime(pDateTime, Len, "%d %b %Y %T %z", &tmval);
-}
-
-
 bool utl_misc_is_all_zero(const void *pData, size_t Len)
 {
     bool ret = true;
@@ -103,13 +93,6 @@ bool utl_misc_is_all_zero(const void *pData, size_t Len)
         }
     }
     return ret;
-}
-
-
-void utl_misc_strftime(char *pTmStr, uint32_t Tm)
-{
-    time_t tm = (time_t)Tm;
-    strftime(pTmStr, UTL_SZ_DTSTR + 1, "%Y/%m/%d %H:%M:%S", localtime(&tm));
 }
 
 

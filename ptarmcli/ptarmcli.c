@@ -30,11 +30,13 @@
 
 #include <jansson.h>
 
+#include "utl_misc.h"
+#include "utl_time.h"
+
 #include "ptarmd.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
 #include "conf.h"
-#include "utl_misc.h"
 #include "ln_segwit_addr.h"
 
 
@@ -968,7 +970,8 @@ static void routepay(int *pOption, bool bPrevSkip)
     }
     printf("amount_msat=%" PRIu64 "\n", p_invoice_data->amount_msat);
     time_t tm = (time_t)p_invoice_data->timestamp;
-    printf("timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, ctime(&tm));
+    char time[UTL_SZ_TIME_FMT_STR + 1];
+    printf("timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, utl_time_fmt(time, tm));
     printf("min_final_cltv_expiry=%u\n", p_invoice_data->min_final_cltv_expiry);
     printf("payee=");
     for (int lp = 0; lp < BTC_SZ_PUBKEY; lp++) {

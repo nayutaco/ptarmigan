@@ -12,6 +12,7 @@
 #include "segwit_addr.h"
 
 #include "utl_dbg.h"
+#include "utl_time.h"
 
 #include "ln_node.h"
 #include "ln_misc.h"
@@ -472,7 +473,8 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     //timestamp(7 chars)
     tm = (time_t)ln_convert_be64(data, 7);
     p_invoice_data->timestamp = (uint64_t)tm;
-    //LOGD("timestamp= %" PRIu64 " : %s", (uint64_t)tm, ctime(&tm));
+    char time[UTL_SZ_TIME_FMT_STR + 1];
+    LOGD("timestamp= %" PRIu64 " : %s", (uint64_t)tm, utl_time_fmt(time, tm));
 
     //tagged fields
     ret = true;

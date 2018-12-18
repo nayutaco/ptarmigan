@@ -3,7 +3,7 @@
 #   $1: short_channel_id
 #   $2: node_id
 #   $3: our_msat
-DATE=`date +"%Y-%m-%dT%H:%M:%S.%N"`
+DATE=`date -u +"%Y-%m-%dT%H:%M:%S.%N"`
 echo { \"method\": \"htlc_changed\", \"short_channel_id\": \"$1\", \"node_id\": \"$2\", \"date\": \"$DATE\", \"our_msat\": $3\" } | jq -c .
 
 ## changes in amount

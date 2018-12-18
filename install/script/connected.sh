@@ -3,7 +3,7 @@
 #   $1: short_channel_id
 #   $2: node_id
 #   $3: peer_id
-DATE=`date +"%Y-%m-%dT%H:%M:%S.%N"`
+DATE=`date -u +"%Y-%m-%dT%H:%M:%S.%N"`
 echo { \"method\": \"connected\", \"short_channel_id\": \"$1\", \"node_id\": \"$2\", \"date\": \"$DATE\", \"debug\": \"peer_id=$3\" } | jq -c .
 
 ##自動fundingしたいnode_idを列挙

@@ -36,6 +36,8 @@
 #include <getopt.h>
 #include <assert.h>
 
+#include "utl_time.h"
+
 #include "ptarmd.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
@@ -953,9 +955,8 @@ static void dumpit_preimage(MDB_txn *txn, MDB_dbi dbi)
                 printf("\",\n");
                 printf(INDENT1 M_QQ("amount") ": %" PRIu64 ",\n", preimg.amount_msat);
                 printf(INDENT1 M_QQ("expiry") ": %" PRIu32 "\n", preimg.expiry);
-                char dtstr[UTL_SZ_DTSTR];
-                utl_misc_strftime(dtstr, preimg.creation_time);
-                printf(INDENT1 M_QQ("creation") ": %s\n", dtstr);
+                char time[UTL_SZ_TIME_FMT_STR + 1];
+                printf(INDENT1 M_QQ("creation") ": %s\n", utl_time_fmt(time, preimg.creation_time));
                 printf("}");
                 cnt4++;
             }

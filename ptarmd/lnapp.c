@@ -55,13 +55,15 @@
 
 #include "cJSON.h"
 
+#include "utl_addr.h"
+#include "utl_time.h"
+
 #include "ptarmd.h"
 #include "cmd_json.h"
 #include "lnapp.h"
 #include "conf.h"
 #include "btcrpc.h"
 #include "ln_db.h"
-#include "utl_addr.h"
 
 #include "monitoring.h"
 
@@ -765,9 +767,8 @@ void lnapp_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
     }
     FILE *fp = fopen(fname, "a");
     if (fp != NULL) {
-        char date[50];
-        utl_misc_datetime(date, sizeof(date));
-        fprintf(fp, "[%s]", date);
+        char time[UTL_SZ_TIME_FMT_STR + 1];
+        fprintf(fp, "[%s]", utl_time_str_time(time));
 
         va_list ap;
         va_start(ap, pFormat);
@@ -1044,9 +1045,8 @@ static void *thread_main_start(void *pArg)
 
         FILE *fp = fopen(FNAME_CONN_LOG, "a");
         if (fp) {
-            char date[50];
-            utl_misc_datetime(date, sizeof(date));
-            fprintf(fp, "[%s]OK: %s@%s:%" PRIu16 "\n", date, peer_id, p_conf->conn_str, p_conf->conn_port);
+            char time[UTL_SZ_TIME_FMT_STR + 1];
+            fprintf(fp, "[%s]OK: %s@%s:%" PRIu16 "\n", utl_time_str_time(time), peer_id, p_conf->conn_str, p_conf->conn_port);
             fclose(fp);
         }
     }
@@ -2101,9 +2101,8 @@ static bool send_anno_pre_upd(uint64_t short_channel_id, uint32_t timestamp, uin
     uint64_t now = (uint64_t)time(NULL);
     if (ln_db_annocnlupd_is_prune(now, timestamp)) {
         //古いため送信しない
-        char tmstr[UTL_SZ_DTSTR + 1];
-        utl_misc_strftime(tmstr, timestamp);
-        LOGD("older channel_update: prune(%016" PRIx64 "): %s(now=%" PRIu32 ", tm=%" PRIu32 ")\n", short_channel_id, tmstr, now, timestamp);
+        char time[UTL_SZ_TIME_FMT_STR + 1];
+        LOGD("older channel_update: prune(%016" PRIx64 "): %s(now=%" PRIu32 ", tm=%" PRIu32 ")\n", short_channel_id, utl_time_fmt(time, timestamp), now, timestamp);
         ret = false;
     }
 

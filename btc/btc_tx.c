@@ -23,13 +23,13 @@
  *  @brief  bitcoin処理: トランザクション生成関連
  */
 #ifdef PTARM_USE_PRINTFUNC
-#include <time.h>
 #endif  //PTARM_USE_PRINTFUNC
 
 #include "mbedtls/asn1write.h"
 #include "mbedtls/ecdsa.h"
 
 #include "utl_dbg.h"
+#include "utl_time.h"
 
 #include "btc_local.h"
 #include "segwit_addr.h"
@@ -1319,8 +1319,8 @@ void btc_print_tx(const btc_tx_t *pTx)
         LOGD2("block height\n");
     } else {
         //epoch second
-        time_t tm = pTx->locktime;
-        LOGD2("epoch second: %s", ctime(&tm));
+        char time[UTL_SZ_TIME_FMT_STR + 1];
+        LOGD2("epoch second: %s", utl_time_fmt(time, pTx->locktime));
     }
     LOGD2("======================================\n");
 }
