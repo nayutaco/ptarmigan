@@ -104,6 +104,7 @@ void utl_log_write(int Pri, const char* pFname, int Line, int Flag, const char *
 
     pthread_mutex_lock(&mMux);
 
+    //write log
     va_list ap;
     time_t now = time(NULL);
     char tmstr[UTL_SZ_DTSTR + 1];
@@ -118,6 +119,7 @@ void utl_log_write(int Pri, const char* pFname, int Line, int Flag, const char *
 
     fflush(mFp);
 
+    //log rotation
     struct stat buf;
     int retval = stat(UTL_LOG_NAME, &buf);
     if ((retval == 0) && (buf.st_size >= UTL_LOG_SIZE_LIMIT)) {

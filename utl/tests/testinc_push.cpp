@@ -147,7 +147,7 @@ TEST_F(push, value0)
 
     utl_push_init(&pushbuf, &buf, 5);
 
-    utl_push_value(&pushbuf, 0);
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0));
 
     ASSERT_EQ(1, pushbuf.pos);
     ASSERT_EQ(0x00, buf.buf[0]);
@@ -163,8 +163,8 @@ TEST_F(push, value01_10)
 
     utl_push_init(&pushbuf, &buf, 5);
 
-    utl_push_value(&pushbuf, 0x01);
-    utl_push_value(&pushbuf, 0x10);
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x01));
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x10));
 
     ASSERT_EQ(2, pushbuf.pos);
     ASSERT_EQ(0x51, buf.buf[0]);
@@ -181,8 +181,8 @@ TEST_F(push, value11_7f)
 
     utl_push_init(&pushbuf, &buf, 5);
 
-    utl_push_value(&pushbuf, 0x11);
-    utl_push_value(&pushbuf, 0x7f);
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x11));
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x7f));
 
     ASSERT_EQ(4, pushbuf.pos);
     ASSERT_EQ(0x01, buf.buf[0]);
@@ -201,8 +201,8 @@ TEST_F(push, value80_7fff)
 
     utl_push_init(&pushbuf, &buf, 5);
 
-    utl_push_value(&pushbuf, 0x80);
-    utl_push_value(&pushbuf, 0x7fff);
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x80));
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x7fff));
 
     ASSERT_EQ(6, pushbuf.pos);
     ASSERT_EQ(0x02, buf.buf[0]);
@@ -223,8 +223,8 @@ TEST_F(push, value8000_7fffff)
 
     utl_push_init(&pushbuf, &buf, 5);
 
-    utl_push_value(&pushbuf, 0x8000);
-    utl_push_value(&pushbuf, 0x7fffff);
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x8000));
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x7fffff));
 
     ASSERT_EQ(8, pushbuf.pos);
     ASSERT_EQ(0x03, buf.buf[0]);
@@ -247,8 +247,8 @@ TEST_F(push, value800000_7fffffff)
 
     utl_push_init(&pushbuf, &buf, 5);
 
-    utl_push_value(&pushbuf, 0x800000);
-    utl_push_value(&pushbuf, 0x7fffffff);
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x800000));
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x7fffffff));
 
     ASSERT_EQ(10, pushbuf.pos);
     ASSERT_EQ(0x04, buf.buf[0]);
@@ -273,8 +273,8 @@ TEST_F(push, value80000000_7fffffffff)
 
     utl_push_init(&pushbuf, &buf, 5);
 
-    utl_push_value(&pushbuf, 0x80000000);
-    utl_push_value(&pushbuf, 0x7fffffffff);
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x80000000));
+    ASSERT_TRUE(utl_push_value(&pushbuf, 0x7fffffffff));
 
     ASSERT_EQ(12, pushbuf.pos);
     ASSERT_EQ(0x05, buf.buf[0]);
@@ -293,6 +293,17 @@ TEST_F(push, value80000000_7fffffffff)
     utl_buf_free(&buf);
 }
 
+TEST_F(push, invalid_value8000000000)
+{
+    utl_push_t pushbuf;
+    utl_buf_t buf;
+
+    utl_push_init(&pushbuf, &buf, 16);
+
+    ASSERT_FALSE(utl_push_value(&pushbuf, 0x8000000000));
+
+    utl_buf_free(&buf);
+}
 
 TEST_F(push, trim0)
 {

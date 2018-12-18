@@ -57,7 +57,7 @@ void utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len)
 }
 
 
-void utl_push_value(utl_push_t *pPush, uint64_t Value)
+bool utl_push_value(utl_push_t *pPush, uint64_t Value)
 {
     int len;
     uint8_t buf[7];
@@ -65,11 +65,11 @@ void utl_push_value(utl_push_t *pPush, uint64_t Value)
     if (Value == 0x00) {
         buf[0] = 0x00;
         len = 1;
-    } else if ((1 <= Value) && (Value <= 16)) {
-        //データ長が1で値が1～16の場合はOP_1～OP_16を使う
+    } else if (Value <= 16) {
+        //use OP_1 ... OP_16
         buf[0] = 0x50 + Value;
         len = 1;
-    } else {
+    } else if (Value <= __UINT64_C(0x7fffffffff)) {
         for (len = 1; len <= 6; len++) {
             if (Value < ((uint64_t)0x80 << 8 * (len - 1))) {
                 buf[0] = len;
@@ -80,8 +80,11 @@ void utl_push_value(utl_push_t *pPush, uint64_t Value)
                 break;
             }
         }
+    } else {
+        return false;
     }
     utl_push_data(pPush, buf, len);
+    return true;
 }
 
 

@@ -47,7 +47,7 @@ extern "C" {
  */
 typedef struct {
     uint32_t        pos;            ///< 次書込み位置
-    utl_buf_t     *data;          ///< 更新対象
+    utl_buf_t       *data;          ///< 更新対象
 } utl_push_t;
 
 
@@ -82,18 +82,17 @@ void utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size);
 void utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len);
 
 
-/** スタックへの値追加(符号無し)
+/** Push unsigned integer to the stack
  *
- * 1～5バイトの範囲で値を追加する。<br/>
- * スタックの値は符号ありとして処理されるが、Valueは符号無しのみとする。
+ * As a result `Value` will be 2-6 bytes on the stack.<br>
+ * Integers on the stack are interpreted as a signed.<br>
+ * However, only unsigned integers (0-549755813887) can be pushed by this function.
  *
  * @param[out]  pPush       処理対象
- * @param[in]   Value       追加データ(符号無し)
- *
- * @attention
- *      - 符号ありの値をキャストしても符号無しとして扱う。
+ * @param[in]   Value       追加データ(0-549755813887)
+ * @retval      true    success
  */
-void utl_push_value(utl_push_t *pPush, uint64_t Value);
+bool utl_push_value(utl_push_t *pPush, uint64_t Value);
 
 
 /** サイズ調整

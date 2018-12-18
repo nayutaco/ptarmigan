@@ -43,11 +43,11 @@ extern "C" {
  **************************************************************************/
 
 #ifdef PTARM_DEBUG_MEM
-void *utl_dbg_malloc(size_t);
-void *utl_dbg_realloc(void*, size_t);
-void *utl_dbg_calloc(size_t, size_t);
-char *utl_dbg_strdup(const char*);
-void  utl_dbg_free(void*);
+void *utl_dbg_malloc(size_t Size, const char* pFname, int Line, const char *pFunc);
+void *utl_dbg_realloc(void *pBuf, size_t Size, const char* pFname, int Line, const char *pFunc);
+void *utl_dbg_calloc(size_t Block, size_t Size, const char* pFname, int Line, const char *pFunc);
+char *utl_dbg_strdup(const char *pStr, const char* pFname, int Line, const char *pFunc);
+void utl_dbg_free(void *pBuf, const char* pFname, int Line, const char *pFunc);
 
 /** (デバッグ用)malloc残数取得
  * utlライブラリ内でmalloc()した回数からfree()した回数を返す。<br/>
@@ -59,17 +59,17 @@ int utl_dbg_malloc_cnt(void);
 void utl_dbg_malloc_cnt_reset(void);
 
 
-#define UTL_DBG_MALLOC(a)           utl_dbg_malloc(a); LOGD("UTL_DBG_MALLOC:%d\n", utl_dbg_malloc_cnt());         ///< malloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define UTL_DBG_REALLOC(a,b)        utl_dbg_realloc(a,b); LOGD("UTL_DBG_REALLOC:%d\n", utl_dbg_malloc_cnt());     ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define UTL_DBG_CALLOC(a,b)         utl_dbg_calloc(a,b); LOGD("UTL_DBG_CALLOC:%d\n", utl_dbg_malloc_cnt());       ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define UTL_DBG_STRDUP(a)           utl_dbg_strdup(a); LOGD("UTL_DBG_STRDUP:%d\n", utl_dbg_malloc_cnt());         ///< strdup(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
-#define UTL_DBG_FREE(ptr)         { utl_dbg_free(ptr); ptr = NULL; LOGD("UTL_DBG_FREE:%d\n", utl_dbg_malloc_cnt()); }     ///< free(カウン>ト付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define UTL_DBG_MALLOC(a)           utl_dbg_malloc(a, __FILE__, __LINE__, __func__);        ///< malloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define UTL_DBG_REALLOC(a,b)        utl_dbg_realloc(a, b, __FILE__, __LINE__, __func__);    ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define UTL_DBG_CALLOC(a,b)         utl_dbg_calloc(a, b, __FILE__, __LINE__, __func__);     ///< realloc(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define UTL_DBG_STRDUP(a)           utl_dbg_strdup(a, __FILE__, __LINE__, __func__);        ///< strdup(カウント付き)(PTARM_DEBUG_MEM定義時のみ有効)
+#define UTL_DBG_FREE(ptr)           { utl_dbg_free(ptr, __FILE__, __LINE__, __func__); ptr = NULL; }    ///< free(カウン>ト付き)(PTARM_DEBUG_MEM定義時のみ有効)
 #else   //PTARM_DEBUG_MEM
-#define UTL_DBG_MALLOC            malloc
-#define UTL_DBG_REALLOC           realloc
-#define UTL_DBG_CALLOC            calloc
-#define UTL_DBG_STRDUP            strdup
-#define UTL_DBG_FREE(ptr)         { free(ptr); ptr = NULL; }
+#define UTL_DBG_MALLOC              malloc
+#define UTL_DBG_REALLOC             realloc
+#define UTL_DBG_CALLOC              calloc
+#define UTL_DBG_STRDUP              strdup
+#define UTL_DBG_FREE(ptr)           { free(ptr); ptr = NULL; }
 
 #endif  //PTARM_DEBUG_MEM
 

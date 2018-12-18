@@ -24,26 +24,27 @@ public:
         }
         printf("\n");
     }
+
+    static void InitDummy(utl_buf_t *pBuf)
+    {
+        static uint8_t a = 123;
+        pBuf->buf = &a;
+        pBuf->len = 12345;
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////
 
 TEST_F(buf, init)
 {
-    utl_buf_t buf = UTL_BUF_INIT;
-
-    uint8_t a;
-
-    buf.buf = &a;
-    buf.len = sizeof(a);
+    utl_buf_t buf;
+    InitDummy(&buf);
 
     utl_buf_init(&buf);
-
     ASSERT_TRUE(NULL == buf.buf);
     ASSERT_EQ(0, buf.len);
 
     utl_buf_free(&buf);
-
     ASSERT_TRUE(NULL == buf.buf);
     ASSERT_EQ(0, buf.len);
 }
@@ -51,19 +52,31 @@ TEST_F(buf, init)
 TEST_F(buf, alloc)
 {
     utl_buf_t buf;
-
-    uint8_t a;
-
-    buf.buf = &a;
-    buf.len = sizeof(a);
+    InitDummy(&buf);
 
     utl_buf_alloc(&buf, 10);
-
     ASSERT_TRUE(NULL != buf.buf);
     ASSERT_EQ(10, buf.len);
 
     utl_buf_free(&buf);
+    ASSERT_TRUE(NULL == buf.buf);
+    ASSERT_EQ(0, buf.len);
+}
 
+TEST_F(buf, realloc)
+{
+    utl_buf_t buf;
+    InitDummy(&buf);
+
+    utl_buf_alloc(&buf, 10);
+    ASSERT_TRUE(NULL != buf.buf);
+    ASSERT_EQ(10, buf.len);
+
+    utl_buf_realloc(&buf, 20);
+    ASSERT_TRUE(NULL != buf.buf);
+    ASSERT_EQ(20, buf.len);
+
+    utl_buf_free(&buf);
     ASSERT_TRUE(NULL == buf.buf);
     ASSERT_EQ(0, buf.len);
 }
@@ -71,25 +84,48 @@ TEST_F(buf, alloc)
 TEST_F(buf, alloccopy)
 {
     utl_buf_t buf;
-
-    uint8_t a;
-
-    buf.buf = &a;
-    buf.len = sizeof(a);
+    InitDummy(&buf);
 
     const uint8_t BUF[] = {
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
     };
-
     utl_buf_alloccopy(&buf, BUF, sizeof(BUF));
-
     ASSERT_TRUE(NULL != buf.buf);
     ASSERT_NE(BUF, buf.buf);
     ASSERT_EQ(sizeof(BUF), buf.len);
     ASSERT_EQ(0, memcmp(BUF, buf.buf, sizeof(BUF)));
 
     utl_buf_free(&buf);
-
     ASSERT_TRUE(NULL == buf.buf);
     ASSERT_EQ(0, buf.len);
+}
+
+TEST_F(buf, cmp)
+{
+    utl_buf_t buf;
+    utl_buf_t buf2;
+    utl_buf_t buf3;
+    InitDummy(&buf);
+    InitDummy(&buf2);
+    InitDummy(&buf3);
+
+    const uint8_t BUF[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    };
+    const uint8_t BUF2[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    };
+
+    utl_buf_alloccopy(&buf, BUF, sizeof(BUF));
+    utl_buf_alloccopy(&buf2, BUF2, sizeof(BUF2));
+    utl_buf_alloccopy(&buf3, BUF2, sizeof(BUF2));
+
+    ASSERT_TRUE(utl_buf_cmp(&buf, &buf));
+    ASSERT_FALSE(utl_buf_cmp(&buf, &buf2));
+    ASSERT_TRUE(utl_buf_cmp(&buf2, &buf3));
+
+    utl_buf_free(&buf);
+    utl_buf_free(&buf2);
+    utl_buf_free(&buf3);
 }
