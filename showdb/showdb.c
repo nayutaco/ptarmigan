@@ -207,9 +207,9 @@ static void ln_print_self(const ln_self_t *self)
     char str_sci[LN_SZ_SHORTCHANNELID_STR];
     ln_short_channel_id_string(str_sci, self->short_channel_id);
     printf(INDENT4 M_QQ("str") ": " M_QQ("%s") ",\n", str_sci);
-    printf(INDENT4 M_QQ("block height") ": %" PRIu32 ",\n", height);
-    printf(INDENT4 M_QQ("block index") ": %" PRIu32 ",\n", bindex);
-    printf(INDENT4 M_QQ("tx vout") ": %" PRIu32 "\n", vindex);
+    printf(INDENT4 M_QQ("block_height") ": %" PRIu32 ",\n", height);
+    printf(INDENT4 M_QQ("block_index") ": %" PRIu32 ",\n", bindex);
+    printf(INDENT4 M_QQ("tx_vout") ": %" PRIu32 "\n", vindex);
     printf(INDENT3 "},\n");
 
     //amount
@@ -255,7 +255,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 "},\n");
 #ifndef USE_SPV
 #else
-    printf(INDENT3 M_QQ("mined block") ": \"");
+    printf(INDENT3 M_QQ("mined_block") ": \"");
     btc_util_dumptxid(stdout, self->funding_bhash);
     printf("\",\n");
 #endif
@@ -334,8 +334,8 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT4 M_QQ("close_type") ": " M_QQ("%s") ",\n", p_str_close_type);
     printf(INDENT4 M_QQ("shutdown_flag") ": {\n");
     printf(INDENT5 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->shutdown_flag);
-    printf(INDENT5 M_QQ("shutdown send") ": %d,\n", (self->shutdown_flag & 0x01) == 0x01);
-    printf(INDENT5 M_QQ("shutdown recv") ": %d\n", (self->shutdown_flag & 0x02) == 0x02);
+    printf(INDENT5 M_QQ("shutdown_send") ": %d,\n", (self->shutdown_flag & 0x01) == 0x01);
+    printf(INDENT5 M_QQ("shutdown_recv") ": %d\n", (self->shutdown_flag & 0x02) == 0x02);
     printf(INDENT4 "},\n");
     printf(INDENT4 M_QQ("local_scriptPubKey") ": \"");
     btc_util_dumpbin(stdout, self->shutdown_scriptpk_local.buf, self->shutdown_scriptpk_local.len, false);
@@ -692,7 +692,44 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
     }
     printf(INDENT1 "\"");
     btc_util_dumptxid(stdout, pWallet->p_txid);
-    printf(":%d\": %" PRIu64, pWallet->index, pWallet->amount);
+    printf(":%d\": {\n", pWallet->index);
+    const char *p_type_str;
+    switch (pWallet->type) {
+    case LN_DB_WALLET_TYPE_TOLOCAL:
+        p_type_str = "to_local output";
+        break;
+    case LN_DB_WALLET_TYPE_TOREMOTE:
+        p_type_str = "to_remote output";
+        break;
+    case LN_DB_WALLET_TYPE_HTLCOUT:
+        p_type_str = "HTLC_tx output";
+        break;
+    default:
+        p_type_str = "unknown";
+    }
+    printf(INDENT2 M_QQ("type") ": " M_QQ("%s") ",\n", p_type_str);
+    printf(INDENT2 M_QQ("amount") ": %" PRIu64 ",\n", pWallet->amount);
+    printf(INDENT2 M_QQ("sequence") ": %" PRIu32 ",\n", pWallet->sequence);
+    printf(INDENT2 M_QQ("locktime") ": %" PRIu32 ",\n", pWallet->locktime);
+    if (pWallet->wit_cnt > 0) {
+        printf(INDENT2 M_QQ("privkey") ": \"");
+        btc_util_dumpbin(stdout, pWallet->p_wit[0].buf, pWallet->p_wit[0].len, false);
+        printf("\",\n");
+    }
+    if (pWallet->wit_cnt > 1) {
+        printf(INDENT2 M_QQ("witness") ": [\n");
+        for (uint32_t lp = 1; lp < pWallet->wit_cnt; lp++) {
+            if (lp > 1) {
+                printf(",\n");
+            }
+            printf(INDENT3 "\"");
+            btc_util_dumpbin(stdout, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len, false);
+            printf("\"");
+        }
+        printf("\n");
+        printf(INDENT2 "]\n");
+    }
+    printf(INDENT1 "}\n");
     // printf("cnt=%d\n", pWallet->wit_cnt);
     // for (uint8_t lp = 0; lp < pWallet->wit_cnt; lp++) {
     //     printf("[%d][%d]", lp, pWallet->p_wit[lp].len);
@@ -1009,7 +1046,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
             printf(INDENT2 M_QQ("version") ": %d", version);
             if (version > 0) {
                 printf(",\n");
-                printf(INDENT2 M_QQ("creation bhash") ": \"");
+                printf(INDENT2 M_QQ("creation_bhash") ": \"");
                 btc_util_dumptxid(stdout, ln_creationhash_get());
                 printf("\"");
             }
