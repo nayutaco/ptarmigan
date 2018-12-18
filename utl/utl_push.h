@@ -60,13 +60,14 @@ typedef struct {
  * @param[out]  pPush       処理対象
  * @param[in]   pBuf        更新していくutl_buf_t
  * @param[in]   Size        初期サイズ
+ * @return      true        success
  *
  * @note
  *      - データ追加時に初期サイズより領域が必要になれば拡張しているが、
  *          realloc()を繰り返すことになるので、必要なサイズ以上を確保した方が望ましい。
  *      - pDataは解放せず初期化して使用するため、必要なら先に解放すること。
  */
-void utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size);
+bool utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size);
 
 
 /** データ追加
@@ -74,12 +75,13 @@ void utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size);
  * @param[out]  pPush       処理対象
  * @param[in]   pData       追加データ
  * @param[in]   Len         pData長
+ * @return      true        success
  *
  * @note
  *      - 初期化時のサイズからあふれる場合、realloc()して拡張する。
  *      - そのまま追加するため、OP_PUSHDATAxなどは呼び出し元で行うこと。
  */
-void utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len);
+bool utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len);
 
 
 /** Push unsigned integer to the stack
@@ -100,8 +102,9 @@ bool utl_push_value(utl_push_t *pPush, uint64_t Value);
  * utl_buf_tのサイズをutl_push_tで管理しているサイズにあわせる。
  *
  * @param[out]  pPush       処理対象
+ * @return      true        success
  */
-void utl_push_trim(utl_push_t *pPush);
+bool utl_push_trim(utl_push_t *pPush);
 
 
 #ifdef __cplusplus

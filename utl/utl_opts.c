@@ -90,6 +90,7 @@ bool utl_opts_parse(utl_opt_t *opts, int argc, const char* const argv[])
         if (info->is_set) goto LABEL_EXIT;
         if (info->arg && p) {
             info->param = UTL_DBG_STRDUP(p + 1);
+            if (!info->param) goto LABEL_EXIT;
         } else if (!info->arg && !p) {
         } else {
             goto LABEL_EXIT;
@@ -101,6 +102,7 @@ bool utl_opts_parse(utl_opt_t *opts, int argc, const char* const argv[])
         utl_opt_t *info = &opts[i];
         if (!info->is_set && info->param_default) {
             info->param = UTL_DBG_STRDUP(info->param_default);
+            if (!info->param) goto LABEL_EXIT;
             info->is_set = true;
         }
     }
