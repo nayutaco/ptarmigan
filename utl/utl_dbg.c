@@ -68,56 +68,56 @@ void utl_dbg_malloc_cnt_reset(void)
 #ifdef PTARM_DEBUG_MEM
 
 #if 1
-void HIDDEN *utl_dbg_malloc(size_t Size)
+void HIDDEN *utl_dbg_malloc(size_t Size, const char* pFname, int Line, const char *pFunc)
 {
     void *p = malloc(Size);
     if (p) {
         mcount++;
     }
-    LOGD("UTL_DBG_MALLOC:%d\n", utl_dbg_malloc_cnt());
+    LOGD("UTL_DBG_MALLOC:%d -- %s[%d]\n", utl_dbg_malloc_cnt(), pFname, Line);
     return p;
 }
 
 
-void HIDDEN *utl_dbg_realloc(void *pBuf, size_t Size)
+void HIDDEN *utl_dbg_realloc(void *pBuf, size_t Size, const char* pFname, int Line, const char *pFunc)
 {
     void *p = realloc(pBuf, Size);
     if ((pBuf == NULL) && p) {
         mcount++;
     }
-    LOGD("UTL_DBG_REALLOC:%d\n", utl_dbg_malloc_cnt());
+    LOGD("UTL_DBG_REALLOC:%d -- %s[%d]\n", utl_dbg_malloc_cnt(), pFname, Line);
     return p;
 }
 
 
-void HIDDEN *utl_dbg_calloc(size_t Block, size_t Size)
+void HIDDEN *utl_dbg_calloc(size_t Block, size_t Size, const char* pFname, int Line, const char *pFunc)
 {
     void *p = calloc(Block, Size);
     if (p) {
         mcount++;
     }
-    LOGD("UTL_DBG_CALLOC:%d\n", utl_dbg_malloc_cnt());
+    LOGD("UTL_DBG_CALLOC:%d -- %s[%d]\n", utl_dbg_malloc_cnt(), pFname, Line);
     return p;
 }
 
-char HIDDEN *utl_dbg_strdup(const char *pStr)
+char HIDDEN *utl_dbg_strdup(const char *pStr, const char* pFname, int Line, const char *pFunc)
 {
     char *p = strdup(pStr);
     if (p) {
         mcount++;
     }
-    LOGD("UTL_DBG_STRDUP:%d\n", utl_dbg_malloc_cnt());
+    LOGD("UTL_DBG_STRDUP:%d -- %s[%d]\n", utl_dbg_malloc_cnt(), pFname, Line);
     return p;
 }
 
-void HIDDEN utl_dbg_free(void *pBuf)
+void HIDDEN utl_dbg_free(void *pBuf, const char* pFname, int Line, const char *pFunc)
 {
     //NULL代入してfree()だけするパターンもあるため、NULLチェックする
     if (pBuf) {
         mcount--;
     }
     free(pBuf);
-    LOGD("UTL_DBG_FREE:%d\n", utl_dbg_malloc_cnt());
+    LOGD("UTL_DBG_FREE:%d -- %s[%d]\n", utl_dbg_malloc_cnt(), pFname, Line);
 }
 
 
@@ -128,7 +128,7 @@ static struct {
     void *p;
 } mem[100];
 
-void HIDDEN *utl_dbg_malloc(size_t Size)
+void HIDDEN *utl_dbg_malloc(size_t Size, const char* pFname, int Line, const char *pFunc)
 {
     void *p = malloc(Size);
     if (p) {
@@ -148,7 +148,7 @@ void HIDDEN *utl_dbg_malloc(size_t Size)
 }
 
 
-void HIDDEN *utl_dbg_realloc(void *pBuf, size_t Size)
+void HIDDEN *utl_dbg_realloc(void *pBuf, size_t Size, const char* pFname, int Line, const char *pFunc)
 {
     void *p = realloc(pBuf, Size);
     if (pBuf && (pBuf != p)) {
@@ -175,7 +175,7 @@ void HIDDEN *utl_dbg_realloc(void *pBuf, size_t Size)
     return p;
 }
 
-void HIDDEN *utl_dbg_calloc(size_t Block, size_t Size)
+void HIDDEN *utl_dbg_calloc(size_t Block, size_t Size, const char* pFname, int Line, const char *pFunc)
 {
     void *p = calloc(Block, Size);
     if (p) {
@@ -192,7 +192,7 @@ void HIDDEN *utl_dbg_calloc(size_t Block, size_t Size)
     return p;
 }
 
-char HIDDEN *utl_dbg_strdup(const char *pStr)
+char HIDDEN *utl_dbg_strdup(const char *pStr, const char* pFname, int Line, const char *pFunc)
 {
     char *p = strdup(pStr);
     if (p) {
@@ -211,7 +211,7 @@ char HIDDEN *utl_dbg_strdup(const char *pStr)
     return p;
 }
 
-void HIDDEN utl_dbg_free(void *pBuf)
+void HIDDEN utl_dbg_free(void *pBuf, const char* pFname, int Line, const char *pFunc)
 {
     //NULL代入してfree()だけするパターンもあるため、NULLチェックする
     if (pBuf) {
