@@ -26,6 +26,7 @@
 #include <time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <ctype.h>
 
 #include "utl_local.h"
 #include "utl_misc.h"
@@ -55,25 +56,12 @@ bool utl_misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
     for (lp = 0; lp < BinLen; lp++) {
         str[0] = *(pStr + 2 * lp);
         str[1] = *(pStr + 2 * lp + 1);
-        if (!str[0]) {
-            //偶数文字で\0ならばOK
-            break;
-        }
-        if (!str[1]) {
-            //奇数文字で\0ならばNG
-            LOGD("fail: odd length\n");
+        if (!isxdigit(str[0]) || !isxdigit(str[1])) {
+            LOGD("fail: str=%s\n", str);
             ret = false;
             break;
         }
-        char *endp = NULL;
-        uint8_t bin = (uint8_t)strtoul(str, &endp, 16);
-        if ((endp != NULL) && (*endp != 0x00)) {
-            //変換失敗
-            LOGD("fail: *endp = %p(%02x)\n", endp, *endp);
-            ret = false;
-            break;
-        }
-        pBin[lp] = bin;
+        pBin[lp] = (uint8_t)strtoul(str, NULL, 16);
     }
 
     return ret;

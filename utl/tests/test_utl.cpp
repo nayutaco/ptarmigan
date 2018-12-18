@@ -37,10 +37,11 @@ TEST_F(utl, first)
 }
 
 
-#include "testinc_buf.cpp"
-#include "testinc_push.cpp"
-#include "testinc_net.cpp"
-#include "testinc_str.cpp"
-#include "testinc_opts.cpp"
-#include "testinc_jsonrpc.cpp"
 #include "testinc_addr.cpp"
+#include "testinc_buf.cpp"
+#include "testinc_jsonrpc.cpp"
+#include "testinc_misc.cpp"
+#include "testinc_net.cpp"
+#include "testinc_opts.cpp"
+#include "testinc_push.cpp"
+#include "testinc_str.cpp"
