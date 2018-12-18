@@ -78,19 +78,21 @@ void utl_buf_free(utl_buf_t *pBuf);
  *
  * @param[out]      pBuf        処理対象
  * @param[in]       Size        確保するメモリサイズ
+ * @return          true        success
  *
  * @note
  *      - #utl_buf_init()の代わりに使用できるが、元の領域は解放しない
  */
-void utl_buf_alloc(utl_buf_t *pBuf, uint32_t Size);
+bool utl_buf_alloc(utl_buf_t *pBuf, uint32_t Size);
 
 
 /** #utl_buf_t へのメモリ再確保
  *
  * @param[out]      pBuf        処理対象
  * @param[in]       Size        確保するメモリサイズ
+ * @return          true        success
  */
-void utl_buf_realloc(utl_buf_t *pBuf, uint32_t Size);
+bool utl_buf_realloc(utl_buf_t *pBuf, uint32_t Size);
 
 
 /** #utl_buf_t へのメモリ確保及びデータコピー
@@ -98,18 +100,19 @@ void utl_buf_realloc(utl_buf_t *pBuf, uint32_t Size);
  * @param[out]      pBuf        処理対象
  * @param[in]       pData       対象データ
  * @param[in]       Len         pData長
+ * @return          true        success
  *
  * @note
  *      - #utl_buf_init()の代わりに使用できるが、元の領域は解放しない
  */
-void utl_buf_alloccopy(utl_buf_t *pBuf, const uint8_t *pData, uint32_t Len);
+bool utl_buf_alloccopy(utl_buf_t *pBuf, const uint8_t *pData, uint32_t Len);
 
 
 /** #utl_buf_t の比較
  *
  * @param[in]       pBuf1       比較対象1
  * @param[in]       pBuf2       比較対象2
- * @retval      true        一致
+ * @retval          true        一致
  */
 bool utl_buf_cmp(const utl_buf_t *pBuf1, const utl_buf_t *pBuf2);
 

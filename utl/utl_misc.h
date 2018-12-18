@@ -41,8 +41,6 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#define UTL_SZ_DTSTR          (19)            ///< サイズ:utl_misc_strftime()  // 2018/06/12 09:36:36
-
 
 /**************************************************************************
  * prototypes
@@ -77,21 +75,13 @@ bool utl_misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 bool utl_misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr);
 
 
-/** 現在日時取得
- *
- * @param[out]      pDateTime       現在日時
- * @param[in]       Len             pDataTimeバッファサイズ
- */
-void utl_misc_datetime(char *pDateTime, size_t Len);
-
-
 /** 全データが0x00かのチェック
  *
  * @param[in]       pData               チェック対象
  * @param[in]       Len                 pData長
  * @retval  true    全データが0x00
  */
-bool utl_misc_all_zero(const void *pData, size_t Len);
+bool utl_misc_is_all_zero(const void *pData, size_t Len);
 
 
 /** 16進数文字列に変換
@@ -110,12 +100,6 @@ void utl_misc_bin2str(char *pStr, const uint8_t *pBin, uint32_t BinLen);
  * @param[in]       BinLen      pBin長
  */
 void utl_misc_bin2str_rev(char *pStr, const uint8_t *pBin, uint32_t BinLen);
-
-
-/** 日時文字列
- *
- */
-void utl_misc_strftime(char *pTmStr, uint32_t Tm);
 
 
 /** convert uint8_t[] --> uint16_t

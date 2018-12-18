@@ -37,6 +37,8 @@
 
 #include "cJSON.h"
 
+#include "utl_time.h"
+
 #include "ptarmd.h"
 #include "p2p_cli.h"
 #include "lnapp.h"
@@ -173,9 +175,8 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
             char peer_id[BTC_SZ_PUBKEY * 2 + 1];
             utl_misc_bin2str(peer_id, pConn->node_id, BTC_SZ_PUBKEY);
 
-            char date[50];
-            utl_misc_datetime(date, sizeof(date));
-            fprintf(fp, "[%s]fail: %s@%s:%" PRIu16 "\n", date, peer_id, pConn->ipaddr, pConn->port);
+            char time[UTL_SZ_TIME_FMT_STR + 1];
+            fprintf(fp, "[%s]fail: %s@%s:%" PRIu16 "\n", utl_time_str_time(time), peer_id, pConn->ipaddr, pConn->port);
             fclose(fp);
         }
 

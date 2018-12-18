@@ -11,7 +11,7 @@ if [ $# -ne 3 ]; then
 	return 1
 fi
 
-FUNDIN_CONF=fund_`date +%Y%m%d%H%M%S`.conf
+FUNDIN_CONF=fund_`date -u +%Y%m%d%H%M%S`.conf
 FUNDIN_BTC=`echo "scale=10; $1/100000000" | bc`
 FUNDIN_BTC=`printf "%.8f" $FUNDIN_BTC`
 FUND_SAT=$2

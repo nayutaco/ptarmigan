@@ -101,8 +101,8 @@ static struct valid_invoice_data ln_valid_invoice[] = {
 //         fprintf(stderr, "unknown hrp_type\n");
 //     }
 //     fprintf(stderr, "amount_msat=%" PRIu64 "\n", p_invoice_data->amount_msat);
-//     time_t tm = (time_t)p_invoice_data->timestamp;
-//     fprintf(stderr, "timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, ctime(&tm));
+//     char time[UTL_SZ_TIME_FMT_STR + 1];
+//     fprintf(stderr, "timestamp= %" PRIu64 " : %s", (uint64_t)p_invoice_data->timestamp, utl_time_fmt(time, p_invoice_data->timestamp));
 //     fprintf(stderr, "min_final_cltv_expiry=%u\n", p_invoice_data->min_final_cltv_expiry);
 //     fprintf(stderr, "pubkey=");
 //     for (int lp = 0; lp < BTC_SZ_PUBKEY; lp++) {

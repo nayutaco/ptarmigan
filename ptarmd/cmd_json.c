@@ -30,6 +30,8 @@
 #include <linux/limits.h>
 #include <assert.h>
 
+#include "utl_time.h"
+
 #include "jsonrpc-c.h"
 #include "ln_segwit_addr.h"
 
@@ -677,9 +679,8 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
             utl_misc_bin2str(str_hash, preimage_hash, BTC_SZ_HASH256);
             cJSON_AddItemToObject(json, "hash", cJSON_CreateString(str_hash));
             cJSON_AddItemToObject(json, "amount_msat", cJSON_CreateNumber64(preimg.amount_msat));
-            char dtstr[UTL_SZ_DTSTR];
-            utl_misc_strftime(dtstr, preimg.creation_time);
-            cJSON_AddItemToObject(json, "creation_time", cJSON_CreateString(dtstr));
+            char time[UTL_SZ_TIME_FMT_STR + 1];
+            cJSON_AddItemToObject(json, "creation_time", cJSON_CreateString(utl_time_fmt(time, preimg.creation_time)));
             if (preimg.expiry != UINT32_MAX) {
                 cJSON_AddItemToObject(json, "expiry", cJSON_CreateNumber(preimg.expiry));
                 // ln_fieldr_t *p_rfield = NULL;
@@ -949,9 +950,8 @@ LABEL_EXIT:
             fprintf(fp, "amount_msat: %" PRIu64 "\n", p_invoice_data->amount_msat);
             fprintf(fp, "current blockcount: %" PRId32 "\n", blockcnt);
             fprintf(fp, "min_final_cltv_expiry: %" PRId32 "\n", p_invoice_data->min_final_cltv_expiry);
-            char dt[UTL_SZ_DTSTR + 1];
-            utl_misc_strftime(dt, p_invoice_data->timestamp);
-            fprintf(fp, "timestamp: %s\n", dt);
+            char time[UTL_SZ_TIME_FMT_STR + 1];
+            fprintf(fp, "timestamp: %s\n", utl_time_fmt(time, p_invoice_data->timestamp));
             fprintf(fp, "\n----------- route -----------\n");
             for (int lp = 0; lp < rt_ret.hop_num; lp++) {
                 char str_pubkey[BTC_SZ_PUBKEY * 2 + 1];
@@ -975,12 +975,11 @@ LABEL_EXIT:
         ln_db_invoice_del(p_invoice_data->payment_hash);
 
         //最後に失敗した時間
-        char date[50];
-        utl_misc_datetime(date, sizeof(date));
         char str_payhash[BTC_SZ_HASH256 * 2 + 1];
         utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
 
-        sprintf(mLastPayErr, "[%s]fail payment: %s", date, str_payhash);
+        char time[UTL_SZ_TIME_FMT_STR + 1];
+        sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
         LOGD("%s\n", mLastPayErr);
         lnapp_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
 

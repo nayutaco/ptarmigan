@@ -54,7 +54,7 @@ TEST_F(buf, alloc)
     utl_buf_t buf;
     InitDummy(&buf);
 
-    utl_buf_alloc(&buf, 10);
+    ASSERT_TRUE(utl_buf_alloc(&buf, 10));
     ASSERT_TRUE(NULL != buf.buf);
     ASSERT_EQ(10, buf.len);
 
@@ -68,11 +68,11 @@ TEST_F(buf, realloc)
     utl_buf_t buf;
     InitDummy(&buf);
 
-    utl_buf_alloc(&buf, 10);
+    ASSERT_TRUE(utl_buf_alloc(&buf, 10));
     ASSERT_TRUE(NULL != buf.buf);
     ASSERT_EQ(10, buf.len);
 
-    utl_buf_realloc(&buf, 20);
+    ASSERT_TRUE(utl_buf_realloc(&buf, 20));
     ASSERT_TRUE(NULL != buf.buf);
     ASSERT_EQ(20, buf.len);
 
@@ -89,7 +89,7 @@ TEST_F(buf, alloccopy)
     const uint8_t BUF[] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
     };
-    utl_buf_alloccopy(&buf, BUF, sizeof(BUF));
+    ASSERT_TRUE(utl_buf_alloccopy(&buf, BUF, sizeof(BUF)));
     ASSERT_TRUE(NULL != buf.buf);
     ASSERT_NE(BUF, buf.buf);
     ASSERT_EQ(sizeof(BUF), buf.len);
@@ -117,9 +117,9 @@ TEST_F(buf, cmp)
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
     };
 
-    utl_buf_alloccopy(&buf, BUF, sizeof(BUF));
-    utl_buf_alloccopy(&buf2, BUF2, sizeof(BUF2));
-    utl_buf_alloccopy(&buf3, BUF2, sizeof(BUF2));
+    ASSERT_TRUE(utl_buf_alloccopy(&buf, BUF, sizeof(BUF)));
+    ASSERT_TRUE(utl_buf_alloccopy(&buf2, BUF2, sizeof(BUF2)));
+    ASSERT_TRUE(utl_buf_alloccopy(&buf3, BUF2, sizeof(BUF2)));
 
     ASSERT_TRUE(utl_buf_cmp(&buf, &buf));
     ASSERT_FALSE(utl_buf_cmp(&buf, &buf2));

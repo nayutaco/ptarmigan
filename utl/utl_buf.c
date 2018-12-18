@@ -53,28 +53,31 @@ void utl_buf_free(utl_buf_t *pBuf)
 }
 
 
-void utl_buf_alloc(utl_buf_t *pBuf, uint32_t Size)
+bool utl_buf_alloc(utl_buf_t *pBuf, uint32_t Size)
 {
     pBuf->len = Size;
     pBuf->buf = (uint8_t *)UTL_DBG_MALLOC(Size);
+    return pBuf->buf != NULL;
 }
 
 
-void utl_buf_realloc(utl_buf_t *pBuf, uint32_t Size)
+bool utl_buf_realloc(utl_buf_t *pBuf, uint32_t Size)
 {
     pBuf->len = Size;
     pBuf->buf = (uint8_t *)UTL_DBG_REALLOC(pBuf->buf, Size);
+    return pBuf->buf != NULL;
 }
 
 
-void utl_buf_alloccopy(utl_buf_t *pBuf, const uint8_t *pData, uint32_t Len)
+bool utl_buf_alloccopy(utl_buf_t *pBuf, const uint8_t *pData, uint32_t Len)
 {
     if (Len > 0) {
-        utl_buf_alloc(pBuf, Len);
+        if (!utl_buf_alloc(pBuf, Len)) return false;
         memcpy(pBuf->buf, pData, Len);
     } else {
         utl_buf_init(pBuf);
     }
+    return true;
 }
 
 

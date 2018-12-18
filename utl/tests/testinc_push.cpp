@@ -33,7 +33,7 @@ TEST_F(push, init)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     ASSERT_EQ(0, pushbuf.pos);
     ASSERT_TRUE(NULL != buf.buf);
@@ -48,7 +48,7 @@ TEST_F(push, init_zero)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 0);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 0));
 
     ASSERT_EQ(0, pushbuf.pos);
     ASSERT_TRUE(NULL == buf.buf);
@@ -61,10 +61,10 @@ TEST_F(push, data_in1)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     const uint8_t DATA[] = { 1, 2, 3 };
-    utl_push_data(&pushbuf, DATA, sizeof(DATA));
+    ASSERT_TRUE(utl_push_data(&pushbuf, DATA, sizeof(DATA)));
 
     ASSERT_EQ(3, pushbuf.pos);
     ASSERT_EQ(0, memcmp(DATA, buf.buf, sizeof(DATA)));
@@ -79,13 +79,13 @@ TEST_F(push, data_in2)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     const uint8_t DATA1[] = { 1, 2, 3 };
-    utl_push_data(&pushbuf, DATA1, sizeof(DATA1));
+    ASSERT_TRUE(utl_push_data(&pushbuf, DATA1, sizeof(DATA1)));
 
     const uint8_t DATA2[] = { 4, 5 };
-    utl_push_data(&pushbuf, DATA2, sizeof(DATA2));
+    ASSERT_TRUE(utl_push_data(&pushbuf, DATA2, sizeof(DATA2)));
 
     ASSERT_EQ(5, pushbuf.pos);
     const uint8_t DATA[] = { 1, 2, 3, 4, 5 };
@@ -101,10 +101,10 @@ TEST_F(push, data_expand1)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     const uint8_t DATA[] = { 1, 2, 3, 4, 5, 6 };
-    utl_push_data(&pushbuf, DATA, sizeof(DATA));
+    ASSERT_TRUE(utl_push_data(&pushbuf, DATA, sizeof(DATA)));
 
     ASSERT_EQ(6, pushbuf.pos);
     ASSERT_EQ(0, memcmp(DATA, buf.buf, sizeof(DATA)));
@@ -119,17 +119,17 @@ TEST_F(push, data_expand2)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     const uint8_t DATA[] = { 1, 2, 3, 4, 5, 6 };
-    utl_push_data(&pushbuf, DATA, sizeof(DATA));
+    ASSERT_TRUE(utl_push_data(&pushbuf, DATA, sizeof(DATA)));
 
     ASSERT_EQ(6, pushbuf.pos);
     ASSERT_EQ(0, memcmp(DATA, buf.buf, sizeof(DATA)));
     ASSERT_EQ(6, buf.len);
 
     const uint8_t DATA2[] = { 7, 8, 9, 10 };
-    utl_push_data(&pushbuf, DATA2, sizeof(DATA2));
+    ASSERT_TRUE(utl_push_data(&pushbuf, DATA2, sizeof(DATA2)));
 
     ASSERT_EQ(10, pushbuf.pos);
     const uint8_t DATA_ALL[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -145,7 +145,7 @@ TEST_F(push, value0)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     ASSERT_TRUE(utl_push_value(&pushbuf, 0));
 
@@ -161,7 +161,7 @@ TEST_F(push, value01_10)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x01));
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x10));
@@ -179,7 +179,7 @@ TEST_F(push, value11_7f)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x11));
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x7f));
@@ -199,7 +199,7 @@ TEST_F(push, value80_7fff)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x80));
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x7fff));
@@ -221,7 +221,7 @@ TEST_F(push, value8000_7fffff)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x8000));
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x7fffff));
@@ -245,7 +245,7 @@ TEST_F(push, value800000_7fffffff)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x800000));
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x7fffffff));
@@ -271,7 +271,7 @@ TEST_F(push, value80000000_7fffffffff)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x80000000));
     ASSERT_TRUE(utl_push_value(&pushbuf, 0x7fffffffff));
@@ -298,7 +298,7 @@ TEST_F(push, invalid_value8000000000)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 16);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 16));
 
     ASSERT_FALSE(utl_push_value(&pushbuf, 0x8000000000));
 
@@ -310,9 +310,9 @@ TEST_F(push, trim0)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
-    utl_push_trim(&pushbuf);
+    ASSERT_TRUE(utl_push_trim(&pushbuf));
 
     ASSERT_EQ(0, pushbuf.pos);
     ASSERT_EQ(0, buf.len);
@@ -326,16 +326,16 @@ TEST_F(push, trim)
     utl_push_t pushbuf;
     utl_buf_t buf;
 
-    utl_push_init(&pushbuf, &buf, 5);
+    ASSERT_TRUE(utl_push_init(&pushbuf, &buf, 5));
 
     const uint8_t DATA[] = { 1, 2, 3 };
-    utl_push_data(&pushbuf, DATA, sizeof(DATA));
+    ASSERT_TRUE(utl_push_data(&pushbuf, DATA, sizeof(DATA)));
 
     ASSERT_EQ(3, pushbuf.pos);
     ASSERT_EQ(0, memcmp(DATA, buf.buf, sizeof(DATA)));
     ASSERT_EQ(5, buf.len);
 
-    utl_push_trim(&pushbuf);
+    ASSERT_TRUE(utl_push_trim(&pushbuf));
 
     ASSERT_EQ(3, pushbuf.pos);
     ASSERT_EQ(0, memcmp(DATA, buf.buf, sizeof(DATA)));

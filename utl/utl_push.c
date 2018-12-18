@@ -32,28 +32,31 @@
  * public functions
  **************************************************************************/
 
-void utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size)
+bool utl_push_init(utl_push_t *pPush, utl_buf_t *pBuf, uint32_t Size)
 {
     pPush->pos = 0;
     pPush->data = pBuf;
     if (Size) {
-        utl_buf_alloc(pPush->data, Size);
+        if (!utl_buf_alloc(pPush->data, Size)) return false;
     } else {
         utl_buf_init(pPush->data);
     }
+    return true;
 }
 
 
-void utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len)
+bool utl_push_data(utl_push_t *pPush, const void *pData, uint32_t Len)
 {
     int rest = pPush->data->len - pPush->pos - Len;
     if (rest < 0) {
         //足りない分を拡張
         pPush->data->buf = (uint8_t *)UTL_DBG_REALLOC(pPush->data->buf, pPush->data->len - rest);
+        if (!pPush->data->buf) return false;
         pPush->data->len = pPush->data->len - rest;
     }
     memcpy(&pPush->data->buf[pPush->pos], pData, Len);
     pPush->pos += Len;
+    return true;
 }
 
 
@@ -83,12 +86,11 @@ bool utl_push_value(utl_push_t *pPush, uint64_t Value)
     } else {
         return false;
     }
-    utl_push_data(pPush, buf, len);
-    return true;
+    return utl_push_data(pPush, buf, len);
 }
 
 
-void utl_push_trim(utl_push_t *pPush)
+bool utl_push_trim(utl_push_t *pPush)
 {
     if (pPush->data->len != pPush->pos) {
         if (pPush->pos == 0) {
@@ -96,6 +98,8 @@ void utl_push_trim(utl_push_t *pPush)
         } else {
             pPush->data->len = pPush->pos;
             pPush->data->buf = (uint8_t *)UTL_DBG_REALLOC(pPush->data->buf, pPush->pos);
+            if (!pPush->data->buf) return false;
         }
     }
+    return true;
 }

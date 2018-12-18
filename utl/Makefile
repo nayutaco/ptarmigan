@@ -47,6 +47,7 @@ C_SOURCE_FILES += $(PRJ_PATH)/utl_str.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_jsonrpc.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_addr.c
 C_SOURCE_FILES += $(PRJ_PATH)/utl_log.c
+C_SOURCE_FILES += $(PRJ_PATH)/utl_time.c
 
 
 #includes common to all targets

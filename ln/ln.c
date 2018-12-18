@@ -33,6 +33,7 @@
 #include "utl_misc.h"
 #include "utl_buf.h"
 #include "utl_dbg.h"
+#include "utl_time.h"
 
 #include "ln_db.h"
 #include "ln_misc.h"
@@ -3967,9 +3968,8 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
         uint64_t now = (uint64_t)time(NULL);
         if (ln_db_annocnlupd_is_prune(now, upd.timestamp)) {
             //ret = false;
-            char tmstr[UTL_SZ_DTSTR + 1];
-            utl_misc_strftime(tmstr, upd.timestamp);
-            LOGD("older channel: not save(%016" PRIx64 "): %s\n", upd.short_channel_id, tmstr);
+            char time[UTL_SZ_TIME_FMT_STR + 1];
+            LOGD("older channel: not save(%016" PRIx64 "): %s\n", upd.short_channel_id, utl_time_fmt(time, upd.timestamp));
             return true;
         }
     } else {

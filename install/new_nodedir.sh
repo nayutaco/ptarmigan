@@ -7,7 +7,7 @@ if [ ${#1} -gt 0 ]; then
 fi
 
 if [ -d $NODEDIR ]; then
-    OLDDIR=${NODEDIR}_`date +%Y%m%d%H%M%S`
+    OLDDIR=${NODEDIR}_`date -u +%Y%m%d%H%M%S`
     mv $NODEDIR $OLDDIR
     echo "exist \"$NODEDIR\" --> move \"$OLDDIR\""
 fi

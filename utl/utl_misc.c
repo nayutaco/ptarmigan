@@ -23,9 +23,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <time.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <ctype.h>
 
 #include "utl_local.h"
 #include "utl_misc.h"
@@ -55,25 +55,12 @@ bool utl_misc_str2bin(uint8_t *pBin, uint32_t BinLen, const char *pStr)
     for (lp = 0; lp < BinLen; lp++) {
         str[0] = *(pStr + 2 * lp);
         str[1] = *(pStr + 2 * lp + 1);
-        if (!str[0]) {
-            //偶数文字で\0ならばOK
-            break;
-        }
-        if (!str[1]) {
-            //奇数文字で\0ならばNG
-            LOGD("fail: odd length\n");
+        if (!isxdigit(str[0]) || !isxdigit(str[1])) {
+            LOGD("fail: str=%s\n", str);
             ret = false;
             break;
         }
-        char *endp = NULL;
-        uint8_t bin = (uint8_t)strtoul(str, &endp, 16);
-        if ((endp != NULL) && (*endp != 0x00)) {
-            //変換失敗
-            LOGD("fail: *endp = %p(%02x)\n", endp, *endp);
-            ret = false;
-            break;
-        }
-        pBin[lp] = bin;
+        pBin[lp] = (uint8_t)strtoul(str, NULL, 16);
     }
 
     return ret;
@@ -95,16 +82,7 @@ bool utl_misc_str2bin_rev(uint8_t *pBin, uint32_t BinLen, const char *pStr)
 }
 
 
-void utl_misc_datetime(char *pDateTime, size_t Len)
-{
-    struct tm tmval;
-    time_t now = time(NULL);
-    gmtime_r(&now, &tmval);
-    strftime(pDateTime, Len, "%d %b %Y %T %z", &tmval);
-}
-
-
-bool utl_misc_all_zero(const void *pData, size_t Len)
+bool utl_misc_is_all_zero(const void *pData, size_t Len)
 {
     bool ret = true;
     const uint8_t *p = (const uint8_t *)pData;
@@ -115,13 +93,6 @@ bool utl_misc_all_zero(const void *pData, size_t Len)
         }
     }
     return ret;
-}
-
-
-void utl_misc_strftime(char *pTmStr, uint32_t Tm)
-{
-    time_t tm = (time_t)Tm;
-    strftime(pTmStr, UTL_SZ_DTSTR + 1, "%Y/%m/%d %H:%M:%S", localtime(&tm));
 }
 
 

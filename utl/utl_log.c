@@ -14,6 +14,7 @@
 #include "utl_misc.h"
 #define LOG_TAG "dummy"
 #include "utl_log.h"
+#include "utl_time.h"
 
 #define FNAME_MAX       (50)
 
@@ -106,13 +107,11 @@ void utl_log_write(int Pri, const char* pFname, int Line, int Flag, const char *
 
     //write log
     va_list ap;
-    time_t now = time(NULL);
-    char tmstr[UTL_SZ_DTSTR + 1];
-    utl_misc_strftime(tmstr, (uint32_t)now);
 
     va_start(ap, pFmt);
     if (Flag) {
-        fprintf(mFp, "%s(%5d)[%c/%s][%s:%d:%s]", tmstr, (int)tid(), M_MARK[Pri - 1], pTag, pFname, Line, pFunc);
+        char time[UTL_SZ_TIME_FMT_STR + 1];
+        fprintf(mFp, "%s(%5d)[%c/%s][%s:%d:%s]", utl_time_str_time(time), (int)tid(), M_MARK[Pri - 1], pTag, pFname, Line, pFunc);
     }
     vfprintf(mFp, pFmt, ap);
     va_end(ap);

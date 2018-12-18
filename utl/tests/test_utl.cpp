@@ -17,6 +17,7 @@ extern "C" {
 #include "utl_opts.c"
 #include "utl_jsonrpc.c"
 #include "utl_addr.c"
+#include "utl_time.c"
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -37,10 +38,13 @@ TEST_F(utl, first)
 }
 
 
-#include "testinc_buf.cpp"
-#include "testinc_push.cpp"
-#include "testinc_net.cpp"
-#include "testinc_str.cpp"
-#include "testinc_opts.cpp"
-#include "testinc_jsonrpc.cpp"
 #include "testinc_addr.cpp"
+#include "testinc_buf.cpp"
+#include "testinc_jsonrpc.cpp"
+#include "testinc_misc.cpp"
+#include "testinc_net.cpp"
+#include "testinc_opts.cpp"
+#include "testinc_push.cpp"
+#include "testinc_str.cpp"
+#include "testinc_time.cpp"
+
