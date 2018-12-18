@@ -91,7 +91,7 @@ void utl_misc_datetime(char *pDateTime, size_t Len);
  * @param[in]       Len                 pData長
  * @retval  true    全データが0x00
  */
-bool utl_misc_all_zero(const void *pData, size_t Len);
+bool utl_misc_is_all_zero(const void *pData, size_t Len);
 
 
 /** 16進数文字列に変換

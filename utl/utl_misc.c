@@ -104,7 +104,7 @@ void utl_misc_datetime(char *pDateTime, size_t Len)
 }
 
 
-bool utl_misc_all_zero(const void *pData, size_t Len)
+bool utl_misc_is_all_zero(const void *pData, size_t Len)
 {
     bool ret = true;
     const uint8_t *p = (const uint8_t *)pData;

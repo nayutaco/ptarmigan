@@ -1663,7 +1663,7 @@ static void *thread_poll_start(void *pArg)
 
         poll_ping(p_conf);
 
-        if (utl_misc_all_zero(ln_funding_txid(p_conf->p_self), BTC_SZ_TXID)) {
+        if (utl_misc_is_all_zero(ln_funding_txid(p_conf->p_self), BTC_SZ_TXID)) {
             //fundingしていない
             continue;
         }
@@ -1675,7 +1675,7 @@ static void *thread_poll_start(void *pArg)
 #ifndef USE_SPV
 #else
                 const uint8_t *oldhash = ln_funding_blockhash(p_conf->p_self);
-                if (utl_misc_all_zero(oldhash, BTC_SZ_HASH256)) {
+                if (utl_misc_is_all_zero(oldhash, BTC_SZ_HASH256)) {
                     int32_t bheight = 0;
                     int32_t bindex = 0;
                     uint8_t mined_hash[BTC_SZ_HASH256];

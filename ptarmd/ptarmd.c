@@ -314,7 +314,7 @@ void ptarmd_nodefail_add(
     LOGD("ipaddr(%d)=%s:%" PRIu16 " node_id: ", NodeDesc, pAddr, Port);
     DUMPD(pNodeId, BTC_SZ_PUBKEY);
 
-    if ( utl_misc_all_zero(pNodeId, BTC_SZ_PUBKEY) ||
+    if ( utl_misc_is_all_zero(pNodeId, BTC_SZ_PUBKEY) ||
          ptarmd_nodefail_get(pNodeId, pAddr, Port, LN_NODEDESC_IPV4, false) ) {
         //登録の必要なし
         LOGD("no save\n");
