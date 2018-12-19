@@ -474,7 +474,7 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     tm = (time_t)ln_convert_be64(data, 7);
     p_invoice_data->timestamp = (uint64_t)tm;
     char time[UTL_SZ_TIME_FMT_STR + 1];
-    LOGD("timestamp= %" PRIu64 " : %s", (uint64_t)tm, utl_time_fmt(time, tm));
+    LOGD("timestamp= %" PRIu64 " : %s\n", (uint64_t)tm, utl_time_fmt(time, tm));
 
     //tagged fields
     ret = true;
