@@ -68,6 +68,7 @@ static const int8_t charset_rev[128] = {
  *  In: hrp :     Pointer to the non-null-terminated human readable part(length=2).
  *      data :    Pointer to an array of 5-bit values.
  *      data_len: Length of the data array.
+ *      ln:       Invoice for Lightning Network.
  *  Returns true if successful.
  */
 bool bech32_encode(char *output, const char *hrp, const uint8_t *data, size_t data_len, bool ln) {
@@ -115,6 +116,7 @@ bool bech32_encode(char *output, const char *hrp, const uint8_t *data, size_t da
  *       data_len: Pointer to a size_t that will be updated to be the number
  *                 of entries in data.
  *  In: input:     Pointer to a null-terminated Bech32 string.
+ *      ln:        Invoice for Lightning Network.
  *  Returns true if succesful.
  */
 bool bech32_decode(char* hrp, uint8_t *data, size_t *data_len, const char *input, bool ln) {
@@ -180,14 +182,15 @@ bool bech32_decode(char* hrp, uint8_t *data, size_t *data_len, const char *input
     return chk == 1;
 }
 
-//inの先頭からinbitsずつ貯めていき、outbitsを超えるとその分をoutに代入していく
-//そのため、
+//inの先頭から各バイトをLSBからinbits抜き出して貯め、
+//outbits溜まるとoutの先頭から各バイトに代入する。
+//最後にoutbitsに満たない部分は0でパティングする。
 //  inbits:5
-//  in [01 0c 12 1f 1c 19 02]
+//  in [0x01 0x0c 0x12 0x1f 0x1c 0x19 0x02]
 //  outbits:8
-//とした場合、out[0x0b 0x25 0xfe 0x64 0x40]が出ていく。
-//最後の0x40は最下位bitの0数はinbitsと同じなため、[0x59 0x2f 0xf3 0x22]とはならない。
-//その場合は、64bitまでであればconvert_be64()を使用する。
+//とした場合、
+//  out[0x0b 0x25 0xfe 0x64 0x40]
+//となる。
 static bool convert_bits(uint8_t* out, size_t* outlen, int outbits, const uint8_t* in, size_t inlen, int inbits, bool pad) {
     uint32_t val = 0;
     int bits = 0;
@@ -210,18 +213,7 @@ static bool convert_bits(uint8_t* out, size_t* outlen, int outbits, const uint8_
     return true;
 }
 
-////32進数→10進数変換
-//static uint64_t convert_32(const uint8_t *p_data, size_t dlen)
-//{
-//    uint64_t ret = 0;
-//    for (size_t lp = 0; lp < dlen; lp++) {
-//        ret *= (uint64_t)32;
-//        ret += (uint64_t)p_data[lp];
-//    }
-//    return ret;
-//}
-
-bool segwit_addr_encode(char *output, uint8_t hrp_type, int witver, const uint8_t *witprog, size_t witprog_len) {
+bool segwit_addr_encode(char* output, uint8_t hrp_type, int witver, const uint8_t* witprog, size_t witprog_len) {
     uint8_t data[65];
     size_t datalen = 0;
     if (witver > 16) return false;
@@ -249,5 +241,9 @@ bool segwit_addr_decode(int* witver, uint8_t* witdata, size_t* witdata_len, uint
     if (data[0] == 0 && *witdata_len != 20 && *witdata_len != 32) return false;
     *witver = data[0];
     return true;
+}
+
+size_t hrp_len(uint8_t hrp_type) {
+    return strlen(hrp_str[hrp_type]);
 }
 

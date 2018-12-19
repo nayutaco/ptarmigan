@@ -32,7 +32,7 @@
 #include "utl_time.h"
 
 #include "btc_local.h"
-#include "segwit_addr.h"
+#include "btc_segwit_addr.h"
 
 
 /**************************************************************************
@@ -1298,15 +1298,15 @@ void btc_print_tx(const btc_tx_t *pTx)
             int hrp_type;
             switch (btc_get_chain()) {
             case BTC_MAINNET:
-                hrp_type = SEGWIT_ADDR_MAINNET;
+                hrp_type = BTC_SEGWIT_ADDR_MAINNET;
                 break;
             case BTC_TESTNET:
-                hrp_type = SEGWIT_ADDR_TESTNET;
+                hrp_type = BTC_SEGWIT_ADDR_TESTNET;
                 break;
             default:
                 hrp_type = -1;
             }
-            (void)segwit_addr_encode(addr, hrp_type, buf->buf[0], &buf->buf[2], buf->buf[1]);
+            (void)btc_segwit_addr_encode(addr, sizeof(addr), hrp_type, buf->buf[0], &buf->buf[2], buf->buf[1]);
         }
         if (addr[0] != '\0') {
             LOGD2("    (%s)\n", addr);

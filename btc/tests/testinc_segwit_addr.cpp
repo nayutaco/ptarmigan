@@ -5,7 +5,7 @@
 
 ////////////////////////////////////////////////////////////////////////
 
-class bech32: public testing::Test {
+class segwit_addr: public testing::Test {
 protected:
     virtual void SetUp() {
         //RESET_FAKE(external_function)
@@ -182,7 +182,7 @@ static int my_strncasecmp(const char *s1, const char *s2, size_t n) {
     return 0;
 }
 
-TEST_F(bech32, bech32_valid)
+TEST_F(segwit_addr, bech32_valid)
 {
     size_t i;
 
@@ -192,6 +192,7 @@ TEST_F(bech32, bech32_valid)
         char hrp[84];
         size_t data_len;
         bool ret;
+        data_len = sizeof(data);
         ret = bech32_decode(hrp, data, &data_len, valid_checksum[i], false);
         ASSERT_TRUE(ret);
 
@@ -203,7 +204,7 @@ TEST_F(bech32, bech32_valid)
 }
 
 
-TEST_F(bech32, bech32_invalid)
+TEST_F(segwit_addr, bech32_invalid)
 {
     size_t i;
 
@@ -212,13 +213,14 @@ TEST_F(bech32, bech32_invalid)
         char hrp[84];
         size_t data_len;
         bool ret;
+        data_len = sizeof(data);
         ret = bech32_decode(hrp, data, &data_len, invalid_checksum[i], false);
         ASSERT_FALSE(ret);
     }
 }
 
 
-TEST_F(bech32, segwit_valid)
+TEST_F(segwit_addr, segwit_valid)
 {
     size_t i;
 
@@ -260,7 +262,7 @@ TEST_F(bech32, segwit_valid)
 }
 
 
-TEST_F(bech32, segwit_invalid_dec)
+TEST_F(segwit_addr, segwit_invalid_dec)
 {
     size_t i;
 
@@ -279,7 +281,7 @@ TEST_F(bech32, segwit_invalid_dec)
 }
 
 
-TEST_F(bech32, segwit_invalid_enc)
+TEST_F(segwit_addr, segwit_invalid_enc)
 {
     size_t i;
 
@@ -293,3 +295,120 @@ TEST_F(bech32, segwit_invalid_enc)
 }
 
 
+TEST_F(segwit_addr, btc_bech32_valid)
+{
+    size_t i;
+
+    for (i = 0; i < sizeof(valid_checksum) / sizeof(valid_checksum[0]); ++i) {
+        uint8_t data[82];
+        char rebuild[92];
+        char hrp[84];
+        size_t data_len;
+        bool ret;
+        data_len = sizeof(data);
+        ret = btc_bech32_decode(hrp, sizeof(hrp), data, &data_len, valid_checksum[i], false);
+        ASSERT_TRUE(ret);
+
+        ret = btc_bech32_encode(rebuild, sizeof(rebuild), hrp, data, data_len, false);
+        ASSERT_TRUE(ret);
+
+        ASSERT_EQ(0, my_strncasecmp(rebuild, valid_checksum[i], 92));
+    }
+}
+
+
+TEST_F(segwit_addr, btc_bech32_invalid)
+{
+    size_t i;
+
+    for (i = 0; i < sizeof(invalid_checksum) / sizeof(invalid_checksum[0]); ++i) {
+        uint8_t data[82];
+        char hrp[84];
+        size_t data_len;
+        bool ret;
+        data_len = sizeof(data);
+        ret = btc_bech32_decode(hrp, sizeof(hrp), data, &data_len, invalid_checksum[i], false);
+        ASSERT_FALSE(ret);
+    }
+}
+
+
+TEST_F(segwit_addr, btc_segwit_valid)
+{
+    size_t i;
+
+    for (i = 0; i < sizeof(valid_address) / sizeof(valid_address[0]); ++i) {
+        uint8_t witprog[40];
+        size_t witprog_len;
+        int witver;
+        int hrp_type;
+        uint8_t scriptpubkey[42];
+        size_t scriptpubkey_len;
+        char rebuild[93];
+        bool ret;
+
+        hrp_type = SEGWIT_ADDR_MAINNET;
+        witprog_len = sizeof(witprog);
+        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+        if (!ret) {
+            hrp_type = SEGWIT_ADDR_TESTNET;
+            witprog_len = sizeof(witprog);
+            ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+        }
+        if (!ret) {
+            hrp_type = SEGWIT_ADDR_MAINNET2;
+            witprog_len = sizeof(witprog);
+            ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+        }
+        if (!ret) {
+            hrp_type = SEGWIT_ADDR_TESTNET2;
+            witprog_len = sizeof(witprog);
+            ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, valid_address[i].address);
+        }
+        ASSERT_TRUE(ret);
+
+        segwit_scriptpubkey(scriptpubkey, &scriptpubkey_len, witver, witprog, witprog_len);
+        ASSERT_EQ(scriptpubkey_len, valid_address[i].scriptPubKeyLen);
+        ASSERT_EQ(0, memcmp(scriptpubkey, valid_address[i].scriptPubKey, scriptpubkey_len));
+
+        ret = btc_segwit_addr_encode(rebuild, sizeof(rebuild), hrp_type, witver, witprog, witprog_len);
+        ASSERT_TRUE(ret);
+
+        ASSERT_EQ(0, my_strncasecmp(valid_address[i].address, rebuild, 93));
+    }
+}
+
+
+TEST_F(segwit_addr, btc_segwit_invalid_dec)
+{
+    size_t i;
+
+    for (i = 0; i < sizeof(invalid_address) / sizeof(invalid_address[0]); ++i) {
+        uint8_t witprog[40];
+        size_t witprog_len;
+        int witver;
+        bool ret;
+
+        witprog_len = sizeof(witprog);
+        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_MAINNET, invalid_address[i]);
+        ASSERT_FALSE(ret);
+
+        witprog_len = sizeof(witprog);
+        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, SEGWIT_ADDR_TESTNET, invalid_address[i]);
+        ASSERT_FALSE(ret);
+    }
+}
+
+
+TEST_F(segwit_addr, btc_segwit_invalid_enc)
+{
+    size_t i;
+
+    for (i = 0; i < sizeof(invalid_address_enc) / sizeof(invalid_address_enc[0]); ++i) {
+        char rebuild[93];
+        static const uint8_t program[42] = {0};
+
+        bool ret = btc_segwit_addr_encode(rebuild, sizeof(rebuild), get_hrp_type(invalid_address_enc[i].hrp), invalid_address_enc[i].version, program, invalid_address_enc[i].program_length);
+        ASSERT_FALSE(ret);
+    }
+}
