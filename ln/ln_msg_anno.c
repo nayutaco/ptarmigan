@@ -733,7 +733,7 @@ static void node_announce_print(const ln_node_announce_t *pMsg)
 #ifdef PTARM_DEBUG
     LOGD("-[node_announcement]-------------------------------\n");
     char time[UTL_SZ_TIME_FMT_STR + 1];
-    LOGD("timestamp: %lu : %s", (unsigned long)pMsg->timestamp, utl_time_fmt(time, pMsg->timestamp));
+    LOGD("timestamp: %lu : %s\n", (unsigned long)pMsg->timestamp, utl_time_fmt(time, pMsg->timestamp));
     if (pMsg->p_node_id != NULL) {
         LOGD("p_node_id: ");
         DUMPD(pMsg->p_node_id, BTC_SZ_PUBKEY);
@@ -943,7 +943,7 @@ void HIDDEN ln_msg_cnl_update_print(const ln_cnl_update_t *pMsg)
     //DUMPD(pMsg->signature, LN_SZ_SIGNATURE);
     LOGD("short_channel_id: %016" PRIx64 "\n", pMsg->short_channel_id);
     char time[UTL_SZ_TIME_FMT_STR + 1];
-    LOGD("timestamp: %lu : %s", (unsigned long)pMsg->timestamp, utl_time_fmt(time, pMsg->timestamp));
+    LOGD("timestamp: %lu : %s\n", (unsigned long)pMsg->timestamp, utl_time_fmt(time, pMsg->timestamp));
     LOGD("flags= 0x%04x\n", pMsg->flags);
     LOGD("    direction: %s\n", ln_cnlupd_direction(pMsg) ? "node_2" : "node_1");
     LOGD("    %s\n", ln_cnlupd_enable(pMsg) ? "enable" : "disable");

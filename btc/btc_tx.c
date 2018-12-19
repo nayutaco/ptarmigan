@@ -1320,7 +1320,7 @@ void btc_print_tx(const btc_tx_t *pTx)
     } else {
         //epoch second
         char time[UTL_SZ_TIME_FMT_STR + 1];
-        LOGD2("epoch second: %s", utl_time_fmt(time, pTx->locktime));
+        LOGD2("epoch second: %s\n", utl_time_fmt(time, pTx->locktime));
     }
     LOGD2("======================================\n");
 }
