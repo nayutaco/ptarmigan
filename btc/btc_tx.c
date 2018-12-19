@@ -1285,7 +1285,7 @@ void btc_print_tx(const btc_tx_t *pTx)
         LOGD2("  scriptPubKey[%u]= ", buf->len);
         DUMPD(buf->buf, buf->len);
         //btc_print_script(buf->buf, buf->len);
-        char addr[BTC_SZ_ADDR_MAX + 1];
+        char addr[BTC_SZ_ADDR_STR_MAX + 1];
         addr[0] = '\0';
         if ( (buf->len == 25) && (buf->buf[0] == OP_DUP) && (buf->buf[1] == OP_HASH160) &&
              (buf->buf[2] == 0x14) && (buf->buf[23] == OP_EQUALVERIFY) && (buf->buf[24] == OP_CHECKSIG) ) {

@@ -118,8 +118,8 @@ TEST_F(keys, keys_1)
     uint8_t pub[BTC_SZ_PUBKEY];
     uint8_t uncomppub[BTC_SZ_PUBKEY_UNCOMP];
     uint8_t pkh2[BTC_SZ_PUBKEYHASH];
-    char addr[BTC_SZ_ADDR_MAX + 1];
-    char waddr[BTC_SZ_ADDR_MAX + 1];
+    char addr[BTC_SZ_ADDR_STR_MAX + 1];
+    char waddr[BTC_SZ_ADDR_STR_MAX + 1];
     btc_chain_t chain;
 
     ret = btc_keys_wif2priv(priv, &chain, WIF);
@@ -233,7 +233,7 @@ TEST_F(keys, p2wpkh_addr)
 {
     bool ret;
     const char ADDR[] = "mtLLAiafrhzcjSZqp2Ts86Gv7PupWnXKUc";
-    char waddr[BTC_SZ_ADDR_MAX + 1];
+    char waddr[BTC_SZ_ADDR_STR_MAX + 1];
     ret = btc_keys_addr2p2wpkh(waddr, ADDR);
     ASSERT_TRUE(ret);
     ASSERT_STREQ("2NCFo5oZuEbXgZdMDzLMA2qQiroHrU6oXSU", waddr);     //bitcoindで計算した値
@@ -423,7 +423,7 @@ TEST_F(keys, wit2p2wsh)
     const utl_buf_t wit = { (uint8_t *)REDEEM, sizeof(REDEEM) };
     const char ADDR[] = "2Mt8fd67GgFMQpeKqn9mZ6VRWHnK6MAzGbD";
 
-    char addr[BTC_SZ_ADDR_MAX + 1];
+    char addr[BTC_SZ_ADDR_STR_MAX + 1];
     bool ret = btc_keys_wit2waddr(addr, &wit);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(ADDR, addr);

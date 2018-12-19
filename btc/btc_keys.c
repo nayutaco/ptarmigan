@@ -214,7 +214,7 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
         default:
             return false;
         }
-        ret = btc_segwit_addr_encode(pWAddr, BTC_SZ_ADDR_MAX + 1, hrp_type, 0x00, pkh, BTC_SZ_HASH160);
+        ret = btc_segwit_addr_encode(pWAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pkh, BTC_SZ_HASH160);
     } else {
         btc_util_create_pkh2wpkh(pkh, pkh);
         ret = btcl_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
@@ -242,7 +242,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
             return false;
         }
         btc_util_sha256(sha, pWitScript->buf, pWitScript->len);
-        ret = btc_segwit_addr_encode(pWAddr, BTC_SZ_ADDR_MAX + 1, hrp_type, 0x00, sha, BTC_SZ_HASH256);
+        ret = btc_segwit_addr_encode(pWAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, sha, BTC_SZ_HASH256);
     } else {
         uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
         uint8_t pkh[BTC_SZ_PUBKEYHASH];
