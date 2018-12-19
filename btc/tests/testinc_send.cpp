@@ -292,7 +292,7 @@ TEST_F(send, p2wsh)
     btc_sw_add_vout_p2wsh(&tx, BTC_MBTC2SATOSHI(5.8), &wit);
 
     const char ADDR_2OF2[] = "2MuuDWRBQ5KTxJzAk1qPFZfzeheLcoSu3vy";
-    char addr_2of2[BTC_SZ_ADDR_MAX + 1];
+    char addr_2of2[BTC_SZ_ADDR_STR_MAX + 1];
     btc_keys_wit2waddr(addr_2of2, &wit);
     ASSERT_STREQ(ADDR_2OF2, addr_2of2);
     printf("addr 2of2= %s\n", addr_2of2);

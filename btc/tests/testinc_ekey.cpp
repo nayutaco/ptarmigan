@@ -582,7 +582,7 @@ TEST_F(extendedkey, bip49)
 
     uint8_t pubkey[BTC_SZ_PUBKEY];
     btc_keys_priv2pub(pubkey, akey.key);
-    char addr[BTC_SZ_ADDR_MAX + 1];
+    char addr[BTC_SZ_ADDR_STR_MAX + 1];
     b = btc_keys_pub2p2wpkh(addr, pubkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(B58_ACC0IDX0, addr);

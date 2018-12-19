@@ -85,7 +85,7 @@ int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
 
 /** PubKeyHashをBitcoinアドレスに変換
  *
- * @param[out]      pAddr           変換後データ(BTC_SZ_ADDR_MAX以上のサイズを想定)
+ * @param[out]      pAddr           変換後データ(BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
  * @param[in]       pPubKeyHash     対象データ(最大BTC_SZ_PUBKEY)
  * @param[in]       Prefix          BTC_PREF_xxx
  * @note

@@ -50,7 +50,7 @@ extern "C" {
 #define BTC_SZ_PUBKEY           (33)            ///< サイズ:圧縮された公開鍵
 #define BTC_SZ_PUBKEY_UNCOMP    (64)            ///< サイズ:圧縮されていない公開鍵
 #define BTC_SZ_PUBKEYHASH       (32)            ///< サイズ:PubKeyHashの最大値
-#define BTC_SZ_ADDR_MAX         (90)            ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
+#define BTC_SZ_ADDR_STR_MAX     (90)            ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
 #define BTC_SZ_WIF_MAX          (55)            ///< サイズ:秘密鍵のWIF(上限不明)
 #define BTC_SZ_TXID             (32)            ///< サイズ:TXID
 #define BTC_SZ_SIGN_RS          (64)            ///< サイズ:RS形式の署名
@@ -365,7 +365,7 @@ bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey);
 
 /** 公開鍵をBitcoinアドレス(P2PKH)に変換
  *
- * @param[out]      pAddr           変換後データ(#BTC_SZ_ADDR_MAX 以上のサイズを想定)
+ * @param[out]      pAddr           変換後データ(#BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
  * @param[in]       pPubKey         対象データ(BTC_SZ_PUBKEY)
  */
 bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey);
@@ -373,7 +373,7 @@ bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey);
 
 /** 公開鍵をBitcoinアドレス(P2WPKH)に変換
  *
- * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_MAX 以上のサイズを想定)
+ * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
  * @param[in]       pPubKey         対象データ(BTC_SZ_PUBKEY)
  */
 bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);
@@ -393,7 +393,7 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
  * @param[in]       pWitScript      対象データ
  *
  * @note
- *      - pWAddrのサイズは、native=#BTC_SZ_WSHADDR, 非native=#BTC_SZ_ADDR_MAX 以上にすること
+ *      - pWAddrのサイズは、native=#BTC_SZ_WSHADDR, 非native=#BTC_SZ_ADDR_STR_MAX+1 以上にすること
  */
 bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript);
 

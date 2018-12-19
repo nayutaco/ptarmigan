@@ -709,7 +709,7 @@ bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uin
         default:
             return false;
         }
-        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH160);
+        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH160);
     } else if (Prefix == BTC_PREF_NATIVE_SH) {
         uint8_t hrp_type;
 
@@ -723,11 +723,11 @@ bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uin
         default:
             return false;
         }
-        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH256);
+        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH256);
 
     } else {
         uint8_t pkh[1 + BTC_SZ_HASH160 + 4];
-        size_t sz = BTC_SZ_ADDR_MAX + 1;
+        size_t sz = BTC_SZ_ADDR_STR_MAX + 1;
 
         pkh[0] = mPref[Prefix];
         memcpy(pkh + 1, pPubKeyHash, BTC_SZ_HASH160);
