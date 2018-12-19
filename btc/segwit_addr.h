@@ -42,6 +42,7 @@ extern "C" {
  *  In: hrp :     Pointer to the non-null-terminated human readable part(length=2).
  *      data :    Pointer to an array of 5-bit values.
  *      data_len: Length of the data array.
+ *      ln:       Invoice for Lightning Network.
  *  Returns true if successful.
  */
 bool bech32_encode(
@@ -61,6 +62,7 @@ bool bech32_encode(
  *       data_len: Pointer to a size_t that will be updated to be the number
  *                 of entries in data.
  *  In: input:     Pointer to a null-terminated Bech32 string.
+ *      ln:        Invoice for Lightning Network.
  *  Returns true if succesful.
  */
 bool bech32_decode(
@@ -82,10 +84,10 @@ bool bech32_decode(
  *  Returns true if successful.
  */
 bool segwit_addr_encode(
-    char *output,
+    char* output,
     uint8_t hrp_type,
     int ver,
-    const uint8_t *prog,
+    const uint8_t* prog,
     size_t prog_len
 );
 
@@ -107,6 +109,10 @@ bool segwit_addr_decode(
     size_t* prog_len,
     uint8_t hrp_type,
     const char* addr
+);
+
+size_t hrp_len(
+    uint8_t hrp_type
 );
 
 #ifdef __cplusplus

@@ -21,6 +21,7 @@ extern "C" {
 #include "btc_tx.c"
 #include "btc_util.c"
 #include "segwit_addr.c"
+#include "btc_segwit_addr.c"
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -89,4 +90,4 @@ TEST_F(btc, btc_setnet_mainnet)
 #include "testinc_send.cpp"
 #include "testinc_ekey.cpp"
 #include "testinc_recoverpub.cpp"
-#include "testinc_bech32.cpp"
+#include "testinc_segwit_addr.cpp"

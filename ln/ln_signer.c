@@ -23,7 +23,7 @@
  *  @brief  [LN]秘密鍵管理
  */
 
-#include "segwit_addr.h"
+#include "btc_segwit_addr.h"
 
 #include "ln_signer.h"
 #include "ln_derkey.h"

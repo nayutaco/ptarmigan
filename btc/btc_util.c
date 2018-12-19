@@ -35,7 +35,7 @@
 #include "utl_dbg.h"
 
 #include "btc_local.h"
-#include "segwit_addr.h"
+#include "btc_segwit_addr.h"
 
 
 /**************************************************************************
@@ -701,29 +701,29 @@ bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uin
 
         switch (btc_get_chain()) {
         case BTC_MAINNET:
-            hrp_type = SEGWIT_ADDR_MAINNET;
+            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
             break;
         case BTC_TESTNET:
-            hrp_type = SEGWIT_ADDR_TESTNET;
+            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
             break;
         default:
             return false;
         }
-        ret = segwit_addr_encode(pAddr, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH160);
+        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH160);
     } else if (Prefix == BTC_PREF_NATIVE_SH) {
         uint8_t hrp_type;
 
         switch (btc_get_chain()) {
         case BTC_MAINNET:
-            hrp_type = SEGWIT_ADDR_MAINNET;
+            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
             break;
         case BTC_TESTNET:
-            hrp_type = SEGWIT_ADDR_TESTNET;
+            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
             break;
         default:
             return false;
         }
-        ret = segwit_addr_encode(pAddr, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH256);
+        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH256);
 
     } else {
         uint8_t pkh[1 + BTC_SZ_HASH160 + 4];

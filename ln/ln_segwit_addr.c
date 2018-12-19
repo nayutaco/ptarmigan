@@ -9,7 +9,7 @@
 
 #include "mbedtls/sha256.h"
 
-#include "segwit_addr.h"
+#include "btc_segwit_addr.h"
 
 #include "utl_dbg.h"
 #include "utl_time.h"
@@ -362,7 +362,7 @@ bool ln_invoice_encode(char** pp_invoice, const ln_invoice_t *p_invoice_data) {
     if (!ln_convert_bits(data, &datalen, 5, sign, sizeof(sign), 8, true)) return false;
 
     *pp_invoice = (char *)malloc(2048);
-    return bech32_encode(*pp_invoice, hrp, data, datalen, true);
+    return btc_bech32_encode(*pp_invoice, 2048, hrp, data, datalen, true);
 }
 
 
@@ -385,7 +385,8 @@ bool ln_invoice_decode(ln_invoice_t **pp_invoice_data, const char* invoice) {
     size_t sig_len = 0;
     ln_invoice_t *p_invoice_data = (ln_invoice_t *)malloc(sizeof(ln_invoice_t));
 
-    if (!bech32_decode(hrp_actual, data, &data_len, invoice, true)) {
+    data_len = sizeof(data);
+    if (!btc_bech32_decode(hrp_actual, sizeof(hrp_actual), data, &data_len, invoice, true)) {
         goto LABEL_EXIT;
     }
     if (memcmp(ln_hrp_str[LN_INVOICE_REGTEST], hrp_actual, 6) == 0) {

@@ -29,7 +29,7 @@
 #include "mbedtls/asn1write.h"
 #include "mbedtls/ecdsa.h"
 #include "libbase58.h"
-#include "segwit_addr.h"
+#include "btc_segwit_addr.h"
 
 #include "btc_local.h"
 
@@ -206,15 +206,15 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
 
         switch (btc_get_chain()) {
         case BTC_MAINNET:
-            hrp_type = SEGWIT_ADDR_MAINNET;
+            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
             break;
         case BTC_TESTNET:
-            hrp_type = SEGWIT_ADDR_TESTNET;
+            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
             break;
         default:
             return false;
         }
-        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, pkh, BTC_SZ_HASH160);
+        ret = btc_segwit_addr_encode(pWAddr, BTC_SZ_ADDR_MAX + 1, hrp_type, 0x00, pkh, BTC_SZ_HASH160);
     } else {
         btc_util_create_pkh2wpkh(pkh, pkh);
         ret = btcl_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
@@ -233,16 +233,16 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
 
         switch (btc_get_chain()) {
         case BTC_MAINNET:
-            hrp_type = SEGWIT_ADDR_MAINNET;
+            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
             break;
         case BTC_TESTNET:
-            hrp_type = SEGWIT_ADDR_TESTNET;
+            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
             break;
         default:
             return false;
         }
         btc_util_sha256(sha, pWitScript->buf, pWitScript->len);
-        ret = segwit_addr_encode(pWAddr, hrp_type, 0x00, sha, BTC_SZ_HASH256);
+        ret = btc_segwit_addr_encode(pWAddr, BTC_SZ_ADDR_MAX + 1, hrp_type, 0x00, sha, BTC_SZ_HASH256);
     } else {
         uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
         uint8_t pkh[BTC_SZ_PUBKEYHASH];
@@ -396,20 +396,20 @@ bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
     } else {
         //BECH32?
         uint8_t witprog[40];
-        size_t witprog_len;
+        size_t witprog_len = sizeof(witprog);
         int witver;
         uint8_t hrp_type;
         switch (btc_get_chain()) {
         case BTC_MAINNET:
-            hrp_type = SEGWIT_ADDR_MAINNET;
+            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
             break;
         case BTC_TESTNET:
-            hrp_type = SEGWIT_ADDR_TESTNET;
+            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
             break;
         default:
             return false;
         }
-        ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, pAddr);
+        ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, pAddr);
         if (ret && (witver == 0x00)) {
             //witver==0ではwitness programとpubKeyHashは同じ
             if (witprog_len == BTC_SZ_HASH160) {
