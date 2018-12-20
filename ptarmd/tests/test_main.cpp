@@ -13,6 +13,7 @@ extern "C" {
 #include "../../utl/utl_push.c"
 #include "../../utl/utl_addr.c"
 #include "../../utl/utl_time.c"
+#include "../../utl/utl_rng.c"
 //評価対象本体
 #undef LOG_TAG
 #include "lnapp.c"

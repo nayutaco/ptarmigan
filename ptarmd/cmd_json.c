@@ -31,6 +31,7 @@
 #include <assert.h>
 
 #include "utl_time.h"
+#include "utl_rng.h"
 
 #include "jsonrpc-c.h"
 #include "ln_segwit_addr.h"
@@ -1606,7 +1607,7 @@ static int cmd_invoice_proc(uint8_t *pPayHash, uint64_t AmountMsat)
 
     ln_db_preimg_t preimg;
 
-    btc_util_random(preimg.preimage, LN_SZ_PREIMAGE);
+    utl_rng_rand(preimg.preimage, LN_SZ_PREIMAGE);
 
     ptarmd_preimage_lock();
     preimg.amount_msat = AmountMsat;
