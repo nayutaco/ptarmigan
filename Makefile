@@ -16,17 +16,17 @@ build:
 
 install:
 	-@mkdir -p $(INSTALL_DIR)
+ifeq ($(USE_SPV),1)
+	-cp -ra ptarmd/jni/jar $(INSTALL_DIR)/
+endif
+	-cp ptarmcli/ptarmcli $(INSTALL_DIR)/
+	-cp showdb/showdb $(INSTALL_DIR)/
+	-cp routing/routing $(INSTALL_DIR)/
 ifeq ("$(BUILD_PTARMD)","LIB")
 	cp ptarmd/libptarm.so ./jni/
 else
 	cp ptarmd/ptarmd $(INSTALL_DIR)/
 endif
-ifeq ($(USE_SPV),1)
-	cp -ra ptarmd/jni/jar $(INSTALL_DIR)/
-endif
-	cp ptarmcli/ptarmcli $(INSTALL_DIR)/
-	cp showdb/showdb $(INSTALL_DIR)/
-	cp routing/routing $(INSTALL_DIR)/
 
 all: lib default
 

@@ -178,7 +178,7 @@ btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, int Index)
     utl_buf_init(&vin->script);
     vin->wit_cnt = 0;
     vin->witness = NULL;
-    vin->sequence = 0xffffffff;
+    vin->sequence = BTC_TX_SEQUENCE;
     return vin;
 }
 
@@ -1209,7 +1209,7 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
     uint32_t len;
     if (segwit) {
         //(旧format*3 + 新format) / 4を切り上げ
-        //  旧: nVersion            |txins|txouts        |nLockTim
+        //  旧: nVersion            |txins|txouts        |nLockTime
         //  新: nVersion|marker|flag|txins|txouts|witness|nLockTime
         btc_tx_t txold = BTC_TX_INIT;
         utl_buf_t txbuf_old = UTL_BUF_INIT;
@@ -1314,7 +1314,7 @@ void btc_print_tx(const btc_tx_t *pTx)
         LOGD2("\n");
     }
     LOGD2(" locktime= 0x%08x : ", pTx->locktime);
-    if (pTx->locktime < 500000000L) {
+    if (pTx->locktime < BTC_TX_LOCKTIME_LIMIT) {
         //ブロック高
         LOGD2("block height\n");
     } else {

@@ -44,7 +44,7 @@ extern "C" {
 #define LN_DB_WALLET_TYPE_TOREMOTE  ((uint8_t)2)
 #define LN_DB_WALLET_TYPE_HTLCOUT   ((uint8_t)3)
 
-#define LN_DB_WALLET_INIT           { 0/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_cnt*/, NULL/*p_wit*/ }
+#define LN_DB_WALLET_INIT(t)        { t/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_cnt*/, NULL/*p_wit*/ }
 
 
 /**************************************************************************
@@ -82,12 +82,12 @@ typedef struct {
  *          - ln_db_wallet_tの使用箇所
  */
 typedef struct {
-    uint8_t     type;                       ///< DBからの読み出し時のみ使用
-    uint8_t     *p_txid;
-    uint32_t    index;
-    uint64_t    amount;
-    uint32_t    sequence;
-    uint32_t    locktime;
+    uint8_t     type;                       ///< DBからの読み出し時のみ使用(LN_DB_WALLET_TYPE_xxx)
+    uint8_t     *p_txid;                    ///< outpoint
+    uint32_t    index;                      ///< outpoint
+    uint64_t    amount;                     ///< satoshis
+    uint32_t    sequence;                   ///< <sequence>
+    uint32_t    locktime;                   ///< <locktime>
     uint32_t    wit_cnt;
     utl_buf_t   *p_wit;                     ///< p_wit[wit_cnt]
 } ln_db_wallet_t;

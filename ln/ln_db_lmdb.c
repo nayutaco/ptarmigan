@@ -473,10 +473,8 @@ static const backup_param_t DBSELF_COPY[] = {
     MM_ITEM(ln_self_t, funding_local, ln_funding_local_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, pubkeys),
     MM_ITEM(ln_self_t, funding_remote, ln_funding_remote_data_t, prev_percommit),
-    MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, htlc_num),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, commit_num),
     MM_ITEM(ln_self_t, commit_local, ln_commit_data_t, revoke_num),
-    MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, htlc_num),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, commit_num),
     MM_ITEM(ln_self_t, commit_remote, ln_commit_data_t, revoke_num),
 };
@@ -509,7 +507,6 @@ static const struct {
     { ETYPE_UINT64X,    1, true },                  // short_channel_id
     { ETYPE_UINT64U,    1, true },                  // our_msat
     { ETYPE_UINT64U,    1, true },                  // their_msat
-    { ETYPE_UINT16,     1, true },                  // htlc_num
     { ETYPE_UINT64U,    1, true },                  // htlc_id_num
     { ETYPE_FUNDTXID,   BTC_SZ_TXID, true },        // funding_local.txid
     { ETYPE_FUNDTXIDX,  1, true },                  // funding_local.txindex
@@ -3356,7 +3353,7 @@ LABEL_EXIT:
         mdb_cursor_close(cur.cursor);
     }
     if (cur.txn != NULL) {
-        MDB_TXN_ABORT(cur.txn);
+        MDB_TXN_COMMIT(cur.txn);
     }
     return ret;
 }
@@ -3375,7 +3372,7 @@ bool ln_lmdb_wallet_search(lmdb_cursor_t *pCur, ln_db_func_wallet_t pWalletFunc,
     }
 
     while ((retval = mdb_cursor_get(pCur->cursor, &key, &data, MDB_NEXT_NODUP)) == 0) {
-        ln_db_wallet_t wallet = LN_DB_WALLET_INIT;
+        ln_db_wallet_t wallet = LN_DB_WALLET_INIT(0);
 
         uint8_t *k = (uint8_t *)key.mv_data;
         uint8_t *d = (uint8_t *)data.mv_data;
