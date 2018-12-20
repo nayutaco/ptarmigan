@@ -29,14 +29,14 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param);
  ********************************************************************/
 
 // ptarmiganから外部walletへ送金
-bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKw)
+bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb)
 {
     bool ret;
     wallet_t wallet;
     uint8_t txhash[BTC_SZ_HASH256];
     const char *p_err_str = NULL;
 
-    LOGD("sendto=%s, feerate_per_kw=%" PRIu32 "\n", pAddr, FeeratePerKw);
+    LOGD("sendto=%s, feerate_per_kb=%" PRIu32 "\n", pAddr, FeeratePerKb);
     *ppResult = NULL;
 
     btc_tx_init(&wallet.tx);
@@ -64,10 +64,11 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKw
         utl_buf_t txbuf = UTL_BUF_INIT;
         btc_tx_create(&txbuf, &wallet.tx);
         uint32_t vbyte = btc_tx_get_vbyte_raw(txbuf.buf, txbuf.len);
-        vbyte += (72 - (32+1+8)) * wallet.tx.vin_cnt / 4;    //署名サイズを72byteとして計算
+        vbyte += ((72 - (32+1+8)) * wallet.tx.vin_cnt + 3) / 4;    //署名サイズを72byteとして計算(切り上げ)
                                                         //vbyteはwitness/4だけ増加
         LOGD("vbyte=%d\n", vbyte);
-        uint64_t fee = (uint64_t)vbyte * (uint64_t)FeeratePerKw * 4 / 1000;
+        uint64_t fee = (uint64_t)vbyte * (uint64_t)FeeratePerKb / 1000;
+        LOGD("fee=%" PRIu64 "\n", fee);
         if (fee + BTC_DUST_LIMIT > wallet.tx.vout[0].value) {
             p_err_str = "fail: amount is too low to send.";
             LOGD("%s\n", p_err_str);
@@ -142,8 +143,15 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKw
     uint8_t txid[BTC_SZ_TXID];
     ret = btcrpc_send_rawtx(txid, NULL, txbuf.buf, txbuf.len);
     if (ret) {
+        //remove from DB
+        for (uint32_t lp = 0; lp < wallet.tx.vin_cnt; lp++) {
+            ln_db_wallet_del(wallet.tx.vin[lp].txid, wallet.tx.vin[lp].index);
+        }
+
         *ppResult = (char *)UTL_DBG_MALLOC(BTC_SZ_TXID * 2 + 1);
         utl_misc_bin2str_rev(*ppResult, txid, BTC_SZ_TXID);
+    } else {
+        LOGD("fail: broadcast\n");
     }
 #endif
     utl_buf_free(&txbuf);
@@ -206,6 +214,28 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     if (pWallet->p_wit[0].len != BTC_SZ_PRIVKEY) {
         LOGD("FATAL: maybe BUG\n");
         return false;
+    }
+
+    if ( (pWallet->sequence != BTC_TX_SEQUENCE) ||
+         ((p_wlt->tx.locktime != 0) && (p_wlt->tx.locktime < BTC_TX_LOCKTIME_LIMIT)) ) {
+        uint32_t conf;
+        bool ret = btcrpc_get_confirm(&conf, pWallet->p_txid);
+        if (ret) {
+            if (pWallet->sequence != BTC_TX_SEQUENCE) {
+                if (conf < pWallet->sequence) {
+                    LOGD("fail: less sequence\n");
+                    ret = false;
+                }
+            } else {
+                if (conf < p_wlt->tx.locktime) {
+                    LOGD("fail: less locktime\n");
+                    ret = false;
+                }
+            }
+        }
+        if (!ret) {
+            return false;
+        }
     }
 
     p_wlt->amount += pWallet->amount;

@@ -5573,7 +5573,7 @@ static bool check_create_add_htlc(
     uint64_t close_fee_msat = LN_SATOSHI2MSAT(ln_closing_signed_initfee(self));
 
     //cltv_expiryは、500000000未満にしなくてはならない
-    if (cltv_value >= 500000000) {
+    if (cltv_value >= BTC_TX_LOCKTIME_LIMIT) {
         M_SET_ERR(self, LNERR_INV_VALUE, "cltv_value >= 500000000");
         goto LABEL_EXIT;
     }
@@ -5732,7 +5732,7 @@ static bool check_recv_add_htlc_bolt2(ln_self_t *self, const ln_update_add_htlc_
 
     //cltv_expiryが500000000以上の場合、チャネルを失敗させる。
     //  if sending node sets cltv_expiry to greater or equal to 500000000
-    if (p_htlc->cltv_expiry >= 500000000) {
+    if (p_htlc->cltv_expiry >= BTC_TX_LOCKTIME_LIMIT) {
         M_SET_ERR(self, LNERR_INV_VALUE, "cltv_expiry >= 500000000");
         return false;
     }

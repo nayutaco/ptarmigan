@@ -348,7 +348,7 @@ LABEL_EXIT:
         // $3: amt_to_forward
         // $4: outgoing_cltv_value
         // $5: payment_hash
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(pAppConf->p_self));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         utl_misc_bin2str(hashstr, pPay->payment_hash, BTC_SZ_HASH256);
@@ -558,7 +558,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
             p_status = "establishing";
             break;
         case LN_STATUS_NORMAL:
-            p_status = "established";
+            p_status = "normal operation";
             break;
         case LN_STATUS_CLOSING:
             p_status = "closing";
@@ -576,7 +576,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         utl_misc_bin2str(str, ln_channel_id(p_self), LN_SZ_CHANNEL_ID);
         cJSON_AddItemToObject(result, "channel_id", cJSON_CreateString(str));
         //short_channel_id
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_self));
         cJSON_AddItemToObject(result, "short_channel_id", cJSON_CreateString(str_sci));
         //funding_tx
@@ -611,6 +611,44 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
         //htlc_num(remote)
         cJSON_AddItemToObject(their, "htlc_num", cJSON_CreateNumber(ln_commit_remote(p_self)->htlc_num));
         cJSON_AddItemToObject(result, "their", their);
+
+        if (ln_commit_local(p_self)->htlc_num != 0) {
+            cJSON *htlcs = cJSON_CreateArray();
+            for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+                const ln_update_add_htlc_t *p_htlc = ln_update_add_htlc(p_self, lp);
+                if (LN_HTLC_ENABLE(p_htlc)) {
+                    cJSON *htlc = cJSON_CreateObject();
+                    const char *p_type;
+                    switch (p_htlc->stat.flag.addhtlc) {
+                    case LN_ADDHTLC_OFFER:
+                        p_type = "offered";
+                        break;
+                    case LN_ADDHTLC_RECV:
+                        p_type = "received";
+                        break;
+                    case LN_ADDHTLC_NONE:
+                    default:
+                        p_type = "unknown";
+                        break;
+                    }
+                    cJSON_AddItemToObject(htlc, "type", cJSON_CreateString(p_type));
+                    cJSON_AddItemToObject(htlc, "htlc id", cJSON_CreateNumber64(p_htlc->id));
+                    cJSON_AddItemToObject(htlc, "amount_msat", cJSON_CreateNumber(p_htlc->amount_msat));
+                    cJSON_AddItemToObject(htlc, "cltv_expiry", cJSON_CreateNumber(p_htlc->cltv_expiry));
+                    if (p_htlc->prev_short_channel_id != 0) {
+                        if (p_htlc->prev_short_channel_id == UINT64_MAX) {
+                            cJSON_AddItemToObject(htlc, "role", cJSON_CreateString("final node"));
+                        } else {
+                            char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+                            ln_short_channel_id_string(str_sci, p_htlc->prev_short_channel_id);
+                            cJSON_AddItemToObject(htlc, "from", cJSON_CreateString(str_sci));
+                        }
+                    }
+                    cJSON_AddItemToArray(htlcs, htlc);
+                }
+            }
+            cJSON_AddItemToObject(result, "htlc", htlcs);
+        }
     } else if (p_self && pAppConf->funding_waiting) {
         char str[256];
 
@@ -1031,7 +1069,7 @@ static void *thread_main_start(void *pArg)
         // $1: short_channel_id
         // $2: node_id
         // $3: peer_id
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_self));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
@@ -1082,7 +1120,7 @@ LABEL_SHUTDOWN:
         // $1: short_channel_id
         // $2: node_id
         // $3: peer_id
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_self));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
@@ -1395,7 +1433,7 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     // $2: node_id
     // $3: our_msat
     // $4: funding_txid
-    char str_sci[LN_SZ_SHORTCHANNELID_STR];
+    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     char txidstr[BTC_SZ_TXID * 2 + 1];
     utl_misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), BTC_SZ_TXID);
@@ -1785,7 +1823,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
                         ln_shutdown_scriptpk_local(p_conf->p_self)->len);
             }
 
-            char str_sci[LN_SZ_SHORTCHANNELID_STR];
+            char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
             ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
             lnapp_save_event(ln_channel_id(p_conf->p_self),
                     "funding_locked: short_channel_id=%s, close_addr=%s",
@@ -1808,8 +1846,9 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 {
     //DBGTRACE_BEGIN
 
-    ln_status_t stat = ln_status_get(p_conf->p_self);
-    if (stat == LN_STATUS_CLOSING) {
+    bool unspent;
+    bool ret = btcrpc_check_unspent(ln_their_node_id(p_conf->p_self), &unspent, NULL, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
+    if (ret && !unspent) {
         //ループ解除
         LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         stop_threads(p_conf);
@@ -2372,7 +2411,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
 
     if ((p_conf->flag_recv & RECV_MSG_REESTABLISH) == 0) {
         //channel establish時のfunding_locked
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         lnapp_save_event(ln_channel_id(p_conf->p_self),
                 "open: recv funding_locked short_channel_id=%s",
@@ -2526,7 +2565,7 @@ static bool cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
         // $3: amt_to_forward
         // $4: outgoing_cltv_value
         // $5: payment_hash
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         utl_misc_bin2str(hashstr, p_addhtlc->p_payment, BTC_SZ_HASH256);
@@ -2656,7 +2695,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
         // $2: node_id
         // $3: payment_hash
         // $4: payment_preimage
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char hashstr[BTC_SZ_HASH256 * 2 + 1];
         uint8_t payment_hash[BTC_SZ_HASH256];
@@ -2754,7 +2793,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
         // method: fail
         // $1: short_channel_id
         // $2: node_id
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char node_id[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
@@ -2807,7 +2846,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
         //失敗したと思われるshort_channel_idをrouting除外登録
         //      route.hop_datain[0]は自分、[1]が相手
         //      hopの0は相手
-        char suggest[LN_SZ_SHORTCHANNELID_STR];
+        char suggest[LN_SZ_SHORTCHANNELID_STR + 1];
         const payment_conf_t *p_payconf = payroute_get(p_conf, p_fail->orig_id);
         if (p_payconf != NULL) {
             if (hop == p_payconf->hop_num - 2) {
@@ -2855,7 +2894,7 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
     // $1: short_channel_id
     // $2: node_id
     // $3: our_msat
-    char str_sci[LN_SZ_SHORTCHANNELID_STR];
+    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     char param[256];
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
@@ -2950,7 +2989,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
         // $1: short_channel_id
         // $2: node_id
         // $3: closing_txid
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char param[256];
         char txidstr[BTC_SZ_TXID * 2 + 1];
@@ -3163,7 +3202,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         // $1: short_channel_id
         // $2: node_id
         // $3: err_str
-        char str_sci[LN_SZ_SHORTCHANNELID_STR];
+        char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
         char *param = (char *)UTL_DBG_MALLOC(len_max);      //UTL_DBG_FREE: この中
         char node_id[BTC_SZ_PUBKEY * 2 + 1];

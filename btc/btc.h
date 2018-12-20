@@ -115,6 +115,8 @@ extern "C" {
 
 #define BTC_TX_VERSION_INIT     (2)
 #define BTC_TX_INIT             { BTC_TX_VERSION_INIT, 0, (btc_vin_t *)NULL, 0, (btc_vout_t *)NULL, 0 }
+#define BTC_TX_SEQUENCE         ((uint32_t)0xffffffff)
+#define BTC_TX_LOCKTIME_LIMIT   ((uint32_t)500000000)
 
 #define OP_0                    (0x00)
 #define OP_HASH160              (0xa9)

@@ -45,7 +45,7 @@ extern "C" {
 
 #define LN_SZ_CHANNEL_ID                (32)        ///< (size) channel_id
 #define LN_SZ_SHORT_CHANNEL_ID          (8)         ///< (size) short_channel_id
-#define LN_SZ_SHORTCHANNELID_STR        (128+1)     ///< (size) short_channel_id string
+#define LN_SZ_SHORTCHANNELID_STR        (127)       ///< (size) short_channel_id string
 #define LN_SZ_SIGNATURE                 BTC_SZ_SIGN_RS    ///< (size) signature
 #define LN_SZ_PREIMAGE                  (32)        ///< (size) preimage
 #define LN_SZ_SEED                      (32)        ///< (size) seed
@@ -522,7 +522,7 @@ typedef struct {
  *          - HTLC: LN_CLOSE_IDX_HTLC～
  */
 typedef struct {
-    int             num;                            ///< p_bufのtransaction数
+    int             num;                            ///< p_txのtransaction数
     btc_tx_t        *p_tx;                          ///< トランザクション
                                                     ///<    添字:[0]commit_tx [1]to_local [2]to_remote [3-]HTLC
     uint8_t         *p_htlc_idx;                    ///< self->cnl_add_htlc[]のhtlc_idx

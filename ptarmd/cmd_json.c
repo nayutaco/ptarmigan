@@ -959,7 +959,7 @@ LABEL_EXIT:
                 utl_misc_bin2str(str_pubkey, rt_ret.hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
                 fprintf(fp, "[%d] %s\n", lp, str_pubkey);
                 if (rt_ret.hop_datain[lp].short_channel_id != 0) {
-                    char str_sci[LN_SZ_SHORTCHANNELID_STR];
+                    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
                     ln_short_channel_id_string(str_sci, rt_ret.hop_datain[lp].short_channel_id);
                     fprintf(fp, "  short_channel_id: %s\n", str_sci);
                     fprintf(fp, "       amount_msat: %" PRIu64 "\n", rt_ret.hop_datain[lp].amt_to_forward);
@@ -1819,6 +1819,11 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
     if (haveCnl) {
         bool ret = lnapp_close_channel_force(pNodeId);
         if (ret) {
+            lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
+            if (p_appconf != NULL) {
+                //connecting
+                lnapp_stop(p_appconf);
+            }
             err = 0;
         } else {
             LOGD("fail: unilateral close\n");
