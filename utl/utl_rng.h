@@ -49,7 +49,7 @@ extern "C" {
  *
  * @return          true        success
  */
-bool utl_rng_init();
+bool utl_rng_init(void);
 
 
 /** generate random data
@@ -64,7 +64,7 @@ bool utl_rng_rand(uint8_t *pData, uint16_t Len);
 /** free random generator
  *
  */
-void utl_rng_free();
+void utl_rng_free(void);
 
 
 #ifdef __cplusplus
