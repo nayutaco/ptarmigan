@@ -33,6 +33,7 @@
 #include "libbase58.h"
 
 #include "utl_dbg.h"
+#include "utl_rng.h"
 
 #include "btc_local.h"
 #include "btc_segwit_addr.h"
@@ -93,18 +94,6 @@ static const uint8_t M_BTC_GENESIS_REGTEST[] = {
  * public functions
  **************************************************************************/
 
-void btc_util_random(uint8_t *pData, uint16_t Len)
-{
-#ifdef PTARM_USE_RNG
-    mbedtls_ctr_drbg_random(&mRng, pData, Len);
-#else   //PTARM_USE_RNG
-    for (uint16_t lp = 0; lp < Len; lp++) {
-        pData[lp] = (uint8_t)(rand() % 256);
-    }
-#endif  //PTARM_USE_RNG
-}
-
-
 bool btc_util_wif2keys(btc_util_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv)
 {
     bool ret;
@@ -121,7 +110,7 @@ bool btc_util_wif2keys(btc_util_keys_t *pKeys, btc_chain_t *pChain, const char *
 void btc_util_createprivkey(uint8_t *pPriv)
 {
     do {
-        btc_util_random(pPriv, BTC_SZ_PRIVKEY);
+        utl_rng_rand(pPriv, BTC_SZ_PRIVKEY);
     } while (!btc_keys_chkpriv(pPriv));
 }
 

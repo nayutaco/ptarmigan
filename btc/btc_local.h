@@ -37,10 +37,6 @@
 #include <string.h>
 #include <assert.h>
 
-#ifdef PTARM_USE_RNG
-#include "mbedtls/ctr_drbg.h"
-#endif  //PTARM_USE_RNG
-
 #include "utl_common.h"
 #include "btc.h"
 #define LOG_TAG "BTC"
@@ -63,9 +59,6 @@
 
 extern uint8_t  HIDDEN mPref[BTC_PREF_MAX];
 extern bool     HIDDEN mNativeSegwit;
-#ifdef PTARM_USE_RNG
-extern mbedtls_ctr_drbg_context HIDDEN mRng;
-#endif  //PTARM_USE_RNG
 
 
 /**************************************************************************

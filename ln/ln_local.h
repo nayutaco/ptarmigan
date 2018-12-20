@@ -40,9 +40,6 @@
 #include "mbedtls/sha256.h"
 #include "mbedtls/ripemd160.h"
 #include "mbedtls/ecp.h"
-#ifdef PTARM_USE_RNG
-#include "mbedtls/ctr_drbg.h"
-#endif  //PTARM_USE_RNG
 
 #include "ln.h"
 #define LOG_TAG "LN"

@@ -14,6 +14,7 @@ extern "C" {
 #include "../../utl/utl_buf.c"
 #include "../../utl/utl_push.c"
 #include "../../utl/utl_time.c"
+#include "../../utl/utl_rng.c"
 #undef LOG_TAG
 #include "../../btc/btc.c"
 #include "../../btc/btc_ekey.c"

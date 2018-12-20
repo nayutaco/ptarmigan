@@ -6,7 +6,6 @@ OUTPUT_FILENAME := $(PROJECT_NAME)
 
 ######################################
 #CFLAGS_USER
-CFLAGS_USER = -DPTARM_USE_RNG
 #CFLAGS_USER += -DPTARM_DEBUG_MEM
 ######################################
 

@@ -34,6 +34,7 @@
 #include "utl_buf.h"
 #include "utl_dbg.h"
 #include "utl_time.h"
+#include "utl_rng.h"
 
 #include "ln_db.h"
 #include "ln_misc.h"
@@ -1133,7 +1134,7 @@ bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
     }
 
     //仮チャネルID
-    btc_util_random(self->channel_id, LN_SZ_CHANNEL_ID);
+    utl_rng_rand(self->channel_id, LN_SZ_CHANNEL_ID);
 
     //鍵生成
     ln_signer_create_channelkeys(self);
@@ -1805,13 +1806,13 @@ bool ln_ping_create(ln_self_t *self, utl_buf_t *pPing)
     // https://github.com/lightningnetwork/lightning-rfc/issues/373
     //  num_pong_bytesが大きすぎると無視される？
     uint8_t r;
-    btc_util_random(&r, 1);
+    utl_rng_rand(&r, 1);
     self->last_num_pong_bytes = r;
-    btc_util_random(&r, 1);
+    utl_rng_rand(&r, 1);
     ping.byteslen = r;
 #else
-    btc_util_random((uint8_t *)&self->last_num_pong_bytes, 2);
-    btc_util_random((uint8_t *)&ping.byteslen, 2);
+    utl_rng_rand((uint8_t *)&self->last_num_pong_bytes, 2);
+    utl_rng_rand((uint8_t *)&ping.byteslen, 2);
 #endif
     ping.num_pong_bytes = self->last_num_pong_bytes;
     bool ret = ln_msg_ping_create(pPing, &ping);

@@ -24,12 +24,12 @@
  */
 #include <unistd.h>
 
-#include "mbedtls/entropy.h"
-#include "mbedtls/ctr_drbg.h"
 #include "mbedtls/version.h"
 
-#include "btc_local.h"
 #include "utl_common.h"
+#include "utl_rng.h"
+
+#include "btc_local.h"
 
 #ifndef __ORDER_LITTLE_ENDIAN__
 #error Only Little Endian
@@ -40,8 +40,6 @@
  * macros
  **************************************************************************/
 
-#define M_RNG_INIT      (const unsigned char *)"btc_personalization", 19
-
 
 /**************************************************************************
  * package variables
@@ -50,19 +48,10 @@
 uint8_t HIDDEN  mPref[BTC_PREF_MAX];      ///< prefix関連
 bool HIDDEN     mNativeSegwit;              ///< true:segwitのトランザクションをnativeで生成
 
-//この辺りはグローバル変数にしておくとマルチスレッドで危険かもしれない
-#ifdef PTARM_USE_RNG
-mbedtls_ctr_drbg_context HIDDEN mRng;
-#endif  //PTARM_USE_RNG
-
 
 /**************************************************************************
  * private variables
  **************************************************************************/
-
-#ifdef PTARM_USE_RNG
-static mbedtls_entropy_context mEntropy;
-#endif  //PTARM_USE_RNG
 
 
 /**************************************************************************
@@ -106,18 +95,9 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
 
     mNativeSegwit = bSegNative;
 
-#ifdef PTARM_USE_RNG
     if (ret) {
-        mbedtls_entropy_init(&mEntropy);
-        mbedtls_ctr_drbg_init(&mRng);
-        int retval = mbedtls_ctr_drbg_seed(&mRng , mbedtls_entropy_func, &mEntropy, M_RNG_INIT);
-        if (retval == 0) {
-            mbedtls_ctr_drbg_set_prediction_resistance(&mRng, MBEDTLS_CTR_DRBG_PR_ON);
-        } else {
-            ret = false;
-        }
+        ret = utl_rng_init();
     }
-#endif
 
 //#ifdef PTARM_DEBUG
 //    char mbedver[18];
@@ -137,6 +117,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
 void btc_term(void)
 {
     mPref[BTC_PREF_WIF] = BTC_UNKNOWN;
+    utl_rng_free();
 }
 
 

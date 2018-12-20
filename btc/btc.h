@@ -1212,14 +1212,6 @@ bool btc_ekey_read_addr(btc_ekey_t *pEKey, const char *pXAddr);
 //UTIL
 //////////////////////
 
-/** 乱数生成
- *
- * @param[out]      pData
- * @param[in]       Len         生成するサイズ
- */
-void btc_util_random(uint8_t *pData, uint16_t Len);
-
-
 /** WIFからの鍵生成
  *
  * @param[out]      pKeys           鍵情報
