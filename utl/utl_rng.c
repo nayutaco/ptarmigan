@@ -54,7 +54,7 @@ static mbedtls_ctr_drbg_context mRng;
  * public functions
  **************************************************************************/
 
-bool utl_rng_init()
+bool utl_rng_init(void)
 {
 #ifndef PTARM_NO_USE_RNG
     mbedtls_entropy_init(&mEntropy);
@@ -82,7 +82,7 @@ bool utl_rng_rand(uint8_t *pData, uint16_t Len)
     return true;
 }
 
-void utl_rng_free()
+void utl_rng_free(void)
 {
 #ifndef PTARM_NO_USE_RNG
     mbedtls_entropy_free(&mEntropy);
