@@ -2333,7 +2333,11 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
         utl_buf_t buf_tx = UTL_BUF_INIT;
         btc_tx_create(&buf_tx, p->p_tx_funding);
+
         p->b_result = btcrpc_send_rawtx(txid, NULL, buf_tx.buf, buf_tx.len);
+        if (p->b_result) {
+            LOGD("$$$ broadcast funding_tx\n");
+        }
         utl_buf_free(&buf_tx);
     } else {
         p->b_result = true;
@@ -2366,9 +2370,9 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
                 "open: funding wait start(%s): peer_id=%s",
                 p_str, str_peerid);
     } else {
-        LOGD("fail: send funding_tx\n");
+        LOGE("fail: broadcast\n");
         lnapp_save_event(ln_channel_id(p_conf->p_self),
-                "fail: sendrawtransaction\n");
+                "fail: broadcast funding_tx\n");
         stop_threads(p_conf);
     }
 
@@ -2955,16 +2959,14 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 
     if (LN_DBG_CLOSING_TX()) {
         //closing_txを展開
-        LOGD("send closing tx\n");
-
         uint8_t txid[BTC_SZ_TXID];
         p_closed->result = btcrpc_send_rawtx(txid, NULL, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
-        if (!p_closed->result) {
-            LOGD("btcrpc_send_rawtx\n");
+        if (p_closed->result) {
+            LOGD("$$$ broadcast\n");
+        } else {
+            LOGE("fail: broadcast\n");
             assert(0);
         }
-        LOGD("closing_txid: ");
-        TXIDD(txid);
 
         // method: closed
         // $1: short_channel_id
