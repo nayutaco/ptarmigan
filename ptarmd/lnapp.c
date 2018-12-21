@@ -426,7 +426,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     utl_buf_t buf_bolt = UTL_BUF_INIT;
     ln_self_t *p_self = pAppConf->p_self;
 
-    if (ln_close_type(p_self) != LN_CLOSETYPE_NONE) {
+    if (ln_status_is_closing(p_self)) {
         LOGD("fail: already closing\n");
         goto LABEL_EXIT;
     }
@@ -469,7 +469,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     if (!ret) {
         return false;
     }
-    if (ln_close_type(p_self) != LN_CLOSETYPE_NONE) {
+    if (ln_status_is_closing(p_self)) {
         LOGD("fail: already closing\n");
         UTL_DBG_FREE(p_self);
         return false;
@@ -551,22 +551,7 @@ void lnapp_show_self(const lnapp_conf_t *pAppConf, cJSON *pResult, const char *p
     if (p_self && ln_short_channel_id(p_self)) {
         char str[256];
 
-        const char *p_status;
-        ln_status_t stat = ln_status_get(p_self);
-        switch (stat) {
-        case LN_STATUS_ESTABLISH:
-            p_status = "establishing";
-            break;
-        case LN_STATUS_NORMAL:
-            p_status = "normal operation";
-            break;
-        case LN_STATUS_CLOSING:
-            p_status = "closing";
-            break;
-        default:
-            p_status = "none";
-            break;
-        }
+        const char *p_status = ln_status_string(p_self);
         cJSON_AddItemToObject(result, "status", cJSON_CreateString(p_status));
 
         //peer node_id
@@ -923,7 +908,7 @@ static void *thread_main_start(void *pArg)
     //p_conf->node_idがchannel情報を持っているかどうか。
     //持っている場合、selfにDBから読み込みまで行われている。
     detect = ln_node_search_channel(p_self, p_conf->node_id);
-    if (detect && (ln_close_type(p_self) != LN_CLOSETYPE_NONE)) {
+    if (detect && ln_status_is_closing(p_self)) {
         LOGD("$$$ closing channel: %016" PRIx64 "\n", ln_short_channel_id(p_self));
         goto LABEL_SHUTDOWN;
     }
@@ -996,10 +981,8 @@ static void *thread_main_start(void *pArg)
                 ln_funding_blockhash(p_self));
 #endif
 
-        ln_closetype_t closetype = ln_close_type(p_self);
-        if (closetype == LN_CLOSETYPE_NONE) {
-            ln_status_t stat = ln_status_get(p_self);
-            if (stat == LN_STATUS_NORMAL) {
+        if (!ln_status_is_closing(p_self)) {
+            if (ln_status_get(p_self) == LN_STATUS_NORMAL) {
                 // funding_txはブロックに入ってminimum_depth以上経過している
                 LOGD("$$$ Established\n");
                 ln_establish_free(p_self);
@@ -1027,7 +1010,7 @@ static void *thread_main_start(void *pArg)
                 goto LABEL_JOIN;
             }
         } else {
-            const char *p_str = ln_close_typestring(p_self);
+            const char *p_str = ln_status_string(p_self);
             LOGD("$$$ now closing: %s\n", p_str);
         }
     } else {

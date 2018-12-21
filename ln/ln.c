@@ -511,9 +511,41 @@ void ln_term(ln_self_t *self)
 }
 
 
-ln_status_t ln_status_get(const ln_self_t *self)
+const char *ln_status_string(const ln_self_t *self)
 {
-    return self->status;
+    const char *p_str_stat;
+    switch (self->status) {
+    case LN_STATUS_NONE:
+        p_str_stat = "none";
+        break;
+    case LN_STATUS_ESTABLISH:
+        p_str_stat = "establishing";
+        break;
+    case LN_STATUS_NORMAL:
+        p_str_stat = "normal operation";
+        break;
+    case LN_STATUS_CLOSE_WAIT:
+        p_str_stat = "close waiting";
+        break;
+    case LN_STATUS_CLOSE_SPENT:
+        p_str_stat = "funding spent";
+        break;
+    case LN_STATUS_CLOSE_MUTUAL:
+        p_str_stat = "mutual close";
+        break;
+    case LN_STATUS_CLOSE_UNI_LOCAL:
+        p_str_stat = "unilateral close(local)";
+        break;
+    case LN_STATUS_CLOSE_UNI_REMOTE:
+        p_str_stat = "unilateral close(remote)";
+        break;
+    case LN_STATUS_CLOSE_REVOKED:
+        p_str_stat = "revoked transaction close";
+        break;
+    default:
+        p_str_stat = "???";
+    }
+    return p_str_stat;
 }
 
 
@@ -1318,47 +1350,13 @@ bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown)
 }
 
 
-const char *ln_close_typestring(const ln_self_t *self)
-{
-    const char *p_str_close_type;
-    switch (self->close_type) {
-    case LN_CLOSETYPE_NONE:
-        p_str_close_type = "none";
-        break;
-    case LN_CLOSETYPE_WAIT:
-        p_str_close_type = "close waiting";
-        break;
-    case LN_CLOSETYPE_SPENT:
-        p_str_close_type = "funding spent";
-        break;
-    case LN_CLOSETYPE_MUTUAL:
-        p_str_close_type = "mutual close";
-        break;
-    case LN_CLOSETYPE_UNI_LOCAL:
-        p_str_close_type = "unilateral close(local)";
-        break;
-    case LN_CLOSETYPE_UNI_REMOTE:
-        p_str_close_type = "unilateral close(remote)";
-        break;
-    case LN_CLOSETYPE_REVOKED:
-        p_str_close_type = "revoked transaction close";
-        break;
-    default:
-        p_str_close_type = "???";
-    }
-    return p_str_close_type;
-}
-
-
 void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbParam)
 {
-    LOGD("BEGIN: type=%d\n", (int)self->close_type);
-    if ((self->close_type == LN_CLOSETYPE_NONE) || (self->close_type == LN_CLOSETYPE_WAIT)) {
-        self->close_type = LN_CLOSETYPE_SPENT;
-        self->status = LN_STATUS_CLOSING;
-        ln_db_self_save_closetype(self, pDbParam);
+    LOGD("BEGIN: status=%d\n", (int)self->status);
+    if ((self->status == LN_STATUS_NORMAL) || (self->status == LN_STATUS_CLOSE_WAIT)) {
+        self->status = LN_STATUS_CLOSE_SPENT;
         ln_db_self_save_status(self, pDbParam);
-    } else if (self->close_type == LN_CLOSETYPE_SPENT) {
+    } else if (self->status == LN_STATUS_CLOSE_SPENT) {
         M_DBG_PRINT_TX(pCloseTx);
 
         uint8_t txid[BTC_SZ_TXID];
@@ -1374,10 +1372,10 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
              ( utl_buf_cmp(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_local(self)) ||
                utl_buf_cmp(&pCloseTx->vout[0].script, ln_shutdown_scriptpk_remote(self)) ) ) {
             //mutual close
-            self->close_type = LN_CLOSETYPE_MUTUAL;
+            self->status = LN_STATUS_CLOSE_MUTUAL;
         } else if (memcmp(txid, self->commit_local.txid, BTC_SZ_TXID) == 0) {
             //unilateral close(local)
-            self->close_type = LN_CLOSETYPE_UNI_LOCAL;
+            self->status = LN_STATUS_CLOSE_UNI_LOCAL;
         } else {
             //commitment numberの復元
             uint64_t commit_num = calc_commit_num(self, pCloseTx);
@@ -1386,16 +1384,14 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
             bool ret = ln_derkey_storage_get_secret(self->revoked_sec.buf, &self->peer_storage, (uint64_t)(LN_SECINDEX_INIT - commit_num));
             if (ret) {
                 //revoked transaction close(remote)
-                self->close_type = LN_CLOSETYPE_REVOKED;
+                self->status = LN_STATUS_CLOSE_REVOKED;
                 btc_keys_priv2pub(self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT], self->revoked_sec.buf);
             } else {
                 //unilateral close(remote)
-                self->close_type = LN_CLOSETYPE_UNI_REMOTE;
+                self->status = LN_STATUS_CLOSE_UNI_REMOTE;
                 utl_buf_free(&self->revoked_sec);
             }
         }
-        self->status = LN_STATUS_CLOSING;
-        ln_db_self_save_closetype(self, pDbParam);
         ln_db_self_save_status(self, pDbParam);
 
         //自分のchannel_updateをdisableにする(相手のは署名できないので、自分だけ)
@@ -1408,7 +1404,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
             utl_buf_free(&buf_upd);
         }
     }
-    LOGD("END: type=%d\n", (int)self->close_type);
+    LOGD("END: type=%d\n", (int)self->status);
 }
 
 
@@ -2927,8 +2923,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
         //shutdown交換完了
-        self->status = LN_STATUS_CLOSING;
-        //self->close_type = LN_CLOSETYPE_MUTUAL;   //close_type is set by funding_tx spending
+        self->status = LN_STATUS_CLOSE_WAIT;
         M_DB_SELF_SAVE(self);
     }
 
@@ -3044,7 +3039,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
             //funding_txがspentになった
             if (closed.result) {
                 LOGD("$$$ close waiting\n");
-                self->close_type = LN_CLOSETYPE_WAIT;
+                self->status = LN_STATUS_CLOSE_SPENT;
 
                 //clearはDB削除に任せる
                 //channel_clear(self);

@@ -55,8 +55,9 @@
  **************************************************************************/
 
 typedef struct {
-    uint32_t feerate_per_kw;
-    int32_t height;
+    uint32_t    feerate_per_kw;         ///< feerate_per_kw
+    int32_t     height;                 ///< current block height
+    uint32_t    confm;                  ///< funding_tx confirmation
 } monparam_t;
 
 
@@ -66,7 +67,7 @@ typedef struct {
 
 static volatile bool        mMonitoring;                ///< true:監視thread継続
 static bool                 mDisableAutoConn;           ///< true:channelのある他nodeへの自動接続停止
-static uint32_t             mFeeratePerKw;              ///< 0:bitcoind estimatesmartfee使用 / 非0:強制feerate_per_kw
+static uint32_t             mFeeratePerKw;              ///< 0:estimate fee / !0:use this value
 
 
 /********************************************************************
@@ -75,7 +76,8 @@ static uint32_t             mFeeratePerKw;              ///< 0:bitcoind estimate
 
 static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param);
 
-static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void *p_db_param);
+static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param);
+static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param);
 static bool channel_reconnect(ln_self_t *self);
 static bool channel_reconnect_ipv4(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port);
 
@@ -311,71 +313,79 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     monparam_t *p_prm = (monparam_t *)p_param;
 
-    uint32_t confm;
-    bool b_get = btcrpc_get_confirm(&confm, ln_funding_txid(self));
-    if (b_get) {
-        bool ret;
-        bool del = false;
-        bool unspent;
-        if (ln_status_get(self) == LN_STATUS_CLOSING) {
-            ret = true;
-            unspent = false;
+    p_prm->confm = 0;
+    (void)btcrpc_get_confirm(&p_prm->confm, ln_funding_txid(self));
+    bool ret;
+    bool del = false;
+    bool unspent;
+    if (ln_status_is_closing(self)) {
+        ret = true;
+        unspent = false;
+    } else {
+        ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
+    }
+    if (ret && !unspent) {
+        //funding_tx SPENT
+        del = funding_spent(self, p_prm, p_db_param);
+    } else {
+        //funding_tx UNSPENT
+        del = funding_unspent(self, p_prm, p_db_param);
+    }
+    if (del) {
+        LOGD("delete from DB\n");
+        ln_db_annoown_del(ln_short_channel_id(self));
+        ret = ln_db_self_del_prm(self, p_db_param);
+        if (ret) {
+            lnapp_save_event(ln_channel_id(self), "close: finish");
         } else {
-            ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
+            LOGD("fail: del channel: ");
+            DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
         }
-        if (ret && !unspent) {
-            //funding_tx使用済み
-            del = funding_spent(self, confm, p_prm->height, p_db_param);
-        } else {
-            //funding_tx未使用
-            lnapp_conf_t *p_app_conf = ptarmd_search_connected_cnl(ln_short_channel_id(self));
-            if ( (p_app_conf == NULL) && LN_DBG_NODE_AUTO_CONNECT() &&
-                  !mDisableAutoConn && (ln_close_type(self) == LN_CLOSETYPE_NONE) ) {
-                //socket未接続であれば、再接続を試行
-                del = channel_reconnect(self);
-            } else if (p_app_conf != NULL) {
-                //socket接続済みであれば、feerate_per_kwチェック
-                //  当面、feerate_per_kwを手動で変更した場合のみとする
-                if ((mFeeratePerKw != 0) && (ln_feerate_per_kw(self) != p_prm->feerate_per_kw)) {
-                    LOGD("differenct feerate_per_kw: %" PRIu32 " : %" PRIu32 "\n", ln_feerate_per_kw(self), p_prm->feerate_per_kw);
-                    pthread_mutex_lock(&p_app_conf->mux_self);
-                    lnapp_send_updatefee(p_app_conf, p_prm->feerate_per_kw);
-                    pthread_mutex_unlock(&p_app_conf->mux_self);
-                }
-            } else {
-                //LOGD("No Auto connect mode\n");
-            }
-
-            //Offered HTLCのtimeoutチェック
-            for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
-                if (ln_is_offered_htlc_timeout(self, lp, p_prm->height)) {
-                    LOGD("detect: offered HTLC timeout[%d] --> close 0x%016" PRIx64 "\n", lp, ln_short_channel_id(self));
-                    bool ret = monitor_close_unilateral_local(self, p_db_param);
-                    if (!ret) {
-                        LOGD("fail: unilateral close\n");
-                    }
-                    break;
-                }
-            }
-        }
-        if (del) {
-            LOGD("delete from DB\n");
-            ln_db_annoown_del(ln_short_channel_id(self));
-            ret = ln_db_self_del_prm(self, p_db_param);
-            if (ret) {
-                lnapp_save_event(ln_channel_id(self), "close: finish");
-            } else {
-                LOGD("fail: del channel: ");
-                DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
-            }
 #ifndef USE_SPV
 #else
-            btcrpc_del_channel(ln_their_node_id(self));
+        btcrpc_del_channel(ln_their_node_id(self));
 #endif
-        }
     }
 
     return false;
+}
+
+
+static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
+{
+    bool del = false;
+
+    lnapp_conf_t *p_app_conf = ptarmd_search_connected_cnl(ln_short_channel_id(self));
+    if ( (p_app_conf == NULL) && LN_DBG_NODE_AUTO_CONNECT() &&
+            !mDisableAutoConn && !ln_status_is_closing(self) ) {
+        //socket未接続であれば、再接続を試行
+        del = channel_reconnect(self);
+    } else if (p_app_conf != NULL) {
+        //socket接続済みであれば、feerate_per_kwチェック
+        //  当面、feerate_per_kwを手動で変更した場合のみとする
+        if ((mFeeratePerKw != 0) && (ln_feerate_per_kw(self) != p_prm->feerate_per_kw)) {
+            LOGD("differenct feerate_per_kw: %" PRIu32 " : %" PRIu32 "\n", ln_feerate_per_kw(self), p_prm->feerate_per_kw);
+            pthread_mutex_lock(&p_app_conf->mux_self);
+            lnapp_send_updatefee(p_app_conf, p_prm->feerate_per_kw);
+            pthread_mutex_unlock(&p_app_conf->mux_self);
+        }
+    } else {
+        //LOGD("No Auto connect mode\n");
+    }
+
+    //Offered HTLCのtimeoutチェック
+    for (int lp = 0; lp < LN_HTLC_MAX; lp++) {
+        if (ln_is_offered_htlc_timeout(self, lp, p_prm->height)) {
+            LOGD("detect: offered HTLC timeout[%d] --> close 0x%016" PRIx64 "\n", lp, ln_short_channel_id(self));
+            bool ret = monitor_close_unilateral_local(self, p_db_param);
+            if (!ret) {
+                LOGD("fail: unilateral close\n");
+            }
+            break;
+        }
+    }
+
+    return del;
 }
 
 
@@ -383,61 +393,49 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
  *
  * @param[in,out]   self        チャネル情報
  * @param[in]       confm       confirmation数
- * @param[in]       height      blockcount
  * @param[in,out]   p_db_param  DB情報
  * @retval      true    selfをDB削除可能
  */
-static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void *p_db_param)
+static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
 {
     bool del = false;
     bool ret;
     char txid_str[BTC_SZ_TXID * 2 + 1];
 
     btc_tx_t close_tx = BTC_TX_INIT;
-    ln_closetype_t type = ln_close_type(self);
+    ln_status_t stat = ln_status_get(self);
     utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
 
-    LOGD("$$$ close: %s (confirm=%" PRIu32 ", height=%d, close_type=%s)\n", txid_str, confm, height, ln_close_typestring(self));
-    if (type <= LN_CLOSETYPE_SPENT) {
-
-        //funding_txをINPUTにもつtx
-        ret = btcrpc_search_outpoint(&close_tx, confm, ln_funding_txid(self), ln_funding_txindex(self));
-        if (ret) {
-            //funding_txがblockに入った
-            LOGD("$$$ find spent_tx!\n");
-
+    LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, p_prm->confm, ln_status_string(self));
+    if (stat <= LN_STATUS_CLOSE_SPENT) {
+        //update status
+        ret = btcrpc_search_outpoint(&close_tx, p_prm->confm, ln_funding_txid(self), ln_funding_txindex(self));
+        if (ret || (stat == LN_STATUS_NORMAL)) {
+            //funding_txをoutpointに持つtxがblockに入った or statusがNormal Operationのまま
             ln_close_change_stat(self, &close_tx, p_db_param);
-            type = ln_close_type(self);
-            const char *p_str = ln_close_typestring(self);
+            stat = ln_status_get(self);
+            const char *p_str = ln_status_string(self);
             lnapp_save_event(ln_channel_id(self), "close: %s(%s)", p_str, txid_str);
-        } else {
-            //funding_txのvoutはspentだがblockに入っていない
-            LOGD("$$$ spent_tx in mempool\n");
-
-            if (type == LN_CLOSETYPE_NONE) {
-                ln_close_change_stat(self, &close_tx, p_db_param);
-                lnapp_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
-            }
         }
     }
 
     ln_db_revtx_load(self, p_db_param);
     const utl_buf_t *p_vout = ln_revoked_vout(self);
     if (p_vout == NULL) {
-        switch (type) {
-        case LN_CLOSETYPE_MUTUAL:
+        switch (stat) {
+        case LN_STATUS_CLOSE_MUTUAL:
             LOGD("closed: mutual close\n");
             del = true;
             break;
-        case LN_CLOSETYPE_UNI_LOCAL:
+        case LN_STATUS_CLOSE_UNI_LOCAL:
             //最新のlocal commit_tx --> unilateral close(local)
             del = monitor_close_unilateral_local(self, p_db_param);
             break;
-        case LN_CLOSETYPE_UNI_REMOTE:
+        case LN_STATUS_CLOSE_UNI_REMOTE:
             //最新のremote commit_tx --> unilateral close(remote)
             del = close_unilateral_remote(self, p_db_param);
             break;
-        case LN_CLOSETYPE_REVOKED:
+        case LN_STATUS_CLOSE_REVOKED:
             //相手にrevoked transaction closeされた
             LOGD("closed: revoked transaction close\n");
             ret = ln_close_remoterevoked(self, &close_tx, p_db_param);
@@ -445,7 +443,7 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void 
                 if (ln_revoked_cnt(self) > 0) {
                     //revoked transactionのvoutに未解決あり
                     //  2回目以降はclose_revoked_after()が呼び出される
-                    del = close_revoked_first(self, &close_tx, confm, p_db_param);
+                    del = close_revoked_first(self, &close_tx, p_prm->confm, p_db_param);
                 } else {
                     LOGD("all revoked transaction vout is already solved.\n");
                     del = true;
@@ -454,15 +452,12 @@ static bool funding_spent(ln_self_t *self, uint32_t confm, int32_t height, void 
                 LOGD("fail: ln_close_remoterevoked\n");
             }
             break;
-        case LN_CLOSETYPE_NONE:
-        case LN_CLOSETYPE_WAIT:
-        case LN_CLOSETYPE_SPENT:
         default:
             break;
         }
     } else {
         // revoked transaction close
-        del = close_revoked_after(self, confm, p_db_param);
+        del = close_revoked_after(self, p_prm->confm, p_db_param);
     }
     btc_tx_free(&close_tx);
 

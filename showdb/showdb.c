@@ -221,23 +221,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("feerate_per_kw") ": %" PRIu32 ",\n", self->feerate_per_kw);
 
     //status
-    const char *p_status_str;
-    switch (self->status) {
-    case LN_STATUS_NONE:
-        p_status_str = "none";
-        break;
-    case LN_STATUS_ESTABLISH:
-        p_status_str = "establish";
-        break;
-    case LN_STATUS_NORMAL:
-        p_status_str = "normal operation";
-        break;
-    case LN_STATUS_CLOSING:
-        p_status_str = "closing";
-        break;
-    default:
-        p_status_str = "???";
-    }
+    const char *p_status_str = ln_status_string(self);
     printf(INDENT3 M_QQ("status") ": " M_QQ("%s") ",\n", p_status_str);
 
     //key storage
@@ -332,8 +316,6 @@ static void ln_print_self(const ln_self_t *self)
 
     //close
     printf(INDENT3 M_QQ("close") ": {\n");
-    const char *p_str_close_type = ln_close_typestring(self);
-    printf(INDENT4 M_QQ("close_type") ": " M_QQ("%s") ",\n", p_str_close_type);
     printf(INDENT4 M_QQ("shutdown_flag") ": {\n");
     printf(INDENT5 M_QQ("value") ": " M_QQ("0x%02x") ",\n", self->shutdown_flag);
     printf(INDENT5 M_QQ("shutdown_send") ": %d,\n", (self->shutdown_flag & 0x01) == 0x01);
