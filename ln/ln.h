@@ -203,9 +203,14 @@ typedef struct ln_fieldr_t ln_fieldr_t;
  */
 typedef enum {
     LN_STATUS_NONE,
-    LN_STATUS_ESTABLISH,
-    LN_STATUS_NORMAL,
-    LN_STATUS_CLOSING,
+    LN_STATUS_ESTABLISH,            ///< establish
+    LN_STATUS_NORMAL,               ///< normal operation
+    LN_STATUS_CLOSE_WAIT,           ///< funding_tx isn't spent
+    LN_STATUS_CLOSE_SPENT,          ///< funding_tx is spent but not in block
+    LN_STATUS_CLOSE_MUTUAL,         ///< mutual close
+    LN_STATUS_CLOSE_UNI_LOCAL,      ///< unilateral close(from local)
+    LN_STATUS_CLOSE_UNI_REMOTE,     ///< unilateral close(from remote)
+    LN_STATUS_CLOSE_REVOKED         ///< revoked transaction close(from remote)
 } ln_status_t;
 
 
@@ -231,22 +236,6 @@ typedef enum {
     LN_FUNDFLAG_FUNDING     = 0x04,     ///< 1:open_channel～funding_lockedまで
     LN_FUNDFLAG_OPENED      = 0x80      ///< 1:opened
 } ln_fundflag_t;
-
-
-/** @enum   ln_closetype_t
- *  @brief  close type
- *  @note
- *      - localからはrevoked transaction closeしない
- */
-typedef enum {
-    LN_CLOSETYPE_NONE,                  ///< ln_self_t not close
-    LN_CLOSETYPE_WAIT,                  ///< closing_tx is broadcasted but btcrpc not detect
-    LN_CLOSETYPE_SPENT,                 ///< funding_tx is spent but not in block
-    LN_CLOSETYPE_MUTUAL,                ///< mutual close
-    LN_CLOSETYPE_UNI_LOCAL,             ///< unilateral close(from local)
-    LN_CLOSETYPE_UNI_REMOTE,            ///< unilateral close(from remote)
-    LN_CLOSETYPE_REVOKED                ///< revoked transaction close(from remote)
-} ln_closetype_t;
 
 
 /** @enum   ln_cb_t
@@ -1168,7 +1157,6 @@ struct ln_self_t {
     uint64_t                    reest_revoke_num;               ///< [INIT_05]channel_reestablish.next_remote_revocation_number
 
     //msg:close
-    ln_closetype_t              close_type;                     ///< [CLSE_01]close状況
     btc_tx_t                    tx_closing;                     ///< [CLSE_02]closing_tx
     uint8_t                     shutdown_flag;                  ///< [CLSE_03]shutdownフラグ(M_SHDN_FLAG_xxx)
     uint64_t                    close_fee_sat;                  ///< [CLSE_04]closing_txのFEE
@@ -1240,12 +1228,11 @@ bool ln_init(ln_self_t *self, const uint8_t *pSeed, const ln_anno_prm_t *pAnnoPr
 void ln_term(ln_self_t *self);
 
 
-/** status設定
- *
- * @param[in,out]       self            channel情報
- * @param[in]           Status          設定値
+/** get status string
+ * 
+ * @return  status
  */
-ln_status_t ln_status_get(const ln_self_t *self);
+const char *ln_status_string(const ln_self_t *self);
 
 
 /** Genesis Block Hash設定
@@ -1572,13 +1559,6 @@ void ln_shutdown_update_fee(ln_self_t *self, uint64_t Fee);
 bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown);
 
 
-/** close_type文字列取得
- * 
- * @return  close_type文字列
- */
-const char *ln_close_typestring(const ln_self_t *self);
-
-
 /** close中状態に遷移させる
  *
  * @param[in,out]       self        channel情報
@@ -1854,6 +1834,26 @@ static inline void *ln_get_param(ln_self_t *self) {
 }
 
 
+/** get status
+ *
+ * @param[in]           self            channel info
+ * @return  status
+ */
+static inline ln_status_t ln_status_get(const ln_self_t *self) {
+    return self->status;
+}
+
+
+/** is closing ?
+ *
+ * @param[in]           self            channel info
+ * @retval  true    closing now
+ */
+static inline bool ln_status_is_closing(const ln_self_t *self) {
+    return self->status > LN_STATUS_NORMAL;
+}
+
+
 /** our_msat取得
  *
  * @param[in]           self            channel情報
@@ -1972,18 +1972,6 @@ static inline bool ln_need_init_routing_sync(const ln_self_t *self) {
  */
 static inline bool ln_is_announced(const ln_self_t *self) {
     return (self->anno_flag & LN_ANNO_FLAG_END);
-}
-
-
-/** closing中かどうか
- *
- * funding_txのvoutがspentになったことを認識しているかどうか。
- *
- * @param[in]           self            channel情報
- * @return      close状態
- */
-static inline ln_closetype_t ln_close_type(const ln_self_t *self) {
-    return self->close_type;
 }
 
 

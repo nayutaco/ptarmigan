@@ -233,10 +233,9 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
     param_self_t *p_prm_self = (param_self_t *)p_param;
 
     M_DBGLOG("self: short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
-    M_DBGLOG("      close_type=%d\n", ln_close_type(self));
     M_DBGLOG("      status=%d\n", ln_status_get(self));
-    if ((self->short_channel_id != 0) && (ln_close_type(self) == LN_CLOSETYPE_NONE) && (ln_status_get(self) == LN_STATUS_NORMAL)) {
-        //チャネルは開設している && close処理をしていない && normal operation
+    if ((self->short_channel_id != 0) && (ln_status_get(self) == LN_STATUS_NORMAL)) {
+        //チャネルは開設している && normal operation
         bret = ln_db_routeskip_search(self->short_channel_id);
         if (bret) {
             //skip DBに載っているchannelは使用しない

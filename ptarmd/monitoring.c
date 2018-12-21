@@ -119,7 +119,6 @@ void *monitor_thread_start(void *pArg)
         }
 
         monparam_t param;
-        param.confm = 0;
         if (mFeeratePerKw == 0) {
             param.feerate_per_kw = monitoring_get_latest_feerate_kw();
         } else {
@@ -314,39 +313,38 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
 {
     monparam_t *p_prm = (monparam_t *)p_param;
 
-    bool b_get = btcrpc_get_confirm(&p_prm->confm, ln_funding_txid(self));
-    if (b_get) {
-        bool ret;
-        bool del = false;
-        bool unspent;
-        if (ln_status_get(self) == LN_STATUS_CLOSING) {
-            ret = true;
-            unspent = false;
+    p_prm->confm = 0;
+    (void)btcrpc_get_confirm(&p_prm->confm, ln_funding_txid(self));
+    bool ret;
+    bool del = false;
+    bool unspent;
+    if (ln_status_is_closing(self)) {
+        ret = true;
+        unspent = false;
+    } else {
+        ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
+    }
+    if (ret && !unspent) {
+        //funding_tx SPENT
+        del = funding_spent(self, p_prm, p_db_param);
+    } else {
+        //funding_tx UNSPENT
+        del = funding_unspent(self, p_prm, p_db_param);
+    }
+    if (del) {
+        LOGD("delete from DB\n");
+        ln_db_annoown_del(ln_short_channel_id(self));
+        ret = ln_db_self_del_prm(self, p_db_param);
+        if (ret) {
+            lnapp_save_event(ln_channel_id(self), "close: finish");
         } else {
-            ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL, ln_funding_txid(self), ln_funding_txindex(self));
+            LOGD("fail: del channel: ");
+            DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
         }
-        if (ret && !unspent) {
-            //funding_tx SPENT
-            del = funding_spent(self, p_prm, p_db_param);
-        } else {
-            //funding_tx UNSPENT
-            del = funding_unspent(self, p_prm, p_db_param);
-        }
-        if (del) {
-            LOGD("delete from DB\n");
-            ln_db_annoown_del(ln_short_channel_id(self));
-            ret = ln_db_self_del_prm(self, p_db_param);
-            if (ret) {
-                lnapp_save_event(ln_channel_id(self), "close: finish");
-            } else {
-                LOGD("fail: del channel: ");
-                DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
-            }
 #ifndef USE_SPV
 #else
-            btcrpc_del_channel(ln_their_node_id(self));
+        btcrpc_del_channel(ln_their_node_id(self));
 #endif
-        }
     }
 
     return false;
@@ -359,7 +357,7 @@ static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param
 
     lnapp_conf_t *p_app_conf = ptarmd_search_connected_cnl(ln_short_channel_id(self));
     if ( (p_app_conf == NULL) && LN_DBG_NODE_AUTO_CONNECT() &&
-            !mDisableAutoConn && (ln_close_type(self) == LN_CLOSETYPE_NONE) ) {
+            !mDisableAutoConn && !ln_status_is_closing(self) ) {
         //socket未接続であれば、再接続を試行
         del = channel_reconnect(self);
     } else if (p_app_conf != NULL) {
@@ -405,50 +403,39 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
     char txid_str[BTC_SZ_TXID * 2 + 1];
 
     btc_tx_t close_tx = BTC_TX_INIT;
-    ln_closetype_t type = ln_close_type(self);
+    ln_status_t stat = ln_status_get(self);
     utl_misc_bin2str_rev(txid_str, ln_funding_txid(self), BTC_SZ_TXID);
 
-    LOGD("$$$ close: %s (confirm=%" PRIu32 ", close_type=%s)\n", txid_str, p_prm->confm, ln_close_typestring(self));
-    if (type <= LN_CLOSETYPE_SPENT) {
-
-        //close_typeの更新
+    LOGD("$$$ close: %s (confirm=%" PRIu32 ", status=%s)\n", txid_str, p_prm->confm, ln_status_string(self));
+    if (stat <= LN_STATUS_CLOSE_SPENT) {
+        //update status
         ret = btcrpc_search_outpoint(&close_tx, p_prm->confm, ln_funding_txid(self), ln_funding_txindex(self));
-        if (ret) {
-            //funding_txをoutpointに持つtxがblockに入った
-            LOGD("$$$ find spent_tx!\n");
-
+        if (ret || (stat == LN_STATUS_NORMAL)) {
+            //funding_txをoutpointに持つtxがblockに入った or statusがNormal Operationのまま
             ln_close_change_stat(self, &close_tx, p_db_param);
-            type = ln_close_type(self);
-            const char *p_str = ln_close_typestring(self);
+            stat = ln_status_get(self);
+            const char *p_str = ln_status_string(self);
             lnapp_save_event(ln_channel_id(self), "close: %s(%s)", p_str, txid_str);
-        } else {
-            //funding_txはspentだが、spentにしたtxはblockに入っていない
-            LOGD("$$$ spent_tx in mempool\n");
-
-            if (type == LN_CLOSETYPE_NONE) {
-                ln_close_change_stat(self, &close_tx, p_db_param);
-                lnapp_save_event(ln_channel_id(self), "close: funding_tx spent(%s)", txid_str);
-            }
         }
     }
 
     ln_db_revtx_load(self, p_db_param);
     const utl_buf_t *p_vout = ln_revoked_vout(self);
     if (p_vout == NULL) {
-        switch (type) {
-        case LN_CLOSETYPE_MUTUAL:
+        switch (stat) {
+        case LN_STATUS_CLOSE_MUTUAL:
             LOGD("closed: mutual close\n");
             del = true;
             break;
-        case LN_CLOSETYPE_UNI_LOCAL:
+        case LN_STATUS_CLOSE_UNI_LOCAL:
             //最新のlocal commit_tx --> unilateral close(local)
             del = monitor_close_unilateral_local(self, p_db_param);
             break;
-        case LN_CLOSETYPE_UNI_REMOTE:
+        case LN_STATUS_CLOSE_UNI_REMOTE:
             //最新のremote commit_tx --> unilateral close(remote)
             del = close_unilateral_remote(self, p_db_param);
             break;
-        case LN_CLOSETYPE_REVOKED:
+        case LN_STATUS_CLOSE_REVOKED:
             //相手にrevoked transaction closeされた
             LOGD("closed: revoked transaction close\n");
             ret = ln_close_remoterevoked(self, &close_tx, p_db_param);
@@ -465,9 +452,6 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
                 LOGD("fail: ln_close_remoterevoked\n");
             }
             break;
-        case LN_CLOSETYPE_NONE:
-        case LN_CLOSETYPE_WAIT:
-        case LN_CLOSETYPE_SPENT:
         default:
             break;
         }

@@ -125,7 +125,7 @@
 
 #define M_SKIP_TEMP             ((uint8_t)1)
 
-#define M_DB_VERSION_BASE       ((int32_t)28)      ///< DBバージョン
+#define M_DB_VERSION_BASE       ((int32_t)29)      ///< DBバージョン
 #ifndef USE_SPV
 #define M_DB_VERSION_VAL        ((int32_t)(-M_DB_VERSION_BASE))     ///< DBバージョン
 #else
@@ -162,6 +162,7 @@
     -26: DB_COPYにhtlc_num, htld_id_num追加
     -27: self.close_type変更
     -28: self.htlc_num削除
+    -29: self.statusとself.close_typeのマージ
  */
 
 
@@ -377,7 +378,7 @@ static const backup_param_t DBSELF_VALUES[] = {
     //
     //clse
     //
-    M_ITEM(ln_self_t, close_type),      //[CLSE01]
+    //[CLSE01]---
     //[CLSE02]tx_closing
     //[CLSE03]shutdown_flag
     //[CLSE04]close_fee_sat
@@ -1061,14 +1062,6 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam)
 bool ln_db_self_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 {
     return self_search(pFunc, pFuncParam, false);
-}
-
-
-bool ln_db_self_save_closetype(const ln_self_t *self, void *pDbParam)
-{
-    const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, close_type);
-    int retval = self_item_save(self, &DBSELF_KEY, pDbParam);
-    return retval == 0;
 }
 
 
