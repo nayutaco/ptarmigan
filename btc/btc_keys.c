@@ -29,8 +29,8 @@
 #include "mbedtls/asn1write.h"
 #include "mbedtls/ecdsa.h"
 #include "libbase58.h"
-#include "btc_segwit_addr.h"
 
+#include "btc_segwit_addr.h"
 #include "btc_local.h"
 
 
@@ -39,6 +39,9 @@
  ********************************************************************/
 
 static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk);
+static bool addr_is_p2pkh(const char *pAddr);
+static bool addr_is_p2sh(const char *pAddr);
+static bool addr_is_segwit(const char *pAddr);
 
 
 /**************************************************************************
@@ -47,20 +50,26 @@ static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk);
 
 bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifPriv)
 {
-    // [1byte][32bytes:privkey][1byte][4bytes]
-    // サフィクスの1byteは「圧縮された公開鍵」
+    //WIF compressed (Base58Check decoded)
+    // version prefix: 1byte --- 0x80
+    // private key: 32bytes
+    // compressed: 1byte --- 0x01
+    // checksum: 4bytes
     uint8_t b58dec[1 + BTC_SZ_PRIVKEY + 1 + 4];
     size_t sz_priv = sizeof(b58dec);
     int idx;
     int tail;
+
+    //b58tobin packs the data behind the buffer
+    //if the data is larger than the buffer, skip leading zeros
     bool ret = b58tobin(b58dec, &sz_priv, pWifPriv, strlen(pWifPriv));
-#if 1
+#if 1 //WIF compressed only
     ret &= (sz_priv == sizeof(b58dec));
 #endif
+
     if (ret) {
         //chain
-#if 1
-        //圧縮されたもののみtrue
+#if 1 //WIF compressed only
         idx = 0;        //先頭は[0]
         tail = 1;       //圧縮フラグあり
 #else
@@ -92,7 +101,7 @@ bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifP
     if (ret) {
         memcpy(pPrivKey, b58dec + idx + 1, BTC_SZ_PRIVKEY);
     }
-    memset(b58dec, 0, sizeof(b58dec));      //clear for security
+    memset(b58dec, 0, sizeof(b58dec));  //clear for security
 
     if (ret) {
         ret = btc_keys_chkpriv(pPrivKey);
@@ -115,11 +124,11 @@ bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey)
 
     b58[0] = mPref[BTC_PREF_WIF];
     memcpy(b58 + 1, pPrivKey, BTC_SZ_PRIVKEY);
-    b58[1 + BTC_SZ_PRIVKEY] = 0x01;        //圧縮された公開鍵のみ対応
+    b58[1 + BTC_SZ_PRIVKEY] = 0x01;     //WIF compressed only
     btc_util_hash256(buf_sha256, b58, 1 + BTC_SZ_PRIVKEY + 1);
     memcpy(b58 + 1 + BTC_SZ_PRIVKEY + 1, buf_sha256, 4);
 
-    size_t sz = BTC_SZ_WIF_MAX + 1;
+    size_t sz = BTC_SZ_WIF_STR_MAX + 1;
     ret = b58enc(pWifPriv, &sz, b58, sizeof(b58));
     memset(b58, 0, sizeof(b58));        //clear for security
     return ret;
@@ -139,7 +148,9 @@ bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey)
     mbedtls_ecp_keypair_init(&keypair);
     mbedtls_ecp_group_load(&(keypair.grp), MBEDTLS_ECP_DP_SECP256K1);
 
-    //P:result, m:掛ける数値, grp.G:point
+    //P: The destination point
+    //m: The integer by which to multiply
+    //G: generator (The point to multiply)
     ret = mbedtls_mpi_read_binary(&m, pPrivKey, BTC_SZ_PRIVKEY);
     if (ret) {
         goto LABEL_EXIT;
@@ -177,8 +188,9 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
     uint8_t pkh[BTC_SZ_PUBKEYHASH];
     uint8_t pref;
 
-    //BIP142のテストデータが非圧縮公開鍵だったので、やむなくこうした
+    //BTC_SZ_PUBKEY_UNCOMP for the BIP142 test data
     btc_util_hash160(pkh, pPubKey, (pPubKey[0] == 0x04) ? BTC_SZ_PUBKEY_UNCOMP : BTC_SZ_PUBKEY);
+
     if (mNativeSegwit) {
         pref = BTC_PREF_P2WPKH;
     } else {
@@ -193,32 +205,22 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
 bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
 {
     bool ret;
-        uint8_t pkh[BTC_SZ_PUBKEYHASH];
-        int pref;
+    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    int pref;
 
-        ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
+    //extract pkh form addr
+    ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
     if (!ret || (pref != BTC_PREF_P2PKH)) {
         return false;
-        }
+    }
 
     if (mNativeSegwit) {
-        uint8_t hrp_type;
-
-        switch (btc_get_chain()) {
-        case BTC_MAINNET:
-            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
-            break;
-        case BTC_TESTNET:
-            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
-            break;
-        default:
-            return false;
-        }
-        ret = btc_segwit_addr_encode(pWAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pkh, BTC_SZ_HASH160);
+        pref = BTC_PREF_P2WPKH;
     } else {
         btc_util_create_pkh2wpkh(pkh, pkh);
-        ret = btcl_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
+        pref = BTC_PREF_P2SH;
     }
+    ret = btcl_util_keys_pkh2addr(pWAddr, pkh, pref);
     return ret;
 }
 
@@ -226,33 +228,22 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
 bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript)
 {
     bool ret;
+    int pref;
+    uint8_t h[BTC_SZ_PUBKEYHASH];
 
     if (mNativeSegwit) {
-        uint8_t sha[BTC_SZ_HASH256];
-        uint8_t hrp_type;
-
-        switch (btc_get_chain()) {
-        case BTC_MAINNET:
-            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
-            break;
-        case BTC_TESTNET:
-            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
-            break;
-        default:
-            return false;
-        }
-        btc_util_sha256(sha, pWitScript->buf, pWitScript->len);
-        ret = btc_segwit_addr_encode(pWAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, sha, BTC_SZ_HASH256);
+        btc_util_sha256(h, pWitScript->buf, pWitScript->len);
+        pref = BTC_PREF_P2WSH;
     } else {
         uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
-        uint8_t pkh[BTC_SZ_PUBKEYHASH];
 
         wit_prog[0] = 0x00;
         wit_prog[1] = BTC_SZ_HASH256;
         btc_util_sha256(wit_prog + 2, pWitScript->buf, pWitScript->len);
-        btc_util_hash160(pkh, wit_prog, sizeof(wit_prog));
-        ret = btcl_util_keys_pkh2addr(pWAddr, pkh, BTC_PREF_P2SH);
+        btc_util_hash160(h, wit_prog, sizeof(wit_prog));
+        pref = BTC_PREF_P2SH;
     }
+    ret = btcl_util_keys_pkh2addr(pWAddr, h, pref);
     return ret;
 }
 
@@ -286,8 +277,11 @@ bool btc_keys_chkpriv(const uint8_t *pPrivKey)
     mbedtls_mpi_read_binary(&priv, pPrivKey, BTC_SZ_PRIVKEY);
 
     //pPrivKey = [0x01,  0xFFFF FFFF FFFF FFFF FFFF FFFF FFFF FFFE BAAE DCE6 AF48 A03B BFD2 5E8C D036 4140]
+    //chack that the private key is greater than 0
     cmp = (mbedtls_mpi_cmp_int(&priv, (mbedtls_mpi_sint)0) == 1);
     if (cmp) {
+        //N: order of G
+        //check that priv is lesser than N
         cmp = (mbedtls_mpi_cmp_mpi(&priv, &keypair.grp.N) == -1);
     }
 
@@ -319,8 +313,8 @@ bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint
 
     /*
      * OP_2
-     *   21 (pubkey1[33])
-     *   21 (pubkey2[33])
+     * 0x21 (pubkey1[0x21])
+     * 0x21 (pubkey2[0x21])
      * OP_2
      * OP_CHECKMULTISIG
      */
@@ -337,17 +331,21 @@ bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint
 }
 
 
-bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M)
+bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M)
 {
+    if (Num > 16) return false;
+    if (M > 16) return false;
+    if (M > Num) return false;
+
     utl_buf_alloc(pRedeem, 3 + Num * (BTC_SZ_PUBKEY + 1));
 
     uint8_t *p = pRedeem->buf;
 
     /*
      * OP_n
-     *   21 (pubkey1[33])
+     * 0x21 (pubkey1[0x21])
      *   ...
-     *   21 (pubkeyn[33])
+     * 0x21 (pubkeyn[0x21])
      * OP_m
      * OP_CHECKMULTISIG
      */
@@ -365,18 +363,16 @@ bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num
 
 bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
 {
-    uint8_t bin[3 + BTC_SZ_HASH160 + 4];
-    uint8_t *p_bin;
-    uint8_t *p_pkh;
-    size_t sz = sizeof(bin);
-    bool ret = b58tobin(bin, &sz, pAddr, strlen(pAddr));
-    if (ret) {
-        if (sz == 1 + BTC_SZ_HASH160 + 4) {
-            p_bin = bin + 2;
-            p_pkh = p_bin + 1;
-            if (p_bin[0] == mPref[BTC_PREF_P2PKH]) {
+    bool ret;
+
+    if (addr_is_p2pkh(pAddr) || addr_is_p2sh(pAddr)) {
+        uint8_t bin[1 + BTC_SZ_HASH160 + 4];
+        size_t sz = sizeof(bin);
+        ret = b58tobin(bin, &sz, pAddr, strlen(pAddr));
+        if (ret && sz == sizeof(bin)) {
+            if (bin[0] == mPref[BTC_PREF_P2PKH]) {
                 *pPrefix = BTC_PREF_P2PKH;
-            } else if (p_bin[0] == mPref[BTC_PREF_P2SH]) {
+            } else if (bin[0] == mPref[BTC_PREF_P2SH]) {
                 *pPrefix = BTC_PREF_P2SH;
             } else {
                 ret = false;
@@ -384,17 +380,16 @@ bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
         } else {
             ret = false;
         }
-    if (ret) {
-        //CRC check
-        uint8_t buf_sha256[BTC_SZ_HASH256];
-        btc_util_hash256(buf_sha256, p_bin, sz - 4);
-        ret = memcmp(buf_sha256, p_bin + sz - 4, 4) == 0;
-    }
-    if (ret) {
-            memcpy(pPubKeyHash, p_pkh, BTC_SZ_HASH160);
+        if (ret) {
+            //checksum
+            uint8_t buf[BTC_SZ_HASH256];
+            btc_util_hash256(buf, bin, sz - 4);
+            ret = memcmp(buf, bin + sz - 4, 4) == 0;
         }
-    } else {
-        //BECH32?
+        if (ret) {
+            memcpy(pPubKeyHash, bin + 1, BTC_SZ_HASH160);
+        }
+    } else if (addr_is_segwit(pAddr)) {
         uint8_t witprog[40];
         size_t witprog_len = sizeof(witprog);
         int witver;
@@ -411,7 +406,7 @@ bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
         }
         ret = btc_segwit_addr_decode(&witver, witprog, &witprog_len, hrp_type, pAddr);
         if (ret && (witver == 0x00)) {
-            //witver==0ではwitness programとpubKeyHashは同じ
+            //if witver==0 than witness program == pubKeyHash
             if (witprog_len == BTC_SZ_HASH160) {
                 *pPrefix = BTC_PREF_P2WPKH;
             } else if (witprog_len == BTC_SZ_HASH256) {
@@ -423,9 +418,11 @@ bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
                 memcpy(pPubKeyHash, witprog, witprog_len);
             }
         } else {
-            //witver!=0は未サポート
+            //witver!=0 is not supported
             ret = false;
         }
+    } else {
+        ret = false;
     }
 
     return ret;
@@ -500,4 +497,32 @@ static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk)
         return BTC_PREF_P2WSH;
     }
     return BTC_PREF_MAX;
+}
+
+static bool addr_is_p2pkh(const char *pAddr)
+{
+    if (strlen(pAddr) < 1) return false;
+
+    if (pAddr[0] == '1') return true; //mainnet
+    if (pAddr[0] == 'm') return true; //testnet
+    if (pAddr[0] == 'n') return true; //testnet
+    return false;
+}
+
+static bool addr_is_p2sh(const char *pAddr)
+{
+    if (strlen(pAddr) < 1) return false;
+
+    if (pAddr[0] == '3') return true; //mainnet
+    if (pAddr[0] == '2') return true; //testnet
+    return false;
+}
+
+static bool addr_is_segwit(const char *pAddr)
+{
+    if (strlen(pAddr) < 3) return false;
+
+    if (pAddr[0] == 'b' && pAddr[1] == 'c' && pAddr[2] == '1') return true; //mainnet
+    if (pAddr[0] == 't' && pAddr[1] == 'b' && pAddr[2] == '1') return true; //testnet
+    return false;
 }

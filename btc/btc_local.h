@@ -78,12 +78,13 @@ int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
 
 /** PubKeyHashをBitcoinアドレスに変換
  *
- * @param[out]      pAddr           変換後データ(BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
- * @param[in]       pPubKeyHash     対象データ(最大BTC_SZ_PUBKEY)
+ * @param[out]      pAddr           変換後データ(#BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
+ * @param[in]       pPubKeyHash     対象データ(最大#BTC_SZ_PUBKEYHASH)
  * @param[in]       Prefix          BTC_PREF_xxx
  * @note
- *      - Prefixが #BTC_PREF_P2WPKH の場合、pPubKeyHashはwitness program(20byte)
- *      - Prefixが #BTC_PREF_P2WSH の場合、pPubKeyHashはwitness program(32byte)
+ *      - Prefixが #BTC_PREF_P2WPKH の場合、pPubKeyHashはwitness program(20bytes)
+ *      - Prefixが #BTC_PREF_P2WSH の場合、pPubKeyHashはwitness program(32bytes)
+ *      - それ以外の場合、pPubKeyHashはpublic key hash(20bytes)
  */
 bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix);
 

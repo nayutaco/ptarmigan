@@ -258,7 +258,7 @@ typedef struct {
  */
 typedef struct {
     uint8_t     genesis[BTC_SZ_HASH256];
-    char        wif[BTC_SZ_WIF_MAX + 1];
+    char        wif[BTC_SZ_WIF_STR_MAX + 1];
     char        name[LN_SZ_ALIAS + 1];
     uint16_t    port;
 #ifndef USE_SPV
@@ -3519,7 +3519,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType)
     }
 
     int32_t ver;
-    char wif[BTC_SZ_WIF_MAX + 1] = "";
+    char wif[BTC_SZ_WIF_STR_MAX + 1] = "";
     char alias[LN_SZ_ALIAS + 1] = "";
     uint16_t port = 0;
     uint8_t genesis[BTC_SZ_HASH256];
@@ -4654,9 +4654,9 @@ static int ver_write(ln_lmdb_db_t *pDb, const char *pWif, const char *pNodeName,
         // LOGD("port=%" PRIu16 "\n", Port);
         nodeinfo_t nodeinfo;
         memcpy(nodeinfo.genesis, gGenesisChainHash, BTC_SZ_HASH256);
-        strncpy(nodeinfo.wif, pWif, BTC_SZ_WIF_MAX);
+        strncpy(nodeinfo.wif, pWif, BTC_SZ_WIF_STR_MAX);
         strncpy(nodeinfo.name, pNodeName, LN_SZ_ALIAS);
-        nodeinfo.wif[BTC_SZ_WIF_MAX] = '\0';
+        nodeinfo.wif[BTC_SZ_WIF_STR_MAX] = '\0';
         nodeinfo.name[LN_SZ_ALIAS] = '\0';
         nodeinfo.port = Port;
 #ifndef USE_SPV

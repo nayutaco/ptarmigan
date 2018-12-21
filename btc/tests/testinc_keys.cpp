@@ -127,7 +127,7 @@ TEST_F(keys, keys_1)
     ASSERT_EQ(0, memcmp(PRIV, priv, sizeof(PRIV)));
     ASSERT_EQ(BTC_TESTNET, chain);
 
-    char wif[BTC_SZ_WIF_MAX + 1];
+    char wif[BTC_SZ_WIF_STR_MAX + 1];
     ret = btc_keys_priv2wif(wif, priv);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(WIF, wif);

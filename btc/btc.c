@@ -45,7 +45,7 @@
  * package variables
  **************************************************************************/
 
-uint8_t HIDDEN  mPref[BTC_PREF_MAX];      ///< prefix関連
+uint8_t HIDDEN  mPref[BTC_PREF_MAX];        ///< prefix関連
 bool HIDDEN     mNativeSegwit;              ///< true:segwitのトランザクションをnativeで生成
 
 

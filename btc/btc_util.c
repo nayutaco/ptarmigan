@@ -540,17 +540,17 @@ LABEL_EXIT:
 
 void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
 {
-    if (!mNativeSegwit) {
-        uint8_t wit_prog[2 + BTC_SZ_PUBKEYHASH];
-
-        wit_prog[0] = 0x00;
-        wit_prog[1] = (uint8_t)BTC_SZ_HASH160;
-        memcpy(wit_prog + 2, pPubKeyHash, BTC_SZ_HASH160);
-        btc_util_hash160(pWPubKeyHash, wit_prog, BTC_SZ_WITPROG_P2WPKH);
-    } else {
-        //nested in P2SH用
+    //nested in P2SH
+    if (mNativeSegwit) {
         assert(false);
     }
+
+    uint8_t wit_prog[2 + BTC_SZ_PUBKEYHASH];
+
+    wit_prog[0] = 0x00;
+    wit_prog[1] = (uint8_t)BTC_SZ_HASH160;
+    memcpy(wit_prog + 2, pPubKeyHash, BTC_SZ_HASH160);
+    btc_util_hash160(pWPubKeyHash, wit_prog, BTC_SZ_WITPROG_P2WPKH);
 }
 
 
@@ -714,7 +714,7 @@ bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uin
         }
         ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH256);
 
-    } else {
+    } else { //nested
         uint8_t pkh[1 + BTC_SZ_HASH160 + 4];
         size_t sz = BTC_SZ_ADDR_STR_MAX + 1;
 
