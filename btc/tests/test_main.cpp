@@ -16,7 +16,7 @@ extern "C" {
 #include "../../utl/utl_rng.c"
 #undef LOG_TAG
 #include "btc.c"
-#include "btc_ekey.c"
+#include "btc_extkey.c"
 #include "btc_keys.c"
 #include "btc_sw.c"
 #include "btc_tx.c"
@@ -89,6 +89,6 @@ TEST_F(btc, btc_setnet_mainnet)
 #include "testinc_segwit.cpp"
 #include "testinc_sw_native.cpp"
 #include "testinc_send.cpp"
-#include "testinc_ekey.cpp"
+#include "testinc_extkey.cpp"
 #include "testinc_recoverpub.cpp"
 #include "testinc_segwit_addr.cpp"
