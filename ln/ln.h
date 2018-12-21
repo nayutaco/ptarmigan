@@ -240,7 +240,7 @@ typedef enum {
  */
 typedef enum {
     LN_CLOSETYPE_NONE,                  ///< ln_self_t not close
-    LN_CLOSETYPE_WAIT,                  ///< funding_tx is broadcasted but btcrpc not detect
+    LN_CLOSETYPE_WAIT,                  ///< closing_tx is broadcasted but btcrpc not detect
     LN_CLOSETYPE_SPENT,                 ///< funding_tx is spent but not in block
     LN_CLOSETYPE_MUTUAL,                ///< mutual close
     LN_CLOSETYPE_UNI_LOCAL,             ///< unilateral close(from local)
