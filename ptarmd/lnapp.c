@@ -1829,13 +1829,11 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 {
     //DBGTRACE_BEGIN
 
-    bool unspent;
-    bool ret = btcrpc_check_unspent(ln_their_node_id(p_conf->p_self), &unspent, NULL, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
-    if (ret && !unspent) {
+    bool ret = ln_status_load(p_conf->p_self);
+    if (ret && ln_status_is_closing(p_conf->p_self)) {
         //ループ解除
         LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         stop_threads(p_conf);
-        return;
     }
 
     //DBGTRACE_END

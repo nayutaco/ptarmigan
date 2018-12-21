@@ -1821,7 +1821,6 @@ static int cmd_close_unilateral_proc(const uint8_t *pNodeId)
         if (ret) {
             lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pNodeId);
             if (p_appconf != NULL) {
-                //connecting
                 lnapp_stop(p_appconf);
             }
             err = 0;

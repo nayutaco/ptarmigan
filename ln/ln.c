@@ -511,6 +511,12 @@ void ln_term(ln_self_t *self)
 }
 
 
+bool ln_status_load(ln_self_t *self)
+{
+    return ln_db_self_load_status(self);
+}
+
+
 const char *ln_status_string(const ln_self_t *self)
 {
     const char *p_str_stat;
