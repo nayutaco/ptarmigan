@@ -1103,19 +1103,24 @@ char *btc_ekey_generate_mnemonic24(void);
 bool btc_ekey_mnemonic2seed(uint8_t *pSeed, const char *pWord, const char *pPass);
 
 
-/** 拡張鍵生成
+/** generate BIP32 extended key
  *
- * pPrivKeyが非NULL かつ pEKey->typeが #BTC_EKEY_PRIV の場合、以下のいずれかを行う。<br/>
- *      - pSeedが非NULL: Master秘密鍵とMaster公開鍵を生成<br/>
- *      - pSeedがNULL: 子秘密鍵と子公開鍵を生成<br/>
- * pEKey->typeが #BTC_EKEY_PUB の場合、子公開鍵を生成する。
- * pEKey->key[]には pEKey->typeに応じた結果をコピーする。
+ * if Type == #BTC_EKEY_PRIV && pSeed == NULL:<br>
+ *     parent private key(pKey) --> generate child private/public keys<br>
+ * if Type == #BTC_EKEY_PRIV && pSeed != NULL:<br>
+ *     root seed(pSeed) --> generate master private/public keys<br>
+ * if Type == #BTC_EKEY_PUB:<br>
+ *     parent public key(pKey) --> generate child public keys<br>
+ * copy the generated key to pEKey->key according to the type
  *
- * @param[out]      pEKey           拡張鍵構造体
- * @param[in]       pKey            親秘密鍵 or 親公開鍵(pEKey->type次第。pSeedが非NULLの場合は未使用。)
- * @param[in]       pSeed           非NULL: Master / NULL: 子鍵
- * @param[in]       SzSeed          pSeedサイズ
- * @return      true:成功
+ * @param[out]      pEKey           extended key
+ * @param[in]       Type            extended key type
+ * @param[in]       Depth           depth
+ * @param[in]       ChildNum        child number
+ * @param[in]       pKey            parent key
+ * @param[in]       pSeed           root seed
+ * @param[in]       SzSeed          root seed size
+ * @return       true:success
  */
 bool btc_ekey_generate(btc_ekey_t *pEKey, uint8_t Type, uint8_t Depth, uint32_t ChildNum,
         const uint8_t *pKey,
