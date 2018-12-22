@@ -425,8 +425,7 @@ bool btcrpc_get_short_channel_param(const uint8_t *pPeerId, int32_t *pBHeight, i
         LOGD_BTCRESULT("b_height=%" PRId32 ", b_index=%" PRId32 ", mined_hash=", *pBHeight, *pBIndex);
         TXIDD_BTCRESULT(pMinedHash);
     } else {
-        LOGD_BTCFAIL("fail --> THROUGH\n");
-        prm.ret = true;
+        LOGD_BTCFAIL("fail\n");
     }
     return prm.ret;
 }

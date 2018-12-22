@@ -1319,7 +1319,7 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf)
     uint8_t mined_hash[BTC_SZ_HASH256];
     bool ret = btcrpc_get_short_channel_param(ln_their_node_id(p_conf->p_self), &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
     if (ret) {
-        //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
+        LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ln_short_channel_id_set_param(p_conf->p_self, bheight, bindex);
         ln_funding_blockhash_set(p_conf->p_self, mined_hash);
         ln_db_annoown_save(ln_short_channel_id(p_conf->p_self));
@@ -1811,11 +1811,11 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
             lnapp_save_event(ln_channel_id(p_conf->p_self),
                     "funding_locked: short_channel_id=%s, close_addr=%s",
                     str_sci, close_addr);
+
+            p_conf->funding_waiting = false;
         } else {
             LOGD("fail: set_short_channel_id()\n");
         }
-
-        p_conf->funding_waiting = false;
     } else {
         LOGD("confirmation waiting...: %d/%d\n", p_conf->funding_confirm, ln_minimum_depth(p_conf->p_self));
     }
@@ -1829,13 +1829,11 @@ static void poll_normal_operating(lnapp_conf_t *p_conf)
 {
     //DBGTRACE_BEGIN
 
-    bool unspent;
-    bool ret = btcrpc_check_unspent(ln_their_node_id(p_conf->p_self), &unspent, NULL, ln_funding_txid(p_conf->p_self), ln_funding_txindex(p_conf->p_self));
-    if (ret && !unspent) {
+    bool ret = ln_status_load(p_conf->p_self);
+    if (ret && ln_status_is_closing(p_conf->p_self)) {
         //ループ解除
         LOGD("funding_tx is spent: %016" PRIx64 "\n", ln_short_channel_id(p_conf->p_self));
         stop_threads(p_conf);
-        return;
     }
 
     //DBGTRACE_END
@@ -2335,7 +2333,11 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
 
         utl_buf_t buf_tx = UTL_BUF_INIT;
         btc_tx_create(&buf_tx, p->p_tx_funding);
+
         p->b_result = btcrpc_send_rawtx(txid, NULL, buf_tx.buf, buf_tx.len);
+        if (p->b_result) {
+            LOGD("$$$ broadcast funding_tx\n");
+        }
         utl_buf_free(&buf_tx);
     } else {
         p->b_result = true;
@@ -2368,9 +2370,9 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
                 "open: funding wait start(%s): peer_id=%s",
                 p_str, str_peerid);
     } else {
-        LOGD("fail: send funding_tx\n");
+        LOGE("fail: broadcast\n");
         lnapp_save_event(ln_channel_id(p_conf->p_self),
-                "fail: sendrawtransaction\n");
+                "fail: broadcast funding_tx\n");
         stop_threads(p_conf);
     }
 
@@ -2957,16 +2959,14 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
 
     if (LN_DBG_CLOSING_TX()) {
         //closing_txを展開
-        LOGD("send closing tx\n");
-
         uint8_t txid[BTC_SZ_TXID];
         p_closed->result = btcrpc_send_rawtx(txid, NULL, p_closed->p_tx_closing->buf, p_closed->p_tx_closing->len);
-        if (!p_closed->result) {
-            LOGD("btcrpc_send_rawtx\n");
+        if (p_closed->result) {
+            LOGD("$$$ broadcast\n");
+        } else {
+            LOGE("fail: broadcast\n");
             assert(0);
         }
-        LOGD("closing_txid: ");
-        TXIDD(txid);
 
         // method: closed
         // $1: short_channel_id

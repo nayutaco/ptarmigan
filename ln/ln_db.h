@@ -213,8 +213,20 @@ bool ln_db_self_search(ln_db_func_cmp_t pFunc, void *pFuncParam);
 bool ln_db_self_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam);
 
 
-/** status保存
+/** load self->status
  * 
+ * @param[in,out]       self            channel info
+ * @retval  load result
+ * @note
+ *      - update self->status
+ */
+bool ln_db_self_load_status(ln_self_t *self);
+
+
+/** save self->status
+ * 
+ * @param[in]           self            channel info
+ * @retval  load result
  */
 bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam);
 

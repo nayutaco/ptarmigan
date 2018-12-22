@@ -563,7 +563,8 @@ static const init_param_t INIT_PARAM[] = {
 static int self_addhtlc_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_addhtlc_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb);
-static int self_item_save(const ln_self_t *self, const backup_param_t *pBackupParam, void *pDbParam);
+static int self_item_load(ln_self_t *self, const backup_param_t *pBackupParam, ln_lmdb_db_t *pDb);
+static int self_item_save(const ln_self_t *self, const backup_param_t *pBackupParam, ln_lmdb_db_t *pDb);
 static int self_secret_load(ln_self_t *self, ln_lmdb_db_t *pDb);
 static int self_cursor_open(lmdb_cursor_t *pCur, bool bWritable);
 static void self_cursor_close(lmdb_cursor_t *pCur);
@@ -1065,10 +1066,54 @@ bool ln_db_self_search_readonly(ln_db_func_cmp_t pFunc, void *pFuncParam)
 }
 
 
+bool ln_db_self_load_status(ln_self_t *self)
+{
+    int             retval = -1;
+    ln_lmdb_db_t    db;
+    char            dbname[M_SZ_DBNAME_LEN + 1];
+    const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, status);
+
+    for (int lp = 0; lp < LN_SZ_CHANNEL_ID; lp++) {
+        if (self->channel_id[lp] != 0) {
+            retval = 0;
+            break;
+        }
+    }
+    if (retval != 0) {
+        LOGD("fail: channel_id is 0\n");
+        return false;
+    }
+
+    retval = MDB_TXN_BEGIN(mpDbSelf, NULL, MDB_RDONLY, &db.txn);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    utl_misc_bin2str(dbname + M_PREFIX_LEN, self->channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(dbname, M_PREF_CHANNEL, M_PREFIX_LEN);
+
+    retval = mdb_dbi_open(db.txn, dbname, MDB_CREATE, &db.dbi);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+
+    retval = self_item_load(self, &DBSELF_KEY, &db);
+
+LABEL_EXIT:
+    if (db.txn) {
+        MDB_TXN_ABORT(db.txn);
+    }
+    return retval == 0;
+}
+
+
 bool ln_db_self_save_status(const ln_self_t *self, void *pDbParam)
 {
     const backup_param_t DBSELF_KEY = M_ITEM(ln_self_t, status);
-    int retval = self_item_save(self, &DBSELF_KEY, pDbParam);
+    ln_lmdb_db_t *p_db = (ln_lmdb_db_t *)pDbParam;
+    int retval = self_item_save(self, &DBSELF_KEY, p_db);
     return retval == 0;
 }
 
@@ -3908,18 +3953,34 @@ LABEL_EXIT:
 }
 
 
-static int self_item_save(const ln_self_t *self, const backup_param_t *pBackupParam, void *pDbParam)
+static int self_item_load(ln_self_t *self, const backup_param_t *pBackupParam, ln_lmdb_db_t *pDb)
 {
     int             retval;
     MDB_val         key, data;
 
-    lmdb_cursor_t *p_cur = (lmdb_cursor_t *)pDbParam;
+    key.mv_size = strlen(pBackupParam->name);
+    key.mv_data = (CONST_CAST char*)pBackupParam->name;
+    retval = mdb_get(pDb->txn, pDb->dbi, &key, &data);
+    if ((retval == 0) && (data.mv_size == pBackupParam->datalen)) {
+        memcpy((uint8_t *)self + pBackupParam->offset, data.mv_data, data.mv_size);
+    } else {
+        LOGD("fail: %s(%s)\n", mdb_strerror(retval), pBackupParam->name);
+    }
+
+    return retval;
+}
+
+
+static int self_item_save(const ln_self_t *self, const backup_param_t *pBackupParam, ln_lmdb_db_t *pDb)
+{
+    int             retval;
+    MDB_val         key, data;
 
     key.mv_size = strlen(pBackupParam->name);
     key.mv_data = (CONST_CAST char*)pBackupParam->name;
     data.mv_size = pBackupParam->datalen;
     data.mv_data = (uint8_t *)self + pBackupParam->offset;
-    retval = mdb_put(p_cur->txn, p_cur->dbi, &key, &data, 0);
+    retval = mdb_put(pDb->txn, pDb->dbi, &key, &data, 0);
     if (retval != 0) {
         LOGD("fail: %s(%s)\n", mdb_strerror(retval), pBackupParam->name);
     }

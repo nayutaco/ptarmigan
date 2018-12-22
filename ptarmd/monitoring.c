@@ -808,7 +808,7 @@ static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
     bool ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);
     utl_buf_free(&buf);
     if (ret) {
-        LOGD("broadcast now\n");
+        LOGD("$$$ broadcast\n");
 
         if ( (pTx->vout[0].opt == LN_HTLCTYPE_OFFERED) ||
              (pTx->vout[0].opt == LN_HTLCTYPE_RECEIVED) ) {
@@ -824,7 +824,7 @@ static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
         }
     } else {
         *pDel = false;
-        LOGD("fail: sendrawtransaction\n");
+        LOGE("fail: broadcast\n");
     }
 }
 
@@ -1027,8 +1027,9 @@ static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int V
     btc_tx_free(&tx);
     bool ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);
     if (ret) {
-        LOGD("broadcast now: ");
-        TXIDD(txid);
+        LOGD("$$$ broadcast\n");
+    } else {
+        LOGE("fail: broadcast\n");
     }
     utl_buf_free(&buf);
 

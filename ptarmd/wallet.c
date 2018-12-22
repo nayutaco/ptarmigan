@@ -144,6 +144,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
     ret = btcrpc_send_rawtx(txid, NULL, txbuf.buf, txbuf.len);
     if (ret) {
         //remove from DB
+        LOGD("$$$ broadcast\n");
         for (uint32_t lp = 0; lp < wallet.tx.vin_cnt; lp++) {
             ln_db_wallet_del(wallet.tx.vin[lp].txid, wallet.tx.vin[lp].index);
         }
@@ -151,7 +152,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
         *ppResult = (char *)UTL_DBG_MALLOC(BTC_SZ_TXID * 2 + 1);
         utl_misc_bin2str_rev(*ppResult, txid, BTC_SZ_TXID);
     } else {
-        LOGD("fail: broadcast\n");
+        LOGE("fail: broadcast\n");
     }
 #endif
     utl_buf_free(&txbuf);
