@@ -62,7 +62,7 @@ extern "C" {
 #define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)    ///< サイズ: witnessProgram(P2WSH)
 #define BTC_SZ_2OF2             (1 + 34 + 34 + 2)       ///< OP_m 21 [pub1] 21 [pub2] OP_n OP_CHKMULTISIG
 
-#define BTC_PREF                (0)             ///< Prefix: 1:mainnet, 2:testnet
+#define BTC_PREF_CHAIN          (0)             ///< Prefix: 1:mainnet, 2:testnet
 #define BTC_PREF_WIF            (1)             ///< Prefix: WIF
 #define BTC_PREF_P2PKH          (2)             ///< Prefix: P2PKH
 #define BTC_PREF_P2SH           (3)             ///< Prefix: P2SH

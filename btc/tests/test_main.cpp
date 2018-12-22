@@ -43,7 +43,7 @@ TEST_F(btc, btc_setnet_testnet_false)
     utl_dbg_malloc_cnt_reset();
     bool ret = btc_init(BTC_TESTNET, false);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(2, mPref[BTC_PREF]);
+    ASSERT_EQ(2, mPref[BTC_PREF_CHAIN]);
     ASSERT_EQ(0xef, mPref[BTC_PREF_WIF]);
     ASSERT_EQ(0x6f, mPref[BTC_PREF_P2PKH]);
     ASSERT_EQ(0xc4, mPref[BTC_PREF_P2SH]);
@@ -57,7 +57,7 @@ TEST_F(btc, btc_setnet_testnet_true)
     utl_dbg_malloc_cnt_reset();
     bool ret = btc_init(BTC_TESTNET, true);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(2, mPref[BTC_PREF]);
+    ASSERT_EQ(2, mPref[BTC_PREF_CHAIN]);
     ASSERT_EQ(0xef, mPref[BTC_PREF_WIF]);
     ASSERT_EQ(0x6f, mPref[BTC_PREF_P2PKH]);
     ASSERT_EQ(0xc4, mPref[BTC_PREF_P2SH]);
@@ -71,7 +71,7 @@ TEST_F(btc, btc_setnet_mainnet)
     utl_dbg_malloc_cnt_reset();
     bool ret = btc_init(BTC_MAINNET, false);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(1, mPref[BTC_PREF]);
+    ASSERT_EQ(1, mPref[BTC_PREF_CHAIN]);
     ASSERT_EQ(0x80, mPref[BTC_PREF_WIF]);
     ASSERT_EQ(0x00, mPref[BTC_PREF_P2PKH]);
     ASSERT_EQ(0x05, mPref[BTC_PREF_P2SH]);
