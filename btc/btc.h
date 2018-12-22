@@ -69,8 +69,8 @@ extern "C" {
 #define BTC_PREF_ADDRVER        (4)             ///< Prefix: Address Version
 #define BTC_PREF_ADDRVER_SH     (5)             ///< Prefix: Address Version(Script)
 #define BTC_PREF_MAX            (6)             ///< 内部管理用
-#define BTC_PREF_NATIVE         (7)             ///< Prefix: native Witness
-#define BTC_PREF_NATIVE_SH      (8)             ///< Prefix: native Witness(Script)
+#define BTC_PREF_P2WPKH         (7)             ///< Prefix: Native Pay-to-Witness-Public-Key-Hash
+#define BTC_PREF_P2WSH          (8)             ///< Prefix: Native Pay-to-Witness-Script-Hash
 
 #define BTC_EXTKEY_PRIV         (0)             ///< 拡張鍵種別:秘密鍵
 #define BTC_EXTKEY_PUB          (1)             ///< 拡張鍵種別:公開鍵

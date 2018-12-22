@@ -567,13 +567,13 @@ void btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int P
         utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160 + 1);
         create_scriptpk_p2sh(pBuf->buf, pPubKeyHash);
         break;
-    case BTC_PREF_NATIVE:
-        //LOGD("BTC_PREF_NATIVE\n");
+    case BTC_PREF_P2WPKH:
+        //LOGD("BTC_PREF_P2WPKH\n");
         utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160);
         create_scriptpk_native(pBuf->buf, pPubKeyHash, BTC_SZ_HASH160);
         break;
-    case BTC_PREF_NATIVE_SH:
-        //LOGD("BTC_PREF_NATIVE_SH\n");
+    case BTC_PREF_P2WSH:
+        //LOGD("BTC_PREF_P2WSH\n");
         utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH256);
         create_scriptpk_native(pBuf->buf, pPubKeyHash, BTC_SZ_HASH256);
         break;
@@ -685,7 +685,7 @@ bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uin
     bool ret;
     uint8_t buf_sha256[BTC_SZ_HASH256];
 
-    if (Prefix == BTC_PREF_NATIVE) {
+    if (Prefix == BTC_PREF_P2WPKH) {
         uint8_t hrp_type;
 
         switch (btc_get_chain()) {
@@ -699,7 +699,7 @@ bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uin
             return false;
         }
         ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH160);
-    } else if (Prefix == BTC_PREF_NATIVE_SH) {
+    } else if (Prefix == BTC_PREF_P2WSH) {
         uint8_t hrp_type;
 
         switch (btc_get_chain()) {

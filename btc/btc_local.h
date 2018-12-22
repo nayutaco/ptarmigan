@@ -82,8 +82,8 @@ int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
  * @param[in]       pPubKeyHash     対象データ(最大BTC_SZ_PUBKEY)
  * @param[in]       Prefix          BTC_PREF_xxx
  * @note
- *      - Prefixが #BTC_PREF_NATIVE の場合、pPubKeyHashはwitness program(20byte)
- *      - Prefixが #BTC_PREF_NATIVE_SH の場合、pPubKeyHashはwitness program(32byte)
+ *      - Prefixが #BTC_PREF_P2WPKH の場合、pPubKeyHashはwitness program(20byte)
+ *      - Prefixが #BTC_PREF_P2WSH の場合、pPubKeyHashはwitness program(32byte)
  */
 bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix);
 

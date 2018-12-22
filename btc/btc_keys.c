@@ -180,7 +180,7 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
     //BIP142のテストデータが非圧縮公開鍵だったので、やむなくこうした
     btc_util_hash160(pkh, pPubKey, (pPubKey[0] == 0x04) ? BTC_SZ_PUBKEY_UNCOMP+1 : BTC_SZ_PUBKEY);
     if (mNativeSegwit) {
-        pref = BTC_PREF_NATIVE;
+        pref = BTC_PREF_P2WPKH;
     } else {
         btc_util_create_pkh2wpkh(pkh, pkh);
         pref = BTC_PREF_P2SH;
@@ -413,9 +413,9 @@ bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr)
         if (ret && (witver == 0x00)) {
             //witver==0ではwitness programとpubKeyHashは同じ
             if (witprog_len == BTC_SZ_HASH160) {
-                *pPrefix = BTC_PREF_NATIVE;
+                *pPrefix = BTC_PREF_P2WPKH;
             } else if (witprog_len == BTC_SZ_HASH256) {
-                *pPrefix = BTC_PREF_NATIVE_SH;
+                *pPrefix = BTC_PREF_P2WSH;
             } else {
                 ret = false;
             }
@@ -491,13 +491,13 @@ static int spk2prefix(const uint8_t **ppPkh, const utl_buf_t *pScriptPk)
          (pScriptPk->buf[0] == 0x00) &&
          (pScriptPk->buf[1] == BTC_SZ_HASH160) ) {
         *ppPkh = pScriptPk->buf + 2;
-        return BTC_PREF_NATIVE;
+        return BTC_PREF_P2WPKH;
     }
     else if ( (pScriptPk->len == 34) &&
          (pScriptPk->buf[0] == 0x00) &&
          (pScriptPk->buf[1] == BTC_SZ_HASH256) ) {
         *ppPkh = pScriptPk->buf + 2;
-        return BTC_PREF_NATIVE_SH;
+        return BTC_PREF_P2WSH;
     }
     return BTC_PREF_MAX;
 }
