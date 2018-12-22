@@ -1319,7 +1319,7 @@ static bool set_short_channel_id(lnapp_conf_t *p_conf)
     uint8_t mined_hash[BTC_SZ_HASH256];
     bool ret = btcrpc_get_short_channel_param(ln_their_node_id(p_conf->p_self), &bheight, &bindex, mined_hash, ln_funding_txid(p_conf->p_self));
     if (ret) {
-        //LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
+        LOGD("bindex=%d, bheight=%d\n", bindex, bheight);
         ln_short_channel_id_set_param(p_conf->p_self, bheight, bindex);
         ln_funding_blockhash_set(p_conf->p_self, mined_hash);
         ln_db_annoown_save(ln_short_channel_id(p_conf->p_self));
@@ -1811,11 +1811,11 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
             lnapp_save_event(ln_channel_id(p_conf->p_self),
                     "funding_locked: short_channel_id=%s, close_addr=%s",
                     str_sci, close_addr);
+
+            p_conf->funding_waiting = false;
         } else {
             LOGD("fail: set_short_channel_id()\n");
         }
-
-        p_conf->funding_waiting = false;
     } else {
         LOGD("confirmation waiting...: %d/%d\n", p_conf->funding_confirm, ln_minimum_depth(p_conf->p_self));
     }
