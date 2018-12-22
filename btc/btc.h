@@ -48,7 +48,7 @@ extern "C" {
 #define BTC_SZ_HASH256          (32)            ///< サイズ:HASH256
 #define BTC_SZ_PRIVKEY          (32)            ///< サイズ:非公開鍵
 #define BTC_SZ_PUBKEY           (33)            ///< サイズ:圧縮された公開鍵
-#define BTC_SZ_PUBKEY_UNCOMP    (64)            ///< サイズ:圧縮されていない公開鍵
+#define BTC_SZ_PUBKEY_UNCOMP    (65)            ///< サイズ:圧縮されていない公開鍵
 #define BTC_SZ_PUBKEYHASH       (32)            ///< サイズ:PubKeyHashの最大値
 #define BTC_SZ_ADDR_STR_MAX     (90)            ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
 #define BTC_SZ_WIF_MAX          (55)            ///< サイズ:秘密鍵のWIF(上限不明)

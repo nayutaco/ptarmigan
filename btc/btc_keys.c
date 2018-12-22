@@ -178,7 +178,7 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey)
     uint8_t pref;
 
     //BIP142のテストデータが非圧縮公開鍵だったので、やむなくこうした
-    btc_util_hash160(pkh, pPubKey, (pPubKey[0] == 0x04) ? BTC_SZ_PUBKEY_UNCOMP+1 : BTC_SZ_PUBKEY);
+    btc_util_hash160(pkh, pPubKey, (pPubKey[0] == 0x04) ? BTC_SZ_PUBKEY_UNCOMP : BTC_SZ_PUBKEY);
     if (mNativeSegwit) {
         pref = BTC_PREF_P2WPKH;
     } else {
