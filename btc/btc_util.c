@@ -144,7 +144,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_util_keys_t *pKeys)
     }
 
     utl_buf_t scrpk;
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t pkh[BTC_SZ_HASH_MAX];
     btc_util_hash160(pkh, pKeys->pub, BTC_SZ_PUBKEY);
     btc_util_create_scriptpk(&scrpk, pkh, BTC_PREF_P2PKH);
 
@@ -165,7 +165,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout)
 {
     //公開鍵(署名サイズ[1],署名[sz],公開鍵サイズ[1], 公開鍵、の順になっている)
     const uint8_t *p_pubkey = pTx->vin[Index].script.buf + 1 + pTx->vin[Index].script.buf[0] + 1;
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t pkh[BTC_SZ_HASH_MAX];
     utl_buf_t scrpk;
     btc_util_hash160(pkh, p_pubkey, BTC_SZ_PUBKEY);
     btc_util_create_scriptpk(&scrpk, pkh, BTC_PREF_P2PKH);
@@ -545,7 +545,7 @@ void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
         assert(false);
     }
 
-    uint8_t wit_prog[2 + BTC_SZ_PUBKEYHASH];
+    uint8_t wit_prog[2 + BTC_SZ_HASH_MAX];
 
     wit_prog[0] = 0x00;
     wit_prog[1] = (uint8_t)BTC_SZ_HASH160;
@@ -697,17 +697,17 @@ bool HIDDEN btcl_util_keys_hash2addr(char *pAddr, const uint8_t *pHash, uint8_t 
         default:
             return false;
         }
-        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pPubKeyHash, (Prefix == BTC_PREF_P2WPKH) ? BTC_SZ_HASH160 : BTC_SZ_HASH256);
-    } else if (Prefix == BTC_PREF_P2PKH || Prefix == BTC_PREF_P2SH)
-        uint8_t pkh[1 + BTC_SZ_HASH160 + 4];
+        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pHash, (Prefix == BTC_PREF_P2WPKH) ? BTC_SZ_HASH160 : BTC_SZ_HASH256);
+    } else if (Prefix == BTC_PREF_P2PKH || Prefix == BTC_PREF_P2SH) {
+        uint8_t buf[1 + BTC_SZ_HASH160 + 4];
+        uint8_t checksum[BTC_SZ_HASH256];
         size_t sz = BTC_SZ_ADDR_STR_MAX + 1;
-        uint8_t buf[BTC_SZ_HASH256];
 
-        pkh[0] = mPref[Prefix];
-        memcpy(pkh + 1, pPubKeyHash, BTC_SZ_HASH160);
-        btc_util_hash256(buf, pkh, 1 + BTC_SZ_HASH160);
-        memcpy(pkh + 1 + BTC_SZ_HASH160, buf, 4);
-        ret = b58enc(pAddr, &sz, pkh, sizeof(pkh));
+        buf[0] = mPref[Prefix];
+        memcpy(buf + 1, pHash, BTC_SZ_HASH160);
+        btc_util_hash256(checksum, buf, 1 + BTC_SZ_HASH160);
+        memcpy(buf + 1 + BTC_SZ_HASH160, checksum, 4);
+        ret = b58enc(pAddr, &sz, buf, sizeof(buf));
     } else {
         ret = false;
     }
@@ -834,7 +834,7 @@ bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enabl
 
 void HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref)
 {
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t pkh[BTC_SZ_HASH_MAX];
 
     btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
     btcl_util_add_vout_pkh(pTx, Value, pkh, Pref);

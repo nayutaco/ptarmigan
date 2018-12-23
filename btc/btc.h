@@ -462,20 +462,20 @@ bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint
 bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
 
 
-/** BitcoinアドレスからPubKeyHashを求める
+/** BitcoinアドレスからHash(PKH/SH/WPKH/WSH)を求める
  *
- * @param[out]      pPubKeyHash     PubKeyHash(#BTC_SZ_PUBKEYHASH)
+ * @param[out]      pHash           Hash(#BTC_SZ_HASH_MAX)
  * @param[out]      pPrefix         pAddrの種類(BTC_PREF_xxx)
  * @param[in]       pAddr           Bitcoinアドレス
  * @return      true:成功
  *
  * @note
- *      - if pPrefix == #BTC_PREF_P2PKH then length of pPubKeyHash is #BTC_SZ_HASH160
- *      - if pPrefix == #BTC_PREF_P2SH then length of pPubKeyHash is #BTC_SZ_HASH160
- *      - if pPrefix == #BTC_PREF_P2WPKH then length of pPubKeyHash is #BTC_SZ_HASH160
- *      - if pPrefix == #BTC_PREF_P2WSH then length of pPubKeyHash is #BTC_SZ_HASH256
+ *      - if pPrefix == #BTC_PREF_P2PKH then length of pHash is #BTC_SZ_HASH160
+ *      - if pPrefix == #BTC_PREF_P2SH then length of pHash is #BTC_SZ_HASH160
+ *      - if pPrefix == #BTC_PREF_P2WPKH then length of pHash is #BTC_SZ_HASH160
+ *      - if pPrefix == #BTC_PREF_P2WSH then length of pHash is #BTC_SZ_HASH256
  */
-bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr);
+bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr);
 
 
 /** BitcoinアドレスからscriptPubKeyを求める
@@ -1418,8 +1418,8 @@ int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
  *
  * [00][14][pubKeyHash] --> HASH160
  *
- * @param[out]      pWPubKeyHash    変換後データ(BTC_SZ_PUBKEYHASH以上のサイズを想定)
- * @param[in]       pPubKeyHash     対象データ(BTC_SZ_PUBKEYHASH)
+ * @param[out]      pWPubKeyHash    変換後データ(#BTC_SZ_HASH_MAX)
+ * @param[in]       pPubKeyHash     対象データ(#BTC_SZ_HASH_MAX)
  */
 void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash);
 

@@ -52,10 +52,10 @@ void btc_sw_add_vout_p2wsh(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitS
         btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
         utl_buf_alloccopy(&vout->script, wit_prog, sizeof(wit_prog));
     } else {
-        uint8_t pkh[BTC_SZ_PUBKEYHASH];
+        uint8_t sh[BTC_SZ_HASH_MAX];
 
-        btc_util_hash160(pkh, wit_prog, sizeof(wit_prog));
-        btc_tx_add_vout_p2sh(pTx, Value, pkh);
+        btc_util_hash160(sh, wit_prog, sizeof(wit_prog));
+        btc_tx_add_vout_p2sh(pTx, Value, sh);
     }
 }
 
@@ -64,7 +64,7 @@ void btc_sw_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey)
 {
     const uint8_t HEAD[] = { 0x19, OP_DUP, OP_HASH160, BTC_SZ_HASH160 };
     const uint8_t TAIL[] = { OP_EQUALVERIFY, OP_CHECKSIG };
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t pkh[BTC_SZ_HASH_MAX];
     int pos = 0;
 
     utl_buf_alloc(pScriptCode, 1 + 0x19);
@@ -350,7 +350,7 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const 
     }
     if (ret) {
         //pubKeyHashチェック
-        uint8_t pkh[BTC_SZ_PUBKEYHASH];
+        uint8_t pkh[BTC_SZ_HASH_MAX];
 
         btc_util_hash160(pkh, p_pub->buf, BTC_SZ_PUBKEY);
         if (!mNativeSegwit) {
@@ -368,12 +368,22 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const 
 bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, int Index, uint64_t Value, const char *pAddr)
 {
     bool ret;
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t hash[BTC_SZ_HASH_MAX];
 
     int pref;
-    ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
-    if (ret) {
-        ret = btc_sw_verify_p2wpkh(pTx, Index, Value, pkh);
+    ret = btc_keys_addr2hash(hash, &pref, pAddr);
+    if (mNativeSegwit) {
+        if (ret && (pref == BTC_PREF_P2WPKH)) {
+            ret = btc_sw_verify_p2wpkh(pTx, Index, Value, hash);
+        } else {
+            ret = false;
+        }
+    } else {
+        if (ret && (pref == BTC_PREF_P2SH)) {
+            ret = btc_sw_verify_p2wpkh(pTx, Index, Value, hash);
+        } else {
+            ret = false;
+        }
     }
 
     return ret;

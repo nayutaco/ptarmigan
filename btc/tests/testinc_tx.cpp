@@ -374,7 +374,7 @@ TEST_F(tx, add_vout_p2pkh)
     btc_tx_init(&tx);
 
     //mwJyBWTEUYMdJ12JWwK3eXff48pxQU6685
-    const uint8_t PKH[BTC_SZ_PUBKEYHASH] = {
+    const uint8_t PKH[] = {
         0xad, 0x3d, 0xc2, 0xf5, 0x22, 0x96, 0xf9, 0x3c,
         0x78, 0x98, 0xeb, 0x63, 0x8b, 0x0d, 0x74, 0xf2,
         0x7d, 0x79, 0xef, 0xc3,
@@ -430,7 +430,7 @@ TEST_F(tx, add_vout_p2sh)
 
     //522103240bc79a6479851abe776465500a9ff2f880940b227bfcbcb6d479886a318fa02103921b524e16b81c813baf062a2844ff6842073cc0ec609231a0e33700dd24b5f3210329bd4a08250b6aef97581b36412c9be28c84bab77d7a518a88003a180afcfcdc53ae
     //2NFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT
-    const uint8_t PKH[BTC_SZ_PUBKEYHASH] = {
+    const uint8_t SH[] = {
         0xf3, 0xf0, 0xc3, 0x8f, 0x7f, 0x4b, 0xa7, 0x02,
         0x5d, 0xd7, 0x83, 0xad, 0xc3, 0x67, 0x4f, 0xa6,
         0x5b, 0x2d, 0x55, 0xbf,
@@ -441,7 +441,7 @@ TEST_F(tx, add_vout_p2sh)
         0x4f, 0xa6, 0x5b, 0x2d, 0x55, 0xbf, 0x87,
     };
 
-    bool ret = btc_tx_add_vout_p2sh(&tx, (uint64_t)0x9abcdef012345678, PKH);
+    bool ret = btc_tx_add_vout_p2sh(&tx, (uint64_t)0x9abcdef012345678, SH);
     ASSERT_TRUE(ret);
     ASSERT_EQ(1, tx.vout_cnt);
     ASSERT_TRUE(NULL != tx.vout[0].script.buf);

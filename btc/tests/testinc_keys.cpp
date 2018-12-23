@@ -117,7 +117,7 @@ TEST_F(keys, keys_1)
     uint8_t priv[BTC_SZ_PRIVKEY];
     uint8_t pub[BTC_SZ_PUBKEY];
     uint8_t uncomppub[BTC_SZ_PUBKEY_UNCOMP - 1];
-    uint8_t pkh2[BTC_SZ_PUBKEYHASH];
+    uint8_t pkh2[BTC_SZ_HASH_MAX];
     char addr[BTC_SZ_ADDR_STR_MAX + 1];
     char waddr[BTC_SZ_ADDR_STR_MAX + 1];
     btc_chain_t chain;
@@ -151,7 +151,7 @@ TEST_F(keys, keys_1)
     ASSERT_STREQ(WADDR, waddr);
 
     int pref;
-    ret = btc_keys_addr2pkh(pkh2, &pref, addr);
+    ret = btc_keys_addr2hash(pkh2, &pref, addr);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PKH, pkh2, sizeof(PKH)));
     ASSERT_EQ(BTC_PREF_P2PKH, pref);
@@ -221,10 +221,10 @@ TEST_F(keys, addr2pkh_fail1)
     //Base58ではない文字列
     const char ADDR[] = "*wJyBWTEUYMdJ12JWwK3eXff48pxQU6685";
 
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t hash[BTC_SZ_HASH_MAX];
 
     int pref;
-    bool ret = btc_keys_addr2pkh(pkh, &pref, ADDR);
+    bool ret = btc_keys_addr2hash(hash, &pref, ADDR);
     ASSERT_FALSE(ret);
 }
 
