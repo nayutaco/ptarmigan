@@ -420,11 +420,11 @@ TEST_F(keys, wit2p2wsh)
         0x18, 0x2e, 0x82, 0x04, 0x95, 0x3e, 0x74, 0x53,
         0xae,
     };
-    const utl_buf_t wit = { (uint8_t *)REDEEM, sizeof(REDEEM) };
+    const utl_buf_t redeem = { (uint8_t *)REDEEM, sizeof(REDEEM) };
     const char ADDR[] = "2Mt8fd67GgFMQpeKqn9mZ6VRWHnK6MAzGbD";
 
     char addr[BTC_SZ_ADDR_STR_MAX + 1];
-    bool ret = btc_keys_wit2waddr(addr, &wit);
+    bool ret = btc_keys_redeem2waddr(addr, &redeem);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(ADDR, addr);
 }

@@ -394,16 +394,16 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);
 bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
 
 
-/** witnessScriptをBitcoinアドレス(P2WSH or P2SH-P2WSH)に変換
+/** Redeem ScriptをBitcoinアドレス(P2WSH or P2SH-P2WSH)に変換
  *
  * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_STR_MAX+1)
- * @param[in]       pWitScript      対象データ
+ * @param[in]       pRedeem         対象データ
  *
  * @note
  *      - if mNativeSegwit == true then P2WSH
  *      - if mNativeSegwit == false then P2SH-P2WSH
  */
-bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript);
+bool btc_keys_redeem2waddr(char *pWAddr, const utl_buf_t *pRedeem);
 
 
 /** uncompress public key
