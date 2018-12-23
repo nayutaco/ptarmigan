@@ -43,21 +43,21 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#define BTC_SZ_FIELD            (32)            ///< secp256k1の世界
-#define BTC_SZ_HASH160          (20)            ///< サイズ:HASH160
-#define BTC_SZ_HASH256          (32)            ///< サイズ:HASH256
-#define BTC_SZ_PRIVKEY          (32)            ///< サイズ:非公開鍵
-#define BTC_SZ_PUBKEY           (33)            ///< サイズ:圧縮された公開鍵
-#define BTC_SZ_PUBKEY_UNCOMP    (65)            ///< サイズ:圧縮されていない公開鍵
-#define BTC_SZ_PUBKEYHASH       (32)            ///< サイズ:PubKeyHashの最大値
-#define BTC_SZ_ADDR_STR_MAX     (90)            ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
-#define BTC_SZ_WIF_STR_MAX      (55)            ///< サイズ:秘密鍵のWIF(上限不明)
-#define BTC_SZ_TXID             (32)            ///< サイズ:TXID
-#define BTC_SZ_SIGN_RS          (64)            ///< サイズ:RS形式の署名
-#define BTC_SZ_EXTKEY_SEED      (64)            ///< サイズ:拡張鍵seed
-#define BTC_SZ_EXTKEY           (82)            ///< サイズ:拡張鍵
-#define BTC_SZ_CHAINCODE        (32)            ///< サイズ:拡張鍵chaincode
-#define BTC_SZ_EXTKEY_ADDR_MAX  (112)           ///< サイズ:拡張鍵アドレス長上限
+#define BTC_SZ_FIELD            (32)                ///< secp256k1の世界
+#define BTC_SZ_HASH160          (20)                ///< サイズ:HASH160
+#define BTC_SZ_HASH256          (32)                ///< サイズ:HASH256
+#define BTC_SZ_HASH_MAX         (BTC_SZ_HASH256)    ///< サイズ:Hashの最大値
+#define BTC_SZ_PRIVKEY          (32)                ///< サイズ:非公開鍵
+#define BTC_SZ_PUBKEY           (33)                ///< サイズ:圧縮された公開鍵
+#define BTC_SZ_PUBKEY_UNCOMP    (65)                ///< サイズ:圧縮されていない公開鍵
+#define BTC_SZ_ADDR_STR_MAX     (90)                ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
+#define BTC_SZ_WIF_STR_MAX      (55)                ///< サイズ:秘密鍵のWIF(上限不明)
+#define BTC_SZ_TXID             (32)                ///< サイズ:TXID
+#define BTC_SZ_SIGN_RS          (64)                ///< サイズ:RS形式の署名
+#define BTC_SZ_EXTKEY_SEED      (64)                ///< サイズ:拡張鍵seed
+#define BTC_SZ_EXTKEY           (82)                ///< サイズ:拡張鍵
+#define BTC_SZ_CHAINCODE        (32)                ///< サイズ:拡張鍵chaincode
+#define BTC_SZ_EXTKEY_ADDR_MAX  (112)               ///< サイズ:拡張鍵アドレス長上限
 #define BTC_SZ_WITPROG_P2WPKH   (2 + BTC_SZ_HASH160)    ///< サイズ: witnessProgram(P2WPKH)
 #define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)    ///< サイズ: witnessProgram(P2WSH)
 #define BTC_SZ_2OF2             (1 + 1 + BTC_SZ_PUBKEY + 1 + BTC_SZ_PUBKEY + 1 + 1) ///< OP_m 0x21 [pub1] 0x21 [pub2] OP_n OP_CHKMULTISIG

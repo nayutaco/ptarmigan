@@ -680,12 +680,11 @@ int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey)
 }
 
 
-bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix)
+bool HIDDEN btcl_util_keys_hash2addr(char *pAddr, const uint8_t *pHash, uint8_t Prefix)
 {
     bool ret;
-    uint8_t buf_sha256[BTC_SZ_HASH256];
 
-    if (Prefix == BTC_PREF_P2WPKH) {
+    if (Prefix == BTC_PREF_P2WPKH || Prefix == BTC_PREF_P2WSH) {
         uint8_t hrp_type;
 
         switch (btc_get_chain()) {
@@ -698,31 +697,19 @@ bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uin
         default:
             return false;
         }
-        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH160);
-    } else if (Prefix == BTC_PREF_P2WSH) {
-        uint8_t hrp_type;
-
-        switch (btc_get_chain()) {
-        case BTC_MAINNET:
-            hrp_type = BTC_SEGWIT_ADDR_MAINNET;
-            break;
-        case BTC_TESTNET:
-            hrp_type = BTC_SEGWIT_ADDR_TESTNET;
-            break;
-        default:
-            return false;
-        }
-        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pPubKeyHash, BTC_SZ_HASH256);
-
-    } else { //nested
+        ret = btc_segwit_addr_encode(pAddr, BTC_SZ_ADDR_STR_MAX + 1, hrp_type, 0x00, pPubKeyHash, (Prefix == BTC_PREF_P2WPKH) ? BTC_SZ_HASH160 : BTC_SZ_HASH256);
+    } else if (Prefix == BTC_PREF_P2PKH || Prefix == BTC_PREF_P2SH)
         uint8_t pkh[1 + BTC_SZ_HASH160 + 4];
         size_t sz = BTC_SZ_ADDR_STR_MAX + 1;
+        uint8_t buf[BTC_SZ_HASH256];
 
         pkh[0] = mPref[Prefix];
         memcpy(pkh + 1, pPubKeyHash, BTC_SZ_HASH160);
-        btc_util_hash256(buf_sha256, pkh, 1 + BTC_SZ_HASH160);
-        memcpy(pkh + 1 + BTC_SZ_HASH160, buf_sha256, 4);
+        btc_util_hash256(buf, pkh, 1 + BTC_SZ_HASH160);
+        memcpy(pkh + 1 + BTC_SZ_HASH160, buf, 4);
         ret = b58enc(pAddr, &sz, pkh, sizeof(pkh));
+    } else {
+        ret = false;
     }
 
     return ret;
