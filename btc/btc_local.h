@@ -76,16 +76,18 @@ extern bool     HIDDEN mNativeSegwit;
 int HIDDEN btcl_util_set_keypair(void *pKeyPair, const uint8_t *pPubKey);
 
 
-/** PubKeyHashをBitcoinアドレスに変換
+/** Hash(PKH/SH/WPKH/WSH)をBitcoinアドレスに変換
  *
- * @param[out]      pAddr           変換後データ(BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
- * @param[in]       pPubKeyHash     対象データ(最大BTC_SZ_PUBKEY)
+ * @param[out]      pAddr           変換後データ(#BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
+ * @param[in]       pHash           対象データ(最大#BTC_SZ_HASH_MAX)
  * @param[in]       Prefix          BTC_PREF_xxx
  * @note
- *      - Prefixが #BTC_PREF_NATIVE の場合、pPubKeyHashはwitness program(20byte)
- *      - Prefixが #BTC_PREF_NATIVE_SH の場合、pPubKeyHashはwitness program(32byte)
+ *      - if Prefix == #BTC_PREF_P2PKH then pHash is PKH(#BTC_SZ_HASH160)
+ *      - if Prefix == #BTC_PREF_P2SH then pHash is SH(#BTC_SZ_HASH160)
+ *      - if Prefix == #BTC_PREF_P2WPKH then pHash is WPKH(#BTC_SZ_HASH160)
+ *      - if Prefix == #BTC_PREF_P2WSH then pHash is WSH(#BTC_SZ_HASH256)
  */
-bool HIDDEN btcl_util_keys_pkh2addr(char *pAddr, const uint8_t *pPubKeyHash, uint8_t Prefix);
+bool HIDDEN btcl_util_keys_hash2addr(char *pAddr, const uint8_t *pHash, uint8_t Prefix);
 
 
 /** トランザクションデータ作成

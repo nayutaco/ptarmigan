@@ -319,11 +319,11 @@ bool btc_extkey_create_data(uint8_t *pData, char *pAddr, const btc_extkey_t *pEK
     const uint8_t *p_fgr = (const uint8_t *)&pEKey->fingerprint;
     const uint8_t *p_num = (const uint8_t *)&pEKey->child_number;
 
-    if ((mPref[BTC_PREF] & 0x03) == 0) {
+    if ((mPref[BTC_PREF_CHAIN] & 0x03) == 0) {
         //btc_init()未実施
         return false;
     }
-    ver = VERSION_BYTES[mPref[BTC_PREF] - 1][pEKey->type];
+    ver = VERSION_BYTES[mPref[BTC_PREF_CHAIN] - 1][pEKey->type];
 
     for (int lp = 0; lp < 4; lp++) {
         pData[3 - lp] = *p_ver++;           //[0- 3]version bytes
@@ -406,7 +406,7 @@ bool btc_extkey_read(btc_extkey_t *pEKey, const uint8_t *pData, int Len)
     default:
         return false;
     }
-    if (net != mPref[BTC_PREF]) {
+    if (net != mPref[BTC_PREF_CHAIN]) {
         return false;
     }
     p += 4;

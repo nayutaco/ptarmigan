@@ -99,7 +99,7 @@ char *ln_node_alias(void)
 bool ln_node_init(uint8_t Features)
 {
     bool ret;
-    char wif[BTC_SZ_WIF_MAX + 1];
+    char wif[BTC_SZ_WIF_STR_MAX + 1];
     btc_chain_t chain;
     utl_buf_t buf_node = UTL_BUF_INIT;
     ln_node_announce_t anno;

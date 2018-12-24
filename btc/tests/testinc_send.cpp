@@ -284,19 +284,19 @@ TEST_F(send, p2wsh)
     ASSERT_EQ(BTC_TESTNET, chain);
 
     //2-of-2
-    utl_buf_t wit = UTL_BUF_INIT;
-    ret = btc_keys_create2of2(&wit, keys2.pub, keys1.pub);      //ソートしないようにしたので順番をあわせる
+    utl_buf_t redeem = UTL_BUF_INIT;
+    ret = btc_keys_create2of2(&redeem, keys2.pub, keys1.pub);      //ソートしないようにしたので順番をあわせる
     ASSERT_TRUE(ret);
-    printf("wit= \n");
-    send::DumpBin(wit.buf, wit.len);
-    btc_sw_add_vout_p2wsh(&tx, BTC_MBTC2SATOSHI(5.8), &wit);
+    printf("redeem= \n");
+    send::DumpBin(redeem.buf, redeem.len);
+    btc_sw_add_vout_p2wsh(&tx, BTC_MBTC2SATOSHI(5.8), &redeem);
 
     const char ADDR_2OF2[] = "2MuuDWRBQ5KTxJzAk1qPFZfzeheLcoSu3vy";
     char addr_2of2[BTC_SZ_ADDR_STR_MAX + 1];
-    btc_keys_wit2waddr(addr_2of2, &wit);
+    btc_keys_redeem2waddr(addr_2of2, &redeem);
     ASSERT_STREQ(ADDR_2OF2, addr_2of2);
     printf("addr 2of2= %s\n", addr_2of2);
-    utl_buf_free(&wit);
+    utl_buf_free(&redeem);
 
     //vinの順番は、2-of-2の順番と関係が無い
     ret = btc_util_sign_p2wpkh(&tx, 0, BTC_MBTC2SATOSHI(1.9), &keys1);

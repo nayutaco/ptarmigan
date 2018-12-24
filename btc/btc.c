@@ -45,7 +45,7 @@
  * package variables
  **************************************************************************/
 
-uint8_t HIDDEN  mPref[BTC_PREF_MAX];      ///< prefix関連
+uint8_t HIDDEN  mPref[BTC_PREF_MAX];        ///< prefix関連
 bool HIDDEN     mNativeSegwit;              ///< true:segwitのトランザクションをnativeで生成
 
 
@@ -68,7 +68,7 @@ bool btc_init(btc_chain_t chain, bool bSegNative)
         return false;
     }
 
-    mPref[BTC_PREF] = (uint8_t)chain;
+    mPref[BTC_PREF_CHAIN] = (uint8_t)chain;
     switch (chain) {
     case BTC_TESTNET:
         //LOGD("[testnet]\n");
@@ -123,5 +123,5 @@ void btc_term(void)
 
 btc_chain_t btc_get_chain(void)
 {
-    return (btc_chain_t)mPref[BTC_PREF];
+    return (btc_chain_t)mPref[BTC_PREF_CHAIN];
 }

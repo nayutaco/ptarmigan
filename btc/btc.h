@@ -43,34 +43,34 @@ extern "C" {
  * macros
  **************************************************************************/
 
-#define BTC_SZ_FIELD            (32)            ///< secp256k1の世界
-#define BTC_SZ_HASH160          (20)            ///< サイズ:HASH160
-#define BTC_SZ_HASH256          (32)            ///< サイズ:HASH256
-#define BTC_SZ_PRIVKEY          (32)            ///< サイズ:非公開鍵
-#define BTC_SZ_PUBKEY           (33)            ///< サイズ:圧縮された公開鍵
-#define BTC_SZ_PUBKEY_UNCOMP    (64)            ///< サイズ:圧縮されていない公開鍵
-#define BTC_SZ_PUBKEYHASH       (32)            ///< サイズ:PubKeyHashの最大値
-#define BTC_SZ_ADDR_STR_MAX     (90)            ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
-#define BTC_SZ_WIF_MAX          (55)            ///< サイズ:秘密鍵のWIF(上限不明)
-#define BTC_SZ_TXID             (32)            ///< サイズ:TXID
-#define BTC_SZ_SIGN_RS          (64)            ///< サイズ:RS形式の署名
-#define BTC_SZ_EXTKEY_SEED      (64)            ///< サイズ:拡張鍵seed
-#define BTC_SZ_EXTKEY           (82)            ///< サイズ:拡張鍵
-#define BTC_SZ_CHAINCODE        (32)            ///< サイズ:拡張鍵chaincode
-#define BTC_SZ_EXTKEY_ADDR_MAX  (112)           ///< サイズ:拡張鍵アドレス長上限
+#define BTC_SZ_FIELD            (32)                ///< secp256k1の世界
+#define BTC_SZ_HASH160          (20)                ///< サイズ:HASH160
+#define BTC_SZ_HASH256          (32)                ///< サイズ:HASH256
+#define BTC_SZ_HASH_MAX         (BTC_SZ_HASH256)    ///< サイズ:Hashの最大値
+#define BTC_SZ_PRIVKEY          (32)                ///< サイズ:非公開鍵
+#define BTC_SZ_PUBKEY           (33)                ///< サイズ:圧縮された公開鍵
+#define BTC_SZ_PUBKEY_UNCOMP    (65)                ///< サイズ:圧縮されていない公開鍵
+#define BTC_SZ_ADDR_STR_MAX     (90)                ///< サイズ:Bitcoinアドレス(26-35)(BECH32:90)
+#define BTC_SZ_WIF_STR_MAX      (55)                ///< サイズ:秘密鍵のWIF(上限不明)
+#define BTC_SZ_TXID             (32)                ///< サイズ:TXID
+#define BTC_SZ_SIGN_RS          (64)                ///< サイズ:RS形式の署名
+#define BTC_SZ_EXTKEY_SEED      (64)                ///< サイズ:拡張鍵seed
+#define BTC_SZ_EXTKEY           (82)                ///< サイズ:拡張鍵
+#define BTC_SZ_CHAINCODE        (32)                ///< サイズ:拡張鍵chaincode
+#define BTC_SZ_EXTKEY_ADDR_MAX  (112)               ///< サイズ:拡張鍵アドレス長上限
 #define BTC_SZ_WITPROG_P2WPKH   (2 + BTC_SZ_HASH160)    ///< サイズ: witnessProgram(P2WPKH)
 #define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)    ///< サイズ: witnessProgram(P2WSH)
-#define BTC_SZ_2OF2             (1 + 34 + 34 + 2)       ///< OP_m 21 [pub1] 21 [pub2] OP_n OP_CHKMULTISIG
+#define BTC_SZ_2OF2             (1 + 1 + BTC_SZ_PUBKEY + 1 + BTC_SZ_PUBKEY + 1 + 1) ///< OP_m 0x21 [pub1] 0x21 [pub2] OP_n OP_CHKMULTISIG
 
-#define BTC_PREF                (0)             ///< Prefix: 1:mainnet, 2:testnet
+#define BTC_PREF_CHAIN          (0)             ///< Prefix: 1:mainnet, 2:testnet
 #define BTC_PREF_WIF            (1)             ///< Prefix: WIF
 #define BTC_PREF_P2PKH          (2)             ///< Prefix: P2PKH
 #define BTC_PREF_P2SH           (3)             ///< Prefix: P2SH
 #define BTC_PREF_ADDRVER        (4)             ///< Prefix: Address Version
 #define BTC_PREF_ADDRVER_SH     (5)             ///< Prefix: Address Version(Script)
 #define BTC_PREF_MAX            (6)             ///< 内部管理用
-#define BTC_PREF_NATIVE         (7)             ///< Prefix: native Witness
-#define BTC_PREF_NATIVE_SH      (8)             ///< Prefix: native Witness(Script)
+#define BTC_PREF_P2WPKH         (7)             ///< Prefix: Native Pay-to-Witness-Public-Key-Hash
+#define BTC_PREF_P2WSH          (8)             ///< Prefix: Native Pay-to-Witness-Script-Hash
 
 #define BTC_EXTKEY_PRIV         (0)             ///< 拡張鍵種別:秘密鍵
 #define BTC_EXTKEY_PUB          (1)             ///< 拡張鍵種別:公開鍵
@@ -334,20 +334,17 @@ btc_chain_t btc_get_chain(void);
 
 /** WIF形式秘密鍵をRAW形式に変換
  *
- * @param[out]      pPrivKey        変換後データ(BTC_SZ_PRIVKEY以上のサイズが必要)
+ * @param[out]      pPrivKey        変換後データ(#BTC_SZ_PRIVKEY)
  * @param[out]      pChain          WIFのblockchain種別
- * @param[in]       pWifPriv        対象データ(\0 terminate)
+ * @param[in]       pWifPriv        対象データ(WIF compressed, \0 terminate)
  * @return      true:成功
- *
- * @note
- *      - #btc_init()の設定と一致しない場合、abortする
  */
 bool btc_keys_wif2priv(uint8_t *pPrivKey, btc_chain_t *pChain, const char *pWifPriv);
 
 
 /** RAW秘密鍵をWIF形式秘密鍵に変換
  *
- * @param[out]      pWifPriv
+ * @param[out]      pWifPriv        WIF compressed(#BTC_SZ_WIF_STR_MAX+1)
  * @param[in]       pPrivKey
  * @return      true:成功
  */
@@ -356,8 +353,8 @@ bool btc_keys_priv2wif(char *pWifPriv, const uint8_t *pPrivKey);
 
 /** 秘密鍵を公開鍵に変換
  *
- * @param[out]      pPubKey         変換後データ(BTC_SZ_PUBKEY以上のサイズが必要)
- * @param[in]       pPrivKey        対象データ(BTC_SZ_PRIVKEY)
+ * @param[out]      pPubKey         変換後データ(#BTC_SZ_PUBKEY)
+ * @param[in]       pPrivKey        対象データ(#BTC_SZ_PRIVKEY)
  *
  * @note
  *      - pPubKeyは圧縮された公開鍵になる
@@ -367,46 +364,52 @@ bool btc_keys_priv2pub(uint8_t *pPubKey, const uint8_t *pPrivKey);
 
 /** 公開鍵をBitcoinアドレス(P2PKH)に変換
  *
- * @param[out]      pAddr           変換後データ(#BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
- * @param[in]       pPubKey         対象データ(BTC_SZ_PUBKEY)
+ * @param[out]      pAddr           変換後データ(#BTC_SZ_ADDR_STR_MAX+1)
+ * @param[in]       pPubKey         対象データ(#BTC_SZ_PUBKEY)
  */
 bool btc_keys_pub2p2pkh(char *pAddr, const uint8_t *pPubKey);
 
 
-/** 公開鍵をBitcoinアドレス(P2WPKH)に変換
+/** 公開鍵をBitcoinアドレス(P2WPKH or P2SH-P2WPKH)に変換
  *
- * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_STR_MAX+1 以上のサイズを想定)
- * @param[in]       pPubKey         対象データ(BTC_SZ_PUBKEY)
+ * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_STR_MAX+1)
+ * @param[in]       pPubKey         対象データ(#BTC_SZ_PUBKEY)
+ *
+ * @note
+ *      - if mNativeSegwit == true then P2WPKH
+ *      - if mNativeSegwit == false then P2SH-P2WPKH
  */
 bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);
 
 
-/** P2PKHからP2WPKHへの変換
+/** P2PKHをBitcoinアドレス(P2WPKH or P2SH-P2WPKH)に変換
  *
- * @param[out]      pWAddr
- * @param[in]       pAddr
+ * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_STR_MAX+1)
+ * @param[in]       pAddr           対象データ
+ *
+ * @note
+ *      - if mNativeSegwit == true then P2WPKH
+ *      - if mNativeSegwit == false then P2SH-P2WPKH
  */
 bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
 
 
-/** witnessScriptをBitcoinアドレスに変換
+/** Redeem ScriptをBitcoinアドレス(P2WSH or P2SH-P2WSH)に変換
  *
- * @param[out]      pWAddr          変換後データ
- * @param[in]       pWitScript      対象データ
+ * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_STR_MAX+1)
+ * @param[in]       pRedeem         対象データ
  *
  * @note
- *      - pWAddrのサイズは、native=#BTC_SZ_WSHADDR, 非native=#BTC_SZ_ADDR_STR_MAX+1 以上にすること
+ *      - if mNativeSegwit == true then P2WSH
+ *      - if mNativeSegwit == false then P2SH-P2WSH
  */
-bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitScript);
+bool btc_keys_redeem2waddr(char *pWAddr, const utl_buf_t *pRedeem);
 
 
-/** 圧縮された公開鍵を展開
+/** uncompress public key
  *
- * @param[out]  pUncomp     展開後の公開鍵
- * @param[in]   pPubKey     圧縮された公開鍵
- *
- * @note
- *      - pUncompは使用後に #utl_buf_free()で解放すること
+ * @param[out]  pUncomp     uncompressed public key(#BTC_SZ_PUBKEY_UNCOMP-1, no prefix)
+ * @param[in]   pPubKey     compressed public key(#BTC_SZ_PUBKEY, prefixed)
  */
 bool btc_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey);
 
@@ -430,8 +433,8 @@ bool btc_keys_chkpub(const uint8_t *pPubKey);
 /** MultiSig 2-of-2スキームのredeem scriptを作成
  * @code
  *  OP_2
- *      21 (pubkey1[33])
- *      21 (pubkey2[33])
+ *  0x21 (pubkey1[0x21])
+ *  0x21 (pubkey2[0x21])
  *  OP_2
  *  OP_CHECKMULTISIG
  * @endcode
@@ -456,17 +459,23 @@ bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint
  * @note
  *      - 公開鍵はソートしない
  */
-bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], int Num, int M);
+bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
 
 
-/** BitcoinアドレスからPubKeyHashを求める
+/** BitcoinアドレスからHash(PKH/SH/WPKH/WSH)を求める
  *
- * @param[out]      pPubKeyHash     PubKeyHash
+ * @param[out]      pHash           Hash(#BTC_SZ_HASH_MAX)
  * @param[out]      pPrefix         pAddrの種類(BTC_PREF_xxx)
  * @param[in]       pAddr           Bitcoinアドレス
  * @return      true:成功
+ *
+ * @note
+ *      - if pPrefix == #BTC_PREF_P2PKH then length of pHash is #BTC_SZ_HASH160
+ *      - if pPrefix == #BTC_PREF_P2SH then length of pHash is #BTC_SZ_HASH160
+ *      - if pPrefix == #BTC_PREF_P2WPKH then length of pHash is #BTC_SZ_HASH160
+ *      - if pPrefix == #BTC_PREF_P2WSH then length of pHash is #BTC_SZ_HASH256
  */
-bool btc_keys_addr2pkh(uint8_t *pPubKeyHash, int *pPrefix, const char *pAddr);
+bool btc_keys_addr2hash(uint8_t *pHash, int *pPrefix, const char *pAddr);
 
 
 /** BitcoinアドレスからscriptPubKeyを求める
@@ -480,7 +489,7 @@ bool btc_keys_addr2spk(utl_buf_t *pScriptPk, const char *pAddr);
 
 /** scriptPubKeyからBitcoinアドレスを求める
  *
- * @param[out]  pAddr       Bitcoinアドレス
+ * @param[out]  pAddr       Bitcoinアドレス(#BTC_SZ_ADDR_MAX+1)
  * @param[in]   pScriptPk   scriptPubKey
  * @return      true:成功
  */
@@ -1223,7 +1232,7 @@ bool btc_extkey_read_addr(btc_extkey_t *pEKey, const char *pXAddr);
  *
  * @param[out]      pKeys           鍵情報
  * @param[out]      pChain          WIF種別
- * @param[in]       pWifPriv        WIF形式秘密鍵
+ * @param[in]       pWifPriv        WIF compressed formatted private key
  * @return      true    成功
  */
 bool btc_util_wif2keys(btc_util_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv);
@@ -1409,8 +1418,8 @@ int btc_util_ecp_point_read_binary2(void *pPoint, const uint8_t *pPubKey);
  *
  * [00][14][pubKeyHash] --> HASH160
  *
- * @param[out]      pWPubKeyHash    変換後データ(BTC_SZ_PUBKEYHASH以上のサイズを想定)
- * @param[in]       pPubKeyHash     対象データ(BTC_SZ_PUBKEYHASH)
+ * @param[out]      pWPubKeyHash    変換後データ(#BTC_SZ_HASH_MAX)
+ * @param[in]       pPubKeyHash     対象データ(#BTC_SZ_HASH_MAX)
  */
 void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash);
 

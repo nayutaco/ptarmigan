@@ -210,13 +210,13 @@ btc_vout_t *btc_tx_add_vout(btc_tx_t *pTx, uint64_t Value)
 bool btc_tx_add_vout_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr)
 {
     bool ret;
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
 
-    ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
+    ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret) {
         btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-        btc_util_create_scriptpk(&vout->script, pkh, pref);
+        btc_util_create_scriptpk(&vout->script, hash, pref);
     }
     return ret;
 }
@@ -245,11 +245,11 @@ bool btc_tx_add_vout_p2pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey
 
 bool btc_tx_create_vout(utl_buf_t *pBuf, const char *pAddr)
 {
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
-    bool ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
+    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret) {
-        btc_util_create_scriptpk(pBuf, pkh, pref);
+        btc_util_create_scriptpk(pBuf, hash, pref);
     }
 
     return ret;
@@ -258,11 +258,11 @@ bool btc_tx_create_vout(utl_buf_t *pBuf, const char *pAddr)
 
 bool btc_tx_create_vout_p2pkh(utl_buf_t *pBuf, const char *pAddr)
 {
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
-    bool ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
+    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2PKH)) {
-        btc_util_create_scriptpk(pBuf, pkh, pref);
+        btc_util_create_scriptpk(pBuf, hash, pref);
     } else {
         ret = false;
     }
@@ -273,11 +273,11 @@ bool btc_tx_create_vout_p2pkh(utl_buf_t *pBuf, const char *pAddr)
 
 bool btc_tx_add_vout_p2pkh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr)
 {
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
-    bool ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
+    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2PKH)) {
-        btc_tx_add_vout_p2pkh(pTx, Value, pkh);
+        btc_tx_add_vout_p2pkh(pTx, Value, hash);
     } else {
         ret = false;
     }
@@ -302,11 +302,11 @@ bool btc_tx_add_vout_p2sh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyH
 
 bool btc_tx_add_vout_p2sh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr)
 {
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
-    bool ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
+    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2SH)) {
-        btc_tx_add_vout_p2sh(pTx, Value, pkh);
+        btc_tx_add_vout_p2sh(pTx, Value, hash);
     } else {
         ret = false;
     }
@@ -317,9 +317,9 @@ bool btc_tx_add_vout_p2sh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr)
 
 bool btc_tx_add_vout_p2sh_redeem(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pRedeem)
 {
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
-    btc_util_hash160(pkh, pRedeem->buf, pRedeem->len);
-    btc_tx_add_vout_p2sh(pTx, Value, pkh);
+    uint8_t sh[BTC_SZ_HASH_MAX];
+    btc_util_hash160(sh, pRedeem->buf, pRedeem->len);
+    btc_tx_add_vout_p2sh(pTx, Value, sh);
     return true;
 }
 
@@ -895,7 +895,7 @@ bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash,
     p++;
     ret = btc_tx_verify(&sig, pTxHash, p);
     if (ret) {
-        uint8_t pkh[BTC_SZ_PUBKEYHASH];
+        uint8_t pkh[BTC_SZ_HASH_MAX];
         btc_util_hash160(pkh, p, BTC_SZ_PUBKEY);
         ret = (memcmp(pkh, pPubKeyHash, BTC_SZ_HASH160) == 0);
     }
@@ -933,11 +933,11 @@ LABEL_EXIT:
 
 bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr)
 {
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
-    bool ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
+    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2PKH)) {
-        ret =  btc_tx_verify_p2pkh(pTx, Index, pTxHash, pkh);
+        ret = btc_tx_verify_p2pkh(pTx, Index, pTxHash, hash);
     } else {
         ret = false;
     }
@@ -952,7 +952,7 @@ bool btc_tx_verify_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHa
     const uint8_t *p = p_scriptsig->buf;
 
     //このvinはP2SHの予定
-    //      1. 前のvoutのpubKeyHashが、redeemScriptから計算したpubKeyHashと一致するか確認
+    //      1. 前のvoutのscriptHashが、redeemScriptから計算したscriptHashと一致するか確認
     //      2. 署名チェック
     //
     //  OP_0
@@ -1023,12 +1023,12 @@ bool btc_tx_verify_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHa
         return false;
     }
 
-    //pubkeyhashチェック
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
-    btc_util_hash160(pkh, p_scriptsig->buf + pubpos - 1, p_scriptsig->len - pubpos + 1);
-    bool ret = (memcmp(pkh, pPubKeyHash, BTC_SZ_HASH160) == 0);
+    //scripthashチェック
+    uint8_t sh[BTC_SZ_HASH_MAX];
+    btc_util_hash160(sh, p_scriptsig->buf + pubpos - 1, p_scriptsig->len - pubpos + 1);
+    bool ret = (memcmp(sh, pPubKeyHash, BTC_SZ_HASH160) == 0);
     if (!ret) {
-        LOGD("pubkeyhash mismatch.\n");
+        LOGD("scripthash mismatch.\n");
         return false;
     }
 
@@ -1116,11 +1116,11 @@ LABEL_EXIT:
 
 bool btc_tx_verify_p2sh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr)
 {
-    uint8_t pkh[BTC_SZ_PUBKEYHASH];
+    uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
-    bool ret = btc_keys_addr2pkh(pkh, &pref, pAddr);
+    bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2SH)) {
-        ret = btc_tx_verify_multisig(pTx, Index, pTxHash, pkh);
+        ret = btc_tx_verify_multisig(pTx, Index, pTxHash, hash);
     } else {
         ret = false;
     }
@@ -1289,9 +1289,9 @@ void btc_print_tx(const btc_tx_t *pTx)
         addr[0] = '\0';
         if ( (buf->len == 25) && (buf->buf[0] == OP_DUP) && (buf->buf[1] == OP_HASH160) &&
              (buf->buf[2] == 0x14) && (buf->buf[23] == OP_EQUALVERIFY) && (buf->buf[24] == OP_CHECKSIG) ) {
-            (void)btcl_util_keys_pkh2addr(addr, &(buf->buf[3]), BTC_PREF_P2PKH);
+            (void)btcl_util_keys_hash2addr(addr, &(buf->buf[3]), BTC_PREF_P2PKH);
         } else if ( (buf->len == 23) && (buf->buf[0] == OP_HASH160) && (buf->buf[1] == 0x14) && (buf->buf[22] == OP_EQUAL) ) {
-            (void)btcl_util_keys_pkh2addr(addr, &(buf->buf[2]), BTC_PREF_P2SH);
+            (void)btcl_util_keys_hash2addr(addr, &(buf->buf[2]), BTC_PREF_P2SH);
         } else if ( ((buf->len == 22) && (buf->buf[0] == 0x00) && (buf->buf[1] == 0x14)) ||
                     ((buf->len == 34) && (buf->buf[0] == 0x00) && (buf->buf[1] == 0x20)) ) {
             //bech32

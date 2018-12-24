@@ -689,7 +689,7 @@ bool ln_set_shutdown_vout_pubkey(ln_self_t *self, const uint8_t *pShutdownPubkey
 {
     bool ret = false;
 
-    if ((ShutdownPref == BTC_PREF_P2PKH) || (ShutdownPref == BTC_PREF_NATIVE)) {
+    if ((ShutdownPref == BTC_PREF_P2PKH) || (ShutdownPref == BTC_PREF_P2WPKH)) {
         const utl_buf_t pub = { (CONST_CAST uint8_t *)pShutdownPubkey, BTC_SZ_PUBKEY };
         utl_buf_t spk;
 

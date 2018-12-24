@@ -1434,7 +1434,7 @@ int main(int argc, char *argv[])
 //    }
 
 //    fprintf(stderr, "-dumpprivkey-------------------------\n");
-//    char wif[BTC_SZ_WIF_MAX + 1];
+//    char wif[BTC_SZ_WIF_STR_MAX + 1];
 //    ret = btcrpc_dumpprivkey(wif, addr);
 //    if (ret) {
 //        fprintf(stderr, "wif=%s\n", wif);
