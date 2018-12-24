@@ -95,7 +95,7 @@ void btc_tx_free(btc_tx_t *pTx)
     }
 #ifdef PTARM_DEBUG
     memset(pTx, 0, sizeof(*pTx));
-    pTx->version = 2;
+    pTx->version = BTC_TX_VERSION_INIT;
 #endif  //PTARM_DEBUG
 }
 
@@ -106,11 +106,11 @@ btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
 
     if (pTx == NULL) {
         LOGD("fail: null\n");
-        return BTC_TXVALID_ARG;
+        return BTC_TXVALID_ARG_NULL;
     }
-    if (pTx->version == 0) {
+    if (pTx->version == 0) { //XXX:
         LOGD("fail: version\n");
-        return BTC_TXVALID_VERSION;
+        return BTC_TXVALID_VERSION_BAD;
     }
     if (pTx->vin_cnt == 0) {
         LOGD("fail: vin_cnt\n");
@@ -155,11 +155,11 @@ btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
 
         if (vout->script.len == 0) {
             LOGD("fail: no scriptPubKeyHash[%u]\n", lp);
-            return BTC_TXVALID_VOUT_NOPKH;
+            return BTC_TXVALID_VOUT_SPKH_NONE;
         }
-        if ((vout->value == 0) && (vout->script.buf[0] != M_OP_RETURN)) {
+        if ((vout->value == 0) && (vout->script.buf[0] != M_OP_RETURN)) { //XXX:
             LOGD("fail: no value[%u]\n", lp);
-            return BTC_TXVALID_VOUT_VALUE;
+            return BTC_TXVALID_VOUT_VALUE_BAD;
         }
     }
 
@@ -167,9 +167,10 @@ btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
 }
 
 
-btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, int Index)
+btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, uint32_t Index)
 {
     pTx->vin = (btc_vin_t *)UTL_DBG_REALLOC(pTx->vin, sizeof(btc_vin_t) * (pTx->vin_cnt + 1));
+    if (!pTx->vin) return NULL;
     btc_vin_t *vin = &(pTx->vin[pTx->vin_cnt]);
     pTx->vin_cnt++;
 
@@ -186,6 +187,7 @@ btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, int Index)
 utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin)
 {
     pVin->witness = (utl_buf_t *)UTL_DBG_REALLOC(pVin->witness, sizeof(utl_buf_t) * (pVin->wit_cnt + 1));
+    if (!pVin->witness) return NULL;
     utl_buf_t *p_buf = &(pVin->witness[pVin->wit_cnt]);
     pVin->wit_cnt++;
 
@@ -197,6 +199,7 @@ utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin)
 btc_vout_t *btc_tx_add_vout(btc_tx_t *pTx, uint64_t Value)
 {
     pTx->vout = (btc_vout_t *)UTL_DBG_REALLOC(pTx->vout, sizeof(btc_vout_t) * (pTx->vout_cnt + 1));
+    if (!pTx->vout) return NULL;
     btc_vout_t *vout = &(pTx->vout[pTx->vout_cnt]);
     pTx->vout_cnt++;
 
@@ -216,53 +219,53 @@ bool btc_tx_add_vout_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr)
     ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret) {
         btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-        btc_util_create_scriptpk(&vout->script, hash, pref);
+        if (!vout) return false;
+        if (!btc_util_create_scriptpk(&vout->script, hash, pref)) return false;
     }
     return ret;
 }
 
 
-void btc_tx_add_vout_spk(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk)
+bool btc_tx_add_vout_spk(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk)
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-    utl_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
+    if (!vout) return false;
+    return utl_buf_alloccopy(&vout->script, pScriptPk->buf, pScriptPk->len);
 }
 
 
 bool btc_tx_add_vout_p2pkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey)
 {
-    btcl_util_add_vout_pub(pTx, Value, pPubKey, BTC_PREF_P2PKH);
-    return true;
+    return btcl_util_add_vout_pub(pTx, Value, pPubKey, BTC_PREF_P2PKH);
 }
 
 
 bool btc_tx_add_vout_p2pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
 {
-    btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, BTC_PREF_P2PKH);
-    return true;
+    return btcl_util_add_vout_pkh(pTx, Value, pPubKeyHash, BTC_PREF_P2PKH);
 }
 
 
-bool btc_tx_create_vout(utl_buf_t *pBuf, const char *pAddr)
+bool btc_tx_create_spk(utl_buf_t *pBuf, const char *pAddr)
 {
     uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
     bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret) {
-        btc_util_create_scriptpk(pBuf, hash, pref);
+        ret = btc_util_create_scriptpk(pBuf, hash, pref);
     }
 
     return ret;
 }
 
 
-bool btc_tx_create_vout_p2pkh(utl_buf_t *pBuf, const char *pAddr)
+bool btc_tx_create_spk_p2pkh(utl_buf_t *pBuf, const char *pAddr)
 {
     uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
     bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2PKH)) {
-        btc_util_create_scriptpk(pBuf, hash, pref);
+        ret = btc_util_create_scriptpk(pBuf, hash, pref);
     } else {
         ret = false;
     }
@@ -277,7 +280,7 @@ bool btc_tx_add_vout_p2pkh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr
     int pref;
     bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2PKH)) {
-        btc_tx_add_vout_p2pkh(pTx, Value, hash);
+        ret = btc_tx_add_vout_p2pkh(pTx, Value, hash);
     } else {
         ret = false;
     }
@@ -286,17 +289,11 @@ bool btc_tx_add_vout_p2pkh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr
 }
 
 
-bool btc_tx_add_vout_p2sh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash)
+bool btc_tx_add_vout_p2sh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pScriptHash)
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-    utl_buf_alloc(&vout->script, 2 + BTC_SZ_HASH160 + 1);
-    uint8_t *p = vout->script.buf;
-
-    p[0] = OP_HASH160;
-    p[1] = BTC_SZ_HASH160;
-    memcpy(p + 2, pPubKeyHash, BTC_SZ_HASH160);
-    p[22] = OP_EQUAL;
-    return true;
+    if (!vout) return false;
+    return btc_util_create_scriptpk(&vout->script, pScriptHash, BTC_PREF_P2SH);
 }
 
 
@@ -306,7 +303,7 @@ bool btc_tx_add_vout_p2sh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr)
     int pref;
     bool ret = btc_keys_addr2hash(hash, &pref, pAddr);
     if (ret && (pref == BTC_PREF_P2SH)) {
-        btc_tx_add_vout_p2sh(pTx, Value, hash);
+        ret = btc_tx_add_vout_p2sh(pTx, Value, hash);
     } else {
         ret = false;
     }
@@ -317,55 +314,53 @@ bool btc_tx_add_vout_p2sh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr)
 
 bool btc_tx_add_vout_p2sh_redeem(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pRedeem)
 {
+    if (!pRedeem->len) return false;
+
     uint8_t sh[BTC_SZ_HASH_MAX];
     btc_util_hash160(sh, pRedeem->buf, pRedeem->len);
-    btc_tx_add_vout_p2sh(pTx, Value, sh);
-    return true;
+    return btc_tx_add_vout_p2sh(pTx, Value, sh);
 }
 
 
 bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
+    if (!pSig->len) return false;
+
     btc_vin_t *vin = &(pTx->vin[Index]);
-    utl_buf_t *p_buf = &vin->script;
+    if (!utl_buf_realloc(&vin->script, 1 + pSig->len + 1 + BTC_SZ_PUBKEY)) return false;
 
-    p_buf->len = 1 + pSig->len + 1 + BTC_SZ_PUBKEY;
-    p_buf->buf = (uint8_t *)UTL_DBG_REALLOC(p_buf->buf, p_buf->len);
-    uint8_t *p = pTx->vin[Index].script.buf;
-
-    *p = pSig->len;
-    p++;
+    uint8_t *p = vin->script.buf;
+    *p++ = pSig->len;
     memcpy(p, pSig->buf, pSig->len);
     p += pSig->len;
-    *p = BTC_SZ_PUBKEY;
-    p++;
+    *p++ = BTC_SZ_PUBKEY;
     memcpy(p, pPubKey, BTC_SZ_PUBKEY);
     return true;
 }
 
 
-bool btc_tx_set_vin_p2sh(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], int Num, const utl_buf_t *pRedeem)
+bool btc_tx_set_vin_p2sh_multi(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem)
 {
-    btc_vin_t *vin = &(pTx->vin[Index]);
-    utl_buf_t *p_buf = &vin->script;
+    if (!Num) return false;
+    if (!pRedeem->len) return false;
 
-    //OP_0
-    //(len + 署名) * 署名数
-    //OP_PUSHDATAx
-    //redeemScript長
-    //redeemScript
-    bool op_push2 = false;
-    p_buf->len = 1 + Num + 1 + 1 + pRedeem->len;
-    if (pRedeem->len >= 0x100) {
-        //OP_PUSHDATA2
-        op_push2 = true;
-        p_buf->len++;
+    /*
+     * OP_0
+     * (sig-len + sig) * num
+     * OP_PUSHDATAx
+     * redeemScript-len
+     * redeemScript
+     */
+    btc_vin_t *vin = &(pTx->vin[Index]);
+    uint16_t len = 1 + Num + 1 + 1 + pRedeem->len;
+    if (pRedeem->len >> 8) {
+        len++;
     }
     for (int lp = 0; lp < Num; lp++) {
-         p_buf->len += pSigs[lp]->len;
+         len += pSigs[lp]->len;
     }
-    p_buf->buf = (uint8_t *)UTL_DBG_REALLOC(p_buf->buf, p_buf->len);
-    uint8_t *p = pTx->vin[Index].script.buf;
+    if (!utl_buf_realloc(&vin->script, len)) return false;
+    uint8_t *p = vin->script.buf;
 
     *p++ = OP_0;
     for (int lp = 0; lp < Num; lp++) {
@@ -373,7 +368,7 @@ bool btc_tx_set_vin_p2sh(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], int
         memcpy(p, pSigs[lp]->buf, pSigs[lp]->len);
         p += pSigs[lp]->len;
     }
-    if (op_push2) {
+    if (pRedeem->len >> 8) {
         *p++ = OP_PUSHDATA2;
         *p++ = pRedeem->len & 0xff;
         *p++ = pRedeem->len >> 8;
@@ -388,6 +383,15 @@ bool btc_tx_set_vin_p2sh(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], int
 
 bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
 {
+    typedef enum {
+        STATE_TXIN_COUNT,
+        STATE_TXIN,
+        STATE_TXOUT_COUNT,
+        STATE_TXOUT,
+        STATE_WITNESS,
+        STATE_LOCKTIME,
+    } STATE;
+
     if (Len < 8) {
         //version(4) + txin_cnt(1) + txout_cnt(1) + locktime(4)
         return false;
@@ -417,7 +421,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
     }
     //LOGD("  version:%d\n", pTx->version);
 
-    int state = 0;
+    STATE state = STATE_TXIN_COUNT;
     uint32_t tx_cnt = 0;
     int tmp;
     uint16_t var;
@@ -437,32 +441,27 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
         prev_pos = pos;
 #endif
         switch (state) {
-        case 0:
-            //txin count
+        case STATE_TXIN_COUNT:
             pos += get_varint(&var, pData + pos);
             pTx->vin_cnt = var;
-            //LOGD("state0: pos=%d, vin_cnt=%d\n", pos, pTx->vin_cnt);
+            //LOGD("STATE_TXIN_COUNT: pos=%d, vin_cnt=%d\n", pos, pTx->vin_cnt);
             if (pTx->vin_cnt == 0) {
                 //txin無し
                 pTx->vin = NULL;
-                // --> txout count
-                state = 2;
+                state = STATE_TXOUT_COUNT;
             } else {
                 pTx->vin = (btc_vin_t *)UTL_DBG_MALLOC(sizeof(btc_vin_t) * pTx->vin_cnt);
-                // --> txin
-                state = 1;
+                state = STATE_TXIN;
             }
             break;
-        case 1:
-            //txin
-            //LOGD("state1: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
+        case STATE_TXIN:
+            //LOGD("STATE_TXIN: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
             if (pos + 41 + 1 + 4 <= Len) {       // vin_min(41) + vout_cnt(1) + locktime(4)
                 //scriptSig長
                 tmp = pos + BTC_SZ_TXID + sizeof(uint32_t);
                 tmp = get_varint(&var, pData + tmp);
             } else {
-                // --> txout count
-                state = 2;
+                state = STATE_TXOUT_COUNT;
                 break;
             }
             if (pos + 40 + tmp + var + 1 + 4 <= Len) {
@@ -497,45 +496,38 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 vin->witness = NULL;
             }
             if (tx_cnt >= pTx->vin_cnt) {
-                // --> txout count
-                state = 2;
+                state = STATE_TXOUT_COUNT;
             }
             break;
-        case 2:
-            //txout count
+        case STATE_TXOUT_COUNT:
             pos += get_varint(&var, pData + pos);
             pTx->vout_cnt = var;
-            //LOGD("state2: pos=%d, vout_cnt=%d\n", pos, pTx->vout_cnt);
+            //LOGD("STATE_TXOUT_COUNT: pos=%d, vout_cnt=%d\n", pos, pTx->vout_cnt);
             if (pTx->vout_cnt == 0) {
                 //txout無し
                 pTx->vout = NULL;
                 if (segwit) {
-                    // --> witness
-                    state = 4;
+                    state = STATE_WITNESS;
                 } else {
-                    // --> locktime
-                    state = 5;
+                    state = STATE_LOCKTIME;
                 }
             } else {
                 pTx->vout = (btc_vout_t *)UTL_DBG_MALLOC(sizeof(btc_vout_t) * pTx->vout_cnt);
-                state = 3;
+                state = STATE_TXOUT;
             }
             tx_cnt = 0;
             break;
-        case 3:
-            //txout
-            //LOGD("state3: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
+        case STATE_TXOUT:
+            //LOGD("STATE_TXOUT: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
             if (pos + 9 + 4 <= Len) {       // vout_min(9) + locktime(4)
                 //scriptPubKey長
                 tmp = pos + sizeof(uint64_t);
                 tmp = get_varint(&var, pData + tmp);
             } else {
                 if (segwit) {
-                    // --> witness
-                    state = 4;
+                    state = STATE_WITNESS;
                 } else {
-                    // --> locktime
-                    state = 5;
+                    state = STATE_LOCKTIME;
                 }
                 tx_cnt = 0;
                 break;
@@ -563,26 +555,23 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             }
             if (tx_cnt >= pTx->vout_cnt) {
                 if (segwit) {
-                    // --> witness
-                    state = 4;
+                    state = STATE_WITNESS;
                 } else {
-                    // --> locktime
-                    state = 5;
+                    state = STATE_LOCKTIME;
                 }
                 tx_cnt = 0;
             } else {
                 //LOGD("  continue\n");
             }
             break;
-        case 4:
-            //witness
-            //LOGD("state4: pos=%d, tx_cnt=%d\n", pos, tx_cnt);
+        case STATE_WITNESS:
+            //LOGD("STATE_WITNESS: pos=%d, tx_cnt=%d\n", pos, tx_cnt);
             if ((pos + 4 <= Len) && (tx_cnt < pTx->vin_cnt)) {
                 pos += get_varint(&var, pData + pos);   //item数
                 pTx->vin[tx_cnt].wit_cnt = var;
                 pTx->vin[tx_cnt].witness = (utl_buf_t *)UTL_DBG_MALLOC(pTx->vin[tx_cnt].wit_cnt * sizeof(utl_buf_t));
             } else {
-                state = 5;
+                state = STATE_LOCKTIME;
                 break;
             }
             //LOGD("  wit_cnt=%d\n", pTx->vin[tx_cnt].wit_cnt);
@@ -599,15 +588,13 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             }
             tx_cnt++;
             if (tx_cnt >= pTx->vin_cnt) {
-                // --> locktime
-                state = 5;
+                state = STATE_LOCKTIME;
             }
             break;
-        case 5:
-            //locktime
+        case STATE_LOCKTIME:
             pTx->locktime = get_le32(pData + pos);
             pos += sizeof(uint32_t);
-            //LOGD("state5: locktime=%08x\n", pTx->locktime);
+            //LOGD("STATE_LOCKTIME: locktime=%08x\n", pTx->locktime);
             break;
         default:
             assert(0);
