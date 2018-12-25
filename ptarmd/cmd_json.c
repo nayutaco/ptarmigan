@@ -202,6 +202,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_getbalance,  "getbalance", NULL);
     jrpc_register_procedure(&mJrpc, cmd_emptywallet, "emptywallet", NULL);
 #endif
+    LOGD("[start]jrpc_server\n");
     jrpc_server_run(&mJrpc);
     jrpc_server_destroy(&mJrpc);
 
