@@ -778,14 +778,6 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         M_SET_ERR(self, LNERR_INV_STATE, "no init received : %04x", type);
         return false;
     }
-    if ( (type != MSGTYPE_CLOSING_SIGNED) &&
-         !MSGTYPE_IS_ANNOUNCE(type) && !MSGTYPE_IS_PINGPONG(type) &&
-         (type != MSGTYPE_ERROR) &&
-         M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) ) {
-        M_SET_ERR(self, LNERR_INV_STATE, "not closing_signed received : %04x", type);
-        ret = type & 1;     //ok to be odd rule --> 奇数ならエラーにしない
-        goto LABEL_EXIT;
-    }
 
     size_t lp;
     for (lp = 0; lp < ARRAY_SIZE(RECV_FUNC); lp++) {
@@ -1662,6 +1654,11 @@ bool ln_add_htlc_set(ln_self_t *self,
 {
     LOGD("BEGIN\n");
 
+    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "shutdown: not allow add_htlc");
+        return false;
+    }
+
     uint16_t idx;
     bool ret = set_add_htlc(self, pHtlcId, pReason, &idx,
                     pPacket, AmountMsat, CltvValue, pPaymentHash,
@@ -1687,6 +1684,11 @@ bool ln_add_htlc_set_fwd(ln_self_t *self,
             const utl_buf_t *pSharedSecrets)
 {
     LOGD("BEGIN\n");
+
+    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "shutdown: not allow add_htlc");
+        return false;
+    }
 
     bool ret = set_add_htlc(self, pHtlcId, pReason, pNextIdx,
                     pPacket, AmountMsat, CltvValue, pPaymentHash,
@@ -5903,7 +5905,9 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
 
     //B7. if the receiving peer specified by the onion is NOT known:
     //      unknown_next_peer
-    if ((pDataOut->short_channel_id == 0) || (recv_prev.p_next_self == NULL)) {
+    if ( (pDataOut->short_channel_id == 0) ||
+         (recv_prev.p_next_self == NULL) ||
+         (ln_status_get(recv_prev.p_next_self) != LN_STATUS_NORMAL) ) {
         //転送先がない
         M_SET_ERR(self, LNERR_INV_VALUE, "no next channel");
         ln_misc_push16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
