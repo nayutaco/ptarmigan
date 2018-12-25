@@ -6232,7 +6232,7 @@ static bool set_add_htlc(ln_self_t *self,
             clear_htlc(&self->cnl_add_htlc[idx]);
         }
     } else {
-        M_SET_ERR(self, LNERR_MSG_ERROR, "create update_add_htlc");
+        LOGD("fail: create update_add_htlc\n");
     }
 
     return ret;

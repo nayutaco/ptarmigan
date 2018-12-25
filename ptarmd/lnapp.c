@@ -1353,7 +1353,8 @@ static bool exchange_init(lnapp_conf_t *p_conf)
         utl_misc_msleep(M_WAIT_RECV_MSG_MSEC);
         count--;
     }
-    return p_conf->loop && (count > 0);
+    LOGD("loop:%d, count:%d, flag_recv=%02x\n", p_conf->loop, count, p_conf->flag_recv);
+    return p_conf->loop && ((p_conf->flag_recv & RECV_MSG_INIT) != 0);
 }
 
 
@@ -1380,7 +1381,8 @@ static bool exchange_reestablish(lnapp_conf_t *p_conf)
         utl_misc_msleep(M_WAIT_RECV_MSG_MSEC);
         count--;
     }
-    return p_conf->loop && (count > 0);
+    LOGD("loop:%d, count:%d, flag_recv=%02x\n", p_conf->loop, count, p_conf->flag_recv);
+    return p_conf->loop && ((p_conf->flag_recv & RECV_MSG_REESTABLISH) != 0);
 }
 
 
