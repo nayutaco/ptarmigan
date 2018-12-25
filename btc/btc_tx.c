@@ -30,6 +30,7 @@
 
 #include "utl_dbg.h"
 #include "utl_time.h"
+#include "utl_int.h"
 
 #include "btc_local.h"
 #include "btc_segwit_addr.h"
@@ -46,9 +47,6 @@ static int ecdsa_signature_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s,
 static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pOrgPubKey);
 
 static int get_varint(uint16_t *pLen, const uint8_t *pData);
-//uint16_t get_le16(const uint8_t *pData);
-static uint32_t get_le32(const uint8_t *pData);
-static uint64_t get_le64(const uint8_t *pData);
 
 
 /**************************************************************************
@@ -398,7 +396,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
     }
 
     //version
-    pTx->version = *(int32_t *)pData;
+    pTx->version = (int32_t)utl_int_pack_u32le(pData);
 
     //segwit判定
     bool segwit;
@@ -474,7 +472,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 //LOGD("  txid:");
                 //DUMPD(vin->txid, BTC_SZ_TXID);
                 //index
-                vin->index = get_le32(pData + pos);
+                vin->index = utl_int_pack_u32le(pData + pos);
                 pos += sizeof(uint32_t);
                 //LOGD("  index=%u\n", vin->index);
                 //scriptSig
@@ -488,7 +486,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 //LOGD("  script[%d]:", vin->script.len);
                 //DUMPD(vin->script.buf, vin->script.len);
                 //sequence
-                vin->sequence = get_le32(pData + pos);
+                vin->sequence = utl_int_pack_u32le(pData + pos);
                 pos += sizeof(uint32_t);
                 //LOGD("  sequence:%08x\n", vin->sequence);
                 //witnessは後で取得
@@ -537,7 +535,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
                 tx_cnt++;
 
                 //value:仕様上はint64_t
-                vout->value = get_le64(pData + pos);
+                vout->value = utl_int_pack_u64le(pData + pos);
                 pos += sizeof(uint64_t);
                 //LOGD("  value:%llu\n", (long long unsigned int)vout->value);
                 //scriptPubKey
@@ -592,7 +590,7 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             }
             break;
         case STATE_LOCKTIME:
-            pTx->locktime = get_le32(pData + pos);
+            pTx->locktime = utl_int_pack_u32le(pData + pos);
             pos += sizeof(uint32_t);
             //LOGD("STATE_LOCKTIME: locktime=%08x\n", pTx->locktime);
             break;
@@ -1789,35 +1787,4 @@ static int get_varint(uint16_t *pLen, const uint8_t *pData)
     }
 
     return retval;
-}
-
-
-//static uint16_t get_le16(const uint8_t *pData)
-//{
-//    return (uint16_t)(*pData | (*(pData + 1) << 8));
-//}
-
-
-/** uint8[4](little endian)-->uint32
- *
- * @param[in]   pData       Little Endianデータ
- * @return      32bit値
- */
-static uint32_t get_le32(const uint8_t *pData)
-{
-    return (uint32_t)(*pData | (*(pData + 1) << 8) | (*(pData + 2) << 16) | (*(pData + 3) << 24));
-}
-
-
-/** uint8[8](little endian)-->uint64
- *
- * @param[in]   pData       Little Endianデータ
- * @return      64bit値
- */
-static uint64_t get_le64(const uint8_t *pData)
-{
-    return (uint64_t)(*pData | ((uint64_t)*(pData + 1) << 8)  |
-                               ((uint64_t)*(pData + 2) << 16) | ((uint64_t)*(pData + 3) << 24) |
-                               ((uint64_t)*(pData + 4) << 32) | ((uint64_t)*(pData + 5) << 40) |
-                               ((uint64_t)*(pData + 6) << 48) | ((uint64_t)*(pData + 7) << 56));
 }
