@@ -58,11 +58,20 @@ int cmd_json_connect(const uint8_t *pNodeId, const char *pIpAddr, uint16_t Port)
  */
 int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat);
 
+
 /** 再送
  *
  * @param[in]       pPayHash
  * @return  Linuxエラーコード
  */
 int cmd_json_pay_retry(const uint8_t *pPayHash);
+
+
+/** add invoice log: result
+ * 
+ * @param[in]       pPaymentHash        payment_hash
+ * @param[in]       pResultStr          result
+ */
+void cmd_json_pay_result(const uint8_t *pPaymentHash, const char *pResultStr);
 
 #endif  //CMD_JSON_H__

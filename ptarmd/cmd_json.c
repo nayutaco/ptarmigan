@@ -101,7 +101,7 @@ static cJSON *cmd_fund(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
-static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -136,12 +136,14 @@ static int cmd_routepay_proc2(
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
                 const char *pInvoiceStr,
-                uint64_t AddAmountMsat,
+                uint64_t AddAmountMsat);
+static void cmd_routepay_save_info(
+                const ln_invoice_t *pInvoiceData,
                 int32_t BlockCnt);
 static void cmd_routepay_save_route(
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
-                int32_t BlockCnt);
+                const char *pResultStr);
 static int cmd_close_mutual_proc(const uint8_t *pNodeId);
 static int cmd_close_unilateral_proc(const uint8_t *pNodeId);
 
@@ -182,7 +184,7 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_invoice,     "invoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listinvoice, "listinvoice", NULL);
-    jrpc_register_procedure(&mJrpc, cmd_pay,         "PAY", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_paytest,     "PAY", NULL);
     jrpc_register_procedure(&mJrpc, cmd_routepay_first, "routepay", NULL);
     jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay_cont", NULL);
     jrpc_register_procedure(&mJrpc, cmd_close,       "close", NULL);
@@ -271,6 +273,23 @@ int cmd_json_pay_retry(const uint8_t *pPayHash)
     free(p_invoice);
 
     return retval;
+}
+
+
+void cmd_json_pay_result(const uint8_t *pPaymentHash, const char *pResultStr)
+{
+    //log file
+    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+    char fname[256];
+    FILE *fp;
+
+    utl_misc_bin2str(str_payhash, pPaymentHash, BTC_SZ_HASH256);
+    sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
+    fp = fopen(fname, "a");
+    if (fp != NULL) {
+        fprintf(fp, "  result=%s\n", pResultStr);
+        fclose(fp);
+    }
 }
 
 
@@ -721,7 +740,7 @@ static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id)
 /** 送金開始(テスト用) : "PAY"
  *
  */
-static cJSON *cmd_pay(jrpc_context *ctx, cJSON *params, cJSON *id)
+static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
@@ -947,30 +966,34 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
     //      これ以降は失敗してもリトライする
     LOGD("routepay: pay1\n");
     err = cmd_routepay_proc2(p_invoice_data, &rt_ret,
-                    p_invoice, add_amount_msat, blockcnt);
+                    p_invoice, add_amount_msat);
     retry = (err == RPCERR_PAY_RETRY);
 
 LABEL_EXIT:
     if (err == 0) {
         result = cJSON_CreateString("start payment");
-    } else if (retry) {
-        LOGD("retry: skip %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
-        cmd_json_pay(p_invoice, add_amount_msat);
     } else {
-        //送金失敗
-        ln_db_invoice_del(p_invoice_data->payment_hash);
+        ln_db_routeskip_save(rt_ret.hop_datain[0].short_channel_id, true);
 
-        //最後に失敗した時間
-        char str_payhash[BTC_SZ_HASH256 * 2 + 1];
-        utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
+        if (retry) {
+            LOGD("retry: skip %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
+            cmd_json_pay(p_invoice, add_amount_msat);
+        } else {
+            //送金失敗
+            ln_db_invoice_del(p_invoice_data->payment_hash);
 
-        char time[UTL_SZ_TIME_FMT_STR + 1];
-        sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
-        LOGD("%s\n", mLastPayErr);
-        lnapp_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
+            //最後に失敗した時間
+            char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+            utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
 
-        ctx->error_code = err;
-        ctx->error_message = ptarmd_error_str(err);
+            char time[UTL_SZ_TIME_FMT_STR + 1];
+            sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
+            LOGD("%s\n", mLastPayErr);
+            lnapp_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
+
+            ctx->error_code = err;
+            ctx->error_message = ptarmd_error_str(err);
+        }
     }
     free(p_invoice_data);
     free(p_invoice);
@@ -1649,6 +1672,9 @@ static int cmd_routepay_proc1(
         return RPCERR_PARSE;
     }
 
+    //save routing information
+    cmd_routepay_save_info(*ppInvoiceData, BlockCnt);
+
     ln_invoice_t *p_invoice_data = *ppInvoiceData;
     if ( (p_invoice_data->hrp_type != LN_INVOICE_TESTNET) &&
         (p_invoice_data->hrp_type != LN_INVOICE_REGTEST) ) {
@@ -1697,8 +1723,7 @@ static int cmd_routepay_proc2(
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
                 const char *pInvoiceStr,
-                uint64_t AddAmountMsat,
-                int32_t BlockCnt)
+                uint64_t AddAmountMsat)
 {
     int err = RPCERR_PAY_RETRY;
 
@@ -1706,35 +1731,31 @@ static int cmd_routepay_proc2(
     (void)ln_db_invoice_save(pInvoiceStr, AddAmountMsat, pInvoiceData->payment_hash);
 
     //save routing information
-    cmd_routepay_save_route(pInvoiceData, pRouteResult, BlockCnt);
 
+    const char *p_result = NULL;
     lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pRouteResult->hop_datain[1].pubkey);
     if (p_appconf != NULL) {
-        bool inited = lnapp_is_inited(p_appconf);
-        if (inited) {
-            payment_conf_t payconf;
+        payment_conf_t payconf;
 
-            memcpy(payconf.payment_hash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
-            payconf.hop_num = pRouteResult->hop_num;
-            memcpy(payconf.hop_datain, pRouteResult->hop_datain, sizeof(ln_hop_datain_t) * (1 + LN_HOP_MAX));
+        memcpy(payconf.payment_hash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
+        payconf.hop_num = pRouteResult->hop_num;
+        memcpy(payconf.hop_datain, pRouteResult->hop_datain, sizeof(ln_hop_datain_t) * (1 + LN_HOP_MAX));
 
-            bool ret = lnapp_payment(p_appconf, &payconf);
-            if (ret) {
-                LOGD("start payment\n");
-                err = 0;
-            } else {
-                LOGD("fail: lnapp_payment(0x%016" PRIx64 ")\n", pRouteResult->hop_datain[0].short_channel_id);
-                ln_db_routeskip_save(pRouteResult->hop_datain[0].short_channel_id, true);
-            }
+        bool ret = lnapp_payment(p_appconf, &payconf);
+        if (ret) {
+            LOGD("start payment\n");
+            err = 0;
+            p_result = "start payment";
         } else {
-            //BOLTメッセージとして初期化が完了していない(init/channel_reestablish交換できていない)
-            LOGD("fail: not inited\n");
+            LOGD("fail: lnapp_payment(0x%016" PRIx64 ")\n", pRouteResult->hop_datain[0].short_channel_id);
+            p_result = ln_errmsg(p_appconf->p_self);
         }
     } else {
         LOGD("fail: not connect(%016" PRIx64 "): \n", pRouteResult->hop_datain[0].short_channel_id);
         DUMPD(pRouteResult->hop_datain[1].pubkey, BTC_SZ_PUBKEY);
-        ln_db_routeskip_save(pRouteResult->hop_datain[0].short_channel_id, true);
+        p_result = "not connect";
     }
+    cmd_routepay_save_route(pInvoiceData, pRouteResult, p_result);
 
     mPayTryCount++;
 
@@ -1754,10 +1775,45 @@ static int cmd_routepay_proc2(
 }
 
 
+static void cmd_routepay_save_info(
+                const ln_invoice_t *pInvoiceData,
+                int32_t BlockCnt)
+{
+    //log file
+    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+    char fname[256];
+    FILE *fp;
+
+    utl_misc_bin2str(str_payhash, pInvoiceData->payment_hash, BTC_SZ_HASH256);
+    sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
+
+    //file existance check
+    struct stat buf;
+    int ret = stat(fname, &buf);
+    if ((ret == 0) && S_ISREG(buf.st_mode)) {
+        //if already exist file, skip writting info.
+        return;
+    }
+
+    fp = fopen(fname, "w");
+    if (fp != NULL) {
+        char time[UTL_SZ_TIME_FMT_STR + 1];
+
+        fprintf(fp, "----------- invoice -----------\n");
+        fprintf(fp, "payment_hash: %s\n", str_payhash);
+        fprintf(fp, "amount_msat: %" PRIu64 "\n", pInvoiceData->amount_msat);
+        fprintf(fp, "current blockcount: %" PRId32 "\n", BlockCnt);
+        fprintf(fp, "min_final_cltv_expiry: %" PRId32 "\n", pInvoiceData->min_final_cltv_expiry);
+        fprintf(fp, "timestamp: %s\n", utl_time_fmt(time, pInvoiceData->timestamp));
+        fclose(fp);
+    }
+}
+
+
 static void cmd_routepay_save_route(
                 const ln_invoice_t *pInvoiceData,
                 const ln_routing_result_t *pRouteResult,
-                int32_t BlockCnt)
+                const char *pResultStr)
 {
     //log file
     char str_payhash[BTC_SZ_HASH256 * 2 + 1];
@@ -1768,15 +1824,9 @@ static void cmd_routepay_save_route(
     sprintf(fname, FNAME_INVOICE_LOG, str_payhash);
     fp = fopen(fname, "a");
     if (fp != NULL) {
-        char time[UTL_SZ_TIME_FMT_STR + 1];
-        char str_pubkey[BTC_SZ_PUBKEY * 2 + 1];
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+        char str_pubkey[BTC_SZ_PUBKEY * 2 + 1];
 
-        fprintf(fp, "payment_hash: %s\n", str_payhash);
-        fprintf(fp, "amount_msat: %" PRIu64 "\n", pInvoiceData->amount_msat);
-        fprintf(fp, "current blockcount: %" PRId32 "\n", BlockCnt);
-        fprintf(fp, "min_final_cltv_expiry: %" PRId32 "\n", pInvoiceData->min_final_cltv_expiry);
-        fprintf(fp, "timestamp: %s\n", utl_time_fmt(time, pInvoiceData->timestamp));
         fprintf(fp, "\n----------- route -----------\n");
         for (int lp = 0; lp < pRouteResult->hop_num; lp++) {
             utl_misc_bin2str(str_pubkey, pRouteResult->hop_datain[lp].pubkey, BTC_SZ_PUBKEY);
@@ -1793,9 +1843,10 @@ static void cmd_routepay_save_route(
                 LOGD("       cltv_expiry: %" PRIu32 "\n\n", pRouteResult->hop_datain[lp].outgoing_cltv_value);
             }
         }
+        fprintf(fp, "----------- end of route -----------\n");
+        fprintf(fp, "  result=%s\n", pResultStr);
         fclose(fp);
     }
-
 }
 
 
