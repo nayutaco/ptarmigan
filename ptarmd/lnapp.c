@@ -2718,6 +2718,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_h
 
     uint8_t hash[BTC_SZ_HASH256];
     ln_preimage_hash_calc(hash, p_fulfill->p_preimage);
+    cmd_json_pay_result(hash, "success");
     ln_db_invoice_del(hash);
 }
 
@@ -2861,6 +2862,7 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
         char *reasonstr = ln_onion_get_errstr(&onionerr);
         sprintf(errstr, M_ERRSTR_REASON, reasonstr, hop, suggest);
         set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
+        cmd_json_pay_result(p_fail->p_payment_hash, errstr);
         free(reasonstr);
         free(onionerr.p_data);
     } else {
