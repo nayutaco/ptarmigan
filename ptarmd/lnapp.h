@@ -90,7 +90,8 @@ typedef struct lnapp_conf_t {
     uint8_t         ping_counter;           ///< 無送受信時にping送信するカウンタ(カウントアップ)
     bool            funding_waiting;        ///< true:funding_txの安定待ち
     uint32_t        funding_confirm;        ///< funding_txのconfirmation数
-    uint8_t         flag_recv;              ///< 受信フラグ(RECV_MSG_xxx)
+
+    volatile uint8_t    flag_recv;          ///< 受信フラグ(RECV_MSG_xxx)
 
     //BOLT送信キュー
     utl_buf_t       buf_sendque;            ///< send data array before noise encode
