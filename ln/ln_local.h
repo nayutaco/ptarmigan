@@ -112,9 +112,6 @@
 #define MSGTYPE_CHANNEL_UPDATE              ((uint16_t)0x0102)
 #define MSGTYPE_ANNOUNCEMENT_SIGNATURES     ((uint16_t)0x0103)
 
-#define MSGTYPE_IS_PINGPONG(type)           (((type) == MSGTYPE_PING) || (type) == MSGTYPE_PONG)
-#define MSGTYPE_IS_ANNOUNCE(type)           ((MSGTYPE_CHANNEL_ANNOUNCEMENT <= (type)) && ((type) <= MSGTYPE_CHANNEL_UPDATE))
-
 #define CHANNEL_FLAGS_ANNOCNL       (1 << 0)
 #define CHANNEL_FLAGS_MASK          CHANNEL_FLAGS_ANNOCNL   ///< open_channel.channel_flagsのBOLT定義あり
 #define CHANNEL_FLAGS_VALUE         CHANNEL_FLAGS_ANNOCNL   ///< TODO:open_channel.channel_flags

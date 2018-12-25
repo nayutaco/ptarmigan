@@ -768,12 +768,6 @@ bool ln_noise_dec_msg(ln_self_t *self, utl_buf_t *pBuf)
 }
 
 
-/*
- * BOLTのメッセージはデータ長が載っていない。
- * socket通信はwrite()した回数とrecv()の数は一致せず、ストリームになっているため、
- * 今回のように「受信したパケットを全部解析する」というやり方は合わない。
- * そう思っていたが、Noise Protocolによって全パケット受信してから解析するため、問題ない。
- */
 bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 {
     bool ret = false;
@@ -783,14 +777,6 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     if ((type != MSGTYPE_INIT) && (!M_INIT_FLAG_EXCHNAGED(self->init_flag))) {
         M_SET_ERR(self, LNERR_INV_STATE, "no init received : %04x", type);
         return false;
-    }
-    if ( (type != MSGTYPE_CLOSING_SIGNED) &&
-         !MSGTYPE_IS_ANNOUNCE(type) && !MSGTYPE_IS_PINGPONG(type) &&
-         (type != MSGTYPE_ERROR) &&
-         M_SHDN_FLAG_EXCHANGED(self->shutdown_flag) ) {
-        M_SET_ERR(self, LNERR_INV_STATE, "not closing_signed received : %04x", type);
-        ret = type & 1;     //ok to be odd rule --> 奇数ならエラーにしない
-        goto LABEL_EXIT;
     }
 
     size_t lp;
@@ -845,12 +831,6 @@ void ln_recv_idle_proc(ln_self_t *self)
 }
 
 
-/*
- * init作成
- *
- * localfeaturesは、自分がサポートするfeature(odd bits)と、要求するfeature(even bits)を送信する。
- *
- */
 bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool bHaveCnl)
 {
     (void)bHaveCnl;
@@ -880,7 +860,6 @@ bool ln_init_create(ln_self_t *self, utl_buf_t *pInit, bool bInitRouteSync, bool
 }
 
 
-//channel_reestablish作成
 bool ln_channel_reestablish_create(ln_self_t *self, utl_buf_t *pReEst)
 {
     ln_channel_reestablish_t msg;
@@ -1153,7 +1132,6 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
 #endif
 
 
-//open_channel生成
 bool ln_open_channel_create(ln_self_t *self, utl_buf_t *pOpen,
             const ln_fundin_t *pFundin, uint64_t FundingSat, uint64_t PushSat, uint32_t FeeRate)
 {
@@ -1229,7 +1207,6 @@ void ln_open_channel_clr_announce(ln_self_t *self)
 }
 
 
-//announcement_signaturesを交換すると channel_announcementが完成する。
 bool ln_announce_signs_create(ln_self_t *self, utl_buf_t *pBufAnnoSigns)
 {
     bool ret;
@@ -1677,6 +1654,11 @@ bool ln_add_htlc_set(ln_self_t *self,
 {
     LOGD("BEGIN\n");
 
+    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "shutdown: not allow add_htlc");
+        return false;
+    }
+
     uint16_t idx;
     bool ret = set_add_htlc(self, pHtlcId, pReason, &idx,
                     pPacket, AmountMsat, CltvValue, pPaymentHash,
@@ -1702,6 +1684,11 @@ bool ln_add_htlc_set_fwd(ln_self_t *self,
             const utl_buf_t *pSharedSecrets)
 {
     LOGD("BEGIN\n");
+
+    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
+        M_SET_ERR(self, LNERR_INV_STATE, "shutdown: not allow add_htlc");
+        return false;
+    }
 
     bool ret = set_add_htlc(self, pHtlcId, pReason, pNextIdx,
                     pPacket, AmountMsat, CltvValue, pPaymentHash,
@@ -5918,7 +5905,9 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
 
     //B7. if the receiving peer specified by the onion is NOT known:
     //      unknown_next_peer
-    if ((pDataOut->short_channel_id == 0) || (recv_prev.p_next_self == NULL)) {
+    if ( (pDataOut->short_channel_id == 0) ||
+         (recv_prev.p_next_self == NULL) ||
+         (ln_status_get(recv_prev.p_next_self) != LN_STATUS_NORMAL) ) {
         //転送先がない
         M_SET_ERR(self, LNERR_INV_VALUE, "no next channel");
         ln_misc_push16be(pPushReason, LNONION_UNKNOWN_NEXT_PEER);
