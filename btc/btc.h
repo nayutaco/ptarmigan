@@ -704,20 +704,20 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len);
 
 /** convert tx from #btc_tx_t to data array
  *
- * @param[out]      pBuf        変換後データ
  * @param[in]       pTx         対象データ
+ * @param[out]      pBuf        変換後データ
  *
  * @note
  *      - 動的にメモリ確保するため、pBufは使用後 #utl_buf_free()で解放すること
  *      - vin cntおよびvout cntは 252までしか対応しない(varint型の1byteまで)
  */
-bool btc_tx_create(utl_buf_t *pBuf, const btc_tx_t *pTx);
+bool btc_tx_write(const btc_tx_t *pTx, utl_buf_t *pBuf);
 
 
 /** 非segwitトランザクション署名用ハッシュ値計算
  *
- * @param[out]      pTxHash         ハッシュ値[BTC_SZ_HASH256]
  * @param[in,out]   pTx             元になるトランザクション
+ * @param[out]      pTxHash         ハッシュ値[BTC_SZ_HASH256]
  * @param[in]       pScriptPks      [P2PKH]scriptPubKeyの配列, [P2SH]redeemScriptの配列
  * @param[in]       Num             pScriptPkの要素数(pTxのvin_cntと同じ)
  *
@@ -727,7 +727,7 @@ bool btc_tx_create(utl_buf_t *pBuf, const btc_tx_t *pTx);
  *      - ハッシュはSIGHASHALL
  *      - vinにscriptPubKeyを記入するので、先に #btc_tx_add_vin()しておくこと
  */
-bool btc_tx_sighash(uint8_t *pTxHash, btc_tx_t *pTx, const utl_buf_t *pScriptPks[], uint32_t Num);
+bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks[], uint32_t Num);
 
 
 /** 署名計算

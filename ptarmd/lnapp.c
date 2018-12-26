@@ -712,7 +712,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
 
 #if 1
         if (close_dat.p_tx[LN_CLOSE_IDX_COMMIT].vout_cnt > 0) {
-            btc_tx_create(&buf, &close_dat.p_tx[LN_CLOSE_IDX_COMMIT]);
+            btc_tx_write(&close_dat.p_tx[LN_CLOSE_IDX_COMMIT], &buf);
             char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);        //UTL_DBG_FREE: この中
             utl_misc_bin2str(transaction, buf.buf, buf.len);
             utl_buf_free(&buf);
@@ -723,7 +723,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
 #else
         for (int lp = 0; lp < close_dat.num; lp++) {
             if (close_dat.p_tx[lp].vout_cnt > 0) {
-                btc_tx_create(&buf, &close_dat.p_tx[lp]);
+                btc_tx_write(&close_dat.p_tx[lp], &buf);
                 char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);        //UTL_DBG_FREE: この中
                 utl_misc_bin2str(transaction, buf.buf, buf.len);
                 utl_buf_free(&buf);
@@ -746,7 +746,7 @@ bool lnapp_get_committx(lnapp_conf_t *pAppConf, cJSON *pResult, bool bLocal)
         int num = close_dat.tx_buf.len / sizeof(btc_tx_t);
         btc_tx_t *p_tx = (btc_tx_t *)close_dat.tx_buf.buf;
         for (int lp = 0; lp < num; lp++) {
-            btc_tx_create(&buf, &p_tx[lp]);
+            btc_tx_write(&p_tx[lp], &buf);
             char *transaction = (char *)UTL_DBG_MALLOC(buf.len * 2 + 1);    //UTL_DBG_FREE: この中
             utl_misc_bin2str(transaction, buf.buf, buf.len);
             utl_buf_free(&buf);
@@ -2306,7 +2306,7 @@ static void cb_funding_tx_sign(lnapp_conf_t *p_conf, void *p_param)
     ln_cb_funding_sign_t *p_sig = (ln_cb_funding_sign_t *)p_param;
 
     utl_buf_t buf_tx = UTL_BUF_INIT;
-    btc_tx_create(&buf_tx, p_sig->p_tx);
+    btc_tx_write(p_sig->p_tx, &buf_tx);
     p_sig->ret = btcrpc_sign_rawtx(p_sig->p_tx, buf_tx.buf, buf_tx.len, p_sig->amount);
     utl_buf_free(&buf_tx);
 }
@@ -2323,7 +2323,7 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         uint8_t txid[BTC_SZ_TXID];
 
         utl_buf_t buf_tx = UTL_BUF_INIT;
-        btc_tx_create(&buf_tx, p->p_tx_funding);
+        btc_tx_write(p->p_tx_funding, &buf_tx);
 
         p->b_result = btcrpc_send_rawtx(txid, NULL, buf_tx.buf, buf_tx.len);
         if (p->b_result) {

@@ -77,7 +77,7 @@ TEST_F(send, p2pkh)
     ret = btc_keys_addr2spk(&script_pk, "mmsgPUnoceq7er7f9HuaZV2ktMkaVD3Za1");
     ASSERT_TRUE(ret);
     const utl_buf_t *spks[] = { &script_pk };
-    ret = btc_tx_sighash(txhash, &tx, (const utl_buf_t **)spks, 1);
+    ret = btc_tx_sighash(&tx, txhash, (const utl_buf_t **)spks, 1);
     ASSERT_TRUE(ret);
     uint8_t priv[BTC_SZ_PRIVKEY];
     const char WIF[] = "cR645M2xZJnE5mDWw5LpAghNLudXGZsCs4ZEUvRMr2NrHqU3rLWa";
@@ -89,7 +89,7 @@ TEST_F(send, p2pkh)
     ASSERT_TRUE(ret);
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);
 
@@ -180,7 +180,7 @@ TEST_F(send, p2wpkh)
     ASSERT_TRUE(ret);
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);
 
@@ -306,7 +306,7 @@ TEST_F(send, p2wsh)
 
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);
     //btc_print_tx(&tx);

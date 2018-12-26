@@ -201,7 +201,7 @@ TEST_F(sw, read_tx_p2wpkh)
     ASSERT_EQ(sizeof(SCRIPTPK), vout->script.len);
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
     btc_print_rawtx(txbuf.buf, txbuf.len);
@@ -353,7 +353,7 @@ TEST_F(sw, read_tx_p2wsh)
     ASSERT_EQ(sizeof(SCRIPTPK), vout->script.len);
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
     utl_buf_free(&txbuf);

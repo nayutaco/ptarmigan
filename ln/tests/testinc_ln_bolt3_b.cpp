@@ -155,7 +155,7 @@ TEST_F(ln_bolt3_b, fuding3)
     //FEE計算
     //      txサイズに署名の中間サイズと公開鍵サイズを加えたサイズにする
     //          http://bitcoin.stackexchange.com/questions/1195/how-to-calculate-transaction-size-before-sending
-    ret = btc_tx_create(&txbuf, &tx);
+    ret = btc_tx_write(&tx, &txbuf);
     ASSERT_TRUE(ret);
     // LEN+署名(72) + LEN+公開鍵(33)
     uint64_t fee = (txbuf.len + 1 + 72 + 1 + 33) * 4 * FEERATE_PER_KW / 1000;
@@ -199,7 +199,7 @@ TEST_F(ln_bolt3_b, fuding3)
         0x05, 0xf2, 0x3c, 0x80, 0xdf, 0x8a, 0xd1, 0xaf,
         0xdc, 0xf6, 0x52, 0xf9, 0x00, 0x00, 0x00, 0x00,
     };
-    ret = btc_tx_create(&txbuf, &tx);
+    ret = btc_tx_write(&tx, &txbuf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(FUNDING_TX, txbuf.buf, sizeof(FUNDING_TX)));
     ASSERT_EQ(sizeof(FUNDING_TX), txbuf.len);

@@ -757,7 +757,7 @@ TEST_F(tx, create_p2pkh)
         0x00,
     };
     utl_buf_t txbuf = UTL_BUF_INIT;
-    ret = btc_tx_create(&txbuf, &tx);
+    ret = btc_tx_write(&tx, &txbuf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
@@ -778,7 +778,7 @@ TEST_F(tx, create_p2pkh)
 
     //versionを変えると不一致になる
     tx.version = 2;
-    ret = btc_tx_create(&txbuf, &tx);
+    ret = btc_tx_write(&tx, &txbuf);
     ASSERT_TRUE(ret);
     ASSERT_NE(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(2, txbuf.buf[0]);     //バージョンは先頭
@@ -1022,7 +1022,7 @@ TEST_F(tx, create_p2sh)
         0xac, 0x00, 0x00, 0x00, 0x00,
     };
     utl_buf_t txbuf = UTL_BUF_INIT;
-    ret = btc_tx_create(&txbuf, &tx);
+    ret = btc_tx_write(&tx, &txbuf);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
@@ -1043,7 +1043,7 @@ TEST_F(tx, create_p2sh)
 
     //versionを変えると不一致になる
     tx.version = 2;
-    ret = btc_tx_create(&txbuf, &tx);
+    ret = btc_tx_write(&tx, &txbuf);
     ASSERT_TRUE(ret);
     ASSERT_NE(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(2, txbuf.buf[0]);     //バージョンは先頭
@@ -1237,7 +1237,7 @@ TEST_F(tx, sighash_p2pkh)
         0x22, 0x19, 0xfa, 0x93, 0xe7, 0x09, 0xad, 0xad,
     };
     uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_tx_sighash(txhash, &tx, pks, 1);
+    ret = btc_tx_sighash(&tx, txhash, pks, 1);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(TXHASH, txhash, BTC_SZ_HASH256));
     ASSERT_EQ(1, tx.vin_cnt);
@@ -1263,21 +1263,21 @@ TEST_F(tx, sighash_p2pkh)
     ret = btc_tx_set_vin_p2pkh(&tx, 0, &sig, pubkey);
     ASSERT_TRUE(ret);
     utl_buf_t txall;
-    btc_tx_create(&txall, &tx);
+    btc_tx_write(&tx, &txall);
 //    printf("P2PKH tx=\n");
 //    tx::DumpBin(txall.buf, txall.len);
 
     ret = btc_tx_sign_p2pkh(&tx, 0, txhash, PRIV, pubkey);
     ASSERT_TRUE(ret);
     utl_buf_t txall2;
-    btc_tx_create(&txall2, &tx);
+    btc_tx_write(&tx, &txall2);
     ASSERT_EQ(0, memcmp(txall.buf, txall2.buf, txall.len));
     ASSERT_EQ(txall.len, txall2.len);
     utl_buf_free(&txall2);
     //pubkey==NULL
     ret = btc_tx_sign_p2pkh(&tx, 0, txhash, PRIV, NULL);
     ASSERT_TRUE(ret);
-    btc_tx_create(&txall2, &tx);
+    btc_tx_write(&tx, &txall2);
     ASSERT_EQ(0, memcmp(txall.buf, txall2.buf, txall.len));
     ASSERT_EQ(txall.len, txall2.len);
     utl_buf_free(&txall2);
@@ -1369,7 +1369,7 @@ TEST_F(tx, sighash_p2sh)
         0x84, 0x45, 0x0d, 0x0f, 0xd3, 0x3f, 0x63, 0x04,
     };
     uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_tx_sighash(txhash, &tx, pks, 1);
+    ret = btc_tx_sighash(&tx, txhash, pks, 1);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(TXHASH, txhash, BTC_SZ_HASH256));
     ASSERT_EQ(1, tx.vin_cnt);
@@ -1429,7 +1429,7 @@ TEST_F(tx, sighash_p2sh)
     ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
     utl_buf_t txall;
-    btc_tx_create(&txall, &tx);
+    btc_tx_write(&tx, &txall);
     printf("P2SH tx=\n");
     tx::DumpBin(txall.buf, txall.len);
     utl_buf_free(&txall);
@@ -1527,7 +1527,7 @@ TEST_F(tx, sighash_p2sh_ng)
         0x84, 0x45, 0x0d, 0x0f, 0xd3, 0x3f, 0x63, 0x04,
     };
     uint8_t txhash[BTC_SZ_HASH256];
-    ret = btc_tx_sighash(txhash, &tx, pks, 1);
+    ret = btc_tx_sighash(&tx, txhash, pks, 1);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(TXHASH, txhash, BTC_SZ_HASH256));
     ASSERT_EQ(1, tx.vin_cnt);
@@ -1587,7 +1587,7 @@ TEST_F(tx, sighash_p2sh_ng)
     ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
     utl_buf_t txall;
-    btc_tx_create(&txall, &tx);
+    btc_tx_write(&tx, &txall);
     printf("P2SH tx=\n");
     tx::DumpBin(txall.buf, txall.len);
     utl_buf_free(&txall);
@@ -1717,7 +1717,7 @@ TEST_F(tx, tx_sighash)
     const utl_buf_t scriptpk0 = { (uint8_t *)SCRIPTPK, sizeof(SCRIPTPK) };
     const utl_buf_t *pks[] = { &scriptpk0 };
     uint8_t sighash[BTC_SZ_HASH256];
-    ret = btc_tx_sighash(sighash, &tx, pks, 1);
+    ret = btc_tx_sighash(&tx, sighash, pks, 1);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SIGHASH, sighash, BTC_SZ_HASH256));
     ASSERT_EQ(1, tx.vin_cnt);
