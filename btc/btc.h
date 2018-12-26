@@ -143,6 +143,9 @@ extern "C" {
 #define OP_2                    (0x52)
 #define OP_16                   (0x60)
 
+#define _OP_PUSHDATA_X_MIN      (0x01)
+#define _OP_PUSHDATA_X_MAX      (0x4b)
+
 #define SIGHASH_ALL             (0x01)
 
 #define VARINT_1BYTE_MAX        (0xfc)
@@ -459,7 +462,7 @@ bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint
  * @note
  *      - 公開鍵はソートしない
  */
-bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
+bool btc_keys_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M);
 
 
 /** BitcoinアドレスからHash(PKH/SH/WPKH/WSH)を求める
@@ -686,7 +689,7 @@ bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const
  * @note
  *      - 対象のvinは既に追加されていること(addではなく、置き換える動作)
  */
-bool btc_tx_set_vin_p2sh_multi(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
+bool btc_tx_set_vin_p2sh_multisig(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
 
 
 /* convert tx from data array to #btc_tx_t
@@ -741,7 +744,7 @@ bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks
  *      - pSigは、成功かどうかにかかわらず#utl_buf_init()される
  *      - 成功時、pSigは #utl_buf_alloccopy() でメモリ確保するので、使用後は #utl_buf_free()で解放すること
  */
-bool btc_tx_sign(utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+bool btc_sig_sign(utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名計算(r/s)
@@ -751,7 +754,7 @@ bool btc_tx_sign(utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPrivKe
  * @param[in]       pPrivKey    秘密鍵
  * @return          true        成功
  */
-bool btc_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
+bool btc_sig_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 
 
 /** 署名チェック
@@ -764,7 +767,21 @@ bool btc_tx_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPrivKe
  * @note
  *      - pSigの末尾にハッシュタイプが入っていること
  */
-bool btc_tx_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey);
+bool btc_sig_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t *pPubKey);
+
+
+/** 署名チェック
+ *
+ * @param[in]       pSig        署名(ハッシュタイプあり)
+ * @param[in]       Len         length of pSig
+ * @param[in]       pTxHash     トランザクションハッシュ
+ * @param[in]       pPubKey     公開鍵
+ * @return          true:チェックOK
+ *
+ * @note
+ *      - pSigの末尾にハッシュタイプが入っていること
+ */
+bool btc_sig_verify_2(const uint8_t *pSig, uint32_t Len, const uint8_t *pTxHash, const uint8_t *pPubKey);
 
 
 /** 署名チェック(r/s)
@@ -774,7 +791,7 @@ bool btc_tx_verify(const utl_buf_t *pSig, const uint8_t *pTxHash, const uint8_t 
  * @param[in]       pPubKey     公開鍵
  * @return          true:チェックOK
  */
-bool btc_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey);
+bool btc_sig_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pPubKey);
 
 
 /** P2PKH署名書込み
@@ -787,7 +804,7 @@ bool btc_tx_verify_rs(const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t 
  * @return      true    成功
  *
  * @note
- *      - #btc_tx_sign()と#btc_tx_set_vin_p2pkh()をまとめて実施
+ *      - #btc_sig_sign()と#btc_tx_set_vin_p2pkh()をまとめて実施
  *      - pPubKeyは、既にあるなら計算を省略したいので引数にしている
  *          - 使ってみて、計算済みになることが少ないなら、引数から削除する予定
  */

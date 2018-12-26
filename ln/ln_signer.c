@@ -122,13 +122,13 @@ void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, btc_keys_t *pKeys, co
 
 bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex)
 {
-    return btc_tx_sign(pSig, pTxHash, pPrivData->priv[PrivIndex]);
+    return btc_sig_sign(pSig, pTxHash, pPrivData->priv[PrivIndex]);
 }
 
 
 bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys)
 {
-    return btc_tx_sign(pSig, pTxHash, pKeys->priv);
+    return btc_sig_sign(pSig, pTxHash, pKeys->priv);
 }
 
 
@@ -143,7 +143,7 @@ bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc
 
     ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
     if (ret) {
-        ret = btc_tx_sign(&sigbuf, txhash, pKeys->priv);
+        ret = btc_sig_sign(&sigbuf, txhash, pKeys->priv);
     }
     if (ret) {
         //mNativeSegwitがfalseの場合はscriptSigへの追加も行う
@@ -159,7 +159,7 @@ bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc
 
 bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex)
 {
-    return btc_tx_sign_rs(pRS, pTxHash, pPrivData->priv[PrivIndex]);
+    return btc_sig_sign_rs(pRS, pTxHash, pPrivData->priv[PrivIndex]);
 }
 
 
@@ -218,7 +218,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
     //vinは1つしかないので、Indexは0固定
     ret = btc_util_calc_sighash_p2wsh(sighash, pTx, 0, Value, pWitScript);
     if (ret) {
-        ret = btc_tx_sign(pSig, sighash, sigkey.priv);
+        ret = btc_sig_sign(pSig, sighash, sigkey.priv);
     }
 
     return ret;

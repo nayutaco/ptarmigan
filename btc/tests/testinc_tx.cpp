@@ -671,7 +671,7 @@ TEST_F(tx, script_p2sh)
         0x0a, 0xfc, 0xfc, 0xdc, 0x53, 0xae,
     };
 
-    bool ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
+    bool ret = btc_tx_set_vin_p2sh_multisig(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, tx.vin[0].script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), tx.vin[0].script.len);
@@ -968,7 +968,7 @@ TEST_F(tx, create_p2sh)
         0xae,
     };
     const utl_buf_t redeem = { (uint8_t *)REDEEM, sizeof(REDEEM) };
-    bool ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
+    bool ret = btc_tx_set_vin_p2sh_multisig(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
 
     //vout
@@ -1254,7 +1254,7 @@ TEST_F(tx, sighash_p2pkh)
         0x5f, 0x9e, 0xd8, 0x48, 0xa8, 0x1d, 0xfa, 0xc6,
     };
     utl_buf_t sig;
-    ret = btc_tx_sign(&sig, txhash, PRIV);
+    ret = btc_sig_sign(&sig, txhash, PRIV);
     ASSERT_TRUE(ret);
 
     //送信可能なtxだが、使用済みTXIDなので送信確認はできない
@@ -1283,15 +1283,15 @@ TEST_F(tx, sighash_p2pkh)
     utl_buf_free(&txall2);
 
     //verify
-    ret = btc_tx_verify(&sig, txhash, pubkey);
+    ret = btc_sig_verify(&sig, txhash, pubkey);
     ASSERT_TRUE(ret);
     sig.buf[sig.len - 1] = 0x00;
-    ret = btc_tx_verify(&sig, txhash, pubkey);
+    ret = btc_sig_verify(&sig, txhash, pubkey);
     ASSERT_FALSE(ret);
     sig.buf[sig.len - 1] = 0x01;
     uint8_t bak = sig.buf[20];      //20は根拠無し
     sig.buf[20] = ~sig.buf[20];
-    ret = btc_tx_verify(&sig, txhash, pubkey);
+    ret = btc_sig_verify(&sig, txhash, pubkey);
     ASSERT_FALSE(ret);
     sig.buf[20] = bak;
 
@@ -1418,15 +1418,15 @@ TEST_F(tx, sighash_p2sh)
     };
     utl_buf_t sig1;
     utl_buf_t sig2;
-    ret = btc_tx_sign(&sig1, txhash, PRIV1);
+    ret = btc_sig_sign(&sig1, txhash, PRIV1);
     ASSERT_TRUE(ret);
-    ret = btc_tx_sign(&sig2, txhash, PRIV3);
+    ret = btc_sig_sign(&sig2, txhash, PRIV3);
     ASSERT_TRUE(ret);
 
     //送信可能なtxだが、使用済みTXIDなので送信確認はできない
     const utl_buf_t *sigs[] = { &sig1, &sig2 };
     const utl_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
-    ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
+    ret = btc_tx_set_vin_p2sh_multisig(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
     utl_buf_t txall;
     btc_tx_write(&tx, &txall);
@@ -1448,11 +1448,11 @@ TEST_F(tx, sighash_p2sh)
 //    tx::DumpBin(PUB3, sizeof(PUB3));
 
     //verify
-    ret = btc_tx_verify(&sig1, txhash, PUB1);
+    ret = btc_sig_verify(&sig1, txhash, PUB1);
     ASSERT_TRUE(ret);
-    ret = btc_tx_verify(&sig2, txhash, PUB2);
+    ret = btc_sig_verify(&sig2, txhash, PUB2);
     ASSERT_FALSE(ret);
-    ret = btc_tx_verify(&sig2, txhash, PUB3);
+    ret = btc_sig_verify(&sig2, txhash, PUB3);
     ASSERT_TRUE(ret);
 
     const uint8_t SCRIPTPK0[] = {
@@ -1576,15 +1576,15 @@ TEST_F(tx, sighash_p2sh_ng)
     };
     utl_buf_t sig1;
     utl_buf_t sig2;
-    ret = btc_tx_sign(&sig1, txhash, PRIV1);
+    ret = btc_sig_sign(&sig1, txhash, PRIV1);
     ASSERT_TRUE(ret);
-    ret = btc_tx_sign(&sig2, txhash, PRIV3);
+    ret = btc_sig_sign(&sig2, txhash, PRIV3);
     ASSERT_TRUE(ret);
 
     //送信可能なtxだが、使用済みTXIDなので送信確認はできない
     const utl_buf_t *sigs[] = { &sig2, &sig1 };   //逆
     const utl_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
-    ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
+    ret = btc_tx_set_vin_p2sh_multisig(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
     utl_buf_t txall;
     btc_tx_write(&tx, &txall);
@@ -1606,11 +1606,11 @@ TEST_F(tx, sighash_p2sh_ng)
 //    tx::DumpBin(PUB3, sizeof(PUB3));
 
     //verify
-    ret = btc_tx_verify(&sig1, txhash, PUB1);
+    ret = btc_sig_verify(&sig1, txhash, PUB1);
     ASSERT_TRUE(ret);
-    ret = btc_tx_verify(&sig2, txhash, PUB2);
+    ret = btc_sig_verify(&sig2, txhash, PUB2);
     ASSERT_FALSE(ret);
-    ret = btc_tx_verify(&sig2, txhash, PUB3);
+    ret = btc_sig_verify(&sig2, txhash, PUB3);
     ASSERT_TRUE(ret);
 
     const uint8_t SCRIPTPK0[] = {

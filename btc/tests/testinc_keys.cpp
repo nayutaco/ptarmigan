@@ -393,7 +393,7 @@ TEST_F(keys, multi_2of3)
     };
 
     utl_buf_t bufredeem;
-    bool ret = btc_keys_createmulti(&bufredeem, PUBS, 3, 2);
+    bool ret = btc_keys_create_multisig(&bufredeem, PUBS, 3, 2);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);

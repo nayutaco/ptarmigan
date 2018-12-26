@@ -115,7 +115,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
             LOGD("fail: invalid type=%d\n", type);
         }
         if (ret) {
-            ret = btc_tx_sign(&sigbuf, txhash, p_secret);
+            ret = btc_sig_sign(&sigbuf, txhash, p_secret);
         } else {
             LOGD("fail: btc_util_calc_sighash_p2wsh()\n");
         }
@@ -124,7 +124,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
             utl_buf_free(&p_vin->witness[0]);
             utl_buf_alloccopy(&p_vin->witness[0], sigbuf.buf, sigbuf.len);
         } else {
-            LOGD("fail: btc_tx_sign()\n");
+            LOGD("fail: btc_sig_sign()\n");
         }
         utl_buf_free(&sigbuf);
         utl_buf_free(&script_code);

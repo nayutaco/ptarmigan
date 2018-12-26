@@ -277,7 +277,7 @@ void HIDDEN ln_node_generate_shared_secret(uint8_t *pResult, const uint8_t *pPub
 
 bool HIDDEN ln_node_sign_nodekey(uint8_t *pRS, const uint8_t *pHash)
 {
-    return btc_tx_sign_rs(pRS, pHash, mNode.keys.priv);
+    return btc_sig_sign_rs(pRS, pHash, mNode.keys.priv);
 }
 
 

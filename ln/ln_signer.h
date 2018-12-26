@@ -95,7 +95,7 @@ void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, btc_keys_t *pKeys, co
  * @return      true:成功
  * @note
  *      - #btc_util_sign_p2wsh()
- *      - 中身は #btc_tx_sign()
+ *      - 中身は #btc_sig_sign()
  */
 bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_self_priv_t *pPrivData, int PrivIndex);
 
@@ -108,7 +108,7 @@ bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_se
  * @return      true:成功
  * @note
  *      - #btc_util_sign_p2wsh()
- *      - 中身は #btc_tx_sign()
+ *      - 中身は #btc_sig_sign()
  */
 bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys);
 

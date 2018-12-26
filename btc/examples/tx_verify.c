@@ -35,7 +35,7 @@ int main(void)
     btc_init(BTC_TESTNET, true);
 
     const utl_buf_t sig = { (uint8_t *)SIG, sizeof(SIG) };
-    bool ret = btc_tx_verify(&sig, TXHASH, PUB);
+    bool ret = btc_sig_verify(&sig, TXHASH, PUB);
     printf("ret=%d\n", ret);
 
     btc_term();

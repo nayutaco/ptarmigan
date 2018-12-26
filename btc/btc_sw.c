@@ -346,7 +346,7 @@ bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const 
     uint8_t txhash[BTC_SZ_HASH256];
     ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
     if (ret) {
-        ret = btc_tx_verify(p_sig, txhash, p_pub->buf);
+        ret = btc_sig_verify(p_sig, txhash, p_pub->buf);
     }
     if (ret) {
         //pubKeyHashチェック
@@ -477,20 +477,20 @@ bool btc_sw_verify_2of2(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, 
     //署名チェック
     //      2-of-2なので、順番通りに全一致
 #if 1
-    bool ret = btc_tx_verify(sig1, pTxHash, pub1);
+    bool ret = btc_sig_verify(sig1, pTxHash, pub1);
     if (ret) {
-        ret = btc_tx_verify(sig2, pTxHash, pub2);
+        ret = btc_sig_verify(sig2, pTxHash, pub2);
         if (!ret) {
-            LOGD("fail: btc_tx_verify(sig2)\n");
+            LOGD("fail: btc_sig_verify(sig2)\n");
         }
     } else {
-        LOGD("fail: btc_tx_verify(sig1)\n");
+        LOGD("fail: btc_sig_verify(sig1)\n");
     }
 #else
-    bool ret1 = btc_tx_verify(sig1, pTxHash, pub1);
-    bool ret2 = btc_tx_verify(sig2, pTxHash, pub2);
-    bool ret3 = btc_tx_verify(sig1, pTxHash, pub2);
-    bool ret4 = btc_tx_verify(sig2, pTxHash, pub1);
+    bool ret1 = btc_sig_verify(sig1, pTxHash, pub1);
+    bool ret2 = btc_sig_verify(sig2, pTxHash, pub2);
+    bool ret3 = btc_sig_verify(sig1, pTxHash, pub2);
+    bool ret4 = btc_sig_verify(sig2, pTxHash, pub1);
     bool ret = ret1 && ret2;
     printf("txhash=");
     DUMPD(pTxHash, BTC_SZ_HASH256);
