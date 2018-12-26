@@ -1298,7 +1298,7 @@ TEST_F(tx, sighash_p2pkh)
     //verify(readしたデータ)
     btc_tx_t tx_read;
     btc_tx_init(&tx_read);
-    btc_tx_read(&tx_read, txall.buf, txall.len);
+    ASSERT_TRUE(btc_tx_read(&tx_read, txall.buf, txall.len));
     utl_buf_free(&txall);
     ret = btc_tx_verify_p2pkh_spk(&tx_read, 0, txhash, &pk0);
     ASSERT_TRUE(ret);

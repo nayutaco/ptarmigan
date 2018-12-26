@@ -174,7 +174,7 @@ TEST_F(sw, read_tx_p2wpkh)
 
     btc_tx_t tx;
     btc_tx_init(&tx);
-    btc_tx_read(&tx, TX, sizeof(TX));
+    ASSERT_TRUE(btc_tx_read(&tx, TX, sizeof(TX)));
 
     ASSERT_EQ(1, tx.version);
     ASSERT_EQ(1, tx.vin_cnt);
@@ -323,7 +323,7 @@ TEST_F(sw, read_tx_p2wsh)
     };
     btc_tx_t tx;
     btc_tx_init(&tx);
-    btc_tx_read(&tx, TX, sizeof(TX));
+    ASSERT_TRUE(btc_tx_read(&tx, TX, sizeof(TX)));
 
     ASSERT_EQ(1, tx.version);
     ASSERT_EQ(1, tx.vin_cnt);
@@ -397,7 +397,7 @@ TEST_F(sw, sighash_p2wpkh)
     };
     btc_tx_t tx;
     btc_tx_init(&tx);
-    btc_tx_read(&tx, TX, sizeof(TX));
+    ASSERT_TRUE(btc_tx_read(&tx, TX, sizeof(TX)));
 
     utl_buf_t script_code = UTL_BUF_INIT;
     bool ret = btc_sw_scriptcode_p2wpkh_vin(&script_code, &tx.vin[0]);
@@ -476,7 +476,7 @@ TEST_F(sw, sighash_p2wsh)
     };
     btc_tx_t tx;
     btc_tx_init(&tx);
-    btc_tx_read(&tx, TX, sizeof(TX));
+    ASSERT_TRUE(btc_tx_read(&tx, TX, sizeof(TX)));
 
     utl_buf_t script_code = UTL_BUF_INIT;
     bool ret = btc_sw_scriptcode_p2wsh_vin(&script_code, &tx.vin[0]);
@@ -544,7 +544,7 @@ TEST_F(sw, set_vin_p2wpkh)
     };
     btc_tx_t tx;
     btc_tx_init(&tx);
-    btc_tx_read(&tx, TX, sizeof(TX));
+    ASSERT_TRUE(btc_tx_read(&tx, TX, sizeof(TX)));
     bool ret = btc_sw_set_vin_p2wpkh(&tx, 0, &sig, PUB);
     ASSERT_TRUE(ret);
 
@@ -581,7 +581,7 @@ TEST_F(sw, set_vin_p2wsh)
     };
     btc_tx_t tx;
     btc_tx_init(&tx);
-    btc_tx_read(&tx, TX, sizeof(TX));
+    ASSERT_TRUE(btc_tx_read(&tx, TX, sizeof(TX)));
 
     const uint8_t SIG1[] = {
         0x30, 0x44, 0x02, 0x20, 0x1f, 0x03, 0x0c, 0xa8,
@@ -701,7 +701,7 @@ TEST_F(sw, sign_p2wpkh)
     btc_keys_t keys;
     btc_tx_t tx;
     btc_tx_init(&tx);
-    btc_tx_read(&tx, TX, sizeof(TX));
+    ASSERT_TRUE(btc_tx_read(&tx, TX, sizeof(TX)));
 
     memcpy(keys.priv, PRIV, sizeof(PRIV));
     memcpy(keys.pub, PUB, sizeof(PUB));
@@ -782,7 +782,7 @@ TEST_F(sw, verify_p2wpkh)
         0x04, 0x00, 0x00,
     };
     btc_tx_init(&tx);
-    btc_tx_read(&tx, TX, sizeof(TX));
+    ASSERT_TRUE(btc_tx_read(&tx, TX, sizeof(TX)));
 
     //verify
     const uint8_t SCRIPTPK[] = {
