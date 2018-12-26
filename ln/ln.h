@@ -92,6 +92,10 @@ extern "C" {
 #define LN_CNLUPD_FLAGS_DIRECTION       (0x0001)    ///< b0: direction
 #define LN_CNLUPD_FLAGS_DISABLE         (0x0002)    ///< b1: disable
 
+// ln_self_t.shutdown_flag
+#define LN_SHDN_FLAG_SEND                   (0x01)          ///< shutdown送信済み
+#define LN_SHDN_FLAG_RECV                   (0x02)          ///< shutdown受信済み
+
 // ln_close_force_t.p_tx, p_htlc_idxのインデックス値
 #define LN_CLOSE_IDX_COMMIT             (0)         ///< commit_tx
 #define LN_CLOSE_IDX_TOLOCAL            (1)         ///< to_local tx
@@ -202,15 +206,15 @@ typedef struct ln_fieldr_t ln_fieldr_t;
  *  @brief  ln_self_t.status
  */
 typedef enum {
-    LN_STATUS_NONE,
-    LN_STATUS_ESTABLISH,            ///< establish
-    LN_STATUS_NORMAL,               ///< normal operation
-    LN_STATUS_CLOSE_WAIT,           ///< funding_tx isn't spent
-    LN_STATUS_CLOSE_SPENT,          ///< funding_tx is spent but not in block
-    LN_STATUS_CLOSE_MUTUAL,         ///< mutual close
-    LN_STATUS_CLOSE_UNI_LOCAL,      ///< unilateral close(from local)
-    LN_STATUS_CLOSE_UNI_REMOTE,     ///< unilateral close(from remote)
-    LN_STATUS_CLOSE_REVOKED         ///< revoked transaction close(from remote)
+    LN_STATUS_NONE = 0,
+    LN_STATUS_ESTABLISH = 1,        ///< establish
+    LN_STATUS_NORMAL = 2,           ///< normal operation
+    LN_STATUS_CLOSE_WAIT = 3,       ///< funding_tx isn't spent
+    LN_STATUS_CLOSE_SPENT = 4,      ///< funding_tx is spent but not in block
+    LN_STATUS_CLOSE_MUTUAL = 5,     ///< mutual close
+    LN_STATUS_CLOSE_UNI_LOCAL = 6,  ///< unilateral close(from local)
+    LN_STATUS_CLOSE_UNI_REMOTE = 7, ///< unilateral close(from remote)
+    LN_STATUS_CLOSE_REVOKED = 8     ///< revoked transaction close(from remote)
 } ln_status_t;
 
 
@@ -2049,6 +2053,16 @@ static inline uint64_t ln_estimate_fundingtx_fee(uint32_t FeeratePerKw) {
  */
 static inline uint64_t ln_estimate_initcommittx_fee(uint32_t FeeratePerKw) {
     return (LN_FEE_COMMIT_BASE * FeeratePerKw / 1000);
+}
+
+
+/** `shutdown` message sent
+ * 
+ * @param[in]           self            channel info
+ * @retval      true    `shutdown` has sent
+ */
+static inline bool ln_is_shutdown_sent(const ln_self_t *self) {
+    return self->shutdown_flag & LN_SHDN_FLAG_SEND;
 }
 
 

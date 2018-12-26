@@ -810,13 +810,10 @@ void lnapp_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
  ********************************************************************/
 
 /********************************************************************
- * メインスレッド
- *
- *  チャネル処理のメインスレッド
- *  他ノードへの接続が開始されると生成され、
+ * [THREAD]channel
  ********************************************************************/
 
-/** チャネル用スレッド
+/** channel thread entry point
  *
  * @param[in,out]   pArg    lnapp_conf_t*
  */
@@ -1039,6 +1036,21 @@ static void *thread_main_start(void *pArg)
 
     if (b_channelreestablished) {
         ln_channel_reestablish_after(p_self);
+    }
+
+    if (ln_is_shutdown_sent(p_self)) {
+        //BOLT02
+        //  upon reconnection:
+        //    if it has sent a previous shutdown:
+        //      MUST retransmit shutdown.
+        utl_buf_t buf_sdn = UTL_BUF_INIT;
+        bool ret = ln_shutdown_create(p_self, &buf_sdn);
+        if (ret) {
+            send_peer_noise(p_conf, &buf_sdn);
+        } else {
+            LOGD("fail: shutdown\n");
+        }
+        utl_buf_free(&buf_sdn);
     }
 
     // flush buffered BOLT message
@@ -1403,7 +1415,6 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     utl_buf_free(&buf_bolt);
 
     //コールバックでのfunding_locked受信通知待ち
-    //uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
     LOGD("wait: funding_locked\n");
     while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_FUNDINGLOCKED) == 0)) {
         utl_misc_msleep(M_WAIT_RECV_MSG_MSEC);
@@ -1514,10 +1525,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
 
 /********************************************************************
- * 受信スレッド
+ * [THREAD]receive
  ********************************************************************/
 
-/** peerからの受信スレッド
+/** receive thread entry point
  *
  * @param[in,out]   pArg    lnapp_conf_t*
  */
@@ -1655,10 +1666,10 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
 
 
 /********************************************************************
- * 監視スレッド
+ * [THREAD]polling
  ********************************************************************/
 
-/** 監視スレッド開始
+/** polling thread entry point
  *
  * @param[in,out]   pArg    lnapp_conf_t*
  */
