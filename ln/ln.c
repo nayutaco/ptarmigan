@@ -338,7 +338,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
                     utl_push_t *pPushReason,
                     ln_update_add_htlc_t *pAddHtlc,
                     int32_t Height);
-static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason);
+static bool check_recv_add_htlc_bolt4_common(ln_self_t *self, utl_push_t *pPushReason);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 
 static void proc_anno_sigs(ln_self_t *self);
@@ -2887,9 +2887,6 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     self->shutdown_flag |= LN_SHDN_FLAG_RECV;
     M_DB_SELF_SAVE(self);
 
-    //  相手がshutdownを送ってきたということは、HTLCは持っていないはず。
-    //  相手は持っていなくて自分は持っているという状況は発生しない。
-
     self->close_last_fee_sat = 0;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
@@ -3173,7 +3170,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         utl_buf_free(&p_htlc->buf_onion_reason);
     }
     if (ret) {
-        ret = check_recv_add_htlc_bolt4_common(&push_htlc);
+        ret = check_recv_add_htlc_bolt4_common(self, &push_htlc);
     }
     if (!ret && (result == LN_CB_ADD_HTLC_RESULT_OK)) {
         //ここまでで、ret=falseだったら、resultはFAILになる
@@ -5677,6 +5674,12 @@ LABEL_EXIT:
  */
 static bool check_recv_add_htlc_bolt2(ln_self_t *self, const ln_update_add_htlc_t *p_htlc)
 {
+    //shutdown
+    if (self->shutdown_flag & LN_SHDN_FLAG_RECV) {
+        M_SET_ERR(self, LNERR_INV_STATE, "already shutdown received");
+        return false;
+    }
+
     //amount_msatが0の場合、チャネルを失敗させる。
     //amount_msatが自分のhtlc_minimum_msat未満の場合、チャネルを失敗させる。
     //  receiving an amount_msat equal to 0, OR less than its own htlc_minimum_msat
@@ -6018,9 +6021,16 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
 }
 
 
-static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason)
+static bool check_recv_add_htlc_bolt4_common(ln_self_t *self, utl_push_t *pPushReason)
 {
     (void)pPushReason;
+
+    //shutdown
+    if (self->shutdown_flag & LN_SHDN_FLAG_SEND) {
+        M_SET_ERR(self, LNERR_INV_STATE, "already shutdown sent");
+        ln_misc_push16be(pPushReason, LNONION_PERM_CHAN_FAIL);
+        return false;
+    }
 
     //A3. if an otherwise unspecified permanent error occurs for the entire node:
     //      permanent_node_failure

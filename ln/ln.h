@@ -93,8 +93,8 @@ extern "C" {
 #define LN_CNLUPD_FLAGS_DISABLE         (0x0002)    ///< b1: disable
 
 // ln_self_t.shutdown_flag
-#define LN_SHDN_FLAG_SEND                   (0x01)          ///< shutdown送信済み
-#define LN_SHDN_FLAG_RECV                   (0x02)          ///< shutdown受信済み
+#define LN_SHDN_FLAG_SEND               (0x01)      ///< shutdown送信済み
+#define LN_SHDN_FLAG_RECV               (0x02)      ///< shutdown受信済み
 
 // ln_close_force_t.p_tx, p_htlc_idxのインデックス値
 #define LN_CLOSE_IDX_COMMIT             (0)         ///< commit_tx
