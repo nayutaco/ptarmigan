@@ -852,7 +852,7 @@ static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id)
 
     LOGD("payment\n");
 
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(payconf.hop_datain[1].pubkey);
+    lnapp_conf_t *p_appconf = ptarmd_search_transferable_nodeid(payconf.hop_datain[1].pubkey);
     if (p_appconf != NULL) {
 
         bool inited = lnapp_is_inited(p_appconf);
@@ -1734,7 +1734,7 @@ static int cmd_routepay_proc2(
     //save routing information
 
     const char *p_result = NULL;
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(pRouteResult->hop_datain[1].pubkey);
+    lnapp_conf_t *p_appconf = ptarmd_search_transferable_nodeid(pRouteResult->hop_datain[1].pubkey);
     if (p_appconf != NULL) {
         payment_conf_t payconf;
 

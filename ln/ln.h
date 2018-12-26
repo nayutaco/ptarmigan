@@ -209,7 +209,7 @@ typedef enum {
     LN_STATUS_NONE = 0,
     LN_STATUS_ESTABLISH = 1,        ///< establish
     LN_STATUS_NORMAL = 2,           ///< normal operation
-    LN_STATUS_CLOSE_WAIT = 3,       ///< funding_tx isn't spent
+    LN_STATUS_CLOSE_WAIT = 3,       ///< shutdown received or sent
     LN_STATUS_CLOSE_SPENT = 4,      ///< funding_tx is spent but not in block
     LN_STATUS_CLOSE_MUTUAL = 5,     ///< mutual close
     LN_STATUS_CLOSE_UNI_LOCAL = 6,  ///< unilateral close(from local)
@@ -222,11 +222,11 @@ typedef enum {
   * @brief  node_announcement address descriptor
   */
 typedef enum {
-    LN_NODEDESC_NONE,           ///< 0: padding. data = none (length 0)
-    LN_NODEDESC_IPV4,           ///< 1: ipv4. data = [4:ipv4_addr][2:port] (length 6)
-    LN_NODEDESC_IPV6,           ///< 2: ipv6. data = [16:ipv6_addr][2:port] (length 18)
-    LN_NODEDESC_ONIONV2,        ///< 3: tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
-    LN_NODEDESC_ONIONV3,        ///< 4: tor v3 onion service. data [35:onion_addr][2:port] (length 37)
+    LN_NODEDESC_NONE = 0,       ///< 0: padding. data = none (length 0)
+    LN_NODEDESC_IPV4 = 1,       ///< 1: ipv4. data = [4:ipv4_addr][2:port] (length 6)
+    LN_NODEDESC_IPV6 = 2,       ///< 2: ipv6. data = [16:ipv6_addr][2:port] (length 18)
+    LN_NODEDESC_ONIONV2 = 3,    ///< 3: tor v2 onion service. data = [10:onion_addr][2:port] (length 12)
+    LN_NODEDESC_ONIONV3 = 4,    ///< 4: tor v3 onion service. data [35:onion_addr][2:port] (length 37)
     LN_NODEDESC_MAX = LN_NODEDESC_ONIONV3
 } ln_nodedesc_t;
 
