@@ -370,7 +370,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     cJSON *result = cJSON_CreateObject();
     cJSON *result_peer = cJSON_CreateArray();
 
-    uint64_t amount = ln_node_total_msat();
+    uint64_t total_amount = ln_node_total_msat();
 
     LOGD("$$$: [JSONRPC]getinfo\n");
 
@@ -379,7 +379,7 @@ static cJSON *cmd_getinfo(jrpc_context *ctx, cJSON *params, cJSON *id)
     utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
     cJSON_AddItemToObject(result, "node_id", cJSON_CreateString(node_id));
     cJSON_AddItemToObject(result, "node_port", cJSON_CreateNumber(ln_node_addr()->port));
-    cJSON_AddNumber64ToObject(result, "total_our_msat", amount);
+    cJSON_AddNumber64ToObject(result, "total_our_msat", total_amount);
 
 #ifdef DEVELOPER_MODE
     //blockcount
@@ -981,19 +981,19 @@ LABEL_EXIT:
             cmd_json_pay(p_invoice, add_amount_msat);
         } else {
             //送金失敗
-            ln_db_invoice_del(p_invoice_data->payment_hash);
-
-            //最後に失敗した時間
-            char str_payhash[BTC_SZ_HASH256 * 2 + 1];
-            utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
-
-            char time[UTL_SZ_TIME_FMT_STR + 1];
-            sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
-            LOGD("%s\n", mLastPayErr);
-            lnapp_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
-
             ctx->error_code = err;
             ctx->error_message = ptarmd_error_str(err);
+
+            ln_db_invoice_del(p_invoice_data->payment_hash);
+
+            //log
+            char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+            char time[UTL_SZ_TIME_FMT_STR + 1];
+
+            utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
+            sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
+            LOGD("%s\n", mLastPayErr);
+            lnapp_save_event(NULL, "payment fail: payment_hash=%s reason=%s", str_payhash, ctx->error_message);
         }
     }
     free(p_invoice_data);
@@ -1695,9 +1695,13 @@ static int cmd_routepay_proc1(
                     BlockCnt + p_invoice_data->min_final_cltv_expiry,
                     p_invoice_data->amount_msat,
                     p_invoice_data->r_field_num, p_invoice_data->r_field);
-    if (rerr != LNROUTE_NONE) {
+    if (rerr != LNROUTE_OK) {
         LOGD("fail: routing\n");
         switch (rerr) {
+        case LNROUTE_NOSTART:
+            return RPCERR_NOSTART;
+        case LNROUTE_NOGOAL:
+            return RPCERR_NOGOAL;
         case LNROUTE_NOTFOUND:
             return RPCERR_NOROUTE;
         case LNROUTE_TOOMANYHOP:
@@ -1768,7 +1772,7 @@ static int cmd_routepay_proc2(
         char str_payee[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(str_payee, pInvoiceData->pubkey, BTC_SZ_PUBKEY);
 
-        lnapp_save_event(NULL, "payment: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
+        lnapp_save_event(NULL, "payment start: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
                     str_payhash, str_payee, total_amount, pInvoiceData->amount_msat);
     }
 

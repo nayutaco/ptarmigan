@@ -1433,17 +1433,19 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     // $3: our_msat
     // $4: funding_txid
     char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     char txidstr[BTC_SZ_TXID * 2 + 1];
-    utl_misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), BTC_SZ_TXID);
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
-    utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
     char param[256];
+    uint64_t total_amount = ln_node_total_msat();
+
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
+    utl_misc_bin2str_rev(txidstr, ln_funding_txid(p_conf->p_self), BTC_SZ_TXID);
+    utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
         sprintf(param, "%s %s "
                 "%" PRIu64 " "
                 "%s",
                 str_sci, node_id,
-                ln_node_total_msat(),
+                total_amount,
                 txidstr);
     ptarmd_call_script(PTARMD_EVT_ESTABLISHED, param);
 
@@ -2734,6 +2736,11 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_h
     ln_preimage_hash_calc(hash, p_fulfill->p_preimage);
     cmd_json_pay_result(hash, "success");
     ln_db_invoice_del(hash);
+
+    //log
+    char str_payhash[BTC_SZ_HASH256 * 2 + 1];
+    utl_misc_bin2str(str_payhash, hash, BTC_SZ_HASH256);
+    lnapp_save_event(NULL, "payment fulfill[id=%" PRIu64 "]: payment_hash=%s, amount_msat=%" PRIu64, p_fulfill->id, str_payhash, p_fulfill->amount_msat);
 }
 
 
@@ -2875,7 +2882,6 @@ static void cbsub_fail_originnode(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_re
         char errstr[512];
         char *reasonstr = ln_onion_get_errstr(&onionerr);
         sprintf(errstr, M_ERRSTR_REASON, reasonstr, hop, suggest);
-        set_lasterror(p_conf, RPCERR_PAYFAIL, errstr);
         cmd_json_pay_result(p_fail->p_payment_hash, errstr);
         free(reasonstr);
         free(onionerr.p_data);
@@ -2898,17 +2904,21 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
     // $2: node_id
     // $3: our_msat
     char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
-    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     char param[256];
     char node_id[BTC_SZ_PUBKEY * 2 + 1];
+    uint64_t total_amount = ln_node_total_msat();
+
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     utl_misc_bin2str(node_id, ln_node_getid(), BTC_SZ_PUBKEY);
     sprintf(param, "%s %s "
                 "%" PRIu64,
                 str_sci, node_id,
-                ln_node_total_msat());
+                total_amount);
     ptarmd_call_script(PTARMD_EVT_HTLCCHANGED, param);
 
     show_self_param(p_conf->p_self, stderr, "revoke_and_ack", __LINE__);
+
+    lnapp_save_event(NULL, "exchanged revoke_and_ack: total_msat=%" PRIu64, total_amount);
 
     DBGTRACE_END
 }

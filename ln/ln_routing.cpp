@@ -522,7 +522,7 @@ lnerr_route_t ln_routing_calculate(
         boost::tie(e, found) = edge(p[v], v, g);
         if (!found) {
             LOGD("not foooooooooound\n");
-            abort();
+            return LNROUTE_NOTFOUND;
         }
 
         route.push_front(p[v]);
@@ -561,7 +561,7 @@ lnerr_route_t ln_routing_calculate(
         }
         if (sci == 0) {
             LOGD("not match!\n");
-            abort();
+            return LNROUTE_NOTFOUND;
         }
 
         pResult->hop_datain[lp].short_channel_id = sci;
@@ -578,7 +578,7 @@ lnerr_route_t ln_routing_calculate(
 
     UTL_DBG_FREE(rt_res.p_nodes);
 
-    return LNROUTE_NONE;
+    return LNROUTE_OK;
 }
 
 

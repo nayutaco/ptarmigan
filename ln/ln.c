@@ -200,8 +200,8 @@ typedef struct {
  **************************************************************************/
 
 static void channel_clear(ln_self_t *self);
-static bool recv_idle_proc_final(ln_self_t *self);
-static bool recv_idle_proc_nonfinal(ln_self_t *self);
+static void recv_idle_proc_final(ln_self_t *self);
+static void recv_idle_proc_nonfinal(ln_self_t *self);
 static bool recv_init(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len);
 static bool recv_ping(ln_self_t *self, const uint8_t *pData, uint16_t Len);
@@ -816,14 +816,10 @@ void ln_recv_idle_proc(ln_self_t *self)
     if (htlc_num == 0) {
         return;
     }
-    bool db_upd = false;
     if (b_final) {
-        db_upd = recv_idle_proc_final(self);
+        recv_idle_proc_final(self);
     } else {
-        db_upd = recv_idle_proc_nonfinal(self);
-    }
-    if (db_upd) {
-        M_DB_SELF_SAVE(self);
+        recv_idle_proc_nonfinal(self);
     }
 }
 
@@ -2072,14 +2068,13 @@ static void channel_clear(ln_self_t *self)
  ********************************************************************/
 
 /** 受信アイドル処理(HTLC final)
- *
- * @retval  true        DB変化あり
  */
-static bool recv_idle_proc_final(ln_self_t *self)
+static void recv_idle_proc_final(ln_self_t *self)
 {
     //LOGD("HTLC final\n");
 
     bool db_upd = false;
+    bool revack = false;
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
         ln_update_add_htlc_t *p_htlc = &self->cnl_add_htlc[idx];
         if (LN_HTLC_ENABLE(p_htlc)) {
@@ -2152,24 +2147,27 @@ static bool recv_idle_proc_final(ln_self_t *self)
                 }
 
                 clear_htlc(p_htlc);
-                (*self->p_callback)(self, LN_CB_REV_AND_ACK_EXCG, NULL);
 
                 db_upd = true;
+                revack = true;
             }
         }
     }
 
-    return db_upd;
+    if (db_upd) {
+        M_DB_SELF_SAVE(self);
+        if (revack) {
+            (*self->p_callback)(self, LN_CB_REV_AND_ACK_EXCG, NULL);
+        }
+    }
 }
 
 
 /** 受信アイドル処理(HTLC non-final)
  *
  * HTLCとして有効だが、commitment_signed/revoke_and_ackの送受信が完了していないものがある
- *
- * @retval  true        DB変化あり
  */
-static bool recv_idle_proc_nonfinal(ln_self_t *self)
+static void recv_idle_proc_nonfinal(ln_self_t *self)
 {
     bool b_comsiging = false;   //true: commitment_signed〜revoke_and_ackの途中
     for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -2188,7 +2186,6 @@ static bool recv_idle_proc_nonfinal(ln_self_t *self)
         }
     }
 
-    bool db_upd = false;        //true: DB変化あり
     bool b_comsig = false;      //true: commitment_signed送信可能
     if (!b_comsiging) {
         for (int idx = 0; idx < LN_HTLC_MAX; idx++) {
@@ -2271,8 +2268,6 @@ static bool recv_idle_proc_nonfinal(ln_self_t *self)
         }
         utl_buf_free(&buf_bolt);
     }
-
-    return db_upd;
 }
 
 
@@ -3320,6 +3315,7 @@ static bool recv_update_fulfill_htlc(ln_self_t *self, const uint8_t *pData, uint
         fulfill.prev_idx = p_htlc->prev_idx;
         fulfill.p_preimage = preimage;
         fulfill.id = p_htlc->id;
+        fulfill.amount_msat = p_htlc->amount_msat;
         (*self->p_callback)(self, LN_CB_FULFILL_HTLC_RECV, &fulfill);
     } else {
         M_SET_ERR(self, LNERR_INV_ID, "fulfill");

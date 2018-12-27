@@ -247,7 +247,7 @@ int main(int argc, char* argv[])
         ln_routing_result_t result;
         lnerr_route_t rerr = ln_routing_calculate(&result, send_nodeid,
                     recv_nodeid, cltv_expiry, amtmsat, 0, NULL);
-        if (rerr == LNROUTE_NONE) {
+        if (rerr == LNROUTE_OK) {
             //pay.conf形式の出力
             if (payment_hash == NULL) {
                 //CSV形式

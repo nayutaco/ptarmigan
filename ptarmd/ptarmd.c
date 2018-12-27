@@ -446,9 +446,11 @@ char *ptarmd_error_str(int ErrCode)
 
         { RPCERR_PAY_STOP,                  "stop payment" },
         { RPCERR_NOROUTE,                   "fail routing" },
-        { RPCERR_PAYFAIL,                   "" },
+        { RPCERR_PAYFAIL,                   "cannot start payment" },
         { RPCERR_PAY_RETRY,                 "retry payment" },
-        { RPCERR_TOOMANYHOP,                "fail create invoice(too many hop)" },
+        { RPCERR_TOOMANYHOP,                "too many hop nodes" },
+        { RPCERR_NOSTART,                   "payer not found" },
+        { RPCERR_NOGOAL,                    "payee not found" },
 
         { RPCERR_WALLET_ERR,                "wallet error" },
     };
