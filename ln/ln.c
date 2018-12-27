@@ -159,7 +159,7 @@
         set_error(self,err,fmt,##__VA_ARGS__);\
         \
         ln_error_t err;\
-        err.channel_id = self->channel_id;\
+        err.p_channel_id = self->channel_id;\
         err.p_data = self->err_msg;\
         err.len = strlen(err.p_data);\
         send_error(self, &err);\
@@ -793,7 +793,6 @@ bool ln_recv(ln_self_t *self, const uint8_t *pData, uint16_t Len)
         ret = type & 1;     //ok to be odd rule --> 奇数ならエラーにしない
     }
 
-LABEL_EXIT:
     return ret;
 }
 
@@ -2373,7 +2372,7 @@ static bool recv_error(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     ln_error_t err;
     uint8_t channel_id[LN_SZ_CHANNEL_ID];
-    err.channel_id = channel_id;
+    err.p_channel_id = channel_id;
     ln_msg_error_read(&err, pData, Len);
     (*self->p_callback)(self, LN_CB_ERROR, &err);
     UTL_DBG_FREE(err.p_data);
