@@ -76,7 +76,7 @@ enum {
  * @brief   routing error
  */
 typedef enum {
-    LNROUTE_NONE,
+    LNROUTE_OK,
     LNROUTE_PARAM,
     LNROUTE_LOADDB,
     LNROUTE_NOSTART,

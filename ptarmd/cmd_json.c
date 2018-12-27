@@ -981,6 +981,9 @@ LABEL_EXIT:
             cmd_json_pay(p_invoice, add_amount_msat);
         } else {
             //送金失敗
+            ctx->error_code = err;
+            ctx->error_message = ptarmd_error_str(err);
+
             ln_db_invoice_del(p_invoice_data->payment_hash);
 
             //最後に失敗した時間
@@ -990,10 +993,7 @@ LABEL_EXIT:
             char time[UTL_SZ_TIME_FMT_STR + 1];
             sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
             LOGD("%s\n", mLastPayErr);
-            lnapp_save_event(NULL, "payment fail: payment_hash=%s try=%d", str_payhash, mPayTryCount);
-
-            ctx->error_code = err;
-            ctx->error_message = ptarmd_error_str(err);
+            lnapp_save_event(NULL, "payment fail(%s): payment_hash=%s try=%d", ctx->error_message, str_payhash, mPayTryCount);
         }
     }
     free(p_invoice_data);
@@ -1695,9 +1695,13 @@ static int cmd_routepay_proc1(
                     BlockCnt + p_invoice_data->min_final_cltv_expiry,
                     p_invoice_data->amount_msat,
                     p_invoice_data->r_field_num, p_invoice_data->r_field);
-    if (rerr != LNROUTE_NONE) {
+    if (rerr != LNROUTE_OK) {
         LOGD("fail: routing\n");
         switch (rerr) {
+        case LNROUTE_NOSTART:
+            return RPCERR_NOSTART;
+        case LNROUTE_NOGOAL:
+            return RPCERR_NOGOAL;
         case LNROUTE_NOTFOUND:
             return RPCERR_NOROUTE;
         case LNROUTE_TOOMANYHOP:

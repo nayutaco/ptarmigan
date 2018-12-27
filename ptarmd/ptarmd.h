@@ -101,6 +101,8 @@ extern "C" {
 #define RPCERR_PAYFAIL              (-26002)
 #define RPCERR_PAY_RETRY            (-26003)
 #define RPCERR_TOOMANYHOP           (-26004)
+#define RPCERR_NOSTART              (-26005)
+#define RPCERR_NOGOAL               (-26006)
 
 #define RPCERR_WALLET_ERR           (-27000)
 
