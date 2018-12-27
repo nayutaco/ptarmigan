@@ -110,9 +110,7 @@
 //#define LN_ANNO_FLAG_END
 
 // ln_self_t.shutdown_flag
-#define M_SHDN_FLAG_SEND                    (0x01)          ///< shutdown送信済み
-#define M_SHDN_FLAG_RECV                    (0x02)          ///< shutdown受信済み
-#define M_SHDN_FLAG_EXCHANGED(flag)         (((flag) & (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV)) == (M_SHDN_FLAG_SEND | M_SHDN_FLAG_RECV))
+#define M_SHDN_FLAG_EXCHANGED(flag)         (((flag) & (LN_SHDN_FLAG_SEND | LN_SHDN_FLAG_RECV)) == (LN_SHDN_FLAG_SEND | LN_SHDN_FLAG_RECV))
 
 
 /// update_add_htlc+commitment_signed送信直後
@@ -340,7 +338,7 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
                     utl_push_t *pPushReason,
                     ln_update_add_htlc_t *pAddHtlc,
                     int32_t Height);
-static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason);
+static bool check_recv_add_htlc_bolt4_common(ln_self_t *self, utl_push_t *pPushReason);
 static bool store_peer_percommit_secret(ln_self_t *self, const uint8_t *p_prev_secret);
 
 static void proc_anno_sigs(ln_self_t *self);
@@ -1308,16 +1306,6 @@ bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown)
 {
     LOGD("BEGIN\n");
 
-    if (!M_INIT_FLAG_EXCHNAGED(self->init_flag)) {
-        M_SET_ERR(self, LNERR_INV_STATE, "no init finished");
-        return false;
-    }
-    if (self->shutdown_flag & M_SHDN_FLAG_SEND) {
-        //送信済み
-        M_SET_ERR(self, LNERR_INV_STATE, "already shutdown sent");
-        return false;
-    }
-
     bool ret;
     ln_shutdown_t shutdown_msg;
 
@@ -1325,7 +1313,8 @@ bool ln_shutdown_create(ln_self_t *self, utl_buf_t *pShutdown)
     shutdown_msg.p_scriptpk = &self->shutdown_scriptpk_local;
     ret = ln_msg_shutdown_create(pShutdown, &shutdown_msg);
     if (ret) {
-        self->shutdown_flag |= M_SHDN_FLAG_SEND;
+        self->shutdown_flag |= LN_SHDN_FLAG_SEND;
+        M_DB_SELF_SAVE(self);
     }
 
     LOGD("END\n");
@@ -1654,7 +1643,9 @@ bool ln_add_htlc_set(ln_self_t *self,
 {
     LOGD("BEGIN\n");
 
-    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
+    //BOLT2
+    //  MUST NOT send an update_add_htlc after a shutdown.
+    if (self->shutdown_flag != 0) {
         M_SET_ERR(self, LNERR_INV_STATE, "shutdown: not allow add_htlc");
         return false;
     }
@@ -1685,7 +1676,9 @@ bool ln_add_htlc_set_fwd(ln_self_t *self,
 {
     LOGD("BEGIN\n");
 
-    if (M_SHDN_FLAG_EXCHANGED(self->shutdown_flag)) {
+    //BOLT2
+    //  MUST NOT send an update_add_htlc after a shutdown.
+    if (self->shutdown_flag != 0) {
         M_SET_ERR(self, LNERR_INV_STATE, "shutdown: not allow add_htlc");
         return false;
     }
@@ -2861,7 +2854,7 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
 
     bool ret;
 
-    if (self->shutdown_flag & M_SHDN_FLAG_RECV) {
+    if (self->shutdown_flag & LN_SHDN_FLAG_RECV) {
         //既にshutdownを受信済みなら、何もしない
         return false;
     }
@@ -2891,15 +2884,13 @@ static bool recv_shutdown(ln_self_t *self, const uint8_t *pData, uint16_t Len)
     }
 
     //shutdown受信済み
-    self->shutdown_flag |= M_SHDN_FLAG_RECV;
-
-    //  相手がshutdownを送ってきたということは、HTLCは持っていないはず。
-    //  相手は持っていなくて自分は持っているという状況は発生しない。
+    self->shutdown_flag |= LN_SHDN_FLAG_RECV;
+    M_DB_SELF_SAVE(self);
 
     self->close_last_fee_sat = 0;
 
     utl_buf_t buf_bolt = UTL_BUF_INIT;
-    if (!(self->shutdown_flag & M_SHDN_FLAG_SEND)) {
+    if (!(self->shutdown_flag & LN_SHDN_FLAG_SEND)) {
         //shutdown未送信の場合 == shutdownを要求された方
 
         //feeと送金先を設定してもらう
@@ -3179,7 +3170,7 @@ static bool recv_update_add_htlc(ln_self_t *self, const uint8_t *pData, uint16_t
         utl_buf_free(&p_htlc->buf_onion_reason);
     }
     if (ret) {
-        ret = check_recv_add_htlc_bolt4_common(&push_htlc);
+        ret = check_recv_add_htlc_bolt4_common(self, &push_htlc);
     }
     if (!ret && (result == LN_CB_ADD_HTLC_RESULT_OK)) {
         //ここまでで、ret=falseだったら、resultはFAILになる
@@ -5683,6 +5674,12 @@ LABEL_EXIT:
  */
 static bool check_recv_add_htlc_bolt2(ln_self_t *self, const ln_update_add_htlc_t *p_htlc)
 {
+    //shutdown
+    if (self->shutdown_flag & LN_SHDN_FLAG_RECV) {
+        M_SET_ERR(self, LNERR_INV_STATE, "already shutdown received");
+        return false;
+    }
+
     //amount_msatが0の場合、チャネルを失敗させる。
     //amount_msatが自分のhtlc_minimum_msat未満の場合、チャネルを失敗させる。
     //  receiving an amount_msat equal to 0, OR less than its own htlc_minimum_msat
@@ -6024,9 +6021,16 @@ static bool check_recv_add_htlc_bolt4_forward(ln_self_t *self,
 }
 
 
-static bool check_recv_add_htlc_bolt4_common(utl_push_t *pPushReason)
+static bool check_recv_add_htlc_bolt4_common(ln_self_t *self, utl_push_t *pPushReason)
 {
     (void)pPushReason;
+
+    //shutdown
+    if (self->shutdown_flag & LN_SHDN_FLAG_SEND) {
+        M_SET_ERR(self, LNERR_INV_STATE, "already shutdown sent");
+        ln_misc_push16be(pPushReason, LNONION_PERM_CHAN_FAIL);
+        return false;
+    }
 
     //A3. if an otherwise unspecified permanent error occurs for the entire node:
     //      permanent_node_failure

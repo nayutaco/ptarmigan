@@ -810,13 +810,10 @@ void lnapp_save_event(const uint8_t *pChannelId, const char *pFormat, ...)
  ********************************************************************/
 
 /********************************************************************
- * メインスレッド
- *
- *  チャネル処理のメインスレッド
- *  他ノードへの接続が開始されると生成され、
+ * [THREAD]channel
  ********************************************************************/
 
-/** チャネル用スレッド
+/** channel thread entry point
  *
  * @param[in,out]   pArg    lnapp_conf_t*
  */
@@ -1039,6 +1036,21 @@ static void *thread_main_start(void *pArg)
 
     if (b_channelreestablished) {
         ln_channel_reestablish_after(p_self);
+    }
+
+    if (ln_is_shutdown_sent(p_self)) {
+        //BOLT02
+        //  upon reconnection:
+        //    if it has sent a previous shutdown:
+        //      MUST retransmit shutdown.
+        utl_buf_t buf_sdn = UTL_BUF_INIT;
+        bool ret = ln_shutdown_create(p_self, &buf_sdn);
+        if (ret) {
+            send_peer_noise(p_conf, &buf_sdn);
+        } else {
+            LOGD("fail: shutdown\n");
+        }
+        utl_buf_free(&buf_sdn);
     }
 
     // flush buffered BOLT message
@@ -1403,7 +1415,6 @@ static bool exchange_funding_locked(lnapp_conf_t *p_conf)
     utl_buf_free(&buf_bolt);
 
     //コールバックでのfunding_locked受信通知待ち
-    //uint32_t count = M_WAIT_RESPONSE_MSEC / M_WAIT_RECV_MSG_MSEC;
     LOGD("wait: funding_locked\n");
     while (p_conf->loop && ((p_conf->flag_recv & RECV_MSG_FUNDINGLOCKED) == 0)) {
         utl_misc_msleep(M_WAIT_RECV_MSG_MSEC);
@@ -1514,10 +1525,10 @@ static bool send_open_channel(lnapp_conf_t *p_conf, const funding_conf_t *pFundi
 
 
 /********************************************************************
- * 受信スレッド
+ * [THREAD]receive
  ********************************************************************/
 
-/** peerからの受信スレッド
+/** receive thread entry point
  *
  * @param[in,out]   pArg    lnapp_conf_t*
  */
@@ -1655,10 +1666,10 @@ static uint16_t recv_peer(lnapp_conf_t *p_conf, uint8_t *pBuf, uint16_t Len, uin
 
 
 /********************************************************************
- * 監視スレッド
+ * [THREAD]polling
  ********************************************************************/
 
-/** 監視スレッド開始
+/** polling thread entry point
  *
  * @param[in,out]   pArg    lnapp_conf_t*
  */
@@ -2445,7 +2456,7 @@ static void cb_add_htlc_recv_prev(lnapp_conf_t *p_conf, void *p_param)
     ln_cb_add_htlc_recv_prev_t *p_prev = (ln_cb_add_htlc_recv_prev_t *)p_param;
 
     //転送先取得
-    lnapp_conf_t *p_appconf = ptarmd_search_connected_cnl(p_prev->next_short_channel_id);
+    lnapp_conf_t *p_appconf = ptarmd_search_transferable_cnl(p_prev->next_short_channel_id);
     if (p_appconf != NULL) {
         LOGD("get forwarding lnapp\n");
         p_prev->p_next_self = p_appconf->p_self;
@@ -2520,7 +2531,7 @@ static bool cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
 {
     bool ret = false;
     utl_buf_t reason = UTL_BUF_INIT;
-    lnapp_conf_t *p_nextconf = ptarmd_search_connected_cnl(p_addhtlc->p_hop->short_channel_id);
+    lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_addhtlc->p_hop->short_channel_id);
     if (p_nextconf != NULL) {
         uint64_t htlc_id;
         uint16_t next_idx;
@@ -2599,7 +2610,7 @@ static void cb_fwd_addhtlc_start(lnapp_conf_t *p_conf, void *p_param)
 
     ln_cb_fwd_add_htlc_t *p_fwd = (ln_cb_fwd_add_htlc_t *)p_param;
 
-    lnapp_conf_t *p_nextconf = ptarmd_search_connected_cnl(p_fwd->short_channel_id);
+    lnapp_conf_t *p_nextconf = ptarmd_search_transferable_cnl(p_fwd->short_channel_id);
     if (p_nextconf != NULL) {
         pthread_mutex_lock(&p_nextconf->mux_self);
         ln_add_htlc_start_fwd(p_nextconf->p_self, p_fwd->idx);
@@ -2668,7 +2679,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
     }
 
     bool ret = false;
-    lnapp_conf_t *p_prevconf = ptarmd_search_connected_cnl(p_fulfill->prev_short_channel_id);
+    lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fulfill->prev_short_channel_id);
     if (p_prevconf != NULL) {
         pthread_mutex_lock(&p_prevconf->mux_self);
         ret = ln_fulfill_htlc_set(p_prevconf->p_self, p_fulfill->prev_idx, p_fulfill->p_preimage);
@@ -2765,7 +2776,7 @@ static void cbsub_fail_backwind(lnapp_conf_t *p_conf, const ln_cb_fail_htlc_recv
     }
 
     bool ret = false;
-    lnapp_conf_t *p_prevconf = ptarmd_search_connected_cnl(p_fail->prev_short_channel_id);
+    lnapp_conf_t *p_prevconf = ptarmd_search_transferable_cnl(p_fail->prev_short_channel_id);
     if (p_prevconf != NULL) {
         pthread_mutex_lock(&p_prevconf->mux_self);
         ret = ln_fail_htlc_set(p_prevconf->p_self, p_fail->prev_idx, p_fail->p_reason);

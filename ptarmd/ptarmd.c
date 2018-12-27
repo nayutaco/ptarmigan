@@ -29,7 +29,7 @@
  *                    |       |    |                   |
  *                    v       |    v                   v
  *         P2P-server-thread  |  monitor-thread  signal-thread
- *                            v 
+ *                            v
  *                        +---+------------+
  *         recv-thread <--| channel thread |-+
  *         poll-thread <--|                | |-+
@@ -256,7 +256,7 @@ bool ptarmd_transfer_channel(uint64_t ShortChannelId, rcvidle_cmd_t Cmd, utl_buf
     LOGD("  search short_channel_id : %016" PRIx64 "\n", ShortChannelId);
 
     //socketが開いているか検索
-    p_appconf = ptarmd_search_connected_cnl(ShortChannelId);
+    p_appconf = ptarmd_search_transferable_cnl(ShortChannelId);
     if (p_appconf != NULL) {
         LOGD("AppConf found\n");
         lnapp_transfer_channel(p_appconf, Cmd, pBuf);
@@ -292,6 +292,16 @@ lnapp_conf_t *ptarmd_search_connected_cnl(uint64_t short_channel_id)
 }
 
 
+lnapp_conf_t *ptarmd_search_transferable_cnl(uint64_t short_channel_id)
+{
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_cnl(short_channel_id);
+    if ((p_appconf != NULL) && (ln_status_get(p_appconf->p_self) != LN_STATUS_NORMAL)) {
+        p_appconf = NULL;
+    }
+    return p_appconf;
+}
+
+
 lnapp_conf_t *ptarmd_search_connected_nodeid(const uint8_t *p_node_id)
 {
     lnapp_conf_t *p_appconf;
@@ -299,6 +309,16 @@ lnapp_conf_t *ptarmd_search_connected_nodeid(const uint8_t *p_node_id)
     p_appconf = p2p_cli_search_node(p_node_id);
     if (p_appconf == NULL) {
         p_appconf = p2p_svr_search_node(p_node_id);
+    }
+    return p_appconf;
+}
+
+
+lnapp_conf_t *ptarmd_search_transferable_nodeid(const uint8_t *p_node_id)
+{
+    lnapp_conf_t *p_appconf = ptarmd_search_connected_nodeid(p_node_id);
+    if ((p_appconf != NULL) && (ln_status_get(p_appconf->p_self) != LN_STATUS_NORMAL)) {
+        p_appconf = NULL;
     }
     return p_appconf;
 }

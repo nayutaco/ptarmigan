@@ -380,7 +380,7 @@ static const backup_param_t DBSELF_VALUES[] = {
     //
     //[CLSE01]---
     //[CLSE02]tx_closing
-    //[CLSE03]shutdown_flag
+    M_ITEM(ln_self_t, shutdown_flag),   //[CLSE03]shutdown_flag
     //[CLSE04]close_fee_sat
     //[CLSE05]close_last_fee_sat
     //[CLSE06]shutdown_scriptpk_local --> script
