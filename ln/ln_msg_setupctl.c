@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <assert.h>
 
@@ -52,6 +53,7 @@
  **************************************************************************/
 
 static void init_print(const ln_init_t *pMsg);
+static void error_print(const ln_error_t *pMsg);
 // static void ping_print(const ln_ping_t *pMsg);
 // static void pong_print(const ln_pong_t *pMsg);
 
@@ -183,13 +185,15 @@ bool HIDDEN ln_msg_error_create(utl_buf_t *pBuf, const ln_error_t *pMsg)
 
     utl_push_t    proto;
 
+    error_print(pMsg);
+
     utl_push_init(&proto, pBuf, sizeof(uint16_t) + LN_SZ_CHANNEL_ID + sizeof(uint16_t) + pMsg->len);
 
     //    type: 17 (error)
     ln_misc_push16be(&proto, MSGTYPE_ERROR);
 
     //        [32:channel_id]
-    utl_push_data(&proto, pMsg->channel_id, LN_SZ_CHANNEL_ID);
+    utl_push_data(&proto, pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
 
     //        [2:len]
     ln_misc_push16be(&proto, pMsg->len);
@@ -223,9 +227,7 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
     int pos = sizeof(uint16_t);
 
     //        [32:channel-id]
-    memcpy(pMsg->channel_id, pData + pos, LN_SZ_CHANNEL_ID);
-    LOGD("channld_id: ");
-    DUMPD(pMsg->channel_id, LN_SZ_CHANNEL_ID);
+    memcpy(pMsg->p_channel_id, pData + pos, LN_SZ_CHANNEL_ID);
     pos += LN_SZ_CHANNEL_ID;
 
     //        [2:len]
@@ -233,18 +235,39 @@ bool HIDDEN ln_msg_error_read(ln_error_t *pMsg, const uint8_t *pData, uint16_t L
     pos += sizeof(uint16_t);
 
     //        [len:data]
-    if (pMsg != NULL) {
-        pMsg->len = len;
-        pMsg->p_data = (char *)UTL_DBG_MALLOC(len + 1);
-        memcpy(pMsg->p_data, pData + pos, len);
-        pMsg->p_data[len] = '\0';
-        LOGD("data: ");
-        DUMPD((const uint8_t *)pMsg->p_data, len);
-    }
+    pMsg->len = len;
+    pMsg->p_data = (char *)UTL_DBG_MALLOC(len + 1);
+    memcpy(pMsg->p_data, pData + pos, len);
+    pMsg->p_data[len] = '\0';
 
     //pos += len;
 
+    error_print(pMsg);
+
     return true;
+}
+
+
+static void error_print(const ln_error_t *pMsg)
+{
+#ifdef PTARM_DEBUG
+    LOGD("-[error]-------------------------------\n");
+    LOGD("channel-id: ");
+    DUMPD(pMsg->p_channel_id, LN_SZ_CHANNEL_ID);
+    LOGD("data: ");
+    DUMPD((const uint8_t *)pMsg->p_data, pMsg->len);
+    LOGD("      ");
+    for (uint16_t lp = 0; lp < pMsg->len; lp++) {
+        char c = (char)pMsg->p_data[lp];
+        if (isprint(c)) {
+            LOGD2("%c", c);
+        } else {
+            LOGD2("?");
+        }
+    }
+    LOGD2("\n");
+    LOGD("--------------------------------\n");
+#endif  //PTARM_DEBUG
 }
 
 

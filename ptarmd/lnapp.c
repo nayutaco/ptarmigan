@@ -2282,7 +2282,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
         }
     }
     set_lasterror(p_conf, RPCERR_PEER_ERROR, p_msg);
-    lnapp_save_event(p_err->channel_id, "error message: %s", p_msg);
+    lnapp_save_event(p_err->p_channel_id, "error message: %s", p_msg);
     if (b_alloc) {
         UTL_DBG_FREE(p_msg);
     }
@@ -3194,7 +3194,7 @@ static void set_lasterror(lnapp_conf_t *p_conf, int Err, const char *pErrStr)
         size_t len_max = strlen(pErrStr) + 128;
         p_conf->p_errstr = (char *)UTL_DBG_MALLOC(len_max);        //UTL_DBG_FREE: thread_main_start()
         strcpy(p_conf->p_errstr, pErrStr);
-        LOGD("%s\n", p_conf->p_errstr);
+        LOGD("$$$[ERROR RECEIVED] %s\n", p_conf->p_errstr);
 
         // method: error
         // $1: short_channel_id
