@@ -158,7 +158,7 @@ void HIDDEN ln_script_toremote_wit(btc_tx_t *pTx, const btc_keys_t *pKey)
     utl_buf_t *p_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * 2);
     utl_buf_alloccopy(&p_wit[0], pKey->priv, BTC_SZ_PRIVKEY);
     utl_buf_alloccopy(&p_wit[1], pKey->pub, BTC_SZ_PUBKEY);
-    pTx->vin[0].wit_cnt = 2;
+    pTx->vin[0].wit_item_cnt = 2;
     pTx->vin[0].witness = p_wit;
 }
 

@@ -3349,14 +3349,14 @@ bool ln_db_wallet_add(const ln_db_wallet_t *pWallet)
     // LOGD("amount=%" PRIu64 "\n", pWallet->amount);
     // LOGD("sequence=%" PRIx32 "\n", pWallet->sequence);
     // LOGD("locktime=%" PRIx32 "\n", pWallet->locktime);
-    // LOGD("cnt=%d\n", pWallet->wit_cnt);
-    // for (uint8_t lp = 0; lp < pWallet->wit_cnt; lp++) {
+    // LOGD("cnt=%d\n", pWallet->wit_item_cnt);
+    // for (uint8_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
     //     LOGD("[%d]", lp);
     //     DUMPD(pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
     // }
 
-    if (pWallet->wit_cnt < 2) {
-        LOGD("fail: wit_cnt < 2\n");
+    if (pWallet->wit_item_cnt < 2) {
+        LOGD("fail: wit_item_cnt < 2\n");
         return false;
     }
     if (pWallet->p_wit[0].len != BTC_SZ_PRIVKEY) {
@@ -3394,7 +3394,7 @@ bool ln_db_wallet_add(const ln_db_wallet_t *pWallet)
                     sizeof(uint32_t) +          //sequence
                     sizeof(uint32_t) +          //locktime
                     sizeof(uint8_t);            //datanum
-    for (uint32_t lp = 0; lp < pWallet->wit_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
         //len + data
         LOGD("[%d]len=%d, ", lp, pWallet->p_wit[lp].len);
         DUMPD(pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
@@ -3411,9 +3411,9 @@ bool ln_db_wallet_add(const ln_db_wallet_t *pWallet)
     wit += sizeof(uint32_t);
     memcpy(wit, &pWallet->locktime, sizeof(uint32_t));
     wit += sizeof(uint32_t);
-    *wit = (uint8_t)(pWallet->wit_cnt);
+    *wit = (uint8_t)(pWallet->wit_item_cnt);
     wit++;
-    for (uint32_t lp = 0; lp < pWallet->wit_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
         *wit = (uint8_t)pWallet->p_wit[lp].len;
         wit++;
         memcpy(wit, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
@@ -3501,11 +3501,11 @@ bool ln_lmdb_wallet_search(lmdb_cursor_t *pCur, ln_db_func_wallet_t pWalletFunc,
         d += sizeof(uint32_t);
         memcpy(&wallet.locktime, d, sizeof(uint32_t));
         d += sizeof(uint32_t);
-        wallet.wit_cnt = *d;
+        wallet.wit_item_cnt = *d;
         d++;
-        if (wallet.wit_cnt > 0) {
-            wallet.p_wit = UTL_DBG_MALLOC(sizeof(utl_buf_t) * wallet.wit_cnt);
-            for (uint8_t lp = 0; lp < wallet.wit_cnt; lp++) {
+        if (wallet.wit_item_cnt > 0) {
+            wallet.p_wit = UTL_DBG_MALLOC(sizeof(utl_buf_t) * wallet.wit_item_cnt);
+            for (uint8_t lp = 0; lp < wallet.wit_item_cnt; lp++) {
                 wallet.p_wit[lp].len = *d;
                 d++;
                 if (wallet.p_wit[lp].len > 0) {

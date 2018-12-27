@@ -67,7 +67,7 @@ TEST_F(sw_native, init)
     ASSERT_EQ(1, tx.vin_cnt);
     vin = &tx.vin[0];
     ASSERT_EQ(0, vin->script.len);
-    ASSERT_EQ(2, vin->wit_cnt);
+    ASSERT_EQ(2, vin->wit_item_cnt);
     ASSERT_EQ(0, memcmp(SIG, vin->witness[0].buf, sizeof(SIG)));
     ASSERT_EQ(sizeof(SIG), vin->witness[0].len);
     ASSERT_EQ(0, memcmp(PUB, vin->witness[1].buf, sizeof(PUB)));

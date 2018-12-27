@@ -1095,7 +1095,7 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
         wit[0].len = 72;
         wit[1].buf = zero;
         wit[1].len = 33;
-        dummy->tx_funding.vin[0].wit_cnt = 2;
+        dummy->tx_funding.vin[0].wit_item_cnt = 2;
         dummy->tx_funding.vin[0].witness = wit;
 
         M_DBG_PRINT_TX(&dummy->tx_funding);
@@ -1107,7 +1107,7 @@ uint64_t ln_estimate_fundingtx_fee(uint32_t Feerate)
 
         dummy->tx_funding.vin[0].script.buf = NULL;
         dummy->tx_funding.vin[0].script.len = 0;
-        dummy->tx_funding.vin[0].wit_cnt = 0;
+        dummy->tx_funding.vin[0].wit_item_cnt = 0;
         dummy->tx_funding.vin[0].witness = NULL;
     } else {
         LOGD("fail: create_funding_tx()\n");
@@ -4206,7 +4206,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     //          scriptPubKey: 1+34
     //          amount: 8
     //          scriptPubKey: 1+23
-    //      wit_cnt: 2
+    //      wit_item_cnt: 2
     //          sig: 1+72
     //          pub: 1+33
     //      locktime: 4

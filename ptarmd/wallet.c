@@ -109,7 +109,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
         case LN_DB_WALLET_TYPE_TOLOCAL:
         case LN_DB_WALLET_TYPE_HTLCOUT:
             ret = btc_util_calc_sighash_p2wsh(txhash, &wallet.tx, lp, amount,
-                                                &p_vin->witness[p_vin->wit_cnt-1]);
+                                                &p_vin->witness[p_vin->wit_item_cnt-1]);
             break;
         default:
             LOGD("fail: invalid type=%d\n", type);
@@ -186,8 +186,8 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     TXIDD(pWallet->p_txid);
     LOGD("index=%d\n", pWallet->index);
     LOGD("amount=%" PRIu64 "\n", pWallet->amount);
-    LOGD("cnt=%d\n", pWallet->wit_cnt);
-    for (uint8_t lp = 0; lp < pWallet->wit_cnt; lp++) {
+    LOGD("cnt=%d\n", pWallet->wit_item_cnt);
+    for (uint8_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
         LOGD("[%d][%d]", lp, pWallet->p_wit[lp].len);
         DUMPD(pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
     }
@@ -195,7 +195,7 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     bool ret;
     wallet_t *p_wlt = (wallet_t *)p_param;
 
-    if (pWallet->wit_cnt == 0) {
+    if (pWallet->wit_item_cnt == 0) {
         LOGD("no witness\n");
         return false;
     }
@@ -271,7 +271,7 @@ static bool wallet_dbfunc(const ln_db_wallet_t *pWallet, void *p_param)
     DUMPD(p_wit[0].buf, p_wit[0].len);
 
     //残りwitをコピー
-    for (uint8_t lp = 1; lp < pWallet->wit_cnt; lp++) {
+    for (uint8_t lp = 1; lp < pWallet->wit_item_cnt; lp++) {
         utl_buf_t *p_wit = btc_tx_add_wit(p_vin);
         utl_buf_alloccopy(p_wit, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len);
         LOGD("wit[%d][%d] ", lp, p_wit->len);

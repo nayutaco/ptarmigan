@@ -254,7 +254,7 @@ typedef struct {
     uint8_t     txid[BTC_SZ_TXID];      ///< [outpoint]TXID(Little Endian)
     uint32_t    index;                  ///< [outpoint]index
     utl_buf_t   script;                 ///< scriptSig
-    uint32_t    wit_cnt;                ///< witness数(0のとき、witnessは無視)
+    uint32_t    wit_item_cnt;           ///< witness数(0のとき、witnessは無視)
     utl_buf_t   *witness;               ///< witness(配列的に使用する)
     uint32_t    sequence;               ///< sequence
 } btc_vin_t;

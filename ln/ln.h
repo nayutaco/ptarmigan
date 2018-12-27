@@ -2183,7 +2183,7 @@ static inline bool ln_is_offered_htlc_timeout(const ln_self_t *self, uint16_t ht
  *            -----------------------------------------------------
  */
 static inline const utl_buf_t *ln_preimage_remote(const btc_tx_t *pTx) {
-    return (pTx->vin[0].wit_cnt == 5) ? &pTx->vin[0].witness[3] : NULL;
+    return (pTx->vin[0].wit_item_cnt == 5) ? &pTx->vin[0].witness[3] : NULL;
 }
 
 
