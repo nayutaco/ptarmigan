@@ -108,6 +108,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
     bool bret = false;
     int ret;
     int idx;
+    int sock = -1;
     struct sockaddr_in sv_addr;
 
     if (!btc_keys_chkpub(pConn->node_id)) {
@@ -185,7 +186,8 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
 
         goto LABEL_EXIT;
     }
-    LOGD("connected: sock=%d\n", mAppConf[idx].sock);
+    sock = mAppConf[idx].sock;
+    LOGD("connected: sock=%d\n", sock);
 
     fprintf(stderr, "[client]connected: %s:%d\n", pConn->ipaddr, pConn->port);
     fprintf(stderr, "[client]node_id=");
@@ -208,6 +210,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
     bret = true;
 
 LABEL_EXIT:
+    LOGD("[exit]p2p_cli: sock=%d\n", sock);
     return bret;
 }
 

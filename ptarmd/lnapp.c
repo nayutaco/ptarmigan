@@ -230,7 +230,7 @@ void lnapp_start(lnapp_conf_t *pAppConf)
 void lnapp_stop(lnapp_conf_t *pAppConf)
 {
     if (pAppConf->th != 0) {
-        LOGD("stop lnapp\n");
+        LOGD("stop lnapp: sock=%d\n", pAppConf->sock);
         fprintf(stderr, "stop: ");
         btc_util_dumpbin(stderr, pAppConf->node_id, BTC_SZ_PUBKEY, true);
 
@@ -888,7 +888,7 @@ static void *thread_main_start(void *pArg)
     //失敗リストに乗っている可能性があるため、削除
     (void)ptarmd_nodefail_get(p_conf->node_id, p_conf->conn_str, p_conf->conn_port, LN_NODEDESC_IPV4, true);
 
-    LOGD("connected peer: ");
+    LOGD("connected peer(sock=%d): ", p_conf->sock);
     DUMPD(p_conf->node_id, BTC_SZ_PUBKEY);
     fprintf(stderr, "connected peer: ");
     btc_util_dumpbin(stderr, p_conf->node_id, BTC_SZ_PUBKEY, true);
@@ -968,16 +968,6 @@ static void *thread_main_start(void *pArg)
         // selfの主要なデータはDBから読込まれている(copy_channel() : ln_node.c)
         LOGD("have channel\n");
 
-#ifndef USE_SPV
-#else
-        btcrpc_set_channel(ln_their_node_id(p_self),
-                ln_short_channel_id(p_self),
-                ln_funding_txid(p_self),
-                ln_funding_txindex(p_self),
-                ln_funding_redeem(p_self),
-                ln_funding_blockhash(p_self));
-#endif
-
         if (!ln_status_is_closing(p_self)) {
             if (ln_status_get(p_self) == LN_STATUS_NORMAL) {
                 // funding_txはブロックに入ってminimum_depth以上経過している
@@ -1006,6 +996,19 @@ static void *thread_main_start(void *pArg)
                 LOGD("fail: exchange channel_reestablish\n");
                 goto LABEL_JOIN;
             }
+
+#ifndef USE_SPV
+#else
+            //NOTE:
+            //  This process take a lot of time.
+            //  `init` and `channel_reestablish` require response quickly.
+            btcrpc_set_channel(ln_their_node_id(p_self),
+                    ln_short_channel_id(p_self),
+                    ln_funding_txid(p_self),
+                    ln_funding_txindex(p_self),
+                    ln_funding_redeem(p_self),
+                    ln_funding_blockhash(p_self));
+#endif
         } else {
             const char *p_str = ln_status_string(p_self);
             LOGD("$$$ now closing: %s\n", p_str);
@@ -1102,7 +1105,7 @@ LABEL_JOIN:
     pthread_join(th_anno, NULL);
 
 LABEL_SHUTDOWN:
-    LOGD("shutdown...\n");
+    LOGD("shutdown: sock=%d...\n", p_conf->sock);
     retval = close(p_conf->sock);
     if (retval < 0) {
         LOGD("socket close: %s", strerror(errno));
