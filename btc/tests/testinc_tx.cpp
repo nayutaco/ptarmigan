@@ -1461,13 +1461,13 @@ TEST_F(tx, sighash_p2sh)
         0x4f, 0xa6, 0x5b, 0x2d, 0x55, 0xbf, 0x87,
     };
     const utl_buf_t spk = { (uint8_t *)SCRIPTPK0, sizeof(SCRIPTPK0) };
-    ret = btc_tx_verify_multisig(&tx, 0, txhash, BTC_VOUT2PKH_P2SH(SCRIPTPK0));
+    ret = btc_tx_verify_p2sh_multisig(&tx, 0, txhash, BTC_VOUT2PKH_P2SH(SCRIPTPK0));
     ASSERT_TRUE(ret);
-    ret = btc_tx_verify_p2sh_spk(&tx, 0, txhash, &spk);
+    ret = btc_tx_verify_p2sh_multisig_spk(&tx, 0, txhash, &spk);
     ASSERT_TRUE(ret);
-    ret = btc_tx_verify_p2sh_addr(&tx, 0, txhash, "2NFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT");
+    ret = btc_tx_verify_p2sh_multisig_addr(&tx, 0, txhash, "2NFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT");
     ASSERT_TRUE(ret);
-    ret = btc_tx_verify_p2sh_addr(&tx, 0, txhash, "2MFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT");
+    ret = btc_tx_verify_p2sh_multisig_addr(&tx, 0, txhash, "2MFV4cU7qnrXo5xtbtoQ6zPwyFzdGmzbHzT");
     ASSERT_FALSE(ret);
 
     utl_buf_free(&sig2);
@@ -1618,7 +1618,7 @@ TEST_F(tx, sighash_p2sh_ng)
         0xa7, 0x02, 0x5d, 0xd7, 0x83, 0xad, 0xc3, 0x67,
         0x4f, 0xa6, 0x5b, 0x2d, 0x55, 0xbf, 0x87,
     };
-    ret = btc_tx_verify_multisig(&tx, 0, txhash, BTC_VOUT2PKH_P2SH(SCRIPTPK0));
+    ret = btc_tx_verify_p2sh_multisig(&tx, 0, txhash, BTC_VOUT2PKH_P2SH(SCRIPTPK0));
     ASSERT_FALSE(ret);
 
     utl_buf_free(&sig2);

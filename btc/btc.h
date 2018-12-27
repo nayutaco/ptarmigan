@@ -851,7 +851,7 @@ bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTx
  * @param[in]       pPubKeyHash     PubKeyHash
  * @return      true:チェックOK
  */
-bool btc_tx_verify_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
+bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
 
 
 /** P2SH署名チェック(scriptPubKey)
@@ -862,7 +862,7 @@ bool btc_tx_verify_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHa
  * @param[in]       pScriptPk       scriptPubKey
  * @return      true:チェックOK
  */
-bool btc_tx_verify_p2sh_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
+bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 /** P2SH署名チェック(アドレス)
@@ -873,7 +873,7 @@ bool btc_tx_verify_p2sh_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHa
  * @param[in]       pAddr           Bitcoinアドレス
  * @return      true:チェックOK
  */
-bool btc_tx_verify_p2sh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
+bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
 
 
 /** 公開鍵復元
