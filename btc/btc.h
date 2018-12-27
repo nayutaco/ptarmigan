@@ -113,10 +113,11 @@ extern "C" {
                                                 //
                                                 // https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/policy/policy.cpp#L52-L55
 
-#define BTC_TX_VERSION_INIT     (2)
-#define BTC_TX_INIT             { BTC_TX_VERSION_INIT, 0, (btc_vin_t *)NULL, 0, (btc_vout_t *)NULL, 0 }
-#define BTC_TX_SEQUENCE         ((uint32_t)0xffffffff)
-#define BTC_TX_LOCKTIME_LIMIT   ((uint32_t)500000000)
+#define BTC_TX_VERSION_INIT             (2)
+#define BTC_TX_INIT                     { BTC_TX_VERSION_INIT, 0, (btc_vin_t *)NULL, 0, (btc_vout_t *)NULL, 0 }
+#define BTC_TX_SEQUENCE                 ((uint32_t)0xffffffff)
+#define BTC_TX_LOCKTIME_LIMIT           ((uint32_t)500000000)
+#define BTC_TX_PUBKEYS_PER_MULTISIG_MAX (20)
 
 #define OP_0                    (0x00)
 #define OP_HASH160              (0xa9)
@@ -124,6 +125,8 @@ extern "C" {
 #define OP_EQUALVERIFY          (0x88)
 #define OP_PUSHDATA1            (0x4c)
 #define OP_PUSHDATA2            (0x4d)
+#define OP_PUSHDATA3            (0x4e)
+#define OP_1NEGATE              (0x4f)
 #define OP_CHECKSIG             (0xac)
 #define OP_CHECKMULTISIG        (0xae)
 #define OP_CHECKLOCKTIMEVERIFY  (0xb1)
@@ -862,10 +865,10 @@ bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTx
  * @param[in]       pTx             チェック対象
  * @param[in]       Index           対象vin
  * @param[in]       pTxHash         ハッシュ値
- * @param[in]       pPubKeyHash     PubKeyHash
+ * @param[in]       pScriptHash     redeem script hash
  * @return      true:チェックOK
  */
-bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
+bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pScriptHash);
 
 
 /** P2SH署名チェック(scriptPubKey)

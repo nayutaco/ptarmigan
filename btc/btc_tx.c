@@ -51,9 +51,6 @@ typedef struct {
  * prototypes
  **************************************************************************/
 
-static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size);
-static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, const uint8_t *pPrivKey);
-static int rs_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s, unsigned char *sig, size_t *slen );
 static void tx_buf_init(tx_buf *pBuf, const uint8_t *pData, uint32_t Len);
 static const uint8_t *tx_buf_get_pos(tx_buf *pBuf);
 static bool tx_buf_read(tx_buf *pBuf, uint8_t *pData, uint32_t Len);
@@ -633,7 +630,7 @@ LABEL_EXIT:
 
 bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
 {
-    //scriptSig(P2PKH): <sig> <pubKey>
+    //scriptSig(P2PSH): <sig> <pubKey>
 
     bool ret = false;
 
@@ -710,7 +707,7 @@ bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTx
 }
 
 
-bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
+bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pScriptHash)
 {
     const utl_buf_t *p_scriptsig = (const utl_buf_t *)&(pTx->vin[Index].script);
     const uint8_t *p = p_scriptsig->buf;
@@ -790,7 +787,7 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
     //scripthashチェック
     uint8_t sh[BTC_SZ_HASH_MAX];
     btc_util_hash160(sh, p_scriptsig->buf + pubpos - 1, p_scriptsig->len - pubpos + 1);
-    bool ret = (memcmp(sh, pPubKeyHash, BTC_SZ_HASH160) == 0);
+    bool ret = (memcmp(sh, pScriptHash, BTC_SZ_HASH160) == 0);
     if (!ret) {
         LOGD("scripthash mismatch.\n");
         return false;
@@ -858,8 +855,7 @@ bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, int Index, const uint8
 {
     bool ret = false;
 
-    //P2SHのscriptPubKey
-    //  HASH160 0x14 <20 bytes> EQUAL
+    //P2SHのscriptPubKey(P2SH): HASH160 0x14 <20 bytes> EQUAL
     if (pScriptPk->len != 2 + BTC_SZ_HASH160 + 1) {
         assert(0);
         goto LABEL_EXIT;
