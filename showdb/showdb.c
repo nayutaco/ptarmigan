@@ -1014,7 +1014,7 @@ static void dumpit_version(MDB_txn *txn, MDB_dbi dbi)
 
         retval = ln_db_lmdb_get_mynodeid(txn, dbi, &version, wif, alias, &port, genesis);
         if (retval == 0) {
-            btc_util_keys_t keys;
+            btc_keys_t keys;
             btc_chain_t chain;
             btc_util_wif2keys(&keys, &chain, wif);
             // printf(INDENT2 M_QQ("wif") ": " M_QQ("%s") ",\n", wif);

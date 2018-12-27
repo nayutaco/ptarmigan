@@ -220,8 +220,8 @@ protected:
     }
 
     static ln_self_priv_t    priv_data;
-    static btc_util_keys_t keys_local_funding;
-    static btc_util_keys_t keys_local_commit;
+    static btc_keys_t keys_local_funding;
+    static btc_keys_t keys_local_commit;
     static uint8_t remote_funding_pubkey[BTC_SZ_PUBKEY];
 
     static uint64_t obscured;
@@ -245,8 +245,8 @@ public:
 };
 
 ln_self_priv_t    ln_bolt3_c::priv_data;
-btc_util_keys_t ln_bolt3_c::keys_local_funding;
-btc_util_keys_t ln_bolt3_c::keys_local_commit;
+btc_keys_t ln_bolt3_c::keys_local_funding;
+btc_keys_t ln_bolt3_c::keys_local_commit;
 uint8_t ln_bolt3_c::remote_funding_pubkey[BTC_SZ_PUBKEY];
 
 uint64_t ln_bolt3_c::obscured;

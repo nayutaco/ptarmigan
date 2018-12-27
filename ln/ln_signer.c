@@ -37,7 +37,7 @@
  **************************************************************************/
 
 static void create_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t *pPerCommitPt, uint64_t Offset);
-static void get_secret(const ln_self_t *self, btc_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
+static void get_secret(const ln_self_t *self, btc_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit);
 
 
 /**************************************************************************
@@ -109,7 +109,7 @@ void HIDDEN ln_signer_create_prev_percommitsec(const ln_self_t *self, uint8_t *p
 }
 
 
-void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, btc_util_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
+void HIDDEN ln_signer_get_revokesec(const ln_self_t *self, btc_keys_t *pKeys, const uint8_t *pPerCommit, const uint8_t *pRevokedSec)
 {
     ln_derkey_revocationprivkey(pKeys->priv,
                 self->funding_local.pubkeys[MSG_FUNDIDX_REVOCATION],
@@ -126,13 +126,13 @@ bool HIDDEN ln_signer_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const ln_se
 }
 
 
-bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_util_keys_t *pKeys)
+bool HIDDEN ln_signer_p2wsh_force(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys)
 {
     return btc_tx_sign(pSig, pTxHash, pKeys->priv);
 }
 
 
-bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_util_keys_t *pKeys)
+bool HIDDEN ln_signer_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_keys_t *pKeys)
 {
     bool ret;
     uint8_t txhash[BTC_SZ_HASH256];
@@ -163,7 +163,7 @@ bool HIDDEN ln_signer_sign_rs(uint8_t *pRS, const uint8_t *pTxHash, const ln_sel
 }
 
 
-void HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_util_keys_t *pKey, bool bRevoked)
+void HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_keys_t *pKey, bool bRevoked)
 {
     if (!bRevoked) {
         //<delayed_secretkey>
@@ -178,21 +178,21 @@ void HIDDEN ln_signer_tolocal_key(const ln_self_t *self, btc_util_keys_t *pKey, 
 }
 
 
-void HIDDEN ln_signer_toremote_key(const ln_self_t *self, btc_util_keys_t *pKey)
+void HIDDEN ln_signer_toremote_key(const ln_self_t *self, btc_keys_t *pKey)
 {
     get_secret(self, pKey, MSG_FUNDIDX_PAYMENT,
         self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 }
 
 
-void HIDDEN ln_signer_htlc_localkey(const ln_self_t *self, btc_util_keys_t *pKey)
+void HIDDEN ln_signer_htlc_localkey(const ln_self_t *self, btc_keys_t *pKey)
 {
     get_secret(self, pKey, MSG_FUNDIDX_HTLC,
         self->funding_local.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
 }
 
 
-void HIDDEN ln_signer_htlc_remotekey(const ln_self_t *self, btc_util_keys_t *pKey)
+void HIDDEN ln_signer_htlc_remotekey(const ln_self_t *self, btc_keys_t *pKey)
 {
     get_secret(self, pKey, MSG_FUNDIDX_HTLC,
         self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT]);
@@ -209,7 +209,7 @@ bool HIDDEN ln_signer_tolocal_tx(const ln_self_t *self, btc_tx_t *pTx,
         return false;
     }
 
-    btc_util_keys_t sigkey;
+    btc_keys_t sigkey;
     ln_signer_tolocal_key(self, &sigkey, bRevoked);
 
     bool ret;
@@ -251,7 +251,7 @@ static void create_percommitsec(const ln_self_t *self, uint8_t *pSecret, uint8_t
 }
 
 
-static void get_secret(const ln_self_t *self, btc_util_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
+static void get_secret(const ln_self_t *self, btc_keys_t *pKeys, int MsgFundIdx, const uint8_t *pPerCommit)
 {
     ln_derkey_privkey(pKeys->priv,
                 self->funding_local.pubkeys[MsgFundIdx],

@@ -128,11 +128,11 @@ void HIDDEN ln_script_create_tolocal(utl_buf_t *pBuf,
 
 
 bool HIDDEN ln_script_tolocal_wit(btc_tx_t *pTx,
-                    const btc_util_keys_t *pKey,
+                    const btc_keys_t *pKey,
                     const utl_buf_t *pWitScript, bool bRevoked);
 
 
-void HIDDEN ln_script_toremote_wit(btc_tx_t *pTx, const btc_util_keys_t *pKey);
+void HIDDEN ln_script_toremote_wit(btc_tx_t *pTx, const btc_keys_t *pKey);
 
 
 /** HTLC-Timeout Txの出力先スクリプト作成
@@ -277,12 +277,12 @@ void HIDDEN ln_script_htlctx_create(
 bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
                     utl_buf_t *pLocalSig,
                     uint64_t Value,
-                    const btc_util_keys_t *pKeys,
+                    const btc_keys_t *pKeys,
                     const utl_buf_t *pWitScript);
 
 bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
                     const utl_buf_t *pLocalSig,
-                    const btc_util_keys_t *pKeys,
+                    const btc_keys_t *pKeys,
                     const utl_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
                     const utl_buf_t *pWitScript,

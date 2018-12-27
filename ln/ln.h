@@ -1025,11 +1025,11 @@ typedef struct {
  *      - channel_announcementに耐えられるようにすべきだが、まだ至っていない
  */
 typedef struct {
-    uint8_t                 node_id[BTC_SZ_PUBKEY];             ///< ノードID
-    char                    alias[LN_SZ_ALIAS + 1];             ///< 名前
-    btc_keys_sort_t         sort;                               ///< 自ノードの順番
-                                                                // #BTC_KEYS_SORT_ASC : 自ノードが先
-                                                                // #BTC_KEYS_SORT_OTHER : 他ノードが先
+    uint8_t             node_id[BTC_SZ_PUBKEY];         ///< ノードID
+    char                alias[LN_SZ_ALIAS + 1];         ///< 名前
+    btc_keys_sort_t     sort;                           ///< 自ノードの順番
+                                                            // #BTC_KEYS_SORT_ASC : 自ノードが先
+                                                            // #BTC_KEYS_SORT_OTHER : 他ノードが先
 } ln_node_info_t;
 
 
@@ -1037,10 +1037,10 @@ typedef struct {
  *  @brief  ノード情報
  */
 typedef struct {
-    btc_util_keys_t             keys;                           ///< node鍵
-    uint8_t                     features;                       ///< localfeatures
-    char                        alias[LN_SZ_ALIAS + 1];         ///< ノード名(\0 terminate)
-    ln_nodeaddr_t               addr;                           ///< ノードアドレス
+    btc_keys_t          keys;                           ///< node鍵
+    uint8_t             features;                       ///< localfeatures
+    char                alias[LN_SZ_ALIAS + 1];         ///< ノード名(\0 terminate)
+    ln_nodeaddr_t       addr;                           ///< ノードアドレス
 } ln_node_t;
 
 
@@ -1048,8 +1048,8 @@ typedef struct {
  *  @brief  自ノードfunding情報
  */
 typedef struct {
-    uint8_t             txid[BTC_SZ_TXID];                      ///< funding-tx TXID
-    uint16_t            txindex;                                ///< funding-tx index
+    uint8_t             txid[BTC_SZ_TXID];              ///< funding-tx TXID
+    uint16_t            txindex;                        ///< funding-tx index
 
     //MSG_FUNDIDX_xxx
     uint8_t             pubkeys[LN_FUNDIDX_MAX][BTC_SZ_PUBKEY];         ///< 自分の公開鍵

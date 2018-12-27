@@ -130,7 +130,7 @@ void HIDDEN ln_script_create_tolocal(utl_buf_t *pBuf,
 
 
 bool HIDDEN ln_script_tolocal_wit(btc_tx_t *pTx,
-                    const btc_util_keys_t *pKey,
+                    const btc_keys_t *pKey,
                     const utl_buf_t *pWitScript, bool bRevoked)
 {
     // <delayedsig>
@@ -153,7 +153,7 @@ bool HIDDEN ln_script_tolocal_wit(btc_tx_t *pTx,
 }
 
 
-void HIDDEN ln_script_toremote_wit(btc_tx_t *pTx, const btc_util_keys_t *pKey)
+void HIDDEN ln_script_toremote_wit(btc_tx_t *pTx, const btc_keys_t *pKey)
 {
     utl_buf_t *p_wit = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * 2);
     utl_buf_alloccopy(&p_wit[0], pKey->priv, BTC_SZ_PRIVKEY);
@@ -443,7 +443,7 @@ void HIDDEN ln_script_htlctx_create(
 bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
                     utl_buf_t *pLocalSig,
                     uint64_t Value,
-                    const btc_util_keys_t *pKeys,
+                    const btc_keys_t *pKeys,
                     const utl_buf_t *pWitScript)
 {
     // https://github.com/lightningnetwork/lightning-rfc/blob/master/03-transactions.md#htlc-timeout-and-htlc-success-transactions
@@ -467,7 +467,7 @@ bool HIDDEN ln_script_htlctx_sign(btc_tx_t *pTx,
 
 bool HIDDEN ln_script_htlctx_wit(btc_tx_t *pTx,
                     const utl_buf_t *pLocalSig,
-                    const btc_util_keys_t *pKeys,
+                    const btc_keys_t *pKeys,
                     const utl_buf_t *pRemoteSig,
                     const uint8_t *pPreImage,
                     const utl_buf_t *pWitScript,
