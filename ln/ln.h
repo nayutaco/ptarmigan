@@ -949,6 +949,7 @@ typedef struct {
     uint16_t                prev_idx;               ///< self->cnl_add_htlc[idx]
     const uint8_t           *p_preimage;            ///< update_fulfill_htlcで受信したpreimage(スタック)
     uint64_t                id;                     ///< HTLC id
+    uint64_t                amount_msat;            ///< HTLC amount
 } ln_cb_fulfill_htlc_recv_t;
 
 

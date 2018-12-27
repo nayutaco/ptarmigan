@@ -152,6 +152,7 @@ bool lnapp_funding(lnapp_conf_t *pAppConf, const funding_conf_t *pFunding);
  */
 bool lnapp_payment(lnapp_conf_t *pAppConf, const payment_conf_t *pPay);
 
+
 /** [lnapp]channel間処理転送
  *
  */
