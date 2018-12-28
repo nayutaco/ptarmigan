@@ -51,6 +51,18 @@ extern "C" {
  * typedefs
  **************************************************************************/
 
+/** @typedef    ln_db_routeskip_t
+ *  @brief      result ln_db_routeskip_search()
+ */
+typedef enum {
+    LN_DB_ROUTESKIP_NONE,       ///< not found
+    LN_DB_ROUTESKIP_TEMP,       ///< found: temporary skip
+    LN_DB_ROUTESKIP_PERM,       ///< found: permanentry skip
+    LN_DB_ROUTESKIP_WORK,       ///< low priority channel
+    LN_DB_ROUTESKIP_ERROR       ///< DB error
+} ln_db_routeskip_t;
+
+
 /** @typedef    ln_db_cur_t
  *  @brief      cursorオープンするannouncement種別
  */
@@ -522,12 +534,19 @@ bool ln_db_annoinfos_del(const uint8_t *pNodeId);
 bool ln_db_routeskip_save(uint64_t ShortChannelId, bool bTemp);
 
 
+/** "routeskip" temporary skip <--> temporary work
+ * 
+ * @param[in]   bWork               true:skip-->work, false:work-->skip
+ */
+bool ln_db_routeskip_work(bool bWork);
+
+
 /** "route_skip" スキップ情報にshort_channel_idが登録されているか
  *
  * @param[in]       ShortChannelId      検索するshort_channel_id
- * @retval  true    検出
+ * @return      result
  */
-bool ln_db_routeskip_search(uint64_t ShortChannelId);
+ln_db_routeskip_t ln_db_routeskip_search(uint64_t ShortChannelId);
 
 
 /** "route_skip" DB削除

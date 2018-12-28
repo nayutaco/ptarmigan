@@ -2736,6 +2736,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_h
     ln_preimage_hash_calc(hash, p_fulfill->p_preimage);
     cmd_json_pay_result(hash, "success");
     ln_db_invoice_del(hash);
+    ln_db_routeskip_work(false);
 
     //log
     char str_payhash[BTC_SZ_HASH256 * 2 + 1];

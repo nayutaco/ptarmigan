@@ -20,7 +20,7 @@
  *  under the License.
  */
 /** @file   ln_db_lmdb.c
- *  @brief  Lightning DB保存/復元
+ *  @brief  DB access(LMDB)
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -122,8 +122,6 @@
 #define M_SZ_ONIONROUTE         (sizeof(M_KEY_ONIONROUTE) - 1)
 #define M_KEY_SHAREDSECRET      "shared_secret"
 #define M_SZ_SHAREDSECRET       (sizeof(M_KEY_SHAREDSECRET) - 1)
-
-#define M_SKIP_TEMP             ((uint8_t)1)
 
 #define M_DB_VERSION_BASE       ((int32_t)29)      ///< DBバージョン
 #ifndef USE_SPV
@@ -2334,6 +2332,8 @@ LABEL_EXIT:
 
 bool ln_db_routeskip_save(uint64_t ShortChannelId, bool bTemp)
 {
+    LOGD("short_channel_id=%016" PRIx64 ", bTemp=%d\n", ShortChannelId, bTemp);
+
     int         retval;
     MDB_txn     *txn;
     MDB_dbi     dbi;
@@ -2351,10 +2351,9 @@ bool ln_db_routeskip_save(uint64_t ShortChannelId, bool bTemp)
         goto LABEL_EXIT;
     }
 
-    //keyだけを使う
     key.mv_size = sizeof(ShortChannelId);
     key.mv_data = &ShortChannelId;
-    uint8_t data_temp = M_SKIP_TEMP;
+    uint8_t data_temp = LNDB_ROUTE_SKIP_TEMP;
     if (bTemp) {
         data.mv_size = sizeof(data_temp);
         data.mv_data = &data_temp;
@@ -2375,16 +2374,70 @@ LABEL_EXIT:
 }
 
 
+bool ln_db_routeskip_work(bool bWork)
+{
+    LOGD("bWork=%d\n", bWork);
+
+    int         retval;
+    MDB_txn     *txn;
+    MDB_dbi     dbi;
+    MDB_val     key, data;
+    MDB_cursor  *cursor;
+
+    retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        goto LABEL_EXIT;
+    }
+    retval = mdb_dbi_open(txn, M_DBI_ROUTE_SKIP, MDB_CREATE, &dbi);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+    retval = mdb_cursor_open(txn, dbi, &cursor);
+    if (retval != 0) {
+        LOGD("ERR: %s\n", mdb_strerror(retval));
+        MDB_TXN_ABORT(txn);
+        goto LABEL_EXIT;
+    }
+    while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+        const uint8_t *p_data = (const uint8_t *)data.mv_data;
+        if (data.mv_size == sizeof(uint8_t)) {
+            uint64_t short_channel_id = *(uint64_t *)key.mv_data;
+            if (bWork && (p_data[0] == LNDB_ROUTE_SKIP_TEMP)) {
+                LOGD("TEMP-->WORK: %016" PRIx64 "\n", short_channel_id);
+                uint8_t wk = LNDB_ROUTE_SKIP_WORK;
+                data.mv_data = &wk;
+                (void)mdb_cursor_put(cursor, &key, &data, 0);
+            } else if (!bWork && (p_data[0] == LNDB_ROUTE_SKIP_WORK)) {
+                LOGD("WORK-->TEMP: %016" PRIx64 "\n", short_channel_id);
+                uint8_t wk = LNDB_ROUTE_SKIP_TEMP;
+                data.mv_data = &wk;
+                (void)mdb_put(txn, dbi, &key, &data, 0);
+            }
+        }
+    }
+    retval = 0;
+
+    MDB_TXN_COMMIT(txn);
+
+LABEL_EXIT:
+    return retval == 0;
+}
+
+
 /* open DB cursor(M_DBI_ROUTE_SKIP)
  *
  *  dbi: "route_skip"
  */
-bool ln_db_routeskip_search(uint64_t ShortChannelId)
+ln_db_routeskip_t ln_db_routeskip_search(uint64_t ShortChannelId)
 {
+    ln_db_routeskip_t result = LN_DB_ROUTESKIP_ERROR;
     int         retval;
     MDB_txn     *txn;
     MDB_dbi     dbi;
-    MDB_val key, data;
+    MDB_val     key, data;
 
     retval = MDB_TXN_BEGIN(mpDbNode, NULL, 0, &txn);
     if (retval != 0) {
@@ -2400,14 +2453,35 @@ bool ln_db_routeskip_search(uint64_t ShortChannelId)
     key.mv_size = sizeof(ShortChannelId);
     key.mv_data = &ShortChannelId;
     retval = mdb_get(txn, dbi, &key, &data);
-
-    MDB_TXN_COMMIT(txn);
+    if (retval == 0) {
+        const uint8_t *p_data = (const uint8_t *)data.mv_data;
+        if (data.mv_size == 0) {
+            result = LN_DB_ROUTESKIP_PERM;
+        } else if (data.mv_size == sizeof(uint8_t)) {
+            switch (p_data[0]) {
+            case LNDB_ROUTE_SKIP_TEMP:
+                result = LN_DB_ROUTESKIP_TEMP;
+                break;
+            case LNDB_ROUTE_SKIP_WORK:
+                result = LN_DB_ROUTESKIP_WORK;
+                break;
+            default:
+                LOGE("fail: unknown value: %02x\n", p_data[0]);
+                break;
+            }
+        } else {
+            LOGE("fail\n");
+        }
+    } else {
+        result = LN_DB_ROUTESKIP_NONE;
+    }
+    MDB_TXN_ABORT(txn);
 
 LABEL_EXIT:
     if ((retval != 0) && (retval != MDB_NOTFOUND)) {
         LOGD("fail: %s\n", mdb_strerror(retval));
     }
-    return retval == 0;
+    return result;
 }
 
 
@@ -2443,16 +2517,17 @@ bool ln_db_routeskip_drop(bool bTemp)
             LOGD("ERR: %s\n", mdb_strerror(retval));
         }
         while ((retval = mdb_cursor_get(cursor, &key, &data, MDB_NEXT)) == 0) {
+            const uint8_t *p_data = (const uint8_t *)data.mv_data;
             if ( (data.mv_size == sizeof(uint8_t)) &&
-                 (*(uint8_t *)data.mv_data == M_SKIP_TEMP) ) {
-                    int ret = mdb_cursor_del(cursor, 0);
-                    if (ret == 0) {
-                        uint64_t val;
-                        memcpy(&val, key.mv_data, sizeof(uint64_t));
-                        LOGD("del skip: %016" PRIx64 "\n", val);
-                    } else {
-                        LOGD("ERR: %s\n", mdb_strerror(ret));
-                    }
+                 (p_data[0] == LNDB_ROUTE_SKIP_TEMP) ) {
+                int ret = mdb_cursor_del(cursor, 0);
+                if (ret == 0) {
+                    uint64_t val;
+                    memcpy(&val, key.mv_data, sizeof(uint64_t));
+                    LOGD("del skip: %016" PRIx64 "\n", val);
+                } else {
+                    LOGD("ERR: %s\n", mdb_strerror(ret));
+                }
             }
         }
         retval = 0;
