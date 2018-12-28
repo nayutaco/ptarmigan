@@ -297,12 +297,12 @@ static void add_rfield(
         const ln_fieldr_t *pAddRoute,
         int AddNum)
 {
-    int node_num = p_result->node_num;
-    p_result->node_num += AddNum;
-    p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_result->p_nodes, sizeof(nodes_t) * p_result->node_num);
+    //AddNum追加で確保しておく(少ない場合は後で減らす)
+    p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_result->p_nodes, sizeof(nodes_t) * (p_result->node_num + AddNum));
 
+    int count = 0;
     for (uint8_t lp = 0; lp < AddNum; lp++) {
-        nodes_t *p_nodes = &p_result->p_nodes[node_num];
+        nodes_t *p_nodes = &p_result->p_nodes[p_result->node_num + count];
 
         ln_db_routeskip_t rskip = ln_db_routeskip_search(pAddRoute[lp].short_channel_id);
         if ((rskip != LN_DB_ROUTESKIP_NONE) && (rskip != LN_DB_ROUTESKIP_WORK)) {
@@ -323,13 +323,19 @@ static void add_rfield(
         p_nodes->ninfo[dir].cltv_expiry_delta = pAddRoute[lp].cltv_expiry_delta;
         p_nodes->ninfo[dir].htlc_minimum_msat = 0;
         p_nodes->ninfo[dir].routeskip = rskip;
-        node_num++;
+        count++;
 
-        M_DBGLOG("  [add]short_channel_id=%016" PRIx64 "\n", pAddRoute[lp].short_channel_id);
+        M_DBGLOG("  [add]short_channel_id=%016" PRIx64 "\n", p_nodes->short_channel_id);
         M_DBGLOG("  [add]  [1]");
-        M_DBGDUMP(p1, BTC_SZ_PUBKEY);
+        M_DBGDUMP(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
         M_DBGLOG("  [add]  [2]");
-        M_DBGDUMP(p2, BTC_SZ_PUBKEY);
+        M_DBGDUMP(p_nodes->ninfo[1].node_id, BTC_SZ_PUBKEY);
+    }
+
+    p_result->node_num += count;
+    if (count != AddNum) {
+        //減らす
+        p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_result->p_nodes, sizeof(nodes_t) * p_result->node_num);
     }
 }
 
