@@ -115,7 +115,6 @@ static void optfunc_erase(int *pOption, bool *pConn);
 static void optfunc_listinvoice(int *pOption, bool *pConn);
 static void optfunc_payment(int *pOption, bool *pConn);
 static void optfunc_routepay(int *pOption, bool *pConn);
-static void optfunc_routepay_prevskip(int *pOption, bool *pConn);
 static void optfunc_close(int *pOption, bool *pConn);
 static void optfunc_getlasterr(int *pOption, bool *pConn);
 static void optfunc_debug(int *pOption, bool *pConn);
@@ -131,7 +130,7 @@ static void optfunc_initroutesync(int *pOption, bool *pConn);
 
 static void connect_rpc(void);
 static void stop_rpc(void);
-static void routepay(int *pOption, bool bPrevSkip);
+static void routepay(int *pOption);
 
 static int msg_send(char *pRecv, const char *pSend, const char *pAddr, uint16_t Port, bool bSend);
 
@@ -153,7 +152,6 @@ static const struct {
     { 'm', optfunc_listinvoice },
     { 'p', optfunc_payment },
     { 'r', optfunc_routepay },
-    { 'R', optfunc_routepay_prevskip },
     { 'x', optfunc_close },
     { 'w', optfunc_getlasterr },
     { 'g', optfunc_getcommittx },
@@ -236,7 +234,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\t\t-e PAYMENT_HASH : erase payment_hash\n");
         fprintf(stderr, "\t\t-e ALL : erase all payment_hash\n");
         fprintf(stderr, "\t\t-r BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment(don't put a space before or after the comma)\n");
-        fprintf(stderr, "\t\t-R BOLT#11_INVOICE[,ADDITIONAL AMOUNT_MSAT] : payment keep prev skip channel(don't put a space before or after the comma)\n");
         fprintf(stderr, "\t\t-m : show payment_hashs\n");
         fprintf(stderr, "\n");
 
@@ -612,8 +609,6 @@ static void optfunc_payment(int *pOption, bool *pConn)
 
 
 /* BOLT#11 invoiceによる支払い
- *
- *  前回skipしたshort_channel_idをクリアする
  */
 static void optfunc_routepay(int *pOption, bool *pConn)
 {
@@ -621,21 +616,7 @@ static void optfunc_routepay(int *pOption, bool *pConn)
 
     M_CHK_INIT
 
-    routepay(pOption, false);
-}
-
-
-/* BOLT#11 invoiceによる支払い
- *
- *  前回skipしたshort_channel_idをクリアしない
- */
-static void optfunc_routepay_prevskip(int *pOption, bool *pConn)
-{
-    (void)pConn;
-
-    M_CHK_INIT
-
-    routepay(pOption, true);
+    routepay(pOption);
 }
 
 
@@ -935,9 +916,8 @@ static void stop_rpc(void)
 
 /**
  *  @param[out]     pOption
- *  @param[in]      bPrevSkip       true:前回skipしたshort_channel_idを維持する
  */
-static void routepay(int *pOption, bool bPrevSkip)
+static void routepay(int *pOption)
 {
     const char *invoice = strtok(optarg, ",");
     const char *add_amount_str = strtok(NULL, ",");
@@ -1015,19 +995,12 @@ static void routepay(int *pOption, bool bPrevSkip)
     }
 
     if (*pOption != M_OPTIONS_ERR) {
-        const char *p_method;
-        if (bPrevSkip) {
-            p_method = "routepay_cont";
-        } else {
-            p_method = "routepay";
-        }
         snprintf(mBuf, BUFFER_SIZE,
             "{"
-                M_STR("method", "%s") M_NEXT
+                M_STR("method", "routepay") M_NEXT
                 M_QQ("params") ":[ "
                     //bolt11, add_amount_msat
                     M_QQ("%s") ",%" PRIu64 "]}",
-                p_method,
                 invoice, add_amount_msat);
 
         *pOption = M_OPTIONS_EXEC;

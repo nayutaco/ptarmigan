@@ -2125,10 +2125,7 @@ static void recv_idle_proc_final(ln_self_t *self)
                     }
 
                     if (p_htlc->prev_short_channel_id == 0) {
-                        if (p_htlc->stat.flag.delhtlc == LN_DELHTLC_FULFILL) {
-                            //成功
-                            ln_db_invoice_del(p_htlc->payment_sha256);
-                        } else {
+                        if (p_htlc->stat.flag.delhtlc != LN_DELHTLC_FULFILL) {
                             //origin nodeで失敗 --> 送金の再送
                             (*self->p_callback)(self, LN_CB_PAYMENT_RETRY, p_htlc->payment_sha256);
                         }

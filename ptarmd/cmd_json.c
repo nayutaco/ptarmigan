@@ -102,8 +102,8 @@ static cJSON *cmd_invoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_eraseinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_listinvoice(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_paytest(jrpc_context *ctx, cJSON *params, cJSON *id);
-static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id);
+static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_close(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_getlasterror(jrpc_context *ctx, cJSON *params, cJSON *id);
 static cJSON *cmd_debug(jrpc_context *ctx, cJSON *params, cJSON *id);
@@ -185,8 +185,8 @@ void cmd_json_start(uint16_t Port)
     jrpc_register_procedure(&mJrpc, cmd_eraseinvoice,"eraseinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_listinvoice, "listinvoice", NULL);
     jrpc_register_procedure(&mJrpc, cmd_paytest,     "PAY", NULL);
-    jrpc_register_procedure(&mJrpc, cmd_routepay_first, "routepay", NULL);
-    jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay_cont", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_routepay,    "routepay", NULL);
+    jrpc_register_procedure(&mJrpc, cmd_routepay_cont,  "_routepay_cont", NULL);
     jrpc_register_procedure(&mJrpc, cmd_close,       "close", NULL);
     jrpc_register_procedure(&mJrpc, cmd_getlasterror,"getlasterror", NULL);
     jrpc_register_procedure(&mJrpc, cmd_debug,       "debug", NULL);
@@ -248,7 +248,7 @@ int cmd_json_pay(const char *pInvoice, uint64_t AddAmountMsat)
     LOGD("invoice:%s\n", pInvoice);
     char *json = (char *)UTL_DBG_MALLOC(M_SZ_JSONSTR);      //UTL_DBG_FREE: この中
     snprintf(json, M_SZ_JSONSTR,
-        "{\"method\":\"routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", pInvoice, AddAmountMsat);
+        "{\"method\":\"_routepay_cont\",\"params\":[\"%s\",%" PRIu64 "]}", pInvoice, AddAmountMsat);
     int retval = send_json(json, "127.0.0.1", mJrpc.port_number);
     LOGD("retval=%d\n", retval);
     UTL_DBG_FREE(json);     //UTL_DBG_MALLOC: この中
@@ -894,24 +894,24 @@ LABEL_EXIT:
  *
  * 一時ルーティング除外リストをクリアしてから送金する
  */
-static cJSON *cmd_routepay_first(jrpc_context *ctx, cJSON *params, cJSON *id)
+static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
-    LOGD("$$$ [JSONRPC]routepay_first\n");
+    LOGD("$$$ [JSONRPC]routepay\n");
 
-    ln_db_routeskip_drop(true);
+    ln_db_routeskip_work(true);
     mPayTryCount = 0;
-    return cmd_routepay(ctx, params, id);
+    return cmd_routepay_cont(ctx, params, id);
 }
 
 
 /** 送金・再送金: ptarmcli -r / -R
  *
  */
-static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
+static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id)
 {
     (void)id;
 
-    LOGD("$$$ [JSONRPC]routepay\n");
+    LOGD("$$$ [JSONRPC]routepay_cont\n");
 
     bool ret;
     int32_t blockcnt;
@@ -974,10 +974,9 @@ LABEL_EXIT:
     if (err == 0) {
         result = cJSON_CreateString("start payment");
     } else {
-        ln_db_routeskip_save(rt_ret.hop_datain[0].short_channel_id, true);
-
         if (retry) {
             LOGD("retry: skip %016" PRIx64 "\n", rt_ret.hop_datain[0].short_channel_id);
+            ln_db_routeskip_save(rt_ret.hop_datain[0].short_channel_id, true);
             cmd_json_pay(p_invoice, add_amount_msat);
         } else {
             //送金失敗
@@ -985,6 +984,7 @@ LABEL_EXIT:
             ctx->error_message = ptarmd_error_str(err);
 
             ln_db_invoice_del(p_invoice_data->payment_hash);
+            ln_db_routeskip_work(false);
 
             //log
             char str_payhash[BTC_SZ_HASH256 * 2 + 1];

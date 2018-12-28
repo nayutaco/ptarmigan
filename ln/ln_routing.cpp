@@ -58,10 +58,18 @@ using namespace boost;
 
 #if 1
 #define M_DBGLOG(...)
-#define M_DBGDUMPG(...)
+#define M_DBGDUMP(...)
 #else
 #define M_DBGLOG                            LOGD
-#define M_DBGDUMPG                          DUMPD
+#define M_DBGDUMP                           DUMPD
+#endif
+
+#if 1
+#define M_DBGLOGV(...)
+#define M_DBGDUMPV(...)
+#else
+#define M_DBGLOGV                           LOGD
+#define M_DBGDUMPV                          DUMPD
 #endif
 
 
@@ -85,6 +93,7 @@ struct Fee {
     uint32_t    fee_base_msat;
     uint32_t    fee_prop_millionths;
     uint16_t    cltv_expiry_delta;
+    uint64_t    weight;
     const uint8_t   *node_id;
 };
 
@@ -106,6 +115,7 @@ struct nodes_t {
         uint64_t    htlc_minimum_msat;
         uint32_t    fee_base_msat;
         uint32_t    fee_prop_millionths;
+        ln_db_routeskip_t   routeskip;              //ln_db_routeskip_search()
     } ninfo[2];         //[0]channel_updateのdir0, [1]channel_updateのdir1
 };
 
@@ -150,7 +160,7 @@ static uint64_t edgefee(uint64_t amtmsat, uint32_t fee_base_msat, uint32_t fee_p
 }
 
 
-static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_buf)
+static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_buf, ln_db_routeskip_t rskip)
 {
     nodes_t *p_nodes;
 
@@ -176,15 +186,17 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
                             p_nodes->ninfo[0].node_id,
                             p_nodes->ninfo[1].node_id,
                             p_buf->buf, p_buf->len);
+        p_nodes->ninfo[0].routeskip = rskip;
+        p_nodes->ninfo[1].routeskip = rskip;
         p_nodes->ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
         p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定判定用
 
-        M_DBGLOG("[cnl]nodenum=%d\n", p_result->node_num);
-        M_DBGLOG("[cnl]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
-        M_DBGLOG("[cnl]node1= ");
-        M_DBGDUMPG(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
-        M_DBGLOG("[cnl]node2= ");
-        M_DBGDUMPG(p_nodes->ninfo[1].node_id, BTC_SZ_PUBKEY);
+        M_DBGLOGV("[cnl]nodenum=%d\n", p_result->node_num);
+        M_DBGLOGV("[cnl]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
+        M_DBGLOGV("[cnl]node1= ");
+        M_DBGDUMPV(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
+        M_DBGLOGV("[cnl]node2= ");
+        M_DBGDUMPV(p_nodes->ninfo[1].node_id, BTC_SZ_PUBKEY);
         break;
     case LN_DB_CNLANNO_UPD1:
     case LN_DB_CNLANNO_UPD2:
@@ -202,20 +214,21 @@ static void dumpit_chan(nodes_result_t *p_result, char type, const utl_buf_t *p_
                     p_nodes->ninfo[idx].fee_base_msat = upd.fee_base_msat;
                     p_nodes->ninfo[idx].fee_prop_millionths = upd.fee_prop_millionths;
 
-                    M_DBGLOG("[upd]nodenum=%d\n", p_result->node_num);
-                    M_DBGLOG("[upd]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
-                    M_DBGLOG("[upd]node1= ");
-                    M_DBGDUMPG(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
-                    M_DBGLOG("[upd]node2= ");
-                    M_DBGDUMPG(p_nodes->ninfo[1].node_id, BTC_SZ_PUBKEY);
+                    M_DBGLOGV("[upd]nodenum=%d\n", p_result->node_num);
+                    M_DBGLOGV("[upd]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
+                    M_DBGLOGV("[upd]node1= ");
+                    M_DBGDUMPV(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
+                    M_DBGLOGV("[upd]node2= ");
+                    M_DBGDUMPV(p_nodes->ninfo[1].node_id, BTC_SZ_PUBKEY);
+                } else {
+                    M_DBGLOG("short_channel_id not match(%016" PRIx64 " !=%016" PRIx64 ")\n", p_nodes->short_channel_id, upd.short_channel_id);
                 }
             } else {
                 //disableの場合は、対象外にされるよう初期値にしておく
-                M_DBGLOG("[upd]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
-                M_DBGLOG("[upd]skip[%c]\n", type);
+                M_DBGLOGV("[upd]short_channel_id: %016" PRIx64 "\n", p_nodes->short_channel_id);
+                M_DBGLOGV("[upd]skip[%c]\n", type);
                 p_nodes->ninfo[idx].cltv_expiry_delta = M_CLTV_INIT;
             }
-
         }
         break;
     default:
@@ -229,17 +242,15 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
 {
     (void)p_db_param;
 
-    bool bret;
     param_self_t *p_prm_self = (param_self_t *)p_param;
 
     M_DBGLOG("self: short_channel_id=%016" PRIx64 "\n", self->short_channel_id);
     M_DBGLOG("      status=%d\n", ln_status_get(self));
     if ((self->short_channel_id != 0) && (ln_status_get(self) == LN_STATUS_NORMAL)) {
         //チャネルは開設している && normal operation
-        bret = ln_db_routeskip_search(self->short_channel_id);
-        if (bret) {
-            //skip DBに載っているchannelは使用しない
-            M_DBGLOG("skip DB\n");
+        ln_db_routeskip_t rskip = ln_db_routeskip_search(self->short_channel_id);
+        if ((rskip != LN_DB_ROUTESKIP_NONE) && (rskip != LN_DB_ROUTESKIP_WORK)) {
+            M_DBGLOG("skip DB: %016" PRIx64 "\n", self->short_channel_id);
             return false;
         }
 
@@ -262,19 +273,70 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
             p_nodes_result->ninfo[lp].htlc_minimum_msat = 0;
             p_nodes_result->ninfo[lp].fee_base_msat = 0;
             p_nodes_result->ninfo[lp].fee_prop_millionths = 0;
+            p_nodes_result->ninfo[lp].routeskip = rskip;
         }
 
-        M_DBGLOG("[self]nodenum=%d\n",  p_prm_self->p_result->node_num);
-        M_DBGLOG("[self]short_channel_id: %016" PRIx64 "\n", self->short_channel_id);
-        M_DBGLOG("[self]p_payer= ");
-        M_DBGDUMPG(p_prm_self->p_payer, BTC_SZ_PUBKEY);
-        M_DBGLOG("[self]self->peer_node_id= ");
-        M_DBGDUMPG(self->peer_node_id, BTC_SZ_PUBKEY);
+        M_DBGLOGV("[self]nodenum=%d\n",  p_prm_self->p_result->node_num);
+        M_DBGLOGV("[self]short_channel_id: %016" PRIx64 "\n", self->short_channel_id);
+        M_DBGLOGV("[self]p_payer= ");
+        M_DBGDUMPV(p_prm_self->p_payer, BTC_SZ_PUBKEY);
+        M_DBGLOGV("[self]self->peer_node_id= ");
+        M_DBGDUMPV(self->peer_node_id, BTC_SZ_PUBKEY);
     } else {
         M_DBGLOG("skip\n");
     }
 
     return false;   //false=検索継続
+}
+
+
+//r-filedの追加
+static void add_rfield(
+        nodes_result_t *p_result,
+        const uint8_t *pPayeeId,
+        const ln_fieldr_t *pAddRoute,
+        int AddNum)
+{
+    //AddNum追加で確保しておく(少ない場合は後で減らす)
+    p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_result->p_nodes, sizeof(nodes_t) * (p_result->node_num + AddNum));
+
+    int count = 0;
+    for (uint8_t lp = 0; lp < AddNum; lp++) {
+        nodes_t *p_nodes = &p_result->p_nodes[p_result->node_num + count];
+
+        ln_db_routeskip_t rskip = ln_db_routeskip_search(pAddRoute[lp].short_channel_id);
+        if ((rskip != LN_DB_ROUTESKIP_NONE) && (rskip != LN_DB_ROUTESKIP_WORK)) {
+            M_DBGLOG("skip DB: %016" PRIx64 "\n", pAddRoute[lp].short_channel_id);
+            continue;
+        }
+
+        // add_node(0) --> payee(1)
+        p_nodes->short_channel_id = pAddRoute[lp].short_channel_id;
+        const uint8_t *p1, *p2;
+        int dir = direction(&p1, &p2, pAddRoute[lp].node_id, pPayeeId);
+        memcpy(p_nodes->ninfo[0].node_id, p1, BTC_SZ_PUBKEY);
+        memcpy(p_nodes->ninfo[1].node_id, p2, BTC_SZ_PUBKEY);
+        p_nodes->ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定
+        p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定
+        p_nodes->ninfo[dir].fee_base_msat = pAddRoute[lp].fee_base_msat;
+        p_nodes->ninfo[dir].fee_prop_millionths = pAddRoute[lp].fee_prop_millionths;
+        p_nodes->ninfo[dir].cltv_expiry_delta = pAddRoute[lp].cltv_expiry_delta;
+        p_nodes->ninfo[dir].htlc_minimum_msat = 0;
+        p_nodes->ninfo[dir].routeskip = rskip;
+        count++;
+
+        M_DBGLOG("  [add]short_channel_id=%016" PRIx64 "\n", p_nodes->short_channel_id);
+        M_DBGLOG("  [add]  [1]");
+        M_DBGDUMP(p_nodes->ninfo[0].node_id, BTC_SZ_PUBKEY);
+        M_DBGLOG("  [add]  [2]");
+        M_DBGDUMP(p_nodes->ninfo[1].node_id, BTC_SZ_PUBKEY);
+    }
+
+    p_result->node_num += count;
+    if (count != AddNum) {
+        //減らす
+        p_result->p_nodes = (nodes_t *)UTL_DBG_REALLOC(p_result->p_nodes, sizeof(nodes_t) * p_result->node_num);
+    }
 }
 
 
@@ -284,7 +346,6 @@ static bool comp_func_self(ln_self_t *self, void *p_db_param, void *p_param)
 static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 {
     int ret;
-    bool bret;
 
     //self
     param_self_t prm_self;
@@ -299,6 +360,7 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
     ret = ln_db_anno_transaction();
     if (!ret) {
         //channel_announcementを1回も受信せずにDBが存在しない場合もあるため、trueで返す
+        LOGD("fail: no announce DB\n");
         return true;
     }
 
@@ -309,16 +371,18 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
         utl_buf_t buf_cnl = UTL_BUF_INIT;
 
         while ((ret = ln_db_annocnl_cur_get(p_cur, &short_channel_id, &type, NULL, &buf_cnl))) {
-            bret = ln_db_routeskip_search(short_channel_id);
-            if (bret) {
+            ln_db_routeskip_t rskip = ln_db_routeskip_search(short_channel_id);
+            if ((rskip != LN_DB_ROUTESKIP_NONE) && (rskip != LN_DB_ROUTESKIP_WORK)) {
                 M_DBGLOG("skip DB: %016" PRIx64 "\n", short_channel_id);
                 utl_buf_free(&buf_cnl);
                 continue;
             }
 
-            dumpit_chan(p_result, type, &buf_cnl);
+            dumpit_chan(p_result, type, &buf_cnl, rskip);
             utl_buf_free(&buf_cnl);
         }
+    } else {
+        LOGE("fail: open\n");
     }
 
     ln_db_anno_commit(true);
@@ -327,25 +391,25 @@ static bool loaddb(nodes_result_t *p_result, const uint8_t *pPayerId)
 }
 
 
-static graph_t::vertex_descriptor ver_add(graph_t& g, const uint8_t *pNodeId)
+static graph_t::vertex_descriptor ver_add(graph_t& GRoute, const uint8_t *pNodeId)
 {
-    graph_t::vertex_descriptor v = static_cast<graph_t::vertex_descriptor>(-1);
+    graph_t::vertex_descriptor vtx = static_cast<graph_t::vertex_descriptor>(-1);
     bool ret = false;
 
-    std::pair<graph_t::vertex_iterator, graph_t::vertex_iterator> ver_its = vertices(g);
+    std::pair<graph_t::vertex_iterator, graph_t::vertex_iterator> ver_its = vertices(GRoute);
     for (graph_t::vertex_iterator st = ver_its.first, et = ver_its.second; st != et; st++) {
-        if (memcmp(g[*st].p_node, pNodeId, BTC_SZ_PUBKEY) == 0) {
+        if (memcmp(GRoute[*st].p_node, pNodeId, BTC_SZ_PUBKEY) == 0) {
             ret = true;
-            v = *st;
+            vtx = *st;
             break;
         }
     }
     if (!ret) {
-        v = add_vertex(g);
-        g[v].p_node = pNodeId;
+        vtx = add_vertex(GRoute);
+        GRoute[vtx].p_node = pNodeId;
     }
 
-    return v;
+    return vtx;
 }
 
 
@@ -365,51 +429,18 @@ lnerr_route_t ln_routing_calculate(
     rt_res.p_nodes = NULL;
 
     if ((pPayerId == NULL) || (pPayeeId == NULL)) {
-        LOGD("fail: null input\n");
+        LOGE("fail: null input\n");
         return LNROUTE_PARAM;
     }
 
     bool ret = loaddb(&rt_res, pPayerId);
     if (!ret) {
-        LOGD("fail: loaddb\n");
+        LOGE("fail: loaddb\n");
         return LNROUTE_LOADDB;
     }
 
     if (AddNum > 0) {
-        //r-filedの追加
-        int node_num = rt_res.node_num;
-        rt_res.node_num += AddNum;
-        rt_res.p_nodes = (nodes_t *)UTL_DBG_REALLOC(rt_res.p_nodes, sizeof(nodes_t) * rt_res.node_num);
-
-        for (uint8_t lp = 0; lp < AddNum; lp++) {
-            nodes_t *p_nodes = &rt_res.p_nodes[node_num];
-
-            bool bret = ln_db_routeskip_search(pAddRoute[lp].short_channel_id);
-            if (bret) {
-                M_DBGLOG("skip DB: %016" PRIx64 "\n", pAddRoute[lp].short_channel_id);
-                continue;
-            }
-
-            // add_node(0) --> payee(1)
-            p_nodes->short_channel_id = pAddRoute[lp].short_channel_id;
-            const uint8_t *p1, *p2;
-            int dir = direction(&p1, &p2, pAddRoute[lp].node_id, pPayeeId);
-            memcpy(p_nodes->ninfo[0].node_id, p1, BTC_SZ_PUBKEY);
-            memcpy(p_nodes->ninfo[1].node_id, p2, BTC_SZ_PUBKEY);
-            p_nodes->ninfo[0].cltv_expiry_delta = M_CLTV_INIT;     //未設定
-            p_nodes->ninfo[1].cltv_expiry_delta = M_CLTV_INIT;     //未設定
-            p_nodes->ninfo[dir].fee_base_msat = pAddRoute[lp].fee_base_msat;
-            p_nodes->ninfo[dir].fee_prop_millionths = pAddRoute[lp].fee_prop_millionths;
-            p_nodes->ninfo[dir].cltv_expiry_delta = pAddRoute[lp].cltv_expiry_delta;
-            p_nodes->ninfo[dir].htlc_minimum_msat = 0;
-            node_num++;
-
-            M_DBGLOG("  [add]short_channel_id=%016" PRIx64 "\n", pAddRoute[lp].short_channel_id);
-            M_DBGLOG("  [add]  [1]");
-            M_DBGDUMPG(p1, BTC_SZ_PUBKEY);
-            M_DBGLOG("  [add]  [2]");
-            M_DBGDUMPG(p2, BTC_SZ_PUBKEY);
-        }
+        add_rfield(&rt_res, pPayeeId, pAddRoute, AddNum);
     }
     LOGD("node_num: %d\n", rt_res.node_num);
 
@@ -418,7 +449,7 @@ lnerr_route_t ln_routing_calculate(
     LOGD("end nodeid   : ");
     DUMPD(pPayeeId, BTC_SZ_PUBKEY);
 
-    graph_t g;
+    graph_t groute;
 
     bool set_start = false;
     bool set_goal = false;
@@ -427,14 +458,14 @@ lnerr_route_t ln_routing_calculate(
 
     //Edge追加
     for (uint32_t lp = 0; lp < rt_res.node_num; lp++) {
-        M_DBGLOG("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
-        M_DBGLOG("    [1]");
-        M_DBGDUMPG(rt_res.p_nodes[lp].ninfo[0].node_id, BTC_SZ_PUBKEY);
-        M_DBGLOG("    [2]");
-        M_DBGDUMPG(rt_res.p_nodes[lp].ninfo[1].node_id, BTC_SZ_PUBKEY);
+        M_DBGLOGV("  short_channel_id=%016" PRIx64 "\n", rt_res.p_nodes[lp].short_channel_id);
+        M_DBGLOGV("    [1]");
+        M_DBGDUMPV(rt_res.p_nodes[lp].ninfo[0].node_id, BTC_SZ_PUBKEY);
+        M_DBGLOGV("    [2]");
+        M_DBGDUMPV(rt_res.p_nodes[lp].ninfo[1].node_id, BTC_SZ_PUBKEY);
 
-        graph_t::vertex_descriptor node1 = ver_add(g, rt_res.p_nodes[lp].ninfo[0].node_id);
-        graph_t::vertex_descriptor node2 = ver_add(g, rt_res.p_nodes[lp].ninfo[1].node_id);
+        graph_t::vertex_descriptor node1 = ver_add(groute, rt_res.p_nodes[lp].ninfo[0].node_id);
+        graph_t::vertex_descriptor node2 = ver_add(groute, rt_res.p_nodes[lp].ninfo[1].node_id);
 
         if (!set_start) {
             if (memcmp(rt_res.p_nodes[lp].ninfo[0].node_id, pPayerId, BTC_SZ_PUBKEY) == 0) {
@@ -461,47 +492,59 @@ lnerr_route_t ln_routing_calculate(
                 bool inserted = false;
                 graph_t::edge_descriptor e1;
 
-                boost::tie(e1, inserted) = add_edge(node1, node2, g);
-                g[e1].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
-                g[e1].fee_base_msat = rt_res.p_nodes[lp].ninfo[0].fee_base_msat;
-                g[e1].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[0].fee_prop_millionths;
-                g[e1].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[0].cltv_expiry_delta;
-                g[e1].node_id = rt_res.p_nodes[lp].ninfo[0].node_id;
+                boost::tie(e1, inserted) = add_edge(node1, node2, groute);
+                groute[e1].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
+                groute[e1].fee_base_msat = rt_res.p_nodes[lp].ninfo[0].fee_base_msat;
+                groute[e1].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[0].fee_prop_millionths;
+                groute[e1].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[0].cltv_expiry_delta;
+                groute[e1].node_id = rt_res.p_nodes[lp].ninfo[0].node_id;
+
+                groute[e1].weight = edgefee(AmountMsat, groute[e1].fee_base_msat, groute[e1].fee_prop_millionths);
+                if (rt_res.p_nodes[lp].ninfo[0].routeskip == LN_DB_ROUTESKIP_WORK) {
+                    M_DBGLOG("HEAVY1: %016" PRIx64 "\n", groute[e1].short_channel_id);
+                    groute[e1].weight *= 100;
+                }
             }
             if (rt_res.p_nodes[lp].ninfo[1].cltv_expiry_delta != M_CLTV_INIT) {
                 //channel_update2
                 bool inserted = false;
                 graph_t::edge_descriptor e2;
 
-                boost::tie(e2, inserted) = add_edge(node2, node1, g);
-                g[e2].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
-                g[e2].fee_base_msat = rt_res.p_nodes[lp].ninfo[1].fee_base_msat;
-                g[e2].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[1].fee_prop_millionths;
-                g[e2].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[1].cltv_expiry_delta;
-                g[e2].node_id = rt_res.p_nodes[lp].ninfo[1].node_id;
+                boost::tie(e2, inserted) = add_edge(node2, node1, groute);
+                groute[e2].short_channel_id = rt_res.p_nodes[lp].short_channel_id;
+                groute[e2].fee_base_msat = rt_res.p_nodes[lp].ninfo[1].fee_base_msat;
+                groute[e2].fee_prop_millionths = rt_res.p_nodes[lp].ninfo[1].fee_prop_millionths;
+                groute[e2].cltv_expiry_delta = rt_res.p_nodes[lp].ninfo[1].cltv_expiry_delta;
+                groute[e2].node_id = rt_res.p_nodes[lp].ninfo[1].node_id;
+
+                groute[e2].weight = edgefee(AmountMsat, groute[e2].fee_base_msat, groute[e2].fee_prop_millionths);
+                if (rt_res.p_nodes[lp].ninfo[1].routeskip == LN_DB_ROUTESKIP_WORK) {
+                    M_DBGLOG("HEAVY2: %016" PRIx64 "\n", groute[e2].short_channel_id);
+                    groute[e2].weight *= 100;
+                }
             }
         }
     }
 
     //LOGD("pnt_start=%d, pnt_goal=%d\n", (int)pnt_start, (int)pnt_goal);
     if (!set_start) {
-        LOGD("fail: no start node\n");
+        LOGE("fail: no start node\n");
         return LNROUTE_NOSTART;
     }
     if (!set_goal) {
-        LOGD("fail: no goal node\n");
+        LOGE("fail: no goal node\n");
         return LNROUTE_NOGOAL;
     }
 
-    std::vector<vertex_descriptor> p(num_vertices(g));      //parent
-    std::vector<int> d(num_vertices(g));
-    dijkstra_shortest_paths(g, pnt_start,
-                        weight_map(boost::get(&Fee::fee_base_msat, g)).
-                        predecessor_map(&p[0]).
-                        distance_map(&d[0]));
+    std::vector<vertex_descriptor> pt(num_vertices(groute));     //parent
+    std::vector<uint64_t> dist(num_vertices(groute));
+    dijkstra_shortest_paths(groute, pnt_start,
+                weight_map(boost::get(&Fee::weight, groute)).
+                    predecessor_map(&pt[0]).
+                        distance_map(&dist[0]));
 
-    if (p[pnt_goal] == pnt_goal) {
-        LOGD("fail: cannot find route\n");
+    if (pt[pnt_goal] == pnt_goal) {
+        LOGE("fail: cannot find route\n");
         UTL_DBG_FREE(rt_res.p_nodes);
         return LNROUTE_NOTFOUND;
     }
@@ -516,26 +559,26 @@ lnerr_route_t ln_routing_calculate(
     msat.push_front(AmountMsat);
     cltv.push_front(CltvExpiry);
 
-    for (vertex_descriptor v = pnt_goal; v != pnt_start; v = p[v]) {
+    for (vertex_descriptor vtx = pnt_goal; vtx != pnt_start; vtx = pt[vtx]) {
         bool found;
-        graph_t::edge_descriptor e;
-        boost::tie(e, found) = edge(p[v], v, g);
+        graph_t::edge_descriptor eg;
+        boost::tie(eg, found) = edge(pt[vtx], vtx, groute);
         if (!found) {
-            LOGD("not foooooooooound\n");
+            LOGE("fail: not foooooooooound\n");
             return LNROUTE_NOTFOUND;
         }
 
-        route.push_front(p[v]);
+        route.push_front(pt[vtx]);
         msat.push_front(AmountMsat);
         cltv.push_front(CltvExpiry);
 
-        AmountMsat = AmountMsat + edgefee(AmountMsat, g[e].fee_base_msat, g[e].fee_prop_millionths);
-        CltvExpiry += g[e].cltv_expiry_delta;
+        AmountMsat = AmountMsat + edgefee(AmountMsat, groute[eg].fee_base_msat, groute[eg].fee_prop_millionths);
+        CltvExpiry += groute[eg].cltv_expiry_delta;
     }
 
     if (route.size() > LN_HOP_MAX + 1) {
         //先頭に自ノードが入るため+1
-        LOGD("fail: too many hops\n");
+        LOGE("fail: too many hops\n");
         UTL_DBG_FREE(rt_res.p_nodes);
         return LNROUTE_TOOMANYHOP;
     }
@@ -545,8 +588,8 @@ lnerr_route_t ln_routing_calculate(
     const uint8_t *p_next;
 
     for (int lp = 0; lp < pResult->hop_num - 1; lp++) {
-        const uint8_t *p_now  = g[route[lp]].p_node;
-        p_next = g[route[lp + 1]].p_node;
+        const uint8_t *p_now  = groute[route[lp]].p_node;
+        p_next = groute[route[lp + 1]].p_node;
 
         const uint8_t *p_node_id1;
         const uint8_t *p_node_id2;
@@ -560,7 +603,7 @@ lnerr_route_t ln_routing_calculate(
             }
         }
         if (sci == 0) {
-            LOGD("not match!\n");
+            LOGE("not match!\n");
             return LNROUTE_NOTFOUND;
         }
 

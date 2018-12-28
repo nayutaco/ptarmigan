@@ -52,6 +52,8 @@ extern "C" {
 #define LNDBK_RLEN              (3)                     ///< [revoked]key長
 
 #define LNDB_DBI_ROUTE_SKIP     "route_skip"
+#define LNDB_ROUTE_SKIP_TEMP    ((uint8_t)1)    // 一時的にskip
+#define LNDB_ROUTE_SKIP_WORK    ((uint8_t)2)    // 一時的にrouteに含める
 
 
 /**************************************************************************

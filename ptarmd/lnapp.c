@@ -2524,9 +2524,12 @@ static bool cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t
 {
     char str_payhash[BTC_SZ_HASH256 * 2 + 1];
     utl_misc_bin2str(str_payhash, p_addhtlc->p_payment, BTC_SZ_HASH256);
+    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
+
     lnapp_save_event(NULL,
-            "payment final node: payment_hash=%s short_channel_id=%016" PRIx64,
-            str_payhash, ln_short_channel_id(p_conf->p_self));
+            "payment final node: payment_hash=%s, short_channel_id=%s",
+            str_payhash, str_sci);
     return true;
 }
 
@@ -2634,9 +2637,11 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param)
     DBGTRACE_BEGIN
 
     ln_cb_bwd_del_htlc_t *p_bwd = (ln_cb_bwd_del_htlc_t *)p_param;
+    char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
+    ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
     lnapp_save_event(NULL,
-            "delte HTLC: short_channel_id=%016" PRIx64 "fin_delhtlc=%d",
-            ln_short_channel_id(p_conf->p_self), p_bwd->fin_delhtlc);
+            "delte HTLC: short_channel_id=%s, fin_delhtlc=%d",
+            str_sci, p_bwd->fin_delhtlc);
 
     DBGTRACE_END
 }
@@ -2736,6 +2741,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_h
     ln_preimage_hash_calc(hash, p_fulfill->p_preimage);
     cmd_json_pay_result(hash, "success");
     ln_db_invoice_del(hash);
+    ln_db_routeskip_work(false);
 
     //log
     char str_payhash[BTC_SZ_HASH256 * 2 + 1];

@@ -34,8 +34,7 @@ ptarmcli [options] [JSON-RPC port number]
   * `-i AMOUNT_MSAT` : add invoice
   * `-e PAYMENT_HASH` : erase a payment_hash
   * `-e ALL` : erase all payment_hashs
-  * `-R BOLT11_INVOICE[,ADD_AMOUNT_MSAT]`  : payment with BOLT11 invoice format(keep temporary fail node list)
-  * `-r BOLT11_INVOICE[,ADD_AMOUNT_MSAT]`  : payment with BOLT11 invoice format(clear temporary fail node list)
+  * `-r BOLT11_INVOICE[,ADD_AMOUNT_MSAT]`  : payment with BOLT11 invoice format
     * `ptarmd` save fail node in DB if payment route return error for route skip.
 
 * fee

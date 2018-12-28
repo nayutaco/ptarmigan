@@ -879,7 +879,7 @@ static void dumpit_annoinfo(MDB_txn *txn, MDB_dbi dbi, ln_lmdb_dbtype_t dbtype)
 static void dumpit_routeskip(MDB_txn *txn, MDB_dbi dbi)
 {
     if (showflag == SHOW_ROUTESKIP) {
-        printf(M_QQ("skiproute") ": [\n");
+        printf(INDENT1 M_QQ("skiproute") ": [\n");
 
         MDB_cursor  *cursor;
 
@@ -899,11 +899,22 @@ static void dumpit_routeskip(MDB_txn *txn, MDB_dbi dbi)
             char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
             memcpy(&short_channel_id, key.mv_data, sizeof(short_channel_id));
             ln_short_channel_id_string(str_sci, short_channel_id);
-            printf("[" M_QQ("%s") ",", str_sci);
+            printf(INDENT2 "[" M_QQ("%s") ",", str_sci);
             if (data.mv_size == 0) {
                 printf(M_QQ("perm") "]");
-            } else if ((data.mv_size == 1) && (*(uint8_t *)data.mv_data == 0x01)) {
-                printf(M_QQ("temp") "]");
+            } else if (data.mv_size == 1) {
+                const uint8_t *p_data = (const uint8_t *)data.mv_data;
+                switch (p_data[0]) {
+                case LNDB_ROUTE_SKIP_TEMP:
+                    printf(M_QQ("temp") "]");
+                    break;
+                case LNDB_ROUTE_SKIP_WORK:
+                    printf(M_QQ("work") "]");
+                    break;
+                default:
+                    printf(M_QQ("???") "]");
+                    break;
+                }
             } else {
                 printf(M_QQ("unknown") "]");
             }
@@ -911,7 +922,7 @@ static void dumpit_routeskip(MDB_txn *txn, MDB_dbi dbi)
         }
         mdb_cursor_close(cursor);
 
-        printf("\n]");
+        printf("\n" INDENT1 "]\n");
     }
 }
 
