@@ -991,21 +991,26 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
         btc_tx_t txold = BTC_TX_INIT;
         utl_buf_t txbuf_old = UTL_BUF_INIT;
 
-        btc_tx_read(&txold, pData, Len);
-
-        bool ret = btcl_util_create_tx(&txbuf_old, &txold, false);
-        if (ret) {
-            uint32_t fmt_old = txbuf_old.len;
-            uint32_t fmt_new = Len;
-            len = (fmt_old * 3 + fmt_new + 3) / 4;
-        } else {
+        if (!btc_tx_read(&txold, pData, Len)) {
             LOGD("fail: vbyte\n");
             len = 0;
+            goto LABEL_EXIT;
         }
+
+        if (!btcl_util_create_tx(&txbuf_old, &txold, false)) {
+            LOGD("fail: vbyte\n");
+            len = 0;
+            goto LABEL_EXIT;
+        }
+
+        uint32_t fmt_old = txbuf_old.len;
+        uint32_t fmt_new = Len;
+        len = (fmt_old * 3 + fmt_new + 3) / 4;
     } else {
         len = Len;
     }
 
+LABEL_EXIT:
     LOGD("vbyte=%" PRIu32 "\n", len);
     return len;
 }
