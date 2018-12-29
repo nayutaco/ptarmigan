@@ -380,7 +380,7 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param);
  * @param[in]       pChannelId          channel_id for log filename(NULL: event.log)
  * @param[in]       pFormat             log string
  */
-void ptarm_eventlog(const uint8_t *pChannelId, const char *pFormat, ...);
+void ptarmd_eventlog(const uint8_t *pChannelId, const char *pFormat, ...);
 
 
 /** エラー文字列取得

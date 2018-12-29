@@ -995,7 +995,7 @@ LABEL_EXIT:
             utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
             sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
             LOGD("%s\n", mLastPayErr);
-            ptarm_eventlog(NULL, "payment fail: payment_hash=%s reason=%s", str_payhash, ctx->error_message);
+            ptarmd_eventlog(NULL, "payment fail: payment_hash=%s reason=%s", str_payhash, ctx->error_message);
         }
     }
     free(p_invoice_data);
@@ -1774,7 +1774,7 @@ static int cmd_routepay_proc2(
         char str_payee[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(str_payee, pInvoiceData->pubkey, BTC_SZ_PUBKEY);
 
-        ptarm_eventlog(NULL, "payment start: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
+        ptarmd_eventlog(NULL, "payment start: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
                     str_payhash, str_payee, total_amount, pInvoiceData->amount_msat);
     }
 

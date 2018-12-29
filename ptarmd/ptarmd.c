@@ -194,8 +194,8 @@ int ptarmd_start(uint16_t my_rpcport)
     pthread_create(&th_poll, NULL, &monitor_thread_start, NULL);
 
     uint64_t total_amount = ln_node_total_msat();
-    ptarm_eventlog(NULL, "----------START----------");
-    ptarm_eventlog(NULL,
+    ptarmd_eventlog(NULL, "----------START----------");
+    ptarmd_eventlog(NULL,
             "ptarmd start: total_msat=%" PRIu64, total_amount);
 
     mRunning = true;
@@ -222,7 +222,7 @@ int ptarmd_start(uint16_t my_rpcport)
 
     LOGD("end\n");
     total_amount = ln_node_total_msat();
-    ptarm_eventlog(NULL,
+    ptarmd_eventlog(NULL,
             "ptarmd end: total_msat=%" PRIu64 "\n", total_amount);
 
     btcrpc_term();
@@ -411,7 +411,7 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
 }
 
 
-void ptarm_eventlog(const uint8_t *pChannelId, const char *pFormat, ...)
+void ptarmd_eventlog(const uint8_t *pChannelId, const char *pFormat, ...)
 {
     char fname[256];
 

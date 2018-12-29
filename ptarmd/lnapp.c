@@ -365,7 +365,7 @@ LABEL_EXIT:
                     hashstr);
         ptarmd_call_script(PTARMD_EVT_PAYMENT, param);
 
-        ptarm_eventlog(ln_channel_id(pAppConf->p_self),
+        ptarmd_eventlog(ln_channel_id(pAppConf->p_self),
             "[SEND]add_htlc: HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d",
                     htlc_id,
                     pPay->hop_datain[0].amt_to_forward,
@@ -446,7 +446,7 @@ bool lnapp_close_channel(lnapp_conf_t *pAppConf)
     } else {
         p_str = "fail close: good way(local) start";
     }
-    ptarm_eventlog(ln_channel_id(p_self), p_str);
+    ptarmd_eventlog(ln_channel_id(p_self), p_str);
 
 LABEL_EXIT:
     pthread_mutex_unlock(&pAppConf->mux_self);
@@ -476,7 +476,7 @@ bool lnapp_close_channel_force(const uint8_t *pNodeId)
     }
 
     LOGD("close: bad way(local): htlc=%d\n", ln_commit_local(p_self)->htlc_num);
-    ptarm_eventlog(ln_channel_id(p_self), "close: bad way(local)");
+    ptarmd_eventlog(ln_channel_id(p_self), "close: bad way(local)");
     (void)monitor_close_unilateral_local(p_self, NULL);
     UTL_DBG_FREE(p_self);
 
@@ -508,11 +508,11 @@ bool lnapp_send_updatefee(lnapp_conf_t *pAppConf, uint32_t FeeratePerKw)
         ln_feerate_per_kw_set(p_self, FeeratePerKw);
         send_peer_noise(pAppConf, &buf_bolt);
         utl_buf_free(&buf_bolt);
-        ptarm_eventlog(ln_channel_id(p_self),
+        ptarmd_eventlog(ln_channel_id(p_self),
                 "updatefee send: %" PRIu32 " --> %" PRIu32,
                 oldrate, FeeratePerKw);
     } else {
-        ptarm_eventlog(ln_channel_id(p_self), "fail updatefee");
+        ptarmd_eventlog(ln_channel_id(p_self), "fail updatefee");
     }
 
     pthread_mutex_unlock(&pAppConf->mux_self);
@@ -1799,7 +1799,7 @@ static void poll_funding_wait(lnapp_conf_t *p_conf)
 
             char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
             ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
-            ptarm_eventlog(ln_channel_id(p_conf->p_self),
+            ptarmd_eventlog(ln_channel_id(p_conf->p_self),
                     "funding_locked: short_channel_id=%s, close_addr=%s",
                     str_sci, close_addr);
 
@@ -2260,7 +2260,7 @@ static void cb_error_recv(lnapp_conf_t *p_conf, void *p_param)
         }
     }
     set_lasterror(p_conf, RPCERR_PEER_ERROR, p_msg);
-    ptarm_eventlog(p_err->p_channel_id, "error message: %s", p_msg);
+    ptarmd_eventlog(p_err->p_channel_id, "error message: %s", p_msg);
     if (b_alloc) {
         UTL_DBG_FREE(p_msg);
     }
@@ -2357,12 +2357,12 @@ static void cb_funding_tx_wait(lnapp_conf_t *p_conf, void *p_param)
         }
         char str_peerid[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(str_peerid, ln_their_node_id(p_conf->p_self), BTC_SZ_PUBKEY);
-        ptarm_eventlog(ln_channel_id(p_conf->p_self),
+        ptarmd_eventlog(ln_channel_id(p_conf->p_self),
                 "open: funding wait start(%s): peer_id=%s",
                 p_str, str_peerid);
     } else {
         LOGE("fail: broadcast\n");
-        ptarm_eventlog(ln_channel_id(p_conf->p_self),
+        ptarmd_eventlog(ln_channel_id(p_conf->p_self),
                 "fail: broadcast funding_tx\n");
         stop_threads(p_conf);
     }
@@ -2389,7 +2389,7 @@ static void cb_funding_locked(lnapp_conf_t *p_conf, void *p_param)
         //channel establish時のfunding_locked
         char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
         ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
-        ptarm_eventlog(ln_channel_id(p_conf->p_self),
+        ptarmd_eventlog(ln_channel_id(p_conf->p_self),
                 "open: recv funding_locked short_channel_id=%s",
                 str_sci);
     }
@@ -2481,7 +2481,7 @@ static void cb_add_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
     }
     ptarmd_preimage_unlock();
 
-    ptarm_eventlog(ln_channel_id(p_conf->p_self),
+    ptarmd_eventlog(ln_channel_id(p_conf->p_self),
             "[RECV]add_htlc: %s(HTLC id=%" PRIu64 ", amount_msat=%" PRIu64 ", cltv=%d)",
                 p_stat,
                 p_addhtlc->id,
@@ -2500,7 +2500,7 @@ static bool cbsub_add_htlc_finalnode(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t
     char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
 
-    ptarm_eventlog(NULL,
+    ptarmd_eventlog(NULL,
             "payment final node: payment_hash=%s, short_channel_id=%s",
             str_payhash, str_sci);
     return true;
@@ -2561,7 +2561,7 @@ static bool cbsub_add_htlc_forward(lnapp_conf_t *p_conf, ln_cb_add_htlc_recv_t *
                     hashstr);
         ptarmd_call_script(PTARMD_EVT_FORWARD, param);
 
-        ptarm_eventlog(ln_channel_id(p_nextconf->p_self),
+        ptarmd_eventlog(ln_channel_id(p_nextconf->p_self),
             "[SEND]add_htlc: amount_msat=%" PRIu64 ", cltv=%d",
                     p_addhtlc->p_hop->amt_to_forward,
                     p_addhtlc->p_hop->outgoing_cltv_value);
@@ -2612,7 +2612,7 @@ static void cb_bwd_delhtlc_start(lnapp_conf_t *p_conf, void *p_param)
     ln_cb_bwd_del_htlc_t *p_bwd = (ln_cb_bwd_del_htlc_t *)p_param;
     char str_sci[LN_SZ_SHORTCHANNELID_STR + 1];
     ln_short_channel_id_string(str_sci, ln_short_channel_id(p_conf->p_self));
-    ptarm_eventlog(NULL,
+    ptarmd_eventlog(NULL,
             "delte HTLC: short_channel_id=%s, fin_delhtlc=%d",
             str_sci, p_bwd->fin_delhtlc);
 
@@ -2642,7 +2642,7 @@ static void cb_fulfill_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         cbsub_fulfill_originnode(p_conf, p_fulfill);
     }
 
-    ptarm_eventlog(ln_channel_id(p_conf->p_self),
+    ptarmd_eventlog(ln_channel_id(p_conf->p_self),
         "[RECV]fulfill_htlc: %s(HTLC id=%" PRIu64 ")",
                 p_stat,
                 p_fulfill->id);
@@ -2695,7 +2695,7 @@ static void cbsub_fulfill_backwind(lnapp_conf_t *p_conf, const ln_cb_fulfill_htl
                     imgstr);
         ptarmd_call_script(PTARMD_EVT_FULFILL, param);
 
-        ptarm_eventlog(ln_channel_id(p_prevconf->p_self),
+        ptarmd_eventlog(ln_channel_id(p_prevconf->p_self),
             "[SEND]fulfill_htlc: HTLC id=%" PRIu64,
                     p_fulfill->id);
     } else {
@@ -2719,7 +2719,7 @@ static void cbsub_fulfill_originnode(lnapp_conf_t *p_conf, const ln_cb_fulfill_h
     //log
     char str_payhash[BTC_SZ_HASH256 * 2 + 1];
     utl_misc_bin2str(str_payhash, hash, BTC_SZ_HASH256);
-    ptarm_eventlog(NULL, "payment fulfill[id=%" PRIu64 "]: payment_hash=%s, amount_msat=%" PRIu64, p_fulfill->id, str_payhash, p_fulfill->amount_msat);
+    ptarmd_eventlog(NULL, "payment fulfill[id=%" PRIu64 "]: payment_hash=%s, amount_msat=%" PRIu64, p_fulfill->id, str_payhash, p_fulfill->amount_msat);
 }
 
 
@@ -2745,7 +2745,7 @@ static void cb_fail_htlc_recv(lnapp_conf_t *p_conf, void *p_param)
         cbsub_fail_originnode(p_conf, p_fail);
     }
 
-    ptarm_eventlog(ln_channel_id(p_conf->p_self),
+    ptarmd_eventlog(ln_channel_id(p_conf->p_self),
         "[RECV]fail_htlc: %s(HTLC id=%" PRIu64 ")",
                 p_stat,
                 p_fail->orig_id);
@@ -2897,7 +2897,7 @@ static void cb_rev_and_ack_excg(lnapp_conf_t *p_conf, void *p_param)
 
     show_self_param(p_conf->p_self, stderr, "revoke_and_ack", __LINE__);
 
-    ptarm_eventlog(NULL, "exchanged revoke_and_ack: total_msat=%" PRIu64, total_amount);
+    ptarmd_eventlog(NULL, "exchanged revoke_and_ack: total_msat=%" PRIu64, total_amount);
 
     DBGTRACE_END
 }
@@ -2922,7 +2922,7 @@ static void cb_update_fee_recv(lnapp_conf_t *p_conf, void *p_param)
 
     uint32_t oldrate = *(const uint32_t *)p_param;
 
-    ptarm_eventlog(ln_channel_id(p_conf->p_self),
+    ptarmd_eventlog(ln_channel_id(p_conf->p_self),
             "updatefee recv: feerate_per_kw=%" PRIu32 " --> %" PRIu32,
             oldrate, ln_feerate_per_kw(p_conf->p_self));
 }
@@ -2939,7 +2939,7 @@ static void cb_shutdown_recv(lnapp_conf_t *p_conf, void *p_param)
     uint64_t commit_fee = ln_closing_signed_initfee(p_conf->p_self);
     ln_shutdown_update_fee(p_conf->p_self, commit_fee);
 
-    ptarm_eventlog(ln_channel_id(p_conf->p_self), "close: recv shutdown");
+    ptarmd_eventlog(ln_channel_id(p_conf->p_self), "close: recv shutdown");
 }
 
 
@@ -2994,7 +2994,7 @@ static void cb_closed(lnapp_conf_t *p_conf, void *p_param)
     } else {
         LOGD("DBG: no send closing_tx mode\n");
     }
-    ptarm_eventlog(ln_channel_id(p_conf->p_self), "close: good way: end");
+    ptarmd_eventlog(ln_channel_id(p_conf->p_self), "close: good way: end");
 
     DBGTRACE_END
 }
