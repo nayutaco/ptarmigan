@@ -12,6 +12,7 @@ FAKE_VOID_FUNC(monitor_set_feerate_per_kw, uint32_t);
 FAKE_VOID_FUNC(cmd_json_start, uint16_t);
 FAKE_VOID_FUNC(cmd_json_stop);
 FAKE_VOID_FUNC(ptarmd_call_script, ptarmd_event_t, const char*);
+FAKE_VOID_FUNC_VARARG(ptarmd_eventlog, const uint8_t*, const char*, ...);
 FAKE_VOID_FUNC(cmd_json_pay_result, const uint8_t*, const char*);
 FAKE_VALUE_FUNC(bool, btcrpc_init, const rpc_conf_t*);
 FAKE_VALUE_FUNC(bool, btcrpc_getblockcount, int32_t*);

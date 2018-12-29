@@ -31,14 +31,13 @@
 #include <getopt.h>
 #include <assert.h>
 
+#define LOG_TAG     "routing"
+#include "utl_log.h"
+#include "utl_misc.h"
+
 #include "ln.h"
 #include "ln_db.h"
 #include "ln_db_lmdb.h"
-
-#include "utl_misc.h"
-
-#define LOG_TAG     "routing"
-#include "utl_log.h"
 
 
 /**************************************************************************

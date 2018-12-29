@@ -28,11 +28,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "btcrpc.h"
-#include "conf.h"
-#include "ln_db.h"
+#define LOG_TAG     "ptarmd_lib"
 #include "utl_log.h"
 #include "utl_addr.h"
+
+#include "ptarmd.h"
+#include "btcrpc.h"
+#include "conf.h"
 
 
 /**************************************************************************

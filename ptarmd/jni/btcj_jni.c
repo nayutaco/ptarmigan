@@ -7,8 +7,10 @@
 #include <linux/limits.h>
 #include "btcj_jni.h"
 
+#define LOG_TAG     "btcj_jni"
+#include "utl_log.h"
+
 #include "ptarmd.h"
-#include "btc.h"
 
 
 #define M_CHECKUNSPENT_FAIL             (-1)

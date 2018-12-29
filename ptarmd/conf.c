@@ -26,9 +26,11 @@
 
 #include "inih/ini.h"
 
+#define LOG_TAG     "conf"
+#include "utl_log.h"
+
 #include "conf.h"
-#include "utl_misc.h"
-#include "ln.h"
+
 
 /**************************************************************************
  * macros

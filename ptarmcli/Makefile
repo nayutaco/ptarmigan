@@ -35,7 +35,7 @@ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-ou
 
 #sources project
 C_SOURCE_FILES += $(PRJ_PATH)/ptarmcli.c
-C_SOURCE_FILES += $(PRJ_PATH)/conf.c
+C_SOURCE_FILES += $(PRJ_PATH)/conf_cli.c
 
 #includes common to all targets
 INC_PATHS += -I$(PRJ_PATH)

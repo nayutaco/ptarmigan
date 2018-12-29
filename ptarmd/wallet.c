@@ -2,9 +2,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define LOG_TAG     "wallet"
+#include "utl_log.h"
+
+#include "ptarmd.h"
 #include "btcrpc.h"
-#include "ln.h"
-#include "ln_db.h"
 
 
 /********************************************************************

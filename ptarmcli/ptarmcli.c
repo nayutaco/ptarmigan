@@ -30,14 +30,16 @@
 
 #include <jansson.h>
 
+#define LOG_TAG     "ptarmcli"
+#include "utl_log.h"
+#include "utl_dbg.h"
 #include "utl_misc.h"
 #include "utl_time.h"
 
-#include "ptarmd.h"
-#include "ln_db.h"
-#include "ln_db_lmdb.h"
-#include "conf.h"
 #include "ln_segwit_addr.h"
+
+#include "ptarmd.h"
+#include "conf_cli.h"
 
 
 /**************************************************************************
@@ -267,7 +269,7 @@ int main(int argc, char *argv[])
     }
     uint16_t port = 0;
     if (optind == argc) {
-        if (ln_lmdb_have_dbdir()) {
+        if (ln_db_have_dbdir()) {
             char wif[BTC_SZ_WIF_STR_MAX + 1] = "";
             char alias[LN_SZ_ALIAS + 1] = "";
 

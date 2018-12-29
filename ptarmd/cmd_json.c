@@ -30,22 +30,23 @@
 #include <linux/limits.h>
 #include <assert.h>
 
+#include "jsonrpc-c.h"
+
+#define LOG_TAG     "lnapp"
+#include "utl_log.h"
 #include "utl_time.h"
 #include "utl_rng.h"
 
-#include "jsonrpc-c.h"
 #include "ln_segwit_addr.h"
 
-#include "cmd_json.h"
-#include "ln_db.h"
-#include "ln_db_lmdb.h"
+#include "ptarmd.h"
 #include "btcrpc.h"
-
 #include "p2p_svr.h"
 #include "p2p_cli.h"
 #include "lnapp.h"
 #include "monitoring.h"
 #include "wallet.h"
+#include "cmd_json.h"
 
 
 /********************************************************************
@@ -904,7 +905,7 @@ static cJSON *cmd_routepay(jrpc_context *ctx, cJSON *params, cJSON *id)
 }
 
 
-/** 送金・再送金: ptarmcli -r / -R
+/** 送金・再送金
  *
  */
 static cJSON *cmd_routepay_cont(jrpc_context *ctx, cJSON *params, cJSON *id)
@@ -985,6 +986,7 @@ LABEL_EXIT:
 
             ln_db_invoice_del(p_invoice_data->payment_hash);
             ln_db_routeskip_work(false);
+            cmd_json_pay_result(p_invoice_data->payment_hash, "give up");
 
             //log
             char str_payhash[BTC_SZ_HASH256 * 2 + 1];
@@ -993,7 +995,7 @@ LABEL_EXIT:
             utl_misc_bin2str(str_payhash, p_invoice_data->payment_hash, BTC_SZ_HASH256);
             sprintf(mLastPayErr, "[%s]fail payment: %s", utl_time_str_time(time), str_payhash);
             LOGD("%s\n", mLastPayErr);
-            lnapp_save_event(NULL, "payment fail: payment_hash=%s reason=%s", str_payhash, ctx->error_message);
+            ptarmd_eventlog(NULL, "payment fail: payment_hash=%s reason=%s", str_payhash, ctx->error_message);
         }
     }
     free(p_invoice_data);
@@ -1772,7 +1774,7 @@ static int cmd_routepay_proc2(
         char str_payee[BTC_SZ_PUBKEY * 2 + 1];
         utl_misc_bin2str(str_payee, pInvoiceData->pubkey, BTC_SZ_PUBKEY);
 
-        lnapp_save_event(NULL, "payment start: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
+        ptarmd_eventlog(NULL, "payment start: payment_hash=%s payee=%s total_msat=%" PRIu64" amount_msat=%" PRIu64,
                     str_payhash, str_payee, total_amount, pInvoiceData->amount_msat);
     }
 

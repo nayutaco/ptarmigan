@@ -30,16 +30,15 @@
 #include <pthread.h>
 #include <assert.h>
 
-#define PTARM_DEBUG_MEM
+#define LOG_TAG     "monitoring"
+#include "utl_log.h"
+
 #include "ptarmd.h"
 #include "p2p_svr.h"
 #include "p2p_cli.h"
 #include "lnapp.h"
 #include "btcrpc.h"
 #include "cmd_json.h"
-#include "utl_misc.h"
-#include "ln_db.h"
-
 #include "monitoring.h"
 
 
@@ -336,7 +335,7 @@ static bool monfunc(ln_self_t *self, void *p_db_param, void *p_param)
         ln_db_annoown_del(ln_short_channel_id(self));
         ret = ln_db_self_del_prm(self, p_db_param);
         if (ret) {
-            lnapp_save_event(ln_channel_id(self), "close: finish");
+            ptarmd_eventlog(ln_channel_id(self), "close: finish");
         } else {
             LOGD("fail: del channel: ");
             DUMPD(ln_channel_id(self), LN_SZ_CHANNEL_ID);
@@ -415,7 +414,7 @@ static bool funding_spent(ln_self_t *self, monparam_t *p_prm, void *p_db_param)
             ln_close_change_stat(self, &close_tx, p_db_param);
             stat = ln_status_get(self);
             const char *p_str = ln_status_string(self);
-            lnapp_save_event(ln_channel_id(self), "close: %s(%s)", p_str, txid_str);
+            ptarmd_eventlog(ln_channel_id(self), "close: %s(%s)", p_str, txid_str);
         }
     }
 
@@ -842,7 +841,7 @@ static bool close_revoked_first(ln_self_t *self, btc_tx_t *pTx, uint32_t confm, 
     bool save = true;
     bool ret;
 
-    lnapp_save_event(ln_channel_id(self), "close: ugly way");
+    ptarmd_eventlog(ln_channel_id(self), "close: ugly way");
 
     for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         const utl_buf_t *p_vout = ln_revoked_vout(self);

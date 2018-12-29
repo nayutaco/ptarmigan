@@ -40,10 +40,10 @@ extern "C" {
 
 
 #include "utl_misc.h"
-#define LOG_TAG "APP"
-#include "utl_log.h"
 #include "utl_dbg.h"
+
 #include "ln.h"
+#include "ln_db.h"
 
 
 /********************************************************************
@@ -177,7 +177,7 @@ typedef struct {
 /** @struct     funding_conf_t
  *  @brief      funding情報
  */
-typedef struct {
+typedef struct funding_conf_t {
     uint8_t         txid[BTC_SZ_TXID];
     int             txindex;
     uint64_t        funding_sat;
@@ -189,7 +189,7 @@ typedef struct {
 /** @struct     payment_conf_t
  *  @brief      送金情報(test用)
  */
-typedef struct {
+typedef struct payment_conf_t {
     uint8_t             payment_hash[BTC_SZ_HASH256];
     uint8_t             hop_num;
     ln_hop_datain_t     hop_datain[1 + LN_HOP_MAX];     //先頭は送信者
@@ -216,7 +216,7 @@ typedef struct {
  *  @note
  *      - #peer_conn_t と同じ構造だが、別にしておく
  */
-typedef struct {
+typedef struct peer_conf_t {
     char            ipaddr[SZ_IPV4_LEN + 1];
     uint16_t        port;
     uint8_t         node_id[BTC_SZ_PUBKEY];
@@ -373,6 +373,14 @@ const ln_establish_prm_t *ptarmd_get_establishprm(void);
  * 
  */
 void ptarmd_call_script(ptarmd_event_t event, const char *param);
+
+
+/** [lnapp]save event/channel logfile
+ *
+ * @param[in]       pChannelId          channel_id for log filename(NULL: event.log)
+ * @param[in]       pFormat             log string
+ */
+void ptarmd_eventlog(const uint8_t *pChannelId, const char *pFormat, ...);
 
 
 /** エラー文字列取得

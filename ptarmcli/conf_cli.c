@@ -26,9 +26,16 @@
 
 #include "inih/ini.h"
 
-#include "conf.h"
+#define LOG_TAG     "confcli"
+#include "utl_log.h"
+#include "utl_dbg.h"
 #include "utl_misc.h"
+
 #include "ln.h"
+
+#include "conf_cli.h"
+#include "ptarmd.h"
+
 
 /**************************************************************************
  * macros

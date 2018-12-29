@@ -45,16 +45,17 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <linux/limits.h>
 
-#include "btcrpc.h"
-#include "utl_misc.h"
-#include "ln_db.h"
+#define LOG_TAG     "ptarmd"
 #include "utl_log.h"
+#include "utl_time.h"
 
 #include "ptarmd.h"
+#include "btcrpc.h"
 #include "p2p_svr.h"
 #include "p2p_cli.h"
 #include "lnapp.h"
@@ -193,8 +194,8 @@ int ptarmd_start(uint16_t my_rpcport)
     pthread_create(&th_poll, NULL, &monitor_thread_start, NULL);
 
     uint64_t total_amount = ln_node_total_msat();
-    lnapp_save_event(NULL, "----------START----------");
-    lnapp_save_event(NULL,
+    ptarmd_eventlog(NULL, "----------START----------");
+    ptarmd_eventlog(NULL,
             "ptarmd start: total_msat=%" PRIu64, total_amount);
 
     mRunning = true;
@@ -221,7 +222,7 @@ int ptarmd_start(uint16_t my_rpcport)
 
     LOGD("end\n");
     total_amount = ln_node_total_msat();
-    lnapp_save_event(NULL,
+    ptarmd_eventlog(NULL,
             "ptarmd end: total_msat=%" PRIu64 "\n", total_amount);
 
     btcrpc_term();
@@ -406,6 +407,33 @@ void ptarmd_call_script(ptarmd_event_t event, const char *param)
         LOGD("cmdline: %s\n", cmdline);
         system(cmdline);
         UTL_DBG_FREE(cmdline);      //UTL_DBG_MALLOC: この中
+    }
+}
+
+
+void ptarmd_eventlog(const uint8_t *pChannelId, const char *pFormat, ...)
+{
+    char fname[256];
+
+    if (pChannelId != NULL) {
+        char chanid[LN_SZ_CHANNEL_ID * 2 + 1];
+        utl_misc_bin2str(chanid, pChannelId, LN_SZ_CHANNEL_ID);
+        sprintf(fname, FNAME_CHANNEL_LOG, chanid);
+    } else {
+        sprintf(fname, FNAME_EVENT_LOG);
+    }
+    FILE *fp = fopen(fname, "a");
+    if (fp != NULL) {
+        char time[UTL_SZ_TIME_FMT_STR + 1];
+        fprintf(fp, "[%s]", utl_time_str_time(time));
+
+        va_list ap;
+        va_start(ap, pFormat);
+        vfprintf(fp, pFormat, ap);
+        va_end(ap);
+
+        fprintf(fp, "\n");
+        fclose(fp);
     }
 }
 
