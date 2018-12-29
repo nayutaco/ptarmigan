@@ -62,7 +62,6 @@ static uint32_t tx_buf_remains(tx_buf *pBuf);
 static bool tx_buf_read_varint(tx_buf *pBuf, uint64_t *pValue);
 
 static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pOrgPubKey);
-static int get_varint(uint16_t *pLen, const uint8_t *pData);
 
 
 /**************************************************************************
@@ -730,9 +729,12 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
     int signum = 0;
     int sigpos = 1;     //OP_0の次
     uint32_t pos = 1;
+    uint8_t op_pushdata;
     while (pos < p_scriptsig->len) {
         uint8_t len = *(p + pos);
         if ((len == OP_PUSHDATA1) || (len == OP_PUSHDATA2)) {
+            op_pushdata = len;
+            pos++;
             break;
         }
         signum++;
@@ -742,9 +744,21 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
         LOGD("no OP_PUSHDATAx(sign)\n");
         return false;
     }
-    pos++;
     uint16_t redm_len;  //OP_PUSHDATAxの引数
-    pos += get_varint(&redm_len, p + pos);
+    if (op_pushdata == OP_PUSHDATA1) {
+        redm_len = (uint16_t)*(p + pos);
+        pos++;
+    } else if (op_pushdata == OP_PUSHDATA2) {
+        redm_len = (uint16_t)(*(p + pos) | (*(p + pos + 1) << 8));
+        pos += 2;
+    } else {
+        LOGD("no OP_PUSHDATA-1or2\n");
+        return false;
+    }
+    if (p_scriptsig->len != pos + redm_len) {
+        LOGD("invalid len\n");
+        return false;
+    }
     if (signum != (*(p + pos) - OP_x)) {
         LOGD("OP_x mismatch(sign): signum=%d, OP_x=%d\n", signum, *(p + pos) - OP_x);
         return false;
@@ -1351,34 +1365,6 @@ SKIP_LOOP:
     return bret;
 }
 
-
-/** varintのデータ長取得
- *
- * @param[out]      pPos        varint型のデータ長
- * @param[in]       pData       データ
- * @return      varint型のデータ長サイズ
- *
- * @note
- *      - #btcl_util_get_varint_len()との違いに注意すること
- *      - データ長は0xFFFFまでしか対応しない
- */
-static int get_varint(uint16_t *pLen, const uint8_t *pData)
-{
-    int retval;
-
-    //varint型は大きい数字を扱えるが、ここでは2byte長までしか対応しない
-    if (*pData < VARINT_3BYTE_MIN) {
-        //1byte
-        *pLen = (uint16_t)*pData;
-        retval = 1;
-    } else {
-        //2byte
-        *pLen = (uint16_t)(*(pData + 1) | (*(pData + 2) << 8));
-        retval = 3;
-    }
-
-    return retval;
-}
 
 static void tx_buf_init(tx_buf *pBuf, const uint8_t *pData, uint32_t Len)
 {
