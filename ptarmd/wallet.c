@@ -130,7 +130,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
         utl_buf_free(&script_code);
     }
 
-    btc_print_tx(&wallet.tx);
+    btc_tx_print(&wallet.tx);
     utl_buf_t txbuf = UTL_BUF_INIT;
     btc_tx_write(&wallet.tx, &txbuf);
     LOGD("raw=");

@@ -1484,7 +1484,7 @@ void btc_util_dumptxid(FILE *fp, const uint8_t *pTxid);
  *
  * @param[in]       pTx     表示対象
  */
-void btc_print_tx(const btc_tx_t *pTx);
+void btc_tx_print(const btc_tx_t *pTx);
 
 
 /** トランザクションの内容表示
@@ -1492,7 +1492,7 @@ void btc_print_tx(const btc_tx_t *pTx);
  * @param[in]       pData       表示対象
  * @param[in]       Len         pDatat長
  */
-void btc_print_rawtx(const uint8_t *pData, uint32_t Len);
+void btc_tx_print_raw(const uint8_t *pData, uint32_t Len);
 
 
 /** スクリプトの内容表示
@@ -1509,8 +1509,8 @@ void btc_print_script(const uint8_t *pData, uint16_t Len);
  */
 void btc_print_extendedkey(const btc_extkey_t *pEKey);
 #else
-#define btc_print_tx(...)             //nothing
-#define btc_print_rawtx(...)          //nothing
+#define btc_tx_print(...)             //nothing
+#define btc_tx_print_raw(...)          //nothing
 #define btc_print_script(...)         //nothing
 #define btc_print_extendedkey(...)    //nothing
 #endif  //PTARM_USE_PRINTFUNC

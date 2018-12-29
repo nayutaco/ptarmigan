@@ -204,10 +204,10 @@ TEST_F(sw, read_tx_p2wpkh)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(TX, txbuf.buf, sizeof(TX)));
     ASSERT_EQ(sizeof(TX), txbuf.len);
-    btc_print_rawtx(txbuf.buf, txbuf.len);
+    btc_tx_print_raw(txbuf.buf, txbuf.len);
     utl_buf_free(&txbuf);
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
     btc_tx_free(&tx);
 }
 

@@ -449,7 +449,7 @@ bool btcrpc_search_outpoint(btc_tx_t *pTx, uint32_t Blks, const uint8_t *pTxid, 
     prm.v_index = VIndex;
     call_jni(METHOD_PTARM_SEARCHOUTPOINT, &prm);
     if (prm.ret) {
-        btc_print_tx(pTx);
+        btc_tx_print(pTx);
     } else {
         LOGD_BTCFAIL("fail\n");
     }
@@ -472,7 +472,7 @@ bool btcrpc_search_vout(utl_buf_t *pTxBuf, uint32_t Blks, const utl_buf_t *pVout
         for (int lp = 0; lp < len; lp++) {
             LOGD_BTCRESULT("----[%d]----\n", lp);
             const btc_tx_t *p = (const btc_tx_t *)p_buf[lp].buf;
-            btc_print_tx(p);
+            btc_tx_print(p);
         }
     } else {
         LOGD_BTCFAIL("fail\n");

@@ -141,11 +141,11 @@
 
 #if !defined(M_DBG_VERBOSE) && !defined(PTARM_USE_PRINTFUNC)
 #define M_DBG_PRINT_TX(tx)      //NONE
-//#define M_DBG_PRINT_TX(tx)    LOGD(""); btc_print_tx(tx)
+//#define M_DBG_PRINT_TX(tx)    LOGD(""); btc_tx_print(tx)
 #define M_DBG_PRINT_TX2(tx)     //NONE
 #else
-#define M_DBG_PRINT_TX(tx)      LOGD("\n"); btc_print_tx(tx)
-#define M_DBG_PRINT_TX2(tx)     LOGD("\n"); btc_print_tx(tx)
+#define M_DBG_PRINT_TX(tx)      LOGD("\n"); btc_tx_print(tx)
+#define M_DBG_PRINT_TX2(tx)     LOGD("\n"); btc_tx_print(tx)
 #endif  //M_DBG_VERBOSE
 
 #define M_DB_SELF_SAVE(self)    { bool ret = ln_db_self_save(self); LOGD("ln_db_self_save()=%d\n", ret); }

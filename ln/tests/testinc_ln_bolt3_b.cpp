@@ -166,7 +166,7 @@ TEST_F(ln_bolt3_b, fuding3)
     //署名
     ret = btc_util_sign_p2pkh(&tx, 0, &keys);
     ASSERT_TRUE(ret);
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     const uint8_t FUNDING_TX[] = {
         0x02, 0x00, 0x00, 0x00, 0x01, 0xad, 0xbb, 0x20,

@@ -309,7 +309,7 @@ TEST_F(send, p2wsh)
     btc_tx_write(&tx, &txbuf);
     printf("tx=\n");
     send::DumpBin(txbuf.buf, txbuf.len);
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
     // txid : 623948367973c3813a4e3ed6aa3b714e7e5303a0852057f3e4ecd70c121827d8
     const uint8_t TX_SENT[] = {
         0x02, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0xeb,
