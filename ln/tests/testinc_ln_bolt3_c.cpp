@@ -819,7 +819,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -1542,7 +1542,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -2257,7 +2257,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -2916,7 +2916,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -3570,7 +3570,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -4165,7 +4165,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -4754,7 +4754,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -5288,7 +5288,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -5817,7 +5817,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -6290,7 +6290,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -6759,7 +6759,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -7055,7 +7055,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -7346,7 +7346,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 
@@ -7636,7 +7636,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     btc_tx_write(&tx, &txbuf);
     ASSERT_EQ(0, memcmp(COMMIT_TX, txbuf.buf, sizeof(COMMIT_TX)));
     ASSERT_EQ(sizeof(COMMIT_TX), txbuf.len);
-    ret = btc_tx_txid(txid_commit, &tx);
+    ret = btc_tx_txid(&tx, txid_commit);
     ASSERT_TRUE(ret);
     utl_buf_free(&txbuf);
 

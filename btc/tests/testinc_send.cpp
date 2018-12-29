@@ -129,7 +129,7 @@ TEST_F(send, p2pkh)
     ASSERT_EQ(0, memcmp(TX_SENT, txbuf.buf, sizeof(TX_SENT)));
     ASSERT_EQ(sizeof(TX_SENT), txbuf.len);
     uint8_t txid[BTC_SZ_TXID];
-    ret = btc_tx_txid(txid, &tx);
+    ret = btc_tx_txid(&tx, txid);
     send::DumpTxid(txid);
 
     utl_buf_free(&txbuf);
@@ -224,7 +224,7 @@ TEST_F(send, p2wpkh)
     ASSERT_EQ(sizeof(TX_SENT), txbuf.len);
 
     uint8_t txid[BTC_SZ_TXID];
-    ret = btc_tx_txid(txid, &tx);
+    ret = btc_tx_txid(&tx, txid);
     send::DumpTxid(txid);
 
     utl_buf_free(&txbuf);
@@ -366,7 +366,7 @@ TEST_F(send, p2wsh)
     ASSERT_EQ(sizeof(TX_SENT), txbuf.len);
 
     uint8_t txid[BTC_SZ_TXID];
-    ret = btc_tx_txid(txid, &tx);
+    ret = btc_tx_txid(&tx, txid);
     send::DumpTxid(txid);
 
     utl_buf_free(&txbuf);

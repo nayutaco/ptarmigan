@@ -1327,7 +1327,7 @@ void ln_close_change_stat(ln_self_t *self, const btc_tx_t *pCloseTx, void *pDbPa
         M_DBG_PRINT_TX(pCloseTx);
 
         uint8_t txid[BTC_SZ_TXID];
-        bool ret = btc_tx_txid(txid, pCloseTx);
+        bool ret = btc_tx_txid(pCloseTx, txid);
         if (!ret) {
             LOGD("fail: txid\n");
             return;
@@ -4245,7 +4245,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
         (*self->p_callback)(self, LN_CB_SIGN_FUNDINGTX_REQ, &sig);
         ret = sig.ret;
         if (ret) {
-            btc_tx_txid(self->funding_local.txid, &self->tx_funding);
+            btc_tx_txid(&self->tx_funding, self->funding_local.txid);
             LOGD("***** funding_tx *****\n");
             M_DBG_PRINT_TX(&self->tx_funding);
 
@@ -4378,7 +4378,7 @@ static bool create_to_local(ln_self_t *self,
         LOGD("fail\n");
     }
     if (ret) {
-        ret = btc_tx_txid(self->commit_local.txid, &tx_commit);
+        ret = btc_tx_txid(&tx_commit, self->commit_local.txid);
         LOGD("local commit_txid: ");
         TXIDD(self->commit_local.txid);
     }
@@ -4815,7 +4815,7 @@ static bool create_to_local_spenthtlc(const ln_self_t *self,
     memcpy(pCloseTxHtlc, pTxHtlc, sizeof(btc_tx_t));
 
     // HTLC Timeout/Success Txを作った場合はそれを取り戻す準備をする
-    btc_tx_txid(txid, pTxHtlc);
+    btc_tx_txid(pTxHtlc, txid);
     ret = ln_wallet_create_tolocal(self, &tx,
                 pTxHtlc->vout[0].value,
                 ToSelfDelay,
@@ -4940,7 +4940,7 @@ static bool create_to_remote(const ln_self_t *self,
         LOGD("++++++++++++++ remote commit tx: tx_commit[%016" PRIx64 "]\n", self->short_channel_id);
         M_DBG_PRINT_TX(&tx_commit);
 
-        ret = btc_tx_txid(pCommit->txid, &tx_commit);
+        ret = btc_tx_txid(&tx_commit, pCommit->txid);
         LOGD("remote commit_txid: ");
         TXIDD(pCommit->txid);
     }

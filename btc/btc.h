@@ -916,14 +916,14 @@ bool btc_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t
 
 /** TXID計算
  *
- * @param[out]  pTxId       計算結果(Little Endian)
  * @param[in]   pTx         対象トランザクション
+ * @param[out]  pTxId       計算結果(Little Endian)
  *
  * @note
  *      - pTxIdにはLittleEndianで出力される
  *      - pTxがsegwitの場合もTXIDが出力される
  */
-bool btc_tx_txid(uint8_t *pTxId, const btc_tx_t *pTx);
+bool btc_tx_txid(const btc_tx_t *pTx, uint8_t *pTxId);
 
 
 /** TXID計算(raw data)

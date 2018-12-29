@@ -793,8 +793,6 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
         return false;
     }
 
-    //pubnum中、signum分のverifyが成功すればOK
-    uint32_t chk_pos = 0;   //bitが立った公開鍵はチェック済み
     //公開鍵の重複チェック
     for (int lp = 0; lp < pubnum - 1; lp++) {
         const uint8_t *p1 = p_scriptsig->buf + pubpos + (1 + BTC_SZ_PUBKEY) * lp;
@@ -807,13 +805,18 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
             }
         }
     }
+
     //署名チェック
-    //      おそらくbitcoindでは、NG数が最短になるように配置される前提になっている。
-    //      そうするため、署名に一致する-公開鍵が見つかった場合、次はその公開鍵より後ろを検索する。
-    //          [SigA, SigB][PubA, PubB, PubC] ... OK
-    //              SigA=PubA(NG 0回), SigB=PubB(NG 0回)
-    //          [SigB, SigA][PubA, PubB, PubC] ... NG
-    //              SigB=PubB(NG 1回), SigA=none(PubC以降しか検索しないため)
+    // signum分のverifyが成功すればOK（満たした時点で抜けていい？）
+    // 許容される最大のverify失敗の数はpubnum - signum。それを即座に超えると抜けてNGとする
+    //
+    // ??? おそらくbitcoindでは、NG数が最短になるように配置される前提になっている。
+    //     そうするため、署名に一致する-公開鍵が見つかった場合、次はその公開鍵より後ろを検索する。
+    //         [SigA, SigB][PubA, PubB, PubC] ... OK
+    //             SigA=PubA(NG 0回), SigB=PubB(NG 0回)
+    //         [SigB, SigA][PubA, PubB, PubC] ... NG
+    // ???         SigB=PubB(NG 1回), SigA=none(PubC以降しか検索しないため)
+    uint32_t chk_pos = 0;   //bitが立った公開鍵はチェック済み
     int ok_cnt = 0;
     int ng_cnt = pubnum - signum;
     for (int lp = 0; lp < signum; lp++) {
@@ -915,7 +918,7 @@ bool btc_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t
 }
 
 
-bool btc_tx_txid(uint8_t *pTxId, const btc_tx_t *pTx)
+bool btc_tx_txid(const btc_tx_t *pTx, uint8_t *pTxId)
 {
     utl_buf_t txbuf;
 
@@ -999,7 +1002,7 @@ void btc_print_tx(const btc_tx_t *pTx)
 {
     LOGD2("======================================\n");
     uint8_t txid[BTC_SZ_TXID];
-    btc_tx_txid(txid, pTx);
+    btc_tx_txid(pTx, txid);
     LOGD2("txid= ");
     TXIDD(txid);
     LOGD2("======================================\n");
