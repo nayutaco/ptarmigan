@@ -27,6 +27,8 @@
 #include <pthread.h>
 #include "jansson.h"
 
+#define LOG_TAG     "btcrpc"
+#include "utl_log.h"
 #include "utl_misc.h"
 #include "utl_push.h"
 

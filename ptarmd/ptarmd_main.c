@@ -27,11 +27,13 @@
 #include <getopt.h>
 #include <signal.h>
 
-#include "btcrpc.h"
-#include "conf.h"
-#include "ln_db.h"
+#define LOG_TAG     "ptarmd_main"
 #include "utl_log.h"
 #include "utl_addr.h"
+
+#include "ptarmd.h"
+#include "conf.h"
+#include "btcrpc.h"
 
 
 /**************************************************************************

@@ -36,18 +36,21 @@
 #include <getopt.h>
 #include <assert.h>
 
+#define LOG_TAG     "showdb"
+#include "utl_log.h"
 #include "utl_time.h"
 
+
 #include "ptarmd.h"
-#include "ln_db.h"
 #include "ln_db_lmdb.h"
 
-#define M_SPOIL_STDERR
 
 
 /********************************************************************
  * macros
  ********************************************************************/
+
+#define M_SPOIL_STDERR
 
 #define M_NEXT              ","
 #define M_QQ(str)           "\"" str "\""

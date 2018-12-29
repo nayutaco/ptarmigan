@@ -677,7 +677,7 @@ void ln_lmdb_set_path(const char *pPath)
 }
 
 
-bool ln_lmdb_have_dbdir(void)
+bool ln_db_have_dbdir(void)
 {
     struct stat buf;
     int retval = stat(M_DBDIR, &buf);

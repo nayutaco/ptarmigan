@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -36,6 +37,9 @@
 #include <assert.h>
 
 #include "cJSON.h"
+
+#define LOG_TAG     "p2p_svr"
+#include "utl_log.h"
 
 #include "ptarmd.h"
 #include "p2p_svr.h"

@@ -168,6 +168,13 @@ bool ln_db_init(char *pWif, char *pNodeName, uint16_t *pPort, bool bStdErr);
 void ln_db_term(void);
 
 
+/**　DBディレクトリの存在チェック
+ *
+ * @retval  true    カレントディレクトリにDBディレクトリがある
+ */
+bool ln_db_have_dbdir(void);
+
+
 /********************************************************************
  * self
  ********************************************************************/

@@ -19,11 +19,18 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-#ifndef CONF_H__
-#define CONF_H__
+#ifndef CONF_CLI_H__
+#define CONF_CLI_H__
 
 #include <stdbool.h>
-#include "ptarmd.h"
+
+struct peer_conf_t;
+struct funding_conf_t;
+struct payment_conf_t;
+typedef struct peer_conf_t peer_conf_t;
+typedef struct funding_conf_t funding_conf_t;
+typedef struct payment_conf_t payment_conf_t;
+
 
 #ifdef __cplusplus
 extern "C" {

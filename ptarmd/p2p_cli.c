@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -37,6 +38,8 @@
 
 #include "cJSON.h"
 
+#define LOG_TAG     "p2p_cli"
+#include "utl_log.h"
 #include "utl_time.h"
 
 #include "ptarmd.h"
