@@ -368,7 +368,7 @@ TEST_F(ln_bolt3_c, committx2)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
     //dumpbin(ws_local_buf.buf, ws_local_buf.len);
     //printf("-[to-local]---------------------\n");
-    //btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+    //btc_script_print(ws_local_buf.buf, ws_local_buf.len);
     //printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -666,7 +666,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -1387,7 +1387,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -2107,7 +2107,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -2766,7 +2766,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -3425,7 +3425,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -4020,7 +4020,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -4615,7 +4615,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -5149,7 +5149,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -5683,7 +5683,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -6156,7 +6156,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -6630,7 +6630,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -6926,7 +6926,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -7223,7 +7223,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,
@@ -7513,7 +7513,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     ln_script_create_tolocal(&ws_local_buf, LOCAL_REVO_KEY, LOCAL_DELAYED_KEY, LOCAL_DELAY);
 //    dumpbin(ws_local_buf.buf, ws_local_buf.len);
 //    printf("-[to-local]---------------------\n");
-//    btc_print_script(ws_local_buf.buf, ws_local_buf.len);
+//    btc_script_print(ws_local_buf.buf, ws_local_buf.len);
 //    printf("----------------------: %d\n", ws_local_buf.len);
     const uint8_t TO_LOCAL_WSCRIPT[] = {
         0x63, 0x21, 0x02, 0x12, 0xa1, 0x40, 0xcd, 0x0c,

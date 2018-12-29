@@ -394,7 +394,7 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);
 bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
 
 
-/** Redeem ScriptをBitcoinアドレス(P2WSH or P2SH-P2WSH)に変換
+/** Witness ScriptをBitcoinアドレス(P2WSH or P2SH-P2WSH)に変換
  *
  * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_STR_MAX+1)
  * @param[in]       pRedeem         対象データ
@@ -403,7 +403,7 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
  *      - if mNativeSegwit == true then P2WSH
  *      - if mNativeSegwit == false then P2SH-P2WSH
  */
-bool btc_keys_redeem2waddr(char *pWAddr, const utl_buf_t *pRedeem);
+bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitnessScript);
 
 
 /** uncompress public key

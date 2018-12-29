@@ -293,7 +293,7 @@ TEST_F(send, p2wsh)
 
     const char ADDR_2OF2[] = "2MuuDWRBQ5KTxJzAk1qPFZfzeheLcoSu3vy";
     char addr_2of2[BTC_SZ_ADDR_STR_MAX + 1];
-    btc_keys_redeem2waddr(addr_2of2, &redeem);
+    btc_keys_wit2waddr(addr_2of2, &redeem);
     ASSERT_STREQ(ADDR_2OF2, addr_2of2);
     printf("addr 2of2= %s\n", addr_2of2);
     utl_buf_free(&redeem);

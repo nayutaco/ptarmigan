@@ -119,7 +119,7 @@ void HIDDEN ln_script_create_tolocal(utl_buf_t *pBuf,
 
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
     LOGD("script:\n");
-    btc_print_script(pBuf->buf, pBuf->len);
+    btc_script_print(pBuf->buf, pBuf->len);
     uint8_t prog[BTC_SZ_WITPROG_P2WSH];
     btc_sw_wit2prog_p2wsh(prog, pBuf);
     LOGD("vout: ");
@@ -373,7 +373,7 @@ bool HIDDEN ln_script_committx_create(
                     &pCmt->pp_htlcinfo[lp]->script);
             pTx->vout[pTx->vout_cnt - 1].opt = (uint8_t)lp;
             LOGD("scirpt.len=%d\n", pCmt->pp_htlcinfo[lp]->script.len);
-            //btc_print_script(pCmt->pp_htlcinfo[lp]->script.buf, pCmt->pp_htlcinfo[lp]->script.len);
+            //btc_script_print(pCmt->pp_htlcinfo[lp]->script.buf, pCmt->pp_htlcinfo[lp]->script.len);
         } else {
             LOGD("    [HTLC]below dust: %" PRIu64 " < %" PRIu64 "(dust_limit) + %" PRIu64 "(fee)\n", output_sat, pCmt->p_feeinfo->dust_limit_satoshi, fee);
         }
@@ -670,7 +670,7 @@ static void create_script_offered(utl_buf_t *pBuf,
 
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
     LOGD("script:\n");
-    btc_print_script(pBuf->buf, pBuf->len);
+    btc_script_print(pBuf->buf, pBuf->len);
 #endif  //M_DBG_VERBOSE
 }
 
@@ -732,7 +732,7 @@ static void create_script_received(utl_buf_t *pBuf,
 
 #if defined(M_DBG_VERBOSE) && defined(PTARM_USE_PRINTFUNC)
     LOGD("script:\n");
-    btc_print_script(pBuf->buf, pBuf->len);
+    btc_script_print(pBuf->buf, pBuf->len);
     //LOGD("revocation=");
     //DUMPD(pLocalRevoKey, BTC_SZ_PUBKEY);
 #endif  //M_DBG_VERBOSE
