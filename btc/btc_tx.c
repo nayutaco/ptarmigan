@@ -51,9 +51,6 @@ typedef struct {
  * prototypes
  **************************************************************************/
 
-static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size);
-static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, const uint8_t *pPrivKey);
-static int rs_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s, unsigned char *sig, size_t *slen );
 static void tx_buf_init(tx_buf *pBuf, const uint8_t *pData, uint32_t Len);
 static const uint8_t *tx_buf_get_pos(tx_buf *pBuf);
 static bool tx_buf_read(tx_buf *pBuf, uint8_t *pData, uint32_t Len);
@@ -65,7 +62,6 @@ static uint32_t tx_buf_remains(tx_buf *pBuf);
 static bool tx_buf_read_varint(tx_buf *pBuf, uint64_t *pValue);
 
 static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pOrgPubKey);
-static int get_varint(uint16_t *pLen, const uint8_t *pData);
 
 
 /**************************************************************************
@@ -633,7 +629,7 @@ LABEL_EXIT:
 
 bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
 {
-    //scriptSig(P2PKH): <sig> <pubKey>
+    //scriptSig(P2PSH): <sig> <pubKey>
 
     bool ret = false;
 
@@ -710,7 +706,7 @@ bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTx
 }
 
 
-bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
+bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pScriptHash)
 {
     const utl_buf_t *p_scriptsig = (const utl_buf_t *)&(pTx->vin[Index].script);
     const uint8_t *p = p_scriptsig->buf;
@@ -733,9 +729,12 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
     int signum = 0;
     int sigpos = 1;     //OP_0の次
     uint32_t pos = 1;
+    uint8_t op_pushdata;
     while (pos < p_scriptsig->len) {
         uint8_t len = *(p + pos);
         if ((len == OP_PUSHDATA1) || (len == OP_PUSHDATA2)) {
+            op_pushdata = len;
+            pos++;
             break;
         }
         signum++;
@@ -745,9 +744,21 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
         LOGD("no OP_PUSHDATAx(sign)\n");
         return false;
     }
-    pos++;
     uint16_t redm_len;  //OP_PUSHDATAxの引数
-    pos += get_varint(&redm_len, p + pos);
+    if (op_pushdata == OP_PUSHDATA1) {
+        redm_len = (uint16_t)*(p + pos);
+        pos++;
+    } else if (op_pushdata == OP_PUSHDATA2) {
+        redm_len = (uint16_t)(*(p + pos) | (*(p + pos + 1) << 8));
+        pos += 2;
+    } else {
+        LOGD("no OP_PUSHDATA-1or2\n");
+        return false;
+    }
+    if (p_scriptsig->len != pos + redm_len) {
+        LOGD("invalid len\n");
+        return false;
+    }
     if (signum != (*(p + pos) - OP_x)) {
         LOGD("OP_x mismatch(sign): signum=%d, OP_x=%d\n", signum, *(p + pos) - OP_x);
         return false;
@@ -790,14 +801,12 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
     //scripthashチェック
     uint8_t sh[BTC_SZ_HASH_MAX];
     btc_util_hash160(sh, p_scriptsig->buf + pubpos - 1, p_scriptsig->len - pubpos + 1);
-    bool ret = (memcmp(sh, pPubKeyHash, BTC_SZ_HASH160) == 0);
+    bool ret = (memcmp(sh, pScriptHash, BTC_SZ_HASH160) == 0);
     if (!ret) {
         LOGD("scripthash mismatch.\n");
         return false;
     }
 
-    //pubnum中、signum分のverifyが成功すればOK
-    uint32_t chk_pos = 0;   //bitが立った公開鍵はチェック済み
     //公開鍵の重複チェック
     for (int lp = 0; lp < pubnum - 1; lp++) {
         const uint8_t *p1 = p_scriptsig->buf + pubpos + (1 + BTC_SZ_PUBKEY) * lp;
@@ -810,13 +819,18 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
             }
         }
     }
+
     //署名チェック
-    //      おそらくbitcoindでは、NG数が最短になるように配置される前提になっている。
-    //      そうするため、署名に一致する-公開鍵が見つかった場合、次はその公開鍵より後ろを検索する。
-    //          [SigA, SigB][PubA, PubB, PubC] ... OK
-    //              SigA=PubA(NG 0回), SigB=PubB(NG 0回)
-    //          [SigB, SigA][PubA, PubB, PubC] ... NG
-    //              SigB=PubB(NG 1回), SigA=none(PubC以降しか検索しないため)
+    // signum分のverifyが成功すればOK（満たした時点で抜けていい？）
+    // 許容される最大のverify失敗の数はpubnum - signum。それを即座に超えると抜けてNGとする
+    //
+    // ??? おそらくbitcoindでは、NG数が最短になるように配置される前提になっている。
+    //     そうするため、署名に一致する-公開鍵が見つかった場合、次はその公開鍵より後ろを検索する。
+    //         [SigA, SigB][PubA, PubB, PubC] ... OK
+    //             SigA=PubA(NG 0回), SigB=PubB(NG 0回)
+    //         [SigB, SigA][PubA, PubB, PubC] ... NG
+    // ???         SigB=PubB(NG 1回), SigA=none(PubC以降しか検索しないため)
+    uint32_t chk_pos = 0;   //bitが立った公開鍵はチェック済み
     int ok_cnt = 0;
     int ng_cnt = pubnum - signum;
     for (int lp = 0; lp < signum; lp++) {
@@ -858,8 +872,7 @@ bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, int Index, const uint8
 {
     bool ret = false;
 
-    //P2SHのscriptPubKey
-    //  HASH160 0x14 <20 bytes> EQUAL
+    //P2SHのscriptPubKey(P2SH): HASH160 0x14 <20 bytes> EQUAL
     if (pScriptPk->len != 2 + BTC_SZ_HASH160 + 1) {
         assert(0);
         goto LABEL_EXIT;
@@ -919,7 +932,7 @@ bool btc_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t
 }
 
 
-bool btc_tx_txid(uint8_t *pTxId, const btc_tx_t *pTx)
+bool btc_tx_txid(const btc_tx_t *pTx, uint8_t *pTxId)
 {
     utl_buf_t txbuf;
 
@@ -978,21 +991,26 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len)
         btc_tx_t txold = BTC_TX_INIT;
         utl_buf_t txbuf_old = UTL_BUF_INIT;
 
-        btc_tx_read(&txold, pData, Len);
-
-        bool ret = btcl_util_create_tx(&txbuf_old, &txold, false);
-        if (ret) {
-            uint32_t fmt_old = txbuf_old.len;
-            uint32_t fmt_new = Len;
-            len = (fmt_old * 3 + fmt_new + 3) / 4;
-        } else {
+        if (!btc_tx_read(&txold, pData, Len)) {
             LOGD("fail: vbyte\n");
             len = 0;
+            goto LABEL_EXIT;
         }
+
+        if (!btcl_util_create_tx(&txbuf_old, &txold, false)) {
+            LOGD("fail: vbyte\n");
+            len = 0;
+            goto LABEL_EXIT;
+        }
+
+        uint32_t fmt_old = txbuf_old.len;
+        uint32_t fmt_new = Len;
+        len = (fmt_old * 3 + fmt_new + 3) / 4;
     } else {
         len = Len;
     }
 
+LABEL_EXIT:
     LOGD("vbyte=%" PRIu32 "\n", len);
     return len;
 }
@@ -1003,7 +1021,7 @@ void btc_print_tx(const btc_tx_t *pTx)
 {
     LOGD2("======================================\n");
     uint8_t txid[BTC_SZ_TXID];
-    btc_tx_txid(txid, pTx);
+    btc_tx_txid(pTx, txid);
     LOGD2("txid= ");
     TXIDD(txid);
     LOGD2("======================================\n");
@@ -1352,34 +1370,6 @@ SKIP_LOOP:
     return bret;
 }
 
-
-/** varintのデータ長取得
- *
- * @param[out]      pPos        varint型のデータ長
- * @param[in]       pData       データ
- * @return      varint型のデータ長サイズ
- *
- * @note
- *      - #btcl_util_get_varint_len()との違いに注意すること
- *      - データ長は0xFFFFまでしか対応しない
- */
-static int get_varint(uint16_t *pLen, const uint8_t *pData)
-{
-    int retval;
-
-    //varint型は大きい数字を扱えるが、ここでは2byte長までしか対応しない
-    if (*pData < VARINT_3BYTE_MIN) {
-        //1byte
-        *pLen = (uint16_t)*pData;
-        retval = 1;
-    } else {
-        //2byte
-        *pLen = (uint16_t)(*(pData + 1) | (*(pData + 2) << 8));
-        retval = 3;
-    }
-
-    return retval;
-}
 
 static void tx_buf_init(tx_buf *pBuf, const uint8_t *pData, uint32_t Len)
 {

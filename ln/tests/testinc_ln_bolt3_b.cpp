@@ -206,7 +206,7 @@ TEST_F(ln_bolt3_b, fuding3)
     utl_buf_free(&txbuf);
 
     uint8_t txid[BTC_SZ_TXID];
-    btc_tx_txid(txid, &tx);
+    btc_tx_txid(&tx, txid);
 
     const uint8_t TXID_FUND[] = {
         0xbe, 0xf6, 0x7e, 0x4e, 0x2f, 0xb9, 0xdd, 0xee,

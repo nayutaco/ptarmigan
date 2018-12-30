@@ -900,7 +900,7 @@ TEST_F(tx, read_p2pkh)
         0x8a, 0xa7, 0xe0, 0x03, 0x2b, 0x87, 0xbe, 0x2e,
     };
     uint8_t txid[BTC_SZ_TXID];
-    ret = btc_tx_txid(txid, &tx);
+    ret = btc_tx_txid(&tx, txid);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(NEW_TXID, txid, sizeof(NEW_TXID)));
 
@@ -1187,7 +1187,7 @@ TEST_F(tx, read_p2sh)
         0xda, 0xd1, 0x45, 0xc9, 0xe1, 0xa2, 0x59, 0x73,
     };
     uint8_t txid[BTC_SZ_TXID];
-    ret = btc_tx_txid(txid, &tx);
+    ret = btc_tx_txid(&tx, txid);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(NEW_TXID, txid, sizeof(NEW_TXID)));
 

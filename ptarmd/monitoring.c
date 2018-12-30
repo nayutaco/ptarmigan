@@ -237,7 +237,7 @@ bool monitor_close_unilateral_local(ln_self_t *self, void *pDbParam)
 
         //自分のtxを展開済みかチェック
         uint8_t txid[BTC_SZ_TXID];
-        btc_tx_txid(txid, p_tx);
+        btc_tx_txid(p_tx, txid);
         LOGD("txid[%d]= ", lp);
         TXIDD(txid);
         bool broad = btcrpc_is_tx_broadcasted(txid);
@@ -580,7 +580,7 @@ static bool close_unilateral_local_offered(ln_self_t *self, bool *pDel, bool spe
             if (b_get) {
                 btc_tx_t tx = BTC_TX_INIT;
                 uint8_t txid[BTC_SZ_TXID];
-                btc_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
+                btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
                 bool ret = btcrpc_search_outpoint(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
                 if (ret) {
                     //preimageを登録(自分が持っているのと同じ状態にする)
@@ -767,7 +767,7 @@ static void close_unilateral_remote_offered(ln_self_t *self, bool *pDel, ln_clos
         if (b_get) {
             btc_tx_t tx = BTC_TX_INIT;
             uint8_t txid[BTC_SZ_TXID];
-            btc_tx_txid(txid, &pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT]);
+            btc_tx_txid(&pCloseDat->p_tx[LN_CLOSE_IDX_COMMIT], txid);
             bool ret = btcrpc_search_outpoint(&tx, confm, txid, pCloseDat->p_htlc_idx[lp]);
             if (ret) {
                 //preimageを登録(自分が持っているのと同じ状態にする)
@@ -952,7 +952,7 @@ static bool close_revoked_tolocal(const ln_self_t *self, const btc_tx_t *pTx, in
 {
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
-    btc_tx_txid(txid, pTx);
+    btc_tx_txid(pTx, txid);
 
     const utl_buf_t *p_wit = ln_revoked_wit(self);
 
@@ -983,7 +983,7 @@ static bool close_revoked_toremote(const ln_self_t *self, const btc_tx_t *pTx, i
 {
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
-    btc_tx_txid(txid, pTx);
+    btc_tx_txid(pTx, txid);
 
     bool ret = ln_wallet_create_toremote(
                     self, &tx, pTx->vout[VIndex].value,
@@ -1017,7 +1017,7 @@ static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int V
 {
     btc_tx_t tx = BTC_TX_INIT;
     uint8_t txid[BTC_SZ_TXID];
-    btc_tx_txid(txid, pTx);
+    btc_tx_txid(pTx, txid);
 
     ln_revokedhtlc_create_spenttx(self, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
     btc_print_tx(&tx);
