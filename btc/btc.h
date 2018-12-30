@@ -210,7 +210,7 @@ typedef enum {
 } btc_chain_t;
 
 
-/** @enum   btc_txvalid_t
+/** @enum   btc_tx_valid_t
  *  @brief  #btc_tx_is_valid()
  */
 typedef enum {
@@ -225,7 +225,7 @@ typedef enum {
     BTC_TXVALID_VOUT_NULL,
     BTC_TXVALID_VOUT_SPKH_NONE,
     BTC_TXVALID_VOUT_VALUE_BAD,
-} btc_txvalid_t;
+} btc_tx_valid_t;
 
 
 /** @struct     btc_extkey_t
@@ -534,7 +534,7 @@ void btc_tx_free(btc_tx_t *pTx);
  * @note
  *      - 署名やスクリプトの正統性ではなく、形として正しいかどうかだけをチェックする
  */
-btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx);
+btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx);
 
 
 /** add vin(no scriptSig) to tx

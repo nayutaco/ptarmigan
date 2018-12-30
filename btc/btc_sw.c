@@ -136,7 +136,7 @@ bool btc_sw_sighash(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t V
     utl_buf_t hash_sequence;
     utl_buf_t hash_outputs;
 
-    btc_txvalid_t txvld = btc_tx_is_valid(pTx);
+    btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
     if (txvld != BTC_TXVALID_OK) {
         LOGD("fail: invalid tx\n");
         return false;

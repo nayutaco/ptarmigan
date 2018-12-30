@@ -113,7 +113,7 @@ void btc_tx_free(btc_tx_t *pTx)
 }
 
 
-btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
+btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx)
 {
     const uint8_t M_OP_RETURN = 0x6a;
 
@@ -533,7 +533,7 @@ bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks
     bool ret = false;
     const uint32_t sigtype = (uint32_t)SIGHASH_ALL;
 
-    btc_txvalid_t txvld = btc_tx_is_valid(pTx);
+    btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
     if (txvld != BTC_TXVALID_OK) {
         LOGD("fail: invalid tx\n");
         return false;
