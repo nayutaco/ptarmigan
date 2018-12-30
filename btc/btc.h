@@ -904,7 +904,7 @@ bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, int Index, const uint
  * @param[in]       pTxHash
  * @retval      true    成功
  */
-bool btc_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash);
+bool btc_sig_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, const uint8_t *pTxHash);
 
 
 /** 公開鍵復元ID取得
@@ -915,7 +915,7 @@ bool btc_tx_recover_pubkey(uint8_t *pPubKey, int RecId, const uint8_t *pRS, cons
  * @param[in]       pTxHash
  * @retval      true    成功
  */
-bool btc_tx_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
+bool btc_sig_recover_pubkey_id(int *pRecId, const uint8_t *pPubKey, const uint8_t *pRS, const uint8_t *pTxHash);
 
 /** TXID計算
  *
