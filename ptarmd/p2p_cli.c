@@ -114,7 +114,7 @@ bool p2p_cli_start(const peer_conn_t *pConn, jrpc_context *ctx)
     int sock = -1;
     struct sockaddr_in sv_addr;
 
-    if (!btc_keys_chkpub(pConn->node_id)) {
+    if (!btc_keys_check_pub(pConn->node_id)) {
         LOGD("invalid node_id\n");
         ctx->error_code = RPCERR_NODEID;
         ctx->error_message = ptarmd_error_str(RPCERR_NODEID);

@@ -60,13 +60,13 @@ TEST_F(extendedkey, chain_m)
 
     bool b = btc_extkey_generate(&extkey, BTC_EXTKEY_PRIV, 0, 0, NULL, SEED, sizeof(SEED));
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
     memcpy(priv, extkey.key, BTC_SZ_PRIVKEY);
 
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
     extkey.type = BTC_EXTKEY_PUB;
     btc_keys_priv2pub(extkey.key, extkey.key);
@@ -74,7 +74,7 @@ TEST_F(extendedkey, chain_m)
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
 
     btc_extkey_t extkey2;
@@ -110,13 +110,13 @@ TEST_F(extendedkey, chain_m_0H)
 
     bool b = btc_extkey_generate(&extkey, BTC_EXTKEY_PRIV, 1, BTC_EXTKEY_HARDENED | 0, priv, NULL, 0);
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
     memcpy(priv, extkey.key, BTC_SZ_PRIVKEY);
 
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
     extkey.type = BTC_EXTKEY_PUB;
     btc_keys_priv2pub(extkey.key, extkey.key);
@@ -124,7 +124,7 @@ TEST_F(extendedkey, chain_m_0H)
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
 
     btc_extkey_t extkey2;
@@ -170,13 +170,13 @@ TEST_F(extendedkey, chain_m_0H_1)
 
     bool b = btc_extkey_generate(&extkey, BTC_EXTKEY_PRIV, 2, 1, priv, NULL, 0);
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
     memcpy(priv, extkey.key, BTC_SZ_PRIVKEY);
 
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H1, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
     extkey.type = BTC_EXTKEY_PUB;
     btc_keys_priv2pub(extkey.key, extkey.key);
@@ -184,7 +184,7 @@ TEST_F(extendedkey, chain_m_0H_1)
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H1, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
 
     btc_extkey_t extkey2;
@@ -236,13 +236,13 @@ TEST_F(extendedkey, chain_m_0H_1_2H)
 
     bool b = btc_extkey_generate(&extkey, BTC_EXTKEY_PRIV, 3, BTC_EXTKEY_HARDENED | 2, priv, NULL, 0);
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
     memcpy(priv, extkey.key, BTC_SZ_PRIVKEY);
 
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H12H, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
     extkey.type = BTC_EXTKEY_PUB;
     btc_keys_priv2pub(extkey.key, extkey.key);
@@ -250,7 +250,7 @@ TEST_F(extendedkey, chain_m_0H_1_2H)
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
 
     btc_extkey_t extkey2;
@@ -295,13 +295,13 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2)
 
     bool b = btc_extkey_generate(&extkey, BTC_EXTKEY_PRIV, 4, 2, priv, NULL, 0);
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
     memcpy(priv, extkey.key, BTC_SZ_PRIVKEY);
 
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H12H2, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
     extkey.type = BTC_EXTKEY_PUB;
     btc_keys_priv2pub(extkey.key, extkey.key);
@@ -309,7 +309,7 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2)
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H2, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
 
     btc_extkey_t extkey2;
@@ -339,13 +339,13 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2pub)
 
     bool b = btc_extkey_generate(&extkey_prev, BTC_EXTKEY_PUB, 4, 2, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&extkey_prev);
+    btc_extkey_print(&extkey_prev);
     memcpy(pub, extkey.key, BTC_SZ_PUBKEY);
 
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey_prev);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H2, xaddr);
-    btc_print_extendedkey(&extkey_prev);
+    btc_extkey_print(&extkey_prev);
 }
 
 
@@ -363,13 +363,13 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2_1)
 
     bool b = btc_extkey_generate(&extkey, BTC_EXTKEY_PRIV, 5, 1000000000, priv, NULL, 0);
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
     memcpy(priv, extkey.key, BTC_SZ_PRIVKEY);
 
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0H12H21, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
     extkey.type = BTC_EXTKEY_PUB;
     btc_keys_priv2pub(extkey.key, extkey.key);
@@ -377,7 +377,7 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2_1)
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H21, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
 
     btc_extkey_t extkey2;
@@ -407,13 +407,13 @@ TEST_F(extendedkey, chain_m_0H_1_2H_2_1pub)
 
     bool b = btc_extkey_generate(&extkey_prev, BTC_EXTKEY_PUB, 5, 1000000000, pub_prev, NULL, 0);
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&extkey_prev);
+    btc_extkey_print(&extkey_prev);
     memcpy(pub, extkey.key, BTC_SZ_PUBKEY);
 
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey_prev);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0H12H21, xaddr);
-    btc_print_extendedkey(&extkey_prev);
+    btc_extkey_print(&extkey_prev);
 }
 
 
@@ -433,13 +433,13 @@ TEST_F(extendedkey, chain_m_master2)
 
     bool b = btc_extkey_generate(&extkey, BTC_EXTKEY_PRIV, 0, 0, NULL, SEED, sizeof(SEED));
     ASSERT_TRUE(b);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
     memcpy(priv, extkey.key, BTC_SZ_PRIVKEY);
 
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPRIV0, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
     extkey.type = BTC_EXTKEY_PUB;
     btc_keys_priv2pub(extkey.key, extkey.key);
@@ -447,7 +447,7 @@ TEST_F(extendedkey, chain_m_master2)
     b = btc_extkey_create_data(buf_extkey, xaddr, &extkey);
     ASSERT_TRUE(b);
     ASSERT_STREQ(XPUB0, xaddr);
-    btc_print_extendedkey(&extkey);
+    btc_extkey_print(&extkey);
 
 
     btc_extkey_t extkey2;

@@ -55,7 +55,7 @@ static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pHash);
 static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash);
 static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash);
 static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash);
-static btc_keys_sort_t pubkey_sort2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 static int set_le32(uint8_t *pData, uint32_t val);
 static int set_le64(uint8_t *pData, uint64_t val);
 
@@ -108,30 +108,30 @@ bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifP
 }
 
 
-bool btc_util_createprivkey(uint8_t *pPriv)
+bool btc_util_create_privkey(uint8_t *pPriv)
 {
     for (int i = 0; i < 1000; i++) {
         if (!utl_rng_rand(pPriv, BTC_SZ_PRIVKEY)) return false;
-        if (btc_keys_chkpriv(pPriv)) return true;
+        if (btc_keys_check_priv(pPriv)) return true;
     }
     return false;
 }
 
 
-bool btc_util_createkeys(btc_keys_t *pKeys)
+bool btc_util_create_keys(btc_keys_t *pKeys)
 {
-    if (!btc_util_createprivkey(pKeys->priv)) return false;
+    if (!btc_util_create_privkey(pKeys->priv)) return false;
     return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
 
 
-bool btc_util_create2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
-    *pSort = pubkey_sort2of2(pPubKey1, pPubKey2);
+    *pSort = pubkey_sort_2of2(pPubKey1, pPubKey2);
     if (*pSort == BTC_KEYS_SORT_ASC) {
-        return btc_keys_create2of2(pRedeem, pPubKey1, pPubKey2);
+        return btc_keys_create_2of2(pRedeem, pPubKey1, pPubKey2);
     } else {
-        return btc_keys_create2of2(pRedeem, pPubKey2, pPubKey1);
+        return btc_keys_create_2of2(pRedeem, pPubKey2, pPubKey1);
     }
 }
 
@@ -933,7 +933,7 @@ static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash)
  * @retval      BTC_KEYS_SORT_ASC     引数の順番が昇順
  *
  */
-static btc_keys_sort_t pubkey_sort2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+static btc_keys_sort_t pubkey_sort_2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
     int cmp = memcmp(pPubKey1, pPubKey2, BTC_SZ_PUBKEY);
     if (cmp < 0) {

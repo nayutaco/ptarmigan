@@ -457,7 +457,7 @@ bool btc_extkey_read_addr(btc_extkey_t *pEKey, const char *pXAddr)
 
 
 #ifdef PTARM_USE_PRINTFUNC
-void btc_print_extendedkey(const btc_extkey_t *pEKey)
+void btc_extkey_print(const btc_extkey_t *pEKey)
 {
     FILE *fp = stderr;
 
