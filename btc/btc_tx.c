@@ -1028,7 +1028,7 @@ void btc_tx_print(const btc_tx_t *pTx)
     LOGD2(" version:%d\n", pTx->version);
     LOGD2("\n");
     LOGD2(" txin_cnt=%u\n", pTx->vin_cnt);
-    for(uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         LOGD2(" [vin #%u]\n", lp);
         LOGD2("  txid= ");
         TXIDD(pTx->vin[lp].txid);
@@ -1044,9 +1044,9 @@ void btc_tx_print(const btc_tx_t *pTx)
         //             (pTx->vin[lp].script.buf[2] == 0x20);
         //bool p2wsh = (pTx->vin[lp].wit_item_cnt >= 3);
         LOGD2("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
-        for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_item_cnt; lp2++) {
+        for (uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_item_cnt; lp2++) {
             LOGD2("    wit[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
-            if(pTx->vin[lp].witness[lp2].len) {
+            if (pTx->vin[lp].witness[lp2].len) {
                 DUMPD(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 // if (p2wsh &&(lp2 == pTx->vin[lp].wit_item_cnt - 1)) {
                 //     //P2WSHの最後はwitnessScript
@@ -1060,7 +1060,7 @@ void btc_tx_print(const btc_tx_t *pTx)
         LOGD2("\n");
     }
     LOGD2(" txout_cnt= %u\n", pTx->vout_cnt);
-    for(uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
+    for (uint32_t lp = 0; lp < pTx->vout_cnt; lp++) {
         LOGD2(" [vout #%u]\n", lp);
         LOGD2("  value= %llu  : ", (unsigned long long)pTx->vout[lp].value);
         DUMPD(((const uint8_t *)&pTx->vout[lp].value), sizeof(pTx->vout[lp].value));
@@ -1127,11 +1127,14 @@ void btc_tx_print_raw(const uint8_t *pData, uint32_t Len)
 
 void btc_script_print(const uint8_t *pData, uint16_t Len)
 {
+    bool ret = true;
+
     const struct {
         uint8_t         op;
         const char      *name;
     } OP_DIC[] = {
         { OP_HASH160, "OP_HASH160" },
+        { OP_HASH256, "OP_HASH256" },
         { OP_EQUAL, "OP_EQUAL" },
         { OP_EQUALVERIFY, "OP_EQUALVERIFY" },
         { OP_CHECKSIG, "OP_CHECKSIG" },
@@ -1153,28 +1156,64 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
     const uint8_t *end = pData + Len;
     const char INDENT[] = "      ";
     while (pData < end) {
-        if (*pData <= 0x4b) {
-            //スタックに載せる
-            int len = *pData;
-            LOGD("%s%02x ", INDENT, len);
+        if (*pData <= _OP_PUSHDATA_X_MAX) {
+            //pushdata
+            uint8_t len = *pData;
             pData++;
+            if (pData + len > end) {
+                ret = false;
+                break;
+            }
+            LOGD("%s%02x ", INDENT, len);
             DUMPD(pData, len);
             pData += len;
         } else if ((OP_1 <= *pData) && (*pData <= OP_16)) {
             //OP_x
             LOGD("%s%02x [OP_%d]\n", INDENT, *pData, *pData - OP_x);
             pData++;
-        } else if ((*pData == OP_PUSHDATA1) || (*pData == OP_PUSHDATA2)) {
-            //スタックに載せる
-            int len;
-            if (*pData == OP_PUSHDATA1) {
-                len = *(pData + 1);
-                pData += 2;
-            } else {
-                len = *(pData + 1) | (*(pData + 2) << 8);
-                pData += 3;
+        } else if (*pData == OP_PUSHDATA1) {
+            //pushdata
+            if (pData + 2 > end) {
+                ret = false;
+                break;
             }
-            LOGD("%sOP_PUSHDATAx 0x%02x ", INDENT, len);
+            uint8_t len = *(pData + 1);
+            pData += 2;
+            if (pData + len > end) {
+                ret = false;
+                break;
+            }
+            LOGD("%sOP_PUSHDATA1 0x%02x ", INDENT, len);
+            DUMPD(pData, len);
+            pData += len;
+        } else if (*pData == OP_PUSHDATA2) {
+            //pushdata
+            if (pData + 3 > end) {
+                ret = false;
+                break;
+            }
+            uint16_t len = *(pData + 1) | (*(pData + 2) << 8);
+            pData += 3;
+            if (pData + len > end) {
+                ret = false;
+                break;
+            }
+            LOGD("%sOP_PUSHDATA2 0x%02x ", INDENT, len);
+            DUMPD(pData, len);
+            pData += len;
+        } else if (*pData == OP_PUSHDATA3) {
+            //pushdata
+            if (pData + 5 > end) {
+                ret = false;
+                break;
+            }
+            uint32_t len = *(pData + 1) | (*(pData + 2) << 8) | (*(pData + 3) << 16) | (*(pData + 4) << 24);
+            pData += 5;
+            if (pData + len > end) {
+                ret = false;
+                break;
+            }
+            LOGD("%sOP_PUSHDATA3 0x%02x ", INDENT, len);
             DUMPD(pData, len);
             pData += len;
         } else {
@@ -1185,7 +1224,6 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
                 }
             }
             if (op != ARRAY_SIZE(OP_DIC)) {
-                //知っているOP code
                 LOGD("%s%02x [%s]\n", INDENT, OP_DIC[op].op, OP_DIC[op].name);
             } else {
                 //unknown
@@ -1193,6 +1231,9 @@ void btc_script_print(const uint8_t *pData, uint16_t Len)
             }
             pData++;
         }
+    }
+    if (!ret) {
+        LOGD("%sinvalid script length\n", INDENT);
     }
 }
 #endif  //PTARM_USE_PRINTFUNC
