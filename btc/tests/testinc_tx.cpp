@@ -45,7 +45,7 @@ TEST_F(tx, init)
     ASSERT_TRUE(NULL == tx.vout);
     ASSERT_EQ(0, tx.locktime);
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
 }
 
 
@@ -103,7 +103,7 @@ TEST_F(tx, add_vin1)
     ASSERT_EQ(0, memcmp(WIT2, vin->witness[1].buf, sizeof(WIT2)));
     ASSERT_EQ(sizeof(WIT2), vin->witness[1].len);
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
     btc_tx_free(&tx);
 }
 
@@ -220,7 +220,7 @@ TEST_F(tx, add_vin2)
     ASSERT_EQ(0, memcmp(WIT13, tx.vin[1].witness[2].buf, sizeof(WIT13)));
     ASSERT_EQ(sizeof(WIT13), tx.vin[1].witness[2].len);
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
     btc_tx_free(&tx);
 }
 

@@ -113,7 +113,7 @@ void btc_tx_free(btc_tx_t *pTx)
 }
 
 
-btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
+btc_tx_valid_t btc_tx_is_valid(const btc_tx_t *pTx)
 {
     const uint8_t M_OP_RETURN = 0x6a;
 
@@ -135,7 +135,7 @@ btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
     }
     if (pTx->vout_cnt == 0) {
         LOGD("fail: vout_cnt\n");
-        btc_print_tx(pTx);
+        btc_tx_print(pTx);
         return BTC_TXVALID_VOUT_NONE;
     }
     if (pTx->vout == NULL) {
@@ -533,7 +533,7 @@ bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks
     bool ret = false;
     const uint32_t sigtype = (uint32_t)SIGHASH_ALL;
 
-    btc_txvalid_t txvld = btc_tx_is_valid(pTx);
+    btc_tx_valid_t txvld = btc_tx_is_valid(pTx);
     if (txvld != BTC_TXVALID_OK) {
         LOGD("fail: invalid tx\n");
         return false;
@@ -1017,7 +1017,7 @@ LABEL_EXIT:
 
 
 #if defined(PTARM_USE_PRINTFUNC) && !defined(PTARM_UTL_LOG_MACRO_DISABLED)
-void btc_print_tx(const btc_tx_t *pTx)
+void btc_tx_print(const btc_tx_t *pTx)
 {
     LOGD2("======================================\n");
     uint8_t txid[BTC_SZ_TXID];
@@ -1037,9 +1037,11 @@ void btc_print_tx(const btc_tx_t *pTx)
         LOGD2("  index= %u\n", pTx->vin[lp].index);
         LOGD2("  scriptSig[%u]= ", pTx->vin[lp].script.len);
         DUMPD(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
-        //btc_print_scriptbtc_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
-        //bool p2wsh = (pTx->vin[lp].script.len == 35) &&
-        //             (pTx->vin[lp].script.buf[1] == 0x00) && (pTx->vin[lp].script.buf[2] == 0x20);
+        //btc_script_print(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
+        ////p2sh-p2wsh
+        //bool p2wsh = (pTx->vin[lp].script.len == 35) && //redeemScript
+        //             (pTx->vin[lp].script.buf[1] == 0x00) && //witness program
+        //             (pTx->vin[lp].script.buf[2] == 0x20);
         //bool p2wsh = (pTx->vin[lp].wit_item_cnt >= 3);
         LOGD2("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
         for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_item_cnt; lp2++) {
@@ -1048,8 +1050,8 @@ void btc_print_tx(const btc_tx_t *pTx)
                 DUMPD(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 // if (p2wsh &&(lp2 == pTx->vin[lp].wit_item_cnt - 1)) {
                 //     //P2WSHの最後はwitnessScript
-                //     //nativeのP2WSHでも表示させたかったが、識別する方法が思いつかない
-                //     btc_print_script(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
+                //     //Native P2WSHでも表示させたかったが、識別する方法が思いつかない
+                //     btc_script_print(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
                 // }
             } else {
                 LOGD2("<none>\n");
@@ -1066,9 +1068,10 @@ void btc_print_tx(const btc_tx_t *pTx)
         utl_buf_t *buf = &(pTx->vout[lp].script);
         LOGD2("  scriptPubKey[%u]= ", buf->len);
         DUMPD(buf->buf, buf->len);
-        //btc_print_script(buf->buf, buf->len);
+        //btc_script_print(buf->buf, buf->len);
         char addr[BTC_SZ_ADDR_STR_MAX + 1];
         addr[0] = '\0';
+        //standard transactions only(see bitcoind's `IsStandard`)
         if ( (buf->len == 25) && (buf->buf[0] == OP_DUP) && (buf->buf[1] == OP_HASH160) &&
              (buf->buf[2] == 0x14) && (buf->buf[23] == OP_EQUALVERIFY) && (buf->buf[24] == OP_CHECKSIG) ) {
             (void)btcl_util_keys_hash2addr(addr, &(buf->buf[3]), BTC_PREF_P2PKH);
@@ -1108,7 +1111,7 @@ void btc_print_tx(const btc_tx_t *pTx)
 }
 
 
-void btc_print_rawtx(const uint8_t *pData, uint32_t Len)
+void btc_tx_print_raw(const uint8_t *pData, uint32_t Len)
 {
     btc_tx_t tx;
     bool ret = btc_tx_read(&tx, pData, Len);
@@ -1116,13 +1119,13 @@ void btc_print_rawtx(const uint8_t *pData, uint32_t Len)
         return;
     }
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
 
     btc_tx_free(&tx);
 }
 
 
-void btc_print_script(const uint8_t *pData, uint16_t Len)
+void btc_script_print(const uint8_t *pData, uint16_t Len)
 {
     const struct {
         uint8_t         op;

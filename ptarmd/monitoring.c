@@ -912,7 +912,7 @@ static bool close_revoked_after(ln_self_t *self, uint32_t confm, void *pDbParam)
             btc_tx_t *pTx = (btc_tx_t *)txbuf.buf;
             for (int lp = 0; lp < num; lp++) {
                 LOGD("-------- %d ----------\n", lp);
-                btc_print_tx(&pTx[lp]);
+                btc_tx_print(&pTx[lp]);
 
                 ret = close_revoked_tolocal(self, &pTx[lp], 0);
                 btc_tx_free(&pTx[lp]);
@@ -1020,7 +1020,7 @@ static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int V
     btc_tx_txid(pTx, txid);
 
     ln_revokedhtlc_create_spenttx(self, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
     utl_buf_t buf;
     btc_tx_write(&tx, &buf);
     btc_tx_free(&tx);

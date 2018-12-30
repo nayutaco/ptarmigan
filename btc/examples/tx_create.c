@@ -78,7 +78,7 @@ int tx_create1(void)
     bool ret = btc_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
     // ======================================
     // txid= 341cc3d10ef50cfe3161c72fa4f150382ff11428642fa87074f18551949c9d6f
     // ======================================
@@ -190,7 +190,7 @@ int tx_create2(void)
     bool ret = btc_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
     // ======================================
     // txid= cc4c95e4f27788ae40a7a8254657682206518b8585a043f9b42177b37ee866d7
     // ======================================
@@ -301,7 +301,7 @@ int tx_create3(void)
     bool ret = btc_util_sign_p2wpkh(&tx, 0, PREV_AMOUNT, &prev_keys);
     printf("ret=%d\n", ret);
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
     // ======================================
     // txid= 78bb06807dd07254ad3cdb3c49ec05b726f641a69ee41c581201f6d38912a6fe
     // ======================================
@@ -401,7 +401,7 @@ int tx_create4(void)
     bool ret = btc_util_sign_p2pkh(&tx, 0, &prev_keys);
     printf("ret=%d\n", ret);
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
     // ======================================
     // txid= b072d8eab1580dae2047c0b92df54c3e5cc33825440e5e4f278e8e62e5575089
     // ======================================
@@ -505,7 +505,7 @@ int tx_create5(void)
     bool ret = btc_util_sign_p2pkh(&tx, 0, &prev_keys);
     printf("ret=%d\n", ret);
 
-    btc_print_tx(&tx);
+    btc_tx_print(&tx);
     // ======================================
     // txid= f2cff303c3f08882604dcfc8bf9a4c5ae26b2a2c23fa10c87db089492a0ba5aa
     // ======================================

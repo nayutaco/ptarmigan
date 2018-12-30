@@ -449,7 +449,7 @@ TEST_F(ln_bolt3_c, committx2)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -739,7 +739,7 @@ TEST_F(ln_bolt3_c, committx5untrim_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -1214,7 +1214,7 @@ TEST_F(ln_bolt3_c, committx5untrim_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -1460,7 +1460,7 @@ TEST_F(ln_bolt3_c, committx7max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -1934,7 +1934,7 @@ TEST_F(ln_bolt3_c, committx7max_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -2181,7 +2181,7 @@ TEST_F(ln_bolt3_c, committx6min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -2593,7 +2593,7 @@ TEST_F(ln_bolt3_c, committx6min_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -2840,7 +2840,7 @@ TEST_F(ln_bolt3_c, committx6max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -3252,7 +3252,7 @@ TEST_F(ln_bolt3_c, committx6max_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -3499,7 +3499,7 @@ TEST_F(ln_bolt3_c, committx5min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -3847,7 +3847,7 @@ TEST_F(ln_bolt3_c, committx5min_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -4094,7 +4094,7 @@ TEST_F(ln_bolt3_c, committx5max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -4442,7 +4442,7 @@ TEST_F(ln_bolt3_c, committx5max_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -4689,7 +4689,7 @@ TEST_F(ln_bolt3_c, committx4min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -4976,7 +4976,7 @@ TEST_F(ln_bolt3_c, committx4min_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -5223,7 +5223,7 @@ TEST_F(ln_bolt3_c, committx4max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -5510,7 +5510,7 @@ TEST_F(ln_bolt3_c, committx4max_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -5757,7 +5757,7 @@ TEST_F(ln_bolt3_c, committx3min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -5984,7 +5984,7 @@ TEST_F(ln_bolt3_c, committx3min_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -6230,7 +6230,7 @@ TEST_F(ln_bolt3_c, committx3max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -6457,7 +6457,7 @@ TEST_F(ln_bolt3_c, committx3max_success_to)
             ASSERT_TRUE(ret);
             utl_buf_t hs;
             btc_tx_write(&tx2, &hs);
-            //btc_print_tx(&tx2);
+            //btc_tx_print(&tx2);
             //btc_print_rawtx(HTLC_TX[lp].tx, HTLC_TX[lp].len);
             ASSERT_EQ(0, memcmp(HTLC_TX[lp].tx, hs.buf, HTLC_TX[lp].len));
             ASSERT_EQ(HTLC_TX[lp].len, hs.len);
@@ -6704,7 +6704,7 @@ TEST_F(ln_bolt3_c, committx2min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -7000,7 +7000,7 @@ TEST_F(ln_bolt3_c, committx2max_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -7297,7 +7297,7 @@ TEST_F(ln_bolt3_c, committx1min_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
@@ -7587,7 +7587,7 @@ TEST_F(ln_bolt3_c, committx_commit)
     utl_buf_free(&buf_sig_local);
     utl_buf_free(&buf_sig_remote);
 
-    //btc_print_tx(&tx);
+    //btc_tx_print(&tx);
 
     //TestVectorとのチェック
     const uint8_t COMMIT_TX[] = {
