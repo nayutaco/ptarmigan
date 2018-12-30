@@ -30,9 +30,21 @@
 
 #include "utl_dbg.h"
 #include "utl_time.h"
+#include "utl_int.h"
 
 #include "btc_local.h"
 #include "btc_segwit_addr.h"
+
+
+/**************************************************************************
+ * typedefs
+ **************************************************************************/
+
+typedef struct {
+    const uint8_t   *data;
+    uint32_t        len;
+    uint32_t        pos;
+} tx_buf;
 
 
 /**************************************************************************
@@ -43,12 +55,19 @@ static bool is_valid_signature_encoding(const uint8_t *sig, uint16_t size);
 static int sign_rs(mbedtls_mpi *p_r, mbedtls_mpi *p_s, const uint8_t *pTxHash, const uint8_t *pPrivKey);
 static int ecdsa_signature_to_asn1( const mbedtls_mpi *r, const mbedtls_mpi *s,
                                     unsigned char *sig, size_t *slen );
+static void tx_buf_init(tx_buf *pBuf, const uint8_t *pData, uint32_t Len);
+static const uint8_t *tx_buf_get_pos(tx_buf *pBuf);
+static bool tx_buf_read(tx_buf *pBuf, uint8_t *pData, uint32_t Len);
+static bool tx_buf_read_byte(tx_buf *pBuf, uint8_t *pByte);
+static bool tx_buf_read_u32le(tx_buf *pBuf, uint32_t *U32);
+static bool tx_buf_read_u64le(tx_buf *pBuf, uint64_t *U64);
+static bool tx_buf_seek(tx_buf *pBuf, int32_t offset);
+static uint32_t tx_buf_remains(tx_buf *pBuf);
+static bool tx_buf_read_varint(tx_buf *pBuf, uint64_t *pValue);
+
 static bool recover_pubkey(uint8_t *pPubKey, int *pRecId, const uint8_t *pRS, const uint8_t *pTxHash, const uint8_t *pOrgPubKey);
 
 static int get_varint(uint16_t *pLen, const uint8_t *pData);
-//uint16_t get_le16(const uint8_t *pData);
-static uint32_t get_le32(const uint8_t *pData);
-static uint64_t get_le64(const uint8_t *pData);
 
 
 /**************************************************************************
@@ -108,7 +127,7 @@ btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
         LOGD("fail: null\n");
         return BTC_TXVALID_ARG_NULL;
     }
-    if (pTx->version == 0) { //XXX:
+    if (pTx->version != 1 && pTx->version != 2) {
         LOGD("fail: version\n");
         return BTC_TXVALID_VERSION_BAD;
     }
@@ -383,227 +402,129 @@ bool btc_tx_set_vin_p2sh_multi(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[
 
 bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
 {
-    typedef enum {
-        STATE_TXIN_COUNT,
-        STATE_TXIN,
-        STATE_TXOUT_COUNT,
-        STATE_TXOUT,
-        STATE_WITNESS,
-        STATE_LOCKTIME,
-    } STATE;
+    bool ret = false;
+    uint32_t tmp_u32;
+    uint64_t tmp_u64;
+    uint32_t i;
 
-    if (Len < 8) {
-        //version(4) + txin_cnt(1) + txout_cnt(1) + locktime(4)
-        return false;
-    }
+    tx_buf txbuf;
+    tx_buf_init(&txbuf, pData, Len);
 
     //version
-    pTx->version = *(int32_t *)pData;
+    if (!tx_buf_read_u32le(&txbuf, &tmp_u32)) goto LABEL_EXIT;
+    pTx->version = (int32_t)tmp_u32;
 
-    //segwit判定
+    //mark, flag
     bool segwit;
-    uint8_t mark = pData[4];
-    uint8_t flag = pData[5];
-    if ((mark == 0x00) && (flag != 0x01)) {
-        //2017/01/04:BIP-144ではflag==0x01のみ
-        return false;
-    }
-    uint32_t pos;
-    if ((mark == 0x00) && (flag == 0x01)) {
-        //BIP-144
-        //LOGD("segwit\n");
+    uint8_t mark;
+    uint8_t flag;
+    if (!tx_buf_read_byte(&txbuf, &mark)) goto LABEL_EXIT;
+    if (!tx_buf_read_byte(&txbuf, &flag)) goto LABEL_EXIT;
+    if (mark == 0x00 && flag == 0x01) { //2017/01/04:BIP-144
         segwit = true;
-        pos = 6;
+    } else if (mark == 0x00) {
+        goto LABEL_EXIT;
     } else {
-        //LOGD("not segwit\n");
         segwit = false;
-        pos = 4;
+        if (!tx_buf_seek(&txbuf, -2)) goto LABEL_EXIT; //rewind
     }
-    //LOGD("  version:%d\n", pTx->version);
 
-    STATE state = STATE_TXIN_COUNT;
-    uint32_t tx_cnt = 0;
-    int tmp;
-    uint16_t var;
-#ifdef PTARM_DEBUG
-    uint32_t prev_pos = pos - 1;
-    uint32_t pos_cnt = 0;
-#endif
-    while (pos < Len) {
-#ifdef PTARM_DEBUG
-        if(prev_pos == pos) {
-            pos_cnt++;
-            if(pos_cnt > 5) {
-                LOGD("???\n");
-                break;
-            }
-        }
-        prev_pos = pos;
-#endif
-        switch (state) {
-        case STATE_TXIN_COUNT:
-            pos += get_varint(&var, pData + pos);
-            pTx->vin_cnt = var;
-            //LOGD("STATE_TXIN_COUNT: pos=%d, vin_cnt=%d\n", pos, pTx->vin_cnt);
-            if (pTx->vin_cnt == 0) {
-                //txin無し
-                pTx->vin = NULL;
-                state = STATE_TXOUT_COUNT;
-            } else {
-                pTx->vin = (btc_vin_t *)UTL_DBG_MALLOC(sizeof(btc_vin_t) * pTx->vin_cnt);
-                state = STATE_TXIN;
-            }
-            break;
-        case STATE_TXIN:
-            //LOGD("STATE_TXIN: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
-            if (pos + 41 + 1 + 4 <= Len) {       // vin_min(41) + vout_cnt(1) + locktime(4)
-                //scriptSig長
-                tmp = pos + BTC_SZ_TXID + sizeof(uint32_t);
-                tmp = get_varint(&var, pData + tmp);
-            } else {
-                state = STATE_TXOUT_COUNT;
-                break;
-            }
-            if (pos + 40 + tmp + var + 1 + 4 <= Len) {
-                btc_vin_t *vin = &(pTx->vin[tx_cnt]);
-                tx_cnt++;
+    //txin count
+    if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+    if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
+    pTx->vin_cnt = (uint32_t)tmp_u64;
+    //XXX: if (pTx->vin_cnt == 0) goto LABEL_EXIT;
 
-                //txid
-                memcpy(vin->txid, pData + pos, BTC_SZ_TXID);
-                pos += BTC_SZ_TXID;
-                //LOGD("  txid:");
-                //DUMPD(vin->txid, BTC_SZ_TXID);
-                //index
-                vin->index = get_le32(pData + pos);
-                pos += sizeof(uint32_t);
-                //LOGD("  index=%u\n", vin->index);
-                //scriptSig
-                pos += tmp;
-                if (var != 0) {
-                    utl_buf_alloccopy(&vin->script, pData + pos, var);
-                    pos += vin->script.len;
-                } else {
-                    utl_buf_init(&vin->script);
-                }
-                //LOGD("  script[%d]:", vin->script.len);
-                //DUMPD(vin->script.buf, vin->script.len);
-                //sequence
-                vin->sequence = get_le32(pData + pos);
-                pos += sizeof(uint32_t);
-                //LOGD("  sequence:%08x\n", vin->sequence);
-                //witnessは後で取得
-                vin->wit_cnt = 0;
-                vin->witness = NULL;
-            }
-            if (tx_cnt >= pTx->vin_cnt) {
-                state = STATE_TXOUT_COUNT;
-            }
-            break;
-        case STATE_TXOUT_COUNT:
-            pos += get_varint(&var, pData + pos);
-            pTx->vout_cnt = var;
-            //LOGD("STATE_TXOUT_COUNT: pos=%d, vout_cnt=%d\n", pos, pTx->vout_cnt);
-            if (pTx->vout_cnt == 0) {
-                //txout無し
-                pTx->vout = NULL;
-                if (segwit) {
-                    state = STATE_WITNESS;
-                } else {
-                    state = STATE_LOCKTIME;
-                }
-            } else {
-                pTx->vout = (btc_vout_t *)UTL_DBG_MALLOC(sizeof(btc_vout_t) * pTx->vout_cnt);
-                state = STATE_TXOUT;
-            }
-            tx_cnt = 0;
-            break;
-        case STATE_TXOUT:
-            //LOGD("STATE_TXOUT: pos=%d, tx_cnt=%d, Len=%d\n", pos, tx_cnt, Len);
-            if (pos + 9 + 4 <= Len) {       // vout_min(9) + locktime(4)
-                //scriptPubKey長
-                tmp = pos + sizeof(uint64_t);
-                tmp = get_varint(&var, pData + tmp);
-            } else {
-                if (segwit) {
-                    state = STATE_WITNESS;
-                } else {
-                    state = STATE_LOCKTIME;
-                }
-                tx_cnt = 0;
-                break;
-            }
-            if (pos + 8 + tmp + var + 4 <= Len) {
-                btc_vout_t *vout = &(pTx->vout[tx_cnt]);
-                tx_cnt++;
+    //XXX:
+    pTx->vin = (btc_vin_t *)UTL_DBG_MALLOC(sizeof(btc_vin_t) * pTx->vin_cnt);
+    if (!pTx->vin) goto LABEL_EXIT;
+    memset(pTx->vin, 0x00, sizeof(btc_vin_t) * pTx->vin_cnt);
 
-                //value:仕様上はint64_t
-                vout->value = get_le64(pData + pos);
-                pos += sizeof(uint64_t);
-                //LOGD("  value:%llu\n", (long long unsigned int)vout->value);
-                //scriptPubKey
-                pos += tmp;
-                if (var != 0) {
-                    utl_buf_alloccopy(&vout->script, pData + pos, var);
-                    pos += vout->script.len;
-                } else {
-                    utl_buf_init(&vout->script);
-                }
-                //LOGD("  script[%d]:", vout->script.len);
-                //DUMPD(vout->script.buf, vout->script.len);
-            } else {
-                //LOGD("out: tmp=%d, var=%d\n", tmp, var);
+    //txin
+    for (i = 0; i < pTx->vin_cnt; i++) {
+        btc_vin_t *vin = &(pTx->vin[i]);
+
+        //txid
+        if (!tx_buf_read(&txbuf, vin->txid, BTC_SZ_TXID)) goto LABEL_EXIT;
+
+        //index
+        if (!tx_buf_read_u32le(&txbuf, &vin->index)) goto LABEL_EXIT;
+
+        //scriptSig
+        if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+        if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
+        if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
+        if (!utl_buf_alloccopy(&vin->script, tx_buf_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
+        if (!tx_buf_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
+
+        //sequence
+        if (!tx_buf_read_u32le(&txbuf, &vin->sequence)) goto LABEL_EXIT;
+    }
+
+    //txout count
+    if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+    if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
+    pTx->vout_cnt = (uint32_t)tmp_u64;
+    //XXX: if (pTx->vout_cnt == 0) goto LABEL_EXIT;
+
+    //XXX:
+    pTx->vout = (btc_vout_t *)UTL_DBG_MALLOC(sizeof(btc_vout_t) * pTx->vout_cnt);
+    if (!pTx->vout) goto LABEL_EXIT;
+    memset(pTx->vout, 0x00, sizeof(btc_vout_t) * pTx->vout_cnt);
+
+    //txout
+    for (i = 0; i < pTx->vout_cnt; i++) {
+        btc_vout_t *vout = &(pTx->vout[i]);
+
+        //value
+        if (!tx_buf_read_u64le(&txbuf, &vout->value)) goto LABEL_EXIT;
+
+        //scriptPubKey
+        if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+        if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
+        if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
+        if (!utl_buf_alloccopy(&vout->script, tx_buf_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
+        if (!tx_buf_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
+    }
+
+    //witness
+    if (segwit) {
+        for (i = 0; i < pTx->vin_cnt; i++) {
+            //witness item count
+            if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+            if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
+            if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
+            pTx->vin[i].wit_cnt = (uint32_t)tmp_u64;
+
+            //XXX:
+            pTx->vin[i].witness = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pTx->vin[i].wit_cnt);
+            if (!pTx->vin[i].witness) goto LABEL_EXIT;
+            memset(pTx->vin[i].witness, 0x00, sizeof(utl_buf_t) * pTx->vin[i].wit_cnt);
+
+            //witness item
+            for (uint32_t lp = 0; lp < pTx->vin[i].wit_cnt; lp++) {
+                if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
+                if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
+                if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
+                if (!utl_buf_alloccopy(&pTx->vin[i].witness[lp], tx_buf_get_pos(&txbuf), (uint32_t)tmp_u64)) goto LABEL_EXIT;
+                if (!tx_buf_seek(&txbuf, (uint32_t)tmp_u64)) goto LABEL_EXIT;
             }
-            if (tx_cnt >= pTx->vout_cnt) {
-                if (segwit) {
-                    state = STATE_WITNESS;
-                } else {
-                    state = STATE_LOCKTIME;
-                }
-                tx_cnt = 0;
-            } else {
-                //LOGD("  continue\n");
-            }
-            break;
-        case STATE_WITNESS:
-            //LOGD("STATE_WITNESS: pos=%d, tx_cnt=%d\n", pos, tx_cnt);
-            if ((pos + 4 <= Len) && (tx_cnt < pTx->vin_cnt)) {
-                pos += get_varint(&var, pData + pos);   //item数
-                pTx->vin[tx_cnt].wit_cnt = var;
-                pTx->vin[tx_cnt].witness = (utl_buf_t *)UTL_DBG_MALLOC(pTx->vin[tx_cnt].wit_cnt * sizeof(utl_buf_t));
-            } else {
-                state = STATE_LOCKTIME;
-                break;
-            }
-            //LOGD("  wit_cnt=%d\n", pTx->vin[tx_cnt].wit_cnt);
-            for(uint32_t lp = 0; lp < pTx->vin[tx_cnt].wit_cnt; lp++) {
-                pos += get_varint(&var, pData + pos);   //データ長
-                //LOGD("   var=%d\n", var);
-                if (pos + var + 4 <= Len) {
-                    utl_buf_t *wit = &(pTx->vin[tx_cnt].witness[lp]);
-                    utl_buf_alloccopy(wit, pData + pos, var);
-                    pos += wit->len;
-                } else {
-                    LOGD("  out\n");
-                }
-            }
-            tx_cnt++;
-            if (tx_cnt >= pTx->vin_cnt) {
-                state = STATE_LOCKTIME;
-            }
-            break;
-        case STATE_LOCKTIME:
-            pTx->locktime = get_le32(pData + pos);
-            pos += sizeof(uint32_t);
-            //LOGD("STATE_LOCKTIME: locktime=%08x\n", pTx->locktime);
-            break;
-        default:
-            assert(0);
-            btc_tx_free(pTx);
-            return false;
         }
     }
 
-    return true;
+    //locktime
+    if (!tx_buf_read_u32le(&txbuf, &pTx->locktime)) goto LABEL_EXIT;
+
+    //check the end of the data
+    if (tx_buf_remains(&txbuf)) goto LABEL_EXIT;
+
+    ret = true;
+
+LABEL_EXIT:
+    if (!ret) {
+        btc_tx_free(pTx);
+    }
+    return ret;
 }
 
 
@@ -1791,33 +1712,96 @@ static int get_varint(uint16_t *pLen, const uint8_t *pData)
     return retval;
 }
 
-
-//static uint16_t get_le16(const uint8_t *pData)
-//{
-//    return (uint16_t)(*pData | (*(pData + 1) << 8));
-//}
-
-
-/** uint8[4](little endian)-->uint32
- *
- * @param[in]   pData       Little Endianデータ
- * @return      32bit値
- */
-static uint32_t get_le32(const uint8_t *pData)
+static void tx_buf_init(tx_buf *pBuf, const uint8_t *pData, uint32_t Len)
 {
-    return (uint32_t)(*pData | (*(pData + 1) << 8) | (*(pData + 2) << 16) | (*(pData + 3) << 24));
+    pBuf->data = pData;
+    pBuf->len = Len;
+    pBuf->pos = 0;
 }
 
 
-/** uint8[8](little endian)-->uint64
- *
- * @param[in]   pData       Little Endianデータ
- * @return      64bit値
- */
-static uint64_t get_le64(const uint8_t *pData)
+static const uint8_t *tx_buf_get_pos(tx_buf *pBuf)
 {
-    return (uint64_t)(*pData | ((uint64_t)*(pData + 1) << 8)  |
-                               ((uint64_t)*(pData + 2) << 16) | ((uint64_t)*(pData + 3) << 24) |
-                               ((uint64_t)*(pData + 4) << 32) | ((uint64_t)*(pData + 5) << 40) |
-                               ((uint64_t)*(pData + 6) << 48) | ((uint64_t)*(pData + 7) << 56));
+    return pBuf->data + pBuf->pos;
+}
+
+
+static bool tx_buf_read(tx_buf *pBuf, uint8_t *pData, uint32_t Len)
+{
+    if (pBuf->pos + Len > pBuf->len) return false;
+    memcpy(pData, pBuf->data + pBuf->pos, Len);
+    pBuf->pos += Len;
+    return true;
+}
+
+
+static bool tx_buf_read_byte(tx_buf *pBuf, uint8_t *pByte)
+{
+    if (pBuf->pos + 1 > pBuf->len) return false;
+    *pByte = *(pBuf->data + pBuf->pos);
+    pBuf->pos++;
+    return true;
+}
+
+
+static bool tx_buf_read_u32le(tx_buf *pBuf, uint32_t *U32)
+{
+    if (pBuf->pos + 4 > pBuf->len) return false;
+    *U32 = utl_int_pack_u32le(pBuf->data + pBuf->pos);
+    pBuf->pos += 4;
+    return true;
+}
+
+
+static bool tx_buf_read_u64le(tx_buf *pBuf, uint64_t *U64)
+{
+    if (pBuf->pos + 8 > pBuf->len) return false;
+    *U64 = utl_int_pack_u64le(pBuf->data + pBuf->pos);
+    pBuf->pos += 8;
+    return true;
+}
+
+
+static bool tx_buf_seek(tx_buf *pBuf, int32_t offset)
+{
+    if (offset > 0) {
+        if (pBuf->pos + offset > pBuf->len) return false;
+    } else {
+        if (pBuf->pos < (uint32_t)-offset) return false;
+    }
+    pBuf->pos += offset;
+    return true;
+}
+
+
+static uint32_t tx_buf_remains(tx_buf *pBuf)
+{
+    return pBuf->len - pBuf->pos;
+}
+
+
+static bool tx_buf_read_varint(tx_buf *pBuf, uint64_t *pValue)
+{
+    if (pBuf->pos + 1 > pBuf->len) return false;
+    const uint8_t *data_pos = pBuf->data + pBuf->pos;
+    if (*(data_pos) < 0xfd) {
+        *pValue = *data_pos;
+        pBuf->pos += 1;
+    } else if (*(data_pos) == 0xfd) {
+        if (pBuf->pos + 3 > pBuf->len) return false;
+        *pValue = utl_int_pack_u16le(data_pos + 1);
+        pBuf->pos += 3;
+    } else if (*(data_pos) == 0xfe) {
+        if (pBuf->pos + 5 > pBuf->len) return false;
+        *pValue = utl_int_pack_u32le(data_pos + 1);
+        pBuf->pos += 5;
+    } else if (*(data_pos) == 0xff) {
+        if (pBuf->pos + 9 > pBuf->len) return false;
+        *pValue = utl_int_pack_u64le(data_pos + 1);
+        pBuf->pos += 9;
+    } else {
+        assert(false);
+        return false;
+    }
+    return true;
 }
