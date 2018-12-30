@@ -384,6 +384,14 @@ static bool funding_unspent(ln_self_t *self, monparam_t *p_prm, void *p_db_param
         }
     }
 
+#ifndef USE_SPV
+#else
+    if (p_prm->confm > ln_last_conf_get(self)) {
+        ln_last_conf_set(self, p_prm->confm);
+        ln_db_self_save_lastconf(self, p_db_param);
+    }
+#endif
+
     return del;
 }
 

@@ -1146,6 +1146,7 @@ struct ln_self_t {
 #ifndef USE_SPV
 #else
     uint8_t                     funding_bhash[BTC_SZ_HASH256];  ///< [FUNDSPV_01]funding_txがマイニングされたblock hash
+    uint32_t                    last_confirm;                   ///< [FUNDSPV_02]confirmation at calling btcrpc_set_channel()
 #endif
 
     //announce
@@ -1969,6 +1970,18 @@ static inline const btc_tx_t *ln_funding_tx(const ln_self_t *self) {
  */
 static inline const uint8_t *ln_funding_blockhash(const ln_self_t *self) {
     return self->funding_bhash;
+}
+
+
+static inline uint32_t ln_last_conf_get(const ln_self_t *self) {
+    return self->last_confirm;
+}
+
+
+static inline void ln_last_conf_set(ln_self_t *self, uint32_t Conf) {
+    if (Conf > self->last_confirm) {
+        self->last_confirm = Conf;
+    }
 }
 #endif
 

@@ -247,6 +247,7 @@ static void ln_print_self(const ln_self_t *self)
     printf(INDENT3 M_QQ("mined_block") ": \"");
     btc_util_dumptxid(stdout, self->funding_bhash);
     printf("\",\n");
+    printf(INDENT3 M_QQ("last_confirm") ": %" PRIu32 ",\n", self->last_confirm);
 #endif
     printf(INDENT3 M_QQ("funding_local") ": {\n");
     printf(INDENT4 M_QQ("funding_txid") ": \"");
