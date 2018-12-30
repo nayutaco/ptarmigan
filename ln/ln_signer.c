@@ -68,7 +68,7 @@ void HIDDEN ln_signer_create_channelkeys(ln_self_t *self)
     //  open_channel/accept_channelの鍵は ln_signer_keys_update_storage()で生成
     for (int lp = MSG_FUNDIDX_FUNDING; lp < LN_FUNDIDX_MAX; lp++) {
         if (lp != MSG_FUNDIDX_PER_COMMIT) {
-            btc_util_createprivkey(self->priv_data.priv[lp]);
+            btc_util_create_privkey(self->priv_data.priv[lp]);
             btc_keys_priv2pub(self->funding_local.pubkeys[lp], self->priv_data.priv[lp]);
         }
     }

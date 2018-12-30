@@ -857,7 +857,7 @@ int ln_lmdb_self_load(ln_self_t *self, MDB_txn *txn, MDB_dbi dbi)
 
     //復元データからさらに復元
     ln_misc_update_scriptkeys(&self->funding_local, &self->funding_remote);
-    btc_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
+    btc_util_create_2of2(&self->redeem_fund, &self->key_fund_sort,
             self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING],
             self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 

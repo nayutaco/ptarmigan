@@ -86,7 +86,7 @@ bool conf_peer_load(const char *pConfFile, peer_conf_t *pPeerConf)
     print_peer_conf(pPeerConf);
 #endif
 
-    return btc_keys_chkpub(pPeerConf->node_id);
+    return btc_keys_check_pub(pPeerConf->node_id);
 }
 
 

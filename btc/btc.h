@@ -417,7 +417,7 @@ bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitnessScript);
  * @param[out]  pUncomp     uncompressed public key(#BTC_SZ_PUBKEY_UNCOMP-1, no prefix)
  * @param[in]   pPubKey     compressed public key(#BTC_SZ_PUBKEY, prefixed)
  */
-bool btc_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey);
+bool btc_keys_uncomp_pub(uint8_t *pUncomp, const uint8_t *pPubKey);
 
 
 /** 秘密鍵の範囲チェック
@@ -425,7 +425,7 @@ bool btc_keys_pubuncomp(uint8_t *pUncomp, const uint8_t *pPubKey);
  * @param[in]   pPrivKey    チェック対象
  * @retval  true    正常
  */
-bool btc_keys_chkpriv(const uint8_t *pPrivKey);
+bool btc_keys_check_priv(const uint8_t *pPrivKey);
 
 
 /** 公開鍵のチェック
@@ -433,7 +433,7 @@ bool btc_keys_chkpriv(const uint8_t *pPrivKey);
  * @param[in]       pPubKey     チェック対象
  * @return      true:SECP256K1の公開鍵としては正当
  */
-bool btc_keys_chkpub(const uint8_t *pPubKey);
+bool btc_keys_check_pub(const uint8_t *pPubKey);
 
 
 /** MultiSig 2-of-2スキームのredeem scriptを作成
@@ -452,7 +452,7 @@ bool btc_keys_chkpub(const uint8_t *pPubKey);
  * @note
  *      - 公開鍵の順番は pPubKey1, pPubKey2 の順
  */
-bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool btc_keys_create_2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 /** M-of-Nスキームのredeem script作成
@@ -1260,7 +1260,7 @@ bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifP
  * @param[out]      pPriv           private key
  * @return      true    success
  */
-bool btc_util_createprivkey(uint8_t *pPriv);
+bool btc_util_create_privkey(uint8_t *pPriv);
 
 
 /** generate keys from RNG
@@ -1268,10 +1268,10 @@ bool btc_util_createprivkey(uint8_t *pPriv);
  * @param[out]      pKeys           鍵情報
  * @return      true    成功
  */
-bool btc_util_createkeys(btc_keys_t *pKeys);
+bool btc_util_create_keys(btc_keys_t *pKeys);
 
 
-/** #btc_keys_create2of2()のソートあり版
+/** #btc_keys_create_2of2()のソートあり版
  *
  * @param[out]      pRedeem     2-of-2 redeem script
  * @param[out]      pSort       ソート結果(#BTC_KEYS_SORT_ASC)
@@ -1281,7 +1281,7 @@ bool btc_util_createkeys(btc_keys_t *pKeys);
  * @note
  *      - 公開鍵の順番は昇順
  */
-bool btc_util_create2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 
 
 /** P2PKH署名
@@ -1500,19 +1500,19 @@ void btc_tx_print_raw(const uint8_t *pData, uint32_t Len);
  * @param[in]       pData       表示対象
  * @param[in]       Len         pData長
  */
-void btc_print_script(const uint8_t *pData, uint16_t Len);
+void btc_script_print(const uint8_t *pData, uint16_t Len);
 
 
 /** 拡張鍵の内容表示
  *
  * @param[in]       pEKey       拡張鍵構造体
  */
-void btc_print_extendedkey(const btc_extkey_t *pEKey);
+void btc_extkey_print(const btc_extkey_t *pEKey);
 #else
 #define btc_tx_print(...)             //nothing
 #define btc_tx_print_raw(...)          //nothing
-#define btc_print_script(...)         //nothing
-#define btc_print_extendedkey(...)    //nothing
+#define btc_script_print(...)         //nothing
+#define btc_extkey_print(...)    //nothing
 #endif  //PTARM_USE_PRINTFUNC
 
 

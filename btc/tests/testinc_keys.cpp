@@ -38,7 +38,7 @@ TEST_F(keys, keys_is_valid_priv1)
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0,
     };
-    bool ret = btc_keys_chkpriv(PRIV);
+    bool ret = btc_keys_check_priv(PRIV);
     ASSERT_FALSE(ret);
 }
 
@@ -50,7 +50,7 @@ TEST_F(keys, keys_is_valid_priv2)
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,1,
     };
-    bool ret = btc_keys_chkpriv(PRIV);
+    bool ret = btc_keys_check_priv(PRIV);
     ASSERT_TRUE(ret);
 }
 
@@ -62,7 +62,7 @@ TEST_F(keys, keys_is_valid_priv3)
         0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B,
         0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x40,
     };
-    bool ret = btc_keys_chkpriv(PRIV);
+    bool ret = btc_keys_check_priv(PRIV);
     ASSERT_TRUE(ret);
 }
 
@@ -74,7 +74,7 @@ TEST_F(keys, keys_is_valid_priv4)
         0xBA, 0xAE, 0xDC, 0xE6, 0xAF, 0x48, 0xA0, 0x3B,
         0xBF, 0xD2, 0x5E, 0x8C, 0xD0, 0x36, 0x41, 0x41,
     };
-    bool ret = btc_keys_chkpriv(PRIV);
+    bool ret = btc_keys_check_priv(PRIV);
     ASSERT_FALSE(ret);
 }
 
@@ -136,9 +136,9 @@ TEST_F(keys, keys_1)
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(PUB, pub, sizeof(PUB)));
 
-    ASSERT_TRUE(btc_keys_chkpub(pub));
+    ASSERT_TRUE(btc_keys_check_pub(pub));
 
-    ret = btc_keys_pubuncomp(uncomppub, pub);
+    ret = btc_keys_uncomp_pub(uncomppub, pub);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(UNCOMPPUB, uncomppub, sizeof(UNCOMPPUB)));
 
@@ -178,7 +178,7 @@ TEST_F(keys, pub2uncomp)
     };
 
     for (int lp = 0; lp < 4; lp++) {
-        bool ret = btc_keys_pubuncomp(uncomppub, COMP[lp]);
+        bool ret = btc_keys_uncomp_pub(uncomppub, COMP[lp]);
         ASSERT_TRUE(ret);
         ASSERT_EQ(0, memcmp(UNCOMP[lp], uncomppub, sizeof(uncomppub)));
     }
@@ -207,7 +207,7 @@ TEST_F(keys, pub2uncomp2)
 //    };
 
     for (int lp = 0; lp < 1; lp++) {
-        bool ret = btc_keys_pubuncomp(uncomppub, COMP[lp]);
+        bool ret = btc_keys_uncomp_pub(uncomppub, COMP[lp]);
         ASSERT_TRUE(ret);
         //ASSERT_EQ(0, memcmp(UNCOMP[lp], uncomppub, sizeof(uncomppub)));
         keys::DumpBin(uncomppub, sizeof(uncomppub));
@@ -279,7 +279,7 @@ TEST_F(keys, multi_2of2_1)
 
     bool ret;
     utl_buf_t bufredeem;
-    ret = btc_keys_create2of2(&bufredeem, PUB1, PUB2);
+    ret = btc_keys_create_2of2(&bufredeem, PUB1, PUB2);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);
@@ -320,7 +320,7 @@ TEST_F(keys, multi_2of2_2)
 
     bool ret;
     utl_buf_t bufredeem;
-    ret = btc_keys_create2of2(&bufredeem, PUB2, PUB1);
+    ret = btc_keys_create_2of2(&bufredeem, PUB2, PUB1);
     //keys::DumpBin(bufredeem.buf, bufredeem.len);
     ASSERT_TRUE(ret);
     ASSERT_EQ(sizeof(REDEEM), bufredeem.len);
@@ -342,7 +342,7 @@ TEST_F(keys, multi_2of2_same)
 
     bool ret;
     utl_buf_t bufredeem;
-    ret = btc_keys_create2of2(&bufredeem, PUB1, PUB1);
+    ret = btc_keys_create_2of2(&bufredeem, PUB1, PUB1);
     ASSERT_FALSE(ret);
     //utl_buf_free(&bufredeem);
 }

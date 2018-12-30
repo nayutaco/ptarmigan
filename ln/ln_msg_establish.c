@@ -146,7 +146,7 @@ bool HIDDEN ln_msg_open_channel_create(utl_buf_t *pBuf, const ln_open_channel_t 
         //        [33:delayed_payment_basepoint]
         //        [33:htlc_basepoint]
         //        [33:first_per_commitment_point]
-        if (!btc_keys_chkpub(pMsg->p_pubkeys[lp])) {
+        if (!btc_keys_check_pub(pMsg->p_pubkeys[lp])) {
             LOGD("fail: check pubkey\n");
             return false;
         }
@@ -246,7 +246,7 @@ bool HIDDEN ln_msg_open_channel_read(ln_open_channel_t *pMsg, const uint8_t *pDa
         //        [33:delayed_payment_basepoint]
         //        [33:htlc_basepoint]
         //        [33:first_per_commitment_point]
-        if (!btc_keys_chkpub(pData + pos)) {
+        if (!btc_keys_check_pub(pData + pos)) {
             LOGD("fail: check pubkey: %d\n", lp);
             DUMPD(pData + pos, BTC_SZ_PUBKEY);
             return false;
@@ -387,7 +387,7 @@ bool HIDDEN ln_msg_accept_channel_create(utl_buf_t *pBuf, const ln_accept_channe
         //        [33:delayed_payment_basepoint]
         //        [33:htlc_basepoint]
         //        [33:first_per_commitment_point]
-        if (!btc_keys_chkpub(pMsg->p_pubkeys[lp])) {
+        if (!btc_keys_check_pub(pMsg->p_pubkeys[lp])) {
             LOGD("fail: check pubkey\n");
             return false;
         }
@@ -456,7 +456,7 @@ bool HIDDEN ln_msg_accept_channel_read(ln_accept_channel_t *pMsg, const uint8_t 
         //        [33:delayed_payment_basepoint]
         //        [33:htlc_basepoint]
         //        [33:first_per_commitment_point]
-        if (!btc_keys_chkpub(pData + pos)) {
+        if (!btc_keys_check_pub(pData + pos)) {
             LOGD("fail: check pubkey\n");
             return false;
         }

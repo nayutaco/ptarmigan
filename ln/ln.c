@@ -2538,7 +2538,7 @@ static bool recv_open_channel(ln_self_t *self, const uint8_t *pData, uint16_t Le
     LOGD("obscured=0x%016" PRIx64 "\n", self->obscured);
 
     //vout 2-of-2
-    ret = btc_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
+    ret = btc_util_create_2of2(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
     if (ret) {
         self->fund_flag = (ln_fundflag_t)(((open_ch->channel_flags & 1) ? LN_FUNDFLAG_ANNO_CH : 0) | LN_FUNDFLAG_FUNDING);
@@ -3955,7 +3955,7 @@ static bool recv_channel_update(ln_self_t *self, const uint8_t *pData, uint16_t 
     uint8_t node_id[BTC_SZ_PUBKEY];
 
     ret = get_nodeid_from_annocnl(self, node_id, upd.short_channel_id, upd.flags & LN_CNLUPD_FLAGS_DIRECTION);
-    if (ret && btc_keys_chkpub(node_id)) {
+    if (ret && btc_keys_check_pub(node_id)) {
         ret = ln_msg_cnl_update_verify(node_id, pData, Len);
         if (!ret) {
             LOGD("fail: verify\n");
@@ -4110,7 +4110,7 @@ static void start_funding_wait(ln_self_t *self, bool bSendTx)
  *
  * @note
  *      - pTx
- *      - #btc_util_create2of2()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
+ *      - #btc_util_create_2of2()の公開鍵順序と、pSig1, pSig2の順序は同じにすること。
  *          例えば、先に自分のデータ、後に相手のデータ、など。
  */
 static bool set_vin_p2wsh_2of2(btc_tx_t *pTx, int Index, btc_keys_sort_t Sort,
@@ -4173,7 +4173,7 @@ static bool create_funding_tx(ln_self_t *self, bool bSign)
     btc_tx_free(&self->tx_funding);
 
     //vout 2-of-2
-    btc_util_create2of2(&self->redeem_fund, &self->key_fund_sort,
+    btc_util_create_2of2(&self->redeem_fund, &self->key_fund_sort,
                 self->funding_local.pubkeys[MSG_FUNDIDX_FUNDING], self->funding_remote.pubkeys[MSG_FUNDIDX_FUNDING]);
 
 #ifndef USE_SPV
