@@ -331,7 +331,7 @@ bool btc_keys_create2of2(utl_buf_t *pRedeem, const uint8_t *pPubKey1, const uint
 }
 
 
-bool btc_keys_createmulti(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M)
+bool btc_keys_create_multisig(utl_buf_t *pRedeem, const uint8_t *pPubKeys[], uint8_t Num, uint8_t M)
 {
     if (Num > 16) return false;
     if (M > 16) return false;

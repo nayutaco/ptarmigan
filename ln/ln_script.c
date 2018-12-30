@@ -595,14 +595,14 @@ bool HIDDEN ln_script_htlctx_verify(const btc_tx_t *pTx,
     //LOGD("sighash: ");
     //DUMPD(sighash, BTC_SZ_HASH256);
     if (ret && pLocalPubKey && pLocalSig) {
-        ret = btc_tx_verify(pLocalSig, sighash, pLocalPubKey);
-        //LOGD("btc_tx_verify(local)=%d\n", ret);
+        ret = btc_sig_verify(pLocalSig, sighash, pLocalPubKey);
+        //LOGD("btc_sig_verify(local)=%d\n", ret);
         //LOGD("localkey: ");
         //DUMPD(pLocalPubKey, BTC_SZ_PUBKEY);
     }
     if (ret) {
-        ret = btc_tx_verify(pRemoteSig, sighash, pRemotePubKey);
-        //LOGD("btc_tx_verify(remote)=%d\n", ret);
+        ret = btc_sig_verify(pRemoteSig, sighash, pRemotePubKey);
+        //LOGD("btc_sig_verify(remote)=%d\n", ret);
         //LOGD("remotekey: ");
         //DUMPD(pRemotePubKey, BTC_SZ_PUBKEY);
     }

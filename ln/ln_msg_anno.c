@@ -258,19 +258,19 @@ bool HIDDEN ln_msg_cnl_announce_verify(const uint8_t *pData, uint16_t Len)
     // LOGD("hash=");
     // DUMPD(hash, BTC_SZ_HASH256);
 
-    ret = btc_tx_verify_rs(ptr.p_node_signature1, hash, ptr.p_node_id1);
+    ret = btc_sig_verify_rs(ptr.p_node_signature1, hash, ptr.p_node_id1);
     assert(ret);
 
     if (ret) {
-        ret = btc_tx_verify_rs(ptr.p_node_signature2, hash, ptr.p_node_id2);
+        ret = btc_sig_verify_rs(ptr.p_node_signature2, hash, ptr.p_node_id2);
         assert(ret);
     }
     if (ret) {
-        ret = btc_tx_verify_rs(ptr.p_btc_signature1, hash, ptr.p_btc_key1);
+        ret = btc_sig_verify_rs(ptr.p_btc_signature1, hash, ptr.p_btc_key1);
         assert(ret);
     }
     if (ret) {
-        ret = btc_tx_verify_rs(ptr.p_btc_signature2, hash, ptr.p_btc_key2);
+        ret = btc_sig_verify_rs(ptr.p_btc_signature2, hash, ptr.p_btc_key2);
         assert(ret);
     }
 
@@ -717,7 +717,7 @@ bool ln_msg_node_announce_read(ln_node_announce_t *pMsg, const uint8_t *pData, u
         //LOGD("hash=");
         //DUMPD(hash, BTC_SZ_HASH256);
 
-        ret = btc_tx_verify_rs(p_signature, hash, pMsg->p_node_id);
+        ret = btc_sig_verify_rs(p_signature, hash, pMsg->p_node_id);
         if (!ret) {
             LOGD("fail: verify\n");
         }
@@ -929,7 +929,7 @@ bool HIDDEN ln_msg_cnl_update_verify(const uint8_t *pPubkey, const uint8_t *pDat
     //LOGD("hash=");
     //DUMPD(hash, BTC_SZ_HASH256);
 
-    ret = btc_tx_verify_rs(pData + sizeof(uint16_t), hash, pPubkey);
+    ret = btc_sig_verify_rs(pData + sizeof(uint16_t), hash, pPubkey);
 
     return ret;
 }
