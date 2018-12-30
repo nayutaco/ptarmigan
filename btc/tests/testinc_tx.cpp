@@ -671,7 +671,7 @@ TEST_F(tx, script_p2sh)
         0x0a, 0xfc, 0xfc, 0xdc, 0x53, 0xae,
     };
 
-    bool ret = btc_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
+    bool ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, tx.vin[0].script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), tx.vin[0].script.len);
@@ -968,7 +968,7 @@ TEST_F(tx, create_p2sh)
         0xae,
     };
     const utl_buf_t redeem = { (uint8_t *)REDEEM, sizeof(REDEEM) };
-    bool ret = btc_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
+    bool ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
 
     //vout
@@ -1426,7 +1426,7 @@ TEST_F(tx, sighash_p2sh)
     //送信可能なtxだが、使用済みTXIDなので送信確認はできない
     const utl_buf_t *sigs[] = { &sig1, &sig2 };
     const utl_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
-    ret = btc_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
+    ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
     utl_buf_t txall;
     btc_tx_create(&txall, &tx);
@@ -1584,7 +1584,7 @@ TEST_F(tx, sighash_p2sh_ng)
     //送信可能なtxだが、使用済みTXIDなので送信確認はできない
     const utl_buf_t *sigs[] = { &sig2, &sig1 };   //逆
     const utl_buf_t redeem = { (uint8_t *)PREV_REDEEM, sizeof(PREV_REDEEM) };
-    ret = btc_tx_set_vin_p2sh(&tx, 0, sigs, 2, &redeem);
+    ret = btc_tx_set_vin_p2sh_multi(&tx, 0, sigs, 2, &redeem);
     ASSERT_TRUE(ret);
     utl_buf_t txall;
     btc_tx_create(&txall, &tx);
@@ -1639,16 +1639,16 @@ TEST_F(tx, create_vout_p2pkh)
         0xac,
     };
 
-    utl_buf_t scr;
-    ret = btc_tx_create_vout_p2pkh(&scr, ADDR1);
+    utl_buf_t spk;
+    ret = btc_tx_create_spk_p2pkh(&spk, ADDR1);
     ASSERT_TRUE(ret);
-    ASSERT_EQ(0, memcmp(SCRPK1, scr.buf, sizeof(SCRPK1)));
-    ASSERT_EQ(sizeof(SCRPK1), scr.len);
-    utl_buf_free(&scr);
+    ASSERT_EQ(0, memcmp(SCRPK1, spk.buf, sizeof(SCRPK1)));
+    ASSERT_EQ(sizeof(SCRPK1), spk.len);
+    utl_buf_free(&spk);
 
 
     const char ADDR2[] = "2N9J6uZssXpQJkiSVR5v4hbNimcLnQtGjrm";
-    ret = btc_tx_create_vout_p2pkh(&scr, ADDR2);
+    ret = btc_tx_create_spk_p2pkh(&spk, ADDR2);
     ASSERT_FALSE(ret);
 }
 

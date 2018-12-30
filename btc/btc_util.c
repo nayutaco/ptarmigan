@@ -51,10 +51,11 @@
  * prototypes
  **************************************************************************/
 
-static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pPubKeyHash);
-static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pPubKeyHash);
-static void create_scriptpk_native(uint8_t *p, const uint8_t *pPubKeyHash, uint8_t Len);
-static btc_keys_sort_t keys_sort2of2(const uint8_t **pp1, const uint8_t **pp2, const uint8_t *pPubKey1, const uint8_t *pPubKey2);
+static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pHash);
+static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash);
+static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash);
+static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash);
+static btc_keys_sort_t pubkey_sort2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2);
 static int set_le32(uint8_t *pData, uint32_t val);
 static int set_le64(uint8_t *pData, uint64_t val);
 
@@ -107,31 +108,31 @@ bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifP
 }
 
 
-void btc_util_createprivkey(uint8_t *pPriv)
+bool btc_util_createprivkey(uint8_t *pPriv)
 {
-    do {
-        utl_rng_rand(pPriv, BTC_SZ_PRIVKEY);
-    } while (!btc_keys_chkpriv(pPriv));
+    for (int i = 0; i < 1000; i++) {
+        if (!utl_rng_rand(pPriv, BTC_SZ_PRIVKEY)) return false;
+        if (btc_keys_chkpriv(pPriv)) return true;
+    }
+    return false;
 }
 
 
 bool btc_util_createkeys(btc_keys_t *pKeys)
 {
-    btc_util_createprivkey(pKeys->priv);
-    bool ret = btc_keys_priv2pub(pKeys->pub, pKeys->priv);
-    return ret;
+    if (!btc_util_createprivkey(pKeys->priv)) return false;
+    return btc_keys_priv2pub(pKeys->pub, pKeys->priv);
 }
 
 
 bool btc_util_create2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
-    bool ret;
-    const uint8_t *p1;
-    const uint8_t *p2;
-
-    *pSort = keys_sort2of2(&p1, &p2, pPubKey1, pPubKey2);
-    ret = btc_keys_create2of2(pRedeem, p1, p2);
-    return ret;
+    *pSort = pubkey_sort2of2(pPubKey1, pPubKey2);
+    if (*pSort == BTC_KEYS_SORT_ASC) {
+        return btc_keys_create2of2(pRedeem, pPubKey1, pPubKey2);
+    } else {
+        return btc_keys_create2of2(pRedeem, pPubKey2, pPubKey1);
+    }
 }
 
 
@@ -554,32 +555,34 @@ void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
 }
 
 
-void btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix)
+bool btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pHash, int Prefix)
 {
     switch (Prefix) {
     case BTC_PREF_P2PKH:
         //LOGD("BTC_PREF_P2PKH\n");
-        utl_buf_alloc(pBuf, 3 + BTC_SZ_HASH160 + 2);
-        create_scriptpk_p2pkh(pBuf->buf, pPubKeyHash);
+        if (!utl_buf_alloc(pBuf, 3 + BTC_SZ_HASH160 + 2)) return false;
+        create_scriptpk_p2pkh(pBuf->buf, pHash);
         break;
     case BTC_PREF_P2SH:
         //LOGD("BTC_PREF_P2SH\n");
-        utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160 + 1);
-        create_scriptpk_p2sh(pBuf->buf, pPubKeyHash);
+        if (!utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160 + 1)) return false;
+        create_scriptpk_p2sh(pBuf->buf, pHash);
         break;
     case BTC_PREF_P2WPKH:
         //LOGD("BTC_PREF_P2WPKH\n");
-        utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160);
-        create_scriptpk_native(pBuf->buf, pPubKeyHash, BTC_SZ_HASH160);
+        if (!utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH160)) return false;
+        create_scriptpk_p2wpkh(pBuf->buf, pHash);
         break;
     case BTC_PREF_P2WSH:
         //LOGD("BTC_PREF_P2WSH\n");
-        utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH256);
-        create_scriptpk_native(pBuf->buf, pPubKeyHash, BTC_SZ_HASH256);
+        if (!utl_buf_alloc(pBuf, 2 + BTC_SZ_HASH256)) return false;
+        create_scriptpk_p2wsh(pBuf->buf, pHash);
         break;
     default:
         assert(false);
+        return false;
     }
+    return true;
 }
 
 
@@ -832,19 +835,19 @@ bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enabl
 }
 
 
-void HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref)
+bool HIDDEN btcl_util_add_vout_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey, uint8_t Pref)
 {
     uint8_t pkh[BTC_SZ_HASH_MAX];
 
     btc_util_hash160(pkh, pPubKey, BTC_SZ_PUBKEY);
-    btcl_util_add_vout_pkh(pTx, Value, pkh, Pref);
+    return btcl_util_add_vout_pkh(pTx, Value, pkh, Pref);
 }
 
 
-void HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref)
+bool HIDDEN btcl_util_add_vout_pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash, uint8_t Pref)
 {
     btc_vout_t *vout = btc_tx_add_vout(pTx, Value);
-    btc_util_create_scriptpk(&vout->script, pPubKeyHash, Pref);
+    return btc_util_create_scriptpk(&vout->script, pPubKeyHash, Pref);
 }
 
 
@@ -887,10 +890,6 @@ int HIDDEN btcl_util_set_varint_len(uint8_t *pData, const uint8_t *pOrg, uint32_
  * private functions
  **************************************************************************/
 
-/** scriptPubKey(P2PKH)のデータを設定する
- *
- *
- */
 static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pPubKeyHash)
 {
     p[0] = OP_DUP;
@@ -902,56 +901,46 @@ static void create_scriptpk_p2pkh(uint8_t *p, const uint8_t *pPubKeyHash)
 }
 
 
-/** scriptPubKey(P2SH)のデータを設定する
- *
- *
- */
-static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pPubKeyHash)
+static void create_scriptpk_p2sh(uint8_t *p, const uint8_t *pHash)
 {
     p[0] = OP_HASH160;
     p[1] = BTC_SZ_HASH160;
-    memcpy(p + 2, pPubKeyHash, BTC_SZ_HASH160);
+    memcpy(p + 2, pHash, BTC_SZ_HASH160);
     p[22] = OP_EQUAL;
 }
 
 
-/** scriptPubKey(P2WPKH native)のデータを設定する
- *
- *
- */
-static void create_scriptpk_native(uint8_t *p, const uint8_t *pPubKeyHash, uint8_t Len)
+static void create_scriptpk_p2wpkh(uint8_t *p, const uint8_t *pHash)
 {
     p[0] = 0x00;
-    p[1] = Len;
-    memcpy(p + 2, pPubKeyHash, Len);
+    p[1] = BTC_SZ_HASH160;
+    memcpy(p + 2, pHash, BTC_SZ_HASH160);
+}
+
+
+static void create_scriptpk_p2wsh(uint8_t *p, const uint8_t *pHash)
+{
+    p[0] = 0x00;
+    p[1] = BTC_SZ_HASH256;
+    memcpy(p + 2, pHash, BTC_SZ_HASH256);
 }
 
 
 /** 2-of-2公開鍵ソート
  *
- * @param[out]      pp1
- * @param[out]      pp2
  * @param[in]       pPubKey1
  * @param[in]       pPubKey2
  * @retval      BTC_KEYS_SORT_ASC     引数の順番が昇順
  *
  */
-static btc_keys_sort_t keys_sort2of2(const uint8_t **pp1, const uint8_t **pp2, const uint8_t *pPubKey1, const uint8_t *pPubKey2)
+static btc_keys_sort_t pubkey_sort2of2(const uint8_t *pPubKey1, const uint8_t *pPubKey2)
 {
-    btc_keys_sort_t ret;
-
     int cmp = memcmp(pPubKey1, pPubKey2, BTC_SZ_PUBKEY);
     if (cmp < 0) {
-        ret = BTC_KEYS_SORT_ASC;
-        *pp1 = pPubKey1;
-        *pp2 = pPubKey2;
+        return BTC_KEYS_SORT_ASC;
     } else {
-        ret = BTC_KEYS_SORT_OTHER;
-        *pp1 = pPubKey2;
-        *pp2 = pPubKey1;
+        return BTC_KEYS_SORT_OTHER;
     }
-
-    return ret;
 }
 
 

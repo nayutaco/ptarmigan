@@ -204,21 +204,21 @@ typedef enum {
 } btc_chain_t;
 
 
-/** @enum   btc_valid_t
+/** @enum   btc_txvalid_t
  *  @brief  #btc_tx_is_valid()
  */
 typedef enum {
     BTC_TXVALID_OK,
-    BTC_TXVALID_ARG,
-    BTC_TXVALID_VERSION,
+    BTC_TXVALID_ARG_NULL,
+    BTC_TXVALID_VERSION_BAD,
     BTC_TXVALID_VIN_NONE,
     BTC_TXVALID_VIN_NULL,
     BTC_TXVALID_VIN_WIT_NULL,
     BTC_TXVALID_VIN_WIT_BAD,
     BTC_TXVALID_VOUT_NONE,
     BTC_TXVALID_VOUT_NULL,
-    BTC_TXVALID_VOUT_NOPKH,
-    BTC_TXVALID_VOUT_VALUE,
+    BTC_TXVALID_VOUT_SPKH_NONE,
+    BTC_TXVALID_VOUT_VALUE_BAD,
 } btc_txvalid_t;
 
 
@@ -248,7 +248,7 @@ typedef struct {
  *  @brief  VIN管理構造体
  */
 typedef struct {
-    uint8_t     txid[BTC_SZ_TXID];      ///< [outpoint]TXID
+    uint8_t     txid[BTC_SZ_TXID];      ///< [outpoint]TXID(Little Endian)
     uint32_t    index;                  ///< [outpoint]index
     utl_buf_t   script;                 ///< scriptSig
     uint32_t    wit_cnt;                ///< witness数(0のとき、witnessは無視)
@@ -531,10 +531,10 @@ void btc_tx_free(btc_tx_t *pTx);
 btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx);
 
 
-/** #btc_vin_t の追加
+/** add vin(no scriptSig) to tx
  *
  * @param[in,out]   pTx         追加対象
- * @param[in]       pTxId       追加するvinのTXID(Little Endian)
+ * @param[in]       pTxId       追加するvinのTXID(Little Endian)(#BTC_SZ_TXID)
  * @param[in]       Index       追加するvinのindex
  * @return          追加した #btc_vin_t のアドレス
  *
@@ -546,10 +546,10 @@ btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx);
  *      - sequenceは0xFFFFFFFFで初期化している
  *      - scriptSigは空のため、戻り値を使って #utl_buf_alloccopy()でコピーすることを想定している
  */
-btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, int Index);
+btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, uint32_t Index);
 
 
-/** witnessの追加
+/** add witness to vin
  *
  * @param[in,out]   pVin        追加対象
  * @return          追加したwitnessのアドレス
@@ -561,7 +561,7 @@ btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, int Index);
 utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin);
 
 
-/** #btc_vout_t の追加
+/** add vout(no scriptPubKey) to tx
  *
  * @param[in,out]   pTx         追加対象
  * @param[in]       Value       追加したvoutのvalue(単位:satoshi)
@@ -574,61 +574,58 @@ utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin);
 btc_vout_t *btc_tx_add_vout(btc_tx_t *pTx, uint64_t Value);
 
 
-/** vout追加
+/** add vout with addr
  *
  * @param[in,out]       pTx
  * @param[in]           Value
- * @param[in]           pAddr
- * @return      trueのみ
- *
- * @note
- *      - pAddrで自動判別(P2PKH, P2SH, P2WPKH)
+ * @param[in]           pAddr(P2PKH/P2SH/P2WPKH/P2WSH)
+ * @return      true:success
  */
 bool btc_tx_add_vout_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr);
 
 
-/** vout追加
+/** add vout with scriptPubKey
  *
  * @param[in,out]       pTx
  * @param[in]           Value
  * @param[in]           pScriptPk
- * @return      trueのみ
+ * @return      true:success
  */
-void btc_tx_add_vout_spk(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk);
+bool btc_tx_add_vout_spk(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pScriptPk);
 
 
-/** 標準P2PKHのvout追加
+/** add P2PKH-vout with pubKeyHash
  *
  * @param[in,out]       pTx
  * @param[in]           Value
  * @param[in]           pPubKeyHash
- * @return      trueのみ
+ * @return      true:success
  */
 bool btc_tx_add_vout_p2pkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
 
 
-/** scriptPubKeyのデータを設定する
+/** create scriptPubKey
  *
- * @param[out]      pBuf        生成したscriptPubKey
+ * @param[out]      pBuf        scriptPubKey
  * @param[in]       pAddr       Bitcoinアドレス
- * @return      true:成功
+ * @return      true:success
  */
-bool btc_tx_create_vout(utl_buf_t *pBuf, const char *pAddr);
+bool btc_tx_create_spk(utl_buf_t *pBuf, const char *pAddr);
 
 
-/** scriptPubKey(P2PKH)のデータを設定する
+/** create P2PKH-scriptPubKey
  *
- * @param[out]      pBuf        生成したscriptPubKey(P2PKH)
+ * @param[out]      pBuf        scriptPubKey
  * @param[in]       pAddr       Bitcoinアドレス
- * @return      true:成功
+ * @return      true:success
  *
  * @note
  *      - 署名用にINPUT txのscriptPubKeyが必要だが、TXデータを持たず、P2PKHだからBitcoinアドレスから生成しよう、という場合に使用する
  */
-bool btc_tx_create_vout_p2pkh(utl_buf_t *pBuf, const char *pAddr);
+bool btc_tx_create_spk_p2pkh(utl_buf_t *pBuf, const char *pAddr);
 
 
-/** 標準P2PKHのvout追加(アドレス)
+/** add P2PKH-vout with address
  *
  * @param[in,out]       pTx
  * @param[in]           Value
@@ -637,17 +634,17 @@ bool btc_tx_create_vout_p2pkh(utl_buf_t *pBuf, const char *pAddr);
 bool btc_tx_add_vout_p2pkh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr);
 
 
-/** 標準P2SHのvout追加
+/** add P2SH-vout with scriptHash
  *
  * @param[in,out]       pTx
  * @param[in]           Value
  * @param[in]           pPubKeyHash
  *
  */
-bool btc_tx_add_vout_p2sh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
+bool btc_tx_add_vout_p2sh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pScriptHash);
 
 
-/** 標準P2SHのvout追加(アドレス)
+/** add P2SH-vout with address
  *
  * @param[in,out]       pTx
  * @param[in]           Value
@@ -656,7 +653,7 @@ bool btc_tx_add_vout_p2sh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyH
 bool btc_tx_add_vout_p2sh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr);
 
 
-/** 標準P2SHのvout追加(redeemScript)
+/** add P2SH-vout with redeemScript
  *
  * @param[in,out]       pTx
  * @param[in]           Value
@@ -665,7 +662,7 @@ bool btc_tx_add_vout_p2sh_addr(btc_tx_t *pTx, uint64_t Value, const char *pAddr)
 bool btc_tx_add_vout_p2sh_redeem(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pRedeem);
 
 
-/** P2PKHのscriptSig作成
+/** set P2PKH-vin scriptSig with pubKey
  *
  * @param[in,out]   pTx         対象トランザクション
  * @param[in]       Index       対象vinのIndex
@@ -678,7 +675,7 @@ bool btc_tx_add_vout_p2sh_redeem(btc_tx_t *pTx, uint64_t Value, const utl_buf_t 
 bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey);
 
 
-/** P2SHのscriptSig作成
+/** set P2SH-vin scriptSig with multisig and redeemScript
  *
  * @param[in,out]   pTx         対象トランザクション
  * @param[in]       Index       対象vinのIndex
@@ -689,10 +686,10 @@ bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const
  * @note
  *      - 対象のvinは既に追加されていること(addではなく、置き換える動作)
  */
-bool btc_tx_set_vin_p2sh(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], int Num, const utl_buf_t *pRedeem);
+bool btc_tx_set_vin_p2sh_multi(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem);
 
 
-/** トランザクションデータを #btc_tx_t に変換
+/* convert tx from data array to #btc_tx_t
  *
  * @param[out]      pTx         変換後データ
  * @param[in]       pData       トランザクションデータ
@@ -705,7 +702,7 @@ bool btc_tx_set_vin_p2sh(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], int
 bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len);
 
 
-/** トランザクションデータ作成
+/** convert tx from #btc_tx_t to data array
  *
  * @param[out]      pBuf        変換後データ
  * @param[in]       pTx         対象データ
@@ -1228,24 +1225,25 @@ bool btc_extkey_read_addr(btc_extkey_t *pEKey, const char *pXAddr);
 //UTIL
 //////////////////////
 
-/** WIFからの鍵生成
+/** extract keys from WIF
  *
- * @param[out]      pKeys           鍵情報
- * @param[out]      pChain          WIF種別
+ * @param[out]      pKeys           keys
+ * @param[out]      pChain          chain
  * @param[in]       pWifPriv        WIF compressed formatted private key
- * @return      true    成功
+ * @return      true    success
  */
 bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv);
 
 
-/** 乱数での秘密鍵生成
+/** generate private key from RNG
  *
- * @param[out]      pPriv           秘密鍵
+ * @param[out]      pPriv           private key
+ * @return      true    success
  */
-void btc_util_createprivkey(uint8_t *pPriv);
+bool btc_util_createprivkey(uint8_t *pPriv);
 
 
-/** 乱数での鍵生成
+/** generate keys from RNG
  *
  * @param[out]      pKeys           鍵情報
  * @return      true    成功
@@ -1256,7 +1254,7 @@ bool btc_util_createkeys(btc_keys_t *pKeys);
 /** #btc_keys_create2of2()のソートあり版
  *
  * @param[out]      pRedeem     2-of-2 redeem script
- * @param[out]      pSort       ソート結果
+ * @param[out]      pSort       ソート結果(#BTC_KEYS_SORT_ASC)
  * @param[in]       pPubKey1    公開鍵1
  * @param[in]       pPubKey2    公開鍵2
  *
@@ -1429,8 +1427,9 @@ void btc_util_create_pkh2wpkh(uint8_t *pWPubKeyHash, const uint8_t *pPubKeyHash)
  * @param[out]      pBuf
  * @param[in]       pPubKeyHash
  * @param[in]       Prefix
+ * @return      true:success
  */
-void btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix);
+bool btc_util_create_scriptpk(utl_buf_t *pBuf, const uint8_t *pPubKeyHash, int Prefix);
 
 
 /**
