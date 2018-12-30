@@ -106,7 +106,7 @@ int tx_create1(void)
 
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
     utl_buf_free(&txbuf);
 
@@ -217,7 +217,7 @@ int tx_create2(void)
 
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
     utl_buf_free(&txbuf);
 
@@ -327,7 +327,7 @@ int tx_create3(void)
 
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
     utl_buf_free(&txbuf);
 
@@ -431,7 +431,7 @@ int tx_create4(void)
 
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
     utl_buf_free(&txbuf);
 
@@ -531,7 +531,7 @@ int tx_create5(void)
 
 
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &tx);
+    btc_tx_write(&tx, &txbuf);
     btc_util_dumpbin(stdout, txbuf.buf, txbuf.len, true);
     utl_buf_free(&txbuf);
 

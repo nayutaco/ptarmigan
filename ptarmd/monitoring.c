@@ -803,7 +803,7 @@ static void close_unilateral_local_sendreq(bool *pDel, const btc_tx_t *pTx, cons
     utl_buf_t buf;
     uint8_t txid[BTC_SZ_TXID];
 
-    btc_tx_create(&buf, pTx);
+    btc_tx_write(pTx, &buf);
     bool ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);
     utl_buf_free(&buf);
     if (ret) {
@@ -1022,7 +1022,7 @@ static bool close_revoked_htlc(const ln_self_t *self, const btc_tx_t *pTx, int V
     ln_revokedhtlc_create_spenttx(self, &tx, pTx->vout[VIndex].value, WitIndex, txid, VIndex);
     btc_print_tx(&tx);
     utl_buf_t buf;
-    btc_tx_create(&buf, &tx);
+    btc_tx_write(&tx, &buf);
     btc_tx_free(&tx);
     bool ret = btcrpc_send_rawtx(txid, NULL, buf.buf, buf.len);
     if (ret) {

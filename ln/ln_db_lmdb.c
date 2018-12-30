@@ -3996,7 +3996,7 @@ static int self_save(const ln_self_t *self, ln_lmdb_db_t *pDb)
 
     //可変サイズ
     utl_buf_t buf_funding = UTL_BUF_INIT;
-    btc_tx_create(&buf_funding, &self->tx_funding);
+    btc_tx_write(&self->tx_funding, &buf_funding);
     //
     backup_buf_t *p_dbscript_keys = (backup_buf_t *)UTL_DBG_MALLOC(sizeof(backup_buf_t) * M_SELF_BUFS);
     int index = 0;

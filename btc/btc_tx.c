@@ -176,7 +176,7 @@ btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
             LOGD("fail: no scriptPubKeyHash[%u]\n", lp);
             return BTC_TXVALID_VOUT_SPKH_NONE;
         }
-        if ((vout->value == 0) && (vout->script.buf[0] != M_OP_RETURN)) { //XXX:
+        if ((vout->value == 0) && (vout->script.buf[0] != M_OP_RETURN)) {
             LOGD("fail: no value[%u]\n", lp);
             return BTC_TXVALID_VOUT_VALUE_BAD;
         }
@@ -528,14 +528,15 @@ LABEL_EXIT:
 }
 
 
-bool btc_tx_create(utl_buf_t *pBuf, const btc_tx_t *pTx)
+bool btc_tx_write(const btc_tx_t *pTx, utl_buf_t *pBuf)
 {
     return btcl_util_create_tx(pBuf, pTx, true);
 }
 
 
-bool btc_tx_sighash(uint8_t *pTxHash, btc_tx_t *pTx, const utl_buf_t *pScriptPks[], uint32_t Num)
+bool btc_tx_sighash(btc_tx_t *pTx, uint8_t *pTxHash, const utl_buf_t *pScriptPks[], uint32_t Num)
 {
+    bool ret = false;
     const uint32_t sigtype = (uint32_t)SIGHASH_ALL;
 
     btc_txvalid_t txvld = btc_tx_is_valid(pTx);
@@ -549,31 +550,40 @@ bool btc_tx_sighash(uint8_t *pTxHash, btc_tx_t *pTx, const utl_buf_t *pScriptPks
         return false;
     }
 
-    //scriptSigをscriptPubKeyで置き換える
+    //scriptSig -> tmp
     utl_buf_t *tmp_vinbuf = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pTx->vin_cnt);
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &pTx->vin[lp];
 
         tmp_vinbuf[lp].buf = vin->script.buf;
         tmp_vinbuf[lp].len = vin->script.len;
-        vin->script.len = pScriptPks[lp]->len;
-        vin->script.buf = (uint8_t *)UTL_DBG_MALLOC(vin->script.len);
-        memcpy(vin->script.buf, pScriptPks[lp]->buf, vin->script.len);
     }
 
-    utl_buf_t tx;
-    bool ret = btc_tx_create(&tx, pTx);
-    if (!ret) {
+    //scriptPubKey -> scriptSig
+    for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
+        btc_vin_t *vin = &pTx->vin[lp];
+
+        vin->script.buf = (uint8_t *)UTL_DBG_MALLOC(pScriptPks[lp]->len);
+        if (!vin->script.buf) goto LABEL_EXIT;
+        vin->script.len = pScriptPks[lp]->len;
+        memcpy(vin->script.buf, pScriptPks[lp]->buf, pScriptPks[lp]->len);
+    }
+
+    //calc hash
+    utl_buf_t buf;
+    if (!btc_tx_write(pTx, &buf)) {
         assert(0);
         goto LABEL_EXIT;
     }
-    tx.buf = (uint8_t *)UTL_DBG_REALLOC(tx.buf, tx.len + sizeof(sigtype));
-    memcpy(tx.buf + tx.len, &sigtype, sizeof(sigtype));
-    tx.len += sizeof(sigtype);
-    btc_util_hash256(pTxHash, tx.buf, tx.len);
-    utl_buf_free(&tx);
+    if (!utl_buf_realloc(&buf, buf.len + sizeof(sigtype))) {
+        utl_buf_free(&buf);
+        goto LABEL_EXIT;
+    }
+    memcpy(buf.buf + buf.len - sizeof(sigtype), &sigtype, sizeof(sigtype));
+    btc_util_hash256(pTxHash, buf.buf, buf.len);
+    utl_buf_free(&buf);
 
-    //scriptSigを元に戻す
+    //tmp -> scriptSig
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &pTx->vin[lp];
 
@@ -582,6 +592,8 @@ bool btc_tx_sighash(uint8_t *pTxHash, btc_tx_t *pTx, const utl_buf_t *pScriptPks
         vin->script.len = tmp_vinbuf[lp].len;
     }
     UTL_DBG_FREE(tmp_vinbuf);
+
+    ret = true;
 
 LABEL_EXIT:
     return ret;

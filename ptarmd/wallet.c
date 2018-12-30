@@ -64,7 +64,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
     //  [32:privkey] + [1:type] + [8:amount]
     {
         utl_buf_t txbuf = UTL_BUF_INIT;
-        btc_tx_create(&txbuf, &wallet.tx);
+        btc_tx_write(&wallet.tx, &txbuf);
         uint32_t vbyte = btc_tx_get_vbyte_raw(txbuf.buf, txbuf.len);
         vbyte += ((72 - (32+1+8)) * wallet.tx.vin_cnt + 3) / 4;    //署名サイズを72byteとして計算(切り上げ)
                                                         //vbyteはwitness/4だけ増加
@@ -132,7 +132,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
 
     btc_print_tx(&wallet.tx);
     utl_buf_t txbuf = UTL_BUF_INIT;
-    btc_tx_create(&txbuf, &wallet.tx);
+    btc_tx_write(&wallet.tx, &txbuf);
     LOGD("raw=");
     DUMPD(txbuf.buf, txbuf.len);
 

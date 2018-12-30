@@ -152,7 +152,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_keys_t *pKeys)
     const utl_buf_t *scrpks[] = { &scrpk };
 
     uint8_t txhash[BTC_SZ_HASH256];
-    bool ret = btc_tx_sighash(txhash, pTx, (const utl_buf_t **)scrpks, 1);
+    bool ret = btc_tx_sighash(pTx, txhash, (const utl_buf_t **)scrpks, 1);
     assert(ret);
     ret = btc_tx_sign_p2pkh(pTx, Index, txhash, pKeys->priv, pKeys->pub);
     assert(ret);
@@ -173,7 +173,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout)
     const utl_buf_t *scrpks[] = { &scrpk };
 
     uint8_t txhash[BTC_SZ_HASH256];
-    bool ret = btc_tx_sighash(txhash, pTx, (const utl_buf_t **)scrpks, 1);
+    bool ret = btc_tx_sighash(pTx, txhash, (const utl_buf_t **)scrpks, 1);
     assert(ret);
     ret = btc_tx_verify_p2pkh_addr(pTx, Index, txhash, pAddrVout);
     assert(ret);

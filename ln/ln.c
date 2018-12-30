@@ -3003,7 +3003,7 @@ static bool recv_closing_signed(ln_self_t *self, const uint8_t *pData, uint16_t 
         //closing_txを展開する
         LOGD("same fee!\n");
         utl_buf_t txbuf = UTL_BUF_INIT;
-        ret = btc_tx_create(&txbuf, &self->tx_closing);
+        ret = btc_tx_write(&self->tx_closing, &txbuf);
         if (ret) {
             ln_cb_closed_t closed;
 
