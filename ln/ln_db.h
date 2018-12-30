@@ -44,7 +44,7 @@ extern "C" {
 #define LN_DB_WALLET_TYPE_TOREMOTE  ((uint8_t)2)
 #define LN_DB_WALLET_TYPE_HTLCOUT   ((uint8_t)3)
 
-#define LN_DB_WALLET_INIT(t)        { t/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_cnt*/, NULL/*p_wit*/ }
+#define LN_DB_WALLET_INIT(t)        { t/*type*/, NULL/*p_txid*/, 0/*index*/, 0/*amount*/, 0/*sequence*/, 0/*locktime*/, 0/*wit_item_cnt*/, NULL/*p_wit*/ }
 
 
 /**************************************************************************
@@ -100,8 +100,8 @@ typedef struct {
     uint64_t    amount;                     ///< satoshis
     uint32_t    sequence;                   ///< <sequence>
     uint32_t    locktime;                   ///< <locktime>
-    uint32_t    wit_cnt;
-    utl_buf_t   *p_wit;                     ///< p_wit[wit_cnt]
+    uint32_t    wit_item_cnt;
+    utl_buf_t   *p_wit;                     ///< p_wit[wit_item_cnt]
 } ln_db_wallet_t;
 
 

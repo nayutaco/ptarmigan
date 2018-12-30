@@ -699,14 +699,14 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
     printf(INDENT2 M_QQ("amount") ": %" PRIu64 ",\n", pWallet->amount);
     printf(INDENT2 M_QQ("sequence") ": %" PRIu32 ",\n", pWallet->sequence);
     printf(INDENT2 M_QQ("locktime") ": %" PRIu32 ",\n", pWallet->locktime);
-    if (pWallet->wit_cnt > 0) {
+    if (pWallet->wit_item_cnt > 0) {
         printf(INDENT2 M_QQ("privkey") ": \"");
         btc_util_dumpbin(stdout, pWallet->p_wit[0].buf, pWallet->p_wit[0].len, false);
         printf("\",\n");
     }
-    if (pWallet->wit_cnt > 1) {
+    if (pWallet->wit_item_cnt > 1) {
         printf(INDENT2 M_QQ("witness") ": [\n");
-        for (uint32_t lp = 1; lp < pWallet->wit_cnt; lp++) {
+        for (uint32_t lp = 1; lp < pWallet->wit_item_cnt; lp++) {
             if (lp > 1) {
                 printf(",\n");
             }
@@ -718,8 +718,8 @@ static bool dumpit_wallet_func(const ln_db_wallet_t *pWallet, void *p_param)
         printf(INDENT2 "]\n");
     }
     printf(INDENT1 "}\n");
-    // printf("cnt=%d\n", pWallet->wit_cnt);
-    // for (uint8_t lp = 0; lp < pWallet->wit_cnt; lp++) {
+    // printf("cnt=%d\n", pWallet->wit_item_cnt);
+    // for (uint8_t lp = 0; lp < pWallet->wit_item_cnt; lp++) {
     //     printf("[%d][%d]", lp, pWallet->p_wit[lp].len);
     //     btc_util_dumpbin(stdout, pWallet->p_wit[lp].buf, pWallet->p_wit[lp].len, true);
     // }

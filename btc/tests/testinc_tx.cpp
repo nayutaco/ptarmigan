@@ -77,13 +77,13 @@ TEST_F(tx, add_vin1)
     ASSERT_EQ(2, vin->index);
     ASSERT_TRUE(NULL == vin->script.buf);
     ASSERT_EQ(0, vin->script.len);
-    ASSERT_EQ(0, vin->wit_cnt);
+    ASSERT_EQ(0, vin->wit_item_cnt);
     ASSERT_TRUE(NULL == vin->witness);
     ASSERT_EQ(0xffffffff, vin->sequence);
 
     //wit
     utl_buf_t *wit1 = btc_tx_add_wit(vin);
-    ASSERT_EQ(1, vin->wit_cnt);
+    ASSERT_EQ(1, vin->wit_item_cnt);
     ASSERT_TRUE(wit1 == &vin->witness[0]);
     ASSERT_EQ(0, wit1->len);
     ASSERT_TRUE(NULL == wit1->buf);
@@ -91,7 +91,7 @@ TEST_F(tx, add_vin1)
     utl_buf_alloccopy(wit1, WIT1, sizeof(WIT1));
 
     utl_buf_t *wit2 = btc_tx_add_wit(vin);
-    ASSERT_EQ(2, vin->wit_cnt);
+    ASSERT_EQ(2, vin->wit_item_cnt);
     ASSERT_TRUE(wit2 == &vin->witness[1]);
     ASSERT_EQ(0, wit2->len);
     ASSERT_TRUE(NULL == wit2->buf);
@@ -136,13 +136,13 @@ TEST_F(tx, add_vin2)
     ASSERT_EQ(2, vin->index);
     ASSERT_TRUE(NULL == vin->script.buf);
     ASSERT_EQ(0, vin->script.len);
-    ASSERT_EQ(0, vin->wit_cnt);
+    ASSERT_EQ(0, vin->wit_item_cnt);
     ASSERT_TRUE(NULL == vin->witness);
     ASSERT_EQ(0xffffffff, vin->sequence);
 
     //wit
     utl_buf_t *wit01 = btc_tx_add_wit(vin);
-    ASSERT_EQ(1, vin->wit_cnt);
+    ASSERT_EQ(1, vin->wit_item_cnt);
     ASSERT_TRUE(wit01 == &vin->witness[0]);
     ASSERT_EQ(0, wit01->len);
     ASSERT_TRUE(NULL == wit01->buf);
@@ -150,7 +150,7 @@ TEST_F(tx, add_vin2)
     utl_buf_alloccopy(wit01, WIT01, sizeof(WIT01));
 
     utl_buf_t *wit02 = btc_tx_add_wit(vin);
-    ASSERT_EQ(2, vin->wit_cnt);
+    ASSERT_EQ(2, vin->wit_item_cnt);
     ASSERT_TRUE(wit02 == &vin->witness[1]);
     ASSERT_EQ(0, wit02->len);
     ASSERT_TRUE(NULL == wit02->buf);
@@ -179,13 +179,13 @@ TEST_F(tx, add_vin2)
     ASSERT_EQ(5, vin->index);
     ASSERT_TRUE(NULL == vin->script.buf);
     ASSERT_EQ(0, vin->script.len);
-    ASSERT_EQ(0, vin->wit_cnt);
+    ASSERT_EQ(0, vin->wit_item_cnt);
     ASSERT_TRUE(NULL == vin->witness);
     ASSERT_EQ(0xffffffff, vin->sequence);
 
     //wit
     utl_buf_t *wit11 = btc_tx_add_wit(vin);
-    ASSERT_EQ(1, vin->wit_cnt);
+    ASSERT_EQ(1, vin->wit_item_cnt);
     ASSERT_TRUE(wit11 == &vin->witness[0]);
     ASSERT_EQ(0, wit11->len);
     ASSERT_TRUE(NULL == wit11->buf);
@@ -193,7 +193,7 @@ TEST_F(tx, add_vin2)
     utl_buf_alloccopy(wit11, WIT11, sizeof(WIT11));
 
     utl_buf_t *wit12 = btc_tx_add_wit(vin);
-    ASSERT_EQ(2, vin->wit_cnt);
+    ASSERT_EQ(2, vin->wit_item_cnt);
     ASSERT_TRUE(wit12 == &vin->witness[1]);
     ASSERT_EQ(0, wit12->len);
     ASSERT_TRUE(NULL == wit12->buf);
@@ -201,7 +201,7 @@ TEST_F(tx, add_vin2)
     utl_buf_alloccopy(wit12, WIT12, sizeof(WIT12));
 
     utl_buf_t *wit13 = btc_tx_add_wit(vin);
-    ASSERT_EQ(3, vin->wit_cnt);
+    ASSERT_EQ(3, vin->wit_item_cnt);
     ASSERT_TRUE(wit13 == &vin->witness[2]);
     ASSERT_EQ(0, wit13->len);
     ASSERT_TRUE(NULL == wit13->buf);
@@ -245,7 +245,7 @@ TEST_F(tx, add_vin_vinmax)
 
     //vin_cntを操作したので、解放できるよう変更
     tx.vin_cnt = 1;
-    tx.vin[0].wit_cnt = 0;
+    tx.vin[0].wit_item_cnt = 0;
     tx.vin[0].script.len = 0;
     tx.vin[0].script.buf = NULL;
     btc_tx_free(&tx);
@@ -267,14 +267,14 @@ TEST_F(tx, add_vin_witmax)
     btc_tx_add_vin(&tx, TXID_LE, 2);
     //今回はvarint型で1byte分までしか対応しないつもりだったが、そうもいかなくなった
     btc_vin_t *vin = &tx.vin[0];
-    vin->wit_cnt = 0xfc;
+    vin->wit_item_cnt = 0xfc;
 
     utl_buf_t *wit = btc_tx_add_wit(vin);
     ASSERT_TRUE(wit != NULL);
-    ASSERT_EQ(0xfd, vin->wit_cnt);
+    ASSERT_EQ(0xfd, vin->wit_item_cnt);
 
     //tx_freeのために初期化
-    for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
+    for (uint32_t lp2 = 0; lp2 < vin->wit_item_cnt; lp2++) {
         utl_buf_init(&(vin->witness[lp2]));
     }
     btc_tx_free(&tx);
@@ -865,7 +865,7 @@ TEST_F(tx, read_p2pkh)
     ASSERT_EQ(1, vin->index);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, vin->script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), vin->script.len);
-    ASSERT_EQ(0, vin->wit_cnt);
+    ASSERT_EQ(0, vin->wit_item_cnt);
     ASSERT_TRUE(NULL == vin->witness);
     ASSERT_EQ(0xffffffff, vin->sequence);
 
@@ -1162,7 +1162,7 @@ TEST_F(tx, read_p2sh)
     ASSERT_EQ(0, vin->index);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, vin->script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), vin->script.len);
-    ASSERT_EQ(0, vin->wit_cnt);
+    ASSERT_EQ(0, vin->wit_item_cnt);
     ASSERT_TRUE(NULL == vin->witness);
     ASSERT_EQ(0xffffffff, vin->sequence);
 

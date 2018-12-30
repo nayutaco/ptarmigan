@@ -677,7 +677,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                         { p_tx->vin[0].witness[0].buf, BTC_SZ_PRIVKEY },
                         { pub, sizeof(pub) }
                     };
-                    wlt.wit_cnt = 2;
+                    wlt.wit_item_cnt = 2;
                     wlt.p_wit = witbuf;
                     (void)ln_db_wallet_add(&wlt);
                 }
@@ -687,7 +687,7 @@ static bool close_unilateral_remote(ln_self_t *self, void *pDbParam)
                 if ((p_tx->vin_cnt == 0) && (p_tx->vout_cnt == 0)) {
                     LOGD("  no resolved tx\n");
                     del = false;
-                } else if (p_tx->vin[0].wit_cnt > 0) {
+                } else if (p_tx->vin[0].wit_item_cnt > 0) {
                     //INPUT spent check
                     bool unspent;
                     bool ret = btcrpc_check_unspent(ln_their_node_id(self), &unspent, NULL,
@@ -996,7 +996,7 @@ static bool close_revoked_toremote(const ln_self_t *self, const btc_tx_t *pTx, i
             set_wallet_data(&wlt, &tx);
             uint8_t pub[BTC_SZ_PUBKEY];
             btc_keys_priv2pub(pub, tx.vin[0].witness[0].buf);
-            wlt.wit_cnt = 2;
+            wlt.wit_item_cnt = 2;
             utl_buf_t witbuf[2] = {
                 { tx.vin[0].witness[0].buf, BTC_SZ_PRIVKEY },
                 { pub, sizeof(pub) }
@@ -1043,6 +1043,6 @@ static void set_wallet_data(ln_db_wallet_t *pWlt, const btc_tx_t *pTx)
     pWlt->amount = pTx->vout[0].value;
     pWlt->sequence = pTx->vin[0].sequence;
     pWlt->locktime = pTx->locktime;
-    pWlt->wit_cnt = pTx->vin[0].wit_cnt;
+    pWlt->wit_item_cnt = pTx->vin[0].wit_item_cnt;
     pWlt->p_wit = pTx->vin[0].witness;
 }

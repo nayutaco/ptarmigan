@@ -188,7 +188,7 @@ TEST_F(sw, read_tx_p2wpkh)
     ASSERT_EQ(1, vin->index);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, vin->script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), vin->script.len);
-    ASSERT_EQ(2, vin->wit_cnt);
+    ASSERT_EQ(2, vin->wit_item_cnt);
     ASSERT_EQ(0, memcmp(WIT0, vin->witness[0].buf, sizeof(WIT0)));
     ASSERT_EQ(sizeof(WIT0), vin->witness[0].len);
     ASSERT_EQ(0, memcmp(WIT1, vin->witness[1].buf, sizeof(WIT1)));
@@ -337,7 +337,7 @@ TEST_F(sw, read_tx_p2wsh)
     ASSERT_EQ(1, vin->index);
     ASSERT_EQ(0, memcmp(SCRIPTSIG, vin->script.buf, sizeof(SCRIPTSIG)));
     ASSERT_EQ(sizeof(SCRIPTSIG), vin->script.len);
-    ASSERT_EQ(4, vin->wit_cnt);
+    ASSERT_EQ(4, vin->wit_item_cnt);
     ASSERT_EQ(0, vin->witness[0].len);
     ASSERT_EQ(0, memcmp(WIT1, vin->witness[1].buf, sizeof(WIT1)));
     ASSERT_EQ(sizeof(WIT1), vin->witness[1].len);
@@ -552,7 +552,7 @@ TEST_F(sw, set_vin_p2wpkh)
     const btc_vin_t *vin = &tx.vin[0];
     ASSERT_EQ(0, memcmp(SCRIPT_SIG, vin->script.buf, sizeof(SCRIPT_SIG)));
     ASSERT_EQ(sizeof(SCRIPT_SIG), vin->script.len);
-    ASSERT_EQ(2, vin->wit_cnt);
+    ASSERT_EQ(2, vin->wit_item_cnt);
     ASSERT_EQ(0, memcmp(SIG, vin->witness[0].buf, sizeof(SIG)));
     ASSERT_EQ(sizeof(SIG), vin->witness[0].len);
     ASSERT_EQ(0, memcmp(PUB, vin->witness[1].buf, sizeof(PUB)));
@@ -639,7 +639,7 @@ TEST_F(sw, set_vin_p2wsh)
     const btc_vin_t *vin = &tx.vin[0];
     ASSERT_EQ(0, memcmp(SCRIPT_SIG, vin->script.buf, sizeof(SCRIPT_SIG)));
     ASSERT_EQ(sizeof(SCRIPT_SIG), vin->script.len);
-    ASSERT_EQ(4, vin->wit_cnt);
+    ASSERT_EQ(4, vin->wit_item_cnt);
     ASSERT_EQ(0, vin->witness[0].len);
     ASSERT_EQ(0, memcmp(SIG1, vin->witness[1].buf, sizeof(SIG1)));
     ASSERT_EQ(sizeof(SIG1), vin->witness[1].len);
@@ -712,7 +712,7 @@ TEST_F(sw, sign_p2wpkh)
     const btc_vin_t *vin = &tx.vin[0];
     ASSERT_EQ(0, memcmp(SCRIPT_SIG, vin->script.buf, sizeof(SCRIPT_SIG)));
     ASSERT_EQ(sizeof(SCRIPT_SIG), vin->script.len);
-    ASSERT_EQ(2, vin->wit_cnt);
+    ASSERT_EQ(2, vin->wit_item_cnt);
 //    ASSERT_EQ(0, memcmp(SIG, vin->witness[0].buf, sizeof(SIG)));
 //    ASSERT_EQ(sizeof(SIG), vin->witness[0].len);
     ASSERT_EQ(0, memcmp(PUB, vin->witness[1].buf, sizeof(PUB)));

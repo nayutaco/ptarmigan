@@ -89,12 +89,12 @@ void btc_tx_free(btc_tx_t *pTx)
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         btc_vin_t *vin = &(pTx->vin[lp]);
         utl_buf_free(&(vin->script));
-        for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
+        for (uint32_t lp2 = 0; lp2 < vin->wit_item_cnt; lp2++) {
             utl_buf_free(&(vin->witness[lp2]));
         }
-        if (vin->wit_cnt) {
+        if (vin->wit_item_cnt) {
             UTL_DBG_FREE(vin->witness);
-            vin->wit_cnt = 0;
+            vin->wit_item_cnt = 0;
         }
     }
     if (pTx->vin_cnt) {
@@ -149,16 +149,16 @@ btc_txvalid_t btc_tx_is_valid(const btc_tx_t *pTx)
     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
         const btc_vin_t *vin = &pTx->vin[lp];
 
-        if ((vin->wit_cnt > 0) && (vin->witness == NULL)) {
+        if ((vin->wit_item_cnt > 0) && (vin->witness == NULL)) {
             LOGD("fail: NULL witness[%u]\n", lp);
             return BTC_TXVALID_VIN_WIT_NULL;
-        } else if ((vin->wit_cnt == 0) && (vin->witness != NULL)) {
+        } else if ((vin->wit_item_cnt == 0) && (vin->witness != NULL)) {
             LOGD("fail: bad witness[%u]\n", lp);
             return BTC_TXVALID_VIN_WIT_BAD;
         } else {
             //OK
         }
-        for (uint32_t wit = 0; wit < vin->wit_cnt; wit++) {
+        for (uint32_t wit = 0; wit < vin->wit_item_cnt; wit++) {
             const utl_buf_t *buf = &vin->witness[wit];
             if (buf == NULL) {
                 LOGD("fail: NULL witness[%u][%u]", lp, wit);
@@ -194,7 +194,7 @@ btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, uint32_t Index)
     memcpy(vin->txid, pTxId, BTC_SZ_TXID);
     vin->index = Index;
     utl_buf_init(&vin->script);
-    vin->wit_cnt = 0;
+    vin->wit_item_cnt = 0;
     vin->witness = NULL;
     vin->sequence = BTC_TX_SEQUENCE;
     return vin;
@@ -203,10 +203,10 @@ btc_vin_t *btc_tx_add_vin(btc_tx_t *pTx, const uint8_t *pTxId, uint32_t Index)
 
 utl_buf_t *btc_tx_add_wit(btc_vin_t *pVin)
 {
-    pVin->witness = (utl_buf_t *)UTL_DBG_REALLOC(pVin->witness, sizeof(utl_buf_t) * (pVin->wit_cnt + 1));
+    pVin->witness = (utl_buf_t *)UTL_DBG_REALLOC(pVin->witness, sizeof(utl_buf_t) * (pVin->wit_item_cnt + 1));
     if (!pVin->witness) return NULL;
-    utl_buf_t *p_buf = &(pVin->witness[pVin->wit_cnt]);
-    pVin->wit_cnt++;
+    utl_buf_t *p_buf = &(pVin->witness[pVin->wit_item_cnt]);
+    pVin->wit_item_cnt++;
 
     utl_buf_init(p_buf);
     return p_buf;
@@ -492,15 +492,15 @@ bool btc_tx_read(btc_tx_t *pTx, const uint8_t *pData, uint32_t Len)
             if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
             if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
             if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
-            pTx->vin[i].wit_cnt = (uint32_t)tmp_u64;
+            pTx->vin[i].wit_item_cnt = (uint32_t)tmp_u64;
 
             //XXX:
-            pTx->vin[i].witness = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pTx->vin[i].wit_cnt);
+            pTx->vin[i].witness = (utl_buf_t *)UTL_DBG_MALLOC(sizeof(utl_buf_t) * pTx->vin[i].wit_item_cnt);
             if (!pTx->vin[i].witness) goto LABEL_EXIT;
-            memset(pTx->vin[i].witness, 0x00, sizeof(utl_buf_t) * pTx->vin[i].wit_cnt);
+            memset(pTx->vin[i].witness, 0x00, sizeof(utl_buf_t) * pTx->vin[i].wit_item_cnt);
 
             //witness item
-            for (uint32_t lp = 0; lp < pTx->vin[i].wit_cnt; lp++) {
+            for (uint32_t lp = 0; lp < pTx->vin[i].wit_item_cnt; lp++) {
                 if (!tx_buf_read_varint(&txbuf, &tmp_u64)) goto LABEL_EXIT;
                 if (tmp_u64 > UINT32_MAX) goto LABEL_EXIT;
                 if (tmp_u64 > tx_buf_remains(&txbuf)) goto LABEL_EXIT;
@@ -949,7 +949,7 @@ bool btc_tx_txid_raw(uint8_t *pTxId, const utl_buf_t *pTxRaw)
 //     bool segwit = false;
 //     for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
 //         btc_vin_t *vin = &(pTx->vin[lp]);
-//         if (vin->wit_cnt) {
+//         if (vin->wit_item_cnt) {
 //             segwit = true;
 //         }
 //     }
@@ -1022,13 +1022,13 @@ void btc_print_tx(const btc_tx_t *pTx)
         //btc_print_scriptbtc_print_script(pTx->vin[lp].script.buf, pTx->vin[lp].script.len);
         //bool p2wsh = (pTx->vin[lp].script.len == 35) &&
         //             (pTx->vin[lp].script.buf[1] == 0x00) && (pTx->vin[lp].script.buf[2] == 0x20);
-        //bool p2wsh = (pTx->vin[lp].wit_cnt >= 3);
+        //bool p2wsh = (pTx->vin[lp].wit_item_cnt >= 3);
         LOGD2("  sequence= 0x%08x\n", pTx->vin[lp].sequence);
-        for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_cnt; lp2++) {
+        for(uint32_t lp2 = 0; lp2 < pTx->vin[lp].wit_item_cnt; lp2++) {
             LOGD2("    wit[%u][%u]= ", lp2, pTx->vin[lp].witness[lp2].len);
             if(pTx->vin[lp].witness[lp2].len) {
                 DUMPD(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);
-                // if (p2wsh &&(lp2 == pTx->vin[lp].wit_cnt - 1)) {
+                // if (p2wsh &&(lp2 == pTx->vin[lp].wit_item_cnt - 1)) {
                 //     //P2WSHの最後はwitnessScript
                 //     //nativeのP2WSHでも表示させたかったが、識別する方法が思いつかない
                 //     btc_print_script(pTx->vin[lp].witness[lp2].buf, pTx->vin[lp].witness[lp2].len);

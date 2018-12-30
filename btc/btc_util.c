@@ -745,10 +745,10 @@ bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enabl
 
         len += BTC_SZ_TXID + sizeof(uint32_t) + vin->script.len + sizeof(uint32_t);
         len += btcl_util_get_varint_len(vin->script.len);
-        if (enableSegWit && vin->wit_cnt) {
+        if (enableSegWit && vin->wit_item_cnt) {
             segwit = true;
-            len++;          //wit_cnt
-            for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
+            len++;          //wit_item_cnt
+            for (uint32_t lp2 = 0; lp2 < vin->wit_item_cnt; lp2++) {
                 utl_buf_t *buf = &(vin->witness[lp2]);
                 len += buf->len;
                 len += btcl_util_get_varint_len(buf->len);
@@ -817,8 +817,8 @@ bool HIDDEN btcl_util_create_tx(utl_buf_t *pBuf, const btc_tx_t *pTx, bool enabl
         for (uint32_t lp = 0; lp < pTx->vin_cnt; lp++) {
             btc_vin_t *vin = &(pTx->vin[lp]);
 
-            p += btcl_util_set_varint_len(p, NULL, vin->wit_cnt, false);
-            for (uint32_t lp2 = 0; lp2 < vin->wit_cnt; lp2++) {
+            p += btcl_util_set_varint_len(p, NULL, vin->wit_item_cnt, false);
+            for (uint32_t lp2 = 0; lp2 < vin->wit_item_cnt; lp2++) {
                 utl_buf_t *buf = &(vin->witness[lp2]);
 
                 p += btcl_util_set_varint_len(p, buf->buf, buf->len, false);

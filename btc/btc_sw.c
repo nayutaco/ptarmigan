@@ -82,7 +82,7 @@ bool btc_sw_scriptcode_p2wpkh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
     //P2WPKHのwitness
     //      0:<signature>
     //      1:<pubkey>
-    if (pVin->wit_cnt != 2) {
+    if (pVin->wit_item_cnt != 2) {
         return false;
     }
 
@@ -108,11 +108,11 @@ bool btc_sw_scriptcode_p2wsh_vin(utl_buf_t *pScriptCode, const btc_vin_t *pVin)
     //      2:data 2
     //      ....
     //      n:witnessScript
-    if (pVin->wit_cnt == 0) {
+    if (pVin->wit_item_cnt == 0) {
         return false;
     }
 
-    btc_sw_scriptcode_p2wsh(pScriptCode, &pVin->witness[pVin->wit_cnt - 1]);
+    btc_sw_scriptcode_p2wsh(pScriptCode, &pVin->witness[pVin->wit_item_cnt - 1]);
     return true;
 }
 
@@ -265,12 +265,12 @@ bool btc_sw_set_vin_p2wpkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, cons
         btc_util_hash160(&p_buf->buf[3], pPubKey, BTC_SZ_PUBKEY);
     }
 
-    if (vin->wit_cnt != 0) {
+    if (vin->wit_item_cnt != 0) {
         //一度解放する
-        for (uint32_t lp = 0; lp < vin->wit_cnt; lp++) {
+        for (uint32_t lp = 0; lp < vin->wit_item_cnt; lp++) {
             utl_buf_free(&vin->witness[lp]);
         }
-        vin->wit_cnt = 0;
+        vin->wit_item_cnt = 0;
     }
     //[0]signature
     utl_buf_t *p_sig = btc_tx_add_wit(vin);
@@ -309,12 +309,12 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, int Index, const utl_buf_t *pWits[], in
         btc_util_sha256(p_buf->buf + 3, pWits[Num - 1]->buf, pWits[Num - 1]->len);
     }
 
-    if (vin->wit_cnt != 0) {
+    if (vin->wit_item_cnt != 0) {
         //一度解放する
-        for (uint32_t lp = 0; lp < vin->wit_cnt; lp++) {
+        for (uint32_t lp = 0; lp < vin->wit_item_cnt; lp++) {
             utl_buf_free(&vin->witness[lp]);
         }
-        vin->wit_cnt = 0;
+        vin->wit_item_cnt = 0;
     }
     for (int lp = 0; lp < Num; lp++) {
         utl_buf_t *p = btc_tx_add_wit(vin);
@@ -327,7 +327,7 @@ bool btc_sw_set_vin_p2wsh(btc_tx_t *pTx, int Index, const utl_buf_t *pWits[], in
 bool btc_sw_verify_p2wpkh(const btc_tx_t *pTx, int Index, uint64_t Value, const uint8_t *pPubKeyHash)
 {
     btc_vin_t *vin = &(pTx->vin[Index]);
-    if (vin->wit_cnt != 2) {
+    if (vin->wit_item_cnt != 2) {
         //P2WPKHのwitness itemは2
         return false;
     }
@@ -392,7 +392,7 @@ bool btc_sw_verify_p2wpkh_addr(const btc_tx_t *pTx, int Index, uint64_t Value, c
 
 bool btc_sw_verify_2of2(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pVout)
 {
-    if (pTx->vin[Index].wit_cnt != 4) {
+    if (pTx->vin[Index].wit_item_cnt != 4) {
         //2-of-2は4項目
         LOGD("items not 4.n");
         return false;
@@ -540,7 +540,7 @@ bool btc_sw_is_segwit(const btc_tx_t *pTx)
     bool ret = false;
 
     for (int lp = 0; lp < pTx->vin_cnt; lp++) {
-        if (pTx->vin[lp].wit_cnt > 0) {
+        if (pTx->vin[lp].wit_item_cnt > 0) {
             ret = true;
             break;
         }
