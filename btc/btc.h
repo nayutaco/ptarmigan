@@ -235,13 +235,13 @@ typedef struct {
 } btc_extkey_t;
 
 
-/** @struct     btc_util_keys_t
+/** @struct     btc_keys_t
  *  @brief      鍵情報
  */
 typedef struct {
     uint8_t     priv[BTC_SZ_PRIVKEY];             ///< 秘密鍵
     uint8_t     pub[BTC_SZ_PUBKEY];               ///< 公開鍵
-} btc_util_keys_t;
+} btc_keys_t;
 
 
 /** @struct btc_vin_t
@@ -394,7 +394,7 @@ bool btc_keys_pub2p2wpkh(char *pWAddr, const uint8_t *pPubKey);
 bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
 
 
-/** Redeem ScriptをBitcoinアドレス(P2WSH or P2SH-P2WSH)に変換
+/** Witness ScriptをBitcoinアドレス(P2WSH or P2SH-P2WSH)に変換
  *
  * @param[out]      pWAddr          変換後データ(#BTC_SZ_ADDR_STR_MAX+1)
  * @param[in]       pRedeem         対象データ
@@ -403,7 +403,7 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr);
  *      - if mNativeSegwit == true then P2WSH
  *      - if mNativeSegwit == false then P2SH-P2WSH
  */
-bool btc_keys_redeem2waddr(char *pWAddr, const utl_buf_t *pRedeem);
+bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitnessScript);
 
 
 /** uncompress public key
@@ -851,7 +851,7 @@ bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTx
  * @param[in]       pPubKeyHash     PubKeyHash
  * @return      true:チェックOK
  */
-bool btc_tx_verify_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
+bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash);
 
 
 /** P2SH署名チェック(scriptPubKey)
@@ -862,7 +862,7 @@ bool btc_tx_verify_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHa
  * @param[in]       pScriptPk       scriptPubKey
  * @return      true:チェックOK
  */
-bool btc_tx_verify_p2sh_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
+bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk);
 
 
 /** P2SH署名チェック(アドレス)
@@ -873,7 +873,7 @@ bool btc_tx_verify_p2sh_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHa
  * @param[in]       pAddr           Bitcoinアドレス
  * @return      true:チェックOK
  */
-bool btc_tx_verify_p2sh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
+bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr);
 
 
 /** 公開鍵復元
@@ -1235,7 +1235,7 @@ bool btc_extkey_read_addr(btc_extkey_t *pEKey, const char *pXAddr);
  * @param[in]       pWifPriv        WIF compressed formatted private key
  * @return      true    成功
  */
-bool btc_util_wif2keys(btc_util_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv);
+bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv);
 
 
 /** 乱数での秘密鍵生成
@@ -1250,7 +1250,7 @@ void btc_util_createprivkey(uint8_t *pPriv);
  * @param[out]      pKeys           鍵情報
  * @return      true    成功
  */
-bool btc_util_createkeys(btc_util_keys_t *pKeys);
+bool btc_util_createkeys(btc_keys_t *pKeys);
 
 
 /** #btc_keys_create2of2()のソートあり版
@@ -1273,7 +1273,7 @@ bool btc_util_create2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_util_keys_t *pKeys);
+bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_keys_t *pKeys);
 
 
 /** P2PKH署名チェック
@@ -1296,7 +1296,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout);
  * @note
  *      - #btc_init()の設定で署名する
  */
-bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_util_keys_t *pKeys);
+bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_keys_t *pKeys);
 
 
 /** P2WSH署名 - Phase1: トランザクションハッシュ作成
@@ -1319,7 +1319,7 @@ bool btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Inde
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_util_keys_t *pKeys);
+bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys);
 
 
 /** P2WSH署名 - Phase2: 署名作成(R/S)
@@ -1329,7 +1329,7 @@ bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_util
  * @param[in]       pKeys
  * @return      true:成功
  */
-bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_util_keys_t *pKeys);
+bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys_t *pKeys);
 
 
 /** トランザクションをBIP69に従ってソートする

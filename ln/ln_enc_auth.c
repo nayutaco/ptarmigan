@@ -83,7 +83,7 @@ enum state_t {
  *  @brief  noise handshake data
  */
 struct bolt8_t {
-    btc_util_keys_t   e;                  //ephemeral key
+    btc_keys_t  e;                  //ephemeral key
     uint8_t     h[BTC_SZ_HASH256];         //h
     uint8_t     ck[BTC_SZ_HASH256];        //ck
     uint8_t     temp_k[BTC_SZ_HASH256];    //temp_k1,2,3

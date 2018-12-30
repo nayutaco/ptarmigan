@@ -1189,7 +1189,7 @@ void ln_lmdb_bkself_show(MDB_txn *txn, MDB_dbi dbi)
             case ETYPE_LOCALKEYS: //funding_local.keys
 #ifdef M_DEBUG_KEYS
                 {
-                    const btc_util_keys_t *p_keys = (const btc_util_keys_t *)p;
+                    const btc_keys_t *p_keys = (const btc_keys_t *)p;
                     memcpy(local.pubkeys, p_keys, M_SIZE(ln_funding_local_data_t, pubkeys));
                 }
 #endif  //M_DEBUG_KEYS
@@ -3600,7 +3600,7 @@ bool ln_db_ver_check(uint8_t *pMyNodeId, btc_genesis_t *pGType)
     uint8_t genesis[BTC_SZ_HASH256];
     retval = ver_check(&db, &ver, wif, alias, &port, genesis);
     if (retval == 0) {
-        btc_util_keys_t key;
+        btc_keys_t key;
         btc_chain_t chain;
 
         btc_genesis_t gtype = btc_util_get_genesis(genesis);

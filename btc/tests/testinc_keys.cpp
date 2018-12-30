@@ -424,7 +424,7 @@ TEST_F(keys, wit2p2wsh)
     const char ADDR[] = "2Mt8fd67GgFMQpeKqn9mZ6VRWHnK6MAzGbD";
 
     char addr[BTC_SZ_ADDR_STR_MAX + 1];
-    bool ret = btc_keys_redeem2waddr(addr, &redeem);
+    bool ret = btc_keys_wit2waddr(addr, &redeem);
     ASSERT_TRUE(ret);
     ASSERT_STREQ(ADDR, addr);
 }

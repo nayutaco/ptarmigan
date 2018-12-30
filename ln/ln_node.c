@@ -260,7 +260,7 @@ uint64_t ln_node_total_msat(void)
 
 void HIDDEN ln_node_create_key(char *pWif, uint8_t *pPubKey)
 {
-    btc_util_keys_t keys;
+    btc_keys_t keys;
     btc_util_createkeys(&keys);
     memcpy(pPubKey, keys.pub, BTC_SZ_PUBKEY);
     btc_keys_priv2wif(pWif, keys.priv);

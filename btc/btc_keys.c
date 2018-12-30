@@ -225,21 +225,21 @@ bool btc_keys_addr2p2wpkh(char *pWAddr, const char *pAddr)
 }
 
 
-bool btc_keys_redeem2waddr(char *pWAddr, const utl_buf_t *pRedeem)
+bool btc_keys_wit2waddr(char *pWAddr, const utl_buf_t *pWitnessScript)
 {
     bool ret;
     int pref;
     uint8_t hash[BTC_SZ_HASH_MAX];
 
     if (mNativeSegwit) {
-        btc_util_sha256(hash, pRedeem->buf, pRedeem->len);
+        btc_util_sha256(hash, pWitnessScript->buf, pWitnessScript->len);
         pref = BTC_PREF_P2WSH;
     } else {
         uint8_t wit_prog[BTC_SZ_WITPROG_P2WSH];
 
         wit_prog[0] = 0x00;
         wit_prog[1] = BTC_SZ_HASH256;
-        btc_util_sha256(wit_prog + 2, pRedeem->buf, pRedeem->len);
+        btc_util_sha256(wit_prog + 2, pWitnessScript->buf, pWitnessScript->len);
         btc_util_hash160(hash, wit_prog, sizeof(wit_prog));
         pref = BTC_PREF_P2SH;
     }

@@ -94,7 +94,7 @@ static const uint8_t M_BTC_GENESIS_REGTEST[] = {
  * public functions
  **************************************************************************/
 
-bool btc_util_wif2keys(btc_util_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv)
+bool btc_util_wif2keys(btc_keys_t *pKeys, btc_chain_t *pChain, const char *pWifPriv)
 {
     bool ret;
 
@@ -115,7 +115,7 @@ void btc_util_createprivkey(uint8_t *pPriv)
 }
 
 
-bool btc_util_createkeys(btc_util_keys_t *pKeys)
+bool btc_util_createkeys(btc_keys_t *pKeys)
 {
     btc_util_createprivkey(pKeys->priv);
     bool ret = btc_keys_priv2pub(pKeys->pub, pKeys->priv);
@@ -135,7 +135,7 @@ bool btc_util_create2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint8
 }
 
 
-bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_util_keys_t *pKeys)
+bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_keys_t *pKeys)
 {
     btc_txvalid_t txvalid = btc_tx_is_valid(pTx);
     if (txvalid != BTC_TXVALID_OK) {
@@ -182,7 +182,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout)
 }
 
 
-bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_util_keys_t *pKeys)
+bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_keys_t *pKeys)
 {
     bool ret;
     uint8_t txhash[BTC_SZ_HASH256];
@@ -232,13 +232,13 @@ bool btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Inde
 }
 
 
-bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_util_keys_t *pKeys)
+bool btc_util_sign_p2wsh(utl_buf_t *pSig, const uint8_t *pTxHash, const btc_keys_t *pKeys)
 {
     return btc_tx_sign(pSig, pTxHash, pKeys->priv);
 }
 
 
-bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_util_keys_t *pKeys)
+bool btc_util_sign_p2wsh_rs(uint8_t *pRS, const uint8_t *pTxHash, const btc_keys_t *pKeys)
 {
     return btc_tx_sign_rs(pRS, pTxHash, pKeys->priv);
 }

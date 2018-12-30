@@ -22,7 +22,7 @@ protected:
     }
 
     static utl_buf_t redeem_fund;
-    static btc_util_keys_t    keys;
+    static btc_keys_t    keys;
 
 public:
     static void DumpBin(const uint8_t *pData, uint16_t Len)
@@ -35,7 +35,7 @@ public:
 };
 
 utl_buf_t ln_bolt3_b::redeem_fund;
-btc_util_keys_t    ln_bolt3_b::keys;
+btc_keys_t    ln_bolt3_b::keys;
 
 
 ////////////////////////////////////////////////////////////////////////

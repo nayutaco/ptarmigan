@@ -277,7 +277,7 @@ static bool create_to_local_spenthtlc(const ln_self_t *self,
                     uint64_t Amount,
                     const utl_buf_t *pBufWs,
                     const ln_script_htlcinfo_t *pHtlcInfo,
-                    const btc_util_keys_t *pHtlcKey,
+                    const btc_keys_t *pHtlcKey,
                     uint32_t ToSelfDelay);
 static bool create_to_remote(const ln_self_t *self,
                     ln_commit_data_t *pCommit,
@@ -304,7 +304,7 @@ static bool create_to_remote_spenthtlc(
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
                     const ln_script_htlcinfo_t *pHtlcInfo,
-                    const btc_util_keys_t *pHtlcKey,
+                    const btc_keys_t *pHtlcKey,
                     const utl_buf_t *pBufRemoteSig,
                     uint64_t Fee,
                     uint8_t HtlcNum,
@@ -1831,7 +1831,7 @@ bool ln_wallet_create_tolocal(const ln_self_t *self, btc_tx_t *pTx,uint64_t Valu
     bool ret = create_basetx(pTx, Value,
                 NULL, ToSelfDelay, pTxid, Index, bRevoked);
     if (ret) {
-        btc_util_keys_t sigkey;
+        btc_keys_t sigkey;
         ln_signer_tolocal_key(self, &sigkey, bRevoked);
         ret = ln_script_tolocal_wit(pTx, &sigkey, pScript, bRevoked);
     }
@@ -1846,7 +1846,7 @@ bool ln_wallet_create_toremote(
     bool ret = create_basetx(pTx, Value,
                 NULL, 0, pTxid, Index, false);
     if (ret) {
-        btc_util_keys_t sigkey;
+        btc_keys_t sigkey;
         ln_signer_toremote_key(self, &sigkey);
         ln_script_toremote_wit(pTx, &sigkey);
     }
@@ -1867,7 +1867,7 @@ bool ln_revokedhtlc_create_spenttx(const ln_self_t *self, btc_tx_t *pTx, uint64_
     ln_script_htlctx_create(pTx, Value - fee, &self->shutdown_scriptpk_local, self->p_revoked_type[WitIndex], 0, pTxid, Index);
     M_DBG_PRINT_TX2(pTx);
 
-    btc_util_keys_t signkey;
+    btc_keys_t signkey;
     ln_signer_get_revokesec(self, &signkey,
                     self->funding_remote.pubkeys[MSG_FUNDIDX_PER_COMMIT],
                     self->revoked_sec.buf);
@@ -4569,7 +4569,7 @@ static bool create_to_local_spent(ln_self_t *self,
     btc_tx_t *pCloseTxToLocal = NULL;
     btc_tx_t *pCloseTxHtlcs = NULL;
     utl_push_t push;
-    btc_util_keys_t htlckey;
+    btc_keys_t htlckey;
 
     if (pClose != NULL) {
         pCloseTxToLocal = &pClose->p_tx[LN_CLOSE_IDX_TOLOCAL];
@@ -4754,7 +4754,7 @@ static bool create_to_local_spenthtlc(const ln_self_t *self,
                     uint64_t Amount,
                     const utl_buf_t *pBufWs,
                     const ln_script_htlcinfo_t *pHtlcInfo,
-                    const btc_util_keys_t *pHtlcKey,
+                    const btc_keys_t *pHtlcKey,
                     uint32_t ToSelfDelay)
 {
     bool ret;
@@ -5096,7 +5096,7 @@ static bool create_to_remote_spent(const ln_self_t *self,
     ln_misc_sigexpand(&buf_remotesig, self->commit_local.signature);
 
     //HTLC署名用鍵
-    btc_util_keys_t htlckey;
+    btc_keys_t htlckey;
     ln_signer_htlc_remotekey(self, &htlckey);
 
     for (uint32_t vout_idx = 0; vout_idx < pTxCommit->vout_cnt; vout_idx++) {
@@ -5206,7 +5206,7 @@ static bool create_to_remote_spenthtlc(
                     const btc_tx_t *pTxCommit,
                     const utl_buf_t *pBufWs,
                     const ln_script_htlcinfo_t *pHtlcInfo,
-                    const btc_util_keys_t *pHtlcKey,
+                    const btc_keys_t *pHtlcKey,
                     const utl_buf_t *pBufRemoteSig,
                     uint64_t Fee,
                     uint8_t HtlcNum,
