@@ -289,7 +289,7 @@ TEST_F(send, p2wsh)
     ASSERT_TRUE(ret);
     printf("redeem= \n");
     send::DumpBin(redeem.buf, redeem.len);
-    btc_sw_add_vout_p2wsh(&tx, BTC_MBTC2SATOSHI(5.8), &redeem);
+    ASSERT_TRUE(btc_sw_add_vout_p2wsh_wit(&tx, BTC_MBTC2SATOSHI(5.8), &redeem));
 
     const char ADDR_2OF2[] = "2MuuDWRBQ5KTxJzAk1qPFZfzeheLcoSu3vy";
     char addr_2of2[BTC_SZ_ADDR_STR_MAX + 1];

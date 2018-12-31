@@ -343,7 +343,7 @@ bool HIDDEN ln_script_committx_create(
     //  P2WSH - local
     if (pCmt->local.satoshi >= pCmt->p_feeinfo->dust_limit_satoshi + fee_local) {
         LOGD("  add local: %" PRIu64 " - %" PRIu64 " sat\n", pCmt->local.satoshi, fee_local);
-        btc_sw_add_vout_p2wsh(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
+        btc_sw_add_vout_p2wsh_wit(pTx, pCmt->local.satoshi - fee_local, pCmt->local.p_script);
         pTx->vout[pTx->vout_cnt - 1].opt = LN_HTLCTYPE_TOLOCAL;
     } else {
         LOGD("  [local output]below dust: %" PRIu64 " < %" PRIu64 " + %" PRIu64 "\n", pCmt->local.satoshi, pCmt->p_feeinfo->dust_limit_satoshi, fee_local);
@@ -368,7 +368,7 @@ bool HIDDEN ln_script_committx_create(
             break;
         }
         if (output_sat >= pCmt->p_feeinfo->dust_limit_satoshi + fee) {
-            btc_sw_add_vout_p2wsh(pTx,
+            btc_sw_add_vout_p2wsh_wit(pTx,
                     output_sat,
                     &pCmt->pp_htlcinfo[lp]->script);
             pTx->vout[pTx->vout_cnt - 1].opt = (uint8_t)lp;
@@ -415,7 +415,7 @@ void HIDDEN ln_script_htlctx_create(
                     int Index)
 {
     //vout
-    btc_sw_add_vout_p2wsh(pTx, Value, pScript);
+    btc_sw_add_vout_p2wsh_wit(pTx, Value, pScript);
     pTx->vout[0].opt = (uint8_t)Type;
     switch (Type) {
     case LN_HTLCTYPE_RECEIVED:

@@ -961,7 +961,7 @@ uint32_t btc_tx_get_vbyte_raw(const uint8_t *pData, uint32_t Len);
  * @param[in]       Value
  * @param[in]       pPubKey
  */
-void btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey);
+bool btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKey);
 
 
 /** P2WPKHのvout追加(pubKeyHash)
@@ -969,8 +969,9 @@ void btc_sw_add_vout_p2wpkh_pub(btc_tx_t *pTx, uint64_t Value, const uint8_t *pP
  * @param[in,out]   pTx
  * @param[in]       Value
  * @param[in]       pPubKeyHash
+ * @retval      true    成功
  */
-void btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
+bool btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKeyHash);
 
 
 /** P2WSHのvout追加(witnessScript)
@@ -978,20 +979,22 @@ void btc_sw_add_vout_p2wpkh(btc_tx_t *pTx, uint64_t Value, const uint8_t *pPubKe
  * @param[in,out]   pTx
  * @param[in]       Value
  * @param[in]       pWitScript
+ * @retval      true    成功
  *
  */
-void btc_sw_add_vout_p2wsh(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript);
+bool btc_sw_add_vout_p2wsh_wit(btc_tx_t *pTx, uint64_t Value, const utl_buf_t *pWitScript);
 
 
 /** P2WPKH署名計算で使用するScript Code取得
  *
  * @param[out]      pScriptCode     P2WPKH用Script Code
  * @param[in]       pPubKey         公開鍵
+ * @retval      true    成功
  *
  * @note
  *      - pScriptCodeは使用後に #utl_buf_free()で解放すること
  */
-void btc_sw_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
+bool btc_sw_scriptcode_p2wpkh(utl_buf_t *pScriptCode, const uint8_t *pPubKey);
 
 
 /** P2WPKH署名計算で使用するScript Code取得(vin)
