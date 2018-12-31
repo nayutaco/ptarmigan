@@ -136,7 +136,7 @@ bool btc_util_create_2of2(utl_buf_t *pRedeem, btc_keys_sort_t *pSort, const uint
 }
 
 
-bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_keys_t *pKeys)
+bool btc_util_sign_p2pkh(btc_tx_t *pTx, uint32_t Index, const btc_keys_t *pKeys)
 {
     btc_tx_valid_t txvalid = btc_tx_is_valid(pTx);
     if (txvalid != BTC_TXVALID_OK) {
@@ -162,7 +162,7 @@ bool btc_util_sign_p2pkh(btc_tx_t *pTx, int Index, const btc_keys_t *pKeys)
 }
 
 
-bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout)
+bool btc_util_verify_p2pkh(btc_tx_t *pTx, uint32_t Index, const char *pAddrVout)
 {
     //公開鍵(署名サイズ[1],署名[sz],公開鍵サイズ[1], 公開鍵、の順になっている)
     const uint8_t *p_pubkey = pTx->vin[Index].script.buf + 1 + pTx->vin[Index].script.buf[0] + 1;
@@ -183,7 +183,7 @@ bool btc_util_verify_p2pkh(btc_tx_t *pTx, int Index, const char *pAddrVout)
 }
 
 
-bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_keys_t *pKeys)
+bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const btc_keys_t *pKeys)
 {
     bool ret;
     uint8_t txhash[BTC_SZ_HASH256];
@@ -214,7 +214,7 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, int Index, uint64_t Value, const btc_ke
 }
 
 
-bool btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, int Index, uint64_t Value,
+bool btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint64_t Value,
                     const utl_buf_t *pWitScript)
 {
     bool ret;

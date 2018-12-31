@@ -333,7 +333,7 @@ bool btc_tx_add_vout_p2sh_redeem(btc_tx_t *pTx, uint64_t Value, const utl_buf_t 
 }
 
 
-bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
+bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
     if (!pSig->len) return false;
 
@@ -350,7 +350,7 @@ bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, int Index, const utl_buf_t *pSig, const
 }
 
 
-bool btc_tx_set_vin_p2sh_multisig(btc_tx_t *pTx, int Index, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem)
+bool btc_tx_set_vin_p2sh_multisig(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem)
 {
     if (!Num) return false;
     if (!pRedeem->len) return false;
@@ -592,7 +592,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_tx_sign_p2pkh(btc_tx_t *pTx, int Index,
+bool btc_tx_sign_p2pkh(btc_tx_t *pTx, uint32_t Index,
                 const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
 {
     bool ret;
@@ -625,7 +625,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
+bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
 {
     //scriptSig(P2PSH): <sig> <pubKey>
 
@@ -663,7 +663,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_tx_verify_p2pkh_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
+bool btc_tx_verify_p2pkh_spk(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
     //scriptPubKey(P2PKH): DUP HASH160 0x14 <20 bytes> EQUALVERIFY CHECKSIG
 
@@ -689,7 +689,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr)
+bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr)
 {
     uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
@@ -704,7 +704,7 @@ bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTx
 }
 
 
-bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const uint8_t *pScriptHash)
+bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const uint8_t *pScriptHash)
 {
     const utl_buf_t *p_scriptsig = (const utl_buf_t *)&(pTx->vin[Index].script);
     const uint8_t *p = p_scriptsig->buf;
@@ -866,7 +866,7 @@ bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, int Index, const uint8_t *
 }
 
 
-bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
+bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
     bool ret = false;
 
@@ -889,7 +889,7 @@ LABEL_EXIT:
 }
 
 
-bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, int Index, const uint8_t *pTxHash, const char *pAddr)
+bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr)
 {
     uint8_t hash[BTC_SZ_HASH_MAX];
     int pref;
