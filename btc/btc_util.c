@@ -196,7 +196,10 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
         return false;
     }
 
-    btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub);
+    if (!btc_sw_scriptcode_p2wpkh(&script_code, pKeys->pub)) {
+        LOGD("fail\n");
+        return false;
+    }
 
     ret = btc_sw_sighash(txhash, pTx, Index, Value, &script_code);
     if (ret) {
