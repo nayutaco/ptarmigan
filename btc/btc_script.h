@@ -42,6 +42,9 @@
  * macros
  **************************************************************************/
 
+#define BTC_SZ_WITPROG_P2WPKH   (2 + BTC_SZ_HASH160)    ///< サイズ: witnessProgram(P2WPKH)
+#define BTC_SZ_WITPROG_P2WSH    (2 + BTC_SZ_HASH256)    ///< サイズ: witnessProgram(P2WSH)
+
 
 /**************************************************************************
  * macro functions
