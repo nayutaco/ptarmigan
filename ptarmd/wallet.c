@@ -108,7 +108,7 @@ bool wallet_from_ptarm(char **ppResult, const char *pAddr, uint32_t FeeratePerKb
             break;
         case LN_DB_WALLET_TYPE_TOLOCAL:
         case LN_DB_WALLET_TYPE_HTLCOUT:
-            ret = btc_util_calc_sighash_p2wsh(txhash, &wallet.tx, lp, amount,
+            ret = btc_util_calc_sighash_p2wsh(&wallet.tx, txhash, lp, amount,
                                                 &p_vin->witness[p_vin->wit_item_cnt-1]);
             break;
         default:

@@ -1322,14 +1322,14 @@ bool btc_util_sign_p2wpkh(btc_tx_t *pTx, uint32_t Index, uint64_t Value, const b
 
 /** P2WSH署名 - Phase1: トランザクションハッシュ作成
  *
- * @param[out]      pTxHash
  * @param[in]       pTx
+ * @param[out]      pTxHash
  * @param[in]       Index
  * @param[in]       Value
  * @param[in]       pWitScript
  * @retval  false   pTxがトランザクションとして不正
  */
-bool btc_util_calc_sighash_p2wsh(uint8_t *pTxHash, const btc_tx_t *pTx, uint32_t Index, uint64_t Value,
+bool btc_util_calc_sighash_p2wsh(const btc_tx_t *pTx, uint8_t *pTxHash, uint32_t Index, uint64_t Value,
                     const utl_buf_t *pWitScript);
 
 
