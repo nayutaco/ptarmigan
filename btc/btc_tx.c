@@ -336,13 +336,13 @@ bool btc_tx_add_vout_p2sh_redeem(btc_tx_t *pTx, uint64_t Value, const utl_buf_t 
 
 bool btc_tx_set_vin_p2pkh(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSig, const uint8_t *pPubKey)
 {
-    return btc_script_create_p2pkh(&(pTx->vin[Index].script), pSig, pPubKey);
+    return btc_script_sig_create_p2pkh(&(pTx->vin[Index].script), pSig, pPubKey);
 }
 
 
 bool btc_tx_set_vin_p2sh_multisig(btc_tx_t *pTx, uint32_t Index, const utl_buf_t *pSigs[], uint8_t Num, const utl_buf_t *pRedeem)
 {
-    return btc_script_create_p2sh_multisig(&(pTx->vin[Index].script), pSigs, Num, pRedeem);
+    return btc_script_sig_create_p2sh_multisig(&(pTx->vin[Index].script), pSigs, Num, pRedeem);
 }
 
 
@@ -549,43 +549,43 @@ LABEL_EXIT:
 bool btc_tx_sign_p2pkh(btc_tx_t *pTx, uint32_t Index,
                 const uint8_t *pTxHash, const uint8_t *pPrivKey, const uint8_t *pPubKey)
 {
-    return btc_script_sign_p2pkh(&(pTx->vin[Index].script), pTxHash, pPrivKey, pPubKey);
+    return btc_script_sig_sign_p2pkh(&(pTx->vin[Index].script), pTxHash, pPrivKey, pPubKey);
 }
 
 
 bool btc_tx_verify_p2pkh(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const uint8_t *pPubKeyHash)
 {
-    return btc_script_verify_p2pkh(&(pTx->vin[Index].script), pTxHash, pPubKeyHash);
+    return btc_script_sig_verify_p2pkh(&(pTx->vin[Index].script), pTxHash, pPubKeyHash);
 }
 
 
 bool btc_tx_verify_p2pkh_spk(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
-    return btc_script_verify_p2pkh_spk(&(pTx->vin[Index].script), pTxHash, pScriptPk);
+    return btc_script_sig_verify_p2pkh_spk(&(pTx->vin[Index].script), pTxHash, pScriptPk);
 }
 
 
 bool btc_tx_verify_p2pkh_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr)
 {
-    return btc_script_verify_p2pkh_addr(&(pTx->vin[Index].script), pTxHash, pAddr);
+    return btc_script_sig_verify_p2pkh_addr(&(pTx->vin[Index].script), pTxHash, pAddr);
 }
 
 
 bool btc_tx_verify_p2sh_multisig(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const uint8_t *pScriptHash)
 {
-    return btc_script_verify_p2sh_multisig(&(pTx->vin[Index].script), pTxHash, pScriptHash);
+    return btc_script_sig_verify_p2sh_multisig(&(pTx->vin[Index].script), pTxHash, pScriptHash);
 }
 
 
 bool btc_tx_verify_p2sh_multisig_spk(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const utl_buf_t *pScriptPk)
 {
-    return btc_script_verify_p2sh_multisig_spk(&(pTx->vin[Index].script), pTxHash, pScriptPk);
+    return btc_script_sig_verify_p2sh_multisig_spk(&(pTx->vin[Index].script), pTxHash, pScriptPk);
 }
 
 
 bool btc_tx_verify_p2sh_multisig_addr(const btc_tx_t *pTx, uint32_t Index, const uint8_t *pTxHash, const char *pAddr)
 {
-    return btc_script_verify_p2sh_multisig_addr(&(pTx->vin[Index].script), pTxHash, pAddr);
+    return btc_script_sig_verify_p2sh_multisig_addr(&(pTx->vin[Index].script), pTxHash, pAddr);
 }
 
 
